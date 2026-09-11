@@ -99,7 +99,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool override: stale pin falls back to auto"
 // set_ams_topology() expands ToolState's tool list to one entry per filament
 // slot, so tool_count() on a 4-lane AMS or a 16-wide AD5X tool map says nothing
 // about how many nozzles the machine has. Driving print_status_multi_tool from
-// it stamped a "T0" badge and a tool-picker chevron onto single-hotend printers.
+// it stamped a "Slot 1" badge and a tool-picker chevron onto single-hotend printers.
 // ============================================================================
 
 namespace {
@@ -183,7 +183,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool badge: a genuine second extruder still 
 
     auto* label = lv_xml_get_subject(nullptr, "print_status_nozzle_tool_label");
     REQUIRE(label != nullptr);
-    REQUIRE(std::string(lv_subject_get_string(label)) == "T0");
+    REQUIRE(std::string(lv_subject_get_string(label)) == "Slot 1");
 }
 
 // ============================================================================

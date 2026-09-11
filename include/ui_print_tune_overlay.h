@@ -254,7 +254,7 @@ class PrintTuneOverlay : public OverlayBase {
     char tune_actual_speed_buf_[32] = "";
     char tune_actual_flow_buf_[32] = "";
     char tune_z_other_buf_[32] = "";
-    char tune_z_tool_label_buf_[8] = "T0";
+    char tune_z_tool_label_buf_[16] = "Tool 1";
 
     //
     // === State ===

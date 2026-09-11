@@ -14,6 +14,7 @@
 #include "ui_filament_path_internal.h"
 #include "ui_fonts.h"
 
+#include "display_numbering.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
@@ -714,7 +715,7 @@ void format_tool_badge_label(const FilamentPathData* data, int lane, int fallbac
                              size_t out_size) {
     if (data && data->use_extruder_identity && lane >= 0 && lane < FilamentPathData::MAX_SLOTS &&
         data->extruder_tool[lane] >= 0) {
-        snprintf(out, out_size, "E%d", data->extruder_tool[lane]);
+        snprintf(out, out_size, "E%d", helix::ui::lane_number(data->extruder_tool[lane]));
         return;
     }
     snprintf(out, out_size, "T%d", fallback_tool);

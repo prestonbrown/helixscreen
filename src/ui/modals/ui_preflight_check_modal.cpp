@@ -10,6 +10,7 @@
 #include "ams_backend.h"
 #include "ams_remap.h"
 #include "ams_state.h"
+#include "display_numbering.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "theme_manager.h"
@@ -109,7 +110,7 @@ void PreflightCheckModal::on_show() {
                     snprintf(buf, sizeof(buf),
                              lv_tr("T%d needs filament in slot %d, which is empty — "
                                    "this print will run out."),
-                             check.tool_index, check.mapped_slot + 1);
+                             check.tool_index, helix::ui::lane_number(check.mapped_slot));
                 }
                 text = buf;
                 break;
@@ -148,9 +149,7 @@ lv_obj_t* PreflightCheckModal::create_tool_row(lv_obj_t* list, const helix::Tool
 
     // Tool label "Tx".
     if (auto* tool_label = lv_obj_find_by_name(row, "tool_label")) {
-        char buf[8];
-        snprintf(buf, sizeof(buf), "T%d", check.tool_index);
-        lv_label_set_text(tool_label, buf);
+        lv_label_set_text(tool_label, helix::ui::tool_label(check.tool_index).c_str());
     }
 
     // Intended (slicer) color swatch.

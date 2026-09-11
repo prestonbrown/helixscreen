@@ -1958,7 +1958,7 @@ void PrintStatusWidget::DetailedFormatter::update_tool_label() {
     } else {
         // Label tracks what the user is VIEWING — the pinned tool when one
         // is set, otherwise the currently active tool. Anything else looks
-        // broken right after a pin ("I picked Nozzle 2 but it still says T0").
+        // broken right after a pin ("I picked Nozzle 2 but it still says Tool 1").
         int idx = -1;
         // Defend against hand-edited config — the name has to parse as a
         // Klipper extruder AND name an extruder this printer has.
@@ -1971,7 +1971,13 @@ void PrintStatusWidget::DetailedFormatter::update_tool_label() {
             // "auto", unrecognized, or out-of-range → follow active tool.
             idx = tools.active_tool_index();
         }
-        snprintf(nozzle_tool_label_buf_, sizeof(nozzle_tool_label_buf_), "T%d", idx);
+        const auto& tool_list = tools.tools();
+        if (idx >= 0 && idx < static_cast<int>(tool_list.size())) {
+            snprintf(nozzle_tool_label_buf_, sizeof(nozzle_tool_label_buf_), "%s",
+                     tool_list[idx].display_label.c_str());
+        } else {
+            nozzle_tool_label_buf_[0] = '\0';
+        }
     }
     lv_subject_copy_string(&nozzle_tool_label_subject_, nozzle_tool_label_buf_);
 }

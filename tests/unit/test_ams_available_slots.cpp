@@ -147,9 +147,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "collect_available_slots takes noun from each 
     auto& ams = AmsState::instance();
     ams.init_subjects(false);
 
-    // Backend 0: mock, defaults to LaneNoun::Slot. Backend 1: AFC, overrides
-    // to Lane. Two backends so a wrong implementation that reads one active
-    // backend's noun for every slot cannot pass by coincidence.
+    // Backend 0: mock, defaults to simulating Happy Hare (LaneNoun::Gate).
+    // Backend 1: AFC, LaneNoun::Lane. Two different nouns so a wrong
+    // implementation that reads one active backend's noun for every slot
+    // cannot pass by coincidence.
     ams.set_backend(std::make_unique<AmsBackendMock>());
 
     auto afc = std::make_unique<AfcAvailableSlotsHelper>();
@@ -170,7 +171,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "collect_available_slots takes noun from each 
     REQUIRE(mock_slot != nullptr);
     REQUIRE(afc_slot != nullptr);
 
-    CHECK(mock_slot->noun == helix::ui::LaneNoun::Slot);
+    CHECK(mock_slot->noun == helix::ui::LaneNoun::Gate);
     CHECK(afc_slot->noun == helix::ui::LaneNoun::Lane);
 
     ams.clear_backends();

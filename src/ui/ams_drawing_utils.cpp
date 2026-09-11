@@ -691,7 +691,7 @@ ToolBadgeLabels compute_tool_badge_labels(const SystemToolLayout& layout,
         out.prefix = 'E';
         out.numbers.reserve(layout.physical_to_extruder_name.size());
         for (const auto& name : layout.physical_to_extruder_name) {
-            out.numbers.push_back(*helix::tool_number_for_extruder(name));
+            out.numbers.push_back(helix::ui::lane_number(*helix::tool_number_for_extruder(name)));
         }
         return out;
     }

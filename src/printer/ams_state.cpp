@@ -23,6 +23,7 @@
 #include "app_globals.h"
 #include "clog_meter_geometry.h"
 #include "data_root_resolver.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
 #include "filament_mapper.h"
@@ -3348,8 +3349,9 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
 
             char tmp[64];
             if (is_tool_changer(sys.type) && sys.units.empty()) {
-                // Pure tool changer with no AMS units — show tool index (0-based)
-                snprintf(tmp, sizeof(tmp), lv_tr("Current: Tool %d"), slot_index);
+                // Pure tool changer with no AMS units — show the physical tool number
+                snprintf(tmp, sizeof(tmp), lv_tr("Current: Tool %d"),
+                         helix::ui::lane_number(slot_index));
             } else {
                 std::string unit_display;
                 int display_slot = slot_index + 1; // 1-based global slot number

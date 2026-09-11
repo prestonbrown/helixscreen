@@ -18,6 +18,7 @@
 #include "ui_filament_mapping_card.h"
 
 #include "color_utils.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_variants.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -267,8 +268,8 @@ CheckResult gate_unresolved_tools(const PrintStartContext& ctx) {
         const auto* tool = ui::FilamentMappingCard::find_by_tool_index(ctx.tool_info, tool_idx);
         if (tool) {
             std::string color_name = describe_color(tool->color_rgb);
-            message += "  " + std::string(LV_SYMBOL_BULLET) + " T" + std::to_string(tool_idx) +
-                       ": " + color_name;
+            message += "  " + std::string(LV_SYMBOL_BULLET) + " " +
+                       helix::ui::tool_label(tool_idx) + ": " + color_name;
             if (!tool->material.empty()) {
                 message += " (" + tool->material + ")";
             }
@@ -309,9 +310,9 @@ CheckResult grade_change_warning(const std::vector<MaterialMismatchDetail>& mism
         message = lv_tr("These tools have a different filament grade loaded:");
         message += "\n\n";
         for (const auto& m : mismatches) {
-            message += fmt::format("  {} T{}: {} {}: {} {}\n", LV_SYMBOL_BULLET, m.tool_index,
-                                   lv_tr("needs"), m.expected_material, lv_tr("you have"),
-                                   m.loaded_material);
+            message += fmt::format("  {} {}: {} {}: {} {}\n", LV_SYMBOL_BULLET,
+                                   helix::ui::tool_label(m.tool_index), lv_tr("needs"),
+                                   m.expected_material, lv_tr("you have"), m.loaded_material);
         }
     }
 
@@ -374,9 +375,10 @@ CheckResult gate_material_compatibility(const PrintStartContext& ctx) {
             // "needs X (range): You have Y (range)" — clearer than the old
             // "X -> Y" form, which read as a transformation rather than a
             // comparison. Two short clauses joined by a colon scan well.
-            message += fmt::format("  {} T{}: {} {}{}: {} {}{}\n", LV_SYMBOL_BULLET, m.tool_index,
-                                   lv_tr("needs"), m.expected_material, expected_temps,
-                                   lv_tr("you have"), m.loaded_material, loaded_temps);
+            message += fmt::format("  {} {}: {} {}{}: {} {}{}\n", LV_SYMBOL_BULLET,
+                                   helix::ui::tool_label(m.tool_index), lv_tr("needs"),
+                                   m.expected_material, expected_temps, lv_tr("you have"),
+                                   m.loaded_material, loaded_temps);
         }
     }
 

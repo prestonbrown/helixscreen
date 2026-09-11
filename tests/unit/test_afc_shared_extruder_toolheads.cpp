@@ -237,7 +237,7 @@ TEST_CASE("AFC shared extruders: configfile extruder_name gives toolheads E<n> i
     CHECK(labels.prefix == 'E');
     std::vector<int> numbers = labels.numbers;
     std::sort(numbers.begin(), numbers.end());
-    CHECK(numbers == std::vector<int>{0, 1, 2, 3});
+    CHECK(numbers == std::vector<int>{1, 2, 3, 4}); // 1-based extruder identity
 }
 
 // ============================================================================

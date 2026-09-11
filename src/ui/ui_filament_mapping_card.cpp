@@ -415,7 +415,7 @@ void FilamentMappingCard::rebuild_compact_view() {
             }
             if (auto* tool_lbl = lv_obj_find_by_name(top, "tool_label")) {
                 if (multi_tool) {
-                    lv_label_set_text_fmt(tool_lbl, "T%d", tool.tool_index);
+                    lv_label_set_text(tool_lbl, helix::ui::tool_label(tool.tool_index).c_str());
                     // Contrast is computed against the fill; with no fill there is
                     // nothing to contrast against, so take the normal text colour.
                     lv_obj_set_style_text_color(tool_lbl,

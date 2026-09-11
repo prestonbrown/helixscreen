@@ -983,7 +983,7 @@ std::string AmsContextMenu::build_tool_options() const {
     std::string options = lv_tr("None");
     // Add tool options T0, T1, T2... based on total slots
     for (int i = 0; i < total_slots_; ++i) {
-        options += "\nT" + std::to_string(i);
+        options += "\n" + helix::ui::tool_label(i);
     }
     return options;
 }

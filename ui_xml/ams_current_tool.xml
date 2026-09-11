@@ -17,7 +17,7 @@
     Used in the print status panel to show which AMS slot is feeding the printer.
 
     Features:
-    - Shows tool number (T0, T1, etc.) with filament color swatch
+    - Shows the physical position (Slot 1, Lane 2, Tool 3, etc.) with filament color swatch
     - Auto-hides when no AMS is available (slot_count == 0)
     - Auto-hides when no tool is active (current_tool == -1)
     - Clickable to open AMS panel for slot management
@@ -27,7 +27,7 @@
     - Click handler to open AMS panel
 
     Binds to subjects:
-    - ams_current_tool_text: string ("T0", "T1", or empty)
+    - ams_current_tool_text: string ("Slot 1", "Tool 3", or empty)
     - ams_slot_count: int (0=no AMS, >0=AMS available)
     - ams_current_tool: int (negative=none, 0+=tool index) for visibility
 
@@ -48,8 +48,8 @@
     <event_cb trigger="clicked" callback="on_ams_current_tool_clicked"/>
     <!-- Filament/spool glyph, colored by runout state (see note above) -->
     <filament_sensor_indicator subject="$runout_subject" size="sm"/>
-    <!-- Tool label (T0, T1, etc.) -->
-    <text_small name="tool_label" text="T0" bind_text="ams_current_tool_text"/>
+    <!-- Physical position label (Slot 1, Lane 2, Tool 3, etc.) -->
+    <text_small name="tool_label" text="Slot 1" bind_text="ams_current_tool_text"/>
     <!-- Color swatch showing current filament color (color set via C++) -->
     <lv_obj name="color_swatch"
             width="16" height="16" style_radius="8" style_border_width="1" style_border_color="#text_muted"

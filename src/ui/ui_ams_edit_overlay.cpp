@@ -1530,7 +1530,7 @@ void AmsEditOverlay::update_ui() {
             if (!tool_options.empty()) {
                 tool_options += '\n';
             }
-            tool_options += "T" + std::to_string(i);
+            tool_options += helix::ui::tool_label(i);
         }
         lv_dropdown_set_options(tool_dropdown, tool_options.c_str());
 

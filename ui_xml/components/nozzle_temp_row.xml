@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <component name="nozzle_temp_row">
   <api>
-    <prop name="tool_name" type="string" default="T0"/>
+    <prop name="tool_name" type="string" default="Tool 1"/>
   </api>
   <view name="nozzle_row_root"
         extends="lv_obj" width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_row="0"

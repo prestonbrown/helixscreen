@@ -674,7 +674,8 @@ class AmsState {
 
     /**
      * @brief Get current tool text subject
-     * @return Subject holding formatted tool string (e.g., "T0", "T1", or "---")
+     * @return Subject holding the physical position label (e.g., "Lane 2",
+     *         "Slot 1", "Tool 3", or "---")
      */
     lv_subject_t* get_current_tool_text_subject() {
         return &ams_current_tool_text_;
@@ -1886,7 +1887,7 @@ class AmsState {
     lv_subject_t ams_system_logo_;
     char system_logo_buf_[64];
     lv_subject_t ams_current_tool_text_;
-    char ams_current_tool_text_buf_[16]; // "T0" to "T15" or "---"
+    char ams_current_tool_text_buf_[16]; // "Slot 1" to "Tool 16" or "---"
 
     /// Endless-spool status: kind as int, sentence as string. See the accessors.
     /// The buffer holds two translated lines; German and Russian restriction

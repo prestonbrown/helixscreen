@@ -521,7 +521,7 @@ TEST_CASE_METHOD(ToolBadgeFixture,
     ts.set_ams_topology(topo);
     UpdateQueue::instance().drain();
     REQUIRE(badge_shown() == 1);
-    REQUIRE(badge_text() == "0");
+    REQUIRE(badge_text() == "1"); // 1-based: storage index 0 displays as "1"
 
     const int version_before = lv_subject_get_int(ts.get_tools_version_subject());
 
@@ -534,14 +534,14 @@ TEST_CASE_METHOD(ToolBadgeFixture,
     // because the tools_version_ observer would mask the missing active_tool one.
     REQUIRE(lv_subject_get_int(ts.get_tools_version_subject()) == version_before);
     REQUIRE(ts.active_tool_index() == 2);
-    REQUIRE(badge_text() == "2");
+    REQUIRE(badge_text() == "3");
     REQUIRE(badge_shown() == 1);
 
     // And back down, so a fix that only ever counts upward still fails.
     topo.active_tool = 1;
     ts.set_ams_topology(topo);
     UpdateQueue::instance().drain();
-    REQUIRE(badge_text() == "1");
+    REQUIRE(badge_text() == "2");
 }
 
 TEST_CASE_METHOD(ToolBadgeFixture, "tool badge stays hidden and empty on a single-hotend AMS",

@@ -761,6 +761,51 @@ TEST_CASE("gate material_compatibility: warns with verbatim title",
     CHECK(r.proceed_label == "Start Anyway");
 }
 
+TEST_CASE("gate material_compatibility: names the gcode tool, not the physical lane",
+          "[print-start][gate-pipeline][numbering]") {
+    // T0 is the slicer's tool number, so the multi-tool dialog names it 0-based
+    // even though a physical lane in this same dialog would count from 1.
+    auto ctx = ctx_with([](PrintStartContext& c) {
+        c.has_detail_view = true;
+        c.ams_available = true;
+
+        GcodeToolInfo t0;
+        t0.tool_index = 0;
+        t0.material = "PETG";
+        GcodeToolInfo t1;
+        t1.tool_index = 1;
+        t1.material = "ABS";
+        c.tool_info = {t0, t1};
+
+        ToolMapping m0;
+        m0.tool_index = 0;
+        m0.mapped_slot = 0;
+        m0.mapped_backend = 0;
+        m0.material_mismatch = true;
+        ToolMapping m1;
+        m1.tool_index = 1;
+        m1.mapped_slot = 1;
+        m1.mapped_backend = 0;
+        m1.material_mismatch = true;
+        c.mappings = {m0, m1};
+
+        AvailableSlot s0;
+        s0.slot_index = 0;
+        s0.backend_index = 0;
+        s0.material = "PLA";
+        AvailableSlot s1;
+        s1.slot_index = 1;
+        s1.backend_index = 0;
+        s1.material = "PLA";
+        c.available_slots = {s0, s1};
+    });
+
+    auto r = gate_named("material_compatibility").evaluate(ctx);
+    REQUIRE(r.verdict == CheckResult::Verdict::Warn);
+    CHECK(r.body.find("T0") != std::string::npos);
+    CHECK(r.body.find("T1") != std::string::npos);
+}
+
 // ---------------------------------------------------------------------------
 // Runner mechanics (toy gates — no printer state needed)
 // ---------------------------------------------------------------------------

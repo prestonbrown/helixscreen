@@ -243,13 +243,16 @@ void PreheatWidget::update_tool_target_label() {
         return;
 
     char label[16];
+    const auto& tools = ToolState::instance().tools();
     if (tool_target_ == -1) {
         // The number of nozzles "All" will heat, which is what
         // collect_preheat_heaters() resolves to once lanes sharing a heater
         // collapse, not the lane count.
         std::snprintf(label, sizeof(label), "All (%d)", ToolState::instance().extruder_count());
+    } else if (tool_target_ >= 0 && tool_target_ < static_cast<int>(tools.size())) {
+        std::snprintf(label, sizeof(label), "%s", tools[tool_target_].display_label.c_str());
     } else {
-        std::snprintf(label, sizeof(label), "T%d", tool_target_);
+        label[0] = '\0';
     }
     lv_label_set_text(tool_target_label_, label);
 }

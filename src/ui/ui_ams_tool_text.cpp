@@ -28,14 +28,13 @@ static void update_tool_badge(helix::ToolState* ts) {
     // with more than one nozzle needs to name which is which.
     const auto* tool = ts->has_multiple_extruders() ? ts->active_tool() : nullptr;
     if (tool) {
-        // Index only ("0"), not the full tool name ("T0"). The badge is a
-        // disc overlaid on the nozzle glyph it annotates, so its diameter is
-        // bounded by the icon; two glyphs force it wide enough to cover the
+        // 1-based number only ("1"), not the full tool name ("T0"). The badge
+        // is a disc overlaid on the nozzle glyph it annotates, so its diameter
+        // is bounded by the icon; two glyphs force it wide enough to cover the
         // icon. Call sites that want the full name bind a text label beside
         // the icon instead (print_status_detailed_active.xml).
-        char buf[8];
-        snprintf(buf, sizeof(buf), "%d", tool->index);
-        lv_subject_copy_string(ts->get_tool_badge_text_subject(), buf);
+        const std::string label = helix::ui::lane_number_text(tool->index);
+        lv_subject_copy_string(ts->get_tool_badge_text_subject(), label.c_str());
         lv_subject_set_int(ts->get_show_tool_badge_subject(), 1);
     } else {
         lv_subject_copy_string(ts->get_tool_badge_text_subject(), "");
@@ -95,14 +94,14 @@ void init_ams_tool_text_observers() {
     // never learns the subject died, and reset() then calls lv_observer_remove()
     // on freed memory (#705).
     //
-    // Observer on raw ams_current_tool_ (int) → format "T%d" or "---"
+    // Observer on raw ams_current_tool_ (int) → physical label ("Lane 2") or "---"
     s_tool_text_observer = observe_int_sync<AmsState>(
         ams.get_current_tool_subject(), &ams,
         [](AmsState* a, int tool) {
             if (tool >= 0) {
-                char buf[16];
-                snprintf(buf, sizeof(buf), "T%d", tool);
-                lv_subject_copy_string(a->get_current_tool_text_subject(), buf);
+                const std::string label =
+                    helix::ui::lane_label(helix::ui::active_lane_noun(), tool);
+                lv_subject_copy_string(a->get_current_tool_text_subject(), label.c_str());
             } else {
                 lv_subject_copy_string(a->get_current_tool_text_subject(), "---");
             }

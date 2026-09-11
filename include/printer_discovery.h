@@ -15,6 +15,7 @@
 
 #include "ams_types.h"
 #include "chamber_heater_backend.h"  // For chamber::match — heater candidate scoring
+#include "display_numbering.h"       // helix::ui::tool_label — T<n> gcode tool naming
 #include "klipper_extruder_naming.h" // is_extruder_name: one hot end per numbered extruder
 #include "macro_patterns.h"          // Shared macro-name tables (nozzle clean, ...)
 #include "printer_detector.h"        // For BuildVolume struct
@@ -637,7 +638,7 @@ class PrinterDiscovery {
             });
         if (tool_names_.empty() && extruder_heater_count > 1) {
             for (int i = 0; i < extruder_heater_count; ++i) {
-                tool_names_.push_back("T" + std::to_string(i));
+                tool_names_.push_back(helix::ui::tool_label(i));
             }
         }
 
