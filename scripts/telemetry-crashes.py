@@ -299,6 +299,26 @@ class SymbolCache:
 # ASLR resolution
 # ---------------------------------------------------------------------------
 
+def symbols_are_absolute(symbols: Optional["SymbolTable"], load_base: int) -> bool:
+    """Whether the symbol map already carries runtime addresses.
+
+    A PIE image is linked at zero, so its symbols sit near zero and a frame's
+    runtime address is symbol + load base. A static non-PIE image is linked at a
+    fixed base and its symbols are runtime addresses already. The reported base
+    cannot separate the two on its own, because dl_iterate_phdr returns the
+    mapping address rather than a bias for a static image. The map can: one whose
+    lowest text symbol sits at or above the base is linked at that base.
+
+    Subtracting a base from such a map shifts every frame onto an unrelated
+    function, which resolves to a plausible name rather than to an error.
+
+    Shared rule, see tests/fixtures/load_base_rule.json.
+    """
+    if load_base <= 0 or symbols is None or not symbols.addrs:
+        return False
+    return symbols.addrs[0] >= load_base
+
+
 def is_static_platform(platform: str) -> bool:
     """Platforms built with -static that should have no shared libraries.
 
@@ -527,6 +547,14 @@ def resolve_backtrace(
             base_address = 0
     else:
         base_address = 0
+
+    # A static non-PIE device still reports a base, and its map is already
+    # absolute, so subtracting would shift every frame onto a wrong function.
+    # have_explicit_base stays set: zero IS the answer here, and the anchor
+    # heuristic below must not go looking for a different one.
+    if symbols_are_absolute(symbols, base_address):
+        base_address = 0
+        have_explicit_base = True
 
     # Auto-detect base from anchor symbol(s) when no explicit load_base
     # was provided. This handles legacy events that predate load_base AND

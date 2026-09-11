@@ -1,0 +1,42 @@
+{
+  "rule": "A symbol map is absolute-linked when the load base is positive and the map's lowest text symbol sits at or above it. Subtracting a base from such a map shifts every frame onto an unrelated function, which resolves to a plausible name rather than to an error.",
+  "why_shared": "Three runtimes implement this rule: scripts/resolve-backtrace.sh, scripts/telemetry-crashes.py and server/crash-worker/src/symbol-resolver.ts. They cannot share code, so they share this table and each has a conformance test over it. Change the rule here and all three go red together.",
+  "cases": [
+    {
+      "name": "PIE image: symbols linked near zero, device reports its mapping address",
+      "symbols": ["0x1000", "0x2000", "0x3000"],
+      "load_base": "0x55b0a0000000",
+      "absolute": false
+    },
+    {
+      "name": "non-PIE static image: lowest text symbol is exactly the reported base",
+      "symbols": ["0x400000", "0x400100", "0x400200"],
+      "load_base": "0x400000",
+      "absolute": true
+    },
+    {
+      "name": "non-PIE static image: lowest text symbol sits above the reported base",
+      "symbols": ["0x400100", "0x400200"],
+      "load_base": "0x400000",
+      "absolute": true
+    },
+    {
+      "name": "boundary: one byte below the base is still relative",
+      "symbols": ["0x3fffff", "0x400100"],
+      "load_base": "0x400000",
+      "absolute": false
+    },
+    {
+      "name": "no base reported: nothing to subtract, so the question does not arise",
+      "symbols": ["0x400000"],
+      "load_base": "0x0",
+      "absolute": false
+    },
+    {
+      "name": "empty symbol map: no lowest symbol to judge by",
+      "symbols": [],
+      "load_base": "0x400000",
+      "absolute": false
+    }
+  ]
+}

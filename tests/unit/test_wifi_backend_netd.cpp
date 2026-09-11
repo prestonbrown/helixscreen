@@ -1477,8 +1477,6 @@ TEST_CASE_METHOD(NetdBackendFixture,
     REQUIRE_FALSE(backend_->supports_wpa_supplicant_fallback());
 }
 
-#endif // !__APPLE__ && !__ANDROID__
-
 // ============================================================================
 // 8. Single transport: netd answers a Wi-Fi join by downing eth0 and moving
 //    the address to wlan0 (prestonbrown/helixscreen#1398), so the join must
@@ -1567,3 +1565,5 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd advises displacement only while the d
     // thread has to notice the closed socket first.
     REQUIRE(wait_until([&] { return !backend_->join_displaces_wired_link(); }));
 }
+
+#endif // !__APPLE__ && !__ANDROID__

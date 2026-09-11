@@ -393,7 +393,11 @@ Located in the `display` section:
 
 **Automatic detection:** On first boot, HelixScreen checks the kernel for panel orientation (e.g., `panel_orientation=upside_down` in the kernel command line). If detected, the rotation is applied immediately and saved here — no manual configuration needed. On framebuffer displays only (e.g., AD5M — **not** Raspberry Pi), an interactive rotation wizard runs instead if no kernel hint is found.
 
-**Performance note (Raspberry Pi / DRM displays):** When rotation is active on DRM-based displays (Pi 4, Pi 5), HelixScreen uses a software rotation approach that redraws the full screen on every frame update instead of only the changed regions. This adds a small overhead (typically <1ms per frame on Pi 5) but is necessary because the LVGL DRM driver does not support hardware rotation. Framebuffer displays (e.g., AD5M) use a more efficient partial-update rotation with no meaningful performance impact.
+**Raspberry Pi and other DRM displays support 180 degrees only.** The DRM display driver can rotate by 180, which redraws the full screen each frame instead of only the changed regions - a small overhead, typically under 1ms per frame on a Pi 5. It cannot rotate by 90 or 270: setting those leaves the picture unrotated.
+
+If your Pi panel is mounted at 90 or 270 degrees, run the framebuffer build instead, which rotates by any angle. Set `HELIX_DISPLAY_BACKEND=fbdev` in `helixscreen.env` and restart - Pi installs ship both binaries, so nothing needs reinstalling. The kernel can also rotate the panel itself via `video=...,rotate=90` on the kernel command line, which works with either build.
+
+Framebuffer displays (AD5M, K1, K2, CC1, AD5X) rotate by any angle with no meaningful performance impact, using a more efficient partial update.
 
 ### `rotation_probed`
 **Type:** boolean

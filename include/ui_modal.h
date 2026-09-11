@@ -617,9 +617,10 @@ lv_obj_t* modal_alert(const char* title, const char* message,
  * diverge: pass the address of the stored handle and this helper clears it on
  * every close path - button press, backdrop/ESC dismissal, teardown - and
  * falls back to acting on a failed build only through the caller's own
- * null-handle check. @p options carries the decline callback and the owner
- * token (its on_dismiss slot belongs to the helper: clearing the handle IS
- * the dismissal report). Do NOT hand-roll an LV_EVENT_DELETE hook for this:
+ * null-handle check. @p options carries the decline callback, the dismissal
+ * callback and the owner token; the helper clears the handle ahead of each of
+ * them, so a caller keeps its own on_cancel and on_dismiss and does not clear
+ * the handle itself. Do NOT hand-roll an LV_EVENT_DELETE hook for this:
  * one that outlives its owner is the use-after-free that got
  * prestonbrown/helixscreen#1380 reverted.
  */

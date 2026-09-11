@@ -49,6 +49,19 @@
     <style name="nav_btn_edit_add_portrait" width="content" min_width="48"/>
     <style name="nav_btn_edit_done_landscape" width="90%" max_height="#button_height" min_height="36"/>
     <style name="nav_btn_edit_done_portrait" width="content" min_width="36"/>
+    <!-- Nav icon crossfade: each pair's checked icon sits at full opacity and
+         scale, the other faded and shrunk. Both icons of a pair carry both
+         styles below - the transition lives on the base style because a
+         style is scanned when its own state bits are a subset of the state
+         being entered: state 0 (the base) is a subset of every state, so it
+         is scanned on both entry and exit, while a checked-only declaration
+         is scanned only when entering checked and stays silent on the way
+         out; the "on" style then sets the properties explicitly, since equal
+         endpoints are a no-op and text_opa is inheritable. -->
+    <style name="nav_icon_fade"
+           text_opa="0" transform_scale_x="205" transform_scale_y="205" transform_pivot_x="50%" transform_pivot_y="50%"
+           transition="text_opa|transform_scale_x|transform_scale_y 180ms ease_out"/>
+    <style name="nav_icon_fade_on" text_opa="255" transform_scale_x="256" transform_scale_y="256"/>
   </styles>
   <view extends="lv_obj"
         style_layout="flex" style_flex_main_place="center" style_flex_track_place="center"
@@ -90,13 +103,18 @@
                style_border_width="0">
       <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
-      <!-- Active icon (accent color) - shown when active_panel == 0 -->
-      <icon name="nav_icon_home_active" src="home" size="#icon_size" variant="primary" hidden="true">
-        <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="0"/>
+      <!-- Active icon (accent color) - full opacity/scale when active_panel == 0 -->
+      <icon name="nav_icon_home_active" src="home" size="#icon_size" variant="primary" floating="true" align="center">
+        <style name="nav_icon_fade"/>
+        <style name="nav_icon_fade_on" selector="checked"/>
+        <bind_state_if_eq subject="active_panel" state="checked" ref_value="0"/>
       </icon>
-      <!-- Inactive icon (gray) - shown when active_panel != 0 -->
-      <icon name="nav_icon_home_inactive" src="home_outline" size="#icon_size_nav_inactive" variant="secondary">
-        <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="0"/>
+      <!-- Inactive icon (gray) - full opacity/scale when active_panel != 0 -->
+      <icon name="nav_icon_home_inactive"
+            src="home_outline" size="#icon_size_nav_inactive" variant="secondary" floating="true" align="center">
+        <style name="nav_icon_fade"/>
+        <style name="nav_icon_fade_on" selector="checked"/>
+        <bind_state_if_not_eq subject="active_panel" state="checked" ref_value="0"/>
       </icon>
     </ui_button>
     <!-- Controls Button (Panel 2) - CONNECTION + KLIPPY READY REQUIRED -->
@@ -110,15 +128,21 @@
       <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <!-- Normal icons container - visible only when enabled -->
-      <lv_obj name="nav_controls_icons" clickable="false" style_pad_all="0">
+      <lv_obj name="nav_controls_icons" width="100%" height="100%" clickable="false" style_pad_all="0">
         <bind_flag_if_eq subject="nav_buttons_enabled" flag="hidden" ref_value="0"/>
-        <!-- Active icon (accent) - shown when on controls panel -->
-        <icon name="nav_icon_controls_active" src="fine_tune" size="#icon_size" variant="primary" hidden="true">
-          <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="2"/>
+        <!-- Active icon (accent) - full opacity/scale when on controls panel -->
+        <icon name="nav_icon_controls_active"
+              src="fine_tune" size="#icon_size" variant="primary" floating="true" align="center">
+          <style name="nav_icon_fade"/>
+          <style name="nav_icon_fade_on" selector="checked"/>
+          <bind_state_if_eq subject="active_panel" state="checked" ref_value="2"/>
         </icon>
-        <!-- Inactive icon (secondary) - shown when not on controls panel -->
-        <icon name="nav_icon_controls_inactive" src="fine_tune" size="#icon_size_nav_inactive" variant="secondary">
-          <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="2"/>
+        <!-- Inactive icon (secondary) - full opacity/scale when not on controls panel -->
+        <icon name="nav_icon_controls_inactive"
+              src="fine_tune" size="#icon_size_nav_inactive" variant="secondary" floating="true" align="center">
+          <style name="nav_icon_fade"/>
+          <style name="nav_icon_fade_on" selector="checked"/>
+          <bind_state_if_not_eq subject="active_panel" state="checked" ref_value="2"/>
         </icon>
       </lv_obj>
       <!-- Disabled icon - visible only when disabled (disconnected OR klippy not ready) -->
@@ -137,16 +161,21 @@
       <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <!-- Normal icons container - visible only when enabled -->
-      <lv_obj name="nav_filament_icons" clickable="false" style_pad_all="0">
+      <lv_obj name="nav_filament_icons" width="100%" height="100%" clickable="false" style_pad_all="0">
         <bind_flag_if_eq subject="nav_buttons_enabled" flag="hidden" ref_value="0"/>
-        <!-- Active icon (accent) - shown when on filament panel -->
-        <icon name="nav_icon_filament_active" src="filament" size="#icon_size" variant="primary" hidden="true">
-          <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="3"/>
+        <!-- Active icon (accent) - full opacity/scale when on filament panel -->
+        <icon name="nav_icon_filament_active"
+              src="filament" size="#icon_size" variant="primary" floating="true" align="center">
+          <style name="nav_icon_fade"/>
+          <style name="nav_icon_fade_on" selector="checked"/>
+          <bind_state_if_eq subject="active_panel" state="checked" ref_value="3"/>
         </icon>
-        <!-- Inactive icon (secondary) - shown when not on filament panel -->
+        <!-- Inactive icon (secondary) - full opacity/scale when not on filament panel -->
         <icon name="nav_icon_filament_inactive"
-              src="filament_outline" size="#icon_size_nav_inactive" variant="secondary">
-          <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="3"/>
+              src="filament_outline" size="#icon_size_nav_inactive" variant="secondary" floating="true" align="center">
+          <style name="nav_icon_fade"/>
+          <style name="nav_icon_fade_on" selector="checked"/>
+          <bind_state_if_not_eq subject="active_panel" state="checked" ref_value="3"/>
         </icon>
       </lv_obj>
       <!-- Disabled icon - visible only when disabled (disconnected OR klippy not ready) -->
@@ -161,11 +190,17 @@
                style_border_width="0">
       <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
-      <icon name="nav_icon_settings_active" src="settings" size="#icon_size" variant="primary" hidden="true">
-        <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="4"/>
+      <icon name="nav_icon_settings_active"
+            src="settings" size="#icon_size" variant="primary" floating="true" align="center">
+        <style name="nav_icon_fade"/>
+        <style name="nav_icon_fade_on" selector="checked"/>
+        <bind_state_if_eq subject="active_panel" state="checked" ref_value="4"/>
       </icon>
-      <icon name="nav_icon_settings_inactive" src="settings_outline" size="#icon_size_nav_inactive" variant="secondary">
-        <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="4"/>
+      <icon name="nav_icon_settings_inactive"
+            src="settings_outline" size="#icon_size_nav_inactive" variant="secondary" floating="true" align="center">
+        <style name="nav_icon_fade"/>
+        <style name="nav_icon_fade_on" selector="checked"/>
+        <bind_state_if_not_eq subject="active_panel" state="checked" ref_value="4"/>
       </icon>
     </ui_button>
     <!-- Advanced Button (Panel 5) -->
@@ -175,11 +210,17 @@
                style_border_width="0">
       <!-- Disabled during grid edit mode -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
-      <icon name="nav_icon_advanced_active" src="dots_vertical" size="#icon_size" variant="primary" hidden="true">
-        <bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="5"/>
+      <icon name="nav_icon_advanced_active"
+            src="dots_vertical" size="#icon_size" variant="primary" floating="true" align="center">
+        <style name="nav_icon_fade"/>
+        <style name="nav_icon_fade_on" selector="checked"/>
+        <bind_state_if_eq subject="active_panel" state="checked" ref_value="5"/>
       </icon>
-      <icon name="nav_icon_advanced_inactive" src="dots_vertical" size="#icon_size_nav_inactive" variant="secondary">
-        <bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="5"/>
+      <icon name="nav_icon_advanced_inactive"
+            src="dots_vertical" size="#icon_size_nav_inactive" variant="secondary" floating="true" align="center">
+        <style name="nav_icon_fade"/>
+        <style name="nav_icon_fade_on" selector="checked"/>
+        <bind_state_if_not_eq subject="active_panel" state="checked" ref_value="5"/>
       </icon>
     </ui_button>
     <!-- Printer switcher button — visible only when setting enabled -->

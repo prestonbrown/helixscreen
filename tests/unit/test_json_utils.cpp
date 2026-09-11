@@ -473,11 +473,11 @@ TEST_CASE("notification_payload rejects frames shaped any other way",
     // the same way.
     CHECK(notification_action(nlohmann::json{{"method", "x"}}).empty());
     // A payload with no action field, and one whose action is JSON null.
-    CHECK(notification_action(nlohmann::json{
-              {"params", nlohmann::json::array({nlohmann::json{{"job", nlohmann::json::object()}}})}})
+    CHECK(notification_action(nlohmann::json{{"params", nlohmann::json::array({nlohmann::json{
+                                                            {"job", nlohmann::json::object()}}})}})
               .empty());
     CHECK(notification_action(nlohmann::json{{"params", nlohmann::json::array({nlohmann::json{
-                                                  {"action", nullptr}}})}})
+                                                            {"action", nullptr}}})}})
               .empty());
 }
 
@@ -529,4 +529,31 @@ TEST_CASE("safe_dump honors the indent argument", "[json_utils][safe_dump]") {
     // `doc.dump(2)` must not silently lose its formatting.
     CHECK(ju::safe_dump(j).find('\n') == std::string::npos);
     CHECK(ju::safe_dump(j, 2).find("\n  ") != std::string::npos);
+}
+
+// ============================================================================
+// UTF-8 decoder table
+// ============================================================================
+
+TEST_CASE("dump() escapes multi-byte UTF-8 through the real decoder table",
+          "[json_utils][safe_dump]") {
+    // The DFA every dump() walks its strings with is a 400-entry table declared
+    // as a function-local static inside a template, which the compiler emits as
+    // a STB_GNU_UNIQUE symbol. A linker that drops that symbol leaves the
+    // reference to it resolving to the image base, so the decoder indexes the
+    // ELF header: the link is silent, the binary runs, and every string it
+    // serializes comes out mis-escaped (prestonbrown/helixscreen#1584).
+    //
+    // So these expectations are absolute rather than dump() compared against
+    // dump(). Both sides of such a comparison read the same table and agree
+    // with each other whatever it holds, which is why the cases above this one
+    // cannot see a wrong table. ensure_ascii is what forces the multi-byte
+    // path; with it off the bytes are copied through unexamined.
+    CHECK(json("\xC3\xA9").dump(-1, ' ', true) == "\"\\u00e9\"");                // U+00E9 é
+    CHECK(json("\xE2\x82\xAC").dump(-1, ' ', true) == "\"\\u20ac\"");            // U+20AC €
+    CHECK(json("\xF0\x9F\x98\x80").dump(-1, ' ', true) == "\"\\ud83d\\ude00\""); // U+1F600
+
+    // The reject state has to be reachable too, or safe_dump()'s replacement
+    // handler has nothing to act on: 0xFF is a legal byte in no position.
+    CHECK_THROWS_AS(json("\xff").dump(-1, ' ', true), nlohmann::json::type_error);
 }

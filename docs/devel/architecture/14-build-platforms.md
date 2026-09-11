@@ -100,9 +100,9 @@ font tiers, and `-DHELIX_HAS_*` / `-DHELIX_PLATFORM_*` gates that code checks at
 | `PLATFORM_TARGET` | Device / arch | Backend | Notes |
 |-------------------|---------------|---------|-------|
 | `native` (default) | Desktop, macOS/Linux | SDL | Dev panels default ON (`Makefile:498`); `ENABLE_REMOTE_CONTROL` defaults ON everywhere except a packaging build (`Makefile:463`) |
-| `pi`, `pi-fbdev`, `pi-both` | Raspberry Pi aarch64 | DRM+GLES / fbdev | `-both` compiles once, links DRM + fbdev ([`mk/pi-dual-link.mk`](../../../mk/pi-dual-link.mk)) |
+| `pi`, `pi-fbdev`, `pi-both` | Raspberry Pi aarch64 | DRM / fbdev | `-both` compiles once, links DRM + fbdev ([`mk/pi-dual-link.mk`](../../../mk/pi-dual-link.mk)) |
 | `pi32` (+`-fbdev`/`-both`) | Pi armhf, **Sonic Pad** | DRM / fbdev | Same binary serves any armhf Debian-ish box |
-| `x86`, `x86-fbdev`, `x86-both` | x86_64 Debian SBCs | DRM+GLES / fbdev | Built in a Bullseye container for glibc 2.31 compat |
+| `x86`, `x86-fbdev`, `x86-both` | x86_64 Debian SBCs | DRM / fbdev | Built in a Bullseye container for glibc 2.31 compat |
 | `ad5m`, `ad5m-br` | FlashForge AD5M (armv7) | fbdev | Fully static; ships as a ready-made firmware image (Forge-X fork); `-br` is the buildroot variant built inside AD5M Klipper Mod ([`AD5M_KMOD_VARIANT.md`](../AD5M_KMOD_VARIANT.md)) |
 | `ad5x` | FlashForge AD5X (mips32r5) | fbdev | Active testing; prebuilt binaries ship in releases; own toolchain + `Dockerfile.ad5x` |
 | `cc1` | Elegoo Centauri Carbon (armv7) | fbdev | Static, tested; also the fallback binary for old-glibc armv7 boxes generally |
@@ -127,6 +127,61 @@ compiled out entirely on K1/K2, tone-only on AD5M/AD5X, full on Pi/x86/native; t
 CFS, and IFS gates are off on AD5M ([`mk/cross.mk`](../../../mk/cross.mk)). The ESP32 port (`firmware/helixscreen-esp32/`,
 ESP-IDF on the BTT K-Touch) is a separate CMake build that compiles LVGL and `lib/helix-xml`
 unmodified — verdict and budgets in [`../plans/ESP32_NATIVE_AUDIT.md`](../plans/ESP32_NATIVE_AUDIT.md); it does not ship yet.
+
+### Rendering: display backend vs draw unit
+
+Two independent choices, easy to conflate:
+
+- The **display backend** decides how finished pixels reach the panel: fbdev, DRM/KMS, SDL.
+  Chosen at runtime by [`src/api/display_backend.cpp#create_auto`](../../../src/api/display_backend.cpp).
+- The **draw unit** decides what rasterizes widgets: `lv_draw_sw`, `lv_draw_opengles`,
+  `lv_draw_nanovg`, `vg_lite`. Chosen at compile time by the `LV_USE_DRAW_*` switches in
+  `lv_conf.h`.
+
+**Every target draws with `lv_draw_sw`.** No GPU draw unit is compiled in on any platform, so
+rasterization is CPU work everywhere, including the Pi. GLES on Pi and x86 belongs to the 3D
+G-code viewer ([`src/rendering/gcode_gles_renderer.cpp`](../../../src/rendering/gcode_gles_renderer.cpp)),
+which owns a private EGL context and no part of the LVGL pipeline. A GPU-backed display backend
+would still only accelerate *presentation*; drawing follows the draw unit, not the backend.
+
+#### Widget transforms need a matrix-capable draw unit
+
+`LV_DRAW_TRANSFORM_USE_MATRIX` tells LVGL to hand the draw unit a 3x3 matrix instead of
+rasterizing a transformed widget into a layer and resampling that bitmap. Only `vg_lite` and
+`nanovg` read that per-draw-task matrix; `lv_draw_sw` ignores it. Enabling it without one of
+those units makes every `transform_scale` / `transform_rotation` render at 1:1 while still
+receiving an inverse-scaled clip area, so scaling up crops the widget, scaling down does nothing,
+and nothing warns.
+
+The switch is therefore derived from the active draw unit rather than set by hand, and lives
+beside the `LV_USE_DRAW_*` block it depends on — defining it earlier in `lv_conf.h` would read
+those switches as unset. `LV_USE_MATRIX` stays on regardless; it is what
+`lv_obj_set_transform()` needs.
+
+`tests/unit/test_style_transform_renders.cpp` guards the behaviour rather than the macro: it
+asserts a 2x widget covers more pixels and a 0.5x widget fewer.
+
+#### Rotation is a per-driver capability
+
+LVGL does not rotate pixels centrally. Each display driver either calls `lv_draw_sw_rotate()`
+itself or supports no software rotation at all:
+
+| Backend | 180 | 90 / 270 | Mechanism |
+|---|---|---|---|
+| fbdev | yes | yes | driver calls `lv_draw_sw_rotate()` ([`lv_linux_fbdev.c`](../../../lib/lvgl/src/drivers/display/fb/lv_linux_fbdev.c)) |
+| SDL | yes | yes | driver calls `lv_draw_sw_rotate()` |
+| DRM dumb buffer | yes | **no** | hardware plane rotation, or the CPU reversal in `patches/lvgl-drm-flush-rotation.patch`, which covers 180 only |
+
+Hardware plane rotation is unavailable whenever `HELIX_ENABLE_OPENGLES` is defined, because the
+rotation entry points exist only in the dumb-buffer driver
+([`src/api/display_backend_drm.cpp#set_display_rotation`](../../../src/api/display_backend_drm.cpp)).
+That covers every Pi and x86 DRM build, so those fall to the software strategy and get 180 only.
+
+**A panel needing 90 or 270 belongs on the fbdev binary.** Pi targets ship two
+([`mk/pi-dual-link.mk`](../../../mk/pi-dual-link.mk)): `helix-screen` for DRM and
+`helix-screen-fbdev`, with [`scripts/helix-launcher.sh`](../../../scripts/helix-launcher.sh)
+selecting between them and falling back on a DRM crash. Forcing the fbdev binary is
+`HELIX_DISPLAY_BACKEND=fbdev`.
 
 ### Patches: forked fixes, stamp-applied
 

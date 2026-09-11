@@ -461,6 +461,10 @@ class DisplaySettingsManager {
     /// suppress removal for live observers.
     SubjectLifetime subjects_lifetime_ = std::make_shared<bool>(true);
 
+    /// Keeps the XML style engine's transition scale following
+    /// animations_enabled_subject_. See init_subjects().
+    ObserverGuard transition_scale_observer_;
+
     lv_subject_t dark_mode_subject_;
     lv_subject_t dark_mode_available_subject_;
     lv_subject_t theme_preset_subject_;

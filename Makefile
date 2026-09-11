@@ -122,10 +122,17 @@ ifeq ($(origin CXX),default)
         ifeq ($(call test_cxx_stdlib,clang++),ok)
             CXX := clang++
         else ifneq ($(shell command -v g++ 2>/dev/null),)
-            # Clang has stdlib issues, fall back to g++
+            # clang selects the newest GCC installation it can find and takes
+            # libstdc++ from there, so a gcc-N without a matching libstdc++-N-dev
+            # leaves it unable to link. Usually fixable, and worth fixing: the
+            # sanitizer jobs are clang, so a working local clang is the only way
+            # to reproduce them here.
             CXX := g++
             CC := gcc
-            $(info Note: clang++ has stdlib issues on this system, using g++ instead)
+            $(info Note: clang++ cannot link C++ here, using g++ instead)
+            $(info   Usually a missing libstdc++-<N>-dev for the newest installed gcc.)
+            $(info   Diagnose: clang++ -v -xc++ /dev/null -o /dev/null 2>&1 | grep "Selected GCC")
+            $(info   Fix: install that libstdc++-<N>-dev, or pass --gcc-install-dir=/usr/lib/gcc/<triple>/<N>)
         else
             # No g++ available, try clang++ anyway and let it fail with a clear error
             CXX := clang++
@@ -1013,8 +1020,36 @@ ifneq ($(YOCTO_BUILD),yes)
 ifneq ($(UNAME_S),Darwin)
     # mold first, then lld. Both beat GNU ld by a wide margin on this link, and
     # every test build pays for it, so take the fastest one installed.
-    HOST_FAST_LD := $(if $(shell command -v ld.mold 2>/dev/null),mold,\
-                      $(if $(shell command -v ld.lld 2>/dev/null),lld,))
+    #
+    # mold is only taken from 2.x. 1.0.3 — what Ubuntu 22.04 ships, and what the
+    # sanitizer container has — drops the STB_GNU_UNIQUE symbol GCC emits for a
+    # function-local static inside a template. nlohmann's decode()::utf8d, the
+    # 400-entry UTF-8 DFA table, is one of those: the reference to it then
+    # resolves to the image base, so every json dump() indexes the ELF header
+    # instead of the table and mis-escapes the strings it walks. The link emits
+    # no diagnostic and the binary runs (prestonbrown/helixscreen#1584). Nothing
+    # between 1.0.3 and 2.x has been checked here, so the floor is the major
+    # version. "dump() escapes multi-byte UTF-8 through the real decoder table"
+    # in tests/unit/test_json_utils.cpp is the check that catches a linker this
+    # floor does not.
+    #
+    # Spelled as ifeq/else rather than a nested $(if): a `\`-continued else
+    # branch carries its own indentation into the value, and " lld" reaches the
+    # compiler as `-fuse-ld= lld`.
+    MOLD_MAJOR := $(shell ld.mold --version 2>/dev/null | sed -n 's/^mold \([0-9][0-9]*\).*/\1/p')
+    ifneq ($(filter-out 0 1,$(MOLD_MAJOR)),)
+        HOST_FAST_LD := mold
+    else ifneq ($(shell command -v ld.lld 2>/dev/null),)
+        HOST_FAST_LD := lld
+    else
+        HOST_FAST_LD :=
+    endif
+    ifneq ($(MOLD_MAJOR),)
+    ifeq ($(filter-out 0 1,$(MOLD_MAJOR)),)
+        $(warning ⚠️  ld.mold $(MOLD_MAJOR).x links this tree incorrectly (prestonbrown/helixscreen#1584) — ignoring it.)
+        $(warning     Install mold 2.x for the faster link; the build is correct either way.)
+    endif
+    endif
     ifneq ($(HOST_FAST_LD),)
         LDFLAGS += -fuse-ld=$(HOST_FAST_LD)
     else

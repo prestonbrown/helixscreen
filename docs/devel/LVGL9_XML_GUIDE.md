@@ -1255,6 +1255,167 @@ Many widgets have styleable parts:
 | `items` | dropdown, roller |
 | `scrollbar` | Scrollable containers |
 
+### Transitions
+
+A style can animate a property change between states instead of snapping to it,
+in either of two spellings.
+
+**Longhand** — four separate attributes:
+
+```xml
+<style name="t" transition_props="opa|transform_scale_x"
+       transition_duration="180" transition_easing="ease_out"
+       transition_delay="20"/>
+```
+
+**Shorthand** — one CSS-style attribute, `transition="<props> <duration> [easing] [delay]"`:
+
+```xml
+<style name="t" transition="opa|transform_scale_x 200ms ease_out 30ms"/>
+
+<!-- easing and delay are both optional -->
+<style name="t" transition="opa 90"/>
+```
+
+`transition_props` (longhand) accepts `|`, `,` or whitespace to separate names,
+interchangeably — the same delimiter set `parts=` accepts. The shorthand's own
+property-list token can use `|` or `,` but not a bare space: the shorthand already
+splits its whole value on whitespace to find the props/duration/easing/delay fields,
+so a space inside the property list would read as the end of it. Duration and delay
+are milliseconds (a trailing `ms` is accepted and ignored; a bare number is
+milliseconds too), and easing is one of:
+
+| Easing | | |
+|--------|--|--|
+| `linear` (default) | `ease_in` | `ease_out` |
+| `ease_in_out` | `overshoot` | `bounce` |
+| `step` | | |
+
+The two spellings can combine on one `<style>` element; a longhand attribute always
+wins its own field over the shorthand, whichever attribute the XML happens to list
+first:
+
+```xml
+<!-- duration is 55, easing is still ease_out - the shorthand's duration is
+     shadowed by the explicit longhand attribute, not overwritten by it -->
+<style name="t" transition="opa 200ms ease_out" transition_duration="55"/>
+```
+
+**A bad value warns by name and is refused — it never guesses.** An unrecognised
+`transition_easing`, longhand or shorthand, warns and falls back to `linear`, exactly
+like an omitted easing. A duration or delay that is not a plain non-negative integer
+(optionally `ms`-suffixed) warns and is refused the same way; a value ending in a
+bare `s` (`transition_duration="0.2s"`, the most common way to carry a CSS habit over)
+gets its own message, since every duration in this dialect is milliseconds, never
+seconds. A refused longhand field falls back to whatever the shorthand on the same
+element supplied, or to the default (`0`, `linear`) if neither did — only a
+`transition_props` list with no valid property left in it refuses the whole
+transition, since there is nothing left to build without one.
+
+A few things about where a transition takes effect are not guessable from the
+syntax:
+
+- **Put `transition` on the base style for symmetric motion.** LVGL scans every
+  style on the object whose state bits are a *subset* of the state being entered
+  (`lib/lvgl/src/core/lv_obj.c#update_obj_state`), and `LV_STATE_DEFAULT` is `0` — a
+  subset of every state — so a transition on the base style is scanned on every
+  state change, in both directions. A transition declared only on a `<style
+  selector="pressed">` still applies when *entering* pressed; leaving pressed snaps,
+  because that style's bits are not a subset of the (default) state being entered.
+  Add a state-specific style carrying its own transition only when you
+  deliberately want asymmetric timing — that is what `lv_theme_default` does for a
+  button: an instant press and a 70ms-delayed release, by putting one transition on
+  the base style and a second, faster one on `LV_STATE_PRESSED`
+  (`lib/lvgl/src/themes/default/lv_theme_default.c#theme_apply`). `selector` itself
+  is read only when a `<style>` child is *applied* to a widget
+  (`lib/helix-xml/src/xml/parsers/lv_xml_obj_parser.c#lv_obj_xml_style_apply`) — a
+  style's own `<styles>` definition has no `selector` handling, so the two roles
+  never collapse into one tag:
+
+  ```xml
+  <styles>
+    <!-- bare definitions - no selector here -->
+    <style name="btn_base" transition="bg_opa 200ms"/>
+    <style name="btn_pressed" bg_opa="128"/>
+  </styles>
+  <lv_button>
+    <style name="btn_base"/>
+    <style name="btn_pressed" selector="pressed"/>   <!-- selector lives here -->
+  </lv_button>
+  ```
+- **The state-specific style must still set the animated property itself.** Two
+  equal endpoints are a silent no-op — there is nothing to interpolate — and this
+  bites `text_opa` in particular, since it is inheritable: a value set on a parent
+  reads as already applied to a child that never set it locally, so the child's
+  state style must set `text_opa` explicitly even though it "already has" that
+  opacity by inheritance.
+- **`LV_STATE_CHECKED` carries a themed background on buttons.** A transition on a
+  checked button's `bg_color`/`bg_opa` fights the theme's own checked-state style,
+  which already carries its own background/transform transition — `text_opa` and
+  `text_color` are not in that set, so a text-opacity transition does not contend
+  with it. Prefer putting checked-state transitions on labels, or override the
+  button's background explicitly in the checked style.
+- **Declaring the same property in two transitions on one widget is
+  order-dependent.** If a base style and a state style both name the same property
+  in their `transition_props`, which descriptor governs it depends on style
+  application order, not on anything either transition declares. Put each property
+  in exactly one transition per widget.
+
+**Every duration is scaled by the animations preference, and can become `0`.**
+HelixScreen drives `lv_xml_set_transition_scale()` from the animations-enabled
+setting (`src/system/display_settings_manager.cpp#init_subjects`); with animations
+off, every duration authored in XML runs as `0` — instant — no matter what the XML
+says. `HelixTestFixture` forces that preference off suite-wide
+(`tests/helix_test_fixture.cpp#reset_all`), so a test asserting on a transition's
+timing must turn it on explicitly, as `tests/unit/test_xml_transition_pref.cpp` does.
+This is the first thing to check when a transition "does nothing": it may be doing
+exactly what it was told, at `0ms`.
+
+**The shorthand cannot take a `#const` for just the duration.** The style attribute
+loop resolves a `#name` reference only when `#` is the first character of the
+*whole* attribute value (`lib/helix-xml/src/xml/lv_xml_style.c#lv_xml_register_style`).
+`transition="opa #anim_fast"` has `#` at an offset into the value, not at `0`, so it
+is never resolved and is parsed literally as a duration token, which then fails.
+Use the longhand `transition_duration="#anim_fast"` when a duration needs to come
+from a const.
+
+**`transition_duration` is not `anim_duration`.** `anim_duration` is LVGL's own style
+property, controlling a widget's *internal* animation (a switch knob's slide, a
+label's scroll) and has no effect on a state change. `transition`/`transition_duration`
+is this dialect's name for LVGL's separate state-transition mechanism
+(`lv_style_set_transition`), and only that.
+
+#### Engine internals
+
+A few of LVGL's own constraints shape what the parser accepts — worth knowing before
+extending this feature rather than working around it:
+
+- **The transition interpolator is a blacklist, not a whitelist.**
+  `lib/lvgl/src/core/lv_obj_style.c#trans_anim_cb` switches on only the properties
+  that *cannot* interpolate; everything else falls through to a generic numeric
+  lerp. A pointer property absent from that blacklist (`bg_image_src`, `bg_grad`,
+  `bitmap_mask_src`, the grid `*_dsc_array` pair, `arc_image_src`) has its low 32
+  bits arithmetically blended and the result handed to the draw pass as a pointer —
+  a crash. Nothing in LVGL itself validates this when a transition is built, so the
+  XML parser is the only place a bad property is ever caught, which is why an
+  unrecognised or non-interpolatable property in `transition_props` refuses the
+  whole transition rather than warning and continuing.
+- **The style owns its transition descriptor and its property array.**
+  `lv_xml_style_t` (`lib/helix-xml/src/xml/lv_xml_style.h`) frees the previous
+  descriptor and array before installing a new one, and only in the style walk
+  inside `lib/helix-xml/src/xml/lv_xml_component.c#component_scope_free` — which is
+  what keeps a `globals.xml` hot reload (re-registering the same style name re-runs
+  every setter over the existing record) from orphaning one descriptor per save,
+  without ever freeing a descriptor a running transition is still reading from
+  (LVGL copies duration, delay, path and property list out of the descriptor before
+  animating it).
+- **A widget that has never been drawn snaps instead of animating.**
+  `update_obj_state` returns early from the transition scan for an object that has
+  not rendered yet, so state set during construction or by an initial data bind
+  never animates — there is no startup-flash to guard against.
+- **`STYLE_TRANSITION_MAX` caps transitioning properties at 32** per state change,
+  across every style on one object, theme styles included.
+
 ### Theme Colors (C++ API)
 
 ```cpp
