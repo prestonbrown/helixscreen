@@ -144,6 +144,32 @@ struct hv_loop_t;')
     [ "$status" -eq 0 ]
 }
 
+@test "real libdrm spellings stay foreign" {
+    f=$(fixture probe.h 'struct drmModeRes;
+int drmModeAtomicCommit(void);')
+    run python3 "$GATE" "$f"
+    [ "$status" -eq 0 ]
+}
+
+@test "our own drm-prefixed symbols are not foreign (#1586)" {
+    # Bare 'drm' exempted these from the gate entirely.
+    f=$(fixture probe.h 'bool drm_rotation_needs_full_render(int deg);')
+    run python3 "$GATE" "$f"
+    [ "$status" -eq 1 ]
+}
+
+@test "our own Display-prefixed types are not foreign (#1586)" {
+    f=$(fixture probe.h 'class DisplayManager;')
+    run python3 "$GATE" "$f"
+    [ "$status" -eq 1 ]
+}
+
+@test "our own capitalised G* types are not foreign (#1586)" {
+    f=$(fixture probe.h 'struct GcodeStoreEntry;')
+    run python3 "$GATE" "$f"
+    [ "$status" -eq 1 ]
+}
+
 @test "a line carrying NAMESPACE_OK is not flagged" {
     f=$(fixture probe.h '// NAMESPACE_OK: C ABI callback signature
 class Widget {
