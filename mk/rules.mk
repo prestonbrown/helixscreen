@@ -131,7 +131,7 @@ ifndef SKIP_COMPILE_COMMANDS
 	@# Skip with SKIP_COMPILE_COMMANDS=1 (used by pre-commit to avoid LSP churn)
 	@if [ -d "$(BUILD_DIR)" ] && [ -f scripts/merge_compile_commands.py ]; then \
 		SUMMARY=$$(python3 scripts/merge_compile_commands.py --build-dir $(BUILD_DIR) 2>/dev/null) && \
-			echo "$(CYAN)→ compile_commands.json updated ($$SUMMARY)$(RESET)"; \
+			echo "$(CYAN)→ compile_commands.json ($$SUMMARY)$(RESET)"; \
 	fi
 endif
 endif

@@ -174,8 +174,21 @@ def main() -> int:
 
     entries, stats = merge(args.build_dir)
     if not entries:
+        if stats["fragments"] == 0:
+            # A fragment is a byproduct of compiling; zero of them means
+            # nothing recompiled (a link-only run against cached objects), and
+            # the database already on disk still describes the tree. This
+            # script runs as the last step of every build target, so failing
+            # here fails a build that succeeded.
+            if not args.quiet:
+                print(f"no fragments under {args.build_dir} (nothing recompiled); "
+                      f"leaving {args.output} untouched")
+            return 0
+        # Fragments exist but every source they name is gone: writing the
+        # database would wipe it, so refuse rather than truncate.
         if not args.quiet:
-            print(f"no compile-command fragments under {args.build_dir}", file=sys.stderr)
+            print(f"{stats['fragments']} fragments under {args.build_dir} name no "
+                  f"existing source; not writing {args.output}", file=sys.stderr)
         return 1
 
     with open(args.output, "w") as fh:
