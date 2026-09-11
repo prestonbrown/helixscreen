@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# HelixScreen - Sanitizer / CI-parity Build Environment  (container: helix-tsan)
+#
+# Build: docker build -t helixscreen/sanitizer -f docker/Dockerfile.sanitizer docker/
+# Run:   docker run -d --name helix-tsan \
+#          -v /mnt/tank/users/pbrown/helix-tsan:/work -w /work \
+#          helixscreen/sanitizer
+#
+# This is the environment `scripts/zeus-run.sh` drives on zeus. It exists because
+# ASAN cannot run on thelio: /etc/ld.so.preload there loads libinput-config.so, so
+# the sanitizer runtime initializes second and the binary produces no test output
+# and exits 0 — a pass that ran nothing. This image has no /etc/ld.so.preload.
+#
+# Ubuntu 22.04 to match the runner the nightly's AddressSanitizer job uses, so a
+# sanitizer finding here reproduces there.
+#
+# The container is long-lived and holds no state worth keeping: the tree, the
+# ccache and the build outputs all live on the /work bind mount, and zeus-run.sh
+# fetches and hard-resets the checkout on every run. Recreating it from this file
+# is the supported recovery.
+
+FROM ubuntu@sha256:2edbbc5dc405e9612ba3584ce95480277e3eb374407b5505fe26f17df77c7dbc
+
+LABEL maintainer="HelixScreen <dev@helixscreen.io>"
+LABEL description="ASAN/TSAN + mutation gate environment for zeus (container name: helix-tsan)"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Retry transient archive.ubuntu.com resets rather than failing the whole layer.
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
+
+# Toolchain and the project's build dependencies. clang is here because the
+# Makefile's compiler probe prefers it and the nightly's clang-only diagnostics
+# have to be reproducible; gdb because a sanitizer abort is usually only legible
+# from a backtrace.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        bats \
+        ca-certificates \
+        ccache \
+        clang \
+        curl \
+        g++ \
+        gdb \
+        git \
+        libbluetooth-dev \
+        libcairo2-dev \
+        libfmt-dev \
+        libjpeg-dev \
+        libnl-3-dev \
+        libnl-genl-3-dev \
+        libpango1.0-dev \
+        libpng-dev \
+        libsdl2-dev \
+        libssl-dev \
+        libsystemd-dev \
+        libusb-1.0-0-dev \
+        libxml2-utils \
+        make \
+        npm \
+        pkg-config \
+        python3 \
+        python3-pip \
+        python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+# mold comes from upstream, NOT from `apt install mold`. Jammy ships 1.0.3, which
+# drops the STB_GNU_UNIQUE symbol the compiler emits for a function-local static
+# inside a template. nlohmann's decode()::utf8d — the 400-entry UTF-8 DFA table —
+# is one of those, so the reference to it resolves to the image base and every
+# json dump() indexes the ELF header instead of the table. The link is silent and
+# the binary runs (prestonbrown/helixscreen#1584).
+#
+# It installs to /usr/local rather than over /usr/bin so nothing shadows it, and
+# the jammy package must stay uninstalled: clang resolves ld.mold from its own
+# program directory before PATH, so a /usr/bin/ld.mold would win the link even
+# with this one first on PATH.
+ARG MOLD_VERSION=2.42.1
+ARG MOLD_SHA256=6ff270c9bf07d2bec5c98aa324eb7c4daf6a1a4d815c05ff1708049616047855
+RUN curl -sSL -o /tmp/mold.tar.gz \
+        "https://github.com/rui314/mold/releases/download/v${MOLD_VERSION}/mold-${MOLD_VERSION}-x86_64-linux.tar.gz" \
+    && echo "${MOLD_SHA256}  /tmp/mold.tar.gz" | sha256sum -c - \
+    && tar -C /usr/local --strip-components=1 -xzf /tmp/mold.tar.gz \
+    && rm -f /tmp/mold.tar.gz \
+    && ld.mold --version
+
+# The checkout on /work is owned by the host user, not by root in here.
+RUN git config --global --add safe.directory '*'
+
+WORKDIR /work
+CMD ["sleep", "infinity"]
