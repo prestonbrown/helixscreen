@@ -629,10 +629,13 @@ void InputShaperPanel::start_with_preflight(char axis) {
         // low_ram_warn_dialog_ on every close path. The token ties all three
         // callbacks to the panel so one torn down while the dialog is up is
         // not called back.
+        // Backing out and tapping outside are the same answer, so both clear
+        // the mode. A dismissal that leaves it set makes the next single-axis
+        // run chain into an unrequested Y sweep.
+        auto abandon = [this]() { calibrate_all_mode_ = false; };
         helix::ui::ConfirmOptions opts;
-        opts.on_cancel = [this]() {
-            calibrate_all_mode_ = false; // user backed out before anything started
-        };
+        opts.on_cancel = abandon;
+        opts.on_dismiss = abandon;
         opts.owner_token = lifetime_.token();
         helix::ui::show_low_ram_resonance_warning(
             mem.total_mb(), &low_ram_warn_dialog_,
