@@ -2689,14 +2689,10 @@ define release-clean-assets
 	@find $(1)/assets/fonts -name '.clang-format' -delete 2>/dev/null || true
 	@find $(1)/assets -name '*.icns' -delete 2>/dev/null || true
 	@find $(1)/assets -name 'mdi-icon-metadata.json.gz' -delete 2>/dev/null || true
-	@# Two top-level images no production code registers. printer.png is a 2 MB
-	@# 1024x1536 source; the app registers printer_400.png and renders printer art
-	@# at 300px, so nothing can ever display it, and the only references are three
-	@# unit tests using its PATH as a distinguishable string without opening it.
-	@# The orcaslicer cube is a test fixture with no reference anywhere at all.
-	@# tests/shell/test_platform_manifest_gate.bats fails if either gains a real
-	@# consumer, so stripping them here cannot quietly break a future caller.
-	@rm -f $(1)/assets/images/printer.png "$(1)/assets/images/orcaslicer test cube.PNG" 2>/dev/null || true
+	@# A test fixture with no reference anywhere in the tree, which therefore
+	@# reaches no screen. tests/shell/test_platform_manifest_gate.bats fails if it
+	@# gains a real consumer, so stripping it here cannot quietly break a caller.
+	@rm -f "$(1)/assets/images/orcaslicer test cube.PNG" 2>/dev/null || true
 	@# assets/sounds is ~900 KB of MOD/MED tracker modules, playable only where
 	@# the tracker player is compiled in. AD5M has sound but deliberately no
 	@# tracker (its single core busy-waits and kills prints) and CC1/K1/K2/MIPS

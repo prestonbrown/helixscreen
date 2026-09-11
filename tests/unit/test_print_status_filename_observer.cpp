@@ -45,7 +45,7 @@ namespace {
 // Real assets, so lv_image_set_src resolves instead of logging a decoder miss,
 // and distinguishable so "which print's image is on screen" is a real assertion.
 constexpr const char* THUMB_A = "A:assets/images/filament_spool.png";
-constexpr const char* THUMB_B = "A:assets/images/printer.png";
+constexpr const char* THUMB_B = "A:assets/images/printer_400.png";
 
 struct FilenameObserverFixture : public LVGLTestFixture {
     FilenameObserverFixture() {

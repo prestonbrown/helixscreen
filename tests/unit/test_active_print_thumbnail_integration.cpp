@@ -47,7 +47,7 @@ namespace {
 // logging a miss. Deliberately NOT benchy_thumbnail_white.png, which is the
 // no-thumbnail placeholder — a test that used it could not tell "print A's
 // image" apart from "nothing to show".
-constexpr const char* THUMB_A = "A:assets/images/printer.png";
+constexpr const char* THUMB_A = "A:assets/images/printer_400.png";
 constexpr const char* THUMB_B = "A:assets/images/folder.png";
 
 /// One PrinterState, one ActivePrintMediaManager, one PrintStatusPanel.
