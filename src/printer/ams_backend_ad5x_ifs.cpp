@@ -169,28 +169,18 @@ bool AmsBackendAd5xIfs::owns_filament_sensor(const std::string& bare_name,
         bare_name.rfind("_ifs_motion_sensor_", 0) == 0) {
         return true;
     }
-    // Standalone IFS module: its sensors register as STOCK
-    // filament_switch_sensor objects ("lane1".."lane4" per-channel presence,
-    // "toolhead" for the ADC-classified toolhead switch), so nothing about the
-    // name itself marks them. Claimed by exact shape only - and this predicate
-    // only ever runs for a printer already detected as AD5X IFS
+    // Standalone IFS module: its toolhead sensor registers as a STOCK
+    // filament_switch_sensor named "toolhead" (its frames are the
+    // head-presence authority on that firmware), so nothing about the name
+    // itself marks it. Claimed by exact shape only - and this predicate only
+    // ever runs for a printer already detected as AD5X IFS
     // (AmsBackend::sensor_belongs_to_backend routes on mmu_type), so a
-    // differently-firmwareed printer's sensor that happens to be named
-    // "toolhead" never reaches this branch.
+    // differently-firmwared printer's sensor that happens to be named
+    // "toolhead" never reaches this branch. Per-channel presence is read from
+    // the module's structured `ifs` status object, not from individual
+    // sensors, so no "lane<N>" name is claimed here.
     if (bare_name == "toolhead") {
         return true;
-    }
-    if (bare_name.rfind("lane", 0) == 0 && bare_name.size() > 4) {
-        bool all_digits = true;
-        for (size_t i = 4; i < bare_name.size(); ++i) {
-            if (!std::isdigit(static_cast<unsigned char>(bare_name[i]))) {
-                all_digits = false;
-                break;
-            }
-        }
-        if (all_digits) {
-            return true;
-        }
     }
     return false;
 }
