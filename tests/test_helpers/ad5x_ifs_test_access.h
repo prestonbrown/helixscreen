@@ -173,6 +173,11 @@ class Ad5xIfsTestAccess {
     static bool has_per_port_sensors(const AmsBackendAd5xIfs& b) {
         return b.has_per_port_sensors_;
     }
+    // Latched once IFS_STATUS "Ports" has been parsed. While set, the RS-485
+    // silk sensors own port_presence_ and no metadata path may move it.
+    static bool ifs_status_ports_seen(const AmsBackendAd5xIfs& b) {
+        return b.ifs_status_ports_seen_.load();
+    }
     static size_t external_sync_count(const AmsBackendAd5xIfs& b) {
         std::lock_guard<std::mutex> lock(b.mutex_);
         return b.external_sync_count_;

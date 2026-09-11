@@ -2700,9 +2700,15 @@ AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, 
             info.material.empty() ? std::string{} : normalize_material(info.material);
         materials_[idx] = normalized_material;
 
-        // Without per-port sensors, infer presence from user-provided data.
-        // Setting color/material marks the slot occupied; clearing both marks it empty.
-        if (!has_per_port_sensors_) {
+        // With no presence reading of any kind, infer it from the identity the
+        // caller supplied: colour or material means occupied, neither means
+        // empty. This is a last resort for devices that report nothing, and it
+        // must stand down the moment a real reading exists. Identity survives an
+        // eject by design (#1071), so on a device whose silk sensors have
+        // spoken, inferring from it resurrects a lane the sensors reported
+        // empty. Same guard as the three other inference sites: apply_zcolor's
+        // slot lines, the Adventurer5M.json poll, and schedule_zcolor_query.
+        if (!has_per_port_sensors_ && !ifs_status_ports_seen_.load()) {
             bool has_data =
                 !normalized_material.empty() || info.color_rgb != AMS_DEFAULT_SLOT_COLOR;
             port_presence_[idx] = has_data;

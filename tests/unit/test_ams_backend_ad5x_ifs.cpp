@@ -2392,6 +2392,77 @@ TEST_CASE("AD5X IFS dirty flag protects against both parse paths", "[ams][ad5x_i
 // (apply_zcolor_result) — the RS-485 silk sensor — and the JSON parse must not
 // touch port_presence_. It still refreshes colors_/materials_ for clean slots.
 
+// set_slot_info carries filament IDENTITY. On native ZMOD the RS-485 silk
+// sensors (IFS_STATUS "Ports") own presence, and identity metadata survives an
+// eject by design (#1071), so inferring presence from "this lane has a colour
+// and a material" resurrects a lane the sensors just reported empty. The
+// inference is a fallback for devices with no silk reading at all, so it must
+// stand down once IFS_STATUS Ports has been parsed.
+TEST_CASE("AD5X IFS set_slot_info does not own presence once IFS_STATUS Ports has spoken",
+          "[ams][ad5x_ifs]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+
+    // Native ZMOD: no lessWaste/bambufy per-port sensor exporter.
+    REQUIRE_FALSE(Ad5xIfsTestAccess::has_per_port_sensors(backend));
+
+    // The silk sensors report every lane empty. That parse latches them as the
+    // presence authority for the life of the backend. Ports rides the same
+    // IFS_STATUS frame as Chan, so a frame carrying Ports always carries Chan
+    // too; 0 is "nothing engaged", which is what an all-empty carousel reports.
+    AmsBackendAd5xIfs::ZColorSilentResult r;
+    r.saw_valid_response = true;
+    r.ifs_chan = 0;
+    r.ifs_ports = std::array<bool, 4>{false, false, false, false};
+    Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
+
+    REQUIRE(Ad5xIfsTestAccess::ifs_status_ports_seen(backend));
+    for (int i = 0; i < 4; ++i) {
+        REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, i));
+    }
+
+    SECTION("a weight-only refresh leaves the emptied lane empty") {
+        // The shape SpoolmanManager's weight poll produces: read the lane back,
+        // change only the weights, write the whole struct. The identity it reads
+        // back is the one #1071 deliberately retains across the eject.
+        SlotInfo slot = backend.get_slot_info(0);
+        slot.material = "PETG";
+        slot.color_rgb = 0xED2C2C;
+        slot.spoolman_id = 7;
+        slot.remaining_weight_g = 218.0f;
+        slot.total_weight_g = 1000.0f;
+
+        backend.set_slot_info(0, slot, /*persist=*/false);
+
+        REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 0));
+        REQUIRE(backend.get_slot_info(0).status == SlotStatus::EMPTY);
+    }
+
+    SECTION("a user identity edit also leaves presence to the sensors") {
+        SlotInfo slot = backend.get_slot_info(1);
+        slot.material = "PLA";
+        slot.color_rgb = 0x8000FF;
+
+        backend.set_slot_info(1, slot, /*persist=*/true);
+
+        REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 1));
+        REQUIRE(backend.get_slot_info(1).status == SlotStatus::EMPTY);
+    }
+
+    SECTION("every other lane is left alone too") {
+        // The reporter's bundle shows one poll resurrecting all four lanes at
+        // once, because the poll visits every Spoolman-linked lane in turn.
+        for (int i = 0; i < 4; ++i) {
+            SlotInfo slot = backend.get_slot_info(i);
+            slot.material = "PETG";
+            slot.color_rgb = 0x010462;
+            backend.set_slot_info(i, slot, /*persist=*/false);
+        }
+        for (int i = 0; i < 4; ++i) {
+            REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, i));
+        }
+    }
+}
+
 TEST_CASE("AD5X IFS parse_adventurer_json does not own presence on native ZMOD",
           "[ams][ad5x_ifs]") {
     AmsBackendAd5xIfs backend(nullptr, nullptr);
