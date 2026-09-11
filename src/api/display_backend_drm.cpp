@@ -1057,33 +1057,28 @@ void DisplayBackendDRM::set_display_rotation(lv_display_rotation_t rot, int phys
 #endif
     auto strategy = choose_drm_rotation_strategy(drm_rot, supported_mask);
 
-    switch (strategy) {
-    case DrmRotationStrategy::HARDWARE:
-#ifndef HELIX_ENABLE_OPENGLES
-        lv_linux_drm_set_rotation(display_, drm_rot);
-        spdlog::info("[DRM Backend] Hardware plane rotation set to {}°",
-                     static_cast<int>(rot) * 90);
-#endif
-        break;
-
-    case DrmRotationStrategy::SOFTWARE:
-        // CPU in-place 180° pixel reversal in drm_flush (lv_linux_drm.c patch).
-        // The dumb-buffer flush callback checks lv_display_get_rotation() and
-        // reverses the pixel array before the page flip. FULL render mode
-        // ensures the entire buffer is redrawn each frame.
+    if (drm_rotation_needs_full_render(strategy)) {
         lv_display_set_render_mode(display_, LV_DISPLAY_RENDER_MODE_FULL);
-        lv_display_set_rotation(display_, rot);
+    }
 
-        spdlog::info("[DRM Backend] Software rotation set to {}° "
-                     "(CPU in-place reversal, plane supports 0x{:X})",
-                     static_cast<int>(rot) * 90, supported_mask);
-        break;
-
-    case DrmRotationStrategy::NONE:
+    if (lvgl_rotation_action_for(strategy) == LvglRotationAction::CLEAR_TO_ZERO) {
         lv_display_set_rotation(display_, LV_DISPLAY_ROTATION_0);
         lv_display_set_matrix_rotation(display_, false);
+    } else {
+        lv_display_set_rotation(display_, rot);
+    }
+
+    if (strategy == DrmRotationStrategy::HARDWARE) {
+#ifndef HELIX_ENABLE_OPENGLES
+        lv_linux_drm_set_rotation(display_, drm_rot);
+        spdlog::info("[DRM Backend] Plane rotation {}° (LVGL left unrotated)",
+                     static_cast<int>(rot) * 90);
+#endif
+    } else if (strategy == DrmRotationStrategy::SOFTWARE) {
+        spdlog::info("[DRM Backend] Software rotation {}° (plane supports 0x{:X})",
+                     static_cast<int>(rot) * 90, supported_mask);
+    } else {
         spdlog::debug("[DRM Backend] No rotation needed");
-        break;
     }
 }
 
