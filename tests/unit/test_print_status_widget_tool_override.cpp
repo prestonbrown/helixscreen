@@ -13,6 +13,7 @@
 #include "tool_state.h"
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -224,6 +225,33 @@ TEST_CASE_METHOD(HelixTestFixture, "Nozzle picker: no discovered extruders means
 
     REQUIRE(
         PrintStatusWidget::build_nozzle_tool_options(ps.temperature_state().extruders()).empty());
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "Nozzle picker: a lone extruder with no assigned display name reads Nozzle",
+                 "[print_status][tool_override]") {
+    // A bare "extruder" key by itself carries no signal about whether the printer
+    // has one nozzle or several, so this exercises build_nozzle_tool_options()
+    // directly rather than through PrinterState::init_extruders(), which would
+    // have already populated display_name and skipped this fallback entirely.
+    std::unordered_map<std::string, ExtruderInfo> extruders;
+    extruders["extruder"];
+    auto options = PrintStatusWidget::build_nozzle_tool_options(extruders);
+    REQUIRE(options.size() == 1);
+    CHECK(options[0].label == "Nozzle");
+}
+
+TEST_CASE_METHOD(
+    HelixTestFixture,
+    "Nozzle picker: a second extruder with no assigned display name still gets a number",
+    "[print_status][tool_override]") {
+    std::unordered_map<std::string, ExtruderInfo> extruders;
+    extruders["extruder"];
+    extruders["extruder1"];
+    auto options = PrintStatusWidget::build_nozzle_tool_options(extruders);
+    REQUIRE(options.size() == 2);
+    CHECK(options[0].label == "Nozzle");
+    CHECK(options[1].label == "Nozzle 2");
 }
 
 // ============================================================================

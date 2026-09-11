@@ -1646,8 +1646,13 @@ std::vector<PrintStatusWidget::NozzleToolOption> PrintStatusWidget::build_nozzle
         if (!info.display_name.empty()) {
             opt.label = info.display_name;
         } else {
+            // A bare "extruder" name by itself carries no signal about whether the
+            // printer has one nozzle or several, so index 0 answers with the common
+            // single-extruder case rather than guessing multi.
             const int index = helix::tool_number_for_extruder(name).value_or(0);
-            opt.label = std::string(lv_tr("Nozzle")) + " " + helix::ui::lane_number_text(index);
+            opt.label = index == 0 ? std::string(lv_tr("Nozzle"))
+                                   : std::string(lv_tr("Nozzle")) + " " +
+                                         helix::ui::lane_number_text(index);
         }
         options.push_back(std::move(opt));
     }
