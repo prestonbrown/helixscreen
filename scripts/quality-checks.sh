@@ -2262,6 +2262,31 @@ fi
 echo ""
 
 SECTION_START=$(date +%s)
+echo -n "🗺️  Checking the platform manifest against its consumers..."
+
+# Advisory while the consumers are migrated onto assets/config/platforms.json.
+# It reports drift between the manifest and the build files, install-root lists
+# and renders that derive from it; --strict makes the same findings fail once
+# every consumer reads the manifest.
+if [ -f "scripts/check_platform_manifest.py" ]; then
+  python3 scripts/check_platform_manifest.py --quiet >/tmp/platform_manifest.out 2>&1 || true
+  section_time $SECTION_START
+  echo ""
+  if [ -s /tmp/platform_manifest.out ]; then
+    echo "ℹ️  platform manifest findings (advisory):"
+    cat /tmp/platform_manifest.out
+  else
+    echo "✅ platform manifest agrees with its consumers"
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_platform_manifest.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(date +%s)
 echo -n "🕰️  Checking comments for commit-SHA citations..."
 
 # Ratchet. Comments explain the code as it is; how it got here belongs in the

@@ -23,6 +23,7 @@
 #include "data_root_resolver.h"
 #include "display_backend.h"
 #include "helix_version.h"
+#include "prerender_size_class.h"
 #include "splash_status.h"
 
 #include <cstdio>
@@ -180,39 +181,6 @@ static bool read_config_dark_mode(bool default_value = true) {
     return default_value;
 }
 
-// Get size name for a screen width (matches prerendered_images.cpp logic)
-static const char* get_splash_3d_size_name(int screen_width, int screen_height) {
-    // Ultra-wide displays (e.g. 1920x440): wide but very short
-    if (screen_width >= 1100 && screen_height < 500)
-        return "ultrawide";
-    if (screen_width < 600) {
-        // Distinguish K1 (480x400) from generic tiny (480x320)
-        return (screen_height >= 380) ? "tiny_alt" : "tiny";
-    }
-    if (screen_width < 900)
-        return "small";
-    if (screen_width < 1100)
-        return "medium";
-    return "large";
-}
-
-// Known heights for pre-rendered splash images (from gen_splash_3d.py SCREEN_SIZES)
-static int get_splash_3d_target_height(const char* size_name) {
-    if (strcmp(size_name, "tiny") == 0)
-        return 320;
-    if (strcmp(size_name, "tiny_alt") == 0)
-        return 400;
-    if (strcmp(size_name, "small") == 0)
-        return 480;
-    if (strcmp(size_name, "medium") == 0)
-        return 600;
-    if (strcmp(size_name, "large") == 0)
-        return 720;
-    if (strcmp(size_name, "ultrawide") == 0)
-        return 440;
-    return 0;
-}
-
 /**
  * @brief Parse command line arguments
  */
@@ -252,7 +220,7 @@ static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width, int height, bool 
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
     // Try full-screen 3D splash first
-    const char* size_name = get_splash_3d_size_name(width, height);
+    const char* size_name = helix::get_splash_3d_size_name(width, height);
     const char* mode_name = dark_mode ? "dark" : "light";
 
     // Build path to 3D splash image
@@ -281,7 +249,7 @@ static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width, int height, bool 
 
     // Safety: skip pre-rendered .bin if it would be taller than the screen
     if (use_3d) {
-        int target_h = get_splash_3d_target_height(size_name);
+        int target_h = helix::get_splash_3d_target_height(size_name);
         if (target_h > 0 && target_h > height) {
             fprintf(stderr,
                     "helix-splash: Pre-rendered %s (%dpx) exceeds screen height %dpx, "

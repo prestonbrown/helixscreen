@@ -169,6 +169,7 @@ list-printer-images:
 # These are composited images: logo centered on bg-colored canvas at screen res.
 GEN_SPLASH_3D_SCRIPT := scripts/gen_splash_3d.py
 SPLASH_3D_PYTHON := $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
+PLATFORM_MANIFEST := $(SPLASH_3D_PYTHON) scripts/platform_manifest.py
 
 # Generate 3D splash images for all sizes and modes
 .PHONY: gen-splash-3d
@@ -178,29 +179,21 @@ gen-splash-3d:
 	$(Q)$(SPLASH_3D_PYTHON) $(GEN_SPLASH_3D_SCRIPT) --output-dir $(PRERENDERED_DIR)
 	$(ECHO) "$(GREEN)✓ 3D splash images generated$(RESET)"
 
-# Generate 3D splash images for AD5M only (800x480)
-.PHONY: gen-splash-3d-ad5m
-gen-splash-3d-ad5m:
-	$(ECHO) "$(CYAN)Generating 3D splash images for AD5M (800x480)...$(RESET)"
-	$(Q)mkdir -p $(PRERENDERED_DIR)
-	$(Q)$(SPLASH_3D_PYTHON) $(GEN_SPLASH_3D_SCRIPT) --output-dir $(PRERENDERED_DIR) --sizes small
-	$(ECHO) "$(GREEN)✓ AD5M 3D splash images generated$(RESET)"
-
-# Generate 3D splash images for AD5X only (800x480)
-.PHONY: gen-splash-3d-ad5x
-gen-splash-3d-ad5x:
-	$(ECHO) "$(CYAN)Generating 3D splash images for AD5X (800x480)...$(RESET)"
-	$(Q)mkdir -p $(PRERENDERED_DIR)
-	$(Q)$(SPLASH_3D_PYTHON) $(GEN_SPLASH_3D_SCRIPT) --output-dir $(PRERENDERED_DIR) --sizes small
-	$(ECHO) "$(GREEN)✓ AD5X 3D splash images generated$(RESET)"
-
-# Generate 3D splash images for K1 only (480x400)
-.PHONY: gen-splash-3d-k1
-gen-splash-3d-k1:
-	$(ECHO) "$(CYAN)Generating 3D splash images for K1 (480x400)...$(RESET)"
-	$(Q)mkdir -p $(PRERENDERED_DIR)
-	$(Q)$(SPLASH_3D_PYTHON) $(GEN_SPLASH_3D_SCRIPT) --output-dir $(PRERENDERED_DIR) --sizes tiny_alt
-	$(ECHO) "$(GREEN)✓ K1 3D splash images generated$(RESET)"
+# Per-platform 3D splash generation. Which classes a platform needs is derived
+# from its panel geometry in assets/config/platforms.json, so the geometry is
+# stated once and every package target that asks gets the same answer. An empty
+# class list means the panel is not known until runtime, so all classes are built.
+#
+# set -e matters here: an unknown platform must fail the build, not silently
+# fall through to generating everything.
+gen-splash-3d-%: FORCE
+	$(Q)set -e; \
+	sizes=$$($(PLATFORM_MANIFEST) splash-3d-sizes $*); \
+	res=$$($(PLATFORM_MANIFEST) effective-resolution $*); \
+	printf '%b\n' "$(CYAN)Generating 3D splash images for $* ($${res:-panel set at runtime}): $${sizes:-all sizes}...$(RESET)"; \
+	mkdir -p $(PRERENDERED_DIR); \
+	$(SPLASH_3D_PYTHON) $(GEN_SPLASH_3D_SCRIPT) --output-dir $(PRERENDERED_DIR) $${sizes:+--sizes $$sizes}; \
+	printf '%b\n' "$(GREEN)✓ $* 3D splash images generated$(RESET)"
 
 # Clean 3D splash images
 .PHONY: clean-splash-3d
@@ -234,8 +227,8 @@ help-images:
 	@echo "    clean-images       - Remove splash .bin files"
 	@echo "    list-images        - Show splash targets"
 	@echo "    gen-splash-3d      - Generate 3D splash (all sizes, dark+light)"
-	@echo "    gen-splash-3d-ad5m - Generate 3D splash for AD5M only"
-	@echo "    gen-splash-3d-ad5x - Generate 3D splash for AD5X only"
+	@echo "    gen-splash-3d-<platform> - Generate only the classes that platform's"
+	@echo "                         panel selects (from assets/config/platforms.json)"
 	@echo "    clean-splash-3d    - Remove 3D splash .bin files"
 	@echo ""
 	@echo "  Placeholder thumbnails:"

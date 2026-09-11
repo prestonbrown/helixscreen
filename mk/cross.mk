@@ -2785,7 +2785,7 @@ define assert-no-remote-control
 	fi
 endef
 
-.PHONY: release-pi release-pi32 release-ad5m release-k1 release-ad5x release-k1-dynamic release-k2 release-snapmaker-u1 release-x86 release-all release-clean pi-fbdev-docker pi32-fbdev-docker pi-all-docker pi32-all-docker x86-fbdev-docker x86-all-docker
+.PHONY: release-pi release-pi32 release-ad5m release-cc1 release-k1 release-ad5x release-k1-dynamic release-k2 release-snapmaker-u1 release-x86 release-all release-clean pi-fbdev-docker pi32-fbdev-docker pi-all-docker pi32-all-docker x86-fbdev-docker x86-all-docker
 
 # Package Pi release
 release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash build/pi-fbdev/bin/helix-screen
@@ -3303,16 +3303,20 @@ release-clean:
 # so the marker alone would not have caught a release assembled from a
 # developer build. The stamped binary is the thing that gets verified.
 package-%: HELIX_PACKAGING := 1
+# Every package depends on gen-splash-3d-<its own platform>. That target reads
+# the platform's panel geometry from assets/config/platforms.json and generates
+# exactly the classes the panel can select, so this list carries no resolution
+# knowledge of its own.
 package-ad5m: ad5m-docker gen-images-ad5m gen-splash-3d-ad5m gen-printer-images release-ad5m
-package-cc1: cc1-docker gen-images gen-printer-images release-cc1
-package-pi: pi-all-docker gen-images gen-splash-3d gen-printer-images release-pi
-package-pi32: pi32-all-docker gen-images gen-splash-3d gen-printer-images release-pi32
+package-cc1: cc1-docker gen-images gen-splash-3d-cc1 gen-printer-images release-cc1
+package-pi: pi-all-docker gen-images gen-splash-3d-pi gen-printer-images release-pi
+package-pi32: pi32-all-docker gen-images gen-splash-3d-pi32 gen-printer-images release-pi32
 package-k1: mips-docker gen-images gen-splash-3d-k1 gen-printer-images release-k1
-package-ad5x: mips-docker gen-images gen-splash-3d-k1 gen-printer-images release-ad5x
-package-k1-dynamic: k1-dynamic-docker gen-images gen-splash-3d-k1 gen-printer-images release-k1-dynamic
-package-k2: k2-docker gen-images gen-printer-images release-k2
-package-snapmaker-u1: snapmaker-u1-docker gen-images gen-printer-images release-snapmaker-u1
-package-x86: x86-all-docker gen-images gen-splash-3d gen-printer-images release-x86
+package-ad5x: mips-docker gen-images gen-splash-3d-ad5x gen-printer-images release-ad5x
+package-k1-dynamic: k1-dynamic-docker gen-images gen-splash-3d-k1-dynamic gen-printer-images release-k1-dynamic
+package-k2: k2-docker gen-images gen-splash-3d-k2 gen-printer-images release-k2
+package-snapmaker-u1: snapmaker-u1-docker gen-images gen-splash-3d-snapmaker-u1 gen-printer-images release-snapmaker-u1
+package-x86: x86-all-docker gen-images gen-splash-3d-x86 gen-printer-images release-x86
 package-all: package-ad5m package-cc1 package-pi package-pi32 package-k1 package-ad5x package-k1-dynamic package-k2 package-snapmaker-u1 package-x86
 package-clean: release-clean
 

@@ -6,6 +6,7 @@
 #include "app_globals.h"
 #include "data_root_resolver.h"
 #include "lvgl_image_writer.h"
+#include "prerender_size_class.h"
 #include "stb_image.h"
 #include "stb_image_resize.h"
 
@@ -33,53 +34,6 @@ bool prerendered_exists(const std::string& path) {
     // miss, and the escaping exception blanked the home-panel printer image.
     std::error_code ec;
     return std::filesystem::exists(asset_path(path), ec);
-}
-
-const char* get_splash_size_name(int screen_width) {
-    if (screen_width < 600) {
-        return "tiny"; // 480x320 class
-    } else if (screen_width < 900) {
-        return "small"; // 800x480 class (AD5M)
-    } else if (screen_width < 1100) {
-        return "medium"; // 1024x600 class
-    } else {
-        return "large"; // 1280x720+ class
-    }
-}
-
-const char* get_splash_3d_size_name(int screen_width, int screen_height) {
-    // Ultra-wide displays (e.g. 1920x440): wide but very short
-    if (screen_width >= 1100 && screen_height < 500) {
-        return "ultrawide";
-    }
-
-    if (screen_width < 600) {
-        // Distinguish K1 (480x400) from generic tiny (480x320)
-        return (screen_height >= 380) ? "tiny_alt" : "tiny";
-    } else if (screen_width < 900) {
-        return "small"; // 800x480 class (AD5M)
-    } else if (screen_width < 1100) {
-        return "medium"; // 1024x600 class
-    } else {
-        return "large"; // 1280x720+ class
-    }
-}
-
-int get_splash_3d_target_height(const char* size_name) {
-    // Known heights for pre-rendered splash images (from gen_splash_3d.py SCREEN_SIZES)
-    if (strcmp(size_name, "tiny") == 0)
-        return 320;
-    if (strcmp(size_name, "tiny_alt") == 0)
-        return 400;
-    if (strcmp(size_name, "small") == 0)
-        return 480;
-    if (strcmp(size_name, "medium") == 0)
-        return 600;
-    if (strcmp(size_name, "large") == 0)
-        return 720;
-    if (strcmp(size_name, "ultrawide") == 0)
-        return 440;
-    return 0; // Unknown — caller should fall back to runtime scaling
 }
 
 std::string get_prerendered_splash_3d_path(int screen_width, int screen_height, bool dark_mode) {
@@ -129,12 +83,6 @@ std::string get_prerendered_splash_path(int screen_width) {
 
     spdlog::debug("[Prerendered] Splash fallback to PNG ({}px screen)", screen_width);
     return asset_component_uri("assets/images/helixscreen-logo.png");
-}
-
-int get_printer_image_size(int screen_width) {
-    // 300px for medium-large displays (800x480+)
-    // 150px for small displays (480x320)
-    return (screen_width >= 600) ? 300 : 150;
 }
 
 std::string get_prerendered_printer_path(const std::string& printer_name, int screen_width) {
