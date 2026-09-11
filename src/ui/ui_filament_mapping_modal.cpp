@@ -7,6 +7,7 @@
 #include "ui_utils.h"
 
 #include "ams_state.h"
+#include "display_numbering.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
@@ -253,7 +254,7 @@ std::string FilamentMappingModal::get_slot_display_text(const helix::ToolMapping
     }
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "%s %d", lv_tr("Slot"), mapping.mapped_slot + 1);
+    snprintf(buf, sizeof(buf), "%s %d", lv_tr("Slot"), helix::ui::lane_number(mapping.mapped_slot));
     return buf;
 }
 

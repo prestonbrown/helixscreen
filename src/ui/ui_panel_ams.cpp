@@ -37,6 +37,7 @@
 #include "buffer_status_modal.h"
 #include "color_utils.h"
 #include "config.h"
+#include "display_numbering.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
@@ -1496,7 +1497,8 @@ void AmsPanel::show_edit_modal(int slot_index, bool open_on_picker) {
                         helix::ui::notify_ams_error(err);
                         return;
                     }
-                    NOTIFY_INFO(lv_tr("Slot {} updated"), result.slot_index + 1);
+                    NOTIFY_INFO(lv_tr("Slot {} updated"),
+                                helix::ui::lane_number(result.slot_index));
                 }
             }
         },

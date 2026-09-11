@@ -20,6 +20,7 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "data_root_resolver.h"
+#include "display_numbering.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_op_router.h"
@@ -1646,8 +1647,7 @@ std::vector<PrintStatusWidget::NozzleToolOption> PrintStatusWidget::build_nozzle
             opt.label = info.display_name;
         } else {
             const int index = helix::tool_number_for_extruder(name).value_or(0);
-            opt.label = index == 0 ? std::string(lv_tr("Nozzle"))
-                                   : std::string(lv_tr("Nozzle")) + " " + std::to_string(index + 1);
+            opt.label = std::string(lv_tr("Nozzle")) + " " + helix::ui::lane_number_text(index);
         }
         options.push_back(std::move(opt));
     }

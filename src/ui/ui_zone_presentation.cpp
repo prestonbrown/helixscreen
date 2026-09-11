@@ -4,6 +4,7 @@
 #include "ui_zone_presentation.h"
 
 #include "ams_environment_zone.h"
+#include "display_numbering.h"
 
 #include <string>
 #include <vector>
@@ -40,10 +41,10 @@ std::string zone_display_label(const helix::printer::EnvironmentZone& zone,
         return zone.label;
     }
     if (zone.gates.size() == 1) {
-        return slot_word + " " + std::to_string(zone.gates.front() + 1);
+        return slot_word + " " + std::to_string(lane_number(zone.gates.front()));
     }
     const std::string prefix = type_name.empty() ? std::string{} : type_name + " ";
-    return prefix + unit_word + " " + std::to_string(zone.unit_index + 1);
+    return prefix + unit_word + " " + std::to_string(lane_number(zone.unit_index));
 }
 
 bool zones_span_units(const std::vector<helix::printer::EnvironmentZone>& zones) {
@@ -64,8 +65,8 @@ std::string zone_slot_text(const helix::printer::EnvironmentZone& zone,
     if (zone.gates.empty()) {
         return {};
     }
-    const int first = zone.gates.front() + 1;
-    const int last = zone.gates.back() + 1;
+    const int first = lane_number(zone.gates.front());
+    const int last = lane_number(zone.gates.back());
     if (first == last) {
         return singular_word + " " + std::to_string(first);
     }

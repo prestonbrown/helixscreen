@@ -16,6 +16,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "color_utils.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
 #include "filament_mapper.h"
@@ -1399,7 +1400,7 @@ void AmsEditOverlay::update_ui() {
                  lv_tr("External Filament"));
     } else {
         snprintf(slot_indicator_buf_, sizeof(slot_indicator_buf_), lv_tr("Slot %d Filament"),
-                 slot_index_ + 1);
+                 helix::ui::lane_number(slot_index_));
     }
     lv_subject_copy_string(&slot_indicator_subject_, slot_indicator_buf_);
 

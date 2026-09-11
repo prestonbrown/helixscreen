@@ -28,6 +28,7 @@
 #include "app_globals.h"
 #include "color_utils.h"
 #include "data_root_resolver.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
@@ -1536,7 +1537,8 @@ void AmsOverviewPanel::show_edit_modal(int slot_index, bool open_on_picker) {
                         helix::ui::notify_ams_error(err);
                         return;
                     }
-                    NOTIFY_INFO(lv_tr("Slot {} updated"), result.slot_index + 1);
+                    NOTIFY_INFO(lv_tr("Slot {} updated"),
+                                helix::ui::lane_number(result.slot_index));
                 }
             }
         },

@@ -6,6 +6,7 @@
 #include "ui_print_exclude_object_manager.h"
 #include "ui_utils.h"
 
+#include "display_numbering.h"
 #include "observer_factory.h"
 #include "printer_state.h"
 #include "theme_manager.h"
@@ -246,7 +247,7 @@ void ExcludeObjectSideList::create_row(lv_obj_t* parent, int index, const std::s
 
     lv_obj_t* badge_label = lv_label_create(badge);
     char num_buf[8];
-    snprintf(num_buf, sizeof(num_buf), "%d", index + 1);
+    snprintf(num_buf, sizeof(num_buf), "%d", lane_number(index));
     lv_label_set_text(badge_label, num_buf);
     lv_obj_set_style_text_color(badge_label, lv_color_white(), 0);
     lv_obj_set_style_text_font(badge_label, theme_manager_get_font("font_small"), 0);

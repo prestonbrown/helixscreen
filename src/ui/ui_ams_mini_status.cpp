@@ -14,6 +14,7 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "config.h"
+#include "display_numbering.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
@@ -1293,7 +1294,7 @@ void ui_ams_mini_status_set_slot_full(lv_obj_t* obj, int slot_index, uint32_t co
     // material is the only "assigned" evidence it can offer (the AmsState path
     // in sync_from_ams_state() sees the full predicate).
     c.assigned = !c.material.empty();
-    c.lane_number = slot_index + 1;
+    c.lane_number = helix::ui::lane_number(slot_index);
 }
 
 void ui_ams_mini_status_set_slot(lv_obj_t* obj, int slot_index, uint32_t color_rgb, int fill_pct,
@@ -1452,7 +1453,7 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
         c.remaining_pct = rem;
         c.material = slot.material;
         c.present = slot.is_present();
-        c.lane_number = i + 1;
+        c.lane_number = helix::ui::lane_number(i);
         c.active = active;
         c.assigned = assigned;
     }

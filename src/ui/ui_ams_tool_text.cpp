@@ -3,6 +3,7 @@
 #include "ui_ams_tool_text.h"
 
 #include "ams_state.h"
+#include "display_numbering.h"
 #include "observer_factory.h"
 #include "static_subject_registry.h"
 #include "tool_state.h"
@@ -49,7 +50,7 @@ static void update_toolchange_text(helix::AmsState* a) {
         // Backends store a 0-based index (-1 = none yet); display is 1-based.
         // Clamped to the total so a backend that over-reports cannot render a
         // nonsensical "162 / 161".
-        int raw_display = current + 1;
+        int raw_display = helix::ui::lane_number(current);
         int display_current = std::clamp(raw_display, 0, total);
         // The clamp is a display guard, not a correction: it turns an obviously
         // wrong "162 / 161" into a plausible "161 / 161" that then sits there for

@@ -11,6 +11,7 @@
 #include "ui_utils.h"
 
 #include "ams_state.h"
+#include "display_numbering.h"
 #include "printer_detector.h"
 #include "ui/ams_drawing_utils.h"
 
@@ -789,7 +790,7 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
                 static_cast<helix::printer::AmsBackendCfs*>(backend)->clear_box_slot_profile(slot);
             }
 #endif
-            NOTIFY_INFO(lv_tr("Slot {} spool cleared"), slot + 1);
+            NOTIFY_INFO(lv_tr("Slot {} spool cleared"), helix::ui::lane_number(slot));
         } else {
             notify_ams_error(error, lv_tr("Clear failed"));
         }

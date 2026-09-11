@@ -8,6 +8,7 @@
 
 #include "ams_state.h"
 #include "color_utils.h"
+#include "display_numbering.h"
 #include "filament_mapper.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "print_start_checks.h"
@@ -449,7 +450,8 @@ void FilamentMappingCard::rebuild_compact_view() {
                 // resolve_mapped_slot() already found the lane; asking
                 // mapped_lane_display_number() would rescan available_slots_ for
                 // the same answer, which is the split this task exists to close.
-                const int lane_number = resolved ? resolved->local_slot_index + 1 : -1;
+                const int lane_number =
+                    resolved ? helix::ui::lane_number(resolved->local_slot_index) : -1;
                 if (lane_number > 0) {
                     lv_label_set_text_fmt(slot_lbl, "%d", lane_number);
                     // An empty lane draws no fill, so there is nothing to contrast

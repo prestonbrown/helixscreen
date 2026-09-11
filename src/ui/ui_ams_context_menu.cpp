@@ -13,6 +13,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_op_execute.h"
 #include "filament_op_slot_resolver.h"
@@ -407,7 +408,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     lv_obj_t* slot_header = lv_obj_find_by_name(menu_obj, "slot_header");
     if (slot_header) {
         char header_text[32];
-        snprintf(header_text, sizeof(header_text), lv_tr("Slot %d"), slot_index + 1);
+        snprintf(header_text, sizeof(header_text), lv_tr("Slot %d"),
+                 helix::ui::lane_number(slot_index));
         lv_label_set_text(slot_header, header_text);
     }
 
@@ -1012,7 +1014,7 @@ std::string AmsContextMenu::build_backup_options_for(int total_slots, int item_i
         if (i == item_index) {
             continue;
         }
-        options += "\n" + fmt::format(lv_tr("Slot {}"), i + 1);
+        options += "\n" + fmt::format(lv_tr("Slot {}"), helix::ui::lane_number(i));
         if (item_index >= 0 && eligible) {
             switch (eligible(item_index, i)) {
             case helix::printer::BackupEligibility::Incompatible:

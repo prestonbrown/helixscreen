@@ -17,6 +17,7 @@
 #include "ams_environment_zone.h"
 #include "ams_state.h"
 #include "data_root_resolver.h"
+#include "display_numbering.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "static_panel_registry.h"
@@ -62,7 +63,7 @@ std::string zone_status_text(const ZoneStatus& status) {
 std::string unit_group_text(const helix::printer::EnvironmentZone& zone,
                             const std::string& type_name) {
     const std::string prefix = type_name.empty() ? std::string{} : type_name + " ";
-    return prefix + lv_tr("Unit") + " " + std::to_string(zone.unit_index + 1);
+    return prefix + lv_tr("Unit") + " " + std::to_string(lane_number(zone.unit_index));
 }
 
 std::string overview_subtitle(const std::vector<helix::printer::EnvironmentZone>& zones) {
