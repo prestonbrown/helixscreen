@@ -243,9 +243,9 @@ TEST_CASE("Weight comes from Spoolman when a spool is linked, the meter otherwis
 }
 
 TEST_CASE("A weight refresh cannot disturb presence or identity", "[lane][resolver]") {
-    // The shape that resurrected ejected lanes: a poll that means to change two
-    // weight numbers goes through a path that re-derives other state. With one
-    // record per source there is no path from a weight write to presence.
+    // A Metered observation reaches only the weight fields of its own record,
+    // so no number of weight writes can reach presence or identity. There is no
+    // shared destination for them to pass through.
     helix::ams::LaneSources lane;
 
     Observation sensed;
@@ -276,9 +276,9 @@ TEST_CASE("A weight refresh cannot disturb presence or identity", "[lane][resolv
 }
 
 TEST_CASE("A colour the user picks outranks the one that came with the spool", "[lane][resolver]") {
-    // Bundle MYUZZ3RE: assigning a spool recorded its colour as the user's own
-    // choice, so a later pick was discarded. Separate sources make the question
-    // answerable instead of ambiguous.
+    // A colour the user picks is its own record, not an edit of the spool's.
+    // The binding is untouched, so the spool link and the brand survive a pick
+    // that changes only the colour.
     helix::ams::LaneSources lane;
 
     Observation spool;
