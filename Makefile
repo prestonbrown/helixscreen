@@ -172,6 +172,9 @@ DEPFLAGS = -MMD -MP
 # Optimization level: -O2 by default, override with OPT=0 or OPT=1 for faster builds
 # 'make dev' sets OPT=0 automatically (~2x faster compilation)
 OPT ?= 2
+# Debug info level. ASAN links of this tree need multiple GB at -g2; DBGLEVEL=0
+# keeps the symbol table (which is what ASAN frames resolve from) without DWARF.
+DBGLEVEL ?= 2
 
 # Project source flags - warnings enabled, strict mode optional
 # Use WERROR=1 to treat warnings as errors (for CI or `make strict`)
@@ -187,8 +190,8 @@ ifeq ($(PLATFORM_TARGET),yocto)
     CFLAGS += -std=c11 -Wall -Wextra -D_GNU_SOURCE -Wno-psabi
     CXXFLAGS += -std=c++17 -Wall -Wextra -Wno-psabi
 else
-    CFLAGS := -std=c11 -Wall -Wextra -O$(OPT) -g -D_GNU_SOURCE -fno-omit-frame-pointer -fstack-protector-strong
-    CXXFLAGS := -std=c++17 -Wall -Wextra -O$(OPT) -g -fno-omit-frame-pointer -fstack-protector-strong
+    CFLAGS := -std=c11 -Wall -Wextra -O$(OPT) -g$(DBGLEVEL) -D_GNU_SOURCE -fno-omit-frame-pointer -fstack-protector-strong
+    CXXFLAGS := -std=c++17 -Wall -Wextra -O$(OPT) -g$(DBGLEVEL) -fno-omit-frame-pointer -fstack-protector-strong
     ifneq ($(OPT),0)
         CFLAGS += -D_FORTIFY_SOURCE=2
         CXXFLAGS += -D_FORTIFY_SOURCE=2
@@ -268,8 +271,8 @@ endif
 # Submodule flags - suppress warnings from third-party code we don't control
 # Uses -w to completely silence warnings (cleaner build output)
 # Note: No DEPFLAGS for submodules - we don't track their internal dependencies
-SUBMODULE_CFLAGS := -std=c11 -O2 -g -D_GNU_SOURCE -w
-SUBMODULE_CXXFLAGS := -std=c++17 -O2 -g -w
+SUBMODULE_CFLAGS := -std=c11 -O2 -g$(DBGLEVEL) -D_GNU_SOURCE -w
+SUBMODULE_CXXFLAGS := -std=c++17 -O2 -g$(DBGLEVEL) -w
 
 # XML create-cost profiling in lib/helix-xml (lv_xml.c). Counts component
 # creates and separates expat/SAX time from element-handler time, which is the
