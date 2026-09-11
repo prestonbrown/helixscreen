@@ -892,13 +892,13 @@ Valid values: `0`, `90`, `180`, `270`. Restart HelixScreen after changing.
 
 Touch coordinates are automatically adjusted to match the rotation — no separate touch configuration is needed.
 
-**Rotation and display backends:** When rotation is configured on Raspberry Pi, HelixScreen checks whether your display hardware supports rotating the image directly. Most DSI/HDMI displays on Pi do not support hardware rotation. In that case, HelixScreen automatically switches from the DRM backend to the framebuffer backend, which handles software rotation without any screen flicker. This switch is transparent — no manual configuration needed.
+**Rotation and display backends:** When rotation is configured on Raspberry Pi, HelixScreen checks whether your display hardware supports rotating the image directly. Most DSI/HDMI displays on Pi do not support hardware rotation. In that case, HelixScreen automatically switches from the DRM backend to the framebuffer backend, which handles software rotation without any screen flicker. This switch is transparent - no manual configuration needed.
 
 If you experience any display issues with rotation, you can also force the framebuffer backend manually by setting `HELIX_DISPLAY_BACKEND=fbdev` (see below).
 
 ### Display Backends: DRM vs Framebuffer
 
-By default, HelixScreen uses the DRM/KMS backend when available. DRM presents each frame with a vsynced page flip instead of a plain memory copy, which avoids tearing — rendering itself is CPU-based on both backends. On boards where DRM is not supported, it falls back to the framebuffer (`fbdev` backend), which copies each frame directly with no vsync.
+By default, HelixScreen uses the DRM/KMS backend when available. DRM presents each frame with a vsynced page flip instead of a plain memory copy, which avoids tearing - rendering itself is CPU-based on both backends. On boards where DRM is not supported, it falls back to the framebuffer (`fbdev` backend), which copies each frame directly with no vsync.
 
 **When rotation is configured**, HelixScreen may automatically switch to the fbdev backend if the display hardware doesn't support hardware rotation. This is normal and provides flicker-free rotation.
 
