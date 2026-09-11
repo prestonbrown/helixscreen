@@ -852,3 +852,48 @@ check_deinit_all_does_not_log() {
     [ "$status" -eq 1 ]
     [[ "$output" == *"could not locate"* ]]
 }
+
+# --- The Spoolman weight poll must stay weight-only ---
+# AmsBackend::update_slot_weight exists so an automated weight tracker never
+# asserts filament identity. Handing a backend a whole SlotInfo lets it re-derive
+# state from fields the poll never meant to touch: a backend that infers presence
+# from identity resurrects a lane its sensors report empty, and the persist arm
+# re-stages the user-lock flags from whatever the slot happened to hold. The
+# consumption sink routes through update_slot_weight for this reason (#981); the
+# Spoolman poll is the other automated weight writer, and it polls every linked
+# lane on a timer.
+
+check_weight_poll_is_weight_only() {
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo "could not locate $file"
+        return 1
+    fi
+    if grep -qE '\->set_slot_info\(' "$file"; then
+        echo "$file writes a whole SlotInfo; an automated weight poll must call update_slot_weight() instead"
+        return 1
+    fi
+    return 0
+}
+
+@test "the Spoolman weight poll does not write whole SlotInfo structs" {
+    run check_weight_poll_is_weight_only src/printer/spoolman_manager.cpp
+    [ "$status" -eq 0 ]
+}
+
+@test "the weight-poll gate fires when the poll writes a whole SlotInfo" {
+    # Meta-test: a gate that cannot fail is not a gate.
+    local mutated="${BATS_TEST_TMPDIR}/spoolman_manager_whole_struct.cpp"
+    sed -e 's@owner->update_slot_weight(@owner->set_slot_info(@' \
+        src/printer/spoolman_manager.cpp > "$mutated"
+
+    run check_weight_poll_is_weight_only "$mutated"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"update_slot_weight"* ]]
+}
+
+@test "the weight-poll gate fails closed when the file is missing" {
+    run check_weight_poll_is_weight_only "${BATS_TEST_TMPDIR}/does_not_exist.cpp"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"could not locate"* ]]
+}
