@@ -47,7 +47,7 @@ ifneq ($(UNAME_S),Darwin)
     # Linux: may need DRM/input libraries
     ifeq ($(DISPLAY_BACKEND),drm)
         WATCHDOG_LDFLAGS += -ldrm -linput
-        ifeq ($(ENABLE_OPENGLES),yes)
+        ifneq ($(filter yes,$(ENABLE_OPENGLES) $(ENABLE_GLES_3D)),)
             WATCHDOG_LDFLAGS += -lEGL -lGLESv2 -lgbm -ldl
         endif
     endif

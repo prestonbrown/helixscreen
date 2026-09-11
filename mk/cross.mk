@@ -74,7 +74,9 @@ ifeq ($(PLATFORM_TARGET),pi)
     # Without it SIGABRT reports get garbage frames. Matches ad5x/cc1/k1/k2/snapmaker-u1.
     TARGET_CFLAGS := -march=armv8-a -fno-omit-frame-pointer -funwind-tables -I/usr/aarch64-linux-gnu/include -I/usr/include/libdrm -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_BINARY_VARIANT=\"drm\"
     DISPLAY_BACKEND := drm
-    ENABLE_OPENGLES := yes
+    # No LVGL EGL path is compiled yet; LV_USE_OPENGLES gates it and is 0.
+    # Setting this to yes without that trips the #error in display_backend_drm.cpp.
+    ENABLE_OPENGLES := no
     ENABLE_SDL := no
     ENABLE_GLES_3D := yes
     ENABLE_SCREENSAVER := yes
@@ -122,7 +124,7 @@ else ifeq ($(PLATFORM_TARGET),pi-both)
     TARGET_TRIPLE := aarch64-linux-gnu
     TARGET_CFLAGS := -march=armv8-a -fno-omit-frame-pointer -funwind-tables -I/usr/aarch64-linux-gnu/include -I/usr/include/libdrm -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_BINARY_VARIANT=\"drm\"
     DISPLAY_BACKEND := drm
-    ENABLE_OPENGLES := yes
+    ENABLE_OPENGLES := no
     ENABLE_SDL := no
     ENABLE_GLES_3D := yes
     ENABLE_SCREENSAVER := yes
@@ -153,7 +155,7 @@ else ifeq ($(PLATFORM_TARGET),pi32)
         -I/usr/arm-linux-gnueabihf/include -I/usr/include/libdrm \
         -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_PI32 -DHELIX_BINARY_VARIANT=\"drm\"
     DISPLAY_BACKEND := drm
-    ENABLE_OPENGLES := yes
+    ENABLE_OPENGLES := no
     ENABLE_SDL := no
     ENABLE_GLES_3D := yes
     ENABLE_SCREENSAVER := yes
@@ -201,7 +203,7 @@ else ifeq ($(PLATFORM_TARGET),pi32-both)
         -I/usr/arm-linux-gnueabihf/include -I/usr/include/libdrm \
         -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_PI32 -DHELIX_BINARY_VARIANT=\"drm\"
     DISPLAY_BACKEND := drm
-    ENABLE_OPENGLES := yes
+    ENABLE_OPENGLES := no
     ENABLE_SDL := no
     ENABLE_GLES_3D := yes
     ENABLE_SCREENSAVER := yes
@@ -604,7 +606,7 @@ else ifeq ($(PLATFORM_TARGET),x86)
     # call stack in crash reports. Negligible code size cost, zero runtime cost.
     TARGET_CFLAGS := -march=x86-64 -funwind-tables -I/usr/include/libdrm -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_X86 -DHELIX_BINARY_VARIANT=\"drm\"
     DISPLAY_BACKEND := drm
-    ENABLE_OPENGLES := yes
+    ENABLE_OPENGLES := no
     ENABLE_SDL := no
     ENABLE_GLES_3D := yes
     ENABLE_SCREENSAVER := yes
@@ -649,7 +651,7 @@ else ifeq ($(PLATFORM_TARGET),x86-both)
     TARGET_TRIPLE := x86_64-linux-gnu
     TARGET_CFLAGS := -march=x86-64 -funwind-tables -I/usr/include/libdrm -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_X86 -DHELIX_BINARY_VARIANT=\"drm\"
     DISPLAY_BACKEND := drm
-    ENABLE_OPENGLES := yes
+    ENABLE_OPENGLES := no
     ENABLE_SDL := no
     ENABLE_GLES_3D := yes
     ENABLE_SCREENSAVER := yes
