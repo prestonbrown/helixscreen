@@ -17,6 +17,7 @@
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
 #include <atomic>
@@ -60,6 +61,11 @@ class PIDCalibrateTestFixture {
         api_ = std::make_unique<MoonrakerAPI>(mock_client_, state_);
     }
     ~PIDCalibrateTestFixture() {
+        // Run what the collectors queued while this fixture's PrinterState is
+        // still alive: the idle-fallback callbacks close over state_, so leaving
+        // them for the next fixture's drain reaches a dead object.
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
         api_.reset();
     }
 

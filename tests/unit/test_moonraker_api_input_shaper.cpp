@@ -20,6 +20,7 @@
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
 #include "../test_helpers/log_capture.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
 #include <algorithm>
@@ -75,6 +76,11 @@ class InputShaperTestFixture {
     }
 
     ~InputShaperTestFixture() {
+        // Run what the collectors queued while this fixture's PrinterState is
+        // still alive: the idle-fallback callbacks close over state_, so leaving
+        // them for the next fixture's drain reaches a dead object.
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
         api_.reset();
 
         // This fixture drives real SHAPER_CALIBRATE runs, so the mock writes
