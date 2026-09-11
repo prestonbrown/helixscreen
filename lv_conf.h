@@ -129,8 +129,10 @@
 /*Using matrix for transformations.
  *Requirements:
     `LV_USE_MATRIX = 1`.
-    The rendering engine needs to support 3x3 matrix transformations.*/
-#define LV_DRAW_TRANSFORM_USE_MATRIX            1
+    The rendering engine needs to support 3x3 matrix transformations.
+ *Derived from the active draw unit further down this file, next to the
+ *LV_USE_DRAW_* switches it depends on. Defining it here would read those as
+ *unset, because they are configured below this point.*/
 
 /* If a widget has `style_opa < 255` (not `bg_opa`, `text_opa` etc) or not NORMAL blend mode
  * it is buffered into a "simple" layer before rendering. The widget can be buffered in smaller chunks.
@@ -266,6 +268,20 @@
 
 /* Use VG-Lite GPU. */
 #define LV_USE_DRAW_VG_LITE 0
+
+/* Apply widget transforms (scale/rotate/skew) by handing the draw unit a 3x3
+ * matrix instead of rasterizing into a layer and resampling that bitmap.
+ *
+ * Only vg_lite and nanovg read the per-draw-task matrix. lv_draw_sw ignores
+ * it, and a widget whose transform is ignored still gets an inverse-scaled
+ * clip area: scaling up crops it, scaling down does nothing, and nothing
+ * warns. So this tracks the draw unit rather than standing on its own -
+ * LV_USE_MATRIX stays available either way for lv_obj_set_transform(). */
+#if LV_USE_DRAW_VG_LITE || LV_USE_DRAW_NANOVG
+    #define LV_DRAW_TRANSFORM_USE_MATRIX 1
+#else
+    #define LV_DRAW_TRANSFORM_USE_MATRIX 0
+#endif
 
 #if LV_USE_DRAW_VG_LITE
     /* Enable VG-Lite custom external 'gpu_init()' function */
