@@ -43,9 +43,17 @@ All of these must pass. If ANY fails, STOP and tell the user why.
 **Argument:** `$ARGUMENTS` (the user's argument to `/release`)
 
 ### If argument is a bump type (`patch`, `minor`, `major`):
-- Parse last tag (strip `v` prefix) into MAJOR.MINOR.PATCH (ignore any prerelease suffix)
-- Bump the appropriate component, reset lower components to 0
-- Example: last tag `v0.9.3` + `patch` = `0.9.4`
+- Parse last tag (strip `v` prefix) into MAJOR.MINOR.PATCH **plus any prerelease suffix**
+- **A prerelease on the last tag means that triple has not shipped.** `patch` finishes
+  the prerelease line and resolves to the triple itself, not to the next patch. Treating
+  the suffix as noise ships the patch of a release that never existed and strands the
+  triple unpublished forever, because tags only move forward.
+- Otherwise bump the named component and reset the lower components to 0
+- Examples:
+  - last tag `v0.9.3` + `patch` = `0.9.4`
+  - last tag `v1.1.0-beta.1` + `patch` = `1.1.0`  (NOT `1.1.1`)
+  - last tag `v1.1.0-beta.1` + `minor` = `1.2.0`
+  - last tag `v1.1.0-beta.1` + `major` = `2.0.0`
 
 ### If argument is an explicit version (e.g., `1.0.0`, `1.0.0-beta`, `1.0.0-rc.1`):
 - Strip leading `v` if present
@@ -63,7 +71,15 @@ All of these must pass. If ANY fails, STOP and tell the user why.
 
 ### Validation (all cases):
 - Must be valid semver: `MAJOR.MINOR.PATCH` with optional `-PRERELEASE`
-- Must be strictly greater than last tag's version (compare without `v` prefix)
+- Must rank strictly above the last tag. Do not eyeball this, and do not reach for
+  `sort -V`: GNU version sort ranks `1.1.0` BELOW `1.1.0-beta.1`, the opposite of
+  semver. Ask the comparator:
+  ```bash
+  scripts/version-compare.sh "$NEW_VERSION" "$(git describe --tags --abbrev=0 | sed 's/^v//')"
+  ```
+  `1` is the only answer that may proceed. `0` or `-1` is a STOP. A non-zero exit
+  means it refused to rank the pair rather than guessing — also a STOP, never read
+  that as agreement.
 - If validation fails → STOP with clear error
 
 Store the resolved version as `NEW_VERSION` (without `v` prefix) for all subsequent steps.

@@ -180,6 +180,11 @@ class PrintStartProfile {
      * console line. Capture substitution and weight-in-progress behave
      * identically.
      *
+     * A profile with no state_patterns matches against its response_patterns
+     * instead: the two feeds carry the same phase vocabulary, so one list
+     * serves both and a profile declaring a phase object needs no second copy
+     * of the same regexes.
+     *
      * @param state State string read from the phase object's field
      * @param[out] result Match result (phase, message, weight in progress field)
      * @return true if matched
@@ -338,6 +343,18 @@ class PrintStartProfile {
     std::string phase_object_name_;
     std::string phase_object_field_;
     std::vector<StatusSignalRule> status_signals_;
+
+    /**
+     * @brief Build the generic profile as compiled-in data
+     *
+     * Reached when default.json cannot be read at all — a missing asset, a
+     * truncated install. It mirrors the shipped default.json decision for
+     * decision (phase object, response patterns, status-signal rules, phase
+     * weights), so losing the asset costs a printer nothing beyond the file.
+     * The two are held to that agreement by the parity case in
+     * `tests/unit/test_print_start_profile.cpp`.
+     */
+    static std::shared_ptr<PrintStartProfile> make_builtin_default();
 
     /**
      * @brief Parse a JSON object into this profile

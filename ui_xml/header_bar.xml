@@ -50,6 +50,14 @@
   <api>
     <prop name="title" type="string"/>
     <prop name="title_tag" type="string" default=""/>
+    <!-- Optional live title. When a screen's header names something that changes
+         under it - the box a detail view is showing, say - it binds a string
+         subject here and leaves `title` as the value shown until the first
+         publish. An empty default resolves to no binding at all, so every header
+         that does not need one is untouched. `title` is still what a static
+         header uses, and stays the translated one: a bound title carries a name
+         the app composed, and is translated at the point it is composed. -->
+    <prop name="title_subject" type="string" default=""/>
     <!-- Optional trailing badge: a small image plus a short label, for a screen
          that needs to show WHICH record it is editing. Both parts are empty by
          default and the group stays hidden unless title_badge_subject resolves
@@ -122,9 +130,14 @@
             style_flex_track_place="center" flex_flow="row" style_pad_gap="#space_xs">
       <event_cb trigger="clicked" callback="$back_button_callback"/>
       <icon src="back" size="lg" variant="text" clickable="false" event_bubble="true"/>
+      <!-- bind_text is deliberately FIRST. An unsupplied title_subject resolves to the
+           empty name, which is a registered no-op INT subject, and binding to that
+           stamps "0" over the title. Applying text/translation_tag afterwards puts the
+           static title back, and the no-op subject never changes, so it never returns.
+           A header that does supply a subject still retitles on every publish. -->
       <text_heading name="header_title"
-                    text="$title" translation_tag="$title_tag" text_transform="uppercase" flex_grow="1"
-                    style_text_align="left" clickable="false" event_bubble="true" scrollable="false"/>
+                    bind_text="$title_subject" text="$title" translation_tag="$title_tag" text_transform="uppercase"
+                    flex_grow="1" style_text_align="left" clickable="false" event_bubble="true" scrollable="false"/>
       <!-- Trailing badge (image + label), see the props above. Sits after the
            title so the two parts read together as one mark. -->
       <lv_obj name="header_title_badge"

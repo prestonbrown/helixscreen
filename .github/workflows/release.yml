@@ -503,7 +503,7 @@ jobs:
   #
   # Stable releases only. A Play versionCode is a one-way ratchet per track, and
   # the trunk's versions lead the stable line: a 1.1.0-beta.1 packs to 100100031
-  # while the 1.0.1 hotfix that may follow it packs to 100001099, so a beta
+  # while the 1.0.1 hotfix that may follow it packs to 100000199, so a beta
   # reaching Play makes the next stable hotfix unpublishable. Android beta testers
   # sideload the APK from the GitHub release instead. The condition reads the
   # channel the branch declares rather than the tag string, for the same reason
@@ -1245,8 +1245,14 @@ jobs:
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         RETAIN_COUNT: 5
       run: |
+        # Semver precedence, not a field sort: splitting on '.' reads the
+        # patch of 1.1.0-beta.1 as "0-beta", which -n truncates to 0, so a
+        # release and its own prereleases collide and the byte fallback ranks
+        # the release BELOW them. `sort -V` inverts the same pair. A version
+        # the comparator cannot rank aborts the step instead of being ordered
+        # by guess, because the caller prunes with `head -n -N`.
         semver_sort() {
-          sort -t. -k1,1n -k2,2n -k3,3n
+          scripts/version-compare.sh --sort
         }
 
         # Prune old releases from releases/ (shared artifact store)
@@ -1479,8 +1485,14 @@ jobs:
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         RETAIN_COUNT: 5
       run: |
+        # Semver precedence, not a field sort: splitting on '.' reads the
+        # patch of 1.1.0-beta.1 as "0-beta", which -n truncates to 0, so a
+        # release and its own prereleases collide and the byte fallback ranks
+        # the release BELOW them. `sort -V` inverts the same pair. A version
+        # the comparator cannot rank aborts the step instead of being ordered
+        # by guess, because the caller prunes with `head -n -N`.
         semver_sort() {
-          sort -t. -k1,1n -k2,2n -k3,3n
+          scripts/version-compare.sh --sort
         }
 
         echo "=== Pruning old symbol maps ==="

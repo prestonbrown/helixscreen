@@ -42,6 +42,7 @@
 #include "gcode_parser.h" // For extract_thumbnails_from_content (USB thumbnail fallback)
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "preprint_predictor.h"
@@ -1735,7 +1736,7 @@ void PrintSelectPanel::set_api(IMoonrakerAPI* api) {
                 // config root churns constantly on an AFC printer. Log those at
                 // debug so the ring still shows they arrived without one line
                 // per 10 s of print time.
-                if (!filelist_change_affects_gcodes(root)) {
+                if (!helix::json_util::filelist_change_affects_gcodes(root)) {
                     spdlog::debug("[{}] notify_filelist_changed: {} {} (other root, ignored)",
                                   self->get_name(), action, path);
                     return;

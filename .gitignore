@@ -172,3 +172,6 @@ docs/superpowers/
 
 # Local crash artifacts (preserved across compactions for ASAN investigation)
 .crash-files/
+
+# Advisory inter-session resource claims (see scripts/helix-claim)
+.helix-claims/

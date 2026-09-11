@@ -9,10 +9,12 @@ on:
 # each get a build.
 concurrency:
   group: esp32-build-${{ github.workflow }}-${{ github.event.pull_request.number || (startsWith(github.ref, 'refs/heads/release/') && github.sha || github.ref) }}
-  # main does not cancel: at ~28 minutes a run is superseded before it finishes on
-  # a busy day, so cancelling leaves main with no firmware result at all rather
-  # than a slightly stale one. Queued runs still collapse to the newest.
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # main does not cancel: at ~28 minutes a run is superseded before it finishes
+  # on a busy day, so cancelling leaves main with no firmware result at all
+  # rather than a slightly stale one. Queued runs still collapse to the newest.
+  # fromJSON, or the expression yields the truthy string "false" and main
+  # cancels anyway.
+  cancel-in-progress: ${{ fromJSON(github.ref != 'refs/heads/main') }}
 
 jobs:
   build:

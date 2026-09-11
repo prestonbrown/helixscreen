@@ -25,9 +25,7 @@ ICalibrationSink* TouchCalibrationController::sink() const {
     return DisplayManager::instance();
 }
 
-void TouchCalibrationController::begin(TouchCalibrationPolicy policy) {
-    policy_ = policy;
-
+void TouchCalibrationController::begin() {
     DisplayManager* dm = DisplayManager::instance();
     if (dm && dm->is_initialized()) {
         panel_->set_screen_size(dm->width(), dm->height());
@@ -203,17 +201,6 @@ CommitOutcome TouchCalibrationController::commit() {
     clear_pending();
     session_.commit();
     return applied ? CommitOutcome::Applied : CommitOutcome::Persisted;
-}
-
-void TouchCalibrationController::abort() {
-    if (panel_) {
-        panel_->reset();
-    }
-    if (ICalibrationSink* s = sink()) {
-        session_.restore(*s);
-        s->set_capture_active(false);
-    }
-    clear_pending();
 }
 
 int TouchCalibrationController::active_target_index() const {

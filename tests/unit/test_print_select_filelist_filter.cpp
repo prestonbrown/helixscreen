@@ -13,32 +13,32 @@
  * the print-status panel.
  */
 
-#include "ui_panel_print_select.h"
+#include "json_utils.h"
 
 #include "../catch_amalgamated.hpp"
 
 TEST_CASE("filelist_change_affects_gcodes: gcodes root refreshes", "[print_select][filelist]") {
-    REQUIRE(filelist_change_affects_gcodes("gcodes") == true);
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("gcodes") == true);
 }
 
 TEST_CASE("filelist_change_affects_gcodes: config root does not refresh",
           "[print_select][filelist][regression]") {
     // The two writers that flooded L53W5PKG, both under the config root.
-    REQUIRE(filelist_change_affects_gcodes("config") == false);
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("config") == false);
 }
 
 TEST_CASE("filelist_change_affects_gcodes: other Moonraker roots do not refresh",
           "[print_select][filelist]") {
-    REQUIRE(filelist_change_affects_gcodes("logs") == false);
-    REQUIRE(filelist_change_affects_gcodes("timelapse") == false);
-    REQUIRE(filelist_change_affects_gcodes("config_examples") == false);
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("logs") == false);
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("timelapse") == false);
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("config_examples") == false);
 }
 
 TEST_CASE("filelist_change_affects_gcodes: unknown payload shape still refreshes",
           "[print_select][filelist]") {
     // A notification we could not parse a root out of must not silently stop
     // refreshing the list — going stale is worse than an extra round trip.
-    REQUIRE(filelist_change_affects_gcodes("") == true);
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("") == true);
 }
 
 TEST_CASE("filelist_change_affects_gcodes: match is exact, not a prefix",
@@ -46,6 +46,6 @@ TEST_CASE("filelist_change_affects_gcodes: match is exact, not a prefix",
     // "gcodes_backup" is a distinct root; a substring match would let it
     // through and reintroduce the storm for anyone with such a directory
     // registered.
-    REQUIRE(filelist_change_affects_gcodes("gcodes_backup") == false);
-    REQUIRE(filelist_change_affects_gcodes("my_gcodes") == false);
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("gcodes_backup") == false);
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("my_gcodes") == false);
 }

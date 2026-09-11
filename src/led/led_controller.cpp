@@ -1329,35 +1329,36 @@ void WledBackend::poll_status(std::function<void()> on_complete) {
     }
 
     api_->rest().wled_get_strips(
-        [this, on_complete](const RestResponse& resp) {
-            const json& strips_data = detail::wled_strip_map(resp.data);
+        lifetime_.bg_cb("WledBackend::poll_status",
+                        [this, on_complete](const RestResponse& resp) {
+                            const json& strips_data = detail::wled_strip_map(resp.data);
 
-            if (strips_data.is_object()) {
-                for (auto it = strips_data.begin(); it != strips_data.end(); ++it) {
-                    WledStripState state;
-                    auto& val = it.value();
-                    if (val.is_object()) {
-                        // Parse status field: "on"/"off" or boolean "state"
-                        if (val.contains("status")) {
-                            state.is_on = val["status"].get<std::string>() == "on";
-                        } else if (val.contains("state")) {
-                            state.is_on = val["state"].get<bool>();
-                        }
-                        state.brightness = val.value("brightness", 255);
-                        state.active_preset = val.value("preset", -1);
-                    }
-                    strip_states_[it.key()] = state;
-                }
-            }
+                            if (strips_data.is_object()) {
+                                for (auto it = strips_data.begin(); it != strips_data.end(); ++it) {
+                                    WledStripState state;
+                                    auto& val = it.value();
+                                    if (val.is_object()) {
+                                        // Parse status field: "on"/"off" or boolean "state"
+                                        if (val.contains("status")) {
+                                            state.is_on = val["status"].get<std::string>() == "on";
+                                        } else if (val.contains("state")) {
+                                            state.is_on = val["state"].get<bool>();
+                                        }
+                                        state.brightness = val.value("brightness", 255);
+                                        state.active_preset = val.value("preset", -1);
+                                    }
+                                    strip_states_[it.key()] = state;
+                                }
+                            }
 
-            if (on_complete)
-                on_complete();
-        },
-        [on_complete](const MoonrakerError& err) {
+                            if (on_complete)
+                                on_complete();
+                        }),
+        lifetime_.bg_cb("WledBackend::poll_status_error", [on_complete](const MoonrakerError& err) {
             spdlog::warn("[WledBackend] Status poll failed: {}", err.message);
             if (on_complete)
                 on_complete();
-        });
+        }));
 }
 
 void WledBackend::fetch_presets_from_device(const std::string& strip_id,

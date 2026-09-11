@@ -541,6 +541,7 @@ TEST_CASE("PrintStart: typical noise lines should not match phases", "[print][ne
 #include "moonraker_client_mock.h"
 #include "print_start_collector.h"
 #include "print_start_profile.h"
+#include "simulated_clock.h"
 #include "thermal_rate_model.h"
 #include "translation_loader.h"
 
@@ -549,12 +550,13 @@ using namespace helix::ui;
 /**
  * @brief HELIX:PHASE signal parser for direct testing
  *
- * This standalone function replicates the HELIX:PHASE parsing logic from
- * PrintStartCollector::check_helix_phase_signal() so we can test it directly
- * without the full callback infrastructure.
+ * Mirrors the prefix handling in PrintStartCollector::check_helix_phase_signal()
+ * so the signal format can be exercised without the callback infrastructure.
+ * The name lookup itself is the shipping one, so an alias that stops resolving
+ * shows up here.
  *
- * Returns the PrintStartPhase that would be set by the signal, or
- * PrintStartPhase::IDLE if the signal is not recognized.
+ * Returns the PrintStartPhase the signal would set, or PrintStartPhase::IDLE
+ * when the signal is not recognized.
  */
 static std::pair<PrintStartPhase, std::string> parse_helix_phase_signal(const std::string& line) {
     static const char* HELIX_PHASE_PREFIX = "HELIX:PHASE:";
@@ -571,32 +573,26 @@ static std::pair<PrintStartPhase, std::string> parse_helix_phase_signal(const st
         phase_name = phase_name.substr(0, end);
     }
 
-    // Map to phase (same logic as check_helix_phase_signal)
-    if (phase_name == "STARTING" || phase_name == "START") {
-        return {PrintStartPhase::INITIALIZING, "Preparing Print..."};
-    } else if (phase_name == "COMPLETE" || phase_name == "DONE") {
-        return {PrintStartPhase::COMPLETE, "Starting Print..."};
-    } else if (phase_name == "HOMING") {
-        return {PrintStartPhase::HOMING, "Homing..."};
-    } else if (phase_name == "HEATING_BED" || phase_name == "BED_HEATING") {
-        return {PrintStartPhase::HEATING_BED, "Heating Bed..."};
-    } else if (phase_name == "HEATING_NOZZLE" || phase_name == "NOZZLE_HEATING" ||
-               phase_name == "HEATING_HOTEND") {
-        return {PrintStartPhase::HEATING_NOZZLE, "Heating Nozzle..."};
-    } else if (phase_name == "QGL" || phase_name == "QUAD_GANTRY_LEVEL") {
-        return {PrintStartPhase::QGL, "Leveling Gantry..."};
-    } else if (phase_name == "Z_TILT" || phase_name == "Z_TILT_ADJUST") {
-        return {PrintStartPhase::Z_TILT, "Z Tilt Adjust..."};
-    } else if (phase_name == "BED_MESH" || phase_name == "BED_LEVELING") {
-        return {PrintStartPhase::BED_MESH, "Loading Bed Mesh..."};
-    } else if (phase_name == "CLEANING" || phase_name == "NOZZLE_CLEAN") {
-        return {PrintStartPhase::CLEANING, "Cleaning Nozzle..."};
-    } else if (phase_name == "PURGING" || phase_name == "PURGE" || phase_name == "PRIMING") {
-        return {PrintStartPhase::PURGING, "Purging..."};
+    const auto phase = helix::print_start_phase_from_name(phase_name);
+    if (!phase || *phase == PrintStartPhase::IDLE) {
+        return {PrintStartPhase::IDLE, ""};
     }
 
-    // Unknown phase
-    return {PrintStartPhase::IDLE, ""};
+    static const std::map<PrintStartPhase, std::string> MESSAGES = {
+        {PrintStartPhase::INITIALIZING, "Preparing Print..."},
+        {PrintStartPhase::HOMING, "Homing..."},
+        {PrintStartPhase::HEATING_BED, "Heating Bed..."},
+        {PrintStartPhase::SOAKING, "Heat Soaking..."},
+        {PrintStartPhase::HEATING_NOZZLE, "Heating Nozzle..."},
+        {PrintStartPhase::QGL, "Leveling Gantry..."},
+        {PrintStartPhase::Z_TILT, "Z Tilt Adjust..."},
+        {PrintStartPhase::BED_MESH, "Loading Bed Mesh..."},
+        {PrintStartPhase::CLEANING, "Cleaning Nozzle..."},
+        {PrintStartPhase::PURGING, "Purging..."},
+        {PrintStartPhase::COMPLETE, "Starting Print..."},
+    };
+    auto it = MESSAGES.find(*phase);
+    return {*phase, it != MESSAGES.end() ? it->second : ""};
 }
 
 /**
@@ -3682,13 +3678,13 @@ TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Profiles without a phase object ignore phase-object frames",
                  "[print][collector][phase_object]") {
-    collector().set_profile(PrintStartProfile::load_default());
+    collector().set_profile(PrintStartProfile::load("creality_k2"));
     collector().start();
     drain_async_updates();
 
-    // The default profile declares no status phase source: the identical
-    // frame must be ignored entirely - phase stays at the start() baseline.
-    // This is the fallback guarantee for every profile without the field.
+    // The K2 profile declares no status phase source: the identical frame
+    // must be ignored entirely - phase stays at the start() baseline. This is
+    // the fallback guarantee for every profile without the field.
     client().dispatch_status_update({{"operation_context", {{"current_state", "HOMING"}}}});
     drain_async_updates();
 
@@ -3844,6 +3840,33 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 }
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "A status-signal match leaves the proactive detector armed",
+                 "[print][collector][status_signals][proactive]") {
+    collector().start();
+    drain_async_updates();
+    collector().enable_fallbacks();
+
+    // The default profile's heating rules watch heater_bed and extruder - the
+    // same frames the proactive detector reads. A rule holding is inference,
+    // not the firmware narrating, so it must not gate that detector off.
+    client().dispatch_status_update({{"heater_bed", {{"temperature", 23.5}, {"target", 60.0}}}});
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
+
+    // Mid-G28 with the bed still climbing. Only the proactive detector can
+    // reach HOMING from here: the heating correction beneath it never leaves
+    // the two heating phases, so a gated-off detector shows HEATING_BED.
+    lv_subject_copy_string(state().get_homed_axes_subject(), "xy");
+    set_all_temps(/*bed*/ 235, 600, /*ext*/ 0, 0);
+    collector().check_fallback_completion();
+    drain_async_updates();
+    drain_async_updates();
+
+    INFO("phase=" << static_cast<int>(get_current_phase()) << " msg=" << get_current_message());
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "Default heating rules stay quiet without a real edge",
                  "[print][collector][status_signals]") {
     collector().start();
@@ -3865,4 +3888,88 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     drain_async_updates();
     REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
     REQUIRE(get_current_message() == "Preparing Print...");
+}
+
+// ============================================================================
+// Simulated-Clock Scaling
+// ============================================================================
+//
+// The collector measures how long a pre-print takes. Reading the simulated
+// clock is what lets a mock run reach a 700-second pre-print without spending
+// 700 real seconds on it, and what keeps the numbers it records identical at
+// every --sim-speed.
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: phase durations come from the simulated clock",
+                 "[print][collector][simclock]") {
+    helix::sim::SimulatedClock::ManualScope clock(helix::sim::SimSpeed::of(1.0));
+
+    collector().start();
+    drain_async_updates();
+    drain_async_updates();
+
+    // Enter a phase the collector timestamps, with no time on the clock yet.
+    client().dispatch_status_update({{"heater_bed", {{"temperature", 23.5}, {"target", 60.0}}}});
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
+    REQUIRE(collector().get_current_phase_elapsed_seconds() == 0);
+
+    SECTION("an eleven-minute phase is measured without waiting eleven minutes") {
+        clock.advance(std::chrono::seconds(701));
+        REQUIRE(collector().get_current_phase_elapsed_seconds() == 701);
+    }
+
+    SECTION("the total elapsed the UI shows tracks it too") {
+        clock.advance(std::chrono::seconds(701));
+        PrintStartCollectorTestAccess::run_eta_update(collector());
+        drain_async_updates();
+        REQUIRE(lv_subject_get_int(state().get_preprint_elapsed_subject()) == 701);
+    }
+
+    SECTION("fast-forwarding real time is what buys the simulated seconds") {
+        // 70.1 real seconds at 10x is the same 701 simulated seconds the phase
+        // above took at 1x — the measurement is speed-invariant, the waiting is
+        // not.
+        helix::sim::SimulatedClock::ManualScope fast(helix::sim::SimSpeed::of(10.0));
+        fast.advance_real(std::chrono::milliseconds(70100));
+        REQUIRE(collector().get_current_phase_elapsed_seconds() == 701);
+    }
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: the stuck-pre-print ceiling is simulated seconds too",
+                 "[print][collector][simclock][timeout]") {
+    // Elapsed and the timeout constants must share one unit, or a fast-forwarded
+    // run either never gives up or gives up instantly. FALLBACK_TIMEOUT is 300
+    // simulated seconds; the boundary is walked from both sides so the negative
+    // half cannot pass by the collector simply not running.
+    helix::sim::SimulatedClock::ManualScope clock(helix::sim::SimSpeed::of(1.0));
+
+    collector().start();
+    drain_async_updates();
+    drain_async_updates();
+    collector().enable_fallbacks();
+
+    // Temps at target and nothing being said: the quiet path. The first call
+    // recomputes weights off the freshly-set targets, so the predicted total is
+    // cleared afterwards to reach FALLBACK_TIMEOUT rather than the adaptive
+    // ceiling derived from it.
+    set_all_temps(600, 600, 2100, 2100);
+    collector().check_fallback_completion();
+    drain_async_updates();
+    PrintStartCollectorTestAccess::clear_prediction_history(collector());
+    PrintStartCollectorTestAccess::set_predicted_total(collector(), 0.0f);
+
+    clock.advance(std::chrono::seconds(299));
+    collector().check_fallback_completion();
+    drain_async_updates();
+    drain_async_updates();
+    REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
+
+    // Two more simulated seconds is all it takes — no real waiting at all.
+    clock.advance(std::chrono::seconds(2));
+    collector().check_fallback_completion();
+    drain_async_updates();
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
 }

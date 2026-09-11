@@ -247,10 +247,18 @@ target_include_directories(main PRIVATE
 # Read version from VERSION.txt
 file(READ "${PROJECT_ROOT}/VERSION.txt" HELIX_VERSION)
 string(STRIP "${HELIX_VERSION}" HELIX_VERSION)
-string(REPLACE "." ";" VERSION_PARTS "${HELIX_VERSION}")
-list(GET VERSION_PARTS 0 HELIX_VERSION_MAJOR)
-list(GET VERSION_PARTS 1 HELIX_VERSION_MINOR)
-list(GET VERSION_PARTS 2 HELIX_VERSION_PATCH)
+# The numeric fields come from the version's core triple only. A prerelease or
+# build suffix has to be cut off first: splitting the full string on "." puts
+# "0-beta" in the patch field, which reaches every translation unit as
+# -DHELIX_VERSION_PATCH=0-beta, and helix_version_at_least() compares that as an
+# integer. Mirrors the HELIX_VERSION_CORE rule in the top-level Makefile.
+string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)" _helix_version_core "${HELIX_VERSION}")
+if(NOT _helix_version_core)
+    message(FATAL_ERROR "VERSION.txt does not start with a MAJOR.MINOR.PATCH triple: '${HELIX_VERSION}'")
+endif()
+set(HELIX_VERSION_MAJOR "${CMAKE_MATCH_1}")
+set(HELIX_VERSION_MINOR "${CMAKE_MATCH_2}")
+set(HELIX_VERSION_PATCH "${CMAKE_MATCH_3}")
 
 target_compile_definitions(main PRIVATE
     HELIX_DISPLAY_SDL

@@ -151,8 +151,18 @@ if [[ "$PLATFORM" == "all" ]]; then
     for tarball in "$BUILD_DIR"/helixscreen-*-*.tar.gz; do
         if [[ -f "$tarball" ]]; then
             filename=$(basename "$tarball")
-            # Extract platform from filename: helixscreen-{platform}-*.tar.gz
-            plat=$(echo "$filename" | sed -E 's/helixscreen-([^-]+)-.*/\1/')
+            # Recover the platform key. Platform names and versions both carry
+            # hyphens (android-arm64, v1.1.0-beta.1), so the split anchors on
+            # the '-v<digit>' that opens the version. A name carrying no
+            # version names no platform, and is skipped rather than becoming
+            # one: the rename below globs on the key it returns, so a
+            # truncated key matches a sibling platform's tarball and renames
+            # it out from under that platform.
+            plat=$(echo "$filename" | sed -n -E 's/^helixscreen-(.+)-v[0-9][0-9A-Za-z.+-]*\.tar\.gz$/\1/p')
+            if [[ -z "$plat" ]]; then
+                echo -e "${YELLOW}Skipping unrecognised artifact: ${filename}${NC}" >&2
+                continue
+            fi
             PLATFORMS+=("$plat")
         fi
     done

@@ -53,7 +53,7 @@ _TEST_GCODE_MTIME_ORDER = [
     "Night Spirit_v1_2_og.gcode",
     "Low poly vase v1.1 flat top.gcode",
     "ECC_0.4_stand_PLA0.2_2h42m.gcode",
-    # Added by 6ba20a707 as extra mock gcode; nothing references them by name.
+    # Extra mock gcode; nothing references them by name.
     # Pinned oldest so they sort onto the last row rather than displacing the
     # cards the golden was captured under. Moving either up is a deliberate
     # golden update.

@@ -152,11 +152,6 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     bool subjects_initialized_ = false;
     bool calibration_failed_ = false; // True after failed attempt, cleared on first point capture
 
-    /// The solved calibration is held rather than written until 'Next': the evdev
-    /// range is deliberately not re-programmed before then, because a back-out
-    /// reverts through the session, which only knows how to put the affine back
-    /// (#1259, #1276). The controller holds it; this step just decides when.
-
     // Next/Skip group lifted above the full-screen capture surface so it stays
     // clickable during calibration. Restore state owned here (shared helper in
     // touch_calibration_layout.h).

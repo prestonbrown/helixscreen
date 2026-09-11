@@ -418,9 +418,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: material label fits it
     lv_display_t* disp = lv_display_get_default();
     REQUIRE(disp != nullptr);
 
-    // Narrow axis 1080 -> XXLarge, where font_small is noto_sans_light_26.
-    // The refresh is what actually moves the font tokens and the breakpoint
-    // subject; ScopedResolution alone only changes the pixel dimensions.
+    // Narrow axis 1080 -> XXLarge, where font_small is noto_sans_light_26. The
+    // refresh moves the font tokens and the breakpoint subject to match; the
+    // guard's destructor puts both back.
     ScopedResolution xxlarge(disp, 1080, 1920);
     theme_manager_refresh_layout_constants(disp);
     ui_ams_mini_status_init();
@@ -505,9 +505,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: material label fits it
         lv_obj_delete(r.w);
         lv_obj_delete(r.parent);
     }
-
-    // Put the token table back where the rest of the suite expects it.
-    theme_manager_refresh_layout_constants(disp);
 }
 
 /**
@@ -679,5 +676,4 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_delete(w);
     lv_obj_delete(parent);
-    theme_manager_refresh_layout_constants(disp);
 }

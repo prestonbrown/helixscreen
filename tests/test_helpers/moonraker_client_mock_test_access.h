@@ -27,6 +27,23 @@ class MoonrakerClientMockTestAccess {
     static void dispatch_initial_state(MoonrakerClientMock& c) {
         c.dispatch_initial_state();
     }
+
+    // Replay cursor control. start_replay_timer() puts the origin 2.5s into the
+    // future and drives pump_replay() from an lv_timer; setting the origin and
+    // pumping by hand reaches the same code with neither wait nor timer.
+    static void set_replay_start(MoonrakerClientMock& c,
+                                 std::chrono::steady_clock::time_point when) {
+        c.replay_start_ = when;
+    }
+
+    static void pump_replay(MoonrakerClientMock& c) {
+        c.pump_replay();
+    }
+
+    // How many armed events have fired so far.
+    static size_t replay_next(const MoonrakerClientMock& c) {
+        return c.replay_next_;
+    }
 };
 
 } // namespace helix

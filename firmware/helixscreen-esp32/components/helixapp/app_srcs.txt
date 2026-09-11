@@ -130,6 +130,7 @@ src/printer/ams_backend_qidi.cpp
 src/printer/ams_backend_snapmaker.cpp
 src/printer/ams_backend_toolchanger.cpp
 src/printer/ams_endless_spool.cpp
+src/printer/ams_environment_zone.cpp
 src/printer/ams_state.cpp
 src/printer/ams_subscription_backend.cpp
 src/printer/bed_dimensions.cpp
@@ -224,6 +225,7 @@ src/system/printer_name_sync.cpp
 src/system/runtime_config.cpp
 src/system/safety_settings_manager.cpp
 src/system/settings_manager.cpp
+src/system/simulated_clock.cpp
 src/system/sound_manager.cpp
 src/system/sound_sequencer.cpp
 src/system/sound_theme.cpp
@@ -327,6 +329,7 @@ src/ui/ui_ams_device_operations_overlay.cpp
 src/ui/ui_ams_device_section_detail_overlay.cpp
 src/ui/ui_ams_edit_overlay.cpp
 src/ui/ui_ams_environment_overlay.cpp
+src/ui/ui_ams_zone_overview_overlay.cpp
 src/ui/ui_ams_lane_bar.cpp
 src/ui/ui_ams_loading_error_modal.cpp
 src/ui/ui_ams_mini_status.cpp
@@ -496,6 +499,7 @@ src/ui/ui_variant.cpp
 src/ui/ui_widget_catalog_overlay.cpp
 src/ui/ui_wizard.cpp
 src/ui/ui_z_offset_indicator.cpp
+src/ui/ui_zone_presentation.cpp
 src/ui/widgets/favorite_macro_config.cpp
 src/ui/widgets/favorite_macro_widget.cpp
 src/ui/widgets/power_device_widget.cpp

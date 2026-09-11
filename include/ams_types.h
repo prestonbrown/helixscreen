@@ -1681,6 +1681,22 @@ struct DryerInfo {
     bool supports_fan_control = false; ///< Can fan speed be set independently?
 
     /**
+     * Can a running cycle be retargeted without stopping it?
+     *
+     * Two flags because the hardware splits the same way. A backend can retarget the
+     * heater mid-run and still have no way to move the clock: the temperature is a
+     * setpoint it can re-send, while the duration is owned by a firmware timer that
+     * only accepts a fresh cycle. Where a flag is false the caller must stop and
+     * restart, which is a visible interruption and worth warning about, so the two
+     * cases cannot be collapsed into one "adjustable" bool.
+     *
+     * Both default false: a backend that has not been checked against real hardware
+     * should force the stop-and-restart path rather than silently drop an adjustment.
+     */
+    bool supports_live_temp = false;     ///< Target temp re-sends without stopping
+    bool supports_live_duration = false; ///< Remaining time changes without stopping
+
+    /**
      * @brief Get progress as percentage
      * @return 0-100 percentage, or -1 if not drying
      */

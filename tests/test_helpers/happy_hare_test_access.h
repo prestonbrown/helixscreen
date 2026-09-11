@@ -46,6 +46,21 @@ class HappyHareTestAccess {
     template <class B> static auto& now_fn(B& b) {
         return b.now_fn_;
     }
+    template <class B> static auto& filament_heaters(B& b) {
+        return b.filament_heaters_;
+    }
+    template <class B> static auto& environment_sensors(B& b) {
+        return b.environment_sensors_;
+    }
+    template <class B> static auto& gate_drying_states(B& b) {
+        return b.gate_drying_states_;
+    }
+    template <class B> static auto& heater_temp(B& b) {
+        return b.heater_temp_;
+    }
+    template <class B> static auto& dryer_info(B& b) {
+        return b.dryer_info_;
+    }
 
     // --- private methods ----------------------------------------------------
     template <class B, class... A> static decltype(auto) handle_status_update(B& b, A&&... a) {

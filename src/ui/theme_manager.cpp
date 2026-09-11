@@ -1402,7 +1402,7 @@ void theme_manager_refresh_layout_constants(lv_display_t* display) {
     // and were likewise chosen once at startup (#1210, Notes).
     ui_switch_init_size_presets(display);
 
-    spdlog::info("[Theme] Layout refreshed after rotation: {}x{} → nav={}px, "
+    spdlog::info("[Theme] Responsive state refreshed for {}x{}: nav={}px, "
                  "overlay transient={}px destination={}px (breakpoint={})",
                  hor_res, ver_res, nav_width, widths.transient, widths.destination, to_int(bp));
 }
@@ -1848,13 +1848,23 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     if (theme_fully_initialized && theme_display == display &&
         use_dark_mode_param == use_dark_mode && h_res == theme_init_h_res &&
         v_res == theme_init_v_res && theme_subject_initialized) {
-        // The registration pass can stay skipped, but the mutable palette
-        // manager still has to come back in line with active_theme: tests and
-        // theme-preview paths flip it in place, and the next init call is the
-        // boundary that re-syncs it. A no-op flip is cheap (the setters
-        // early-return), so this costs nothing on a repeat that changed
-        // nothing.
+        // The registration pass can stay skipped, but two pieces of mutable
+        // state still have to come back in line, because this call is the
+        // boundary that restores them.
+        //
+        // The palette manager, because theme previews and dark-mode toggles
+        // flip it in place. A no-op flip is cheap (the setters early-return).
         resync_palette_manager(use_dark_mode_param);
+
+        // The responsive state, because ui_breakpoint is process-global and
+        // helix::widget_size::current_breakpoint() reads it rather than the
+        // display — so a value left disagreeing with the display decides
+        // layout for every widget that asks afterwards, not just the caller
+        // that moved it. This resolves px tokens and republishes the three
+        // subjects from the display without re-reading ui_xml/, which is where
+        // the cost this guard exists to skip actually lives.
+        theme_manager_refresh_layout_constants(display);
+
         spdlog::debug("[Theme] theme_manager_init: unchanged target ({}x{} {}), reusing", h_res,
                       v_res, use_dark_mode_param);
         return;
@@ -2147,6 +2157,13 @@ void theme_manager_apply_theme(const helix::ThemeData& theme, bool dark_mode) {
 
     active_theme = theme;
     use_dark_mode = effective_dark;
+
+    // The repeat guard keys on the display, its resolution and the mode, none of
+    // which name the theme. Replacing active_theme here would otherwise leave a
+    // later theme_manager_init() free to skip its registration pass and keep
+    // serving whatever was applied, instead of reloading the configured theme.
+    theme_fully_initialized = false;
+
     spdlog::info("[Theme] Applying theme '{}' in {} mode", theme.name,
                  effective_dark ? "dark" : "light");
 

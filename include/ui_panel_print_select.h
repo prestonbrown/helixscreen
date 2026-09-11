@@ -183,29 +183,6 @@ inline bool dir_error_should_reset_to_root(const std::string& error_message, boo
 }
 
 /**
- * @brief Whether a notify_filelist_changed payload can change what this panel lists.
- *
- * PrintSelectFileProvider requests the "gcodes" root and nothing else, so a
- * change under any other root cannot alter this list. Moonraker fires the same
- * notification for every registered directory, and printers write to `config`
- * constantly: an AFC unit rewrites `AFC/AFC.var.unit` on every SET_* command and
- * a SAVE_VARIABLE delayed_gcode rewrites `saved_variables.cfg`, which together
- * cost 113 full server.files.get_directory round trips in one session in debug
- * bundle L53W5PKG — all while the user sat on the print-status panel.
- *
- * An empty root means the payload had no shape we recognise; refresh in that
- * case, because going stale is worse than one extra round trip.
- *
- * Exact match, not a prefix: a separately registered root such as
- * "gcodes_backup" is a different directory and would reintroduce the storm.
- * Extracted as a pure function so it can be tested without the full
- * PrintSelectPanel/LVGL fixture.
- */
-inline bool filelist_change_affects_gcodes(const std::string& root) {
-    return root.empty() || root == "gcodes";
-}
-
-/**
  * @brief Value to publish to a thumbnail POINTER subject (lv_image_bind_src).
  *
  * Returns @p buffer only when it holds a real (non-empty) thumbnail path;

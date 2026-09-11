@@ -60,4 +60,16 @@ class NavigationManagerTestAccess {
     static void switch_to_panel(NavigationManager& nav, helix::PanelId panel_id) {
         nav.switch_to_panel_impl(static_cast<int>(panel_id));
     }
+
+    /// Resolve the lifecycle registered for an overlay widget, to assert a
+    /// teardown unregistered it (nullptr after).
+    static IPanelLifecycle* lifecycle_of(NavigationManager& nav, lv_obj_t* widget) {
+        return nav.resolve_overlay_lifecycle(widget);
+    }
+
+    /// Whether a close callback is registered for the widget, to assert a
+    /// teardown unregistered it.
+    static bool has_close_callback(NavigationManager& nav, lv_obj_t* widget) {
+        return nav.overlay_close_callbacks_.count(widget) > 0;
+    }
 };

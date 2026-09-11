@@ -668,10 +668,10 @@ void WizardWifiStep::handle_network_item_clicked(lv_event_t* e) {
         if (wifi_manager_) {
             auto token = lifetime_.token();
             wifi_manager_->connect(
-                network.ssid, "", [this, token](bool success, const std::string& error) {
+                network.ssid, "",
+                [this, token](bool success, const std::string& error, WiFiResult) {
                     // No bg-thread token.expired() — token.defer() gates atomically on the main
-                    // thread (L081). The old expired-branch log dereferenced get_name() on a
-                    // possibly-dead `this`.
+                    // thread (L081).
                     token.defer([this, success, error]() {
                         if (success) {
                             char msg[128];
@@ -758,10 +758,10 @@ void WizardWifiStep::handle_modal_connect_clicked() {
     if (wifi_manager_) {
         auto token = lifetime_.token();
         wifi_manager_->connect(
-            current_ssid_, password, [this, token](bool success, const std::string& error) {
+            current_ssid_, password,
+            [this, token](bool success, const std::string& error, WiFiResult) {
                 // No bg-thread token.expired() — token.defer() gates atomically on the main
-                // thread (L081). The old expired-branch log dereferenced get_name() on a
-                // possibly-dead `this`.
+                // thread (L081).
                 token.defer([this, success, error]() {
                     lv_subject_set_int(&wifi_connecting_, 0);
 

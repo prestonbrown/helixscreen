@@ -163,13 +163,17 @@ class GCodeGLESRenderer {
         return geometry_ != nullptr;
     }
 
-    /// True once a fatal GL error (out-of-memory / invalid-operation) was seen
-    /// during a draw batch. The viewer polls this after render() and switches
-    /// to the pure-CPU 2D renderer for the rest of the session rather than
-    /// risk a driver-side crash on constrained GPUs (e.g. Mali-G31 on CB1).
-    /// Sticky: once set it stays set until the renderer is destroyed.
+    /// True once the GPU path is unusable for the rest of the session: either
+    /// a fatal GL error (out-of-memory / invalid-operation) was seen during a
+    /// draw batch, or GL could not be initialized at all (no GL in the video
+    /// driver, no EGL device). The viewer polls this after render() and
+    /// switches to the pure-CPU 2D renderer rather than risk a driver-side
+    /// crash on constrained GPUs (e.g. Mali-G31 on CB1) — or draw nothing,
+    /// frame after frame, where no GL exists (a --test run under the dummy
+    /// video driver). Sticky: once set it stays set until the renderer is
+    /// destroyed.
     bool render_failed() const {
-        return gl_render_failed_;
+        return gl_render_failed_ || gl_init_failed_;
     }
 
     // ====== Color / Material ======

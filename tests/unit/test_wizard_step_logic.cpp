@@ -426,17 +426,17 @@ TEST_CASE("Total settles only after connection when no preset is authoritative",
     // Through the connection step the skip vector is still an estimate: AMS,
     // filament sensors and a detection-applied preset only exist once the
     // connection succeeds, so the denominator can shrink or grow mid-run.
-    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::TouchCalibration, v, false));
-    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::Language, v, false));
-    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::Wifi, v, false));
-    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::Connection, v, false));
+    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::TouchCalibration, v, false, true));
+    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::Language, v, false, true));
+    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::Wifi, v, false, true));
+    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::Connection, v, false, true));
 
     // Everything after the connection runs against a live, fully discovered
     // printer; the denominator cannot lurch from here.
-    REQUIRE(helix::wizard_total_is_settled(StepId::PrinterIdentify, v, false));
-    REQUIRE(helix::wizard_total_is_settled(StepId::HeaterSelect, v, false));
-    REQUIRE(helix::wizard_total_is_settled(StepId::Summary, v, false));
-    REQUIRE(helix::wizard_total_is_settled(StepId::Telemetry, v, false));
+    REQUIRE(helix::wizard_total_is_settled(StepId::PrinterIdentify, v, false, true));
+    REQUIRE(helix::wizard_total_is_settled(StepId::HeaterSelect, v, false, true));
+    REQUIRE(helix::wizard_total_is_settled(StepId::Summary, v, false, true));
+    REQUIRE(helix::wizard_total_is_settled(StepId::Telemetry, v, false, true));
 }
 
 TEST_CASE("Total settles from the first step when a preset is authoritative",
@@ -449,19 +449,35 @@ TEST_CASE("Total settles from the first step when a preset is authoritative",
 
     // The preset plan already collapsed everything it will collapse, so the
     // denominator is stable even on the first step and on a skipped
-    // Connection.
-    REQUIRE(helix::wizard_total_is_settled(StepId::TouchCalibration, v, true));
-    REQUIRE(helix::wizard_total_is_settled(StepId::Language, v, true));
-    REQUIRE(helix::wizard_total_is_settled(StepId::Connection, v, true));
-    REQUIRE(helix::wizard_total_is_settled(StepId::Telemetry, v, true));
+    // Connection - regardless of whether discovery ever ran.
+    REQUIRE(helix::wizard_total_is_settled(StepId::TouchCalibration, v, true, false));
+    REQUIRE(helix::wizard_total_is_settled(StepId::Language, v, true, false));
+    REQUIRE(helix::wizard_total_is_settled(StepId::Connection, v, true, false));
+    REQUIRE(helix::wizard_total_is_settled(StepId::Telemetry, v, true, false));
 }
 
 TEST_CASE("An unknown step never reports the total as settled without a preset",
           "[1550][wizard][step_logic]") {
     auto v = full_vec();
     v.pop_back(); // drop Telemetry so a lookup misses
-    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::Telemetry, v, false));
+    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::Telemetry, v, false, true));
     // A preset short-circuits before any step lookup: the denominator is
     // settled regardless of what the step is.
-    REQUIRE(helix::wizard_total_is_settled(StepId::Telemetry, v, true));
+    REQUIRE(helix::wizard_total_is_settled(StepId::Telemetry, v, true, false));
+}
+
+TEST_CASE("A Connection escape hatch past discovery still holds the total hidden",
+          "[1550][wizard][step_logic]") {
+    // allow_continue_without_klipper() / the #1161 discovery watchdog let Next
+    // through past Connection while discovery never resolved — the skip vector
+    // (AMS, filament sensors, a detection-applied preset) can still change the
+    // moment Klipper does come up, exactly like before Connection.
+    auto v = full_vec();
+
+    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::PrinterIdentify, v, false, false));
+    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::HeaterSelect, v, false, false));
+    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::Telemetry, v, false, false));
+
+    // Once discovery catches up mid-run, the same step settles.
+    REQUIRE(helix::wizard_total_is_settled(StepId::HeaterSelect, v, false, true));
 }

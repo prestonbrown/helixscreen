@@ -11,6 +11,7 @@
 #include "filament_database.h"
 #include "hh_defaults.h"
 #include "runtime_config.h"
+#include "simulated_clock.h"
 
 #include <spdlog/spdlog.h>
 
@@ -269,6 +270,26 @@ AmsError AmsBackendMock::start() {
     // (emit_event also acquires mutex_ to safely copy the callback)
     if (should_emit) {
         emit_event(EVENT_STATE_CHANGED);
+    }
+
+    // A rig can declare a cycle already under way (see set_environment_mode). It starts
+    // here, not at configuration time: start_drying() spawns the simulation thread and
+    // takes the same lock the rig is configured under.
+    int pending_unit = -1;
+    float pending_temp = 0.0f;
+    int pending_duration = 0;
+    int pending_elapsed = 0;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        pending_unit = pending_drying_unit_;
+        pending_temp = pending_drying_temp_c_;
+        pending_duration = pending_drying_duration_min_;
+        pending_elapsed = pending_drying_elapsed_min_;
+        pending_drying_unit_ = -1;
+    }
+    if (pending_unit >= 0) {
+        set_dryer_initial_elapsed_min(pending_elapsed);
+        start_drying(pending_temp, pending_duration, -1, pending_unit);
     }
 
     // Apply deferred state scenario (requires running_ = true)
@@ -1335,6 +1356,56 @@ void AmsBackendMock::set_environment_mode(const std::string& mode) {
     std::lock_guard<std::mutex> lock(mutex_);
     environment_mode_ = mode;
     spdlog::info("[AmsBackendMock] Environment mode set to '{}'", mode.empty() ? "(auto)" : mode);
+
+    // Units already exist here: HELIX_MOCK_AMS is read before HELIX_MOCK_AMS_ENV.
+    const size_t unit_count = std::max<size_t>(system_info_.units.size(), 1);
+
+    // Real boxes do not agree on a range: a Box Turtle-class dryer tops out around 65C
+    // while a QIDI box reports 90 from its Klipper config. Taking the range as an
+    // argument lets a rig give its boxes different ones, which is what makes a per-box
+    // ceiling visible as something that follows the selection rather than a constant.
+    auto heated = [](float min_c = 35.0f, float max_c = 65.0f) {
+        DryerInfo d;
+        d.supported = true;
+        d.min_temp_c = min_c;
+        d.max_temp_c = max_c;
+        d.max_duration_min = 720;
+        d.supports_live_temp = true;
+        return d;
+    };
+
+    if (mode == "emu") {
+        unit_dryers_.assign(unit_count, DryerInfo{}); // nothing to drive, only to watch
+    } else if (mode == "mixed") {
+        unit_dryers_.assign(unit_count, DryerInfo{});
+        unit_dryers_[0] = heated();
+    } else if (mode == "capped") {
+        // One box already part-way through a cycle when the user walks up, the rest
+        // waiting on the single heater.
+        constexpr float kCycleTempC = 55.0f;
+        constexpr int kCycleDurationMin = 240;
+        constexpr int kCycleElapsedMin = 56;
+
+        // Deliberately unequal ceilings. With both boxes at one range, nothing on screen
+        // can tell a ceiling that tracks the selected box from a hardcoded number.
+        unit_dryers_.assign(unit_count, heated(40.0f, 90.0f));
+
+        DryerInfo running = heated();
+        running.active = true;
+        running.target_temp_c = kCycleTempC;
+        running.current_temp_c = kCycleTempC;
+        running.duration_min = kCycleDurationMin;
+        running.remaining_min = kCycleDurationMin - kCycleElapsedMin;
+        unit_dryers_[0] = running;
+
+        // The same cycle, declared so start() can hand it to the ordinary drying path.
+        // The state above is what a caller that never starts the backend reads; this is
+        // what makes the countdown tick for one that does.
+        pending_drying_unit_ = 0;
+        pending_drying_temp_c_ = kCycleTempC;
+        pending_drying_duration_min_ = kCycleDurationMin;
+        pending_drying_elapsed_min_ = kCycleElapsedMin;
+    }
 }
 
 bool AmsBackendMock::has_environment_sensors() const {
@@ -1359,7 +1430,62 @@ void AmsBackendMock::populate_environment_data(AmsSystemInfo& info) const {
     // to exercise the temp-only overlay layout. See HELIX_MOCK_NO_HUMIDITY.
     const bool no_humidity = std::getenv("HELIX_MOCK_NO_HUMIDITY") != nullptr;
     auto mode = resolve_environment_mode();
-    if (mode != "passive" && mode != "dryer" && mode != "slot") {
+    if (mode != "passive" && mode != "dryer" && mode != "slot" && mode != "emu" &&
+        mode != "mixed" && mode != "capped") {
+        return;
+    }
+
+    // EMU: a sealed box per lane, so every slot carries its own reading.
+    if (mode == "emu") {
+        constexpr float lane_humidity[] = {31.0f, 38.0f, 45.0f, 52.0f, 58.0f, 63.0f};
+        int lane = 0;
+        for (auto& unit : info.units) {
+            for (auto& slot : unit.slots) {
+                slot.environment = EnvironmentData{
+                    .temperature_c = 23.0f + static_cast<float>(lane % 3),
+                    .humidity_pct = lane_humidity[lane % 6],
+                    .has_humidity = !no_humidity,
+                };
+                ++lane;
+            }
+        }
+        return;
+    }
+
+    // Mixed rig: a heated enclosure on unit 0 beside per-lane passive boxes.
+    if (mode == "mixed") {
+        for (size_t u = 0; u < info.units.size(); ++u) {
+            if (u == 0) {
+                info.units[u].environment = EnvironmentData{
+                    .temperature_c = 55.0f,
+                    .humidity_pct = 22.0f,
+                    .has_humidity = !no_humidity,
+                };
+            } else {
+                constexpr float lane_humidity[] = {31.0f, 58.0f};
+                int lane = 0;
+                for (auto& slot : info.units[u].slots) {
+                    slot.environment = EnvironmentData{
+                        .temperature_c = 23.0f,
+                        .humidity_pct = lane_humidity[lane % 2],
+                        .has_humidity = !no_humidity,
+                    };
+                    ++lane;
+                }
+            }
+        }
+        return;
+    }
+
+    // Capped rig: two heated boxes, one heater's worth of power between them.
+    if (mode == "capped") {
+        for (size_t u = 0; u < info.units.size(); ++u) {
+            info.units[u].environment = EnvironmentData{
+                .temperature_c = u == 0 ? 55.0f : 24.0f,
+                .humidity_pct = u == 0 ? 22.0f : 48.0f,
+                .has_humidity = !no_humidity,
+            };
+        }
         return;
     }
 
@@ -1439,15 +1565,32 @@ void AmsBackendMock::set_dryer_speed(int speed_x) {
 }
 
 DryerInfo AmsBackendMock::get_dryer_info(int unit) const {
-    (void)unit; // single-unit
     std::lock_guard<std::mutex> lock(mutex_);
+    if (unit >= 0 && static_cast<size_t>(unit) < unit_dryers_.size()) {
+        return unit_dryers_[static_cast<size_t>(unit)];
+    }
     return dryer_state_;
 }
 
+std::vector<helix::printer::EnvironmentZone> AmsBackendMock::get_environment_zones(int unit) const {
+    std::string mode;
+    {
+        // Read the mode under the lock, then release it: get_system_info() and
+        // get_dryer_info() below take the same mutex.
+        std::lock_guard<std::mutex> lock(mutex_);
+        mode = resolve_environment_mode();
+    }
+
+    auto zones = AmsBackend::get_environment_zones(unit);
+    if (mode == "capped") {
+        helix::printer::queue_zones_waiting_for_the_cap(zones);
+    }
+    return zones;
+}
+
 AmsError AmsBackendMock::start_drying(float temp_c, int duration_min, int fan_pct, int unit) {
-    (void)unit;
-    spdlog::info("[AmsBackendMock] start_drying: {}°C for {}min, fan {}%", temp_c, duration_min,
-                 fan_pct);
+    spdlog::info("[AmsBackendMock] start_drying: {}°C for {}min, fan {}%, unit {}", temp_c,
+                 duration_min, fan_pct, unit);
 
     int speed_x;
     {
@@ -1458,7 +1601,7 @@ AmsError AmsBackendMock::start_drying(float temp_c, int duration_min, int fan_pc
 
         // Stop any existing dryer thread
         dryer_stop_requested_ = true;
-        speed_x = dryer_speed_x_;
+        speed_x = effective_dryer_speed_x();
     }
 
     // Wait for previous thread to finish using atomic exchange
@@ -1487,6 +1630,8 @@ AmsError AmsBackendMock::start_drying(float temp_c, int duration_min, int fan_pc
         // If starting past the heat-up ramp, present at target temperature already.
         start_temp = (initial_elapsed_min * 60 > 300) ? temp_c : dryer_state_.current_temp_c;
         dryer_state_.current_temp_c = start_temp;
+        drying_unit_ = unit;
+        mirror_dryer_to_unit(unit);
     }
 
     // Mark dryer thread as running BEFORE creating it
@@ -1496,7 +1641,7 @@ AmsError AmsBackendMock::start_drying(float temp_c, int duration_min, int fan_pc
     // speed_x: how many simulated seconds pass per real second
     // At default 60x: 1 real second = 1 simulated minute, so 4h completes in 4min
     dryer_thread_ =
-        std::thread([this, temp_c, duration_min, speed_x, start_temp, initial_elapsed_min]() {
+        std::thread([this, temp_c, duration_min, speed_x, start_temp, initial_elapsed_min, unit]() {
             float current_temp = start_temp;
             int total_sec = duration_min * 60;              // Total simulated seconds
             int elapsed_sim_sec = initial_elapsed_min * 60; // Honor optional head start
@@ -1538,6 +1683,7 @@ AmsError AmsBackendMock::start_drying(float temp_c, int duration_min, int fan_pc
                     std::lock_guard<std::mutex> lock(mutex_);
                     dryer_state_.current_temp_c = current_temp;
                     dryer_state_.remaining_min = remaining_min;
+                    mirror_dryer_to_unit(unit);
                 }
 
                 // Emit state change every tick for smooth UI updates
@@ -1552,6 +1698,8 @@ AmsError AmsBackendMock::start_drying(float temp_c, int duration_min, int fan_pc
                 dryer_state_.remaining_min = 0;
                 dryer_state_.fan_pct = 0;
                 // Start cooling from current temp (not instant)
+                drying_unit_ = -1;
+                mirror_dryer_to_unit(unit);
             }
             emit_event(EVENT_STATE_CHANGED);
 
@@ -1563,6 +1711,7 @@ AmsError AmsBackendMock::start_drying(float temp_c, int duration_min, int fan_pc
                 {
                     std::lock_guard<std::mutex> lock(mutex_);
                     dryer_state_.current_temp_c = current_temp;
+                    mirror_dryer_to_unit(unit);
                 }
                 emit_event(EVENT_STATE_CHANGED);
             }
@@ -1572,6 +1721,7 @@ AmsError AmsBackendMock::start_drying(float temp_c, int duration_min, int fan_pc
                 {
                     std::lock_guard<std::mutex> lock(mutex_);
                     dryer_state_.current_temp_c = 25.0f;
+                    mirror_dryer_to_unit(unit);
                 }
                 emit_event(EVENT_STATE_CHANGED);
                 spdlog::info("[AmsBackendMock] Drying complete/stopped, cooled to room temp");
@@ -1583,8 +1733,7 @@ AmsError AmsBackendMock::start_drying(float temp_c, int duration_min, int fan_pc
 }
 
 AmsError AmsBackendMock::stop_drying(int unit) {
-    (void)unit;
-    spdlog::info("[AmsBackendMock] stop_drying");
+    spdlog::info("[AmsBackendMock] stop_drying: unit {}", unit);
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -1594,6 +1743,12 @@ AmsError AmsBackendMock::stop_drying(int unit) {
 
         if (!dryer_state_.active) {
             return AmsError{AmsResult::SUCCESS}; // Already stopped
+        }
+
+        // A box that is not the one running has nothing to stop. Without this a Stop on
+        // a queued box would end the cycle in the box beside it.
+        if (unit >= 0 && drying_unit_ >= 0 && unit != drying_unit_) {
+            return AmsError{AmsResult::SUCCESS};
         }
 
         dryer_stop_requested_ = true;
@@ -1908,6 +2063,17 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
             {"Box Turtle 1", {"0", "1", "2", "3"}},
             {"Night Owl", {"0", "1"}},
         });
+
+        // Unit 0 is a heated enclosure, unit 1 a passive box: the shape that puts
+        // drying controls and storage advice on screen at the same time.
+        DryerInfo heated;
+        heated.supported = true;
+        heated.min_temp_c = 35.0f;
+        heated.max_temp_c = 65.0f;
+        heated.max_duration_min = 720;
+        heated.supports_live_temp = true;
+        DryerInfo passive; // supported stays false
+        unit_dryers_ = {heated, passive};
 
         // Unit 0 slot data
         struct SlotData {
@@ -3017,12 +3183,27 @@ bool AmsBackendMock::slot_has_prep_sensor(int slot_index) const {
     return slots_.is_valid_index(slot_index);
 }
 
-int AmsBackendMock::get_effective_delay_ms(int base_ms, float variance) const {
-    double speedup = get_runtime_config()->sim_speedup;
-    if (speedup <= 0)
-        speedup = 1.0;
+int AmsBackendMock::effective_dryer_speed_x() const {
+    // The dryer's own multiplier composed over --sim-speed, so one flag carries
+    // the drying cycle with it.
+    return static_cast<int>(helix::sim::SimSpeed::global().composed_with(dryer_speed_x_).factor());
+}
 
-    int effective = static_cast<int>(base_ms / speedup);
+void AmsBackendMock::mirror_dryer_to_unit(int unit) {
+    if (unit < 0 || static_cast<size_t>(unit) >= unit_dryers_.size()) {
+        return;
+    }
+    DryerInfo& d = unit_dryers_[static_cast<size_t>(unit)];
+    d.active = dryer_state_.active;
+    d.current_temp_c = dryer_state_.current_temp_c;
+    d.target_temp_c = dryer_state_.target_temp_c;
+    d.duration_min = dryer_state_.duration_min;
+    d.remaining_min = dryer_state_.remaining_min;
+    d.fan_pct = dryer_state_.fan_pct;
+}
+
+int AmsBackendMock::get_effective_delay_ms(int base_ms, float variance) const {
+    int effective = helix::sim::SimSpeed::global().shorten_wait_ms(base_ms);
 
     // Apply variance if non-zero
     if (variance > 0.0f && effective > 0) {

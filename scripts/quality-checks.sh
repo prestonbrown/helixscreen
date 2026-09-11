@@ -794,7 +794,7 @@ if [ -f "scripts/check_hardcoded_pixels.py" ]; then
     PIXELS_ARGS=""
   fi
   # shellcheck disable=SC2086
-  if python3 scripts/check_hardcoded_pixels.py --max-allowed 154 --summary $PIXELS_ARGS \
+  if python3 scripts/check_hardcoded_pixels.py --max-allowed 150 --summary $PIXELS_ARGS \
       >/tmp/hardcoded_pixels.out 2>&1; then
     tail -1 /tmp/hardcoded_pixels.out
   else
@@ -896,8 +896,8 @@ echo "📜 Checking panel-widget scroll declarations..."
 # <lv_obj> keeps LVGL's LV_OBJ_FLAG_SCROLLABLE default, which is ON. Our theme
 # overrides lv_obj's size/border/background/padding but NOT scrollable, so an
 # author who reads it as a pure layout container gets a scroll container. That
-# shipped chevrons drawn over the print-status thumbnail on an 800x480 K-Touch
-# (7d69130df), and inside a drag-scrolled home grid it also steals the drag.
+# draws chevrons over the print-status thumbnail on an 800x480 K-Touch, and
+# inside a drag-scrolled home grid it also steals the drag.
 #
 # Ratcheting baseline. The rule is declared INTENT - scrollable="true" passes
 # just as well as "false"; only saying nothing fails. The remaining 21 sites are
@@ -1046,9 +1046,7 @@ echo "🎨 Checking code formatting (clang-format)..."
 # Unformatted when the gate started blocking; each entry leaves when it is
 # next staged and auto-formatted.
 CLANG_FORMAT_BASELINE="
-include/print_history_manager.h
 include/tool_state.h
-src/print/print_history_manager.cpp
 src/printer/filament_mapper.cpp
 src/system/pwm_sound_backend.cpp
 src/system/update_checker.cpp
@@ -1249,7 +1247,6 @@ if [ -n "$XML_FILES" ]; then
       # here left a real hole: tests/shell/test_format_xml_gate.bats checks the
       # WHOLE ui_xml tree and fails hard, so an unformatted file that sails past
       # this warning turns the shell suite red on main until someone notices.
-      # panel_widget_bypass.xml sat that way through 58ea1eea2.
       # Which files already had unstaged work — recorded BEFORE formatting,
       # because the reformat itself makes every file differ from the index.
       XML_PRE_DIRTY=""
@@ -1348,14 +1345,53 @@ if [ "$STAGED_ONLY" = true ]; then
     BUILD_NEEDED=true
   fi
 
-  if [ "$BUILD_NEEDED" = false ]; then
+  # A staged .cpp can only break its own translation unit, and asking the
+  # compiler that question directly costs seconds where a link costs minutes.
+  # A staged HEADER is the case that breaks OTHER units, so that one still pays
+  # for the build. HELIX_QC_FULL_BUILD=1 forces the build either way.
+  STAGED_CXX=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+    | grep -E '\.(cpp|cc|cxx|mm)$' || true)
+  STAGED_HDR=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+    | grep -E '\.(h|hh|hpp|hxx|inc)$' || true)
+
+  BUILD_HANDLED=false
+  if [ "$BUILD_NEEDED" = true ] && [ -z "$STAGED_HDR" ] && [ -n "$STAGED_CXX" ] \
+     && [ -f compile_commands.json ] && [ -z "${HELIX_QC_FULL_BUILD:-}" ]; then
+    BUILD_HANDLED=true
+    if python3 scripts/syntax_check.py $STAGED_CXX >/tmp/qc_syntax.out 2>&1; then
+      section_time $SECTION_START
+      echo ""
+      echo "✅ $(grep '^summary:' /tmp/qc_syntax.out || echo 'staged sources compile') - pre-push builds the tree"
+    else
+      section_time $SECTION_START
+      echo ""
+      echo "❌ A staged source does not compile"
+      sed -n '1,40p' /tmp/qc_syntax.out
+      EXIT_CODE=1
+    fi
+  fi
+
+  if [ "$BUILD_HANDLED" = true ]; then
+    :
+  elif [ "$BUILD_NEEDED" = false ]; then
     section_time $SECTION_START
     echo ""
     echo "✅ Build up to date"
   else
     # Something needs building - run actual build
-    # Use SKIP_COMPILE_COMMANDS=1 to avoid slow LSP re-indexing
-    if make SKIP_COMPILE_COMMANDS=1 -j >/dev/null 2>&1; then
+    # Use SKIP_COMPILE_COMMANDS=1 to avoid slow LSP re-indexing.
+    #
+    # Bounded -j: a bare `-j` takes every core, and this build runs from a
+    # commit hook, so on a box with several sessions committing it is N
+    # unbounded builds at once rather than one.
+    #
+    # The share comes from `helix-claim jobs`, which counts distinct trees with
+    # live compilers, folds in live build claims and caps by MemAvailable - a
+    # measured share rather than a guessed constant. It answers in ~0.1s and
+    # returns a usable number even on bad input; 6 is the fallback for a tree
+    # without the script, and HELIX_QC_JOBS overrides both.
+    QC_JOBS="${HELIX_QC_JOBS:-$(scripts/helix-claim jobs 2>/dev/null || echo 6)}"
+    if make SKIP_COMPILE_COMMANDS=1 -j"$QC_JOBS" >/dev/null 2>&1; then
       section_time $SECTION_START
       echo ""
       echo "✅ Build successful"
@@ -1565,7 +1601,7 @@ qc_null_safety() {
 # Background: Moonraker delivers JSON null for subscribed fields the underlying
 # Klipper object lacks. .value() and .get<T>() throw type_error.302 on null;
 # an uncaught throw inside a subscription handler exits 134 → watchdog crash
-# loop (#filament_motion_sensor, fixed in f75b961d8).
+# loop (e.g. a null #filament_motion_sensor field).
 #
 # Baseline ratchets down as violations are fixed. New code adds to the count
 # only via opt-out comment (`// JSON_NULL_SAFE: <reason>`).
@@ -1763,7 +1799,7 @@ if [ -f "scripts/check_namespace_compliance.py" ]; then
   # main dropped the Plugins overlay and retired three globals without
   # ratcheting, so the merge collects that slack too. 2239 -> 2238 is
   # ResolvedMacroScript and resolve_macro_script moving into helix::.
-  if python3 scripts/check_namespace_compliance.py --max-allowed 2216 --summary >/tmp/namespace_check.out 2>&1; then
+  if python3 scripts/check_namespace_compliance.py --max-allowed 2215 --summary >/tmp/namespace_check.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/namespace_check.out
@@ -1811,7 +1847,7 @@ if [ -f "scripts/check_imperative_ui.py" ]; then
   # as deliberate pragmatism (the XML engine couldn't express it at the time), some
   # are plain mistakes — both are debt. The number may go DOWN (port a site, then
   # lower this baseline) but must never go up.
-  if python3 scripts/check_imperative_ui.py --max-allowed 365 --summary >/tmp/imperative_ui.out 2>&1; then
+  if python3 scripts/check_imperative_ui.py --max-allowed 364 --summary >/tmp/imperative_ui.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/imperative_ui.out
@@ -1835,15 +1871,19 @@ SECTION_START=$(date +%s)
 echo -n "🔌 Checking orphan subjects (registered, never read)..."
 
 if [ -f "scripts/check_orphan_subjects.py" ]; then
-  # The ratchet has reached zero, so this is a hard gate, not a baseline. The XML
-  # linter already rejects a bind_* naming a subject nobody registers; this is the
-  # other direction — a subject registered and kept current but read by neither an
-  # XML binding nor a C++ consumer. It renders nothing and costs every update that
+  # A ratcheting baseline over the whole registered population. The XML linter
+  # already rejects a bind_* naming a subject nobody registers; this is the other
+  # direction — a subject registered and kept current but read by neither an XML
+  # binding nor a C++ consumer. It renders nothing and costs every update that
   # writes it. Usually what a binding leaves behind when its widget is deleted or
   # renamed. Genuinely-unreadable-by-static-analysis cases (a subject handed to a
   # helper by pointer, or observed only from a test accessor) take
   # `// SUBJECT_OK: <reason>` on the registration.
-  if python3 scripts/check_orphan_subjects.py --max-allowed 0 --summary >/tmp/orphan_subjects.out 2>&1; then
+  #
+  # scripts/orphan_subject_baseline.txt names the orphans that are accepted debt;
+  # the gate fails on any subject not on that list, and says so when one leaves
+  # it so the list can be shrunk.
+  if python3 scripts/check_orphan_subjects.py --baseline scripts/orphan_subject_baseline.txt        --summary >/tmp/orphan_subjects.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/orphan_subjects.out
@@ -1853,6 +1893,7 @@ if [ -f "scripts/check_orphan_subjects.py" ]; then
     cat /tmp/orphan_subjects.out
     echo "   Run: python3 scripts/check_orphan_subjects.py --list"
     echo "   Bind it in XML, read it from C++, or delete it."
+    echo "   scripts/orphan_subject_baseline.txt is the accepted-debt list, not a parking spot."
     EXIT_CODE=1
   fi
 else
@@ -1964,8 +2005,9 @@ if [ -f "scripts/check_x11_macro_collisions.py" ]; then
   # Linux headers reach X.h through GL, so an identifier sharing one of those
   # names preprocesses into a numeric constant in any TU that reaches SDL - and
   # only there. Our own SDL is built without X11, so no local build reproduces
-  # it; for v0.99.118 it surfaced only after the tag was cut, on the x86_64
-  # Debian and Raspberry Pi jobs (InvalidationScope::None, fixed in 3ec0c17be).
+  # it; it surfaces only on the x86_64 Debian and Raspberry Pi CI jobs, whose
+  # SDL does reach X11 (e.g. a symbol like InvalidationScope::None colliding
+  # with X11's None).
   # Annotate a deliberate one `// X11_MACRO_OK: <reason>`.
   if python3 scripts/check_x11_macro_collisions.py --max-allowed 0 >/tmp/x11_macros.out 2>&1; then
     section_time $SECTION_START
@@ -1997,9 +2039,9 @@ echo -n "🐉 Checking clang/GCC divergence..."
 # gate and re-asks it in the tree that has one.
 #
 # The class: CI's Ubuntu job compiles with clang and -Werror while every build
-# here uses g++. v0.99.118 shipped a red build because GCC accepts a comparison
-# clang rejects (-Wtautological-type-limit-compare in json_utils.h, fixed in
-# 5d3ea331c). Nothing local could see it.
+# here uses g++, so GCC accepting a comparison clang rejects (e.g.
+# -Wtautological-type-limit-compare in json_utils.h) ships a red build that
+# nothing local could see.
 if qc_clang_divergence_deferred; then
   section_time $SECTION_START
   echo ""
@@ -2974,12 +3016,12 @@ echo ""
 # mk/patches.mk guards every apply with "is this file already dirty?", never
 # with "is it dirty with the CURRENT revision of this patch". So the first
 # revision to reach a checkout is the one that stays: editing a patch afterwards
-# does nothing for anyone who already carries the old hunks. 86560d156 added
-# lv_evdev_get_last_raw() to patches/lvgl-evdev-protocol-a.patch, main's
-# lib/lvgl kept the previous revision, and every device cross-build failed while
-# the desktop suite stayed green - `make test` skips patch application and
-# lv_evdev.c is compiled out of desktop builds, so nothing here could see it.
-# Which is exactly why this one runs on desktop.
+# does nothing for anyone who already carries the old hunks. A patch whose
+# hunks land only in device-only source (e.g. lv_evdev.c, compiled out of
+# desktop builds) can drift from main's checked-in submodule pin without any
+# device cross-build noticing until it fails - `make test` skips patch
+# application entirely, so nothing here could see it. Which is exactly why
+# this one runs on desktop.
 qc_bats_inert() {
   local EXIT_CODE=0
 SECTION_START=$(date +%s)

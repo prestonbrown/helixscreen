@@ -53,6 +53,9 @@ AmsBackendAce::AmsBackendAce(IMoonrakerAPI* api, IMoonrakerClient* client)
     dryer_info_.max_temp_c = 55.0f;
     dryer_info_.max_duration_min = 720; // 12 hours
     dryer_info_.supports_fan_control = false;
+    // Both live-adjust flags keep their conservative defaults: ACE_START_DRYING and
+    // ACE_STOP_DRYING are the whole surface, with no set-temperature-while-running
+    // command, so every adjustment stops and restarts the cycle.
 }
 
 AmsBackendAce::~AmsBackendAce() {
@@ -650,8 +653,12 @@ AmsError AmsBackendAce::update_drying(float temp_c, int duration_min, int fan_pc
         std::lock_guard<std::mutex> lock(mutex_);
         if (temp_c < 0)
             target_temp = dryer_info_.target_temp_c;
-        if (duration_min < 0)
-            target_duration = dryer_info_.duration_min;
+        if (duration_min < 0) {
+            // A temperature change restarts the cycle, so it must restart on what is
+            // left. Reusing the session length would silently hand back time served.
+            target_duration = dryer_info_.remaining_min > 0 ? dryer_info_.remaining_min
+                                                            : dryer_info_.duration_min;
+        }
     }
     return start_drying(target_temp, target_duration, fan_pct, unit);
 }

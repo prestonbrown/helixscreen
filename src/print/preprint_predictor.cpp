@@ -13,6 +13,8 @@
 #include <chrono>
 #include <cmath>
 #include <mutex>
+#include <set>
+#include <string>
 
 namespace helix {
 
@@ -262,36 +264,6 @@ int PreprintPredictor::predicted_total() const {
     return static_cast<int>(std::round(weighted_sum));
 }
 
-int PreprintPredictor::remaining_seconds(const std::set<int>& completed_phases, int current_phase,
-                                         int elapsed_in_current_phase_seconds) const {
-    // Only return remaining time when we have real history entries.
-    // Defaults are useful for predicted_total()/has_predictions() but not here —
-    // the collector uses thermal model for heating and profile weights for progress
-    // when no history exists yet.
-    if (entries_.empty()) {
-        return 0;
-    }
-    auto phases = predicted_phases();
-    int remaining = 0;
-
-    for (const auto& [phase, predicted_duration] : phases) {
-        if (completed_phases.count(phase)) {
-            // Already done, actual time was spent (not predicted)
-            continue;
-        }
-
-        if (phase == current_phase && current_phase != 0) {
-            // Currently in this phase - subtract elapsed
-            remaining += std::max(0, predicted_duration - elapsed_in_current_phase_seconds);
-        } else {
-            // Future phase
-            remaining += predicted_duration;
-        }
-    }
-
-    return remaining;
-}
-
 std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
     auto* cfg = Config::get_instance();
     if (!cfg) {
@@ -307,6 +279,7 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
 
         std::vector<PreprintEntry> entries;
         int dropped_legacy = 0;
+        int dropped_phases = 0;
         for (const auto& ej : entries_json) {
             PreprintEntry entry;
             entry.total_seconds = ej.value("total", 0);
@@ -329,7 +302,15 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
             }
             if (ej.contains("phases") && ej["phases"].is_object()) {
                 for (auto& [key, val] : ej["phases"].items()) {
-                    entry.phase_durations[std::stoi(key)] = val.get<int>();
+                    // A name this build does not know belongs to a newer one.
+                    // The rest of the entry is still a real measurement, so the
+                    // key is dropped rather than the entry.
+                    const auto phase = print_start_phase_from_name(key);
+                    if (!phase || !val.is_number()) {
+                        ++dropped_phases;
+                        continue;
+                    }
+                    entry.phase_durations[static_cast<int>(*phase)] = val.get<int>();
                 }
             }
             entries.push_back(std::move(entry));
@@ -339,10 +320,45 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
                          "(pre-cold/warm-bucket scheme)",
                          dropped_legacy);
         }
+        if (dropped_phases > 0) {
+            spdlog::info("[PreprintPredictor] Skipped {} history phase durations with an "
+                         "unrecognised name",
+                         dropped_phases);
+        }
         return entries;
     } catch (...) {
         return {};
     }
+}
+
+json PreprintPredictor::entries_to_json(const std::vector<PreprintEntry>& entries) {
+    json entries_json = json::array();
+    for (const auto& e : entries) {
+        json entry_json;
+        entry_json["total"] = e.total_seconds;
+        entry_json["timestamp"] = e.timestamp;
+
+        json phases_json = json::object();
+        for (const auto& [phase, duration] : e.phase_durations) {
+            const auto name = print_start_phase_name(static_cast<PrintStartPhase>(phase));
+            if (name.empty()) {
+                spdlog::warn("[PreprintPredictor] Dropping duration for unnamed phase {}", phase);
+                continue;
+            }
+            phases_json[std::string(name)] = duration;
+        }
+        entry_json["phases"] = phases_json;
+        if (e.temp_bucket > 0) {
+            entry_json["temp_bucket"] = e.temp_bucket;
+        }
+        // Omitted for Unknown so the field only appears once it means
+        // something; a reader treats its absence as PrinterEdge.
+        if (e.window != PreprintWindow::Unknown) {
+            entry_json["window"] = static_cast<int>(e.window);
+        }
+        entries_json.push_back(std::move(entry_json));
+    }
+    return entries_json;
 }
 
 int PreprintPredictor::predicted_total_from_config() {

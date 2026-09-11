@@ -107,6 +107,15 @@ static int subset_index_of(helix::wizard::StepId step) {
     return -1;
 }
 
+// Whether Klipper answered and hardware discovery actually ran. Read from live
+// hardware rather than a wizard flag: Klipper always reports at least an
+// [extruder], so an empty heater list is the one unambiguous "discovery never
+// ran" signal available at any point in the run, including from the two
+// Connection-step escape hatches that unblock Next without it.
+static bool wizard_discovery_succeeded(IMoonrakerAPI* api) {
+    return api != nullptr && !api->hardware().heaters().empty();
+}
+
 // Forward declarations
 static void on_back_clicked(lv_event_t* e);
 static void on_next_clicked(lv_event_t* e);
@@ -542,7 +551,8 @@ void ui_wizard_navigate_to_step(helix::wizard::StepId step) {
         // exists on this printer (AMS, sensors, and a detection-applied
         // preset all reshape the skip vector mid-run); show it only once it
         // cannot lurch.
-        total_visible = helix::wizard_total_is_settled(step, skips, ctx.preset.skip_hardware);
+        total_visible = helix::wizard_total_is_settled(step, skips, ctx.preset.skip_hardware,
+                                                       wizard_discovery_succeeded(ctx.api));
         at_first_visible = !helix::wizard_prev(step, skips).has_value();
         is_last_step = helix::wizard_is_last(step, skips);
     }
@@ -970,12 +980,8 @@ void ui_wizard_complete() {
         // and LED as new (#1160). Record the debt instead; the first successful
         // discovery pays it and offers the skipped hardware steps.
         //
-        // Discovery success is read from the live hardware rather than a wizard
-        // flag: Klipper always reports at least an [extruder], so an empty heater
-        // list is the one unambiguous "discovery never ran" signal available at
-        // completion, and it stays correct no matter which path reached Finish.
-        IMoonrakerAPI* api = get_moonraker_api();
-        const bool discovery_succeeded = api != nullptr && !api->hardware().heaters().empty();
+        // Stays correct no matter which path reached Finish.
+        const bool discovery_succeeded = wizard_discovery_succeeded(get_moonraker_api());
         helix::wizard_apply_hardware_snapshot_decision(config, discovery_succeeded, recorded > 0);
 
         if (!config->save()) {

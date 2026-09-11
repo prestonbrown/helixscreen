@@ -394,3 +394,46 @@ teardown() {
         --base-url "https://releases.helixscreen.org/dev"
     [ "$status" -ne 0 ]
 }
+
+@test "prerelease versions and hyphenated platforms both reach the manifest" {
+    PRE_DIR="$(mktemp -d)"
+    for plat in pi snapmaker-u1 android-arm64; do
+        dd if=/dev/zero bs=1024 count=1 2>/dev/null | gzip \
+            > "$PRE_DIR/helixscreen-${plat}-v1.1.0-beta.1.tar.gz"
+    done
+
+    run bash "$SCRIPT" \
+        --version "1.1.0-beta.1" --tag "v1.1.0-beta.1" --notes "Beta" \
+        --dir "$PRE_DIR" \
+        --base-url "https://releases.helixscreen.org/beta" \
+        --output "$PRE_DIR/manifest.json"
+    [ "$status" -eq 0 ] || fail "generate-manifest.sh exited $status: $output"
+
+    for plat in pi snapmaker-u1 android-arm64; do
+        run jq -re --arg p "$plat" '.assets[$p].url' "$PRE_DIR/manifest.json"
+        [ "$status" -eq 0 ] || fail "$plat missing from the manifest"
+        [ "$output" = "https://releases.helixscreen.org/beta/helixscreen-${plat}-v1.1.0-beta.1.tar.gz" ] \
+            || fail "$plat url wrong: $output"
+    done
+
+    rm -rf "$PRE_DIR"
+}
+
+@test "a numeric prerelease identifier does not get mistaken for the version" {
+    NUM_DIR="$(mktemp -d)"
+    dd if=/dev/zero bs=1024 count=1 2>/dev/null | gzip \
+        > "$NUM_DIR/helixscreen-pi-v1.1.0-2.tar.gz"
+
+    run bash "$SCRIPT" \
+        --version "1.1.0-2" --tag "v1.1.0-2" --notes "Numeric prerelease" \
+        --dir "$NUM_DIR" \
+        --base-url "https://releases.helixscreen.org/beta" \
+        --output "$NUM_DIR/manifest.json"
+    [ "$status" -eq 0 ] || fail "generate-manifest.sh exited $status: $output"
+
+    # The platform key must be "pi", not "pi-v1.1.0" with "2" as the version.
+    run jq -re '.assets | keys | join(",")' "$NUM_DIR/manifest.json"
+    [ "$output" = "pi" ] || fail "platform key wrong: [$output]"
+
+    rm -rf "$NUM_DIR"
+}

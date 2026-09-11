@@ -499,7 +499,7 @@ esp_err_t save_post_handler(httpd_req_t* req) {
     // the LVGL thread. The poll below is unchanged — s_connect_state is already
     // PENDING, so a not-yet-drained hop just reads as "still connecting".
     helix::ui::queue_update("provisioning::connect", [wifi, ssid, password]() {
-        wifi->connect(ssid, password, [](bool success, const std::string& error) {
+        wifi->connect(ssid, password, [](bool success, const std::string& error, WiFiResult) {
             s_connect_error = error;
             s_connect_state.store(success ? JoinState::CONNECTED : JoinState::FAILED);
         });

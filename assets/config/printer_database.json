@@ -695,6 +695,14 @@
       "name": "Voron 2.4",
       "manufacturer": "Voron",
       "image": "voron-v2.png",
+      "_print_start_default_phases_comment": "Estimates for a 350mm-class gantry machine with a probe-based mesh: G28 plus a four-point QUAD_GANTRY_LEVEL (the 2.4 levels its gantry, never Z_TILT), then a mesh sweep, a brush wipe and a purge line. Heating is omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 30,
+        "QGL": 60,
+        "BED_MESH": 90,
+        "CLEANING": 20,
+        "PURGING": 15
+      },
       "calibration": {
         "belt_span_offset_mm": 35.0
       },
@@ -782,6 +790,13 @@
       ],
       "manufacturer": "Voron",
       "image": "voron-v0.png",
+      "_print_start_default_phases_comment": "Estimates for a 120mm single-Z machine: no gantry to level and no three-point tilt, so G28 leads straight into a short mesh (when a probe is fitted), a wipe and a purge line. Heating is omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 20,
+        "BED_MESH": 30,
+        "CLEANING": 15,
+        "PURGING": 10
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -929,6 +944,14 @@
       "name": "Voron Trident",
       "manufacturer": "Voron",
       "image": "voron-trident.png",
+      "_print_start_default_phases_comment": "Estimates for a 350mm-class machine with a probe-based mesh: G28 plus a three-point Z_TILT_ADJUST (the Trident tilts its bed, it has no gantry to QGL), then a mesh sweep, a brush wipe and a purge line. Heating is omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 30,
+        "Z_TILT": 45,
+        "BED_MESH": 90,
+        "CLEANING": 20,
+        "PURGING": 15
+      },
       "heuristics": [
         {
           "type": "object_exists",
@@ -986,6 +1009,13 @@
       "name": "Voron Switchwire",
       "manufacturer": "Voron",
       "image": "voron-switchwire.png",
+      "_print_start_default_phases_comment": "Estimates for a 250mm bed-slinger with a single Z and a probe-based mesh: neither a gantry to level nor a three-point tilt, so G28 leads into the mesh sweep, a wipe and a purge line. Heating is omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 25,
+        "BED_MESH": 60,
+        "CLEANING": 20,
+        "PURGING": 15
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1547,6 +1577,13 @@
       },
       "heuristics": [
         {
+          "type": "macro_exclude",
+          "field": "macros",
+          "pattern": "_START_PRINT_VARS",
+          "confidence": 0,
+          "reason": "Exclude the k2-improvements mod (separate entry) - it replaces START_PRINT wholesale"
+        },
+        {
           "type": "kinematics_match",
           "field": "kinematics",
           "pattern": "corexy",
@@ -1644,6 +1681,143 @@
       }
     },
     {
+      "id": "creality_k2_plus_k2improvements",
+      "name": "Creality K2 Plus (k2-improvements)",
+      "manufacturer": "Creality",
+      "toolhead_style": "creality_k2",
+      "image": "creality-k2-plus.png",
+      "probe_type": "cartographer",
+      "preset": "k2",
+      "print_start_profile": "k2_improvements",
+      "console_filters": [
+        "creality_rs485",
+        "creality_k2_modules"
+      ],
+      "pre_print_options": {
+        "macro_name": "START_PRINT",
+        "setup_gcode": "PRINT_PREPARED",
+        "options": [
+          {
+            "id": "ai_detect",
+            "category": "monitoring",
+            "order": 10,
+            "default_enabled": false,
+            "label_key": "AI detection",
+            "description_key": "Monitor for print abnormalities (K2 Plus camera-based)",
+            "strategy": "pre_start_gcode",
+            "gcode_template": "LOAD_AI_RUN SWITCH={value}",
+            "requires_macro": "LOAD_AI_RUN"
+          }
+        ]
+      },
+      "heuristics": [
+        {
+          "type": "macro_match",
+          "field": "macros",
+          "pattern": "_START_PRINT_VARS",
+          "confidence": 99,
+          "reason": "_START_PRINT_VARS is the k2-improvements START_PRINT's variable holder - definitive, and it is the macro that changes the narration"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^cartographer$",
+          "confidence": 70,
+          "reason": "The mod replaces prtouch_v3 with a Cartographer probe",
+          "corroborating": true
+        },
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "sensor_match",
+          "field": "sensors",
+          "pattern": "chamber_temp",
+          "confidence": 70,
+          "reason": "Chamber temperature sensor",
+          "corroborating": true
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^box$",
+          "confidence": 45,
+          "reason": "CFS box object. Every CFS-equipped Creality carries it, so it narrows a machine to the range and never to a model; the model is the hostname's and bed size's to name",
+          "corroborating": true
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "motor_control",
+          "confidence": 75,
+          "reason": "K2-specific motor control module"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "fan_feedback",
+          "confidence": 65,
+          "reason": "Creality fan-tachometer module. A captured real K1C reports it too, so it evidences Creality's range and not this model; the model is the hostname's and bed size's to name. Weight left as-is deliberately: re-scoring or dropping it wants a real K2 discovery snapshot, and no fixture has one"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "creality",
+          "confidence": 60,
+          "reason": "Hostname contains 'creality'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "k2",
+          "confidence": 85,
+          "reason": "Hostname contains 'k2'"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "load_ai",
+          "confidence": 60,
+          "reason": "K2 AI print monitoring"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "filament_rack",
+          "confidence": 65,
+          "reason": "K2 filament rack module"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "heater_generic chamber_heater",
+          "confidence": 70,
+          "reason": "Active chamber heater"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "k2plus",
+          "confidence": 90,
+          "reason": "Hostname contains 'K2Plus'"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 340,
+          "max_x": 360,
+          "min_y": 340,
+          "max_y": 360,
+          "confidence": 55,
+          "reason": "Build volume ~350mm (K2 Plus size)"
+        }
+      ]
+    },
+    {
       "id": "creality_k2_pro",
       "name": "Creality K2 Pro",
       "manufacturer": "Creality",
@@ -1683,6 +1857,13 @@
         ]
       },
       "heuristics": [
+        {
+          "type": "macro_exclude",
+          "field": "macros",
+          "pattern": "_START_PRINT_VARS",
+          "confidence": 0,
+          "reason": "Exclude the k2-improvements mod (separate entry) - it replaces START_PRINT wholesale"
+        },
         {
           "type": "kinematics_match",
           "field": "kinematics",

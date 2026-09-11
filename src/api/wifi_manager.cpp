@@ -200,14 +200,13 @@ void WiFiManager::register_backend_callbacks(bool silent) {
                 // Mirror image of the off-reassert above: the stored setting
                 // is on, but the radio itself is soft-blocked — e.g. a stale
                 // rfkill soft-block from a previous run, or one this same
-                // process created before commit 8aaac4e78 made a soft block
-                // non-fatal at startup instead of aborting init entirely.
-                // is_radio_enabled() is now seeded from hardware
+                // process created, since a soft block found at startup does
+                // not abort init. is_radio_enabled() is seeded from hardware
                 // (<rfkill>/soft) during resolve_and_store_interface(), so it
-                // reflects reality here rather than a hopeful default. A
-                // device left in this state before that fix stays radio-dead
-                // until someone physically taps the touchscreen (Task 15,
-                // CC1) — clear the stale block automatically instead.
+                // reflects reality here rather than a hopeful default. Left
+                // uncleared, the radio stays dead until someone physically
+                // taps the touchscreen (Task 15, CC1) — clear the stale
+                // block automatically instead.
                 spdlog::info("[WiFiManager] Stored setting is WiFi on, but the radio was "
                              "soft-blocked — clearing the stale block to match the stored "
                              "preference");
@@ -502,17 +501,44 @@ void WiFiManager::scan_timer_callback(lv_timer_t* timer) {
 // Connection Management
 // ============================================================================
 
+namespace helix {
+
+std::string connect_failure_message(WiFiResult result, const std::string& reason,
+                                    const std::string& auth_message) {
+    if (result == WiFiResult::AUTHENTICATION_FAILED) {
+        return auth_message;
+    }
+    if (reason.empty()) {
+        return lv_tr("Connection failed");
+    }
+    return reason;
+}
+
+} // namespace helix
+
 void WiFiManager::connect(const std::string& ssid, const std::string& password,
-                          std::function<void(bool success, const std::string& error)> on_complete) {
+                          ConnectCallback on_complete) {
     if (!backend_) {
         NOTIFY_ERROR("WiFi unavailable. Cannot connect to network.");
         if (on_complete) {
-            on_complete(false, "No WiFi backend available");
+            on_complete(false, "No WiFi backend available", WiFiResult::NOT_INITIALIZED);
         }
         return;
     }
 
     spdlog::info("[WiFiManager] Connecting to '{}'", helix::redact::ssid(ssid));
+
+    // A single-transport backend answers this join by taking the link off the
+    // wired interface, so a user reachable on the wired address is about to
+    // lose it. Say so NOW rather than leaving the only feedback to whatever
+    // the daemon does next, and send the join anyway: the daemon's own events
+    // are the only trustworthy verdict on whether it can be completed, and
+    // refusing here would make Ethernet -> Wi-Fi impossible from the UI while
+    // hiding a wedged radio behind a local answer.
+    if (backend_->join_displaces_wired_link()) {
+        NOTIFY_WARNING("{}", lv_tr("Joining Wi-Fi disconnects the wired network."));
+    }
+
     // Selecting a network disassociates from the current one; any scan trigger
     // that lands in the gap is collateral, not a user-actionable failure.
     mark_association_change();
@@ -533,10 +559,14 @@ void WiFiManager::connect(const std::string& ssid, const std::string& password,
     // Use backend's connect method
     WiFiError result = backend_->connect_network(ssid, password);
     if (!result.success()) {
-        NOTIFY_ERROR("Failed to connect to WiFi network '{}'", helix::redact::ssid(ssid));
+        const std::string reason = result.user_msg.empty() ? result.technical_msg : result.user_msg;
+        // The reason belongs in the toast too: "Failed to connect" alone
+        // leaves the user with nothing to act on.
+        NOTIFY_ERROR("Failed to connect to WiFi network '{}': {}", helix::redact::ssid(ssid),
+                     reason);
         // Clear in-progress + take the callback under the lock, then invoke the
         // local copy OUTSIDE the lock (the callback may re-enter WiFiManager).
-        std::function<void(bool, const std::string&)> cb;
+        ConnectCallback cb;
         {
             std::lock_guard<std::mutex> lock(callback_mutex_);
             connecting_in_progress_ = false; // Clear on sync failure
@@ -544,15 +574,7 @@ void WiFiManager::connect(const std::string& ssid, const std::string& password,
             connect_callback_ = nullptr;
         }
         if (cb) {
-            if (result.result == WiFiResult::TRANSPORT_IN_USE) {
-                // The backend refuses a join it knows can never complete
-                // (netd single-transport: a wired link owns the network and
-                // the daemon never answers a Wi-Fi join). Translate here so
-                // the backends stay free of the translation layer.
-                cb(false, lv_tr("Ethernet is connected. Disconnect it to join a Wi-Fi network."));
-            } else {
-                cb(false, result.user_msg.empty() ? result.technical_msg : result.user_msg);
-            }
+            cb(false, reason, result.result);
         }
         return; // the callback is already delivered — nothing left for the watchdog to guard
     }
@@ -990,6 +1012,7 @@ struct ConnectCallbackData {
     std::weak_ptr<WiFiManager> manager;
     bool success;
     std::string error;
+    WiFiResult result;
 };
 
 void WiFiManager::handle_connected(const std::string& event_data) {
@@ -1020,7 +1043,8 @@ void WiFiManager::handle_connected(const std::string& event_data) {
 
     // Use RAII-safe async callback wrapper
     helix::ui::queue_update<ConnectCallbackData>(
-        std::make_unique<ConnectCallbackData>(ConnectCallbackData{self_, true, ""}),
+        std::make_unique<ConnectCallbackData>(
+            ConnectCallbackData{self_, true, "", WiFiResult::SUCCESS}),
         [](ConnectCallbackData* d) {
             if (auto manager = d->manager.lock()) {
                 // A transient AUTH_FAILED may be sitting in the grace window — this
@@ -1029,14 +1053,14 @@ void WiFiManager::handle_connected(const std::string& event_data) {
                 manager->cancel_auth_fail_grace();
                 // The attempt resolved — disarm the watchdog before delivering success.
                 manager->cancel_connect_timeout();
-                std::function<void(bool, const std::string&)> cb;
+                ConnectCallback cb;
                 {
                     std::lock_guard<std::mutex> lock(manager->callback_mutex_);
                     cb = std::move(manager->connect_callback_);
                     manager->connect_callback_ = nullptr;
                 }
                 if (cb) {
-                    cb(d->success, d->error);
+                    cb(d->success, d->error, d->result);
                 }
             } else {
                 spdlog::debug(
@@ -1111,17 +1135,18 @@ void WiFiManager::handle_disconnected(const std::string& event_data) {
 
     // Use RAII-safe async callback wrapper
     helix::ui::queue_update<ConnectCallbackData>(
-        std::make_unique<ConnectCallbackData>(ConnectCallbackData{self_, false, "Disconnected"}),
+        std::make_unique<ConnectCallbackData>(
+            ConnectCallbackData{self_, false, "Disconnected", WiFiResult::CONNECTION_FAILED}),
         [](ConnectCallbackData* d) {
             if (auto manager = d->manager.lock()) {
-                std::function<void(bool, const std::string&)> cb;
+                ConnectCallback cb;
                 {
                     std::lock_guard<std::mutex> lock(manager->callback_mutex_);
                     cb = std::move(manager->connect_callback_);
                     manager->connect_callback_ = nullptr;
                 }
                 if (cb) {
-                    cb(d->success, d->error);
+                    cb(d->success, d->error, d->result);
                 }
             } else {
                 spdlog::debug(
@@ -1153,8 +1178,8 @@ void WiFiManager::handle_auth_failed(const std::string& event_data) {
 
     // Use RAII-safe async callback wrapper
     helix::ui::queue_update<ConnectCallbackData>(
-        std::make_unique<ConnectCallbackData>(
-            ConnectCallbackData{self_, false, std::move(error_msg)}),
+        std::make_unique<ConnectCallbackData>(ConnectCallbackData{
+            self_, false, std::move(error_msg), WiFiResult::AUTHENTICATION_FAILED}),
         [](ConnectCallbackData* d) {
             if (auto manager = d->manager.lock()) {
                 // Only arm the grace window if a connect is still pending; a CONNECTED that
@@ -1219,14 +1244,14 @@ void WiFiManager::deliver_auth_failure() {
         connecting_in_progress_ = false;
     }
     notify_state_observers();
-    std::function<void(bool, const std::string&)> cb;
+    ConnectCallback cb;
     {
         std::lock_guard<std::mutex> lock(callback_mutex_);
         cb = std::move(connect_callback_);
         connect_callback_ = nullptr;
     }
     if (cb) {
-        cb(false, pending_auth_error_);
+        cb(false, pending_auth_error_, WiFiResult::AUTHENTICATION_FAILED);
     }
     pending_auth_error_.clear();
 }
@@ -1272,7 +1297,7 @@ void WiFiManager::deliver_connect_timeout() {
     // the caller stops waiting, and clear connecting_in_progress_ so a later DISCONNECTED
     // is no longer swallowed by handle_disconnected().
     bool was_pending = false;
-    std::function<void(bool, const std::string&)> cb;
+    ConnectCallback cb;
     {
         std::lock_guard<std::mutex> lock(callback_mutex_);
         was_pending = connecting_in_progress_ || static_cast<bool>(connect_callback_);
@@ -1291,7 +1316,7 @@ void WiFiManager::deliver_connect_timeout() {
     notify_state_observers();
     // Invoke OUTSIDE callback_mutex_ — the callback re-enters WiFiManager.
     if (cb) {
-        cb(false, lv_tr("Connection timeout"));
+        cb(false, lv_tr("Connection timeout"), WiFiResult::TIMEOUT);
     }
 }
 

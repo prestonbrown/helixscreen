@@ -94,7 +94,10 @@ translations:
   = Tighten: = Затянуть
   A: A
   A backup of %s is created before applying: 'Перед применением создаётся резервная копия %s'
+  A motor IO pin couldn't be restored. Power-cycle the printer to recover: Не удалось восстановить вывод ввода-вывода двигателя. Выключите и включите принтер
+  A motor's parameters couldn't be written. Power-cycle the printer to retry: Не удалось записать параметры двигателя. Выключите и включите принтер и повторите попытку
   A picture of your printer: Изображение вашего принтера
+  A spool may be tangled or the drive gear is jammed: Катушка может быть запутана или заклинило приводную шестерню
   ABS: ABS
   ACCELEROMETERS: АКСЕЛЕРОМЕТРЫ
   ACE Moonraker bridge not found. Install ace_status.py for full support.: Мост ACE Moonraker не найден. Установите ace_status.py для полной поддержки.
@@ -339,6 +342,7 @@ translations:
     справочники по настройке и ресурсы по устранению неполадок для HelixScreen.
   Brush nozzle: 'Очистка сопла щёткой'
   Buffer Status: Статус буфера
+  Buffer tube problem: Проблема с буферной трубкой
   'Build Volume: ': 'Область печати: '
   Bundle Uploaded: Пакет отправлен
   Button taps and navigation sounds: Звуки нажатий и навигации
@@ -359,6 +363,9 @@ translations:
   CALIBRATION: КАЛИБРОВКА
   CAPABILITIES: ВОЗМОЖНОСТИ
   CARTOGRAPHER: CARTOGRAPHER
+  CFS is busy: CFS занят
+  CFS motor overloaded: Двигатель CFS перегружен
+  CFS system error: Системная ошибка CFS
   CHANGED FROM LAST SESSION: ИЗМЕНЕНО С ПРОШЛОЙ СЕССИИ
   CLOG: ЗАСОР
   COLOR SENSORS: ДАТЧИКИ ЦВЕТА
@@ -401,10 +408,10 @@ translations:
   Calibration failed - touch targets more precisely.: Калибровка не удалась – нажимайте
     на цели точнее.
   Calibration kept timing out. Your previous settings were kept.: Калибровка постоянно завершалась по тайм-ауту. Прежние настройки сохранены.
-  Calibration may still be running — printer connection was interrupted: ''
+  Calibration may still be running — printer connection was interrupted: 'Калибровка может ещё выполняться — соединение с принтером прервано'
   Calibration may still be running — response timed out: Калибровка может ещё выполняться
     — время ожидания истекло
-  Calibration move may still be running — printer connection was interrupted: ''
+  Calibration move may still be running — printer connection was interrupted: 'Движение калибровки может ещё выполняться — соединение с принтером прервано'
   Calibration move may still be running — response timed out: Движение калибровки
     может ещё выполняться — время ожидания истекло
   Calibration saved but cannot apply on SDL display: Калибровка сохранена, но не может
@@ -420,6 +427,7 @@ translations:
   Camera: Камера
   Can't connect — try forgetting and re-pairing the printer: Не удаётся подключиться
     — забудьте принтер и выполните сопряжение заново
+  Can't read filament RFID tag: Не удаётся прочитать RFID-метку филамента
   Cancel: Отмена
   Cancel Escalation: Отменить эскалацию
   Cancel Print: Отменить печать
@@ -489,7 +497,15 @@ translations:
   Check slot failed: Ошибка проверки слота
   Check slots: Проверить слоты
   Check slots failed: Ошибка проверки слотов
+  Check that only one filament path is active: Убедитесь, что активен только один путь филамента
+  Check that the cutter mechanism is properly installed: Проверьте правильность установки режущего механизма
+  Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: Проверьте трубку PTFE вдоль кабель-канала на перегибы, а также изгиб на входе в датчик экструдера
+  Check the RS-485 cable between printer and CFS: Проверьте кабель RS-485 между принтером и CFS
+  Check the buffer unit on the back of the printer: Проверьте буферный блок на задней панели принтера
   Check the filament path and try again.: Проверьте путь филамента и попробуйте снова.
+  ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
+  : Проверьте путь от слота до хаба на запутывание или трение. Если слот подаёт свободно, возможно, неисправен датчик хаба или подающий двигатель
+  Check the spool and the filament path for a jam, then retry: Проверьте катушку и путь филамента на замятие, затем повторите
   Check your heater's rating (typically 40-60W for hotends): Проверьте мощность нагревателя
     (обычно 40–60W для хотэндов)
   Checking: Проверка
@@ -633,11 +649,12 @@ translations:
   Connection failed. Check credentials.: Ошибка подключения. Проверьте учётные данные.
   Connection failed. Check password.: Ошибка подключения. Проверьте пароль.
   'Connection failed: %s': 'Ошибка подключения: %s'
+  Connection lost — probe accuracy result unavailable: 'Соединение потеряно — результат теста точности датчика недоступен'
   Connection must be tested successfully to continue: Для продолжения соединение должно
     быть успешно проверено
   Connection successful!: Соединение успешно!
   Connection timeout: Тайм-аут соединения
-  Connection to printer lost — operation may still be running: ''
+  Connection to printer lost — operation may still be running: 'Связь с принтером потеряна — операция может ещё выполняться'
   Connects: Подключения
   Console: Консоль
   Console Settings: Настройки консоли
@@ -721,6 +738,7 @@ translations:
   Cut filament: Обрезать филамент
   Cut tip: 'Обрезка кончика'
   Cutter Enabled: 'Резак включён'
+  Cutter blade didn't sever filament: Лезвие не перерезало филамент
   Cutter jam: Замятие резака
   Cutting: Резка
   Cutting filament...: Обрезка филамента...
@@ -823,6 +841,7 @@ translations:
   E-Stop (M112): Авар. стоп (M112)
   E-Stop Confirmation: Подтверждение аварийной остановки
   EDDY CURRENT: EDDY CURRENT
+  EEPROM error on CFS unit: Ошибка EEPROM в блоке CFS
   EMERGENCY STOP: АВАРИЙНАЯ ОСТАНОВКА
   EMPTY: ПУСТО
   Each fan can only be selected once: Каждый вентилятор можно выбрать только один
@@ -926,7 +945,6 @@ translations:
   Est. Duration: Ожид. длительность
   Estimating...: Оценка...
   Ethernet: Ethernet
-  Ethernet is connected. Disconnect it to join a Wi-Fi network.: ''
   Events appear here after sessions and prints: События появятся здесь после сессий
     и печатей
   Every extruder's temperature at once: Температура всех экструдеров
@@ -960,9 +978,11 @@ translations:
   Extruder MPC Calibration: Калибровка MPC экструдера
   Extruder PID Tuning: Настройка PID экструдера
   Extruder Unload Speed: 'Скорость выгрузки экструдера'
+  Extruder and CFS disagree on filament state — inspect both sensors: Экструдер и CFS сообщают разное состояние филамента. Проверьте оба датчика
   Extruder distances and sensor configuration: 'Расстояния экструдера и настройка датчиков'
   Extruder heats automatically based on material: Экструдер нагревается автоматически
     в зависимости от материала
+  Extruder motor calibration failed: Не удалась калибровка двигателя экструдера
   Extruder to Nozzle: 'Экструдер до сопла'
   Extruding prime line...: Экструзия линии подготовки...
   FAILED: ОШИБКА
@@ -1083,6 +1103,7 @@ translations:
   'Features: ': 'Функции: '
   Feed Assist: 'Помощь подачи'
   Feed assist and debug tools: Помощь подачи и инструменты отладки
+  Feed failed: Не удалась подача
   Feed filament: Подать филамент
   Feed filament directly to extruder: Подать филамент напрямую в экструдер
   Feed filament from current slot: 'Подать филамент из текущего слота'
@@ -1092,6 +1113,7 @@ translations:
   Filament Detected: Филамент обнаружен
   Filament Environment: Среда хранения филамента
   Filament Grade Mismatch: Несоответствие марки филамента
+  Filament Humidity: Влажность филамента
   Filament In The Toolhead: Филамент в печатающей головке
   Filament Mapping: Назначение филамента
   Filament Runout: Окончание филамента
@@ -1099,20 +1121,33 @@ translations:
   Filament System Error: Ошибка системы филамента
   Filament Used: Использовано филамента
   Filament already exists: Такой филамент уже существует
+  Filament buffer failure during feed: Сбой буфера филамента при подаче
+  Filament buffer stopped moving: Буфер филамента перестал двигаться
   Filament by Type: Филамент по типу
+  ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
+  : Филамент нельзя загрузить ниже минимальной температуры экструзии. Задайте целевую температуру хотэнда (например, 220 °C для PLA, 240 °C для PETG), дождитесь нагрева и повторите
   Filament controls are unavailable while printing.: Управление филаментом недоступно во время печати.
+  Filament cutter not detected: Резак филамента не обнаружен
+  Filament cutter position error: Ошибка положения резака филамента
+  Filament cutter stuck: Резак филамента заклинило
   Filament deleted: Филамент удалён
   Filament diameter sensors for flow compensation: Датчики диаметра филамента для
     компенсации потока
+  Filament didn't fully retract, may need manual removal: Филамент втянут не полностью, может потребоваться извлечь его вручную
   Filament feeder: Фидер филамента
   Filament is clear of the toolhead. Pull it out the rest of the way.: Филамент вышел из печатающей головки. Вытяните его до конца.
+  Filament is dragging: Филамент идёт с натягом
   Filament is loose: Филамент ослаблен
   Filament is pulling tight: Филамент натянут
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : После выгрузки филамент всё ещё находится у сопла. Отрезание или втягивание могло не завершиться. Очистите печатающую головку перед загрузкой другой катушки.
+  Filament is still present after the cut — the blade may be dull or misaligned: После реза филамент остался. Возможно, лезвие затупилось или смещено
+  Filament jammed at the extruder gear: Филамент застрял в шестерне экструдера
   'Filament load failed: {}': 'Ошибка загрузки филамента: {}'
+  Filament never reached the CFS hub sensor: Филамент не дошёл до датчика хаба CFS
   Filament operation failed: Операция с филаментом не удалась
   Filament operation timed out: Операция с филаментом — время ожидания истекло
+  Filament ran out: Филамент закончился
   Filament ran out - nothing at the toolhead and the print is paused.: 'Филамент закончился - у печатающей головки ничего нет, печать приостановлена.'
   ? Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
   : 'Филамент закончился, и CFS не нашла подходящей катушки для замены. Загрузите катушку того же материала и цвета и продолжите печать.'
@@ -1124,6 +1159,10 @@ translations:
   Filament saved: Филамент сохранён
   Filament sensor available for runout detection: Датчик филамента доступен для обнаружения
     окончания
+  Filament snapped inside CFS: Филамент сломался внутри CFS
+  Filament stalled between CFS hub and extruder sensor: Филамент остановился между хабом CFS и датчиком экструдера
+  Filament stuck in connector during unload: Филамент застрял в разъёме при выгрузке
+  Filament stuck inside the CFS hub: Филамент застрял внутри хаба CFS
   Filament tension is balanced: Натяжение филамента сбалансировано
   Filament tracking & label printing: Учёт филамента и печать этикеток
   Filament tracking and inventory: Отслеживание и учёт филамента
@@ -1218,6 +1257,7 @@ translations:
   Heading: Заголовок
   Heat Capacity: Теплоёмкость
   Heat Soak: Прогрев
+  Heat Soaking...: Прогрев...
   Heat bed before calibrating for accurate offset with thermal expansion.: Нагрейте
     стол перед калибровкой для точного смещения с учётом теплового расширения.
   Heat nozzle: Нагреть сопло
@@ -1395,6 +1435,7 @@ translations:
   Invalid status response from printer: Недопустимый ответ статуса от принтера
   Issue description: Описание проблемы
   It can be un-archived in Spoolman's web UI.: Это можно восстановить из архива в веб-интерфейсе Spoolman.
+  It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: Он зажат между датчиком хаба и его шестернёй. Откройте CFS, освободите хаб и повторите
   It's a new spool: Это новая катушка
   Jammed at the Toolhead: Замятие в печатающей головке
   Job Queue: Очередь заданий
@@ -1402,6 +1443,7 @@ translations:
   Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests.: Присоединяйтесь
     к сообществу HelixScreen в Discord для обсуждений, советов, помощи в устранении
     неполадок и предложений новых функций.
+  Joining Wi-Fi disconnects the wired network.: ''
   Just now: Только что
   Just queued: 'Только что в очереди'
   KEYBOARD LAYOUT: РАСКЛАДКА КЛАВИАТУРЫ
@@ -1488,6 +1530,7 @@ translations:
   Live view from your webcam: Прямая трансляция с веб-камеры
   Load: Загрузить
   Load Filament: Загрузить филамент
+  Load a new spool in this slot, or turn on auto-refill to switch to a matching one: Установите новую катушку в этот слот или включите автопополнение для переключения на подходящую
   Load complete: 'Загрузка завершена'
   Load filament: 'Загрузка филамента'
   Load may still be running — response timed out: Загрузка может ещё выполняться —
@@ -1528,6 +1571,7 @@ translations:
   Loosen Path B belt.: Ослабьте ремень Пути B.
   Lost connection during print — try again: Потеряно соединение во время печати —
     попробуйте снова
+  Lost connection to CFS unit: Потеряна связь с блоком CFS
   'Lot # (optional)': 'Партия # (необязательно)'
   Lot/Batch Nr: Nr. партии/серии
   Low Memory: Мало памяти
@@ -1539,6 +1583,7 @@ translations:
   MANUAL: ВРУЧНУЮ
   MB RAM: МБ ОЗУ
   MCU: MCU
+  MCU bridge daemon is shut down: Служба моста MCU остановлена
   MCU, host, and auxiliary temperature monitoring: Мониторинг температуры MCU, хоста
     и вспомогательных датчиков
   'MCU: ': 'MCU: '
@@ -1587,6 +1632,7 @@ translations:
   Manual Feed: 'Ручная подача'
   Manual Retract: 'Ручная ретракция'
   Manual feed and retract operations: Операции ручной подачи и ретракции
+  Manually pull the filament back through the connector: Вытяните филамент вручную через разъём
   Map to closest colors with matching material: Подобрать ближайшие цвета с подходящим
     материалом
   Marginal: Допустимо
@@ -1615,6 +1661,7 @@ translations:
   Measurement Failed: Измерение не удалось
   Measuring accelerometer noise...: 'Измерение шума акселерометра...'
   Measuring vibrations... {}%: 'Измерение вибраций... {}%'
+  Measuring wheel error: Ошибка измерительного колеса
   Median %.0f Hz: Медиана %.0f Гц
   Memory: Память
   Memory (MB): Память (МБ)
@@ -1640,12 +1687,15 @@ translations:
   More points = more accurate, but takes longer.: Больше точек — точнее, но дольше.
   Motion: Движение
   'Motion: XYZ': 'Движение: XYZ'
+  Motor controller error: Ошибка контроллера двигателя
+  Motor parameter setup failed: Не удалась настройка параметров двигателя
   Motor speeds and acceleration: 'Скорости моторов и ускорение'
   Motors Off: Отключить моторы
   'Motors disable failed: {}': 'Ошибка отключения моторов: {}'
   Motors disabled: Моторы отключены
   Mount: Установить
   Move: Двигать
+  Move out of range: 'Движение за пределами диапазона'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Перемещайте
     бумагу вперёд-назад во время регулировки. Остановитесь, когда бумага слегка цепляется,
     но ещё скользит.
@@ -1737,6 +1787,7 @@ translations:
   No effects available: Нет доступных эффектов
   No events queued: Нет событий в очереди
   No fans detected: Вентиляторы не обнаружены
+  No filament environment sensors: Нет датчиков среды филамента
   No filament loaded to unload: Нет загруженного филамента для выгрузки
   No filament sensor detected: 'Датчик филамента не обнаружен'
   No filaments found: Филаменты не найдены
@@ -1824,6 +1875,7 @@ translations:
   Nozzle Temperatures: 'Температуры сопел'
   Nozzle Temps: Темп. сопел
   Nozzle clean complete: Очистка сопла завершена
+  Nozzle clog detected: Обнаружено засорение сопла
   Nozzle did not reach {}°C — {} cancelled: Сопло не нагрелось до {}°C — «{}» отменено
   Nozzle min cannot exceed max: Минимум сопла не может превышать максимум
   Nozzle target set to {}°C: Целевая температура сопла {}°C
@@ -1856,6 +1908,7 @@ translations:
   Open feeder macro: Макрос для открытия фидера
   Open feeder: Открыть фидер
   Open motion controls for jogging: Управление перемещением осей
+  Open the CFS unit and remove the broken filament from the slot: Откройте блок CFS и извлеките сломанный филамент из слота
   Operation already in progress: Операция уже выполняется
   Operations: Операции
   Optimize Your Printing: Оптимизируйте вашу печать
@@ -1893,6 +1946,7 @@ translations:
   PRINT_START has {} skippable operation: В PRINT_START есть {} пропускаемая операция
   PRINT_START has {} skippable operations: В PRINT_START есть {} пропускаемых операций
   PROBE SENSORS: ДАТЧИКИ ЗОНДА
+  PTFE tube connection loose: Соединение трубки PTFE ослабло
   Pair: Сопряжение
   Pair Bluetooth Printer: Подключить Bluetooth-принтер
   Pair Bluetooth Scanner: Подключить Bluetooth-сканер
@@ -1983,6 +2037,7 @@ translations:
   Power: Питание
   Power Devices: Устройства питания
   Power off the printer or screen: Выключить принтер или экран
+  Pre-heat the extruder first: Сначала прогрейте экструдер
   'Pre-print command failed: {}': 'Ошибка команды перед печатью: {}'
   Pre-print homing...: Парковка перед печатью...
   Preheat: 'Преднагрев'
@@ -2167,6 +2222,8 @@ translations:
   Quick actions, calibration, speed: Быстрые действия, калибровка, скорость
   RFCOMM connect failed: Не удалось подключиться по RFCOMM
   'RFCOMM connect failed: ': 'Не удалось подключиться по RFCOMM: '
+  RFID reader malfunction (left): Неисправность RFID-считывателя (левый)
+  RFID reader malfunction (right): Неисправность RFID-считывателя (правый)
   RSS: RSS
   'RSS:': 'RSS:'
   Ramming Volume: 'Объём рэмминга'
@@ -2175,6 +2232,7 @@ translations:
   Re-identify: Определить снова
   Re-probe: Перепроверить
   Re-read spool RFID tags and remaining length: 'Перечитать RFID-метки катушек и остаток'
+  Re-seat the Bowden tube connector on the CFS unit: Переустановите разъём трубки Боудена на блоке CFS
   Re-syncs Happy Hare's tracked state with the hardware.: Повторно синхронизирует
     отслеживаемое состояние Happy Hare с оборудованием.
   Readings from extra temperature sensors: Показания доп. датчиков температуры
@@ -2306,11 +2364,18 @@ translations:
   Retract Distance: Расстояние ретракта
   Retract Length: Длина ретракта
   Retract Speed: Скорость ретракта
+  Retract didn't reach buffer empty position: Втягивание не достигло положения пустого буфера
+  Retract error — failed to exit connector: 'Ошибка втягивания: не удалось выйти из разъёма'
+  Retract error — filament still detected: 'Ошибка втягивания: филамент всё ещё определяется'
+  Retract error — multiple connectors triggered: 'Ошибка втягивания: сработало несколько разъёмов'
+  Retract failed: Не удалось втягивание
+  Retract failed — filament stuck in connector: 'Не удалось втягивание: филамент застрял в разъёме'
   'Retract failed: {}': 'Ошибка ретракта: {}'
   Retract filament: 'Ретракция филамента'
   Retract filament to current slot: 'Втянуть филамент в текущий слот'
   Retract may still be running — response timed out: Ретракт может ещё выполняться
     — время ожидания истекло
+  Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: Втяните для выгрузки. Если филамент выходит чисто, отрежьте изжёванный конец и подайте снова
   Retraction: Ретракт
   Retraction Settings: Настройки ретракта
   Retraction distance in the cooling tube: 'Расстояние ретракции в трубке охлаждения'
@@ -2336,6 +2401,7 @@ translations:
   Run Macro?: Запустить макрос?
   Run a Klipper macro when preheating this material: Запускать макрос Klipper при
     преднагреве этого материала
+  Run a cold pull or replace the nozzle: Выполните холодную протяжку или замените сопло
   Run a macro you choose, in one tap: Выбранный макрос одним нажатием
   Run brush cleaning sequence: 'Запустить последовательность очистки щёткой'
   Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves): Выполнять
@@ -2479,6 +2545,7 @@ translations:
   Sensor Response: Отклик датчика
   Sensor Source: Источник датчика
   Sensor Temperature: Температура датчика
+  Sensor mismatch — check extruder and CFS sensors: Расхождение датчиков. Проверьте датчики экструдера и CFS
   Sensor to Nozzle: 'Датчик до сопла'
   Sensors: Датчики
   Separate on/off macros. HelixScreen tracks the state.: Отдельные макросы вкл/выкл.
@@ -2499,6 +2566,8 @@ translations:
   Set local timezone for time display: Установить часовой пояс для отображения времени
   Set logging verbosity for troubleshooting: Установить уровень детализации журнала
     для устранения неполадок
+  ? Set the filament type and colour by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
+  : Задайте тип и цвет филамента для этого слота вручную. Если метка должна читаться, переустановите катушку этикеткой к считывателю, когда блок простаивает
   Set up: Настроить
   Set up your label printer in Settings: Настройте принтер этикеток в Настройках
   Settings: Настройки
@@ -2565,6 +2634,7 @@ translations:
   Slot {} matches.: 'Слот {} подходит.'
   Slot {} spool cleared: Катушка слота {} удалена
   Slot {} updated: Слот {} обновлён
+  Slots: ''
   Small labels help keep controls calm and focused.: Мелкие надписи помогают сохранять
     элементы управления аккуратными.
   Snapmaker SnapSwap: Snapmaker SnapSwap
@@ -2617,6 +2687,8 @@ translations:
   'Spoolman: %zu/%zu Spool%s': 'Spoolman: %zu/%zu катушк%s'
   Square Corner Velocity: Скорость прохождения углов
   Stable: Стабильная
+  Stall detection setup failed for the Z motor — power-cycle to retry: Не удалась настройка детектирования заклинивания двигателя Z. Выключите и включите питание
+  Stall detection setup failed for the extruder — power-cycle to retry: Не удалась настройка детектирования заклинивания экструдера. Выключите и включите питание
   Standard: Стандартный
   Standby: Режим ожидания
   Starfield: Звёздное небо
@@ -2707,6 +2779,7 @@ translations:
   TPU: TPU
   Takes 3-5 min. Do not interrupt.: Занимает 3-5 мин. Не прерывайте.
   Tap + to add: Нажмите +, чтобы добавить
+  Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Нажмите «Перезапуск прошивки» для восстановления. На K2 это также перезапускает мост MCU rpi
   Tap again to confirm this orientation: Нажмите ещё раз для подтверждения ориентации
   Tap an object to exclude it | {} objects ({} excluded): 'Коснитесь объекта, чтобы исключить его | {} объектов ({} исключено)'
   Tap any tile to open its full controls or toggle its state.: 'Нажмите на любую плитку, чтобы открыть её полные элементы управления или переключить состояние.'
@@ -2735,6 +2808,7 @@ translations:
   Temperature Graph Config: Настройка графика температуры
   # Source: calibration_pid_panel.xml:333
   Temperature Sensors: 'Датчики температуры'
+  Temperature and humidity sensor not responding: Датчик температуры и влажности не отвечает
   Temperature control optimized for {} at {}°C.: 'Управление температурой оптимизировано для {} при {}°C.'
   Temperatures: Температуры
   Temperatures plotted over time: Температуры во времени
@@ -2764,6 +2838,7 @@ translations:
   That did not sound like a pluck - try again: Это не было похоже на щипок - попробуйте снова
   That slot cannot stand in for this one: Этот слот не может заменить текущий
   That tool is already loaded: Этот инструмент уже загружен
+  The CFS odometer hardware is faulty and needs repair or replacement: Оборудование одометра CFS неисправно и требует ремонта или замены
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   : Плагин HelixPrint позволяет быстро модифицировать G-code прямо на принтере — например,
@@ -2774,11 +2849,18 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   : Анимированная заставка была отключена на данном устройстве, чтобы она не мешала
     печати. Вы можете снова включить её в Настройки > Дисплей.
+  The buffer may be disconnected, stuck, or faulty. Check it before retrying: Буфер может быть отключён, заклинен или неисправен. Проверьте его перед повтором
+  The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Буфер не фиксировал движение 16 секунд. Проверьте засор между CFS и экструдером или заклинивший буфер
+  The cutter blade didn't return — check for filament wrapped around the cutting mechanism: Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм
+  The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: Резак смещён. Выполните повторную калибровку командой CALIBRATE_CUT_POS
+  The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: Экструдер не может тянуть равномерно. Проверьте катушку на запутывание или узел, а трубку PTFE на резкий изгиб
   ? The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
   : Филамент не дошёл до сопла. CFS не сообщила об ошибке, но датчик печатающей головки по-прежнему не видит филамент. Проверьте, что катушка установлена правильно и путь свободен, затем повторите попытку.
+  The filament may not have fully retracted — try again or manually pull: Возможно, филамент втянут не полностью. Повторите или вытяните вручную
   The filament system reported an error: Система филамента сообщила об ошибке
   The heater will cycle on and off several times.: Нагреватель будет несколько раз
     включаться и выключаться.
+  The left RFID reader in this CFS unit may need service: Левому RFID-считывателю этого блока CFS может требоваться обслуживание
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : Загружена катушка {}, но файл нарезан для {}. Филамент с наполнителем печатается с меньшим потоком и требует закалённого сопла.
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
@@ -2793,8 +2875,11 @@ translations:
   The printer rejected the filament configuration. The print was not started.: Принтер
     отклонил конфигурацию филамента. Печать не была запущена.
   The printer's firmware chooses the backup spool itself: Прошивка принтера сама выбирает резервную катушку
+  The requested position is outside the printer's bounds: 'Запрошенная позиция находится за пределами рабочей области принтера'
+  The right RFID reader in this CFS unit may need service: Правому RFID-считывателю этого блока CFS может требоваться обслуживание
   The runout sensor indicates no filament is loaded. Start print anyway?: Датчик окончания
     филамента показывает, что филамент не загружен. Всё равно начать печать?
+  The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание
   The speed of one fan you choose: Скорость выбранного вентилятора
   The time, date, and system uptime: Время, дата и время работы системы
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?
@@ -2806,6 +2891,9 @@ translations:
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: Датчик
     печатающей головки показывает, что филамент отсутствует. Всё равно продолжить
     выгрузку?
+  The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: Блок уже выполняет другую операцию. Дождитесь её завершения или сбросьте CFS, если он завис
+  The unit reported a fault with no further detail. Restart the printer if it repeats: Блок сообщил о неисправности без подробностей. Если повторится, перезапустите принтер
+  The unit's onboard storage has failed. The CFS mainboard needs replacing: Встроенная память блока вышла из строя. Требуется замена материнской платы CFS
   Theme: Тема
   Theme Colors: Цвета темы
   Theme Preset: Пресет темы
@@ -2984,6 +3072,7 @@ translations:
     мог зависнуть.
   Unit: Узел
   'Unit ': 'Узел '
+  'Units: %d   Boxes: %d   Dryers: %d': ''
   Unknown: Неизвестно
   Unknown Event: Неизвестное событие
   Unknown Spool: Неизвестная катушка
@@ -3055,6 +3144,7 @@ translations:
   View Full History: Просмотреть полную историю
   View Telemetry Data: Просмотр данных телеметрии
   View Timelapse: Просмотр таймлапса
+  View all boxes: ''
   View and rename fans: Просмотр и переименование вентиляторов
   View installed plugins and status: Просмотр установленных плагинов и статуса
   View live camera feed: Просмотр трансляции с камеры
@@ -3070,6 +3160,8 @@ translations:
   Wait for the current filament operation to finish: Дождитесь завершения текущей операции с филаментом
   Wait until the print finishes: Дождитесь завершения печати
   Waiting for Moonraker...: Ожидание Moonraker...
+  'Waiting for %s to finish. One heater at a time.': ''
+  Waiting for another box to finish.: ''
   Waiting for bed to reach temperature for accurate calibration.: Ожидание нагрева
     стола для точной калибровки.
   Waiting for the filament system to report its state: Ожидание состояния системы филамента
@@ -3166,6 +3258,7 @@ translations:
   Z Offset: Z Offset
   Z Range: Диапазон Z
   Z Tilt Adjust...: Регулировка наклона Z...
+  Z motor calibration failed: Не удалась калибровка двигателя Z
   Z probes for bed leveling and mesh generation: Z-зонды для выравнивания стола и
     создания сетки
   'Z-Off:': 'Z-Off:'
@@ -3211,6 +3304,7 @@ translations:
   fans: вентиляторы
   heated bed: подогреваемый стол
   idle: простой
+  in unit {} slot {}: 'в блоке {} слот {}'
   layers: слои
   left: осталось
   mm before clog: мм до засора
@@ -3222,7 +3316,9 @@ translations:
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: Параметр remember_spool в AFC сохраняет данные катушки в прошивке и имеет приоритет над этим переключателем
   AI detection: AI-детекция
   Monitor for print abnormalities (K2 Plus camera-based): Отслеживание дефектов печати (на основе камеры K2 Plus)
+  on unit {}: 'на блоке {}'
   or type a macro name: или введите название макроса
+  passive: ''
   printer default: по умолчанию для принтера
   prints: печатей
   remaining: осталось

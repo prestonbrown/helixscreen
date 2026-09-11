@@ -89,7 +89,10 @@
   <translation tag="= Tighten" de="= Anziehen"/>
   <translation tag="A" de="A"/>
   <translation tag="A backup of %s is created before applying" de="Vor dem Anwenden wird eine Sicherung von %s erstellt"/>
+  <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" de="Ein Motor-IO-Pin konnte nicht wiederhergestellt werden. Drucker aus- und einschalten, um fortzufahren"/>
+  <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" de="Die Parameter eines Motors konnten nicht geschrieben werden. Drucker aus- und einschalten und erneut versuchen"/>
   <translation tag="A picture of your printer" de="Ein Bild Ihres Druckers"/>
+  <translation tag="A spool may be tangled or the drive gear is jammed" de="Eine Spule ist möglicherweise verheddert oder das Antriebsrad blockiert"/>
   <translation tag="ABS" de="ABS"/>
   <translation tag="ACCELEROMETERS" de="BESCHLEUNIGUNGSSENSOREN"/>
   <translation tag="ACE Moonraker bridge not found. Install ace_status.py for full support." de="ACE Moonraker-Bridge nicht gefunden. Installieren Sie ace_status.py für volle Unterstützung."/>
@@ -312,6 +315,7 @@
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." de="Anleitungen, Konfigurationsreferenzen und Fehlerbehebungsressourcen für HelixScreen durchsuchen."/>
   <translation tag="Brush nozzle" de="Düse abbürsten"/>
   <translation tag="Buffer Status" de="Pufferstatus"/>
+  <translation tag="Buffer tube problem" de="Problem mit dem Pufferschlauch"/>
   <translation tag="Build Volume: " de="Bauraum: "/>
   <translation tag="Bundle Uploaded" de="Paket hochgeladen"/>
   <translation tag="Button taps and navigation sounds" de="Tastentöne und Navigationstöne"/>
@@ -331,6 +335,9 @@
   <translation tag="CALIBRATION" de="KALIBRIERUNG"/>
   <translation tag="CAPABILITIES" de="FÄHIGKEITEN"/>
   <translation tag="CARTOGRAPHER" de="CARTOGRAPHER"/>
+  <translation tag="CFS is busy" de="CFS ist beschäftigt"/>
+  <translation tag="CFS motor overloaded" de="CFS-Motor überlastet"/>
+  <translation tag="CFS system error" de="CFS-Systemfehler"/>
   <translation tag="CHANGED FROM LAST SESSION" de="SEIT LETZTER SITZUNG GEÄNDERT"/>
   <translation tag="CLOG" de="VERSTOPFUNG"/>
   <translation tag="COLOR SENSORS" de="FARBSENSOREN"/>
@@ -369,9 +376,9 @@
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." de="Kalibrierung abgeschlossen! Drücken Sie &apos;Weiter&apos; um fortzufahren."/>
   <translation tag="Calibration failed - touch targets more precisely." de="Kalibrierung fehlgeschlagen – Ziele präziser berühren."/>
   <translation tag="Calibration kept timing out. Your previous settings were kept." de="Bei der Kalibrierung kam es wiederholt zu einer Zeitüberschreitung. Ihre vorherigen Einstellungen wurden beibehalten."/>
-  <translation tag="Calibration may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration may still be running — printer connection was interrupted" de="Kalibrierung läuft möglicherweise noch — Druckerverbindung wurde unterbrochen"/>
   <translation tag="Calibration may still be running — response timed out" de="Kalibrierung läuft möglicherweise noch — Zeitüberschreitung"/>
-  <translation tag="Calibration move may still be running — printer connection was interrupted"/>
+  <translation tag="Calibration move may still be running — printer connection was interrupted" de="Kalibrierungsbewegung läuft möglicherweise noch — Druckerverbindung wurde unterbrochen"/>
   <translation tag="Calibration move may still be running — response timed out" de="Kalibrierungsbewegung läuft möglicherweise noch — Zeitüberschreitung"/>
   <translation tag="Calibration saved but cannot apply on SDL display" de="Kalibrierung gespeichert, kann aber auf SDL-Display nicht angewendet werden"/>
   <translation tag="Calibration started" de="Kalibrierung gestartet"/>
@@ -382,6 +389,7 @@
   <translation tag="Cam" de="Kam."/>
   <translation tag="Camera" de="Kamera"/>
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" de="Verbindung nicht möglich — versuchen Sie, den Drucker zu vergessen und erneut zu koppeln"/>
+  <translation tag="Can&apos;t read filament RFID tag" de="RFID-Tag des Filaments nicht lesbar"/>
   <translation tag="Cancel" de="Abbrechen"/>
   <translation tag="Cancel Escalation" de="Eskalation abbrechen"/>
   <translation tag="Cancel Print" de="Druck abbrechen"/>
@@ -438,7 +446,14 @@
   <translation tag="Check slot failed" de="Slot prüfen fehlgeschlagen"/>
   <translation tag="Check slots" de="Slots prüfen"/>
   <translation tag="Check slots failed" de="Slots prüfen fehlgeschlagen"/>
+  <translation tag="Check that only one filament path is active" de="Prüfen, dass nur ein Filamentpfad aktiv ist"/>
+  <translation tag="Check that the cutter mechanism is properly installed" de="Prüfen, ob der Schneidmechanismus korrekt eingebaut ist"/>
+  <translation tag="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor" de="PTFE-Schlauch entlang der Schleppkette auf Knicke prüfen, ebenso die Biegung am Eingang des Extruder-Sensors"/>
+  <translation tag="Check the RS-485 cable between printer and CFS" de="RS-485-Kabel zwischen Drucker und CFS prüfen"/>
+  <translation tag="Check the buffer unit on the back of the printer" de="Puffereinheit an der Rückseite des Druckers prüfen"/>
   <translation tag="Check the filament path and try again." de="Prüfen Sie den Filamentpfad und versuchen Sie es erneut."/>
+  <translation tag="Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed" de="Weg vom Slot zum Hub auf Verheddern oder Widerstand prüfen. Fördert der Slot frei, sind womöglich der Hub-Sensor oder der Fördermotor defekt"/>
+  <translation tag="Check the spool and the filament path for a jam, then retry" de="Spule und Filamentweg auf Blockaden prüfen, dann wiederholen"/>
   <translation tag="Check your heater&apos;s rating (typically 40-60W for hotends)" de="Heizleistung prüfen (typisch 40-60W für Hotends)"/>
   <translation tag="Checking" de="Prüfen"/>
   <translation tag="Checking Bed Mesh..." de="Prüfe Bettnetz..."/>
@@ -566,10 +581,11 @@
   <translation tag="Connection failed. Check credentials." de="Verbindung fehlgeschlagen. Zugangsdaten prüfen."/>
   <translation tag="Connection failed. Check password." de="Verbindung fehlgeschlagen. Passwort prüfen."/>
   <translation tag="Connection failed: %s" de="Verbindung fehlgeschlagen: %s"/>
+  <translation tag="Connection lost — probe accuracy result unavailable" de="Verbindung verloren — Ergebnis des Taster-Genauigkeitstests nicht verfügbar"/>
   <translation tag="Connection must be tested successfully to continue" de="Verbindung muss erfolgreich getestet werden, um fortzufahren"/>
   <translation tag="Connection successful!" de="Verbindung erfolgreich!"/>
   <translation tag="Connection timeout" de="Verbindungs-Zeitüberschreitung"/>
-  <translation tag="Connection to printer lost — operation may still be running"/>
+  <translation tag="Connection to printer lost — operation may still be running" de="Verbindung zum Drucker verloren — Vorgang läuft möglicherweise noch"/>
   <translation tag="Connects" de="Verbindungen"/>
   <translation tag="Console" de="Konsole"/>
   <translation tag="Console Settings" de="Konsoleneinstellungen"/>
@@ -647,6 +663,7 @@
   <translation tag="Cut filament" de="Filament schneiden"/>
   <translation tag="Cut tip" de="Spitze schneiden"/>
   <translation tag="Cutter Enabled" de="Schneider aktiviert"/>
+  <translation tag="Cutter blade didn&apos;t sever filament" de="Schneidklinge hat das Filament nicht durchtrennt"/>
   <translation tag="Cutter jam" de="Schneidestau"/>
   <translation tag="Cutting" de="Schneiden"/>
   <translation tag="Cutting filament..." de="Filament wird geschnitten..."/>
@@ -745,6 +762,7 @@
   <translation tag="E-Stop (M112)" de="Notaus (M112)"/>
   <translation tag="E-Stop Confirmation" de="Notaus-Bestätigung"/>
   <translation tag="EDDY CURRENT" de="EDDY CURRENT"/>
+  <translation tag="EEPROM error on CFS unit" de="EEPROM-Fehler an der CFS-Einheit"/>
   <translation tag="EMERGENCY STOP" de="NOTAUS"/>
   <translation tag="EMPTY" de="LEER"/>
   <translation tag="Each fan can only be selected once" de="Jeder Lüfter kann nur einmal ausgewählt werden"/>
@@ -842,7 +860,6 @@
   <translation tag="Est. Duration" de="Gesch. Dauer"/>
   <translation tag="Estimating..." de="Schätzung..."/>
   <translation tag="Ethernet" de="Ethernet"/>
-  <translation tag="Ethernet is connected. Disconnect it to join a Wi-Fi network."/>
   <translation tag="Events appear here after sessions and prints" de="Ereignisse erscheinen hier nach Sitzungen und Drucken"/>
   <translation tag="Every extruder&apos;s temperature at once" de="Alle Extrudertemperaturen auf einmal"/>
   <translation tag="Excellent Accuracy" de="Ausgezeichnete Genauigkeit"/>
@@ -873,8 +890,10 @@
   <translation tag="Extruder MPC Calibration" de="Extruder MPC-Kalibrierung"/>
   <translation tag="Extruder PID Tuning" de="Extruder PID-Abstimmung"/>
   <translation tag="Extruder Unload Speed" de="Extruder-Entladegeschwindigkeit"/>
+  <translation tag="Extruder and CFS disagree on filament state — inspect both sensors" de="Extruder und CFS melden unterschiedliche Filamentzustände. Beide Sensoren prüfen"/>
   <translation tag="Extruder distances and sensor configuration" de="Extruderabstände und Sensorkonfiguration"/>
   <translation tag="Extruder heats automatically based on material" de="Extruder heizt automatisch basierend auf dem Material"/>
+  <translation tag="Extruder motor calibration failed" de="Kalibrierung des Extrudermotors fehlgeschlagen"/>
   <translation tag="Extruder to Nozzle" de="Extruder zur Düse"/>
   <translation tag="Extruding prime line..." de="Prime-Linie extrudieren..."/>
   <translation tag="FAILED" de="FEHLGESCHLAGEN"/>
@@ -985,6 +1004,7 @@
   <translation tag="Features: " de="Funktionen: "/>
   <translation tag="Feed Assist" de="Vorschubunterstützung"/>
   <translation tag="Feed assist and debug tools" de="Vorschubunterstützung und Debug-Werkzeuge"/>
+  <translation tag="Feed failed" de="Zuführen fehlgeschlagen"/>
   <translation tag="Feed filament" de="Filament zuführen"/>
   <translation tag="Feed filament directly to extruder" de="Filament direkt zum Extruder führen"/>
   <translation tag="Feed filament from current slot" de="Filament aus dem aktuellen Slot zuführen"/>
@@ -994,6 +1014,7 @@
   <translation tag="Filament Detected" de="Filament erkannt"/>
   <translation tag="Filament Environment" de="Filamentumgebung"/>
   <translation tag="Filament Grade Mismatch" de="Filamentklassenabweichung"/>
+  <translation tag="Filament Humidity" de="Filamentfeuchtigkeit"/>
   <translation tag="Filament In The Toolhead" de="Filament im Werkzeugkopf"/>
   <translation tag="Filament Mapping" de="Filament-Zuordnung"/>
   <translation tag="Filament Runout" de="Filament aufgebraucht"/>
@@ -1001,18 +1022,30 @@
   <translation tag="Filament System Error" de="Filamentsystemfehler"/>
   <translation tag="Filament Used" de="Filament verwendet"/>
   <translation tag="Filament already exists" de="Filament bereits vorhanden"/>
+  <translation tag="Filament buffer failure during feed" de="Filamentpuffer-Fehler beim Zuführen"/>
+  <translation tag="Filament buffer stopped moving" de="Filamentpuffer bewegt sich nicht mehr"/>
   <translation tag="Filament by Type" de="Filament nach Typ"/>
+  <translation tag="Filament can&apos;t be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again" de="Unterhalb der minimalen Extrusionstemperatur lässt sich kein Filament laden. Hotend-Zieltemperatur setzen (z. B. 220 °C für PLA, 240 °C für PETG), aufheizen lassen und erneut versuchen"/>
   <translation tag="Filament controls are unavailable while printing." de="Filamentsteuerung ist während des Drucks nicht verfügbar."/>
+  <translation tag="Filament cutter not detected" de="Filamentschneider nicht erkannt"/>
+  <translation tag="Filament cutter position error" de="Positionsfehler des Filamentschneiders"/>
+  <translation tag="Filament cutter stuck" de="Filamentschneider klemmt"/>
   <translation tag="Filament deleted" de="Filament gelöscht"/>
   <translation tag="Filament diameter sensors for flow compensation" de="Filamentdurchmessersensoren für Flusskompensation"/>
+  <translation tag="Filament didn&apos;t fully retract, may need manual removal" de="Filament wurde nicht vollständig eingezogen, eventuell von Hand entfernen"/>
   <translation tag="Filament feeder" de="Filamentzuführung"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." de="Das Filament ist frei vom Werkzeugkopf. Ziehen Sie es ganz heraus."/>
+  <translation tag="Filament is dragging" de="Filament läuft schwergängig"/>
   <translation tag="Filament is loose" de="Filament ist locker"/>
   <translation tag="Filament is pulling tight" de="Filament zieht straff"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." de="Nach dem Entladen befindet sich noch Filament an der Düse. Schnitt oder Rückzug sind möglicherweise nicht abgeschlossen. Räumen Sie den Werkzeugkopf frei, bevor Sie eine andere Spule laden."/>
+  <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" de="Nach dem Schnitt ist noch Filament vorhanden. Die Klinge ist möglicherweise stumpf oder falsch ausgerichtet"/>
+  <translation tag="Filament jammed at the extruder gear" de="Filament am Extruderrad verklemmt"/>
   <translation tag="Filament load failed: {}" de="Filament laden fehlgeschlagen: {}"/>
+  <translation tag="Filament never reached the CFS hub sensor" de="Filament hat den CFS-Hub-Sensor nie erreicht"/>
   <translation tag="Filament operation failed" de="Filament-Vorgang fehlgeschlagen"/>
   <translation tag="Filament operation timed out" de="Filament-Vorgang Zeitüberschreitung"/>
+  <translation tag="Filament ran out" de="Filament ist aufgebraucht"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." de="Filament zu Ende - am Werkzeugkopf ist nichts mehr und der Druck ist pausiert."/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." de="Filament zu Ende und das CFS hat keine passende Spule zum Wechseln gefunden. Lade eine Spule mit gleichem Material und gleicher Farbe und setze dann fort."/>
   <translation tag="Filament ran out at the toolhead" de="Filament am Werkzeugkopf zu Ende"/>
@@ -1022,6 +1055,10 @@
   <translation tag="Filament runout and motion detection sensors" de="Filament-Auslauf- und Bewegungserkennungssensoren"/>
   <translation tag="Filament saved" de="Filament gespeichert"/>
   <translation tag="Filament sensor available for runout detection" de="Filamentsensor zur Auslauferkennung verfügbar"/>
+  <translation tag="Filament snapped inside CFS" de="Filament ist im CFS gebrochen"/>
+  <translation tag="Filament stalled between CFS hub and extruder sensor" de="Filament steckt zwischen CFS-Hub und Extruder-Sensor fest"/>
+  <translation tag="Filament stuck in connector during unload" de="Filament beim Entladen im Anschluss verklemmt"/>
+  <translation tag="Filament stuck inside the CFS hub" de="Filament im CFS-Hub verklemmt"/>
   <translation tag="Filament tension is balanced" de="Filamentspannung ist ausgeglichen"/>
   <translation tag="Filament tracking &amp; label printing" de="Filamentverfolgung &amp; Etikettendruck"/>
   <translation tag="Filament tracking and inventory" de="Filamentverfolgung und Inventar"/>
@@ -1108,6 +1145,7 @@
   <translation tag="Heading" de="Überschrift"/>
   <translation tag="Heat Capacity" de="Wärmekapazität"/>
   <translation tag="Heat Soak" de="Aufwärmen"/>
+  <translation tag="Heat Soaking..." de="Aufwärmen..."/>
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." de="Bett vor der Kalibrierung heizen für genauen Offset mit Wärmeausdehnung."/>
   <translation tag="Heat nozzle" de="Düse aufheizen"/>
   <translation tag="Heat to at least %d°C for filament operations" de="Für Filamentvorgänge auf mindestens %d°C aufheizen"/>
@@ -1260,11 +1298,13 @@
   <translation tag="Invalid status response from printer" de="Ungültige Statusantwort vom Drucker"/>
   <translation tag="Issue description" de="Problembeschreibung"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." de="Sie kann in der Weboberfläche von Spoolman wiederhergestellt werden."/>
+  <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" de="Es klemmt zwischen Hub-Sensor und Hub-Antriebsrad. CFS öffnen, den Hub frei machen und erneut versuchen"/>
   <translation tag="It&apos;s a new spool" de="Es ist eine neue Spule"/>
   <translation tag="Jammed at the Toolhead" de="Stau am Werkzeugkopf"/>
   <translation tag="Job Queue" de="Auftragswarteschlange"/>
   <translation tag="Jog failed: {}" de="Bewegung fehlgeschlagen: {}"/>
   <translation tag="Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests." de="Tritt der HelixScreen-Community auf Discord bei für Diskussionen, Tipps, Hilfe zur Fehlerbehebung und Funktionswünsche."/>
+  <translation tag="Joining Wi-Fi disconnects the wired network."/>
   <translation tag="Just now" de="Gerade eben"/>
   <translation tag="Just queued" de="Gerade eingereiht"/>
   <translation tag="KEYBOARD LAYOUT" de="TASTATURLAYOUT"/>
@@ -1337,6 +1377,7 @@
   <translation tag="Live view from your webcam" de="Livebild Ihrer Webcam"/>
   <translation tag="Load" de="Laden"/>
   <translation tag="Load Filament" de="Filament laden"/>
+  <translation tag="Load a new spool in this slot, or turn on auto-refill to switch to a matching one" de="Neue Spule in diesen Slot einlegen oder das automatische Nachfüllen aktivieren, um auf eine passende zu wechseln"/>
   <translation tag="Load complete" de="Laden abgeschlossen"/>
   <translation tag="Load filament" de="Filament laden"/>
   <translation tag="Load may still be running — response timed out" de="Laden läuft möglicherweise noch — Zeitüberschreitung"/>
@@ -1374,6 +1415,7 @@
   <translation tag="Loosen Path A belt." de="Riemen von Pfad A lockern."/>
   <translation tag="Loosen Path B belt." de="Riemen von Pfad B lockern."/>
   <translation tag="Lost connection during print — try again" de="Verbindung während des Drucks verloren — erneut versuchen"/>
+  <translation tag="Lost connection to CFS unit" de="Verbindung zur CFS-Einheit verloren"/>
   <translation tag="Lot # (optional)" de="Los-Nr. (optional)"/>
   <translation tag="Lot/Batch Nr" de="Los-/Chargennr."/>
   <translation tag="Low Memory" de="Wenig Speicher"/>
@@ -1385,6 +1427,7 @@
   <translation tag="MANUAL" de="MANUELL"/>
   <translation tag="MB RAM" de="MB RAM"/>
   <translation tag="MCU" de="MCU"/>
+  <translation tag="MCU bridge daemon is shut down" de="Der MCU-Bridge-Dienst ist beendet"/>
   <translation tag="MCU, host, and auxiliary temperature monitoring" de="MCU-, Host- und Zusatztemperaturüberwachung"/>
   <translation tag="MCU: " de="MCU: "/>
   <translation tag="MDI Icons" de="MDI-Icons"/>
@@ -1430,6 +1473,7 @@
   <translation tag="Manual Feed" de="Manueller Vorschub"/>
   <translation tag="Manual Retract" de="Manueller Einzug"/>
   <translation tag="Manual feed and retract operations" de="Manuelle Vorschub- und Einzugsvorgänge"/>
+  <translation tag="Manually pull the filament back through the connector" de="Filament von Hand durch den Anschluss zurückziehen"/>
   <translation tag="Map to closest colors with matching material" de="Nächste Farben mit passendem Material zuordnen"/>
   <translation tag="Marginal" de="Grenzwertig"/>
   <translation tag="Master volume level" de="Hauptlautstärke"/>
@@ -1457,6 +1501,7 @@
   <translation tag="Measurement Failed" de="Messung fehlgeschlagen"/>
   <translation tag="Measuring accelerometer noise..." de="Messe Beschleunigungssensor-Rauschen..."/>
   <translation tag="Measuring vibrations... {}%" de="Messe Vibrationen... {}%"/>
+  <translation tag="Measuring wheel error" de="Fehler am Messrad"/>
   <translation tag="Median %.0f Hz" de="Median %.0f Hz"/>
   <translation tag="Memory" de="Speicher"/>
   <translation tag="Memory (MB)" de="Speicher (MB)"/>
@@ -1481,12 +1526,15 @@
   <translation tag="More points = more accurate, but takes longer." de="Mehr Punkte = genauer, dauert aber länger."/>
   <translation tag="Motion" de="Bewegung"/>
   <translation tag="Motion: XYZ" de="Bewegung: XYZ"/>
+  <translation tag="Motor controller error" de="Fehler der Motorsteuerung"/>
+  <translation tag="Motor parameter setup failed" de="Einrichten der Motorparameter fehlgeschlagen"/>
   <translation tag="Motor speeds and acceleration" de="Motorgeschwindigkeiten und Beschleunigung"/>
   <translation tag="Motors Off" de="Motoren aus"/>
   <translation tag="Motors disable failed: {}" de="Motoren deaktivieren fehlgeschlagen: {}"/>
   <translation tag="Motors disabled" de="Motoren deaktiviert"/>
   <translation tag="Mount" de="Montieren"/>
   <translation tag="Move" de="Bewegen"/>
+  <translation tag="Move out of range" de="Bewegung außerhalb des Bereichs"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." de="Bewegen Sie das Papier während der Einstellung hin und her. Stoppen Sie, wenn das Papier leicht greift, aber noch gleitet."/>
   <translation tag="Move selector" de="Selektor bewegen"/>
   <translation tag="Move speed multipliers" de="Multiplikatoren der Verfahrgeschwindigkeit"/>
@@ -1566,6 +1614,7 @@
   <translation tag="No effects available" de="Keine Effekte verfügbar"/>
   <translation tag="No events queued" de="Keine Ereignisse in Warteschlange"/>
   <translation tag="No fans detected" de="Keine Lüfter erkannt"/>
+  <translation tag="No filament environment sensors" de="Keine Filament-Umgebungssensoren"/>
   <translation tag="No filament loaded to unload" de="Kein Filament zum Entladen geladen"/>
   <translation tag="No filament sensor detected" de="Kein Filamentsensor erkannt"/>
   <translation tag="No filaments found" de="Keine Filamente gefunden"/>
@@ -1650,6 +1699,7 @@
   <translation tag="Nozzle Temperatures" de="Düsentemperaturen"/>
   <translation tag="Nozzle Temps" de="Düsentemperaturen"/>
   <translation tag="Nozzle clean complete" de="Düsenreinigung abgeschlossen"/>
+  <translation tag="Nozzle clog detected" de="Verstopfte Düse erkannt"/>
   <translation tag="Nozzle did not reach {}°C — {} cancelled" de="Düse erreichte {}°C nicht — {} abgebrochen"/>
   <translation tag="Nozzle min cannot exceed max" de="Düse min darf max nicht überschreiten"/>
   <translation tag="Nozzle target set to {}°C" de="Düsen-Zieltemperatur auf {}°C gesetzt"/>
@@ -1682,6 +1732,7 @@
   <translation tag="Open feeder" de="Zuführung öffnen"/>
   <translation tag="Open feeder macro" de="Makro zum Öffnen der Zuführung"/>
   <translation tag="Open motion controls for jogging" de="Bewegungssteuerung öffnen"/>
+  <translation tag="Open the CFS unit and remove the broken filament from the slot" de="CFS-Einheit öffnen und das gebrochene Filament aus dem Slot entfernen"/>
   <translation tag="Operation already in progress" de="Vorgang läuft bereits"/>
   <translation tag="Operations" de="Operationen"/>
   <translation tag="Optimize Your Printing" de="Optimieren Sie Ihren Druck"/>
@@ -1716,6 +1767,7 @@
   <translation tag="PRINT_START has {} skippable operation" de="PRINT_START hat {} überspringbaren Vorgang"/>
   <translation tag="PRINT_START has {} skippable operations" de="PRINT_START hat {} überspringbare Vorgänge"/>
   <translation tag="PROBE SENSORS" de="TASTSENSOREN"/>
+  <translation tag="PTFE tube connection loose" de="PTFE-Schlauchverbindung lose"/>
   <translation tag="Pair" de="Koppeln"/>
   <translation tag="Pair Bluetooth Printer" de="Bluetooth-Drucker koppeln"/>
   <translation tag="Pair Bluetooth Scanner" de="Bluetooth-Scanner koppeln"/>
@@ -1795,6 +1847,7 @@
   <translation tag="Power" de="Strom"/>
   <translation tag="Power Devices" de="Stromgeräte"/>
   <translation tag="Power off the printer or screen" de="Drucker oder Bildschirm ausschalten"/>
+  <translation tag="Pre-heat the extruder first" de="Zuerst den Extruder vorheizen"/>
   <translation tag="Pre-print command failed: {}" de="Vor-Druck-Befehl fehlgeschlagen: {}"/>
   <translation tag="Pre-print homing..." de="Referenzieren vor dem Druck..."/>
   <translation tag="Preheat" de="Vorheizen"/>
@@ -1963,6 +2016,8 @@
   <translation tag="Quick actions, calibration, speed" de="Schnellaktionen, Kalibrierung, Geschwindigkeit"/>
   <translation tag="RFCOMM connect failed" de="RFCOMM-Verbindung fehlgeschlagen"/>
   <translation tag="RFCOMM connect failed: " de="RFCOMM-Verbindung fehlgeschlagen: "/>
+  <translation tag="RFID reader malfunction (left)" de="Fehlfunktion des RFID-Lesers (links)"/>
+  <translation tag="RFID reader malfunction (right)" de="Fehlfunktion des RFID-Lesers (rechts)"/>
   <translation tag="RSS" de="RSS"/>
   <translation tag="RSS:" de="RSS:"/>
   <translation tag="Ramming Volume" de="Ramming-Volumen"/>
@@ -1971,6 +2026,7 @@
   <translation tag="Re-identify" de="Erneut identifizieren"/>
   <translation tag="Re-probe" de="Erneut abtasten"/>
   <translation tag="Re-read spool RFID tags and remaining length" de="RFID-Tags der Spulen und Restlänge erneut lesen"/>
+  <translation tag="Re-seat the Bowden tube connector on the CFS unit" de="Bowden-Schlauchanschluss an der CFS-Einheit neu einsetzen"/>
   <translation tag="Re-syncs Happy Hare&apos;s tracked state with the hardware." de="Synchronisiert den von Happy Hare erfassten Status erneut mit der Hardware."/>
   <translation tag="Readings from extra temperature sensors" de="Werte zusätzlicher Temperatursensoren"/>
   <translation tag="Ready" de="Bereit"/>
@@ -2095,10 +2151,17 @@
   <translation tag="Retract Distance" de="Rückzugsabstand"/>
   <translation tag="Retract Length" de="Rückzugslänge"/>
   <translation tag="Retract Speed" de="Rückzugsgeschwindigkeit"/>
+  <translation tag="Retract didn&apos;t reach buffer empty position" de="Einzug hat die Leerposition des Puffers nicht erreicht"/>
+  <translation tag="Retract error — failed to exit connector" de="Einzugsfehler: Anschluss konnte nicht verlassen werden"/>
+  <translation tag="Retract error — filament still detected" de="Einzugsfehler: Filament wird weiterhin erkannt"/>
+  <translation tag="Retract error — multiple connectors triggered" de="Einzugsfehler: mehrere Anschlüsse ausgelöst"/>
+  <translation tag="Retract failed" de="Einzug fehlgeschlagen"/>
+  <translation tag="Retract failed — filament stuck in connector" de="Einzug fehlgeschlagen: Filament im Anschluss verklemmt"/>
   <translation tag="Retract failed: {}" de="Einzug fehlgeschlagen: {}"/>
   <translation tag="Retract filament" de="Filament einziehen"/>
   <translation tag="Retract filament to current slot" de="Filament in den aktuellen Slot einziehen"/>
   <translation tag="Retract may still be running — response timed out" de="Einzug läuft möglicherweise noch — Zeitüberschreitung"/>
+  <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again" de="Zum Entladen einziehen. Kommt es sauber zurück, das zerfaserte Ende abschneiden und erneut zuführen"/>
   <translation tag="Retraction" de="Retraktion"/>
   <translation tag="Retraction Settings" de="Rückzugseinstellungen"/>
   <translation tag="Retraction distance in the cooling tube" de="Rückzugsweg im Kühlrohr"/>
@@ -2120,6 +2183,7 @@
   <translation tag="Run Macro" de="Makro ausführen"/>
   <translation tag="Run Macro?" de="Makro ausführen?"/>
   <translation tag="Run a Klipper macro when preheating this material" de="Klipper-Makro beim Vorheizen dieses Materials ausführen"/>
+  <translation tag="Run a cold pull or replace the nozzle" de="Einen Cold Pull durchführen oder die Düse tauschen"/>
   <translation tag="Run a macro you choose, in one tap" de="Ein gewähltes Makro mit einem Tipp"/>
   <translation tag="Run brush cleaning sequence" de="Bürstenreinigungssequenz ausführen"/>
   <translation tag="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)" de="Filament laden/entladen auch bei kalter Düse ausführen (für Makros, die die Düse selbst aufheizen)"/>
@@ -2242,6 +2306,7 @@
   <translation tag="Sensor Response" de="Sensor-Reaktion"/>
   <translation tag="Sensor Source" de="Sensorquelle"/>
   <translation tag="Sensor Temperature" de="Sensortemperatur"/>
+  <translation tag="Sensor mismatch — check extruder and CFS sensors" de="Sensoren stimmen nicht überein. Extruder- und CFS-Sensoren prüfen"/>
   <translation tag="Sensor to Nozzle" de="Sensor zur Düse"/>
   <translation tag="Sensors" de="Sensoren"/>
   <translation tag="Separate on/off macros. HelixScreen tracks the state." de="Separate Ein-/Aus-Makros. HelixScreen verfolgt den Status."/>
@@ -2260,6 +2325,7 @@
   <translation tag="Set and watch the nozzle temperature" de="Düsentemperatur setzen und verfolgen"/>
   <translation tag="Set local timezone for time display" de="Lokale Zeitzone für Zeitanzeige festlegen"/>
   <translation tag="Set logging verbosity for troubleshooting" de="Protokollierungsdetailgrad für Fehlerbehebung festlegen"/>
+  <translation tag="Set the filament type and colour by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" de="Filamenttyp und Farbe für diesen Slot von Hand einstellen. Sollte der Tag lesbar sein, die Spule bei stillstehender Box mit dem Etikett zum Leser neu einlegen"/>
   <translation tag="Set up" de="Einrichten"/>
   <translation tag="Set up your label printer in Settings" de="Etikettendrucker in Einstellungen einrichten"/>
   <translation tag="Settings" de="Einstellungen"/>
@@ -2317,6 +2383,7 @@
   <translation tag="Slot {} matches." de="Slot {} passt."/>
   <translation tag="Slot {} spool cleared" de="Slot {} Spule gelöscht"/>
   <translation tag="Slot {} updated" de="Slot {} aktualisiert"/>
+  <translation tag="Slots"/>
   <translation tag="Small labels help keep controls calm and focused." de="Kleine Beschriftungen helfen, Steuerelemente ruhig und fokussiert zu halten."/>
   <translation tag="Snapmaker SnapSwap" de="Snapmaker SnapSwap"/>
   <translation tag="Snapmaker U1" de="Snapmaker U1"/>
@@ -2363,6 +2430,8 @@
   <translation tag="Spoolman: %zu/%zu Spool%s" de="Spoolman: %zu/%zu Spule%s"/>
   <translation tag="Square Corner Velocity" de="Eckgeschwindigkeit"/>
   <translation tag="Stable" de="Stabil"/>
+  <translation tag="Stall detection setup failed for the Z motor — power-cycle to retry" de="Einrichten der Blockiererkennung für den Z-Motor fehlgeschlagen. Zum erneuten Versuch aus- und einschalten"/>
+  <translation tag="Stall detection setup failed for the extruder — power-cycle to retry" de="Einrichten der Blockiererkennung für den Extruder fehlgeschlagen. Zum erneuten Versuch aus- und einschalten"/>
   <translation tag="Standard" de="Standard"/>
   <translation tag="Standby" de="Bereitschaft"/>
   <translation tag="Starfield" de="Starfield"/>
@@ -2443,6 +2512,7 @@
   <translation tag="TPU" de="TPU"/>
   <translation tag="Takes 3-5 min. Do not interrupt." de="Dauert 3-5 Min. Nicht unterbrechen."/>
   <translation tag="Tap + to add" de="Zum Hinzufügen + tippen"/>
+  <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" de="Zum Wiederherstellen auf Firmware-Neustart tippen. Beim K2 wird dabei auch die rpi-MCU-Bridge neu gestartet"/>
   <translation tag="Tap again to confirm this orientation" de="Erneut tippen, um diese Ausrichtung zu bestätigen"/>
   <translation tag="Tap an object to exclude it | {} objects ({} excluded)" de="Objekt antippen, um es auszuschließen | {} Objekte ({} ausgeschlossen)"/>
   <translation tag="Tap any tile to open its full controls or toggle its state." de="Tippen Sie auf eine Kachel, um die vollständige Steuerung zu öffnen oder ihren Zustand umzuschalten."/>
@@ -2468,6 +2538,7 @@
   <translation tag="Temperature Graph" de="Temperaturdiagramm"/>
   <translation tag="Temperature Graph Config" de="Temperaturdiagramm-Konfiguration"/>
   <translation tag="Temperature Sensors" de="Temperatursensoren"/>
+  <translation tag="Temperature and humidity sensor not responding" de="Temperatur- und Feuchtigkeitssensor antwortet nicht"/>
   <translation tag="Temperature control optimized for {} at {}°C." de="Temperaturregelung für {} bei {}°C optimiert."/>
   <translation tag="Temperatures" de="Temperaturen"/>
   <translation tag="Temperatures plotted over time" de="Temperaturverlauf über die Zeit"/>
@@ -2493,13 +2564,21 @@
   <translation tag="That did not sound like a pluck - try again" de="Das klang nicht wie ein Zupfen - erneut versuchen"/>
   <translation tag="That slot cannot stand in for this one" de="Dieser Slot kann nicht für diesen einspringen"/>
   <translation tag="That tool is already loaded" de="Dieses Werkzeug ist bereits geladen"/>
+  <translation tag="The CFS odometer hardware is faulty and needs repair or replacement" de="Die Wegmesshardware des CFS ist defekt und muss repariert oder ersetzt werden"/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." de="Das HelixPrint-Plugin ermöglicht schnelle G-Code-Modifikationen direkt auf Ihrem Drucker – wie das Überspringen des Bettnetzes für schnelle Neudrucke."/>
   <translation tag="The Spoolman spool currently loaded" de="Aktuell geladene Spoolman-Spule"/>
   <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." de="Der Beschleunigungssensor-Stream wurde beendet: %s. Prüfen Sie, ob Klipper läuft, und versuchen Sie es erneut."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." de="Der animierte Bildschirmschoner wurde auf diesem Gerät ausgeschaltet, um zu verhindern, dass er Drucke stört. Sie können ihn unter Einstellungen &gt; Anzeige wieder aktivieren."/>
+  <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" de="Der Puffer ist möglicherweise nicht angeschlossen, klemmt oder ist defekt. Vor dem erneuten Versuch prüfen"/>
+  <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" de="Der Puffer hat 16 Sekunden lang keine Bewegung erkannt. Auf eine Blockade zwischen CFS und Extruder oder einen klemmenden Puffer prüfen"/>
+  <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" de="Die Schneidklinge ist nicht zurückgefahren. Prüfen, ob Filament um den Schneidmechanismus gewickelt ist"/>
+  <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" de="Der Schneider ist verstellt. Mit CALIBRATE_CUT_POS neu kalibrieren"/>
+  <translation tag="The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend" de="Der Extruder kann es nicht gleichmäßig fördern. Spule auf Verheddern oder Knoten prüfen und den PTFE-Schlauch auf starke Biegungen"/>
   <translation tag="The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again." de="Das Filament hat die Düse nicht erreicht. Das CFS hat keinen Fehler gemeldet, aber der Werkzeugkopfsensor erkennt weiterhin kein Filament. Stellen Sie sicher, dass die Spule richtig sitzt und der Pfad frei ist, und versuchen Sie es erneut."/>
+  <translation tag="The filament may not have fully retracted — try again or manually pull" de="Das Filament wurde möglicherweise nicht vollständig eingezogen. Erneut versuchen oder von Hand ziehen"/>
   <translation tag="The filament system reported an error" de="Das Filamentsystem meldete einen Fehler"/>
   <translation tag="The heater will cycle on and off several times." de="Die Heizung wird mehrmals ein- und ausschalten."/>
+  <translation tag="The left RFID reader in this CFS unit may need service" de="Der linke RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." de="Die geladene Spule ist {}, aber diese Datei wurde für {} gesliced. Gefülltes Filament läuft mit einer niedrigeren Flussrate und erfordert eine gehärtete Düse."/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." de="Der Druck ist pausiert. Ein Werkzeugwechsel bewegt jetzt den Werkzeugkopf und tauscht das Filament an der Düse. Setzen Sie den Druck fort, sobald der Wechsel abgeschlossen ist."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" de="Der Drucker hat diesen Druck angehalten und kann ihn nicht fortsetzen. Von vorne neu starten?"/>
@@ -2510,13 +2589,19 @@
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." de="Der Drucker hatte einen Stromausfall während des Drucks von {}. Die fortgesetzte Schicht passt möglicherweise nicht exakt."/>
   <translation tag="The printer rejected the filament configuration. The print was not started." de="Der Drucker hat die Filamentkonfiguration abgelehnt. Der Druck wurde nicht gestartet."/>
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" de="Die Drucker-Firmware wählt die Reserve-Spule selbst"/>
+  <translation tag="The requested position is outside the printer&apos;s bounds" de="Die angeforderte Position liegt außerhalb des Druckerbereichs"/>
+  <translation tag="The right RFID reader in this CFS unit may need service" de="Der rechte RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" de="Der Auslaufsensor zeigt an, dass kein Filament geladen ist. Druck trotzdem starten?"/>
+  <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" de="Der Sensor dieser CFS-Einheit lässt sich nicht auslesen. Anschluss prüfen, andernfalls muss die Einheit gewartet werden"/>
   <translation tag="The speed of one fan you choose" de="Drehzahl eines gewählten Lüfters"/>
   <translation tag="The time, date, and system uptime" de="Uhrzeit, Datum und Betriebszeit"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" de="Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Ziehen Sie es vor dem Drucken manuell heraus. Trotzdem starten?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" de="Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Der Drucker verweigert möglicherweise das Laden eines Slots, bis er geleert ist. Trotzdem starten?"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" de="Der Werkzeugkopfsensor zeigt an, dass Filament bereits geladen ist. Trotzdem mit dem Laden fortfahren?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" de="Der Werkzeugkopfsensor zeigt an, dass kein Filament vorhanden ist. Trotzdem mit dem Entladen fortfahren?"/>
+  <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" de="Die Einheit führt bereits einen anderen Vorgang aus. Abwarten, bis er beendet ist, oder das CFS zurücksetzen, falls es hängen bleibt"/>
+  <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" de="Die Einheit hat einen Fehler ohne nähere Angaben gemeldet. Bei Wiederholung den Drucker neu starten"/>
+  <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" de="Der interne Speicher der Einheit ist ausgefallen. Die CFS-Hauptplatine muss ersetzt werden"/>
   <translation tag="Theme" de="Thema"/>
   <translation tag="Theme Colors" de="Themenfarben"/>
   <translation tag="Theme Preset" de="Thema-Voreinstellung"/>
@@ -2660,6 +2745,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." de="Deinstallation – Zeitüberschreitung. Das Skript hängt möglicherweise."/>
   <translation tag="Unit" de="Einheit"/>
   <translation tag="Unit " de="Einheit "/>
+  <translation tag="Units: %d   Boxes: %d   Dryers: %d"/>
   <translation tag="Unknown" de="Unbekannt"/>
   <translation tag="Unknown Event" de="Unbekanntes Ereignis"/>
   <translation tag="Unknown Spool" de="Unbekannte Spule"/>
@@ -2729,6 +2815,7 @@
   <translation tag="View Full History" de="Vollständigen Verlauf anzeigen"/>
   <translation tag="View Telemetry Data" de="Telemetriedaten anzeigen"/>
   <translation tag="View Timelapse" de="Zeitraffer ansehen"/>
+  <translation tag="View all boxes"/>
   <translation tag="View and rename fans" de="Lüfter anzeigen und umbenennen"/>
   <translation tag="View installed plugins and status" de="Installierte Plugins und Status anzeigen"/>
   <translation tag="View live camera feed" de="Live-Kamerabild anzeigen"/>
@@ -2743,7 +2830,9 @@
   <translation tag="WPA3" de="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" de="Warten Sie, bis der aktuelle Filamentvorgang abgeschlossen ist"/>
   <translation tag="Wait until the print finishes" de="Warten Sie, bis der Druck abgeschlossen ist"/>
+  <translation tag="Waiting for %s to finish. One heater at a time."/>
   <translation tag="Waiting for Moonraker..." de="Warte auf Moonraker..."/>
+  <translation tag="Waiting for another box to finish."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." de="Warte auf Bett-Temperatur für genaue Kalibrierung."/>
   <translation tag="Waiting for the filament system to report its state" de="Warte auf Statusmeldung des Filamentsystems"/>
   <translation tag="Warm Bed" de="Bett vorheizen"/>
@@ -2823,6 +2912,7 @@
   <translation tag="Z Offset" de="Z Offset"/>
   <translation tag="Z Range" de="Z-Bereich"/>
   <translation tag="Z Tilt Adjust..." de="Z-Neigung anpassen..."/>
+  <translation tag="Z motor calibration failed" de="Kalibrierung des Z-Motors fehlgeschlagen"/>
   <translation tag="Z probes for bed leveling and mesh generation" de="Z-Sonden für Bettnivellierung und Netzerzeugung"/>
   <translation tag="Z-Off:" de="Z-Off:"/>
   <translation tag="Z-Offset" de="Z-Offset"/>
@@ -2865,6 +2955,7 @@
   <translation tag="fans" de="Lüfter"/>
   <translation tag="heated bed" de="Heizbett"/>
   <translation tag="idle" de="Leerlauf"/>
+  <translation tag="in unit {} slot {}" de="in Einheit {} Slot {}"/>
   <translation tag="layers" de="Schichten"/>
   <translation tag="left" de="übrig"/>
   <translation tag="mm before clog" de="mm vor Verstopfung"/>
@@ -2873,7 +2964,9 @@
   <translation tag="nozzle" de="Düse"/>
   <translation tag="of" de="von"/>
   <translation tag="off" de="aus"/>
+  <translation tag="on unit {}" de="an Einheit {}"/>
   <translation tag="or type a macro name" de="oder Makronamen eingeben"/>
+  <translation tag="passive"/>
   <translation tag="printer default" de="Druckerstandard"/>
   <translation tag="prints" de="Drucke"/>
   <translation tag="remaining" de="verbleibend"/>

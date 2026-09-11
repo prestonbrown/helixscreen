@@ -169,11 +169,15 @@ TEST_CASE("key839 is a WARNING toast, not a second blocking modal",
     REQUIRE_FALSE(e->sticky);
 }
 
-TEST_CASE("key840 carries a recovery action", "[error-center][classify]") {
+TEST_CASE("key840 is WARNING with a recovery action", "[error-center][classify]") {
     ClassifyContext ctx;
     auto e = classify(R"(!! {"code":"key840","msg":"box switch state error"})", ctx);
     REQUIRE(e.has_value());
     REQUIRE(e->code == "key840");
+    // The box is mid-operation, not broken. A blocking modal would demand a
+    // decision about a unit that clears itself; the reset stays reachable from
+    // the toast for the case where it does not.
+    REQUIRE(e->severity == helix::ErrorSeverity::WARNING);
     REQUIRE(e->recovery_actions.size() == 1);
     REQUIRE(e->recovery_actions[0].gcode == "BOX_ERROR_CLEAR");
 }
@@ -231,4 +235,40 @@ TEST_CASE("RecoveryAction carries an optional style", "[error-center][model]") {
     helix::RecoveryAction b{"Resume", "RESUME", "afc::resume", "primary"};
     REQUIRE(b.style == "primary");
     REQUIRE(b.gcode == "RESUME");
+}
+
+// ============================================================================
+// Translation reaches the table, not just the hard-coded fallbacks
+// ============================================================================
+
+#include "../lvgl_test_fixture.h"
+#include "translation_loader.h"
+
+/**
+ * clean_error_text() composes its output from KlipperErrorTable's message and
+ * hint plus a runtime locator. All three are separate lv_tr() sites, and a
+ * composed string is no longer a translation key, so each has to resolve
+ * before concatenation. Asserting German proves the tags reach the loaded pack
+ * rather than falling through to the English tag, which is what an un-wired
+ * table would silently do.
+ */
+TEST_CASE_METHOD(LVGLTestFixture, "Klipper error table text and locator translate",
+                 "[error-center][classify][i18n]") {
+    helix::ui::ensure_translation_loaded("de");
+    lv_translation_set_language("de");
+
+    ClassifyContext ctx;
+
+    auto plain = classify(R"(!! {"code":"key585","msg":"Move out of range"})", ctx);
+    REQUIRE(plain.has_value());
+    REQUIRE(plain->detail.find("Bewegung außerhalb des Bereichs") != std::string::npos);
+    REQUIRE(plain->detail.find("Die angeforderte Position") != std::string::npos);
+
+    // The [unit, slot] locator is welded onto the message before the hint, so
+    // an untranslated formatter would leave English inside a German sentence.
+    auto located = classify(R"(!! {"code":"key849","values":[1,"B"]})", ctx);
+    REQUIRE(located.has_value());
+    REQUIRE(located->detail.find("in Einheit 1 Slot B") != std::string::npos);
+
+    lv_translation_set_language("en");
 }

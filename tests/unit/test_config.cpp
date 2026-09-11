@@ -3416,20 +3416,22 @@ TEST_CASE("Config: v10→v11 migration moves heat rates and strips heating phase
     REQUIRE(test_config.get<double>("/calibration/pid_history/heater_bed/oscillation_duration") ==
             Catch::Approx(8.0));
 
-    // Heating phase durations (keys "3" and "4") should be stripped
+    // Heating phase durations (keys "3" and "4") should be stripped. The later
+    // v24->v25 migration names whatever survives, so the surviving keys are
+    // checked by name.
     auto entries = test_config.get<json>("/print_start_history/entries");
     REQUIRE(entries.size() == 3);
 
     // First entry: had phases 0, 1, 3, 4 → should keep 0, 1
-    REQUIRE(entries[0]["phases"].contains("0"));
-    REQUIRE(entries[0]["phases"].contains("1"));
-    REQUIRE_FALSE(entries[0]["phases"].contains("3"));
-    REQUIRE_FALSE(entries[0]["phases"].contains("4"));
+    REQUIRE(entries[0]["phases"].contains("IDLE"));
+    REQUIRE(entries[0]["phases"].contains("INITIALIZING"));
+    REQUIRE_FALSE(entries[0]["phases"].contains("HEATING_BED"));
+    REQUIRE_FALSE(entries[0]["phases"].contains("HEATING_NOZZLE"));
 
     // Second entry: had phases 0, 3, 4 → should keep 0
-    REQUIRE(entries[1]["phases"].contains("0"));
-    REQUIRE_FALSE(entries[1]["phases"].contains("3"));
-    REQUIRE_FALSE(entries[1]["phases"].contains("4"));
+    REQUIRE(entries[1]["phases"].contains("IDLE"));
+    REQUIRE_FALSE(entries[1]["phases"].contains("HEATING_BED"));
+    REQUIRE_FALSE(entries[1]["phases"].contains("HEATING_NOZZLE"));
 
     // Third entry: no phases key → unchanged
     REQUIRE(entries[2].contains("no_phases"));

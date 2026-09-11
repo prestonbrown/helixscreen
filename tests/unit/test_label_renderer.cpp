@@ -517,7 +517,8 @@ TEST_CASE("LabelRenderer MINIMAL prints the spool number beside or below the QR"
     auto spool = make_tracked_spool();
 
     SECTION("wide die-cut: beside, as tall as the vendor line would be") {
-        auto label = helix::LabelRenderer::render(spool, helix::LabelPreset::MINIMAL, diecut_62x29());
+        auto label =
+            helix::LabelRenderer::render(spool, helix::LabelPreset::MINIMAL, diecut_62x29());
         auto lines = text_lines(label);
         REQUIRE(lines.size() == 1);
         CHECK(lines[0].cells == 3);
@@ -558,7 +559,8 @@ TEST_CASE("LabelRenderer MINIMAL prints the spool number beside or below the QR"
     }
 
     SECTION("narrow label: landscape, beside the QR") {
-        auto label = helix::LabelRenderer::render(spool, helix::LabelPreset::MINIMAL, niimbot_d110());
+        auto label =
+            helix::LabelRenderer::render(spool, helix::LabelPreset::MINIMAL, niimbot_d110());
         REQUIRE(label.width() == 96);
         REQUIRE(label.height() == 307);
         auto lines = text_lines(unrotate(label));

@@ -3,6 +3,9 @@
 
 #include "ui_overlay_network_settings.h"
 
+#include <cstring>
+#include <string>
+
 /**
  * @brief Reaches the overlay's cached modal pointers.
  *
@@ -39,5 +42,24 @@ class NetworkSettingsOverlayTestAccess {
     /// must move.
     static lv_subject_t& wifi_connected(NetworkSettingsOverlay& o) {
         return o.wifi_connected_;
+    }
+    /// The SSID the password modal is about. The handlers read it rather than
+    /// taking it as an argument, so a test has to seed it.
+    static void set_current_ssid(NetworkSettingsOverlay& o, const std::string& ssid) {
+        strncpy(o.current_ssid_, ssid.c_str(), sizeof(o.current_ssid_) - 1);
+        o.current_ssid_[sizeof(o.current_ssid_) - 1] = '\0';
+    }
+    /// The production handler behind the password modal's Connect button.
+    static void password_connect_clicked(NetworkSettingsOverlay& o) {
+        o.handle_password_connect_clicked();
+    }
+    /// The production handler behind the hidden-network modal's Connect button.
+    static void hidden_connect_clicked(NetworkSettingsOverlay& o) {
+        o.handle_hidden_connect_clicked();
+    }
+    /// Build the scan rows exactly as a completed scan does — the click
+    /// handler reads per-row data only this path attaches.
+    static void populate(NetworkSettingsOverlay& o, const std::vector<WiFiNetwork>& networks) {
+        o.populate_network_list(networks);
     }
 };

@@ -228,10 +228,14 @@ void TimelapseSettingsOverlay::save_settings() {
 
     api_->timelapse().set_timelapse_settings(
         current_settings_,
-        [this]() { spdlog::info("[{}] Timelapse settings saved successfully", get_name()); },
-        [this](const MoonrakerError& error) {
-            spdlog::error("[{}] Failed to save timelapse settings: {}", get_name(), error.message);
-        });
+        lifetime_.bg_cb(
+            "TimelapseSettingsOverlay::save_settings",
+            [this]() { spdlog::info("[{}] Timelapse settings saved successfully", get_name()); }),
+        lifetime_.bg_cb("TimelapseSettingsOverlay::save_settings_error",
+                        [this](const MoonrakerError& error) {
+                            spdlog::error("[{}] Failed to save timelapse settings: {}", get_name(),
+                                          error.message);
+                        }));
 }
 
 void TimelapseSettingsOverlay::update_mode_info(int mode_index) {

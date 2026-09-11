@@ -4988,9 +4988,57 @@ TEST_CASE("PrinterDetector: print_start_default_phases returns K2 measured durat
 
 TEST_CASE("PrinterDetector: print_start_default_phases empty for printer without override",
           "[printer][preprint]") {
-    // Voron 2.4 has no print_start_default_phases field — generic defaults apply.
-    auto phases = PrinterDetector::get_print_start_default_phases("Voron 2.4");
+    // The Ender 3 has no print_start_default_phases field — generic defaults apply.
+    auto phases = PrinterDetector::get_print_start_default_phases("Creality Ender 3");
     REQUIRE(phases.empty());
+}
+
+TEST_CASE("PrinterDetector: print_start_default_phases give each Voron only its own leveling",
+          "[printer][preprint]") {
+    // The generic table charges every printer for both QGL and Z_TILT. A
+    // Voron runs at most one of them, and the two small machines run neither,
+    // so an unqualified table is the difference between a 260s first-print
+    // estimate and the truth. Heating stays absent: the thermal model owns it.
+    const int HOMING = static_cast<int>(helix::PrintStartPhase::HOMING);
+    const int QGL = static_cast<int>(helix::PrintStartPhase::QGL);
+    const int Z_TILT = static_cast<int>(helix::PrintStartPhase::Z_TILT);
+    const int BED_MESH = static_cast<int>(helix::PrintStartPhase::BED_MESH);
+    const int CLEANING = static_cast<int>(helix::PrintStartPhase::CLEANING);
+    const int PURGING = static_cast<int>(helix::PrintStartPhase::PURGING);
+    const int HEATING_BED = static_cast<int>(helix::PrintStartPhase::HEATING_BED);
+
+    SECTION("Trident tilts its bed and never levels a gantry") {
+        auto phases = PrinterDetector::get_print_start_default_phases("Voron Trident");
+        REQUIRE(phases.size() == 5);
+        REQUIRE(phases[Z_TILT] == 45);
+        REQUIRE(phases.count(QGL) == 0);
+        REQUIRE(phases[HOMING] == 30);
+        REQUIRE(phases[BED_MESH] == 90);
+        REQUIRE(phases[CLEANING] == 20);
+        REQUIRE(phases[PURGING] == 15);
+        REQUIRE(phases.count(HEATING_BED) == 0);
+    }
+
+    SECTION("2.4 levels its gantry and never tilts the bed") {
+        auto phases = PrinterDetector::get_print_start_default_phases("Voron 2.4");
+        REQUIRE(phases.size() == 5);
+        REQUIRE(phases[QGL] == 60);
+        REQUIRE(phases.count(Z_TILT) == 0);
+        REQUIRE(phases[HOMING] == 30);
+        REQUIRE(phases[BED_MESH] == 90);
+    }
+
+    SECTION("V0 and Switchwire run neither") {
+        for (const char* name : {"Voron 0.2", "Voron Switchwire"}) {
+            CAPTURE(name);
+            auto phases = PrinterDetector::get_print_start_default_phases(name);
+            REQUIRE(phases.size() == 4);
+            REQUIRE(phases.count(QGL) == 0);
+            REQUIRE(phases.count(Z_TILT) == 0);
+            REQUIRE(phases.count(HOMING) == 1);
+            REQUIRE(phases.count(BED_MESH) == 1);
+        }
+    }
 }
 
 // ============================================================================

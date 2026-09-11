@@ -90,7 +90,10 @@ translations:
   = Tighten: = 締める
   A: A
   A backup of %s is created before applying: '適用前に %s のバックアップを作成します'
+  A motor IO pin couldn't be restored. Power-cycle the printer to recover: モーターのIOピンを復元できませんでした。プリンターの電源を入れ直してください
+  A motor's parameters couldn't be written. Power-cycle the printer to retry: モーターのパラメーターを書き込めませんでした。プリンターの電源を入れ直して再試行してください
   A picture of your printer: プリンターの画像
+  A spool may be tangled or the drive gear is jammed: スプールが絡まっているか、駆動ギアが詰まっている可能性があります
   ABS: ABS
   ACCELEROMETERS: 加速度センサー
   ACE Moonraker bridge not found. Install ace_status.py for full support.: ACE Moonraker ブリッジが見つかりません。完全なサポートには ace_status.py をインストールしてください。
@@ -315,6 +318,7 @@ translations:
     のガイド、設定リファレンス、トラブルシューティング資料を参照します。
   Brush nozzle: 'ノズルをブラシ清掃'
   Buffer Status: バッファーステータス
+  Buffer tube problem: バッファーチューブの問題
   'Build Volume: ': '造形サイズ: '
   Bundle Uploaded: バンドルをアップロードしました
   Button taps and navigation sounds: ボタンタップとナビゲーション音
@@ -335,6 +339,9 @@ translations:
   CALIBRATION: キャリブレーション
   CAPABILITIES: 機能
   CARTOGRAPHER: CARTOGRAPHER
+  CFS is busy: CFS がビジー状態です
+  CFS motor overloaded: CFS モーターが過負荷です
+  CFS system error: CFS システムエラー
   CHANGED FROM LAST SESSION: 前回のセッションから変更
   CLOG: 詰まり
   COLOR SENSORS: カラーセンサー
@@ -373,10 +380,10 @@ translations:
   Calibration complete! Press 'Next' to continue.: '"キャリブレーション完了！「次へ」を押して続行してください。"'
   Calibration failed - touch targets more precisely.: キャリブレーション失敗 – ターゲットをより正確にタッチしてください。
   Calibration kept timing out. Your previous settings were kept.: キャリブレーションが繰り返しタイムアウトしました。以前の設定を維持しました。
-  Calibration may still be running — printer connection was interrupted: ''
+  Calibration may still be running — printer connection was interrupted: 'キャリブレーションがまだ実行中の可能性があります — プリンター接続が中断されました'
   Calibration may still be running — response timed out: キャリブレーションがまだ実行中の可能性があります
     — 応答タイムアウト
-  Calibration move may still be running — printer connection was interrupted: ''
+  Calibration move may still be running — printer connection was interrupted: 'キャリブレーション移動がまだ実行中の可能性があります — プリンター接続が中断されました'
   Calibration move may still be running — response timed out: キャリブレーション移動がまだ実行中の可能性があります
     — 応答タイムアウト
   Calibration saved but cannot apply on SDL display: キャリブレーションは保存されましたが SDL ディスプレイには適用できません
@@ -388,6 +395,7 @@ translations:
   Cam: カメラ
   Camera: カメラ
   Can't connect — try forgetting and re-pairing the printer: 接続できません — プリンターの登録を解除して再ペアリングしてください
+  Can't read filament RFID tag: フィラメントの RFID タグを読み取れません
   Cancel: キャンセル
   Cancel Escalation: エスカレーションをキャンセル
   Cancel Print: 印刷をキャンセル
@@ -445,7 +453,15 @@ translations:
   Check slot failed: スロットの確認に失敗しました
   Check slots: スロットを確認
   Check slots failed: スロットの確認に失敗しました
+  Check that only one filament path is active: フィラメント経路が 1 つだけ有効か確認してください
+  Check that the cutter mechanism is properly installed: カッター機構が正しく取り付けられているか確認してください
+  Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: ドラッグチェーンに沿った PTFE チューブの折れと、エクストルーダーセンサー入口の曲がりを確認してください
+  Check the RS-485 cable between printer and CFS: プリンターと CFS 間の RS-485 ケーブルを確認してください
+  Check the buffer unit on the back of the printer: プリンター背面のバッファーユニットを確認してください
   Check the filament path and try again.: フィラメント経路を確認して、もう一度お試しください。
+  ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
+  : スロットからハブまでの経路に絡まりや抵抗がないか確認してください。スロットが問題なく送り出せる場合は、ハブセンサーまたは送り出しモーターの故障が考えられます
+  Check the spool and the filament path for a jam, then retry: スプールとフィラメント経路の詰まりを確認してから再試行してください
   Check your heater's rating (typically 40-60W for hotends): ヒーターの定格を確認してください（ホットエンドは通常40〜60W）
   Checking: 確認中
   Checking Spoolman server...: Spoolman サーバーを確認中...
@@ -576,10 +592,11 @@ translations:
   Connection failed. Check credentials.: 接続に失敗しました。認証情報を確認してください。
   Connection failed. Check password.: 接続に失敗しました。パスワードを確認してください。
   'Connection failed: %s': '接続に失敗しました: %s'
+  Connection lost — probe accuracy result unavailable: '接続が切断されました — プローブ精度テストの結果が利用できません'
   Connection must be tested successfully to continue: 続行するには接続テストに成功する必要があります
   Connection successful!: 接続成功！
   Connection timeout: 接続タイムアウト
-  Connection to printer lost — operation may still be running: ''
+  Connection to printer lost — operation may still be running: 'プリンターとの接続が切断されました — 操作がまだ実行中の可能性があります'
   Connects: 接続回数
   Console: コンソール
   Console Settings: コンソール設定
@@ -660,6 +677,7 @@ translations:
   Cut filament: フィラメントを切断
   Cut tip: '先端をカット'
   Cutter Enabled: 'カッター有効'
+  Cutter blade didn't sever filament: カッターの刃がフィラメントを切断できませんでした
   Cutter jam: カッター詰まり
   Cutting: カット中
   Cutting filament...: フィラメントを切断中...
@@ -761,6 +779,7 @@ translations:
   E-Stop (M112): 緊急停止 (M112)
   E-Stop Confirmation: 緊急停止の確認
   EDDY CURRENT: EDDY CURRENT
+  EEPROM error on CFS unit: CFS ユニットの EEPROM エラー
   EMERGENCY STOP: 緊急停止
   EMPTY: 空
   Each fan can only be selected once: 各ファンは一度のみ選択できます
@@ -859,7 +878,6 @@ translations:
   Est. Duration: 予想時間
   Estimating...: 推定中...
   Ethernet: イーサネット
-  Ethernet is connected. Disconnect it to join a Wi-Fi network.: ''
   Events appear here after sessions and prints: セッションと印刷の後にイベントがここに表示されます
   Every extruder's temperature at once: 全エクストルーダーの温度を一覧表示
   Excellent Accuracy: 非常に高精度
@@ -890,8 +908,10 @@ translations:
   Extruder MPC Calibration: エクストルーダー MPCキャリブレーション
   Extruder PID Tuning: エクストルーダー PID チューニング
   Extruder Unload Speed: 'エクストルーダーのアンロード速度'
+  Extruder and CFS disagree on filament state — inspect both sensors: エクストルーダーと CFS でフィラメントの状態が一致しません。両方のセンサーを確認してください
   Extruder distances and sensor configuration: 'エクストルーダー距離とセンサー設定'
   Extruder heats automatically based on material: 素材に基づいてエクストルーダーが自動加熱
+  Extruder motor calibration failed: エクストルーダーモーターの校正に失敗しました
   Extruder to Nozzle: 'エクストルーダーからノズルまで'
   Extruding prime line...: プライムラインを押し出し中...
   FAILED: 失敗
@@ -1006,6 +1026,7 @@ translations:
   'Features: ': '機能: '
   Feed Assist: '送りアシスト'
   Feed assist and debug tools: 送りアシストとデバッグツール
+  Feed failed: 送り出しに失敗しました
   Feed filament: フィラメントを送る
   Feed filament directly to extruder: フィラメントをエクストルーダーに直接供給
   Feed filament from current slot: '現在のスロットからフィラメントを送る'
@@ -1015,6 +1036,7 @@ translations:
   Filament Detected: フィラメント検出
   Filament Environment: フィラメント環境
   Filament Grade Mismatch: フィラメントグレード不一致
+  Filament Humidity: フィラメント湿度
   Filament In The Toolhead: ツールヘッドにフィラメントがあります
   Filament Mapping: フィラメントマッピング
   Filament Runout: フィラメント切れ
@@ -1022,19 +1044,32 @@ translations:
   Filament System Error: フィラメントシステムエラー
   Filament Used: 使用済みフィラメント
   Filament already exists: フィラメントはすでに存在します
+  Filament buffer failure during feed: 送り出し中にフィラメントバッファーが異常になりました
+  Filament buffer stopped moving: フィラメントバッファーが動かなくなりました
   Filament by Type: 種類別フィラメント
+  ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
+  : 最低押し出し温度を下回るとフィラメントをロードできません。ホットエンドの目標温度を設定し（PLA は 220°C、PETG は 240°C など）、到達を待ってから再試行してください
   Filament controls are unavailable while printing.: 印刷中はフィラメント制御を利用できません。
+  Filament cutter not detected: フィラメントカッターが検出されません
+  Filament cutter position error: フィラメントカッターの位置エラー
+  Filament cutter stuck: フィラメントカッターが動きません
   Filament deleted: フィラメントを削除しました
   Filament diameter sensors for flow compensation: フロー補正用フィラメント直径センサー
+  Filament didn't fully retract, may need manual removal: フィラメントが完全に戻りませんでした。手で取り除く必要があるかもしれません
   Filament feeder: フィラメントフィーダー
   Filament is clear of the toolhead. Pull it out the rest of the way.: フィラメントはツールヘッドから出ました。残りを手で引き抜いてください。
+  Filament is dragging: フィラメントに抵抗がかかっています
   Filament is loose: フィラメントが緩んでいます
   Filament is pulling tight: フィラメントが引っ張られています
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : アンロード後もフィラメントがノズルに残っています。カットまたは引き戻しが完了していない可能性があります。別のスプールを装填する前にツールヘッドを空にしてください。
+  Filament is still present after the cut — the blade may be dull or misaligned: 切断後もフィラメントが残っています。刃が摩耗しているか、位置がずれている可能性があります
+  Filament jammed at the extruder gear: エクストルーダーギアでフィラメントが詰まりました
   'Filament load failed: {}': 'フィラメントの装填に失敗しました: {}'
+  Filament never reached the CFS hub sensor: フィラメントが CFS ハブセンサーに到達しませんでした
   Filament operation failed: フィラメント操作に失敗しました
   Filament operation timed out: フィラメント操作がタイムアウトしました
+  Filament ran out: フィラメントがなくなりました
   Filament ran out - nothing at the toolhead and the print is paused.: 'フィラメントが切れました - ツールヘッドには何も残っておらず、印刷は一時停止しています。'
   ? Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
   : 'フィラメントが切れましたが、CFSは切り替え可能な一致するスプールを見つけられませんでした。同じ材料と色のスプールを装填してから再開してください。'
@@ -1045,6 +1080,10 @@ translations:
   Filament runout and motion detection sensors: フィラメント切れとモーション検出センサー
   Filament saved: フィラメントを保存しました
   Filament sensor available for runout detection: フィラメント切れ検出用のフィラメントセンサーが利用可能です
+  Filament snapped inside CFS: CFS 内でフィラメントが折れました
+  Filament stalled between CFS hub and extruder sensor: CFS ハブとエクストルーダーセンサーの間でフィラメントが止まりました
+  Filament stuck in connector during unload: アンロード中にコネクター内でフィラメントが詰まりました
+  Filament stuck inside the CFS hub: CFS ハブ内でフィラメントが詰まっています
   Filament tension is balanced: フィラメントの張力が均衡しています
   Filament tracking & label printing: フィラメント追跡とラベル印刷
   Filament tracking and inventory: フィラメント追跡と在庫管理
@@ -1136,6 +1175,7 @@ translations:
   Heading: 見出し
   Heat Capacity: 熱容量
   Heat Soak: ヒートソーク
+  Heat Soaking...: ヒートソーク中...
   Heat bed before calibrating for accurate offset with thermal expansion.: 熱膨張を考慮した正確なオフセットのため、キャリブレーション前にベッドを加熱してください。
   Heat nozzle: ノズルを加熱
   Heat to at least %d°C for filament operations: フィラメント操作には少なくとも %d°C まで加熱してください
@@ -1294,12 +1334,14 @@ translations:
   Invalid status response from printer: プリンターからの無効なステータス応答
   Issue description: 問題の説明
   It can be un-archived in Spoolman's web UI.: Spoolman の Web 画面でアーカイブを解除できます。
+  It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: ハブセンサーとハブギアの間で詰まっています。CFS を開けてハブを取り除いてから再試行してください
   It's a new spool: 新しいスプールです
   Jammed at the Toolhead: ツールヘッドで詰まり
   Job Queue: ジョブキュー
   'Jog failed: {}': 'ジョグに失敗しました: {}'
   Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests.: Discord
     で HelixScreen コミュニティに参加して、ディスカッション、ヒント、トラブルシューティング支援、機能リクエストを共有しましょう。
+  Joining Wi-Fi disconnects the wired network.: ''
   Just now: たった今
   Just queued: 'たった今キューへ追加'
   KEYBOARD LAYOUT: キーボードレイアウト
@@ -1378,6 +1420,7 @@ translations:
   Live view from your webcam: ウェブカメラのライブ表示
   Load: 装填
   Load Filament: フィラメントを装填
+  Load a new spool in this slot, or turn on auto-refill to switch to a matching one: このスロットに新しいスプールをセットするか、自動補充を有効にして一致するスプールに切り替えてください
   Load complete: 'ロード完了'
   Load filament: 'フィラメントをロード'
   Load may still be running — response timed out: 装填がまだ実行中の可能性があります — 応答タイムアウト
@@ -1415,6 +1458,7 @@ translations:
   Loosen Path A belt.: パスAのベルトを緩めてください。
   Loosen Path B belt.: パスBのベルトを緩めてください。
   Lost connection during print — try again: 印刷中に接続が切断されました — もう一度お試しください
+  Lost connection to CFS unit: CFS ユニットとの接続が切断されました
   'Lot # (optional)': ロット番号（オプション）
   Lot/Batch Nr: ロット/バッチ番号
   Low Memory: メモリ不足
@@ -1426,6 +1470,7 @@ translations:
   MANUAL: 手動
   MB RAM: MB RAM
   MCU: MCU
+  MCU bridge daemon is shut down: MCU ブリッジのデーモンが停止しています
   MCU, host, and auxiliary temperature monitoring: MCU、ホスト、補助温度の監視
   'MCU: ': 'MCU: '
   MDI Icons: MDI アイコン
@@ -1471,6 +1516,7 @@ translations:
   Manual Feed: '手動送り'
   Manual Retract: '手動引き戻し'
   Manual feed and retract operations: 手動送り・引き戻し操作
+  Manually pull the filament back through the connector: コネクターからフィラメントを手で引き戻してください
   Map to closest colors with matching material: 一致する素材で最も近い色に割り当て
   Marginal: やや不良
   Master volume level: マスター音量
@@ -1498,6 +1544,7 @@ translations:
   Measurement Failed: 測定失敗
   Measuring accelerometer noise...: '加速度センサーのノイズを測定中...'
   Measuring vibrations... {}%: '振動を測定中... {}%'
+  Measuring wheel error: 計測ホイールのエラー
   Median %.0f Hz: 中央値 %.0f Hz
   Memory: メモリ
   Memory (MB): メモリ (MB)
@@ -1523,12 +1570,15 @@ translations:
   More points = more accurate, but takes longer.: ポイント数が多いほど精度が上がりますが、時間がかかります。
   Motion: 動作
   'Motion: XYZ': '動作: XYZ'
+  Motor controller error: モーターコントローラーのエラー
+  Motor parameter setup failed: モーターパラメーターの設定に失敗しました
   Motor speeds and acceleration: 'モーター速度と加速度'
   Motors Off: モーターオフ
   'Motors disable failed: {}': 'モーターの無効化に失敗しました: {}'
   Motors disabled: モーターを無効化しました
   Mount: 装着
   Move: 移動
+  Move out of range: '移動範囲外です'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: 調整中は紙を前後に動かしてください。紙がわずかに引っかかりながらも滑る状態で止めてください。
   Move selector: セレクターを移動
   Move speed multipliers: '移動速度の倍率'
@@ -1614,6 +1664,7 @@ translations:
   No effects available: 利用可能なエフェクトがありません
   No events queued: キューにイベントはありません
   No fans detected: ファンが検出されませんでした
+  No filament environment sensors: フィラメント環境センサーがありません
   No filament loaded to unload: 取出すフィラメントが装填されていません
   No filament sensor detected: 'フィラメントセンサーが検出されません'
   No filaments found: フィラメントが見つかりません
@@ -1699,6 +1750,7 @@ translations:
   Nozzle Temperatures: 'ノズル温度'
   Nozzle Temps: ノズル温度
   Nozzle clean complete: ノズル清掃完了
+  Nozzle clog detected: ノズルの詰まりを検出しました
   Nozzle did not reach {}°C — {} cancelled: ノズルが{}°Cに達しませんでした — {}を中止しました
   Nozzle min cannot exceed max: ノズル温度の最小値は最大値を超えられません
   Nozzle target set to {}°C: ノズル目標温度を {}°C に設定しました
@@ -1731,6 +1783,7 @@ translations:
   Open feeder macro: フィーダーを開くマクロ
   Open feeder: フィーダーを開く
   Open motion controls for jogging: ジョグ操作を開く
+  Open the CFS unit and remove the broken filament from the slot: CFS ユニットを開け、スロットから折れたフィラメントを取り除いてください
   Operation already in progress: 操作がすでに進行中です
   Operations: 操作
   Optimize Your Printing: 印刷を最適化
@@ -1767,6 +1820,7 @@ translations:
   PRINT_START has {} skippable operation: PRINT_START にはスキップ可能な操作が {} 個あります
   PRINT_START has {} skippable operations: PRINT_START にはスキップ可能な操作が {} 個あります
   PROBE SENSORS: プローブセンサー
+  PTFE tube connection loose: PTFE チューブの接続が緩んでいます
   Pair: ペアリング
   Pair Bluetooth Printer: Bluetooth プリンターをペアリング
   Pair Bluetooth Scanner: Bluetooth スキャナーをペアリング
@@ -1851,6 +1905,7 @@ translations:
   Power: 電源
   Power Devices: 電源デバイス
   Power off the printer or screen: プリンターまたは画面の電源をオフにします
+  Pre-heat the extruder first: 先にエクストルーダーを予熱してください
   'Pre-print command failed: {}': '印刷前コマンドに失敗しました: {}'
   Pre-print homing...: 印刷前ホーミング中...
   Preheat: '予熱'
@@ -2024,6 +2079,8 @@ translations:
   Quick actions, calibration, speed: クイックアクション、キャリブレーション、速度
   RFCOMM connect failed: RFCOMM 接続に失敗しました
   'RFCOMM connect failed: ': 'RFCOMM 接続に失敗しました: '
+  RFID reader malfunction (left): RFID リーダーの異常（左）
+  RFID reader malfunction (right): RFID リーダーの異常（右）
   RSS: RSS
   'RSS:': 'RSS:'
   Ramming Volume: 'ラミング量'
@@ -2032,6 +2089,7 @@ translations:
   Re-identify: 再識別
   Re-probe: 再プローブ
   Re-read spool RFID tags and remaining length: 'スプールのRFIDタグと残量を再読み込み'
+  Re-seat the Bowden tube connector on the CFS unit: CFS ユニットのボーデンチューブ接続を差し直してください
   Re-syncs Happy Hare's tracked state with the hardware.: Happy Hare が追跡している状態をハードウェアと再同期します。
   Readings from extra temperature sensors: 追加の温度センサーの値
   Ready: 準備完了
@@ -2157,10 +2215,17 @@ translations:
   Retract Distance: リトラクト距離
   Retract Length: リトラクト長
   Retract Speed: リトラクト速度
+  Retract didn't reach buffer empty position: 戻し動作がバッファーの空位置に到達しませんでした
+  Retract error — failed to exit connector: '戻しエラー: コネクターから抜けませんでした'
+  Retract error — filament still detected: '戻しエラー: フィラメントがまだ検出されています'
+  Retract error — multiple connectors triggered: '戻しエラー: 複数のコネクターが反応しました'
+  Retract failed: 戻し動作に失敗しました
+  Retract failed — filament stuck in connector: '戻し動作に失敗しました: コネクター内でフィラメントが詰まっています'
   'Retract failed: {}': 'リトラクトに失敗しました: {}'
   Retract filament: 'フィラメントを引き戻す'
   Retract filament to current slot: '現在のスロットへフィラメントを引き戻す'
   Retract may still be running — response timed out: リトラクトがまだ実行中の可能性があります — 応答タイムアウト
+  Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: 戻してアンロードしてください。問題なく戻る場合は、傷んだ先端を切り落として再度送り出してください
   Retraction: リトラクション
   Retraction Settings: リトラクション設定
   Retraction distance in the cooling tube: '冷却チューブ内での引き戻し距離'
@@ -2183,6 +2248,7 @@ translations:
   Run Macro: マクロを実行
   Run Macro?: マクロを実行しますか？
   Run a Klipper macro when preheating this material: この素材の予熱時に Klipper マクロを実行
+  Run a cold pull or replace the nozzle: コールドプルを行うか、ノズルを交換してください
   Run a macro you choose, in one tap: 選んだマクロをワンタップで実行
   Run brush cleaning sequence: 'ブラシ清掃シーケンスを実行'
   Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves): ノズルがコールドの状態でもフィラメントの装填/取り出しを実行（ノズルを自身で加熱するマクロ向け）
@@ -2311,6 +2377,7 @@ translations:
   Sensor Response: センサー応答
   Sensor Source: センサーソース
   Sensor Temperature: センサー温度
+  Sensor mismatch — check extruder and CFS sensors: センサーの不一致です。エクストルーダーと CFS のセンサーを確認してください
   Sensor to Nozzle: 'センサーからノズルまで'
   Sensors: センサー
   Separate on/off macros. HelixScreen tracks the state.: 個別のオン/オフマクロ。HelixScreenが状態を追跡します。
@@ -2329,6 +2396,8 @@ translations:
   Set and watch the nozzle temperature: ノズル温度の設定と監視
   Set local timezone for time display: 時刻表示用のローカルタイムゾーンを設定
   Set logging verbosity for troubleshooting: トラブルシューティング用のログの詳細レベルを設定
+  ? Set the filament type and colour by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
+  : このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください
   Set up: セットアップ
   Set up your label printer in Settings: 設定でラベルプリンターをセットアップしてください
   Settings: 設定
@@ -2387,6 +2456,7 @@ translations:
   Slot {} matches.: 'スロット {} が一致します。'
   Slot {} spool cleared: スロット {} のスプールをクリアしました
   Slot {} updated: スロット {} を更新しました
+  Slots: ''
   Small labels help keep controls calm and focused.: 小さなラベルはコントロールを落ち着いた集中した状態に保ちます。
   Snapmaker SnapSwap: Snapmaker SnapSwap
   Snapmaker U1: Snapmaker U1
@@ -2434,6 +2504,8 @@ translations:
   'Spoolman: %zu/%zu Spool%s': 'Spoolman: %zu/%zu 個のスプール%s'
   Square Corner Velocity: 直角コーナー速度
   Stable: 安定版
+  Stall detection setup failed for the Z motor — power-cycle to retry: Z モーターのストール検出の設定に失敗しました。電源を入れ直して再試行してください
+  Stall detection setup failed for the extruder — power-cycle to retry: エクストルーダーのストール検出の設定に失敗しました。電源を入れ直して再試行してください
   Standard: スタンダード
   Standby: スタンバイ
   Starfield: 星空
@@ -2516,6 +2588,7 @@ translations:
   TPU: TPU
   Takes 3-5 min. Do not interrupt.: 3〜5分かかります。中断しないでください。
   Tap + to add: + をタップして追加
+  Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: 「ファームウェア再起動」をタップして復旧してください。K2 では rpi MCU ブリッジも再起動されます
   Tap again to confirm this orientation: もう一度タップしてこの向きを確定
   Tap an object to exclude it | {} objects ({} excluded): 'オブジェクトをタップして除外 | {} 個 ({} 個除外済み)'
   Tap any tile to open its full controls or toggle its state.: タイルをタップすると、全機能のコントロールを開いたり、状態を切り替えたりできます。
@@ -2543,6 +2616,7 @@ translations:
   Temperature Graph Config: 温度グラフ設定
   # Source: calibration_pid_panel.xml:333
   Temperature Sensors: '温度センサー'
+  Temperature and humidity sensor not responding: 温湿度センサーが応答しません
   Temperature control optimized for {} at {}°C.: '{} の温度制御を {}°C で最適化しました。'
   Temperatures: 温度
   Temperatures plotted over time: 温度の時間変化をグラフ表示
@@ -2571,6 +2645,7 @@ translations:
   That did not sound like a pluck - try again: はじいた音ではないようです - もう一度お試しください
   That slot cannot stand in for this one: そのスロットはこのスロットの代わりになりません
   That tool is already loaded: そのツールはすでに装填されています
+  The CFS odometer hardware is faulty and needs repair or replacement: CFS の走行距離計ハードウェアが故障しています。修理または交換が必要です
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   : HelixPrint プラグインは、クイック再印刷のためのベッドメッシュスキップなど、プリンター上で直接高速 G-code 修正を可能にします。
@@ -2579,10 +2654,17 @@ translations:
   ? The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
   : アニメーション付きスクリーンセーバーが印刷に干渉しないよう、このデバイスではオフになっています。設定 > ディスプレイで再度有効にできます。
+  The buffer may be disconnected, stuck, or faulty. Check it before retrying: バッファーが未接続、固着、または故障している可能性があります。再試行前に確認してください
+  The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: バッファーが 16 秒間動きを検出しませんでした。CFS とエクストルーダーの間の詰まり、またはバッファーの固着を確認してください
+  The cutter blade didn't return — check for filament wrapped around the cutting mechanism: カッターの刃が戻りませんでした。切断機構にフィラメントが巻き付いていないか確認してください
+  The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: カッターの位置がずれています。CALIBRATE_CUT_POS で再校正してください
+  The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: エクストルーダーがスムーズに引き込めません。スプールの絡まりや結び目、PTFE チューブの急な曲がりを確認してください
   ? The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
   : フィラメントがノズルに到達しませんでした。CFSはエラーを報告していませんが、ツールヘッドセンサーはまだフィラメントを検出していません。スプールが正しく取り付けられ、フィラメント経路が塞がれていないことを確認して、再試行してください。
+  The filament may not have fully retracted — try again or manually pull: フィラメントが完全に戻っていない可能性があります。再試行するか手で引き抜いてください
   The filament system reported an error: フィラメントシステムがエラーを報告しました
   The heater will cycle on and off several times.: ヒーターは数回オン/オフを繰り返します。
+  The left RFID reader in this CFS unit may need service: この CFS ユニットの左側 RFID リーダーは修理が必要な可能性があります
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : 装填中のスプールは {} ですが、このファイルは {} 用にスライスされています。充填材入りフィラメントはフローレートが低くなり、硬化ノズルが必要です。
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
@@ -2595,7 +2677,10 @@ translations:
   The printer lost power while printing {}. The resumed layer may not line up exactly.: '{} の印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。'
   The printer rejected the filament configuration. The print was not started.: プリンターがフィラメント設定を拒否しました。印刷は開始されませんでした。
   The printer's firmware chooses the backup spool itself: バックアップスプールはプリンターのファームウェアが選びます
+  The requested position is outside the printer's bounds: '指定された位置はプリンターの可動範囲外です'
+  The right RFID reader in this CFS unit may need service: この CFS ユニットの右側 RFID リーダーは修理が必要な可能性があります
   The runout sensor indicates no filament is loaded. Start print anyway?: フィラメント切れセンサーがフィラメント未装填を検出しました。それでも印刷を開始しますか？
+  The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: この CFS ユニットのセンサーを読み取れません。接続を確認してください。改善しない場合は修理が必要です
   The speed of one fan you choose: 選んだファン1つの速度
   The time, date, and system uptime: 時間、日付、稼働時間
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。印刷前に手動で引き抜いてください。それでも印刷を開始しますか？
@@ -2603,6 +2688,9 @@ translations:
   : ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。取り除くまで、プリンターがスロットの装填を拒否する場合があります。それでも印刷を開始しますか？
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: ツールヘッドセンサーがフィラメント装填済みを検出しました。それでも装填を続行しますか？
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: ツールヘッドセンサーがフィラメント未検出を報告しました。それでもアンロードを続行しますか？
+  The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: ユニットは既に別の処理を実行中です。完了を待つか、固まったままの場合は CFS をリセットしてください
+  The unit reported a fault with no further detail. Restart the printer if it repeats: ユニットが詳細不明の障害を報告しました。繰り返す場合はプリンターを再起動してください
+  The unit's onboard storage has failed. The CFS mainboard needs replacing: ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です
   Theme: テーマ
   Theme Colors: テーマカラー
   Theme Preset: テーマプリセット
@@ -2763,6 +2851,7 @@ translations:
   Uninstallation timed out. The script may be stuck.: アンインストールがタイムアウトしました。スクリプトが停止している可能性があります。
   Unit: ユニット
   'Unit ': 'ユニット '
+  'Units: %d   Boxes: %d   Dryers: %d': ''
   Unknown: 不明
   Unknown Event: 不明なイベント
   Unknown Spool: 不明なスプール
@@ -2832,6 +2921,7 @@ translations:
   View Full History: 全履歴を表示
   View Telemetry Data: テレメトリデータを表示
   View Timelapse: タイムラプスを表示
+  View all boxes: ''
   View and rename fans: ファンの表示と名前変更
   View installed plugins and status: インストール済みプラグインとステータスを表示
   View live camera feed: ライブカメラ映像を表示
@@ -2847,6 +2937,8 @@ translations:
   Wait for the current filament operation to finish: 現在のフィラメント操作が完了するまでお待ちください
   Wait until the print finishes: 印刷が完了するまでお待ちください
   Waiting for Moonraker...: Moonraker を待機中...
+  'Waiting for %s to finish. One heater at a time.': ''
+  Waiting for another box to finish.: ''
   Waiting for bed to reach temperature for accurate calibration.: 正確なキャリブレーションのためにベッド温度到達を待機中。
   Waiting for the filament system to report its state: フィラメントシステムの状態報告を待機中
   Warm Bed: ベッドを予熱
@@ -2935,6 +3027,7 @@ translations:
   Z Offset: Zオフセット
   Z Range: Z 範囲
   Z Tilt Adjust...: Zチルト調整中...
+  Z motor calibration failed: Z モーターの校正に失敗しました
   Z probes for bed leveling and mesh generation: ベッドレベリングとメッシュ生成用 Z プローブ
   'Z-Off:': 'Z-Off:'
   Z-Offset: Z-Offset
@@ -2978,6 +3071,7 @@ translations:
   fans: ファン
   heated bed: ヒートベッド
   idle: アイドル
+  in unit {} slot {}: 'ユニット {} スロット {}'
   layers: レイヤー
   left: 残り
   mm before clog: 詰まりまでの距離 (mm)
@@ -2989,7 +3083,9 @@ translations:
   AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle: AFC の remember_spool がファームウェア側でスプール情報を保持しているため、このトグル設定より優先されます
   AI detection: AI 検出
   Monitor for print abnormalities (K2 Plus camera-based): 印刷異常を監視 (K2 Plus カメラベース)
+  on unit {}: 'ユニット {}'
   or type a macro name: またはマクロ名を入力
+  passive: ''
   printer default: プリンター既定
   prints: 印刷
   remaining: 残り

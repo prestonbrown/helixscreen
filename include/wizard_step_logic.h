@@ -68,10 +68,10 @@ inline constexpr const char* WIZARD_HARDWARE_SETUP_DEFERRED = "hardware_setup_de
 /// Whether a finishing wizard run owes its expected-hardware snapshot to a
 /// later boot.
 ///
-/// b73781ca8 made it possible to finish setup while Klipper is in `error` —
-/// necessary, because that state was previously an inescapable dead end. But
-/// discovery never ran, so the heater/fan/LED/sensor pickers had empty lists
-/// and the user selected nothing. Committing that as the expected-hardware
+/// Finishing setup while Klipper is in `error` is allowed, since otherwise
+/// that state is an inescapable dead end. But discovery never ran, so the
+/// heater/fan/LED/sensor pickers had empty lists and the user selected
+/// nothing. Committing that as the expected-hardware
 /// snapshot makes the first boot where Klipper does come up report every fan,
 /// filament sensor and LED as newly appeared (#1160).
 ///
@@ -140,9 +140,17 @@ int wizard_visible_count(const std::vector<StepSkip>&);
 /// count is a provisional estimate that can shrink or grow at the next step.
 /// An authoritative preset (seeded at install or applied mid-run) settles it
 /// from the first step; otherwise the Connection step is the boundary - up to
-/// and including it the total stays hidden, after it the total holds.
+/// and including it the total stays hidden.
+///
+/// Past Connection is necessary but not sufficient: the step's own escape
+/// hatches (allow_continue_without_klipper(), the #1161 discovery watchdog)
+/// can unblock Next while discovery never ran, and the skip vector keeps
+/// tracking live hardware state until it does. @p discovery_succeeded is that
+/// signal, computed the same way as the completion-time deferred-hardware
+/// decision (@see wizard_hardware_snapshot_is_deferred) - Klipper reporting at
+/// least one heater.
 bool wizard_total_is_settled(wizard::StepId current, const std::vector<StepSkip>& steps,
-                             bool has_preset);
+                             bool has_preset, bool discovery_succeeded);
 
 /// 1-based display number for `current`: 1 + number of visible entries strictly
 /// before it.

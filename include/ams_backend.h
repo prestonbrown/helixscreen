@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "ams_environment_zone.h"
 #include "ams_error.h"
 #include "ams_step_operation.h"
 #include "ams_types.h"
@@ -1655,6 +1656,26 @@ class AmsBackend {
         (void)unit;
         return DryerInfo{.supported = false};
     }
+
+    /**
+     * @brief The environment zones this system exposes.
+     *
+     * A zone is one thing the user monitors and maybe drives. It is per-unit on a
+     * rig with one enclosure and per-lane on a rig with a sensor in every lane, and
+     * which one it is a backend answer. Callers select, render and control zones and
+     * never ask which vendor produced them.
+     *
+     * The default derives zones from what every backend already publishes: a
+     * unit-level sensor makes the unit one zone, per-slot sensors make one zone per
+     * lane, and a unit with neither a sensor nor a dryer contributes nothing. The
+     * default cannot express a per-lane heater; a backend whose hardware does
+     * overrides this.
+     *
+     * @param unit Unit to scope to, or -1 for every zone on the printer
+     * @return Zones ordered by unit, then by lowest gate
+     */
+    [[nodiscard]] virtual std::vector<helix::printer::EnvironmentZone>
+    get_environment_zones(int unit = -1) const;
 
     /**
      * @brief Start drying operation

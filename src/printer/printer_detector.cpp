@@ -1828,18 +1828,6 @@ PrinterDetector::get_print_start_default_phases(const std::string& printer_name)
         return result;
     }
 
-    // Phase name → enum int. Keep in sync with PrintStartPhase in printer_state.h.
-    // HEATING_* are excluded intentionally — ThermalRateModel handles heating
-    // time separately, and predictor entries drop those phases on save.
-    static const std::map<std::string, int> PHASE_NAMES = {
-        {"HOMING", static_cast<int>(helix::PrintStartPhase::HOMING)},
-        {"QGL", static_cast<int>(helix::PrintStartPhase::QGL)},
-        {"Z_TILT", static_cast<int>(helix::PrintStartPhase::Z_TILT)},
-        {"BED_MESH", static_cast<int>(helix::PrintStartPhase::BED_MESH)},
-        {"CLEANING", static_cast<int>(helix::PrintStartPhase::CLEANING)},
-        {"PURGING", static_cast<int>(helix::PrintStartPhase::PURGING)},
-    };
-
     std::string name_lower = printer_name;
     std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(),
                    [](unsigned char c) { return std::tolower(c); });
@@ -1858,8 +1846,10 @@ PrinterDetector::get_print_start_default_phases(const std::string& printer_name)
         }
         const auto& phases = printer["print_start_default_phases"];
         for (auto it = phases.begin(); it != phases.end(); ++it) {
-            auto found = PHASE_NAMES.find(it.key());
-            if (found == PHASE_NAMES.end()) {
+            // Only phases the prediction history keeps a duration for: a
+            // default for anything else would be a number nothing consults.
+            const auto phase = helix::print_start_phase_from_name(it.key());
+            if (!phase || !helix::print_start_phase_stores_duration(*phase)) {
                 spdlog::warn(
                     "[PrinterDetector] Unknown print_start_default_phase '{}' for printer '{}'",
                     it.key(), printer_name);
@@ -1870,7 +1860,7 @@ PrinterDetector::get_print_start_default_phases(const std::string& printer_name)
                              it.key(), printer_name);
                 continue;
             }
-            result[found->second] = it.value().get<int>();
+            result[static_cast<int>(*phase)] = it.value().get<int>();
         }
         spdlog::debug("[PrinterDetector] print_start_default_phases for '{}': {} entries",
                       printer_name, result.size());

@@ -13,23 +13,35 @@ on:
     branches: [ main, "release/**" ]
 
 # A push to a claude/** work branch is superseded within minutes on a busy day,
-# and this workflow can hold a runner for hours. Keying the group on the ref
-# lets a newer push cancel the older run there. release/** keys on the SHA
-# instead, so every commit that lands keeps its own run.
+# and this workflow can hold a runner for hours, so a topic branch and a PR key
+# their group on the ref and let a newer push cancel the older run. release/**
+# keys on the SHA instead, so every commit that lands there keeps its own run.
 #
-# main keys on the ref but does NOT cancel: an in-flight run finishes, and of the
-# runs queued behind it only the newest survives, so a burst of pushes leaves one
-# completing run and one pending rather than a pile. Cancelling instead means a
-# busy hour completes nothing at all and main reads green because it was never
-# measured, which is not the same thing.
+# main keys on the ref and does NOT cancel: the in-flight run finishes and of
+# the runs queued behind it only the newest survives, so a burst of pushes
+# leaves one completing result and one pending rather than a queue of 2-hour
+# runs. Cancelling instead means a busy hour completes nothing and main reads
+# green because it was never measured. tests/shell/test_workflow_concurrency_gate.bats
+# pins both halves.
+#
+# cancel-in-progress needs fromJSON to get an actual boolean: a bare
+# `${{ github.ref != 'refs/heads/main' }}` yields the STRING "false", which is
+# non-empty and therefore truthy, so the guard reads as disabled and main
+# cancels anyway.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || (startsWith(github.ref, 'refs/heads/release/') && github.sha || github.ref) }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ fromJSON(github.ref != 'refs/heads/main') }}
 
 jobs:
   compile-ubuntu:
     name: Compile (Ubuntu 22.04)
     runs-on: ubuntu-22.04
+    # Gated on the two jobs that need no build. A shell, gate or lint failure is
+    # knowable in minutes; this job runs for well over an hour, so starting it
+    # anyway spends a runner to re-learn what the fast suite already said. The
+    # cost is that a green run's long pole starts after the shell suite, and the
+    # benefit is that a red one reports in minutes instead of two hours.
+    needs: [test-shell, test-telemetry-worker]
     # Sized to cover the step budgets below plus setup, rather than silently
     # undercutting them: a job cap shorter than the sum kills the job before
     # either step reaches its own timeout.
@@ -366,6 +378,12 @@ jobs:
   build-macos:
     name: Build (macOS 14)
     runs-on: macos-14
+    # Gated on the two jobs that need no build. A shell, gate or lint failure is
+    # knowable in minutes; this job runs for well over an hour, so starting it
+    # anyway spends a runner to re-learn what the fast suite already said. The
+    # cost is that a green run's long pole starts after the shell suite, and the
+    # benefit is that a red one reports in minutes instead of two hours.
+    needs: [test-shell, test-telemetry-worker]
     timeout-minutes: 65
 
     steps:
@@ -472,7 +490,17 @@ jobs:
   build-android:
     name: Build (Android)
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    # Gated on the two jobs that need no build. A shell, gate or lint failure is
+    # knowable in minutes; this job runs for well over an hour, so starting it
+    # anyway spends a runner to re-learn what the fast suite already said. The
+    # cost is that a green run's long pole starts after the shell suite, and the
+    # benefit is that a red one reports in minutes instead of two hours.
+    needs: [test-shell, test-telemetry-worker]
+    # The job itself runs 26-29 minutes with a warm Gradle cache, so a 30-minute
+    # cap is a coin flip: it timed out at exactly 30:02 on one commit and passed
+    # in 26 on the next. The ceiling is for a hung Gradle or NDK fetch, not for
+    # the build, so it sits well clear of the build's own spread.
+    timeout-minutes: 50
 
     steps:
     - name: Checkout repository
@@ -539,6 +567,12 @@ jobs:
   link-aux-binaries:
     name: Link splash + watchdog (non-LTO)
     runs-on: ubuntu-22.04
+    # Gated on the two jobs that need no build. A shell, gate or lint failure is
+    # knowable in minutes; this job runs for well over an hour, so starting it
+    # anyway spends a runner to re-learn what the fast suite already said. The
+    # cost is that a green run's long pole starts after the shell suite, and the
+    # benefit is that a red one reports in minutes instead of two hours.
+    needs: [test-shell, test-telemetry-worker]
     timeout-minutes: 60
 
     steps:

@@ -11,7 +11,7 @@
  * style makes it a full-WIDTH bottom strip (width="100%"
  * height="#button_height_lg"), so portrait overlays must reserve VERTICAL
  * extent instead — otherwise a height="100%" overlay
- * covers the navigation bar completely, which is what shipped.
+ * covers the navigation bar completely.
  *
  * Transient keeps the gap; destination does not. That distinction is #1178 and
  * is orientation-independent — only the axis it applies to changes.

@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "json_fwd.h"
+
 #include <cstdint>
 #include <map>
-#include <set>
 #include <vector>
 
 namespace helix {
@@ -118,17 +119,6 @@ class PreprintPredictor {
     [[nodiscard]] std::map<int, int> predicted_phases() const;
 
     /**
-     * @brief Real-time remaining seconds estimate
-     *
-     * @param completed_phases Set of phase enum ints already completed
-     * @param current_phase Current phase enum int (0=IDLE, no contribution)
-     * @param elapsed_in_current_phase_seconds Seconds spent in current phase
-     * @return Estimated remaining seconds, 0 if no predictions
-     */
-    [[nodiscard]] int remaining_seconds(const std::set<int>& completed_phases, int current_phase,
-                                        int elapsed_in_current_phase_seconds) const;
-
-    /**
      * @brief Whether any predictions can be made
      */
     [[nodiscard]] bool has_predictions() const;
@@ -150,6 +140,16 @@ class PreprintPredictor {
      * @return Parsed entries (may be empty)
      */
     [[nodiscard]] static std::vector<PreprintEntry> load_entries_from_config();
+
+    /**
+     * @brief Serialize entries to the /print_start_history/entries array shape
+     *
+     * The inverse of load_entries_from_config(), and kept beside it so both
+     * directions of the stored format are read in one place.
+     *
+     * @return JSON array, one object per entry
+     */
+    [[nodiscard]] static json entries_to_json(const std::vector<PreprintEntry>& entries);
 
     /**
      * @brief Load history from Config and return predicted total seconds

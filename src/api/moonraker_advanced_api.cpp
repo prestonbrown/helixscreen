@@ -13,6 +13,7 @@
 #include "bed_mesh_probe_parser.h"
 #include "json_utils.h"
 #include "moonraker_api.h"
+#include "observer_factory.h"
 #include "operation_timeout_guard.h"
 #include "printer_state.h"
 #include "probe_preparation.h"
@@ -322,12 +323,19 @@ class CalibrationCollectorCore { // NAMESPACE_OK: sibling to the six collectors 
         : client_(client), handler_name_(std::string(handler_prefix) + std::to_string(next_id())) {}
 
     ~CalibrationCollectorCore() {
-        alive_token_->store(false, std::memory_order_release);
+        clear_armed_timers();
         unregister();
     }
 
     /// Register the forwarding handler. on_msg runs on the Websocket thread.
-    void start(const std::function<void(const json&)>& on_msg) {
+    /// @param owner The collector that holds this core. The client's handler
+    ///        map is the collector's only strong owner, so every piece of
+    ///        queued main-thread work takes a temporary reference through
+    ///        @p owner: that keeps the collector alive until the work runs, and
+    ///        pins its destruction — and with it the fallback's LVGL teardown —
+    ///        to the main thread.
+    void start(std::weak_ptr<void> owner, const std::function<void(const json&)>& on_msg) {
+        owner_ = std::move(owner);
         client_.register_method_callback("notify_gcode_response", handler_name_, on_msg);
         registered_.store(true);
         spdlog::debug("[{}] Started (handler: {})", handler_name_, handler_name_);
@@ -345,9 +353,8 @@ class CalibrationCollectorCore { // NAMESPACE_OK: sibling to the six collectors 
         defer_disarm();
     }
 
-    /// Mark completed; false when completion was already recorded, so the
-    /// complete-once guard each collector used to exchange on its own atomic
-    /// keeps its semantics.
+    /// Mark completed; false when completion was already recorded, so each
+    /// collector's complete-once guard keeps its semantics.
     [[nodiscard]] bool try_complete() {
         const bool first = !completed_.exchange(true);
         if (first)
@@ -361,15 +368,15 @@ class CalibrationCollectorCore { // NAMESPACE_OK: sibling to the six collectors 
     /// queues the disarm; the armed fallback's own (main-thread) callbacks
     /// still disarm directly, and disarm_idle_fallback() is idempotent.
     void defer_disarm() {
-        auto alive = alive_token_;
+        auto owner = owner_.lock();
+        if (!owner) {
+            return; // the collector is already being destroyed
+        }
+        // The captured owner reference keeps the collector, and with it this core,
+        // alive until the drain.
         helix::ui::queue_update(
-            // QUEUE_RAW_THIS_OK: alive token bool checked first; it outlives the core.
-            "CalibrationCollectorCore::defer_disarm", [this, alive]() {
-                if (!alive->load(std::memory_order_acquire)) {
-                    return;
-                }
-                disarm_idle_fallback();
-            });
+            // QUEUE_RAW_THIS_OK: owner reference above.
+            "CalibrationCollectorCore::defer_disarm", [this, owner]() { disarm_idle_fallback(); });
     }
 
     [[nodiscard]] bool completed() const {
@@ -379,8 +386,12 @@ class CalibrationCollectorCore { // NAMESPACE_OK: sibling to the six collectors 
     /// The owner's two terminal handlers for an absorbed transport error:
     /// on_idle runs when the printer's busy->idle edge proves the macro
     /// finished (the idle subject freezes while offline, so the edge can only
-    /// arrive after a reconnect); on_unrecovered runs when the backstop re-read
-    /// still shows the printer busy. Bind them in the collector constructor.
+    /// arrive after a reconnect); on_unrecovered runs when the follow-up
+    /// concludes the macro is not coming back with an answer. Bind them in the
+    /// collector's start() capturing a raw `this`: they are non-owning, because
+    /// a handler that held the collector would keep it — and the fallback's
+    /// lv_timer — alive for the process. conclude_idle()/conclude_unrecovered()
+    /// hold a strong owner reference across the call instead.
     /// @param edge_immediate True when the busy->idle edge is a definitive
     ///        completion signal by itself (screws tilt, bed mesh — their data
     ///        is complete the moment the macro finishes). False for
@@ -399,13 +410,15 @@ class CalibrationCollectorCore { // NAMESPACE_OK: sibling to the six collectors 
     /// it); the driver's error callback may fire on the WebSocket thread, so
     /// the work is queued.
     void arm_idle_fallback(PrinterState& state, uint32_t backstop_ms) {
-        auto alive = alive_token_;
+        auto owner = owner_.lock();
+        if (!owner) {
+            return; // the collector is already being destroyed
+        }
+        // The captured owner reference keeps the collector, and with it this core,
+        // alive until the drain.
         helix::ui::queue_update(
-            // QUEUE_RAW_THIS_OK: alive-token bool checked first; it outlives the core.
-            "CalibrationCollectorCore::arm_idle_fallback", [this, alive, &state, backstop_ms]() {
-                if (!*alive) {
-                    return;
-                }
+            // QUEUE_RAW_THIS_OK: owner reference above.
+            "CalibrationCollectorCore::arm_idle_fallback", [this, owner, &state, backstop_ms]() {
                 if (completed() || fallback_.armed) {
                     return;
                 }
@@ -414,152 +427,171 @@ class CalibrationCollectorCore { // NAMESPACE_OK: sibling to the six collectors 
                 lv_subject_t* idle_subject =
                     state.get_idle_timeout_printing_subject(subject_lifetime);
                 if (idle_subject) {
-                    const bool busy_at_arm = lv_subject_get_int(idle_subject) == 1;
-                    fallback_.was_busy_at_arm = busy_at_arm;
-                    fallback_.observer = ObserverGuard(
-                        idle_subject,
-                        [](lv_observer_t* obs, lv_subject_t* subject) {
-                            auto* self = static_cast<CalibrationCollectorCore*>(
-                                lv_observer_get_user_data(obs));
-                            if (!self->fallback_.armed) {
-                                return;
-                            }
-                            const bool busy_now = lv_subject_get_int(subject) == 1;
-                            // Edge_immediate + idle at arm: the macro may never
-                            // have run (the socket was already down at send),
-                            // or its busy status may simply not have arrived
-                            // before the drop. A busy report proves it is
-                            // running; failing outright on the first idle
-                            // report would mis-fire on a status frame that
-                            // merely lags the macro's start, so the
-                            // never-busy case waits out the grace window
-                            // like the line-driven collectors do.
-                            if (self->fallback_.edge_immediate &&
-                                !self->fallback_.was_busy_at_arm) {
-                                if (busy_now) {
-                                    self->fallback_.was_busy_at_arm = true;
-                                    return;
-                                }
-                                auto* core = self;
-                                core->fallback_.grace.begin(kEdgeGraceMs, [core, subject]() {
-                                    if (!core->fallback_.armed || core->completed()) {
-                                        core->fallback_.grace.end();
-                                        return;
-                                    }
-                                    if (lv_subject_get_int(subject) == 1) {
-                                        core->fallback_.was_busy_at_arm = true;
-                                        core->fallback_.grace.end();
-                                        return;
-                                    }
-                                    auto on_lost = std::move(core->fallback_.on_unrecovered);
-                                    core->disarm_idle_fallback();
-                                    if (on_lost)
-                                        on_lost("the macro may not have run before the connection "
-                                                "dropped");
-                                });
-                                return;
-                            }
-                            if (busy_now) {
-                                return;
-                            }
-                            if (self->fallback_.edge_immediate) {
-                                auto on_idle = std::move(self->fallback_.on_idle);
-                                self->disarm_idle_fallback();
-                                if (on_idle)
-                                    on_idle();
-                                return;
-                            }
-                            // Line-driven: result lines can trail the edge. Give
-                            // them a grace window before concluding the results
-                            // were lost; the long ceiling backstop still covers
-                            // the still-busy case above this.
-                            auto* core = self;
-                            core->fallback_.grace.begin(kEdgeGraceMs, [core, subject]() {
-                                if (!core->fallback_.armed || core->completed() ||
-                                    lv_subject_get_int(subject) == 1) {
-                                    core->fallback_.grace.end();
-                                    return;
-                                }
-                                auto on_idle = std::move(core->fallback_.on_idle);
-                                core->disarm_idle_fallback();
-                                if (on_idle)
-                                    on_idle();
-                            });
-                        },
-                        this);
+                    fallback_.was_busy_at_arm = lv_subject_get_int(idle_subject) == 1;
                     // The subject is freed by PrinterCalibrationState's
                     // deinit_subjects() on a printer switch (and by test
                     // re-init); the lifetime token makes the observer's
                     // removal skip the freed node instead of chasing it.
-                    if (subject_lifetime) {
-                        fallback_.observer.set_alive_token(subject_lifetime);
-                    }
+                    fallback_.observer = helix::ui::observe_int_sync<CalibrationCollectorCore>(
+                        idle_subject, this,
+                        [idle_subject](CalibrationCollectorCore* self, int printing) {
+                            self->on_idle_report(idle_subject, printing == 1);
+                        },
+                        subject_lifetime);
                 }
                 fallback_.backstop.begin(backstop_ms, [this, idle_subject]() {
                     if (!fallback_.armed) {
                         return;
                     }
                     const bool still_busy = idle_subject && lv_subject_get_int(idle_subject) == 1;
-                    // Both out BEFORE disarm: disarm clears the members, and
-                    // the missed-edge branch below must still reach the idle
-                    // completion (on_command_finished / result-unavailable).
-                    auto on_unrecovered = std::move(fallback_.on_unrecovered);
-                    auto on_idle_missed = std::move(fallback_.on_idle);
-                    disarm_idle_fallback();
-                    if (!on_unrecovered)
-                        return;
                     if (still_busy) {
-                        on_unrecovered("printer still busy after extended wait");
-                    } else if (on_idle_missed) {
-                        // Subject re-read says idle: the edge itself was missed,
-                        // not the completion. Same outcome as the observer path.
-                        on_idle_missed();
+                        conclude_unrecovered("printer still busy after extended wait");
+                    } else if (fallback_.edge_immediate && !fallback_.was_busy_at_arm) {
+                        // The re-read has to give the same answer the idle
+                        // reports give: a printer never seen busy proves nothing
+                        // ran, and completion for these collectors means
+                        // claiming data the printer may never have produced.
+                        conclude_unrecovered(kMacroMayNotHaveRun);
+                    } else {
+                        // Idle after a run we saw start: the edge itself was
+                        // missed, not the completion.
+                        conclude_idle();
                     }
                 });
+                s_armed_backstop.store(&fallback_.backstop, std::memory_order_release);
             });
     }
 
+    /// Idempotent: the fallback's own callbacks disarm directly and completion
+    /// queues a disarm, so both can land for one collector.
     void disarm_idle_fallback() {
-        // Move the owner callbacks out first: they capture the collector's
-        // own shared_ptr, and they are the last thing standing between a
-        // completed calibration and its collector's destruction. Destroying
-        // them here — at scope exit, after all member access in this function
-        // is done — releases that final reference on the main thread, which
-        // is exactly where the fallback's LVGL teardown must stay anyway
-        // (C1). Leaving them in place would turn every completed calibration
-        // into a shared_ptr self-cycle that lives for the process.
-        std::function<void()> dead_idle = std::move(fallback_.on_idle);
-        std::function<void(const std::string&)> dead_unrecovered =
-            std::move(fallback_.on_unrecovered);
         fallback_.armed = false;
+        fallback_.on_idle = nullptr;
+        fallback_.on_unrecovered = nullptr;
         fallback_.observer.reset();
         fallback_.backstop.end();
         fallback_.grace.end();
-        // The locals' destructors at scope exit are the release point.
-        static_cast<void>(dead_idle);
-        static_cast<void>(dead_unrecovered);
+        clear_armed_timers();
+    }
+
+    /// The backstop armed by the most recent absorbed transport error, or
+    /// nullptr when none is armed. Test observability only: the collectors are
+    /// file-local and these budgets run to seconds and minutes, so a test fires
+    /// the timer the driver installed instead of waiting it out — which also
+    /// keeps the wait from racing whatever else the elapsed time would set off.
+    /// Written only from arm/begin_grace/disarm, which are main-thread.
+    static OperationTimeoutGuard* armed_backstop() {
+        return s_armed_backstop.load(std::memory_order_acquire);
+    }
+
+    /// @see armed_backstop()
+    static OperationTimeoutGuard* armed_grace() {
+        return s_armed_grace.load(std::memory_order_acquire);
     }
 
     [[nodiscard]] bool registered() const {
         return registered_.load();
     }
 
-    [[nodiscard]] static bool transport_error(const MoonrakerError& err) {
-        return err.type == MoonrakerErrorType::TIMEOUT ||
-               err.type == MoonrakerErrorType::CONNECTION_LOST;
+  private:
+    /// The armed fallback's view of the printer's busy flag, deferred out of
+    /// the subject notification by observe_int_sync().
+    void on_idle_report(lv_subject_t* subject, bool busy_now) {
+        if (!fallback_.armed) {
+            return;
+        }
+        // Edge_immediate with an idle printer at arm: the macro may never have
+        // run (the socket was already down at send), or its busy status may
+        // simply not have arrived before the drop. A busy report proves it is
+        // running; failing outright on the first idle report would mis-fire on
+        // a status frame that merely lags the macro's start, so the never-busy
+        // case waits out the grace window like the line-driven collectors do.
+        if (fallback_.edge_immediate && !fallback_.was_busy_at_arm) {
+            if (busy_now) {
+                fallback_.was_busy_at_arm = true;
+                return;
+            }
+            begin_grace(subject, /*idle_completes=*/false);
+            return;
+        }
+        if (busy_now) {
+            return;
+        }
+        if (fallback_.edge_immediate) {
+            conclude_idle();
+            return;
+        }
+        // Line-driven: result lines can trail the edge. Give them a grace
+        // window before concluding the results were lost; the long ceiling
+        // backstop still covers the still-busy case above this.
+        begin_grace(subject, /*idle_completes=*/true);
     }
 
-  private:
+    /// Wait out kEdgeGraceMs before acting on an idle report; a busy report
+    /// inside the window means the macro is running after all, and cancels it.
+    /// @param idle_completes True when a printer still idle at the end of the
+    ///        window means the run finished and only its result lines were lost;
+    ///        false when the printer was never seen busy, where a still-idle
+    ///        printer means the macro may never have run at all.
+    void begin_grace(lv_subject_t* subject, bool idle_completes) {
+        fallback_.grace.begin(kEdgeGraceMs, [this, subject, idle_completes]() {
+            if (!fallback_.armed || completed()) {
+                fallback_.grace.end();
+                return;
+            }
+            if (subject && lv_subject_get_int(subject) == 1) {
+                fallback_.was_busy_at_arm = true;
+                fallback_.grace.end();
+                return;
+            }
+            if (idle_completes) {
+                conclude_idle();
+            } else {
+                conclude_unrecovered(kMacroMayNotHaveRun);
+            }
+        });
+        s_armed_grace.store(&fallback_.grace, std::memory_order_release);
+    }
+
+    /// Hand the owner its terminal answer on the next main-thread tick. The
+    /// owner's handler unregisters the collector, and the collector owns this
+    /// core along with the timer or observer context whose callback is running,
+    /// so an inline call would free both mid-call. The queued lambda carries a
+    /// strong owner reference, so the collector is alive to receive the call and
+    /// is destroyed on the main thread.
+    void conclude_idle() {
+        auto owner = owner_.lock();
+        auto on_idle = std::move(fallback_.on_idle);
+        disarm_idle_fallback();
+        if (!on_idle || !owner) {
+            return;
+        }
+        helix::ui::queue_update("CalibrationCollectorCore::conclude_idle",
+                                [owner, on_idle = std::move(on_idle)]() { on_idle(); });
+    }
+
+    /// @see conclude_idle()
+    void conclude_unrecovered(const char* why) {
+        auto owner = owner_.lock();
+        auto on_lost = std::move(fallback_.on_unrecovered);
+        disarm_idle_fallback();
+        if (!on_lost || !owner) {
+            return;
+        }
+        helix::ui::queue_update("CalibrationCollectorCore::conclude_unrecovered",
+                                [owner, on_lost = std::move(on_lost), why]() { on_lost(why); });
+    }
+
     static uint64_t next_id() {
         static std::atomic<uint64_t> s_collector_id{0};
         return ++s_collector_id;
     }
 
     IMoonrakerClient& client_;
-    /// False once the core is destroyed; queued main-thread work re-checks it
-    /// before touching members, so a terminal error racing the arm cannot read
-    /// freed storage.
-    std::shared_ptr<std::atomic<bool>> alive_token_{std::make_shared<std::atomic<bool>>(true)};
+    /// The collector that holds this core, weakly: see start(). Queued
+    /// main-thread work locks it, so work that outlives the collector is
+    /// dropped and work that does not run pins the destruction to this thread.
+    std::weak_ptr<void> owner_;
     std::string handler_name_;
     std::atomic<bool> registered_{false};
     std::atomic<bool> completed_{false};
@@ -567,6 +599,23 @@ class CalibrationCollectorCore { // NAMESPACE_OK: sibling to the six collectors 
     /// How long the line-driven collectors let result lines trail the
     /// busy->idle edge before concluding they were lost to the outage.
     static constexpr uint32_t kEdgeGraceMs = 3000;
+
+    /// The answer for a printer that was never seen busy: nothing proves the
+    /// macro reached it before the socket dropped.
+    static constexpr const char* kMacroMayNotHaveRun =
+        "the macro may not have run before the connection dropped";
+
+    /// Atomic because the destructor may run on the WebSocket thread while a
+    /// later calibration arms from the main thread.
+    static std::atomic<OperationTimeoutGuard*> s_armed_backstop;
+    static std::atomic<OperationTimeoutGuard*> s_armed_grace;
+
+    void clear_armed_timers() {
+        OperationTimeoutGuard* backstop = &fallback_.backstop;
+        s_armed_backstop.compare_exchange_strong(backstop, nullptr);
+        OperationTimeoutGuard* grace = &fallback_.grace;
+        s_armed_grace.compare_exchange_strong(grace, nullptr);
+    }
 
     struct IdleEdgeFallback {
         bool armed = false;
@@ -584,6 +633,18 @@ class CalibrationCollectorCore { // NAMESPACE_OK: sibling to the six collectors 
     } fallback_;
 };
 
+std::atomic<OperationTimeoutGuard*> CalibrationCollectorCore::s_armed_backstop{nullptr};
+std::atomic<OperationTimeoutGuard*> CalibrationCollectorCore::s_armed_grace{nullptr};
+
+namespace helix::calibration {
+OperationTimeoutGuard* armed_idle_backstop() {
+    return CalibrationCollectorCore::armed_backstop();
+}
+OperationTimeoutGuard* armed_idle_grace() {
+    return CalibrationCollectorCore::armed_grace();
+}
+} // namespace helix::calibration
+
 /// The one RPC-error policy every calibration driver shares: absorb transport
 /// losses (keep the collector listening — the macro may still be running),
 /// terminate on the printer's own opinion. @p extra runs ahead of the absorb
@@ -594,7 +655,7 @@ void report_collector_rpc_error( // NAMESPACE_OK: anonymous-namespace helper bes
     const char* cmd, PrinterState& state, const std::shared_ptr<Collector>& collector,
     const MoonrakerAdvancedAPI::ErrorCallback& on_error, const MoonrakerError& err,
     uint32_t backstop_ms, const std::function<void()>& extra = nullptr) {
-    if (CalibrationCollectorCore::transport_error(err)) {
+    if (err.is_transport_loss()) {
         if (extra)
             extra();
         spdlog::warn("[MoonrakerAPI] {} RPC lost to the transport ({}); collector still "
@@ -640,14 +701,13 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
 
     void start() {
         auto self = shared_from_this();
-        core_.start([self](const json& msg) { self->on_gcode_response(msg); });
+        core_.start(self, [self](const json& msg) { self->on_gcode_response(msg); });
         core_.set_idle_fallback(
-            [self]() {
-                self->complete_error(
-                    "PID calibration result unavailable - the printer finished before the result "
-                    "arrived");
+            [this]() {
+                complete_error("PID calibration result unavailable - the printer finished before "
+                               "the result arrived");
             },
-            [self](const std::string& why) { self->complete_error("PID_CALIBRATE " + why); });
+            [this](const std::string& why) { complete_error("PID_CALIBRATE " + why); });
     }
 
     void unregister() {
@@ -719,9 +779,10 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
 
   private:
     void complete_success(float kp, float ki, float kd) {
-        // The completion may be the collector's last user; the fallback timer
-        // callbacks hold only this raw pointer, so pin the object until the
-        // callback chain returns (prestonbrown/helixscreen#1543).
+        // unregister() below drops the client handler map's reference, which is
+        // the collector's only strong owner, and the fallback handlers hold a
+        // bare `this`. Pin the object for the rest of the callback chain
+        // (prestonbrown/helixscreen#1543).
         auto keepalive = shared_from_this();
         if (!core_.try_complete())
             return;
@@ -733,9 +794,10 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
     }
 
     void complete_error(const std::string& message) {
-        // The completion may be the collector's last user; the fallback timer
-        // callbacks hold only this raw pointer, so pin the object until the
-        // callback chain returns (prestonbrown/helixscreen#1543).
+        // unregister() below drops the client handler map's reference, which is
+        // the collector's only strong owner, and the fallback handlers hold a
+        // bare `this`. Pin the object for the rest of the callback chain
+        // (prestonbrown/helixscreen#1543).
         auto keepalive = shared_from_this();
         if (!core_.try_complete())
             return;
@@ -788,14 +850,13 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
 
     void start() {
         auto self = shared_from_this();
-        core_.start([self](const json& msg) { self->on_gcode_response(msg); });
+        core_.start(self, [self](const json& msg) { self->on_gcode_response(msg); });
         core_.set_idle_fallback(
-            [self]() {
-                self->complete_error(
-                    "MPC calibration result unavailable - the printer finished before the result "
-                    "arrived");
+            [this]() {
+                complete_error("MPC calibration result unavailable - the printer finished before "
+                               "the result arrived");
             },
-            [self](const std::string& why) { self->complete_error("MPC_CALIBRATE " + why); });
+            [this](const std::string& why) { complete_error("MPC_CALIBRATE " + why); });
     }
 
     void unregister() {
@@ -947,9 +1008,10 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
     }
 
     void complete_success() {
-        // The completion may be the collector's last user; the fallback timer
-        // callbacks hold only this raw pointer, so pin the object until the
-        // callback chain returns (prestonbrown/helixscreen#1543).
+        // unregister() below drops the client handler map's reference, which is
+        // the collector's only strong owner, and the fallback handlers hold a
+        // bare `this`. Pin the object for the rest of the callback chain
+        // (prestonbrown/helixscreen#1543).
         auto keepalive = shared_from_this();
         if (!core_.try_complete())
             return;
@@ -962,9 +1024,10 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
     }
 
     void complete_error(const std::string& message) {
-        // The completion may be the collector's last user; the fallback timer
-        // callbacks hold only this raw pointer, so pin the object until the
-        // callback chain returns (prestonbrown/helixscreen#1543).
+        // unregister() below drops the client handler map's reference, which is
+        // the collector's only strong owner, and the fallback handlers hold a
+        // bare `this`. Pin the object for the rest of the callback chain
+        // (prestonbrown/helixscreen#1543).
         auto keepalive = shared_from_this();
         if (!core_.try_complete())
             return;
@@ -1028,10 +1091,10 @@ class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollec
 
     void start() {
         auto self = shared_from_this();
-        core_.start([self](const json& msg) { self->on_gcode_response(msg); });
+        core_.start(self, [self](const json& msg) { self->on_gcode_response(msg); });
         core_.set_idle_fallback(
-            [self]() { self->on_command_finished(); },
-            [self](const std::string& why) { self->complete_error(self->command_ + " " + why); },
+            [this]() { on_command_finished(); },
+            [this](const std::string& why) { complete_error(command_ + " " + why); },
             /*edge_immediate=*/true);
     }
 
@@ -1117,9 +1180,10 @@ class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollec
     }
 
     void complete_success() {
-        // The completion may be the collector's last user; the fallback timer
-        // callbacks hold only this raw pointer, so pin the object until the
-        // callback chain returns (prestonbrown/helixscreen#1543).
+        // unregister() below drops the client handler map's reference, which is
+        // the collector's only strong owner, and the fallback handlers hold a
+        // bare `this`. Pin the object for the rest of the callback chain
+        // (prestonbrown/helixscreen#1543).
         auto keepalive = shared_from_this();
         if (!core_.try_complete()) {
             return;
@@ -1134,9 +1198,10 @@ class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollec
     }
 
     void complete_error(const std::string& message) {
-        // The completion may be the collector's last user; the fallback timer
-        // callbacks hold only this raw pointer, so pin the object until the
-        // callback chain returns (prestonbrown/helixscreen#1543).
+        // unregister() below drops the client handler map's reference, which is
+        // the collector's only strong owner, and the fallback handlers hold a
+        // bare `this`. Pin the object for the rest of the callback chain
+        // (prestonbrown/helixscreen#1543).
         auto keepalive = shared_from_this();
         if (!core_.try_complete()) {
             return;
@@ -1217,15 +1282,14 @@ class InputShaperCollector : public std::enable_shared_from_this<InputShaperColl
 
     void start() {
         auto self = shared_from_this();
-        core_.start([self](const json& msg) { self->on_gcode_response(msg); });
+        core_.start(self, [self](const json& msg) { self->on_gcode_response(msg); });
         spdlog::debug("[InputShaperCollector] Started collecting responses for axis {}", axis_);
         core_.set_idle_fallback(
-            [self]() {
-                self->complete_error(
-                    "Resonance test result unavailable - the printer finished before the result "
-                    "arrived");
+            [this]() {
+                complete_error("Resonance test result unavailable - the printer finished before "
+                               "the result arrived");
             },
-            [self](const std::string& why) { self->complete_error("SHAPER_CALIBRATE " + why); });
+            [this](const std::string& why) { complete_error("SHAPER_CALIBRATE " + why); });
     }
 
     void unregister() {
@@ -1608,9 +1672,10 @@ class InputShaperCollector : public std::enable_shared_from_this<InputShaperColl
     }
 
     void complete_success() {
-        // The completion may be the collector's last user; the fallback timer
-        // callbacks hold only this raw pointer, so pin the object until the
-        // callback chain returns (prestonbrown/helixscreen#1543).
+        // unregister() below drops the client handler map's reference, which is
+        // the collector's only strong owner, and the fallback handlers hold a
+        // bare `this`. Pin the object for the rest of the callback chain
+        // (prestonbrown/helixscreen#1543).
         auto keepalive = shared_from_this();
         if (!core_.try_complete()) {
             return;
@@ -1678,9 +1743,10 @@ class InputShaperCollector : public std::enable_shared_from_this<InputShaperColl
     }
 
     void complete_error(const std::string& message) {
-        // The completion may be the collector's last user; the fallback timer
-        // callbacks hold only this raw pointer, so pin the object until the
-        // callback chain returns (prestonbrown/helixscreen#1543).
+        // unregister() below drops the client handler map's reference, which is
+        // the collector's only strong owner, and the fallback handlers hold a
+        // bare `this`. Pin the object for the rest of the callback chain
+        // (prestonbrown/helixscreen#1543).
         auto keepalive = shared_from_this();
         if (!core_.try_complete()) {
             return;
@@ -1754,15 +1820,14 @@ class NoiseCheckCollector : public std::enable_shared_from_this<NoiseCheckCollec
 
     void start() {
         auto self = shared_from_this();
-        core_.start([self](const json& msg) { self->on_gcode_response(msg); });
+        core_.start(self, [self](const json& msg) { self->on_gcode_response(msg); });
         spdlog::debug("[NoiseCheckCollector] Started collecting responses");
         core_.set_idle_fallback(
-            [self]() {
-                self->complete_error(
-                    "Noise measurement result unavailable - the printer finished before the "
-                    "result arrived");
+            [this]() {
+                complete_error("Noise measurement result unavailable - the printer finished "
+                               "before the result arrived");
             },
-            [self](const std::string& why) { self->complete_error("MEASURE_AXES_NOISE " + why); });
+            [this](const std::string& why) { complete_error("MEASURE_AXES_NOISE " + why); });
     }
 
     void unregister() {
@@ -1853,9 +1918,10 @@ class NoiseCheckCollector : public std::enable_shared_from_this<NoiseCheckCollec
     }
 
     void complete_success(float noise_level) {
-        // The completion may be the collector's last user; the fallback timer
-        // callbacks hold only this raw pointer, so pin the object until the
-        // callback chain returns (prestonbrown/helixscreen#1543).
+        // unregister() below drops the client handler map's reference, which is
+        // the collector's only strong owner, and the fallback handlers hold a
+        // bare `this`. Pin the object for the rest of the callback chain
+        // (prestonbrown/helixscreen#1543).
         auto keepalive = shared_from_this();
         if (!core_.try_complete()) {
             return;
@@ -1870,9 +1936,10 @@ class NoiseCheckCollector : public std::enable_shared_from_this<NoiseCheckCollec
     }
 
     void complete_error(const std::string& message) {
-        // The completion may be the collector's last user; the fallback timer
-        // callbacks hold only this raw pointer, so pin the object until the
-        // callback chain returns (prestonbrown/helixscreen#1543).
+        // unregister() below drops the client handler map's reference, which is
+        // the collector's only strong owner, and the fallback handlers hold a
+        // bare `this`. Pin the object for the rest of the callback chain
+        // (prestonbrown/helixscreen#1543).
         auto keepalive = shared_from_this();
         if (!core_.try_complete()) {
             return;
@@ -1925,11 +1992,11 @@ class BedMeshProgressCollector : public std::enable_shared_from_this<BedMeshProg
 
     void start() {
         auto self = shared_from_this();
-        core_.start([self](const json& msg) { self->on_gcode_response(msg); });
+        core_.start(self, [self](const json& msg) { self->on_gcode_response(msg); });
         spdlog::debug("[BedMeshProgressCollector] Started collecting responses");
         core_.set_idle_fallback(
-            [self]() { self->on_command_finished(); },
-            [self](const std::string& why) { self->complete_error("BED_MESH_CALIBRATE " + why); },
+            [this]() { on_command_finished(); },
+            [this](const std::string& why) { complete_error("BED_MESH_CALIBRATE " + why); },
             /*edge_immediate=*/true);
     }
 
@@ -2023,9 +2090,10 @@ class BedMeshProgressCollector : public std::enable_shared_from_this<BedMeshProg
     }
 
     void complete_success() {
-        // The completion may be the collector's last user; the fallback timer
-        // callbacks hold only this raw pointer, so pin the object until the
-        // callback chain returns (prestonbrown/helixscreen#1543).
+        // unregister() below drops the client handler map's reference, which is
+        // the collector's only strong owner, and the fallback handlers hold a
+        // bare `this`. Pin the object for the rest of the callback chain
+        // (prestonbrown/helixscreen#1543).
         auto keepalive = shared_from_this();
         if (!core_.try_complete()) {
             return; // Already completed
@@ -2046,9 +2114,10 @@ class BedMeshProgressCollector : public std::enable_shared_from_this<BedMeshProg
     }
 
     void complete_error(const std::string& message) {
-        // The completion may be the collector's last user; the fallback timer
-        // callbacks hold only this raw pointer, so pin the object until the
-        // callback chain returns (prestonbrown/helixscreen#1543).
+        // unregister() below drops the client handler map's reference, which is
+        // the collector's only strong owner, and the fallback handlers hold a
+        // bare `this`. Pin the object for the rest of the callback chain
+        // (prestonbrown/helixscreen#1543).
         auto keepalive = shared_from_this();
         if (!core_.try_complete()) {
             return;

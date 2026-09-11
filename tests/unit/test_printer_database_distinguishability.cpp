@@ -252,9 +252,8 @@ TEST_CASE("every show_in_list printer database entry is distinguishable on its o
         const auto known = known_collisions().find(id);
         INFO(id << " (" << name << "): " << describe(hw));
         INFO("detected '" << result.type_name << "' " << result.confidence << "% via "
-                          << result.reason << "; runner-up '" << result.runner_up_type_name
-                          << "' " << result.runner_up_confidence << "%, margin "
-                          << result.margin());
+                          << result.reason << "; runner-up '" << result.runner_up_type_name << "' "
+                          << result.runner_up_confidence << "%, margin " << result.margin());
         if (collision.empty()) {
             INFO(id << " is listed in known_collisions() but is now distinguishable: "
                        "remove it from the list");

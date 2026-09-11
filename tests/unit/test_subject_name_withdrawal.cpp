@@ -24,6 +24,7 @@
 
 #include "../test_fixtures.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "printer_state.h"
 #include "static_panel_registry.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"
@@ -164,5 +165,33 @@ TEST_CASE_METHOD(XMLTestFixture, "Converted overlays withdraw their subject name
             INFO(name);
             CHECK(lv_xml_get_subject(nullptr, name) == nullptr);
         }
+    }
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "A destroyed PrinterState withdraws the extruder subject names",
+                 "[subject-scope][1538]") {
+    // extruder_temp and extruder_target are published by PrinterTemperatureState,
+    // whose owner is a stack member of this very fixture. Nine production layouts
+    // bind both names, so a name left resolving into storage that has gone out of
+    // scope is an observer installed inside freed memory on the next
+    // lv_xml_create(). The names differ from their members, so no macro derives
+    // them - they are handed to the SubjectManager at the call site or not at all.
+    static constexpr const char* kNames[] = {"extruder_temp", "extruder_target"};
+
+    {
+        helix::PrinterState scoped;
+        scoped.init_subjects(true);
+
+        // The absence assertions below only mean anything if the names were
+        // there to withdraw, resolving to THIS state's storage.
+        REQUIRE(lv_xml_get_subject(nullptr, "extruder_temp") ==
+                scoped.get_active_extruder_temp_subject());
+        REQUIRE(lv_xml_get_subject(nullptr, "extruder_target") ==
+                scoped.get_active_extruder_target_subject());
+    }
+
+    for (const char* name : kNames) {
+        INFO(name);
+        CHECK(lv_xml_get_subject(nullptr, name) == nullptr);
     }
 }

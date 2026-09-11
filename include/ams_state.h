@@ -969,13 +969,6 @@ class AmsState {
         return &dryer_time_text_;
     }
 
-    /// Get subject for formatted dryer humidity text (e.g., "35%" or "---")
-    [[nodiscard]] lv_subject_t* get_dryer_humidity_text_subject();
-
-    /// Get subject for dryer info bar visibility (1 = show, 0 = hide)
-    /// Shows when dryer_supported OR humidity sensor exists
-    [[nodiscard]] lv_subject_t* get_dryer_info_visible_subject();
-
     /// Select which AMS unit the scalar dryer subjects mirror (the opened unit).
     void set_dryer_mirror_unit(int unit);
 
@@ -1719,6 +1712,13 @@ class AmsState {
     IMoonrakerAPI* api_ = nullptr;
     int last_synced_spoolman_id_ = 0; ///< Track to avoid duplicate set_active_spool calls
 
+    /// Resolved (slot, loaded) identity behind the "Currently Loaded" card.
+    /// Backend status frames arrive several times a second and each one re-runs
+    /// sync_current_loaded_from_backend(), so only a change of this pair is
+    /// worth a log line.
+    int last_synced_loaded_slot_ = -1;
+    bool last_synced_filament_loaded_ = false;
+
     /// S5+S7 store subset shared by both commit_external_spool_edit arms:
     /// persist non-empty records, erase empty ones (kills empty
     /// assigned=true records).
@@ -1926,11 +1926,6 @@ class AmsState {
     char dryer_target_temp_text_buf_[16];
     lv_subject_t dryer_time_text_;
     char dryer_time_text_buf_[32];
-
-    // Dryer humidity and info bar visibility subjects
-    lv_subject_t dryer_humidity_text_;
-    char dryer_humidity_text_buf_[8]; ///< "35%" or "---"
-    lv_subject_t dryer_info_visible_; ///< 1 when info bar should show
 
     // Dryer modal editing subjects (user-adjustable values)
     lv_subject_t modal_target_temp_;  ///< Modal's target temp in °C (raw int subject)

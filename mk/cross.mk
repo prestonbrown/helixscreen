@@ -834,23 +834,10 @@ SUBMODULE_CXXFLAGS += -DHELIX_MAX_FONT_TIER=$(HELIX_MAX_FONT_TIER)
 #            CONFIG_COMPILER_CXX_RTTI. Applied to our C++ only, NOT to
 #            SUBMODULE_CXXFLAGS -- libhv throws, and its catch clauses want
 #            typeinfo for the thrown types.
-ifeq ($(PLATFORM_TARGET),cc1)
-    CFLAGS += -DNDEBUG
-    CXXFLAGS += -DNDEBUG -fno-rtti
-    SUBMODULE_CFLAGS += -DNDEBUG
-    SUBMODULE_CXXFLAGS += -DNDEBUG
-endif
-
-# AD5M sits in the same 110-128MB class as the CC1 and pays the same page-cache
-# competition with Klipper (see the block comment above).
-ifeq ($(PLATFORM_TARGET),ad5m)
-    CFLAGS += -DNDEBUG
-    CXXFLAGS += -DNDEBUG -fno-rtti
-    SUBMODULE_CFLAGS += -DNDEBUG
-    SUBMODULE_CXXFLAGS += -DNDEBUG
-endif
-
-ifeq ($(PLATFORM_TARGET),ad5m-br)
+# ad5m-br is the same AD5M hardware built with the buildroot-provided
+# toolchain (kmod) rather than the Docker cross-toolchain, so it sits in the
+# same 110-128MB class as ad5m and cc1 and gets the same treatment.
+ifneq (,$(filter cc1 ad5m ad5m-br,$(PLATFORM_TARGET)))
     CFLAGS += -DNDEBUG
     CXXFLAGS += -DNDEBUG -fno-rtti
     SUBMODULE_CFLAGS += -DNDEBUG
@@ -2675,10 +2662,9 @@ RELEASE_VERSION := v$(VERSION)
 
 # Top-level asset dirs to include in release tarballs, derived from the shared
 # packaging manifest (scripts/gen-packaging-manifest.sh) minus test-data dirs
-# that are too large to ship. This replaces the previous hand-maintained
-# whitelist, which silently missed assets/config post-bfeba7c26 (v0.99.33
-# regression, fix e0840a4b6) and has also been missing assets/sounds all along
-# (tracker music used by snake game and settings UI).
+# that are too large to ship. This replaces a hand-maintained whitelist, which
+# is prone to silently missing a directory — assets/config and assets/sounds
+# (tracker music used by snake game and settings UI) both slipped through it.
 #
 # Adding a new assets/<foo>/ directory to the source tree will now ship it
 # automatically. To explicitly exclude something, add it to RELEASE_ASSETS_EXCLUDE.

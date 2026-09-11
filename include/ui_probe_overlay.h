@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 
 #include "klipper_config_editor.h"
+#include "operation_timeout_guard.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
@@ -73,6 +74,18 @@ class ProbeOverlay : public OverlayBase {
 
     /// Show probe accuracy results in a modal
     void show_accuracy_results(const std::string& results_line);
+
+    /// Bound the wait after PROBE_ACCURACY's RPC is lost to the transport
+    ///
+    /// The absorb path keeps the gcode_response handler registered because the
+    /// printer may still be measuring, but nothing else can conclude the run:
+    /// progress advances only on arriving sample lines, and the handler is
+    /// removed only by a results line, an error line, or the next run. Without
+    /// this the modal reports "measuring" for as long as the overlay lives.
+    /// @param handler_name The run this backstop belongs to; a newer run owns
+    ///        the modal and is left alone.
+    /// @param backstop_ms Ceiling to wait, matching the RPC's own budget.
+    void arm_accuracy_backstop(const std::string& handler_name, uint32_t backstop_ms);
 
     /// Close the accuracy results modal
     void handle_accuracy_close();
@@ -182,6 +195,9 @@ class ProbeOverlay : public OverlayBase {
 
     // Gcode response handler name (for unregistering)
     std::string probe_acc_handler_name_;
+
+    // Ceiling on an absorbed transport loss during PROBE_ACCURACY
+    OperationTimeoutGuard probe_acc_backstop_;
 
     // Config editor
     helix::system::KlipperConfigEditor config_editor_;

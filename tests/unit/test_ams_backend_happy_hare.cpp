@@ -2198,6 +2198,10 @@ TEST_CASE("Happy Hare parses live filament_heater temp/target", "[ams][happy_har
 TEST_CASE("Happy Hare array drying_state: complete is not active", "[ams][happy_hare][emu]") {
     AmsBackendHappyHareTestHelper helper;
     helper.initialize_test_gates(4);
+    // A drying_state array ships on every Happy Hare install, so a heater has to be
+    // configured for the dryer to be supported at all.
+    helper.test_apply_heater_config(
+        {{"mmu_machine", {{"filament_heater", "heater_generic MMU_heater"}}}});
     helper.test_parse_mmu_state(nlohmann::json{{"drying_state", {"complete", "", "", ""}}});
     REQUIRE(helper.get_dryer_info().supported);
     REQUIRE_FALSE(helper.get_dryer_info().active);
@@ -2212,6 +2216,9 @@ TEST_CASE("Happy Hare array drying_state: complete is not active", "[ams][happy_
 TEST_CASE_METHOD(AmsBackendHappyHareTestHelper, "EMU drying_state as array",
                  "[ams][happy_hare][emu]") {
     initialize_test_gates(4);
+    // A drying_state array ships on every Happy Hare install, so a heater has to be
+    // configured for the dryer to be supported at all.
+    test_apply_heater_config({{"mmu_machine", {{"filament_heater", "heater_generic MMU_heater"}}}});
 
     SECTION("all empty strings means supported but not active") {
         nlohmann::json mmu_data = {{"drying_state", {"", "", "", ""}}};
@@ -2505,9 +2512,12 @@ TEST_CASE_METHOD(AmsBackendHappyHareTestHelper, "Full EMU status integration",
     // Sensors (aggregate format)
     REQUIRE(info.units[0].has_slot_sensors == true);
 
-    // Dryer (array format = supported but inactive)
+    // Dryer: a stock EMU is passive, a sealed box and a sensor per lane with no heater.
+    // The capture carries a drying_state array because Happy Hare's environment manager
+    // is always loaded, which says nothing about whether a heater is fitted. Offering
+    // drying controls here would send MMU_HEATER at a box that has none.
     auto dryer = get_dryer_info();
-    REQUIRE(dryer.supported == true);
+    REQUIRE(dryer.supported == false);
     REQUIRE(dryer.active == false);
 
     // v4 fields
@@ -3979,4 +3989,153 @@ TEST_CASE("Happy Hare v3 config still resolves when no live unit object exists",
     REQUIRE(info.units[0].environment.has_value());
     CHECK(info.units[0].environment->temperature_c == Catch::Approx(24.5f));
     CHECK(info.units[0].environment->humidity_pct == Catch::Approx(38.0f));
+}
+
+TEST_CASE("A passive enclosure reports no dryer even though drying_state is published",
+          "[ams][happy_hare][v4][dryer][emu]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+
+    // Stock EMU: a sealed box and a sensor per lane, no heater anywhere. Happy Hare's
+    // environment manager is always loaded, so it publishes drying_state regardless,
+    // and the array carries one entry per gate whether or not a heater exists.
+    helper.test_apply_heater_config(
+        {{"mmu_machine",
+          {{"environment_sensors", "temperature_sensor Lane_0, temperature_sensor Lane_1, "
+                                   "temperature_sensor Lane_2, temperature_sensor Lane_3"}}}});
+    helper.test_parse_mmu_state({{"drying_state", nlohmann::json::array({"", "", "", ""})}});
+
+    auto d = helper.get_dryer_info();
+    // Offering drying controls here sends MMU_HEATER at a box with no heater, which
+    // Happy Hare rejects with "No MMU heater configured".
+    CHECK_FALSE(d.supported);
+}
+
+TEST_CASE("A configured heater still reports a dryer", "[ams][happy_hare][v4][dryer]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+
+    // Known positive for the case above: same drying_state array, but a heater exists.
+    helper.test_apply_heater_config(
+        {{"mmu_machine", {{"filament_heater", "heater_generic MMU_heater"}}}});
+    helper.test_parse_mmu_state({{"drying_state", nlohmann::json::array({"", "", "", ""})}});
+
+    CHECK(helper.get_dryer_info().supported);
+}
+
+TEST_CASE("A per-gate drying_state array reaches every gate's zone",
+          "[ams][happy_hare][emu][zones]") {
+    using namespace helix::printer;
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(2);
+    helper.test_apply_heater_config(
+        {{"mmu_machine",
+          {{"filament_heaters", "heater_generic Lane_0_heater, heater_generic Lane_1_heater"},
+           {"environment_sensors", "temperature_sensor Lane_0, temperature_sensor Lane_1"}}}});
+    // The second gate's state must survive scanning past the first: stopping at
+    // the first hit would leave every later gate unrecorded.
+    helper.test_parse_mmu_state({{"drying_state", nlohmann::json::array({"queued", "active"})}});
+
+    const auto zones = helper.get_environment_zones();
+
+    REQUIRE(zones.size() == 2);
+    CHECK(zones[0].state == ZoneDryingState::Queued);
+    CHECK(zones[1].state == ZoneDryingState::Active);
+}
+
+TEST_CASE("A non-string drying_state entry still occupies its gate",
+          "[ams][happy_hare][emu][zones]") {
+    using namespace helix::printer;
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(3);
+    helper.test_apply_heater_config(
+        {{"mmu_machine",
+          {{"filament_heaters", "heater_generic Lane_0_heater, heater_generic Lane_1_heater, "
+                                "heater_generic Lane_2_heater"},
+           {"environment_sensors", "temperature_sensor Lane_0, temperature_sensor Lane_1, "
+                                   "temperature_sensor Lane_2"}}}});
+    // A non-string entry between two strings must still occupy its gate slot, or
+    // gate 2's state lands on gate 1 instead.
+    helper.test_parse_mmu_state(
+        {{"drying_state", nlohmann::json::array({"queued", nullptr, "active"})}});
+
+    const auto zones = helper.get_environment_zones();
+
+    REQUIRE(zones.size() == 3);
+    CHECK(zones[2].state == ZoneDryingState::Active);
+}
+
+TEST_CASE("Happy Hare retargets a running dryer but cannot move its clock",
+          "[ams][happy_hare][dryer][capability]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.test_apply_heater_config(
+        {{"mmu_machine", {{"filament_heater", "heater_generic MMU_heater"}}}});
+
+    auto d = helper.get_dryer_info();
+    REQUIRE(d.supported);
+    // MMU_HEATER TEMP=<t> with DRY unset re-sends the setpoint and updates the cycle's
+    // tracked target without stopping it or touching the timer.
+    CHECK(d.supports_live_temp);
+    // TIMER is read only on the DRY=1 path, and DRY=1 during a cycle is refused with
+    // "MMU already in filament drying cycle", so changing the duration needs a restart.
+    CHECK_FALSE(d.supports_live_duration);
+}
+
+TEST_CASE("Per-gate heaters carry the same live-adjust answer as a shared one",
+          "[ams][happy_hare][dryer][capability]") {
+    AmsBackendHappyHareTestHelper helper;
+    // EMU-shaped config: a heater named per gate rather than one shared enclosure heater.
+    // The command surface is identical, so the answer must not depend on the config form.
+    helper.test_apply_heater_config(
+        {{"mmu_machine",
+          {{"filament_heaters", "heater_generic Lane_0_heater, heater_generic Lane_1_heater"}}}});
+
+    auto d = helper.get_dryer_info();
+    REQUIRE(d.supported);
+    CHECK(d.supports_live_temp);
+    CHECK_FALSE(d.supports_live_duration);
+}
+
+TEST_CASE("Retargeting a running dryer's temperature leaves the cycle running",
+          "[ams][happy_hare][dryer][update]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.test_apply_heater_config(
+        {{"mmu_machine", {{"filament_heater", "heater_generic MMU_heater"}}}});
+    helper.clear_captured_gcodes();
+
+    REQUIRE(helper.update_drying(50.0f).success());
+
+    // A bare TEMP= re-sends the setpoint. DRY=1 would start a fresh cycle and TIMER
+    // would reset the clock, so neither may appear.
+    REQUIRE(helper.has_gcode("MMU_HEATER TEMP=50"));
+    for (const auto& g : helper.captured_gcodes) {
+        CHECK(g.find("DRY=1") == std::string::npos);
+        CHECK(g.find("TIMER=") == std::string::npos);
+        CHECK(g.find("STOP=1") == std::string::npos);
+    }
+}
+
+TEST_CASE("Changing a running dryer's duration restarts the cycle",
+          "[ams][happy_hare][dryer][update]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.test_apply_heater_config(
+        {{"mmu_machine", {{"filament_heater", "heater_generic MMU_heater"}}}});
+    helper.clear_captured_gcodes();
+
+    REQUIRE(helper.update_drying(50.0f, 90).success());
+
+    // TIMER is read only on the DRY=1 path, and DRY=1 mid-cycle is refused, so the
+    // only way to move the clock is to stop first.
+    CHECK(helper.has_gcode("MMU_HEATER STOP=1"));
+    CHECK(helper.has_gcode("MMU_HEATER DRY=1 TEMP=50 TIMER=90"));
+}
+
+TEST_CASE("An update that changes nothing sends nothing", "[ams][happy_hare][dryer][update]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.test_apply_heater_config(
+        {{"mmu_machine", {{"filament_heater", "heater_generic MMU_heater"}}}});
+    helper.clear_captured_gcodes();
+
+    CHECK(helper.update_drying().success());
+    CHECK(helper.captured_gcodes.empty());
 }

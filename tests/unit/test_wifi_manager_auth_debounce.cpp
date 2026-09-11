@@ -68,7 +68,7 @@ TEST_CASE("WiFiManager: transient AUTH_FAILED preempted by CONNECTED delivers su
 
     int calls = 0;
     bool last_success = false;
-    WiFiManagerTestAccess::begin_connect(*wm, [&](bool ok, const std::string&) {
+    WiFiManagerTestAccess::begin_connect(*wm, [&](bool ok, const std::string&, WiFiResult) {
         calls++;
         last_success = ok;
     });
@@ -104,7 +104,7 @@ TEST_CASE("WiFiManager: AUTH_FAILED with no CONNECTED surfaces failure after gra
     int calls = 0;
     bool last_success = true;
     std::string last_error;
-    WiFiManagerTestAccess::begin_connect(*wm, [&](bool ok, const std::string& err) {
+    WiFiManagerTestAccess::begin_connect(*wm, [&](bool ok, const std::string& err, WiFiResult) {
         calls++;
         last_success = ok;
         last_error = err;

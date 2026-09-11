@@ -22,5 +22,20 @@ set -e
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$REPO_ROOT"
 
+# ---- helix-claim: announce a merge so peers need not guess (advisory) -------
+# Silent unless another session holds this tree. $PPID is the git process
+# itself, so the claim dies with the merge and a crash needs no cleanup.
+# A merge that STOPPED to be resolved lands here; a clean one runs
+# pre-merge-commit instead, which takes the same claim.
+if [ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]; then
+    _lib="$(dirname "$0")/lib/claim-tree.sh"
+    if [ -r "$_lib" ]; then
+        # shellcheck source=lib/claim-tree.sh
+        . "$_lib"
+        claim_tree "merge $(git name-rev --name-only MERGE_HEAD 2>/dev/null || echo '?')" || exit 1
+    fi
+fi
+# ---------------------------------------------------------------------------
+
 # Run quality checks with staged-only mode and auto-fix
 exec ./scripts/quality-checks.sh --staged-only --auto-fix

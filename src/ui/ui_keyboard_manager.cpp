@@ -1269,6 +1269,28 @@ void KeyboardManager::register_textarea(lv_obj_t* textarea) {
     }
 }
 
+void KeyboardManager::unregister_textarea(lv_obj_t* textarea) {
+    if (textarea == nullptr) {
+        return;
+    }
+
+    spdlog::debug("[KeyboardManager] Unregistering textarea: {}", (void*)textarea);
+
+    // The focus pair is what raises and lowers the keyboard. The delete hook is left
+    // in place: it is the manager's own bookkeeping, not part of the offer to type.
+    lv_obj_remove_event_cb(textarea, textarea_focus_event_cb);
+
+    // Out of the input group too, or a physical keyboard still routes here.
+    lv_group_remove_obj(textarea);
+
+    // Already showing for this field: take it away rather than leave it stranded over
+    // whatever replaces it.
+    if (context_textarea_ == textarea) {
+        hide();
+        context_textarea_ = nullptr;
+    }
+}
+
 void KeyboardManager::register_textarea_ex(lv_obj_t* textarea, bool is_password) {
     if (keyboard_ == nullptr) {
         spdlog::error("[KeyboardManager] Not initialized - call init() first");

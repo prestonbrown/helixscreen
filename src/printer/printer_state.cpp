@@ -192,10 +192,6 @@ void PrinterState::deinit_subjects() {
     subjects_initialized_ = false;
 }
 
-void PrinterState::register_temperature_xml_subjects() {
-    temperature_state_.register_xml_subjects();
-}
-
 void PrinterState::init_subjects(bool register_xml) {
     // Detect LVGL reinitialization - display pointer changes when lv_init() called again
     // This happens in test suites where each test reinitializes LVGL but the PrinterState

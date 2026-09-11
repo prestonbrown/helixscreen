@@ -114,10 +114,10 @@ define diagnose_shards
 	for s in $(2); do \
 		echo ""; \
 		echo "$(BOLD)shard $$s$(RESET)"; \
-		$(TEST_BIN) $(3) --shard-count $(NPROCS) --shard-index $$s --list-tests 2>/dev/null \
-			| grep -E '^  ' | sed 's/^  //' > "$(1)/$$s.tests" 2>/dev/null || true; \
+		$(TEST_BIN) $(3) --shard-count $(NPROCS) --shard-index $$s --list-tests --reporter xml 2>/dev/null \
+			| python3 scripts/catch2_shard_tests.py > "$(1)/$$s.tests" 2>/dev/null || true; \
 		n=$$(wc -l < "$(1)/$$s.tests" 2>/dev/null | tr -d ' '); \
-		echo "  ran $${n:-?} test case(s) → $(1)/$$s.tests"; \
+		echo "  ran $${n:-?} test case(s) → $(1)/$$s.tests ($(TEST_BIN) --input-file replays it)"; \
 		fails=$$(grep -oE '^[A-Za-z0-9_/.-]+\.cpp:[0-9]+: FAILED' "$(1)/$$s.log" 2>/dev/null \
 			| sed 's/: FAILED$$//' | sort -u | tr '\n' ' '); \
 		if [ -n "$$fails" ]; then \
@@ -1411,11 +1411,8 @@ test-vacuous: suite-report
 # A test that passes only because of what ran before it. Re-runs each source
 # file's cases alone and compares against the full-suite result, so it costs
 # one extra process per test file on top of the shared report.
-# Zero, tree-wide, verified across 922 files. The one finding this gate was
-# built against (test_grid_edit_mode.cpp "build_default_grid only sets positions
-# for anchor widgets") was fixed on main in 6face7cdc, and re-running the gate
-# against that file confirms it. Keep it at 0: the class is closed and any new
-# finding is a regression.
+# Zero, tree-wide, verified across 922 files. Keep it at 0: the class is
+# closed and any new finding is a regression.
 ORDER_DEP_MAX ?= 0
 ORDER_DEP_JOBS ?= 8
 

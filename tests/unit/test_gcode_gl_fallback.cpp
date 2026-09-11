@@ -15,6 +15,8 @@
 
 #include "gcode_gl_fallback.h"
 
+#include <lvgl.h>
+
 #include "../catch_amalgamated.hpp"
 
 using helix::gcode::gl_draw_error_is_fatal;
@@ -102,3 +104,43 @@ TEST_CASE("gl_renderer_is_denylisted does not match bare Mali without Panfrost",
     // real hard-fault, so we don't have to predict every bad string here.
     REQUIRE_FALSE(gl_renderer_is_denylisted("Mali-G52"));
 }
+
+// ---------------------------------------------------------------------------
+// Init-failure fallback: "no GL at all" must reach the viewer (issue #1555)
+//
+// The denylist and fatal-draw-error layers above only fire once a GL context
+// exists. When the context itself cannot be created — a --test run under
+// SDL_VIDEODRIVER=dummy has no GL, and headless/embedded boards can lack EGL
+// devices — render() returns "GPU not available" every frame without drawing
+// and without any signal the viewer can poll. The viewer's only fallback
+// trigger is render_failed(), so an init failure must surface there too, or
+// the pane stays blank for a whole print with the 2D CPU renderer idle.
+//
+// The test binary forces SDL's dummy video driver process-wide (static
+// initializer in tests/helix_test_fixture.cpp), and SDL2 self-initializes
+// video inside SDL_CreateWindow — so on a desktop with working GL the window
+// would otherwise succeed and this test would spuriously fail. The dummy
+// driver has no OpenGL, which is the same wall a --test run of the app hits.
+// Escape hatch: SDL_VIDEODRIVER already set to something else wins (the
+// fixture forces with overwrite=0), so a developer who exports x11 on a GL
+// box gets a red here that is environmental, not a code bug.
+// ---------------------------------------------------------------------------
+
+#ifdef ENABLE_GLES_3D
+#include "gcode_camera.h"
+#include "gcode_gles_renderer.h"
+#include "gcode_parser.h"
+
+TEST_CASE("GLES init failure surfaces through render_failed", "[gcode][gl_fallback][1555]") {
+    helix::gcode::GCodeGLESRenderer renderer;
+    const helix::gcode::ParsedGCodeFile empty_gcode;
+    const helix::gcode::GCodeCamera camera;
+
+    // render() attempts GL init first and returns before touching the layer
+    // or geometry when init fails, so null layer/coords are safe here.
+    renderer.render(nullptr, empty_gcode, camera, nullptr);
+
+    REQUIRE(renderer.render_failed());
+}
+
+#endif // ENABLE_GLES_3D

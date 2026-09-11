@@ -243,6 +243,10 @@ class WledBackend {
     std::unordered_map<std::string, std::string> strip_addresses_;
     std::unordered_map<std::string, std::vector<WledPresetInfo>> strip_presets_;
     std::unordered_map<std::string, WledStripState> strip_states_;
+
+    // Declared last: reverse-declaration destruction invalidates outstanding
+    // tokens before any member they touch is gone.
+    helix::AsyncLifetimeGuard lifetime_;
     static const std::vector<WledPresetInfo> empty_presets_;
 };
 

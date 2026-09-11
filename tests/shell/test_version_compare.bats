@@ -441,3 +441,76 @@ require_jq() {
     [ "$status" -eq 1 ]
     contains "cannot order" "$output"
 }
+
+# ---------------------------------------------------------------------------
+# --sort
+#
+# The ordering cases still are not written here. A shuffle of the corpus has to
+# come back in the corpus's own order, so --sort is asserted against the same
+# ladder as the pairwise mode and cannot drift from it.
+# ---------------------------------------------------------------------------
+
+corpus_versions() {
+    sed -e 's/#.*//' -e 's/[[:space:]]*$//' "$CORPUS" | grep -v '^$'
+}
+
+@test "--sort returns a shuffled corpus to its own order" {
+    local expected shuffled got seed
+    expected="$(corpus_versions)"
+
+    for seed in 1 2 3 4 5; do
+        shuffled="$(echo "$expected" | shuf --random-source=<(yes "$seed"))"
+        got="$(echo "$shuffled" | bash "$SCRIPT" --sort)"
+        [ "$got" = "$expected" ] || {
+            echo "seed $seed produced:"; echo "$got"
+            fail "--sort did not reproduce the corpus order"
+        }
+    done
+}
+
+@test "--sort ranks a release above its own prereleases" {
+    # The trap a numeric field sort falls into: 1.1.0 must come last here.
+    run bash -c "printf '1.1.0\n1.1.0-rc.1\n1.1.0-beta.2\n' | bash '$SCRIPT' --sort"
+    [ "$status" -eq 0 ]
+    [ "$(echo "$output" | tail -1)" = "1.1.0" ] || fail "release did not sort last: $output"
+}
+
+@test "--sort orders numeric prerelease identifiers numerically" {
+    run bash -c "printf '1.1.0-beta.11\n1.1.0-beta.2\n' | bash '$SCRIPT' --sort"
+    [ "$status" -eq 0 ]
+    [ "$(echo "$output" | head -1)" = "1.1.0-beta.2" ] || fail "got: $output"
+}
+
+@test "--sort refuses the whole list when one version is unrankable" {
+    run bash -c "printf '1.1.0\nnot-a-version\n1.0.0\n' | bash '$SCRIPT' --sort"
+    [ "$status" -eq 1 ]
+    # No partial ordering may reach stdout: callers prune with head -n -N.
+    [[ "$output" != *"1.0.0"$'\n'* ]] || fail "emitted a partial order: $output"
+}
+
+@test "--sort refuses a lone unrankable version" {
+    # One entry means the insertion sort makes no comparisons at all, so the
+    # up-front validation is the only thing standing between a caller and an
+    # exit 0 handing back a list it believes is ordered.
+    run bash -c "printf 'not-a-version\n' | bash '$SCRIPT' --sort"
+    [ "$status" -eq 1 ]
+    [[ "$output" != *"not-a-version"$'\n'* ]] || fail "echoed the input back: $output"
+}
+
+@test "--sort accepts empty input" {
+    run bash -c "printf '' | bash '$SCRIPT' --sort"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "--sort takes no positional arguments" {
+    run bash -c "printf '1.0.0\n' | bash '$SCRIPT' --sort 1.0.0"
+    [ "$status" -eq 2 ]
+}
+
+@test "no workflow orders versions with a numeric field sort" {
+    # sort -t. -k3,3n reads the patch of 1.1.0-beta.1 as 0 and ranks the
+    # release below its own prereleases, so retention deletes the release.
+    run grep -rn 'sort -t\. -k1,1n' .github/workflows/
+    [ "$status" -ne 0 ] || fail "a workflow orders versions by field sort:"$'\n'"$output"
+}

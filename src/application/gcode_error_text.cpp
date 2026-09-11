@@ -83,11 +83,11 @@ void GcodeErrorRouter::clean_error_text(std::string& text, std::string& out_code
                             printer::klipper_error_lookup(out_code)) {
                         std::string message = (entry->prefer_fw_msg && !fw_msg.empty())
                                                   ? fw_msg
-                                                  : std::string(entry->message);
+                                                  : std::string(lv_tr(entry->message));
                         if (entry->format_values) {
                             message += entry->format_values(values);
                         }
-                        text = message + ". " + entry->hint;
+                        text = message + ". " + lv_tr(entry->hint);
                         return;
                     }
                 }

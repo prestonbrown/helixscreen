@@ -1543,6 +1543,23 @@ TEST_CASE("TouchCalibration: no false axis swap on well-aligned 480x272 screen",
 // Legacy calibration invalidation (post-#943 upgrade) — truth table
 // ============================================================================
 
+TEST_CASE("TouchCalibration: should_invalidate_unstamped_calibration truth table",
+          "[touch-calibration][rotation][provenance][1394]") {
+    // The only combination that discards: no recorded basis, and a rotation that
+    // makes the assumed zero a guess.
+    REQUIRE(should_invalidate_unstamped_calibration(/*has_capture_rotation*/ false,
+                                                    /*applied_rotation*/ 270));
+    REQUIRE(should_invalidate_unstamped_calibration(false, 90));
+    REQUIRE(should_invalidate_unstamped_calibration(false, 180));
+
+    // Unrotated: zero is what the record meant, so it is left completely alone.
+    REQUIRE_FALSE(should_invalidate_unstamped_calibration(false, 0));
+
+    // A record that names its own basis is placeable at any rotation.
+    REQUIRE_FALSE(should_invalidate_unstamped_calibration(true, 270));
+    REQUIRE_FALSE(should_invalidate_unstamped_calibration(true, 0));
+}
+
 TEST_CASE("TouchCalibration: should_invalidate_legacy_calibration truth table",
           "[touch-calibration][migration]") {
     // Resistive panels legitimately need their affine — never reset, even on mismatch.

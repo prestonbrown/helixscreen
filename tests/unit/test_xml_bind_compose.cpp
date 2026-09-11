@@ -277,5 +277,5 @@ TEST_CASE("the double-bind inventory is regenerated when ui_xml changes",
     // was generated from: adding a widget with two bindings on one property, or
     // removing one, moves these and forces a regeneration and a re-run.
     REQUIRE(std::size(kDoubleBindWidgets) + kUndrivableGroups == static_cast<size_t>(kTotalGroups));
-    REQUIRE(kTotalGroups == 27);
+    REQUIRE(kTotalGroups == 35);
 }

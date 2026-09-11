@@ -139,7 +139,7 @@ int wizard_visible_count(const std::vector<StepSkip>& steps) {
 }
 
 bool wizard_total_is_settled(wizard::StepId current, const std::vector<StepSkip>& steps,
-                             bool has_preset) {
+                             bool has_preset, bool discovery_succeeded) {
     if (has_preset) {
         // The preset plan already collapsed everything it will collapse;
         // the denominator is stable from the first step.
@@ -149,9 +149,12 @@ bool wizard_total_is_settled(wizard::StepId current, const std::vector<StepSkip>
     if (idx < 0) {
         return false;
     }
-    // Steps after Connection run with a live, fully discovered printer, so
-    // the skip vector can no longer change under them.
-    return idx > index_of(wizard::StepId::Connection, steps);
+    // Steps after Connection run with a live, fully discovered printer, so the
+    // skip vector can no longer change under them - but only once discovery
+    // actually reported hardware. A step past Connection with discovery still
+    // unresolved (an escape hatch let Next through early) is exactly as
+    // provisional as a step before it.
+    return idx > index_of(wizard::StepId::Connection, steps) && discovery_succeeded;
 }
 
 int wizard_display_number(wizard::StepId current, const std::vector<StepSkip>& steps) {
