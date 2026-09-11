@@ -629,10 +629,17 @@ void InputShaperPanel::start_with_preflight(char axis) {
         // low_ram_warn_dialog_ on every close path. The token ties all three
         // callbacks to the panel so one torn down while the dialog is up is
         // not called back.
+        //
+        // Declining and dismissing mean the same thing here - the sweep was
+        // never started - so both slots get the same handler. Leaving
+        // calibrate_all_mode_ latched would chain the next single-axis run into
+        // an unrequested Y sweep.
         helix::ui::ConfirmOptions opts;
-        opts.on_cancel = [this]() {
+        auto declined = [this]() {
             calibrate_all_mode_ = false; // user backed out before anything started
         };
+        opts.on_cancel = declined;
+        opts.on_dismiss = declined;
         opts.owner_token = lifetime_.token();
         helix::ui::show_low_ram_resonance_warning(
             mem.total_mb(), &low_ram_warn_dialog_,
