@@ -11,7 +11,7 @@
 | Understand modal patterns | `devel/MODAL_SYSTEM.md` |
 | Check a feature's architecture | `devel/ARCHITECTURE.md` → the right chapter in `devel/architecture/` |
 | See what's planned/complete | [GitHub issues](https://github.com/prestonbrown/helixscreen/issues) |
-| Find in-flight plans/specs | `devel/plans/` — point-in-time working docs, deleted when the work ships |
+| Find in-flight plans/specs | `devel/plans/` (tracked, deleted when the work ships) or `superpowers/` (local scratch) |
 | Update the doc index | `README.md` + this file + relevant `CLAUDE.md` |
 
 ## Writing Documentation
@@ -26,4 +26,10 @@
 
 ## Plans and Specs
 
-Plans and specs live in `docs/devel/plans/` while work is in flight (`YYYY-MM-DD-<topic>-design.md` for designs, `YYYY-MM-DD-<topic>.md` for plans). They are scaffolding, not documentation: when work ships, durable knowledge lands where it belongs - code, the feature's devel doc, an architecture chapter - and the plan file is deleted in the same change. Abandoned and superseded plans are deleted too. Git history is the archive. `docs/superpowers/` and `.superpowers/` are local working space, never committed, never force-added.
+Two homes, and the difference is intent rather than formality.
+
+**`docs/devel/plans/` is tracked.** A design or implementation plan someone else will review, or that later work gets built against (`YYYY-MM-DD-<topic>-design.md` for designs, `YYYY-MM-DD-<topic>.md` for plans). These are scaffolding, not documentation: when work ships, durable knowledge lands where it belongs - code, the feature's devel doc, an architecture chapter - and the plan file is deleted in the same change. Abandoned and superseded plans are deleted too. Git history is the archive.
+
+**`docs/superpowers/` and `.superpowers/` are local working space**, gitignored: exploration, audit output, notes written to think with rather than to be read. Never committed, never force-added.
+
+Unsure which one it is? Start in `docs/superpowers/`, and promote it to `plans/` when someone else needs to read it.
