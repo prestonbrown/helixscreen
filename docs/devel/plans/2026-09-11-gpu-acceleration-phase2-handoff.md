@@ -116,10 +116,15 @@ Both GPU stacks, because Panfrost is not V3D and #966 was a GLES crash on the CB
 - **U1** - confirm nothing changed. It has no GL userspace and must keep the dumb-buffer
   driver.
 
-A reusable DRM/EGL capability probe was written during Phase 1 and answers plane rotation
-masks plus real-renderer strings in one pass. If it has not been committed to `scripts/`,
-it is worth rebuilding: it cross-compiles with the existing toolchain images and takes one
-`scp` to answer four questions on a new board.
+`tools/drm_gpu_probe.c` answers all of this in one pass per board: driver name, atomic
+capability, every plane's rotation mask, and whether GBM plus a real GLES2 context come up
+and which renderer answers. Build instructions are in its header comment; it cross-compiles
+in the existing toolchain images and takes one `scp` to run. Build it with `-DNO_EGL` for a
+board with no GL userspace, such as the U1.
+
+Run it on any board before reasoning about what that board can do. It was written because
+Phase 1 spent its first hour arguing from source about capabilities that took ten minutes
+to measure.
 
 ## Open decisions Phase 2 owns
 
