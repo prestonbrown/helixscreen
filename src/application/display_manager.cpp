@@ -1641,10 +1641,13 @@ void DisplayManager::apply_rotation(int degrees) {
 
     lv_display_set_rotation(m_display, lv_rot);
 
+    // The backend may clear LVGL's rotation when the scanout plane rotates
+    // instead, so read the resolution it settles on — the same order init()
+    // applies (#1275, #1587).
+    m_backend->set_display_rotation(lv_rot, phys_w, phys_h);
+
     m_width = lv_display_get_horizontal_resolution(m_display);
     m_height = lv_display_get_vertical_resolution(m_display);
-
-    m_backend->set_display_rotation(lv_rot, phys_w, phys_h);
 
     spdlog::info("[DisplayManager] Display rotated {}° — effective resolution: {}x{}", degrees,
                  m_width, m_height);

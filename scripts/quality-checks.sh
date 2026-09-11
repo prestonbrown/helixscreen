@@ -2261,6 +2261,34 @@ fi
 echo ""
 
 SECTION_START=$(date +%s)
+echo -n "🔄 Checking display rotation cache order..."
+
+# The resolution cache must be read after set_display_rotation() settles: a
+# plane owning 90/270 un-swaps the resolution, and a cache read before the
+# call records a value the display no longer has (#1587). apply_rotation's
+# body is #ifdef'd out of the test binary (HELIX_DISPLAY_SDL), so a lint is
+# the only thing that makes a wrong-order revert fail.
+if [ -f "scripts/check_rotation_cache_order.py" ]; then
+  if python3 scripts/check_rotation_cache_order.py >/tmp/rotation_cache.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ display resolution is cached only after rotation settles"
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/rotation_cache.out
+    echo "   Run: python3 scripts/check_rotation_cache_order.py"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_rotation_cache_order.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(date +%s)
 echo -n "🗺️  Checking the platform manifest against its consumers..."
 
 # Advisory while the consumers are migrated onto assets/config/platforms.json.
