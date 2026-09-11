@@ -49,3 +49,42 @@ TEST_CASE("filelist_change_affects_gcodes: match is exact, not a prefix",
     REQUIRE(helix::json_util::filelist_change_affects_gcodes("gcodes_backup") == false);
     REQUIRE(helix::json_util::filelist_change_affects_gcodes("my_gcodes") == false);
 }
+
+TEST_CASE("filelist_change_affects_gcodes: a move out of gcodes refreshes",
+          "[print_select][filelist][1575]") {
+    // Moonraker builds `item` from the move DESTINATION and attaches the
+    // origin as `source_item`, so a gcodes -> config move reports
+    // item.root == "config" with source_item.root == "gcodes". The listing
+    // still names the file, so it must refresh.
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("config", "gcodes") == true);
+}
+
+TEST_CASE("filelist_change_affects_gcodes: a change confined to other roots does not refresh",
+          "[print_select][filelist][1575]") {
+    // Positive control for the case above: with neither end of the operation
+    // in gcodes the filter still rejects, so the config-root storm stays
+    // filtered out.
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("config", "config") == false);
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("logs", "timelapse") == false);
+}
+
+TEST_CASE("filelist_change_affects_gcodes: empty source root is not relevant",
+          "[print_select][filelist][1575]") {
+    // source_item rides along only on a move or copy; an empty one is the
+    // norm for uploads, creates and deletes. Treating it as relevant would
+    // admit every root again and make the filter inert.
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("config", "") == false);
+}
+
+TEST_CASE("filelist_change_affects_gcodes: source match is exact, not a prefix",
+          "[print_select][filelist][1575]") {
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("config", "gcodes_backup") == false);
+}
+
+TEST_CASE("filelist_change_affects_gcodes: unparseable item shape still refreshes with source",
+          "[print_select][filelist][1575]") {
+    // The item side keeps its fail-safe rule even when a source root was
+    // parsed: an unrecognised payload shape must not silently stop refreshing.
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("", "config") == true);
+    REQUIRE(helix::json_util::filelist_change_affects_gcodes("", "gcodes") == true);
+}

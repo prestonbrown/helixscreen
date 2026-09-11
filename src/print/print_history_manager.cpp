@@ -409,19 +409,9 @@ bool PrintHistoryManager::filelist_change_affects_history(const std::string& act
 
     // History only ever names files in the `gcodes` root, so an operation
     // confined to another one cannot orphan a job — the timelapse component
-    // moves frames and renders for the whole duration of a print. `item.root`
-    // is on every well-formed frame; `source_item` rides along only on a move,
-    // where either end being `gcodes` counts, because a job's file moved out
-    // orphans it just as one moved in does. An empty item root is a payload
-    // shape we do not recognise: invalidate, since going stale is worse than
-    // one extra round-trip.
-    if (helix::json_util::filelist_change_affects_gcodes(item_root)) {
-        return true;
-    }
-    // The source side carries no empty-means-relevant rule: Moonraker sends
-    // source_item only on a move or copy, so an empty one is the norm for a
-    // delete and treating it as relevant would admit every root again.
-    return source_root == "gcodes";
+    // moves frames and renders for the whole duration of a print. Either end
+    // of a move being `gcodes` counts (see filelist_change_affects_gcodes).
+    return helix::json_util::filelist_change_affects_gcodes(item_root, source_root);
 }
 
 void PrintHistoryManager::subscribe_to_notifications() {

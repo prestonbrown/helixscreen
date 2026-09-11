@@ -1722,6 +1722,7 @@ void PrintSelectPanel::set_api(IMoonrakerAPI* api) {
                 std::string action = "?";
                 std::string root;
                 std::string path;
+                std::string source_root;
                 if (msg.contains("params") && msg["params"].is_array() && !msg["params"].empty()) {
                     const json& p = msg["params"][0];
                     action = p.value("action", "?");
@@ -1730,13 +1731,19 @@ void PrintSelectPanel::set_api(IMoonrakerAPI* api) {
                         root = item.value("root", "");
                         path = root + ":" + item.value("path", "");
                     }
+                    // `item` is the operation's destination; a move out of
+                    // gcodes reports a foreign item root with the gcodes
+                    // origin here.
+                    if (p.contains("source_item") && p["source_item"].is_object()) {
+                        source_root = p["source_item"].value("root", "");
+                    }
                 }
 
                 // Roots other than "gcodes" cannot change this list, and the
                 // config root churns constantly on an AFC printer. Log those at
                 // debug so the ring still shows they arrived without one line
                 // per 10 s of print time.
-                if (!helix::json_util::filelist_change_affects_gcodes(root)) {
+                if (!helix::json_util::filelist_change_affects_gcodes(root, source_root)) {
                     spdlog::debug("[{}] notify_filelist_changed: {} {} (other root, ignored)",
                                   self->get_name(), action, path);
                     return;
