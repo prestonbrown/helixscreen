@@ -1172,9 +1172,8 @@ void LedControlOverlay::refresh_wled_status() {
     controller.wled().poll_status([this, tok]() {
         if (tok.expired())
             return;
-        // poll_status fires on the BG thread — tok.defer marshals to the main
-        // thread (#80) and safe_clean_children schedules child deletion via
-        // lv_obj_delete_async, which runs on LVGL's own async list OUTSIDE
+        // safe_clean_children schedules child deletion via lv_obj_delete_async,
+        // which runs on LVGL's own async list OUTSIDE
         // UpdateQueue::process_pending() — preventing lv_event_mark_deleted
         // corruption (#776).
         tok.defer([this]() {

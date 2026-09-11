@@ -481,6 +481,7 @@ TEST_CASE_METHOD(WledMockFixture, "WledBackend: poll_status keys state by strip 
     //                enclosure_led off / brightness 128 / preset -1.
     bool completed = false;
     backend.poll_status([&]() { completed = true; });
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     REQUIRE(completed);
 
     auto printer = backend.get_strip_state("printer_led");

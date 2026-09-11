@@ -1936,7 +1936,10 @@ void PrintStatusPanel::handle_reprint_button() {
                      get_name());
         api_->job().start_print(
             filename,
-            [this, filename]() { spdlog::info("[{}] Reprint started: {}", get_name(), filename); },
+            lifetime_.bg_cb("PrintStatusPanel::reprint_ok",
+                            [this, filename]() {
+                                spdlog::info("[{}] Reprint started: {}", get_name(), filename);
+                            }),
             [this, token = lifetime_.token()](const MoonrakerError& err) {
                 // Runs on libhv WS event loop — marshal LVGL work to main.
                 token.defer("PrintStatusPanel::reprint_err", [this, err]() {
