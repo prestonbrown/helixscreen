@@ -245,6 +245,12 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     lv_xml_register_component_from_file("A:ui_xml/setting_toggle_row.xml");
     // modal_header is a dependency of favorite_macro_config_modal (shared modal header).
     lv_xml_register_component_from_file("A:ui_xml/modal_header.xml");
+    // <info_note> sits inside the modal's Options section, and an unregistered
+    // component does not merely vanish: the parser reparents an unknown tag's
+    // children onto the enclosing object, so info_note's
+    // `bind_flag_if_eq fav_macro_require_confirm` would land on section_options
+    // and pin that whole section hidden for as long as confirmation is on.
+    lv_xml_register_component_from_file("A:ui_xml/info_note.xml");
     lv_xml_register_component_from_file("A:ui_xml/favorite_macro_config_modal.xml");
 
     // Register components used by filament_catalog_picker (Modal subclass, no
