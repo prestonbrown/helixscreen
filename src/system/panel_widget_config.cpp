@@ -475,7 +475,30 @@ nlohmann::json PanelWidgetConfig::serialize_pages() const {
 }
 
 void PanelWidgetConfig::save() {
-    json root = serialize_pages();
+    // This node also carries layout state written by builds newer than this
+    // one, which arrives whenever an update channel is rolled back. Those keys
+    // are unreadable here but must survive the trip, so the node is edited
+    // rather than replaced (prestonbrown/helixscreen#1460). A first save, or a
+    // legacy array left by an older format, starts from an empty object.
+    const std::string panel_path = config_.df() + "panel_widgets/" + panel_id_;
+    json root = config_.get<json>(panel_path, json());
+    if (!root.is_object()) {
+        root = json::object();
+    }
+
+    // Every key below is rewritten from member state, and the conditional ones
+    // are cleared first: a key this build owns must not outlive the state that
+    // asked for it just because an earlier save wrote it.
+    for (const char* owned : {"anchors", "layout_units", "legacy_rows", "grid", "parked_grids"}) {
+        root.erase(owned);
+    }
+    // Named, not iterated straight off the call: items() is a proxy that does
+    // not keep the document it walks alive.
+    json owned_keys = serialize_pages();
+    for (auto& [key, value] : owned_keys.items()) {
+        root[key] = std::move(value);
+    }
+
     // Has to survive a save that lands before the anchors are applied: the
     // placement engine writes auto-placed positions back on every populate, so
     // dropping the tag here would make an unanchored default look arranged.
@@ -499,7 +522,7 @@ void PanelWidgetConfig::save() {
         root["parked_grids"] = parked_grids_;
     }
 
-    config_.set<json>(config_.df() + "panel_widgets/" + panel_id_, root);
+    config_.set<json>(panel_path, root);
     config_.save();
 }
 

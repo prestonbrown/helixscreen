@@ -119,9 +119,12 @@
  *========================*/
 
 /*Align the stride of all layers and images to this bytes.
- *16-byte alignment required for ARM NEON vld1q/vst1q SIMD operations.
- *RGB888 (3 bytes/pixel) with stride_align=1 causes unaligned access crashes.*/
-#define LV_DRAW_BUF_STRIDE_ALIGN                16
+ *Keep this at 1. The software blenders, NEON paths included, address pixels
+ *with byte-element loads and stores, so padded rows buy nothing; the start
+ *address is what SIMD and DMA care about, and LV_DRAW_BUF_ALIGN covers that.
+ *Padding rows here breaks every consumer that reads a buffer as tightly
+ *packed - nanovg's glyph upload and SDL_UpdateTexture among them.*/
+#define LV_DRAW_BUF_STRIDE_ALIGN                1
 
 /*Align the start address of draw_buf addresses to this bytes*/
 #define LV_DRAW_BUF_ALIGN                       16
@@ -268,6 +271,20 @@
 
 /* Use VG-Lite GPU. */
 #define LV_USE_DRAW_VG_LITE 0
+
+/* NanoVG draw unit: rasterizes widgets on the GPU instead of the CPU.
+ * Requires a GL-backed display - it renders into the layer's bound GL
+ * surface and has no readback path onto a dumb-buffer or fbdev framebuffer,
+ * so it is only reachable on the DRM+EGL presentation path.
+ * LV_USE_NANOVG builds the vendored library; LV_USE_DRAW_NANOVG builds the
+ * draw unit that uses it. The draw unit alone links with undefined nvg*. */
+#ifdef HELIX_ENABLE_NANOVG
+    #define LV_USE_NANOVG       1
+    #define LV_USE_DRAW_NANOVG  1
+#else
+    #define LV_USE_NANOVG       0
+    #define LV_USE_DRAW_NANOVG  0
+#endif
 
 /* Apply widget transforms (scale/rotate/skew) by handing the draw unit a 3x3
  * matrix instead of rasterizing into a layer and resampling that bitmap.
@@ -1149,16 +1166,6 @@
     /* GBM buffers for the dumb-buffer DRM driver (requires Mesa 21.1+).
      * Disabled: Bullseye sysroot has Mesa 20.3, missing gbm_bo_get_fd_for_plane. */
     #define LV_USE_LINUX_DRM_GBM_BUFFERS 0
-
-    /* EGL rendering via lv_linux_drm_egl.c (GPU-accelerated, legacy modesetting).
-     * lv_conf_internal.h re-derives this macro from LV_USE_OPENGLES with no guard
-     * and overrides whatever is set here, so enabling EGL means setting
-     * LV_USE_OPENGLES, not this macro. */
-    #ifdef HELIX_ENABLE_OPENGLES
-        #define LV_LINUX_DRM_USE_EGL     1
-    #else
-        #define LV_LINUX_DRM_USE_EGL     0
-    #endif
 #else
     #define LV_USE_LINUX_DRM        0
 #endif
@@ -1206,10 +1213,17 @@
 /* LVGL Windows backend */
 #define LV_USE_WINDOWS    0
 
-/* Use OpenGL ES display driver (GLAD-based, desktop only).
- * NOT for DRM+EGL — the DRM EGL path uses lv_linux_drm_egl.c instead.
- * This is a desktop display driver that creates its own window. */
-#define LV_USE_OPENGLES   0
+/* Compiles LVGL's GL helper layer (lv_opengles_driver.c, lv_opengles_texture.c).
+ * Window creation lives behind LV_USE_GLFW, so this pulls in no windowing code.
+ *
+ * This is the macro that matters for EGL: lv_conf_internal.h derives
+ * LV_LINUX_DRM_USE_EGL from it, and LV_USE_EGL from that in turn. Setting
+ * LV_LINUX_DRM_USE_EGL directly does nothing - the derive overrides it. */
+#ifdef HELIX_ENABLE_OPENGLES
+    #define LV_USE_OPENGLES   1
+#else
+    #define LV_USE_OPENGLES   0
+#endif
 
 /* QNX Screen display and input drivers */
 #define LV_USE_QNX              0

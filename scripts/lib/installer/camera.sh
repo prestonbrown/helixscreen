@@ -654,12 +654,22 @@ install_camera_k2() {
         return 0
     fi
 
+    # procd runs this file verbatim, so the binary it names has to be rewritten
+    # to this install's root. Staging the rewrite rather than editing in place
+    # keeps the compare below meaningful: it has to test what will be installed.
+    local svc_staged="${TMP_DIR:-/tmp}/helixscreen-ustreamer-k2.sh.staged"
+    if ! sed "s|^USTREAMER_BIN=.*|USTREAMER_BIN=\"${INSTALL_DIR}/bin/ustreamer\"|" \
+            "$svc_src" > "$svc_staged" 2>/dev/null; then
+        log_warn "Could not stage ustreamer init script — skipping camera service install"
+        return 0
+    fi
+
     # Overwrite-if-differs (not skip-if-exists) is how upgrades ship init-script
     # logic fixes — e.g. the newer script reclaims /dev/video0 by killing the
     # stock cam_app grabber before launching ustreamer (the "NO LIVE VIDEO" fix).
     # The script's editable config block is just our standard defaults, so
     # clobbering it on upgrade is acceptable.
-    if [ -f "$svc_dest" ] && cmp -s "$svc_src" "$svc_dest"; then
+    if [ -f "$svc_dest" ] && cmp -s "$svc_staged" "$svc_dest"; then
         log_info "ustreamer init script already current at $svc_dest"
     else
         if [ -f "$svc_dest" ]; then
@@ -667,7 +677,7 @@ install_camera_k2() {
         else
             log_info "Installing ustreamer procd init script..."
         fi
-        $SUDO cp "$svc_src" "$svc_dest" 2>/dev/null || \
+        $SUDO cp "$svc_staged" "$svc_dest" 2>/dev/null || \
             log_warn "Could not install ustreamer init at $svc_dest"
         $SUDO chmod +x "$svc_dest" 2>/dev/null || true
         $SUDO "$svc_dest" enable 2>/dev/null || \

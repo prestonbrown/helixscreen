@@ -253,36 +253,26 @@ def find_clang() -> tuple[list[str], str] | tuple[None, str]:
 def entry_args(entry: dict) -> list[str]:
     """Argument vector for a compile-command entry.
 
-    Never routed through a shell, and split with shlex rather than on whitespace.
+    The recorded command is never routed through a shell, so it has to be split
+    the way a shell would. `emit-compile-command` (mk/rules.mk) writes the
+    post-expansion argv joined by spaces and single-quotes any define whose value
+    must reach the compiler carrying its own quotes:
 
-    The subtlety is which shlex mode. `emit-compile-command` (mk/rules.mk) builds
-    the string as CMD="$(CXX) $(CXXFLAGS) ..." -- make has already expanded
-    -DHELIX_VERSION=\\"0.99.118\\" and the shell assignment has already eaten the
-    backslashes, so what lands in the JSON is the *post-expansion argv*, joined by
-    spaces, in which the quote characters are literal parts of the argument. Posix
-    shlex would strip them a second time, leaving -DHELIX_VERSION=0.99.118, and
-    clang then reports `invalid suffix '.118' on floating constant` plus a cascade
-    of undeclared identifiers from -DINSTALLER_FILENAME=install.sh -- phantom
-    errors that read exactly like real clang findings. (Observed here before this
-    was fixed: 6+ bogus diagnostics in src/system/update_checker.cpp alone.)
+        -DHELIX_VERSION='"1.1.0-beta.1"'
 
-    So: posix=False, which keeps quote characters inside tokens while still
-    treating a quoted run of spaces as one token. A token that is quoted end to
-    end is genuine shell quoting (a path with spaces, as a conventional
-    cmake/Bear-produced database would emit) and is unwrapped; a token with quotes
-    only in the interior is the -DFOO="bar" shape and is left exactly as is.
+    A POSIX split consumes the single quotes and hands clang
+    -DHELIX_VERSION="1.1.0-beta.1", so the macro is a string. Splitting without
+    shell semantics leaves the single quotes inside the token, the macro becomes a
+    multi-character literal, and clang types that as int: every TU including
+    helix_version.h reports a const char* initialised from an int, and the other
+    quoted defines produce a matching cascade. Those read exactly like real
+    findings about the code.
     """
     args = entry.get("arguments")
     if args:
         return list(args)
 
-    tokens = shlex.split(entry.get("command", ""), posix=False)
-    out = []
-    for t in tokens:
-        if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'" and t[0] not in t[1:-1]:
-            t = t[1:-1]
-        out.append(t)
-    return out
+    return shlex.split(entry.get("command", ""))
 
 
 def load_compile_db(root: str, frag_root: str | None = None) -> dict[str, dict]:

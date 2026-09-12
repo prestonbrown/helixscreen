@@ -62,6 +62,39 @@ std::string brightness_cli_command(int percent) {
     return "brightness -s 1; brightness -d " + std::to_string(level);
 }
 
+// Outcome of a sysfs attribute write, so callers can tell "the file would not
+// open" from "the driver refused the value" and log accordingly.
+enum class SysfsWrite { Ok, OpenFailed, WriteFailed };
+
+// Write an integer to a sysfs attribute and report what the kernel said.
+//
+// A sysfs store handler runs inside write(2), so a rejected value surfaces
+// there. A buffered stream defers the write to flush, which happens after any
+// stream state a caller inspects, so a refused write reads as a success.
+SysfsWrite write_sysfs_int(const std::string& path, int value, int& err) {
+    err = 0;
+    int fd = ::open(path.c_str(), O_WRONLY | O_TRUNC | O_CLOEXEC);
+    if (fd < 0) {
+        err = errno;
+        return SysfsWrite::OpenFailed;
+    }
+
+    const std::string text = std::to_string(value);
+    ssize_t written = ::write(fd, text.c_str(), text.size());
+    int write_err = (written < 0) ? errno : 0;
+
+    if (::close(fd) != 0 && write_err == 0) {
+        write_err = errno;
+        written = -1;
+    }
+
+    if (written != static_cast<ssize_t>(text.size())) {
+        err = write_err;
+        return SysfsWrite::WriteFailed;
+    }
+    return SysfsWrite::Ok;
+}
+
 } // namespace helix::backlight_internal
 
 // ============================================================================
@@ -146,20 +179,19 @@ class BacklightBackendSysfs : public BacklightBackend {
         }
 
         std::string brightness_path = device_path_ + "/brightness";
-        std::ofstream f(brightness_path);
-        if (!f.is_open()) {
-            spdlog::warn("[Backlight-Sysfs] Cannot write to {} (permission denied?)",
-                         brightness_path);
+        int err = 0;
+        switch (helix::backlight_internal::write_sysfs_int(brightness_path, target, err)) {
+        case helix::backlight_internal::SysfsWrite::OpenFailed:
+            spdlog::warn("[Backlight-Sysfs] Cannot write to {}: {}", brightness_path,
+                         strerror(err));
             return false;
-        }
-
-        f << target;
-        if (!f.good()) {
-            spdlog::warn("[Backlight-Sysfs] Failed to write brightness value to {}",
-                         brightness_path);
+        case helix::backlight_internal::SysfsWrite::WriteFailed:
+            spdlog::warn("[Backlight-Sysfs] Driver rejected brightness write to {}: {}",
+                         brightness_path, strerror(err));
             return false;
+        case helix::backlight_internal::SysfsWrite::Ok:
+            break;
         }
-        f.close();
 
         // Control bl_power to fully cut/restore backlight power.
         // On some displays (e.g. Pi 5 DSI), brightness=0 still leaves
@@ -262,20 +294,21 @@ class BacklightBackendSysfs : public BacklightBackend {
      */
     void set_bl_power(bool off) {
         std::string bl_power_path = device_path_ + "/bl_power";
-        std::ofstream f(bl_power_path);
-        if (!f.is_open()) {
-            // Not all backlight drivers expose bl_power, and the udev rule
-            // may not have been installed yet — this is non-fatal.
-            spdlog::debug(
-                "[Backlight-Sysfs] Cannot write to {} (not available or permission denied)",
-                bl_power_path);
-            return;
-        }
-
+        int err = 0;
         // bl_power: 0 = FB_BLANK_UNBLANK (on), 1 = FB_BLANK_POWERDOWN (off)
-        f << (off ? 1 : 0);
-        if (f.good()) {
+        switch (helix::backlight_internal::write_sysfs_int(bl_power_path, off ? 1 : 0, err)) {
+        case helix::backlight_internal::SysfsWrite::OpenFailed:
+            // Not all backlight drivers expose bl_power, and the udev rule may
+            // not have been installed — non-fatal either way.
+            spdlog::debug("[Backlight-Sysfs] Cannot write to {}: {}", bl_power_path, strerror(err));
+            break;
+        case helix::backlight_internal::SysfsWrite::WriteFailed:
+            spdlog::debug("[Backlight-Sysfs] Driver rejected bl_power write to {}: {}",
+                          bl_power_path, strerror(err));
+            break;
+        case helix::backlight_internal::SysfsWrite::Ok:
             spdlog::debug("[Backlight-Sysfs] bl_power {} for {}", off ? "OFF" : "ON", device_name_);
+            break;
         }
     }
 

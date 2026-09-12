@@ -19,13 +19,23 @@
  * Spoolman outages) without ever setting error_state, so keying on it
  * would suppress real errors.
  *
- * File: config/afc_message_dedup.json ({"last_error": "<text>"}).
+ * File: config/afc_message_dedup.json,
+ * `{"printers": {"<printer id>": "<text>"}}`. The record is per printer:
+ * one config dir serves every printer the user has configured, so a global
+ * record would let printer A's error text suppress the identical text on
+ * printer B. The key is resolved from Config on every call, because a
+ * printer switch reconstructs the AFC backend without re-initializing this
+ * store.
  *
- * Uninitialized (init() not called — unit tests), the store reads as empty
- * and records nothing: every message looks new, which fails open to a
- * toast, never to a suppressed error.
+ * Every degradation fails OPEN — to one extra toast, never to a suppressed
+ * error. A missing, oversized, corrupt or unreadable file leaves the seed
+ * empty; a seed the store cannot rewrite is dropped rather than armed,
+ * because a seed that can never be retracted would suppress its text in
+ * every future session. Uninitialized (init() not called), the store reads
+ * as empty, records nothing, and says so once at warn.
  */
 
+#include <map>
 #include <mutex>
 #include <string>
 
@@ -41,16 +51,18 @@ class AfcMessageDedup {
     /**
      * @brief Initialize with the config directory and load the seed.
      *
-     * A missing or unreadable file, or one of an unexpected shape, leaves
-     * the seed empty — one extra toast, never a suppressed error.
+     * A missing or unreadable file, one of an unexpected shape, one too
+     * large to be anything this store wrote, or one that cannot be
+     * rewritten leaves the seed empty — one extra toast, never a
+     * suppressed error.
      */
     void init(const std::string& config_dir);
 
     /// Reset to the uninitialized state (for testing).
     void shutdown();
 
-    /// The last error text a session surfaced; empty when nothing is
-    /// recorded or the store is uninitialized.
+    /// The last error text a session surfaced for the active printer; empty
+    /// when nothing is recorded or the store is uninitialized.
     [[nodiscard]] std::string last_error_text() const;
 
     /**
@@ -65,7 +77,8 @@ class AfcMessageDedup {
      * @brief Record that AFC's message queue reported empty.
      *
      * A later recurrence of a previously-seen text is then a new event and
-     * must toast again.
+     * must toast again — which means the record has to leave the disk too,
+     * by truncation or, failing that, by deleting the file.
      */
     void record_cleared();
 
@@ -73,12 +86,31 @@ class AfcMessageDedup {
     AfcMessageDedup() = default;
     ~AfcMessageDedup() = default;
 
-    void save_locked(const std::string& text);
+    /// A seed file larger than this is corruption, not a record: the store
+    /// writes one short line per configured printer.
+    static constexpr size_t MAX_SEED_BYTES = 256 * 1024;
+
+    /// The printer the records are keyed by, or "default" when no printer is
+    /// active yet.
+    static std::string active_printer_key();
+
+    std::string seed_path_locked() const;
+
+    /// Write the whole map. False when nothing durable landed.
+    bool save_locked();
+
+    /// True when the seed file can be opened for writing. Opening for append
+    /// writes nothing and creates nothing the caller has not already read.
+    bool can_write_locked() const;
+
+    /// True when the store is uninitialized, saying so once per init cycle.
+    bool warn_uninitialized_locked(const char* op) const;
 
     mutable std::mutex mutex_;
     std::string config_dir_;
-    std::string last_error_;
+    std::map<std::string, std::string> last_error_by_printer_;
     bool initialized_ = false;
+    mutable bool warned_uninitialized_ = false;
 };
 
 } // namespace helix

@@ -72,6 +72,11 @@ log_success() { :; }
 export -f log_info log_warn log_error log_success
 export SUDO=""
 
+# platform.sh reads the known-install list from common.sh, which this scenario
+# does not source. Point its documented override at a sandbox that holds no
+# install, so the existing-install probe stays hermetic and cannot see the host.
+export _HELIX_KNOWN_INSTALL_DIRS="$shmwork/no-such-install"
+
 # ---------------------------------------------------------------------------
 # REPRO: no writable sibling → fall back to /tmp → the installer's mkdir fails.
 # ---------------------------------------------------------------------------

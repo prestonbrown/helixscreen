@@ -493,27 +493,33 @@ bool DisplayManager::init(const Config& config) {
         }
     }
 
-    // Real panel power-off path (#1049): LAST RESORT only — for devices with NO
-    // controllable backlight (generic HDMI panels / Backlight-None, like the
-    // original #1049 reporter and the CB1). On those, FB_BLANK_POWERDOWN / DRM
-    // connector DPMS-off is the only way to actually cut the panel.
+    // Real panel power-off (FB_BLANK_POWERDOWN / DRM connector DPMS-off), applied
+    // ALONGSIDE the backlight write rather than instead of it: enter_sleep() writes
+    // brightness 0 whichever mechanism it picks, and some panel controllers treat
+    // duty zero as "dim" and keep the LEDs powered, so a device that can dim still
+    // needs the panel cut (#1049, #1594).
     //
-    // Any device WITH a usable backlight turns the backlight off instead (the
-    // set_brightness(0) call in enter_sleep()). That is safer and avoids
-    // driver-specific CRTC-disable wedges: on the Snapmaker U1 (working pwm
-    // backlight, but Hardware blank: false + a DPMS-capable DRM connector), DRM
-    // DPMS-off disables the Rockchip VOP2 CRTC and the panel goes PERMANENTLY
-    // black — wake's DPMS-on does NOT reliably re-enable VOP2 (see
-    // assets/config/platform/hooks-snapmaker-u1.sh "DRM CRTC keepalive"). So
-    // gate power-off on having NEITHER a hardware blank NOR a usable backlight.
+    // Config override: /display/panel_power_off (0 or 1). Missing (-1) = auto.
+    // It exists so a platform whose driver cannot survive a CRTC disable can be
+    // switched off in the field without waiting for a release.
     bool has_usable_backlight = m_backlight && m_backlight->is_available();
     bool backend_can_power_off = m_backend && m_backend->supports_power_off();
-    m_use_power_off =
-        should_use_power_off(m_use_hardware_blank, has_usable_backlight, backend_can_power_off);
-    spdlog::info("[DisplayManager] Display power-off: {} ({})", m_use_power_off,
-                 m_use_power_off ? m_backend->name()
-                                 : (has_usable_backlight ? "backlight off (no panel power-off)"
-                                                         : "software overlay fallback"));
+    {
+        int power_off_override =
+            helix::Config::get_instance()->get<int>("/display/panel_power_off", -1);
+        if (power_off_override >= 0) {
+            m_use_power_off = (power_off_override != 0) && backend_can_power_off;
+            spdlog::info("[DisplayManager] Display power-off: {} (config override)",
+                         m_use_power_off);
+        } else {
+            m_use_power_off = should_use_power_off(m_use_hardware_blank, backend_can_power_off);
+            spdlog::info("[DisplayManager] Display power-off: {} ({})", m_use_power_off,
+                         m_use_power_off
+                             ? m_backend->name()
+                             : (has_usable_backlight ? "backlight off (no panel power-off)"
+                                                     : "software overlay fallback"));
+        }
+    }
 
     // Force backlight ON at startup - ensures display is visible even if
     // previous instance left it off or in an unknown state
@@ -2135,8 +2141,10 @@ void DisplayManager::install_color_transform_hook() {
                 const lv_color_format_t cf = lv_display_get_color_format(d);
                 const int w = lv_area_get_width(area);
                 const int h = lv_area_get_height(area);
-                const int stride = lv_draw_buf_width_to_stride(w, cf);
-                self->m_color_transform.apply(px_map, w, h, stride, cf);
+                const auto reg = helix::ColorTransform::select_flush_region(
+                    lv_display_get_buf_active(d), *area, cf, lv_display_get_render_mode(d));
+                self->m_color_transform.apply_area(px_map, reg.stride_bytes, reg.x, reg.y, w, h,
+                                                   cf);
             }
             // Mirror the (post-transform) pixels to any remote-screen sink. Runs
             // on every flush regardless of the color transform (the U1 has none).

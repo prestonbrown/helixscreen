@@ -29,6 +29,7 @@ TEST_CASE("LaneSources keeps one record per source", "[lane][resolver]") {
 
     Observation spool(ObservationSource::Spoolman);
     spool.color_rgb = 0xA4B2BC;
+    spool.material = "PETG";
     lane.apply(spool);
 
     Observation sensed(ObservationSource::Sensed);
@@ -42,12 +43,24 @@ TEST_CASE("LaneSources keeps one record per source", "[lane][resolver]") {
     REQUIRE(lane.sensed.has_value());
     CHECK(lane.sensed->present == false);
 
-    // Re-applying a source REPLACES that source's record, whole.
+    // Re-applying a source REPLACES that source's record, whole: a field the
+    // newer observation says nothing about does not survive from the old one.
     Observation newer(ObservationSource::Spoolman);
     newer.color_rgb = 0x00FF00;
     lane.apply(newer);
     CHECK(lane.spoolman->color_rgb == 0x00FF00);
+    CHECK_FALSE(lane.spoolman->material.has_value());
     CHECK(lane.sensed->present == false);
+
+    // Applying a VendorCache observation touches only the vendor_cache slot:
+    // there is no shared destination, so no writer can reach another
+    // source's field.
+    Observation cache(ObservationSource::VendorCache);
+    cache.color_rgb = 0x112233;
+    lane.apply(cache);
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->color_rgb == 0x112233);
+    CHECK(lane.spoolman->color_rgb == 0x00FF00);
 
     // Dropping one source leaves every other source's record standing: this
     // pins that a lane's sources are independent, not slots into one shared
@@ -265,6 +278,7 @@ TEST_CASE("A colour the user picks outranks the one that came with the spool", "
     Observation spool(ObservationSource::Spoolman);
     spool.spoolman_id = 7;
     spool.brand = "Kingroon";
+    spool.material = "PLA";
     spool.color_rgb = 0xFFFFFF;
     spool.color_name = "Arctic White";
     lane.apply(spool);
@@ -283,6 +297,9 @@ TEST_CASE("A colour the user picks outranks the one that came with the spool", "
         CHECK(r.brand == "Kingroon");
         CHECK(r.color_rgb == 0xBCBCBC);
         CHECK(r.color_name == "Concrete Gray");
+        // The pick is a colour, not an identity edit: material still comes
+        // from the spool.
+        CHECK(r.material == "PLA");
     }
 
     SECTION("a pick with no name clears the spool's rather than keeping it") {
@@ -297,6 +314,7 @@ TEST_CASE("A colour the user picks outranks the one that came with the spool", "
         CHECK(r.brand == "Kingroon");
         CHECK(r.color_rgb == 0xBCBCBC);
         CHECK(r.color_name.empty());
+        CHECK(r.material == "PLA");
     }
 }
 
@@ -313,7 +331,11 @@ TEST_CASE("A sensor that reports no presence reading is not a present lane", "[l
     lane.apply(sensed);
 
     REQUIRE(lane.sensed.has_value());
-    CHECK_FALSE(helix::ams::resolve(lane).present);
+    const auto r = helix::ams::resolve(lane);
+    CHECK_FALSE(r.present);
+    // A sensed reading carries no identity: presence is sensed, identity is
+    // declared, and this colour never reaches the resolved lane.
+    CHECK(r.color_rgb == helix::AMS_DEFAULT_SLOT_COLOR);
 }
 
 TEST_CASE("Every rung of the ladders decides something", "[lane][resolver]") {

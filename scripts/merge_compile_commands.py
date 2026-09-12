@@ -44,10 +44,11 @@ import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# -DHELIX_VERSION=, not -DHELIX_VERSION_MAJOR=. The recorded command keeps the quote
-# characters as literal parts of the token (make expanded them, the shell assignment
-# in emit-compile-command ate the backslashes), so accept them optionally.
-VERSION_DEFINE_RE = re.compile(r'-DHELIX_VERSION=["\']?([0-9][^"\'\s]*)')
+# -DHELIX_VERSION=, not -DHELIX_VERSION_MAJOR=. The recorded value carries the quote
+# characters the compiler needs, and emit-compile-command shell-quotes the token on
+# top of them, so the stamp arrives as '"1.1.0"'. Match any run of quotes: one that
+# accepts a single quote character reads every real entry as carrying no stamp.
+VERSION_DEFINE_RE = re.compile(r'-DHELIX_VERSION=["\']*([0-9][^"\'\s]*)')
 
 # Rank of the version stamp on an entry, high to low. An entry carrying no stamp at
 # all is not evidence of staleness: submodule TUs (lib/lvgl, lib/libhv, generated
@@ -116,19 +117,39 @@ def freshness(entry: dict, current: str | None) -> tuple[int, float]:
     return (version_rank(entry, current), float(entry.get("_mtime", 0.0)))
 
 
-def load_fragments(build_dir: str) -> list[dict]:
-    """Every readable ``.ccj`` under build_dir, each tagged with its write time."""
+def load_fragments(build_dir: str) -> tuple[list[dict], int]:
+    """(usable ``.ccj`` entries tagged with their write times, unreadable count).
+
+    A fragment is written by a shell redirect inside the compile recipe, so one
+    can be caught half-written: a build killed mid-compile leaves its in-flight
+    fragments truncated, and so does reading a peer's build in the act. Such a
+    fragment is not readable JSON, and neither is a whole ``.ccj`` tree a
+    filesystem has damaged.
+
+    The count is returned rather than swallowed because the database is rewritten
+    from what parsed. Every fragment dropped here is a source file that loses its
+    flags in ``compile_commands.json``, which surfaces only as clangd and
+    ``syntax_check.py`` answering questions about that file wrongly, with nothing
+    pointing back at this step.
+    """
     out: list[dict] = []
+    unreadable = 0
     for frag in glob.glob(os.path.join(build_dir, "**", "*.ccj"), recursive=True):
         try:
             with open(frag) as fh:
                 entry = json.load(fh)
+            # Valid JSON that is not an object - `null`, a number, a list - is a
+            # fragment too, and rejecting it before the tag keeps a scalar from
+            # taking item assignment.
+            if not isinstance(entry, dict) or not entry.get("file"):
+                unreadable += 1
+                continue
             entry["_mtime"] = os.path.getmtime(frag)
         except (OSError, ValueError):
+            unreadable += 1
             continue
-        if isinstance(entry, dict) and entry.get("file"):
-            out.append(entry)
-    return out
+        out.append(entry)
+    return out, unreadable
 
 
 def select_freshest(entries: list[dict], current: str | None,
@@ -152,13 +173,14 @@ def select_freshest(entries: list[dict], current: str | None,
 
 def merge(build_dir: str, root: str = REPO_ROOT) -> tuple[list[dict], dict[str, int]]:
     """(entries for compile_commands.json, counts for the build log)."""
-    fragments = load_fragments(build_dir)
+    fragments, unreadable = load_fragments(build_dir)
     current = current_version(root)
     chosen = select_freshest(fragments, current, root)
     entries = [{k: v for k, v in e.items() if not k.startswith("_")}
                for _, e in sorted(chosen.items())]
     stats = {
         "fragments": len(fragments),
+        "unreadable": unreadable,
         "entries": len(entries),
         "stale": sum(1 for e in chosen.values() if is_stale(e, current)),
     }
@@ -173,6 +195,28 @@ def main() -> int:
     args = ap.parse_args()
 
     entries, stats = merge(args.build_dir)
+
+    unreadable = stats["unreadable"]
+    if unreadable:
+        seen = stats["fragments"] + unreadable
+        note = (f"{unreadable} of {seen} .ccj fragments under {args.build_dir} "
+                f"are unreadable")
+        # A fragment is written by a shell redirect, so a build running right now
+        # holds a few mid-write while the thousands it already finished sit
+        # complete beside them - and a build killed mid-compile leaves behind the
+        # same bounded handful. Once the unreadable ones outnumber the readable,
+        # no writer explains it, and rewriting the database from the survivors
+        # replaces it with a minority of the tree.
+        if unreadable > stats["fragments"]:
+            print(f"{note}; not writing {args.output}", file=sys.stderr)
+            return 1
+        # Below that the readable majority is still worth merging. Say what was
+        # lost anyway: the database is rewritten from what parsed, so a file
+        # whose only fragment was unreadable simply has no entry, and the next
+        # sign of it is clangd answering about that file with no flags.
+        print(f"{note}; the files they describe may be missing from {args.output}",
+              file=sys.stderr)
+
     if not entries:
         if stats["fragments"] == 0:
             # A fragment is a byproduct of compiling; zero of them means
@@ -191,8 +235,20 @@ def main() -> int:
                   f"existing source; not writing {args.output}", file=sys.stderr)
         return 1
 
-    with open(args.output, "w") as fh:
-        json.dump(entries, fh, indent=2)
+    # Written through a sibling and renamed over: os.replace is atomic, so a
+    # reader never sees a half-written database, and an interrupt during the
+    # dump leaves the previous one in place instead of a truncated file.
+    tmp = args.output + ".tmp"
+    try:
+        with open(tmp, "w") as fh:
+            json.dump(entries, fh, indent=2)
+        os.replace(tmp, args.output)
+    except OSError as exc:
+        print(f"cannot write {args.output}: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        if os.path.isfile(tmp):
+            os.remove(tmp)
 
     if not args.quiet:
         msg = f"{stats['entries']} entries from {stats['fragments']} fragments"

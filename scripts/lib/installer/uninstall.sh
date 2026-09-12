@@ -663,6 +663,7 @@ uninstall() {
             $SUDO rm -rf "$cache_dir"
         fi
     done
+    helix_state_prune_empty_roots
     # Clean up /var/tmp helix files
     for tmp_pattern in /var/tmp/helix_*; do
         if [ -e "$tmp_pattern" ] 2>/dev/null; then

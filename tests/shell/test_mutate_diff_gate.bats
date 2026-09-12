@@ -14,6 +14,13 @@
 # `git checkout`, precisely so it can never discard unrelated uncommitted work.
 # If "the tree is byte-identical afterwards" ever stops holding, the tool is
 # dangerous rather than merely wrong.
+#
+# The stubs below model what a real suite and a real build tell the gate, not
+# just whether they succeeded. A stub that means "a test detects this" prints
+# what Catch2 prints for a failing assertion, and the stub `make test-build`
+# leaves a different binary behind, because those are the two things a `killed`
+# verdict rests on: the suite named a failing test, and it was running this
+# mutant when it did.
 
 load helpers
 
@@ -38,13 +45,33 @@ setup() {
     # The change under test.
     printf 'int f(int n) {\n    return n + 2;   // NEW_BEHAVIOR\n}\n' > "$WORK/src/feature.cpp"
 
-    printf 'test-build:\n\t@true\n' > "$WORK/Makefile"
+    stub_make_relinks
 
     # A tooling hunk is judged by bats AND pytest, and the script reaches pytest
     # through the repo venv's interpreter. Standing one up here makes pytest a
     # property of the fixture, so a verdict does not depend on what the host
     # happens to have installed globally.
     stub_pytest_installed
+}
+
+# What a Catch2 run prints when an assertion fails, as a line of shell for a
+# stub suite to run. The gate reads this rather than the exit code: a runner
+# that exits non-zero without naming a failing test has judged nothing, so a
+# stub that only exits 1 models a crash and not a detection.
+catch2_fail_cmd() {
+    printf '%s\n' \
+        'echo "tests/unit/test_feature.cpp:11: FAILED:"' \
+        'echo "  REQUIRE( f(0) == 2 )"' \
+        'echo "assertions: 1 | 1 failed"'
+}
+
+# `make test-build` as the gate reads it: a build that runs leaves a different
+# binary behind. The gate fingerprints the test binary either side of a mutant's
+# build, because a build that changes nothing leaves the suite running a binary
+# the mutant is not in.
+stub_make_relinks() {
+    printf 'test-build:\n\t@[ -e build/bin/helix-tests ] && printf "\\n# relinked\\n" >> build/bin/helix-tests || true\n' \
+        > "$WORK/Makefile"
 }
 
 # The venv interpreter the script runs pytest through, with pytest importable
@@ -70,14 +97,36 @@ stub_pytest_absent() {
 }
 
 # A stub suite that fails when the marker is gone — i.e. a test that DETECTS
-# the change. Reverting the hunk must therefore kill the mutant.
+# the change. Reverting the hunk must therefore kill the mutant. $1, when given,
+# is echoed on every run, so a test can tell one run's log from another's.
 stub_tests_that_detect() {
-    cat > "$WORK/build/bin/helix-tests" <<'EOF'
+    cat > "$WORK/build/bin/helix-tests" <<EOF
 #!/usr/bin/env bash
-grep -q NEW_BEHAVIOR src/feature.cpp || exit 1
-exit 0
+echo "${1:-catch2 stub}"
+grep -q NEW_BEHAVIOR src/feature.cpp && exit 0
+$(catch2_fail_cmd)
+exit 1
 EOF
     chmod +x "$WORK/build/bin/helix-tests"
+}
+
+# The venv interpreter with pytest importable, whose suite exits non-zero
+# without naming a failing test once the marker is gone — a collection error,
+# which judges nothing about the mutant.
+stub_pytest_aborts_on_revert() {
+    mkdir -p "$WORK/.venv/bin"
+    cat > "$WORK/.venv/bin/python3" <<'EOF'
+#!/usr/bin/env bash
+case "$1" in
+    -c) exit 0 ;;
+    -m) grep -q new scripts/gate.sh && exit 0
+        echo "ERROR tests/python/test_ok.py"
+        echo "Interrupted: 1 error during collection"
+        exit 2 ;;
+esac
+exit 1
+EOF
+    chmod +x "$WORK/.venv/bin/python3"
 }
 
 # A stub suite that passes either way — a test that does not detect the change.
@@ -143,11 +192,26 @@ mutate_auto() { ( cd "$WORK" && python3 scripts/mutate_diff.py --shards 1 "$@" )
 
 @test "a red baseline is refused instead of reporting every hunk killed" {
     # Without this check a broken suite makes every mutant look detected.
-    printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/build/bin/helix-tests"
+    cat > "$WORK/build/bin/helix-tests" <<EOF
+#!/usr/bin/env bash
+$(catch2_fail_cmd)
+exit 1
+EOF
     chmod +x "$WORK/build/bin/helix-tests"
     run mutate
     [ "$status" -eq 2 ]
     [[ "$output" == *"baseline catch2 suite is RED"* ]]
+}
+
+@test "a baseline suite that names no failing test stops the run just as hard" {
+    # Not a red baseline: a runner that cannot report cannot establish one
+    # either, and every mutant after it would be measured against nothing.
+    printf '#!/usr/bin/env bash\nexit 134\n' > "$WORK/build/bin/helix-tests"
+    chmod +x "$WORK/build/bin/helix-tests"
+    run mutate
+    [ "$status" -eq 2 ]
+    contains "judged nothing" "$output"
+    lacks "killed" "$output"
 }
 
 @test "a build that fails for the mutant is uncompilable, never a kill" {
@@ -235,6 +299,201 @@ mutate_auto() { ( cd "$WORK" && python3 scripts/mutate_diff.py --shards 1 "$@" )
     run bash -c "cd '$outside' && python3 scripts/mutate_diff.py --help"
     [ "$status" -eq 0 ]
     contains "--log" "$output"
+}
+
+# The log is also the only record of the output behind a verdict, and a verdict
+# gets disputed after the run that produced it has ended. Opened 'w' with
+# nothing kept, the next run is the one thing that has to happen for that record
+# to be gone -- so the previous run's log is retained, and a listing, which
+# judges nothing, does not get to spend that slot.
+
+@test "the previous run's log is kept beside the new one" {
+    log="$BATS_TEST_TMPDIR/run.log"
+    stub_tests_that_detect RUN_ONE
+    run mutate --log "$log"
+    [ "$status" -eq 0 ]
+    stub_tests_that_detect RUN_TWO
+    run mutate --log "$log"
+    [ "$status" -eq 0 ]
+    grep -q RUN_ONE "$log.prev"
+    grep -q RUN_TWO "$log"
+}
+
+@test "--list-only leaves the last real run's log alone" {
+    log="$BATS_TEST_TMPDIR/run.log"
+    stub_tests_that_detect RUN_ONE
+    run mutate --log "$log"
+    [ "$status" -eq 0 ]
+    run mutate --log "$log" --list-only
+    [ "$status" -eq 0 ]
+    grep -q RUN_ONE "$log"
+    [ ! -f "$log.prev" ]
+}
+
+# --- what a verdict rests on ------------------------------------------------
+#
+# `killed` is the verdict nobody re-checks: SURVIVED fails the gate and gets
+# scrutiny, uncompilable and unreversible are documented as never a kill, but a
+# kill is the answer the operator was hoping for and it gets quoted in a commit
+# body as proof. So a kill has to be earned twice over -- the suite has to name
+# a failing test, and it has to have been running this mutant when it did.
+#
+# Both halves fail in the same direction and borrow the PREVIOUS hunk's red: a
+# process that exits non-zero for its own reasons reads as a detection, and a
+# build that changes nothing leaves the previous mutant's binary under the next
+# hunk's suite.
+
+@test "a suite that exits non-zero without naming a failing test is not a kill" {
+    # Exit 134 after a green summary is a shard aborting during static
+    # destruction. By exit code alone that is indistinguishable from a
+    # detection, so the verdict comes out of the suite's own output instead.
+    cat > "$WORK/build/bin/helix-tests" <<'SUITE'
+#!/usr/bin/env bash
+grep -q NEW_BEHAVIOR src/feature.cpp && exit 0
+echo "All tests passed (2 assertions in 1 test case)"
+exit 134
+SUITE
+    chmod +x "$WORK/build/bin/helix-tests"
+    run mutate
+    lacks "killed" "$output"
+    contains "INCONCLUSIVE" "$output"
+    contains "exited 134" "$output"
+    [ "$status" -eq 3 ]
+}
+
+@test "a failure summary with no FAILED line is evidence enough" {
+    # Catch2 reports a detection two ways, and a run that reaches the summary
+    # without printing the assertion has still detected something.
+    cat > "$WORK/build/bin/helix-tests" <<'SUITE'
+#!/usr/bin/env bash
+grep -q NEW_BEHAVIOR src/feature.cpp && exit 0
+echo "assertions: 46 | 45 passed | 1 failed"
+exit 1
+SUITE
+    chmod +x "$WORK/build/bin/helix-tests"
+    run mutate
+    [ "$status" -eq 0 ]
+    contains "killed" "$output"
+}
+
+@test "a case failing as expected is a pass, not a detection" {
+    # A [!shouldfail] case that fails is the suite working. Counting its summary
+    # line as a failure would hand back a kill for a suite that noticed nothing.
+    cat > "$WORK/build/bin/helix-tests" <<'SUITE'
+#!/usr/bin/env bash
+grep -q NEW_BEHAVIOR src/feature.cpp && exit 0
+echo "test cases: 2 | 1 passed | 1 failed as expected"
+exit 4
+SUITE
+    chmod +x "$WORK/build/bin/helix-tests"
+    run mutate
+    lacks "killed" "$output"
+    contains "INCONCLUSIVE" "$output"
+}
+
+@test "a suite that judged nothing once is asked again before the hunk is given up on" {
+    # The mutant is still in the tree, so the re-run costs a suite and no build.
+    cat > "$WORK/build/bin/helix-tests" <<'SUITE'
+#!/usr/bin/env bash
+grep -q NEW_BEHAVIOR src/feature.cpp && exit 0
+if [ -e .aborted-once ]; then
+    echo "tests/unit/test_feature.cpp:11: FAILED:"
+    exit 1
+fi
+: > .aborted-once
+echo "All tests passed (2 assertions in 1 test case)"
+exit 134
+SUITE
+    chmod +x "$WORK/build/bin/helix-tests"
+    run mutate
+    [ "$status" -eq 0 ]
+    contains "confirming" "$output"
+    contains "killed" "$output"
+}
+
+@test "a tooling runner that exits without naming a failing test is not a kill" {
+    # bats and pytest are read the same way as the C++ suite. A runner that died
+    # collecting its tests exits non-zero having judged nothing, and inferring a
+    # detection from that leaves the same hole open for every tooling hunk.
+    mkdir -p "$WORK/tests/shell" "$WORK/tests/python"
+    printf '#!/bin/sh\necho old\n' > "$WORK/scripts/gate.sh"
+    printf '@test "t" { true; }\n' > "$WORK/tests/shell/test_gate.bats"
+    printf 'def test_ok():\n    assert True\n' > "$WORK/tests/python/test_ok.py"
+    git -C "$WORK" add src/feature.cpp scripts/gate.sh tests/shell/test_gate.bats tests/python/test_ok.py
+    git -C "$WORK" commit -qm gate
+    BASE=$(git -C "$WORK" rev-parse HEAD)
+    printf '#!/bin/sh\necho new\n' > "$WORK/scripts/gate.sh"
+    stub_pytest_aborts_on_revert
+    run mutate
+    lacks "killed" "$output"
+    contains "INCONCLUSIVE" "$output"
+    [ "$status" -eq 3 ]
+}
+
+@test "a red suite after a build that changed nothing is not a kill" {
+    # Nothing was relinked, so the suite ran whatever binary the last build left
+    # and its red cannot be about this mutant.
+    stub_tests_that_detect
+    printf 'test-build:\n\t@true\n' > "$WORK/Makefile"
+    run mutate
+    lacks "killed" "$output"
+    contains "INCONCLUSIVE" "$output"
+    contains "left the test binary untouched" "$output"
+    [ "$status" -eq 3 ]
+}
+
+@test "a build that changed nothing still reports SURVIVED when the suite is green" {
+    # A hunk the test binary does not link produces the same binary either way.
+    # Nothing detected it, which is both honest and the direction that fails the
+    # gate; only a RED over a binary the mutant is not in is unattributable.
+    stub_tests_that_ignore
+    printf 'test-build:\n\t@true\n' > "$WORK/Makefile"
+    run mutate
+    [ "$status" -eq 1 ]
+    contains "SURVIVED" "$output"
+}
+
+@test "a file left changed by one hunk stops the run instead of judging the next" {
+    # The next hunk's suite would redden for this hunk's reversion, and the
+    # verdict would be filed against the wrong hunk.
+    printf 'int g(int n) {\n    return n + 9;   // SECOND\n}\n' > "$WORK/src/other.cpp"
+    git -C "$WORK" add -N src/other.cpp
+    # A suite run that writes into a file the run may mutate. However it comes
+    # about, the tree is no longer the one the run started from.
+    cat > "$WORK/build/bin/helix-tests" <<SUITE
+#!/usr/bin/env bash
+echo tampered >> src/other.cpp
+grep -q NEW_BEHAVIOR src/feature.cpp && exit 0
+$(catch2_fail_cmd)
+exit 1
+SUITE
+    chmod +x "$WORK/build/bin/helix-tests"
+    run mutate
+    [ "$status" -eq 2 ]
+    contains "src/other.cpp" "$output"
+    contains "no longer matches the tree this run started from" "$output"
+}
+
+@test "the drifted file is reported, not overwritten" {
+    # What is on disk may be a reversion this run failed to undo or an edit
+    # another session made to a shared tree, and from inside the run the two are
+    # indistinguishable. Writing it back would destroy the second to repair the
+    # first.
+    printf 'int g(int n) {\n    return n + 9;   // SECOND\n}\n' > "$WORK/src/other.cpp"
+    git -C "$WORK" add -N src/other.cpp
+    cat > "$WORK/build/bin/helix-tests" <<SUITE
+#!/usr/bin/env bash
+echo tampered >> src/other.cpp
+grep -q NEW_BEHAVIOR src/feature.cpp && exit 0
+$(catch2_fail_cmd)
+exit 1
+SUITE
+    chmod +x "$WORK/build/bin/helix-tests"
+    run mutate
+    [ "$status" -eq 2 ]
+    # More lines than the capture holds: the file is as the run left it, not as
+    # the run would like it to be.
+    [ "$(grep -c tampered "$WORK/src/other.cpp")" -gt 1 ]
 }
 
 # --- coverage honesty -------------------------------------------------------
@@ -377,10 +636,11 @@ mutate_auto() { ( cd "$WORK" && python3 scripts/mutate_diff.py --shards 1 "$@" )
     # Reverting the XML must be visible to the suite with no compile, so the
     # stub Makefile fails loudly if the tool reaches for one.
     printf 'test-build:\n\t@true\n' > "$WORK/Makefile"
-    cat > "$WORK/build/bin/helix-tests" <<'EOF'
+    cat > "$WORK/build/bin/helix-tests" <<EOF
 #!/usr/bin/env bash
-grep -q 'text="new"' ui_xml/home.xml || exit 1
-exit 0
+grep -q 'text="new"' ui_xml/home.xml && exit 0
+$(catch2_fail_cmd)
+exit 1
 EOF
     chmod +x "$WORK/build/bin/helix-tests"
     run mutate
@@ -452,11 +712,12 @@ builds_run() { awk 'END { print NR }' "$BUILD_LOG"; }
 # The stub suite detects the XML change, and a peer make prunes the binary once
 # the first suite run is over: the next run finds nothing to exec.
 stub_tests_pruned_after_first_run() {
-    cat > "$WORK/.suite" <<'EOF'
+    cat > "$WORK/.suite" <<EOF
 #!/usr/bin/env bash
 [ -e .pruned ] || { : > .pruned; rm -f build/bin/helix-tests; }
-grep -q 'text="new"' ui_xml/home.xml || exit 1
-exit 0
+grep -q 'text="new"' ui_xml/home.xml && exit 0
+$(catch2_fail_cmd)
+exit 1
 EOF
     cp "$WORK/.suite" "$WORK/build/bin/helix-tests"
     chmod +x "$WORK/.suite" "$WORK/build/bin/helix-tests"
@@ -465,10 +726,11 @@ EOF
 @test "a data hunk costs no build when the binary is already there" {
     data_only_change
     stub_make_links_suite
-    cat > "$WORK/.suite" <<'EOF'
+    cat > "$WORK/.suite" <<EOF
 #!/usr/bin/env bash
-grep -q 'text="new"' ui_xml/home.xml || exit 1
-exit 0
+grep -q 'text="new"' ui_xml/home.xml && exit 0
+$(catch2_fail_cmd)
+exit 1
 EOF
     cp "$WORK/.suite" "$WORK/build/bin/helix-tests"
     chmod +x "$WORK/.suite" "$WORK/build/bin/helix-tests"

@@ -89,14 +89,13 @@ static std::vector<CacheCandidate> cache_path_candidates(const std::string& subd
     // -state sibling keeps the cache off the payload, which every update deletes.
     out.push_back({"/user-resource/helixscreen-state/cache/" + subdir, "CC1", false, true});
 #elif defined(HELIX_PLATFORM_K2)
-    // The K2 mounts its bulk storage at /mnt/UDISK (27.5GB). /usr/data is
-    // on the root overlay, which is only ~240MB and shared with the
-    // install itself, so caching thumbnails and modified gcode there
-    // competes with the firmware for the smallest partition on the box.
-    // Probed in order so a unit without the mount still gets a cache.
-    // Mirrors CREALITY_DATA_ROOTS in plr_backend.cpp.
-    for (const char* root : {"/mnt/UDISK", "/usr/data"})
-        out.push_back({std::string(root) + "/helixscreen/cache/" + subdir, "K2", false, true});
+    // /mnt/UDISK is the 27.5GB user partition and carries both the payload and
+    // its state; the cache sits in the -state sibling because the payload is
+    // what an update replaces. /usr/data is on the root overlay, only ~240MB
+    // and shared with the firmware, so it is the fallback for a unit without
+    // the mount. Same two roots plr_backend.cpp probes for Creality data.
+    out.push_back({"/mnt/UDISK/helixscreen-state/cache/" + subdir, "K2", false, true});
+    out.push_back({"/usr/data/helixscreen-state/cache/" + subdir, "K2", false, true});
 #elif defined(HELIX_PLATFORM_MIPS)
     // K1 series: /usr/data IS the large user partition here, unlike on the K2.
     // The cache sits in a sibling of the payload rather than inside it, because

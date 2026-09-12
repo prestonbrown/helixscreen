@@ -31,7 +31,9 @@ PORT="8080"
 RESOLUTION="640x480"
 FPS="15"
 # ustreamer binary (shipped in the release bundle, installed to INSTALL_DIR/bin).
-USTREAMER_BIN="/opt/helixscreen/bin/ustreamer"
+# install_camera_k2() rewrites this line to the install root it resolved, so an
+# install that is not at the default below still finds the binary.
+USTREAMER_BIN="/mnt/UDISK/helixscreen/bin/ustreamer"
 # ----------------------------------------------------------------------------
 
 start_service() {

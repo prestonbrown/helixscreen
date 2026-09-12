@@ -1460,13 +1460,15 @@ CONF
     conf=$(setup_moonraker_home)
     create_moonraker_conf "$conf"
     # Add section WITHOUT persistent_files (already clean — nothing to remove)
-    cat >> "$conf" << 'CONF'
+    # path: has to name INSTALL_DIR, or the drift rewrite fires and this stops
+    # being a no-op for a reason that has nothing to do with persistent_files.
+    cat >> "$conf" << CONF
 
 [update_manager helixscreen]
 type: web
 channel: stable
 repo: prestonbrown/helixscreen
-path: /usr/data/helixscreen
+path: ${INSTALL_DIR}
 CONF
     MOONRAKER_CONF_PATHS="$conf"
     rm -f "$INSTALL_DIR/bin/helix-screen"

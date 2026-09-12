@@ -55,18 +55,41 @@ SERVICE_NAME="helixscreen"
 # Well-known paths (used by uninstall, clean, stop_service)
 # AD5M: /opt/helixscreen, /root/printer_software/helixscreen, /srv/helixscreen (ZMOD)
 # K1: /usr/data/helixscreen
+# K2: /mnt/UDISK/helixscreen, and /opt/helixscreen until it migrates
 # Pi: /opt/helixscreen
 # CC1 (COSMOS): /user-resource/helixscreen (/ is RO squashfs)
 # Snapmaker U1: /userdata/helixscreen
 # shellcheck disable=SC2034  # consumed by uninstall.sh (sweep of all known install locations)
-HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
+HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /mnt/UDISK/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
 
 # Where cache/ and logs/ live. Deliberately NOT inside an install root: the
 # payload is what an update replaces, and Moonraker's type:web entry rmtree()s
 # it first. Swept on uninstall, since nothing else ever removes them.
 # Mirrors kStateRoots in include/helix_install_roots.h.
 # shellcheck disable=SC2034  # consumed by uninstall.sh
-HELIX_STATE_DIRS="/mnt/UDISK/helixscreen /data/helixscreen /usr/data/helixscreen-state /user-resource/helixscreen-state /userdata/helixscreen-state /srv/helixscreen-state"
+HELIX_STATE_DIRS="/mnt/UDISK/helixscreen-state /mnt/UDISK/helixscreen /data/helixscreen /usr/data/helixscreen-state /user-resource/helixscreen-state /userdata/helixscreen-state /srv/helixscreen-state"
+
+# Remove a state root that is now empty.
+#
+# The sweep above takes cache/ and logs/ but leaves the directory that held
+# them. Only a "-state" directory is removed: that suffix is a name this
+# installer coins, so a directory carrying it was made by us and holds nothing
+# else. A bare ".../helixscreen" state root is left alone even when empty -
+# /data/helixscreen and the pre-migration /mnt/UDISK/helixscreen are plain
+# enough names that the operator may have meant that directory themselves.
+#
+# rmdir carries the rest of the safety: it refuses a directory with anything
+# still in it, so a root someone has put their own files in survives.
+helix_state_prune_empty_roots() {
+    for _hsper in $HELIX_STATE_DIRS; do
+        case "$_hsper" in
+            */helixscreen-state) ;;
+            *) continue ;;
+        esac
+        [ -d "$_hsper" ] || continue
+        rmdir "$_hsper" 2>/dev/null || $SUDO rmdir "$_hsper" 2>/dev/null || true
+    done
+}
 
 # Cache and log directories an uninstall removes: every declared state dir, plus
 # the in-payload locations older installs still carry. Emitting the legacy ones
@@ -1616,6 +1639,27 @@ detect_k1_firmware() {
 # bin/helix-screen is what makes a directory an install: uninstall leaves the
 # directory (and its config/) behind on several platforms, and treating that
 # husk as a live install would pin every future install to it.
+# Print the superseded root when an install is sitting at it, else return 1.
+#
+# Searched in the same list the existing-install probe uses, so a sandboxed tree
+# answers exactly as the device path does. The answer does not depend on whether
+# the new root is populated: a migration interrupted partway has both, and the
+# tree left behind still has to be swept.
+_find_superseded_install() {
+    [ -n "${PREVIOUS_INSTALL_DIR:-}" ] || return 1
+    for _fsi_dir in $_HELIX_KNOWN_INSTALL_DIRS; do
+        case "$_fsi_dir" in
+            "$PREVIOUS_INSTALL_DIR"|*"$PREVIOUS_INSTALL_DIR") ;;
+            *) continue ;;
+        esac
+        if [ -x "${_fsi_dir}/bin/helix-screen" ]; then
+            printf '%s\n' "$_fsi_dir"
+            return 0
+        fi
+    done
+    return 1
+}
+
 _detect_existing_install_dir() {
     _eid_candidates=""
     [ -n "${KLIPPER_HOME:-}" ] && _eid_candidates="${KLIPPER_HOME}/helixscreen"
@@ -1884,6 +1928,12 @@ set_install_paths() {
     # from an earlier call in the same shell) would leak into another platform.
     KLIPPER_CONFIG_DIR=""
     _install_dir_from_detection=0
+    # Only the k2 branch declares a superseded root; clear them for everyone
+    # else so one platform's migration cannot leak into another's run.
+    PREVIOUS_INSTALL_DIR=""
+    PREVIOUS_STATE_DIR=""
+    STATE_DIR=""
+    MIGRATE_FROM_DIR=""
 
     if [ "$platform" = "ad5m" ]; then
         # AD5M runs the helix-screen service as root on all three firmwares
@@ -1975,18 +2025,29 @@ set_install_paths() {
         # /root/printer_data -> /mnt/UDISK/printer_data/, but the installer
         # runs before that bootstrap for many users — point KLIPPER_HOME at
         # the actual storage so config symlinks work on first install.
-        INSTALL_DIR="/opt/helixscreen"
+        INSTALL_DIR="/mnt/UDISK/helixscreen"
         INIT_SCRIPT_DEST="/etc/init.d/S99helixscreen"
         PREVIOUS_UI_SCRIPT=""
         KLIPPER_USER="root"
         KLIPPER_GROUP="root"
         KLIPPER_HOME="/mnt/UDISK"
+        # PREVIOUS_INSTALL_DIR is a root this platform may already be installed
+        # at. set_install_paths migrates such a tree to INSTALL_DIR instead of
+        # adopting it, so the fleet converges on one layout.
+        PREVIOUS_INSTALL_DIR="/opt/helixscreen"
+        # PREVIOUS_STATE_DIR is the path the payload now occupies, so cache/ and
+        # logs/ still sitting there have to move out before anything extracts
+        # over them. Mirrors storage.previous_state_root in the manifest.
+        # shellcheck disable=SC2034  # consumed by release.sh (state migration)
+        PREVIOUS_STATE_DIR="/mnt/UDISK/helixscreen"
+        # shellcheck disable=SC2034  # consumed by release.sh (state migration)
+        STATE_DIR="/mnt/UDISK/helixscreen-state"
         # /opt and /usr/data are both on the 240MB overlay; /mnt/UDISK is the
         # 27.5GB user partition. Staging the download anywhere else fills the
         # overlay (a unit was found with a leaked 60MB archive on it).
         TMP_DIR_PREFERRED="/mnt/UDISK/helixscreen-install"
         # Older builds cached thumbnails/gcode on the overlay via /usr/data;
-        # the app now caches on /mnt/UDISK, so reclaim the old location.
+        # the app caches under the state root, so reclaim the old location.
         # Also reclaim scratch dirs leaked by pre-EXIT-trap installers: one
         # unit held a 60MB archive at /usr/data/helixscreen-install for months.
         # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
@@ -2055,6 +2116,16 @@ set_install_paths() {
         _install_dir_from_detection=1
     fi
 
+    # A root the platform declares superseded is migrated, never adopted, so the
+    # fleet converges on one layout. An explicit INSTALL_DIR still outranks it.
+    if [ -n "${PREVIOUS_INSTALL_DIR:-}" ] && [ -z "${_USER_INSTALL_DIR:-}" ] \
+       && [ "$PREVIOUS_INSTALL_DIR" != "$INSTALL_DIR" ]; then
+        MIGRATE_FROM_DIR=$(_find_superseded_install) || MIGRATE_FROM_DIR=""
+        if [ -n "$MIGRATE_FROM_DIR" ]; then
+            log_info "Migrating install from ${MIGRATE_FROM_DIR} to ${INSTALL_DIR}"
+        fi
+    fi
+
     # An install already on disk decides, on every platform. The roots above are
     # defaults for a FIRST install; once a tree exists, moving it orphans that
     # tree and the user config inside it, and an in-app update cannot carry the
@@ -2064,7 +2135,8 @@ set_install_paths() {
     # and an explicit INSTALL_DIR is a deliberate choice that outranks it.
     if [ "${_install_dir_from_detection:-0}" != "1" ] && [ -z "${_USER_INSTALL_DIR:-}" ]; then
         _existing_install_dir=$(_detect_existing_install_dir) || _existing_install_dir=""
-        if [ -n "$_existing_install_dir" ] && [ "$_existing_install_dir" != "$INSTALL_DIR" ]; then
+        if [ -n "$_existing_install_dir" ] && [ "$_existing_install_dir" != "$INSTALL_DIR" ] \
+           && [ "$_existing_install_dir" != "${MIGRATE_FROM_DIR:-}" ]; then
             log_info "Install directory (existing install): $_existing_install_dir"
             INSTALL_DIR="$_existing_install_dir"
             # Snapmaker U1 is the one platform whose init script lives INSIDE the
@@ -7076,34 +7148,10 @@ extract_release() {
     fi
 
     # Phase 4: Backup existing installation (if present)
+    backup_existing_config "$(_config_source_dir)"
+
     if [ -d "${INSTALL_DIR}" ]; then
         ORIGINAL_INSTALL_EXISTS=true
-
-        # Backup config (check new name first, then legacy names)
-        if [ -f "${INSTALL_DIR}/config/settings.json" ]; then
-            BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
-            cp "${INSTALL_DIR}/config/settings.json" "$BACKUP_CONFIG"
-            log_info "Backed up existing configuration (from config/settings.json)"
-        elif [ -f "${INSTALL_DIR}/config/helixconfig.json" ]; then
-            BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
-            cp "${INSTALL_DIR}/config/helixconfig.json" "$BACKUP_CONFIG"
-            log_info "Backed up existing configuration (from config/helixconfig.json)"
-        elif [ -f "${INSTALL_DIR}/settings.json" ]; then
-            BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
-            cp "${INSTALL_DIR}/settings.json" "$BACKUP_CONFIG"
-            log_info "Backed up existing configuration (legacy root location)"
-        elif [ -f "${INSTALL_DIR}/helixconfig.json" ]; then
-            BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
-            cp "${INSTALL_DIR}/helixconfig.json" "$BACKUP_CONFIG"
-            log_info "Backed up existing configuration (legacy root location)"
-        fi
-
-        # Backup helixscreen.env (preserves HELIX_LOG_LEVEL and other env customizations)
-        if [ -f "${INSTALL_DIR}/config/helixscreen.env" ]; then
-            BACKUP_ENV="${TMP_DIR}/helixscreen.env.backup"
-            cp "${INSTALL_DIR}/config/helixscreen.env" "$BACKUP_ENV"
-            log_info "Backed up existing helixscreen.env"
-        fi
 
         # Under NoNewPrivileges (self-update from in-app), we prefer the
         # atomic swap (mv old; mv new) if the parent dir is writable (service
@@ -7554,6 +7602,124 @@ cleanup_stale_cache_dirs() {
 }
 
 # Remove backup of previous installation (call after service starts successfully)
+# Print the directory the operator's files are in right now.
+#
+# A migrating install is still at its old root when this runs and INSTALL_DIR is
+# an empty directory, so reading from INSTALL_DIR would find nothing and hand
+# the user a default configuration back.
+_config_source_dir() {
+    if [ -n "${MIGRATE_FROM_DIR:-}" ] && [ -d "$MIGRATE_FROM_DIR" ]; then
+        printf '%s\n' "$MIGRATE_FROM_DIR"
+    else
+        printf '%s\n' "$INSTALL_DIR"
+    fi
+}
+
+# Copy the operator's settings and env aside from a live install root.
+# Args: $1 = the directory holding the install being replaced
+backup_existing_config() {
+    _bec_src="$1"
+    [ -n "$_bec_src" ] && [ -d "$_bec_src" ] || return 0
+
+    # Newest name first, then the names older installs still carry.
+    if [ -f "${_bec_src}/config/settings.json" ]; then
+        BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
+        cp "${_bec_src}/config/settings.json" "$BACKUP_CONFIG"
+        log_info "Backed up existing configuration (from config/settings.json)"
+    elif [ -f "${_bec_src}/config/helixconfig.json" ]; then
+        BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
+        cp "${_bec_src}/config/helixconfig.json" "$BACKUP_CONFIG"
+        log_info "Backed up existing configuration (from config/helixconfig.json)"
+    elif [ -f "${_bec_src}/settings.json" ]; then
+        BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
+        cp "${_bec_src}/settings.json" "$BACKUP_CONFIG"
+        log_info "Backed up existing configuration (legacy root location)"
+    elif [ -f "${_bec_src}/helixconfig.json" ]; then
+        BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
+        cp "${_bec_src}/helixconfig.json" "$BACKUP_CONFIG"
+        log_info "Backed up existing configuration (legacy root location)"
+    fi
+
+    # helixscreen.env carries HELIX_LOG_LEVEL and other operator customizations.
+    if [ -f "${_bec_src}/config/helixscreen.env" ]; then
+        BACKUP_ENV="${TMP_DIR}/helixscreen.env.backup"
+        cp "${_bec_src}/config/helixscreen.env" "$BACKUP_ENV"
+        log_info "Backed up existing helixscreen.env"
+    fi
+}
+
+# Empty the directory the payload is about to occupy.
+# A platform whose PREVIOUS_STATE_DIR is its new INSTALL_DIR kept cache/ and
+# logs/ exactly where the payload now goes. Anything left there would be
+# extracted over and then deleted by the next update, so it all moves to
+# STATE_DIR first. Everything moves, not a known list of names: a directory
+# becoming a payload root has to be empty of state, whatever is in it.
+migrate_previous_state_dir() {
+    _mpsd_old="${PREVIOUS_STATE_DIR:-}"
+    _mpsd_new="${STATE_DIR:-}"
+
+    [ -n "$_mpsd_old" ] && [ -n "$_mpsd_new" ] || return 0
+    [ "$_mpsd_old" != "$_mpsd_new" ] || return 0
+    [ -d "$_mpsd_old" ] || return 0
+    # Only when the payload is actually taking this directory over.
+    [ "$_mpsd_old" = "$INSTALL_DIR" ] || return 0
+    # A runnable binary here means this is a payload, not state: the move has
+    # already happened and these entries belong to the install.
+    if [ -x "${_mpsd_old}/bin/helix-screen" ]; then
+        return 0
+    fi
+
+    mkdir -p "$_mpsd_new" 2>/dev/null || $SUDO mkdir -p "$_mpsd_new" || return 0
+    log_info "Moving state from ${_mpsd_old} to ${_mpsd_new}"
+
+    for _mpsd_entry in "$_mpsd_old"/* "$_mpsd_old"/.[!.]*; do
+        [ -e "$_mpsd_entry" ] || continue
+        _mpsd_name=$(basename "$_mpsd_entry")
+        _mpsd_dest="${_mpsd_new}/${_mpsd_name}"
+        # Never clobber: a half-finished move leaves both sides populated, and
+        # the older copy is still the operator's data.
+        if [ -e "$_mpsd_dest" ]; then
+            _mpsd_dest="${_mpsd_dest}.previous"
+            log_warn "${_mpsd_new}/${_mpsd_name} already exists; keeping the older copy as ${_mpsd_name}.previous"
+        fi
+        mv "$_mpsd_entry" "$_mpsd_dest" 2>/dev/null \
+            || $SUDO mv "$_mpsd_entry" "$_mpsd_dest" 2>/dev/null \
+            || log_warn "Could not move ${_mpsd_entry}"
+    done
+}
+
+# Remove the tree a migration moved away from.
+# Runs after the service is up, so a failure at any earlier step leaves a
+# complete and bootable install at the old path.
+cleanup_migrated_install() {
+    _cmi_old="${MIGRATE_FROM_DIR:-}"
+    [ -n "$_cmi_old" ] || return 0
+    [ "$_cmi_old" != "$INSTALL_DIR" ] || return 0
+    [ -d "$_cmi_old" ] || return 0
+
+    # Both tests have to pass before the old tree stops being the device's only
+    # working install.
+    if [ ! -x "${INSTALL_DIR}/bin/helix-screen" ]; then
+        log_warn "Keeping ${_cmi_old}: ${INSTALL_DIR} has no runnable binary"
+        return 0
+    fi
+    if [ ! -f "${INSTALL_DIR}/config/settings.json" ]; then
+        log_warn "Keeping ${_cmi_old}: configuration was not carried over"
+        return 0
+    fi
+
+    # Only ever remove a path whose final component is exactly "helixscreen".
+    case "$_cmi_old" in
+        */helixscreen) ;;
+        *)
+            log_warn "Refusing to remove unexpected migration source: $_cmi_old"
+            return 0 ;;
+    esac
+
+    rm -rf "$_cmi_old" 2>/dev/null || $SUDO rm -rf "$_cmi_old" 2>/dev/null || true
+    log_success "Removed the previous install at ${_cmi_old}"
+}
+
 cleanup_old_install() {
     # Keep .old as a last-resort recovery path if config wasn't restored.
     # Without this guard, a failed Phase 6 + cleanup = permanent config loss.
@@ -7628,6 +7794,15 @@ _has_no_new_privs() {
 # already-installed users.  This surgical sed rewrites only that one
 # known-broken substring; anything else the platform may have customized
 # is left alone.
+# Point the init script's DAEMON_DIR at the install root.
+# On a mod host the script runs inside the chroot, where the install root may
+# have a different spelling than it does on the host (see
+# resolve_chroot_daemon_dir). Use the in-chroot one when we have it.
+_set_init_script_daemon_dir() {
+    _daemon_dir="${HELIX_CHROOT_DAEMON_DIR:-$INSTALL_DIR}"
+    _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"${_daemon_dir}\"|" "$INIT_SCRIPT_DEST"
+}
+
 _migrate_init_script_hooks_path() {
     local init_script="${INIT_SCRIPT_DEST:-}"
     [ -n "$init_script" ] && [ -f "$init_script" ] || return 0
@@ -7926,6 +8101,16 @@ install_service_sysv() {
     if _is_self_update; then
         log_info "Skipping init script install (self-update; already installed)"
         _migrate_init_script_hooks_path
+        # A migration is the one case where the installed script names a tree
+        # that is about to stop existing. Rewrite that single line rather than
+        # copying the script, so platform customizations survive (#314).
+        # By this point the payload at INSTALL_DIR is already complete, so the
+        # boot path never names a directory without an install in it.
+        if [ -n "${MIGRATE_FROM_DIR:-}" ] && [ -n "${INIT_SCRIPT_DEST:-}" ] \
+           && [ -f "$INIT_SCRIPT_DEST" ]; then
+            log_info "Repointing DAEMON_DIR at ${INSTALL_DIR}"
+            _set_init_script_daemon_dir
+        fi
         return 0
     fi
 
@@ -7947,14 +8132,7 @@ install_service_sysv() {
     $SUDO cp "$init_src" "$INIT_SCRIPT_DEST"
     $SUDO chmod +x "$INIT_SCRIPT_DEST"
 
-    # Update the DAEMON_DIR in the init script to match the install location
-    # This is important for Klipper Mod which uses a different path.
-    #
-    # On a mod host the script runs inside the chroot, where the install root
-    # may have a different spelling than it does on the host (see
-    # resolve_chroot_daemon_dir). Use the in-chroot one when we have it.
-    _daemon_dir="${HELIX_CHROOT_DAEMON_DIR:-$INSTALL_DIR}"
-    _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"${_daemon_dir}\"|" "$INIT_SCRIPT_DEST"
+    _set_init_script_daemon_dir
 
     log_success "Installed SysV init script at $INIT_SCRIPT_DEST"
 }
@@ -8805,6 +8983,45 @@ disable_system_updates_on_buildroot() {
 # Options like persistent_files, managed_services, and install_script are
 # not supported and cause Moonraker to log "unparsed config option" warnings.
 # Args: $1 = moonraker.conf path
+# Point an existing stanza's `path:` at INSTALL_DIR.
+# The value is interpolated once, when the section is first added, and nothing
+# revisits it. Moonraker's NetDeploy rmtree()s that path before extracting, so a
+# stale one aims a delete-and-repopulate at a tree we no longer own while the
+# web UI reports success.
+# Args: $1 = moonraker.conf path
+sync_update_manager_path() {
+    local conf="$1"
+    local current
+
+    current=$(awk '
+        /^\[update_manager helixscreen\]/ { found=1; next }
+        found && /^\[/ { exit }
+        found && /^path:/ { sub(/^path:[[:space:]]*/, ""); print; exit }
+    ' "$conf" 2>/dev/null)
+
+    if [ -z "$current" ] || [ "$current" = "$INSTALL_DIR" ]; then
+        return 0
+    fi
+
+    # Repointing an updater at a mod-owned tree is exactly as destructive as
+    # arming one there, so it answers to the same guard.
+    host_refuse_mod_owned "pointing the Moonraker updater at" "$INSTALL_DIR"
+
+    log_info "Repointing update_manager path: ${current} -> ${INSTALL_DIR}"
+    local fs
+    fs=$(file_sudo "$conf")
+    $fs cp "$conf" "${conf}.bak.helixscreen" 2>/dev/null || true
+
+    $fs awk -v want="$INSTALL_DIR" '
+        /^\[update_manager helixscreen\]/ { in_section=1 }
+        in_section && /^\[/ && !/^\[update_manager helixscreen\]/ { in_section=0 }
+        in_section && /^path:/ { print "path: " want; next }
+        { print }
+    ' "$conf" > "${conf}.tmp" && $fs mv "${conf}.tmp" "$conf"
+
+    log_success "update_manager path now names ${INSTALL_DIR}"
+}
+
 cleanup_unsupported_options() {
     local conf="$1"
 
@@ -9120,6 +9337,9 @@ configure_moonraker_updates() {
 
     if has_update_manager_section "$conf"; then
         log_info "update_manager section already exists in $conf"
+        # path: is only ever written when the section is first added, so an
+        # install that has moved leaves it naming the tree we left behind.
+        sync_update_manager_path "$conf"
         # Remove options not supported by type: web (persistent_files,
         # managed_services, install_script) that cause Moonraker warnings.
         cleanup_unsupported_options "$conf"
@@ -9850,12 +10070,22 @@ install_camera_k2() {
         return 0
     fi
 
+    # procd runs this file verbatim, so the binary it names has to be rewritten
+    # to this install's root. Staging the rewrite rather than editing in place
+    # keeps the compare below meaningful: it has to test what will be installed.
+    local svc_staged="${TMP_DIR:-/tmp}/helixscreen-ustreamer-k2.sh.staged"
+    if ! sed "s|^USTREAMER_BIN=.*|USTREAMER_BIN=\"${INSTALL_DIR}/bin/ustreamer\"|" \
+            "$svc_src" > "$svc_staged" 2>/dev/null; then
+        log_warn "Could not stage ustreamer init script — skipping camera service install"
+        return 0
+    fi
+
     # Overwrite-if-differs (not skip-if-exists) is how upgrades ship init-script
     # logic fixes — e.g. the newer script reclaims /dev/video0 by killing the
     # stock cam_app grabber before launching ustreamer (the "NO LIVE VIDEO" fix).
     # The script's editable config block is just our standard defaults, so
     # clobbering it on upgrade is acceptable.
-    if [ -f "$svc_dest" ] && cmp -s "$svc_src" "$svc_dest"; then
+    if [ -f "$svc_dest" ] && cmp -s "$svc_staged" "$svc_dest"; then
         log_info "ustreamer init script already current at $svc_dest"
     else
         if [ -f "$svc_dest" ]; then
@@ -9863,7 +10093,7 @@ install_camera_k2() {
         else
             log_info "Installing ustreamer procd init script..."
         fi
-        $SUDO cp "$svc_src" "$svc_dest" 2>/dev/null || \
+        $SUDO cp "$svc_staged" "$svc_dest" 2>/dev/null || \
             log_warn "Could not install ustreamer init at $svc_dest"
         $SUDO chmod +x "$svc_dest" 2>/dev/null || true
         $SUDO "$svc_dest" enable 2>/dev/null || \
@@ -11051,6 +11281,7 @@ uninstall() {
             $SUDO rm -rf "$cache_dir"
         fi
     done
+    helix_state_prune_empty_roots
     # Clean up /var/tmp helix files
     for tmp_pattern in /var/tmp/helix_*; do
         if [ -e "$tmp_pattern" ] 2>/dev/null; then
@@ -12011,6 +12242,10 @@ main() {
         stop_service "$platform"
     fi
 
+    # Clear the payload's directory of any state kept there, before anything
+    # extracts on top of it.
+    migrate_previous_state_dir
+
     extract_release "$platform"
     fix_install_ownership
     install_service "$platform"
@@ -12096,6 +12331,7 @@ main() {
     # Start service
     start_service "$platform"
     cleanup_old_install
+    cleanup_migrated_install
     cleanup_stale_cache_dirs
     retire_legacy_config_backups
 

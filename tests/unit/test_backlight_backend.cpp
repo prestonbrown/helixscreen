@@ -152,6 +152,23 @@ TEST_CASE("Sysfs backend set_brightness writes brightness file", "[api][backligh
     REQUIRE(fake.read_file("brightness") == "127");
 }
 
+#ifdef __linux__
+TEST_CASE("Sysfs backend reports a write the kernel rejects", "[api][backlight][sysfs][1595]") {
+    // /dev/full opens successfully and fails every write() with ENOSPC, which is
+    // the shape of a sysfs attribute whose store handler refuses the value. A
+    // buffered stream defers the write to flush, so stream state inspected before
+    // closing still reads clean and a rejected write reports success.
+    FakeSysfsBacklight fake;
+    fs::remove(fake.device_dir / "brightness");
+    fs::create_symlink("/dev/full", fake.device_dir / "brightness");
+
+    auto backend = BacklightBackend::create_sysfs(fake.base_dir.string());
+    REQUIRE(backend->is_available());
+
+    REQUIRE_FALSE(backend->set_brightness(50));
+}
+#endif
+
 TEST_CASE("Sysfs backend set_brightness(0) sets bl_power off", "[api][backlight][sysfs]") {
     FakeSysfsBacklight fake;
     auto backend = BacklightBackend::create_sysfs(fake.base_dir.string());

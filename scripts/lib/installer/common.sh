@@ -18,18 +18,41 @@ _HELIX_COMMON_SOURCED=1
 # Well-known paths (used by uninstall, clean, stop_service)
 # AD5M: /opt/helixscreen, /root/printer_software/helixscreen, /srv/helixscreen (ZMOD)
 # K1: /usr/data/helixscreen
+# K2: /mnt/UDISK/helixscreen, and /opt/helixscreen until it migrates
 # Pi: /opt/helixscreen
 # CC1 (COSMOS): /user-resource/helixscreen (/ is RO squashfs)
 # Snapmaker U1: /userdata/helixscreen
 # shellcheck disable=SC2034  # consumed by uninstall.sh (sweep of all known install locations)
-HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
+HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /mnt/UDISK/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
 
 # Where cache/ and logs/ live. Deliberately NOT inside an install root: the
 # payload is what an update replaces, and Moonraker's type:web entry rmtree()s
 # it first. Swept on uninstall, since nothing else ever removes them.
 # Mirrors kStateRoots in include/helix_install_roots.h.
 # shellcheck disable=SC2034  # consumed by uninstall.sh
-HELIX_STATE_DIRS="/mnt/UDISK/helixscreen /data/helixscreen /usr/data/helixscreen-state /user-resource/helixscreen-state /userdata/helixscreen-state /srv/helixscreen-state"
+HELIX_STATE_DIRS="/mnt/UDISK/helixscreen-state /mnt/UDISK/helixscreen /data/helixscreen /usr/data/helixscreen-state /user-resource/helixscreen-state /userdata/helixscreen-state /srv/helixscreen-state"
+
+# Remove a state root that is now empty.
+#
+# The sweep above takes cache/ and logs/ but leaves the directory that held
+# them. Only a "-state" directory is removed: that suffix is a name this
+# installer coins, so a directory carrying it was made by us and holds nothing
+# else. A bare ".../helixscreen" state root is left alone even when empty -
+# /data/helixscreen and the pre-migration /mnt/UDISK/helixscreen are plain
+# enough names that the operator may have meant that directory themselves.
+#
+# rmdir carries the rest of the safety: it refuses a directory with anything
+# still in it, so a root someone has put their own files in survives.
+helix_state_prune_empty_roots() {
+    for _hsper in $HELIX_STATE_DIRS; do
+        case "$_hsper" in
+            */helixscreen-state) ;;
+            *) continue ;;
+        esac
+        [ -d "$_hsper" ] || continue
+        rmdir "$_hsper" 2>/dev/null || $SUDO rmdir "$_hsper" 2>/dev/null || true
+    done
+}
 
 # Cache and log directories an uninstall removes: every declared state dir, plus
 # the in-payload locations older installs still carry. Emitting the legacy ones

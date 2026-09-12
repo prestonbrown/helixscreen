@@ -49,6 +49,15 @@ _has_no_new_privs() {
 # already-installed users.  This surgical sed rewrites only that one
 # known-broken substring; anything else the platform may have customized
 # is left alone.
+# Point the init script's DAEMON_DIR at the install root.
+# On a mod host the script runs inside the chroot, where the install root may
+# have a different spelling than it does on the host (see
+# resolve_chroot_daemon_dir). Use the in-chroot one when we have it.
+_set_init_script_daemon_dir() {
+    _daemon_dir="${HELIX_CHROOT_DAEMON_DIR:-$INSTALL_DIR}"
+    _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"${_daemon_dir}\"|" "$INIT_SCRIPT_DEST"
+}
+
 _migrate_init_script_hooks_path() {
     local init_script="${INIT_SCRIPT_DEST:-}"
     [ -n "$init_script" ] && [ -f "$init_script" ] || return 0
@@ -347,6 +356,16 @@ install_service_sysv() {
     if _is_self_update; then
         log_info "Skipping init script install (self-update; already installed)"
         _migrate_init_script_hooks_path
+        # A migration is the one case where the installed script names a tree
+        # that is about to stop existing. Rewrite that single line rather than
+        # copying the script, so platform customizations survive (#314).
+        # By this point the payload at INSTALL_DIR is already complete, so the
+        # boot path never names a directory without an install in it.
+        if [ -n "${MIGRATE_FROM_DIR:-}" ] && [ -n "${INIT_SCRIPT_DEST:-}" ] \
+           && [ -f "$INIT_SCRIPT_DEST" ]; then
+            log_info "Repointing DAEMON_DIR at ${INSTALL_DIR}"
+            _set_init_script_daemon_dir
+        fi
         return 0
     fi
 
@@ -368,14 +387,7 @@ install_service_sysv() {
     $SUDO cp "$init_src" "$INIT_SCRIPT_DEST"
     $SUDO chmod +x "$INIT_SCRIPT_DEST"
 
-    # Update the DAEMON_DIR in the init script to match the install location
-    # This is important for Klipper Mod which uses a different path.
-    #
-    # On a mod host the script runs inside the chroot, where the install root
-    # may have a different spelling than it does on the host (see
-    # resolve_chroot_daemon_dir). Use the in-chroot one when we have it.
-    _daemon_dir="${HELIX_CHROOT_DAEMON_DIR:-$INSTALL_DIR}"
-    _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"${_daemon_dir}\"|" "$INIT_SCRIPT_DEST"
+    _set_init_script_daemon_dir
 
     log_success "Installed SysV init script at $INIT_SCRIPT_DEST"
 }

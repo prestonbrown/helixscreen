@@ -5,11 +5,13 @@
 
 #include "data_root_resolver.h"
 #include "lvgl/lvgl.h"
+#include "prerender_size_class.h"
 #include "prerendered_images.h"
 #include "printer_detector.h"
 
 #include <filesystem>
 #include <string>
+#include <system_error>
 
 /**
  * @file printer_images.h
@@ -45,8 +47,14 @@ inline std::string default_printer_image_path() {
     return helix::asset_component_uri("assets/images/printers/generic-corexy.png");
 }
 
-/// Pre-rendered image size for wizard/home (300px width, maintains aspect ratio)
-inline constexpr int PRERENDERED_SIZE = 300;
+/// The display width the app is actually running at, or a desktop-ish default
+/// before one exists. Every prerendered lookup sizes off this: packaging keeps
+/// exactly the tier this width selects and deletes the other, so a hardcoded
+/// size asks for a file the device does not have.
+inline int current_screen_width() {
+    lv_display_t* disp = lv_display_get_default();
+    return disp ? lv_display_get_horizontal_resolution(disp) : 800;
+}
 
 /**
  * @brief Get printer name from type index
@@ -81,7 +89,14 @@ inline std::string lvgl_to_fs_path(const char* lvgl_path) {
  */
 inline bool image_file_exists(const std::string& lvgl_path) {
     std::string fs_path = lvgl_to_fs_path(lvgl_path.c_str());
-    return !fs_path.empty() && std::filesystem::exists(fs_path);
+    if (fs_path.empty())
+        return false;
+    // Resolved against the asset root so the /assets mount is applied on
+    // firmware; identity on desktop. error_code overload, never the throwing
+    // one: the ESP32 VFS reports a missing path as ENODATA, which the throwing
+    // exists() turns into an exception rather than a false.
+    std::error_code ec;
+    return std::filesystem::exists(helix::asset_path(fs_path), ec);
 }
 
 /**
@@ -91,9 +106,13 @@ inline bool image_file_exists(const std::string& lvgl_path) {
  * binary equivalent (e.g., "voron-v2-300.bin").
  *
  * @param image_filename Original filename from database (e.g., "voron-v2.png")
+ * @param screen_width Display width; selects the tier. Defaults to the live
+ *        display, and is a parameter so a caller without one (a test, a probe
+ *        before the display exists) can name the width it means.
  * @return Full LVGL path to pre-rendered image, or empty string if not found
  */
-inline std::string get_prerendered_path(const std::string& image_filename) {
+inline std::string get_prerendered_path(const std::string& image_filename,
+                                        int screen_width = current_screen_width()) {
     // Convert "name.png" to "name-300.bin"
     size_t dot_pos = image_filename.rfind('.');
     if (dot_pos == std::string::npos) {
@@ -101,7 +120,8 @@ inline std::string get_prerendered_path(const std::string& image_filename) {
     }
 
     std::string basename = image_filename.substr(0, dot_pos);
-    std::string prerendered_name = basename + "-" + std::to_string(PRERENDERED_SIZE) + ".bin";
+    const int size = helix::get_printer_image_size(screen_width);
+    std::string prerendered_name = basename + "-" + std::to_string(size) + ".bin";
     std::string full_path = std::string(PRERENDERED_BASE_PATH) + prerendered_name;
 
     if (image_file_exists(full_path)) {
@@ -120,13 +140,14 @@ inline std::string get_prerendered_path(const std::string& image_filename) {
  * @param printer_name Printer name (e.g., "Voron 2.4", "FlashForge Adventurer 5M")
  * @return Full LVGL path to printer image
  */
-inline std::string get_image_path_for_name(const std::string& printer_name) {
+inline std::string get_image_path_for_name(const std::string& printer_name,
+                                           int screen_width = current_screen_width()) {
     // Look up image filename from database
     std::string image_filename = PrinterDetector::get_image_for_printer(printer_name);
 
     if (!image_filename.empty()) {
         // Try pre-rendered binary first (much faster on embedded)
-        std::string prerendered = get_prerendered_path(image_filename);
+        std::string prerendered = get_prerendered_path(image_filename, screen_width);
         if (!prerendered.empty()) {
             return prerendered;
         }

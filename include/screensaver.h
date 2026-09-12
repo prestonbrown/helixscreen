@@ -4,6 +4,8 @@
 
 #ifdef HELIX_ENABLE_SCREENSAVER
 
+#include <cstdint>
+#include <lvgl.h>
 #include <memory>
 #include <vector>
 
@@ -18,6 +20,24 @@ enum class ScreensaverType : int {
     STARFIELD = 2,
     PIPES_3D = 3,
 };
+
+namespace helix::ui {
+
+/**
+ * @brief Row pitch in bytes lv_canvas_set_buffer() uses for a w-wide ARGB8888 canvas
+ *
+ * lv_canvas_set_buffer() does not take the caller's word for packing: it
+ * derives an LV_DRAW_BUF_STRIDE_ALIGN-rounded stride and sizes the canvas
+ * extent from it, so a buffer allocated at w * h * 4 under-runs the extent
+ * whenever the stride exceeds w * 4 (prestonbrown/helixscreen#1591). The
+ * canvas screensavers size their allocations and direct pixel writes from
+ * this pitch so they cannot disagree with what LVGL steps rows by.
+ */
+inline uint32_t screensaver_canvas_stride_bytes(int32_t w) {
+    return lv_draw_buf_width_to_stride(static_cast<uint32_t>(w), LV_COLOR_FORMAT_ARGB8888);
+}
+
+} // namespace helix::ui
 
 /**
  * @brief Abstract base class for all screensaver implementations

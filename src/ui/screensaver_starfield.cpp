@@ -71,8 +71,11 @@ void StarfieldScreensaver::start() {
     lv_obj_set_size(canvas_, screen_w_, screen_h_);
     lv_obj_set_pos(canvas_, 0, 0);
 
-    // Allocate ARGB8888 draw buffer
-    size_t buf_size = static_cast<size_t>(screen_w_) * screen_h_ * 4;
+    // Allocate ARGB8888 draw buffer at LVGL's row stride: lv_canvas_set_buffer()
+    // steps rows by the aligned stride and lv_canvas_fill_bg() writes the full
+    // extent immediately, so a tightly-packed w * h * 4 allocation under-runs it.
+    draw_buf_stride_ = helix::ui::screensaver_canvas_stride_bytes(screen_w_);
+    size_t buf_size = static_cast<size_t>(draw_buf_stride_) * screen_h_;
     draw_buf_ = static_cast<uint8_t*>(lv_malloc(buf_size));
     if (!draw_buf_) {
         spdlog::error("[Screensaver] Failed to allocate {}KB draw buffer", buf_size / 1024);
@@ -80,6 +83,7 @@ void StarfieldScreensaver::start() {
         canvas_ = nullptr;
         return;
     }
+    draw_buf_size_ = buf_size;
 
     lv_canvas_set_buffer(canvas_, draw_buf_, screen_w_, screen_h_, LV_COLOR_FORMAT_ARGB8888);
     lv_canvas_fill_bg(canvas_, lv_color_black(), LV_OPA_COVER);
@@ -184,6 +188,9 @@ void StarfieldScreensaver::render_frame() {
         return;
 
     auto* pixels = reinterpret_cast<uint32_t*>(draw_buf_);
+    // Rows step by the canvas's aligned stride in uint32_t units — indexing by
+    // w alone skews every row past the first when the stride exceeds w * 4.
+    const int stride_px = static_cast<int>(draw_buf_stride_ / 4);
     int w = screen_w_;
     int h = screen_h_;
 
@@ -198,7 +205,7 @@ void StarfieldScreensaver::render_frame() {
             int py = sy + dy;
             if (py < 0 || py >= h)
                 continue;
-            int row = py * w;
+            int row = py * stride_px;
             for (int dx = 0; dx < sz; dx++) {
                 int px = sx + dx;
                 if (px >= 0 && px < w) {
@@ -260,7 +267,7 @@ void StarfieldScreensaver::render_frame() {
             int py = isy + dy;
             if (py < 0 || py >= h)
                 continue;
-            int row = py * w;
+            int row = py * stride_px;
             for (int dx = 0; dx < size; dx++) {
                 int px = isx + dx;
                 if (px >= 0 && px < w) {

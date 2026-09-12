@@ -21,7 +21,12 @@ namespace helix {
 
 class HttpTransport : public SocketServerBase {
   public:
-    HttpTransport(std::string bind_host, int port);
+    HttpTransport(std::string bind_host, int port, std::string token);
+
+    /// Stops a still-running transport; closes the listener and joins the accept thread.
+    ~HttpTransport() override {
+        stop();
+    }
 
     std::string endpoint() const override {
         return "http://" + bind_host_ + ":" + std::to_string(port_) + "/rpc";
@@ -34,6 +39,7 @@ class HttpTransport : public SocketServerBase {
   private:
     std::string bind_host_;
     int port_;
+    std::string token_;
 };
 
 } // namespace helix

@@ -747,6 +747,10 @@ main() {
         stop_service "$platform"
     fi
 
+    # Clear the payload's directory of any state kept there, before anything
+    # extracts on top of it.
+    migrate_previous_state_dir
+
     extract_release "$platform"
     fix_install_ownership
     install_service "$platform"
@@ -832,6 +836,7 @@ main() {
     # Start service
     start_service "$platform"
     cleanup_old_install
+    cleanup_migrated_install
     cleanup_stale_cache_dirs
     retire_legacy_config_backups
 

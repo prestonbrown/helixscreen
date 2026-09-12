@@ -4,6 +4,7 @@
 #include "printer_image_manager.h"
 
 #include "config.h"
+#include "data_root_resolver.h"
 #include "lvgl_image_writer.h"
 #include "prerendered_images.h"
 #include "settings_manager.h"
@@ -13,6 +14,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <filesystem>
 #include <set>
@@ -170,20 +172,46 @@ std::string PrinterImageManager::format_display_name(const std::string& stem) {
 // Browsing
 // =============================================================================
 
-std::vector<PrinterImageManager::ImageInfo> PrinterImageManager::get_shipped_images() const {
+std::vector<PrinterImageManager::ImageInfo>
+PrinterImageManager::get_shipped_images(int screen_width) const {
     std::vector<ImageInfo> results;
+    std::set<std::string> stems;
 
+    // Two shapes hold the shipped set, and the picker has to read both. A
+    // checkout has the source PNGs and no tiers; a device has one tier per
+    // printer and no PNGs at all, because packaging deletes them. Reading only
+    // the PNGs hands every device an empty picker.
     const std::string printer_dir = "assets/images/printers/";
-    auto paths = scan_for_images(printer_dir);
+    for (const auto& path : scan_for_images(helix::asset_path(printer_dir)))
+        stems.insert(fs::path(path).stem().string());
 
-    for (const auto& path : paths) {
-        std::string stem = fs::path(path).stem().string();
+    std::error_code ec;
+    const std::string tier_dir = helix::asset_path(printer_dir + "prerendered/");
+    if (fs::exists(tier_dir, ec)) {
+        for (const auto& entry : fs::directory_iterator(tier_dir, ec)) {
+            if (!entry.is_regular_file() || entry.path().extension() != ".bin")
+                continue;
+            // "<stem>-<size>.bin" -> "<stem>"; anything else is not a tier.
+            const std::string name = entry.path().stem().string();
+            const size_t dash = name.rfind('-');
+            if (dash == std::string::npos || dash == 0)
+                continue;
+            const std::string suffix = name.substr(dash + 1);
+            if (suffix.empty() || !std::all_of(suffix.begin(), suffix.end(), [](unsigned char c) {
+                    return std::isdigit(c) != 0;
+                }))
+                continue;
+            stems.insert(name.substr(0, dash));
+        }
+    }
 
+    for (const auto& stem : stems) {
         ImageInfo info;
         info.id = "shipped:" + stem;
         info.display_name = format_display_name(stem);
-        // Preview uses 150px prerendered variant
-        info.preview_path = get_prerendered_printer_path(stem, 480); // 480 -> 150px
+        // Sized off the real display: packaging keeps only the tier this width
+        // selects, so any fixed size names a file half the fleet does not have.
+        info.preview_path = get_prerendered_printer_path(stem, screen_width);
         results.push_back(std::move(info));
     }
 

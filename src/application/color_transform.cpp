@@ -14,6 +14,30 @@ inline uint8_t clamp_u8(int v) {
 }
 } // namespace
 
+ColorTransform::FlushRegion
+ColorTransform::select_flush_region(const lv_draw_buf_t* active_buf, const lv_area_t& area,
+                                    lv_color_format_t cf, lv_display_render_mode_t render_mode) {
+    FlushRegion r;
+    // The active buffer's real pitch, not one computed from the area width:
+    // the DRM backend renders into dumb buffers whose pitch is kernel-aligned
+    // and can exceed the area width (direct/full render mode). Fall back to
+    // the computed stride only when the active buffer can't be queried.
+    r.stride_bytes = (active_buf && active_buf->header.stride > 0)
+                         ? active_buf->header.stride
+                         : lv_draw_buf_width_to_stride(lv_area_get_width(&area), cf);
+    // Partial mode reshapes the draw buffer to the dirty area and flushes
+    // from the area's origin; direct and full keep the buffer at the
+    // display's (0,0), so the rect sits at its absolute coordinates.
+    if (render_mode == LV_DISPLAY_RENDER_MODE_PARTIAL) {
+        r.x = 0;
+        r.y = 0;
+    } else {
+        r.x = area.x1;
+        r.y = area.y1;
+    }
+    return r;
+}
+
 void ColorTransform::reset() {
     for (int i = 0; i < 256; ++i) {
         r_lut_[i] = g_lut_[i] = b_lut_[i] = static_cast<uint8_t>(i);

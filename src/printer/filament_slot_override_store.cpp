@@ -1788,6 +1788,21 @@ void SlotFingerprintTracker::clear() {
 // merge_override — shared spec §5 implementation
 // =============================================================================
 
+LoadedOverrideStore make_loaded_override_store(IMoonrakerAPI* api, std::string backend_id,
+                                               AmsType type, const std::string& log_tag,
+                                               std::string ns) {
+    if (!api) {
+        return {};
+    }
+    LoadedOverrideStore result;
+    result.store = std::make_unique<FilamentSlotOverrideStore>(
+        api, std::move(backend_id), lane_key_style_for(type), std::move(ns));
+    result.overrides = result.store->load_blocking();
+    spdlog::info("{} Loaded {} slot overrides from filament_slot store", log_tag,
+                 result.overrides.size());
+    return result;
+}
+
 MergeResult merge_override(SlotInfo& slot, const FilamentSlotOverride& o,
                            const MergeOptions& options) {
     // Rule 1 — external re-bind. Another well-behaved writer (Mainsail, the

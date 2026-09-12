@@ -38,35 +38,46 @@ check-uptodate:
 # ============================================================================
 
 # ============================================================================
-# ARCHITECTURE CHANGE DETECTION
+# TOOLCHAIN CHANGE DETECTION
 # ============================================================================
-# Problem: Switching between native and cross-compilation targets leaves
-# stale object files from the wrong architecture, causing cryptic linker errors.
+# make compares timestamps, not toolchains, so one build dir survives both a
+# target switch and a compiler switch and ends up holding objects from each.
 #
-# Solution: Track the last build target in .build-target and auto-clean when
-# the target changes. This prevents mixing ARM and x86/ARM64 objects.
+# Mixing architectures gives cryptic linker errors. Mixing compilers is quieter
+# and worse: GCC and clang mangle a function-local std::string static
+# differently, so the linker keeps BOTH copies of it. One translation unit's
+# write is then invisible to another and nothing reports a problem.
+#
+# .build-target records the target AND the compiler; either changing cleans.
 # ============================================================================
-ARCH_MARKER := $(BUILD_DIR)/.build-target
+TOOLCHAIN_MARKER := $(BUILD_DIR)/.build-target
 # Map pi-both → pi, pi32-both → pi32 so switching between single/dual-link
 # modes doesn't trigger an unnecessary clean (they share the same build dir)
 _RAW_TARGET := $(if $(PLATFORM_TARGET),$(PLATFORM_TARGET),native)
 CURRENT_TARGET := $(subst pi32-both,pi32,$(subst pi-both,pi,$(_RAW_TARGET)))
+# Whatever the compiler prints for itself. This covers a gcc/clang swap and a
+# version bump alike, and is stable across ccache being installed or not.
+CXX_IDENTITY := $(shell $(CXX) --version 2>/dev/null | head -1)
+CURRENT_TOOLCHAIN := $(CURRENT_TARGET) | $(CXX_IDENTITY)
 
-# Check if architecture changed and clean if needed
-define check-arch-change
+# Run this from a dependency-free phase-1 recipe only: once an object has
+# compiled it is already too late to tell which toolchain produced it.
+define check-toolchain-change
 	@mkdir -p $(BUILD_DIR)
-	@if [ -f "$(ARCH_MARKER)" ]; then \
-		LAST_TARGET=$$(cat "$(ARCH_MARKER)"); \
-		if [ "$$LAST_TARGET" != "$(CURRENT_TARGET)" ]; then \
+	@if [ -f "$(TOOLCHAIN_MARKER)" ]; then \
+		LAST_BUILD=$$(cat "$(TOOLCHAIN_MARKER)"); \
+		if [ "$$LAST_BUILD" != "$(CURRENT_TOOLCHAIN)" ]; then \
 			echo ""; \
-			echo "$(YELLOW)$(BOLD)⚠️  Build target changed: $$LAST_TARGET → $(CURRENT_TARGET)$(RESET)"; \
-			echo "$(CYAN)Auto-cleaning to avoid mixing architectures...$(RESET)"; \
+			echo "$(YELLOW)$(BOLD)⚠️  Build target or compiler changed$(RESET)"; \
+			echo "$(YELLOW)     was: $$LAST_BUILD$(RESET)"; \
+			echo "$(YELLOW)     now: $(CURRENT_TOOLCHAIN)$(RESET)"; \
+			echo "$(CYAN)Auto-cleaning so the build dir holds one toolchain...$(RESET)"; \
 			echo ""; \
 			$(MAKE) clean; \
 			mkdir -p $(BUILD_DIR); \
 		fi; \
 	fi
-	@echo "$(CURRENT_TARGET)" > "$(ARCH_MARKER)"
+	@echo "$(CURRENT_TOOLCHAIN)" > "$(TOOLCHAIN_MARKER)"
 endef
 
 # Dependency check stamp file - created by check-deps, prevents re-checking
@@ -77,20 +88,8 @@ DEPS_CHECKED_MARKER := $(BUILD_DIR)/.deps-checked
 .PHONY: all
 all:
 ifndef _PARALLEL_CHECKED
-	@# First check for architecture change BEFORE anything else
-	@mkdir -p $(BUILD_DIR)
-	@if [ -f "$(ARCH_MARKER)" ]; then \
-		LAST_TARGET=$$(cat "$(ARCH_MARKER)"); \
-		if [ "$$LAST_TARGET" != "$(CURRENT_TARGET)" ]; then \
-			echo ""; \
-			echo "$(YELLOW)$(BOLD)⚠️  Build target changed: $$LAST_TARGET → $(CURRENT_TARGET)$(RESET)"; \
-			echo "$(CYAN)Auto-cleaning to avoid mixing architectures...$(RESET)"; \
-			echo ""; \
-			$(MAKE) clean; \
-			mkdir -p $(BUILD_DIR); \
-		fi; \
-	fi
-	@echo "$(CURRENT_TARGET)" > "$(ARCH_MARKER)"
+	@# Target and compiler BEFORE anything else compiles
+	$(check-toolchain-change)
 	@# Check dependencies BEFORE parallel build starts (prevents confusing errors)
 	@# Only run if marker is missing or older than check script.
 	@# SKIP_OPTIONAL_DEPS=1 passes --minimal for cross-compilation builds (Docker).
@@ -129,8 +128,10 @@ endif
 ifndef SKIP_COMPILE_COMMANDS
 	@# Auto-generate compile_commands.json from fragments (fast, <0.3s)
 	@# Skip with SKIP_COMPILE_COMMANDS=1 (used by pre-commit to avoid LSP churn)
+	@# stdout is captured into the summary line; stderr is where the merge says
+	@# why it refused, and it is the only account of a failure the recipe gives.
 	@if [ -d "$(BUILD_DIR)" ] && [ -f scripts/merge_compile_commands.py ]; then \
-		SUMMARY=$$(python3 scripts/merge_compile_commands.py --build-dir $(BUILD_DIR) 2>/dev/null) && \
+		SUMMARY=$$(python3 scripts/merge_compile_commands.py --build-dir $(BUILD_DIR)) && \
 			echo "$(CYAN)→ compile_commands.json ($$SUMMARY)$(RESET)"; \
 	fi
 endif
@@ -198,11 +199,17 @@ DEPFILES := $(wildcard $(OBJ_DIR)/*.d $(OBJ_DIR)/**/*.d)
 # Usage: $(call emit-compile-command,compiler,flags,source,output)
 # Example: $(call emit-compile-command,$(CXX),$(CXXFLAGS) $(INCLUDES),$<,$@)
 #
-# Note: Uses sed to escape double quotes in the command for valid JSON
+# The command must stay shell-ready: a consumer splits it back into argv, so a
+# define whose value has to reach the compiler WITH quotes (-DNAME="text") needs
+# those quotes to survive that split. Single-quoting the value is what carries
+# them through; escaping alone would hand the compiler a bare token and the
+# macro would expand to something that does not parse. Then the double quotes
+# are escaped again for JSON.
 # ============================================================================
 define emit-compile-command
 	@CMD="$(1) $(2) -c $(3) -o $(4)"; \
-	CMD_ESC=$$(echo "$$CMD" | sed 's/"/\\"/g'); \
+	CMD_SH=$$(echo "$$CMD" | sed "s/\(-D[A-Za-z_][A-Za-z0-9_]*=\)\(\"[^\" ]*\"\)/\1'\2'/g"); \
+	CMD_ESC=$$(echo "$$CMD_SH" | sed 's/"/\\"/g'); \
 	printf '{"directory": "%s", "file": "%s", "command": "%s"}\n' \
 		"$(CURDIR)" \
 		"$(abspath $(3))" \
@@ -529,7 +536,7 @@ compile_commands:
 		$(MAKE) all test-build; \
 	fi
 	@SUMMARY=$$(python3 scripts/merge_compile_commands.py --build-dir $(BUILD_DIR)) && \
-		echo "$(GREEN)✓ compile_commands.json generated ($$SUMMARY)$(RESET)"
+		echo "$(GREEN)✓ compile_commands.json: $$SUMMARY$(RESET)"
 	$(ECHO) ""
 	$(ECHO) "$(CYAN)IDE/LSP integration ready. Restart your editor to pick up changes.$(RESET)"
 

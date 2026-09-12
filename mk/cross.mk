@@ -927,6 +927,16 @@ ifeq ($(DISPLAY_BACKEND),drm)
         SUBMODULE_CFLAGS += -DHELIX_ENABLE_OPENGLES
         SUBMODULE_CXXFLAGS += -DHELIX_ENABLE_OPENGLES
     endif
+    # NanoVG draw unit. Rasterizes on the GPU, so it needs the EGL presentation
+    # path above; it cannot render onto a dumb-buffer or fbdev framebuffer.
+    # It also grows lv_layer_t and lv_draw_task_t, so objects built with it
+    # cannot be linked against objects built without it.
+    ifeq ($(ENABLE_NANOVG),yes)
+        CFLAGS += -DHELIX_ENABLE_NANOVG
+        CXXFLAGS += -DHELIX_ENABLE_NANOVG
+        SUBMODULE_CFLAGS += -DHELIX_ENABLE_NANOVG
+        SUBMODULE_CXXFLAGS += -DHELIX_ENABLE_NANOVG
+    endif
     # DRM backend linker flags are added in Makefile's cross-compile section
 else ifeq ($(DISPLAY_BACKEND),fbdev)
     CFLAGS += -DHELIX_DISPLAY_FBDEV
@@ -1559,7 +1569,7 @@ help-cross:
 	echo "  $${Y}K1_DEPLOY_DIR$${X}=path   - K1 deploy directory (default: /usr/data/helixscreen)"; \
 	echo "  $${Y}K2_HOST$${X}=hostname     - K2 hostname/IP (default: k2.local)"; \
 	echo "  $${Y}K2_USER$${X}=user         - K2 username (default: root)"; \
-	echo "  $${Y}K2_DEPLOY_DIR$${X}=path   - K2 deploy directory (default: /opt/helixscreen)"; \
+	echo "  $${Y}K2_DEPLOY_DIR$${X}=path   - K2 deploy directory (default: /mnt/UDISK/helixscreen)"; \
 	echo "  $${Y}SNAPMAKER_U1_HOST$${X}=hostname - Snapmaker U1 hostname/IP (default: snapmaker-u1.local)"; \
 	echo "  $${Y}SNAPMAKER_U1_USER$${X}=user     - Snapmaker U1 username (default: root)"; \
 	echo "  $${Y}SNAPMAKER_U1_DEPLOY_DIR$${X}=path - Snapmaker U1 deploy directory (default: /userdata/helixscreen)"; \
@@ -2520,10 +2530,10 @@ k1-dynamic-test: k1-dynamic-docker deploy-k1-dynamic-fg
 K2_HOST ?=
 K2_USER ?= root
 # Must match the installer's K2 INSTALL_DIR (scripts/lib/installer/platform.sh:
-# k2 branch → /opt/helixscreen) and the init script's DAEMON_DIR set below.
-# /mnt/UDISK is only KLIPPER_HOME (printer_data/config), NOT the program dir;
-# deploying there left the binary where the daemon never runs it.
-K2_DEPLOY_DIR ?= /opt/helixscreen
+# k2 branch → /mnt/UDISK/helixscreen) and the init script's DAEMON_DIR set below.
+# /mnt/UDISK is the 27.5GB user partition. /opt is on the ~240MB overlay that
+# carries / and the firmware, which the payload does not fit on.
+K2_DEPLOY_DIR ?= /mnt/UDISK/helixscreen
 
 # Build SSH target for K2 (lazy evaluation — only errors when deploy targets actually use it)
 K2_SSH_TARGET = $(if $(K2_HOST),$(K2_USER)@$(K2_HOST),$(error K2_HOST is required. K2 does not resolve via mDNS. Use: make deploy-k2 K2_HOST=192.168.x.x))
@@ -2589,7 +2599,7 @@ deploy-k2:
 			cd /tmp && tar -xof - && \
 			cp helixscreen.init /etc/init.d/S99helixscreen && \
 			chmod +x /etc/init.d/S99helixscreen && \
-			sed -i "s|DAEMON_DIR=.*|DAEMON_DIR=\"/opt/helixscreen\"|" /etc/init.d/S99helixscreen && \
+			sed -i "s|DAEMON_DIR=.*|DAEMON_DIR=\"$(K2_DEPLOY_DIR)\"|" /etc/init.d/S99helixscreen && \
 			cp helixscreen-k2-procd-shim.sh /etc/init.d/helixscreen && \
 			chmod +x /etc/init.d/helixscreen && \
 			rm -f /etc/rc.d/S99helixscreen /etc/rc.d/K01helixscreen && \
@@ -2602,12 +2612,6 @@ deploy-k2:
 			fi; \
 			rm -f /tmp/helixscreen.init /tmp/helixscreen-k2-procd-shim.sh; \
 			echo "Init script + procd shim installed (boot symlinks verified)"'
-	@# Ensure /opt/helixscreen symlink exists (points to UDISK for storage)
-	@ssh $(K2_SSH_TARGET) '\
-		if [ ! -e /opt/helixscreen ]; then \
-			ln -s $(K2_DEPLOY_DIR) /opt/helixscreen; \
-			echo "Created /opt/helixscreen symlink"; \
-		fi'
 	@echo "$(GREEN)✓ Deployed to $(K2_HOST):$(K2_DEPLOY_DIR)$(RESET)"
 	$(call sync-device-features,$(K2_SSH_TARGET),$(K2_DEPLOY_DIR),build/k2/bin)
 	@echo "$(CYAN)Starting helix-screen on $(K2_HOST)...$(RESET)"

@@ -168,6 +168,53 @@ make_tree() {
     contains "hardcodes --sizes" "$output"
 }
 
+@test "gate: reports a literal display width handed to the printer-image lookup" {
+    make_tree
+    cat > "$TREE/src/system/fake_widget.cpp" <<'EOF'
+std::string preview(const std::string& stem) {
+    return get_prerendered_printer_path(stem, 480);
+}
+EOF
+    run python3 "$GATE" --quiet --root "$TREE"
+    contains "literal width 480" "$output"
+}
+
+@test "gate: reports a shipped tier size written as a literal" {
+    make_tree
+    cat > "$TREE/src/system/fake_lookup.cpp" <<'EOF'
+std::string tier(const std::string& stem) {
+    const int size = 300;
+    return "assets/images/printers/prerendered/" + stem + "-" + std::to_string(size) + ".bin";
+}
+EOF
+    run python3 "$GATE" --quiet --root "$TREE"
+    contains "literal size 300" "$output"
+}
+
+@test "gate: silent on the custom-image cache, which keeps every size" {
+    # Custom images are written on the device and nothing prunes them, so naming
+    # both sizes there is correct. Flagging it would train people to ignore this.
+    make_tree
+    cat > "$TREE/src/system/fake_custom.cpp" <<'EOF'
+void convert(const std::string& stem) {
+    write_bin(custom_dir_ + stem + "-300.bin", 300);
+    write_bin(custom_dir_ + stem + "-150.bin", 150);
+}
+EOF
+    run python3 "$GATE" --quiet --root "$TREE"
+    lacks "printer-image-sizes" "$output"
+}
+
+@test "gate: silent on a doc comment that names a tier file" {
+    make_tree
+    cat > "$TREE/src/system/fake_doc.cpp" <<'EOF'
+/// "A:assets/images/printers/prerendered/creality-k1c-150.bin" -> "creality-k1c"
+static std::string basename_of(const std::string& p) { return p; }
+EOF
+    run python3 "$GATE" --quiet --root "$TREE"
+    lacks "printer-image-sizes" "$output"
+}
+
 @test "gate: reports an install root the discovery lists have not been taught" {
     make_tree
     python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); \
@@ -488,7 +535,19 @@ json.dump(d,open(p,"w"),indent=2)' "$TREE/assets/config/platforms.json"
 }
 
 @test "gate: names a root the app reads but the uninstaller never removes" {
+    # Built in the sandbox rather than pointed at a real drift: the finding this
+    # pins is one the tree is supposed to have none of, so borrowing a live
+    # example makes the case disappear the moment someone fixes it.
     make_tree
+    python3 - "$TREE/include/helix_install_roots.h" <<'EOF'
+import io, sys
+p = sys.argv[1]
+s = io.open(p, encoding="utf-8").read()
+s = s.replace('inline constexpr const char* kInstallRoots[] = {',
+              'inline constexpr const char* kInstallRoots[] = {\n    "/unswept/helixscreen",',
+              1)
+io.open(p, "w", encoding="utf-8").write(s)
+EOF
     run python3 "$GATE" --quiet --root "$TREE"
-    contains "/data/helixscreen is searched by the app as a payload root" "$output"
+    contains "/unswept/helixscreen is searched by the app as a payload root" "$output"
 }

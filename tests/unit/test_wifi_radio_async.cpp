@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../../include/async_lifetime_guard.h"
+#include "../../include/config.h"
 #include "../../include/http_executor.h"
 #include "../../include/ui_update_queue.h"
 #include "../../include/wifi_backend.h"
@@ -353,4 +354,56 @@ TEST_CASE("wifi_parse_nm_radio_state refuses to guess at an unparseable answer",
     CHECK_FALSE(wifi_parse_nm_radio_state("   \n\t ").has_value());
     CHECK_FALSE(wifi_parse_nm_radio_state("missing").has_value());
     CHECK_FALSE(wifi_parse_nm_radio_state("Error: NetworkManager is not running.").has_value());
+}
+
+// ============================================================================
+// The stored expectation belongs to the radio, not to whoever flipped it
+// ============================================================================
+
+TEST_CASE("A radio toggle records the state the radio reached, caller alive or not",
+          "[wifi][manager][radio][async]") {
+    helix::http::HttpExecutor::fast().start();
+    Config* config = Config::get_instance();
+    REQUIRE(config != nullptr);
+
+    // A radio that refuses to change: the request is "off" and the state stays
+    // "on", so the value a caller assumed when it flipped its switch and the
+    // value that must be stored are different values.
+    auto backend = std::make_unique<LatchedRadioBackend>();
+    LatchedRadioBackend* raw = backend.get();
+    raw->fail_next();
+    WiFiManager manager(std::move(backend));
+    settle_construction();
+
+    // A live caller first. Without this half, the assertion below would hold
+    // just as well against a toggle whose expectation nobody ever writes.
+    config->set_wifi_expected(false);
+    std::atomic<bool> answered{false};
+    {
+        helix::AsyncLifetimeGuard caller;
+        manager.set_enabled_async(false, caller.token(),
+                                  [&answered](bool, bool) { answered.store(true); });
+        REQUIRE(spin_until([raw] { return raw->entered(); }));
+        raw->release();
+        REQUIRE(drain_until([&answered] { return answered.load(); }));
+    }
+    REQUIRE(raw->is_radio_enabled());  // the radio really did stay on
+    CHECK(config->is_wifi_expected()); // and that, not the request, was stored
+
+    // Now the same toggle with the caller gone before the queue tick that
+    // would have delivered its answer.
+    config->set_wifi_expected(false);
+    std::atomic<bool> answered_again{false};
+    {
+        helix::AsyncLifetimeGuard caller;
+        manager.set_enabled_async(false, caller.token(),
+                                  [&answered_again](bool, bool) { answered_again.store(true); });
+        // Owner dies with the result undelivered — nothing has drained yet.
+    }
+
+    REQUIRE(drain_until([config] { return config->is_wifi_expected(); }));
+    CHECK_FALSE(answered_again.load()); // the caller's half was dropped
+    CHECK(config->is_wifi_expected());  // the radio's state was recorded anyway
+
+    helix::ui::UpdateQueue::instance().drain();
 }

@@ -1796,11 +1796,15 @@ if [ -f "scripts/check_namespace_compliance.py" ]; then
   # main dropped the Plugins overlay and retired three globals without
   # ratcheting, so the merge collects that slack too. 2239 -> 2238 is
   # ResolvedMacroScript and resolve_macro_script moving into helix::.
-  # 2215 -> 2233 anchors FOREIGN_PREFIXES to real foreign spellings
-  # (#1586): bare 'G', 'Display', 'Window' and 'z_' exempted our own
-  # DisplayManager, DisplayBackend* and capitalised G* types from the gate
-  # entirely. The 18 symbols that become visible are pre-existing
-  # declarations, now COUNTED so the ratchet can only move down from here.
+  # 2215 -> 2233 is FOREIGN_PREFIXES anchored to real foreign spellings
+  # (#1586). Every entry there is matched with startswith, so a prefix this
+  # tree also spells - bare 'G', 'Display', 'Window', 'z_' - exempts our own
+  # declarations from the gate rather than a library's. The list carries only
+  # spellings a third-party API actually uses, and the 18 symbols that covers
+  # are counted here.
+  #
+  # tests/shell/test_namespace_gate.bats carries this same number and fails if
+  # the two disagree or if the tree drifts under it.
   if python3 scripts/check_namespace_compliance.py --max-allowed 2233 --summary >/tmp/namespace_check.out 2>&1; then
     section_time $SECTION_START
     echo ""
