@@ -97,6 +97,37 @@ TEST_CASE("a range with no valid end produces no label", "[numbering]") {
     CHECK(lane_range_label(LaneNoun::Slot, 0, -1).empty());
 }
 
+TEST_CASE("a range that runs backwards produces no label", "[numbering]") {
+    // The span is ordered low to high. A caller handing the ends over reversed
+    // has no span to show, and "Slots 6-3" reads as a real one.
+    CHECK(lane_range_label(LaneNoun::Slot, 5, 2).empty());
+    CHECK(lane_range_label(LaneNoun::Gate, 1, 0).empty());
+    // One below the boundary on each side still spans.
+    CHECK(lane_range_label(LaneNoun::Gate, 0, 1) == "Gates 1-2");
+}
+
+TEST_CASE("a one-position span is spelled as one position", "[numbering]") {
+    // Not "Slots 3-3": a plural header over a single position is wrong in every
+    // locale that inflects, and the range is degenerate rather than absent.
+    CHECK(lane_range_label(LaneNoun::Slot, 2, 2) == "Slot 3");
+    CHECK(lane_range_label(LaneNoun::Lane, 0, 0) == "Lane 1");
+    CHECK(lane_range_label(LaneNoun::Toolhead, 3, 3) == "Toolhead 4");
+}
+
+TEST_CASE("is_generated_tool_name separates a gcode identity from a chosen name", "[numbering]") {
+    // The T<n> form tool_label() produces may be renumbered for display; a name
+    // its owner wrote into printer.cfg is what the machine is labeled with.
+    CHECK(is_generated_tool_name("T0"));
+    CHECK(is_generated_tool_name("T15"));
+    CHECK(is_generated_tool_name(tool_label(7)));
+    CHECK_FALSE(is_generated_tool_name("Left"));
+    CHECK_FALSE(is_generated_tool_name("T"));
+    CHECK_FALSE(is_generated_tool_name(""));
+    CHECK_FALSE(is_generated_tool_name("t0"));
+    CHECK_FALSE(is_generated_tool_name("T0a"));
+    CHECK_FALSE(is_generated_tool_name("Tool 1"));
+}
+
 TEST_CASE("Feeder and Toolhead compose like every other noun", "[numbering]") {
     // Snapmaker U1 is the one backend where the filament-entry noun and the
     // printing-end noun differ, so both need the ordinary lane_label() path.

@@ -695,7 +695,17 @@ std::string ToolState::nozzle_label() const {
     }
     const auto* tool = active_tool();
     if (tool) {
-        return std::string(lv_tr("Nozzle")) + " " + tool->name;
+        // The number, not the gcode identity: the three other producers of a
+        // nozzle label (PrinterTemperatureState, the temp graph, the print
+        // status widget) all spell this nozzle with lane_number_text(), and two
+        // names for one physical nozzle is the confusion. A tool its owner
+        // named keeps that name.
+        const std::string suffix = helix::ui::is_generated_tool_name(tool->name)
+                                       ? helix::ui::lane_number_text(tool->index)
+                                       : tool->name;
+        if (!suffix.empty()) {
+            return std::string(lv_tr("Nozzle")) + " " + suffix;
+        }
     }
     return lv_tr("Nozzle");
 }

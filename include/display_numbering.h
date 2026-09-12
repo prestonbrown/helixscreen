@@ -35,6 +35,16 @@ enum class LaneNoun {
 std::string tool_label(int gcode_tool);
 
 /**
+ * @brief Whether @p name is the generated G-code identity, not a configured one.
+ *
+ * A Klipper tool carries either a name its owner chose ("Left", "Right") or the
+ * "T<n>" form tool_label() produces when none was configured. Only the
+ * generated form may be replaced by a 1-based display number; a chosen name is
+ * what the machine is physically labeled with and is shown verbatim.
+ */
+bool is_generated_tool_name(std::string_view name);
+
+/**
  * @brief Convert a storage index to the number a user sees.
  *
  * The only + 1 in the codebase. Every display path routes through this so a
@@ -70,10 +80,15 @@ std::string lane_label(LaneNoun noun, std::string_view unit_display_name, int in
 /**
  * @brief A span of physical positions: "Slots 1-4", "Lanes 1-8".
  *
- * The plural noun with a 1-based inclusive range. Every locale spells the
- * plural as one fixed word, so the header never agrees with either number.
+ * The plural noun with a 1-based inclusive range, ordered low to high. Every
+ * locale spells the plural as one fixed word, so the header never agrees with
+ * either number.
  *
- * @return empty when either index is negative
+ * A one-position span is spelled as one position ("Slot 3"), not as a range
+ * against itself.
+ *
+ * @return empty when either index is negative or when @p last_index precedes
+ *         @p first_index, since neither describes a span
  */
 std::string lane_range_label(LaneNoun noun, int first_index, int last_index);
 

@@ -145,7 +145,8 @@ class ToolState {
         return extruder_count() > 1;
     }
 
-    /// Returns "Nozzle" for single-tool, "Nozzle T0" for multi-tool (active tool).
+    /// Returns "Nozzle" for single-tool, "Nozzle 1" for multi-tool (active tool),
+    /// or the tool's configured Klipper name ("Nozzle Left") when it has one.
     [[nodiscard]] std::string nozzle_label() const;
 
     /// Request a tool change, delegating to AMS backend or falling back to Tn gcode.

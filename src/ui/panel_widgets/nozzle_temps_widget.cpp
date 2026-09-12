@@ -9,6 +9,7 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "display_numbering.h"
 #include "lvgl/src/misc/lv_text_private.h" // lv_text_get_width, lv_text_attributes_t
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "nozzle_layout.h"
@@ -450,11 +451,7 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
     // configured tool name is already meaningful — keep it.
     std::string gcode_name = tool_state.tool_name_for_extruder(row.name);
     std::string long_name = gcode_name.empty() ? row.name : gcode_name;
-    bool is_default_tn = gcode_name.size() >= 2 && gcode_name[0] == 'T' &&
-                         std::all_of(gcode_name.begin() + 1, gcode_name.end(), [](char c) {
-                             return std::isdigit(static_cast<unsigned char>(c));
-                         });
-    if (is_default_tn) {
+    if (helix::ui::is_generated_tool_name(gcode_name)) {
         const auto& exts = printer_state_.temperature_state().extruders();
         auto it = exts.find(row.name);
         if (it != exts.end() && !it->second.display_name.empty())

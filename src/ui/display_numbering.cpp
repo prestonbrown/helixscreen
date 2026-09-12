@@ -44,6 +44,16 @@ std::string tool_label(int gcode_tool) {
     return "T" + std::to_string(gcode_tool);
 }
 
+bool is_generated_tool_name(std::string_view name) {
+    if (name.size() < 2 || name[0] != 'T')
+        return false;
+    for (size_t i = 1; i < name.size(); ++i) {
+        if (name[i] < '0' || name[i] > '9')
+            return false;
+    }
+    return true;
+}
+
 int lane_number(int index) {
     if (index < 0)
         return -1;
@@ -94,8 +104,12 @@ std::string lane_label(LaneNoun noun, std::string_view unit_display_name, int in
 std::string lane_range_label(LaneNoun noun, int first_index, int last_index) {
     const int first = lane_number(first_index);
     const int last = lane_number(last_index);
-    if (first < 0 || last < 0)
+    if (first < 0 || last < 0 || last < first)
         return {};
+    // "Slots 3-3" is not how anyone says it, and a plural header over one
+    // position is wrong in every locale that inflects.
+    if (first == last)
+        return lane_label(noun, first_index);
     return noun_text_plural(noun) + " " + std::to_string(first) + "-" + std::to_string(last);
 }
 

@@ -413,7 +413,7 @@ TEST_CASE_METHOD(ToolStateFixture, "A real 4-extruder ToolChanger does report mu
 }
 
 // =============================================================================
-// nozzle_label(): "Nozzle" vs "Nozzle T<n>"
+// nozzle_label(): "Nozzle" vs "Nozzle <n>"
 //
 // The label sits directly beside a nozzle temperature readout in both the
 // controls panel and the filament panel, so it answers "which nozzle am I
@@ -452,7 +452,7 @@ TEST_CASE_METHOD(ToolStateFixture, "nozzle_label stays plain when AMS lanes shar
 TEST_CASE_METHOD(ToolStateFixture, "nozzle_label still names the tool on a real toolchanger",
                  "[tool-state][ams][ams-topology][nozzle-label]") {
     // Paired with the case above: a label hardcoded to "Nozzle" would pass that
-    // one, so a machine with real hotends must still get its T<n>.
+    // one, so a machine with real hotends must still get its number.
     auto& ts = helix::ToolState::instance();
     auto disc = make_toolchanger_discovery();
 
@@ -465,7 +465,39 @@ TEST_CASE_METHOD(ToolStateFixture, "nozzle_label still names the tool on a real 
     ts.update_from_status(status);
     UpdateQueue::instance().drain();
     REQUIRE(ts.active_tool_index() == 2);
-    REQUIRE(ts.nozzle_label() == "Nozzle T2");
+    // 1-based, matching what PrinterTemperatureState, the temp graph and the
+    // print status widget spell for this same nozzle. The gcode identity "T2"
+    // names the same hotend one lower and belongs in a console, not here.
+    REQUIRE(ts.nozzle_label() == "Nozzle 3");
+}
+
+namespace {
+helix::PrinterDiscovery make_named_toolchanger_discovery() {
+    nlohmann::json objects = {"toolchanger", "tool Left", "tool Right", "extruder", "extruder1"};
+    helix::PrinterDiscovery disc;
+    disc.parse_objects(objects);
+    return disc;
+}
+} // namespace
+
+TEST_CASE_METHOD(ToolStateFixture, "nozzle_label keeps a tool name its owner configured",
+                 "[tool-state][ams][ams-topology][nozzle-label]") {
+    // A viesturz [tool Right] is what is written on the machine; renumbering it
+    // would name a hotend something its owner never sees.
+    auto& ts = helix::ToolState::instance();
+    auto disc = make_named_toolchanger_discovery();
+
+    ts.init_tools(disc);
+    UpdateQueue::instance().drain();
+    REQUIRE(ts.extruder_count() == 2);
+    REQUIRE(ts.tools()[1].name == "Right");
+
+    nlohmann::json status = {{"toolhead", {{"extruder", "extruder1"}}}};
+    ts.update_from_status(status);
+    UpdateQueue::instance().drain();
+    REQUIRE(ts.active_tool_index() == 1);
+
+    REQUIRE(ts.nozzle_label() == "Nozzle Right");
 }
 
 // ============================================================================
