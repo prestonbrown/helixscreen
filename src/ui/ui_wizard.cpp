@@ -8,6 +8,7 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_home.h"
 #include "ui_subject_registry.h"
+#include "ui_timer_guard.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 #include "ui_wizard_ams_identify.h"
@@ -96,6 +97,100 @@ static bool navigating = false;
 // branch is gated on !g_step_subset.empty()).
 static std::vector<helix::wizard::StepId> g_step_subset;
 static std::function<void()> g_targeted_on_complete;
+
+namespace helix {
+
+// Deferred one-shots armed by ui_wizard_complete(): a 500 ms runout-modal check
+// and a 100 ms navigation to Home. They reach only singletons, but nothing else
+// in the wizard outlives them, so they need an owner that a new wizard session
+// and shutdown can tell to stand down — a dismissal or app exit inside their
+// window must not fire them into state being torn down
+// (prestonbrown/helixscreen#1577).
+struct WizardCompletionTimers {
+    lv_timer_t* runout_check_timer_ = nullptr;
+    lv_timer_t* home_nav_timer_ = nullptr;
+
+    void arm_runout_check();
+    void arm_home_navigation();
+    void cancel();
+    ~WizardCompletionTimers();
+};
+
+static WizardCompletionTimers g_completion_timers;
+
+} // namespace helix
+
+void helix::WizardCompletionTimers::arm_runout_check() {
+    // Re-arming must not stack a second one-shot behind a still-pending one.
+    if (runout_check_timer_) {
+        helix::ui::lv_timer_cancel_safe(runout_check_timer_);
+        runout_check_timer_ = nullptr;
+    }
+    // user_data is `this` (module-static storage), so the trampoline can null
+    // the member before the one-shot retires itself.
+    runout_check_timer_ = lv_timer_create(
+        [](lv_timer_t* timer) {
+            auto* self = static_cast<WizardCompletionTimers*>(lv_timer_get_user_data(timer));
+            if (!self) {
+                return;
+            }
+            // One-shot: LVGL deletes it immediately after this callback
+            // returns. Null the member FIRST so no later cancel can touch
+            // freed memory.
+            self->runout_check_timer_ = nullptr;
+
+            auto& fsm = helix::FilamentSensorManager::instance();
+            if (fsm.has_real_runout() && get_runtime_config()->should_show_runout_modal()) {
+                spdlog::debug("[Wizard] Deferred runout check - triggering modal");
+                get_global_home_panel().trigger_idle_runout_check();
+            }
+        },
+        500, this);
+    lv_timer_set_repeat_count(runout_check_timer_, 1);
+}
+
+void helix::WizardCompletionTimers::arm_home_navigation() {
+    if (home_nav_timer_) {
+        helix::ui::lv_timer_cancel_safe(home_nav_timer_);
+        home_nav_timer_ = nullptr;
+    }
+    home_nav_timer_ = lv_timer_create(
+        [](lv_timer_t* timer) {
+            auto* self = static_cast<WizardCompletionTimers*>(lv_timer_get_user_data(timer));
+            if (!self) {
+                return;
+            }
+            self->home_nav_timer_ = nullptr;
+
+            spdlog::info("[Wizard] Deferred navigation to Home panel");
+            NavigationManager::instance().set_active(PanelId::Home);
+        },
+        100, this);
+    lv_timer_set_repeat_count(home_nav_timer_, 1);
+}
+
+void helix::WizardCompletionTimers::cancel() {
+    // Neuter rather than delete: safe from inside lv_timer_handler, from the
+    // destructor, and after lv_deinit() (self-guarding no-op). The cancels stay
+    // inline — spelling lv_timer_cancel_safe(member) here is what keeps the
+    // timer-destructor gate matching this struct; folding them behind a helper
+    // would silently untrack it.
+    if (runout_check_timer_) {
+        helix::ui::lv_timer_cancel_safe(runout_check_timer_);
+        runout_check_timer_ = nullptr;
+    }
+    if (home_nav_timer_) {
+        helix::ui::lv_timer_cancel_safe(home_nav_timer_);
+        home_nav_timer_ = nullptr;
+    }
+}
+
+helix::WizardCompletionTimers::~WizardCompletionTimers() {
+    // Last-resort cancel for non-static storage; with static storage this runs
+    // after lv_deinit(), where lv_timer_cancel_safe() no-ops. The real shutdown
+    // cancel is the one in ui_wizard_deinit_subjects().
+    cancel();
+}
 
 // Index of `step` within the active subset, or -1 if not present.
 static int subset_index_of(helix::wizard::StepId step) {
@@ -317,6 +412,12 @@ void ui_wizard_init_subjects() {
 }
 
 void ui_wizard_deinit_subjects() {
+    // Shutdown cancel for the completion one-shots: this runs from
+    // StaticPanelRegistry::destroy_all() while LVGL is still alive, the last
+    // point where an armed runout check or Home navigation can be stood down
+    // before the state they reach is torn down.
+    g_completion_timers.cancel();
+
     if (!wizard_subjects_initialized) {
         return;
     }
@@ -448,6 +549,10 @@ void ui_wizard_register_event_callbacks() {
 
 lv_obj_t* ui_wizard_create(lv_obj_t* parent) {
     spdlog::debug("[Wizard] Creating wizard container");
+
+    // A new wizard session starting inside the completion window must not have
+    // the deferred Home navigation or runout check fire mid-wizard.
+    g_completion_timers.cancel();
 
     // Create wizard from XML (constants already registered)
     wizard_container = (lv_obj_t*)lv_xml_create(parent, "wizard_container", nullptr);
@@ -822,20 +927,12 @@ static void ui_wizard_load_screen(helix::wizard::StepId step) {
         lv_subject_copy_string(&wizard_subtitle,
                                get_wizard_printer_identify_step()->get_detection_status());
         break;
-    case StepId::FilamentSensor: {
-        // Schedule refresh in case sensors are discovered after screen creation
-        // (handles race condition when jumping directly to the filament step).
-        auto* fstep = get_wizard_filament_sensor_select_step();
-        fstep->refresh_timer_ = lv_timer_create(
-            [](lv_timer_t*) {
-                auto* fs = get_wizard_filament_sensor_select_step();
-                fs->refresh_timer_ = nullptr;
-                fs->refresh();
-            },
-            1500, nullptr);
-        lv_timer_set_repeat_count(fstep->refresh_timer_, 1);
+    case StepId::FilamentSensor:
+        // Sensors can be discovered after screen creation (jumping directly to
+        // this step outruns discovery), so refresh once more on a timer. The
+        // step owns the one-shot and cancels it on cleanup and destruction.
+        get_wizard_filament_sensor_select_step()->schedule_deferred_refresh();
         break;
-    }
     default:
         break;
     }
@@ -996,16 +1093,7 @@ void ui_wizard_complete() {
     dismiss_wizard_container();
 
     // 6. Schedule deferred runout check - modal may need to show after wizard
-    lv_timer_create(
-        [](lv_timer_t* timer) {
-            auto& fsm = helix::FilamentSensorManager::instance();
-            if (fsm.has_real_runout() && get_runtime_config()->should_show_runout_modal()) {
-                spdlog::debug("[Wizard] Deferred runout check - triggering modal");
-                get_global_home_panel().trigger_idle_runout_check();
-            }
-            lv_timer_delete(timer);
-        },
-        500, nullptr); // 500ms delay for UI to stabilize
+    g_completion_timers.arm_runout_check(); // 500ms delay for UI to stabilize
 
     // 7. Trigger re-discovery through Application's pre-registered callbacks.
     // Discovery callbacks (set_hardware, init_fans, hardware validation, plugin detection,
@@ -1024,13 +1112,7 @@ void ui_wizard_complete() {
     // Defer navigation to Home panel — discovery callbacks queue deferred subject updates
     // via ui_queue_update() that can override panel state. A short timer ensures we
     // navigate AFTER those queued updates have been processed.
-    lv_timer_create(
-        [](lv_timer_t* timer) {
-            spdlog::info("[Wizard] Deferred navigation to Home panel");
-            NavigationManager::instance().set_active(PanelId::Home);
-            lv_timer_delete(timer);
-        },
-        100, nullptr);
+    g_completion_timers.arm_home_navigation();
 
     // Show success toast when adding a subsequent printer
     if (config && config->get_printer_ids().size() > 1) {
