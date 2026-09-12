@@ -93,6 +93,21 @@ class WizardFilamentSensorSelectStep : public helix::wizard::Step {
     void refresh();
 
     /**
+     * @brief Arm the deferred sensor refresh one-shot (1500 ms)
+     *
+     * Covers the case where sensors are discovered after screen creation
+     * (e.g. jumping directly to this step outruns discovery). The step owns
+     * the timer: cleanup() and the destructor both cancel it, so it can never
+     * fire into a step that is being torn down (prestonbrown/helixscreen#1577).
+     */
+    void schedule_deferred_refresh();
+
+    /// Test-only: the armed refresh timer, or nullptr when none is armed.
+    lv_timer_t* refresh_timer_for_test() const {
+        return refresh_timer_;
+    }
+
+    /**
      * @brief Check if step should be skipped
      *
      * Returns true if there are fewer than 2 non-AMS sensors.
@@ -140,14 +155,17 @@ class WizardFilamentSensorSelectStep : public helix::wizard::Step {
         return sensor_items_;
     }
 
-    // Pending refresh timer (set by wizard orchestrator, cancelled on cleanup)
-    lv_timer_t* refresh_timer_ = nullptr;
-
   private:
     /**
      * @brief Check if a sensor name indicates it's managed by AMS
      */
     static bool is_ams_sensor(const std::string& name);
+
+    /// Cancel an armed deferred-refresh timer. Safe to call when none is armed.
+    void cancel_refresh_timer();
+
+    /// Trampoline for the deferred-refresh one-shot; user_data is the step.
+    static void refresh_timer_cb(lv_timer_t* timer);
 
     /**
      * @brief Filter sensors to get only standalone (non-AMS) sensors
@@ -169,6 +187,9 @@ class WizardFilamentSensorSelectStep : public helix::wizard::Step {
 
     // Screen instance
     lv_obj_t* screen_root_ = nullptr;
+
+    // Deferred refresh one-shot; owned and cancelled by this step
+    lv_timer_t* refresh_timer_ = nullptr;
 
     // Subject (dropdown selection index)
     lv_subject_t runout_sensor_selected_;
