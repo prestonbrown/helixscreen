@@ -1,76 +1,49 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Check if CJK text fonts need regeneration after translation changes.
-# Called automatically after translation-sync.
+# Fail if the translations need a CJK codepoint the runtime font doesn't bake.
+# Called after translation-sync (mk/translations.mk) and from quality-checks.
 #
-# Compares the set of CJK characters in current translations against
-# what's compiled into the font files. If new characters are found,
-# warns the user to run 'make regen-text-fonts'.
+# Compares the CJK characters needed by the translations and C++ sources
+# against the codepoint manifest regen_text_fonts.sh records for the runtime
+# .bin fonts. A codepoint on the left and not the right renders as tofu in
+# zh/ja, with no build error and no runtime warning — this gate is the only
+# thing that says so.
+#
+# Both inputs are git-tracked files, so this runs in every clone and CI
+# runner. The CJK source .otf fonts are deliberately NOT required: they are
+# gitignored downloads needed only to RE-bake, and gating on them made every
+# fresh checkout silently skip this check.
 
 set -e
 cd "$(dirname "$0")/.."
 
-CJK_FONT_SC=assets/fonts/NotoSansCJKsc-Regular.otf
-CJK_FONT_JP=assets/fonts/NotoSansCJKjp-Regular.otf
-
-# Skip check if CJK source fonts aren't available
-if [ ! -f "$CJK_FONT_SC" ] || [ ! -f "$CJK_FONT_JP" ]; then
-    exit 0
+ROOT="."
+if [ "$1" = "--root" ] && [ -n "$2" ]; then
+    ROOT="$2"
 fi
 
-# Extract current CJK characters needed from translations + sources
-NEEDED=$(python3 << 'PYEOF'
-import glob
-import re
+MANIFEST="$ROOT/assets/fonts/cjk/.cjk_codepoints.manifest"
 
-chars = set()
-CJK_RANGES = [
-    r'[\u3000-\u303f]', r'[\u3040-\u309f]', r'[\u30a0-\u30ff]',
-    r'[\u3400-\u4dbf]', r'[\u4e00-\u9fff]', r'[\uff00-\uffef]',
-]
-
-def extract_cjk(content):
-    found = set()
-    for pattern in CJK_RANGES:
-        found.update(re.findall(pattern, content))
-    return found
-
-for path in ['translations/zh.yml', 'translations/ja.yml']:
-    try:
-        with open(path, 'r') as f:
-            chars.update(extract_cjk(f.read()))
-    except FileNotFoundError:
-        pass
-
-for pattern in ['src/**/*.cpp', 'src/**/*.h', 'include/**/*.h']:
-    for path in glob.glob(pattern, recursive=True):
-        try:
-            with open(path, 'r') as f:
-                chars.update(extract_cjk(f.read()))
-        except (FileNotFoundError, UnicodeDecodeError):
-            pass
-
-for c in sorted(chars):
-    print(f'0x{ord(c):04x}')
-PYEOF
-)
-
-# Compare against the codepoint manifest written by regen_text_fonts.sh, which
-# records exactly the glyph set baked into the runtime CJK .bin files
-# (assets/fonts/cjk/*.bin). The CJK runtime is those .bin files — NOT the .c
-# fonts, which only carry the 12-codepoint wizard subset. Checking the .c here
-# (the old behavior) reported the entire CJK set as perpetually "missing".
-MANIFEST=assets/fonts/cjk/.cjk_codepoints.manifest
 if [ ! -f "$MANIFEST" ]; then
-    echo "⚠ CJK font manifest not found ($MANIFEST) - run 'make regen-text-fonts'"
-    exit 0
+    echo "✗ CJK font manifest not found ($MANIFEST)"
+    echo "  Run 'make regen-text-fonts' and commit assets/fonts/cjk/."
+    exit 1
+fi
+
+# One 0xXXXX per line, sorted — same extractor the bake uses, so the two
+# sides cannot drift (scripts/translations/cjk_charset.py).
+NEEDED=$(python3 scripts/translations/cjk_charset.py --root "$ROOT")
+
+if [ -z "$NEEDED" ] || ! grep -qE '0x[0-9a-f]+' "$MANIFEST"; then
+    # An empty side here is a broken scan or a wiped manifest, not "no CJK".
+    echo "✗ CJK needed-set or manifest is empty — refusing to pass vacuously."
+    exit 1
 fi
 
 # Normalize manifest to the same "0xXXXX" form NEEDED uses (lowercase, no blanks)
 COMPILED=$(grep -oE '0x[0-9a-fA-F]+' "$MANIFEST" | tr 'A-F' 'a-f' | sort -u)
 
-# Find characters needed but not compiled
 MISSING=$(comm -23 <(echo "$NEEDED" | sort) <(echo "$COMPILED" | sort))
 MISSING_COUNT=0
 if [ -n "$MISSING" ]; then
@@ -78,8 +51,15 @@ if [ -n "$MISSING" ]; then
 fi
 
 if [ "$MISSING_COUNT" -gt 0 ]; then
-    echo ""
-    echo "⚠ $MISSING_COUNT new CJK characters found in translations that aren't in fonts."
-    echo "  Run 'make regen-text-fonts' to include them, then rebuild."
-    echo ""
+    echo "✗ $MISSING_COUNT CJK codepoint(s) needed by translations/sources but missing from the baked font:"
+    echo "$MISSING" | while read -r cp; do
+        printf '  %s %s\n' "$cp" "$(python3 -c "import sys; print(chr(int(sys.argv[1], 16)))" "$cp")"
+    done | head -30
+    if [ "$MISSING_COUNT" -gt 30 ]; then
+        echo "  ... and $((MISSING_COUNT - 30)) more"
+    fi
+    echo "Run 'make regen-text-fonts' to bake them, then rebuild and commit assets/fonts/cjk/."
+    exit 1
 fi
+
+exit 0
