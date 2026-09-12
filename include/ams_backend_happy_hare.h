@@ -305,6 +305,7 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     friend class HappyHareCharHelper;
     friend class HHToolchangeTestHelper;
     friend class HhFaultEventCharHelper;
+    friend class HappyHareTestAccess;
 
     // --- AmsSubscriptionBackend hooks ---
     void on_started() override;

@@ -538,6 +538,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     friend class AfcReassertHelper;
     friend class AfcDelegatesHomingHelper;
     friend class AfcDispatchHelper;
+    friend class AfcTestAccess;
 
     // --- AmsSubscriptionBackend hooks ---
     void on_started() override;
