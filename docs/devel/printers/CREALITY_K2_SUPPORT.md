@@ -168,7 +168,10 @@ To restore the stock Creality touchscreen:
 ssh root@<printer-ip>
 killall helix-screen helix-splash helix-watchdog 2>/dev/null
 killall web-server 2>/dev/null            # Free port 80 for the stock instance
-/etc/rc.d/S99helix-k2-webserver disable   # (or: /etc/init.d/helix-k2-webserver disable)
+/etc/init.d/helix-k2-webserver disable    # Drop the carve-out's boot symlink (NOT the
+                                          # /etc/rc.d/S99... spelling: rc.common derives
+                                          # link names from basename $0, so that one
+                                          # computes S99S99... and removes nothing)
 /etc/init.d/app enable   # Re-enable stock UI on boot
 /etc/init.d/app start    # Start stock UI now
 ```

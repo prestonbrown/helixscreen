@@ -173,7 +173,10 @@ write_stock_app_service() {
 
 @test "k2 init script never kills by name" {
     # stop is pidfile-scoped so it cannot take down a stock web-server that
-    # an uninstall-time /etc/init.d/app start just restored.
+    # an uninstall-time /etc/init.d/app start just restored. The file check
+    # comes first: a missing file must read as failure, not as "no killall
+    # found".
+    [ -f "$INIT_SRC" ]
     if grep -q 'killall' "$INIT_SRC"; then
         echo "stop must kill via pidfile, not killall" >&2
         return 1
@@ -306,6 +309,16 @@ write_stock_app_service() {
     # AFTER the service start (which is what stops the stock web-server).
     grep -q 'install_k2_webserver_backend' "$MAIN_MODULE"
     awk '/start_service "\$platform"/{seen=1} seen && /install_k2_webserver_backend/{found=1} END{exit !found}' "$MAIN_MODULE"
+}
+
+@test "k2 install: a carve-out failure warns instead of aborting the installer" {
+    # The installer runs set -eu with the service already started by the
+    # time this call happens; a bare call returning 1 would kill the whole
+    # install mid-tail and skip the cleanup_* tail.
+    awk '/install_k2_webserver_backend "\$platform"/ {
+            if ($0 ~ /\|\|/) ok=1
+            else if ((getline nxt) > 0 && nxt ~ /log_warn/) ok=1
+         } END { exit !ok }' "$MAIN_MODULE"
 }
 
 # --- the dev deploy path ---

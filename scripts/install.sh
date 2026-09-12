@@ -7987,7 +7987,7 @@ install_k2_webserver_backend() {
     local dest="/etc/init.d/helix-k2-webserver"
 
     if [ ! -f "$src" ]; then
-        log_warn "k2-webserver.init missing from ${INSTALL_DIR}/config; the web-server carve-out will not survive reboot"
+        log_warn "k2-webserver.init missing from ${INSTALL_DIR}/config (the payload being installed may predate prestonbrown/helixscreen#1617); the web-server carve-out will not survive reboot"
         return 0
     fi
 
@@ -7999,9 +7999,11 @@ install_k2_webserver_backend() {
 
     # Drop any existing rc.d entry before enabling — `enable` exits 0 even
     # when it produced no symlink, so the boot entry is verified by link
-    # the same way install_procd_shim_k2 does.
+    # the same way install_procd_shim_k2 does. enable and start go through
+    # $SUDO for the same reason the shim's do: a non-root caller must not
+    # leave the carve-out half-installed.
     $SUDO rm -f /etc/rc.d/S99helix-k2-webserver /etc/rc.d/K01helix-k2-webserver 2>/dev/null || true
-    if ! "$dest" enable; then
+    if ! $SUDO "$dest" enable; then
         log_error "K2 web-server carve-out: enable failed — web-server will not start at boot"
         log_error "Manual fix: $SUDO $dest enable"
         return 1
@@ -8017,8 +8019,12 @@ install_k2_webserver_backend() {
     record_disabled_service "sysv-created" "$dest"
     log_info "Installed K2 web-server carve-out: $dest (boot symlink verified)"
     # Bring web-server up now — the stock instance died with the app stop
-    # the service start just ran.
-    "$dest" start 2>/dev/null || true
+    # the service start just ran. A failed start is logged, not fatal: the
+    # boot entry above is already verified, so the carve-out comes up at
+    # the next reboot regardless.
+    if ! $SUDO "$dest" start 2>/dev/null; then
+        log_warn "K2 web-server carve-out: start failed; it will start at the next boot"
+    fi
     return 0
 }
 
@@ -12493,8 +12499,13 @@ main() {
     # service start runs platform_stop_competing_uis, whose
     # /etc/init.d/app stop takes the stock web-server down, and this
     # brings the carve-out back for the current session while the
-    # installed script keeps it across reboots. No-op off K2.
-    install_k2_webserver_backend "$platform"
+    # installed script keeps it across reboots. No-op off K2. The || guard
+    # keeps a carve-out failure non-fatal: we run under set -eu with the
+    # service already started, and a supplementary backend must not abort
+    # the install before cleanup_* runs — the function has already logged
+    # the error and the manual fix.
+    install_k2_webserver_backend "$platform" ||
+        log_warn "Web-server carve-out incomplete; the UI install itself is fine"
 
     cleanup_old_install
     cleanup_migrated_install
