@@ -4714,9 +4714,7 @@ AmsError AmsBackendAfc::do_change_tool(int tool_number) {
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (tool_number < 0 || tool_number >= slots_.slot_count()) {
-            return AmsError(AmsResult::INVALID_TOOL,
-                            "Tool " + std::to_string(tool_number) + " out of range",
-                            "Invalid tool number", "Select a valid tool");
+            return AmsErrorHelper::tool_out_of_range(tool_number);
         }
     }
 
@@ -5478,9 +5476,7 @@ AmsError AmsBackendAfc::set_tool_mapping_impl(int tool_number, int slot_index) {
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (tool_number < 0 || tool_number >= slots_.slot_count()) {
-            return AmsError(AmsResult::INVALID_TOOL,
-                            "Tool " + std::to_string(tool_number) + " out of range",
-                            "Invalid tool number", "");
+            return AmsErrorHelper::tool_out_of_range(tool_number);
         }
 
         if (!slots_.is_valid_index(slot_index)) {

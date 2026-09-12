@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "display_numbering.h"
+
 #include <string>
 
 /**
@@ -438,6 +440,21 @@ class AmsErrorHelper {
                             std::to_string(max_slot) + ")",
                         "Invalid slot number",
                         "Select a valid slot (0-" + std::to_string(max_slot) + ")", slot);
+    }
+
+    /**
+     * @brief Create a tool number out of range error
+     * @param tool_number Invalid gcode tool index
+     * @return AmsError configured for UI display
+     */
+    static AmsError tool_out_of_range(int tool_number) {
+        // tool_label() returns empty for a negative index; fall back to the raw
+        // number there so the logged detail still names what was passed in.
+        const std::string label = helix::ui::tool_label(tool_number);
+        return AmsError(AmsResult::INVALID_TOOL,
+                        "Tool " + (label.empty() ? std::to_string(tool_number) : label) +
+                            " out of range",
+                        "Invalid tool number", "Select a valid tool");
     }
 
     /**

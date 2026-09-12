@@ -2291,9 +2291,7 @@ AmsError AmsBackendHappyHare::do_change_tool(int tool_number) {
 
         if (tool_number < 0 ||
             tool_number >= static_cast<int>(system_info_.tool_to_slot_map.size())) {
-            return AmsError(AmsResult::INVALID_TOOL,
-                            "Tool " + std::to_string(tool_number) + " out of range",
-                            "Invalid tool number", "Select a valid tool");
+            return AmsErrorHelper::tool_out_of_range(tool_number);
         }
     }
 
@@ -2773,9 +2771,7 @@ AmsError AmsBackendHappyHare::set_tool_mapping_impl(int tool_number, int slot_in
 
         if (tool_number < 0 ||
             tool_number >= static_cast<int>(system_info_.tool_to_slot_map.size())) {
-            return AmsError(AmsResult::INVALID_TOOL,
-                            "Tool " + std::to_string(tool_number) + " out of range",
-                            "Invalid tool number", "");
+            return AmsErrorHelper::tool_out_of_range(tool_number);
         }
 
         if (!slots_.is_valid_index(slot_index)) {

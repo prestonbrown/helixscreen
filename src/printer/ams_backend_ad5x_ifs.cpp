@@ -2144,7 +2144,7 @@ AmsError AmsBackendAd5xIfs::do_change_tool(int tool_number) {
     }
 
     if (port < 1 || port > NUM_PORTS) {
-        return AmsErrorHelper::invalid_parameter("Tool T" + std::to_string(tool_number) +
+        return AmsErrorHelper::invalid_parameter("Tool " + helix::ui::tool_label(tool_number) +
                                                  " is not mapped to any port");
     }
 

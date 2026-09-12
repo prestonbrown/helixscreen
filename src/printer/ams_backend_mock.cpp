@@ -756,9 +756,7 @@ AmsError AmsBackendMock::change_tool(int tool_number) {
 
         int mapped_slot = slots_.slot_for_tool(tool_number);
         if (mapped_slot < 0) {
-            return AmsError(AmsResult::INVALID_TOOL,
-                            "Tool " + std::to_string(tool_number) + " out of range",
-                            "Invalid tool number", "Select a valid tool");
+            return AmsErrorHelper::tool_out_of_range(tool_number);
         }
 
         // Start tool change (unload + load sequence)
@@ -1076,9 +1074,7 @@ AmsError AmsBackendMock::set_tool_mapping_impl(int tool_number, int slot_index) 
     // production slot_registry behavior of growing on demand.
     constexpr int MAX_TOOL_INDEX = 64;
     if (tool_number < 0 || tool_number >= MAX_TOOL_INDEX) {
-        return AmsError(AmsResult::INVALID_TOOL,
-                        "Tool " + std::to_string(tool_number) + " out of range",
-                        "Invalid tool number", "");
+        return AmsErrorHelper::tool_out_of_range(tool_number);
     }
 
     if (!slots_.is_valid_index(slot_index)) {
