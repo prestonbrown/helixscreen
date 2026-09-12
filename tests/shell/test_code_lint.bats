@@ -48,6 +48,34 @@ setup() {
     [ "$status" -ne 0 ]  # non-zero == no disallowed direct send found
 }
 
+# --- Flush-path px_map stride must go through the shared helper ---
+# The dbuf-stride-or-fallback rule (active_buf->header.stride when queryable
+# and positive, else lv_draw_buf_width_to_stride(area_w, cf)) serves two
+# flush-path consumers, ColorTransform::select_flush_region and the
+# remote-screen mirror inside DisplayManager's flush hook. It lives once, in
+# helix::flush_px_map_stride (include/flush_stride.h); an inline copy at
+# either call site is a twin that can drift silently
+# (prestonbrown/helixscreen#1610).
+
+@test "flush px_map stride is derived via helix::flush_px_map_stride, not re-inlined" {
+    local folded="src/application/color_transform.cpp src/application/display_manager.cpp"
+
+    # The inline trust-check ternary must not come back at either call site.
+    run grep -n 'header.stride > 0' $folded
+    [ "$status" -eq 1 ]  # grep returns 1 when no matches found
+
+    # Both call sites must actually call the shared helper.
+    for f in $folded; do
+        run grep -n 'flush_px_map_stride(' "$f"
+        [ "$status" -eq 0 ]
+    done
+
+    # The rule itself still exists, exactly once, in the helper.
+    run bash -c "grep -c 'header.stride > 0' include/flush_stride.h"
+    [ "$status" -eq 0 ]
+    [ "$output" -eq 1 ]
+}
+
 # --- Chamber temp_display must use the maintain-aware effective target ---
 # The raw `chamber_target` subject is the heater target only — it reads 0 during
 # M141 "maintain" (cooling-ceiling) mode, so a display bound to it shows "—/Off"
