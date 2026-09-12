@@ -1114,7 +1114,7 @@
   <translation tag="G-code commands will appear here" zh="G-code 命令将显示在此处"/>
   <translation tag="GCode Console" zh="G-code 控制台"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" zh="游戏结束！&#10;得分：{}&#10;点按重新开始"/>
-  <translation tag="Gate" zh="槽位"/>
+  <translation tag="Gate" zh="通道"/>
   <translation tag="Gear Buffer Speed" zh="齿轮缓冲区速度"/>
   <translation tag="Gear Spool Speed" zh="齿轮料盘速度"/>
   <translation tag="Gear Unload Speed" zh="齿轮卸载速度"/>
@@ -1351,7 +1351,7 @@
   <translation tag="Label printed" zh="标签已打印"/>
   <translation tag="Labels" zh="标签"/>
   <translation tag="Labels Per Sheet" zh="每页标签数"/>
-  <translation tag="Lane" zh="槽位"/>
+  <translation tag="Lane" zh="耗材通道"/>
   <translation tag="Lane tests and motor resets" zh="槽位测试与电机重置"/>
   <translation tag="Language" zh="语言"/>
   <translation tag="Language, theme, brightness, and sound" zh="语言、主题、亮度和声音"/>

@@ -1237,7 +1237,7 @@ translations:
   GCode Console: 'Consola de G-code'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "¡Fin del juego!\nPuntuación: {}\nToca para reiniciar"
-  Gate: Ranura
+  Gate: Gate
   Gear Buffer Speed: 'Velocidad del engranaje desde el buffer'
   Gear Spool Speed: 'Velocidad del engranaje desde la bobina'
   Gear Unload Speed: 'Velocidad de descarga del engranaje'

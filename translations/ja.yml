@@ -1141,7 +1141,7 @@ translations:
   GCode Console: 'Gコードコンソール'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "ゲームオーバー！\nスコア: {}\nタップでリスタート"
-  Gate: スロット
+  Gate: ゲート
   Gear Buffer Speed: 'ギアのバッファ速度'
   Gear Spool Speed: 'ギアのスプール速度'
   Gear Unload Speed: 'ギアのアンロード速度'

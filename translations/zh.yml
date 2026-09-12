@@ -1135,7 +1135,7 @@ translations:
   GCode Console: 'G-code 控制台'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "游戏结束！\n得分：{}\n点按重新开始"
-  Gate: 槽位
+  Gate: 通道
   Gear Buffer Speed: '齿轮缓冲区速度'
   Gear Spool Speed: '齿轮料盘速度'
   Gear Unload Speed: '齿轮卸载速度'
@@ -1386,7 +1386,7 @@ translations:
   Label printed: 标签已打印
   Labels: 标签
   Labels Per Sheet: 每页标签数
-  Lane: 槽位
+  Lane: 耗材通道
   Lane tests and motor resets: '槽位测试与电机重置'
   Language: 语言
   Language, theme, brightness, and sound: 语言、主题、亮度和声音

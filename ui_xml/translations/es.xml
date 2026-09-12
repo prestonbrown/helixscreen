@@ -1114,7 +1114,7 @@
   <translation tag="G-code commands will appear here" es="Los comandos G-code aparecerán aquí"/>
   <translation tag="GCode Console" es="Consola de G-code"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" es="¡Fin del juego!&#10;Puntuación: {}&#10;Toca para reiniciar"/>
-  <translation tag="Gate" es="Ranura"/>
+  <translation tag="Gate" es="Gate"/>
   <translation tag="Gear Buffer Speed" es="Velocidad del engranaje desde el buffer"/>
   <translation tag="Gear Spool Speed" es="Velocidad del engranaje desde la bobina"/>
   <translation tag="Gear Unload Speed" es="Velocidad de descarga del engranaje"/>
