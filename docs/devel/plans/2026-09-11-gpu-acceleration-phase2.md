@@ -124,12 +124,18 @@ now name `drm` as the way to decline the rung. A board that cannot afford GPU
 presentation is one whose owner says so, not one this code guesses at from
 MemTotal.
 
-**What reopens this:** the CB1's anonymous/file split is unmeasured, and the CB1
-is the only owned board on a different GPU family. Panfrost may hold GPU buffers
-as anonymous or shmem pages where vc4 and V3D hold file-backed text. If the
-CB1's anonymous delta lands near its +70 MB RSS rather than near +21 MiB, the
-reasoning above loses its basis and a gate is back on the table. Measuring it
-means deploying a dev build to the AFC rig.
+**The CB1 was the named trigger to reopen this, and it did not fire.** Measured
+2026-09-12 on the AFC rig, same method: +68.4 MiB VmRSS, of which only
+**+19.8 MiB is anonymous** and +48.6 MiB is the same `libLLVM`/`libgallium` text
+the other boards hold. `RssShmem` is 0 on both rungs, so Panfrost keeps no GPU
+memory in the form that would have broken the reasoning. `MemAvailable` on that
+970 MB board goes 660 MB → 634 MB, with Klipper, Moonraker and AFC resident.
+Both GPU families now agree, and the decision stands.
+
+The probe picks the CB1's scanout node correctly on the first attempt:
+`EGL probe: /dev/dri/card0: Mali-G31 (Panfrost)`, then `Selected binary:
+helix-screen-egl`. Mesa is 25.0.7 on current Armbian, so the old
+`/opt/panfrost` 21.3.9 `gbm_create_device` failure does not recur.
 
 ---
 
@@ -165,13 +171,22 @@ exactly as LVGL does. Deleting the delegation turns two of the three red.
 backend that overrides `applied_rotation_degrees()` also transforms pointer
 coordinates. The seam makes that change land in one place; it does not make it.
 
-**An alternative worth knowing about:** LVGL has
-`lv_display_set_matrix_rotation()`, which rotates through the draw matrix instead
-of a post-render software pass, and would keep `lv_display_get_rotation()` honest
-without a plane at all. It is gated on `LV_DRAW_TRANSFORM_USE_MATRIX`, which the
-preprocessor resolves to **0** in this tree, so it is unavailable today. On the
-EGL rung that matrix would cost close to nothing. Enabling it is its own change,
-with its own risk, and it has not been measured.
+**The matrix route is closed, and not for want of trying.** LVGL's
+`lv_display_set_matrix_rotation()` would rotate through the draw matrix instead
+of a post-render software pass, keeping `lv_display_get_rotation()` honest with
+no plane involved. It is gated on `LV_DRAW_TRANSFORM_USE_MATRIX`, and that
+switch is 0 here because **no draw unit this app can run reads the matrix**:
+only vg_lite (VeriSilicon hardware nobody here owns) and nanovg (out of scope)
+consume the per-draw-task matrix. `lv_draw_sw` ignores it, and so does
+`lv_draw_opengles`. The EGL rung does not change that - it is `lv_draw_sw`
+rendering into a GBM/EGL-presented buffer, so EGL is the presentation path and
+the draw unit is still software.
+
+Turning the switch on is a known-bad state rather than an unexplored one: a
+transformed widget renders at 1:1 while still getting an inverse-scaled clip
+area, so scaling up crops it and nothing warns.
+`tests/unit/test_style_transform_renders.cpp` fails 2 of 5 assertions when the
+macro is forced back to 1. Rotation stays a software-or-plane question.
 
 **Ownership only half-moved.** `DisplayManager` still calls
 `lv_display_set_rotation()` itself *and* calls the backend, which may clear it —

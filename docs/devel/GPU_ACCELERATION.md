@@ -71,20 +71,24 @@ systemd drop-in, restart, idle 100 s at the home panel, read
 `/proc/<pid>/status` and `/proc/<pid>/smaps`; remove the drop-in and repeat on
 the EGL rung. Figures are MiB.
 
-| | Pi 5 (4 GB, V3D) | Pi 3B (856 MB, vc4) |
-|---|---|---|
-| VmRSS, DRM rung | 105.7 | 51.2 |
-| VmRSS, EGL rung | 122.1 | 117.0 |
-| **VmRSS delta** | **+16.4** | **+65.8** |
-| RssAnon delta | +11.3 | +20.5 |
-| RssFile delta | +5.1 | +45.3 |
+| | Pi 5 (4 GB, V3D) | Pi 3B (856 MB, vc4) | CB1 (970 MB, Mali-G31) |
+|---|---|---|---|
+| VmRSS, DRM rung | 105.7 | 51.2 | 53.1 |
+| VmRSS, EGL rung | 122.1 | 117.0 | 121.4 |
+| **VmRSS delta** | **+16.4** | **+65.8** | **+68.4** |
+| RssAnon delta | +11.3 | +20.5 | +19.8 |
+| RssFile delta | +5.1 | +45.3 | +48.6 |
 
-The two boards differ by 4x on the headline and agree closely on the part that
+The boards differ by 4x on the headline and agree closely on the part that
 cannot be reclaimed. The gap is Mesa's text, and which binary faults it in.
 
-The EGL process on both boards holds `libLLVM` resident (39.8 MiB on the Pi 5,
-38.5 on the Pi 3B) plus `libgallium` (9.7 / 10.8). That is roughly 50 MiB of
-shared, file-backed library text.
+The CB1 settles the question its GPU family raised. Panfrost holds no GPU
+memory as shmem - `RssShmem` is 0 on both rungs - so its anonymous delta lands
+with vc4's and V3D's rather than near its own RSS headline.
+
+The EGL process on every board holds `libLLVM` resident (39.8 MiB on the Pi 5,
+38.5 on the Pi 3B, 41.1 on the CB1) plus `libgallium` (9.7 / 10.8 / 11.4). That
+is roughly 50 MiB of shared, file-backed library text.
 
 **The base DRM binary links the same three GL libraries** - `ENABLE_GLES_3D=yes`
 builds the 3D gcode viewer into it, so `libEGL`, `libGLESv2` and `libgbm` are on
@@ -96,7 +100,7 @@ zero `libLLVM` mappings.
 
 So the Pi 5's +16 MB is not a cheaper GPU path. It is a board that had already
 paid for Mesa on the rung below. **The durable cost of the EGL rung is the
-anonymous delta, +11 to +21 MiB.** The rest is shared library text, which the
+anonymous delta, +11 to +21 MiB, on all three boards and both GPU families.** The rest is shared library text, which the
 kernel evicts under pressure and which the DRM rung pays too the moment anything
 initialises GL.
 
