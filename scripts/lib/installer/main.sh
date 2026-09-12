@@ -840,6 +840,20 @@ main() {
 
     # Start service
     start_service "$platform"
+
+    # K2: install and start the web-server carve-out
+    # (prestonbrown/helixscreen#1617). Must follow start_service: the
+    # service start runs platform_stop_competing_uis, whose
+    # /etc/init.d/app stop takes the stock web-server down, and this
+    # brings the carve-out back for the current session while the
+    # installed script keeps it across reboots. No-op off K2. The || guard
+    # keeps a carve-out failure non-fatal: we run under set -eu with the
+    # service already started, and a supplementary backend must not abort
+    # the install before cleanup_* runs — the function has already logged
+    # the error and the manual fix.
+    install_k2_webserver_backend "$platform" ||
+        log_warn "Web-server carve-out incomplete; the UI install itself is fine"
+
     cleanup_old_install
     cleanup_migrated_install
     cleanup_stale_cache_dirs
