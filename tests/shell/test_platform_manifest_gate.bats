@@ -535,7 +535,19 @@ json.dump(d,open(p,"w"),indent=2)' "$TREE/assets/config/platforms.json"
 }
 
 @test "gate: names a root the app reads but the uninstaller never removes" {
+    # Built in the sandbox rather than pointed at a real drift: the finding this
+    # pins is one the tree is supposed to have none of, so borrowing a live
+    # example makes the case disappear the moment someone fixes it.
     make_tree
+    python3 - "$TREE/include/helix_install_roots.h" <<'EOF'
+import io, sys
+p = sys.argv[1]
+s = io.open(p, encoding="utf-8").read()
+s = s.replace('inline constexpr const char* kInstallRoots[] = {',
+              'inline constexpr const char* kInstallRoots[] = {\n    "/unswept/helixscreen",',
+              1)
+io.open(p, "w", encoding="utf-8").write(s)
+EOF
     run python3 "$GATE" --quiet --root "$TREE"
-    contains "/data/helixscreen is searched by the app as a payload root" "$output"
+    contains "/unswept/helixscreen is searched by the app as a payload root" "$output"
 }
