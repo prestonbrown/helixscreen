@@ -1359,6 +1359,9 @@ include mk/watchdog.mk
 ifdef PI_DUAL_LINK
 include mk/pi-dual-link.mk
 endif
+ifeq ($(ENABLE_EGL_RUNG),yes)
+include mk/egl-link.mk
+endif
 include mk/rules.mk
 
 # Debug helpers — print computed variables for bats tests.

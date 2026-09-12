@@ -129,6 +129,8 @@ static void print_help(const char* program_name) {
     printf("  --moonraker <url>    Override Moonraker URL (e.g., ws://192.168.1.100:7125)\n");
     printf("  --detect-printer     Detect printer via Moonraker REST, print JSON, exit\n");
     printf("                       (use with --host/--port; default 127.0.0.1:7125)\n");
+    printf("  --probe-egl          Report whether EGL comes up on a GPU here, then exit\n");
+    printf("                       (exit 0 = hardware GPU; the launcher gates on this)\n");
     printf("  --remote             Enable remote control server (auto in --test mode)\n");
     printf("  --remote-socket <p>  Override remote control socket path\n");
     printf("  --remote-transport <t>  Transport: socket (default) or http\n");

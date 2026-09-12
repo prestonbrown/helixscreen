@@ -37,6 +37,32 @@ inline bool gl_draw_error_is_fatal(unsigned int gl_error) {
     return gl_error == GL_ERR_OUT_OF_MEMORY || gl_error == GL_ERR_INVALID_OPERATION;
 }
 
+/// Case-insensitive substring search of a GL_RENDERER string against a list of
+/// needles. Both renderer predicates below key off the same driver-supplied
+/// string, so they share one matcher rather than each lowering it themselves.
+///
+/// @param renderer  the value returned by glGetString(GL_RENDERER) (may be null)
+/// @param needles   lowercase substrings to look for
+/// @param count     number of entries in @p needles
+/// @return true if any needle occurs in @p renderer
+inline bool gl_renderer_matches(const char* renderer, const char* const* needles, size_t count) {
+    if (renderer == nullptr || renderer[0] == '\0') {
+        return false;
+    }
+
+    std::string lowered(renderer);
+    for (char& c : lowered) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+
+    for (size_t i = 0; i < count; ++i) {
+        if (lowered.find(needles[i]) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /// Decide, BEFORE the first GPU draw, whether a GPU is known to hard-fault in
 /// the 3D gcode preview and must be excluded from the GLES path entirely.
 ///
@@ -61,23 +87,38 @@ inline bool gl_draw_error_is_fatal(unsigned int gl_error) {
 /// @param renderer  the value returned by glGetString(GL_RENDERER) (may be null)
 /// @return true if the renderer matches a known-bad substring (case-insensitive)
 inline bool gl_renderer_is_denylisted(const char* renderer) {
-    if (renderer == nullptr || renderer[0] == '\0') {
-        return false;
-    }
-
     static const char* const DENYLIST[] = {"panfrost"};
+    return gl_renderer_matches(renderer, DENYLIST, sizeof(DENYLIST) / sizeof(DENYLIST[0]));
+}
 
-    std::string lowered(renderer);
-    for (char& c : lowered) {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
-
-    for (const char* needle : DENYLIST) {
-        if (lowered.find(needle) != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
+/// Decide whether a GL_RENDERER string names a software rasterizer rather than
+/// a GPU.
+///
+/// Mesa answers with one of these when it cannot reach the hardware — a stale
+/// or mismatched userspace, a missing kernel driver, a render node the process
+/// cannot open. The context creates successfully and every GL call works, so
+/// nothing fails; the drawing simply happens on the CPU.
+///
+/// For a presentation path that exists to move work OFF the CPU, that outcome
+/// is worse than no GPU at all: it pays context setup, buffer handoff and a
+/// copy to spend more CPU than it saves. Callers choosing between a GPU path
+/// and a CPU path must treat a software renderer as a refusal.
+///
+/// This asks a different question from gl_renderer_is_denylisted() above.
+/// That one names hardware whose driver faults during 3D draws; this one names
+/// the absence of hardware. A renderer can be neither, either, or both:
+/// Panfrost is denylisted for 3D draws yet presents through EGL correctly.
+///
+/// Pure function (no GL state, no side effects) so the decision is unit-testable
+/// without a live GL context.
+///
+/// @param renderer  the value returned by glGetString(GL_RENDERER) (may be null)
+/// @return true if the renderer is a software rasterizer (case-insensitive)
+inline bool gl_renderer_is_software(const char* renderer) {
+    // "swrast" also covers Mesa's "kms_swrast", which is the one that appears
+    // on an SBC whose GPU kernel driver is missing but whose KMS node works.
+    static const char* const SOFTWARE[] = {"llvmpipe", "softpipe", "swrast", "swiftshader"};
+    return gl_renderer_matches(renderer, SOFTWARE, sizeof(SOFTWARE) / sizeof(SOFTWARE[0]));
 }
 
 } // namespace gcode

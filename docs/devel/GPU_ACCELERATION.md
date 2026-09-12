@@ -3,9 +3,11 @@
 What the GPU can and cannot do for HelixScreen, measured on real boards rather
 than argued from source. Read this before proposing work on the rendering path.
 
-**Today HelixScreen ships software rendering on every target.** That is a
-deliberate position, not an unfinished one: the EGL presentation path is real
-and measurably faster, and the nanovg draw unit is unusable upstream. The
+**HelixScreen rasterizes on the CPU on every target.** What differs per board
+is how those pixels reach the screen: the `pi` target ships a GPU presentation
+binary alongside the software one and picks between them at boot, everything
+else presents through DRM dumb buffers or fbdev. The nanovg draw unit, which
+would move rasterization itself onto the GPU, is unusable upstream. The
 sections below say how much each is worth and what blocks it.
 
 ---
@@ -18,7 +20,7 @@ alternatives — each rung builds on the one below.
 | Rung | What it does | State here |
 |------|--------------|-----------|
 | `lv_draw_sw` into a dumb buffer | CPU rasterizes, kernel scans out | **ships** |
-| `lv_draw_sw` into a GBM/EGL surface | CPU rasterizes, GPU composites and presents | **measured, works** |
+| `lv_draw_sw` into a GBM/EGL surface | CPU rasterizes, GPU composites and presents | **ships on `pi`**, probe-gated |
 | `lv_draw_nanovg` | GPU rasterizes widgets | **broken upstream**, see below |
 | `lv_draw_opengles` | GPU rasterizes, different unit | not evaluated |
 
@@ -62,6 +64,73 @@ plane masks and renderer strings, then an A/B of `ENABLE_OPENGLES=no|yes`.
 
 ---
 
+## How a board gets the EGL rung
+
+Three binaries, selected by `scripts/helix-launcher.sh#select_binary` at boot:
+
+```
+helix-screen-egl     GPU presentation      taken only if --probe-egl exits 0
+helix-screen         DRM dumb buffers      the default
+helix-screen-fbdev   /dev/fb0              when the DRM binary's libs are missing
+```
+
+Which of LVGL's two DRM drivers a binary carries is a compile-time choice, so
+this is a choice of binary and not a runtime mode. `mk/egl-link.mk` builds the
+third one from the DRM build's objects, recompiling only the translation units
+that read the EGL config macros — `src/api/display_backend_drm.cpp` and LVGL's
+own DRM and OpenGL ES drivers.
+
+That sharing is measured, not assumed. Building the `pi` target twice, once per
+`ENABLE_OPENGLES` value, and comparing all 1465 objects: **811 differ as raw
+bytes, but only 14 differ once debug info is stripped**, and one of those is
+`libhv`'s `htime.o`, which embeds `__DATE__`/`__TIME__` and so differs between
+any two builds. The remaining 13:
+
+| Object | Belongs to |
+|---|---|
+| `api/display_backend_drm.o` | the app — the only file under `src/` or `include/` that reads an EGL config macro |
+| `lvgl/.../drm/lv_linux_drm.o`, `lv_linux_drm_egl.o` | which DRM back end compiles at all |
+| `lvgl/.../opengles/` ×9 | empty translation units without the config |
+| `display/display_backend_drm.o` | `libhelix-display.a`, which only the splash and watchdog link — not part of this rung |
+
+The raw-byte number is the trap here: comparing objects without stripping says
+811 files changed and implies the EGL binary needs a full second build. It
+does not. Strip the debug info and the answer is 12 objects in the main binary.
+
+**Selection is a probe, not a crash.** A failed EGL init inside one binary
+would fall through to fbdev in-process and skip the middle rung entirely,
+silently demoting a board from dumb buffers to `/dev/fb0`. So the probe is a
+separate process: `helix-screen-egl --probe-egl` does the bring-up
+(`gbm_create_device`, `eglInitialize`, `eglChooseConfig`, `eglCreateContext`),
+prints what answered, and exits 0 or non-zero. A bring-up that aborts inside
+the driver takes down only the probe. A board whose probe declines runs the DRM
+binary; it never drops two rungs at once.
+
+**The probe refuses a software renderer.** The CB1's original failure was a
+stale Mesa in `/opt/panfrost` missing `kms_swrast`/`swrast`; the inverse —
+succeeding into llvmpipe — is worse than failing, because every pixel is still
+rasterized by the CPU and the handoff to a GPU that is not there costs extra on
+top. `gl_renderer_is_software()` in `include/gcode_gl_fallback.h` is the
+predicate. It is deliberately a different question from
+`gl_renderer_is_denylisted()` beside it: that one names hardware whose driver
+faults during 3D draws, and Panfrost is on it while still presenting through
+EGL correctly.
+
+**Verifying the binary is the one you think it is.** A build that links the base
+objects into the EGL binary produces something that runs fine and presents
+through dumb buffers, while the launcher believes it is on the GPU. There is no
+other symptom, so `make verify-egl` checks for `lv_opengles_init` — defined only
+inside `#if LV_USE_OPENGLES` — in the EGL binary and asserts its absence from
+the base one. The trap it guards is real: `lv_opengles_shader.c` holds its GLSL
+in C++11 raw string literals, so it compiles as C++ when the config is on and as
+plain C when it is off, and the stock rules put both at the same object path.
+
+**Overrides.** `HELIX_DISPLAY_BACKEND=egl` skips the probe and forces the rung;
+`=drm` and `=fbdev` force the rungs below it. `HELIX_DRM_DEVICE` pins the node
+the probe opens, exactly as it pins the one the display backend opens.
+
+---
+
 ## Board capability
 
 Measured per board, not inferred from the SoC.
@@ -87,6 +156,12 @@ app calls vanish; the one that matters in practice is
 **Forced mode selection is unavailable on the EGL path.** The connector's own
 preferred mode is what you get. `src/api/display_backend_drm.cpp` guards the
 call and warns rather than failing to link.
+
+No shipped per-board config sets a mode override, so this reaches only someone
+who picked a resolution by hand. On the EGL rung that choice is logged and
+ignored, and the panel comes up at its preferred mode instead. Whether a
+configured resolution should make the launcher decline the rung is a per-board
+policy question, not a probe question — the probe cannot see the config.
 
 ---
 

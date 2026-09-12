@@ -2456,7 +2456,7 @@ echo -n "📢 Checking spdlog-only logging..."
 
 # stdout IS the product in these files (CLI subcommands, splash, demo, ctl client),
 # so printing there is correct. Everywhere else, logging goes through spdlog.
-LOG_ALLOW='src/system/cli_args.cpp|src/application/detect_printer_cmd.cpp|src/helix_splash.cpp|src/lvgl-demo/|src/remote/remote_client.cpp'
+LOG_ALLOW='src/system/cli_args.cpp|src/application/detect_printer_cmd.cpp|src/application/probe_egl_cmd.cpp|src/helix_splash.cpp|src/lvgl-demo/|src/remote/remote_client.cpp'
 LOG_HITS=$(grep -rnE '\bprintf\(|std::cout|std::cerr|\bLV_LOG_[A-Z]+\(' src include 2>/dev/null \
              | grep -vE "$LOG_ALLOW" || true)
 if [ -z "$LOG_HITS" ]; then

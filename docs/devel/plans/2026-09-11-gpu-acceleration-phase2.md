@@ -1,6 +1,7 @@
 # GPU Acceleration Phase 2 — ship the EGL rung, move rotation ownership
 
-**Status:** not started. Phase 1 shipped as `aa8d86153`.
+**Status:** Task 1 in progress on `feature/gpu-egl-rung`. Phase 1 shipped as
+`aa8d86153`.
 **Measured facts and the nanovg verdict:** `docs/devel/GPU_ACCELERATION.md` — read it
 first; this plan does not repeat its numbers.
 
@@ -94,11 +95,20 @@ Two coupled problems. Neither has moved since Phase 1.
 
 **Ownership only half-moved.** `DisplayManager` still calls
 `lv_display_set_rotation()` itself *and* calls the backend, which may clear it —
-so the value is written twice and the winner depends on call order.
-`DisplayBackendFbdev`'s override is a no-op that relies on DisplayManager having
-set it. `#1275` and `#1580` land together: ownership moves to the backend,
-DisplayManager hands the angle down, and each backend decides whether LVGL is
-also told. That is already how fbdev and SDL behave.
+so the value is written twice. The backend call comes second in all four
+DisplayManager sites (`init`, `apply_rotation`, and `run_rotation_probe` twice),
+so the backend wins on ordering. `DisplayBackendFbdev`'s override is a no-op
+that relies on DisplayManager having set it. `#1275` and `#1580` land together:
+ownership moves to the backend, DisplayManager hands the angle down, and each
+backend decides whether LVGL is also told. That is already how fbdev and SDL
+behave.
+
+`scripts/check_rotation_cache_order.py` and
+`tests/shell/test_rotation_cache_order_gate.bats` pin the order of
+`set_display_rotation()` against the `m_width`/`m_height` cache read in those
+four functions, and fail on purpose when the pair is extracted into a helper.
+Collapsing the two calls into one changes the shape that gate matches, so it
+moves in the same commit or the commit hook refuses.
 
 **`plane_may_own_rotation()` returns a constant `false` and is not dead code.**
 It is false because LVGL transforms pointer input solely from its own display
@@ -114,7 +124,36 @@ Do that before touching the flag, not after.
 Note also that no `DrmRotationStrategy` branch is acted on in the shipped
 configuration: SOFTWARE is unreachable because
 `DisplayManager::try_drm_to_fbdev_fallback` swaps in fbdev first, and HARDWARE is
-unreachable because of the gate above.
+unreachable because of the gate above. It is broader than the strategy switch —
+`DisplayBackendDRM::set_display_rotation` is unreachable *in its entirety*.
+DisplayManager calls it only for non-zero angles, and the one caller that would
+pass `ROTATION_0`, the rotation probe, returns early on DRM builds. So the
+double-write hazard above is currently masked rather than absent: on DRM the
+second write is always the fbdev no-op.
+
+**The coupling that will bite, and it is not in the rendering path.**
+`display_backend.h#display_rotation_degrees` answers "is the display rotated
+right now?" by reading `lv_display_get_rotation()`, and
+`scripts/check_touch_rotation_source.py` forces the backends to use it rather
+than the config key. Give the plane the rotation and clear LVGL's, and that
+helper returns 0 on a physically rotated display — flipping four decisions that
+have nothing to do with rendering:
+
+- both `create_input_pointer` implementations stop ignoring a stored evdev touch
+  range and start programming one solved through a rotation, which `#1394`
+  established double-applies
+- `touch_calibration_wrapper.cpp` stops discarding an unstamped affine, so a
+  matrix solved at an unknown rotation is accepted as if solved at 0
+- `touch_calibration_panel.cpp` re-enables the range-fit stage on a rotated
+  panel, the exact thing `#1394` turned off
+- `DisplayManager::is_software_rotated` returns false, turning animations back
+  on for a board deliberately opted out (`#986`)
+
+Two of those write to `settings.json`. The failure shows up one boot later as a
+stored range or affine in the wrong basis, and it **survives a revert of the
+code that caused it**. So the touch pipeline needs a rotation source
+independent of `lv_display_get_rotation()` *before* anything else moves — that
+is step one, not a cleanup afterwards.
 
 ### Where to verify it
 

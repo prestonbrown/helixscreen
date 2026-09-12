@@ -16,6 +16,7 @@
 #include "async_lifetime_guard.h"
 #include "data_root_resolver.h"
 #include "helix_version.h"
+#include "probe_egl_cmd.h"
 #include "system/crash_handler.h"
 #ifdef HELIX_ENABLE_REMOTE_CONTROL
 #include "remote_client.h"
@@ -127,6 +128,17 @@ int main(int argc, char** argv) {
         return helix::remote_client_main(argc - 1, argv + 1);
     }
 #endif
+
+    // The launcher runs this to pick a display rung, so it has to answer on a
+    // board that already has HelixScreen up: before the instance lock, before
+    // the chdir, before config and logging. Unconditional on purpose — a build
+    // with no EGL must report a refusal here rather than fall through to the
+    // "ignoring unknown argument" warning and boot the whole UI.
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--probe-egl") == 0) {
+            return helix::probe::run_probe_egl();
+        }
+    }
 
     // Before any subsystem that can touch SDL audio. With overwrite=0, this
     // only fires when the caller didn't pick an audio driver themselves.
