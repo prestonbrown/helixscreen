@@ -840,6 +840,15 @@ main() {
 
     # Start service
     start_service "$platform"
+
+    # K2: install and start the web-server carve-out
+    # (prestonbrown/helixscreen#1617). Must follow start_service: the
+    # service start runs platform_stop_competing_uis, whose
+    # /etc/init.d/app stop takes the stock web-server down, and this
+    # brings the carve-out back for the current session while the
+    # installed script keeps it across reboots. No-op off K2.
+    install_k2_webserver_backend "$platform"
+
     cleanup_old_install
     cleanup_migrated_install
     cleanup_stale_cache_dirs

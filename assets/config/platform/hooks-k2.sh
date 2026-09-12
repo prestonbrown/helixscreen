@@ -32,9 +32,13 @@ platform_stop_competing_uis() {
     # respawn it (no respawn param), so a one-shot kill here is sufficient.
     killall boot-play 2>/dev/null || true
 
-    # Note: web-server is intentionally NOT killed — it serves the
-    # Creality Cloud integration and camera stream (webrtc_local).
-    # Stopping it would break remote monitoring via Creality app.
+    # web-server is intentionally NOT killed — it serves the Creality
+    # Cloud integration and camera stream (webrtc_local). Stopping it
+    # would break remote monitoring via the Creality app. The disable
+    # below keeps the whole app set from starting at boot, so the
+    # carve-out needs its own starter: /etc/init.d/helix-k2-webserver
+    # (config/k2-webserver.init) brings web-server up at boot
+    # independently of the app service (prestonbrown/helixscreen#1617).
 
     # Persistently disable the stock UI service (reversible)
     if [ -x /etc/init.d/app ]; then

@@ -7957,6 +7957,71 @@ install_procd_shim_k2() {
     log_success "Installed K2 procd shim at $shim_dest (boot symlink verified)"
 }
 
+# K2 web-server carve-out (prestonbrown/helixscreen#1617). The runtime hook
+# runs `/etc/init.d/app disable`, and procd disables the app service as a
+# whole — so web-server (ports 80/443/9998/9999, Creality Cloud) would
+# never start at boot. Install an rc.common script that starts exactly
+# web-server, independent of the app service, and enable it so procd's boot
+# iterator runs it.
+#
+# Must be called AFTER start_service: the service start is what runs
+# platform_stop_competing_uis, whose `/etc/init.d/app stop` takes the stock
+# web-server down, and the explicit start here brings the carve-out back
+# for the current session without a reboot. No-op when the stock app
+# service is absent (a firmware without the stock set has nothing to carve
+# out of) or when procd's rc.common is missing.
+install_k2_webserver_backend() {
+    [ "${1:-}" = "k2" ] || return 0
+
+    if [ ! -f /etc/init.d/app ]; then
+        log_info "No stock /etc/init.d/app on this host; skipping web-server carve-out"
+        return 0
+    fi
+
+    if [ ! -x /etc/rc.common ]; then
+        log_warn "K2 web-server carve-out: /etc/rc.common not found — skipping"
+        return 0
+    fi
+
+    local src="${INSTALL_DIR}/config/k2-webserver.init"
+    local dest="/etc/init.d/helix-k2-webserver"
+
+    if [ ! -f "$src" ]; then
+        log_warn "k2-webserver.init missing from ${INSTALL_DIR}/config; the web-server carve-out will not survive reboot"
+        return 0
+    fi
+
+    cp "$src" "$dest" 2>/dev/null || $SUDO cp "$src" "$dest" 2>/dev/null || {
+        log_warn "Could not install $dest; the web-server carve-out will not survive reboot"
+        return 0
+    }
+    chmod +x "$dest" 2>/dev/null || $SUDO chmod +x "$dest" 2>/dev/null || true
+
+    # Drop any existing rc.d entry before enabling — `enable` exits 0 even
+    # when it produced no symlink, so the boot entry is verified by link
+    # the same way install_procd_shim_k2 does.
+    $SUDO rm -f /etc/rc.d/S99helix-k2-webserver /etc/rc.d/K01helix-k2-webserver 2>/dev/null || true
+    if ! "$dest" enable; then
+        log_error "K2 web-server carve-out: enable failed — web-server will not start at boot"
+        log_error "Manual fix: $SUDO $dest enable"
+        return 1
+    fi
+    local ws_target
+    ws_target=$(readlink /etc/rc.d/S99helix-k2-webserver 2>/dev/null || true)
+    if [ "$ws_target" != "../init.d/helix-k2-webserver" ]; then
+        log_error "K2 web-server carve-out: /etc/rc.d/S99helix-k2-webserver -> '$ws_target' (expected '../init.d/helix-k2-webserver')"
+        log_error "web-server will not start at boot (see [L086])."
+        return 1
+    fi
+
+    record_disabled_service "sysv-created" "$dest"
+    log_info "Installed K2 web-server carve-out: $dest (boot symlink verified)"
+    # Bring web-server up now — the stock instance died with the app stop
+    # the service start just ran.
+    "$dest" start 2>/dev/null || true
+    return 0
+}
+
 install_service_snapmaker_u1() {
     log_info "Configuring Snapmaker U1 autostart..."
 
@@ -10786,11 +10851,18 @@ reenable_disabled_services() {
                 ;;
             sysv-created)
                 # An init script HelixScreen itself wrote (the K1 Creality
-                # backend, prestonbrown/helixscreen#1468). Stopping and
+                # backend, prestonbrown/helixscreen#1468; the K2 web-server
+                # carve-out, prestonbrown/helixscreen#1617). Stopping and
                 # removing it is the only correct reversal: chmod +x would
                 # leave our script competing with the restored stock one.
+                # An rc.common script must also be disabled, or its rc.d
+                # boot symlinks outlive the script they point at.
                 if [ -f "$target" ]; then
                     log_info "Removing HelixScreen init script: $target"
+                    if [ -x /etc/rc.common ] && \
+                       awk 'NR==1 {exit !/\/etc\/rc\.common/}' "$target" 2>/dev/null; then
+                        $SUDO "$target" disable 2>/dev/null || true
+                    fi
                     $SUDO "$target" stop 2>/dev/null || true
                     $SUDO rm -f "$target"
                 fi
@@ -10920,6 +10992,9 @@ restore_previous_ui_platform() {
     if [ -z "$restored_ui" ] && [ -f /etc/init.d/app ] && \
        { [ "$platform" = "k2" ] || [ -f /mnt/UDISK/printer_data/config/printer.cfg ]; }; then
         log_info "Re-enabling Creality stock UI (/etc/init.d/app)..."
+        # Drop any web-server the carve-out left running so the stock
+        # instance app start is about to spawn can bind its port.
+        killall web-server 2>/dev/null || true
         $SUDO /etc/init.d/app enable 2>/dev/null || true
         $SUDO /etc/init.d/app start 2>/dev/null || true
         restored_ui="Creality stock UI (/etc/init.d/app)"
@@ -12412,6 +12487,15 @@ main() {
 
     # Start service
     start_service "$platform"
+
+    # K2: install and start the web-server carve-out
+    # (prestonbrown/helixscreen#1617). Must follow start_service: the
+    # service start runs platform_stop_competing_uis, whose
+    # /etc/init.d/app stop takes the stock web-server down, and this
+    # brings the carve-out back for the current session while the
+    # installed script keeps it across reboots. No-op off K2.
+    install_k2_webserver_backend "$platform"
+
     cleanup_old_install
     cleanup_migrated_install
     cleanup_stale_cache_dirs
