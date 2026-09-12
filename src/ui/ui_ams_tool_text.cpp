@@ -94,7 +94,8 @@ void init_ams_tool_text_observers() {
     // never learns the subject died, and reset() then calls lv_observer_remove()
     // on freed memory (#705).
     //
-    // Observer on raw ams_current_tool_ (int) → physical label ("Lane 2") or "---"
+    // Observer on raw ams_current_tool_ (int) → the tool's physical label
+    // ("Tool 1", or "Toolhead 1" where the backend names the printing end) or "---"
     s_tool_text_observer = observe_int_sync<AmsState>(
         ams.get_current_tool_subject(), &ams,
         [](AmsState* a, int tool) {
