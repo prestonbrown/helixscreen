@@ -379,11 +379,10 @@ bool DisplayManager::init(const Config& config) {
                              "/boot/firmware/cmdline.txt instead.");
                 rotation_degrees = 0;
             } else {
-                lv_display_set_rotation(m_display, lv_rot);
-
-                // The backend may clear LVGL's rotation when the scanout plane
-                // rotates instead, so read the resolution it settles on.
-                m_backend->set_display_rotation(lv_rot, phys_w, phys_h);
+                // The backend is the only writer of the rotation, and may leave
+                // LVGL's at zero when a scanout plane rotates instead, so read
+                // the resolution it settles on.
+                m_backend->set_display_rotation(m_display, lv_rot, phys_w, phys_h);
 
                 m_width = lv_display_get_horizontal_resolution(m_display);
                 m_height = lv_display_get_vertical_resolution(m_display);
@@ -1389,7 +1388,7 @@ bool DisplayManager::has_dimming_control() const {
 
 bool DisplayManager::is_software_rotated() const {
     return m_display && m_backend && m_backend->type() == DisplayBackendType::FBDEV &&
-           lv_display_get_rotation(m_display) != LV_DISPLAY_ROTATION_0;
+           m_backend->applied_rotation_degrees(m_display) != 0;
 }
 
 // ============================================================================
@@ -1646,12 +1645,10 @@ void DisplayManager::apply_rotation(int degrees) {
         return;
     }
 
-    lv_display_set_rotation(m_display, lv_rot);
-
     // The backend may clear LVGL's rotation when the scanout plane rotates
     // instead, so read the resolution it settles on — the same order init()
     // applies (#1275, #1587).
-    m_backend->set_display_rotation(lv_rot, phys_w, phys_h);
+    m_backend->set_display_rotation(m_display, lv_rot, phys_w, phys_h);
 
     m_width = lv_display_get_horizontal_resolution(m_display);
     m_height = lv_display_get_vertical_resolution(m_display);
@@ -1907,8 +1904,7 @@ void DisplayManager::run_rotation_probe() {
                 // Set the LVGL display rotation so the rendering actually
                 // changes on screen, then let the backend handle any
                 // hardware-specific adjustments (touch coords, etc.).
-                lv_display_set_rotation(m_display, rotations[i]);
-                m_backend->set_display_rotation(rotations[i], phys_w, phys_h);
+                m_backend->set_display_rotation(m_display, rotations[i], phys_w, phys_h);
                 m_width = lv_display_get_horizontal_resolution(m_display);
                 m_height = lv_display_get_vertical_resolution(m_display);
             }
@@ -1982,8 +1978,7 @@ void DisplayManager::run_rotation_probe() {
     // Ensure display is at the confirmed rotation
     if (!is_sdl) {
         lv_display_rotation_t confirmed_lv_rot = degrees_to_lv_rotation(confirmed_rotation);
-        lv_display_set_rotation(m_display, confirmed_lv_rot);
-        m_backend->set_display_rotation(confirmed_lv_rot, phys_w, phys_h);
+        m_backend->set_display_rotation(m_display, confirmed_lv_rot, phys_w, phys_h);
         m_width = lv_display_get_horizontal_resolution(m_display);
         m_height = lv_display_get_vertical_resolution(m_display);
     }

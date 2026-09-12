@@ -118,10 +118,15 @@ endif
 	fi
 else
 # Phase 2: Actual build (only runs when _PARALLEL_CHECKED is set)
-ifdef PI_DUAL_LINK
-all: apply-patches generate-fonts $(TRANS_XML) splash watchdog $(TARGET) $(FBDEV_TARGET) verify-fbdev strip-both bluetooth-plugin
+ifeq ($(ENABLE_EGL_RUNG),yes)
+    EGL_RUNG_GOALS := $(EGL_TARGET) strip-egl
 else
-all: apply-patches generate-fonts $(TRANS_XML) splash watchdog $(TARGET) strip bluetooth-plugin
+    EGL_RUNG_GOALS :=
+endif
+ifdef PI_DUAL_LINK
+all: apply-patches generate-fonts $(TRANS_XML) splash watchdog $(TARGET) $(FBDEV_TARGET) verify-fbdev strip-both $(EGL_RUNG_GOALS) bluetooth-plugin
+else
+all: apply-patches generate-fonts $(TRANS_XML) splash watchdog $(TARGET) strip $(EGL_RUNG_GOALS) bluetooth-plugin
 endif
 	$(ECHO) "$(GREEN)$(BOLD)✓ Build complete!$(RESET)"
 	$(ECHO) "$(CYAN)Run with: $(YELLOW)./$(TARGET)$(RESET)"

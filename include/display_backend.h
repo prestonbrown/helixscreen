@@ -85,52 +85,6 @@ inline lv_display_rotation_t degrees_to_lv_rotation(int degrees) {
 }
 
 /**
- * @brief Rotation the display is actually running at, in degrees
- *
- * The single source for "is the display rotated right now?" - the question
- * the touch pipeline asks in two places that must agree: the calibration
- * solver deciding whether an evdev range fit is safe to compute, and the
- * backends deciding whether a stored range fit is safe to program
- * (prestonbrown/helixscreen#1394).
- *
- * Reads LVGL rather than `/display/rotate`, because the config key is the
- * REQUEST and the two disagree in both directions:
- *
- *  - `--rotate` / HELIX_DISPLAY_ROTATION with no `/display/rotate` key: the
- *    display is rotated and the key reads 0.
- *  - A DRM→fbdev rotation fallback that fails (DSI/EGL), or any rotation
- *    asked for on SDL: the key is non-zero and the display is NOT rotated -
- *    DisplayManager logs "Continuing without rotation" and leaves it at 0.
- *
- * A gate reading the key gets one of those wrong; two gates reading
- * different sources disagree with each other.
- *
- * Ordering: DisplayManager::init() applies rotation before it creates the
- * input devices, so a backend asking this from create_input_pointer() already
- * sees the final state. apply_rotation() and the first-boot rotation probe
- * both go through lv_display_set_rotation() as well, so a rotation changed
- * after startup is picked up with no cached value to keep in sync.
- *
- * @param disp Display to query, or nullptr for the default display
- * @return 0, 90, 180 or 270; 0 when there is no display
- */
-inline int display_rotation_degrees(lv_display_t* disp = nullptr) {
-    lv_display_t* target = disp ? disp : lv_display_get_default();
-    return target ? static_cast<int>(lv_display_get_rotation(target)) * 90 : 0;
-}
-
-/**
- * @brief Is the display actually rotated right now?
- *
- * @see display_rotation_degrees() for why this reads LVGL, not the config key
- * @param disp Display to query, or nullptr for the default display
- * @return true when the display is at 90, 180 or 270 degrees
- */
-inline bool display_is_rotated(lv_display_t* disp = nullptr) {
-    return display_rotation_degrees(disp) != 0;
-}
-
-/**
  * @brief Detect panel orientation from kernel cmdline
  *
  * Parses /proc/cmdline for video=*:panel_orientation=* to determine if the
@@ -229,7 +183,51 @@ inline int read_config_rotation(int default_value = 0) {
  */
 class DisplayBackend {
   public:
-    virtual ~DisplayBackend() = default;
+    virtual ~DisplayBackend() {
+        if (s_active == this) {
+            s_active = nullptr;
+        }
+    }
+
+    /**
+     * @brief What angle is the picture actually presented at, in degrees?
+     *
+     * The backend that applied the rotation is the only thing that knows what
+     * it did with the angle it was handed: told LVGL, gave it to a scanout
+     * plane, or failed and left the panel upright. Overriding this is how a
+     * backend that does not route rotation through LVGL keeps the touch
+     * pipeline honest, since LVGL's own rotation stops describing the picture
+     * the moment something else owns it.
+     *
+     * @param disp Display to query, or nullptr for the default display
+     * @return 0, 90, 180 or 270
+     */
+    virtual int applied_rotation_degrees(lv_display_t* disp = nullptr) const {
+        return lvgl_rotation_degrees(disp);
+    }
+
+    /**
+     * @brief The backend currently driving the display, or nullptr
+     *
+     * Maintained by construction and destruction, so a backend swap keeps it
+     * right with nothing to remember at the call site. Display setup and
+     * teardown are main-thread only, which is what makes a plain pointer
+     * sufficient here.
+     */
+    static DisplayBackend* active() {
+        return s_active;
+    }
+
+    /**
+     * @brief The angle LVGL believes it is rendering at, in degrees
+     *
+     * The default answer for `applied_rotation_degrees()` and the fallback
+     * when no backend is live, such as the watchdog's crash dialog.
+     */
+    static int lvgl_rotation_degrees(lv_display_t* disp = nullptr) {
+        lv_display_t* target = disp ? disp : lv_display_get_default();
+        return target ? static_cast<int>(lv_display_get_rotation(target)) * 90 : 0;
+    }
 
     // ========================================================================
     // Display Creation
@@ -437,19 +435,30 @@ class DisplayBackend {
     }
 
     /**
-     * @brief Update touch rotation transform after display rotation changes
+     * @brief Apply a rotation, and decide what LVGL is told about it
      *
-     * For fbdev backend, transforms raw evdev touch coordinates to match
-     * the rotated display. No-op for SDL and DRM backends.
+     * The backend is the only writer of the display's rotation. This default
+     * hands the angle to LVGL, which rotates on the flush path and transforms
+     * pointer input to match, so a backend with nothing special to do inherits
+     * working rotation by saying nothing.
      *
+     * A backend that rotates by some other means - a scanout plane - overrides
+     * this and reports the result through applied_rotation_degrees(), because
+     * LVGL's own rotation stops describing the panel once something else owns
+     * it (prestonbrown/helixscreen#1275).
+     *
+     * @param disp Display to rotate
      * @param rot LVGL rotation enum
      * @param phys_w Native panel width (pre-rotation)
      * @param phys_h Native panel height (pre-rotation)
      */
-    virtual void set_display_rotation(lv_display_rotation_t rot, int phys_w, int phys_h) {
-        (void)rot;
+    virtual void set_display_rotation(lv_display_t* disp, lv_display_rotation_t rot, int phys_w,
+                                      int phys_h) {
         (void)phys_w;
         (void)phys_h;
+        if (disp != nullptr) {
+            lv_display_set_rotation(disp, rot);
+        }
     }
 
     /**
@@ -633,7 +642,64 @@ class DisplayBackend {
         return display == nullptr && backend != nullptr &&
                backend->type() != DisplayBackendType::FBDEV;
     }
+
+  protected:
+    DisplayBackend() {
+        s_active = this;
+    }
+
+  private:
+    inline static DisplayBackend* s_active = nullptr;
 };
+
+/**
+ * @brief Rotation the display is actually running at, in degrees
+ *
+ * The single source for "is the display rotated right now?" - the question
+ * the touch pipeline asks in two places that must agree: the calibration
+ * solver deciding whether an evdev range fit is safe to compute, and the
+ * backends deciding whether a stored range fit is safe to program
+ * (prestonbrown/helixscreen#1394).
+ *
+ * Asks the live backend rather than `/display/rotate`, because the config key
+ * is the REQUEST and the two disagree in both directions:
+ *
+ *  - `--rotate` / HELIX_DISPLAY_ROTATION with no `/display/rotate` key: the
+ *    display is rotated and the key reads 0.
+ *  - A DRM→fbdev rotation fallback that fails (DSI/EGL), or any rotation
+ *    asked for on SDL: the key is non-zero and the display is NOT rotated -
+ *    DisplayManager logs "Continuing without rotation" and leaves it at 0.
+ *
+ * A gate reading the key gets one of those wrong; two gates reading
+ * different sources disagree with each other.
+ *
+ * Ordering: DisplayManager::init() applies rotation before it creates the
+ * input devices, so a backend asking this from create_input_pointer() already
+ * sees the final state. apply_rotation() and the first-boot rotation probe
+ * both go through the backend as well, so a rotation changed after startup is
+ * picked up with no cached value to keep in sync.
+ *
+ * @param disp Display to query, or nullptr for the default display
+ * @return 0, 90, 180 or 270; 0 when there is no display
+ */
+inline int display_rotation_degrees(lv_display_t* disp = nullptr) {
+    if (const DisplayBackend* backend = DisplayBackend::active()) {
+        return backend->applied_rotation_degrees(disp);
+    }
+    return DisplayBackend::lvgl_rotation_degrees(disp);
+}
+
+/**
+ * @brief Is the display actually rotated right now?
+ *
+ * @see display_rotation_degrees() for why this asks the backend, not the
+ *      config key
+ * @param disp Display to query, or nullptr for the default display
+ * @return true when the display is at 90, 180 or 270 degrees
+ */
+inline bool display_is_rotated(lv_display_t* disp = nullptr) {
+    return display_rotation_degrees(disp) != 0;
+}
 
 // ============================================================================
 // Backend-Specific Headers (conditionally included)

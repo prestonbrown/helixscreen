@@ -74,8 +74,9 @@ ifeq ($(PLATFORM_TARGET),pi)
     # Without it SIGABRT reports get garbage frames. Matches ad5x/cc1/k1/k2/snapmaker-u1.
     TARGET_CFLAGS := -march=armv8-a -fno-omit-frame-pointer -funwind-tables -I/usr/aarch64-linux-gnu/include -I/usr/include/libdrm -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_BINARY_VARIANT=\"drm\"
     DISPLAY_BACKEND := drm
-    # No LVGL EGL path is compiled yet; LV_USE_OPENGLES gates it and is 0.
-    # Setting this to yes without that trips the #error in display_backend_drm.cpp.
+    # This binary presents through DRM dumb buffers. The GPU presentation path
+    # is a separate binary built by ENABLE_EGL_RUNG below, so that flipping this
+    # would rebuild the wrong one.
     ENABLE_OPENGLES := no
     ENABLE_SDL := no
     ENABLE_GLES_3D := yes
@@ -88,6 +89,8 @@ ifeq ($(PLATFORM_TARGET),pi)
     # Strip binary for size - embedded targets don't need debug symbols
     STRIP_BINARY := yes
     FONT_TIERS := all
+    # Also link helix-screen-egl, which the launcher probes for and prefers.
+    ENABLE_EGL_RUNG := yes
 
 else ifeq ($(PLATFORM_TARGET),pi-fbdev)
     # -------------------------------------------------------------------------
@@ -135,6 +138,7 @@ else ifeq ($(PLATFORM_TARGET),pi-both)
     STRIP_BINARY := yes
     FONT_TIERS := all
     PI_DUAL_LINK := yes
+    ENABLE_EGL_RUNG := yes
 
 else ifeq ($(PLATFORM_TARGET),pi32)
     # -------------------------------------------------------------------------
@@ -1673,12 +1677,17 @@ define deploy-common
 	@# Stop running processes and prepare directory
 	@# Stop update watcher first (prevents PathChanged restart during file sync),
 	@# then stop the main service and kill any stragglers
-	ssh $(1) "sudo systemctl stop helixscreen-update.path 2>/dev/null; sudo systemctl stop helixscreen 2>/dev/null; systemctl --user stop helix-screen 2>/dev/null; killall helix-watchdog helix-screen helix-splash 2>/dev/null; sleep 0.5; killall -9 helix-watchdog helix-screen helix-splash 2>/dev/null; while pidof helix-screen helix-splash helix-watchdog >/dev/null 2>&1; do sleep 0.2; done; true"
+	ssh $(1) "sudo systemctl stop helixscreen-update.path 2>/dev/null; sudo systemctl stop helixscreen 2>/dev/null; systemctl --user stop helix-screen 2>/dev/null; killall helix-watchdog helix-screen helix-screen-egl helix-splash 2>/dev/null; sleep 0.5; killall -9 helix-watchdog helix-screen helix-screen-egl helix-splash 2>/dev/null; while pidof helix-screen helix-screen-egl helix-splash helix-watchdog >/dev/null 2>&1; do sleep 0.2; done; true"
 	ssh $(1) "mkdir -p $(2)/bin"
 	ssh $(1) "rm -f $(2)/*.xml 2>/dev/null || true"
 	@# Sync binaries and launcher to bin/
 	rsync -avzz --progress $(3)/helix-screen $(3)/helix-splash $(1):$(2)/bin/
 	@if [ -f $(3)/helix-watchdog ]; then rsync -avzz $(3)/helix-watchdog $(1):$(2)/bin/; fi
+	@# The EGL rung, on targets that build one. helix-launcher.sh probes for it
+	@# and prefers it; without this the device keeps whatever it had, and a stale
+	@# one would be probed and run in place of the binary just deployed.
+	@if [ -f $(3)/helix-screen-egl ]; then rsync -avzz $(3)/helix-screen-egl $(1):$(2)/bin/; \
+	else ssh $(1) "rm -f $(2)/bin/helix-screen-egl"; fi
 	@# Sync Bluetooth plugin if built (runtime-loaded via dlopen, same dir as binary)
 	@BT_SO_DIR=$$(dirname $(3))"/lib/libhelix-bluetooth.so"; \
 	if [ -f "$$BT_SO_DIR" ]; then \
@@ -2806,6 +2815,7 @@ release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash build/pi-fbdev
 	@if [ -f build/pi/bin/helix-watchdog ]; then cp build/pi/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
 	@if [ -f build/pi/lib/libhelix-bluetooth.so ]; then cp build/pi/lib/libhelix-bluetooth.so $(RELEASE_DIR)/helixscreen/bin/; fi
 	@if [ -f build/pi-fbdev/bin/helix-screen ]; then cp build/pi-fbdev/bin/helix-screen $(RELEASE_DIR)/helixscreen/bin/helix-screen-fbdev; fi
+	@if [ -f build/pi/bin/helix-screen-egl ]; then cp build/pi/bin/helix-screen-egl $(RELEASE_DIR)/helixscreen/bin/; fi
 	@cp scripts/helix-launcher.sh $(RELEASE_DIR)/helixscreen/bin/
 	$(call release-copy-xml-config,$(RELEASE_DIR)/helixscreen)
 	@# Remove any personal config — release ships template only (installer copies it on first run)

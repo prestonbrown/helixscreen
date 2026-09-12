@@ -30,6 +30,15 @@ endif
 
 FBDEV_TARGET := $(FBDEV_BUILD_DIR)/bin/helix-screen
 
+# The substitutions above only rewrite the three known subdirs. Any other
+# BUILD_SUBDIR leaves FBDEV_BUILD_DIR equal to BUILD_DIR, and then the fbdev
+# link silently overwrites the DRM binary it was supposed to sit beside — two
+# different binaries at one path, and whichever linked last is what runs.
+ifeq ($(abspath $(FBDEV_TARGET)),$(abspath $(TARGET)))
+    $(error BUILD_SUBDIR=$(BUILD_SUBDIR) has no fbdev counterpart, so the fbdev \
+binary would overwrite $(TARGET). Use pi, pi32 or x86, or add the mapping above.)
+endif
+
 # =============================================================================
 # Fbdev display backend library
 # =============================================================================
@@ -109,19 +118,22 @@ FBDEV_GLES_CXXFLAGS := $(filter-out -DENABLE_GLES_3D -DHELIX_DISPLAY_DRM -DHELIX
 FBDEV_GLES_VARIANT_SRCS := \
     src/rendering/gcode_gles_renderer.cpp \
     src/ui/ui_gcode_viewer.cpp \
-    src/ui/backdrop_blur.cpp
+    src/ui/backdrop_blur.cpp \
+    src/application/probe_egl_cmd.cpp
 
 # Map source paths to fbdev variant object paths (flatten into single dir)
 FBDEV_GLES_VARIANT_OBJS := \
     $(FBDEV_GLES_VARIANT_DIR)/gcode_gles_renderer.o \
     $(FBDEV_GLES_VARIANT_DIR)/ui_gcode_viewer.o \
-    $(FBDEV_GLES_VARIANT_DIR)/backdrop_blur.o
+    $(FBDEV_GLES_VARIANT_DIR)/backdrop_blur.o \
+    $(FBDEV_GLES_VARIANT_DIR)/probe_egl_cmd.o
 
 # DRM-compiled originals to exclude from fbdev link
 DRM_GLES_APP_OBJS := \
     $(OBJ_DIR)/rendering/gcode_gles_renderer.o \
     $(OBJ_DIR)/ui/ui_gcode_viewer.o \
-    $(OBJ_DIR)/ui/backdrop_blur.o
+    $(OBJ_DIR)/ui/backdrop_blur.o \
+    $(OBJ_DIR)/application/probe_egl_cmd.o
 
 $(FBDEV_GLES_VARIANT_DIR)/gcode_gles_renderer.o: src/rendering/gcode_gles_renderer.cpp $(LIBHV_LIB) $(PCH) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR)
 	@echo "[CXX/fbdev] $< (no GLES)"
@@ -132,6 +144,13 @@ $(FBDEV_GLES_VARIANT_DIR)/ui_gcode_viewer.o: src/ui/ui_gcode_viewer.cpp $(LIBHV_
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
 $(FBDEV_GLES_VARIANT_DIR)/backdrop_blur.o: src/ui/backdrop_blur.cpp $(LIBHV_LIB) $(PCH) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR)
+	@echo "[CXX/fbdev] $< (no GLES)"
+	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@
+
+# Without the GLES defines this compiles to the stub that reports "built
+# without EGL support", which is what keeps libEGL and libgbm out of the fbdev
+# binary and verify-fbdev green.
+$(FBDEV_GLES_VARIANT_DIR)/probe_egl_cmd.o: src/application/probe_egl_cmd.cpp $(LIBHV_LIB) $(PCH) $(ABI_STAMP) | $(FBDEV_GLES_VARIANT_DIR)
 	@echo "[CXX/fbdev] $< (no GLES)"
 	$(Q)$(CXX) $(FBDEV_GLES_CXXFLAGS) $(DEPFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@
 

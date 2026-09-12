@@ -2,34 +2,10 @@ diff --git a/src/drivers/display/drm/lv_linux_drm_egl.c b/src/drivers/display/dr
 index 546256611..66e665d32 100644
 --- a/src/drivers/display/drm/lv_linux_drm_egl.c
 +++ b/src/drivers/display/drm/lv_linux_drm_egl.c
-@@ -757,4 +757,36 @@ static void drm_destroy_window(void * driver_data, void * native_window)
+@@ -757,4 +757,12 @@ static void drm_destroy_window(void * driver_data, void * native_window)
  }
  
  
-+void * lv_linux_drm_get_egl_display(lv_display_t * disp)
-+{
-+    if(!disp) return NULL;
-+    lv_drm_ctx_t * ctx = lv_display_get_driver_data(disp);
-+    if(!ctx || !ctx->egl_ctx) return NULL;
-+    return (void *)ctx->egl_ctx->egl_display;
-+}
-+
-+void * lv_linux_drm_get_egl_context(lv_display_t * disp)
-+{
-+    if(!disp) return NULL;
-+    lv_drm_ctx_t * ctx = lv_display_get_driver_data(disp);
-+    if(!ctx || !ctx->egl_ctx) return NULL;
-+    return (void *)ctx->egl_ctx->egl_context;
-+}
-+
-+void * lv_linux_drm_get_egl_config(lv_display_t * disp)
-+{
-+    if(!disp) return NULL;
-+    lv_drm_ctx_t * ctx = lv_display_get_driver_data(disp);
-+    if(!ctx || !ctx->egl_ctx) return NULL;
-+    return (void *)ctx->egl_ctx->egl_config;
-+}
-+
 +int lv_linux_drm_get_fd(lv_display_t * disp)
 +{
 +    if(!disp) return -1;

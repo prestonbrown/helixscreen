@@ -100,8 +100,8 @@ TEST_CASE("Only SOFTWARE needs FULL render mode", "[display][drm][rotation]") {
 }
 
 TEST_CASE("Plane may not own rotation until touch follows it", "[display][drm][rotation]") {
-    // lv_display_rotate_point() is the only touch transform in the tree, and it
-    // derives solely from LVGL's own display rotation, which the HARDWARE path
-    // clears. Nothing rotates touch to match a plane-rotated picture yet.
-    REQUIRE_FALSE(plane_may_own_rotation());
+    // The plane may carry an angle now that DisplayBackendDRM transforms pointer
+    // samples itself instead of relying on LVGL's display rotation, which the
+    // HARDWARE path clears.
+    REQUIRE(plane_may_own_rotation());
 }
