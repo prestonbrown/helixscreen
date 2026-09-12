@@ -9,6 +9,9 @@
 #include "ams_types.h"
 #include "hh_defaults.h"
 #include "moonraker_api.h"
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
+#include "printer_state.h"
 #include "test_helpers/happy_hare_test_access.h"
 
 #include <algorithm>
@@ -26,6 +29,18 @@
 class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
   public:
     AmsBackendHappyHareTestHelper() : AmsBackendHappyHare(nullptr, nullptr) {}
+
+    /// For tests that need on_started() to actually construct override_store_
+    /// (it requires a non-null api_). No client_: the config queries on_started()
+    /// also runs early-return on a null client_.
+    explicit AmsBackendHappyHareTestHelper(IMoonrakerAPI* api)
+        : AmsBackendHappyHare(api, nullptr) {}
+
+    /// Drive the protected lifecycle hook directly, without the rest of
+    /// start()'s subscription bookkeeping (which needs a real client_).
+    void call_on_started() {
+        on_started();
+    }
 
     /**
      * @brief Initialize test gates with default SlotInfo
@@ -3822,6 +3837,50 @@ TEST_CASE("HappyHare persist_override wires nozzle/bed temps into the override",
     const auto& ovr = HappyHareTestAccess::overrides(helper).at(0);
     CHECK(ovr.bed_temp == 80);
     CHECK(ovr.nozzle_temp == 240); // midpoint of min/max
+}
+
+TEST_CASE("HappyHare on_started reloads slot overrides after a restart",
+          "[ams][happyhare][override][filament_slot_override]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    // First "boot": persist an override the normal way (set_slot_info ->
+    // persist_override -> override_store_->save_async), same as any other
+    // Happy Hare test above, but with a real backing store this time.
+    {
+        AmsBackendHappyHareTestHelper backend(&api);
+        backend.call_on_started();
+        backend.initialize_test_gates(4);
+
+        SlotInfo info;
+        info.brand = "Polymaker";
+        info.spool_name = "PolyLite Orange";
+        info.spoolman_id = 42;
+        info.material = "PLA";
+        info.color_rgb = 0xFF5500;
+        backend.set_slot_info(0, info);
+
+        REQUIRE(backend.has_gate_override(0));
+    }
+
+    // Second "boot": a fresh instance sharing the same Moonraker DB. Nothing
+    // but on_started() runs before the check -- no set_slot_info, no manual
+    // seeding -- so this proves the load half of the round trip, not just the
+    // save half.
+    AmsBackendHappyHareTestHelper restarted(&api);
+    restarted.call_on_started();
+
+    const auto& overrides = HappyHareTestAccess::overrides(restarted);
+    REQUIRE(overrides.count(0) == 1);
+    const auto& ovr = overrides.at(0);
+    CHECK(ovr.brand == "Polymaker");
+    CHECK(ovr.spool_name == "PolyLite Orange");
+    CHECK(ovr.spoolman_id == 42);
+    CHECK(ovr.material == "PLA");
+    CHECK(ovr.color_rgb == 0xFF5500u);
+    CHECK(ovr.color_set);
 }
 
 // ============================================================================

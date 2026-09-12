@@ -126,6 +126,21 @@ AmsBackendHappyHare::~AmsBackendHappyHare() {
 // ============================================================================
 
 void AmsBackendHappyHare::on_started() {
+    // Load persisted per-slot overrides BEFORE any status callback can parse a
+    // gate, so the first frame already carries the user's identity. Private
+    // namespace: lane_data belongs to Happy Hare's own plugin, same as AFC.
+    if (api_) {
+        override_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+            api_, "happyhare", helix::ams::lane_key_style_for(get_type()), OVERRIDE_NAMESPACE);
+        auto loaded = override_store_->load_blocking();
+        const auto loaded_count = loaded.size();
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            overrides_ = std::move(loaded);
+        }
+        spdlog::info("[AMS HappyHare] Loaded {} slot overrides", loaded_count);
+    }
+
     // Query configfile to determine tip method (cutter vs tip-forming).
     // Happy Hare determines this from form_tip_macro: if it contains "cut",
     // it's a cutter system; otherwise it's tip-forming or none.
