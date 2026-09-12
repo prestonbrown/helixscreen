@@ -14,23 +14,32 @@ table is the design input; everything below follows from it.
 |---|---|---|---|---|---|---|
 | Pi 5, DSI panel (connected) | `drm-rp1-dsi` | `0x0` | no | no | V3D 7.1.7, GLES 3.1, Mesa 24.2.8 | works |
 | Pi 5, HDMI (disconnected) | `vc4` | `0x35` | no | yes | V3D | works |
-| CB1 / Voron | `sun4i-drm` | `0x0` | no | no | Mali-G31, GLES 3.1, Mesa 21.3.9 | `gbm_create_device` **fails** |
-| Snapmaker U1 | `rockchip` | `0x21` | no | no | none installed | impossible |
+| Pi 3B, DSI panel (connected) | `vc4` | `0x35` | no | yes | VC4 V3D 2.1, GLES 2.0, Mesa 25.0.7 | works |
+| CB1 / Voron, current image (Armbian 26.8.1 / Debian 13, stock Mesa) | `sun4i-drm` | `0x0` | no | no | Mali-G31 (Panfrost), GLES 3.1, Mesa 25.0.7 | works |
+| CB1 / Voron, stale image (BTT/Siboor, Debian 11, `/opt/panfrost` Mesa) | `sun4i-drm` | `0x0` | no | no | Mali-G31, GLES 3.1, Mesa 21.3.9 | `gbm_create_device` **fails** |
+| Snapmaker U1 | `rockchip` | `0x21` | no | no | none installed (card1 is an RKNPU, not a GPU) | impossible |
 
 Four conclusions, three of which contradict assumptions in the issues:
 
 1. **No plane in the fleet rotates 90 or 270.** The fbdev swap is not a compromise, it is the
    only mechanism that exists for a sideways panel.
-2. **The Pi's live panel has no plane rotation at all.** The `0x35` mask belongs to the
-   disconnected HDMI connector.
+2. **The Pi 5's live DSI panel has no plane rotation at all**; its `0x35` mask belongs to the
+   disconnected HDMI connector. The Pi 3B's live DSI panel is the exception: it sits on `vc4`
+   directly, carries that same `0x35` mask, and is the only board in the fleet with a
+   rotation-capable plane, a connected panel, and working EGL all at once.
 3. **The U1 has no `libEGL`, `libGLESv2`, or `libgbm`.** Its only acceleration is the plane,
    and its mask (`rotate-0 | reflect-y`) excludes every angle we would ask for.
-4. **EGL is real on the Pi and unavailable on the CB1**, and both run the same `pi-both`
-   binary. The CB1's `/opt/panfrost` Mesa has no `kms_swrast`/`swrast` driver, so allocating a
-   scanout buffer on `sun4i-drm` fails even though Mali renders fine.
+4. **EGL capability is a property of the installed image, not the silicon.** The CB1's
+   `/opt/panfrost` Mesa 21.3.9 has no `kms_swrast`/`swrast` driver, so allocating a scanout
+   buffer on `sun4i-drm` fails; the identical board on a current Debian 13 image (stock Mesa
+   25.0.7, no `/opt/panfrost`) succeeds on that same node, with `GL_RENDERER` reporting the
+   real Mali, not a software fallback. Both run the same `pi-both` binary.
 
-Point 4 is the load-bearing one: **capability is a runtime property of the box, not a
-compile-time property of the target.** Compile time can only decide what code exists.
+Point 4 is the load-bearing one, and it is stronger than a single board's hardware could ever
+make it: **capability is a runtime property of the installed image, not a compile-time
+property of the target, and not a fixed property of the silicon.** The same binary on the
+same board answers differently depending on which SD card is in it. Compile time cannot know
+that.
 
 ## Three layers, currently welded together
 
@@ -39,6 +48,10 @@ compile-time property of the target.** Compile time can only decide what code ex
 | Presentation | how a finished frame reaches the panel | DRM dumb buffers (CPU memcpy + page flip) | EGL/GBM on a real GPU |
 | Drawing | what rasterizes widgets | `lv_draw_sw` everywhere | `lv_draw_nanovg` (vendored, switched off) |
 | Rotation | who turns the picture | CPU, via the fbdev swap | DRM plane (180 only, one config) |
+
+Drawing's `lv_draw_nanovg` is not a peer option to Presentation's EGL/GBM: it renders into
+the layer's bound GL surface and has no readback path onto a dumb buffer or fbdev
+framebuffer, so it can only run on top of the EGL rung, never instead of it.
 
 All three currently hang off `HELIX_ENABLE_OPENGLES`, a macro that does not do what its
 readers believe.
@@ -94,7 +107,9 @@ log line. Every remaining `#ifdef HELIX_ENABLE_OPENGLES` in that file becomes
 LVGL makes `lv_linux_drm.c` and `lv_linux_drm_egl.c` mutual exclusives
 (`#if LV_USE_LINUX_DRM && !LV_LINUX_DRM_USE_EGL`), so one binary cannot hold both drivers.
 The original design accepted that and fell from EGL straight to fbdev. The measurements say
-that demotes every CB1 from DRM dumb buffers to fbdev, so we add a rung instead:
+that demotes any CB1 whose EGL probe fails — which a stale `/opt/panfrost` image still does,
+even though a current Debian 13 image on the identical board does not — from DRM dumb
+buffers to fbdev, so we add a rung instead:
 
 ```
 helix-screen-egl    EGL/GBM presentation on a real GPU
@@ -141,8 +156,9 @@ The EGL rung declares no rotation support, and needs no launcher involvement to 
 rotated unit: `display_manager.cpp#try_drm_to_fbdev_fallback` already deletes the DRM display
 and rebuilds on the fbdev backend in-process, rebuilding the input devices with it. That is
 how rotation reaches a Pi today, and it keeps working on the EGL rung unchanged. Nothing is
-lost by declaring no rotation, because no plane in the fleet offers 90/270 and the Pi's live
-panel offers nothing at all.
+lost by declaring no rotation, because no plane in the fleet offers 90/270, the Pi 5's live
+panel offers nothing at all, and the Pi 3B's live panel only offers 180 — which the same
+fbdev fallback already reaches, just without the plane doing the work.
 
 ### 4. Context sharing (#1582)
 
@@ -162,9 +178,16 @@ change), and #1581 closed as a documentation correction. §2 if the third link l
 
 **Later** — §4, and the nanovg draw unit. nanovg is vendored in full
 (`lib/lvgl/src/draw/nanovg/` and `lib/lvgl/src/libs/nanovg/`) and needs both `LV_USE_NANOVG`
-and `LV_USE_DRAW_NANOVG`; the second alone links with undefined `nvg*` symbols. It is the
-larger win, because it accelerates rasterization rather than the blit, and it is what makes
-`LV_DRAW_TRANSFORM_USE_MATRIX` legitimate. It also changes how every widget rasterizes, so it
+and `LV_USE_DRAW_NANOVG`; the second alone links with undefined `nvg*` symbols. Enabling it
+also turns on `LV_DRAW_TRANSFORM_USE_MATRIX`, which adds an `lv_matrix_t` member to
+`lv_layer_t` and `lv_draw_task_t` — an ABI change every translation unit including
+`lv_draw.h` sees, so a nanovg binary is a full separate build, never a link variant off a
+shared object set. Plain EGL (`LV_USE_OPENGLES`) carries no such cost: it only touches
+`lv_types.h` under `LV_USE_3DTEXTURE`, which resolves to 0. nanovg's justification is that it
+is the only way `LV_DRAW_TRANSFORM_USE_MATRIX` becomes legitimate — widget transforms
+currently crop on scale-up and no-op on scale-down — not raw speed: it renders on top of the
+EGL rung, not instead of it, and its reachable rasterization gain is bounded well under what
+EGL presentation alone already delivers. It also changes how every widget rasterizes, so it
 wants its own verification pass rather than riding along with this one.
 
 `lv_draw_opengles` is the weaker draw unit and is not proposed: its `draw_to_texture()`
@@ -179,8 +202,9 @@ Software gates cannot see any of this, so name the hardware explicitly.
 |---|---|
 | `LV_LINUX_DRM_USE_EGL` resolves to 1 on a `pi` build | preprocessor one-liner above; the `#error` gate then enforces it |
 | EGL rung runs on real V3D | `GL_RENDERER` on the Pi is `V3D 7.1.7.0`, never `llvmpipe` |
-| Probe declines on the CB1 | `helix-screen-egl --probe-egl` exits non-zero; launcher lands on `helix-screen` |
-| CB1 keeps DRM dumb buffers | log says DRM, not fbdev, after the ladder change |
+| Probe declines on a CB1 with the stale image | `helix-screen-egl --probe-egl` exits non-zero on the `/opt/panfrost` 21.3.9 image; launcher lands on `helix-screen` |
+| Probe succeeds on a CB1 with a current image | `helix-screen-egl --probe-egl` exits 0 on Debian 13 / Mesa 25.0.7; `GL_RENDERER` reports the real Mali, never `llvmpipe` |
+| CB1 keeps DRM dumb buffers when the probe declines | log says DRM, not fbdev, after the ladder change |
 | Rotation no longer double-applies | Pi + HDMI + `rotate: 180`: picture is actually inverted |
 | 90/270 still works | Pi + `rotate: 90` reaches the fbdev rung and renders rotated |
 | U1 unaffected | mask `0x21` still yields SOFTWARE; no behaviour change |
@@ -192,9 +216,17 @@ GLES crash on the CB1.
 
 - **Third link** grows the Pi tarball by roughly one binary and adds build time.
 - **Mesa skew**: built against a Bullseye sysroot (Mesa 20.3, which is why
-  `LV_USE_LINUX_DRM_GBM_BUFFERS` is off), run against Mesa 24.2 on the Pi and 21.3 on the CB1.
-  EGL and GLES are ABI-stable, but `gbm` is where this already bites.
+  `LV_USE_LINUX_DRM_GBM_BUFFERS` is off), run against Mesa 24.2 on the Pi 5, Mesa 25.0 on the
+  Pi 3B, and on the CB1 either Mesa 21.3 (a stale `/opt/panfrost` image) or Mesa 25.0 (current
+  Debian 13). EGL and GLES are ABI-stable, but `gbm` is where this already bites.
 - **Pi 5 split scanout**: rendering is on `v3d` and scanout on `drm-rp1-dsi`. The probe
   confirms Mesa's kmsro path handles it, but that is one board and one kernel.
-- **No second Pi model.** Pi 3B+ (VideoCore IV, GLES 2.0) and Pi 4 are in the original design's
-  target list and are not owned. The ladder degrades safely on them, but untested.
+- **A Pi 3B is now owned** (VideoCore IV / `vc4`, GLES 2.0, Mesa 25.0.7) alongside the Pi 5.
+  Pi 4 is still in the original design's target list and not owned; the ladder degrades
+  safely on it, but untested.
+- **The EGL rung does not link yet.** `src/api/display_backend_drm.cpp` calls
+  `lv_linux_drm_set_preferred_mode()`, which exists only in the dumb-buffer driver
+  (`lv_linux_drm.c`); under `LV_LINUX_DRM_USE_EGL=1` that file compiles to nothing, so the
+  call needs a guard before the third link can succeed. Guarding it costs forced-mode
+  selection on that rung: a board whose requested mode differs from the connector's
+  preferred mode gets the connector's preferred mode instead.
