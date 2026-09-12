@@ -16,7 +16,7 @@ flowchart LR
 
     subgraph MAIN["Main thread - owns every lv_obj and lv_subject"]
         LOOP["Application main_loop<br/>process_notifications"]
-        TH["lv_timer_handler<br/>UpdateQueue 1 ms drain timer,<br/>LVGL timers, render"]
+        TH["lv_timer_handler<br/>UpdateQueue drain timer (refresh period),<br/>LVGL timers, render"]
         LOOP --> TH
     end
 
@@ -78,9 +78,9 @@ The heuristic for everything else: if you are in a callback from libhv, an `Http
 
 ### One bridge: the `UpdateQueue` contract
 
-Chapter 02 covered the data-flow view — the notification queue that hands raw JSON to `process_notifications()` ([`src/application/application.cpp#main_loop`](../../../src/application/application.cpp#L4203)) before `lv_timer_handler()` (`src/application/application.cpp#main_loop/"time_till_next = lv_timer_handler()"`) runs. The `UpdateQueue` is the general-purpose sibling: any thread enqueues a tagged lambda with `helix::ui::queue_update()`; a 1 ms LVGL timer created in `init()` ([`include/ui_update_queue.h#init`](../../../include/ui_update_queue.h#L119)) drains `process_pending()` (`include/ui_update_queue.h#process_pending`) on the main thread inside `lv_timer_handler()`.
+Chapter 02 covered the data-flow view — the notification queue that hands raw JSON to `process_notifications()` ([`src/application/application.cpp#main_loop`](../../../src/application/application.cpp#L4203)) before `lv_timer_handler()` (`src/application/application.cpp#main_loop/"time_till_next = lv_timer_handler()"`) runs. The `UpdateQueue` is the general-purpose sibling: any thread enqueues a tagged lambda with `helix::ui::queue_update()`; an LVGL timer created in `init()` that drains on the display refresh period ([`include/ui_update_queue.h#init`](../../../include/ui_update_queue.h#L119)) drains `process_pending()` (`include/ui_update_queue.h#process_pending`) on the main thread inside `lv_timer_handler()`.
 
-The safety property is same-thread serialization: because the drain runs inside LVGL's timer walk, a queued `lv_subject_set_*()` can never interleave with an in-progress render — that is what prevents LVGL's "invalidate during rendering" assertion, which on embedded targets is an infinite loop rather than a crash. One correction absorbed from the old diagram: it called the drain "HIGHEST PRIORITY, runs first". LVGL 9 timers have no priority field; the real guarantees are the 1 ms period (work lands within a frame) and creation-order precedence over the later-created refresh timer. Trust the serialization, not per-tick ordering claims.
+The safety property is same-thread serialization: because the drain runs inside LVGL's timer walk, a queued `lv_subject_set_*()` can never interleave with an in-progress render — that is what prevents LVGL's "invalidate during rendering" assertion, which on embedded targets is an infinite loop rather than a crash. One correction absorbed from the old diagram: it called the drain "HIGHEST PRIORITY, runs first". LVGL 9 timers have no priority field; the real guarantees are the refresh period (work lands within a frame) and creation-order precedence over the later-created refresh timer. Trust the serialization, not per-tick ordering claims.
 
 The queue earns trust in the details: tags register with the crash handler so a crash names the guilty callback; exceptions in one callback are swallowed and logged so a batch cannot be lost to a single bad lambda; widget-guarded overloads drop work whose widget died; `ScopedFreeze` (`include/ui_update_queue.h#"class ScopedFreeze {"`) buffers enqueues across a drain-and-destroy window and splices them back on thaw. Canonical producer pattern: `PrinterState`'s public setters marshal themselves —
 
