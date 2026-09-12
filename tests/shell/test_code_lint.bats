@@ -1538,6 +1538,7 @@ void a(char* b, int i) { snprintf(b, 8, "T%d", i); }
 void c(char* b, int i) { snprintf(b, 8, "T{}", i); }
 void e(int i) { auto s = "T" + std::to_string(i); }
 void f(int slot_index) { auto s = fmt::format("Slot {}", slot_index + 1); }
+void g(int backup) { auto s = fmt::format("Slot {} matches.", backup + 1); }
 EOF
     run run_tool_label_gate "$d"
     [ "$status" -eq 1 ]
@@ -1545,17 +1546,45 @@ EOF
     contains "T{}" "$output"
     contains "std::to_string(i)" "$output"
     contains "slot_index + 1" "$output"
+    contains "backup + 1" "$output"
 }
 
-@test "the tool label gate stays quiet on a plain slot_index + 1 with no formatting call" {
-    # The silent half of shape 2: the arithmetic alone is not the violation,
-    # only building display text from it without lane_number() is.
+@test "the tool label gate catches an assignment that feeds a formatting call a few lines later" {
+    # Shape 3: shape 2 only sees the arithmetic and the formatting call
+    # together on one physical line. Splitting the assignment out reaches the
+    # same display text and is the same violation.
+    local d="${BATS_TEST_TMPDIR}/split_offenders"
+    mkdir -p "$d"
+    cat > "$d/a.cpp" <<'EOF'
+void f(int slot_index) {
+    int display_slot = slot_index + 1;
+    std::string label = "unit";
+    do_other_work();
+    snprintf(tmp, sizeof(tmp), lv_tr("Current: Slot %d"), display_slot);
+}
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 1 ]
+    contains "int display_slot = slot_index + 1;" "$output"
+    contains "display_slot);" "$output"
+}
+
+@test "the tool label gate stays quiet on a protocol field id with no formatting call" {
+    # The silent half of shapes 2 and 3: the arithmetic alone is not the
+    # violation, and neither is assigning it to a variable that a formatting
+    # call never reads. Only building display text from it without
+    # lane_number() is - matching the real allowlisted wire-format shape in
+    # filament_slot_override_store.cpp, which is 1-based on the wire by spec.
     local d="${BATS_TEST_TMPDIR}/plain_offset"
     mkdir -p "$d"
     cat > "$d/quiet.cpp" <<'EOF'
 void f(int slot_index) {
-    int display_slot = slot_index + 1;
+    wire_fields[slot_index + 1] = 0;
     unit_addrs.push_back(unit_index + 1);
+}
+void g(int slot_index) {
+    int idx = slot_index + 1;
+    registers_[idx] = 0;
 }
 EOF
     run run_tool_label_gate "$d"
