@@ -1,7 +1,16 @@
 # GPU Acceleration Phase 2 — ship the EGL rung, move rotation ownership
 
-**Status:** Task 1 in progress on `feature/gpu-egl-rung`. Phase 1 shipped as
-`aa8d86153`.
+**Status:** Tasks 1 and 4 done on `feature/gpu-egl-rung` (unpushed). Tasks 2 and
+3 remain. Phase 1 shipped as `aa8d86153`.
+
+Task 1 is verified on hardware. The launcher probes, logs
+`EGL probe: /dev/dri/card1: V3D 7.1.7.0`, selects `helix-screen-egl`, and the app
+reports `GPU-accelerated display active (EGL/OpenGL ES)` on the Pi 5. The probe
+picks the scanout node on both owned boards even though their numbering is
+opposite - Pi 5 `card1` (`drm-rp1-dsi`, V3D) and CB1 `card0` (`sun4i-drm`,
+Mali-G31 (Panfrost)) - because it requires a connected connector rather than a
+node index. Probing a render node would answer "the GPU works" without proving
+the presentation path.
 **Measured facts and the nanovg verdict:** `docs/devel/GPU_ACCELERATION.md` — read it
 first; this plan does not repeat its numbers.
 
@@ -171,7 +180,7 @@ is actually inverted**, then confirm touch lands where the picture says it shoul
 
 ---
 
-## Task 4 — close the drift gate's blind side
+## Task 4 — close the drift gate's blind side  ✅ done (`cc5993366`)
 
 `#if defined(HELIX_ENABLE_OPENGLES) && !LV_LINUX_DRM_USE_EGL` catches a request
 without a result. It does **not** catch the inverse: setting `LV_USE_OPENGLES 1`
@@ -182,14 +191,25 @@ to cover that direction no longer fires now that both headers agree on the token
 
 ## Open decisions this phase owns
 
-1. **Does `#1582`'s EGL context getters get wired, or dropped?**
-   `patches/lvgl-drm-egl-getters.patch` stops being dead the moment the rung
-   exists. It is a memory optimisation, not a correctness fix. If the ladder is
-   abandoned, delete the patch instead.
+1. **`#1582` cannot be closed by deleting the patch.** Its premise is that
+   `patches/lvgl-drm-egl-getters.patch` is dead. The three EGL *context* getters
+   are indeed uncalled, but the same patch also carries
+   `lv_linux_drm_get_fd`, which `display_backend_drm.cpp` calls twice for
+   connector DPMS (`#1049`) and which the EGL variant of that object has a real
+   undefined reference to. Deleting the patch breaks the EGL link and takes
+   panel power with it.
+
+   Removing only the three dead getters means surgery on two patches:
+   `lvgl-drm-flush-rotation.patch` declares them in `lv_linux_drm.h` and
+   provides the non-EGL `get_fd`, while this patch provides the EGL bodies. That
+   is ~24 lines of dead code inside otherwise load-bearing patches. Retitle the
+   issue or accept the getters as the cost of the fd.
 2. **Per-board default** — which targets get `ENABLE_OPENGLES=yes` in
    `mk/cross.mk`, versus probe-only opt-in.
-3. **Does a failed probe on a board we said yes to log loudly, or silently take
-   the next rung?** Silent is friendlier and hides a regression.
+3. ~~**Does a failed probe log loudly, or silently take the next rung?**~~
+   **Decided: loudly.** `select_binary` logs the probe's own verdict line and,
+   on a refusal, `EGL unavailable here - using DRM dumb buffers`. Both go to
+   stderr, because the function's stdout is the chosen binary path.
 
 ---
 
