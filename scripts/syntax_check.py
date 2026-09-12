@@ -92,7 +92,7 @@ def main() -> int:
     )
     db_path = root / DB_NAME
     if not db_path.exists():
-        print(f"{DB_NAME} not found: run 'make compile-db' (or a build) first", file=sys.stderr)
+        print(f"{DB_NAME} not found: run 'make compile_commands' (or a build) first", file=sys.stderr)
         return 2
 
     db = json.loads(db_path.read_text())
