@@ -22,6 +22,18 @@ namespace helix {
 
 class SocketServerBase : public IRemoteTransport {
   public:
+    /**
+     * @brief Last-resort teardown for a transport destroyed while running
+     *
+     * Subclasses call stop() from their own destructor, which is the complete
+     * teardown: it still reaches on_stopped() and endpoint() through virtual
+     * dispatch. By the time this runs the derived object is gone and those are
+     * unreachable, so all that is left to salvage is the accept thread - and it
+     * has to be, because std::thread's destructor terminates the process when
+     * it holds a joinable thread.
+     */
+    ~SocketServerBase() override;
+
     bool start(RequestHandler handler) override;
     void stop() override;
 
@@ -52,6 +64,9 @@ class SocketServerBase : public IRemoteTransport {
 
   private:
     void accept_loop();
+
+    /// Teardown that touches no virtual member, so a destructor can run it.
+    void halt_accept_thread();
 
     // Atomic: written by stop() on the caller thread, read by accept_loop().
     std::atomic<int> listener_fd_{-1};

@@ -1027,12 +1027,27 @@ int Application::run(int argc, char** argv) {
                 rc.transport = helix::RemoteConfig::Transport::Http;
                 rc.http_bind = m_args.remote_http_bind;
                 rc.http_port = m_args.remote_http_port;
+                // Read from the environment rather than a flag: argv is world
+                // readable through /proc, so a token there leaks to every local
+                // user. An off-box bind without one is refused in
+                // HttpTransport::create_listener().
+                if (const char* tok = getenv("HELIX_REMOTE_HTTP_TOKEN")) {
+                    rc.http_token = tok;
+                }
             } else {
                 rc.transport = helix::RemoteConfig::Transport::UnixSocket;
                 rc.socket_path = helix::resolve_socket_path(m_args.remote_socket);
             }
             if (!helix::RemoteControlServer::instance().start(rc)) {
-                spdlog::warn("[Application] Remote control server failed to start (non-fatal)");
+                // Name the target and say what the user will see instead. A bare
+                // "failed to start" sends people back to the flag they already
+                // set, because `ctl` reports only that it found no instance.
+                const std::string target = rc.transport == helix::RemoteConfig::Transport::Http
+                                               ? rc.http_bind + ":" + std::to_string(rc.http_port)
+                                               : rc.socket_path;
+                spdlog::error("[Application] Remote control was requested but did not start on "
+                              "{}; `ctl` will report that no instance is running",
+                              target);
             }
         }
 #endif
