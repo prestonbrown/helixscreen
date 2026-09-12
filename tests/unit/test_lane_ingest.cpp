@@ -1,10 +1,15 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "filament_slot_override.h"
+#include "filament_slot_override_store.h"
 #include "helix_test_fixture.h"
 #include "lane_source_store.h"
+#include "lane_translation.h"
 
 #include "../catch_amalgamated.hpp"
 
+using helix::ams::classify_declaration;
+using helix::ams::declared_from_record;
 using helix::ams::ingest;
 using helix::ams::lane_sources;
 using helix::ams::Observation;
@@ -153,4 +158,104 @@ TEST_CASE("every ObservationSource round-trips to its own LaneSources member", "
         CHECK_FALSE(lane.vendor_cache.has_value());
         CHECK_FALSE(lane.metered.has_value());
     }
+}
+
+namespace {
+/// A lane_data record as it arrives off the wire, so the lock keys are present
+/// or absent exactly as a co-author or a legacy write left them.
+helix::ams::FilamentSlotOverride record_from(const nlohmann::json& j) {
+    auto parsed = helix::ams::from_lane_data_record(j);
+    REQUIRE(parsed.has_value());
+    return parsed->second;
+}
+} // namespace
+
+TEST_CASE("a linked record is the server's declaration, locks unread", "[lane][ingest]") {
+    const nlohmann::json wire = {
+        {"lane", "0"},
+        {"color", "#A4B2BC"},
+        {"spool_id", 7},
+        {"helix_locked_color", true},
+        {"helix_locked_material", true},
+        {"material", "PETG"},
+    };
+    const auto rec = record_from(wire);
+
+    CHECK(classify_declaration(rec, wire) == ObservationSource::Spoolman);
+
+    const auto obs = declared_from_record(rec, wire);
+    CHECK(obs.source == ObservationSource::Spoolman);
+    CHECK(obs.color_rgb == 0xA4B2BC);
+    CHECK(obs.spoolman_id == 7);
+}
+
+TEST_CASE("an unlinked record with a real lock is the user's declaration", "[lane][ingest]") {
+    const nlohmann::json wire = {
+        {"lane", "1"},
+        {"color", "#BCBCBC"},
+        {"helix_locked_color", true},
+    };
+    const auto rec = record_from(wire);
+
+    CHECK(classify_declaration(rec, wire) == ObservationSource::LocalUser);
+    CHECK(declared_from_record(rec, wire).color_rgb == 0xBCBCBC);
+}
+
+TEST_CASE("an unlinked record with no lock key is a cache, not a user", "[lane][ingest]") {
+    // The load default reads a missing helix_locked_color back as color_set,
+    // so a legacy record carrying a colour arrives looking locked. Only a key
+    // that is actually present is a human's signature.
+    const nlohmann::json wire = {
+        {"lane", "2"},
+        {"color", "#ED2C2C"},
+    };
+    const auto rec = record_from(wire);
+    REQUIRE(rec.user_locked_color); // the load default, not a declaration
+
+    CHECK(classify_declaration(rec, wire) == ObservationSource::VendorCache);
+    CHECK(declared_from_record(rec, wire).source == ObservationSource::VendorCache);
+}
+
+TEST_CASE("a record with a zero spool id is unlinked", "[lane][ingest]") {
+    const nlohmann::json wire = {
+        {"lane", "3"},
+        {"color", "#000000"},
+        {"spool_id", 0},
+        {"helix_locked_color", true},
+    };
+    const auto rec = record_from(wire);
+
+    CHECK(classify_declaration(rec, wire) == ObservationSource::LocalUser);
+    // Pure black survives the round trip. It is a colour, not an absent one.
+    CHECK(declared_from_record(rec, wire).color_rgb == 0x000000u);
+}
+
+TEST_CASE("a record with no colour does not claim one", "[lane][ingest]") {
+    const nlohmann::json wire = {
+        {"lane", "0"},
+        {"material", "PLA"},
+    };
+    const auto rec = record_from(wire);
+
+    const auto obs = declared_from_record(rec, wire);
+    CHECK(obs.material == "PLA");
+    CHECK_FALSE(obs.color_rgb.has_value());
+}
+
+TEST_CASE("a record carrying the default-slot sentinel does not declare a colour",
+          "[lane][ingest]") {
+    // "#808080" round-trips through from_lane_data_record with color_set true
+    // and color_rgb == AMS_DEFAULT_SLOT_COLOR, indistinguishable in the struct
+    // from a real grey. The sentinel means "no colour reading" everywhere else
+    // it is read, and this is the third place that has to honour that.
+    const nlohmann::json wire = {
+        {"lane", "4"},
+        {"color", "#808080"},
+    };
+    const auto rec = record_from(wire);
+    REQUIRE(rec.color_set);
+    REQUIRE(rec.color_rgb == helix::AMS_DEFAULT_SLOT_COLOR);
+
+    const auto obs = declared_from_record(rec, wire);
+    CHECK_FALSE(obs.color_rgb.has_value());
 }

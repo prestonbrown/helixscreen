@@ -74,4 +74,51 @@ Observation user_edit_observation(const SlotInfo& original, const SlotInfo& edit
     return obs;
 }
 
+ObservationSource classify_declaration(const FilamentSlotOverride& record,
+                                       const nlohmann::json& wire) {
+    if (record.spoolman_id > 0) {
+        return ObservationSource::Spoolman;
+    }
+    const bool locked_color = wire.contains("helix_locked_color") &&
+                              wire["helix_locked_color"].is_boolean() &&
+                              wire["helix_locked_color"].get<bool>();
+    const bool locked_material = wire.contains("helix_locked_material") &&
+                                 wire["helix_locked_material"].is_boolean() &&
+                                 wire["helix_locked_material"].get<bool>();
+    return (locked_color || locked_material) ? ObservationSource::LocalUser
+                                             : ObservationSource::VendorCache;
+}
+
+Observation declared_from_record(const FilamentSlotOverride& record, const nlohmann::json& wire) {
+    Observation obs(classify_declaration(record, wire));
+
+    // AMS_DEFAULT_SLOT_COLOR means "no colour reading", not a grey a person
+    // or a legacy writer chose, and it can ride in on the wire the same way a
+    // cleared SlotInfo carries it (see user_edit_observation above). Filing it
+    // would hand every uncoloured legacy lane a declared grey.
+    if (record.color_set && record.color_rgb != AMS_DEFAULT_SLOT_COLOR)
+        obs.color_rgb = record.color_rgb;
+    if (!record.color_name.empty())
+        obs.color_name = record.color_name;
+    if (!record.material.empty())
+        obs.material = record.material;
+    if (!record.brand.empty())
+        obs.brand = record.brand;
+    if (!record.spool_name.empty())
+        obs.spool_name = record.spool_name;
+    if (!record.catalog_id.empty())
+        obs.catalog_id = record.catalog_id;
+    if (!record.product_name.empty())
+        obs.product_name = record.product_name;
+    if (record.spoolman_id > 0)
+        obs.spoolman_id = record.spoolman_id;
+    if (record.spoolman_vendor_id > 0)
+        obs.spoolman_vendor_id = record.spoolman_vendor_id;
+    if (record.remaining_weight_g >= 0.0F)
+        obs.remaining_weight_g = record.remaining_weight_g;
+    if (record.total_weight_g >= 0.0F)
+        obs.total_weight_g = record.total_weight_g;
+    return obs;
+}
+
 } // namespace helix::ams
