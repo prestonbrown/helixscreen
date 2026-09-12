@@ -13,6 +13,7 @@
 #include "remote_control_server.h"
 #include "src/remote/unix_socket_transport.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <string>
 #include <sys/stat.h>
@@ -21,6 +22,7 @@
 #include "../catch_amalgamated.hpp"
 
 using helix::control_socket_dir;
+using helix::control_socket_search_dirs;
 using helix::ScopedEnv;
 using helix::well_known_socket_path;
 
@@ -98,4 +100,43 @@ TEST_CASE("resolve_socket_path: the server binds inside RUNTIME_DIRECTORY",
     REQUIRE(helix::resolve_socket_path("/tmp/explicit.sock") == "/tmp/explicit.sock");
 
     rmdir(dir.c_str());
+}
+
+// --- client-side search order --------------------------------------------
+
+TEST_CASE("socket search: a client covers both contexts at once", "[remote][ctl][socketdir]") {
+    EnvSandbox sandbox;
+    // An ssh session's environment: XDG is set, RUNTIME_DIRECTORY is not. The
+    // service it wants to reach bound /run/helixscreen, so a search that stopped
+    // at the first resolved directory would miss it entirely.
+    unsetenv("RUNTIME_DIRECTORY");
+    setenv("XDG_RUNTIME_DIR", "/run/user/1000", 1);
+
+    const auto dirs = control_socket_search_dirs();
+    REQUIRE(std::find(dirs.begin(), dirs.end(), "/run/user/1000") != dirs.end());
+    REQUIRE(std::find(dirs.begin(), dirs.end(), "/run/helixscreen") != dirs.end());
+    REQUIRE(std::find(dirs.begin(), dirs.end(), "/tmp") != dirs.end());
+}
+
+TEST_CASE("socket search: the server's own directory is tried first", "[remote][ctl][socketdir]") {
+    EnvSandbox sandbox;
+    setenv("RUNTIME_DIRECTORY", "/run/helixscreen", 1);
+    setenv("XDG_RUNTIME_DIR", "/run/user/1000", 1);
+
+    const auto dirs = control_socket_search_dirs();
+    REQUIRE_FALSE(dirs.empty());
+    REQUIRE(dirs.front() == control_socket_dir());
+}
+
+TEST_CASE("socket search: no directory is probed twice", "[remote][ctl][socketdir]") {
+    EnvSandbox sandbox;
+    // Both variables naming the same place, which is what a systemd unit run by
+    // a logged-in user looks like.
+    setenv("RUNTIME_DIRECTORY", "/tmp", 1);
+    setenv("XDG_RUNTIME_DIR", "/tmp", 1);
+
+    const auto dirs = control_socket_search_dirs();
+    auto sorted = dirs;
+    std::sort(sorted.begin(), sorted.end());
+    REQUIRE(std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end());
 }

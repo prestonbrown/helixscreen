@@ -169,9 +169,17 @@ The server speaks JSON-RPC over one of two transports, selectable at runtime:
 `ctl`/`repl` client speaks this. Socket path resolution (client and server use
 the same order):
 1. `--remote-socket <path>` / `helix-screen ctl -s <path>` (explicit)
-2. `$RUNTIME_DIRECTORY/helixscreen-control.sock` (systemd units)
-3. `$XDG_RUNTIME_DIR/helixscreen-control.sock`
-4. `/tmp/helixscreen-control.sock`
+2. `$RUNTIME_DIRECTORY/` (systemd units)
+3. `$XDG_RUNTIME_DIR/`
+4. `/run/helixscreen/`
+5. `/tmp/`
+
+The **server** binds the first of those its own context yields. The **client**
+searches all of them and takes the first socket that answers, because the two
+run in different contexts: a systemd service has `$RUNTIME_DIRECTORY` and no
+`$XDG_RUNTIME_DIR`, an ssh session has the reverse. Resolving a single directory
+on the client side finds nothing the service created and reports that the app is
+not running.
 
 `$RUNTIME_DIRECTORY` comes from `RuntimeDirectory=helixscreen` in
 `config/helixscreen.service` and has to outrank `/tmp`: that unit also sets

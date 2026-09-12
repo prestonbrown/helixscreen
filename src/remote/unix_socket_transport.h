@@ -111,4 +111,18 @@ std::string control_socket_dir();
 /// The well-known control socket path, inside control_socket_dir().
 std::string well_known_socket_path();
 
+/**
+ * @brief Every directory a control socket might be in, best guess first
+ *
+ * The server binds one directory - whichever control_socket_dir() picks in the
+ * context it runs in. A client usually runs in a different context: an ssh
+ * session has `$XDG_RUNTIME_DIR` and no `$RUNTIME_DIRECTORY`, while the service
+ * it wants to reach has the opposite, so resolving a single directory finds
+ * nothing and reports that the app is not running
+ * (prestonbrown/helixscreen#1602). Searching the candidates instead lets `ctl`
+ * work without `-s`. Ordered, de-duplicated, and includes systemd's
+ * `RuntimeDirectory=helixscreen` location even when the variable is unset.
+ */
+std::vector<std::string> control_socket_search_dirs();
+
 } // namespace helix

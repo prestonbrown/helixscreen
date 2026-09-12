@@ -40,6 +40,25 @@ std::string well_known_socket_path() {
     return control_socket_dir() + "/helixscreen-control.sock";
 }
 
+std::vector<std::string> control_socket_search_dirs() {
+    std::vector<std::string> dirs;
+    auto add = [&dirs](const std::string& dir) {
+        if (!dir.empty() && std::find(dirs.begin(), dirs.end(), dir) == dirs.end()) {
+            dirs.push_back(dir);
+        }
+    };
+
+    add(control_socket_dir());
+    if (const char* xdg = getenv("XDG_RUNTIME_DIR"); xdg && xdg[0] != '\0') {
+        add(xdg);
+    }
+    // systemd's RuntimeDirectory=helixscreen resolves here. A client outside the
+    // unit never sees $RUNTIME_DIRECTORY, so the path has to be known, not read.
+    add("/run/helixscreen");
+    add("/tmp");
+    return dirs;
+}
+
 namespace {
 
 constexpr const char* INSTANCE_PREFIX = "helixscreen-control-";
