@@ -129,8 +129,10 @@ endif
 ifndef SKIP_COMPILE_COMMANDS
 	@# Auto-generate compile_commands.json from fragments (fast, <0.3s)
 	@# Skip with SKIP_COMPILE_COMMANDS=1 (used by pre-commit to avoid LSP churn)
+	@# stdout is captured into the summary line; stderr is where the merge says
+	@# why it refused, and it is the only account of a failure the recipe gives.
 	@if [ -d "$(BUILD_DIR)" ] && [ -f scripts/merge_compile_commands.py ]; then \
-		SUMMARY=$$(python3 scripts/merge_compile_commands.py --build-dir $(BUILD_DIR) 2>/dev/null) && \
+		SUMMARY=$$(python3 scripts/merge_compile_commands.py --build-dir $(BUILD_DIR)) && \
 			echo "$(CYAN)→ compile_commands.json ($$SUMMARY)$(RESET)"; \
 	fi
 endif
@@ -535,7 +537,7 @@ compile_commands:
 		$(MAKE) all test-build; \
 	fi
 	@SUMMARY=$$(python3 scripts/merge_compile_commands.py --build-dir $(BUILD_DIR)) && \
-		echo "$(GREEN)✓ compile_commands.json generated ($$SUMMARY)$(RESET)"
+		echo "$(GREEN)✓ compile_commands.json: $$SUMMARY$(RESET)"
 	$(ECHO) ""
 	$(ECHO) "$(CYAN)IDE/LSP integration ready. Restart your editor to pick up changes.$(RESET)"
 

@@ -1899,8 +1899,18 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
                 // New or changed message - update dedup tracker
                 last_seen_message_ = msg_text;
 
+                // The seed answers one question — is the text at the queue head
+                // the one a previous session already surfaced — so it is spent
+                // on the first message this session judges. Anything later is
+                // this session's own event, even when the queue never reported
+                // empty in between (the drain can stop on its budget or its
+                // deadline and leave the message field populated forever).
+                const bool surfaced_by_previous_session = (msg_text == dedup_seed_);
+                dedup_seed_.clear();
+
                 // Defer error event for emission outside lock (avoids deadlock)
-                if (msg_type == "error" && msg_text != last_error_msg_ && msg_text != dedup_seed_) {
+                if (msg_type == "error" && msg_text != last_error_msg_ &&
+                    !surfaced_by_previous_session) {
                     last_error_msg_ = msg_text;
                     deferred_error_event = msg_text;
                     // Persist for the next session's dedup seed: this text has
@@ -1927,7 +1937,7 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
                     spdlog::debug("[AMS AFC] Toast suppressed (prompt={}, op={}): {}",
                                   afc_prompt_active, operation_active, msg_text);
                     ui_notification_info_with_action("AFC", msg_text.c_str(), "afc_message");
-                } else if (msg_type == "error" && msg_text == dedup_seed_) {
+                } else if (msg_type == "error" && surfaced_by_previous_session) {
                     // A previous session already surfaced this text and AFC
                     // latched it; recorded in operation_detail above, not
                     // re-toasted.

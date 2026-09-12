@@ -71,7 +71,14 @@ std::string env_or(const char* name) {
 // Implementation lives in tests/test_helpers/live_thread_count.h so individual
 // tests can assert thread-neutrality of a specific operation with the same
 // measure this listener uses (prestonbrown/helixscreen#1146, #1212).
+//
+// The count alone names the test the thread appeared under, which is the
+// victim as often as the producer: a pool thread started lazily by whatever
+// test happens to reach it first reads the same as a genuine leak. The thread
+// identities put a name on the arrival (prestonbrown/helixscreen#1585).
 using helix::test::live_thread_count;
+using helix::test::live_thread_identities;
+using helix::test::ThreadIdentity;
 
 // Count occurrences of `key`, preserving first-seen order.
 void tally(std::vector<std::pair<std::string, size_t>>& counts, const std::string& key) {
@@ -97,6 +104,29 @@ std::string join(const std::vector<std::pair<std::string, size_t>>& counts) {
         }
     }
     return detail;
+}
+
+// "helix-tests[ep_poll]" — the thread's name, and what it is parked in. The
+// second half carries the report when every thread in the binary shares the
+// process name, which is what happens until something calls pthread_setname_np.
+std::string describe(const ThreadIdentity& thread) {
+    return thread.wchan.empty() ? thread.name : thread.name + "[" + thread.wchan + "]";
+}
+
+// The threads in `now` whose id is absent from `before`, tallied like the
+// producer list: "helix-tests[ep_poll], helix-tests[futex_wait] x3". Empty when
+// nothing is new, and when the platform supplies no identities at all.
+std::string arrivals_since(const std::vector<ThreadIdentity>& before,
+                           const std::vector<ThreadIdentity>& now) {
+    std::vector<std::pair<std::string, size_t>> counts;
+    for (const auto& thread : now) {
+        const bool known = std::any_of(before.begin(), before.end(),
+                                       [&thread](const auto& b) { return b.tid == thread.tid; });
+        if (!known) {
+            tally(counts, describe(thread));
+        }
+    }
+    return join(counts);
 }
 
 std::string basename(const char* path) {
@@ -162,6 +192,10 @@ class IsolationListener : public Catch::EventListenerBase {
         // start() is idempotent, so warming both lanes here folds their threads
         // into the baseline.
         helix::http::HttpExecutor::start_all();
+
+        // Record who those pre-warmed threads are, so the first genuine leak is
+        // reported as the one name that is not among them.
+        known_threads_ = live_thread_identities();
     }
 
     void testRunEnded(Catch::TestRunStats const& /*stats*/) override {
@@ -190,6 +224,16 @@ class IsolationListener : public Catch::EventListenerBase {
         data_dir_ = env_or("HELIX_DATA_DIR");
         config_dir_ = env_or("HELIX_CONFIG_DIR");
         threads_ = live_thread_count();
+
+        // Keep the identity snapshot level with the count, so an arrival
+        // reported below is one that appeared during THIS test case. The walk
+        // costs a file per thread, so it only runs when the set has actually
+        // moved since the snapshot — after warm-up that is the rare case, and
+        // never on a platform that supplies no identities.
+        if (threads_ >= 0 && !known_threads_.empty() &&
+            static_cast<int>(known_threads_.size()) != threads_) {
+            known_threads_ = live_thread_identities();
+        }
     }
 
     void testCaseEnded(Catch::TestCaseStats const& /*stats*/) override {
@@ -266,10 +310,27 @@ class IsolationListener : public Catch::EventListenerBase {
             }
             now = live_thread_count();
             if (now > threads_) {
-                std::fprintf(stderr,
-                             "\n[ISOLATION-LEAK] test \"%s\" leaked %d thread(s): %d -> %d "
-                             "(likely an unjoined hv::EventLoopThread → later UAF crash)\n",
-                             name_.c_str(), now - threads_, threads_, now);
+                // Sampled here and nowhere else in the per-case path: naming
+                // the arrival is worth a file per thread once a leak is already
+                // proven, and nothing at all for the ~14000 cases that pass.
+                std::vector<ThreadIdentity> live = live_thread_identities();
+                const std::string arrived = arrivals_since(known_threads_, live);
+                if (!live.empty()) {
+                    known_threads_ = std::move(live);
+                }
+                if (arrived.empty()) {
+                    // No /proc: the count is the whole report.
+                    std::fprintf(stderr,
+                                 "\n[ISOLATION-LEAK] test \"%s\" leaked %d thread(s): %d -> %d "
+                                 "(likely an unjoined hv::EventLoopThread → later UAF crash)\n",
+                                 name_.c_str(), now - threads_, threads_, now);
+                } else {
+                    std::fprintf(stderr,
+                                 "\n[ISOLATION-LEAK] test \"%s\" leaked %d thread(s): %d -> %d, "
+                                 "new: %s "
+                                 "(likely an unjoined hv::EventLoopThread → later UAF crash)\n",
+                                 name_.c_str(), now - threads_, threads_, now, arrived.c_str());
+                }
             }
         }
     }
@@ -300,6 +361,9 @@ class IsolationListener : public Catch::EventListenerBase {
     std::string data_dir_;
     std::string config_dir_;
     int threads_ = -1;
+    /// Every thread the listener has already accounted for. Empty where the
+    /// platform has no /proc, which turns the report back into count-only.
+    std::vector<ThreadIdentity> known_threads_;
 };
 
 } // namespace
