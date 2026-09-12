@@ -2715,8 +2715,10 @@ AmsError AmsBackendHappyHare::set_slot_info(int slot_index, const SlotInfo& info
         bool has_changes = false;
         std::string cmd = fmt::format("MMU_GATE_MAP GATE={}", slot_index);
 
-        // Color (hex format, no # prefix)
-        if (info.color_rgb != 0 && info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
+        // Color (hex format, no # prefix). AMS_DEFAULT_SLOT_COLOR is the "no
+        // color reading" sentinel (see SlotInfo::has_identity); a deliberate
+        // pure black (#000000) still reaches the gate map.
+        if (info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
             cmd += fmt::format(" COLOR={:06X}", info.color_rgb & 0xFFFFFF);
             has_changes = true;
         }

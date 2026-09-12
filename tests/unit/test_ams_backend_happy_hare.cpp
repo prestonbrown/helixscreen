@@ -484,21 +484,20 @@ TEST_CASE("Happy Hare persistence: skips COLOR for default grey",
     // This test verifies COLOR is skipped - currently passes since nothing is sent
 }
 
-TEST_CASE("Happy Hare persistence: skips COLOR for zero", "[ams][happy_hare][persistence]") {
+// Pure black is a deliberate user pick, not an absence of colour — omitting it
+// leaves the gate map on the previous colour (prestonbrown/helixscreen#1597).
+TEST_CASE("Happy Hare persistence: dispatches COLOR for pure black",
+          "[ams][happy_hare][persistence][1597]") {
     AmsBackendHappyHareTestHelper helper;
     helper.initialize_test_gates(4);
 
     SlotInfo info;
-    info.color_rgb = 0;    // Zero color - should NOT include COLOR
-    info.material = "ABS"; // But material should still be sent
+    info.color_rgb = 0x000000; // Pure black
+    info.material = "ABS";
 
     helper.set_slot_info(0, info);
 
-    // Should NOT include COLOR parameter for zero
-    if (!helper.captured_gcodes.empty()) {
-        REQUIRE_FALSE(helper.has_gcode_containing("COLOR="));
-    }
-    // This test verifies COLOR is skipped - currently passes since nothing is sent
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=000000 MATERIAL=ABS"));
 }
 
 TEST_CASE("Happy Hare persistence: skips MATERIAL for empty string",
