@@ -279,7 +279,7 @@ echo '/dev/sda1   1048576  0  512000  0% /'
 @test "k2 declares /mnt/UDISK as its staging root" {
     # /opt and /usr/data are the 240MB overlay on this box; /mnt/UDISK is the
     # 27.5GB user partition.
-    run bash -c "grep -A 20 '\"k2\"' '$WORKTREE_ROOT/scripts/lib/installer/platform.sh' | grep TMP_DIR_PREFERRED"
+    run platform_branch k2 "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
     [ "$status" -eq 0 ]
-    echo "$output" | grep -q '/mnt/UDISK'
+    echo "$output" | grep -q 'TMP_DIR_PREFERRED=.*/mnt/UDISK'
 }

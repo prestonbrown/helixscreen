@@ -26,7 +26,8 @@ namespace helix {
 
 /// Fixed install roots, one per platform layout.
 inline constexpr const char* kInstallRoots[] = {
-    "/opt/helixscreen",                   // Pi, K2, AD5M Forge-X and KMod v00.06+
+    "/opt/helixscreen",                   // Pi, AD5M Forge-X and KMod v00.06+; K2 until it migrates
+    "/mnt/UDISK/helixscreen",             // K2, on the 27.5GB user partition
     "/usr/data/helixscreen",              // K1, K1C
     "/userdata/helixscreen",              // Snapmaker U1
     "/user-resource/helixscreen",         // CC1 (COSMOS)
@@ -40,7 +41,8 @@ inline constexpr const char* kInstallRoots[] = {
 /// rmtree()s it first, so state kept there is destroyed on every update.
 /// A log tail or a debug bundle has to look here, not only under the payload.
 inline constexpr const char* kStateRoots[] = {
-    "/mnt/UDISK/helixscreen",           // K2, on the 27.5GB user partition
+    "/mnt/UDISK/helixscreen-state",     // K2, beside its payload on the user partition
+    "/mnt/UDISK/helixscreen",           // K2 state, on installs that predate the move
     "/data/helixscreen",                // AD5M, on the durable ext4 mount
     "/usr/data/helixscreen-state",      // K1, K1C
     "/user-resource/helixscreen-state", // CC1

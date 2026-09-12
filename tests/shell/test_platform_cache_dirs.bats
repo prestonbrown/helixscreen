@@ -160,7 +160,7 @@ CONSUMERS="src/system/log_collector.cpp src/system/debug_bundle_collector.cpp sr
     # The roots each hook's platform installs to, from set_install_paths.
     declare -A ROOT=(
         [k1]=/usr/data/helixscreen
-        [k2]=/opt/helixscreen
+        [k2]=/mnt/UDISK/helixscreen
         [cc1]=/user-resource/helixscreen
         [ad5x]=/srv/helixscreen
         [snapmaker-u1]=/userdata/helixscreen
@@ -185,6 +185,13 @@ CONSUMERS="src/system/log_collector.cpp src/system/debug_bundle_collector.cpp sr
     [ "$output" = "/usr/data/helixscreen-state/cache" ] || fail "k1 cache is '$output'"
     run grep -c 'HELIX_LOG_FILE="/usr/data/helixscreen-state/logs/helix.log"' "$HOOKS_DIR/hooks-k1.sh"
     [ "$output" = "1" ] || fail "k1 log is not on the state tree"
+}
+
+@test "k2 keeps its cache and logs off the payload" {
+    run hook_cache_dir k2
+    [ "$output" = "/mnt/UDISK/helixscreen-state/cache" ] || fail "k2 cache is '$output'"
+    run grep -c 'HELIX_LOG_FILE="/mnt/UDISK/helixscreen-state/logs/helix.log"' "$HOOKS_DIR/hooks-k2.sh"
+    [ "$output" = "1" ] || fail "k2 log is not on the state tree"
 }
 
 @test "cc1 keeps its cache and logs off the payload" {

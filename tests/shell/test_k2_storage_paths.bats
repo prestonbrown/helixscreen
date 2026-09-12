@@ -43,9 +43,11 @@ setup() {
     local branch
     branch=$(awk '/#elif defined\(HELIX_PLATFORM_K2\)/,/#elif defined\(HELIX_PLATFORM_MIPS\)/' "$CACHE_DIR_CPP")
     [ -n "$branch" ]
-    echo "$branch" | grep -q '/mnt/UDISK'
+    # Cache sits beside the payload, never inside it: an update replaces the
+    # payload and Moonraker's type:web entry rmtree()s it first.
+    echo "$branch" | grep -q '/mnt/UDISK/helixscreen-state/cache'
     # /usr/data may remain only as a fallback, never as the first choice.
-    echo "$branch" | grep -q 'mnt/UDISK".*"/usr/data\|"/mnt/UDISK", "/usr/data"'
+    echo "$branch" | grep 'helixscreen-state/cache' | head -1 | grep -q '/mnt/UDISK'
 }
 
 @test "K1 (MIPS) keeps /usr/data — it is the large partition there" {
@@ -69,9 +71,9 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "k2 declares the stale cache dir for cleanup" {
-    run bash -c "grep -A 25 '\"k2\"' '$PLATFORM_SH' | grep STALE_CACHE_DIRS"
+    run platform_branch k2 "$PLATFORM_SH"
     [ "$status" -eq 0 ]
-    echo "$output" | grep -q '/usr/data/helixscreen/cache'
+    echo "$output" | grep -q 'STALE_CACHE_DIRS=.*/usr/data/helixscreen/cache'
 }
 
 @test "cleanup removes a declared stale cache dir" {
@@ -198,9 +200,9 @@ setup() {
 }
 
 @test "k2 declares the leaked scratch dirs for cleanup" {
-    run bash -c "grep -A 28 '\"k2\"' '$PLATFORM_SH' | grep STALE_CACHE_DIRS"
+    run platform_branch k2 "$PLATFORM_SH"
     [ "$status" -eq 0 ]
-    echo "$output" | grep -q 'helixscreen-install'
+    echo "$output" | grep -q 'STALE_CACHE_DIRS=.*helixscreen-install'
 }
 
 @test "cleanup mixes cache and scratch entries in one declaration" {

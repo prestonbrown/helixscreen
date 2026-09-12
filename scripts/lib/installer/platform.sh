@@ -630,6 +630,27 @@ detect_k1_firmware() {
 # bin/helix-screen is what makes a directory an install: uninstall leaves the
 # directory (and its config/) behind on several platforms, and treating that
 # husk as a live install would pin every future install to it.
+# Print the superseded root when an install is sitting at it, else return 1.
+#
+# Searched in the same list the existing-install probe uses, so a sandboxed tree
+# answers exactly as the device path does. The answer does not depend on whether
+# the new root is populated: a migration interrupted partway has both, and the
+# tree left behind still has to be swept.
+_find_superseded_install() {
+    [ -n "${PREVIOUS_INSTALL_DIR:-}" ] || return 1
+    for _fsi_dir in $_HELIX_KNOWN_INSTALL_DIRS; do
+        case "$_fsi_dir" in
+            "$PREVIOUS_INSTALL_DIR"|*"$PREVIOUS_INSTALL_DIR") ;;
+            *) continue ;;
+        esac
+        if [ -x "${_fsi_dir}/bin/helix-screen" ]; then
+            printf '%s\n' "$_fsi_dir"
+            return 0
+        fi
+    done
+    return 1
+}
+
 _detect_existing_install_dir() {
     _eid_candidates=""
     [ -n "${KLIPPER_HOME:-}" ] && _eid_candidates="${KLIPPER_HOME}/helixscreen"
@@ -898,6 +919,12 @@ set_install_paths() {
     # from an earlier call in the same shell) would leak into another platform.
     KLIPPER_CONFIG_DIR=""
     _install_dir_from_detection=0
+    # Only the k2 branch declares a superseded root; clear them for everyone
+    # else so one platform's migration cannot leak into another's run.
+    PREVIOUS_INSTALL_DIR=""
+    PREVIOUS_STATE_DIR=""
+    STATE_DIR=""
+    MIGRATE_FROM_DIR=""
 
     if [ "$platform" = "ad5m" ]; then
         # AD5M runs the helix-screen service as root on all three firmwares
@@ -989,18 +1016,29 @@ set_install_paths() {
         # /root/printer_data -> /mnt/UDISK/printer_data/, but the installer
         # runs before that bootstrap for many users — point KLIPPER_HOME at
         # the actual storage so config symlinks work on first install.
-        INSTALL_DIR="/opt/helixscreen"
+        INSTALL_DIR="/mnt/UDISK/helixscreen"
         INIT_SCRIPT_DEST="/etc/init.d/S99helixscreen"
         PREVIOUS_UI_SCRIPT=""
         KLIPPER_USER="root"
         KLIPPER_GROUP="root"
         KLIPPER_HOME="/mnt/UDISK"
+        # PREVIOUS_INSTALL_DIR is a root this platform may already be installed
+        # at. set_install_paths migrates such a tree to INSTALL_DIR instead of
+        # adopting it, so the fleet converges on one layout.
+        PREVIOUS_INSTALL_DIR="/opt/helixscreen"
+        # PREVIOUS_STATE_DIR is the path the payload now occupies, so cache/ and
+        # logs/ still sitting there have to move out before anything extracts
+        # over them. Mirrors storage.previous_state_root in the manifest.
+        # shellcheck disable=SC2034  # consumed by release.sh (state migration)
+        PREVIOUS_STATE_DIR="/mnt/UDISK/helixscreen"
+        # shellcheck disable=SC2034  # consumed by release.sh (state migration)
+        STATE_DIR="/mnt/UDISK/helixscreen-state"
         # /opt and /usr/data are both on the 240MB overlay; /mnt/UDISK is the
         # 27.5GB user partition. Staging the download anywhere else fills the
         # overlay (a unit was found with a leaked 60MB archive on it).
         TMP_DIR_PREFERRED="/mnt/UDISK/helixscreen-install"
         # Older builds cached thumbnails/gcode on the overlay via /usr/data;
-        # the app now caches on /mnt/UDISK, so reclaim the old location.
+        # the app caches under the state root, so reclaim the old location.
         # Also reclaim scratch dirs leaked by pre-EXIT-trap installers: one
         # unit held a 60MB archive at /usr/data/helixscreen-install for months.
         # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
@@ -1069,6 +1107,16 @@ set_install_paths() {
         _install_dir_from_detection=1
     fi
 
+    # A root the platform declares superseded is migrated, never adopted, so the
+    # fleet converges on one layout. An explicit INSTALL_DIR still outranks it.
+    if [ -n "${PREVIOUS_INSTALL_DIR:-}" ] && [ -z "${_USER_INSTALL_DIR:-}" ] \
+       && [ "$PREVIOUS_INSTALL_DIR" != "$INSTALL_DIR" ]; then
+        MIGRATE_FROM_DIR=$(_find_superseded_install) || MIGRATE_FROM_DIR=""
+        if [ -n "$MIGRATE_FROM_DIR" ]; then
+            log_info "Migrating install from ${MIGRATE_FROM_DIR} to ${INSTALL_DIR}"
+        fi
+    fi
+
     # An install already on disk decides, on every platform. The roots above are
     # defaults for a FIRST install; once a tree exists, moving it orphans that
     # tree and the user config inside it, and an in-app update cannot carry the
@@ -1078,7 +1126,8 @@ set_install_paths() {
     # and an explicit INSTALL_DIR is a deliberate choice that outranks it.
     if [ "${_install_dir_from_detection:-0}" != "1" ] && [ -z "${_USER_INSTALL_DIR:-}" ]; then
         _existing_install_dir=$(_detect_existing_install_dir) || _existing_install_dir=""
-        if [ -n "$_existing_install_dir" ] && [ "$_existing_install_dir" != "$INSTALL_DIR" ]; then
+        if [ -n "$_existing_install_dir" ] && [ "$_existing_install_dir" != "$INSTALL_DIR" ] \
+           && [ "$_existing_install_dir" != "${MIGRATE_FROM_DIR:-}" ]; then
             log_info "Install directory (existing install): $_existing_install_dir"
             INSTALL_DIR="$_existing_install_dir"
             # Snapmaker U1 is the one platform whose init script lives INSIDE the

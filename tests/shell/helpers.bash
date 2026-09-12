@@ -525,3 +525,20 @@ qc_verdict_defs() {
         || fail "expected one-line qc_note and qc_count definitions in $script, got: $defs"
     printf '%s\n' "$defs"
 }
+
+# ---------------------------------------------------------------------------
+# Print one platform's branch of set_install_paths.
+#
+# The branches are an if/elif chain, so a fixed `grep -A N` window stops
+# covering a branch the moment it grows a line, and the assertion inside it
+# then passes or fails for the wrong reason. This reads to the next branch
+# instead, whatever the length.
+platform_branch() {
+    local id="$1"
+    local script="${2:-scripts/lib/installer/platform.sh}"
+    awk -v start='[ "$platform" = "'"$1"'" ]' '
+        index($0, start) { inside = 1; next }
+        inside && /\[ "\$platform" = "/ && /\]; then/ { inside = 0 }
+        inside
+    ' "$script"
+}

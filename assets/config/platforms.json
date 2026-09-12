@@ -15,6 +15,7 @@
     "used rotated and a stored effective size loses that distinction.",
     "",
     "storage.state_root is where cache/ and logs/ live. It is never the payload root nor inside it: the payload is what an update replaces, and Moonraker's type:web entry rmtree()s it before extracting. cache_dir and log_file stay authoritative per platform because AD5X deliberately splits them - its log has to land where the mod's archiver looks.",
+    "storage.previous_root and previous_state_root declare where a platform used to keep its payload and state. An install found at previous_root is migrated to root rather than adopted, so a relocation is a manifest edit. Both stay in HELIX_INSTALL_DIRS and kInstallRoots for as long as unmigrated devices exist, because the updater, the debug bundle collector and uninstall all have to keep finding them.",
     "Size class names are the UiBreakpoint tiers from include/ui_breakpoint.h."
   ],
   "size_classes": {
@@ -101,10 +102,12 @@
         "source": "hardware: K2 Plus 192.168.30.196 /sys/class/graphics/fb0 2026-09-11"
       },
       "storage": {
-        "root": "/opt/helixscreen",
-        "state_root": "/mnt/UDISK/helixscreen",
-        "cache_dir": "/mnt/UDISK/helixscreen/cache",
-        "log_file": "/mnt/UDISK/helixscreen/logs/helix.log",
+        "root": "/mnt/UDISK/helixscreen",
+        "state_root": "/mnt/UDISK/helixscreen-state",
+        "cache_dir": "/mnt/UDISK/helixscreen-state/cache",
+        "log_file": "/mnt/UDISK/helixscreen-state/logs/helix.log",
+        "previous_root": "/opt/helixscreen",
+        "previous_state_root": "/mnt/UDISK/helixscreen",
         "tmp_dir_preferred": "/mnt/UDISK/helixscreen-install",
         "stale_cache_dirs": [
           "/usr/data/helixscreen/cache",
@@ -113,7 +116,7 @@
         ],
         "big_mount": "/mnt/UDISK",
         "small_mount": "/opt",
-        "notes": "root is on the 240MB overlay; /mnt/UDISK is the 27.5GB user partition. Staging, cache and logs were relocated to the big mount; the install root was not."
+        "notes": "/opt is on the 240MB overlay mounted at /; /mnt/UDISK is the 27.5GB user partition, and both the payload and its state live there."
       },
       "service": {
         "init_system": "sysv",

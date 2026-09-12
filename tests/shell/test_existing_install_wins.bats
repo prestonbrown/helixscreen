@@ -5,13 +5,11 @@
 #
 # The per-platform roots in set_install_paths are defaults for a FIRST install.
 # Once a tree exists, choosing a different root orphans it along with the user
-# config inside it, and an in-app update cannot carry the move: install.sh
-# re-derives the prefix and the payload lands at the new one, but
-# install_service_sysv early-returns on a self-update before the DAEMON_DIR
-# rewrite, so the device reboots into the OLD binary with two full copies on
-# disk. Moonraker is worse - `type: web` runs no script of ours and its `path:`
-# is a literal nothing rewrites, so it services the orphan while reporting
-# success.
+# config inside it, so what is on disk decides.
+#
+# The one exception is a root the platform declares superseded in
+# storage.previous_root, which is migrated rather than adopted;
+# tests/shell/test_k2_root_migration.bats covers that path.
 #
 # detect_pi_install_dir has always done this for the Pi branch. These cases pin
 # it for the embedded platforms, which are the ones whose roots a relocation
@@ -71,7 +69,7 @@ use_sandbox_dirs() {
 @test "k2: with nothing on disk the platform default stands" {
     use_sandbox_dirs
     set_install_paths k2
-    [ "$INSTALL_DIR" = "/opt/helixscreen" ] || \
+    [ "$INSTALL_DIR" = "/mnt/UDISK/helixscreen" ] || \
         fail "k2 first install chose '$INSTALL_DIR', expected the platform default"
 }
 
@@ -124,7 +122,7 @@ use_sandbox_dirs() {
     mkdir -p "$FAKE_ROOT/srv/helixscreen/bin"
 
     set_install_paths k2
-    [ "$INSTALL_DIR" = "/opt/helixscreen" ] || \
+    [ "$INSTALL_DIR" = "/mnt/UDISK/helixscreen" ] || \
         fail "an empty directory was treated as an install: '$INSTALL_DIR'"
 }
 

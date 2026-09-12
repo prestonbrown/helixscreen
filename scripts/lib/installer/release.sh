@@ -1653,34 +1653,10 @@ extract_release() {
     fi
 
     # Phase 4: Backup existing installation (if present)
+    backup_existing_config "$(_config_source_dir)"
+
     if [ -d "${INSTALL_DIR}" ]; then
         ORIGINAL_INSTALL_EXISTS=true
-
-        # Backup config (check new name first, then legacy names)
-        if [ -f "${INSTALL_DIR}/config/settings.json" ]; then
-            BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
-            cp "${INSTALL_DIR}/config/settings.json" "$BACKUP_CONFIG"
-            log_info "Backed up existing configuration (from config/settings.json)"
-        elif [ -f "${INSTALL_DIR}/config/helixconfig.json" ]; then
-            BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
-            cp "${INSTALL_DIR}/config/helixconfig.json" "$BACKUP_CONFIG"
-            log_info "Backed up existing configuration (from config/helixconfig.json)"
-        elif [ -f "${INSTALL_DIR}/settings.json" ]; then
-            BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
-            cp "${INSTALL_DIR}/settings.json" "$BACKUP_CONFIG"
-            log_info "Backed up existing configuration (legacy root location)"
-        elif [ -f "${INSTALL_DIR}/helixconfig.json" ]; then
-            BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
-            cp "${INSTALL_DIR}/helixconfig.json" "$BACKUP_CONFIG"
-            log_info "Backed up existing configuration (legacy root location)"
-        fi
-
-        # Backup helixscreen.env (preserves HELIX_LOG_LEVEL and other env customizations)
-        if [ -f "${INSTALL_DIR}/config/helixscreen.env" ]; then
-            BACKUP_ENV="${TMP_DIR}/helixscreen.env.backup"
-            cp "${INSTALL_DIR}/config/helixscreen.env" "$BACKUP_ENV"
-            log_info "Backed up existing helixscreen.env"
-        fi
 
         # Under NoNewPrivileges (self-update from in-app), we prefer the
         # atomic swap (mv old; mv new) if the parent dir is writable (service
@@ -2131,6 +2107,124 @@ cleanup_stale_cache_dirs() {
 }
 
 # Remove backup of previous installation (call after service starts successfully)
+# Print the directory the operator's files are in right now.
+#
+# A migrating install is still at its old root when this runs and INSTALL_DIR is
+# an empty directory, so reading from INSTALL_DIR would find nothing and hand
+# the user a default configuration back.
+_config_source_dir() {
+    if [ -n "${MIGRATE_FROM_DIR:-}" ] && [ -d "$MIGRATE_FROM_DIR" ]; then
+        printf '%s\n' "$MIGRATE_FROM_DIR"
+    else
+        printf '%s\n' "$INSTALL_DIR"
+    fi
+}
+
+# Copy the operator's settings and env aside from a live install root.
+# Args: $1 = the directory holding the install being replaced
+backup_existing_config() {
+    _bec_src="$1"
+    [ -n "$_bec_src" ] && [ -d "$_bec_src" ] || return 0
+
+    # Newest name first, then the names older installs still carry.
+    if [ -f "${_bec_src}/config/settings.json" ]; then
+        BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
+        cp "${_bec_src}/config/settings.json" "$BACKUP_CONFIG"
+        log_info "Backed up existing configuration (from config/settings.json)"
+    elif [ -f "${_bec_src}/config/helixconfig.json" ]; then
+        BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
+        cp "${_bec_src}/config/helixconfig.json" "$BACKUP_CONFIG"
+        log_info "Backed up existing configuration (from config/helixconfig.json)"
+    elif [ -f "${_bec_src}/settings.json" ]; then
+        BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
+        cp "${_bec_src}/settings.json" "$BACKUP_CONFIG"
+        log_info "Backed up existing configuration (legacy root location)"
+    elif [ -f "${_bec_src}/helixconfig.json" ]; then
+        BACKUP_CONFIG="${TMP_DIR}/settings.json.backup"
+        cp "${_bec_src}/helixconfig.json" "$BACKUP_CONFIG"
+        log_info "Backed up existing configuration (legacy root location)"
+    fi
+
+    # helixscreen.env carries HELIX_LOG_LEVEL and other operator customizations.
+    if [ -f "${_bec_src}/config/helixscreen.env" ]; then
+        BACKUP_ENV="${TMP_DIR}/helixscreen.env.backup"
+        cp "${_bec_src}/config/helixscreen.env" "$BACKUP_ENV"
+        log_info "Backed up existing helixscreen.env"
+    fi
+}
+
+# Empty the directory the payload is about to occupy.
+# A platform whose PREVIOUS_STATE_DIR is its new INSTALL_DIR kept cache/ and
+# logs/ exactly where the payload now goes. Anything left there would be
+# extracted over and then deleted by the next update, so it all moves to
+# STATE_DIR first. Everything moves, not a known list of names: a directory
+# becoming a payload root has to be empty of state, whatever is in it.
+migrate_previous_state_dir() {
+    _mpsd_old="${PREVIOUS_STATE_DIR:-}"
+    _mpsd_new="${STATE_DIR:-}"
+
+    [ -n "$_mpsd_old" ] && [ -n "$_mpsd_new" ] || return 0
+    [ "$_mpsd_old" != "$_mpsd_new" ] || return 0
+    [ -d "$_mpsd_old" ] || return 0
+    # Only when the payload is actually taking this directory over.
+    [ "$_mpsd_old" = "$INSTALL_DIR" ] || return 0
+    # A runnable binary here means this is a payload, not state: the move has
+    # already happened and these entries belong to the install.
+    if [ -x "${_mpsd_old}/bin/helix-screen" ]; then
+        return 0
+    fi
+
+    mkdir -p "$_mpsd_new" 2>/dev/null || $SUDO mkdir -p "$_mpsd_new" || return 0
+    log_info "Moving state from ${_mpsd_old} to ${_mpsd_new}"
+
+    for _mpsd_entry in "$_mpsd_old"/* "$_mpsd_old"/.[!.]*; do
+        [ -e "$_mpsd_entry" ] || continue
+        _mpsd_name=$(basename "$_mpsd_entry")
+        _mpsd_dest="${_mpsd_new}/${_mpsd_name}"
+        # Never clobber: a half-finished move leaves both sides populated, and
+        # the older copy is still the operator's data.
+        if [ -e "$_mpsd_dest" ]; then
+            _mpsd_dest="${_mpsd_dest}.previous"
+            log_warn "${_mpsd_new}/${_mpsd_name} already exists; keeping the older copy as ${_mpsd_name}.previous"
+        fi
+        mv "$_mpsd_entry" "$_mpsd_dest" 2>/dev/null \
+            || $SUDO mv "$_mpsd_entry" "$_mpsd_dest" 2>/dev/null \
+            || log_warn "Could not move ${_mpsd_entry}"
+    done
+}
+
+# Remove the tree a migration moved away from.
+# Runs after the service is up, so a failure at any earlier step leaves a
+# complete and bootable install at the old path.
+cleanup_migrated_install() {
+    _cmi_old="${MIGRATE_FROM_DIR:-}"
+    [ -n "$_cmi_old" ] || return 0
+    [ "$_cmi_old" != "$INSTALL_DIR" ] || return 0
+    [ -d "$_cmi_old" ] || return 0
+
+    # Both tests have to pass before the old tree stops being the device's only
+    # working install.
+    if [ ! -x "${INSTALL_DIR}/bin/helix-screen" ]; then
+        log_warn "Keeping ${_cmi_old}: ${INSTALL_DIR} has no runnable binary"
+        return 0
+    fi
+    if [ ! -f "${INSTALL_DIR}/config/settings.json" ]; then
+        log_warn "Keeping ${_cmi_old}: configuration was not carried over"
+        return 0
+    fi
+
+    # Only ever remove a path whose final component is exactly "helixscreen".
+    case "$_cmi_old" in
+        */helixscreen) ;;
+        *)
+            log_warn "Refusing to remove unexpected migration source: $_cmi_old"
+            return 0 ;;
+    esac
+
+    rm -rf "$_cmi_old" 2>/dev/null || $SUDO rm -rf "$_cmi_old" 2>/dev/null || true
+    log_success "Removed the previous install at ${_cmi_old}"
+}
+
 cleanup_old_install() {
     # Keep .old as a last-resort recovery path if config wasn't restored.
     # Without this guard, a failed Phase 6 + cleanup = permanent config loss.

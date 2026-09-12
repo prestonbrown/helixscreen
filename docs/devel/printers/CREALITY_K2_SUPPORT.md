@@ -145,20 +145,19 @@ make k2-ssh K2_HOST=192.168.x.x
 make k2-test K2_HOST=192.168.x.x
 ```
 
-Deploy directory: `/opt/helixscreen` (override with `K2_DEPLOY_DIR`). SSH credentials: `root`/`creality_2024` (override with `K2_USER`/`K2_PASS`).
+Deploy directory: `/mnt/UDISK/helixscreen` (override with `K2_DEPLOY_DIR`). SSH credentials: `root`/`creality_2024` (override with `K2_USER`/`K2_PASS`).
 
 **Note**: The K2 uses BusyBox (OpenWrt), so deployment uses tar/ssh transfer instead of rsync.
 
 ### What Happens on Deploy
 
 1. Stops any running HelixScreen processes
-2. Deploys platform hooks (`config/platform/hooks-k2.sh` → /opt/helixscreen/platform/hooks.sh)
+2. Deploys platform hooks (`config/platform/hooks-k2.sh` → /mnt/UDISK/helixscreen/platform/hooks.sh)
 3. Transfers binaries, assets, XML layouts, and config
 4. Installs SysV init script at `/etc/init.d/S99helixscreen` for boot persistence
-5. Ensures `/opt/helixscreen` symlink points to `/mnt/UDISK/helixscreen`
-6. Platform hooks stop the stock Creality UI (`display-server`, `Monitor`, etc.) via procd
-7. Platform hooks start `wpa_supplicant` to replace the stock `wifi-server`
-8. Starts HelixScreen on the framebuffer
+5. Platform hooks stop the stock Creality UI (`display-server`, `Monitor`, etc.) via procd
+6. Platform hooks start `wpa_supplicant` to replace the stock `wifi-server`
+7. Starts HelixScreen on the framebuffer
 
 ### Reverting to Stock UI
 

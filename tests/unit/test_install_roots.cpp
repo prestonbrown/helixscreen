@@ -47,6 +47,11 @@ bool searchable(const std::string& root) {
                        [&](const char* known) { return root == known; });
 }
 
+bool is_state_root(const std::string& root) {
+    return std::any_of(std::begin(helix::kStateRoots), std::end(helix::kStateRoots),
+                       [&](const char* known) { return root == known; });
+}
+
 } // namespace
 
 TEST_CASE("every platform's install root is searchable", "[install-roots][manifest]") {
@@ -104,5 +109,38 @@ TEST_CASE("the searchable roots hold no duplicates", "[install-roots]") {
     for (const char* home : helix::kHomeInstallRoots) {
         INFO("home root " << home);
         REQUIRE_FALSE(searchable(home));
+    }
+}
+
+TEST_CASE("a superseded root stays searchable", "[install-roots][manifest]") {
+    // A platform that has relocated leaves devices behind at the old path until
+    // each one is migrated. Dropping it from the list is a device whose logs and
+    // crash reports cannot be recovered from a debug bundle.
+    const json manifest = load_manifest();
+
+    for (auto it = manifest["platforms"].begin(); it != manifest["platforms"].end(); ++it) {
+        const json& storage = it.value()["storage"];
+        const std::string previous = storage.value("previous_root", "");
+        if (previous.empty() || previous[0] != '/')
+            continue;
+
+        INFO("platform " << it.key() << " was installed at " << previous);
+        REQUIRE(searchable(previous));
+    }
+}
+
+TEST_CASE("every declared state root is one the app looks in", "[install-roots][manifest]") {
+    const json manifest = load_manifest();
+
+    for (auto it = manifest["platforms"].begin(); it != manifest["platforms"].end(); ++it) {
+        const json& storage = it.value()["storage"];
+        for (const char* key : {"state_root", "previous_state_root"}) {
+            const std::string root = storage.value(key, "");
+            if (root.empty() || root[0] != '/')
+                continue;
+
+            INFO("platform " << it.key() << " keeps " << key << " at " << root);
+            REQUIRE(is_state_root(root));
+        }
     }
 }
