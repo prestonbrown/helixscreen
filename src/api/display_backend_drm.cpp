@@ -13,6 +13,7 @@
 #include "drm_rotation_strategy.h"
 #include "helix_display_telemetry.h"
 #include "input_device_scanner.h"
+#include "touch_calibration.h"
 #include "touch_calibration_wrapper.h"
 
 #include <spdlog/spdlog.h>
@@ -1020,6 +1021,16 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
         spdlog::error("[DRM Backend] Failed to create any input device");
     }
 
+    // LVGL rotates pointer input from the display's rotation, which the plane
+    // path clears, so the transform is chained onto the driver's own read
+    // instead. It is inert until a plane actually owns an angle.
+    if (pointer_ != nullptr) {
+        original_read_cb_ = lv_indev_get_read_cb(pointer_);
+        lv_indev_set_read_cb(pointer_, pointer_rotation_read_cb);
+        spdlog::info("[DRM Backend] Pointer rotation hook installed (plane at {}°)",
+                     plane_rotation_degrees_);
+    }
+
     return pointer_;
 }
 
@@ -1109,17 +1120,55 @@ void DisplayBackendDRM::set_display_rotation(lv_display_t* disp, lv_display_rota
         lv_display_set_rotation(disp, rot);
     }
 
+    // Only the plane path leaves a non-zero angle here: on every other path
+    // LVGL carries the rotation and transforms pointer input itself.
+    plane_rotation_degrees_ = 0;
     if (strategy == DrmRotationStrategy::HARDWARE) {
 #if !LV_LINUX_DRM_USE_EGL
         lv_linux_drm_set_rotation(disp, drm_rot);
-        spdlog::info("[DRM Backend] Plane rotation {}° (LVGL left unrotated)",
-                     static_cast<int>(rot) * 90);
+        plane_rotation_degrees_ = static_cast<int>(rot) * 90;
+        panel_w_ = phys_w;
+        panel_h_ = phys_h;
+        spdlog::info("[DRM Backend] Plane rotation {}° (LVGL left unrotated, touch follows)",
+                     plane_rotation_degrees_);
 #endif
     } else if (strategy == DrmRotationStrategy::SOFTWARE) {
         spdlog::info("[DRM Backend] Software rotation {}° (plane supports 0x{:X})",
                      static_cast<int>(rot) * 90, supported_mask);
     } else {
         spdlog::debug("[DRM Backend] No rotation needed");
+    }
+}
+
+int DisplayBackendDRM::applied_rotation_degrees(lv_display_t* disp) const {
+    if (plane_rotation_degrees_ != 0) {
+        return plane_rotation_degrees_;
+    }
+    return DisplayBackend::applied_rotation_degrees(disp);
+}
+
+void DisplayBackendDRM::pointer_rotation_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
+    DisplayBackend* active = DisplayBackend::active();
+    if (active == nullptr || active->type() != DisplayBackendType::DRM) {
+        return;
+    }
+    auto* self = static_cast<DisplayBackendDRM*>(active);
+    if (self->original_read_cb_ != nullptr) {
+        self->original_read_cb_(indev, data);
+    }
+    if (self->plane_rotation_degrees_ == 0 || self->panel_w_ <= 0 || self->panel_h_ <= 0) {
+        return;
+    }
+    const PointerXY raw{data->point.x, data->point.y};
+    const PointerXY rotated = rotate_pointer_for_plane(raw, self->plane_rotation_degrees_,
+                                                       self->panel_w_, self->panel_h_);
+    data->point.x = rotated.x;
+    data->point.y = rotated.y;
+
+    if (helix::is_touch_debug_enabled() && data->state == LV_INDEV_STATE_PRESSED) {
+        spdlog::warn("[TouchDebug] plane_rotate {}°: raw=({},{}) -> screen=({},{}) panel={}x{}",
+                     self->plane_rotation_degrees_, raw.x, raw.y, rotated.x, rotated.y,
+                     self->panel_w_, self->panel_h_);
     }
 }
 

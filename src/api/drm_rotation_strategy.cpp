@@ -37,7 +37,7 @@ bool drm_rotation_needs_full_render(DrmRotationStrategy strategy) {
 
 // NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope function
 bool plane_may_own_rotation() {
-    return false;
+    return true;
 }
 
 // NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope function

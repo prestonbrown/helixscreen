@@ -71,6 +71,15 @@ class DisplayBackendDRM : public DisplayBackend {
     /// Check if DRM plane supports hardware rotation for the given angle
     bool supports_hardware_rotation(lv_display_rotation_t rot) const override;
 
+    /**
+     * @brief The angle the picture is presented at, plane rotation included
+     *
+     * When the scanout plane carries the rotation, LVGL's own is cleared to
+     * zero and stops describing the panel. This reports what the viewer sees,
+     * which is what the touch pipeline has to reason about.
+     */
+    int applied_rotation_degrees(lv_display_t* disp = nullptr) const override;
+
     // Backend info
     DisplayBackendType type() const override {
         return DisplayBackendType::DRM;
@@ -161,6 +170,22 @@ class DisplayBackendDRM : public DisplayBackend {
     /// reinterpret that driver's private data as an lv_evdev_t and write through
     /// it.
     bool pointer_is_evdev_ = false;
+
+    /// Non-zero only while the scanout plane carries the rotation. It is the
+    /// discriminator for both applied_rotation_degrees() and the pointer hook,
+    /// so the plane path and LVGL's own rotation can never both transform a
+    /// sample (prestonbrown/helixscreen#1275).
+    int plane_rotation_degrees_ = 0;
+    int32_t panel_w_ = 0;
+    int32_t panel_h_ = 0;
+
+    /// The evdev/libinput read callback this backend wrapped, called first by
+    /// pointer_rotation_read_cb() before the plane transform is applied.
+    lv_indev_read_cb_t original_read_cb_ = nullptr;
+
+    /// Applies the plane rotation to a raw sample. Runs ahead of LVGL's own
+    /// lv_display_rotate_point(), which is a no-op whenever this one is not.
+    static void pointer_rotation_read_cb(lv_indev_t* indev, lv_indev_data_t* data);
     /// Auto-fire the first-run wizard (resistive controllers, broken ABS ranges)
     bool needs_calibration_ = false;
     /// Offer the manual Settings entry point (any real touch panel)
