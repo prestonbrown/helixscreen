@@ -11,7 +11,10 @@
  * - Full LVGL initialization with display
  * - Asset registration (fonts, images)
  * - Theme initialization
- * - ALL XML components registered (mirrors production)
+ * - XML components registered via the same helix::register_xml_components()
+ *   production uses (src/xml_registration.cpp) - which omits
+ *   ams_context_menu.xml, registered lazily by ui_panel_ams.cpp /
+ *   ui_panel_ams_overview.cpp instead
  * - All subject initialization (wizard, navigation, etc.)
  * - Event callback registration
  *

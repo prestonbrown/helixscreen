@@ -6,8 +6,6 @@
 #include "ams_state.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 
-#include <cstdio>
-
 namespace helix::ui {
 
 namespace {

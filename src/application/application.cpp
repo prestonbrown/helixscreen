@@ -1907,11 +1907,11 @@ bool Application::init_core_subjects() {
     // These must exist before MoonrakerManager::init() can create the API
     m_subjects->init_core_and_state();
 
-    // Register the ams_current_tool_text formatter ("T<n>" / "---") now that
-    // AmsState's subjects are live. The print status panel embeds
-    // <ams_current_tool> and binds ams_current_tool_text — without this
-    // observer the lane label stays at its default "---" until a user
-    // navigates into an AMS panel, which is where the call used to live.
+    // Register the ams_current_tool_text formatter (a translated position
+    // label, e.g. "Tool 1", or "---") now that AmsState's subjects are live.
+    // The print status panel embeds <ams_current_tool> and binds
+    // ams_current_tool_text — without this observer the lane label stays at
+    // its default "---" until a user navigates into an AMS panel.
     helix::ui::init_ams_tool_text_observers();
 
     // Bring LedController up with no API yet so its `led_controllable` subject
