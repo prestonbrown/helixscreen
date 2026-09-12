@@ -1516,14 +1516,15 @@ check_weight_poll_is_weight_only() {
 
 # --- The lane source store has exactly one mutable entry point ---
 # LaneSourceStore::write() is private, so ingest() and commit_slot_edit() are
-# the only code that can reach a lane's records; a fourth friend line, of any
+# the only code that can reach a lane's records; a third friend line, of any
 # kind, would be a third writer. check_friend_list's grep matches "friend "
-# rather than "friend class ", since two of the three funnels here are free
-# functions a class-only pattern would not see.
+# rather than "friend class ", since both funnels here are free functions a
+# class-only pattern would not see. Every entry in this list is a grant that
+# some code actually uses: a friend that needs no friendship teaches the next
+# reader that entries here need not be load-bearing.
 
 LANE_STORE_FRIENDS_EXPECTED="friend void ingest(LaneId, const Observation&);
-friend void commit_slot_edit(LaneId, const Observation&);
-friend class LaneSourceStoreTestAccess;"
+friend void commit_slot_edit(LaneId, const Observation&);"
 
 @test "the lane source store names exactly its two funnels as friends" {
     run check_friend_list include/lane_source_store.h "$LANE_STORE_FRIENDS_EXPECTED"
@@ -1537,7 +1538,22 @@ friend class LaneSourceStoreTestAccess;"
 
     run check_friend_list "$mutated" "$LANE_STORE_FRIENDS_EXPECTED"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"expected exactly 3"* ]]
+    [[ "$output" == *"expected exactly 2"* ]]
+}
+
+@test "the lane store friend gate fires when a funnel is swapped for another writer" {
+    # A count is not the invariant; which two names hold the grant is. A
+    # substitution keeps the list at two and hands write() to code the funnels
+    # do not cover.
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_swapped_friend.h"
+    sed -e 's@^\([[:space:]]*\)friend void commit_slot_edit(LaneId, const Observation\&);@\1friend void sync_from_backend(LaneId, const Observation\&);@' \
+        include/lane_source_store.h > "$mutated"
+
+    [ "$(grep -cE '^[[:space:]]*friend ' "$mutated")" -eq 2 ]
+
+    run check_friend_list "$mutated" "$LANE_STORE_FRIENDS_EXPECTED"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"sync_from_backend"* ]]
 }
 
 # write() is the one method the friend list above actually gates. If it were

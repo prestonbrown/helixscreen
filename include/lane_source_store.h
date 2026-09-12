@@ -11,8 +11,6 @@
 
 namespace helix::ams {
 
-class LaneSourceStoreTestAccess;
-
 /// A filament position anywhere on the printer. NOT a slot index: several
 /// backends coexist, so a bare slot index would put one backend's lane 0 on
 /// another's.
@@ -110,9 +108,9 @@ void reset_lane_sources();
 
 /// Holds one LaneSources per lane until the backends that wrote them go away.
 ///
-/// write() is private with exactly three friends: ingest(), commit_slot_edit()
-/// and LaneSourceStoreTestAccess. Those three are the only code that can
-/// reach a lane's records; a fourth friend would be a third writer.
+/// write() is private with exactly two friends: ingest() and commit_slot_edit().
+/// Those two are the only code that can reach a lane's records; a third friend
+/// would be a third writer.
 class LaneSourceStore {
   public:
     static LaneSourceStore& instance();
@@ -136,7 +134,6 @@ class LaneSourceStore {
 
     friend void ingest(LaneId, const Observation&);
     friend void commit_slot_edit(LaneId, const Observation&);
-    friend class LaneSourceStoreTestAccess;
 
     /// Backends parse on the main thread, but the Spoolman and database
     /// callbacks that will feed this in plan 4 land on an HTTP worker.

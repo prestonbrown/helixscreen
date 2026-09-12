@@ -18,13 +18,13 @@
 #include "fault_surface_correlation.h"
 #include "filament_slot_override_store.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "lane_source_store.h"
 #include "panel_widget_manager.h"
 #include "runtime_config.h"
 #include "safety_settings_manager.h"
 #include "system_settings_manager.h"
 #include "test_helpers/config_test_access.h"
 #include "test_helpers/emergency_stop_test_access.h"
-#include "test_helpers/lane_source_store_test_access.h"
 #include "test_helpers/print_control_buttons_test_access.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "tool_state.h"
@@ -302,7 +302,7 @@ void HelixTestFixture::reset_all() {
     // Lane source records are process-wide and are written by backends, so a
     // lane one test populated would read back in the next as a reading nobody
     // took.
-    helix::ams::LaneSourceStoreTestAccess::clear();
+    helix::ams::reset_lane_sources();
 
     // PrintStatusWidget's DetailedFormatter used to be torn down here for the
     // reason described below, and no longer needs to be: its PrinterState
