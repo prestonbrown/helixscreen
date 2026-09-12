@@ -5,6 +5,7 @@
 
 #include "ams_backend_happy_hare.h"
 
+#include <string>
 #include <utility>
 
 namespace helix {
@@ -60,6 +61,13 @@ class HappyHareTestAccess {
     }
     template <class B> static auto& dryer_info(B& b) {
         return b.dryer_info_;
+    }
+
+    /// Namespace the override store was pointed at, or empty when no store was
+    /// built. Lets a test assert the PRIVATE namespace without reaching for the
+    /// store itself, which stays private.
+    template <class B> static std::string store_namespace(const B& b) {
+        return b.override_store_ ? b.override_store_->namespace_for_test() : std::string();
     }
 
     // --- private methods ----------------------------------------------------

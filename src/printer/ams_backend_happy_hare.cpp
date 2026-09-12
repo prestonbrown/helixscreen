@@ -140,6 +140,18 @@ AmsBackendHappyHare::~AmsBackendHappyHare() {
 // ============================================================================
 
 void AmsBackendHappyHare::on_started() {
+    // Load the user's attached slot identity before any of the queries below,
+    // so the first gate-map frame they provoke already has something to layer.
+    // Outside mutex_ — the DB round-trip blocks and the status subscription is
+    // already live — then publish under it so the parse path reads a whole map.
+    auto loaded = helix::ams::make_loaded_override_store(api_, "happyhare", get_type(),
+                                                         backend_log_tag(), OVERRIDE_NAMESPACE);
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        override_store_ = std::move(loaded.store);
+        overrides_ = std::move(loaded.overrides);
+    }
+
     // Query configfile to determine tip method (cutter vs tip-forming).
     // Happy Hare determines this from form_tip_macro: if it contains "cut",
     // it's a cutter system; otherwise it's tip-forming or none.
