@@ -1003,25 +1003,48 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
     if (mmu_data.contains("gate_name") && mmu_data["gate_name"].is_array()) {
         const auto& gate_names = mmu_data["gate_name"];
         for (size_t i = 0; i < gate_names.size(); ++i) {
-            if (gate_names[i].is_string()) {
-                auto* entry = slots_.get_mut(static_cast<int>(i));
-                if (entry) {
-                    entry->info.color_name = gate_names[i].get<std::string>();
-                }
+            if (!gate_names[i].is_string()) {
+                continue;
+            }
+            auto* entry = slots_.get_mut(static_cast<int>(i));
+            if (!entry) {
+                continue;
+            }
+            const std::string name = gate_names[i].get<std::string>();
+            entry->info.color_name = name;
+            auto& reading = reading_for(static_cast<int>(i));
+            if (name.empty()) {
+                reading.spool_name.reset();
+            } else {
+                reading.spool_name = name;
             }
         }
         spdlog::trace("[AMS HappyHare] Parsed gate_name for {} gates", gate_names.size());
     }
 
     // Fallback: parse gate_filament_name (EMU uses this instead of gate_name)
+    //
+    // The record's precedence is decided on what this parse has read, never on
+    // SlotInfo::color_name: a user's own name is merged into that field, so
+    // asking it would let a person's edit choose which of the MMU's two keys
+    // the vendor-cache record believes.
     if (mmu_data.contains("gate_filament_name") && mmu_data["gate_filament_name"].is_array()) {
         const auto& names = mmu_data["gate_filament_name"];
         for (size_t i = 0; i < names.size(); ++i) {
-            if (names[i].is_string()) {
-                auto* entry = slots_.get_mut(static_cast<int>(i));
-                if (entry && entry->info.color_name.empty()) {
-                    entry->info.color_name = names[i].get<std::string>();
-                }
+            if (!names[i].is_string()) {
+                continue;
+            }
+            auto* entry = slots_.get_mut(static_cast<int>(i));
+            if (!entry) {
+                continue;
+            }
+            const std::string name = names[i].get<std::string>();
+            if (entry->info.color_name.empty()) {
+                entry->info.color_name = name;
+            }
+            auto& reading = reading_for(static_cast<int>(i));
+            if (!reading.spool_name.has_value() && !name.empty()) {
+                reading.spool_name = name;
             }
         }
         spdlog::trace("[AMS HappyHare] Parsed gate_filament_name for {} gates", names.size());
@@ -1208,6 +1231,12 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
     // struct out of this: slot_status_from_happy_hare() is the one rule for
     // what a gate_status integer means, and it already owns the vocabulary.
     for (size_t i = 0; i < gate_status_raw_.size(); ++i) {
+        // The gate count is fixed by the first gate_status frame, so a longer
+        // array later names gates this backend has no slot for. Those are not
+        // lanes, and a record on one is a phantom position nothing owns.
+        if (!slots_.get(static_cast<int>(i))) {
+            continue;
+        }
         ams::Observation sensed(ams::ObservationSource::Sensed);
         const SlotStatus gate = slot_status_from_happy_hare(gate_status_raw_[i]);
         if (gate != SlotStatus::UNKNOWN) {

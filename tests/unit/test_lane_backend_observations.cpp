@@ -807,30 +807,41 @@ TEST_CASE_METHOD(LVGLTestFixture, "a gate Happy Hare calls unknown files no pres
                  "[lane][ingest][happy_hare]") {
     HappyHareHarness harness(nullptr, nullptr);
 
+    // Nothing on this lane may abort the case: the decisive claim is the last
+    // phase, and a leading REQUIRE would report "no record filed" for a rule
+    // whose actual failure is a stale reading surviving.
     feed_mmu(*harness, {{"gate_status", nlohmann::json::array({-1, 1})}});
 
     const auto unread = lane_sources(harness.lane(0));
-    // The record exists, so the translation provably ran; what it holds is the
-    // absence of a reading rather than a reading of absence.
-    REQUIRE(unread.sensed.has_value());
-    CHECK_FALSE(unread.sensed->present.has_value());
+    // The record is filed even with nothing to say, so "the MMU does not know"
+    // and "no translation ran" stay distinguishable.
+    CHECK(unread.sensed.has_value());
+    const bool unknown_gate_claims_a_reading =
+        unread.sensed.has_value() && unread.sensed->present.has_value();
+    CHECK_FALSE(unknown_gate_claims_a_reading);
 
     const auto known = lane_sources(harness.lane(1));
+    REQUIRE(known.sensed.has_value());
     REQUIRE(known.sensed->present.has_value());
     CHECK(*known.sensed->present == true);
 
     // Positive contrast: the same gate reports a real status and the reading
     // lands, so the arm above is a guard and not a gate that never reports.
     feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 1})}});
-    REQUIRE(lane_sources(harness.lane(0)).sensed->present.has_value());
-    CHECK(*lane_sources(harness.lane(0)).sensed->present == true);
+    const auto reporting = lane_sources(harness.lane(0));
+    REQUIRE(reporting.sensed.has_value());
+    REQUIRE(reporting.sensed->present.has_value());
+    CHECK(*reporting.sensed->present == true);
 
-    // Happy Hare withdrawing its word is news. Leaving the last reading
-    // standing would keep asserting a presence the MMU has stopped claiming.
+    // Happy Hare withdrawing its word is news. One ingest replaces a source's
+    // record whole, so filing nothing leaves the old reading standing: a
+    // record whose present is unset is the only way to retract one.
     feed_mmu(*harness, {{"gate_status", nlohmann::json::array({-1, 1})}});
     const auto withdrawn = lane_sources(harness.lane(0));
-    REQUIRE(withdrawn.sensed.has_value());
-    CHECK_FALSE(withdrawn.sensed->present.has_value());
+    const bool a_stale_reading_still_stands =
+        withdrawn.sensed.has_value() && withdrawn.sensed->present.has_value();
+    CHECK_FALSE(a_stale_reading_still_stands);
+    CHECK(withdrawn.sensed.has_value());
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "an unreadable Happy Hare colour leaves the record standing",
@@ -875,4 +886,79 @@ TEST_CASE_METHOD(LVGLTestFixture, "Happy Hare files the colour its numeric gate 
     const auto triplet = lane_sources(harness.lane(1));
     REQUIRE(triplet.vendor_cache->color_rgb.has_value());
     CHECK(*triplet.vendor_cache->color_rgb == 0x00FF00u);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Happy Hare files no reading for a gate it has no slot for",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    // The gate count is fixed by the first gate_status frame, so a longer array
+    // later names gates the backend never built a slot for.
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 1})}});
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 1, 1, 1})}});
+
+    // Precondition, not the behaviour: without this the assertions below would
+    // hold on a backend that had quietly grown the slots after all.
+    REQUIRE(harness->get_slot_info(2).slot_index == -1);
+
+    // Proof the path ran on the same frame: the gates that do exist reported.
+    const auto real_gate = lane_sources(harness.lane(1));
+    REQUIRE(real_gate.sensed.has_value());
+    REQUIRE(real_gate.sensed->present.has_value());
+    CHECK(*real_gate.sensed->present == true);
+
+    CHECK_FALSE(lane_sources(harness.lane(2)).sensed.has_value());
+    CHECK_FALSE(lane_sources(harness.lane(3)).sensed.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Happy Hare's gate name is the spool's, and gate_name wins",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 1})},
+                        {"gate_name", nlohmann::json::array({"Galaxy Black", ""})},
+                        {"gate_filament_name", nlohmann::json::array({"EMU Black", "EMU Blue"})}});
+
+    // gate_name is the MMU's own field; gate_filament_name only fills a gap.
+    const auto named = lane_sources(harness.lane(0));
+    REQUIRE(named.vendor_cache.has_value());
+    CHECK(named.vendor_cache->spool_name == "Galaxy Black");
+    CHECK_FALSE(named.vendor_cache->color_name.has_value());
+
+    const auto filled = lane_sources(harness.lane(1));
+    REQUIRE(filled.vendor_cache.has_value());
+    CHECK(filled.vendor_cache->spool_name == "EMU Blue");
+
+    // A gate whose name is wiped stops carrying one, and the emulator's key
+    // then fills the gap it left.
+    feed_mmu(*harness, {{"gate_name", nlohmann::json::array({"", ""})}});
+    const auto wiped = lane_sources(harness.lane(0));
+    REQUIRE(wiped.vendor_cache.has_value());
+    CHECK_FALSE(wiped.vendor_cache->spool_name.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a user's own name never decides Happy Hare's name precedence",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    // SlotInfo::color_name is override-merged, so asking it which of the MMU's
+    // two name keys won would let a person's edit answer for the firmware.
+    helix::ams::FilamentSlotOverride user;
+    user.color_name = "User Named It";
+    {
+        std::lock_guard<std::mutex> lock(HappyHareTestAccess::mutex(*harness));
+        HappyHareTestAccess::overrides(*harness)[0] = user;
+    }
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 1})},
+                        {"gate_spool_id", nlohmann::json::array({0, 0})},
+                        {"gate_filament_name", nlohmann::json::array({"EMU Black", "EMU Blue"})}});
+
+    // Precondition, not the behaviour under test: the override has to actually
+    // win on the merged slot for there to be anything to launder.
+    REQUIRE(harness->get_slot_info(0).color_name == "User Named It");
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->spool_name == "EMU Black");
 }
