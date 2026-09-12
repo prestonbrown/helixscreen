@@ -2919,12 +2919,12 @@ SHELLCHECK_BASELINE=""
 SHELL_FILES=""
 if [ "$STAGED_ONLY" = true ]; then
   SHELL_FILES=$(git diff --cached --name-only --diff-filter=ACM | \
-    grep -E '(config/platform/.*\.sh|config/helixscreen\.init|^scripts/.*\.sh)$' || true)
+    grep -E '(config/platform/.*\.sh|config/.*\.init|^scripts/.*\.sh)$' || true)
 else
   SHELL_FILES=$(find config/platform -name "*.sh" 2>/dev/null || true)
-  if [ -f "config/helixscreen.init" ]; then
-    SHELL_FILES="$SHELL_FILES config/helixscreen.init"
-  fi
+  # Every init script at the top of config/ ships to devices (helixscreen.init,
+  # creality-backend.init); lint all of them, not a hand-kept name list.
+  SHELL_FILES="$SHELL_FILES $(find config -maxdepth 1 -name '*.init' 2>/dev/null || true)"
   SHELL_FILES="$SHELL_FILES $(git ls-files 'scripts/*.sh' 'scripts/**/*.sh' 2>/dev/null || true)"
 fi
 # Drop the generated bundles regardless of how the list was built.

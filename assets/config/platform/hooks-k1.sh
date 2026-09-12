@@ -10,18 +10,23 @@ platform_stop_competing_uis() {
     # while leaving S12boot_display in place — so kill it unconditionally.
     killall boot_display 2>/dev/null || true
 
-    # Stop and persistently disable stock Creality UI (display-server, Monitor, etc.)
-    # S99start_app launches the entire stock UI stack; if it remains executable it
+    # Stop and persistently disable the stock Creality display stack.
+    # S99start_app launches the entire stock stack; if it remains executable it
     # will respawn every boot since it runs after S99helixscreen alphabetically.
+    # The backend servers (master-server, app-server, web-server) are NOT
+    # framebuffer contenders; they are what Creality Print and Creality Cloud
+    # talk to, and /etc/init.d/S99creality-backend starts them at boot
+    # (prestonbrown/helixscreen#1468). Everything else in the stock stack
+    # simply never starts: with S99start_app dead nothing launches it.
     if [ -f /etc/init.d/S99start_app ]; then
         if [ -x /etc/init.d/S99start_app ]; then
             /etc/init.d/S99start_app stop 2>/dev/null || true
             # Persistently disable (reversible with chmod +x)
             chmod a-x /etc/init.d/S99start_app 2>/dev/null || true
         fi
-        # Kill any remaining stock UI processes (full list from S99start_app)
-        for proc in display-server Monitor master-server audio-server \
-                    wifi-server app-server upgrade-server web-server; do
+        # Monitor dies first: it is a watchdog that respawns display-server
+        # moments after the kill below.
+        for proc in Monitor display-server; do
             killall "$proc" 2>/dev/null || true
         done
     fi

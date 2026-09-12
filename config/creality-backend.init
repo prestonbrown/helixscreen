@@ -1,0 +1,112 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Starts the stock Creality backend servers on K1 series printers, so Creality
+# Print and the Creality Cloud app keep working with HelixScreen installed
+# (prestonbrown/helixscreen#1468).
+#
+# The stock /etc/init.d/S99start_app launches the whole Creality stack:
+# display-server, Monitor, master-server, app-server, web-server, audio-server,
+# wifi-server and upgrade-server. HelixScreen keeps it disabled, because
+# display-server contends for the framebuffer and Monitor is a watchdog that
+# would respawn display-server after HelixScreen stops it. The three backend
+# servers are independent processes though (S99start_app starts each binary on
+# its own, nothing bundles them with the display stack), and they are what
+# serves the ports Creality Print and the cloud app talk to. This script starts
+# exactly those three and nothing else.
+#
+# The S99 prefix keeps the stock script's late-boot position: the servers need
+# the same mounted filesystems S99start_app needed. The name sorts before both
+# S99helixscreen and S99start_app, so the backend is up before the UI takes
+# over the display, and before any stock script a later restore re-enables.
+
+# Harden PATH against third-party mods that prepend command-shim directories.
+# Stock system directories first, so pidof/killall resolve to the real
+# binaries at boot.
+export PATH="/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
+
+BACKEND_SERVERS="master-server app-server web-server"
+
+# Recreate the S99start_app preamble pieces the backend servers use: the
+# frontend downloads directory with its tmpfs-backed upload targets, and the
+# factory-default data dir. /tmp is wiped at boot, so this runs on every
+# start. The display-serving preamble bits (DELAY_IMAGE_VIDEO_DIR, old-log
+# cleanup, drop_caches) are display-server's, not the trio's, and stay out.
+prepare_dirs() {
+    HOME=/root
+    export HOME
+    mkdir -p /tmp/creality/local_gcode/thumbnail 2>/dev/null
+    mkdir -p /tmp/creality/original 2>/dev/null
+    mkdir -p /usr/share/frontend/downloads 2>/dev/null
+    ln -sfn /tmp/creality/local_gcode/thumbnail /usr/share/frontend/downloads/thumbnail 2>/dev/null
+    ln -sfn /tmp/creality/original /usr/share/frontend/downloads/original 2>/dev/null
+    mkdir -p /etc/sysConfig/defData 2>/dev/null
+    return 0
+}
+
+start() {
+    # Ensure a valid CWD: a launcher run from a deleted or unmounted directory
+    # makes the daemons' relative-path lookups fail.
+    cd / 2>/dev/null || true
+
+    prepare_dirs
+
+    for name in $BACKEND_SERVERS; do
+        if pidof "$name" >/dev/null 2>&1; then
+            continue
+        fi
+        # Same launch shape as S99start_app: start only a binary that exists.
+        # Output is discarded; these are long-lived servers and /tmp on the
+        # K1 family is a small tmpfs shared with Klipper.
+        [ -x "/usr/bin/$name" ] || continue
+        "/usr/bin/$name" >/dev/null 2>&1 &
+    done
+    return 0
+}
+
+stop() {
+    for name in $BACKEND_SERVERS; do
+        killall "$name" 2>/dev/null || true
+    done
+    return 0
+}
+
+restart() {
+    stop
+    sleep 1
+    start
+}
+
+status() {
+    _any_running=0
+    for name in $BACKEND_SERVERS; do
+        if _pids=$(pidof "$name" 2>/dev/null) && [ -n "$_pids" ]; then
+            echo "$name is running (PID $_pids)"
+            _any_running=1
+        else
+            echo "$name is not running"
+        fi
+    done
+    [ "$_any_running" -eq 1 ]
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart|reload)
+        restart
+        ;;
+    status)
+        status
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+
+exit $?
