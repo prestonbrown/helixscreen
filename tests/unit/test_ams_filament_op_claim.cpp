@@ -335,7 +335,7 @@ TEST_CASE_METHOD(ClaimFixture, "AMS filament op: the claim is released on every 
 
     SECTION("hook returned a failure") {
         auto backend = headless<helix::AmsBackendHappyHare>();
-        backend->hook_result = AmsErrorHelper::invalid_slot(9, 3);
+        backend->hook_result = AmsErrorHelper::invalid_slot(helix::ui::LaneNoun::Slot, 9, 3);
         CHECK(backend->load_filament(9).result == AmsResult::INVALID_SLOT);
         backend->hook_result = AmsErrorHelper::success();
         CHECK(backend->load_filament(0).success());

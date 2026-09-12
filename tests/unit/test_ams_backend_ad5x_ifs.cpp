@@ -7268,6 +7268,26 @@ TEST_CASE("AD5X IFS unhomed load sends exactly one G28 then the load macro (#124
     CHECK_FALSE(homed_backend.has_gcode_containing("G28"));
 }
 
+TEST_CASE("AD5X IFS change_tool out of range names the tool, not a slot",
+          "[ams][ad5x_ifs][numbering]") {
+    // do_change_tool() bounds-checks a TOOL index, so the refusal has to name a
+    // tool: an INVALID_SLOT here tells the user to pick a valid slot when the
+    // tool number is what is out of range, and callers dispatch on the code.
+    TestableAd5xIfsBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+
+    const AmsError err = backend.change_tool(TestableAd5xIfsBackend::TOOL_MAP_SIZE);
+    REQUIRE_FALSE(err.success());
+    CHECK(err.result == AmsResult::INVALID_TOOL);
+
+    // The gcode tool identity stays 0-based, so the message names T16 rather
+    // than a display position.
+    CHECK(err.technical_msg.find(helix::ui::tool_label(TestableAd5xIfsBackend::TOOL_MAP_SIZE)) !=
+          std::string::npos);
+    CHECK(err.user_msg.find("slot") == std::string::npos);
+    CHECK(err.suggestion.find("slot") == std::string::npos);
+}
+
 TEST_CASE("AD5X IFS unhomed change_tool sends G28 before A_CHANGE_FILAMENT (#1248)",
           "[ams][ad5x_ifs][homing][1248]") {
     // The #1248 companion case. A_CHANGE_FILAMENT is NOT in the ZMOD tree

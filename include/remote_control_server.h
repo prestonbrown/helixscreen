@@ -19,6 +19,7 @@
 #include "remote_transport.h"
 
 #include <atomic>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <string>
@@ -45,7 +46,42 @@ struct RemoteConfig {
     std::string socket_path;             // UnixSocket: resolved socket path.
     std::string http_bind = "127.0.0.1"; // Http: bind address.
     int http_port = 7130;                // Http: TCP port.
+    std::string http_token;              // Http: bearer token gating off-box binds.
 };
+
+/**
+ * @brief Why an HTTP listener may or may not bind a given address
+ *
+ * The HTTP endpoint exposes the whole ctl command set, which can drive any
+ * widget in the UI, so an address reachable from off-box only comes up behind
+ * a bearer token. Loopback needs none: reaching it already requires local
+ * access, which the Unix socket transport grants anyway.
+ */
+enum class HttpBindDecision {
+    Allow,
+    InvalidHost,   ///< Not a numeric IPv4 address, which is all inet_pton accepts.
+    TokenRequired, ///< Off-box address with no token configured.
+    TokenTooWeak,  ///< Off-box address with a token below the length floor.
+};
+
+/// Shortest token accepted for an off-box bind, in bytes.
+inline constexpr size_t kMinHttpTokenLength = 16;
+
+/**
+ * @brief Decide whether @p bind_host may be bound with @p token configured
+ *
+ * Pure, so the policy is exercised without opening a socket.
+ */
+HttpBindDecision decide_http_bind(const std::string& bind_host, const std::string& token);
+
+/**
+ * @brief Check an Authorization header value against the configured token
+ *
+ * Expects `Bearer <token>`, scheme matched case-insensitively per RFC 7235,
+ * compared in constant time. False when @p expected is empty, so an absent
+ * configuration authenticates nobody.
+ */
+bool http_token_matches(const std::string& expected, const std::string& authorization);
 
 /**
  * @brief JSON-RPC 2.0 remote control server over a pluggable transport

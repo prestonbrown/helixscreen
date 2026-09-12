@@ -6,6 +6,7 @@
 
 #include "ams_backend.h"
 #include "ams_state.h"
+#include "display_numbering.h"
 #include "lvgl_test_fixture.h"
 #include "static_subject_registry.h"
 #include "tool_state.h"
@@ -41,7 +42,6 @@ TEST_CASE_METHOD(ToolStateFixture, "[ToolState][ams-topology] set_ams_topology p
     topo.tool_to_slot.resize(15);
     for (int i = 0; i < 15; ++i)
         topo.tool_to_slot[i] = i; // 1:1 default
-    topo.tool_name_prefix = "T";
 
     ToolState::instance().set_ams_topology(topo);
     UpdateQueue::instance().drain();
@@ -52,13 +52,42 @@ TEST_CASE_METHOD(ToolStateFixture, "[ToolState][ams-topology] set_ams_topology p
 }
 
 TEST_CASE_METHOD(ToolStateFixture,
+                 "[ToolState][ams-topology] set_ams_topology keeps gcode identity and physical "
+                 "label apart",
+                 "[tool-state][ams][ams-topology][numbering]") {
+    // name is what you type into a console; display_label is what is written on
+    // the machine. A widget picking the wrong one is the bug this split exists
+    // to make visible at the call site.
+    ToolTopology topo;
+    topo.tool_count = 4;
+    topo.active_tool = 0;
+    topo.tool_to_slot = {0, 1, 2, 3};
+
+    ToolState::instance().set_ams_topology(topo);
+    UpdateQueue::instance().drain();
+
+    REQUIRE(ToolState::instance().tool_count() == 4);
+    const auto& tools = ToolState::instance().tools();
+    // display_label names the printing end, not the filament lane, so it is
+    // built from active_tool_noun() even where the two happen to coincide.
+    const auto noun = helix::ui::active_tool_noun();
+
+    CHECK(tools[0].name == "T0");
+    CHECK(tools[0].display_label == helix::ui::lane_label(noun, 0));
+    CHECK(tools[3].name == "T3");
+    CHECK(tools[3].display_label == helix::ui::lane_label(noun, 3));
+    // The two fields must never collapse onto the same string — that would
+    // silently undo the split this test exists to pin.
+    CHECK(tools[0].display_label != tools[0].name);
+}
+
+TEST_CASE_METHOD(ToolStateFixture,
                  "[ToolState][ams-topology] active tool updates without rebuilding tools list",
                  "[tool-state][ams][ams-topology]") {
     ToolTopology topo;
     topo.tool_count = 4;
     topo.active_tool = 0;
     topo.tool_to_slot = {0, 1, 2, 3};
-    topo.tool_name_prefix = "T";
     ToolState::instance().set_ams_topology(topo);
     UpdateQueue::instance().drain();
     int initial_version = lv_subject_get_int(ToolState::instance().get_tools_version_subject());
@@ -82,7 +111,6 @@ TEST_CASE_METHOD(ToolStateFixture, "[ToolState][ams-topology] clear_ams_topology
     topo.tool_count = 6;
     topo.active_tool = 3;
     topo.tool_to_slot = {0, 1, 2, 3, 4, 5};
-    topo.tool_name_prefix = "T";
     ToolState::instance().set_ams_topology(topo);
     UpdateQueue::instance().drain();
     REQUIRE(ToolState::instance().tool_count() == 6);
@@ -200,7 +228,6 @@ TEST_CASE_METHOD(ToolStateFixture,
     topo.tool_count = 4;
     topo.active_tool = 0;
     topo.tool_to_slot = {0, 1, 2, 3};
-    topo.tool_name_prefix = "T";
     ts.set_ams_topology(topo);
     UpdateQueue::instance().drain();
 
@@ -263,7 +290,6 @@ TEST_CASE_METHOD(ToolStateFixture,
     topo.tool_count = 4;
     topo.active_tool = 0;
     topo.tool_to_slot = {0, 1, 2, 3};
-    topo.tool_name_prefix = "T";
     ts.set_ams_topology(topo);
     UpdateQueue::instance().drain();
     REQUIRE(ts.ams_topology_active());
@@ -342,7 +368,6 @@ TEST_CASE_METHOD(ToolStateFixture,
     topo.tool_count = 4;
     topo.active_tool = 0;
     topo.tool_to_slot = {0, 1, 2, 3};
-    topo.tool_name_prefix = "T";
     ts.set_ams_topology(topo);
     UpdateQueue::instance().drain();
 
@@ -377,7 +402,6 @@ TEST_CASE_METHOD(ToolStateFixture, "A real 4-extruder ToolChanger does report mu
     topo.tool_count = 4;
     topo.active_tool = 0;
     topo.tool_to_slot = {0, 1, 2, 3};
-    topo.tool_name_prefix = "T";
     ts.set_ams_topology(topo);
     UpdateQueue::instance().drain();
 
@@ -389,7 +413,7 @@ TEST_CASE_METHOD(ToolStateFixture, "A real 4-extruder ToolChanger does report mu
 }
 
 // =============================================================================
-// nozzle_label(): "Nozzle" vs "Nozzle T<n>"
+// nozzle_label(): "Nozzle" vs "Nozzle <n>"
 //
 // The label sits directly beside a nozzle temperature readout in both the
 // controls panel and the filament panel, so it answers "which nozzle am I
@@ -411,7 +435,6 @@ TEST_CASE_METHOD(ToolStateFixture, "nozzle_label stays plain when AMS lanes shar
     topo.tool_count = 4;
     topo.active_tool = 2;
     topo.tool_to_slot = {0, 1, 2, 3};
-    topo.tool_name_prefix = "T";
     ts.set_ams_topology(topo);
     UpdateQueue::instance().drain();
 
@@ -429,7 +452,7 @@ TEST_CASE_METHOD(ToolStateFixture, "nozzle_label stays plain when AMS lanes shar
 TEST_CASE_METHOD(ToolStateFixture, "nozzle_label still names the tool on a real toolchanger",
                  "[tool-state][ams][ams-topology][nozzle-label]") {
     // Paired with the case above: a label hardcoded to "Nozzle" would pass that
-    // one, so a machine with real hotends must still get its T<n>.
+    // one, so a machine with real hotends must still get its number.
     auto& ts = helix::ToolState::instance();
     auto disc = make_toolchanger_discovery();
 
@@ -442,7 +465,39 @@ TEST_CASE_METHOD(ToolStateFixture, "nozzle_label still names the tool on a real 
     ts.update_from_status(status);
     UpdateQueue::instance().drain();
     REQUIRE(ts.active_tool_index() == 2);
-    REQUIRE(ts.nozzle_label() == "Nozzle T2");
+    // 1-based, matching what PrinterTemperatureState, the temp graph and the
+    // print status widget spell for this same nozzle. The gcode identity "T2"
+    // names the same hotend one lower and belongs in a console, not here.
+    REQUIRE(ts.nozzle_label() == "Nozzle 3");
+}
+
+namespace {
+helix::PrinterDiscovery make_named_toolchanger_discovery() {
+    nlohmann::json objects = {"toolchanger", "tool Left", "tool Right", "extruder", "extruder1"};
+    helix::PrinterDiscovery disc;
+    disc.parse_objects(objects);
+    return disc;
+}
+} // namespace
+
+TEST_CASE_METHOD(ToolStateFixture, "nozzle_label keeps a tool name its owner configured",
+                 "[tool-state][ams][ams-topology][nozzle-label]") {
+    // A viesturz [tool Right] is what is written on the machine; renumbering it
+    // would name a hotend something its owner never sees.
+    auto& ts = helix::ToolState::instance();
+    auto disc = make_named_toolchanger_discovery();
+
+    ts.init_tools(disc);
+    UpdateQueue::instance().drain();
+    REQUIRE(ts.extruder_count() == 2);
+    REQUIRE(ts.tools()[1].name == "Right");
+
+    nlohmann::json status = {{"toolhead", {{"extruder", "extruder1"}}}};
+    ts.update_from_status(status);
+    UpdateQueue::instance().drain();
+    REQUIRE(ts.active_tool_index() == 1);
+
+    REQUIRE(ts.nozzle_label() == "Nozzle Right");
 }
 
 // ============================================================================
@@ -497,11 +552,10 @@ TEST_CASE_METHOD(ToolBadgeFixture,
     topo.tool_count = 4;
     topo.active_tool = 0;
     topo.tool_to_slot = {0, 1, 2, 3};
-    topo.tool_name_prefix = "T";
     ts.set_ams_topology(topo);
     UpdateQueue::instance().drain();
     REQUIRE(badge_shown() == 1);
-    REQUIRE(badge_text() == "0");
+    REQUIRE(badge_text() == "1"); // 1-based: storage index 0 displays as "1"
 
     const int version_before = lv_subject_get_int(ts.get_tools_version_subject());
 
@@ -514,14 +568,14 @@ TEST_CASE_METHOD(ToolBadgeFixture,
     // because the tools_version_ observer would mask the missing active_tool one.
     REQUIRE(lv_subject_get_int(ts.get_tools_version_subject()) == version_before);
     REQUIRE(ts.active_tool_index() == 2);
-    REQUIRE(badge_text() == "2");
+    REQUIRE(badge_text() == "3");
     REQUIRE(badge_shown() == 1);
 
     // And back down, so a fix that only ever counts upward still fails.
     topo.active_tool = 1;
     ts.set_ams_topology(topo);
     UpdateQueue::instance().drain();
-    REQUIRE(badge_text() == "1");
+    REQUIRE(badge_text() == "2");
 }
 
 TEST_CASE_METHOD(ToolBadgeFixture, "tool badge stays hidden and empty on a single-hotend AMS",
@@ -536,7 +590,6 @@ TEST_CASE_METHOD(ToolBadgeFixture, "tool badge stays hidden and empty on a singl
     topo.tool_count = 4;
     topo.active_tool = 0;
     topo.tool_to_slot = {0, 1, 2, 3};
-    topo.tool_name_prefix = "T";
     ts.set_ams_topology(topo);
     UpdateQueue::instance().drain();
 
@@ -576,7 +629,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
     topo.tool_count = 4;
     topo.active_tool = 0;
     topo.tool_to_slot = {0, 1, 2, 3};
-    topo.tool_name_prefix = "T";
 
     ts.set_ams_topology(topo);
 
@@ -612,7 +664,6 @@ TEST_CASE_METHOD(ToolStateFixture,
     topo.tool_count = 2;
     topo.active_tool = 0;
     topo.tool_to_slot = {0, 1};
-    topo.tool_name_prefix = "T";
     ts.set_ams_topology(topo);
     REQUIRE(ts.tools().size() == 2);
     REQUIRE(ts.tools()[0].backend_slot == 0);
@@ -649,7 +700,6 @@ TEST_CASE_METHOD(ToolStateFixture,
     topo.tool_count = 2;
     topo.active_tool = 0;
     topo.tool_to_slot = {0, 1};
-    topo.tool_name_prefix = "T";
     ts.set_ams_topology(topo);
     REQUIRE(ts.tools().size() == 2);
 

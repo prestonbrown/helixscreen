@@ -85,8 +85,8 @@ regenerates it.
 
 Two guards in [`mk/rules.mk`](../../../mk/rules.mk) make bare `make` safe. A two-phase `all` ([`mk/rules.mk:78`](../../../mk/rules.mk#L78)) re-invokes
 itself with bounded `-j$(NPROC)` when it detects unlimited `-j`, so parallelism never crushes the
-machine. And a `build/.build-target` marker auto-cleans when the architecture changes
-([`mk/rules.mk#ARCH_MARKER`](../../../mk/rules.mk#L49)), so you cannot mix ARM and x86 objects in the one shared native `build/` dir —
+machine. And a `build/.build-target` marker auto-cleans when the architecture or the compiler changes
+([`mk/rules.mk#TOOLCHAIN_MARKER`](../../../mk/rules.mk#L53)), so you cannot mix ARM and x86 objects in the one shared native `build/` dir —
 cross builds are already isolated (`build/pi/`, `build/ad5m/`, ... via `BUILD_SUBDIR`,
 [`mk/cross.mk`](../../../mk/cross.mk)). `make help` prints the target menu; `make help-all` adds the test, cross, and
 remote groups.
@@ -220,7 +220,7 @@ end-user installer — modular POSIX shell with KIAUH and Moonraker-updater inte
 ## Patterns & gotchas
 
 - **`make -j` and `make test` build different binaries.** Decide which one you are about to run and build exactly that; "works in the app, fails in tests" after skipping a rebuild is a stale-artifact artifact, not a bug.
-- **Switching `PLATFORM_TARGET` auto-cleans the native build dir** ([`mk/rules.mk#ARCH_MARKER`](../../../mk/rules.mk#L49)). Don't be surprised by a full rebuild after toggling between `native` and a cross target; cross targets are isolated in `build/<target>/` and unaffected.
+- **Switching `PLATFORM_TARGET` or compilers auto-cleans the native build dir** ([`mk/rules.mk#TOOLCHAIN_MARKER`](../../../mk/rules.mk#L53)). Don't be surprised by a full rebuild after toggling between `native` and a cross target, or the first build after a toolchain upgrade; cross targets are isolated in `build/<target>/` and unaffected. The compiler is in the marker because a mixed build dir fails quietly: GCC and clang mangle a function-local `std::string` static differently, so the linker keeps both copies and one translation unit's write is invisible to another.
 - **Dev panels are native-only by default; remote control is not.** Every developer build carries the helixctl server, cross included, so a test rig is drivable from your desk. Only the production packaging path drops it — `make package-*` sets `HELIX_PACKAGING=1` ([`mk/cross.mk`](../../../mk/cross.mk)), CI's release workflow passes it, and `make release-*` refuses a binary whose `.build-features` stamp says otherwise. Opt a dev build out with `make PLATFORM_TARGET=pi ENABLE_REMOTE_CONTROL=no` (`Makefile:463`).
 - **A new patch file must be wired into [`mk/patches.mk`](../../../mk/patches.mk)** — an apply block plus, if it touches new files, an entry in `LVGL_PATCHED_FILES`/`LIBHV_PATCHED_FILES`. The stamp's wiring check fails the build if you forget, which is the polite outcome; before that check existed, unwired patches silently never applied.
 - **Test builds reach the patch stamp only through the PCH prerequisite** ([`mk/rules.mk`](../../../mk/rules.mk)); the `test` target does not itself gate on `apply-patches`. After a patch red-line or submodule bump, run `make -j` or `make reapply-patches` — don't assume `make test-run` re-verified the tree (#1212).
@@ -247,7 +247,7 @@ Read in this order; about 25 minutes total.
 
 1. `Makefile:1` — the header contract: always `make`, never invoke the compiler directly, and what the build system handles for you.
 2. [`mk/rules.mk:78`](../../../mk/rules.mk#L78) — the two-phase `all` target: unlimited-`-j` detection and re-invocation; then `mk/rules.mk#"$(TARGET) $(FBDEV_TARGET)"` for what a build actually gates on (`apply-patches` first).
-3. [`mk/rules.mk#ARCH_MARKER`](../../../mk/rules.mk#L49) — the `.build-target` arch-change marker and auto-clean.
+3. [`mk/rules.mk#TOOLCHAIN_MARKER`](../../../mk/rules.mk#L53) — the `.build-target` target-and-compiler marker and auto-clean.
 4. [`mk/tests.mk#test`](../../../mk/tests.mk#L420) — the `test` (build-only) vs `test-run` (parallel shards) split, and the `~[.] ~[slow]` filter convention.
 5. [`mk/cross.mk`](../../../mk/cross.mk) — the commented platform menu; then `mk/cross.mk#"$(PLATFORM_TARGET),pi)"` (pi: DRM+GLES, all font tiers) against `mk/cross.mk#"else ifeq ($(PLATFORM_TARGET),ad5m)"` (ad5m: `-Os -flto -static`, label-printer gate off, trimmed fonts) to see how far the knobs turn.
 6. [`mk/cross.mk`](../../../mk/cross.mk) — the `native` block: SDL backend, and why dev conveniences live here rather than in cross builds.

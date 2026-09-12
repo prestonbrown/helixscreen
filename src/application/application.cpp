@@ -1027,12 +1027,27 @@ int Application::run(int argc, char** argv) {
                 rc.transport = helix::RemoteConfig::Transport::Http;
                 rc.http_bind = m_args.remote_http_bind;
                 rc.http_port = m_args.remote_http_port;
+                // Read from the environment rather than a flag: argv is world
+                // readable through /proc, so a token there leaks to every local
+                // user. An off-box bind without one is refused in
+                // HttpTransport::create_listener().
+                if (const char* tok = getenv("HELIX_REMOTE_HTTP_TOKEN")) {
+                    rc.http_token = tok;
+                }
             } else {
                 rc.transport = helix::RemoteConfig::Transport::UnixSocket;
                 rc.socket_path = helix::resolve_socket_path(m_args.remote_socket);
             }
             if (!helix::RemoteControlServer::instance().start(rc)) {
-                spdlog::warn("[Application] Remote control server failed to start (non-fatal)");
+                // Name the target and say what the user will see instead. A bare
+                // "failed to start" sends people back to the flag they already
+                // set, because `ctl` reports only that it found no instance.
+                const std::string target = rc.transport == helix::RemoteConfig::Transport::Http
+                                               ? rc.http_bind + ":" + std::to_string(rc.http_port)
+                                               : rc.socket_path;
+                spdlog::error("[Application] Remote control was requested but did not start on "
+                              "{}; `ctl` will report that no instance is running",
+                              target);
             }
         }
 #endif
@@ -1907,11 +1922,11 @@ bool Application::init_core_subjects() {
     // These must exist before MoonrakerManager::init() can create the API
     m_subjects->init_core_and_state();
 
-    // Register the ams_current_tool_text formatter ("T<n>" / "---") now that
-    // AmsState's subjects are live. The print status panel embeds
-    // <ams_current_tool> and binds ams_current_tool_text — without this
-    // observer the lane label stays at its default "---" until a user
-    // navigates into an AMS panel, which is where the call used to live.
+    // Register the ams_current_tool_text formatter (a translated position
+    // label, e.g. "Tool 1", or "---") now that AmsState's subjects are live.
+    // The print status panel embeds <ams_current_tool> and binds
+    // ams_current_tool_text — without this observer the lane label stays at
+    // its default "---" until a user navigates into an AMS panel.
     helix::ui::init_ams_tool_text_observers();
 
     // Bring LedController up with no API yet so its `led_controllable` subject
@@ -2886,6 +2901,9 @@ void Application::maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardwa
     };
     opts.cancel_text = lv_tr("Keep current");
     opts.owner_token = m_async_lifetime.token();
+    // No on_dismiss, deliberately: a backdrop tap or ESC is not an answer, so
+    // the prompt stays armed for the next boot. Only a button settles it, and
+    // an accidental tap must not permanently silence a wrong-printer warning.
 
     helix::ui::modal_confirm(
         lv_tr("Printer type mismatch"), body.c_str(), ModalSeverity::Warning, lv_tr("Choose Model"),
@@ -3078,6 +3096,15 @@ void Application::setup_discovery_callbacks() {
                         [](const MoonrakerError& err) {
                             spdlog::warn("[ZOffset] Failed to enable z-offset persistence: {}",
                                          err.message);
+                            // The claim was recorded before the send so a second
+                            // discovery could not inject the same gcode. It did not
+                            // land, so hand the one shot back or this printer is
+                            // never told for the life of the install. Marshalled:
+                            // this runs on the response thread and Config is not
+                            // synchronised.
+                            helix::ui::queue_update("zoffset_release_claim", []() {
+                                helix::zoffset::release_persistence_enable(Config::get_instance());
+                            });
                         },
                         0, /*silent=*/true, /*on_queued=*/nullptr,
                         /*caller_surfaces_errors=*/false);

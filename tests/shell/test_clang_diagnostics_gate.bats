@@ -54,7 +54,7 @@ write_fragment() {
     local name="$1" version="$2"
     shift 2
     cat > "$FIXTURE_DIR/$name.ccj" <<EOF
-{"directory": "$FIXTURE_DIR", "file": "guarded.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION=\"$version\" -DHELIX_VERSION_PATCH=${version##*.} $* -c guarded.cpp -o $name.o"}
+{"directory": "$FIXTURE_DIR", "file": "guarded.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION='\"$version\"' -DHELIX_VERSION_PATCH=${version##*.} $* -c guarded.cpp -o $name.o"}
 EOF
 }
 
@@ -142,6 +142,29 @@ EOF
     refute grep -qF "stale compile command" <<<"$output"
 }
 
+# The build records a define whose value must reach the compiler with its own
+# quotes as -DNAME='"value"' (emit-compile-command, mk/rules.mk). Split without
+# shell semantics that token keeps its single quotes, the macro becomes a
+# multi-character literal, and clang types it as int - so every TU including
+# helix_version.h reports a const char* initialised from an int. Nothing about
+# the code is wrong, and the finding names the code.
+@test "gate keeps a shell-quoted define a string" {
+    cat > "$FIXTURE_DIR/version_user.cpp" <<'EOF'
+const char* version() {
+    return HELIX_VERSION;
+}
+EOF
+    cat > "$FIXTURE_DIR/version_user.ccj" <<EOF
+{"directory": "$FIXTURE_DIR", "file": "version_user.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION='\"$CURRENT_VERSION\"' -c version_user.cpp -o version_user.o"}
+EOF
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" "$FIXTURE_DIR/version_user.cpp"
+    if grep -qF "SKIP:" <<<"$output"; then
+        skip "clang unavailable"
+    fi
+    refute grep -qF "rvalue of type 'int'" <<<"$output"
+    [ "$status" -eq 0 ]
+}
+
 # Every object tree emits its own fragment for the same source, so obj/,
 # obj-asan/, obj-O0/ and obj-tsan/ each contribute an entry and only the tree
 # built most recently carries today's flags. The gate must pick the entry that
@@ -212,10 +235,10 @@ $FIXTURE_DIR/$name.o: $FIXTURE_DIR/$name.cpp $FIXTURE_DIR/feature.h
 EOF
     done
     cat > "$FIXTURE_DIR/aaa_stale_dep.ccj" <<EOF
-{"directory": "$FIXTURE_DIR", "file": "aaa_stale_dep.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION=\"0.99.1\" -c aaa_stale_dep.cpp -o aaa_stale_dep.o"}
+{"directory": "$FIXTURE_DIR", "file": "aaa_stale_dep.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION='\"0.99.1\"' -c aaa_stale_dep.cpp -o aaa_stale_dep.o"}
 EOF
     cat > "$FIXTURE_DIR/zzz_good_dep.ccj" <<EOF
-{"directory": "$FIXTURE_DIR", "file": "zzz_good_dep.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION=\"$CURRENT_VERSION\" -DHELIX_HAS_FIXTURE_FEATURE=1 -c zzz_good_dep.cpp -o zzz_good_dep.o"}
+{"directory": "$FIXTURE_DIR", "file": "zzz_good_dep.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION='\"$CURRENT_VERSION\"' -DHELIX_HAS_FIXTURE_FEATURE=1 -c zzz_good_dep.cpp -o zzz_good_dep.o"}
 EOF
 
     run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" --max-header-tus 1 "$FIXTURE_DIR/feature.h"

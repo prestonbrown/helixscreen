@@ -3,7 +3,10 @@
 
 #include "../lvgl_test_fixture.h"
 #include "config.h"
+#include "logging_init.h"
 #include "system_settings_manager.h"
+
+#include <spdlog/spdlog.h>
 
 #include "../catch_amalgamated.hpp"
 
@@ -145,4 +148,66 @@ TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager language options string
     std::string opts(options);
     REQUIRE(opts.find("English") == 0);
     REQUIRE(opts.find("Deutsch") != std::string::npos);
+}
+
+// ============================================================================
+// Log level subject
+// ============================================================================
+
+namespace {
+
+// Put the logger in the shape a device runs in: persistent sinks at `level`,
+// logger floor held at debug so the ring buffer keeps feeding the debug bundle.
+void init_logging_at(spdlog::level::level_enum level) {
+    helix::logging::LogConfig cfg;
+    cfg.target = helix::logging::LogTarget::Console;
+    cfg.enable_console = false;
+    cfg.level = spdlog::level::info;
+    helix::logging::init(cfg);
+    helix::logging::set_runtime_level(level);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager log level reports the sink level",
+                 "[system_settings]") {
+    init_logging_at(spdlog::level::warn);
+
+    // The condition that makes this test worth running: the logger floor is
+    // debug (the ring buffer's), so anything reading spdlog::get_level() sees
+    // "debug" on a device whose sinks are at warn.
+    REQUIRE(spdlog::get_level() == spdlog::level::debug);
+    REQUIRE(helix::logging::effective_log_level() == spdlog::level::warn);
+
+    auto* config = Config::get_instance();
+    REQUIRE(config != nullptr);
+    config->set<std::string>("/log_level", "");
+
+    SystemSettingsManager::instance().deinit_subjects();
+    SystemSettingsManager::instance().init_subjects();
+
+    // Index 0 is warn, 2 is debug.
+    REQUIRE(SystemSettingsManager::instance().get_log_level_index() == 0);
+
+    SystemSettingsManager::instance().deinit_subjects();
+    helix::logging::set_runtime_level(spdlog::level::info);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager log level prefers a saved value",
+                 "[system_settings]") {
+    init_logging_at(spdlog::level::warn);
+
+    auto* config = Config::get_instance();
+    REQUIRE(config != nullptr);
+    config->set<std::string>("/log_level", "trace");
+
+    SystemSettingsManager::instance().deinit_subjects();
+    SystemSettingsManager::instance().init_subjects();
+
+    // Index 3 is trace: a saved choice outranks whatever the sinks run at.
+    REQUIRE(SystemSettingsManager::instance().get_log_level_index() == 3);
+
+    config->set<std::string>("/log_level", "");
+    SystemSettingsManager::instance().deinit_subjects();
+    helix::logging::set_runtime_level(spdlog::level::info);
 }

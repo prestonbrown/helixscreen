@@ -32,6 +32,11 @@ class PipesScreensaver : public Screensaver {
     }
 
   private:
+    // Test-only seam: reads the allocation record below so the stride
+    // contract can be pinned without a full display pipeline. See
+    // tests/test_helpers/screensaver_test_access.h.
+    friend class PipesScreensaverTestAccess;
+
     // Grid: 21x21x21 centered at origin (-10..+10), matching reference
     static constexpr int GRID_DIM = 21;
     static constexpr int GRID_OFFSET = 10;
@@ -78,7 +83,10 @@ class PipesScreensaver : public Screensaver {
     lv_obj_t* canvas_ = nullptr;
     lv_timer_t* timer_ = nullptr;
 
+    // Draw buffer owned by the canvas, allocated at LVGL's row stride — see
+    // screensaver_canvas_stride_bytes().
     uint8_t* draw_buf_ = nullptr;
+    size_t draw_buf_size_ = 0;
 
     // Grid occupancy
     bool grid_[GRID_DIM][GRID_DIM][GRID_DIM]{};

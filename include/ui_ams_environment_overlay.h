@@ -253,8 +253,10 @@ class AmsEnvironmentOverlay : public OverlayBase {
 
     /// Which lanes the shown zone covers. The header names the box; this says how
     /// much of the printer is inside it, which a single-zone view cannot infer.
+    /// Sized for a translated plural noun plus a range: a ToolChanger reports
+    /// LaneNoun::Tool, whose Russian plural makes "Инструменты 10-13" 28 bytes.
     lv_subject_t slots_text_subject_{};
-    char slots_text_buf_[32] = {};
+    char slots_text_buf_[64] = {};
 
     /// Cross-unit affordance: offered only when the printer has more zones than this
     /// view is showing and no overview already sits beneath this overlay.

@@ -10,13 +10,17 @@
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "display_numbering.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "spoolman_types.h" // SpoolInfo + apply_spool_to_slot (the picker-side writer)
+#include "tool_state.h"
+#include "translation_loader.h"
 
 #include <chrono>
 #include <filesystem>
@@ -298,6 +302,52 @@ TEST_CASE_METHOD(SnapmakerFixture, "AmsBackendSnapmaker construction", "[ams][sn
         auto info = backend.get_system_info();
         REQUIRE(info.tip_method == TipMethod::NONE);
     }
+}
+
+// ============================================================================
+// Feeder / Toolhead noun tests
+//
+// The U1's own firmware UI binary spells filament entry "Feeder 1".."Feeder 4"
+// and the printing end "Toolhead 1".."Toolhead 4" (156 and 566 capitalised
+// hits respectively; zero for Slot, Lane, or capitalised Channel) - two
+// different words for the same 1:1 physical position.
+// ============================================================================
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker lane_noun and tool_noun name two different things",
+                 "[ams][snapmaker][numbering]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+    CHECK(backend.lane_noun() == helix::ui::LaneNoun::Feeder);
+    CHECK(backend.tool_noun() == helix::ui::LaneNoun::Toolhead);
+    CHECK(backend.lane_noun() != backend.tool_noun());
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker ToolInfo::display_label names the toolhead, not the feeder",
+                 "[ams][snapmaker][numbering]") {
+    // Registering the real backend (not a mock) is the point: active_tool_noun()
+    // reads it through AmsState, exactly as production init_tools() does, so
+    // this exercises the actual lookup path rather than asserting the enum
+    // value in isolation.
+    AmsState::instance().set_backend(std::make_unique<AmsBackendSnapmaker>(nullptr, nullptr));
+
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(
+        nlohmann::json::array({"extruder", "extruder1", "extruder2", "extruder3", "toolchanger",
+                               "filament_detect", "toolhead", "heater_bed", "print_task_config"}));
+    REQUIRE(hw.has_snapmaker());
+
+    helix::ToolState::instance().deinit_subjects();
+    helix::ToolState::instance().init_subjects(/*register_xml=*/false);
+    helix::ToolState::instance().init_tools(hw);
+
+    REQUIRE(helix::ToolState::instance().tool_count() == 4);
+    const auto& tools = helix::ToolState::instance().tools();
+    CHECK(tools[0].display_label == "Toolhead 1");
+    CHECK(tools[0].display_label != "Feeder 1");
+    CHECK(tools[3].display_label == "Toolhead 4");
+
+    helix::ToolState::instance().deinit_subjects();
+    AmsState::instance().clear_backends();
 }
 
 // ============================================================================
@@ -595,8 +645,9 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker channel_error during an active loa
     SnapmakerTestAccess::handle_status(backend, status);
 
     CHECK(backend.get_system_info().action == AmsAction::ERROR);
-    // Raw firmware token mapped to a friendly, lane-numbered message.
-    CHECK(backend.get_system_info().operation_detail.find("No filament in lane 2") !=
+    // Raw firmware token mapped to a friendly message via lane_label(), which
+    // spells Snapmaker's positions "Feeder N" rather than the firmware's "lane".
+    CHECK(backend.get_system_info().operation_detail.find("No filament in Feeder 2") !=
           std::string::npos);
 }
 
@@ -1946,6 +1997,57 @@ TEST_CASE_METHOD(
     REQUIRE(captured.result == AmsResult::SUCCESS);
 }
 
+namespace {
+
+// LVGL has no pack-unregister API, so selecting a language nothing has loaded
+// makes every subsequent lookup miss again - the restore idiom
+// test_translation_loader.cpp uses.
+struct ScopedLanguage {
+    ScopedLanguage() = default;
+    ~ScopedLanguage() {
+        lv_translation_set_language(helix::ui::kIdentityLocale);
+    }
+    ScopedLanguage(const ScopedLanguage&) = delete;
+    ScopedLanguage& operator=(const ScopedLanguage&) = delete;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker prepare_for_resume authors a translated reason",
+                 "[ams][snapmaker][resume][i18n]") {
+    lv_init_safe();
+    ScopedLanguage restore_lang;
+    PrinterState& ps = get_printer_state();
+    PrinterStateTestAccess::reset(ps);
+    ps.init_subjects(false);
+
+    // "dirty bed" is one of snapmaker_terminal_matchers()' two signals.
+    json paused = {{"print_stats", {{"state", "paused"}, {"message", "detected dirty bed"}}},
+                   {"virtual_sdcard", {{"is_active", false}}}};
+    ps.update_from_status(paused);
+
+    helix::ui::ensure_translation_loaded("ru");
+    lv_translation_set_language("ru");
+
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+
+    AmsError captured{AmsResult::SUCCESS};
+    bool callback_fired = false;
+    backend.prepare_for_resume(/*slot_index=*/0, [&](const AmsError& err) {
+        callback_fired = true;
+        captured = err;
+    });
+
+    REQUIRE(callback_fired);
+    REQUIRE(captured.result == AmsResult::RESUME_REQUIRES_RESTART);
+
+    // ui_resume_dispatch interpolates user_msg into a TRANSLATED frame, so an
+    // English sentence here lands inside a Russian one.
+    const char* expected = lv_tr("The bed was reported dirty, so this print cannot resume.");
+    REQUIRE(std::string(expected) != "The bed was reported dirty, so this print cannot resume.");
+    CHECK(captured.user_msg == std::string(expected));
+}
+
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker prepare_for_resume proceeds normally when SD active",
                  "[ams][snapmaker][resume]") {
     lv_init_safe();
@@ -2151,6 +2253,35 @@ TEST_CASE_METHOD(SnapmakerFixture,
     REQUIRE(callback_fired);
     REQUIRE_FALSE(captured.success());
     REQUIRE(captured.result == AmsResult::COMMAND_FAILED);
+}
+
+TEST_CASE_METHOD(
+    SnapmakerFixture,
+    "Snapmaker prepare_for_resume: a resume failure carries authored copy, not firmware text",
+    "[ams][snapmaker][resume]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+
+    ResumeRecoveryHarness h;
+
+    // Firmware's own wording for this fault names a 0-based extruder
+    // ("e0_filament") we do not control; the reported failure must name the
+    // feeder instead of echoing that string to the user.
+    h.client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR,
+                                    "Filament Sensor e0_filament: Runout Detected", "AUTO_FEEDING");
+
+    bool callback_fired = false;
+    AmsError captured{AmsResult::SUCCESS}; // poison
+    h.backend.prepare_for_resume(/*slot_index=*/0, [&](const AmsError& err) {
+        callback_fired = true;
+        captured = err;
+    });
+    ResumeRecoveryHarness::drain();
+
+    REQUIRE(callback_fired);
+    REQUIRE_FALSE(captured.success());
+    CHECK(captured.user_msg.find("e0_filament") == std::string::npos);
+    CHECK(captured.user_msg.find("Feeder 1") != std::string::npos);
 }
 
 // ============================================================================

@@ -648,15 +648,32 @@ TEST_CASE("gate required_filament_present: empty required lane warns with Start 
         c.ams_manages_filament = true;
         c.has_active_backend = true;
         // (tool_index, 0-based slot_index); lanes display slot + 1, so tool 0
-        // -> "Slot 1".
+        // -> "Slot 1". Two entries take the bulleted multi-lane branch of
+        // build_empty_lane_message.
         c.empty_required_lanes = {{0, 0}, {2, 3}};
     });
     auto r = gate_named("required_filament_present").evaluate(ctx);
     REQUIRE(r.verdict == CheckResult::Verdict::Warn);
     CHECK(r.title == "No Filament Detected"); // lv_tr identity in the test locale
     CHECK(r.proceed_label == "Start Print");
-    CHECK(r.body.find("Tool 0") != std::string::npos);
+    // The gcode tool spells as "T0" (never "Tool 0"); the lane is a 1-based label.
+    CHECK(r.body.find("T0") != std::string::npos);
     CHECK(r.body.find("Slot 1") != std::string::npos);
+    CHECK(r.body.find("Tool 0") == std::string::npos);
+}
+
+TEST_CASE("gate required_filament_present: a single empty lane takes the one-line branch",
+          "[print-start][gate-pipeline]") {
+    auto ctx = ctx_with([](PrintStartContext& c) {
+        c.ams_manages_filament = true;
+        c.has_active_backend = true;
+        c.empty_required_lanes = {{3, 4}}; // tool 3 -> slot index 4 -> "Slot 5"
+    });
+    auto r = gate_named("required_filament_present").evaluate(ctx);
+    REQUIRE(r.verdict == CheckResult::Verdict::Warn);
+    CHECK(r.body.find("T3") != std::string::npos);
+    CHECK(r.body.find("Slot 5") != std::string::npos);
+    CHECK(r.body.find("Tool 3") == std::string::npos);
 }
 
 TEST_CASE("gate required_filament_present: AMS lanes all fed -> pass",
@@ -759,6 +776,51 @@ TEST_CASE("gate material_compatibility: warns with verbatim title",
     REQUIRE(r.verdict == CheckResult::Verdict::Warn);
     CHECK(r.title == "Material Mismatch");
     CHECK(r.proceed_label == "Start Anyway");
+}
+
+TEST_CASE("gate material_compatibility: names the gcode tool, not the physical lane",
+          "[print-start][gate-pipeline][numbering]") {
+    // T0 is the slicer's tool number, so the multi-tool dialog names it 0-based
+    // even though a physical lane in this same dialog would count from 1.
+    auto ctx = ctx_with([](PrintStartContext& c) {
+        c.has_detail_view = true;
+        c.ams_available = true;
+
+        GcodeToolInfo t0;
+        t0.tool_index = 0;
+        t0.material = "PETG";
+        GcodeToolInfo t1;
+        t1.tool_index = 1;
+        t1.material = "ABS";
+        c.tool_info = {t0, t1};
+
+        ToolMapping m0;
+        m0.tool_index = 0;
+        m0.mapped_slot = 0;
+        m0.mapped_backend = 0;
+        m0.material_mismatch = true;
+        ToolMapping m1;
+        m1.tool_index = 1;
+        m1.mapped_slot = 1;
+        m1.mapped_backend = 0;
+        m1.material_mismatch = true;
+        c.mappings = {m0, m1};
+
+        AvailableSlot s0;
+        s0.slot_index = 0;
+        s0.backend_index = 0;
+        s0.material = "PLA";
+        AvailableSlot s1;
+        s1.slot_index = 1;
+        s1.backend_index = 0;
+        s1.material = "PLA";
+        c.available_slots = {s0, s1};
+    });
+
+    auto r = gate_named("material_compatibility").evaluate(ctx);
+    REQUIRE(r.verdict == CheckResult::Verdict::Warn);
+    CHECK(r.body.find("T0") != std::string::npos);
+    CHECK(r.body.find("T1") != std::string::npos);
 }
 
 // ---------------------------------------------------------------------------
@@ -1075,6 +1137,9 @@ TEST_CASE("gate_insufficient_lane_weight: names the short slot", "[print-start][
     CHECK(result.body.find("65") != std::string::npos);
     CHECK(result.body.find("863") != std::string::npos);
     CHECK(!result.proceed_label.empty());
+    // The tool spells as "T1" (orca_ctx's tool), not the lowercase word form.
+    CHECK(result.body.find("T1") != std::string::npos);
+    CHECK(result.body.find("tool 1") == std::string::npos);
 }
 
 // ---------------------------------------------------------------------------

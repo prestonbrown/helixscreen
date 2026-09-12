@@ -218,3 +218,13 @@ TEST_CASE("AMS backends: start without client returns not_connected", "[ams][cha
         REQUIRE(err.result == helix::AmsResult::NOT_CONNECTED);
     }
 }
+
+TEST_CASE("Tool changer names its positions tools", "[ams][toolchanger][numbering]") {
+    helix::AmsBackendToolChanger backend(nullptr, nullptr);
+    CHECK(backend.lane_noun() == helix::ui::LaneNoun::Tool);
+    // tool_noun() is unaffected by the Snapmaker Feeder/Toolhead split: a tool
+    // changer names the filament lane and the printing end with the same word,
+    // so ToolInfo::display_label (built from tool_noun()) still reads "Tool 1".
+    CHECK(backend.tool_noun() == helix::ui::LaneNoun::Tool);
+    CHECK(backend.lane_noun() == backend.tool_noun());
+}

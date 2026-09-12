@@ -222,6 +222,8 @@ chmod +x /etc/init.d/S99start_app   # Re-enable stock UI
 /etc/init.d/S99start_app start      # Start stock UI now
 ```
 
+This lasts until the next boot. `config/helixscreen.init` calls `platform_stop_competing_uis` on every start, which re-applies `chmod a-x`, and `S99helixscreen` sorts ahead of `S99start_app` so it runs first. To make the revert stick, either uninstall HelixScreen (`install.sh --uninstall`, which re-enables the services the installer recorded) or disable the HelixScreen service before re-enabling `S99start_app`.
+
 ## Platform Hooks
 
 Platform hooks are in `config/platform/hooks-k1.sh`. Key behaviors:
@@ -233,6 +235,8 @@ The stock K1 UI is managed by `/etc/init.d/S99start_app`, which launches `displa
 1. Stop `S99start_app` via its init script
 2. `chmod a-x` the init script to prevent reboot respawn (reversible)
 3. Kill all lingering stock processes
+
+**This takes the vendor's network stack down with the UI.** `master-server`, `app-server` and `web-server` are on the kill list, and they are what Creality Print and the Creality Cloud app talk to; port 80 closes with them. Only `display-server`, `Monitor` and `boot_display` actually contend for the framebuffer, so the current list is broader than the framebuffer problem requires. `hooks-k2.sh` makes the opposite call for the same reason and deliberately spares `web-server`, with a comment saying so. Keeping the K1 backend alive is tracked in [#1468](https://github.com/prestonbrown/helixscreen/issues/1468); it is not simply a matter of shortening the list, because the `chmod a-x` is what stops the services across a reboot.
 
 ### SSH Safety
 

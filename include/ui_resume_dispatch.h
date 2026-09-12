@@ -81,8 +81,15 @@ void dispatch_cancel_print(IMoonrakerAPI* api, std::string log_prefix,
 /// Show the "Print Was Terminated — Restart from the beginning?" modal.
 /// Exposed so post-resume backstops (e.g. AmsBackendSnapmaker) can surface it
 /// after a silent RESUME no-op, not just the up-front prepare_for_resume gate.
-/// on_failure may be null.
+///
+/// @param authored_reason Backend-authored explanation of why restart is
+///                        needed (e.g. an AmsError's user_msg). Preferred over
+///                        Klipper's raw print_stats.message; empty falls back
+///                        to that firmware text, so a caller with no authored
+///                        copy yet still shows why restart is needed.
+/// @param on_failure      May be null.
 void show_restart_required_modal(IMoonrakerAPI* api, const std::string& filename,
-                                 std::string log_prefix, std::function<void()> on_failure);
+                                 const std::string& authored_reason, std::string log_prefix,
+                                 std::function<void()> on_failure);
 
 } // namespace helix::ui

@@ -30,6 +30,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
+#include "../test_helpers/log_capture.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -357,10 +358,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     h.mock->topology_ = PathTopology::PARALLEL;
     h.select_tool(1); // != active T0
 
+    // RecordingBackend::change_tool() succeeds synchronously, so on_success()
+    // (the "Switched to {}" toast) runs inside this call, on this thread.
+    helix::LogCapture log(64);
     TA::handle_extruder_changed(*h.panel);
 
     REQUIRE(h.mock->change_tool_calls == 1);
     CHECK(h.mock->last_change_tool == 1);
+    // NOTIFY_SUCCESS logs once itself and the test stub's ui_notification_success
+    // echoes it a second time, so at least one line is the assertion, not exactly one.
+    CHECK(log.count_containing("Switched to T1") >= 1);
+    CHECK(log.count_containing("Switched to Tool 1") == 0);
 }
 
 // ============================================================================

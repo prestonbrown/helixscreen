@@ -680,7 +680,7 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: multi-extruder tracks active via 
 
     REQUIRE(ts.active_tool_index() == 1);
     REQUIRE(lv_subject_get_int(ts.get_active_tool_subject()) == 1);
-    REQUIRE(ts.nozzle_label() == "Nozzle T1");
+    REQUIRE(ts.nozzle_label() == "Nozzle 2");
 
     ts.deinit_subjects();
 }

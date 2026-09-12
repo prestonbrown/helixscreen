@@ -60,10 +60,12 @@ Resolve design-token lookups from the compiled token table (`src/generated/theme
 | Property | Value |
 |----------|-------|
 | **Values** | `1` (use the compiled table), any other value (use the live scanner) |
-| **Default** | Unset - on for ESP32 builds (`ui_xml/` ships there as a read-only frogfs image), off for every other build |
+| **Default** | Unset - on for ESP32 builds (`ui_xml/` ships there as a read-only frogfs image) and cross-built release targets (`HELIX_RELEASE_BUILD`), off for native dev builds |
 | **File** | `src/ui/theme_token_table_runtime.cpp` |
 
-Only the first character matters: a value starting with `1` turns the table on, so `HELIX_TOKEN_TABLE=0` forces the live scanner back on - useful to confirm an edited token still parses before regenerating the table. A build can also flip its default on by defining `HELIX_TOKEN_TABLE_DEFAULT_ON`; no build defines it today.
+Only the first character matters: a value starting with `1` turns the table on, so `HELIX_TOKEN_TABLE=0` forces the live scanner back on - useful on a device to confirm an edited `ui_xml/` token still parses, and the only way to move tokens there without a rebuild. A build can also flip its default on by defining `HELIX_TOKEN_TABLE_DEFAULT_ON`, which nothing needs now that release builds default on.
+
+The table exists because aggregating tokens live reopens every top-level `ui_xml` file once per aggregation call, ~28 times a boot. That scan is most of what `theme_manager_init` spends on a slow filesystem - 7.2s of a 16.8s splash on a 480x272 QIDI Q2.
 
 ### `HELIX_DISPLAY_BACKEND`
 
@@ -1589,6 +1591,45 @@ set values, capture screenshots — so it is a debugging aid to switch on for a 
 something to leave enabled on a shared machine. Pin `HELIX_REMOTE_SOCKET` when more than one
 instance could be running, since a bare `ctl` silently drives whichever started first and
 still reports success. See `docs/devel/HELIXCTL.md`.
+
+### `HELIX_REMOTE_HTTP_TOKEN`
+
+Bearer token for the remote-control HTTP transport. Required before the server will bind an
+address reachable from off-box.
+
+The HTTP endpoint (`--remote-transport http`) exposes the same JSON-RPC command set as the
+Unix socket, and that set can drive any widget in the UI. The socket is protected by its 0600
+mode; a TCP listener has no equivalent, so an off-box bind refuses to start unless this is
+set. Loopback needs no token.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Any string of at least 16 characters |
+| **Default** | Unset (loopback binds only) |
+| **Read by** | `src/application/application.cpp#run` |
+| **Enforced by** | `src/remote/http_transport.cpp#decide_http_bind` |
+
+```bash
+# In helixscreen.env, or exported before launching:
+HELIX_REMOTE_HTTP_TOKEN=$(openssl rand -hex 16)
+```
+
+```bash
+curl -s -X POST http://<host>:7130/rpc \
+  -H "Authorization: Bearer $HELIX_REMOTE_HTTP_TOKEN" \
+  -d '{"jsonrpc":"2.0","method":"ping","id":1}'
+```
+
+Requests without a matching `Authorization: Bearer <token>` header get `401`. Once the token
+is set it gates every request, including on a loopback listener.
+
+Read from the environment rather than a CLI flag on purpose: `argv` is readable by any local
+user through `/proc`, so a token passed as a flag would leak. A bind that is refused logs the
+reason at error level and the app continues without a server:
+
+```
+[RemoteControl] Refusing to bind 0.0.0.0:7130: reachable from off-box and no token is set.
+```
 
 ### `HELIX_HANG_THRESHOLD_SEC`
 

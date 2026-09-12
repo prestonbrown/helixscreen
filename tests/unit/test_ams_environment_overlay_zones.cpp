@@ -13,7 +13,9 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "static_panel_registry.h"
 
+#include <algorithm>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -414,7 +416,7 @@ TEST_CASE_METHOD(XMLTestFixture, "A queued zone says what it is waiting for",
     // The banner names the zone being waited on, not a generic "please wait".
     const std::string text =
         lv_label_get_text(lv_obj_find_by_name(lv_screen_active(), "queued_banner_label"));
-    CHECK(text.find(zone_display_label(zones[0], "Unit", "Slot", "")) != std::string::npos);
+    CHECK(text.find(zone_display_label(zones[0], "Unit", LaneNoun::Slot, "")) != std::string::npos);
 
     // Selecting the running zone puts it away.
     overlay.select_zone(0);
@@ -446,7 +448,8 @@ TEST_CASE_METHOD(XMLTestFixture, "A badge scoped to one unit still names the rea
 
     const std::string text =
         lv_label_get_text(lv_obj_find_by_name(lv_screen_active(), "queued_banner_label"));
-    CHECK(text.find(zone_display_label(all_zones[0], "Unit", "Slot", "")) != std::string::npos);
+    CHECK(text.find(zone_display_label(all_zones[0], "Unit", raw->lane_noun(), "")) !=
+          std::string::npos);
     // Not the fallback that fires when no blocker is found.
     CHECK(text.find("another box") == std::string::npos);
 
@@ -549,6 +552,59 @@ TEST_CASE_METHOD(XMLTestFixture, "A zone with no attributable unit refuses to st
 
     // Not commanded: heating an unrelated box would be worse than doing nothing.
     CHECK_FALSE(raw->get_dryer_info(0).active);
+
+    reset_overlay_singleton();
+    AmsState::instance().set_backend(nullptr);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "The zone detail names positions in the backend's own word",
+                 "[ams][zones][overlay][i18n]") {
+    reset_overlay_singleton();
+
+    // A multi-unit AmsBackendMock reports AFC, whose noun is Lane. The detail header
+    // and the line under it are read alongside the panel the user tapped from, which
+    // already says lane everywhere.
+    auto backend = std::make_unique<AmsBackendMock>();
+    backend->set_multi_unit_mode(true);
+    backend->set_environment_mode("mixed");
+    auto* raw = backend.get();
+    REQUIRE(raw->lane_noun() == LaneNoun::Lane);
+    AmsState::instance().set_backend(std::move(backend));
+
+    auto zones = raw->get_environment_zones(-1);
+    const auto multi = std::find_if(zones.begin(), zones.end(),
+                                    [](const EnvironmentZone& z) { return z.gates.size() > 1; });
+    const auto single = std::find_if(zones.begin(), zones.end(),
+                                     [](const EnvironmentZone& z) { return z.gates.size() == 1; });
+    REQUIRE(multi != zones.end());
+    REQUIRE(single != zones.end());
+
+    auto& overlay = get_ams_environment_overlay();
+    lv_subject_t* slots = nullptr;
+    lv_subject_t* title = nullptr;
+
+    // A box covering several gates: the line under the header takes the plural.
+    overlay.show_zone(lv_screen_active(), {*multi}, 0, false);
+    helix::ui::UpdateQueue::instance().drain();
+    slots = lv_xml_get_subject(nullptr, "ams_env_overlay_slots_text");
+    REQUIRE(slots != nullptr);
+    const std::string range = lv_subject_get_string(slots);
+    CHECK(range.rfind("Lanes ", 0) == 0);
+    CHECK(range.find("Slot") == std::string::npos);
+
+    // A single-gate zone has no name of its own, so the header is the position.
+    overlay.show_zone(lv_screen_active(), {*single}, 0, false);
+    helix::ui::UpdateQueue::instance().drain();
+    title = lv_xml_get_subject(nullptr, "ams_env_overlay_title_text");
+    REQUIRE(title != nullptr);
+    const std::string header = lv_subject_get_string(title);
+    CHECK(header.rfind("Lane ", 0) == 0);
+    CHECK(header.find("Slot") == std::string::npos);
+
+    slots = lv_xml_get_subject(nullptr, "ams_env_overlay_slots_text");
+    REQUIRE(slots != nullptr);
+    const std::string one = lv_subject_get_string(slots);
+    CHECK(one.rfind("Lane ", 0) == 0);
 
     reset_overlay_singleton();
     AmsState::instance().set_backend(nullptr);

@@ -24,7 +24,11 @@ LOCALES = ["de", "es", "fr", "it", "ja", "pt", "ru", "zh"]
 GLOSSARY_GROUPS: dict[str, list[str]] = {
     "Hardware / filament path": [
         "Filament", "Nozzle", "Bed", "Heater", "Chamber", "Extruder",
-        "Fan", "Fans", "Spool", "Slot", "Printer", "Vendor",
+        "Fan", "Fans", "Spool", "Printer", "Vendor",
+        # Position nouns: each backend's own word for one filament position, plus
+        # the plurals lane_range_label() uses for a range.
+        "Slot", "Lane", "Gate", "Feeder", "Tool", "Toolhead",
+        "Slots", "Lanes", "Gates", "Feeders", "Tools", "Toolheads",
     ],
     "Actions": [
         "Save", "Cancel", "Close", "Delete", "Edit", "Retry",
@@ -64,13 +68,40 @@ translation agents (the relevant column is injected into their prompts).
 
 ## Ambiguous terms (resolved)
 
-- **Slot** vs **Lane**: both name one filament position in a multi-material
-  unit. Generic UI says `Slot`, and every locale renders it with its own slot
-  term. AFC-specific screens keep `Lane`: they label AFC hardware and sit beside
-  AFC's own `Hub`, so "Stopped between Slot and Hub" would read as nonsense.
-  Translate a `Lane` string with the locale's lane word, not its slot word.
-  Chinese is the exception in the other direction - it has never distinguished
-  the two and uses the slot term throughout.
+- **Position nouns** (`Slot`, `Lane`, `Gate`, `Feeder`) all name one filament
+  position, and the UI uses whichever word that printer's hardware uses: AFC says
+  Lane, Happy Hare says Gate, Snapmaker U1 says Feeder, Bambu-style AMS/CFS/QIDI/
+  ACE say Slot. They must render as FOUR DISTINCT words in every locale - if two
+  collapse, the backend's noun buys nothing. `Tool` and `Toolhead` are the same
+  idea for the printing end rather than the filament position.
+- **Loanword policy for these four.** `Gate` is Happy Hare's English term of art
+  and stays untranslated in de, es, fr, it and pt; ja transliterates it (`ゲート`),
+  zh translates it (`通道`), ru transliterates to Cyrillic (`Шлюз`). The evidence:
+  Happy Hare ships no translations at all and its own touchscreen frontend
+  hardcodes English "Gate", mainsail's German translator kept and compounded it
+  (`Gate-Zuweisung`), and Bambu's own catalogue keeps English `slot` in de (23/23),
+  it (22/22), pt (20/22) and fr (18/24) while only es translates it (`ranura`).
+  So those locales demonstrably take English hardware nouns in this domain.
+  Gate and Lane in es, fr, it, ja and pt rest on NO direct evidence - there is
+  almost no native-language writing about these projects - so they are defaults,
+  not findings, and a native speaker may overturn any of them.
+- **Do not reason from OrcaSlicer or wiki.bambulab.com.** Orca is a fork with its
+  own catalogue and disagrees with Bambu (it ships fr `Emplacement` and pt_BR
+  `Espaço`, neither of which Bambu uses). The Bambu wiki is self-declared machine
+  translation for every locale but en and zh. Bambu Studio's `.po` is the
+  authority, and it must be counted in the `msgstr` - a raw file grep for "slot"
+  mostly returns English `msgid` lines and overstates loanword use several-fold.
+- **Plurals are fixed strings, never generated.** `lane_range_label()` renders a
+  range as one plural noun plus the range ("Lanes 1-4"). Russian numeral agreement
+  would demand `1 слот` / `2-4 слота` / `5+ слотов`, so the plural is a nominative
+  header and is never agreed with either number. Italian does not pluralise English
+  loanwords (`Slot`, `Gate` stay as-is); ja and zh do not inflect for number, so
+  their plural equals their singular. None of these is an oversight.
+- **Feeder** vs **Toolhead**: Snapmaker U1-specific. The U1 names where filament
+  enters `Feeder` and the printing end `Toolhead` — two different words for the
+  same 1:1 physical position, matching the U1's own firmware UI. Reuse each
+  locale's existing `feeder`/`toolhead` rendering (established from other
+  strings using those English words) rather than coining a new one.
 - **Spool**: the physical spool noun — keep one rendering per locale.
 - **Light**: ambiguous (theme "Light" vs LED light) — translate by context; not
   a fixed glossary term.

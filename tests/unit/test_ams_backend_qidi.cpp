@@ -1662,7 +1662,9 @@ TEST_CASE("QIDI Box current_error returns CRITICAL event for first blocked slot"
     CHECK(ev->source == helix::ErrorSource::QIDI);
     CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
     CHECK_FALSE(ev->title.empty());
-    CHECK(ev->detail.find("2") != std::string::npos); // 1-based: slot index 1 → lane 2
+    // The whole label, not just the digit: the noun comes from the backend's
+    // lane_noun() and the number from lane_number(), and a user reads both.
+    CHECK(ev->detail.find("Slot 2") != std::string::npos);
     CHECK(ev->sticky);
     // Recovery has one dismiss affordance — a button-less modal is a non-dismissible
     // UI trap (RecoveryModalPresenter with 0 buttons hides the button container).
@@ -1682,7 +1684,7 @@ TEST_CASE("QIDI Box current_error scans slots from later boxes", "[ams][qidi_box
 
     auto ev = backend.current_error();
     REQUIRE(ev.has_value());
-    CHECK(ev->detail.find("6") != std::string::npos); // 1-based: global slot 5 → lane 6
+    CHECK(ev->detail.find("Slot 6") != std::string::npos); // 1-based: global slot 5
 }
 
 TEST_CASE("QIDI Box current_error picks the first blocked slot when multiple blocked",
@@ -1700,7 +1702,7 @@ TEST_CASE("QIDI Box current_error picks the first blocked slot when multiple blo
     auto ev = backend.current_error();
     REQUIRE(ev.has_value());
     // First blocked slot is index 0 → lane 1
-    CHECK(ev->detail.find("1") != std::string::npos);
+    CHECK(ev->detail.find("Slot 1") != std::string::npos);
 }
 
 TEST_CASE("QIDI Box current_error clears when slot unblocks", "[ams][qidi_box][error-center]") {

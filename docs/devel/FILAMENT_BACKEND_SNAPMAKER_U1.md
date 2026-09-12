@@ -22,21 +22,27 @@ identify per channel via RFID (`filament_detect.info`). Platform context:
 
 ### Hardware and Topology
 
-One unit ("SnapSwap"), four slots, one per toolhead:
+One unit ("SnapSwap"), four Feeders, one per toolhead:
 
 ```
-  Slot 0 ── Toolhead 0
-  Slot 1 ── Toolhead 1     (each lane: own feeder, own path, own nozzle)
-  Slot 2 ── Toolhead 2
-  Slot 3 ── Toolhead 3
+  Feeder 1 ── Toolhead 1   (gcode T0)   each feeder has its own path and nozzle
+  Feeder 2 ── Toolhead 2   (gcode T1)
+  Feeder 3 ── Toolhead 3   (gcode T2)
+  Feeder 4 ── Toolhead 4   (gcode T3)
 ```
+
+Both columns above are what the U1's own firmware UI shows: "Feeder 1".."Feeder 4"
+where filament enters, "Toolhead 1".."Toolhead 4" at the printing end, each
+numbered from 1. The gcode tool index is the separate, 0-based identity a user
+types into a console (`T0`-`T3`, matching `extruder`/`extruder1`-`extruder3`),
+which is why it is spelled out per row rather than folded into either column.
 
 - `NUM_TOOLS = 4`, slot `i` carries `extruder_name` `"extruder"` / `"extruder{i}"`
   (`src/printer/ams_backend_snapmaker.cpp#AmsSubscriptionBackend`).
 - `PathTopology::PARALLEL` on both the unit and `get_topology()`
-  (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`). Because every lane has an independent
+  (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`). Because every feeder has an independent
   path, `needs_unload_before_load()` is answered by the base class — the serial
-  lane rule never applies (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`).
+  feeder rule never applies (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`).
 - `tip_method = TipMethod::NONE` — the U1 has no cutter and forms no discrete tip;
   unload is heat + retract, so the unload stepper renders "Heat nozzle -> Retract"
   (`src/printer/ams_backend_snapmaker.cpp#AmsSubscriptionBackend`).
@@ -159,20 +165,20 @@ conservative prefix/suffix fallback for unknown future states
   current firmware (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`,
   `src/printer/ams_backend_snapmaker.cpp#can_unload_from_toolhead`).
 - **Action lifecycle and errors.** `*_fail` states and `channel_error` tokens surface as
-  `AmsAction::ERROR` with a direction-aware message ("No filament in lane N. Load
-  filament and retry." for the `no_filament` token), except when the lane is empty,
-  idle, and not the active lane — the firmware reports `no_filament` for any empty lane,
-  which must not latch a spurious error modal on a deliberately unloaded head in a
+  `AmsAction::ERROR` with a direction-aware message ("No filament in Feeder N. Load
+  filament and retry." for the `no_filament` token), except when the feeder is empty,
+  idle, and not the active feeder — the firmware reports `no_filament` for any empty
+  feeder, which must not latch a spurious error modal on a deliberately unloaded head in a
   multi-color print (`src/printer/ams_backend_snapmaker.cpp#friendly_channel_error`, `1321-1354`).
 - **`preload_finish` is terminal-for-latch but does not end the operation** — a re-unload
-  of a staged lane keeps that state while the nozzle heats, and dropping to Idle there
+  of a staged feeder keeps that state while the nozzle heats, and dropping to Idle there
   killed the unload step display mid-heat (`src/printer/ams_backend_snapmaker.cpp#handle_status_update`).
 
 A `*_finish` that clears the latch also demotes the slot LOADED -> AVAILABLE and clears
 `filament_loaded` for the active tool, but never resets `current_slot`/`current_tool`:
 those track the picked-up tool, and resetting them mis-routed a bare unload to T0 for a
 user printing TPU without feeders (field report recorded at
-`src/printer/ams_backend_snapmaker.cpp#handle_status_update`). Lanes reaching `unload_finish` are reported to
+`src/printer/ams_backend_snapmaker.cpp#handle_status_update`). Feeders reaching `unload_finish` are reported to
 `AmsState::mark_slot_unloaded()` after the mutex is released so `FilamentSensorManager`
 suppresses the runout modal during the expected pull-out grace window
 (`src/printer/ams_backend_snapmaker.cpp#handle_status_update`, `src/printer/ams_backend_snapmaker.cpp#handle_status_update`) — the deferral exists because
@@ -200,7 +206,7 @@ runout dialog -> refeed -> RESUME -> print continues - is **not field-tested**.
 Related capability flags: `recovers_filament_on_resume() = true` (Resume re-feeds, so
 the runout dialog presents Resume as primary) and
 `should_suppress_idle_runout_modal() = true` (the U1 drives load/unload itself, so an
-idle lane going empty needs no operator action) (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`).
+idle feeder going empty needs no operator action) (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker`).
 
 `is_stuck_motion_sensor_runout()` (motion sensor false, port sensor true = stale encoder)
 currently has **no caller in tree** — the auto-recover path that consumed it was pulled
@@ -409,14 +415,14 @@ command sets one entry and resets nothing, so unmentioned tools kept whatever th
 previous print left, and the used-heads line assumed the default applied.
 
 **Reads.** `AmsBackendSnapmaker::get_tool_mapping()` publishes the table as the applied
-logical-to-physical routing, and the live gcode preview colors each tool by the lane that
-will actually print it. Three gating rules, all from observation on a real U1:
+logical-to-physical routing, and the live gcode preview colors each tool by the toolhead
+that will actually print it. Three gating rules, all from observation on a real U1:
 
 - The firmware restores identity when the print **completes** and when it is
   **cancelled** — both observed directly (idle after either: `extruders_used`
   `[F,F,F,F]`, `extruder_map_table[0:4]` `[0,1,2,3]`).
 - Idle therefore reads `[0,1,2,3]`, which is **indistinguishable from "this print needs
-  no remap"** and is flatly wrong for a file whose tools do not line up with the lanes.
+  no remap"** and is flatly wrong for a file whose tools do not line up with the toolheads.
   Observed concretely: after cancelling a print whose correct routing was `[2,1,0,3]`,
   the table read identity. So the read is gated on `extruders_used` having at least one
   true — the firmware's own "a task is configured" signal — and answers "no opinion"

@@ -472,7 +472,7 @@ AmsError AmsBackendAce::set_slot_info(int slot_index, const SlotInfo& info, bool
         // Validate slot index
         if (system_info_.units.empty() || slot_index < 0 ||
             slot_index >= static_cast<int>(system_info_.units[0].slots.size())) {
-            return AmsErrorHelper::invalid_slot(slot_index, 0);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, 0);
         }
 
         // Update in-memory slot state so get_slot_info returns the edit
@@ -1516,7 +1516,7 @@ AmsError AmsBackendAce::validate_slot_index(int slot_index) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (slot_index < 0 || slot_index >= system_info_.total_slots) {
-        return AmsErrorHelper::invalid_slot(slot_index, system_info_.total_slots - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, system_info_.total_slots - 1);
     }
 
     return AmsErrorHelper::success();

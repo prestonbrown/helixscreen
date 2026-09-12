@@ -9,6 +9,7 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "display_numbering.h"
 #include "lvgl/src/misc/lv_text_private.h" // lv_text_get_width, lv_text_attributes_t
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "nozzle_layout.h"
@@ -403,11 +404,11 @@ void NozzleTempsWidget::on_size_changed(int colspan, int rowspan, int width_px, 
         }
     }
 
-    // Compact font only matters when single-column AND narrow; reuse the
-    // decision so the font doesn't shrink in a comfortable two-up layout.
-    const lv_font_t* text_font = (decision.columns == 1 && !decision.use_long_label)
-                                     ? theme_manager_get_font("font_xs")
-                                     : nullptr;
+    // Whether the text shrinks is its own decision: the column has to be too
+    // narrow for the row it is about to draw, which is not the same question as
+    // which spelling won.
+    const lv_font_t* text_font =
+        decision.use_compact_font ? theme_manager_get_font("font_xs") : nullptr;
     if (text_font) {
         auto set_font = [text_font](lv_obj_t* lbl) {
             if (lbl)
@@ -430,27 +431,28 @@ void NozzleTempsWidget::on_size_changed(int colspan, int rowspan, int width_px, 
         lv_label_set_text(row.tool_label, text.c_str());
     }
 
-    spdlog::debug("[NozzleTempsWidget] on_size_changed {}x{} avail={} cols={} long={}", colspan,
-                  rowspan, avail_px, decision.columns, decision.use_long_label);
+    spdlog::debug("[NozzleTempsWidget] on_size_changed {}x{} avail={} cols={} long={} compact={}",
+                  colspan, rowspan, avail_px, decision.columns, decision.use_long_label,
+                  decision.use_compact_font);
 }
 
 void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& row) {
-    // Short label: the tool identifier (e.g. "T0"); falls back to the klipper
-    // extruder name when no tool is mapped (multi-extruder, no toolchanger).
-    std::string short_name = ToolState::instance().tool_name_for_extruder(row.name);
+    auto& tool_state = ToolState::instance();
+
+    // Short label: the tool's physical position (e.g. "Tool 1"); falls back to
+    // the klipper extruder name when no tool is mapped (multi-extruder, no
+    // toolchanger).
+    std::string short_name = tool_state.display_label_for_extruder(row.name);
     if (short_name.empty())
         short_name = row.name;
 
     // Long label: prefer the user-friendly "Nozzle N" from PrinterTemperatureState
-    // when the tool identifier is just the default Tn pattern. For toolchangers
-    // with viesturz-named tools (e.g. "Left", "Right"), the configured tool name
-    // is already meaningful — keep it.
-    std::string long_name = short_name;
-    bool is_default_tn = short_name.size() >= 2 && short_name[0] == 'T' &&
-                         std::all_of(short_name.begin() + 1, short_name.end(), [](char c) {
-                             return std::isdigit(static_cast<unsigned char>(c));
-                         });
-    if (is_default_tn) {
+    // when the tool's gcode identity is just the default Tn pattern. For
+    // toolchangers with viesturz-named tools (e.g. "Left", "Right"), the
+    // configured tool name is already meaningful — keep it.
+    std::string gcode_name = tool_state.tool_name_for_extruder(row.name);
+    std::string long_name = gcode_name.empty() ? row.name : gcode_name;
+    if (helix::ui::is_generated_tool_name(gcode_name)) {
         const auto& exts = printer_state_.temperature_state().extruders();
         auto it = exts.find(row.name);
         if (it != exts.end() && !it->second.display_name.empty())

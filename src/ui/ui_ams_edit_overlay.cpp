@@ -16,6 +16,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "color_utils.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
 #include "filament_mapper.h"
@@ -1398,8 +1399,8 @@ void AmsEditOverlay::update_ui() {
         snprintf(slot_indicator_buf_, sizeof(slot_indicator_buf_), "%s",
                  lv_tr("External Filament"));
     } else {
-        snprintf(slot_indicator_buf_, sizeof(slot_indicator_buf_), lv_tr("Slot %d Filament"),
-                 slot_index_ + 1);
+        snprintf(slot_indicator_buf_, sizeof(slot_indicator_buf_), lv_tr("%s Filament"),
+                 helix::ui::lane_label(helix::ui::active_lane_noun(), slot_index_).c_str());
     }
     lv_subject_copy_string(&slot_indicator_subject_, slot_indicator_buf_);
 
@@ -1529,7 +1530,7 @@ void AmsEditOverlay::update_ui() {
             if (!tool_options.empty()) {
                 tool_options += '\n';
             }
-            tool_options += "T" + std::to_string(i);
+            tool_options += helix::ui::tool_label(i);
         }
         lv_dropdown_set_options(tool_dropdown, tool_options.c_str());
 

@@ -16,6 +16,7 @@
 #include "ams_error.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -1279,6 +1280,32 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker-entry spool selection commits and cl
 
     UpdateQueue::instance().drain();
     process_lvgl(10);
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "the editor header names the position in the active backend's own word",
+                 "[ams_edit_overlay][i18n]") {
+    // The fixture registers an AmsBackendMock, which reports Happy Hare, whose
+    // noun is Gate. The title a user reads above the editor has to be the same
+    // word the panel behind it used for the thing they tapped.
+    REQUIRE(backend->lane_noun() == helix::ui::LaneNoun::Gate);
+
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo info = untracked_slot();
+    info.slot_index = 2;
+    REQUIRE(overlay.show_for_slot(test_screen(), 2, info, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    // header_bar's title carries text_transform="uppercase", so the rendered
+    // string is the composed title in caps.
+    lv_obj_t* title = access.widget("header_title");
+    REQUIRE(title != nullptr);
+    CHECK(std::string(lv_label_get_text(title)) == "GATE 3 FILAMENT");
+
+    close_editor_overlay();
 }
 
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,

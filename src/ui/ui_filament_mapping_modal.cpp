@@ -7,6 +7,7 @@
 #include "ui_utils.h"
 
 #include "ams_state.h"
+#include "display_numbering.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
@@ -149,9 +150,7 @@ lv_obj_t* FilamentMappingModal::create_tool_row(int tool_index) {
 
     if (auto* tool_label = lv_obj_find_by_name(row, "tool_label")) {
         if (tool_info_.size() > 1) {
-            char tool_buf[8];
-            snprintf(tool_buf, sizeof(tool_buf), "T%d", tool.tool_index);
-            lv_label_set_text(tool_label, tool_buf);
+            lv_label_set_text(tool_label, helix::ui::tool_label(tool.tool_index).c_str());
             lv_obj_set_style_text_color(tool_label, theme_manager_get_readable_on(gcode_color), 0);
             lv_obj_remove_flag(tool_label, LV_OBJ_FLAG_HIDDEN);
         }
@@ -252,9 +251,10 @@ std::string FilamentMappingModal::get_slot_display_text(const helix::ToolMapping
         return helix::FilamentMapper::format_slot_label(*slot);
     }
 
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%s %d", lv_tr("Slot"), mapping.mapped_slot + 1);
-    return buf;
+    // No AvailableSlot here to carry a noun, so the active printer answers for
+    // it. lane_label() spells the whole label, so there is no buffer here for a
+    // translated noun to overrun.
+    return helix::ui::lane_label(helix::ui::active_lane_noun(), mapping.mapped_slot);
 }
 
 // ============================================================================

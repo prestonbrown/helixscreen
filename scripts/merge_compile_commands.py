@@ -44,10 +44,11 @@ import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# -DHELIX_VERSION=, not -DHELIX_VERSION_MAJOR=. The recorded command keeps the quote
-# characters as literal parts of the token (make expanded them, the shell assignment
-# in emit-compile-command ate the backslashes), so accept them optionally.
-VERSION_DEFINE_RE = re.compile(r'-DHELIX_VERSION=["\']?([0-9][^"\'\s]*)')
+# -DHELIX_VERSION=, not -DHELIX_VERSION_MAJOR=. The recorded value carries the quote
+# characters the compiler needs, and emit-compile-command shell-quotes the token on
+# top of them, so the stamp arrives as '"1.1.0"'. Match any run of quotes: one that
+# accepts a single quote character reads every real entry as carrying no stamp.
+VERSION_DEFINE_RE = re.compile(r'-DHELIX_VERSION=["\']*([0-9][^"\'\s]*)')
 
 # Rank of the version stamp on an entry, high to low. An entry carrying no stamp at
 # all is not evidence of staleness: submodule TUs (lib/lvgl, lib/libhv, generated

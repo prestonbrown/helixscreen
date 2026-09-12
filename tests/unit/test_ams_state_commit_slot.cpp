@@ -4,11 +4,14 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_error.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "display_numbering.h"
+#include "filament_op_dispatch.h"
 #include "lane_source_store.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -257,6 +260,65 @@ TEST_CASE("context-menu clear wipes slot and clears server active spool",
     // ...AND the server-side active spool was cleared — the F2LNLQCC fix
     // (a restart must not re-assert the cleared spool).
     REQUIRE(mock_api->spoolman_mock().get_mock_active_spool_id() == 0);
+}
+
+TEST_CASE("context-menu clear names the position in the backend's own word",
+          "[ams][commit][context-menu][i18n]") {
+    CommitFixture f;
+    f.setup(169);
+
+    // AmsBackendMock reports Happy Hare, whose noun is Gate. The confirmation
+    // a user reads has to match the word the rest of the UI uses for the thing
+    // they just cleared.
+    REQUIRE(f.backend->lane_noun() == helix::ui::LaneNoun::Gate);
+
+    std::vector<std::string> notes;
+    helix::ui::set_test_notification_info_hook(
+        [&notes](const std::string& msg) { notes.push_back(msg); });
+
+    REQUIRE(
+        ui::ams_dispatch_backend_action(ui::AmsContextMenu::MenuAction::CLEAR_SPOOL, 2, nullptr));
+
+    helix::ui::set_test_notification_info_hook(nullptr);
+
+    REQUIRE(notes.size() == 1);
+    CHECK(notes[0] == "Gate 3 spool cleared");
+}
+
+TEST_CASE("context-menu clear on the bypass sentinel names the external spool",
+          "[ams][commit][context-menu][i18n]") {
+    CommitFixture f;
+    f.setup(169);
+
+    // The external spool carries an assignment, and a lane carries one too, so
+    // the clear has something to remove on both sides and "it was already
+    // empty" cannot pass for "it was cleared".
+    SlotInfo external;
+    external.material = "PETG";
+    external.spoolman_id = 42;
+    AmsState::instance().commit_external_spool_edit(external);
+    REQUIRE(AmsState::instance().get_external_spool_info().value_or(SlotInfo{}).material == "PETG");
+
+    SlotInfo lane = f.backend->get_slot_info(0);
+    lane.material = "PLA";
+    f.backend->set_slot_info(0, lane, /*persist=*/false);
+    REQUIRE(f.backend->get_slot_info(0).material == "PLA");
+
+    std::vector<std::string> notes;
+    helix::ui::set_test_notification_info_hook(
+        [&notes](const std::string& msg) { notes.push_back(msg); });
+
+    REQUIRE(ui::ams_dispatch_backend_action(ui::AmsContextMenu::MenuAction::CLEAR_SPOOL,
+                                            helix::ui::EXTERNAL_SPOOL_SLOT, nullptr));
+
+    helix::ui::set_test_notification_info_hook(nullptr);
+
+    // The bypass spool has no number, so it is named rather than numbered.
+    REQUIRE(notes.size() == 1);
+    CHECK(notes[0] == "External spool cleared");
+    CHECK(AmsState::instance().get_external_spool_info().value_or(SlotInfo{}).material.empty());
+    // The sentinel is not an index into the backend: no lane was touched.
+    CHECK(f.backend->get_slot_info(0).material == "PLA");
 }
 
 TEST_CASE("commit_slot_edit clears active spool even when backend manages it",

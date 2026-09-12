@@ -8,8 +8,8 @@
  *
  * decide_nozzle_layout() is deliberately LVGL-free, so these tests need no
  * display, font subsystem, or fixture. They lock in the column-count and
- * label-form behavior so a regression (e.g. the old "long label when most
- * cramped" bug) fails the build.
+ * label-form behavior: which spelling a given column width gets, and that a
+ * column too narrow for either never takes the wider one.
  *
  * Run with: ./build/bin/helix-tests "[nozzle][layout]"
  */
@@ -102,8 +102,9 @@ TEST_CASE("Zero rows clamps to a single column", "[nozzle][layout]") {
 }
 
 // --- Exact boundaries, derived from decide_nozzle_layout()'s own arithmetic
-// (columns = avail_px >= 2*short_row_px + gap_px; use_long_label = col_w >=
-// long_row_px), not by running the function and recording what it printed.
+// (columns = avail_px >= 2*min(short_row_px, long_row_px) + gap_px;
+// use_long_label = col_w >= long_row_px or long_row_px <= short_row_px), not by
+// running the function and recording what it printed.
 
 TEST_CASE("Column split at the exact 2*short+gap boundary picks two columns", "[nozzle][layout]") {
     // threshold = 2*short_row_px(90) + gap_px(12) = 192, avail_px == threshold
@@ -134,4 +135,122 @@ TEST_CASE("One pixel below the long-label boundary uses the short label", "[nozz
                                                   /*row_count=*/4);
     REQUIRE(d.columns == 1);
     REQUIRE(d.use_long_label == false);
+}
+
+// --- The compact spelling is not narrower in every locale: de renders the
+// nozzle name "Düse 1" and the position label "Werkzeug 1".
+
+TEST_CASE("A compact form wider than the long form is never chosen", "[nozzle][layout]") {
+    // Single column (avail_px(120) < 2*short(200) + gap(12)); col_w(120) fits
+    // neither spelling, and the compact one is the wider of the two.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/120, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/200,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    REQUIRE(d.use_long_label == true);
+}
+
+TEST_CASE("Equal-width forms keep the long label when neither fits", "[nozzle][layout]") {
+    // The <= in the width comparison: identical widths are not a reason to swap.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/120, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/150,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    REQUIRE(d.use_long_label == true);
+}
+
+TEST_CASE("A wider compact form does not pin two columns to the long label", "[nozzle][layout]") {
+    // 2*short(100) + gap(12) = 212 <= avail(400) -> two columns of 194px, which
+    // fits the 150px long form on its own merits.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/400, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/100,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 2);
+    REQUIRE(d.use_long_label == true);
+}
+
+TEST_CASE("Two columns are gated on the narrower spelling, not the compact one",
+          "[nozzle][layout]") {
+    // de: the position label ("Werkzeug 1") is wider than the nozzle name
+    // ("Duse 1"), and the nozzle name is what a tight column renders. Gating on
+    // the position label would refuse a second column this width does hold:
+    // 2*150 + 12 = 312 <= 400, where 2*200 + 12 = 412 does not.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/400, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/200,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 2);
+    // col_w = (400 - 12) / 2 = 194 >= long_row_px(150).
+    CHECK(d.use_long_label == true);
+}
+
+TEST_CASE("One pixel below the narrow-spelling split boundary stays a single column",
+          "[nozzle][layout]") {
+    // Same shape as above, avail_px one under the 2*150 + 12 = 312 threshold.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/311, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/200,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    CHECK(d.use_long_label == true);
+}
+
+// --- The compact font is its own decision. Keying it off use_long_label made it
+// unreachable wherever the long form wins at every width, which is every width
+// in de/es/it/ru.
+
+TEST_CASE("A narrow column shrinks the font even when the long form wins", "[nozzle][layout]") {
+    // de shape: the nozzle name (150) is narrower than the position label (200),
+    // so use_long_label is true at any width. col_w(120) still cannot hold the
+    // 150px row it is about to draw.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/120, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/200,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    REQUIRE(d.use_long_label == true);
+    CHECK(d.use_compact_font == true);
+}
+
+TEST_CASE("A column that holds the drawn row keeps the normal font", "[nozzle][layout]") {
+    // Same de shape, wide enough for the 150px row.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/180, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/200,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    REQUIRE(d.use_long_label == true);
+    CHECK(d.use_compact_font == false);
+}
+
+TEST_CASE("A single column too narrow for the compact row shrinks the font", "[nozzle][layout]") {
+    // Base-locale shape, col_w(80) under short_row_px(90).
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/80, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/90,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    REQUIRE(d.use_long_label == false);
+    CHECK(d.use_compact_font == true);
+}
+
+TEST_CASE("A column holding the compact row keeps the normal font", "[nozzle][layout]") {
+    // Base-locale shape, col_w(120) sits between short_row_px(90) and
+    // long_row_px(150): the compact spelling is drawn and it fits, so the text
+    // has no reason to shrink.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/120, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/90,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    REQUIRE(d.use_long_label == false);
+    CHECK(d.use_compact_font == false);
+}
+
+TEST_CASE("Two columns never shrink the font", "[nozzle][layout]") {
+    // The column split is already gated on the row fitting twice.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/196, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/90,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 2);
+    CHECK(d.use_compact_font == false);
+}
+
+TEST_CASE("The pre-layout default does not shrink the font", "[nozzle][layout]") {
+    CHECK(decide_nozzle_layout(0, 12, 150, 90, 4).use_compact_font == false);
+    CHECK(decide_nozzle_layout(-50, 12, 150, 90, 4).use_compact_font == false);
 }

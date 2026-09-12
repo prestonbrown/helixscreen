@@ -6,23 +6,32 @@
 // Deliberately free of LVGL / widget state so it can be unit-tested without a
 // display, font subsystem, or UpdateQueue. The widget measures pixel widths
 // (NozzleTempsWidget::on_size_changed) and feeds them here; this header decides
-// how many columns to use and whether the long ("Nozzle 1") or short ("T0")
-// label form fits.
+// how many columns to use and which of the two label spellings to render.
+//
+// The two spellings are the nozzle's name ("Nozzle 1") and its physical
+// position ("Tool 1"). Which of them is narrower is a locale fact, not a
+// property of either role: de spells them "Düse 1" and "Werkzeug 1", so the
+// position label is the wider one there.
 
 namespace helix {
 
 struct NozzleLayoutDecision {
     int columns = 1;            ///< 1 or 2 side-by-side columns of rows
-    bool use_long_label = true; ///< true → "Nozzle 1", false → "T0"
+    bool use_long_label = true; ///< true → the nozzle name, false → the position label
+    /// Whether the temperature text needs the smaller font. A separate question
+    /// from use_long_label: which spelling won says nothing about whether the
+    /// row it produced fits, and in a locale where the position label is the
+    /// wider one the long form wins at every width.
+    bool use_compact_font = false;
 };
 
 /// Decide column count and label form from measured pixel widths.
 ///
 /// @param avail_px    usable inner width of the tile content area (after padding)
 /// @param gap_px      horizontal gap between two side-by-side rows
-/// @param long_row_px px a single row needs at the long-label form
+/// @param long_row_px px a single row needs spelled with the nozzle name
 ///                    (widest label + gap + widest value + comfort margin)
-/// @param short_row_px px a single row needs at the short-label form
+/// @param short_row_px px a single row needs spelled with the position label
 /// @param row_count   number of nozzle rows (columns clamped to this)
 ///
 /// Pure arithmetic; no LVGL calls. A degenerate avail_px <= 0 (pre-layout)
@@ -30,11 +39,15 @@ struct NozzleLayoutDecision {
 [[nodiscard]] inline NozzleLayoutDecision
 decide_nozzle_layout(int avail_px, int gap_px, int long_row_px, int short_row_px, int row_count) {
     if (avail_px <= 0)
-        return {1, true};
+        return {1, true, false};
 
-    // Two columns only when there are at least two rows AND the short form of
-    // both rows plus the inter-row gap fits the available width.
-    int columns = (row_count >= 2 && avail_px >= 2 * short_row_px + gap_px) ? 2 : 1;
+    // Two columns only when there are at least two rows AND both rows plus the
+    // inter-row gap fit. The narrower of the two spellings is what a tight
+    // column actually renders, so that is the width two columns have to hold;
+    // measuring the compact form where it is the wider one measures a string
+    // the widget will never draw there.
+    const int narrow_row_px = (short_row_px < long_row_px) ? short_row_px : long_row_px;
+    int columns = (row_count >= 2 && avail_px >= 2 * narrow_row_px + gap_px) ? 2 : 1;
 
     // Never split a single row into two columns.
     if (columns > row_count)
@@ -44,10 +57,17 @@ decide_nozzle_layout(int avail_px, int gap_px, int long_row_px, int short_row_px
 
     int col_w = (columns == 2) ? (avail_px - gap_px) / 2 : avail_px;
 
-    // Long label only when the per-column width comfortably fits the long form.
-    bool use_long_label = (col_w >= long_row_px);
+    // The long form when the column fits it, and also when the compact form is
+    // the wider of the two: falling back to a spelling the column fits even
+    // less would defeat the fallback.
+    bool use_long_label = (col_w >= long_row_px) || (long_row_px <= short_row_px);
 
-    return {columns, use_long_label};
+    // The row about to be drawn is the one that has to fit. Two columns are
+    // already gated on fitting, so only a single column can be the narrow case.
+    const int drawn_row_px = use_long_label ? long_row_px : short_row_px;
+    bool use_compact_font = (columns == 1) && (col_w < drawn_row_px);
+
+    return {columns, use_long_label, use_compact_font};
 }
 
 } // namespace helix

@@ -94,7 +94,9 @@ MoonrakerAPIMock::MoonrakerAPIMock(MoonrakerClient& client, PrinterState& state)
         };
         for (int i = 0; i < static_cast<int>(std::size(kLanes)); ++i) {
             const Lane& l = kLanes[i];
-            mock_set_db_value("lane_data", "T" + std::to_string(i),
+            mock_set_db_value("lane_data",
+                              "T" + std::to_string(i), // DISPLAY_NUMBERING_OK: database key mirrors
+                                                       // the T<n> wire format, not a display label
                               json{{"lane", std::to_string(i)},
                                    {"spoolman_id", l.spoolman_id},
                                    {"material", l.material},

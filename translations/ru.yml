@@ -9,13 +9,23 @@ translations:
   '%d disabled': '%d отключено'
   '%d failed to load - see details below': '%d не удалось загрузить — см. подробности
     ниже'
+  '%d feeders': '%d фидеров'
+  '%d gates': '%d шлюзов'
+  '%d lanes': '%d каналов'
   '%d more sensors': Ещё %d датчиков
   '%d of %d plugins loaded': 'Загружено плагинов: %d из %d'
   '%d plugins loaded': 'Загружено плагинов: %d'
   '%d slots': '%d слотов'
+  '%d toolheads': '%d печатающих головок'
+  '%d tools': '%d инструментов'
   '%lu days ago': '%lu дн. назад'
   '%lu hours ago': '%lu ч. назад'
   '%lu min ago': '%lu мин. назад'
+  '%s Filament': '%s: Филамент'
+  '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s: осталось около %.0fг, но для %s нужно около %.0fг. Всё равно начать?'
+  '%s has no filament loaded — this print will run out.': 'В %s не загружен филамент — печати не хватит филамента.'
+  '%s needs filament in %s, which is empty — this print will run out.': 'Для %s нужен филамент, но %s пуст — печати не хватит филамента.'
+  '%s: %.0fg of %.0fg needed': '%s: %.0fг из %.0fг'
   '%u layers': '%u слоёв'
   '%zu changes': '%zu изменений'
   '%zu events queued': '%zu событий в очереди'
@@ -723,10 +733,9 @@ translations:
   'Current name:': 'Текущее имя:'
   'Current:': 'Текущий:'
   'Current: %d°C | Target: %d°C': 'Текущая: %d°C | Целевая: %d°C'
-  'Current: %s · Slot %d': 'Текущий: %s · Слот %d'
+  'Current: %s': 'Текущий: %s'
+  'Current: %s · %s': 'Текущий: %s · %s'
   'Current: Bypass': 'Текущий: Обход'
-  'Current: Slot %d': 'Текущий: Слот %d'
-  'Current: Tool %d': 'Текущий: Инструмент %d'
   Currently Loaded: Загружено
   Currently printing: Сейчас печатается
   Custom: Свой
@@ -1107,6 +1116,8 @@ translations:
   Feed filament: Подать филамент
   Feed filament directly to extruder: Подать филамент напрямую в экструдер
   Feed filament from current slot: 'Подать филамент из текущего слота'
+  Feeder: Фидер
+  Feeders: Фидеры
   Feeding filament forward: Подача филамента вперёд
   Filament: Филамент
   Filament Control: Управление филаментом
@@ -1216,6 +1227,8 @@ translations:
   GCode Console: 'Консоль G-code'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Игра окончена!\nСчёт: {}\nНажмите, чтобы начать заново"
+  Gate: Шлюз
+  Gates: Шлюзы
   Gear Buffer Speed: 'Скорость шестерни от буфера'
   Gear Spool Speed: 'Скорость шестерни от катушки'
   Gear Unload Speed: 'Скорость выгрузки шестерни'
@@ -1494,8 +1507,9 @@ translations:
   Label printed: Этикетка напечатана
   Labels: Этикетки
   Labels Per Sheet: Этикеток на листе
-  Lane: Слот
+  Lane: Канал
   Lane tests and motor resets: 'Тесты слотов и сброс моторов'
+  Lanes: Каналы
   Language: Язык
   Language, theme, brightness, and sound: Язык, тема, яркость и звук
   Last: Последняя
@@ -2044,8 +2058,8 @@ translations:
   Preheat Macro: Макрос преднагрева
   Preheat PLA: Преднагрев PLA
   Preheat cancelled: Предварительный нагрев отменён
-  'Preheat: T{} + bed set': 'Преднагрев: T{} + стол заданы'
   'Preheat: all {} tools + bed set': 'Преднагрев: все {} инструменты + стол заданы'
+  'Preheat: {} + bed set': 'Преднагрев: {} + стол заданы'
   Prepared: Готово
   Preparing: Подготовка
   Preparing Print: Подготовка печати
@@ -2623,18 +2637,9 @@ translations:
   Sliced colors: Цвета из слайсера
   Slicer: Слайсер
   Slot: Слот
-  Slot %d: Слот %d
-  Slot %d Filament: Филамент слота %d
-  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'В слоте %d осталось около %.0fг, но инструменту %d нужно около %.0fг. Всё равно начать?'
-  'Slot %d: %.0fg of %.0fg needed': 'Слот %d: %.0fг из %.0fг'
   Slot 1: Слот 1
   Slot colors, materials, and levels: Цвета, материалы и уровни слотов
-  Slot {}: Слот {}
-  Slot {} is blocked — manual intervention required: Слот {} заблокирован — требуется ручное вмешательство
-  Slot {} matches.: 'Слот {} подходит.'
-  Slot {} spool cleared: Катушка слота {} удалена
-  Slot {} updated: Слот {} обновлён
-  Slots: ''
+  Slots: Слоты
   Small labels help keep controls calm and focused.: Мелкие надписи помогают сохранять
     элементы управления аккуратными.
   Snapmaker SnapSwap: Snapmaker SnapSwap
@@ -2752,7 +2757,7 @@ translations:
   Switch between light and dark themes: Переключение между светлой и тёмной темами
   Switch the active tool or extruder: Смена активного инструмента
   Switch to v%s: 'Перейти на v%s'
-  Switched to T{}: Переключено на T{}
+  Switched to {}: 'Переключено на {}'
   Switches to a backup spool on runout: При обрыве переключится на резервную катушку
   Switching heater control to MPC. Klipper will restart.: Переключение управления
     нагревом на MPC. Klipper перезапустится.
@@ -2766,10 +2771,6 @@ translations:
   System busy — try again: Система занята — попробуйте снова
   System default: Системное по умолчанию
   System detected: Обнаружена система
-  T%d has no filament loaded — this print will run out.: В T%d не загружен филамент
-    — печати не хватит филамента.
-  T%d needs filament in slot %d, which is empty — this print will run out.: Для T%d
-    нужен филамент в слоте %d, который пуст — печати не хватит филамента.
   TANGLE: СПУТЫВАНИЕ
   TD-1 filament color detection: Определение цвета филамента TD-1
   TEMPERATURE SENSORS: ДАТЧИКИ ТЕМПЕРАТУРЫ
@@ -2849,6 +2850,7 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   : Анимированная заставка была отключена на данном устройстве, чтобы она не мешала
     печати. Вы можете снова включить её в Настройки > Дисплей.
+  The bed was reported dirty, so this print cannot resume.: 'Стол помечен как загрязнённый, поэтому печать не может быть продолжена.'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Буфер может быть отключён, заклинен или неисправен. Проверьте его перед повтором
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Буфер не фиксировал движение 16 секунд. Проверьте засор между CFS и экструдером или заклинивший буфер
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм
@@ -3006,13 +3008,14 @@ translations:
   'Tool change failed: {}': 'Ошибка смены инструмента: {}'
   Tool mapping failed: Ошибка сопоставления инструмента
   Tool swap: Смена инструмента
-  'Tool {} → Slot {}: no filament loaded.': 'Инструмент {} → Слот {}: филамент не загружен.'
   Toolhead: 'Печатающая головка'
   Toolhead LED: 'LED печатающей головки'
   Toolhead Sensor: Датчик печатающей головки
   Toolhead Style: Стиль печатающей головки
   Toolhead jam: Замятие в печатающей головке
   Toolhead, G-code, limits, and materials: Печатающая головка, G-code, лимиты и материалы
+  Toolheads: Печатающие головки
+  Tools: Инструменты
   Tools Used: Использовано инструментов
   'Tools: ': 'Инструменты: '
   Total Prints: Всего печатей
@@ -3046,7 +3049,6 @@ translations:
   Type: Тип
   Type to preview input field...: Введите для предпросмотра поля ввода...
   'Type:': 'Тип:'
-  T{} shares slot with T{}: T{} использует общий слот с T{}
   UI Scale: Масштаб интерфейса
   UI Sounds: Звуки интерфейса
   UI scale applies after restart: Масштаб интерфейса применяется после перезапуска
@@ -3335,6 +3337,7 @@ translations:
   v{} is available. Tap to update.: v{} доступна. Нажмите для обновления.
   you have: у вас
   '{} LED strips available': 'Доступно светодиодных лент: {}'
+  '{} and {} are both mapped here': '{} и {} оба назначены сюда'
   '{} axis homed': Ось {} запаркована
   '{} command timed out': Время команды {} истекло
   '{} complete': '{} завершено'
@@ -3348,10 +3351,12 @@ translations:
   '{} filament • {}': '{} филамента • {}'
   '{} heater turned off': Нагреватель {} выключен
   '{} is asking to connect to this printer.': '{} запрашивает подключение к этому принтеру.'
+  '{} is blocked — manual intervention required': '{}: блокировка — требуется ручное вмешательство'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} установлен, но переключение на резервную катушку выключено, поэтому автоматической замены не будет.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} установлен, но прочитать его настройку резервной катушки не удалось - не рассчитывайте на автоматическую замену.'
   '{} is not set up on this printer': '{} не настроен на этом принтере'
   '{} macro not configured': Макрос {} не настроен
+  '{} matches.': '{} подходит.'
   '{} may cause unintended changes. Are you sure?': '{} может привести к непреднамеренным
     изменениям. Вы уверены?'
   '{} more taps to {} beta features': '{} нажатий до {} бета-функций'
@@ -3361,9 +3366,12 @@ translations:
   '{} set to {}': '{} установлено на {}'
   '{} set to {} {}': '{} установлено на {} {}'
   '{} slots': '{} слотов'
+  '{} spool cleared': '{}: катушка удалена'
   '{} started': '{} запущено'
   '{} target set to {}°C': Целевая температура {} — {}°C
+  '{} updated': '{}: обновлено'
   '{} widgets': 'Виджетов: {}'
   ? '{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present.'
   : '{} переключится на слот, у которого тип филамента И цвет совпадают с активной катушкой, а собственный датчик порта видит филамент.'
   '{} — response timed out': '{} — время ожидания ответа истекло'
+  '{} → {}: no filament loaded.': '{} → {}: филамент не загружен.'
