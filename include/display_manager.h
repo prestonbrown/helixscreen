@@ -172,25 +172,48 @@ class DisplayManager : public helix::ICalibrationSink {
 
     /**
      * @brief Decide whether real panel power-off (FB_BLANK_POWERDOWN / DRM DPMS)
-     *        may be used as the sleep mechanism (#1049). Pure, no side effects.
+     *        is the sleep mechanism (#1049, #1594). Pure, no side effects.
      *
-     * Power-off is a LAST RESORT — only for devices with NO controllable
-     * backlight (generic HDMI / Backlight-None like the #1049 reporter and CB1),
-     * where it is the only way to actually cut the panel. Any device WITH a
-     * hardware blank OR a usable backlight must NOT power off the panel: it turns
-     * the backlight off instead, which is safer and avoids driver-specific
-     * CRTC-disable wedges (e.g. Snapmaker U1: DRM DPMS-off disables the Rockchip
-     * VOP2 CRTC and never recovers — even though it has a working pwm backlight).
+     * Power-off and the backlight write stack rather than competing: enter_sleep()
+     * writes brightness 0 whichever mechanism it picks. A controllable backlight
+     * is therefore not a reason to skip cutting the panel — some controllers treat
+     * duty zero as "dim" and keep the LEDs powered, so the write alone leaves the
+     * panel lit.
      *
-     * @param use_hardware_blank        Whether a hardware backlight blank is used
-     * @param has_usable_backlight      Whether a controllable backlight is available
+     * A hardware blank still wins, because those backends cut the panel themselves.
+     *
+     * Two platforms are excluded at build time, because their panel does not
+     * come back from a power-down:
+     *   - Snapmaker U1: DPMS-off disables the Rockchip VOP2 CRTC and wake's
+     *     DPMS-on does not reliably re-enable it, so the panel stays black until
+     *     reboot (assets/config/platform/hooks-snapmaker-u1.sh "DRM CRTC keepalive").
+     *   - AD5X: unblanking leaves the display engine cycling solid fill colours
+     *     until the UI process restarts. Its sysfs backlight also reads
+     *     brightness=1 while the LEDs are physically dark, so the panel's real
+     *     state cannot be probed from userspace.
+     * The guard is a build-time check rather than a runtime probe because
+     * DisplayBackendFbdev::supports_power_off() answers yes for any writable
+     * /dev/fb0 without asking the panel anything, and a misfiring probe on these
+     * devices leaves the user with a screen they cannot recover.
+     *
+     * Callers may override the outcome entirely via /display/panel_power_off.
+     *
+     * @param use_hardware_blank         Whether a hardware backlight blank is used
      * @param backend_supports_power_off Whether the display backend can power off
-     * @return true only when there is neither a hardware blank nor a usable
-     *         backlight AND the backend can power off
+     * @return true when the backend can power off and no hardware blank applies
      */
-    static bool should_use_power_off(bool use_hardware_blank, bool has_usable_backlight,
-                                     bool backend_supports_power_off) {
-        return !use_hardware_blank && !has_usable_backlight && backend_supports_power_off;
+    static bool should_use_power_off(bool use_hardware_blank, bool backend_supports_power_off) {
+        if (!backend_supports_power_off) {
+            return false;
+        }
+        if (use_hardware_blank) {
+            return false;
+        }
+#if defined(HELIX_PLATFORM_SNAPMAKER_U1) || defined(HELIX_PLATFORM_AD5X)
+        return false;
+#else
+        return true;
+#endif
     }
 
     /**

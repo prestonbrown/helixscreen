@@ -49,10 +49,9 @@ class DisplayManagerTestAccess {
     // init(). Mirrors the init() expression exactly — if the gate is loosened,
     // this recomputes the loosened value and the guarding test fails.
     static bool compute_use_power_off(DisplayManager& dm) {
-        bool has_usable_backlight = dm.m_backlight && dm.m_backlight->is_available();
         bool backend_can_power_off = dm.m_backend && dm.m_backend->supports_power_off();
-        dm.m_use_power_off = DisplayManager::should_use_power_off(
-            dm.m_use_hardware_blank, has_usable_backlight, backend_can_power_off);
+        dm.m_use_power_off =
+            DisplayManager::should_use_power_off(dm.m_use_hardware_blank, backend_can_power_off);
         return dm.m_use_power_off;
     }
 
