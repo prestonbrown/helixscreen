@@ -9,6 +9,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "lane_source_store.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -48,6 +49,11 @@ SpoolInfo make_spool(int id, std::string vendor, std::string filament_name, std:
     spool.remaining_weight_g = 850.0;
     spool.initial_weight_g = 1000.0;
     return spool;
+}
+
+/// CommitFixture registers its backend first, so it takes the first id block.
+helix::ams::LaneId lane_of(int slot) {
+    return helix::ams::lane_id_for(0, slot);
 }
 
 struct CommitFixture : LVGLTestFixture {
@@ -279,4 +285,177 @@ TEST_CASE("commit_slot_edit clears active spool even when backend manages it",
 
     // REQUIRED: the clear fired anyway.
     REQUIRE(mock_api->spoolman_mock().get_mock_active_spool_id() == 0);
+}
+
+// ============================================================================
+// The lane source model: what a commit records as the user's own declaration
+// ============================================================================
+
+TEST_CASE("commit_slot_edit records only the fields the user changed", "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    original.color_rgb = 0xFFFFFF;
+    original.material = "PETG";
+    f.backend->set_slot_info(0, original, /*persist=*/false);
+    original = f.backend->get_slot_info(0);
+
+    SlotInfo edited = original;
+    edited.color_rgb = 0xBCBCBC;
+
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, edited).success());
+
+    const auto sources = helix::ams::lane_sources(lane_of(0));
+    REQUIRE(sources.local_user.has_value());
+    CHECK(sources.local_user->color_rgb == 0xBCBCBC);
+    // The user changed a colour, not a material. Recording the material too
+    // would file a value the user never chose as their own declaration.
+    CHECK_FALSE(sources.local_user->material.has_value());
+}
+
+TEST_CASE("a spool link does not record the spool's colour as the user's", "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    SlotInfo linked = original;
+    linked.spoolman_id = 7;
+    linked.brand = "Kingroon";
+    linked.material = "PETG";
+    linked.color_rgb = 0xFFFFFF;
+
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, linked).success());
+
+    const auto sources = helix::ams::lane_sources(lane_of(0));
+    REQUIRE(sources.local_user.has_value());
+    CHECK(sources.local_user->spoolman_id == 7);
+    // The colour arrived with the binding. Only the server's own record may
+    // assert it, so the user's record must not claim it.
+    CHECK_FALSE(sources.local_user->color_rgb.has_value());
+    CHECK_FALSE(sources.local_user->brand.has_value());
+    CHECK_FALSE(sources.local_user->material.has_value());
+}
+
+TEST_CASE("an unlink records the binding, not the fields it cleared", "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(7);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    original.brand = "Kingroon";
+    original.material = "PETG";
+    original.color_rgb = 0xFFFFFF;
+    f.backend->set_slot_info(0, original, /*persist=*/false);
+    original = f.backend->get_slot_info(0);
+    REQUIRE(original.spoolman_id == 7);
+
+    SlotInfo cleared = original;
+    cleared.spoolman_id = 0;
+    cleared.brand.clear();
+    cleared.material.clear();
+    cleared.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, cleared).success());
+
+    const auto sources = helix::ams::lane_sources(lane_of(0));
+    REQUIRE(sources.local_user.has_value());
+    CHECK(sources.local_user->spoolman_id == 0);
+    // The unbinding cleared those fields; the user did not choose an empty
+    // material or a default colour, so neither becomes their declaration.
+    CHECK_FALSE(sources.local_user->color_rgb.has_value());
+    CHECK_FALSE(sources.local_user->brand.has_value());
+    CHECK_FALSE(sources.local_user->material.has_value());
+}
+
+TEST_CASE("a later edit amends the user's record instead of replacing it", "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    SlotInfo picked_colour = original;
+    picked_colour.color_rgb = 0xBCBCBC;
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, picked_colour).success());
+
+    SlotInfo after_colour = f.backend->get_slot_info(0);
+    SlotInfo picked_material = after_colour;
+    picked_material.material = "ASA";
+    REQUIRE(AmsState::instance().commit_slot_edit(0, after_colour, picked_material).success());
+
+    const auto sources = helix::ams::lane_sources(lane_of(0));
+    REQUIRE(sources.local_user.has_value());
+    CHECK(sources.local_user->material == "ASA");
+    // Two statements by one person, not one statement replacing another.
+    CHECK(sources.local_user->color_rgb == 0xBCBCBC);
+}
+
+TEST_CASE("a second backend's lane 0 is not the first backend's", "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+    auto& ams = AmsState::instance();
+    const int second = ams.add_backend(std::make_unique<AmsBackendMock>(4));
+    REQUIRE(second == 1);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    SlotInfo edited = original;
+    edited.color_rgb = 0xBCBCBC;
+    REQUIRE(ams.commit_slot_edit(0, original, edited).success());
+
+    // Each backend owns a block of ids, which a flat slot index could not
+    // express: slot 0 on one backend is not slot 0 on the other.
+    CHECK(helix::ams::lane_sources(lane_of(0)).local_user.has_value());
+    CHECK_FALSE(
+        helix::ams::lane_sources(helix::ams::lane_id_for(second, 0)).local_user.has_value());
+}
+
+TEST_CASE("an edit files under the backend it was written through", "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+    auto& ams = AmsState::instance();
+    const int second = ams.add_backend(std::make_unique<AmsBackendMock>(4));
+    REQUIRE(second == 1);
+    ams.set_active_backend(second);
+    REQUIRE(ams.active_backend_index() == second);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    SlotInfo edited = original;
+    edited.color_rgb = 0xBCBCBC;
+    REQUIRE(ams.commit_slot_edit(0, original, edited).success());
+
+    // commit_slot_edit writes through get_backend(), which is the primary and
+    // not the active one. The declaration has to name the same lane the edit
+    // itself reached, or the record describes a slot nobody edited.
+    CHECK(f.backend->get_slot_info(0).color_rgb == 0xBCBCBC);
+    CHECK(helix::ams::lane_sources(lane_of(0)).local_user.has_value());
+    CHECK_FALSE(
+        helix::ams::lane_sources(helix::ams::lane_id_for(second, 0)).local_user.has_value());
+}
+
+TEST_CASE("a commit the backend rejects records no declaration", "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    SlotInfo edited = original;
+    edited.color_rgb = 0xBCBCBC;
+
+    // Slot 99 is past the mock's four slots, so set_slot_info refuses it.
+    const AmsError err = AmsState::instance().commit_slot_edit(99, original, edited);
+    REQUIRE_FALSE(err.success());
+
+    // The edit reached the backend and was refused, so the user declared
+    // nothing. A record here would describe a slot that never changed.
+    CHECK_FALSE(helix::ams::lane_sources(lane_of(99)).local_user.has_value());
+}
+
+TEST_CASE("a commit that changes nothing writes no user record", "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, original).success());
+
+    // Proof the path ran rather than a vacuous absence: the commit reached the
+    // backend, and still recorded no declaration.
+    CHECK(f.backend->get_slot_info(0).slot_index == 0);
+    CHECK_FALSE(helix::ams::lane_sources(lane_of(0)).local_user.has_value());
 }

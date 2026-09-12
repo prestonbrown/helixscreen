@@ -4,6 +4,8 @@
 
 #include "ams_state.h"
 
+#include <spdlog/spdlog.h>
+
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -23,6 +25,19 @@ void merge_fields_impl(IntoTuple& into, const FromTuple& from, std::index_sequen
                 std::get<I>(into) = std::get<I>(from);
         }(),
         ...);
+}
+
+template <typename Tuple, std::size_t... I>
+bool any_observed_impl(const Tuple& fields, std::index_sequence<I...>) {
+    return (std::get<I>(fields).has_value() || ...);
+}
+
+/// True when @p obs observed at least one field. Folds over
+/// Observation::fields() so a field added there is covered with no line here.
+bool any_observed(const Observation& obs) {
+    auto fields = obs.fields();
+    return any_observed_impl(fields,
+                             std::make_index_sequence<std::tuple_size_v<decltype(fields)>>{});
 }
 
 /// Copy every field @p from has observed onto @p into, leaving the rest
@@ -73,6 +88,20 @@ std::vector<LaneId> LaneSourceStore::lanes() const {
 
 void ingest(LaneId lane, const Observation& obs) {
     LaneSourceStore::instance().write(lane, obs, /*amend=*/false);
+}
+
+void commit_slot_edit(LaneId lane, const Observation& obs) {
+    if (obs.source != ObservationSource::LocalUser) {
+        spdlog::warn("[LaneSourceStore] commit_slot_edit called with a non-user source; dropped");
+        return;
+    }
+    // An amendment that observed nothing states nothing. Writing it anyway
+    // would leave a declaration with no content on the lane, which reads as
+    // "a person declared something here" to anything testing for a record.
+    if (!any_observed(obs)) {
+        return;
+    }
+    LaneSourceStore::instance().write(lane, obs, /*amend=*/true);
 }
 
 LaneSources lane_sources(LaneId lane) {

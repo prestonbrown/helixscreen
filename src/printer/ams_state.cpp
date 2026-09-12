@@ -29,6 +29,8 @@
 #include "filament_sensor_manager.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
+#include "lane_source_store.h"
+#include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "printer_discovery.h"
@@ -1002,6 +1004,8 @@ int AmsState::add_backend(std::unique_ptr<AmsBackend> backend) {
     backends_.push_back(std::move(backend));
 
     if (backends_[index]) {
+        backends_[index]->set_backend_index(index);
+
         // Register event callback with captured index
         backends_[index]->set_event_callback(
             [this, index](const std::string& event, const std::string& data) {
@@ -3547,6 +3551,14 @@ AmsError AmsState::commit_slot_edit(int slot_index, const SlotInfo& original,
     if (!err.success()) {
         return err;
     }
+
+    // Record the user's statement in the lane model, once the backend has
+    // accepted it. The lane is the one this edit was written through, so the
+    // declaration cannot land on a backend the edit never reached, and a slot
+    // the backend refused gets no declaration at all. The stores around this
+    // are the live read path and are untouched; nothing reads this record yet.
+    helix::ams::commit_slot_edit(backend->lane_id(slot_index),
+                                 helix::ams::user_edit_observation(original, info));
 
     // S4 + S7
     sync_from_backend();
