@@ -7,6 +7,7 @@
 
 #include <map>
 #include <mutex>
+#include <optional>
 #include <vector>
 
 namespace helix::ams {
@@ -164,6 +165,16 @@ class LaneSourceStore {
     /// observed fields onto whatever that source already holds.
     void write(LaneId lane, const Observation& obs, bool amend);
 
+    /// True when @p lane is not the id the last dropped-lane warning named,
+    /// latching it so the next call about the same id is false.
+    ///
+    /// The message carries the id and nothing else, so repeating it for one id
+    /// tells a reader nothing they have not been told. A producer filing
+    /// through a backend that has no index yet reaches it three times per lane
+    /// per frame, which is enough to push unrelated lines out of a test's log
+    /// ring. A changed id is a different fact and speaks again.
+    bool first_drop_of(LaneId lane);
+
     friend void ingest(LaneId, const Observation&);
     friend void commit_slot_edit(LaneId, const Observation&);
 
@@ -171,6 +182,11 @@ class LaneSourceStore {
     /// callbacks that will feed this in plan 4 land on an HTTP worker.
     mutable std::mutex mutex_;
     std::map<LaneId, LaneSources> lanes_;
+
+    /// The lane id the last dropped-lane warning named. Cleared with the
+    /// lanes, so a test that wants the warning gets it: every fixture calls
+    /// reset_lane_sources().
+    std::optional<LaneId> warned_drop_lane_;
 };
 
 } // namespace helix::ams

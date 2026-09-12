@@ -5,6 +5,7 @@
 #include "helix_test_fixture.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
+#include "test_helpers/log_capture.h"
 
 #include <spdlog/spdlog.h>
 
@@ -220,6 +221,26 @@ TEST_CASE_METHOD(HelixTestFixture, "a funnel handed no lane writes nothing", "[l
     CHECK_FALSE(lane_sources(0).sensed.has_value());
     CHECK_FALSE(lane_sources(0).local_user.has_value());
     CHECK_FALSE(lane_sources(helix::ams::INVALID_LANE_ID).sensed.has_value());
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "a dropped lane is reported once, and again when the id changes",
+                 "[lane][ingest]") {
+    helix::LogCapture log;
+
+    Observation sensed(ObservationSource::Sensed);
+    sensed.present = true;
+
+    // A producer filing through a backend that has no index yet reaches this
+    // three times per lane per frame, and the id is the whole content of the
+    // message, so the second and third repeat tell a reader nothing.
+    ingest(helix::ams::INVALID_LANE_ID, sensed);
+    ingest(helix::ams::INVALID_LANE_ID, sensed);
+    ingest(helix::ams::INVALID_LANE_ID, sensed);
+    CHECK(log.count_containing("names no position") == 1);
+
+    // A different id is a different fact and speaks for itself.
+    ingest(helix::ams::END_LANE_ID, sensed);
+    CHECK(log.count_containing("names no position") == 2);
 }
 
 TEST_CASE("the blocks are adjacent, which is why a slot index is bounded", "[lane][ingest]") {

@@ -74,6 +74,16 @@ LaneSources LaneSourceStore::get(LaneId lane) const {
 void LaneSourceStore::clear() {
     std::lock_guard<std::mutex> lock(mutex_);
     lanes_.clear();
+    warned_drop_lane_.reset();
+}
+
+bool LaneSourceStore::first_drop_of(LaneId lane) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (warned_drop_lane_ == lane) {
+        return false;
+    }
+    warned_drop_lane_ = lane;
+    return true;
 }
 
 std::vector<LaneId> LaneSourceStore::lanes() const {
@@ -88,9 +98,11 @@ std::vector<LaneId> LaneSourceStore::lanes() const {
 
 void ingest(LaneId lane, const Observation& obs) {
     if (!is_lane_id(lane)) {
-        spdlog::warn("[LaneSourceStore] ingest called with lane {}, which names no position; "
-                     "dropped",
-                     lane);
+        if (LaneSourceStore::instance().first_drop_of(lane)) {
+            spdlog::warn("[LaneSourceStore] ingest called with lane {}, which names no position; "
+                         "dropped. Repeats for this lane are silent.",
+                         lane);
+        }
         return;
     }
     if (obs.source == ObservationSource::LocalUser) {
@@ -102,9 +114,11 @@ void ingest(LaneId lane, const Observation& obs) {
 
 void commit_slot_edit(LaneId lane, const Observation& obs) {
     if (!is_lane_id(lane)) {
-        spdlog::warn("[LaneSourceStore] commit_slot_edit called with lane {}, which names no "
-                     "position; dropped",
-                     lane);
+        if (LaneSourceStore::instance().first_drop_of(lane)) {
+            spdlog::warn("[LaneSourceStore] commit_slot_edit called with lane {}, which names no "
+                         "position; dropped. Repeats for this lane are silent.",
+                         lane);
+        }
         return;
     }
     if (obs.source != ObservationSource::LocalUser) {
