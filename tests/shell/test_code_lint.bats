@@ -1023,9 +1023,11 @@ check_observer_guard_move_clears_cleanup() {
 # a single XTestAccess shim; LaneSourceStore (below) names its two writer
 # funnels plus a test shim. In every case, widening what a header befriends is
 # a review-worthy edit, so this compares the file's friend declarations
-# against an exact expected list rather than merely counting them. The match
+# against an exact expected set rather than merely counting them. The match
 # is on normalised whitespace, not literal text, since clang-format may
-# reflow a multi-argument signature.
+# reflow a multi-argument signature, and it is order-insensitive: a header's
+# friend declarations are a set of grants, not a sequence, so reordering two
+# of them without adding or removing a grant is not a widening.
 check_friend_list() {
     local file="$1"
     local expected
@@ -1043,7 +1045,7 @@ check_friend_list() {
         return 1
     fi
 
-    if [ "$friends" != "$expected" ]; then
+    if [ "$(printf '%s\n' "$friends" | sort)" != "$(printf '%s\n' "$expected" | sort)" ]; then
         local found_count
         found_count=$(printf '%s\n' "$friends" | grep -c .)
         echo "expected exactly $expected_count test friend(s) in $file, found $found_count:"
@@ -1620,4 +1622,91 @@ EOF
     run check_no_lane_store_instance_callers "${BATS_TEST_TMPDIR}/does_not_exist"
     [ "$status" -eq 1 ]
     [[ "$output" == *"does not exist"* ]]
+}
+
+@test "the friend-list gate ignores harmless reordering of the same friends" {
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_reordered_friends.h"
+    sed -e 's@^\([[:space:]]*\)friend void ingest(LaneId, const Observation\&);@\1PLACEHOLDER_SWAP@' \
+        -e 's@^\([[:space:]]*\)friend void commit_slot_edit(LaneId, const Observation\&);@\1friend void ingest(LaneId, const Observation\&);@' \
+        -e 's@^\([[:space:]]*\)PLACEHOLDER_SWAP@\1friend void commit_slot_edit(LaneId, const Observation\&);@' \
+        include/lane_source_store.h > "$mutated"
+
+    run check_friend_list "$mutated" "$LANE_STORE_FRIENDS_EXPECTED"
+    [ "$status" -eq 0 ]
+}
+
+# check_friend_list and check_lane_store_write_declared both read declaration
+# text only, so a write() moved out of the private: block and into public:
+# passes both of them with the friend list and the write() signature both
+# untouched. The friend list only restricts anything while write() stays
+# private, so that access specifier is a separate fact this checks for
+# itself: which label is in force at the write() declaration inside class
+# LaneSourceStore, defaulting to private before any label has appeared, since
+# that is what an unlabelled C++ class body means.
+
+check_lane_store_write_is_private() {
+    local file="$1"
+    local access
+    access=$(awk '
+        /^class LaneSourceStore[[:space:]]*\{/ { in_class = 1; access = "private"; next }
+        in_class && /^\};/ { in_class = 0; next }
+        in_class && /^[[:space:]]*public:[[:space:]]*$/ { access = "public"; next }
+        in_class && /^[[:space:]]*protected:[[:space:]]*$/ { access = "protected"; next }
+        in_class && /^[[:space:]]*private:[[:space:]]*$/ { access = "private"; next }
+        in_class && /void write\(/ { print access; found = 1; exit }
+        END { if (!found) print "NOTFOUND" }
+    ' "$file" 2>/dev/null)
+
+    if [ -z "$access" ] || [ "$access" = "NOTFOUND" ]; then
+        echo "LaneSourceStore::write() was not found inside class LaneSourceStore in $file"
+        return 1
+    fi
+    if [ "$access" != "private" ]; then
+        echo "LaneSourceStore::write() is declared $access in $file; the friend list only matters while it stays private"
+        return 1
+    fi
+    return 0
+}
+
+@test "the lane store's write() is declared private" {
+    run check_lane_store_write_is_private include/lane_source_store.h
+    [ "$status" -eq 0 ]
+}
+
+@test "the write-privacy gate fires when write() moves to public with the friend list untouched" {
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_public_write.h"
+    sed '/^[[:space:]]*void write(LaneId lane, const Observation& obs, bool amend);$/d' \
+        include/lane_source_store.h \
+        | sed 's/^  public:$/  public:\n    void write(LaneId lane, const Observation\& obs, bool amend);/' \
+        > "$mutated"
+
+    # The friend list itself is unwidened by this mutation, so both gates that
+    # read declaration text only stay quiet on it.
+    run check_friend_list "$mutated" "$LANE_STORE_FRIENDS_EXPECTED"
+    [ "$status" -eq 0 ]
+    run check_lane_store_write_declared "$mutated"
+    [ "$status" -eq 0 ]
+
+    run check_lane_store_write_is_private "$mutated"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"declared public"* ]]
+}
+
+@test "the write-privacy gate fails closed when class LaneSourceStore is not found" {
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_no_class.h"
+    printf '%s\n' 'namespace helix::ams { void ingest(int, int); }' > "$mutated"
+
+    run check_lane_store_write_is_private "$mutated"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"was not found"* ]]
+}
+
+@test "the write-privacy gate fails closed when write() is missing from the class" {
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_write_gone.h"
+    grep -v '^[[:space:]]*void write(LaneId lane, const Observation& obs, bool amend);$' \
+        include/lane_source_store.h > "$mutated"
+
+    run check_lane_store_write_is_private "$mutated"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"was not found"* ]]
 }
