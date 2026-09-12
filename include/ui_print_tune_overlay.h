@@ -254,7 +254,10 @@ class PrintTuneOverlay : public OverlayBase {
     char tune_actual_speed_buf_[32] = "";
     char tune_actual_flow_buf_[32] = "";
     char tune_z_other_buf_[32] = "";
-    char tune_z_tool_label_buf_[16] = "Tool 1";
+    // Holds a translated position label ("Tool 1", "Печатающая головка 16") —
+    // sized like current_slot_text_buf_/layer_text_buf_ elsewhere, since a
+    // translated noun plus a two-digit number can run well past ASCII length.
+    char tune_z_tool_label_buf_[64] = "Tool 1";
 
     //
     // === State ===

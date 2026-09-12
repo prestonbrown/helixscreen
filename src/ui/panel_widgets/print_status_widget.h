@@ -433,11 +433,14 @@ class PrintStatusWidget : public PanelWidget {
         SubjectManager subjects_;
 
         // Buffers backing string subjects
-        char layer_text_buf_[64];        // "Layer ~9999 / 9999 (123.4mm)", translated
-        char time_text_buf_[40];         // "12h 34m / 99h 99m"
-        char filament_text_buf_[32];     // "1234.5m / 9999.9m"
-        char nozzle_text_buf_[32];       // "265 / 270°C" — kept for tool_override test
-        char nozzle_tool_label_buf_[16]; // "Tool 1", "Lane 9"
+        char layer_text_buf_[64];    // "Layer ~9999 / 9999 (123.4mm)", translated
+        char time_text_buf_[40];     // "12h 34m / 99h 99m"
+        char filament_text_buf_[32]; // "1234.5m / 9999.9m"
+        char nozzle_text_buf_[32];   // "265 / 270°C" — kept for tool_override test
+        // Holds a translated position label ("Tool 1", "Lane 9",
+        // "Печатающая головка 16") — sized like layer_text_buf_ above, since a
+        // translated noun plus a two-digit number can run well past ASCII length.
+        char nozzle_tool_label_buf_[64];
         char idle_filename_buf_[160];
         char idle_when_buf_[64]; // "Completed 2 hours ago"
         char idle_meta_buf_[64]; // "12.4m filament • 4h 12m"

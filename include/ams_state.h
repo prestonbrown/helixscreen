@@ -1887,7 +1887,10 @@ class AmsState {
     lv_subject_t ams_system_logo_;
     char system_logo_buf_[64];
     lv_subject_t ams_current_tool_text_;
-    char ams_current_tool_text_buf_[16]; // "Slot 1" to "Tool 16" or "---"
+    // Holds a translated position label ("Tool 1", "Инструмент 16", "Печатающая
+    // головка 16") or "---". Sized like current_slot_text_buf_/system_logo_buf_:
+    // a translated noun plus a two-digit number can run well past ASCII length.
+    char ams_current_tool_text_buf_[64];
 
     /// Endless-spool status: kind as int, sentence as string. See the accessors.
     /// The buffer holds two translated lines; German and Russian restriction
