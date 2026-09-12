@@ -4521,7 +4521,7 @@ install_k1_creality_backend() {
 
     local src="${INSTALL_DIR}/config/creality-backend.init"
     if [ ! -f "$src" ]; then
-        log_warn "creality-backend.init missing from ${INSTALL_DIR}/config; the Creality backend will not start at boot"
+        log_warn "creality-backend.init missing from ${INSTALL_DIR}/config (the payload being installed may predate prestonbrown/helixscreen#1468); the Creality backend will not start at boot"
         return 0
     fi
 
