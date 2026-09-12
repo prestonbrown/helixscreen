@@ -24,6 +24,7 @@
 #include "display_backend.h"
 #include "helix_version.h"
 #include "prerender_size_class.h"
+#include "splash_asset_choice.h"
 #include "splash_status.h"
 
 #include <cstdio>
