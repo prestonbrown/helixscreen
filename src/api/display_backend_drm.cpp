@@ -22,12 +22,20 @@
 // lv_conf_internal.h derives LV_LINUX_DRM_USE_EGL from LV_USE_OPENGLES and
 // redefines it with no #ifndef guard, so a value set in lv_conf.h does not
 // survive. Ask the preprocessor what it resolved to, never the header.
-// This gate covers only the request-set direction: HELIX_ENABLE_OPENGLES set
-// without LV_LINUX_DRM_USE_EGL resolving to 1 is an error. LV_USE_OPENGLES set
-// to 1 in lv_conf.h without HELIX_ENABLE_OPENGLES produces neither warning nor
-// error.
+//
+// Both directions are errors, and they fail differently. A request with no
+// result gives a binary that believes it is GPU-accelerated and presents
+// through dumb buffers. A result with no request is worse: mk/egl-link.mk
+// builds two binaries from one set of objects and tells them apart by this
+// macro alone, so LV_USE_OPENGLES turned on in lv_conf.h would put the EGL
+// driver in BOTH of them, leaving nothing to step down to when the probe
+// declines.
 #if defined(HELIX_ENABLE_OPENGLES) && !LV_LINUX_DRM_USE_EGL
 #error "HELIX_ENABLE_OPENGLES set but LVGL resolved LV_LINUX_DRM_USE_EGL to 0"
+#endif
+#if !defined(HELIX_ENABLE_OPENGLES) && LV_LINUX_DRM_USE_EGL
+#error "LVGL resolved LV_LINUX_DRM_USE_EGL to 1 without HELIX_ENABLE_OPENGLES: \
+set ENABLE_OPENGLES in the build, do not edit LV_USE_OPENGLES in lv_conf.h"
 #endif
 
 // System includes for device access checks and DRM capability detection
