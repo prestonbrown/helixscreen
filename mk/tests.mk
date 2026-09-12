@@ -886,6 +886,9 @@ test-assets: test-build
 # serially.
 ifndef _PARALLEL_GUARD
 $(TEST_BIN): FORCE
+	@# Phase 1 has no object prerequisites, so this is the last point at which
+	@# a toolchain swap can still be caught before test objects compile.
+	$(check-toolchain-change)
 	@if echo "$(MAKEFLAGS)" | grep -q 'jobserver'; then \
 		exec $(MAKE) _PARALLEL_GUARD=1 --no-print-directory $@; \
 	else \

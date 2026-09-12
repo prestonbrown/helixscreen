@@ -60,10 +60,12 @@ Resolve design-token lookups from the compiled token table (`src/generated/theme
 | Property | Value |
 |----------|-------|
 | **Values** | `1` (use the compiled table), any other value (use the live scanner) |
-| **Default** | Unset - on for ESP32 builds (`ui_xml/` ships there as a read-only frogfs image), off for every other build |
+| **Default** | Unset - on for ESP32 builds (`ui_xml/` ships there as a read-only frogfs image) and cross-built release targets (`HELIX_RELEASE_BUILD`), off for native dev builds |
 | **File** | `src/ui/theme_token_table_runtime.cpp` |
 
-Only the first character matters: a value starting with `1` turns the table on, so `HELIX_TOKEN_TABLE=0` forces the live scanner back on - useful to confirm an edited token still parses before regenerating the table. A build can also flip its default on by defining `HELIX_TOKEN_TABLE_DEFAULT_ON`; no build defines it today.
+Only the first character matters: a value starting with `1` turns the table on, so `HELIX_TOKEN_TABLE=0` forces the live scanner back on - useful on a device to confirm an edited `ui_xml/` token still parses, and the only way to move tokens there without a rebuild. A build can also flip its default on by defining `HELIX_TOKEN_TABLE_DEFAULT_ON`, which nothing needs now that release builds default on.
+
+The table exists because aggregating tokens live reopens every top-level `ui_xml` file once per aggregation call, ~28 times a boot. That scan is most of what `theme_manager_init` spends on a slow filesystem - 7.2s of a 16.8s splash on a 480x272 QIDI Q2.
 
 ### `HELIX_DISPLAY_BACKEND`
 

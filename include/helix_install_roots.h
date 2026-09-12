@@ -33,7 +33,6 @@ inline constexpr const char* kInstallRoots[] = {
     "/user-resource/helixscreen",         // CC1 (COSMOS)
     "/root/printer_software/helixscreen", // AD5M KMod v00.05 and earlier
     "/srv/helixscreen",                   // AD5M ZMOD, AD5X
-    "/data/helixscreen",                  // AD5X installs rooted at /data
 };
 
 /// Where a platform keeps cache/ and logs/. Never the payload root nor inside
@@ -41,8 +40,12 @@ inline constexpr const char* kInstallRoots[] = {
 /// rmtree()s it first, so state kept there is destroyed on every update.
 /// A log tail or a debug bundle has to look here, not only under the payload.
 inline constexpr const char* kStateRoots[] = {
-    "/mnt/UDISK/helixscreen-state",     // K2, beside its payload on the user partition
-    "/mnt/UDISK/helixscreen",           // K2 state, on installs that predate the move
+    "/mnt/UDISK/helixscreen-state", // K2, beside its payload on the user partition
+    "/mnt/UDISK/helixscreen",       // K2 state, on installs that predate the move
+    // AD5M keeps cache and logs here and installs somewhere else entirely
+    // (/opt, /srv or /root/printer_software by firmware), so this belongs in
+    // this list and not in kInstallRoots: nothing ever puts a payload here, and
+    // a payload root that no installer produces is a root no uninstall sweeps.
     "/data/helixscreen",                // AD5M, on the durable ext4 mount
     "/usr/data/helixscreen-state",      // K1, K1C
     "/user-resource/helixscreen-state", // CC1
