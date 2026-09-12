@@ -370,6 +370,8 @@ lv_obj_t* WizardLanguageChooserStep::create(lv_obj_t* parent) {
     // Display-size face, a size class above the text_heading default
     // (prestonbrown/helixscreen#1599).
     if (lv_obj_t* header = lv_obj_find_by_name(screen_root_, "welcome_header")) {
+        // The observer below fires on registration, superseding this set when
+        // the breakpoint subject is live; this is the null-subject fallback.
         lv_obj_set_style_text_font(
             header, wizard_welcome_header_font(breakpoint_for(responsive_dimension(nullptr))),
             LV_PART_MAIN);
