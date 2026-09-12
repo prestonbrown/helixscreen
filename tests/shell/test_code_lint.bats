@@ -1507,3 +1507,21 @@ check_weight_poll_is_weight_only() {
     [ "$status" -eq 1 ]
     [[ "$output" == *"could not locate"* ]]
 }
+
+@test "the control socket directory is resolved in one place" {
+    # Client and server each computed this inline. They agreed by convention
+    # until they did not, and a client looking where the server never bound
+    # reports "no instance found" (prestonbrown/helixscreen#1602). Both go
+    # through control_socket_dir() now; reading the environment directly in
+    # either one puts the second copy back.
+    run bash -c "grep -nE 'getenv\(\"(XDG_RUNTIME_DIR|RUNTIME_DIRECTORY)\"' \
+        src/remote/remote_client.cpp src/remote/remote_control_server.cpp"
+    [ "$status" -ne 0 ]  # non-zero == no inline lookup found
+}
+
+@test "the control-socket-directory gate fails when a caller inlines the lookup" {
+    local probe="$BATS_TEST_TMPDIR/inlined.cpp"
+    printf 'const char* d = getenv("XDG_RUNTIME_DIR");\n' > "$probe"
+    run bash -c "grep -nE 'getenv\(\"(XDG_RUNTIME_DIR|RUNTIME_DIRECTORY)\"' '$probe'"
+    [ "$status" -eq 0 ]  # the gate above can go red
+}

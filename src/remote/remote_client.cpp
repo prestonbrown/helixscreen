@@ -187,8 +187,9 @@ static void print_usage() {
     printf("  -h, --help              Show this help\n");
     printf("\nSocket path resolution:\n");
     printf("  1. --socket <path>  (explicit)\n");
-    printf("  2. $XDG_RUNTIME_DIR/helixscreen-control.sock\n");
-    printf("  3. /tmp/helixscreen-control.sock\n");
+    printf("  2. $RUNTIME_DIRECTORY/helixscreen-control.sock   (systemd units)\n");
+    printf("  3. $XDG_RUNTIME_DIR/helixscreen-control.sock\n");
+    printf("  4. /tmp/helixscreen-control.sock\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -200,10 +201,8 @@ static std::string resolve_socket_path(const std::string& override_path) {
         return override_path;
     }
 
-    const char* xdg_runtime = getenv("XDG_RUNTIME_DIR");
-    const std::string dir =
-        (xdg_runtime && xdg_runtime[0] != '\0') ? std::string(xdg_runtime) : std::string("/tmp");
-    const std::string well_known = dir + "/helixscreen-control.sock";
+    const std::string dir = helix::control_socket_dir();
+    const std::string well_known = helix::well_known_socket_path();
 
     // Liveness, not mere existence: a crashed instance leaves the file behind, and
     // connecting to it fails with a confusing error instead of finding the app that

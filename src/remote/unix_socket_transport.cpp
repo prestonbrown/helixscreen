@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <cstdlib>
 #include <cstring>
 #include <dirent.h>
 #include <exception>
@@ -23,6 +24,21 @@
 static constexpr size_t MAX_CLIENT_BUFFER = 65536; // 64KB max per request line.
 
 namespace helix {
+
+std::string control_socket_dir() {
+    if (const char* runtime = getenv("RUNTIME_DIRECTORY"); runtime && runtime[0] != '\0') {
+        const char* colon = strchr(runtime, ':');
+        return colon ? std::string(runtime, colon) : std::string(runtime);
+    }
+    if (const char* xdg = getenv("XDG_RUNTIME_DIR"); xdg && xdg[0] != '\0') {
+        return {xdg};
+    }
+    return "/tmp";
+}
+
+std::string well_known_socket_path() {
+    return control_socket_dir() + "/helixscreen-control.sock";
+}
 
 namespace {
 

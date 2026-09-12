@@ -107,10 +107,8 @@ std::string resolve_socket_path(const std::string& override_path) {
         return override_path; // Explicit --remote-socket always wins.
     }
 
-    const char* xdg_runtime = getenv("XDG_RUNTIME_DIR");
-    const std::string dir =
-        (xdg_runtime && xdg_runtime[0] != '\0') ? std::string(xdg_runtime) : std::string("/tmp");
-    const std::string well_known = dir + "/helixscreen-control.sock";
+    const std::string dir = control_socket_dir();
+    const std::string well_known = well_known_socket_path();
 
     // Clear sockets left by instances that died without teardown before deciding
     // anything, so a run of crashed sessions cannot litter the directory forever.
@@ -139,7 +137,8 @@ bool RemoteControlServer::start(const RemoteConfig& config) {
 
     switch (config.transport) {
     case RemoteConfig::Transport::Http:
-        transport_ = std::make_unique<HttpTransport>(config.http_bind, config.http_port);
+        transport_ =
+            std::make_unique<HttpTransport>(config.http_bind, config.http_port, config.http_token);
         break;
     case RemoteConfig::Transport::UnixSocket:
     default:

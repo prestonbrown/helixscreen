@@ -169,12 +169,26 @@ The server speaks JSON-RPC over one of two transports, selectable at runtime:
 `ctl`/`repl` client speaks this. Socket path resolution (client and server use
 the same order):
 1. `--remote-socket <path>` / `helix-screen ctl -s <path>` (explicit)
-2. `$XDG_RUNTIME_DIR/helixscreen-control.sock`
-3. `/tmp/helixscreen-control.sock`
+2. `$RUNTIME_DIRECTORY/helixscreen-control.sock` (systemd units)
+3. `$XDG_RUNTIME_DIR/helixscreen-control.sock`
+4. `/tmp/helixscreen-control.sock`
+
+`$RUNTIME_DIRECTORY` comes from `RuntimeDirectory=helixscreen` in
+`config/helixscreen.service` and has to outrank `/tmp`: that unit also sets
+`ProtectSystem=strict`, which leaves `/tmp` read-only, so a socket there cannot
+be bound on any systemd install. Both sides resolve through
+`src/remote/unix_socket_transport.cpp#control_socket_dir`, so the client cannot
+drift from where the server actually bound.
 
 **HTTP/TCP** — a minimal `POST /rpc` JSON-RPC endpoint. Binds loopback by
 default; LAN exposure is opt-in via `--remote-http-bind`. This is the base for
 the post-1.0 web config UI (the same embedded server will serve it).
+
+The endpoint carries the full command set with none of the Unix socket's 0600
+protection, so a bind to anything outside `127.0.0.0/8` refuses to start unless
+`HELIX_REMOTE_HTTP_TOKEN` is set to at least 16 characters. Once set, every
+request needs `Authorization: Bearer <token>` or it gets `401`. The token comes
+from the environment, not a flag, because `argv` is readable through `/proc`.
 
 ```bash
 ./build/bin/helix-screen --test --remote --remote-transport http --remote-http-port 7130 &
