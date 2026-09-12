@@ -155,8 +155,25 @@ stop_kmod_competing_uis() {
     done
 }
 
-# Stop stock Creality UI on K1 series (display-server, Monitor, master-server, etc.)
-# S99start_app launches the entire stock Creality UI stack
+# Whether the stock Creality backend (master-server, app-server, web-server)
+# is kept alive on K1 series printers (prestonbrown/helixscreen#1468).
+# 1 = install /etc/init.d/S99creality-backend so the trio starts at boot and
+#     Creality Print / Creality Cloud keep reaching the printer.
+# 0 = leave the whole stock stack down (the backend ports stay closed).
+# This is the one-line default the platform carries; flip it here if the
+# on-device coexistence verification says otherwise.
+K1_CREALITY_BACKEND_ENABLED="${K1_CREALITY_BACKEND_ENABLED:-1}"
+
+# Where the backend init script is deployed. S99creality-backend sorts before
+# S99helixscreen and S99start_app, so the backend is up before the UI takes
+# the display and before any stock script a later restore re-enables.
+K1_CREALITY_BACKEND_INIT="/etc/init.d/S99creality-backend"
+
+# Stop the stock Creality display stack on K1 series. Monitor and
+# display-server are the framebuffer contenders; the backend trio
+# (master-server, app-server, web-server) is what Creality Print and the
+# Creality Cloud app talk to and is deliberately left to
+# /etc/init.d/S99creality-backend (prestonbrown/helixscreen#1468).
 stop_k1_stock_competing_uis() {
     if [ -x /etc/init.d/S99start_app ]; then
         log_info "Stopping stock Creality UI (S99start_app)..."
@@ -165,10 +182,17 @@ stop_k1_stock_competing_uis() {
         chmod a-x /etc/init.d/S99start_app 2>/dev/null || true
         record_disabled_service "sysv-chmod" "/etc/init.d/S99start_app"
         found_any=true
+
+        if [ "$K1_CREALITY_BACKEND_ENABLED" = "1" ]; then
+            log_warn "Stock Creality display UI disabled; the backend servers (master-server, app-server, web-server) are kept running so Creality Print and Creality Cloud can reach this printer."
+        else
+            log_warn "Stock Creality backend disabled; Creality Print and the Creality Cloud app will no longer reach this printer."
+        fi
     fi
 
-    # Kill any remaining stock Creality UI processes
-    for proc in display-server Monitor master-server audio-server wifi-server app-server upgrade-server web-server; do
+    # Kill any remaining framebuffer contenders. Monitor dies first: it is a
+    # watchdog that respawns display-server moments after the kill below.
+    for proc in Monitor display-server; do
         if kill_process_by_name "$proc"; then
             log_info "Killed remaining $proc process"
             found_any=true
@@ -178,6 +202,48 @@ stop_k1_stock_competing_uis() {
     # S99start_app also manages dropbear (SSH) on stock K1 firmware.
     # Disabling it kills SSH on next reboot (#535). Ensure SSH survives.
     ensure_k1_ssh
+}
+
+# Install the init script that starts the stock Creality backend trio at boot
+# (prestonbrown/helixscreen#1468). Must run AFTER extract_release: the script
+# ships in the release package as config/creality-backend.init. The installed
+# path is recorded with type "sysv-created" so reenable_disabled_services
+# removes it on uninstall, leaving S99start_app to bring the whole stock
+# stack back. No-op on Simple AF hosts (they remove S99start_app and its
+# stack themselves, so there is no stock backend of ours to spare) and on
+# every non-K1 firmware.
+install_k1_creality_backend() {
+    if [ "$K1_CREALITY_BACKEND_ENABLED" != "1" ]; then
+        return 0
+    fi
+
+    case "${K1_FIRMWARE:-}" in
+        stock_klipper|guilouz) ;;
+        *) return 0 ;;
+    esac
+
+    local src="${INSTALL_DIR}/config/creality-backend.init"
+    if [ ! -f "$src" ]; then
+        log_warn "creality-backend.init missing from ${INSTALL_DIR}/config; the Creality backend will not start at boot"
+        return 0
+    fi
+
+    # Plain copy first (installs run as root on the K1 family), sudo fallback
+    # for a non-root caller, both non-fatal.
+    mkdir -p "$(dirname "$K1_CREALITY_BACKEND_INIT")" 2>/dev/null \
+        || $SUDO mkdir -p "$(dirname "$K1_CREALITY_BACKEND_INIT")" 2>/dev/null || true
+    if cp "$src" "$K1_CREALITY_BACKEND_INIT" 2>/dev/null \
+       || $SUDO cp "$src" "$K1_CREALITY_BACKEND_INIT" 2>/dev/null; then
+        chmod +x "$K1_CREALITY_BACKEND_INIT" 2>/dev/null \
+            || $SUDO chmod +x "$K1_CREALITY_BACKEND_INIT" 2>/dev/null || true
+        record_disabled_service "sysv-created" "$K1_CREALITY_BACKEND_INIT"
+        log_info "Installed Creality backend init script: $K1_CREALITY_BACKEND_INIT"
+        # Bring the trio up now, so the backend survives this install session
+        # without a reboot (S99start_app's own stop, above, took it down).
+        "$K1_CREALITY_BACKEND_INIT" start 2>/dev/null || true
+    else
+        log_warn "Could not install $K1_CREALITY_BACKEND_INIT; the Creality backend will not start at boot"
+    fi
 }
 
 # Stop the Sovol SV06 Ace stock touchscreen UI (#986).

@@ -777,6 +777,11 @@ main() {
     # SSH (#535). Runs on both fresh install and self-update.
     if [ "$platform" = "k1" ]; then
         ensure_k1_ssh
+        # Install and start the stock Creality backend trio
+        # (prestonbrown/helixscreen#1468). Runs post-extract (the init script
+        # ships in the release package) and on self-update, which skips
+        # stop_competing_uis and would otherwise never see it installed.
+        install_k1_creality_backend
     fi
 
     # Verify all shared library dependencies are satisfied before starting

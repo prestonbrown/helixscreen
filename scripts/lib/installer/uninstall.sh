@@ -100,6 +100,17 @@ reenable_disabled_services() {
                     HELIX_REENABLED_SCRIPTS="${HELIX_REENABLED_SCRIPTS} ${target}"
                 fi
                 ;;
+            sysv-created)
+                # An init script HelixScreen itself wrote (the K1 Creality
+                # backend, prestonbrown/helixscreen#1468). Stopping and
+                # removing it is the only correct reversal: chmod +x would
+                # leave our script competing with the restored stock one.
+                if [ -f "$target" ]; then
+                    log_info "Removing HelixScreen init script: $target"
+                    $SUDO "$target" stop 2>/dev/null || true
+                    $SUDO rm -f "$target"
+                fi
+                ;;
         esac
     done < "$state_file"
 }

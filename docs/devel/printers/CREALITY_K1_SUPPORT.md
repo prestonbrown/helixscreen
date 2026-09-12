@@ -234,9 +234,9 @@ The stock K1 UI is managed by `/etc/init.d/S99start_app`, which launches `displa
 
 1. Stop `S99start_app` via its init script
 2. `chmod a-x` the init script to prevent reboot respawn (reversible)
-3. Kill all lingering stock processes
+3. Kill only the lingering framebuffer contenders (`Monitor` first, then `display-server`)
 
-**This takes the vendor's network stack down with the UI.** `master-server`, `app-server` and `web-server` are on the kill list, and they are what Creality Print and the Creality Cloud app talk to; port 80 closes with them. Only `display-server`, `Monitor` and `boot_display` actually contend for the framebuffer, so the current list is broader than the framebuffer problem requires. `hooks-k2.sh` makes the opposite call for the same reason and deliberately spares `web-server`, with a comment saying so. Keeping the K1 backend alive is tracked in [#1468](https://github.com/prestonbrown/helixscreen/issues/1468); it is not simply a matter of shortening the list, because the `chmod a-x` is what stops the services across a reboot.
+Only `display-server`, `Monitor` and `boot_display` contend for the framebuffer. The backend servers (`master-server`, `app-server`, `web-server`) are what Creality Print and the Creality Cloud app talk to, so the hooks spare them and the installer deploys `/etc/init.d/S99creality-backend` (`config/creality-backend.init` in the repo) to start the trio at boot ([#1468](https://github.com/prestonbrown/helixscreen/issues/1468)). `Monitor` dies before `display-server` because it is a watchdog that respawns `display-server`. Uninstall removes the backend init script and re-enables `S99start_app`, so the whole stock stack returns.
 
 ### SSH Safety
 
