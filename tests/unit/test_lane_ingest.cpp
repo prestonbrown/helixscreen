@@ -255,6 +255,30 @@ TEST_CASE_METHOD(HelixTestFixture, "commit_slot_edit refuses a source that is no
     CHECK(helix::ams::known_lanes().empty());
 }
 
+TEST_CASE_METHOD(HelixTestFixture,
+                 "ingest refuses a LocalUser observation and leaves the user's record alone",
+                 "[lane][ingest]") {
+    Observation declared(ObservationSource::LocalUser);
+    declared.color_rgb = 0xBCBCBC;
+    helix::ams::commit_slot_edit(6, declared);
+
+    const auto before = lane_sources(6);
+    REQUIRE(before.local_user.has_value());
+    CHECK(before.local_user->color_rgb == 0xBCBCBC);
+
+    // ingest() replaces whole-record, so a LocalUser observation reaching it
+    // would destroy the user's declaration rather than merely fail to amend
+    // it. The colour differs from the one above so a silent pass-through
+    // shows up as a changed value, not a coincidental match.
+    Observation impostor(ObservationSource::LocalUser);
+    impostor.color_rgb = 0x000000;
+    ingest(6, impostor);
+
+    const auto after = lane_sources(6);
+    REQUIRE(after.local_user.has_value());
+    CHECK(after.local_user->color_rgb == 0xBCBCBC);
+}
+
 TEST_CASE_METHOD(HelixTestFixture, "known_lanes lists every lane that has been written",
                  "[lane][ingest]") {
     Observation obs(ObservationSource::Sensed);

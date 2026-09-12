@@ -93,6 +93,10 @@ void ingest(LaneId lane, const Observation& obs) {
                      lane);
         return;
     }
+    if (obs.source == ObservationSource::LocalUser) {
+        spdlog::warn("[LaneSourceStore] ingest called with a user source; dropped");
+        return;
+    }
     LaneSourceStore::instance().write(lane, obs, /*amend=*/false);
 }
 

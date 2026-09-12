@@ -101,13 +101,16 @@ static_assert(END_LANE_ID > FIRST_TOOL_LANE_ID,
 /// for obs.source whole and leaves every other source untouched. A field the
 /// source did not observe stops contributing, which is what keeps a stale
 /// frame from re-asserting a value its author has stopped standing behind.
+/// obs.source must not be LocalUser; commit_slot_edit() is that source's only
+/// funnel.
 ///
 /// A lane that is not a lane is warned about and dropped.
 void ingest(LaneId lane, const Observation& obs);
 
 /// The one way a human edit writes this store. Unlike ingest(), this AMENDS
 /// the user's record field by field: a person states what they changed, and
-/// what they declared earlier still stands. obs.source must be LocalUser.
+/// what they declared earlier still stands. obs.source must be LocalUser;
+/// every other source's only funnel is ingest().
 ///
 /// This is the declaration layer: it records the user's authorship as a lane
 /// source record. AmsState::commit_slot_edit (ams_state.h) is the method
