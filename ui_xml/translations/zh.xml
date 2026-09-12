@@ -18,6 +18,7 @@
   <translation tag="%s has about %.0fg but %s needs about %.0fg. Start anyway?" zh="%s 约剩 %.0fg，但%s 需要约 %.0fg。仍要开始吗？"/>
   <translation tag="%s has no filament loaded — this print will run out." zh="%s 未加载耗材 —— 此次打印将会耗尽耗材。"/>
   <translation tag="%s needs filament in %s, which is empty — this print will run out." zh="%s 需要 %s 中的耗材，但该槽位为空 —— 此次打印将会耗尽耗材。"/>
+  <translation tag="%s: %.0fg of %.0fg needed" zh="%s：%.0fg / 需要 %.0fg"/>
   <translation tag="%u layers" zh="%u 层"/>
   <translation tag="%zu changes" zh="%zu 项更改"/>
   <translation tag="%zu events queued" zh="%zu 个事件已排队"/>
@@ -652,10 +653,8 @@
   <translation tag="Current:" zh="当前："/>
   <translation tag="Current: %d°C | Target: %d°C" zh="当前: %d°C | 目标: %d°C"/>
   <translation tag="Current: %s" zh="当前: %s"/>
-  <translation tag="Current: %s · Slot %d" zh="当前: %s · 插槽 %d"/>
+  <translation tag="Current: %s · %s" zh="当前: %s · %s"/>
   <translation tag="Current: Bypass" zh="当前: 旁通"/>
-  <translation tag="Current: Slot %d" zh="当前: 插槽 %d"/>
-  <translation tag="Current: Tool %d" zh="当前: 工具 %d"/>
   <translation tag="Currently Loaded" zh="当前已装载"/>
   <translation tag="Currently printing" zh="正在打印"/>
   <translation tag="Custom" zh="自定义"/>
@@ -1860,7 +1859,6 @@
   <translation tag="Preheat Macro" zh="预热宏"/>
   <translation tag="Preheat PLA" zh="预热 PLA"/>
   <translation tag="Preheat cancelled" zh="预热已取消"/>
-  <translation tag="Preheat: T{} + bed set" zh="预热: T{} + 热床已设置"/>
   <translation tag="Preheat: all {} tools + bed set" zh="预热: 全部 {} 工具 + 热床已设置"/>
   <translation tag="Preheat: {} + bed set" zh="预热: {} + 热床已设置"/>
   <translation tag="Prepared" zh="已就绪"/>
@@ -2381,8 +2379,6 @@
   <translation tag="Slot" zh="槽位"/>
   <translation tag="Slot %d" zh="槽位 %d"/>
   <translation tag="Slot %d Filament" zh="槽位 %d 耗材"/>
-  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" zh="槽位 %d 约剩 %.0fg，但工具 %d 需要约 %.0fg。仍要开始吗？"/>
-  <translation tag="Slot %d: %.0fg of %.0fg needed" zh="槽位 %d：%.0fg / 需要 %.0fg"/>
   <translation tag="Slot 1" zh="槽位 1"/>
   <translation tag="Slot colors, materials, and levels" zh="槽位的颜色、材料和余量"/>
   <translation tag="Slot {}" zh="槽位 {}"/>
@@ -2496,7 +2492,6 @@
   <translation tag="Switch between light and dark themes" zh="切换浅色和深色主题"/>
   <translation tag="Switch the active tool or extruder" zh="切换当前工具或挤出机"/>
   <translation tag="Switch to v%s" zh="切换到 v%s"/>
-  <translation tag="Switched to T{}" zh="已切换到 T{}"/>
   <translation tag="Switched to {}" zh="已切换到 {}"/>
   <translation tag="Switches to a backup spool on runout" zh="耗材用尽时切换到备用料盘"/>
   <translation tag="Switching heater control to MPC. Klipper will restart." zh="正在将加热控制切换为 MPC。Klipper 将重启。"/>
@@ -2509,8 +2504,6 @@
   <translation tag="System busy — try again" zh="系统繁忙 — 请重试"/>
   <translation tag="System default" zh="系统默认"/>
   <translation tag="System detected" zh="检测到系统"/>
-  <translation tag="T%d has no filament loaded — this print will run out." zh="T%d 未加载耗材 —— 此次打印将会耗尽耗材。"/>
-  <translation tag="T%d needs filament in slot %d, which is empty — this print will run out." zh="T%d 需要 %d 号槽位中的耗材，但该槽位为空 —— 此次打印将会耗尽耗材。"/>
   <translation tag="TANGLE" zh="打结"/>
   <translation tag="TD-1 filament color detection" zh="TD-1 耗材颜色检测"/>
   <translation tag="TEMPERATURE SENSORS" zh="温度传感器"/>
@@ -2693,7 +2686,6 @@
   <translation tag="Tool change failed: {}" zh="工具切换失败: {}"/>
   <translation tag="Tool mapping failed" zh="工具映射失败"/>
   <translation tag="Tool swap" zh="工具切换"/>
-  <translation tag="Tool {} → Slot {}: no filament loaded." zh="工具 {} → 槽位 {}: 未加载耗材。"/>
   <translation tag="Toolhead" zh="工具头"/>
   <translation tag="Toolhead LED" zh="工具头 LED"/>
   <translation tag="Toolhead Sensor" zh="工具头传感器"/>
@@ -2731,7 +2723,6 @@
   <translation tag="Type" zh="类型"/>
   <translation tag="Type to preview input field..." zh="输入以预览输入框..."/>
   <translation tag="Type:" zh="类型:"/>
-  <translation tag="T{} shares slot with T{}" zh="T{} 与 T{} 共用槽位"/>
   <translation tag="UI Scale" zh="界面缩放"/>
   <translation tag="UI Sounds" zh="界面声音"/>
   <translation tag="UI scale applies after restart" zh="界面缩放将在重启后生效"/>

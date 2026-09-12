@@ -19,6 +19,7 @@ translations:
   '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s contient environ %.0fg mais %s nécessite environ %.0fg. Démarrer quand même ?'
   '%s has no filament loaded — this print will run out.': '%s n''a pas de filament chargé — cette impression manquera de filament.'
   '%s needs filament in %s, which is empty — this print will run out.': '%s nécessite du filament dans %s, qui est vide — cette impression manquera de filament.'
+  '%s: %.0fg of %.0fg needed': '%s : %.0fg sur %.0fg requis'
   '%u layers': '%u couches'
   '%zu changes': '%zu modifications'
   '%zu events queued': '%zu événements en file'
@@ -745,10 +746,8 @@ translations:
   'Current:': 'Actuel :'
   'Current: %d°C | Target: %d°C': 'Actuel : %d°C | Cible : %d°C'
   'Current: %s': 'Actuel : %s'
-  'Current: %s · Slot %d': 'Actuel : %s · Slot %d'
+  'Current: %s · %s': 'Actuel : %s · %s'
   'Current: Bypass': 'Actuel : Bypass'
-  'Current: Slot %d': 'Actuel : Slot %d'
-  'Current: Tool %d': 'Actuel : Outil %d'
   Currently Loaded: Actuellement chargÃ©
   Currently printing: Impression en cours
   Custom: Personnalisé
@@ -2092,7 +2091,6 @@ translations:
   Preheat Macro: Macro de préchauffage
   Preheat PLA: Préchauffer PLA
   Preheat cancelled: Préchauffage annulé
-  'Preheat: T{} + bed set': 'Préchauffage : T{} + plateau réglé'
   'Preheat: all {} tools + bed set': 'Préchauffage : tous les {} outils + plateau
     réglé'
   'Preheat: {} + bed set': 'Préchauffage : {} + plateau réglé'
@@ -2687,8 +2685,6 @@ translations:
   Slot: Slot
   Slot %d: Emplacement %d
   Slot %d Filament: Filament de lemplacement %d
-  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'Le slot %d contient environ %.0fg mais l''outil %d nécessite environ %.0fg. Démarrer quand même ?'
-  'Slot %d: %.0fg of %.0fg needed': 'Slot %d : %.0fg sur %.0fg requis'
   Slot 1: Slot 1
   Slot colors, materials, and levels: Couleurs, matériaux et niveaux des slots
   Slot {}: Emplacement {}
@@ -2816,7 +2812,6 @@ translations:
   Switch between light and dark themes: Basculer entre les thèmes clair et sombre
   Switch the active tool or extruder: Changer d'outil ou d'extrudeur actif
   Switch to v%s: 'Passer à la v%s'
-  Switched to T{}: Basculé sur T{}
   Switched to {}: 'Basculé sur {}'
   Switches to a backup spool on runout: Passe à une bobine de secours en fin de filament
   Switching heater control to MPC. Klipper will restart.: Basculement du chauffage
@@ -2831,10 +2826,6 @@ translations:
   System busy — try again: Système occupé — réessayez
   System default: Par défaut du système
   System detected: Système détecté
-  T%d has no filament loaded — this print will run out.: T%d n'a pas de filament chargé
-    — cette impression manquera de filament.
-  T%d needs filament in slot %d, which is empty — this print will run out.: T%d nécessite
-    du filament dans le slot %d, qui est vide — cette impression manquera de filament.
   TANGLE: NŒUD
   TD-1 filament color detection: Détection de couleur de filament TD-1
   TEMPERATURE SENSORS: CAPTEURS DE TEMPÉRATURE
@@ -3087,7 +3078,6 @@ translations:
   'Tool change failed: {}': 'Échec du changement d''outil : {}'
   Tool mapping failed: Échec de la correspondance d'outils
   Tool swap: Changement d'outil
-  'Tool {} → Slot {}: no filament loaded.': 'Outil {} → Slot {} : aucun filament chargé.'
   Toolhead: 'Tête d''outil'
   Toolhead LED: 'LED de la tête d''outil'
   Toolhead Sensor: Capteur de tête d'outil
@@ -3127,7 +3117,6 @@ translations:
   Type: Type
   Type to preview input field...: Tapez pour prévisualiser le champ de saisie...
   'Type:': 'Type :'
-  T{} shares slot with T{}: T{} partage lemplacement avec T{}
   UI Scale: Échelle de l'interface
   UI Sounds: Sons de l'interface
   UI scale applies after restart: L'échelle de l'interface sera effective après redémarrage

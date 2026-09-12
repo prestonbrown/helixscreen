@@ -28,7 +28,7 @@
     - Click handler to open AMS panel
 
     Binds to subjects:
-    - ams_current_tool_text: string ("Tool 1", "Toolhead 1", or empty)
+    - ams_current_tool_text: string ("Tool 1", "Toolhead 1", or the "no active tool" placeholder)
     - ams_slot_count: int (0=no AMS, >0=AMS available)
     - ams_current_tool: int (negative=none, 0+=tool index) for visibility
 

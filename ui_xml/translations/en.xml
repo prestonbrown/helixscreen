@@ -18,6 +18,7 @@
   <translation tag="%s has about %.0fg but %s needs about %.0fg. Start anyway?" en="%s has about %.0fg but %s needs about %.0fg. Start anyway?"/>
   <translation tag="%s has no filament loaded — this print will run out." en="%s has no filament loaded — this print will run out."/>
   <translation tag="%s needs filament in %s, which is empty — this print will run out." en="%s needs filament in %s, which is empty — this print will run out."/>
+  <translation tag="%s: %.0fg of %.0fg needed" en="%s: %.0fg of %.0fg needed"/>
   <translation tag="%u layers" en="%u layers"/>
   <translation tag="%zu changes" en="%zu changes"/>
   <translation tag="%zu events queued" en="%zu events queued"/>
@@ -652,10 +653,8 @@
   <translation tag="Current:" en="Current:"/>
   <translation tag="Current: %d°C | Target: %d°C" en="Current: %d°C | Target: %d°C"/>
   <translation tag="Current: %s" en="Current: %s"/>
-  <translation tag="Current: %s · Slot %d" en="Current: %s · Slot %d"/>
+  <translation tag="Current: %s · %s" en="Current: %s · %s"/>
   <translation tag="Current: Bypass" en="Current: Bypass"/>
-  <translation tag="Current: Slot %d" en="Current: Slot %d"/>
-  <translation tag="Current: Tool %d" en="Current: Tool %d"/>
   <translation tag="Currently Loaded" en="Currently Loaded"/>
   <translation tag="Currently printing" en="Currently printing"/>
   <translation tag="Custom" en="Custom"/>
@@ -1860,7 +1859,6 @@
   <translation tag="Preheat Macro" en="Preheat Macro"/>
   <translation tag="Preheat PLA" en="Preheat PLA"/>
   <translation tag="Preheat cancelled" en="Preheat cancelled"/>
-  <translation tag="Preheat: T{} + bed set" en="Preheat: T{} + bed set"/>
   <translation tag="Preheat: all {} tools + bed set" en="Preheat: all {} tools + bed set"/>
   <translation tag="Preheat: {} + bed set" en="Preheat: {} + bed set"/>
   <translation tag="Prepared" en="Prepared"/>
@@ -2381,8 +2379,6 @@
   <translation tag="Slot" en="Slot"/>
   <translation tag="Slot %d" en="Slot %d"/>
   <translation tag="Slot %d Filament" en="Slot %d Filament"/>
-  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" en="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?"/>
-  <translation tag="Slot %d: %.0fg of %.0fg needed" en="Slot %d: %.0fg of %.0fg needed"/>
   <translation tag="Slot 1" en="Slot 1"/>
   <translation tag="Slot colors, materials, and levels" en="Slot colors, materials, and levels"/>
   <translation tag="Slot {}" en="Slot {}"/>
@@ -2496,7 +2492,6 @@
   <translation tag="Switch between light and dark themes" en="Switch between light and dark themes"/>
   <translation tag="Switch the active tool or extruder" en="Switch the active tool or extruder"/>
   <translation tag="Switch to v%s" en="Switch to v%s"/>
-  <translation tag="Switched to T{}" en="Switched to T{}"/>
   <translation tag="Switched to {}" en="Switched to {}"/>
   <translation tag="Switches to a backup spool on runout" en="Switches to a backup spool on runout"/>
   <translation tag="Switching heater control to MPC. Klipper will restart." en="Switching heater control to MPC. Klipper will restart."/>
@@ -2509,8 +2504,6 @@
   <translation tag="System busy — try again" en="System busy — try again"/>
   <translation tag="System default" en="System default"/>
   <translation tag="System detected" en="System detected"/>
-  <translation tag="T%d has no filament loaded — this print will run out." en="T%d has no filament loaded — this print will run out."/>
-  <translation tag="T%d needs filament in slot %d, which is empty — this print will run out." en="T%d needs filament in slot %d, which is empty — this print will run out."/>
   <translation tag="TANGLE" en="TANGLE"/>
   <translation tag="TD-1 filament color detection" en="TD-1 filament color detection"/>
   <translation tag="TEMPERATURE SENSORS" en="TEMPERATURE SENSORS"/>
@@ -2693,7 +2686,6 @@
   <translation tag="Tool change failed: {}" en="Tool change failed: {}"/>
   <translation tag="Tool mapping failed" en="Tool mapping failed"/>
   <translation tag="Tool swap" en="Tool swap"/>
-  <translation tag="Tool {} → Slot {}: no filament loaded." en="Tool {} → Slot {}: no filament loaded."/>
   <translation tag="Toolhead" en="Toolhead"/>
   <translation tag="Toolhead LED" en="Toolhead LED"/>
   <translation tag="Toolhead Sensor" en="Toolhead Sensor"/>
@@ -2731,7 +2723,6 @@
   <translation tag="Type" en="Type"/>
   <translation tag="Type to preview input field..." en="Type to preview input field..."/>
   <translation tag="Type:" en="Type:"/>
-  <translation tag="T{} shares slot with T{}" en="T{} shares slot with T{}"/>
   <translation tag="UI Scale" en="UI Scale"/>
   <translation tag="UI Sounds" en="UI Sounds"/>
   <translation tag="UI scale applies after restart" en="UI scale applies after restart"/>

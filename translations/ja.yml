@@ -18,6 +18,7 @@ translations:
   '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s の残量は約 %.0fg ですが、%s には約 %.0fg 必要です。それでも開始しますか？'
   '%s has no filament loaded — this print will run out.': '%s にフィラメントが装填されていません — この印刷は途中で切れます。'
   '%s needs filament in %s, which is empty — this print will run out.': '%s は %s のフィラメントを必要としますが、空です — この印刷は途中で切れます。'
+  '%s: %.0fg of %.0fg needed': '%s: %.0fg（必要 %.0fg）'
   '%u layers': '%uレイヤー'
   '%zu changes': '%zu件の変更'
   '%zu events queued': '%zu 件のイベントを待機中'
@@ -666,10 +667,8 @@ translations:
   'Current:': '現在:'
   'Current: %d°C | Target: %d°C': '現在: %d°C | 目標: %d°C'
   'Current: %s': '現在: %s'
-  'Current: %s · Slot %d': '現在: %s · スロット %d'
+  'Current: %s · %s': '現在: %s · %s'
   'Current: Bypass': '現在: バイパス'
-  'Current: Slot %d': '現在: スロット %d'
-  'Current: Tool %d': '現在: ツール %d'
   Currently Loaded: 現在ロード中
   Currently printing: 印刷中
   Custom: カスタム
@@ -1918,7 +1917,6 @@ translations:
   Preheat Macro: 予熱マクロ
   Preheat PLA: PLA 予熱
   Preheat cancelled: 予熱がキャンセルされました
-  'Preheat: T{} + bed set': '予熱: T{} + ベッド設定済み'
   'Preheat: all {} tools + bed set': '予熱: 全 {} ツール + ベッド設定済み'
   'Preheat: {} + bed set': '予熱: {} + ベッド設定済み'
   Prepared: 準備済み
@@ -2454,8 +2452,6 @@ translations:
   Slot: スロット
   Slot %d: スロット %d
   Slot %d Filament: スロット %d のフィラメント
-  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'スロット %d の残量は約 %.0fg ですが、ツール %d には約 %.0fg 必要です。それでも開始しますか？'
-  'Slot %d: %.0fg of %.0fg needed': 'スロット %d: %.0fg（必要 %.0fg）'
   Slot 1: スロット1
   Slot colors, materials, and levels: スロットの色、素材、残量
   Slot {}: スロット {}
@@ -2571,7 +2567,6 @@ translations:
   Switch between light and dark themes: ライトテーマとダークテーマを切り替え
   Switch the active tool or extruder: アクティブなツールやエクストルーダーを切り替え
   Switch to v%s: 'v%s に切り替え'
-  Switched to T{}: T{} に切替えました
   Switched to {}: '{} に切替えました'
   Switches to a backup spool on runout: フィラメント切れ時にバックアップスプールへ切り替えます
   Switching heater control to MPC. Klipper will restart.: ヒーター制御をMPCに切り替えます。Klipperが再起動します。
@@ -2584,9 +2579,6 @@ translations:
   System busy — try again: システムがビジー状態です — もう一度お試しください
   System default: システムデフォルト
   System detected: システムを検出しました
-  T%d has no filament loaded — this print will run out.: T%d にフィラメントが装填されていません — この印刷は途中で切れます。
-  T%d needs filament in slot %d, which is empty — this print will run out.: T%d はスロット
-    %d のフィラメントを必要としますが、空です — この印刷は途中で切れます。
   TANGLE: 絡み
   TD-1 filament color detection: TD-1 フィラメント色検出
   TEMPERATURE SENSORS: 温度センサー
@@ -2797,7 +2789,6 @@ translations:
   'Tool change failed: {}': 'ツール変更に失敗しました: {}'
   Tool mapping failed: ツールマッピングに失敗しました
   Tool swap: ツール交換
-  'Tool {} → Slot {}: no filament loaded.': 'ツール {} → スロット {}: フィラメントが装填されていません。'
   Toolhead: 'ツールヘッド'
   Toolhead LED: 'ツールヘッドLED'
   Toolhead Sensor: ツールヘッドセンサー
@@ -2836,7 +2827,6 @@ translations:
   Type: タイプ
   Type to preview input field...: 入力フィールドをプレビューするには入力してください...
   'Type:': 'タイプ:'
-  T{} shares slot with T{}: T{} は T{} とスロットを共有しています
   UI Scale: UI スケール
   UI Sounds: UIサウンド
   UI scale applies after restart: UI スケールは再起動後に適用されます

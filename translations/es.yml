@@ -18,6 +18,7 @@ translations:
   '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s tiene aproximadamente %.0fg pero %s necesita aproximadamente %.0fg. ¿Iniciar de todos modos?'
   '%s has no filament loaded — this print will run out.': '%s no tiene filamento cargado — esta impresión se quedará sin filamento.'
   '%s needs filament in %s, which is empty — this print will run out.': '%s necesita filamento en %s, que está vacía — esta impresión se quedará sin filamento.'
+  '%s: %.0fg of %.0fg needed': '%s: %.0fg de %.0fg necesarios'
   '%u layers': '%u capas'
   '%zu changes': '%zu cambios'
   '%zu events queued': '%zu eventos en cola'
@@ -739,10 +740,8 @@ translations:
   'Current:': 'Actual:'
   'Current: %d°C | Target: %d°C': 'Actual: %d°C | Objetivo: %d°C'
   'Current: %s': 'Actual: %s'
-  'Current: %s · Slot %d': 'Actual: %s · Slot %d'
+  'Current: %s · %s': 'Actual: %s · %s'
   'Current: Bypass': 'Actual: Bypass'
-  'Current: Slot %d': 'Actual: Slot %d'
-  'Current: Tool %d': 'Actual: Herramienta %d'
   Currently Loaded: Actualmente cargado
   Currently printing: Imprimiendo actualmente
   Custom: Personalizado
@@ -2073,7 +2072,6 @@ translations:
   Preheat Macro: Macro de Precalentamiento
   Preheat PLA: Precalentar PLA
   Preheat cancelled: Precalentamiento cancelado
-  'Preheat: T{} + bed set': 'Precalentar: T{} + cama configurada'
   'Preheat: all {} tools + bed set': 'Precalentar: todas las {} herramientas + cama
     configurada'
   'Preheat: {} + bed set': 'Precalentar: {} + cama configurada'
@@ -2660,8 +2658,6 @@ translations:
   Slot: Ranura
   Slot %d: Ranura %d
   Slot %d Filament: Filamento de la ranura %d
-  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'La ranura %d tiene aproximadamente %.0fg pero la herramienta %d necesita aproximadamente %.0fg. ¿Iniciar de todos modos?'
-  'Slot %d: %.0fg of %.0fg needed': 'Ranura %d: %.0fg de %.0fg necesarios'
   Slot 1: Ranura 1
   Slot colors, materials, and levels: Colores, materiales y niveles de ranura
   Slot {}: Ranura {}
@@ -2790,7 +2786,6 @@ translations:
   Switch between light and dark themes: Cambiar entre temas claro y oscuro
   Switch the active tool or extruder: Cambiar la herramienta o extrusor activo
   Switch to v%s: 'Cambiar a la v%s'
-  Switched to T{}: Cambiado a T{}
   Switched to {}: 'Cambiado a {}'
   Switches to a backup spool on runout: Cambia a una bobina de respaldo al agotarse
   Switching heater control to MPC. Klipper will restart.: Cambiando control del calentador
@@ -2805,10 +2800,6 @@ translations:
   System busy — try again: Sistema ocupado — inténtelo de nuevo
   System default: Predeterminado del sistema
   System detected: Sistema detectado
-  T%d has no filament loaded — this print will run out.: T%d no tiene filamento cargado
-    — esta impresión se quedará sin filamento.
-  T%d needs filament in slot %d, which is empty — this print will run out.: T%d necesita
-    filamento en la ranura %d, que está vacía — esta impresión se quedará sin filamento.
   TANGLE: ENREDO
   TD-1 filament color detection: Detección de color de filamento TD-1
   TEMPERATURE SENSORS: SENSORES DE TEMPERATURA
@@ -3054,7 +3045,6 @@ translations:
   'Tool change failed: {}': 'Error al cambiar herramienta: {}'
   Tool mapping failed: Error de mapeo de herramientas
   Tool swap: Cambio de herramienta
-  'Tool {} → Slot {}: no filament loaded.': 'Herramienta {} → Ranura {}: no hay filamento cargado.'
   Toolhead: 'Cabezal'
   Toolhead LED: 'LED del cabezal'
   Toolhead Sensor: Sensor del Cabezal
@@ -3094,7 +3084,6 @@ translations:
   Type: Tipo
   Type to preview input field...: Escriba para previsualizar campo de entrada...
   'Type:': 'Tipo:'
-  T{} shares slot with T{}: T{} comparte ranura con T{}
   UI Scale: Escala de interfaz
   UI Sounds: Sonidos de interfaz
   UI scale applies after restart: La escala de interfaz se aplica tras reiniciar

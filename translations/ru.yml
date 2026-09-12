@@ -19,6 +19,7 @@ translations:
   '%s has about %.0fg but %s needs about %.0fg. Start anyway?': 'В %s осталось около %.0fг, но %s нужно около %.0fг. Всё равно начать?'
   '%s has no filament loaded — this print will run out.': 'В %s не загружен филамент — печати не хватит филамента.'
   '%s needs filament in %s, which is empty — this print will run out.': 'Для %s нужен филамент в %s, который пуст — печати не хватит филамента.'
+  '%s: %.0fg of %.0fg needed': '%s: %.0fг из %.0fг'
   '%u layers': '%u слоёв'
   '%zu changes': '%zu изменений'
   '%zu events queued': '%zu событий в очереди'
@@ -727,10 +728,8 @@ translations:
   'Current:': 'Текущий:'
   'Current: %d°C | Target: %d°C': 'Текущая: %d°C | Целевая: %d°C'
   'Current: %s': 'Текущий: %s'
-  'Current: %s · Slot %d': 'Текущий: %s · Слот %d'
+  'Current: %s · %s': 'Текущий: %s · %s'
   'Current: Bypass': 'Текущий: Обход'
-  'Current: Slot %d': 'Текущий: Слот %d'
-  'Current: Tool %d': 'Текущий: Инструмент %d'
   Currently Loaded: Загружено
   Currently printing: Сейчас печатается
   Custom: Свой
@@ -2050,7 +2049,6 @@ translations:
   Preheat Macro: Макрос преднагрева
   Preheat PLA: Преднагрев PLA
   Preheat cancelled: Предварительный нагрев отменён
-  'Preheat: T{} + bed set': 'Преднагрев: T{} + стол заданы'
   'Preheat: all {} tools + bed set': 'Преднагрев: все {} инструменты + стол заданы'
   'Preheat: {} + bed set': 'Преднагрев: {} + стол заданы'
   Prepared: Готово
@@ -2632,8 +2630,6 @@ translations:
   Slot: Слот
   Slot %d: Слот %d
   Slot %d Filament: Филамент слота %d
-  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'В слоте %d осталось около %.0fг, но инструменту %d нужно около %.0fг. Всё равно начать?'
-  'Slot %d: %.0fg of %.0fg needed': 'Слот %d: %.0fг из %.0fг'
   Slot 1: Слот 1
   Slot colors, materials, and levels: Цвета, материалы и уровни слотов
   Slot {}: Слот {}
@@ -2759,7 +2755,6 @@ translations:
   Switch between light and dark themes: Переключение между светлой и тёмной темами
   Switch the active tool or extruder: Смена активного инструмента
   Switch to v%s: 'Перейти на v%s'
-  Switched to T{}: Переключено на T{}
   Switched to {}: 'Переключено на {}'
   Switches to a backup spool on runout: При обрыве переключится на резервную катушку
   Switching heater control to MPC. Klipper will restart.: Переключение управления
@@ -2774,10 +2769,6 @@ translations:
   System busy — try again: Система занята — попробуйте снова
   System default: Системное по умолчанию
   System detected: Обнаружена система
-  T%d has no filament loaded — this print will run out.: В T%d не загружен филамент
-    — печати не хватит филамента.
-  T%d needs filament in slot %d, which is empty — this print will run out.: Для T%d
-    нужен филамент в слоте %d, который пуст — печати не хватит филамента.
   TANGLE: СПУТЫВАНИЕ
   TD-1 filament color detection: Определение цвета филамента TD-1
   TEMPERATURE SENSORS: ДАТЧИКИ ТЕМПЕРАТУРЫ
@@ -3014,7 +3005,6 @@ translations:
   'Tool change failed: {}': 'Ошибка смены инструмента: {}'
   Tool mapping failed: Ошибка сопоставления инструмента
   Tool swap: Смена инструмента
-  'Tool {} → Slot {}: no filament loaded.': 'Инструмент {} → Слот {}: филамент не загружен.'
   Toolhead: 'Печатающая головка'
   Toolhead LED: 'LED печатающей головки'
   Toolhead Sensor: Датчик печатающей головки
@@ -3054,7 +3044,6 @@ translations:
   Type: Тип
   Type to preview input field...: Введите для предпросмотра поля ввода...
   'Type:': 'Тип:'
-  T{} shares slot with T{}: T{} использует общий слот с T{}
   UI Scale: Масштаб интерфейса
   UI Sounds: Звуки интерфейса
   UI scale applies after restart: Масштаб интерфейса применяется после перезапуска

@@ -19,6 +19,7 @@ translations:
   '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s tem cerca de %.0fg, mas %s precisa de cerca de %.0fg. Iniciar mesmo assim?'
   '%s has no filament loaded — this print will run out.': '%s não tem filamento carregado — esta impressão vai acabar.'
   '%s needs filament in %s, which is empty — this print will run out.': '%s precisa de filamento em %s, que está vazio — esta impressão vai acabar.'
+  '%s: %.0fg of %.0fg needed': '%s: %.0fg de %.0fg necessários'
   '%u layers': '%u camadas'
   '%zu changes': '%zu alterações'
   '%zu events queued': '%zu eventos na fila'
@@ -740,10 +741,8 @@ translations:
   'Current:': 'Atual:'
   'Current: %d°C | Target: %d°C': 'Atual: %d°C | Alvo: %d°C'
   'Current: %s': 'Atual: %s'
-  'Current: %s · Slot %d': 'Atual: %s · Slot %d'
+  'Current: %s · %s': 'Atual: %s · %s'
   'Current: Bypass': 'Atual: Bypass'
-  'Current: Slot %d': 'Atual: Slot %d'
-  'Current: Tool %d': 'Atual: Ferramenta %d'
   Currently Loaded: Atualmente carregado
   Currently printing: Imprimindo atualmente
   Custom: Personalizado
@@ -2075,7 +2074,6 @@ translations:
   Preheat Macro: Macro de Pré-aquecimento
   Preheat PLA: Pré-aquecer PLA
   Preheat cancelled: Pré-aquecimento cancelado
-  'Preheat: T{} + bed set': 'Pré-aquecer: T{} + mesa configurada'
   'Preheat: all {} tools + bed set': 'Pré-aquecer: todas as {} ferramentas + mesa
     configurada'
   'Preheat: {} + bed set': 'Pré-aquecer: {} + mesa configurada'
@@ -2666,8 +2664,6 @@ translations:
   Slot: Slot
   Slot %d: Slot %d
   Slot %d Filament: Filamento do Slot %d
-  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'O slot %d tem cerca de %.0fg, mas a ferramenta %d precisa de cerca de %.0fg. Iniciar mesmo assim?'
-  'Slot %d: %.0fg of %.0fg needed': 'Slot %d: %.0fg de %.0fg necessários'
   Slot 1: Slot 1
   Slot colors, materials, and levels: Cores, materiais e níveis dos slots
   Slot {}: Slot {}
@@ -2796,7 +2792,6 @@ translations:
   Switch between light and dark themes: Alternar entre temas claro e escuro
   Switch the active tool or extruder: Trocar a ferramenta ou extrusor ativo
   Switch to v%s: 'Mudar para a v%s'
-  Switched to T{}: Alterado para T{}
   Switched to {}: 'Alterado para {}'
   Switches to a backup spool on runout: Troca para um carretel de reserva ao acabar
   Switching heater control to MPC. Klipper will restart.: Alterando controle do aquecedor
@@ -2811,10 +2806,6 @@ translations:
   System busy — try again: Sistema ocupado — tente novamente
   System default: Padrão do sistema
   System detected: Sistema detectado
-  T%d has no filament loaded — this print will run out.: T%d não tem filamento carregado
-    — esta impressão vai acabar.
-  T%d needs filament in slot %d, which is empty — this print will run out.: T%d precisa
-    de filamento no slot %d, que está vazio — esta impressão vai acabar.
   TANGLE: EMARANHADO
   TD-1 filament color detection: Detecção de cor de filamento TD-1
   TEMPERATURE SENSORS: SENSORES DE TEMPERATURA
@@ -3059,7 +3050,6 @@ translations:
   'Tool change failed: {}': 'Falha ao trocar ferramenta: {}'
   Tool mapping failed: Falha no mapeamento de ferramenta
   Tool swap: Troca de ferramenta
-  'Tool {} → Slot {}: no filament loaded.': 'Ferramenta {} → Slot {}: nenhum filamento carregado.'
   Toolhead: 'Cabeçote'
   Toolhead LED: 'LED do cabeçote'
   Toolhead Sensor: Sensor do Cabeçote
@@ -3099,7 +3089,6 @@ translations:
   Type: Tipo
   Type to preview input field...: Digite para visualizar o campo de entrada...
   'Type:': 'Tipo:'
-  T{} shares slot with T{}: T{} compartilha o slot com T{}
   UI Scale: Escala da interface
   UI Sounds: Sons da Interface
   UI scale applies after restart: A escala da interface aplica-se após reiniciar

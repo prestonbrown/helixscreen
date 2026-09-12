@@ -18,6 +18,7 @@
   <translation tag="%s has about %.0fg but %s needs about %.0fg. Start anyway?" it="%s ha circa %.0fg ma %s ne richiede circa %.0fg. Avviare comunque?"/>
   <translation tag="%s has no filament loaded — this print will run out." it="%s non ha filamento caricato — questa stampa lo esaurirà."/>
   <translation tag="%s needs filament in %s, which is empty — this print will run out." it="%s richiede filamento in %s, che è vuoto — questa stampa lo esaurirà."/>
+  <translation tag="%s: %.0fg of %.0fg needed" it="%s: %.0fg di %.0fg necessari"/>
   <translation tag="%u layers" it="%u strati"/>
   <translation tag="%zu changes" it="%zu modifiche"/>
   <translation tag="%zu events queued" it="%zu eventi in coda"/>
@@ -652,10 +653,8 @@
   <translation tag="Current:" it="Attuale:"/>
   <translation tag="Current: %d°C | Target: %d°C" it="Attuale: %d°C | Obiettivo: %d°C"/>
   <translation tag="Current: %s" it="Attuale: %s"/>
-  <translation tag="Current: %s · Slot %d" it="Attuale: %s · Slot %d"/>
+  <translation tag="Current: %s · %s" it="Attuale: %s · %s"/>
   <translation tag="Current: Bypass" it="Attuale: Bypass"/>
-  <translation tag="Current: Slot %d" it="Attuale: Slot %d"/>
-  <translation tag="Current: Tool %d" it="Attuale: Utensile %d"/>
   <translation tag="Currently Loaded" it="Attualmente caricato"/>
   <translation tag="Currently printing" it="Stampa in corso"/>
   <translation tag="Custom" it="Personalizzato"/>
@@ -1860,7 +1859,6 @@
   <translation tag="Preheat Macro" it="Macro preriscaldamento"/>
   <translation tag="Preheat PLA" it="Preriscalda PLA"/>
   <translation tag="Preheat cancelled" it="Preriscaldamento annullato"/>
-  <translation tag="Preheat: T{} + bed set" it="Preriscaldamento: T{} + piano impostati"/>
   <translation tag="Preheat: all {} tools + bed set" it="Preriscaldamento: tutti i {} utensili + piano impostati"/>
   <translation tag="Preheat: {} + bed set" it="Preriscaldamento: {} + piano impostati"/>
   <translation tag="Prepared" it="Preparato"/>
@@ -2381,8 +2379,6 @@
   <translation tag="Slot" it="Slot"/>
   <translation tag="Slot %d" it="Slot %d"/>
   <translation tag="Slot %d Filament" it="Filamento slot %d"/>
-  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" it="Lo slot %d ha circa %.0fg ma lo strumento %d ne richiede circa %.0fg. Avviare comunque?"/>
-  <translation tag="Slot %d: %.0fg of %.0fg needed" it="Slot %d: %.0fg di %.0fg necessari"/>
   <translation tag="Slot 1" it="Slot 1"/>
   <translation tag="Slot colors, materials, and levels" it="Colori, materiali e livelli slot"/>
   <translation tag="Slot {}" it="Slot {}"/>
@@ -2496,7 +2492,6 @@
   <translation tag="Switch between light and dark themes" it="Passa tra tema chiaro e scuro"/>
   <translation tag="Switch the active tool or extruder" it="Cambia utensile o estrusore attivo"/>
   <translation tag="Switch to v%s" it="Passa alla v%s"/>
-  <translation tag="Switched to T{}" it="Passato a T{}"/>
   <translation tag="Switched to {}" it="Passato a {}"/>
   <translation tag="Switches to a backup spool on runout" it="Passa a una bobina di riserva a filamento esaurito"/>
   <translation tag="Switching heater control to MPC. Klipper will restart." it="Passaggio controllo riscaldatore a MPC. Klipper si riavvierà."/>
@@ -2509,8 +2504,6 @@
   <translation tag="System busy — try again" it="Sistema occupato — riprova"/>
   <translation tag="System default" it="Predefinito di sistema"/>
   <translation tag="System detected" it="Sistema rilevato"/>
-  <translation tag="T%d has no filament loaded — this print will run out." it="T%d non ha filamento caricato — questa stampa lo esaurirà."/>
-  <translation tag="T%d needs filament in slot %d, which is empty — this print will run out." it="T%d richiede filamento nello slot %d, che è vuoto — questa stampa lo esaurirà."/>
   <translation tag="TANGLE" it="GROVIGLIO"/>
   <translation tag="TD-1 filament color detection" it="Rilevamento colore filamento TD-1"/>
   <translation tag="TEMPERATURE SENSORS" it="SENSORI DI TEMPERATURA"/>
@@ -2693,7 +2686,6 @@
   <translation tag="Tool change failed: {}" it="Cambio utensile fallito: {}"/>
   <translation tag="Tool mapping failed" it="Mappatura utensile fallita"/>
   <translation tag="Tool swap" it="Cambio utensile"/>
-  <translation tag="Tool {} → Slot {}: no filament loaded." it="Strumento {} → Slot {}: nessun filamento caricato."/>
   <translation tag="Toolhead" it="Testina"/>
   <translation tag="Toolhead LED" it="LED della testina"/>
   <translation tag="Toolhead Sensor" it="Sensore testina"/>
@@ -2731,7 +2723,6 @@
   <translation tag="Type" it="Tipo"/>
   <translation tag="Type to preview input field..." it="Digita per visualizzare anteprima campo input..."/>
   <translation tag="Type:" it="Tipo:"/>
-  <translation tag="T{} shares slot with T{}" it="T{} condivide lo slot con T{}"/>
   <translation tag="UI Scale" it="Scala dell&apos;interfaccia"/>
   <translation tag="UI Sounds" it="Suoni interfaccia"/>
   <translation tag="UI scale applies after restart" it="La scala dell&apos;interfaccia è attiva dopo il riavvio"/>
