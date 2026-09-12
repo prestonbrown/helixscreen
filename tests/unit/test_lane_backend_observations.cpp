@@ -15,6 +15,7 @@
 #include "test_helpers/afc_test_access.h"
 #include "test_helpers/registered_backend.h"
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -38,6 +39,12 @@ using AfcHarness = RegisteredBackend<AmsBackendAfc>;
 void init_afc_lanes(AmsBackendAfc& backend) {
     AfcTestAccess::initialize_slots(backend,
                                     std::vector<std::string>{"lane1", "lane2", "lane3", "lane4"});
+}
+
+/// One AFC lane_data payload, the Moonraker DB snapshot, keyed by lane name.
+void feed_afc_lane_data(AmsBackendAfc& backend, const nlohmann::json& lane_data) {
+    std::lock_guard<std::mutex> lock(AfcTestAccess::mutex(backend));
+    AfcTestAccess::parse_lane_data(backend, lane_data);
 }
 
 /// One AFC_stepper lane object, delivered the way Moonraker delivers it: a
@@ -489,4 +496,72 @@ TEST_CASE_METHOD(LVGLTestFixture, "a spool id AFC did not state is not filed as 
     const auto lane = lane_sources(harness.lane(0));
     REQUIRE(lane.vendor_cache.has_value());
     CHECK_FALSE(lane.vendor_cache->spoolman_id.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AFC's DB snapshot files on the same lane as its status frames",
+                 "[lane][ingest][afc]") {
+    AfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    // lane_data alone. No status frame has run, so every value below is this
+    // parser's work and nothing else's.
+    feed_afc_lane_data(*harness, {{"lane3",
+                                   {{"color", "#ED2C2C"},
+                                    {"material", "PETG"},
+                                    {"name", "Galaxy Black"},
+                                    {"vendor_name", "Kingroon"},
+                                    {"spool_id", 7}}}});
+
+    const auto lane = lane_sources(harness.lane(2));
+    REQUIRE(lane.vendor_cache.has_value());
+    REQUIRE(lane.vendor_cache->color_rgb.has_value());
+    CHECK(*lane.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(lane.vendor_cache->material == "PETG");
+    CHECK(lane.vendor_cache->spool_name == "Galaxy Black");
+    CHECK(lane.vendor_cache->brand == "Kingroon");
+    CHECK(lane.vendor_cache->spoolman_id == 7);
+
+    // A database record is not a sensor and does not weigh anything.
+    CHECK_FALSE(lane.sensed.has_value());
+    CHECK_FALSE(lane.metered.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AFC's two parsers accumulate into one account of a lane",
+                 "[lane][ingest][afc]") {
+    AfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    // The subscription carries colour, material and weight on every AFC
+    // version; the filament name reaches pre-v1.2.0 firmware only through the
+    // DB snapshot. Neither parser may narrow the lane to its own half.
+    feed_afc_lane(*harness, "lane1",
+                  {{"prep", true},
+                   {"status", "Loaded"},
+                   {"color", "#ED2C2C"},
+                   {"material", "PETG"},
+                   {"weight", 612.0}});
+    feed_afc_lane_data(*harness, {{"lane1", {{"name", "Galaxy Black"}}}});
+
+    const auto joined = lane_sources(harness.lane(0));
+    REQUIRE(joined.vendor_cache.has_value());
+    REQUIRE(joined.vendor_cache->color_rgb.has_value());
+    CHECK(*joined.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(joined.vendor_cache->material == "PETG");
+    CHECK(joined.vendor_cache->spool_name == "Galaxy Black");
+
+    // The snapshot said nothing about sensors or weight, so what the
+    // subscription established still stands.
+    REQUIRE(joined.sensed.has_value());
+    CHECK(joined.sensed->present == true);
+    REQUIRE(joined.metered.has_value());
+    CHECK(*joined.metered->remaining_weight_g == Catch::Approx(612.0F));
+
+    // An empty name in the snapshot is the clear AFC writes on eject, the same
+    // answer the status path gives an empty filament_name.
+    feed_afc_lane_data(*harness, {{"lane1", {{"name", ""}}}});
+
+    const auto cleared = lane_sources(harness.lane(0));
+    REQUIRE(cleared.vendor_cache.has_value());
+    CHECK_FALSE(cleared.vendor_cache->spool_name.has_value());
+    CHECK(cleared.vendor_cache->material == "PETG");
 }

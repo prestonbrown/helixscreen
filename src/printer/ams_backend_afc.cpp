@@ -4086,6 +4086,12 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
         }
         auto& slot = entry->info;
 
+        // The same per-lane account of firmware's own word the status parser
+        // keeps. Both parsers describe one lane, so they accumulate into one
+        // record: a field this snapshot does not carry stands on whatever the
+        // subscription last said about it, and the other way round.
+        auto& firmware = lane_firmware_readings_[slots_.name_of(i)];
+
         // Parse color. AFC writes "#RRGGBB" here (verified against a live
         // BoxTurtle's lane_data namespace); bare hex is accepted too. One
         // decision with the status path, so the two parsers cannot answer the
@@ -4094,14 +4100,21 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
             const auto reading = ams::read_lane_color(lane["color"].get<std::string>());
             if (reading.kind == ams::ColorReadingKind::Observed) {
                 slot.color_rgb = reading.rgb;
+                firmware.cache.color_rgb = reading.rgb;
             } else if (reading.kind == ams::ColorReadingKind::Cleared) {
                 slot.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+                firmware.cache.color_rgb.reset();
             }
         }
 
         // Parse material
         if (lane.contains("material") && lane["material"].is_string()) {
             slot.material = lane["material"].get<std::string>();
+            if (slot.material.empty()) {
+                firmware.cache.material.reset();
+            } else {
+                firmware.cache.material = slot.material;
+            }
         }
 
         // Filament name, as AFC copied it out of Spoolman's filament record.
@@ -4121,6 +4134,11 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
             auto it = lane.find(key);
             if (it != lane.end() && it->is_string()) {
                 slot.spool_name = it->get<std::string>();
+                if (slot.spool_name.empty()) {
+                    firmware.cache.spool_name.reset();
+                } else {
+                    firmware.cache.spool_name = slot.spool_name;
+                }
                 break;
             }
         }
@@ -4171,15 +4189,35 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
         // key still means "unchanged"; these are deltas, not snapshots.
         if (lane.contains("spool_id")) {
             if (lane["spool_id"].is_number_integer()) {
-                slot.spoolman_id = lane["spool_id"].get<int>();
+                const int firmware_id = lane["spool_id"].get<int>();
+                slot.spoolman_id = firmware_id;
+                if (firmware_id > 0) {
+                    firmware.cache.spoolman_id = firmware_id;
+                } else {
+                    firmware.cache.spoolman_id.reset();
+                }
             } else if (lane["spool_id"].is_null()) {
                 slot.spoolman_id = 0;
+                firmware.cache.spoolman_id.reset();
             }
         }
 
         // Vendor/brand — see read_vendor(). Arrives as `vendor_name` here; inert
-        // on firmware predating #833.
-        read_vendor(lane, slot.brand);
+        // on firmware predating #833. It writes only when it returns true, so
+        // slot.brand inside the branch is the value it just stored.
+        if (read_vendor(lane, slot.brand)) {
+            firmware.cache.brand = slot.brand;
+        }
+
+        // File what this snapshot has added to firmware's account of the lane.
+        // The values come from `firmware`, never from `slot`: apply_overrides()
+        // below rewrites that struct with the user's own declarations, and
+        // those are not readings.
+        //
+        // No Sensed record and no Metered one. lane_data reads no sensor, and
+        // the weight comment at the end of this loop is why no weight is read
+        // from it on any AFC version.
+        ams::ingest(lane_id(i), firmware.cache);
 
         // Re-supply the user's attached identity on top of firmware truth, the
         // same way parse_afc_stepper() does. Without this, which parser ran last
