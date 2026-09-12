@@ -279,6 +279,7 @@ translations:
   Beacon auto-calibrate sent: Beacon автокалибровка отправлена
   Beacon calibrate sent: Beacon калибровка отправлена
   Bed: Стол
+  Bed (°C): ''
   Bed Heater: Нагреватель стола
   Bed Level: Уровень стола
   Bed Leveling: Выравнивание стола

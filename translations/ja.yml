@@ -258,6 +258,7 @@ translations:
   Beacon auto-calibrate sent: Beacon自動キャリブレーション送信済み
   Beacon calibrate sent: Beaconキャリブレーション送信済み
   Bed: ベッド
+  Bed (°C): ''
   Bed Heater: ベッドヒーター
   Bed Level: ベッドレベル
   Bed Leveling: ベッドレベリング

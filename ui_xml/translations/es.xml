@@ -256,6 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" es="Beacon auto-calibración enviada"/>
   <translation tag="Beacon calibrate sent" es="Beacon calibración enviada"/>
   <translation tag="Bed" es="Cama"/>
+  <translation tag="Bed (°C)"/>
   <translation tag="Bed Heater" es="Calentador de Cama"/>
   <translation tag="Bed Level" es="Nivel de Cama"/>
   <translation tag="Bed Leveling" es="Nivelación de Cama"/>

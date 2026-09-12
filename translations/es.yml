@@ -283,6 +283,7 @@ translations:
   Beacon auto-calibrate sent: Beacon auto-calibración enviada
   Beacon calibrate sent: Beacon calibración enviada
   Bed: Cama
+  Bed (°C): ''
   Bed Heater: Calentador de Cama
   Bed Level: Nivel de Cama
   Bed Leveling: Nivelación de Cama

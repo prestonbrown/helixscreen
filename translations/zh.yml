@@ -257,6 +257,7 @@ translations:
   Beacon auto-calibrate sent: Beacon自动校准已发送
   Beacon calibrate sent: Beacon校准已发送
   Bed: 热床
+  Bed (°C): ''
   Bed Heater: 热床加热器
   Bed Level: 热床调平
   Bed Leveling: 热床调平

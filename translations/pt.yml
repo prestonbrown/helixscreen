@@ -284,6 +284,7 @@ translations:
   Beacon auto-calibrate sent: Beacon auto-calibração enviada
   Beacon calibrate sent: Beacon calibração enviada
   Bed: Mesa
+  Bed (°C): ''
   Bed Heater: Aquecedor da Mesa
   Bed Level: Nível da Mesa
   Bed Leveling: Nivelamento da Mesa

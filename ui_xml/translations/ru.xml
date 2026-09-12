@@ -256,6 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" ru="Beacon автокалибровка отправлена"/>
   <translation tag="Beacon calibrate sent" ru="Beacon калибровка отправлена"/>
   <translation tag="Bed" ru="Стол"/>
+  <translation tag="Bed (°C)"/>
   <translation tag="Bed Heater" ru="Нагреватель стола"/>
   <translation tag="Bed Level" ru="Уровень стола"/>
   <translation tag="Bed Leveling" ru="Выравнивание стола"/>

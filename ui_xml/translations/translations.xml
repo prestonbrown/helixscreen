@@ -256,6 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" de="Beacon Auto-Kalibrierung gesendet" en="Beacon auto-calibrate sent" es="Beacon auto-calibración enviada" fr="Beacon auto-calibrage envoyé" it="Beacon auto-calibrazione inviata" ja="Beacon自動キャリブレーション送信済み" pt="Beacon auto-calibração enviada" ru="Beacon автокалибровка отправлена" zh="Beacon自动校准已发送"/>
   <translation tag="Beacon calibrate sent" de="Beacon Kalibrierung gesendet" en="Beacon calibrate sent" es="Beacon calibración enviada" fr="Beacon calibrage envoyé" it="Beacon calibrazione inviata" ja="Beaconキャリブレーション送信済み" pt="Beacon calibração enviada" ru="Beacon калибровка отправлена" zh="Beacon校准已发送"/>
   <translation tag="Bed" de="Heizbett" en="Bed" es="Cama" fr="Plateau" it="Piano" ja="ベッド" pt="Mesa" ru="Стол" zh="热床"/>
+  <translation tag="Bed (°C)" en="Bed (°C)"/>
   <translation tag="Bed Heater" de="Bettheizung" en="Bed Heater" es="Calentador de Cama" fr="Chauffage du plateau" it="Riscaldatore piano" ja="ベッドヒーター" pt="Aquecedor da Mesa" ru="Нагреватель стола" zh="热床加热器"/>
   <translation tag="Bed Level" de="Bettnivellierung" en="Bed Level" es="Nivel de Cama" fr="Niveau du plateau" it="Livellamento piano" ja="ベッドレベル" pt="Nível da Mesa" ru="Уровень стола" zh="热床调平"/>
   <translation tag="Bed Leveling" de="Bettnivellierung" en="Bed Leveling" es="Nivelación de Cama" fr="Mise à niveau du plateau" it="Livellamento piano" ja="ベッドレベリング" pt="Nivelamento da Mesa" ru="Выравнивание стола" zh="热床调平"/>
