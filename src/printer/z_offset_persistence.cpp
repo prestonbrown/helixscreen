@@ -383,6 +383,19 @@ bool claim_persistence_enable(Config* config, const PrinterDiscovery& hw,
     return true;
 }
 
+void release_persistence_enable(Config* config) {
+    if (!config) {
+        return;
+    }
+    const std::string key = enable_sent_key(*config);
+    if (!config->get<bool>(key, false)) {
+        return; // never claimed, or already given back
+    }
+    config->set<bool>(key, false);
+    config->save();
+    spdlog::info("[ZOffset] Persistence enable did not land; the one shot is available again");
+}
+
 std::string persistence_provider_name(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
     return p ? p->name : std::string{};
