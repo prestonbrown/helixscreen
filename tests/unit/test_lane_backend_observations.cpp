@@ -524,6 +524,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC's DB snapshot files on the same lane as i
     // A database record is not a sensor and does not weigh anything.
     CHECK_FALSE(lane.sensed.has_value());
     CHECK_FALSE(lane.metered.has_value());
+
+    // A value the snapshot carries but we cannot read is not the snapshot
+    // saying the lane has no colour, so the record keeps the last one it could
+    // read. Only an empty value removes it.
+    feed_afc_lane_data(*harness, {{"lane3", {{"color", "#zzzzzz"}}}});
+
+    const auto unreadable = lane_sources(harness.lane(2));
+    REQUIRE(unreadable.vendor_cache->color_rgb.has_value());
+    CHECK(*unreadable.vendor_cache->color_rgb == 0xED2C2Cu);
+
+    feed_afc_lane_data(*harness, {{"lane3", {{"color", ""}}}});
+    CHECK_FALSE(lane_sources(harness.lane(2)).vendor_cache->color_rgb.has_value());
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "AFC's two parsers accumulate into one account of a lane",
@@ -564,4 +576,33 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC's two parsers accumulate into one account
     REQUIRE(cleared.vendor_cache.has_value());
     CHECK_FALSE(cleared.vendor_cache->spool_name.has_value());
     CHECK(cleared.vendor_cache->material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an unreadable colour leaves AFC's record standing",
+                 "[lane][ingest][afc]") {
+    AfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    feed_afc_lane(*harness, "lane2", {{"prep", true}, {"status", "Loaded"}, {"color", "#ED2C2C"}});
+    REQUIRE(*lane_sources(harness.lane(1)).vendor_cache->color_rgb == 0xED2C2Cu);
+
+    // "AFC published something we cannot read" and "AFC cleared the lane" are
+    // different statements, and the record has to tell them apart or the lane
+    // loses an identity nobody withdrew. The slot keeps its colour on screen;
+    // the record keeps the same one.
+    feed_afc_lane(*harness, "lane2", {{"color", "#zzzzzz"}});
+
+    const auto unreadable = lane_sources(harness.lane(1));
+    REQUIRE(unreadable.vendor_cache.has_value());
+    REQUIRE(unreadable.vendor_cache->color_rgb.has_value());
+    CHECK(*unreadable.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(harness->get_slot_info(1).color_rgb == 0xED2C2Cu);
+
+    // The clear is the other statement, and it does remove the colour.
+    feed_afc_lane(*harness, "lane2", {{"color", ""}});
+
+    const auto cleared = lane_sources(harness.lane(1));
+    REQUIRE(cleared.vendor_cache.has_value());
+    CHECK_FALSE(cleared.vendor_cache->color_rgb.has_value());
+    CHECK(harness->get_slot_info(1).color_rgb == helix::AMS_DEFAULT_SLOT_COLOR);
 }

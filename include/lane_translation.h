@@ -75,6 +75,12 @@ struct ColorReading {
 ///
 /// Empty, or nothing but a `#`, is Cleared: a producer wiping a lane writes
 /// the key empty, and AFC's SET_COLOR with no value stores the bare prefix.
+///
+/// This answers "what did the producer say", which is not the question
+/// is_declarable_color (lane_translation.cpp) answers. AMS_DEFAULT_SLOT_COLOR
+/// written on a wire is a producer stating a grey and reads as Observed here;
+/// the same value sitting in a struct is that struct's "no reading" sentinel
+/// and is refused there.
 [[nodiscard]] ColorReading read_lane_color(const std::string& raw);
 
 } // namespace helix::ams

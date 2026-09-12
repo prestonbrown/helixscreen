@@ -2532,9 +2532,8 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // constant (config `full_weight`, else the unit's) that Spoolman overwrites
     // with the spool's real initial_weight when a spool is linked. Every lane
     // reports it, empty ones included, so adopting it ungated would give an
-    // ejected lane a total_weight_g of 1000 and render it as "0 / 1000 g" —
-    // total_weight_g's convention is -1 for unknown. spool_id was parsed just
-    // above, so slot.spoolman_id is this frame's value.
+    // ejected lane a total_weight_g of 1000 and render it as "0 / 1000 g" -
+    // total_weight_g's convention is -1 for unknown.
     //
     // Deliberately does NOT clear on unlink: total_weight_g also comes from the
     // Spoolman weight poll and from user overrides, and neither should be wiped

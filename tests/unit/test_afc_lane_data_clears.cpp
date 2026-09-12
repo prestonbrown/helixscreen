@@ -324,20 +324,29 @@ TEST_CASE("AFC lane_data and status paths agree about the filament name", "[ams]
 }
 
 TEST_CASE("AFC lane_data and status paths agree about a malformed colour", "[ams][afc][1195]") {
-    AfcLaneDataClearHelper afc;
+    // A divergence here is invisible from either side alone, so drive one
+    // string through both parsers and compare, the way the null-clear case
+    // below does.
+    AfcLaneDataClearHelper via_db;
+    AfcLaneDataClearHelper via_status;
 
-    afc.feed_lane_data(both_lanes(nlohmann::json{{"color", "#E53935"}}));
-    REQUIRE(afc.color(0) == 0xE53935u);
+    via_db.feed_lane_data(both_lanes(nlohmann::json{{"color", "#E53935"}}));
+    via_status.feed_stepper("lane1", nlohmann::json{{"color", "#E53935"}});
+    REQUIRE(via_db.color(0) == 0xE53935u);
+    REQUIRE(via_status.color(0) == 0xE53935u);
 
     // Garbage is a parse failure, not a clear: the producer said something we
-    // cannot read, which is not the same as saying the lane has no colour. The
-    // status path already answers it this way.
-    afc.feed_lane_data(both_lanes(nlohmann::json{{"color", "#zzzzzz"}}));
-    CHECK(afc.color(0) == 0xE53935u);
+    // cannot read, which is not the same as saying the lane has no colour.
+    via_db.feed_lane_data(both_lanes(nlohmann::json{{"color", "#zzzzzz"}}));
+    via_status.feed_stepper("lane1", nlohmann::json{{"color", "#zzzzzz"}});
+    CHECK(via_db.color(0) == via_status.color(0));
+    CHECK(via_db.color(0) == 0xE53935u);
 
-    // Empty is the clear AFC writes on eject, and it does reach the default.
-    afc.feed_lane_data(both_lanes(nlohmann::json{{"color", ""}}));
-    CHECK(afc.color(0) == AMS_DEFAULT_SLOT_COLOR);
+    // Empty is the clear AFC writes on eject, and both reach the default.
+    via_db.feed_lane_data(both_lanes(nlohmann::json{{"color", ""}}));
+    via_status.feed_stepper("lane1", nlohmann::json{{"color", ""}});
+    CHECK(via_db.color(0) == via_status.color(0));
+    CHECK(via_db.color(0) == AMS_DEFAULT_SLOT_COLOR);
 }
 
 TEST_CASE("AFC lane_data and status paths agree about the null clear", "[ams][afc][1195]") {

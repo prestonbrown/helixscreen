@@ -32,6 +32,10 @@ bool is_declarable_weight(float grams) {
 /// AMS_DEFAULT_SLOT_COLOR means "no colour reading", not a grey anyone
 /// picked, and both a cleared slot and a colourless lane_data record land on
 /// it, so filing it would hand every one of them a declared grey.
+///
+/// This answers "may this value be recorded as a declaration", which is not
+/// the question read_lane_color answers: a producer writing #808080 on a wire
+/// is stating a grey, where a struct resting on its default is not.
 bool is_declarable_color(uint32_t rgb) {
     return rgb != AMS_DEFAULT_SLOT_COLOR;
 }
