@@ -36,9 +36,13 @@ decide_nozzle_layout(int avail_px, int gap_px, int long_row_px, int short_row_px
     if (avail_px <= 0)
         return {1, true};
 
-    // Two columns only when there are at least two rows AND the short form of
-    // both rows plus the inter-row gap fits the available width.
-    int columns = (row_count >= 2 && avail_px >= 2 * short_row_px + gap_px) ? 2 : 1;
+    // Two columns only when there are at least two rows AND both rows plus the
+    // inter-row gap fit. The narrower of the two spellings is what a tight
+    // column actually renders, so that is the width two columns have to hold;
+    // measuring the compact form where it is the wider one measures a string
+    // the widget will never draw there.
+    const int narrow_row_px = (short_row_px < long_row_px) ? short_row_px : long_row_px;
+    int columns = (row_count >= 2 && avail_px >= 2 * narrow_row_px + gap_px) ? 2 : 1;
 
     // Never split a single row into two columns.
     if (columns > row_count)

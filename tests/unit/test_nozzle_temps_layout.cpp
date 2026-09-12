@@ -102,9 +102,9 @@ TEST_CASE("Zero rows clamps to a single column", "[nozzle][layout]") {
 }
 
 // --- Exact boundaries, derived from decide_nozzle_layout()'s own arithmetic
-// (columns = avail_px >= 2*short_row_px + gap_px; use_long_label = col_w >=
-// long_row_px or long_row_px <= short_row_px), not by running the function and
-// recording what it printed.
+// (columns = avail_px >= 2*min(short_row_px, long_row_px) + gap_px;
+// use_long_label = col_w >= long_row_px or long_row_px <= short_row_px), not by
+// running the function and recording what it printed.
 
 TEST_CASE("Column split at the exact 2*short+gap boundary picks two columns", "[nozzle][layout]") {
     // threshold = 2*short_row_px(90) + gap_px(12) = 192, avail_px == threshold
@@ -167,4 +167,28 @@ TEST_CASE("A wider compact form does not pin two columns to the long label", "[n
                                                   /*row_count=*/4);
     REQUIRE(d.columns == 2);
     REQUIRE(d.use_long_label == true);
+}
+
+TEST_CASE("Two columns are gated on the narrower spelling, not the compact one",
+          "[nozzle][layout]") {
+    // de: the position label ("Werkzeug 1") is wider than the nozzle name
+    // ("Duse 1"), and the nozzle name is what a tight column renders. Gating on
+    // the position label would refuse a second column this width does hold:
+    // 2*150 + 12 = 312 <= 400, where 2*200 + 12 = 412 does not.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/400, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/200,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 2);
+    // col_w = (400 - 12) / 2 = 194 >= long_row_px(150).
+    CHECK(d.use_long_label == true);
+}
+
+TEST_CASE("One pixel below the narrow-spelling split boundary stays a single column",
+          "[nozzle][layout]") {
+    // Same shape as above, avail_px one under the 2*150 + 12 = 312 threshold.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/311, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/200,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    CHECK(d.use_long_label == true);
 }
