@@ -208,11 +208,25 @@ app calls vanish; the one that matters in practice is
 preferred mode is what you get. `src/api/display_backend_drm.cpp` guards the
 call and warns rather than failing to link.
 
-No shipped per-board config sets a mode override, so this reaches only someone
-who picked a resolution by hand. On the EGL rung that choice is logged and
-ignored, and the panel comes up at its preferred mode instead. Whether a
-configured resolution should make the launcher decline the rung is a per-board
-policy question, not a probe question — the probe cannot see the config.
+No shipped per-board config sets a mode override, so this reaches only an install
+whose resolution was chosen by hand - which the CB1's is, at 800x480. On the EGL
+rung that choice is logged and ignored, and the panel comes up at its preferred
+mode instead. It is harmless there only because the connector prefers the same
+mode. Whether a configured resolution should make the launcher decline the rung is
+a per-board policy question, not a probe question - the probe cannot see the
+config.
+
+**Rotation takes the board off this rung entirely.**
+`DisplayBackendDRM::supports_hardware_rotation()` returns false for every nonzero
+angle under EGL, because the plane rotation entry points live in the dumb-buffer
+driver. `DisplayManager` answers that by deleting the DRM display and rebuilding on
+fbdev in-process, input devices included. So a board configured to rotate selects
+`helix-screen-egl` at boot, brings EGL up, then presents through `/dev/fb0` anyway.
+
+Verified on the Pi 3B at 180 degrees: the picture does invert, touch is rebuilt on
+the fbdev backend, and the log records the whole handover. Rotation and GPU
+presentation are mutually exclusive today, so a board that needs rotation gains
+nothing from this rung.
 
 ---
 
