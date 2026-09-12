@@ -451,15 +451,20 @@ class AmsErrorHelper {
      * @return AmsError configured for UI display
      */
     static AmsError invalid_slot(ui::LaneNoun noun, int slot, int max_slot) {
-        // A backend reporting no positions at all has no range to offer.
+        // The bare word, not a composed label: this names the kind of thing the
+        // index was supposed to be, not a position that exists. tool_out_of_range()
+        // below reads the same way.
+        const std::string word = ui::noun_text(noun);
+        // 1-based, matching the labels these positions carry everywhere else. A
+        // backend that has reported no positions has no span to offer.
         const int highest = ui::lane_number(max_slot);
-        const std::string suggestion = highest > 0
-                                           ? "Choose one between 1 and " + std::to_string(highest)
-                                           : "Wait for the filament system to report its positions";
+        const std::string suggestion =
+            highest > 0 ? "Select a valid " + word + " (1-" + std::to_string(highest) + ")"
+                        : "Select a valid " + word;
         return AmsError(AmsResult::INVALID_SLOT,
                         "Slot " + std::to_string(slot) + " out of range (0-" +
                             std::to_string(max_slot) + ")",
-                        position_label(noun, slot) + " does not exist", suggestion, slot);
+                        "Invalid " + word + " number", suggestion, slot);
     }
 
     /**

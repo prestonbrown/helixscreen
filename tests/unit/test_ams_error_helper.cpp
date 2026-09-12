@@ -49,8 +49,10 @@ TEST_CASE("tool_out_of_range still names a negative tool in the technical detail
 TEST_CASE("a position error names the backend's noun, 1-based", "[ams][numbering]") {
     CHECK(AmsErrorHelper::slot_not_available(ui::LaneNoun::Gate, 2).user_msg == "Gate 3 is empty");
     CHECK(AmsErrorHelper::slot_blocked(ui::LaneNoun::Lane, 0).user_msg == "Lane 1 blocked");
+    // invalid_slot names the KIND, not a position: no index exists to compose a
+    // label from, and "Invalid Feeder 8 number" is worse than either.
     CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Feeder, 7, 3).user_msg ==
-          "Feeder 8 does not exist");
+          "Invalid Feeder number");
     CHECK(AmsErrorHelper::load_failed(ui::LaneNoun::Slot, 1).user_msg ==
           "Failed to load filament from Slot 2");
 }
@@ -63,19 +65,25 @@ TEST_CASE("a position error keeps the raw index in the technical detail", "[ams]
 }
 
 TEST_CASE("an out-of-range position suggests a 1-based span", "[ams][numbering]") {
+    // max_slot is the 0-based highest valid index, so a 4-position system passes
+    // 3 and the user is told 1-4, not 0-3.
     CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Lane, 9, 3).suggestion ==
-          "Choose one between 1 and 4");
+          "Select a valid Lane (1-4)");
     // A backend that has not reported its positions yet has no span to offer.
     CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Lane, 0, -1).suggestion ==
-          "Wait for the filament system to report its positions");
+          "Select a valid Lane");
 }
 
 TEST_CASE("a position error still names a sentinel index", "[ams][numbering]") {
     // lane_label() has no spelling for a negative index, and backends do pass
     // one: every guard here reads "< 0 || >= max" and hands the value through
-    // on either side of that OR.
-    CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Gate, -1, 3).user_msg ==
-          "Gate -1 does not exist");
+    // on either side of that OR. The three helpers that name a specific
+    // position must still say which value was rejected.
+    CHECK(AmsErrorHelper::slot_not_available(ui::LaneNoun::Gate, -1).user_msg ==
+          "Gate -1 is empty");
+    CHECK(AmsErrorHelper::slot_blocked(ui::LaneNoun::Lane, -1).user_msg == "Lane -1 blocked");
+    CHECK(AmsErrorHelper::load_failed(ui::LaneNoun::Slot, -1).user_msg ==
+          "Failed to load filament from Slot -1");
 }
 
 TEST_CASE("Happy Hare reports an out-of-range gate as a gate", "[ams][numbering]") {
@@ -86,7 +94,7 @@ TEST_CASE("Happy Hare reports an out-of-range gate as a gate", "[ams][numbering]
 
     const auto err = backend.set_slot_info(2, helix::SlotInfo{}, /*persist=*/false);
     CHECK(err.result == AmsResult::INVALID_SLOT);
-    CHECK(err.user_msg == "Gate 3 does not exist");
+    CHECK(err.user_msg == "Invalid Gate number");
 }
 
 TEST_CASE("the mock backend reports a bad index without deadlocking", "[ams][numbering]") {
@@ -98,5 +106,5 @@ TEST_CASE("the mock backend reports a bad index without deadlocking", "[ams][num
     REQUIRE(mock.get_type() == AmsType::HAPPY_HARE); // the mock's default persona
     const auto err = mock.set_slot_info(9, helix::SlotInfo{}, /*persist=*/false);
     CHECK(err.result == AmsResult::INVALID_SLOT);
-    CHECK(err.user_msg == "Gate 10 does not exist");
+    CHECK(err.user_msg == "Invalid Gate number");
 }
