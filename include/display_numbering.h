@@ -93,6 +93,18 @@ std::string lane_label(LaneNoun noun, std::string_view unit_display_name, int in
 std::string lane_range_label(LaneNoun noun, int first_index, int last_index);
 
 /**
+ * @brief How many positions a unit has: "4 slots", "8 lanes".
+ *
+ * One fixed translated form per noun, never a count spliced into a plural
+ * word. Russian numerals take three forms (1 слот / 2-4 слота / 5+ слотов) and
+ * a card header is not the place to decide between them, so each locale writes
+ * the one form it wants to read there.
+ *
+ * @param count number of positions, shown verbatim
+ */
+std::string lane_count_label(LaneNoun noun, int count);
+
+/**
  * @brief The noun for the printer currently connected.
  *
  * Resolved in one place so no widget derives it for itself. The nozzle badge

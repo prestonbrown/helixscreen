@@ -8,10 +8,15 @@
   <translation tag="%d additional fan%s" pt="%d ventoinha%s adicional"/>
   <translation tag="%d disabled" pt="%d desativado"/>
   <translation tag="%d failed to load - see details below" pt="%d falhou ao carregar - veja os detalhes abaixo"/>
+  <translation tag="%d feeders" pt="%d alimentadores"/>
+  <translation tag="%d gates" pt="%d Gates"/>
+  <translation tag="%d lanes" pt="%d lanes"/>
   <translation tag="%d more sensors" pt="%d sensores adicionais"/>
   <translation tag="%d of %d plugins loaded" pt="%d de %d plugins carregados"/>
   <translation tag="%d plugins loaded" pt="%d plugins carregados"/>
   <translation tag="%d slots" pt="%d slots"/>
+  <translation tag="%d toolheads" pt="%d cabeçotes"/>
+  <translation tag="%d tools" pt="%d ferramentas"/>
   <translation tag="%lu days ago" pt="há %lu dias"/>
   <translation tag="%lu hours ago" pt="há %lu horas"/>
   <translation tag="%lu min ago" pt="há %lu min"/>
@@ -2567,6 +2572,7 @@
   <translation tag="The Spoolman spool currently loaded" pt="O carretel do Spoolman em uso"/>
   <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." pt="A transmissão do acelerômetro parou: %s. Verifique se o Klipper está em execução e tente novamente."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." pt="O protetor de tela animado foi desativado neste dispositivo para evitar que interfira nas impressões. Você pode reativá-lo em Configurações &gt; Tela."/>
+  <translation tag="The bed was reported dirty, so this print cannot resume." pt="A mesa foi reportada como suja, portanto esta impressão não pode ser retomada."/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" pt="O buffer pode estar desconectado, travado ou com defeito. Verifique antes de tentar novamente"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" pt="O buffer não detectou movimento por 16 segundos. Verifique se há obstrução entre o CFS e o extrusor, ou um buffer travado"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" pt="A lâmina não retornou. Verifique se há filamento enrolado no mecanismo de corte"/>
@@ -2981,6 +2987,7 @@
   <translation tag="v{} is available. Tap to update." pt="v{} disponível. Toque para atualizar."/>
   <translation tag="you have" pt="você tem"/>
   <translation tag="{} LED strips available" pt="{} fitas de LED disponíveis"/>
+  <translation tag="{} and {} are both mapped here" pt="{} e {} estão ambos atribuídos aqui"/>
   <translation tag="{} axis homed" pt="Eixo {} referenciado"/>
   <translation tag="{} command timed out" pt="Comando {} expirou"/>
   <translation tag="{} complete" pt="{} concluído"/>
@@ -3007,7 +3014,6 @@
   <translation tag="{} preset{}" pt="{} predefinição{}"/>
   <translation tag="{} set to {}" pt="{} definido para {}"/>
   <translation tag="{} set to {} {}" pt="{} definido para {} {}"/>
-  <translation tag="{} shares slot with {}" pt="{} compartilha o slot com {}"/>
   <translation tag="{} slots" pt="{} slots"/>
   <translation tag="{} spool cleared" pt="{}: bobina removida"/>
   <translation tag="{} started" pt="{} iniciado"/>

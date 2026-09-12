@@ -9,10 +9,15 @@ translations:
   '%d disabled': '%d отключено'
   '%d failed to load - see details below': '%d не удалось загрузить — см. подробности
     ниже'
+  '%d feeders': '%d фидеров'
+  '%d gates': '%d шлюзов'
+  '%d lanes': '%d каналов'
   '%d more sensors': Ещё %d датчиков
   '%d of %d plugins loaded': 'Загружено плагинов: %d из %d'
   '%d plugins loaded': 'Загружено плагинов: %d'
   '%d slots': '%d слотов'
+  '%d toolheads': '%d печатающих головок'
+  '%d tools': '%d инструментов'
   '%lu days ago': '%lu дн. назад'
   '%lu hours ago': '%lu ч. назад'
   '%lu min ago': '%lu мин. назад'
@@ -2845,6 +2850,7 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   : Анимированная заставка была отключена на данном устройстве, чтобы она не мешала
     печати. Вы можете снова включить её в Настройки > Дисплей.
+  The bed was reported dirty, so this print cannot resume.: 'Стол помечен как загрязнённый, поэтому печать не может быть продолжена.'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Буфер может быть отключён, заклинен или неисправен. Проверьте его перед повтором
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Буфер не фиксировал движение 16 секунд. Проверьте засор между CFS и экструдером или заклинивший буфер
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм
@@ -3331,6 +3337,7 @@ translations:
   v{} is available. Tap to update.: v{} доступна. Нажмите для обновления.
   you have: у вас
   '{} LED strips available': 'Доступно светодиодных лент: {}'
+  '{} and {} are both mapped here': '{} и {} оба назначены сюда'
   '{} axis homed': Ось {} запаркована
   '{} command timed out': Время команды {} истекло
   '{} complete': '{} завершено'
@@ -3358,7 +3365,6 @@ translations:
   '{} preset{}': '{} пресет{}'
   '{} set to {}': '{} установлено на {}'
   '{} set to {} {}': '{} установлено на {} {}'
-  '{} shares slot with {}': '{} использует общий слот с {}'
   '{} slots': '{} слотов'
   '{} spool cleared': '{}: катушка удалена'
   '{} started': '{} запущено'

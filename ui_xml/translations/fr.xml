@@ -8,10 +8,15 @@
   <translation tag="%d additional fan%s" fr="%d ventilateur%s supplémentaire"/>
   <translation tag="%d disabled" fr="%d désactivé"/>
   <translation tag="%d failed to load - see details below" fr="%d n&apos;ont pas pu se charger - voir les détails ci-dessous"/>
+  <translation tag="%d feeders" fr="%d alimentateurs"/>
+  <translation tag="%d gates" fr="%d Gates"/>
+  <translation tag="%d lanes" fr="%d voies"/>
   <translation tag="%d more sensors" fr="%d capteurs supplémentaires"/>
   <translation tag="%d of %d plugins loaded" fr="%d plugins sur %d chargés"/>
   <translation tag="%d plugins loaded" fr="%d plugins chargés"/>
   <translation tag="%d slots" fr="%d emplacements"/>
+  <translation tag="%d toolheads" fr="%d têtes d&apos;outil"/>
+  <translation tag="%d tools" fr="%d outils"/>
   <translation tag="%lu days ago" fr="il y a %lu jours"/>
   <translation tag="%lu hours ago" fr="il y a %lu heures"/>
   <translation tag="%lu min ago" fr="il y a %lu min"/>
@@ -2567,6 +2572,7 @@
   <translation tag="The Spoolman spool currently loaded" fr="La bobine Spoolman actuellement chargée"/>
   <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." fr="Le flux de l&apos;accéléromètre s&apos;est arrêté : %s. Vérifiez que Klipper est en cours d&apos;exécution, puis réessayez."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." fr="L&apos;économiseur d&apos;écran animé a été désactivé sur cet appareil pour éviter qu&apos;il n&apos;interfère avec les impressions. Vous pouvez le réactiver dans Paramètres &gt; Affichage et son."/>
+  <translation tag="The bed was reported dirty, so this print cannot resume." fr="Le plateau a été signalé comme sale, cette impression ne peut donc pas reprendre."/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" fr="Le tampon est peut-être débranché, bloqué ou défectueux. Vérifiez-le avant de réessayer"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" fr="Le tampon n&apos;a détecté aucun mouvement pendant 16 secondes. Vérifiez s&apos;il y a une obstruction entre le CFS et l&apos;extrudeur, ou un tampon bloqué"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" fr="La lame n&apos;est pas revenue. Vérifiez qu&apos;aucun filament n&apos;est enroulé autour du mécanisme de coupe"/>
@@ -2981,6 +2987,7 @@
   <translation tag="v{} is available. Tap to update." fr="v{} est disponible. Appuyez pour mettre à jour."/>
   <translation tag="you have" fr="vous avez"/>
   <translation tag="{} LED strips available" fr="{} bandeaux LED disponibles"/>
+  <translation tag="{} and {} are both mapped here" fr="{} et {} sont tous deux affectés ici"/>
   <translation tag="{} axis homed" fr="Axe {} référencé"/>
   <translation tag="{} command timed out" fr="Délai d&apos;attente dépassé pour la commande {}"/>
   <translation tag="{} complete" fr="{} terminé"/>
@@ -3007,7 +3014,6 @@
   <translation tag="{} preset{}" fr="{} préréglage{}"/>
   <translation tag="{} set to {}" fr="{} réglé sur {}"/>
   <translation tag="{} set to {} {}" fr="{} réglé sur {} {}"/>
-  <translation tag="{} shares slot with {}" fr="{} partage l&apos;emplacement avec {}"/>
   <translation tag="{} slots" fr="{} slots"/>
   <translation tag="{} spool cleared" fr="{} : bobine effacée"/>
   <translation tag="{} started" fr="{} démarré"/>

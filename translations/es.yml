@@ -8,10 +8,15 @@ translations:
   '%d additional fan%s': '%d ventilador%s adicional'
   '%d disabled': '%d desactivados'
   '%d failed to load - see details below': '%d no se cargaron - ver detalles abajo'
+  '%d feeders': '%d alimentadores'
+  '%d gates': '%d Gates'
+  '%d lanes': '%d carriles'
   '%d more sensors': '%d sensores más'
   '%d of %d plugins loaded': '%d de %d plugins cargados'
   '%d plugins loaded': '%d plugins cargados'
   '%d slots': '%d ranuras'
+  '%d toolheads': '%d cabezales'
+  '%d tools': '%d herramientas'
   '%lu days ago': hace %lu días
   '%lu hours ago': hace %lu horas
   '%lu min ago': hace %lu min
@@ -2876,6 +2881,7 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   : El salvapantallas animado se ha desactivado en este dispositivo para evitar que
     interfiera con las impresiones. Puede volver a activarlo en Ajustes > Pantalla.
+  The bed was reported dirty, so this print cannot resume.: 'La cama se ha notificado como sucia, por lo que esta impresión no puede reanudarse.'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Puede que el búfer esté desconectado, atascado o averiado. Compruébelo antes de reintentar
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: El búfer no detectó movimiento durante 16 segundos. Compruebe si hay una obstrucción entre el CFS y el extrusor, o un búfer atascado
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: La cuchilla no regresó. Compruebe si hay filamento enrollado en el mecanismo de corte
@@ -3376,6 +3382,7 @@ translations:
   v{} is available. Tap to update.: v{} disponible. Toque para actualizar.
   you have: tienes
   '{} LED strips available': '{} tiras LED disponibles'
+  '{} and {} are both mapped here': '{} y {} están asignados aquí'
   '{} axis homed': Eje {} en origen
   '{} command timed out': Tiempo agotado del comando {}
   '{} complete': '{} completado'
@@ -3403,7 +3410,6 @@ translations:
   '{} preset{}': '{} preajuste{}'
   '{} set to {}': '{} ajustado a {}'
   '{} set to {} {}': '{} ajustado a {} {}'
-  '{} shares slot with {}': '{} comparte ranura con {}'
   '{} slots': '{} ranuras'
   '{} spool cleared': '{}: bobina eliminada'
   '{} started': '{} iniciado'

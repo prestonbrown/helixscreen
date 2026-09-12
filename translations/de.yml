@@ -9,10 +9,15 @@ translations:
   '%d disabled': '%d deaktiviert'
   '%d failed to load - see details below': '%d konnten nicht geladen werden – Details
     siehe unten'
+  '%d feeders': '%d Zuführungen'
+  '%d gates': '%d Gates'
+  '%d lanes': '%d Spuren'
   '%d more sensors': '%d weitere Sensoren'
   '%d of %d plugins loaded': '%d von %d Plugins geladen'
   '%d plugins loaded': '%d Plugins geladen'
   '%d slots': '%d Slots'
+  '%d toolheads': '%d Werkzeugköpfe'
+  '%d tools': '%d Werkzeuge'
   '%lu days ago': vor %lu Tagen
   '%lu hours ago': vor %lu Stunden
   '%lu min ago': vor %lu Min.
@@ -2881,6 +2886,7 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   : Der animierte Bildschirmschoner wurde auf diesem Gerät ausgeschaltet, um zu verhindern,
     dass er Drucke stört. Sie können ihn unter Einstellungen > Anzeige wieder aktivieren.
+  The bed was reported dirty, so this print cannot resume.: 'Das Heizbett wurde als verschmutzt gemeldet, daher kann dieser Druck nicht fortgesetzt werden.'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Der Puffer ist möglicherweise nicht angeschlossen, klemmt oder ist defekt. Vor dem erneuten Versuch prüfen
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Der Puffer hat 16 Sekunden lang keine Bewegung erkannt. Auf eine Blockade zwischen CFS und Extruder oder einen klemmenden Puffer prüfen
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: Die Schneidklinge ist nicht zurückgefahren. Prüfen, ob Filament um den Schneidmechanismus gewickelt ist
@@ -3384,6 +3390,7 @@ translations:
   v{} is available. Tap to update.: v{} ist verfügbar. Tippen zum Aktualisieren.
   you have: Sie haben
   '{} LED strips available': '{} LED-Streifen verfügbar'
+  '{} and {} are both mapped here': '{} und {} sind beide hier zugewiesen'
   '{} axis homed': '{}-Achse referenziert'
   '{} command timed out': Befehl {} – Zeitüberschreitung
   '{} complete': '{} abgeschlossen'
@@ -3412,7 +3419,6 @@ translations:
   '{} preset{}': '{} Voreinstellung{}'
   '{} set to {}': '{} auf {} gesetzt'
   '{} set to {} {}': '{} auf {} {} gesetzt'
-  '{} shares slot with {}': '{} teilt sich den Slot mit {}'
   '{} slots': '{} Slots'
   '{} spool cleared': '{}: Spule gelöscht'
   '{} started': '{} gestartet'

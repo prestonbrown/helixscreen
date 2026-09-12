@@ -8,10 +8,15 @@
   <translation tag="%d additional fan%s" ja="追加ファン %d 個%s"/>
   <translation tag="%d disabled" ja="%d 個無効"/>
   <translation tag="%d failed to load - see details below" ja="%d 個の読み込みに失敗 - 詳細は下記"/>
+  <translation tag="%d feeders" ja="%d フィーダー"/>
+  <translation tag="%d gates" ja="%d ゲート"/>
+  <translation tag="%d lanes" ja="%d レーン"/>
   <translation tag="%d more sensors" ja="他%d個のセンサー"/>
   <translation tag="%d of %d plugins loaded" ja="%d / %d 個のプラグインを読み込み"/>
   <translation tag="%d plugins loaded" ja="%d 個のプラグインを読み込み"/>
   <translation tag="%d slots" ja="%d スロット"/>
+  <translation tag="%d toolheads" ja="%d ツールヘッド"/>
+  <translation tag="%d tools" ja="%d ツール"/>
   <translation tag="%lu days ago" ja="%lu日前"/>
   <translation tag="%lu hours ago" ja="%lu時間前"/>
   <translation tag="%lu min ago" ja="%lu分前"/>
@@ -2567,6 +2572,7 @@
   <translation tag="The Spoolman spool currently loaded" ja="現在装填中の Spoolman スプール"/>
   <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." ja="加速度センサーストリームが停止しました: %s。Klipperが実行中か確認してから再試行してください。"/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." ja="アニメーション付きスクリーンセーバーが印刷に干渉しないよう、このデバイスではオフになっています。設定 &gt; ディスプレイで再度有効にできます。"/>
+  <translation tag="The bed was reported dirty, so this print cannot resume." ja="ベッドが汚れていると報告されたため、この印刷を再開できません。"/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" ja="バッファーが未接続、固着、または故障している可能性があります。再試行前に確認してください"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" ja="バッファーが 16 秒間動きを検出しませんでした。CFS とエクストルーダーの間の詰まり、またはバッファーの固着を確認してください"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" ja="カッターの刃が戻りませんでした。切断機構にフィラメントが巻き付いていないか確認してください"/>
@@ -2981,6 +2987,7 @@
   <translation tag="v{} is available. Tap to update." ja="v{} が利用可能です。タップして更新してください。"/>
   <translation tag="you have" ja="現在は"/>
   <translation tag="{} LED strips available" ja="{} 個の LED ストリップが利用可能です"/>
+  <translation tag="{} and {} are both mapped here" ja="{} と {} の両方がここに割り当てられています"/>
   <translation tag="{} axis homed" ja="{} 軸がホーミング済み"/>
   <translation tag="{} command timed out" ja="{} コマンドがタイムアウトしました"/>
   <translation tag="{} complete" ja="{} 完了"/>
@@ -3007,7 +3014,6 @@
   <translation tag="{} preset{}" ja="{} 個のプリセット{}"/>
   <translation tag="{} set to {}" ja="{} を {} に設定しました"/>
   <translation tag="{} set to {} {}" ja="{} を {} {} に設定しました"/>
-  <translation tag="{} shares slot with {}" ja="{} は {} とスロットを共有しています"/>
   <translation tag="{} slots" ja="{} スロット"/>
   <translation tag="{} spool cleared" ja="{} のスプールをクリアしました"/>
   <translation tag="{} started" ja="{} を開始しました"/>

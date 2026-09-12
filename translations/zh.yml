@@ -8,10 +8,15 @@ translations:
   '%d additional fan%s': '%d 个额外风扇%s'
   '%d disabled': '%d 个已禁用'
   '%d failed to load - see details below': '%d 个加载失败 - 详见下方'
+  '%d feeders': '%d 个送料器'
+  '%d gates': '%d 个通道'
+  '%d lanes': '%d 个耗材通道'
   '%d more sensors': 还有%d个传感器
   '%d of %d plugins loaded': 已加载 %d / %d 个插件
   '%d plugins loaded': 已加载 %d 个插件
   '%d slots': '%d 个槽位'
+  '%d toolheads': '%d 个工具头'
+  '%d tools': '%d 个工具'
   '%lu days ago': '%lu天前'
   '%lu hours ago': '%lu小时前'
   '%lu min ago': '%lu分钟前'
@@ -2642,6 +2647,7 @@ translations:
   ? The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
   : 为防止动画屏保干扰打印，已在此设备上将其关闭。您可以在设置 > 显示中重新启用。
+  The bed was reported dirty, so this print cannot resume.: '热床被报告为脏污，因此无法恢复此次打印。'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: 缓冲器可能未连接、卡住或损坏。请检查后重试
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: 缓冲器已 16 秒未检测到运动。请检查 CFS 与挤出机之间是否堵塞，或缓冲器是否卡住
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: 切刀未复位。请检查切刀机构上是否缠绕耗材
@@ -3088,6 +3094,7 @@ translations:
   v{} is available. Tap to update.: v{} 可用。点击以更新。
   you have: 您有
   '{} LED strips available': '{} 条 LED 灯带可用'
+  '{} and {} are both mapped here': '{} 和 {} 都映射到这里'
   '{} axis homed': '{} 轴已归位'
   '{} command timed out': '{} 命令超时'
   '{} complete': '{} 完成'
@@ -3114,7 +3121,6 @@ translations:
   '{} preset{}': '{} 个预设{}'
   '{} set to {}': '{} 已设为 {}'
   '{} set to {} {}': '{} 已设为 {} {}'
-  '{} shares slot with {}': '{} 与 {} 共用槽位'
   '{} slots': '{} 个槽位'
   '{} spool cleared': '{} 料盘已清除'
   '{} started': '已开始{}'

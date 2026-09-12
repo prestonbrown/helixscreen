@@ -90,6 +90,24 @@ TEST_CASE("a plural is one fixed word, never agreed with the count", "[numbering
     CHECK(lane_range_label(LaneNoun::Lane, 0, 9).rfind("Lanes ", 0) == 0);
 }
 
+TEST_CASE("lane_count_label counts positions in the backend's own noun", "[numbering]") {
+    // A unit card on an AFC rig reads "4 lanes", not "4 slots".
+    CHECK(lane_count_label(LaneNoun::Slot, 4) == "4 slots");
+    CHECK(lane_count_label(LaneNoun::Lane, 4) == "4 lanes");
+    CHECK(lane_count_label(LaneNoun::Gate, 12) == "12 gates");
+    CHECK(lane_count_label(LaneNoun::Tool, 2) == "2 tools");
+    CHECK(lane_count_label(LaneNoun::Feeder, 4) == "4 feeders");
+    CHECK(lane_count_label(LaneNoun::Toolhead, 4) == "4 toolheads");
+}
+
+TEST_CASE("a position count is a fixed form, never agreed with the count", "[numbering]") {
+    // The count is interpolated and the word is not chosen from it, so one and
+    // many read the same word in the base locale. A locale whose numerals
+    // inflect picks the one form it wants to see on a card header.
+    CHECK(lane_count_label(LaneNoun::Lane, 1) == "1 lanes");
+    CHECK(lane_count_label(LaneNoun::Lane, 0) == "0 lanes");
+}
+
 TEST_CASE("a range with no valid end produces no label", "[numbering]") {
     // Same contract as lane_label(): no position, no text, rather than a range
     // running off a sentinel.

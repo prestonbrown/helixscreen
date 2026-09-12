@@ -8,10 +8,15 @@ translations:
   '%d additional fan%s': '%d additional fan%s'
   '%d disabled': '%d disabled'
   '%d failed to load - see details below': '%d failed to load - see details below'
+  '%d feeders': '%d feeders'
+  '%d gates': '%d gates'
+  '%d lanes': '%d lanes'
   '%d more sensors': '%d more sensors'
   '%d of %d plugins loaded': '%d of %d plugins loaded'
   '%d plugins loaded': '%d plugins loaded'
   '%d slots': '%d slots'
+  '%d toolheads': '%d toolheads'
+  '%d tools': '%d tools'
   '%lu days ago': '%lu days ago'
   '%lu hours ago': '%lu hours ago'
   '%lu min ago': '%lu min ago'
@@ -2814,6 +2819,7 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   : The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
+  The bed was reported dirty, so this print cannot resume.: The bed was reported dirty, so this print cannot resume.
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: The buffer may be disconnected, stuck, or faulty. Check it before retrying
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: The cutter blade didn't return — check for filament wrapped around the cutting mechanism
@@ -3298,6 +3304,7 @@ translations:
   v{} is available. Tap to update.: v{} is available. Tap to update.
   you have: you have
   '{} LED strips available': '{} LED strips available'
+  '{} and {} are both mapped here': '{} and {} are both mapped here'
   '{} axis homed': '{} axis homed'
   '{} command timed out': '{} command timed out'
   '{} complete': '{} complete'
@@ -3325,7 +3332,6 @@ translations:
   '{} preset{}': '{} preset{}'
   '{} set to {}': '{} set to {}'
   '{} set to {} {}': '{} set to {} {}'
-  '{} shares slot with {}': '{} shares slot with {}'
   '{} slots': '{} slots'
   '{} spool cleared': '{} spool cleared'
   '{} started': '{} started'

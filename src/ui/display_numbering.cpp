@@ -6,6 +6,8 @@
 #include "ams_state.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 
+#include <cstdio>
+
 namespace helix::ui {
 
 namespace {
@@ -111,6 +113,34 @@ std::string lane_range_label(LaneNoun noun, int first_index, int last_index) {
     if (first == last)
         return lane_label(noun, first_index);
     return noun_text_plural(noun) + " " + std::to_string(first) + "-" + std::to_string(last);
+}
+
+std::string lane_count_label(LaneNoun noun, int count) {
+    const char* form = nullptr;
+    switch (noun) {
+    case LaneNoun::Lane:
+        form = lv_tr("%d lanes");
+        break;
+    case LaneNoun::Gate:
+        form = lv_tr("%d gates");
+        break;
+    case LaneNoun::Tool:
+        form = lv_tr("%d tools");
+        break;
+    case LaneNoun::Feeder:
+        form = lv_tr("%d feeders");
+        break;
+    case LaneNoun::Toolhead:
+        form = lv_tr("%d toolheads");
+        break;
+    case LaneNoun::Slot:
+        form = lv_tr("%d slots");
+        break;
+    }
+    // Wide enough for the longest form: ru "Печатающие головки" is 35 bytes.
+    char buf[64];
+    snprintf(buf, sizeof(buf), form, count);
+    return buf;
 }
 
 LaneNoun active_lane_noun() {

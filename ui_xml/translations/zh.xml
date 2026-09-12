@@ -8,10 +8,15 @@
   <translation tag="%d additional fan%s" zh="%d 个额外风扇%s"/>
   <translation tag="%d disabled" zh="%d 个已禁用"/>
   <translation tag="%d failed to load - see details below" zh="%d 个加载失败 - 详见下方"/>
+  <translation tag="%d feeders" zh="%d 个送料器"/>
+  <translation tag="%d gates" zh="%d 个通道"/>
+  <translation tag="%d lanes" zh="%d 个耗材通道"/>
   <translation tag="%d more sensors" zh="还有%d个传感器"/>
   <translation tag="%d of %d plugins loaded" zh="已加载 %d / %d 个插件"/>
   <translation tag="%d plugins loaded" zh="已加载 %d 个插件"/>
   <translation tag="%d slots" zh="%d 个槽位"/>
+  <translation tag="%d toolheads" zh="%d 个工具头"/>
+  <translation tag="%d tools" zh="%d 个工具"/>
   <translation tag="%lu days ago" zh="%lu天前"/>
   <translation tag="%lu hours ago" zh="%lu小时前"/>
   <translation tag="%lu min ago" zh="%lu分钟前"/>
@@ -2567,6 +2572,7 @@
   <translation tag="The Spoolman spool currently loaded" zh="当前装载的 Spoolman 料盘"/>
   <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." zh="加速度计数据流已停止：%s。请检查 Klipper 是否正在运行，然后重试。"/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." zh="为防止动画屏保干扰打印，已在此设备上将其关闭。您可以在设置 &gt; 显示中重新启用。"/>
+  <translation tag="The bed was reported dirty, so this print cannot resume." zh="热床被报告为脏污，因此无法恢复此次打印。"/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" zh="缓冲器可能未连接、卡住或损坏。请检查后重试"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" zh="缓冲器已 16 秒未检测到运动。请检查 CFS 与挤出机之间是否堵塞，或缓冲器是否卡住"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" zh="切刀未复位。请检查切刀机构上是否缠绕耗材"/>
@@ -2981,6 +2987,7 @@
   <translation tag="v{} is available. Tap to update." zh="v{} 可用。点击以更新。"/>
   <translation tag="you have" zh="您有"/>
   <translation tag="{} LED strips available" zh="{} 条 LED 灯带可用"/>
+  <translation tag="{} and {} are both mapped here" zh="{} 和 {} 都映射到这里"/>
   <translation tag="{} axis homed" zh="{} 轴已归位"/>
   <translation tag="{} command timed out" zh="{} 命令超时"/>
   <translation tag="{} complete" zh="{} 完成"/>
@@ -3007,7 +3014,6 @@
   <translation tag="{} preset{}" zh="{} 个预设{}"/>
   <translation tag="{} set to {}" zh="{} 已设为 {}"/>
   <translation tag="{} set to {} {}" zh="{} 已设为 {} {}"/>
-  <translation tag="{} shares slot with {}" zh="{} 与 {} 共用槽位"/>
   <translation tag="{} slots" zh="{} 个槽位"/>
   <translation tag="{} spool cleared" zh="{} 料盘已清除"/>
   <translation tag="{} started" zh="已开始{}"/>

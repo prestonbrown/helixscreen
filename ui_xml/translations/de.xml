@@ -8,10 +8,15 @@
   <translation tag="%d additional fan%s" de="%d zusätzliche%s Lüfter"/>
   <translation tag="%d disabled" de="%d deaktiviert"/>
   <translation tag="%d failed to load - see details below" de="%d konnten nicht geladen werden – Details siehe unten"/>
+  <translation tag="%d feeders" de="%d Zuführungen"/>
+  <translation tag="%d gates" de="%d Gates"/>
+  <translation tag="%d lanes" de="%d Spuren"/>
   <translation tag="%d more sensors" de="%d weitere Sensoren"/>
   <translation tag="%d of %d plugins loaded" de="%d von %d Plugins geladen"/>
   <translation tag="%d plugins loaded" de="%d Plugins geladen"/>
   <translation tag="%d slots" de="%d Slots"/>
+  <translation tag="%d toolheads" de="%d Werkzeugköpfe"/>
+  <translation tag="%d tools" de="%d Werkzeuge"/>
   <translation tag="%lu days ago" de="vor %lu Tagen"/>
   <translation tag="%lu hours ago" de="vor %lu Stunden"/>
   <translation tag="%lu min ago" de="vor %lu Min."/>
@@ -2567,6 +2572,7 @@
   <translation tag="The Spoolman spool currently loaded" de="Aktuell geladene Spoolman-Spule"/>
   <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." de="Der Beschleunigungssensor-Stream wurde beendet: %s. Prüfen Sie, ob Klipper läuft, und versuchen Sie es erneut."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." de="Der animierte Bildschirmschoner wurde auf diesem Gerät ausgeschaltet, um zu verhindern, dass er Drucke stört. Sie können ihn unter Einstellungen &gt; Anzeige wieder aktivieren."/>
+  <translation tag="The bed was reported dirty, so this print cannot resume." de="Das Heizbett wurde als verschmutzt gemeldet, daher kann dieser Druck nicht fortgesetzt werden."/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" de="Der Puffer ist möglicherweise nicht angeschlossen, klemmt oder ist defekt. Vor dem erneuten Versuch prüfen"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" de="Der Puffer hat 16 Sekunden lang keine Bewegung erkannt. Auf eine Blockade zwischen CFS und Extruder oder einen klemmenden Puffer prüfen"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" de="Die Schneidklinge ist nicht zurückgefahren. Prüfen, ob Filament um den Schneidmechanismus gewickelt ist"/>
@@ -2981,6 +2987,7 @@
   <translation tag="v{} is available. Tap to update." de="v{} ist verfügbar. Tippen zum Aktualisieren."/>
   <translation tag="you have" de="Sie haben"/>
   <translation tag="{} LED strips available" de="{} LED-Streifen verfügbar"/>
+  <translation tag="{} and {} are both mapped here" de="{} und {} sind beide hier zugewiesen"/>
   <translation tag="{} axis homed" de="{}-Achse referenziert"/>
   <translation tag="{} command timed out" de="Befehl {} – Zeitüberschreitung"/>
   <translation tag="{} complete" de="{} abgeschlossen"/>
@@ -3007,7 +3014,6 @@
   <translation tag="{} preset{}" de="{} Voreinstellung{}"/>
   <translation tag="{} set to {}" de="{} auf {} gesetzt"/>
   <translation tag="{} set to {} {}" de="{} auf {} {} gesetzt"/>
-  <translation tag="{} shares slot with {}" de="{} teilt sich den Slot mit {}"/>
   <translation tag="{} slots" de="{} Slots"/>
   <translation tag="{} spool cleared" de="{}: Spule gelöscht"/>
   <translation tag="{} started" de="{} gestartet"/>

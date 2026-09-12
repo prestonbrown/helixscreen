@@ -9,10 +9,15 @@ translations:
   '%d disabled': '%d desativado'
   '%d failed to load - see details below': '%d falhou ao carregar - veja os detalhes
     abaixo'
+  '%d feeders': '%d alimentadores'
+  '%d gates': '%d Gates'
+  '%d lanes': '%d lanes'
   '%d more sensors': '%d sensores adicionais'
   '%d of %d plugins loaded': '%d de %d plugins carregados'
   '%d plugins loaded': '%d plugins carregados'
   '%d slots': '%d slots'
+  '%d toolheads': '%d cabeçotes'
+  '%d tools': '%d ferramentas'
   '%lu days ago': há %lu dias
   '%lu hours ago': há %lu horas
   '%lu min ago': há %lu min
@@ -2882,6 +2887,7 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   : O protetor de tela animado foi desativado neste dispositivo para evitar que interfira
     nas impressões. Você pode reativá-lo em Configurações > Tela.
+  The bed was reported dirty, so this print cannot resume.: 'A mesa foi reportada como suja, portanto esta impressão não pode ser retomada.'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: O buffer pode estar desconectado, travado ou com defeito. Verifique antes de tentar novamente
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: O buffer não detectou movimento por 16 segundos. Verifique se há obstrução entre o CFS e o extrusor, ou um buffer travado
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: A lâmina não retornou. Verifique se há filamento enrolado no mecanismo de corte
@@ -3381,6 +3387,7 @@ translations:
   v{} is available. Tap to update.: v{} disponível. Toque para atualizar.
   you have: você tem
   '{} LED strips available': '{} fitas de LED disponíveis'
+  '{} and {} are both mapped here': '{} e {} estão ambos atribuídos aqui'
   '{} axis homed': Eixo {} referenciado
   '{} command timed out': Comando {} expirou
   '{} complete': '{} concluído'
@@ -3408,7 +3415,6 @@ translations:
   '{} preset{}': '{} predefinição{}'
   '{} set to {}': '{} definido para {}'
   '{} set to {} {}': '{} definido para {} {}'
-  '{} shares slot with {}': '{} compartilha o slot com {}'
   '{} slots': '{} slots'
   '{} spool cleared': '{}: bobina removida'
   '{} started': '{} iniciado'

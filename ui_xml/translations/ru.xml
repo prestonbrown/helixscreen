@@ -8,10 +8,15 @@
   <translation tag="%d additional fan%s" ru="%d дополнительный вентилятор%s"/>
   <translation tag="%d disabled" ru="%d отключено"/>
   <translation tag="%d failed to load - see details below" ru="%d не удалось загрузить — см. подробности ниже"/>
+  <translation tag="%d feeders" ru="%d фидеров"/>
+  <translation tag="%d gates" ru="%d шлюзов"/>
+  <translation tag="%d lanes" ru="%d каналов"/>
   <translation tag="%d more sensors" ru="Ещё %d датчиков"/>
   <translation tag="%d of %d plugins loaded" ru="Загружено плагинов: %d из %d"/>
   <translation tag="%d plugins loaded" ru="Загружено плагинов: %d"/>
   <translation tag="%d slots" ru="%d слотов"/>
+  <translation tag="%d toolheads" ru="%d печатающих головок"/>
+  <translation tag="%d tools" ru="%d инструментов"/>
   <translation tag="%lu days ago" ru="%lu дн. назад"/>
   <translation tag="%lu hours ago" ru="%lu ч. назад"/>
   <translation tag="%lu min ago" ru="%lu мин. назад"/>
@@ -2567,6 +2572,7 @@
   <translation tag="The Spoolman spool currently loaded" ru="Текущая катушка Spoolman"/>
   <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." ru="Поток акселерометра остановлен: %s. Убедитесь, что Klipper запущен, и повторите попытку."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." ru="Анимированная заставка была отключена на данном устройстве, чтобы она не мешала печати. Вы можете снова включить её в Настройки &gt; Дисплей."/>
+  <translation tag="The bed was reported dirty, so this print cannot resume." ru="Стол помечен как загрязнённый, поэтому печать не может быть продолжена."/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" ru="Буфер может быть отключён, заклинен или неисправен. Проверьте его перед повтором"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" ru="Буфер не фиксировал движение 16 секунд. Проверьте засор между CFS и экструдером или заклинивший буфер"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" ru="Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм"/>
@@ -2981,6 +2987,7 @@
   <translation tag="v{} is available. Tap to update." ru="v{} доступна. Нажмите для обновления."/>
   <translation tag="you have" ru="у вас"/>
   <translation tag="{} LED strips available" ru="Доступно светодиодных лент: {}"/>
+  <translation tag="{} and {} are both mapped here" ru="{} и {} оба назначены сюда"/>
   <translation tag="{} axis homed" ru="Ось {} запаркована"/>
   <translation tag="{} command timed out" ru="Время команды {} истекло"/>
   <translation tag="{} complete" ru="{} завершено"/>
@@ -3007,7 +3014,6 @@
   <translation tag="{} preset{}" ru="{} пресет{}"/>
   <translation tag="{} set to {}" ru="{} установлено на {}"/>
   <translation tag="{} set to {} {}" ru="{} установлено на {} {}"/>
-  <translation tag="{} shares slot with {}" ru="{} использует общий слот с {}"/>
   <translation tag="{} slots" ru="{} слотов"/>
   <translation tag="{} spool cleared" ru="{}: катушка удалена"/>
   <translation tag="{} started" ru="{} запущено"/>

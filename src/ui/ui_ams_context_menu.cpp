@@ -787,9 +787,14 @@ void AmsContextMenu::handle_tool_changed() {
             if (static_cast<int>(i) != tool_number && mapping[i] == get_item_index()) {
                 spdlog::warn("[AmsContextMenu] Tool {} will share slot {} with tool {}",
                              tool_number, get_item_index(), i);
-                std::string msg =
-                    fmt::format(lv_tr("{} shares slot with {}"), helix::ui::tool_label(tool_number),
-                                helix::ui::tool_label(static_cast<int>(i)));
+                // The position is a bare prefix, not part of the sentence:
+                // every locale that inflects would otherwise have the verb or a
+                // preposition agree with a noun that changes per backend.
+                std::string msg = helix::ui::lane_label(backend_->lane_noun(), get_item_index()) +
+                                  ": " +
+                                  fmt::format(lv_tr("{} and {} are both mapped here"),
+                                              helix::ui::tool_label(tool_number),
+                                              helix::ui::tool_label(static_cast<int>(i)));
                 ToastManager::instance().show(ToastSeverity::WARNING, msg.c_str());
                 break;
             }

@@ -652,7 +652,7 @@ void AmsBackendSnapmaker::prepare_for_resume(int slot_index, ResumeReadyCallback
             // cause (dirty bed), so a single fixed reason covers every match.
             on_ready(AmsErrorHelper::resume_requires_restart(
                 "classify_pause: Terminal",
-                "The bed was reported dirty, so this print cannot resume."));
+                lv_tr("The bed was reported dirty, so this print cannot resume.")));
         }
         return;
     }

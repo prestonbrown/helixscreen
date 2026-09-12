@@ -8,10 +8,15 @@ translations:
   '%d additional fan%s': '%d ventola%s aggiuntiva'
   '%d disabled': '%d disabilitati'
   '%d failed to load - see details below': '%d non caricati - vedi i dettagli sotto'
+  '%d feeders': '%d alimentatori'
+  '%d gates': '%d Gate'
+  '%d lanes': '%d corsie'
   '%d more sensors': '%d altri sensori'
   '%d of %d plugins loaded': '%d di %d plugin caricati'
   '%d plugins loaded': '%d plugin caricati'
   '%d slots': '%d slot'
+  '%d toolheads': '%d testine'
+  '%d tools': '%d strumenti'
   '%lu days ago': '%lu giorni fa'
   '%lu hours ago': '%lu ore fa'
   '%lu min ago': '%lu min fa'
@@ -2872,6 +2877,7 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   : Il salvaschermo animato è stato disattivato su questo dispositivo per evitare
     che interferisca con le stampe. Puoi riattivarlo in Impostazioni > Schermo.
+  The bed was reported dirty, so this print cannot resume.: 'Il piano è stato segnalato come sporco, quindi questa stampa non può riprendere.'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Il buffer potrebbe essere scollegato, bloccato o guasto. Controllarlo prima di riprovare
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Il buffer non ha rilevato movimento per 16 secondi. Verificare un'ostruzione tra CFS ed estrusore, o un buffer bloccato
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: La lama non è rientrata. Verificare che non ci sia filamento avvolto attorno al meccanismo di taglio
@@ -3374,6 +3380,7 @@ translations:
   v{} is available. Tap to update.: v{} disponibile. Tocca per aggiornare.
   you have: hai
   '{} LED strips available': '{} strisce LED disponibili'
+  '{} and {} are both mapped here': '{} e {} sono entrambi assegnati qui'
   '{} axis homed': Asse {} in posizione
   '{} command timed out': Comando {} scaduto
   '{} complete': '{} completato'
@@ -3401,7 +3408,6 @@ translations:
   '{} preset{}': '{} preset{}'
   '{} set to {}': '{} impostato su {}'
   '{} set to {} {}': '{} impostato su {} {}'
-  '{} shares slot with {}': '{} condivide lo slot con {}'
   '{} slots': '{} slot'
   '{} spool cleared': '{}: bobina rimossa'
   '{} started': '{} avviato'

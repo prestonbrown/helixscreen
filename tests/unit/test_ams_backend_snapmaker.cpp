@@ -13,12 +13,14 @@
 #include "display_numbering.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "spoolman_types.h" // SpoolInfo + apply_spool_to_slot (the picker-side writer)
 #include "tool_state.h"
+#include "translation_loader.h"
 
 #include <chrono>
 #include <filesystem>
@@ -1993,6 +1995,57 @@ TEST_CASE_METHOD(
     REQUIRE(callback_fired);
     // Classifier returns Recoverable (no matchers); sensor present → success
     REQUIRE(captured.result == AmsResult::SUCCESS);
+}
+
+namespace {
+
+// LVGL has no pack-unregister API, so selecting a language nothing has loaded
+// makes every subsequent lookup miss again - the restore idiom
+// test_translation_loader.cpp uses.
+struct ScopedLanguage {
+    ScopedLanguage() = default;
+    ~ScopedLanguage() {
+        lv_translation_set_language(helix::ui::kIdentityLocale);
+    }
+    ScopedLanguage(const ScopedLanguage&) = delete;
+    ScopedLanguage& operator=(const ScopedLanguage&) = delete;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker prepare_for_resume authors a translated reason",
+                 "[ams][snapmaker][resume][i18n]") {
+    lv_init_safe();
+    ScopedLanguage restore_lang;
+    PrinterState& ps = get_printer_state();
+    PrinterStateTestAccess::reset(ps);
+    ps.init_subjects(false);
+
+    // "dirty bed" is one of snapmaker_terminal_matchers()' two signals.
+    json paused = {{"print_stats", {{"state", "paused"}, {"message", "detected dirty bed"}}},
+                   {"virtual_sdcard", {{"is_active", false}}}};
+    ps.update_from_status(paused);
+
+    helix::ui::ensure_translation_loaded("ru");
+    lv_translation_set_language("ru");
+
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+
+    AmsError captured{AmsResult::SUCCESS};
+    bool callback_fired = false;
+    backend.prepare_for_resume(/*slot_index=*/0, [&](const AmsError& err) {
+        callback_fired = true;
+        captured = err;
+    });
+
+    REQUIRE(callback_fired);
+    REQUIRE(captured.result == AmsResult::RESUME_REQUIRES_RESTART);
+
+    // ui_resume_dispatch interpolates user_msg into a TRANSLATED frame, so an
+    // English sentence here lands inside a Russian one.
+    const char* expected = lv_tr("The bed was reported dirty, so this print cannot resume.");
+    REQUIRE(std::string(expected) != "The bed was reported dirty, so this print cannot resume.");
+    CHECK(captured.user_msg == std::string(expected));
 }
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker prepare_for_resume proceeds normally when SD active",

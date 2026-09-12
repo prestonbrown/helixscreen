@@ -8,10 +8,15 @@
   <translation tag="%d additional fan%s" en="%d additional fan%s"/>
   <translation tag="%d disabled" en="%d disabled"/>
   <translation tag="%d failed to load - see details below" en="%d failed to load - see details below"/>
+  <translation tag="%d feeders" en="%d feeders"/>
+  <translation tag="%d gates" en="%d gates"/>
+  <translation tag="%d lanes" en="%d lanes"/>
   <translation tag="%d more sensors" en="%d more sensors"/>
   <translation tag="%d of %d plugins loaded" en="%d of %d plugins loaded"/>
   <translation tag="%d plugins loaded" en="%d plugins loaded"/>
   <translation tag="%d slots" en="%d slots"/>
+  <translation tag="%d toolheads" en="%d toolheads"/>
+  <translation tag="%d tools" en="%d tools"/>
   <translation tag="%lu days ago" en="%lu days ago"/>
   <translation tag="%lu hours ago" en="%lu hours ago"/>
   <translation tag="%lu min ago" en="%lu min ago"/>
@@ -2567,6 +2572,7 @@
   <translation tag="The Spoolman spool currently loaded" en="The Spoolman spool currently loaded"/>
   <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." en="The accelerometer stream stopped: %s. Check that Klipper is running, then retry."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." en="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display."/>
+  <translation tag="The bed was reported dirty, so this print cannot resume." en="The bed was reported dirty, so this print cannot resume."/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" en="The buffer may be disconnected, stuck, or faulty. Check it before retrying"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" en="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" en="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism"/>
@@ -2981,6 +2987,7 @@
   <translation tag="v{} is available. Tap to update." en="v{} is available. Tap to update."/>
   <translation tag="you have" en="you have"/>
   <translation tag="{} LED strips available" en="{} LED strips available"/>
+  <translation tag="{} and {} are both mapped here" en="{} and {} are both mapped here"/>
   <translation tag="{} axis homed" en="{} axis homed"/>
   <translation tag="{} command timed out" en="{} command timed out"/>
   <translation tag="{} complete" en="{} complete"/>
@@ -3007,7 +3014,6 @@
   <translation tag="{} preset{}" en="{} preset{}"/>
   <translation tag="{} set to {}" en="{} set to {}"/>
   <translation tag="{} set to {} {}" en="{} set to {} {}"/>
-  <translation tag="{} shares slot with {}" en="{} shares slot with {}"/>
   <translation tag="{} slots" en="{} slots"/>
   <translation tag="{} spool cleared" en="{} spool cleared"/>
   <translation tag="{} started" en="{} started"/>

@@ -9,10 +9,15 @@ translations:
   '%d disabled': '%d désactivé'
   '%d failed to load - see details below': '%d n''ont pas pu se charger - voir les détails
     ci-dessous'
+  '%d feeders': '%d alimentateurs'
+  '%d gates': '%d Gates'
+  '%d lanes': '%d voies'
   '%d more sensors': '%d capteurs supplémentaires'
   '%d of %d plugins loaded': '%d plugins sur %d chargés'
   '%d plugins loaded': '%d plugins chargés'
   '%d slots': '%d emplacements'
+  '%d toolheads': '%d têtes d''outil'
+  '%d tools': '%d outils'
   '%lu days ago': il y a %lu jours
   '%lu hours ago': il y a %lu heures
   '%lu min ago': il y a %lu min
@@ -2903,6 +2908,7 @@ translations:
   : L'économiseur d'écran animé a été désactivé sur cet appareil pour éviter qu'il
     n'interfère avec les impressions. Vous pouvez le réactiver dans Paramètres > Affichage
     et son.
+  The bed was reported dirty, so this print cannot resume.: 'Le plateau a été signalé comme sale, cette impression ne peut donc pas reprendre.'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Le tampon est peut-être débranché, bloqué ou défectueux. Vérifiez-le avant de réessayer
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Le tampon n'a détecté aucun mouvement pendant 16 secondes. Vérifiez s'il y a une obstruction entre le CFS et l'extrudeur, ou un tampon bloqué
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: La lame n'est pas revenue. Vérifiez qu'aucun filament n'est enroulé autour du mécanisme de coupe
@@ -3413,6 +3419,7 @@ translations:
   v{} is available. Tap to update.: v{} est disponible. Appuyez pour mettre à jour.
   you have: vous avez
   '{} LED strips available': '{} bandeaux LED disponibles'
+  '{} and {} are both mapped here': '{} et {} sont tous deux affectés ici'
   '{} axis homed': Axe {} référencé
   '{} command timed out': Délai d'attente dépassé pour la commande {}
   '{} complete': '{} terminé'
@@ -3441,7 +3448,6 @@ translations:
   '{} preset{}': '{} préréglage{}'
   '{} set to {}': '{} réglé sur {}'
   '{} set to {} {}': '{} réglé sur {} {}'
-  '{} shares slot with {}': '{} partage l''emplacement avec {}'
   '{} slots': '{} slots'
   '{} spool cleared': '{} : bobine effacée'
   '{} started': '{} démarré'

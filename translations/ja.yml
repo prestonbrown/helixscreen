@@ -8,10 +8,15 @@ translations:
   '%d additional fan%s': 追加ファン %d 個%s
   '%d disabled': '%d 個無効'
   '%d failed to load - see details below': '%d 個の読み込みに失敗 - 詳細は下記'
+  '%d feeders': '%d フィーダー'
+  '%d gates': '%d ゲート'
+  '%d lanes': '%d レーン'
   '%d more sensors': 他%d個のセンサー
   '%d of %d plugins loaded': '%d / %d 個のプラグインを読み込み'
   '%d plugins loaded': '%d 個のプラグインを読み込み'
   '%d slots': '%d スロット'
+  '%d toolheads': '%d ツールヘッド'
+  '%d tools': '%d ツール'
   '%lu days ago': '%lu日前'
   '%lu hours ago': '%lu時間前'
   '%lu min ago': '%lu分前'
@@ -2651,6 +2656,7 @@ translations:
   ? The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
   : アニメーション付きスクリーンセーバーが印刷に干渉しないよう、このデバイスではオフになっています。設定 > ディスプレイで再度有効にできます。
+  The bed was reported dirty, so this print cannot resume.: 'ベッドが汚れていると報告されたため、この印刷を再開できません。'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: バッファーが未接続、固着、または故障している可能性があります。再試行前に確認してください
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: バッファーが 16 秒間動きを検出しませんでした。CFS とエクストルーダーの間の詰まり、またはバッファーの固着を確認してください
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: カッターの刃が戻りませんでした。切断機構にフィラメントが巻き付いていないか確認してください
@@ -3099,6 +3105,7 @@ translations:
   v{} is available. Tap to update.: v{} が利用可能です。タップして更新してください。
   you have: 現在は
   '{} LED strips available': '{} 個の LED ストリップが利用可能です'
+  '{} and {} are both mapped here': '{} と {} の両方がここに割り当てられています'
   '{} axis homed': '{} 軸がホーミング済み'
   '{} command timed out': '{} コマンドがタイムアウトしました'
   '{} complete': '{} 完了'
@@ -3125,7 +3132,6 @@ translations:
   '{} preset{}': '{} 個のプリセット{}'
   '{} set to {}': '{} を {} に設定しました'
   '{} set to {} {}': '{} を {} {} に設定しました'
-  '{} shares slot with {}': '{} は {} とスロットを共有しています'
   '{} slots': '{} スロット'
   '{} spool cleared': '{} のスプールをクリアしました'
   '{} started': '{} を開始しました'
