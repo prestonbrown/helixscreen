@@ -1677,12 +1677,17 @@ define deploy-common
 	@# Stop running processes and prepare directory
 	@# Stop update watcher first (prevents PathChanged restart during file sync),
 	@# then stop the main service and kill any stragglers
-	ssh $(1) "sudo systemctl stop helixscreen-update.path 2>/dev/null; sudo systemctl stop helixscreen 2>/dev/null; systemctl --user stop helix-screen 2>/dev/null; killall helix-watchdog helix-screen helix-splash 2>/dev/null; sleep 0.5; killall -9 helix-watchdog helix-screen helix-splash 2>/dev/null; while pidof helix-screen helix-splash helix-watchdog >/dev/null 2>&1; do sleep 0.2; done; true"
+	ssh $(1) "sudo systemctl stop helixscreen-update.path 2>/dev/null; sudo systemctl stop helixscreen 2>/dev/null; systemctl --user stop helix-screen 2>/dev/null; killall helix-watchdog helix-screen helix-screen-egl helix-splash 2>/dev/null; sleep 0.5; killall -9 helix-watchdog helix-screen helix-screen-egl helix-splash 2>/dev/null; while pidof helix-screen helix-screen-egl helix-splash helix-watchdog >/dev/null 2>&1; do sleep 0.2; done; true"
 	ssh $(1) "mkdir -p $(2)/bin"
 	ssh $(1) "rm -f $(2)/*.xml 2>/dev/null || true"
 	@# Sync binaries and launcher to bin/
 	rsync -avzz --progress $(3)/helix-screen $(3)/helix-splash $(1):$(2)/bin/
 	@if [ -f $(3)/helix-watchdog ]; then rsync -avzz $(3)/helix-watchdog $(1):$(2)/bin/; fi
+	@# The EGL rung, on targets that build one. helix-launcher.sh probes for it
+	@# and prefers it; without this the device keeps whatever it had, and a stale
+	@# one would be probed and run in place of the binary just deployed.
+	@if [ -f $(3)/helix-screen-egl ]; then rsync -avzz $(3)/helix-screen-egl $(1):$(2)/bin/; \
+	else ssh $(1) "rm -f $(2)/bin/helix-screen-egl"; fi
 	@# Sync Bluetooth plugin if built (runtime-loaded via dlopen, same dir as binary)
 	@BT_SO_DIR=$$(dirname $(3))"/lib/libhelix-bluetooth.so"; \
 	if [ -f "$$BT_SO_DIR" ]; then \
