@@ -99,6 +99,23 @@ TEST_CASE("a lane id names one backend's slot and nothing else", "[lane][ingest]
           helix::ams::BYPASS_LANE_ID);
 }
 
+TEST_CASE("the blocks are adjacent, which is why a slot index is bounded", "[lane][ingest]") {
+    using helix::ams::lane_id_for;
+    using helix::ams::LANES_PER_BACKEND;
+
+    // No gap between one block's last id and the next block's first. That is
+    // what makes lane_id_for's slot_index precondition load-bearing rather
+    // than defensive: a slot index one past a block is not an unused id, it is
+    // the neighbouring backend's slot 0, and every index past that is one of
+    // its real slots.
+    CHECK(lane_id_for(0, LANES_PER_BACKEND - 1) + 1 == lane_id_for(1, 0));
+    CHECK(lane_id_for(3, LANES_PER_BACKEND - 1) + 1 == lane_id_for(4, 0));
+
+    // The id a bounds violation would have produced belongs to a real slot on
+    // a real backend, so nothing downstream could tell it apart.
+    CHECK(lane_id_for(0, 0) + (6 * LANES_PER_BACKEND + 3) == lane_id_for(6, 3));
+}
+
 TEST_CASE_METHOD(HelixTestFixture, "known_lanes lists every lane that has been written",
                  "[lane][ingest]") {
     Observation obs(ObservationSource::Sensed);

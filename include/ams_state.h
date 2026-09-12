@@ -1496,9 +1496,14 @@ class AmsState {
      * 4. S4+S7: sync_from_backend().
      *
      * This is the method layer: it performs the edit against every backing
-     * store. helix::ams::commit_slot_edit() (lane_source_store.h) is the
-     * declaration layer, recording the user's authorship as a lane source
-     * record; wiring this method to call it is a later task's scope.
+     * store. It also calls the declaration layer,
+     * helix::ams::commit_slot_edit() (lane_source_store.h), once the backend
+     * has accepted the edit, recording the user's authorship as a lane source
+     * record. Nothing reads that record yet.
+     *
+     * @param slot_index 0 to MAX_SLOTS-1. That bound is what makes the lane id
+     *        derived below well formed: LANES_PER_BACKEND == MAX_SLOTS, and
+     *        lane_id_for() requires a slot index inside its backend's block.
      *
      * @return the AmsError from set_slot_info so callers keep their error toasts.
      */

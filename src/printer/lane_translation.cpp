@@ -4,7 +4,29 @@
 
 #include "ams_types.h"
 
+#include <cmath>
+
 namespace helix::ams {
+
+namespace {
+
+/// The tolerance the spool editor itself uses to decide a weight was edited
+/// (AmsEditOverlay::is_dirty). Anything finer is a consumption tick or float
+/// noise, not a number a person typed into a gram field.
+constexpr float WEIGHT_EPSILON_G = 0.1f;
+
+/// True when a weight the editor committed is a number a person could have
+/// entered. Negative is SlotInfo's "unknown" sentinel, and the editor refuses
+/// a negative entry, so a negative can only have come from a clear.
+bool is_declarable_weight(float grams) {
+    return grams >= 0.0f;
+}
+
+bool weight_changed(float original, float edited) {
+    return std::fabs(edited - original) > WEIGHT_EPSILON_G;
+}
+
+} // namespace
 
 Observation user_edit_observation(const SlotInfo& original, const SlotInfo& edited) {
     Observation obs(ObservationSource::LocalUser);
@@ -19,7 +41,12 @@ Observation user_edit_observation(const SlotInfo& original, const SlotInfo& edit
         return obs;
     }
 
-    if (edited.color_rgb != original.color_rgb)
+    // AMS_DEFAULT_SLOT_COLOR means "no colour reading", not a grey a person
+    // picked, and clearing a slot writes it. Filing it would leave a user
+    // colour outranking every server value with a sentinel. The cost is that
+    // this one grey cannot be declared, which is the trade the sentinel
+    // already imposes everywhere else it is read.
+    if (edited.color_rgb != original.color_rgb && edited.color_rgb != AMS_DEFAULT_SLOT_COLOR)
         obs.color_rgb = edited.color_rgb;
     if (edited.color_name != original.color_name)
         obs.color_name = edited.color_name;
@@ -29,15 +56,20 @@ Observation user_edit_observation(const SlotInfo& original, const SlotInfo& edit
         obs.brand = edited.brand;
     if (edited.spool_name != original.spool_name)
         obs.spool_name = edited.spool_name;
-    if (edited.catalog_id != original.catalog_id)
-        obs.catalog_id = edited.catalog_id;
-    if (edited.product_name != original.product_name)
-        obs.product_name = edited.product_name;
     if (edited.spoolman_vendor_id != original.spoolman_vendor_id)
         obs.spoolman_vendor_id = edited.spoolman_vendor_id;
-    if (edited.remaining_weight_g != original.remaining_weight_g)
+
+    // catalog_id and product_name are absent by the same rule
+    // AmsEditOverlay::is_dirty() applies to them: the spool-edit view
+    // auto-highlights a product and Save copies whatever is highlighted, so
+    // these two arrive on a commit no person touched them in. Keep the two
+    // field lists in agreement.
+
+    if (is_declarable_weight(edited.remaining_weight_g) &&
+        weight_changed(original.remaining_weight_g, edited.remaining_weight_g))
         obs.remaining_weight_g = edited.remaining_weight_g;
-    if (edited.total_weight_g != original.total_weight_g)
+    if (is_declarable_weight(edited.total_weight_g) &&
+        weight_changed(original.total_weight_g, edited.total_weight_g))
         obs.total_weight_g = edited.total_weight_g;
     return obs;
 }

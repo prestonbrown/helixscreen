@@ -1597,6 +1597,12 @@ bool AmsEditOverlay::is_dirty() const {
     // slot that never had a catalog pick report itself dirty. Nothing is lost —
     // handle_spool_edit_save(finish=true) is the only production caller and it
     // routes straight into commit_and_close(), which never consults is_dirty().
+    //
+    // helix::ams::user_edit_observation (lane_translation.h) excludes the same
+    // two fields for the same reason. The two lists answer different questions
+    // - "is there an unsaved change" against "what did this person declare" -
+    // and so differ on a cleared field, but they must agree on which fields a
+    // person can be said to have touched at all.
     return working_info_.color_rgb != original_info_.color_rgb ||
            working_info_.material != original_info_.material ||
            working_info_.brand != original_info_.brand ||

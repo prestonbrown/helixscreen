@@ -5,6 +5,7 @@
 #include "lane_observation.h"
 #include "lane_sources.h"
 
+#include <cassert>
 #include <map>
 #include <mutex>
 #include <vector>
@@ -40,7 +41,15 @@ static_assert(MAX_BACKENDS * LANES_PER_BACKEND <= BYPASS_LANE_ID,
 /// The lane id for @p slot_index on the backend registered at @p backend_index.
 /// AmsState::add_backend hands a backend its own index, which combines with a
 /// slot index here to give the backend its own block of lane ids.
+///
+/// @pre 0 <= @p backend_index < MAX_BACKENDS and 0 <= @p slot_index <
+/// LANES_PER_BACKEND. The blocks are adjacent, so a slot index at or past
+/// LANES_PER_BACKEND names a slot on a different backend. Asserted rather
+/// than clamped: a clamp files the record on a lane that was not asked for,
+/// and a record on the wrong lane is the failure this store exists to remove.
 [[nodiscard]] constexpr LaneId lane_id_for(int backend_index, int slot_index) {
+    assert(backend_index >= 0 && backend_index < MAX_BACKENDS);
+    assert(slot_index >= 0 && slot_index < LANES_PER_BACKEND);
     return backend_index * LANES_PER_BACKEND + slot_index;
 }
 

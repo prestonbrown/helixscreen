@@ -28,6 +28,7 @@ namespace helix {
 #ifdef HELIX_ENABLE_MOCKS
 class AmsBackendMock;
 #endif
+class AmsState;
 class IMoonrakerClient;
 class PrinterDiscovery;
 } // namespace helix
@@ -149,9 +150,6 @@ class AmsBackend {
     [[nodiscard]] int backend_index() const {
         return backend_index_;
     }
-    void set_backend_index(int index) {
-        backend_index_ = index;
-    }
 
     /**
      * @brief This backend's lane id for one of its own slots
@@ -170,6 +168,14 @@ class AmsBackend {
     }
 
   private:
+    /// Registration stamps this exactly once, from AmsState::add_backend().
+    /// A second writer would re-file every later declaration on this backend
+    /// onto another backend's block, with nothing to report it.
+    friend class AmsState;
+    void set_backend_index(int index) {
+        backend_index_ = index;
+    }
+
     int backend_index_ = -1;
 
   public:

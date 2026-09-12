@@ -335,6 +335,34 @@ TEST_CASE("a spool link does not record the spool's colour as the user's", "[ams
     CHECK_FALSE(sources.local_user->color_rgb.has_value());
     CHECK_FALSE(sources.local_user->brand.has_value());
     CHECK_FALSE(sources.local_user->material.has_value());
+    // The rest of what a spool carries, held to the same rule. These are the
+    // fields an exception list would reach for first.
+    CHECK_FALSE(sources.local_user->spoolman_vendor_id.has_value());
+    CHECK_FALSE(sources.local_user->remaining_weight_g.has_value());
+    CHECK_FALSE(sources.local_user->total_weight_g.has_value());
+    CHECK_FALSE(sources.local_user->spool_name.has_value());
+}
+
+TEST_CASE("a field the user chose in the same commit as a link is not recorded",
+          "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    SlotInfo linked = original;
+    linked.spoolman_id = 7;
+    linked.material = "ASA"; // the person really did pick this
+
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, linked).success());
+
+    const auto sources = helix::ams::lane_sources(lane_of(0));
+    REQUIRE(sources.local_user.has_value());
+    CHECK(sources.local_user->spoolman_id == 7);
+    // A commit carrying a binding change cannot say which of its other fields
+    // the person moved and which the binding brought, so it claims none of
+    // them. The person re-picks the material as an ordinary edit, which then
+    // records. This assertion is what makes that cost deliberate.
+    CHECK_FALSE(sources.local_user->material.has_value());
 }
 
 TEST_CASE("an unlink records the binding, not the fields it cleared", "[ams][commit][lane]") {
@@ -438,13 +466,14 @@ TEST_CASE("a commit the backend rejects records no declaration", "[ams][commit][
     SlotInfo edited = original;
     edited.color_rgb = 0xBCBCBC;
 
-    // Slot 99 is past the mock's four slots, so set_slot_info refuses it.
-    const AmsError err = AmsState::instance().commit_slot_edit(99, original, edited);
+    // Slot 5 is past the mock's four slots, so set_slot_info refuses it.
+    const AmsError err = AmsState::instance().commit_slot_edit(5, original, edited);
     REQUIRE_FALSE(err.success());
 
     // The edit reached the backend and was refused, so the user declared
-    // nothing. A record here would describe a slot that never changed.
-    CHECK_FALSE(helix::ams::lane_sources(lane_of(99)).local_user.has_value());
+    // nothing. Asked of the whole store rather than one lane: a refused commit
+    // must not leave a record anywhere, including on a lane it mis-addressed.
+    CHECK(helix::ams::known_lanes().empty());
 }
 
 TEST_CASE("a commit that changes nothing writes no user record", "[ams][commit][lane]") {
@@ -454,8 +483,114 @@ TEST_CASE("a commit that changes nothing writes no user record", "[ams][commit][
     SlotInfo original = f.backend->get_slot_info(0);
     REQUIRE(AmsState::instance().commit_slot_edit(0, original, original).success());
 
-    // Proof the path ran rather than a vacuous absence: the commit reached the
-    // backend, and still recorded no declaration.
-    CHECK(f.backend->get_slot_info(0).slot_index == 0);
-    CHECK_FALSE(helix::ams::lane_sources(lane_of(0)).local_user.has_value());
+    // The REQUIRE above is the proof the path ran: commit_slot_edit reached
+    // the backend and the backend accepted. Having run it in full, it recorded
+    // no declaration, because nothing was declared.
+    CHECK(helix::ams::known_lanes().empty());
+}
+
+TEST_CASE("clearing an already-unlinked slot declares no colour and no weight",
+          "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0); // unlinked, so the binding-change rule does not fire
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    original.color_rgb = 0x1188CC;
+    original.material = "PETG";
+    original.remaining_weight_g = 620.0f;
+    original.total_weight_g = 1000.0f;
+    f.backend->set_slot_info(0, original, /*persist=*/false);
+    original = f.backend->get_slot_info(0);
+    REQUIRE(original.spoolman_id == 0);
+
+    // The shape MenuAction::CLEAR_SPOOL commits (ui_ams_detail.cpp).
+    SlotInfo cleared = original;
+    cleared.material.clear();
+    cleared.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+    cleared.color_name.clear();
+    cleared.brand.clear();
+    cleared.clear_spoolman_link();
+    cleared.remaining_weight_g = -1;
+    cleared.total_weight_g = -1;
+
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, cleared).success());
+
+    const auto sources = helix::ams::lane_sources(lane_of(0));
+    REQUIRE(sources.local_user.has_value());
+    // The clear is a real declaration: the material is now empty because the
+    // person said so.
+    REQUIRE(sources.local_user->material.has_value());
+    CHECK(*sources.local_user->material == "");
+    // But the sentinels are not values anyone chose. Recorded, they would
+    // outrank every server reading with "no reading".
+    CHECK_FALSE(sources.local_user->color_rgb.has_value());
+    CHECK_FALSE(sources.local_user->remaining_weight_g.has_value());
+    CHECK_FALSE(sources.local_user->total_weight_g.has_value());
+}
+
+TEST_CASE("a field cleared to empty is still the user's declaration", "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    original.material = "PETG";
+    f.backend->set_slot_info(0, original, /*persist=*/false);
+    original = f.backend->get_slot_info(0);
+    REQUIRE(original.material == "PETG");
+
+    SlotInfo emptied = original;
+    emptied.material.clear();
+
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, emptied).success());
+
+    const auto sources = helix::ams::lane_sources(lane_of(0));
+    REQUIRE(sources.local_user.has_value());
+    // "Observed as empty" and "not observed" are different states, and only
+    // the first of them stops a weaker source re-asserting the old material.
+    REQUIRE(sources.local_user->material.has_value());
+    CHECK(*sources.local_user->material == "");
+}
+
+TEST_CASE("an auto-highlighted catalog product is not the user's declaration",
+          "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    SlotInfo saved = original;
+    // What an untouched open-and-Save produces: the editor preselects a
+    // product and copies it in, with nothing else moved.
+    saved.catalog_id = "sunlu-pla-plus-2-0";
+    saved.product_name = "PLA+ 2.0";
+
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, saved).success());
+
+    // Nothing was declared, so no lane was written at all.
+    CHECK(helix::ams::known_lanes().empty());
+}
+
+TEST_CASE("a weight edit finer than the editor's own tolerance is not a declaration",
+          "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    original.remaining_weight_g = 620.0f;
+    original.total_weight_g = 1000.0f;
+    f.backend->set_slot_info(0, original, /*persist=*/false);
+    original = f.backend->get_slot_info(0);
+
+    SlotInfo drifted = original;
+    drifted.remaining_weight_g = 619.95f; // a consumption tick, not a keystroke
+
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, drifted).success());
+    CHECK(helix::ams::known_lanes().empty());
+
+    SlotInfo typed = original;
+    typed.remaining_weight_g = 500.0f;
+
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, typed).success());
+    const auto sources = helix::ams::lane_sources(lane_of(0));
+    REQUIRE(sources.local_user.has_value());
+    CHECK(sources.local_user->remaining_weight_g == 500.0f);
 }
