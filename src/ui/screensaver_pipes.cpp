@@ -148,8 +148,11 @@ void PipesScreensaver::start() {
     lv_obj_set_size(canvas_, screen_w_, screen_h_);
     lv_obj_set_pos(canvas_, 0, 0);
 
-    // Allocate ARGB8888 draw buffer
-    size_t buf_size = static_cast<size_t>(screen_w_) * screen_h_ * 4;
+    // Allocate ARGB8888 draw buffer at LVGL's row stride: lv_canvas_set_buffer()
+    // steps rows by the aligned stride and lv_canvas_fill_bg() writes the full
+    // extent immediately, so a tightly-packed w * h * 4 allocation under-runs it.
+    size_t buf_size =
+        static_cast<size_t>(helix::ui::screensaver_canvas_stride_bytes(screen_w_)) * screen_h_;
     draw_buf_ = static_cast<uint8_t*>(lv_malloc(buf_size));
     if (!draw_buf_) {
         spdlog::error("[Screensaver] Failed to allocate {}KB draw buffer for pipes",
@@ -158,6 +161,7 @@ void PipesScreensaver::start() {
         canvas_ = nullptr; // deleted as child of overlay
         return;
     }
+    draw_buf_size_ = buf_size;
 
     lv_canvas_set_buffer(canvas_, draw_buf_, screen_w_, screen_h_, LV_COLOR_FORMAT_ARGB8888);
     lv_canvas_fill_bg(canvas_, lv_color_black(), LV_OPA_COVER);
