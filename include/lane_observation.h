@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <tuple>
 
 namespace helix::ams {
 
@@ -46,6 +47,22 @@ struct Observation {
     /// tell its own value coming back from a third party's edit without the
     /// per-backend suppressors that answer the same question today.
     std::optional<uint64_t> echo_token;
+
+    /// Every optional field above, as a tuple of references. Code that must
+    /// touch all of them (amending one record onto another) folds over this
+    /// instead of keeping its own field list, so a field added here reaches
+    /// that code with no matching line to remember.
+    auto fields() {
+        return std::tie(present, color_rgb, color_name, material, brand, spool_name, catalog_id,
+                        product_name, spoolman_id, spoolman_vendor_id, remaining_weight_g,
+                        total_weight_g, echo_token);
+    }
+
+    auto fields() const {
+        return std::tie(present, color_rgb, color_name, material, brand, spool_name, catalog_id,
+                        product_name, spoolman_id, spoolman_vendor_id, remaining_weight_g,
+                        total_weight_g, echo_token);
+    }
 };
 
 } // namespace helix::ams

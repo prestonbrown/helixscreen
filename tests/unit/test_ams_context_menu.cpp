@@ -3,7 +3,9 @@
 
 #include "ui_ams_context_menu.h"
 
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_types.h"
@@ -71,13 +73,23 @@ class AmsContextMenuTestAccess {
     using BackupEligibleFn = AmsContextMenu::BackupEligibleFn;
 
     static std::string build_backup_options_for(int total_slots, int item_index,
-                                                const BackupEligibleFn& eligible) {
-        return AmsContextMenu::build_backup_options_for(total_slots, item_index, eligible);
+                                                const BackupEligibleFn& eligible,
+                                                LaneNoun noun = LaneNoun::Slot) {
+        return AmsContextMenu::build_backup_options_for(noun, total_slots, item_index, eligible);
     }
 
     static bool decide_backup_refused(int item_index, int backup_slot,
                                       const BackupEligibleFn& eligible) {
         return AmsContextMenu::decide_backup_refused(item_index, backup_slot, eligible);
+    }
+
+    // Production reaches this only through the tool dropdown's value_changed
+    // event, which needs a live widget + a real user selection. The function
+    // itself just reads tool_dropdown_/backend_/get_item_index(), so a test
+    // that has built those (show_near_widget() + a selected dropdown value)
+    // can call it directly.
+    static void handle_tool_changed(AmsContextMenu& menu) {
+        menu.handle_tool_changed();
     }
 };
 
@@ -625,6 +637,18 @@ TEST_CASE("Backup options are tagged by the backend's eligibility rule",
         CHECK_FALSE(called);
         CHECK(opts.find("(incompatible)") == std::string::npos);
     }
+
+    SECTION("every option is spelled in the backend's own word") {
+        const auto always = [](int, int) { return BackupEligibility::Eligible; };
+        const auto opts = Access::build_backup_options_for(4, 0, always, LaneNoun::Lane);
+        // An AFC user picks a backup Lane, not a backup Slot, and the numbers
+        // stay 1-based whichever word spells them.
+        CHECK(opts.find("Lane 2") != std::string::npos);
+        CHECK(opts.find("Lane 3") != std::string::npos);
+        CHECK(opts.find("Lane 4") != std::string::npos);
+        CHECK(opts.find("Slot") == std::string::npos);
+        CHECK(opts.find("Lane 1") == std::string::npos); // the open slot is skipped
+    }
 }
 
 TEST_CASE("The change handler refuses exactly what the option list tagged",
@@ -802,12 +826,11 @@ class DockSensorToolChanger : public AmsBackendToolChanger {
 /// both panels snapshot AmsBackend::can_unload_from_toolhead() for the slot and
 /// hand that to the menu as `pending_is_loaded`. The decision itself is
 /// production's - this only wires the arguments.
-[[nodiscard]] AmsContextMenuTestAccess::SlotOpDecision
-ops_for(const AmsBackend& backend, int slot, bool print_blocks_op = false) {
-    return AmsContextMenuTestAccess::decide_slot_ops(&backend, slot,
-                                                     backend.can_unload_from_toolhead(slot),
-                                                     backend.get_system_info().is_busy(),
-                                                     print_blocks_op);
+[[nodiscard]] AmsContextMenuTestAccess::SlotOpDecision ops_for(const AmsBackend& backend, int slot,
+                                                               bool print_blocks_op = false) {
+    return AmsContextMenuTestAccess::decide_slot_ops(
+        &backend, slot, backend.can_unload_from_toolhead(slot), backend.get_system_info().is_busy(),
+        print_blocks_op);
 }
 
 } // namespace
@@ -919,4 +942,74 @@ TEST_CASE("The mount target moves with the carriage", "[ams][context_menu][toolc
     const auto departed = ops_for(backend, 1);
     CHECK_FALSE(departed.unload_enabled);
     CHECK(departed.can_load);
+}
+
+// ============================================================================
+// handle_tool_changed: remap conflict toast
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "AmsContextMenu: a conflicting tool selection names both tools as labels",
+                 "[ui][ams][context_menu]") {
+    std::vector<std::pair<ToastSeverity, std::string>> toasts;
+    helix::ui::set_test_toast_hook(
+        [&](ToastSeverity sev, const std::string& msg) { toasts.emplace_back(sev, msg); });
+
+    auto backend = std::make_unique<AmsBackendMock>(4);
+    backend->set_operation_delay(0);
+    backend->set_tool_mapping(0, 2); // T0 already routes to slot 2
+
+    // Unlike most components, ams_context_menu.xml is registered lazily by
+    // AmsPanel/AmsOverviewPanel rather than helix::register_xml_components(),
+    // so LVGLUITestFixture's "every component" registration does not cover it.
+    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml") == LV_RESULT_OK);
+
+    AmsContextMenu menu;
+    REQUIRE(menu.show_near_widget(test_screen(), /*slot_index=*/2, test_screen(),
+                                  /*is_loaded=*/false, backend.get()));
+
+    lv_obj_t* dd = lv_obj_find_by_name(test_screen(), "tool_dropdown");
+    REQUIRE(dd != nullptr);
+    // Options are "None", T0, T1, T2, T3 - index 2 selects T1, which collides
+    // with T0's existing mapping to this same slot.
+    lv_dropdown_set_options(dd, "None\nT0\nT1\nT2\nT3");
+    lv_dropdown_set_selected(dd, 2);
+
+    AmsContextMenuTestAccess::handle_tool_changed(menu);
+
+    helix::ui::set_test_toast_hook(nullptr);
+
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts[0].first == ToastSeverity::WARNING);
+    CHECK(toasts[0].second.find("T1") != std::string::npos);
+    CHECK(toasts[0].second.find("T0") != std::string::npos);
+    CHECK(toasts[0].second.find("Tool 1") == std::string::npos);
+    CHECK(toasts[0].second.find("Tool 0") == std::string::npos);
+}
+
+// ============================================================================
+// on_created: the header names the position in the backend's own word
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "AmsContextMenu: the slot header uses the backend's own word for a position",
+                 "[ui][ams][context_menu]") {
+    // AmsBackendMock reports Happy Hare, whose noun is Gate. A header reading
+    // "Slot 3" on this backend is the English word for something the firmware,
+    // the macros and every other surface call a gate.
+    auto backend = std::make_unique<AmsBackendMock>(4);
+    REQUIRE(backend->lane_noun() == LaneNoun::Gate);
+
+    // ams_context_menu.xml is registered lazily by AmsPanel/AmsOverviewPanel
+    // rather than by helix::register_xml_components(), so the fixture's
+    // "every component" registration does not cover it.
+    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml") == LV_RESULT_OK);
+
+    AmsContextMenu menu;
+    REQUIRE(menu.show_near_widget(test_screen(), /*slot_index=*/2, test_screen(),
+                                  /*is_loaded=*/false, backend.get()));
+
+    lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
+    REQUIRE(header != nullptr);
+    CHECK(std::string(lv_label_get_text(header)) == "Gate 3");
 }

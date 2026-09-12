@@ -21,16 +21,18 @@ cross build in CI is what gates it.
 import json
 import os
 import pathlib
-import shlex
 import subprocess
 import sys
 import time
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from merge_compile_commands import entry_argv  # noqa: E402
 
 DB_NAME = "compile_commands.json"
 
 
 def flags_for(entry: dict) -> list[str]:
-    argv = entry.get("arguments") or shlex.split(entry["command"])
+    argv = entry_argv(entry)
     out: list[str] = []
     skip = False
     for arg in argv:

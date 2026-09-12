@@ -17,8 +17,10 @@
 #include "ams_error.h"
 #include "ams_step_operation.h"
 #include "ams_types.h"
+#include "display_numbering.h"
 #include "error_event.h"
 #include "firmware_routing.h"
+#include "lane_source_store.h"
 #include "tool_mapping_origin.h"
 #include "toolchanger_addon.h"
 
@@ -27,6 +29,7 @@ namespace helix {
 #ifdef HELIX_ENABLE_MOCKS
 class AmsBackendMock;
 #endif
+class AmsState;
 class IMoonrakerClient;
 class PrinterDiscovery;
 } // namespace helix
@@ -139,6 +142,45 @@ class AmsBackend {
      */
     [[nodiscard]] virtual bool is_running() const = 0;
 
+    /**
+     * @brief Where this backend sits in AmsState::backends_
+     *
+     * Stamped by AmsState::add_backend() when the backend is registered;
+     * -1 until then.
+     */
+    [[nodiscard]] int backend_index() const {
+        return backend_index_;
+    }
+
+    /**
+     * @brief This backend's lane id for one of its own slots
+     *
+     * Several backends coexist, so a slot index alone names a position on
+     * every one of them at once. A backend that registration has not stamped,
+     * and a slot index outside this backend's block, both yield
+     * helix::ams::INVALID_LANE_ID, which the lane funnels drop.
+     *
+     * Public because a caller holding a backend pointer needs the same
+     * answer the backend gives itself: deriving the id from anything but the
+     * backend an edit was written through puts the record on a lane that edit
+     * never touched.
+     */
+    [[nodiscard]] helix::ams::LaneId lane_id(int slot_index) const {
+        return helix::ams::lane_id_for(backend_index_, slot_index);
+    }
+
+  private:
+    /// Registration stamps this exactly once, from AmsState::add_backend().
+    /// A second writer would re-file every later declaration on this backend
+    /// onto another backend's block, with nothing to report it.
+    friend class AmsState;
+    void set_backend_index(int index) {
+        backend_index_ = index;
+    }
+
+    int backend_index_ = -1;
+
+  public:
     // ========================================================================
     // Event System
     // ========================================================================
@@ -2185,6 +2227,31 @@ class AmsBackend {
      */
     [[nodiscard]] virtual bool should_hide_slot_tool_badge() const {
         return false;
+    }
+
+    /**
+     * @brief The word this backend's hardware uses for one filament position.
+     *
+     * Display code composes it with a 1-based number. Returned as an enum so a
+     * caller cannot compare the wrong spelling and silently get the default.
+     *
+     * @return the backend's noun; Slot unless overridden
+     */
+    [[nodiscard]] virtual helix::ui::LaneNoun lane_noun() const {
+        return helix::ui::LaneNoun::Slot;
+    }
+
+    /**
+     * @brief The word this backend's hardware uses for the printing end.
+     *
+     * Distinct from lane_noun(): most backends use one noun for both the
+     * filament lane and the print position, but a backend whose hardware uses
+     * two different words for the two 1:1 things overrides this separately.
+     *
+     * @return the backend's noun for a tool/nozzle position; Tool unless overridden
+     */
+    [[nodiscard]] virtual helix::ui::LaneNoun tool_noun() const {
+        return helix::ui::LaneNoun::Tool;
     }
 
     /**

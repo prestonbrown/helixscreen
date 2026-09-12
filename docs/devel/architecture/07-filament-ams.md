@@ -65,6 +65,10 @@ flowchart TB
 | [`include/lane_sources.h`](../../../include/lane_sources.h) | `LaneSources`: one `Observation` slot per source, whole-record replacement on `apply()` |
 | [`include/lane_resolver.h`](../../../include/lane_resolver.h) | `ResolvedLane` and the `resolve()` declaration - what a lane shows, computed and never stored back |
 | [`src/printer/lane_resolver.cpp`](../../../src/printer/lane_resolver.cpp) | The precedence table as code: presence, the identity ladder and its colour exception, the weight ladder |
+| [`include/lane_source_store.h`](../../../include/lane_source_store.h) | `LaneId` and the lane address space; `ingest()` and `commit_slot_edit()`, the two funnels a record may enter through |
+| [`src/printer/lane_source_store.cpp`](../../../src/printer/lane_source_store.cpp) | The store behind the funnels: one `LaneSources` per lane, whole-record replacement against field-by-field amendment |
+| [`include/lane_translation.h`](../../../include/lane_translation.h) | Turning a human edit or a stored `lane_data` record into an `Observation`, and who its author is |
+| [`src/printer/lane_translation.cpp`](../../../src/printer/lane_translation.cpp) | The field roster both translations walk, the sentinel rules, and the lock-key classifier |
 | [`docs/devel/FILAMENT_MANAGEMENT.md`](../FILAMENT_MANAGEMENT.md) | The deep dive: every backend's protocol, op dispatch, endless spool, errors |
 
 ## How it works
@@ -230,7 +234,8 @@ Loading prefers the DB and falls back to the local file, seeding the DB on the w
 ### Lane identity by source: one record per observer, resolved on read
 
 A self-contained model carries *where* a lane's values came from, instead of re-deriving it
-from the values themselves. Three types, one function, and no callers outside its tests.
+from the values themselves. Five types and twelve free functions across eight files, with one
+production caller: the human edit path files what a person declared, and nothing reads it.
 
 `Observation` ([`include/lane_observation.h#"struct Observation"`](../../../include/lane_observation.h)) is one reading
 from one source. Every field is a `std::optional`, so "this source said nothing about the
@@ -256,7 +261,11 @@ stops reporting stops contributing, and no two writers share a destination - a l
 structurally impossible rather than merely unlikely. `drop()` discards one source's record
 entirely. There is no promote-or-demote operation, so an unlink - a clear that keeps identity
 while dropping the link, which `src/ui/ui_ams_edit_overlay.cpp` performs - has no spelling
-here.
+in `LaneSources` itself. `user_edit_observation()`
+([`src/printer/lane_translation.cpp#user_edit_observation`](../../../src/printer/lane_translation.cpp))
+gives the edit path one: a commit that changes `spoolman_id` states the binding and claims
+none of the fields the unlink cleared, in either direction. What the demoted values become
+is still unanswered, because nothing reads a `LaneSources` yet.
 
 `resolve()` ([`src/printer/lane_resolver.cpp#resolve`](../../../src/printer/lane_resolver.cpp)) folds the
 sources into a `ResolvedLane`, the values a surface paints. It is pure: no clock, no globals,
@@ -275,9 +284,12 @@ Colour is the one exception to the identity ladder, and it is deliberately narro
 spool name and catalog identity belong to the spool, so a `LocalUser` record does not outrank
 Spoolman on any of them.
 
-**Nothing outside the tests uses any of this.** No backend produces an `Observation`, no
-surface consumes a `ResolvedLane`, and `resolve()` has no production caller. Lanes are still
-read the way [`15-known-debt.md`](15-known-debt.md) § "Provenance debt" describes - firmware-reported
+**One production path writes, and nothing reads.** `AmsState::commit_slot_edit`
+(`src/printer/ams_state.cpp#commit_slot_edit`) records an accepted slot edit as a `LocalUser`
+`Observation` through `helix::ams::commit_slot_edit`, once the backend has taken it. No
+*backend* produces an `Observation` yet, no surface consumes a `ResolvedLane`, and `resolve()`
+has no production caller, so nothing the user sees is computed from any of this. Lanes are
+still read the way [`15-known-debt.md`](15-known-debt.md) § "Provenance debt" describes - firmware-reported
 `SlotInfo` merged with a persisted `FilamentSlotOverride` by `merge_override()`
 (`src/printer/filament_slot_override_store.cpp#merge_override`), each field's origin inferred from
 its shape. The model stands alone on purpose, so the precedence argument is readable and

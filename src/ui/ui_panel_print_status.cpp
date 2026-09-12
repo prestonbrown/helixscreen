@@ -33,6 +33,7 @@
 #include "bed_dimensions.h"
 #include "config.h"
 #include "display_manager.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "filament_mapper.h"
 #include "filament_sensor_manager.h"
@@ -2778,22 +2779,29 @@ void PrintStatusPanel::recompute_paused_overlay_visibility() {
     lv_subject_set_int(&show_paused_overlay_subject_, effective_paused ? 1 : 0);
 
     // Reason resolution. Pending action takes precedence so the user always
-    // sees feedback. Otherwise prefer Klipper's print_stats.message
-    // (firmware-supplied descriptor — runout, error wrap, custom macros). If
-    // empty AND any configured runout sensor is currently tripped, surface a
-    // generic "Filament Runout" hint. Otherwise leave blank → reason label
-    // stays hidden.
+    // sees feedback. A confirmed runout is authored copy naming the affected
+    // lane, not Klipper's print_stats.message — some backends spell that with
+    // a 0-based extruder name (e.g. "e0_filament") we do not control. Only a
+    // pause cause we cannot positively identify as a runout falls back to that
+    // firmware text. Otherwise leave blank → reason label stays hidden.
     std::string reason;
     if (pending == helix::ui::PendingAction::Pausing) {
         reason = lv_tr("Pausing...");
     } else if (pending == helix::ui::PendingAction::Resuming) {
         reason = lv_tr("Resuming...");
     } else if (paused) {
-        const char* fw_msg = lv_subject_get_string(printer_state_.get_print_message_subject());
-        if (fw_msg && *fw_msg) {
-            reason = fw_msg;
-        } else if (FilamentSensorManager::instance().has_real_runout()) {
-            reason = lv_tr("Filament Runout");
+        if (FilamentSensorManager::instance().has_real_runout()) {
+            AmsBackend* backend = AmsState::instance().get_backend();
+            std::string lane = backend ? helix::ui::lane_label(helix::ui::active_lane_noun(),
+                                                               backend->get_current_slot())
+                                       : std::string();
+            reason = lane.empty() ? std::string(lv_tr("Filament Runout"))
+                                  : std::string(lv_tr("Filament Runout")) + " (" + lane + ")";
+        } else {
+            const char* fw_msg = lv_subject_get_string(printer_state_.get_print_message_subject());
+            if (fw_msg && *fw_msg) {
+                reason = fw_msg;
+            }
         }
     }
     lv_subject_copy_string(&print_pause_reason_subject_, reason.c_str());

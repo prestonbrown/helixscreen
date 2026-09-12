@@ -134,6 +134,8 @@ src/printer/ams_environment_zone.cpp
 src/printer/ams_state.cpp
 src/printer/ams_subscription_backend.cpp
 src/printer/lane_resolver.cpp
+src/printer/lane_source_store.cpp
+src/printer/lane_translation.cpp
 src/printer/bed_dimensions.cpp
 src/printer/chamber_heater_backend_dragonbreath.cpp
 src/printer/chamber_heater_backend_generic.cpp
@@ -382,6 +384,7 @@ src/ui/ui_filament_runout_handler.cpp
 src/ui/ui_filament_slot_picker.cpp
 src/ui/ui_filename_utils.cpp
 src/ui/ui_format_utils.cpp
+src/ui/display_numbering.cpp
 src/ui/ui_gradient_canvas.cpp
 src/ui/ui_heater_icon_binder.cpp
 src/ui/ui_heating_animator.cpp

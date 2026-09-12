@@ -15,6 +15,7 @@
 
 #include "ams_state.h"
 #include "data_root_resolver.h"
+#include "display_numbering.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
@@ -134,7 +135,6 @@ void ToolState::deinit_subjects() {
     ams_topology_active_ = false;
     ams_topology_tool_count_ = 0;
     ams_topology_tool_to_slot_.clear();
-    ams_topology_tool_name_prefix_ = "T";
 
     subjects_.deinit_all();
     subjects_initialized_ = false;
@@ -150,7 +150,6 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
     ams_topology_active_ = false;
     ams_topology_tool_count_ = 0;
     ams_topology_tool_to_slot_.clear();
-    ams_topology_tool_name_prefix_ = "T";
 
     // Whether this printer keeps a z-offset per toolhead. Asked once, here,
     // because this is the only place ToolState sees the hardware; the status
@@ -169,7 +168,8 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
         for (int i = 0; i < 4; ++i) {
             ToolInfo tool;
             tool.index = i;
-            tool.name = fmt::format("T{}", i);
+            tool.name = helix::ui::tool_label(i);
+            tool.display_label = helix::ui::lane_label(helix::ui::active_tool_noun(), i);
             tool.extruder_name = extruder_names[i];
             tool.heater_name = extruder_names[i];
             tool.fan_name = (i == 0)
@@ -200,7 +200,11 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
         for (int i = 0; i < static_cast<int>(tool_names.size()); ++i) {
             ToolInfo tool;
             tool.index = i;
+            // The discovered name is the tool's real klipper identity (e.g. a
+            // custom-named [tool Left]), so it is not always the generated
+            // "T{i}" pattern and must not be overwritten.
             tool.name = tool_names[i];
+            tool.display_label = helix::ui::lane_label(helix::ui::active_tool_noun(), i);
 
             // Map extruder by index if available
             if (i < static_cast<int>(extruder_names.size())) {
@@ -235,7 +239,8 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
         for (int i = 0; i < static_cast<int>(extruder_names.size()); ++i) {
             ToolInfo tool;
             tool.index = i;
-            tool.name = ::fmt::format("T{}", i);
+            tool.name = helix::ui::tool_label(i);
+            tool.display_label = helix::ui::lane_label(helix::ui::active_tool_noun(), i);
             tool.extruder_name = extruder_names[i];
             tool.heater_name = std::nullopt;
 
@@ -282,13 +287,11 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
     }
 
     bool needs_rebuild = !ams_topology_active_ || ams_topology_tool_count_ != topo.tool_count ||
-                         ams_topology_tool_to_slot_ != topo.tool_to_slot ||
-                         ams_topology_tool_name_prefix_ != topo.tool_name_prefix;
+                         ams_topology_tool_to_slot_ != topo.tool_to_slot;
 
     ams_topology_active_ = true;
     ams_topology_tool_count_ = topo.tool_count;
     ams_topology_tool_to_slot_ = topo.tool_to_slot;
-    ams_topology_tool_name_prefix_ = topo.tool_name_prefix;
 
     if (needs_rebuild) {
         // Snapshot per-tool hardware mappings populated by init_tools() so we can
@@ -303,7 +306,8 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
         for (int i = 0; i < topo.tool_count; ++i) {
             ToolInfo t;
             t.index = i;
-            t.name = ::fmt::format("{}{}", topo.tool_name_prefix, i);
+            t.name = helix::ui::tool_label(i);
+            t.display_label = helix::ui::lane_label(helix::ui::active_tool_noun(), i);
             t.backend_index = topo.backend_index;
             t.backend_slot =
                 (i < static_cast<int>(topo.tool_to_slot.size())) ? topo.tool_to_slot[i] : -1;
@@ -375,7 +379,6 @@ void ToolState::clear_ams_topology() {
     ams_topology_active_ = false;
     ams_topology_tool_count_ = 0;
     ams_topology_tool_to_slot_.clear();
-    ams_topology_tool_name_prefix_ = "T";
     tools_.clear();
     active_tool_index_ = 0;
     lv_subject_set_int(&tool_count_, 0);
@@ -692,7 +695,17 @@ std::string ToolState::nozzle_label() const {
     }
     const auto* tool = active_tool();
     if (tool) {
-        return std::string(lv_tr("Nozzle")) + " " + tool->name;
+        // The number, not the gcode identity: the three other producers of a
+        // nozzle label (PrinterTemperatureState, the temp graph, the print
+        // status widget) all spell this nozzle with lane_number_text(), and two
+        // names for one physical nozzle is the confusion. A tool its owner
+        // named keeps that name.
+        const std::string suffix = helix::ui::is_generated_tool_name(tool->name)
+                                       ? helix::ui::lane_number_text(tool->index)
+                                       : tool->name;
+        if (!suffix.empty()) {
+            return std::string(lv_tr("Nozzle")) + " " + suffix;
+        }
     }
     return lv_tr("Nozzle");
 }
@@ -703,6 +716,15 @@ std::string ToolState::tool_name_for_extruder(const std::string& extruder_name) 
     for (const auto& tool : tools_) {
         if (tool.extruder_name && *tool.extruder_name == extruder_name) {
             return tool.name;
+        }
+    }
+    return {};
+}
+
+std::string ToolState::display_label_for_extruder(const std::string& extruder_name) const {
+    for (const auto& tool : tools_) {
+        if (tool.extruder_name && *tool.extruder_name == extruder_name) {
+            return tool.display_label;
         }
     }
     return {};
@@ -766,7 +788,7 @@ void ToolState::request_tool_change(int tool_index, IMoonrakerAPI* api,
     // Klipper auto-defines Tn → ACTIVATE_EXTRUDER for plain multi-extruder,
     // and toolchanger plugins (ktcc, tapchanger, etc.) override Tn with
     // proper physical tool change logic.
-    std::string gcode = ::fmt::format("T{}", tool_index);
+    std::string gcode = helix::ui::tool_label(tool_index);
     spdlog::info("[ToolState] Requesting tool change to T{} via gcode", tool_index);
 
     api->execute_gcode(

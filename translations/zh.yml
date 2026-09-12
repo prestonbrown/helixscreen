@@ -8,13 +8,23 @@ translations:
   '%d additional fan%s': '%d 个额外风扇%s'
   '%d disabled': '%d 个已禁用'
   '%d failed to load - see details below': '%d 个加载失败 - 详见下方'
+  '%d feeders': '%d 个送料器'
+  '%d gates': '%d 个通道'
+  '%d lanes': '%d 个耗材通道'
   '%d more sensors': 还有%d个传感器
   '%d of %d plugins loaded': 已加载 %d / %d 个插件
   '%d plugins loaded': 已加载 %d 个插件
   '%d slots': '%d 个槽位'
+  '%d toolheads': '%d 个工具头'
+  '%d tools': '%d 个工具'
   '%lu days ago': '%lu天前'
   '%lu hours ago': '%lu小时前'
   '%lu min ago': '%lu分钟前'
+  '%s Filament': '%s 耗材'
+  '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s 约剩 %.0fg，但%s 需要约 %.0fg。仍要开始吗？'
+  '%s has no filament loaded — this print will run out.': '%s 未加载耗材 —— 此次打印将会耗尽耗材。'
+  '%s needs filament in %s, which is empty — this print will run out.': '%s 需要耗材，但 %s 为空 —— 此次打印将会耗尽耗材。'
+  '%s: %.0fg of %.0fg needed': '%s：%.0fg / 需要 %.0fg'
   '%u layers': '%u 层'
   '%zu changes': '%zu 项更改'
   '%zu events queued': '%zu 个事件已排队'
@@ -247,6 +257,7 @@ translations:
   Beacon auto-calibrate sent: Beacon自动校准已发送
   Beacon calibrate sent: Beacon校准已发送
   Bed: 热床
+  Bed (°C): 热床 (°C)
   Bed Heater: 热床加热器
   Bed Level: 热床调平
   Bed Leveling: 热床调平
@@ -260,7 +271,6 @@ translations:
   Bed Screw Results: 热床螺丝结果
   Bed Screws: 热床螺丝
   Bed Temp: 热床温度
-  Bed Temp (°C): 热床温度 (°C)
   Bed Temperature: 热床温度
   Bed is Level!: 热床已水平！
   Bed mesh operation timed out: 热床网格操作超时
@@ -420,6 +430,7 @@ translations:
   Center QR code in frame: 将 QR 码对准画面中央
   'Chamb:': '腔:'
   Chamber: 腔体
+  Chamber (°C): 腔体 (°C)
   Chamber Cooling Fan: 腔体冷却风扇
   Chamber Fan: 腔体风扇
   Chamber Heater: 仓室加热器
@@ -430,6 +441,7 @@ translations:
   Chamber at %d°C: 腔体温度：%d°C
   Chamber heating to %d°C...: 腔体加热至 %d°C...
   Chamber target set to {}°C: 腔体目标温度设置为 {}°C
+  Chamber temp must be 0-120°C: ''
   Change: 更改
   Change Address: 更改地址
   Change Blade: '更换刀片'
@@ -658,10 +670,9 @@ translations:
   'Current name:': 当前名称：
   'Current:': 当前：
   'Current: %d°C | Target: %d°C': '当前: %d°C | 目标: %d°C'
-  'Current: %s · Slot %d': '当前: %s · 插槽 %d'
+  'Current: %s': '当前: %s'
+  'Current: %s · %s': '当前: %s · %s'
   'Current: Bypass': '当前: 旁通'
-  'Current: Slot %d': '当前: 插槽 %d'
-  'Current: Tool %d': '当前: 工具 %d'
   Currently Loaded: 当前已装载
   Currently printing: 正在打印
   Custom: 自定义
@@ -692,6 +703,7 @@ translations:
   Debug: 调试
   Default border thickness: 默认边框厚度
   'Default: %d-%d°C nozzle, %d°C bed': '默认: 喷嘴 %d-%d°C,热床 %d°C'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: 已恢复默认设置
   Define macros in your printer.cfg: 在 printer.cfg 中定义宏
   Delete: 删除
@@ -1024,6 +1036,8 @@ translations:
   Feed filament: 进料
   Feed filament directly to extruder: 将耗材直接送入挤出机
   Feed filament from current slot: '从当前槽位送入耗材'
+  Feeder: 送料器
+  Feeders: 送料器
   Feeding filament forward: 正在向前送料
   Filament: 耗材
   Filament Control: 耗材控制
@@ -1131,6 +1145,8 @@ translations:
   GCode Console: 'G-code 控制台'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "游戏结束！\n得分：{}\n点按重新开始"
+  Gate: 通道
+  Gates: 通道
   Gear Buffer Speed: '齿轮缓冲区速度'
   Gear Spool Speed: '齿轮料盘速度'
   Gear Unload Speed: '齿轮卸载速度'
@@ -1381,8 +1397,9 @@ translations:
   Label printed: 标签已打印
   Labels: 标签
   Labels Per Sheet: 每页标签数
-  Lane: 槽位
+  Lane: 耗材通道
   Lane tests and motor resets: '槽位测试与电机重置'
+  Lanes: 耗材通道
   Language: 语言
   Language, theme, brightness, and sound: 语言、主题、亮度和声音
   Last: 最近
@@ -1904,8 +1921,8 @@ translations:
   Preheat Macro: 预热宏
   Preheat PLA: 预热 PLA
   Preheat cancelled: 预热已取消
-  'Preheat: T{} + bed set': '预热: T{} + 热床已设置'
   'Preheat: all {} tools + bed set': '预热: 全部 {} 工具 + 热床已设置'
+  'Preheat: {} + bed set': '预热: {} + 热床已设置'
   Prepared: 已就绪
   Preparing: 准备中
   Preparing Print: 准备打印
@@ -2436,18 +2453,9 @@ translations:
   Sliced colors: 切片颜色
   Slicer: 切片软件
   Slot: 槽位
-  Slot %d: 槽位 %d
-  Slot %d Filament: 槽位 %d 耗材
-  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: '槽位 %d 约剩 %.0fg，但工具 %d 需要约 %.0fg。仍要开始吗？'
-  'Slot %d: %.0fg of %.0fg needed': '槽位 %d：%.0fg / 需要 %.0fg'
   Slot 1: 槽位 1
   Slot colors, materials, and levels: 槽位的颜色、材料和余量
-  Slot {}: 槽位 {}
-  Slot {} is blocked — manual intervention required: 槽位 {} 被阻塞 — 需要手动干预
-  Slot {} matches.: '槽位 {} 匹配。'
-  Slot {} spool cleared: 槽位 {} 料盘已清除
-  Slot {} updated: 槽位 {} 已更新
-  Slots: ''
+  Slots: 槽位
   Small labels help keep controls calm and focused.: 小标签有助于保持控件简洁专注。
   Snapmaker SnapSwap: Snapmaker SnapSwap
   Snapmaker U1: Snapmaker U1
@@ -2555,7 +2563,7 @@ translations:
   Switch between light and dark themes: 切换浅色和深色主题
   Switch the active tool or extruder: 切换当前工具或挤出机
   Switch to v%s: '切换到 v%s'
-  Switched to T{}: 已切换到 T{}
+  Switched to {}: '已切换到 {}'
   Switches to a backup spool on runout: 耗材用尽时切换到备用料盘
   Switching heater control to MPC. Klipper will restart.: 正在将加热控制切换为 MPC。Klipper 将重启。
   Switching to MPC requires a config change and Klipper restart.: 切换到 MPC 需要修改配置并重启
@@ -2568,9 +2576,6 @@ translations:
   System busy — try again: 系统繁忙 — 请重试
   System default: 系统默认
   System detected: 检测到系统
-  T%d has no filament loaded — this print will run out.: T%d 未加载耗材 —— 此次打印将会耗尽耗材。
-  T%d needs filament in slot %d, which is empty — this print will run out.: T%d 需要
-    %d 号槽位中的耗材，但该槽位为空 —— 此次打印将会耗尽耗材。
   TANGLE: 打结
   TD-1 filament color detection: TD-1 耗材颜色检测
   TEMPERATURE SENSORS: 温度传感器
@@ -2645,6 +2650,7 @@ translations:
   ? The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
   : 为防止动画屏保干扰打印，已在此设备上将其关闭。您可以在设置 > 显示中重新启用。
+  The bed was reported dirty, so this print cannot resume.: '热床被报告为脏污，因此无法恢复此次打印。'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: 缓冲器可能未连接、卡住或损坏。请检查后重试
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: 缓冲器已 16 秒未检测到运动。请检查 CFS 与挤出机之间是否堵塞，或缓冲器是否卡住
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: 切刀未复位。请检查切刀机构上是否缠绕耗材
@@ -2779,13 +2785,14 @@ translations:
   'Tool change failed: {}': '工具切换失败: {}'
   Tool mapping failed: 工具映射失败
   Tool swap: 工具切换
-  'Tool {} → Slot {}: no filament loaded.': '工具 {} → 槽位 {}: 未加载耗材。'
   Toolhead: '工具头'
   Toolhead LED: '工具头 LED'
   Toolhead Sensor: 工具头传感器
   Toolhead Style: 工具头样式
   Toolhead jam: 工具头堵塞
   Toolhead, G-code, limits, and materials: 打印头、G代码、限制和材料
+  Toolheads: 工具头
+  Tools: 工具
   Tools Used: 已使用工具
   'Tools: ': '工具: '
   Total Prints: 总打印数
@@ -2818,7 +2825,6 @@ translations:
   Type: 类型
   Type to preview input field...: 输入以预览输入框...
   'Type:': '类型:'
-  T{} shares slot with T{}: T{} 与 T{} 共用槽位
   UI Scale: 界面缩放
   UI Sounds: 界面声音
   UI scale applies after restart: 界面缩放将在重启后生效
@@ -3091,6 +3097,7 @@ translations:
   v{} is available. Tap to update.: v{} 可用。点击以更新。
   you have: 您有
   '{} LED strips available': '{} 条 LED 灯带可用'
+  '{} and {} are both mapped here': '{} 和 {} 都映射到这里'
   '{} axis homed': '{} 轴已归位'
   '{} command timed out': '{} 命令超时'
   '{} complete': '{} 完成'
@@ -3104,10 +3111,12 @@ translations:
   '{} filament • {}': '耗材 {} • {}'
   '{} heater turned off': '{} 加热器已关闭'
   '{} is asking to connect to this printer.': '{} 请求连接到此打印机。'
+  '{} is blocked — manual intervention required': '{} 被阻塞 — 需要手动干预'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} 已安装，但其备用料盘切换已关闭，因此不会自动切换。'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} 已安装，但无法读取其备用料盘设置 - 请勿指望自动切换。'
   '{} is not set up on this printer': '{} 未在此打印机上设置'
   '{} macro not configured': '{} 宏未配置'
+  '{} matches.': '{} 匹配。'
   '{} may cause unintended changes. Are you sure?': '{} 可能导致意外更改。确定吗？'
   '{} more taps to {} beta features': 再点击 {} 次以{}测试功能
   '{} needs the HelixPrint plugin. Printing original file.': '{} 需要 HelixPrint 插件。将打印原始文件。'
@@ -3116,9 +3125,12 @@ translations:
   '{} set to {}': '{} 已设为 {}'
   '{} set to {} {}': '{} 已设为 {} {}'
   '{} slots': '{} 个槽位'
+  '{} spool cleared': '{} 料盘已清除'
   '{} started': '已开始{}'
   '{} target set to {}°C': '{} 目标已设为 {}°C'
+  '{} updated': '{} 已更新'
   '{} widgets': '{} 个小组件'
   ? '{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present.'
   : '{} 将切换到耗材类型与颜色都与当前料盘一致、且其端口传感器检测到有耗材的槽位。'
   '{} — response timed out': '{} — 响应超时'
+  '{} → {}: no filament loaded.': '{} → {}: 未加载耗材。'

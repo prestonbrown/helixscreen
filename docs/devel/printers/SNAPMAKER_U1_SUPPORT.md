@@ -365,13 +365,13 @@ Package HelixScreen as an Extended Firmware overlay for one-click installation v
 
 The `AmsBackendSnapmaker` backend parses RFID data from `filament_detect.info` when the RFID reader is enabled. With the RFID reader disabled (default on Extended Firmware via `disable-rfid-reader.cfg`), all RFID fields return `"NONE"` and `print_task_config` is the authoritative filament data source.
 
-### Virtual Slot Mapping
+### Virtual Toolhead Mapping
 
 The U1 maps 32 logical tools onto 4 physical heads through `extruder_map_table`, and that table
-— not the physical slot layout — is what decides which head prints a given `Tn`. HelixScreen
+— not the physical toolhead layout — is what decides which head prints a given `Tn`. HelixScreen
 both writes it (the pre-print `SET_PRINT_EXTRUDER_MAP` sequence, one line per used tool) and
 reads it back (`AmsBackendSnapmaker::get_tool_mapping()`), so the live preview colours each
-tool by the lane that will actually print it instead of inferring a mapping from the slicer
+tool by the toolhead that will actually print it instead of inferring a mapping from the slicer
 palette. Two properties make the read safe:
 
 - **Write every used entry, not just the remaps.** `SET_PRINT_EXTRUDER_MAP` sets one entry and
@@ -379,7 +379,7 @@ palette. Two properties make the read safe:
   values — a job that remapped `T0`→head 2 made the next job print `T0` from head 2 as well.
 - **Only read it while a task is configured.** Idle, the table holds a default identity
   `[0,1,2,3,…]` that is indistinguishable from "this print needs no remap" and is wrong for any
-  file whose tools do not line up with the lanes. `extruders_used` being all-false is the
+  file whose tools do not line up with the toolheads. `extruders_used` being all-false is the
   firmware's own "no task" signal and gates the read.
 
 Full command and data-model reference: [FILAMENT_BACKEND_SNAPMAKER_U1.md](../FILAMENT_BACKEND_SNAPMAKER_U1.md) § "Firmware API: `print_task_config`".
@@ -394,17 +394,17 @@ The primary source for filament info. Populated by the stock firmware's task man
 
 | Field | Example | Handled | Notes |
 |-------|---------|---------|-------|
-| `filament_type` | `["PLA","PLA","PLA","PLA"]` | ✅ | Material per slot |
+| `filament_type` | `["PLA","PLA","PLA","PLA"]` | ✅ | Material per feeder |
 | `filament_sub_type` | `["SnapSpeed",...]` | ✅ | Appended to type (e.g., "PLA SnapSpeed") |
-| `filament_vendor` | `["Snapmaker",...]` | ✅ | Brand per slot |
+| `filament_vendor` | `["Snapmaker",...]` | ✅ | Brand per feeder |
 | `filament_color_rgba` | `["080A0DFF",...]` | ✅ | RGBA hex → RGB uint32 |
-| `filament_exist` | `[true,true,true,true]` | ✅ | Slot presence |
+| `filament_exist` | `[true,true,true,true]` | ✅ | Feeder presence |
 | `filament_color` | `[4278716941,...]` | — | Redundant with `_rgba`, not parsed |
 | `filament_official` | `[true,...]` | ❌ | Could show official/third-party badge |
 | `filament_sku` | `[900001,...]` | ❌ | Snapmaker product SKU |
 | `filament_soft` | `[false,...]` | ❌ | Soft filament flag (TPU etc.) |
 | `filament_edit` | `[false,...]` | ❌ | Whether user has edited filament info |
-| `extruder_map_table` | `[0,1,2,3,0,...(x32)]` | ✅ | **Logical tool → physical head routing for the running print.** Published by `AmsBackendSnapmaker::get_tool_mapping()`; the live preview colours each tool by the lane that actually prints it. Only read while `extruders_used` says a task is configured — idle it holds a default identity that would read as "no remap". |
+| `extruder_map_table` | `[0,1,2,3,0,...(x32)]` | ✅ | **Logical tool → physical head routing for the running print.** Published by `AmsBackendSnapmaker::get_tool_mapping()`; the live preview colours each tool by the toolhead that actually prints it. Only read while `extruders_used` says a task is configured — idle it holds a default identity that would read as "no remap". |
 | `extruders_used` | `[false,...]` | ✅ | Which heads the current task uses. Gates whether `extruder_map_table` may be read at all (all-false = no task configured). |
 | `extruders_replenished` | `[0,1,2,3]` | ❌ | Auto-replenish mapping |
 | `auto_replenish_filament` | `true` | ❌ | Auto-replenish enabled |

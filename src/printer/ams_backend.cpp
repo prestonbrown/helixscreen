@@ -118,11 +118,11 @@ AmsError AmsBackend::set_endless_spool_backup(int slot_index, int backup_slot) {
     const int max_slot = slot_count - 1;
 
     if (slot_index < 0 || slot_index > max_slot) {
-        return AmsErrorHelper::invalid_slot(slot_index, max_slot);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, max_slot);
     }
     if (backup_slot != -1) {
         if (backup_slot < 0 || backup_slot > max_slot) {
-            return AmsErrorHelper::invalid_slot(backup_slot, max_slot);
+            return AmsErrorHelper::invalid_slot(lane_noun(), backup_slot, max_slot);
         }
         if (backup_slot == slot_index) {
             return endless_spool_self_backup_error(slot_index);

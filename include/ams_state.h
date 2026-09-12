@@ -674,7 +674,8 @@ class AmsState {
 
     /**
      * @brief Get current tool text subject
-     * @return Subject holding formatted tool string (e.g., "T0", "T1", or "---")
+     * @return Subject holding the physical position label (e.g., "Lane 2",
+     *         "Slot 1", "Tool 3", or "---")
      */
     lv_subject_t* get_current_tool_text_subject() {
         return &ams_current_tool_text_;
@@ -1495,6 +1496,17 @@ class AmsState {
      * 3. S3: backend->set_slot_info() (firmware SET_SPOOL_ID gcode rides inside).
      * 4. S4+S7: sync_from_backend().
      *
+     * This is the method layer: it performs the edit against every backing
+     * store. It also calls the declaration layer,
+     * helix::ams::commit_slot_edit() (lane_source_store.h), once the backend
+     * has accepted the edit, recording the user's authorship as a lane source
+     * record. Nothing reads that record yet.
+     *
+     * @param slot_index a global slot index on the primary backend. A slot
+     *        outside that backend's lane block derives no lane id, and the
+     *        declaration layer drops it rather than filing the edit on a
+     *        neighbouring backend's lane. The edit itself still runs.
+     *
      * @return the AmsError from set_slot_info so callers keep their error toasts.
      */
     AmsError commit_slot_edit(int slot_index, const SlotInfo& original, const SlotInfo& info);
@@ -1886,7 +1898,10 @@ class AmsState {
     lv_subject_t ams_system_logo_;
     char system_logo_buf_[64];
     lv_subject_t ams_current_tool_text_;
-    char ams_current_tool_text_buf_[16]; // "T0" to "T15" or "---"
+    // Holds a translated position label ("Tool 1", "Инструмент 16", "Печатающая
+    // головка 16") or "---". Sized like current_slot_text_buf_/system_logo_buf_:
+    // a translated noun plus a two-digit number can run well past ASCII length.
+    char ams_current_tool_text_buf_[64];
 
     /// Endless-spool status: kind as int, sentence as string. See the accessors.
     /// The buffer holds two translated lines; German and Russian restriction

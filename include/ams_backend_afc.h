@@ -194,6 +194,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     [[nodiscard]] const char* get_klipper_object_name() const override {
         return "AFC"; // Matches the Klipper object name (uppercase)
     }
+    [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
+        return helix::ui::LaneNoun::Lane;
+    }
     AmsError clear_message_queue() override;
     [[nodiscard]] bool manages_active_spool() const override {
         return true;

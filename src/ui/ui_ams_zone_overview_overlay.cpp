@@ -17,6 +17,7 @@
 #include "ams_environment_zone.h"
 #include "ams_state.h"
 #include "data_root_resolver.h"
+#include "display_numbering.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "static_panel_registry.h"
@@ -61,8 +62,14 @@ std::string zone_status_text(const ZoneStatus& status) {
 // header names the box the zones are grouped by, not the zone the user picked.
 std::string unit_group_text(const helix::printer::EnvironmentZone& zone,
                             const std::string& type_name) {
+    const int unit_number = lane_number(zone.unit_index);
+    if (unit_number < 0) {
+        // Unresolved unit (see ui_zone_presentation.cpp#zone_display_label): no
+        // number a user would trust, so the header falls back to the system type.
+        return type_name;
+    }
     const std::string prefix = type_name.empty() ? std::string{} : type_name + " ";
-    return prefix + lv_tr("Unit") + " " + std::to_string(zone.unit_index + 1);
+    return prefix + lv_tr("Unit") + " " + std::to_string(unit_number);
 }
 
 std::string overview_subtitle(const std::vector<helix::printer::EnvironmentZone>& zones) {
@@ -208,6 +215,7 @@ void AmsZoneOverviewOverlay::rebuild_rows() {
 
     AmsBackend* backend = AmsState::instance().get_backend();
     const std::string type_name = backend ? backend->get_system_info().type_name : std::string{};
+    const LaneNoun slot_noun = backend ? backend->lane_noun() : active_lane_noun();
     const bool grouped = zones_span_units(zones_);
     const size_t n = zones_.size();
 
@@ -223,8 +231,8 @@ void AmsZoneOverviewOverlay::rebuild_rows() {
     for (size_t i = 0; i < n; ++i) {
         const auto& z = zones_[i];
 
-        label_pool_.set_string(i, zone_display_label(z, lv_tr("Unit"), lv_tr("Slot"), type_name));
-        slots_pool_.set_string(i, zone_slot_text(z, lv_tr("Slots"), lv_tr("Slot")));
+        label_pool_.set_string(i, zone_display_label(z, lv_tr("Unit"), slot_noun, type_name));
+        slots_pool_.set_string(i, zone_slot_text(z, slot_noun));
 
         char reading[32] = {};
         if (z.env.has_humidity) {

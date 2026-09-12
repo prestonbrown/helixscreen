@@ -26,6 +26,7 @@
 #include "config.h"
 #include "display/lv_display_private.h"
 #include "display_settings_manager.h"
+#include "flush_stride.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "lvgl_log_handler.h"
@@ -2136,8 +2137,10 @@ void DisplayManager::install_color_transform_hook() {
                 const lv_color_format_t cf = lv_display_get_color_format(d);
                 const int w = lv_area_get_width(area);
                 const int h = lv_area_get_height(area);
-                const int stride = lv_draw_buf_width_to_stride(w, cf);
-                self->m_color_transform.apply(px_map, w, h, stride, cf);
+                const auto reg = helix::ColorTransform::select_flush_region(
+                    lv_display_get_buf_active(d), *area, cf, lv_display_get_render_mode(d));
+                self->m_color_transform.apply_area(px_map, reg.stride_bytes, reg.x, reg.y, w, h,
+                                                   cf);
             }
             // Mirror the (post-transform) pixels to any remote-screen sink. Runs
             // on every flush regardless of the color transform (the U1 has none).
@@ -2152,15 +2155,10 @@ void DisplayManager::install_color_transform_hook() {
                 f.disp_w = lv_display_get_horizontal_resolution(d);
                 f.disp_h = lv_display_get_vertical_resolution(d);
                 f.color_format = (int)cf;
-                // Use the ACTUAL draw-buffer stride, not width_to_stride(area_w):
-                // the DRM backend renders into dumb buffers whose pitch is aligned
-                // and may exceed the area width (direct/full render mode). Reading
-                // px_map with the wrong stride mis-tracks rows. Fall back to the
-                // computed stride only if the active buffer can't be queried.
+                // Same dbuf-stride-or-fallback rule the colour-transform walk
+                // uses; the shared helper owns the derivation (#1610).
                 lv_draw_buf_t* dbuf = lv_display_get_buf_active(d);
-                f.src_stride = (dbuf && dbuf->header.stride > 0)
-                                   ? static_cast<uint32_t>(dbuf->header.stride)
-                                   : lv_draw_buf_width_to_stride(lv_area_get_width(area), cf);
+                f.src_stride = helix::flush_px_map_stride(dbuf, lv_area_get_width(area), cf);
                 // Hand the sink the real readable length so it never has to guess
                 // one from stride * disp_h. Only claim it when px_map IS the active
                 // draw buffer: with screen rotation (and any other backend that

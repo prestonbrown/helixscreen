@@ -477,28 +477,23 @@ TEST_CASE("Happy Hare persistence: skips COLOR for default grey",
 
     // Should NOT include COLOR parameter for grey default
     // But should still send the command if other values are present
-    if (!helper.captured_gcodes.empty()) {
-        // If command was sent, it should not contain COLOR
-        REQUIRE_FALSE(helper.has_gcode_containing("COLOR="));
-    }
-    // This test verifies COLOR is skipped - currently passes since nothing is sent
+    REQUIRE_FALSE(helper.has_gcode_containing("COLOR="));
 }
 
-TEST_CASE("Happy Hare persistence: skips COLOR for zero", "[ams][happy_hare][persistence]") {
+// Pure black is a deliberate user pick, not an absence of colour — omitting it
+// leaves the gate map on the previous colour (prestonbrown/helixscreen#1597).
+TEST_CASE("Happy Hare persistence: dispatches COLOR for pure black",
+          "[ams][happy_hare][persistence][1597]") {
     AmsBackendHappyHareTestHelper helper;
     helper.initialize_test_gates(4);
 
     SlotInfo info;
-    info.color_rgb = 0;    // Zero color - should NOT include COLOR
-    info.material = "ABS"; // But material should still be sent
+    info.color_rgb = 0x000000; // Pure black
+    info.material = "ABS";
 
     helper.set_slot_info(0, info);
 
-    // Should NOT include COLOR parameter for zero
-    if (!helper.captured_gcodes.empty()) {
-        REQUIRE_FALSE(helper.has_gcode_containing("COLOR="));
-    }
-    // This test verifies COLOR is skipped - currently passes since nothing is sent
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=000000 MATERIAL=ABS"));
 }
 
 TEST_CASE("Happy Hare persistence: skips MATERIAL for empty string",
@@ -516,7 +511,6 @@ TEST_CASE("Happy Hare persistence: skips MATERIAL for empty string",
     if (!helper.captured_gcodes.empty()) {
         REQUIRE_FALSE(helper.has_gcode_containing("MATERIAL="));
     }
-    // This test verifies MATERIAL is skipped - currently passes since nothing is sent
 }
 
 TEST_CASE("Happy Hare persistence: skips SPOOLID when both old and new are zero/negative",
@@ -4189,4 +4183,9 @@ TEST_CASE("An update that changes nothing sends nothing", "[ams][happy_hare][dry
 
     CHECK(helper.update_drying().success());
     CHECK(helper.captured_gcodes.empty());
+}
+
+TEST_CASE("Happy Hare names its positions gates", "[ams][happy_hare][numbering]") {
+    helix::AmsBackendHappyHare backend(nullptr, nullptr);
+    CHECK(backend.lane_noun() == helix::ui::LaneNoun::Gate);
 }

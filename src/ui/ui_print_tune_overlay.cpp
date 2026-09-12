@@ -10,6 +10,7 @@
 #include "ui_toast_manager.h"
 #include "ui_z_offset_indicator.h"
 
+#include "display_numbering.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -529,7 +530,14 @@ void PrintTuneOverlay::update_tool_z_displays() {
     const bool per_tool = lv_subject_get_int(ts.get_per_tool_z_supported_subject()) == 1;
     const bool tool_known = lv_subject_get_int(ts.get_active_tool_z_offset_valid_subject()) == 1;
 
-    std::snprintf(tune_z_tool_label_buf_, sizeof(tune_z_tool_label_buf_), "T%d", tool_index);
+    // A per-tool Z offset belongs to a physical toolhead, so the label is the
+    // tool's physical position, not its gcode identity.
+    const auto* active_tool_info = ts.active_tool();
+    const std::string tool_display_label =
+        active_tool_info ? active_tool_info->display_label
+                         : helix::ui::lane_label(helix::ui::active_tool_noun(), tool_index);
+    std::snprintf(tune_z_tool_label_buf_, sizeof(tune_z_tool_label_buf_), "%s",
+                  tool_display_label.c_str());
     lv_subject_copy_string(&tune_z_tool_label_subject_, tune_z_tool_label_buf_);
 
     char global_mm[16];
@@ -564,7 +572,8 @@ void PrintTuneOverlay::update_tool_z_displays() {
         std::snprintf(tune_z_other_buf_, sizeof(tune_z_other_buf_), "%s %s", lv_tr("Global"),
                       global_mm);
     } else if (tool_known) {
-        std::snprintf(tune_z_other_buf_, sizeof(tune_z_other_buf_), "T%d %s", tool_index, tool_mm);
+        std::snprintf(tune_z_other_buf_, sizeof(tune_z_other_buf_), "%s %s",
+                      tool_display_label.c_str(), tool_mm);
     } else {
         tune_z_other_buf_[0] = '\0';
     }

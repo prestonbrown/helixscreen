@@ -48,6 +48,34 @@ setup() {
     [ "$status" -ne 0 ]  # non-zero == no disallowed direct send found
 }
 
+# --- Flush-path px_map stride must go through the shared helper ---
+# The dbuf-stride-or-fallback rule (active_buf->header.stride when queryable
+# and positive, else lv_draw_buf_width_to_stride(area_w, cf)) serves two
+# flush-path consumers, ColorTransform::select_flush_region and the
+# remote-screen mirror inside DisplayManager's flush hook. It lives once, in
+# helix::flush_px_map_stride (include/flush_stride.h); an inline copy at
+# either call site is a twin that can drift silently
+# (prestonbrown/helixscreen#1610).
+
+@test "flush px_map stride is derived via helix::flush_px_map_stride, not re-inlined" {
+    local folded="src/application/color_transform.cpp src/application/display_manager.cpp"
+
+    # The inline trust-check ternary must not come back at either call site.
+    run grep -n 'header.stride > 0' $folded
+    [ "$status" -eq 1 ]  # grep returns 1 when no matches found
+
+    # Both call sites must actually call the shared helper.
+    for f in $folded; do
+        run grep -n 'flush_px_map_stride(' "$f"
+        [ "$status" -eq 0 ]
+    done
+
+    # The rule itself still exists, exactly once, in the helper.
+    run bash -c "grep -c 'header.stride > 0' include/flush_stride.h"
+    [ "$status" -eq 0 ]
+    [ "$output" -eq 1 ]
+}
+
 # --- Chamber temp_display must use the maintain-aware effective target ---
 # The raw `chamber_target` subject is the heater target only — it reads 0 during
 # M141 "maintain" (cooling-ceiling) mode, so a display bound to it shows "—/Off"
@@ -1017,48 +1045,54 @@ check_observer_guard_move_clears_cleanup() {
 }
 
 # ====================================================================
-# A backend's test friendship is one shim, not an open-ended set
+# A friend list is a fixed, reviewable set, not an open-ended one
 # ====================================================================
-# Four of the six filament backends expose internals to tests through a single
-# XTestAccess shim. AFC and Happy Hare grew one friend per test file instead, so
-# the header carried a list that grew with every new test and stated no contract.
-# This keeps the collapsed form: widening what tests reach is an edit to the shim,
-# where it is reviewable, not another friend line in the backend header.
-check_backend_single_test_friend() {
+# AmsBackendAfc and AmsBackendHappyHare each expose internals to tests through
+# a single XTestAccess shim; LaneSourceStore (below) names its two writer
+# funnels plus a test shim. In every case, widening what a header befriends is
+# a review-worthy edit, so this compares the file's friend declarations
+# against an exact expected set rather than merely counting them. The match
+# is on normalised whitespace, not literal text, since clang-format may
+# reflow a multi-argument signature, and it is order-insensitive: a header's
+# friend declarations are a set of grants, not a sequence, so reordering two
+# of them without adding or removing a grant is not a widening.
+check_friend_list() {
     local file="$1"
-    local expected="$2"
+    local expected
+    expected=$(printf '%s\n' "$2" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]+/ /g')
+    local expected_count
+    expected_count=$(printf '%s\n' "$expected" | grep -c .)
+
     local friends
-    friends=$(grep -n '^[[:space:]]*friend class ' "$file" || true)
+    friends=$(grep -E '^[[:space:]]*friend ' "$file" 2>/dev/null \
+              | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]+/ /g' || true)
 
     if [ -z "$friends" ]; then
-        echo "no friend declaration in $file; expected exactly one: $expected"
+        echo "no friend declaration in $file; expected exactly $expected_count:"
+        echo "$expected"
         return 1
     fi
 
-    local count
-    count=$(echo "$friends" | wc -l)
-    if [ "$count" -ne 1 ]; then
-        echo "expected exactly 1 test friend in $file, found $count:"
+    if [ "$(printf '%s\n' "$friends" | sort)" != "$(printf '%s\n' "$expected" | sort)" ]; then
+        local found_count
+        found_count=$(printf '%s\n' "$friends" | grep -c .)
+        echo "expected exactly $expected_count test friend(s) in $file, found $found_count:"
+        echo "found:"
         echo "$friends"
-        echo "Add the accessor to $expected instead of befriending another class."
-        return 1
-    fi
-
-    if ! echo "$friends" | grep -q "friend class ${expected};"; then
-        echo "the single friend in $file is not ${expected}:"
-        echo "$friends"
+        echo "expected:"
+        echo "$expected"
         return 1
     fi
     return 0
 }
 
 @test "AmsBackendAfc befriends exactly one test shim" {
-    run check_backend_single_test_friend include/ams_backend_afc.h AfcTestAccess
+    run check_friend_list include/ams_backend_afc.h "friend class AfcTestAccess;"
     [ "$status" -eq 0 ]
 }
 
 @test "AmsBackendHappyHare befriends exactly one test shim" {
-    run check_backend_single_test_friend include/ams_backend_happy_hare.h HappyHareTestAccess
+    run check_friend_list include/ams_backend_happy_hare.h "friend class HappyHareTestAccess;"
     [ "$status" -eq 0 ]
 }
 
@@ -1067,7 +1101,7 @@ check_backend_single_test_friend() {
     sed -e 's@^\([[:space:]]*\)friend class AfcTestAccess;@\1friend class AfcTestAccess;\n\1friend class AfcSomeNewHelper;@' \
         include/ams_backend_afc.h > "$mutated"
 
-    run check_backend_single_test_friend "$mutated" AfcTestAccess
+    run check_friend_list "$mutated" "friend class AfcTestAccess;"
     [ "$status" -eq 1 ]
     [[ "$output" == *"expected exactly 1"* ]]
 }
@@ -1076,7 +1110,7 @@ check_backend_single_test_friend() {
     local mutated="${BATS_TEST_TMPDIR}/afc_no_friend.h"
     grep -v 'friend class AfcTestAccess;' include/ams_backend_afc.h > "$mutated"
 
-    run check_backend_single_test_friend "$mutated" AfcTestAccess
+    run check_friend_list "$mutated" "friend class AfcTestAccess;"
     [ "$status" -eq 1 ]
     [[ "$output" == *"no friend declaration"* ]]
 }
@@ -1506,4 +1540,376 @@ check_weight_poll_is_weight_only() {
     run check_weight_poll_is_weight_only "${BATS_TEST_TMPDIR}/does_not_exist.cpp"
     [ "$status" -eq 1 ]
     [[ "$output" == *"could not locate"* ]]
+}
+
+# --- The lane source store has exactly one mutable entry point ---
+# LaneSourceStore::write() is private, so ingest() and commit_slot_edit() are
+# the only code that can reach a lane's records; a third friend line, of any
+# kind, would be a third writer. check_friend_list's grep matches "friend "
+# rather than "friend class ", since both funnels here are free functions a
+# class-only pattern would not see. Every entry in this list is a grant that
+# some code actually uses: a friend that needs no friendship teaches the next
+# reader that entries here need not be load-bearing.
+
+LANE_STORE_FRIENDS_EXPECTED="friend void ingest(LaneId, const Observation&);
+friend void commit_slot_edit(LaneId, const Observation&);"
+
+@test "the lane source store names exactly its two funnels as friends" {
+    run check_friend_list include/lane_source_store.h "$LANE_STORE_FRIENDS_EXPECTED"
+    [ "$status" -eq 0 ]
+}
+
+@test "the lane store friend gate fires when a third writer is added" {
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_three_friends.h"
+    sed -e 's@^\([[:space:]]*\)friend void ingest(LaneId, const Observation\&);@\1friend void ingest(LaneId, const Observation\&);\n\1friend void sync_from_backend(LaneId, const Observation\&);@' \
+        include/lane_source_store.h > "$mutated"
+
+    run check_friend_list "$mutated" "$LANE_STORE_FRIENDS_EXPECTED"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"expected exactly 2"* ]]
+}
+
+@test "the lane store friend gate fires when a funnel is swapped for another writer" {
+    # A count is not the invariant; which two names hold the grant is. A
+    # substitution keeps the list at two and hands write() to code the funnels
+    # do not cover.
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_swapped_friend.h"
+    sed -e 's@^\([[:space:]]*\)friend void commit_slot_edit(LaneId, const Observation\&);@\1friend void sync_from_backend(LaneId, const Observation\&);@' \
+        include/lane_source_store.h > "$mutated"
+
+    [ "$(grep -cE '^[[:space:]]*friend ' "$mutated")" -eq 2 ]
+
+    run check_friend_list "$mutated" "$LANE_STORE_FRIENDS_EXPECTED"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"sync_from_backend"* ]]
+}
+
+# write() is the one method the friend list above actually gates. If it were
+# renamed while the friend list stayed put, the list would describe a method
+# that no longer exists, so this checks the guarded declaration separately.
+
+check_lane_store_write_declared() {
+    local file="$1"
+    if ! grep -qE '^[[:space:]]*void write\(LaneId lane, const Observation& obs, bool amend\);' \
+         "$file" 2>/dev/null; then
+        echo "LaneSourceStore::write is not declared where the friend list guards it"
+        return 1
+    fi
+    return 0
+}
+
+@test "the lane store's guarded write() is declared as the friend list expects" {
+    run check_lane_store_write_declared include/lane_source_store.h
+    [ "$status" -eq 0 ]
+}
+
+@test "the lane store write-declaration gate fails closed when write() is renamed" {
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_renamed_write.h"
+    sed -e 's@void write(LaneId lane, const Observation\& obs, bool amend);@void set(LaneId lane, const Observation\& obs, bool amend);@' \
+        include/lane_source_store.h > "$mutated"
+
+    run check_lane_store_write_declared "$mutated"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"not declared where the friend list guards it"* ]]
+}
+
+@test "the lane store write-declaration gate fails closed when the file does not exist" {
+    run check_lane_store_write_declared "${BATS_TEST_TMPDIR}/does_not_exist.h"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"not declared where the friend list guards it"* ]]
+}
+
+# The store's singleton is reachable only from the funnels' own translation
+# unit. A caller holding the instance is a caller one edit away from a write.
+
+check_no_lane_store_instance_callers() {
+    local dir
+    for dir in "$@"; do
+        if [ ! -d "$dir" ]; then
+            echo "search path $dir does not exist; cannot confirm the lane store has no outside callers"
+            return 1
+        fi
+    done
+
+    local hits
+    hits=$(grep -rn 'LaneSourceStore::instance()' "$@" --include='*.cpp' --include='*.h' \
+           2>/dev/null | grep -v 'src/printer/lane_source_store.cpp' || true)
+    if [ -n "$hits" ]; then
+        echo "LaneSourceStore::instance() is reachable only from the funnels."
+        echo "Call helix::ams::ingest() or helix::ams::commit_slot_edit() instead:"
+        echo "$hits"
+        return 1
+    fi
+    return 0
+}
+
+@test "nothing outside the funnels holds the lane source store" {
+    run check_no_lane_store_instance_callers src/ include/
+    [ "$status" -eq 0 ]
+}
+
+@test "the lane store singleton gate fires on a new caller" {
+    local dir="${BATS_TEST_TMPDIR}/fake_src"
+    mkdir -p "$dir"
+    cat > "$dir/ams_backend_example.cpp" <<'EOF'
+void refresh() {
+    helix::ams::LaneSourceStore::instance().get(0);
+}
+EOF
+
+    run check_no_lane_store_instance_callers "$dir"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"reachable only from the funnels"* ]]
+}
+
+@test "the lane store singleton gate fails closed when given no directory to search" {
+    run check_no_lane_store_instance_callers "${BATS_TEST_TMPDIR}/does_not_exist"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"does not exist"* ]]
+}
+
+@test "the friend-list gate ignores harmless reordering of the same friends" {
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_reordered_friends.h"
+    sed -e 's@^\([[:space:]]*\)friend void ingest(LaneId, const Observation\&);@\1PLACEHOLDER_SWAP@' \
+        -e 's@^\([[:space:]]*\)friend void commit_slot_edit(LaneId, const Observation\&);@\1friend void ingest(LaneId, const Observation\&);@' \
+        -e 's@^\([[:space:]]*\)PLACEHOLDER_SWAP@\1friend void commit_slot_edit(LaneId, const Observation\&);@' \
+        include/lane_source_store.h > "$mutated"
+
+    run check_friend_list "$mutated" "$LANE_STORE_FRIENDS_EXPECTED"
+    [ "$status" -eq 0 ]
+}
+
+# check_friend_list and check_lane_store_write_declared both read declaration
+# text only, so a write() moved out of the private: block and into public:
+# passes both of them with the friend list and the write() signature both
+# untouched. The friend list only restricts anything while write() stays
+# private, so that access specifier is a separate fact this checks for
+# itself: which label is in force at the write() declaration inside class
+# LaneSourceStore, defaulting to private before any label has appeared, since
+# that is what an unlabelled C++ class body means.
+
+check_lane_store_write_is_private() {
+    local file="$1"
+    local access
+    access=$(awk '
+        /^class LaneSourceStore[[:space:]]*\{/ { in_class = 1; access = "private"; next }
+        in_class && /^\};/ { in_class = 0; next }
+        in_class && /^[[:space:]]*public:[[:space:]]*$/ { access = "public"; next }
+        in_class && /^[[:space:]]*protected:[[:space:]]*$/ { access = "protected"; next }
+        in_class && /^[[:space:]]*private:[[:space:]]*$/ { access = "private"; next }
+        in_class && /void write\(/ { print access; found = 1; exit }
+        END { if (!found) print "NOTFOUND" }
+    ' "$file" 2>/dev/null)
+
+    if [ -z "$access" ] || [ "$access" = "NOTFOUND" ]; then
+        echo "LaneSourceStore::write() was not found inside class LaneSourceStore in $file"
+        return 1
+    fi
+    if [ "$access" != "private" ]; then
+        echo "LaneSourceStore::write() is declared $access in $file; the friend list only matters while it stays private"
+        return 1
+    fi
+    return 0
+}
+
+@test "the lane store's write() is declared private" {
+    run check_lane_store_write_is_private include/lane_source_store.h
+    [ "$status" -eq 0 ]
+}
+
+@test "the write-privacy gate fires when write() moves to public with the friend list untouched" {
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_public_write.h"
+    sed '/^[[:space:]]*void write(LaneId lane, const Observation& obs, bool amend);$/d' \
+        include/lane_source_store.h \
+        | sed 's/^  public:$/  public:\n    void write(LaneId lane, const Observation\& obs, bool amend);/' \
+        > "$mutated"
+
+    # The friend list itself is unwidened by this mutation, so both gates that
+    # read declaration text only stay quiet on it.
+    run check_friend_list "$mutated" "$LANE_STORE_FRIENDS_EXPECTED"
+    [ "$status" -eq 0 ]
+    run check_lane_store_write_declared "$mutated"
+    [ "$status" -eq 0 ]
+
+    run check_lane_store_write_is_private "$mutated"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"declared public"* ]]
+}
+
+@test "the write-privacy gate fails closed when class LaneSourceStore is not found" {
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_no_class.h"
+    printf '%s\n' 'namespace helix::ams { void ingest(int, int); }' > "$mutated"
+
+    run check_lane_store_write_is_private "$mutated"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"was not found"* ]]
+}
+
+@test "the write-privacy gate fails closed when write() is missing from the class" {
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_write_gone.h"
+    grep -v '^[[:space:]]*void write(LaneId lane, const Observation& obs, bool amend);$' \
+        include/lane_source_store.h > "$mutated"
+
+    run check_lane_store_write_is_private "$mutated"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"was not found"* ]]
+}
+
+# --- Hand-built tool labels and lane/slot offsets must route through display_numbering.h ---
+# include/display_numbering.h keeps the storage-index -> display-number `+ 1`
+# in exactly one function (helix::ui::lane_number()) and spells a gcode tool's
+# label through exactly one function (helix::ui::tool_label()). Both are one
+# line to rebuild by hand, which is exactly how they drift: one call site
+# gets fixed and a sibling built the old way does not.
+#
+# scripts/check_tool_labels.sh is the gate. It runs as its own process here,
+# the same way it runs from a shell prompt or CI, rather than sourcing its
+# internals - SCAN_ROOT redirects it at a fixture directory instead of the
+# real tree.
+
+run_tool_label_gate() {
+    SCAN_ROOT="$1" bash "$BATS_TEST_DIRNAME/../../scripts/check_tool_labels.sh"
+}
+
+@test "no hand-built tool labels or lane/slot offsets in the real tree" {
+    run bash "$BATS_TEST_DIRNAME/../../scripts/check_tool_labels.sh"
+    [ "$status" -eq 0 ]
+}
+
+@test "the tool label gate catches each forbidden shape" {
+    # Meta-test: a gate that cannot fail is not a gate.
+    local d="${BATS_TEST_TMPDIR}/offenders"
+    mkdir -p "$d"
+    cat > "$d/a.cpp" <<'EOF'
+void a(char* b, int i) { snprintf(b, 8, "T%d", i); }
+void c(char* b, int i) { snprintf(b, 8, "T{}", i); }
+void e(int i) { auto s = "T" + std::to_string(i); }
+void f(int slot_index) { auto s = fmt::format("Slot {}", slot_index + 1); }
+void g(int backup) { auto s = fmt::format("Slot {} matches.", backup + 1); }
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 1 ]
+    contains "T%d" "$output"
+    contains "T{}" "$output"
+    contains "std::to_string(i)" "$output"
+    contains "slot_index + 1" "$output"
+    contains "backup + 1" "$output"
+}
+
+@test "the tool label gate catches an assignment that feeds a formatting call a few lines later" {
+    # Shape 3: shape 2 only sees the arithmetic and the formatting call
+    # together on one physical line. Splitting the assignment out reaches the
+    # same display text and is the same violation.
+    local d="${BATS_TEST_TMPDIR}/split_offenders"
+    mkdir -p "$d"
+    cat > "$d/a.cpp" <<'EOF'
+void f(int slot_index) {
+    int display_slot = slot_index + 1;
+    std::string label = "unit";
+    do_other_work();
+    snprintf(tmp, sizeof(tmp), lv_tr("Current: Slot %d"), display_slot);
+}
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 1 ]
+    contains "int display_slot = slot_index + 1;" "$output"
+    contains "display_slot);" "$output"
+}
+
+@test "the tool label gate stays quiet on a protocol field id with no formatting call" {
+    # The silent half of shapes 2 and 3: the arithmetic alone is not the
+    # violation, and neither is assigning it to a variable that a formatting
+    # call never reads. Only building display text from it without
+    # lane_number() is - matching the real allowlisted wire-format shape in
+    # filament_slot_override_store.cpp, which is 1-based on the wire by spec.
+    local d="${BATS_TEST_TMPDIR}/plain_offset"
+    mkdir -p "$d"
+    cat > "$d/quiet.cpp" <<'EOF'
+void f(int slot_index) {
+    wire_fields[slot_index + 1] = 0;
+    unit_addrs.push_back(unit_index + 1);
+}
+void g(int slot_index) {
+    int idx = slot_index + 1;
+    registers_[idx] = 0;
+}
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the tool label gate stays quiet on an spdlog diagnostic containing + 1" {
+    local d="${BATS_TEST_TMPDIR}/spdlog_diag"
+    mkdir -p "$d"
+    cat > "$d/quiet.cpp" <<'EOF'
+void f(int slot_index) {
+    spdlog::debug("[Thing] resolved lane {}", slot_index + 1);
+}
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the tool label gate stays quiet on filament_slot_override_store.cpp-style wire-format code" {
+    # The whole file is allowlisted: format_lane_key builds BOTH forbidden
+    # shapes on purpose - a 1-based "laneN" text key over a 0-based inner
+    # field, per docs/specs/filament_slots.md.
+    local d="${BATS_TEST_TMPDIR}/wire_format"
+    mkdir -p "$d"
+    cat > "$d/filament_slot_override_store.cpp" <<'EOF'
+std::string format_lane_key(LaneKeyStyle style, int slot_index) {
+    return style == LaneKeyStyle::Tool ? "T" + std::to_string(slot_index)
+                                       : "lane" + std::to_string(slot_index + 1);
+}
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the tool label gate stays quiet on a T<n> gcode emitter in ams_backend_*.cpp" {
+    # ams_backend_*.cpp is allowlisted for shape 1 only: a T<n> built there is
+    # gcode sent to firmware, not a label.
+    local d="${BATS_TEST_TMPDIR}/gcode_emitter"
+    mkdir -p "$d"
+    cat > "$d/ams_backend_example.cpp" <<'EOF'
+void select_tool(int tool_number) {
+    execute_gcode("T" + std::to_string(tool_number));
+}
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the tool label gate escape hatch suppresses a genuine one-off" {
+    local d="${BATS_TEST_TMPDIR}/hatch"
+    mkdir -p "$d"
+    cat > "$d/hatch.cpp" <<'EOF'
+void f(int i) { snprintf(b, 8, "T%d", i); } // DISPLAY_NUMBERING_OK: desktop-only debug scratch tool
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+
+@test "the control socket directory is resolved in one place" {
+    # Client and server each computed this inline. They agreed by convention
+    # until they did not, and a client looking where the server never bound
+    # reports "no instance found" (prestonbrown/helixscreen#1602). Both go
+    # through control_socket_dir() now; reading the environment directly in
+    # either one puts the second copy back.
+    run bash -c "grep -nE 'getenv\(\"(XDG_RUNTIME_DIR|RUNTIME_DIRECTORY)\"' \
+        src/remote/remote_client.cpp src/remote/remote_control_server.cpp"
+    [ "$status" -ne 0 ]  # non-zero == no inline lookup found
+}
+
+@test "the control-socket-directory gate fails when a caller inlines the lookup" {
+    local probe="$BATS_TEST_TMPDIR/inlined.cpp"
+    printf 'const char* d = getenv("XDG_RUNTIME_DIR");\n' > "$probe"
+    run bash -c "grep -nE 'getenv\(\"(XDG_RUNTIME_DIR|RUNTIME_DIRECTORY)\"' '$probe'"
+    [ "$status" -eq 0 ]  # the gate above can go red
 }

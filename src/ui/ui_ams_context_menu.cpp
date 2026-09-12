@@ -13,6 +13,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_op_execute.h"
 #include "filament_op_slot_resolver.h"
@@ -403,12 +404,12 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         }
     }
 
-    // Update the slot header text (1-based for user display)
+    // The header names the position in the backend's own word ("Lane 3",
+    // "Gate 3"), 1-based. lane_label() owns both halves, so there is no buffer
+    // here a translated noun can overrun.
     lv_obj_t* slot_header = lv_obj_find_by_name(menu_obj, "slot_header");
     if (slot_header) {
-        char header_text[32];
-        snprintf(header_text, sizeof(header_text), lv_tr("Slot %d"), slot_index + 1);
-        lv_label_set_text(slot_header, header_text);
+        lv_label_set_text(slot_header, helix::ui::lane_label(menu_lane_noun(), slot_index).c_str());
     }
 
     // Show "Select Spool" and "Scan QR Code" buttons if Spoolman is available
@@ -786,7 +787,14 @@ void AmsContextMenu::handle_tool_changed() {
             if (static_cast<int>(i) != tool_number && mapping[i] == get_item_index()) {
                 spdlog::warn("[AmsContextMenu] Tool {} will share slot {} with tool {}",
                              tool_number, get_item_index(), i);
-                std::string msg = fmt::format(lv_tr("T{} shares slot with T{}"), tool_number, i);
+                // The position is a bare prefix, not part of the sentence:
+                // every locale that inflects would otherwise have the verb or a
+                // preposition agree with a noun that changes per backend.
+                std::string msg = helix::ui::lane_label(backend_->lane_noun(), get_item_index()) +
+                                  ": " +
+                                  fmt::format(lv_tr("{} and {} are both mapped here"),
+                                              helix::ui::tool_label(tool_number),
+                                              helix::ui::tool_label(static_cast<int>(i)));
                 ToastManager::instance().show(ToastSeverity::WARNING, msg.c_str());
                 break;
             }
@@ -981,7 +989,7 @@ std::string AmsContextMenu::build_tool_options() const {
     std::string options = lv_tr("None");
     // Add tool options T0, T1, T2... based on total slots
     for (int i = 0; i < total_slots_; ++i) {
-        options += "\nT" + std::to_string(i);
+        options += "\n" + helix::ui::tool_label(i);
     }
     return options;
 }
@@ -998,21 +1006,26 @@ AmsContextMenu::BackupEligibleFn AmsContextMenu::backend_eligible_fn() const {
     };
 }
 
-std::string AmsContextMenu::build_backup_options() const {
-    return build_backup_options_for(total_slots_, get_item_index(), backend_eligible_fn());
+LaneNoun AmsContextMenu::menu_lane_noun() const {
+    return backend_ ? backend_->lane_noun() : helix::ui::active_lane_noun();
 }
 
-std::string AmsContextMenu::build_backup_options_for(int total_slots, int item_index,
+std::string AmsContextMenu::build_backup_options() const {
+    return build_backup_options_for(menu_lane_noun(), total_slots_, get_item_index(),
+                                    backend_eligible_fn());
+}
+
+std::string AmsContextMenu::build_backup_options_for(LaneNoun noun, int total_slots, int item_index,
                                                      const BackupEligibleFn& eligible) {
     std::string options = lv_tr("None");
 
-    // Add slot options Slot 1, Slot 2... based on total slots.
+    // One option per position, in the backend's own word ("Lane 1", "Gate 1").
     // Skip the current slot (can't be backup for itself).
     for (int i = 0; i < total_slots; ++i) {
         if (i == item_index) {
             continue;
         }
-        options += "\n" + fmt::format(lv_tr("Slot {}"), i + 1);
+        options += "\n" + helix::ui::lane_label(noun, i);
         if (item_index >= 0 && eligible) {
             switch (eligible(item_index, i)) {
             case helix::printer::BackupEligibility::Incompatible:

@@ -38,7 +38,8 @@ enum class DetectState {
 
 struct ToolInfo {
     int index = 0;
-    std::string name = "T0";
+    std::string name = "T0";   ///< G-code identity, 0-based ("T0"). What a user types.
+    std::string display_label; ///< Physical label, 1-based ("Tool 1"). What is on the machine.
     std::optional<std::string> extruder_name = "extruder";
     std::optional<std::string> heater_name;
     std::optional<std::string> fan_name;
@@ -81,8 +82,7 @@ struct ToolTopology {
     int tool_count = 0;
     int active_tool = -1;
     std::vector<int> tool_to_slot;
-    std::string tool_name_prefix = "T"; ///< Generated names: "{prefix}{index}"
-    int backend_index = 0;              ///< Source backend in AmsState::backends_
+    int backend_index = 0; ///< Source backend in AmsState::backends_
 };
 
 /// Manages tool information for multi-tool printers (toolchangers, multi-extruder).
@@ -145,7 +145,8 @@ class ToolState {
         return extruder_count() > 1;
     }
 
-    /// Returns "Nozzle" for single-tool, "Nozzle T0" for multi-tool (active tool).
+    /// Returns "Nozzle" for single-tool, "Nozzle 1" for multi-tool (active tool),
+    /// or the tool's configured Klipper name ("Nozzle Left") when it has one.
     [[nodiscard]] std::string nozzle_label() const;
 
     /// Request a tool change, delegating to AMS backend or falling back to Tn gcode.
@@ -156,6 +157,10 @@ class ToolState {
 
     /// Returns tool name (e.g. "T0") for the given extruder name, or empty if not found.
     [[nodiscard]] std::string tool_name_for_extruder(const std::string& extruder_name) const;
+
+    /// Returns the tool's physical label (e.g. "Tool 1") for the given extruder
+    /// name, or empty if not found.
+    [[nodiscard]] std::string display_label_for_extruder(const std::string& extruder_name) const;
 
     /// Assign a Spoolman spool to a tool. Persists to local JSON + Moonraker DB.
     void assign_spool(int tool_index, int spoolman_id, const std::string& spool_name = "",
@@ -289,7 +294,6 @@ class ToolState {
 
     ToolState() = default;
 
-
     SubjectManager subjects_;
     /// See get_subjects_lifetime(). Created with the object and REPLACED (never
     /// nulled) by deinit_subjects(), so the accessor never hands out an empty
@@ -334,7 +338,6 @@ class ToolState {
     bool ams_topology_active_ = false;
     int ams_topology_tool_count_ = 0;
     std::vector<int> ams_topology_tool_to_slot_;
-    std::string ams_topology_tool_name_prefix_ = "T";
 
     /// Save spool assignments to local JSON file
     void save_spool_json() const;

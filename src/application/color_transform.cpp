@@ -3,6 +3,8 @@
 
 #include "color_transform.h"
 
+#include "flush_stride.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -13,6 +15,24 @@ inline uint8_t clamp_u8(int v) {
     return static_cast<uint8_t>(std::clamp(v, 0, 255));
 }
 } // namespace
+
+ColorTransform::FlushRegion
+ColorTransform::select_flush_region(const lv_draw_buf_t* active_buf, const lv_area_t& area,
+                                    lv_color_format_t cf, lv_display_render_mode_t render_mode) {
+    FlushRegion r;
+    r.stride_bytes = flush_px_map_stride(active_buf, lv_area_get_width(&area), cf);
+    // Partial mode reshapes the draw buffer to the dirty area and flushes
+    // from the area's origin; direct and full keep the buffer at the
+    // display's (0,0), so the rect sits at its absolute coordinates.
+    if (render_mode == LV_DISPLAY_RENDER_MODE_PARTIAL) {
+        r.x = 0;
+        r.y = 0;
+    } else {
+        r.x = area.x1;
+        r.y = area.y1;
+    }
+    return r;
+}
 
 void ColorTransform::reset() {
     for (int i = 0; i < 256; ++i) {
@@ -59,14 +79,6 @@ void ColorTransform::set(float gamma, int warmth, int tint) {
         b_lut_[i] = clamp_u8(static_cast<int>(std::lround(curved * b_scale)));
     }
     identity_ = false;
-}
-
-void ColorTransform::apply(uint8_t* buf, int width, int height, int stride_bytes,
-                           lv_color_format_t cf) const {
-    if (identity_ || !buf || width <= 0 || height <= 0) {
-        return;
-    }
-    apply_area(buf, stride_bytes, 0, 0, width, height, cf);
 }
 
 void ColorTransform::apply_area(uint8_t* buf, int buf_stride_bytes, int x, int y, int w, int h,

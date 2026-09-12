@@ -1044,12 +1044,9 @@ qc_phase2() {
 # shrinks.
 echo "🎨 Checking code formatting (clang-format)..."
 # Unformatted when the gate started blocking; each entry leaves when it is
-# next staged and auto-formatted.
-CLANG_FORMAT_BASELINE="
-include/tool_state.h
-src/printer/filament_mapper.cpp
-src/system/pwm_sound_backend.cpp
-"
+# next staged and auto-formatted. Empty: every entry has come clean, so the
+# gate now fails any unformatted file outright rather than reporting it.
+CLANG_FORMAT_BASELINE=""
 CF_OK=false
 if qc_resolve_clang_format; then CF_OK=true; fi
 if [ -n "$FILES" ]; then

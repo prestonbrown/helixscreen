@@ -22,6 +22,7 @@
 #include "ams_types.h"
 #include "config.h"
 #include "data_root_resolver.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -372,10 +373,11 @@ void AmsEnvironmentOverlay::rebuild_tabs() {
 
     AmsBackend* backend = AmsState::instance().get_backend();
     const std::string type_name = backend ? backend->get_system_info().type_name : std::string{};
+    const LaneNoun slot_noun = backend ? backend->lane_noun() : active_lane_noun();
 
     for (size_t i = 0; i < n; ++i) {
         tab_label_pool_.set_string(
-            i, zone_display_label(zones_[i], lv_tr("Unit"), lv_tr("Slot"), type_name));
+            i, zone_display_label(zones_[i], lv_tr("Unit"), slot_noun, type_name));
         tab_state_pool_.set_int(i, static_cast<int>(zones_[i].state));
         tab_active_pool_.set_int(i, i == selected_zone_ ? 1 : 0);
     }
@@ -527,6 +529,7 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     // fallback form.
     AmsBackend* backend = AmsState::instance().get_backend();
     const std::string type_name = backend ? backend->get_system_info().type_name : std::string{};
+    const LaneNoun slot_noun = backend ? backend->lane_noun() : active_lane_noun();
 
     // Title prefers what the zone calls itself. A rig with several boxes names them
     // ("Box Turtle 1", "Night Owl"), and an ordinal against the system type cannot tell
@@ -535,7 +538,7 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     // The name carries the noun only when this zone actually reads humidity. A
     // temp-only dryer titled "... Humidity" promises a number the card does not show,
     // so those fall back to the bare name and let the readouts say what is measured.
-    const std::string label = zone_display_label(zone, lv_tr("Unit"), lv_tr("Slot"), type_name);
+    const std::string label = zone_display_label(zone, lv_tr("Unit"), slot_noun, type_name);
     if (zone.env.has_humidity) {
         snprintf(title_text_buf_, sizeof(title_text_buf_), "%s %s", label.c_str(),
                  lv_tr("Humidity"));
@@ -544,7 +547,7 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     }
     lv_subject_copy_string(&title_text_subject_, title_text_buf_);
 
-    const std::string gates = zone_slot_text(zone, lv_tr("Slots"), lv_tr("Slot"));
+    const std::string gates = zone_slot_text(zone, slot_noun);
     snprintf(slots_text_buf_, sizeof(slots_text_buf_), "%s", gates.c_str());
     lv_subject_copy_string(&slots_text_subject_, slots_text_buf_);
 
@@ -564,7 +567,7 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         const auto all_zones = backend ? backend->get_environment_zones(-1) : zones_;
         for (const auto& z : all_zones) {
             if (z.state == helix::printer::ZoneDryingState::Active) {
-                blocker = zone_display_label(z, lv_tr("Unit"), lv_tr("Slot"), type_name);
+                blocker = zone_display_label(z, lv_tr("Unit"), slot_noun, type_name);
                 break;
             }
         }

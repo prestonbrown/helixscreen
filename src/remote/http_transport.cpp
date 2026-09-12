@@ -3,6 +3,8 @@
 
 #include "http_transport.h"
 
+#include "remote_control_server.h"
+
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -21,10 +23,86 @@ static constexpr size_t MAX_HTTP_REQUEST = 1024 * 1024; // 1MB request cap.
 
 namespace helix {
 
-HttpTransport::HttpTransport(std::string bind_host, int port)
-    : bind_host_(std::move(bind_host)), port_(port) {}
+namespace {
+
+/// Parse a numeric IPv4 address. False when @p host is not one.
+bool parse_ipv4(const std::string& host, struct in_addr& out) {
+    return inet_pton(AF_INET, host.c_str(), &out) == 1;
+}
+
+/// Compare without an early exit, so a wrong token leaks no position.
+bool constant_time_equal(const std::string& a, const std::string& b) {
+    if (a.size() != b.size()) {
+        return false;
+    }
+    unsigned char diff = 0;
+    for (size_t i = 0; i < a.size(); i++) {
+        diff = static_cast<unsigned char>(
+            diff | (static_cast<unsigned char>(a[i]) ^ static_cast<unsigned char>(b[i])));
+    }
+    return diff == 0;
+}
+
+} // namespace
+
+HttpBindDecision decide_http_bind(const std::string& bind_host, const std::string& token) {
+    struct in_addr addr {};
+    if (!parse_ipv4(bind_host, addr)) {
+        return HttpBindDecision::InvalidHost;
+    }
+    // 127/8 in its entirety, not just 127.0.0.1.
+    if ((ntohl(addr.s_addr) >> 24) == 127) {
+        return HttpBindDecision::Allow;
+    }
+    if (token.empty()) {
+        return HttpBindDecision::TokenRequired;
+    }
+    if (token.size() < kMinHttpTokenLength) {
+        return HttpBindDecision::TokenTooWeak;
+    }
+    return HttpBindDecision::Allow;
+}
+
+bool http_token_matches(const std::string& expected, const std::string& authorization) {
+    if (expected.empty()) {
+        return false;
+    }
+    static constexpr char kScheme[] = "bearer ";
+    static constexpr size_t kSchemeLen = sizeof(kScheme) - 1;
+    if (authorization.size() <= kSchemeLen) {
+        return false;
+    }
+    for (size_t i = 0; i < kSchemeLen; i++) {
+        if (std::tolower(static_cast<unsigned char>(authorization[i])) != kScheme[i]) {
+            return false;
+        }
+    }
+    return constant_time_equal(expected, authorization.substr(kSchemeLen));
+}
+
+HttpTransport::HttpTransport(std::string bind_host, int port, std::string token)
+    : bind_host_(std::move(bind_host)), port_(port), token_(std::move(token)) {}
 
 int HttpTransport::create_listener() {
+    switch (decide_http_bind(bind_host_, token_)) {
+    case HttpBindDecision::Allow:
+        break;
+    case HttpBindDecision::InvalidHost:
+        spdlog::error("[RemoteControl] Invalid HTTP bind address: {}", bind_host_);
+        return -1;
+    case HttpBindDecision::TokenRequired:
+        spdlog::error("[RemoteControl] Refusing to bind {}:{}: reachable from off-box and "
+                      "no token is set. Export HELIX_REMOTE_HTTP_TOKEN (>= {} characters) "
+                      "or bind 127.0.0.1.",
+                      bind_host_, port_, kMinHttpTokenLength);
+        return -1;
+    case HttpBindDecision::TokenTooWeak:
+        spdlog::error("[RemoteControl] Refusing to bind {}:{}: HELIX_REMOTE_HTTP_TOKEN is "
+                      "shorter than {} characters.",
+                      bind_host_, port_, kMinHttpTokenLength);
+        return -1;
+    }
+
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
         spdlog::error("[RemoteControl] Failed to create TCP socket: {}", strerror(errno));
@@ -166,6 +244,15 @@ void HttpTransport::serve_client(int client_fd) {
     }
     if (path != "/rpc" && path != "/") {
         std::string resp = http_response(404, "Not Found", "text/plain", "not found\n");
+        write_all(client_fd, resp.c_str(), resp.size());
+        return;
+    }
+
+    // A token gates every request once configured, not just off-box binds: a
+    // loopback listener started with one is still meant to be gated.
+    if (!token_.empty() && !http_token_matches(token_, header_value(headers, "Authorization"))) {
+        std::string resp =
+            http_response(401, "Unauthorized", "text/plain", "missing or invalid bearer token\n");
         write_all(client_fd, resp.c_str(), resp.size());
         return;
     }

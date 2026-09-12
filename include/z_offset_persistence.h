@@ -52,6 +52,18 @@ std::optional<int> read_persisted_offset_microns(const nlohmann::json& status);
 /// is the gate that enforces both.
 std::string persistence_enable_gcode(const PrinterDiscovery& hw);
 
+/// Give the one shot back after a send that did not reach the printer.
+///
+/// claim_persistence_enable() records BEFORE the gcode goes out, which is what
+/// stops two discoveries in the same session from each injecting it. The cost
+/// is that a send which never lands - klippy not ready, socket dropped - spends
+/// the claim for the life of the install and the firmware is never told. This
+/// hands it back so the next discovery retries.
+///
+/// Main thread only: Config is not synchronised, and the send's error callback
+/// runs on the response thread, so callers there must marshal.
+void release_persistence_enable(Config* config);
+
 /// Whether the matched firmware's persistence setting is ALREADY on, read out
 /// of a Moonraker status frame.
 ///

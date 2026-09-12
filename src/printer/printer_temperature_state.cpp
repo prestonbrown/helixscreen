@@ -13,6 +13,7 @@
 #include "ui_temperature_utils.h"
 
 #include "chamber_heater_backend.h"
+#include "display_numbering.h"
 #include "klipper_extruder_naming.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "state/subject_macros.h"
@@ -257,7 +258,8 @@ void PrinterTemperatureState::init_extruders(const std::vector<std::string>& hea
         // Translated at init time; mid-session language changes won't refresh
         // cached names until the next extruder rediscover (e.g., reconnect).
         if (multi) {
-            info.display_name = std::string(lv_tr("Nozzle")) + " " + std::to_string(i + 1);
+            info.display_name = std::string(lv_tr("Nozzle")) + " " +
+                                helix::ui::lane_number_text(static_cast<int>(i));
         } else {
             info.display_name = lv_tr("Nozzle");
         }

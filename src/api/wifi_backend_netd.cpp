@@ -347,12 +347,26 @@ bool WifiBackendNetd::open_connection(std::string& error_out) {
     // join. One second to connect, then the reconnect cadence owns the retry.
     // The fd STAYS nonblocking: libhv owns it from here.
     const int fd = helix::netd::connect_unix(path, 1000, &error_out);
-    // The connect is the whole reachability verdict. Reaching the daemon means
-    // it owns the radio, the supplicant and DHCP, so every failure PAST this
-    // point still leaves wpa_supplicant locked out; failing the connect itself
-    // is the one outcome that frees the hardware for it.
+    // Reaching the daemon means it owns the radio, the supplicant and DHCP, so
+    // every failure PAST this point still leaves wpa_supplicant locked out;
+    // failing the connect is what frees the hardware for it.
+    //
+    // A failed connect is NOT proof the daemon is gone, and this flag treats it
+    // as though it were. ENOENT and ECONNREFUSED do say that. A connect that
+    // times out says the opposite: the accept backlog is full, which is a daemon
+    // that is running and wedged, and is the case the bounded connect above
+    // exists to survive. Classifying it as absent admits wpa_supplicant onto a
+    // radio the daemon still holds, which is the outcome this flag exists to
+    // prevent. Narrowing it changes when the fallback engages on real hardware,
+    // so it is left as-is here and the misread is made visible instead.
     daemon_unreachable_.store(fd < 0);
     if (fd < 0) {
+        if (error_out.find("timed out") != std::string::npos) {
+            spdlog::warn("[WifiBackendNetd] Connect timed out; treating the daemon as absent and "
+                         "allowing the wpa_supplicant fallback. If the daemon is in fact running "
+                         "but not accepting, both clients now hold the radio: {}",
+                         error_out);
+        }
         return false;
     }
 

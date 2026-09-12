@@ -23,12 +23,15 @@
 #include "app_globals.h"
 #include "clog_meter_geometry.h"
 #include "data_root_resolver.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
 #include "filament_mapper.h"
 #include "filament_sensor_manager.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
+#include "lane_source_store.h"
+#include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "printer_discovery.h"
@@ -98,7 +101,6 @@ std::optional<helix::ToolTopology> build_ams_topology(AmsBackend* backend, int b
     topo.tool_count = static_cast<int>(mapping.size());
     topo.tool_to_slot = std::move(mapping);
     topo.active_tool = backend->get_current_tool();
-    topo.tool_name_prefix = "T";
     topo.backend_index = backend_index;
     return topo;
 }
@@ -1002,6 +1004,8 @@ int AmsState::add_backend(std::unique_ptr<AmsBackend> backend) {
     backends_.push_back(std::move(backend));
 
     if (backends_[index]) {
+        backends_[index]->set_backend_index(index);
+
         // Register event callback with captured index
         backends_[index]->set_event_callback(
             [this, index](const std::string& event, const std::string& data) {
@@ -1079,6 +1083,11 @@ void AmsState::clear_backends() {
         }
     }
     backends_.clear();
+
+    // Registration stamps indices from 0 again, so the next set of backends
+    // takes these blocks of lane ids. A declaration left behind would be
+    // handed to whatever hardware lands on the same block next.
+    helix::ams::reset_lane_sources();
 
     // The runout edge state describes a specific backend's flag history. A new
     // backend's first sample must re-seed rather than read as a transition.
@@ -1173,6 +1182,7 @@ std::vector<helix::AvailableSlot> AmsState::collect_available_slots() const {
                 as.remaining_weight_g = slot_info.remaining_weight_g;
                 as.current_tool_mapping = slot_info.mapped_tool;
                 as.unit_index = unit.unit_index;
+                as.noun = backend->lane_noun();
                 if (multi_unit) {
                     as.unit_display_name =
                         unit.display_name.empty() ? unit.name : unit.display_name;
@@ -1881,7 +1891,7 @@ void AmsState::sync_from_backend() {
     // filament check keys on bypass (PreflightValidator) and slots_version is its
     // ONLY refresh trigger, so without this the cached result goes stale: engage
     // bypass while a file's detail view is already open and the false
-    // "T0 has no filament loaded" block still fires on Print.
+    // "%s has no filament loaded" block still fires on Print.
     //
     // Still tracked off any_bypass_active() rather than the bypass_active_
     // subject above, but for a different reason now that both read
@@ -3348,11 +3358,11 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
 
             char tmp[64];
             if (is_tool_changer(sys.type) && sys.units.empty()) {
-                // Pure tool changer with no AMS units — show tool index (0-based)
-                snprintf(tmp, sizeof(tmp), lv_tr("Current: Tool %d"), slot_index);
+                // Pure tool changer with no AMS units — show the physical toolhead position
+                snprintf(tmp, sizeof(tmp), lv_tr("Current: %s"),
+                         helix::ui::lane_label(helix::ui::active_tool_noun(), slot_index).c_str());
             } else {
                 std::string unit_display;
-                int display_slot = slot_index + 1; // 1-based global slot number
                 for (const auto& unit : sys.units) {
                     if (slot_index >= unit.first_slot_global_index &&
                         slot_index < unit.first_slot_global_index + unit.slot_count) {
@@ -3362,12 +3372,14 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
                         break;
                     }
                 }
+                const std::string slot_label =
+                    helix::ui::lane_label(loaded_backend->lane_noun(), slot_index);
                 if (!unit_display.empty() && sys.units.size() > 1) {
-                    // Multi-unit: show unit name + slot number on one line
-                    snprintf(tmp, sizeof(tmp), lv_tr("Current: %s · Slot %d"), unit_display.c_str(),
-                             display_slot);
+                    // Multi-unit: show unit name + slot label on one line
+                    snprintf(tmp, sizeof(tmp), lv_tr("Current: %s · %s"), unit_display.c_str(),
+                             slot_label.c_str());
                 } else {
-                    snprintf(tmp, sizeof(tmp), lv_tr("Current: Slot %d"), display_slot);
+                    snprintf(tmp, sizeof(tmp), lv_tr("Current: %s"), slot_label.c_str());
                 }
             }
             if (strcmp(lv_subject_get_string(&current_slot_text_), tmp) != 0) {
@@ -3547,6 +3559,14 @@ AmsError AmsState::commit_slot_edit(int slot_index, const SlotInfo& original,
     if (!err.success()) {
         return err;
     }
+
+    // Record the user's statement in the lane model, once the backend has
+    // accepted it. The lane is the one this edit was written through, so the
+    // declaration cannot land on a backend the edit never reached, and a slot
+    // the backend refused gets no declaration at all. The stores around this
+    // are the live read path and are untouched; nothing reads this record yet.
+    helix::ams::commit_slot_edit(backend->lane_id(slot_index),
+                                 helix::ams::user_edit_observation(original, info));
 
     // S4 + S7
     sync_from_backend();

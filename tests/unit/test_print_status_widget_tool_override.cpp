@@ -13,6 +13,7 @@
 #include "tool_state.h"
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -98,7 +99,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool override: stale pin falls back to auto"
 // set_ams_topology() expands ToolState's tool list to one entry per filament
 // slot, so tool_count() on a 4-lane AMS or a 16-wide AD5X tool map says nothing
 // about how many nozzles the machine has. Driving print_status_multi_tool from
-// it stamped a "T0" badge and a tool-picker chevron onto single-hotend printers.
+// it stamped a "Slot 1" badge and a tool-picker chevron onto single-hotend printers.
 // ============================================================================
 
 namespace {
@@ -125,7 +126,6 @@ helix::ToolTopology lane_topology(int lanes) {
     topo.tool_to_slot.resize(static_cast<size_t>(lanes));
     for (int i = 0; i < lanes; ++i)
         topo.tool_to_slot[static_cast<size_t>(i)] = i;
-    topo.tool_name_prefix = "T";
     return topo;
 }
 
@@ -183,7 +183,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool badge: a genuine second extruder still 
 
     auto* label = lv_xml_get_subject(nullptr, "print_status_nozzle_tool_label");
     REQUIRE(label != nullptr);
-    REQUIRE(std::string(lv_subject_get_string(label)) == "T0");
+    REQUIRE(std::string(lv_subject_get_string(label)) == "Tool 1");
 }
 
 // ============================================================================
@@ -224,6 +224,33 @@ TEST_CASE_METHOD(HelixTestFixture, "Nozzle picker: no discovered extruders means
 
     REQUIRE(
         PrintStatusWidget::build_nozzle_tool_options(ps.temperature_state().extruders()).empty());
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "Nozzle picker: a lone extruder with no assigned display name reads Nozzle",
+                 "[print_status][tool_override]") {
+    // A bare "extruder" key by itself carries no signal about whether the printer
+    // has one nozzle or several, so this exercises build_nozzle_tool_options()
+    // directly rather than through PrinterState::init_extruders(), which would
+    // have already populated display_name and skipped this fallback entirely.
+    std::unordered_map<std::string, ExtruderInfo> extruders;
+    extruders["extruder"];
+    auto options = PrintStatusWidget::build_nozzle_tool_options(extruders);
+    REQUIRE(options.size() == 1);
+    CHECK(options[0].label == "Nozzle");
+}
+
+TEST_CASE_METHOD(
+    HelixTestFixture,
+    "Nozzle picker: a second extruder with no assigned display name still gets a number",
+    "[print_status][tool_override]") {
+    std::unordered_map<std::string, ExtruderInfo> extruders;
+    extruders["extruder"];
+    extruders["extruder1"];
+    auto options = PrintStatusWidget::build_nozzle_tool_options(extruders);
+    REQUIRE(options.size() == 2);
+    CHECK(options[0].label == "Nozzle");
+    CHECK(options[1].label == "Nozzle 2");
 }
 
 // ============================================================================

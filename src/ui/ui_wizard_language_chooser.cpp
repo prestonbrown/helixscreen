@@ -2,6 +2,7 @@
 
 #include "ui_wizard_language_chooser.h"
 
+#include "ui_fonts.h"
 #include "ui_wizard.h"
 
 #include "app_globals.h"
@@ -17,6 +18,13 @@
 #include <memory>
 
 using namespace helix;
+
+#ifndef HELIX_MAX_FONT_TIER
+#define HELIX_MAX_FONT_TIER 6 // default: all tiers (micro=0 .. xxlarge=6)
+#endif
+#ifndef HELIX_HAS_HIDPI_FONTS
+#define HELIX_HAS_HIDPI_FONTS 0 // conservative: assume the 48/64 faces are not linked
+#endif
 
 // External subject for enabling/disabling Next button
 extern lv_subject_t connection_test_passed;
@@ -47,6 +55,49 @@ static constexpr uint32_t WELCOME_CYCLE_MS = 2500;
 
 // Animation durations
 static constexpr int32_t CROSSFADE_DURATION_MS = 150;
+
+namespace helix {
+
+const lv_font_t* wizard_welcome_header_font(UiBreakpoint bp) {
+    switch (bp) {
+    case UiBreakpoint::Micro:
+        return &noto_sans_16;
+    case UiBreakpoint::Tiny:
+        return &noto_sans_18;
+    case UiBreakpoint::Small:
+        return &noto_sans_24;
+    case UiBreakpoint::Medium:
+#if HELIX_MAX_FONT_TIER >= 6 && HELIX_HAS_HIDPI_FONTS
+        return &noto_sans_48;
+#elif HELIX_MAX_FONT_TIER >= 3
+        return &noto_sans_26;
+#else
+        return &noto_sans_24;
+#endif
+    default: // Large / XLarge / XXLarge
+#if HELIX_MAX_FONT_TIER >= 6 && HELIX_HAS_HIDPI_FONTS
+        return &noto_sans_64;
+#elif HELIX_MAX_FONT_TIER >= 4
+        return &noto_sans_28;
+#elif HELIX_MAX_FONT_TIER >= 3
+        return &noto_sans_26;
+#else
+        return &noto_sans_24;
+#endif
+    }
+}
+
+} // namespace helix
+
+// The header wears the ladder as a local style resolved at create(); a resize
+// that moves the ui_breakpoint subject mid-wizard must re-resolve it or the
+// header keeps the tier the step was built at (prestonbrown/helixscreen#1612).
+static void welcome_header_font_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    lv_obj_t* header = static_cast<lv_obj_t*>(lv_observer_get_target(observer));
+    lv_obj_set_style_text_font(
+        header, wizard_welcome_header_font(as_breakpoint(lv_subject_get_int(subject))),
+        LV_PART_MAIN);
+}
 
 // ============================================================================
 // Global Instance
@@ -314,6 +365,22 @@ lv_obj_t* WizardLanguageChooserStep::create(lv_obj_t* parent) {
     if (!screen_root_) {
         spdlog::error("[{}] Failed to create screen from XML", get_name());
         return nullptr;
+    }
+
+    // Display-size face, a size class above the text_heading default
+    // (prestonbrown/helixscreen#1599).
+    if (lv_obj_t* header = lv_obj_find_by_name(screen_root_, "welcome_header")) {
+        lv_obj_set_style_text_font(
+            header, wizard_welcome_header_font(breakpoint_for(responsive_dimension(nullptr))),
+            LV_PART_MAIN);
+
+        // Follow a runtime breakpoint change. The observer is bound to the
+        // header widget, so it unsubscribes itself when the wizard framework
+        // deletes the step content — no cleanup wiring needed.
+        if (lv_subject_t* bp_subject = theme_manager_get_breakpoint_subject()) {
+            lv_subject_add_observer_obj(bp_subject, welcome_header_font_observer_cb, header,
+                                        nullptr);
+        }
     }
 
     // Start the welcome text cycling timer

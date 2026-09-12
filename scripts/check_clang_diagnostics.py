@@ -49,9 +49,10 @@ with a note, exactly as an entry that does not exist already is. Only a command 
 describes today's build gets to fail the gate, and then the failure is about the code.
 
 Argument handling: entries carry either an ``arguments`` array or a ``command``
-string. A command string is split with ``shlex.split`` and never handed to a shell.
-Re-parsing through a shell strips one layer of quoting and turns
-``-DHELIX_VERSION="0.99.118"`` into a bare ``0.99.118``, which clang then reports as
+string. Both are normalised by ``merge_compile_commands.entry_argv`` and never handed
+to a shell; see that function for why the database holds two quoting shapes of a
+quoted define and why both must replay as ``-DHELIX_VERSION="0.99.118"``. Mishandle
+either shape and the version macro stops being a string, which clang reports as
 ``invalid suffix '.118' on floating constant`` -- phantom errors that look like real
 findings.
 
@@ -103,7 +104,6 @@ import glob
 import json
 import os
 import re
-import shlex
 import shutil
 import subprocess
 import sys
@@ -113,6 +113,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO_ROOT, "scripts"))
 from merge_compile_commands import (  # noqa: E402
     current_version,
+    entry_argv,
     entry_source_path,
     is_stale,
     recorded_version,
@@ -253,36 +254,16 @@ def find_clang() -> tuple[list[str], str] | tuple[None, str]:
 def entry_args(entry: dict) -> list[str]:
     """Argument vector for a compile-command entry.
 
-    Never routed through a shell, and split with shlex rather than on whitespace.
-
-    The subtlety is which shlex mode. `emit-compile-command` (mk/rules.mk) builds
-    the string as CMD="$(CXX) $(CXXFLAGS) ..." -- make has already expanded
-    -DHELIX_VERSION=\\"0.99.118\\" and the shell assignment has already eaten the
-    backslashes, so what lands in the JSON is the *post-expansion argv*, joined by
-    spaces, in which the quote characters are literal parts of the argument. Posix
-    shlex would strip them a second time, leaving -DHELIX_VERSION=0.99.118, and
-    clang then reports `invalid suffix '.118' on floating constant` plus a cascade
-    of undeclared identifiers from -DINSTALLER_FILENAME=install.sh -- phantom
-    errors that read exactly like real clang findings. (Observed here before this
-    was fixed: 6+ bogus diagnostics in src/system/update_checker.cpp alone.)
-
-    So: posix=False, which keeps quote characters inside tokens while still
-    treating a quoted run of spaces as one token. A token that is quoted end to
-    end is genuine shell quoting (a path with spaces, as a conventional
-    cmake/Bear-produced database would emit) and is unwrapped; a token with quotes
-    only in the interior is the -DFOO="bar" shape and is left exactly as is.
+    Tokenisation is shared with every other replay consumer
+    (merge_compile_commands.entry_argv): the database legitimately holds two
+    quoting shapes of a quoted define - shell-quoted and post-expansion - and
+    both must reach clang as -DHELIX_VERSION="1.1.0-beta.1" with the macro a
+    string. Strip the quotes the wrong way for either shape and the version
+    define stops being a string: every TU including helix_version.h reports an
+    int where a const char* belongs, or an invalid suffix on a floating
+    constant. Those read exactly like real findings about the code.
     """
-    args = entry.get("arguments")
-    if args:
-        return list(args)
-
-    tokens = shlex.split(entry.get("command", ""), posix=False)
-    out = []
-    for t in tokens:
-        if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'" and t[0] not in t[1:-1]:
-            t = t[1:-1]
-        out.append(t)
-    return out
+    return entry_argv(entry)
 
 
 def load_compile_db(root: str, frag_root: str | None = None) -> dict[str, dict]:

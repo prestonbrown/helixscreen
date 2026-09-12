@@ -1,0 +1,27 @@
+{
+  "provenance": "A real Qidi Q2 as its owner's machine reports itself (debug bundle NPN3LYBJ, prestonbrown/helixscreen#1431)",
+  "notes": [
+    "hostname is the Linaro rootfs default. It carries no vendor or model string; machine.system_info is where 'QIDI@Q2' lives.",
+    "build_volume is the stepper travel Klipper resolves from configfile (X[-1,275] Y[-1,295] = 276 x 296), which is what PrinterDiscovery::parse_build_volume() stores and what build_volume_range heuristics are scored against. It is ~45mm larger than the 250x250 print area the bed mesh covers.",
+    "The mainboard is an STM32F407; the MMU and toolhead MCUs are F401/F103. There is no RP2040 anywhere on this machine."
+  ],
+  "heaters": ["extruder", "heater_bed", "heater_generic chamber"],
+  "sensors": ["temperature_sensor Chamber_Thermal_Protection_Sensor"],
+  "fans": ["fan_generic cooling_fan", "heater_fan hotend_fan",
+           "controller_fan chamber_fan", "controller_fan board_fan",
+           "fan_generic chamber_circulation_fan", "fan_generic auxiliary_cooling_fan"],
+  "leds": ["output_pin caselight"],
+  "hostname": "linaro-alip",
+  "printer_objects": ["heater_generic chamber",
+                      "temperature_sensor Chamber_Thermal_Protection_Sensor", "probe_air",
+                      "z_tilt", "bed_mesh", "exclude_object", "lis2dw",
+                      "gcode_macro M141", "gcode_macro M191", "gcode_macro M290",
+                      "gcode_macro M900", "gcode_macro M901", "gcode_macro M4029",
+                      "gcode_macro M4030", "gcode_macro M4031",
+                      "gcode_macro CLEAR_NOZZLE", "gcode_macro CLEAR_NOZZLE_PLR"],
+  "steppers": ["stepper_x", "stepper_y", "stepper_z", "stepper_z1"],
+  "kinematics": "corexy",
+  "mcu": "stm32f407xx",
+  "mcu_list": ["stm32f407xx", "stm32f401xc", "stm32f103xe"],
+  "build_volume": {"x_min": -1, "x_max": 275, "y_min": -1, "y_max": 295, "z_max": 265}
+}

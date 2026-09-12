@@ -24,9 +24,11 @@ namespace helix {
 /// logging has stopped, and at worst yields one garbled diagnostic line.
 class CrashErrorLogSink : public spdlog::sinks::base_sink<std::mutex> {
   public:
-    /// Process-lifetime singleton. Its ring storage must outlive any crash and
-    /// survive logger swaps (init_early → init), so the pointers registered
-    /// with the crash handler never dangle. Construction registers the ring.
+    /// Process-lifetime singleton, never destroyed. Its ring storage must
+    /// outlive any crash and survive logger swaps (init_early → init), so the
+    /// pointers registered with the crash handler never dangle, and a log call
+    /// made while static destructors run must still reach a live sink.
+    /// Construction registers the ring.
     static CrashErrorLogSink& instance();
 
   protected:

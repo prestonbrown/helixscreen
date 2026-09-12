@@ -16,6 +16,7 @@
 #include "ams_error.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -131,6 +132,12 @@ class AmsEditOverlayViewTestAccess {
     }
     bool details_color_set() {
         return overlay_.details_color_set_;
+    }
+    SpoolInfo detail_original() {
+        return overlay_.detail_original_;
+    }
+    SpoolInfo detail_working() {
+        return overlay_.detail_working_;
     }
     static void build_spool_patches(const SpoolInfo& original, const SpoolInfo& edited,
                                     nlohmann::json& spool_patch, nlohmann::json& filament_patch) {
@@ -1049,6 +1056,108 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     close_editor_overlay();
 }
 
+// Pure black is a deliberate colour — #1597 made it dispatchable and
+// persistable, and the HSV picker's darkest reachable swatch is near-black —
+// so only the grey sentinel means "no colour reading". The spool-edit seed
+// must file black on the Spoolman patch baseline, and the sentinel must file
+// nothing: seeding it would hand every colourless slot a declared grey
+// (prestonbrown/helixscreen#1608).
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "spool-edit seeds black as a colour and the grey sentinel as none",
+                 "[ams_edit_overlay][spool_edit][color][1608]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo black = untracked_slot();
+    black.color_rgb = 0x000000;
+    black.color_name = "Black";
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, black, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_enter_spool_edit();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    CHECK(access.detail_original().color_hex == "#000000");
+
+    // Round-trip: seeding black on the original side must not read as an edit.
+    // The untouched Save stages no colour write to Spoolman.
+    nlohmann::json spool_patch;
+    nlohmann::json filament_patch;
+    access.build_spool_patches(access.detail_original(), access.detail_working(), spool_patch,
+                               filament_patch);
+    CHECK_FALSE(filament_patch.contains("color_hex"));
+
+    close_editor_overlay();
+
+    SlotInfo sentinel = untracked_slot();
+    sentinel.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+    sentinel.color_name.clear();
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, sentinel, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_enter_spool_edit();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    CHECK(access.detail_original().color_hex.empty());
+
+    close_editor_overlay();
+}
+
+// The custom colour view opens on the slot's own colour. Black is a real
+// colour, so the picker/hex seed must carry it — not the grey sentinel a
+// black slot used to be coerced to, which an unnoticed Apply would then
+// commit over the black (prestonbrown/helixscreen#1608).
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "custom color view opens on the slot's black, not the grey sentinel",
+                 "[ams_edit_overlay][color][1608]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo black = untracked_slot();
+    black.color_rgb = 0x000000;
+    black.color_name = "Black";
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, black, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_enter_spool_edit();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_open_color_view();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    lv_obj_t* hex_input = access.widget("ams_color_hex_input");
+    REQUIRE(hex_input != nullptr);
+    CHECK(std::string(lv_textarea_get_text(hex_input)) == "#000000");
+
+    close_editor_overlay();
+
+    // A sentinel slot keeps its grey starting point: the picker needs some
+    // seed, and the sentinel grey is what the slot's own chip already shows.
+    SlotInfo sentinel = untracked_slot();
+    sentinel.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+    sentinel.color_name.clear();
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, sentinel, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_enter_spool_edit();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_open_color_view();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    // close_editor_overlay() tears the widget tree down, so re-find the input
+    // in the rebuilt tree rather than reusing the pointer from the first half.
+    hex_input = access.widget("ams_color_hex_input");
+    REQUIRE(hex_input != nullptr);
+    CHECK(std::string(lv_textarea_get_text(hex_input)) == "#808080");
+
+    close_editor_overlay();
+}
+
 namespace {
 std::vector<SpoolInfo> two_spools() {
     SpoolInfo a;
@@ -1279,6 +1388,32 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker-entry spool selection commits and cl
 
     UpdateQueue::instance().drain();
     process_lvgl(10);
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "the editor header names the position in the active backend's own word",
+                 "[ams_edit_overlay][i18n]") {
+    // The fixture registers an AmsBackendMock, which reports Happy Hare, whose
+    // noun is Gate. The title a user reads above the editor has to be the same
+    // word the panel behind it used for the thing they tapped.
+    REQUIRE(backend->lane_noun() == helix::ui::LaneNoun::Gate);
+
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo info = untracked_slot();
+    info.slot_index = 2;
+    REQUIRE(overlay.show_for_slot(test_screen(), 2, info, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    // header_bar's title carries text_transform="uppercase", so the rendered
+    // string is the composed title in caps.
+    lv_obj_t* title = access.widget("header_title");
+    REQUIRE(title != nullptr);
+    CHECK(std::string(lv_label_get_text(title)) == "GATE 3 FILAMENT");
+
+    close_editor_overlay();
 }
 
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,

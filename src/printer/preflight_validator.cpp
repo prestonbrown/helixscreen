@@ -49,8 +49,8 @@ PreflightResult PreflightValidator::validate(const std::vector<GcodeToolInfo>& t
 
     // Bypass / external spool: the filament reaching the nozzle does not come from
     // any slot, so nothing in `slots` can satisfy a tool and every check would
-    // report EmptySlot. The gcode still names T0, so without this the user gets a
-    // "T0 has no filament loaded — this print will run out." block that no
+    // report EmptySlot. Without this the user gets a
+    // "%s has no filament loaded — this print will run out." block that no
     // configuration can clear, because bypass is deliberately not a slot in
     // AmsState::collect_available_slots().
     //
@@ -65,7 +65,7 @@ PreflightResult PreflightValidator::validate(const std::vector<GcodeToolInfo>& t
     // empty or not). There is nothing to map tools to, so the slot-based checks
     // don't apply — filament presence is the physical runout sensor's job,
     // surfaced separately. Returning an empty result avoids a false
-    // "T0 has no filament loaded" block on single-extruder printers.
+    // "%s has no filament loaded" block on single-extruder printers.
     if (slots.empty()) {
         return out;
     }

@@ -4,6 +4,7 @@
 #include "ui_zone_presentation.h"
 
 #include "ams_environment_zone.h"
+#include "display_numbering.h"
 
 #include <string>
 #include <vector>
@@ -34,16 +35,23 @@ ZoneStatus zone_status(const helix::printer::EnvironmentZone& zone) {
 }
 
 std::string zone_display_label(const helix::printer::EnvironmentZone& zone,
-                               const std::string& unit_word, const std::string& slot_word,
+                               const std::string& unit_word, LaneNoun slot_noun,
                                const std::string& type_name) {
     if (!zone.label.empty()) {
         return zone.label;
     }
     if (zone.gates.size() == 1) {
-        return slot_word + " " + std::to_string(zone.gates.front() + 1);
+        return lane_label(slot_noun, zone.gates.front());
+    }
+    const int unit_number = lane_number(zone.unit_index);
+    if (unit_number < 0) {
+        // The representative gate didn't resolve to a known unit (Happy Hare can
+        // report this). Neither sentinel reads as a unit number a user would trust,
+        // so the label falls back to the system type alone.
+        return type_name;
     }
     const std::string prefix = type_name.empty() ? std::string{} : type_name + " ";
-    return prefix + unit_word + " " + std::to_string(zone.unit_index + 1);
+    return prefix + unit_word + " " + std::to_string(unit_number);
 }
 
 bool zones_span_units(const std::vector<helix::printer::EnvironmentZone>& zones) {
@@ -59,17 +67,14 @@ bool zones_span_units(const std::vector<helix::printer::EnvironmentZone>& zones)
     return false;
 }
 
-std::string zone_slot_text(const helix::printer::EnvironmentZone& zone,
-                           const std::string& plural_word, const std::string& singular_word) {
+std::string zone_slot_text(const helix::printer::EnvironmentZone& zone, LaneNoun noun) {
     if (zone.gates.empty()) {
         return {};
     }
-    const int first = zone.gates.front() + 1;
-    const int last = zone.gates.back() + 1;
-    if (first == last) {
-        return singular_word + " " + std::to_string(first);
+    if (zone.gates.front() == zone.gates.back()) {
+        return lane_label(noun, zone.gates.front());
     }
-    return plural_word + " " + std::to_string(first) + "-" + std::to_string(last);
+    return lane_range_label(noun, zone.gates.front(), zone.gates.back());
 }
 
 } // namespace helix::ui

@@ -613,7 +613,9 @@ fi
 # that can drive the entire UI.
 if [ "${HELIX_REMOTE_CONTROL:-0}" = "1" ]; then
     EXTRA_FLAGS="${EXTRA_FLAGS} --remote"
-    log "Remote control enabled (HELIX_REMOTE_CONTROL=1)"
+    # "requested", not "enabled": the bind happens later, inside the app, and
+    # can still fail. Whether it listens is the app's [RemoteControl] line.
+    log "Remote control requested (HELIX_REMOTE_CONTROL=1)"
     if [ -n "${HELIX_REMOTE_SOCKET:-}" ]; then
         EXTRA_FLAGS="${EXTRA_FLAGS} --remote-socket ${HELIX_REMOTE_SOCKET}"
         log "Remote control socket: ${HELIX_REMOTE_SOCKET}"

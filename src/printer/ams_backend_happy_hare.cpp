@@ -2234,7 +2234,7 @@ void AmsBackendHappyHare::reapply_overrides() {
 
 AmsError AmsBackendHappyHare::validate_slot_index(int gate_index) const {
     if (!slots_.is_valid_index(gate_index)) {
-        return AmsErrorHelper::invalid_slot(gate_index,
+        return AmsErrorHelper::invalid_slot(lane_noun(), gate_index,
                                             slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
     }
     return AmsErrorHelper::success();
@@ -2254,7 +2254,7 @@ AmsError AmsBackendHappyHare::do_load_filament(int slot_index) {
         // Check if slot has filament available
         const auto* entry = slots_.get(slot_index);
         if (entry && entry->info.status == SlotStatus::EMPTY) {
-            return AmsErrorHelper::slot_not_available(slot_index);
+            return AmsErrorHelper::slot_not_available(lane_noun(), slot_index);
         }
     }
 
@@ -2304,9 +2304,7 @@ AmsError AmsBackendHappyHare::do_change_tool(int tool_number) {
 
         if (tool_number < 0 ||
             tool_number >= static_cast<int>(system_info_.tool_to_slot_map.size())) {
-            return AmsError(AmsResult::INVALID_TOOL,
-                            "Tool " + std::to_string(tool_number) + " out of range",
-                            "Invalid tool number", "Select a valid tool");
+            return AmsErrorHelper::tool_out_of_range(tool_number);
         }
     }
 
@@ -2548,7 +2546,7 @@ void AmsBackendHappyHare::persist_override(int slot_index, const SlotInfo& info)
     o.catalog_id = info.catalog_id;
     o.product_name = info.product_name;
     // AMS_DEFAULT_SLOT_COLOR is the "no color reading" sentinel (see
-    // SlotInfo::has_identity), not a color a user would ever pick, so it
+    // helix::ui::lane_has_identity), not a color a user would ever pick, so it
     // stays unrecorded; a deliberate pure black (#000000) still records.
     if (info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
         o.color_rgb = info.color_rgb;
@@ -2639,13 +2637,13 @@ AmsError AmsBackendHappyHare::set_slot_info(int slot_index, const SlotInfo& info
 
         if (!slots_.is_valid_index(slot_index)) {
             return AmsErrorHelper::invalid_slot(
-                slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
+                lane_noun(), slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
         }
 
         auto* entry = slots_.get_mut(slot_index);
         if (!entry) {
             return AmsErrorHelper::invalid_slot(
-                slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
+                lane_noun(), slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
         }
 
         auto& slot = entry->info;
@@ -2715,8 +2713,10 @@ AmsError AmsBackendHappyHare::set_slot_info(int slot_index, const SlotInfo& info
         bool has_changes = false;
         std::string cmd = fmt::format("MMU_GATE_MAP GATE={}", slot_index);
 
-        // Color (hex format, no # prefix)
-        if (info.color_rgb != 0 && info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
+        // Color (hex format, no # prefix). AMS_DEFAULT_SLOT_COLOR is the "no
+        // color reading" sentinel (see helix::ui::lane_has_identity); a deliberate
+        // pure black (#000000) still reaches the gate map.
+        if (info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
             cmd += fmt::format(" COLOR={:06X}", info.color_rgb & 0xFFFFFF);
             has_changes = true;
         }
@@ -2794,14 +2794,12 @@ AmsError AmsBackendHappyHare::set_tool_mapping_impl(int tool_number, int slot_in
 
         if (tool_number < 0 ||
             tool_number >= static_cast<int>(system_info_.tool_to_slot_map.size())) {
-            return AmsError(AmsResult::INVALID_TOOL,
-                            "Tool " + std::to_string(tool_number) + " out of range",
-                            "Invalid tool number", "");
+            return AmsErrorHelper::tool_out_of_range(tool_number);
         }
 
         if (!slots_.is_valid_index(slot_index)) {
             return AmsErrorHelper::invalid_slot(
-                slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
+                lane_noun(), slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
         }
 
         // Check if another tool already maps to this slot

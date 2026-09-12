@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "display_numbering.h"
 #include "firmware_routing.h"
 #include "tool_mapping_origin.h"
 
@@ -70,6 +71,10 @@ struct AvailableSlot {
     /// Kept last for the same reason multi_color_hexes is - positional
     /// aggregate initializers in the tests stay valid.
     float remaining_weight_g = -1.0f;
+
+    /// The word this slot's backend uses for one position. Defaulted so the
+    /// ~200 aggregate initializers in the mapper tests stay valid.
+    helix::ui::LaneNoun noun = helix::ui::LaneNoun::Slot;
 
     /// Unique key for this slot across all backends
     SlotKey key() const {
@@ -342,10 +347,10 @@ class FilamentMapper {
     /// will be used without saying which spool it comes from. The number is
     /// what disambiguates them.
     ///
-    /// Reports `local_slot_index + 1` - the lane's position within its own
-    /// unit - to agree with format_slot_label() and the AMS slot badges. On a
-    /// multi-unit setup the global index would name a lane the hardware does
-    /// not, calling the second unit's first bay "Slot 5".
+    /// Reports the display number for `local_slot_index` - the lane's position
+    /// within its own unit - to agree with format_slot_label() and the AMS slot
+    /// badges. On a multi-unit setup the global index would name a lane the
+    /// hardware does not, calling the second unit's first bay "Slot 5".
     static int mapped_lane_display_number(const ToolMapping& mapping,
                                           const std::vector<AvailableSlot>& slots);
 

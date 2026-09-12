@@ -2,6 +2,7 @@
 
 #include "filament_mapper.h"
 
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_variants.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -9,41 +10,23 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <cstdio>
 
 namespace helix {
 
 std::string FilamentMapper::format_slot_label(const AvailableSlot& slot) {
-    char buf[192];
+    std::string label =
+        helix::ui::lane_label(slot.noun, slot.unit_display_name, slot.local_slot_index);
 
-    // Build material suffix
     const char* material_str = nullptr;
     if (slot.is_empty) {
         material_str = lv_tr("Empty");
     } else if (!slot.material.empty()) {
         material_str = slot.material.c_str();
     }
+    if (material_str)
+        label += std::string(": ") + material_str;
 
-    if (slot.unit_display_name.empty()) {
-        // Single-unit: "Slot 2" or "Slot 2: PLA"
-        if (material_str) {
-            snprintf(buf, sizeof(buf), "%s %d: %s", lv_tr("Slot"), slot.local_slot_index + 1,
-                     material_str);
-        } else {
-            snprintf(buf, sizeof(buf), "%s %d", lv_tr("Slot"), slot.local_slot_index + 1);
-        }
-    } else {
-        // Multi-unit: "Turtle 1 · Slot 2" or "Turtle 1 · Slot 2: PLA"
-        // unit_display_name is not translated — it's a user-configured AFC name
-        if (material_str) {
-            snprintf(buf, sizeof(buf), "%s \xc2\xb7 %s %d: %s", slot.unit_display_name.c_str(),
-                     lv_tr("Slot"), slot.local_slot_index + 1, material_str);
-        } else {
-            snprintf(buf, sizeof(buf), "%s \xc2\xb7 %s %d", slot.unit_display_name.c_str(),
-                     lv_tr("Slot"), slot.local_slot_index + 1);
-        }
-    }
-    return buf;
+    return label;
 }
 
 const AvailableSlot* FilamentMapper::resolve_mapped_slot(const ToolMapping& mapping,
@@ -68,7 +51,7 @@ const AvailableSlot* FilamentMapper::resolve_mapped_slot(const ToolMapping& mapp
 int FilamentMapper::mapped_lane_display_number(const ToolMapping& mapping,
                                                const std::vector<AvailableSlot>& slots) {
     const AvailableSlot* const s = resolve_mapped_slot(mapping, slots);
-    return s ? s->local_slot_index + 1 : -1;
+    return s ? helix::ui::lane_number(s->local_slot_index) : -1;
 }
 
 int FilamentMapper::color_distance(uint32_t a, uint32_t b) {
@@ -455,10 +438,9 @@ FilamentMapper::reprint_remap(const std::vector<int>& last_routing,
     return remap;
 }
 
-std::vector<uint32_t>
-FilamentMapper::routed_tool_colors(const std::vector<int>& tool_to_head,
-                                   const std::vector<AvailableSlot>& slots,
-                                   helix::printer::ToolMappingOrigin origin) {
+std::vector<uint32_t> FilamentMapper::routed_tool_colors(const std::vector<int>& tool_to_head,
+                                                         const std::vector<AvailableSlot>& slots,
+                                                         helix::printer::ToolMappingOrigin origin) {
     if (tool_to_head.empty()) {
         return {};
     }

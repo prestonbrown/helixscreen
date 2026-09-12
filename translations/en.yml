@@ -8,13 +8,23 @@ translations:
   '%d additional fan%s': '%d additional fan%s'
   '%d disabled': '%d disabled'
   '%d failed to load - see details below': '%d failed to load - see details below'
+  '%d feeders': '%d feeders'
+  '%d gates': '%d gates'
+  '%d lanes': '%d lanes'
   '%d more sensors': '%d more sensors'
   '%d of %d plugins loaded': '%d of %d plugins loaded'
   '%d plugins loaded': '%d plugins loaded'
   '%d slots': '%d slots'
+  '%d toolheads': '%d toolheads'
+  '%d tools': '%d tools'
   '%lu days ago': '%lu days ago'
   '%lu hours ago': '%lu hours ago'
   '%lu min ago': '%lu min ago'
+  '%s Filament': '%s Filament'
+  '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s has about %.0fg but %s needs about %.0fg. Start anyway?'
+  '%s has no filament loaded — this print will run out.': '%s has no filament loaded — this print will run out.'
+  '%s needs filament in %s, which is empty — this print will run out.': '%s needs filament in %s, which is empty — this print will run out.'
+  '%s: %.0fg of %.0fg needed': '%s: %.0fg of %.0fg needed'
   '%u layers': '%u layers'
   '%zu changes': '%zu changes'
   '%zu events queued': '%zu events queued'
@@ -264,6 +274,7 @@ translations:
   Beacon auto-calibrate sent: Beacon auto-calibrate sent
   Beacon calibrate sent: Beacon calibrate sent
   Bed: Bed
+  Bed (°C): Bed (°C)
   Bed Heater: Bed Heater
   Bed Level: Bed Level
   Bed Leveling: Bed Leveling
@@ -277,7 +288,6 @@ translations:
   Bed Screw Results: Bed Screw Results
   Bed Screws: Bed Screws
   Bed Temp: Bed Temp
-  Bed Temp (°C): Bed Temp (°C)
   Bed Temperature: Bed Temperature
   Bed is Level!: Bed is Level!
   Bed mesh operation timed out: Bed mesh operation timed out
@@ -454,6 +464,7 @@ translations:
   Center QR code in frame: Center QR code in frame
   'Chamb:': 'Chamb:'
   Chamber: Chamber
+  Chamber (°C): Chamber (°C)
   Chamber Cooling Fan: Chamber Cooling Fan
   Chamber Fan: Chamber Fan
   Chamber Heater: Chamber Heater
@@ -464,6 +475,7 @@ translations:
   Chamber at %d°C: Chamber at %d°C
   Chamber heating to %d°C...: Chamber heating to %d°C...
   Chamber target set to {}°C: Chamber target set to {}°C
+  Chamber temp must be 0-120°C: Chamber temp must be 0-120°C
   Change: Change
   Change Address: Change Address
   Change Blade: Change Blade
@@ -710,10 +722,9 @@ translations:
   'Current name:': 'Current name:'
   'Current:': 'Current:'
   'Current: %d°C | Target: %d°C': 'Current: %d°C | Target: %d°C'
-  'Current: %s · Slot %d': 'Current: %s · Slot %d'
+  'Current: %s': 'Current: %s'
+  'Current: %s · %s': 'Current: %s · %s'
   'Current: Bypass': 'Current: Bypass'
-  'Current: Slot %d': 'Current: Slot %d'
-  'Current: Tool %d': 'Current: Tool %d'
   Currently Loaded: Currently Loaded
   Currently printing: Currently printing
   Custom: Custom
@@ -744,6 +755,7 @@ translations:
   Debug: Debug
   Default border thickness: Default border thickness
   'Default: %d-%d°C nozzle, %d°C bed': 'Default: %d-%d°C nozzle, %d°C bed'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': 'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber'
   Defaults restored: Defaults restored
   Define macros in your printer.cfg: Define macros in your printer.cfg
   Delete: Delete
@@ -1090,6 +1102,8 @@ translations:
   Feed filament: Feed filament
   Feed filament directly to extruder: Feed filament directly to extruder
   Feed filament from current slot: Feed filament from current slot
+  Feeder: Feeder
+  Feeders: Feeders
   Feeding filament forward: Feeding filament forward
   Filament: Filament
   Filament Control: Filament Control
@@ -1200,6 +1214,8 @@ translations:
   GCode Console: GCode Console
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Game Over!\nScore: {}\nTap to restart"
+  Gate: Gate
+  Gates: Gates
   Gear Buffer Speed: Gear Buffer Speed
   Gear Spool Speed: Gear Spool Speed
   Gear Unload Speed: Gear Unload Speed
@@ -1477,6 +1493,7 @@ translations:
   Labels Per Sheet: Labels Per Sheet
   Lane: Lane
   Lane tests and motor resets: Lane tests and motor resets
+  Lanes: Lanes
   Language: Language
   Language, theme, brightness, and sound: Language, theme, brightness, and sound
   Last: Last
@@ -2023,8 +2040,8 @@ translations:
   Preheat Macro: Preheat Macro
   Preheat PLA: Preheat PLA
   Preheat cancelled: Preheat cancelled
-  'Preheat: T{} + bed set': 'Preheat: T{} + bed set'
   'Preheat: all {} tools + bed set': 'Preheat: all {} tools + bed set'
+  'Preheat: {} + bed set': 'Preheat: {} + bed set'
   'Prepared': 'Prepared'
   Preparing: Preparing
   Preparing Print: Preparing Print
@@ -2593,17 +2610,8 @@ translations:
   Sliced colors: Sliced colors
   Slicer: Slicer
   Slot: Slot
-  Slot %d: Slot %d
-  Slot %d Filament: Slot %d Filament
-  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?
-  'Slot %d: %.0fg of %.0fg needed': 'Slot %d: %.0fg of %.0fg needed'
   Slot 1: Slot 1
   Slot colors, materials, and levels: Slot colors, materials, and levels
-  Slot {}: Slot {}
-  Slot {} is blocked — manual intervention required: Slot {} is blocked — manual intervention required
-  Slot {} matches.: Slot {} matches.
-  Slot {} spool cleared: Slot {} spool cleared
-  Slot {} updated: Slot {} updated
   Slots: Slots
   Small labels help keep controls calm and focused.: Small labels help keep controls
     calm and focused.
@@ -2721,7 +2729,7 @@ translations:
   Switch between light and dark themes: Switch between light and dark themes
   Switch the active tool or extruder: Switch the active tool or extruder
   Switch to v%s: Switch to v%s
-  Switched to T{}: Switched to T{}
+  Switched to {}: Switched to {}
   Switches to a backup spool on runout: Switches to a backup spool on runout
   Switching heater control to MPC. Klipper will restart.: Switching heater control
     to MPC. Klipper will restart.
@@ -2735,10 +2743,6 @@ translations:
   System busy — try again: System busy — try again
   System default: System default
   System detected: System detected
-  T%d has no filament loaded — this print will run out.: T%d has no filament loaded
-    — this print will run out.
-  T%d needs filament in slot %d, which is empty — this print will run out.: T%d needs
-    filament in slot %d, which is empty — this print will run out.
   TANGLE: TANGLE
   TD-1 filament color detection: TD-1 filament color detection
   TEMPERATURE SENSORS: TEMPERATURE SENSORS
@@ -2818,6 +2822,7 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   : The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
+  The bed was reported dirty, so this print cannot resume.: The bed was reported dirty, so this print cannot resume.
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: The buffer may be disconnected, stuck, or faulty. Check it before retrying
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: The cutter blade didn't return — check for filament wrapped around the cutting mechanism
@@ -2974,13 +2979,14 @@ translations:
   'Tool change failed: {}': 'Tool change failed: {}'
   Tool mapping failed: Tool mapping failed
   Tool swap: Tool swap
-  'Tool {} → Slot {}: no filament loaded.': 'Tool {} → Slot {}: no filament loaded.'
   Toolhead: Toolhead
   Toolhead LED: Toolhead LED
   Toolhead Sensor: Toolhead Sensor
   Toolhead Style: Toolhead Style
   Toolhead jam: Toolhead jam
   Toolhead, G-code, limits, and materials: Toolhead, G-code, limits, and materials
+  Toolheads: Toolheads
+  Tools: Tools
   Tools Used: Tools Used
   'Tools: ': 'Tools: '
   Total Prints: Total Prints
@@ -3014,7 +3020,6 @@ translations:
   Type: Type
   Type to preview input field...: Type to preview input field...
   'Type:': 'Type:'
-  T{} shares slot with T{}: T{} shares slot with T{}
   UI Scale: UI Scale
   UI Sounds: UI Sounds
   UI scale applies after restart: UI scale applies after restart
@@ -3302,6 +3307,7 @@ translations:
   v{} is available. Tap to update.: v{} is available. Tap to update.
   you have: you have
   '{} LED strips available': '{} LED strips available'
+  '{} and {} are both mapped here': '{} and {} are both mapped here'
   '{} axis homed': '{} axis homed'
   '{} command timed out': '{} command timed out'
   '{} complete': '{} complete'
@@ -3315,10 +3321,12 @@ translations:
   '{} filament • {}': '{} filament • {}'
   '{} heater turned off': '{} heater turned off'
   '{} is asking to connect to this printer.': '{} is asking to connect to this printer.'
+  '{} is blocked — manual intervention required': '{} is blocked — manual intervention required'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.'
   '{} is not set up on this printer': '{} is not set up on this printer'
   '{} macro not configured': '{} macro not configured'
+  '{} matches.': '{} matches.'
   '{} may cause unintended changes. Are you sure?': '{} may cause unintended changes.
     Are you sure?'
   '{} more taps to {} beta features': '{} more taps to {} beta features'
@@ -3328,9 +3336,12 @@ translations:
   '{} set to {}': '{} set to {}'
   '{} set to {} {}': '{} set to {} {}'
   '{} slots': '{} slots'
+  '{} spool cleared': '{} spool cleared'
   '{} started': '{} started'
   '{} target set to {}°C': '{} target set to {}°C'
+  '{} updated': '{} updated'
   '{} widgets': '{} widgets'
   ? '{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present.'
   : '{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present.'
   '{} — response timed out': '{} — response timed out'
+  '{} → {}: no filament loaded.': '{} → {}: no filament loaded.'

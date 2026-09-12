@@ -16,6 +16,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "color_utils.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
 #include "filament_mapper.h"
@@ -808,7 +809,10 @@ void AmsEditOverlay::enter_spool_edit() {
     // overwrite detail_original_/detail_working_ wholesale from the Spoolman
     // record below, so this seed is untracked-only.)
     detail_original_.spool_weight_g = working_info_.total_weight_g;
-    if (working_info_.color_rgb != 0) {
+    // Only the grey "no colour reading" sentinel withholds a seed; black is a
+    // real, dispatchable colour and must reach the Spoolman patch baseline
+    // (prestonbrown/helixscreen#1608).
+    if (working_info_.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
         char hex_buf[8];
         snprintf(hex_buf, sizeof(hex_buf), "#%06X", working_info_.color_rgb);
         detail_original_.color_hex = hex_buf;
@@ -1398,8 +1402,8 @@ void AmsEditOverlay::update_ui() {
         snprintf(slot_indicator_buf_, sizeof(slot_indicator_buf_), "%s",
                  lv_tr("External Filament"));
     } else {
-        snprintf(slot_indicator_buf_, sizeof(slot_indicator_buf_), lv_tr("Slot %d Filament"),
-                 slot_index_ + 1);
+        snprintf(slot_indicator_buf_, sizeof(slot_indicator_buf_), lv_tr("%s Filament"),
+                 helix::ui::lane_label(helix::ui::active_lane_noun(), slot_index_).c_str());
     }
     lv_subject_copy_string(&slot_indicator_subject_, slot_indicator_buf_);
 
@@ -1529,7 +1533,7 @@ void AmsEditOverlay::update_ui() {
             if (!tool_options.empty()) {
                 tool_options += '\n';
             }
-            tool_options += "T" + std::to_string(i);
+            tool_options += helix::ui::tool_label(i);
         }
         lv_dropdown_set_options(tool_dropdown, tool_options.c_str());
 
@@ -1597,6 +1601,12 @@ bool AmsEditOverlay::is_dirty() const {
     // slot that never had a catalog pick report itself dirty. Nothing is lost —
     // handle_spool_edit_save(finish=true) is the only production caller and it
     // routes straight into commit_and_close(), which never consults is_dirty().
+    //
+    // helix::ams::user_edit_observation (lane_translation.h) excludes the same
+    // two fields for the same reason. The two lists answer different questions
+    // - "is there an unsaved change" against "what did this person declare" -
+    // and so differ on a cleared field, but they must agree on which fields a
+    // person can be said to have touched at all.
     return working_info_.color_rgb != original_info_.color_rgb ||
            working_info_.material != original_info_.material ||
            working_info_.brand != original_info_.brand ||
@@ -1621,11 +1631,10 @@ void AmsEditOverlay::update_sync_button_state() {
 
 void AmsEditOverlay::open_color_view() {
     // Seed custom sub-state from the spool-edit view's pending color (the only
-    // entry point).
+    // entry point). Black seeds as-is — it is a real colour, and a coerced
+    // grey here is one unnoticed Apply away from overwriting it
+    // (prestonbrown/helixscreen#1608).
     custom_color_ = details_color_;
-    if (custom_color_ == 0) {
-        custom_color_ = 0x808080;
-    }
     populate_color_view();
     set_view(VIEW_COLOR);
     spdlog::debug("[AmsEditOverlay] Color view opened (returns to spool-edit)");

@@ -18,6 +18,7 @@
 #include "fault_surface_correlation.h"
 #include "filament_slot_override_store.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "lane_source_store.h"
 #include "panel_widget_manager.h"
 #include "runtime_config.h"
 #include "safety_settings_manager.h"
@@ -297,6 +298,11 @@ void HelixTestFixture::reset_all() {
 
     // Delete any tracked modal widgets and clear the modal stack.
     ModalStack::instance().clear();
+
+    // Lane source records are process-wide and are written by backends, so a
+    // lane one test populated would read back in the next as a reading nobody
+    // took.
+    helix::ams::reset_lane_sources();
 
     // PrintStatusWidget's DetailedFormatter used to be torn down here for the
     // reason described below, and no longer needs to be: its PrinterState

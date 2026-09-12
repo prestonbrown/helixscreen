@@ -8,6 +8,7 @@
 #include "ams_backend_snapmaker.h"
 #endif
 #include "ams_bypass_policy.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "hh_defaults.h"
 #include "runtime_config.h"
@@ -664,18 +665,20 @@ AmsError AmsBackendMock::load_filament(int slot_index) {
         }
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         const auto* entry = slots_.get(slot_index);
         if (!entry || entry->info.status == SlotStatus::EMPTY) {
-            return AmsErrorHelper::slot_not_available(slot_index);
+            return AmsErrorHelper::slot_not_available(lane_noun_locked(), slot_index);
         }
 
         // Start loading. Status string is 1-based to match the slot numbering
         // shown on the panel (slot circles 1..N); slot_index is 0-based.
         system_info_.action = AmsAction::LOADING;
-        system_info_.operation_detail = "Loading from slot " + std::to_string(slot_index + 1);
+        system_info_.operation_detail =
+            "Loading from slot " + std::to_string(helix::ui::lane_number(slot_index));
         filament_segment_ = PathSegment::SPOOL; // Start at spool
         spdlog::info("[AmsBackendMock] Loading from slot {}", slot_index);
     }
@@ -729,7 +732,8 @@ AmsError AmsBackendMock::select_slot(int slot_index) {
         }
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         // Immediate selection (no filament movement)
@@ -756,9 +760,7 @@ AmsError AmsBackendMock::change_tool(int tool_number) {
 
         int mapped_slot = slots_.slot_for_tool(tool_number);
         if (mapped_slot < 0) {
-            return AmsError(AmsResult::INVALID_TOOL,
-                            "Tool " + std::to_string(tool_number) + " out of range",
-                            "Invalid tool number", "Select a valid tool");
+            return AmsErrorHelper::tool_out_of_range(tool_number);
         }
 
         // Start tool change (unload + load sequence)
@@ -908,12 +910,14 @@ AmsError AmsBackendMock::clear_fault(int slot_index) {
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         auto* entry = slots_.get_mut(slot_index);
         if (!entry) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         // Clear error state and return slot to normal
@@ -934,7 +938,8 @@ AmsError AmsBackendMock::select_gate(int slot_index) {
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         spdlog::info("[AMS Mock] Executing G-code: MMU_SELECT GATE={}", slot_index);
@@ -942,7 +947,8 @@ AmsError AmsBackendMock::select_gate(int slot_index) {
 
     if (system_info_.type == AmsType::HAPPY_HARE) {
         return simulate_transient_action(AmsAction::SELECTING,
-                                         "Selecting slot " + std::to_string(slot_index + 1));
+                                         "Selecting slot " +
+                                             std::to_string(helix::ui::lane_number(slot_index)));
     }
 
     return AmsErrorHelper::success();
@@ -980,7 +986,8 @@ AmsError AmsBackendMock::check_gate(int slot_index) {
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         spdlog::info("[AMS Mock] Executing G-code: MMU_CHECK_GATE GATE={}", slot_index);
@@ -988,7 +995,8 @@ AmsError AmsBackendMock::check_gate(int slot_index) {
 
     if (system_info_.type == AmsType::HAPPY_HARE) {
         return simulate_transient_action(AmsAction::CHECKING,
-                                         "Checking slot " + std::to_string(slot_index + 1));
+                                         "Checking slot " +
+                                             std::to_string(helix::ui::lane_number(slot_index)));
     }
 
     return AmsErrorHelper::success();
@@ -1009,12 +1017,14 @@ AmsError AmsBackendMock::set_slot_info(int slot_index, const SlotInfo& info, boo
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         auto* entry = slots_.get_mut(slot_index);
         if (!entry) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         int old_mapped_tool = entry->info.mapped_tool;
@@ -1076,13 +1086,12 @@ AmsError AmsBackendMock::set_tool_mapping_impl(int tool_number, int slot_index) 
     // production slot_registry behavior of growing on demand.
     constexpr int MAX_TOOL_INDEX = 64;
     if (tool_number < 0 || tool_number >= MAX_TOOL_INDEX) {
-        return AmsError(AmsResult::INVALID_TOOL,
-                        "Tool " + std::to_string(tool_number) + " out of range",
-                        "Invalid tool number", "");
+        return AmsErrorHelper::tool_out_of_range(tool_number);
     }
 
     if (!slots_.is_valid_index(slot_index)) {
-        return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                            slots_.slot_count() - 1);
     }
 
     // Get current tool map and grow it if needed so the new tool index fits.
@@ -1315,7 +1324,8 @@ void AmsBackendMock::inject_mock_errors() {
             auto* entry = slots_.get_mut(last_slot);
             if (entry) {
                 SlotError err;
-                err.message = fmt::format("Lane {} load failed", entry->info.slot_index + 1);
+                err.message = fmt::format("Lane {} load failed",
+                                          helix::ui::lane_number(entry->info.slot_index));
                 err.severity = SlotError::ERROR;
                 entry->info.error = err;
             }
@@ -3321,7 +3331,8 @@ void AmsBackendMock::execute_load_operation(int slot_index,
 
         // Phase 2: LOADING with segment animation (1-based slot label; index is 0-based)
         spdlog::debug("[AmsBackendMock] Load phase: LOADING (segment animation)");
-        set_action(AmsAction::LOADING, "Loading from slot " + std::to_string(slot_index + 1));
+        set_action(AmsAction::LOADING,
+                   "Loading from slot " + std::to_string(helix::ui::lane_number(slot_index)));
         emit_event(EVENT_STATE_CHANGED);
     }
 
@@ -3390,7 +3401,8 @@ void AmsBackendMock::execute_tool_change_operation(int target_slot,
     // Phase 2: SELECTING (only in realistic mode)
     if (realistic_mode_) {
         spdlog::debug("[AmsBackendMock] Tool change phase: SELECTING slot {}", target_slot);
-        set_action(AmsAction::SELECTING, "Selecting slot " + std::to_string(target_slot + 1));
+        set_action(AmsAction::SELECTING,
+                   "Selecting slot " + std::to_string(helix::ui::lane_number(target_slot)));
         emit_event(EVENT_STATE_CHANGED);
         if (!interruptible_sleep(get_effective_delay_ms(SELECTING_BASE_MS, SELECTING_VARIANCE)))
             return;
@@ -3399,7 +3411,8 @@ void AmsBackendMock::execute_tool_change_operation(int target_slot,
     } else {
         // Non-realistic: finalize_unload_state set action to IDLE, but we need LOADING
         // for the load phase so that UI elements (slot pulse, step progress) stay active
-        set_action(AmsAction::LOADING, "Loading slot " + std::to_string(target_slot + 1));
+        set_action(AmsAction::LOADING,
+                   "Loading slot " + std::to_string(helix::ui::lane_number(target_slot)));
         emit_event(EVENT_STATE_CHANGED);
     }
 

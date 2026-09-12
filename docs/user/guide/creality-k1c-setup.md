@@ -118,6 +118,18 @@ The installer automatically:
 
 ---
 
+> **Installing HelixScreen stops Creality Print from reaching the printer.**
+> HelixScreen and the stock Creality UI cannot share the framebuffer, so the
+> installer stops the stock UI. On the K1 the same init script also runs
+> `master-server`, `app-server` and `web-server`, which are the backend Creality
+> Print and the Creality Cloud app connect to, so those stop too.
+>
+> Sending prints still works through Fluidd or Mainsail, HelixScreen's own file
+> browser, or any slicer that uploads to Moonraker (OrcaSlicer, or PrusaSlicer
+> with the Moonraker plugin). Creality Print can still slice — it just cannot
+> upload over the network. To get the stock network stack back, uninstall
+> HelixScreen (see [Uninstalling](#uninstalling)).
+
 ## Step 5: Complete Setup on the Touchscreen
 
 HelixScreen starts automatically after install. The on-screen wizard walks you through:
@@ -185,6 +197,7 @@ This restores GuppyScreen automatically.
 | Installer says "Moonraker not found" | Complete Step 3 first — Moonraker must be running |
 | Blank screen after install | Check logs: `logread \| grep helix-screen \| tail -100` and `tail -100 /usr/data/helixscreen/logs/launcher.log` |
 | Touch not responding | Reboot: `reboot` |
+| Creality Print can't find the printer after install | Expected — the stock Creality backend is stopped so HelixScreen can use the screen. Use Fluidd/Mainsail, HelixScreen's file browser, or a Moonraker-capable slicer. To revert, uninstall HelixScreen. See [Troubleshooting](../TROUBLESHOOTING.md#creality-k1-series-issues) |
 
 For more help: [Troubleshooting Guide](../TROUBLESHOOTING.md) | [Discord](https://discord.gg/RZCT2StKhr) | [GitHub Issues](https://github.com/prestonbrown/helixscreen/issues)
 

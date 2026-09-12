@@ -9,6 +9,7 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "config.h"
+#include "display_numbering.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -105,7 +106,7 @@ std::string get_unit_display_name(const helix::AmsUnit& unit, int unit_index) {
     } else if (!unit.name.empty()) {
         raw = unit.name;
     } else {
-        return "Unit " + std::to_string(unit_index + 1);
+        return "Unit " + std::to_string(helix::ui::lane_number(unit_index));
     }
 
     // Replace underscores with spaces for readability
@@ -690,7 +691,7 @@ ToolBadgeLabels compute_tool_badge_labels(const SystemToolLayout& layout,
         out.prefix = 'E';
         out.numbers.reserve(layout.physical_to_extruder_name.size());
         for (const auto& name : layout.physical_to_extruder_name) {
-            out.numbers.push_back(*helix::tool_number_for_extruder(name));
+            out.numbers.push_back(helix::ui::lane_number(*helix::tool_number_for_extruder(name)));
         }
         return out;
     }

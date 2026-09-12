@@ -8,6 +8,7 @@
 
 #include "ams_state.h"
 #include "color_utils.h"
+#include "display_numbering.h"
 #include "filament_mapper.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "print_start_checks.h"
@@ -414,7 +415,7 @@ void FilamentMappingCard::rebuild_compact_view() {
             }
             if (auto* tool_lbl = lv_obj_find_by_name(top, "tool_label")) {
                 if (multi_tool) {
-                    lv_label_set_text_fmt(tool_lbl, "T%d", tool.tool_index);
+                    lv_label_set_text(tool_lbl, helix::ui::tool_label(tool.tool_index).c_str());
                     // Contrast is computed against the fill; with no fill there is
                     // nothing to contrast against, so take the normal text colour.
                     lv_obj_set_style_text_color(tool_lbl,
@@ -449,7 +450,8 @@ void FilamentMappingCard::rebuild_compact_view() {
                 // resolve_mapped_slot() already found the lane; asking
                 // mapped_lane_display_number() would rescan available_slots_ for
                 // the same answer, which is the split this task exists to close.
-                const int lane_number = resolved ? resolved->local_slot_index + 1 : -1;
+                const int lane_number =
+                    resolved ? helix::ui::lane_number(resolved->local_slot_index) : -1;
                 if (lane_number > 0) {
                     lv_label_set_text_fmt(slot_lbl, "%d", lane_number);
                     // An empty lane draws no fill, so there is nothing to contrast

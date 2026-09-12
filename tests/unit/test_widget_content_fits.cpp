@@ -304,7 +304,6 @@ void seed_printer_topology(PrinterState& state) {
     ToolTopology topo;
     topo.tool_count = 2;
     topo.active_tool = 0;
-    topo.tool_name_prefix = "T";
     ToolState::instance().set_ams_topology(topo);
 
     state.init_extruders({"extruder"});

@@ -25,7 +25,7 @@ flowchart TD
         UPD["PrinterState::update_from_status()<br/>fan-out to state components"]
         SET["set_*_internal()<br/>change-gated lv_subject_set_*()"]
         TH["lv_timer_handler()"]
-        UQ["UpdateQueue drain timer (1 ms)<br/>process_pending()"]
+        UQ["UpdateQueue drain timer (refresh period)<br/>process_pending()"]
         REFR["display refresh timer<br/>renders invalidated widgets"]
         DEQ --> UPD --> SET
         TH --> UQ
@@ -108,9 +108,9 @@ A second, smaller intake exists: RPC replies and webhooks events (Klippy ready/s
 
 ### The UpdateQueue bridge
 
-`UpdateQueue` ([`include/ui_update_queue.h#helix::ui`](../../../include/ui_update_queue.h#L94)) is a mutex-protected `std::queue` of tagged callbacks plus a 1 ms LVGL timer created in `init()` (`include/ui_update_queue.h#UpdateQueue/init`). Any thread calls `helix::ui::queue_update(fn)` (`include/ui_update_queue.h#"queue_update(UpdateCallback callback, const char* file = __builtin_FILE(),"`); the main thread executes the callbacks in `process_pending()` (`include/ui_update_queue.h#UpdateQueue/process_pending`) when the drain timer fires inside `lv_timer_handler()`.
+`UpdateQueue` ([`include/ui_update_queue.h#helix::ui`](../../../include/ui_update_queue.h#L94)) is a mutex-protected `std::queue` of tagged callbacks plus an LVGL timer created in `init()` that drains on the display refresh period (`include/ui_update_queue.h#UpdateQueue/init`). Any thread calls `helix::ui::queue_update(fn)` (`include/ui_update_queue.h#"queue_update(UpdateCallback callback, const char* file = __builtin_FILE(),"`); the main thread executes the callbacks in `process_pending()` (`include/ui_update_queue.h#UpdateQueue/process_pending`) when the drain timer fires inside `lv_timer_handler()`.
 
-Why not `lv_async_call()`? Two reasons, both visible in the header. First, ordering: `lv_async_call` runs its callbacks from the refresh cycle, which only fires when LVGL decides to render — if nothing invalidates the display, queued work never runs. The 1 ms timer fires on every `lv_timer_handler()` pass instead. Second, safety: because callbacks run on the main thread inside the timer walk, they are strictly serialized with rendering and with every other timer — a queued `lv_subject_set_*()` can never interleave with an in-progress render, which is what prevents LVGL's "invalidate during rendering" assertion. One nuance the old diagram overstated: LVGL 9 timers have no priority field; ready timers run in creation order, and the display refresh timer is created at display creation, *before* `update_queue_init()` ([`src/application/display_manager.cpp#init`](../../../src/application/display_manager.cpp#L397)). The real guarantee is same-thread serialization plus the 1 ms period landing work within a frame — not a strict drains-before-render ordering in a same-tick collision.
+Why not `lv_async_call()`? Two reasons, both visible in the header. First, ordering: `lv_async_call` runs its callbacks from the refresh cycle, which only fires when LVGL decides to render — if nothing invalidates the display, queued work never runs. The drain timer comes due on its own period instead, whether or not anything invalidated. Second, safety: because callbacks run on the main thread inside the timer walk, they are strictly serialized with rendering and with every other timer — a queued `lv_subject_set_*()` can never interleave with an in-progress render, which is what prevents LVGL's "invalidate during rendering" assertion. One nuance the old diagram overstated: LVGL 9 timers have no priority field; ready timers run in creation order, and the display refresh timer is created at display creation, *before* `update_queue_init()` ([`src/application/display_manager.cpp#init`](../../../src/application/display_manager.cpp#L397)). The real guarantee is same-thread serialization plus the refresh period landing work within a frame — not a strict drains-before-render ordering in a same-tick collision.
 
 The queue earns its keep in diagnostics and teardown:
 
@@ -180,7 +180,7 @@ The trap the defaulted parameter hides: the factories take `const SubjectLifetim
 - **Every `init_subjects()` self-registers its `deinit_subjects()`** with `StaticSubjectRegistry`. External registration is the fragile pattern the registry header explicitly forbids.
 - **Reverse flow goes through controllers, not raw API calls.** A click that changes a temperature must call `TemperatureController::set_target()` — the single authority for target sends — never `MoonrakerAPI::set_temperature()` directly (lint-enforced).
 - **`bind_int` does not exist.** Integer values reach widgets via `bind_value` (30 sites) on sliders/bars, `bind_text` on formatted strings, and `bind_current`/`bind_target` on `temp_display` (37 sites). The old data-flow diagram listed a `bind_int` element; it is not in the engine's vocabulary.
-- **Ordering claims: trust serialization, not per-tick ordering.** Notifications are dispatched before `lv_timer_handler()`, and the UpdateQueue drains inside it every millisecond — but do not write code that depends on drain-before-render within a single tick.
+- **Ordering claims: trust serialization, not per-tick ordering.** Notifications are dispatched before `lv_timer_handler()`, and the UpdateQueue drains inside it on the refresh period — but do not write code that depends on drain-before-render within a single tick.
 
 ## Going deeper
 
