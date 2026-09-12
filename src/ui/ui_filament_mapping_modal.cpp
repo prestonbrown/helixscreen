@@ -251,9 +251,9 @@ std::string FilamentMappingModal::get_slot_display_text(const helix::ToolMapping
         return helix::FilamentMapper::format_slot_label(*slot);
     }
 
-    // No AvailableSlot to take a noun from, so the active printer's answers for
-    // it. lane_label() spells the whole label, which is why there is no buffer
-    // here for a translated noun to overrun.
+    // No AvailableSlot here to carry a noun, so the active printer answers for
+    // it. lane_label() spells the whole label, so there is no buffer here for a
+    // translated noun to overrun.
     return helix::ui::lane_label(helix::ui::active_lane_noun(), mapping.mapped_slot);
 }
 
