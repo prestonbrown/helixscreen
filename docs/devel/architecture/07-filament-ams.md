@@ -234,7 +234,7 @@ Loading prefers the DB and falls back to the local file, seeding the DB on the w
 ### Lane identity by source: one record per observer, resolved on read
 
 A self-contained model carries *where* a lane's values came from, instead of re-deriving it
-from the values themselves. Five types and five functions across seven files, with one
+from the values themselves. Five types and twelve free functions across eight files, with one
 production caller: the human edit path files what a person declared, and nothing reads it.
 
 `Observation` ([`include/lane_observation.h#"struct Observation"`](../../../include/lane_observation.h)) is one reading
