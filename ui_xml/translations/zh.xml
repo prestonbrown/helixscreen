@@ -17,7 +17,7 @@
   <translation tag="%lu min ago" zh="%lu分钟前"/>
   <translation tag="%s has about %.0fg but %s needs about %.0fg. Start anyway?" zh="%s 约剩 %.0fg，但%s 需要约 %.0fg。仍要开始吗？"/>
   <translation tag="%s has no filament loaded — this print will run out." zh="%s 未加载耗材 —— 此次打印将会耗尽耗材。"/>
-  <translation tag="%s needs filament in %s, which is empty — this print will run out." zh="%s 需要 %s 中的耗材，但该槽位为空 —— 此次打印将会耗尽耗材。"/>
+  <translation tag="%s needs filament in %s, which is empty — this print will run out." zh="%s 需要耗材，但 %s 为空 —— 此次打印将会耗尽耗材。"/>
   <translation tag="%s: %.0fg of %.0fg needed" zh="%s：%.0fg / 需要 %.0fg"/>
   <translation tag="%u layers" zh="%u 层"/>
   <translation tag="%zu changes" zh="%zu 项更改"/>

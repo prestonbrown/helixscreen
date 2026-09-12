@@ -17,7 +17,7 @@ translations:
   '%lu min ago': '%lu分钟前'
   '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s 约剩 %.0fg，但%s 需要约 %.0fg。仍要开始吗？'
   '%s has no filament loaded — this print will run out.': '%s 未加载耗材 —— 此次打印将会耗尽耗材。'
-  '%s needs filament in %s, which is empty — this print will run out.': '%s 需要 %s 中的耗材，但该槽位为空 —— 此次打印将会耗尽耗材。'
+  '%s needs filament in %s, which is empty — this print will run out.': '%s 需要耗材，但 %s 为空 —— 此次打印将会耗尽耗材。'
   '%s: %.0fg of %.0fg needed': '%s：%.0fg / 需要 %.0fg'
   '%u layers': '%u 层'
   '%zu changes': '%zu 项更改'

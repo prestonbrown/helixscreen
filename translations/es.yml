@@ -17,7 +17,7 @@ translations:
   '%lu min ago': hace %lu min
   '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s tiene aproximadamente %.0fg pero %s necesita aproximadamente %.0fg. ¿Iniciar de todos modos?'
   '%s has no filament loaded — this print will run out.': '%s no tiene filamento cargado — esta impresión se quedará sin filamento.'
-  '%s needs filament in %s, which is empty — this print will run out.': '%s necesita filamento en %s, que está vacía — esta impresión se quedará sin filamento.'
+  '%s needs filament in %s, which is empty — this print will run out.': '%s necesita filamento y %s no lo tiene — esta impresión se quedará sin filamento.'
   '%s: %.0fg of %.0fg needed': '%s: %.0fg de %.0fg necesarios'
   '%u layers': '%u capas'
   '%zu changes': '%zu cambios'
