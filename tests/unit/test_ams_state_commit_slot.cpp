@@ -11,6 +11,7 @@
 #include "ams_types.h"
 #include "app_globals.h"
 #include "display_numbering.h"
+#include "filament_op_dispatch.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -276,6 +277,42 @@ TEST_CASE("context-menu clear names the position in the backend's own word",
 
     REQUIRE(notes.size() == 1);
     CHECK(notes[0] == "Gate 3 spool cleared");
+}
+
+TEST_CASE("context-menu clear on the bypass sentinel names the external spool",
+          "[ams][commit][context-menu][i18n]") {
+    CommitFixture f;
+    f.setup(169);
+
+    // The external spool carries an assignment, and a lane carries one too, so
+    // the clear has something to remove on both sides and "it was already
+    // empty" cannot pass for "it was cleared".
+    SlotInfo external;
+    external.material = "PETG";
+    external.spoolman_id = 42;
+    AmsState::instance().commit_external_spool_edit(external);
+    REQUIRE(AmsState::instance().get_external_spool_info().value_or(SlotInfo{}).material == "PETG");
+
+    SlotInfo lane = f.backend->get_slot_info(0);
+    lane.material = "PLA";
+    f.backend->set_slot_info(0, lane, /*persist=*/false);
+    REQUIRE(f.backend->get_slot_info(0).material == "PLA");
+
+    std::vector<std::string> notes;
+    helix::ui::set_test_notification_info_hook(
+        [&notes](const std::string& msg) { notes.push_back(msg); });
+
+    REQUIRE(ui::ams_dispatch_backend_action(ui::AmsContextMenu::MenuAction::CLEAR_SPOOL,
+                                            helix::ui::EXTERNAL_SPOOL_SLOT, nullptr));
+
+    helix::ui::set_test_notification_info_hook(nullptr);
+
+    // The bypass spool has no number, so it is named rather than numbered.
+    REQUIRE(notes.size() == 1);
+    CHECK(notes[0] == "External spool cleared");
+    CHECK(AmsState::instance().get_external_spool_info().value_or(SlotInfo{}).material.empty());
+    // The sentinel is not an index into the backend: no lane was touched.
+    CHECK(f.backend->get_slot_info(0).material == "PLA");
 }
 
 TEST_CASE("commit_slot_edit clears active spool even when backend manages it",

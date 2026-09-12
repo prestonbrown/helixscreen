@@ -12,6 +12,7 @@
 
 #include "ams_state.h"
 #include "display_numbering.h"
+#include "filament_op_dispatch.h" // EXTERNAL_SPOOL_SLOT — the bypass sentinel
 #include "printer_detector.h"
 #include "ui/ams_drawing_utils.h"
 
@@ -764,6 +765,16 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
     }
 
     case MenuAction::CLEAR_SPOOL: {
+        // This function is public and takes a raw slot index, so the bypass
+        // sentinel reaches it. The external spool is not one of the backend's
+        // lanes: it carries no number to name, and set_slot_info() refuses the
+        // index, so it clears through its own store instead.
+        if (slot == EXTERNAL_SPOOL_SLOT) {
+            AmsState::instance().commit_external_spool_edit(SlotInfo{});
+            NOTIFY_INFO(lv_tr("External spool cleared"));
+            break;
+        }
+
         // Clear spool assignment: reset material/color/spool data, keep slot status.
         // Routed through AmsState::commit_slot_edit so the Spoolman server active
         // spool and the identity cache are cleared too (bundle F2LNLQCC: clearing

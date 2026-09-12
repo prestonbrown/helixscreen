@@ -28,6 +28,12 @@ class FilamentMappingModalTestAccess {
         modal.on_ok();
     }
 
+    /// The text one remap row shows for its mapped position.
+    static std::string slot_display_text(const helix::ui::FilamentMappingModal& modal,
+                                         const helix::ToolMapping& mapping) {
+        return modal.get_slot_display_text(mapping);
+    }
+
     /// Deliver a slot-picker result the way the picker's own callback does.
     /// Production reaches this only from an LVGL context menu, and the unit
     /// under test is what a hand-picked lane does to the mapping - not how the
