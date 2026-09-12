@@ -127,6 +127,7 @@ translations:
   ALL DEVICES: ВСЕ УСТРОЙСТВА
   AMS: AMS
   'AMS Active: ': 'AMS активен: '
+  AMS is busy: AMS занят
   API not available: API недоступен
   APPEARANCE: ВНЕШНИЙ ВИД
   AUTO FANS: АВТО ВЕНТИЛЯТОРЫ
@@ -437,6 +438,7 @@ translations:
   Camera: Камера
   Can't connect — try forgetting and re-pairing the printer: Не удаётся подключиться
     — забудьте принтер и выполните сопряжение заново
+  Can't move filament while the print is paused: Невозможно перемещать филамент, пока печать на паузе
   Can't read filament RFID tag: Не удаётся прочитать RFID-метку филамента
   Cancel: Отмена
   Cancel Escalation: Отменить эскалацию
@@ -454,12 +456,14 @@ translations:
     результат сканирования недоступен'
   'Cannot modify G-code: {}. Printing original file.': 'Невозможно изменить G-code:
     {}. Печать оригинального файла.'
+  Cannot perform this action now: Сейчас это действие выполнить нельзя
   'Cannot remap G-code: no temp directory available': 'Не удалось переназначить G-code:
     нет доступной временной директории'
   'Cannot remap: internal error': 'Не удалось переназначить: внутренняя ошибка'
   'Cannot reprint: not connected to printer': 'Невозможно перепечатать: не подключено
     к принтеру'
   Cannot restart — no filename: Не удалось перезапустить — нет имени файла
+  Cannot run filament operation while printing: Во время печати нельзя выполнять операции с филаментом
   'Cannot start print: internal error': 'Невозможно начать печать: внутренняя ошибка'
   'Cannot start print: not connected to printer': 'Невозможно начать печать: не подключено
     к принтеру'
@@ -503,6 +507,8 @@ translations:
   Changes can be reversed anytime using the Macro Viewer.: Изменения можно отменить
     в любое время через Macro Viewer.
   Check Again: Проверить снова
+  Check Klipper console for details: Подробности смотрите в консоли Klipper
+  Check extruder temperature and try again. Manual removal may be required.: Проверьте температуру экструдера и повторите попытку. Может потребоваться удалить филамент вручную.
   Check filament: Проверьте филамент
   Check for Updates: Проверить обновления
   Check slot: Проверить слот
@@ -511,12 +517,14 @@ translations:
   Check slots failed: Ошибка проверки слотов
   Check that only one filament path is active: Убедитесь, что активен только один путь филамента
   Check that the cutter mechanism is properly installed: Проверьте правильность установки режущего механизма
+  Check that the printer is powered on and connected to the network: Проверьте, что принтер включён и подключён к сети
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: Проверьте трубку PTFE вдоль кабель-канала на перегибы, а также изгиб на входе в датчик экструдера
   Check the RS-485 cable between printer and CFS: Проверьте кабель RS-485 между принтером и CFS
   Check the buffer unit on the back of the printer: Проверьте буферный блок на задней панели принтера
   Check the filament path and try again.: Проверьте путь филамента и попробуйте снова.
   ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
   : Проверьте путь от слота до хаба на запутывание или трение. Если слот подаёт свободно, возможно, неисправен датчик хаба или подающий двигатель
+  Check the provided value and try again: Проверьте указанное значение и повторите попытку
   Check the spool and the filament path for a jam, then retry: Проверьте катушку и путь филамента на замятие, затем повторите
   Check your heater's rating (typically 40-60W for hotends): Проверьте мощность нагревателя
     (обычно 40–60W для хотэндов)
@@ -585,6 +593,7 @@ translations:
   Color: Цвет
   Color Mismatch: Несоответствие цвета
   Color Sensors: Датчики цвета
+  Command failed: Ошибка команды
   Communication Test: 'Проверка связи'
   Compact: Компактный
   Compare: Сравнить
@@ -914,6 +923,7 @@ translations:
   Enhanced {} operations in PRINT_START: Улучшено {} операций в PRINT_START
   Enhancement Complete!: Улучшение завершено!
   Enhancement Failed: Ошибка улучшения
+  Ensure Happy Hare or AFC is installed and configured: Убедитесь, что Happy Hare или AFC установлен и настроен
   Enter Current PIN: Введите текущий PIN
   Enter G-code command...: Введите команду G-code...
   Enter New PIN: Введите новый PIN
@@ -996,6 +1006,7 @@ translations:
     в зависимости от материала
   Extruder motor calibration failed: Не удалась калибровка двигателя экструдера
   Extruder to Nozzle: 'Экструдер до сопла'
+  Extruder too cold: Экструдер слишком холодный
   Extruding prime line...: Экструзия линии подготовки...
   FAILED: ОШИБКА
   FILAMENTS: ФИЛАМЕНТЫ
@@ -1093,6 +1104,7 @@ translations:
   Failed to toggle %s: Не удалось переключить %s
   'Failed to toggle timelapse: {}': 'Не удалось переключить таймлапс: {}'
   'Failed to turn off heaters: {}': 'Не удалось выключить нагреватели: {}'
+  Failed to unload filament: Не удалось выгрузить филамент
   'Failed to unload: {}': 'Не удалось выгрузить: {}'
   ? "Failed to update configuration.\nCheck printer connection."
   : "Не удалось обновить конфигурацию.\nПроверьте подключение принтера."
@@ -1112,6 +1124,7 @@ translations:
   FanSelect: Выбрать вентилятор
   Fans: Вентиляторы
   Farther: Дальше
+  Feature not available: Функция недоступна
   'Features: ': 'Функции: '
   Feed Assist: 'Помощь подачи'
   Feed assist and debug tools: Помощь подачи и инструменты отладки
@@ -1119,6 +1132,7 @@ translations:
   Feed filament: Подать филамент
   Feed filament directly to extruder: Подать филамент напрямую в экструдер
   Feed filament from current slot: 'Подать филамент из текущего слота'
+  Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: Вставьте филамент вручную за датчик и нажмите «Продолжить» — либо отмените печать, чтобы воспользоваться загрузкой/выгрузкой
   Feeder: Фидер
   Feeders: Фидеры
   Feeding filament forward: Подача филамента вперёд
@@ -1156,6 +1170,7 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : После выгрузки филамент всё ещё находится у сопла. Отрезание или втягивание могло не завершиться. Очистите печатающую головку перед загрузкой другой катушки.
   Filament is still present after the cut — the blade may be dull or misaligned: После реза филамент остался. Возможно, лезвие затупилось или смещено
+  Filament jam detected: Обнаружен затор филамента
   Filament jammed at the extruder gear: Филамент застрял в шестерне экструдера
   'Filament load failed: {}': 'Ошибка загрузки филамента: {}'
   Filament never reached the CFS hub sensor: Филамент не дошёл до датчика хаба CFS
@@ -1168,6 +1183,7 @@ translations:
   Filament ran out at the toolhead: 'Филамент закончился у печатающей головки'
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: 'Филамент закончился. Автопополнение выключено, поэтому CFS не сменит катушку сам. Загрузите филамент и продолжите печать.'
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: Филамент закончился. CFS знает, какие катушки подходят, но эти слоты пусты. Загрузите одну из них, затем продолжите печать.
+  Filament reload failed: Не удалось повторно подать филамент
   Filament runout: Окончание филамента
   Filament runout and motion detection sensors: Датчики окончания и движения филамента
   Filament saved: Филамент сохранён
@@ -1190,6 +1206,7 @@ translations:
   'Filter Fan: On': 'Вентилятор фильтра: Вкл'
   Fine: Точно
   Finish: Завершить
+  Finish or cancel the print before loading, unloading, or changing filament: Завершите или отмените печать перед загрузкой, выгрузкой или сменой филамента
   Finishing clean...: Завершение очистки...
   Finishing up...: Завершение...
   Firmware Restart: Перезапуск прошивки
@@ -1277,6 +1294,7 @@ translations:
   Heat bed before calibrating for accurate offset with thermal expansion.: Нагрейте
     стол перед калибровкой для точного смещения с учётом теплового расширения.
   Heat nozzle: Нагреть сопло
+  Heat the extruder to at least {}°C before loading filament: Перед загрузкой филамента нагрейте экструдер минимум до {}°C
   Heat to at least %d°C for filament operations: Нагрейте минимум до %d°C для операций с филаментом
   Heatbed Temperature: Температура стола
   Heated Bed: Подогреваемый стол
@@ -1445,10 +1463,13 @@ translations:
   Interface size. Applies after restart.: Размер интерфейса. Применяется после перезапуска.
   'Internal error: API not available': 'Внутренняя ошибка: API недоступен'
   'Internal error: no scan result': 'Внутренняя ошибка: нет результата сканирования'
+  Invalid number: Неверный номер
+  Invalid parameter: Неверный параметр
   Invalid port number: Неверный номер порта
   'Invalid sheet template index: {} (have {})': 'Недопустимый индекс шаблона листа:
     {} (имеется {})'
   Invalid status response from printer: Недопустимый ответ статуса от принтера
+  Invalid tool number: Неверный номер инструмента
   Issue description: Описание проблемы
   It can be un-archived in Spoolman's web UI.: Это можно восстановить из архива в веб-интерфейсе Spoolman.
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: Он зажат между датчиком хаба и его шестернёй. Откройте CFS, освободите хаб и повторите
@@ -1549,7 +1570,9 @@ translations:
   Load Filament: Загрузить филамент
   Load a new spool in this slot, or turn on auto-refill to switch to a matching one: Установите новую катушку в этот слот или включите автопополнение для переключения на подходящую
   Load complete: 'Загрузка завершена'
+  Load failed: Ошибка загрузки
   Load filament: 'Загрузка филамента'
+  Load filament first: Сначала загрузите филамент
   Load may still be running — response timed out: Загрузка может ещё выполняться —
     время ожидания истекло
   Load or unload filament.: Загружайте или выгружайте филамент.
@@ -1649,6 +1672,7 @@ translations:
   Manual Feed: 'Ручная подача'
   Manual Retract: 'Ручная ретракция'
   Manual feed and retract operations: Операции ручной подачи и ретракции
+  Manually clear the jam and retry the operation: Устраните затор вручную и повторите операцию
   Manually pull the filament back through the connector: Вытяните филамент вручную через разъём
   Map to closest colors with matching material: Подобрать ближайшие цвета с подходящим
     материалом
@@ -1804,9 +1828,11 @@ translations:
   No effects available: Нет доступных эффектов
   No events queued: Нет событий в очереди
   No fans detected: Вентиляторы не обнаружены
+  No filament: Нет филамента
   No filament environment sensors: Нет датчиков среды филамента
   No filament loaded to unload: Нет загруженного филамента для выгрузки
   No filament sensor detected: 'Датчик филамента не обнаружен'
+  No filament. Load filament and retry.: Нет филамента. Загрузите филамент и повторите попытку.
   No filaments found: Филаменты не найдены
   No file loaded: Файл не загружен
   No file to reprint: Нет файла для повторной печати
@@ -1820,6 +1846,7 @@ translations:
   No media installed: Носитель не установлен
   No mesh data: Нет данных сетки
   No mesh loaded: Сетка не загружена
+  No multi-filament system detected: Мультифиламентная система не обнаружена
   No network. Scan QR code to report on your phone.: Нет сети. Отсканируйте QR-код,
     чтобы отправить отчёт с телефона.
   No networks found: Сети не найдены
@@ -1873,6 +1900,7 @@ translations:
   Not yet calibrated: Ещё не откалибровано
   Notes: Заметки
   Notes (optional): Заметки (необязательно)
+  Nothing loaded: Ничего не загружено
   Nothing to remap: Нечего переназначать
   Notification: Уведомление
   Notifications: Уведомления
@@ -1927,6 +1955,7 @@ translations:
   Open motion controls for jogging: Управление перемещением осей
   Open the CFS unit and remove the broken filament from the slot: Откройте блок CFS и извлеките сломанный филамент из слота
   Operation already in progress: Операция уже выполняется
+  Operation timed out: Время ожидания операции истекло
   Operations: Операции
   Optimize Your Printing: Оптимизируйте вашу печать
   Optimizes temperature control for stable, consistent heating.: Оптимизирует контроль
@@ -2063,6 +2092,7 @@ translations:
   Preheat cancelled: Предварительный нагрев отменён
   'Preheat: all {} tools + bed set': 'Преднагрев: все {} инструменты + стол заданы'
   'Preheat: {} + bed set': 'Преднагрев: {} + стол заданы'
+  Preload failed: Ошибка предварительной загрузки
   Prepared: Готово
   Preparing: Подготовка
   Preparing Print: Подготовка печати
@@ -2159,6 +2189,7 @@ translations:
   Printer is busy - {} stays in the queue: 'Принтер занят – {} остаётся в очереди'
   Printer is not paired — pair it first: Принтер не сопряжён — сначала выполните сопряжение
   Printer name: Название принтера
+  Printer not connected: Принтер не подключен
   Printer not ready: Принтер не готов
   Printer ready: Принтер готов
   Printer type mismatch: Несоответствие типа принтера
@@ -2359,6 +2390,7 @@ translations:
   Restart Now: Перезапустить сейчас
   Restart Required: Требуется перезапуск
   'Restart failed: not connected': 'Перезапуск не удался: нет подключения'
+  Restart from the beginning to recover: Чтобы восстановить печать, запустите её с начала
   Restart the display application: Перезапустить приложение дисплея
   Restart the printer or screen: Перезапустить принтер или экран
   Restarting HelixScreen...: Перезапуск HelixScreen...
@@ -2529,6 +2561,9 @@ translations:
   Select Sensors: Выбрать датчики
   Select Spool: Выбрать катушку
   Select a filament slot to load: Выберите слот филамента для загрузки
+  Select a valid number: Выберите корректный номер
+  Select a valid number (1-{}): Выберите корректный номер (1-{})
+  Select a valid tool: Выберите корректный инструмент
   Select fan: Выберите вентилятор
   Select gate: 'Выбор слота'
   Select macro for first button: Выберите макрос для первой кнопки
@@ -2922,6 +2957,7 @@ translations:
   ? This device has very little RAM. Resonance calibration is memory-intensive and may cause a "Timer Too Close" error. Continue anyway?
   : На этом устройстве очень мало ОЗУ. Калибровка резонансов требует много памяти и может вызвать ошибку "Timer Too Close". Всё равно продолжить?
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: Это не совпадает с привязанной катушкой Spoolman. Добавить как новую катушку или обновить привязанную?
+  This feature requires different hardware or configuration: Для этой функции требуется другое оборудование или конфигурация
   This filament system does not report buffer or flow data.: Эта система филамента не сообщает данные буфера и потока.
   This file was sliced for {} but {} is loaded.: Файл нарезан для {}, но загружен
     {}.
@@ -3037,6 +3073,7 @@ translations:
   Trigger: Триггер
   'Troubleshooting:': 'Устранение неполадок:'
   Try adjusting your search or filters: Попробуйте изменить поиск или фильтры
+  Try the operation again. If it persists, check for mechanical issues.: Повторите операцию. Если проблема не исчезает, проверьте механические неисправности.
   Tune: Настройка
   Tuning tower enabled - start a print to test: Башня настройки включена — начните
     печать для теста
@@ -3086,6 +3123,7 @@ translations:
   Unload: Выгрузить
   Unload Distance: 'Расстояние выгрузки'
   Unload Filament: Выгрузить филамент
+  Unload failed: Ошибка выгрузки
   Unload filament: 'Выгрузка филамента'
   Unload macro not configured: Макрос выгрузки не настроен
   Unload may still be running — response timed out: Выгрузка может ещё выполняться
@@ -3163,6 +3201,8 @@ translations:
   WPA/WPA2: 'WPA/WPA2'
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: Дождитесь завершения текущей операции с филаментом
+  Wait for the current operation to complete: Дождитесь завершения текущей операции
+  Wait for the current operation to complete or cancel it first: Дождитесь завершения текущей операции или сначала отмените её
   Wait until the print finishes: Дождитесь завершения печати
   Waiting for Moonraker...: Ожидание Moonraker...
   'Waiting for %s to finish. One heater at a time.': ''

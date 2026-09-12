@@ -647,7 +647,9 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker channel_error during an active loa
     CHECK(backend.get_system_info().action == AmsAction::ERROR);
     // Raw firmware token mapped to a friendly message via lane_label(), which
     // spells Snapmaker's positions "Feeder N" rather than the firmware's "lane".
-    CHECK(backend.get_system_info().operation_detail.find("No filament in Feeder 2") !=
+    // The position is a bare prefix before the colon so the translated frame
+    // never has to agree with the noun.
+    CHECK(backend.get_system_info().operation_detail.find("Feeder 2: No filament") !=
           std::string::npos);
 }
 

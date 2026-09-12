@@ -122,6 +122,7 @@ translations:
   ALL DEVICES: すべてのデバイス
   AMS: AMS
   'AMS Active: ': 'AMS 有効: '
+  AMS is busy: AMS はビジー状態です
   API not available: APIが利用できません
   APPEARANCE: 外観
   AUTO FANS: 自動ファン
@@ -405,6 +406,7 @@ translations:
   Cam: カメラ
   Camera: カメラ
   Can't connect — try forgetting and re-pairing the printer: 接続できません — プリンターの登録を解除して再ペアリングしてください
+  Can't move filament while the print is paused: 印刷の一時停止中はフィラメントを動かせません
   Can't read filament RFID tag: フィラメントの RFID タグを読み取れません
   Cancel: キャンセル
   Cancel Escalation: エスカレーションをキャンセル
@@ -417,10 +419,12 @@ translations:
   'Cannot modify G-code: no temp directory available': 'G-code を変更できません: 一時ディレクトリがありません'
   'Cannot modify G-code: scan result not available': 'G-code を変更できません: スキャン結果がありません'
   'Cannot modify G-code: {}. Printing original file.': 'G-code を変更できません: {}。元のファイルで印刷します。'
+  Cannot perform this action now: 現在この操作は実行できません
   'Cannot remap G-code: no temp directory available': 'G-codeをリマップできません: 一時ディレクトリが利用できません'
   'Cannot remap: internal error': 'リマップできません: 内部エラー'
   'Cannot reprint: not connected to printer': '再印刷できません: プリンター未接続'
   Cannot restart — no filename: 再起動できません — ファイル名がありません
+  Cannot run filament operation while printing: 印刷中はフィラメント操作を実行できません
   'Cannot start print: internal error': '印刷を開始できません: 内部エラー'
   'Cannot start print: not connected to printer': '印刷を開始できません: プリンター未接続'
   'Cannot start print: printer is {}': '印刷を開始できません: プリンターは {} 状態です'
@@ -459,6 +463,8 @@ translations:
   Changes are temporary and reset on printer reboot: 変更は一時的で、プリンター再起動時にリセットされます
   Changes can be reversed anytime using the Macro Viewer.: 変更はいつでも Macro Viewer を使って元に戻せます。
   Check Again: 再確認
+  Check Klipper console for details: 詳細は Klipper コンソールを確認してください
+  Check extruder temperature and try again. Manual removal may be required.: エクストルーダーの温度を確認してもう一度お試しください。手動での取り出しが必要な場合があります。
   Check filament: フィラメントを確認
   Check for Updates: 更新を確認
   Check slot: スロットを確認
@@ -467,12 +473,14 @@ translations:
   Check slots failed: スロットの確認に失敗しました
   Check that only one filament path is active: フィラメント経路が 1 つだけ有効か確認してください
   Check that the cutter mechanism is properly installed: カッター機構が正しく取り付けられているか確認してください
+  Check that the printer is powered on and connected to the network: プリンターの電源が入っていて、ネットワークに接続されているか確認してください
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: ドラッグチェーンに沿った PTFE チューブの折れと、エクストルーダーセンサー入口の曲がりを確認してください
   Check the RS-485 cable between printer and CFS: プリンターと CFS 間の RS-485 ケーブルを確認してください
   Check the buffer unit on the back of the printer: プリンター背面のバッファーユニットを確認してください
   Check the filament path and try again.: フィラメント経路を確認して、もう一度お試しください。
   ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
   : スロットからハブまでの経路に絡まりや抵抗がないか確認してください。スロットが問題なく送り出せる場合は、ハブセンサーまたは送り出しモーターの故障が考えられます
+  Check the provided value and try again: 入力した値を確認してもう一度お試しください
   Check the spool and the filament path for a jam, then retry: スプールとフィラメント経路の詰まりを確認してから再試行してください
   Check your heater's rating (typically 40-60W for hotends): ヒーターの定格を確認してください（ホットエンドは通常40〜60W）
   Checking: 確認中
@@ -533,6 +541,7 @@ translations:
   Color: 色
   Color Mismatch: 色の不一致
   Color Sensors: カラーセンサー
+  Command failed: コマンドに失敗しました
   Communication Test: '通信テスト'
   Compact: コンパクト
   Compare: 比較
@@ -849,6 +858,7 @@ translations:
   Enhanced {} operations in PRINT_START: PRINT_START 内の {} 操作を強化しました
   Enhancement Complete!: 改善完了！
   Enhancement Failed: 改善失敗
+  Ensure Happy Hare or AFC is installed and configured: Happy Hare または AFC がインストールされ、設定されていることを確認してください
   Enter Current PIN: 現在の PIN を入力
   Enter G-code command...: G-code コマンドを入力...
   Enter New PIN: 新しい PIN を入力
@@ -925,6 +935,7 @@ translations:
   Extruder heats automatically based on material: 素材に基づいてエクストルーダーが自動加熱
   Extruder motor calibration failed: エクストルーダーモーターの校正に失敗しました
   Extruder to Nozzle: 'エクストルーダーからノズルまで'
+  Extruder too cold: エクストルーダーが冷えています
   Extruding prime line...: プライムラインを押し出し中...
   FAILED: 失敗
   FILAMENTS: フィラメント
@@ -1018,6 +1029,7 @@ translations:
   Failed to toggle %s: '%s の切り替えに失敗しました'
   'Failed to toggle timelapse: {}': 'タイムラプスの切替に失敗しました: {}'
   'Failed to turn off heaters: {}': 'ヒーターのオフに失敗しました: {}'
+  Failed to unload filament: フィラメントを排出できませんでした
   'Failed to unload: {}': 'アンロードに失敗しました: {}'
   ? "Failed to update configuration.\nCheck printer connection."
   : "設定の更新に失敗しました。\nプリンター接続を確認してください。"
@@ -1035,6 +1047,7 @@ translations:
   FanSelect: ファンを選択
   Fans: ファン
   Farther: 遠く
+  Feature not available: この機能は利用できません
   'Features: ': '機能: '
   Feed Assist: '送りアシスト'
   Feed assist and debug tools: 送りアシストとデバッグツール
@@ -1042,6 +1055,7 @@ translations:
   Feed filament: フィラメントを送る
   Feed filament directly to extruder: フィラメントをエクストルーダーに直接供給
   Feed filament from current slot: '現在のスロットからフィラメントを送る'
+  Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: フィラメントを手でセンサー先まで挿入して「再開」を押してください。または印刷をキャンセルして「装填」「排出」を使用してください
   Feeder: フィーダー
   Feeders: フィーダー
   Feeding filament forward: フィラメントを前方に送り出し中
@@ -1078,6 +1092,7 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : アンロード後もフィラメントがノズルに残っています。カットまたは引き戻しが完了していない可能性があります。別のスプールを装填する前にツールヘッドを空にしてください。
   Filament is still present after the cut — the blade may be dull or misaligned: 切断後もフィラメントが残っています。刃が摩耗しているか、位置がずれている可能性があります
+  Filament jam detected: フィラメントの詰まりを検出しました
   Filament jammed at the extruder gear: エクストルーダーギアでフィラメントが詰まりました
   'Filament load failed: {}': 'フィラメントの装填に失敗しました: {}'
   Filament never reached the CFS hub sensor: フィラメントが CFS ハブセンサーに到達しませんでした
@@ -1090,6 +1105,7 @@ translations:
   Filament ran out at the toolhead: 'ツールヘッドでフィラメントが切れました'
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: 'フィラメントが切れました。自動補充がオフのため、CFSは自動でスプールを切り替えません。フィラメントを装填してから再開してください。'
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: フィラメントが切れました。CFSは適合するスプールを認識していますが、該当するスロットは空です。いずれかを装填してから再開してください。
+  Filament reload failed: フィラメントの再装填に失敗しました
   Filament runout: フィラメント切れ
   Filament runout and motion detection sensors: フィラメント切れとモーション検出センサー
   Filament saved: フィラメントを保存しました
@@ -1111,6 +1127,7 @@ translations:
   'Filter Fan: On': 'フィルターファン: オン'
   Fine: 微動
   Finish: 完了
+  Finish or cancel the print before loading, unloading, or changing filament: フィラメントの装填・排出・交換の前に、印刷を完了またはキャンセルしてください
   Finishing clean...: 清掃の仕上げ中...
   Finishing up...: 完了中...
   Firmware Restart: ファームウェア再起動
@@ -1194,6 +1211,7 @@ translations:
   Heat Soaking...: ヒートソーク中...
   Heat bed before calibrating for accurate offset with thermal expansion.: 熱膨張を考慮した正確なオフセットのため、キャリブレーション前にベッドを加熱してください。
   Heat nozzle: ノズルを加熱
+  Heat the extruder to at least {}°C before loading filament: フィラメントを装填する前に、エクストルーダーを最低 {}°C まで加熱してください
   Heat to at least %d°C for filament operations: フィラメント操作には少なくとも %d°C まで加熱してください
   Heatbed Temperature: ヒートベッド温度
   Heated Bed: 加熱ベッド
@@ -1345,9 +1363,12 @@ translations:
   Interface size. Applies after restart.: インターフェースの大きさ。再起動後に適用されます。
   'Internal error: API not available': '内部エラー: API を利用できません'
   'Internal error: no scan result': '内部エラー: スキャン結果がありません'
+  Invalid number: 無効な番号
+  Invalid parameter: 無効なパラメータ
   Invalid port number: 無効なポート番号
   'Invalid sheet template index: {} (have {})': '無効なシートテンプレートインデックス: {} (現在 {})'
   Invalid status response from printer: プリンターからの無効なステータス応答
+  Invalid tool number: 無効なツール番号
   Issue description: 問題の説明
   It can be un-archived in Spoolman's web UI.: Spoolman の Web 画面でアーカイブを解除できます。
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: ハブセンサーとハブギアの間で詰まっています。CFS を開けてハブを取り除いてから再試行してください
@@ -1439,7 +1460,9 @@ translations:
   Load Filament: フィラメントを装填
   Load a new spool in this slot, or turn on auto-refill to switch to a matching one: このスロットに新しいスプールをセットするか、自動補充を有効にして一致するスプールに切り替えてください
   Load complete: 'ロード完了'
+  Load failed: 装填に失敗しました
   Load filament: 'フィラメントをロード'
+  Load filament first: 先にフィラメントを装填してください
   Load may still be running — response timed out: 装填がまだ実行中の可能性があります — 応答タイムアウト
   Load or unload filament.: フィラメントを装填または排出します。
   Load the required filaments or start anyway?: 必要なフィラメントを装填しますか？それともこのまま開始しますか？
@@ -1533,6 +1556,7 @@ translations:
   Manual Feed: '手動送り'
   Manual Retract: '手動引き戻し'
   Manual feed and retract operations: 手動送り・引き戻し操作
+  Manually clear the jam and retry the operation: 詰まりを手動で取り除いてから、もう一度お試しください
   Manually pull the filament back through the connector: コネクターからフィラメントを手で引き戻してください
   Map to closest colors with matching material: 一致する素材で最も近い色に割り当て
   Marginal: やや不良
@@ -1681,9 +1705,11 @@ translations:
   No effects available: 利用可能なエフェクトがありません
   No events queued: キューにイベントはありません
   No fans detected: ファンが検出されませんでした
+  No filament: フィラメントなし
   No filament environment sensors: フィラメント環境センサーがありません
   No filament loaded to unload: 取出すフィラメントが装填されていません
   No filament sensor detected: 'フィラメントセンサーが検出されません'
+  No filament. Load filament and retry.: フィラメントがありません。フィラメントを装填して再試行してください。
   No filaments found: フィラメントが見つかりません
   No file loaded: ファイルが読み込まれていません
   No file to reprint: 再印刷するファイルがありません
@@ -1697,6 +1723,7 @@ translations:
   No media installed: メディアが挿入されていません
   No mesh data: メッシュデータなし
   No mesh loaded: メッシュが読み込まれていません
+  No multi-filament system detected: マルチフィラメントシステムが検出されません
   No network. Scan QR code to report on your phone.: ネットワークなし。QR コードをスキャンしてスマホから報告してください。
   No networks found: ネットワークが見つかりません
   No notifications: 通知なし
@@ -1748,6 +1775,7 @@ translations:
   Not yet calibrated: 未キャリブレーション
   Notes: メモ
   Notes (optional): メモ（オプション）
+  Nothing loaded: 装填されていません
   Nothing to remap: リマップするものがありません
   Notification: 通知
   Notifications: 通知
@@ -1802,6 +1830,7 @@ translations:
   Open motion controls for jogging: ジョグ操作を開く
   Open the CFS unit and remove the broken filament from the slot: CFS ユニットを開け、スロットから折れたフィラメントを取り除いてください
   Operation already in progress: 操作がすでに進行中です
+  Operation timed out: 操作がタイムアウトしました
   Operations: 操作
   Optimize Your Printing: 印刷を最適化
   Optimizes temperature control for stable, consistent heating.: 安定した一貫性のある加熱のために温度制御を最適化します。
@@ -1931,6 +1960,7 @@ translations:
   Preheat cancelled: 予熱がキャンセルされました
   'Preheat: all {} tools + bed set': '予熱: 全 {} ツール + ベッド設定済み'
   'Preheat: {} + bed set': '予熱: {} + ベッド設定済み'
+  Preload failed: 事前装填に失敗しました
   Prepared: 準備済み
   Preparing: 準備中
   Preparing Print: 印刷準備中
@@ -2022,6 +2052,7 @@ translations:
   Printer is busy - {} stays in the queue: 'プリンターは使用中です – {} はキューに残ります'
   Printer is not paired — pair it first: プリンターがペアリングされていません — 先にペアリングしてください
   Printer name: プリンター名
+  Printer not connected: プリンターが接続されていません
   Printer not ready: プリンターの準備ができていません
   Printer ready: プリンター準備完了
   Printer type mismatch: プリンタータイプの不一致
@@ -2210,6 +2241,7 @@ translations:
   Restart Now: 今すぐ再起動
   Restart Required: 再起動が必要です
   'Restart failed: not connected': '再起動に失敗: 未接続'
+  Restart from the beginning to recover: 復旧するには最初からやり直してください
   Restart the display application: ディスプレイアプリケーションを再起動
   Restart the printer or screen: プリンターまたは画面を再起動します
   Restarting HelixScreen...: HelixScreenを再起動中...
@@ -2365,6 +2397,9 @@ translations:
   Select Sensors: センサーを選択
   Select Spool: スプールを選択
   Select a filament slot to load: 装填するフィラメントスロットを選択
+  Select a valid number: 有効な番号を選択してください
+  Select a valid number (1-{}): 有効な番号を選択してください（1-{}）
+  Select a valid tool: 有効なツールを選択してください
   Select fan: ファンを選択
   Select gate: 'スロットを選択'
   Select macro for first button: 最初のボタンのマクロを選択
@@ -2718,6 +2753,7 @@ translations:
   ? This device has very little RAM. Resonance calibration is memory-intensive and may cause a "Timer Too Close" error. Continue anyway?
   : このデバイスの RAM は非常に少ないです。共振キャリブレーションはメモリを大量に消費し、"Timer Too Close" エラーを引き起こす可能性があります。それでも続行しますか？
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: リンクされた Spoolman のスプールと一致しません。新しいスプールとして追加しますか、それともリンク先を一致するよう更新しますか？
+  This feature requires different hardware or configuration: この機能には別のハードウェアまたは設定が必要です
   This filament system does not report buffer or flow data.: このフィラメントシステムはバッファーやフローのデータを報告しません。
   This file was sliced for {} but {} is loaded.: このファイルは {} 用にスライスされていますが、{} がロードされています。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: このファイルは {} 用にスライスされていますが、{} がロードされています。装填中のスプールが必要とするより遅く高温で印刷されます。
@@ -2821,6 +2857,7 @@ translations:
   Trigger: トリガー
   'Troubleshooting:': 'トラブルシューティング:'
   Try adjusting your search or filters: 検索やフィルターを調整してみてください
+  Try the operation again. If it persists, check for mechanical issues.: もう一度お試しください。解決しない場合は機械的な問題がないか確認してください。
   Tune: チューニング
   Tuning tower enabled - start a print to test: チューニングタワー有効 - 印刷を開始してテストしてください
   Turbo: ターボ
@@ -2866,6 +2903,7 @@ translations:
   Unload: 排出
   Unload Distance: 'アンロード距離'
   Unload Filament: フィラメントを排出
+  Unload failed: 排出に失敗しました
   Unload filament: 'フィラメントをアンロード'
   Unload macro not configured: アンロードマクロが未設定です
   Unload may still be running — response timed out: 排出がまだ実行中の可能性があります — 応答タイムアウト
@@ -2941,6 +2979,8 @@ translations:
   WPA/WPA2: 'WPA/WPA2'
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: 現在のフィラメント操作が完了するまでお待ちください
+  Wait for the current operation to complete: 現在の操作が完了するまでお待ちください
+  Wait for the current operation to complete or cancel it first: 現在の操作が完了するまで待つか、先にキャンセルしてください
   Wait until the print finishes: 印刷が完了するまでお待ちください
   Waiting for Moonraker...: Moonraker を待機中...
   'Waiting for %s to finish. One heater at a time.': ''
