@@ -2128,7 +2128,7 @@ AmsError AmsBackendAd5xIfs::do_select_slot(int slot_index) {
                         "This firmware can only switch slots by loading them");
     }
 
-    int port = slot_index + 1;
+    int port = slot_index + 1; // DISPLAY_NUMBERING_OK: 1-based SET_EXTRUDER_SLOT gcode parameter
     spdlog::info("{} Selecting port {}", backend_log_tag(), port);
     return execute_gcode("SET_EXTRUDER_SLOT SLOT=" + std::to_string(port));
 }
@@ -2244,7 +2244,7 @@ AmsError AmsBackendAd5xIfs::eject_lane(int slot_index) {
         }
     }
 
-    int port = slot_index + 1;
+    int port = slot_index + 1; // DISPLAY_NUMBERING_OK: 1-based SLOT= gcode parameter (IFS_EJECT)
     const std::string port_str = std::to_string(port);
     AmsError err39;
     if (ifs_module_live_.load()) {
@@ -6462,7 +6462,7 @@ std::string AmsBackendAd5xIfs::build_runout_detail_locked() const {
         const int backup = find_backup_slot_locked(runout_slot_);
         detail += " ";
         if (backup >= 0) {
-            detail += fmt::format(lv_tr("Slot {} matches."), backup + 1);
+            detail += fmt::format(lv_tr("Slot {} matches."), helix::ui::lane_number(backup));
         } else {
             detail += lv_tr("No slot currently matches.");
         }

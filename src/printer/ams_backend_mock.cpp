@@ -3392,7 +3392,8 @@ void AmsBackendMock::execute_tool_change_operation(int target_slot,
     // Phase 2: SELECTING (only in realistic mode)
     if (realistic_mode_) {
         spdlog::debug("[AmsBackendMock] Tool change phase: SELECTING slot {}", target_slot);
-        set_action(AmsAction::SELECTING, "Selecting slot " + std::to_string(target_slot + 1));
+        set_action(AmsAction::SELECTING,
+                   "Selecting slot " + std::to_string(helix::ui::lane_number(target_slot)));
         emit_event(EVENT_STATE_CHANGED);
         if (!interruptible_sleep(get_effective_delay_ms(SELECTING_BASE_MS, SELECTING_VARIANCE)))
             return;
@@ -3401,7 +3402,8 @@ void AmsBackendMock::execute_tool_change_operation(int target_slot,
     } else {
         // Non-realistic: finalize_unload_state set action to IDLE, but we need LOADING
         // for the load phase so that UI elements (slot pulse, step progress) stay active
-        set_action(AmsAction::LOADING, "Loading slot " + std::to_string(target_slot + 1));
+        set_action(AmsAction::LOADING,
+                   "Loading slot " + std::to_string(helix::ui::lane_number(target_slot)));
         emit_event(EVENT_STATE_CHANGED);
     }
 
