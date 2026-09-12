@@ -1039,7 +1039,15 @@ int Application::run(int argc, char** argv) {
                 rc.socket_path = helix::resolve_socket_path(m_args.remote_socket);
             }
             if (!helix::RemoteControlServer::instance().start(rc)) {
-                spdlog::warn("[Application] Remote control server failed to start (non-fatal)");
+                // Name the target and say what the user will see instead. A bare
+                // "failed to start" sends people back to the flag they already
+                // set, because `ctl` reports only that it found no instance.
+                const std::string target = rc.transport == helix::RemoteConfig::Transport::Http
+                                               ? rc.http_bind + ":" + std::to_string(rc.http_port)
+                                               : rc.socket_path;
+                spdlog::error("[Application] Remote control was requested but did not start on "
+                              "{}; `ctl` will report that no instance is running",
+                              target);
             }
         }
 #endif
