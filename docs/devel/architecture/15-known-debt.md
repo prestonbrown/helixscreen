@@ -136,7 +136,9 @@ The direction is proven: `format_temperature_pair()` ([`src/ui/ui_temperature_ut
 
 This one is half paid. The model that carries an origin exists - `Observation`,
 `LaneSources` and `resolve()`, described in [`07-filament-ams.md`](07-filament-ams.md) § "Lane identity by
-source" - and nothing produces or consumes it. Every surface that reads a lane still works
+source" - and one producer feeds it: a human slot edit is filed as a `LocalUser` declaration
+through `helix::ams::commit_slot_edit`. No backend produces an `Observation`, and nothing
+consumes one. Every surface that reads a lane still works
 from firmware-reported `SlotInfo` merged with a persisted `FilamentSlotOverride`, where a
 field's origin is re-derived from the value it holds: `!= 0`, `!empty()`, `>= 0.0f`. Those
 tests answer "is there a value here", and the code asks them where it means "did a human

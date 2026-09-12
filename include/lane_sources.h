@@ -12,8 +12,8 @@ struct LaneSources;
 
 /// The record slot @p source occupies on @p lane. The one mapping from
 /// ObservationSource to its LaneSources member; apply() and drop() both route
-/// through it, and every ObservationSource has a case above, so a missing one
-/// is a -Wswitch warning rather than a silent gap.
+/// through it, and the definition below gives every ObservationSource a case,
+/// so a missing one is a -Wswitch warning rather than a silent gap.
 [[nodiscard]] const std::optional<Observation>& record_for(const LaneSources& lane,
                                                            ObservationSource source);
 [[nodiscard]] std::optional<Observation>& record_for(LaneSources& lane, ObservationSource source);
