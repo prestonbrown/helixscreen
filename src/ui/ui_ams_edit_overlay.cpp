@@ -809,7 +809,10 @@ void AmsEditOverlay::enter_spool_edit() {
     // overwrite detail_original_/detail_working_ wholesale from the Spoolman
     // record below, so this seed is untracked-only.)
     detail_original_.spool_weight_g = working_info_.total_weight_g;
-    if (working_info_.color_rgb != 0) {
+    // Only the grey "no colour reading" sentinel withholds a seed; black is a
+    // real, dispatchable colour and must reach the Spoolman patch baseline
+    // (prestonbrown/helixscreen#1608).
+    if (working_info_.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
         char hex_buf[8];
         snprintf(hex_buf, sizeof(hex_buf), "#%06X", working_info_.color_rgb);
         detail_original_.color_hex = hex_buf;
@@ -1628,11 +1631,10 @@ void AmsEditOverlay::update_sync_button_state() {
 
 void AmsEditOverlay::open_color_view() {
     // Seed custom sub-state from the spool-edit view's pending color (the only
-    // entry point).
+    // entry point). Black seeds as-is — it is a real colour, and a coerced
+    // grey here is one unnoticed Apply away from overwriting it
+    // (prestonbrown/helixscreen#1608).
     custom_color_ = details_color_;
-    if (custom_color_ == 0) {
-        custom_color_ = 0x808080;
-    }
     populate_color_view();
     set_view(VIEW_COLOR);
     spdlog::debug("[AmsEditOverlay] Color view opened (returns to spool-edit)");
