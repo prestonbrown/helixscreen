@@ -8,8 +8,8 @@
  *
  * decide_nozzle_layout() is deliberately LVGL-free, so these tests need no
  * display, font subsystem, or fixture. They lock in the column-count and
- * label-form behavior so a regression (e.g. the old "long label when most
- * cramped" bug) fails the build.
+ * label-form behavior: which spelling a given column width gets, and that a
+ * column too narrow for either never takes the wider one.
  *
  * Run with: ./build/bin/helix-tests "[nozzle][layout]"
  */
@@ -103,7 +103,8 @@ TEST_CASE("Zero rows clamps to a single column", "[nozzle][layout]") {
 
 // --- Exact boundaries, derived from decide_nozzle_layout()'s own arithmetic
 // (columns = avail_px >= 2*short_row_px + gap_px; use_long_label = col_w >=
-// long_row_px), not by running the function and recording what it printed.
+// long_row_px or long_row_px <= short_row_px), not by running the function and
+// recording what it printed.
 
 TEST_CASE("Column split at the exact 2*short+gap boundary picks two columns", "[nozzle][layout]") {
     // threshold = 2*short_row_px(90) + gap_px(12) = 192, avail_px == threshold
@@ -134,4 +135,36 @@ TEST_CASE("One pixel below the long-label boundary uses the short label", "[nozz
                                                   /*row_count=*/4);
     REQUIRE(d.columns == 1);
     REQUIRE(d.use_long_label == false);
+}
+
+// --- The compact spelling is not narrower in every locale: de renders the
+// nozzle name "Düse 1" and the position label "Werkzeug 1".
+
+TEST_CASE("A compact form wider than the long form is never chosen", "[nozzle][layout]") {
+    // Single column (avail_px(120) < 2*short(200) + gap(12)); col_w(120) fits
+    // neither spelling, and the compact one is the wider of the two.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/120, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/200,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    REQUIRE(d.use_long_label == true);
+}
+
+TEST_CASE("Equal-width forms keep the long label when neither fits", "[nozzle][layout]") {
+    // The <= in the width comparison: identical widths are not a reason to swap.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/120, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/150,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    REQUIRE(d.use_long_label == true);
+}
+
+TEST_CASE("A wider compact form does not pin two columns to the long label", "[nozzle][layout]") {
+    // 2*short(100) + gap(12) = 212 <= avail(400) -> two columns of 194px, which
+    // fits the 150px long form on its own merits.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/400, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/100,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 2);
+    REQUIRE(d.use_long_label == true);
 }
