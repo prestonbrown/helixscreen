@@ -57,6 +57,13 @@
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
             <text_body style_pad_bottom="#space_xs" text="Nozzle Max (°C)" translation_tag="Nozzle Max (°C)"/>
             <text_input name="edit_nozzle_max" width="120" keyboard_hint="numeric" max_length="4"/>
+            <!-- Effective cap hint (governs both nozzle inputs; rides the Max
+                 column): subject is 0 (hidden) unless the printer's ceiling is
+                 tighter than the input's own maximum -->
+            <text_small name="edit_nozzle_cap_hint"
+                        bind_text="material_nozzle_cap_text" style_text_color="#text_muted" style_pad_top="#space_xs">
+              <bind_flag_if_eq subject="material_nozzle_cap" flag="hidden" ref_value="0"/>
+            </text_small>
           </lv_obj>
         </lv_obj>
         <!-- Bed Temp / Chamber Temp (second row) -->
@@ -66,6 +73,12 @@
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
             <text_body style_pad_bottom="#space_xs" text="Bed (°C)" translation_tag="Bed (°C)"/>
             <text_input name="edit_bed_temp" width="120" keyboard_hint="numeric" max_length="4"/>
+            <!-- Effective cap hint: subject is 0 (hidden) unless the printer's
+                 ceiling is tighter than the input's own maximum -->
+            <text_small name="edit_bed_cap_hint"
+                        bind_text="material_bed_cap_text" style_text_color="#text_muted" style_pad_top="#space_xs">
+              <bind_flag_if_eq subject="material_bed_cap" flag="hidden" ref_value="0"/>
+            </text_small>
           </lv_obj>
           <!-- Chamber Temp column (only when the printer has a chamber heater) -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">

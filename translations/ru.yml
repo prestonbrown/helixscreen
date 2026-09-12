@@ -299,7 +299,7 @@ translations:
   Bed mesh operation timed out: Сетка стола — время ожидания истекло
   Bed mesh...: Сетка стола...
   Bed target set to {}°C: Целевая температура стола {}°C
-  Bed temp must be 0-200°C: Температура стола должна быть 0-200°C
+  Bed temp must be 0-%d°C: Температура стола должна быть 0-%d°C
   Bed warming timed out: Нагрев стола — время ожидания истекло
   Belt A: Ремень A
   Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: Ремень A (спереди справа) туже на %.0f Гц. Подтяните ремень B спереди слева или ослабьте ремень A.
@@ -1925,7 +1925,7 @@ translations:
   Nozzle did not reach {}°C — {} cancelled: Сопло не нагрелось до {}°C — «{}» отменено
   Nozzle min cannot exceed max: Минимум сопла не может превышать максимум
   Nozzle target set to {}°C: Целевая температура сопла {}°C
-  Nozzle temp must be 100-500°C: Температура сопла должна быть 100-500°C
+  Nozzle temp must be 100-%d°C: Температура сопла должна быть 100-%d°C
   Nozzle, bed, and chamber in one widget: Сопло, стол и камера в одном виджете
   'Nozzle:': 'Сопло:'
   OD: OD
@@ -2178,7 +2178,9 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): Принтер
     принял задание, но не печатает — проверьте крышку, бумагу и тип этикеток (статус
     прошивки=0x{:02X} ошибка=0x{:02X})
+  Printer caps bed at %d°C: Стол принтера ограничен %d°C
   Printer caps chamber at %d°C: Камера принтера ограничена %d°C
+  Printer caps nozzle at %d°C: Сопло принтера ограничено %d°C
   Printer connection unavailable: Подключение к принтеру недоступно
   Printer database format error: Ошибка формата базы данных принтеров
   Printer database is corrupt: База данных принтеров повреждена

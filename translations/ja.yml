@@ -278,7 +278,7 @@ translations:
   Bed mesh operation timed out: ベッドメッシュ操作がタイムアウトしました
   Bed mesh...: ベッドメッシュ...
   Bed target set to {}°C: ベッド目標温度を {}°C に設定しました
-  Bed temp must be 0-200°C: ベッド温度は 0〜200°C にしてください
+  Bed temp must be 0-%d°C: ベッド温度は 0〜%d°C にしてください
   Bed warming timed out: ベッド加熱がタイムアウトしました
   Belt A: ベルトA
   Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: ベルトA（フロント右）が %.0f Hz 張りすぎています。フロント左のベルトBを張るか、ベルトAを緩めてください。
@@ -1800,7 +1800,7 @@ translations:
   Nozzle did not reach {}°C — {} cancelled: ノズルが{}°Cに達しませんでした — {}を中止しました
   Nozzle min cannot exceed max: ノズル温度の最小値は最大値を超えられません
   Nozzle target set to {}°C: ノズル目標温度を {}°C に設定しました
-  Nozzle temp must be 100-500°C: ノズル温度は 100〜500°C にしてください
+  Nozzle temp must be 100-%d°C: ノズル温度は 100〜%d°C にしてください
   Nozzle, bed, and chamber in one widget: ノズル、ベッド、チャンバーをまとめて表示
   'Nozzle:': 'ノズル:'
   OD: OD
@@ -2042,7 +2042,9 @@ translations:
   Printer Type: プリンタータイプ
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): プリンターはジョブを受け付けましたが印刷していません
     — カバー、用紙、ラベルの種類を確認してください (firmware status=0x{:02X} error=0x{:02X})
+  Printer caps bed at %d°C: プリンターのベッド上限は %d°C です
   Printer caps chamber at %d°C: プリンターのチャンバー上限は %d°C です
+  Printer caps nozzle at %d°C: プリンターのノズル上限は %d°C です
   Printer connection unavailable: プリンターとの接続が利用できません
   Printer database format error: プリンターデータベースの形式エラー
   Printer database is corrupt: プリンターデータベースが破損しています

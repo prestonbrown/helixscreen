@@ -309,7 +309,7 @@ translations:
   Bed mesh operation timed out: Maillage du plateau — délai dépassé
   Bed mesh...: Maillage du plateau...
   Bed target set to {}°C: Cible plateau réglée à {}°C
-  Bed temp must be 0-200°C: La température du plateau doit être entre 0 et 200°C
+  Bed temp must be 0-%d°C: La température du plateau doit être entre 0 et %d°C
   Bed warming timed out: Préchauffage du plateau — délai dépassé
   Belt A: Courroie A
   Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: La courroie A (avant droite) est plus tendue de %.0f Hz. Tendez la courroie B, à l'avant gauche, ou détendez la courroie A.
@@ -1962,7 +1962,7 @@ translations:
   Nozzle did not reach {}°C — {} cancelled: La buse n'a pas atteint {}°C — {} annulé
   Nozzle min cannot exceed max: Le minimum de la buse ne peut pas dépasser le maximum
   Nozzle target set to {}°C: Cible buse réglée à {}°C
-  Nozzle temp must be 100-500°C: La température de la buse doit être entre 100 et
+  Nozzle temp must be 100-%d°C: La température de la buse doit être entre 100 et %d°C
     500°C
   Nozzle, bed, and chamber in one widget: Buse, plateau et enceinte réunis
   'Nozzle:': 'Buse :'
@@ -2222,7 +2222,9 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): L'imprimante
     a accepté la tâche mais n'imprime pas — vérifiez le capot, le papier et le type
     d'étiquette (état firmware=0x{:02X} erreur=0x{:02X})
+  Printer caps bed at %d°C: L'imprimante limite le plateau à %d°C
   Printer caps chamber at %d°C: L'imprimante limite l'enceinte à %d°C
+  Printer caps nozzle at %d°C: L'imprimante limite la buse à %d°C
   Printer connection unavailable: Connexion à l'imprimante indisponible
   Printer database format error: Erreur de format de la base de données d'imprimantes
   Printer database is corrupt: La base de données d'imprimantes est corrompue

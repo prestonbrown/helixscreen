@@ -294,7 +294,7 @@ translations:
   Bed mesh operation timed out: Bed mesh operation timed out
   'Bed mesh...': 'Bed mesh...'
   Bed target set to {}°C: Bed target set to {}°C
-  Bed temp must be 0-200°C: Bed temp must be 0-200°C
+  Bed temp must be 0-%d°C: Bed temp must be 0-%d°C
   Bed warming timed out: Bed warming timed out
   Belt A: Belt A
   Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.
@@ -1903,7 +1903,7 @@ translations:
   Nozzle did not reach {}°C — {} cancelled: Nozzle did not reach {}°C — {} cancelled
   Nozzle min cannot exceed max: Nozzle min cannot exceed max
   Nozzle target set to {}°C: Nozzle target set to {}°C
-  Nozzle temp must be 100-500°C: Nozzle temp must be 100-500°C
+  Nozzle temp must be 100-%d°C: Nozzle temp must be 100-%d°C
   Nozzle, bed, and chamber in one widget: Nozzle, bed, and chamber in one widget
   'Nozzle:': 'Nozzle:'
   OD: OD
@@ -2155,7 +2155,9 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): Printer
     accepted job but isn't printing — check cover, paper, and label type (firmware
     status=0x{:02X} error=0x{:02X})
+  Printer caps bed at %d°C: Printer caps bed at %d°C
   Printer caps chamber at %d°C: Printer caps chamber at %d°C
+  Printer caps nozzle at %d°C: Printer caps nozzle at %d°C
   Printer connection unavailable: Printer connection unavailable
   Printer database format error: Printer database format error
   Printer database is corrupt: Printer database is corrupt

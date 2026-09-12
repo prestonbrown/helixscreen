@@ -304,7 +304,7 @@ translations:
   Bed mesh operation timed out: Mesh piano — tempo scaduto
   Bed mesh...: Mesh piano...
   Bed target set to {}°C: Obiettivo piano impostato a {}°C
-  Bed temp must be 0-200°C: La temperatura del piano deve essere 0-200°C
+  Bed temp must be 0-%d°C: La temperatura del piano deve essere 0-%d°C
   Bed warming timed out: Riscaldamento piano — tempo scaduto
   Belt A: Cinghia A
   Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: La cinghia A (anteriore destra) è più tesa di %.0f Hz. Tendere la cinghia B, sulla sinistra anteriore, oppure allentare la cinghia A.
@@ -1945,7 +1945,7 @@ translations:
   Nozzle did not reach {}°C — {} cancelled: L'ugello non ha raggiunto {}°C — {} annullato
   Nozzle min cannot exceed max: Il minimo dell’ugello non può superare il massimo
   Nozzle target set to {}°C: Obiettivo ugello impostato a {}°C
-  Nozzle temp must be 100-500°C: La temperatura dell’ugello deve essere 100-500°C
+  Nozzle temp must be 100-%d°C: La temperatura dell’ugello deve essere 100-%d°C
   Nozzle, bed, and chamber in one widget: Ugello, piano e camera in un widget
   'Nozzle:': 'Ugello:'
   OD: OD
@@ -2200,7 +2200,9 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): La
     stampante ha accettato il lavoro ma non sta stampando — controlla coperchio, carta
     e tipo di etichetta (firmware status=0x{:02X} error=0x{:02X})
+  Printer caps bed at %d°C: La stampante limita il piano a %d°C
   Printer caps chamber at %d°C: La stampante limita la camera a %d°C
+  Printer caps nozzle at %d°C: La stampante limita l’ugello a %d°C
   Printer connection unavailable: Connessione alla stampante non disponibile
   Printer database format error: Errore nel formato del database della stampante
   Printer database is corrupt: Il database della stampante è corrotto

@@ -1208,37 +1208,30 @@ void ControlsPanel::handle_bed_temp_clicked() {
     get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Bed, parent_screen_);
 }
 
+int ControlsPanel::target_edit_max(helix::HeaterType type, int fallback_deg) const {
+    return static_cast<int>(
+        helix::keypad_ceiling(controller(), type, static_cast<float>(fallback_deg)));
+}
+
 void ControlsPanel::handle_nozzle_target_edit() {
-    int max_temp = nozzle_max_temp_;
-    if (auto* c = controller()) {
-        c->ensure_limits(helix::HeaterType::Nozzle);
-        max_temp = static_cast<int>(c->keypad_range(helix::HeaterType::Nozzle).max);
-    }
     show_temperature_keypad<&ControlsPanel::handle_custom_nozzle_confirmed>(
-        "Nozzle Temperature", cached_extruder_target_, 200, max_temp);
+        "Nozzle Temperature", cached_extruder_target_, 200,
+        target_edit_max(helix::HeaterType::Nozzle, nozzle_max_temp_));
 }
 
 void ControlsPanel::handle_bed_target_edit() {
-    int max_temp = bed_max_temp_;
-    if (auto* c = controller()) {
-        c->ensure_limits(helix::HeaterType::Bed);
-        max_temp = static_cast<int>(c->keypad_range(helix::HeaterType::Bed).max);
-    }
     show_temperature_keypad<&ControlsPanel::handle_custom_bed_confirmed>(
-        "Bed Temperature", cached_bed_target_, 60, max_temp);
+        "Bed Temperature", cached_bed_target_, 60,
+        target_edit_max(helix::HeaterType::Bed, bed_max_temp_));
 }
 
 void ControlsPanel::handle_chamber_target_edit() {
-    int max_temp = chamber_max_temp_;
-    if (auto* c = controller()) {
-        c->ensure_limits(helix::HeaterType::Chamber);
-        max_temp = static_cast<int>(c->keypad_range(helix::HeaterType::Chamber).max);
-    }
     // Seed from the effective target (heater target when Heating, fan target when
     // Maintaining) so the keypad pre-fills the value the card already shows. The
     // raw heater target reads 0 during M141 maintain mode and would otherwise seed 0.
     show_temperature_keypad<&ControlsPanel::handle_custom_chamber_confirmed>(
-        "Chamber Temperature", cached_chamber_effective_target_, 50, max_temp);
+        "Chamber Temperature", cached_chamber_effective_target_, 50,
+        target_edit_max(helix::HeaterType::Chamber, chamber_max_temp_));
 }
 
 void ControlsPanel::handle_custom_nozzle_confirmed(float value) {

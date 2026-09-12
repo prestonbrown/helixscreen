@@ -303,7 +303,7 @@ translations:
   Bed mesh operation timed out: Malla de cama — tiempo de espera agotado
   Bed mesh...: Malla de cama...
   Bed target set to {}°C: Cama configurada a {}°C
-  Bed temp must be 0-200°C: La temperatura de la cama debe ser 0-200°C
+  Bed temp must be 0-%d°C: La temperatura de la cama debe ser 0-%d°C
   Bed warming timed out: Calentamiento de cama — tiempo de espera agotado
   Belt A: Correa A
   Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: La correa A (delantera derecha) está %.0f Hz más tensa. Tensar la correa B, en la delantera izquierda, o aflojar la correa A.
@@ -1946,7 +1946,7 @@ translations:
   Nozzle did not reach {}°C — {} cancelled: La boquilla no alcanzó {}°C — se canceló {}
   Nozzle min cannot exceed max: El mínimo de la boquilla no puede superar el máximo
   Nozzle target set to {}°C: Boquilla configurada a {}°C
-  Nozzle temp must be 100-500°C: La temperatura de la boquilla debe ser 100-500°C
+  Nozzle temp must be 100-%d°C: La temperatura de la boquilla debe ser 100-%d°C
   Nozzle, bed, and chamber in one widget: Boquilla, cama y cámara en un widget
   'Nozzle:': 'Boquilla:'
   OD: OD
@@ -2203,7 +2203,9 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): La
     impresora aceptó el trabajo pero no está imprimiendo — revise la cubierta, el
     papel y el tipo de etiqueta (status del firmware=0x{:02X} error=0x{:02X})
+  Printer caps bed at %d°C: La impresora limita la cama a %d°C
   Printer caps chamber at %d°C: La impresora limita la cámara a %d°C
+  Printer caps nozzle at %d°C: La impresora limita la boquilla a %d°C
   Printer connection unavailable: Conexión con la impresora no disponible
   Printer database format error: Error de formato de la base de datos de impresoras
   Printer database is corrupt: La base de datos de impresoras está corrupta
