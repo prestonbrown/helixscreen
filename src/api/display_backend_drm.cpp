@@ -1151,10 +1151,13 @@ bool DisplayBackendDRM::supports_hardware_rotation(lv_display_rotation_t rot) co
     }
 
 #if LV_LINUX_DRM_USE_EGL
-    // EGL rotation not yet supported: lv_display_set_rotation() triggers
-    // layer_reshape_draw_buf which conflicts with the EGL-sized draw buffer.
-    // Needs a GL-only rotation path that bypasses LVGL's buffer reshape.
-    // For now, fall back to fbdev (works) or panel_orientation (kernel).
+    // The EGL driver compiles out lv_linux_drm_set_rotation(), so no plane can
+    // own rotation on this build whatever the hardware advertises. Saying so
+    // is what sends DisplayManager into try_drm_to_fbdev_fallback(), which
+    // rebuilds the display and the input devices on fbdev in-process: the panel
+    // does rotate, it just stops being a DRM display while it does. A false
+    // here is the mechanism that makes rotation work, not a gap in it
+    // (prestonbrown/helixscreen#1581).
     return false;
 #else
     uint64_t supported_mask =
