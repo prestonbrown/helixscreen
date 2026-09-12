@@ -128,8 +128,57 @@ AI-assisted design and build at this project's scale produced duplicated logic i
 
   This one is arguably *correct* — the gates are reactive, and `<if>` builds only one branch at creation time, so `bind_flag_if_eq` is the right primitive (the caveat is spelled out in [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md)). The debt is that the wrapper is retyped by hand at every gated settings surface, not that it exists.
 - **A family of sibling files stamped from one mold.** Five `ui_filament_*` files carry 44 ledger sites between them ([`ui_filament_mapping_modal.cpp`](../../../src/ui/ui_filament_mapping_modal.cpp) 15, [`ui_filament_mapping_card.cpp`](../../../src/ui/ui_filament_mapping_card.cpp) 10, [`ui_filament_catalog_selector.cpp`](../../../src/ui/ui_filament_catalog_selector.cpp) 10, [`ui_filament_slot_picker.cpp`](../../../src/ui/ui_filament_slot_picker.cpp) 6, [`ui_filament_catalog_picker.cpp`](../../../src/ui/ui_filament_catalog_picker.cpp) 3) — the same find-then-mutate patterns repeated across near-identical pickers.
+- **One construct-and-load helper, six hand-written copies.** Every backend that persists user slot identity holds the same pair - a `FilamentSlotOverrideStore` on its own namespace, and the map that store was loaded into - and `make_loaded_override_store()` ([`src/printer/filament_slot_override_store.cpp#make_loaded_override_store`](../../../src/printer/filament_slot_override_store.cpp)) returns both or neither, so the half-built version has no spelling. `AmsBackendHappyHare` calls it; ACE, AFC, CFS, AD5X IFS, Snapmaker and the tool changer each hand-write the equivalent block in their own `on_started()`. Those six agree by convention: a copy that drops the construction or the load compiles, passes a green suite, and costs that backend's users every saved colour and material on every restart, with no error and no log line (#1590).
 
 The direction is proven: `format_temperature_pair()` ([`src/ui/ui_temperature_utils.cpp#format_temperature_pair`](../../../src/ui/ui_temperature_utils.cpp#L61)) consolidated what were two hand-rolled current/target string subjects into one widget-owned formatter, and [`SLOT_COMPONENT_DESIGNS.md`](../SLOT_COMPONENT_DESIGNS.md) records the measured reason string formatting cannot move into XML formulas (the evaluator is integer-only). Consolidations like that are the template.
+
+### Provenance debt: a value's origin is inferred from its shape
+
+This one is half paid. The model that carries an origin exists - `Observation`,
+`LaneSources` and `resolve()`, described in [`07-filament-ams.md`](07-filament-ams.md) § "Lane identity by
+source" - and nothing produces or consumes it. Every surface that reads a lane still works
+from firmware-reported `SlotInfo` merged with a persisted `FilamentSlotOverride`, where a
+field's origin is re-derived from the value it holds: `!= 0`, `!empty()`, `>= 0.0f`. Those
+tests answer "is there a value here", and the code asks them where it means "did a human
+choose this". They agree on most inputs, which is what makes the disagreements hard to see.
+
+The live instance is AD5X filament colour. `set_slot_info()`
+([`src/printer/ams_backend_ad5x_ifs.cpp#set_slot_info`](../../../src/printer/ams_backend_ad5x_ifs.cpp)) sets
+`user_locked_color` whenever `persist` is true, so assigning a Spoolman spool records "the
+user chose this colour" when the user chose a *spool* and the colour arrived with the
+binding. A colour picked afterwards from the printer's own COLOR menu enters through
+`apply_color_menu_slot_row()`
+([`src/printer/ams_backend_ad5x_ifs.cpp#apply_color_menu_slot_row`](../../../src/printer/ams_backend_ad5x_ifs.cpp)),
+which refreshes the firmware-truth arrays and leaves the lock standing, so the auto-mirror
+re-lays the locked colour and the pick never reaches the panel.
+
+Releasing the lock when a menu row moves is **not** the fix. The test
+`AD5X IFS COLOR-menu slot row does not clear a user-locked override` in
+[`tests/unit/test_ams_backend_ad5x_ifs.cpp`](../../../tests/unit/test_ams_backend_ad5x_ifs.cpp) pins the
+opposite on purpose: every COLOR macro emits those rows, so honouring them would drop a
+locked choice for the act of opening the dialog. The line below the offending one already
+asks the right question for material (`user_locked_material = !normalized_material.empty()`);
+colour has no equivalent signal to ask, because a colour's value cannot say who chose it.
+
+Pure black is the same conflation one layer out. `0x000000` is a colour a user picks
+deliberately, and the most common filament there is, but the gcode-dispatch gate inside AFC's
+and Happy Hare's `set_slot_info()` reads `info.color_rgb != 0 && info.color_rgb !=
+AMS_DEFAULT_SLOT_COLOR`, so black never reaches firmware: the plugin's lane record, the
+printer's LEDs and every other `lane_data` reader keep the previous colour (#1597). Only the
+`!= 0` half of that gate is wrong: `AMS_DEFAULT_SLOT_COLOR` genuinely is the "no colour
+reading" sentinel, and dropping the whole condition makes `CLEAR_SPOOL` record grey as a
+deliberate pick.
+
+The same shape already has two hand-built answers here, `AmsBackend::own_write_expectation`
+([`include/ams_backend.h#own_write_expectation`](../../../include/ams_backend.h)) and
+`SlotFingerprintTracker::expect`
+([`include/filament_slot_override_store.h#SlotFingerprintTracker/expect`](../../../include/filament_slot_override_store.h)),
+each suppressing one flavour of "is this reading someone else's write or the echo of my
+own?" - the job `Observation::echo_token` is shaped for, and the reason a precedence table
+alone does not finish this.
+
+User-visible symptom and workaround for the AD5X case are in
+[`../../user/TROUBLESHOOTING.md`](../../user/TROUBLESHOOTING.md).
 
 ### Deliberate tolerations: C++ that is correct, not debt
 

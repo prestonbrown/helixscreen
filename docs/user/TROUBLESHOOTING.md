@@ -1500,6 +1500,23 @@ Navigate away from and back to the AMS panel to trigger refresh.
 sudo journalctl -u moonraker | grep -i spoolman
 ```
 
+### Color set on the printer's own screen reverts (AD5X with Spoolman)
+
+**Known limitation.** On an AD5X, once a lane has been assigned a Spoolman spool,
+changing that lane's color from the printer's own color menu does not stick: the panel
+goes back to showing the spool's color within a second.
+
+Assigning the spool is what causes it. HelixScreen records the assignment as a deliberate
+choice of color, so later color readings from the firmware are treated as something to be
+corrected rather than obeyed. There is no way to tell "the user picked this color" apart
+from "this color arrived with the spool" yet, which is why it is not simply switched off.
+
+**What works instead:** change the color in HelixScreen, on the lane's own editor
+(tap the lane, then edit it), or change it in Spoolman. Both take effect and persist.
+
+**Unaffected:** lanes with no Spoolman spool assigned, every non-AD5X printer, and
+material changes.
+
 ### Only some spools showing in Spoolman lists
 
 **Symptoms:**

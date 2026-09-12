@@ -216,11 +216,15 @@ does neither, and both halves of that are load-bearing:
 - **`T<n>` outer keys** (`lane_key_style_for`) are shared with Mainsail #2510's
   records rather than duplicating them.
 
-AFC, Happy Hare, and Mock inherit the no-op
-`clear_slot_override` default from `AmsBackend`. AFC and Happy Hare manage their own
-override semantics independently — they write `lane_data`
-directly from their Klipper plugins, and HelixScreen does not touch those
-records. For AFC that is not merely etiquette: AFC.py `delete_lane_data()`
+Mock inherits the no-op `clear_slot_override` default from `AmsBackend`. AFC and
+Happy Hare each implement it: erase the in-memory entry, reset the
+override-exclusive fields on the live slot (brand, spool name, Spoolman ids,
+weights, colour name, catalog pick) so the clear shows on the next
+`get_slot_info()`, and fire `clear_async` against the backend's own private
+namespace. Colour and material are left standing, because those come from the
+parse and the lane's firmware values should surface. The `lane_data` records
+their Klipper plugins write are a separate thing and HelixScreen does not touch
+them. For AFC that is not merely etiquette: AFC.py `delete_lane_data()`
 wipes the whole namespace at the start of every PREP and refills it one lane at
 a time, so the namespace is non-durable across reboots *and* transiently
 incomplete during them. AFC/HH overrides go to a private namespace
