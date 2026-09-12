@@ -426,6 +426,7 @@
   <translation tag="Center QR code in frame" zh="将 QR 码对准画面中央"/>
   <translation tag="Chamb:" zh="腔:"/>
   <translation tag="Chamber" zh="腔体"/>
+  <translation tag="Chamber (°C)"/>
   <translation tag="Chamber Cooling Fan" zh="腔体冷却风扇"/>
   <translation tag="Chamber Fan" zh="腔体风扇"/>
   <translation tag="Chamber Heater" zh="仓室加热器"/>

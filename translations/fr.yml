@@ -487,6 +487,7 @@ translations:
   Center QR code in frame: Centrez le QR code dans le cadre
   'Chamb:': 'Chambre :'
   Chamber: Enceinte
+  Chamber (°C): ''
   Chamber Cooling Fan: Ventilateur de refroidissement de chambre
   Chamber Fan: Ventilateur de chambre
   Chamber Heater: Chauffage de chambre

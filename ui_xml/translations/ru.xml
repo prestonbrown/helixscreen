@@ -426,6 +426,7 @@
   <translation tag="Center QR code in frame" ru="Расположите QR-код в центре кадра"/>
   <translation tag="Chamb:" ru="Камера:"/>
   <translation tag="Chamber" ru="Камера"/>
+  <translation tag="Chamber (°C)"/>
   <translation tag="Chamber Cooling Fan" ru="Вентилятор охлаждения камеры"/>
   <translation tag="Chamber Fan" ru="Вентилятор камеры"/>
   <translation tag="Chamber Heater" ru="Нагреватель камеры"/>

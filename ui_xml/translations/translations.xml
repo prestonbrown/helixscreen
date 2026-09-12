@@ -426,6 +426,7 @@
   <translation tag="Center QR code in frame" de="QR-Code im Rahmen zentrieren" en="Center QR code in frame" es="Centre el código QR en el marco" fr="Centrez le QR code dans le cadre" it="Centra il codice QR nell&apos;inquadratura" ja="QR コードをフレームの中央に合わせてください" pt="Centralize o código QR no quadro" ru="Расположите QR-код в центре кадра" zh="将 QR 码对准画面中央"/>
   <translation tag="Chamb:" de="Kamm.:" en="Chamb:" es="Cámara:" fr="Chambre :" it="Camera:" ja="チャンバ:" pt="Câmara:" ru="Камера:" zh="腔:"/>
   <translation tag="Chamber" de="Kammer" en="Chamber" es="Cámara" fr="Enceinte" it="Camera" ja="チャンバー" pt="Câmara" ru="Камера" zh="腔体"/>
+  <translation tag="Chamber (°C)" en="Chamber (°C)"/>
   <translation tag="Chamber Cooling Fan" de="Kammer-Kühllüfter" en="Chamber Cooling Fan" es="Ventilador de enfriamiento de cámara" fr="Ventilateur de refroidissement de chambre" it="Ventola raffreddamento camera" ja="チャンバー冷却ファン" pt="Ventoinha de Resfriamento da Câmara" ru="Вентилятор охлаждения камеры" zh="腔体冷却风扇"/>
   <translation tag="Chamber Fan" de="Kammerlüfter" en="Chamber Fan" es="Ventilador de Cámara" fr="Ventilateur de chambre" it="Ventola camera" ja="チャンバーファン" pt="Ventoinha da Câmara" ru="Вентилятор камеры" zh="腔体风扇"/>
   <translation tag="Chamber Heater" de="Kammerheizung" en="Chamber Heater" es="Calentador de Cámara" fr="Chauffage de chambre" it="Riscaldatore camera" ja="チャンバーヒーター" pt="Aquecedor da Câmara" ru="Нагреватель камеры" zh="仓室加热器"/>

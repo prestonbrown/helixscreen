@@ -426,6 +426,7 @@
   <translation tag="Center QR code in frame" fr="Centrez le QR code dans le cadre"/>
   <translation tag="Chamb:" fr="Chambre :"/>
   <translation tag="Chamber" fr="Enceinte"/>
+  <translation tag="Chamber (°C)"/>
   <translation tag="Chamber Cooling Fan" fr="Ventilateur de refroidissement de chambre"/>
   <translation tag="Chamber Fan" fr="Ventilateur de chambre"/>
   <translation tag="Chamber Heater" fr="Chauffage de chambre"/>

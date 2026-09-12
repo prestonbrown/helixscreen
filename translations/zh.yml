@@ -430,6 +430,7 @@ translations:
   Center QR code in frame: 将 QR 码对准画面中央
   'Chamb:': '腔:'
   Chamber: 腔体
+  Chamber (°C): ''
   Chamber Cooling Fan: 腔体冷却风扇
   Chamber Fan: 腔体风扇
   Chamber Heater: 仓室加热器

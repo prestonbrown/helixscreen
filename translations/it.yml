@@ -477,6 +477,7 @@ translations:
   Center QR code in frame: Centra il codice QR nell'inquadratura
   'Chamb:': 'Camera:'
   Chamber: Camera
+  Chamber (°C): ''
   Chamber Cooling Fan: Ventola raffreddamento camera
   Chamber Fan: Ventola camera
   Chamber Heater: Riscaldatore camera

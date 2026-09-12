@@ -464,6 +464,7 @@ translations:
   Center QR code in frame: Center QR code in frame
   'Chamb:': 'Chamb:'
   Chamber: Chamber
+  Chamber (°C): Chamber (°C)
   Chamber Cooling Fan: Chamber Cooling Fan
   Chamber Fan: Chamber Fan
   Chamber Heater: Chamber Heater

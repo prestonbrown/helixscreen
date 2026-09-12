@@ -473,6 +473,7 @@ translations:
   Center QR code in frame: Расположите QR-код в центре кадра
   'Chamb:': 'Камера:'
   Chamber: Камера
+  Chamber (°C): ''
   Chamber Cooling Fan: Вентилятор охлаждения камеры
   Chamber Fan: Вентилятор камеры
   Chamber Heater: Нагреватель камеры
