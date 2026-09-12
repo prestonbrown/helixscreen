@@ -77,6 +77,8 @@ const lv_font_t* wizard_welcome_header_font(UiBreakpoint bp) {
     default: // Large / XLarge / XXLarge
 #if HELIX_MAX_FONT_TIER >= 6 && HELIX_HAS_HIDPI_FONTS
         return &noto_sans_64;
+#elif HELIX_MAX_FONT_TIER >= 5
+        return &noto_sans_32;
 #elif HELIX_MAX_FONT_TIER >= 4
         return &noto_sans_28;
 #elif HELIX_MAX_FONT_TIER >= 3
