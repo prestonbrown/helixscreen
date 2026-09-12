@@ -238,9 +238,22 @@ TEST_CASE_METHOD(HelixTestFixture, "a dropped lane is reported once, and again w
     ingest(helix::ams::INVALID_LANE_ID, sensed);
     CHECK(log.count_containing("names no position") == 1);
 
+    // The other funnel, on the SAME id: a machine reading filed on no lane and
+    // a person's edit thrown away are not the same loss, and the producer's
+    // flood runs first at startup, so one latch for both would silence the
+    // half that matters more.
+    Observation user(ObservationSource::LocalUser);
+    user.color_rgb = 0xBCBCBC;
+    helix::ams::commit_slot_edit(helix::ams::INVALID_LANE_ID, user);
+    CHECK(log.count_containing("names no position") == 2);
+
+    // It latches the same way once it has spoken.
+    helix::ams::commit_slot_edit(helix::ams::INVALID_LANE_ID, user);
+    CHECK(log.count_containing("names no position") == 2);
+
     // A different id is a different fact and speaks for itself.
     ingest(helix::ams::END_LANE_ID, sensed);
-    CHECK(log.count_containing("names no position") == 2);
+    CHECK(log.count_containing("names no position") == 3);
 }
 
 TEST_CASE("a lane colour string reads as a value, a clear or nothing", "[lane][ingest]") {

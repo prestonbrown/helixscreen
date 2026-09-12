@@ -165,15 +165,24 @@ class LaneSourceStore {
     /// observed fields onto whatever that source already holds.
     void write(LaneId lane, const Observation& obs, bool amend);
 
-    /// True when @p lane is not the id the last dropped-lane warning named,
-    /// latching it so the next call about the same id is false.
+    /// Which funnel threw a record away. The two are different facts about
+    /// different callers, so each speaks for itself.
+    enum class DropSite {
+        Producer, ///< ingest(): a machine reading filed on no lane.
+        UserEdit, ///< commit_slot_edit(): a person's edit thrown away.
+    };
+
+    /// True when @p site has not already warned about @p lane, latching it so
+    /// the next call naming the same pair is false.
     ///
-    /// The message carries the id and nothing else, so repeating it for one id
-    /// tells a reader nothing they have not been told. A producer filing
-    /// through a backend that has no index yet reaches it three times per lane
-    /// per frame, which is enough to push unrelated lines out of a test's log
-    /// ring. A changed id is a different fact and speaks again.
-    bool first_drop_of(LaneId lane);
+    /// Each message carries its id and nothing else, so repeating one for the
+    /// same id tells a reader nothing they have not been told, and a producer
+    /// filing through a backend that has no index yet reaches this three times
+    /// per lane per frame - enough to push unrelated lines out of a test's log
+    /// ring. A changed id speaks again, and so does the other funnel: at
+    /// startup the producer's flood always runs first, and a lost user edit is
+    /// the more serious of the two to lose.
+    bool first_drop_of(DropSite site, LaneId lane);
 
     friend void ingest(LaneId, const Observation&);
     friend void commit_slot_edit(LaneId, const Observation&);
@@ -183,10 +192,11 @@ class LaneSourceStore {
     mutable std::mutex mutex_;
     std::map<LaneId, LaneSources> lanes_;
 
-    /// The lane id the last dropped-lane warning named. Cleared with the
-    /// lanes, so a test that wants the warning gets it: every fixture calls
-    /// reset_lane_sources().
-    std::optional<LaneId> warned_drop_lane_;
+    /// The lane id each funnel's last dropped-lane warning named. Cleared with
+    /// the lanes, so a test that wants the warning gets it: every fixture
+    /// calls reset_lane_sources().
+    std::optional<LaneId> warned_producer_drop_;
+    std::optional<LaneId> warned_edit_drop_;
 };
 
 } // namespace helix::ams
