@@ -25,18 +25,17 @@ identify per channel via RFID (`filament_detect.info`). Platform context:
 One unit ("SnapSwap"), four Feeders, one per toolhead:
 
 ```
-  Feeder 1 ── Toolhead 0     (each feeder has its own path and nozzle)
-  Feeder 2 ── Toolhead 1
-  Feeder 3 ── Toolhead 2
-  Feeder 4 ── Toolhead 3
+  Feeder 1 ── Toolhead 1   (gcode T0)   each feeder has its own path and nozzle
+  Feeder 2 ── Toolhead 2   (gcode T1)
+  Feeder 3 ── Toolhead 3   (gcode T2)
+  Feeder 4 ── Toolhead 4   (gcode T3)
 ```
 
-The U1's own firmware UI numbers both from 1: "Feeder 1".."Feeder 4" where
-filament enters, "Toolhead 1".."Toolhead 4" at the printing end. Feeder above
-follows that convention; Toolhead here is the internal/gcode tool index
-(`T0`-`T3`, matching `extruder`/`extruder1`-`extruder3`), 0-based like every
-other tool number in this document — HelixScreen's own UI adds 1 to it the
-same way it does for Feeder.
+Both columns above are what the U1's own firmware UI shows: "Feeder 1".."Feeder 4"
+where filament enters, "Toolhead 1".."Toolhead 4" at the printing end, each
+numbered from 1. The gcode tool index is the separate, 0-based identity a user
+types into a console (`T0`-`T3`, matching `extruder`/`extruder1`-`extruder3`),
+which is why it is spelled out per row rather than folded into either column.
 
 - `NUM_TOOLS = 4`, slot `i` carries `extruder_name` `"extruder"` / `"extruder{i}"`
   (`src/printer/ams_backend_snapmaker.cpp#AmsSubscriptionBackend`).
