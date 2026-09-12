@@ -1115,7 +1115,7 @@
   <translation tag="G-code commands will appear here" ru="Здесь будут отображаться G-code команды"/>
   <translation tag="GCode Console" ru="Консоль G-code"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" ru="Игра окончена!&#10;Счёт: {}&#10;Нажмите, чтобы начать заново"/>
-  <translation tag="Gate" ru="Гейт"/>
+  <translation tag="Gate" ru="Шлюз"/>
   <translation tag="Gear Buffer Speed" ru="Скорость шестерни от буфера"/>
   <translation tag="Gear Spool Speed" ru="Скорость шестерни от катушки"/>
   <translation tag="Gear Unload Speed" ru="Скорость выгрузки шестерни"/>
@@ -1352,7 +1352,7 @@
   <translation tag="Label printed" ru="Этикетка напечатана"/>
   <translation tag="Labels" ru="Этикетки"/>
   <translation tag="Labels Per Sheet" ru="Этикеток на листе"/>
-  <translation tag="Lane" ru="Полоса"/>
+  <translation tag="Lane" ru="Канал"/>
   <translation tag="Lane tests and motor resets" ru="Тесты слотов и сброс моторов"/>
   <translation tag="Language" ru="Язык"/>
   <translation tag="Language, theme, brightness, and sound" ru="Язык, тема, яркость и звук"/>

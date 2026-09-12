@@ -1221,7 +1221,7 @@ translations:
   GCode Console: 'Консоль G-code'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Игра окончена!\nСчёт: {}\nНажмите, чтобы начать заново"
-  Gate: Гейт
+  Gate: Шлюз
   Gear Buffer Speed: 'Скорость шестерни от буфера'
   Gear Spool Speed: 'Скорость шестерни от катушки'
   Gear Unload Speed: 'Скорость выгрузки шестерни'
@@ -1500,7 +1500,7 @@ translations:
   Label printed: Этикетка напечатана
   Labels: Этикетки
   Labels Per Sheet: Этикеток на листе
-  Lane: Полоса
+  Lane: Канал
   Lane tests and motor resets: 'Тесты слотов и сброс моторов'
   Language: Язык
   Language, theme, brightness, and sound: Язык, тема, яркость и звук
