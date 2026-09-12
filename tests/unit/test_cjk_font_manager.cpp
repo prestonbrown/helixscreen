@@ -92,6 +92,22 @@ TEST_CASE_METHOD(CjkFontManagerFixture, "CjkFontManager: load sets fallback on c
     REQUIRE(noto_sans_14.fallback != pre_fallback);
 }
 
+// The render path for a zh/ja label is lv_font_get_glyph_dsc() on a compiled
+// font, which walks into the loaded .bin fallback. A glyph missing from the
+// bake answers false here — exactly the tofu the user sees — so these three
+// codepoints (汚 ja, 污/脏 zh, the #1620 dirty-bed string) pin the runtime
+// font against the translations.
+TEST_CASE_METHOD(CjkFontManagerFixture, "CjkFontManager: baked glyphs resolve through the fallback",
+                 "[cjk_font][1620]") {
+    CjkFontManager::instance().on_language_changed("zh");
+    REQUIRE(CjkFontManager::instance().is_loaded());
+
+    for (uint32_t codepoint : {0x6c5a, 0x6c61, 0x810f}) {
+        lv_font_glyph_dsc_t dsc;
+        REQUIRE(lv_font_get_glyph_dsc(&noto_sans_14, &dsc, codepoint, 0));
+    }
+}
+
 TEST_CASE_METHOD(CjkFontManagerFixture, "CjkFontManager: unload clears fallback on compiled fonts",
                  "[cjk_font]") {
     CjkFontManager::instance().on_language_changed("zh");
