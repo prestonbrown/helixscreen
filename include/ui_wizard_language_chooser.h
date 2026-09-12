@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ui_breakpoint.h"
 #include "ui_timer_guard.h"
 
 #include "lvgl/lvgl.h"
@@ -195,3 +196,22 @@ WizardLanguageChooserStep* get_wizard_language_chooser_step();
  * @param force true to force-show the step, false for normal behavior
  */
 void force_language_chooser_step(bool force);
+
+namespace helix {
+
+/**
+ * @brief Display-size face for the cycling Welcome header, per breakpoint
+ *
+ * The header is the first thing a user ever sees and sits a size class above
+ * a section heading (prestonbrown/helixscreen#1599). The 48/64 faces are
+ * xxlarge-tier (mk/fonts.mk) and the XML name map only registers them on
+ * xxlarge displays, so XML cannot name them at lower breakpoints; this is
+ * the computed-font exception, and builds without those faces step down to
+ * the largest face they link.
+ *
+ * @param bp Current UI breakpoint
+ * @return Font for the welcome header at that tier
+ */
+const lv_font_t* wizard_welcome_header_font(UiBreakpoint bp);
+
+} // namespace helix
