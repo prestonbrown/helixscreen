@@ -256,7 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" zh="Beacon自动校准已发送"/>
   <translation tag="Beacon calibrate sent" zh="Beacon校准已发送"/>
   <translation tag="Bed" zh="热床"/>
-  <translation tag="Bed (°C)"/>
+  <translation tag="Bed (°C)" zh="热床 (°C)"/>
   <translation tag="Bed Heater" zh="热床加热器"/>
   <translation tag="Bed Level" zh="热床调平"/>
   <translation tag="Bed Leveling" zh="热床调平"/>
@@ -270,7 +270,6 @@
   <translation tag="Bed Screw Results" zh="热床螺丝结果"/>
   <translation tag="Bed Screws" zh="热床螺丝"/>
   <translation tag="Bed Temp" zh="热床温度"/>
-  <translation tag="Bed Temp (°C)" zh="热床温度 (°C)"/>
   <translation tag="Bed Temperature" zh="热床温度"/>
   <translation tag="Bed is Level!" zh="热床已水平！"/>
   <translation tag="Bed mesh operation timed out" zh="热床网格操作超时"/>
@@ -427,13 +426,12 @@
   <translation tag="Center QR code in frame" zh="将 QR 码对准画面中央"/>
   <translation tag="Chamb:" zh="腔:"/>
   <translation tag="Chamber" zh="腔体"/>
-  <translation tag="Chamber (°C)"/>
+  <translation tag="Chamber (°C)" zh="腔体 (°C)"/>
   <translation tag="Chamber Cooling Fan" zh="腔体冷却风扇"/>
   <translation tag="Chamber Fan" zh="腔体风扇"/>
   <translation tag="Chamber Heater" zh="仓室加热器"/>
   <translation tag="Chamber Heater Fan" zh="腔体加热风扇"/>
   <translation tag="Chamber Sensor" zh="仓室传感器"/>
-  <translation tag="Chamber Temp (°C)"/>
   <translation tag="Chamber Temperature" zh="腔体温度"/>
   <translation tag="Chamber and dryer humidity monitoring" zh="腔体和干燥器湿度监控"/>
   <translation tag="Chamber at %d°C" zh="腔体温度：%d°C"/>

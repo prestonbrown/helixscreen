@@ -288,7 +288,6 @@ translations:
   Bed Screw Results: Bed Screw Results
   Bed Screws: Bed Screws
   Bed Temp: Bed Temp
-  Bed Temp (°C): Bed Temp (°C)
   Bed Temperature: Bed Temperature
   Bed is Level!: Bed is Level!
   Bed mesh operation timed out: Bed mesh operation timed out
@@ -471,7 +470,6 @@ translations:
   Chamber Heater: Chamber Heater
   Chamber Heater Fan: Chamber Heater Fan
   Chamber Sensor: Chamber Sensor
-  Chamber Temp (°C): Chamber Temp (°C)
   Chamber Temperature: Chamber Temperature
   Chamber and dryer humidity monitoring: Chamber and dryer humidity monitoring
   Chamber at %d°C: Chamber at %d°C

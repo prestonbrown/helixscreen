@@ -290,7 +290,7 @@ translations:
   Beacon auto-calibrate sent: Beacon Auto-Kalibrierung gesendet
   Beacon calibrate sent: Beacon Kalibrierung gesendet
   Bed: Heizbett
-  Bed (°C): ''
+  Bed (°C): Bett (°C)
   Bed Heater: Bettheizung
   Bed Level: Bettnivellierung
   Bed Leveling: Bettnivellierung
@@ -304,7 +304,6 @@ translations:
   Bed Screw Results: Bettschrauben-Ergebnisse
   Bed Screws: Bettschrauben
   Bed Temp: Betttemperatur
-  Bed Temp (°C): Betttemperatur (°C)
   Bed Temperature: Betttemperatur
   Bed is Level!: Bett ist nivelliert!
   Bed mesh operation timed out: Bettnetz-Vorgang Zeitüberschreitung
@@ -488,13 +487,12 @@ translations:
   Center QR code in frame: QR-Code im Rahmen zentrieren
   'Chamb:': 'Kamm.:'
   Chamber: Kammer
-  Chamber (°C): ''
+  Chamber (°C): Kammer (°C)
   Chamber Cooling Fan: Kammer-Kühllüfter
   Chamber Fan: Kammerlüfter
   Chamber Heater: Kammerheizung
   Chamber Heater Fan: Kammer-Heizlüfter
   Chamber Sensor: Kammersensor
-  Chamber Temp (°C): ''
   Chamber Temperature: Kammertemperatur
   Chamber and dryer humidity monitoring: Kammer- und Trockner-Feuchtigkeitsüberwachung
   Chamber at %d°C: Kammer bei %d°C

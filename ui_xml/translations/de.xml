@@ -256,7 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" de="Beacon Auto-Kalibrierung gesendet"/>
   <translation tag="Beacon calibrate sent" de="Beacon Kalibrierung gesendet"/>
   <translation tag="Bed" de="Heizbett"/>
-  <translation tag="Bed (°C)"/>
+  <translation tag="Bed (°C)" de="Bett (°C)"/>
   <translation tag="Bed Heater" de="Bettheizung"/>
   <translation tag="Bed Level" de="Bettnivellierung"/>
   <translation tag="Bed Leveling" de="Bettnivellierung"/>
@@ -270,7 +270,6 @@
   <translation tag="Bed Screw Results" de="Bettschrauben-Ergebnisse"/>
   <translation tag="Bed Screws" de="Bettschrauben"/>
   <translation tag="Bed Temp" de="Betttemperatur"/>
-  <translation tag="Bed Temp (°C)" de="Betttemperatur (°C)"/>
   <translation tag="Bed Temperature" de="Betttemperatur"/>
   <translation tag="Bed is Level!" de="Bett ist nivelliert!"/>
   <translation tag="Bed mesh operation timed out" de="Bettnetz-Vorgang Zeitüberschreitung"/>
@@ -427,13 +426,12 @@
   <translation tag="Center QR code in frame" de="QR-Code im Rahmen zentrieren"/>
   <translation tag="Chamb:" de="Kamm.:"/>
   <translation tag="Chamber" de="Kammer"/>
-  <translation tag="Chamber (°C)"/>
+  <translation tag="Chamber (°C)" de="Kammer (°C)"/>
   <translation tag="Chamber Cooling Fan" de="Kammer-Kühllüfter"/>
   <translation tag="Chamber Fan" de="Kammerlüfter"/>
   <translation tag="Chamber Heater" de="Kammerheizung"/>
   <translation tag="Chamber Heater Fan" de="Kammer-Heizlüfter"/>
   <translation tag="Chamber Sensor" de="Kammersensor"/>
-  <translation tag="Chamber Temp (°C)"/>
   <translation tag="Chamber Temperature" de="Kammertemperatur"/>
   <translation tag="Chamber and dryer humidity monitoring" de="Kammer- und Trockner-Feuchtigkeitsüberwachung"/>
   <translation tag="Chamber at %d°C" de="Kammer bei %d°C"/>

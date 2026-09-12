@@ -256,7 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" ru="Beacon автокалибровка отправлена"/>
   <translation tag="Beacon calibrate sent" ru="Beacon калибровка отправлена"/>
   <translation tag="Bed" ru="Стол"/>
-  <translation tag="Bed (°C)"/>
+  <translation tag="Bed (°C)" ru="Стол (°C)"/>
   <translation tag="Bed Heater" ru="Нагреватель стола"/>
   <translation tag="Bed Level" ru="Уровень стола"/>
   <translation tag="Bed Leveling" ru="Выравнивание стола"/>
@@ -270,7 +270,6 @@
   <translation tag="Bed Screw Results" ru="Результаты по винтам стола"/>
   <translation tag="Bed Screws" ru="Винты стола"/>
   <translation tag="Bed Temp" ru="Темп. стола"/>
-  <translation tag="Bed Temp (°C)" ru="Температура стола (°C)"/>
   <translation tag="Bed Temperature" ru="Температура стола"/>
   <translation tag="Bed is Level!" ru="Стол выровнен!"/>
   <translation tag="Bed mesh operation timed out" ru="Сетка стола — время ожидания истекло"/>
@@ -427,13 +426,12 @@
   <translation tag="Center QR code in frame" ru="Расположите QR-код в центре кадра"/>
   <translation tag="Chamb:" ru="Камера:"/>
   <translation tag="Chamber" ru="Камера"/>
-  <translation tag="Chamber (°C)"/>
+  <translation tag="Chamber (°C)" ru="Камера (°C)"/>
   <translation tag="Chamber Cooling Fan" ru="Вентилятор охлаждения камеры"/>
   <translation tag="Chamber Fan" ru="Вентилятор камеры"/>
   <translation tag="Chamber Heater" ru="Нагреватель камеры"/>
   <translation tag="Chamber Heater Fan" ru="Вентилятор нагревателя камеры"/>
   <translation tag="Chamber Sensor" ru="Датчик камеры"/>
-  <translation tag="Chamber Temp (°C)"/>
   <translation tag="Chamber Temperature" ru="Температура камеры"/>
   <translation tag="Chamber and dryer humidity monitoring" ru="Мониторинг влажности камеры и сушилки"/>
   <translation tag="Chamber at %d°C" ru="Камера при %d°C"/>

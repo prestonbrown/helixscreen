@@ -256,7 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" pt="Beacon auto-calibração enviada"/>
   <translation tag="Beacon calibrate sent" pt="Beacon calibração enviada"/>
   <translation tag="Bed" pt="Mesa"/>
-  <translation tag="Bed (°C)"/>
+  <translation tag="Bed (°C)" pt="Mesa (°C)"/>
   <translation tag="Bed Heater" pt="Aquecedor da Mesa"/>
   <translation tag="Bed Level" pt="Nível da Mesa"/>
   <translation tag="Bed Leveling" pt="Nivelamento da Mesa"/>
@@ -270,7 +270,6 @@
   <translation tag="Bed Screw Results" pt="Resultados dos Parafusos da Mesa"/>
   <translation tag="Bed Screws" pt="Parafusos da Mesa"/>
   <translation tag="Bed Temp" pt="Temp. Mesa"/>
-  <translation tag="Bed Temp (°C)" pt="Temp. Mesa (°C)"/>
   <translation tag="Bed Temperature" pt="Temperatura da Mesa"/>
   <translation tag="Bed is Level!" pt="Mesa Nivelada!"/>
   <translation tag="Bed mesh operation timed out" pt="Malha da mesa — tempo esgotado"/>
@@ -427,13 +426,12 @@
   <translation tag="Center QR code in frame" pt="Centralize o código QR no quadro"/>
   <translation tag="Chamb:" pt="Câmara:"/>
   <translation tag="Chamber" pt="Câmara"/>
-  <translation tag="Chamber (°C)"/>
+  <translation tag="Chamber (°C)" pt="Câmara (°C)"/>
   <translation tag="Chamber Cooling Fan" pt="Ventoinha de Resfriamento da Câmara"/>
   <translation tag="Chamber Fan" pt="Ventoinha da Câmara"/>
   <translation tag="Chamber Heater" pt="Aquecedor da Câmara"/>
   <translation tag="Chamber Heater Fan" pt="Ventoinha do Aquecedor da Câmara"/>
   <translation tag="Chamber Sensor" pt="Sensor da Câmara"/>
-  <translation tag="Chamber Temp (°C)"/>
   <translation tag="Chamber Temperature" pt="Temperatura da câmara"/>
   <translation tag="Chamber and dryer humidity monitoring" pt="Monitoramento de umidade da câmara e secador"/>
   <translation tag="Chamber at %d°C" pt="Câmara a %d°C"/>

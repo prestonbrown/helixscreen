@@ -283,7 +283,7 @@ translations:
   Beacon auto-calibrate sent: Beacon auto-calibración enviada
   Beacon calibrate sent: Beacon calibración enviada
   Bed: Cama
-  Bed (°C): ''
+  Bed (°C): Cama (°C)
   Bed Heater: Calentador de Cama
   Bed Level: Nivel de Cama
   Bed Leveling: Nivelación de Cama
@@ -297,7 +297,6 @@ translations:
   Bed Screw Results: Resultados de Tornillos de Cama
   Bed Screws: Tornillos de Cama
   Bed Temp: Temp. Cama
-  Bed Temp (°C): Temp. cama (°C)
   Bed Temperature: Temperatura de Cama
   Bed is Level!: ¡La Cama está Nivelada!
   Bed mesh operation timed out: Malla de cama — tiempo de espera agotado
@@ -481,13 +480,12 @@ translations:
   Center QR code in frame: Centre el código QR en el marco
   'Chamb:': 'Cámara:'
   Chamber: Cámara
-  Chamber (°C): ''
+  Chamber (°C): Cámara (°C)
   Chamber Cooling Fan: Ventilador de enfriamiento de cámara
   Chamber Fan: Ventilador de Cámara
   Chamber Heater: Calentador de Cámara
   Chamber Heater Fan: Ventilador del calentador de cámara
   Chamber Sensor: Sensor de Cámara
-  Chamber Temp (°C): ''
   Chamber Temperature: Temperatura de la cámara
   Chamber and dryer humidity monitoring: Monitoreo de humedad de cámara y secador
   Chamber at %d°C: Cámara a %d°C

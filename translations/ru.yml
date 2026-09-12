@@ -279,7 +279,7 @@ translations:
   Beacon auto-calibrate sent: Beacon автокалибровка отправлена
   Beacon calibrate sent: Beacon калибровка отправлена
   Bed: Стол
-  Bed (°C): ''
+  Bed (°C): Стол (°C)
   Bed Heater: Нагреватель стола
   Bed Level: Уровень стола
   Bed Leveling: Выравнивание стола
@@ -293,7 +293,6 @@ translations:
   Bed Screw Results: Результаты по винтам стола
   Bed Screws: Винты стола
   Bed Temp: Темп. стола
-  Bed Temp (°C): Температура стола (°C)
   Bed Temperature: Температура стола
   Bed is Level!: Стол выровнен!
   Bed mesh operation timed out: Сетка стола — время ожидания истекло
@@ -474,13 +473,12 @@ translations:
   Center QR code in frame: Расположите QR-код в центре кадра
   'Chamb:': 'Камера:'
   Chamber: Камера
-  Chamber (°C): ''
+  Chamber (°C): Камера (°C)
   Chamber Cooling Fan: Вентилятор охлаждения камеры
   Chamber Fan: Вентилятор камеры
   Chamber Heater: Нагреватель камеры
   Chamber Heater Fan: Вентилятор нагревателя камеры
   Chamber Sensor: Датчик камеры
-  Chamber Temp (°C): ''
   Chamber Temperature: Температура камеры
   Chamber and dryer humidity monitoring: Мониторинг влажности камеры и сушилки
   Chamber at %d°C: Камера при %d°C

@@ -256,7 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" it="Beacon auto-calibrazione inviata"/>
   <translation tag="Beacon calibrate sent" it="Beacon calibrazione inviata"/>
   <translation tag="Bed" it="Piano"/>
-  <translation tag="Bed (°C)"/>
+  <translation tag="Bed (°C)" it="Piatto (°C)"/>
   <translation tag="Bed Heater" it="Riscaldatore piano"/>
   <translation tag="Bed Level" it="Livellamento piano"/>
   <translation tag="Bed Leveling" it="Livellamento piano"/>
@@ -270,7 +270,6 @@
   <translation tag="Bed Screw Results" it="Risultati viti piano"/>
   <translation tag="Bed Screws" it="Viti piano"/>
   <translation tag="Bed Temp" it="Temp. piatto"/>
-  <translation tag="Bed Temp (°C)" it="Temp. piatto (°C)"/>
   <translation tag="Bed Temperature" it="Temperatura del piano"/>
   <translation tag="Bed is Level!" it="Piano livellato!"/>
   <translation tag="Bed mesh operation timed out" it="Mesh piano — tempo scaduto"/>
@@ -427,13 +426,12 @@
   <translation tag="Center QR code in frame" it="Centra il codice QR nell&apos;inquadratura"/>
   <translation tag="Chamb:" it="Camera:"/>
   <translation tag="Chamber" it="Camera"/>
-  <translation tag="Chamber (°C)"/>
+  <translation tag="Chamber (°C)" it="Camera (°C)"/>
   <translation tag="Chamber Cooling Fan" it="Ventola raffreddamento camera"/>
   <translation tag="Chamber Fan" it="Ventola camera"/>
   <translation tag="Chamber Heater" it="Riscaldatore camera"/>
   <translation tag="Chamber Heater Fan" it="Ventola riscaldatore camera"/>
   <translation tag="Chamber Sensor" it="Sensore camera"/>
-  <translation tag="Chamber Temp (°C)"/>
   <translation tag="Chamber Temperature" it="Temperatura camera"/>
   <translation tag="Chamber and dryer humidity monitoring" it="Monitoraggio umidità camera ed essiccatore"/>
   <translation tag="Chamber at %d°C" it="Camera a %d°C"/>

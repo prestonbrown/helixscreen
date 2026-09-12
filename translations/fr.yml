@@ -289,7 +289,7 @@ translations:
   Beacon auto-calibrate sent: Beacon auto-calibrage envoyé
   Beacon calibrate sent: Beacon calibrage envoyé
   Bed: Plateau
-  Bed (°C): ''
+  Bed (°C): Plateau (°C)
   Bed Heater: Chauffage du plateau
   Bed Level: Niveau du plateau
   Bed Leveling: Mise à niveau du plateau
@@ -303,7 +303,6 @@ translations:
   Bed Screw Results: Résultats des vis du plateau
   Bed Screws: Vis du plateau
   Bed Temp: Temp. du plateau
-  Bed Temp (°C): Temp. plateau (°C)
   Bed Temperature: Température du plateau
   Bed is Level!: Le plateau est niveau !
   Bed mesh operation timed out: Maillage du plateau — délai dépassé
@@ -488,13 +487,12 @@ translations:
   Center QR code in frame: Centrez le QR code dans le cadre
   'Chamb:': 'Chambre :'
   Chamber: Enceinte
-  Chamber (°C): ''
+  Chamber (°C): Enceinte (°C)
   Chamber Cooling Fan: Ventilateur de refroidissement de chambre
   Chamber Fan: Ventilateur de chambre
   Chamber Heater: Chauffage de chambre
   Chamber Heater Fan: Ventilateur du chauffage de chambre
   Chamber Sensor: Capteur de chambre
-  Chamber Temp (°C): ''
   Chamber Temperature: Température de l'enceinte
   Chamber and dryer humidity monitoring: Surveillance de l'humidité de la chambre
     et du sécheur

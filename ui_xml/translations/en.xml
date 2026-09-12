@@ -270,7 +270,6 @@
   <translation tag="Bed Screw Results" en="Bed Screw Results"/>
   <translation tag="Bed Screws" en="Bed Screws"/>
   <translation tag="Bed Temp" en="Bed Temp"/>
-  <translation tag="Bed Temp (°C)" en="Bed Temp (°C)"/>
   <translation tag="Bed Temperature" en="Bed Temperature"/>
   <translation tag="Bed is Level!" en="Bed is Level!"/>
   <translation tag="Bed mesh operation timed out" en="Bed mesh operation timed out"/>
@@ -433,7 +432,6 @@
   <translation tag="Chamber Heater" en="Chamber Heater"/>
   <translation tag="Chamber Heater Fan" en="Chamber Heater Fan"/>
   <translation tag="Chamber Sensor" en="Chamber Sensor"/>
-  <translation tag="Chamber Temp (°C)" en="Chamber Temp (°C)"/>
   <translation tag="Chamber Temperature" en="Chamber Temperature"/>
   <translation tag="Chamber and dryer humidity monitoring" en="Chamber and dryer humidity monitoring"/>
   <translation tag="Chamber at %d°C" en="Chamber at %d°C"/>

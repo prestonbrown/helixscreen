@@ -284,7 +284,7 @@ translations:
   Beacon auto-calibrate sent: Beacon auto-calibrazione inviata
   Beacon calibrate sent: Beacon calibrazione inviata
   Bed: Piano
-  Bed (°C): ''
+  Bed (°C): Piatto (°C)
   Bed Heater: Riscaldatore piano
   Bed Level: Livellamento piano
   Bed Leveling: Livellamento piano
@@ -298,7 +298,6 @@ translations:
   Bed Screw Results: Risultati viti piano
   Bed Screws: Viti piano
   Bed Temp: Temp. piatto
-  Bed Temp (°C): Temp. piatto (°C)
   Bed Temperature: Temperatura del piano
   Bed is Level!: Piano livellato!
   Bed mesh operation timed out: Mesh piano — tempo scaduto
@@ -478,13 +477,12 @@ translations:
   Center QR code in frame: Centra il codice QR nell'inquadratura
   'Chamb:': 'Camera:'
   Chamber: Camera
-  Chamber (°C): ''
+  Chamber (°C): Camera (°C)
   Chamber Cooling Fan: Ventola raffreddamento camera
   Chamber Fan: Ventola camera
   Chamber Heater: Riscaldatore camera
   Chamber Heater Fan: Ventola riscaldatore camera
   Chamber Sensor: Sensore camera
-  Chamber Temp (°C): ''
   Chamber Temperature: Temperatura camera
   Chamber and dryer humidity monitoring: Monitoraggio umidità camera ed essiccatore
   Chamber at %d°C: Camera a %d°C

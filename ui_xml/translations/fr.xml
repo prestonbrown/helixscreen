@@ -256,7 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" fr="Beacon auto-calibrage envoyé"/>
   <translation tag="Beacon calibrate sent" fr="Beacon calibrage envoyé"/>
   <translation tag="Bed" fr="Plateau"/>
-  <translation tag="Bed (°C)"/>
+  <translation tag="Bed (°C)" fr="Plateau (°C)"/>
   <translation tag="Bed Heater" fr="Chauffage du plateau"/>
   <translation tag="Bed Level" fr="Niveau du plateau"/>
   <translation tag="Bed Leveling" fr="Mise à niveau du plateau"/>
@@ -270,7 +270,6 @@
   <translation tag="Bed Screw Results" fr="Résultats des vis du plateau"/>
   <translation tag="Bed Screws" fr="Vis du plateau"/>
   <translation tag="Bed Temp" fr="Temp. du plateau"/>
-  <translation tag="Bed Temp (°C)" fr="Temp. plateau (°C)"/>
   <translation tag="Bed Temperature" fr="Température du plateau"/>
   <translation tag="Bed is Level!" fr="Le plateau est niveau !"/>
   <translation tag="Bed mesh operation timed out" fr="Maillage du plateau — délai dépassé"/>
@@ -427,13 +426,12 @@
   <translation tag="Center QR code in frame" fr="Centrez le QR code dans le cadre"/>
   <translation tag="Chamb:" fr="Chambre :"/>
   <translation tag="Chamber" fr="Enceinte"/>
-  <translation tag="Chamber (°C)"/>
+  <translation tag="Chamber (°C)" fr="Enceinte (°C)"/>
   <translation tag="Chamber Cooling Fan" fr="Ventilateur de refroidissement de chambre"/>
   <translation tag="Chamber Fan" fr="Ventilateur de chambre"/>
   <translation tag="Chamber Heater" fr="Chauffage de chambre"/>
   <translation tag="Chamber Heater Fan" fr="Ventilateur du chauffage de chambre"/>
   <translation tag="Chamber Sensor" fr="Capteur de chambre"/>
-  <translation tag="Chamber Temp (°C)"/>
   <translation tag="Chamber Temperature" fr="Température de l&apos;enceinte"/>
   <translation tag="Chamber and dryer humidity monitoring" fr="Surveillance de l&apos;humidité de la chambre et du sécheur"/>
   <translation tag="Chamber at %d°C" fr="Chambre à %d°C"/>

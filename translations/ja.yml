@@ -258,7 +258,7 @@ translations:
   Beacon auto-calibrate sent: Beacon自動キャリブレーション送信済み
   Beacon calibrate sent: Beaconキャリブレーション送信済み
   Bed: ベッド
-  Bed (°C): ''
+  Bed (°C): ベッド (°C)
   Bed Heater: ベッドヒーター
   Bed Level: ベッドレベル
   Bed Leveling: ベッドレベリング
@@ -272,7 +272,6 @@ translations:
   Bed Screw Results: ベッドネジ結果
   Bed Screws: ベッドネジ
   Bed Temp: ベッド温度
-  Bed Temp (°C): ベッド温度 (°C)
   Bed Temperature: ベッド温度
   Bed is Level!: ベッドが水平です！
   Bed mesh operation timed out: ベッドメッシュ操作がタイムアウトしました
@@ -434,13 +433,12 @@ translations:
   Center QR code in frame: QR コードをフレームの中央に合わせてください
   'Chamb:': 'チャンバ:'
   Chamber: チャンバー
-  Chamber (°C): ''
+  Chamber (°C): チャンバー (°C)
   Chamber Cooling Fan: チャンバー冷却ファン
   Chamber Fan: チャンバーファン
   Chamber Heater: チャンバーヒーター
   Chamber Heater Fan: チャンバーヒーターファン
   Chamber Sensor: チャンバーセンサー
-  Chamber Temp (°C): ''
   Chamber Temperature: チャンバー温度
   Chamber and dryer humidity monitoring: チャンバーとドライヤーの湿度監視
   Chamber at %d°C: チャンバー温度：%d°C

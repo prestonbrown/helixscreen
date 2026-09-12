@@ -256,7 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" ja="Beacon自動キャリブレーション送信済み"/>
   <translation tag="Beacon calibrate sent" ja="Beaconキャリブレーション送信済み"/>
   <translation tag="Bed" ja="ベッド"/>
-  <translation tag="Bed (°C)"/>
+  <translation tag="Bed (°C)" ja="ベッド (°C)"/>
   <translation tag="Bed Heater" ja="ベッドヒーター"/>
   <translation tag="Bed Level" ja="ベッドレベル"/>
   <translation tag="Bed Leveling" ja="ベッドレベリング"/>
@@ -270,7 +270,6 @@
   <translation tag="Bed Screw Results" ja="ベッドネジ結果"/>
   <translation tag="Bed Screws" ja="ベッドネジ"/>
   <translation tag="Bed Temp" ja="ベッド温度"/>
-  <translation tag="Bed Temp (°C)" ja="ベッド温度 (°C)"/>
   <translation tag="Bed Temperature" ja="ベッド温度"/>
   <translation tag="Bed is Level!" ja="ベッドが水平です！"/>
   <translation tag="Bed mesh operation timed out" ja="ベッドメッシュ操作がタイムアウトしました"/>
@@ -427,13 +426,12 @@
   <translation tag="Center QR code in frame" ja="QR コードをフレームの中央に合わせてください"/>
   <translation tag="Chamb:" ja="チャンバ:"/>
   <translation tag="Chamber" ja="チャンバー"/>
-  <translation tag="Chamber (°C)"/>
+  <translation tag="Chamber (°C)" ja="チャンバー (°C)"/>
   <translation tag="Chamber Cooling Fan" ja="チャンバー冷却ファン"/>
   <translation tag="Chamber Fan" ja="チャンバーファン"/>
   <translation tag="Chamber Heater" ja="チャンバーヒーター"/>
   <translation tag="Chamber Heater Fan" ja="チャンバーヒーターファン"/>
   <translation tag="Chamber Sensor" ja="チャンバーセンサー"/>
-  <translation tag="Chamber Temp (°C)"/>
   <translation tag="Chamber Temperature" ja="チャンバー温度"/>
   <translation tag="Chamber and dryer humidity monitoring" ja="チャンバーとドライヤーの湿度監視"/>
   <translation tag="Chamber at %d°C" ja="チャンバー温度：%d°C"/>

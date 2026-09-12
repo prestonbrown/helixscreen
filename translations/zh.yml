@@ -257,7 +257,7 @@ translations:
   Beacon auto-calibrate sent: Beacon自动校准已发送
   Beacon calibrate sent: Beacon校准已发送
   Bed: 热床
-  Bed (°C): ''
+  Bed (°C): 热床 (°C)
   Bed Heater: 热床加热器
   Bed Level: 热床调平
   Bed Leveling: 热床调平
@@ -271,7 +271,6 @@ translations:
   Bed Screw Results: 热床螺丝结果
   Bed Screws: 热床螺丝
   Bed Temp: 热床温度
-  Bed Temp (°C): 热床温度 (°C)
   Bed Temperature: 热床温度
   Bed is Level!: 热床已水平！
   Bed mesh operation timed out: 热床网格操作超时
@@ -431,13 +430,12 @@ translations:
   Center QR code in frame: 将 QR 码对准画面中央
   'Chamb:': '腔:'
   Chamber: 腔体
-  Chamber (°C): ''
+  Chamber (°C): 腔体 (°C)
   Chamber Cooling Fan: 腔体冷却风扇
   Chamber Fan: 腔体风扇
   Chamber Heater: 仓室加热器
   Chamber Heater Fan: 腔体加热风扇
   Chamber Sensor: 仓室传感器
-  Chamber Temp (°C): ''
   Chamber Temperature: 腔体温度
   Chamber and dryer humidity monitoring: 腔体和干燥器湿度监控
   Chamber at %d°C: 腔体温度：%d°C
