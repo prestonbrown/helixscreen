@@ -35,6 +35,11 @@ class StarfieldScreensaver : public Screensaver {
     }
 
   private:
+    // Test-only seam: reads the allocation records below so the stride
+    // contract can be pinned without a full display pipeline. See
+    // tests/test_helpers/screensaver_test_access.h.
+    friend class StarfieldScreensaverTestAccess;
+
     struct Star {
         float x;        // normalized position (-1..1)
         float y;        // normalized position (-1..1)
@@ -64,8 +69,12 @@ class StarfieldScreensaver : public Screensaver {
     lv_obj_t* canvas_ = nullptr;
     lv_timer_t* timer_ = nullptr;
 
-    // Draw buffer owned by the canvas
+    // Draw buffer owned by the canvas, allocated at LVGL's row stride — see
+    // screensaver_canvas_stride_bytes(). render_frame() steps rows by
+    // draw_buf_stride_ so direct pixel writes land where the canvas reads them.
     uint8_t* draw_buf_ = nullptr;
+    size_t draw_buf_size_ = 0;
+    uint32_t draw_buf_stride_ = 0;
 
     std::vector<Star> stars_;
 

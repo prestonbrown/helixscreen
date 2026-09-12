@@ -2141,8 +2141,10 @@ void DisplayManager::install_color_transform_hook() {
                 const lv_color_format_t cf = lv_display_get_color_format(d);
                 const int w = lv_area_get_width(area);
                 const int h = lv_area_get_height(area);
-                const int stride = lv_draw_buf_width_to_stride(w, cf);
-                self->m_color_transform.apply(px_map, w, h, stride, cf);
+                const auto reg = helix::ColorTransform::select_flush_region(
+                    lv_display_get_buf_active(d), *area, cf, lv_display_get_render_mode(d));
+                self->m_color_transform.apply_area(px_map, reg.stride_bytes, reg.x, reg.y, w, h,
+                                                   cf);
             }
             // Mirror the (post-transform) pixels to any remote-screen sink. Runs
             // on every flush regardless of the color transform (the U1 has none).
