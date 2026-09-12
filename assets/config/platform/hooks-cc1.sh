@@ -122,7 +122,12 @@ platform_pre_start() {
     # has no /opt at all, so a cache rooted there is not merely unwritable: it is
     # skipped by every rung of the cascade down to /tmp, which is tmpfs carved out
     # of 117 MB of system RAM. The thumbnail cache alone is allowed 20 MB.
-    export HELIX_CACHE_DIR="/user-resource/helixscreen/cache"
+    # Cache and logs live beside the payload, never inside it. The install root
+    # is what an update replaces, and not only by our own hand: a Moonraker
+    # `type: web` entry does shutil.rmtree(path) before extracting. Anything
+    # under it goes on every update - logs vanish exactly when someone needs
+    # them, and the thumbnail cache is rebuilt from nothing.
+    export HELIX_CACHE_DIR="/user-resource/helixscreen-state/cache"
 
     # Let the COSMOS gui-switcher actually stop HelixScreen. The stock resonance
     # macro (_CALIBRATE_ALL_STEP_2) runs GUI_STOP -> `gui-switcher stop` before
@@ -150,10 +155,10 @@ platform_pre_start() {
     # surprise growth on flash. 1 MiB × 3 = ~3 MiB cap gives months of
     # headroom at normal levels.
     export HELIX_LOG_DEST=file
-    export HELIX_LOG_FILE="/user-resource/helixscreen/logs/helix.log"
+    export HELIX_LOG_FILE="/user-resource/helixscreen-state/logs/helix.log"
     export HELIX_LOG_ROTATE_BYTES=1048576
     export HELIX_LOG_ROTATE_FILES=3
-    mkdir -p "/user-resource/helixscreen/logs" 2>/dev/null || true
+    mkdir -p "/user-resource/helixscreen-state/logs" 2>/dev/null || true
 
     return 0
 }

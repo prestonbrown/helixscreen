@@ -52,7 +52,9 @@ setup() {
     local branch
     branch=$(awk '/#elif defined\(HELIX_PLATFORM_MIPS\)/,/#elif defined\(HELIX_PLATFORM_ANDROID\)/' "$CACHE_DIR_CPP")
     [ -n "$branch" ]
-    echo "$branch" | grep -q '/usr/data/helixscreen/cache'
+    # The cache sits beside the payload rather than inside it, but still on
+    # /usr/data — that partition is the point of this case, not the leaf name.
+    echo "$branch" | grep -q '/usr/data/helixscreen-state/cache'
     echo "$branch" | refute_grep '/mnt/UDISK'
 }
 

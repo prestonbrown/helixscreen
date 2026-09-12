@@ -50,6 +50,28 @@ PREVIOUS_UIS="guppyscreen GuppyScreen featherscreen FeatherScreen klipperscreen 
 # shellcheck disable=SC2034  # consumed by uninstall.sh (sweep of all known install locations)
 HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
 
+# Where cache/ and logs/ live. Deliberately NOT inside an install root: the
+# payload is what an update replaces, and Moonraker's type:web entry rmtree()s
+# it first. Swept on uninstall, since nothing else ever removes them.
+# Mirrors kStateRoots in include/helix_install_roots.h.
+# shellcheck disable=SC2034  # consumed by uninstall.sh
+HELIX_STATE_DIRS="/mnt/UDISK/helixscreen /data/helixscreen /usr/data/helixscreen-state /user-resource/helixscreen-state /userdata/helixscreen-state /srv/helixscreen-state"
+
+# Cache and log directories an uninstall removes: every declared state dir, plus
+# the in-payload locations older installs still carry. Emitting the legacy ones
+# is what makes an upgrade-then-uninstall clean, since a box installed before
+# the state moved still has them.
+# shellcheck disable=SC2034  # consumed by uninstall.sh
+helix_state_sweep_paths() {
+    for _hssp in $HELIX_STATE_DIRS; do
+        printf '%s/cache\n%s/logs\n' "$_hssp" "$_hssp"
+    done
+    printf '%s\n' /root/.cache/helix /tmp/helix_thumbs /.cache/helix \
+        /data/helixscreen/cache /usr/data/helixscreen/cache \
+        /user-resource/helixscreen/cache /userdata/helixscreen/cache \
+        /srv/helixscreen/cache
+}
+
 # Init script locations vary by platform/firmware
 # AD5M Klipper Mod: S80, AD5M Forge-X: S90, K1: S99, CC1 (COSMOS): plain /etc/init.d/helixscreen
 # shellcheck disable=SC2034  # consumed by service.sh and uninstall.sh
@@ -1570,9 +1592,11 @@ detect_k1_firmware() {
 }
 
 # Locations a HelixScreen install may already occupy, for the existing-install
-# probe below. Mirrors HELIX_INSTALL_DIRS in uninstall.sh — same question, same
-# answer. Overridable so the bats suite can point it at a sandbox.
-: "${_HELIX_KNOWN_INSTALL_DIRS:=/opt/helixscreen /srv/helixscreen /usr/data/helixscreen /root/printer_software/helixscreen /user-resource/helixscreen /userdata/helixscreen}"
+# probe below. This is the same question HELIX_INSTALL_DIRS answers for the
+# uninstall sweep, so it IS that list rather than a second copy of it: common.sh
+# is the bundle's first module, so the value is set by the time this one loads.
+# Overridable so the bats suite can point it at a sandbox.
+: "${_HELIX_KNOWN_INSTALL_DIRS:=${HELIX_INSTALL_DIRS}}"
 
 # Print the directory of an install that is already on disk, or return 1.
 # Checks $KLIPPER_HOME/helixscreen first so an ecosystem install outranks a stale
@@ -1848,6 +1872,7 @@ set_install_paths() {
     # below opt out. Without the reset a stale value from the environment (or
     # from an earlier call in the same shell) would leak into another platform.
     KLIPPER_CONFIG_DIR=""
+    _install_dir_from_detection=0
 
     if [ "$platform" = "ad5m" ]; then
         # AD5M runs the helix-screen service as root on all three firmwares
@@ -1892,6 +1917,11 @@ set_install_paths() {
         KLIPPER_GROUP="root"
         KLIPPER_HOME="/root"
         INSTALL_DIR="/srv/helixscreen"
+        # The cache moved to a sibling of the payload, because the payload is
+        # what an update replaces. Reclaim the copy an older install left inside
+        # it rather than leaving a second one on the flash.
+        # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
+        STALE_CACHE_DIRS="/srv/helixscreen/cache"
         INIT_SCRIPT_DEST="/etc/init.d/S80helixscreen"
         PREVIOUS_UI_SCRIPT=""
         log_info "Platform: FlashForge AD5X (ZMOD)"
@@ -1903,6 +1933,11 @@ set_install_paths() {
         # KLIPPER_HOME=/root and setup_config_symlink skips with
         # "No printer_data/config found" on every K1 install.
         INSTALL_DIR="/usr/data/helixscreen"
+        # The cache moved to a sibling of the payload, because the payload is
+        # what an update replaces. Reclaim the copy an older install left inside
+        # it rather than leaving a second one on the flash.
+        # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
+        STALE_CACHE_DIRS="/usr/data/helixscreen/cache"
         INIT_SCRIPT_DEST="/etc/init.d/S99helixscreen"
         KLIPPER_USER="root"
         KLIPPER_GROUP="root"
@@ -1958,6 +1993,11 @@ set_install_paths() {
         #   printer.cfg, and the vendor *-readonly/ include dirs), which is
         #   also the `config` root Moonraker advertises over /server/files/roots.
         INSTALL_DIR="/user-resource/helixscreen"
+        # The cache moved to a sibling of the payload, because the payload is
+        # what an update replaces. Reclaim the copy an older install left inside
+        # it rather than leaving a second one on the flash.
+        # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
+        STALE_CACHE_DIRS="/user-resource/helixscreen/cache"
         INIT_SCRIPT_DEST="/etc/init.d/helixscreen"
         PREVIOUS_UI_SCRIPT=""
         KLIPPER_USER="root"
@@ -1976,6 +2016,11 @@ set_install_paths() {
         # on a freshly-flashed U1 before klipper has ever run that path may
         # not exist yet — make it explicit so the installer is deterministic.
         INSTALL_DIR="/userdata/helixscreen"
+        # The cache moved to a sibling of the payload, because the payload is
+        # what an update replaces. Reclaim the copy an older install left inside
+        # it rather than leaving a second one on the flash.
+        # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
+        STALE_CACHE_DIRS="/userdata/helixscreen/cache"
         KLIPPER_USER="root"
         KLIPPER_GROUP="root"
         KLIPPER_HOME="/home/lava"
@@ -1996,6 +2041,27 @@ set_install_paths() {
         PREVIOUS_UI_SCRIPT=""
         detect_klipper_user
         detect_pi_install_dir
+        _install_dir_from_detection=1
+    fi
+
+    # An install already on disk decides, on every platform. The roots above are
+    # defaults for a FIRST install; once a tree exists, moving it orphans that
+    # tree and the user config inside it, and an in-app update cannot carry the
+    # move: the payload lands at the new prefix while the init script still
+    # names the old one, so the device reboots into the old binary with two
+    # copies on disk. detect_pi_install_dir already did this for its own branch,
+    # and an explicit INSTALL_DIR is a deliberate choice that outranks it.
+    if [ "${_install_dir_from_detection:-0}" != "1" ] && [ -z "${_USER_INSTALL_DIR:-}" ]; then
+        _existing_install_dir=$(_detect_existing_install_dir) || _existing_install_dir=""
+        if [ -n "$_existing_install_dir" ] && [ "$_existing_install_dir" != "$INSTALL_DIR" ]; then
+            log_info "Install directory (existing install): $_existing_install_dir"
+            INSTALL_DIR="$_existing_install_dir"
+            # Snapmaker U1 is the one platform whose init script lives INSIDE the
+            # install tree, so its path has to follow the tree.
+            if [ "$platform" = "snapmaker-u1" ]; then
+                INIT_SCRIPT_DEST="${INSTALL_DIR}/config/helixscreen.init"
+            fi
+        fi
     fi
 
     # A probed mod host installs into the mod's own payload root: the mod owns
@@ -7156,7 +7222,7 @@ uninstall() {
     local restored_xorg="$HELIX_RESTORED_XORG"
 
     # Clean up helixscreen cache directories
-    for cache_dir in /root/.cache/helix /tmp/helix_thumbs /.cache/helix /data/helixscreen/cache /usr/data/helixscreen/cache; do
+    for cache_dir in $(helix_state_sweep_paths); do
         if [ -d "$cache_dir" ] 2>/dev/null; then
             log_info "Removing cache: $cache_dir"
             $SUDO rm -rf "$cache_dir"
@@ -7301,8 +7367,7 @@ clean_old_installation() {
         "/tmp/helix_thumbs" \
         "/var/tmp/helix_thumbs" \
         "/var/tmp/helix_*" \
-        "/data/helixscreen/cache" \
-        "/usr/data/helixscreen/cache"
+        $(helix_state_sweep_paths)
     do
         for cache_dir in $cache_pattern; do
             if [ -d "$cache_dir" ] 2>/dev/null; then

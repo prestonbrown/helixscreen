@@ -174,6 +174,92 @@ def check_install_roots(manifest, f):
                 f.add("install-roots", f"{path} ({label}) does not list {root}")
 
 
+def check_shell_roots(manifest, f):
+    """The shell sweep list must name every root the manifest declares.
+
+    The C++ side reads one shared header; the installer cannot, because it runs
+    on devices where python is only probed for, never assumed. So the shell keeps
+    a literal list and this is what holds it to the manifest.
+    """
+    text = read("scripts/lib/installer/common.sh")
+    if text is None:
+        f.add("shell-roots", "scripts/lib/installer/common.sh not found")
+        return
+    m = re.search(r'^HELIX_INSTALL_DIRS="([^"]*)"', text, re.M)
+    if not m:
+        f.add("shell-roots", "HELIX_INSTALL_DIRS is not a plain assignment any more")
+        return
+    listed = set(m.group(1).split())
+
+    declared = set()
+    for entry in manifest["platforms"].values():
+        storage = entry.get("storage", {})
+        value = storage.get("root")
+        if value and value.startswith("/"):
+            declared.add(value)
+        for cond in storage.get("root_by_firmware", {}).values():
+            for token in re.findall(r"(/[\w./-]*helixscreen)", cond or ""):
+                declared.add(token)
+
+    for root in sorted(declared - listed):
+        f.add("shell-roots", f"HELIX_INSTALL_DIRS does not sweep {root}")
+
+    # The C++ header may legitimately know more (a shape no installer arm
+    # produces), but the asymmetry is worth naming rather than leaving implicit:
+    # a root the app reads logs from but the uninstaller never removes is a tree
+    # left behind on every uninstall.
+    header = read("include/helix_install_roots.h")
+    if header:
+        # kInstallRoots only. kHomeInstallRoots are $KLIPPER_HOME fallbacks for a
+        # Pi-class box, not fixed platform roots, and an uninstall sweeping a
+        # user's home directory would be a different and worse bug.
+        block = re.search(r"kInstallRoots\[\]\s*=\s*\{(.*?)\};", header, re.S)
+        cxx = set(re.findall(r'"(/[\w./-]*helixscreen)"', block.group(1) if block else ""))
+        for root in sorted(cxx - listed):
+            f.add(
+                "shell-roots",
+                f"{root} is searched by the app as a payload root, but no "
+                f"uninstall sweeps it",
+            )
+
+
+def _under(path, root):
+    """True when `path` is `root` or lives inside it."""
+    if not path or not root or not path.startswith("/") or not root.startswith("/"):
+        return False
+    root = root.rstrip("/")
+    return path == root or path.startswith(root + "/")
+
+
+def check_state_outside_payload(manifest, f):
+    """Cache and logs must not live inside the payload.
+
+    The payload is what an update replaces, and not only by our own hand: a
+    Moonraker `type: web` entry does shutil.rmtree(path) before extracting, and
+    that path is the install root. Anything under it is deleted on every update,
+    so logs disappear exactly when someone needs them and the thumbnail cache is
+    rebuilt from nothing.
+    """
+    for pid, entry in sorted(manifest["platforms"].items()):
+        storage = entry.get("storage", {})
+        root = storage.get("root", "")
+        if not root.startswith("/"):
+            continue  # discovered at runtime; the XDG cascade keeps state elsewhere
+
+        for field in ("cache_dir", "log_file"):
+            value = storage.get(field)
+            if not value:
+                continue
+            # A log FILE sits in a directory; judge the directory.
+            probe = value if field == "cache_dir" else os.path.dirname(value)
+            if _under(probe, root):
+                f.add(
+                    "state-in-payload",
+                    f"{pid}: {field} {value} is inside the payload root {root}, "
+                    f"which every update deletes",
+                )
+
+
 def check_renders_exist(manifest, f, build_dir):
     """Derived classes must have a render under build/, when a build exists."""
     prerendered = os.path.join(ROOT, build_dir, "assets", "images", "prerendered")
@@ -217,6 +303,8 @@ def main():
     check_package_prereqs(manifest, f)
     check_no_hardcoded_sizes(manifest, f)
     check_install_roots(manifest, f)
+    check_shell_roots(manifest, f)
+    check_state_outside_payload(manifest, f)
     check_renders_exist(manifest, f, args.build_dir)
 
     if not args.quiet:

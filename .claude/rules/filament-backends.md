@@ -4,6 +4,8 @@ paths:
   - "include/ams_*"
   - "src/printer/filament_*"
   - "include/filament_*"
+  - "include/lane_*"
+  - "src/printer/lane_*"
 ---
 # Filament Systems
 

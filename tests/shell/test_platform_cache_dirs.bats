@@ -33,7 +33,7 @@ hook_cache_dir() {
 @test "cc1 caches on the writable ext4 partition" {
     run hook_cache_dir cc1
     [ "$status" -eq 0 ] || fail "could not read hooks-cc1.sh"
-    [ "$output" = "/user-resource/helixscreen/cache" ] || \
+    [ "$output" = "/user-resource/helixscreen-state/cache" ] || \
         fail "cc1 cache is '$output'; /user-resource is the only writable bulk storage"
 }
 
@@ -48,7 +48,7 @@ hook_cache_dir() {
     # of the same fact drifting on its own.
     local from_hook
     from_hook="$(hook_cache_dir cc1)"
-    run grep -A3 'defined(HELIX_PLATFORM_CC1)' "$CACHE_DIR_CPP"
+    run grep -A8 'defined(HELIX_PLATFORM_CC1)' "$CACHE_DIR_CPP"
     [ "$status" -eq 0 ] || fail "no CC1 rung in helix_cache_dir.cpp"
     contains "$from_hook" "$output"
 }
@@ -99,8 +99,12 @@ hook_cache_dir() {
         plat="${plat#hooks-}"
         dir="$(hook_cache_dir "$plat")"
         [ -n "$dir" ] || continue
+        # Either beside the payload (<mount>/helixscreen-state/cache) or on a
+        # different mount that carries the platform's durable state.
         case "$dir" in
+            /*/helixscreen-state/cache|/*/*/helixscreen-state/cache) ;;
             /*/helixscreen/cache|/*/*/helixscreen/cache) ;;
+            /*/mod_data/helixscreen/cache) ;;
             *) failures="$failures $plat:$dir" ;;
         esac
     done
@@ -140,4 +144,80 @@ CONSUMERS="src/system/log_collector.cpp src/system/debug_bundle_collector.cpp sr
 @test "the shared list is the only place the roots are written" {
     run grep -c -- '"/userdata/helixscreen"' include/helix_install_roots.h
     [ "$output" != "0" ] || fail "the shared header no longer carries the Snapmaker U1 root"
+}
+
+# --------------------------------------------------------------------------
+# State lives beside the payload, never inside it
+# --------------------------------------------------------------------------
+#
+# The install root is what an update replaces, and not only by our own hand: a
+# Moonraker `type: web` entry does shutil.rmtree(path) before extracting, and
+# that path IS the install root. Cache and logs kept under it are destroyed on
+# every update - logs vanish exactly when someone needs them, and the thumbnail
+# cache is rebuilt from nothing.
+
+@test "no hook puts cache or logs inside that platform's install root" {
+    # The roots each hook's platform installs to, from set_install_paths.
+    declare -A ROOT=(
+        [k1]=/usr/data/helixscreen
+        [k2]=/opt/helixscreen
+        [cc1]=/user-resource/helixscreen
+        [ad5x]=/srv/helixscreen
+        [snapmaker-u1]=/userdata/helixscreen
+    )
+    local failures=""
+    for plat in "${!ROOT[@]}"; do
+        local f="$HOOKS_DIR/hooks-$plat.sh"
+        [ -f "$f" ] || continue
+        local root="${ROOT[$plat]}"
+        while read -r path; do
+            [ -n "$path" ] || continue
+            case "$path" in
+                "$root"/*|"$root") failures="$failures $plat:$path" ;;
+            esac
+        done <<< "$(sed -n 's/.*export HELIX_\(CACHE_DIR\|LOG_FILE\)="\([^"]*\)".*/\2/p' "$f")"
+    done
+    [ -z "$failures" ] || fail "state inside the payload, which updates delete:$failures"
+}
+
+@test "k1 keeps its cache and logs off the payload" {
+    run hook_cache_dir k1
+    [ "$output" = "/usr/data/helixscreen-state/cache" ] || fail "k1 cache is '$output'"
+    run grep -c 'HELIX_LOG_FILE="/usr/data/helixscreen-state/logs/helix.log"' "$HOOKS_DIR/hooks-k1.sh"
+    [ "$output" = "1" ] || fail "k1 log is not on the state tree"
+}
+
+@test "cc1 keeps its cache and logs off the payload" {
+    run hook_cache_dir cc1
+    [ "$output" = "/user-resource/helixscreen-state/cache" ] || fail "cc1 cache is '$output'"
+}
+
+@test "ad5x keeps its log where the mod archiver looks, not on the state tree" {
+    # ZMOD's TAR_CONFIG collects /opt/config/ and never /data or /srv, so this
+    # one is deliberately NOT co-located with the cache.
+    run grep -c 'HELIX_LOG_FILE="/opt/config/mod_data/log/helix.log"' "$HOOKS_DIR/hooks-ad5x.sh"
+    [ "$output" = "1" ] || fail "ad5x log moved off the mod's archive path"
+    run hook_cache_dir ad5x
+    [ "$output" = "/srv/helixscreen-state/cache" ] || fail "ad5x cache is '$output'"
+}
+
+@test "a log tail can still find the moved logs" {
+    # Moving the logs without teaching the search is how a debug bundle ends up
+    # with the field silently absent.
+    for d in /usr/data/helixscreen-state /user-resource/helixscreen-state \
+             /userdata/helixscreen-state /srv/helixscreen-state; do
+        run grep -c -- "\"$d\"" "$WORKTREE_ROOT/include/helix_install_roots.h"
+        [ "$output" != "0" ] || fail "$d is not in kStateRoots; its logs are unreachable"
+    done
+}
+
+@test "uninstall sweeps the state dirs and the legacy in-payload ones" {
+    run bash -c "export SUDO=''; . '$WORKTREE_ROOT/scripts/lib/installer/common.sh'; helix_state_sweep_paths"
+    [ "$status" -eq 0 ] || fail "helix_state_sweep_paths failed: $output"
+    contains "/usr/data/helixscreen-state/cache" "$output"
+    contains "/usr/data/helixscreen-state/logs" "$output"
+    # The legacy location an older install still has must stay swept, or an
+    # upgrade-then-uninstall leaves it behind.
+    contains "/usr/data/helixscreen/cache" "$output"
+    contains "/user-resource/helixscreen/cache" "$output"
 }

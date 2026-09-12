@@ -35,6 +35,23 @@ inline constexpr const char* kInstallRoots[] = {
     "/data/helixscreen",                  // AD5X installs rooted at /data
 };
 
+/// Where a platform keeps cache/ and logs/. Never the payload root nor inside
+/// it: an update replaces the payload, and a Moonraker `type: web` entry
+/// rmtree()s it first, so state kept there is destroyed on every update.
+/// A log tail or a debug bundle has to look here, not only under the payload.
+inline constexpr const char* kStateRoots[] = {
+    "/mnt/UDISK/helixscreen",           // K2, on the 27.5GB user partition
+    "/data/helixscreen",                // AD5M, on the durable ext4 mount
+    "/usr/data/helixscreen-state",      // K1, K1C
+    "/user-resource/helixscreen-state", // CC1
+    "/userdata/helixscreen-state",      // Snapmaker U1
+    "/srv/helixscreen-state",           // AD5X
+};
+// AD5X and AD5M ZMOD put their LOG under the mod's own tree so the mod's
+// archiver collects it. That path is gated on an AD5X layout actually being
+// present (helix::logs::default_file_paths), so it is deliberately not listed
+// here: an unconditional entry is a dead stat probe on every other host.
+
 /// Home directories a Pi-class install is commonly found under. These are
 /// `$KLIPPER_HOME/helixscreen` rather than a platform's fixed root, so they are
 /// a fallback for when the canonical resolver cannot name the install itself.

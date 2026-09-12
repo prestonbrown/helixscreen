@@ -76,10 +76,19 @@ STRUCTURAL_DIRS = (
 )
 
 # Forward declarations that mirror a foreign API keep the foreign spelling.
+# Every entry is matched with startswith, so an entry must be anchored to the
+# foreign API's real spelling: a bare 'drm' or 'G' swallows our own
+# drm_rotation_needs_full_render, DisplayManager and every capitalised G*
+# type, leaving whole layers un-gated while the baseline says otherwise
+# (prestonbrown/helixscreen#1586). Nothing in this tree spells a foreign
+# symbol with a bare 'z_', 'Window' or 'Display' prefix, so those entries
+# are gone rather than anchored.
 FOREIGN_PREFIXES = (
     'lv_', '_lv_', 'hv_', 'Hv', 'HV', 'json', 'nlohmann', 'cJSON', 'sqlite3',
-    'DBus', 'GDBus', 'G', 'SDL_', 'drm', 'DRM', 'mbedtls', 'lws', 'ALSA',
-    'snd_', 'png_', 'jpeg_', 'z_', 'Display', 'Window', 'CW', 'NS',
+    'DBus', 'GDBus', 'SDL_', 'drmMode', 'drmGet', 'drmIoctl', 'drmDrop',
+    'drmSet', 'drmIs', 'drmHandle', 'drmClose', 'drmOpen', 'drmFree',
+    'drmVersion', 'DRM',
+    'mbedtls', 'lws', 'ALSA', 'snd_', 'png_', 'jpeg_', 'CW', 'NS',
 )
 
 RAW_OPEN = re.compile(r'(?:u8|u|U|L)?R"([^()\\ ]{0,16})\(')

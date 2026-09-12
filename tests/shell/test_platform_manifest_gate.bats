@@ -32,12 +32,13 @@ setup() {
 make_tree() {
     TREE="$WORK/tree"
     rm -rf "$TREE"
-    mkdir -p "$TREE/mk" "$TREE/assets/config" "$TREE/scripts/lib/installer" "$TREE/src/system"
+    mkdir -p "$TREE/mk" "$TREE/assets/config" "$TREE/scripts/lib/installer" "$TREE/src/system" "$TREE/include"
     cp assets/config/platforms.json "$TREE/assets/config/"
     cp mk/cross.mk mk/images.mk "$TREE/mk/"
     cp scripts/lib/installer/common.sh scripts/lib/installer/platform.sh "$TREE/scripts/lib/installer/"
     cp src/system/log_collector.cpp src/system/update_checker.cpp \
        src/system/debug_bundle_collector.cpp "$TREE/src/system/"
+    cp include/helix_install_roots.h "$TREE/include/"
 }
 
 # --------------------------------------------------------------------------
@@ -451,4 +452,43 @@ print(' '.join(re.findall(r'\(\"([a-z_]+)\",', block)))")"
             esac
         done
     done
+}
+
+# --------------------------------------------------------------------------
+# The shell sweep list, which cannot read the manifest at install time
+# --------------------------------------------------------------------------
+#
+# The installer runs on devices where python is probed for, never assumed, so
+# HELIX_INSTALL_DIRS stays a literal. This is what holds that literal to the
+# manifest instead of to somebody's memory.
+
+@test "gate: reports a manifest root the uninstall sweep would miss" {
+    make_tree
+    python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); \
+d["platforms"]["k2"]["storage"]["root"]="/brand-new-mount/helixscreen"; \
+json.dump(d,open(p,"w"),indent=2)' "$TREE/assets/config/platforms.json"
+    run python3 "$GATE" --quiet --root "$TREE"
+    contains "HELIX_INSTALL_DIRS does not sweep /brand-new-mount/helixscreen" "$output"
+}
+
+@test "gate: the unmodified tree has every manifest root in the sweep" {
+    make_tree
+    run python3 "$GATE" --quiet --root "$TREE"
+    lacks "does not sweep" "$output"
+}
+
+@test "gate: home-relative fallbacks are not demanded of the sweep" {
+    # kHomeInstallRoots are $KLIPPER_HOME fallbacks for a Pi-class box. An
+    # uninstall sweeping a user's home directory would be a worse bug than the
+    # one this check exists for.
+    make_tree
+    run python3 "$GATE" --quiet --root "$TREE"
+    lacks "/home/pi/helixscreen is searched" "$output"
+    lacks "/home/biqu/helixscreen is searched" "$output"
+}
+
+@test "gate: names a root the app reads but the uninstaller never removes" {
+    make_tree
+    run python3 "$GATE" --quiet --root "$TREE"
+    contains "/data/helixscreen is searched by the app as a payload root" "$output"
 }

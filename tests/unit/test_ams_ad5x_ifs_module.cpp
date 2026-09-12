@@ -181,14 +181,17 @@ TEST_CASE("PrinterDiscovery detects the standalone IFS module objects",
 TEST_CASE("AD5X IFS owns the module's stock-named sensors", "[ams][ad5x_ifs][ifs_module]") {
     helix::PrinterDiscovery hw;
     CHECK(AmsBackendAd5xIfs::owns_filament_sensor("toolhead", hw));
-    CHECK(AmsBackendAd5xIfs::owns_filament_sensor("lane1", hw));
-    CHECK(AmsBackendAd5xIfs::owns_filament_sensor("lane4", hw));
     // Not every bare name: the claim is shape-exact, and the caller routes on
     // the detected printer type, so these negatives pin the predicate itself.
     CHECK_FALSE(AmsBackendAd5xIfs::owns_filament_sensor("runout_sensor", hw));
     CHECK_FALSE(AmsBackendAd5xIfs::owns_filament_sensor("toolhead2", hw));
-    CHECK_FALSE(AmsBackendAd5xIfs::owns_filament_sensor("lane", hw));
-    CHECK_FALSE(AmsBackendAd5xIfs::owns_filament_sensor("lanes", hw));
+    // Per-channel presence ("lane1".."lane4") is read from the module's
+    // structured `ifs` status object, never from individual sensor names, so
+    // this backend claims no "lane<N>" name. PrinterHardware::is_ams_sensor
+    // still matches them on its own "lane" substring rule, above the backend
+    // predicate; this pins the predicate, not that outcome.
+    CHECK_FALSE(AmsBackendAd5xIfs::owns_filament_sensor("lane1", hw));
+    CHECK_FALSE(AmsBackendAd5xIfs::owns_filament_sensor("lane4", hw));
 }
 
 TEST_CASE("AD5X IFS does not latch on a requested-but-missing object echo",

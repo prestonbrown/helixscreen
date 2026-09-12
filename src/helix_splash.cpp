@@ -219,45 +219,21 @@ static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width, int height, bool 
                                   bool use_fade) {
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Try full-screen 3D splash first
-    const char* size_name = helix::get_splash_3d_size_name(width, height);
-    const char* mode_name = dark_mode ? "dark" : "light";
-
-    // Build path to 3D splash image
-    char splash_3d_path[128];
-    snprintf(splash_3d_path, sizeof(splash_3d_path),
-             "assets/images/prerendered/splash-3d-%s-%s.bin", mode_name, size_name);
-
-    struct stat st;
-    bool use_3d = (stat(splash_3d_path, &st) == 0);
-
-    // A 480x400 panel takes the tiny canvas when its own is absent.
-    if (!use_3d && strcmp(size_name, "small") == 0) {
-        snprintf(splash_3d_path, sizeof(splash_3d_path),
-                 "assets/images/prerendered/splash-3d-%s-tiny.bin", mode_name);
-        use_3d = (stat(splash_3d_path, &st) == 0);
+    // helix-screen runs this same decision a moment later; anything they
+    // disagree about is the picture changing under the user at handoff.
+    const helix::SplashChoice choice = helix::choose_splash_asset(
+        width, height, dark_mode, [](const std::string& rel) -> std::string {
+            struct stat probe;
+            return stat(rel.c_str(), &probe) == 0 ? rel : std::string();
+        });
+    if (choice.canvas_too_tall) {
+        fprintf(stderr, "helix-splash: %s canvas exceeds screen height %dpx, scaling instead\n",
+                choice.size_class.c_str(), height);
     }
 
-    // Also check for 3D source PNG fallback
-    char splash_3d_png[128];
-    bool use_3d_png = false;
-    if (!use_3d) {
-        snprintf(splash_3d_png, sizeof(splash_3d_png), "assets/images/helixscreen-logo-3d-%s.png",
-                 mode_name);
-        use_3d_png = (stat(splash_3d_png, &st) == 0);
-    }
-
-    // Safety: skip pre-rendered .bin if it would be taller than the screen
-    if (use_3d) {
-        int target_h = helix::get_splash_3d_target_height(size_name);
-        if (target_h > 0 && target_h > height) {
-            fprintf(stderr,
-                    "helix-splash: Pre-rendered %s (%dpx) exceeds screen height %dpx, "
-                    "falling back to PNG\n",
-                    size_name, target_h, height);
-            use_3d = false;
-        }
-    }
+    const bool use_3d = choice.kind == helix::SplashAssetKind::FullScreen3DBin;
+    const bool use_3d_png = choice.kind == helix::SplashAssetKind::Source3DPng;
+    std::string lvgl_src = choice.path.empty() ? std::string() : "A:" + choice.path;
 
     if (use_3d || use_3d_png) {
         // 3D splash: prerendered bin (full-screen) or source PNG (centered + scaled)
@@ -269,22 +245,18 @@ static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width, int height, bool 
         lv_obj_set_style_bg_opa(img, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_border_width(img, 0, LV_PART_MAIN);
 
+        lv_image_set_src(img, lvgl_src.c_str());
+
         if (use_3d) {
             // Prerendered bin: full-screen, no scaling needed
-            char lvgl_path[140];
-            snprintf(lvgl_path, sizeof(lvgl_path), "A:%s", splash_3d_path);
-            lv_image_set_src(img, lvgl_path);
-            fprintf(stderr, "helix-splash: Using 3D splash (%s, %s, fade=%s)\n", mode_name,
-                    size_name, use_fade ? "yes" : "no");
+            fprintf(stderr, "helix-splash: Using 3D splash (%s, %s, fade=%s)\n",
+                    dark_mode ? "dark" : "light", choice.size_class.c_str(),
+                    use_fade ? "yes" : "no");
         } else {
             // Source PNG fallback: scale to fit screen width
-            char lvgl_path[140];
-            snprintf(lvgl_path, sizeof(lvgl_path), "A:%s", splash_3d_png);
-            lv_image_set_src(img, lvgl_path);
-
             lv_image_header_t header;
-            if (lv_image_decoder_get_info(lvgl_path, &header) == LV_RESULT_OK && header.w > 0 &&
-                header.h > 0) {
+            if (lv_image_decoder_get_info(lvgl_src.c_str(), &header) == LV_RESULT_OK &&
+                header.w > 0 && header.h > 0) {
                 // Fit to screen with 10% vertical margin (5% top + 5% bottom)
                 int usable_height = (height * 9) / 10;
                 int scale_w = (width * 256) / header.w;
@@ -292,7 +264,7 @@ static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width, int height, bool 
                 int scale = (scale_w < scale_h) ? scale_w : scale_h;
                 lv_image_set_scale(img, scale);
                 fprintf(stderr, "helix-splash: Using 3D PNG fallback (%s, %dx%d scale=%d)\n",
-                        mode_name, (int)header.w, (int)header.h, scale);
+                        dark_mode ? "dark" : "light", (int)header.w, (int)header.h, scale);
             } else {
                 fprintf(stderr, "helix-splash: 3D PNG loaded but could not get dimensions\n");
             }
@@ -337,18 +309,12 @@ static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width, int height, bool 
     lv_obj_set_style_bg_opa(logo, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(logo, 0, LV_PART_MAIN);
 
-    // Check for pre-rendered logo image (centered, not full-screen)
-    char prerendered_path[128];
-    snprintf(prerendered_path, sizeof(prerendered_path),
-             "assets/images/prerendered/splash-logo-%s.bin",
-             helix::get_splash_size_name(width, height));
-    bool use_prerendered = (stat(prerendered_path, &st) == 0);
+    // Pre-rendered logo (centered, not full-screen), from the same decision
+    const bool use_prerendered = choice.kind == helix::SplashAssetKind::LogoBin;
 
     if (use_prerendered) {
         // Pre-rendered: instant display, no scaling needed!
-        char lvgl_path[136];
-        snprintf(lvgl_path, sizeof(lvgl_path), "A:%s", prerendered_path);
-        lv_image_set_src(logo, lvgl_path);
+        lv_image_set_src(logo, lvgl_src.c_str());
         fprintf(stderr, "helix-splash: Using pre-rendered splash (fast path)\n");
     } else {
         // PNG fallback with runtime scaling (slow but works)

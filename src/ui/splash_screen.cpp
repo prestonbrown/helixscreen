@@ -8,6 +8,7 @@
 #include "helix_timing.h"
 #include "helix_version.h"
 #include "prerendered_images.h"
+#include "splash_asset_choice.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -55,42 +56,20 @@ void show_splash_screen(int screen_width, int screen_height) {
 
     // Try full-screen 3D splash first (theme-aware dark/light variant)
     bool dark_mode = theme_manager_is_dark_mode();
-    const char* size_name = get_splash_3d_size_name(screen_width, screen_height);
-    const char* mode_name = dark_mode ? "dark" : "light";
-
-    std::string splash_3d_path = find_prerendered(
-        std::string("assets/images/prerendered/splash-3d-") + mode_name + "-" + size_name + ".bin");
-
-    // A 480x400 panel takes the tiny canvas when its own is absent.
-    if (splash_3d_path.empty() && std::string(size_name) == "small") {
-        size_name = "tiny";
-        splash_3d_path = find_prerendered(std::string("assets/images/prerendered/splash-3d-") +
-                                          mode_name + "-tiny.bin");
+    const helix::SplashChoice choice =
+        helix::choose_splash_asset(screen_width, screen_height, dark_mode, find_prerendered);
+    if (choice.canvas_too_tall) {
+        spdlog::debug("[Splash Screen] {} canvas exceeds screen height {}px, scaling instead",
+                      choice.size_class, screen_height);
     }
 
-    // Safety: skip pre-rendered image if it would be taller than the screen
-    if (!splash_3d_path.empty()) {
-        int target_h = get_splash_3d_target_height(size_name);
-        if (target_h > 0 && target_h > screen_height) {
-            spdlog::debug("[Splash Screen] Pre-rendered {} ({}px) exceeds screen height {}px, "
-                          "falling back to PNG",
-                          size_name, target_h, screen_height);
-            splash_3d_path.clear();
-        }
-    }
+    const std::string splash_3d_path =
+        choice.kind == helix::SplashAssetKind::FullScreen3DBin ? choice.path : std::string();
+    const std::string splash_3d_png =
+        choice.kind == helix::SplashAssetKind::Source3DPng ? choice.path : std::string();
 
     // The widget we'll animate and clean up
     lv_obj_t* splash_widget = nullptr;
-
-    // Also check for 3D source PNG fallback (now has alpha transparency)
-    std::string splash_3d_png;
-    if (splash_3d_path.empty()) {
-        std::string png_rel =
-            std::string("assets/images/helixscreen-logo-3d-") + mode_name + ".png";
-        if (std::filesystem::exists(png_rel)) {
-            splash_3d_png = "A:" + png_rel;
-        }
-    }
 
     if (!splash_3d_path.empty() || !splash_3d_png.empty()) {
         // 3D splash: prerendered bin (full-screen) or source PNG (centered + scaled)
@@ -101,7 +80,8 @@ void show_splash_screen(int screen_width, int screen_height) {
         if (!splash_3d_path.empty()) {
             // Prerendered bin: full-screen, no scaling needed
             lv_image_set_src(img, splash_3d_path.c_str());
-            spdlog::info("[Splash Screen] Using 3D splash ({}, {})", mode_name, size_name);
+            spdlog::info("[Splash Screen] Using 3D splash ({}, {})", dark_mode ? "dark" : "light",
+                         choice.size_class);
         } else {
             // Source PNG fallback: scale to fit screen
             lv_image_set_src(img, splash_3d_png.c_str());
@@ -116,8 +96,8 @@ void show_splash_screen(int screen_width, int screen_height) {
                 uint32_t scale = (scale_w < scale_h) ? scale_w : scale_h;
                 lv_image_set_scale(img, static_cast<uint16_t>(scale));
                 spdlog::info("[Splash Screen] Using 3D PNG fallback ({}, {}x{} scale={})",
-                             mode_name, static_cast<int>(header.w), static_cast<int>(header.h),
-                             scale);
+                             dark_mode ? "dark" : "light", static_cast<int>(header.w),
+                             static_cast<int>(header.h), scale);
             } else {
                 spdlog::warn("[Splash Screen] Could not get 3D PNG dimensions");
             }
@@ -139,9 +119,9 @@ void show_splash_screen(int screen_width, int screen_height) {
 
         lv_obj_t* logo = lv_image_create(container);
 
-        // Try pre-rendered centered logo
-        std::string prerendered_path = find_prerendered(
-            std::string("assets/images/prerendered/splash-logo-") + size_name + ".bin");
+        // Pre-rendered centered logo, from the same decision as above
+        const std::string prerendered_path =
+            choice.kind == helix::SplashAssetKind::LogoBin ? choice.path : std::string();
         if (!prerendered_path.empty()) {
             lv_image_set_src(logo, prerendered_path.c_str());
             spdlog::info("[Splash Screen] Using pre-rendered splash (instant display)");

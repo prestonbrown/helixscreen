@@ -207,12 +207,12 @@ class FilamentSlotOverrideStore {
 //     the user explicitly locked, per #965 — see MirrorPolicy::OverwriteAlways
 //     below) because firmware-truth and user-truth converge.
 //
-//   - CFS / Snapmaker: set_slot_info does NOT touch the firmware-side
-//     material_type / RFID values. If the mirror unconditionally overwrote
-//     ovr.color_rgb with firmware-truth, every status poll would erase the
-//     user's color override. So these backends use FillUnsetOnly: only fill
-//     fields the user hasn't explicitly set. clear_slot_override resets the
-//     entry, after which auto-mirror takes over again.
+//   - CFS: set_slot_info does NOT touch the firmware-side material_type /
+//     RFID values. If the mirror unconditionally overwrote ovr.color_rgb with
+//     firmware-truth, every status poll would erase the user's color
+//     override. So this backend uses FillUnsetOnly: only fill fields the
+//     user hasn't explicitly set. clear_slot_override resets the entry,
+//     after which auto-mirror takes over again.
 enum class MirrorPolicy {
     /// Overwrite ovr.color_rgb / ovr.material with firmware values, EXCEPT for
     /// fields the user explicitly locked (user_locked_color /
@@ -221,7 +221,7 @@ enum class MirrorPolicy {
     OverwriteAlways,
     /// Only fill ovr.color_rgb / ovr.material when they're currently UNSET
     /// (color_rgb == 0, empty material). Use when user edits don't reach
-    /// firmware (CFS, Snapmaker).
+    /// firmware (CFS).
     FillUnsetOnly,
 };
 
