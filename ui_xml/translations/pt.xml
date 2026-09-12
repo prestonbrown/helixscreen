@@ -15,6 +15,7 @@
   <translation tag="%lu days ago" pt="há %lu dias"/>
   <translation tag="%lu hours ago" pt="há %lu horas"/>
   <translation tag="%lu min ago" pt="há %lu min"/>
+  <translation tag="%s Filament" pt="%s: Filamento"/>
   <translation tag="%s has about %.0fg but %s needs about %.0fg. Start anyway?" pt="%s tem cerca de %.0fg, mas %s precisa de cerca de %.0fg. Iniciar mesmo assim?"/>
   <translation tag="%s has no filament loaded — this print will run out." pt="%s não tem filamento carregado — esta impressão vai acabar."/>
   <translation tag="%s needs filament in %s, which is empty — this print will run out." pt="%s precisa de filamento e %s não o tem — esta impressão vai acabar."/>
@@ -2377,15 +2378,8 @@
   <translation tag="Sliced colors" pt="Cores fatiadas"/>
   <translation tag="Slicer" pt="Fatiador"/>
   <translation tag="Slot" pt="Slot"/>
-  <translation tag="Slot %d" pt="Slot %d"/>
-  <translation tag="Slot %d Filament" pt="Filamento do Slot %d"/>
   <translation tag="Slot 1" pt="Slot 1"/>
   <translation tag="Slot colors, materials, and levels" pt="Cores, materiais e níveis dos slots"/>
-  <translation tag="Slot {}" pt="Slot {}"/>
-  <translation tag="Slot {} is blocked — manual intervention required" pt="Slot {} está bloqueado — intervenção manual necessária"/>
-  <translation tag="Slot {} matches." pt="O slot {} corresponde."/>
-  <translation tag="Slot {} spool cleared" pt="Bobina do slot {} removida"/>
-  <translation tag="Slot {} updated" pt="Slot {} atualizado"/>
   <translation tag="Slots"/>
   <translation tag="Small labels help keep controls calm and focused." pt="Rótulos pequenos ajudam a manter os controles calmos e focados."/>
   <translation tag="Snapmaker SnapSwap" pt="Snapmaker SnapSwap"/>
@@ -2995,10 +2989,12 @@
   <translation tag="{} filament • {}" pt="{} de filamento • {}"/>
   <translation tag="{} heater turned off" pt="Aquecedor {} desligado"/>
   <translation tag="{} is asking to connect to this printer." pt="{} quer conectar-se a esta impressora."/>
+  <translation tag="{} is blocked — manual intervention required" pt="{}: bloqueio — intervenção manual necessária"/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." pt="{} está instalado mas sua troca para carretel reserva está desligada, então não haverá troca automática."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." pt="{} está instalado, mas não foi possível ler sua configuração de carretel reserva - não conte com uma troca automática."/>
   <translation tag="{} is not set up on this printer" pt="{} não está configurado nesta impressora"/>
   <translation tag="{} macro not configured" pt="Macro {} não configurado"/>
+  <translation tag="{} matches." pt="{} corresponde."/>
   <translation tag="{} may cause unintended changes. Are you sure?" pt="{} pode causar alterações não intencionais. Tem certeza?"/>
   <translation tag="{} more taps to {} beta features" pt="Mais {} toques para {} recursos beta"/>
   <translation tag="{} needs the HelixPrint plugin. Printing original file." pt="{} precisa do plugin HelixPrint. Imprimindo o arquivo original."/>
@@ -3008,8 +3004,10 @@
   <translation tag="{} set to {} {}" pt="{} definido para {} {}"/>
   <translation tag="{} shares slot with {}" pt="{} compartilha o slot com {}"/>
   <translation tag="{} slots" pt="{} slots"/>
+  <translation tag="{} spool cleared" pt="{}: bobina removida"/>
   <translation tag="{} started" pt="{} iniciado"/>
   <translation tag="{} target set to {}°C" pt="{} configurado para {}°C"/>
+  <translation tag="{} updated" pt="Atualização de {}"/>
   <translation tag="{} widgets" pt="{} widgets"/>
   <translation tag="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present." pt="{} mudará para um slot cujo tipo de filamento E cor correspondam ao carretel ativo e cujo próprio sensor de porta detecte filamento presente."/>
   <translation tag="{} — response timed out" pt="{} — tempo esgotado"/>

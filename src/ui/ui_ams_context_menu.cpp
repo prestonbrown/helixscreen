@@ -404,13 +404,12 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         }
     }
 
-    // Update the slot header text (1-based for user display)
+    // The header names the position in the backend's own word ("Lane 3",
+    // "Gate 3"), 1-based. lane_label() owns both halves, so there is no buffer
+    // here a translated noun can overrun.
     lv_obj_t* slot_header = lv_obj_find_by_name(menu_obj, "slot_header");
     if (slot_header) {
-        char header_text[32];
-        snprintf(header_text, sizeof(header_text), lv_tr("Slot %d"),
-                 helix::ui::lane_number(slot_index));
-        lv_label_set_text(slot_header, header_text);
+        lv_label_set_text(slot_header, helix::ui::lane_label(menu_lane_noun(), slot_index).c_str());
     }
 
     // Show "Select Spool" and "Scan QR Code" buttons if Spoolman is available
@@ -1002,21 +1001,26 @@ AmsContextMenu::BackupEligibleFn AmsContextMenu::backend_eligible_fn() const {
     };
 }
 
-std::string AmsContextMenu::build_backup_options() const {
-    return build_backup_options_for(total_slots_, get_item_index(), backend_eligible_fn());
+LaneNoun AmsContextMenu::menu_lane_noun() const {
+    return backend_ ? backend_->lane_noun() : helix::ui::active_lane_noun();
 }
 
-std::string AmsContextMenu::build_backup_options_for(int total_slots, int item_index,
+std::string AmsContextMenu::build_backup_options() const {
+    return build_backup_options_for(menu_lane_noun(), total_slots_, get_item_index(),
+                                    backend_eligible_fn());
+}
+
+std::string AmsContextMenu::build_backup_options_for(LaneNoun noun, int total_slots, int item_index,
                                                      const BackupEligibleFn& eligible) {
     std::string options = lv_tr("None");
 
-    // Add slot options Slot 1, Slot 2... based on total slots.
+    // One option per position, in the backend's own word ("Lane 1", "Gate 1").
     // Skip the current slot (can't be backup for itself).
     for (int i = 0; i < total_slots; ++i) {
         if (i == item_index) {
             continue;
         }
-        options += "\n" + fmt::format(lv_tr("Slot {}"), helix::ui::lane_number(i));
+        options += "\n" + helix::ui::lane_label(noun, i);
         if (item_index >= 0 && eligible) {
             switch (eligible(item_index, i)) {
             case helix::printer::BackupEligibility::Incompatible:

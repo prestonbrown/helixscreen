@@ -1232,9 +1232,9 @@ std::optional<helix::ErrorEvent> AmsBackendQidi::current_error() const {
     e.severity = helix::ErrorSeverity::CRITICAL;
     e.title = lv_tr("Filament System Error");
     // Single translatable string with a {} placeholder — preserves word order in
-    // locales where the slot number doesn't sit between "Slot" and the predicate.
-    e.detail = fmt::format(fmt::runtime(lv_tr("Slot {} is blocked — manual intervention required")),
-                           blocked + 1);
+    // locales where the position label doesn't sit at the head of the sentence.
+    e.detail = fmt::format(fmt::runtime(lv_tr("{} is blocked — manual intervention required")),
+                           helix::ui::lane_label(lane_noun(), blocked));
     e.sticky = true;
     // A CRITICAL event with empty recovery_actions renders via RecoveryModalPresenter
     // as a button-less ActionPromptModal — non-dismissible UI trap. Provide one

@@ -790,7 +790,8 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
                 static_cast<helix::printer::AmsBackendCfs*>(backend)->clear_box_slot_profile(slot);
             }
 #endif
-            NOTIFY_INFO(lv_tr("Slot {} spool cleared"), helix::ui::lane_number(slot));
+            NOTIFY_INFO(lv_tr("{} spool cleared"),
+                        helix::ui::lane_label(backend->lane_noun(), slot));
         } else {
             notify_ams_error(error, lv_tr("Clear failed"));
         }

@@ -15,6 +15,7 @@
   <translation tag="%lu days ago" de="vor %lu Tagen"/>
   <translation tag="%lu hours ago" de="vor %lu Stunden"/>
   <translation tag="%lu min ago" de="vor %lu Min."/>
+  <translation tag="%s Filament" de="%s Filament"/>
   <translation tag="%s has about %.0fg but %s needs about %.0fg. Start anyway?" de="%s hat etwa %.0fg, aber %s benötigt etwa %.0fg. Trotzdem starten?"/>
   <translation tag="%s has no filament loaded — this print will run out." de="Bei %s ist kein Filament geladen — bei diesem Druck geht das Filament aus."/>
   <translation tag="%s needs filament in %s, which is empty — this print will run out." de="%s benötigt Filament, aber %s ist leer — bei diesem Druck geht das Filament aus."/>
@@ -2377,15 +2378,8 @@
   <translation tag="Sliced colors" de="Slice-Farben"/>
   <translation tag="Slicer" de="Slicer"/>
   <translation tag="Slot" de="Slot"/>
-  <translation tag="Slot %d" de="Slot %d"/>
-  <translation tag="Slot %d Filament" de="Slot %d Filament"/>
   <translation tag="Slot 1" de="Slot 1"/>
   <translation tag="Slot colors, materials, and levels" de="Slotfarben, Materialien und Füllstände"/>
-  <translation tag="Slot {}" de="Slot {}"/>
-  <translation tag="Slot {} is blocked — manual intervention required" de="Slot {} ist blockiert — manueller Eingriff erforderlich"/>
-  <translation tag="Slot {} matches." de="Slot {} passt."/>
-  <translation tag="Slot {} spool cleared" de="Slot {} Spule gelöscht"/>
-  <translation tag="Slot {} updated" de="Slot {} aktualisiert"/>
   <translation tag="Slots"/>
   <translation tag="Small labels help keep controls calm and focused." de="Kleine Beschriftungen helfen, Steuerelemente ruhig und fokussiert zu halten."/>
   <translation tag="Snapmaker SnapSwap" de="Snapmaker SnapSwap"/>
@@ -2995,10 +2989,12 @@
   <translation tag="{} filament • {}" de="{} Filament • {}"/>
   <translation tag="{} heater turned off" de="{}-Heizung ausgeschaltet"/>
   <translation tag="{} is asking to connect to this printer." de="{} möchte sich mit diesem Drucker verbinden."/>
+  <translation tag="{} is blocked — manual intervention required" de="{} ist blockiert — manueller Eingriff erforderlich"/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." de="{} ist installiert, aber der Wechsel zur Ersatzspule ist ausgeschaltet, daher findet kein automatischer Wechsel statt."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." de="{} ist installiert, aber die Ersatzspulen-Einstellung konnte nicht gelesen werden - verlasse dich nicht auf einen automatischen Wechsel."/>
   <translation tag="{} is not set up on this printer" de="{} ist auf diesem Drucker nicht eingerichtet"/>
   <translation tag="{} macro not configured" de="{}-Makro nicht konfiguriert"/>
+  <translation tag="{} matches." de="{} passt."/>
   <translation tag="{} may cause unintended changes. Are you sure?" de="{} kann unbeabsichtigte Änderungen verursachen. Sind Sie sicher?"/>
   <translation tag="{} more taps to {} beta features" de="{} weitere Male tippen, um Beta-Funktionen zu {}"/>
   <translation tag="{} needs the HelixPrint plugin. Printing original file." de="{} benötigt das HelixPrint-Plugin. Die Originaldatei wird gedruckt."/>
@@ -3008,8 +3004,10 @@
   <translation tag="{} set to {} {}" de="{} auf {} {} gesetzt"/>
   <translation tag="{} shares slot with {}" de="{} teilt sich den Slot mit {}"/>
   <translation tag="{} slots" de="{} Slots"/>
+  <translation tag="{} spool cleared" de="{}: Spule gelöscht"/>
   <translation tag="{} started" de="{} gestartet"/>
   <translation tag="{} target set to {}°C" de="{}-Zieltemperatur auf {}°C gesetzt"/>
+  <translation tag="{} updated" de="{} aktualisiert"/>
   <translation tag="{} widgets" de="{} Widgets"/>
   <translation tag="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present." de="{} wechselt zu einem Slot, dessen Filamenttyp UND Farbe beide zur aktiven Spule passen und dessen eigener Port-Sensor Filament erkennt."/>
   <translation tag="{} — response timed out" de="{} – Antwort-Zeitüberschreitung"/>

@@ -15,6 +15,7 @@
   <translation tag="%lu days ago" ja="%lu日前"/>
   <translation tag="%lu hours ago" ja="%lu時間前"/>
   <translation tag="%lu min ago" ja="%lu分前"/>
+  <translation tag="%s Filament" ja="%s のフィラメント"/>
   <translation tag="%s has about %.0fg but %s needs about %.0fg. Start anyway?" ja="%s の残量は約 %.0fg ですが、%s には約 %.0fg 必要です。それでも開始しますか？"/>
   <translation tag="%s has no filament loaded — this print will run out." ja="%s にフィラメントが装填されていません — この印刷は途中で切れます。"/>
   <translation tag="%s needs filament in %s, which is empty — this print will run out." ja="%s は %s のフィラメントを必要としますが、空です — この印刷は途中で切れます。"/>
@@ -2377,15 +2378,8 @@
   <translation tag="Sliced colors" ja="スライスした色"/>
   <translation tag="Slicer" ja="スライサー"/>
   <translation tag="Slot" ja="スロット"/>
-  <translation tag="Slot %d" ja="スロット %d"/>
-  <translation tag="Slot %d Filament" ja="スロット %d のフィラメント"/>
   <translation tag="Slot 1" ja="スロット1"/>
   <translation tag="Slot colors, materials, and levels" ja="スロットの色、素材、残量"/>
-  <translation tag="Slot {}" ja="スロット {}"/>
-  <translation tag="Slot {} is blocked — manual intervention required" ja="スロット {} がブロックされています — 手動での対応が必要です"/>
-  <translation tag="Slot {} matches." ja="スロット {} が一致します。"/>
-  <translation tag="Slot {} spool cleared" ja="スロット {} のスプールをクリアしました"/>
-  <translation tag="Slot {} updated" ja="スロット {} を更新しました"/>
   <translation tag="Slots"/>
   <translation tag="Small labels help keep controls calm and focused." ja="小さなラベルはコントロールを落ち着いた集中した状態に保ちます。"/>
   <translation tag="Snapmaker SnapSwap" ja="Snapmaker SnapSwap"/>
@@ -2995,10 +2989,12 @@
   <translation tag="{} filament • {}" ja="フィラメント {} • {}"/>
   <translation tag="{} heater turned off" ja="{} ヒーターをオフにしました"/>
   <translation tag="{} is asking to connect to this printer." ja="{} がこのプリンターへの接続を求めています。"/>
+  <translation tag="{} is blocked — manual intervention required" ja="{} がブロックされています — 手動での対応が必要です"/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." ja="{} はインストールされていますが、予備スプールへの切り替えがオフになっているため、自動切り替えは行われません。"/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." ja="{} はインストールされていますが、予備スプールの設定を読み取れませんでした - 自動切り替えを当てにしないでください。"/>
   <translation tag="{} is not set up on this printer" ja="{} はこのプリンターで設定されていません"/>
   <translation tag="{} macro not configured" ja="{} マクロが未設定です"/>
+  <translation tag="{} matches." ja="{} が一致します。"/>
   <translation tag="{} may cause unintended changes. Are you sure?" ja="{} は意図しない変更を引き起こす可能性があります。よろしいですか？"/>
   <translation tag="{} more taps to {} beta features" ja="あと{}回タップでベータ機能を{}"/>
   <translation tag="{} needs the HelixPrint plugin. Printing original file." ja="{} には HelixPrint プラグインが必要です。元のファイルを印刷します。"/>
@@ -3008,8 +3004,10 @@
   <translation tag="{} set to {} {}" ja="{} を {} {} に設定しました"/>
   <translation tag="{} shares slot with {}" ja="{} は {} とスロットを共有しています"/>
   <translation tag="{} slots" ja="{} スロット"/>
+  <translation tag="{} spool cleared" ja="{} のスプールをクリアしました"/>
   <translation tag="{} started" ja="{} を開始しました"/>
   <translation tag="{} target set to {}°C" ja="{} 目標温度を {}°C に設定しました"/>
+  <translation tag="{} updated" ja="{} を更新しました"/>
   <translation tag="{} widgets" ja="ウィジェット {} 個"/>
   <translation tag="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present." ja="{} は、フィラメントの種類と色の両方がアクティブなスプールと一致し、かつ自身のポートセンサーがフィラメントを検知しているスロットに切り替えます。"/>
   <translation tag="{} — response timed out" ja="{} — 応答タイムアウト"/>

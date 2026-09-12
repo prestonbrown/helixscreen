@@ -15,6 +15,7 @@ translations:
   '%lu days ago': '%lu日前'
   '%lu hours ago': '%lu時間前'
   '%lu min ago': '%lu分前'
+  '%s Filament': '%s のフィラメント'
   '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s の残量は約 %.0fg ですが、%s には約 %.0fg 必要です。それでも開始しますか？'
   '%s has no filament loaded — this print will run out.': '%s にフィラメントが装填されていません — この印刷は途中で切れます。'
   '%s needs filament in %s, which is empty — this print will run out.': '%s は %s のフィラメントを必要としますが、空です — この印刷は途中で切れます。'
@@ -2450,15 +2451,8 @@ translations:
   Sliced colors: スライスした色
   Slicer: スライサー
   Slot: スロット
-  Slot %d: スロット %d
-  Slot %d Filament: スロット %d のフィラメント
   Slot 1: スロット1
   Slot colors, materials, and levels: スロットの色、素材、残量
-  Slot {}: スロット {}
-  Slot {} is blocked — manual intervention required: スロット {} がブロックされています — 手動での対応が必要です
-  Slot {} matches.: 'スロット {} が一致します。'
-  Slot {} spool cleared: スロット {} のスプールをクリアしました
-  Slot {} updated: スロット {} を更新しました
   Slots: ''
   Small labels help keep controls calm and focused.: 小さなラベルはコントロールを落ち着いた集中した状態に保ちます。
   Snapmaker SnapSwap: Snapmaker SnapSwap
@@ -3113,10 +3107,12 @@ translations:
   '{} filament • {}': 'フィラメント {} • {}'
   '{} heater turned off': '{} ヒーターをオフにしました'
   '{} is asking to connect to this printer.': '{} がこのプリンターへの接続を求めています。'
+  '{} is blocked — manual intervention required': '{} がブロックされています — 手動での対応が必要です'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} はインストールされていますが、予備スプールへの切り替えがオフになっているため、自動切り替えは行われません。'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} はインストールされていますが、予備スプールの設定を読み取れませんでした - 自動切り替えを当てにしないでください。'
   '{} is not set up on this printer': '{} はこのプリンターで設定されていません'
   '{} macro not configured': '{} マクロが未設定です'
+  '{} matches.': '{} が一致します。'
   '{} may cause unintended changes. Are you sure?': '{} は意図しない変更を引き起こす可能性があります。よろしいですか？'
   '{} more taps to {} beta features': あと{}回タップでベータ機能を{}
   '{} needs the HelixPrint plugin. Printing original file.': '{} には HelixPrint プラグインが必要です。元のファイルを印刷します。'
@@ -3126,8 +3122,10 @@ translations:
   '{} set to {} {}': '{} を {} {} に設定しました'
   '{} shares slot with {}': '{} は {} とスロットを共有しています'
   '{} slots': '{} スロット'
+  '{} spool cleared': '{} のスプールをクリアしました'
   '{} started': '{} を開始しました'
   '{} target set to {}°C': '{} 目標温度を {}°C に設定しました'
+  '{} updated': '{} を更新しました'
   '{} widgets': ウィジェット {} 個
   ? '{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present.'
   : '{} は、フィラメントの種類と色の両方がアクティブなスプールと一致し、かつ自身のポートセンサーがフィラメントを検知しているスロットに切り替えます。'

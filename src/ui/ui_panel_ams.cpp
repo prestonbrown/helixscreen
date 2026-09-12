@@ -1497,8 +1497,8 @@ void AmsPanel::show_edit_modal(int slot_index, bool open_on_picker) {
                         helix::ui::notify_ams_error(err);
                         return;
                     }
-                    NOTIFY_INFO(lv_tr("Slot {} updated"),
-                                helix::ui::lane_number(result.slot_index));
+                    NOTIFY_INFO(lv_tr("{} updated"),
+                                helix::ui::lane_label(backend->lane_noun(), result.slot_index));
                 }
             }
         },

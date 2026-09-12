@@ -181,7 +181,10 @@ class AmsEditOverlay : public OverlayBase {
     char chip_text_buf_[96] = {0};
     char spoolman_id_buf_[16] = {0};
 
-    char slot_indicator_buf_[32] = {0};
+    /// Holds a translated position label nested inside a translated sentence,
+    /// so it is sized for the longest locale rather than for the English. A
+    /// short buffer truncates mid-UTF-8 and loses the number entirely.
+    char slot_indicator_buf_[96] = {0};
     char temp_nozzle_buf_[32] = {0};
     char temp_bed_buf_[24] = {0};
     char remaining_pct_buf_[48] = {0};

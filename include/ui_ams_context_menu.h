@@ -6,6 +6,7 @@
 #include "ui_context_menu.h"
 
 #include "ams_types.h"
+#include "display_numbering.h"
 
 #include <functional>
 #include <lvgl.h>
@@ -240,6 +241,9 @@ class AmsContextMenu : public ContextMenu {
     /// always-eligible stub when there is no backend (matching the old code,
     /// which skipped every compatibility check in that case).
     BackupEligibleFn backend_eligible_fn() const;
+    /// The word this menu spells a position with. The backend the menu was
+    /// shown for owns the answer; with none, the active printer's does.
+    LaneNoun menu_lane_noun() const;
     int get_current_tool_for_slot() const;
     int get_current_backup_for_slot() const;
 
@@ -279,11 +283,12 @@ class AmsContextMenu : public ContextMenu {
     // IS the old material-compatibility rule, so AFC / Happy Hare / CFS options
     // are byte-identical to before.
     //
+    // @param noun        The word this backend spells a position with.
     // @param total_slots Number of slots to offer.
     // @param item_index  The slot the menu is open on; skipped in the list.
     // @param eligible    The backend's rule.
     // @return Newline-separated dropdown options, starting with "None".
-    static std::string build_backup_options_for(int total_slots, int item_index,
+    static std::string build_backup_options_for(LaneNoun noun, int total_slots, int item_index,
                                                 const BackupEligibleFn& eligible);
 
     // Pure: should the change-handler refuse this selection?

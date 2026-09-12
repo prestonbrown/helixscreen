@@ -15,6 +15,7 @@
   <translation tag="%lu days ago" zh="%lu天前"/>
   <translation tag="%lu hours ago" zh="%lu小时前"/>
   <translation tag="%lu min ago" zh="%lu分钟前"/>
+  <translation tag="%s Filament" zh="%s 耗材"/>
   <translation tag="%s has about %.0fg but %s needs about %.0fg. Start anyway?" zh="%s 约剩 %.0fg，但%s 需要约 %.0fg。仍要开始吗？"/>
   <translation tag="%s has no filament loaded — this print will run out." zh="%s 未加载耗材 —— 此次打印将会耗尽耗材。"/>
   <translation tag="%s needs filament in %s, which is empty — this print will run out." zh="%s 需要耗材，但 %s 为空 —— 此次打印将会耗尽耗材。"/>
@@ -2377,15 +2378,8 @@
   <translation tag="Sliced colors" zh="切片颜色"/>
   <translation tag="Slicer" zh="切片软件"/>
   <translation tag="Slot" zh="槽位"/>
-  <translation tag="Slot %d" zh="槽位 %d"/>
-  <translation tag="Slot %d Filament" zh="槽位 %d 耗材"/>
   <translation tag="Slot 1" zh="槽位 1"/>
   <translation tag="Slot colors, materials, and levels" zh="槽位的颜色、材料和余量"/>
-  <translation tag="Slot {}" zh="槽位 {}"/>
-  <translation tag="Slot {} is blocked — manual intervention required" zh="槽位 {} 被阻塞 — 需要手动干预"/>
-  <translation tag="Slot {} matches." zh="槽位 {} 匹配。"/>
-  <translation tag="Slot {} spool cleared" zh="槽位 {} 料盘已清除"/>
-  <translation tag="Slot {} updated" zh="槽位 {} 已更新"/>
   <translation tag="Slots"/>
   <translation tag="Small labels help keep controls calm and focused." zh="小标签有助于保持控件简洁专注。"/>
   <translation tag="Snapmaker SnapSwap" zh="Snapmaker SnapSwap"/>
@@ -2995,10 +2989,12 @@
   <translation tag="{} filament • {}" zh="耗材 {} • {}"/>
   <translation tag="{} heater turned off" zh="{} 加热器已关闭"/>
   <translation tag="{} is asking to connect to this printer." zh="{} 请求连接到此打印机。"/>
+  <translation tag="{} is blocked — manual intervention required" zh="{} 被阻塞 — 需要手动干预"/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." zh="{} 已安装，但其备用料盘切换已关闭，因此不会自动切换。"/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." zh="{} 已安装，但无法读取其备用料盘设置 - 请勿指望自动切换。"/>
   <translation tag="{} is not set up on this printer" zh="{} 未在此打印机上设置"/>
   <translation tag="{} macro not configured" zh="{} 宏未配置"/>
+  <translation tag="{} matches." zh="{} 匹配。"/>
   <translation tag="{} may cause unintended changes. Are you sure?" zh="{} 可能导致意外更改。确定吗？"/>
   <translation tag="{} more taps to {} beta features" zh="再点击 {} 次以{}测试功能"/>
   <translation tag="{} needs the HelixPrint plugin. Printing original file." zh="{} 需要 HelixPrint 插件。将打印原始文件。"/>
@@ -3008,8 +3004,10 @@
   <translation tag="{} set to {} {}" zh="{} 已设为 {} {}"/>
   <translation tag="{} shares slot with {}" zh="{} 与 {} 共用槽位"/>
   <translation tag="{} slots" zh="{} 个槽位"/>
+  <translation tag="{} spool cleared" zh="{} 料盘已清除"/>
   <translation tag="{} started" zh="已开始{}"/>
   <translation tag="{} target set to {}°C" zh="{} 目标已设为 {}°C"/>
+  <translation tag="{} updated" zh="{} 已更新"/>
   <translation tag="{} widgets" zh="{} 个小组件"/>
   <translation tag="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present." zh="{} 将切换到耗材类型与颜色都与当前料盘一致、且其端口传感器检测到有耗材的槽位。"/>
   <translation tag="{} — response timed out" zh="{} — 响应超时"/>

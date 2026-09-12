@@ -6462,7 +6462,7 @@ std::string AmsBackendAd5xIfs::build_runout_detail_locked() const {
         const int backup = find_backup_slot_locked(runout_slot_);
         detail += " ";
         if (backup >= 0) {
-            detail += fmt::format(lv_tr("Slot {} matches."), helix::ui::lane_number(backup));
+            detail += fmt::format(lv_tr("{} matches."), helix::ui::lane_label(lane_noun(), backup));
         } else {
             detail += lv_tr("No slot currently matches.");
         }

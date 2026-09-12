@@ -16,6 +16,7 @@ translations:
   '%lu days ago': il y a %lu jours
   '%lu hours ago': il y a %lu heures
   '%lu min ago': il y a %lu min
+  '%s Filament': '%s : Filament'
   '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s contient environ %.0fg mais %s nécessite environ %.0fg. Démarrer quand même ?'
   '%s has no filament loaded — this print will run out.': '%s n''a pas de filament chargé — cette impression manquera de filament.'
   '%s needs filament in %s, which is empty — this print will run out.': '%s nécessite du filament dans %s, qui est vide — cette impression manquera de filament.'
@@ -2683,15 +2684,8 @@ translations:
   Sliced colors: Couleurs tranchées
   Slicer: Trancheur
   Slot: Slot
-  Slot %d: Emplacement %d
-  Slot %d Filament: Filament de lemplacement %d
   Slot 1: Slot 1
   Slot colors, materials, and levels: Couleurs, matériaux et niveaux des slots
-  Slot {}: Emplacement {}
-  Slot {} is blocked — manual intervention required: Slot {} bloqué — intervention manuelle requise
-  Slot {} matches.: 'Le slot {} correspond.'
-  Slot {} spool cleared: Bobine du slot {} effacée
-  Slot {} updated: Slot {} mis à jour
   Slots: ''
   Small labels help keep controls calm and focused.: Les petites étiquettes aident
     à garder les contrôles calmes et concentrés.
@@ -3427,10 +3421,12 @@ translations:
   '{} filament • {}': '{} de filament • {}'
   '{} heater turned off': Chauffage {} désactivé
   '{} is asking to connect to this printer.': '{} demande à se connecter à cette imprimante.'
+  '{} is blocked — manual intervention required': '{} : blocage — intervention manuelle requise'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} est installé mais son passage à la bobine de secours est désactivé, aucun changement automatique n''aura donc lieu.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} est installé, mais son réglage de bobine de secours n''a pas pu être lu - ne comptez pas sur un changement automatique.'
   '{} is not set up on this printer': "{} n'est pas configuré sur cette imprimante"
   '{} macro not configured': Macro {} non configurée
+  '{} matches.': '{} correspond.'
   '{} may cause unintended changes. Are you sure?': '{} peut entraîner des modifications
     non souhaitées. Êtes-vous sûr ?'
   '{} more taps to {} beta features': '{} appuis supplémentaires pour {} les fonctionnalités
@@ -3442,8 +3438,10 @@ translations:
   '{} set to {} {}': '{} réglé sur {} {}'
   '{} shares slot with {}': '{} partage lemplacement avec {}'
   '{} slots': '{} slots'
+  '{} spool cleared': '{} : bobine effacée'
   '{} started': '{} démarré'
   '{} target set to {}°C': Cible {} réglée à {}°C
+  '{} updated': '{} : mise à jour'
   '{} widgets': '{} widgets'
   ? '{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present.'
   : '{} basculera vers un slot dont le type de filament ET la couleur correspondent à la bobine active et dont le capteur de port détecte du filament.'
