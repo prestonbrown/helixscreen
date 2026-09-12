@@ -1013,6 +1013,7 @@
   <translation tag="Feed filament directly to extruder" ru="Подать филамент напрямую в экструдер"/>
   <translation tag="Feed filament from current slot" ru="Подать филамент из текущего слота"/>
   <translation tag="Feeder" ru="Фидер"/>
+  <translation tag="Feeders" ru="Фидеры"/>
   <translation tag="Feeding filament forward" ru="Подача филамента вперёд"/>
   <translation tag="Filament" ru="Филамент"/>
   <translation tag="Filament Control" ru="Управление филаментом"/>
@@ -1116,6 +1117,7 @@
   <translation tag="GCode Console" ru="Консоль G-code"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" ru="Игра окончена!&#10;Счёт: {}&#10;Нажмите, чтобы начать заново"/>
   <translation tag="Gate" ru="Шлюз"/>
+  <translation tag="Gates" ru="Шлюзы"/>
   <translation tag="Gear Buffer Speed" ru="Скорость шестерни от буфера"/>
   <translation tag="Gear Spool Speed" ru="Скорость шестерни от катушки"/>
   <translation tag="Gear Unload Speed" ru="Скорость выгрузки шестерни"/>
@@ -1354,6 +1356,7 @@
   <translation tag="Labels Per Sheet" ru="Этикеток на листе"/>
   <translation tag="Lane" ru="Канал"/>
   <translation tag="Lane tests and motor resets" ru="Тесты слотов и сброс моторов"/>
+  <translation tag="Lanes" ru="Каналы"/>
   <translation tag="Language" ru="Язык"/>
   <translation tag="Language, theme, brightness, and sound" ru="Язык, тема, яркость и звук"/>
   <translation tag="Last" ru="Последняя"/>
@@ -2380,7 +2383,7 @@
   <translation tag="Slot" ru="Слот"/>
   <translation tag="Slot 1" ru="Слот 1"/>
   <translation tag="Slot colors, materials, and levels" ru="Цвета, материалы и уровни слотов"/>
-  <translation tag="Slots"/>
+  <translation tag="Slots" ru="Слоты"/>
   <translation tag="Small labels help keep controls calm and focused." ru="Мелкие надписи помогают сохранять элементы управления аккуратными."/>
   <translation tag="Snapmaker SnapSwap" ru="Snapmaker SnapSwap"/>
   <translation tag="Snapmaker U1" ru="Snapmaker U1"/>
@@ -2686,6 +2689,8 @@
   <translation tag="Toolhead Style" ru="Стиль печатающей головки"/>
   <translation tag="Toolhead jam" ru="Замятие в печатающей головке"/>
   <translation tag="Toolhead, G-code, limits, and materials" ru="Печатающая головка, G-code, лимиты и материалы"/>
+  <translation tag="Toolheads" ru="Печатающие головки"/>
+  <translation tag="Tools" ru="Инструменты"/>
   <translation tag="Tools Used" ru="Использовано инструментов"/>
   <translation tag="Tools: " ru="Инструменты: "/>
   <translation tag="Total Prints" ru="Всего печатей"/>

@@ -1013,6 +1013,7 @@
   <translation tag="Feed filament directly to extruder" zh="将耗材直接送入挤出机"/>
   <translation tag="Feed filament from current slot" zh="从当前槽位送入耗材"/>
   <translation tag="Feeder" zh="送料器"/>
+  <translation tag="Feeders" zh="送料器"/>
   <translation tag="Feeding filament forward" zh="正在向前送料"/>
   <translation tag="Filament" zh="耗材"/>
   <translation tag="Filament Control" zh="耗材控制"/>
@@ -1116,6 +1117,7 @@
   <translation tag="GCode Console" zh="G-code 控制台"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" zh="游戏结束！&#10;得分：{}&#10;点按重新开始"/>
   <translation tag="Gate" zh="通道"/>
+  <translation tag="Gates" zh="通道"/>
   <translation tag="Gear Buffer Speed" zh="齿轮缓冲区速度"/>
   <translation tag="Gear Spool Speed" zh="齿轮料盘速度"/>
   <translation tag="Gear Unload Speed" zh="齿轮卸载速度"/>
@@ -1354,6 +1356,7 @@
   <translation tag="Labels Per Sheet" zh="每页标签数"/>
   <translation tag="Lane" zh="耗材通道"/>
   <translation tag="Lane tests and motor resets" zh="槽位测试与电机重置"/>
+  <translation tag="Lanes" zh="耗材通道"/>
   <translation tag="Language" zh="语言"/>
   <translation tag="Language, theme, brightness, and sound" zh="语言、主题、亮度和声音"/>
   <translation tag="Last" zh="最近"/>
@@ -2380,7 +2383,7 @@
   <translation tag="Slot" zh="槽位"/>
   <translation tag="Slot 1" zh="槽位 1"/>
   <translation tag="Slot colors, materials, and levels" zh="槽位的颜色、材料和余量"/>
-  <translation tag="Slots"/>
+  <translation tag="Slots" zh="槽位"/>
   <translation tag="Small labels help keep controls calm and focused." zh="小标签有助于保持控件简洁专注。"/>
   <translation tag="Snapmaker SnapSwap" zh="Snapmaker SnapSwap"/>
   <translation tag="Snapmaker U1" zh="Snapmaker U1"/>
@@ -2686,6 +2689,8 @@
   <translation tag="Toolhead Style" zh="工具头样式"/>
   <translation tag="Toolhead jam" zh="工具头堵塞"/>
   <translation tag="Toolhead, G-code, limits, and materials" zh="打印头、G代码、限制和材料"/>
+  <translation tag="Toolheads" zh="工具头"/>
+  <translation tag="Tools" zh="工具"/>
   <translation tag="Tools Used" zh="已使用工具"/>
   <translation tag="Tools: " zh="工具: "/>
   <translation tag="Total Prints" zh="总打印数"/>

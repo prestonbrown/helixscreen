@@ -1013,6 +1013,7 @@
   <translation tag="Feed filament directly to extruder" ja="フィラメントをエクストルーダーに直接供給"/>
   <translation tag="Feed filament from current slot" ja="現在のスロットからフィラメントを送る"/>
   <translation tag="Feeder" ja="フィーダー"/>
+  <translation tag="Feeders" ja="フィーダー"/>
   <translation tag="Feeding filament forward" ja="フィラメントを前方に送り出し中"/>
   <translation tag="Filament" ja="フィラメント"/>
   <translation tag="Filament Control" ja="フィラメント制御"/>
@@ -1116,6 +1117,7 @@
   <translation tag="GCode Console" ja="Gコードコンソール"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" ja="ゲームオーバー！&#10;スコア: {}&#10;タップでリスタート"/>
   <translation tag="Gate" ja="ゲート"/>
+  <translation tag="Gates" ja="ゲート"/>
   <translation tag="Gear Buffer Speed" ja="ギアのバッファ速度"/>
   <translation tag="Gear Spool Speed" ja="ギアのスプール速度"/>
   <translation tag="Gear Unload Speed" ja="ギアのアンロード速度"/>
@@ -1354,6 +1356,7 @@
   <translation tag="Labels Per Sheet" ja="シートあたりのラベル数"/>
   <translation tag="Lane" ja="レーン"/>
   <translation tag="Lane tests and motor resets" ja="レーンテストとモーターリセット"/>
+  <translation tag="Lanes" ja="レーン"/>
   <translation tag="Language" ja="言語"/>
   <translation tag="Language, theme, brightness, and sound" ja="言語、テーマ、明るさ、サウンド"/>
   <translation tag="Last" ja="最後"/>
@@ -2380,7 +2383,7 @@
   <translation tag="Slot" ja="スロット"/>
   <translation tag="Slot 1" ja="スロット1"/>
   <translation tag="Slot colors, materials, and levels" ja="スロットの色、素材、残量"/>
-  <translation tag="Slots"/>
+  <translation tag="Slots" ja="スロット"/>
   <translation tag="Small labels help keep controls calm and focused." ja="小さなラベルはコントロールを落ち着いた集中した状態に保ちます。"/>
   <translation tag="Snapmaker SnapSwap" ja="Snapmaker SnapSwap"/>
   <translation tag="Snapmaker U1" ja="Snapmaker U1"/>
@@ -2686,6 +2689,8 @@
   <translation tag="Toolhead Style" ja="ツールヘッドスタイル"/>
   <translation tag="Toolhead jam" ja="ツールヘッドの詰まり"/>
   <translation tag="Toolhead, G-code, limits, and materials" ja="ツールヘッド、Gコード、制限、材料"/>
+  <translation tag="Toolheads" ja="ツールヘッド"/>
+  <translation tag="Tools" ja="ツール"/>
   <translation tag="Tools Used" ja="使用したツール"/>
   <translation tag="Tools: " ja="ツール: "/>
   <translation tag="Total Prints" ja="総印刷数"/>

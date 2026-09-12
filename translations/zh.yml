@@ -1029,6 +1029,7 @@ translations:
   Feed filament directly to extruder: 将耗材直接送入挤出机
   Feed filament from current slot: '从当前槽位送入耗材'
   Feeder: 送料器
+  Feeders: 送料器
   Feeding filament forward: 正在向前送料
   Filament: 耗材
   Filament Control: 耗材控制
@@ -1137,6 +1138,7 @@ translations:
   ? "Game Over!\nScore: {}\nTap to restart"
   : "游戏结束！\n得分：{}\n点按重新开始"
   Gate: 通道
+  Gates: 通道
   Gear Buffer Speed: '齿轮缓冲区速度'
   Gear Spool Speed: '齿轮料盘速度'
   Gear Unload Speed: '齿轮卸载速度'
@@ -1389,6 +1391,7 @@ translations:
   Labels Per Sheet: 每页标签数
   Lane: 耗材通道
   Lane tests and motor resets: '槽位测试与电机重置'
+  Lanes: 耗材通道
   Language: 语言
   Language, theme, brightness, and sound: 语言、主题、亮度和声音
   Last: 最近
@@ -2444,7 +2447,7 @@ translations:
   Slot: 槽位
   Slot 1: 槽位 1
   Slot colors, materials, and levels: 槽位的颜色、材料和余量
-  Slots: ''
+  Slots: 槽位
   Small labels help keep controls calm and focused.: 小标签有助于保持控件简洁专注。
   Snapmaker SnapSwap: Snapmaker SnapSwap
   Snapmaker U1: Snapmaker U1
@@ -2779,6 +2782,8 @@ translations:
   Toolhead Style: 工具头样式
   Toolhead jam: 工具头堵塞
   Toolhead, G-code, limits, and materials: 打印头、G代码、限制和材料
+  Toolheads: 工具头
+  Tools: 工具
   Tools Used: 已使用工具
   'Tools: ': '工具: '
   Total Prints: 总打印数

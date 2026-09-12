@@ -1112,6 +1112,7 @@ translations:
   Feed filament directly to extruder: Подать филамент напрямую в экструдер
   Feed filament from current slot: 'Подать филамент из текущего слота'
   Feeder: Фидер
+  Feeders: Фидеры
   Feeding filament forward: Подача филамента вперёд
   Filament: Филамент
   Filament Control: Управление филаментом
@@ -1222,6 +1223,7 @@ translations:
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Игра окончена!\nСчёт: {}\nНажмите, чтобы начать заново"
   Gate: Шлюз
+  Gates: Шлюзы
   Gear Buffer Speed: 'Скорость шестерни от буфера'
   Gear Spool Speed: 'Скорость шестерни от катушки'
   Gear Unload Speed: 'Скорость выгрузки шестерни'
@@ -1502,6 +1504,7 @@ translations:
   Labels Per Sheet: Этикеток на листе
   Lane: Канал
   Lane tests and motor resets: 'Тесты слотов и сброс моторов'
+  Lanes: Каналы
   Language: Язык
   Language, theme, brightness, and sound: Язык, тема, яркость и звук
   Last: Последняя
@@ -2631,7 +2634,7 @@ translations:
   Slot: Слот
   Slot 1: Слот 1
   Slot colors, materials, and levels: Цвета, материалы и уровни слотов
-  Slots: ''
+  Slots: Слоты
   Small labels help keep controls calm and focused.: Мелкие надписи помогают сохранять
     элементы управления аккуратными.
   Snapmaker SnapSwap: Snapmaker SnapSwap
@@ -3005,6 +3008,8 @@ translations:
   Toolhead Style: Стиль печатающей головки
   Toolhead jam: Замятие в печатающей головке
   Toolhead, G-code, limits, and materials: Печатающая головка, G-code, лимиты и материалы
+  Toolheads: Печатающие головки
+  Tools: Инструменты
   Tools Used: Использовано инструментов
   'Tools: ': 'Инструменты: '
   Total Prints: Всего печатей

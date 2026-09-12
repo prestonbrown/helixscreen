@@ -68,6 +68,16 @@ std::string lane_label(LaneNoun noun, int index);
 std::string lane_label(LaneNoun noun, std::string_view unit_display_name, int index);
 
 /**
+ * @brief A span of physical positions: "Slots 1-4", "Lanes 1-8".
+ *
+ * The plural noun with a 1-based inclusive range. Every locale spells the
+ * plural as one fixed word, so the header never agrees with either number.
+ *
+ * @return empty when either index is negative
+ */
+std::string lane_range_label(LaneNoun noun, int first_index, int last_index);
+
+/**
  * @brief The noun for the printer currently connected.
  *
  * Resolved in one place so no widget derives it for itself. The nozzle badge

@@ -1035,6 +1035,7 @@ translations:
   Feed filament directly to extruder: フィラメントをエクストルーダーに直接供給
   Feed filament from current slot: '現在のスロットからフィラメントを送る'
   Feeder: フィーダー
+  Feeders: フィーダー
   Feeding filament forward: フィラメントを前方に送り出し中
   Filament: フィラメント
   Filament Control: フィラメント制御
@@ -1143,6 +1144,7 @@ translations:
   ? "Game Over!\nScore: {}\nTap to restart"
   : "ゲームオーバー！\nスコア: {}\nタップでリスタート"
   Gate: ゲート
+  Gates: ゲート
   Gear Buffer Speed: 'ギアのバッファ速度'
   Gear Spool Speed: 'ギアのスプール速度'
   Gear Unload Speed: 'ギアのアンロード速度'
@@ -1395,6 +1397,7 @@ translations:
   Labels Per Sheet: シートあたりのラベル数
   Lane: レーン
   Lane tests and motor resets: 'レーンテストとモーターリセット'
+  Lanes: レーン
   Language: 言語
   Language, theme, brightness, and sound: 言語、テーマ、明るさ、サウンド
   Last: 最後
@@ -2453,7 +2456,7 @@ translations:
   Slot: スロット
   Slot 1: スロット1
   Slot colors, materials, and levels: スロットの色、素材、残量
-  Slots: ''
+  Slots: スロット
   Small labels help keep controls calm and focused.: 小さなラベルはコントロールを落ち着いた集中した状態に保ちます。
   Snapmaker SnapSwap: Snapmaker SnapSwap
   Snapmaker U1: Snapmaker U1
@@ -2789,6 +2792,8 @@ translations:
   Toolhead Style: ツールヘッドスタイル
   Toolhead jam: ツールヘッドの詰まり
   Toolhead, G-code, limits, and materials: ツールヘッド、Gコード、制限、材料
+  Toolheads: ツールヘッド
+  Tools: ツール
   Tools Used: 使用したツール
   'Tools: ': 'ツール: '
   Total Prints: 総印刷数

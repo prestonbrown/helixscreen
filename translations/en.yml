@@ -1095,6 +1095,7 @@ translations:
   Feed filament directly to extruder: Feed filament directly to extruder
   Feed filament from current slot: Feed filament from current slot
   Feeder: Feeder
+  Feeders: Feeders
   Feeding filament forward: Feeding filament forward
   Filament: Filament
   Filament Control: Filament Control
@@ -1206,6 +1207,7 @@ translations:
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Game Over!\nScore: {}\nTap to restart"
   Gate: Gate
+  Gates: Gates
   Gear Buffer Speed: Gear Buffer Speed
   Gear Spool Speed: Gear Spool Speed
   Gear Unload Speed: Gear Unload Speed
@@ -1483,6 +1485,7 @@ translations:
   Labels Per Sheet: Labels Per Sheet
   Lane: Lane
   Lane tests and motor resets: Lane tests and motor resets
+  Lanes: Lanes
   Language: Language
   Language, theme, brightness, and sound: Language, theme, brightness, and sound
   Last: Last
@@ -2973,6 +2976,8 @@ translations:
   Toolhead Style: Toolhead Style
   Toolhead jam: Toolhead jam
   Toolhead, G-code, limits, and materials: Toolhead, G-code, limits, and materials
+  Toolheads: Toolheads
+  Tools: Tools
   Tools Used: Tools Used
   'Tools: ': 'Tools: '
   Total Prints: Total Prints

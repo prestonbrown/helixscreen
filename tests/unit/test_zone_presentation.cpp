@@ -9,6 +9,7 @@
 #include "../test_fixtures.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "display_numbering.h"
 #include "static_panel_registry.h"
 
 #include <lvgl/src/others/translation/lv_translation.h>
@@ -132,13 +133,13 @@ TEST_CASE("A named unit labels its own zone", "[ams][zones][presentation]") {
     z.label = "QuattroBox";
     z.gates = {0, 1, 2, 3};
     z.unit_index = 0;
-    CHECK(zone_display_label(z, "Unit", "Slot", "Happy Hare") == "QuattroBox");
+    CHECK(zone_display_label(z, "Unit", LaneNoun::Slot, "Happy Hare") == "QuattroBox");
 }
 
 TEST_CASE("A single-gate zone with no name is a lane", "[ams][zones][presentation]") {
     EnvironmentZone z = passive_lane(4, 31.0f);
     // One-based for the user; gates are zero-based internally.
-    CHECK(zone_display_label(z, "Unit", "Slot", "AFC") == "Slot 5");
+    CHECK(zone_display_label(z, "Unit", LaneNoun::Slot, "AFC") == "Slot 5");
 }
 
 TEST_CASE("An unnamed multi-gate zone falls back to its unit ordinal",
@@ -146,7 +147,7 @@ TEST_CASE("An unnamed multi-gate zone falls back to its unit ordinal",
     EnvironmentZone z;
     z.gates = {0, 1};
     z.unit_index = 1;
-    CHECK(zone_display_label(z, "Unit", "Slot", "AFC") == "AFC Unit 2");
+    CHECK(zone_display_label(z, "Unit", LaneNoun::Slot, "AFC") == "AFC Unit 2");
 }
 
 TEST_CASE("Two unnamed multi-gate zones get labels that tell them apart",
@@ -158,8 +159,8 @@ TEST_CASE("Two unnamed multi-gate zones get labels that tell them apart",
     a.unit_index = 0;
     EnvironmentZone b = a;
     b.unit_index = 1;
-    CHECK(zone_display_label(a, "Unit", "Slot", "AFC") !=
-          zone_display_label(b, "Unit", "Slot", "AFC"));
+    CHECK(zone_display_label(a, "Unit", LaneNoun::Slot, "AFC") !=
+          zone_display_label(b, "Unit", LaneNoun::Slot, "AFC"));
 }
 
 TEST_CASE("An unresolved unit index drops the unit number rather than showing it",
@@ -170,7 +171,7 @@ TEST_CASE("An unresolved unit index drops the unit number rather than showing it
     EnvironmentZone z;
     z.gates = {0, 1};
     z.unit_index = -1;
-    const std::string label = zone_display_label(z, "Unit", "Slot", "AFC");
+    const std::string label = zone_display_label(z, "Unit", LaneNoun::Slot, "AFC");
     CHECK(label == "AFC");
     CHECK(label.find("-1") == std::string::npos);
     CHECK(label.find("Unit") == std::string::npos);
@@ -192,14 +193,33 @@ TEST_CASE("A gate range reads as a range, a single gate as one number",
           "[ams][zones][presentation]") {
     EnvironmentZone span;
     span.gates = {0, 1, 2, 3};
-    CHECK(zone_slot_text(span, "Slots", "Slot") == "Slots 1-4");
+    CHECK(zone_slot_text(span, LaneNoun::Slot) == "Slots 1-4");
 
     EnvironmentZone one;
     one.gates = {4};
-    CHECK(zone_slot_text(one, "Slots", "Slot") == "Slot 5");
+    CHECK(zone_slot_text(one, LaneNoun::Slot) == "Slot 5");
 
     EnvironmentZone none;
-    CHECK(zone_slot_text(none, "Slots", "Slot").empty());
+    CHECK(zone_slot_text(none, LaneNoun::Slot).empty());
+}
+
+TEST_CASE("Both zone labels are spelled in the backend's own word",
+          "[ams][zones][presentation][i18n]") {
+    // An AFC rig calls a position a lane in every other surface. A zone header
+    // reading "Slot 3" there is the English word for something the firmware, the
+    // macros and the rest of the UI call a lane.
+    EnvironmentZone one = passive_lane(2, 30.0f);
+    CHECK(zone_display_label(one, "Unit", LaneNoun::Lane, "AFC") == "Lane 3");
+    CHECK(zone_slot_text(one, LaneNoun::Lane) == "Lane 3");
+
+    EnvironmentZone span;
+    span.gates = {0, 1, 2, 3};
+    // The range form needs the plural, which is a word of its own per backend and
+    // per locale rather than the singular with a letter glued on.
+    CHECK(zone_slot_text(span, LaneNoun::Lane) == "Lanes 1-4");
+    CHECK(zone_slot_text(span, LaneNoun::Gate) == "Gates 1-4");
+    CHECK(zone_slot_text(span, LaneNoun::Feeder) == "Feeders 1-4");
+    CHECK(zone_slot_text(span, LaneNoun::Tool) == "Tools 1-4");
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "Clicking an overview row opens that zone",
@@ -243,9 +263,9 @@ TEST_CASE_METHOD(XMLTestFixture, "Clicking an overview row opens that zone",
     // reads humidity, and rebuilding that here would assert the composition against
     // itself rather than against which row was clicked.
     REQUIRE(zones[2].gates.size() == 1);
-    const std::string opened = zone_display_label(zones[2], lv_tr("Unit"), lv_tr("Slot"),
+    const std::string opened = zone_display_label(zones[2], lv_tr("Unit"), raw->lane_noun(),
                                                   raw->get_system_info().type_name);
-    const std::string neighbour = zone_display_label(zones[1], lv_tr("Unit"), lv_tr("Slot"),
+    const std::string neighbour = zone_display_label(zones[1], lv_tr("Unit"), raw->lane_noun(),
                                                      raw->get_system_info().type_name);
     REQUIRE(opened != neighbour);
     lv_subject_t* title = lv_xml_get_subject(nullptr, "ams_env_overlay_title_text");
@@ -418,6 +438,57 @@ TEST_CASE_METHOD(XMLTestFixture, "A re-fetch on activation does not narrow the s
     overlay.on_activate();
     helix::ui::UpdateQueue::instance().drain();
     CHECK(lv_subject_get_int(count) == 3);
+
+    reset_overlay_singletons();
+    AmsState::instance().set_backend(nullptr);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "Overview rows name positions in the backend's own word",
+                 "[ams][zones][overview][i18n]") {
+    reset_overlay_singletons();
+
+    // A multi-unit AmsBackendMock reports AFC, whose noun is Lane. Every other
+    // surface on this printer says lane, so a row reading "Slots 1-4" is the one
+    // place the UI switches vocabulary on the user.
+    auto backend = std::make_unique<AmsBackendMock>();
+    backend->set_multi_unit_mode(true);
+    backend->set_environment_mode("mixed");
+    auto* raw = backend.get();
+    REQUIRE(raw->lane_noun() == LaneNoun::Lane);
+    AmsState::instance().set_backend(std::move(backend));
+
+    auto zones = raw->get_environment_zones(-1);
+    get_ams_zone_overview_overlay().show(lv_screen_active(), zones);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Both shapes exist on this rig: a whole box covering several positions takes
+    // the plural, a single-position zone the singular. The overview is the only
+    // surface that renders the plural at all.
+    bool saw_range = false;
+    bool saw_single = false;
+    for (size_t i = 0; i < zones.size(); ++i) {
+        const std::string index = std::to_string(i);
+        lv_subject_t* slots = lv_xml_get_subject(nullptr, ("zone_ov_slots_" + index).c_str());
+        REQUIRE(slots != nullptr);
+        const std::string text = lv_subject_get_string(slots);
+        CHECK(text.find("Slot") == std::string::npos);
+        if (zones[i].gates.size() > 1) {
+            saw_range = true;
+            CHECK(text.rfind("Lanes ", 0) == 0);
+            CHECK(text == "Lanes " + lane_number_text(zones[i].gates.front()) + "-" +
+                              lane_number_text(zones[i].gates.back()));
+        } else {
+            saw_single = true;
+            CHECK(text.rfind("Lane ", 0) == 0);
+            // An unnamed single-gate zone has nothing but the position to call
+            // itself, so the row's title is the same word again.
+            lv_subject_t* label = lv_xml_get_subject(nullptr, ("zone_ov_label_" + index).c_str());
+            REQUIRE(label != nullptr);
+            CHECK(std::string(lv_subject_get_string(label)).rfind("Lane ", 0) == 0);
+        }
+    }
+    CHECK(saw_range);
+    CHECK(saw_single);
 
     reset_overlay_singletons();
     AmsState::instance().set_backend(nullptr);

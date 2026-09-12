@@ -1124,6 +1124,7 @@ translations:
   Feed filament directly to extruder: Alimenta filamento direttamente all'estrusore
   Feed filament from current slot: 'Alimenta il filamento dallo slot corrente'
   Feeder: Alimentatore
+  Feeders: Alimentatori
   Feeding filament forward: Avanzamento filamento
   Filament: Filamento
   Filament Control: Controllo filamento
@@ -1235,6 +1236,7 @@ translations:
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Partita finita!\nPunteggio: {}\nTocca per ricominciare"
   Gate: Gate
+  Gates: Gate
   Gear Buffer Speed: 'Velocità dell''ingranaggio dal buffer'
   Gear Spool Speed: 'Velocità dell''ingranaggio dalla bobina'
   Gear Unload Speed: 'Velocità di scarico dell''ingranaggio'
@@ -1518,6 +1520,7 @@ translations:
   Labels Per Sheet: Etichette per foglio
   Lane: Corsia
   Lane tests and motor resets: 'Test delle corsie e ripristini motore'
+  Lanes: Corsie
   Language: Lingua
   Language, theme, brightness, and sound: Lingua, tema, luminosità e suono
   Last: Ultima
@@ -2657,7 +2660,7 @@ translations:
   Slot: Slot
   Slot 1: Slot 1
   Slot colors, materials, and levels: Colori, materiali e livelli slot
-  Slots: ''
+  Slots: Slot
   Small labels help keep controls calm and focused.: Le etichette piccole aiutano
     a mantenere i controlli ordinati e mirati.
   Snapmaker SnapSwap: Snapmaker SnapSwap
@@ -3042,6 +3045,8 @@ translations:
   Toolhead Style: Stile testina
   Toolhead jam: Inceppamento testina
   Toolhead, G-code, limits, and materials: Testina, G-code, limiti e materiali
+  Toolheads: Testine
+  Tools: Strumenti
   Tools Used: Utensili usati
   'Tools: ': 'Utensili: '
   Total Prints: Stampe totali

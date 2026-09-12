@@ -215,6 +215,7 @@ void AmsZoneOverviewOverlay::rebuild_rows() {
 
     AmsBackend* backend = AmsState::instance().get_backend();
     const std::string type_name = backend ? backend->get_system_info().type_name : std::string{};
+    const LaneNoun slot_noun = backend ? backend->lane_noun() : active_lane_noun();
     const bool grouped = zones_span_units(zones_);
     const size_t n = zones_.size();
 
@@ -230,8 +231,8 @@ void AmsZoneOverviewOverlay::rebuild_rows() {
     for (size_t i = 0; i < n; ++i) {
         const auto& z = zones_[i];
 
-        label_pool_.set_string(i, zone_display_label(z, lv_tr("Unit"), lv_tr("Slot"), type_name));
-        slots_pool_.set_string(i, zone_slot_text(z, lv_tr("Slots"), lv_tr("Slot")));
+        label_pool_.set_string(i, zone_display_label(z, lv_tr("Unit"), slot_noun, type_name));
+        slots_pool_.set_string(i, zone_slot_text(z, slot_noun));
 
         char reading[32] = {};
         if (z.env.has_humidity) {

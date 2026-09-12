@@ -1013,6 +1013,7 @@
   <translation tag="Feed filament directly to extruder" de="Filament direkt zum Extruder führen"/>
   <translation tag="Feed filament from current slot" de="Filament aus dem aktuellen Slot zuführen"/>
   <translation tag="Feeder" de="Zuführung"/>
+  <translation tag="Feeders" de="Zuführungen"/>
   <translation tag="Feeding filament forward" de="Filament wird vorwärts geführt"/>
   <translation tag="Filament" de="Filament"/>
   <translation tag="Filament Control" de="Filamentsteuerung"/>
@@ -1116,6 +1117,7 @@
   <translation tag="GCode Console" de="G-Code-Konsole"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" de="Spiel vorbei!&#10;Punkte: {}&#10;Zum Neustart tippen"/>
   <translation tag="Gate" de="Gate"/>
+  <translation tag="Gates" de="Gates"/>
   <translation tag="Gear Buffer Speed" de="Zahnrad-Puffergeschwindigkeit"/>
   <translation tag="Gear Spool Speed" de="Zahnrad-Spulengeschwindigkeit"/>
   <translation tag="Gear Unload Speed" de="Zahnrad-Entladegeschwindigkeit"/>
@@ -1354,6 +1356,7 @@
   <translation tag="Labels Per Sheet" de="Etiketten pro Blatt"/>
   <translation tag="Lane" de="Spur"/>
   <translation tag="Lane tests and motor resets" de="Spurtests und Motor-Rücksetzungen"/>
+  <translation tag="Lanes" de="Spuren"/>
   <translation tag="Language" de="Sprache"/>
   <translation tag="Language, theme, brightness, and sound" de="Sprache, Thema, Helligkeit und Ton"/>
   <translation tag="Last" de="Letzte"/>
@@ -2380,7 +2383,7 @@
   <translation tag="Slot" de="Slot"/>
   <translation tag="Slot 1" de="Slot 1"/>
   <translation tag="Slot colors, materials, and levels" de="Slotfarben, Materialien und Füllstände"/>
-  <translation tag="Slots"/>
+  <translation tag="Slots" de="Slots"/>
   <translation tag="Small labels help keep controls calm and focused." de="Kleine Beschriftungen helfen, Steuerelemente ruhig und fokussiert zu halten."/>
   <translation tag="Snapmaker SnapSwap" de="Snapmaker SnapSwap"/>
   <translation tag="Snapmaker U1" de="Snapmaker U1"/>
@@ -2686,6 +2689,8 @@
   <translation tag="Toolhead Style" de="Toolhead-Stil"/>
   <translation tag="Toolhead jam" de="Werkzeugkopf-Stau"/>
   <translation tag="Toolhead, G-code, limits, and materials" de="Druckkopf, G-Code, Grenzen und Materialien"/>
+  <translation tag="Toolheads" de="Werkzeugköpfe"/>
+  <translation tag="Tools" de="Werkzeuge"/>
   <translation tag="Tools Used" de="Verwendete Werkzeuge"/>
   <translation tag="Tools: " de="Werkzeuge: "/>
   <translation tag="Total Prints" de="Gesamte Drucke"/>

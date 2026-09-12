@@ -1013,6 +1013,7 @@
   <translation tag="Feed filament directly to extruder" pt="Alimentar filamento diretamente ao extrusor"/>
   <translation tag="Feed filament from current slot" pt="Alimentar filamento a partir do slot atual"/>
   <translation tag="Feeder" pt="Alimentador"/>
+  <translation tag="Feeders" pt="Alimentadores"/>
   <translation tag="Feeding filament forward" pt="Avançando filamento"/>
   <translation tag="Filament" pt="Filamento"/>
   <translation tag="Filament Control" pt="Controle de Filamento"/>
@@ -1116,6 +1117,7 @@
   <translation tag="GCode Console" pt="Console G-code"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" pt="Fim de jogo!&#10;Pontuação: {}&#10;Toque para reiniciar"/>
   <translation tag="Gate" pt="Gate"/>
+  <translation tag="Gates" pt="Gates"/>
   <translation tag="Gear Buffer Speed" pt="Velocidade da engrenagem a partir do buffer"/>
   <translation tag="Gear Spool Speed" pt="Velocidade da engrenagem a partir do carretel"/>
   <translation tag="Gear Unload Speed" pt="Velocidade de descarregamento da engrenagem"/>
@@ -1354,6 +1356,7 @@
   <translation tag="Labels Per Sheet" pt="Etiquetas por folha"/>
   <translation tag="Lane" pt="Lane"/>
   <translation tag="Lane tests and motor resets" pt="Testes de lane e reinícios de motor"/>
+  <translation tag="Lanes" pt="Lanes"/>
   <translation tag="Language" pt="Idioma"/>
   <translation tag="Language, theme, brightness, and sound" pt="Idioma, tema, brilho e som"/>
   <translation tag="Last" pt="Última"/>
@@ -2380,7 +2383,7 @@
   <translation tag="Slot" pt="Slot"/>
   <translation tag="Slot 1" pt="Slot 1"/>
   <translation tag="Slot colors, materials, and levels" pt="Cores, materiais e níveis dos slots"/>
-  <translation tag="Slots"/>
+  <translation tag="Slots" pt="Slots"/>
   <translation tag="Small labels help keep controls calm and focused." pt="Rótulos pequenos ajudam a manter os controles calmos e focados."/>
   <translation tag="Snapmaker SnapSwap" pt="Snapmaker SnapSwap"/>
   <translation tag="Snapmaker U1" pt="Snapmaker U1"/>
@@ -2686,6 +2689,8 @@
   <translation tag="Toolhead Style" pt="Estilo do Cabeçote"/>
   <translation tag="Toolhead jam" pt="Atolamento do cabeçote"/>
   <translation tag="Toolhead, G-code, limits, and materials" pt="Cabeçote, G-code, limites e materiais"/>
+  <translation tag="Toolheads" pt="Cabeçotes"/>
+  <translation tag="Tools" pt="Ferramentas"/>
   <translation tag="Tools Used" pt="Ferramentas Usadas"/>
   <translation tag="Tools: " pt="Ferramentas: "/>
   <translation tag="Total Prints" pt="Total de Impressões"/>

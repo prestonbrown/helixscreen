@@ -70,6 +70,33 @@ TEST_CASE("noun_text covers every LaneNoun", "[numbering]") {
     CHECK(noun_text(LaneNoun::Toolhead) == "Toolhead");
 }
 
+TEST_CASE("lane_range_label spells a span with the plural noun", "[numbering]") {
+    CHECK(lane_range_label(LaneNoun::Slot, 0, 3) == "Slots 1-4");
+    CHECK(lane_range_label(LaneNoun::Lane, 0, 3) == "Lanes 1-4");
+    CHECK(lane_range_label(LaneNoun::Gate, 4, 7) == "Gates 5-8");
+    CHECK(lane_range_label(LaneNoun::Tool, 0, 1) == "Tools 1-2");
+    CHECK(lane_range_label(LaneNoun::Feeder, 0, 1) == "Feeders 1-2");
+    CHECK(lane_range_label(LaneNoun::Toolhead, 0, 1) == "Toolheads 1-2");
+}
+
+TEST_CASE("a plural is one fixed word, never agreed with the count", "[numbering]") {
+    // Russian numerals take three forms (1 слот / 2-4 слота / 5+ слотов) and a range
+    // agrees with neither end of itself, so the header carries the nominative plural
+    // whatever the span covers. Pinned on the base locale, where every plural is the
+    // key: a span of two and a span of ten read the same word.
+    CHECK(lane_range_label(LaneNoun::Slot, 0, 1) == "Slots 1-2");
+    CHECK(lane_range_label(LaneNoun::Slot, 0, 9) == "Slots 1-10");
+    CHECK(lane_range_label(LaneNoun::Lane, 0, 1).rfind("Lanes ", 0) == 0);
+    CHECK(lane_range_label(LaneNoun::Lane, 0, 9).rfind("Lanes ", 0) == 0);
+}
+
+TEST_CASE("a range with no valid end produces no label", "[numbering]") {
+    // Same contract as lane_label(): no position, no text, rather than a range
+    // running off a sentinel.
+    CHECK(lane_range_label(LaneNoun::Slot, -1, 3).empty());
+    CHECK(lane_range_label(LaneNoun::Slot, 0, -1).empty());
+}
+
 TEST_CASE("Feeder and Toolhead compose like every other noun", "[numbering]") {
     // Snapmaker U1 is the one backend where the filament-entry noun and the
     // printing-end noun differ, so both need the ordinary lane_label() path.

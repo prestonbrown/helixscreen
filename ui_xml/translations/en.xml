@@ -1013,6 +1013,7 @@
   <translation tag="Feed filament directly to extruder" en="Feed filament directly to extruder"/>
   <translation tag="Feed filament from current slot" en="Feed filament from current slot"/>
   <translation tag="Feeder" en="Feeder"/>
+  <translation tag="Feeders" en="Feeders"/>
   <translation tag="Feeding filament forward" en="Feeding filament forward"/>
   <translation tag="Filament" en="Filament"/>
   <translation tag="Filament Control" en="Filament Control"/>
@@ -1116,6 +1117,7 @@
   <translation tag="GCode Console" en="GCode Console"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" en="Game Over!&#10;Score: {}&#10;Tap to restart"/>
   <translation tag="Gate" en="Gate"/>
+  <translation tag="Gates" en="Gates"/>
   <translation tag="Gear Buffer Speed" en="Gear Buffer Speed"/>
   <translation tag="Gear Spool Speed" en="Gear Spool Speed"/>
   <translation tag="Gear Unload Speed" en="Gear Unload Speed"/>
@@ -1354,6 +1356,7 @@
   <translation tag="Labels Per Sheet" en="Labels Per Sheet"/>
   <translation tag="Lane" en="Lane"/>
   <translation tag="Lane tests and motor resets" en="Lane tests and motor resets"/>
+  <translation tag="Lanes" en="Lanes"/>
   <translation tag="Language" en="Language"/>
   <translation tag="Language, theme, brightness, and sound" en="Language, theme, brightness, and sound"/>
   <translation tag="Last" en="Last"/>
@@ -2686,6 +2689,8 @@
   <translation tag="Toolhead Style" en="Toolhead Style"/>
   <translation tag="Toolhead jam" en="Toolhead jam"/>
   <translation tag="Toolhead, G-code, limits, and materials" en="Toolhead, G-code, limits, and materials"/>
+  <translation tag="Toolheads" en="Toolheads"/>
+  <translation tag="Tools" en="Tools"/>
   <translation tag="Tools Used" en="Tools Used"/>
   <translation tag="Tools: " en="Tools: "/>
   <translation tag="Total Prints" en="Total Prints"/>

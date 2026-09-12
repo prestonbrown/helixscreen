@@ -11,6 +11,31 @@ namespace helix::ui {
 namespace {
 /// U+00B7 MIDDLE DOT, the separator between a unit name and its position.
 constexpr const char* kUnitSeparator = "\xc2\xb7";
+
+/**
+ * @brief The translated plural for @p noun, as a range header spells it.
+ *
+ * One fixed nominative plural per noun per locale, never derived from how many
+ * positions the range covers: Russian would need three forms for a count and
+ * agrees with neither end of a range, and a header is not a count anyway.
+ */
+std::string noun_text_plural(LaneNoun noun) {
+    switch (noun) {
+    case LaneNoun::Lane:
+        return lv_tr("Lanes");
+    case LaneNoun::Gate:
+        return lv_tr("Gates");
+    case LaneNoun::Tool:
+        return lv_tr("Tools");
+    case LaneNoun::Feeder:
+        return lv_tr("Feeders");
+    case LaneNoun::Toolhead:
+        return lv_tr("Toolheads");
+    case LaneNoun::Slot:
+        break;
+    }
+    return lv_tr("Slots");
+}
 } // namespace
 
 std::string tool_label(int gcode_tool) {
@@ -64,6 +89,14 @@ std::string lane_label(LaneNoun noun, std::string_view unit_display_name, int in
     if (body.empty())
         return {};
     return std::string(unit_display_name) + " " + kUnitSeparator + " " + body;
+}
+
+std::string lane_range_label(LaneNoun noun, int first_index, int last_index) {
+    const int first = lane_number(first_index);
+    const int last = lane_number(last_index);
+    if (first < 0 || last < 0)
+        return {};
+    return noun_text_plural(noun) + " " + std::to_string(first) + "-" + std::to_string(last);
 }
 
 LaneNoun active_lane_noun() {
