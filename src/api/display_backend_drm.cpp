@@ -442,6 +442,19 @@ lv_display_t* DisplayBackendDRM::create_display(int width, int height) {
         return nullptr;
     }
 
+#if LV_LINUX_DRM_USE_EGL
+    // LVGL's 32bpp native format is XRGB8888 and it leaves the X byte at 0x00.
+    // The EGL path uploads that buffer as GL_RGBA, so X arrives as alpha, and
+    // the fragment shader multiplies RGB by it -- every pixel LVGL did not make
+    // fully opaque loses its colour. ARGB8888 makes LVGL maintain the byte as a
+    // real alpha instead. Same defect the AD5M hit through its LCD controller
+    // (see DisplayBackendFbdev::init), reached here through a different consumer.
+    if (lv_display_get_color_format(display_) == LV_COLOR_FORMAT_XRGB8888) {
+        lv_display_set_color_format(display_, LV_COLOR_FORMAT_ARGB8888);
+        spdlog::info("[DRM Backend] Color format XRGB8888 -> ARGB8888 for the EGL path");
+    }
+#endif
+
     // Belt and suspenders: after LVGL sets up, check the actual resolution
     // it landed on. If it differs from what the user asked for and we
     // haven't already warned, enqueue a warning now.
