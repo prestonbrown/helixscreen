@@ -55,6 +55,7 @@ sweep_state() {
     for p in $(helix_state_sweep_paths); do
         [ -d "$p" ] && rm -rf "$p"
     done
+    helix_state_prune_empty_roots
     return 0
 }
 
@@ -145,4 +146,58 @@ sweep_state() {
     [ -f "$BATS_TEST_TMPDIR/mnt/UDISK/printer_data/gcodes/benchy.gcode" ] || \
         fail "the uninstall removed the user's gcode"
     [ -d "$BATS_TEST_TMPDIR/mnt/UDISK" ] || fail "the uninstall removed the mount root"
+}
+
+# --------------------------------------------------------------------------
+# The directory that held the state
+# --------------------------------------------------------------------------
+
+@test "the emptied state root goes too, not just its contents" {
+    sandbox_lists
+    seed_payload /mnt/UDISK/helixscreen
+    seed_state /mnt/UDISK/helixscreen-state
+    INSTALL_DIR="$BATS_TEST_TMPDIR/mnt/UDISK/helixscreen"
+
+    remove_installation
+    sweep_state
+
+    [ ! -d "$BATS_TEST_TMPDIR/mnt/UDISK/helixscreen-state" ] || \
+        fail "an empty directory of ours was left on the device"
+}
+
+@test "a state root the operator put something in survives" {
+    # rmdir is what makes this safe: anything still in the directory means it is
+    # not ours alone to remove.
+    sandbox_lists
+    seed_state /mnt/UDISK/helixscreen-state
+    mkdir -p "$BATS_TEST_TMPDIR/mnt/UDISK/helixscreen-state/notes"
+    printf 'keep me\n' > "$BATS_TEST_TMPDIR/mnt/UDISK/helixscreen-state/notes/mine.txt"
+
+    sweep_state
+
+    [ -f "$BATS_TEST_TMPDIR/mnt/UDISK/helixscreen-state/notes/mine.txt" ] || \
+        fail "removed a directory that still had the operator's files in it"
+}
+
+@test "the prune is scoped by name, not applied to whatever is listed" {
+    HELIX_STATE_DIRS="$BATS_TEST_TMPDIR/mnt/UDISK"
+    mkdir -p "$BATS_TEST_TMPDIR/mnt/UDISK"
+
+    helix_state_prune_empty_roots
+
+    [ -d "$BATS_TEST_TMPDIR/mnt/UDISK" ] || fail "pruned a path that is not ours"
+}
+
+@test "only a -state directory is pruned, never a bare helixscreen one" {
+    # "-state" is a name this installer coins. A bare ".../helixscreen" is not,
+    # and an operator may have meant that directory themselves.
+    HELIX_STATE_DIRS="$BATS_TEST_TMPDIR/data/helixscreen $BATS_TEST_TMPDIR/x/helixscreen-state"
+    mkdir -p "$BATS_TEST_TMPDIR/data/helixscreen" "$BATS_TEST_TMPDIR/x/helixscreen-state"
+
+    helix_state_prune_empty_roots
+
+    [ -d "$BATS_TEST_TMPDIR/data/helixscreen" ] || \
+        fail "pruned a bare helixscreen directory that may not be ours"
+    [ ! -d "$BATS_TEST_TMPDIR/x/helixscreen-state" ] || \
+        fail "left our own -state directory behind"
 }
