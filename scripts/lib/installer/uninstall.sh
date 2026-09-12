@@ -850,14 +850,34 @@ clean_old_installation() {
     $SUDO rm -f /etc/polkit-1/rules.d/50-helixscreen-network.rules
     $SUDO systemctl daemon-reload 2>/dev/null || true
 
-    # Remove <klipper config dir>/helixscreen/ (user config) in clean mode
+    # Remove <klipper config dir>/helixscreen/ (user config) in clean mode.
+    # The disabled-services ledger rides the wipe out: it records /etc
+    # init-script disables that --clean leaves in place, and the install
+    # continuing after the wipe cannot re-record them (the stock UI is
+    # already de-executed by then), so dropping the ledger would strand it.
     local pd_config
     pd_config="$(klipper_config_dir)"
     if [ -n "$pd_config" ]; then
         local pd_helix="${pd_config}/helixscreen"
         if [ -d "$pd_helix" ] || [ -L "$pd_helix" ]; then
+            local pd_ledger="${pd_helix}/.disabled_services"
+            local ledger_keep=""
+            if [ -f "$pd_ledger" ]; then
+                ledger_keep="${pd_config}/.disabled_services.clean-keep.$$"
+                if ! $(file_sudo "$pd_ledger") cp "$pd_ledger" "$ledger_keep" 2>/dev/null; then
+                    ledger_keep=""
+                fi
+            fi
             log_info "Removing user config: $pd_helix"
             $SUDO rm -rf "$pd_helix"
+            if [ -n "$ledger_keep" ] && [ -f "$ledger_keep" ]; then
+                if $(file_sudo "$pd_config") mkdir -p "$pd_helix" 2>/dev/null; then
+                    $(file_sudo "$pd_helix") mv "$ledger_keep" "$pd_ledger" 2>/dev/null \
+                        || $SUDO rm -f "$ledger_keep" 2>/dev/null || true
+                else
+                    $SUDO rm -f "$ledger_keep" 2>/dev/null || true
+                fi
+            fi
         fi
     fi
 

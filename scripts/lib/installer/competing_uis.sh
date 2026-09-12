@@ -175,9 +175,18 @@ K1_CREALITY_BACKEND_INIT="/etc/init.d/S99creality-backend"
 # Creality Cloud app talk to and is deliberately left to
 # /etc/init.d/S99creality-backend (prestonbrown/helixscreen#1468).
 stop_k1_stock_competing_uis() {
-    if [ -x /etc/init.d/S99start_app ]; then
-        log_info "Stopping stock Creality UI (S99start_app)..."
-        /etc/init.d/S99start_app stop 2>/dev/null || true
+    if [ -f /etc/init.d/S99start_app ]; then
+        # The record must exist no matter which install did the chmod. An
+        # S99start_app that is already de-executed is a disable an earlier
+        # HelixScreen install left behind (or an operator following our
+        # docs), and hooks-k1.sh re-asserts the chmod on every launch for as
+        # long as we are installed. Uninstall chmod +x's recorded targets
+        # only, and no scan fallback names S99start_app, so an unrecorded
+        # disable would leave the stock UI dead after uninstall.
+        if [ -x /etc/init.d/S99start_app ]; then
+            log_info "Stopping stock Creality UI (S99start_app)..."
+            /etc/init.d/S99start_app stop 2>/dev/null || true
+        fi
         # Disable so it doesn't restart on reboot (reversible)
         chmod a-x /etc/init.d/S99start_app 2>/dev/null || true
         record_disabled_service "sysv-chmod" "/etc/init.d/S99start_app"
