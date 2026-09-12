@@ -272,6 +272,38 @@ TEST_CASE("Happy Hare slot identity survives a restart",
     }
 }
 
+TEST_CASE("Happy Hare cleared slot override does not return after a restart",
+          "[ams][happyhare][filament_slot_override]") {
+    ScopedOverrideCacheDir cache("hh_clear");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    // --- session 1: the user edits gate 1, then clears it -------------------
+    {
+        StoreBackedHappyHare hh(&api);
+        hh.on_started();
+        REQUIRE(hh.set_slot_info(1, user_edit(), /*persist=*/true).success());
+        hh.clear_slot_override(1);
+    }
+
+    CHECK(api.mock_get_db_value("helix-screen-hh-overrides", "lane2").is_null());
+
+    // --- session 2: relaunch, nothing in memory -----------------------------
+    {
+        StoreBackedHappyHare fresh(&api);
+        fresh.on_started();
+
+        const auto& loaded = helix::HappyHareTestAccess::overrides(fresh);
+        CHECK(loaded.count(1) == 0);
+
+        auto slot = fresh.get_slot_info(1);
+        CHECK(slot.brand.empty());
+        CHECK(slot.spool_name.empty());
+    }
+}
+
 TEST_CASE("AFC slot identity survives a restart", "[ams][afc][filament_slot_override]") {
     ScopedOverrideCacheDir cache("afc");
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
