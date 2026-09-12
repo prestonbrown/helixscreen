@@ -119,9 +119,12 @@
  *========================*/
 
 /*Align the stride of all layers and images to this bytes.
- *16-byte alignment required for ARM NEON vld1q/vst1q SIMD operations.
- *RGB888 (3 bytes/pixel) with stride_align=1 causes unaligned access crashes.*/
-#define LV_DRAW_BUF_STRIDE_ALIGN                16
+ *Keep this at 1. The software blenders, NEON paths included, address pixels
+ *with byte-element loads and stores, so padded rows buy nothing; the start
+ *address is what SIMD and DMA care about, and LV_DRAW_BUF_ALIGN covers that.
+ *Padding rows here breaks every consumer that reads a buffer as tightly
+ *packed - nanovg's glyph upload and SDL_UpdateTexture among them.*/
+#define LV_DRAW_BUF_STRIDE_ALIGN                1
 
 /*Align the start address of draw_buf addresses to this bytes*/
 #define LV_DRAW_BUF_ALIGN                       16

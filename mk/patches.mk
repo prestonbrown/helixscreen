@@ -37,7 +37,6 @@ LVGL_PATCHED_FILES := \
 	src/draw/sw/lv_draw_sw_letter.c \
 	src/draw/sw/lv_draw_sw_img.c \
 	src/draw/sw/lv_draw_sw_blur.c \
-	src/draw/nanovg/lv_draw_nanovg_label.c \
 	src/drivers/display/drm/lv_linux_drm.c \
 	src/drivers/display/drm/lv_linux_drm.h \
 	src/drivers/display/drm/lv_linux_drm_egl.c \
@@ -643,17 +642,6 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(APPLIED_STAMP_ID)
 		fi \
 	else \
 		echo "$(GREEN)✓ LVGL DRM preferred mode patch already applied$(RESET)"; \
-	fi
-	$(Q)if ! grep -q 'alloc_h' $(LVGL_DIR)/src/draw/nanovg/lv_draw_nanovg_label.c 2>/dev/null; then \
-		echo "$(YELLOW)→ Applying LVGL nanovg glyph buffer overflow patch...$(RESET)"; \
-		if git -C $(LVGL_DIR) apply --check $(PATCH_DIR)/lvgl-nanovg-glyph-buffer-overflow.patch 2>/dev/null; then \
-			git -C $(LVGL_DIR) apply $(PATCH_DIR)/lvgl-nanovg-glyph-buffer-overflow.patch && \
-			echo "$(GREEN)✓ nanovg glyph buffer patch applied$(RESET)"; \
-		else \
-			echo "$(YELLOW)⚠ Cannot apply patch (already applied or conflicts)$(RESET)"; \
-		fi \
-	else \
-		echo "$(GREEN)✓ LVGL nanovg glyph buffer patch already applied$(RESET)"; \
 	fi
 	$(Q)if ! grep -q 'drmSetMaster' $(LVGL_DIR)/src/drivers/display/drm/lv_linux_drm.c 2>/dev/null; then \
 		echo "$(YELLOW)→ Applying LVGL DRM set-master patch...$(RESET)"; \
