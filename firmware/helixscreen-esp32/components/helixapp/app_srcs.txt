@@ -192,6 +192,7 @@ src/sensors/humidity_sensor_manager.cpp
 src/sensors/probe_sensor_manager.cpp
 src/sensors/temperature_sensor_manager.cpp
 src/sensors/width_sensor_manager.cpp
+src/system/afc_message_dedup.cpp
 src/system/alsa_device_enum.cpp
 src/system/async_lifetime_guard.cpp
 src/system/audio_settings_manager.cpp
