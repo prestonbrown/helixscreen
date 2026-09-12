@@ -404,11 +404,11 @@ void NozzleTempsWidget::on_size_changed(int colspan, int rowspan, int width_px, 
         }
     }
 
-    // Compact font only matters when single-column AND narrow; reuse the
-    // decision so the font doesn't shrink in a comfortable two-up layout.
-    const lv_font_t* text_font = (decision.columns == 1 && !decision.use_long_label)
-                                     ? theme_manager_get_font("font_xs")
-                                     : nullptr;
+    // Whether the text shrinks is its own decision: the column has to be too
+    // narrow for the row it is about to draw, which is not the same question as
+    // which spelling won.
+    const lv_font_t* text_font =
+        decision.use_compact_font ? theme_manager_get_font("font_xs") : nullptr;
     if (text_font) {
         auto set_font = [text_font](lv_obj_t* lbl) {
             if (lbl)
@@ -431,8 +431,9 @@ void NozzleTempsWidget::on_size_changed(int colspan, int rowspan, int width_px, 
         lv_label_set_text(row.tool_label, text.c_str());
     }
 
-    spdlog::debug("[NozzleTempsWidget] on_size_changed {}x{} avail={} cols={} long={}", colspan,
-                  rowspan, avail_px, decision.columns, decision.use_long_label);
+    spdlog::debug("[NozzleTempsWidget] on_size_changed {}x{} avail={} cols={} long={} compact={}",
+                  colspan, rowspan, avail_px, decision.columns, decision.use_long_label,
+                  decision.use_compact_font);
 }
 
 void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& row) {

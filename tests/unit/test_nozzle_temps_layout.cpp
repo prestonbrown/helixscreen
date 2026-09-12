@@ -192,3 +192,65 @@ TEST_CASE("One pixel below the narrow-spelling split boundary stays a single col
     REQUIRE(d.columns == 1);
     CHECK(d.use_long_label == true);
 }
+
+// --- The compact font is its own decision. Keying it off use_long_label made it
+// unreachable wherever the long form wins at every width, which is every width
+// in de/es/it/ru.
+
+TEST_CASE("A narrow column shrinks the font even when the long form wins", "[nozzle][layout]") {
+    // de shape: the nozzle name (150) is narrower than the position label (200),
+    // so use_long_label is true at any width. col_w(120) still cannot hold the
+    // 150px row it is about to draw.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/120, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/200,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    REQUIRE(d.use_long_label == true);
+    CHECK(d.use_compact_font == true);
+}
+
+TEST_CASE("A column that holds the drawn row keeps the normal font", "[nozzle][layout]") {
+    // Same de shape, wide enough for the 150px row.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/180, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/200,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    REQUIRE(d.use_long_label == true);
+    CHECK(d.use_compact_font == false);
+}
+
+TEST_CASE("A single column too narrow for the compact row shrinks the font", "[nozzle][layout]") {
+    // Base-locale shape, col_w(80) under short_row_px(90).
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/80, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/90,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    REQUIRE(d.use_long_label == false);
+    CHECK(d.use_compact_font == true);
+}
+
+TEST_CASE("A column holding the compact row keeps the normal font", "[nozzle][layout]") {
+    // Base-locale shape, col_w(120) sits between short_row_px(90) and
+    // long_row_px(150): the compact spelling is drawn and it fits, so the text
+    // has no reason to shrink.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/120, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/90,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 1);
+    REQUIRE(d.use_long_label == false);
+    CHECK(d.use_compact_font == false);
+}
+
+TEST_CASE("Two columns never shrink the font", "[nozzle][layout]") {
+    // The column split is already gated on the row fitting twice.
+    NozzleLayoutDecision d = decide_nozzle_layout(/*avail_px=*/196, /*gap_px=*/12,
+                                                  /*long_row_px=*/150, /*short_row_px=*/90,
+                                                  /*row_count=*/4);
+    REQUIRE(d.columns == 2);
+    CHECK(d.use_compact_font == false);
+}
+
+TEST_CASE("The pre-layout default does not shrink the font", "[nozzle][layout]") {
+    CHECK(decide_nozzle_layout(0, 12, 150, 90, 4).use_compact_font == false);
+    CHECK(decide_nozzle_layout(-50, 12, 150, 90, 4).use_compact_font == false);
+}

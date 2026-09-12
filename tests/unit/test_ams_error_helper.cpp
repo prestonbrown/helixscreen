@@ -64,12 +64,30 @@ TEST_CASE("a position error keeps the raw index in the technical detail", "[ams]
           "Slot 7 out of range (0-3)");
 }
 
-TEST_CASE("an out-of-range position suggests a 1-based span", "[ams][numbering]") {
-    // max_slot is the 0-based highest valid index, so a 4-position system passes
-    // 3 and the user is told 1-4, not 0-3.
+TEST_CASE("the suggested span is 1-based", "[ams][numbering]") {
+    // max_slot arrives 0-based at every call site (NUM_PORTS - 1,
+    // total_slots - 1, CFS_MAX_SLOTS - 1), so a four-position backend passes 3
+    // and the user must be told 1-4, not 0-3 and not 1-3.
     CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Lane, 9, 3).suggestion ==
           "Select a valid Lane (1-4)");
-    // A backend that has not reported its positions yet has no span to offer.
+    CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Slot, 99, 15).suggestion ==
+          "Select a valid Slot (1-16)");
+}
+
+TEST_CASE("the suggested span survives a one-position backend", "[ams][numbering]") {
+    // A single-position backend passes max_slot 0 - ams_backend_ace.cpp passes
+    // the literal, and any slot_count() - 1 site does it with one position. The
+    // span must still be THERE and read 1-1: a guard testing the raw 0-based
+    // value sees 0, decides there is no range, and silently drops it. The
+    // four-position case above passes either way, so this one is not redundant.
+    CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Slot, 4, 0).suggestion ==
+          "Select a valid Slot (1-1)");
+    CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Gate, 4, 0).suggestion ==
+          "Select a valid Gate (1-1)");
+}
+
+TEST_CASE("a backend with no positions offers no span", "[ams][numbering]") {
+    // max_slot -1 is "nothing reported yet", the one case with no range to give.
     CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Lane, 0, -1).suggestion ==
           "Select a valid Lane");
 }

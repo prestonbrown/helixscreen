@@ -18,6 +18,11 @@ namespace helix {
 struct NozzleLayoutDecision {
     int columns = 1;            ///< 1 or 2 side-by-side columns of rows
     bool use_long_label = true; ///< true → the nozzle name, false → the position label
+    /// Whether the temperature text needs the smaller font. A separate question
+    /// from use_long_label: which spelling won says nothing about whether the
+    /// row it produced fits, and in a locale where the position label is the
+    /// wider one the long form wins at every width.
+    bool use_compact_font = false;
 };
 
 /// Decide column count and label form from measured pixel widths.
@@ -34,7 +39,7 @@ struct NozzleLayoutDecision {
 [[nodiscard]] inline NozzleLayoutDecision
 decide_nozzle_layout(int avail_px, int gap_px, int long_row_px, int short_row_px, int row_count) {
     if (avail_px <= 0)
-        return {1, true};
+        return {1, true, false};
 
     // Two columns only when there are at least two rows AND both rows plus the
     // inter-row gap fit. The narrower of the two spellings is what a tight
@@ -57,7 +62,12 @@ decide_nozzle_layout(int avail_px, int gap_px, int long_row_px, int short_row_px
     // less would defeat the fallback.
     bool use_long_label = (col_w >= long_row_px) || (long_row_px <= short_row_px);
 
-    return {columns, use_long_label};
+    // The row about to be drawn is the one that has to fit. Two columns are
+    // already gated on fitting, so only a single column can be the narrow case.
+    const int drawn_row_px = use_long_label ? long_row_px : short_row_px;
+    bool use_compact_font = (columns == 1) && (col_w < drawn_row_px);
+
+    return {columns, use_long_label, use_compact_font};
 }
 
 } // namespace helix
