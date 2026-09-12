@@ -167,12 +167,15 @@ class IsolationListener : public Catch::EventListenerBase {
 
         // And grow that same pool to its steady-state max before the baseline
         // is captured. HThreadPool::commit() grows on demand while a worker is
-        // busy, and the pool never shrinks — so the first test to overlap two
-        // thumbnail tasks (print-select's metadata refresh does) reads as a
-        // per-test thread leak, when the second worker is as process-lifetime
-        // as the first (nightlies 08-27/08-29 flagged the print-select delete
-        // test this way). Hold one worker busy while committing a no-op: the
-        // commit grows the pool to max, then let both tasks finish.
+        // busy, so a test that overlaps two thumbnail tasks (print-select's
+        // metadata refresh does) reads the second worker as a per-test leak
+        // when it is as process-lifetime as the first. Hold one worker busy
+        // while committing a no-op: the commit grows the pool to max, then let
+        // both tasks finish.
+        //
+        // This baseline is the pool's maximum, not a constant. A worker that
+        // idles past max_idle_time retires itself, so the count can sit below
+        // this between bursts of thumbnail work.
         {
             auto pool = ThumbnailProcessorTestAccess::pool(helix::ThumbnailProcessor::instance());
             std::promise<void> hold;
@@ -322,13 +325,13 @@ class IsolationListener : public Catch::EventListenerBase {
                     // No /proc: the count is the whole report.
                     std::fprintf(stderr,
                                  "\n[ISOLATION-LEAK] test \"%s\" leaked %d thread(s): %d -> %d "
-                                 "(likely an unjoined hv::EventLoopThread → later UAF crash)\n",
+                                 "(it runs during later tests and during exit-handler teardown)\n",
                                  name_.c_str(), now - threads_, threads_, now);
                 } else {
                     std::fprintf(stderr,
                                  "\n[ISOLATION-LEAK] test \"%s\" leaked %d thread(s): %d -> %d, "
                                  "new: %s "
-                                 "(likely an unjoined hv::EventLoopThread → later UAF crash)\n",
+                                 "(it runs during later tests and during exit-handler teardown)\n",
                                  name_.c_str(), now - threads_, threads_, now, arrived.c_str());
                 }
             }
