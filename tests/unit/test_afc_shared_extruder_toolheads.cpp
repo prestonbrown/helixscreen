@@ -285,7 +285,9 @@ TEST_CASE("AFC extruder warning: an unparseable extruder_name names the value it
     auto fixture = load_fixture("afc_u1_shared_extruders.json");
     const auto& status = fixture["status"];
 
-    LogCapture log;
+    // One status frame logs several lines per lane, so the default ring is
+    // too small to still hold the single warning this case reads.
+    LogCapture log(4096);
     AfcSharedExtruderHelper afc;
     // AFC accepts any value containing "extruder", so this is a config it will
     // happily start with and we still cannot number. Telling the user to set

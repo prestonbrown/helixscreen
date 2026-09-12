@@ -7,22 +7,51 @@
 
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_ad5x_ifs.h"
+#include "ams_backend_afc.h"
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "lane_source_store.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
+#include "test_helpers/afc_test_access.h"
 #include "test_helpers/registered_backend.h"
 
+#include <string>
+#include <vector>
+
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::Ad5xIfsTestAccess;
+using helix::AfcTestAccess;
 using helix::AmsBackendAd5xIfs;
+using helix::AmsBackendAfc;
 using helix::ams::lane_sources;
 using helix::test::RegisteredBackend;
 
 namespace {
 /// A backend with no Moonraker behind it, registered so its lane ids are real.
 using Ad5xHarness = RegisteredBackend<AmsBackendAd5xIfs>;
+using AfcHarness = RegisteredBackend<AmsBackendAfc>;
+
+/// Four lanes through AFC's own initialize_slots(), which is what a discovery
+/// answer ends in.
+void init_afc_lanes(AmsBackendAfc& backend) {
+    AfcTestAccess::initialize_slots(backend,
+                                    std::vector<std::string>{"lane1", "lane2", "lane3", "lane4"});
+}
+
+/// One AFC_stepper lane object, delivered the way Moonraker delivers it: a
+/// notify_status_update carrying only the keys that changed. Every case here
+/// drives the production path rather than the parse alone, because what makes
+/// AFC different is that its frames are deltas.
+void feed_afc_lane(AmsBackendAfc& backend, const std::string& lane_name,
+                   const nlohmann::json& data) {
+    nlohmann::json params;
+    params["AFC_stepper " + lane_name] = data;
+    nlohmann::json notification;
+    notification["params"] = nlohmann::json::array({params, 0.0});
+    AfcTestAccess::handle_status_update(backend, notification);
+}
 } // namespace
 
 TEST_CASE_METHOD(LVGLTestFixture, "a registered backend's slots are its own block of lanes",
@@ -183,4 +212,214 @@ TEST_CASE_METHOD(LVGLTestFixture, "an override never reaches AD5X's vendor-cache
     const auto blank = lane_sources(harness.lane(2));
     REQUIRE(blank.vendor_cache.has_value());
     CHECK_FALSE(blank.vendor_cache->color_rgb.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AFC splits its sensors, its own store and its own weight",
+                 "[lane][ingest][afc]") {
+    AfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    feed_afc_lane(*harness, "lane1",
+                  {{"prep", true},
+                   {"load", true},
+                   {"tool_loaded", false},
+                   {"status", "Loaded"},
+                   {"color", "#ED2C2C"},
+                   {"material", "PETG"},
+                   {"filament_name", "Galaxy Black"},
+                   {"spool_vendor", "Kingroon"},
+                   {"weight", 612.0},
+                   {"spool_id", 7},
+                   {"initial_weight", 1000.0}});
+
+    const auto lane = lane_sources(harness.lane(0));
+
+    REQUIRE(lane.sensed.has_value());
+    REQUIRE(lane.sensed->present.has_value());
+    CHECK(*lane.sensed->present == true);
+    // prep and load are real sensors and say nothing about which spool this is.
+    CHECK_FALSE(lane.sensed->color_rgb.has_value());
+    CHECK_FALSE(lane.sensed->material.has_value());
+
+    // AFC's own store keeps colour, material, filament name and vendor across
+    // an eject, so all four are a cache of a past declaration.
+    REQUIRE(lane.vendor_cache.has_value());
+    REQUIRE(lane.vendor_cache->color_rgb.has_value());
+    CHECK(*lane.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(lane.vendor_cache->material == "PETG");
+    CHECK(lane.vendor_cache->spool_name == "Galaxy Black");
+    CHECK(lane.vendor_cache->brand == "Kingroon");
+    CHECK(lane.vendor_cache->spoolman_id == 7);
+    CHECK_FALSE(lane.vendor_cache->present.has_value());
+
+    REQUIRE(lane.metered.has_value());
+    REQUIRE(lane.metered->remaining_weight_g.has_value());
+    CHECK(*lane.metered->remaining_weight_g == Catch::Approx(612.0F));
+    REQUIRE(lane.metered->total_weight_g.has_value());
+    CHECK(*lane.metered->total_weight_g == Catch::Approx(1000.0F));
+    // A weight tick has no business asserting identity or presence.
+    CHECK_FALSE(lane.metered->material.has_value());
+    CHECK_FALSE(lane.metered->present.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a partial AFC delta narrows nothing it does not mention",
+                 "[lane][ingest][afc]") {
+    AfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    feed_afc_lane(*harness, "lane2",
+                  {{"prep", true},
+                   {"status", "Loaded"},
+                   {"color", "#ED2C2C"},
+                   {"material", "PETG"},
+                   {"filament_name", "Galaxy Black"}});
+
+    // The commonest frame AFC sends: the lane reached the toolhead and nothing
+    // about the spool changed. A record assembled from this frame alone would
+    // leave the lane with no identity at all.
+    feed_afc_lane(*harness, "lane2", {{"status", "Tooled"}});
+
+    const auto after_status = lane_sources(harness.lane(1));
+    REQUIRE(after_status.vendor_cache.has_value());
+    REQUIRE(after_status.vendor_cache->color_rgb.has_value());
+    CHECK(*after_status.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(after_status.vendor_cache->material == "PETG");
+    CHECK(after_status.vendor_cache->spool_name == "Galaxy Black");
+    REQUIRE(after_status.sensed.has_value());
+    CHECK(after_status.sensed->present == true);
+
+    // A colour change alone must not take the material with it.
+    feed_afc_lane(*harness, "lane2", {{"color", "#00AEFF"}});
+
+    const auto after_color = lane_sources(harness.lane(1));
+    REQUIRE(after_color.vendor_cache.has_value());
+    REQUIRE(after_color.vendor_cache->color_rgb.has_value());
+    CHECK(*after_color.vendor_cache->color_rgb == 0x00AEFFu);
+    CHECK(after_color.vendor_cache->material == "PETG");
+    CHECK(after_color.vendor_cache->spool_name == "Galaxy Black");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AFC files no weight reading until a frame carries one",
+                 "[lane][ingest][afc]") {
+    AfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    feed_afc_lane(*harness, "lane4", {{"prep", true}, {"status", "Loaded"}});
+
+    const auto lane = lane_sources(harness.lane(3));
+    // The record is filed whether or not AFC has weighed anything, so the
+    // absence below is a reading AFC has not made rather than a translation
+    // that never ran.
+    REQUIRE(lane.metered.has_value());
+    CHECK_FALSE(lane.metered->remaining_weight_g.has_value());
+    CHECK_FALSE(lane.metered->total_weight_g.has_value());
+
+    feed_afc_lane(*harness, "lane4", {{"weight", 612.0}});
+
+    const auto weighed = lane_sources(harness.lane(3));
+    REQUIRE(weighed.metered.has_value());
+    REQUIRE(weighed.metered->remaining_weight_g.has_value());
+    CHECK(*weighed.metered->remaining_weight_g == Catch::Approx(612.0F));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AFC's eject clears its own store without clearing the sensor",
+                 "[lane][ingest][afc]") {
+    AfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    feed_afc_lane(*harness, "lane3",
+                  {{"prep", true},
+                   {"load", true},
+                   {"status", "Loaded"},
+                   {"color", "#ED2C2C"},
+                   {"material", "PETG"},
+                   {"filament_name", "Galaxy Black"}});
+    REQUIRE(lane_sources(harness.lane(2)).vendor_cache->material == "PETG");
+
+    // clear_values() empties colour, material and filament name on eject. An
+    // empty value is a clear, so the cache must stop reporting them rather
+    // than standing on the last frame that named them.
+    feed_afc_lane(*harness, "lane3",
+                  {{"prep", false},
+                   {"load", false},
+                   {"status", "None"},
+                   {"color", ""},
+                   {"material", ""},
+                   {"filament_name", ""}});
+
+    const auto lane = lane_sources(harness.lane(2));
+    REQUIRE(lane.sensed.has_value());
+    CHECK(lane.sensed->present == false);
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK_FALSE(lane.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(lane.vendor_cache->material.has_value());
+    CHECK_FALSE(lane.vendor_cache->spool_name.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an override never reaches AFC's vendor-cache record",
+                 "[lane][ingest][afc]") {
+    AfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    // A user colour and material that disagree with what AFC reports.
+    // apply_overrides() rewrites SlotInfo with these on every frame, so a
+    // translation reading that struct back would file the user's own choice as
+    // something AFC's store remembers.
+    helix::ams::FilamentSlotOverride user;
+    user.color_rgb = 0x00FF00u;
+    user.color_set = true;
+    user.user_locked_color = true;
+    user.material = "ABS";
+    AfcTestAccess::overrides(*harness)[1] = user;
+
+    feed_afc_lane(
+        *harness, "lane2",
+        {{"prep", true}, {"status", "Loaded"}, {"color", "#ED2C2C"}, {"material", "PETG"}});
+
+    // Precondition, not the behaviour under test: unless the override actually
+    // wins on the merged slot there is no laundering for this case to catch
+    // and both assertions below would hold for the wrong reason.
+    const auto merged = harness->get_slot_info(1);
+    REQUIRE(merged.color_rgb == 0x00FF00u);
+    REQUIRE(merged.material == "ABS");
+
+    const auto lane = lane_sources(harness.lane(1));
+    REQUIRE(lane.vendor_cache.has_value());
+    REQUIRE(lane.vendor_cache->color_rgb.has_value());
+    CHECK(*lane.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(lane.vendor_cache->material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a frame with no sensor key neither sets nor erases AFC presence",
+                 "[lane][ingest][afc]") {
+    AfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    // Weight alone. AFC's sensors have said nothing about this lane, and no
+    // sensor reading is not a sensor reading of "empty".
+    feed_afc_lane(*harness, "lane1", {{"weight", 612.0}});
+
+    const auto unread = lane_sources(harness.lane(0));
+    // Proof the translation ran, so the absence below is about the sensors.
+    REQUIRE(unread.metered.has_value());
+    CHECK_FALSE(unread.sensed.has_value());
+
+    // The same lane once the sensors do speak. This half is what makes the
+    // half above a guard rather than a backend that never reports presence.
+    feed_afc_lane(*harness, "lane1", {{"prep", true}, {"status", "Loaded"}});
+
+    const auto read = lane_sources(harness.lane(0));
+    REQUIRE(read.sensed.has_value());
+    REQUIRE(read.sensed->present.has_value());
+    CHECK(*read.sensed->present == true);
+
+    // Another weight-only frame. AFC's presence authority is per frame rather
+    // than a latch, and a record is written whole, so filing an empty one here
+    // would erase a live reading.
+    feed_afc_lane(*harness, "lane1", {{"weight", 600.0}});
+
+    const auto still = lane_sources(harness.lane(0));
+    REQUIRE(still.sensed.has_value());
+    REQUIRE(still.sensed->present.has_value());
+    CHECK(*still.sensed->present == true);
 }

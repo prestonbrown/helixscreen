@@ -14,6 +14,7 @@
 #include "ams_fault_event.h"
 #include "config.h"
 #include "i_moonraker_api.h"
+#include "lane_source_store.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "operation_patterns.h" // helix::contains_ci
 #include "printer_discovery.h"
@@ -2373,6 +2374,13 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // Get slot info for filament data update
     auto& slot = entry->info;
 
+    // Firmware's own running account of this lane, which every block below
+    // updates alongside its write to `slot`. The lane observations at the end
+    // of this function are built from this and never from `slot`: the two
+    // agree on what AFC reported, and only this one is safe from the override
+    // merge that runs in between.
+    auto& firmware = lane_firmware_readings_[lane_name];
+
     // Parse color.
     //
     // An EMPTY value is a deliberate clear, not a parse failure. AFC's
@@ -2389,11 +2397,17 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
         }
         if (color_str.empty()) {
             slot.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+            firmware.cache.color_rgb.reset();
         } else {
             try {
-                slot.color_rgb = std::stoul(color_str, nullptr, 16);
+                const auto parsed = static_cast<uint32_t>(std::stoul(color_str, nullptr, 16));
+                slot.color_rgb = parsed;
+                firmware.cache.color_rgb = parsed;
             } catch (...) {
-                // Keep existing color on parse failure
+                // Keep existing color on parse failure. The observation keeps
+                // the last colour AFC published that could be read, for the
+                // same reason: what the store now holds is unreadable, not
+                // absent.
             }
         }
     }
@@ -2401,6 +2415,11 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // Parse material
     if (data.contains("material") && data["material"].is_string()) {
         slot.material = data["material"].get<std::string>();
+        if (slot.material.empty()) {
+            firmware.cache.material.reset();
+        } else {
+            firmware.cache.material = slot.material;
+        }
     }
 
     // Filament name, as AFC copied it out of Spoolman's filament record
@@ -2409,6 +2428,11 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // apply_overrides() runs below, so a user-entered name still wins.
     if (data.contains("filament_name") && data["filament_name"].is_string()) {
         slot.spool_name = data["filament_name"].get<std::string>();
+        if (slot.spool_name.empty()) {
+            firmware.cache.spool_name.reset();
+        } else {
+            firmware.cache.spool_name = slot.spool_name;
+        }
     }
 
     // Multi-colour hexes (AFC v1.2.0+). Firmware carries these as a list of BARE
@@ -2493,6 +2517,11 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
         // holds a link. The spool-id re-assert (see
         // maybe_reassert_retained_spool_link) keys off this, not the merge.
         lane_firmware_spool_id_[lane_name] = slot.spoolman_id;
+        if (slot.spoolman_id > 0) {
+            firmware.cache.spoolman_id = slot.spoolman_id;
+        } else {
+            firmware.cache.spoolman_id.reset();
+        }
     }
 
     // Parse weight.
@@ -2502,6 +2531,7 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // and none of the lane_data staleness (see parse_lane_data) can reach us here.
     if (data.contains("weight") && data["weight"].is_number()) {
         slot.remaining_weight_g = data["weight"].get<float>();
+        firmware.metered.remaining_weight_g = slot.remaining_weight_g;
     }
 
     // Full-spool weight (AFC v1.2.0+), ONLY for lanes with a Spoolman link.
@@ -2522,6 +2552,7 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
         float full = data["initial_weight"].get<float>();
         if (full > 0.0f) {
             slot.total_weight_g = full;
+            firmware.metered.total_weight_g = full;
         }
     }
 
@@ -2542,7 +2573,11 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     //
     // apply_overrides() runs directly below, so a user's brand override still wins
     // over whatever firmware reports. The lane_data path does the same since #1195.
-    read_vendor(data, slot.brand);
+    // read_vendor() writes only when it returns true, so slot.brand is the
+    // value it just stored and no key of its ladder is read a second time.
+    if (read_vendor(data, slot.brand)) {
+        firmware.cache.brand = slot.brand;
+    }
 
     // Re-supply the user's attached identity on top of firmware truth. This is
     // what keeps a lane's spool across an eject now that the parser honours
@@ -2561,7 +2596,14 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // lane's prior state, and slot.status is that state until rewritten.
     const SlotStatus status_at_frame_start = slot.status;
 
-    if (has_tool_loaded || has_status || data.contains("prep") || data.contains("load")) {
+    // Whether this frame says anything about where the filament is. Named
+    // because the lane's sensed observation below is filed on exactly the
+    // frames that recompute the status, and a second spelling of that could
+    // drift from this one.
+    const bool has_presence_reading =
+        has_tool_loaded || has_status || data.contains("prep") || data.contains("load");
+
+    if (has_presence_reading) {
         bool tool_loaded = has_tool_loaded && data["tool_loaded"].get<bool>();
         std::string status_str = has_status ? data["status"].get<std::string>() : "";
 
@@ -2604,6 +2646,31 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
                                          status_at_frame_start == SlotStatus::AVAILABLE;
     if (filament_present_now && !filament_present_before) {
         maybe_reassert_retained_spool_link(slot_index, lane_name);
+    }
+
+    // Translate what AFC has reported into the lane source model. Every value
+    // read here comes from `firmware`, never from `slot`: apply_overrides()
+    // rewrote that struct above with the user's own declarations, and filing
+    // one of those as something a vendor store remembers is the confusion this
+    // model exists to end.
+    //
+    // The cache and the meter are filed on every frame because they are
+    // accumulated rather than assembled from this frame. Re-filing them
+    // unchanged is what lets a delta naming one key leave the rest of the lane
+    // alone, where a record built from the frame would narrow it.
+    const ams::LaneId lane = lane_id(slot_index);
+    ams::ingest(lane, firmware.cache);
+    ams::ingest(lane, firmware.metered);
+
+    // Presence is the one reading AFC can stop having: prep, load and
+    // tool_loaded are real sensors, and a frame naming none of them is not a
+    // sensor reporting an empty lane. A record is written whole, so filing one
+    // here would erase a reading instead of repeating it. No frame, no ingest -
+    // the lane keeps what the sensors last said.
+    if (has_presence_reading) {
+        ams::Observation sensed(ams::ObservationSource::Sensed);
+        sensed.present = filament_present_now;
+        ams::ingest(lane, sensed);
     }
 
     // Populate or clear per-slot error based on lane status
