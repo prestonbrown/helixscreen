@@ -12,11 +12,16 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/preheat_widget_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "moonraker_api.h"
+#include "moonraker_client_mock.h"
+#include "panel_widget_manager.h"
 #include "preheat_widget.h"
 #include "printer_discovery.h"
+#include "temperature_controller.h"
 #include "tool_state.h"
 
 #include <string>
@@ -415,4 +420,37 @@ TEST_CASE("PreheatWidget: collect_preheat_heaters keeps every distinct heater in
     REQUIRE(heaters[0] == "extruder");
     REQUIRE(heaters[1] == "extruder1");
     REQUIRE(heaters[2] == "extruder2");
+}
+
+// ============================================================================
+// set_temperatures_multi: the "Preheat: ..." confirmation toast
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "PreheatWidget: single-tool preheat announces the tool as a label",
+                 "[preheat][panel_widget]") {
+    seed_extruders(2);
+
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, get_printer_state());
+    TemperatureController controller(get_printer_state(), &api);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    helix::PanelWidgetManager::instance().register_shared_resource<helix::TemperatureController>(
+        &controller);
+
+    PreheatWidget widget(get_printer_state());
+    PreheatWidgetTestAccess::set_tool_target(widget, 1); // T1
+
+    helix::LogCapture log(64);
+    PreheatWidgetTestAccess::set_temperatures_multi(widget, 200, 60);
+
+    // Pin on current output: tool_label(1) spells "T1", the same T-prefixed
+    // form the pre-rekey literal "T{}" already produced, so this does not
+    // discriminate the rekey itself - it protects the rendered toast text.
+    CHECK(log.count_containing("Preheat: T1 + bed set") >= 1);
+    CHECK(log.count_containing("Preheat: Tool 1 + bed set") == 0);
+
+    // Drop the registration so later tests' get_temperature_controller() sees none.
+    helix::PanelWidgetManager::instance().register_shared_resource<helix::TemperatureController>(
+        std::shared_ptr<TemperatureController>{});
 }

@@ -1137,7 +1137,7 @@ TEST_CASE("gate_insufficient_lane_weight: names the short slot", "[print-start][
     CHECK(result.body.find("65") != std::string::npos);
     CHECK(result.body.find("863") != std::string::npos);
     CHECK(!result.proceed_label.empty());
-    // The tool spells as "T1" (orca_ctx's tool), never the old "tool 1" phrasing.
+    // The tool spells as "T1" (orca_ctx's tool), not the lowercase word form.
     CHECK(result.body.find("T1") != std::string::npos);
     CHECK(result.body.find("tool 1") == std::string::npos);
 }
