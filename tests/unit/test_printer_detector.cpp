@@ -5927,9 +5927,13 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 // The creality_k2_plus and creality_k2_pro database entries are identical apart
 // from their k2plus/k2pro hostname heuristic and their build_volume_range
 // window. A host named plainly "creality-k2" matches neither hostname pattern,
-// so the build volume is the ONLY thing that can tell the two apart. Before the
-// discovery-side parse the field was empty on every in-app run, because its one
-// writer (the safety-limits fetch) is kicked off after detection has finished.
+// so the build volume is the ONLY thing that can tell the two apart. Both
+// windows opt in as separators: a bed inside one entry's window gives that
+// entry a real margin over the sibling, enough to auto-save; a bed in neither
+// window leaves the family tie, which stays a guess nothing may persist.
+// Before the discovery-side parse the field was empty on every in-app run,
+// because its one writer (the safety-limits fetch) is kicked off after
+// detection has finished.
 TEST_CASE_METHOD(PrinterDetectorFixture,
                  "PrinterDetector: build volume from configfile.settings decides K2 Pro vs K2 Plus",
                  "[printer][build_volume][detector]") {
@@ -5946,24 +5950,32 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
         return disc;
     };
 
-    SECTION("Without the settings parse the volume is empty and K2 Pro is unreachable") {
+    auto parse_bed = [](helix::PrinterDiscovery& disc, double bed) {
+        nlohmann::json settings = {{"stepper_x", {{"position_min", 0.0}, {"position_max", bed}}},
+                                   {"stepper_y", {{"position_min", 0.0}, {"position_max", bed}}},
+                                   {"stepper_z", {{"position_min", 0.0}, {"position_max", bed}}}};
+        REQUIRE(disc.parse_build_volume(settings));
+    };
+
+    SECTION("Without the settings parse the volume is empty and the family tie stands") {
         helix::PrinterDiscovery disc = make_discovery();
         REQUIRE(disc.build_volume().x_max == 0.0f);
 
         auto result = PrinterDetector::auto_detect(disc);
         CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
                 result.runner_up_confidence, result.margin(), result.tied_count);
-        // The two entries tie; whichever wins, it cannot be the K2 Pro, because
-        // nothing in the snapshot distinguishes a 300mm bed from a 350mm one.
-        REQUIRE(result.type_name != "Creality K2 Pro");
+        // Nothing in the snapshot distinguishes a 300mm bed from a 350mm one, so
+        // the family is pinned and the model is not: the siblings tie.
+        REQUIRE(result.type_name.rfind("Creality K2", 0) == 0);
+        REQUIRE(result.runner_up_type_name.rfind("Creality K2", 0) == 0);
+        REQUIRE(result.runner_up_confidence == result.confidence);
+        REQUIRE(result.margin() == 0);
+        REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
     }
 
-    SECTION("A 300mm bed in configfile.settings tips the tie to the K2 Pro") {
+    SECTION("A 300mm bed in configfile.settings separates the K2 Pro") {
         helix::PrinterDiscovery disc = make_discovery();
-        nlohmann::json settings = {{"stepper_x", {{"position_min", 0.0}, {"position_max", 300.0}}},
-                                   {"stepper_y", {{"position_min", 0.0}, {"position_max", 300.0}}},
-                                   {"stepper_z", {{"position_min", 0.0}, {"position_max", 300.0}}}};
-        REQUIRE(disc.parse_build_volume(settings));
+        parse_bed(disc, 300.0);
         // CHECK, not REQUIRE: the point of the section is the verdict below, and
         // a REQUIRE here would abort before the verdict could be observed.
         CHECK(disc.build_volume().x_max == 300.0f);
@@ -5972,22 +5984,17 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
         CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
                 result.runner_up_confidence, result.margin(), result.tied_count);
         REQUIRE(result.detected());
-        // The shared K2 platform ties the score; the bed size tips the tiebreak
-        // from the default K2 Plus to the K2 Pro whose window contains it.
+        // The bed is evidence, not a tiebreak: the entry whose window contains it
+        // leads its sibling by a margin, and the detection may persist.
         REQUIRE(result.type_name == "Creality K2 Pro");
         REQUIRE(result.runner_up_type_name == "Creality K2 Plus");
-        REQUIRE(result.margin() == 0);
-        // A tie between two different machines is a guess, not an
-        // identification: nothing may be persisted off the back of it.
-        REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+        REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+        REQUIRE(PrinterDetector::meets_autosave_threshold(result));
     }
 
-    SECTION("A 350mm bed in configfile.settings keeps the tie on the K2 Plus") {
+    SECTION("A 350mm bed in configfile.settings separates the K2 Plus") {
         helix::PrinterDiscovery disc = make_discovery();
-        nlohmann::json settings = {{"stepper_x", {{"position_min", 0.0}, {"position_max", 350.0}}},
-                                   {"stepper_y", {{"position_min", 0.0}, {"position_max", 350.0}}},
-                                   {"stepper_z", {{"position_min", 0.0}, {"position_max", 350.0}}}};
-        REQUIRE(disc.parse_build_volume(settings));
+        parse_bed(disc, 350.0);
 
         auto result = PrinterDetector::auto_detect(disc);
         CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
@@ -5995,7 +6002,53 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
         REQUIRE(result.detected());
         REQUIRE(result.type_name == "Creality K2 Plus");
         REQUIRE(result.runner_up_type_name == "Creality K2 Pro");
+        REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+        REQUIRE(PrinterDetector::meets_autosave_threshold(result));
+    }
+
+    SECTION("A 320mm bed is in neither window and the family tie stands") {
+        // Between the Pro window (290-310mm) and the Plus window (340-360mm) a
+        // reported volume names neither sibling: the family is pinned, the
+        // model is not, and the tie must stay unpersisted.
+        helix::PrinterDiscovery disc = make_discovery();
+        parse_bed(disc, 320.0);
+
+        auto result = PrinterDetector::auto_detect(disc);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.detected());
+        REQUIRE(result.type_name.rfind("Creality K2", 0) == 0);
+        REQUIRE(result.runner_up_type_name.rfind("Creality K2", 0) == 0);
+        REQUIRE(result.runner_up_confidence == result.confidence);
         REQUIRE(result.margin() == 0);
+        REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+    }
+
+    SECTION("A bed below the identification bar separates nothing") {
+        // The separator fires only once the non-volume evidence alone clears
+        // the autosave bar. On a host that names no family and reports only one
+        // K2 platform object, the entries stay below it (motor_control bases at
+        // 75), and the bed must not lift them: otherwise a sparse corexy rig
+        // sharing the window collects a sibling's name it did not earn.
+        helix::PrinterDiscovery disc;
+        disc.parse_objects(
+            nlohmann::json::array({"extruder", "heater_bed", "bed_mesh", "motor_control"}));
+        disc.set_printer_objects({"extruder", "heater_bed", "bed_mesh", "motor_control"});
+        disc.set_hostname("mainsailos");
+        disc.parse_config_keys(nlohmann::json{{"printer", {{"kinematics", "corexy"}}}});
+        parse_bed(disc, 300.0);
+
+        auto result = PrinterDetector::auto_detect(disc);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.detected());
+        REQUIRE(result.type_name.rfind("Creality K2", 0) == 0);
+        REQUIRE(result.runner_up_type_name.rfind("Creality K2", 0) == 0);
+        // The margin is the volume's extra-match bonus (3), not its separator
+        // weight: below the identification bar the bed separates nothing, and
+        // the detection stays under the autosave bar a real match would clear.
+        REQUIRE(result.margin() == 3);
+        REQUIRE(result.confidence < PrinterDetector::AUTOSAVE_MIN_CONFIDENCE);
         REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
     }
 }
