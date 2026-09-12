@@ -184,10 +184,16 @@ Measured per board, not inferred from the SoC.
 |-------|----------|------------------------|-------|
 | Pi 5 | V3D | no (DSI panel reports mask `0x0`) | a `0x0` mask passes any rotation test vacuously — never verify rotation here |
 | Pi 3B | vc4 | **yes** (mask `0x35`) | the only board with a rotation-capable plane, a connected panel, and working EGL at once |
-| CB1 | Mali-G31 (Panfrost) | not measured | needs Mesa 25.x; the vendor Mesa 21.3.9 in `/opt/panfrost` fails `gbm_create_device` for want of `kms_swrast`/`swrast` |
+| CB1 | Mali-G31 (Panfrost) | not measured | EGL rung verified rendering 2026-09-12 on Mesa 25.0.7; the vendor Mesa 21.3.9 in `/opt/panfrost` fails `gbm_create_device` for want of `kms_swrast`/`swrast`, so this needs Mesa 25.x |
 
 The CB1's `gbm_create_device` failure was a stale userspace Mesa, not a hardware
 limit. On current Armbian it reports `GL_RENDERER = Mali-G31 (Panfrost)`.
+
+All three owned boards have now rendered the EGL rung correctly: Pi 5 (V3D), Pi
+3B (vc4) and CB1 (Panfrost), each confirmed by eye on the panel rather than by
+log lines alone. That matters here more than usual, because the defect this path
+shipped with was invisible to every automated signal available (see "The alpha
+trap" below).
 
 ---
 
