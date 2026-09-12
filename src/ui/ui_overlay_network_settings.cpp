@@ -14,7 +14,6 @@
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
-#include "config.h"
 #include "data_root_resolver.h"
 #include "ethernet_manager.h"
 #include "log_redact.h"
@@ -1005,13 +1004,11 @@ void NetworkSettingsOverlay::finish_wlan_toggle(bool requested, bool success, bo
         lv_subject_notify(&mac_address_);
     }
 
-    // Both writes below hit settings.json. Deferred to here rather than run on
-    // the click so the LVGL thread never does a synchronous disk write while
-    // the user is still touching the switch. set_wifi_enabled() saves, so the
-    // expectation is staged first and the pair costs one write.
-    if (auto* config = Config::get_instance()) {
-        config->set_wifi_expected(outcome.enabled);
-    }
+    // Deferred to here rather than run on the click so the LVGL thread never
+    // does a synchronous disk write while the user is still touching the
+    // switch. This save also flushes the expectation WiFiManager stages for the
+    // same toggle: it queues that write ahead of this callback, so the pair
+    // still costs one write.
     SystemSettingsManager::instance().set_wifi_enabled(outcome.enabled);
 
     // Update combined network status

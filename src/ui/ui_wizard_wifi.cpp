@@ -558,11 +558,11 @@ void WizardWifiStep::handle_wifi_toggle_changed(lv_event_t* e) {
 
     lv_subject_set_int(&wifi_enabled_, checked ? 1 : 0);
 
-    // Persist WiFi expectation
-    if (auto* config = Config::get_instance()) {
-        config->set_wifi_expected(checked);
-        // Don't save yet - will be saved on wizard completion
-    }
+    // The switch is the only thing that moves on the tap. What the radio
+    // actually did is recorded by WiFiManager when the toggle answers, on its
+    // own lifetime rather than this step's, and the wizard's completion save
+    // picks that up — so a step left before the answer arrives cannot persist
+    // a state the radio never reached.
 
     if (!wifi_manager_) {
         LOG_ERROR_INTERNAL("WiFi manager not initialized");
@@ -594,9 +594,6 @@ void WizardWifiStep::handle_wifi_toggle_changed(lv_event_t* e) {
                              checked ? "enable" : "disable", actual ? "on" : "off");
                 lv_subject_set_int(&wifi_enabled_, outcome.enabled ? 1 : 0);
                 update_wifi_status(get_status_text(outcome.enabled ? "enabled" : "disabled"));
-                if (auto* config = Config::get_instance()) {
-                    config->set_wifi_expected(outcome.enabled);
-                }
             }
 
             if (!outcome.enabled) {

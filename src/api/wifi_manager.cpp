@@ -17,6 +17,7 @@
 #include "ui_timer_guard.h"
 #include "ui_update_queue.h"
 
+#include "config.h"
 #include "http_executor.h"
 #include "log_redact.h"
 #include "lvgl/lvgl.h"
@@ -24,6 +25,7 @@
 #include "spdlog/spdlog.h"
 #include "system_settings_manager.h"
 #include "wifi_interface.h"
+#include "wifi_radio_toggle.h"
 #include "wifi_ui_utils.h"
 
 #if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(ESP_PLATFORM)
@@ -795,6 +797,19 @@ bool WiFiManager::set_enabled(bool enabled) {
     return result.success();
 }
 
+void WiFiManager::persist_radio_expectation(bool requested, bool success, bool actual) {
+    // reconcile_radio_toggle owns what "the radio's state" means; reading it
+    // back here keeps the stored value and the value the UI reconciles its
+    // switch to from being two rules that agree only by convention.
+    const auto outcome = helix::wifi::reconcile_radio_toggle(requested, success, actual);
+    if (auto* config = Config::get_instance()) {
+        // Staged, not saved: a toggle must not put a synchronous disk write on
+        // the main thread, and whichever surface started it saves on its own
+        // schedule.
+        config->set_wifi_expected(outcome.enabled);
+    }
+}
+
 void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
                                     std::function<void(bool, bool)> on_complete) {
     spdlog::debug("[WiFiManager] set_enabled_async({})", enabled);
@@ -831,40 +846,45 @@ void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
     // Route through HttpExecutor::fast() (bounded 4-worker pool) rather than a
     // detached std::thread — per-call spawns fail with pthread EAGAIN under
     // thread exhaustion on memory-constrained ARM devices (#724).
-    helix::http::HttpExecutor::fast().submit([this, enabled, token, mgr_token,
-                                              cb = std::move(on_complete)]() mutable {
-        // `this` is valid for the whole body: ~WiFiManager blocks on
-        // radio_op_cv_ until radio_ops_inflight_ drains, before it touches a
-        // single member.
-        WiFiError result = apply_radio_enabled(enabled);
-        const bool success = result.success();
-        const bool actual = backend_->is_running() && backend_->is_radio_enabled();
+    helix::http::HttpExecutor::fast().submit(
+        [this, enabled, token, mgr_token, cb = std::move(on_complete)]() mutable {
+            // `this` is valid for the whole body: ~WiFiManager blocks on
+            // radio_op_cv_ until radio_ops_inflight_ drains, before it touches a
+            // single member.
+            WiFiError result = apply_radio_enabled(enabled);
+            const bool success = result.success();
+            const bool actual = backend_->is_running() && backend_->is_radio_enabled();
 
-        // Neither deferred body dereferences `this`: report_radio_result is
-        // static, and the caller's lambda carries its own captures. That keeps
-        // both safe even if the manager is destroyed between here and the next
-        // UpdateQueue tick.
-        const bool wired_fallback = has_non_wifi_fallback();
-        mgr_token.defer("WiFiManager::report_radio_result", [enabled, result, wired_fallback]() {
-            report_radio_result(enabled, result, wired_fallback);
+            // Neither deferred body dereferences `this`: report_radio_result is
+            // static, and the caller's lambda carries its own captures. That keeps
+            // both safe even if the manager is destroyed between here and the next
+            // UpdateQueue tick.
+            const bool wired_fallback = has_non_wifi_fallback();
+            mgr_token.defer("WiFiManager::report_radio_result",
+                            [enabled, result, wired_fallback, success, actual]() {
+                                report_radio_result(enabled, result, wired_fallback);
+                                // Queued ahead of the caller's callback below, so a
+                                // caller that saves in that callback flushes this
+                                // write with it rather than costing a second save.
+                                persist_radio_expectation(enabled, success, actual);
+                            });
+            if (cb) {
+                token.defer("WiFiManager::set_enabled_async",
+                            [cb = std::move(cb), success, actual]() { cb(success, actual); });
+            }
+
+            {
+                // Notify under the lock, not after it. wait_for_radio_ops() wakes
+                // as soon as the count reaches zero, and ~WiFiManager() destroys
+                // radio_op_cv_ right after it returns -- which would be while this
+                // thread was still inside notify_all(). Holding the mutex across
+                // the notify keeps the waiter blocked on reacquiring it until we
+                // are done touching the condition variable.
+                std::lock_guard<std::mutex> lock(radio_op_mutex_);
+                --radio_ops_inflight_;
+                radio_op_cv_.notify_all();
+            }
         });
-        if (cb) {
-            token.defer("WiFiManager::set_enabled_async",
-                        [cb = std::move(cb), success, actual]() { cb(success, actual); });
-        }
-
-        {
-            // Notify under the lock, not after it. wait_for_radio_ops() wakes
-            // as soon as the count reaches zero, and ~WiFiManager() destroys
-            // radio_op_cv_ right after it returns -- which would be while this
-            // thread was still inside notify_all(). Holding the mutex across
-            // the notify keeps the waiter blocked on reacquiring it until we
-            // are done touching the condition variable.
-            std::lock_guard<std::mutex> lock(radio_op_mutex_);
-            --radio_ops_inflight_;
-            radio_op_cv_.notify_all();
-        }
-    });
 }
 
 void WiFiManager::wait_for_radio_ops() {
