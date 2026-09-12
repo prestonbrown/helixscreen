@@ -351,9 +351,14 @@ inline std::string notification_action(const nlohmann::json& msg) {
  *
  * Exact match, not a prefix: a separately registered root such as
  * "gcodes_backup" is a different directory.
+ *
+ * Both ends are required arguments. A caller that looks at the item root alone
+ * is the failure this predicate exists to prevent, and a default would let the
+ * compiler wave the next one through; pass an empty string for the frames that
+ * carry no `source_item`.
  */
 inline bool filelist_change_affects_gcodes(const std::string& item_root,
-                                           const std::string& source_root = "") {
+                                           const std::string& source_root) {
     return item_root.empty() || item_root == "gcodes" || source_root == "gcodes";
 }
 
