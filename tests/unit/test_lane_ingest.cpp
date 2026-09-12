@@ -83,25 +83,70 @@ TEST_CASE_METHOD(HelixTestFixture, "an unseen lane reads as nothing observed", "
 
 TEST_CASE("a lane id names one backend's slot and nothing else", "[lane][ingest]") {
     using helix::ams::lane_id_for;
+    using helix::ams::LANES_PER_BACKEND;
 
     // Two backends is the ordinary case, not an exotic one: a tool changer
     // beside a filament system is what makes a bare slot index wrong.
     CHECK(lane_id_for(0, 0) == 0);
     CHECK(lane_id_for(0, 3) == 3);
     CHECK(lane_id_for(1, 0) != lane_id_for(0, 0));
-    CHECK(lane_id_for(1, 0) == 16);
+    CHECK(lane_id_for(1, 0) == LANES_PER_BACKEND);
 
     // The last slot of one block never collides with the first of the next.
-    CHECK(lane_id_for(0, helix::ams::LANES_PER_BACKEND - 1) < lane_id_for(1, 0));
+    CHECK(lane_id_for(0, LANES_PER_BACKEND - 1) < lane_id_for(1, 0));
 
     // The printer-level ids sit clear of every backend block.
-    CHECK(helix::ams::BYPASS_LANE_ID > lane_id_for(60, 15));
     CHECK(helix::ams::FIRST_TOOL_LANE_ID > helix::ams::BYPASS_LANE_ID);
 
     // The last backend and slot this scheme supports still sits below the
     // bypass id, pinning the boundary MAX_BACKENDS exists to hold.
-    CHECK(lane_id_for(helix::ams::MAX_BACKENDS - 1, helix::ams::LANES_PER_BACKEND - 1) <
+    CHECK(lane_id_for(helix::ams::MAX_BACKENDS - 1, LANES_PER_BACKEND - 1) <
           helix::ams::BYPASS_LANE_ID);
+}
+
+TEST_CASE("a backend block is sized for hardware, not for the subject array", "[lane][ingest]") {
+    using helix::ams::lane_id_for;
+
+    // AFC reports one lane per unit it finds and Happy Hare one per gate, both
+    // uncapped by AmsState::MAX_SLOTS, which bounds only how many slots get
+    // subjects. A five-unit BoxTurtle and a twenty-gate MMU are the shipped
+    // hardware that exceeds it, and both must still address a lane of their own.
+    CHECK(helix::ams::LANES_PER_BACKEND > 20);
+    CHECK(lane_id_for(0, 20) != helix::ams::INVALID_LANE_ID);
+    CHECK(lane_id_for(0, 20) != lane_id_for(1, 0));
+}
+
+TEST_CASE("a pair that names no lane yields no id", "[lane][ingest]") {
+    using helix::ams::INVALID_LANE_ID;
+    using helix::ams::lane_id_for;
+
+    // A backend registration never reached leaves its index at -1, and a slot
+    // index past the block is the neighbouring backend's slot. Neither may
+    // resolve to an id: the nearest one is a real lane on a real backend, so
+    // nothing downstream could tell the record apart from a deliberate write.
+    CHECK(lane_id_for(-1, 0) == INVALID_LANE_ID);
+    CHECK(lane_id_for(helix::ams::MAX_BACKENDS, 0) == INVALID_LANE_ID);
+    CHECK(lane_id_for(0, -1) == INVALID_LANE_ID);
+    CHECK(lane_id_for(0, helix::ams::LANES_PER_BACKEND) == INVALID_LANE_ID);
+
+    CHECK_FALSE(helix::ams::is_lane_id(INVALID_LANE_ID));
+    CHECK(helix::ams::is_lane_id(0));
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "a funnel handed no lane writes nothing", "[lane][ingest]") {
+    Observation sensed(ObservationSource::Sensed);
+    sensed.present = true;
+    ingest(helix::ams::INVALID_LANE_ID, sensed);
+
+    Observation user(ObservationSource::LocalUser);
+    user.color_rgb = 0xBCBCBC;
+    helix::ams::commit_slot_edit(helix::ams::INVALID_LANE_ID, user);
+
+    // Not a clamp onto lane 0, and not a record filed under the id itself.
+    CHECK(helix::ams::known_lanes().empty());
+    CHECK_FALSE(lane_sources(0).sensed.has_value());
+    CHECK_FALSE(lane_sources(0).local_user.has_value());
+    CHECK_FALSE(lane_sources(helix::ams::INVALID_LANE_ID).sensed.has_value());
 }
 
 TEST_CASE("the blocks are adjacent, which is why a slot index is bounded", "[lane][ingest]") {
@@ -109,10 +154,10 @@ TEST_CASE("the blocks are adjacent, which is why a slot index is bounded", "[lan
     using helix::ams::LANES_PER_BACKEND;
 
     // No gap between one block's last id and the next block's first. That is
-    // what makes lane_id_for's slot_index precondition load-bearing rather
-    // than defensive: a slot index one past a block is not an unused id, it is
-    // the neighbouring backend's slot 0, and every index past that is one of
-    // its real slots.
+    // what makes lane_id_for's slot_index bound load-bearing rather than
+    // defensive: a slot index one past a block is not an unused id, it is the
+    // neighbouring backend's slot 0, and every index past that is one of its
+    // real slots.
     CHECK(lane_id_for(0, LANES_PER_BACKEND - 1) + 1 == lane_id_for(1, 0));
     CHECK(lane_id_for(3, LANES_PER_BACKEND - 1) + 1 == lane_id_for(4, 0));
 

@@ -155,8 +155,9 @@ class AmsBackend {
      * @brief This backend's lane id for one of its own slots
      *
      * Several backends coexist, so a slot index alone names a position on
-     * every one of them at once. An unregistered backend reads as block 0,
-     * which is what a unit test constructing a backend on its own gets.
+     * every one of them at once. A backend that registration has not stamped,
+     * and a slot index outside this backend's block, both yield
+     * helix::ams::INVALID_LANE_ID, which the lane funnels drop.
      *
      * Public because a caller holding a backend pointer needs the same
      * answer the backend gives itself: deriving the id from anything but the
@@ -164,7 +165,7 @@ class AmsBackend {
      * never touched.
      */
     [[nodiscard]] helix::ams::LaneId lane_id(int slot_index) const {
-        return helix::ams::lane_id_for(backend_index_ < 0 ? 0 : backend_index_, slot_index);
+        return helix::ams::lane_id_for(backend_index_, slot_index);
     }
 
   private:

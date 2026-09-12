@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lane_source_store.h"
 
-#include "ams_state.h"
-
 #include <spdlog/spdlog.h>
 
 #include <cstddef>
@@ -11,9 +9,6 @@
 #include <utility>
 
 namespace helix::ams {
-
-static_assert(LANES_PER_BACKEND == AmsState::MAX_SLOTS,
-              "a lane must exist for every slot a backend can have subjects for");
 
 namespace {
 
@@ -87,10 +82,22 @@ std::vector<LaneId> LaneSourceStore::lanes() const {
 }
 
 void ingest(LaneId lane, const Observation& obs) {
+    if (!is_lane_id(lane)) {
+        spdlog::warn("[LaneSourceStore] ingest called with lane {}, which names no position; "
+                     "dropped",
+                     lane);
+        return;
+    }
     LaneSourceStore::instance().write(lane, obs, /*amend=*/false);
 }
 
 void commit_slot_edit(LaneId lane, const Observation& obs) {
+    if (!is_lane_id(lane)) {
+        spdlog::warn("[LaneSourceStore] commit_slot_edit called with lane {}, which names no "
+                     "position; dropped",
+                     lane);
+        return;
+    }
     if (obs.source != ObservationSource::LocalUser) {
         spdlog::warn("[LaneSourceStore] commit_slot_edit called with a non-user source; dropped");
         return;

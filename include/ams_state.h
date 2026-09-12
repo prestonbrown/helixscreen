@@ -1501,9 +1501,10 @@ class AmsState {
      * has accepted the edit, recording the user's authorship as a lane source
      * record. Nothing reads that record yet.
      *
-     * @param slot_index 0 to MAX_SLOTS-1. That bound is what makes the lane id
-     *        derived below well formed: LANES_PER_BACKEND == MAX_SLOTS, and
-     *        lane_id_for() requires a slot index inside its backend's block.
+     * @param slot_index a global slot index on the primary backend. A slot
+     *        outside that backend's lane block derives no lane id, and the
+     *        declaration layer drops it rather than filing the edit on a
+     *        neighbouring backend's lane. The edit itself still runs.
      *
      * @return the AmsError from set_slot_info so callers keep their error toasts.
      */

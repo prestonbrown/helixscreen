@@ -5,7 +5,6 @@
 #include "lane_observation.h"
 #include "lane_sources.h"
 
-#include <cassert>
 #include <map>
 #include <mutex>
 #include <vector>
@@ -19,37 +18,57 @@ class LaneSourceStoreTestAccess;
 /// another's.
 using LaneId = int;
 
-/// Ids per backend block. Matches AmsState::MAX_SLOTS, which is how many slots
-/// a backend can have subjects for, so a lane that can be shown has an id.
-constexpr int LANES_PER_BACKEND = 16;
+/// Not a lane. Every way of naming a lane yields this when it cannot name a
+/// real one, and the funnels drop it rather than writing, so a position that
+/// cannot be addressed files no record instead of one on a neighbour's lane.
+constexpr LaneId INVALID_LANE_ID = -1;
 
-/// The most backends this addressing scheme supports before a block would
-/// reach BYPASS_LANE_ID. Enforced below so the reserved ids stay reserved.
-constexpr int MAX_BACKENDS = 62;
+/// Ids reserved for one backend's slots. A backend's slot count follows its
+/// firmware rather than AmsState::MAX_SLOTS, which bounds only how many slots
+/// get subjects: AFC reports one lane per unit it finds and Happy Hare one per
+/// gate, both uncapped, so a five-unit BoxTurtle or a twenty-gate MMU is
+/// ordinary hardware. Sized well past any of them; the only cost is integer
+/// range.
+constexpr int LANES_PER_BACKEND = 256;
+
+/// Blocks reserved for backends. AmsState::backends_ holds one to three in
+/// practice - a filament system beside a tool changer is the wide case.
+constexpr int MAX_BACKENDS = 8;
 
 /// The bypass / external spool, which belongs to the printer rather than to a
-/// backend. Far above the backend blocks so adding backends never reaches it.
-constexpr LaneId BYPASS_LANE_ID = 1000;
+/// backend. Above every backend block so adding backends never reaches it.
+constexpr LaneId BYPASS_LANE_ID = 10000;
 
 /// Direct-drive tools, one id per tool from here up. A tool changer's spools
 /// are lanes like any other and stop needing a parallel store.
-constexpr LaneId FIRST_TOOL_LANE_ID = 2000;
+constexpr LaneId FIRST_TOOL_LANE_ID = 20000;
 
 static_assert(MAX_BACKENDS * LANES_PER_BACKEND <= BYPASS_LANE_ID,
               "a backend block must not reach the bypass lane id");
+static_assert(BYPASS_LANE_ID < FIRST_TOOL_LANE_ID,
+              "the bypass id must not fall inside the tool block");
 
-/// The lane id for @p slot_index on the backend registered at @p backend_index.
-/// AmsState::add_backend hands a backend its own index, which combines with a
-/// slot index here to give the backend its own block of lane ids.
+/// True when @p lane names a position. The scheme's one non-position is
+/// INVALID_LANE_ID, and every other negative value is equally not a lane.
+[[nodiscard]] constexpr bool is_lane_id(LaneId lane) {
+    return lane >= 0;
+}
+
+/// The lane id for @p slot_index on the backend registered at @p backend_index,
+/// or INVALID_LANE_ID when the pair names no lane. AmsState::add_backend hands
+/// a backend its own index, which combines with a slot index here to give the
+/// backend its own block of lane ids.
 ///
-/// @pre 0 <= @p backend_index < MAX_BACKENDS and 0 <= @p slot_index <
-/// LANES_PER_BACKEND. The blocks are adjacent, so a slot index at or past
-/// LANES_PER_BACKEND names a slot on a different backend. Asserted rather
-/// than clamped: a clamp files the record on a lane that was not asked for,
-/// and a record on the wrong lane is the failure this store exists to remove.
+/// The blocks are adjacent, so a slot index at or past LANES_PER_BACKEND is
+/// not an unused id: it is the neighbouring backend's slot, and a record filed
+/// there is a record on the wrong lane, the failure this store exists to
+/// remove. Out of range therefore yields no id at all rather than the nearest
+/// one, which is a statement a caller can act on and a test can pin.
 [[nodiscard]] constexpr LaneId lane_id_for(int backend_index, int slot_index) {
-    assert(backend_index >= 0 && backend_index < MAX_BACKENDS);
-    assert(slot_index >= 0 && slot_index < LANES_PER_BACKEND);
+    if (backend_index < 0 || backend_index >= MAX_BACKENDS)
+        return INVALID_LANE_ID;
+    if (slot_index < 0 || slot_index >= LANES_PER_BACKEND)
+        return INVALID_LANE_ID;
     return backend_index * LANES_PER_BACKEND + slot_index;
 }
 
@@ -57,6 +76,8 @@ static_assert(MAX_BACKENDS * LANES_PER_BACKEND <= BYPASS_LANE_ID,
 /// for obs.source whole and leaves every other source untouched. A field the
 /// source did not observe stops contributing, which is what keeps a stale
 /// frame from re-asserting a value its author has stopped standing behind.
+///
+/// A lane that is not a lane is warned about and dropped.
 void ingest(LaneId lane, const Observation& obs);
 
 /// The one way a human edit writes this store. Unlike ingest(), this AMENDS
@@ -66,6 +87,8 @@ void ingest(LaneId lane, const Observation& obs);
 /// This is the declaration layer: it records the user's authorship as a lane
 /// source record. AmsState::commit_slot_edit (ams_state.h) is the method
 /// layer that performs the edit against every backing store.
+///
+/// A lane that is not a lane is warned about and dropped.
 void commit_slot_edit(LaneId lane, const Observation& obs);
 
 /// This lane's records, by value. An unwritten lane reads as nothing observed.
