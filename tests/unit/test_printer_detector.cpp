@@ -878,9 +878,14 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     // Realistic Creality K2 Plus fingerprint (from on-device Moonraker discovery).
     PrinterHardwareData k2_plus = printer_capture("creality_k2_plus");
 
-    // First detection (e.g. the first printer's auto-detect) succeeds.
+    // First detection (e.g. the first printer's auto-detect) succeeds. The
+    // K2Plus-50C1 hostname carries the model: the capture's own name-guard.
     auto first = PrinterDetector::detect(k2_plus);
+    CAPTURE(first.type_name, first.confidence, first.runner_up_type_name,
+            first.runner_up_confidence, first.margin(), first.tied_count);
     REQUIRE(first.detected());
+    REQUIRE(first.type_name == "Creality K2 Plus");
+    REQUIRE(first.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 
     // Simulate what auto_detect_and_save() does after every detection: compact the
     // shared database. This is the event that broke detection of the next printer.
@@ -1006,6 +1011,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: kinematics_match heur
 
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "Creality Ender 3");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 // ============================================================================
@@ -1077,6 +1083,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "Voron 0.2");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 // ============================================================================
@@ -1230,6 +1237,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
                 result.runner_up_confidence, result.margin(), result.tied_count);
         REQUIRE(result.detected());
         REQUIRE(result.type_name == "Qidi Max 4");
+        REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
     }
 
     SECTION("cartesian machine with same footprint is never a Qidi Max 4") {
@@ -1483,6 +1491,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: object_exists heurist
     REQUIRE(result.detected());
     // z_tilt with 3 Z steppers = Trident
     REQUIRE(result.type_name == "Voron Trident");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 // ============================================================================
@@ -1611,6 +1620,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: board_match is case i
     REQUIRE(result.detected());
     // Should still match Doron Velta due to case-insensitive fysetc match
     REQUIRE(result.type_name == "Doron Velta");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 // ============================================================================
@@ -1721,14 +1731,20 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     auto pro_before_discovery = plain_ad5m_reporting(false);
     pro_before_discovery.hostname = "flashforge-ad5m-pro";
     auto early = PrinterDetector::detect(pro_before_discovery);
+    CAPTURE(early.type_name, early.confidence, early.runner_up_type_name,
+            early.runner_up_confidence, early.margin(), early.tied_count);
     CHECK(early.type_name == "FlashForge Adventurer 5M Pro");
+    CHECK(early.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 
     // The same machine once the list has been reported and really has no
     // light is a plain 5M with a Pro-shaped hostname.
     auto reported = plain_ad5m_reporting(true);
     reported.hostname = "flashforge-ad5m-pro";
     auto late = PrinterDetector::detect(reported);
+    CAPTURE(late.type_name, late.confidence, late.runner_up_type_name, late.runner_up_confidence,
+            late.margin(), late.tied_count);
     CHECK(late.type_name == "FlashForge Adventurer 5M");
+    CHECK(late.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture,
@@ -1990,6 +2006,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
             result.runner_up_confidence, result.margin(), result.tied_count);
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "RatRig V-Core 3");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture,
@@ -2007,6 +2024,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
             result.runner_up_confidence, result.margin(), result.tied_count);
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "RatRig V-Minion");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture,
@@ -2024,6 +2042,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
             result.runner_up_confidence, result.margin(), result.tied_count);
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "RatRig V-Minion");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: RatOS V-Core 4 by hostname",
@@ -2040,6 +2059,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: RatOS V-Core 4 by hos
             result.runner_up_confidence, result.margin(), result.tied_count);
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "RatRig V-Core 4");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture,
@@ -2057,6 +2077,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
             result.runner_up_confidence, result.margin(), result.tied_count);
     REQUIRE(result.type_name != "RatRig V-Core 3");
     REQUIRE(result.type_name == "RatRig V-Core 4");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture,
@@ -2074,6 +2095,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
             result.runner_up_confidence, result.margin(), result.tied_count);
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "RatRig V-Core 4 IDEX");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: RatOS V-Core Pro by hostname",
@@ -2090,6 +2112,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: RatOS V-Core Pro by h
             result.runner_up_confidence, result.margin(), result.tied_count);
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "RatRig V-Core Pro");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: Anycubic Kobra fingerprint",
@@ -2218,6 +2241,7 @@ TEST_CASE_METHOD(
 
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "Sovol SV06 Plus ACE");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture,
@@ -2314,6 +2338,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "Sovol Zero");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture,
@@ -2336,6 +2361,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "Sovol SV07");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
     REQUIRE(result.type_name != "Sovol SV06 ACE");
 }
 
@@ -3023,7 +3049,9 @@ TEST_CASE_METHOD(
     // Nothing in the stock firmware names a model, so five QIDI entries tie
     // and the winner is a tiebreak. The regression under guard is that the
     // shared probe_air/multi_color_controller objects do not hand this
-    // machine to the Artillery M1 Pro or the Qidi Max 4.
+    // machine to the Artillery M1 Pro or the Qidi Max 4. The family guard
+    // catches a drift to any other non-Qidi winner, not just the two named.
+    REQUIRE(result.type_name.rfind("Qidi", 0) == 0);
     REQUIRE(result.type_name != "Artillery M1 Pro");
     REQUIRE(result.type_name != "Qidi Max 4");
     REQUIRE(result.margin() == 0);
@@ -3166,7 +3194,9 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     const auto without_result = PrinterDetector::detect(without_macro);
 
     CHECK(with_result.type_name == without_result.type_name);
-    CHECK(with_result.type_name == "Qidi Q2");
+    // The capture is the five-way-tied one (see the ambiguity tests above), so
+    // the anchor can assert the family, never the model.
+    CHECK(with_result.type_name.rfind("Qidi", 0) == 0);
 }
 
 // ============================================================================
@@ -4179,6 +4209,7 @@ TEST_CASE("PrinterDetector: Combined scoring rewards multiple matches",
 
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "Doron Velta");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
     // Should have multiple matches: kinematics, delta_calibrate, stepper_a, hostname doron,
     // hostname velta
     REQUIRE(result.match_count >= 4);
@@ -4218,6 +4249,7 @@ TEST_CASE("PrinterDetector: Specific printer wins over generic with same confide
 
     // Doron Velta should match itself with hostname bonus
     REQUIRE(doron_result.type_name == "Doron Velta");
+    REQUIRE(doron_result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 
     // Doron Velta has more matching heuristics (hostname matches)
     REQUIRE(doron_result.match_count > generic_result.match_count);
@@ -4513,6 +4545,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "FlashForge Adventurer 5X");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 // ============================================================================
@@ -4561,6 +4594,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: cpu_arch_match is cas
 
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "FlashForge Adventurer 5X");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture,
@@ -4686,6 +4720,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "FlashForge Adventurer 5X");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(
@@ -4720,6 +4755,7 @@ TEST_CASE_METHOD(
 
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "FlashForge Adventurer 5X");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture,
@@ -4755,6 +4791,8 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "FlashForge Adventurer 5X");
+    // The [zmod_ifs] section and private _IFS_* macros are AD5X-exclusive
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 // ============================================================================
@@ -4828,6 +4866,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
             result.runner_up_confidence, result.margin(), result.tied_count);
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "FlashForge Adventurer 5M Pro (ForgeX)");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 // ============================================================================
@@ -5147,6 +5186,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: Generic printer has e
 
     REQUIRE(result.detected());
     REQUIRE(result.type_name == "Voron 2.4");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
     // Voron has no preset in the database
     REQUIRE(result.preset.empty());
 }
@@ -5256,6 +5296,7 @@ TEST_CASE("PrinterDetector: loads printer_database.json from HELIX_DATA_DIR/asse
                 result.runner_up_confidence, result.margin(), result.tied_count);
         REQUIRE(result.detected());
         REQUIRE(result.type_name == "Seed Test Printer");
+        REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
     }
 
     // Guards restored: env unset, cwd back at project root. Reload puts
@@ -5652,6 +5693,7 @@ TEST_CASE_METHOD(
     // The unambiguous Voron hardware (QGL + 4x Z steppers) must win, not the
     // LED-name substring match.
     REQUIRE(result.type_name == "Voron 2.4");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture,
@@ -5826,6 +5868,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     CAPTURE(result.confidence, result.runner_up_type_name, result.runner_up_confidence,
             result.reason);
     REQUIRE(result.type_name == "Voron 2.4");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture,
@@ -6024,6 +6067,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: a 500mm Geralkom keep
     auto result = PrinterDetector::detect(hardware);
     CAPTURE(result.confidence, result.runner_up_type_name, result.runner_up_confidence);
     REQUIRE(result.type_name == "Geralkom X500 HT");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
 }
 
 // ============================================================================
@@ -6053,6 +6097,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     CAPTURE(result.type_name, result.confidence, result.reason);
 
     REQUIRE(result.type_name == "Voron 0.2");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
     // The Qidi entries can still corroborate, but none of them may lead.
     REQUIRE(result.type_name.find("Qidi") == std::string::npos);
     // Well clear of the runner-up rather than a coin toss.
