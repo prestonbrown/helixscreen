@@ -131,6 +131,7 @@ translations:
   ALL DEVICES: ALLE GERÄTE
   AMS: AMS
   'AMS Active: ': 'AMS aktiv: '
+  AMS is busy: AMS ist beschäftigt
   API not available: API nicht verfügbar
   APPEARANCE: ERSCHEINUNGSBILD
   AUTO FANS: AUTO-LÜFTER
@@ -449,6 +450,7 @@ translations:
   Camera: Kamera
   Can't connect — try forgetting and re-pairing the printer: Verbindung nicht möglich
     — versuchen Sie, den Drucker zu vergessen und erneut zu koppeln
+  Can't move filament while the print is paused: Filament kann bei pausiertem Druck nicht bewegt werden
   Can't read filament RFID tag: RFID-Tag des Filaments nicht lesbar
   Cancel: Abbrechen
   Cancel Escalation: Eskalation abbrechen
@@ -466,12 +468,14 @@ translations:
     Scan-Ergebnis nicht verfügbar'
   'Cannot modify G-code: {}. Printing original file.': 'G-Code kann nicht geändert
     werden: {}. Originaldatei wird gedruckt.'
+  Cannot perform this action now: Diese Aktion ist derzeit nicht möglich
   'Cannot remap G-code: no temp directory available': 'G-code kann nicht neu zugeordnet
     werden: kein temporäres Verzeichnis verfügbar'
   'Cannot remap: internal error': 'Neuzuordnung nicht möglich: interner Fehler'
   'Cannot reprint: not connected to printer': 'Nachdruck nicht möglich: nicht mit
     Drucker verbunden'
   Cannot restart — no filename: Neustart nicht möglich — kein Dateiname
+  Cannot run filament operation while printing: Filamentvorgang während des Drucks nicht möglich
   'Cannot start print: internal error': 'Druck kann nicht gestartet werden: interner
     Fehler'
   'Cannot start print: not connected to printer': 'Druck kann nicht gestartet werden:
@@ -516,6 +520,8 @@ translations:
   Changes can be reversed anytime using the Macro Viewer.: Änderungen können jederzeit
     über den Macro Viewer rückgängig gemacht werden.
   Check Again: Erneut prüfen
+  Check Klipper console for details: Details finden Sie in der Klipper-Konsole
+  Check extruder temperature and try again. Manual removal may be required.: Prüfen Sie die Extrudertemperatur und versuchen Sie es erneut. Eventuell ist eine manuelle Entfernung nötig.
   Check filament: Filament prüfen
   Check for Updates: Nach Updates suchen
   Check slot: Slot prüfen
@@ -524,6 +530,7 @@ translations:
   Check slots failed: Slots prüfen fehlgeschlagen
   Check that only one filament path is active: Prüfen, dass nur ein Filamentpfad aktiv ist
   Check that the cutter mechanism is properly installed: Prüfen, ob der Schneidmechanismus korrekt eingebaut ist
+  Check that the printer is powered on and connected to the network: Prüfen Sie, ob der Drucker eingeschaltet und mit dem Netzwerk verbunden ist
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: PTFE-Schlauch entlang der Schleppkette auf Knicke prüfen, ebenso die Biegung am Eingang des Extruder-Sensors
   Check the RS-485 cable between printer and CFS: RS-485-Kabel zwischen Drucker und CFS prüfen
   Check the buffer unit on the back of the printer: Puffereinheit an der Rückseite des Druckers prüfen
@@ -531,6 +538,7 @@ translations:
     Sie es erneut.
   ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
   : Weg vom Slot zum Hub auf Verheddern oder Widerstand prüfen. Fördert der Slot frei, sind womöglich der Hub-Sensor oder der Fördermotor defekt
+  Check the provided value and try again: Prüfen Sie den angegebenen Wert und versuchen Sie es erneut
   Check the spool and the filament path for a jam, then retry: Spule und Filamentweg auf Blockaden prüfen, dann wiederholen
   Check your heater's rating (typically 40-60W for hotends): Heizleistung prüfen (typisch
     40-60W für Hotends)
@@ -600,6 +608,7 @@ translations:
   Color: Farbe
   Color Mismatch: Farbabweichung
   Color Sensors: Farbsensoren
+  Command failed: Befehl fehlgeschlagen
   Communication Test: 'Kommunikationstest'
   Compact: Kompakt
   Compare: Vergleichen
@@ -931,6 +940,7 @@ translations:
   Enhanced {} operations in PRINT_START: '{} erweiterte Vorgänge in PRINT_START'
   Enhancement Complete!: Verbesserung abgeschlossen!
   Enhancement Failed: Verbesserung fehlgeschlagen
+  Ensure Happy Hare or AFC is installed and configured: Stellen Sie sicher, dass Happy Hare oder AFC installiert und konfiguriert ist
   Enter Current PIN: Aktuelle PIN eingeben
   Enter G-code command...: G-Code-Befehl eingeben...
   Enter New PIN: Neue PIN eingeben
@@ -1017,6 +1027,7 @@ translations:
     auf dem Material
   Extruder motor calibration failed: Kalibrierung des Extrudermotors fehlgeschlagen
   Extruder to Nozzle: 'Extruder zur Düse'
+  Extruder too cold: Extruder zu kalt
   Extruding prime line...: Prime-Linie extrudieren...
   FAILED: FEHLGESCHLAGEN
   FILAMENTS: FILAMENTE
@@ -1120,6 +1131,7 @@ translations:
   Failed to toggle %s: '%s konnte nicht umgeschaltet werden'
   'Failed to toggle timelapse: {}': 'Timelapse umschalten fehlgeschlagen: {}'
   'Failed to turn off heaters: {}': 'Heizungen ausschalten fehlgeschlagen: {}'
+  Failed to unload filament: Filament konnte nicht entladen werden
   'Failed to unload: {}': 'Entladen fehlgeschlagen: {}'
   ? "Failed to update configuration.\nCheck printer connection."
   : "Konfiguration konnte nicht aktualisiert werden.\nDruckerverbindung prüfen."
@@ -1139,6 +1151,7 @@ translations:
   FanSelect: Lüfter auswählen
   Fans: Lüfter
   Farther: Weiter
+  Feature not available: Funktion nicht verfügbar
   'Features: ': 'Funktionen: '
   Feed Assist: 'Vorschubunterstützung'
   Feed assist and debug tools: Vorschubunterstützung und Debug-Werkzeuge
@@ -1146,6 +1159,7 @@ translations:
   Feed filament: Filament zuführen
   Feed filament directly to extruder: Filament direkt zum Extruder führen
   Feed filament from current slot: 'Filament aus dem aktuellen Slot zuführen'
+  Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: Führen Sie das Filament von Hand am Sensor vorbei und drücken Sie dann auf Fortsetzen — oder brechen Sie den Druck ab, um Laden/Entladen zu nutzen
   Feeder: Zuführung
   Feeders: Zuführungen
   Feeding filament forward: Filament wird vorwärts geführt
@@ -1183,6 +1197,7 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Nach dem Entladen befindet sich noch Filament an der Düse. Schnitt oder Rückzug sind möglicherweise nicht abgeschlossen. Räumen Sie den Werkzeugkopf frei, bevor Sie eine andere Spule laden.
   Filament is still present after the cut — the blade may be dull or misaligned: Nach dem Schnitt ist noch Filament vorhanden. Die Klinge ist möglicherweise stumpf oder falsch ausgerichtet
+  Filament jam detected: Filamentstau erkannt
   Filament jammed at the extruder gear: Filament am Extruderrad verklemmt
   'Filament load failed: {}': 'Filament laden fehlgeschlagen: {}'
   Filament never reached the CFS hub sensor: Filament hat den CFS-Hub-Sensor nie erreicht
@@ -1195,6 +1210,7 @@ translations:
   Filament ran out at the toolhead: 'Filament am Werkzeugkopf zu Ende'
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: 'Filament zu Ende. Automatisches Nachfüllen ist aus, daher wechselt das CFS die Spule nicht von selbst. Filament laden und dann fortsetzen.'
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: Das Filament ist zu Ende. Das CFS weiß, welche Spulen passen, aber diese Slots sind leer. Laden Sie eine davon und setzen Sie dann fort.
+  Filament reload failed: Erneutes Laden des Filaments fehlgeschlagen
   Filament runout: Filament aufgebraucht
   Filament runout and motion detection sensors: Filament-Auslauf- und Bewegungserkennungssensoren
   Filament saved: Filament gespeichert
@@ -1217,6 +1233,7 @@ translations:
   'Filter Fan: On': 'Filterlüfter: Ein'
   Fine: Fein
   Finish: Fertig
+  Finish or cancel the print before loading, unloading, or changing filament: Beenden oder brechen Sie den Druck ab, bevor Sie Filament laden, entladen oder wechseln
   Finishing clean...: Reinigung abschließen...
   Finishing up...: Wird abgeschlossen...
   Firmware Restart: Firmware-Neustart
@@ -1304,6 +1321,7 @@ translations:
   Heat bed before calibrating for accurate offset with thermal expansion.: Bett vor
     der Kalibrierung heizen für genauen Offset mit Wärmeausdehnung.
   Heat nozzle: Düse aufheizen
+  Heat the extruder to at least {}°C before loading filament: Erhitzen Sie den Extruder vor dem Laden von Filament auf mindestens {}°C
   Heat to at least %d°C for filament operations: Für Filamentvorgänge auf mindestens
     %d°C aufheizen
   Heatbed Temperature: Heizbett-Temperatur
@@ -1473,10 +1491,13 @@ translations:
   Interface size. Applies after restart.: Oberflächengröße. Gilt nach Neustart.
   'Internal error: API not available': 'Interner Fehler: API nicht verfügbar'
   'Internal error: no scan result': 'Interner Fehler: kein Scan-Ergebnis'
+  Invalid number: Ungültige Nummer
+  Invalid parameter: Ungültiger Parameter
   Invalid port number: Ungültige Portnummer
   'Invalid sheet template index: {} (have {})': 'Ungültiger Blattvorlagen-Index: {}
     (vorhanden {})'
   Invalid status response from printer: Ungültige Statusantwort vom Drucker
+  Invalid tool number: Ungültige Werkzeugnummer
   Issue description: Problembeschreibung
   It can be un-archived in Spoolman's web UI.: Sie kann in der Weboberfläche von Spoolman wiederhergestellt werden.
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: Es klemmt zwischen Hub-Sensor und Hub-Antriebsrad. CFS öffnen, den Hub frei machen und erneut versuchen
@@ -1576,9 +1597,12 @@ translations:
   Live view from your webcam: Livebild Ihrer Webcam
   Load: Laden
   Load Filament: Filament laden
+  Load a filament first before trying to unload: Laden Sie zuerst Filament, bevor Sie entladen
   Load a new spool in this slot, or turn on auto-refill to switch to a matching one: Neue Spule in diesen Slot einlegen oder das automatische Nachfüllen aktivieren, um auf eine passende zu wechseln
   Load complete: 'Laden abgeschlossen'
+  Load failed: Laden fehlgeschlagen
   Load filament: 'Filament laden'
+  Load filament first: Laden Sie zuerst Filament
   Load may still be running — response timed out: Laden läuft möglicherweise noch
     — Zeitüberschreitung
   Load or unload filament.: Filament laden oder entladen.
@@ -1678,6 +1702,7 @@ translations:
   Manual Feed: 'Manueller Vorschub'
   Manual Retract: 'Manueller Einzug'
   Manual feed and retract operations: Manuelle Vorschub- und Einzugsvorgänge
+  Manually clear the jam and retry the operation: Beseitigen Sie den Stau manuell und wiederholen Sie den Vorgang
   Manually pull the filament back through the connector: Filament von Hand durch den Anschluss zurückziehen
   Map to closest colors with matching material: Nächste Farben mit passendem Material
     zuordnen
@@ -1834,9 +1859,11 @@ translations:
   No effects available: Keine Effekte verfügbar
   No events queued: Keine Ereignisse in Warteschlange
   No fans detected: Keine Lüfter erkannt
+  No filament: Kein Filament
   No filament environment sensors: Keine Filament-Umgebungssensoren
   No filament loaded to unload: Kein Filament zum Entladen geladen
   No filament sensor detected: 'Kein Filamentsensor erkannt'
+  No filament. Load filament and retry.: Kein Filament. Filament laden und erneut versuchen.
   No filaments found: Keine Filamente gefunden
   No file loaded: Keine Datei geladen
   No file to reprint: Keine Datei zum Nachdrucken
@@ -1850,6 +1877,7 @@ translations:
   No media installed: Kein Medium eingelegt
   No mesh data: Keine Mesh-Daten
   No mesh loaded: Kein Netz geladen
+  No multi-filament system detected: Kein Multi-Filament-System erkannt
   No network. Scan QR code to report on your phone.: Kein Netzwerk. QR-Code scannen,
     um auf dem Handy zu melden.
   No networks found: Keine Netzwerke gefunden
@@ -1903,6 +1931,7 @@ translations:
   Not yet calibrated: Noch nicht kalibriert
   Notes: Notizen
   Notes (optional): Notizen (optional)
+  Nothing loaded: Nichts geladen
   Nothing to remap: Nichts neu zuzuordnen
   Notification: Benachrichtigung
   Notifications: Benachrichtigungen
@@ -1958,6 +1987,7 @@ translations:
   Open motion controls for jogging: Bewegungssteuerung öffnen
   Open the CFS unit and remove the broken filament from the slot: CFS-Einheit öffnen und das gebrochene Filament aus dem Slot entfernen
   Operation already in progress: Vorgang läuft bereits
+  Operation timed out: Zeitüberschreitung beim Vorgang
   Operations: Operationen
   Optimize Your Printing: Optimieren Sie Ihren Druck
   Optimizes temperature control for stable, consistent heating.: Optimiert die Temperaturregelung
@@ -2096,6 +2126,7 @@ translations:
   Preheat cancelled: Vorheizen abgebrochen
   'Preheat: all {} tools + bed set': 'Vorheizen: alle {} Werkzeuge + Bett gesetzt'
   'Preheat: {} + bed set': 'Vorheizen: {} + Bett gesetzt'
+  Preload failed: Vorladen fehlgeschlagen
   Prepared: Vorbereitet
   Preparing: Vorbereitung
   Preparing Print: Druck wird vorbereitet
@@ -2194,6 +2225,7 @@ translations:
   Printer is busy - {} stays in the queue: 'Drucker ist beschäftigt – {} bleibt in der Warteschlange'
   Printer is not paired — pair it first: Drucker ist nicht gekoppelt — zuerst koppeln
   Printer name: Druckername
+  Printer not connected: Drucker nicht verbunden
   Printer not ready: Drucker nicht bereit
   Printer ready: Drucker bereit
   Printer type mismatch: Druckertypabweichung
@@ -2394,6 +2426,7 @@ translations:
   Restart Now: Jetzt neu starten
   Restart Required: Neustart erforderlich
   'Restart failed: not connected': 'Neustart fehlgeschlagen: nicht verbunden'
+  Restart from the beginning to recover: Starten Sie zum Wiederherstellen von vorne neu
   Restart the display application: Anzeigeanwendung neu starten
   Restart the printer or screen: Drucker oder Bildschirm neu starten
   Restarting HelixScreen...: HelixScreen wird neu gestartet...
@@ -2568,6 +2601,9 @@ translations:
   Select Sensors: Sensoren auswählen
   Select Spool: Spule auswählen
   Select a filament slot to load: Filament-Slot zum Laden auswählen
+  Select a valid number: Wählen Sie eine gültige Nummer
+  Select a valid number (1-{}): Wählen Sie eine gültige Nummer (1-{})
+  Select a valid tool: Wählen Sie ein gültiges Werkzeug
   Select fan: Lüfter auswählen
   Select gate: 'Slot auswählen'
   Select macro for first button: Makro für erste Taste auswählen
@@ -2965,6 +3001,7 @@ translations:
   ? This device has very little RAM. Resonance calibration is memory-intensive and may cause a "Timer Too Close" error. Continue anyway?
   : Dieses Gerät hat sehr wenig RAM. Die Resonanzkalibrierung ist speicherintensiv und kann einen "Timer Too Close"-Fehler verursachen. Trotzdem fortfahren?
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: Dies passt nicht zur verknüpften Spoolman-Spule. Als neue Spule hinzufügen oder die verknüpfte entsprechend aktualisieren?
+  This feature requires different hardware or configuration: Diese Funktion erfordert andere Hardware oder Konfiguration
   This filament system does not report buffer or flow data.: Dieses Filamentsystem meldet keine Puffer- oder Flussdaten.
   This file was sliced for {} but {} is loaded.: Diese Datei wurde für {} gesliced,
     aber {} ist geladen.
@@ -3085,6 +3122,7 @@ translations:
   Trigger: Auslöser
   'Troubleshooting:': 'Fehlerbehebung:'
   Try adjusting your search or filters: Versuchen Sie Suche oder Filter anzupassen
+  Try the operation again. If it persists, check for mechanical issues.: Versuchen Sie den Vorgang erneut. Wenn das Problem bestehen bleibt, prüfen Sie auf mechanische Probleme.
   Tune: Abstimmen
   Tuning tower enabled - start a print to test: Tuning-Tower aktiviert - starten Sie
     einen Druck zum Testen
@@ -3134,6 +3172,7 @@ translations:
   Unload: Entladen
   Unload Distance: 'Entladeweg'
   Unload Filament: Filament entladen
+  Unload failed: Entladen fehlgeschlagen
   Unload filament: 'Filament entladen'
   Unload macro not configured: Entlade-Makro nicht konfiguriert
   Unload may still be running — response timed out: Entladen läuft möglicherweise
@@ -3212,6 +3251,8 @@ translations:
   WPA/WPA2: 'WPA/WPA2'
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: Warten Sie, bis der aktuelle Filamentvorgang abgeschlossen ist
+  Wait for the current operation to complete: Warten Sie, bis der aktuelle Vorgang abgeschlossen ist
+  Wait for the current operation to complete or cancel it first: Warten Sie, bis der aktuelle Vorgang abgeschlossen ist, oder brechen Sie ihn zuvor ab
   Wait until the print finishes: Warten Sie, bis der Druck abgeschlossen ist
   Waiting for Moonraker...: Warte auf Moonraker...
   'Waiting for %s to finish. One heater at a time.': ''
