@@ -3,11 +3,11 @@ translations:
   ' (timed out)': ' (délai dépassé)'
   ' frames': ' images'
   ' left': ' restant'
-  '"%s" failed to load': '"%s" na pas pu se charger'
+  '"%s" failed to load': '"%s" n''a pas pu se charger'
   '%.0f Hz difference': "%.0f Hz d'écart"
   '%d additional fan%s': '%d ventilateur%s supplémentaire'
   '%d disabled': '%d désactivé'
-  '%d failed to load - see details below': '%d nont pas pu se charger - voir les détails
+  '%d failed to load - see details below': '%d n''ont pas pu se charger - voir les détails
     ci-dessous'
   '%d more sensors': '%d capteurs supplémentaires'
   '%d of %d plugins loaded': '%d plugins sur %d chargés'
@@ -24,7 +24,7 @@ translations:
   '%u layers': '%u couches'
   '%zu changes': '%zu modifications'
   '%zu events queued': '%zu événements en file'
-  '%zu plugins failed to load': '%zu plugins nont pas pu se charger'
+  '%zu plugins failed to load': '%zu plugins n''ont pas pu se charger'
   "'{}' already exists. Replace the stored mesh?": "'{}' existe déjà. Remplacer le maillage enregistré ?"
   (different grade): (grade différent)
   (incompatible): (incompatible)
@@ -196,16 +196,16 @@ translations:
     votre imprimante.
   An app on your network is asking to connect to this printer.: 'Une application de votre réseau demande à se connecter à cette imprimante.'
   An error occurred during calibration.: Une erreur s'est produite pendant la calibration.
-  An error occurred during filament loading.: Une erreur sest produite lors du chargement
+  An error occurred during filament loading.: Une erreur s'est produite lors du chargement
     du filament.
-  An error occurred during measurement.: Une erreur sest produite lors de la mesure.
+  An error occurred during measurement.: Une erreur s'est produite lors de la mesure.
   An error occurred during probing.: Une erreur s'est produite pendant le palpage.
   An error occurred while loading filament.: Une erreur s'est produite lors du chargement
     du filament.
   # Source: probe_accuracy_modal.xml:90
   An error occurred.: 'Une erreur s''est produite.'
   An internal error occurred. The app continues running — please send a debug bundle from Settings > About if it repeats.: Une
-    erreur interne sest produite. Lapplication continue de fonctionner — veuillez
+    erreur interne s'est produite. L'application continue de fonctionner — veuillez
     envoyer un paquet de débogage depuis Paramètres > À propos si cela se reproduit.
   An unexpected printer error occurred.: Une erreur inattendue de l'imprimante s'est
     produite.
@@ -221,7 +221,7 @@ translations:
   Any notes...: Des notes...
   App Background: Arrière-plan de l'application
   App startup encountered an error. Some features may be unavailable.: Le démarrage
-    de lapplication a rencontré une erreur. Certaines fonctionnalités peuvent être
+    de l'application a rencontré une erreur. Certaines fonctionnalités peuvent être
     indisponibles.
   Appearance: Apparence
   Apply: Appliquer
@@ -248,7 +248,7 @@ translations:
   Auto-Detect: Auto-détection
   Auto-Heat on Load: Préchauffage auto au chargement
   Auto-detect: Auto-détection
-  Auto-install only works on local Moonraker: Linstallation automatique ne fonctionne
+  Auto-install only works on local Moonraker: L'installation automatique ne fonctionne
     que sur Moonraker local
   Auto-lock: Verrouillage auto
   Auto-poll for weight updates: Interrogation auto des mises à jour de poids
@@ -271,8 +271,8 @@ translations:
   BEACON: BEACON
   BETA: BETA
   'BLE connect failed: {}': 'Échec de la connexion BLE : {}'
-  'BLE write failed at packet {}: {}': 'Échec de lécriture BLE au paquet {} : {}'
-  'BLE write failed: {}': 'Échec de lécriture BLE : {}'
+  'BLE write failed at packet {}: {}': 'Échec de l''écriture BLE au paquet {} : {}'
+  'BLE write failed: {}': 'Échec de l''écriture BLE : {}'
   BLTouch Controls: Commandes BLTouch
   BLUETOOTH PRINTERS: IMPRIMANTES BLUETOOTH
   BLUETOOTH SCANNERS: SCANNERS BLUETOOTH
@@ -359,7 +359,7 @@ translations:
   Brush nozzle: 'Brosser la buse'
   Buffer Status: État du tampon
   Buffer tube problem: Problème de tube tampon
-  'Build Volume: ': 'Volume dimpression : '
+  'Build Volume: ': 'Volume d''impression : '
   Bundle Uploaded: Bundle téléversé
   Button taps and navigation sounds: Sons de boutons et de navigation
   Buzz Servo: 'Faire vibrer le servo'
@@ -534,7 +534,7 @@ translations:
   Checking extruders...: Vérification des extrudeurs...
   Checking filament...: Vérification du filament...
   Checking for plugin...: Recherche du plugin...
-  Checking for webcam...: Recherche dune webcam...
+  Checking for webcam...: Recherche d'une webcam...
   Checking plugin: Vérification du plugin
   Checking slots...: Vérification des slots...
   Checking timelapse plugin...: Vérification du plugin timelapse...
@@ -708,13 +708,13 @@ translations:
   : "Impossible de vérifier la webcam.\nVérifiez la connexion."
   Could not confirm cancel: Impossible de confirmer l'annulation
   Could not forget device: Impossible d'oublier l'appareil
-  Could not load printer database: Impossible de charger la base de données dimprimantes
+  Could not load printer database: Impossible de charger la base de données d'imprimantes
   Could not open Klipper's accelerometer stream. Check that Klipper is running, then retry.: Impossible d'ouvrir le flux de l'accéléromètre de Klipper. Vérifiez que Klipper est en cours d'exécution, puis réessayez.
-  Could not parse tips database: Impossible danalyser la base de données de conseils
+  Could not parse tips database: Impossible d'analyser la base de données de conseils
   Could not reach Spoolman at: Impossible de joindre Spoolman à
   Could not read the screw adjustments from the printer: Impossible de lire les ajustements des vis du plateau depuis l'imprimante
   Could not resolve printer RFCOMM channel: Impossible de résoudre le canal RFCOMM
-    de limprimante
+    de l'imprimante
   Could not save filament: 'Impossible d''enregistrer le filament'
   Could not start Bluetooth discovery: Impossible de démarrer la découverte Bluetooth
   Could not update filaments: Impossible de mettre à jour les filaments
@@ -806,7 +806,7 @@ translations:
   Device: Appareil
   Device Section: Section des appareils
   Device connected: 'Appareil connecté'
-  Device name: Nom de lappareil
+  Device name: Nom de l'appareil
   Device name is required: Le nom de l'appareil est requis
   'Device: ': 'Appareil : '
   Different filament?: Filament différent ?
@@ -947,13 +947,13 @@ translations:
   Error: Erreur
   Error at chunk {} (code={}): Erreur au bloc {} (code={})
   Error loading file: Erreur lors du chargement du fichier
-  Error loading printing tips: Erreur lors du chargement des conseils dimpression
+  Error loading printing tips: Erreur lors du chargement des conseils d'impression
   'Error saving printer settings: {}': 'Erreur lors de l''enregistrement des paramètres
     : {}'
   Error state: État d'erreur
   'Error: %s': 'Erreur : %s'
   'Error: Cannot update while printing': 'Erreur : impossible de mettre à jour pendant
-    limpression'
+    l''impression'
   'Error: Checksum mismatch': 'Erreur : somme de contrôle incohérente'
   'Error: Corrupt download': 'Erreur : téléchargement corrompu'
   'Error: Download failed': 'Erreur : échec du téléchargement'
@@ -1049,8 +1049,8 @@ translations:
   Failed to enable tuning tower: Échec de l'activation de la tour de réglage
   'Failed to exclude ''{}'': {}': 'Échec de l''''exclusion de ''''{}'''' : {}'
   Failed to get limits: Échec de la récupération des limites
-  Failed to initialize Bluetooth: Échec de linitialisation Bluetooth
-  Failed to initialize Bluetooth context: Échec de linitialisation du contexte Bluetooth
+  Failed to initialize Bluetooth: Échec de l'initialisation Bluetooth
+  Failed to initialize Bluetooth context: Échec de l'initialisation du contexte Bluetooth
   Failed to load G-code preview: Échec du chargement de l'aperçu G-code
   Failed to load devices: Échec du chargement des appareils
   Failed to load fan configuration screen: Échec du chargement de la configuration
@@ -1078,10 +1078,10 @@ translations:
   Failed to read config. Check connection.: Échec de la lecture de la config. Vérifiez
     la connexion.
   Failed to read moonraker.conf.: Échec de la lecture de moonraker.conf.
-  Failed to read printer status: Échec de la lecture de létat de limprimante
+  Failed to read printer status: Échec de la lecture de l'état de l'imprimante
   Failed to refresh file list: Échec du rafraîchissement de la liste
   'Failed to remap G-code: {}': 'Échec du remappage du G-Code : {}'
-  Failed to render label: Échec du rendu de létiquette
+  Failed to render label: Échec du rendu de l'étiquette
   'Failed to reprint: {}': 'Échec de la réimpression : {}'
   Failed to reset theme: Échec de la réinitialisation du thème
   Failed to restart Moonraker.: Échec du redémarrage de Moonraker.
@@ -1102,8 +1102,8 @@ translations:
   Failed to save spool: Échec de l'enregistrement de la bobine
   Failed to save theme file: Échec de l'enregistrement du fichier de thème
   'Failed to send command: {}': 'Échec de l''envoi de la commande : {}'
-  Failed to send print data: Échec de lenvoi des données dimpression
-  Failed to send status request: Échec de lenvoi de la demande détat
+  Failed to send print data: Échec de l'envoi des données d'impression
+  Failed to send status request: Échec de l'envoi de la demande d'état
   Failed to set active spool: Échec de la définition de la bobine active
   'Failed to set flow rate: {}': 'Échec du réglage du débit : {}'
   'Failed to set print speed: {}': 'Échec du réglage de la vitesse : {}'
@@ -1111,7 +1111,7 @@ translations:
   'Failed to set {} temp: {}': 'Échec du réglage de la temp. {} : {}'
   Failed to show confirmation dialog: Échec de l'affichage du dialogue de confirmation
   Failed to start calibration: Échec du démarrage de la calibration
-  'Failed to start installer: ': 'Échec du démarrage de linstallateur : '
+  'Failed to start installer: ': 'Échec du démarrage de l''installateur : '
   'Failed to start print: {}': 'Échec du démarrage de l''impression : {}'
   'Failed to start uninstaller: ': 'Échec du démarrage du désinstallateur : '
   Failed to toggle %s: Échec du basculement de %s
@@ -1340,7 +1340,7 @@ translations:
   Help improve HelixScreen?: Aider à améliorer HelixScreen ?
   Hide Firmware Noise: Masquer le bruit du firmware
   Hide Temperature Reports: Masquer les rapports de température
-  High Water Mark: Pic dutilisation
+  High Water Mark: Pic d'utilisation
   Hold anywhere to cancel: Maintenez n'importe où pour annuler
   Hold still: Ne bougez pas
   Holding nozzle at {}°C to purge previous filament.: Maintien de la buse à {}°C pour
@@ -1358,14 +1358,14 @@ translations:
   Homing all axes...: Référence de tous les axes...
   Homing axes...: Référence des axes...
   Homing complete: Référence terminée
-  'Homing failed: ': 'Échec de la prise dorigine : '
+  'Homing failed: ': 'Échec de la prise d''origine : '
   'Homing failed: {}': 'Échec de la référence : {}'
   Homing first...: Référence en cours...
   Homing may still be running — response timed out: Référence peut-être encore en
     cours — délai dépassé
   Homing timed out: Référence — délai dépassé
-  Homing timed out — printer may still be homing: Délai de prise dorigine dépassé
-    — limprimante est peut-être encore en cours
+  Homing timed out — printer may still be homing: Délai de prise d'origine dépassé
+    — l'imprimante est peut-être encore en cours
   Homing...: Mise à l'origine...
   Horizontal: Horizontal
   Host: Hôte
@@ -1387,7 +1387,7 @@ translations:
   Humidity inside the enclosure: Humidité dans l'enceinte
   Humidity Sensors: Capteurs d'humidité
   Hyperlapse: Hyperlapse
-  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: Lhyperlapse
+  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: L'hyperlapse
     capture des images à intervalles de temps fixes. Idéal pour les impressions très
     longues.
   ID (optional): ID (facultatif)
@@ -1441,8 +1441,8 @@ translations:
   Install Root: Racine d'installation
   Install Update: Installer la mise à jour
   Install plugin: Installer le plugin
-  Install script not found. Use the remote install command instead.: Script dinstallation
-    introuvable. Utilisez plutôt la commande dinstallation distante.
+  Install script not found. Use the remote install command instead.: Script d'installation
+    introuvable. Utilisez plutôt la commande d'installation distante.
   Install the HelixPrint plugin in Advanced settings to remap filament without affecting print history.: Installez
     le plugin HelixPrint dans les paramètres avancés pour remapper le filament sans
     affecter l'historique d'impression.
@@ -1471,7 +1471,7 @@ translations:
   Invalid port number: Numéro de port invalide
   'Invalid sheet template index: {} (have {})': 'Index de modèle de feuille invalide
     : {} (sur {})'
-  Invalid status response from printer: Réponse détat invalide de limprimante
+  Invalid status response from printer: Réponse d'état invalide de l'imprimante
   Issue description: Description du problème
   It can be un-archived in Spoolman's web UI.: Elle peut être désarchivée dans l'interface web de Spoolman.
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: Il est coincé entre le capteur du hub et son engrenage. Ouvrez le CFS et dégagez le hub avant de réessayer
@@ -1522,7 +1522,7 @@ translations:
   LED Strip: Bandeau LED
   LED on at Start: LED allumée au démarrage
   LED strip available for lighting control: Bandeau LED disponible pour le contrôle
-    de léclairage
+    de l'éclairage
   LEDs: LEDs
   LEDs controlled by the light button: LEDs contrôlées par le bouton lumière
   LOADED: CHARGÉ
@@ -1870,7 +1870,7 @@ translations:
   No spool assigned: Aucune bobine assignée
   No spools found — tap to retry: Aucune bobine trouvée — appuyez pour réessayer
   No spools match your search: Aucune bobine ne correspond à votre recherche
-  No tape detected in printer: Aucun ruban détecté dans limprimante
+  No tape detected in printer: Aucun ruban détecté dans l'imprimante
   No target printer configured: Aucune imprimante cible configurée
   No temperature sensors detected: 'Aucun capteur de température détecté'
   No timelapse videos found: Aucune vidéo timelapse trouvée
@@ -2128,10 +2128,10 @@ translations:
   Print Hours: Heures d'impression
   Print Label: Imprimer l'étiquette
   Print Library: Bibliothèque d'impression
-  Print Outcome: Résultat de limpression
+  Print Outcome: Résultat de l'impression
   Print Paused: Impression en pause
   Print Speed: Vitesse d'impression
-  Print Start: Début de limpression
+  Print Start: Début de l'impression
   Print Stats: 'Statistiques d''impression'
   Print Status: État de l'impression
   Print Time: Temps d'impression
@@ -2140,11 +2140,11 @@ translations:
   Print cancelled: Impression annulée
   Print did not start: L'impression n'a pas démarré
   Print complete: Impression terminée
-  Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): Limpression
-    na pas démarré — limprimante est peut-être occupée ou hors ligne (sondages B3={},
+  Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): L'impression
+    n'a pas démarré — l'imprimante est peut-être occupée ou hors ligne (sondages B3={},
     état=0x{:02X}, erreur=0x{:02X})
   Print ending...: Fin de l'impression...
-  Print error: Erreur dimpression
+  Print error: Erreur d'impression
   Print failed: Impression échouée
   Print issue detected: Problème d'impression détecté
   Print jobs waiting to run: Impressions en attente
@@ -2177,12 +2177,12 @@ translations:
   'Printer Setup: Touch Calibration': 'Config. imprimante : Calibration tactile'
   Printer Shutdown: Arrêt de l'imprimante
   Printer Type: Type d'imprimante
-  Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): Limprimante
-    a accepté la tâche mais nimprime pas — vérifiez le capot, le papier et le type
-    détiquette (état firmware=0x{:02X} erreur=0x{:02X})
+  Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): L'imprimante
+    a accepté la tâche mais n'imprime pas — vérifiez le capot, le papier et le type
+    d'étiquette (état firmware=0x{:02X} erreur=0x{:02X})
   Printer connection unavailable: Connexion à l'imprimante indisponible
-  Printer database format error: Erreur de format de la base de données dimprimantes
-  Printer database is corrupt: La base de données dimprimantes est corrompue
+  Printer database format error: Erreur de format de la base de données d'imprimantes
+  Printer database is corrupt: La base de données d'imprimantes est corrompue
   Printer didn't respond — make sure it's on and in range: L'imprimante n'a pas répondu
     — vérifiez qu'elle est allumée et à portée
   Printer doesn't expose the expected service — wrong device?: L'imprimante n'expose
@@ -2366,7 +2366,7 @@ translations:
   Requires Multi-Filament System or MMU hardware: 'Nécessite un système multi-filament ou du matériel MMU'
   Requires a filament system with bypass: Nécessite un système de filament avec bypass
   Requires clog detection hardware: 'Nécessite du matériel de détection de bourrage'
-  Resend write failed at chunk {}: Échec du renvoi de lécriture au bloc {}
+  Resend write failed at chunk {}: Échec du renvoi de l'écriture au bloc {}
   Reset: Réinitialiser
   Reset Blade Counter: 'Réinitialiser le compteur de lame'
   Reset CFS: Réinitialiser le CFS
@@ -2533,7 +2533,7 @@ translations:
   'Score: {}': 'Score : {}'
   'Score: {}  |  Best: {}': 'Score : {}  |  Meilleur : {}'
   Screen: 'Écran'
-  Screen Blank: Extinction de lécran
+  Screen Blank: Extinction de l'écran
   Screen Dim: Atténuation de l'écran
   Screen Rotation: Rotation de l'écran
   Screen dims to lower brightness after period of inactivity: L'écran s'atténue après
@@ -3276,7 +3276,7 @@ translations:
   WiFi radio did not change state: La radio WiFi n'a pas changé d'état
   WiFi unavailable: WiFi non disponible
   WiFi was configured but hardware is not available. Check system configuration.: Le
-    WiFi a été configuré mais le matériel nest pas disponible. Vérifiez la configuration
+    WiFi a été configuré mais le matériel n'est pas disponible. Vérifiez la configuration
     du système.
   Widget Labels: Libellés des widgets
   Width: Largeur
@@ -3288,7 +3288,7 @@ translations:
   Within measurement resolution: Sous la résolution de mesure
   Wizard Error: Erreur de l'assistant
   Working...: En cours...
-  Write failed at chunk {}: Échec de lécriture au bloc {}
+  Write failed at chunk {}: Échec de l'écriture au bloc {}
   Wrong PIN: PIN incorrect
   Wrong media: Mauvais média
   X: X
@@ -3436,7 +3436,7 @@ translations:
   '{} preset{}': '{} préréglage{}'
   '{} set to {}': '{} réglé sur {}'
   '{} set to {} {}': '{} réglé sur {} {}'
-  '{} shares slot with {}': '{} partage lemplacement avec {}'
+  '{} shares slot with {}': '{} partage l''emplacement avec {}'
   '{} slots': '{} slots'
   '{} spool cleared': '{} : bobine effacée'
   '{} started': '{} démarré'
