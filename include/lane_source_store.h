@@ -41,15 +41,42 @@ constexpr LaneId BYPASS_LANE_ID = 10000;
 /// are lanes like any other and stop needing a parallel store.
 constexpr LaneId FIRST_TOOL_LANE_ID = 20000;
 
+/// Ids the tool block holds. Nothing in the tree caps a tool count -
+/// ToolState::tools_ is an unbounded vector - and the widest tool ceiling that
+/// does exist is AFC's tool number at 64, so this is a deliberate ceiling
+/// rather than a mirror of an existing one.
+constexpr int MAX_TOOL_LANES = 256;
+
+/// One past the last id this scheme assigns. A reserved block added later
+/// starts here; everything from here up is refused.
+constexpr LaneId END_LANE_ID = FIRST_TOOL_LANE_ID + MAX_TOOL_LANES;
+
+/// Every id the scheme can assign: one block per backend, the bypass, and the
+/// tool lanes. This is the store's size bound, since only these ids are
+/// accepted.
+constexpr int MAX_LANES = MAX_BACKENDS * LANES_PER_BACKEND + 1 + MAX_TOOL_LANES;
+
 static_assert(MAX_BACKENDS * LANES_PER_BACKEND <= BYPASS_LANE_ID,
               "a backend block must not reach the bypass lane id");
 static_assert(BYPASS_LANE_ID < FIRST_TOOL_LANE_ID,
               "the bypass id must not fall inside the tool block");
+static_assert(END_LANE_ID > FIRST_TOOL_LANE_ID,
+              "the tool block must not overflow a LaneId, or a block placed above it "
+              "would wrap back inside it");
 
-/// True when @p lane names a position. The scheme's one non-position is
-/// INVALID_LANE_ID, and every other negative value is equally not a lane.
+/// True when @p lane is an id this scheme assigns: a slot on one of the
+/// backend blocks, the bypass, or a tool. Nothing else is a lane, and a
+/// positive integer is not a lane merely for being positive - not the gap
+/// between the last backend block and the bypass, not an id one past the
+/// bypass, not anything from END_LANE_ID up. The funnels drop what this
+/// refuses, so a caller that computes an id wrongly is told about it rather
+/// than handed a lane of its own.
 [[nodiscard]] constexpr bool is_lane_id(LaneId lane) {
-    return lane >= 0;
+    if (lane >= 0 && lane < MAX_BACKENDS * LANES_PER_BACKEND)
+        return true;
+    if (lane == BYPASS_LANE_ID)
+        return true;
+    return lane >= FIRST_TOOL_LANE_ID && lane < END_LANE_ID;
 }
 
 /// The lane id for @p slot_index on the backend registered at @p backend_index,
@@ -107,6 +134,8 @@ void commit_slot_edit(LaneId lane, const Observation& obs);
 void reset_lane_sources();
 
 /// Holds one LaneSources per lane until the backends that wrote them go away.
+/// Bounded by construction: the funnels accept only ids is_lane_id() admits, so
+/// the map can never hold more than MAX_LANES (2305) entries.
 ///
 /// write() is private with exactly two friends: ingest() and commit_slot_edit().
 /// Those two are the only code that can reach a lane's records; a third friend

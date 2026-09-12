@@ -6,6 +6,8 @@
 #include "lane_source_store.h"
 #include "lane_translation.h"
 
+#include <spdlog/spdlog.h>
+
 #include "../catch_amalgamated.hpp"
 
 using helix::ams::classify_declaration;
@@ -131,6 +133,77 @@ TEST_CASE("a pair that names no lane yields no id", "[lane][ingest]") {
 
     CHECK_FALSE(helix::ams::is_lane_id(INVALID_LANE_ID));
     CHECK(helix::ams::is_lane_id(0));
+}
+
+TEST_CASE("only an id the scheme assigns is a lane", "[lane][ingest]") {
+    using helix::ams::BYPASS_LANE_ID;
+    using helix::ams::END_LANE_ID;
+    using helix::ams::FIRST_TOOL_LANE_ID;
+    using helix::ams::is_lane_id;
+    using helix::ams::LANES_PER_BACKEND;
+    using helix::ams::MAX_BACKENDS;
+
+    constexpr helix::ams::LaneId END_OF_BLOCKS = MAX_BACKENDS * LANES_PER_BACKEND;
+
+    // Both ends of each of the three ranges the scheme assigns.
+    CHECK(is_lane_id(0));
+    CHECK(is_lane_id(END_OF_BLOCKS - 1));
+    CHECK(is_lane_id(BYPASS_LANE_ID));
+    CHECK(is_lane_id(FIRST_TOOL_LANE_ID));
+    CHECK(is_lane_id(END_LANE_ID - 1));
+
+    // One past each end, both ends of the gap between the last backend block
+    // and the bypass, and an arbitrary large integer. A positive value is not
+    // a lane merely for being positive: no backend, bypass or tool owns any
+    // of these, so a record filed on one would describe nothing at all.
+    CHECK_FALSE(is_lane_id(-1));
+    CHECK_FALSE(is_lane_id(helix::ams::INVALID_LANE_ID));
+    CHECK_FALSE(is_lane_id(END_OF_BLOCKS));
+    CHECK_FALSE(is_lane_id(BYPASS_LANE_ID - 1));
+    CHECK_FALSE(is_lane_id(BYPASS_LANE_ID + 1));
+    CHECK_FALSE(is_lane_id(FIRST_TOOL_LANE_ID - 1));
+    CHECK_FALSE(is_lane_id(END_LANE_ID));
+    CHECK_FALSE(is_lane_id(1000000));
+
+    // Everything lane_id_for produces is an id this admits, at the far corner.
+    CHECK(is_lane_id(helix::ams::lane_id_for(MAX_BACKENDS - 1, LANES_PER_BACKEND - 1)));
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "the store cannot grow past the ids the scheme assigns",
+                 "[lane][ingest]") {
+    Observation obs(ObservationSource::Sensed);
+    obs.present = true;
+
+    // Each rejected id logs, and this offers a great many of them.
+    const auto restore_level = spdlog::default_logger()->level();
+    spdlog::set_level(spdlog::level::critical);
+
+    // Ids no backend, bypass or tool can own. "Bounded by construction" is
+    // only true if the funnels refuse these: a backend deriving an id wrongly
+    // in a later plan would otherwise grow the map for as long as it polls.
+    for (helix::ams::LaneId lane = helix::ams::END_LANE_ID; lane < helix::ams::END_LANE_ID + 200000;
+         ++lane) {
+        ingest(lane, obs);
+    }
+
+    // The gap between the last backend block and the bypass is the same
+    // question in the range a miscomputed backend id would land in.
+    for (helix::ams::LaneId lane = helix::ams::MAX_BACKENDS * helix::ams::LANES_PER_BACKEND;
+         lane < helix::ams::BYPASS_LANE_ID; ++lane) {
+        ingest(lane, obs);
+    }
+
+    spdlog::set_level(restore_level);
+
+    CHECK(helix::ams::known_lanes().empty());
+
+    // The three ranges that are lanes still write, so the refusal above is
+    // selective rather than a funnel that stopped working.
+    ingest(0, obs);
+    ingest(helix::ams::BYPASS_LANE_ID, obs);
+    ingest(helix::ams::FIRST_TOOL_LANE_ID, obs);
+    CHECK(helix::ams::known_lanes().size() == 3);
+    CHECK(static_cast<int>(helix::ams::known_lanes().size()) <= helix::ams::MAX_LANES);
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "a funnel handed no lane writes nothing", "[lane][ingest]") {
