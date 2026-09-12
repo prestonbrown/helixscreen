@@ -2169,12 +2169,8 @@ std::string an_enabled_default_widget() {
 
 /// One home node in the pages format, placing @p id at (3,5) and hiding it.
 json placed_home_node(const std::string& id) {
-    json widgets = json::array({json{{"id", id},
-                                     {"enabled", false},
-                                     {"col", 3},
-                                     {"row", 5},
-                                     {"colspan", 2},
-                                     {"rowspan", 2}}});
+    json widgets = json::array({json{
+        {"id", id}, {"enabled", false}, {"col", 3}, {"row", 5}, {"colspan", 2}, {"rowspan", 2}}});
     return json{{"main_page_index", 0},
                 {"next_page_id", 1},
                 {"pages", json::array({json{{"id", "main"}, {"widgets", widgets}}})}};
@@ -2279,8 +2275,7 @@ TEST_CASE_METHOD(PanelWidgetConfigFixture,
     CHECK(wc.grid_signature() == "12x24");
 }
 
-TEST_CASE_METHOD(PanelWidgetConfigFixture,
-                 "PanelWidgetConfig: a cells tag keeps the saved layout",
+TEST_CASE_METHOD(PanelWidgetConfigFixture, "PanelWidgetConfig: a cells tag keeps the saved layout",
                  "[panel_widget_config][unnamed_units]") {
     const std::string id = an_enabled_default_widget();
     REQUIRE_FALSE(id.empty());
@@ -2326,4 +2321,66 @@ TEST_CASE_METHOD(PanelWidgetConfigFixture,
 
     CHECK(wc.entries().size() == default_grid_widget_count());
     CHECK(wc.has_pending_anchors());
+}
+
+// ============================================================================
+// A node that outlived the build that wrote it
+// ============================================================================
+
+TEST_CASE_METHOD(PanelWidgetConfigFixture,
+                 "PanelWidgetConfig: save keeps panel keys this build does not know",
+                 "[panel_widget_config][migration][1460]") {
+    // A newer build keeps its layout state as siblings of "pages" in this same
+    // node, and a config it wrote reaches this build whenever someone rolls
+    // back an update channel. Nothing above this level protects the subtree:
+    // the version guard leaves the document unmigrated, but save() runs on
+    // roughly the first populate of every panel, so a node assigned wholesale
+    // here drops those keys with no user action at all
+    // (prestonbrown/helixscreen#1460).
+    json node = placed_home_node("printer_image");
+    node["grid"] = "12x24";
+    node["future_layout_v99"] = json{{"rails", json::array({1, 2, 3})}, {"origin", "centre"}};
+    node["future_scalar"] = 7;
+    setup_with_widgets(node);
+
+    PanelWidgetConfig wc("home", config);
+    wc.load();
+    wc.save();
+
+    // Each key is proven present before it is read: operator[] on a missing key
+    // of a const object aborts, which would bury the name that went missing.
+    const json saved = get_saved_root();
+    REQUIRE(saved.contains("future_layout_v99"));
+    CHECK(saved["future_layout_v99"]["origin"] == "centre");
+    CHECK(saved["future_layout_v99"]["rails"].size() == 3);
+    REQUIRE(saved.contains("future_scalar"));
+    CHECK(saved["future_scalar"] == 7);
+
+    // The keys this build owns still come from its own state, not from what
+    // the node happened to arrive holding.
+    REQUIRE(saved.contains("grid"));
+    CHECK(saved["grid"] == "12x24");
+    REQUIRE(saved.contains("pages"));
+}
+
+TEST_CASE_METHOD(PanelWidgetConfigFixture,
+                 "PanelWidgetConfig: save drops an owned key its state no longer justifies",
+                 "[panel_widget_config][migration][1460]") {
+    // Editing the node in place is only correct while every key this build owns
+    // is still rewritten from member state. load() ignores a "parked_grids"
+    // that is not an object, so member state says there are none, and a copy
+    // left in the node would outlive the condition that wrote it.
+    json node = placed_home_node("printer_image");
+    node["grid"] = "12x24";
+    node["parked_grids"] = "not-an-object";
+    setup_with_widgets(node);
+
+    PanelWidgetConfig wc("home", config);
+    wc.load();
+    wc.save();
+
+    CHECK_FALSE(get_saved_root().contains("parked_grids"));
+    // The rest of the node is still written, so the absence above is a dropped
+    // key and not a save that did nothing.
+    CHECK(get_saved_root().contains("pages"));
 }
