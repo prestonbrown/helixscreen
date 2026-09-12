@@ -13,7 +13,7 @@
 > No hardcoded colors/spacing. Use semantic widgets (ui_card, ui_button, text_*, divider_*) — they apply tokens. Do not restate built-in defaults (style_radius on ui_card, button_height on ui_button). Defaults: `docs/devel/LVGL9_XML_GUIDE.md` § "Custom Semantic Widgets".
 
 ### [L009] Icon font sync workflow
-- **Learned**: 2025-12-14 | **Category**: gotcha | **Type**: constraint | **Superseded**: CLAUDE.md
+- **Learned**: 2025-12-14 | **Category**: gotcha | **Superseded**: CLAUDE.md | **Type**: constraint
 > Add icon to codepoints.h → add to regen_mdi_fonts.sh → `make regen-fonts` → rebuild. Skip any step = missing icon.
 > RETIRED as a duplicate: CLAUDE.md Code Standards now carries the full two-list icon recipe.
 
@@ -359,3 +359,23 @@
 ### [L127] mutate-diff 'uncompilable' can mean bundled hunk, not missing coverage
 - **Learned**: 2026-09-08 | **Category**: gotcha
 > mutate-diff reverts ONE hunk at a time, so a hunk that bundles two adjacent edits reverts both. Adding a function next to a line you changed puts them in the same hunk: my SlotStatus::EMPTY guard in get_slot_filament_segment() diffed together with a whole new current_error() defined just below it, so reverting deleted a function the header still declared -> link error -> 'uncompilable'. That is counted as neither killed nor survived, so it reads as 'no test could judge this' when the truth was 'covered' - hand-mutating just the three guard lines made the test fail 7 == 0 (NOZZLE vs NONE) immediately. THE TELL is the hunk header: '@@ -432,12 +433,38 @@' means 12 lines became 38, far too big for the change you think you made; check it before believing an uncompilable verdict. Distinguish from the REAL uncompilable: a type change threaded through a header plus its use sites (int -> std::optional<int>) cannot be mutated hunk-wise by anyone, and no test fixes that - 4 of my 6 were this kind. The escape for logic worth pinning is to extract it as a pure function, which is independently revertible: doing that to an inline fault predicate took it from unmutable to killing 3 assertions across two test files. Do not read 'Nothing survived' as evidence when the verdict also says INCOMPLETE; the tool says so itself.
+
+### [L128] Merging a worktree branch while a peer has staged files: rebase + --ff-only
+- **Learned**: 0001-01-01 | **Category**: 
+> A true `git merge` into the shared main tree FAILS whenever the index is dirty at all (git errors "Your local changes ... would be overwritten" even for non-overlapping staged adds), but `git merge --ff-only` after rebasing the branch onto current main SAILS through and leaves the peer's staging intact (verified in a scratch repo, 2026-09-10). Do NOT push — local main intentionally runs ahead of origin; peers batch-push. Before concluding a peer is mid-commit, `git diff HEAD -- <path>`: empty means the index just holds a stale pre-format copy (`git add <path>` clears it).
+
+### [L129] make mutate-diff cannot baseline a small test tag
+- **Learned**: 0001-01-01 | **Category**: 
+> The mutation gate runs the SHARDED suite; Catch2 exits nonzero for shards that match zero tests, so any `--tests` filter selecting fewer tests than there are shards (~94) reads the BASELINE as RED. Use a broad tag UNION (e.g. `--tests '[ams],[1134],[overlay_base]'`) sized well above the shard count, or hand-mutate the production hunk and name the red run in the commit body (tests/CLAUDE.md sanctions this).
+
+### [L130] Background jobs: setsid nohup + disown, and check liveness by PID
+- **Learned**: 0001-01-01 | **Category**: 
+> A bare `cmd & redirect` inside a shell-tool call dies when the call hits its timeout. Use `setsid nohup cmd > log 2>&1 < /dev/null & disown`. And never check liveness with `pgrep -f` — it matches the shell's own command line (RECURS violation, burned 10 min on a "wedged" build that was fine). `pgrep -x -a make | grep <worktree>` instead.
+
+### [L131] SSH ControlMaster hides remote group changes
+- **Learned**: 2026-09-11 | **Category**: gotcha
+> With ControlMaster auto in ~/.ssh/config, every ssh to a host reuses one master connection authenticated once. A usermod -aG on that host does NOT reach any reused session: /etc/group shows the new group, 'id -nG <user>' from root shows it, and your own sessions keep the stale set indefinitely. Symptom is misleading - the app fails with 'Permission denied' on /dev/input/event* (or any group-gated device) and it reads like a udev/group bug ON the device rather than a client-side connection-reuse artifact. Cost four failed benchmark runs on the CB1 2026-09-11. Fix: drop the master with 'ssh -O exit user@host' (both the user AND root sockets), or test with -o ControlMaster=no -o ControlPath=none. Verify with a genuinely fresh connection before concluding the group did not apply.
+
+### [L132] Label what a check measures, not what you want it to prove
+- **Learned**: 2026-09-11 | **Category**: gotcha
+> A label written beside a shell check is composed before the number exists, then colours how the number is read, so a check that CANNOT fire reads as a pass. Three in one session: `grep -c '^<<<<<<<'` labelled "(0 = clean)" when git 2.43's three-arg `merge-tree` emits markers inside a diff so they carry a leading `+` and never match anchored; a "twins untouched" grep that could not tell which of two identical occurrences a `-` line came from; and `--is-ancestor A B` labelled "diverged" when a NO there means A is a DESCENDANT. Every one was caught by a second, differently-shaped check, never by rereading the output. Print `markers=N`, not `(0 = clean)`. Prefer a structural fact (`--is-ancestor`, is this a fast-forward) over a textual one. Canary the check against something that MUST fail before believing a pass. Sibling of [L092]: there the exit code lied, here the label does.
