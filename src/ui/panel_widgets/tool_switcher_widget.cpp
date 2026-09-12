@@ -483,8 +483,12 @@ void ToolSwitcherWidget::rebuild_compact() {
 
     // Current tool label centered with larger font
     lv_obj_t* label = lv_label_create(container);
-    std::string tool_name =
-        (active >= 0 && active < static_cast<int>(tools.size())) ? tools[active].display_label : "";
+    // An out-of-range active index has no position to name. "?" keeps the one
+    // line this mode carries visibly occupied, where an empty label reads as a
+    // widget that failed to draw.
+    std::string tool_name = (active >= 0 && active < static_cast<int>(tools.size()))
+                                ? tools[active].display_label
+                                : "?";
     lv_label_set_text(label, tool_name.c_str());
     compact_label_ = label;
     const lv_font_t* body_font = theme_manager_get_font("font_body");
