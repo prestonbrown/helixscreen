@@ -477,11 +477,7 @@ TEST_CASE("Happy Hare persistence: skips COLOR for default grey",
 
     // Should NOT include COLOR parameter for grey default
     // But should still send the command if other values are present
-    if (!helper.captured_gcodes.empty()) {
-        // If command was sent, it should not contain COLOR
-        REQUIRE_FALSE(helper.has_gcode_containing("COLOR="));
-    }
-    // This test verifies COLOR is skipped - currently passes since nothing is sent
+    REQUIRE_FALSE(helper.has_gcode_containing("COLOR="));
 }
 
 // Pure black is a deliberate user pick, not an absence of colour — omitting it
