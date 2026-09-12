@@ -243,7 +243,9 @@ void PreheatWidget::update_tool_target_label() {
     if (!tool_target_label_)
         return;
 
-    char label[16];
+    // Holds ToolInfo::display_label, a translated noun plus a number:
+    // Russian renders LaneNoun::Toolhead as "Печатающая головка 16" at 40 bytes.
+    char label[64];
     const auto& tools = ToolState::instance().tools();
     if (tool_target_ == -1) {
         // The number of nozzles "All" will heat, which is what
