@@ -25,6 +25,7 @@
 #include "temperature_controller.h"
 #include "test_helpers/temperature_controller_test_access.h"
 
+#include <cstdio>
 #include <lvgl.h>
 #include <memory>
 #include <string>
@@ -211,7 +212,10 @@ TEST_CASE_METHOD(XMLTestFixture, "Chamber row is absent when the printer has no 
 // four-across row cannot fit those screens. Pins the reflow's structure.
 namespace {
 
-void check_two_by_two_reflow(const char* variant_path) {
+void check_two_by_two_reflow(const char* variant_path, XMLTestFixture& f) {
+    ChamberControllerScope scope(f);
+    helix::TemperatureControllerTestAccess::set_max(scope.controller(), helix::HeaterType::Chamber,
+                                                    60);
     reset_material_temps_singleton();
     MaterialSettingsManager::instance().clear_override("ABS");
     set_capability("printer_has_chamber_heater", 1);
@@ -234,6 +238,13 @@ void check_two_by_two_reflow(const char* variant_path) {
     CHECK(nozzle_row != chamber_row);
     CHECK_FALSE(hidden(lv_obj_get_parent(chamber_input)));
 
+    // The cap hint rides along with the reflowed chamber column in this
+    // variant too, not only in the base layout.
+    lv_obj_t* hint = find_widget("edit_chamber_cap_hint");
+    REQUIRE(hint != nullptr);
+    CHECK_FALSE(hidden(hint));
+    CHECK(std::string(lv_label_get_text(hint)).find("60") != std::string::npos);
+
     MaterialSettingsManager::instance().clear_override("ABS");
     reset_material_temps_singleton();
     // Restore the standard component registration for any case that follows.
@@ -245,13 +256,13 @@ void check_two_by_two_reflow(const char* variant_path) {
 
 TEST_CASE_METHOD(XMLTestFixture, "Micro variant reflows the temp inputs to two rows of two",
                  "[material_temps][chamber]") {
-    check_two_by_two_reflow("A:ui_xml/micro/material_temps_overlay.xml");
+    check_two_by_two_reflow("A:ui_xml/micro/material_temps_overlay.xml", *this);
 }
 
 TEST_CASE_METHOD(XMLTestFixture,
                  "Micro-portrait variant reflows the temp inputs to two rows of two",
                  "[material_temps][chamber]") {
-    check_two_by_two_reflow("A:ui_xml/micro_portrait/material_temps_overlay.xml");
+    check_two_by_two_reflow("A:ui_xml/micro_portrait/material_temps_overlay.xml", *this);
 }
 
 // The edit view's chamber ceiling is the EFFECTIVE cap — the one
@@ -265,9 +276,15 @@ TEST_CASE_METHOD(XMLTestFixture, "Edit view surfaces the printer's chamber cap w
                                                     60);
     open_abs_edit_view(*this);
 
+    // Precondition: the setup reached a configured cap through the shared
+    // ceiling helper every temperature-input surface must derive from.
+    const float shared =
+        scope.controller().effective_keypad_max(helix::HeaterType::Chamber, 120.0f);
+    REQUIRE(shared == 60.0f);
+
     lv_subject_t* cap = lv_xml_get_subject(nullptr, "material_chamber_cap");
     REQUIRE(cap != nullptr);
-    CHECK(lv_subject_get_int(cap) == 60);
+    CHECK(lv_subject_get_int(cap) == static_cast<int>(shared));
 
     lv_obj_t* hint = find_widget("edit_chamber_cap_hint");
     REQUIRE(hint != nullptr);
@@ -332,4 +349,17 @@ TEST_CASE_METHOD(XMLTestFixture, "Saving a chamber value above the effective cap
 
     MaterialSettingsManager::instance().clear_override("ABS");
     reset_material_temps_singleton();
+}
+
+// The reject-toast buffer must hold the longest locale at the widest cap:
+// ru is the longest rendering today and 120 the most digits a cap can carry,
+// so this is the worst case snprintf faces. A buffer that cuts it garbles the
+// UTF-8 degree sign on every ru reject toast.
+TEST_CASE("Chamber reject-toast buffer holds the longest locale at the widest cap",
+          "[material_temps][chamber][1615]") {
+    const std::string ru_widest = "Температура камеры должна быть 0-120°C";
+    char buf[helix::settings::MaterialTempsOverlay::kToastBufBytes];
+    const int written = snprintf(buf, sizeof(buf), "%s", ru_widest.c_str());
+    CHECK(written == static_cast<int>(ru_widest.size()));
+    CHECK(std::string(buf) == ru_widest);
 }

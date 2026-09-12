@@ -279,15 +279,9 @@ void MaterialTempsOverlay::populate_material_list() {
 // ============================================================================
 
 int MaterialTempsOverlay::chamber_input_cap() {
-    // One authority: the same question the temperature keypads ask, so a value
-    // this view accepts is a value a send will actually apply. ensure_limits()
-    // is a no-op once the configfile section has been read.
     if (auto* c = get_temperature_controller()) {
-        c->ensure_limits(HeaterType::Chamber);
-        const float cap = c->keypad_range(HeaterType::Chamber).max;
-        if (cap > 0.0f) {
-            return static_cast<int>(cap);
-        }
+        return static_cast<int>(c->effective_keypad_max(
+            HeaterType::Chamber, static_cast<float>(CHAMBER_INPUT_ABS_MAX_C)));
     }
     return CHAMBER_INPUT_ABS_MAX_C;
 }
@@ -362,6 +356,9 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
 
     // Surface the effective chamber cap whenever it is tighter than what the
     // input on its own suggests, so what the user sets is what they get.
+    // Constraint: the hint is computed here, at view-open — configured_max has
+    // no subject, so a ceiling that lands mid-session is enforced by the save-
+    // time re-read and shown on the next view-open, never restyled live.
     const int chamber_cap = chamber_input_cap();
     if (chamber_cap < CHAMBER_INPUT_ABS_MAX_C) {
         snprintf(chamber_cap_text_buf_, sizeof(chamber_cap_text_buf_),
@@ -469,7 +466,7 @@ void MaterialTempsOverlay::handle_save() {
     // was populated, and the bound the user is held to must be the live one.
     const int chamber_cap = chamber_input_cap();
     if (chamber_temp < 0 || chamber_temp > chamber_cap) {
-        char msg[64];
+        char msg[kToastBufBytes];
         snprintf(msg, sizeof(msg), lv_tr("Chamber temp must be 0-%d°C"), chamber_cap);
         ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;

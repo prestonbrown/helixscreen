@@ -48,6 +48,11 @@ class MaterialTempsOverlay : public OverlayBase {
     void handle_reset_defaults();
     void handle_back_clicked();
 
+    /// Reject-toast buffer for the localized chamber-range message. Must hold
+    /// the longest locale at the widest cap (ru is the longest today);
+    /// test_material_temps_chamber pins that it does.
+    static constexpr size_t kToastBufBytes = 128;
+
   private:
     void populate_material_list();
     void show_edit_view(const std::string& material_name);
