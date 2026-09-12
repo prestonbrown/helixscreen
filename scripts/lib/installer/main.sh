@@ -38,7 +38,10 @@ usage() {
     echo "  --update       Update existing installation (preserves config)"
     echo "  --uninstall    Remove HelixScreen"
     echo "  --clean        Clean install: remove old installation completely,"
-    echo "                 including config and caches (asks for confirmation)"
+    echo "                 including config and caches. The disabled-services"
+    echo "                 ledger is kept, so a later uninstall can still"
+    echo "                 re-enable a stock UI this install disabled."
+    echo "                 Asks for confirmation."
     echo "  --yes, -y      Confirm destructive prompts non-interactively."
     echo "                 Required for --clean when stdin is not a terminal"
     echo "                 (e.g. curl ... | sh -s -- --clean --yes)"
@@ -777,6 +780,11 @@ main() {
     # SSH (#535). Runs on both fresh install and self-update.
     if [ "$platform" = "k1" ]; then
         ensure_k1_ssh
+        # Re-record the stock UI disable against the payload that just landed:
+        # extract_release replaces INSTALL_DIR between the stop step and the
+        # config symlink setup, and a self-update run skips the stop step
+        # entirely. Idempotent (record_disabled_service dedups).
+        record_k1_stock_ui_disable
         # Install and start the stock Creality backend trio
         # (prestonbrown/helixscreen#1468). Runs post-extract (the init script
         # ships in the release package) and on self-update, which skips

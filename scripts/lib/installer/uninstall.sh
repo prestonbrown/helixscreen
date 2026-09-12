@@ -860,14 +860,45 @@ clean_old_installation() {
     $SUDO rm -f /etc/polkit-1/rules.d/50-helixscreen-network.rules
     $SUDO systemctl daemon-reload 2>/dev/null || true
 
-    # Remove <klipper config dir>/helixscreen/ (user config) in clean mode
+    # Remove <klipper config dir>/helixscreen/ (user config) in clean mode.
+    # The disabled-services ledger rides the wipe out: it records /etc
+    # init-script disables that --clean leaves in place, and the install
+    # continuing after the wipe cannot re-record them (the stock UI is
+    # already de-executed by then), so dropping the ledger would strand it.
     local pd_config
     pd_config="$(klipper_config_dir)"
     if [ -n "$pd_config" ]; then
         local pd_helix="${pd_config}/helixscreen"
+        local pd_ledger="${pd_helix}/.disabled_services"
+        local ledger_keep="${pd_config}/.disabled_services.clean-keep"
+        # A keep file with no live ledger is a carry a killed run left
+        # half-done, and the only surviving copy of the ledger: put it back
+        # before this run decides anything about pd_helix.
+        if [ -f "$ledger_keep" ] && [ ! -f "$pd_ledger" ]; then
+            if $(file_sudo "$pd_config") mkdir -p "$pd_helix" 2>/dev/null \
+               && $(file_sudo "$ledger_keep") mv "$ledger_keep" "$pd_ledger" 2>/dev/null; then
+                log_info "Recovered the disabled-services ledger from an interrupted clean"
+            fi
+        fi
         if [ -d "$pd_helix" ] || [ -L "$pd_helix" ]; then
+            local carried=false
+            if [ -f "$pd_ledger" ]; then
+                if $(file_sudo "$pd_ledger") mv "$pd_ledger" "$ledger_keep" 2>/dev/null; then
+                    carried=true
+                else
+                    log_warn "Could not set the disabled-services ledger aside; --clean drops it (a later uninstall may leave a stock UI disabled)"
+                fi
+            fi
             log_info "Removing user config: $pd_helix"
             $SUDO rm -rf "$pd_helix"
+            if [ "$carried" = true ]; then
+                if $(file_sudo "$pd_config") mkdir -p "$pd_helix" 2>/dev/null \
+                   && $(file_sudo "$ledger_keep") mv "$ledger_keep" "$pd_ledger" 2>/dev/null; then
+                    :
+                else
+                    log_warn "Could not restore the disabled-services ledger after the wipe (it is at $ledger_keep); a later uninstall may leave a stock UI disabled"
+                fi
+            fi
         fi
     fi
 
