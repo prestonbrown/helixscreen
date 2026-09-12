@@ -23,13 +23,35 @@ translation agents (the relevant column is injected into their prompts).
 
 ## Ambiguous terms (resolved)
 
-- **Slot** vs **Lane**: both name one filament position in a multi-material
-  unit. Generic UI says `Slot`, and every locale renders it with its own slot
-  term. AFC-specific screens keep `Lane`: they label AFC hardware and sit beside
-  AFC's own `Hub`, so "Stopped between Slot and Hub" would read as nonsense.
-  Translate a `Lane` string with the locale's lane word, not its slot word.
-  Chinese is the exception in the other direction - it has never distinguished
-  the two and uses the slot term throughout.
+- **Position nouns** (`Slot`, `Lane`, `Gate`, `Feeder`) all name one filament
+  position, and the UI uses whichever word that printer's hardware uses: AFC says
+  Lane, Happy Hare says Gate, Snapmaker U1 says Feeder, Bambu-style AMS/CFS/QIDI/
+  ACE say Slot. They must render as FOUR DISTINCT words in every locale - if two
+  collapse, the backend's noun buys nothing. `Tool` and `Toolhead` are the same
+  idea for the printing end rather than the filament position.
+- **Loanword policy for these four.** `Gate` is Happy Hare's English term of art
+  and stays untranslated in de, es, fr, it and pt; ja transliterates it (`ゲート`),
+  zh translates it (`通道`), ru transliterates to Cyrillic (`Шлюз`). The evidence:
+  Happy Hare ships no translations at all and its own touchscreen frontend
+  hardcodes English "Gate", mainsail's German translator kept and compounded it
+  (`Gate-Zuweisung`), and Bambu's own catalogue keeps English `slot` in de (23/23),
+  it (22/22), pt (20/22) and fr (18/24) while only es translates it (`ranura`).
+  So those locales demonstrably take English hardware nouns in this domain.
+  Gate and Lane in es, fr, it, ja and pt rest on NO direct evidence - there is
+  almost no native-language writing about these projects - so they are defaults,
+  not findings, and a native speaker may overturn any of them.
+- **Do not reason from OrcaSlicer or wiki.bambulab.com.** Orca is a fork with its
+  own catalogue and disagrees with Bambu (it ships fr `Emplacement` and pt_BR
+  `Espaço`, neither of which Bambu uses). The Bambu wiki is self-declared machine
+  translation for every locale but en and zh. Bambu Studio's `.po` is the
+  authority, and it must be counted in the `msgstr` - a raw file grep for "slot"
+  mostly returns English `msgid` lines and overstates loanword use several-fold.
+- **Plurals are fixed strings, never generated.** `lane_range_label()` renders a
+  range as one plural noun plus the range ("Lanes 1-4"). Russian numeral agreement
+  would demand `1 слот` / `2-4 слота` / `5+ слотов`, so the plural is a nominative
+  header and is never agreed with either number. Italian does not pluralise English
+  loanwords (`Slot`, `Gate` stay as-is); ja and zh do not inflect for number, so
+  their plural equals their singular. None of these is an oversight.
 - **Feeder** vs **Toolhead**: Snapmaker U1-specific. The U1 names where filament
   enters `Feeder` and the printing end `Toolhead` — two different words for the
   same 1:1 physical position, matching the U1's own firmware UI. Reuse each
@@ -55,11 +77,20 @@ translation agents (the relevant column is injected into their prompts).
 | Fan | Lüfter | Ventilador | Ventilateur | Ventola | ファン | Ventoinha | Вентилятор | 风扇 |
 | Fans | Lüfter | Ventiladores | Ventilateurs | Ventole | ファン | Ventoinhas | Вентиляторы | 风扇 |
 | Spool | Spule | Bobina | Bobine | Bobina | スプール | Carretel | Катушка | 料盘 |
-| Slot | Slot | Ranura | Slot | Slot | スロット | Slot | Слот | 槽位 |
-| Feeder | Zuführung | Alimentador | Alimentateur | Alimentatore | フィーダー | Alimentador | Фидер | 送料器 |
-| Toolhead | Werkzeugkopf | Cabezal | Tête d'outil | Testina | ツールヘッド | Cabeçote | Печатающая головка | 工具头 |
 | Printer | Drucker | Impresora | Imprimante | Stampante | プリンター | Impressora | Принтер | 打印机 |
 | Vendor | Hersteller | Fabricante | Fabricant | Produttore | ベンダー | Fabricante | Производитель | 供应商 |
+| Slot | Slot | Ranura | Slot | Slot | スロット | Slot | Слот | 槽位 |
+| Lane | Spur | Carril | Voie | Corsia | レーン | Lane | Канал | 耗材通道 |
+| Gate | Gate | Gate | Gate | Gate | ゲート | Gate | Шлюз | 通道 |
+| Feeder | Zuführung | Alimentador | Alimentateur | Alimentatore | フィーダー | Alimentador | Фидер | 送料器 |
+| Tool | Werkzeug | Herramienta | Outil | Strumento | ツール | Ferramenta | Инструмент | 工具 |
+| Toolhead | Werkzeugkopf | Cabezal | Tête d'outil | Testina | ツールヘッド | Cabeçote | Печатающая головка | 工具头 |
+| Slots | Slots | Ranuras | Slots | Slot | スロット | Slots | Слоты | 槽位 |
+| Lanes | Spuren | Carriles | Voies | Corsie | レーン | Lanes | Каналы | 耗材通道 |
+| Gates | Gates | Gates | Gates | Gate | ゲート | Gates | Шлюзы | 通道 |
+| Feeders | Zuführungen | Alimentadores | Alimentateurs | Alimentatori | フィーダー | Alimentadores | Фидеры | 送料器 |
+| Tools | Werkzeuge | Herramientas | Outils | Strumenti | ツール | Ferramentas | Инструменты | 工具 |
+| Toolheads | Werkzeugköpfe | Cabezales | Têtes d'outil | Testine | ツールヘッド | Cabeçotes | Печатающие головки | 工具头 |
 
 ### Actions
 
