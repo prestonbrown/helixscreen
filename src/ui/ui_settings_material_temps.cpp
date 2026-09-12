@@ -16,6 +16,7 @@
 #include "material_settings_manager.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
+#include "temperature_controller.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -27,6 +28,11 @@
 #include <vector>
 
 namespace helix::settings {
+
+/// Chamber ceiling the edit input accepts when no controller cap is known —
+/// the ceiling the raw field on its own would suggest. Any effective cap below
+/// this is surfaced as a hint so the saved value cannot silently apply tighter.
+constexpr int CHAMBER_INPUT_ABS_MAX_C = 120;
 
 // ============================================================================
 // SINGLETON ACCESSOR
@@ -75,6 +81,11 @@ void MaterialTempsOverlay::init_subjects() {
                               "material_edit_defaults", subjects_);
 
     UI_MANAGED_SUBJECT_INT(has_macro_subject_, 0, "material_has_macro", subjects_);
+
+    // Effective chamber cap hint (see chamber_input_cap())
+    UI_MANAGED_SUBJECT_INT(chamber_cap_subject_, 0, "material_chamber_cap", subjects_);
+    UI_MANAGED_SUBJECT_STRING(chamber_cap_text_subject_, chamber_cap_text_buf_, "",
+                              "material_chamber_cap_text", subjects_);
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
@@ -267,6 +278,14 @@ void MaterialTempsOverlay::populate_material_list() {
 // EDIT VIEW
 // ============================================================================
 
+int MaterialTempsOverlay::chamber_input_cap() {
+    if (auto* c = get_temperature_controller()) {
+        return static_cast<int>(c->effective_keypad_max(
+            HeaterType::Chamber, static_cast<float>(CHAMBER_INPUT_ABS_MAX_C)));
+    }
+    return CHAMBER_INPUT_ABS_MAX_C;
+}
+
 void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
     editing_material_ = material_name;
 
@@ -333,6 +352,23 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
             snprintf(buf, sizeof(buf), "%d", cur_chamber);
             lv_textarea_set_text(chamber_temp_input, buf);
         }
+    }
+
+    // Surface the effective chamber cap whenever it is tighter than what the
+    // input on its own suggests, so what the user sets is what they get.
+    // Constraint: the hint is computed here, at view-open — configured_max has
+    // no subject, so a ceiling that lands mid-session is enforced by the save-
+    // time re-read and shown on the next view-open, never restyled live.
+    const int chamber_cap = chamber_input_cap();
+    if (chamber_cap < CHAMBER_INPUT_ABS_MAX_C) {
+        snprintf(chamber_cap_text_buf_, sizeof(chamber_cap_text_buf_),
+                 lv_tr("Printer caps chamber at %d°C"), chamber_cap);
+        lv_subject_copy_string(&chamber_cap_text_subject_, chamber_cap_text_buf_);
+        lv_subject_set_int(&chamber_cap_subject_, chamber_cap);
+    } else {
+        chamber_cap_text_buf_[0] = '\0';
+        lv_subject_copy_string(&chamber_cap_text_subject_, chamber_cap_text_buf_);
+        lv_subject_set_int(&chamber_cap_subject_, 0);
     }
 
     // Populate macro dropdown and select current override
@@ -426,9 +462,13 @@ void MaterialTempsOverlay::handle_save() {
                                       3000);
         return;
     }
-    if (chamber_temp < 0 || chamber_temp > 120) {
-        ToastManager::instance().show(ToastSeverity::WARNING, lv_tr("Chamber temp must be 0-120°C"),
-                                      3000);
+    // Re-read at save time: the configfile answer can land after the edit view
+    // was populated, and the bound the user is held to must be the live one.
+    const int chamber_cap = chamber_input_cap();
+    if (chamber_temp < 0 || chamber_temp > chamber_cap) {
+        char msg[kToastBufBytes];
+        snprintf(msg, sizeof(msg), lv_tr("Chamber temp must be 0-%d°C"), chamber_cap);
+        ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;
     }
     if (nozzle_min > nozzle_max) {

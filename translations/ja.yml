@@ -444,7 +444,7 @@ translations:
   Chamber at %d°C: チャンバー温度：%d°C
   Chamber heating to %d°C...: チャンバーを%d°Cに加熱中...
   Chamber target set to {}°C: チャンバー目標温度を{}°C に設定
-  Chamber temp must be 0-120°C: ''
+  Chamber temp must be 0-%d°C: チャンバー温度は 0〜%d°C にしてください
   Change: 変更
   Change Address: アドレスを変更
   Change Blade: 'ブレードを交換'
@@ -2011,6 +2011,7 @@ translations:
   Printer Type: プリンタータイプ
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): プリンターはジョブを受け付けましたが印刷していません
     — カバー、用紙、ラベルの種類を確認してください (firmware status=0x{:02X} error=0x{:02X})
+  Printer caps chamber at %d°C: プリンターのチャンバー上限は %d°C です
   Printer connection unavailable: プリンターとの接続が利用できません
   Printer database format error: プリンターデータベースの形式エラー
   Printer database is corrupt: プリンターデータベースが破損しています

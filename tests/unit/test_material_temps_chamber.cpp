@@ -20,9 +20,14 @@
 #include "filament_database.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "material_settings_manager.h"
+#include "panel_widget_manager.h"
 #include "static_panel_registry.h"
+#include "temperature_controller.h"
+#include "test_helpers/temperature_controller_test_access.h"
 
+#include <cstdio>
 #include <lvgl.h>
+#include <memory>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -56,6 +61,42 @@ lv_obj_t* find_widget(const char* name) {
 
 bool hidden(lv_obj_t* obj) {
     return obj == nullptr || lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+}
+
+/// Registers a TemperatureController over this fixture's PrinterState/API as
+/// the app-global shared resource — the same wiring SubjectInitializer does at
+/// app boot, so get_temperature_controller() answers inside the overlay.
+class ChamberControllerScope {
+  public:
+    explicit ChamberControllerScope(XMLTestFixture& f)
+        : controller_(std::make_shared<helix::TemperatureController>(f.state(), &f.api())) {
+        helix::PanelWidgetManager::instance().register_shared_resource(controller_);
+    }
+
+    ~ChamberControllerScope() {
+        helix::PanelWidgetManager::instance().clear_shared_resources();
+    }
+
+    helix::TemperatureController& controller() {
+        return *controller_;
+    }
+
+  private:
+    std::shared_ptr<helix::TemperatureController> controller_;
+};
+
+/// Open the ABS edit view against a printer that has a chamber heater.
+/// Fresh singleton + no stored override, same setup every case here needs.
+void open_abs_edit_view(XMLTestFixture& f) {
+    reset_material_temps_singleton();
+    MaterialSettingsManager::instance().clear_override("ABS");
+    set_capability("printer_has_chamber_heater", 1);
+    REQUIRE(f.register_component("material_temps_overlay"));
+
+    auto& overlay = helix::settings::get_material_temps_overlay();
+    overlay.show(lv_screen_active());
+    helix::ui::UpdateQueue::instance().drain();
+    overlay.handle_material_row_clicked("ABS");
 }
 
 } // namespace
@@ -171,7 +212,10 @@ TEST_CASE_METHOD(XMLTestFixture, "Chamber row is absent when the printer has no 
 // four-across row cannot fit those screens. Pins the reflow's structure.
 namespace {
 
-void check_two_by_two_reflow(const char* variant_path) {
+void check_two_by_two_reflow(const char* variant_path, XMLTestFixture& f) {
+    ChamberControllerScope scope(f);
+    helix::TemperatureControllerTestAccess::set_max(scope.controller(), helix::HeaterType::Chamber,
+                                                    60);
     reset_material_temps_singleton();
     MaterialSettingsManager::instance().clear_override("ABS");
     set_capability("printer_has_chamber_heater", 1);
@@ -194,6 +238,13 @@ void check_two_by_two_reflow(const char* variant_path) {
     CHECK(nozzle_row != chamber_row);
     CHECK_FALSE(hidden(lv_obj_get_parent(chamber_input)));
 
+    // The cap hint rides along with the reflowed chamber column in this
+    // variant too, not only in the base layout.
+    lv_obj_t* hint = find_widget("edit_chamber_cap_hint");
+    REQUIRE(hint != nullptr);
+    CHECK_FALSE(hidden(hint));
+    CHECK(std::string(lv_label_get_text(hint)).find("60") != std::string::npos);
+
     MaterialSettingsManager::instance().clear_override("ABS");
     reset_material_temps_singleton();
     // Restore the standard component registration for any case that follows.
@@ -205,11 +256,110 @@ void check_two_by_two_reflow(const char* variant_path) {
 
 TEST_CASE_METHOD(XMLTestFixture, "Micro variant reflows the temp inputs to two rows of two",
                  "[material_temps][chamber]") {
-    check_two_by_two_reflow("A:ui_xml/micro/material_temps_overlay.xml");
+    check_two_by_two_reflow("A:ui_xml/micro/material_temps_overlay.xml", *this);
 }
 
 TEST_CASE_METHOD(XMLTestFixture,
                  "Micro-portrait variant reflows the temp inputs to two rows of two",
                  "[material_temps][chamber]") {
-    check_two_by_two_reflow("A:ui_xml/micro_portrait/material_temps_overlay.xml");
+    check_two_by_two_reflow("A:ui_xml/micro_portrait/material_temps_overlay.xml", *this);
+}
+
+// The edit view's chamber ceiling is the EFFECTIVE cap — the one
+// TemperatureController enforces (configfile max_temp over the backend's
+// conservative default) — not the input's own 0-120 range, so what the user
+// saves is what a send applies (prestonbrown/helixscreen#1615).
+TEST_CASE_METHOD(XMLTestFixture, "Edit view surfaces the printer's chamber cap when it is tighter",
+                 "[material_temps][chamber][1615]") {
+    ChamberControllerScope scope(*this);
+    helix::TemperatureControllerTestAccess::set_max(scope.controller(), helix::HeaterType::Chamber,
+                                                    60);
+    open_abs_edit_view(*this);
+
+    // Precondition: the setup reached a configured cap through the shared
+    // ceiling helper every temperature-input surface must derive from.
+    const float shared =
+        scope.controller().effective_keypad_max(helix::HeaterType::Chamber, 120.0f);
+    REQUIRE(shared == 60.0f);
+
+    lv_subject_t* cap = lv_xml_get_subject(nullptr, "material_chamber_cap");
+    REQUIRE(cap != nullptr);
+    CHECK(lv_subject_get_int(cap) == static_cast<int>(shared));
+
+    lv_obj_t* hint = find_widget("edit_chamber_cap_hint");
+    REQUIRE(hint != nullptr);
+    CHECK_FALSE(hidden(hint));
+    CHECK(std::string(lv_label_get_text(hint)).find("60") != std::string::npos);
+
+    MaterialSettingsManager::instance().clear_override("ABS");
+    reset_material_temps_singleton();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "Edit view hides the cap hint when the cap is not tighter",
+                 "[material_temps][chamber][1615]") {
+    ChamberControllerScope scope(*this);
+    // 120 is the input's own absolute ceiling — nothing tighter to surface.
+    helix::TemperatureControllerTestAccess::set_max(scope.controller(), helix::HeaterType::Chamber,
+                                                    120);
+    open_abs_edit_view(*this);
+
+    lv_subject_t* cap = lv_xml_get_subject(nullptr, "material_chamber_cap");
+    REQUIRE(cap != nullptr);
+    CHECK(lv_subject_get_int(cap) == 0);
+
+    lv_obj_t* hint = find_widget("edit_chamber_cap_hint");
+    REQUIRE(hint != nullptr);
+    CHECK(hidden(hint));
+
+    MaterialSettingsManager::instance().clear_override("ABS");
+    reset_material_temps_singleton();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "Saving a chamber value above the effective cap is rejected",
+                 "[material_temps][chamber][1615]") {
+    ChamberControllerScope scope(*this);
+    helix::TemperatureControllerTestAccess::set_max(scope.controller(), helix::HeaterType::Chamber,
+                                                    60);
+    open_abs_edit_view(*this);
+
+    lv_obj_t* chamber_input = find_widget("edit_chamber_temp");
+    REQUIRE(chamber_input != nullptr);
+
+    // 90 is inside the input's own 0-120 range but above the printer's cap:
+    // without the clamp it would persist and silently apply at 60.
+    lv_textarea_set_text(chamber_input, "90");
+    helix::settings::get_material_temps_overlay().handle_save();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(MaterialSettingsManager::instance().get_override("ABS") == nullptr);
+
+    // At the cap itself saving works: 60 differs from ABS's default 50, so a
+    // chamber override is stored and find_material() applies it.
+    lv_textarea_set_text(chamber_input, "60");
+    helix::settings::get_material_temps_overlay().handle_save();
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto* ovr = MaterialSettingsManager::instance().get_override("ABS");
+    REQUIRE(ovr != nullptr);
+    REQUIRE(ovr->chamber_temp.has_value());
+    CHECK(*ovr->chamber_temp == 60);
+    auto mat = filament::find_material("ABS");
+    REQUIRE(mat.has_value());
+    CHECK(mat->chamber_temp_c == 60);
+
+    MaterialSettingsManager::instance().clear_override("ABS");
+    reset_material_temps_singleton();
+}
+
+// The reject-toast buffer must hold the longest locale at the widest cap:
+// ru is the longest rendering today and 120 the most digits a cap can carry,
+// so this is the worst case snprintf faces. A buffer that cuts it garbles the
+// UTF-8 degree sign on every ru reject toast.
+TEST_CASE("Chamber reject-toast buffer holds the longest locale at the widest cap",
+          "[material_temps][chamber][1615]") {
+    const std::string ru_widest = "Температура камеры должна быть 0-120°C";
+    char buf[helix::settings::MaterialTempsOverlay::kToastBufBytes];
+    const int written = snprintf(buf, sizeof(buf), "%s", ru_widest.c_str());
+    CHECK(written == static_cast<int>(ru_widest.size()));
+    CHECK(std::string(buf) == ru_widest);
 }

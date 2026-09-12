@@ -81,6 +81,14 @@ class TemperatureController {
     /// otherwise the heater default).
     KeypadRange keypad_range(HeaterType type) const;
 
+    /// The effective ceiling for ANY temperature-input surface, in one place:
+    /// ensure_limits() then keypad_range(). While the configfile cap is still
+    /// unknown the heater default applies (not the caller's fallback); the
+    /// fallback only covers a controller reporting no ceiling at all. Every
+    /// keypad/edit view must ask this rather than composing the primitives
+    /// itself, so no two input surfaces can disagree about the ceiling.
+    float effective_keypad_max(HeaterType type, float fallback_deg);
+
     /// Fetch the Klipper configfile max_temp for this heater if not yet known.
     /// No-op if api_ is null or the value is already populated.
     void ensure_limits(HeaterType type);

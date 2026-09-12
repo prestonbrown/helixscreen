@@ -929,11 +929,7 @@ void FilamentPanel::apply_preset_pick(int slot, const helix::printer::EffectiveF
 /// heater's section has been read.
 float FilamentPanel::keypad_max_for(helix::HeaterType type, int fallback_deg) {
     if (auto* c = get_temperature_controller()) {
-        c->ensure_limits(type);
-        const float configured = c->keypad_range(type).max;
-        if (configured > 0.0f) {
-            return configured;
-        }
+        return c->effective_keypad_max(type, static_cast<float>(fallback_deg));
     }
     return static_cast<float>(fallback_deg);
 }

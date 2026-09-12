@@ -48,10 +48,22 @@ class MaterialTempsOverlay : public OverlayBase {
     void handle_reset_defaults();
     void handle_back_clicked();
 
+    /// Reject-toast buffer for the localized chamber-range message. Must hold
+    /// the longest locale at the widest cap (ru is the longest today);
+    /// test_material_temps_chamber pins that it does.
+    static constexpr size_t kToastBufBytes = 128;
+
   private:
     void populate_material_list();
     void show_edit_view(const std::string& material_name);
     void show_list_view();
+
+    /// Effective chamber input ceiling (°C): the controller's cap (configfile
+    /// max_temp over the backend's conservative default) when a controller is
+    /// registered, otherwise the input's absolute ceiling. handle_save() and
+    /// the cap hint both ask this, so the view can never diverge from what a
+    /// send will actually apply.
+    int chamber_input_cap();
 
     // SubjectManager, declared ahead of the subjects it owns so it tears down
     // after them (names withdraw before storage dies).
@@ -66,6 +78,14 @@ class MaterialTempsOverlay : public OverlayBase {
 
     lv_subject_t edit_defaults_subject_;
     char edit_defaults_buf_[128];
+
+    // Effective chamber ceiling (°C) from TemperatureController when tighter
+    // than the input's absolute ceiling, 0 when there is nothing to surface.
+    // Drives the cap hint's visibility; the parallel string subject carries
+    // the formatted line (the XML evaluator cannot format ints).
+    lv_subject_t chamber_cap_subject_;
+    lv_subject_t chamber_cap_text_subject_;
+    char chamber_cap_text_buf_[96];
 
     // Currently edited material name
     std::string editing_material_;

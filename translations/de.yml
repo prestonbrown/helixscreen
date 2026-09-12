@@ -498,7 +498,7 @@ translations:
   Chamber at %d°C: Kammer bei %d°C
   Chamber heating to %d°C...: Kammer heizt auf %d°C auf...
   Chamber target set to {}°C: Kammer-Ziel auf {}°C gesetzt
-  Chamber temp must be 0-120°C: ''
+  Chamber temp must be 0-%d°C: Kammertemperatur muss 0-%d°C betragen
   Change: Ändern
   Change Address: Adresse ändern
   Change Blade: 'Klinge wechseln'
@@ -2181,6 +2181,7 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): Drucker
     hat Auftrag angenommen, druckt aber nicht – prüfen Sie Abdeckung, Papier und Etikettentyp
     (firmware status=0x{:02X} error=0x{:02X})
+  Printer caps chamber at %d°C: Drucker begrenzt die Kammer auf %d°C
   Printer connection unavailable: Druckerverbindung nicht verfügbar
   Printer database format error: Formatfehler der Druckerdatenbank
   Printer database is corrupt: Druckerdatenbank ist beschädigt

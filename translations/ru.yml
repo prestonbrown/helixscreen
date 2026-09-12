@@ -484,7 +484,7 @@ translations:
   Chamber at %d°C: Камера при %d°C
   Chamber heating to %d°C...: Нагрев камеры до %d°C...
   Chamber target set to {}°C: Целевая температура камеры установлена на {}°C
-  Chamber temp must be 0-120°C: ''
+  Chamber temp must be 0-%d°C: Температура камеры должна быть 0-%d°C
   Change: Изменить
   Change Address: Изменить адрес
   Change Blade: 'Заменить лезвие'
@@ -2147,6 +2147,7 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): Принтер
     принял задание, но не печатает — проверьте крышку, бумагу и тип этикеток (статус
     прошивки=0x{:02X} ошибка=0x{:02X})
+  Printer caps chamber at %d°C: Камера принтера ограничена %d°C
   Printer connection unavailable: Подключение к принтеру недоступно
   Printer database format error: Ошибка формата базы данных принтеров
   Printer database is corrupt: База данных принтеров повреждена

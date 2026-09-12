@@ -115,6 +115,12 @@ KeypadRange TemperatureController::keypad_range(HeaterType type) const {
     return {m.keypad_min, heater_effective_max_deg(m.keypad_max_default, m.configured_max)};
 }
 
+float TemperatureController::effective_keypad_max(HeaterType type, float fallback_deg) {
+    ensure_limits(type);
+    const float cap = keypad_range(type).max;
+    return cap > 0.0f ? cap : fallback_deg;
+}
+
 void TemperatureController::ensure_limits(HeaterType type) {
     if (!api_ || model_[idx(type)].configured_max > 0) {
         return;
