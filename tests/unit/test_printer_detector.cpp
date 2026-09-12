@@ -22,6 +22,77 @@
 
 using namespace helix;
 // ============================================================================
+// Machine captures (prestonbrown/helixscreen#1603)
+// ============================================================================
+//
+// Real-machine captures live in tests/fixtures/printers/<model>.json, so adding
+// a printer is a capture and a file. They are OBSERVATIONS of what a machine
+// reports over Moonraker, not copies of the database: the two are not supposed
+// to agree, and the point of testing against them is to measure the gap.
+// Transcribe them faithfully; deriving them from database entries would make
+// the test circular.
+
+namespace {
+
+std::string printers_fixture_path(const std::string& slug) {
+    std::string src = __FILE__;
+    auto pos = src.rfind("/tests/unit/");
+    if (pos != std::string::npos) {
+        return src.substr(0, pos) + "/tests/fixtures/printers/" + slug + ".json";
+    }
+    return "tests/fixtures/printers/" + slug + ".json";
+}
+
+nlohmann::json load_printer_capture(const std::string& slug) {
+    const std::string path = printers_fixture_path(slug);
+    std::ifstream f(path);
+    INFO("capture fixture missing or unreadable: " << path);
+    REQUIRE(f.is_open());
+    nlohmann::json j;
+    f >> j;
+    return j;
+}
+
+/// PrinterHardwareData aggregated from a real machine's captures: the object
+/// list, /printer/info hostname, and whatever other endpoints the snapshot
+/// recorded. Fields the capture does not carry keep their defaults, exactly as
+/// a discovery that never fetched them would leave them.
+PrinterHardwareData printer_capture(const std::string& slug) {
+    const nlohmann::json j = load_printer_capture(slug);
+    auto strings = [&j](const char* key) {
+        std::vector<std::string> out;
+        if (j.contains(key)) {
+            for (const auto& item : j.at(key)) {
+                out.push_back(item.get<std::string>());
+            }
+        }
+        return out;
+    };
+
+    PrinterHardwareData hardware;
+    hardware.heaters = strings("heaters");
+    hardware.sensors = strings("sensors");
+    hardware.fans = strings("fans");
+    hardware.leds = strings("leds");
+    hardware.hostname = j.value("hostname", std::string{});
+    hardware.printer_objects = strings("printer_objects");
+    hardware.steppers = strings("steppers");
+    hardware.kinematics = j.value("kinematics", std::string{});
+    hardware.mcu = j.value("mcu", std::string{});
+    hardware.mcu_list = strings("mcu_list");
+    hardware.cpu_arch = j.value("cpu_arch", std::string{});
+    if (j.contains("build_volume")) {
+        const auto& v = j.at("build_volume");
+        hardware.build_volume =
+            BuildVolume{v.value("x_min", 0.0f), v.value("x_max", 0.0f), v.value("y_min", 0.0f),
+                        v.value("y_max", 0.0f), v.value("z_max", 0.0f)};
+    }
+    return hardware;
+}
+
+} // namespace
+
+// ============================================================================
 // Test Fixtures and Helpers
 // ============================================================================
 
@@ -35,14 +106,9 @@ class PrinterDetectorFixture {
         return PrinterHardwareData{};
     }
 
-    // Create FlashForge AD5M Pro fingerprint (real hardware from user)
+    // Real machine captures, loaded from tests/fixtures/printers/
     PrinterHardwareData flashforge_ad5m_pro_hardware() {
-        return PrinterHardwareData{
-            .heaters = {"extruder", "heater_bed"},
-            .sensors = {"tvocValue", "weightValue", "temperature_sensor chamber_temp"},
-            .fans = {"fan", "fan_generic exhaust_fan"},
-            .leds = {"led chamber_light"},
-            .hostname = "flashforge-ad5m-pro"};
+        return printer_capture("flashforge_ad5m_pro");
     }
 
     // Create Voron V2 fingerprint with bed fans and chamber
@@ -81,19 +147,9 @@ class PrinterDetectorFixture {
                                    .hostname = "k1-max"};
     }
 
-    // Create Snapmaker U1 fingerprint (multi-extruder, RFID reader)
+    // Snapmaker U1 (multi-extruder, RFID reader)
     PrinterHardwareData snapmaker_u1_hardware() {
-        return PrinterHardwareData{
-            .heaters = {"extruder", "extruder1", "extruder2", "extruder3", "heater_bed"},
-            .fans = {"fan", "fan_generic e1_fan", "fan_generic e2_fan", "fan_generic e3_fan"},
-            .hostname = "snapmaker-u1",
-            .printer_objects = {"fm175xx_reader", "gcode_macro FILAMENT_DT_UPDATE",
-                                "gcode_macro FILAMENT_DT_QUERY", "tool", "camera",
-                                "tmc2240 stepper_x", "purifier",
-                                "gcode_macro EXTRUDER_OFFSET_ACTION_PROBE_CALIBRATE_ALL"},
-            .kinematics = "cartesian",
-            .build_volume = {.x_min = 0, .x_max = 270, .y_min = 0, .y_max = 270, .z_max = 400},
-            .cpu_arch = "aarch64"};
+        return printer_capture("snapmaker_u1");
     }
 
     // Create Creality Ender 3 fingerprint
@@ -105,104 +161,18 @@ class PrinterDetectorFixture {
                                    .hostname = "ender3-v2"};
     }
 
-    // Qidi Q2 fingerprint as a stock machine reports itself (debug bundle
-    // NPN3LYBJ). Two fields are what a Q2 owner's snapshot really looks like
-    // and are easy to get wrong from a spec sheet:
-    //
-    //  - hostname is the Linaro rootfs default. It carries no vendor or model
-    //    string; `machine.system_info` is where "QIDI@Q2" lives.
-    //  - build_volume is the stepper travel Klipper resolves from configfile
-    //    (X[-1,275] Y[-1,295] = 276 x 296), which is what
-    //    PrinterDiscovery::parse_build_volume() stores and what
-    //    build_volume_range heuristics are scored against. It is ~45mm larger
-    //    than the 250x250 print area the bed mesh covers.
-    //
-    // The mainboard is an STM32F407; the MMU and toolhead MCUs are F401/F103.
-    // There is no RP2040 anywhere on this machine.
+    // A real Qidi Q2 as its owner's machine reports itself (debug bundle
+    // NPN3LYBJ). The capture file records why its hostname and build volume
+    // look wrong for a spec sheet and must not be "fixed".
     PrinterHardwareData qidi_q2_hardware() {
-        return PrinterHardwareData{
-            .heaters = {"extruder", "heater_bed", "heater_generic chamber"},
-            .sensors = {"temperature_sensor Chamber_Thermal_Protection_Sensor"},
-            .fans = {"fan_generic cooling_fan", "heater_fan hotend_fan",
-                     "controller_fan chamber_fan", "controller_fan board_fan",
-                     "fan_generic chamber_circulation_fan", "fan_generic auxiliary_cooling_fan"},
-            .leds = {"output_pin caselight"},
-            .hostname = "linaro-alip",
-            .printer_objects = {"heater_generic chamber",
-                                "temperature_sensor Chamber_Thermal_Protection_Sensor", "probe_air",
-                                "z_tilt", "bed_mesh", "exclude_object", "lis2dw",
-                                "gcode_macro M141", "gcode_macro M191", "gcode_macro M290",
-                                "gcode_macro M900", "gcode_macro M901", "gcode_macro M4029",
-                                "gcode_macro M4030", "gcode_macro M4031",
-                                "gcode_macro CLEAR_NOZZLE", "gcode_macro CLEAR_NOZZLE_PLR"},
-            .steppers = {"stepper_x", "stepper_y", "stepper_z", "stepper_z1"},
-            .kinematics = "corexy",
-            .mcu = "stm32f407xx",
-            .mcu_list = {"stm32f407xx", "stm32f401xc", "stm32f103xe"},
-            .build_volume = {.x_min = -1, .x_max = 275, .y_min = -1, .y_max = 295, .z_max = 265}};
+        return printer_capture("qidi_q2");
     }
 
     // Elegoo Centauri Carbon running OpenCentauri COSMOS, as the bench machine
-    // reports itself over /printer/objects/list and /printer/info. Three fields
-    // decide this machine's identity and none of them is a model string:
-    //
-    //  - hostname is "cosmos", the COSMOS image default. It carries neither
-    //    "elegoo" nor "centauri", so every hostname heuristic misses.
-    //  - the firmware defines M191, the generic wait-for-chamber gcode, next to
-    //    a chamber sensor and corexy - the same three facts an enclosed QIDI
-    //    reports.
-    //  - what does name the machine is its own macros: ELEGOO_PURGE from the
-    //    vendor config and the _COSMOS_* pair from the firmware.
-    //
-    // build_volume is the stepper travel Klipper resolves from configfile
-    // (X[-2,256] Y[-2,265]), which is what build_volume_range scores against.
+    // reports itself. Its hostname names neither vendor nor model; the capture
+    // file records what actually identifies the machine.
     PrinterHardwareData elegoo_centauri_carbon_hardware() {
-        return PrinterHardwareData{
-            .heaters = {"extruder", "heater_bed"},
-            .sensors = {"temperature_sensor chamber", "temperature_sensor mcu_toolhead",
-                        "temperature_sensor mcu_bed", "temperature_host mainboard"},
-            .fans = {"heater_fan extruder", "fan", "fan_generic aux_fan", "fan_generic case_fan",
-                     "temperature_fan mainboard"},
-            .leds = {"led case", "led hotend"},
-            .hostname = "cosmos",
-            .printer_objects = {"configfile",
-                                "gcode_macro _COSMOS_SETTINGS",
-                                "gcode_macro SAVE_CONFIG",
-                                "print_stats",
-                                "virtual_sdcard",
-                                "pause_resume",
-                                "display_status",
-                                "gcode_macro _KAMP_Settings",
-                                "gcode_macro LINE_PURGE",
-                                "gcode_macro ELEGOO_PURGE",
-                                "gcode_macro SMART_PARK",
-                                "exclude_object",
-                                "bed_mesh",
-                                "probe",
-                                "load_cell_probe",
-                                "filament_switch_sensor filament_sensor",
-                                "led case",
-                                "led hotend",
-                                "temperature_sensor chamber",
-                                "fan_generic aux_fan",
-                                "fan_generic case_fan",
-                                "screws_tilt_adjust",
-                                "gcode_macro PRINT_START",
-                                "gcode_macro M191",
-                                "gcode_macro PRINT_END",
-                                "gcode_macro CLEAN_NOZZLE",
-                                "gcode_macro MOVE_TO_TRAY",
-                                "gcode_macro CUT_FILAMENT",
-                                "gcode_macro LOADCELL_Z_HOME",
-                                "gcode_macro CALIBRATE_Z_OFFSET",
-                                "gcode_macro BED_MESH_CALIBRATE",
-                                "gcode_macro M600",
-                                "gcode_macro _UPDATE_COSMOS"},
-            .steppers = {"stepper_x", "stepper_y", "stepper_z", "extruder"},
-            .kinematics = "corexy",
-            .mcu = "",
-            .mcu_list = {"stm32f401xc"},
-            .build_volume = {.x_min = -2, .x_max = 256, .y_min = -2, .y_max = 265, .z_max = 258}};
+        return printer_capture("elegoo_centauri_carbon");
     }
 };
 
@@ -579,15 +549,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: fan_combo missing one
 
 TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: Real FlashForge AD5M Pro fingerprint",
                  "[printer][real_world]") {
-    // Based on actual hardware discovery from FlashForge AD5M Pro
-    PrinterHardwareData hardware{
-        .heaters = {"extruder", "extruder1", "heater_bed"},
-        .sensors = {"tvocValue", "weightValue", "temperature_sensor chamber_temp",
-                    "temperature_sensor mcu_temp"},
-        .fans = {"fan", "fan_generic exhaust_fan", "heater_fan hotend_fan"},
-        .leds = {"led chamber_light"},
-        .hostname = "flashforge-ad5m-pro"};
-
+    auto hardware = printer_capture("flashforge_ad5m_pro_extended");
     auto result = PrinterDetector::detect(hardware);
 
     REQUIRE(result.detected());
@@ -842,15 +804,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     // motor_control), and corexy kinematics, yet detection returned confidence 0.
 
     // Realistic Creality K2 Plus fingerprint (from on-device Moonraker discovery).
-    PrinterHardwareData k2_plus{
-        .heaters = {"extruder", "heater_bed", "heater_generic chamber_heater"},
-        .sensors = {"temperature_sensor chamber_temp"},
-        .fans = {"fan", "heater_fan chamber_fan"},
-        .leds = {},
-        .hostname = "K2Plus-50C1",
-        .printer_objects = {"box", "motor_control", "fan_feedback", "load_ai", "filament_rack",
-                            "temperature_sensor chamber_temp", "heater_generic chamber_heater"},
-        .kinematics = "corexy"};
+    PrinterHardwareData k2_plus = printer_capture("creality_k2_plus");
 
     // First detection (e.g. the first printer's auto-detect) succeeds.
     auto first = PrinterDetector::detect(k2_plus);
@@ -2852,38 +2806,14 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 // ============================================================================
 
 namespace {
-// Stock Q2 hardware as reported by Klipper. `mcu` is left unset: the attached
-// config includes its MCU id from a separate file that was not captured.
+// Stock Q2 on 1.1.1 firmware (no M4029 macro). The 01.01.02+ generation adds
+// M4029, which the caller appends for that firmware.
 PrinterHardwareData stock_q2_hardware(bool with_m4029) {
-    std::vector<std::string> objects = {"heater_generic chamber",
-                                        "temperature_sensor Chamber_Thermal_Protection_Sensor",
-                                        "probe_air",
-                                        "multi_color_controller",
-                                        "z_tilt",
-                                        "bed_mesh",
-                                        "exclude_object",
-                                        "filament_switch_sensor filament_switch_sensor",
-                                        "output_pin caselight",
-                                        "gcode_macro M141",
-                                        "gcode_macro M191",
-                                        "gcode_macro CLEAR_NOZZLE"};
+    PrinterHardwareData hardware = printer_capture("qidi_q2_stock");
     if (with_m4029) {
-        objects.emplace_back("gcode_macro M4029");
+        hardware.printer_objects.emplace_back("gcode_macro M4029");
     }
-
-    return PrinterHardwareData{
-        .heaters = {"extruder", "heater_bed", "heater_generic chamber"},
-        .sensors = {"temperature_sensor Chamber_Thermal_Protection_Sensor"},
-        .fans = {"fan_generic cooling_fan", "heater_fan hotend_fan", "controller_fan chamber_fan",
-                 "controller_fan board_fan", "fan_generic chamber_circulation_fan",
-                 "fan_generic auxiliary_cooling_fan"},
-        .leds = {"output_pin caselight"},
-        .hostname = "linaro-alip",
-        .printer_objects = objects,
-        .steppers = {"stepper_x", "stepper_y", "stepper_z", "stepper_z1"},
-        .kinematics = "corexy",
-        .build_volume = {.x_min = 10, .x_max = 260, .y_min = 10, .y_max = 260, .z_max = 260},
-    };
+    return hardware;
 }
 } // namespace
 
@@ -3314,23 +3244,7 @@ TEST_CASE("PrinterDetector: telling a user their saved type is wrong needs at le
 TEST_CASE_METHOD(PrinterDetectorFixture,
                  "PrinterDetector: stock Max 4 fingerprint detects Qidi Max 4",
                  "[printer][qidi][max4]") {
-    PrinterHardwareData hardware{
-        .heaters = {"extruder", "heater_bed", "heater_generic chamber"},
-        .sensors = {"temperature_sensor Chamber_Thermal_Protection_Sensor"},
-        .fans = {"fan_generic cooling_fan", "heater_fan hotend_fan", "controller_fan chamber_fan",
-                 "controller_fan board_fan", "fan_generic chamber_circulation_fan",
-                 "fan_generic auxiliary_cooling_fan", "fan_generic auxiliary_cooling_fan2"},
-        .leds = {"output_pin caselight", "neopixel RGB"},
-        .hostname = "linaro-alip",
-        .printer_objects = {"heater_generic chamber", "probe_air", "z_tilt", "bed_mesh",
-                            "multi_color_controller", "gcode_macro M4029",
-                            "gcode_macro CLEAR_NOZZLE"},
-        .steppers = {"stepper_x", "stepper_y", "stepper_z", "stepper_z1"},
-        .kinematics = "corexy",
-        .mcu = "STM32F407",
-        .mcu_list = {"STM32F407"},
-        .build_volume = {.x_min = -2, .x_max = 392, .y_min = -5, .y_max = 410, .z_max = 342},
-    };
+    auto hardware = printer_capture("qidi_max4");
 
     auto result = PrinterDetector::detect(hardware);
 
@@ -5613,29 +5527,10 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
                  "PrinterDetector: reported Voron 2.4 rig outscores FlashForge",
                  "[printer][autosave][1284]") {
     // Fingerprint taken from a user's debug bundle: a Voron 2.4 that shipped
-    // labelled "FlashForge Adventurer 5M Pro". Two things make it hostile.
-    // The Klipper hostname is the printer's NAME, "White", so every Voron
-    // hostname heuristic (voron 75, v2.4 90, v2-4 90) misses. And the rig runs
-    // klipper-led_effect with 56 LED sections, several of which contain the
-    // AD5M Pro database pattern 'chamber_l' - 'neopixel chamber_leds',
-    // 'led_effect chamber_leveling', 'led_effect chamber_loading'.
-    PrinterHardwareData hardware{
-        .heaters = {"extruder", "heater_bed"},
-        .sensors = {"temperature_sensor chamber", "temperature_sensor Octopus",
-                    "temperature_sensor EBB36", "temperature_sensor Cartographer",
-                    "temperature_sensor RaspberryPi"},
-        .fans = {"fan", "fan_generic Nevermore", "fan_generic part_cooling_fan_secondary",
-                 "heater_fan exhaust_fan", "heater_fan hotend_fan"},
-        .leds = {"neopixel chamber_leds", "neopixel toolhead_leds", "led_effect chamber_leveling",
-                 "led_effect chamber_loading", "led_effect chamber_cleaning",
-                 "led_effect chamber_off", "led_effect toolhead_logo_homing"},
-        .hostname = "White",
-        .printer_objects = {"quad_gantry_level", "neopixel chamber_leds", "neopixel toolhead_leds",
-                            "led_effect chamber_leveling", "bed_mesh", "exclude_object"},
-        .steppers = {"stepper_x", "stepper_y", "stepper_z", "stepper_z1", "stepper_z2",
-                     "stepper_z3"},
-        .kinematics = "corexy",
-        .mcu = "stm32f429"};
+    // labelled "FlashForge Adventurer 5M Pro". The capture file records the
+    // two things that make it hostile: a hostname that names nothing Voron,
+    // and LED section names that contain the AD5M Pro 'chamber_l' pattern.
+    auto hardware = printer_capture("voron_2_4_qs846gmm");
 
     auto result = PrinterDetector::detect(hardware);
 
@@ -6017,38 +5912,11 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
                  "PrinterDetector: reported Voron Trident rig outscores FlashForge",
                  "[printer][autosave][1284]") {
     // Second reporter, different rig, same wrong label: a Voron Trident that
-    // shipped as "FlashForge Adventurer 5M Pro". The hostname is "vt-1899",
-    // which contains neither "voron" nor "trident", so every Voron hostname
-    // heuristic (voron 75, trident 90) misses - same blind spot as the
-    // QS846GMM rig above.
-    //
-    // The false-positive vector is DIFFERENT here, which is why this rig is
-    // worth pinning separately. QS846GMM matched the AD5M Pro pattern
-    // 'chamber_l' through its klipper-led_effect 'neopixel chamber_leds'.
-    // This rig has no led_effect config at all - it matches the same pattern
-    // through a plain 'output_pin Chamber_Light' chamber light, a name any
-    // enclosed custom build uses.
-    //
-    // Three Z steppers plus z_tilt and no quad_gantry_level is the Trident
-    // signature; the AFC/BoxTurtle and lane sensors are carried through as
-    // real-rig noise.
-    PrinterHardwareData hardware{
-        .heaters = {"extruder", "heater_bed", "heater_generic chamber"},
-        .sensors = {"temperature_sensor EBB36", "temperature_fan Pi", "tmc5160 stepper_x",
-                    "tmc5160 stepper_y", "temperature_sensor MCU",
-                    "temperature_sensor chamber_bottom", "temperature_sensor chamber",
-                    "temperature_sensor cartographer_coil", "temperature_sensor cartographer",
-                    "temperature_sensor BoxTurtle", "temperature_sensor OWLFC_Mini"},
-        .fans = {"fan", "heater_fan hotend_fan", "temperature_fan Pi", "fan_generic nevermore"},
-        .leds = {"neopixel sb_leds", "output_pin Chamber_Light"},
-        .hostname = "vt-1899",
-        .printer_objects = {"z_tilt", "bed_mesh", "exclude_object", "neopixel sb_leds",
-                            "output_pin Chamber_Light", "AFC", "AFC_stepper lane1",
-                            "filament_switch_sensor lane1", "filament_switch_sensor lane2"},
-        .steppers = {"stepper_x", "stepper_y", "stepper_z", "stepper_z1", "stepper_z2"},
-        .kinematics = "corexy",
-        .build_volume = {
-            .x_min = 0.0f, .x_max = 300.0f, .y_min = 0.0f, .y_max = 315.0f, .z_max = 310.0f}};
+    // shipped as "FlashForge Adventurer 5M Pro". Same hostname blind spot as
+    // the QS846GMM rig above, but a different false-positive vector: no
+    // led_effect config, just a plain 'output_pin Chamber_Light'. The capture
+    // file records the details.
+    auto hardware = printer_capture("voron_trident_tzt85mq3");
 
     auto result = PrinterDetector::detect(hardware);
 
@@ -6093,40 +5961,14 @@ TEST_CASE_METHOD(helix::VariantPresetFixture,
 
 namespace {
 
-// Elegoo Centauri Carbon on COSMOS firmware, from its objects.list. Its
-// hostname is "cosmos", which matches none of the database's Elegoo hostname
-// patterns, so it identifies on load_cell_probe alone and lands below the
-// auto-save bar.
+// Elegoo Centauri Carbon on COSMOS firmware, from its bare objects.list. The
+// capture file records why this snapshot lands below the auto-save bar.
 helix::PrinterDiscovery cc1_discovery() {
+    const nlohmann::json j = load_printer_capture("elegoo_centauri_carbon_objects_list");
     helix::PrinterDiscovery discovery;
-    discovery.parse_objects({"gcode",
-                             "webhooks",
-                             "configfile",
-                             "mcu",
-                             "mcu bed",
-                             "mcu hotend",
-                             "heaters",
-                             "heater_fan extruder",
-                             "fan",
-                             "heater_bed",
-                             "bed_mesh",
-                             "probe",
-                             "load_cell_probe",
-                             "filament_switch_sensor filament_sensor",
-                             "led case",
-                             "led hotend",
-                             "temperature_sensor chamber",
-                             "fan_generic aux_fan",
-                             "fan_generic case_fan",
-                             "temperature_sensor mcu_toolhead",
-                             "temperature_sensor mcu_bed",
-                             "temperature_host mainboard",
-                             "temperature_fan mainboard",
-                             "screws_tilt_adjust",
-                             "toolhead",
-                             "extruder"});
-    discovery.set_hostname("cosmos");
-    discovery.set_kinematics("corexy");
+    discovery.parse_objects(j.at("objects"));
+    discovery.set_hostname(j.value("hostname", std::string{}));
+    discovery.set_kinematics(j.value("kinematics", std::string{}));
     return discovery;
 }
 

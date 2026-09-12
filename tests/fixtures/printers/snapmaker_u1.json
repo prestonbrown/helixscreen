@@ -1,0 +1,13 @@
+{
+  "provenance": "Snapmaker U1, real machine capture (multi-extruder, RFID reader)",
+  "heaters": ["extruder", "extruder1", "extruder2", "extruder3", "heater_bed"],
+  "fans": ["fan", "fan_generic e1_fan", "fan_generic e2_fan", "fan_generic e3_fan"],
+  "hostname": "snapmaker-u1",
+  "printer_objects": ["fm175xx_reader", "gcode_macro FILAMENT_DT_UPDATE",
+                      "gcode_macro FILAMENT_DT_QUERY", "tool", "camera",
+                      "tmc2240 stepper_x", "purifier",
+                      "gcode_macro EXTRUDER_OFFSET_ACTION_PROBE_CALIBRATE_ALL"],
+  "kinematics": "cartesian",
+  "build_volume": {"x_min": 0, "x_max": 270, "y_min": 0, "y_max": 270, "z_max": 400},
+  "cpu_arch": "aarch64"
+}

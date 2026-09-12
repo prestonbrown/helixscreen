@@ -1,0 +1,23 @@
+{
+  "provenance": "Reported Voron 2.4 misdetection rig, fingerprint taken from a user's debug bundle (QS846GMM): a Voron 2.4 that shipped labelled 'FlashForge Adventurer 5M Pro'",
+  "notes": [
+    "The Klipper hostname is the printer's NAME, 'White', so every Voron hostname heuristic (voron 75, v2.4 90, v2-4 90) misses.",
+    "The rig runs klipper-led_effect; several LED section names contain the AD5M Pro database pattern 'chamber_l' - 'neopixel chamber_leds', 'led_effect chamber_leveling', 'led_effect chamber_loading'."
+  ],
+  "heaters": ["extruder", "heater_bed"],
+  "sensors": ["temperature_sensor chamber", "temperature_sensor Octopus",
+              "temperature_sensor EBB36", "temperature_sensor Cartographer",
+              "temperature_sensor RaspberryPi"],
+  "fans": ["fan", "fan_generic Nevermore", "fan_generic part_cooling_fan_secondary",
+           "heater_fan exhaust_fan", "heater_fan hotend_fan"],
+  "leds": ["neopixel chamber_leds", "neopixel toolhead_leds", "led_effect chamber_leveling",
+           "led_effect chamber_loading", "led_effect chamber_cleaning",
+           "led_effect chamber_off", "led_effect toolhead_logo_homing"],
+  "hostname": "White",
+  "printer_objects": ["quad_gantry_level", "neopixel chamber_leds", "neopixel toolhead_leds",
+                      "led_effect chamber_leveling", "bed_mesh", "exclude_object"],
+  "steppers": ["stepper_x", "stepper_y", "stepper_z", "stepper_z1", "stepper_z2",
+               "stepper_z3"],
+  "kinematics": "corexy",
+  "mcu": "stm32f429"
+}

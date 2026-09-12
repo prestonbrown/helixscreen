@@ -1,0 +1,10 @@
+{
+  "provenance": "Realistic Creality K2 Plus fingerprint from on-device Moonraker discovery (Sonic Pad; hostname K2Plus-50C1, 141 objects incl. box and motor_control)",
+  "heaters": ["extruder", "heater_bed", "heater_generic chamber_heater"],
+  "sensors": ["temperature_sensor chamber_temp"],
+  "fans": ["fan", "heater_fan chamber_fan"],
+  "hostname": "K2Plus-50C1",
+  "printer_objects": ["box", "motor_control", "fan_feedback", "load_ai", "filament_rack",
+                      "temperature_sensor chamber_temp", "heater_generic chamber_heater"],
+  "kinematics": "corexy"
+}
