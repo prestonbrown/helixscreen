@@ -778,7 +778,7 @@ void ToolState::request_tool_change(int tool_index, IMoonrakerAPI* api,
     // Klipper auto-defines Tn → ACTIVATE_EXTRUDER for plain multi-extruder,
     // and toolchanger plugins (ktcc, tapchanger, etc.) override Tn with
     // proper physical tool change logic.
-    std::string gcode = ::fmt::format("T{}", tool_index);
+    std::string gcode = helix::ui::tool_label(tool_index);
     spdlog::info("[ToolState] Requesting tool change to T{} via gcode", tool_index);
 
     api->execute_gcode(

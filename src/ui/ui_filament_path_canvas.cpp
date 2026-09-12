@@ -718,7 +718,7 @@ void format_tool_badge_label(const FilamentPathData* data, int lane, int fallbac
         snprintf(out, out_size, "E%d", helix::ui::lane_number(data->extruder_tool[lane]));
         return;
     }
-    snprintf(out, out_size, "T%d", fallback_tool);
+    snprintf(out, out_size, "%s", helix::ui::tool_label(fallback_tool).c_str());
 }
 
 } // namespace helix::ui::fpath

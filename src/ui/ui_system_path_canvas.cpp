@@ -1498,7 +1498,8 @@ void ui_system_path_canvas_set_current_tool(lv_obj_t* obj, int tool_index) {
         // disagree about *which* toolhead is meant (#1229), so the alias is the
         // only informative number available — an extruder identity here would be
         // a constant "E0". Multi-nozzle badges go through tool_labels[] instead.
-        snprintf(data->current_tool_label, sizeof(data->current_tool_label), "T%d", tool_index);
+        snprintf(data->current_tool_label, sizeof(data->current_tool_label), "%s",
+                 helix::ui::tool_label(tool_index).c_str());
     } else {
         data->current_tool_label[0] = '\0';
     }

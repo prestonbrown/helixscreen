@@ -1524,6 +1524,11 @@ run_tool_label_gate() {
     SCAN_ROOT="$1" bash "$BATS_TEST_DIRNAME/../../scripts/check_tool_labels.sh"
 }
 
+@test "no hand-built tool labels or lane/slot offsets in the real tree" {
+    run bash "$BATS_TEST_DIRNAME/../../scripts/check_tool_labels.sh"
+    [ "$status" -eq 0 ]
+}
+
 @test "the tool label gate catches each forbidden shape" {
     # Meta-test: a gate that cannot fail is not a gate.
     local d="${BATS_TEST_TMPDIR}/offenders"

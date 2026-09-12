@@ -4,6 +4,7 @@
 #include "ams_backend_qidi.h"
 
 #include "ams_error.h"
+#include "display_numbering.h"
 #include "macro_param_cache.h"
 #include "settings_manager.h"
 #include "slot_registry.h"
@@ -60,7 +61,7 @@ constexpr int QIDI_MAX_BOXES = 4;
 AmsUnit make_qidi_unit(int unit_index) {
     AmsUnit unit;
     unit.unit_index = unit_index;
-    unit.name = fmt::format("QIDI Box {}", unit_index + 1);
+    unit.name = fmt::format("QIDI Box {}", helix::ui::lane_number(unit_index));
     unit.display_name = unit.name;
     unit.slot_count = QIDI_SLOTS_PER_BOX;
     unit.first_slot_global_index = unit_index * QIDI_SLOTS_PER_BOX;

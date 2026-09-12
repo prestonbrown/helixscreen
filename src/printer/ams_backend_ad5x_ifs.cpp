@@ -2031,7 +2031,8 @@ AmsError AmsBackendAd5xIfs::do_unload_filament(int slot_index) {
         // exactly the "current channel" the zmod macro resolves internally.
         std::string cmd = "IFS_UNLOAD";
         if (slot_index >= 0) {
-            cmd += " SLOT=" + std::to_string(slot_index + 1);
+            cmd += " SLOT=";
+            cmd += std::to_string(slot_index + 1); // DISPLAY_NUMBERING_OK: gcode wire, not a label
         }
         result = execute_gcode(std::move(cmd), [this, token]() {
             token.defer("Ad5xIfsBackend::unload_macro_complete",
@@ -2869,8 +2870,10 @@ AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, 
             // module re-prefixes it on its side.
             char color_hex[7];
             snprintf(color_hex, sizeof(color_hex), "%06X", info.color_rgb & 0xFFFFFF);
-            auto err = execute_gcode("IFS_SET_MATERIAL SLOT=" + std::to_string(slot_index + 1) +
-                                     " TYPE=" + normalized_material + " COLOR=" + color_hex);
+            auto err = execute_gcode(
+                "IFS_SET_MATERIAL SLOT=" +
+                std::to_string(slot_index + 1) + // DISPLAY_NUMBERING_OK: gcode wire, not a label
+                " TYPE=" + normalized_material + " COLOR=" + color_hex);
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 dirty_[idx] = false;
@@ -3043,8 +3046,8 @@ AmsError AmsBackendAd5xIfs::set_tool_mapping_impl(int tool_number, int slot_inde
         if (slot_index < 0 || slot_index >= NUM_PORTS) {
             return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
         }
-        std::string verb = "IFS_MAP_TOOL TOOL=" + std::to_string(tool_number) +
-                           " SLOT=" + std::to_string(slot_index + 1);
+        std::string verb = "IFS_MAP_TOOL TOOL=" + std::to_string(tool_number) + " SLOT=";
+        verb += std::to_string(slot_index + 1); // DISPLAY_NUMBERING_OK: gcode wire, not a label
         return execute_gcode(verb);
     }
 

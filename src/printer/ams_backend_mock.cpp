@@ -8,6 +8,7 @@
 #include "ams_backend_snapmaker.h"
 #endif
 #include "ams_bypass_policy.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "hh_defaults.h"
 #include "runtime_config.h"
@@ -675,7 +676,8 @@ AmsError AmsBackendMock::load_filament(int slot_index) {
         // Start loading. Status string is 1-based to match the slot numbering
         // shown on the panel (slot circles 1..N); slot_index is 0-based.
         system_info_.action = AmsAction::LOADING;
-        system_info_.operation_detail = "Loading from slot " + std::to_string(slot_index + 1);
+        system_info_.operation_detail =
+            "Loading from slot " + std::to_string(helix::ui::lane_number(slot_index));
         filament_segment_ = PathSegment::SPOOL; // Start at spool
         spdlog::info("[AmsBackendMock] Loading from slot {}", slot_index);
     }
@@ -940,7 +942,8 @@ AmsError AmsBackendMock::select_gate(int slot_index) {
 
     if (system_info_.type == AmsType::HAPPY_HARE) {
         return simulate_transient_action(AmsAction::SELECTING,
-                                         "Selecting slot " + std::to_string(slot_index + 1));
+                                         "Selecting slot " +
+                                             std::to_string(helix::ui::lane_number(slot_index)));
     }
 
     return AmsErrorHelper::success();
@@ -986,7 +989,8 @@ AmsError AmsBackendMock::check_gate(int slot_index) {
 
     if (system_info_.type == AmsType::HAPPY_HARE) {
         return simulate_transient_action(AmsAction::CHECKING,
-                                         "Checking slot " + std::to_string(slot_index + 1));
+                                         "Checking slot " +
+                                             std::to_string(helix::ui::lane_number(slot_index)));
     }
 
     return AmsErrorHelper::success();
@@ -1311,7 +1315,8 @@ void AmsBackendMock::inject_mock_errors() {
             auto* entry = slots_.get_mut(last_slot);
             if (entry) {
                 SlotError err;
-                err.message = fmt::format("Lane {} load failed", entry->info.slot_index + 1);
+                err.message = fmt::format("Lane {} load failed",
+                                          helix::ui::lane_number(entry->info.slot_index));
                 err.severity = SlotError::ERROR;
                 entry->info.error = err;
             }
@@ -3317,7 +3322,8 @@ void AmsBackendMock::execute_load_operation(int slot_index,
 
         // Phase 2: LOADING with segment animation (1-based slot label; index is 0-based)
         spdlog::debug("[AmsBackendMock] Load phase: LOADING (segment animation)");
-        set_action(AmsAction::LOADING, "Loading from slot " + std::to_string(slot_index + 1));
+        set_action(AmsAction::LOADING,
+                   "Loading from slot " + std::to_string(helix::ui::lane_number(slot_index)));
         emit_event(EVENT_STATE_CHANGED);
     }
 
