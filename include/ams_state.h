@@ -1495,6 +1495,11 @@ class AmsState {
      * 3. S3: backend->set_slot_info() (firmware SET_SPOOL_ID gcode rides inside).
      * 4. S4+S7: sync_from_backend().
      *
+     * This is the method layer: it performs the edit against every backing
+     * store. helix::ams::commit_slot_edit() (lane_source_store.h) is the
+     * declaration layer, recording the user's authorship as a lane source
+     * record; wiring this method to call it is a later task's scope.
+     *
      * @return the AmsError from set_slot_info so callers keep their error toasts.
      */
     AmsError commit_slot_edit(int slot_index, const SlotInfo& original, const SlotInfo& info);

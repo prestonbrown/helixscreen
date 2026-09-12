@@ -8,6 +8,16 @@
 
 namespace helix::ams {
 
+struct LaneSources;
+
+/// The record slot @p source occupies on @p lane. The one mapping from
+/// ObservationSource to its LaneSources member; apply() and drop() both route
+/// through it, and every ObservationSource has a case above, so a missing one
+/// is a -Wswitch warning rather than a silent gap.
+[[nodiscard]] const std::optional<Observation>& record_for(const LaneSources& lane,
+                                                           ObservationSource source);
+[[nodiscard]] std::optional<Observation>& record_for(LaneSources& lane, ObservationSource source);
+
 /// The readings a lane currently holds, one slot per source. Sources are
 /// separate destinations, so a write to one cannot disturb another. What the
 /// UI shows is computed from these by resolve(), never stored back into them.
@@ -21,23 +31,7 @@ struct LaneSources {
     /// Replace this source's record with @p obs. Whole-record replacement, so a
     /// field a source stops reporting stops contributing.
     void apply(const Observation& obs) {
-        switch (obs.source) {
-        case ObservationSource::Sensed:
-            sensed = obs;
-            break;
-        case ObservationSource::Spoolman:
-            spoolman = obs;
-            break;
-        case ObservationSource::LocalUser:
-            local_user = obs;
-            break;
-        case ObservationSource::VendorCache:
-            vendor_cache = obs;
-            break;
-        case ObservationSource::Metered:
-            metered = obs;
-            break;
-        }
+        record_for(*this, obs.source) = obs;
     }
 
     /// Drop one source's record entirely. This covers a clear that discards
@@ -46,24 +40,29 @@ struct LaneSources {
     /// to a weaker source rather than dropped. No promotion/demotion operation
     /// exists for that case.
     void drop(ObservationSource s) {
-        switch (s) {
-        case ObservationSource::Sensed:
-            sensed.reset();
-            break;
-        case ObservationSource::Spoolman:
-            spoolman.reset();
-            break;
-        case ObservationSource::LocalUser:
-            local_user.reset();
-            break;
-        case ObservationSource::VendorCache:
-            vendor_cache.reset();
-            break;
-        case ObservationSource::Metered:
-            metered.reset();
-            break;
-        }
+        record_for(*this, s).reset();
     }
 };
+
+inline const std::optional<Observation>& record_for(const LaneSources& lane,
+                                                    ObservationSource source) {
+    switch (source) {
+    case ObservationSource::Sensed:
+        return lane.sensed;
+    case ObservationSource::Spoolman:
+        return lane.spoolman;
+    case ObservationSource::LocalUser:
+        return lane.local_user;
+    case ObservationSource::VendorCache:
+        return lane.vendor_cache;
+    case ObservationSource::Metered:
+        return lane.metered;
+    }
+}
+
+inline std::optional<Observation>& record_for(LaneSources& lane, ObservationSource source) {
+    return const_cast<std::optional<Observation>&>(
+        record_for(static_cast<const LaneSources&>(lane), source));
+}
 
 } // namespace helix::ams

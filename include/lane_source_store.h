@@ -9,10 +9,9 @@
 #include <mutex>
 #include <vector>
 
-class LaneSourceStoreTestAccess; // NAMESPACE_OK: matches the global-namespace class in
-                                 // tests/test_helpers/lane_source_store_test_access.h
-
 namespace helix::ams {
+
+class LaneSourceStoreTestAccess;
 
 /// A filament position anywhere on the printer. NOT a slot index: several
 /// backends coexist, so a bare slot index would put one backend's lane 0 on
@@ -23,6 +22,10 @@ using LaneId = int;
 /// a backend can have subjects for, so a lane that can be shown has an id.
 constexpr int LANES_PER_BACKEND = 16;
 
+/// The most backends this addressing scheme supports before a block would
+/// reach BYPASS_LANE_ID. Enforced below so the reserved ids stay reserved.
+constexpr int MAX_BACKENDS = 62;
+
 /// The bypass / external spool, which belongs to the printer rather than to a
 /// backend. Far above the backend blocks so adding backends never reaches it.
 constexpr LaneId BYPASS_LANE_ID = 1000;
@@ -31,22 +34,29 @@ constexpr LaneId BYPASS_LANE_ID = 1000;
 /// are lanes like any other and stop needing a parallel store.
 constexpr LaneId FIRST_TOOL_LANE_ID = 2000;
 
+static_assert(MAX_BACKENDS * LANES_PER_BACKEND <= BYPASS_LANE_ID,
+              "a backend block must not reach the bypass lane id");
+
 /// The lane id for @p slot_index on the backend registered at @p backend_index.
-/// AmsState::add_backend hands a backend its own index; a backend reaches this
-/// through AmsBackend::lane_id() rather than passing its index around.
+/// AmsState::add_backend hands a backend its own index, which combines with a
+/// slot index here to give the backend its own block of lane ids.
 [[nodiscard]] constexpr LaneId lane_id_for(int backend_index, int slot_index) {
     return backend_index * LANES_PER_BACKEND + slot_index;
 }
 
-/// The one way a non-UI source reaches a lane. Replaces this lane's record for
-/// obs.source whole and leaves every other source untouched. A field the
+/// The one way a non-UI source writes this store. Replaces this lane's record
+/// for obs.source whole and leaves every other source untouched. A field the
 /// source did not observe stops contributing, which is what keeps a stale
 /// frame from re-asserting a value its author has stopped standing behind.
 void ingest(LaneId lane, const Observation& obs);
 
-/// The one way a human edit reaches a lane. Unlike ingest(), this AMENDS the
-/// user's record field by field: a person states what they changed, and what
-/// they declared earlier still stands. obs.source must be LocalUser.
+/// The one way a human edit writes this store. Unlike ingest(), this AMENDS
+/// the user's record field by field: a person states what they changed, and
+/// what they declared earlier still stands. obs.source must be LocalUser.
+///
+/// This is the declaration layer: it records the user's authorship as a lane
+/// source record. AmsState::commit_slot_edit (ams_state.h) is the method
+/// layer that performs the edit against every backing store.
 void commit_slot_edit(LaneId lane, const Observation& obs);
 
 /// This lane's records, by value. An unwritten lane reads as nothing observed.
@@ -58,9 +68,8 @@ void commit_slot_edit(LaneId lane, const Observation& obs);
 /// Holds one LaneSources per lane for the life of the process.
 ///
 /// write() is private with exactly three friends: ingest(), commit_slot_edit()
-/// and ::LaneSourceStoreTestAccess. Those three are the only code that can
+/// and LaneSourceStoreTestAccess. Those three are the only code that can
 /// reach a lane's records; a fourth friend would be a third writer.
-/// Widening that friend list is what tests/shell/test_code_lint.bats watches for.
 class LaneSourceStore {
   public:
     static LaneSourceStore& instance();
@@ -80,7 +89,7 @@ class LaneSourceStore {
 
     friend void ingest(LaneId, const Observation&);
     friend void commit_slot_edit(LaneId, const Observation&);
-    friend class ::LaneSourceStoreTestAccess;
+    friend class LaneSourceStoreTestAccess;
 
     /// Backends parse on the main thread, but the Spoolman and database
     /// callbacks that will feed this in plan 4 land on an HTTP worker.

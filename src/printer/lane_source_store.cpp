@@ -2,61 +2,37 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lane_source_store.h"
 
-#include <spdlog/spdlog.h>
+#include "ams_state.h"
+
+#include <cstddef>
+#include <tuple>
+#include <utility>
 
 namespace helix::ams {
 
+static_assert(LANES_PER_BACKEND == AmsState::MAX_SLOTS,
+              "a lane must exist for every slot a backend can have subjects for");
+
 namespace {
 
-/// Copy every field @p from observed onto @p into, leaving the rest alone.
-/// Observation and ResolvedLane hold the same fields in different types
-/// (optional vs plain), so this list and the resolver's are separate walks of
-/// one field set rather than one shared loop.
-void merge_observed_fields(Observation& into, const Observation& from) {
-    if (from.present.has_value())
-        into.present = from.present;
-    if (from.color_rgb.has_value())
-        into.color_rgb = from.color_rgb;
-    if (from.color_name.has_value())
-        into.color_name = from.color_name;
-    if (from.material.has_value())
-        into.material = from.material;
-    if (from.brand.has_value())
-        into.brand = from.brand;
-    if (from.spool_name.has_value())
-        into.spool_name = from.spool_name;
-    if (from.catalog_id.has_value())
-        into.catalog_id = from.catalog_id;
-    if (from.product_name.has_value())
-        into.product_name = from.product_name;
-    if (from.spoolman_id.has_value())
-        into.spoolman_id = from.spoolman_id;
-    if (from.spoolman_vendor_id.has_value())
-        into.spoolman_vendor_id = from.spoolman_vendor_id;
-    if (from.remaining_weight_g.has_value())
-        into.remaining_weight_g = from.remaining_weight_g;
-    if (from.total_weight_g.has_value())
-        into.total_weight_g = from.total_weight_g;
-    if (from.echo_token.has_value())
-        into.echo_token = from.echo_token;
+template <typename IntoTuple, typename FromTuple, std::size_t... I>
+void merge_fields_impl(IntoTuple& into, const FromTuple& from, std::index_sequence<I...>) {
+    (
+        [&] {
+            if (std::get<I>(from).has_value())
+                std::get<I>(into) = std::get<I>(from);
+        }(),
+        ...);
 }
 
-/// The record slot @p s occupies on @p lane. No default: a source added to
-/// ObservationSource later must fail this switch to compile, not fall through
-/// to the wrong record.
-const std::optional<Observation>& record_for(const LaneSources& lane, ObservationSource s) {
-    switch (s) {
-    case ObservationSource::Sensed:
-        return lane.sensed;
-    case ObservationSource::Spoolman:
-        return lane.spoolman;
-    case ObservationSource::LocalUser:
-        return lane.local_user;
-    case ObservationSource::VendorCache:
-        return lane.vendor_cache;
-    case ObservationSource::Metered:
-        return lane.metered;
-    }
+/// Copy every field @p from has observed onto @p into, leaving the rest
+/// alone. Folds over Observation::fields() so a field added there is amended
+/// automatically, with no matching line to add here.
+void merge_observed_fields(Observation& into, const Observation& from) {
+    auto into_fields = into.fields();
+    auto from_fields = from.fields();
+    merge_fields_impl(into_fields, from_fields,
+                      std::make_index_sequence<std::tuple_size_v<decltype(into_fields)>>{});
 }
 
 } // namespace
@@ -89,9 +65,8 @@ std::vector<LaneId> LaneSourceStore::lanes() const {
     std::lock_guard<std::mutex> lock(mutex_);
     std::vector<LaneId> out;
     out.reserve(lanes_.size());
-    for (const auto& [id, unused] : lanes_) {
-        (void)unused;
-        out.push_back(id);
+    for (const auto& entry : lanes_) {
+        out.push_back(entry.first);
     }
     return out;
 }

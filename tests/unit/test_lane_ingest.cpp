@@ -61,8 +61,12 @@ TEST_CASE_METHOD(HelixTestFixture, "lanes are independent destinations", "[lane]
     b.present = false;
     ingest(1, b);
 
-    CHECK(lane_sources(0).sensed->present == true);
-    CHECK(lane_sources(1).sensed->present == false);
+    const auto lane0 = lane_sources(0);
+    const auto lane1 = lane_sources(1);
+    REQUIRE(lane0.sensed.has_value());
+    REQUIRE(lane1.sensed.has_value());
+    CHECK(lane0.sensed->present == true);
+    CHECK(lane1.sensed->present == false);
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "an unseen lane reads as nothing observed", "[lane][ingest]") {
@@ -88,6 +92,11 @@ TEST_CASE("a lane id names one backend's slot and nothing else", "[lane][ingest]
     // The printer-level ids sit clear of every backend block.
     CHECK(helix::ams::BYPASS_LANE_ID > lane_id_for(60, 15));
     CHECK(helix::ams::FIRST_TOOL_LANE_ID > helix::ams::BYPASS_LANE_ID);
+
+    // The last backend and slot this scheme supports still sits below the
+    // bypass id, pinning the boundary MAX_BACKENDS exists to hold.
+    CHECK(lane_id_for(helix::ams::MAX_BACKENDS - 1, helix::ams::LANES_PER_BACKEND - 1) <
+          helix::ams::BYPASS_LANE_ID);
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "known_lanes lists every lane that has been written",
@@ -101,4 +110,30 @@ TEST_CASE_METHOD(HelixTestFixture, "known_lanes lists every lane that has been w
     REQUIRE(lanes.size() == 2);
     CHECK(lanes[0] == 0);
     CHECK(lanes[1] == 3);
+}
+
+TEST_CASE("every ObservationSource round-trips to its own LaneSources member", "[lane]") {
+    const ObservationSource sources[] = {
+        ObservationSource::Sensed, ObservationSource::Spoolman, ObservationSource::LocalUser,
+        ObservationSource::VendorCache, ObservationSource::Metered};
+
+    for (ObservationSource s : sources) {
+        helix::ams::LaneSources lane;
+        Observation obs(s);
+        obs.present = true;
+        lane.apply(obs);
+
+        CHECK(lane.sensed.has_value() == (s == ObservationSource::Sensed));
+        CHECK(lane.spoolman.has_value() == (s == ObservationSource::Spoolman));
+        CHECK(lane.local_user.has_value() == (s == ObservationSource::LocalUser));
+        CHECK(lane.vendor_cache.has_value() == (s == ObservationSource::VendorCache));
+        CHECK(lane.metered.has_value() == (s == ObservationSource::Metered));
+
+        lane.drop(s);
+        CHECK_FALSE(lane.sensed.has_value());
+        CHECK_FALSE(lane.spoolman.has_value());
+        CHECK_FALSE(lane.local_user.has_value());
+        CHECK_FALSE(lane.vendor_cache.has_value());
+        CHECK_FALSE(lane.metered.has_value());
+    }
 }

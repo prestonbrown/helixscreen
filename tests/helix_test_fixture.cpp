@@ -302,7 +302,7 @@ void HelixTestFixture::reset_all() {
     // Lane source records are process-wide and are written by backends, so a
     // lane one test populated would read back in the next as a reading nobody
     // took.
-    LaneSourceStoreTestAccess::clear();
+    helix::ams::LaneSourceStoreTestAccess::clear();
 
     // PrintStatusWidget's DetailedFormatter used to be torn down here for the
     // reason described below, and no longer needs to be: its PrinterState
