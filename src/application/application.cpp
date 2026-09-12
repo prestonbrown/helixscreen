@@ -2886,6 +2886,9 @@ void Application::maybe_warn_type_mismatch(const helix::PrinterDiscovery& hardwa
     };
     opts.cancel_text = lv_tr("Keep current");
     opts.owner_token = m_async_lifetime.token();
+    // No on_dismiss, deliberately: a backdrop tap or ESC is not an answer, so
+    // the prompt stays armed for the next boot. Only a button settles it, and
+    // an accidental tap must not permanently silence a wrong-printer warning.
 
     helix::ui::modal_confirm(
         lv_tr("Printer type mismatch"), body.c_str(), ModalSeverity::Warning, lv_tr("Choose Model"),
