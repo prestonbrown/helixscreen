@@ -1121,12 +1121,22 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
 
     auto idx = static_cast<size_t>(slot_index);
 
-    // Color: parse hex string to uint32_t
+    // Color: parse hex string to uint32_t. observed_color is what this call
+    // read out of colors_[idx], and it is the ONLY firmware-truth colour in
+    // scope below - entry->info.color_rgb stops being one the moment
+    // apply_overrides() has run over this persistent SlotInfo once.
+    //
+    // colors_[idx] is not guaranteed to be hex: parse_adventurer_json stores
+    // ffmColorN as the printer sent it, minus a leading '#'. A string that will
+    // not parse is therefore no reading at all, and must yield nothing rather
+    // than whatever value happens to be sitting in entry->info.color_rgb.
+    std::optional<uint32_t> observed_color;
     if (!colors_[idx].empty()) {
         try {
-            entry->info.color_rgb = static_cast<uint32_t>(std::stoul(colors_[idx], nullptr, 16));
+            observed_color = static_cast<uint32_t>(std::stoul(colors_[idx], nullptr, 16));
+            entry->info.color_rgb = *observed_color;
         } catch (...) {
-            // Invalid hex — leave color unchanged
+            // Leave color_rgb alone so the last good colour stays on screen.
         }
     }
 
@@ -1171,27 +1181,17 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
     // Reverse tool mapping: find first tool that maps to this port
     entry->info.mapped_tool = find_first_tool_for_port(slot_index + 1);
 
-    // External-edit detection MUST run BEFORE apply_overrides. entry->info
-    // .color_rgb is firmware-truth here IF colors_[idx] was non-empty above;
-    // after apply_overrides it would be masked by the (possibly stale)
-    // override and we'd miss the delta vs. the prior firmware baseline.
+    // External-edit detection MUST run BEFORE apply_overrides: it compares a
+    // firmware reading against the last firmware baseline, and apply_overrides
+    // masks entry->info with the (possibly stale) override.
     //
-    // When colors_[idx] is empty we have NO firmware reading yet —
-    // entry->info.color_rgb is whatever was left there by the SlotInfo
-    // default (AMS_DEFAULT_SLOT_COLOR / 0x808080) or a prior apply_overrides
-    // leak. Pass nullopt (the helper's explicit "no reading" signal) so we
-    // don't establish a phantom baseline that would later be misread as an
-    // external edit. Boot path: parse_save_variables / handle_status_update
-    // call update_slot_from_state BEFORE parse_adventurer_json fills in
-    // colors_[]; pre-fix this populated a 0x808080 baseline, then the first
-    // real parse triggered a bogus sync.
+    // observed_color is nullopt whenever this call read no colour at all: an
+    // empty colors_[idx] (parse_save_variables / handle_status_update run
+    // before parse_adventurer_json fills it), or a string that would not parse.
+    // That is the helper's explicit "no reading" signal, and it establishes no
+    // baseline, so a genuine later reading is not misread as an external edit.
+    // Any uint32_t inside the optional IS a reading, 0 for pure black included.
     //
-    // When colors_[idx] is non-empty, pass the parsed value AS-IS — including
-    // 0 for pure black. The helper accepts any uint32_t inside the optional
-    // as a real reading; only nullopt means "no reading" (replaces the prior
-    // ambiguous 0-as-no-signal sentinel that silently dropped black).
-    std::optional<uint32_t> observed_color =
-        colors_[idx].empty() ? std::nullopt : std::optional<uint32_t>{entry->info.color_rgb};
     // Pass slot_has_filament so the helper skips creating a phantom override
     // when a slot read came back as the empty-placeholder #808080 — the eject
     // path in parse_adventurer_json clears the override explicitly.
@@ -1201,10 +1201,12 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
     // stale and mask firmware truth (#981/#1065 — color updated, type stuck).
     check_external_type_change(slot_index, materials_[idx], observed_color, port_presence_[idx]);
 
-    // Translate this frame's signal into the lane source model. Everything read
-    // here is a value this call just parsed, never entry->info: apply_overrides
-    // rewrites that struct in place, so from the second frame on it carries the
-    // override store's content rather than the board's.
+    // Translate this frame's signal into the lane source model. Every value
+    // read here is one this call produced, never entry->info: apply_overrides
+    // rewrites that struct in place, so reading it back files the override
+    // store's content as something the board reported. What makes this correct
+    // is the values, not the position - the same block one line lower, reading
+    // entry->info, would launder every user edit into a vendor reading.
     {
         helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
         // port_presence_ reads false on every lane until a sensor has actually
