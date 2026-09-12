@@ -3,6 +3,7 @@
 #include "nozzle_temps_widget.h"
 
 #include "ui_icon.h"
+#include "ui_icon_codepoints.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_temperature_utils.h"
 #include "ui_update_queue.h"
@@ -16,6 +17,7 @@
 #include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
+#include "static_subject_registry.h"
 #include "theme_manager.h"
 #include "tool_state.h"
 
@@ -26,6 +28,63 @@
 #include <set>
 #include <string>
 
+namespace {
+
+// The published layout verdict, read by bind_flag_if / bind_style_if in
+// nozzle_temp_row.xml, nozzle_temp_bed_row.xml and panel_widget_nozzle_temps.xml.
+// Module-level (not members): the verdict belongs to the widget KIND, rows
+// read the CURRENT values the moment they are created, and registration rides
+// SubjectInitializer's panel-subject phase so the subjects exist before any
+// XML that binds them is parsed. Values mirror decide_nozzle_layout()'s
+// output: label_mode is NozzleLabelMode's int (0=none 1=number 2=short
+// 3=long), columns is 1 or 2, compact is 0 or 1.
+lv_subject_t s_label_mode_subject;
+lv_subject_t s_columns_subject;
+lv_subject_t s_compact_font_subject;
+bool s_subjects_initialized = false;
+
+void nozzle_temps_widget_init_subjects() {
+    if (s_subjects_initialized)
+        return;
+
+    lv_subject_init_int(&s_label_mode_subject,
+                        static_cast<int>(helix::NozzleLabelMode::Long)); // the degenerate default
+    lv_xml_register_subject(nullptr, "nozzle_row_label_mode", &s_label_mode_subject);
+    lv_subject_init_int(&s_columns_subject, 1);
+    lv_xml_register_subject(nullptr, "nozzle_row_columns", &s_columns_subject);
+    lv_subject_init_int(&s_compact_font_subject, 0);
+    lv_xml_register_subject(nullptr, "nozzle_row_compact", &s_compact_font_subject);
+    s_subjects_initialized = true;
+
+    StaticSubjectRegistry::instance().register_deinit("NozzleTempsWidgetSubjects", []() {
+        if (s_subjects_initialized && lv_is_initialized()) {
+            lv_subject_deinit(&s_compact_font_subject);
+            lv_subject_deinit(&s_columns_subject);
+            lv_subject_deinit(&s_label_mode_subject);
+            s_subjects_initialized = false;
+        }
+    });
+}
+
+/// The two strings a row's value shows: the current temperature and, when a
+/// target is set, the target half; "off" otherwise. Composed once, shared by
+/// the code that renders it (update_row_display) and the code that measures
+/// it (on_size_changed) — if the two ever drift, the ladder decides on widths
+/// the row does not draw.
+std::pair<std::string, std::string> value_halves(int temp_deci, int target_deci) {
+    char num_buf[16];
+    helix::ui::temperature::format_temp_number(helix::ui::temperature::deci_to_degrees_f(temp_deci),
+                                               num_buf, sizeof(num_buf));
+    std::string current = std::string(num_buf) + "\xC2\xB0";
+    if (target_deci <= 0)
+        return {current, lv_tr("off")};
+    helix::ui::temperature::format_temp_number(
+        helix::ui::temperature::deci_to_degrees_f(target_deci), num_buf, sizeof(num_buf));
+    return {current, "/ " + std::string(num_buf) + "\xC2\xB0"};
+}
+
+} // namespace
+
 namespace helix {
 
 void register_nozzle_temps_widget() {
@@ -33,6 +92,7 @@ void register_nozzle_temps_widget() {
         auto& ps = get_printer_state();
         return std::make_unique<NozzleTempsWidget>(ps);
     });
+    register_widget_subjects("nozzle_temps", nozzle_temps_widget_init_subjects);
 }
 
 } // namespace helix
@@ -113,7 +173,9 @@ void NozzleTempsWidget::on_hooked_root_deleted() {
 void NozzleTempsWidget::forget_row_widgets() {
     for (auto& row : extruder_rows_) {
         row.row_obj = nullptr;
-        row.tool_label = nullptr;
+        row.label_long = nullptr;
+        row.label_short = nullptr;
+        row.label_number = nullptr;
         row.temp_label = nullptr;
         row.target_label = nullptr;
     }
@@ -229,10 +291,19 @@ void NozzleTempsWidget::rebuild_rows() {
                     if (token.expired())
                         return;
                     if (idx < self->extruder_rows_.size()) {
+                        const bool had_target = self->extruder_rows_[idx].cached_target > 0;
                         self->extruder_rows_[idx].cached_target = target;
                         self->update_row_display(temp_lbl, target_lbl,
                                                  self->extruder_rows_[idx].cached_temp, target,
                                                  false);
+                        // The ladder budgets the value's two shapes — target
+                        // set and target off — and a tile sized under one
+                        // shape must re-decide under the other: setting a
+                        // target widens every row past the rung chosen while
+                        // idle. The transition is the only moment the value's
+                        // WIDTH CLASS changes, so it is the only re-decide.
+                        if (had_target != (target > 0))
+                            self->relayout_for_granted_size();
                     }
                 },
                 row.target_lifetime);
@@ -273,9 +344,12 @@ void NozzleTempsWidget::rebuild_rows() {
             [token](NozzleTempsWidget* self, int target) {
                 if (token.expired())
                     return;
+                const bool had_target = self->cached_bed_target_ > 0;
                 self->cached_bed_target_ = target;
                 self->update_row_display(self->bed_temp_label_, self->bed_target_label_,
                                          self->cached_bed_temp_, target, true);
+                if (had_target != (target > 0))
+                    self->relayout_for_granted_size();
             },
             bed_target_lifetime_);
     }
@@ -311,7 +385,7 @@ int measure_text_px(const char* txt, const lv_font_t* font) {
 
 } // namespace
 
-void NozzleTempsWidget::on_size_changed(int colspan, int rowspan, int width_px, int /*height_px*/) {
+void NozzleTempsWidget::on_size_changed(int colspan, int rowspan, int width_px, int height_px) {
     if (!widget_obj_)
         return;
 
@@ -322,118 +396,142 @@ void NozzleTempsWidget::on_size_changed(int colspan, int rowspan, int width_px, 
     const int pad_x = theme_manager_get_spacing("space_xs"); // root style_pad_all per side
     const int avail_px = width_px - 2 * pad_x;
 
-    // Pre-layout / degenerate width: fall back to single full-width column with
-    // long labels rather than dividing by an unknown width.
+    // Pre-layout / degenerate width: publish the same single-column long-label
+    // default decide_nozzle_layout() returns, rather than dividing by an
+    // unknown width.
     if (width_px <= 0 || avail_px <= 0) {
-        use_long_label_ = true;
-        lv_obj_set_style_flex_flow(container, LV_FLEX_FLOW_COLUMN, 0);
-        lv_obj_set_style_pad_column(container, 0, 0);
-        lv_obj_set_style_flex_main_place(container, LV_FLEX_ALIGN_START, 0);
-        for (auto& row : extruder_rows_) {
-            if (row.row_obj)
-                lv_obj_set_width(row.row_obj, lv_pct(100));
-            if (row.tool_label)
-                lv_label_set_text(row.tool_label, row.long_name.c_str());
-        }
-        if (bed_row_) {
-            lv_obj_set_width(bed_row_, lv_pct(100));
-            lv_obj_set_style_border_width(bed_row_, 1, 0);
-            lv_obj_set_style_pad_top(bed_row_, theme_manager_get_spacing("space_xxs"), 0);
-        }
+        lv_subject_set_int(&s_label_mode_subject, static_cast<int>(NozzleLabelMode::Long));
+        lv_subject_set_int(&s_columns_subject, 1);
+        lv_subject_set_int(&s_compact_font_subject, 0);
         spdlog::debug("[NozzleTempsWidget] on_size_changed {}x{} avail={} (pre-layout fallback)",
                       colspan, rowspan, avail_px);
         return;
     }
 
-    // Measure against the font the widget actually renders text_small as.
-    const lv_font_t* font = theme_manager_get_font("font_xs");
+    // text_small renders in font_small (ui_text.cpp#ui_text_small_create), so that
+    // is the font a row's text has to be measured in. font_xs is the compact rung.
+    const lv_font_t* normal_font = theme_manager_get_font("font_small");
+    const lv_font_t* compact_font = theme_manager_get_font("font_xs");
 
-    // Widest label (long and short) across all extruder rows, plus the bed
-    // label which shares the same row geometry.
-    int widest_long_px = 0;
-    int widest_short_px = 0;
-    for (const auto& row : extruder_rows_) {
-        widest_long_px = std::max(widest_long_px, measure_text_px(row.long_name.c_str(), font));
-        widest_short_px = std::max(widest_short_px, measure_text_px(row.short_name.c_str(), font));
-    }
-    const int bed_label_px = measure_text_px(lv_tr("Bed"), font);
-    widest_long_px = std::max(widest_long_px, bed_label_px);
-    widest_short_px = std::max(widest_short_px, bed_label_px);
+    // Every row leads with a size="xs" icon, which draws from the MDI font rather
+    // than the text font and so keeps its width when the text shrinks. The bed's
+    // glyph shares the row geometry, so the wider of the two sets the leading box.
+    const lv_font_t* icon_font = theme_manager_get_font("icon_font_xs");
+    const int icon_px =
+        std::max(measure_text_px(helix::ui::icon::lookup_codepoint("heater"), icon_font),
+                 measure_text_px(helix::ui::icon::lookup_codepoint("radiator"), icon_font));
 
-    // A representative widest value string so the column decision is stable
-    // regardless of the current temperatures shown.
-    const int widest_value_px = measure_text_px("888\xC2\xB0 / 888\xC2\xB0", font);
-
+    const int icon_label_gap = theme_manager_get_spacing("space_xs"); // tool_left_group pad_column
+    const int label_floor = theme_manager_get_spacing("space_xl");    // tool_label style_min_width
     const int label_value_gap = theme_manager_get_spacing("space_sm");
+    // Breathing room so a measured fit is never an exact fit: text
+    // measurement and rendered width disagree by a pixel or three, and a row
+    // budgeted to the last pixel renders as an overlap.
     const int comfort_margin = theme_manager_get_spacing("space_md");
+    const int bare_margin = theme_manager_get_spacing("space_xxs");
     const int gap_px = theme_manager_get_spacing("space_md"); // gap between two side-by-side rows
 
-    const int long_row_px = widest_long_px + label_value_gap + widest_value_px + comfort_margin;
-    const int short_row_px = widest_short_px + label_value_gap + widest_value_px + comfort_margin;
+    // What a whole row costs in one font. The label box never shrinks below its
+    // style_min_width, so a spelling narrower than the floor buys nothing; and a
+    // hidden label is dropped from the flex row along with its gap, which is why
+    // the icon rung is the icon plus the value and nothing between them. The
+    // number rung has no floor to respect — its label carries no min_width.
+    auto row_widths = [&](const lv_font_t* font) {
+        int widest_long_px = 0;
+        int widest_short_px = 0;
+        int widest_number_px = 0;
+        for (const auto& row : extruder_rows_) {
+            widest_long_px = std::max(widest_long_px, measure_text_px(row.long_name.c_str(), font));
+            widest_short_px =
+                std::max(widest_short_px, measure_text_px(row.short_name.c_str(), font));
+            widest_number_px =
+                std::max(widest_number_px, measure_text_px(row.number_name.c_str(), font));
+        }
+        // "1" is the narrowest number any row can show, so the rung's width is
+        // honest even before the first tool is discovered.
+        widest_number_px = std::max(widest_number_px, measure_text_px("1", font));
+        const int bed_label_px = measure_text_px(lv_tr("Bed"), font);
+        widest_long_px = std::max({widest_long_px, bed_label_px, label_floor});
+        widest_short_px = std::max({widest_short_px, bed_label_px, label_floor});
+
+        // The value measured as the strings the rows actually show, via the
+        // same composer update_row_display renders from — measurement and
+        // rendering cannot drift apart. The floor is the off state.
+        const int value_group_pad = theme_manager_get_spacing("space_xxs");
+        auto halves_px = [&](int temp_deci, int target_deci) {
+            const auto [current, target] = value_halves(temp_deci, target_deci);
+            const int current_px = measure_text_px(current.c_str(), font);
+            return std::pair{current_px, measure_text_px(target.c_str(), font)};
+        };
+        auto [floor_current, floor_target] = halves_px(0, 0);
+        int value_px = floor_current + value_group_pad + floor_target;
+        int current_only_px = floor_current;
+        for (const auto& row : extruder_rows_) {
+            const auto [current_px, target_px] = halves_px(row.cached_temp, row.cached_target);
+            value_px = std::max(value_px, current_px + value_group_pad + target_px);
+            current_only_px = std::max(current_only_px, current_px);
+        }
+        {
+            const auto [current_px, target_px] = halves_px(cached_bed_temp_, cached_bed_target_);
+            value_px = std::max(value_px, current_px + value_group_pad + target_px);
+            current_only_px = std::max(current_only_px, current_px);
+        }
+
+        NozzleRowWidths w;
+        // The comfort margin belongs to the spelling rungs: text measurement
+        // and rendered width disagree by a few pixels, and a spelling
+        // budgeted to the last pixel renders as an overlap. The number and
+        // icon rungs are the degradation rungs: the row HIDES the target half
+        // there (one tap away in the graph overlay), so their width budget is
+        // the current half alone plus the minimal slack — which is what keeps
+        // a 2-unit column in the normal font while a print is running.
+        const int text_tail = label_value_gap + value_px + comfort_margin;
+        const int bare_tail = label_value_gap + current_only_px + bare_margin;
+        w.long_px = icon_px + icon_label_gap + widest_long_px + text_tail;
+        w.short_px = icon_px + icon_label_gap + widest_short_px + text_tail;
+        w.number_px = icon_px + icon_label_gap + widest_number_px + bare_tail;
+        w.icon_px = icon_px + bare_tail;
+        return w;
+    };
+
+    const NozzleRowWidths normal = row_widths(normal_font);
+    const NozzleRowWidths compact = row_widths(compact_font);
+
+    // Per-line heights at each font: the base is the title plus the tile's
+    // vertical padding plus one render-rounding pixel (the rendered tree
+    // lands a pixel over the arithmetic, and a tier chosen on a stack that
+    // fits to the exact pixel scrolls by it); a row line is its font's line
+    // height plus the inter-row pad. The ladder folds in the column count —
+    // two columns wrap the rows, so a wide short tile keeps the normal font.
+    const int avail_h = height_px - 2 * pad_x;
+    auto row_line_px = [&](const lv_font_t* font) {
+        const int line =
+            std::max(lv_font_get_line_height(font), lv_font_get_line_height(icon_font));
+        return line + theme_manager_get_spacing("space_xxs"); // container pad_row
+    };
+    const NozzleStackHeights stack{lv_font_get_line_height(normal_font) +
+                                       theme_manager_get_spacing("space_xxs") + 1,
+                                   row_line_px(normal_font), row_line_px(compact_font)};
 
     const NozzleLayoutDecision decision = decide_nozzle_layout(
-        avail_px, gap_px, long_row_px, short_row_px, static_cast<int>(extruder_rows_.size()));
-    use_long_label_ = decision.use_long_label;
+        avail_px, avail_h, gap_px, normal, compact, static_cast<int>(extruder_rows_.size()), stack);
 
-    if (decision.columns == 2) {
-        lv_obj_set_style_flex_flow(container, LV_FLEX_FLOW_ROW_WRAP, 0);
-        lv_obj_set_style_pad_column(container, gap_px, 0);
-        lv_obj_set_style_flex_main_place(container, LV_FLEX_ALIGN_SPACE_BETWEEN, 0);
-        for (auto& row : extruder_rows_) {
-            if (row.row_obj)
-                lv_obj_set_width(row.row_obj, lv_pct(48));
-        }
-        if (bed_row_) {
-            lv_obj_set_width(bed_row_, lv_pct(48));
-            // Remove divider border + its top padding in two-column layout
-            lv_obj_set_style_border_width(bed_row_, 0, 0);
-            lv_obj_set_style_pad_top(bed_row_, 0, 0);
-        }
-    } else {
-        lv_obj_set_style_flex_flow(container, LV_FLEX_FLOW_COLUMN, 0);
-        lv_obj_set_style_pad_column(container, 0, 0);
-        lv_obj_set_style_flex_main_place(container, LV_FLEX_ALIGN_START, 0);
-        for (auto& row : extruder_rows_) {
-            if (row.row_obj)
-                lv_obj_set_width(row.row_obj, lv_pct(100));
-        }
-        if (bed_row_) {
-            lv_obj_set_width(bed_row_, lv_pct(100));
-            lv_obj_set_style_border_width(bed_row_, 1, 0);
-            lv_obj_set_style_pad_top(bed_row_, theme_manager_get_spacing("space_xxs"), 0);
-        }
-    }
+    // The whole verdict goes out as subjects; nozzle_temp_row.xml,
+    // nozzle_temp_bed_row.xml and panel_widget_nozzle_temps.xml bind every
+    // appearance (which labels are hidden, the row widths, the container flow,
+    // the compact font) off them. Rows created later read the current values
+    // at creation, so a late rebuild can never disagree with its siblings.
+    lv_subject_set_int(&s_label_mode_subject, static_cast<int>(decision.label_mode));
+    lv_subject_set_int(&s_columns_subject, decision.columns);
+    lv_subject_set_int(&s_compact_font_subject, decision.use_compact_font ? 1 : 0);
 
-    // Whether the text shrinks is its own decision: the column has to be too
-    // narrow for the row it is about to draw, which is not the same question as
-    // which spelling won.
-    const lv_font_t* text_font =
-        decision.use_compact_font ? theme_manager_get_font("font_xs") : nullptr;
-    if (text_font) {
-        auto set_font = [text_font](lv_obj_t* lbl) {
-            if (lbl)
-                lv_obj_set_style_text_font(lbl, text_font, LV_PART_MAIN);
-        };
-        for (auto& row : extruder_rows_) {
-            set_font(row.temp_label);
-            set_font(row.target_label);
-        }
-        set_font(bed_temp_label_);
-        set_font(bed_target_label_);
-    }
-
-    // Core fix: short label ("T0") when cramped, long label ("Nozzle 1") only
-    // when the column is wide enough to hold it.
-    for (auto& row : extruder_rows_) {
-        if (!row.tool_label)
-            continue;
-        const std::string& text = decision.use_long_label ? row.long_name : row.short_name;
-        lv_label_set_text(row.tool_label, text.c_str());
-    }
-
-    spdlog::debug("[NozzleTempsWidget] on_size_changed {}x{} avail={} cols={} long={} compact={}",
-                  colspan, rowspan, avail_px, decision.columns, decision.use_long_label,
-                  decision.use_compact_font);
+    spdlog::debug("[NozzleTempsWidget] on_size_changed {}x{} avail={}x{} cols={} mode={} "
+                  "compact={} widths n[l{}] s[{}#{}i{}] c[l{} s{} #{} i{}] stack b{} rn{} rc{}",
+                  colspan, rowspan, avail_px, avail_h, decision.columns,
+                  static_cast<int>(decision.label_mode), decision.use_compact_font, normal.long_px,
+                  normal.short_px, normal.number_px, normal.icon_px, compact.long_px,
+                  compact.short_px, compact.number_px, compact.icon_px, stack.base_px,
+                  stack.row_normal_px, stack.row_compact_px);
 }
 
 void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& row) {
@@ -461,16 +559,17 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
 
     row.short_name = std::move(short_name);
     row.long_name = std::move(long_name);
+    // The number rung: the 1-based display number, the one label that fits
+    // where no spelling does and still tells four icon rows apart.
+    row.number_name = helix::ui::lane_number_text(static_cast<int>(extruder_rows_.size()));
 
-    // A row built by a rebuild that happens after the widget already knows its
-    // real pixel width (e.g. late tool discovery) reuses that width's label
-    // decision (use_long_label_, last set by decide_nozzle_layout() in
-    // on_size_changed) rather than a span, so it never disagrees with the
-    // rows already on screen.
-    const std::string& initial_label = use_long_label_ ? row.long_name : row.short_name;
-
-    // Create row from XML template — layout, fonts, colors are all declarative
-    const char* attrs[] = {"tool_name", initial_label.c_str(), nullptr};
+    // Create row from XML template. All three spellings are written once as
+    // data; which one shows, the row width and the font are bound off the
+    // layout subjects, so the row reads the CURRENT verdict the moment it is
+    // created — a late rebuild cannot disagree with its siblings.
+    const char* attrs[] = {
+        "tool_name",   row.long_name.c_str(),   "tool_short", row.short_name.c_str(),
+        "tool_number", row.number_name.c_str(), nullptr};
     lv_obj_t* row_obj = static_cast<lv_obj_t*>(lv_xml_create(container, "nozzle_temp_row", attrs));
     if (!row_obj) {
         spdlog::error("[NozzleTempsWidget] lv_xml_create('nozzle_temp_row') returned NULL for '{}'",
@@ -479,7 +578,9 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
     }
 
     row.row_obj = row_obj;
-    row.tool_label = lv_obj_find_by_name(row_obj, "tool_label");
+    row.label_long = lv_obj_find_by_name(row_obj, "tool_label_long");
+    row.label_short = lv_obj_find_by_name(row_obj, "tool_label_short");
+    row.label_number = lv_obj_find_by_name(row_obj, "tool_label_number");
     row.temp_label = lv_obj_find_by_name(row_obj, "temp_label");
     row.target_label = lv_obj_find_by_name(row_obj, "target_label");
 
@@ -548,10 +649,8 @@ void NozzleTempsWidget::update_row_display(lv_obj_t* temp_label, lv_obj_t* targe
     auto result = helix::ui::temperature::heater_display(temp_deci, target_deci);
 
     // Current temp with color coding (green=at-temp, red=heating, blue=cooling, gray=off)
-    char num_buf[16];
-    helix::ui::temperature::format_temp_number(helix::ui::temperature::deci_to_degrees_f(temp_deci),
-                                               num_buf, sizeof(num_buf));
-    lv_label_set_text_fmt(temp_label, "%s\xC2\xB0", num_buf);
+    const auto [current_text, target_text] = value_halves(temp_deci, target_deci);
+    lv_label_set_text(temp_label, current_text.c_str());
     lv_obj_set_style_text_color(temp_label, result.color, LV_PART_MAIN);
 
     // Keep the bed icon tint in lockstep with the temp-label color (same
@@ -563,11 +662,5 @@ void NozzleTempsWidget::update_row_display(lv_obj_t* temp_label, lv_obj_t* targe
         helix::ui::icon::set_variant(bed_icon_, variant);
     }
 
-    if (target_deci > 0) {
-        helix::ui::temperature::format_temp_number(
-            helix::ui::temperature::deci_to_degrees_f(target_deci), num_buf, sizeof(num_buf));
-        lv_label_set_text_fmt(target_label, "/ %s\xC2\xB0", num_buf);
-    } else {
-        lv_label_set_text(target_label, lv_tr("off"));
-    }
+    lv_label_set_text(target_label, target_text.c_str());
 }

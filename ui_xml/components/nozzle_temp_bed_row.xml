@@ -1,9 +1,19 @@
 <?xml version="1.0"?>
 <component name="nozzle_temp_bed_row">
+  <styles>
+    <style name="nozzle_compact_font" text_font="#font_xs"/>
+    <!-- Single column: the divider spans the full width with its top padding.
+         Two columns: rows sit side by side, so the divider goes and the row
+         takes half the container. -->
+    <style name="nozzle_bed_full" width="100%" border_width="1" pad_top="#space_xxs"/>
+    <style name="nozzle_bed_half" width="48%" border_width="0" pad_top="0"/>
+  </styles>
   <view name="bed_row_root"
-        extends="lv_obj" width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_top="#space_xxs"
-        style_pad_row="0" style_pad_column="0" style_bg_opa="0" style_border_width="1" style_border_side="top"
-        style_border_color="#text_muted" style_border_opa="50" scrollable="false">
+        extends="lv_obj" height="content" flex_flow="column" style_pad_all="0" style_pad_row="0" style_pad_column="0"
+        style_bg_opa="0" style_border_side="top" style_border_color="#text_muted" style_border_opa="50"
+        scrollable="false">
+    <bind_style_if_eq name="nozzle_bed_full" subject="nozzle_row_columns" ref_value="1"/>
+    <bind_style_if_eq name="nozzle_bed_half" subject="nozzle_row_columns" ref_value="2"/>
     <lv_obj width="100%"
             height="content" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
             style_pad_all="0" style_pad_row="0" style_pad_column="#space_sm" style_bg_opa="0" style_border_width="0"
@@ -13,16 +23,27 @@
               style_pad_column="#space_xs" style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false"
               event_bubble="true">
         <icon name="bed_icon" src="radiator" size="xs" variant="muted"/>
+        <!-- The bed has no tool number, and its radiator glyph already
+             identifies it, so the label shows for the text rungs only and the
+             icon carries the row below them. -->
         <text_small name="bed_label"
                     width="content" text="Bed" translation_tag="Bed" style_text_color="#primary"
-                    style_min_width="#space_xl"/>
+                    style_min_width="#space_xl">
+          <bind_flag_if_lt subject="nozzle_row_label_mode" flag="hidden" ref_value="2"/>
+          <bind_style_if_eq name="nozzle_compact_font" subject="nozzle_row_compact" ref_value="1"/>
+        </text_small>
       </lv_obj>
       <lv_obj name="value_group"
               width="content" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
               style_pad_column="#space_xxs" style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false"
               event_bubble="true">
-        <text_small name="bed_temp_label" text="0°" style_text_align="right"/>
-        <text_small name="bed_target_label" text="off" style_text_color="#text_muted"/>
+        <text_small name="bed_temp_label" text="0°" style_text_align="right">
+          <bind_style_if_eq name="nozzle_compact_font" subject="nozzle_row_compact" ref_value="1"/>
+        </text_small>
+        <text_small name="bed_target_label" text="off" style_text_color="#text_muted">
+          <bind_style_if_eq name="nozzle_compact_font" subject="nozzle_row_compact" ref_value="1"/>
+          <bind_flag_if_lt subject="nozzle_row_label_mode" flag="hidden" ref_value="2"/>
+        </text_small>
       </lv_obj>
     </lv_obj>
   </view>
