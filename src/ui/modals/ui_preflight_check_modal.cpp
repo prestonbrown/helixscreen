@@ -97,6 +97,7 @@ void PreflightCheckModal::on_show() {
 
     // Explanation line: describe the first blocking (empty-slot) check.
     if (auto* explain = find_widget("preflight_explanation")) {
+        const auto slots = AmsState::instance().collect_available_slots();
         std::string text;
         for (const auto& check : result_.checks) {
             if (check.severity == helix::ToolCheck::Severity::EmptySlot) {
@@ -107,12 +108,13 @@ void PreflightCheckModal::on_show() {
                                    "out."),
                              helix::ui::tool_label(check.tool_index).c_str());
                 } else {
+                    const auto* seated = find_seated_slot(slots, check);
+                    const auto noun = seated ? seated->noun : helix::ui::LaneNoun::Slot;
                     snprintf(buf, sizeof(buf),
                              lv_tr("%s needs filament in %s, which is empty — "
                                    "this print will run out."),
                              helix::ui::tool_label(check.tool_index).c_str(),
-                             helix::ui::lane_label(helix::ui::LaneNoun::Slot, check.mapped_slot)
-                                 .c_str());
+                             helix::ui::lane_label(noun, check.mapped_slot).c_str());
                 }
                 text = buf;
                 break;

@@ -87,22 +87,43 @@ CheckResult warn_result(std::string title, std::string body, std::string proceed
     return r;
 }
 
+/// The word @p available_slots' backend uses for one position, or Slot when
+/// the pairing resolves to nothing — a generic noun beats losing the whole
+/// warning over one unresolvable lane.
+helix::ui::LaneNoun noun_for_slot(const std::vector<AvailableSlot>& available_slots, int slot_index,
+                                  int backend_index) {
+    for (const auto& slot : available_slots) {
+        if (slot.slot_index == slot_index && slot.backend_index == backend_index) {
+            return slot.noun;
+        }
+    }
+    return helix::ui::LaneNoun::Slot;
+}
+
 /// Ported verbatim from PrintStartController::build_empty_lane_message.
-std::string build_empty_lane_message(const std::vector<std::pair<int, int>>& empty) {
+///
+/// @p empty pairs always come from FilamentSensorManager::scan_required_lanes(),
+/// which scans backend 0 only (AmsState::get_backend()), so every lookup into
+/// @p available_slots is pinned to that backend.
+std::string build_empty_lane_message(const std::vector<std::pair<int, int>>& empty,
+                                     const std::vector<AvailableSlot>& available_slots) {
     // Name the offending tool(s) and the AMS lane each routes to so the user
     // knows exactly which lane to load. tool_label() spells the gcode tool
-    // ("T0"); lane_label() 1-bases the slot for display ("Slot 1").
+    // ("T0"); lane_label() spells the backend's own word for the position
+    // ("Slot 1", "Lane 1").
     std::string message;
     if (empty.size() == 1) {
+        const auto noun = noun_for_slot(available_slots, empty[0].second, 0);
         message = fmt::format(lv_tr("{} → {}: no filament loaded."),
                               helix::ui::tool_label(empty[0].first),
-                              helix::ui::lane_label(helix::ui::LaneNoun::Slot, empty[0].second));
+                              helix::ui::lane_label(noun, empty[0].second));
     } else {
         message = lv_tr("These tools have no filament loaded:");
         message += "\n\n";
         for (const auto& [tool, slot] : empty) {
+            const auto noun = noun_for_slot(available_slots, slot, 0);
             message += fmt::format("  {} {} → {}\n", LV_SYMBOL_BULLET, helix::ui::tool_label(tool),
-                                   helix::ui::lane_label(helix::ui::LaneNoun::Slot, slot));
+                                   helix::ui::lane_label(noun, slot));
         }
     }
     message += "\n\n";
@@ -137,19 +158,22 @@ CheckResult gate_insufficient_lane_weight(const PrintStartContext& ctx) {
     char body[512];
     if (shortfalls.size() == 1) {
         const auto& sf = shortfalls.front();
+        const auto noun = noun_for_slot(ctx.available_slots, sf.mapped_slot, sf.mapped_backend);
         std::snprintf(body, sizeof(body),
                       lv_tr("%s has about %.0fg but %s needs about %.0fg. "
                             "Start anyway?"),
-                      helix::ui::lane_label(helix::ui::LaneNoun::Slot, sf.mapped_slot).c_str(),
-                      sf.remaining_g, helix::ui::tool_label(sf.tool_index).c_str(), sf.needed_g);
+                      helix::ui::lane_label(noun, sf.mapped_slot).c_str(), sf.remaining_g,
+                      helix::ui::tool_label(sf.tool_index).c_str(), sf.needed_g);
     } else {
         // Name every short lane: the user's next move is to remap one of them,
         // and a count alone would not say which.
         std::string list;
         for (const auto& sf : shortfalls) {
+            const auto noun = noun_for_slot(ctx.available_slots, sf.mapped_slot, sf.mapped_backend);
             char one[128];
-            std::snprintf(one, sizeof(one), lv_tr("Slot %d: %.0fg of %.0fg needed"),
-                          sf.mapped_slot + 1, sf.remaining_g, sf.needed_g);
+            std::snprintf(one, sizeof(one), lv_tr("%s: %.0fg of %.0fg needed"),
+                          helix::ui::lane_label(noun, sf.mapped_slot).c_str(), sf.remaining_g,
+                          sf.needed_g);
             if (!list.empty()) {
                 list += "\n";
             }
@@ -234,9 +258,10 @@ CheckResult gate_required_filament_present(const PrintStartContext& ctx) {
             spdlog::info("[PrintStartController] {} required tool(s) have an empty lane - "
                          "showing pre-print warning",
                          ctx.empty_required_lanes.size());
-            return warn_result(lv_tr("No Filament Detected"),
-                               build_empty_lane_message(ctx.empty_required_lanes),
-                               lv_tr("Start Print"));
+            return warn_result(
+                lv_tr("No Filament Detected"),
+                build_empty_lane_message(ctx.empty_required_lanes, ctx.available_slots),
+                lv_tr("Start Print"));
         }
         return pass_result();
     }

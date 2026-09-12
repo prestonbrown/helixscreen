@@ -1882,7 +1882,7 @@ void AmsState::sync_from_backend() {
     // filament check keys on bypass (PreflightValidator) and slots_version is its
     // ONLY refresh trigger, so without this the cached result goes stale: engage
     // bypass while a file's detail view is already open and the false
-    // "T0 has no filament loaded" block still fires on Print.
+    // "%s has no filament loaded" block still fires on Print.
     //
     // Still tracked off any_bypass_active() rather than the bypass_active_
     // subject above, but for a different reason now that both read
@@ -3349,12 +3349,11 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
 
             char tmp[64];
             if (is_tool_changer(sys.type) && sys.units.empty()) {
-                // Pure tool changer with no AMS units — show the physical tool number
+                // Pure tool changer with no AMS units — show the physical toolhead position
                 snprintf(tmp, sizeof(tmp), lv_tr("Current: %s"),
-                         helix::ui::lane_label(helix::ui::LaneNoun::Tool, slot_index).c_str());
+                         helix::ui::lane_label(helix::ui::active_tool_noun(), slot_index).c_str());
             } else {
                 std::string unit_display;
-                int display_slot = slot_index + 1; // 1-based global slot number
                 for (const auto& unit : sys.units) {
                     if (slot_index >= unit.first_slot_global_index &&
                         slot_index < unit.first_slot_global_index + unit.slot_count) {
@@ -3364,12 +3363,14 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
                         break;
                     }
                 }
+                const std::string slot_label =
+                    helix::ui::lane_label(loaded_backend->lane_noun(), slot_index);
                 if (!unit_display.empty() && sys.units.size() > 1) {
-                    // Multi-unit: show unit name + slot number on one line
-                    snprintf(tmp, sizeof(tmp), lv_tr("Current: %s · Slot %d"), unit_display.c_str(),
-                             display_slot);
+                    // Multi-unit: show unit name + slot label on one line
+                    snprintf(tmp, sizeof(tmp), lv_tr("Current: %s · %s"), unit_display.c_str(),
+                             slot_label.c_str());
                 } else {
-                    snprintf(tmp, sizeof(tmp), lv_tr("Current: Slot %d"), display_slot);
+                    snprintf(tmp, sizeof(tmp), lv_tr("Current: %s"), slot_label.c_str());
                 }
             }
             if (strcmp(lv_subject_get_string(&current_slot_text_), tmp) != 0) {
