@@ -166,6 +166,22 @@ TEST_CASE("the blocks are adjacent, which is why a slot index is bounded", "[lan
     CHECK(lane_id_for(0, 0) + (6 * LANES_PER_BACKEND + 3) == lane_id_for(6, 3));
 }
 
+TEST_CASE_METHOD(HelixTestFixture, "commit_slot_edit refuses a source that is not the user",
+                 "[lane][ingest]") {
+    Observation cache(ObservationSource::VendorCache);
+    cache.color_rgb = 0xED2C2C;
+    helix::ams::commit_slot_edit(5, cache);
+
+    // The two funnels take the same arguments and mean opposite things, so the
+    // source check is what stops a backend reaching for the amending one and
+    // becoming a third writer of a record the user owns. It returns void, so a
+    // caller cannot tell a drop from a write; the lane is where that shows.
+    const auto lane = lane_sources(5);
+    CHECK_FALSE(lane.vendor_cache.has_value());
+    CHECK_FALSE(lane.local_user.has_value());
+    CHECK(helix::ams::known_lanes().empty());
+}
+
 TEST_CASE_METHOD(HelixTestFixture, "known_lanes lists every lane that has been written",
                  "[lane][ingest]") {
     Observation obs(ObservationSource::Sensed);
@@ -243,6 +259,10 @@ TEST_CASE("an unlinked record with a real lock is the user's declaration", "[lan
     const auto rec = record_from(wire);
 
     CHECK(classify_declaration(rec, wire) == ObservationSource::LocalUser);
+    // The observation has to carry the same verdict, not merely the colour: a
+    // classifier that files a person's locked colour under VendorCache is the
+    // stale-cache-reads-as-a-choice failure this model exists to delete.
+    CHECK(declared_from_record(rec, wire).source == ObservationSource::LocalUser);
     CHECK(declared_from_record(rec, wire).color_rgb == 0xBCBCBC);
 }
 

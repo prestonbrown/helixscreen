@@ -435,6 +435,30 @@ TEST_CASE("a second backend's lane 0 is not the first backend's", "[ams][commit]
         helix::ams::lane_sources(helix::ams::lane_id_for(second, 0)).local_user.has_value());
 }
 
+TEST_CASE("registration stamps each backend with its own block", "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+    auto& ams = AmsState::instance();
+    const int second = ams.add_backend(std::make_unique<AmsBackendMock>(4));
+    REQUIRE(second == 1);
+
+    AmsBackend* primary = ams.get_backend(0);
+    AmsBackend* secondary = ams.get_backend(second);
+    REQUIRE(primary != nullptr);
+    REQUIRE(secondary != nullptr);
+
+    // A backend derives its lane ids from the index registration hands it, and
+    // asking a backend for its own slot 0 is the only way to see that stamp.
+    // Unstamped, a backend names no lane at all, so a declaration written
+    // through it would be dropped instead of filed.
+    CHECK(primary->backend_index() == 0);
+    CHECK(secondary->backend_index() == second);
+    CHECK(primary->lane_id(0) == helix::ams::lane_id_for(0, 0));
+    CHECK(secondary->lane_id(0) == helix::ams::lane_id_for(second, 0));
+    CHECK(secondary->lane_id(0) != primary->lane_id(0));
+    CHECK(secondary->lane_id(0) != helix::ams::INVALID_LANE_ID);
+}
+
 TEST_CASE("an edit files under the backend it was written through", "[ams][commit][lane]") {
     CommitFixture f;
     f.setup(0);
