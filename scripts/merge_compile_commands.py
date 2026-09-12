@@ -31,6 +31,9 @@ that is gone, and clang answers it with ``no such file or directory``.
 
 ``check_clang_diagnostics.py`` imports the selection helpers here so the clang gate and
 the database an editor reads agree on which entry describes a file today.
+``entry_argv`` lives here for the same reason: every consumer that replays a
+recorded command - the clang gate, ``syntax_check.py`` - tokenises it the same
+way, in either of the quoting shapes the database holds.
 """
 
 from __future__ import annotations
@@ -40,6 +43,7 @@ import glob
 import json
 import os
 import re
+import shlex
 import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -72,6 +76,50 @@ def entry_command_text(entry: dict) -> str:
     if args:
         return " ".join(str(a) for a in args)
     return str(entry.get("command", ""))
+
+
+# A define whose value must reach the compiler carrying its own quotes,
+# shell-quoted on top: -DHELIX_VERSION='"1.1.0"' (what emit-compile-command
+# writes). The inner group keeps the double quotes the macro needs.
+DEFINE_SHELL_QUOTED_RE = re.compile(r"^(-D[A-Za-z_][A-Za-z0-9_]*=)'(.*)'$")
+
+
+def entry_argv(entry: dict) -> list[str]:
+    """Argument vector for a compile-command entry, in either recorded shape.
+
+    The database holds two legitimate spellings of a quoted define, because a
+    fragment outlives the convention that recorded it: make rewrites one only
+    when its object rebuilds, so entries written by older builds sit beside
+    current ones. ``-DHELIX_VERSION='"1.1.0"'`` is a shell-quoted token;
+    ``-DHELIX_VERSION="1.1.0"`` is the post-expansion argv. Both must hand the
+    compiler ``-DHELIX_VERSION="1.1.0"`` or the macro stops being a string and
+    every replay manufactures diagnostics about the recording.
+
+    ``arguments`` arrays are real argv and pass through untouched. A
+    ``command`` string is split the way a shell would, minus POSIX quote
+    removal: a token quoted end to end (a path with spaces, as a Bear-style
+    database emits) is one layer of genuine shell quoting and is unwrapped,
+    shell-quoting singles around a define's value are unwrapped, and every
+    other quote character stays where the compiler needs it.
+    """
+    args = entry.get("arguments")
+    if args:
+        return [str(a) for a in args]
+
+    out: list[str] = []
+    for token in shlex.split(str(entry.get("command", "")), posix=False):
+        if (
+            len(token) >= 2
+            and token[0] == token[-1]
+            and token[0] in "\"'"
+            and token[0] not in token[1:-1]
+        ):
+            token = token[1:-1]
+        m = DEFINE_SHELL_QUOTED_RE.match(token)
+        if m:
+            token = m.group(1) + m.group(2)
+        out.append(token)
+    return out
 
 
 def recorded_version(entry: dict) -> str | None:
