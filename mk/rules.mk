@@ -198,11 +198,17 @@ DEPFILES := $(wildcard $(OBJ_DIR)/*.d $(OBJ_DIR)/**/*.d)
 # Usage: $(call emit-compile-command,compiler,flags,source,output)
 # Example: $(call emit-compile-command,$(CXX),$(CXXFLAGS) $(INCLUDES),$<,$@)
 #
-# Note: Uses sed to escape double quotes in the command for valid JSON
+# The command must stay shell-ready: a consumer splits it back into argv, so a
+# define whose value has to reach the compiler WITH quotes (-DNAME="text") needs
+# those quotes to survive that split. Single-quoting the value is what carries
+# them through; escaping alone would hand the compiler a bare token and the
+# macro would expand to something that does not parse. Then the double quotes
+# are escaped again for JSON.
 # ============================================================================
 define emit-compile-command
 	@CMD="$(1) $(2) -c $(3) -o $(4)"; \
-	CMD_ESC=$$(echo "$$CMD" | sed 's/"/\\"/g'); \
+	CMD_SH=$$(echo "$$CMD" | sed "s/\(-D[A-Za-z_][A-Za-z0-9_]*=\)\(\"[^\" ]*\"\)/\1'\2'/g"); \
+	CMD_ESC=$$(echo "$$CMD_SH" | sed 's/"/\\"/g'); \
 	printf '{"directory": "%s", "file": "%s", "command": "%s"}\n' \
 		"$(CURDIR)" \
 		"$(abspath $(3))" \
