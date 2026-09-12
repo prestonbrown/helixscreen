@@ -5428,8 +5428,10 @@ AmsError AmsBackendAfc::set_slot_info(int slot_index, const SlotInfo& info, bool
                     execute_gcode(fmt::format("SET_SPOOL_ID LANE={} SPOOL_ID=", lane_name));
                 }
 
-                // Color (only if changed and valid - not 0 or default grey)
-                if (info.color_rgb != 0 && info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
+                // AMS_DEFAULT_SLOT_COLOR is the "no color reading" sentinel
+                // (see SlotInfo::has_identity); a deliberate pure black
+                // (#000000) still dispatches to AFC.
+                if (info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
                     char color_hex[8];
                     snprintf(color_hex, sizeof(color_hex), "%06X", info.color_rgb & 0xFFFFFF);
                     execute_gcode(fmt::format("SET_COLOR LANE={} COLOR={}", lane_name, color_hex));

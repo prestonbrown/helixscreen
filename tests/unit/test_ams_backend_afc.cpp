@@ -1331,20 +1331,20 @@ TEST_CASE("AFC persistence: skips SET_COLOR for default grey", "[ams][afc][persi
     REQUIRE_FALSE(helper.has_gcode_starting_with("SET_COLOR"));
 }
 
-TEST_CASE("AFC persistence: skips SET_COLOR for zero", "[ams][afc][persistence]") {
+// Pure black is a deliberate user pick, not an absence of colour — skipping it
+// leaves AFC's lane record on the previous colour (prestonbrown/helixscreen#1597).
+TEST_CASE("AFC persistence: dispatches SET_COLOR for pure black", "[ams][afc][persistence][1597]") {
     AmsBackendAfcTestHelper helper;
 
     helper.set_afc_version("1.0.20");
     helper.initialize_test_lanes_with_slots(4);
 
     SlotInfo info;
-    info.color_rgb = 0; // Zero color - should NOT send
+    info.color_rgb = 0x000000; // Pure black
 
     helper.set_slot_info(0, info);
 
-    // Should NOT send SET_COLOR for zero
-    // PASSES: no G-code sent at all currently
-    REQUIRE_FALSE(helper.has_gcode_starting_with("SET_COLOR"));
+    REQUIRE(helper.has_gcode("SET_COLOR LANE=lane1 COLOR=000000"));
 }
 
 TEST_CASE("AFC persistence: SET_MATERIAL carries material names with punctuation",
