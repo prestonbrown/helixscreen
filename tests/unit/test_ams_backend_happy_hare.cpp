@@ -511,7 +511,6 @@ TEST_CASE("Happy Hare persistence: skips MATERIAL for empty string",
     if (!helper.captured_gcodes.empty()) {
         REQUIRE_FALSE(helper.has_gcode_containing("MATERIAL="));
     }
-    // This test verifies MATERIAL is skipped - currently passes since nothing is sent
 }
 
 TEST_CASE("Happy Hare persistence: skips SPOOLID when both old and new are zero/negative",
