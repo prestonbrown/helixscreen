@@ -56,6 +56,20 @@ class AceTestAccess {
         b.parse_ace_object(data);
     }
 
+    // Drive the production subscription entry point with a whole
+    // notify_status_update envelope, which is what decides the hub object key
+    // and the REST-fallback bail before any parsing happens.
+    static void handle_status_update(AmsBackendAce& b, const nlohmann::json& notification) {
+        b.handle_status_update(notification);
+    }
+
+    // Drive the REST bridge's /server/ace/slots parse. It is a second parser
+    // with its own key ladder, and no seeder reaches it: poll_slots() needs a
+    // live Moonraker.
+    static bool parse_slots(AmsBackendAce& b, const nlohmann::json& data) {
+        return b.parse_slots_response(data);
+    }
+
     // Expose the on_started() subscription-vs-REST decision (#1069). Returns
     // the slot-bearing object, or nullptr when the REST fallback should run.
     static const nlohmann::json* select_slot_bearing_object(const nlohmann::json& status,

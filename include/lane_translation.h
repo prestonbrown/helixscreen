@@ -83,4 +83,16 @@ struct ColorReading {
 /// and is refused there.
 [[nodiscard]] ColorReading read_lane_color(const std::string& raw);
 
+/// True when a colour resting in a SlotInfo-shaped struct is a reading rather
+/// than that struct's own "no colour" default. AMS_DEFAULT_SLOT_COLOR is where
+/// a cleared slot and a colourless record both land, so filing it would hand
+/// every one of them a declared grey.
+///
+/// This is the struct-side counterpart of read_lane_color, and deliberately a
+/// different answer: a producer writing #808080 on a WIRE is stating a grey,
+/// where a struct resting on its default is not. A translation that already
+/// holds the producer's string asks read_lane_color; one whose only access to
+/// the colour is a decoded uint32_t asks this.
+[[nodiscard]] bool is_declarable_color(uint32_t rgb);
+
 } // namespace helix::ams

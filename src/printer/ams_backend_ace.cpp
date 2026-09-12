@@ -18,6 +18,8 @@
 
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "lane_source_store.h"
+#include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "post_op_cooldown_manager.h"
 #include "settings_manager.h"
@@ -802,18 +804,40 @@ void AmsBackendAce::parse_ace_object(const json& data) {
 
                 // Parse status via the shared vocabulary map so the object path
                 // and the REST fallback path can't drift.
-                if (slot_json.contains("status") && slot_json["status"].is_string()) {
+                //
+                // Each parsed value is also kept in a local for the lane
+                // observations below, rather than read back off `slot`: the
+                // override merge at the bottom of this loop rewrites that
+                // member in place and leaves it rewritten for every later
+                // frame, so an observation sourced from it would file a user's
+                // own edit as the hub's memory.
+                const bool frame_states_status =
+                    slot_json.contains("status") && slot_json["status"].is_string();
+                if (frame_states_status) {
                     slot.status = slot_status_from_string(slot_json["status"].get<std::string>());
                 }
+                const std::optional<bool> observed_present =
+                    frame_states_status ? slot_status_reports_filament(slot.status) : std::nullopt;
 
                 // Parse color: ValgACE returns [r, g, b] array
+                std::optional<uint32_t> observed_color;
                 if (slot_json.contains("color")) {
-                    slot.color_rgb = parse_slot_color(slot_json["color"]);
+                    observed_color = parse_slot_color(slot_json["color"]);
+                    // A value that carries no colour leaves the bay showing the
+                    // last one the hub did state, rather than flipping it to
+                    // black - which is a colour ACE really does report.
+                    if (observed_color) {
+                        slot.color_rgb = *observed_color;
+                    }
                 }
 
                 // Parse material type (e.g., "PLA", "PETG")
+                std::optional<std::string> observed_material;
                 if (slot_json.contains("type") && slot_json["type"].is_string()) {
                     slot.material = slot_json["type"].get<std::string>();
+                    if (!slot.material.empty()) {
+                        observed_material = slot.material;
+                    }
                 }
 
                 // Parse SKU if present
@@ -838,6 +862,34 @@ void AmsBackendAce::parse_ace_object(const json& data) {
                     check_hardware_event_clear(slot, idx, prev_it->second, slot.status);
                 }
                 prev_slot_status_[idx] = slot.status;
+
+                // The hub reports an occupancy status and a colour. Neither is
+                // an identity reading, so the colour is the hub's own memory of
+                // what was last in the bay rather than proof of what is there.
+                //
+                // A frame that states no status for this bay files no sensed
+                // record: one ingest replaces a source's record whole, so an
+                // empty one would erase a live reading instead of repeating it.
+                // A status ACE does not recognise DOES file one, with `present`
+                // unset - the hub saying it does not know is news, and a record
+                // whose field is unset is the only way to retract a reading.
+                if (frame_states_status) {
+                    helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
+                    sensed.present = observed_present;
+                    helix::ams::ingest(lane_id(idx), sensed);
+                }
+
+                // The cache record is filed on every pass, with only what this
+                // frame stated in it. `slots` is one Klipper status field, so
+                // Moonraker sends the array whole or not at all and a frame
+                // that describes a bay describes all of it - there is no
+                // partial identity for a whole-record write to narrow. It also
+                // makes an absent sensed record provably a guard rather than a
+                // translation that did not run.
+                helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+                cache.color_rgb = observed_color;
+                cache.material = observed_material;
+                helix::ams::ingest(lane_id(idx), cache);
 
                 // Layer user-configured overrides on top of firmware-reported
                 // data. Override wins for any non-default field — for ACE
@@ -1041,8 +1093,10 @@ SlotStatus AmsBackendAce::slot_status_from_string(const std::string& status_str)
     return SlotStatus::UNKNOWN;
 }
 
-uint32_t AmsBackendAce::parse_slot_color(const json& color_val) {
-    // ValgACE format: [r, g, b] array
+std::optional<uint32_t> AmsBackendAce::parse_slot_color(const json& color_val) {
+    // ValgACE format: [r, g, b] array. A triplet is the hub's own numeric
+    // spelling, not a colour string, so the shared text grammar has nothing to
+    // say about it.
     if (color_val.is_array() && color_val.size() >= 3) {
         try {
             uint8_t r = static_cast<uint8_t>(color_val[0].get<int>());
@@ -1052,29 +1106,24 @@ uint32_t AmsBackendAce::parse_slot_color(const json& color_val) {
                    static_cast<uint32_t>(b);
         } catch (const std::exception& e) {
             spdlog::debug("[ACE] Failed to parse color array: {}", e.what());
-            return 0;
+            return std::nullopt;
         }
     }
 
-    // REST bridge format: hex string "#RRGGBB" or "0xRRGGBB"
+    // REST bridge format: hex string "#RRGGBB" or "0xRRGGBB", read by the same
+    // grammar as every other lane-shaped producer. Both of the helper's
+    // non-colour answers are "no reading" here: the bridge states an absent
+    // colour by omitting the key, so an empty string is a malformed value
+    // rather than a bay the hub is clearing.
     if (color_val.is_string()) {
-        std::string color_str = color_val.get<std::string>();
-        if (!color_str.empty()) {
-            try {
-                if (color_str[0] == '#') {
-                    color_str = color_str.substr(1);
-                } else if (color_str.size() > 2 && color_str[0] == '0' &&
-                           (color_str[1] == 'x' || color_str[1] == 'X')) {
-                    color_str = color_str.substr(2);
-                }
-                return static_cast<uint32_t>(std::stoul(color_str, nullptr, 16));
-            } catch (const std::exception& e) {
-                spdlog::debug("[ACE] Failed to parse color string '{}': {}", color_str, e.what());
-            }
+        const auto reading = helix::ams::read_lane_color(color_val.get<std::string>());
+        if (reading.kind == helix::ams::ColorReadingKind::Observed) {
+            return reading.rgb;
         }
+        spdlog::debug("[ACE] Slot color '{}' carries no colour", color_val.get<std::string>());
     }
 
-    return 0;
+    return std::nullopt;
 }
 
 // ============================================================================
@@ -1457,11 +1506,14 @@ bool AmsBackendAce::parse_slots_response(const json& data) {
         slot.slot_index = static_cast<int>(i);
         slot.global_index = static_cast<int>(i);
 
-        if (slot_json.contains("status") && slot_json["status"].is_string()) {
+        const bool states_status = slot_json.contains("status") && slot_json["status"].is_string();
+        std::optional<bool> observed_present;
+        if (states_status) {
             // Mirror the object path exactly via the shared vocabulary map —
             // this fork emits `ready` (and can emit `unknown`), which the old
             // empty/available/loaded-only mapping misclassified (#1069).
             SlotStatus status = slot_status_from_string(slot_json["status"].get<std::string>());
+            observed_present = slot_status_reports_filament(status);
 
             if (status != slot.status) {
                 slot.status = status;
@@ -1470,10 +1522,11 @@ bool AmsBackendAce::parse_slots_response(const json& data) {
         }
 
         // Parse color: handle both hex string and RGB array formats
+        std::optional<uint32_t> observed_color;
         if (slot_json.contains("color")) {
-            uint32_t color = parse_slot_color(slot_json["color"]);
-            if (color != slot.color_rgb) {
-                slot.color_rgb = color;
+            observed_color = parse_slot_color(slot_json["color"]);
+            if (observed_color && *observed_color != slot.color_rgb) {
+                slot.color_rgb = *observed_color;
                 changed = true;
             }
         }
@@ -1491,6 +1544,25 @@ bool AmsBackendAce::parse_slots_response(const json& data) {
             slot.material = material;
             changed = true;
         }
+
+        // The bridge polls the same hub the subscription reads, so it files the
+        // same account on the same lanes. Its values come from this response's
+        // own keys rather than from `slot`, which a previous poll's diff has
+        // already written - and which, on a rig that once ran the object path,
+        // apply_overrides has merged a user's edit into.
+        const int idx = static_cast<int>(i);
+        if (states_status) {
+            helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
+            sensed.present = observed_present;
+            helix::ams::ingest(lane_id(idx), sensed);
+        }
+
+        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+        cache.color_rgb = observed_color;
+        if (!material.empty()) {
+            cache.material = material;
+        }
+        helix::ams::ingest(lane_id(idx), cache);
 
         if (slot_json.contains("temp_min") && slot_json["temp_min"].is_number_integer()) {
             slot.nozzle_temp_min = slot_json["temp_min"].get<int>();

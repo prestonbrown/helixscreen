@@ -188,6 +188,33 @@ inline const char* slot_status_to_string(SlotStatus status) {
 }
 
 /**
+ * @brief What a slot status says about filament being in the bay
+ *
+ * Three answers, not two. An unset result is "no reading", which is a
+ * different claim from "the bay is empty": UNKNOWN is a backend saying it does
+ * not know, and BLOCKED describes the path rather than the bay, so neither may
+ * be read as an absence. A producer filing a lane observation carries the
+ * answer across unchanged, so the distinction survives into the lane store.
+ *
+ * @param status The slot status enum value
+ * @return true/false when the status states occupancy, nullopt when it does not
+ */
+[[nodiscard]] inline std::optional<bool> slot_status_reports_filament(SlotStatus status) {
+    switch (status) {
+    case SlotStatus::EMPTY:
+        return false;
+    case SlotStatus::AVAILABLE:
+    case SlotStatus::LOADED:
+    case SlotStatus::FROM_BUFFER:
+        return true;
+    case SlotStatus::UNKNOWN:
+    case SlotStatus::BLOCKED:
+        break;
+    }
+    return std::nullopt;
+}
+
+/**
  * @brief Convert Happy Hare gate_status integer to SlotStatus enum
  *
  * Happy Hare uses: -1 = unknown, 0 = empty, 1 = available, 2 = from buffer

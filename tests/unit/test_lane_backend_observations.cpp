@@ -6,14 +6,18 @@
 // needed to establish a case's precondition.
 
 #include "../lvgl_test_fixture.h"
+#include "ams_backend_ace.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_afc.h"
+#include "ams_backend_cfs.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "lane_source_store.h"
+#include "test_helpers/ace_test_access.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/cfs_test_access.h"
 #include "test_helpers/happy_hare_test_access.h"
 #include "test_helpers/registered_backend.h"
 
@@ -24,13 +28,17 @@
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
+using helix::AceTestAccess;
 using helix::Ad5xIfsTestAccess;
 using helix::AfcTestAccess;
+using helix::AmsBackendAce;
 using helix::AmsBackendAd5xIfs;
 using helix::AmsBackendAfc;
 using helix::AmsBackendHappyHare;
+using helix::CfsTestAccess;
 using helix::HappyHareTestAccess;
 using helix::ams::lane_sources;
+using helix::printer::AmsBackendCfs;
 using helix::test::RegisteredBackend;
 
 namespace {
@@ -38,6 +46,55 @@ namespace {
 using Ad5xHarness = RegisteredBackend<AmsBackendAd5xIfs>;
 using AfcHarness = RegisteredBackend<AmsBackendAfc>;
 using HappyHareHarness = RegisteredBackend<AmsBackendHappyHare>;
+using CfsHarness = RegisteredBackend<AmsBackendCfs>;
+using AceHarness = RegisteredBackend<AmsBackendAce>;
+
+/// One `box` object, delivered the way Moonraker delivers it. Which schema
+/// parsed, and whether the frame counts as a full update at all, are decisions
+/// the production entry point makes, so every CFS case drives that rather than
+/// one of the two static parsers.
+void feed_cfs_box(AmsBackendCfs& backend, const nlohmann::json& box) {
+    nlohmann::json params;
+    params["box"] = box;
+    nlohmann::json notification;
+    notification["params"] = nlohmann::json::array({params, 0.0});
+    CfsTestAccess::handle_status(backend, notification);
+}
+
+/// A community-fork `box` payload: a flat self-describing slots[] array.
+nlohmann::json flat_box(nlohmann::json slots) {
+    return nlohmann::json{{"api_version", 1}, {"slots", std::move(slots)}};
+}
+
+/// A stock Creality `box` payload carrying one unit's four bays. `filament` is
+/// what marks the frame a full update on this schema.
+nlohmann::json stock_box(const std::string& unit, nlohmann::json unit_json) {
+    nlohmann::json box{{"filament", 0}};
+    unit_json["state"] = "connect";
+    box[unit] = std::move(unit_json);
+    return box;
+}
+
+/// One hub status object, through the notify envelope the subscription path
+/// unwraps. `slots` is a single Klipper status field, so Moonraker sends the
+/// array whole: unlike AFC and Happy Hare there is no sub-field delta to model.
+void feed_ace(AmsBackendAce& backend, const nlohmann::json& data) {
+    nlohmann::json params;
+    params["ace"] = data;
+    nlohmann::json notification;
+    notification["params"] = nlohmann::json::array({params, 0.0});
+    AceTestAccess::handle_status_update(backend, notification);
+}
+
+/// A user colour and material that disagree with whatever firmware reports.
+helix::ams::FilamentSlotOverride user_colour_and_material() {
+    helix::ams::FilamentSlotOverride user;
+    user.color_rgb = 0x00FF00u;
+    user.color_set = true;
+    user.user_locked_color = true;
+    user.material = "ABS";
+    return user;
+}
 
 /// Four lanes through AFC's own initialize_slots(), which is what a discovery
 /// answer ends in.
@@ -961,4 +1018,581 @@ TEST_CASE_METHOD(LVGLTestFixture, "a user's own name never decides Happy Hare's 
     const auto lane = lane_sources(harness.lane(0));
     REQUIRE(lane.vendor_cache.has_value());
     CHECK(lane.vendor_cache->spool_name == "EMU Black");
+}
+
+// --- CFS ---------------------------------------------------------------
+
+TEST_CASE_METHOD(LVGLTestFixture, "CFS splits bay occupancy from the box's tag memory",
+                 "[lane][ingest][cfs]") {
+    CfsHarness harness(nullptr, nullptr);
+
+    feed_cfs_box(*harness,
+                 flat_box(nlohmann::json::array({nlohmann::json{{"index", 0},
+                                                                {"material", "PLA"},
+                                                                {"brand", "Creality"},
+                                                                {"name", "Hyper PLA"},
+                                                                {"color", "#ED2C2C"},
+                                                                {"present", true},
+                                                                {"loaded", false},
+                                                                {"spoolman_id", 7}},
+                                                 nlohmann::json{{"index", 1},
+                                                                {"material", "None"},
+                                                                {"brand", "None"},
+                                                                {"name", "None"},
+                                                                {"color", "None"},
+                                                                {"present", false},
+                                                                {"loaded", false},
+                                                                {"spoolman_id", nullptr}}})));
+
+    const auto loaded_bay = lane_sources(harness.lane(0));
+    REQUIRE(loaded_bay.sensed.has_value());
+    REQUIRE(loaded_bay.sensed->present.has_value());
+    CHECK(*loaded_bay.sensed->present == true);
+    // Occupancy is the sensed record's whole business.
+    CHECK_FALSE(loaded_bay.sensed->material.has_value());
+    CHECK_FALSE(loaded_bay.sensed->color_rgb.has_value());
+
+    REQUIRE(loaded_bay.vendor_cache.has_value());
+    CHECK(loaded_bay.vendor_cache->material == "PLA");
+    CHECK(loaded_bay.vendor_cache->brand == "Creality");
+    REQUIRE(loaded_bay.vendor_cache->color_rgb.has_value());
+    CHECK(*loaded_bay.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(loaded_bay.vendor_cache->spoolman_id == 7);
+    // "Hyper PLA" is which product the bay holds, not what a spool is called.
+    CHECK(loaded_bay.vendor_cache->product_name == "Hyper PLA");
+    CHECK_FALSE(loaded_bay.vendor_cache->spool_name.has_value());
+    // The box weighs nothing, so nothing meters this lane.
+    CHECK_FALSE(loaded_bay.metered.has_value());
+
+    // The firmware's "None" is its absence marker on every text field, and the
+    // colour it pairs with it is not six hex digits either.
+    const auto empty_bay = lane_sources(harness.lane(1));
+    REQUIRE(empty_bay.sensed.has_value());
+    REQUIRE(empty_bay.sensed->present.has_value());
+    CHECK(*empty_bay.sensed->present == false);
+    // Filed even with nothing in it, so "the box read no tag" and "no
+    // translation ran" stay distinguishable.
+    REQUIRE(empty_bay.vendor_cache.has_value());
+    CHECK_FALSE(empty_bay.vendor_cache->material.has_value());
+    CHECK_FALSE(empty_bay.vendor_cache->brand.has_value());
+    CHECK_FALSE(empty_bay.vendor_cache->product_name.has_value());
+    CHECK_FALSE(empty_bay.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(empty_bay.vendor_cache->spoolman_id.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an override never reaches CFS's vendor-cache record",
+                 "[lane][ingest][cfs]") {
+    CfsHarness harness(nullptr, nullptr);
+
+    // SlotInfo persists across frames and apply_overrides() rewrites it in
+    // place at the convergence pass, so a translation reading that struct back
+    // would file the user's own choice as something the box remembers.
+    CfsTestAccess::seed_override(*harness, 1, user_colour_and_material());
+
+    feed_cfs_box(*harness,
+                 flat_box(nlohmann::json::array({nlohmann::json{{"index", 0}, {"present", false}},
+                                                 nlohmann::json{{"index", 1},
+                                                                {"material", "PETG"},
+                                                                {"brand", "Creality"},
+                                                                {"color", "#ED2C2C"},
+                                                                {"present", true}}})));
+
+    // Precondition, not the behaviour under test: unless the override actually
+    // wins on the merged slot there is no laundering for this case to catch and
+    // both assertions below would hold for the wrong reason.
+    const auto merged = harness->get_slot_info(1);
+    REQUIRE(merged.color_rgb == 0x00FF00u);
+    REQUIRE(merged.material == "ABS");
+
+    const auto lane = lane_sources(harness.lane(1));
+    REQUIRE(lane.vendor_cache.has_value());
+    REQUIRE(lane.vendor_cache->color_rgb.has_value());
+    CHECK(*lane.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(lane.vendor_cache->material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "each CFS bay accumulates its own identity",
+                 "[lane][ingest][cfs]") {
+    CfsHarness harness(nullptr, nullptr);
+
+    feed_cfs_box(
+        *harness,
+        flat_box(nlohmann::json::array(
+            {nlohmann::json{
+                 {"index", 0}, {"material", "PLA"}, {"color", "#111111"}, {"present", true}},
+             nlohmann::json{
+                 {"index", 1}, {"material", "None"}, {"color", "None"}, {"present", false}},
+             nlohmann::json{
+                 {"index", 2}, {"material", "PETG"}, {"color", "#333333"}, {"present", true}},
+             nlohmann::json{
+                 {"index", 3}, {"material", "ABS"}, {"color", "#444444"}, {"present", true}}})));
+
+    // Values, not has_value(). Per-bay keys with every record filed on one lane
+    // is the shape this defect actually takes, and only values catch it.
+    const auto bay0 = lane_sources(harness.lane(0));
+    REQUIRE(bay0.vendor_cache.has_value());
+    CHECK(bay0.vendor_cache->material == "PLA");
+    REQUIRE(bay0.vendor_cache->color_rgb.has_value());
+    CHECK(*bay0.vendor_cache->color_rgb == 0x111111u);
+
+    const auto bay1 = lane_sources(harness.lane(1));
+    REQUIRE(bay1.vendor_cache.has_value());
+    CHECK_FALSE(bay1.vendor_cache->material.has_value());
+    CHECK_FALSE(bay1.vendor_cache->color_rgb.has_value());
+    REQUIRE(bay1.sensed.has_value());
+    CHECK(*bay1.sensed->present == false);
+
+    const auto bay2 = lane_sources(harness.lane(2));
+    REQUIRE(bay2.vendor_cache.has_value());
+    CHECK(bay2.vendor_cache->material == "PETG");
+    REQUIRE(bay2.vendor_cache->color_rgb.has_value());
+    CHECK(*bay2.vendor_cache->color_rgb == 0x333333u);
+
+    const auto bay3 = lane_sources(harness.lane(3));
+    REQUIRE(bay3.vendor_cache.has_value());
+    CHECK(bay3.vendor_cache->material == "ABS");
+    REQUIRE(bay3.vendor_cache->color_rgb.has_value());
+    CHECK(*bay3.vendor_cache->color_rgb == 0x444444u);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a CFS frame that names one unit leaves the others standing",
+                 "[lane][ingest][cfs]") {
+    CfsHarness harness(nullptr, nullptr);
+
+    feed_cfs_box(*harness,
+                 stock_box("T1", nlohmann::json{{"vender", nlohmann::json::array({"Creality"})},
+                                                {"remain_len", nlohmann::json::array({"100"})},
+                                                {"color_value", nlohmann::json::array({"0ED2C2C"})},
+                                                {"material_type", nlohmann::json::array({"-1"})}}));
+
+    const auto first_unit = lane_sources(harness.lane(0));
+    REQUIRE(first_unit.sensed.has_value());
+    REQUIRE(first_unit.sensed->present.has_value());
+    CHECK(*first_unit.sensed->present == true);
+    REQUIRE(first_unit.vendor_cache.has_value());
+    REQUIRE(first_unit.vendor_cache->color_rgb.has_value());
+    CHECK(*first_unit.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(first_unit.vendor_cache->brand == "Creality");
+
+    // The next frame is about the second unit only. The box said nothing about
+    // the first, and one ingest replaces a source's record whole, so filing an
+    // empty record for the bays it did not mention would erase live readings.
+    feed_cfs_box(*harness,
+                 stock_box("T2", nlohmann::json{{"vender", nlohmann::json::array({"Xplorer"})},
+                                                {"remain_len", nlohmann::json::array({"80"})},
+                                                {"color_value", nlohmann::json::array({"0112233"})},
+                                                {"material_type", nlohmann::json::array({"-1"})}}));
+
+    // The first unit's lanes first, and with no REQUIRE above them: the failure
+    // this case exists for is the second unit's readings landing on the first
+    // unit's lanes, and an abort on "lane 4 is empty" would report the symptom
+    // three assertions before the cause.
+    const auto still = lane_sources(harness.lane(0));
+    const bool the_first_unit_lost_its_reading =
+        !still.sensed.has_value() || !still.sensed->present.has_value() || !*still.sensed->present;
+    CHECK_FALSE(the_first_unit_lost_its_reading);
+    const bool the_first_unit_took_the_second_units_colour =
+        still.vendor_cache.has_value() && still.vendor_cache->color_rgb.has_value() &&
+        *still.vendor_cache->color_rgb != 0xED2C2Cu;
+    CHECK_FALSE(the_first_unit_took_the_second_units_colour);
+    const bool the_first_unit_took_the_second_units_brand =
+        still.vendor_cache.has_value() && still.vendor_cache->brand == "Xplorer";
+    CHECK_FALSE(the_first_unit_took_the_second_units_brand);
+    REQUIRE(still.vendor_cache.has_value());
+    REQUIRE(still.vendor_cache->color_rgb.has_value());
+    CHECK(*still.vendor_cache->color_rgb == 0xED2C2Cu);
+
+    const auto second_unit = lane_sources(harness.lane(4));
+    REQUIRE(second_unit.vendor_cache.has_value());
+    REQUIRE(second_unit.vendor_cache->color_rgb.has_value());
+    CHECK(*second_unit.vendor_cache->color_rgb == 0x112233u);
+    CHECK(second_unit.vendor_cache->brand == "Xplorer");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "CFS reads both its wire colours by the shared grammar",
+                 "[lane][ingest][cfs]") {
+    SECTION("a stock value with anything after the colour is no colour") {
+        CfsHarness harness(nullptr, nullptr);
+        // Creality's own spelling is a leading zero and six hex digits. A value
+        // carrying more than that is refused whole rather than read up to its
+        // first bad character, which would file a plausible wrong colour.
+        feed_cfs_box(
+            *harness,
+            stock_box("T1", nlohmann::json{{"vender", nlohmann::json::array({"Creality"})},
+                                           {"remain_len", nlohmann::json::array({"100"})},
+                                           {"color_value", nlohmann::json::array({"0ED2C2CZZ"})},
+                                           {"material_type", nlohmann::json::array({"-1"})}}));
+
+        const auto lane = lane_sources(harness.lane(0));
+        REQUIRE(lane.vendor_cache.has_value());
+        CHECK_FALSE(lane.vendor_cache->color_rgb.has_value());
+        // The bay is still occupied; only its colour is unreadable.
+        REQUIRE(lane.sensed.has_value());
+        CHECK(*lane.sensed->present == true);
+    }
+
+    SECTION("the flat schema reads every spelling the shared grammar accepts") {
+        CfsHarness harness(nullptr, nullptr);
+        feed_cfs_box(*harness,
+                     flat_box(nlohmann::json::array(
+                         {nlohmann::json{{"index", 0}, {"color", "#F00"}, {"present", true}},
+                          nlohmann::json{{"index", 1}, {"color", "0xED2C2C"}, {"present", true}},
+                          nlohmann::json{{"index", 2}, {"color", "112233FF"}, {"present", true}},
+                          nlohmann::json{{"index", 3}, {"color", "nothex"}, {"present", true}}})));
+
+        const auto three_digit = lane_sources(harness.lane(0));
+        REQUIRE(three_digit.vendor_cache->color_rgb.has_value());
+        CHECK(*three_digit.vendor_cache->color_rgb == 0xFF0000u);
+
+        const auto prefixed = lane_sources(harness.lane(1));
+        REQUIRE(prefixed.vendor_cache->color_rgb.has_value());
+        CHECK(*prefixed.vendor_cache->color_rgb == 0xED2C2Cu);
+
+        const auto with_alpha = lane_sources(harness.lane(2));
+        REQUIRE(with_alpha.vendor_cache->color_rgb.has_value());
+        CHECK(*with_alpha.vendor_cache->color_rgb == 0x112233u);
+
+        const auto refused = lane_sources(harness.lane(3));
+        REQUIRE(refused.vendor_cache.has_value());
+        CHECK_FALSE(refused.vendor_cache->color_rgb.has_value());
+    }
+}
+
+// --- ACE ---------------------------------------------------------------
+
+TEST_CASE_METHOD(LVGLTestFixture, "ACE splits slot status from slot metadata",
+                 "[lane][ingest][ace]") {
+    AceHarness harness(nullptr, nullptr);
+
+    feed_ace(*harness,
+             nlohmann::json{
+                 {"status", "ready"},
+                 {"slots", nlohmann::json::array({
+                               nlohmann::json{{"status", "ready"},
+                                              {"color", nlohmann::json::array({237, 44, 44})},
+                                              {"type", "PETG"}},
+                               nlohmann::json{{"status", "empty"},
+                                              {"color", nlohmann::json::array({0, 0, 0})},
+                                              {"type", ""}},
+                           })},
+             });
+
+    const auto slot0 = lane_sources(harness.lane(0));
+    REQUIRE(slot0.sensed.has_value());
+    REQUIRE(slot0.sensed->present.has_value());
+    CHECK(*slot0.sensed->present == true);
+    CHECK_FALSE(slot0.sensed->color_rgb.has_value());
+    REQUIRE(slot0.vendor_cache.has_value());
+    REQUIRE(slot0.vendor_cache->color_rgb.has_value());
+    CHECK(*slot0.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(slot0.vendor_cache->material == "PETG");
+    // The hub weighs nothing and reads no tag, so no other source speaks.
+    CHECK_FALSE(slot0.metered.has_value());
+    CHECK_FALSE(slot0.spoolman.has_value());
+
+    const auto slot1 = lane_sources(harness.lane(1));
+    REQUIRE(slot1.sensed.has_value());
+    REQUIRE(slot1.sensed->present.has_value());
+    CHECK(*slot1.sensed->present == false);
+    // ACE reports [0,0,0] for an empty slot. That is a real reading of black
+    // from a hub that has no way to say "no reading", and the model records it
+    // as the cache's word rather than inventing an absence.
+    REQUIRE(slot1.vendor_cache.has_value());
+    REQUIRE(slot1.vendor_cache->color_rgb.has_value());
+    CHECK(*slot1.vendor_cache->color_rgb == 0x000000u);
+    CHECK_FALSE(slot1.vendor_cache->material.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an override never reaches ACE's vendor-cache record",
+                 "[lane][ingest][ace]") {
+    AceHarness harness(nullptr, nullptr);
+
+    // SlotInfo persists across frames and apply_overrides() rewrites it in
+    // place at the end of every slot iteration, so a translation reading that
+    // struct back would file the user's own choice as the hub's memory.
+    AceTestAccess::seed_override(*harness, 1, user_colour_and_material());
+
+    feed_ace(*harness,
+             nlohmann::json{
+                 {"slots", nlohmann::json::array({
+                               nlohmann::json{{"status", "empty"}},
+                               nlohmann::json{{"status", "ready"},
+                                              {"color", nlohmann::json::array({237, 44, 44})},
+                                              {"type", "PETG"}},
+                           })},
+             });
+
+    // Precondition, not the behaviour under test: unless the override actually
+    // wins on the merged slot there is no laundering for this case to catch and
+    // both assertions below would hold for the wrong reason.
+    const auto merged = harness->get_slot_info(1);
+    REQUIRE(merged.color_rgb == 0x00FF00u);
+    REQUIRE(merged.material == "ABS");
+
+    const auto lane = lane_sources(harness.lane(1));
+    REQUIRE(lane.vendor_cache.has_value());
+    REQUIRE(lane.vendor_cache->color_rgb.has_value());
+    CHECK(*lane.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(lane.vendor_cache->material == "PETG");
+
+    // A second frame that states occupancy and nothing else. This is the phase
+    // that can actually launder: the merge has been applied to the slot since
+    // the last frame, so the struct now holds the user's colour and material
+    // under keys this frame never mentioned, and a translation reading it back
+    // would file both as the hub's own memory.
+    feed_ace(*harness, nlohmann::json{{"slots", nlohmann::json::array({
+                                                    nlohmann::json{{"status", "empty"}},
+                                                    nlohmann::json{{"status", "ready"}},
+                                                })}});
+
+    // Precondition again: the override is still what the merged slot shows, so
+    // there is still something for the record to launder.
+    const auto after = harness->get_slot_info(1);
+    REQUIRE(after.color_rgb == 0x00FF00u);
+    REQUIRE(after.material == "ABS");
+
+    const auto silent = lane_sources(harness.lane(1));
+    REQUIRE(silent.vendor_cache.has_value());
+    // Named separately from the two below so the failure carries its own
+    // diagnosis: a record that merely narrowed wrongly and one that filed the
+    // user's own edit as a hub reading are different defects.
+    const bool the_users_colour_was_filed_as_the_hubs =
+        silent.vendor_cache->color_rgb.has_value() && *silent.vendor_cache->color_rgb == 0x00FF00u;
+    CHECK_FALSE(the_users_colour_was_filed_as_the_hubs);
+    const bool the_users_material_was_filed_as_the_hubs =
+        silent.vendor_cache->material.has_value() && *silent.vendor_cache->material == "ABS";
+    CHECK_FALSE(the_users_material_was_filed_as_the_hubs);
+    CHECK_FALSE(silent.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(silent.vendor_cache->material.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a slot ACE states no status for neither sets nor erases presence",
+                 "[lane][ingest][ace]") {
+    AceHarness harness(nullptr, nullptr);
+
+    // Nothing on this lane may abort the case: the decisive claim is the last
+    // phase, and a leading REQUIRE would report "no record filed" for a rule
+    // whose actual failure is a stale reading being erased.
+    feed_ace(*harness, nlohmann::json{{"slots", nlohmann::json::array({
+                                                    nlohmann::json{{"type", "PLA"}},
+                                                })}});
+
+    const auto unread = lane_sources(harness.lane(0));
+    // The cache record proves the translation ran, so the absence below is
+    // about the hub's status key and not about an ingest that never happened.
+    REQUIRE(unread.vendor_cache.has_value());
+    CHECK(unread.vendor_cache->material == "PLA");
+    CHECK_FALSE(unread.sensed.has_value());
+
+    // The same slot once the hub does speak. This half is what makes the half
+    // above a guard rather than a backend that never reports presence.
+    feed_ace(*harness, nlohmann::json{{"slots", nlohmann::json::array({
+                                                    nlohmann::json{{"status", "ready"}},
+                                                })}});
+
+    const auto read = lane_sources(harness.lane(0));
+    REQUIRE(read.sensed.has_value());
+    REQUIRE(read.sensed->present.has_value());
+    CHECK(*read.sensed->present == true);
+
+    // A frame that states no status again. The hub's presence authority is the
+    // key, not a latch, so filing an empty record here would erase a live
+    // reading instead of repeating it.
+    feed_ace(*harness, nlohmann::json{{"slots", nlohmann::json::array({
+                                                    nlohmann::json{{"type", "PLA"}},
+                                                })}});
+
+    const auto still = lane_sources(harness.lane(0));
+    const bool a_live_reading_was_erased =
+        !still.sensed.has_value() || !still.sensed->present.has_value();
+    CHECK_FALSE(a_live_reading_was_erased);
+    CHECK(still.sensed.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a status ACE does not recognise retracts its reading",
+                 "[lane][ingest][ace]") {
+    AceHarness harness(nullptr, nullptr);
+
+    feed_ace(*harness, nlohmann::json{{"slots", nlohmann::json::array({
+                                                    nlohmann::json{{"status", "ready"}},
+                                                })}});
+
+    const auto read = lane_sources(harness.lane(0));
+    REQUIRE(read.sensed.has_value());
+    REQUIRE(read.sensed->present.has_value());
+    CHECK(*read.sensed->present == true);
+
+    // "unknown" is in ACE's own vocabulary and everything outside it lands in
+    // the same place: the hub saying it does not know. That is news, and a
+    // record whose field is unset is the only way to retract a reading.
+    feed_ace(*harness, nlohmann::json{{"slots", nlohmann::json::array({
+                                                    nlohmann::json{{"status", "unknown"}},
+                                                })}});
+
+    const auto withdrawn = lane_sources(harness.lane(0));
+    const bool a_stale_reading_still_stands =
+        withdrawn.sensed.has_value() && withdrawn.sensed->present.has_value();
+    CHECK_FALSE(a_stale_reading_still_stands);
+    CHECK(withdrawn.sensed.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "each ACE slot accumulates its own identity",
+                 "[lane][ingest][ace]") {
+    AceHarness harness(nullptr, nullptr);
+
+    feed_ace(*harness,
+             nlohmann::json{
+                 {"slots", nlohmann::json::array({
+                               nlohmann::json{{"status", "ready"},
+                                              {"color", nlohmann::json::array({17, 17, 17})},
+                                              {"type", "PLA"}},
+                               nlohmann::json{{"status", "empty"}},
+                               nlohmann::json{{"status", "ready"},
+                                              {"color", nlohmann::json::array({51, 51, 51})},
+                                              {"type", "PETG"}},
+                               nlohmann::json{{"status", "loaded"},
+                                              {"color", nlohmann::json::array({68, 68, 68})},
+                                              {"type", "ABS"}},
+                           })},
+             });
+
+    // Values, not has_value(). Per-slot keys with every record filed on one
+    // lane is the shape this defect actually takes, and only values catch it.
+    const auto slot0 = lane_sources(harness.lane(0));
+    REQUIRE(slot0.vendor_cache.has_value());
+    CHECK(slot0.vendor_cache->material == "PLA");
+    REQUIRE(slot0.vendor_cache->color_rgb.has_value());
+    CHECK(*slot0.vendor_cache->color_rgb == 0x111111u);
+
+    const auto slot1 = lane_sources(harness.lane(1));
+    REQUIRE(slot1.vendor_cache.has_value());
+    CHECK_FALSE(slot1.vendor_cache->material.has_value());
+    CHECK_FALSE(slot1.vendor_cache->color_rgb.has_value());
+    REQUIRE(slot1.sensed.has_value());
+    CHECK(*slot1.sensed->present == false);
+
+    const auto slot2 = lane_sources(harness.lane(2));
+    REQUIRE(slot2.vendor_cache.has_value());
+    CHECK(slot2.vendor_cache->material == "PETG");
+    REQUIRE(slot2.vendor_cache->color_rgb.has_value());
+    CHECK(*slot2.vendor_cache->color_rgb == 0x333333u);
+
+    const auto slot3 = lane_sources(harness.lane(3));
+    REQUIRE(slot3.vendor_cache.has_value());
+    CHECK(slot3.vendor_cache->material == "ABS");
+    REQUIRE(slot3.vendor_cache->color_rgb.has_value());
+    CHECK(*slot3.vendor_cache->color_rgb == 0x444444u);
+    REQUIRE(slot3.sensed.has_value());
+    CHECK(*slot3.sensed->present == true);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an ACE colour that will not read is no colour",
+                 "[lane][ingest][ace]") {
+    AceHarness harness(nullptr, nullptr);
+
+    feed_ace(*harness,
+             nlohmann::json{{"slots", nlohmann::json::array({
+                                          nlohmann::json{{"status", "ready"}, {"color", "#ED2C2C"}},
+                                      })}});
+
+    const auto readable = lane_sources(harness.lane(0));
+    REQUIRE(readable.vendor_cache.has_value());
+    REQUIRE(readable.vendor_cache->color_rgb.has_value());
+    CHECK(*readable.vendor_cache->color_rgb == 0xED2C2Cu);
+
+    // Pure black is a colour ACE really reports, so "could not read this" must
+    // not land on it. The record states no colour, and the bay keeps showing
+    // the last one the hub did state.
+    feed_ace(
+        *harness,
+        nlohmann::json{{"slots", nlohmann::json::array({
+                                     nlohmann::json{{"status", "ready"}, {"color", "notahexvalue"}},
+                                 })}});
+
+    const auto unreadable = lane_sources(harness.lane(0));
+    REQUIRE(unreadable.vendor_cache.has_value());
+    CHECK_FALSE(unreadable.vendor_cache->color_rgb.has_value());
+    CHECK(harness->get_slot_info(0).color_rgb == 0xED2C2Cu);
+
+    // A short array carries no triplet and is the same answer.
+    feed_ace(*harness,
+             nlohmann::json{{"slots", nlohmann::json::array({
+                                          nlohmann::json{{"status", "ready"},
+                                                         {"color", nlohmann::json::array({17})}},
+                                      })}});
+
+    const auto truncated = lane_sources(harness.lane(0));
+    REQUIRE(truncated.vendor_cache.has_value());
+    CHECK_FALSE(truncated.vendor_cache->color_rgb.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "ACE reads a colour string by the shared grammar",
+                 "[lane][ingest][ace]") {
+    AceHarness harness(nullptr, nullptr);
+
+    // The bridge's string form, in the spellings a hand-rolled hex read gets
+    // wrong: a three-digit colour expands rather than landing on 0x000F00, an
+    // alpha suffix is sliced off rather than shifting the colour out of range,
+    // and a value with anything after the digits is refused rather than read up
+    // to its first bad character.
+    feed_ace(*harness, nlohmann::json{
+                           {"slots", nlohmann::json::array({
+                                         nlohmann::json{{"status", "ready"}, {"color", "#F00"}},
+                                         nlohmann::json{{"status", "ready"}, {"color", "112233FF"}},
+                                         nlohmann::json{{"status", "ready"}, {"color", "ED2C2CZZ"}},
+                                         nlohmann::json{{"status", "ready"}, {"color", "0xED2C2C"}},
+                                     })}});
+
+    const auto three_digit = lane_sources(harness.lane(0));
+    REQUIRE(three_digit.vendor_cache->color_rgb.has_value());
+    CHECK(*three_digit.vendor_cache->color_rgb == 0xFF0000u);
+    CHECK(harness->get_slot_info(0).color_rgb == 0xFF0000u);
+
+    const auto with_alpha = lane_sources(harness.lane(1));
+    REQUIRE(with_alpha.vendor_cache->color_rgb.has_value());
+    CHECK(*with_alpha.vendor_cache->color_rgb == 0x112233u);
+
+    const auto trailing_junk = lane_sources(harness.lane(2));
+    REQUIRE(trailing_junk.vendor_cache.has_value());
+    CHECK_FALSE(trailing_junk.vendor_cache->color_rgb.has_value());
+
+    const auto prefixed = lane_sources(harness.lane(3));
+    REQUIRE(prefixed.vendor_cache->color_rgb.has_value());
+    CHECK(*prefixed.vendor_cache->color_rgb == 0xED2C2Cu);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "ACE's REST bridge files on the same lanes as its subscription",
+                 "[lane][ingest][ace]") {
+    AceHarness harness(nullptr, nullptr);
+
+    // The bridge is a second parser with its own key ladder: `material` before
+    // `type`, and a hex string rather than a triplet. It polls the same hub, so
+    // it files the same account on the same lanes.
+    AceTestAccess::parse_slots(*harness, nlohmann::json{
+                                             {"slots", nlohmann::json::array({
+                                                           nlohmann::json{{"status", "ready"},
+                                                                          {"color", "#ED2C2C"},
+                                                                          {"material", "PETG"},
+                                                                          {"type", "PLA"}},
+                                                           nlohmann::json{{"status", "empty"}},
+                                                       })},
+                                         });
+
+    const auto slot0 = lane_sources(harness.lane(0));
+    REQUIRE(slot0.sensed.has_value());
+    REQUIRE(slot0.sensed->present.has_value());
+    CHECK(*slot0.sensed->present == true);
+    REQUIRE(slot0.vendor_cache.has_value());
+    REQUIRE(slot0.vendor_cache->color_rgb.has_value());
+    CHECK(*slot0.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(slot0.vendor_cache->material == "PETG");
+
+    const auto slot1 = lane_sources(harness.lane(1));
+    REQUIRE(slot1.sensed.has_value());
+    REQUIRE(slot1.sensed->present.has_value());
+    CHECK(*slot1.sensed->present == false);
+    REQUIRE(slot1.vendor_cache.has_value());
+    CHECK_FALSE(slot1.vendor_cache->material.has_value());
+    CHECK_FALSE(slot1.vendor_cache->color_rgb.has_value());
 }
