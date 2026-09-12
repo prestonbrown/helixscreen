@@ -8,13 +8,23 @@
   <translation tag="%d additional fan%s" it="%d ventola%s aggiuntiva"/>
   <translation tag="%d disabled" it="%d disabilitati"/>
   <translation tag="%d failed to load - see details below" it="%d non caricati - vedi i dettagli sotto"/>
+  <translation tag="%d feeders" it="%d alimentatori"/>
+  <translation tag="%d gates" it="%d Gate"/>
+  <translation tag="%d lanes" it="%d corsie"/>
   <translation tag="%d more sensors" it="%d altri sensori"/>
   <translation tag="%d of %d plugins loaded" it="%d di %d plugin caricati"/>
   <translation tag="%d plugins loaded" it="%d plugin caricati"/>
   <translation tag="%d slots" it="%d slot"/>
+  <translation tag="%d toolheads" it="%d testine"/>
+  <translation tag="%d tools" it="%d strumenti"/>
   <translation tag="%lu days ago" it="%lu giorni fa"/>
   <translation tag="%lu hours ago" it="%lu ore fa"/>
   <translation tag="%lu min ago" it="%lu min fa"/>
+  <translation tag="%s Filament" it="%s: Filamento"/>
+  <translation tag="%s has about %.0fg but %s needs about %.0fg. Start anyway?" it="%s ha circa %.0fg ma %s ne richiede circa %.0fg. Avviare comunque?"/>
+  <translation tag="%s has no filament loaded — this print will run out." it="%s non ha filamento caricato — questa stampa lo esaurirà."/>
+  <translation tag="%s needs filament in %s, which is empty — this print will run out." it="%s richiede filamento e %s non ne ha — questa stampa lo esaurirà."/>
+  <translation tag="%s: %.0fg of %.0fg needed" it="%s: %.0fg di %.0fg necessari"/>
   <translation tag="%u layers" it="%u strati"/>
   <translation tag="%zu changes" it="%zu modifiche"/>
   <translation tag="%zu events queued" it="%zu eventi in coda"/>
@@ -648,10 +658,9 @@
   <translation tag="Current name:" it="Nome attuale:"/>
   <translation tag="Current:" it="Attuale:"/>
   <translation tag="Current: %d°C | Target: %d°C" it="Attuale: %d°C | Obiettivo: %d°C"/>
-  <translation tag="Current: %s · Slot %d" it="Attuale: %s · Slot %d"/>
+  <translation tag="Current: %s" it="Attuale: %s"/>
+  <translation tag="Current: %s · %s" it="Attuale: %s · %s"/>
   <translation tag="Current: Bypass" it="Attuale: Bypass"/>
-  <translation tag="Current: Slot %d" it="Attuale: Slot %d"/>
-  <translation tag="Current: Tool %d" it="Attuale: Utensile %d"/>
   <translation tag="Currently Loaded" it="Attualmente caricato"/>
   <translation tag="Currently printing" it="Stampa in corso"/>
   <translation tag="Custom" it="Personalizzato"/>
@@ -1008,6 +1017,8 @@
   <translation tag="Feed filament" it="Alimenta filamento"/>
   <translation tag="Feed filament directly to extruder" it="Alimenta filamento direttamente all&apos;estrusore"/>
   <translation tag="Feed filament from current slot" it="Alimenta il filamento dallo slot corrente"/>
+  <translation tag="Feeder" it="Alimentatore"/>
+  <translation tag="Feeders" it="Alimentatori"/>
   <translation tag="Feeding filament forward" it="Avanzamento filamento"/>
   <translation tag="Filament" it="Filamento"/>
   <translation tag="Filament Control" it="Controllo filamento"/>
@@ -1110,6 +1121,8 @@
   <translation tag="G-code commands will appear here" it="I comandi G-code appariranno qui"/>
   <translation tag="GCode Console" it="Console G-code"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" it="Partita finita!&#10;Punteggio: {}&#10;Tocca per ricominciare"/>
+  <translation tag="Gate" it="Gate"/>
+  <translation tag="Gates" it="Gate"/>
   <translation tag="Gear Buffer Speed" it="Velocità dell&apos;ingranaggio dal buffer"/>
   <translation tag="Gear Spool Speed" it="Velocità dell&apos;ingranaggio dalla bobina"/>
   <translation tag="Gear Unload Speed" it="Velocità di scarico dell&apos;ingranaggio"/>
@@ -1348,6 +1361,7 @@
   <translation tag="Labels Per Sheet" it="Etichette per foglio"/>
   <translation tag="Lane" it="Corsia"/>
   <translation tag="Lane tests and motor resets" it="Test delle corsie e ripristini motore"/>
+  <translation tag="Lanes" it="Corsie"/>
   <translation tag="Language" it="Lingua"/>
   <translation tag="Language, theme, brightness, and sound" it="Lingua, tema, luminosità e suono"/>
   <translation tag="Last" it="Ultima"/>
@@ -1854,8 +1868,8 @@
   <translation tag="Preheat Macro" it="Macro preriscaldamento"/>
   <translation tag="Preheat PLA" it="Preriscalda PLA"/>
   <translation tag="Preheat cancelled" it="Preriscaldamento annullato"/>
-  <translation tag="Preheat: T{} + bed set" it="Preriscaldamento: T{} + piano impostati"/>
   <translation tag="Preheat: all {} tools + bed set" it="Preriscaldamento: tutti i {} utensili + piano impostati"/>
+  <translation tag="Preheat: {} + bed set" it="Preriscaldamento: {} + piano impostati"/>
   <translation tag="Prepared" it="Preparato"/>
   <translation tag="Preparing" it="Preparazione"/>
   <translation tag="Preparing Print" it="Preparazione stampa"/>
@@ -2372,18 +2386,9 @@
   <translation tag="Sliced colors" it="Colori sezionati"/>
   <translation tag="Slicer" it="Slicer"/>
   <translation tag="Slot" it="Slot"/>
-  <translation tag="Slot %d" it="Slot %d"/>
-  <translation tag="Slot %d Filament" it="Filamento slot %d"/>
-  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" it="Lo slot %d ha circa %.0fg ma lo strumento %d ne richiede circa %.0fg. Avviare comunque?"/>
-  <translation tag="Slot %d: %.0fg of %.0fg needed" it="Slot %d: %.0fg di %.0fg necessari"/>
   <translation tag="Slot 1" it="Slot 1"/>
   <translation tag="Slot colors, materials, and levels" it="Colori, materiali e livelli slot"/>
-  <translation tag="Slot {}" it="Slot {}"/>
-  <translation tag="Slot {} is blocked — manual intervention required" it="Slot {} bloccato — intervento manuale richiesto"/>
-  <translation tag="Slot {} matches." it="Lo slot {} corrisponde."/>
-  <translation tag="Slot {} spool cleared" it="Bobina slot {} rimossa"/>
-  <translation tag="Slot {} updated" it="Slot {} aggiornato"/>
-  <translation tag="Slots"/>
+  <translation tag="Slots" it="Slot"/>
   <translation tag="Small labels help keep controls calm and focused." it="Le etichette piccole aiutano a mantenere i controlli ordinati e mirati."/>
   <translation tag="Snapmaker SnapSwap" it="Snapmaker SnapSwap"/>
   <translation tag="Snapmaker U1" it="Snapmaker U1"/>
@@ -2489,7 +2494,7 @@
   <translation tag="Switch between light and dark themes" it="Passa tra tema chiaro e scuro"/>
   <translation tag="Switch the active tool or extruder" it="Cambia utensile o estrusore attivo"/>
   <translation tag="Switch to v%s" it="Passa alla v%s"/>
-  <translation tag="Switched to T{}" it="Passato a T{}"/>
+  <translation tag="Switched to {}" it="Passato a {}"/>
   <translation tag="Switches to a backup spool on runout" it="Passa a una bobina di riserva a filamento esaurito"/>
   <translation tag="Switching heater control to MPC. Klipper will restart." it="Passaggio controllo riscaldatore a MPC. Klipper si riavvierà."/>
   <translation tag="Switching to MPC requires a config change and Klipper restart." it="Il passaggio a MPC richiede una modifica alla configurazione e il riavvio di Klipper."/>
@@ -2501,8 +2506,6 @@
   <translation tag="System busy — try again" it="Sistema occupato — riprova"/>
   <translation tag="System default" it="Predefinito di sistema"/>
   <translation tag="System detected" it="Sistema rilevato"/>
-  <translation tag="T%d has no filament loaded — this print will run out." it="T%d non ha filamento caricato — questa stampa lo esaurirà."/>
-  <translation tag="T%d needs filament in slot %d, which is empty — this print will run out." it="T%d richiede filamento nello slot %d, che è vuoto — questa stampa lo esaurirà."/>
   <translation tag="TANGLE" it="GROVIGLIO"/>
   <translation tag="TD-1 filament color detection" it="Rilevamento colore filamento TD-1"/>
   <translation tag="TEMPERATURE SENSORS" it="SENSORI DI TEMPERATURA"/>
@@ -2569,6 +2572,7 @@
   <translation tag="The Spoolman spool currently loaded" it="La bobina Spoolman caricata"/>
   <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." it="Lo stream dell&apos;accelerometro si è interrotto: %s. Verifica che Klipper sia in esecuzione, poi riprova."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." it="Il salvaschermo animato è stato disattivato su questo dispositivo per evitare che interferisca con le stampe. Puoi riattivarlo in Impostazioni &gt; Schermo."/>
+  <translation tag="The bed was reported dirty, so this print cannot resume." it="Il piano è stato segnalato come sporco, quindi questa stampa non può riprendere."/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" it="Il buffer potrebbe essere scollegato, bloccato o guasto. Controllarlo prima di riprovare"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" it="Il buffer non ha rilevato movimento per 16 secondi. Verificare un&apos;ostruzione tra CFS ed estrusore, o un buffer bloccato"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" it="La lama non è rientrata. Verificare che non ci sia filamento avvolto attorno al meccanismo di taglio"/>
@@ -2685,13 +2689,14 @@
   <translation tag="Tool change failed: {}" it="Cambio utensile fallito: {}"/>
   <translation tag="Tool mapping failed" it="Mappatura utensile fallita"/>
   <translation tag="Tool swap" it="Cambio utensile"/>
-  <translation tag="Tool {} → Slot {}: no filament loaded." it="Strumento {} → Slot {}: nessun filamento caricato."/>
   <translation tag="Toolhead" it="Testina"/>
   <translation tag="Toolhead LED" it="LED della testina"/>
   <translation tag="Toolhead Sensor" it="Sensore testina"/>
   <translation tag="Toolhead Style" it="Stile testina"/>
   <translation tag="Toolhead jam" it="Inceppamento testina"/>
   <translation tag="Toolhead, G-code, limits, and materials" it="Testina, G-code, limiti e materiali"/>
+  <translation tag="Toolheads" it="Testine"/>
+  <translation tag="Tools" it="Strumenti"/>
   <translation tag="Tools Used" it="Utensili usati"/>
   <translation tag="Tools: " it="Utensili: "/>
   <translation tag="Total Prints" it="Stampe totali"/>
@@ -2723,7 +2728,6 @@
   <translation tag="Type" it="Tipo"/>
   <translation tag="Type to preview input field..." it="Digita per visualizzare anteprima campo input..."/>
   <translation tag="Type:" it="Tipo:"/>
-  <translation tag="T{} shares slot with T{}" it="T{} condivide lo slot con T{}"/>
   <translation tag="UI Scale" it="Scala dell&apos;interfaccia"/>
   <translation tag="UI Sounds" it="Suoni interfaccia"/>
   <translation tag="UI scale applies after restart" it="La scala dell&apos;interfaccia è attiva dopo il riavvio"/>
@@ -2983,6 +2987,7 @@
   <translation tag="v{} is available. Tap to update." it="v{} disponibile. Tocca per aggiornare."/>
   <translation tag="you have" it="hai"/>
   <translation tag="{} LED strips available" it="{} strisce LED disponibili"/>
+  <translation tag="{} and {} are both mapped here" it="{} e {} sono entrambi assegnati qui"/>
   <translation tag="{} axis homed" it="Asse {} in posizione"/>
   <translation tag="{} command timed out" it="Comando {} scaduto"/>
   <translation tag="{} complete" it="{} completato"/>
@@ -2996,10 +3001,12 @@
   <translation tag="{} filament • {}" it="{} di filamento • {}"/>
   <translation tag="{} heater turned off" it="Riscaldatore {} spento"/>
   <translation tag="{} is asking to connect to this printer." it="{} chiede di connettersi a questa stampante."/>
+  <translation tag="{} is blocked — manual intervention required" it="{}: blocco — intervento manuale richiesto"/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." it="{} è installato ma il passaggio alla bobina di riserva è disattivato, quindi non avverrà alcun cambio automatico."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." it="{} è installato, ma non è stato possibile leggere la sua impostazione della bobina di riserva - non contare su un cambio automatico."/>
   <translation tag="{} is not set up on this printer" it="{} non è configurato su questa stampante"/>
   <translation tag="{} macro not configured" it="Macro {} non configurata"/>
+  <translation tag="{} matches." it="{} corrisponde."/>
   <translation tag="{} may cause unintended changes. Are you sure?" it="{} potrebbe causare modifiche indesiderate. Sei sicuro?"/>
   <translation tag="{} more taps to {} beta features" it="{} tocchi per {} funzioni beta"/>
   <translation tag="{} needs the HelixPrint plugin. Printing original file." it="{} richiede il plugin HelixPrint. Verrà stampato il file originale."/>
@@ -3008,9 +3015,12 @@
   <translation tag="{} set to {}" it="{} impostato su {}"/>
   <translation tag="{} set to {} {}" it="{} impostato su {} {}"/>
   <translation tag="{} slots" it="{} slot"/>
+  <translation tag="{} spool cleared" it="{}: bobina rimossa"/>
   <translation tag="{} started" it="{} avviato"/>
   <translation tag="{} target set to {}°C" it="Obiettivo {} impostato a {}°C"/>
+  <translation tag="{} updated" it="Aggiornamento di {}"/>
   <translation tag="{} widgets" it="{} widget"/>
   <translation tag="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present." it="{} passerà a uno slot il cui tipo di filamento E colore corrispondono entrambi alla bobina attiva e il cui sensore di porta rileva filamento presente."/>
   <translation tag="{} — response timed out" it="{} — tempo scaduto"/>
+  <translation tag="{} → {}: no filament loaded." it="{} → {}: nessun filamento caricato."/>
 </translations>

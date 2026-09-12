@@ -16,7 +16,8 @@
 
     Binds to ToolState subjects:
     - show_tool_badge: 1 = show badge, 0 = hide (single-tool)
-    - tool_badge_text: Active tool INDEX (e.g., "0"), not the full name
+    - tool_badge_text: Active tool's 1-based display number (e.g., "1" for tool
+      index 0), not the full name
 
     badge_size/badge_font default to #badge_size and #font_xs, which are
     breakpoint-scaled and assume a roomy icon (size="xl", 64px). The icon ladder

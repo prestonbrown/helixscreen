@@ -8,13 +8,23 @@
   <translation tag="%d additional fan%s" en="%d additional fan%s"/>
   <translation tag="%d disabled" en="%d disabled"/>
   <translation tag="%d failed to load - see details below" en="%d failed to load - see details below"/>
+  <translation tag="%d feeders" en="%d feeders"/>
+  <translation tag="%d gates" en="%d gates"/>
+  <translation tag="%d lanes" en="%d lanes"/>
   <translation tag="%d more sensors" en="%d more sensors"/>
   <translation tag="%d of %d plugins loaded" en="%d of %d plugins loaded"/>
   <translation tag="%d plugins loaded" en="%d plugins loaded"/>
   <translation tag="%d slots" en="%d slots"/>
+  <translation tag="%d toolheads" en="%d toolheads"/>
+  <translation tag="%d tools" en="%d tools"/>
   <translation tag="%lu days ago" en="%lu days ago"/>
   <translation tag="%lu hours ago" en="%lu hours ago"/>
   <translation tag="%lu min ago" en="%lu min ago"/>
+  <translation tag="%s Filament" en="%s Filament"/>
+  <translation tag="%s has about %.0fg but %s needs about %.0fg. Start anyway?" en="%s has about %.0fg but %s needs about %.0fg. Start anyway?"/>
+  <translation tag="%s has no filament loaded — this print will run out." en="%s has no filament loaded — this print will run out."/>
+  <translation tag="%s needs filament in %s, which is empty — this print will run out." en="%s needs filament in %s, which is empty — this print will run out."/>
+  <translation tag="%s: %.0fg of %.0fg needed" en="%s: %.0fg of %.0fg needed"/>
   <translation tag="%u layers" en="%u layers"/>
   <translation tag="%zu changes" en="%zu changes"/>
   <translation tag="%zu events queued" en="%zu events queued"/>
@@ -648,10 +658,9 @@
   <translation tag="Current name:" en="Current name:"/>
   <translation tag="Current:" en="Current:"/>
   <translation tag="Current: %d°C | Target: %d°C" en="Current: %d°C | Target: %d°C"/>
-  <translation tag="Current: %s · Slot %d" en="Current: %s · Slot %d"/>
+  <translation tag="Current: %s" en="Current: %s"/>
+  <translation tag="Current: %s · %s" en="Current: %s · %s"/>
   <translation tag="Current: Bypass" en="Current: Bypass"/>
-  <translation tag="Current: Slot %d" en="Current: Slot %d"/>
-  <translation tag="Current: Tool %d" en="Current: Tool %d"/>
   <translation tag="Currently Loaded" en="Currently Loaded"/>
   <translation tag="Currently printing" en="Currently printing"/>
   <translation tag="Custom" en="Custom"/>
@@ -1008,6 +1017,8 @@
   <translation tag="Feed filament" en="Feed filament"/>
   <translation tag="Feed filament directly to extruder" en="Feed filament directly to extruder"/>
   <translation tag="Feed filament from current slot" en="Feed filament from current slot"/>
+  <translation tag="Feeder" en="Feeder"/>
+  <translation tag="Feeders" en="Feeders"/>
   <translation tag="Feeding filament forward" en="Feeding filament forward"/>
   <translation tag="Filament" en="Filament"/>
   <translation tag="Filament Control" en="Filament Control"/>
@@ -1110,6 +1121,8 @@
   <translation tag="G-code commands will appear here" en="G-code commands will appear here"/>
   <translation tag="GCode Console" en="GCode Console"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" en="Game Over!&#10;Score: {}&#10;Tap to restart"/>
+  <translation tag="Gate" en="Gate"/>
+  <translation tag="Gates" en="Gates"/>
   <translation tag="Gear Buffer Speed" en="Gear Buffer Speed"/>
   <translation tag="Gear Spool Speed" en="Gear Spool Speed"/>
   <translation tag="Gear Unload Speed" en="Gear Unload Speed"/>
@@ -1348,6 +1361,7 @@
   <translation tag="Labels Per Sheet" en="Labels Per Sheet"/>
   <translation tag="Lane" en="Lane"/>
   <translation tag="Lane tests and motor resets" en="Lane tests and motor resets"/>
+  <translation tag="Lanes" en="Lanes"/>
   <translation tag="Language" en="Language"/>
   <translation tag="Language, theme, brightness, and sound" en="Language, theme, brightness, and sound"/>
   <translation tag="Last" en="Last"/>
@@ -1854,8 +1868,8 @@
   <translation tag="Preheat Macro" en="Preheat Macro"/>
   <translation tag="Preheat PLA" en="Preheat PLA"/>
   <translation tag="Preheat cancelled" en="Preheat cancelled"/>
-  <translation tag="Preheat: T{} + bed set" en="Preheat: T{} + bed set"/>
   <translation tag="Preheat: all {} tools + bed set" en="Preheat: all {} tools + bed set"/>
+  <translation tag="Preheat: {} + bed set" en="Preheat: {} + bed set"/>
   <translation tag="Prepared" en="Prepared"/>
   <translation tag="Preparing" en="Preparing"/>
   <translation tag="Preparing Print" en="Preparing Print"/>
@@ -2372,17 +2386,8 @@
   <translation tag="Sliced colors" en="Sliced colors"/>
   <translation tag="Slicer" en="Slicer"/>
   <translation tag="Slot" en="Slot"/>
-  <translation tag="Slot %d" en="Slot %d"/>
-  <translation tag="Slot %d Filament" en="Slot %d Filament"/>
-  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" en="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?"/>
-  <translation tag="Slot %d: %.0fg of %.0fg needed" en="Slot %d: %.0fg of %.0fg needed"/>
   <translation tag="Slot 1" en="Slot 1"/>
   <translation tag="Slot colors, materials, and levels" en="Slot colors, materials, and levels"/>
-  <translation tag="Slot {}" en="Slot {}"/>
-  <translation tag="Slot {} is blocked — manual intervention required" en="Slot {} is blocked — manual intervention required"/>
-  <translation tag="Slot {} matches." en="Slot {} matches."/>
-  <translation tag="Slot {} spool cleared" en="Slot {} spool cleared"/>
-  <translation tag="Slot {} updated" en="Slot {} updated"/>
   <translation tag="Slots" en="Slots"/>
   <translation tag="Small labels help keep controls calm and focused." en="Small labels help keep controls calm and focused."/>
   <translation tag="Snapmaker SnapSwap" en="Snapmaker SnapSwap"/>
@@ -2489,7 +2494,7 @@
   <translation tag="Switch between light and dark themes" en="Switch between light and dark themes"/>
   <translation tag="Switch the active tool or extruder" en="Switch the active tool or extruder"/>
   <translation tag="Switch to v%s" en="Switch to v%s"/>
-  <translation tag="Switched to T{}" en="Switched to T{}"/>
+  <translation tag="Switched to {}" en="Switched to {}"/>
   <translation tag="Switches to a backup spool on runout" en="Switches to a backup spool on runout"/>
   <translation tag="Switching heater control to MPC. Klipper will restart." en="Switching heater control to MPC. Klipper will restart."/>
   <translation tag="Switching to MPC requires a config change and Klipper restart." en="Switching to MPC requires a config change and Klipper restart."/>
@@ -2501,8 +2506,6 @@
   <translation tag="System busy — try again" en="System busy — try again"/>
   <translation tag="System default" en="System default"/>
   <translation tag="System detected" en="System detected"/>
-  <translation tag="T%d has no filament loaded — this print will run out." en="T%d has no filament loaded — this print will run out."/>
-  <translation tag="T%d needs filament in slot %d, which is empty — this print will run out." en="T%d needs filament in slot %d, which is empty — this print will run out."/>
   <translation tag="TANGLE" en="TANGLE"/>
   <translation tag="TD-1 filament color detection" en="TD-1 filament color detection"/>
   <translation tag="TEMPERATURE SENSORS" en="TEMPERATURE SENSORS"/>
@@ -2569,6 +2572,7 @@
   <translation tag="The Spoolman spool currently loaded" en="The Spoolman spool currently loaded"/>
   <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." en="The accelerometer stream stopped: %s. Check that Klipper is running, then retry."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." en="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display."/>
+  <translation tag="The bed was reported dirty, so this print cannot resume." en="The bed was reported dirty, so this print cannot resume."/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" en="The buffer may be disconnected, stuck, or faulty. Check it before retrying"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" en="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" en="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism"/>
@@ -2685,13 +2689,14 @@
   <translation tag="Tool change failed: {}" en="Tool change failed: {}"/>
   <translation tag="Tool mapping failed" en="Tool mapping failed"/>
   <translation tag="Tool swap" en="Tool swap"/>
-  <translation tag="Tool {} → Slot {}: no filament loaded." en="Tool {} → Slot {}: no filament loaded."/>
   <translation tag="Toolhead" en="Toolhead"/>
   <translation tag="Toolhead LED" en="Toolhead LED"/>
   <translation tag="Toolhead Sensor" en="Toolhead Sensor"/>
   <translation tag="Toolhead Style" en="Toolhead Style"/>
   <translation tag="Toolhead jam" en="Toolhead jam"/>
   <translation tag="Toolhead, G-code, limits, and materials" en="Toolhead, G-code, limits, and materials"/>
+  <translation tag="Toolheads" en="Toolheads"/>
+  <translation tag="Tools" en="Tools"/>
   <translation tag="Tools Used" en="Tools Used"/>
   <translation tag="Tools: " en="Tools: "/>
   <translation tag="Total Prints" en="Total Prints"/>
@@ -2723,7 +2728,6 @@
   <translation tag="Type" en="Type"/>
   <translation tag="Type to preview input field..." en="Type to preview input field..."/>
   <translation tag="Type:" en="Type:"/>
-  <translation tag="T{} shares slot with T{}" en="T{} shares slot with T{}"/>
   <translation tag="UI Scale" en="UI Scale"/>
   <translation tag="UI Sounds" en="UI Sounds"/>
   <translation tag="UI scale applies after restart" en="UI scale applies after restart"/>
@@ -2983,6 +2987,7 @@
   <translation tag="v{} is available. Tap to update." en="v{} is available. Tap to update."/>
   <translation tag="you have" en="you have"/>
   <translation tag="{} LED strips available" en="{} LED strips available"/>
+  <translation tag="{} and {} are both mapped here" en="{} and {} are both mapped here"/>
   <translation tag="{} axis homed" en="{} axis homed"/>
   <translation tag="{} command timed out" en="{} command timed out"/>
   <translation tag="{} complete" en="{} complete"/>
@@ -2996,10 +3001,12 @@
   <translation tag="{} filament • {}" en="{} filament • {}"/>
   <translation tag="{} heater turned off" en="{} heater turned off"/>
   <translation tag="{} is asking to connect to this printer." en="{} is asking to connect to this printer."/>
+  <translation tag="{} is blocked — manual intervention required" en="{} is blocked — manual intervention required"/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." en="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." en="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap."/>
   <translation tag="{} is not set up on this printer" en="{} is not set up on this printer"/>
   <translation tag="{} macro not configured" en="{} macro not configured"/>
+  <translation tag="{} matches." en="{} matches."/>
   <translation tag="{} may cause unintended changes. Are you sure?" en="{} may cause unintended changes. Are you sure?"/>
   <translation tag="{} more taps to {} beta features" en="{} more taps to {} beta features"/>
   <translation tag="{} needs the HelixPrint plugin. Printing original file." en="{} needs the HelixPrint plugin. Printing original file."/>
@@ -3008,9 +3015,12 @@
   <translation tag="{} set to {}" en="{} set to {}"/>
   <translation tag="{} set to {} {}" en="{} set to {} {}"/>
   <translation tag="{} slots" en="{} slots"/>
+  <translation tag="{} spool cleared" en="{} spool cleared"/>
   <translation tag="{} started" en="{} started"/>
   <translation tag="{} target set to {}°C" en="{} target set to {}°C"/>
+  <translation tag="{} updated" en="{} updated"/>
   <translation tag="{} widgets" en="{} widgets"/>
   <translation tag="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present." en="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present."/>
   <translation tag="{} — response timed out" en="{} — response timed out"/>
+  <translation tag="{} → {}: no filament loaded." en="{} → {}: no filament loaded."/>
 </translations>

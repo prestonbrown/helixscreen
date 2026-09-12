@@ -4,6 +4,7 @@
 #include "ams_backend_qidi.h"
 
 #include "ams_error.h"
+#include "display_numbering.h"
 #include "macro_param_cache.h"
 #include "settings_manager.h"
 #include "slot_registry.h"
@@ -60,7 +61,7 @@ constexpr int QIDI_MAX_BOXES = 4;
 AmsUnit make_qidi_unit(int unit_index) {
     AmsUnit unit;
     unit.unit_index = unit_index;
-    unit.name = fmt::format("QIDI Box {}", unit_index + 1);
+    unit.name = fmt::format("QIDI Box {}", helix::ui::lane_number(unit_index));
     unit.display_name = unit.name;
     unit.slot_count = QIDI_SLOTS_PER_BOX;
     unit.first_slot_global_index = unit_index * QIDI_SLOTS_PER_BOX;
@@ -1231,9 +1232,9 @@ std::optional<helix::ErrorEvent> AmsBackendQidi::current_error() const {
     e.severity = helix::ErrorSeverity::CRITICAL;
     e.title = lv_tr("Filament System Error");
     // Single translatable string with a {} placeholder — preserves word order in
-    // locales where the slot number doesn't sit between "Slot" and the predicate.
-    e.detail = fmt::format(fmt::runtime(lv_tr("Slot {} is blocked — manual intervention required")),
-                           blocked + 1);
+    // locales where the position label doesn't sit at the head of the sentence.
+    e.detail = fmt::format(fmt::runtime(lv_tr("{} is blocked — manual intervention required")),
+                           helix::ui::lane_label(lane_noun(), blocked));
     e.sticky = true;
     // A CRITICAL event with empty recovery_actions renders via RecoveryModalPresenter
     // as a button-less ActionPromptModal — non-dismissible UI trap. Provide one

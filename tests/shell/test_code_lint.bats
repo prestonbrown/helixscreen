@@ -1508,6 +1508,147 @@ check_weight_poll_is_weight_only() {
     [[ "$output" == *"could not locate"* ]]
 }
 
+# --- Hand-built tool labels and lane/slot offsets must route through display_numbering.h ---
+# include/display_numbering.h keeps the storage-index -> display-number `+ 1`
+# in exactly one function (helix::ui::lane_number()) and spells a gcode tool's
+# label through exactly one function (helix::ui::tool_label()). Both are one
+# line to rebuild by hand, which is exactly how they drift: one call site
+# gets fixed and a sibling built the old way does not.
+#
+# scripts/check_tool_labels.sh is the gate. It runs as its own process here,
+# the same way it runs from a shell prompt or CI, rather than sourcing its
+# internals - SCAN_ROOT redirects it at a fixture directory instead of the
+# real tree.
+
+run_tool_label_gate() {
+    SCAN_ROOT="$1" bash "$BATS_TEST_DIRNAME/../../scripts/check_tool_labels.sh"
+}
+
+@test "no hand-built tool labels or lane/slot offsets in the real tree" {
+    run bash "$BATS_TEST_DIRNAME/../../scripts/check_tool_labels.sh"
+    [ "$status" -eq 0 ]
+}
+
+@test "the tool label gate catches each forbidden shape" {
+    # Meta-test: a gate that cannot fail is not a gate.
+    local d="${BATS_TEST_TMPDIR}/offenders"
+    mkdir -p "$d"
+    cat > "$d/a.cpp" <<'EOF'
+void a(char* b, int i) { snprintf(b, 8, "T%d", i); }
+void c(char* b, int i) { snprintf(b, 8, "T{}", i); }
+void e(int i) { auto s = "T" + std::to_string(i); }
+void f(int slot_index) { auto s = fmt::format("Slot {}", slot_index + 1); }
+void g(int backup) { auto s = fmt::format("Slot {} matches.", backup + 1); }
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 1 ]
+    contains "T%d" "$output"
+    contains "T{}" "$output"
+    contains "std::to_string(i)" "$output"
+    contains "slot_index + 1" "$output"
+    contains "backup + 1" "$output"
+}
+
+@test "the tool label gate catches an assignment that feeds a formatting call a few lines later" {
+    # Shape 3: shape 2 only sees the arithmetic and the formatting call
+    # together on one physical line. Splitting the assignment out reaches the
+    # same display text and is the same violation.
+    local d="${BATS_TEST_TMPDIR}/split_offenders"
+    mkdir -p "$d"
+    cat > "$d/a.cpp" <<'EOF'
+void f(int slot_index) {
+    int display_slot = slot_index + 1;
+    std::string label = "unit";
+    do_other_work();
+    snprintf(tmp, sizeof(tmp), lv_tr("Current: Slot %d"), display_slot);
+}
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 1 ]
+    contains "int display_slot = slot_index + 1;" "$output"
+    contains "display_slot);" "$output"
+}
+
+@test "the tool label gate stays quiet on a protocol field id with no formatting call" {
+    # The silent half of shapes 2 and 3: the arithmetic alone is not the
+    # violation, and neither is assigning it to a variable that a formatting
+    # call never reads. Only building display text from it without
+    # lane_number() is - matching the real allowlisted wire-format shape in
+    # filament_slot_override_store.cpp, which is 1-based on the wire by spec.
+    local d="${BATS_TEST_TMPDIR}/plain_offset"
+    mkdir -p "$d"
+    cat > "$d/quiet.cpp" <<'EOF'
+void f(int slot_index) {
+    wire_fields[slot_index + 1] = 0;
+    unit_addrs.push_back(unit_index + 1);
+}
+void g(int slot_index) {
+    int idx = slot_index + 1;
+    registers_[idx] = 0;
+}
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the tool label gate stays quiet on an spdlog diagnostic containing + 1" {
+    local d="${BATS_TEST_TMPDIR}/spdlog_diag"
+    mkdir -p "$d"
+    cat > "$d/quiet.cpp" <<'EOF'
+void f(int slot_index) {
+    spdlog::debug("[Thing] resolved lane {}", slot_index + 1);
+}
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the tool label gate stays quiet on filament_slot_override_store.cpp-style wire-format code" {
+    # The whole file is allowlisted: format_lane_key builds BOTH forbidden
+    # shapes on purpose - a 1-based "laneN" text key over a 0-based inner
+    # field, per docs/specs/filament_slots.md.
+    local d="${BATS_TEST_TMPDIR}/wire_format"
+    mkdir -p "$d"
+    cat > "$d/filament_slot_override_store.cpp" <<'EOF'
+std::string format_lane_key(LaneKeyStyle style, int slot_index) {
+    return style == LaneKeyStyle::Tool ? "T" + std::to_string(slot_index)
+                                       : "lane" + std::to_string(slot_index + 1);
+}
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the tool label gate stays quiet on a T<n> gcode emitter in ams_backend_*.cpp" {
+    # ams_backend_*.cpp is allowlisted for shape 1 only: a T<n> built there is
+    # gcode sent to firmware, not a label.
+    local d="${BATS_TEST_TMPDIR}/gcode_emitter"
+    mkdir -p "$d"
+    cat > "$d/ams_backend_example.cpp" <<'EOF'
+void select_tool(int tool_number) {
+    execute_gcode("T" + std::to_string(tool_number));
+}
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "the tool label gate escape hatch suppresses a genuine one-off" {
+    local d="${BATS_TEST_TMPDIR}/hatch"
+    mkdir -p "$d"
+    cat > "$d/hatch.cpp" <<'EOF'
+void f(int i) { snprintf(b, 8, "T%d", i); } // DISPLAY_NUMBERING_OK: desktop-only debug scratch tool
+EOF
+    run run_tool_label_gate "$d"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+
 @test "the control socket directory is resolved in one place" {
     # Client and server each computed this inline. They agreed by convention
     # until they did not, and a client looking where the server never bound

@@ -13,6 +13,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "ams_backend_afc.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -24,6 +25,34 @@
 
 using namespace helix;
 using namespace helix::printer;
+
+namespace helix {
+/// Seeds one slot directly on system_info_, bypassing the lane registry
+/// AmsBackendAfc::on_started() would otherwise populate from a live Moonraker
+/// subscription — collect_available_slots() only needs get_system_info() to
+/// return a unit with one slot.
+class AfcAvailableSlotsHelper : public AmsBackendAfc {
+  public:
+    AfcAvailableSlotsHelper() : AmsBackendAfc(nullptr, nullptr) {}
+
+    void seed_one_slot() {
+        AmsUnit unit;
+        unit.unit_index = 0;
+        unit.name = "Box Turtle 1";
+        unit.slot_count = 1;
+        unit.first_slot_global_index = 0;
+
+        SlotInfo slot;
+        slot.slot_index = 0;
+        slot.global_index = 0;
+        slot.status = SlotStatus::AVAILABLE;
+        unit.slots.push_back(slot);
+
+        system_info_.units.push_back(unit);
+        system_info_.total_slots = 1;
+    }
+};
+} // namespace helix
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "collect_available_slots carries multi_color_hexes across the boundary",
@@ -109,6 +138,42 @@ TEST_CASE_METHOD(LVGLTestFixture, "an assigned but empty lane still flattens to 
     CHECK(found->material == "ASA-GF"); // ...but the assignment is still there
 
     mock_ptr->stop();
+    ams.clear_backends();
+    ams.deinit_subjects();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "collect_available_slots takes noun from each slot's own backend",
+                 "[ams][ams_state][available_slots][numbering]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+
+    // Backend 0: mock, defaults to simulating Happy Hare (LaneNoun::Gate).
+    // Backend 1: AFC, LaneNoun::Lane. Two different nouns so a wrong
+    // implementation that reads one active backend's noun for every slot
+    // cannot pass by coincidence.
+    ams.set_backend(std::make_unique<AmsBackendMock>());
+
+    auto afc = std::make_unique<AfcAvailableSlotsHelper>();
+    afc->seed_one_slot();
+    ams.add_backend(std::move(afc));
+
+    const auto slots = ams.collect_available_slots();
+
+    const AvailableSlot* mock_slot = nullptr;
+    const AvailableSlot* afc_slot = nullptr;
+    for (const auto& s : slots) {
+        if (s.backend_index == 0 && s.slot_index == 0) {
+            mock_slot = &s;
+        } else if (s.backend_index == 1 && s.slot_index == 0) {
+            afc_slot = &s;
+        }
+    }
+    REQUIRE(mock_slot != nullptr);
+    REQUIRE(afc_slot != nullptr);
+
+    CHECK(mock_slot->noun == helix::ui::LaneNoun::Gate);
+    CHECK(afc_slot->noun == helix::ui::LaneNoun::Lane);
+
     ams.clear_backends();
     ams.deinit_subjects();
 }

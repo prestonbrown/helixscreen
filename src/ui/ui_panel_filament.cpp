@@ -24,6 +24,7 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
@@ -1879,12 +1880,12 @@ void FilamentPanel::populate_extruder_dropdown() {
     if (!multi_tool)
         return;
 
-    // Build options string ("T0\nT1\nT2")
+    // Build options string ("Tool 1\nTool 2\nTool 3")
     std::string options;
     for (const auto& tool : ts.tools()) {
         if (!options.empty())
             options += '\n';
-        options += tool.name;
+        options += tool.display_label;
     }
     lv_dropdown_set_options(extruder_dropdown_, options.c_str());
 
@@ -2035,7 +2036,8 @@ void FilamentPanel::handle_extruder_changed() {
     spdlog::info("[{}] User selected tool T{}", get_name(), selected);
 
     ts.request_tool_change(
-        selected, api_, [selected]() { NOTIFY_SUCCESS(lv_tr("Switched to T{}"), selected); },
+        selected, api_,
+        [selected]() { NOTIFY_SUCCESS(lv_tr("Switched to {}"), helix::ui::tool_label(selected)); },
         [this](const std::string& error) {
             NOTIFY_ERROR(lv_tr("Tool change failed: {}"), error);
             // Revert dropdown to actual active tool on UI thread

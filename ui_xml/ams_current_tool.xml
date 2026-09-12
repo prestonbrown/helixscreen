@@ -14,10 +14,11 @@
     AMS Current Tool Indicator
 
     Compact display showing the currently active tool/filament during a print.
-    Used in the print status panel to show which AMS slot is feeding the printer.
+    Used in the print status panel to name the tool that is printing.
 
     Features:
-    - Shows tool number (T0, T1, etc.) with filament color swatch
+    - Shows the tool's physical label (Tool 1, or Toolhead 1 where the backend
+      names the printing end differently) with filament color swatch
     - Auto-hides when no AMS is available (slot_count == 0)
     - Auto-hides when no tool is active (current_tool == -1)
     - Clickable to open AMS panel for slot management
@@ -27,15 +28,15 @@
     - Click handler to open AMS panel
 
     Binds to subjects:
-    - ams_current_tool_text: string ("T0", "T1", or empty)
+    - ams_current_tool_text: string ("Tool 1", "Toolhead 1", or the "no active tool" placeholder)
     - ams_slot_count: int (0=no AMS, >0=AMS available)
     - ams_current_tool: int (negative=none, 0+=tool index) for visibility
 
     The leading glyph is filament_sensor_indicator, not a plain icon, so this
     block carries runout state as well as lane identity — on an AMS printer it
-    is the only filament glyph in the status row, and a muted icon beside a lane
-    number said nothing about whether that lane had run out. Where no sensor is
-    configured the indicator hides itself and the lane number stands alone.
+    is the only filament glyph in the status row, and a muted icon beside a tool
+    label says nothing about whether that tool's lane has run out. Where no sensor
+    is configured the indicator hides itself and the tool label stands alone.
   -->
   <view name="ams_current_tool"
         extends="lv_obj" width="content" height="content" style_pad_all="0" flex_flow="row"
@@ -48,8 +49,9 @@
     <event_cb trigger="clicked" callback="on_ams_current_tool_clicked"/>
     <!-- Filament/spool glyph, colored by runout state (see note above) -->
     <filament_sensor_indicator subject="$runout_subject" size="sm"/>
-    <!-- Tool label (T0, T1, etc.) -->
-    <text_small name="tool_label" text="T0" bind_text="ams_current_tool_text"/>
+    <!-- The tool's physical label (Tool 1, or Toolhead 1 on a backend that names
+         the printing end differently). Overwritten at runtime by the binding. -->
+    <text_small name="tool_label" text="Tool 1" bind_text="ams_current_tool_text"/>
     <!-- Color swatch showing current filament color (color set via C++) -->
     <lv_obj name="color_swatch"
             width="16" height="16" style_radius="8" style_border_width="1" style_border_color="#text_muted"

@@ -8,13 +8,23 @@ translations:
   '%d additional fan%s': '%d ventola%s aggiuntiva'
   '%d disabled': '%d disabilitati'
   '%d failed to load - see details below': '%d non caricati - vedi i dettagli sotto'
+  '%d feeders': '%d alimentatori'
+  '%d gates': '%d Gate'
+  '%d lanes': '%d corsie'
   '%d more sensors': '%d altri sensori'
   '%d of %d plugins loaded': '%d di %d plugin caricati'
   '%d plugins loaded': '%d plugin caricati'
   '%d slots': '%d slot'
+  '%d toolheads': '%d testine'
+  '%d tools': '%d strumenti'
   '%lu days ago': '%lu giorni fa'
   '%lu hours ago': '%lu ore fa'
   '%lu min ago': '%lu min fa'
+  '%s Filament': '%s: Filamento'
+  '%s has about %.0fg but %s needs about %.0fg. Start anyway?': '%s ha circa %.0fg ma %s ne richiede circa %.0fg. Avviare comunque?'
+  '%s has no filament loaded — this print will run out.': '%s non ha filamento caricato — questa stampa lo esaurirà.'
+  '%s needs filament in %s, which is empty — this print will run out.': '%s richiede filamento e %s non ne ha — questa stampa lo esaurirà.'
+  '%s: %.0fg of %.0fg needed': '%s: %.0fg di %.0fg necessari'
   '%u layers': '%u strati'
   '%zu changes': '%zu modifiche'
   '%zu events queued': '%zu eventi in coda'
@@ -730,10 +740,9 @@ translations:
   'Current name:': 'Nome attuale:'
   'Current:': 'Attuale:'
   'Current: %d°C | Target: %d°C': 'Attuale: %d°C | Obiettivo: %d°C'
-  'Current: %s · Slot %d': 'Attuale: %s · Slot %d'
+  'Current: %s': 'Attuale: %s'
+  'Current: %s · %s': 'Attuale: %s · %s'
   'Current: Bypass': 'Attuale: Bypass'
-  'Current: Slot %d': 'Attuale: Slot %d'
-  'Current: Tool %d': 'Attuale: Utensile %d'
   Currently Loaded: Attualmente caricato
   Currently printing: Stampa in corso
   Custom: Personalizzato
@@ -1119,6 +1128,8 @@ translations:
   Feed filament: Alimenta filamento
   Feed filament directly to extruder: Alimenta filamento direttamente all'estrusore
   Feed filament from current slot: 'Alimenta il filamento dallo slot corrente'
+  Feeder: Alimentatore
+  Feeders: Alimentatori
   Feeding filament forward: Avanzamento filamento
   Filament: Filamento
   Filament Control: Controllo filamento
@@ -1229,6 +1240,8 @@ translations:
   GCode Console: 'Console G-code'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Partita finita!\nPunteggio: {}\nTocca per ricominciare"
+  Gate: Gate
+  Gates: Gate
   Gear Buffer Speed: 'Velocità dell''ingranaggio dal buffer'
   Gear Spool Speed: 'Velocità dell''ingranaggio dalla bobina'
   Gear Unload Speed: 'Velocità di scarico dell''ingranaggio'
@@ -1512,6 +1525,7 @@ translations:
   Labels Per Sheet: Etichette per foglio
   Lane: Corsia
   Lane tests and motor resets: 'Test delle corsie e ripristini motore'
+  Lanes: Corsie
   Language: Lingua
   Language, theme, brightness, and sound: Lingua, tema, luminosità e suono
   Last: Ultima
@@ -2066,9 +2080,9 @@ translations:
   Preheat Macro: Macro preriscaldamento
   Preheat PLA: Preriscalda PLA
   Preheat cancelled: Preriscaldamento annullato
-  'Preheat: T{} + bed set': 'Preriscaldamento: T{} + piano impostati'
   'Preheat: all {} tools + bed set': 'Preriscaldamento: tutti i {} utensili + piano
     impostati'
+  'Preheat: {} + bed set': 'Preriscaldamento: {} + piano impostati'
   Prepared: Preparato
   Preparing: Preparazione
   Preparing Print: Preparazione stampa
@@ -2649,18 +2663,9 @@ translations:
   Sliced colors: Colori sezionati
   Slicer: Slicer
   Slot: Slot
-  Slot %d: Slot %d
-  Slot %d Filament: Filamento slot %d
-  Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?: 'Lo slot %d ha circa %.0fg ma lo strumento %d ne richiede circa %.0fg. Avviare comunque?'
-  'Slot %d: %.0fg of %.0fg needed': 'Slot %d: %.0fg di %.0fg necessari'
   Slot 1: Slot 1
   Slot colors, materials, and levels: Colori, materiali e livelli slot
-  Slot {}: Slot {}
-  Slot {} is blocked — manual intervention required: Slot {} bloccato — intervento manuale richiesto
-  Slot {} matches.: 'Lo slot {} corrisponde.'
-  Slot {} spool cleared: Bobina slot {} rimossa
-  Slot {} updated: Slot {} aggiornato
-  Slots: ''
+  Slots: Slot
   Small labels help keep controls calm and focused.: Le etichette piccole aiutano
     a mantenere i controlli ordinati e mirati.
   Snapmaker SnapSwap: Snapmaker SnapSwap
@@ -2780,7 +2785,7 @@ translations:
   Switch between light and dark themes: Passa tra tema chiaro e scuro
   Switch the active tool or extruder: Cambia utensile o estrusore attivo
   Switch to v%s: 'Passa alla v%s'
-  Switched to T{}: Passato a T{}
+  Switched to {}: 'Passato a {}'
   Switches to a backup spool on runout: Passa a una bobina di riserva a filamento esaurito
   Switching heater control to MPC. Klipper will restart.: Passaggio controllo riscaldatore
     a MPC. Klipper si riavvierà.
@@ -2794,10 +2799,6 @@ translations:
   System busy — try again: Sistema occupato — riprova
   System default: Predefinito di sistema
   System detected: Sistema rilevato
-  T%d has no filament loaded — this print will run out.: T%d non ha filamento caricato
-    — questa stampa lo esaurirà.
-  T%d needs filament in slot %d, which is empty — this print will run out.: T%d richiede
-    filamento nello slot %d, che è vuoto — questa stampa lo esaurirà.
   TANGLE: GROVIGLIO
   TD-1 filament color detection: Rilevamento colore filamento TD-1
   TEMPERATURE SENSORS: SENSORI DI TEMPERATURA
@@ -2876,6 +2877,7 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   : Il salvaschermo animato è stato disattivato su questo dispositivo per evitare
     che interferisca con le stampe. Puoi riattivarlo in Impostazioni > Schermo.
+  The bed was reported dirty, so this print cannot resume.: 'Il piano è stato segnalato come sporco, quindi questa stampa non può riprendere.'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Il buffer potrebbe essere scollegato, bloccato o guasto. Controllarlo prima di riprovare
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Il buffer non ha rilevato movimento per 16 secondi. Verificare un'ostruzione tra CFS ed estrusore, o un buffer bloccato
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: La lama non è rientrata. Verificare che non ci sia filamento avvolto attorno al meccanismo di taglio
@@ -3043,13 +3045,14 @@ translations:
   'Tool change failed: {}': 'Cambio utensile fallito: {}'
   Tool mapping failed: Mappatura utensile fallita
   Tool swap: Cambio utensile
-  'Tool {} → Slot {}: no filament loaded.': 'Strumento {} → Slot {}: nessun filamento caricato.'
   Toolhead: 'Testina'
   Toolhead LED: 'LED della testina'
   Toolhead Sensor: Sensore testina
   Toolhead Style: Stile testina
   Toolhead jam: Inceppamento testina
   Toolhead, G-code, limits, and materials: Testina, G-code, limiti e materiali
+  Toolheads: Testine
+  Tools: Strumenti
   Tools Used: Utensili usati
   'Tools: ': 'Utensili: '
   Total Prints: Stampe totali
@@ -3083,7 +3086,6 @@ translations:
   Type: Tipo
   Type to preview input field...: Digita per visualizzare anteprima campo input...
   'Type:': 'Tipo:'
-  T{} shares slot with T{}: T{} condivide lo slot con T{}
   UI Scale: Scala dell'interfaccia
   UI Sounds: Suoni interfaccia
   UI scale applies after restart: La scala dell'interfaccia è attiva dopo il riavvio
@@ -3378,6 +3380,7 @@ translations:
   v{} is available. Tap to update.: v{} disponibile. Tocca per aggiornare.
   you have: hai
   '{} LED strips available': '{} strisce LED disponibili'
+  '{} and {} are both mapped here': '{} e {} sono entrambi assegnati qui'
   '{} axis homed': Asse {} in posizione
   '{} command timed out': Comando {} scaduto
   '{} complete': '{} completato'
@@ -3391,10 +3394,12 @@ translations:
   '{} filament • {}': '{} di filamento • {}'
   '{} heater turned off': Riscaldatore {} spento
   '{} is asking to connect to this printer.': '{} chiede di connettersi a questa stampante.'
+  '{} is blocked — manual intervention required': '{}: blocco — intervento manuale richiesto'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} è installato ma il passaggio alla bobina di riserva è disattivato, quindi non avverrà alcun cambio automatico.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} è installato, ma non è stato possibile leggere la sua impostazione della bobina di riserva - non contare su un cambio automatico.'
   '{} is not set up on this printer': '{} non è configurato su questa stampante'
   '{} macro not configured': Macro {} non configurata
+  '{} matches.': '{} corrisponde.'
   '{} may cause unintended changes. Are you sure?': '{} potrebbe causare modifiche
     indesiderate. Sei sicuro?'
   '{} more taps to {} beta features': '{} tocchi per {} funzioni beta'
@@ -3404,9 +3409,12 @@ translations:
   '{} set to {}': '{} impostato su {}'
   '{} set to {} {}': '{} impostato su {} {}'
   '{} slots': '{} slot'
+  '{} spool cleared': '{}: bobina rimossa'
   '{} started': '{} avviato'
   '{} target set to {}°C': Obiettivo {} impostato a {}°C
+  '{} updated': 'Aggiornamento di {}'
   '{} widgets': '{} widget'
   ? '{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present.'
   : '{} passerà a uno slot il cui tipo di filamento E colore corrispondono entrambi alla bobina attiva e il cui sensore di porta rileva filamento presente.'
   '{} — response timed out': '{} — tempo scaduto'
+  '{} → {}: no filament loaded.': '{} → {}: nessun filamento caricato.'

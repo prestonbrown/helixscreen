@@ -1046,8 +1046,6 @@ echo "🎨 Checking code formatting (clang-format)..."
 # Unformatted when the gate started blocking; each entry leaves when it is
 # next staged and auto-formatted.
 CLANG_FORMAT_BASELINE="
-include/tool_state.h
-src/printer/filament_mapper.cpp
 src/system/pwm_sound_backend.cpp
 "
 CF_OK=false

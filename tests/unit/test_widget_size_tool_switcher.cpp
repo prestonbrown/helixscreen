@@ -27,12 +27,15 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "../test_helpers/tool_switcher_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "panel_widget_size.h"
+#include "printer_discovery.h"
 #include "src/ui/panel_widgets/tool_switcher_widget.h"
 #include "tool_state.h"
 
 #include <cstdlib>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -63,7 +66,6 @@ void configure_tools(int count, int active_index = 0) {
     ToolTopology topo;
     topo.tool_count = count;
     topo.active_tool = active_index;
-    topo.tool_name_prefix = "T";
     ts.set_ams_topology(topo);
 }
 
@@ -74,7 +76,6 @@ void update_tools(int count, int active_index) {
     ToolTopology topo;
     topo.tool_count = count;
     topo.active_tool = active_index;
-    topo.tool_name_prefix = "T";
     ToolState::instance().set_ams_topology(topo);
 }
 
@@ -289,4 +290,40 @@ TEST_CASE_METHOD(ToolSwitcherFixture,
     REQUIRE(lv_obj_get_child_count(container) == 3);
     CHECK(lv_obj_get_style_layout(container, LV_PART_MAIN) == LV_LAYOUT_FLEX);
     CHECK(lv_obj_get_style_flex_flow(container, LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
+}
+
+TEST_CASE_METHOD(ToolSwitcherFixture, "tool_switcher: compact mode marks an unknown active tool",
+                 "[widget_size][tool_switcher]") {
+    // Klipper's toolchanger.tool_number is taken as reported, so a printer that
+    // names a tool the discovery never listed leaves active_tool_index() past
+    // the end of the tool list.
+    ToolState& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+    helix::PrinterDiscovery disc;
+    nlohmann::json objects = {"toolchanger", "tool T0",   "tool T1",  "tool T2",
+                              "extruder",    "extruder1", "extruder2"};
+    disc.parse_objects(objects);
+    ts.init_tools(disc);
+    REQUIRE(ts.tool_count() == 3);
+
+    PanelWidgetHarness<ToolSwitcherWidget> h(test_screen(), state());
+    REQUIRE(h.child("tool_switcher_container") != nullptr);
+    process_lvgl(30);
+
+    // Both axes below the floor: the compact icon-plus-label form.
+    h.resize(2, 2, w_normal() - 1, h_tall() - 1);
+    process_lvgl(30);
+
+    lv_obj_t* label = ToolSwitcherTestAccess::compact_label(h.widget());
+    REQUIRE(label != nullptr);
+    REQUIRE(std::string(lv_label_get_text(label)) == ts.tools()[0].display_label);
+
+    ts.update_from_status(nlohmann::json{{"toolchanger", {{"tool_number", 7}}}});
+    process_lvgl(30);
+    REQUIRE(ts.active_tool_index() == 7);
+
+    label = ToolSwitcherTestAccess::compact_label(h.widget());
+    REQUIRE(label != nullptr);
+    CHECK(std::string(lv_label_get_text(label)) == "?");
 }

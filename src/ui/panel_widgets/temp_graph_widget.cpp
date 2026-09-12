@@ -6,6 +6,7 @@
 #include "ui_overlay_temp_graph.h"
 
 #include "app_globals.h"
+#include "display_numbering.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "klipper_extruder_naming.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -508,12 +509,13 @@ TempGraphWidget::TempGraphConfigModal::sensor_display_name(const std::string& kl
         if (it != exts.end() && !it->second.display_name.empty()) {
             return it->second.display_name;
         }
-        // Fallback when extruders haven't been discovered yet: derive a
-        // best-effort number from the klipper suffix. "extruder" -> "Nozzle 1",
-        // "extruderN" -> "Nozzle N+1".
+        // Fallback when extruders haven't been discovered yet: a bare "extruder"
+        // carries no signal about whether the printer has one nozzle or several,
+        // so index 0 answers with the common single-extruder case rather than
+        // guessing multi. "extruderN" (N >= 1) implies multi and gets a number.
         if (*tool_number == 0)
             return lv_tr("Nozzle");
-        return std::string(lv_tr("Nozzle")) + " " + std::to_string(*tool_number + 1);
+        return std::string(lv_tr("Nozzle")) + " " + helix::ui::lane_number_text(*tool_number);
     }
     if (klipper_name == "heater_bed")
         return lv_tr("Bed");

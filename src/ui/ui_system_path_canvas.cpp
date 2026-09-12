@@ -6,6 +6,7 @@
 #include "ui_fonts.h"
 #include "ui_spool_drawing.h"
 
+#include "display_numbering.h"
 #include "filament_path_geometry.h"
 #include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -1472,7 +1473,7 @@ void ui_system_path_canvas_set_total_tools(lv_obj_t* obj, int total_tools) {
     if (!data->has_virtual_numbers) {
         for (int i = 0; i < data->total_tools; ++i) {
             snprintf(data->tool_labels[i], sizeof(data->tool_labels[i]), "%c%d",
-                     data->tool_label_prefix, i);
+                     data->tool_label_prefix, helix::ui::lane_number(i));
         }
     }
     lv_obj_invalidate(obj);
@@ -1497,7 +1498,8 @@ void ui_system_path_canvas_set_current_tool(lv_obj_t* obj, int tool_index) {
         // disagree about *which* toolhead is meant (#1229), so the alias is the
         // only informative number available — an extruder identity here would be
         // a constant "E0". Multi-nozzle badges go through tool_labels[] instead.
-        snprintf(data->current_tool_label, sizeof(data->current_tool_label), "T%d", tool_index);
+        snprintf(data->current_tool_label, sizeof(data->current_tool_label), "%s",
+                 helix::ui::tool_label(tool_index).c_str());
     } else {
         data->current_tool_label[0] = '\0';
     }
@@ -1512,7 +1514,8 @@ void ui_system_path_canvas_set_tool_label_prefix(lv_obj_t* obj, char prefix) {
     // Reformat in place: the numbers can be unchanged while the letter flips,
     // and set_tool_virtual_numbers() short-circuits on unchanged numbers.
     for (int i = 0; i < SystemPathData::MAX_TOOLS; ++i) {
-        const int n = data->has_virtual_numbers ? data->tool_virtual_number[i] : i;
+        const int n =
+            data->has_virtual_numbers ? data->tool_virtual_number[i] : helix::ui::lane_number(i);
         snprintf(data->tool_labels[i], sizeof(data->tool_labels[i]), "%c%d", prefix, n);
     }
     lv_obj_invalidate(obj);
@@ -1539,8 +1542,9 @@ void ui_system_path_canvas_set_tool_virtual_numbers(lv_obj_t* obj, const int* nu
     }
     // Clear remaining entries
     for (int i = n; i < SystemPathData::MAX_TOOLS; ++i) {
-        data->tool_virtual_number[i] = i;
-        snprintf(data->tool_labels[i], sizeof(data->tool_labels[i]), "%c%d", prefix, i);
+        const int fallback_n = helix::ui::lane_number(i);
+        data->tool_virtual_number[i] = fallback_n;
+        snprintf(data->tool_labels[i], sizeof(data->tool_labels[i]), "%c%d", prefix, fallback_n);
     }
     data->has_virtual_numbers = (n > 0);
     lv_obj_invalidate(obj);

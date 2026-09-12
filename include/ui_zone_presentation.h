@@ -9,12 +9,14 @@
  * answers about a zone. They render them differently, so what is shared here is the
  * decision and never the drawing.
  *
- * LVGL-free and translation-free: callers pass translated words in.
+ * The unit word arrives already translated and the position noun as a LaneNoun that
+ * display_numbering spells, so nothing here builds a label out of a word and a number.
  */
 
 #pragma once
 
 #include "ams_environment_zone.h"
+#include "display_numbering.h"
 
 #include <string>
 #include <vector>
@@ -76,12 +78,11 @@ struct ZoneStatus {
  * numbered one-based. Anything else falls back to the system type and a unit ordinal.
  *
  * @param unit_word Translated word for "Unit"
- * @param slot_word Translated word for "Slot"
+ * @param slot_noun The backend's word for one filament position
  * @param type_name Filament system name, for the last-resort form
  */
 [[nodiscard]] std::string zone_display_label(const helix::printer::EnvironmentZone& zone,
-                                             const std::string& unit_word,
-                                             const std::string& slot_word,
+                                             const std::string& unit_word, LaneNoun slot_noun,
                                              const std::string& type_name);
 
 /// Whether a set of zones covers more than one unit, which is when grouping headers earn
@@ -95,11 +96,9 @@ struct ZoneStatus {
  * shape we serve, so a range is honest; an empty zone gets an empty string rather
  * than a range of nothing.
  *
- * @param plural_word Translated word for "Slots"
- * @param singular_word Translated word for "Slot"
+ * @param noun The backend's word for one filament position; a range takes its plural
  */
 [[nodiscard]] std::string zone_slot_text(const helix::printer::EnvironmentZone& zone,
-                                         const std::string& plural_word,
-                                         const std::string& singular_word);
+                                         LaneNoun noun);
 
 } // namespace helix::ui

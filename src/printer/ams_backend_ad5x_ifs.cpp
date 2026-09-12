@@ -1823,7 +1823,7 @@ PathSegment AmsBackendAd5xIfs::infer_error_segment() const {
 
 AmsError AmsBackendAd5xIfs::do_load_filament(int slot_index) {
     if (!validate_slot_index(slot_index)) {
-        return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_PORTS - 1);
     }
 
     int port = slot_index + 1;
@@ -2031,7 +2031,8 @@ AmsError AmsBackendAd5xIfs::do_unload_filament(int slot_index) {
         // exactly the "current channel" the zmod macro resolves internally.
         std::string cmd = "IFS_UNLOAD";
         if (slot_index >= 0) {
-            cmd += " SLOT=" + std::to_string(slot_index + 1);
+            cmd += " SLOT=";
+            cmd += std::to_string(slot_index + 1); // DISPLAY_NUMBERING_OK: gcode wire, not a label
         }
         result = execute_gcode(std::move(cmd), [this, token]() {
             token.defer("Ad5xIfsBackend::unload_macro_complete",
@@ -2113,7 +2114,7 @@ void AmsBackendAd5xIfs::finalize_op_after_macro(bool is_unload) {
 
 AmsError AmsBackendAd5xIfs::do_select_slot(int slot_index) {
     if (!validate_slot_index(slot_index)) {
-        return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_PORTS - 1);
     }
 
     // Standalone module: it has no point-without-load command — selection IS a
@@ -2127,14 +2128,14 @@ AmsError AmsBackendAd5xIfs::do_select_slot(int slot_index) {
                         "This firmware can only switch slots by loading them");
     }
 
-    int port = slot_index + 1;
+    int port = slot_index + 1; // DISPLAY_NUMBERING_OK: 1-based SET_EXTRUDER_SLOT gcode parameter
     spdlog::info("{} Selecting port {}", backend_log_tag(), port);
     return execute_gcode("SET_EXTRUDER_SLOT SLOT=" + std::to_string(port));
 }
 
 AmsError AmsBackendAd5xIfs::do_change_tool(int tool_number) {
     if (tool_number < 0 || tool_number >= TOOL_MAP_SIZE) {
-        return AmsErrorHelper::invalid_slot(tool_number, TOOL_MAP_SIZE - 1);
+        return AmsErrorHelper::tool_out_of_range(tool_number);
     }
 
     int port;
@@ -2144,7 +2145,7 @@ AmsError AmsBackendAd5xIfs::do_change_tool(int tool_number) {
     }
 
     if (port < 1 || port > NUM_PORTS) {
-        return AmsErrorHelper::invalid_parameter("Tool T" + std::to_string(tool_number) +
+        return AmsErrorHelper::invalid_parameter("Tool " + helix::ui::tool_label(tool_number) +
                                                  " is not mapped to any port");
     }
 
@@ -2208,7 +2209,7 @@ AmsError AmsBackendAd5xIfs::eject_lane(int slot_index) {
         note_filament_op_dispatch_locked();
 
         if (!validate_slot_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_PORTS - 1);
         }
 
         // Refuse to cold-eject the lane currently seated at the toolhead: the
@@ -2243,7 +2244,7 @@ AmsError AmsBackendAd5xIfs::eject_lane(int slot_index) {
         }
     }
 
-    int port = slot_index + 1;
+    int port = slot_index + 1; // DISPLAY_NUMBERING_OK: 1-based SLOT= gcode parameter (IFS_EJECT)
     const std::string port_str = std::to_string(port);
     AmsError err39;
     if (ifs_module_live_.load()) {
@@ -2655,7 +2656,7 @@ std::vector<std::pair<std::string, std::string>> AmsBackendAd5xIfs::get_material
 
 AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, bool persist) {
     if (!validate_slot_index(slot_index)) {
-        return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_PORTS - 1);
     }
 
     auto idx = static_cast<size_t>(slot_index);
@@ -2671,7 +2672,7 @@ AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, 
         // Update local state
         auto* entry = slots_.get_mut(slot_index);
         if (!entry) {
-            return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_PORTS - 1);
         }
 
         // Mark slot dirty to prevent parse_save_variables from overwriting our edit
@@ -2869,8 +2870,10 @@ AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, 
             // module re-prefixes it on its side.
             char color_hex[7];
             snprintf(color_hex, sizeof(color_hex), "%06X", info.color_rgb & 0xFFFFFF);
-            auto err = execute_gcode("IFS_SET_MATERIAL SLOT=" + std::to_string(slot_index + 1) +
-                                     " TYPE=" + normalized_material + " COLOR=" + color_hex);
+            auto err = execute_gcode(
+                "IFS_SET_MATERIAL SLOT=" +
+                std::to_string(slot_index + 1) + // DISPLAY_NUMBERING_OK: gcode wire, not a label
+                " TYPE=" + normalized_material + " COLOR=" + color_hex);
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 dirty_[idx] = false;
@@ -3041,10 +3044,10 @@ AmsError AmsBackendAd5xIfs::set_tool_mapping_impl(int tool_number, int slot_inde
     // contracts are detected (parse_ifs_tool_map_locked logs that case).
     if (wire_backed) {
         if (slot_index < 0 || slot_index >= NUM_PORTS) {
-            return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_PORTS - 1);
         }
-        std::string verb = "IFS_MAP_TOOL TOOL=" + std::to_string(tool_number) +
-                           " SLOT=" + std::to_string(slot_index + 1);
+        std::string verb = "IFS_MAP_TOOL TOOL=" + std::to_string(tool_number) + " SLOT=";
+        verb += std::to_string(slot_index + 1); // DISPLAY_NUMBERING_OK: gcode wire, not a label
         return execute_gcode(verb);
     }
 
@@ -6459,7 +6462,7 @@ std::string AmsBackendAd5xIfs::build_runout_detail_locked() const {
         const int backup = find_backup_slot_locked(runout_slot_);
         detail += " ";
         if (backup >= 0) {
-            detail += fmt::format(lv_tr("Slot {} matches."), backup + 1);
+            detail += fmt::format(lv_tr("{} matches."), helix::ui::lane_label(lane_noun(), backup));
         } else {
             detail += lv_tr("No slot currently matches.");
         }

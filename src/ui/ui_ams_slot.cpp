@@ -12,6 +12,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "data_root_resolver.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
@@ -586,9 +587,8 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
 
     if (mapped_tool >= 0) {
         // Tool is mapped - show badge with tool number
-        char tool_text[8];
-        snprintf(tool_text, sizeof(tool_text), "T%d", mapped_tool);
-        lv_label_set_text(data->tool_badge, tool_text);
+        const std::string tool_text = helix::ui::tool_label(mapped_tool);
+        lv_label_set_text(data->tool_badge, tool_text.c_str());
         lv_obj_remove_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
 
         // Use warning color for user overrides, muted for firmware defaults
@@ -877,7 +877,7 @@ static void setup_slot_observers(AmsSlotData* data) {
     // Update slot badge with 1-based display number
     if (data->slot_badge) {
         char badge_text[16];
-        snprintf(badge_text, sizeof(badge_text), "%d", data->slot_index + 1);
+        snprintf(badge_text, sizeof(badge_text), "%d", helix::ui::lane_number(data->slot_index));
         lv_label_set_text(data->slot_badge, badge_text);
     }
 

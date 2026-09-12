@@ -7884,3 +7884,8 @@ TEST_CASE("AFC unresolvable extruder makes no lane attribution claim",
     helper.feed_afc_extruder("e1", {{"lane_loaded", "lane3"}});
     REQUIRE(helper.get_system_info().current_slot == 2); // lane3
 }
+
+TEST_CASE("AFC names its positions lanes", "[ams][afc][numbering]") {
+    AmsBackendAfc backend(nullptr, nullptr);
+    CHECK(backend.lane_noun() == helix::ui::LaneNoun::Lane);
+}

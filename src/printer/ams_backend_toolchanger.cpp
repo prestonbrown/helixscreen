@@ -948,7 +948,7 @@ AmsError AmsBackendToolChanger::validate_slot_index(int slot_index) const {
         return AmsErrorHelper::not_connected("No tools discovered");
     }
     if (slot_index < 0 || slot_index >= system_info_.total_slots) {
-        return AmsErrorHelper::invalid_slot(slot_index, system_info_.total_slots - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, system_info_.total_slots - 1);
     }
     return AmsErrorHelper::success();
 }
@@ -1334,12 +1334,10 @@ AmsError AmsBackendToolChanger::set_tool_mapping_impl(int tool_number, int slot_
 
         int tool_count = static_cast<int>(tool_names_.size());
         if (tool_number < 0 || tool_number >= tool_count) {
-            return AmsError(AmsResult::INVALID_TOOL,
-                            "Tool " + std::to_string(tool_number) + " out of range",
-                            "Invalid tool number", "");
+            return AmsErrorHelper::tool_out_of_range(tool_number);
         }
         if (slot_index < 0 || slot_index >= tool_count) {
-            return AmsErrorHelper::invalid_slot(slot_index, tool_count - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, tool_count - 1);
         }
 
         // The physical tool to assign (slot_index maps to tool_names_[slot_index])

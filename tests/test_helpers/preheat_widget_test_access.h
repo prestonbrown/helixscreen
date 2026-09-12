@@ -19,6 +19,9 @@ namespace helix {
 //  - tool_target() / set_tool_target(): the value the cycle walks. It is also
 //    what handle_apply() hands collect_preheat_heaters() and what
 //    update_tool_target_label() renders, so it is the whole observable result.
+//  - set_temperatures_multi(): the real send path, including the "Preheat: ..."
+//    confirmation toast. Reads ToolState + the globally-registered
+//    TemperatureController, same as production; no attached widget tree needed.
 //
 // Follows the tests/test_helpers/ TestAccess pattern ([L088]) rather than
 // adding _for_testing() accessors to the production API.
@@ -34,6 +37,10 @@ class PreheatWidgetTestAccess {
 
     static void set_tool_target(PreheatWidget& widget, int target) {
         widget.tool_target_ = target;
+    }
+
+    static void set_temperatures_multi(PreheatWidget& widget, int nozzle, int bed) {
+        widget.set_temperatures_multi(nozzle, bed);
     }
 };
 

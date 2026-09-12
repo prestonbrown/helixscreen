@@ -6,6 +6,7 @@
 #include "ui_utils.h"
 
 #include "bed_dimensions.h"
+#include "display_numbering.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "printer_excluded_objects_state.h"
@@ -582,7 +583,7 @@ lv_obj_t* ExcludeObjectMapView::create_object_rect(lv_obj_t* parent, int index,
     // Number label inside badge
     lv_obj_t* num_label = lv_label_create(badge);
     char num_buf[16];
-    snprintf(num_buf, sizeof(num_buf), "%d", index + 1);
+    snprintf(num_buf, sizeof(num_buf), "%d", lane_number(index));
     lv_label_set_text(num_label, num_buf);
     lv_obj_set_style_text_font(num_label, theme_manager_get_font("font_small"), 0);
     lv_obj_set_style_text_color(num_label, theme_manager_get_readable_on(color), 0);
@@ -740,7 +741,7 @@ void ExcludeObjectMapView::build_key_bar() {
         if (mode == KeyBarMode::FullNames) {
             // Show number + name, auto-truncate with LVGL dot mode
             char buf[64];
-            snprintf(buf, sizeof(buf), "%d %s", i + 1, entry.name.c_str());
+            snprintf(buf, sizeof(buf), "%d %s", lane_number(i), entry.name.c_str());
             lv_label_set_text(name_label, buf);
             lv_label_set_long_mode(name_label, LV_LABEL_LONG_DOT);
             // Limit width to share space among entries
@@ -751,7 +752,7 @@ void ExcludeObjectMapView::build_key_bar() {
         } else {
             // Abbreviated: just the number
             char buf[8];
-            snprintf(buf, sizeof(buf), "%d", i + 1);
+            snprintf(buf, sizeof(buf), "%d", lane_number(i));
             lv_label_set_text(name_label, buf);
         }
     }

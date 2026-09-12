@@ -20,6 +20,7 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "data_root_resolver.h"
+#include "display_numbering.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_op_router.h"
@@ -1645,9 +1646,13 @@ std::vector<PrintStatusWidget::NozzleToolOption> PrintStatusWidget::build_nozzle
         if (!info.display_name.empty()) {
             opt.label = info.display_name;
         } else {
+            // A bare "extruder" name by itself carries no signal about whether the
+            // printer has one nozzle or several, so index 0 answers with the common
+            // single-extruder case rather than guessing multi.
             const int index = helix::tool_number_for_extruder(name).value_or(0);
             opt.label = index == 0 ? std::string(lv_tr("Nozzle"))
-                                   : std::string(lv_tr("Nozzle")) + " " + std::to_string(index + 1);
+                                   : std::string(lv_tr("Nozzle")) + " " +
+                                         helix::ui::lane_number_text(index);
         }
         options.push_back(std::move(opt));
     }
@@ -1953,7 +1958,7 @@ void PrintStatusWidget::DetailedFormatter::update_tool_label() {
     } else {
         // Label tracks what the user is VIEWING — the pinned tool when one
         // is set, otherwise the currently active tool. Anything else looks
-        // broken right after a pin ("I picked Nozzle 2 but it still says T0").
+        // broken right after a pin ("I picked Nozzle 2 but it still says Tool 1").
         int idx = -1;
         // Defend against hand-edited config — the name has to parse as a
         // Klipper extruder AND name an extruder this printer has.
@@ -1966,7 +1971,13 @@ void PrintStatusWidget::DetailedFormatter::update_tool_label() {
             // "auto", unrecognized, or out-of-range → follow active tool.
             idx = tools.active_tool_index();
         }
-        snprintf(nozzle_tool_label_buf_, sizeof(nozzle_tool_label_buf_), "T%d", idx);
+        const auto& tool_list = tools.tools();
+        if (idx >= 0 && idx < static_cast<int>(tool_list.size())) {
+            snprintf(nozzle_tool_label_buf_, sizeof(nozzle_tool_label_buf_), "%s",
+                     tool_list[idx].display_label.c_str());
+        } else {
+            nozzle_tool_label_buf_[0] = '\0';
+        }
     }
     lv_subject_copy_string(&nozzle_tool_label_subject_, nozzle_tool_label_buf_);
 }

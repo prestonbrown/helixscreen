@@ -8,13 +8,23 @@
   <translation tag="%d additional fan%s" ru="%d дополнительный вентилятор%s"/>
   <translation tag="%d disabled" ru="%d отключено"/>
   <translation tag="%d failed to load - see details below" ru="%d не удалось загрузить — см. подробности ниже"/>
+  <translation tag="%d feeders" ru="%d фидеров"/>
+  <translation tag="%d gates" ru="%d шлюзов"/>
+  <translation tag="%d lanes" ru="%d каналов"/>
   <translation tag="%d more sensors" ru="Ещё %d датчиков"/>
   <translation tag="%d of %d plugins loaded" ru="Загружено плагинов: %d из %d"/>
   <translation tag="%d plugins loaded" ru="Загружено плагинов: %d"/>
   <translation tag="%d slots" ru="%d слотов"/>
+  <translation tag="%d toolheads" ru="%d печатающих головок"/>
+  <translation tag="%d tools" ru="%d инструментов"/>
   <translation tag="%lu days ago" ru="%lu дн. назад"/>
   <translation tag="%lu hours ago" ru="%lu ч. назад"/>
   <translation tag="%lu min ago" ru="%lu мин. назад"/>
+  <translation tag="%s Filament" ru="%s: Филамент"/>
+  <translation tag="%s has about %.0fg but %s needs about %.0fg. Start anyway?" ru="%s: осталось около %.0fг, но для %s нужно около %.0fг. Всё равно начать?"/>
+  <translation tag="%s has no filament loaded — this print will run out." ru="В %s не загружен филамент — печати не хватит филамента."/>
+  <translation tag="%s needs filament in %s, which is empty — this print will run out." ru="Для %s нужен филамент, но %s пуст — печати не хватит филамента."/>
+  <translation tag="%s: %.0fg of %.0fg needed" ru="%s: %.0fг из %.0fг"/>
   <translation tag="%u layers" ru="%u слоёв"/>
   <translation tag="%zu changes" ru="%zu изменений"/>
   <translation tag="%zu events queued" ru="%zu событий в очереди"/>
@@ -648,10 +658,9 @@
   <translation tag="Current name:" ru="Текущее имя:"/>
   <translation tag="Current:" ru="Текущий:"/>
   <translation tag="Current: %d°C | Target: %d°C" ru="Текущая: %d°C | Целевая: %d°C"/>
-  <translation tag="Current: %s · Slot %d" ru="Текущий: %s · Слот %d"/>
+  <translation tag="Current: %s" ru="Текущий: %s"/>
+  <translation tag="Current: %s · %s" ru="Текущий: %s · %s"/>
   <translation tag="Current: Bypass" ru="Текущий: Обход"/>
-  <translation tag="Current: Slot %d" ru="Текущий: Слот %d"/>
-  <translation tag="Current: Tool %d" ru="Текущий: Инструмент %d"/>
   <translation tag="Currently Loaded" ru="Загружено"/>
   <translation tag="Currently printing" ru="Сейчас печатается"/>
   <translation tag="Custom" ru="Свой"/>
@@ -1008,6 +1017,8 @@
   <translation tag="Feed filament" ru="Подать филамент"/>
   <translation tag="Feed filament directly to extruder" ru="Подать филамент напрямую в экструдер"/>
   <translation tag="Feed filament from current slot" ru="Подать филамент из текущего слота"/>
+  <translation tag="Feeder" ru="Фидер"/>
+  <translation tag="Feeders" ru="Фидеры"/>
   <translation tag="Feeding filament forward" ru="Подача филамента вперёд"/>
   <translation tag="Filament" ru="Филамент"/>
   <translation tag="Filament Control" ru="Управление филаментом"/>
@@ -1110,6 +1121,8 @@
   <translation tag="G-code commands will appear here" ru="Здесь будут отображаться G-code команды"/>
   <translation tag="GCode Console" ru="Консоль G-code"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" ru="Игра окончена!&#10;Счёт: {}&#10;Нажмите, чтобы начать заново"/>
+  <translation tag="Gate" ru="Шлюз"/>
+  <translation tag="Gates" ru="Шлюзы"/>
   <translation tag="Gear Buffer Speed" ru="Скорость шестерни от буфера"/>
   <translation tag="Gear Spool Speed" ru="Скорость шестерни от катушки"/>
   <translation tag="Gear Unload Speed" ru="Скорость выгрузки шестерни"/>
@@ -1346,8 +1359,9 @@
   <translation tag="Label printed" ru="Этикетка напечатана"/>
   <translation tag="Labels" ru="Этикетки"/>
   <translation tag="Labels Per Sheet" ru="Этикеток на листе"/>
-  <translation tag="Lane" ru="Слот"/>
+  <translation tag="Lane" ru="Канал"/>
   <translation tag="Lane tests and motor resets" ru="Тесты слотов и сброс моторов"/>
+  <translation tag="Lanes" ru="Каналы"/>
   <translation tag="Language" ru="Язык"/>
   <translation tag="Language, theme, brightness, and sound" ru="Язык, тема, яркость и звук"/>
   <translation tag="Last" ru="Последняя"/>
@@ -1854,8 +1868,8 @@
   <translation tag="Preheat Macro" ru="Макрос преднагрева"/>
   <translation tag="Preheat PLA" ru="Преднагрев PLA"/>
   <translation tag="Preheat cancelled" ru="Предварительный нагрев отменён"/>
-  <translation tag="Preheat: T{} + bed set" ru="Преднагрев: T{} + стол заданы"/>
   <translation tag="Preheat: all {} tools + bed set" ru="Преднагрев: все {} инструменты + стол заданы"/>
+  <translation tag="Preheat: {} + bed set" ru="Преднагрев: {} + стол заданы"/>
   <translation tag="Prepared" ru="Готово"/>
   <translation tag="Preparing" ru="Подготовка"/>
   <translation tag="Preparing Print" ru="Подготовка печати"/>
@@ -2372,18 +2386,9 @@
   <translation tag="Sliced colors" ru="Цвета из слайсера"/>
   <translation tag="Slicer" ru="Слайсер"/>
   <translation tag="Slot" ru="Слот"/>
-  <translation tag="Slot %d" ru="Слот %d"/>
-  <translation tag="Slot %d Filament" ru="Филамент слота %d"/>
-  <translation tag="Slot %d has about %.0fg but tool %d needs about %.0fg. Start anyway?" ru="В слоте %d осталось около %.0fг, но инструменту %d нужно около %.0fг. Всё равно начать?"/>
-  <translation tag="Slot %d: %.0fg of %.0fg needed" ru="Слот %d: %.0fг из %.0fг"/>
   <translation tag="Slot 1" ru="Слот 1"/>
   <translation tag="Slot colors, materials, and levels" ru="Цвета, материалы и уровни слотов"/>
-  <translation tag="Slot {}" ru="Слот {}"/>
-  <translation tag="Slot {} is blocked — manual intervention required" ru="Слот {} заблокирован — требуется ручное вмешательство"/>
-  <translation tag="Slot {} matches." ru="Слот {} подходит."/>
-  <translation tag="Slot {} spool cleared" ru="Катушка слота {} удалена"/>
-  <translation tag="Slot {} updated" ru="Слот {} обновлён"/>
-  <translation tag="Slots"/>
+  <translation tag="Slots" ru="Слоты"/>
   <translation tag="Small labels help keep controls calm and focused." ru="Мелкие надписи помогают сохранять элементы управления аккуратными."/>
   <translation tag="Snapmaker SnapSwap" ru="Snapmaker SnapSwap"/>
   <translation tag="Snapmaker U1" ru="Snapmaker U1"/>
@@ -2489,7 +2494,7 @@
   <translation tag="Switch between light and dark themes" ru="Переключение между светлой и тёмной темами"/>
   <translation tag="Switch the active tool or extruder" ru="Смена активного инструмента"/>
   <translation tag="Switch to v%s" ru="Перейти на v%s"/>
-  <translation tag="Switched to T{}" ru="Переключено на T{}"/>
+  <translation tag="Switched to {}" ru="Переключено на {}"/>
   <translation tag="Switches to a backup spool on runout" ru="При обрыве переключится на резервную катушку"/>
   <translation tag="Switching heater control to MPC. Klipper will restart." ru="Переключение управления нагревом на MPC. Klipper перезапустится."/>
   <translation tag="Switching to MPC requires a config change and Klipper restart." ru="Переход на MPC требует изменения конфига и перезапуска Klipper."/>
@@ -2501,8 +2506,6 @@
   <translation tag="System busy — try again" ru="Система занята — попробуйте снова"/>
   <translation tag="System default" ru="Системное по умолчанию"/>
   <translation tag="System detected" ru="Обнаружена система"/>
-  <translation tag="T%d has no filament loaded — this print will run out." ru="В T%d не загружен филамент — печати не хватит филамента."/>
-  <translation tag="T%d needs filament in slot %d, which is empty — this print will run out." ru="Для T%d нужен филамент в слоте %d, который пуст — печати не хватит филамента."/>
   <translation tag="TANGLE" ru="СПУТЫВАНИЕ"/>
   <translation tag="TD-1 filament color detection" ru="Определение цвета филамента TD-1"/>
   <translation tag="TEMPERATURE SENSORS" ru="ДАТЧИКИ ТЕМПЕРАТУРЫ"/>
@@ -2569,6 +2572,7 @@
   <translation tag="The Spoolman spool currently loaded" ru="Текущая катушка Spoolman"/>
   <translation tag="The accelerometer stream stopped: %s. Check that Klipper is running, then retry." ru="Поток акселерометра остановлен: %s. Убедитесь, что Klipper запущен, и повторите попытку."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." ru="Анимированная заставка была отключена на данном устройстве, чтобы она не мешала печати. Вы можете снова включить её в Настройки &gt; Дисплей."/>
+  <translation tag="The bed was reported dirty, so this print cannot resume." ru="Стол помечен как загрязнённый, поэтому печать не может быть продолжена."/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" ru="Буфер может быть отключён, заклинен или неисправен. Проверьте его перед повтором"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" ru="Буфер не фиксировал движение 16 секунд. Проверьте засор между CFS и экструдером или заклинивший буфер"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" ru="Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм"/>
@@ -2685,13 +2689,14 @@
   <translation tag="Tool change failed: {}" ru="Ошибка смены инструмента: {}"/>
   <translation tag="Tool mapping failed" ru="Ошибка сопоставления инструмента"/>
   <translation tag="Tool swap" ru="Смена инструмента"/>
-  <translation tag="Tool {} → Slot {}: no filament loaded." ru="Инструмент {} → Слот {}: филамент не загружен."/>
   <translation tag="Toolhead" ru="Печатающая головка"/>
   <translation tag="Toolhead LED" ru="LED печатающей головки"/>
   <translation tag="Toolhead Sensor" ru="Датчик печатающей головки"/>
   <translation tag="Toolhead Style" ru="Стиль печатающей головки"/>
   <translation tag="Toolhead jam" ru="Замятие в печатающей головке"/>
   <translation tag="Toolhead, G-code, limits, and materials" ru="Печатающая головка, G-code, лимиты и материалы"/>
+  <translation tag="Toolheads" ru="Печатающие головки"/>
+  <translation tag="Tools" ru="Инструменты"/>
   <translation tag="Tools Used" ru="Использовано инструментов"/>
   <translation tag="Tools: " ru="Инструменты: "/>
   <translation tag="Total Prints" ru="Всего печатей"/>
@@ -2723,7 +2728,6 @@
   <translation tag="Type" ru="Тип"/>
   <translation tag="Type to preview input field..." ru="Введите для предпросмотра поля ввода..."/>
   <translation tag="Type:" ru="Тип:"/>
-  <translation tag="T{} shares slot with T{}" ru="T{} использует общий слот с T{}"/>
   <translation tag="UI Scale" ru="Масштаб интерфейса"/>
   <translation tag="UI Sounds" ru="Звуки интерфейса"/>
   <translation tag="UI scale applies after restart" ru="Масштаб интерфейса применяется после перезапуска"/>
@@ -2983,6 +2987,7 @@
   <translation tag="v{} is available. Tap to update." ru="v{} доступна. Нажмите для обновления."/>
   <translation tag="you have" ru="у вас"/>
   <translation tag="{} LED strips available" ru="Доступно светодиодных лент: {}"/>
+  <translation tag="{} and {} are both mapped here" ru="{} и {} оба назначены сюда"/>
   <translation tag="{} axis homed" ru="Ось {} запаркована"/>
   <translation tag="{} command timed out" ru="Время команды {} истекло"/>
   <translation tag="{} complete" ru="{} завершено"/>
@@ -2996,10 +3001,12 @@
   <translation tag="{} filament • {}" ru="{} филамента • {}"/>
   <translation tag="{} heater turned off" ru="Нагреватель {} выключен"/>
   <translation tag="{} is asking to connect to this printer." ru="{} запрашивает подключение к этому принтеру."/>
+  <translation tag="{} is blocked — manual intervention required" ru="{}: блокировка — требуется ручное вмешательство"/>
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." ru="{} установлен, но переключение на резервную катушку выключено, поэтому автоматической замены не будет."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." ru="{} установлен, но прочитать его настройку резервной катушки не удалось - не рассчитывайте на автоматическую замену."/>
   <translation tag="{} is not set up on this printer" ru="{} не настроен на этом принтере"/>
   <translation tag="{} macro not configured" ru="Макрос {} не настроен"/>
+  <translation tag="{} matches." ru="{} подходит."/>
   <translation tag="{} may cause unintended changes. Are you sure?" ru="{} может привести к непреднамеренным изменениям. Вы уверены?"/>
   <translation tag="{} more taps to {} beta features" ru="{} нажатий до {} бета-функций"/>
   <translation tag="{} needs the HelixPrint plugin. Printing original file." ru="Для {} нужен плагин HelixPrint. Печатается исходный файл."/>
@@ -3008,9 +3015,12 @@
   <translation tag="{} set to {}" ru="{} установлено на {}"/>
   <translation tag="{} set to {} {}" ru="{} установлено на {} {}"/>
   <translation tag="{} slots" ru="{} слотов"/>
+  <translation tag="{} spool cleared" ru="{}: катушка удалена"/>
   <translation tag="{} started" ru="{} запущено"/>
   <translation tag="{} target set to {}°C" ru="Целевая температура {} — {}°C"/>
+  <translation tag="{} updated" ru="{}: обновлено"/>
   <translation tag="{} widgets" ru="Виджетов: {}"/>
   <translation tag="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present." ru="{} переключится на слот, у которого тип филамента И цвет совпадают с активной катушкой, а собственный датчик порта видит филамент."/>
   <translation tag="{} — response timed out" ru="{} — время ожидания ответа истекло"/>
+  <translation tag="{} → {}: no filament loaded." ru="{} → {}: филамент не загружен."/>
 </translations>

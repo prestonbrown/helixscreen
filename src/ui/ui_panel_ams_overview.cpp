@@ -28,6 +28,7 @@
 #include "app_globals.h"
 #include "color_utils.h"
 #include "data_root_resolver.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
@@ -98,14 +99,12 @@ static bool slot_is_active_loaded(int global_slot_index) {
     return subject && lv_subject_get_int(subject) != 0;
 }
 
-/// Set a label to "N slots" text, with null-safety
-static void set_slot_count_label(lv_obj_t* label, int slot_count) {
+/// Set a label to "N slots" / "N lanes" text, with null-safety
+static void set_slot_count_label(lv_obj_t* label, helix::ui::LaneNoun noun, int slot_count) {
     if (!label) {
         return;
     }
-    char buf[16];
-    snprintf(buf, sizeof(buf), lv_tr("%d slots"), slot_count);
-    lv_label_set_text(label, buf);
+    lv_label_set_text(label, helix::ui::lane_count_label(noun, slot_count).c_str());
 }
 
 // ============================================================================
@@ -320,13 +319,13 @@ void AmsOverviewPanel::refresh_units() {
         // Unit count changed - rebuild all cards
         spdlog::debug("[{}] Unit count changed {} -> {}, rebuilding cards", get_name(),
                       old_unit_count, new_unit_count);
-        create_unit_cards(info);
+        create_unit_cards(info, backend->lane_noun());
     } else {
         // Same number of units - update existing cards in place. unit_cards_ is in
         // DISPLAY order (see create_unit_cards), so each card names its own unit.
         for (auto& uc : unit_cards_) {
             if (uc.unit_index >= 0 && uc.unit_index < new_unit_count)
-                update_unit_card(uc, info.units[uc.unit_index]);
+                update_unit_card(uc, info.units[uc.unit_index], backend->lane_noun());
         }
     }
 
@@ -334,7 +333,7 @@ void AmsOverviewPanel::refresh_units() {
     refresh_system_path(info, current_slot);
 }
 
-void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info) {
+void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::LaneNoun noun) {
     if (!cards_row_) {
         return;
     }
@@ -448,7 +447,7 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info) {
             lv_label_set_text(uc.name_label, uc.display_name.c_str());
         }
 
-        set_slot_count_label(uc.slot_count_label, unit.slot_count);
+        set_slot_count_label(uc.slot_count_label, noun, unit.slot_count);
 
         // Create the mini bars for this unit (dynamic — slot count varies)
         create_mini_bars(uc, unit);
@@ -472,7 +471,8 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info) {
                   static_cast<int>(unit_cards_.size()), info.supports_bypass);
 }
 
-void AmsOverviewPanel::update_unit_card(UnitCard& card, const AmsUnit& unit) {
+void AmsOverviewPanel::update_unit_card(UnitCard& card, const AmsUnit& unit,
+                                        helix::ui::LaneNoun noun) {
     if (!card.card) {
         return;
     }
@@ -498,7 +498,7 @@ void AmsOverviewPanel::update_unit_card(UnitCard& card, const AmsUnit& unit) {
     }
 
     // Update slot count
-    set_slot_count_label(card.slot_count_label, unit.slot_count);
+    set_slot_count_label(card.slot_count_label, noun, unit.slot_count);
 
     // Update error badge visibility and color
     if (card.error_badge) {
@@ -1536,7 +1536,8 @@ void AmsOverviewPanel::show_edit_modal(int slot_index, bool open_on_picker) {
                         helix::ui::notify_ams_error(err);
                         return;
                     }
-                    NOTIFY_INFO(lv_tr("Slot {} updated"), result.slot_index + 1);
+                    NOTIFY_INFO(lv_tr("{} updated"),
+                                helix::ui::lane_label(backend->lane_noun(), result.slot_index));
                 }
             }
         },
