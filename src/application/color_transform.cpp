@@ -85,14 +85,6 @@ void ColorTransform::set(float gamma, int warmth, int tint) {
     identity_ = false;
 }
 
-void ColorTransform::apply(uint8_t* buf, int width, int height, int stride_bytes,
-                           lv_color_format_t cf) const {
-    if (identity_ || !buf || width <= 0 || height <= 0) {
-        return;
-    }
-    apply_area(buf, stride_bytes, 0, 0, width, height, cf);
-}
-
 void ColorTransform::apply_area(uint8_t* buf, int buf_stride_bytes, int x, int y, int w, int h,
                                 lv_color_format_t cf) const {
     if (identity_ || !buf || w <= 0 || h <= 0) {

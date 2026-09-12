@@ -34,6 +34,10 @@ using namespace helix;
 
 namespace {
 
+// Heuristic-class scores stay under this test-chosen bar, below the
+// production autosave bar AUTOSAVE_MIN_CONFIDENCE = 85 (#1284).
+constexpr int kHeuristicClassCeiling = 70;
+
 std::string printers_fixture_path(const std::string& slug) {
     std::string src = __FILE__;
     auto pos = src.rfind("/tests/unit/");
@@ -2394,7 +2398,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
             result.runner_up_confidence);
     // Nothing in the product acts on a score this low - it neither warns nor saves.
-    REQUIRE(result.confidence < 70);
+    REQUIRE(result.confidence < kHeuristicClassCeiling);
     REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
     // The SV06 has not been ruled out, it simply has no more claim than its
     // look-alikes: it ties for the lead rather than winning.
@@ -2420,7 +2424,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 
     CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
             result.runner_up_confidence);
-    REQUIRE(result.confidence < 70);
+    REQUIRE(result.confidence < kHeuristicClassCeiling);
     REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
     REQUIRE(result.runner_up_confidence == result.confidence);
 }
@@ -5711,7 +5715,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 
     // May still be suggested (corroborating signal), but never >=70 where it
     // would override the saved type or arm the mismatch warning.
-    REQUIRE(result.confidence < 70);
+    REQUIRE(result.confidence < kHeuristicClassCeiling);
     REQUIRE(PrinterDetector::classify_type_mismatch("Voron 2.4", result, "") !=
             PrinterDetector::MismatchDecision::Warn);
 }
@@ -6033,7 +6037,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: a build volume alone 
                                          .build_volume = BuildVolume{0, bed, 0, bed, 0}};
             auto result = PrinterDetector::detect(hardware);
             INFO("bed " << bed << "mm -> " << result.type_name << " @" << result.confidence);
-            REQUIRE(result.confidence < 70);
+            REQUIRE(result.confidence < kHeuristicClassCeiling);
         }
     }
 
@@ -6120,7 +6124,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: class evidence alone 
         INFO("got " << result.type_name << " @" << result.confidence);
         // CoreXY (40) may still lead somewhere, but the chamber sensor must not
         // lift anyone to a confident answer.
-        REQUIRE(result.confidence < 70);
+        REQUIRE(result.confidence < kHeuristicClassCeiling);
     }
 
     SECTION("an MCU part number on a nameless rig names no printer") {
@@ -6133,7 +6137,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: class evidence alone 
                                      .build_volume = BuildVolume{0, 235, 0, 235, 0}};
         auto result = PrinterDetector::detect(hardware);
         INFO("got " << result.type_name << " @" << result.confidence);
-        REQUIRE(result.confidence < 70);
+        REQUIRE(result.confidence < kHeuristicClassCeiling);
     }
 }
 
