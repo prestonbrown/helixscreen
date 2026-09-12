@@ -256,6 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" pt="Beacon auto-calibração enviada"/>
   <translation tag="Beacon calibrate sent" pt="Beacon calibração enviada"/>
   <translation tag="Bed" pt="Mesa"/>
+  <translation tag="Bed (°C)" pt="Mesa (°C)"/>
   <translation tag="Bed Heater" pt="Aquecedor da Mesa"/>
   <translation tag="Bed Level" pt="Nível da Mesa"/>
   <translation tag="Bed Leveling" pt="Nivelamento da Mesa"/>
@@ -269,7 +270,6 @@
   <translation tag="Bed Screw Results" pt="Resultados dos Parafusos da Mesa"/>
   <translation tag="Bed Screws" pt="Parafusos da Mesa"/>
   <translation tag="Bed Temp" pt="Temp. Mesa"/>
-  <translation tag="Bed Temp (°C)" pt="Temp. Mesa (°C)"/>
   <translation tag="Bed Temperature" pt="Temperatura da Mesa"/>
   <translation tag="Bed is Level!" pt="Mesa Nivelada!"/>
   <translation tag="Bed mesh operation timed out" pt="Malha da mesa — tempo esgotado"/>
@@ -426,6 +426,7 @@
   <translation tag="Center QR code in frame" pt="Centralize o código QR no quadro"/>
   <translation tag="Chamb:" pt="Câmara:"/>
   <translation tag="Chamber" pt="Câmara"/>
+  <translation tag="Chamber (°C)" pt="Câmara (°C)"/>
   <translation tag="Chamber Cooling Fan" pt="Ventoinha de Resfriamento da Câmara"/>
   <translation tag="Chamber Fan" pt="Ventoinha da Câmara"/>
   <translation tag="Chamber Heater" pt="Aquecedor da Câmara"/>
@@ -436,6 +437,7 @@
   <translation tag="Chamber at %d°C" pt="Câmara a %d°C"/>
   <translation tag="Chamber heating to %d°C..." pt="Aquecendo câmara a %d°C..."/>
   <translation tag="Chamber target set to {}°C" pt="Alvo da câmara definido para {}°C"/>
+  <translation tag="Chamber temp must be 0-120°C"/>
   <translation tag="Change" pt="Alterar"/>
   <translation tag="Change Address" pt="Alterar Endereço"/>
   <translation tag="Change Blade" pt="Trocar lâmina"/>
@@ -691,6 +693,7 @@
   <translation tag="Debug" pt="Depuração"/>
   <translation tag="Default border thickness" pt="Espessura padrão da borda"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" pt="Padrão: %d-%d°C bico, %d°C mesa"/>
+  <translation tag="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber"/>
   <translation tag="Defaults restored" pt="Padrões restaurados"/>
   <translation tag="Define macros in your printer.cfg" pt="Defina macros no seu printer.cfg"/>
   <translation tag="Delete" pt="Excluir"/>

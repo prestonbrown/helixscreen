@@ -290,6 +290,7 @@ translations:
   Beacon auto-calibrate sent: Beacon Auto-Kalibrierung gesendet
   Beacon calibrate sent: Beacon Kalibrierung gesendet
   Bed: Heizbett
+  Bed (°C): Bett (°C)
   Bed Heater: Bettheizung
   Bed Level: Bettnivellierung
   Bed Leveling: Bettnivellierung
@@ -303,7 +304,6 @@ translations:
   Bed Screw Results: Bettschrauben-Ergebnisse
   Bed Screws: Bettschrauben
   Bed Temp: Betttemperatur
-  Bed Temp (°C): Betttemperatur (°C)
   Bed Temperature: Betttemperatur
   Bed is Level!: Bett ist nivelliert!
   Bed mesh operation timed out: Bettnetz-Vorgang Zeitüberschreitung
@@ -487,6 +487,7 @@ translations:
   Center QR code in frame: QR-Code im Rahmen zentrieren
   'Chamb:': 'Kamm.:'
   Chamber: Kammer
+  Chamber (°C): Kammer (°C)
   Chamber Cooling Fan: Kammer-Kühllüfter
   Chamber Fan: Kammerlüfter
   Chamber Heater: Kammerheizung
@@ -497,6 +498,7 @@ translations:
   Chamber at %d°C: Kammer bei %d°C
   Chamber heating to %d°C...: Kammer heizt auf %d°C auf...
   Chamber target set to {}°C: Kammer-Ziel auf {}°C gesetzt
+  Chamber temp must be 0-120°C: ''
   Change: Ändern
   Change Address: Adresse ändern
   Change Blade: 'Klinge wechseln'
@@ -783,6 +785,7 @@ translations:
   Debug: Debug
   Default border thickness: Standard-Rahmendicke
   'Default: %d-%d°C nozzle, %d°C bed': 'Standard: %d-%d°C Düse, %d°C Bett'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: Standardeinstellungen wiederhergestellt
   Define macros in your printer.cfg: Makros in Ihrer printer.cfg definieren
   Delete: Löschen

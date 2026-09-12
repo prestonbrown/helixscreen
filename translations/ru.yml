@@ -279,6 +279,7 @@ translations:
   Beacon auto-calibrate sent: Beacon автокалибровка отправлена
   Beacon calibrate sent: Beacon калибровка отправлена
   Bed: Стол
+  Bed (°C): Стол (°C)
   Bed Heater: Нагреватель стола
   Bed Level: Уровень стола
   Bed Leveling: Выравнивание стола
@@ -292,7 +293,6 @@ translations:
   Bed Screw Results: Результаты по винтам стола
   Bed Screws: Винты стола
   Bed Temp: Темп. стола
-  Bed Temp (°C): Температура стола (°C)
   Bed Temperature: Температура стола
   Bed is Level!: Стол выровнен!
   Bed mesh operation timed out: Сетка стола — время ожидания истекло
@@ -473,6 +473,7 @@ translations:
   Center QR code in frame: Расположите QR-код в центре кадра
   'Chamb:': 'Камера:'
   Chamber: Камера
+  Chamber (°C): Камера (°C)
   Chamber Cooling Fan: Вентилятор охлаждения камеры
   Chamber Fan: Вентилятор камеры
   Chamber Heater: Нагреватель камеры
@@ -483,6 +484,7 @@ translations:
   Chamber at %d°C: Камера при %d°C
   Chamber heating to %d°C...: Нагрев камеры до %d°C...
   Chamber target set to {}°C: Целевая температура камеры установлена на {}°C
+  Chamber temp must be 0-120°C: ''
   Change: Изменить
   Change Address: Изменить адрес
   Change Blade: 'Заменить лезвие'
@@ -766,6 +768,7 @@ translations:
   Debug: Отладка
   Default border thickness: Толщина границы по умолчанию
   'Default: %d-%d°C nozzle, %d°C bed': 'По умолчанию: сопло %d-%d°C, стол %d°C'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: Настройки по умолчанию восстановлены
   Define macros in your printer.cfg: Определите макросы в вашем printer.cfg
   Delete: Удалить

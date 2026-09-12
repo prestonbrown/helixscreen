@@ -256,6 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" en="Beacon auto-calibrate sent"/>
   <translation tag="Beacon calibrate sent" en="Beacon calibrate sent"/>
   <translation tag="Bed" en="Bed"/>
+  <translation tag="Bed (°C)" en="Bed (°C)"/>
   <translation tag="Bed Heater" en="Bed Heater"/>
   <translation tag="Bed Level" en="Bed Level"/>
   <translation tag="Bed Leveling" en="Bed Leveling"/>
@@ -269,7 +270,6 @@
   <translation tag="Bed Screw Results" en="Bed Screw Results"/>
   <translation tag="Bed Screws" en="Bed Screws"/>
   <translation tag="Bed Temp" en="Bed Temp"/>
-  <translation tag="Bed Temp (°C)" en="Bed Temp (°C)"/>
   <translation tag="Bed Temperature" en="Bed Temperature"/>
   <translation tag="Bed is Level!" en="Bed is Level!"/>
   <translation tag="Bed mesh operation timed out" en="Bed mesh operation timed out"/>
@@ -426,6 +426,7 @@
   <translation tag="Center QR code in frame" en="Center QR code in frame"/>
   <translation tag="Chamb:" en="Chamb:"/>
   <translation tag="Chamber" en="Chamber"/>
+  <translation tag="Chamber (°C)" en="Chamber (°C)"/>
   <translation tag="Chamber Cooling Fan" en="Chamber Cooling Fan"/>
   <translation tag="Chamber Fan" en="Chamber Fan"/>
   <translation tag="Chamber Heater" en="Chamber Heater"/>
@@ -436,6 +437,7 @@
   <translation tag="Chamber at %d°C" en="Chamber at %d°C"/>
   <translation tag="Chamber heating to %d°C..." en="Chamber heating to %d°C..."/>
   <translation tag="Chamber target set to {}°C" en="Chamber target set to {}°C"/>
+  <translation tag="Chamber temp must be 0-120°C" en="Chamber temp must be 0-120°C"/>
   <translation tag="Change" en="Change"/>
   <translation tag="Change Address" en="Change Address"/>
   <translation tag="Change Blade" en="Change Blade"/>
@@ -691,6 +693,7 @@
   <translation tag="Debug" en="Debug"/>
   <translation tag="Default border thickness" en="Default border thickness"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" en="Default: %d-%d°C nozzle, %d°C bed"/>
+  <translation tag="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber" en="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber"/>
   <translation tag="Defaults restored" en="Defaults restored"/>
   <translation tag="Define macros in your printer.cfg" en="Define macros in your printer.cfg"/>
   <translation tag="Delete" en="Delete"/>

@@ -289,6 +289,7 @@ translations:
   Beacon auto-calibrate sent: Beacon auto-calibrage envoyé
   Beacon calibrate sent: Beacon calibrage envoyé
   Bed: Plateau
+  Bed (°C): Plateau (°C)
   Bed Heater: Chauffage du plateau
   Bed Level: Niveau du plateau
   Bed Leveling: Mise à niveau du plateau
@@ -302,7 +303,6 @@ translations:
   Bed Screw Results: Résultats des vis du plateau
   Bed Screws: Vis du plateau
   Bed Temp: Temp. du plateau
-  Bed Temp (°C): Temp. plateau (°C)
   Bed Temperature: Température du plateau
   Bed is Level!: Le plateau est niveau !
   Bed mesh operation timed out: Maillage du plateau — délai dépassé
@@ -487,6 +487,7 @@ translations:
   Center QR code in frame: Centrez le QR code dans le cadre
   'Chamb:': 'Chambre :'
   Chamber: Enceinte
+  Chamber (°C): Enceinte (°C)
   Chamber Cooling Fan: Ventilateur de refroidissement de chambre
   Chamber Fan: Ventilateur de chambre
   Chamber Heater: Chauffage de chambre
@@ -498,6 +499,7 @@ translations:
   Chamber at %d°C: Chambre à %d°C
   Chamber heating to %d°C...: Chauffe de la chambre à %d°C...
   Chamber target set to {}°C: Cible de chambre définie à {}°C
+  Chamber temp must be 0-120°C: ''
   Change: Modifier
   Change Address: Changer l'adresse
   Change Blade: 'Changer la lame'
@@ -784,6 +786,7 @@ translations:
   Debug: Débogage
   Default border thickness: Épaisseur de bordure par défaut
   'Default: %d-%d°C nozzle, %d°C bed': 'Par défaut : buse %d-%d°C, plateau %d°C'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: Valeurs par défaut restaurées
   Define macros in your printer.cfg: Définissez les macros dans votre printer.cfg
   Delete: Supprimer

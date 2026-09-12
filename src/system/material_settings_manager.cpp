@@ -75,6 +75,9 @@ void MaterialSettingsManager::load_from_config() {
             if (values.contains("bed_temp") && values["bed_temp"].is_number_integer()) {
                 ovr.bed_temp = values["bed_temp"].get<int>();
             }
+            if (values.contains("chamber_temp") && values["chamber_temp"].is_number_integer()) {
+                ovr.chamber_temp = values["chamber_temp"].get<int>();
+            }
             if (values.contains("preheat_macro") && values["preheat_macro"].is_string()) {
                 ovr.preheat_macro = values["preheat_macro"].get<std::string>();
             }
@@ -105,6 +108,8 @@ void MaterialSettingsManager::save_to_config() {
             entry["nozzle_max"] = *ovr.nozzle_max;
         if (ovr.bed_temp)
             entry["bed_temp"] = *ovr.bed_temp;
+        if (ovr.chamber_temp)
+            entry["chamber_temp"] = *ovr.chamber_temp;
         if (ovr.preheat_macro)
             entry["preheat_macro"] = *ovr.preheat_macro;
         if (ovr.macro_handles_heating)

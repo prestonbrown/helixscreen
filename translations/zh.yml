@@ -257,6 +257,7 @@ translations:
   Beacon auto-calibrate sent: Beacon自动校准已发送
   Beacon calibrate sent: Beacon校准已发送
   Bed: 热床
+  Bed (°C): 热床 (°C)
   Bed Heater: 热床加热器
   Bed Level: 热床调平
   Bed Leveling: 热床调平
@@ -270,7 +271,6 @@ translations:
   Bed Screw Results: 热床螺丝结果
   Bed Screws: 热床螺丝
   Bed Temp: 热床温度
-  Bed Temp (°C): 热床温度 (°C)
   Bed Temperature: 热床温度
   Bed is Level!: 热床已水平！
   Bed mesh operation timed out: 热床网格操作超时
@@ -430,6 +430,7 @@ translations:
   Center QR code in frame: 将 QR 码对准画面中央
   'Chamb:': '腔:'
   Chamber: 腔体
+  Chamber (°C): 腔体 (°C)
   Chamber Cooling Fan: 腔体冷却风扇
   Chamber Fan: 腔体风扇
   Chamber Heater: 仓室加热器
@@ -440,6 +441,7 @@ translations:
   Chamber at %d°C: 腔体温度：%d°C
   Chamber heating to %d°C...: 腔体加热至 %d°C...
   Chamber target set to {}°C: 腔体目标温度设置为 {}°C
+  Chamber temp must be 0-120°C: ''
   Change: 更改
   Change Address: 更改地址
   Change Blade: '更换刀片'
@@ -701,6 +703,7 @@ translations:
   Debug: 调试
   Default border thickness: 默认边框厚度
   'Default: %d-%d°C nozzle, %d°C bed': '默认: 喷嘴 %d-%d°C,热床 %d°C'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: 已恢复默认设置
   Define macros in your printer.cfg: 在 printer.cfg 中定义宏
   Delete: 删除

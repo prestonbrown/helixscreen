@@ -256,6 +256,7 @@
   <translation tag="Beacon auto-calibrate sent" it="Beacon auto-calibrazione inviata"/>
   <translation tag="Beacon calibrate sent" it="Beacon calibrazione inviata"/>
   <translation tag="Bed" it="Piano"/>
+  <translation tag="Bed (°C)" it="Piatto (°C)"/>
   <translation tag="Bed Heater" it="Riscaldatore piano"/>
   <translation tag="Bed Level" it="Livellamento piano"/>
   <translation tag="Bed Leveling" it="Livellamento piano"/>
@@ -269,7 +270,6 @@
   <translation tag="Bed Screw Results" it="Risultati viti piano"/>
   <translation tag="Bed Screws" it="Viti piano"/>
   <translation tag="Bed Temp" it="Temp. piatto"/>
-  <translation tag="Bed Temp (°C)" it="Temp. piatto (°C)"/>
   <translation tag="Bed Temperature" it="Temperatura del piano"/>
   <translation tag="Bed is Level!" it="Piano livellato!"/>
   <translation tag="Bed mesh operation timed out" it="Mesh piano — tempo scaduto"/>
@@ -426,6 +426,7 @@
   <translation tag="Center QR code in frame" it="Centra il codice QR nell&apos;inquadratura"/>
   <translation tag="Chamb:" it="Camera:"/>
   <translation tag="Chamber" it="Camera"/>
+  <translation tag="Chamber (°C)" it="Camera (°C)"/>
   <translation tag="Chamber Cooling Fan" it="Ventola raffreddamento camera"/>
   <translation tag="Chamber Fan" it="Ventola camera"/>
   <translation tag="Chamber Heater" it="Riscaldatore camera"/>
@@ -436,6 +437,7 @@
   <translation tag="Chamber at %d°C" it="Camera a %d°C"/>
   <translation tag="Chamber heating to %d°C..." it="Riscaldamento camera a %d°C..."/>
   <translation tag="Chamber target set to {}°C" it="Target camera impostato a {}°C"/>
+  <translation tag="Chamber temp must be 0-120°C"/>
   <translation tag="Change" it="Cambia"/>
   <translation tag="Change Address" it="Cambia indirizzo"/>
   <translation tag="Change Blade" it="Cambia lama"/>
@@ -691,6 +693,7 @@
   <translation tag="Debug" it="Debug"/>
   <translation tag="Default border thickness" it="Spessore bordo predefinito"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" it="Predefinito: %d-%d°C ugello, %d°C piano"/>
+  <translation tag="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber"/>
   <translation tag="Defaults restored" it="Predefiniti ripristinati"/>
   <translation tag="Define macros in your printer.cfg" it="Definire le macro nel proprio printer.cfg"/>
   <translation tag="Delete" it="Elimina"/>

@@ -258,6 +258,7 @@ translations:
   Beacon auto-calibrate sent: Beacon自動キャリブレーション送信済み
   Beacon calibrate sent: Beaconキャリブレーション送信済み
   Bed: ベッド
+  Bed (°C): ベッド (°C)
   Bed Heater: ベッドヒーター
   Bed Level: ベッドレベル
   Bed Leveling: ベッドレベリング
@@ -271,7 +272,6 @@ translations:
   Bed Screw Results: ベッドネジ結果
   Bed Screws: ベッドネジ
   Bed Temp: ベッド温度
-  Bed Temp (°C): ベッド温度 (°C)
   Bed Temperature: ベッド温度
   Bed is Level!: ベッドが水平です！
   Bed mesh operation timed out: ベッドメッシュ操作がタイムアウトしました
@@ -433,6 +433,7 @@ translations:
   Center QR code in frame: QR コードをフレームの中央に合わせてください
   'Chamb:': 'チャンバ:'
   Chamber: チャンバー
+  Chamber (°C): チャンバー (°C)
   Chamber Cooling Fan: チャンバー冷却ファン
   Chamber Fan: チャンバーファン
   Chamber Heater: チャンバーヒーター
@@ -443,6 +444,7 @@ translations:
   Chamber at %d°C: チャンバー温度：%d°C
   Chamber heating to %d°C...: チャンバーを%d°Cに加熱中...
   Chamber target set to {}°C: チャンバー目標温度を{}°C に設定
+  Chamber temp must be 0-120°C: ''
   Change: 変更
   Change Address: アドレスを変更
   Change Blade: 'ブレードを交換'
@@ -705,6 +707,7 @@ translations:
   Debug: デバッグ
   Default border thickness: デフォルトの境界線の太さ
   'Default: %d-%d°C nozzle, %d°C bed': 'デフォルト: ノズル %d〜%d°C、ベッド %d°C'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: デフォルトを復元しました
   Define macros in your printer.cfg: printer.cfg でマクロを定義してください
   Delete: 削除

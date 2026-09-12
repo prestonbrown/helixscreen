@@ -43,6 +43,7 @@ struct MaterialOverride {
     std::optional<int> nozzle_min;
     std::optional<int> nozzle_max;
     std::optional<int> bed_temp;
+    std::optional<int> chamber_temp; ///< 0 = deliberate "no chamber heat" for this material
     std::optional<std::string> preheat_macro;  ///< Klipper macro name (uppercase canonical form)
     std::optional<bool> macro_handles_heating; ///< true = macro replaces SET_HEATER_TEMPERATURE
 };
@@ -274,6 +275,8 @@ inline std::optional<MaterialInfo> find_material(std::string_view name) {
                     result.nozzle_max = *ovr->nozzle_max;
                 if (ovr->bed_temp)
                     result.bed_temp = *ovr->bed_temp;
+                if (ovr->chamber_temp)
+                    result.chamber_temp_c = *ovr->chamber_temp;
             }
             return result;
         }

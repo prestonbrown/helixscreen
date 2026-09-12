@@ -284,6 +284,7 @@ translations:
   Beacon auto-calibrate sent: Beacon auto-calibração enviada
   Beacon calibrate sent: Beacon calibração enviada
   Bed: Mesa
+  Bed (°C): Mesa (°C)
   Bed Heater: Aquecedor da Mesa
   Bed Level: Nível da Mesa
   Bed Leveling: Nivelamento da Mesa
@@ -297,7 +298,6 @@ translations:
   Bed Screw Results: Resultados dos Parafusos da Mesa
   Bed Screws: Parafusos da Mesa
   Bed Temp: Temp. Mesa
-  Bed Temp (°C): Temp. Mesa (°C)
   Bed Temperature: Temperatura da Mesa
   Bed is Level!: Mesa Nivelada!
   Bed mesh operation timed out: Malha da mesa — tempo esgotado
@@ -480,6 +480,7 @@ translations:
   Center QR code in frame: Centralize o código QR no quadro
   'Chamb:': 'Câmara:'
   Chamber: Câmara
+  Chamber (°C): Câmara (°C)
   Chamber Cooling Fan: Ventoinha de Resfriamento da Câmara
   Chamber Fan: Ventoinha da Câmara
   Chamber Heater: Aquecedor da Câmara
@@ -490,6 +491,7 @@ translations:
   Chamber at %d°C: Câmara a %d°C
   Chamber heating to %d°C...: Aquecendo câmara a %d°C...
   Chamber target set to {}°C: Alvo da câmara definido para {}°C
+  Chamber temp must be 0-120°C: ''
   Change: Alterar
   Change Address: Alterar Endereço
   Change Blade: 'Trocar lâmina'
@@ -779,6 +781,7 @@ translations:
   Debug: Depuração
   Default border thickness: Espessura padrão da borda
   'Default: %d-%d°C nozzle, %d°C bed': 'Padrão: %d-%d°C bico, %d°C mesa'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: Padrões restaurados
   Define macros in your printer.cfg: Defina macros no seu printer.cfg
   Delete: Excluir
