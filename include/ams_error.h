@@ -516,12 +516,18 @@ class AmsErrorHelper {
      * SDCARD_RESET_FILE + CANCEL_PRINT_BASE + a fresh print start.
      *
      * @param detail Optional technical detail (logged, not user-shown)
+     * @param reason Optional authored explanation of why restart is required
+     *               (e.g. "The bed was reported dirty, so this print cannot
+     *               resume."), shown to the user in place of the raw firmware
+     *               pause text. Empty means the backend has not authored one
+     *               for this cause; the caller falls back to firmware text.
      */
-    static AmsError resume_requires_restart(const std::string& detail = "") {
+    static AmsError resume_requires_restart(const std::string& detail = "",
+                                            const std::string& reason = "") {
         return AmsError(AmsResult::RESUME_REQUIRES_RESTART,
                         detail.empty() ? "virtual_sdcard.is_active=false; RESUME would no-op"
                                        : detail,
-                        "Print Was Terminated", "Restart from the beginning to recover");
+                        reason, "Restart from the beginning to recover");
     }
 };
 

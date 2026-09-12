@@ -595,8 +595,9 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker channel_error during an active loa
     SnapmakerTestAccess::handle_status(backend, status);
 
     CHECK(backend.get_system_info().action == AmsAction::ERROR);
-    // Raw firmware token mapped to a friendly, lane-numbered message.
-    CHECK(backend.get_system_info().operation_detail.find("No filament in lane 2") !=
+    // Raw firmware token mapped to a friendly message via lane_label(), which
+    // spells Snapmaker's slots "Slot N" rather than the firmware's "lane".
+    CHECK(backend.get_system_info().operation_detail.find("No filament in Slot 2") !=
           std::string::npos);
 }
 
@@ -2151,6 +2152,35 @@ TEST_CASE_METHOD(SnapmakerFixture,
     REQUIRE(callback_fired);
     REQUIRE_FALSE(captured.success());
     REQUIRE(captured.result == AmsResult::COMMAND_FAILED);
+}
+
+TEST_CASE_METHOD(
+    SnapmakerFixture,
+    "Snapmaker prepare_for_resume: a resume failure carries authored copy, not firmware text",
+    "[ams][snapmaker][resume]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+
+    ResumeRecoveryHarness h;
+
+    // Firmware's own wording for this fault names a 0-based extruder
+    // ("e0_filament") we do not control; the reported failure must name the
+    // slot instead of echoing that string to the user.
+    h.client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR,
+                                    "Filament Sensor e0_filament: Runout Detected", "AUTO_FEEDING");
+
+    bool callback_fired = false;
+    AmsError captured{AmsResult::SUCCESS}; // poison
+    h.backend.prepare_for_resume(/*slot_index=*/0, [&](const AmsError& err) {
+        callback_fired = true;
+        captured = err;
+    });
+    ResumeRecoveryHarness::drain();
+
+    REQUIRE(callback_fired);
+    REQUIRE_FALSE(captured.success());
+    CHECK(captured.user_msg.find("e0_filament") == std::string::npos);
+    CHECK(captured.user_msg.find("Slot 1") != std::string::npos);
 }
 
 // ============================================================================

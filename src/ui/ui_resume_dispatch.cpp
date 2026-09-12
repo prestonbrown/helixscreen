@@ -109,19 +109,24 @@ void send_cancel_macro(IMoonrakerAPI* api, const std::string& log_prefix) {
 } // namespace
 
 void show_restart_required_modal(IMoonrakerAPI* api, const std::string& filename,
-                                 std::string log_prefix, std::function<void()> on_failure) {
-    // Klipper's print_stats.message describes the cause of the abort
-    // (Snapmaker firmware writes e.g. "Dirty bed detected" / "Filament Sensor:
-    // Runout Detected"). When present, surface it so the user knows why
-    // restart is needed instead of seeing only generic copy.
-    const char* fw_msg = lv_subject_get_string(get_printer_state().get_print_message_subject());
+                                 const std::string& authored_reason, std::string log_prefix,
+                                 std::function<void()> on_failure) {
+    // Prefer the backend's authored reason. Fall back to Klipper's raw
+    // print_stats.message only when none was supplied, so a backend not yet
+    // taught to author copy still tells the user why restart is needed.
+    std::string reason = authored_reason;
+    if (reason.empty()) {
+        const char* fw_msg = lv_subject_get_string(get_printer_state().get_print_message_subject());
+        if (fw_msg && *fw_msg) {
+            reason = fw_msg;
+        }
+    }
     std::string body =
-        (fw_msg && *fw_msg)
-            ? fmt::format(lv_tr("Reason: {}\n\nThe printer cannot resume this print. "
-                                "Restart from the beginning?"),
-                          fw_msg)
-            : std::string(lv_tr("The printer halted this print and cannot resume it. "
-                                "Restart from the beginning?"));
+        !reason.empty() ? fmt::format(lv_tr("Reason: {}\n\nThe printer cannot resume this print. "
+                                            "Restart from the beginning?"),
+                                      reason)
+                        : std::string(lv_tr("The printer halted this print and cannot resume it. "
+                                            "Restart from the beginning?"));
 
     // Cancel and dismissal answer the question the same way: the user chose not
     // to restart, which the caller learns through on_failure.
@@ -203,7 +208,8 @@ void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
                 lv_subject_get_string(get_printer_state().get_print_filename_subject());
             spdlog::warn("{} RESUME_REQUIRES_RESTART — showing restart modal (file: {})",
                          log_prefix, filename);
-            show_restart_required_modal(api, filename, log_prefix, std::move(on_failure));
+            show_restart_required_modal(api, filename, err.user_msg, log_prefix,
+                                        std::move(on_failure));
             return;
         }
         if (!err.success()) {

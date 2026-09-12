@@ -57,9 +57,11 @@ constexpr std::array<std::string_view, 8> KNOWN_SUB_TYPES = {
 // fall back to the raw string so we never hide a novel error behind a generic
 // message. Single source of truth shared by the error-set path here and any
 // modal that surfaces operation_detail.
-[[nodiscard]] std::string friendly_channel_error(const std::string& token, int lane_index) {
+[[nodiscard]] std::string friendly_channel_error(const std::string& token, helix::ui::LaneNoun noun,
+                                                 int lane_index) {
     if (token == "no_filament") {
-        return fmt::format("No filament in lane {}. Load filament and retry.", lane_index + 1);
+        return fmt::format("No filament in {}. Load filament and retry.",
+                           helix::ui::lane_label(noun, lane_index));
     }
     return token;
 }
@@ -68,15 +70,17 @@ constexpr std::array<std::string_view, 8> KNOWN_SUB_TYPES = {
 // signals the failure in channel_state itself (e.g. "load_fail") independently
 // of the channel_error token, so surface a direction-aware message when a fail
 // state lands. lane_index is 0-based.
-[[nodiscard]] std::string friendly_channel_state_fail(const std::string& state, int lane_index) {
+[[nodiscard]] std::string friendly_channel_state_fail(const std::string& state,
+                                                      helix::ui::LaneNoun noun, int lane_index) {
+    const std::string lane = helix::ui::lane_label(noun, lane_index);
     if (state.rfind("unload_", 0) == 0) {
-        return fmt::format("Unload failed on lane {}.", lane_index + 1);
+        return fmt::format("Unload failed on {}.", lane);
     }
     if (state.rfind("preload_", 0) == 0) {
-        return fmt::format("Preload failed on lane {}.", lane_index + 1);
+        return fmt::format("Preload failed on {}.", lane);
     }
     // load_fail, manual_sta_*_fail, and any other feed failure.
-    return fmt::format("Load failed on lane {}.", lane_index + 1);
+    return fmt::format("Load failed on {}.", lane);
 }
 
 // Classification of a single Snapmaker U1 filament_feed channel_state. The
@@ -644,7 +648,11 @@ void AmsBackendSnapmaker::prepare_for_resume(int slot_index, ResumeReadyCallback
         spdlog::warn("{} prepare_for_resume: classified Terminal — surfacing restart UX",
                      backend_log_tag());
         if (on_ready) {
-            on_ready(AmsErrorHelper::resume_requires_restart("classify_pause: Terminal"));
+            // snapmaker_terminal_matchers() currently recognizes one terminal
+            // cause (dirty bed), so a single fixed reason covers every match.
+            on_ready(AmsErrorHelper::resume_requires_restart(
+                "classify_pause: Terminal",
+                "The bed was reported dirty, so this print cannot resume."));
         }
         return;
     }
@@ -718,17 +726,19 @@ void AmsBackendSnapmaker::prepare_for_resume(int slot_index, ResumeReadyCallback
         },
         [this, tok, on_ready, tag, slot](const MoonrakerError& err) mutable {
             std::string msg = err.message;
-            tok.defer("AmsBackendSnapmaker::prepare_for_resume.err",
-                      [this, cb = std::move(on_ready), tag, slot, msg]() {
-                          spdlog::error("{} prepare_for_resume: tool {} AMS load failed: {}", tag,
-                                        slot, msg);
-                          // Load failed → RESUME is never dispatched; report failure.
-                          if (cb) {
-                              cb(AmsError(AmsResult::COMMAND_FAILED,
-                                          "prepare_for_resume AMS load failed: " + msg,
-                                          "Filament reload before resume failed"));
-                          }
-                      });
+            tok.defer("AmsBackendSnapmaker::prepare_for_resume.err", [this,
+                                                                      cb = std::move(on_ready), tag,
+                                                                      slot, msg]() {
+                spdlog::error("{} prepare_for_resume: tool {} AMS load failed: {}", tag, slot, msg);
+                // Load failed → RESUME is never dispatched; report failure.
+                // Name the slot, not the firmware's own error text, which
+                // may spell it with a 0-based extruder name we don't own.
+                if (cb) {
+                    cb(AmsError(
+                        AmsResult::COMMAND_FAILED, "prepare_for_resume AMS load failed: " + msg,
+                        "Filament reload failed for " + helix::ui::lane_label(lane_noun(), slot)));
+                }
+            });
         },
         // AUTO_FEEDING heats from cold + feeds + flushes; measured ~86s live, so
         // give generous headroom.
@@ -1359,8 +1369,9 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                             } else {
                                 system_info_.action = AmsAction::ERROR;
                                 system_info_.operation_detail =
-                                    has_error_token ? friendly_channel_error(error, i)
-                                                    : friendly_channel_state_fail(state, i);
+                                    has_error_token
+                                        ? friendly_channel_error(error, lane_noun(), i)
+                                        : friendly_channel_state_fail(state, lane_noun(), i);
                                 changed = true;
                             }
                         } else if (!state.empty() && !info.ignore) {
