@@ -50,8 +50,7 @@ constexpr int HAPPY_HARE_POS_UNLOADED = 0;
 /// @param unit_index         which unit's fields are wanted (v4 only)
 /// @return the field-bearing object, or nullptr when neither shape supplies one
 const nlohmann::json* hh_machine_fields(const nlohmann::json& live_mmu_machine,
-                                        const nlohmann::json& config_mmu_machine,
-                                        int unit_index) {
+                                        const nlohmann::json& config_mmu_machine, int unit_index) {
     if (live_mmu_machine.is_object()) {
         const std::string unit_key = "unit_" + std::to_string(unit_index);
         const auto it = live_mmu_machine.find(unit_key);
@@ -1500,8 +1499,8 @@ void AmsBackendHappyHare::query_selector_type_from_config() {
     // The live mmu_machine object comes along because v4 keeps selector_type
     // there, per unit, and leaves configfile carrying only the version.
     nlohmann::json params = {
-        {"objects", nlohmann::json::object({{"configfile", {"settings"}},
-                                            {"mmu_machine", nlohmann::json(nullptr)}})}};
+        {"objects", nlohmann::json::object(
+                        {{"configfile", {"settings"}}, {"mmu_machine", nlohmann::json(nullptr)}})}};
 
     auto token = lifetime_.token();
     client_->send_jsonrpc(
@@ -1734,13 +1733,11 @@ static std::vector<std::string> parse_hh_config_list(const nlohmann::json& v) {
 }
 
 void AmsBackendHappyHare::apply_heater_config(const nlohmann::json& settings,
-                                             const nlohmann::json& live_mmu_machine) {
+                                              const nlohmann::json& live_mmu_machine) {
     // Parse [mmu_machine] filament_heater — the Klipper heater_generic object name.
-    const nlohmann::json* machine =
-        hh_machine_fields(live_mmu_machine,
-                          settings.contains("mmu_machine") ? settings["mmu_machine"]
-                                                           : hh_empty_object(),
-                          0);
+    const nlohmann::json* machine = hh_machine_fields(
+        live_mmu_machine,
+        settings.contains("mmu_machine") ? settings["mmu_machine"] : hh_empty_object(), 0);
     if (machine != nullptr) {
         const auto& mmu_machine = *machine;
         if (mmu_machine.contains("filament_heater") && mmu_machine["filament_heater"].is_string()) {
@@ -1818,8 +1815,8 @@ void AmsBackendHappyHare::query_heater_config_from_config() {
     // The live mmu_machine object comes along because v4 keeps filament_heater
     // and environment_sensor there, per unit, not in configfile.
     nlohmann::json params = {
-        {"objects", nlohmann::json::object({{"configfile", {"settings"}},
-                                            {"mmu_machine", nlohmann::json(nullptr)}})}};
+        {"objects", nlohmann::json::object(
+                        {{"configfile", {"settings"}}, {"mmu_machine", nlohmann::json(nullptr)}})}};
 
     auto token = lifetime_.token();
     client_->send_jsonrpc(
@@ -2506,10 +2503,18 @@ void AmsBackendHappyHare::persist_override(int slot_index, const SlotInfo& info)
     // a non-empty value is always a user pick.
     o.catalog_id = info.catalog_id;
     o.product_name = info.product_name;
-    if (info.color_rgb != 0 && info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
+    // AMS_DEFAULT_SLOT_COLOR is the "no color reading" sentinel (see
+    // SlotInfo::has_identity), not a color a user would ever pick, so it
+    // stays unrecorded; a deliberate pure black (#000000) still records.
+    if (info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
         o.color_rgb = info.color_rgb;
         o.color_set = true;
     }
+    // SlotInfo carries the user's edit OR the bound Spoolman spool's
+    // filament profile; the material-DB fallback for fields left at 0
+    // is applied at emit time inside resolved_temps(). Centralized in
+    // the helper so the AMS backends stay in sync.
+    helix::ams::populate_temps_from_slot_info(o, info);
     overrides_[slot_index] = o;
 
     if (override_store_) {

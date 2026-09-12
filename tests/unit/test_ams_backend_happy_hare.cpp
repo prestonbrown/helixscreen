@@ -9,6 +9,7 @@
 #include "ams_types.h"
 #include "hh_defaults.h"
 #include "moonraker_api.h"
+#include "test_helpers/happy_hare_test_access.h"
 
 #include <algorithm>
 #include <vector>
@@ -3772,6 +3773,57 @@ TEST_CASE("HappyHare clear_slot_override drops the retained identity",
     CHECK(after.spoolman_id == 0);
 }
 
+TEST_CASE("HappyHare persist_override records a deliberate pure black",
+          "[ams][happyhare][override]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+
+    SlotInfo info;
+    info.material = "PLA";
+    info.color_rgb = 0x000000;
+    helper.set_slot_info(0, info);
+
+    REQUIRE(helper.has_gate_override(0));
+    const auto& ovr = HappyHareTestAccess::overrides(helper).at(0);
+    CHECK(ovr.color_set);
+    CHECK(ovr.color_rgb == 0x000000);
+    CHECK(ovr.material == "PLA");
+}
+
+TEST_CASE("HappyHare persist_override does not record the no-color sentinel",
+          "[ams][happyhare][override]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+
+    SlotInfo info;
+    info.material = "PLA";
+    info.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+    helper.set_slot_info(0, info);
+
+    REQUIRE(helper.has_gate_override(0));
+    const auto& ovr = HappyHareTestAccess::overrides(helper).at(0);
+    CHECK_FALSE(ovr.color_set);
+    CHECK(ovr.material == "PLA");
+}
+
+TEST_CASE("HappyHare persist_override wires nozzle/bed temps into the override",
+          "[ams][happyhare][override]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+
+    SlotInfo info;
+    info.material = "PETG";
+    info.bed_temp = 80;
+    info.nozzle_temp_min = 230;
+    info.nozzle_temp_max = 250;
+    helper.set_slot_info(0, info);
+
+    REQUIRE(helper.has_gate_override(0));
+    const auto& ovr = HappyHareTestAccess::overrides(helper).at(0);
+    CHECK(ovr.bed_temp == 80);
+    CHECK(ovr.nozzle_temp == 240); // midpoint of min/max
+}
+
 // ============================================================================
 // Bypass: Happy Hare has to answer for itself, same as AFC (#1229)
 // ============================================================================
@@ -3867,13 +3919,12 @@ TEST_CASE("Happy Hare v4 takes machine fields from live status, not configfile",
         {"mmu_machine",
          {{"happy_hare_version", "4.0.0"}, {"units", nlohmann::json::array({"unit0"})}}}};
 
-    nlohmann::json live_mmu_machine = {
-        {"happy_hare_version", "4.0.0"},
-        {"num_units", 1},
-        {"unit_0",
-         {{"name", "unit0"},
-          {"environment_sensor", "aht10 unit0_Env"},
-          {"filament_heater", "heater_generic box1_heater"}}}};
+    nlohmann::json live_mmu_machine = {{"happy_hare_version", "4.0.0"},
+                                       {"num_units", 1},
+                                       {"unit_0",
+                                        {{"name", "unit0"},
+                                         {"environment_sensor", "aht10 unit0_Env"},
+                                         {"filament_heater", "heater_generic box1_heater"}}}};
 
     helper.test_apply_heater_config(configfile_settings, live_mmu_machine);
     helper.test_parse_mmu_state({{"drying_state", nlohmann::json::array({"", "", "", ""})}});
