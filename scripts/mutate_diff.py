@@ -30,11 +30,18 @@
 #
 # VERDICTS, and why "uncompilable" is not a kill
 #
-#   killed       reverting the hunk turned a suite red. A test detects this
-#                change. This is the outcome you want.
+#   killed       reverting the hunk made a suite REPORT A FAILING TEST. A test
+#                detects this change. This is the outcome you want. A runner
+#                exiting non-zero is not enough on its own; see INCONCLUSIVE.
 #   SURVIVED     reverting the hunk left the suite green. NO test detects this
 #                change. The change shipped untested, whatever the diff's test
 #                files claim.
+#   INCONCLUSIVE a suite ran and nothing it produced settles the question: it
+#                exited non-zero without naming a failing test, or the build
+#                reported success and left the test binary untouched, so the
+#                suite that reddened was running a binary this mutant is not
+#                in. Never a kill and never a survivor. It leaves the hunk
+#                UNPROVEN, so it makes the run incomplete.
 #   uncompilable reverting the hunk does not build (it removed a declaration
 #                something else needs). Reported separately and NEVER counted
 #                as a kill: a compiler error proves the code is load-bearing
@@ -84,12 +91,20 @@
 #
 # SAFETY
 #
-# The working tree is restored by writing back the bytes saved in memory before
-# each mutation -- never by `git checkout`/`git restore`, which would also
-# discard unrelated uncommitted work. Restored files are touch(1)ed, because
-# make compares mtimes: a byte-identical restore with an older mtime leaves
-# make nothing to do and the NEXT run silently tests the previous mutant's
-# binary.
+# The working tree is restored by writing back bytes saved in memory -- never by
+# `git checkout`/`git restore`, which would also discard unrelated uncommitted
+# work. Those bytes are read ONCE, before the first mutation. Reading them per
+# hunk restores to whatever is on disk at that moment, so a restore that did not
+# land becomes the next hunk's baseline and rides into that hunk's verdict;
+# against a single capture, every file the run may mutate is compared after each
+# restore, and a mismatch stops the run instead of judging a tree the run did
+# not choose.
+#
+# Restored files are touch(1)ed, because make compares mtimes: a byte-identical
+# restore with an older mtime leaves make nothing to do and the NEXT run
+# silently tests the previous mutant's binary. That the binary actually changed
+# is checked as well, either side of each mutant's build, because a build with
+# nothing to do leaves the previous mutant's binary under this mutant's suite.
 #
 # That restore is a `finally:` in the per-hunk loop, so it needs the interpreter
 # to keep running long enough to execute it. Interrupt this script with SIGINT
@@ -103,9 +118,13 @@
 #   0  every changed hunk was examined and every mutant was killed
 #   1  at least one hunk SURVIVED
 #   2  the harness could not produce a verdict: the baseline build failed, a
-#      baseline suite is red (which would make every mutant read as killed), or
-#      the C++ suite has no binary and a build did not leave one
-#   3  nothing survived, but the run did not examine the whole change
+#      baseline suite is red (which would make every mutant read as killed), a
+#      baseline suite could not report at all, the C++ suite has no binary and a
+#      build did not leave one, or a file the run may mutate stopped matching
+#      the tree the run started from
+#   3  nothing survived, but the run did not examine the whole change -- an
+#      uncovered path, a hunk deferred by --only/--limit, or a hunk whose suite
+#      exited without a verdict
 #      (--allow-incomplete downgrades this to 0 once a human has read why)
 #   4  refused to start: the automatically chosen base yields more hunks than
 #      --max-hunks, and nothing confirmed it. Not a verdict; nothing ran.
@@ -276,6 +295,22 @@ def default_log_path():
     if root is None:
         return '/tmp/mutate-diff.log'
     return f'/tmp/mutate-diff-{root.name}.log'
+
+
+def rotate_log(path):
+    """Keep the last run's log beside the new one, as <path>.prev.
+
+    A verdict is disputed after the run that produced it has ended, and this
+    file is the only record of the output behind it. Opened 'w' with nothing
+    kept, the next run is the one thing that has to happen for that record to be
+    gone.
+    """
+    previous = Path(path)
+    if previous.is_file():
+        try:
+            previous.replace(str(previous) + '.prev')
+        except OSError:
+            pass          # an unwritable directory costs the archive, not the run
 
 
 def changed_files(root, base):
@@ -528,6 +563,57 @@ def apply_reverse(root, patch_text):
     return p.returncode == 0, p.stdout
 
 
+# ---------------------------------------------------------------------------
+# WHAT A SUITE RUN ESTABLISHES
+#
+# A process exit code cannot say whether a test failed. A shard whose filter
+# matched no case, a runner that could not start, and a process that aborts
+# during static destruction after reporting every assertion green all exit
+# non-zero, and none of them judged the change. `killed` is the verdict nobody
+# re-checks, because it is the answer the operator was hoping for and it gets
+# quoted in a commit body as proof, so it is the one that has to be earned: only
+# a suite's own report of a failing test is a detection.
+#
+#   DETECTED      the suite named a failing test in its output
+#   GREEN         the suite ran to completion and named none
+#   INCONCLUSIVE  the suite exited non-zero and named none; it judged nothing
+# ---------------------------------------------------------------------------
+DETECTED, GREEN, INCONCLUSIVE = 'detected', 'green', 'inconclusive'
+
+# How each runner reports a failing test. A pattern with a capture group is
+# evidence only when the count it captures is non-zero, which keeps a summary
+# line that counts no failures -- Catch2's "failed as expected" for a
+# [!shouldfail] case, bats' "0 failures" -- from reading as one.
+SUITE_FAILURE_EVIDENCE = {
+    'catch2': (re.compile(r'^.+:\d+: FAILED:', re.M),
+               re.compile(r'^(?:test cases|assertions):.*?(\d+) failed(?! as expected)',
+                          re.M)),
+    'bats':   (re.compile(r'^not ok \d+', re.M),
+               re.compile(r'^\s*\d+ tests?, (\d+) failures?', re.M)),
+    'pytest': (re.compile(r'^FAILED ', re.M),
+               re.compile(r'^=*\s*(\d+) failed', re.M)),
+}
+
+
+def suite_detected(name, output):
+    """True when a suite's own output reports a failing test."""
+    for rx in SUITE_FAILURE_EVIDENCE[name]:
+        for m in rx.finditer(output):
+            if rx.groups == 0 or int(m.group(1)) > 0:
+                return True
+    return False
+
+
+def suite_outcome(name, returncode, output, who=''):
+    """(state, reason) for one runner process, read from what it printed."""
+    if suite_detected(name, output):
+        return DETECTED, ''
+    if returncode != 0:
+        return INCONCLUSIVE, (f'{who or name} exited {returncode} without '
+                              f'naming a failing test')
+    return GREEN, ''
+
+
 class BuildUnavailable(RuntimeError):
     """The Catch2 binary is not there, so no verdict about a mutant is possible.
 
@@ -545,29 +631,75 @@ def build(root, jobs, log):
 
 
 def run_catch2(root, test_bin, filt, shards, log):
-    """Return True if the C++ suite passed. Stops at the first failing case."""
-    if shards <= 1:
-        r = run([str(test_bin), filt, '-x', '1'], cwd=root)
-        log.write(r.stdout or '')
-        return r.returncode == 0
-    procs = []
-    for i in range(shards):
-        procs.append(subprocess.Popen(
-            [str(test_bin), filt, '-x', '1',
-             '--shard-count', str(shards), '--shard-index', str(i)],
-            # errors='replace': a mutant can make the code under test dump raw
-            # bytes into a Catch2 failure message (a reverted raster guard wrote
-            # 0xfe pixel data), and a strict decode turns that into a crash that
-            # loses the verdict for the one hunk most likely to be killed.
-            cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-            errors='replace'))
-    ok = True
-    for p in procs:
+    """(state, reason) for the C++ suite. Stops at the first failing case.
+
+    Every shard is read for a failing assertion of its own. One that names one
+    has detected the mutant whatever the others did; one that exits non-zero and
+    names none has judged nothing, and the run says so rather than inferring a
+    detection from its exit code.
+    """
+    argv = [str(test_bin), filt, '-x', '1']
+    planned = [('the catch2 suite', argv)] if shards <= 1 else [
+        (f'catch2 shard {i}',
+         argv + ['--shard-count', str(shards), '--shard-index', str(i)])
+        for i in range(shards)]
+    procs = [(who, subprocess.Popen(
+        cmd,
+        # errors='replace': a mutant can make the code under test dump raw
+        # bytes into a Catch2 failure message (a reverted raster guard wrote
+        # 0xfe pixel data), and a strict decode turns that into a crash that
+        # loses the verdict for the one hunk most likely to be killed.
+        cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        errors='replace')) for who, cmd in planned]
+    detected, unexplained = False, ''
+    for who, p in procs:
         out, _ = p.communicate()
-        log.write(out or '')
-        if p.returncode != 0:
-            ok = False
-    return ok
+        out = out or ''
+        log.write(out)
+        state, why = suite_outcome('catch2', p.returncode, out, who)
+        if state == DETECTED:
+            detected = True
+        elif state == INCONCLUSIVE and not unexplained:
+            unexplained = why
+    if detected:
+        return DETECTED, ''
+    return (INCONCLUSIVE, unexplained) if unexplained else (GREEN, '')
+
+
+def run_confirmed(suites, name):
+    """One suite run, and a second one when the first judged nothing.
+
+    The mutant is still in the working tree, so a re-run costs a suite and no
+    build -- the cheap half of a mutant. A runner that exits without naming a
+    failing test is most often hiding a green run, and a green re-run is the
+    verdict that FAILS the gate, so asking again resolves the common case in the
+    safe direction. A second non-verdict is reported as one rather than guessed.
+    """
+    state, why = suites.run(name)
+    if state != INCONCLUSIVE:
+        return state, why
+    print(f'[{why}; confirming] ', end='', flush=True)
+    again, why_again = suites.run(name)
+    if again != INCONCLUSIVE:
+        return again, why_again
+    return INCONCLUSIVE, f'{why}, and again on a re-run'
+
+
+def judge(suites, names):
+    """(state, reason) over every suite that can see one hunk.
+
+    A detection anywhere is a kill and ends the question. Otherwise a runner
+    that judged nothing outranks the ones that came back green: a suite that
+    could not report cannot contribute a pass.
+    """
+    unexplained = ''
+    for name in names:
+        state, why = run_confirmed(suites, name)
+        if state == DETECTED:
+            return DETECTED, ''
+        if state == INCONCLUSIVE and not unexplained:
+            unexplained = why
+    return (INCONCLUSIVE, unexplained) if unexplained else (GREEN, '')
 
 
 class Suites:
@@ -665,6 +797,7 @@ class Suites:
         return secs
 
     def run(self, name):
+        """(state, reason): what one run of this suite establishes."""
         if name == 'catch2':
             self.ensure_catch2_binary()
             return run_catch2(self.root, self.catch2_bin, self.args.tests,
@@ -676,13 +809,107 @@ class Suites:
             cmd.append(self.args.shell_tests)
             r = run(cmd, cwd=self.root)
             self.log.write(r.stdout or '')
-            return r.returncode == 0
+            return suite_outcome(name, r.returncode, r.stdout or '', 'the bats suite')
         if name == 'pytest':
             r = run([self.python, '-m', 'pytest', self.args.python_tests, '-q', '-x'],
                     cwd=self.root)
             self.log.write(r.stdout or '')
-            return r.returncode == 0
+            return suite_outcome(name, r.returncode, r.stdout or '', 'pytest')
         raise AssertionError(name)
+
+
+# ---------------------------------------------------------------------------
+# THE TREE AND THE BINARY A VERDICT IS ABOUT
+#
+# A mutant's verdict is only about that mutant if the suite ran against a tree
+# holding exactly its reversion, and a binary built from that tree. Two things
+# can silently break that, and both borrow the PREVIOUS hunk's red: a restore
+# that does not land leaves the previous reversion in a source file, and a build
+# that reports success without relinking leaves the previous mutant's binary in
+# place. Neither is visible in the verdict, so each is checked directly.
+# ---------------------------------------------------------------------------
+UNBUILT_MUTANT = ('the build reported success and left the test binary '
+                  'untouched, so the suite ran a binary this mutant is not in')
+
+
+class TreeDrift(RuntimeError):
+    """A file the run may mutate stopped matching the tree the run started from.
+
+    A reversion left in place makes the NEXT hunk's suite red for the PREVIOUS
+    hunk's reason, and the verdict is recorded against the wrong hunk. There is
+    no verdict left worth reporting, so this stops the run.
+    """
+
+
+def binary_fingerprint(path):
+    """What identifies this build of the test binary, or None when it is absent.
+
+    Size and modification time rather than a content digest: the question is
+    whether the build wrote a new binary at all, which is precisely what a make
+    with nothing to do answers differently from a link, and digesting gigabytes
+    twice per mutant buys nothing over that.
+    """
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    return st.st_size, st.st_mtime_ns
+
+
+def restore_file(root, rel, original):
+    """Put one file back the way the run found it.
+
+    touch(1)ed because make compares mtimes: a byte-identical restore with an
+    older mtime leaves make nothing to do, and the next mutant's suite runs the
+    previous mutant's binary.
+    """
+    target = root / rel
+    if original is None:
+        target.unlink(missing_ok=True)
+        return
+    target.write_bytes(original)
+    os.utime(target, None)
+
+
+def verify_pristine(root, pristine, when):
+    """Raise unless every mutable file still matches what the run captured.
+
+    Checked across ALL of them rather than the one last mutated: a restore that
+    did not land is invisible in the file the next hunk is about.
+
+    Nothing is written back. What is on disk may be a reversion this run failed
+    to undo or an edit another session made to a shared tree mid-run, and from
+    here the two are indistinguishable -- overwriting would destroy the second to
+    repair the first.
+    """
+    drift = [rel for rel, want in sorted(pristine.items())
+             if ((root / rel).read_bytes() if (root / rel).is_file() else None) != want]
+    if drift:
+        raise TreeDrift(
+            f'{", ".join(drift)} no longer matches the tree this run started '
+            f'from ({when}).\n'
+            f'  A reversion left in place makes the next hunk\'s suite red for '
+            f'this hunk\'s reason,\n'
+            f'  so no verdict from here on would be about its own hunk.\n'
+            f'  Nothing was written back: check `git diff` against what you '
+            f'expect before rerunning.')
+
+
+# The progress line each verdict gets. `killed` is deliberately the quiet one:
+# it is the expected outcome, and everything else wants reading.
+LOUD_VERDICT = {'survived': 'SURVIVED', 'inconclusive': 'INCONCLUSIVE'}
+
+
+def verdict_line(verdict, note):
+    if verdict == 'unreversible':
+        return 'unreversible (hunk would not reverse cleanly)'
+    if verdict == 'uncompilable':
+        return f'uncompilable ({note})'
+    if verdict == 'survived':
+        return 'SURVIVED  <-- no test detects this change'
+    if verdict == 'inconclusive':
+        return f'INCONCLUSIVE  <-- {note}'
+    return 'killed'
 
 
 def main():
@@ -781,7 +1008,13 @@ def main():
         deferred += len(mutable) - args.limit
         mutable = mutable[:args.limit]
 
-    log = open(args.log, 'w')
+    # A listing judges nothing, so it writes nothing: opening the log for one
+    # would spend the single rotation slot the last real run's output has.
+    if args.list_only:
+        log = open(os.devnull, 'w')
+    else:
+        rotate_log(args.log)
+        log = open(args.log, 'w')
     suites = Suites(root, args, log)
 
     # A strategy whose suite is not installed here cannot judge its hunks. Move
@@ -858,49 +1091,68 @@ def main():
             return 2
         print(f'  build ok ({secs:.0f}s)')
     for suite in sorted(needed):
-        if not suites.run(suite):
+        state, why = suites.run(suite)
+        if state == DETECTED:
             print(f'FAIL: baseline {suite} suite is RED. Fix it first, or every '
                   f'mutant will read as killed. See {args.log}', file=sys.stderr)
             return 2
+        if state == INCONCLUSIVE:
+            # No re-run here: the baseline exists to show the harness works, and
+            # a runner that cannot report is a reason to stop rather than to ask
+            # a second time.
+            print(f'FAIL: baseline {suite} suite judged nothing - {why}. Every '
+                  f'mutant would be measured by a suite that cannot report. '
+                  f'See {args.log}', file=sys.stderr)
+            return 2
         print(f'  {suite} green')
+
+    # Read once, before the first mutation: see SAFETY.
+    pristine = {}
+    for h in mutable:
+        target = root / h['file']
+        pristine.setdefault(h['file'],
+                            target.read_bytes() if target.is_file() else None)
     print('  baseline established\n')
 
     results, judged_by = [], set()
     for n, h in enumerate(mutable, 1):
         strategy = verdict_of[h['file']][1]
         plan = STRATEGIES[strategy]
-        target = root / h['file']
-        # None means the change deletes the file: reverting recreates it, and
-        # restoring means removing it again.
-        original = target.read_bytes() if target.is_file() else None
+        # A pristine entry of None means the change deletes the file: reverting
+        # recreates it, and restoring means removing it again.
+        original = pristine[h['file']]
         label = f'{h["file"]}:{h["line"]}'
         print(f'[{n}/{len(mutable)}] reverting {label} ... ', end='', flush=True)
         judged_by.update(plan['suites'])
         applied, why = apply_reverse(root, h['patch'])
+        verdict, note = '', ''
         if not applied:
-            print('unreversible (hunk would not reverse cleanly)')
-            results.append((label, 'unreversible', why.strip().splitlines()[:1]))
-            continue
-        try:
-            if plan['build']:
-                built, secs = build(root, args.jobs, log)
-                if not built:
-                    print(f'uncompilable ({secs:.0f}s)')
-                    results.append((label, 'uncompilable', ''))
-                    continue
-            passed = all(suites.run(s) for s in plan['suites'])
-            if passed:
-                print('SURVIVED  <-- no test detects this change')
-                results.append((label, 'survived', ''))
-            else:
-                print('killed')
-                results.append((label, 'killed', ''))
-        finally:
-            if original is None:
-                target.unlink(missing_ok=True)
-            else:
-                target.write_bytes(original)
-                os.utime(target, None)   # make compares mtimes; see SAFETY above
+            verdict, note = 'unreversible', why.strip().splitlines()[:1]
+        else:
+            try:
+                # Only a mutant whose strategy builds, judged by the suite that
+                # binary IS, can be measured against the wrong one.
+                fingerprinted = plan['build'] and 'catch2' in plan['suites']
+                rebuilt = True
+                if plan['build']:
+                    was = binary_fingerprint(suites.catch2_bin)
+                    built, secs = build(root, args.jobs, log)
+                    if not built:
+                        verdict, note = 'uncompilable', f'{secs:.0f}s'
+                    elif fingerprinted:
+                        rebuilt = binary_fingerprint(suites.catch2_bin) != was
+                if not verdict:
+                    state, unexplained = judge(suites, plan['suites'])
+                    if state == DETECTED and not rebuilt:
+                        state, unexplained = INCONCLUSIVE, UNBUILT_MUTANT
+                    verdict = {DETECTED: 'killed', GREEN: 'survived',
+                               INCONCLUSIVE: 'inconclusive'}[state]
+                    note = unexplained
+            finally:
+                restore_file(root, h['file'], original)
+        verify_pristine(root, pristine, f'after restoring {label}')
+        print(verdict_line(verdict, note))
+        results.append((label, verdict, note))
 
     # Leave the tree as found, with a rebuilt baseline binary so the next
     # `make test-run` is not testing the last mutant.
@@ -910,8 +1162,9 @@ def main():
 
     print('\n' + '=' * 68)
     for label, verdict, extra in results:
-        mark = 'SURVIVED' if verdict == 'survived' else verdict
-        print(f'  {mark:<13} {label}')
+        mark = LOUD_VERDICT.get(verdict, verdict)
+        why = f'  - {extra}' if verdict == 'inconclusive' and extra else ''
+        print(f'  {mark:<13} {label}{why}')
     tally = {}
     for _, v, _ in results:
         tally[v] = tally.get(v, 0) + 1
@@ -921,7 +1174,8 @@ def main():
 
     survived = [r for r in results if r[1] == 'survived']
     unproven = [r for r in results if r[1] in ('uncompilable', 'unreversible')]
-    if unproven or uncovered or deferred:
+    unjudged = [r for r in results if r[1] == 'inconclusive']
+    if unproven or unjudged or uncovered or deferred:
         incomplete = True
 
     if survived:
@@ -937,19 +1191,21 @@ def main():
             print(f'  {label}', file=sys.stderr)
         return 1
     if incomplete:
-        print(report_incomplete(uncovered, deferred, unproven))
+        print(report_incomplete(uncovered, deferred, unproven, unjudged))
         return 0 if args.allow_incomplete else 3
     print('\nVERDICT: CLEAN - every changed hunk was mutated and every mutant was killed.')
     return 0
 
 
-def report_incomplete(uncovered, deferred, unproven=()):
+def report_incomplete(uncovered, deferred, unproven=(), unjudged=()):
     """The line that stops a partial run from reading like a whole one."""
     parts = []
     if uncovered:
         parts.append(f'{len(uncovered)} path(s) NOT COVERED')
     if unproven:
         parts.append(f'{len(unproven)} hunk(s) mutated but never judged by a test')
+    if unjudged:
+        parts.append(f'{len(unjudged)} hunk(s) whose suite exited without a verdict')
     if deferred:
         parts.append(f'{deferred} hunk(s) deferred by --only/--limit')
     return ('\nVERDICT: INCOMPLETE - this run did not examine the whole change: '
@@ -962,7 +1218,7 @@ def report_incomplete(uncovered, deferred, unproven=()):
 if __name__ == '__main__':
     try:
         sys.exit(main())
-    except BuildUnavailable as e:
+    except (BuildUnavailable, TreeDrift) as e:
         # Exit 2 is the harness-stopped code, alongside a broken or red baseline:
         # the run produced no verdict, which is not the same as a clean one.
         # Flushed first: stdout is block-buffered to a pipe while stderr is not,
