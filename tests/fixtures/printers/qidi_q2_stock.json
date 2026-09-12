@@ -1,0 +1,29 @@
+{
+  "provenance": "Stock Qidi Q2 hardware as reported by Klipper, transcribed from the printer.cfg a Q2 owner attached to prestonbrown/helixscreen#1047 (firmware 1.1.1: no M4029 macro yet; 01.01.02+ adds it, which the stock_q2_hardware helper appends)",
+  "notes": [
+    "The Q2 ships [probe_air] and [multi_color_controller] - objects the database credited to the Artillery M1 Pro and Qidi Max 4 as if they were model-unique. They are QIDI firmware objects shared across the range.",
+    "mcu is left unset: the attached config includes its MCU id from a separate file that was not captured."
+  ],
+  "heaters": ["extruder", "heater_bed", "heater_generic chamber"],
+  "sensors": ["temperature_sensor Chamber_Thermal_Protection_Sensor"],
+  "fans": ["fan_generic cooling_fan", "heater_fan hotend_fan", "controller_fan chamber_fan",
+           "controller_fan board_fan", "fan_generic chamber_circulation_fan",
+           "fan_generic auxiliary_cooling_fan"],
+  "leds": ["output_pin caselight"],
+  "hostname": "linaro-alip",
+  "printer_objects": ["heater_generic chamber",
+                      "temperature_sensor Chamber_Thermal_Protection_Sensor",
+                      "probe_air",
+                      "multi_color_controller",
+                      "z_tilt",
+                      "bed_mesh",
+                      "exclude_object",
+                      "filament_switch_sensor filament_switch_sensor",
+                      "output_pin caselight",
+                      "gcode_macro M141",
+                      "gcode_macro M191",
+                      "gcode_macro CLEAR_NOZZLE"],
+  "steppers": ["stepper_x", "stepper_y", "stepper_z", "stepper_z1"],
+  "kinematics": "corexy",
+  "build_volume": {"x_min": 10, "x_max": 260, "y_min": 10, "y_max": 260, "z_max": 260}
+}

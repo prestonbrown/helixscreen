@@ -1,0 +1,8 @@
+{
+  "provenance": "FlashForge AD5M Pro, real hardware discovery from a user",
+  "heaters": ["extruder", "heater_bed"],
+  "sensors": ["tvocValue", "weightValue", "temperature_sensor chamber_temp"],
+  "fans": ["fan", "fan_generic exhaust_fan"],
+  "leds": ["led chamber_light"],
+  "hostname": "flashforge-ad5m-pro"
+}

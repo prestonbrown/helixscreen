@@ -1,0 +1,18 @@
+{
+  "provenance": "Stock Qidi Max 4 fingerprint",
+  "heaters": ["extruder", "heater_bed", "heater_generic chamber"],
+  "sensors": ["temperature_sensor Chamber_Thermal_Protection_Sensor"],
+  "fans": ["fan_generic cooling_fan", "heater_fan hotend_fan", "controller_fan chamber_fan",
+           "controller_fan board_fan", "fan_generic chamber_circulation_fan",
+           "fan_generic auxiliary_cooling_fan", "fan_generic auxiliary_cooling_fan2"],
+  "leds": ["output_pin caselight", "neopixel RGB"],
+  "hostname": "linaro-alip",
+  "printer_objects": ["heater_generic chamber", "probe_air", "z_tilt", "bed_mesh",
+                      "multi_color_controller", "gcode_macro M4029",
+                      "gcode_macro CLEAR_NOZZLE"],
+  "steppers": ["stepper_x", "stepper_y", "stepper_z", "stepper_z1"],
+  "kinematics": "corexy",
+  "mcu": "STM32F407",
+  "mcu_list": ["STM32F407"],
+  "build_volume": {"x_min": -2, "x_max": 392, "y_min": -5, "y_max": 410, "z_max": 342}
+}
