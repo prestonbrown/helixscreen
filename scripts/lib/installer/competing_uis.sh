@@ -174,22 +174,33 @@ K1_CREALITY_BACKEND_INIT="/etc/init.d/S99creality-backend"
 # (master-server, app-server, web-server) is what Creality Print and the
 # Creality Cloud app talk to and is deliberately left to
 # /etc/init.d/S99creality-backend (prestonbrown/helixscreen#1468).
+# Disable and record the stock K1 UI init script, adopting a disable that
+# predates this run. Split out of stop_k1_stock_competing_uis so main.sh's
+# post-extract K1 block can re-run it after extract_release replaces the
+# payload: the ledger lives in INSTALL_DIR/config, which the fresh-install
+# swap moves aside with the old payload.
+record_k1_stock_ui_disable() {
+    # The record must exist no matter which install did the chmod. An
+    # S99start_app that is already de-executed is a disable an earlier
+    # HelixScreen install left behind (or an operator following our docs),
+    # and hooks-k1.sh de-executes it again at every launch while it is
+    # executable, so for as long as HelixScreen is installed the disable is
+    # ours to reverse. Uninstall chmod +x's recorded targets only, and no
+    # scan fallback names S99start_app, so an unrecorded disable would leave
+    # the stock UI dead after uninstall.
+    [ -f /etc/init.d/S99start_app ] || return 0
+    # Disable so it doesn't restart on reboot (reversible)
+    chmod a-x /etc/init.d/S99start_app 2>/dev/null || true
+    record_disabled_service "sysv-chmod" "/etc/init.d/S99start_app"
+}
+
 stop_k1_stock_competing_uis() {
     if [ -f /etc/init.d/S99start_app ]; then
-        # The record must exist no matter which install did the chmod. An
-        # S99start_app that is already de-executed is a disable an earlier
-        # HelixScreen install left behind (or an operator following our
-        # docs), and hooks-k1.sh re-asserts the chmod on every launch for as
-        # long as we are installed. Uninstall chmod +x's recorded targets
-        # only, and no scan fallback names S99start_app, so an unrecorded
-        # disable would leave the stock UI dead after uninstall.
         if [ -x /etc/init.d/S99start_app ]; then
             log_info "Stopping stock Creality UI (S99start_app)..."
             /etc/init.d/S99start_app stop 2>/dev/null || true
         fi
-        # Disable so it doesn't restart on reboot (reversible)
-        chmod a-x /etc/init.d/S99start_app 2>/dev/null || true
-        record_disabled_service "sysv-chmod" "/etc/init.d/S99start_app"
+        record_k1_stock_ui_disable
         found_any=true
 
         if [ "$K1_CREALITY_BACKEND_ENABLED" = "1" ]; then

@@ -21,7 +21,9 @@ platform_stop_competing_uis() {
     if [ -f /etc/init.d/S99start_app ]; then
         if [ -x /etc/init.d/S99start_app ]; then
             /etc/init.d/S99start_app stop 2>/dev/null || true
-            # Persistently disable (reversible with chmod +x)
+            # Persistently disable (reversible with chmod +x). Gated on -x:
+            # this de-executes a stock UI that could still run; one the
+            # installer already disabled (and recorded) stays down untouched.
             chmod a-x /etc/init.d/S99start_app 2>/dev/null || true
         fi
         # Monitor dies first: it is a watchdog that respawns display-server

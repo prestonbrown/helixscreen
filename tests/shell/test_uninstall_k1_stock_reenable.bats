@@ -125,7 +125,9 @@ run_copied_uninstaller() {
 
     export HELIX_STATE_VAR_LIB="$BATS_TEST_TMPDIR/var/lib/helixscreen"
     export HELIX_STATE_ROOT_HOME="$BATS_TEST_TMPDIR/root/.helixscreen"
-    run sh "$copy_dir/uninstall.sh" --force
+    # A TMP_DIR staged for an extract test must not reach the uninstaller:
+    # its scratch-dir gate refuses a TMP_DIR without the install marker.
+    run env -u TMP_DIR sh "$copy_dir/uninstall.sh" --force
 }
 
 @test "uninstaller from a copied script restores an inherited S99start_app disable the install adopted" {
@@ -218,4 +220,181 @@ run_copied_uninstaller() {
     [ ! -f "$pd_helix/settings.json" ]
     [ -f "$pd_helix/.disabled_services" ]
     grep -qF "sysv-chmod:$MOCK_ROOT/etc/init.d/S99start_app" "$pd_helix/.disabled_services"
+}
+
+@test "clean carry warns when it cannot set the ledger aside" {
+    unset _HELIX_UNINSTALL_SOURCED _HELIX_COMMON_SOURCED
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/uninstall.sh"
+
+    local pd_config="$BATS_TEST_TMPDIR/printer_data/config"
+    local pd_helix="$pd_config/helixscreen"
+    mkdir -p "$pd_helix"
+    echo '{"theme":"dark"}' > "$pd_helix/settings.json"
+    echo "sysv-chmod:$MOCK_ROOT/etc/init.d/S99start_app" > "$pd_helix/.disabled_services"
+    # The aside step's mv failing is the carry's failure mode; nothing else
+    # in clean_old_installation uses mv.
+    mock_command_script "mv" "exit 1"
+
+    stop_service() { :; }
+    export -f stop_service
+    host_mod_destruct_blocked() { return 1; }
+    export -f host_mod_destruct_blocked
+    klipper_config_dir() { echo "$BATS_TEST_TMPDIR/printer_data/config"; }
+    export -f klipper_config_dir
+    log_warn() { echo "WARN $*"; }
+    export -f log_warn
+    ASSUME_YES=true
+    HELIX_INSTALL_DIRS=""
+    HELIX_INIT_SCRIPTS=""
+    INSTALL_DIR="$BATS_TEST_TMPDIR/opt/helixscreen"
+    mkdir -p "$INSTALL_DIR"
+    export HELIX_STATE_VAR_LIB="$BATS_TEST_TMPDIR/var/lib/helixscreen"
+    export HELIX_STATE_ROOT_HOME="$BATS_TEST_TMPDIR/root/.helixscreen"
+    install_sudo_rm_shim "$BATS_TEST_TMPDIR"
+
+    run clean_old_installation k1
+    [ "$status" -eq 0 ]
+    contains "Could not set the disabled-services ledger aside" "$output"
+    # The wipe is not held hostage by the carry: user config still goes.
+    [ ! -f "$pd_helix/settings.json" ]
+}
+
+@test "clean install mode rescues a keep file a killed carry left stranded" {
+    unset _HELIX_UNINSTALL_SOURCED _HELIX_COMMON_SOURCED
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/uninstall.sh"
+
+    # A carry killed between the wipe and the restore leaves the keep file as
+    # the only copy of the ledger, with no pd_helix beside it.
+    local pd_config="$BATS_TEST_TMPDIR/printer_data/config"
+    local pd_helix="$pd_config/helixscreen"
+    mkdir -p "$pd_config"
+    echo "sysv-chmod:$MOCK_ROOT/etc/init.d/S99start_app" > "$pd_config/.disabled_services.clean-keep"
+
+    stop_service() { :; }
+    export -f stop_service
+    host_mod_destruct_blocked() { return 1; }
+    export -f host_mod_destruct_blocked
+    klipper_config_dir() { echo "$BATS_TEST_TMPDIR/printer_data/config"; }
+    export -f klipper_config_dir
+    ASSUME_YES=true
+    HELIX_INSTALL_DIRS=""
+    HELIX_INIT_SCRIPTS=""
+    INSTALL_DIR="$BATS_TEST_TMPDIR/opt/helixscreen"
+    mkdir -p "$INSTALL_DIR"
+    export HELIX_STATE_VAR_LIB="$BATS_TEST_TMPDIR/var/lib/helixscreen"
+    export HELIX_STATE_ROOT_HOME="$BATS_TEST_TMPDIR/root/.helixscreen"
+    install_sudo_rm_shim "$BATS_TEST_TMPDIR"
+
+    run clean_old_installation k1
+    [ "$status" -eq 0 ]
+
+    [ -f "$pd_helix/.disabled_services" ]
+    grep -qF "sysv-chmod:$MOCK_ROOT/etc/init.d/S99start_app" "$pd_helix/.disabled_services"
+    [ ! -e "$pd_config/.disabled_services.clean-keep" ]
+}
+
+# --- the real extract path: does the ledger survive payload replacement? ---
+
+# Source the production release modules and stage a release archive in TMP_DIR,
+# the shape extract_release consumes. $1 = INSTALL_DIR, $2 = ELF class, $3 = ELF
+# machine (the archive's binary must match the platform extract validates for).
+setup_real_extract() {
+    unset _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _HELIX_RELEASE_SOURCED
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
+    # Interactive install, not a self-update: the standard swap path.
+    _has_no_new_privs() { return 1; }
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/release.sh"
+    # common.sh carries the real kill_process_by_name (pidof); the sandbox
+    # stub from setup() must win again after sourcing it.
+    kill_process_by_name() { return 1; }
+    export -f kill_process_by_name
+
+    export TMP_DIR="$BATS_TEST_TMPDIR/tmp"
+    mkdir -p "$TMP_DIR"
+
+    local staging="$BATS_TEST_TMPDIR/staging"
+    mkdir -p "$staging/helixscreen/bin" "$staging/helixscreen/config" \
+             "$staging/helixscreen/ui_xml" "$staging/helixscreen/assets"
+    create_fake_elf "$staging/helixscreen/bin/helix-screen" "$2" "$3"
+    chmod +x "$staging/helixscreen/bin/helix-screen"
+    echo '{}' > "$staging/helixscreen/config/settings.json"
+    tar -czf "$TMP_DIR/helixscreen.tar.gz" -C "$staging" helixscreen
+
+    INSTALL_DIR="$1"
+    export INSTALL_DIR
+}
+
+@test "extract_release restores config dotfiles across the fresh-install swap" {
+    # pi builds are aarch64
+    setup_real_extract "$BATS_TEST_TMPDIR/opt/helixscreen" 02 b7
+
+    # What INSTALL_DIR holds at swap time on a fresh K1 install (the ledger
+    # stop_competing_uis just wrote), plus two more dotfiles: user state that
+    # must come back, and the fresh-install marker, which must NOT.
+    mkdir -p "$INSTALL_DIR/config"
+    echo "sysv-chmod:/etc/init.d/S99start_app" > "$INSTALL_DIR/config/.disabled_services"
+    echo keep > "$INSTALL_DIR/config/.user_state"
+    echo stale > "$INSTALL_DIR/config/.helix-fresh-install"
+    echo '{}' > "$INSTALL_DIR/config/settings.json"
+
+    run extract_release "pi"
+    [ "$status" -eq 0 ]
+    # The swap path ran: the payload was moved aside.
+    [ -d "${INSTALL_DIR}.old" ]
+
+    grep -qF "sysv-chmod:/etc/init.d/S99start_app" "$INSTALL_DIR/config/.disabled_services"
+    [ "$(cat "$INSTALL_DIR/config/.user_state")" = "keep" ]
+    # The fresh-install marker is install context, not user data; a stale one
+    # must not mark an update's restored config as freshly installed. (Absent
+    # also passes: a fresh install legitimately re-creates it empty.)
+    refute grep -q stale "$INSTALL_DIR/config/.helix-fresh-install"
+}
+
+@test "fresh install through the real extract path leaves a ledger the uninstaller restores" {
+    build_mock_k1
+    write_start_app 755
+
+    # the K1 payload is mipsel
+    setup_real_extract "$MOCK_ROOT/usr/data/helixscreen" 01 08
+
+    # main.sh's order: the stop half records into a payload the extract is
+    # about to replace...
+    found_any=false
+    stop_k1_stock_competing_uis
+    [ -f "$INSTALL_DIR/config/.disabled_services" ]
+
+    run extract_release "k1"
+    [ "$status" -eq 0 ]
+
+    # ...then the post-extract K1 block re-records before setup_config_symlink.
+    record_k1_stock_ui_disable
+    grep -qF "sysv-chmod:$MOCK_ROOT/etc/init.d/S99start_app" "$INSTALL_DIR/config/.disabled_services"
+
+    run_copied_uninstaller
+    [ "$status" -eq 0 ]
+    [ -x "$MOCK_ROOT/etc/init.d/S99start_app" ]
+}
+
+@test "main.sh re-records the K1 stock UI disable after extract, before setup_config_symlink" {
+    # The wiring, not the behaviour: the adoption must sit in the post-extract
+    # K1 block, after the payload replacement and before the config symlinks.
+    local extract_line record_line symlink_line
+    extract_line=$(grep -n 'extract_release "\$platform"' "$WORKTREE_ROOT/scripts/lib/installer/main.sh" | head -1 | cut -d: -f1)
+    record_line=$(grep -n 'record_k1_stock_ui_disable' "$WORKTREE_ROOT/scripts/lib/installer/main.sh" | head -1 | cut -d: -f1)
+    symlink_line=$(grep -n '^    setup_config_symlink$' "$WORKTREE_ROOT/scripts/lib/installer/main.sh" | head -1 | cut -d: -f1)
+    [ -n "$extract_line" ]
+    [ -n "$record_line" ]
+    [ -n "$symlink_line" ]
+    [ "$extract_line" -lt "$record_line" ]
+    [ "$record_line" -lt "$symlink_line" ]
 }
