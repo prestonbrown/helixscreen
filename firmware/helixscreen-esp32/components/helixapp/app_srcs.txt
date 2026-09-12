@@ -134,6 +134,7 @@ src/printer/ams_environment_zone.cpp
 src/printer/ams_state.cpp
 src/printer/ams_subscription_backend.cpp
 src/printer/lane_resolver.cpp
+src/printer/lane_source_store.cpp
 src/printer/bed_dimensions.cpp
 src/printer/chamber_heater_backend_dragonbreath.cpp
 src/printer/chamber_heater_backend_generic.cpp

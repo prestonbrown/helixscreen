@@ -24,6 +24,7 @@
 #include "system_settings_manager.h"
 #include "test_helpers/config_test_access.h"
 #include "test_helpers/emergency_stop_test_access.h"
+#include "test_helpers/lane_source_store_test_access.h"
 #include "test_helpers/print_control_buttons_test_access.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "tool_state.h"
@@ -297,6 +298,11 @@ void HelixTestFixture::reset_all() {
 
     // Delete any tracked modal widgets and clear the modal stack.
     ModalStack::instance().clear();
+
+    // Lane source records are process-wide and are written by backends, so a
+    // lane one test populated would read back in the next as a reading nobody
+    // took.
+    LaneSourceStoreTestAccess::clear();
 
     // PrintStatusWidget's DetailedFormatter used to be torn down here for the
     // reason described below, and no longer needs to be: its PrinterState
