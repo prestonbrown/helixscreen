@@ -1,8 +1,12 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- Material Temperature Settings Overlay -->
-<!-- Two-view overlay: scrollable material list → edit form for a selected material -->
+<!-- Material Temperature Settings Overlay - Micro-portrait (272x480) variant, same two-by-two shape as ui_xml/micro/ -->
+<!-- Same overlay as ui_xml/material_temps_overlay.xml except the temperature
+     inputs reflow to two rows of two: four fixed-width columns cannot fit the
+     ~256px usable width of a 272px-wide portrait screen. Keep every named
+     widget the C++ overlay looks up when editing this copy. -->
+<!-- Two-view overlay: scrollable material list -> edit form for a selected material -->
 <component>
   <view name="material_temps_overlay"
         extends="overlay_panel" title="Material Temperatures" title_tag="Material Temperatures" bg_color="#screen_bg">
@@ -42,8 +46,7 @@
           <text_heading name="edit_material_name" bind_text="material_edit_name" flex_grow="1"/>
           <text_small name="edit_defaults_hint" bind_text="material_edit_defaults" style_text_color="#text_muted"/>
         </lv_obj>
-        <!-- Nozzle Min / Nozzle Max / Bed Temp / Chamber Temp (four-column row;
-             ui_xml/micro/ and ui_xml/micro_portrait/ reflow it to two-by-two) -->
+        <!-- Nozzle Min / Nozzle Max (first of the two-by-two input rows) -->
         <lv_obj width="100%" flex_flow="row" style_pad_all="0" style_pad_gap="#space_lg" scrollable="false">
           <!-- Nozzle Min column -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
@@ -55,6 +58,10 @@
             <text_body style_pad_bottom="#space_xs" text="Nozzle Max (°C)" translation_tag="Nozzle Max (°C)"/>
             <text_input name="edit_nozzle_max" width="120" keyboard_hint="numeric" max_length="4"/>
           </lv_obj>
+        </lv_obj>
+        <!-- Bed Temp / Chamber Temp (second row) -->
+        <lv_obj width="100%"
+                flex_flow="row" style_pad_all="0" style_pad_top="#space_sm" style_pad_gap="#space_lg" scrollable="false">
           <!-- Bed Temp column -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
             <text_body style_pad_bottom="#space_xs" text="Bed Temp (°C)" translation_tag="Bed Temp (°C)"/>

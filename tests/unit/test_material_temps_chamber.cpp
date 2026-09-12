@@ -18,6 +18,7 @@
 
 #include "../test_fixtures.h"
 #include "filament_database.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "material_settings_manager.h"
 #include "static_panel_registry.h"
 
@@ -163,4 +164,52 @@ TEST_CASE_METHOD(XMLTestFixture, "Chamber row is absent when the printer has no 
 
     MaterialSettingsManager::instance().clear_override("ABS");
     reset_material_temps_singleton();
+}
+
+// The layout-variant files the app loads at 480x272 (micro) and 272x480
+// (micro_portrait) reflow the temperature inputs to two rows of two; a
+// four-across row cannot fit those screens. Pins the reflow's structure.
+namespace {
+
+void check_two_by_two_reflow(const char* variant_path) {
+    reset_material_temps_singleton();
+    MaterialSettingsManager::instance().clear_override("ABS");
+    set_capability("printer_has_chamber_heater", 1);
+    REQUIRE(lv_xml_register_component_from_file(variant_path) == LV_RESULT_OK);
+
+    auto& overlay = helix::settings::get_material_temps_overlay();
+    overlay.show(lv_screen_active());
+    helix::ui::UpdateQueue::instance().drain();
+    overlay.handle_material_row_clicked("ABS");
+
+    lv_obj_t* nozzle_min = find_widget("edit_nozzle_min");
+    lv_obj_t* chamber_input = find_widget("edit_chamber_temp");
+    REQUIRE(nozzle_min != nullptr);
+    REQUIRE(chamber_input != nullptr);
+
+    lv_obj_t* nozzle_row = lv_obj_get_parent(lv_obj_get_parent(nozzle_min));
+    lv_obj_t* chamber_row = lv_obj_get_parent(lv_obj_get_parent(chamber_input));
+    REQUIRE(nozzle_row != nullptr);
+    REQUIRE(chamber_row != nullptr);
+    CHECK(nozzle_row != chamber_row);
+    CHECK_FALSE(hidden(lv_obj_get_parent(chamber_input)));
+
+    MaterialSettingsManager::instance().clear_override("ABS");
+    reset_material_temps_singleton();
+    // Restore the standard component registration for any case that follows.
+    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/material_temps_overlay.xml") ==
+            LV_RESULT_OK);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(XMLTestFixture, "Micro variant reflows the temp inputs to two rows of two",
+                 "[material_temps][chamber]") {
+    check_two_by_two_reflow("A:ui_xml/micro/material_temps_overlay.xml");
+}
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "Micro-portrait variant reflows the temp inputs to two rows of two",
+                 "[material_temps][chamber]") {
+    check_two_by_two_reflow("A:ui_xml/micro_portrait/material_temps_overlay.xml");
 }
