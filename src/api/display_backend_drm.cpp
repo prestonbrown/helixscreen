@@ -1060,11 +1060,12 @@ lv_indev_t* DisplayBackendDRM::create_input_keyboard() {
     return nullptr;
 }
 
-void DisplayBackendDRM::set_display_rotation(lv_display_rotation_t rot, int phys_w, int phys_h) {
+void DisplayBackendDRM::set_display_rotation(lv_display_t* disp, lv_display_rotation_t rot,
+                                             int phys_w, int phys_h) {
     (void)phys_w;
     (void)phys_h;
 
-    if (display_ == nullptr) {
+    if (disp == nullptr) {
         spdlog::warn("[DRM Backend] Cannot set rotation — display not created");
         return;
     }
@@ -1093,24 +1094,24 @@ void DisplayBackendDRM::set_display_rotation(lv_display_rotation_t rot, int phys
 #if LV_LINUX_DRM_USE_EGL
     uint64_t supported_mask = 0;
 #else
-    uint64_t supported_mask = lv_linux_drm_get_plane_rotation_mask(display_);
+    uint64_t supported_mask = lv_linux_drm_get_plane_rotation_mask(disp);
 #endif
     auto strategy = choose_drm_rotation_strategy(drm_rot, supported_mask);
 
     if (drm_rotation_needs_full_render(strategy)) {
-        lv_display_set_render_mode(display_, LV_DISPLAY_RENDER_MODE_FULL);
+        lv_display_set_render_mode(disp, LV_DISPLAY_RENDER_MODE_FULL);
     }
 
     if (lvgl_rotation_action_for(strategy) == LvglRotationAction::CLEAR_TO_ZERO) {
-        lv_display_set_rotation(display_, LV_DISPLAY_ROTATION_0);
-        lv_display_set_matrix_rotation(display_, false);
+        lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_0);
+        lv_display_set_matrix_rotation(disp, false);
     } else {
-        lv_display_set_rotation(display_, rot);
+        lv_display_set_rotation(disp, rot);
     }
 
     if (strategy == DrmRotationStrategy::HARDWARE) {
 #if !LV_LINUX_DRM_USE_EGL
-        lv_linux_drm_set_rotation(display_, drm_rot);
+        lv_linux_drm_set_rotation(disp, drm_rot);
         spdlog::info("[DRM Backend] Plane rotation {}° (LVGL left unrotated)",
                      static_cast<int>(rot) * 90);
 #endif

@@ -65,7 +65,8 @@ class DisplayBackendDRM : public DisplayBackend {
     lv_indev_t* create_input_keyboard() override;
 
     // Display rotation via DRM plane property
-    void set_display_rotation(lv_display_rotation_t rot, int phys_w, int phys_h) override;
+    void set_display_rotation(lv_display_t* disp, lv_display_rotation_t rot, int phys_w,
+                              int phys_h) override;
 
     /// Check if DRM plane supports hardware rotation for the given angle
     bool supports_hardware_rotation(lv_display_rotation_t rot) const override;

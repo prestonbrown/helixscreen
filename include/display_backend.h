@@ -435,19 +435,30 @@ class DisplayBackend {
     }
 
     /**
-     * @brief Update touch rotation transform after display rotation changes
+     * @brief Apply a rotation, and decide what LVGL is told about it
      *
-     * For fbdev backend, transforms raw evdev touch coordinates to match
-     * the rotated display. No-op for SDL and DRM backends.
+     * The backend is the only writer of the display's rotation. This default
+     * hands the angle to LVGL, which rotates on the flush path and transforms
+     * pointer input to match, so a backend with nothing special to do inherits
+     * working rotation by saying nothing.
      *
+     * A backend that rotates by some other means - a scanout plane - overrides
+     * this and reports the result through applied_rotation_degrees(), because
+     * LVGL's own rotation stops describing the panel once something else owns
+     * it (prestonbrown/helixscreen#1275).
+     *
+     * @param disp Display to rotate
      * @param rot LVGL rotation enum
      * @param phys_w Native panel width (pre-rotation)
      * @param phys_h Native panel height (pre-rotation)
      */
-    virtual void set_display_rotation(lv_display_rotation_t rot, int phys_w, int phys_h) {
-        (void)rot;
+    virtual void set_display_rotation(lv_display_t* disp, lv_display_rotation_t rot, int phys_w,
+                                      int phys_h) {
         (void)phys_w;
         (void)phys_h;
+        if (disp != nullptr) {
+            lv_display_set_rotation(disp, rot);
+        }
     }
 
     /**

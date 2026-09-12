@@ -65,6 +65,41 @@ int angle_lvgl_does_not_report() {
     return DisplayBackend::lvgl_rotation_degrees() == 90 ? 180 : 90;
 }
 
+/// A backend with nothing special to say about rotation: no override at all,
+/// which is SDL's situation and the case the base default has to carry.
+class FakePlainBackend : public DisplayBackend {
+  public:
+    lv_display_t* create_display(int, int) override {
+        return nullptr;
+    }
+    lv_indev_t* create_input_pointer() override {
+        return nullptr;
+    }
+    DisplayBackendType type() const override {
+        return DisplayBackendType::SDL;
+    }
+    const char* name() const override {
+        return "fake-plain";
+    }
+    bool is_available() const override {
+        return true;
+    }
+};
+
+/// Put the display's rotation back: the fixture shares one display across the
+/// whole binary, so a rotation left behind changes what later tests measure.
+class ScopedRotation {
+  public:
+    ScopedRotation() : disp_(lv_display_get_default()), prev_(lv_display_get_rotation(disp_)) {}
+    ~ScopedRotation() {
+        lv_display_set_rotation(disp_, prev_);
+    }
+
+  private:
+    lv_display_t* disp_;
+    lv_display_rotation_t prev_;
+};
+
 } // namespace
 
 TEST_CASE_METHOD(LVGLTestFixture, "the live backend owns the applied rotation",
@@ -103,4 +138,27 @@ TEST_CASE_METHOD(LVGLTestFixture, "a backend that does not own rotation answers 
     FakeSilentBackend backend;
     REQUIRE(display_rotation_degrees() == DisplayBackend::lvgl_rotation_degrees());
     REQUIRE(display_is_rotated() == (DisplayBackend::lvgl_rotation_degrees() != 0));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a backend with no rotation override still rotates the display",
+                 "[display][rotation]") {
+    ScopedRotation restore;
+    lv_display_t* disp = lv_display_get_default();
+    REQUIRE(disp != nullptr);
+    lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_0);
+
+    FakePlainBackend backend;
+    backend.set_display_rotation(disp, LV_DISPLAY_ROTATION_90, 800, 480);
+
+    // DisplayManager no longer writes this itself, so a backend that overrides
+    // nothing has to inherit a default that does.
+    REQUIRE(lv_display_get_rotation(disp) == LV_DISPLAY_ROTATION_90);
+    REQUIRE(display_rotation_degrees(disp) == 90);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "rotating through a null display does not crash",
+                 "[display][rotation]") {
+    FakePlainBackend backend;
+    backend.set_display_rotation(nullptr, LV_DISPLAY_ROTATION_180, 800, 480);
+    SUCCEED();
 }
