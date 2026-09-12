@@ -927,6 +927,16 @@ ifeq ($(DISPLAY_BACKEND),drm)
         SUBMODULE_CFLAGS += -DHELIX_ENABLE_OPENGLES
         SUBMODULE_CXXFLAGS += -DHELIX_ENABLE_OPENGLES
     endif
+    # NanoVG draw unit. Rasterizes on the GPU, so it needs the EGL presentation
+    # path above; it cannot render onto a dumb-buffer or fbdev framebuffer.
+    # It also grows lv_layer_t and lv_draw_task_t, so objects built with it
+    # cannot be linked against objects built without it.
+    ifeq ($(ENABLE_NANOVG),yes)
+        CFLAGS += -DHELIX_ENABLE_NANOVG
+        CXXFLAGS += -DHELIX_ENABLE_NANOVG
+        SUBMODULE_CFLAGS += -DHELIX_ENABLE_NANOVG
+        SUBMODULE_CXXFLAGS += -DHELIX_ENABLE_NANOVG
+    endif
     # DRM backend linker flags are added in Makefile's cross-compile section
 else ifeq ($(DISPLAY_BACKEND),fbdev)
     CFLAGS += -DHELIX_DISPLAY_FBDEV

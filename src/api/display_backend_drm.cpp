@@ -414,8 +414,16 @@ lv_display_t* DisplayBackendDRM::create_display(int width, int height) {
     }
 
     // Apply the preferred-mode override BEFORE lv_linux_drm_set_file picks a mode.
+    // lv_linux_drm_set_preferred_mode() lives in the dumb-buffer driver, which
+    // compiles to nothing when the EGL driver is selected, so the override is
+    // unavailable there and the connector's own preferred mode is what we get.
     if (chosen_w > 0 && chosen_h > 0) {
+#if LV_LINUX_DRM_USE_EGL
+        spdlog::warn("[DRM Backend] Ignoring {}x{} mode override: not supported on the EGL path",
+                     chosen_w, chosen_h);
+#else
         lv_linux_drm_set_preferred_mode(display_, chosen_w, chosen_h);
+#endif
     }
 
     lv_result_t result = lv_linux_drm_set_file(display_, drm_device_.c_str(), -1);
