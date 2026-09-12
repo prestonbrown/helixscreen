@@ -444,9 +444,10 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::LogCapture log(64);
     PreheatWidgetTestAccess::set_temperatures_multi(widget, 200, 60);
 
-    // Pin on current output: tool_label(1) spells "T1", the same T-prefixed
-    // form the pre-rekey literal "T{}" already produced, so this does not
-    // discriminate the rekey itself - it protects the rendered toast text.
+    // Pin on current output: tool_label(1) spells "T1", matching what the
+    // current literal call sites already render, so this does not prove the
+    // key takes a label rather than a number - it protects the rendered
+    // toast text.
     CHECK(log.count_containing("Preheat: T1 + bed set") >= 1);
     CHECK(log.count_containing("Preheat: Tool 1 + bed set") == 0);
 
