@@ -4774,7 +4774,7 @@ void AmsBackendAfc::persist_override(int slot_index, const SlotInfo& info) {
     o.catalog_id = info.catalog_id;
     o.product_name = info.product_name;
     // AMS_DEFAULT_SLOT_COLOR is the "no color reading" sentinel (see
-    // SlotInfo::has_identity), not a color a user would ever pick, so it
+    // helix::ui::lane_has_identity), not a color a user would ever pick, so it
     // stays unrecorded; a deliberate pure black (#000000) still records.
     if (info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
         o.color_rgb = info.color_rgb;
@@ -5369,8 +5369,10 @@ AmsError AmsBackendAfc::set_slot_info(int slot_index, const SlotInfo& info, bool
                     execute_gcode(fmt::format("SET_SPOOL_ID LANE={} SPOOL_ID=", lane_name));
                 }
 
-                // Color (only if changed and valid - not 0 or default grey)
-                if (info.color_rgb != 0 && info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
+                // AMS_DEFAULT_SLOT_COLOR is the "no color reading" sentinel
+                // (see helix::ui::lane_has_identity); a deliberate pure black
+                // (#000000) still dispatches to AFC.
+                if (info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
                     char color_hex[8];
                     snprintf(color_hex, sizeof(color_hex), "%06X", info.color_rgb & 0xFFFFFF);
                     execute_gcode(fmt::format("SET_COLOR LANE={} COLOR={}", lane_name, color_hex));
