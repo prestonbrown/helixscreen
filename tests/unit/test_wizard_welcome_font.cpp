@@ -46,7 +46,8 @@ bool face_draws_welcome_glyphs(const lv_font_t* font) {
 
 } // namespace
 
-TEST_CASE("Welcome header ladder picks a display face per breakpoint", "[wizard][1599][font]") {
+TEST_CASE("Welcome header ladder picks a display face per breakpoint",
+          "[wizard][1599][1609][font]") {
 #if HELIX_MAX_FONT_TIER >= 6 && HELIX_HAS_HIDPI_FONTS
     // Full-tier builds: the 48/64 rung the issue asks for at the tiers that
     // ship 800x480-class and larger panels.
@@ -60,6 +61,21 @@ TEST_CASE("Welcome header ladder picks a display face per breakpoint", "[wizard]
     const int heading_medium = noto_sans_26.line_height;
     CHECK(helix::wizard_welcome_header_font(UiBreakpoint::Medium)->line_height > heading_medium);
     CHECK(helix::wizard_welcome_header_font(UiBreakpoint::Micro)->line_height <= heading_medium);
+#elif HELIX_MAX_FONT_TIER >= 5
+    // k2 (FONT_TIERS := large xlarge, mk/cross.mk): the build reaches the
+    // xlarge tier, so its largest linked face is noto_sans_32 and the ladder
+    // must hand that back at the Large-and-up breakpoints — a size class
+    // above font_heading_large's noto_sans_28 (prestonbrown/helixscreen#1609).
+    CHECK(helix::wizard_welcome_header_font(UiBreakpoint::Large) == &noto_sans_32);
+    CHECK(helix::wizard_welcome_header_font(UiBreakpoint::XLarge) == &noto_sans_32);
+    CHECK(helix::wizard_welcome_header_font(UiBreakpoint::XXLarge) == &noto_sans_32);
+    CHECK(helix::wizard_welcome_header_font(UiBreakpoint::Large)->line_height >
+          noto_sans_28.line_height);
+
+    // Medium keeps the heading face at the tiers it ships; the ladder must
+    // never hand back something SMALLER than that tier's heading.
+    CHECK(helix::wizard_welcome_header_font(UiBreakpoint::Medium)->line_height >=
+          noto_sans_26.line_height);
 #else
     // Constrained builds keep the heading face at the tiers they ship; the
     // ladder must never hand back something SMALLER than that tier's heading.
