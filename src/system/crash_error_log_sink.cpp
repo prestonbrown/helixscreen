@@ -5,8 +5,13 @@
 namespace helix {
 
 CrashErrorLogSink& CrashErrorLogSink::instance() {
-    static CrashErrorLogSink s;
-    return s;
+    // Never destroyed. The crash handler holds raw pointers into this object's
+    // ring and every logger holds a non-owning sink_ptr to it, so anything that
+    // logs while static destructors run - a global panel tearing down, a worker
+    // on its way out - has to find a live sink. A destroyed sink dispatches
+    // through base_sink's pure virtuals and aborts the process.
+    static CrashErrorLogSink* s = new CrashErrorLogSink();
+    return *s;
 }
 
 CrashErrorLogSink::CrashErrorLogSink() {
