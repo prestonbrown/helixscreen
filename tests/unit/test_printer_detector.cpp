@@ -141,6 +141,69 @@ class PrinterDetectorFixture {
             .mcu_list = {"stm32f407xx", "stm32f401xc", "stm32f103xe"},
             .build_volume = {.x_min = -1, .x_max = 275, .y_min = -1, .y_max = 295, .z_max = 265}};
     }
+
+    // Elegoo Centauri Carbon running OpenCentauri COSMOS, as the bench machine
+    // reports itself over /printer/objects/list and /printer/info. Three fields
+    // decide this machine's identity and none of them is a model string:
+    //
+    //  - hostname is "cosmos", the COSMOS image default. It carries neither
+    //    "elegoo" nor "centauri", so every hostname heuristic misses.
+    //  - the firmware defines M191, the generic wait-for-chamber gcode, next to
+    //    a chamber sensor and corexy - the same three facts an enclosed QIDI
+    //    reports.
+    //  - what does name the machine is its own macros: ELEGOO_PURGE from the
+    //    vendor config and the _COSMOS_* pair from the firmware.
+    //
+    // build_volume is the stepper travel Klipper resolves from configfile
+    // (X[-2,256] Y[-2,265]), which is what build_volume_range scores against.
+    PrinterHardwareData elegoo_centauri_carbon_hardware() {
+        return PrinterHardwareData{
+            .heaters = {"extruder", "heater_bed"},
+            .sensors = {"temperature_sensor chamber", "temperature_sensor mcu_toolhead",
+                        "temperature_sensor mcu_bed", "temperature_host mainboard"},
+            .fans = {"heater_fan extruder", "fan", "fan_generic aux_fan", "fan_generic case_fan",
+                     "temperature_fan mainboard"},
+            .leds = {"led case", "led hotend"},
+            .hostname = "cosmos",
+            .printer_objects = {"configfile",
+                                "gcode_macro _COSMOS_SETTINGS",
+                                "gcode_macro SAVE_CONFIG",
+                                "print_stats",
+                                "virtual_sdcard",
+                                "pause_resume",
+                                "display_status",
+                                "gcode_macro _KAMP_Settings",
+                                "gcode_macro LINE_PURGE",
+                                "gcode_macro ELEGOO_PURGE",
+                                "gcode_macro SMART_PARK",
+                                "exclude_object",
+                                "bed_mesh",
+                                "probe",
+                                "load_cell_probe",
+                                "filament_switch_sensor filament_sensor",
+                                "led case",
+                                "led hotend",
+                                "temperature_sensor chamber",
+                                "fan_generic aux_fan",
+                                "fan_generic case_fan",
+                                "screws_tilt_adjust",
+                                "gcode_macro PRINT_START",
+                                "gcode_macro M191",
+                                "gcode_macro PRINT_END",
+                                "gcode_macro CLEAN_NOZZLE",
+                                "gcode_macro MOVE_TO_TRAY",
+                                "gcode_macro CUT_FILAMENT",
+                                "gcode_macro LOADCELL_Z_HOME",
+                                "gcode_macro CALIBRATE_Z_OFFSET",
+                                "gcode_macro BED_MESH_CALIBRATE",
+                                "gcode_macro M600",
+                                "gcode_macro _UPDATE_COSMOS"},
+            .steppers = {"stepper_x", "stepper_y", "stepper_z", "extruder"},
+            .kinematics = "corexy",
+            .mcu = "",
+            .mcu_list = {"stm32f401xc"},
+            .build_volume = {.x_min = -2, .x_max = 256, .y_min = -2, .y_max = 265, .z_max = 258}};
+    }
 };
 
 // ============================================================================
@@ -2765,6 +2828,74 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 
     CHECK(with_result.type_name == without_result.type_name);
     CHECK(with_result.type_name == "Qidi Q2");
+}
+
+// ============================================================================
+// A real Elegoo Centauri Carbon, as the bench machine reports itself
+// ============================================================================
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a Centauri Carbon on COSMOS identifies as itself",
+                 "[printer][real_world][elegoo][cc1]") {
+    // Its hostname names neither the vendor nor the model, so the identity has
+    // to come from the firmware's own macros.
+    auto result = PrinterDetector::detect(elegoo_centauri_carbon_hardware());
+
+    REQUIRE(result.detected());
+    CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+            result.runner_up_confidence, result.margin());
+    CHECK(result.type_name == "Elegoo Centauri Carbon");
+    CHECK(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+    CHECK(PrinterDetector::meets_autosave_threshold(result));
+}
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: the COSMOS macros are what identify a Centauri Carbon",
+                 "[printer][real_world][elegoo][cc1]") {
+    // The evidence this entry leads on must be evidence only this machine
+    // carries. Strip the firmware's own macros and what is left - corexy, a
+    // chamber sensor, a load cell, M191 - describes a class of enclosed
+    // printer, so the entry must stop leading rather than win on a coincidence.
+    auto stripped = elegoo_centauri_carbon_hardware();
+    auto& objects = stripped.printer_objects;
+    const size_t before = objects.size();
+    objects.erase(std::remove_if(objects.begin(), objects.end(),
+                                 [](const std::string& obj) {
+                                     return obj.find("COSMOS") != std::string::npos ||
+                                            obj.find("ELEGOO") != std::string::npos;
+                                 }),
+                  objects.end());
+    REQUIRE(objects.size() == before - 3); // the fixture really carries all three
+
+    const auto full = PrinterDetector::detect(elegoo_centauri_carbon_hardware());
+    const auto without = PrinterDetector::detect(stripped);
+
+    CAPTURE(full.confidence, without.confidence, without.type_name);
+    CHECK(full.confidence > without.confidence);
+}
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: M191 alone cannot identify a printer as a Qidi",
+                 "[printer][qidi][macro]") {
+    // M191 is the generic wait-for-chamber gcode. Firmware that defines it is
+    // saying the machine has a chamber, which is a class of printer and not a
+    // manufacturer - so it can corroborate an identification but never make
+    // one. The chamber *heater* is what the QIDI entries lead on.
+    PrinterHardwareData enclosed_corexy{
+        .heaters = {"extruder", "heater_bed"},
+        .sensors = {"temperature_sensor chamber"},
+        .fans = {"fan", "heater_fan extruder"},
+        .leds = {},
+        .hostname = "klipper",
+        .printer_objects = {"bed_mesh", "exclude_object", "temperature_sensor chamber",
+                            "gcode_macro M191", "gcode_macro PRINT_START", "gcode_macro PRINT_END"},
+        .steppers = {"stepper_x", "stepper_y", "stepper_z"},
+        .kinematics = "corexy"};
+
+    const auto result = PrinterDetector::detect(enclosed_corexy);
+
+    CAPTURE(result.type_name, result.confidence, result.reason);
+    CHECK(result.type_name.find("Qidi") == std::string::npos);
 }
 
 namespace {
