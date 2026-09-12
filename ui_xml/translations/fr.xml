@@ -1012,6 +1012,7 @@
   <translation tag="Feed filament" fr="Alimenter le filament"/>
   <translation tag="Feed filament directly to extruder" fr="Alimenter le filament directement vers l&apos;extrudeur"/>
   <translation tag="Feed filament from current slot" fr="Alimenter le filament depuis le slot actuel"/>
+  <translation tag="Feeder" fr="Alimentateur"/>
   <translation tag="Feeding filament forward" fr="Avancement du filament"/>
   <translation tag="Filament" fr="Filament"/>
   <translation tag="Filament Control" fr="Contrôle du filament"/>

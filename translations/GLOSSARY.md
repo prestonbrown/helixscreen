@@ -30,6 +30,11 @@ translation agents (the relevant column is injected into their prompts).
   Translate a `Lane` string with the locale's lane word, not its slot word.
   Chinese is the exception in the other direction - it has never distinguished
   the two and uses the slot term throughout.
+- **Feeder** vs **Toolhead**: Snapmaker U1-specific. The U1 names where filament
+  enters `Feeder` and the printing end `Toolhead` — two different words for the
+  same 1:1 physical position, matching the U1's own firmware UI. Reuse each
+  locale's existing `feeder`/`toolhead` rendering (established from other
+  strings using those English words) rather than coining a new one.
 - **Spool**: the physical spool noun — keep one rendering per locale.
 - **Light**: ambiguous (theme "Light" vs LED light) — translate by context; not
   a fixed glossary term.
@@ -51,6 +56,8 @@ translation agents (the relevant column is injected into their prompts).
 | Fans | Lüfter | Ventiladores | Ventilateurs | Ventole | ファン | Ventoinhas | Вентиляторы | 风扇 |
 | Spool | Spule | Bobina | Bobine | Bobina | スプール | Carretel | Катушка | 料盘 |
 | Slot | Slot | Ranura | Slot | Slot | スロット | Slot | Слот | 槽位 |
+| Feeder | Zuführung | Alimentador | Alimentateur | Alimentatore | フィーダー | Alimentador | Фидер | 送料器 |
+| Toolhead | Werkzeugkopf | Cabezal | Tête d'outil | Testina | ツールヘッド | Cabeçote | Печатающая головка | 工具头 |
 | Printer | Drucker | Impresora | Imprimante | Stampante | プリンター | Impressora | Принтер | 打印机 |
 | Vendor | Hersteller | Fabricante | Fabricant | Produttore | ベンダー | Fabricante | Производитель | 供应商 |
 
@@ -65,6 +72,7 @@ translation agents (the relevant column is injected into their prompts).
 | Edit | Bearbeiten | Editar | Modifier | Modifica | 編集 | Editar | Редактировать | 编辑 |
 | Retry | Wiederholen | Reintentar | Réessayer | Riprova | 再試行 | Tentar Novamente | Повторить | 重试 |
 | Install | Installieren | Instalar | Installer | Installa | インストール | Instalar | Установить | 安装 |
+| Uninstall | Deinstallieren | Desinstalar | Désinstaller | Disinstalla | アンインストール | Desinstalar | Удалить | 卸载 |
 | Update | Aktualisieren | Actualizar | Mettre à jour | Aggiorna | 更新 | Atualizar | Обновить | 更新 |
 | Print | Drucken | Imprimir | Imprimer | Stampa | 印刷 | Imprimir | Печать | 打印 |
 | Pause | Pause | Pausar | Pause | Pausa | 一時停止 | Pausar | Пауза | 暂停 |
@@ -103,4 +111,4 @@ translation agents (the relevant column is injected into their prompts).
 |---|---|---|---|---|---|---|---|---|
 | Bluetooth not available | Bluetooth nicht verfügbar | Bluetooth no disponible | Bluetooth non disponible | Bluetooth non disponibile | Bluetooth が利用できません | Bluetooth não disponível | Bluetooth недоступен | 蓝牙不可用 |
 
-<!-- Terms not yet translated in every locale (skipped): Uninstall, Disabled -->
+<!-- Terms not yet translated in every locale (skipped): Disabled -->

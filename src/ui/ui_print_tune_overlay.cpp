@@ -535,7 +535,7 @@ void PrintTuneOverlay::update_tool_z_displays() {
     const auto* active_tool_info = ts.active_tool();
     const std::string tool_display_label =
         active_tool_info ? active_tool_info->display_label
-                         : helix::ui::lane_label(helix::ui::active_lane_noun(), tool_index);
+                         : helix::ui::lane_label(helix::ui::active_tool_noun(), tool_index);
     std::snprintf(tune_z_tool_label_buf_, sizeof(tune_z_tool_label_buf_), "%s",
                   tool_display_label.c_str());
     lv_subject_copy_string(&tune_z_tool_label_subject_, tune_z_tool_label_buf_);

@@ -24,7 +24,7 @@ LOCALES = ["de", "es", "fr", "it", "ja", "pt", "ru", "zh"]
 GLOSSARY_GROUPS: dict[str, list[str]] = {
     "Hardware / filament path": [
         "Filament", "Nozzle", "Bed", "Heater", "Chamber", "Extruder",
-        "Fan", "Fans", "Spool", "Slot", "Printer", "Vendor",
+        "Fan", "Fans", "Spool", "Slot", "Feeder", "Toolhead", "Printer", "Vendor",
     ],
     "Actions": [
         "Save", "Cancel", "Close", "Delete", "Edit", "Retry",
@@ -71,6 +71,11 @@ translation agents (the relevant column is injected into their prompts).
   Translate a `Lane` string with the locale's lane word, not its slot word.
   Chinese is the exception in the other direction - it has never distinguished
   the two and uses the slot term throughout.
+- **Feeder** vs **Toolhead**: Snapmaker U1-specific. The U1 names where filament
+  enters `Feeder` and the printing end `Toolhead` — two different words for the
+  same 1:1 physical position, matching the U1's own firmware UI. Reuse each
+  locale's existing `feeder`/`toolhead` rendering (established from other
+  strings using those English words) rather than coining a new one.
 - **Spool**: the physical spool noun — keep one rendering per locale.
 - **Light**: ambiguous (theme "Light" vs LED light) — translate by context; not
   a fixed glossary term.

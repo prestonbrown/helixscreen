@@ -100,7 +100,7 @@ void init_ams_tool_text_observers() {
         [](AmsState* a, int tool) {
             if (tool >= 0) {
                 const std::string label =
-                    helix::ui::lane_label(helix::ui::active_lane_noun(), tool);
+                    helix::ui::lane_label(helix::ui::active_tool_noun(), tool);
                 lv_subject_copy_string(a->get_current_tool_text_subject(), label.c_str());
             } else {
                 lv_subject_copy_string(a->get_current_tool_text_subject(), "---");

@@ -183,7 +183,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool badge: a genuine second extruder still 
 
     auto* label = lv_xml_get_subject(nullptr, "print_status_nozzle_tool_label");
     REQUIRE(label != nullptr);
-    REQUIRE(std::string(lv_subject_get_string(label)) == "Slot 1");
+    REQUIRE(std::string(lv_subject_get_string(label)) == "Tool 1");
 }
 
 // ============================================================================

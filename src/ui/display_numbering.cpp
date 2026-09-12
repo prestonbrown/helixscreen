@@ -42,6 +42,10 @@ std::string noun_text(LaneNoun noun) {
         return lv_tr("Gate");
     case LaneNoun::Tool:
         return lv_tr("Tool");
+    case LaneNoun::Feeder:
+        return lv_tr("Feeder");
+    case LaneNoun::Toolhead:
+        return lv_tr("Toolhead");
     case LaneNoun::Slot:
         break;
     }
@@ -68,6 +72,12 @@ LaneNoun active_lane_noun() {
     auto& ams = AmsState::instance();
     const auto* backend = ams.get_backend(ams.active_backend_index());
     return backend ? backend->lane_noun() : LaneNoun::Slot;
+}
+
+LaneNoun active_tool_noun() {
+    auto& ams = AmsState::instance();
+    const auto* backend = ams.get_backend(ams.active_backend_index());
+    return backend ? backend->tool_noun() : LaneNoun::Tool;
 }
 
 } // namespace helix::ui

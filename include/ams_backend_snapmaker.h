@@ -78,6 +78,20 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
         return AmsType::SNAPMAKER;
     }
 
+    /// The U1's own UI names these "Feeder 1".."Feeder 4" (verified against its
+    /// firmware UI binary: zero occurrences of Slot, Lane, or capitalised
+    /// Channel), never our "slot".
+    [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
+        return helix::ui::LaneNoun::Feeder;
+    }
+
+    /// The U1's own UI names the printing end "Toolhead 1".."Toolhead 4" - a
+    /// different word from lane_noun()'s Feeder, naming a different physical
+    /// thing (where filament enters vs. where it prints) despite the 1:1 count.
+    [[nodiscard]] helix::ui::LaneNoun tool_noun() const override {
+        return helix::ui::LaneNoun::Toolhead;
+    }
+
     // State queries
     /// Four physical heads, up to 32 logical tools: [0,1,2,3,0,0,...]. Verified
     /// live against print_task_config.extruder_map_table on a U1.

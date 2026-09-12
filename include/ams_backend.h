@@ -2198,6 +2198,19 @@ class AmsBackend {
     }
 
     /**
+     * @brief The word this backend's hardware uses for the printing end.
+     *
+     * Distinct from lane_noun(): most backends use one noun for both the
+     * filament lane and the print position, but a backend whose hardware uses
+     * two different words for the two 1:1 things overrides this separately.
+     *
+     * @return the backend's noun for a tool/nozzle position; Tool unless overridden
+     */
+    [[nodiscard]] virtual helix::ui::LaneNoun tool_noun() const {
+        return helix::ui::LaneNoun::Tool;
+    }
+
+    /**
      * @brief Whether the backend assigns one spool per tool (tool-changer model).
      *
      * Drives the auto-assign-active-spool-to-tool path and the runout-guidance

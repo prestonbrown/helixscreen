@@ -10,6 +10,7 @@
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "display_numbering.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "moonraker_api_mock.h"
@@ -17,6 +18,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "spoolman_types.h" // SpoolInfo + apply_spool_to_slot (the picker-side writer)
+#include "tool_state.h"
 
 #include <chrono>
 #include <filesystem>
@@ -298,6 +300,52 @@ TEST_CASE_METHOD(SnapmakerFixture, "AmsBackendSnapmaker construction", "[ams][sn
         auto info = backend.get_system_info();
         REQUIRE(info.tip_method == TipMethod::NONE);
     }
+}
+
+// ============================================================================
+// Feeder / Toolhead noun tests
+//
+// The U1's own firmware UI binary spells filament entry "Feeder 1".."Feeder 4"
+// and the printing end "Toolhead 1".."Toolhead 4" (156 and 566 capitalised
+// hits respectively; zero for Slot, Lane, or capitalised Channel) - two
+// different words for the same 1:1 physical position.
+// ============================================================================
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker lane_noun and tool_noun name two different things",
+                 "[ams][snapmaker][numbering]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+    CHECK(backend.lane_noun() == helix::ui::LaneNoun::Feeder);
+    CHECK(backend.tool_noun() == helix::ui::LaneNoun::Toolhead);
+    CHECK(backend.lane_noun() != backend.tool_noun());
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker ToolInfo::display_label names the toolhead, not the feeder",
+                 "[ams][snapmaker][numbering]") {
+    // Registering the real backend (not a mock) is the point: active_tool_noun()
+    // reads it through AmsState, exactly as production init_tools() does, so
+    // this exercises the actual lookup path rather than asserting the enum
+    // value in isolation.
+    AmsState::instance().set_backend(std::make_unique<AmsBackendSnapmaker>(nullptr, nullptr));
+
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(
+        nlohmann::json::array({"extruder", "extruder1", "extruder2", "extruder3", "toolchanger",
+                               "filament_detect", "toolhead", "heater_bed", "print_task_config"}));
+    REQUIRE(hw.has_snapmaker());
+
+    helix::ToolState::instance().deinit_subjects();
+    helix::ToolState::instance().init_subjects(/*register_xml=*/false);
+    helix::ToolState::instance().init_tools(hw);
+
+    REQUIRE(helix::ToolState::instance().tool_count() == 4);
+    const auto& tools = helix::ToolState::instance().tools();
+    CHECK(tools[0].display_label == "Toolhead 1");
+    CHECK(tools[0].display_label != "Feeder 1");
+    CHECK(tools[3].display_label == "Toolhead 4");
+
+    helix::ToolState::instance().deinit_subjects();
+    AmsState::instance().clear_backends();
 }
 
 // ============================================================================
@@ -596,8 +644,8 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker channel_error during an active loa
 
     CHECK(backend.get_system_info().action == AmsAction::ERROR);
     // Raw firmware token mapped to a friendly message via lane_label(), which
-    // spells Snapmaker's slots "Slot N" rather than the firmware's "lane".
-    CHECK(backend.get_system_info().operation_detail.find("No filament in Slot 2") !=
+    // spells Snapmaker's positions "Feeder N" rather than the firmware's "lane".
+    CHECK(backend.get_system_info().operation_detail.find("No filament in Feeder 2") !=
           std::string::npos);
 }
 
@@ -2165,7 +2213,7 @@ TEST_CASE_METHOD(
 
     // Firmware's own wording for this fault names a 0-based extruder
     // ("e0_filament") we do not control; the reported failure must name the
-    // slot instead of echoing that string to the user.
+    // feeder instead of echoing that string to the user.
     h.client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR,
                                     "Filament Sensor e0_filament: Runout Detected", "AUTO_FEEDING");
 
@@ -2180,7 +2228,7 @@ TEST_CASE_METHOD(
     REQUIRE(callback_fired);
     REQUIRE_FALSE(captured.success());
     CHECK(captured.user_msg.find("e0_filament") == std::string::npos);
-    CHECK(captured.user_msg.find("Slot 1") != std::string::npos);
+    CHECK(captured.user_msg.find("Feeder 1") != std::string::npos);
 }
 
 // ============================================================================

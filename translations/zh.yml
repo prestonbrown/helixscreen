@@ -1028,6 +1028,7 @@ translations:
   Feed filament: 进料
   Feed filament directly to extruder: 将耗材直接送入挤出机
   Feed filament from current slot: '从当前槽位送入耗材'
+  Feeder: 送料器
   Feeding filament forward: 正在向前送料
   Filament: 耗材
   Filament Control: 耗材控制

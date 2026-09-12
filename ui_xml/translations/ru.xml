@@ -1012,6 +1012,7 @@
   <translation tag="Feed filament" ru="Подать филамент"/>
   <translation tag="Feed filament directly to extruder" ru="Подать филамент напрямую в экструдер"/>
   <translation tag="Feed filament from current slot" ru="Подать филамент из текущего слота"/>
+  <translation tag="Feeder" ru="Фидер"/>
   <translation tag="Feeding filament forward" ru="Подача филамента вперёд"/>
   <translation tag="Filament" ru="Филамент"/>
   <translation tag="Filament Control" ru="Управление филаментом"/>

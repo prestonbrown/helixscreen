@@ -1012,6 +1012,7 @@
   <translation tag="Feed filament" zh="进料"/>
   <translation tag="Feed filament directly to extruder" zh="将耗材直接送入挤出机"/>
   <translation tag="Feed filament from current slot" zh="从当前槽位送入耗材"/>
+  <translation tag="Feeder" zh="送料器"/>
   <translation tag="Feeding filament forward" zh="正在向前送料"/>
   <translation tag="Filament" zh="耗材"/>
   <translation tag="Filament Control" zh="耗材控制"/>

@@ -15,10 +15,13 @@ namespace helix::ui {
  * and silently fall through to the default.
  */
 enum class LaneNoun {
-    Slot, ///< Bambu-style AMS, K2 CFS, ACE, QIDI Box, AD5X IFS, Snapmaker U1
-    Lane, ///< AFC
-    Gate, ///< Happy Hare
-    Tool, ///< Tool changer: each position carries its own toolhead
+    Slot,     ///< Bambu-style AMS, K2 CFS, ACE, QIDI Box, AD5X IFS
+    Lane,     ///< AFC
+    Gate,     ///< Happy Hare
+    Tool,     ///< Tool changer: each position carries its own toolhead
+    Feeder,   ///< Snapmaker U1: where filament enters the AMS ("Feeder 1".."Feeder 4")
+    Toolhead, ///< Snapmaker U1: the printing end ("Toolhead 1".."Toolhead 4") - a
+              ///< distinct physical thing from Feeder, 1:1 but not the same word
 };
 
 /**
@@ -74,5 +77,18 @@ std::string lane_label(LaneNoun noun, std::string_view unit_display_name, int in
  * @return the active AMS backend's lane_noun(), else LaneNoun::Slot
  */
 LaneNoun active_lane_noun();
+
+/**
+ * @brief The noun for the printing end of the currently connected printer.
+ *
+ * Distinct from active_lane_noun(): most backends use the same noun for where
+ * filament enters and where it prints, but a backend whose hardware uses two
+ * different words (Snapmaker U1: "Feeder" vs "Toolhead") needs both answered
+ * separately. Anything labeling a tool/nozzle/toolhead position - not a
+ * filament lane - calls this one.
+ *
+ * @return the active AMS backend's tool_noun(), else LaneNoun::Tool
+ */
+LaneNoun active_tool_noun();
 
 } // namespace helix::ui

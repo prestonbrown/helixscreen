@@ -68,7 +68,9 @@ TEST_CASE_METHOD(ToolStateFixture,
 
     REQUIRE(ToolState::instance().tool_count() == 4);
     const auto& tools = ToolState::instance().tools();
-    const auto noun = helix::ui::active_lane_noun();
+    // display_label names the printing end, not the filament lane, so it is
+    // built from active_tool_noun() even where the two happen to coincide.
+    const auto noun = helix::ui::active_tool_noun();
 
     CHECK(tools[0].name == "T0");
     CHECK(tools[0].display_label == helix::ui::lane_label(noun, 0));

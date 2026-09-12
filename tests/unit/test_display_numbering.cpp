@@ -58,7 +58,7 @@ TEST_CASE("out-of-range indices do not produce a label", "[numbering]") {
 
 TEST_CASE("noun_text covers every LaneNoun", "[numbering]") {
     // A new enumerator with no case falls through to Slot, which would be a
-    // silent wrong word rather than a build failure, so pin all four.
+    // silent wrong word rather than a build failure, so pin all six.
     // With no translation loaded lv_tr() returns the key, which is why these
     // are literals: test_filament_mapper.cpp already relies on the same
     // behaviour when it asserts "Slot 3: PLA".
@@ -66,4 +66,15 @@ TEST_CASE("noun_text covers every LaneNoun", "[numbering]") {
     CHECK(noun_text(LaneNoun::Lane) == "Lane");
     CHECK(noun_text(LaneNoun::Gate) == "Gate");
     CHECK(noun_text(LaneNoun::Tool) == "Tool");
+    CHECK(noun_text(LaneNoun::Feeder) == "Feeder");
+    CHECK(noun_text(LaneNoun::Toolhead) == "Toolhead");
+}
+
+TEST_CASE("Feeder and Toolhead compose like every other noun", "[numbering]") {
+    // Snapmaker U1 is the one backend where the filament-entry noun and the
+    // printing-end noun differ, so both need the ordinary lane_label() path.
+    CHECK(lane_label(LaneNoun::Feeder, 0) == "Feeder 1");
+    CHECK(lane_label(LaneNoun::Toolhead, 0) == "Toolhead 1");
+    CHECK(lane_label(LaneNoun::Feeder, 3) == "Feeder 4");
+    CHECK(lane_label(LaneNoun::Toolhead, 3) == "Toolhead 4");
 }

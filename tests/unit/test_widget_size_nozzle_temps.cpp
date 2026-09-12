@@ -183,14 +183,14 @@ TEST_CASE_METHOD(
     h.resize(2, 1, 100, 300);
 
     // Sanity: the resize corrected the existing row to short.
-    REQUIRE(std::string(lv_label_get_text(nth_row_tool_label(container, 0))) == "Slot 1");
+    REQUIRE(std::string(lv_label_get_text(nth_row_tool_label(container, 0))) == "Tool 1");
 
     add_second_extruder(state());
     REQUIRE(lv_obj_get_child_count(container) == 3);
 
     // The freshly created row must stay short: the widget already knows it
     // is narrow. A colspan=2 reading implementation shows "Nozzle 2" here.
-    CHECK(std::string(lv_label_get_text(nth_row_tool_label(container, 1))) == "Slot 2");
+    CHECK(std::string(lv_label_get_text(nth_row_tool_label(container, 1))) == "Tool 2");
 }
 
 /**

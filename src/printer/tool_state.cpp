@@ -169,7 +169,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
             ToolInfo tool;
             tool.index = i;
             tool.name = helix::ui::tool_label(i);
-            tool.display_label = helix::ui::lane_label(helix::ui::active_lane_noun(), i);
+            tool.display_label = helix::ui::lane_label(helix::ui::active_tool_noun(), i);
             tool.extruder_name = extruder_names[i];
             tool.heater_name = extruder_names[i];
             tool.fan_name = (i == 0)
@@ -204,7 +204,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
             // custom-named [tool Left]), so it is not always the generated
             // "T{i}" pattern and must not be overwritten.
             tool.name = tool_names[i];
-            tool.display_label = helix::ui::lane_label(helix::ui::active_lane_noun(), i);
+            tool.display_label = helix::ui::lane_label(helix::ui::active_tool_noun(), i);
 
             // Map extruder by index if available
             if (i < static_cast<int>(extruder_names.size())) {
@@ -240,7 +240,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
             ToolInfo tool;
             tool.index = i;
             tool.name = helix::ui::tool_label(i);
-            tool.display_label = helix::ui::lane_label(helix::ui::active_lane_noun(), i);
+            tool.display_label = helix::ui::lane_label(helix::ui::active_tool_noun(), i);
             tool.extruder_name = extruder_names[i];
             tool.heater_name = std::nullopt;
 
@@ -307,7 +307,7 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
             ToolInfo t;
             t.index = i;
             t.name = helix::ui::tool_label(i);
-            t.display_label = helix::ui::lane_label(helix::ui::active_lane_noun(), i);
+            t.display_label = helix::ui::lane_label(helix::ui::active_tool_noun(), i);
             t.backend_index = topo.backend_index;
             t.backend_slot =
                 (i < static_cast<int>(topo.tool_to_slot.size())) ? topo.tool_to_slot[i] : -1;

@@ -1034,6 +1034,7 @@ translations:
   Feed filament: フィラメントを送る
   Feed filament directly to extruder: フィラメントをエクストルーダーに直接供給
   Feed filament from current slot: '現在のスロットからフィラメントを送る'
+  Feeder: フィーダー
   Feeding filament forward: フィラメントを前方に送り出し中
   Filament: フィラメント
   Filament Control: フィラメント制御
