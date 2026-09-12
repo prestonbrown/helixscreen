@@ -94,15 +94,42 @@ to give these distinct object paths.
 
 ---
 
-## Task 2 — per-board policy
+## Task 2 — per-board policy  ✅ decided: no memory gate (2026-09-12)
 
-EGL is not a global yes. The numbers in `GPU_ACCELERATION.md` make the CB1 the
-hard case: it gains the most throughput and the least CPU relief, and pays
-+70 MB on a 969 MB board that already has a GLES crash in its history.
+The task asked for a per-target decision plus a memory headroom check. Neither
+lever exists in the shape assumed.
 
-Decide and record, per target: does the probe get to say yes, and what is the
-memory headroom check? A board that passes the probe and then OOMs mid-print is
-a worse outcome than one that never used the GPU.
+**There is one aarch64 SBC artifact, not two.** `install.sh#detect_platform`
+resolves every 64-bit Debian-family ARM SBC to the platform key `pi` - Raspberry
+Pi, BTT CB1, MKS, QIDI, Armbian alike - and `get_download_platform` maps that to
+`helixscreen-pi.zip`. A CB1 installs the same package as a Pi 5 and receives the
+same `helix-screen-egl`. `ENABLE_OPENGLES` and `ENABLE_EGL_RUNG` in `mk/cross.mk`
+cannot separate the two boards because they are the same target.
+
+**A MemTotal gate cannot separate them either.** The Pi 3B is 856 MB, smaller
+than the CB1's 969 MB. It pays the larger RSS delta of the two measured boards
+and has the least CPU in the fleet to spare. Any threshold that denies the CB1
+denies the Pi 3B first, and the Pi 3B is the board where the rung earns most.
+
+**The cost such a gate would defend against is a fifth of the headline.** The
++70 MB is RSS. Roughly 46 MiB of it is shared `libLLVM` and `libgallium` text
+that the DRM rung pays too as soon as GL initialises, which on the Pi 5 it
+already has, unprompted, at boot. The non-reclaimable anonymous delta is
++11 MiB on the Pi 5 and +21 MiB on the Pi 3B. Numbers and method:
+`GPU_ACCELERATION.md` § "What the RSS number is made of".
+
+**Decision: the probe stays the only gate.** `HELIX_DISPLAY_BACKEND` is the
+per-install override, and `config/helixscreen.env` and `config/helixscreen.service`
+now name `drm` as the way to decline the rung. A board that cannot afford GPU
+presentation is one whose owner says so, not one this code guesses at from
+MemTotal.
+
+**What reopens this:** the CB1's anonymous/file split is unmeasured, and the CB1
+is the only owned board on a different GPU family. Panfrost may hold GPU buffers
+as anonymous or shmem pages where vc4 and V3D hold file-backed text. If the
+CB1's anonymous delta lands near its +70 MB RSS rather than near +21 MiB, the
+reasoning above loses its basis and a gate is back on the table. Measuring it
+means deploying a dev build to the AFC rig.
 
 ---
 
@@ -212,8 +239,10 @@ to cover that direction no longer fires now that both headers agree on the token
    provides the non-EGL `get_fd`, while this patch provides the EGL bodies. That
    is ~24 lines of dead code inside otherwise load-bearing patches. Retitle the
    issue or accept the getters as the cost of the fd.
-2. **Per-board default** — which targets get `ENABLE_OPENGLES=yes` in
-   `mk/cross.mk`, versus probe-only opt-in.
+2. ~~**Per-board default** - which targets get `ENABLE_OPENGLES=yes` in
+   `mk/cross.mk`, versus probe-only opt-in.~~ **Decided: probe-only, no memory
+   gate.** Per-target is not a lever here; one aarch64 artifact serves the whole
+   SBC fleet. See Task 2.
 3. ~~**Does a failed probe log loudly, or silently take the next rung?**~~
    **Decided: loudly.** `select_binary` logs the probe's own verdict line and,
    on a refusal, `EGL unavailable here - using DRM dumb buffers`. Both go to

@@ -111,8 +111,10 @@ ExecStartPost=+/bin/sh -c '/bin/systemctl start helixscreen-update.path 2>/dev/n
 ExecStopPost=+/bin/sh -c '/bin/systemctl start helixscreen-update.path 2>/dev/null || true'
 
 # Environment variables
-# Display backend: auto-detected by launcher (DRM if GL libs present, else fbdev).
+# Display backend: auto-detected by launcher (GPU presentation when the probe
+# finds a hardware renderer, else DRM dumb buffers, else fbdev).
 # Uncomment to force a specific backend:
+# Environment="HELIX_DISPLAY_BACKEND=egl"
 # Environment="HELIX_DISPLAY_BACKEND=drm"
 # Environment="HELIX_DISPLAY_BACKEND=fbdev"
 # Override asset directory if ui_xml/assets/config are not under WorkingDirectory

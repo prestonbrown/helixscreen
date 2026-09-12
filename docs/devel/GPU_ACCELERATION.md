@@ -54,14 +54,51 @@ Same binary, same panel, same scene; only `ENABLE_OPENGLES` differs. Measured
 Two things to carry forward:
 
 **The CB1 gains the most throughput and the least CPU relief, at the highest
-memory cost.** It is a 969 MB board; +70 MB is not free there. Any ladder that
-turns EGL on everywhere has to answer for that specific square.
+memory cost.** It is a 969 MB board. How much of that +70 MB is a cost the
+board cannot get back is the next section, and the answer decides what can be
+done about it.
 
 **nanovg's remaining headroom is small.** Profiling the EGL build shows roughly
 31% of its remaining 24.7% CPU is software rasterization — so a perfect GPU
 draw unit could recover about **7.7 CPU points**, against the ~15 EGL already
 delivers. nanovg was assumed to be the bigger prize; it is not, and it is not
 close.
+
+### What the RSS number is made of
+
+Same method on both boards, measured 2026-09-12: force the DRM rung through a
+systemd drop-in, restart, idle 100 s at the home panel, read
+`/proc/<pid>/status` and `/proc/<pid>/smaps`; remove the drop-in and repeat on
+the EGL rung. Figures are MiB.
+
+| | Pi 5 (4 GB, V3D) | Pi 3B (856 MB, vc4) |
+|---|---|---|
+| VmRSS, DRM rung | 105.7 | 51.2 |
+| VmRSS, EGL rung | 122.1 | 117.0 |
+| **VmRSS delta** | **+16.4** | **+65.8** |
+| RssAnon delta | +11.3 | +20.5 |
+| RssFile delta | +5.1 | +45.3 |
+
+The two boards differ by 4x on the headline and agree closely on the part that
+cannot be reclaimed. The gap is Mesa's text, and which binary faults it in.
+
+The EGL process on both boards holds `libLLVM` resident (39.8 MiB on the Pi 5,
+38.5 on the Pi 3B) plus `libgallium` (9.7 / 10.8). That is roughly 50 MiB of
+shared, file-backed library text.
+
+**The base DRM binary links the same three GL libraries** - `ENABLE_GLES_3D=yes`
+builds the 3D gcode viewer into it, so `libEGL`, `libGLESv2` and `libgbm` are on
+both binaries' `ldd` output, and the two files differ by 56 bytes. Whether it
+pays Mesa's residency therefore depends only on whether GL initialises. On the
+Pi 5 it does, unprompted, within 100 s of boot: the DRM process already holds
+`libLLVM` resident and maps `/dev/dri/card1`. On the Pi 3B it does not, with
+zero `libLLVM` mappings.
+
+So the Pi 5's +16 MB is not a cheaper GPU path. It is a board that had already
+paid for Mesa on the rung below. **The durable cost of the EGL rung is the
+anonymous delta, +11 to +21 MiB.** The rest is shared library text, which the
+kernel evicts under pressure and which the DRM rung pays too the moment anything
+initialises GL.
 
 Reproduce with `tools/drm_gpu_probe.c` (build instructions in its header) for
 plane masks and renderer strings, then an A/B of `ENABLE_OPENGLES=no|yes`.
