@@ -16,9 +16,12 @@
 #include "action_prompt_manager.h"
 #include "ams_backend_afc.h"
 #include "ams_types.h"
+#include "config.h"
 #include "moonraker_api.h"
 #include "system/afc_message_dedup.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/config_test_access.h"
+#include "test_helpers/log_capture.h"
 
 #include <chrono>
 #include <filesystem>
@@ -339,34 +342,49 @@ class ToastCapture {
     std::vector<std::pair<std::string, std::string>> events_;
 };
 
+constexpr const char* PRINTER_A = "printer-a";
+constexpr const char* PRINTER_B = "printer-b";
+
 /// A config dir holding an AfcMessageDedup seed, standing in for "the
 /// previous session". Writing a non-empty seed plants what that session
-/// surfaced; an empty one is a first boot (or a cleared latch).
+/// surfaced for PRINTER_A; an empty one is a first boot (or a cleared latch).
+///
+/// Records are keyed by the active printer, so the fixture pins one for its
+/// lifetime and restores whatever the rest of the binary had set.
 class DedupSeedDir {
   public:
     explicit DedupSeedDir(const std::string& persisted_error) {
+        previous_printer_ = ConfigTestAccess::active_printer_id(*Config::get_instance());
+        activate_printer(PRINTER_A);
         dir_ = (std::filesystem::temp_directory_path() /
                 ("afc-dedup-" + std::to_string(++counter_) + "-" +
                  std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())))
                    .string();
         std::filesystem::create_directories(dir_);
         if (!persisted_error.empty()) {
-            std::ofstream out(dir_ + "/afc_message_dedup.json", std::ios::trunc);
-            out << nlohmann::json{{"last_error", persisted_error}}.dump() << "\n";
+            std::ofstream out(seed_path(), std::ios::trunc);
+            out << nlohmann::json{{"printers", {{PRINTER_A, persisted_error}}}}.dump() << "\n";
         }
         helix::AfcMessageDedup::instance().init(dir_);
     }
     ~DedupSeedDir() {
         helix::AfcMessageDedup::instance().shutdown();
+        ConfigTestAccess::active_printer_id(*Config::get_instance()) = previous_printer_;
         std::error_code ec;
+        std::filesystem::permissions(seed_path(), std::filesystem::perms::owner_all,
+                                     std::filesystem::perm_options::add, ec);
         std::filesystem::remove_all(dir_, ec);
     }
 
     DedupSeedDir(const DedupSeedDir&) = delete;
     DedupSeedDir& operator=(const DedupSeedDir&) = delete;
 
+    std::string seed_path() const {
+        return dir_ + "/afc_message_dedup.json";
+    }
+
     std::string read_seed_file() const {
-        std::ifstream in(dir_ + "/afc_message_dedup.json");
+        std::ifstream in(seed_path());
         std::string contents((std::istreambuf_iterator<char>(in)),
                              std::istreambuf_iterator<char>());
         return contents;
@@ -374,8 +392,24 @@ class DedupSeedDir {
 
     /// Overwrite the seed file with bytes that are not valid JSON.
     void plant_corrupt_seed() const {
-        std::ofstream out(dir_ + "/afc_message_dedup.json", std::ios::trunc);
-        out << "{\"last_error\": ";
+        std::ofstream out(seed_path(), std::ios::trunc);
+        out << "{\"printers\": ";
+    }
+
+    /// Overwrite the seed with a well-formed record padded past the store's
+    /// size cap, as a corrupted flash file would be.
+    void plant_oversized_seed(const std::string& persisted_error) const {
+        std::ofstream out(seed_path(), std::ios::trunc);
+        out << nlohmann::json{{"printers", {{PRINTER_A, persisted_error}}},
+                              {"pad", std::string(512 * 1024, 'x')}}
+                   .dump()
+            << "\n";
+    }
+
+    /// The printer a later read or record is keyed by. A switch also
+    /// reconstructs AmsBackendAfc, so tests build a new backend after it.
+    static void activate_printer(const std::string& printer_id) {
+        ConfigTestAccess::active_printer_id(*Config::get_instance()) = printer_id;
     }
 
     const std::string& dir() const {
@@ -385,8 +419,21 @@ class DedupSeedDir {
   private:
     static int counter_;
     std::string dir_;
+    std::string previous_printer_;
 };
 int DedupSeedDir::counter_ = 0;
+
+/// Make @p path unwritable, or skip. A run with permission to write anyway
+/// (as root) cannot create the condition, and would report a pass for a
+/// path it never took.
+void require_unwritable_or_skip(const std::string& path) {
+    std::filesystem::permissions(path, std::filesystem::perms::owner_read,
+                                 std::filesystem::perm_options::replace);
+    std::ofstream probe(path, std::ios::app);
+    if (probe) {
+        SKIP("cannot make " + path + " unwritable");
+    }
+}
 } // namespace
 
 TEST_CASE("AFC Error Handling: a message a previous session surfaced is not re-toasted",
@@ -464,6 +511,50 @@ TEST_CASE("AFC Error Handling: a message a previous session surfaced is not re-t
         REQUIRE(toasts.count("error") == 0);
     }
 
+    SECTION("The seed gates the first message only, not the rest of the session") {
+        DedupSeedDir seed(latched);
+        AfcErrorHandlingHelper afc;
+        ToastCapture toasts;
+
+        // First sighting: the latch a previous session already surfaced.
+        afc.feed_afc_message(latched, "error");
+        REQUIRE(toasts.count("error") == 0);
+
+        // A different error, with the queue never reporting empty in between —
+        // the drain stops on its clear budget or its deadline and leaves the
+        // message field populated. The path is alive.
+        afc.feed_afc_message("Lane 2 load failed", "error");
+        REQUIRE(toasts.count("error") == 1);
+
+        // The same text arriving again is this session's own event now.
+        afc.feed_afc_message(latched, "error");
+        REQUIRE(toasts.count("error") == 2);
+        REQUIRE(afc.get_last_error_msg() == latched);
+    }
+
+    SECTION("A record belongs to one printer: another printer's identical text toasts") {
+        DedupSeedDir seed(latched); // recorded against PRINTER_A
+        {
+            AfcErrorHandlingHelper afc_a;
+            ToastCapture toasts_a;
+            afc_a.feed_afc_message(latched, "error");
+            REQUIRE(toasts_a.count("error") == 0);
+        }
+
+        // One config dir serves every configured printer. A switch
+        // reconstructs the backend, which re-reads the seed.
+        DedupSeedDir::activate_printer(PRINTER_B);
+        AfcErrorHandlingHelper afc_b;
+        ToastCapture toasts_b;
+        afc_b.feed_afc_message(latched, "error");
+        REQUIRE(toasts_b.count("error") == 1);
+
+        // ...and recording for PRINTER_B leaves PRINTER_A's record standing.
+        const std::string on_disk = seed.read_seed_file();
+        REQUIRE(on_disk.find(PRINTER_A) != std::string::npos);
+        REQUIRE(on_disk.find(PRINTER_B) != std::string::npos);
+    }
+
     SECTION("A corrupt seed file fails open: the message toasts") {
         DedupSeedDir seed("");
         seed.plant_corrupt_seed();
@@ -478,5 +569,113 @@ TEST_CASE("AFC Error Handling: a message a previous session surfaced is not re-t
         REQUIRE(toasts.count("error") == 1);
         // And the store repairs itself by recording the surfaced text.
         REQUIRE(helix::AfcMessageDedup::instance().last_error_text() == latched);
+    }
+}
+
+// ============================================================================
+// The store fails open when it cannot keep a record (#1589)
+// ============================================================================
+//
+// A record that outlives the condition it describes is worse than no record:
+// it suppresses the first sighting of that text in every later session. So
+// every way the store can fail to maintain a record ends in an empty seed and
+// a toast, and each case here pairs the suppression it removes with a live
+// error that still surfaces.
+
+TEST_CASE("AFC Error Handling: the dedup store fails open when it cannot keep a record",
+          "[afc][error_handling][1589]") {
+    ActionPromptManager::set_instance(nullptr);
+    const std::string latched =
+        "Error getting data from moonraker, check AFC.log for more information";
+
+    SECTION("A clear whose write fails takes the record off disk anyway") {
+        DedupSeedDir seed(latched);
+        REQUIRE(helix::AfcMessageDedup::instance().last_error_text() == latched);
+
+        // The dir turned read-only after the record landed.
+        require_unwritable_or_skip(seed.seed_path());
+        helix::AfcMessageDedup::instance().record_cleared();
+        REQUIRE_FALSE(std::filesystem::exists(seed.seed_path()));
+
+        // A later session therefore starts with nothing to dedup against.
+        helix::AfcMessageDedup::instance().shutdown();
+        helix::AfcMessageDedup::instance().init(seed.dir());
+        REQUIRE(helix::AfcMessageDedup::instance().last_error_text().empty());
+
+        AfcErrorHandlingHelper afc;
+        ToastCapture toasts;
+        afc.feed_afc_message(latched, "error");
+        REQUIRE(toasts.count("error") == 1);
+    }
+
+    SECTION("A seed the store cannot rewrite is not armed") {
+        DedupSeedDir seed(latched);
+        helix::AfcMessageDedup::instance().shutdown();
+        require_unwritable_or_skip(seed.seed_path());
+        helix::AfcMessageDedup::instance().init(seed.dir());
+
+        // The record is intact and still parses...
+        REQUIRE(seed.read_seed_file().find(latched) != std::string::npos);
+        // ...but nothing could ever clear it, so it is not consulted.
+        REQUIRE(helix::AfcMessageDedup::instance().last_error_text().empty());
+
+        AfcErrorHandlingHelper afc;
+        ToastCapture toasts;
+        afc.feed_afc_message(latched, "error");
+        REQUIRE(toasts.count("error") == 1);
+    }
+
+    SECTION("A seed file too large to be a record is ignored") {
+        DedupSeedDir seed("");
+        helix::AfcMessageDedup::instance().shutdown();
+        seed.plant_oversized_seed(latched);
+        helix::AfcMessageDedup::instance().init(seed.dir());
+
+        REQUIRE(helix::AfcMessageDedup::instance().last_error_text().empty());
+
+        AfcErrorHandlingHelper afc;
+        ToastCapture toasts;
+        afc.feed_afc_message(latched, "error");
+        REQUIRE(toasts.count("error") == 1);
+    }
+
+    SECTION("A seed path that is not a readable file fails open instead of ending startup") {
+        DedupSeedDir seed("");
+        helix::AfcMessageDedup::instance().shutdown();
+        std::filesystem::remove(seed.seed_path());
+        std::filesystem::create_directory(seed.seed_path());
+        {
+            // The case under test: the path opens as a stream, and the failure
+            // surfaces as something other than a JSON error.
+            std::ifstream probe(seed.seed_path());
+            REQUIRE(probe.is_open());
+        }
+
+        REQUIRE_NOTHROW(helix::AfcMessageDedup::instance().init(seed.dir()));
+        REQUIRE(helix::AfcMessageDedup::instance().last_error_text().empty());
+
+        AfcErrorHandlingHelper afc;
+        ToastCapture toasts;
+        afc.feed_afc_message(latched, "error");
+        REQUIRE(toasts.count("error") == 1);
+    }
+
+    SECTION("A store used before init() says so, once") {
+        DedupSeedDir seed(""); // init() re-arms the one-time warning
+        helix::AfcMessageDedup::instance().shutdown();
+
+        {
+            helix::TextLogCapture log;
+            helix::AfcMessageDedup::instance().record_error("Lane 1 load failed");
+            helix::AfcMessageDedup::instance().record_cleared();
+            REQUIRE(log.contains("[AfcMessageDedup]"));
+            REQUIRE(log.contains("before init()"));
+        }
+
+        // The same call against a live store records, so the assertion above
+        // is about the warning and not about a call that never does anything.
+        helix::AfcMessageDedup::instance().init(seed.dir());
+        helix::AfcMessageDedup::instance().record_error("Lane 1 load failed");
+        REQUIRE(helix::AfcMessageDedup::instance().last_error_text() == "Lane 1 load failed");
     }
 }
