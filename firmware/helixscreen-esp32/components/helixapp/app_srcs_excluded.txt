@@ -80,6 +80,7 @@ src/application/application.cpp  # not in the v1 Core+AMS cut
 src/application/color_transform.cpp  # not in the v1 Core+AMS cut
 src/application/detect_printer_cmd.cpp  # not in the v1 Core+AMS cut
 src/application/display_manager.cpp  # not in the v1 Core+AMS cut
+src/application/probe_egl_cmd.cpp  # DRM/EGL probe, no meaning on the firmware
 src/application/error_classify.cpp  # not in the v1 Core+AMS cut
 src/application/fault_surface_correlation.cpp  # not in the v1 Core+AMS cut
 src/application/gcode_error_router.cpp  # not in the v1 Core+AMS cut

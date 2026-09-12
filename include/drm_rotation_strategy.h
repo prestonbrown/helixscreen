@@ -50,6 +50,35 @@ DrmRotationStrategy choose_drm_rotation_strategy(uint64_t requested_drm_rot,
                                                  uint64_t supported_mask);
 
 /**
+ * @brief A pointer sample in the panel's own coordinate frame
+ */
+struct PointerXY { // NAMESPACE_OK: matches DrmRotationStrategy, this file's global-scope types
+    int32_t x;
+    int32_t y;
+};
+
+/**
+ * @brief Map a raw touch point onto a picture some other device rotated
+ *
+ * LVGL transforms pointer input from its own display rotation and early-returns
+ * at zero, so a panel rotated by a scanout plane presents a rotated picture to
+ * an untransformed touch frame. This applies the transform LVGL would have.
+ *
+ * The arithmetic deliberately mirrors `lv_display_rotate_point()`, which reads
+ * the display's RAW hor_res/ver_res rather than the rotation-swapping getters -
+ * so both take panel dimensions here. `tests/unit/test_display_rotation_source.cpp`
+ * asserts the two agree at every angle rather than trusting that they do.
+ *
+ * @param p        raw point in the panel's native frame
+ * @param degrees  angle the picture is presented at: 0, 90, 180 or 270
+ * @param panel_w  native panel width, before rotation
+ * @param panel_h  native panel height, before rotation
+ * @return the point in the rotated picture's frame; unchanged for any other angle
+ */
+// NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope API
+PointerXY rotate_pointer_for_plane(PointerXY p, int degrees, int32_t panel_w, int32_t panel_h);
+
+/**
  * @brief What LVGL should be told about rotation for a given strategy
  */
 enum class LvglRotationAction { // NAMESPACE_OK: matches DrmRotationStrategy, this file's existing

@@ -14,6 +14,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "display_backend.h"
+#include "drm_rotation_strategy.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -161,4 +162,52 @@ TEST_CASE_METHOD(LVGLTestFixture, "rotating through a null display does not cras
     FakePlainBackend backend;
     backend.set_display_rotation(nullptr, LV_DISPLAY_ROTATION_180, 800, 480);
     SUCCEED();
+}
+
+// The plane transform has to be the one LVGL would have applied, or touch lands
+// in a different place depending on which device did the rotating. Asserted
+// against LVGL itself at every angle, so the two cannot drift apart silently.
+TEST_CASE_METHOD(LVGLTestFixture, "the plane pointer transform matches LVGL's own",
+                 "[display][rotation]") {
+    ScopedRotation restore;
+    lv_display_t* disp = lv_display_get_default();
+    REQUIRE(disp != nullptr);
+
+    lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_0);
+    const int32_t panel_w = lv_display_get_horizontal_resolution(disp);
+    const int32_t panel_h = lv_display_get_vertical_resolution(disp);
+    REQUIRE(panel_w > 1);
+    REQUIRE(panel_h > 1);
+
+    const lv_display_rotation_t rots[] = {LV_DISPLAY_ROTATION_0, LV_DISPLAY_ROTATION_90,
+                                          LV_DISPLAY_ROTATION_180, LV_DISPLAY_ROTATION_270};
+    const PointerXY samples[] = {{0, 0},
+                                 {panel_w - 1, 0},
+                                 {0, panel_h - 1},
+                                 {panel_w - 1, panel_h - 1},
+                                 {panel_w / 3, panel_h / 4}};
+
+    for (lv_display_rotation_t rot : rots) {
+        const int degrees = static_cast<int>(rot) * 90;
+        lv_display_set_rotation(disp, rot);
+        for (PointerXY raw : samples) {
+            lv_point_t lvgl_point = {raw.x, raw.y};
+            lv_display_rotate_point(disp, &lvgl_point);
+            const PointerXY ours = rotate_pointer_for_plane(raw, degrees, panel_w, panel_h);
+            INFO("angle " << degrees << " raw (" << raw.x << "," << raw.y << ")");
+            REQUIRE(ours.x == lvgl_point.x);
+            REQUIRE(ours.y == lvgl_point.y);
+        }
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the plane pointer transform leaves unknown angles alone",
+                 "[display][rotation]") {
+    const PointerXY raw{37, 91};
+    for (int degrees : {-90, 1, 45, 360, 12345}) {
+        const PointerXY out = rotate_pointer_for_plane(raw, degrees, 800, 480);
+        INFO("angle " << degrees);
+        REQUIRE(out.x == raw.x);
+        REQUIRE(out.y == raw.y);
+    }
 }
