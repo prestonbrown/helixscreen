@@ -8,11 +8,13 @@
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_afc.h"
+#include "ams_backend_happy_hare.h"
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "lane_source_store.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/happy_hare_test_access.h"
 #include "test_helpers/registered_backend.h"
 
 #include <mutex>
@@ -26,6 +28,8 @@ using helix::Ad5xIfsTestAccess;
 using helix::AfcTestAccess;
 using helix::AmsBackendAd5xIfs;
 using helix::AmsBackendAfc;
+using helix::AmsBackendHappyHare;
+using helix::HappyHareTestAccess;
 using helix::ams::lane_sources;
 using helix::test::RegisteredBackend;
 
@@ -33,6 +37,7 @@ namespace {
 /// A backend with no Moonraker behind it, registered so its lane ids are real.
 using Ad5xHarness = RegisteredBackend<AmsBackendAd5xIfs>;
 using AfcHarness = RegisteredBackend<AmsBackendAfc>;
+using HappyHareHarness = RegisteredBackend<AmsBackendHappyHare>;
 
 /// Four lanes through AFC's own initialize_slots(), which is what a discovery
 /// answer ends in.
@@ -58,6 +63,18 @@ void feed_afc_lane(AmsBackendAfc& backend, const std::string& lane_name,
     nlohmann::json notification;
     notification["params"] = nlohmann::json::array({params, 0.0});
     AfcTestAccess::handle_status_update(backend, notification);
+}
+
+/// One printer.mmu object, delivered the way Moonraker delivers it: a
+/// notify_status_update carrying only the keys that changed. Happy Hare's
+/// frames are deltas, so every case here drives the production entry point
+/// rather than the parse alone.
+void feed_mmu(AmsBackendHappyHare& backend, const nlohmann::json& mmu) {
+    nlohmann::json params;
+    params["mmu"] = mmu;
+    nlohmann::json notification;
+    notification["params"] = nlohmann::json::array({params, 0.0});
+    HappyHareTestAccess::handle_status_update(backend, notification);
 }
 } // namespace
 
@@ -605,4 +622,257 @@ TEST_CASE_METHOD(LVGLTestFixture, "an unreadable colour leaves AFC's record stan
     REQUIRE(cleared.vendor_cache.has_value());
     CHECK_FALSE(cleared.vendor_cache->color_rgb.has_value());
     CHECK(harness->get_slot_info(1).color_rgb == helix::AMS_DEFAULT_SLOT_COLOR);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Happy Hare splits gate status from gate metadata",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 0, 1, 1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c", "000000", "", "a4b2bc"})},
+                        {"gate_material", nlohmann::json::array({"PETG", "PLA", "", "ABS"})},
+                        {"gate_spool_id", nlohmann::json::array({7, 0, 0, 0})}});
+
+    const auto gate0 = lane_sources(harness.lane(0));
+    REQUIRE(gate0.sensed.has_value());
+    REQUIRE(gate0.sensed->present.has_value());
+    CHECK(*gate0.sensed->present == true);
+    // The sensor's record carries presence and nothing else: what the gate map
+    // remembers is a cache of a past declaration, not something a gate sensed.
+    CHECK_FALSE(gate0.sensed->color_rgb.has_value());
+    CHECK_FALSE(gate0.sensed->material.has_value());
+
+    REQUIRE(gate0.vendor_cache.has_value());
+    REQUIRE(gate0.vendor_cache->color_rgb.has_value());
+    CHECK(*gate0.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(gate0.vendor_cache->material == "PETG");
+    CHECK(gate0.vendor_cache->spoolman_id == 7);
+    CHECK_FALSE(gate0.vendor_cache->present.has_value());
+    // The gate map carries no weight at all.
+    CHECK_FALSE(gate0.metered.has_value());
+
+    const auto gate1 = lane_sources(harness.lane(1));
+    REQUIRE(gate1.sensed.has_value());
+    REQUIRE(gate1.sensed->present.has_value());
+    CHECK(*gate1.sensed->present == false);
+    // An empty gate still remembers what it last held. That memory is a cache,
+    // and pure black in it is a colour like any other.
+    REQUIRE(gate1.vendor_cache.has_value());
+    REQUIRE(gate1.vendor_cache->color_rgb.has_value());
+    CHECK(*gate1.vendor_cache->color_rgb == 0x000000u);
+    // Happy Hare writes 0 for a gate with no spool, which is a clear rather
+    // than a spool numbered zero.
+    CHECK_FALSE(gate1.vendor_cache->spoolman_id.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Happy Hare records no colour for a gate that reports none",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c", ""})},
+                        {"gate_material", nlohmann::json::array({"PETG", ""})}});
+
+    const auto gate1 = lane_sources(harness.lane(1));
+    // Proof the path ran: presence came through for the same gate.
+    REQUIRE(gate1.sensed.has_value());
+    REQUIRE(gate1.sensed->present.has_value());
+    CHECK(*gate1.sensed->present == true);
+    REQUIRE(gate1.vendor_cache.has_value());
+    CHECK_FALSE(gate1.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(gate1.vendor_cache->material.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Happy Hare frame without metadata does not blank the cache",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c", "a4b2bc"})},
+                        {"gate_material", nlohmann::json::array({"PETG", "ABS"})}});
+    REQUIRE(lane_sources(harness.lane(0)).vendor_cache->material == "PETG");
+
+    // A status-only delta states nothing about metadata, so it must not be
+    // read as a gate that stopped reporting one.
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({0, 1})}});
+
+    const auto gate0 = lane_sources(harness.lane(0));
+    REQUIRE(gate0.sensed->present.has_value());
+    CHECK(*gate0.sensed->present == false);
+    CHECK(gate0.vendor_cache->material == "PETG");
+    REQUIRE(gate0.vendor_cache->color_rgb.has_value());
+    CHECK(*gate0.vendor_cache->color_rgb == 0xED2C2Cu);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a partial Happy Hare delta narrows nothing it does not mention",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c", "a4b2bc"})},
+                        {"gate_material", nlohmann::json::array({"PETG", "ABS"})},
+                        {"gate_spool_id", nlohmann::json::array({7, 9})}});
+
+    // MMU_GATE_MAP GATE=0 MATERIAL=PLA moves one array. Moonraker names only
+    // what changed, so a record built from this frame alone would be a gate
+    // whose colour and spool link had just vanished.
+    feed_mmu(*harness, {{"gate_material", nlohmann::json::array({"PLA", "ABS"})}});
+
+    const auto gate0 = lane_sources(harness.lane(0));
+    REQUIRE(gate0.vendor_cache.has_value());
+    CHECK(gate0.vendor_cache->material == "PLA");
+    REQUIRE(gate0.vendor_cache->color_rgb.has_value());
+    CHECK(*gate0.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(gate0.vendor_cache->spoolman_id == 7);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "each Happy Hare gate accumulates its own identity",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    // Gate 0 alone carries a spool. One accumulator for the backend instead of
+    // one per gate would hand its identity to every other gate.
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 0, 0})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c", "", ""})},
+                        {"gate_material", nlohmann::json::array({"PETG", "", ""})},
+                        {"gate_spool_id", nlohmann::json::array({7, 0, 0})}});
+
+    const auto silent = lane_sources(harness.lane(1));
+    REQUIRE(silent.vendor_cache.has_value());
+    CHECK_FALSE(silent.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(silent.vendor_cache->material.has_value());
+    CHECK_FALSE(silent.vendor_cache->spoolman_id.has_value());
+
+    // Gate 1 gets its own spool; gate 0's record must not follow it.
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"ed2c2c", "00aeff", ""})},
+                        {"gate_material", nlohmann::json::array({"PETG", "PLA", ""})},
+                        {"gate_spool_id", nlohmann::json::array({7, 12, 0})}});
+
+    const auto changed = lane_sources(harness.lane(1));
+    REQUIRE(changed.vendor_cache->color_rgb.has_value());
+    CHECK(*changed.vendor_cache->color_rgb == 0x00AEFFu);
+    CHECK(changed.vendor_cache->material == "PLA");
+    CHECK(changed.vendor_cache->spoolman_id == 12);
+
+    const auto untouched = lane_sources(harness.lane(0));
+    REQUIRE(untouched.vendor_cache->color_rgb.has_value());
+    CHECK(*untouched.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(untouched.vendor_cache->material == "PETG");
+    CHECK(untouched.vendor_cache->spoolman_id == 7);
+
+    const auto quiet = lane_sources(harness.lane(2));
+    REQUIRE(quiet.vendor_cache.has_value());
+    CHECK_FALSE(quiet.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(quiet.vendor_cache->material.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an override never reaches Happy Hare's vendor-cache record",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    // A user colour and material that disagree with what the gate map says.
+    // SlotInfo persists across frames and apply_overrides() rewrites it in
+    // place, so a translation reading that struct back would file the user's
+    // own choice as something Happy Hare's gate map remembers.
+    helix::ams::FilamentSlotOverride user;
+    user.color_rgb = 0x00FF00u;
+    user.color_set = true;
+    user.user_locked_color = true;
+    user.material = "ABS";
+    {
+        std::lock_guard<std::mutex> lock(HappyHareTestAccess::mutex(*harness));
+        HappyHareTestAccess::overrides(*harness)[1] = user;
+    }
+
+    // gate_spool_id is what makes apply_overrides() run at all on this path.
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 1})},
+                        {"gate_color", nlohmann::json::array({"a4b2bc", "ed2c2c"})},
+                        {"gate_material", nlohmann::json::array({"PLA", "PETG"})},
+                        {"gate_spool_id", nlohmann::json::array({0, 0})}});
+
+    // Precondition, not the behaviour under test: unless the override actually
+    // wins on the merged slot there is no laundering for the case to catch and
+    // the assertions below would hold for the wrong reason.
+    REQUIRE(harness->get_slot_info(1).color_rgb == 0x00FF00u);
+    REQUIRE(harness->get_slot_info(1).material == "ABS");
+
+    const auto lane = lane_sources(harness.lane(1));
+    REQUIRE(lane.vendor_cache.has_value());
+    REQUIRE(lane.vendor_cache->color_rgb.has_value());
+    CHECK(*lane.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(lane.vendor_cache->material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a gate Happy Hare calls unknown files no presence reading",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({-1, 1})}});
+
+    const auto unread = lane_sources(harness.lane(0));
+    // The record exists, so the translation provably ran; what it holds is the
+    // absence of a reading rather than a reading of absence.
+    REQUIRE(unread.sensed.has_value());
+    CHECK_FALSE(unread.sensed->present.has_value());
+
+    const auto known = lane_sources(harness.lane(1));
+    REQUIRE(known.sensed->present.has_value());
+    CHECK(*known.sensed->present == true);
+
+    // Positive contrast: the same gate reports a real status and the reading
+    // lands, so the arm above is a guard and not a gate that never reports.
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 1})}});
+    REQUIRE(lane_sources(harness.lane(0)).sensed->present.has_value());
+    CHECK(*lane_sources(harness.lane(0)).sensed->present == true);
+
+    // Happy Hare withdrawing its word is news. Leaving the last reading
+    // standing would keep asserting a presence the MMU has stopped claiming.
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({-1, 1})}});
+    const auto withdrawn = lane_sources(harness.lane(0));
+    REQUIRE(withdrawn.sensed.has_value());
+    CHECK_FALSE(withdrawn.sensed->present.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an unreadable Happy Hare colour leaves the record standing",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c", "a4b2bc"})}});
+    REQUIRE(*lane_sources(harness.lane(0)).vendor_cache->color_rgb == 0xED2C2Cu);
+
+    // A value nothing can read is not a gate stating it has no colour, so the
+    // last readable word stands in both the record and the slot.
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"zzzzzz", "a4b2bc"})}});
+    const auto unreadable = lane_sources(harness.lane(0));
+    REQUIRE(unreadable.vendor_cache->color_rgb.has_value());
+    CHECK(*unreadable.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(harness->get_slot_info(0).color_rgb == 0xED2C2Cu);
+
+    // Empty is Happy Hare wiping the gate, which is a statement and clears both.
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"", "a4b2bc"})}});
+    const auto cleared = lane_sources(harness.lane(0));
+    REQUIRE(cleared.vendor_cache.has_value());
+    CHECK_FALSE(cleared.vendor_cache->color_rgb.has_value());
+    CHECK(harness->get_slot_info(0).color_rgb == helix::AMS_DEFAULT_SLOT_COLOR);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Happy Hare files the colour its numeric gate map states",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    // gate_color_rgb wins over the hex strings, in both the shapes Happy Hare
+    // and its emulator publish: packed integers and float triplets.
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1, 1})},
+                        {"gate_color_rgb", nlohmann::json::array({0xED2C2C, {0.0, 1.0, 0.0}})},
+                        {"gate_color", nlohmann::json::array({"a4b2bc", "a4b2bc"})}});
+
+    const auto packed = lane_sources(harness.lane(0));
+    REQUIRE(packed.vendor_cache.has_value());
+    REQUIRE(packed.vendor_cache->color_rgb.has_value());
+    CHECK(*packed.vendor_cache->color_rgb == 0xED2C2Cu);
+
+    const auto triplet = lane_sources(harness.lane(1));
+    REQUIRE(triplet.vendor_cache->color_rgb.has_value());
+    CHECK(*triplet.vendor_cache->color_rgb == 0x00FF00u);
 }

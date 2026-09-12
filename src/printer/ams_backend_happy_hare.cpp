@@ -11,6 +11,8 @@
 #include "humidity_sensor_types.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
+#include "lane_source_store.h"
+#include "lane_translation.h"
 #include "operation_patterns.h" // helix::contains_ci
 #include "settings_manager.h"
 
@@ -441,6 +443,18 @@ void AmsBackendHappyHare::handle_status_update(const nlohmann::json& notificatio
 }
 
 void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
+    // One gate's standing identity record, created on first mention. Every
+    // block below amends a record that outlives the frame and the tail files
+    // it once, because one ingest replaces that source's record whole.
+    auto reading_for = [this](int gate) -> ams::Observation& {
+        auto it = gate_readings_.find(gate);
+        if (it == gate_readings_.end()) {
+            it = gate_readings_.emplace(gate, ams::Observation(ams::ObservationSource::VendorCache))
+                     .first;
+        }
+        return it->second;
+    };
+
     // Parse current gate: printer.mmu.gate
     // -1 = no gate selected, -2 = bypass
     if (mmu_data.contains("gate") && mmu_data["gate"].is_number_integer()) {
@@ -697,7 +711,9 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
 
             if (colors[i].is_number_integer()) {
                 // Traditional format: 0xRRGGBB integer
-                entry->info.color_rgb = static_cast<uint32_t>(colors[i].get<int>());
+                const auto rgb = static_cast<uint32_t>(colors[i].get<int>());
+                entry->info.color_rgb = rgb;
+                reading_for(static_cast<int>(i)).color_rgb = rgb;
                 colors_parsed = true;
             } else if (colors[i].is_array() && colors[i].size() >= 3 && colors[i][0].is_number() &&
                        colors[i][1].is_number() && colors[i][2].is_number()) {
@@ -708,27 +724,37 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
                     std::clamp(colors[i][1].get<double>(), 0.0, 1.0) * 255.0 + 0.5);
                 auto b = static_cast<uint8_t>(
                     std::clamp(colors[i][2].get<double>(), 0.0, 1.0) * 255.0 + 0.5);
-                entry->info.color_rgb = (static_cast<uint32_t>(r) << 16) |
-                                        (static_cast<uint32_t>(g) << 8) | static_cast<uint32_t>(b);
+                const uint32_t rgb = (static_cast<uint32_t>(r) << 16) |
+                                     (static_cast<uint32_t>(g) << 8) | static_cast<uint32_t>(b);
+                entry->info.color_rgb = rgb;
+                reading_for(static_cast<int>(i)).color_rgb = rgb;
                 colors_parsed = true;
             }
         }
     }
 
     // Fallback: parse gate_color hex strings ["ffffff", "000000", ...]
+    //
+    // An empty entry is Happy Hare stating this gate has no colour. Anything
+    // else that will not read is a value we cannot make sense of rather than a
+    // gate with nothing in it, so the last readable word stands.
     if (!colors_parsed && mmu_data.contains("gate_color") && mmu_data["gate_color"].is_array()) {
         const auto& colors = mmu_data["gate_color"];
         for (size_t i = 0; i < colors.size(); ++i) {
-            if (colors[i].is_string()) {
-                auto* entry = slots_.get_mut(static_cast<int>(i));
-                if (entry) {
-                    try {
-                        entry->info.color_rgb = static_cast<uint32_t>(
-                            std::stoul(colors[i].get<std::string>(), nullptr, 16));
-                    } catch (...) {
-                        // Invalid hex string, leave default color
-                    }
-                }
+            if (!colors[i].is_string()) {
+                continue;
+            }
+            auto* entry = slots_.get_mut(static_cast<int>(i));
+            if (!entry) {
+                continue;
+            }
+            const auto color = ams::read_lane_color(colors[i].get<std::string>());
+            if (color.kind == ams::ColorReadingKind::Observed) {
+                entry->info.color_rgb = color.rgb;
+                reading_for(static_cast<int>(i)).color_rgb = color.rgb;
+            } else if (color.kind == ams::ColorReadingKind::Cleared) {
+                entry->info.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+                reading_for(static_cast<int>(i)).color_rgb.reset();
             }
         }
     }
@@ -738,11 +764,20 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
     if (mmu_data.contains("gate_material") && mmu_data["gate_material"].is_array()) {
         const auto& materials = mmu_data["gate_material"];
         for (size_t i = 0; i < materials.size(); ++i) {
-            if (materials[i].is_string()) {
-                auto* entry = slots_.get_mut(static_cast<int>(i));
-                if (entry) {
-                    entry->info.material = materials[i].get<std::string>();
-                }
+            if (!materials[i].is_string()) {
+                continue;
+            }
+            auto* entry = slots_.get_mut(static_cast<int>(i));
+            if (!entry) {
+                continue;
+            }
+            const std::string material = materials[i].get<std::string>();
+            entry->info.material = material;
+            auto& reading = reading_for(static_cast<int>(i));
+            if (material.empty()) {
+                reading.material.reset();
+            } else {
+                reading.material = material;
             }
         }
     }
@@ -919,12 +954,22 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
     if (mmu_data.contains("gate_spool_id") && mmu_data["gate_spool_id"].is_array()) {
         const auto& spool_ids = mmu_data["gate_spool_id"];
         for (size_t i = 0; i < spool_ids.size(); ++i) {
-            if (spool_ids[i].is_number_integer()) {
-                auto* entry = slots_.get_mut(static_cast<int>(i));
-                if (entry) {
-                    int id = spool_ids[i].get<int>();
-                    entry->info.spoolman_id = (id > 0) ? id : 0;
-                }
+            if (!spool_ids[i].is_number_integer()) {
+                continue;
+            }
+            auto* entry = slots_.get_mut(static_cast<int>(i));
+            if (!entry) {
+                continue;
+            }
+            const int id = spool_ids[i].get<int>();
+            entry->info.spoolman_id = (id > 0) ? id : 0;
+            auto& reading = reading_for(static_cast<int>(i));
+            // Happy Hare writes 0 for a gate with no spool, which unlinks the
+            // gate rather than naming a spool numbered zero.
+            if (id > 0) {
+                reading.spoolman_id = id;
+            } else {
+                reading.spoolman_id.reset();
             }
         }
         // Re-supply user-attached identity the gate map cannot carry.
@@ -1151,6 +1196,27 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
                 }
             }
         }
+    }
+
+    // Gate status is the only thing Happy Hare senses. Everything else in the
+    // gate map is mmu_vars.cfg remembering a declaration somebody made once,
+    // which is a cache and not a reading, so the two are filed apart.
+    //
+    // -1 is the MMU saying it does not know, not a gate it found empty, so the
+    // record holds no reading rather than an assertion of absence. Reading the
+    // cached array rather than SlotInfo::status is what keeps the merged
+    // struct out of this: slot_status_from_happy_hare() is the one rule for
+    // what a gate_status integer means, and it already owns the vocabulary.
+    for (size_t i = 0; i < gate_status_raw_.size(); ++i) {
+        ams::Observation sensed(ams::ObservationSource::Sensed);
+        const SlotStatus gate = slot_status_from_happy_hare(gate_status_raw_[i]);
+        if (gate != SlotStatus::UNKNOWN) {
+            sensed.present = (gate != SlotStatus::EMPTY);
+        }
+        ams::ingest(lane_id(static_cast<int>(i)), sensed);
+    }
+    for (const auto& [gate, reading] : gate_readings_) {
+        ams::ingest(lane_id(gate), reading);
     }
 
     // Re-derive every gate's status from the cached gate_status array plus the
