@@ -1106,9 +1106,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 // The custom colour view opens on the slot's own colour. Black is a real
-// colour, so the picker/hex seed must carry it — not the grey sentinel a
-// black slot used to be coerced to, which an unnoticed Apply would then
-// commit over the black (prestonbrown/helixscreen#1608).
+// colour, so the picker/hex seed must carry it — not the grey sentinel,
+// which an unnoticed Apply would commit over the black
+// (prestonbrown/helixscreen#1608).
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "custom color view opens on the slot's black, not the grey sentinel",
                  "[ams_edit_overlay][color][1608]") {
