@@ -1017,48 +1017,52 @@ check_observer_guard_move_clears_cleanup() {
 }
 
 # ====================================================================
-# A backend's test friendship is one shim, not an open-ended set
+# A friend list is a fixed, reviewable set, not an open-ended one
 # ====================================================================
-# Four of the six filament backends expose internals to tests through a single
-# XTestAccess shim. AFC and Happy Hare grew one friend per test file instead, so
-# the header carried a list that grew with every new test and stated no contract.
-# This keeps the collapsed form: widening what tests reach is an edit to the shim,
-# where it is reviewable, not another friend line in the backend header.
-check_backend_single_test_friend() {
+# AmsBackendAfc and AmsBackendHappyHare each expose internals to tests through
+# a single XTestAccess shim; LaneSourceStore (below) names its two writer
+# funnels plus a test shim. In every case, widening what a header befriends is
+# a review-worthy edit, so this compares the file's friend declarations
+# against an exact expected list rather than merely counting them. The match
+# is on normalised whitespace, not literal text, since clang-format may
+# reflow a multi-argument signature.
+check_friend_list() {
     local file="$1"
-    local expected="$2"
+    local expected
+    expected=$(printf '%s\n' "$2" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]+/ /g')
+    local expected_count
+    expected_count=$(printf '%s\n' "$expected" | grep -c .)
+
     local friends
-    friends=$(grep -n '^[[:space:]]*friend class ' "$file" || true)
+    friends=$(grep -E '^[[:space:]]*friend ' "$file" 2>/dev/null \
+              | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]+/ /g' || true)
 
     if [ -z "$friends" ]; then
-        echo "no friend declaration in $file; expected exactly one: $expected"
+        echo "no friend declaration in $file; expected exactly $expected_count:"
+        echo "$expected"
         return 1
     fi
 
-    local count
-    count=$(echo "$friends" | wc -l)
-    if [ "$count" -ne 1 ]; then
-        echo "expected exactly 1 test friend in $file, found $count:"
+    if [ "$friends" != "$expected" ]; then
+        local found_count
+        found_count=$(printf '%s\n' "$friends" | grep -c .)
+        echo "expected exactly $expected_count test friend(s) in $file, found $found_count:"
+        echo "found:"
         echo "$friends"
-        echo "Add the accessor to $expected instead of befriending another class."
-        return 1
-    fi
-
-    if ! echo "$friends" | grep -q "friend class ${expected};"; then
-        echo "the single friend in $file is not ${expected}:"
-        echo "$friends"
+        echo "expected:"
+        echo "$expected"
         return 1
     fi
     return 0
 }
 
 @test "AmsBackendAfc befriends exactly one test shim" {
-    run check_backend_single_test_friend include/ams_backend_afc.h AfcTestAccess
+    run check_friend_list include/ams_backend_afc.h "friend class AfcTestAccess;"
     [ "$status" -eq 0 ]
 }
 
 @test "AmsBackendHappyHare befriends exactly one test shim" {
-    run check_backend_single_test_friend include/ams_backend_happy_hare.h HappyHareTestAccess
+    run check_friend_list include/ams_backend_happy_hare.h "friend class HappyHareTestAccess;"
     [ "$status" -eq 0 ]
 }
 
@@ -1067,7 +1071,7 @@ check_backend_single_test_friend() {
     sed -e 's@^\([[:space:]]*\)friend class AfcTestAccess;@\1friend class AfcTestAccess;\n\1friend class AfcSomeNewHelper;@' \
         include/ams_backend_afc.h > "$mutated"
 
-    run check_backend_single_test_friend "$mutated" AfcTestAccess
+    run check_friend_list "$mutated" "friend class AfcTestAccess;"
     [ "$status" -eq 1 ]
     [[ "$output" == *"expected exactly 1"* ]]
 }
@@ -1076,7 +1080,7 @@ check_backend_single_test_friend() {
     local mutated="${BATS_TEST_TMPDIR}/afc_no_friend.h"
     grep -v 'friend class AfcTestAccess;' include/ams_backend_afc.h > "$mutated"
 
-    run check_backend_single_test_friend "$mutated" AfcTestAccess
+    run check_friend_list "$mutated" "friend class AfcTestAccess;"
     [ "$status" -eq 1 ]
     [[ "$output" == *"no friend declaration"* ]]
 }
@@ -1506,4 +1510,114 @@ check_weight_poll_is_weight_only() {
     run check_weight_poll_is_weight_only "${BATS_TEST_TMPDIR}/does_not_exist.cpp"
     [ "$status" -eq 1 ]
     [[ "$output" == *"could not locate"* ]]
+}
+
+# --- The lane source store has exactly one mutable entry point ---
+# LaneSourceStore::write() is private, so ingest() and commit_slot_edit() are
+# the only code that can reach a lane's records; a fourth friend line, of any
+# kind, would be a third writer. check_friend_list's grep matches "friend "
+# rather than "friend class ", since two of the three funnels here are free
+# functions a class-only pattern would not see.
+
+LANE_STORE_FRIENDS_EXPECTED="friend void ingest(LaneId, const Observation&);
+friend void commit_slot_edit(LaneId, const Observation&);
+friend class LaneSourceStoreTestAccess;"
+
+@test "the lane source store names exactly its two funnels as friends" {
+    run check_friend_list include/lane_source_store.h "$LANE_STORE_FRIENDS_EXPECTED"
+    [ "$status" -eq 0 ]
+}
+
+@test "the lane store friend gate fires when a third writer is added" {
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_three_friends.h"
+    sed -e 's@^\([[:space:]]*\)friend void ingest(LaneId, const Observation\&);@\1friend void ingest(LaneId, const Observation\&);\n\1friend void sync_from_backend(LaneId, const Observation\&);@' \
+        include/lane_source_store.h > "$mutated"
+
+    run check_friend_list "$mutated" "$LANE_STORE_FRIENDS_EXPECTED"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"expected exactly 3"* ]]
+}
+
+# write() is the one method the friend list above actually gates. If it were
+# renamed while the friend list stayed put, the list would describe a method
+# that no longer exists, so this checks the guarded declaration separately.
+
+check_lane_store_write_declared() {
+    local file="$1"
+    if ! grep -qE '^[[:space:]]*void write\(LaneId lane, const Observation& obs, bool amend\);' \
+         "$file" 2>/dev/null; then
+        echo "LaneSourceStore::write is not declared where the friend list guards it"
+        return 1
+    fi
+    return 0
+}
+
+@test "the lane store's guarded write() is declared as the friend list expects" {
+    run check_lane_store_write_declared include/lane_source_store.h
+    [ "$status" -eq 0 ]
+}
+
+@test "the lane store write-declaration gate fails closed when write() is renamed" {
+    local mutated="${BATS_TEST_TMPDIR}/lane_store_renamed_write.h"
+    sed -e 's@void write(LaneId lane, const Observation\& obs, bool amend);@void set(LaneId lane, const Observation\& obs, bool amend);@' \
+        include/lane_source_store.h > "$mutated"
+
+    run check_lane_store_write_declared "$mutated"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"not declared where the friend list guards it"* ]]
+}
+
+@test "the lane store write-declaration gate fails closed when the file does not exist" {
+    run check_lane_store_write_declared "${BATS_TEST_TMPDIR}/does_not_exist.h"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"not declared where the friend list guards it"* ]]
+}
+
+# The store's singleton is reachable only from the funnels' own translation
+# unit. A caller holding the instance is a caller one edit away from a write.
+
+check_no_lane_store_instance_callers() {
+    local dir
+    for dir in "$@"; do
+        if [ ! -d "$dir" ]; then
+            echo "search path $dir does not exist; cannot confirm the lane store has no outside callers"
+            return 1
+        fi
+    done
+
+    local hits
+    hits=$(grep -rn 'LaneSourceStore::instance()' "$@" --include='*.cpp' --include='*.h' \
+           2>/dev/null | grep -v 'src/printer/lane_source_store.cpp' || true)
+    if [ -n "$hits" ]; then
+        echo "LaneSourceStore::instance() is reachable only from the funnels."
+        echo "Call helix::ams::ingest() or helix::ams::commit_slot_edit() instead:"
+        echo "$hits"
+        return 1
+    fi
+    return 0
+}
+
+@test "nothing outside the funnels holds the lane source store" {
+    run check_no_lane_store_instance_callers src/ include/
+    [ "$status" -eq 0 ]
+}
+
+@test "the lane store singleton gate fires on a new caller" {
+    local dir="${BATS_TEST_TMPDIR}/fake_src"
+    mkdir -p "$dir"
+    cat > "$dir/ams_backend_example.cpp" <<'EOF'
+void refresh() {
+    helix::ams::LaneSourceStore::instance().get(0);
+}
+EOF
+
+    run check_no_lane_store_instance_callers "$dir"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"reachable only from the funnels"* ]]
+}
+
+@test "the lane store singleton gate fails closed when given no directory to search" {
+    run check_no_lane_store_instance_callers "${BATS_TEST_TMPDIR}/does_not_exist"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"does not exist"* ]]
 }
