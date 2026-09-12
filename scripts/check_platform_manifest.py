@@ -279,6 +279,74 @@ def check_installer_branch_roots(manifest, f):
                 )
 
 
+def check_printer_image_sizes(manifest, f):
+    """A printer-image size must be derived, never written down.
+
+    Packaging keeps exactly one prerendered tier per platform, the one the
+    panel's width selects, and deletes the other. So a literal size names a file
+    that is present on some devices and absent on the rest, and the absence is
+    invisible in a checkout: the repo tree has the source PNGs that a miss falls
+    back to, and a package has none.
+
+    `src/system/prerender_size_class.cpp` holds the rule itself and is the one
+    place the numbers belong.
+    """
+    sizes = {str(r["size"]) for r in manifest["size_classes"]["printer_image"]}
+    rule_owner = os.path.join("src", "system", "prerender_size_class.cpp")
+
+    for base in ("src", "include"):
+        root = os.path.join(ROOT, base)
+        if not os.path.isdir(root):
+            continue
+        for dirpath, _dirs, files in os.walk(root):
+            for name in files:
+                if not name.endswith((".cpp", ".h")):
+                    continue
+                full = os.path.join(dirpath, name)
+                rel = os.path.relpath(full, ROOT)
+                if rel == rule_owner:
+                    continue
+                try:
+                    with open(full, encoding="utf-8") as fh:
+                        text = fh.read()
+                except OSError:
+                    continue
+
+                # A literal where a display width belongs. This is the shape that
+                # hides best: 480 is not a size, it silently means the small tier.
+                for m in re.finditer(r"get_prerendered_printer_path\([^,()]+,\s*(\d+)\s*\)", text):
+                    f.add(
+                        "printer-image-sizes",
+                        f"{rel} passes the literal width {m.group(1)} to "
+                        f"get_prerendered_printer_path; ask the display instead",
+                    )
+
+                # A tier size spelled into a SHIPPED filename. The custom-image
+                # cache also names both sizes and is deliberately excluded: it is
+                # written on the device, holds every size it needs, and nothing
+                # prunes it.
+                lines = text.splitlines()
+                for i, raw in enumerate(lines):
+                    # Doc comments spell out example filenames, which is the
+                    # clearest way to describe these functions and not a size
+                    # anything reads.
+                    stripped = raw.strip()
+                    if stripped.startswith(("//", "*", "/*")):
+                        continue
+                    line = raw.split("//", 1)[0]
+                    near = "\n".join(lines[max(0, i - 2):i + 3])
+                    if "assets/images/printers" not in near and "PRERENDERED_BASE_PATH" not in near:
+                        continue
+                    for m in re.finditer(r"(?<![\w.])(\d+)(?![\w.])", line):
+                        value = m.group(1)
+                        if value in sizes:
+                            f.add(
+                                "printer-image-sizes",
+                                f"{rel}:{i + 1} builds a shipped prerendered name with "
+                                f"the literal size {value}; derive it from the display width",
+                            )
+
+
 def check_shell_roots(manifest, f):
     """The shell sweep list must name every root the manifest declares.
 
@@ -408,6 +476,7 @@ def main():
     check_unverified_panels(manifest, f)
     check_package_prereqs(manifest, f)
     check_no_hardcoded_sizes(manifest, f)
+    check_printer_image_sizes(manifest, f)
     check_install_roots(manifest, f)
     check_shell_roots(manifest, f)
     check_installer_branch_roots(manifest, f)

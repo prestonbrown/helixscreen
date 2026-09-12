@@ -208,7 +208,7 @@ TEST_CASE("PrinterImageManager get_active_image_path returns empty for auto-dete
 
 TEST_CASE("PrinterImageManager get_shipped_images returns list", "[printer_image_manager]") {
     auto& pim = helix::PrinterImageManager::instance();
-    auto shipped = pim.get_shipped_images();
+    auto shipped = pim.get_shipped_images(800);
 
     // Should find PNG files in assets/images/printers/
     // This test depends on the actual assets being present (they are in the worktree)

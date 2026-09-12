@@ -22,6 +22,20 @@
 
 namespace helix {
 
+// lz4 lives inside the LVGL submodule's private layout; declaring the one entry
+// point keeps this file from pinning that path. extern "C" keeps the C linkage
+// the symbol actually has, so the enclosing namespace costs nothing.
+extern "C" int LZ4_decompress_safe(const char* src, char* dst, int compressedSize, int dstCapacity);
+
+namespace {
+/// Follows the LVGL image header when LV_IMAGE_FLAGS_COMPRESSED is set.
+struct CompressBlock {
+    uint32_t method;
+    uint32_t compressed_size;
+    uint32_t decompressed_size;
+};
+} // namespace
+
 bool prerendered_exists(const std::string& path) {
     // Callers pass a relative "assets/images/..." path. Resolve it against the
     // asset root so the check works on firmware (bundle mounted at /assets ->
@@ -320,15 +334,66 @@ bool generate_cached_printer_image(const std::string& source_image_path, int wid
         size_t file_size = static_cast<size_t>(file.tellg()) - static_cast<size_t>(file_pos);
         file.seekg(file_pos);
 
-        if (file_size < expected_bytes) {
-            // File is smaller than expected — likely compressed (RLE/LZ4).
-            // Fall back to original PNG if available.
+        if (header.flags & LV_IMAGE_FLAGS_COMPRESSED) {
+            // Every shipped tier is LZ4: scripts/lib/lvgl_image_lib.sh renders with
+            // --compress LZ4. Decode it here rather than reaching for the source
+            // PNG, because packaging deletes those PNGs (prune_assets), so on a
+            // device there is nothing to reach for and the cache is never built.
+            CompressBlock comp{};
+            file.read(reinterpret_cast<char*>(&comp), sizeof(comp));
+            if (!file.good()) {
+                spdlog::warn("[PrinterCache] Truncated compression header: {}", fs_path);
+                return false;
+            }
+            if (comp.method != LV_IMAGE_COMPRESS_LZ4) {
+                spdlog::warn("[PrinterCache] Unsupported compression {} in {}", comp.method,
+                             fs_path);
+                return false;
+            }
+
+            std::vector<char> packed(comp.compressed_size);
+            file.read(packed.data(), static_cast<std::streamsize>(packed.size()));
+            if (!file.good()) {
+                spdlog::warn("[PrinterCache] Truncated compressed payload: {}", fs_path);
+                return false;
+            }
+
+            std::vector<uint8_t> raw(comp.decompressed_size);
+            const int produced =
+                LZ4_decompress_safe(packed.data(), reinterpret_cast<char*>(raw.data()),
+                                    static_cast<int>(packed.size()), static_cast<int>(raw.size()));
+            if (produced < 0 || static_cast<size_t>(produced) != raw.size()) {
+                spdlog::warn("[PrinterCache] LZ4 decode failed for {}", fs_path);
+                return false;
+            }
+
+            // Rows arrive stride-padded; the resizer wants them tight.
+            rgba_pixels.resize(static_cast<size_t>(src_w) * src_h * 4);
+            const size_t row_bytes = static_cast<size_t>(src_w) * 4;
+            if (raw.size() < stride * static_cast<size_t>(src_h)) {
+                spdlog::warn("[PrinterCache] Decoded {}B, short of {}x{} stride {}", raw.size(),
+                             src_w, src_h, stride);
+                return false;
+            }
+            for (int row = 0; row < src_h; ++row) {
+                std::memcpy(rgba_pixels.data() + static_cast<size_t>(row) * row_bytes,
+                            raw.data() + static_cast<size_t>(row) * stride, row_bytes);
+            }
+
+            // BGRA (LVGL) -> RGBA (stb)
+            for (size_t i = 0; i < rgba_pixels.size(); i += 4) {
+                std::swap(rgba_pixels[i], rgba_pixels[i + 2]);
+            }
+        } else if (file_size < expected_bytes) {
+            // Not flagged compressed and too small to hold its own pixels: the
+            // file is truncated. The source PNG is the only way back, and it is
+            // present on a dev tree even though a package has none.
             std::string png_fallback = png_source_for_prerendered(fs_path);
             if (png_fallback.empty()) {
                 png_fallback = fs_path;
             }
 
-            spdlog::debug("[PrinterCache] .bin may be compressed ({}B < {}B expected), "
+            spdlog::debug("[PrinterCache] .bin is short ({}B < {}B expected), "
                           "trying PNG fallback: {}",
                           file_size, expected_bytes, png_fallback);
 
