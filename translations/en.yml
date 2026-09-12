@@ -1548,6 +1548,7 @@ translations:
   Live view from your webcam: Live view from your webcam
   Load: Load
   Load Filament: Load Filament
+  Load a filament first before trying to unload: Load a filament first before trying to unload
   Load a new spool in this slot, or turn on auto-refill to switch to a matching one: Load a new spool in this slot, or turn on auto-refill to switch to a matching one
   Load complete: Load complete
   Load failed: Load failed

@@ -1415,6 +1415,7 @@
   <translation tag="Live view from your webcam" ja="ウェブカメラのライブ表示"/>
   <translation tag="Load" ja="装填"/>
   <translation tag="Load Filament" ja="フィラメントを装填"/>
+  <translation tag="Load a filament first before trying to unload" ja="排出する前にまずフィラメントを装填してください"/>
   <translation tag="Load a new spool in this slot, or turn on auto-refill to switch to a matching one" ja="このスロットに新しいスプールをセットするか、自動補充を有効にして一致するスプールに切り替えてください"/>
   <translation tag="Load complete" ja="ロード完了"/>
   <translation tag="Load failed" ja="装填に失敗しました"/>

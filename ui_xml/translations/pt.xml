@@ -1415,6 +1415,7 @@
   <translation tag="Live view from your webcam" pt="Visão ao vivo da sua webcam"/>
   <translation tag="Load" pt="Carregar"/>
   <translation tag="Load Filament" pt="Carregar Filamento"/>
+  <translation tag="Load a filament first before trying to unload" pt="Carregue primeiro filamento antes de tentar descarregar"/>
   <translation tag="Load a new spool in this slot, or turn on auto-refill to switch to a matching one" pt="Carregue um novo carretel neste slot, ou ative o reabastecimento automático para mudar para um equivalente"/>
   <translation tag="Load complete" pt="Carregamento concluído"/>
   <translation tag="Load failed" pt="Falha ao carregar"/>

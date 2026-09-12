@@ -1415,6 +1415,7 @@
   <translation tag="Live view from your webcam" en="Live view from your webcam"/>
   <translation tag="Load" en="Load"/>
   <translation tag="Load Filament" en="Load Filament"/>
+  <translation tag="Load a filament first before trying to unload" en="Load a filament first before trying to unload"/>
   <translation tag="Load a new spool in this slot, or turn on auto-refill to switch to a matching one" en="Load a new spool in this slot, or turn on auto-refill to switch to a matching one"/>
   <translation tag="Load complete" en="Load complete"/>
   <translation tag="Load failed" en="Load failed"/>

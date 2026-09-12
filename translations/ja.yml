@@ -1458,6 +1458,7 @@ translations:
   Live view from your webcam: ウェブカメラのライブ表示
   Load: 装填
   Load Filament: フィラメントを装填
+  Load a filament first before trying to unload: 排出する前にまずフィラメントを装填してください
   Load a new spool in this slot, or turn on auto-refill to switch to a matching one: このスロットに新しいスプールをセットするか、自動補充を有効にして一致するスプールに切り替えてください
   Load complete: 'ロード完了'
   Load failed: 装填に失敗しました

@@ -1585,6 +1585,7 @@ translations:
   Live view from your webcam: Vista live dalla webcam
   Load: Carica
   Load Filament: Carica filamento
+  Load a filament first before trying to unload: Prima carica il filamento, poi prova a scaricarlo
   Load a new spool in this slot, or turn on auto-refill to switch to a matching one: Caricare una nuova bobina in questo slot, oppure attivare il rifornimento automatico per passare a una compatibile
   Load complete: 'Caricamento completato'
   Load failed: Caricamento non riuscito

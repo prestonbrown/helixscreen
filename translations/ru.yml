@@ -1132,7 +1132,7 @@ translations:
   Feed filament: Подать филамент
   Feed filament directly to extruder: Подать филамент напрямую в экструдер
   Feed filament from current slot: 'Подать филамент из текущего слота'
-  Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: Вставьте филамент вручную за датчик и нажмите «Продолжить» — либо отмените печать, чтобы воспользоваться загрузкой/выгрузкой
+  Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: Вставьте филамент вручную за датчик и нажмите «Продолжить» — либо отмените печать и воспользуйтесь «Загрузить»/«Выгрузить»
   Feeder: Фидер
   Feeders: Фидеры
   Feeding filament forward: Подача филамента вперёд
@@ -1568,6 +1568,7 @@ translations:
   Live view from your webcam: Прямая трансляция с веб-камеры
   Load: Загрузить
   Load Filament: Загрузить филамент
+  Load a filament first before trying to unload: Сначала загрузите филамент, прежде чем пытаться его выгрузить
   Load a new spool in this slot, or turn on auto-refill to switch to a matching one: Установите новую катушку в этот слот или включите автопополнение для переключения на подходящую
   Load complete: 'Загрузка завершена'
   Load failed: Ошибка загрузки

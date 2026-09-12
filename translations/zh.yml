@@ -1049,7 +1049,7 @@ translations:
   Feed filament: 进料
   Feed filament directly to extruder: 将耗材直接送入挤出机
   Feed filament from current slot: '从当前槽位送入耗材'
-  Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: 用手将耗材送过传感器后按“恢复”，或取消打印以使用“装载/卸载”
+  Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: 用手将耗材送过传感器后按“恢复”，或取消打印以使用“加载/卸载”
   Feeder: 送料器
   Feeders: 送料器
   Feeding filament forward: 正在向前送料
@@ -1451,6 +1451,7 @@ translations:
   Live view from your webcam: 摄像头实时画面
   Load: 加载
   Load Filament: 加载耗材
+  Load a filament first before trying to unload: 请先装载耗材，再尝试卸载
   Load a new spool in this slot, or turn on auto-refill to switch to a matching one: 请在此槽位装入新料盘，或开启自动续料以切换到匹配的料盘
   Load complete: '装载完成'
   Load failed: 装载失败

@@ -1033,7 +1033,7 @@
   <translation tag="Feed filament" ru="Подать филамент"/>
   <translation tag="Feed filament directly to extruder" ru="Подать филамент напрямую в экструдер"/>
   <translation tag="Feed filament from current slot" ru="Подать филамент из текущего слота"/>
-  <translation tag="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload" ru="Вставьте филамент вручную за датчик и нажмите «Продолжить» — либо отмените печать, чтобы воспользоваться загрузкой/выгрузкой"/>
+  <translation tag="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload" ru="Вставьте филамент вручную за датчик и нажмите «Продолжить» — либо отмените печать и воспользуйтесь «Загрузить»/«Выгрузить»"/>
   <translation tag="Feeder" ru="Фидер"/>
   <translation tag="Feeders" ru="Фидеры"/>
   <translation tag="Feeding filament forward" ru="Подача филамента вперёд"/>
@@ -1415,6 +1415,7 @@
   <translation tag="Live view from your webcam" ru="Прямая трансляция с веб-камеры"/>
   <translation tag="Load" ru="Загрузить"/>
   <translation tag="Load Filament" ru="Загрузить филамент"/>
+  <translation tag="Load a filament first before trying to unload" ru="Сначала загрузите филамент, прежде чем пытаться его выгрузить"/>
   <translation tag="Load a new spool in this slot, or turn on auto-refill to switch to a matching one" ru="Установите новую катушку в этот слот или включите автопополнение для переключения на подходящую"/>
   <translation tag="Load complete" ru="Загрузка завершена"/>
   <translation tag="Load failed" ru="Ошибка загрузки"/>

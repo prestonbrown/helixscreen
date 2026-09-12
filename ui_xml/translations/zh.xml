@@ -1033,7 +1033,7 @@
   <translation tag="Feed filament" zh="进料"/>
   <translation tag="Feed filament directly to extruder" zh="将耗材直接送入挤出机"/>
   <translation tag="Feed filament from current slot" zh="从当前槽位送入耗材"/>
-  <translation tag="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload" zh="用手将耗材送过传感器后按“恢复”，或取消打印以使用“装载/卸载”"/>
+  <translation tag="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload" zh="用手将耗材送过传感器后按“恢复”，或取消打印以使用“加载/卸载”"/>
   <translation tag="Feeder" zh="送料器"/>
   <translation tag="Feeders" zh="送料器"/>
   <translation tag="Feeding filament forward" zh="正在向前送料"/>
@@ -1415,6 +1415,7 @@
   <translation tag="Live view from your webcam" zh="摄像头实时画面"/>
   <translation tag="Load" zh="加载"/>
   <translation tag="Load Filament" zh="加载耗材"/>
+  <translation tag="Load a filament first before trying to unload" zh="请先装载耗材，再尝试卸载"/>
   <translation tag="Load a new spool in this slot, or turn on auto-refill to switch to a matching one" zh="请在此槽位装入新料盘，或开启自动续料以切换到匹配的料盘"/>
   <translation tag="Load complete" zh="装载完成"/>
   <translation tag="Load failed" zh="装载失败"/>
