@@ -5,6 +5,7 @@
 
 #include "ams_backend_afc.h"
 
+#include <string>
 #include <utility>
 
 namespace helix {
@@ -66,6 +67,12 @@ class AfcTestAccess {
     }
     template <class B> static auto& overrides(B& b) {
         return b.overrides_;
+    }
+    /// Namespace the override store was pointed at, or empty when no store was
+    /// built. Lets a test assert the PRIVATE namespace without reaching for the
+    /// store itself, which stays private.
+    template <class B> static std::string store_namespace(const B& b) {
+        return b.override_store_ ? b.override_store_->namespace_for_test() : std::string();
     }
     template <class B> static auto& extruders(B& b) {
         return b.extruders_;

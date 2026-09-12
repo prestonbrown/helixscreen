@@ -140,6 +140,19 @@ AmsBackendHappyHare::~AmsBackendHappyHare() {
 // ============================================================================
 
 void AmsBackendHappyHare::on_started() {
+    // Load the user's attached slot identity before any of the queries below,
+    // so the first gate-map frame they provoke already has something to layer.
+    // Outside mutex_, because the DB round-trip blocks and the status
+    // subscription is already live. Publish under it so the parse path reads a
+    // whole map.
+    auto loaded = helix::ams::make_loaded_override_store(api_, "happyhare", get_type(),
+                                                         backend_log_tag(), OVERRIDE_NAMESPACE);
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        override_store_ = std::move(loaded.store);
+        overrides_ = std::move(loaded.overrides);
+    }
+
     // Query configfile to determine tip method (cutter vs tip-forming).
     // Happy Hare determines this from form_tip_macro: if it contains "cut",
     // it's a cutter system; otherwise it's tip-forming or none.
@@ -2584,6 +2597,14 @@ void AmsBackendHappyHare::clear_slot_override(int slot_index) {
         }
     }
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));
+    if (override_store_) {
+        override_store_->clear_async(slot_index, [slot_index](bool ok, std::string err) {
+            if (!ok) {
+                spdlog::warn("[AMS HappyHare] override clear failed for gate {}: {}", slot_index,
+                             err);
+            }
+        });
+    }
 }
 
 void AmsBackendHappyHare::publish_external_spool_lane(const SlotInfo* spool) {

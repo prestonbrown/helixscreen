@@ -227,8 +227,7 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         return true; // Live temp/target read from heater_generic via Moonraker subscriptions
     }
 
-    /// Delete this gate's user override ("Clear Spool"). Happy Hare previously
-    /// inherited the no-op default, so the button did nothing here.
+    /// Delete this gate's user override ("Clear Spool").
     void clear_slot_override(int slot_index) override;
 
     /// Publish the external spool as lane{N+1} in the SHARED lane_data
@@ -332,7 +331,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     // PRIVATE namespace: lane_data belongs to the Happy Hare plugin, same as
     // AFC. See AmsBackendAfc for the full rationale.
     //
-    // Written blind — no Happy Hare hardware on hand; mirrors AFC exactly.
     static constexpr const char* OVERRIDE_NAMESPACE = "helix-screen-hh-overrides";
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
     /// Store on the SHARED lane_data namespace, used only by
