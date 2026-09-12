@@ -212,8 +212,7 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         return true; // Live temp/target read from heater_generic via Moonraker subscriptions
     }
 
-    /// Delete this gate's user override ("Clear Spool"). Happy Hare previously
-    /// inherited the no-op default, so the button did nothing here.
+    /// Delete this gate's user override ("Clear Spool").
     void clear_slot_override(int slot_index) override;
 
     /// Publish the external spool as lane{N+1} in the SHARED lane_data

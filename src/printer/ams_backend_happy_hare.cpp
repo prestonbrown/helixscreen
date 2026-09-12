@@ -2568,6 +2568,14 @@ void AmsBackendHappyHare::clear_slot_override(int slot_index) {
         }
     }
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));
+    if (override_store_) {
+        override_store_->clear_async(slot_index, [slot_index](bool ok, std::string err) {
+            if (!ok) {
+                spdlog::warn("[AMS HappyHare] override clear failed for gate {}: {}", slot_index,
+                             err);
+            }
+        });
+    }
 }
 
 void AmsBackendHappyHare::publish_external_spool_lane(const SlotInfo* spool) {

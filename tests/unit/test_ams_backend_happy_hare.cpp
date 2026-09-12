@@ -3865,6 +3865,16 @@ TEST_CASE("HappyHare on_started reloads slot overrides after a restart",
         REQUIRE(backend.has_gate_override(0));
     }
 
+    // The record has to be in Happy Hare's OWN namespace. Gate 0 is the 0-based
+    // index, so the outer key is the 1-based "lane1".
+    auto stored = api.mock_get_db_value("helix-screen-hh-overrides", "lane1");
+    REQUIRE_FALSE(stored.is_null());
+    CHECK(stored["material"] == "PLA");
+
+    // Nothing in the SHARED namespace: the Happy Hare plugin owns that one and
+    // rewrites it on every Klipper boot.
+    CHECK(api.mock_get_db_value("lane_data", "lane1").is_null());
+
     // Second "boot": a fresh instance sharing the same Moonraker DB. Nothing
     // but on_started() runs before the check -- no set_slot_info, no manual
     // seeding -- so this proves the load half of the round trip, not just the
@@ -3881,6 +3891,42 @@ TEST_CASE("HappyHare on_started reloads slot overrides after a restart",
     CHECK(ovr.material == "PLA");
     CHECK(ovr.color_rgb == 0xFF5500u);
     CHECK(ovr.color_set);
+}
+
+TEST_CASE("HappyHare cleared slot override does not return after a restart",
+          "[ams][happyhare][override][filament_slot_override]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    // First "boot": persist an override, then clear it.
+    {
+        AmsBackendHappyHareTestHelper backend(&api);
+        backend.call_on_started();
+        backend.initialize_test_gates(4);
+
+        SlotInfo info;
+        info.brand = "Polymaker";
+        info.spool_name = "PolyLite Orange";
+        info.spoolman_id = 42;
+        info.material = "PLA";
+        info.color_rgb = 0xFF5500;
+        backend.set_slot_info(0, info);
+        REQUIRE(backend.has_gate_override(0));
+
+        backend.clear_slot_override(0);
+        CHECK_FALSE(backend.has_gate_override(0));
+    }
+
+    CHECK(api.mock_get_db_value("helix-screen-hh-overrides", "lane1").is_null());
+
+    // Second "boot": a fresh instance sharing the same Moonraker DB. The
+    // cleared gate must stay cleared.
+    AmsBackendHappyHareTestHelper restarted(&api);
+    restarted.call_on_started();
+
+    CHECK(HappyHareTestAccess::overrides(restarted).count(0) == 0);
 }
 
 // ============================================================================
