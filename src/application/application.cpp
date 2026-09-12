@@ -3088,8 +3088,7 @@ void Application::setup_discovery_callbacks() {
                             // this runs on the response thread and Config is not
                             // synchronised.
                             helix::ui::queue_update("zoffset_release_claim", []() {
-                                helix::zoffset::release_persistence_enable(
-                                    Config::get_instance());
+                                helix::zoffset::release_persistence_enable(Config::get_instance());
                             });
                         },
                         0, /*silent=*/true, /*on_queued=*/nullptr,
