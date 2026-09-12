@@ -2135,7 +2135,7 @@ AmsError AmsBackendAd5xIfs::do_select_slot(int slot_index) {
 
 AmsError AmsBackendAd5xIfs::do_change_tool(int tool_number) {
     if (tool_number < 0 || tool_number >= TOOL_MAP_SIZE) {
-        return AmsErrorHelper::invalid_slot(tool_number, TOOL_MAP_SIZE - 1);
+        return AmsErrorHelper::tool_out_of_range(tool_number);
     }
 
     int port;
