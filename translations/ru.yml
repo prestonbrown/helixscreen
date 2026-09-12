@@ -478,11 +478,13 @@ translations:
   Chamber Heater: Нагреватель камеры
   Chamber Heater Fan: Вентилятор нагревателя камеры
   Chamber Sensor: Датчик камеры
+  Chamber Temp (°C): ''
   Chamber Temperature: Температура камеры
   Chamber and dryer humidity monitoring: Мониторинг влажности камеры и сушилки
   Chamber at %d°C: Камера при %d°C
   Chamber heating to %d°C...: Нагрев камеры до %d°C...
   Chamber target set to {}°C: Целевая температура камеры установлена на {}°C
+  Chamber temp must be 0-120°C: ''
   Change: Изменить
   Change Address: Изменить адрес
   Change Blade: 'Заменить лезвие'
@@ -766,6 +768,7 @@ translations:
   Debug: Отладка
   Default border thickness: Толщина границы по умолчанию
   'Default: %d-%d°C nozzle, %d°C bed': 'По умолчанию: сопло %d-%d°C, стол %d°C'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: Настройки по умолчанию восстановлены
   Define macros in your printer.cfg: Определите макросы в вашем printer.cfg
   Delete: Удалить

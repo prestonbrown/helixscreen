@@ -438,11 +438,13 @@ translations:
   Chamber Heater: チャンバーヒーター
   Chamber Heater Fan: チャンバーヒーターファン
   Chamber Sensor: チャンバーセンサー
+  Chamber Temp (°C): ''
   Chamber Temperature: チャンバー温度
   Chamber and dryer humidity monitoring: チャンバーとドライヤーの湿度監視
   Chamber at %d°C: チャンバー温度：%d°C
   Chamber heating to %d°C...: チャンバーを%d°Cに加熱中...
   Chamber target set to {}°C: チャンバー目標温度を{}°C に設定
+  Chamber temp must be 0-120°C: ''
   Change: 変更
   Change Address: アドレスを変更
   Change Blade: 'ブレードを交換'
@@ -705,6 +707,7 @@ translations:
   Debug: デバッグ
   Default border thickness: デフォルトの境界線の太さ
   'Default: %d-%d°C nozzle, %d°C bed': 'デフォルト: ノズル %d〜%d°C、ベッド %d°C'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: デフォルトを復元しました
   Define macros in your printer.cfg: printer.cfg でマクロを定義してください
   Delete: 削除

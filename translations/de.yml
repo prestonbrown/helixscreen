@@ -492,11 +492,13 @@ translations:
   Chamber Heater: Kammerheizung
   Chamber Heater Fan: Kammer-Heizlüfter
   Chamber Sensor: Kammersensor
+  Chamber Temp (°C): ''
   Chamber Temperature: Kammertemperatur
   Chamber and dryer humidity monitoring: Kammer- und Trockner-Feuchtigkeitsüberwachung
   Chamber at %d°C: Kammer bei %d°C
   Chamber heating to %d°C...: Kammer heizt auf %d°C auf...
   Chamber target set to {}°C: Kammer-Ziel auf {}°C gesetzt
+  Chamber temp must be 0-120°C: ''
   Change: Ändern
   Change Address: Adresse ändern
   Change Blade: 'Klinge wechseln'
@@ -783,6 +785,7 @@ translations:
   Debug: Debug
   Default border thickness: Standard-Rahmendicke
   'Default: %d-%d°C nozzle, %d°C bed': 'Standard: %d-%d°C Düse, %d°C Bett'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: Standardeinstellungen wiederhergestellt
   Define macros in your printer.cfg: Makros in Ihrer printer.cfg definieren
   Delete: Löschen

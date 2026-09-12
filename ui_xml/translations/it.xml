@@ -431,11 +431,13 @@
   <translation tag="Chamber Heater" it="Riscaldatore camera"/>
   <translation tag="Chamber Heater Fan" it="Ventola riscaldatore camera"/>
   <translation tag="Chamber Sensor" it="Sensore camera"/>
+  <translation tag="Chamber Temp (°C)"/>
   <translation tag="Chamber Temperature" it="Temperatura camera"/>
   <translation tag="Chamber and dryer humidity monitoring" it="Monitoraggio umidità camera ed essiccatore"/>
   <translation tag="Chamber at %d°C" it="Camera a %d°C"/>
   <translation tag="Chamber heating to %d°C..." it="Riscaldamento camera a %d°C..."/>
   <translation tag="Chamber target set to {}°C" it="Target camera impostato a {}°C"/>
+  <translation tag="Chamber temp must be 0-120°C"/>
   <translation tag="Change" it="Cambia"/>
   <translation tag="Change Address" it="Cambia indirizzo"/>
   <translation tag="Change Blade" it="Cambia lama"/>
@@ -691,6 +693,7 @@
   <translation tag="Debug" it="Debug"/>
   <translation tag="Default border thickness" it="Spessore bordo predefinito"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" it="Predefinito: %d-%d°C ugello, %d°C piano"/>
+  <translation tag="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber"/>
   <translation tag="Defaults restored" it="Predefiniti ripristinati"/>
   <translation tag="Define macros in your printer.cfg" it="Definire le macro nel proprio printer.cfg"/>
   <translation tag="Delete" it="Elimina"/>

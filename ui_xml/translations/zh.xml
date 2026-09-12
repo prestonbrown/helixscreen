@@ -431,11 +431,13 @@
   <translation tag="Chamber Heater" zh="仓室加热器"/>
   <translation tag="Chamber Heater Fan" zh="腔体加热风扇"/>
   <translation tag="Chamber Sensor" zh="仓室传感器"/>
+  <translation tag="Chamber Temp (°C)"/>
   <translation tag="Chamber Temperature" zh="腔体温度"/>
   <translation tag="Chamber and dryer humidity monitoring" zh="腔体和干燥器湿度监控"/>
   <translation tag="Chamber at %d°C" zh="腔体温度：%d°C"/>
   <translation tag="Chamber heating to %d°C..." zh="腔体加热至 %d°C..."/>
   <translation tag="Chamber target set to {}°C" zh="腔体目标温度设置为 {}°C"/>
+  <translation tag="Chamber temp must be 0-120°C"/>
   <translation tag="Change" zh="更改"/>
   <translation tag="Change Address" zh="更改地址"/>
   <translation tag="Change Blade" zh="更换刀片"/>
@@ -691,6 +693,7 @@
   <translation tag="Debug" zh="调试"/>
   <translation tag="Default border thickness" zh="默认边框厚度"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" zh="默认: 喷嘴 %d-%d°C,热床 %d°C"/>
+  <translation tag="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber"/>
   <translation tag="Defaults restored" zh="已恢复默认设置"/>
   <translation tag="Define macros in your printer.cfg" zh="在 printer.cfg 中定义宏"/>
   <translation tag="Delete" zh="删除"/>

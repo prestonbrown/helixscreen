@@ -485,11 +485,13 @@ translations:
   Chamber Heater: Aquecedor da Câmara
   Chamber Heater Fan: Ventoinha do Aquecedor da Câmara
   Chamber Sensor: Sensor da Câmara
+  Chamber Temp (°C): ''
   Chamber Temperature: Temperatura da câmara
   Chamber and dryer humidity monitoring: Monitoramento de umidade da câmara e secador
   Chamber at %d°C: Câmara a %d°C
   Chamber heating to %d°C...: Aquecendo câmara a %d°C...
   Chamber target set to {}°C: Alvo da câmara definido para {}°C
+  Chamber temp must be 0-120°C: ''
   Change: Alterar
   Change Address: Alterar Endereço
   Change Blade: 'Trocar lâmina'
@@ -779,6 +781,7 @@ translations:
   Debug: Depuração
   Default border thickness: Espessura padrão da borda
   'Default: %d-%d°C nozzle, %d°C bed': 'Padrão: %d-%d°C bico, %d°C mesa'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: Padrões restaurados
   Define macros in your printer.cfg: Defina macros no seu printer.cfg
   Delete: Excluir

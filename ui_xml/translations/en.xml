@@ -431,11 +431,13 @@
   <translation tag="Chamber Heater" en="Chamber Heater"/>
   <translation tag="Chamber Heater Fan" en="Chamber Heater Fan"/>
   <translation tag="Chamber Sensor" en="Chamber Sensor"/>
+  <translation tag="Chamber Temp (°C)" en="Chamber Temp (°C)"/>
   <translation tag="Chamber Temperature" en="Chamber Temperature"/>
   <translation tag="Chamber and dryer humidity monitoring" en="Chamber and dryer humidity monitoring"/>
   <translation tag="Chamber at %d°C" en="Chamber at %d°C"/>
   <translation tag="Chamber heating to %d°C..." en="Chamber heating to %d°C..."/>
   <translation tag="Chamber target set to {}°C" en="Chamber target set to {}°C"/>
+  <translation tag="Chamber temp must be 0-120°C" en="Chamber temp must be 0-120°C"/>
   <translation tag="Change" en="Change"/>
   <translation tag="Change Address" en="Change Address"/>
   <translation tag="Change Blade" en="Change Blade"/>
@@ -691,6 +693,7 @@
   <translation tag="Debug" en="Debug"/>
   <translation tag="Default border thickness" en="Default border thickness"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" en="Default: %d-%d°C nozzle, %d°C bed"/>
+  <translation tag="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber" en="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber"/>
   <translation tag="Defaults restored" en="Defaults restored"/>
   <translation tag="Define macros in your printer.cfg" en="Define macros in your printer.cfg"/>
   <translation tag="Delete" en="Delete"/>

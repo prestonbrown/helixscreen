@@ -435,11 +435,13 @@ translations:
   Chamber Heater: 仓室加热器
   Chamber Heater Fan: 腔体加热风扇
   Chamber Sensor: 仓室传感器
+  Chamber Temp (°C): ''
   Chamber Temperature: 腔体温度
   Chamber and dryer humidity monitoring: 腔体和干燥器湿度监控
   Chamber at %d°C: 腔体温度：%d°C
   Chamber heating to %d°C...: 腔体加热至 %d°C...
   Chamber target set to {}°C: 腔体目标温度设置为 {}°C
+  Chamber temp must be 0-120°C: ''
   Change: 更改
   Change Address: 更改地址
   Change Blade: '更换刀片'
@@ -701,6 +703,7 @@ translations:
   Debug: 调试
   Default border thickness: 默认边框厚度
   'Default: %d-%d°C nozzle, %d°C bed': '默认: 喷嘴 %d-%d°C,热床 %d°C'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: 已恢复默认设置
   Define macros in your printer.cfg: 在 printer.cfg 中定义宏
   Delete: 删除
