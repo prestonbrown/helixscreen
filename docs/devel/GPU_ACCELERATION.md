@@ -189,6 +189,21 @@ Measured per board, not inferred from the SoC.
 The CB1's `gbm_create_device` failure was a stale userspace Mesa, not a hardware
 limit. On current Armbian it reports `GL_RENDERER = Mali-G31 (Panfrost)`.
 
+### What bounds this, beyond the owned boards
+
+- **The Snapmaker U1 is permanently excluded.** It carries no `libEGL`,
+  `libGLESv2` or `libgbm`, and its `card1` is an RKNPU rather than a GPU. Its
+  plane mask `0x21` is rotate-0 plus reflect-y, which is not rotation.
+- **The fleet is not the product.** `x86_64` with `amdgpu` reports plane mask
+  `0xf`, full 90/180/270, and `x86`/`x86-both` are shipped targets. Nobody here
+  owns such a board, so "no owned board advertises 90 or 270" is not a safety
+  argument for anything.
+- **The Pi 5 splits render and scanout** (`v3d` render node, `drm-rp1-dsi`
+  scanout) and depends on Mesa kmsro to pair them.
+- **The sysroot Mesa is 20.3 (Bullseye) against a 24.2/25.0 runtime.** That is
+  why `LV_USE_LINUX_DRM_GBM_BUFFERS` is off; leave it off unless that changes.
+- **The Pi 4 is unowned.** Any claim about it is untested.
+
 All three owned boards have now rendered the EGL rung correctly: Pi 5 (V3D), Pi
 3B (vc4) and CB1 (Panfrost), each confirmed by eye on the panel rather than by
 log lines alone. That matters here more than usual, because the defect this path
