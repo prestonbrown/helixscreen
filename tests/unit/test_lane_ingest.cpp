@@ -243,6 +243,50 @@ TEST_CASE_METHOD(HelixTestFixture, "a dropped lane is reported once, and again w
     CHECK(log.count_containing("names no position") == 2);
 }
 
+TEST_CASE("a lane colour string reads as a value, a clear or nothing", "[lane][ingest]") {
+    using helix::ams::ColorReadingKind;
+    using helix::ams::read_lane_color;
+
+    SECTION("a colour, however the producer spells it") {
+        CHECK(read_lane_color("#ED2C2C").kind == ColorReadingKind::Observed);
+        CHECK(read_lane_color("#ED2C2C").rgb == 0xED2C2Cu);
+        CHECK(read_lane_color("ED2C2C").rgb == 0xED2C2Cu);
+        CHECK(read_lane_color("0xED2C2C").rgb == 0xED2C2Cu);
+        CHECK(read_lane_color("ed2c2c").rgb == 0xED2C2Cu);
+        // Pure black is a colour a spool can be, not a failure.
+        CHECK(read_lane_color("#000000").kind == ColorReadingKind::Observed);
+        CHECK(read_lane_color("#000000").rgb == 0x000000u);
+    }
+
+    SECTION("the short form expands rather than reading as a near-black") {
+        CHECK(read_lane_color("#F00").kind == ColorReadingKind::Observed);
+        CHECK(read_lane_color("#F00").rgb == 0xFF0000u);
+    }
+
+    SECTION("a slicer's 8-digit form drops alpha rather than carrying it") {
+        CHECK(read_lane_color("#800080FF").kind == ColorReadingKind::Observed);
+        CHECK(read_lane_color("#800080FF").rgb == 0x800080u);
+    }
+
+    SECTION("nothing but a prefix is the producer clearing the lane") {
+        CHECK(read_lane_color("").kind == ColorReadingKind::Cleared);
+        CHECK(read_lane_color("#").kind == ColorReadingKind::Cleared);
+        CHECK(read_lane_color("  ").kind == ColorReadingKind::Cleared);
+        CHECK(read_lane_color(" # ").kind == ColorReadingKind::Cleared);
+    }
+
+    SECTION("a value that is not a colour is no reading, which is not a clear") {
+        // Each of these has a reading a bare std::stoul would hand back: a
+        // partial parse of the head, or a negation. None of them is what the
+        // producer meant.
+        CHECK(read_lane_color("#zzzzzz").kind == ColorReadingKind::NoReading);
+        CHECK(read_lane_color("FF0000junk").kind == ColorReadingKind::NoReading);
+        CHECK(read_lane_color("-1").kind == ColorReadingKind::NoReading);
+        CHECK(read_lane_color("beef").kind == ColorReadingKind::NoReading);
+        CHECK(read_lane_color("None").kind == ColorReadingKind::NoReading);
+    }
+}
+
 TEST_CASE("the blocks are adjacent, which is why a slot index is bounded", "[lane][ingest]") {
     using helix::ams::lane_id_for;
     using helix::ams::LANES_PER_BACKEND;

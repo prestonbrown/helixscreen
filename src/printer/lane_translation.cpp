@@ -3,8 +3,10 @@
 #include "lane_translation.h"
 
 #include "ams_types.h"
+#include "color_utils.h"
 #include "json_utils.h"
 
+#include <cctype>
 #include <cmath>
 #include <tuple>
 #include <type_traits>
@@ -203,6 +205,30 @@ Observation declared_from_record(const FilamentSlotOverride& record, const nlohm
         }
     });
     return obs;
+}
+
+ColorReading read_lane_color(const std::string& raw) {
+    // A value that is only whitespace and a prefix carries no colour to fail
+    // to parse, so it is the producer saying the lane has none.
+    size_t begin = 0;
+    size_t end = raw.size();
+    while (begin < end && std::isspace(static_cast<unsigned char>(raw[begin]))) {
+        ++begin;
+    }
+    while (end > begin && std::isspace(static_cast<unsigned char>(raw[end - 1]))) {
+        --end;
+    }
+    if (begin < end && raw[begin] == '#') {
+        ++begin;
+    }
+    if (begin == end) {
+        return {ColorReadingKind::Cleared, 0};
+    }
+
+    if (const auto rgb = parse_hex_color(raw)) {
+        return {ColorReadingKind::Observed, *rgb};
+    }
+    return {ColorReadingKind::NoReading, 0};
 }
 
 } // namespace helix::ams

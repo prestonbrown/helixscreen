@@ -16,9 +16,9 @@
  * ejected lane still looked linked and whether a user's override was visible.
  */
 
-#include "test_helpers/afc_test_access.h"
 #include "ams_backend_afc.h"
 #include "ams_types.h"
+#include "test_helpers/afc_test_access.h"
 
 #include <string>
 
@@ -93,6 +93,10 @@ class AfcLaneDataClearHelper : public AmsBackendAfc {
 
     [[nodiscard]] std::string spool_name(int slot_index) const {
         return get_slot_info(slot_index).spool_name;
+    }
+
+    [[nodiscard]] uint32_t color(int slot_index) const {
+        return get_slot_info(slot_index).color_rgb;
     }
 };
 } // namespace helix
@@ -317,6 +321,23 @@ TEST_CASE("AFC lane_data and status paths agree about the filament name", "[ams]
 
     CHECK(via_db.spool_name(0) == via_status.spool_name(0));
     CHECK(via_db.spool_name(0).empty());
+}
+
+TEST_CASE("AFC lane_data and status paths agree about a malformed colour", "[ams][afc][1195]") {
+    AfcLaneDataClearHelper afc;
+
+    afc.feed_lane_data(both_lanes(nlohmann::json{{"color", "#E53935"}}));
+    REQUIRE(afc.color(0) == 0xE53935u);
+
+    // Garbage is a parse failure, not a clear: the producer said something we
+    // cannot read, which is not the same as saying the lane has no colour. The
+    // status path already answers it this way.
+    afc.feed_lane_data(both_lanes(nlohmann::json{{"color", "#zzzzzz"}}));
+    CHECK(afc.color(0) == 0xE53935u);
+
+    // Empty is the clear AFC writes on eject, and it does reach the default.
+    afc.feed_lane_data(both_lanes(nlohmann::json{{"color", ""}}));
+    CHECK(afc.color(0) == AMS_DEFAULT_SLOT_COLOR);
 }
 
 TEST_CASE("AFC lane_data and status paths agree about the null clear", "[ams][afc][1195]") {

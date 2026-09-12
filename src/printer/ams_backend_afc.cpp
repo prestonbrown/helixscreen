@@ -15,6 +15,7 @@
 #include "config.h"
 #include "i_moonraker_api.h"
 #include "lane_source_store.h"
+#include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "operation_patterns.h" // helix::contains_ci
 #include "printer_discovery.h"
@@ -2381,34 +2382,18 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // merge that runs in between.
     auto& firmware = lane_firmware_readings_[lane_name];
 
-    // Parse color.
-    //
-    // An EMPTY value is a deliberate clear, not a parse failure. AFC's
-    // clear_values() sets color='' on eject, and SET_COLOR with an empty value
-    // stores the literal '#'. Both strip to "" here. Previously std::stoul("")
-    // threw and was swallowed as "keep existing", so an ejected lane kept
-    // painting the previous spool's colour. Genuinely malformed input still
-    // keeps the old value — only emptiness clears.
+    // Parse color. AFC's clear_values() writes color='' on eject and its
+    // SET_COLOR with no value stores the bare '#', both of which read as a
+    // clear; anything else that will not parse is a value we cannot read
+    // rather than a lane with no colour, so it changes nothing.
     if (data.contains("color") && data["color"].is_string()) {
-        std::string color_str = data["color"].get<std::string>();
-        // Remove '#' prefix if present
-        if (!color_str.empty() && color_str[0] == '#') {
-            color_str = color_str.substr(1);
-        }
-        if (color_str.empty()) {
+        const auto reading = ams::read_lane_color(data["color"].get<std::string>());
+        if (reading.kind == ams::ColorReadingKind::Observed) {
+            slot.color_rgb = reading.rgb;
+            firmware.cache.color_rgb = reading.rgb;
+        } else if (reading.kind == ams::ColorReadingKind::Cleared) {
             slot.color_rgb = AMS_DEFAULT_SLOT_COLOR;
             firmware.cache.color_rgb.reset();
-        } else {
-            try {
-                const auto parsed = static_cast<uint32_t>(std::stoul(color_str, nullptr, 16));
-                slot.color_rgb = parsed;
-                firmware.cache.color_rgb = parsed;
-            } catch (...) {
-                // Keep existing color on parse failure. The observation keeps
-                // the last colour AFC published that could be read, for the
-                // same reason: what the store now holds is unreadable, not
-                // absent.
-            }
         }
     }
 
@@ -4088,17 +4073,14 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
         auto& slot = entry->info;
 
         // Parse color. AFC writes "#RRGGBB" here (verified against a live
-        // BoxTurtle's lane_data namespace); std::stoul cannot parse the '#', so
-        // without stripping it every lane fell back to the default grey. Bare hex
-        // is also accepted. Matches the handling in parse_afc_stepper.
+        // BoxTurtle's lane_data namespace); bare hex is accepted too. One
+        // decision with the status path, so the two parsers cannot answer the
+        // same string differently.
         if (lane.contains("color") && lane["color"].is_string()) {
-            std::string color_str = lane["color"].get<std::string>();
-            if (!color_str.empty() && color_str[0] == '#') {
-                color_str = color_str.substr(1);
-            }
-            try {
-                slot.color_rgb = static_cast<uint32_t>(std::stoul(color_str, nullptr, 16));
-            } catch (...) {
+            const auto reading = ams::read_lane_color(lane["color"].get<std::string>());
+            if (reading.kind == ams::ColorReadingKind::Observed) {
+                slot.color_rgb = reading.rgb;
+            } else if (reading.kind == ams::ColorReadingKind::Cleared) {
                 slot.color_rgb = AMS_DEFAULT_SLOT_COLOR;
             }
         }
