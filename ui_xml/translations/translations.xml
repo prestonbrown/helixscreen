@@ -1013,6 +1013,7 @@
   <translation tag="FanSelect" de="Lüfter auswählen" en="FanSelect" es="Seleccionar ventilador" fr="Sélection du ventilateur" it="Seleziona ventola" ja="ファンを選択" pt="Selecionar Ventoinha" ru="Выбрать вентилятор" zh="选择风扇"/>
   <translation tag="Fans" de="Lüfter" en="Fans" es="Ventiladores" fr="Ventilateurs" it="Ventole" ja="ファン" pt="Ventoinhas" ru="Вентиляторы" zh="风扇"/>
   <translation tag="Farther" de="Weiter" en="Farther" es="Más lejos" fr="Plus loin" it="Più lontano" ja="遠く" pt="Mais Longe" ru="Дальше" zh="更远"/>
+  <translation tag="Favorites" de="Favoriten" en="Favorites" es="Favoritos" fr="Favoris" it="Preferiti" ja="お気に入り" pt="Favoritos" ru="Избранное" zh="收藏"/>
   <translation tag="Features: " de="Funktionen: " en="Features: " es="Características: " fr="Fonctionnalités : " it="Caratteristiche: " ja="機能: " pt="Recursos: " ru="Функции: " zh="特性: "/>
   <translation tag="Feed Assist" de="Vorschubunterstützung" en="Feed Assist" es="Asistencia de alimentación" fr="Assistance d&apos;alimentation" it="Assistenza all&apos;alimentazione" ja="送りアシスト" pt="Assistência de alimentação" ru="Помощь подачи" zh="送料辅助"/>
   <translation tag="Feed assist and debug tools" de="Vorschubunterstützung und Debug-Werkzeuge" en="Feed assist and debug tools" es="Asistencia de avance y herramientas de depuración" fr="Assistance d&apos;alimentation et outils de débogage" it="Assistenza all&apos;alimentazione e strumenti di debug" ja="送りアシストとデバッグツール" pt="Assistência de alimentação e ferramentas de depuração" ru="Помощь подачи и инструменты отладки" zh="送料辅助与调试工具"/>

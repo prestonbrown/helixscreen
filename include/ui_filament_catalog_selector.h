@@ -114,6 +114,10 @@ class FilamentCatalogSelector {
     }
 
     // === Introspection (tests + hosts) ===
+    /// Whether @p vendor is the Favorites pseudo-vendor entry (the flat
+    /// starred-products view that bypasses the Type dropdown). The sentinel
+    /// string never matches a catalog or Spoolman brand.
+    [[nodiscard]] static bool is_favorites_vendor(const std::string& vendor);
     [[nodiscard]] std::string current_vendor() const;
     /// Selected Type-dropdown text. Since grouping, this is a material FAMILY
     /// heading ("PLA"), not necessarily a catalog type — a family collapses
@@ -129,6 +133,8 @@ class FilamentCatalogSelector {
     void select_first_product_for_test();
     /// Highlight a specific product by id, mirroring a row tap.
     void select_product_for_test(const std::string& product_id);
+    /// Flip a row's star, mirroring a star-icon tap.
+    void toggle_star_for_test(const std::string& product_id);
     void change_vendor_for_test(uint32_t index);
     void change_type_for_test(uint32_t index);
     /// Product names in current display order (post display-ranking) for the
@@ -166,6 +172,15 @@ class FilamentCatalogSelector {
     void handle_vendor_changed();
     void handle_type_changed();
     void handle_row_selected(const std::string& product_id);
+    /// Star-icon tap: flip the id's favorite state (persisted immediately by
+    /// filament::toggle_favorite) and refresh the active view — starred rows
+    /// float to the top of a vendor+type view; an unstarred row vanishes from
+    /// the Favorites view, taking the highlight with it when it was the
+    /// selected row.
+    void handle_star_toggled(const std::string& product_id);
+    /// Hide/show the Type dropdown group to match favorites mode (the flat
+    /// list spans every type, so the type filter is meaningless there).
+    void sync_type_group_visibility();
     /// Open the product-edit modal in add mode (the "+ Add custom filament" row).
     void handle_add_custom();
     /// Open the product-edit modal in edit mode for @p product_id (row edit icon).
@@ -198,6 +213,7 @@ class FilamentCatalogSelector {
     // lv_obj_get_name (L069).
     static void on_row_clicked_cb(lv_event_t* e);
     static void on_row_edit_cb(lv_event_t* e);
+    static void on_row_star_cb(lv_event_t* e);
     static void on_add_custom_cb(lv_event_t* e);
 
     lv_obj_t* root_ = nullptr;

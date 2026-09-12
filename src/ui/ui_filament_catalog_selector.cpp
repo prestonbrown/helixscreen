@@ -4,7 +4,9 @@
 #include "ui_icon_codepoints.h"
 #include "ui_utils.h"
 
+#include "filament_favorites.h"
 #include "filament_variants.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -16,6 +18,16 @@
 #include <string>
 
 namespace helix::ui {
+
+namespace {
+
+/// Sentinel for the Favorites pseudo-vendor. The leading control byte can
+/// never occur in a catalog brand or a host-supplied Spoolman vendor name, so
+/// the flat starred view can never collide with a real vendor entry.
+const std::string kFavoritesVendor = "\x01"
+                                     "Favorites";
+
+} // namespace
 
 bool FilamentCatalogSelector::callbacks_registered_ = false;
 
@@ -52,6 +64,7 @@ void FilamentCatalogSelector::register_callbacks() {
     // Row callbacks fired by the catalog_row / catalog_add_row XML components.
     lv_xml_register_event_cb(nullptr, "catalog_row_clicked_cb", on_row_clicked_cb);
     lv_xml_register_event_cb(nullptr, "catalog_row_edit_cb", on_row_edit_cb);
+    lv_xml_register_event_cb(nullptr, "catalog_row_star_cb", on_row_star_cb);
     lv_xml_register_event_cb(nullptr, "catalog_add_custom_cb", on_add_custom_cb);
     callbacks_registered_ = true;
 }
@@ -75,6 +88,16 @@ void FilamentCatalogSelector::on_row_edit_cb(lv_event_t* e) {
     FilamentCatalogSelector* self = from_event(e);
     if (self && id)
         self->handle_edit_product(id);
+}
+
+void FilamentCatalogSelector::on_row_star_cb(lv_event_t* e) {
+    // Fired by the star_icon; its parent is the row whose name is the product id.
+    auto* icon = lv_event_get_current_target_obj(e);
+    lv_obj_t* row = icon ? lv_obj_get_parent(icon) : nullptr;
+    const char* id = row ? lv_obj_get_name(row) : nullptr;
+    FilamentCatalogSelector* self = from_event(e);
+    if (self && id)
+        self->handle_star_toggled(id);
 }
 
 void FilamentCatalogSelector::on_add_custom_cb(lv_event_t* e) {
@@ -170,6 +193,10 @@ std::string FilamentCatalogSelector::current_vendor() const {
     return sel < vendor_order_.size() ? vendor_order_[sel] : std::string{};
 }
 
+bool FilamentCatalogSelector::is_favorites_vendor(const std::string& vendor) {
+    return vendor == kFavoritesVendor;
+}
+
 std::string FilamentCatalogSelector::current_type() const {
     lv_obj_t* dd = find_child("type_dropdown");
     if (!dd)
@@ -246,6 +273,10 @@ void FilamentCatalogSelector::select_product_for_test(const std::string& product
     handle_row_selected(product_id);
 }
 
+void FilamentCatalogSelector::toggle_star_for_test(const std::string& product_id) {
+    handle_star_toggled(product_id);
+}
+
 void FilamentCatalogSelector::change_vendor_for_test(uint32_t index) {
     lv_obj_t* dd = find_child("vendor_dropdown");
     if (!dd)
@@ -273,13 +304,17 @@ void FilamentCatalogSelector::populate_vendor_dropdown() {
             return std::tolower(x) == std::tolower(y);
         });
     };
-    // "Generic" pinned first, then the catalog brands (all_brands() is already
-    // sorted+deduped), then any host-supplied extra vendors not already present.
-    // The extra list (e.g. a live Spoolman vendor list) is merged case-
-    // insensitively so a differently-cased server spelling never doubles a
-    // catalog brand, and it is only appended — Generic stays index 0 and the
-    // catalog order is untouched.
+    // "Favorites" pseudo-vendor leads, then "Generic" pinned, then the catalog
+    // brands (all_brands() is already sorted+deduped), then any host-supplied
+    // extra vendors not already present. The extra list (e.g. a live Spoolman
+    // vendor list) is merged case-insensitively so a differently-cased server
+    // spelling never doubles a catalog brand, and it is only appended — the
+    // Favorites/Generic head of the list and the catalog order are untouched.
+    // Favorites is an ENTRY, not the default: a user with nothing starred yet
+    // must not open into an empty product list, so the no-seed fallback stays
+    // Generic (index 1).
     vendor_order_.clear();
+    vendor_order_.push_back(kFavoritesVendor);
     vendor_order_.push_back("Generic");
     for (const auto& b : catalog_.all_brands()) {
         if (b != "Generic")
@@ -297,17 +332,18 @@ void FilamentCatalogSelector::populate_vendor_dropdown() {
     for (size_t i = 0; i < vendor_order_.size(); ++i) {
         if (i)
             options += "\n";
-        options += vendor_order_[i];
+        options += is_favorites_vendor(vendor_order_[i]) ? lv_tr("Favorites") : vendor_order_[i];
     }
     lv_dropdown_set_options(dd, options.c_str());
 
     // Seed the vendor to the host-provided brand (case-insensitive) when it
-    // exists in the merged list; otherwise pin "Generic" (index 0). This lets a
-    // host opening on an already-branded slot round-trip the vendor instead of
-    // the selector silently snapping it to Generic (which a subsequent Save would
-    // then bake in, dropping the user's saved vendor). A Spoolman-only vendor
-    // resolves here once its name arrives via set_additional_vendors().
-    uint32_t seed_idx = 0; // Generic
+    // exists in the merged list; otherwise pin "Generic" (index 1, directly
+    // after the Favorites pseudo-vendor). This lets a host opening on an
+    // already-branded slot round-trip the vendor instead of the selector
+    // silently snapping it to Generic (which a subsequent Save would then bake
+    // in, dropping the user's saved vendor). A Spoolman-only vendor resolves
+    // here once its name arrives via set_additional_vendors().
+    uint32_t seed_idx = 1; // Generic
     if (seed_vendor_ && !seed_vendor_->empty()) {
         for (size_t i = 0; i < vendor_order_.size(); ++i) {
             if (ieq(vendor_order_[i], *seed_vendor_)) {
@@ -343,10 +379,27 @@ bool FilamentCatalogSelector::type_allowed(const std::string& type) const {
                        [&](const std::string& a) { return to_lower_copy(a) == type_lc; });
 }
 
+void FilamentCatalogSelector::sync_type_group_visibility() {
+    lv_obj_t* group = find_child("type_group");
+    if (!group)
+        return;
+    // DECLARATIVE_OK: favorites mode is per-instance state and XML subject
+    // names are process-global — a bound subject would toggle the type
+    // dropdown of every live selector (picker modal + AMS editor) in lockstep.
+    if (is_favorites_vendor(current_vendor())) {
+        lv_obj_add_flag(group, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_remove_flag(group, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 void FilamentCatalogSelector::populate_type_dropdown() {
+    sync_type_group_visibility();
     lv_obj_t* dd = find_child("type_dropdown");
     if (!dd)
         return;
+    if (is_favorites_vendor(current_vendor()))
+        return; // the flat starred list spans every type; the filter is bypassed
 
     // Headings are material FAMILIES, not raw types: PLA / PLA-CF / PLA-GF /
     // PLA-AERO / SILK collapse into one "PLA" entry. Variants stay separately
@@ -443,6 +496,32 @@ void FilamentCatalogSelector::populate_type_dropdown() {
 std::vector<const helix::printer::EffectiveFilament*>
 FilamentCatalogSelector::ordered_products_for(const std::string& vendor,
                                               const std::string& family) const {
+    const std::vector<std::string> favorite_ids = filament_favorites::load_favorite_ids();
+    if (is_favorites_vendor(vendor)) {
+        // Flat starred view: every favorite across brands and types in one
+        // list, alphabetical by display name with a brand tiebreak so the
+        // order is fully deterministic. Whitelist gating is per product, the
+        // same gate a normal vendor+type view applies — the AMS host's
+        // allowed_types must filter here too. Ids that no longer resolve (a
+        // deleted custom overlay product) are skipped.
+        std::vector<const helix::printer::EffectiveFilament*> products;
+        for (const auto& id : favorite_ids) {
+            const auto* p = catalog_.resolve_id(id);
+            if (p && type_allowed(p->type))
+                products.push_back(p);
+        }
+        std::sort(products.begin(), products.end(),
+                  [](const helix::printer::EffectiveFilament* a,
+                     const helix::printer::EffectiveFilament* b) {
+                      const std::string na = to_lower_copy(a->name);
+                      const std::string nb = to_lower_copy(b->name);
+                      if (na != nb)
+                          return na < nb;
+                      return to_lower_copy(a->brand) < to_lower_copy(b->brand);
+                  });
+        return products;
+    }
+
     // Collect every product of this vendor whose type belongs to `family`.
     // Whitelist gating is per TYPE (see type_allowed): a heading is only as
     // permissive as the individual variants behind it.
@@ -454,6 +533,7 @@ FilamentCatalogSelector::ordered_products_for(const std::string& vendor,
             products.push_back(p);
     }
 
+    const std::set<std::string> starred(favorite_ids.begin(), favorite_ids.end());
     const std::string family_lc = to_lower_copy(family);
     // Variant grouping key: base-type products ("" sorts first) cluster ahead of
     // variants, and each variant type ("ASA-CF", "ASA-GF") forms its own
@@ -477,6 +557,13 @@ FilamentCatalogSelector::ordered_products_for(const std::string& vendor,
     std::stable_sort(products.begin(), products.end(),
                      [&](const helix::printer::EffectiveFilament* a,
                          const helix::printer::EffectiveFilament* b) {
+                         // Starred rows float above every unstarred run — the
+                         // quick-access payoff of starring — and keep the
+                         // display ranking among themselves.
+                         const bool fa = starred.count(a->id) > 0;
+                         const bool fb = starred.count(b->id) > 0;
+                         if (fa != fb)
+                             return fa;
                          std::string ka = variant_key(a);
                          std::string kb = variant_key(b);
                          if (ka != kb)
@@ -496,8 +583,11 @@ std::string
 FilamentCatalogSelector::row_label_for_test(const helix::printer::EffectiveFilament* p) const {
     if (!p)
         return {};
-    // Mirrors rebuild_product_list(): name, plus the variant chip when the row's
-    // type differs from the family heading it sits under.
+    // Mirrors rebuild_product_list(): in the favorites view the chip carries the
+    // brand; in a family view it carries the variant type when it differs from
+    // the heading.
+    if (is_favorites_vendor(current_vendor()))
+        return p->name + " " + p->brand;
     const std::string family = current_type();
     if (!p->type.empty() && p->type != family)
         return p->name + " " + p->type;
@@ -523,6 +613,9 @@ void FilamentCatalogSelector::rebuild_product_list() {
     lv_color_t muted = theme_manager_get_color("text_muted");
     const char* check = helix::ui::icon::lookup_codepoint("check");
     const char* pencil = helix::ui::icon::lookup_codepoint("pencil");
+    const bool favorites_view = is_favorites_vendor(current_vendor());
+    const std::vector<std::string> favorite_ids = filament_favorites::load_favorite_ids();
+    const std::set<std::string> starred(favorite_ids.begin(), favorite_ids.end());
     const std::string family = current_type();
 
     for (const auto* p : ordered_products_for(current_vendor(), family)) {
@@ -544,10 +637,13 @@ void FilamentCatalogSelector::rebuild_product_list() {
         // the only thing separating ASA-CF from ASA-GF, and it is exactly the
         // string this selection emits. Base-type rows carry no chip — the
         // heading already says it. Untranslated: material names are identifiers
-        // (L070).
+        // (L070). In the favorites view the chip carries the BRAND instead —
+        // the one disambiguator a cross-brand flat list has (the type is
+        // usually already part of the product name).
         if (auto* chip = lv_obj_find_by_name(row, "variant_chip")) {
-            if (!p->type.empty() && p->type != family) {
-                lv_label_set_text(chip, p->type.c_str());
+            const std::string chip_text = favorites_view ? p->brand : p->type;
+            if (!chip_text.empty() && (favorites_view || chip_text != family)) {
+                lv_label_set_text(chip, chip_text.c_str());
                 lv_obj_set_style_text_color(chip, is_current ? accent : muted, 0);
                 lv_obj_remove_flag(chip, LV_OBJ_FLAG_HIDDEN);
             }
@@ -568,6 +664,14 @@ void FilamentCatalogSelector::rebuild_product_list() {
                     lv_label_set_text(edit, pencil); // XML already sets #icon_pencil
                 lv_obj_remove_flag(edit, LV_OBJ_FLAG_HIDDEN);
             }
+        }
+        // Star toggle: present in every host — this is where favorites get
+        // built. Accent when starred, muted when not; the glyph is the XML
+        // #icon_star token. Like the edit icon it intercepts its own tap, so
+        // starring never triggers row-select.
+        if (auto* star = lv_obj_find_by_name(row, "star_icon")) {
+            // DECLARATIVE_OK: per-row star state is Config data, not a subject
+            lv_obj_set_style_text_color(star, starred.count(p->id) ? accent : muted, 0);
         }
     }
 }
@@ -598,6 +702,31 @@ void FilamentCatalogSelector::handle_row_selected(const std::string& product_id)
     rebuild_product_list(); // redraw to move the checkmark
     if (on_selection_changed_)
         on_selection_changed_(highlighted());
+}
+
+void FilamentCatalogSelector::handle_star_toggled(const std::string& product_id) {
+    const bool now_favorite = filament_favorites::toggle_favorite(product_id);
+    spdlog::debug("[FilamentCatalogSelector] {} '{}'", now_favorite ? "starred" : "unstarred",
+                  product_id);
+    if (is_favorites_vendor(current_vendor())) {
+        // The favorites view lists only starred products, so a toggle here is
+        // always a removal: the row disappears on refresh. Unstarring a row
+        // OTHER than the highlighted one keeps the highlight where it is.
+        const bool had_highlight = (highlighted_id_ == product_id);
+        if (had_highlight)
+            highlighted_id_.clear();
+        rebuild_product_list();
+        if (preselect_on_change_) {
+            preselect_after_change(); // keep the AMS host's checked-row invariant
+        } else if (had_highlight && on_selection_changed_) {
+            on_selection_changed_(nullptr);
+        }
+    } else {
+        // A vendor+type view keeps every row; the rebuild floats the toggled
+        // row to the top (or drops it back into the display ranking) and
+        // recolors its star. The highlight is untouched.
+        rebuild_product_list();
+    }
 }
 
 void FilamentCatalogSelector::handle_add_custom() {

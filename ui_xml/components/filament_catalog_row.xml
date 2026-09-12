@@ -3,12 +3,13 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <!-- One product row of the filament catalog selector:
-       [check_indicator] [name_label ....] [variant_chip] [temp_label] [edit_icon].
+       [check_indicator] [name_label ....] [variant_chip] [temp_label] [star_icon] [edit_icon].
        All layout / sizes / fonts / padding / radii / colors live here via design
        tokens; C++ only sets label text, data-driven theme colors, and show/hide
        on the optional children. Non-interactive children carry event_bubble so a
-       tap falls through to the clickable row; edit_icon intercepts its own tap
-       (clickable, NO event_bubble) so editing never fires row-select. -->
+       tap falls through to the clickable row; star_icon and edit_icon intercept
+       their own taps (clickable, NO event_bubble) so starring and editing never
+       fire row-select. -->
   <view name="catalog_row"
         extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
         style_pad_hor="#space_md" style_pad_ver="#space_sm" style_pad_gap="#space_sm" style_radius="#border_radius"
@@ -36,6 +37,15 @@
     <!-- Recommended nozzle / bed temps ("210 / 60"), formatted by C++. -->
     <lv_label name="temp_label"
               text="" style_text_font="#font_body" style_text_color="#text" clickable="false" event_bubble="true"/>
+    <!-- Favorite (star) toggle. Accent-colored by C++ when starred, muted when
+         not — this is where favorites get built, so it shows in every host.
+         Like edit_icon it STAYS clickable with NO event_bubble: a tap
+         hit-tests to the icon, not the row. -->
+    <lv_label name="star_icon"
+              text="#icon_star" style_text_font="#icon_font_xs" style_text_color="#text_muted" style_min_width="20"
+              style_text_align="center" clickable="true">
+      <event_cb trigger="clicked" callback="catalog_row_star_cb"/>
+    </lv_label>
     <!-- Trailing edit affordance. Unlike the other children it STAYS clickable
          with NO event_bubble, so a tap hit-tests to the icon (its own CLICKED
          target) and the row-select handler never fires — declarative
