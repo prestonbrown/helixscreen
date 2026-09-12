@@ -3,6 +3,7 @@
 #include "lane_translation.h"
 
 #include "ams_types.h"
+#include "json_utils.h"
 
 #include <cmath>
 
@@ -20,6 +21,14 @@ constexpr float WEIGHT_EPSILON_G = 0.1f;
 /// a negative entry, so a negative can only have come from a clear.
 bool is_declarable_weight(float grams) {
     return grams >= 0.0f;
+}
+
+/// True when a colour is one a person or a record could have chosen.
+/// AMS_DEFAULT_SLOT_COLOR means "no colour reading", not a grey anyone
+/// picked, and both a cleared slot and a colourless lane_data record land on
+/// it, so filing it would hand every one of them a declared grey.
+bool is_declarable_color(uint32_t rgb) {
+    return rgb != AMS_DEFAULT_SLOT_COLOR;
 }
 
 bool weight_changed(float original, float edited) {
@@ -41,12 +50,7 @@ Observation user_edit_observation(const SlotInfo& original, const SlotInfo& edit
         return obs;
     }
 
-    // AMS_DEFAULT_SLOT_COLOR means "no colour reading", not a grey a person
-    // picked, and clearing a slot writes it. Filing it would leave a user
-    // colour outranking every server value with a sentinel. The cost is that
-    // this one grey cannot be declared, which is the trade the sentinel
-    // already imposes everywhere else it is read.
-    if (edited.color_rgb != original.color_rgb && edited.color_rgb != AMS_DEFAULT_SLOT_COLOR)
+    if (edited.color_rgb != original.color_rgb && is_declarable_color(edited.color_rgb))
         obs.color_rgb = edited.color_rgb;
     if (edited.color_name != original.color_name)
         obs.color_name = edited.color_name;
@@ -79,24 +83,24 @@ ObservationSource classify_declaration(const FilamentSlotOverride& record,
     if (record.spoolman_id > 0) {
         return ObservationSource::Spoolman;
     }
-    const bool locked_color = wire.contains("helix_locked_color") &&
-                              wire["helix_locked_color"].is_boolean() &&
-                              wire["helix_locked_color"].get<bool>();
-    const bool locked_material = wire.contains("helix_locked_material") &&
-                                 wire["helix_locked_material"].is_boolean() &&
-                                 wire["helix_locked_material"].get<bool>();
-    return (locked_color || locked_material) ? ObservationSource::LocalUser
-                                             : ObservationSource::VendorCache;
+    // A lock counts only when the key is actually present on the wire: the
+    // parsed struct defaults a missing key from color_set / material presence
+    // (from_lane_data_record's legacy-preservation rule), which is not a
+    // declaration. safe_bool supplies the truthiness rule the parser itself
+    // uses, so a non-boolean lock value classifies the same way here as it
+    // did on load, rather than disagreeing with the parser on the same key.
+    const auto locked = [&wire](const char* key) {
+        return wire.contains(key) && helix::json_util::safe_bool(wire, key, false);
+    };
+    return (locked("helix_locked_color") || locked("helix_locked_material"))
+               ? ObservationSource::LocalUser
+               : ObservationSource::VendorCache;
 }
 
 Observation declared_from_record(const FilamentSlotOverride& record, const nlohmann::json& wire) {
     Observation obs(classify_declaration(record, wire));
 
-    // AMS_DEFAULT_SLOT_COLOR means "no colour reading", not a grey a person
-    // or a legacy writer chose, and it can ride in on the wire the same way a
-    // cleared SlotInfo carries it (see user_edit_observation above). Filing it
-    // would hand every uncoloured legacy lane a declared grey.
-    if (record.color_set && record.color_rgb != AMS_DEFAULT_SLOT_COLOR)
+    if (record.color_set && is_declarable_color(record.color_rgb))
         obs.color_rgb = record.color_rgb;
     if (!record.color_name.empty())
         obs.color_name = record.color_name;
@@ -114,9 +118,9 @@ Observation declared_from_record(const FilamentSlotOverride& record, const nlohm
         obs.spoolman_id = record.spoolman_id;
     if (record.spoolman_vendor_id > 0)
         obs.spoolman_vendor_id = record.spoolman_vendor_id;
-    if (record.remaining_weight_g >= 0.0F)
+    if (is_declarable_weight(record.remaining_weight_g))
         obs.remaining_weight_g = record.remaining_weight_g;
-    if (record.total_weight_g >= 0.0F)
+    if (is_declarable_weight(record.total_weight_g))
         obs.total_weight_g = record.total_weight_g;
     return obs;
 }

@@ -237,6 +237,11 @@ TEST_CASE("a record with no colour does not claim one", "[lane][ingest]") {
     };
     const auto rec = record_from(wire);
 
+    // The record's own default reads user_locked_material as true (material
+    // is non-empty), but the wire carries no lock key at all: the classifier
+    // must side with the wire, not the struct's legacy-preservation default.
+    CHECK(classify_declaration(rec, wire) == ObservationSource::VendorCache);
+
     const auto obs = declared_from_record(rec, wire);
     CHECK(obs.material == "PLA");
     CHECK_FALSE(obs.color_rgb.has_value());
@@ -258,4 +263,69 @@ TEST_CASE("a record carrying the default-slot sentinel does not declare a colour
 
     const auto obs = declared_from_record(rec, wire);
     CHECK_FALSE(obs.color_rgb.has_value());
+}
+
+TEST_CASE("a record carrying only material observes nothing else", "[lane][ingest]") {
+    // Every other field on FilamentSlotOverride defaults to something that
+    // looks like a value (empty string, 0, -1.0f): an absent field and a
+    // field declared empty/zero must read as two different statements, or
+    // Observation's whole "nullopt means not observed" contract is void.
+    const nlohmann::json wire = {
+        {"lane", "6"},
+        {"material", "PLA"},
+    };
+    const auto rec = record_from(wire);
+    const auto obs = declared_from_record(rec, wire);
+
+    REQUIRE(obs.material.has_value());
+    CHECK(*obs.material == "PLA");
+    CHECK_FALSE(obs.color_rgb.has_value());
+    CHECK_FALSE(obs.color_name.has_value());
+    CHECK_FALSE(obs.brand.has_value());
+    CHECK_FALSE(obs.spool_name.has_value());
+    CHECK_FALSE(obs.catalog_id.has_value());
+    CHECK_FALSE(obs.product_name.has_value());
+    CHECK_FALSE(obs.spoolman_id.has_value());
+    CHECK_FALSE(obs.spoolman_vendor_id.has_value());
+    CHECK_FALSE(obs.remaining_weight_g.has_value());
+    CHECK_FALSE(obs.total_weight_g.has_value());
+}
+
+TEST_CASE("a fully populated record observes every field it carries", "[lane][ingest]") {
+    const nlohmann::json wire = {
+        {"lane", "7"},
+        {"color", "#112233"},
+        {"color_name", "Galaxy Black"},
+        {"material", "ABS"},
+        {"vendor", "Sunlu"},
+        {"spool_name", "Reel 5"},
+        {"helix_catalog_id", "cat-42"},
+        {"helix_product_name", "ABS Marble"},
+        {"spoolman_vendor_id", 3},
+        {"remaining_weight_g", 512.0},
+        {"total_weight_g", 1000.0},
+    };
+    const auto rec = record_from(wire);
+    const auto obs = declared_from_record(rec, wire);
+
+    REQUIRE(obs.color_rgb.has_value());
+    CHECK(*obs.color_rgb == 0x112233u);
+    REQUIRE(obs.color_name.has_value());
+    CHECK(*obs.color_name == "Galaxy Black");
+    REQUIRE(obs.material.has_value());
+    CHECK(*obs.material == "ABS");
+    REQUIRE(obs.brand.has_value());
+    CHECK(*obs.brand == "Sunlu");
+    REQUIRE(obs.spool_name.has_value());
+    CHECK(*obs.spool_name == "Reel 5");
+    REQUIRE(obs.catalog_id.has_value());
+    CHECK(*obs.catalog_id == "cat-42");
+    REQUIRE(obs.product_name.has_value());
+    CHECK(*obs.product_name == "ABS Marble");
+    REQUIRE(obs.spoolman_vendor_id.has_value());
+    CHECK(*obs.spoolman_vendor_id == 3);
+    REQUIRE(obs.remaining_weight_g.has_value());
+    CHECK(*obs.remaining_weight_g == Catch::Approx(512.0f));
+    REQUIRE(obs.total_weight_g.has_value());
+    CHECK(*obs.total_weight_g == Catch::Approx(1000.0f));
 }
