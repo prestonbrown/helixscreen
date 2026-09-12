@@ -44,7 +44,7 @@
         </lv_obj>
         <!-- Nozzle Min / Nozzle Max / Bed Temp / Chamber Temp (four-column row;
              ui_xml/micro/ and ui_xml/micro_portrait/ reflow it to two-by-two) -->
-        <lv_obj width="100%" flex_flow="row" style_pad_all="0" style_pad_gap="#space_lg" scrollable="false">
+        <lv_obj width="100%" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" scrollable="false">
           <!-- Nozzle Min column -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
             <text_body style_pad_bottom="#space_xs" text="Nozzle Min (°C)" translation_tag="Nozzle Min (°C)"/>

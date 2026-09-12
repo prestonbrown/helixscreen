@@ -47,7 +47,7 @@
           <text_small name="edit_defaults_hint" bind_text="material_edit_defaults" style_text_color="#text_muted"/>
         </lv_obj>
         <!-- Nozzle Min / Nozzle Max (first of the two-by-two input rows) -->
-        <lv_obj width="100%" flex_flow="row" style_pad_all="0" style_pad_gap="#space_lg" scrollable="false">
+        <lv_obj width="100%" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" scrollable="false">
           <!-- Nozzle Min column -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
             <text_body style_pad_bottom="#space_xs" text="Nozzle Min (°C)" translation_tag="Nozzle Min (°C)"/>
@@ -61,7 +61,7 @@
         </lv_obj>
         <!-- Bed Temp / Chamber Temp (second row) -->
         <lv_obj width="100%"
-                flex_flow="row" style_pad_all="0" style_pad_top="#space_sm" style_pad_gap="#space_lg" scrollable="false">
+                flex_flow="row" style_pad_all="0" style_pad_top="#space_xs" style_pad_gap="#space_sm" scrollable="false">
           <!-- Bed Temp column -->
           <lv_obj flex_grow="1" flex_flow="column" style_pad_all="0" scrollable="false">
             <text_body style_pad_bottom="#space_xs" text="Bed Temp (°C)" translation_tag="Bed Temp (°C)"/>
