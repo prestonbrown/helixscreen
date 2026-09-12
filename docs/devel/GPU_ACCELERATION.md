@@ -21,6 +21,10 @@ alternatives — each rung builds on the one below.
 |------|--------------|-----------|
 | `lv_draw_sw` into a dumb buffer | CPU rasterizes, kernel scans out | **ships** |
 | `lv_draw_sw` into a GBM/EGL surface | CPU rasterizes, GPU composites and presents | **ships on `pi`**, probe-gated |
+
+The EGL rung's CPU numbers below were first recorded against a build that was
+rendering incorrectly - see "The alpha trap" - so treat any measurement of this
+path as provisional until someone has looked at the panel.
 | `lv_draw_nanovg` | GPU rasterizes widgets | **broken upstream**, see below |
 | `lv_draw_opengles` | GPU rasterizes, different unit | not evaluated |
 
@@ -225,6 +229,45 @@ before upload.
 - **Anything that falls back to the software unit is invisible** on this path:
   `lv_linux_drm_egl.c`'s flush callback ignores `px_map` entirely, so SW output
   is rasterized into a buffer nobody presents.
+
+---
+
+## The alpha trap, and why nothing automated caught it
+
+**LVGL's 32bpp native format is `XRGB8888`, and it leaves the X byte at
+`0x00`.** That byte is don't-care by contract, so LVGL writes `0xFF` there on
+full-word draw paths and leaves it alone otherwise.
+
+The EGL path gives it meaning. `lv_linux_drm_egl.c` uploads the buffer as
+`GL_RGBA`, so X arrives as alpha, and the fragment shader in
+`lv_opengles_shader.c` computes `texColor.rgb * combinedAlpha`. Every pixel LVGL
+did not leave fully opaque is multiplied to black. Measured on a Pi 3B: 4.9% of
+pixels carried `X=0x00`, and the light-blue nav icon read
+`R=58 G=124 B=200 X=0`. On screen that is icons, borders, shading and
+antialiased text rendering black while flat fills look perfect.
+
+`DisplayBackendDRM::create_display` forces `ARGB8888` on the EGL path so LVGL
+maintains the byte. `DisplayBackendFbdev::init` already did the same thing for
+the AD5M, whose LCD controller read that byte as alpha and produced a magenta
+ghost. Same defect, two different consumers. fbdev, DRM dumb buffers and SDL are
+all immune because they ignore the fourth byte of XRGB.
+
+**This is the part worth remembering.** Every automated signal said the broken
+build was healthy:
+
+| Check | What it said |
+|---|---|
+| Process liveness | running, stable |
+| CPU | down 38%, the measured win |
+| `ctl ping` / `ctl current` | responsive |
+| GL errors (`LV_USE_OPENGLES_DEBUG` is 1) | none |
+| `ctl screenshot` | **clean** - `lv_snapshot_take()` re-renders the widget tree and never reads the presented buffer |
+
+The screenshot is the trap: it looks like proof and is not, because the fault is
+downstream of where it samples. The only detector was a person looking at the
+panel. **A visual check is therefore mandatory when changing this rung, not
+advisory** - and to inspect the presented buffer rather than a re-render, dump
+`ctx->texture.fb1` from the flush callback and read the bytes.
 
 ---
 

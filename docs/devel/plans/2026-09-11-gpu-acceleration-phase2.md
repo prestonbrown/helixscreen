@@ -3,9 +3,17 @@
 **Status:** Tasks 1 and 4 done on `feature/gpu-egl-rung` (unpushed). Tasks 2 and
 3 remain. Phase 1 shipped as `aa8d86153`.
 
-Task 1 is verified on hardware. The launcher probes, logs
-`EGL probe: /dev/dri/card1: V3D 7.1.7.0`, selects `helix-screen-egl`, and the app
-reports `GPU-accelerated display active (EGL/OpenGL ES)` on the Pi 5. The probe
+Task 1 is verified on hardware, visually included - which took a second pass.
+The launcher probes, logs `EGL probe: /dev/dri/card1: V3D 7.1.7.0`, selects
+`helix-screen-egl`, and the app reports `GPU-accelerated display active
+(EGL/OpenGL ES)` on the Pi 5.
+
+The first pass called that "verified" on those logs plus a CPU number, and the
+panel was in fact rendering every icon, border and antialiased edge black. The
+cause was LVGL's XRGB8888 padding byte arriving as alpha on the GL upload; see
+`GPU_ACCELERATION.md` § "The alpha trap". Nothing automated caught it, and one
+of the signals - `ctl screenshot` - actively misleads, because `lv_snapshot_take`
+re-renders the widget tree instead of reading the buffer that gets presented. The probe
 picks the scanout node on both owned boards even though their numbering is
 opposite - Pi 5 `card1` (`drm-rp1-dsi`, V3D) and CB1 `card0` (`sun4i-drm`,
 Mali-G31 (Panfrost)) - because it requires a connected connector rather than a
