@@ -102,11 +102,18 @@ reenable_disabled_services() {
                 ;;
             sysv-created)
                 # An init script HelixScreen itself wrote (the K1 Creality
-                # backend, prestonbrown/helixscreen#1468). Stopping and
+                # backend, prestonbrown/helixscreen#1468; the K2 web-server
+                # carve-out, prestonbrown/helixscreen#1617). Stopping and
                 # removing it is the only correct reversal: chmod +x would
                 # leave our script competing with the restored stock one.
+                # An rc.common script must also be disabled, or its rc.d
+                # boot symlinks outlive the script they point at.
                 if [ -f "$target" ]; then
                     log_info "Removing HelixScreen init script: $target"
+                    if [ -x /etc/rc.common ] && \
+                       awk 'NR==1 {exit !/\/etc\/rc\.common/}' "$target" 2>/dev/null; then
+                        $SUDO "$target" disable 2>/dev/null || true
+                    fi
                     $SUDO "$target" stop 2>/dev/null || true
                     $SUDO rm -f "$target"
                 fi
@@ -236,6 +243,9 @@ restore_previous_ui_platform() {
     if [ -z "$restored_ui" ] && [ -f /etc/init.d/app ] && \
        { [ "$platform" = "k2" ] || [ -f /mnt/UDISK/printer_data/config/printer.cfg ]; }; then
         log_info "Re-enabling Creality stock UI (/etc/init.d/app)..."
+        # Drop any web-server the carve-out left running so the stock
+        # instance app start is about to spawn can bind its port.
+        killall web-server 2>/dev/null || true
         $SUDO /etc/init.d/app enable 2>/dev/null || true
         $SUDO /etc/init.d/app start 2>/dev/null || true
         restored_ui="Creality stock UI (/etc/init.d/app)"
