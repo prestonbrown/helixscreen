@@ -142,8 +142,9 @@ AmsBackendHappyHare::~AmsBackendHappyHare() {
 void AmsBackendHappyHare::on_started() {
     // Load the user's attached slot identity before any of the queries below,
     // so the first gate-map frame they provoke already has something to layer.
-    // Outside mutex_ — the DB round-trip blocks and the status subscription is
-    // already live — then publish under it so the parse path reads a whole map.
+    // Outside mutex_, because the DB round-trip blocks and the status
+    // subscription is already live. Publish under it so the parse path reads a
+    // whole map.
     auto loaded = helix::ams::make_loaded_override_store(api_, "happyhare", get_type(),
                                                          backend_log_tag(), OVERRIDE_NAMESPACE);
     {
