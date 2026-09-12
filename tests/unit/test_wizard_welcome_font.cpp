@@ -4,11 +4,13 @@
  * @file test_wizard_welcome_font.cpp
  * @brief The cycling Welcome header renders at display size (prestonbrown/helixscreen#1599).
  *
- * Two contracts:
+ * Three contracts:
  *  1. The ladder: a per-breakpoint face that steps up to 48/64 where the build
  *     links them and never below the heading face at that tier elsewhere.
  *  2. The wiring: the widget built from wizard_language_chooser.xml actually
  *     wears the ladder's face, not the text_heading default.
+ *  3. The restyle: a breakpoint that moves mid-wizard (fold/unfold resize)
+ *     re-resolves the face the header is wearing (#1612).
  *
  * All nine cycling strings draw from the faces themselves — the font subsets
  * embed the wizard's CJK strings — so the ladder must hand back a face that
@@ -21,6 +23,7 @@
 #include "ui_wizard_language_chooser.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/scoped_breakpoint.h"
 #include "theme_manager.h"
 
 #include <lvgl/lvgl.h>
@@ -133,4 +136,31 @@ TEST_CASE_METHOD(WizardLanguageUIFixture, "Welcome header widget wears the displ
     const lv_font_t* got = lv_obj_get_style_text_font(header, LV_PART_MAIN);
     CAPTURE(want, got);
     CHECK(got == want);
+}
+
+TEST_CASE_METHOD(WizardLanguageUIFixture, "Welcome header follows a mid-wizard breakpoint change",
+                 "[wizard][1612][ui][.ui_integration]") {
+    require_ready();
+
+    lv_obj_t* header = lv_obj_find_by_name(wizard_, "welcome_header");
+    REQUIRE(header != nullptr);
+
+    // The fixture display is 800x480, so the header starts at the Medium rung.
+    const lv_font_t* medium_face = lv_obj_get_style_text_font(header, LV_PART_MAIN);
+    REQUIRE(medium_face == helix::wizard_welcome_header_font(UiBreakpoint::Medium));
+
+    // A fold/unfold resize fires theme_manager_refresh_layout_constants(), whose
+    // observable effect on this widget is the ui_breakpoint subject moving. The
+    // face must follow the rung, not keep the create()-time resolution.
+    {
+        helix::test::ScopedBreakpoint micro(UiBreakpoint::Micro);
+        const lv_font_t* micro_face = lv_obj_get_style_text_font(header, LV_PART_MAIN);
+        CAPTURE(medium_face, micro_face);
+        CHECK(micro_face == helix::wizard_welcome_header_font(UiBreakpoint::Micro));
+        CHECK(micro_face != medium_face);
+    }
+
+    // Unfolding back: the face follows the subject up again, so the observer is
+    // not a one-shot.
+    CHECK(lv_obj_get_style_text_font(header, LV_PART_MAIN) == medium_face);
 }

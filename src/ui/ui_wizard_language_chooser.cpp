@@ -89,6 +89,16 @@ const lv_font_t* wizard_welcome_header_font(UiBreakpoint bp) {
 
 } // namespace helix
 
+// The header wears the ladder as a local style resolved at create(); a resize
+// that moves the ui_breakpoint subject mid-wizard must re-resolve it or the
+// header keeps the tier the step was built at (prestonbrown/helixscreen#1612).
+static void welcome_header_font_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    lv_obj_t* header = static_cast<lv_obj_t*>(lv_observer_get_target(observer));
+    lv_obj_set_style_text_font(
+        header, wizard_welcome_header_font(as_breakpoint(lv_subject_get_int(subject))),
+        LV_PART_MAIN);
+}
+
 // ============================================================================
 // Global Instance
 // ============================================================================
@@ -363,6 +373,14 @@ lv_obj_t* WizardLanguageChooserStep::create(lv_obj_t* parent) {
         lv_obj_set_style_text_font(
             header, wizard_welcome_header_font(breakpoint_for(responsive_dimension(nullptr))),
             LV_PART_MAIN);
+
+        // Follow a runtime breakpoint change. The observer is bound to the
+        // header widget, so it unsubscribes itself when the wizard framework
+        // deletes the step content — no cleanup wiring needed.
+        if (lv_subject_t* bp_subject = theme_manager_get_breakpoint_subject()) {
+            lv_subject_add_observer_obj(bp_subject, welcome_header_font_observer_cb, header,
+                                        nullptr);
+        }
     }
 
     // Start the welcome text cycling timer
