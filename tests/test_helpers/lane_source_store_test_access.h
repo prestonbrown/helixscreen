@@ -12,9 +12,7 @@ namespace helix::ams {
 class LaneSourceStoreTestAccess {
   public:
     static void clear() {
-        auto& store = LaneSourceStore::instance();
-        std::lock_guard<std::mutex> lock(store.mutex_);
-        store.lanes_.clear();
+        reset_lane_sources();
     }
 };
 

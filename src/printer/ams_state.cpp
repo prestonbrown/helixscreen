@@ -1084,6 +1084,11 @@ void AmsState::clear_backends() {
     }
     backends_.clear();
 
+    // Registration stamps indices from 0 again, so the next set of backends
+    // takes these blocks of lane ids. A declaration left behind would be
+    // handed to whatever hardware lands on the same block next.
+    helix::ams::reset_lane_sources();
+
     // The runout edge state describes a specific backend's flag history. A new
     // backend's first sample must re-seed rather than read as a transition.
     prev_backend_runout_ = false;

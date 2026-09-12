@@ -71,6 +71,11 @@ LaneSources LaneSourceStore::get(LaneId lane) const {
     return it == lanes_.end() ? LaneSources{} : it->second;
 }
 
+void LaneSourceStore::clear() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    lanes_.clear();
+}
+
 std::vector<LaneId> LaneSourceStore::lanes() const {
     std::lock_guard<std::mutex> lock(mutex_);
     std::vector<LaneId> out;
@@ -117,6 +122,10 @@ LaneSources lane_sources(LaneId lane) {
 
 std::vector<LaneId> known_lanes() {
     return LaneSourceStore::instance().lanes();
+}
+
+void reset_lane_sources() {
+    LaneSourceStore::instance().clear();
 }
 
 } // namespace helix::ams

@@ -97,7 +97,18 @@ void commit_slot_edit(LaneId lane, const Observation& obs);
 /// Every lane that has been written, ascending.
 [[nodiscard]] std::vector<LaneId> known_lanes();
 
-/// Holds one LaneSources per lane for the life of the process.
+/// Forget every lane. Backend registration stamps indices from 0 again after a
+/// teardown, so one printer's block 0 becomes the next printer's, and a record
+/// that outlived the backend it was made through would describe hardware
+/// nobody edited. Called from AmsState::clear_backends().
+///
+/// This drops records for a reconnect to the same printer too. Nothing keys
+/// the store per printer, and re-deriving a record a machine still reports is
+/// cheap where inheriting a stranger's is the failure this store exists to
+/// remove; plan 4 owns the per-printer key if one is wanted.
+void reset_lane_sources();
+
+/// Holds one LaneSources per lane until the backends that wrote them go away.
 ///
 /// write() is private with exactly three friends: ingest(), commit_slot_edit()
 /// and LaneSourceStoreTestAccess. Those three are the only code that can
@@ -108,6 +119,10 @@ class LaneSourceStore {
 
     [[nodiscard]] LaneSources get(LaneId lane) const;
     [[nodiscard]] std::vector<LaneId> lanes() const;
+
+    /// Discard every lane's records. Not a writer - it files nothing, so it
+    /// needs none of the friendship write() is guarded by.
+    void clear();
 
     LaneSourceStore(const LaneSourceStore&) = delete;
     LaneSourceStore& operator=(const LaneSourceStore&) = delete;

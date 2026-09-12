@@ -482,6 +482,25 @@ TEST_CASE("an edit files under the backend it was written through", "[ams][commi
         helix::ams::lane_sources(helix::ams::lane_id_for(second, 0)).local_user.has_value());
 }
 
+TEST_CASE("tearing down the backends clears their lane declarations", "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+
+    SlotInfo original = f.backend->get_slot_info(0);
+    SlotInfo edited = original;
+    edited.color_rgb = 0xBCBCBC;
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, edited).success());
+    REQUIRE(helix::ams::lane_sources(lane_of(0)).local_user.has_value());
+
+    // The next printer's first backend is stamped with this one's index, so a
+    // declaration that outlived the backend it was made through would be read
+    // back as a statement about hardware nobody edited.
+    AmsState::instance().clear_backends();
+
+    CHECK_FALSE(helix::ams::lane_sources(lane_of(0)).local_user.has_value());
+    CHECK(helix::ams::known_lanes().empty());
+}
+
 TEST_CASE("a commit the backend rejects records no declaration", "[ams][commit][lane]") {
     CommitFixture f;
     f.setup(0);
