@@ -37,6 +37,7 @@ LVGL_PATCHED_FILES := \
 	src/draw/sw/lv_draw_sw_letter.c \
 	src/draw/sw/lv_draw_sw_img.c \
 	src/draw/sw/lv_draw_sw_blur.c \
+	src/draw/nanovg/lv_draw_nanovg_label.c \
 	src/drivers/display/drm/lv_linux_drm.c \
 	src/drivers/display/drm/lv_linux_drm.h \
 	src/drivers/display/drm/lv_linux_drm_egl.c \
