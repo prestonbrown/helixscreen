@@ -16,6 +16,7 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
+#include "lane_source_store.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "post_op_cooldown_manager.h"
 #include "print_lifecycle_state.h"
@@ -1199,6 +1200,31 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
     // the color detector, so a non-locked override's baked material would go
     // stale and mask firmware truth (#981/#1065 — color updated, type stuck).
     check_external_type_change(slot_index, materials_[idx], observed_color, port_presence_[idx]);
+
+    // Translate this frame's signal into the lane source model. Everything read
+    // here is a value this call just parsed, never entry->info: apply_overrides
+    // rewrites that struct in place, so from the second frame on it carries the
+    // override store's content rather than the board's.
+    {
+        helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
+        // port_presence_ reads false on every lane until a sensor has actually
+        // spoken, which is a sensor nobody has queried rather than an empty
+        // lane. The record is filed either way: "nothing observed" and "no
+        // translation ran" are different facts.
+        if (ifs_status_ports_seen_.load() || has_per_port_sensors_) {
+            sensed.present = port_presence_[idx];
+        }
+        helix::ams::ingest(lane_id(slot_index), sensed);
+
+        // Adventurer5M.json keeps colour and type across an eject, so it is a
+        // cache of a past declaration and never evidence of presence.
+        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+        cache.color_rgb = observed_color;
+        if (!materials_[idx].empty()) {
+            cache.material = materials_[idx];
+        }
+        helix::ams::ingest(lane_id(slot_index), cache);
+    }
 
     // Layer user-configured overrides on top of firmware-reported data. Called
     // last so overrides win for any non-default field. Callers hold mutex_,

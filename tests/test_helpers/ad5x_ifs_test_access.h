@@ -178,6 +178,12 @@ class Ad5xIfsTestAccess {
     static bool ifs_status_ports_seen(const AmsBackendAd5xIfs& b) {
         return b.ifs_status_ports_seen_.load();
     }
+    // Latch the same flag a parsed "Ports" line latches, so a test can express
+    // "the silk sensors have spoken" without replaying an IFS_STATUS frame.
+    // Drives no parse of its own: pair it with one of the seeders below.
+    static void set_ifs_status_ports_seen(AmsBackendAd5xIfs& b, bool seen) {
+        b.ifs_status_ports_seen_.store(seen);
+    }
     static size_t external_sync_count(const AmsBackendAd5xIfs& b) {
         std::lock_guard<std::mutex> lock(b.mutex_);
         return b.external_sync_count_;
