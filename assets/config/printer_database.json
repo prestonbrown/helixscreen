@@ -2689,6 +2689,12 @@
       },
       "heuristics": [
         {
+          "type": "kinematics_exclude",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "reason": "Centauri Carbon is CoreXY; the Elegoo cartesians are not it"
+        },
+        {
           "type": "kinematics_match",
           "field": "kinematics",
           "pattern": "corexy",
@@ -2708,16 +2714,31 @@
         {
           "type": "object_exists",
           "field": "printer_objects",
-          "pattern": "lis2dw",
-          "confidence": 70,
-          "reason": "LIS2DW accelerometer (CC1 toolhead input shaper)"
-        },
-        {
-          "type": "object_exists",
-          "field": "printer_objects",
           "pattern": "load_cell_probe",
           "confidence": 70,
           "reason": "Strain-gauge load cell probe"
+        },
+        {
+          "type": "macro_match",
+          "field": "macros",
+          "pattern": "_COSMOS_SETTINGS",
+          "confidence": 90,
+          "reason": "COSMOS firmware settings macro (OpenCentauri)"
+        },
+        {
+          "type": "macro_match",
+          "field": "macros",
+          "pattern": "ELEGOO_PURGE",
+          "confidence": 85,
+          "reason": "ELEGOO_PURGE purge macro (Elegoo stock firmware)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "cosmos",
+          "confidence": 85,
+          "reason": "Hostname is the COSMOS image default (shared across the Centauri range)",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -3201,14 +3222,16 @@
           "field": "macros",
           "pattern": "M141",
           "confidence": 75,
-          "reason": "M141 chamber heater macro (QIDI signature)"
+          "reason": "M141 chamber heater macro (QIDI stock firmware, not exclusive)",
+          "corroborating": true
         },
         {
           "type": "macro_match",
           "field": "macros",
           "pattern": "M191",
           "confidence": 80,
-          "reason": "M191 chamber temp wait macro (QIDI signature)"
+          "reason": "M191 chamber temp wait macro (QIDI stock firmware, not exclusive)",
+          "corroborating": true
         },
         {
           "type": "macro_match",
@@ -3291,14 +3314,16 @@
           "field": "macros",
           "pattern": "M141",
           "confidence": 75,
-          "reason": "M141 chamber heater macro (QIDI signature)"
+          "reason": "M141 chamber heater macro (QIDI stock firmware, not exclusive)",
+          "corroborating": true
         },
         {
           "type": "macro_match",
           "field": "macros",
           "pattern": "M191",
           "confidence": 80,
-          "reason": "M191 chamber temp wait macro (QIDI signature)"
+          "reason": "M191 chamber temp wait macro (QIDI stock firmware, not exclusive)",
+          "corroborating": true
         },
         {
           "type": "macro_match",
@@ -3390,14 +3415,16 @@
           "field": "macros",
           "pattern": "M141",
           "confidence": 75,
-          "reason": "M141 chamber heater macro (QIDI signature)"
+          "reason": "M141 chamber heater macro (QIDI stock firmware, not exclusive)",
+          "corroborating": true
         },
         {
           "type": "macro_match",
           "field": "macros",
           "pattern": "M191",
           "confidence": 80,
-          "reason": "M191 chamber temp wait macro (QIDI signature)"
+          "reason": "M191 chamber temp wait macro (QIDI stock firmware, not exclusive)",
+          "corroborating": true
         },
         {
           "type": "macro_match",
@@ -3465,14 +3492,16 @@
           "field": "macros",
           "pattern": "M141",
           "confidence": 75,
-          "reason": "M141 chamber heater macro (QIDI signature)"
+          "reason": "M141 chamber heater macro (QIDI stock firmware, not exclusive)",
+          "corroborating": true
         },
         {
           "type": "macro_match",
           "field": "macros",
           "pattern": "M191",
           "confidence": 80,
-          "reason": "M191 chamber temp wait macro (QIDI signature)"
+          "reason": "M191 chamber temp wait macro (QIDI stock firmware, not exclusive)",
+          "corroborating": true
         },
         {
           "type": "macro_match",
@@ -3696,8 +3725,8 @@
           "type": "object_exists",
           "field": "printer_objects",
           "pattern": "heater_generic chamber",
-          "confidence": 75,
-          "reason": "Active chamber heater (Qidi signature)"
+          "confidence": 80,
+          "reason": "Active chamber heater (Qidi enclosed range)"
         },
         {
           "type": "build_volume_range",
@@ -3728,14 +3757,16 @@
           "field": "macros",
           "pattern": "M141",
           "confidence": 75,
-          "reason": "M141 chamber heater macro (QIDI signature)"
+          "reason": "M141 chamber heater macro (QIDI stock firmware, not exclusive)",
+          "corroborating": true
         },
         {
           "type": "macro_match",
           "field": "macros",
           "pattern": "M191",
           "confidence": 80,
-          "reason": "M191 chamber temp wait macro (QIDI signature)"
+          "reason": "M191 chamber temp wait macro (QIDI stock firmware, not exclusive)",
+          "corroborating": true
         },
         {
           "type": "macro_match",
