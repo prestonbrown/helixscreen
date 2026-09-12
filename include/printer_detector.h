@@ -44,6 +44,8 @@ struct PrinterDetectionResult {
     /// two strong candidates into an apparent tie, so margin() is measured on
     /// these. Zero on a result assembled by hand rather than returned by
     /// detect(), where the published confidence is the only score there is.
+    /// A separator volume's weight lands here and nowhere else: it is
+    /// separation between family siblings, not confidence in the family.
     int uncapped_confidence = 0;
     int runner_up_uncapped_confidence = 0;
 
