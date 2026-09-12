@@ -759,7 +759,7 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
         std::lock_guard<std::mutex> lock(mutex_);
         auto* slot = system_info_.units[0].get_slot(slot_index);
         if (!slot)
-            return AmsErrorHelper::invalid_slot(slot_index, NUM_TOOLS - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_TOOLS - 1);
 
         // Update the in-memory slot directly. Covers every SlotInfo field the
         // caller may set — a persist=false preview must not silently drop
@@ -1944,7 +1944,7 @@ void AmsBackendSnapmaker::clear_slot_override(int slot_index) {
 
 AmsError AmsBackendSnapmaker::validate_slot_index(int slot_index) const {
     if (slot_index < 0 || slot_index >= NUM_TOOLS) {
-        return AmsErrorHelper::invalid_slot(slot_index, NUM_TOOLS - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_TOOLS - 1);
     }
     return AmsErrorHelper::success();
 }

@@ -665,12 +665,13 @@ AmsError AmsBackendMock::load_filament(int slot_index) {
         }
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         const auto* entry = slots_.get(slot_index);
         if (!entry || entry->info.status == SlotStatus::EMPTY) {
-            return AmsErrorHelper::slot_not_available(slot_index);
+            return AmsErrorHelper::slot_not_available(lane_noun_locked(), slot_index);
         }
 
         // Start loading. Status string is 1-based to match the slot numbering
@@ -731,7 +732,8 @@ AmsError AmsBackendMock::select_slot(int slot_index) {
         }
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         // Immediate selection (no filament movement)
@@ -908,12 +910,14 @@ AmsError AmsBackendMock::clear_fault(int slot_index) {
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         auto* entry = slots_.get_mut(slot_index);
         if (!entry) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         // Clear error state and return slot to normal
@@ -934,7 +938,8 @@ AmsError AmsBackendMock::select_gate(int slot_index) {
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         spdlog::info("[AMS Mock] Executing G-code: MMU_SELECT GATE={}", slot_index);
@@ -981,7 +986,8 @@ AmsError AmsBackendMock::check_gate(int slot_index) {
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         spdlog::info("[AMS Mock] Executing G-code: MMU_CHECK_GATE GATE={}", slot_index);
@@ -1011,12 +1017,14 @@ AmsError AmsBackendMock::set_slot_info(int slot_index, const SlotInfo& info, boo
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         auto* entry = slots_.get_mut(slot_index);
         if (!entry) {
-            return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
         }
 
         int old_mapped_tool = entry->info.mapped_tool;
@@ -1082,7 +1090,8 @@ AmsError AmsBackendMock::set_tool_mapping_impl(int tool_number, int slot_index) 
     }
 
     if (!slots_.is_valid_index(slot_index)) {
-        return AmsErrorHelper::invalid_slot(slot_index, slots_.slot_count() - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                            slots_.slot_count() - 1);
     }
 
     // Get current tool map and grow it if needed so the new tool index fits.

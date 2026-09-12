@@ -1823,7 +1823,7 @@ PathSegment AmsBackendAd5xIfs::infer_error_segment() const {
 
 AmsError AmsBackendAd5xIfs::do_load_filament(int slot_index) {
     if (!validate_slot_index(slot_index)) {
-        return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_PORTS - 1);
     }
 
     int port = slot_index + 1;
@@ -2114,7 +2114,7 @@ void AmsBackendAd5xIfs::finalize_op_after_macro(bool is_unload) {
 
 AmsError AmsBackendAd5xIfs::do_select_slot(int slot_index) {
     if (!validate_slot_index(slot_index)) {
-        return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_PORTS - 1);
     }
 
     // Standalone module: it has no point-without-load command — selection IS a
@@ -2209,7 +2209,7 @@ AmsError AmsBackendAd5xIfs::eject_lane(int slot_index) {
         note_filament_op_dispatch_locked();
 
         if (!validate_slot_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_PORTS - 1);
         }
 
         // Refuse to cold-eject the lane currently seated at the toolhead: the
@@ -2656,7 +2656,7 @@ std::vector<std::pair<std::string, std::string>> AmsBackendAd5xIfs::get_material
 
 AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, bool persist) {
     if (!validate_slot_index(slot_index)) {
-        return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_PORTS - 1);
     }
 
     auto idx = static_cast<size_t>(slot_index);
@@ -2672,7 +2672,7 @@ AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, 
         // Update local state
         auto* entry = slots_.get_mut(slot_index);
         if (!entry) {
-            return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_PORTS - 1);
         }
 
         // Mark slot dirty to prevent parse_save_variables from overwriting our edit
@@ -3044,7 +3044,7 @@ AmsError AmsBackendAd5xIfs::set_tool_mapping_impl(int tool_number, int slot_inde
     // contracts are detected (parse_ifs_tool_map_locked logs that case).
     if (wire_backed) {
         if (slot_index < 0 || slot_index >= NUM_PORTS) {
-            return AmsErrorHelper::invalid_slot(slot_index, NUM_PORTS - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_PORTS - 1);
         }
         std::string verb = "IFS_MAP_TOOL TOOL=" + std::to_string(tool_number) + " SLOT=";
         verb += std::to_string(slot_index + 1); // DISPLAY_NUMBERING_OK: gcode wire, not a label

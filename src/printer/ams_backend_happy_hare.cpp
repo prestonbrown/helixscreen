@@ -2221,7 +2221,7 @@ void AmsBackendHappyHare::reapply_overrides() {
 
 AmsError AmsBackendHappyHare::validate_slot_index(int gate_index) const {
     if (!slots_.is_valid_index(gate_index)) {
-        return AmsErrorHelper::invalid_slot(gate_index,
+        return AmsErrorHelper::invalid_slot(lane_noun(), gate_index,
                                             slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
     }
     return AmsErrorHelper::success();
@@ -2241,7 +2241,7 @@ AmsError AmsBackendHappyHare::do_load_filament(int slot_index) {
         // Check if slot has filament available
         const auto* entry = slots_.get(slot_index);
         if (entry && entry->info.status == SlotStatus::EMPTY) {
-            return AmsErrorHelper::slot_not_available(slot_index);
+            return AmsErrorHelper::slot_not_available(lane_noun(), slot_index);
         }
     }
 
@@ -2616,13 +2616,13 @@ AmsError AmsBackendHappyHare::set_slot_info(int slot_index, const SlotInfo& info
 
         if (!slots_.is_valid_index(slot_index)) {
             return AmsErrorHelper::invalid_slot(
-                slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
+                lane_noun(), slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
         }
 
         auto* entry = slots_.get_mut(slot_index);
         if (!entry) {
             return AmsErrorHelper::invalid_slot(
-                slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
+                lane_noun(), slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
         }
 
         auto& slot = entry->info;
@@ -2776,7 +2776,7 @@ AmsError AmsBackendHappyHare::set_tool_mapping_impl(int tool_number, int slot_in
 
         if (!slots_.is_valid_index(slot_index)) {
             return AmsErrorHelper::invalid_slot(
-                slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
+                lane_noun(), slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
         }
 
         // Check if another tool already maps to this slot

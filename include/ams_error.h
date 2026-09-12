@@ -248,6 +248,18 @@ struct AmsError {
 class AmsErrorHelper {
   public:
     /**
+     * @brief The position a user sees, in the backend's own word.
+     *
+     * 1-based, because this is a toast and not a log line. An index that is not
+     * a position at all still names its raw value, so a sentinel reaching here
+     * says what was asked for instead of leaving a gap in the sentence.
+     */
+    static std::string position_label(ui::LaneNoun noun, int slot) {
+        const std::string label = ui::lane_label(noun, slot);
+        return label.empty() ? ui::noun_text(noun) + " " + std::to_string(slot) : label;
+    }
+
+    /**
      * @brief Create a success result
      * @return AmsError with SUCCESS result
      */
@@ -367,14 +379,15 @@ class AmsErrorHelper {
 
     /**
      * @brief Create a slot blocked error
+     * @param noun The backend's word for one position
      * @param slot Slot index that is blocked
      * @return AmsError configured for UI display
      */
-    static AmsError slot_blocked(int slot) {
+    static AmsError slot_blocked(ui::LaneNoun noun, int slot) {
         return AmsError(AmsResult::SLOT_BLOCKED,
                         "Slot " + std::to_string(slot) + " is blocked or inaccessible",
-                        "Slot " + std::to_string(slot) + " blocked",
-                        "Check the slot for obstructions or misaligned filament", slot);
+                        position_label(noun, slot) + " blocked",
+                        "Check for obstructions or misaligned filament", slot);
     }
 
     /**
@@ -394,13 +407,14 @@ class AmsErrorHelper {
 
     /**
      * @brief Create a load failed error
+     * @param noun The backend's word for one position
      * @param slot Slot that failed to load
      * @param detail Technical detail about the failure
      * @return AmsError configured for UI display
      */
-    static AmsError load_failed(int slot, const std::string& detail = "") {
+    static AmsError load_failed(ui::LaneNoun noun, int slot, const std::string& detail = "") {
         return AmsError(AmsResult::LOAD_FAILED, detail.empty() ? "Load operation failed" : detail,
-                        "Failed to load filament from slot " + std::to_string(slot),
+                        "Failed to load filament from " + position_label(noun, slot),
                         "Check filament path and try again", slot);
     }
 
@@ -418,28 +432,34 @@ class AmsErrorHelper {
 
     /**
      * @brief Create a slot not available error
+     * @param noun The backend's word for one position
      * @param slot Slot index that has no filament
      * @return AmsError configured for UI display
      */
-    static AmsError slot_not_available(int slot) {
+    static AmsError slot_not_available(ui::LaneNoun noun, int slot) {
         return AmsError(AmsResult::SLOT_NOT_AVAILABLE,
                         "Slot " + std::to_string(slot) + " has no filament loaded",
-                        "Slot " + std::to_string(slot) + " is empty",
-                        "Load filament into the slot before selecting it", slot);
+                        position_label(noun, slot) + " is empty",
+                        "Load filament before selecting it", slot);
     }
 
     /**
      * @brief Create an invalid slot error
+     * @param noun The backend's word for one position
      * @param slot Invalid slot index
-     * @param max_slot Maximum valid slot index
+     * @param max_slot Maximum valid slot index, 0-based
      * @return AmsError configured for UI display
      */
-    static AmsError invalid_slot(int slot, int max_slot) {
+    static AmsError invalid_slot(ui::LaneNoun noun, int slot, int max_slot) {
+        // A backend reporting no positions at all has no range to offer.
+        const int highest = ui::lane_number(max_slot);
+        const std::string suggestion = highest > 0
+                                           ? "Choose one between 1 and " + std::to_string(highest)
+                                           : "Wait for the filament system to report its positions";
         return AmsError(AmsResult::INVALID_SLOT,
                         "Slot " + std::to_string(slot) + " out of range (0-" +
                             std::to_string(max_slot) + ")",
-                        "Invalid slot number",
-                        "Select a valid slot (0-" + std::to_string(max_slot) + ")", slot);
+                        position_label(noun, slot) + " does not exist", suggestion, slot);
     }
 
     /**

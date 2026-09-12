@@ -543,7 +543,15 @@ class AmsBackendMock : public AmsBackend {
      * base class's Slot default.
      */
     [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
-        switch (get_type()) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return lane_noun_locked();
+    }
+
+    /// The same answer for a caller that already holds mutex_. Every operation
+    /// here resolves the noun while reporting a bad index, and mutex_ is not
+    /// recursive, so the locking accessor above would deadlock there.
+    [[nodiscard]] helix::ui::LaneNoun lane_noun_locked() const {
+        switch (system_info_.type) {
         case AmsType::AFC:
             return helix::ui::LaneNoun::Lane;
         case AmsType::HAPPY_HARE:

@@ -4558,7 +4558,7 @@ void AmsBackendAfc::reorganize_slots() {
 
 AmsError AmsBackendAfc::validate_slot_index(int slot_index) const {
     if (slot_index < 0 || slot_index >= system_info_.total_slots) {
-        return AmsErrorHelper::invalid_slot(slot_index, system_info_.total_slots - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, system_info_.total_slots - 1);
     }
     return AmsErrorHelper::success();
 }
@@ -4613,12 +4613,13 @@ AmsError AmsBackendAfc::do_load_filament(int slot_index) {
         // Check if lane has filament available
         const auto* entry = slots_.get(slot_index);
         if (entry && entry->info.status == SlotStatus::EMPTY) {
-            return AmsErrorHelper::slot_not_available(slot_index);
+            return AmsErrorHelper::slot_not_available(lane_noun(), slot_index);
         }
 
         lane_name = slots_.name_of(slot_index);
         if (lane_name.empty()) {
-            return AmsErrorHelper::invalid_slot(slot_index, system_info_.total_slots - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
+                                                system_info_.total_slots - 1);
         }
     }
 
@@ -4699,7 +4700,8 @@ AmsError AmsBackendAfc::do_select_slot(int slot_index) {
 
         lane_name = slots_.name_of(slot_index);
         if (lane_name.empty()) {
-            return AmsErrorHelper::invalid_slot(slot_index, system_info_.total_slots - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
+                                                system_info_.total_slots - 1);
         }
     }
 
@@ -5144,7 +5146,7 @@ AmsError AmsBackendAfc::recover_lane_position(int slot_index) {
         lane_name = slots_.name_of(slot_index);
         if (lane_name.empty()) {
             return AmsErrorHelper::invalid_slot(
-                slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
+                lane_noun(), slot_index, slots_.slot_count() > 0 ? slots_.slot_count() - 1 : 0);
         }
     }
 
@@ -5191,7 +5193,8 @@ AmsError AmsBackendAfc::eject_lane(int slot_index) {
 
         lane_name = slots_.name_of(slot_index);
         if (lane_name.empty()) {
-            return AmsErrorHelper::invalid_slot(slot_index, system_info_.total_slots - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
+                                                system_info_.total_slots - 1);
         }
     }
 
@@ -5322,7 +5325,8 @@ AmsError AmsBackendAfc::set_slot_info(int slot_index, const SlotInfo& info, bool
 
         auto* entry = slots_.get_mut(slot_index);
         if (!entry) {
-            return AmsErrorHelper::invalid_slot(slot_index, system_info_.total_slots - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
+                                                system_info_.total_slots - 1);
         }
         auto& slot = entry->info;
 
@@ -5480,7 +5484,8 @@ AmsError AmsBackendAfc::set_tool_mapping_impl(int tool_number, int slot_index) {
         }
 
         if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(slot_index, system_info_.total_slots - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
+                                                system_info_.total_slots - 1);
         }
 
         // Update registry tool mapping (handles clearing old mappings internally)

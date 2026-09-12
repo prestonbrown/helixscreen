@@ -1836,7 +1836,7 @@ AmsError AmsBackendCfs::do_load_filament(int slot_index) {
     }
 
     if (gcode.empty()) {
-        return AmsErrorHelper::invalid_slot(slot_index, 15);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, 15);
     }
 
     // Declaring bypass stood the box down with BOX_ENABLE_CFS_PRINT ENABLE=0,
@@ -1943,7 +1943,7 @@ AmsError AmsBackendCfs::do_change_tool(int tool) {
     std::string gcode =
         needs_unload ? swap_gcode(tool, macro_variant_) : load_gcode(tool, macro_variant_);
     if (gcode.empty()) {
-        return AmsErrorHelper::invalid_slot(tool, 15);
+        return AmsErrorHelper::invalid_slot(lane_noun(), tool, 15);
     }
 
     {
@@ -1998,7 +1998,8 @@ AmsError AmsBackendCfs::set_slot_info(int slot_index, const SlotInfo& info, bool
         }
 
         if (!target) {
-            return AmsErrorHelper::invalid_slot(slot_index, system_info_.total_slots - 1);
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
+                                                system_info_.total_slots - 1);
         }
 
         // Firmware's last reported id for this bay, captured BEFORE the
@@ -2355,7 +2356,7 @@ AmsError AmsBackendCfs::set_tool_mapping_impl(int tool_number, int slot_index) {
         return AmsErrorHelper::tool_out_of_range(tool_number);
     }
     if (slot_index < 0 || slot_index >= CFS_MAX_SLOTS) {
-        return AmsErrorHelper::invalid_slot(slot_index, CFS_MAX_SLOTS - 1);
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, CFS_MAX_SLOTS - 1);
     }
 
     std::string tool_tnn = CfsMaterialDb::slot_to_tnn(tool_number);
