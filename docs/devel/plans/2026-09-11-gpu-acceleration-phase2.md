@@ -135,7 +135,43 @@ means deploying a dev build to the AFC rig.
 
 ## Task 3 — rotation and touch ownership
 
-Two coupled problems. Neither has moved since Phase 1.
+Two coupled problems. Step one of the second is done; the rest has not moved
+since Phase 1.
+
+### Step 1 - an applied-rotation source that is not LVGL's  ✅ done (2026-09-12)
+
+`DisplayBackend::applied_rotation_degrees()` is now the answer to "what angle is
+the picture presented at", and `display_rotation_degrees()` asks the live backend
+instead of reading `lv_display_get_rotation()` itself. The default implementation
+returns exactly what LVGL returns, so every board behaves as it did. What changed
+is that a backend handing the angle to a scanout plane has one place to say so,
+rather than five readers inferring it from LVGL.
+
+`DisplayBackend` tracks the live instance in its own constructor and destructor,
+so the DRM→fbdev swap and `create_auto()`'s discarded candidates stay correct
+with nothing to remember at the seven `m_backend` assignment sites.
+
+`DisplayManager::is_software_rotated()` was a fifth reader calling
+`lv_display_get_rotation()` directly, outside what
+`scripts/check_touch_rotation_source.py` guards. It asks its own backend now.
+
+`tests/unit/test_display_rotation_source.cpp` pins the seam: a backend reporting
+an angle LVGL is not reporting wins; the answer disappears with the backend
+rather than lingering as a cached value; and a backend overriding nothing answers
+exactly as LVGL does. Deleting the delegation turns two of the three red.
+
+**Not done, and the order still matters:** nothing rotates touch yet.
+`plane_may_own_rotation()` still returns false and must stay false until a
+backend that overrides `applied_rotation_degrees()` also transforms pointer
+coordinates. The seam makes that change land in one place; it does not make it.
+
+**An alternative worth knowing about:** LVGL has
+`lv_display_set_matrix_rotation()`, which rotates through the draw matrix instead
+of a post-render software pass, and would keep `lv_display_get_rotation()` honest
+without a plane at all. It is gated on `LV_DRAW_TRANSFORM_USE_MATRIX`, which the
+preprocessor resolves to **0** in this tree, so it is unavailable today. On the
+EGL rung that matrix would cost close to nothing. Enabling it is its own change,
+with its own risk, and it has not been measured.
 
 **Ownership only half-moved.** `DisplayManager` still calls
 `lv_display_set_rotation()` itself *and* calls the backend, which may clear it —

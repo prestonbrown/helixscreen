@@ -1388,7 +1388,7 @@ bool DisplayManager::has_dimming_control() const {
 
 bool DisplayManager::is_software_rotated() const {
     return m_display && m_backend && m_backend->type() == DisplayBackendType::FBDEV &&
-           lv_display_get_rotation(m_display) != LV_DISPLAY_ROTATION_0;
+           m_backend->applied_rotation_degrees(m_display) != 0;
 }
 
 // ============================================================================
