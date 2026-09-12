@@ -6024,6 +6024,35 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
         REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
     }
 
+    SECTION("Conflicting hostname and bed keep the winner and force no autosave") {
+        // The hostname names the Plus while the bed names the Pro: each model
+        // holds one separator-grade fact, and they point at different machines.
+        // The published confidence still decides the winner (the k2plus
+        // hostname outbases the Pro's plain k2), while the separator lands
+        // only in the Pro's uncapped score where margin() reads it — so the
+        // result reports the conflict instead of flipping the winner or
+        // persisting a guess over either reading.
+        helix::PrinterDiscovery disc = make_discovery();
+        disc.set_hostname("creality-k2plus");
+        parse_bed(disc, 300.0);
+
+        auto result = PrinterDetector::auto_detect(disc);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.detected());
+        REQUIRE(result.type_name == "Creality K2 Plus");
+        REQUIRE(result.confidence == 100);
+        REQUIRE(result.runner_up_type_name == "Creality K2 Pro");
+        // Winner uncapped: 90 (k2plus) + 12 bonus, no separator of its own.
+        // Runner-up: 85 (plain k2) + 12 + the 55-point separator the 300mm
+        // bed matched = 152.
+        REQUIRE(result.uncapped_confidence == 102);
+        REQUIRE(result.runner_up_uncapped_confidence == 152);
+        REQUIRE(result.margin() == -50);
+        REQUIRE(result.ambiguous());
+        REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+    }
+
     SECTION("A bed below the identification bar separates nothing") {
         // The separator fires only once the non-volume evidence alone clears
         // the autosave bar. On a host that names no family and reports only one
