@@ -2392,6 +2392,77 @@ TEST_CASE("AD5X IFS dirty flag protects against both parse paths", "[ams][ad5x_i
 // (apply_zcolor_result) — the RS-485 silk sensor — and the JSON parse must not
 // touch port_presence_. It still refreshes colors_/materials_ for clean slots.
 
+// set_slot_info carries filament IDENTITY. On native ZMOD the RS-485 silk
+// sensors (IFS_STATUS "Ports") own presence, and identity metadata survives an
+// eject by design (#1071), so inferring presence from "this lane has a colour
+// and a material" resurrects a lane the sensors just reported empty. The
+// inference is a fallback for devices with no silk reading at all, so it must
+// stand down once IFS_STATUS Ports has been parsed.
+TEST_CASE("AD5X IFS set_slot_info does not own presence once IFS_STATUS Ports has spoken",
+          "[ams][ad5x_ifs]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+
+    // Native ZMOD: no lessWaste/bambufy per-port sensor exporter.
+    REQUIRE_FALSE(Ad5xIfsTestAccess::has_per_port_sensors(backend));
+
+    // The silk sensors report every lane empty. That parse latches them as the
+    // presence authority for the life of the backend. Ports rides the same
+    // IFS_STATUS frame as Chan, so a frame carrying Ports always carries Chan
+    // too; 0 is "nothing engaged", which is what an all-empty carousel reports.
+    AmsBackendAd5xIfs::ZColorSilentResult r;
+    r.saw_valid_response = true;
+    r.ifs_chan = 0;
+    r.ifs_ports = std::array<bool, 4>{false, false, false, false};
+    Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
+
+    REQUIRE(Ad5xIfsTestAccess::ifs_status_ports_seen(backend));
+    for (int i = 0; i < 4; ++i) {
+        REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, i));
+    }
+
+    SECTION("a weight-only refresh leaves the emptied lane empty") {
+        // The shape SpoolmanManager's weight poll produces: read the lane back,
+        // change only the weights, write the whole struct. The identity it reads
+        // back is the one #1071 deliberately retains across the eject.
+        SlotInfo slot = backend.get_slot_info(0);
+        slot.material = "PETG";
+        slot.color_rgb = 0xED2C2C;
+        slot.spoolman_id = 7;
+        slot.remaining_weight_g = 218.0f;
+        slot.total_weight_g = 1000.0f;
+
+        backend.set_slot_info(0, slot, /*persist=*/false);
+
+        REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 0));
+        REQUIRE(backend.get_slot_info(0).status == SlotStatus::EMPTY);
+    }
+
+    SECTION("a user identity edit also leaves presence to the sensors") {
+        SlotInfo slot = backend.get_slot_info(1);
+        slot.material = "PLA";
+        slot.color_rgb = 0x8000FF;
+
+        backend.set_slot_info(1, slot, /*persist=*/true);
+
+        REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 1));
+        REQUIRE(backend.get_slot_info(1).status == SlotStatus::EMPTY);
+    }
+
+    SECTION("every other lane is left alone too") {
+        // The reporter's bundle shows one poll resurrecting all four lanes at
+        // once, because the poll visits every Spoolman-linked lane in turn.
+        for (int i = 0; i < 4; ++i) {
+            SlotInfo slot = backend.get_slot_info(i);
+            slot.material = "PETG";
+            slot.color_rgb = 0x010462;
+            backend.set_slot_info(i, slot, /*persist=*/false);
+        }
+        for (int i = 0; i < 4; ++i) {
+            REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, i));
+        }
+    }
+}
+
 TEST_CASE("AD5X IFS parse_adventurer_json does not own presence on native ZMOD",
           "[ams][ad5x_ifs]") {
     AmsBackendAd5xIfs backend(nullptr, nullptr);
@@ -8332,6 +8403,42 @@ TEST_CASE("AD5X IFS echoed CHANGE_ZCOLOR menu buttons are offers, not edits "
     CHECK(Ad5xIfsTestAccess::last_firmware_material(backend, 0).value_or("") == "SILK");
     // And nothing was fabricated on a slot the user never committed a change to.
     CHECK_FALSE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
+}
+
+TEST_CASE("AD5X IFS counts menu renders apart from external colour edits",
+          "[ams][ad5x_ifs][1065]") {
+    // Both burst counters feed one consolidated log line, and that line is
+    // often the only account of what a printer did. Folding menu renders into
+    // the edit count reports a colour change nobody made: a reader chasing a
+    // filament-identity report sees "24 external colour changes" from a dialog
+    // whose options were never picked.
+    TestableAd5xIfsBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
+    Ad5xIfsTestAccess::set_color(backend, 0, "F330F9");
+    Ad5xIfsTestAccess::set_material(backend, 0, "SILK");
+
+    REQUIRE(Ad5xIfsTestAccess::external_change_burst_count(backend) == 0);
+    REQUIRE(Ad5xIfsTestAccess::menu_render_burst_count(backend) == 0);
+
+    SECTION("echoed menu buttons count as renders, never as edits") {
+        for (const char* hex : {"ffffff", "fef043", "75d9f3", "161616"}) {
+            Ad5xIfsTestAccess::on_gcode_response_line(
+                backend,
+                std::string("// action:prompt_button _ |CHANGE_ZCOLOR SLOT=1 TYPE=SILK HEX=") +
+                    hex + "|primary|" + hex);
+        }
+        CHECK(Ad5xIfsTestAccess::menu_render_burst_count(backend) == 4);
+        CHECK(Ad5xIfsTestAccess::external_change_burst_count(backend) == 0);
+    }
+
+    SECTION("a bare CHANGE_ZCOLOR counts as an edit, never as a render") {
+        Ad5xIfsTestAccess::on_gcode_response_line(backend,
+                                                  "// CHANGE_ZCOLOR SLOT=1 TYPE=PETG HEX=BCBCBC");
+        CHECK(Ad5xIfsTestAccess::external_change_burst_count(backend) == 1);
+        CHECK(Ad5xIfsTestAccess::menu_render_burst_count(backend) == 0);
+    }
 }
 
 TEST_CASE("AD5X IFS COLOR-menu slot row is a firmware snapshot (#1065 bundle 482NB943)",

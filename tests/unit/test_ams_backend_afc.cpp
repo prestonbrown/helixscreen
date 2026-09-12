@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
-#include "test_helpers/afc_test_access.h"
 #include "ams_backend_afc.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -11,6 +10,7 @@
 #include "filament_op_router.h"
 #include "moonraker_api.h"
 #include "settings_manager.h"
+#include "test_helpers/afc_test_access.h"
 #include "test_helpers/scoped_home_confirm_prompter.h"
 
 #include <algorithm>
@@ -6357,6 +6357,54 @@ TEST_CASE("AFC clear_slot_override drops the retained identity", "[ams][afc][ove
     const SlotInfo after = helper.get_slot_info(0);
     CHECK(after.brand.empty());
     CHECK(after.spoolman_id == 0);
+}
+
+TEST_CASE("AFC persist_override records a deliberate pure black", "[ams][afc][override]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.initialize_slots_from_discovery();
+
+    SlotInfo info;
+    info.material = "PLA";
+    info.color_rgb = 0x000000;
+    helper.set_slot_info(0, info);
+
+    const auto& ovr = AfcTestAccess::overrides(helper).at(0);
+    CHECK(ovr.color_set);
+    CHECK(ovr.color_rgb == 0x000000);
+    CHECK(ovr.material == "PLA");
+}
+
+TEST_CASE("AFC persist_override does not record the no-color sentinel", "[ams][afc][override]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.initialize_slots_from_discovery();
+
+    SlotInfo info;
+    info.material = "PLA";
+    info.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+    helper.set_slot_info(0, info);
+
+    const auto& ovr = AfcTestAccess::overrides(helper).at(0);
+    CHECK_FALSE(ovr.color_set);
+    CHECK(ovr.material == "PLA");
+}
+
+TEST_CASE("AFC persist_override wires nozzle/bed temps into the override", "[ams][afc][override]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.initialize_slots_from_discovery();
+
+    SlotInfo info;
+    info.material = "PETG";
+    info.bed_temp = 80;
+    info.nozzle_temp_min = 230;
+    info.nozzle_temp_max = 250;
+    helper.set_slot_info(0, info);
+
+    const auto& ovr = AfcTestAccess::overrides(helper).at(0);
+    CHECK(ovr.bed_temp == 80);
+    CHECK(ovr.nozzle_temp == 240); // midpoint of min/max
 }
 
 // ============================================================================

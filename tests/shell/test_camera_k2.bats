@@ -662,9 +662,11 @@ EOF
     run install_camera_k2 "k2"
     [ "$status" -eq 0 ]
 
-    # It was migrated to match the current bundled source byte-for-byte.
-    cmp -s "$INSTALL_DIR/config/helixscreen-ustreamer-k2.sh" "$HELIX_INITD_DIR/ustreamer"
+    # It matches the bundled source except for the templated binary path.
     ! grep -q 'OLD STALE VERSION' "$HELIX_INITD_DIR/ustreamer"
+    grep -q "^USTREAMER_BIN=\"$INSTALL_DIR/bin/ustreamer\"$" "$HELIX_INITD_DIR/ustreamer"
+    diff <(grep -v '^USTREAMER_BIN=' "$INSTALL_DIR/config/helixscreen-ustreamer-k2.sh") \
+         <(grep -v '^USTREAMER_BIN=' "$HELIX_INITD_DIR/ustreamer")
 }
 
 @test "install: init script is NOT rewritten when already current" {
@@ -680,7 +682,8 @@ EOF
     # install uses `$SUDO cp` (SUDO="" in tests, so a bare `cp`); stub `cp` to
     # record any invocation that writes the init dest. cmp -s should match, so
     # the install must take the "already current" branch and never call cp.
-    cp "$INSTALL_DIR/config/helixscreen-ustreamer-k2.sh" "$HELIX_INITD_DIR/ustreamer"
+    sed "s|^USTREAMER_BIN=.*|USTREAMER_BIN=\"${INSTALL_DIR}/bin/ustreamer\"|" \
+        "$INSTALL_DIR/config/helixscreen-ustreamer-k2.sh" > "$HELIX_INITD_DIR/ustreamer"
     chmod +x "$HELIX_INITD_DIR/ustreamer"
 
     local cp_log="$BATS_TEST_TMPDIR/cp.log"

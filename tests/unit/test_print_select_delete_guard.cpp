@@ -4,173 +4,41 @@
  * @file test_print_select_delete_guard.cpp
  * @brief A confirmed delete must never navigate away from the file list
  *
- * The delete-success callback always calls hide_detail_view(), but a delete
- * launched by long-press never opened the detail overlay: on_file_long_pressed()
- * applies the selection state and shows the confirmation modal directly.
- * hide_detail_view() called PrintSelectDetailView::hide() unconditionally, and
- * hide()'s only guard is overlay_root_ — which panel setup() creates eagerly.
- * The go_back() inside then popped panel_stack_.back(); with only a main panel
- * on the stack that entry is the print-select panel itself, and go_back()'s
- * empty-stack fallback bounced the user to Home instead of refreshing the
- * list in place.
+ * The delete-success callback always calls hide_detail_view(), and a delete
+ * launched by long-press never opens the detail overlay: on_file_long_pressed()
+ * applies the selection state and shows the confirmation modal directly. So
+ * hide_detail_view() has to gate on is_visible() itself — PrintSelectDetailView::
+ * hide()'s only guard is overlay_root_, which panel setup() creates eagerly, so
+ * hide() cannot tell an open overlay from one that was never pushed. Hiding one
+ * that was never pushed reaches go_back(), which pops panel_stack_.back(); with
+ * only a main panel on the stack that entry is the print-select panel itself,
+ * and go_back()'s empty-stack fallback then activates Home.
  *
  * Also pins MoonrakerClientMock's server.files.delete_file: MoonrakerFileAPI::
- * delete_file sends that exact method, and the mock dropped it on the floor
- * ("not implemented - callbacks not invoked"), so no test could drive the
- * delete-success path at all.
+ * delete_file sends that exact method, so nothing can drive the delete-success
+ * path unless the mock answers it.
  */
 
 #include "ui_nav_manager.h"
 #include "ui_panel_print_select.h"
 #include "ui_print_select_detail_view.h"
 
-#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/print_select_panel_fixture.h"
 #include "../test_helpers/print_select_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
-#include "app_globals.h"
-#include "display_settings_manager.h"
-#include "moonraker_api.h"
 #include "moonraker_client_mock.h"
-#include "printer_state.h"
-#include "thumbnail_processor.h"
 
-#include <cstdio>
 #include <ctime>
-#include <filesystem>
-#include <fstream>
-#include <memory>
-#include <string>
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
 
-namespace {
-
-/// A .gcode planted in the mock's virtual gcodes root for one test.
-/// MoonrakerClientMock backs the gcodes root with assets/test_gcodes on disk
-/// (scan_mock_gcode_files() is a real directory scan), so a delete that
-/// mutates the virtual FS removes a real file. Plant one nothing else depends
-/// on and take it back out however the test ends.
-class PlantedGcode {
-  public:
-    explicit PlantedGcode(const std::string& name) {
-        for (const auto* prefix : {"", "../", "../../"}) {
-            std::string dir = std::string(prefix) + "assets/test_gcodes";
-            if (std::filesystem::is_directory(dir)) {
-                path_ = dir + "/" + name;
-                break;
-            }
-        }
-        REQUIRE_FALSE(path_.empty());
-        std::ofstream out(path_, std::ios::trunc);
-        out << "; planted for the delete-guard tests\nG28\n";
-    }
-
-    ~PlantedGcode() {
-        std::remove(path_.c_str());
-    }
-
-    PlantedGcode(const PlantedGcode&) = delete;
-    PlantedGcode& operator=(const PlantedGcode&) = delete;
-
-    bool on_disk() const {
-        return std::filesystem::exists(path_);
-    }
-    std::string name() const {
-        return std::filesystem::path(path_).filename().string();
-    }
-
-  private:
-    std::string path_;
-};
-
-/// The real delete flow over the real panel and NavigationManager: mock client
-/// connected, MoonrakerAPI on top of it, print_select_panel XML built, and the
-/// navigation stack seeded the way the app has it (panel_stack_[0] = the active
-/// main panel). Animations off — the deterministic go_back path runs inline in
-/// the drain instead of an animation completion tick later.
-class PrintSelectDeleteFixture : public LVGLUITestFixture {
-  public:
-    PrintSelectDeleteFixture()
-        : mock_client_(MoonrakerClientMock::PrinterType::VORON_24, /*speedup_factor=*/100.0) {
-        animations_were_enabled_ = DisplaySettingsManager::instance().get_animations_enabled();
-        DisplaySettingsManager::instance().set_animations_enabled(false);
-
-        // Connect before the API exists, like IdleRunoutGraceFixture: the
-        // initial-state dispatch then has no subscribers to storm, while
-        // get_connection_state() still reports CONNECTED for is_ready() checks.
-        mock_client_.connect("ws://mock/websocket", []() {}, []() {});
-        api_ = std::make_unique<MoonrakerAPI>(mock_client_, get_printer_state());
-
-        panel_ = std::make_unique<PrintSelectPanel>(get_printer_state(), api_.get());
-        panel_->init_subjects();
-        panel_obj_ =
-            static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "print_select_panel", nullptr));
-        REQUIRE(panel_obj_ != nullptr);
-        panel_->setup(panel_obj_, test_screen());
-
-        home_widget_ = lv_obj_create(test_screen());
-        lv_obj_t* panels[UI_PANEL_COUNT] = {nullptr};
-        panels[static_cast<int>(PanelId::Home)] = home_widget_;
-        panels[static_cast<int>(PanelId::PrintSelect)] = panel_obj_;
-        auto& nav = NavigationManager::instance();
-        nav.set_panels(panels);
-        nav.register_panel_instance(PanelId::PrintSelect, panel_.get());
-        nav.set_active(PanelId::PrintSelect);
-        drain();
-    }
-
-    ~PrintSelectDeleteFixture() override {
-        auto& nav = NavigationManager::instance();
-        // Drop the panel registration BEFORE the panel dies: NavigationManager
-        // keeps raw panel pointers, and the base fixture still walks it.
-        nav.register_panel_instance(PanelId::PrintSelect, nullptr);
-        drain();
-        panel_.reset();
-        api_.reset();
-        mock_client_.stop_temperature_simulation();
-        mock_client_.disconnect();
-        DisplaySettingsManager::instance().set_animations_enabled(animations_were_enabled_);
-    }
-
-    /// Every hop in the delete chain crosses the UpdateQueue (token.defer,
-    /// queue_update, go_back's own queue_update, the refresh's on_files_ready);
-    /// drain until fully empty like OverlayActivationFixture does. The delete
-    /// chain's metadata refresh also lands work on the ThumbnailProcessor
-    /// pool, which the queue-only drain never waits for — the worker would
-    /// outlive the test holding callbacks into its state (ISOLATION-LEAK,
-    /// then a UAF crash in a later test). Join the pool between queue passes
-    /// the way ActivePrintMediaAsyncFixture::drain() does.
-    static void drain() {
-        auto& processor = helix::ThumbnailProcessor::instance();
-        auto& queue = helix::ui::UpdateQueue::instance();
-        for (int pass = 0; pass < 4; ++pass) {
-            processor.wait_for_completion();
-            if (processor.pending_tasks() == 0 &&
-                helix::ui::UpdateQueueTestAccess::queue_empty(queue)) {
-                break;
-            }
-            helix::ui::UpdateQueueTestAccess::drain_all(queue);
-        }
-    }
-
-    MoonrakerClientMock mock_client_;
-    std::unique_ptr<MoonrakerAPI> api_;
-    std::unique_ptr<PrintSelectPanel> panel_;
-    lv_obj_t* panel_obj_ = nullptr;
-    lv_obj_t* home_widget_ = nullptr;
-    bool animations_were_enabled_ = true;
-};
-
-} // namespace
-
 // ============================================================================
-// The regression: long-press delete never opened the detail overlay
+// Long-press delete: the detail overlay is never pushed
 // ============================================================================
 
-TEST_CASE_METHOD(PrintSelectDeleteFixture,
+TEST_CASE_METHOD(PrintSelectPanelFixture,
                  "Confirmed long-press delete with the detail view never opened stays on "
                  "print-select",
                  "[print_select][delete][navigation]") {
@@ -191,9 +59,9 @@ TEST_CASE_METHOD(PrintSelectDeleteFixture,
     panel_->delete_file();
     drain();
 
-    // Before the is_visible() gate, hide_detail_view() called go_back() with
-    // the overlay never pushed: it popped the print-select panel itself and
-    // the empty-stack fallback activated Home.
+    // Nothing pushed the overlay, so hide_detail_view() must not reach
+    // go_back(): the only stack entry is the print-select panel itself, and
+    // popping it leaves the empty-stack fallback to choose a panel — Home.
     REQUIRE(NavigationManager::instance().get_active() == PanelId::PrintSelect);
     REQUIRE(NavigationManagerTestAccess::panel_stack(NavigationManager::instance()).size() == 1);
     REQUIRE_FALSE(PrintSelectPanelTestAccess::list_contains(*panel_, file.name()));
@@ -204,7 +72,7 @@ TEST_CASE_METHOD(PrintSelectDeleteFixture,
 // The guard must not overcorrect: detail view open, delete from it
 // ============================================================================
 
-TEST_CASE_METHOD(PrintSelectDeleteFixture,
+TEST_CASE_METHOD(PrintSelectPanelFixture,
                  "Confirmed delete from the open detail view closes it and returns to the list",
                  "[print_select][delete][navigation]") {
     PlantedGcode file("delete_guard_detail.gcode");

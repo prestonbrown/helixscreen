@@ -1049,7 +1049,6 @@ CLANG_FORMAT_BASELINE="
 include/tool_state.h
 src/printer/filament_mapper.cpp
 src/system/pwm_sound_backend.cpp
-src/system/update_checker.cpp
 "
 CF_OK=false
 if qc_resolve_clang_format; then CF_OK=true; fi
@@ -1799,7 +1798,16 @@ if [ -f "scripts/check_namespace_compliance.py" ]; then
   # main dropped the Plugins overlay and retired three globals without
   # ratcheting, so the merge collects that slack too. 2239 -> 2238 is
   # ResolvedMacroScript and resolve_macro_script moving into helix::.
-  if python3 scripts/check_namespace_compliance.py --max-allowed 2215 --summary >/tmp/namespace_check.out 2>&1; then
+  # 2215 -> 2233 is FOREIGN_PREFIXES anchored to real foreign spellings
+  # (#1586). Every entry there is matched with startswith, so a prefix this
+  # tree also spells - bare 'G', 'Display', 'Window', 'z_' - exempts our own
+  # declarations from the gate rather than a library's. The list carries only
+  # spellings a third-party API actually uses, and the 18 symbols that covers
+  # are counted here.
+  #
+  # tests/shell/test_namespace_gate.bats carries this same number and fails if
+  # the two disagree or if the tree drifts under it.
+  if python3 scripts/check_namespace_compliance.py --max-allowed 2233 --summary >/tmp/namespace_check.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/namespace_check.out
@@ -2257,6 +2265,59 @@ else
   section_time $SECTION_START
   echo ""
   echo "⚠️  check_touch_rotation_source.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(date +%s)
+echo -n "🔄 Checking display rotation cache order..."
+
+# The resolution cache must be read after set_display_rotation() settles: a
+# plane owning 90/270 un-swaps the resolution, and a cache read before the
+# call records a value the display no longer has (#1587). apply_rotation's
+# body is #ifdef'd out of the test binary (HELIX_DISPLAY_SDL), so a lint is
+# the only thing that makes a wrong-order revert fail.
+if [ -f "scripts/check_rotation_cache_order.py" ]; then
+  if python3 scripts/check_rotation_cache_order.py >/tmp/rotation_cache.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ display resolution is cached only after rotation settles"
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/rotation_cache.out
+    echo "   Run: python3 scripts/check_rotation_cache_order.py"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_rotation_cache_order.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(date +%s)
+echo -n "🗺️  Checking the platform manifest against its consumers..."
+
+# Advisory while the consumers are migrated onto assets/config/platforms.json.
+# It reports drift between the manifest and the build files, install-root lists
+# and renders that derive from it; --strict makes the same findings fail once
+# every consumer reads the manifest.
+if [ -f "scripts/check_platform_manifest.py" ]; then
+  python3 scripts/check_platform_manifest.py --quiet >/tmp/platform_manifest.out 2>&1 || true
+  section_time $SECTION_START
+  echo ""
+  if [ -s /tmp/platform_manifest.out ]; then
+    echo "ℹ️  platform manifest findings (advisory):"
+    cat /tmp/platform_manifest.out
+  else
+    echo "✅ platform manifest agrees with its consumers"
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_platform_manifest.py not found — skipping"
 fi
 
 echo ""

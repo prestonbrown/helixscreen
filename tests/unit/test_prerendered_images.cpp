@@ -31,38 +31,47 @@ using namespace helix;
 // ============================================================================
 
 TEST_CASE("get_splash_size_name returns correct size category", "[assets][splash]") {
-    SECTION("Tiny displays (< 600px width)") {
-        REQUIRE(std::string(get_splash_size_name(480)) == "tiny");
-        REQUIRE(std::string(get_splash_size_name(320)) == "tiny");
-        REQUIRE(std::string(get_splash_size_name(599)) == "tiny");
+    // Classes are UiBreakpoint tiers selected from the narrow axis, so a
+    // landscape panel classifies on its height.
+    SECTION("Micro displays - 480x272") {
+        REQUIRE(std::string(get_splash_size_name(480, 272)) == "micro");
+        REQUIRE(std::string(get_splash_size_name(480, 200)) == "micro");
     }
 
-    SECTION("Small displays (600-899px width) - AD5M class") {
-        REQUIRE(std::string(get_splash_size_name(600)) == "small");
-        REQUIRE(std::string(get_splash_size_name(800)) == "small");
-        REQUIRE(std::string(get_splash_size_name(899)) == "small");
+    SECTION("Tiny displays - 480x320") {
+        REQUIRE(std::string(get_splash_size_name(480, 320)) == "tiny");
+        REQUIRE(std::string(get_splash_size_name(480, 273)) == "tiny");
+        REQUIRE(std::string(get_splash_size_name(480, 390)) == "tiny");
     }
 
-    SECTION("Medium displays (900-1099px width)") {
-        REQUIRE(std::string(get_splash_size_name(900)) == "medium");
-        REQUIRE(std::string(get_splash_size_name(1024)) == "medium");
-        REQUIRE(std::string(get_splash_size_name(1099)) == "medium");
+    SECTION("Small displays - 480x400") {
+        REQUIRE(std::string(get_splash_size_name(480, 400)) == "small");
+        REQUIRE(std::string(get_splash_size_name(480, 460)) == "small");
     }
 
-    SECTION("Large displays (>= 1100px width)") {
-        REQUIRE(std::string(get_splash_size_name(1100)) == "large");
-        REQUIRE(std::string(get_splash_size_name(1280)) == "large");
-        REQUIRE(std::string(get_splash_size_name(1920)) == "large");
+    SECTION("Medium displays - 800x480 class") {
+        REQUIRE(std::string(get_splash_size_name(800, 480)) == "medium");
+        REQUIRE(std::string(get_splash_size_name(800, 550)) == "medium");
     }
 
-    SECTION("Boundary conditions") {
-        // Exact boundaries
-        REQUIRE(std::string(get_splash_size_name(599)) == "tiny");
-        REQUIRE(std::string(get_splash_size_name(600)) == "small");
-        REQUIRE(std::string(get_splash_size_name(899)) == "small");
-        REQUIRE(std::string(get_splash_size_name(900)) == "medium");
-        REQUIRE(std::string(get_splash_size_name(1099)) == "medium");
-        REQUIRE(std::string(get_splash_size_name(1100)) == "large");
+    SECTION("Large displays - 1024x600 class") {
+        REQUIRE(std::string(get_splash_size_name(1024, 600)) == "large");
+        REQUIRE(std::string(get_splash_size_name(1024, 700)) == "large");
+    }
+
+    SECTION("XLarge displays - 1280x720 and above") {
+        REQUIRE(std::string(get_splash_size_name(1280, 720)) == "xlarge");
+        // Nothing is composited above xlarge, so a 4K panel clamps to it.
+        REQUIRE(std::string(get_splash_size_name(3840, 2160)) == "xlarge");
+    }
+
+    SECTION("Wide, short bar displays take their own class") {
+        REQUIRE(std::string(get_splash_size_name(1920, 440)) == "ultrawide");
+    }
+
+    SECTION("Rotation is the caller's job - the selector sees effective pixels") {
+        // A K2 panel is 480x800 used rotated; the caller passes 800x480.
+        REQUIRE(std::string(get_splash_size_name(800, 480)) == "medium");
     }
 }
 
@@ -70,7 +79,7 @@ TEST_CASE("get_prerendered_splash_path generates correct paths", "[assets][splas
     SECTION("Path format includes size name") {
         // Note: These tests check path format, not file existence
         // The function will fall back to PNG if .bin doesn't exist
-        std::string path_800 = get_prerendered_splash_path(800);
+        std::string path_800 = get_prerendered_splash_path(800, 480);
 
         // Should either be a prerendered .bin or fallback PNG
         bool is_bin = path_800.find(".bin") != std::string::npos;
@@ -82,9 +91,9 @@ TEST_CASE("get_prerendered_splash_path generates correct paths", "[assets][splas
     }
 
     SECTION("Different screen sizes get different paths") {
-        std::string path_tiny = get_prerendered_splash_path(480);
-        std::string path_small = get_prerendered_splash_path(800);
-        std::string path_large = get_prerendered_splash_path(1280);
+        std::string path_tiny = get_prerendered_splash_path(480, 320);
+        std::string path_small = get_prerendered_splash_path(800, 480);
+        std::string path_large = get_prerendered_splash_path(1280, 720);
 
         // Paths should differ (unless all falling back to same PNG)
         // At minimum, they should all be valid LVGL paths
@@ -170,7 +179,7 @@ TEST_CASE("get_prerendered_printer_path generates correct paths", "[assets][prin
 TEST_CASE("Prerendered paths fall back to PNG when .bin missing", "[assets][fallback]") {
     SECTION("Splash fallback is PNG") {
         // Since we're testing without pre-rendered files, should get PNG fallback
-        std::string path = get_prerendered_splash_path(800);
+        std::string path = get_prerendered_splash_path(800, 480);
 
         // In test environment without pre-rendered files, should fall back to PNG
         // The path should be valid either way
@@ -196,18 +205,18 @@ TEST_CASE("Prerendered image edge cases", "[assets][edge]") {
     SECTION("Zero width defaults sensibly") {
         // Should not crash, pick smallest size
         REQUIRE(get_printer_image_size(0) == 150);
-        REQUIRE(std::string(get_splash_size_name(0)) == "tiny");
+        REQUIRE(std::string(get_splash_size_name(0, 0)) == "micro");
     }
 
     SECTION("Negative width handled gracefully") {
         // Should not crash
         REQUIRE(get_printer_image_size(-100) == 150);
-        REQUIRE(std::string(get_splash_size_name(-100)) == "tiny");
+        REQUIRE(std::string(get_splash_size_name(-100, -100)) == "micro");
     }
 
     SECTION("Very large width handled") {
         REQUIRE(get_printer_image_size(10000) == 300);
-        REQUIRE(std::string(get_splash_size_name(10000)) == "large");
+        REQUIRE(std::string(get_splash_size_name(10000, 10000)) == "xlarge");
     }
 
     SECTION("Empty printer name returns valid path") {

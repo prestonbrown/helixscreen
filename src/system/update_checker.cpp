@@ -26,6 +26,7 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
+#include "helix_install_roots.h"
 #include "hv/requests.h"
 #include "json_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -2458,11 +2459,12 @@ UpdateChecker::find_local_installer(const std::vector<std::string>& extra_search
 
     // Well-known install locations as fallback
     std::string fname = INSTALLER_FILENAME;
-    search_paths.push_back("/opt/helixscreen/" + fname);
-    search_paths.push_back("/root/printer_software/helixscreen/" + fname);
-    search_paths.push_back("/usr/data/helixscreen/" + fname);
-    search_paths.push_back("/home/biqu/helixscreen/" + fname);
-    search_paths.push_back("/home/pi/helixscreen/" + fname);
+    for (const char* root : helix::kInstallRoots) {
+        search_paths.push_back(std::string(root) + "/" + fname);
+    }
+    for (const char* root : helix::kHomeInstallRoots) {
+        search_paths.push_back(std::string(root) + "/" + fname);
+    }
     search_paths.push_back("scripts/" + fname); // development fallback
 
     for (const auto& path : search_paths) {
@@ -2765,8 +2767,7 @@ UpdateChecker::UpdateChannel UpdateChecker::get_channel() const {
     // Fall back to Stable, not to the Beta neighbour, since Beta is a choice the
     // user never made. Clamp the EFFECTIVE channel rather than rewriting the
     // stored value, so re-unlocking beta restores the channel the user picked.
-    if (channel == static_cast<int>(UpdateChannel::Dev) &&
-        !config->is_beta_features_enabled()) {
+    if (channel == static_cast<int>(UpdateChannel::Dev) && !config->is_beta_features_enabled()) {
         spdlog::info("[UpdateChecker] Dev channel needs beta features (disabled) — using stable");
         return UpdateChannel::Stable;
     }

@@ -39,7 +39,7 @@ namespace {
 // Deliberately NOT benchy_thumbnail_white.png: that is the no-thumbnail
 // placeholder AND the subject's initial value, so publishing it would be a
 // no-op write that never fires the observer these cases are about.
-constexpr const char* THUMB_PATH = "A:assets/images/printer.png";
+constexpr const char* THUMB_PATH = "A:assets/images/printer_400.png";
 
 /// Owns a PrintStatusPanel with a thumbnail widget attached, which is what the
 /// XML build normally supplies. Without it the observer's image branch — the

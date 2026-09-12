@@ -13,8 +13,8 @@ Output: LVGL ARGB8888 .bin files for each size/mode combination.
 Usage:
     python scripts/gen_splash_3d.py                      # Generate all
     python scripts/gen_splash_3d.py --modes dark          # Dark only
-    python scripts/gen_splash_3d.py --sizes small         # AD5M only
-    python scripts/gen_splash_3d.py --sizes small --modes dark  # AD5M dark only
+    python scripts/gen_splash_3d.py --sizes medium        # AD5M only
+    python scripts/gen_splash_3d.py --sizes medium --modes dark # AD5M dark only
 """
 
 import argparse
@@ -33,13 +33,17 @@ except ImportError:
 
 # Screen size definitions matching regen_images.sh and prerendered_images.cpp
 # Format: (name, width, height, logo_size)
+# Classes are the UiBreakpoint tiers (include/ui_breakpoint.h), selected from the
+# narrow axis by helix::get_splash_3d_size_name(). Logo is 50% of width below
+# 500px tall, 60% at or above.
 SCREEN_SIZES = [
-    ("tiny", 480, 320, 240),        # 50% of width (height < 500)
-    ("tiny_alt", 480, 400, 240),    # 50% of width (height < 500) - K1 (480x400)
-    ("small", 800, 480, 400),       # 50% of width (height < 500) - AD5M
-    ("medium", 1024, 600, 614),     # 60% of width (height >= 500)
-    ("large", 1280, 720, 768),      # 60% of width (height >= 500)
-    ("ultrawide", 1920, 440, 384),  # Ultra-wide bar display (1920x440)
+    ("micro", 480, 272, 240),       # CC1
+    ("tiny", 480, 320, 240),        # Snapmaker U1
+    ("small", 480, 400, 240),
+    ("medium", 800, 480, 400),      # K1, K2, AD5M, AD5X
+    ("large", 1024, 600, 614),
+    ("xlarge", 1280, 720, 768),
+    ("ultrawide", 1920, 440, 384),  # Wide, short bar display
 ]
 
 # Source images (relative to project root)
@@ -275,7 +279,8 @@ def main():
         "--sizes",
         nargs="+",
         default=None,
-        help="Size names to generate (default: all). Values: tiny, small, medium, large",
+        help="Size names to generate (default: all). Values: "
+             + ", ".join(n for n, _w, _h, _l in SCREEN_SIZES),
     )
     parser.add_argument(
         "--modes",

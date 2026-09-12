@@ -201,10 +201,12 @@ class AmsBackend {
     /**
      * @brief Whether this backend tracks filament weight locally
      *
-     * Some backends (e.g., AFC, Happy Hare) track filament consumption via
-     * extruder position and update slot weight in real time. When true,
-     * HelixScreen must NOT overwrite slot weights from Spoolman polling,
-     * because Spoolman's weight is stale (backends don't write back to it).
+     * Some backends (e.g., AFC) read a firmware-reported remaining weight
+     * from their own status payload and update slot weight in real time.
+     * When true, HelixScreen must NOT overwrite slot weights from Spoolman
+     * polling, because Spoolman's weight is stale (backends don't write back
+     * to it). Happy Hare has no such field - its gate map carries no weight,
+     * so it relies entirely on Spoolman polling and must return false here.
      *
      * @return true if the backend provides live weight tracking
      */
@@ -1572,8 +1574,11 @@ class AmsBackend {
      * override-exclusive fields on the live SlotInfo so the cleared state is
      * visible via get_slot_info() on the very next read.
      *
-     * Default implementation is a no-op. Backends without FilamentSlotOverride
-     * integration (AFC, Happy Hare, Tool Changer, Mock) ignore the call.
+     * Default implementation is a no-op, which the tool changer and the mock
+     * take. On a tool changer that is a decision, not an omission: nothing
+     * there can tell that a user swapped a spool, so a clear signal would have
+     * to be invented and would throw away user data on an event that does not
+     * mean what it would have to mean.
      *
      * Safe to call from the UI thread. Backends lock their own mutex_ for the
      * in-memory mutation and submit the store clear asynchronously.

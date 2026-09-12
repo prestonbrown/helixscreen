@@ -33,6 +33,7 @@ class StubLifecycle : public IPanelLifecycle {
 
 using helix::ui::teardown_overlay_ui;
 using helix::ui::TeardownDelete;
+using helix::ui::TeardownHooks;
 
 TEST_CASE_METHOD(LVGLTestFixture, "teardown_overlay_ui: null root runs no hooks and returns false",
                  "[overlay_teardown][1134]") {
@@ -40,9 +41,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "teardown_overlay_ui: null root runs no hooks 
     bool after_ran = false;
     lv_obj_t* null_panel = nullptr;
 
-    CHECK_FALSE(teardown_overlay_ui(
-        null_panel, "NullCase", TeardownDelete::Deferred, null_panel, [&] { before_ran = true; },
-        [&] { after_ran = true; }));
+    CHECK_FALSE(teardown_overlay_ui(null_panel, "NullCase", TeardownDelete::Deferred, &null_panel,
+                                    {[&] { before_ran = true; }, [&] { after_ran = true; }}));
     CHECK_FALSE(before_ran);
     CHECK_FALSE(after_ran);
 }
@@ -65,10 +65,11 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     bool after_saw_live_tree = false;
     bool after_saw_nulled_cached = false;
-    CHECK(teardown_overlay_ui(root, "DeferredCase", TeardownDelete::Deferred, cached, nullptr, [&] {
-        after_saw_live_tree = lv_obj_is_valid(raw) && lv_obj_is_valid(child);
-        after_saw_nulled_cached = (cached == nullptr);
-    }));
+    CHECK(teardown_overlay_ui(
+        root, "DeferredCase", TeardownDelete::Deferred, &cached, TeardownHooks::after([&] {
+            after_saw_live_tree = lv_obj_is_valid(raw) && lv_obj_is_valid(child);
+            after_saw_nulled_cached = (cached == nullptr);
+        })));
 
     // Pointers null out immediately.
     CHECK(root == nullptr);
@@ -110,13 +111,14 @@ TEST_CASE_METHOD(
     lv_obj_t* raw = root;
 
     bool before_saw_attached_live_tree = false;
-    CHECK(teardown_overlay_ui(root, "SubtreeCase", TeardownDelete::DetachSubtree, cached, [&] {
-        // before_delete owns the moment while every pointer is still
-        // valid AND the subtree is still attached — the AMS panels drop
-        // their sidebar/context-menu/modal sub-objects here.
-        before_saw_attached_live_tree =
-            lv_obj_is_valid(raw) && lv_obj_is_valid(child) && lv_obj_get_parent(raw) == parent;
-    }));
+    CHECK(teardown_overlay_ui(
+        root, "SubtreeCase", TeardownDelete::DetachSubtree, &cached, TeardownHooks::before([&] {
+            // before_delete owns the moment while every pointer is still
+            // valid AND the subtree is still attached — the AMS panels drop
+            // their sidebar and context-menu sub-objects here.
+            before_saw_attached_live_tree =
+                lv_obj_is_valid(raw) && lv_obj_is_valid(child) && lv_obj_get_parent(raw) == parent;
+        })));
 
     CHECK(root == nullptr);
     CHECK(cached == nullptr);
@@ -155,7 +157,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::ui::queue_update([&] { queued_ran = true; });
 
     lv_obj_t* cached = root;
-    CHECK(teardown_overlay_ui(root, "DrainCase", TeardownDelete::Deferred, cached));
+    CHECK(teardown_overlay_ui(root, "DrainCase", TeardownDelete::Deferred, &cached));
 
     // The drain inside the helper processed the queued callback while the
     // tree was still alive — this is the use-after-free guard the sequence
@@ -165,9 +167,21 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 TEST_CASE_METHOD(LVGLTestFixture, "teardown_overlay_ui: aliased root and cached pointer",
                  "[overlay_teardown][1134]") {
-    lv_obj_t* root = lv_obj_create(lv_screen_active());
+    // A site may hand the same variable in twice; nulling it through both
+    // references has to stay idempotent on either strategy.
+    lv_obj_t* detached = lv_obj_create(lv_screen_active());
+    lv_obj_t* detached_raw = detached;
+    CHECK(teardown_overlay_ui(detached, "AliasDetach", TeardownDelete::DetachSubtree, &detached));
+    CHECK(detached == nullptr);
+    CHECK(lv_obj_is_valid(detached_raw));
+    process_async_timers();
+    CHECK_FALSE(lv_obj_is_valid(detached_raw));
 
-    // The AMS sites pass the same variable as both root and cached_panel.
-    CHECK(teardown_overlay_ui(root, "AliasCase", TeardownDelete::DetachSubtree, root));
-    CHECK(root == nullptr);
+    lv_obj_t* deferred = lv_obj_create(lv_screen_active());
+    lv_obj_t* deferred_raw = deferred;
+    CHECK(teardown_overlay_ui(deferred, "AliasDefer", TeardownDelete::Deferred, &deferred));
+    CHECK(deferred == nullptr);
+    CHECK(lv_obj_is_valid(deferred_raw));
+    process_async_timers();
+    CHECK_FALSE(lv_obj_is_valid(deferred_raw));
 }

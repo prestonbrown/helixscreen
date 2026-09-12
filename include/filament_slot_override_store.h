@@ -7,6 +7,7 @@
 #include <chrono>
 #include <filesystem>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -186,6 +187,40 @@ class FilamentSlotOverrideStore {
 };
 
 // =============================================================================
+// Shared construct-and-load
+// =============================================================================
+//
+// Every backend that persists user slot identity holds the same pair: a store
+// on its own namespace, and the map that store was loaded into. Building one
+// without loading it is not a state any backend wants, so this returns both or
+// neither and there is no way to spell the half-built version.
+
+struct LoadedOverrideStore {
+    /// Null when `api` was null (a backend constructed without a connection).
+    std::unique_ptr<FilamentSlotOverrideStore> store;
+    /// What the store held, keyed by global slot index. Empty when store is null.
+    std::unordered_map<int, FilamentSlotOverride> overrides;
+};
+
+/// Build the store for `backend_id` on namespace `ns` and load it.
+///
+/// `type` picks the outer key style via lane_key_style_for(), so a backend
+/// never restates that rule. `ns` defaults to the shared "lane_data"; a backend
+/// whose own Klipper plugin owns that namespace (AFC, Happy Hare) MUST name a
+/// private one, or the plugin's records load back as if the user authored them
+/// and ours are deleted on the plugin's next boot.
+///
+/// Call this with NO lock held: the DB round-trip blocks for up to 5s and the
+/// caller's status subscription may already be live, so holding the backend's
+/// mutex across it stalls the parse path (and self-deadlocks a caller that
+/// takes a non-recursive mutex before asking). Publish the result under the
+/// lock afterwards, which is one move of each field.
+[[nodiscard]] LoadedOverrideStore make_loaded_override_store(IMoonrakerAPI* api,
+                                                             std::string backend_id, AmsType type,
+                                                             const std::string& log_tag,
+                                                             std::string ns = "lane_data");
+
+// =============================================================================
 // Shared firmware -> lane_data mirror helper
 // =============================================================================
 //
@@ -207,12 +242,12 @@ class FilamentSlotOverrideStore {
 //     the user explicitly locked, per #965 — see MirrorPolicy::OverwriteAlways
 //     below) because firmware-truth and user-truth converge.
 //
-//   - CFS / Snapmaker: set_slot_info does NOT touch the firmware-side
-//     material_type / RFID values. If the mirror unconditionally overwrote
-//     ovr.color_rgb with firmware-truth, every status poll would erase the
-//     user's color override. So these backends use FillUnsetOnly: only fill
-//     fields the user hasn't explicitly set. clear_slot_override resets the
-//     entry, after which auto-mirror takes over again.
+//   - CFS: set_slot_info does NOT touch the firmware-side material_type /
+//     RFID values. If the mirror unconditionally overwrote ovr.color_rgb with
+//     firmware-truth, every status poll would erase the user's color
+//     override. So this backend uses FillUnsetOnly: only fill fields the
+//     user hasn't explicitly set. clear_slot_override resets the entry,
+//     after which auto-mirror takes over again.
 enum class MirrorPolicy {
     /// Overwrite ovr.color_rgb / ovr.material with firmware values, EXCEPT for
     /// fields the user explicitly locked (user_locked_color /
@@ -221,7 +256,7 @@ enum class MirrorPolicy {
     OverwriteAlways,
     /// Only fill ovr.color_rgb / ovr.material when they're currently UNSET
     /// (color_rgb == 0, empty material). Use when user edits don't reach
-    /// firmware (CFS, Snapmaker).
+    /// firmware (CFS).
     FillUnsetOnly,
 };
 

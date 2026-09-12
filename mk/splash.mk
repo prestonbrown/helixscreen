@@ -86,6 +86,8 @@ SPLASH_EXTRA_OBJS := \
     $(BUILD_DIR)/splash/fbdev_size_helper.o \
     $(BUILD_DIR)/splash/pending_startup_warnings.o \
     $(BUILD_DIR)/splash/log_redact.o \
+    $(BUILD_DIR)/splash/prerender_size_class.o \
+    $(BUILD_DIR)/splash/splash_asset_choice.o \
     $(BUILD_DIR)/splash/helix_lvgl_anomaly_stub.o
 
 # Compile config for splash (with HELIX_SPLASH_ONLY to guard get_runtime_config dependency)
@@ -145,6 +147,18 @@ $(BUILD_DIR)/splash/ui_notification_stub.o: tools/ui_notification_stub.cpp $(LIB
 # binary reaches it. Without this the non-LTO targets (pi, pi32, x86) fail to link
 # while the -flto ones drop the unreachable caller and link clean.
 $(BUILD_DIR)/splash/log_redact.o: src/system/log_redact.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
+	@echo "[CXX] $< (splash)"
+	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# Splash and helix-screen must agree on which pre-rendered asset a panel asks
+# for, so both link the one implementation of the rule. Pure, no deps.
+$(BUILD_DIR)/splash/prerender_size_class.o: src/system/prerender_size_class.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
+	@echo "[CXX] $< (splash)"
+	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# The splash artwork decision, shared with helix-screen so the picture cannot
+# change at handoff. Pure, no deps beyond prerender_size_class.
+$(BUILD_DIR)/splash/splash_asset_choice.o: src/system/splash_asset_choice.cpp $(ABI_STAMP) | $(BUILD_DIR)/splash
 	@echo "[CXX] $< (splash)"
 	$(Q)$(CXX) $(SPLASH_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

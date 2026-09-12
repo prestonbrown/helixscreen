@@ -72,6 +72,13 @@ class GCodeLayerRendererTestAccess {
         return renderer.tool_palette_;
     }
 
+    /// The fit shape auto_fit() applies. Private because the renderer re-fits
+    /// itself when it changes; a test asking "was the viewer's framing pushed
+    /// to this renderer" has no other way to see the answer.
+    static FitFraming framing(const GCodeLayerRenderer& renderer) {
+        return renderer.framing_;
+    }
+
     /// The per-segment draw gate, private because every draw path consults it
     /// internally. A test pins its feature-type filtering here.
     static bool renders_segment(const GCodeLayerRenderer& renderer, const ToolpathSegment& seg) {

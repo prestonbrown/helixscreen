@@ -13,8 +13,9 @@
 > No hardcoded colors/spacing. Use semantic widgets (ui_card, ui_button, text_*, divider_*) — they apply tokens. Do not restate built-in defaults (style_radius on ui_card, button_height on ui_button). Defaults: `docs/devel/LVGL9_XML_GUIDE.md` § "Custom Semantic Widgets".
 
 ### [L009] Icon font sync workflow
-- **Learned**: 2025-12-14 | **Category**: gotcha | **Type**: constraint
+- **Learned**: 2025-12-14 | **Category**: gotcha | **Type**: constraint | **Superseded**: CLAUDE.md
 > Add icon to codepoints.h → add to regen_mdi_fonts.sh → `make regen-fonts` → rebuild. Skip any step = missing icon.
+> RETIRED as a duplicate: CLAUDE.md Code Standards now carries the full two-list icon recipe.
 
 ### [L011] No mutex in destructors
 - **Learned**: 2025-12-14 | **Category**: gotcha | **Type**: constraint
@@ -103,6 +104,7 @@
 ### [L062] AD5M build and deploy targets
 - **Learned**: 2026-02-07 | **Category**: build
 > AD5M build: `make ad5m-docker` (Docker ARM cross), NOT `make pi-test` (Pi). Deploy: `AD5M_HOST=192.168.1.67 make ad5m-deploy`.
+> Memory twin: `reference_ad5m_build` - update both or they drift.
 
 ### [L064] Commit generated translation artifacts
 - **Learned**: 2026-02-10 | **Category**: i18n
@@ -238,8 +240,9 @@
 > helix_print.py coded against a fantasy Moonraker API; hand-rolled mocks implemented the fantasy → wrong calls shipped GREEN a month (bundle RA6EPJTZ: `'KlippyConnection' has no attribute 'run_gcode'`). Real API (Moonraker d5ee171): Klipper via `lookup_component("klippy_apis")` (run_gcode/start_print/do_restart), NOT klippy_connection (only request(WebRequest)); `database`=sql_execute; `history`=get_job/save_job. FIX: mocks `MagicMock(spec_set=[real method names])` so nonexistent-method calls raise AttributeError (reproduces the crash, no Moonraker import). spec_set catches nonexistent attr, not wrong signature. Companion L088.
 
 ### [L099] Recycled PanelWidget keeps layout bool → stale imperative DOM
-- **Learned**: 2026-07-16 | **Category**: pattern
+- **Learned**: 2026-07-16 | **Category**: pattern | **Superseded**: CLAUDE.md
 > PanelWidgetManager reuses widget instances across rebuilds (attach(new)+on_size_changed on the SAME instance); a member layout flag (is_wide_/is_column_) persists but the fresh XML component starts at its defaults. on_size_changed's `if(mode==flag_)return` then skips the apply when the new size matches the stale flag → stuck at XML default (#1109 active_spool white spool; print_status card stuck column at 1x2/3x2). Fix: hoist the imperative apply to a helper, call from attach() too. Immune: widgets recomputing every call (nozzle_temps/tips) or driven by retained subjects.
+> RETIRED as a duplicate: CLAUDE.md Patterns carries the attach() duty; the mechanism lives in project_recycled_widget_stale_layout.
 
 ### [L100] Lossy member vector leaks through every public getter
 - **Learned**: 2026-07-20 | **Category**: correction
@@ -292,6 +295,7 @@
 ### [L112] Dilate-and-overpaint is not a silhouette algorithm
 - **Learned**: 2026-08-19 | **Category**: gotcha
 > Drawing an object wider in a highlight colour then painting its own strokes over the middle only leaves a rim where the covering strokes are denser than the dilation. It floods on sloped geometry: a cone's outer wall shifts laterally each layer so 7px halos tile across the slope and ~2px of white survives PER LAYER (solid white blob by layer 120/218), while a cylinder looks perfect because its walls stack vertically and the halos coincide. The 3D equivalent, inverted-hull (mesh pushed along normals + glCullFace(GL_FRONT)), assumes a WATERTIGHT mesh so back faces sit behind the real surface; G-code is a soup of independent extrusion tubes, so back faces poke through as ~6% white speckle. Both need edge detection on a per-object coverage mask. Zero-memory route: apply_ssao() already edge-detects 'filled pixel with an empty neighbour' - draw the selected object with a sentinel alpha (254) and detect on that, instead of a 143KB object-id buffer. Also apply_ssao darkens every boundary pixel by OUTLINE_DARKEN=0.3, so a 1px white rim is consumed entirely (255->76), and SSAO is ON by default so any test disabling it for determinism tests a config production never runs.
+> Memory twin: `reference_gcode_silhouette_dilate_fails` - update both or they drift.
 
 ### [L113] Instrument any complicated path you cannot directly observe
 - **Learned**: 2026-08-19 | **Category**: pattern
@@ -300,6 +304,7 @@
 ### [L114] Verify WHICH gcode renderer is live before judging appearance
 - **Learned**: 2026-08-19 | **Category**: gotcha
 > Auto resolves to 3D on any ENABLE_GLES_3D build, so print-status defaults to GLES on desktop/pi. The viewer's top-right '3D' badge names the live renderer and is the cheapest check. The cube button in the viewer is NOT a 2D/3D toggle - on_view_toggle_clicked flips complete_view_mode_ (printed-so-far vs whole-model, ghost off). 'ctl set settings_gcode_render_mode N' usually does nothing: it writes the subject directly, bypassing DisplaySettingsManager::set_gcode_render_mode (so no persistence), and the print-status observer only acts if (gcode_viewer_ && is_active_), so setting it from another panel is silently dropped. What works: seed display/gcode_render_mode before launch, in settings-test.json under --test (0=Auto 1=3D 2=2D 3=Thumbnail), confirmed by the log pair 'Set G-code render mode: N (settings)' then 'Render mode set to 2D_LAYER'. GLES cannot run headless: SDL_CreateWindow fails under SDL_VIDEODRIVER=dummy, so 3D verification needs a real display.
+> Memory twin: `reference_gcode_render_mode_selection` - update both or they drift.
 
 ### [L115] The sample that works may be the best case - pick an adversarial one
 - **Learned**: 2026-08-19 | **Category**: pattern
@@ -308,10 +313,12 @@
 ### [L116] Cherry-pick main-based fixes onto a devel-branch, never merge
 - **Learned**: 2026-08-19 | **Category**: gotcha
 > devel/1.1 and main diverge by hundreds of commits, so merging a main-based fix branch into a devel/1.1-based feature branch drags in all of it - my attempt conflicted across input-shaper, temp-graph and nine translation YAMLs, none related to the fix. Cherry-pick the specific commits instead. When both branches appended tests to the same file, git's hunks cut THROUGH functions: concatenating 'ours then theirs' splices one side's block into the middle of the other's function body and fails to compile. Rebuild the file instead - 'git show <sha>:<path>' for the incoming version, then re-append only your own contiguous additions plus includes. A failed 'cherry-pick --continue' also leaves sequencer state that makes the NEXT cherry-pick fail with 'already in progress'; 'git cherry-pick --quit' clears it without touching HEAD or the working tree, unlike --abort which reverts. Landing on main itself is the opposite case - prefer a 3-way merge there.
+> Memory twin: `feedback_cherry_pick_across_diverged_bases` - update both or they drift.
 
 ### [L117] New src/ files need an ESP32 decision, and the exclusion file has sections
 - **Learned**: 2026-08-19 | **Category**: gotcha
 > A pre-commit gate fails while any src/ file is 'not decided for the ESP32 firmware build', and it lists files OTHER branches added, so it blocks commits that never touched them (I had to classify another feature's ui_keycap_style.cpp to land unrelated work). app_srcs.txt = compiled (the keyboard subsystem is in the v1 Core+AMS cut); app_srcs_excluded.txt = not, tagged '# not in the v1 Core+AMS cut', where all src/rendering/gcode_* lives. The trap: that file is NOT one flat sorted list - an early section excludes whole directories ('src/calibration/  # all 5 src/ files beneath') and a later '# --- individual files ---' section holds per-file entries, so a naive sorted insert lands ~100 lines from its siblings in the wrong section. Anchor the insert on a neighbouring file in the same directory. Do not use --write-exclusions; it answers 'exclude' for every undecided file at once.
+> Memory twin: `reference_esp32_app_srcs_sections` - update both or they drift.
 
 ### [L118] Idle signal without a report means the final message never landed - ping for a re-send
 - **Learned**: 2026-08-21 | **Category**: gotcha

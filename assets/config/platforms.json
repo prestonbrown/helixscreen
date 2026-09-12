@@ -1,0 +1,674 @@
+{
+  "schema_version": 1,
+  "_comment": [
+    "Single source of truth for per-platform facts. Consumers derive from this file;",
+    "nothing downstream restates a value that appears here.",
+    "",
+    "panel.source records provenance and ranks: hardware > docs/devel/printers/*_SUPPORT.md",
+    "> docs/devel/printer-research/*. Where a doc and hardware disagree, hardware wins and",
+    "the doc is corrected in the same change. A panel with no hardware behind it carries",
+    "\"verified\": false so the gate can report what is still doc-derived.",
+    "",
+    "panel is the only geometry input. Effective resolution, splash size class and printer",
+    "image size are DERIVED (see include/prerender_size_class.h and",
+    "scripts/platform_manifest.py), never stored, because K1 and K2 are portrait panels",
+    "used rotated and a stored effective size loses that distinction.",
+    "",
+    "storage.state_root is where cache/ and logs/ live. It is never the payload root nor inside it: the payload is what an update replaces, and Moonraker's type:web entry rmtree()s it before extracting. cache_dir and log_file stay authoritative per platform because AD5X deliberately splits them - its log has to land where the mod's archiver looks.",
+    "storage.previous_root and previous_state_root declare where a platform used to keep its payload and state. An install found at previous_root is migrated to root rather than adopted, so a relocation is a manifest edit. Both stay in HELIX_INSTALL_DIRS and kInstallRoots for as long as unmigrated devices exist, because the updater, the debug bundle collector and uninstall all have to keep finding them.",
+    "Size class names are the UiBreakpoint tiers from include/ui_breakpoint.h."
+  ],
+  "size_classes": {
+    "_comment": [
+      "The pre-render size-class ladder, as data. Classes are the UiBreakpoint tiers from",
+      "include/ui_breakpoint.h and the thresholds are its UI_BREAKPOINT_*_MAX values, so an",
+      "asset filename and a layout override mean the same thing by the same word.",
+      "",
+      "max_narrow is min(width, height): a full-screen canvas has to fit the cramped axis,",
+      "which is what breakpoint_for() keys off. Rules are evaluated in order, first match",
+      "wins, and an absent bound means unbounded on that side.",
+      "",
+      "Two departures from a plain tier lookup. A wide, short bar display takes `ultrawide`",
+      "because its canvas shape is unlike anything else at its tier. And nothing is composited",
+      "above `xlarge`, so the last rule is a catch-all and a larger panel scales.",
+      "",
+      "src/system/prerender_size_class.cpp is the compiled implementation and",
+      "scripts/platform_manifest.py the build-time one; tests/unit/test_prerender_size_class.cpp",
+      "asserts both agree with these rules and that the thresholds still match ui_breakpoint.h."
+    ],
+    "splash": [
+      {
+        "class": "ultrawide",
+        "min_width": 1100,
+        "max_height": 499
+      },
+      {
+        "class": "micro",
+        "max_narrow": 272
+      },
+      {
+        "class": "tiny",
+        "max_narrow": 390
+      },
+      {
+        "class": "small",
+        "max_narrow": 460
+      },
+      {
+        "class": "medium",
+        "max_narrow": 550
+      },
+      {
+        "class": "large",
+        "max_narrow": 700
+      },
+      {
+        "class": "xlarge"
+      }
+    ],
+    "splash_composite_height": {
+      "micro": 272,
+      "tiny": 320,
+      "small": 400,
+      "medium": 480,
+      "large": 600,
+      "xlarge": 720,
+      "ultrawide": 440
+    },
+    "splash_2d_logo_classes": [
+      "tiny",
+      "medium",
+      "large",
+      "xlarge"
+    ],
+    "printer_image": [
+      {
+        "size": 150,
+        "max_width": 599
+      },
+      {
+        "size": 300
+      }
+    ]
+  },
+  "platforms": {
+    "k2": {
+      "display_name": "Creality K2 series",
+      "panel": {
+        "width": 480,
+        "height": 800,
+        "rotate": 270,
+        "verified": true,
+        "source": "hardware: K2 Plus 192.168.30.196 /sys/class/graphics/fb0 2026-09-11"
+      },
+      "storage": {
+        "root": "/mnt/UDISK/helixscreen",
+        "state_root": "/mnt/UDISK/helixscreen-state",
+        "cache_dir": "/mnt/UDISK/helixscreen-state/cache",
+        "log_file": "/mnt/UDISK/helixscreen-state/logs/helix.log",
+        "previous_root": "/opt/helixscreen",
+        "previous_state_root": "/mnt/UDISK/helixscreen",
+        "tmp_dir_preferred": "/mnt/UDISK/helixscreen-install",
+        "stale_cache_dirs": [
+          "/usr/data/helixscreen/cache",
+          "/usr/data/helixscreen-install",
+          "/opt/.helixscreen-install"
+        ],
+        "big_mount": "/mnt/UDISK",
+        "small_mount": "/opt",
+        "notes": "/opt is on the 240MB overlay mounted at /; /mnt/UDISK is the 27.5GB user partition, and both the payload and its state live there."
+      },
+      "service": {
+        "init_system": "sysv",
+        "init_system_pinned": false,
+        "init_script": "/etc/init.d/S99helixscreen",
+        "start_order": 99,
+        "needs_procd_shim": true,
+        "procd_shim_path": "/etc/init.d/helixscreen",
+        "previous_ui_script": ""
+      },
+      "klipper": {
+        "home": "/mnt/UDISK",
+        "user": "root",
+        "group": "root",
+        "config_dir": null
+      },
+      "moonraker": {
+        "update_manager": true
+      },
+      "sound": {
+        "has_sound": false,
+        "has_tracker": false,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
+        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
+      },
+      "package": {
+        "asset_name": "helixscreen-k2.zip",
+        "docker_target": "k2-docker",
+        "build_dir": "build/k2",
+        "splash_3d_target": "gen-splash-3d-k2",
+        "gen_images_target": "gen-images",
+        "in_release_matrix": true,
+        "detectable": true
+      }
+    },
+    "k1": {
+      "display_name": "Creality K1 series",
+      "panel": {
+        "width": 480,
+        "height": 800,
+        "rotate": 270,
+        "verified": true,
+        "source": "hardware: K1C 192.168.30.182 /sys/class/graphics/fb0 2026-09-11",
+        "notes": "Measured on a K1C. Plain K1 and K1 Max are unmeasured; docs/devel/printers/CREALITY_K1_SUPPORT.md agrees at 480x800, docs/devel/printer-research/CREALITY_K1_SERIES_RESEARCH.md says 480x400 and is wrong. Until a K1/K1 Max is measured the package hedges by generating tiny_alt as well."
+      },
+      "storage": {
+        "root": "/usr/data/helixscreen",
+        "state_root": "/usr/data/helixscreen-state",
+        "cache_dir": "/usr/data/helixscreen-state/cache",
+        "log_file": "/usr/data/helixscreen-state/logs/helix.log"
+      },
+      "service": {
+        "init_system": "sysv",
+        "init_system_pinned": false,
+        "init_script": "/etc/init.d/S99helixscreen",
+        "start_order": 99,
+        "needs_procd_shim": false,
+        "previous_ui_script_by_firmware": {
+          "simple_af": "/etc/init.d/S99guppyscreen",
+          "guilouz": "",
+          "stock_klipper": ""
+        }
+      },
+      "klipper": {
+        "home": "/usr/data",
+        "user": "root",
+        "group": "root",
+        "config_dir": null
+      },
+      "moonraker": {
+        "update_manager": true
+      },
+      "sound": {
+        "has_sound": false,
+        "has_tracker": false,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
+        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
+      },
+      "package": {
+        "asset_name": "helixscreen-k1.zip",
+        "docker_target": "mips-docker",
+        "build_dir": "build/mips",
+        "splash_3d_target": "gen-splash-3d-k1",
+        "gen_images_target": "gen-images",
+        "in_release_matrix": true,
+        "detectable": true,
+        "extra_splash_3d_classes": [
+          "small"
+        ],
+        "extra_splash_3d_reason": "Plain K1 and K1 Max are unmeasured. A 480x400 variant would select `small`; generating it alongside the derived class costs ~1.5MB and guarantees no K1 ships without a splash. Drop it once measured."
+      }
+    },
+    "k1-dynamic": {
+      "display_name": "Creality K1 series (dynamic link)",
+      "inherits_panel_from": "k1",
+      "panel": {
+        "width": 480,
+        "height": 800,
+        "rotate": 270,
+        "verified": true,
+        "source": "hardware: K1C 192.168.30.182 (same panel as k1) 2026-09-11"
+      },
+      "storage": {
+        "root": "/usr/data/helixscreen",
+        "state_root": "/usr/data/helixscreen-state",
+        "cache_dir": "/usr/data/helixscreen-state/cache",
+        "log_file": "/usr/data/helixscreen-state/logs/helix.log"
+      },
+      "service": {
+        "init_system": "sysv",
+        "init_system_pinned": false,
+        "init_script": "/etc/init.d/S99helixscreen",
+        "start_order": 99,
+        "needs_procd_shim": false,
+        "previous_ui_script": ""
+      },
+      "klipper": {
+        "home": "/usr/data",
+        "user": "root",
+        "group": "root",
+        "config_dir": null
+      },
+      "moonraker": {
+        "update_manager": true
+      },
+      "sound": {
+        "has_sound": false,
+        "has_tracker": false,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
+        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
+      },
+      "package": {
+        "asset_name": "helixscreen-k1.zip",
+        "docker_target": "k1-dynamic-docker",
+        "build_dir": "build/k1-dynamic",
+        "splash_3d_target": "gen-splash-3d-k1",
+        "gen_images_target": "gen-images",
+        "in_release_matrix": false,
+        "detectable": false,
+        "notes": "Build and asset key only. detect_platform never returns k1-dynamic and .github/workflows/release.yml excludes it from the matrix; helix_self_update_asset maps it to helixscreen-k1.zip.",
+        "extra_splash_3d_classes": [
+          "small"
+        ],
+        "extra_splash_3d_reason": "Plain K1 and K1 Max are unmeasured. A 480x400 variant would select `small`; generating it alongside the derived class costs ~1.5MB and guarantees no K1 ships without a splash. Drop it once measured."
+      }
+    },
+    "ad5x": {
+      "display_name": "Flashforge Adventurer 5X",
+      "panel": {
+        "width": 800,
+        "height": 480,
+        "rotate": 0,
+        "verified": true,
+        "source": "hardware: 192.168.30.254 /sys/class/graphics/fb0 2026-09-11 (stride 3200, 32bpp, virtual 800x960)"
+      },
+      "storage": {
+        "root": "/srv/helixscreen",
+        "state_root": "/srv/helixscreen-state",
+        "cache_dir": "/srv/helixscreen-state/cache",
+        "log_file": "/opt/config/mod_data/log/helix.log",
+        "notes": "log_file is deliberately off the install tree so ZMOD's archiver collects it. cache_dir and log_file are independent fields, not derived from root."
+      },
+      "service": {
+        "init_system": "sysv",
+        "init_system_pinned": false,
+        "init_script": "/etc/init.d/S80helixscreen",
+        "start_order": 80,
+        "needs_procd_shim": false,
+        "previous_ui_script": ""
+      },
+      "klipper": {
+        "home": "/root",
+        "user": "root",
+        "group": "root",
+        "config_dir": null
+      },
+      "moonraker": {
+        "update_manager": true,
+        "notes": "Intentionally not skipped: only ever installed via the ZMOD chroot, which ships Mainsail/Fluidd."
+      },
+      "sound": {
+        "has_sound": true,
+        "has_tracker": true,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)"
+      },
+      "package": {
+        "asset_name": "helixscreen-ad5x.zip",
+        "docker_target": "mips-docker",
+        "build_dir": "build/ad5x",
+        "splash_3d_target": "gen-splash-3d-ad5x",
+        "gen_images_target": "gen-images",
+        "in_release_matrix": true,
+        "detectable": true,
+        "gen_images_note": "gen-images-ad5x exists in mk/images.mk with TARGET_SIZES=small and has no callers. Wiring it up narrows what ships, which belongs with the rest of the asset filtering."
+      }
+    },
+    "ad5m": {
+      "display_name": "Flashforge Adventurer 5M",
+      "panel": {
+        "width": 800,
+        "height": 480,
+        "rotate": 0,
+        "verified": true,
+        "source": "hardware: 192.168.1.67 /sys/class/graphics/fb0 2026-09-11 (stride 3200, 32bpp, virtual 800x960)"
+      },
+      "storage": {
+        "root": "/opt/helixscreen",
+        "state_root": "/data/helixscreen",
+        "root_by_firmware": {
+          "klipper_mod": "/root/printer_software/helixscreen if that dir exists, else /opt/helixscreen",
+          "zmod": "/srv/helixscreen",
+          "forge_x": "/opt/helixscreen"
+        },
+        "cache_dir": "/data/helixscreen/cache",
+        "log_file_by_firmware": {
+          "klipper_mod": "/data/helixscreen/logs/helix.log",
+          "zmod": "/opt/config/mod_data/log/helix.log",
+          "forge_x": null
+        }
+      },
+      "service": {
+        "init_system": "sysv",
+        "init_system_pinned": false,
+        "init_script_by_firmware": {
+          "klipper_mod": "/etc/init.d/S80helixscreen",
+          "zmod": "/etc/init.d/S80helixscreen",
+          "forge_x": "/etc/init.d/S90helixscreen"
+        },
+        "start_order_by_firmware": {
+          "klipper_mod": 80,
+          "zmod": 80,
+          "forge_x": 90
+        },
+        "needs_procd_shim": false,
+        "previous_ui_script_by_firmware": {
+          "klipper_mod": "/etc/init.d/S80klipperscreen",
+          "zmod": "",
+          "forge_x": "/opt/config/mod/.root/S80guppyscreen"
+        }
+      },
+      "klipper": {
+        "home": "/root",
+        "user": "root",
+        "group": "root",
+        "config_dir": null
+      },
+      "moonraker": {
+        "update_manager": false,
+        "notes": "Skipped: typically no web UI."
+      },
+      "sound": {
+        "has_sound": true,
+        "has_tracker": false,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
+        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
+      },
+      "package": {
+        "asset_name": "helixscreen-ad5m.zip",
+        "docker_target": "ad5m-docker",
+        "build_dir": "build/ad5m",
+        "splash_3d_target": "gen-splash-3d-ad5m",
+        "gen_images_target": "gen-images-ad5m",
+        "in_release_matrix": true,
+        "detectable": true
+      }
+    },
+    "cc1": {
+      "display_name": "Elegoo Centauri Carbon",
+      "panel": {
+        "width": 480,
+        "height": 272,
+        "rotate": 0,
+        "verified": true,
+        "source": "hardware: 192.168.1.52 /sys/class/graphics/fb0 2026-09-11 (stride 1920, DRM card0-Unknown-1 480x272)",
+        "notes": "The tiny class composites at 480x320, 48px taller than this panel. get_splash_3d_target_height lets the runtime catch that and fall back to a scaled PNG, so the overdraw does not ship as a broken frame; a matching class would still be better."
+      },
+      "storage": {
+        "root": "/user-resource/helixscreen",
+        "state_root": "/user-resource/helixscreen-state",
+        "cache_dir": "/user-resource/helixscreen-state/cache",
+        "log_file": "/user-resource/helixscreen-state/logs/helix.log",
+        "notes": "/ is a read-only squashfs with no /opt; /etc is an overlay on /data. /user-resource is the 6.3GB ext4 partition and carries the install, cache and logs. There is no printer_data directory on the device."
+      },
+      "service": {
+        "init_system": "sysv",
+        "init_system_pinned": true,
+        "init_script": "/etc/init.d/helixscreen",
+        "start_order": null,
+        "needs_procd_shim": false,
+        "previous_ui_script": "",
+        "notes": "No S-prefix: COSMOS gui-switcher owns start order. This path is the real init script here, unlike k2 where the same path is the procd shim."
+      },
+      "klipper": {
+        "home": "/root",
+        "user": "root",
+        "group": "root",
+        "config_dir": "/etc/klipper/config"
+      },
+      "moonraker": {
+        "update_manager": true
+      },
+      "sound": {
+        "has_sound": false,
+        "has_tracker": false,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
+        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
+      },
+      "package": {
+        "asset_name": "helixscreen-cc1.zip",
+        "docker_target": "cc1-docker",
+        "build_dir": "build/cc1",
+        "splash_3d_target": "gen-splash-3d-cc1",
+        "gen_images_target": "gen-images",
+        "in_release_matrix": true,
+        "detectable": true
+      }
+    },
+    "snapmaker-u1": {
+      "display_name": "Snapmaker U1",
+      "panel": {
+        "width": 480,
+        "height": 320,
+        "rotate": 0,
+        "verified": true,
+        "source": "hardware: 192.168.30.103 /sys/class/graphics/fb0 + /sys/class/drm/card0-DPI-1 2026-09-11"
+      },
+      "storage": {
+        "root": "/userdata/helixscreen",
+        "state_root": "/userdata/helixscreen-state",
+        "cache_dir": "/userdata/helixscreen-state/cache",
+        "log_file": null
+      },
+      "service": {
+        "init_system": "sysv",
+        "init_system_pinned": true,
+        "init_script": "/userdata/helixscreen/config/helixscreen.init",
+        "start_order": null,
+        "needs_procd_shim": false,
+        "previous_ui_script": "",
+        "notes": "Not under /etc/init.d. install_service_snapmaker_u1 patches the stock /etc/init.d/S99screen to delegate start|stop|restart only, with no status verb."
+      },
+      "klipper": {
+        "home": "/home/lava",
+        "user": "root",
+        "group": "root",
+        "config_dir": null,
+        "notes": "Klipper runs as lava; HelixScreen runs as root. user and home describe two different principals here, so config symlinks must target the lava-owned tree."
+      },
+      "moonraker": {
+        "update_manager": true
+      },
+      "sound": {
+        "has_sound": false,
+        "has_tracker": false,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
+        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
+      },
+      "package": {
+        "asset_name": "helixscreen-snapmaker-u1.zip",
+        "docker_target": "snapmaker-u1-docker",
+        "build_dir": "build/snapmaker-u1",
+        "splash_3d_target": "gen-splash-3d-snapmaker-u1",
+        "gen_images_target": "gen-images",
+        "in_release_matrix": true,
+        "detectable": true
+      }
+    },
+    "pi": {
+      "display_name": "Raspberry Pi / SBC (64-bit)",
+      "panel": {
+        "variable": true,
+        "verified": false,
+        "source": "Panel is user-supplied and unknown until runtime. 192.168.1.113 measures 800x480 (DSI), 192.168.1.112 measures 800x480 (HDMI5), but neither is a constraint on the package.",
+        "notes": "Ships every size class deliberately."
+      },
+      "storage": {
+        "root": "detected",
+        "root_fallback": "/opt/helixscreen",
+        "cache_dir": null,
+        "log_file": null,
+        "notes": "detect_pi_install_dir cascades: explicit override, existing install, $KLIPPER_HOME/helixscreen when klipper/moonraker/printer_data is present, then /opt/helixscreen."
+      },
+      "service": {
+        "init_system": "systemd",
+        "init_system_pinned": false,
+        "init_script": "/etc/systemd/system/helixscreen.service",
+        "start_order": null,
+        "needs_procd_shim": false,
+        "previous_ui_script": "",
+        "notes": "set_install_paths also sets INIT_SCRIPT_DEST=/etc/init.d/S90helixscreen, which is live only on a Pi-class box with no /run/systemd/system."
+      },
+      "klipper": {
+        "home": "detected",
+        "user": "detected",
+        "group": "detected",
+        "config_dir": null
+      },
+      "moonraker": {
+        "update_manager": true
+      },
+      "sound": {
+        "has_sound": true,
+        "has_tracker": true,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)"
+      },
+      "package": {
+        "asset_name": "helixscreen-pi.zip",
+        "docker_target": "pi-all-docker",
+        "build_dir": "build/pi",
+        "splash_3d_target": "gen-splash-3d",
+        "gen_images_target": "gen-images",
+        "in_release_matrix": true,
+        "detectable": true
+      }
+    },
+    "pi32": {
+      "display_name": "Raspberry Pi / SBC (32-bit)",
+      "panel": {
+        "variable": true,
+        "verified": false,
+        "source": "Panel is user-supplied and unknown until runtime."
+      },
+      "storage": {
+        "root": "detected",
+        "root_fallback": "/opt/helixscreen",
+        "cache_dir": null,
+        "log_file": null
+      },
+      "service": {
+        "init_system": "systemd",
+        "init_system_pinned": false,
+        "init_script": "/etc/systemd/system/helixscreen.service",
+        "start_order": null,
+        "needs_procd_shim": false,
+        "previous_ui_script": ""
+      },
+      "klipper": {
+        "home": "detected",
+        "user": "detected",
+        "group": "detected",
+        "config_dir": null
+      },
+      "moonraker": {
+        "update_manager": true
+      },
+      "sound": {
+        "has_sound": true,
+        "has_tracker": true,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)"
+      },
+      "package": {
+        "asset_name": "helixscreen-pi32.zip",
+        "docker_target": "pi32-all-docker",
+        "build_dir": "build/pi32",
+        "splash_3d_target": "gen-splash-3d",
+        "gen_images_target": "gen-images",
+        "in_release_matrix": true,
+        "detectable": true
+      }
+    },
+    "m1": {
+      "display_name": "Artillery M1",
+      "panel": {
+        "variable": false,
+        "verified": false,
+        "source": "Not recorded anywhere in the repo and no hardware available.",
+        "notes": "Ships the pi package, which carries every size class, so the gap costs nothing today. It blocks a complete manifest, not a useful one."
+      },
+      "storage": {
+        "root": "detected",
+        "root_fallback": "/opt/helixscreen",
+        "cache_dir": null,
+        "log_file": null,
+        "notes": "The install root is discovered rather than fixed, so no cache override is set and the XDG rung of the cascade resolves on its own."
+      },
+      "service": {
+        "init_system": "systemd",
+        "init_system_pinned": false,
+        "init_script": "/etc/systemd/system/helixscreen.service",
+        "start_order": null,
+        "needs_procd_shim": false,
+        "previous_ui_script": ""
+      },
+      "klipper": {
+        "home": "detected",
+        "user": "detected",
+        "group": "detected",
+        "config_dir": null
+      },
+      "moonraker": {
+        "update_manager": true
+      },
+      "sound": {
+        "has_sound": true,
+        "has_tracker": true,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)"
+      },
+      "package": {
+        "asset_name": "helixscreen-pi.zip",
+        "docker_target": "pi-all-docker",
+        "build_dir": "build/pi",
+        "splash_3d_target": "gen-splash-3d",
+        "gen_images_target": "gen-images",
+        "in_release_matrix": false,
+        "detectable": true,
+        "notes": "get_download_platform remaps m1 to pi or pi32 by word size; it has no package target of its own."
+      }
+    },
+    "x86": {
+      "display_name": "x86-64 Linux",
+      "panel": {
+        "variable": true,
+        "verified": false,
+        "source": "Desktop and generic hardware; unknown until runtime."
+      },
+      "storage": {
+        "root": "detected",
+        "root_fallback": "/opt/helixscreen",
+        "cache_dir": null,
+        "log_file": null
+      },
+      "service": {
+        "init_system": "systemd",
+        "init_system_pinned": false,
+        "init_script": "/etc/systemd/system/helixscreen.service",
+        "start_order": null,
+        "needs_procd_shim": false,
+        "previous_ui_script": ""
+      },
+      "klipper": {
+        "home": "detected",
+        "user": "detected",
+        "group": "detected",
+        "config_dir": null
+      },
+      "moonraker": {
+        "update_manager": true
+      },
+      "sound": {
+        "has_sound": true,
+        "has_tracker": true,
+        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)"
+      },
+      "package": {
+        "asset_name": "helixscreen-x86.zip",
+        "docker_target": "x86-all-docker",
+        "build_dir": "build/x86",
+        "splash_3d_target": "gen-splash-3d",
+        "gen_images_target": "gen-images",
+        "in_release_matrix": true,
+        "detectable": true
+      }
+    }
+  }
+}

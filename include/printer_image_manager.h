@@ -61,7 +61,9 @@ class PrinterImageManager {
         std::string preview_path; // LVGL path for thumbnail preview
     };
 
-    std::vector<ImageInfo> get_shipped_images() const;
+    /// @param screen_width Display width; picks which prerendered tier the
+    ///        previews point at. Packaging ships only one.
+    std::vector<ImageInfo> get_shipped_images(int screen_width) const;
     std::vector<ImageInfo> get_custom_images() const;
 
     /// Get raw files in custom_images/ that failed import (no corresponding .bin)

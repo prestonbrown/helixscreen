@@ -6,6 +6,7 @@
 
 #include "app_globals.h"
 #include "data_root_resolver.h"
+#include "helix_install_roots.h"
 #include "helix_version.h"
 #include "host_identity.h"
 #include "http_executor.h"
@@ -606,10 +607,13 @@ std::string DebugBundleCollector::collect_crash_txt() {
         config_dirs.push_back(std::string(home) + "/helixscreen/config");
     }
 
-    // Absolute paths for embedded platforms (AD5M, AD5X, K1, etc.)
-    config_dirs.push_back("/opt/helixscreen/config");
-    config_dirs.push_back("/srv/helixscreen/config");
-    config_dirs.push_back("/usr/data/helixscreen/config");
+    // Every install root, not a subset: $HOME is /root on the Creality and
+    // Flashforge targets and on CC1, so the home-relative entry above covers
+    // none of them. A root missing here is a device whose crash.txt cannot be
+    // recovered from a bundle.
+    for (const char* root : helix::kInstallRoots) {
+        config_dirs.push_back(std::string(root) + "/config");
+    }
 
     // Try crash.txt first, then rotated files (crash_1.txt, crash_2.txt, crash_3.txt).
     // The crash reporter rotates crash.txt → crash_1.txt after consuming it,
@@ -1140,31 +1144,50 @@ json DebugBundleCollector::collect_filament_system_info() {
         fs["object_state"] = json::object();
     }
 
-    // Phase 3: Additional endpoints
-    try {
-        fs["spoolman_status"] = sanitize_json(moonraker_get(base_url, "/server/spoolman/status"));
-    } catch (const std::exception& e) {
-        spdlog::debug("[DebugBundle] spoolman_status failed: {}", e.what());
-        fs["spoolman_status"] = json{{"error", e.what()}};
-    }
+    // Phase 3: Additional endpoints. Every section records its own failure: a
+    // missing endpoint is diagnostic data about the printer, not a reason to
+    // drop the rest of the bundle.
+    const auto capture = [&](const char* key, const std::string& endpoint) {
+        try {
+            fs[key] = sanitize_json(moonraker_get(base_url, endpoint));
+        } catch (const std::exception& e) {
+            spdlog::debug("[DebugBundle] {} failed: {}", key, e.what());
+            fs[key] = json{{"error", e.what()}};
+        }
+    };
 
-    try {
-        fs["afc_version"] =
-            sanitize_json(moonraker_get(base_url, "/server/database/item?namespace=afc-install"));
-    } catch (const std::exception& e) {
-        spdlog::debug("[DebugBundle] afc_version failed: {}", e.what());
-        fs["afc_version"] = json{{"error", e.what()}};
-    }
+    capture("spoolman_status", "/server/spoolman/status");
+    capture("afc_version", "/server/database/item?namespace=afc-install");
+    capture("mmu_version", "/server/database/item?namespace=mmu-install");
 
-    try {
-        fs["mmu_version"] =
-            sanitize_json(moonraker_get(base_url, "/server/database/item?namespace=mmu-install"));
-    } catch (const std::exception& e) {
-        spdlog::debug("[DebugBundle] mmu_version failed: {}", e.what());
-        fs["mmu_version"] = json{{"error", e.what()}};
+    // The per-lane override records. These decide the colour, material and
+    // Spoolman link the UI actually shows, so a filament-identity report that
+    // lacks them can only be answered by reading code.
+    json overrides = json::object();
+    for (const auto& ns : filament_override_namespaces()) {
+        try {
+            overrides[ns] =
+                sanitize_json(moonraker_get(base_url, "/server/database/item?namespace=" + ns));
+        } catch (const std::exception& e) {
+            spdlog::debug("[DebugBundle] override namespace {} failed: {}", ns, e.what());
+            overrides[ns] = json{{"error", e.what()}};
+        }
     }
+    fs["slot_overrides"] = overrides;
+
+    // Namespace NAMES only, never their values. Enough to tell whether a
+    // namespace we have never captured exists on this printer, at no risk.
+    capture("database_namespaces", "/server/database/list");
 
     return fs;
+}
+
+std::vector<std::string> DebugBundleCollector::filament_override_namespaces() {
+    // "lane_data" is the shared, cooperative namespace (AD5X IFS, ACE, CFS,
+    // Snapmaker, plus AFC and Happy Hare's bypass-lane publishes). AFC and
+    // Happy Hare keep their own records privately because their Klipper
+    // plugins own lane_data and AFC rewrites it wholesale on every boot.
+    return {"lane_data", "helix-screen-afc-overrides", "helix-screen-hh-overrides"};
 }
 
 // =============================================================================

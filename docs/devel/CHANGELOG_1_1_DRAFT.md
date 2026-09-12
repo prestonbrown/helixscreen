@@ -135,6 +135,16 @@ what gets saved.
 
 ### Fixed
 
+- **Filament details you entered on a Happy Hare lane were gone at the next launch** - brand,
+  spool name, weights, colour name and the catalog product you picked were kept on screen for
+  the session and never written down, on every Happy Hare printer. Clearing a lane had the
+  mirror-image problem: the lane emptied on screen and the old details came back on the next
+  start. Both stick now.
+- **Pure black was dropped as a filament colour on AFC and Happy Hare lanes** - picking black
+  recorded no colour at all, so the lane kept whatever colour was on it before, and the
+  recommended nozzle and bed temperatures for the filament were not saved with it. Black is now
+  a colour like any other on HelixScreen's own screens; on these two systems it still does not
+  reach the printer's own lane record or its LEDs (#1597).
 - **Resume and Cancel Print did nothing on the home tile's paused modal** - a runout that paused
   a print gave you a Resume button that closed the dialog and left the print paused.
 - **Declining a cancel confirmation dropped you on a bare screen** - the guidance dialog was

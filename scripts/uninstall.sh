@@ -44,11 +44,34 @@ PREVIOUS_UIS="guppyscreen GuppyScreen featherscreen FeatherScreen klipperscreen 
 # Well-known paths (used by uninstall, clean, stop_service)
 # AD5M: /opt/helixscreen, /root/printer_software/helixscreen, /srv/helixscreen (ZMOD)
 # K1: /usr/data/helixscreen
+# K2: /mnt/UDISK/helixscreen, and /opt/helixscreen until it migrates
 # Pi: /opt/helixscreen
 # CC1 (COSMOS): /user-resource/helixscreen (/ is RO squashfs)
 # Snapmaker U1: /userdata/helixscreen
 # shellcheck disable=SC2034  # consumed by uninstall.sh (sweep of all known install locations)
-HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
+HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /mnt/UDISK/helixscreen /usr/data/helixscreen /srv/helixscreen /user-resource/helixscreen /userdata/helixscreen"
+
+# Where cache/ and logs/ live. Deliberately NOT inside an install root: the
+# payload is what an update replaces, and Moonraker's type:web entry rmtree()s
+# it first. Swept on uninstall, since nothing else ever removes them.
+# Mirrors kStateRoots in include/helix_install_roots.h.
+# shellcheck disable=SC2034  # consumed by uninstall.sh
+HELIX_STATE_DIRS="/mnt/UDISK/helixscreen-state /mnt/UDISK/helixscreen /data/helixscreen /usr/data/helixscreen-state /user-resource/helixscreen-state /userdata/helixscreen-state /srv/helixscreen-state"
+
+# Cache and log directories an uninstall removes: every declared state dir, plus
+# the in-payload locations older installs still carry. Emitting the legacy ones
+# is what makes an upgrade-then-uninstall clean, since a box installed before
+# the state moved still has them.
+# shellcheck disable=SC2034  # consumed by uninstall.sh
+helix_state_sweep_paths() {
+    for _hssp in $HELIX_STATE_DIRS; do
+        printf '%s/cache\n%s/logs\n' "$_hssp" "$_hssp"
+    done
+    printf '%s\n' /root/.cache/helix /tmp/helix_thumbs /.cache/helix \
+        /data/helixscreen/cache /usr/data/helixscreen/cache \
+        /user-resource/helixscreen/cache /userdata/helixscreen/cache \
+        /srv/helixscreen/cache
+}
 
 # Init script locations vary by platform/firmware
 # AD5M Klipper Mod: S80, AD5M Forge-X: S90, K1: S99, CC1 (COSMOS): plain /etc/init.d/helixscreen
@@ -1570,9 +1593,11 @@ detect_k1_firmware() {
 }
 
 # Locations a HelixScreen install may already occupy, for the existing-install
-# probe below. Mirrors HELIX_INSTALL_DIRS in uninstall.sh — same question, same
-# answer. Overridable so the bats suite can point it at a sandbox.
-: "${_HELIX_KNOWN_INSTALL_DIRS:=/opt/helixscreen /srv/helixscreen /usr/data/helixscreen /root/printer_software/helixscreen /user-resource/helixscreen /userdata/helixscreen}"
+# probe below. This is the same question HELIX_INSTALL_DIRS answers for the
+# uninstall sweep, so it IS that list rather than a second copy of it: common.sh
+# is the bundle's first module, so the value is set by the time this one loads.
+# Overridable so the bats suite can point it at a sandbox.
+: "${_HELIX_KNOWN_INSTALL_DIRS:=${HELIX_INSTALL_DIRS}}"
 
 # Print the directory of an install that is already on disk, or return 1.
 # Checks $KLIPPER_HOME/helixscreen first so an ecosystem install outranks a stale
@@ -1581,6 +1606,27 @@ detect_k1_firmware() {
 # bin/helix-screen is what makes a directory an install: uninstall leaves the
 # directory (and its config/) behind on several platforms, and treating that
 # husk as a live install would pin every future install to it.
+# Print the superseded root when an install is sitting at it, else return 1.
+#
+# Searched in the same list the existing-install probe uses, so a sandboxed tree
+# answers exactly as the device path does. The answer does not depend on whether
+# the new root is populated: a migration interrupted partway has both, and the
+# tree left behind still has to be swept.
+_find_superseded_install() {
+    [ -n "${PREVIOUS_INSTALL_DIR:-}" ] || return 1
+    for _fsi_dir in $_HELIX_KNOWN_INSTALL_DIRS; do
+        case "$_fsi_dir" in
+            "$PREVIOUS_INSTALL_DIR"|*"$PREVIOUS_INSTALL_DIR") ;;
+            *) continue ;;
+        esac
+        if [ -x "${_fsi_dir}/bin/helix-screen" ]; then
+            printf '%s\n' "$_fsi_dir"
+            return 0
+        fi
+    done
+    return 1
+}
+
 _detect_existing_install_dir() {
     _eid_candidates=""
     [ -n "${KLIPPER_HOME:-}" ] && _eid_candidates="${KLIPPER_HOME}/helixscreen"
@@ -1848,6 +1894,13 @@ set_install_paths() {
     # below opt out. Without the reset a stale value from the environment (or
     # from an earlier call in the same shell) would leak into another platform.
     KLIPPER_CONFIG_DIR=""
+    _install_dir_from_detection=0
+    # Only the k2 branch declares a superseded root; clear them for everyone
+    # else so one platform's migration cannot leak into another's run.
+    PREVIOUS_INSTALL_DIR=""
+    PREVIOUS_STATE_DIR=""
+    STATE_DIR=""
+    MIGRATE_FROM_DIR=""
 
     if [ "$platform" = "ad5m" ]; then
         # AD5M runs the helix-screen service as root on all three firmwares
@@ -1892,6 +1945,11 @@ set_install_paths() {
         KLIPPER_GROUP="root"
         KLIPPER_HOME="/root"
         INSTALL_DIR="/srv/helixscreen"
+        # The cache moved to a sibling of the payload, because the payload is
+        # what an update replaces. Reclaim the copy an older install left inside
+        # it rather than leaving a second one on the flash.
+        # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
+        STALE_CACHE_DIRS="/srv/helixscreen/cache"
         INIT_SCRIPT_DEST="/etc/init.d/S80helixscreen"
         PREVIOUS_UI_SCRIPT=""
         log_info "Platform: FlashForge AD5X (ZMOD)"
@@ -1903,6 +1961,11 @@ set_install_paths() {
         # KLIPPER_HOME=/root and setup_config_symlink skips with
         # "No printer_data/config found" on every K1 install.
         INSTALL_DIR="/usr/data/helixscreen"
+        # The cache moved to a sibling of the payload, because the payload is
+        # what an update replaces. Reclaim the copy an older install left inside
+        # it rather than leaving a second one on the flash.
+        # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
+        STALE_CACHE_DIRS="/usr/data/helixscreen/cache"
         INIT_SCRIPT_DEST="/etc/init.d/S99helixscreen"
         KLIPPER_USER="root"
         KLIPPER_GROUP="root"
@@ -1929,18 +1992,29 @@ set_install_paths() {
         # /root/printer_data -> /mnt/UDISK/printer_data/, but the installer
         # runs before that bootstrap for many users — point KLIPPER_HOME at
         # the actual storage so config symlinks work on first install.
-        INSTALL_DIR="/opt/helixscreen"
+        INSTALL_DIR="/mnt/UDISK/helixscreen"
         INIT_SCRIPT_DEST="/etc/init.d/S99helixscreen"
         PREVIOUS_UI_SCRIPT=""
         KLIPPER_USER="root"
         KLIPPER_GROUP="root"
         KLIPPER_HOME="/mnt/UDISK"
+        # PREVIOUS_INSTALL_DIR is a root this platform may already be installed
+        # at. set_install_paths migrates such a tree to INSTALL_DIR instead of
+        # adopting it, so the fleet converges on one layout.
+        PREVIOUS_INSTALL_DIR="/opt/helixscreen"
+        # PREVIOUS_STATE_DIR is the path the payload now occupies, so cache/ and
+        # logs/ still sitting there have to move out before anything extracts
+        # over them. Mirrors storage.previous_state_root in the manifest.
+        # shellcheck disable=SC2034  # consumed by release.sh (state migration)
+        PREVIOUS_STATE_DIR="/mnt/UDISK/helixscreen"
+        # shellcheck disable=SC2034  # consumed by release.sh (state migration)
+        STATE_DIR="/mnt/UDISK/helixscreen-state"
         # /opt and /usr/data are both on the 240MB overlay; /mnt/UDISK is the
         # 27.5GB user partition. Staging the download anywhere else fills the
         # overlay (a unit was found with a leaked 60MB archive on it).
         TMP_DIR_PREFERRED="/mnt/UDISK/helixscreen-install"
         # Older builds cached thumbnails/gcode on the overlay via /usr/data;
-        # the app now caches on /mnt/UDISK, so reclaim the old location.
+        # the app caches under the state root, so reclaim the old location.
         # Also reclaim scratch dirs leaked by pre-EXIT-trap installers: one
         # unit held a 60MB archive at /usr/data/helixscreen-install for months.
         # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
@@ -1958,6 +2032,11 @@ set_install_paths() {
         #   printer.cfg, and the vendor *-readonly/ include dirs), which is
         #   also the `config` root Moonraker advertises over /server/files/roots.
         INSTALL_DIR="/user-resource/helixscreen"
+        # The cache moved to a sibling of the payload, because the payload is
+        # what an update replaces. Reclaim the copy an older install left inside
+        # it rather than leaving a second one on the flash.
+        # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
+        STALE_CACHE_DIRS="/user-resource/helixscreen/cache"
         INIT_SCRIPT_DEST="/etc/init.d/helixscreen"
         PREVIOUS_UI_SCRIPT=""
         KLIPPER_USER="root"
@@ -1976,6 +2055,11 @@ set_install_paths() {
         # on a freshly-flashed U1 before klipper has ever run that path may
         # not exist yet — make it explicit so the installer is deterministic.
         INSTALL_DIR="/userdata/helixscreen"
+        # The cache moved to a sibling of the payload, because the payload is
+        # what an update replaces. Reclaim the copy an older install left inside
+        # it rather than leaving a second one on the flash.
+        # shellcheck disable=SC2034  # consumed by release.sh (stale cache reclaim)
+        STALE_CACHE_DIRS="/userdata/helixscreen/cache"
         KLIPPER_USER="root"
         KLIPPER_GROUP="root"
         KLIPPER_HOME="/home/lava"
@@ -1996,6 +2080,38 @@ set_install_paths() {
         PREVIOUS_UI_SCRIPT=""
         detect_klipper_user
         detect_pi_install_dir
+        _install_dir_from_detection=1
+    fi
+
+    # A root the platform declares superseded is migrated, never adopted, so the
+    # fleet converges on one layout. An explicit INSTALL_DIR still outranks it.
+    if [ -n "${PREVIOUS_INSTALL_DIR:-}" ] && [ -z "${_USER_INSTALL_DIR:-}" ] \
+       && [ "$PREVIOUS_INSTALL_DIR" != "$INSTALL_DIR" ]; then
+        MIGRATE_FROM_DIR=$(_find_superseded_install) || MIGRATE_FROM_DIR=""
+        if [ -n "$MIGRATE_FROM_DIR" ]; then
+            log_info "Migrating install from ${MIGRATE_FROM_DIR} to ${INSTALL_DIR}"
+        fi
+    fi
+
+    # An install already on disk decides, on every platform. The roots above are
+    # defaults for a FIRST install; once a tree exists, moving it orphans that
+    # tree and the user config inside it, and an in-app update cannot carry the
+    # move: the payload lands at the new prefix while the init script still
+    # names the old one, so the device reboots into the old binary with two
+    # copies on disk. detect_pi_install_dir already did this for its own branch,
+    # and an explicit INSTALL_DIR is a deliberate choice that outranks it.
+    if [ "${_install_dir_from_detection:-0}" != "1" ] && [ -z "${_USER_INSTALL_DIR:-}" ]; then
+        _existing_install_dir=$(_detect_existing_install_dir) || _existing_install_dir=""
+        if [ -n "$_existing_install_dir" ] && [ "$_existing_install_dir" != "$INSTALL_DIR" ] \
+           && [ "$_existing_install_dir" != "${MIGRATE_FROM_DIR:-}" ]; then
+            log_info "Install directory (existing install): $_existing_install_dir"
+            INSTALL_DIR="$_existing_install_dir"
+            # Snapmaker U1 is the one platform whose init script lives INSIDE the
+            # install tree, so its path has to follow the tree.
+            if [ "$platform" = "snapmaker-u1" ]; then
+                INIT_SCRIPT_DEST="${INSTALL_DIR}/config/helixscreen.init"
+            fi
+        fi
     fi
 
     # A probed mod host installs into the mod's own payload root: the mod owns
@@ -4195,6 +4311,15 @@ _has_no_new_privs() {
 # already-installed users.  This surgical sed rewrites only that one
 # known-broken substring; anything else the platform may have customized
 # is left alone.
+# Point the init script's DAEMON_DIR at the install root.
+# On a mod host the script runs inside the chroot, where the install root may
+# have a different spelling than it does on the host (see
+# resolve_chroot_daemon_dir). Use the in-chroot one when we have it.
+_set_init_script_daemon_dir() {
+    _daemon_dir="${HELIX_CHROOT_DAEMON_DIR:-$INSTALL_DIR}"
+    _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"${_daemon_dir}\"|" "$INIT_SCRIPT_DEST"
+}
+
 _migrate_init_script_hooks_path() {
     local init_script="${INIT_SCRIPT_DEST:-}"
     [ -n "$init_script" ] && [ -f "$init_script" ] || return 0
@@ -4493,6 +4618,16 @@ install_service_sysv() {
     if _is_self_update; then
         log_info "Skipping init script install (self-update; already installed)"
         _migrate_init_script_hooks_path
+        # A migration is the one case where the installed script names a tree
+        # that is about to stop existing. Rewrite that single line rather than
+        # copying the script, so platform customizations survive (#314).
+        # By this point the payload at INSTALL_DIR is already complete, so the
+        # boot path never names a directory without an install in it.
+        if [ -n "${MIGRATE_FROM_DIR:-}" ] && [ -n "${INIT_SCRIPT_DEST:-}" ] \
+           && [ -f "$INIT_SCRIPT_DEST" ]; then
+            log_info "Repointing DAEMON_DIR at ${INSTALL_DIR}"
+            _set_init_script_daemon_dir
+        fi
         return 0
     fi
 
@@ -4514,14 +4649,7 @@ install_service_sysv() {
     $SUDO cp "$init_src" "$INIT_SCRIPT_DEST"
     $SUDO chmod +x "$INIT_SCRIPT_DEST"
 
-    # Update the DAEMON_DIR in the init script to match the install location
-    # This is important for Klipper Mod which uses a different path.
-    #
-    # On a mod host the script runs inside the chroot, where the install root
-    # may have a different spelling than it does on the host (see
-    # resolve_chroot_daemon_dir). Use the in-chroot one when we have it.
-    _daemon_dir="${HELIX_CHROOT_DAEMON_DIR:-$INSTALL_DIR}"
-    _sed_inplace "s|DAEMON_DIR=.*|DAEMON_DIR=\"${_daemon_dir}\"|" "$INIT_SCRIPT_DEST"
+    _set_init_script_daemon_dir
 
     log_success "Installed SysV init script at $INIT_SCRIPT_DEST"
 }
@@ -5237,6 +5365,45 @@ disable_system_updates_on_buildroot() {
 # Options like persistent_files, managed_services, and install_script are
 # not supported and cause Moonraker to log "unparsed config option" warnings.
 # Args: $1 = moonraker.conf path
+# Point an existing stanza's `path:` at INSTALL_DIR.
+# The value is interpolated once, when the section is first added, and nothing
+# revisits it. Moonraker's NetDeploy rmtree()s that path before extracting, so a
+# stale one aims a delete-and-repopulate at a tree we no longer own while the
+# web UI reports success.
+# Args: $1 = moonraker.conf path
+sync_update_manager_path() {
+    local conf="$1"
+    local current
+
+    current=$(awk '
+        /^\[update_manager helixscreen\]/ { found=1; next }
+        found && /^\[/ { exit }
+        found && /^path:/ { sub(/^path:[[:space:]]*/, ""); print; exit }
+    ' "$conf" 2>/dev/null)
+
+    if [ -z "$current" ] || [ "$current" = "$INSTALL_DIR" ]; then
+        return 0
+    fi
+
+    # Repointing an updater at a mod-owned tree is exactly as destructive as
+    # arming one there, so it answers to the same guard.
+    host_refuse_mod_owned "pointing the Moonraker updater at" "$INSTALL_DIR"
+
+    log_info "Repointing update_manager path: ${current} -> ${INSTALL_DIR}"
+    local fs
+    fs=$(file_sudo "$conf")
+    $fs cp "$conf" "${conf}.bak.helixscreen" 2>/dev/null || true
+
+    $fs awk -v want="$INSTALL_DIR" '
+        /^\[update_manager helixscreen\]/ { in_section=1 }
+        in_section && /^\[/ && !/^\[update_manager helixscreen\]/ { in_section=0 }
+        in_section && /^path:/ { print "path: " want; next }
+        { print }
+    ' "$conf" > "${conf}.tmp" && $fs mv "${conf}.tmp" "$conf"
+
+    log_success "update_manager path now names ${INSTALL_DIR}"
+}
+
 cleanup_unsupported_options() {
     local conf="$1"
 
@@ -5552,6 +5719,9 @@ configure_moonraker_updates() {
 
     if has_update_manager_section "$conf"; then
         log_info "update_manager section already exists in $conf"
+        # path: is only ever written when the section is first added, so an
+        # install that has moved leaves it naming the tree we left behind.
+        sync_update_manager_path "$conf"
         # Remove options not supported by type: web (persistent_files,
         # managed_services, install_script) that cause Moonraker warnings.
         cleanup_unsupported_options "$conf"
@@ -6282,12 +6452,22 @@ install_camera_k2() {
         return 0
     fi
 
+    # procd runs this file verbatim, so the binary it names has to be rewritten
+    # to this install's root. Staging the rewrite rather than editing in place
+    # keeps the compare below meaningful: it has to test what will be installed.
+    local svc_staged="${TMP_DIR:-/tmp}/helixscreen-ustreamer-k2.sh.staged"
+    if ! sed "s|^USTREAMER_BIN=.*|USTREAMER_BIN=\"${INSTALL_DIR}/bin/ustreamer\"|" \
+            "$svc_src" > "$svc_staged" 2>/dev/null; then
+        log_warn "Could not stage ustreamer init script — skipping camera service install"
+        return 0
+    fi
+
     # Overwrite-if-differs (not skip-if-exists) is how upgrades ship init-script
     # logic fixes — e.g. the newer script reclaims /dev/video0 by killing the
     # stock cam_app grabber before launching ustreamer (the "NO LIVE VIDEO" fix).
     # The script's editable config block is just our standard defaults, so
     # clobbering it on upgrade is acceptable.
-    if [ -f "$svc_dest" ] && cmp -s "$svc_src" "$svc_dest"; then
+    if [ -f "$svc_dest" ] && cmp -s "$svc_staged" "$svc_dest"; then
         log_info "ustreamer init script already current at $svc_dest"
     else
         if [ -f "$svc_dest" ]; then
@@ -6295,7 +6475,7 @@ install_camera_k2() {
         else
             log_info "Installing ustreamer procd init script..."
         fi
-        $SUDO cp "$svc_src" "$svc_dest" 2>/dev/null || \
+        $SUDO cp "$svc_staged" "$svc_dest" 2>/dev/null || \
             log_warn "Could not install ustreamer init at $svc_dest"
         $SUDO chmod +x "$svc_dest" 2>/dev/null || true
         $SUDO "$svc_dest" enable 2>/dev/null || \
@@ -7156,7 +7336,7 @@ uninstall() {
     local restored_xorg="$HELIX_RESTORED_XORG"
 
     # Clean up helixscreen cache directories
-    for cache_dir in /root/.cache/helix /tmp/helix_thumbs /.cache/helix /data/helixscreen/cache /usr/data/helixscreen/cache; do
+    for cache_dir in $(helix_state_sweep_paths); do
         if [ -d "$cache_dir" ] 2>/dev/null; then
             log_info "Removing cache: $cache_dir"
             $SUDO rm -rf "$cache_dir"
@@ -7301,8 +7481,7 @@ clean_old_installation() {
         "/tmp/helix_thumbs" \
         "/var/tmp/helix_thumbs" \
         "/var/tmp/helix_*" \
-        "/data/helixscreen/cache" \
-        "/usr/data/helixscreen/cache"
+        $(helix_state_sweep_paths)
     do
         for cache_dir in $cache_pattern; do
             if [ -d "$cache_dir" ] 2>/dev/null; then

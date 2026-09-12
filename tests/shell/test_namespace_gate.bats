@@ -18,6 +18,9 @@
 # and the baseline would stall above zero forever.
 
 GATE="scripts/check_namespace_compliance.py"
+# The ratchet baseline, carried here as a literal so it cannot move in
+# scripts/quality-checks.sh alone. See the wiring section at the end.
+BASELINE=2233
 
 setup() {
     load helpers
@@ -144,6 +147,50 @@ struct hv_loop_t;')
     [ "$status" -eq 0 ]
 }
 
+@test "real libdrm spellings stay foreign" {
+    f=$(fixture probe.h 'struct drmModeRes;
+int drmModeAtomicCommit(void);')
+    run python3 "$GATE" "$f"
+    [ "$status" -eq 0 ]
+}
+
+@test "our own drm-prefixed symbols are not foreign (#1586)" {
+    # Bare 'drm' exempted these from the gate entirely.
+    f=$(fixture probe.h 'bool drm_rotation_needs_full_render(int deg);')
+    run python3 "$GATE" "$f"
+    [ "$status" -eq 1 ]
+}
+
+@test "our own Display-prefixed types are not foreign (#1586)" {
+    f=$(fixture probe.h 'class DisplayManager;')
+    run python3 "$GATE" "$f"
+    [ "$status" -eq 1 ]
+}
+
+@test "our own capitalised G* types are not foreign (#1586)" {
+    f=$(fixture probe.h 'struct GcodeStoreEntry;')
+    run python3 "$GATE" "$f"
+    [ "$status" -eq 1 ]
+}
+
+@test "our own Window-prefixed types are not foreign (#1586)" {
+    # Xlib spells Window, and nothing here includes X11. A bare 'Window' entry
+    # in FOREIGN_PREFIXES would exempt our own types instead of a library's.
+    f=$(fixture probe.h 'class WindowPlacement;')
+    run python3 "$GATE" "$f"
+    [ "$status" -eq 1 ]
+}
+
+@test "our own z_-prefixed symbols are not foreign (#1586)" {
+    # zlib's z_stream reaches this tree as a function local, never a
+    # declaration. A foreign spelling that does appear in a header takes
+    # `// NAMESPACE_OK:` rather than a two-character prefix that also matches
+    # every z_offset/z_tilt name in the tree.
+    f=$(fixture probe.h 'void z_probe_reset(void);')
+    run python3 "$GATE" "$f"
+    [ "$status" -eq 1 ]
+}
+
 @test "a line carrying NAMESPACE_OK is not flagged" {
     f=$(fixture probe.h '// NAMESPACE_OK: C ABI callback signature
 class Widget {
@@ -252,11 +299,21 @@ class Widget {
     [[ "$output" == *"cpp"* ]]
 }
 
-@test "the quality-checks baseline matches the tree" {
-    # A baseline that drifted above the real count silently stops ratcheting:
-    # the gate would pass while new global declarations accumulate underneath it.
-    baseline=$(grep -oE 'check_namespace_compliance.py --max-allowed [0-9]+' scripts/quality-checks.sh | grep -oE '[0-9]+')
-    actual=$(python3 "$GATE" --summary | awk '/TOTAL/{print $2}')
-    [ -n "$baseline" ]
-    [ "$actual" -le "$baseline" ]
+@test "the tree sits exactly at the baseline, not under it" {
+    # Under the baseline is a pass, and a silent one: the number keeps
+    # describing debt that is already gone, and the slack absorbs the next
+    # global declaration without the gate saying anything. Pinning equality is
+    # what makes "can only go down" a property rather than an intention -
+    # lowering the count and lowering the number become the same commit.
+    run python3 "$GATE" --summary --max-allowed "$BASELINE"
+    [ "$status" -eq 0 ]
+    contains "== baseline" "$output"
+}
+
+@test "quality-checks.sh wires the gate in at the same baseline" {
+    # The literal above and the literal there are one number. Raising it in
+    # quality-checks.sh to clear new violations fails here.
+    run grep -F "check_namespace_compliance.py --max-allowed $BASELINE" \
+        scripts/quality-checks.sh
+    [ "$status" -eq 0 ]
 }

@@ -428,6 +428,45 @@ disable_system_updates_on_buildroot() {
 # Options like persistent_files, managed_services, and install_script are
 # not supported and cause Moonraker to log "unparsed config option" warnings.
 # Args: $1 = moonraker.conf path
+# Point an existing stanza's `path:` at INSTALL_DIR.
+# The value is interpolated once, when the section is first added, and nothing
+# revisits it. Moonraker's NetDeploy rmtree()s that path before extracting, so a
+# stale one aims a delete-and-repopulate at a tree we no longer own while the
+# web UI reports success.
+# Args: $1 = moonraker.conf path
+sync_update_manager_path() {
+    local conf="$1"
+    local current
+
+    current=$(awk '
+        /^\[update_manager helixscreen\]/ { found=1; next }
+        found && /^\[/ { exit }
+        found && /^path:/ { sub(/^path:[[:space:]]*/, ""); print; exit }
+    ' "$conf" 2>/dev/null)
+
+    if [ -z "$current" ] || [ "$current" = "$INSTALL_DIR" ]; then
+        return 0
+    fi
+
+    # Repointing an updater at a mod-owned tree is exactly as destructive as
+    # arming one there, so it answers to the same guard.
+    host_refuse_mod_owned "pointing the Moonraker updater at" "$INSTALL_DIR"
+
+    log_info "Repointing update_manager path: ${current} -> ${INSTALL_DIR}"
+    local fs
+    fs=$(file_sudo "$conf")
+    $fs cp "$conf" "${conf}.bak.helixscreen" 2>/dev/null || true
+
+    $fs awk -v want="$INSTALL_DIR" '
+        /^\[update_manager helixscreen\]/ { in_section=1 }
+        in_section && /^\[/ && !/^\[update_manager helixscreen\]/ { in_section=0 }
+        in_section && /^path:/ { print "path: " want; next }
+        { print }
+    ' "$conf" > "${conf}.tmp" && $fs mv "${conf}.tmp" "$conf"
+
+    log_success "update_manager path now names ${INSTALL_DIR}"
+}
+
 cleanup_unsupported_options() {
     local conf="$1"
 
@@ -743,6 +782,9 @@ configure_moonraker_updates() {
 
     if has_update_manager_section "$conf"; then
         log_info "update_manager section already exists in $conf"
+        # path: is only ever written when the section is first added, so an
+        # install that has moved leaves it naming the tree we left behind.
+        sync_update_manager_path "$conf"
         # Remove options not supported by type: web (persistent_files,
         # managed_services, install_script) that cause Moonraker warnings.
         cleanup_unsupported_options "$conf"

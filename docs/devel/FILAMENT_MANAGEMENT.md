@@ -377,6 +377,7 @@ panel — not a slicer-to-printer write.
 
 - **Wire-format spec (public):** [`../specs/filament_slots.md`](../specs/filament_slots.md)
 - **Implementation notes (internal):** [`FILAMENT_SLOT_METADATA.md`](FILAMENT_SLOT_METADATA.md)
+- **Lane source model (no callers yet):** [`architecture/07-filament-ams.md`](architecture/07-filament-ams.md) § "Lane identity by source" - the per-source `Observation` / `resolve()` model that carries where a value came from instead of inferring it from the value's shape. It has no producers or consumers outside its tests; everything below still reads a lane through `SlotInfo` + `FilamentSlotOverride`.
 
 ### Material names as G-code parameter values
 

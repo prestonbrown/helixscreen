@@ -3,6 +3,7 @@
 
 #include "system/log_collector.h"
 
+#include "helix_install_roots.h"
 #include "logging_init.h"
 #include "platform_info.h"
 
@@ -167,19 +168,16 @@ std::vector<std::string> default_file_paths(const std::string& probe_root) {
 
     // ${DAEMON_DIR}/logs/ fallback when /var/log is tmpfs/ramfs. The launcher
     // writes BOTH helix.log (the app's file sink, --log-file) and launcher.log
-    // (the wrapper subshell's stdout) under ${root}/logs. Roots mirror
-    // scripts/install.sh HELIX_INSTALL_DIRS — keep the two in sync. This list is
-    // only a fallback for the crash-reporter-next-boot case; the live process is
+    // (the wrapper subshell's stdout) under ${root}/logs. This list is only a
+    // fallback for the crash-reporter-next-boot case; the live process is
     // covered authoritatively by effective_log_file_path() in tail_best().
-    for (const char* root : {
-             "/opt/helixscreen",                   // Pi, AD5M Forge-X/KMod
-             "/usr/data/helixscreen",              // K1/K1C/K2/AD5X
-             "/userdata/helixscreen",              // Snapmaker U1
-             "/user-resource/helixscreen",         // CC1 (COSMOS)
-             "/root/printer_software/helixscreen", // AD5M KMod v00.05
-             "/srv/helixscreen",                   // generic FHS
-             "/data/helixscreen",                  // AD5X /data-rooted installs (#981)
-         }) {
+    for (const char* root : helix::kInstallRoots) {
+        paths.emplace_back(std::string(root) + "/logs/helix.log");
+        paths.emplace_back(std::string(root) + "/logs/launcher.log");
+    }
+    // Platforms that keep state off the payload log here instead, which is
+    // every platform whose install root an update replaces.
+    for (const char* root : helix::kStateRoots) {
         paths.emplace_back(std::string(root) + "/logs/helix.log");
         paths.emplace_back(std::string(root) + "/logs/launcher.log");
     }

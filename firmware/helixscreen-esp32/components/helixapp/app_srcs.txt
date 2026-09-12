@@ -133,6 +133,7 @@ src/printer/ams_endless_spool.cpp
 src/printer/ams_environment_zone.cpp
 src/printer/ams_state.cpp
 src/printer/ams_subscription_backend.cpp
+src/printer/lane_resolver.cpp
 src/printer/bed_dimensions.cpp
 src/printer/chamber_heater_backend_dragonbreath.cpp
 src/printer/chamber_heater_backend_generic.cpp
@@ -191,6 +192,7 @@ src/sensors/humidity_sensor_manager.cpp
 src/sensors/probe_sensor_manager.cpp
 src/sensors/temperature_sensor_manager.cpp
 src/sensors/width_sensor_manager.cpp
+src/system/afc_message_dedup.cpp
 src/system/alsa_device_enum.cpp
 src/system/async_lifetime_guard.cpp
 src/system/audio_settings_manager.cpp
@@ -219,6 +221,7 @@ src/system/platform_capabilities.cpp
 src/system/post_op_cooldown_manager.cpp
 src/system/log_redact.cpp
 src/system/preset_materials.cpp
+src/system/prerender_size_class.cpp
 src/system/prerendered_images.cpp
 src/system/printer_image_manager.cpp
 src/system/printer_name_sync.cpp

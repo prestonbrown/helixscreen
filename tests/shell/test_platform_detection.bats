@@ -561,7 +561,7 @@ _mock_k2_detect_platform() {
 
     set_install_paths "k2"
 
-    [ "$INSTALL_DIR" = "/opt/helixscreen" ]
+    [ "$INSTALL_DIR" = "/mnt/UDISK/helixscreen" ]
     [ "$INIT_SCRIPT_DEST" = "/etc/init.d/S99helixscreen" ]
     [ "$KLIPPER_USER" = "root" ]
 }

@@ -603,6 +603,61 @@ static void apply_2d_renderer_colors(gcode_viewer_state_t* st) {
     }
 }
 
+// Everything a freshly created 2D renderer needs that does not come from the
+// data source: the canvas it draws into, the fit shape, and the shading tier.
+//
+// The renderer defaults SSAO and antialiasing ON, so the decision has to be
+// pushed either way: a renderer that skips this pays the SSAO pass, its
+// full-canvas buffer, and antialiased rasterization (~6x the aliased cost) on
+// exactly the constrained devices the tier exists to spare
+// (prestonbrown/helixscreen#1555). auto_fit() runs last because it consumes
+// both the canvas size and the framing.
+static void seed_2d_renderer_view(gcode_viewer_state_t* st, int width, int height) {
+    auto& renderer = *st->layer_renderer_2d_;
+    renderer.set_canvas_size(width, height);
+    renderer.set_framing(st->framing_);
+    renderer.set_ssao_enabled(st->ssao_enabled_at_init_);
+    renderer.set_antialias_enabled(st->antialias_enabled_at_init_);
+    renderer.auto_fit();
+}
+
+// The one sequence that creates a 2D renderer for a fully parsed file: data
+// source, colour chain, canvas, framing, shading tier. Every non-streaming
+// creation site calls this, so a site cannot acquire a partial copy of the
+// sequence and drift from the rest.
+//
+// Streaming is the exception and creates its own renderer: its data source is
+// the controller rather than a ParsedGCodeFile, and its colours come from the
+// index stats, which apply_2d_renderer_colors() cannot read.
+static void create_2d_renderer_for_file(gcode_viewer_state_t* st, int width, int height) {
+    st->layer_renderer_2d_ = std::make_unique<helix::gcode::GCodeLayerRenderer>();
+    st->layer_renderer_2d_->set_gcode(st->gcode_file.get());
+    apply_2d_renderer_colors(st);
+    seed_2d_renderer_view(st, width, height);
+    spdlog::debug("[GCode Viewer] Initialized 2D layer renderer ({}x{})", width, height);
+}
+
+// Route this file to the 2D renderer because the memory budget refused to build
+// its 3D geometry. Sticky for the file, not the session: each load re-asks the
+// budget.
+static void apply_budget_forced_2d(gcode_viewer_state_t* st, lv_obj_t* obj) {
+    spdlog::info("[GCode Viewer] Using 2D renderer (budget fallback)");
+    st->budget_forced_2d_ = true;
+
+    if (st->layer_renderer_2d_) {
+        // Already created and seeded for this viewer; the caller has just
+        // re-pointed it at the new file and recoloured it, so only the fit is
+        // outstanding.
+        st->layer_renderer_2d_->auto_fit();
+    } else {
+        lv_area_t coords;
+        lv_obj_get_coords(obj, &coords);
+        create_2d_renderer_for_file(st, lv_area_get_width(&coords), lv_area_get_height(&coords));
+    }
+
+    lv_obj_invalidate(obj);
+}
+
 static void gcode_viewer_draw_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
     lv_layer_t* layer = lv_event_get_layer(e);
@@ -652,28 +707,8 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
                     "[GCode Viewer] 2D lazy init but no gcode_file - streaming init failed?");
                 return;
             }
-            st->layer_renderer_2d_ = std::make_unique<helix::gcode::GCodeLayerRenderer>();
-            st->layer_renderer_2d_->set_gcode(st->gcode_file.get());
-            int width = lv_area_get_width(&widget_coords);
-            int height = lv_area_get_height(&widget_coords);
-            st->layer_renderer_2d_->set_canvas_size(width, height);
-            st->layer_renderer_2d_->set_framing(st->framing_);
-            st->layer_renderer_2d_->auto_fit();
-
-            apply_2d_renderer_colors(st);
-
-            // Push the decision either way. The renderer's own default is TRUE,
-            // so only ever calling set_ssao_enabled(true) meant "off" was never
-            // applied to it: decide_ssao_enabled() would log "enhanced shading
-            // off", the viewer would skip the call, and the renderer would carry
-            // on with its default. HELIX_SSAO=0 and the constrained-device tier
-            // were both inert, and the constrained devices paid for the SSAO
-            // pass, the full-canvas buffer, and antialiased rasterization (about
-            // 6x the aliased cost) that the tier exists to spare them.
-            st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
-            st->layer_renderer_2d_->set_antialias_enabled(st->antialias_enabled_at_init_);
-
-            spdlog::debug("[GCode Viewer] Initialized 2D layer renderer ({}x{})", width, height);
+            create_2d_renderer_for_file(st, lv_area_get_width(&widget_coords),
+                                        lv_area_get_height(&widget_coords));
         }
 
         // Use stored print progress layer (set via ui_gcode_viewer_set_print_progress)
@@ -768,36 +803,25 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
         st->renderer_->render(layer, *st->gcode_file, *st->camera_, &widget_coords);
 
 #ifdef ENABLE_3D_RENDERER
-        // A fatal GL draw error (out-of-memory / invalid-operation) means the
-        // GPU path is unsafe on this device — degrade to the pure-CPU 2D
-        // renderer for the rest of the session rather than risk a driver crash.
-        // Reuse the existing budget_forced_2d_ sticky fallback so subsequent
-        // is_using_2d_mode() queries route to the 2D path. We run on the main
-        // LVGL thread here (draw callback), so no cross-thread marshaling is
-        // needed — same context in which budget_forced_2d_ is normally set.
+        // The GPU path is unusable on this device — either GL never came up, or
+        // a draw batch returned a fatal error (out-of-memory /
+        // invalid-operation) and continuing risks a driver crash. Degrade to the
+        // pure-CPU 2D renderer. Reuse the budget_forced_2d_ sticky fallback so
+        // subsequent is_using_2d_mode() queries route to the 2D path; it is
+        // cleared on the next load, so this covers the current file. We run on
+        // the main LVGL thread here (draw callback), so no cross-thread
+        // marshaling is needed — same context in which budget_forced_2d_ is
+        // normally set.
         if (st->renderer_->render_failed() && !st->budget_forced_2d_) {
-            spdlog::warn("[GCode Viewer] GLES renderer reported a fatal GL error — switching to "
-                         "2D for this session");
+            spdlog::warn("[GCode Viewer] GLES renderer unusable ({}) — rendering this file in 2D",
+                         st->renderer_->init_failed() ? "GL init failed" : "fatal GL draw error");
             st->budget_forced_2d_ = true;
             // Seed the 2D renderer now so the next frame renders immediately.
-            // (Lazy init in the 2D branch also covers this, but doing it here
-            // keeps colors/palette consistent with the loaded file — the full
-            // chain, not just the palette: because this renderer now exists,
-            // the lazy-init path and its apply_2d_renderer_colors never run.)
+            // The lazy init in the 2D branch cannot: a renderer already exists
+            // by the time it runs, so its colour chain never fires.
             if (!st->layer_renderer_2d_ && st->gcode_file) {
-                st->layer_renderer_2d_ = std::make_unique<helix::gcode::GCodeLayerRenderer>();
-                st->layer_renderer_2d_->set_gcode(st->gcode_file.get());
-                apply_2d_renderer_colors(st);
-                st->layer_renderer_2d_->set_canvas_size(lv_area_get_width(&widget_coords),
-                                                        lv_area_get_height(&widget_coords));
-                st->layer_renderer_2d_->set_framing(st->framing_);
-                st->layer_renderer_2d_->auto_fit();
-                // The renderer defaults both to on, so a tier or HELIX_SSAO=0
-                // that opted out must be re-applied here just like the two
-                // other creation sites, or the fallback pays the ~6x aliased
-                // cost the constrained tier exists to avoid.
-                st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
-                st->layer_renderer_2d_->set_antialias_enabled(st->antialias_enabled_at_init_);
+                create_2d_renderer_for_file(st, lv_area_get_width(&widget_coords),
+                                            lv_area_get_height(&widget_coords));
             }
             // Repaint on the next tick now that the mode has flipped. Cannot
             // invalidate synchronously inside the draw callback.
@@ -1721,18 +1745,12 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                                       st->tool_color_overrides.size());
                     }
 
-                    // Get canvas size from widget
+                    // Canvas, framing and shading tier — the half of the seed
+                    // that does not depend on where the layer data comes from.
                     lv_area_t coords;
                     lv_obj_get_coords(obj, &coords);
-                    int width = lv_area_get_width(&coords);
-                    int height = lv_area_get_height(&coords);
-                    st->layer_renderer_2d_->set_canvas_size(width, height);
-                    st->layer_renderer_2d_->auto_fit();
-
-                    // Apply the SSAO setting, both ways. See the note at the
-                    // renderer-init site: a one-way call leaves "off" unapplied.
-                    st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
-                    st->layer_renderer_2d_->set_antialias_enabled(st->antialias_enabled_at_init_);
+                    seed_2d_renderer_view(st, lv_area_get_width(&coords),
+                                          lv_area_get_height(&coords));
 
                     st->viewer_state = GcodeViewerState::Loaded;
                     st->first_render = false;
@@ -1939,36 +1957,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                     }
 
                     if (r->force_2d) {
-                        // Budget-forced 2D fallback for this file only
-                        spdlog::info("[GCode Viewer] Using 2D renderer (budget fallback)");
-                        st->budget_forced_2d_ = true;
-                        if (!st->layer_renderer_2d_) {
-                            st->layer_renderer_2d_ =
-                                std::make_unique<helix::gcode::GCodeLayerRenderer>();
-                        }
-                        st->layer_renderer_2d_->set_gcode(st->gcode_file.get());
-                        const auto file_colors = helix::gcode::classify_file_colors(
-                            st->gcode_file->tool_color_palette, st->gcode_file->filament_color_hex);
-                        if (file_colors.has_palette()) {
-                            st->layer_renderer_2d_->set_tool_color_palette(file_colors.palette);
-                        }
-
-                        // Apply color: external override takes priority
-                        if (st->has_external_color_override) {
-                            st->layer_renderer_2d_->set_extrusion_color(
-                                st->external_color_override);
-                        } else if (file_colors.has_single_color()) {
-                            // has_single_color() only proves non-empty. The digit
-                            // count is checked by the parser, which is why a bare
-                            // '#' no longer reaches lv_color_hex and paints black.
-                            uint32_t rgb = 0;
-                            if (helix::parse_hex_color(file_colors.single_color.c_str(), rgb)) {
-                                st->layer_renderer_2d_->set_extrusion_color(lv_color_hex(rgb));
-                            }
-                        }
-
-                        st->layer_renderer_2d_->auto_fit();
-                        lv_obj_invalidate(obj);
+                        apply_budget_forced_2d(st, obj);
                     }
 
                 // Set pre-built geometry on renderer
@@ -2242,20 +2231,9 @@ void ui_gcode_viewer_set_render_mode(lv_obj_t* obj, GcodeViewerRenderMode mode) 
 
     // If using 2D mode (AUTO or 2D_LAYER), ensure the 2D renderer is initialized
     if (st->is_using_2d_mode() && st->gcode_file && !st->layer_renderer_2d_) {
-        st->layer_renderer_2d_ = std::make_unique<helix::gcode::GCodeLayerRenderer>();
-        st->layer_renderer_2d_->set_gcode(st->gcode_file.get());
-        apply_2d_renderer_colors(st);
-
         lv_area_t coords;
         lv_obj_get_coords(obj, &coords);
-        int width = lv_area_get_width(&coords);
-        int height = lv_area_get_height(&coords);
-        st->layer_renderer_2d_->set_canvas_size(width, height);
-        st->layer_renderer_2d_->set_framing(st->framing_);
-        st->layer_renderer_2d_->auto_fit();
-
-        st->layer_renderer_2d_->set_ssao_enabled(st->ssao_enabled_at_init_);
-        st->layer_renderer_2d_->set_antialias_enabled(st->antialias_enabled_at_init_);
+        create_2d_renderer_for_file(st, lv_area_get_width(&coords), lv_area_get_height(&coords));
     }
 
 #ifdef ENABLE_3D_RENDERER
@@ -3010,6 +2988,22 @@ extern "C" void ui_gcode_viewer_register(void) {
     spdlog::trace("[GCode Viewer] Registered <gcode_viewer> widget with LVGL XML system");
 }
 
+namespace helix::test_access {
+
+const helix::gcode::GCodeLayerRenderer*
+gcode_viewer_budget_force_2d(lv_obj_t* viewer,
+                             std::unique_ptr<helix::gcode::ParsedGCodeFile> file) {
+    gcode_viewer_state_t* st = viewer ? get_state(viewer) : nullptr;
+    if (!st) {
+        return nullptr;
+    }
+    st->gcode_file = std::move(file);
+    apply_budget_forced_2d(st, viewer);
+    return st->layer_renderer_2d_.get();
+}
+
+} // namespace helix::test_access
+
 #else // !HELIX_HAS_GCODE_VIEWER
 
 // Compiled-out build (HELIX_HAS_GCODE_VIEWER=0): stub widget keeps XML layouts
@@ -3243,5 +3237,12 @@ bool ui_gcode_viewer_adopt_palette_if_empty(lv_obj_t*, std::vector<std::string>&
 float ui_gcode_viewer_get_load_progress(lv_obj_t*) {
     return 0.0f;
 }
+
+namespace helix::test_access {
+const helix::gcode::GCodeLayerRenderer*
+gcode_viewer_budget_force_2d(lv_obj_t*, std::unique_ptr<helix::gcode::ParsedGCodeFile>) {
+    return nullptr;
+}
+} // namespace helix::test_access
 
 #endif // HELIX_HAS_GCODE_VIEWER

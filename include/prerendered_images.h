@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "prerender_size_class.h"
+
 #include <string>
 
 /**
@@ -17,15 +19,8 @@
  *   - make gen-images         (splash screen)
  *   - make gen-printer-images (printer images)
  *
- * ## Splash Screen Sizes
- * - tiny:   240px (480x320 displays)
- * - small:  400px (800x480 displays, AD5M)
- * - medium: 614px (1024x600 displays)
- * - large:  768px (1280x720 displays)
- *
- * ## Printer Image Sizes
- * - 300px: For medium-large displays (800x480+)
- * - 150px: For small displays (480x320)
+ * Size classes and the rules that select them live in prerender_size_class.h,
+ * which this header re-exports so callers need only one include.
  *
  * @see scripts/regen_images.sh
  * @see scripts/regen_printer_images.sh
@@ -36,27 +31,14 @@ namespace helix {
 /**
  * @brief Get path to pre-rendered splash screen logo
  *
- * Selects the appropriate pre-rendered size based on screen width.
- * Falls back to original PNG if pre-rendered version doesn't exist.
+ * Selects the size class from the resolution and falls back to the original PNG
+ * when that class has no logo render.
  *
  * @param screen_width Display width in pixels
+ * @param screen_height Display height in pixels
  * @return LVGL path (A:...) to the image, or empty string if none found
  */
-[[nodiscard]] std::string get_prerendered_splash_path(int screen_width);
-
-/**
- * @brief Get size category name for a screen width
- *
- * Maps screen width to size category:
- *   - < 600:  "tiny"   (480x320 class)
- *   - < 900:  "small"  (800x480 class, AD5M)
- *   - < 1100: "medium" (1024x600 class)
- *   - >= 1100: "large" (1280x720+ class)
- *
- * @param screen_width Display width in pixels
- * @return Size category name ("tiny", "small", "medium", "large")
- */
-[[nodiscard]] const char* get_splash_size_name(int screen_width);
+[[nodiscard]] std::string get_prerendered_splash_path(int screen_width, int screen_height);
 
 /**
  * @brief Get path to pre-rendered printer image
@@ -70,42 +52,6 @@ namespace helix {
  */
 [[nodiscard]] std::string get_prerendered_printer_path(const std::string& printer_name,
                                                        int screen_width);
-
-/**
- * @brief Get optimal printer image size for a screen width
- *
- * Returns the target size in pixels:
- *   - screen_width >= 600: 300px (medium-large displays)
- *   - screen_width < 600:  150px (small displays)
- *
- * @param screen_width Display width in pixels
- * @return Target size in pixels (300 or 150)
- */
-[[nodiscard]] int get_printer_image_size(int screen_width);
-
-/**
- * @brief Get size category name for 3D splash images
- *
- * Like get_splash_size_name() but uses both width and height to distinguish
- * K1 (480x400, "tiny_alt") from generic tiny (480x320, "tiny").
- *
- * @param screen_width Display width in pixels
- * @param screen_height Display height in pixels
- * @return Size category name ("tiny", "tiny_alt", "small", "medium", "large")
- */
-[[nodiscard]] const char* get_splash_3d_size_name(int screen_width, int screen_height);
-
-/**
- * @brief Get the target height of a pre-rendered 3D splash size category
- *
- * Returns the known screen height for a pre-rendered splash size name.
- * Used to validate that a pre-rendered image won't exceed the actual screen height.
- * Returns 0 for unknown sizes (caller should fall back to runtime scaling).
- *
- * @param size_name Size category name from get_splash_3d_size_name()
- * @return Target height in pixels, or 0 if unknown
- */
-[[nodiscard]] int get_splash_3d_target_height(const char* size_name);
 
 /**
  * @brief Get path to pre-rendered full-screen 3D splash image

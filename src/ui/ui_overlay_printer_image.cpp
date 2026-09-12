@@ -251,7 +251,9 @@ void PrinterImageOverlay::update_preview(const std::string& /*image_id*/,
 std::string PrinterImageOverlay::get_preview_path_for_id(const std::string& image_id) {
     if (image_id.rfind("shipped:", 0) == 0) {
         std::string name = image_id.substr(8);
-        return get_prerendered_printer_path(name, 480);
+        // Sized off the real display: only the tier this width selects is
+        // shipped, so a fixed size names a file the device does not have.
+        return get_prerendered_printer_path(name, PrinterImages::current_screen_width());
     }
     if (image_id.rfind("custom:", 0) == 0) {
         auto custom_images = helix::PrinterImageManager::instance().get_custom_images();
@@ -280,7 +282,8 @@ void PrinterImageOverlay::populate_shipped_images() {
 
     lv_obj_clean(list);
 
-    auto images = helix::PrinterImageManager::instance().get_shipped_images();
+    auto images = helix::PrinterImageManager::instance().get_shipped_images(
+        PrinterImages::current_screen_width());
     spdlog::debug("[{}] Populating {} shipped images", get_name(), images.size());
 
     for (const auto& img : images) {

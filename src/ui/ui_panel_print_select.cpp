@@ -1719,29 +1719,52 @@ void PrintSelectPanel::set_api(IMoonrakerAPI* api) {
                 // (AFC rewrites AFC/AFC.var.unit on every SET_* command), so on
                 // one debug bundle it burned 97 KB of a ring that has to hold
                 // the whole session. Nothing downstream reads the other fields.
+                // Every field here is declared a string by Moonraker and may
+                // still arrive as JSON null; nlohmann's value(key, default)
+                // returns the default only for an ABSENT key and throws on a
+                // present null. The client catches per callback, so one such
+                // frame would cost the panel the whole notification - which is
+                // the stale listing this filter exists to avoid.
                 std::string action = "?";
                 std::string root;
                 std::string path;
-                if (msg.contains("params") && msg["params"].is_array() && !msg["params"].empty()) {
-                    const json& p = msg["params"][0];
-                    action = p.value("action", "?");
-                    if (p.contains("item") && p["item"].is_object()) {
-                        const json& item = p["item"];
-                        root = item.value("root", "");
-                        path = root + ":" + item.value("path", "");
+                std::string source_root;
+                std::string source_path;
+                if (const json* p = helix::json_util::notification_payload(msg)) {
+                    action = helix::json_util::safe_string(*p, "action", "?");
+                    const auto item_it = p->find("item");
+                    if (item_it != p->end() && item_it->is_object()) {
+                        root = helix::json_util::safe_string(*item_it, "root");
+                        path = root + ":" + helix::json_util::safe_string(*item_it, "path");
+                    }
+                    // `item` is the operation's destination; a move out of
+                    // gcodes reports a foreign item root with the gcodes
+                    // origin here.
+                    const auto source_it = p->find("source_item");
+                    if (source_it != p->end() && source_it->is_object()) {
+                        source_root = helix::json_util::safe_string(*source_it, "root");
+                        source_path =
+                            source_root + ":" + helix::json_util::safe_string(*source_it, "path");
                     }
                 }
+
+                // A move's `path` names where the file landed, so logging it
+                // alone makes an admitted move read like a filter bug in the
+                // next debug bundle. Name the origin beside it.
+                const std::string described =
+                    source_path.empty() ? path : source_path + " -> " + path;
 
                 // Roots other than "gcodes" cannot change this list, and the
                 // config root churns constantly on an AFC printer. Log those at
                 // debug so the ring still shows they arrived without one line
                 // per 10 s of print time.
-                if (!helix::json_util::filelist_change_affects_gcodes(root)) {
+                if (!helix::json_util::filelist_change_affects_gcodes(root, source_root)) {
                     spdlog::debug("[{}] notify_filelist_changed: {} {} (other root, ignored)",
-                                  self->get_name(), action, path);
+                                  self->get_name(), action, described);
                     return;
                 }
-                spdlog::info("[{}] notify_filelist_changed: {} {}", self->get_name(), action, path);
+                spdlog::info("[{}] notify_filelist_changed: {} {}", self->get_name(), action,
+                             described);
 
                 // Check if we're on the printer source (not USB)
                 bool is_usb_active = self->usb_source_ && self->usb_source_->is_usb_active();

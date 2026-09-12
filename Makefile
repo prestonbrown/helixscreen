@@ -1374,6 +1374,11 @@ print-target-cflags:
 print-cxxflags:
 	@echo "$(CXXFLAGS)"
 
+# Generic accessor, so a gate that needs a variable no one has printed before
+# does not need a new target here. `make print-var-SUBMODULE_CXXFLAGS`.
+print-var-%:
+	@echo "$($*)"
+
 # =============================================================================
 # Install target — stages binary + assets under $(DESTDIR)/opt/helixscreen/
 #

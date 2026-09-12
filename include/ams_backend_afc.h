@@ -1224,6 +1224,14 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     // when the AFC message field clears.
     std::string last_error_msg_;
     std::string last_seen_message_;
+    // The error text a PREVIOUS session already surfaced, seeded from
+    // AfcMessageDedup at construction. AFC latches printer.AFC.message across
+    // our restarts, so without it the latched text reads as new and re-toasts
+    // at every connect. Single-use: spent on the first message this session
+    // judges, so a later arrival of the same text is this session's own event.
+    // Deliberately NOT last_seen_message_: the seed must only suppress error
+    // treatment, never a warning that happens to share the text.
+    std::string dedup_seed_;
     std::string last_message_type_;      ///< Type of last system message ("error", "warning", etc.)
     std::vector<std::string> hub_names_; ///< Discovered hub names
     std::vector<std::string> buffer_names_; ///< Discovered buffer names

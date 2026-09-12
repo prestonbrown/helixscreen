@@ -140,6 +140,19 @@ AmsBackendHappyHare::~AmsBackendHappyHare() {
 // ============================================================================
 
 void AmsBackendHappyHare::on_started() {
+    // Load the user's attached slot identity before any of the queries below,
+    // so the first gate-map frame they provoke already has something to layer.
+    // Outside mutex_, because the DB round-trip blocks and the status
+    // subscription is already live. Publish under it so the parse path reads a
+    // whole map.
+    auto loaded = helix::ams::make_loaded_override_store(api_, "happyhare", get_type(),
+                                                         backend_log_tag(), OVERRIDE_NAMESPACE);
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        override_store_ = std::move(loaded.store);
+        overrides_ = std::move(loaded.overrides);
+    }
+
     // Query configfile to determine tip method (cutter vs tip-forming).
     // Happy Hare determines this from form_tip_macro: if it contains "cut",
     // it's a cutter system; otherwise it's tip-forming or none.
@@ -2534,10 +2547,18 @@ void AmsBackendHappyHare::persist_override(int slot_index, const SlotInfo& info)
     // a non-empty value is always a user pick.
     o.catalog_id = info.catalog_id;
     o.product_name = info.product_name;
-    if (info.color_rgb != 0 && info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
+    // AMS_DEFAULT_SLOT_COLOR is the "no color reading" sentinel (see
+    // SlotInfo::has_identity), not a color a user would ever pick, so it
+    // stays unrecorded; a deliberate pure black (#000000) still records.
+    if (info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
         o.color_rgb = info.color_rgb;
         o.color_set = true;
     }
+    // SlotInfo carries the user's edit OR the bound Spoolman spool's
+    // filament profile; the material-DB fallback for fields left at 0
+    // is applied at emit time inside resolved_temps(). Centralized in
+    // the helper so the AMS backends stay in sync.
+    helix::ams::populate_temps_from_slot_info(o, info);
     overrides_[slot_index] = o;
 
     if (override_store_) {
@@ -2576,6 +2597,14 @@ void AmsBackendHappyHare::clear_slot_override(int slot_index) {
         }
     }
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));
+    if (override_store_) {
+        override_store_->clear_async(slot_index, [slot_index](bool ok, std::string err) {
+            if (!ok) {
+                spdlog::warn("[AMS HappyHare] override clear failed for gate {}: {}", slot_index,
+                             err);
+            }
+        });
+    }
 }
 
 void AmsBackendHappyHare::publish_external_spool_lane(const SlotInfo* spool) {

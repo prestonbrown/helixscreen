@@ -168,7 +168,7 @@ This resets **all** settings and re-runs the Setup Wizard from scratch, includin
 | FlashForge AD5M — ZMOD | `/srv/helixscreen` | `/srv/helixscreen/config/settings.json` |
 | FlashForge AD5X (ZMOD) | `/srv/helixscreen` | `/srv/helixscreen/config/settings.json` |
 | Creality K1 series | `/usr/data/helixscreen` | `/usr/data/helixscreen/config/settings.json` |
-| Creality K2 series | `/opt/helixscreen` | `/opt/helixscreen/config/settings.json` |
+| Creality K2 series | `/mnt/UDISK/helixscreen` | `/mnt/UDISK/helixscreen/config/settings.json` |
 | Elegoo Centauri Carbon (CC1) | `/user-resource/helixscreen` | `/user-resource/helixscreen/config/settings.json` |
 | Snapmaker U1 | `/userdata/helixscreen` | `/userdata/helixscreen/config/settings.json` |
 | Development (running from source) | `./` | `./config/settings.json` |

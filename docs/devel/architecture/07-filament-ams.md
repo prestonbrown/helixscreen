@@ -61,6 +61,10 @@ flowchart TB
 | [`include/ams_environment_zone.h`](../../../include/ams_environment_zone.h) | `EnvironmentZone` and the pure zone functions: the filament-box model every backend's environment hardware collapses into |
 | [`src/printer/ams_environment_zone.cpp`](../../../src/printer/ams_environment_zone.cpp) | Zone derivation, drying-state folding, the concurrency-cap pass, the selector-shape choice |
 | [`include/ui_zone_presentation.h`](../../../include/ui_zone_presentation.h) | Humidity verdict bands, zone labels and slot text - the decision the row, the tab and the detail header all share |
+| [`include/lane_observation.h`](../../../include/lane_observation.h) | `Observation` and `ObservationSource`: one reading from one source, every field optional so "not observed" is its own state |
+| [`include/lane_sources.h`](../../../include/lane_sources.h) | `LaneSources`: one `Observation` slot per source, whole-record replacement on `apply()` |
+| [`include/lane_resolver.h`](../../../include/lane_resolver.h) | `ResolvedLane` and the `resolve()` declaration - what a lane shows, computed and never stored back |
+| [`src/printer/lane_resolver.cpp`](../../../src/printer/lane_resolver.cpp) | The precedence table as code: presence, the identity ladder and its colour exception, the weight ladder |
 | [`docs/devel/FILAMENT_MANAGEMENT.md`](../FILAMENT_MANAGEMENT.md) | The deep dive: every backend's protocol, op dispatch, endless spool, errors |
 
 ## How it works
@@ -222,6 +226,67 @@ A slot that lost its spool calls `clear_spool()` **only when the backend reports
 Persistence (`save_spool_assignments()`, `src/printer/tool_state.cpp#save_spool_assignments`) always writes local JSON first — atomic tmp-file-plus-rename, after resolving the installer's symlink so the first save does not replace the link with a file (`src/printer/tool_state.cpp#save_spool_json`) — then fire-and-forgets a DB POST to namespace `helix-screen`, key `tool_spool_assignments`.
 
 Loading prefers the DB and falls back to the local file, seeding the DB on the way; both callback arms marshal through `AsyncLifetimeGuard::bg_cb` (#1165) and re-sync `AmsState` so slot subjects reflect what loaded (`src/printer/tool_state.cpp#load_spool_assignments`). On device the file is `<user-config-dir>/tool_spools.json`; the directory comes from `helix::get_user_config_dir()`, overridable only by an explicit `set_config_dir()` pin ([`include/tool_state.h#ToolState`](../../../include/tool_state.h#L185)).
+
+### Lane identity by source: one record per observer, resolved on read
+
+A self-contained model carries *where* a lane's values came from, instead of re-deriving it
+from the values themselves. Three types, one function, and no callers outside its tests.
+
+`Observation` ([`include/lane_observation.h#"struct Observation"`](../../../include/lane_observation.h)) is one reading
+from one source. Every field is a `std::optional`, so "this source said nothing about the
+material" and "this source reports the material as blank" are different states - the
+distinction no sentinel check (`!= 0`, `!empty()`, `>= 0.0f`) can make. The only constructor
+is `explicit Observation(ObservationSource)`, so a reading cannot exist without naming where
+it came from. Its `echo_token` marks a reading as the echo of a write HelixScreen itself
+issued, which is the question `AmsBackend::own_write_expectation`
+(`include/ams_backend.h#own_write_expectation`) and `SlotFingerprintTracker::expect`
+(`include/filament_slot_override_store.h#SlotFingerprintTracker/expect`) each answer for one
+backend family.
+
+`ObservationSource` ([`include/lane_observation.h#ObservationSource`](../../../include/lane_observation.h))
+has five values, and the split that matters is presence against identity. `Sensed` is real
+hardware, which across the fleet reports presence and motion and never a spool identity. The
+other four are declarations: `Spoolman` (the server), `LocalUser` (a human editing in
+HelixScreen), `VendorCache` (firmware-persisted metadata, itself a cache of a past
+declaration) and `Metered` (the consumption meter).
+
+`LaneSources` ([`include/lane_sources.h#LaneSources`](../../../include/lane_sources.h)) holds one optional
+`Observation` per source. `apply()` replaces that source's record whole, so a field a source
+stops reporting stops contributing, and no two writers share a destination - a lost update is
+structurally impossible rather than merely unlikely. `drop()` discards one source's record
+entirely. There is no promote-or-demote operation, so an unlink - a clear that keeps identity
+while dropping the link, which `src/ui/ui_ams_edit_overlay.cpp` performs - has no spelling
+here.
+
+`resolve()` ([`src/printer/lane_resolver.cpp#resolve`](../../../src/printer/lane_resolver.cpp)) folds the
+sources into a `ResolvedLane`, the values a surface paints. It is pure: no clock, no globals,
+no I/O, same inputs same answer. Its result is never stored back into the `LaneSources` it
+read. Within each ladder a source that did not observe a field leaves the weaker source's
+value standing, which is what makes the optionals load-bearing rather than decorative.
+
+| Fields | Ranked weakest to strongest | Why that order |
+|--------|-----------------------------|----------------|
+| `present` | `Sensed`, and nothing else | Identity is never evidence of presence. A vendor cache still remembering the last spool would resurrect an emptied lane on every poll. No sensed reading at all resolves to not present |
+| Identity: material, brand, spool name, catalog id, Spoolman ids, product name | `VendorCache`, `LocalUser`, `Spoolman` | A linked spool's own record is the most specific statement available about what is on the lane; the cache is weakest because it only remembers a past declaration |
+| Colour: `color_rgb` with `color_name` | `VendorCache`, `Spoolman`, `LocalUser` | The user's pick and the spool's colour are different statements - the spool record says what the vendor sells, the pick says what is loaded right now. The name travels with the value, a pick carrying no name included, because a swatch labelled with another colour's name contradicts itself |
+| Weight: remaining, total | `LocalUser`, `Metered`, `Spoolman` | Spoolman owns consumption for a spool the user assigned from it and Moonraker decrements it there directly, so our meter stands down. An unlinked lane has no external owner, and the meter's estimate is the only number available |
+
+Colour is the one exception to the identity ladder, and it is deliberately narrow: brand,
+spool name and catalog identity belong to the spool, so a `LocalUser` record does not outrank
+Spoolman on any of them.
+
+**Nothing outside the tests uses any of this.** No backend produces an `Observation`, no
+surface consumes a `ResolvedLane`, and `resolve()` has no production caller. Lanes are still
+read the way [`15-known-debt.md`](15-known-debt.md) § "Provenance debt" describes - firmware-reported
+`SlotInfo` merged with a persisted `FilamentSlotOverride` by `merge_override()`
+(`src/printer/filament_slot_override_store.cpp#merge_override`), each field's origin inferred from
+its shape. The model stands alone on purpose, so the precedence argument is readable and
+testable in one place before any producer or consumer moves onto it;
+[`tests/unit/test_lane_resolver.cpp`](../../../tests/unit/test_lane_resolver.cpp) pins every rung of both
+ladders, the colour exception, and the empty-versus-unobserved distinction the whole model
+rests on. Migrating producers and consumers onto it is not tracked as an issue; chapter 15 carries
+the debt it aims at, and prestonbrown/helixscreen#1597 is the one piece of that debt small
+enough to pay off without it.
 
 ### Spoolman without AMS
 

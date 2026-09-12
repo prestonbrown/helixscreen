@@ -246,6 +246,19 @@ class DebugBundleCollector {
     /// Collect filament system data (AFC, Happy Hare, ACE, Spoolman, tool changers)
     static nlohmann::json collect_filament_system_info();
 
+    /// The Moonraker DB namespaces holding per-lane filament overrides, which
+    /// are what decide the colour, material and Spoolman link the user actually
+    /// sees. Pure and static so the allowlist is testable without a Moonraker
+    /// round trip.
+    ///
+    /// Deliberately an allowlist, never a whole-database dump. Moonraker keeps
+    /// user accounts and its API key in the same database, `gcode_metadata`
+    /// holds base64 thumbnails that would blow past the text-section cap, and
+    /// sanitize_value() is field-aware so it cannot know what is sensitive
+    /// inside a namespace it has never seen. A namespace earns its place here
+    /// one at a time, after someone has looked at what it carries.
+    static std::vector<std::string> filament_override_namespaces();
+
     /// Filter a Klipper object list to filament-related objects (public for testing)
     static nlohmann::json filter_filament_objects(const nlohmann::json& object_list);
 

@@ -171,28 +171,18 @@ bool AmsBackendAd5xIfs::owns_filament_sensor(const std::string& bare_name,
         bare_name.rfind("_ifs_motion_sensor_", 0) == 0) {
         return true;
     }
-    // Standalone IFS module: its sensors register as STOCK
-    // filament_switch_sensor objects ("lane1".."lane4" per-channel presence,
-    // "toolhead" for the ADC-classified toolhead switch), so nothing about the
-    // name itself marks them. Claimed by exact shape only - and this predicate
-    // only ever runs for a printer already detected as AD5X IFS
+    // Standalone IFS module: its toolhead sensor registers as a STOCK
+    // filament_switch_sensor named "toolhead" (its frames are the
+    // head-presence authority on that firmware), so nothing about the name
+    // itself marks it. Claimed by exact shape only - and this predicate only
+    // ever runs for a printer already detected as AD5X IFS
     // (AmsBackend::sensor_belongs_to_backend routes on mmu_type), so a
-    // differently-firmwareed printer's sensor that happens to be named
-    // "toolhead" never reaches this branch.
+    // differently-firmwared printer's sensor that happens to be named
+    // "toolhead" never reaches this branch. Per-channel presence is read from
+    // the module's structured `ifs` status object, not from individual
+    // sensors, so no "lane<N>" name is claimed here.
     if (bare_name == "toolhead") {
         return true;
-    }
-    if (bare_name.rfind("lane", 0) == 0 && bare_name.size() > 4) {
-        bool all_digits = true;
-        for (size_t i = 4; i < bare_name.size(); ++i) {
-            if (!std::isdigit(static_cast<unsigned char>(bare_name[i]))) {
-                all_digits = false;
-                break;
-            }
-        }
-        if (all_digits) {
-            return true;
-        }
     }
     return false;
 }
@@ -2700,9 +2690,15 @@ AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, 
             info.material.empty() ? std::string{} : normalize_material(info.material);
         materials_[idx] = normalized_material;
 
-        // Without per-port sensors, infer presence from user-provided data.
-        // Setting color/material marks the slot occupied; clearing both marks it empty.
-        if (!has_per_port_sensors_) {
+        // With no presence reading of any kind, infer it from the identity the
+        // caller supplied: colour or material means occupied, neither means
+        // empty. This is a last resort for devices that report nothing, and it
+        // must stand down the moment a real reading exists. Identity survives an
+        // eject by design (#1071), so on a device whose silk sensors have
+        // spoken, inferring from it resurrects a lane the sensors reported
+        // empty. Same guard as the three other inference sites: apply_zcolor's
+        // slot lines, the Adventurer5M.json poll, and schedule_zcolor_query.
+        if (!has_per_port_sensors_ && !ifs_status_ports_seen_.load()) {
             bool has_data =
                 !normalized_material.empty() || info.color_rgb != AMS_DEFAULT_SLOT_COLOR;
             port_presence_[idx] = has_data;
@@ -3936,7 +3932,7 @@ bool AmsBackendAd5xIfs::on_gcode_response_line(const std::string& line) {
             // One shape IS load-bearing: the root menu's per-slot rows are a
             // four-slot firmware snapshot, and the freshest one in the stream.
             apply_color_menu_slot_row(line);
-            ++external_change_burst_count_;
+            ++menu_render_burst_count_;
             schedule_json_reread();
             schedule_zcolor_query("color_menu_render");
             return false;
@@ -4437,12 +4433,14 @@ void AmsBackendAd5xIfs::schedule_json_reread() {
         // which itself touches api_ and member state.
         token.defer("Ad5xIfsBackend::reread_apply", [this]() {
             reread_pending_.store(false);
-            const int n = external_change_burst_count_;
+            const int edits = external_change_burst_count_;
+            const int renders = menu_render_burst_count_;
             external_change_burst_count_ = 0;
-            if (n > 0) {
-                spdlog::debug("{} Detected {} external color change(s) in gcode stream — "
-                              "re-reading Adventurer5M.json + querying zcolor",
-                              backend_log_tag(), n);
+            menu_render_burst_count_ = 0;
+            if (edits > 0 || renders > 0) {
+                spdlog::debug("{} Re-reading Adventurer5M.json + querying zcolor after {} "
+                              "external colour edit(s) and {} colour-menu render line(s)",
+                              backend_log_tag(), edits, renders);
             } else {
                 // Reread scheduled by a non-stream trigger (klippy_ready, etc.).
                 spdlog::debug("{} Re-reading Adventurer5M.json after external change",

@@ -4,7 +4,7 @@
 #
 # Build: docker build -t helixscreen/sanitizer -f docker/Dockerfile.sanitizer docker/
 # Run:   docker run -d --name helix-tsan \
-#          -v /mnt/tank/users/pbrown/helix-tsan:/work -w /work \
+#          -v "$HOME/helix-tsan":/work -w /work \
 #          helixscreen/sanitizer
 #
 # This is the environment `scripts/zeus-run.sh` drives on zeus. It exists because
@@ -33,7 +33,11 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 # Toolchain and the project's build dependencies. clang is here because the
 # Makefile's compiler probe prefers it and the nightly's clang-only diagnostics
 # have to be reproducible; gdb because a sanitizer abort is usually only legible
-# from a backtrace.
+# from a backtrace. tzdata is a TEST dependency rather than a build one:
+# tests/unit/test_timezone_env.cpp copies real TZif files out of
+# /usr/share/zoneinfo to build its fixture, so without it that case fails and
+# every gate needing a green baseline - the mutation gate above all - refuses to
+# run at all, for the whole repo rather than for the change under test.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         bats \
         ca-certificates \
@@ -62,6 +66,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 \
         python3-pip \
         python3-venv \
+        tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # mold comes from upstream, NOT from `apt install mold`. Jammy ships 1.0.3, which

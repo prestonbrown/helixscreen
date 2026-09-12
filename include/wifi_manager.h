@@ -481,6 +481,16 @@ class WiFiManager {
     // `this`) so this stays free of member access.
     static void report_radio_result(bool enabled, const WiFiError& result, bool has_wired_fallback);
 
+    // Records the radio state a toggle actually reached, so the stored
+    // expectation is never left at the value the caller assumed when it
+    // flipped its switch. Static for the same reason as report_radio_result,
+    // and deferred on the MANAGER's token rather than the caller's: a screen
+    // that starts a toggle and is dismissed inside the radio's multi-second
+    // window must not take the record of the outcome down with it. Only a
+    // toggle that actually reached the backend calls this — with nothing
+    // attempted there is no outcome to record. Main-thread only.
+    static void persist_radio_expectation(bool requested, bool success, bool actual);
+
     // Barrier for set_enabled_async() workers. The worker runs on an
     // HttpExecutor thread and dereferences `this` (backend_) for the whole of
     // apply_radio_enabled(), so the destructor waits here before any member is

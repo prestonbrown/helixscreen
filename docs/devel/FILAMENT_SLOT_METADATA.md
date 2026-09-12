@@ -58,10 +58,54 @@ The persistence plumbing lives in three places:
 | `include/filament_slot_override_store.h` | `FilamentSlotOverrideStore` class — per-backend instance that owns the MR-DB I/O, the local cache file, and the migration helper. |
 | `src/printer/filament_slot_override_store.cpp` | Implementation: `load_blocking`, `save_async`, `clear_async`, `cache_path`, plus the `try_migrate_legacy` helper and the free `read_cache` / `write_cache_slot` functions. |
 
-Each backend (IFS, Snapmaker, ACE, CFS) owns one `FilamentSlotOverrideStore`
-instance keyed by its `backend_id` (`"ifs"`, `"snapmaker"`, `"ace"`, `"cfs"`).
-The store isolates backends so they cannot stomp each other's records, and so
-the local cache file can round-trip all four without collision.
+Each backend owns one `FilamentSlotOverrideStore` instance keyed by its
+`backend_id`, plus the `overrides_` map that store was loaded into. The
+`backend_id` isolates backends so they cannot stomp each other's records, and
+so the local cache file can round-trip all of them without collision.
+
+| Backend | `backend_id` | Namespace |
+|---------|--------------|-----------|
+| `AmsBackendAd5xIfs` | `ifs` | `lane_data` (shared) |
+| `AmsBackendSnapmaker` | `snapmaker` | `lane_data` (shared) |
+| `AmsBackendAce` | `ace` | `lane_data` (shared) |
+| `AmsBackendCfs` | `cfs` | `lane_data` (shared) |
+| `AmsBackendToolChanger` | `toolchanger` | `lane_data` (shared) |
+| `AmsBackendAfc` | `afc` | `helix-screen-afc-overrides` (private) |
+| `AmsBackendHappyHare` | `happyhare` | `helix-screen-hh-overrides` (private) |
+
+AFC and Happy Hare must name a private namespace: their own Klipper plugins own
+`lane_data` and rewrite it on boot, so records left there do not survive and the
+plugin's own load back as if the user had authored them.
+
+`AmsBackendQidi` holds no store - QIDI Box persists slot identity through its own
+firmware (`SAVE_VARIABLE VARIABLE=filament_slot{n}`), not through this layer.
+
+### Acquiring the store
+
+`helix::ams::make_loaded_override_store()` builds the store and loads it in one
+call, returning both halves in a `LoadedOverrideStore`:
+
+```cpp
+auto loaded = helix::ams::make_loaded_override_store(api_, "happyhare", get_type(),
+                                                     backend_log_tag(), OVERRIDE_NAMESPACE);
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    override_store_ = std::move(loaded.store);
+    overrides_ = std::move(loaded.overrides);
+}
+```
+
+A store whose load never ran is not a state any backend wants, and this is the
+only way to get one, so that half-built version has no spelling. Call it with no
+lock held - the round-trip blocks for up to 5s and the status subscription is
+already live - and publish both fields under the lock afterwards.
+
+`AmsBackendHappyHare` uses the helper. The other six still hand-write the
+equivalent block in their own `on_started()` and are a straight follow-up
+conversion; the helper's signature already covers every one of them (the only
+variations are `backend_id`, the namespace, and whether the caller does extra
+work with the store afterwards - AD5X IFS also reads the seated-lane scalar,
+ToolChanger re-layers onto slots built before the load).
 
 ### Key methods
 
@@ -141,6 +185,8 @@ own hardware-event signal:
 | `AmsBackendAce` | `ace` | `parse_ace_object` per-slot loop | Status transition: EMPTY/UNKNOWN → present | brand, spool_name, spoolman_id, spoolman_vendor_id, weights, color_name |
 | `AmsBackendCfs` | `cfs` | `handle_status_update` tail loop | Composite `material_type\|color_value` fingerprint | spool_name, spoolman_id, spoolman_vendor_id, remaining_weight_g |
 | `AmsBackendToolChanger` | `toolchanger` | `handle_status_update` tail loop, `initialize_tools()` tail, and after the start-time load | **None** - see below | *every* field |
+| `AmsBackendAfc` | `afc` | `parse_afc_stepper` and the `lane_data` query parse | AFC's own firmware clears | brand, color_name, spoolman filament/vendor ids |
+| `AmsBackendHappyHare` | `happyhare` | `gate_spool_id` loop in `handle_status_update` | Gate-map spool id change | brand, spool_name, total_weight_g, color_name, spoolman filament/vendor ids |
 
 "Override-exclusive fields" are the fields the user can edit on that backend
 but the firmware never supplies — they always come from the override, never
@@ -170,11 +216,15 @@ does neither, and both halves of that are load-bearing:
 - **`T<n>` outer keys** (`lane_key_style_for`) are shared with Mainsail #2510's
   records rather than duplicating them.
 
-AFC, Happy Hare, and Mock inherit the no-op
-`clear_slot_override` default from `AmsBackend`. AFC and Happy Hare manage their own
-override semantics independently — they write `lane_data`
-directly from their Klipper plugins, and HelixScreen does not touch those
-records. For AFC that is not merely etiquette: AFC.py `delete_lane_data()`
+Mock inherits the no-op `clear_slot_override` default from `AmsBackend`. AFC and
+Happy Hare each implement it: erase the in-memory entry, reset the
+override-exclusive fields on the live slot (brand, spool name, Spoolman ids,
+weights, colour name, catalog pick) so the clear shows on the next
+`get_slot_info()`, and fire `clear_async` against the backend's own private
+namespace. Colour and material are left standing, because those come from the
+parse and the lane's firmware values should surface. The `lane_data` records
+their Klipper plugins write are a separate thing and HelixScreen does not touch
+them. For AFC that is not merely etiquette: AFC.py `delete_lane_data()`
 wipes the whole namespace at the start of every PREP and refills it one lane at
 a time, so the namespace is non-durable across reboots *and* transiently
 incomplete during them. AFC/HH overrides go to a private namespace

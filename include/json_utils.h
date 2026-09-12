@@ -330,7 +330,8 @@ inline std::string notification_action(const nlohmann::json& msg) {
 }
 
 /**
- * @brief Whether a notify_filelist_changed root is one the gcodes listing cares about.
+ * @brief Whether a notify_filelist_changed operation is one the gcodes listing
+ * cares about.
  *
  * Moonraker fires the same notification for every registered directory, and
  * printers write to `config` constantly: an AFC unit rewrites `AFC/AFC.var.unit`
@@ -338,14 +339,27 @@ inline std::string notification_action(const nlohmann::json& msg) {
  * `saved_variables.cfg`. Consumers that only track gcode files must filter on
  * the root or pay a full round trip for each of those writes.
  *
- * An empty root means the payload had no shape we recognise; treat it as
- * relevant, because going stale is worse than one extra round trip.
+ * `item` always describes the operation's DESTINATION; a move or copy attaches
+ * its origin as `source_item`, and either end being `gcodes` counts, because a
+ * file moved out of gcodes leaves the listing stale just as one moved in
+ * changes it. The two ends fail differently on empty: an empty item root means
+ * the payload had no shape we recognise, so treat it as relevant, because going
+ * stale is worse than one extra round trip — but `source_item` rides along only
+ * on a move or copy, so an empty source root is the norm for uploads, creates
+ * and deletes, and treating it as relevant would admit every root again and
+ * make the filter inert.
  *
  * Exact match, not a prefix: a separately registered root such as
  * "gcodes_backup" is a different directory.
+ *
+ * Both ends are required arguments. A caller that looks at the item root alone
+ * is the failure this predicate exists to prevent, and a default would let the
+ * compiler wave the next one through; pass an empty string for the frames that
+ * carry no `source_item`.
  */
-inline bool filelist_change_affects_gcodes(const std::string& root) {
-    return root.empty() || root == "gcodes";
+inline bool filelist_change_affects_gcodes(const std::string& item_root,
+                                           const std::string& source_root) {
+    return item_root.empty() || item_root == "gcodes" || source_root == "gcodes";
 }
 
 } // namespace helix::json_util

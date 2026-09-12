@@ -359,7 +359,12 @@ stop_remote_screen() {
 }
 
 platform_pre_start() {
-    export HELIX_CACHE_DIR="/userdata/helixscreen/cache"
+    # Cache and logs live beside the payload, never inside it. The install root
+    # is what an update replaces, and not only by our own hand: a Moonraker
+    # `type: web` entry does shutil.rmtree(path) before extracting. Anything
+    # under it goes on every update - logs vanish exactly when someone needs
+    # them, and the thumbnail cache is rebuilt from nothing.
+    export HELIX_CACHE_DIR="/userdata/helixscreen-state/cache"
     # Force DRM device — skip auto-detection which may race with connector state
     export HELIX_DRM_DEVICE="/dev/dri/card0"
 

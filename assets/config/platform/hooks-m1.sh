@@ -31,7 +31,10 @@ platform_wait_for_services() {
 }
 
 platform_pre_start() {
-    export HELIX_CACHE_DIR="/usr/data/helixscreen/cache"
+    # No cache override. The M1 is a Debian SBC whose install root is discovered
+    # rather than fixed, so the XDG rung of the cache cascade resolves correctly
+    # on its own; naming a path here can only get it wrong.
+    :
 }
 
 platform_post_stop() {

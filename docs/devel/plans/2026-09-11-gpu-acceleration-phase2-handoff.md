@@ -18,20 +18,25 @@ do re-measure on any board not listed.
 |---|---|---|---|---|
 | Pi 5, DSI panel (the one in use) | `drm-rp1-dsi` | `0x0` | V3D 7.1.7, GLES 3.1, Mesa 24.2.8 | works |
 | Pi 5, HDMI | `vc4` | `0x35` (0, 180, reflects) | V3D | works |
-| BTT CB1 | `sun4i-drm` | `0x0` | Mali-G31, GLES 3.1, Mesa 21.3.9 | **`gbm_create_device` fails** |
-| Snapmaker U1 | `rockchip` | `0x21` (0, reflect-y) | none installed | impossible |
+| Pi 3B, DSI panel (the one in use) | `vc4` | `0x35` (0, 180, reflects) | VC4 V3D 2.1, GLES 2.0, Mesa 25.0.7 | works |
+| BTT CB1, current image (Armbian 26.8.1 / Debian 13, stock Mesa) | `sun4i-drm` | `0x0` | Mali-G31 (Panfrost), GLES 3.1, Mesa 25.0.7 | works |
+| BTT CB1, stale image (BTT/Siboor, Debian 11, `/opt/panfrost` Mesa) | `sun4i-drm` | `0x0` | Mali-G31, GLES 3.1, Mesa 21.3.9 | **`gbm_create_device` fails** |
+| Snapmaker U1 | `rockchip` | `0x21` (0, reflect-y) | none installed (card1 is an RKNPU, not a GPU) | impossible |
 
 Three consequences that shape the whole phase:
 
 1. **No plane in the fleet rotates 90 or 270.** The framebuffer path is the rotation
    mechanism, not a fallback from a better one.
-2. **The CB1 fails EGL and runs the same `pi-both` binary as the Pi.** Its
-   `/opt/panfrost` Mesa ships no `kms_swrast`/`swrast` driver, so allocating a scanout
-   buffer on `sun4i-drm` returns NULL even though Mali renders fine. This is why the
-   design calls for a runtime probe rather than a compile-time switch: a compile-time
-   decision ships broken to one of the two boards.
+2. **EGL capability is a property of the installed image, not the board.** The same
+   physical CB1 fails EGL on a stale image (`/opt/panfrost` Mesa 21.3.9 ships no
+   `kms_swrast`/`swrast` driver, so allocating a scanout buffer on `sun4i-drm` returns
+   NULL) and succeeds on a current Debian 13 image (stock Mesa 25.0.7, `GL_RENDERER`
+   reporting the real Mali, not a software fallback) on the identical node, running the
+   same `pi-both` binary. That is a broader argument for a runtime probe than any single
+   board's hardware: compile time cannot know which SD card ends up in a given unit.
 3. **The U1 has no `libEGL`, `libGLESv2` or `libgbm` at all.** Its only hardware path is
-   the plane, and its mask excludes every angle we would ask for.
+   the plane, and its mask excludes every angle we would ask for. (Its second node,
+   `card1`, is an RKNPU accelerator, not a GPU.)
 
 **The fleet is not the product.** An `x86_64` desktop with `amdgpu` reports plane masks of
 `0xf` - rotate-0, 90, 180 and 270, the full set. `x86` and `x86-both` are shipped targets,
@@ -43,15 +48,40 @@ product scope. Measure the box in front of you, then ask what else the target re
 ## The two things Phase 2 can build
 
 **EGL presentation** replaces a CPU memory copy with a GPU page flip. It accelerates how
-a finished frame reaches the panel. Rasterization stays on the CPU. This is the smaller
-win and the one the design's section 2 describes.
+a finished frame reaches the panel; rasterization stays on the CPU. Measured on the Pi 5
+(V3D, 800x480 DSI, three interleaved 60s runs of an identical simulated-print workload,
+same source and resolution): DRM dumb buffers average ~39.7% process CPU at ~102MB RSS,
+EGL presentation averages ~24.7% CPU at ~118MB RSS — EGL cuts process CPU roughly 38%
+relative for about 16MB RSS. This is the design's section 2.
 
-**The nanovg draw unit** moves rasterization itself to the GPU. It is fully vendored
-already - `lib/lvgl/src/draw/nanovg/` and `lib/lvgl/src/libs/nanovg/` - and switched off.
-It needs **both** `LV_USE_NANOVG` and `LV_USE_DRAW_NANOVG`; setting only the second links
-with undefined `nvg*` symbols. This is the larger win, and it is also what makes
-`LV_DRAW_TRANSFORM_USE_MATRIX` legitimate, since only `vg_lite` and `nanovg` read the
-per-draw-task matrix.
+**The nanovg draw unit** moves rasterization itself to the GPU, but it is not a second,
+independent option: it renders into the layer's bound GL surface with no readback path
+onto a dumb buffer or fbdev framebuffer, so it can only run on top of the EGL rung, never
+instead of it. It is fully vendored already - `lib/lvgl/src/draw/nanovg/` and
+`lib/lvgl/src/libs/nanovg/` - and switched off. It needs **both** `LV_USE_NANOVG` and
+`LV_USE_DRAW_NANOVG`; setting only the second links with undefined `nvg*` symbols. LVGL
+calls `lv_draw_nanovg_init()` itself from `lv_linux_drm_egl.c`, so no HelixScreen wiring is
+needed, only config.
+
+`LV_USE_DRAW_NANOVG` also turns on `LV_DRAW_TRANSFORM_USE_MATRIX`, which adds an
+`lv_matrix_t` member to `lv_layer_t` and `lv_draw_task_t` — an ABI change every
+translation unit including `lv_draw.h` sees, so a nanovg binary is a full separate build,
+never a link variant off a shared object set. Plain EGL (`LV_USE_OPENGLES`) carries no such
+cost: it only touches `lv_types.h` under `LV_USE_3DTEXTURE`, which resolves to 0.
+
+nanovg's justification is `LV_DRAW_TRANSFORM_USE_MATRIX` legitimacy, not raw speed. A perf
+profile of the EGL build (cpu-clock, 3218 samples, symbolized) attributes 31.0% of total
+CPU time to the LVGL software rasterizer (`lv_draw_sw_transform`,
+`lv_draw_sw_blend_neon_color_to_rgb888` and its `_with_mask` variant,
+`lv_draw_sw_blend_image_to_rgb888`). 31% of the EGL path's ~24.7% is roughly 7.7 CPU
+points — the ceiling for whatever nanovg could ever reclaim on this workload, and only if
+GPU rasterization were free — against the ~15 points EGL presentation alone already
+delivered. It compiles clean for the Pi (18 source files, zero errors) but the resulting
+binary currently aborts with `malloc(): invalid size (unsorted)` about 1.3s into startup,
+after the EGL display comes up successfully. First suspect: `drm_egl_select_config_cb` in
+`lv_linux_drm_egl.c` selects its EGL config on width/height/color-format/`EGL_WINDOW_BIT`
+and never requires a stencil buffer, while nanovg's own docs list a stencil buffer as
+required for its stencil-based path filling.
 
 `lv_draw_opengles` is the weaker draw unit and is not proposed: its `draw_to_texture()`
 re-enters the software rasterizer per unique shape and caches the result, cutting
@@ -108,18 +138,30 @@ rule.
 post-build `compile_commands.json` merge errors on an empty fragment set. Check the
 artifact, not the exit code. Filed as #1588.
 
-**Do not verify the rotation/touch path on the Pi's DSI panel.** Its plane mask is `0x0`,
+**The EGL rung does not link yet.** `src/api/display_backend_drm.cpp` calls
+`lv_linux_drm_set_preferred_mode()`, which exists only in the dumb-buffer driver
+(`lv_linux_drm.c`); under `LV_LINUX_DRM_USE_EGL=1` that file compiles to nothing, so the
+call needs a guard before the third link succeeds. Guarding it costs forced-mode selection
+on that rung: a board whose requested mode differs from the connector's preferred mode
+gets the connector's preferred mode instead.
+
+**Do not verify the rotation/touch path on the Pi 5's DSI panel.** Its plane mask is `0x0`,
 so it takes the fbdev path regardless of what the code does, and it will pass whether or
-not the fix is present. Reaching the plane path needs the HDMI connector, whose mask is
-the only one in the fleet containing 180.
+not the fix is present. On the Pi 5 that means reaching the plane path needs the HDMI
+connector. The Pi 3B is different: its DSI panel sits on `vc4`, whose plane mask is `0x35`
+(rotate-0, rotate-180, reflect-x, reflect-y), so the Pi 3B's own connected panel reaches
+the plane path directly - use that board for rotation/touch verification instead of wiring
+up HDMI.
 
 ## Verification this phase requires
 
 Both GPU stacks, because Panfrost is not V3D and #966 was a GLES crash on the CB1:
 
 - **Pi** - confirm `GL_RENDERER` is `V3D ...` and never `llvmpipe`.
-- **CB1** - confirm the probe *declines* and the app lands on the rung below rather than
-  failing. This board is the reason the design uses a runtime probe.
+- **CB1** - test both SD card states: confirm the probe *declines* on the stale
+  `/opt/panfrost` image and the app lands on the rung below rather than failing, and
+  confirm the probe *succeeds* on a current Debian 13 image with `GL_RENDERER` reporting
+  the real Mali. The image, not the board, is why the design uses a runtime probe.
 - **U1** - confirm nothing changed. It has no GL userspace and must keep the dumb-buffer
   driver.
 
@@ -140,8 +182,10 @@ to measure.
    so one binary cannot hold both. The design proposes a third binary plus a launcher rung
    selected by `--probe-egl`; the original 2026-02 design accepted falling straight from
    EGL to fbdev in one binary. The measurements favour the rung, because the one-binary
-   route silently demotes every CB1 from DRM to fbdev. `mk/pi-dual-link.mk` already has the
-   recompile-under-different-flags pattern (`FBDEV_GLES_VARIANT_OBJS`) this needs.
+   route silently demotes any CB1 whose EGL probe fails — a stale `/opt/panfrost` image
+   still does, even though a current Debian 13 image on the identical board does not — from
+   DRM to fbdev. `mk/pi-dual-link.mk` already has the recompile-under-different-flags
+   pattern (`FBDEV_GLES_VARIANT_OBJS`) this needs.
 2. **Whether #1582's EGL context getters get wired or dropped.** They stop being dead the
    moment `lv_linux_drm_egl.c` compiles. Note the gcode renderer already saves and restores
    the current context, so sharing is a memory optimisation rather than a correctness fix -

@@ -282,9 +282,10 @@ void SpoolmanManager::refresh_spoolman_weights() {
     for (const auto& entry : backends) {
         const int backend_index = entry.first;
         AmsBackend* backend = entry.second;
-        // When the backend tracks weight locally (e.g., AFC decrements weight
-        // via extruder position), we still need total_weight_g (initial weight)
-        // from Spoolman — the backend only provides remaining weight.
+        // When the backend tracks weight locally (e.g., AFC reads a
+        // firmware-reported remaining weight from its own status payload), we
+        // still need total_weight_g (initial weight) from Spoolman - the
+        // backend only provides remaining weight.
         bool local_weight = backend->tracks_weight_locally();
         int slot_count = backend->get_system_info().total_slots;
 
@@ -418,19 +419,22 @@ void SpoolmanManager::refresh_spoolman_weights() {
                                 return;
                             }
 
-                            // Update weights and set back.
-                            // CRITICAL: persist=false prevents an infinite feedback loop.
-                            // With persist=true, set_slot_info sends G-code to firmware
-                            // (e.g., SET_WEIGHT for AFC, MMU_GATE_MAP for Happy Hare).
-                            // Firmware then emits a status_update WebSocket event, which
-                            // triggers sync_from_backend -> refresh_spoolman_weights ->
-                            // set_slot_info again, ad infinitum. With 4 AFC lanes this
-                            // fires 16+ G-code commands per cycle and saturates the CPU.
-                            // Since these weights come FROM Spoolman (an external source),
-                            // there's no need to write them back to firmware.
-                            slot.remaining_weight_g = new_remaining;
-                            slot.total_weight_g = d->total_weight_g;
-                            owner->set_slot_info(d->slot_index, slot, /*persist=*/false);
+                            // Weight-only, through the weight-only API. An
+                            // automated weight tracker must never assert filament
+                            // identity: handing a backend a whole SlotInfo lets it
+                            // re-derive state from fields this poll did not mean to
+                            // touch, which on a backend that infers presence from
+                            // identity resurrects a lane the sensors report empty
+                            // (#981 for the same shape on the consumption path).
+                            //
+                            // persist=false because these weights come FROM
+                            // Spoolman, which is the durable store for a linked
+                            // spool. Persisting would also send firmware G-code
+                            // (SET_WEIGHT on AFC, MMU_GATE_MAP on Happy Hare),
+                            // whose status_update echo re-enters this poll: 16+
+                            // commands per cycle on four AFC lanes.
+                            owner->update_slot_weight(d->slot_index, new_remaining,
+                                                      d->total_weight_g, /*persist=*/false);
                             ams.bump_slots_version();
 
                             spdlog::debug(

@@ -708,4 +708,30 @@ bool ui_gcode_viewer_adopt_palette_if_empty(lv_obj_t* obj, std::vector<std::stri
  */
 float ui_gcode_viewer_get_load_progress(lv_obj_t* obj);
 
+// ==============================================
+// Test Seam
+// ==============================================
+
+#include <memory>
+
+namespace helix::gcode {
+class GCodeLayerRenderer;
+} // namespace helix::gcode
+
+namespace helix::test_access {
+/**
+ * @brief Run the viewer's budget-forced 2D fallback over @p file.
+ *
+ * Production reaches that branch only when GeometryBudgetManager refuses to
+ * build 3D geometry for a file, which a test on a machine with free memory
+ * cannot arrange. This enters the same branch body with @p file standing in for
+ * the completed load, and takes ownership of it the way a load does.
+ *
+ * @return the 2D renderer the fallback left on the viewer, or nullptr if it
+ *         created none.
+ */
+const helix::gcode::GCodeLayerRenderer*
+gcode_viewer_budget_force_2d(lv_obj_t* viewer, std::unique_ptr<helix::gcode::ParsedGCodeFile> file);
+} // namespace helix::test_access
+
 #endif

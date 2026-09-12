@@ -364,8 +364,8 @@ std::function<void()> get_wizard_cancel_callback();
  * 2. Config /cache/base_directory + /<subdir>
  * 3. Platform-specific (compile-time):
  *    - AD5M:  /data/helixscreen/cache/<subdir>
- *    - K1:    /usr/data/helixscreen/cache/<subdir>
- *    - K2:    /mnt/UDISK/helixscreen/cache/<subdir>, then /usr/data
+ *    - K1:    /usr/data/helixscreen-state/cache/<subdir>
+ *    - K2:    /mnt/UDISK/helixscreen-state/cache/<subdir>, then /usr/data
  *             (/usr/data is the small root overlay on the K2, not user storage)
  * 4. XDG_CACHE_HOME/helix/<subdir>
  * 5. $HOME/.cache/helix/<subdir>

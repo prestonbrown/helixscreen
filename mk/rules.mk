@@ -129,9 +129,11 @@ endif
 ifndef SKIP_COMPILE_COMMANDS
 	@# Auto-generate compile_commands.json from fragments (fast, <0.3s)
 	@# Skip with SKIP_COMPILE_COMMANDS=1 (used by pre-commit to avoid LSP churn)
+	@# stdout is captured into the summary line; stderr is where the merge says
+	@# why it refused, and it is the only account of a failure the recipe gives.
 	@if [ -d "$(BUILD_DIR)" ] && [ -f scripts/merge_compile_commands.py ]; then \
-		SUMMARY=$$(python3 scripts/merge_compile_commands.py --build-dir $(BUILD_DIR) 2>/dev/null) && \
-			echo "$(CYAN)→ compile_commands.json updated ($$SUMMARY)$(RESET)"; \
+		SUMMARY=$$(python3 scripts/merge_compile_commands.py --build-dir $(BUILD_DIR)) && \
+			echo "$(CYAN)→ compile_commands.json ($$SUMMARY)$(RESET)"; \
 	fi
 endif
 endif
@@ -198,11 +200,17 @@ DEPFILES := $(wildcard $(OBJ_DIR)/*.d $(OBJ_DIR)/**/*.d)
 # Usage: $(call emit-compile-command,compiler,flags,source,output)
 # Example: $(call emit-compile-command,$(CXX),$(CXXFLAGS) $(INCLUDES),$<,$@)
 #
-# Note: Uses sed to escape double quotes in the command for valid JSON
+# The command must stay shell-ready: a consumer splits it back into argv, so a
+# define whose value has to reach the compiler WITH quotes (-DNAME="text") needs
+# those quotes to survive that split. Single-quoting the value is what carries
+# them through; escaping alone would hand the compiler a bare token and the
+# macro would expand to something that does not parse. Then the double quotes
+# are escaped again for JSON.
 # ============================================================================
 define emit-compile-command
 	@CMD="$(1) $(2) -c $(3) -o $(4)"; \
-	CMD_ESC=$$(echo "$$CMD" | sed 's/"/\\"/g'); \
+	CMD_SH=$$(echo "$$CMD" | sed "s/\(-D[A-Za-z_][A-Za-z0-9_]*=\)\(\"[^\" ]*\"\)/\1'\2'/g"); \
+	CMD_ESC=$$(echo "$$CMD_SH" | sed 's/"/\\"/g'); \
 	printf '{"directory": "%s", "file": "%s", "command": "%s"}\n' \
 		"$(CURDIR)" \
 		"$(abspath $(3))" \
@@ -529,7 +537,7 @@ compile_commands:
 		$(MAKE) all test-build; \
 	fi
 	@SUMMARY=$$(python3 scripts/merge_compile_commands.py --build-dir $(BUILD_DIR)) && \
-		echo "$(GREEN)✓ compile_commands.json generated ($$SUMMARY)$(RESET)"
+		echo "$(GREEN)✓ compile_commands.json: $$SUMMARY$(RESET)"
 	$(ECHO) ""
 	$(ECHO) "$(CYAN)IDE/LSP integration ready. Restart your editor to pick up changes.$(RESET)"
 
