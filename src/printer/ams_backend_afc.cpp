@@ -2485,26 +2485,33 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
 
     // Parse Spoolman ID.
     //
-    // JSON null is AFC telling us the link is GONE — clear_values() sets
-    // spool_id=None on eject. is_number_integer() is false for null, so this
-    // previously retained the old id and an ejected lane stayed "linked",
-    // which is what later aimed an edit's Spoolman write at the wrong spool.
-    // An ABSENT key still means "unchanged": these are deltas, not snapshots.
+    // JSON null is AFC telling us the link is GONE - clear_values() sets
+    // spool_id=None on eject. is_number_integer() is false for null, so null
+    // needs an arm of its own; without one an ejected lane keeps reading as
+    // linked and a later edit's Spoolman write aims at the wrong spool. An
+    // ABSENT key still means "unchanged": these are deltas, not snapshots.
+    //
+    // Remember firmware's own word separately from the merged slot: the §5
+    // merge below re-supplies the retained override id, so slot.spoolman_id
+    // alone cannot tell whether AFC itself still holds a link. The spool-id
+    // re-assert (see maybe_reassert_retained_spool_link) keys off this, not
+    // the merge. Both records are written INSIDE the two arms: a value that is
+    // neither an integer nor null assigns nothing, and reading slot.spoolman_id
+    // outside the statement that set it would file the user's own id as
+    // firmware's word.
     if (data.contains("spool_id")) {
         if (data["spool_id"].is_number_integer()) {
-            slot.spoolman_id = data["spool_id"].get<int>();
+            const int firmware_id = data["spool_id"].get<int>();
+            slot.spoolman_id = firmware_id;
+            lane_firmware_spool_id_[lane_name] = firmware_id;
+            if (firmware_id > 0) {
+                firmware.cache.spoolman_id = firmware_id;
+            } else {
+                firmware.cache.spoolman_id.reset();
+            }
         } else if (data["spool_id"].is_null()) {
             slot.spoolman_id = 0;
-        }
-        // Remember firmware's own word separately from the merged slot: the
-        // §5 merge below re-supplies the retained override id, so
-        // slot.spoolman_id alone can no longer tell whether AFC itself still
-        // holds a link. The spool-id re-assert (see
-        // maybe_reassert_retained_spool_link) keys off this, not the merge.
-        lane_firmware_spool_id_[lane_name] = slot.spoolman_id;
-        if (slot.spoolman_id > 0) {
-            firmware.cache.spoolman_id = slot.spoolman_id;
-        } else {
+            lane_firmware_spool_id_[lane_name] = 0;
             firmware.cache.spoolman_id.reset();
         }
     }
@@ -2532,6 +2539,13 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // Deliberately does NOT clear on unlink: total_weight_g also comes from the
     // Spoolman weight poll and from user overrides, and neither should be wiped
     // because AFC dropped its own link.
+    //
+    // On a frame carrying no spool_id key the gate reads the merged id, which
+    // may be the user's retained link rather than AFC's. The value admitted is
+    // still this frame's own, so nothing user-authored is filed; the lane can
+    // simply carry a firmware total while AFC's own link is gone. The slot
+    // write and the observation share the one gate rather than answering the
+    // same question two ways.
     if (slot.spoolman_id > 0 && data.contains("initial_weight") &&
         data["initial_weight"].is_number()) {
         float full = data["initial_weight"].get<float>();

@@ -423,3 +423,70 @@ TEST_CASE_METHOD(LVGLTestFixture, "a frame with no sensor key neither sets nor e
     REQUIRE(still.sensed->present.has_value());
     CHECK(*still.sensed->present == true);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "each AFC lane accumulates its own identity",
+                 "[lane][ingest][afc]") {
+    AfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    feed_afc_lane(*harness, "lane1",
+                  {{"prep", true},
+                   {"status", "Loaded"},
+                   {"color", "#ED2C2C"},
+                   {"material", "PETG"},
+                   {"filament_name", "Galaxy Black"}});
+
+    // A second lane, saying nothing about any spool. One accumulator for the
+    // backend instead of one per lane would hand it lane1's identity.
+    feed_afc_lane(*harness, "lane2", {{"prep", false}, {"status", "None"}});
+
+    const auto second = lane_sources(harness.lane(1));
+    REQUIRE(second.vendor_cache.has_value());
+    CHECK_FALSE(second.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(second.vendor_cache->material.has_value());
+    CHECK_FALSE(second.vendor_cache->spool_name.has_value());
+
+    const auto first = lane_sources(harness.lane(0));
+    REQUIRE(first.vendor_cache.has_value());
+    REQUIRE(first.vendor_cache->color_rgb.has_value());
+    CHECK(*first.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(first.vendor_cache->material == "PETG");
+
+    // The second lane's own spool, which must reach its own record and leave
+    // the first lane's alone.
+    feed_afc_lane(*harness, "lane2", {{"color", "#00AEFF"}, {"material", "PLA"}});
+
+    const auto changed = lane_sources(harness.lane(1));
+    REQUIRE(changed.vendor_cache->color_rgb.has_value());
+    CHECK(*changed.vendor_cache->color_rgb == 0x00AEFFu);
+    CHECK(changed.vendor_cache->material == "PLA");
+
+    const auto untouched = lane_sources(harness.lane(0));
+    REQUIRE(untouched.vendor_cache->color_rgb.has_value());
+    CHECK(*untouched.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(untouched.vendor_cache->material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a spool id AFC did not state is not filed as one",
+                 "[lane][ingest][afc]") {
+    AfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    helix::ams::FilamentSlotOverride user;
+    user.spoolman_id = 99;
+    AfcTestAccess::overrides(*harness)[0] = user;
+
+    // AFC unlinks the lane; the override re-supplies the user's id on the
+    // merged slot, which is the precondition rather than the behaviour.
+    feed_afc_lane(*harness, "lane1", {{"prep", true}, {"status", "Loaded"}, {"spool_id", nullptr}});
+    REQUIRE(harness->get_slot_info(0).spoolman_id == 99);
+    REQUIRE_FALSE(lane_sources(harness.lane(0)).vendor_cache->spoolman_id.has_value());
+
+    // A spool_id that is neither an integer nor null states nothing. Reading
+    // the merged slot here would file the user's 99 as AFC's own word.
+    feed_afc_lane(*harness, "lane1", {{"spool_id", "junk"}});
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK_FALSE(lane.vendor_cache->spoolman_id.has_value());
+}
