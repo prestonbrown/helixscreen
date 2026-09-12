@@ -66,7 +66,7 @@ TEST_CASE("Welcome header ladder picks a display face per breakpoint",
     CHECK(helix::wizard_welcome_header_font(UiBreakpoint::Micro)->line_height <= heading_medium);
 #elif HELIX_MAX_FONT_TIER >= 5
     // k2 (FONT_TIERS := large xlarge, mk/cross.mk): the build reaches the
-    // xlarge tier, so its largest linked face is noto_sans_32 and the ladder
+    // xlarge tier, so its largest linked text face is noto_sans_32 and the ladder
     // must hand that back at the Large-and-up breakpoints — a size class
     // above font_heading_large's noto_sans_28 (prestonbrown/helixscreen#1609).
     CHECK(helix::wizard_welcome_header_font(UiBreakpoint::Large) == &noto_sans_32);
