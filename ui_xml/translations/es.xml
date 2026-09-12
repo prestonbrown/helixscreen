@@ -437,7 +437,7 @@
   <translation tag="Chamber at %d°C" es="Cámara a %d°C"/>
   <translation tag="Chamber heating to %d°C..." es="Calentando cámara a %d°C..."/>
   <translation tag="Chamber target set to {}°C" es="Objetivo de cámara establecido en {}°C"/>
-  <translation tag="Chamber temp must be 0-120°C"/>
+  <translation tag="Chamber temp must be 0-%d°C" es="La temperatura de la cámara debe ser 0-%d°C"/>
   <translation tag="Change" es="Cambiar"/>
   <translation tag="Change Address" es="Cambiar dirección"/>
   <translation tag="Change Blade" es="Cambiar cuchilla"/>
@@ -1951,6 +1951,7 @@
   <translation tag="Printer Shutdown" es="Apagado de Impresora"/>
   <translation tag="Printer Type" es="Tipo de Impresora"/>
   <translation tag="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})" es="La impresora aceptó el trabajo pero no está imprimiendo — revise la cubierta, el papel y el tipo de etiqueta (status del firmware=0x{:02X} error=0x{:02X})"/>
+  <translation tag="Printer caps chamber at %d°C" es="La impresora limita la cámara a %d°C"/>
   <translation tag="Printer connection unavailable" es="Conexión con la impresora no disponible"/>
   <translation tag="Printer database format error" es="Error de formato de la base de datos de impresoras"/>
   <translation tag="Printer database is corrupt" es="La base de datos de impresoras está corrupta"/>

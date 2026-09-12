@@ -437,7 +437,7 @@
   <translation tag="Chamber at %d°C" zh="腔体温度：%d°C"/>
   <translation tag="Chamber heating to %d°C..." zh="腔体加热至 %d°C..."/>
   <translation tag="Chamber target set to {}°C" zh="腔体目标温度设置为 {}°C"/>
-  <translation tag="Chamber temp must be 0-120°C"/>
+  <translation tag="Chamber temp must be 0-%d°C" zh="腔体温度必须为 0-%d°C"/>
   <translation tag="Change" zh="更改"/>
   <translation tag="Change Address" zh="更改地址"/>
   <translation tag="Change Blade" zh="更换刀片"/>
@@ -1951,6 +1951,7 @@
   <translation tag="Printer Shutdown" zh="打印机关机"/>
   <translation tag="Printer Type" zh="打印机类型"/>
   <translation tag="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})" zh="打印机已接受作业但未开始打印 — 请检查盖板、纸张和标签类型 (firmware status=0x{:02X} error=0x{:02X})"/>
+  <translation tag="Printer caps chamber at %d°C" zh="打印机腔体上限为 %d°C"/>
   <translation tag="Printer connection unavailable" zh="打印机连接不可用"/>
   <translation tag="Printer database format error" zh="打印机数据库格式错误"/>
   <translation tag="Printer database is corrupt" zh="打印机数据库已损坏"/>

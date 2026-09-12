@@ -437,7 +437,7 @@
   <translation tag="Chamber at %d°C" fr="Chambre à %d°C"/>
   <translation tag="Chamber heating to %d°C..." fr="Chauffe de la chambre à %d°C..."/>
   <translation tag="Chamber target set to {}°C" fr="Cible de chambre définie à {}°C"/>
-  <translation tag="Chamber temp must be 0-120°C"/>
+  <translation tag="Chamber temp must be 0-%d°C" fr="La température de l&apos;enceinte doit être entre 0 et %d°C"/>
   <translation tag="Change" fr="Modifier"/>
   <translation tag="Change Address" fr="Changer l&apos;adresse"/>
   <translation tag="Change Blade" fr="Changer la lame"/>
@@ -1951,6 +1951,7 @@
   <translation tag="Printer Shutdown" fr="Arrêt de l&apos;imprimante"/>
   <translation tag="Printer Type" fr="Type d&apos;imprimante"/>
   <translation tag="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})" fr="L&apos;imprimante a accepté la tâche mais n&apos;imprime pas — vérifiez le capot, le papier et le type d&apos;étiquette (état firmware=0x{:02X} erreur=0x{:02X})"/>
+  <translation tag="Printer caps chamber at %d°C" fr="L&apos;imprimante limite l&apos;enceinte à %d°C"/>
   <translation tag="Printer connection unavailable" fr="Connexion à l&apos;imprimante indisponible"/>
   <translation tag="Printer database format error" fr="Erreur de format de la base de données d&apos;imprimantes"/>
   <translation tag="Printer database is corrupt" fr="La base de données d&apos;imprimantes est corrompue"/>

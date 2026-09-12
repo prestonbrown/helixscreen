@@ -72,6 +72,12 @@
             <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
             <text_body style_pad_bottom="#space_xs" text="Chamber (°C)" translation_tag="Chamber (°C)"/>
             <text_input name="edit_chamber_temp" width="120" keyboard_hint="numeric" max_length="4"/>
+            <!-- Effective cap hint: subject is 0 (hidden) unless the printer's
+                 ceiling is tighter than the input's own maximum -->
+            <text_small name="edit_chamber_cap_hint"
+                        bind_text="material_chamber_cap_text" style_text_color="#text_muted" style_pad_top="#space_xs">
+              <bind_flag_if_eq subject="material_chamber_cap" flag="hidden" ref_value="0"/>
+            </text_small>
           </lv_obj>
         </lv_obj>
         <!-- Preheat Macro section -->

@@ -475,7 +475,7 @@ translations:
   Chamber at %d°C: Chamber at %d°C
   Chamber heating to %d°C...: Chamber heating to %d°C...
   Chamber target set to {}°C: Chamber target set to {}°C
-  Chamber temp must be 0-120°C: Chamber temp must be 0-120°C
+  Chamber temp must be 0-%d°C: Chamber temp must be 0-%d°C
   Change: Change
   Change Address: Change Address
   Change Blade: Change Blade
@@ -2124,6 +2124,7 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): Printer
     accepted job but isn't printing — check cover, paper, and label type (firmware
     status=0x{:02X} error=0x{:02X})
+  Printer caps chamber at %d°C: Printer caps chamber at %d°C
   Printer connection unavailable: Printer connection unavailable
   Printer database format error: Printer database format error
   Printer database is corrupt: Printer database is corrupt

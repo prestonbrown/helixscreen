@@ -437,7 +437,7 @@
   <translation tag="Chamber at %d°C" ja="チャンバー温度：%d°C"/>
   <translation tag="Chamber heating to %d°C..." ja="チャンバーを%d°Cに加熱中..."/>
   <translation tag="Chamber target set to {}°C" ja="チャンバー目標温度を{}°C に設定"/>
-  <translation tag="Chamber temp must be 0-120°C"/>
+  <translation tag="Chamber temp must be 0-%d°C" ja="チャンバー温度は 0〜%d°C にしてください"/>
   <translation tag="Change" ja="変更"/>
   <translation tag="Change Address" ja="アドレスを変更"/>
   <translation tag="Change Blade" ja="ブレードを交換"/>
@@ -1951,6 +1951,7 @@
   <translation tag="Printer Shutdown" ja="プリンターシャットダウン"/>
   <translation tag="Printer Type" ja="プリンタータイプ"/>
   <translation tag="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})" ja="プリンターはジョブを受け付けましたが印刷していません — カバー、用紙、ラベルの種類を確認してください (firmware status=0x{:02X} error=0x{:02X})"/>
+  <translation tag="Printer caps chamber at %d°C" ja="プリンターのチャンバー上限は %d°C です"/>
   <translation tag="Printer connection unavailable" ja="プリンターとの接続が利用できません"/>
   <translation tag="Printer database format error" ja="プリンターデータベースの形式エラー"/>
   <translation tag="Printer database is corrupt" ja="プリンターデータベースが破損しています"/>

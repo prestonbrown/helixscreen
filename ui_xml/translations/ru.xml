@@ -437,7 +437,7 @@
   <translation tag="Chamber at %d°C" ru="Камера при %d°C"/>
   <translation tag="Chamber heating to %d°C..." ru="Нагрев камеры до %d°C..."/>
   <translation tag="Chamber target set to {}°C" ru="Целевая температура камеры установлена на {}°C"/>
-  <translation tag="Chamber temp must be 0-120°C"/>
+  <translation tag="Chamber temp must be 0-%d°C" ru="Температура камеры должна быть 0-%d°C"/>
   <translation tag="Change" ru="Изменить"/>
   <translation tag="Change Address" ru="Изменить адрес"/>
   <translation tag="Change Blade" ru="Заменить лезвие"/>
@@ -1951,6 +1951,7 @@
   <translation tag="Printer Shutdown" ru="Остановка принтера"/>
   <translation tag="Printer Type" ru="Тип принтера"/>
   <translation tag="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})" ru="Принтер принял задание, но не печатает — проверьте крышку, бумагу и тип этикеток (статус прошивки=0x{:02X} ошибка=0x{:02X})"/>
+  <translation tag="Printer caps chamber at %d°C" ru="Камера принтера ограничена %d°C"/>
   <translation tag="Printer connection unavailable" ru="Подключение к принтеру недоступно"/>
   <translation tag="Printer database format error" ru="Ошибка формата базы данных принтеров"/>
   <translation tag="Printer database is corrupt" ru="База данных принтеров повреждена"/>

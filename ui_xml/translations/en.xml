@@ -437,7 +437,7 @@
   <translation tag="Chamber at %d°C" en="Chamber at %d°C"/>
   <translation tag="Chamber heating to %d°C..." en="Chamber heating to %d°C..."/>
   <translation tag="Chamber target set to {}°C" en="Chamber target set to {}°C"/>
-  <translation tag="Chamber temp must be 0-120°C" en="Chamber temp must be 0-120°C"/>
+  <translation tag="Chamber temp must be 0-%d°C" en="Chamber temp must be 0-%d°C"/>
   <translation tag="Change" en="Change"/>
   <translation tag="Change Address" en="Change Address"/>
   <translation tag="Change Blade" en="Change Blade"/>
@@ -1951,6 +1951,7 @@
   <translation tag="Printer Shutdown" en="Printer Shutdown"/>
   <translation tag="Printer Type" en="Printer Type"/>
   <translation tag="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})" en="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})"/>
+  <translation tag="Printer caps chamber at %d°C" en="Printer caps chamber at %d°C"/>
   <translation tag="Printer connection unavailable" en="Printer connection unavailable"/>
   <translation tag="Printer database format error" en="Printer database format error"/>
   <translation tag="Printer database is corrupt" en="Printer database is corrupt"/>
