@@ -374,6 +374,13 @@ Inline style attributes (e.g., `style_bg_color="#card_bg"`) have **higher priori
 </lv_button>
 ```
 
+**Semantic text widgets (`text_*`) sit one notch below binds.** Their built-in font and
+color are applied as a shared style at create time, before nested bind elements are parsed —
+so a `bind_style_if_*` carrying `text_font` (or `text_color`) **can** retier a `text_small`
+to another font, and an inline `style_text_font` attribute still beats both, exactly like
+the `bg_color` rule above. This is the supported way to swap a text widget's font from a
+width-band or mode subject without touching C++.
+
 **Rule:** When using `bind_style` for reactive visual changes, do NOT set inline style attributes for the properties you want to change reactively.
 
 **⚠️ Moving `flex_flow` into a style? Set `layout="flex"` there too.**
