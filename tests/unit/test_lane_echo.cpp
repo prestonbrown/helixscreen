@@ -67,9 +67,9 @@ TEST_CASE("a field the producer states differently passes and consumes its decla
     REQUIRE(reasserted.color_rgb.has_value());
     CHECK(*reasserted.color_rgb == 0xED2C2Cu);
 
-    // Having shown it can say something else, the producer owns these fields
-    // from here: our values coming back are no longer ours to withhold, even
-    // on the same spool. Without this, a lane whose boundary never moves
+    // Having shown it can say something else, the producer owns these fields:
+    // our values coming back are its statement, not ours to withhold, even on
+    // the same spool. Without this, a lane whose boundary never moves
     // withholds for the life of the backend.
     Observation later = echoed();
     CHECK(echoes.withhold(0, "TAG-A", later) == 0);
