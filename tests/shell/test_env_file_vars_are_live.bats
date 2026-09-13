@@ -53,8 +53,8 @@ var_is_consumed() {
     run env ENV_FILE="$fixture" bash -c '
         grep -E "^[A-Za-z_][A-Za-z0-9_]*=" "$ENV_FILE" | sed "s/=.*//" | sort -u'
     [ "$status" -eq 0 ]
-    [[ "$output" == *"LIVE_ONE"* ]]
-    [[ "$output" != *"COMMENTED"* ]]
+    contains "LIVE_ONE" "$output"
+    lacks "COMMENTED" "$output"
 }
 
 @test "the Moonraker target is not presented as an env-file setting" {
