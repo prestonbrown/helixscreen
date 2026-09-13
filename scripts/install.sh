@@ -8498,7 +8498,15 @@ deploy_platform_hooks() {
     mkdir -p "${install_dir}/platform" 2>/dev/null || $SUDO mkdir -p "${install_dir}/platform" 2>/dev/null || true
     cp "$hooks_src" "${install_dir}/platform/hooks.sh" 2>/dev/null || $SUDO cp "$hooks_src" "${install_dir}/platform/hooks.sh" 2>/dev/null || true
     chmod +x "${install_dir}/platform/hooks.sh" 2>/dev/null || $SUDO chmod +x "${install_dir}/platform/hooks.sh" 2>/dev/null || true
-    log_info "Deployed platform hooks: $platform"
+
+    # Every copy above is non-fatal, so success has to be observed rather than
+    # assumed. A missing hooks.sh leaves each platform_* function the no-op stub
+    # the init script declares, and nothing else reports that.
+    if [ -s "${install_dir}/platform/hooks.sh" ]; then
+        log_info "Deployed platform hooks: $platform"
+    else
+        log_warn "Platform hooks NOT deployed: ${install_dir}/platform/hooks.sh is missing or empty"
+    fi
 }
 
 # Fix ownership of install directory for non-root service users.
