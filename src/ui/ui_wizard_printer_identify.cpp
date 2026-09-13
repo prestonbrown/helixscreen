@@ -824,9 +824,10 @@ void WizardPrinterIdentifyStep::apply_view(int view) {
         }
         const auto& entry = selector_entries_[i];
 
-        const bool show = (view == kViewSearch)
-                              ? ui::selector_entry_matches(entry, search_query_)
-                              : (view == kViewVendor) && (entry.group == active_vendor_);
+        const bool show =
+            (view == kViewSearch)
+                ? ui::selector_entry_matches(entry, search_query_)
+                : (view == kViewVendor) && (ui::selector_bucket_of(entry) == active_vendor_);
         if (show) {
             lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
             ++visible;

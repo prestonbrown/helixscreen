@@ -29,11 +29,14 @@
  * - Static trampolines for LVGL event callbacks
  * - Global singleton getter for backwards compatibility
  *
- * ## Subject Bindings (3 total):
+ * ## Subject Bindings (6 total):
  *
  * - printer_name (string) - User-entered printer name
  * - printer_type_selected (int) - Selected index in list
  * - printer_detection_status (string) - Auto-detection status message
+ * - wizard_printer_view (int) - Selector view: 0 vendor tiles, 1 vendor models, 2 search
+ * - wizard_printer_vendor_title (string) - Active vendor, bound to the drill-in header
+ * - wizard_printer_match_count (int) - Rows visible under the active view
  *
  * ## External Subject:
  *
@@ -82,7 +85,7 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
     /**
      * @brief Initialize reactive subjects
      *
-     * Creates and registers 3 subjects. Loads existing values from config.
+     * Creates and registers 6 subjects. Loads existing values from config.
      * Runs auto-detection if no saved type.
      */
     void init_subjects() override;
@@ -93,6 +96,8 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
      * Registers callbacks:
      * - on_printer_name_changed
      * - on_printer_type_changed
+     * - on_wizard_printer_search_changed
+     * - on_wizard_vendor_back_clicked
      */
     void register_callbacks() override;
 

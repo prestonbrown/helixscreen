@@ -355,6 +355,45 @@ TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture,
 }
 
 // ============================================================================
+// Singleton buckets: pseudo-machines must stay reachable and selectable
+// ============================================================================
+
+TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture, "Wizard singleton tiles drill into their own row",
+                 "[wizard][selector]") {
+    require_ready();
+
+    // Enter the browse level deterministically.
+    lv_textarea_set_text(search_input(), "");
+    REQUIRE(view() == kViewTiles);
+
+    for (const std::string bucket : {"Custom/Other", "Unknown"}) {
+        CAPTURE(bucket);
+        lv_obj_t* tile = tile_for(bucket);
+        REQUIRE(tile != nullptr);
+        lv_obj_send_event(tile, LV_EVENT_CLICKED, nullptr);
+
+        // A singleton bucket shows exactly its own row.
+        REQUIRE(view() == kViewVendor);
+        const auto shown = visible_rows();
+        REQUIRE(shown.size() == 1);
+        CHECK(row_name(shown[0]) == bucket);
+
+        // ...and the row is selectable: an unsupported printer still picks
+        // Custom/Other from its own tile.
+        lv_obj_send_event(shown[0], LV_EVENT_CLICKED, nullptr);
+        lv_subject_t* selected = lv_xml_get_subject(nullptr, "printer_type_selected");
+        REQUIRE(selected != nullptr);
+        CHECK(PrinterDetector::get_list_name_at(lv_subject_get_int(selected), "") == bucket);
+
+        // Back out before the next bucket.
+        lv_obj_t* back = lv_obj_find_by_name(step_root, "vendor_back_btn");
+        REQUIRE(back != nullptr);
+        lv_obj_send_event(back, LV_EVENT_CLICKED, nullptr);
+        REQUIRE(view() == kViewTiles);
+    }
+}
+
+// ============================================================================
 // Real-database grouping completeness
 // ============================================================================
 

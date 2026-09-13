@@ -30,6 +30,10 @@ std::string trimmed(const std::string& s) {
 
 } // namespace
 
+std::string selector_bucket_of(const SelectorEntry& entry) {
+    return entry.group.empty() ? entry.label : entry.group;
+}
+
 bool selector_entry_matches(const SelectorEntry& entry, const std::string& query) {
     const std::string normalized = to_lower(trimmed(query));
     if (normalized.empty()) {
@@ -56,10 +60,7 @@ std::vector<SelectorGroup> group_selector_entries(const std::vector<SelectorEntr
     // tile grid the wizard renders.
     std::map<std::string, std::vector<const SelectorEntry*>> buckets;
     for (const auto& entry : entries) {
-        // No group = pseudo-machine: it is reachable only through its own
-        // singleton bucket, so the bucket takes the entry's label as its name.
-        const std::string& bucket = entry.group.empty() ? entry.label : entry.group;
-        buckets[bucket].push_back(&entry);
+        buckets[selector_bucket_of(entry)].push_back(&entry);
     }
 
     std::vector<SelectorGroup> groups;
@@ -74,7 +75,7 @@ std::string selector_group_name(const std::vector<SelectorEntry>& entries,
                                 const std::string& label) {
     for (const auto& entry : entries) {
         if (entry.label == label) {
-            return entry.group.empty() ? entry.label : entry.group;
+            return selector_bucket_of(entry);
         }
     }
     return "";

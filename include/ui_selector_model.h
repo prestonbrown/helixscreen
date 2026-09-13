@@ -50,6 +50,16 @@ struct SelectorGroup {
 };
 
 /**
+ * @brief The bucket an entry drills into: its group, or its own label when it
+ * has none (pseudo-machines).
+ *
+ * This is the one authority for bucket membership — grouping, drill-in
+ * targeting and row filtering all answer "entry X belongs to bucket
+ * selector_bucket_of(X)".
+ */
+std::string selector_bucket_of(const SelectorEntry& entry);
+
+/**
  * @brief Case-insensitive substring match of a query against an entry.
  *
  * Matches the label OR the group, so typing a vendor name surfaces every

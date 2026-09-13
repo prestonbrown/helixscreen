@@ -53,6 +53,35 @@ const SelectorGroup* find_group(const std::vector<SelectorGroup>& groups, const 
 } // namespace
 
 // ============================================================================
+// Bucket resolution
+// ============================================================================
+
+TEST_CASE("Selector: bucket resolution follows the empty-group rule", "[selector]") {
+    using helix::ui::selector_bucket_of;
+    CHECK(selector_bucket_of({"Creality K1", "Creality", 0}) == "Creality");
+    // A pseudo-machine is its own bucket.
+    CHECK(selector_bucket_of({"Custom/Other", "", 1}) == "Custom/Other");
+    CHECK(selector_bucket_of({"Unknown", "", 2}) == "Unknown");
+}
+
+TEST_CASE("Selector: grouping and group-name agree with bucket resolution", "[selector]") {
+    using helix::ui::selector_bucket_of;
+    const auto entries = sample_entries();
+    const auto groups = group_selector_entries(entries);
+    for (const auto& e : entries) {
+        const auto bucket = selector_bucket_of(e);
+        const auto named = selector_group_name(entries, e.label);
+        INFO("label=" << e.label);
+        CHECK(named == bucket);
+        const auto* group = find_group(groups, bucket);
+        REQUIRE(group != nullptr);
+        CHECK(std::find_if(group->entries.begin(), group->entries.end(),
+                           [&](const SelectorEntry* hit) { return hit->label == e.label; }) !=
+              group->entries.end());
+    }
+}
+
+// ============================================================================
 // Matching
 // ============================================================================
 
