@@ -1463,12 +1463,6 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
     std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
 
-    /// The shared lane_data namespace this backend co-authors. request_resync()
-    /// re-reads it only where firmware states no identity of its own.
-    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
-        return override_store_.get();
-    }
-
     // Resolved on-disk path of Adventurer5M.json when helix-screen runs on the
     // same host as Moonraker. Empty string means "fall back to Moonraker HTTP
     // upload" — either we're remote, the file isn't where we expect it, or the
