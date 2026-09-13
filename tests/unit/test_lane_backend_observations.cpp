@@ -2859,6 +2859,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a resync re-reads the shared namespace into t
     harness->request_resync();
     helix::ui::UpdateQueue::instance().drain();
 
+    CHECK(db.api.mock_db_namespace_get_count() == 1);
     const auto lane = lane_sources(harness.lane(0));
     REQUIRE(lane.vendor_cache.has_value());
     CHECK(lane.vendor_cache->material == "ASA");
@@ -2969,6 +2970,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
         helix::ui::UpdateQueue::instance().drain();
         INFO("ACE");
         CHECK(helix::ams::known_lanes().empty());
+        // Not merely discarded on arrival: with nothing to file there is
+        // nothing to ask for, so the database is never reached.
+        CHECK(db.api.mock_db_namespace_get_count() == 0);
     }
     {
         CfsHarness harness(nullptr, nullptr);
@@ -2980,6 +2984,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
         helix::ui::UpdateQueue::instance().drain();
         INFO("CFS");
         CHECK(helix::ams::known_lanes().empty());
+        // Not merely discarded on arrival: with nothing to file there is
+        // nothing to ask for, so the database is never reached.
+        CHECK(db.api.mock_db_namespace_get_count() == 0);
     }
     {
         SnapmakerHarness harness(nullptr, nullptr);
@@ -2991,6 +2998,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
         helix::ui::UpdateQueue::instance().drain();
         INFO("Snapmaker");
         CHECK(helix::ams::known_lanes().empty());
+        // Not merely discarded on arrival: with nothing to file there is
+        // nothing to ask for, so the database is never reached.
+        CHECK(db.api.mock_db_namespace_get_count() == 0);
     }
     {
         Ad5xHarness harness(nullptr, nullptr);
@@ -3002,6 +3012,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
         helix::ui::UpdateQueue::instance().drain();
         INFO("AD5X IFS");
         CHECK(helix::ams::known_lanes().empty());
+        // Not merely discarded on arrival: with nothing to file there is
+        // nothing to ask for, so the database is never reached.
+        CHECK(db.api.mock_db_namespace_get_count() == 0);
     }
 }
 

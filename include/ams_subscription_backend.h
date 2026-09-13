@@ -44,9 +44,18 @@ class AmsSubscriptionBackend : public AmsBackend {
     void release_subscriptions() final;
     [[nodiscard]] bool is_running() const final;
 
-    /// Re-read the lane-record store a backend names in lane_record_store(),
-    /// filing what it holds as vendor-cache readings. A backend with no such
-    /// store is unaffected.
+    /// Re-read the lane-record store a backend names in lane_record_store()
+    /// and file what it holds as vendor-cache readings.
+    ///
+    /// This refreshes the lane SOURCE MODEL and nothing else. The override map
+    /// apply_overrides() merges onto firmware values is loaded once, at init,
+    /// and is not touched here, so a record another writer has changed since
+    /// then reaches the source model without reaching the rendered slot.
+    /// Refreshing that map is tracked separately: a live map replaced wholesale
+    /// mid-session has to answer for an edit made or in flight since it loaded.
+    ///
+    /// Runs only where firmware_publishes_lane_identity() is false. Elsewhere
+    /// there is nothing to file, so no request is issued.
     void request_resync() override;
 
     // --- Event system (final) ---
