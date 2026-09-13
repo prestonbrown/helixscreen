@@ -447,6 +447,10 @@ void AmsBackendAd5xIfs::on_stopping() {
 }
 
 void AmsBackendAd5xIfs::request_resync() {
+    // Additive, not a replacement: the base re-reads the shared lane_data
+    // namespace, which is a different source from anything below.
+    AmsSubscriptionBackend::request_resync();
+
     // Standalone module: state arrives by subscription (the module re-reads
     // Adventurer5M.json on mtime change and publishes the diff through
     // ifs_materials), so a manual resync has nothing to fetch — the standing

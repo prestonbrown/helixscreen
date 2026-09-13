@@ -8,6 +8,7 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 
+#include <memory>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -33,6 +34,13 @@ class ToolChangerTestAccess {
     static AmsError call_dispatch_operation(AmsBackendToolChanger& b, std::string gcode,
                                             AmsAction action) {
         return b.dispatch_operation(std::move(gcode), action);
+    }
+
+    /// Point the backend at a lane-record store without a live Moonraker,
+    /// which is what a resync re-reads.
+    static void inject_override_store(AmsBackendToolChanger& b,
+                                      std::unique_ptr<helix::ams::FilamentSlotOverrideStore> s) {
+        b.override_store_ = std::move(s);
     }
 
     /// Whether an optimistic dispatch is still armed and awaiting resolution.

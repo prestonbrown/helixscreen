@@ -1046,6 +1046,82 @@ void try_migrate_lane_keys_to_tool_keys(IMoonrakerAPI* api, const std::string& b
 // null "material" written by somebody else's plugin unwound the entire backend
 // init instead of costing a single slot.
 //
+std::unordered_map<int, LaneDataRecord>
+parse_namespace_document(const nlohmann::json& namespace_doc, LaneKeyStyle key_style,
+                         const std::string& log_tag) {
+    std::unordered_map<int, LaneDataRecord> records;
+    if (!namespace_doc.is_object())
+        return records;
+
+    // Key-agnostic read with canonical-key duplicate reconciliation. The outer
+    // key is not a filter: Mainsail writes "T0", AFC "lane1", Happy Hare its
+    // own, so any well-formed lane record is taken and from_lane_data_record
+    // adjudicates. The inner "lane" field is the only gate.
+    //
+    // On duplicate slots (two writers under two keys) prefer the record whose
+    // key is canonical for OUR key style: first canonical wins, a canonical
+    // always beats a non-canonical, otherwise the incumbent stays. This is
+    // order-independent (no reliance on nlohmann's byte-sorted iteration),
+    // converges (load->save->load is a fixed point since save writes the
+    // canonical key), and agrees with Orca's alphabetical first-wins in every
+    // case that can occur. warn, not debug: two writers disagreeing about one
+    // slot is an ops signal.
+    std::unordered_map<int, bool> canonical_seen; // slot idx -> incumbent was canonical
+    for (auto it = namespace_doc.begin(); it != namespace_doc.end(); ++it) {
+        const std::string& key = it.key();
+        // "seated" is a known sibling scalar (the 0-based seated-lane index),
+        // never a lane record — named-skip so the intent survives a future
+        // where it grows into an object.
+        if (key == "seated")
+            continue;
+        // Non-objects are namespace siblings, not malformed records — a separate
+        // debug line so genuine parse failures below stay distinguishable.
+        if (!it.value().is_object()) {
+            spdlog::debug("[FilamentSlotOverrideStore:{}] skipping non-object key: {}", log_tag,
+                          key);
+            continue;
+        }
+        // Per-record, not per-namespace: a record we cannot read costs that one
+        // slot. Anything wider would let a co-author's malformed entry erase
+        // every override the user has on the printer. warn (not debug) because
+        // unlike the nullopt case below this means the record threw, which is
+        // worth surfacing even though we recover from it.
+        std::optional<std::pair<int, FilamentSlotOverride>> parsed;
+        try {
+            parsed = from_lane_data_record(it.value());
+        } catch (const std::exception& e) {
+            spdlog::warn("[FilamentSlotOverrideStore:{}] skipping unreadable lane_data record "
+                         "{}: {}",
+                         log_tag, key, e.what());
+            continue;
+        }
+        if (!parsed) {
+            spdlog::debug("[FilamentSlotOverrideStore:{}] from_lane_data_record failed for {}",
+                          log_tag, key);
+            continue;
+        }
+        const int idx = parsed->first;
+        const bool canonical = (key == format_lane_key(idx, key_style));
+        auto seen = canonical_seen.find(idx);
+        if (seen == canonical_seen.end()) {
+            records[idx] = LaneDataRecord{std::move(parsed->second), it.value()};
+            canonical_seen[idx] = canonical;
+        } else if (canonical && !seen->second) {
+            spdlog::warn("[FilamentSlotOverrideStore:{}] duplicate lane_data records for slot {}; "
+                         "preferring canonical key {}",
+                         log_tag, idx, key);
+            records[idx] = LaneDataRecord{std::move(parsed->second), it.value()};
+            seen->second = true;
+        } else {
+            spdlog::warn("[FilamentSlotOverrideStore:{}] duplicate lane_data record for slot {} "
+                         "under key {}; keeping the incumbent",
+                         log_tag, idx, key);
+        }
+    }
+
+    return records;
+}
+
 // The per-record handlers inside load_blocking_impl scope the common cases to
 // one lost slot. This catch is the backstop for everything else: worst case the
 // user sees no overrides, which is the fresh-install state and fully
@@ -1059,6 +1135,30 @@ std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_bl
                      backend_id_, e.what());
         return {};
     }
+}
+
+void FilamentSlotOverrideStore::reload_async(ReloadCallback cb) {
+    if (!api_ || !cb) {
+        return;
+    }
+    // Carry everything the callbacks read by value. The store can be destroyed
+    // before Moonraker's request tracker fires its error timeout, so a lambda
+    // reaching back through `this` has no claim on what it reads.
+    const LaneKeyStyle style = key_style_;
+    const std::string id = backend_id_;
+    const std::string ns = namespace_;
+    api_->database_get_namespace(
+        namespace_,
+        [style, id, cb](const nlohmann::json& value) {
+            if (!value.is_object()) {
+                return;
+            }
+            cb(parse_namespace_document(value, style, id));
+        },
+        [id, ns](const MoonrakerError& err) {
+            spdlog::debug("[FilamentSlotOverrideStore:{}] reload of {} failed: {}", id, ns,
+                          err.message);
+        });
 }
 
 std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_blocking_impl() {
@@ -1158,71 +1258,8 @@ std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_bl
                      anomalies.key_inner_mismatch, anomalies.unparseable, anomalies.duplicate_slot);
     }
 
-    // Key-agnostic ingest with canonical-key duplicate reconciliation. The
-    // outer key is NOT a filter anymore — Mainsail writes "T0", AFC "lane1",
-    // Happy Hare its own — so we ingest any well-formed lane record and let
-    // from_lane_data_record adjudicate. The inner "lane" field is now the only
-    // gate.
-    //
-    // On duplicate slots (two writers under two keys) prefer the record whose
-    // key is canonical for OUR key style: first canonical wins, a canonical
-    // always beats a non-canonical, otherwise the incumbent stays. This is
-    // order-independent (no reliance on nlohmann's byte-sorted iteration),
-    // converges (load->save->load is a fixed point since save writes the
-    // canonical key), and agrees with Orca's alphabetical first-wins in every
-    // case that can occur. warn, not debug: two writers disagreeing about one
-    // slot is an ops signal.
-    std::unordered_map<int, bool> canonical_seen; // slot idx -> incumbent was canonical
-    for (auto it = received_copy.begin(); it != received_copy.end(); ++it) {
-        const std::string& key = it.key();
-        // "seated" is a known sibling scalar (the 0-based seated-lane index),
-        // never a lane record — named-skip so the intent survives a future
-        // where it grows into an object.
-        if (key == "seated")
-            continue;
-        // Non-objects are namespace siblings, not malformed records — a separate
-        // debug line so genuine parse failures below stay distinguishable.
-        if (!it.value().is_object()) {
-            spdlog::debug("[FilamentSlotOverrideStore:{}] skipping non-object key: {}", backend_id_,
-                          key);
-            continue;
-        }
-        // Per-record, not per-namespace: a record we cannot read costs that one
-        // slot. Anything wider would let a co-author's malformed entry erase
-        // every override the user has on the printer. warn (not debug) because
-        // unlike the nullopt case below this means the record threw, which is
-        // worth surfacing even though we recover from it.
-        std::optional<std::pair<int, FilamentSlotOverride>> parsed;
-        try {
-            parsed = from_lane_data_record(it.value());
-        } catch (const std::exception& e) {
-            spdlog::warn("[FilamentSlotOverrideStore:{}] skipping unreadable lane_data record "
-                         "{}: {}",
-                         backend_id_, key, e.what());
-            continue;
-        }
-        if (!parsed) {
-            spdlog::debug("[FilamentSlotOverrideStore:{}] from_lane_data_record failed for {}",
-                          backend_id_, key);
-            continue;
-        }
-        const int idx = parsed->first;
-        const bool canonical = (key == format_lane_key(idx, key_style_));
-        auto seen = canonical_seen.find(idx);
-        if (seen == canonical_seen.end()) {
-            result[idx] = std::move(parsed->second);
-            canonical_seen[idx] = canonical;
-        } else if (canonical && !seen->second) {
-            spdlog::warn("[FilamentSlotOverrideStore:{}] duplicate lane_data records for slot {}; "
-                         "preferring canonical key {}",
-                         backend_id_, idx, key);
-            result[idx] = std::move(parsed->second);
-            seen->second = true;
-        } else {
-            spdlog::warn("[FilamentSlotOverrideStore:{}] duplicate lane_data record for slot {} "
-                         "under key {}; keeping the incumbent",
-                         backend_id_, idx, key);
-        }
+    for (auto& [slot, entry] : parse_namespace_document(received_copy, key_style_, backend_id_)) {
+        result[slot] = std::move(entry.record);
     }
 
     // One-shot heal: records written before orca_match_type existed (or whose

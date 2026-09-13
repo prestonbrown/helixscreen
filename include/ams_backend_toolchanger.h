@@ -454,6 +454,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
 
     /// Moonraker-DB-backed store. Null until additional_start_checks() builds it
     /// (needs api_), and on backends constructed without an API in tests.
+    /// The shared lane_data namespace this backend co-authors, which
+    /// request_resync() re-reads.
+    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
+        return override_store_.get();
+    }
+
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
 
     /**

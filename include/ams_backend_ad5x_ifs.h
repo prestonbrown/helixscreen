@@ -1460,6 +1460,12 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     //
     // Read: in apply_overrides() during the parse path, which always runs
     // under mutex_ (via update_slot_from_state).
+    /// The shared lane_data namespace this backend co-authors, which
+    /// request_resync() re-reads.
+    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
+        return override_store_.get();
+    }
+
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
     std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
 

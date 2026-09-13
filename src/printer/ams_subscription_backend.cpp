@@ -4,6 +4,8 @@
 #include "ams_subscription_backend.h"
 
 #include "filament_op_router.h"
+#include "lane_source_store.h"
+#include "lane_translation.h"
 #include "moonraker_error.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -108,6 +110,39 @@ void AmsSubscriptionBackend::release_subscriptions() {
 
 bool AmsSubscriptionBackend::is_running() const {
     return running_;
+}
+
+void AmsSubscriptionBackend::request_resync() {
+    auto* store = lane_record_store();
+    if (!store) {
+        return;
+    }
+    // The record map is keyed by slot index, so the lambda needs this
+    // backend's block to name a lane. Carried by value: the deferred callback
+    // has no claim on `this` by the time it runs, and backend_index() is
+    // stamped by registration, which every resync call site is downstream of.
+    const int block = backend_index();
+    auto token = lifetime_.token();
+    store->reload_async(
+        [token, block](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+            token.defer("AmsSubscriptionBackend::resync_lane_records",
+                        [block, records = std::move(records)]() {
+                            for (const auto& [slot, entry] : records) {
+                                // Only what the namespace holds as a vendor cache
+                                // is re-filed. A record naming a spool is the
+                                // server's statement and one carrying a lock key
+                                // is a person's; re-filing either would forge a
+                                // declaration out of a re-read, which is the
+                                // confusion the source model exists to end.
+                                const helix::ams::Observation obs =
+                                    helix::ams::declared_from_record(entry.record, entry.wire);
+                                if (obs.source != helix::ams::ObservationSource::VendorCache) {
+                                    continue;
+                                }
+                                helix::ams::ingest(helix::ams::lane_id_for(block, slot), obs);
+                            }
+                        });
+        });
 }
 
 void AmsSubscriptionBackend::set_event_callback(EventCallback callback) {

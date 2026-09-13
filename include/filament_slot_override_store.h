@@ -70,6 +70,28 @@ struct LaneDataAnomalies {
 [[nodiscard]] std::optional<std::pair<int, FilamentSlotOverride>>
 from_lane_data_record(const nlohmann::json& j);
 
+/// A parsed lane_data record beside the object it came from.
+///
+/// The wire object travels with the record because classify_declaration()
+/// reads the lock keys off the document: from_lane_data_record defaults a
+/// missing helix_locked_color from color_set, so the parsed struct alone
+/// cannot tell a written lock from a defaulted one.
+struct LaneDataRecord {
+    FilamentSlotOverride record;
+    nlohmann::json wire;
+};
+
+/// Parse a raw namespace document into per-slot records, reconciling duplicate
+/// slots in favour of the key canonical for @p key_style.
+///
+/// Pure: no DB access, no disk, no mutation. This is the read half of
+/// load_blocking() without its one-shot key migration, Orca heal and cache
+/// write, so a re-read can reach the same records without redoing init-time
+/// work. @p log_tag attributes the duplicate-slot warnings to a backend.
+[[nodiscard]] std::unordered_map<int, LaneDataRecord>
+parse_namespace_document(const nlohmann::json& namespace_doc, LaneKeyStyle key_style,
+                         const std::string& log_tag = "shared");
+
 /// Process-wide fallback dir for the store's on-disk read-cache, consulted
 /// by cache_dir_effective() when an instance has no per-instance cache_dir_
 /// pinned. Production leaves it empty (instances then resolve
@@ -115,6 +137,19 @@ class FilamentSlotOverrideStore {
     // expected input, not a bug — it costs at most the affected slots. See the
     // exception-boundary comment on the definition.
     std::unordered_map<int, FilamentSlotOverride> load_blocking();
+
+    using ReloadCallback = std::function<void(std::unordered_map<int, LaneDataRecord>)>;
+
+    /// Re-fetch this store's namespace and hand the parsed records to @p cb.
+    ///
+    /// Unlike load_blocking() this neither blocks nor runs any of the
+    /// init-time repair work, so a caller wanting a fresh view of a namespace
+    /// several writers share can ask for one at any time.
+    ///
+    /// @p cb is never called on failure: a re-read that could not reach the
+    /// database must leave what a lane already knows standing. @p cb runs on
+    /// the API's callback thread; marshal from there.
+    void reload_async(ReloadCallback cb);
 
     using SaveCallback = std::function<void(bool success, std::string error)>;
     void save_async(int slot_index, const FilamentSlotOverride& override, SaveCallback cb);

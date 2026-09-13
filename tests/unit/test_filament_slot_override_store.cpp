@@ -3491,3 +3491,53 @@ TEST_CASE("merge_override rule matrix", "[ams][override-merge]") {
         CHECK(slot.remaining_weight_g == 0.f);
     }
 }
+
+// =============================================================================
+// parse_namespace_document — the read half of a load, on its own
+// =============================================================================
+
+TEST_CASE("parsing a namespace document is the read half of a load",
+          "[filament_slot_override][parse_namespace]") {
+    const json doc = {
+        {"seated", 1},
+        {"lane1", {{"lane", "0"}, {"color", "#ED2C2C"}, {"material", "PETG"}}},
+        {"lane2", {{"lane", "1"}, {"color", "#000000"}, {"helix_locked_color", true}}},
+        {"junk", 42},
+    };
+
+    const auto records = helix::ams::parse_namespace_document(doc, helix::ams::LaneKeyStyle::Lane);
+
+    REQUIRE(records.size() == 2);
+    CHECK(records.at(0).record.material == "PETG");
+    CHECK(records.at(1).record.color_rgb == 0x000000u);
+    CHECK(records.at(1).record.color_set);
+    // The wire object travels with the record so a reader can still tell a
+    // lock key that was written from one the parser defaulted.
+    CHECK(records.at(1).wire.contains("helix_locked_color"));
+    CHECK_FALSE(records.at(0).wire.contains("helix_locked_color"));
+}
+
+TEST_CASE("a duplicate slot keeps the record under the canonical key",
+          "[filament_slot_override][parse_namespace]") {
+    const json doc = {
+        {"T0", {{"lane", "0"}, {"material", "ABS"}}},
+        {"lane1", {{"lane", "0"}, {"material", "PETG"}}},
+    };
+
+    const auto lane_style =
+        helix::ams::parse_namespace_document(doc, helix::ams::LaneKeyStyle::Lane);
+    CHECK(lane_style.at(0).record.material == "PETG");
+
+    const auto tool_style =
+        helix::ams::parse_namespace_document(doc, helix::ams::LaneKeyStyle::Tool);
+    CHECK(tool_style.at(0).record.material == "ABS");
+}
+
+TEST_CASE("a namespace document that is not an object parses to nothing",
+          "[filament_slot_override][parse_namespace]") {
+    CHECK(
+        helix::ams::parse_namespace_document(json("not an object"), helix::ams::LaneKeyStyle::Lane)
+            .empty());
+    CHECK(helix::ams::parse_namespace_document(json(nullptr), helix::ams::LaneKeyStyle::Lane)
+              .empty());
+}

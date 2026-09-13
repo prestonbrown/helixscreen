@@ -7,6 +7,7 @@
 
 #include "ams_backend.h"
 #include "async_lifetime_guard.h"
+#include "filament_slot_override_store.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 
@@ -42,6 +43,11 @@ class AmsSubscriptionBackend : public AmsBackend {
     void stop() final;
     void release_subscriptions() final;
     [[nodiscard]] bool is_running() const final;
+
+    /// Re-read the lane-record store a backend names in lane_record_store(),
+    /// filing what it holds as vendor-cache readings. A backend with no such
+    /// store is unaffected.
+    void request_resync() override;
 
     // --- Event system (final) ---
     void set_event_callback(EventCallback callback) final;
@@ -255,6 +261,18 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// Exposed to derived backends that gate motion ops WITHOUT the running_/busy
     /// checks in check_preconditions() (e.g. QIDI Box).
     AmsError refuse_if_printing() const;
+
+    /// This backend's lane_data-shaped record store, or nullptr when it has
+    /// none. request_resync() re-reads it so a lane's shared record is not
+    /// frozen at whatever it said when the backend started.
+    ///
+    /// Only a store on a namespace OTHER writers co-author belongs here. A
+    /// namespace HelixScreen alone writes has no drift for a re-read to
+    /// correct, and re-filing its records would put a second producer on the
+    /// vendor-cache slot the backend's own firmware readings occupy.
+    virtual helix::ams::FilamentSlotOverrideStore* lane_record_store() {
+        return nullptr;
+    }
 
     // --- Protected state for derived classes ---
     IMoonrakerAPI* api_;
