@@ -109,7 +109,7 @@ PY
 }
 
 platform_pre_start() {
-    export HELIX_CACHE_DIR="/mnt/UDISK/helixscreen/cache"
+    export HELIX_CACHE_DIR="${HELIX_CACHE_DIR:-/mnt/UDISK/helixscreen/cache}"
 
     # Logging policy: write to /mnt/UDISK (27 GB UDISK partition, ext4).
     # K2 /tmp is a 244 MB tmpfs (more headroom than CC1/AD5M) and /var/log
@@ -118,15 +118,15 @@ platform_pre_start() {
     # spdlog stream to UDISK too keeps everything in one place and avoids
     # filling the 240 MB overlay with debug volume when someone leaves
     # HELIX_LOG_LEVEL=debug enabled in helixscreen.env.
-    export HELIX_LOG_DEST=file
-    export HELIX_LOG_FILE="/mnt/UDISK/helixscreen/logs/helix.log"
-    export HELIX_LOG_ROTATE_BYTES=2097152
-    export HELIX_LOG_ROTATE_FILES=3
+    export HELIX_LOG_DEST="${HELIX_LOG_DEST:-file}"
+    export HELIX_LOG_FILE="${HELIX_LOG_FILE:-/mnt/UDISK/helixscreen/logs/helix.log}"
+    export HELIX_LOG_ROTATE_BYTES="${HELIX_LOG_ROTATE_BYTES:-2097152}"
+    export HELIX_LOG_ROTATE_FILES="${HELIX_LOG_ROTATE_FILES:-3}"
     mkdir -p "/mnt/UDISK/helixscreen/logs" 2>/dev/null || true
 
     # K2 has no curl — ensure HelixScreen knows to skip HTTPS features
     # SSL is disabled in the K2 build, but set this for safety
-    export HELIX_DISABLE_SSL=1
+    export HELIX_DISABLE_SSL="${HELIX_DISABLE_SSL:-1}"
 
     # Bring up WiFi in the background. The stock wifi-server manages
     # wpa_supplicant but we killed it in platform_stop_competing_uis(),
