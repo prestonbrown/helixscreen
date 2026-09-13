@@ -5,7 +5,11 @@
 
 #include "display_numbering.h"
 
-#include <lvgl/lvgl.h> // lv_tr()
+// config.cpp and config_storage_file.cpp parse this header in the splash
+// build, whose include path reaches lib/lvgl but not lib/ — the lvgl/lvgl.h
+// spelling does not resolve there.
+#include "lvgl.h" // lv_tr()
+
 #include <spdlog/fmt/fmt.h>
 
 #include <string>
