@@ -32,17 +32,30 @@ platform_stop_competing_uis() {
     # respawn it (no respawn param), so a one-shot kill here is sufficient.
     killall boot-play 2>/dev/null || true
 
-    # web-server is intentionally NOT killed — it serves the Creality
-    # Cloud integration and camera stream (webrtc_local). Stopping it
-    # would break remote monitoring via the Creality app. The disable
-    # below keeps the whole app set from starting at boot, so the
-    # carve-out needs its own starter: /etc/init.d/helix-k2-webserver
-    # (config/k2-webserver.init) brings web-server up at boot
-    # independently of the app service (prestonbrown/helixscreen#1617).
+    # web-server is intentionally NOT killed by the sweep above — it serves
+    # the Creality Cloud integration and camera stream (webrtc_local).
+    # Stopping it would break remote monitoring via the Creality app.
 
-    # Persistently disable the stock UI service (reversible)
+    # Persistently disable the stock UI service (reversible). On this
+    # Tina/procd box `stop` and `disable` also take the service's running
+    # instances down, so a live web-server dies right here — at every boot
+    # and on every service restart.
     if [ -x /etc/init.d/app ]; then
         /etc/init.d/app disable 2>/dev/null || true
+    fi
+
+    # The carve-out's liveness is guaranteed HERE, after the disable, not by
+    # a boot script beside it: procd's boot iterator dispatches this hook's
+    # own S99helixscreen every boot but does not dispatch
+    # S99helix-k2-webserver, so this is the one path that provably runs at
+    # boot and at every restart. Restore web-server through our init script
+    # when it is installed (pidof-guarded inside), else with a guarded
+    # direct launch. After every HelixScreen start on K2, the carve-out is
+    # serving (prestonbrown/helixscreen#1617).
+    if [ -x /etc/init.d/helix-k2-webserver ]; then
+        /etc/init.d/helix-k2-webserver start 2>/dev/null || true
+    elif ! pidof web-server >/dev/null 2>&1 && [ -x /usr/bin/web-server ]; then
+        /usr/bin/web-server >/dev/null 2>&1 &
     fi
 }
 

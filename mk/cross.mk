@@ -2621,8 +2621,11 @@ deploy-k2:
 	fi
 	@# Install/update init script + procd shim for boot persistence, plus
 	@# the web-server carve-out (prestonbrown/helixscreen#1617): the runtime
-	@# hook disables /etc/init.d/app as a whole, so the carved-out web-server
-	@# needs its own rc.common starter or port 80 never answers after reboot.
+	@# hook's app stop+disable take web-server down at every boot, so the
+	@# hook itself restores it through /etc/init.d/helix-k2-webserver at the
+	@# end of every HelixScreen start; this deploys that script (service-
+	@# shaped starter + belt-and-braces boot entry — procd's iterator
+	@# dispatches the shim but has been observed to skip our S99).
 	@# K2 (procd) silently skips plain SysV scripts at boot ([L086]) — only
 	@# scripts with `#!/bin/sh /etc/rc.common` + DEPEND= are invoked. The
 	@# shim at /etc/init.d/helixscreen is what procd's boot iterator picks up;
