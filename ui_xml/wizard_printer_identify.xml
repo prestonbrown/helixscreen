@@ -38,16 +38,57 @@
           <lv_image name="printer_preview_image" width="100%" height="100%" inner_align="contain"/>
         </lv_obj>
       </lv_obj>
-      <!-- Right column: Printer type list -->
+      <!-- Right column: Printer type selection (search + vendor drill-in, ~105 machines) -->
       <lv_obj height="100%"
               flex_grow="1" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="column" style_flex_main_place="start"
               style_flex_cross_place="start">
         <text_body width="100%" text="Printer Type" translation_tag="Printer Type"/>
-        <!-- Scrollable list of printer types (populated dynamically from PrinterDetector) -->
-        <lv_obj name="printer_type_list"
+        <!-- Type-to-filter across every machine (model name or vendor).
+             An empty query returns to normal browsing below. -->
+        <text_input name="printer_search_input"
+                    width="100%" height="#input_height" one_line="true" scrollbar_mode="off"
+                    placeholder_text="Search printers..." placeholder_tag="Search printers...">
+          <event_cb trigger="value_changed" callback="on_wizard_printer_search_changed"/>
+        </text_input>
+        <!-- Browse level: vendor tiles (populated from the printer database in C++).
+             wizard_printer_view: 0 = tiles, 1 = one vendor's models, 2 = search results. -->
+        <lv_obj name="vendor_tiles"
                 width="100%" flex_grow="1" style_pad_all="#space_xs" style_pad_gap="#space_xs"
                 style_bg_color="#screen_bg" style_bg_opa="255" style_radius="#border_radius" scrollable="true"
-                flex_flow="column"/>
+                flex_flow="row_wrap">
+          <bind_flag_if_not_eq subject="wizard_printer_view" flag="hidden" ref_value="0"/>
+        </lv_obj>
+        <!-- Drill-in / search level: back affordance + machine rows -->
+        <lv_obj width="100%"
+                flex_grow="1" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="column"
+                style_flex_main_place="start" style_flex_cross_place="start" scrollable="false" hidden="true">
+          <bind_flag_if_eq subject="wizard_printer_view" flag="hidden" ref_value="0"/>
+          <!-- Back affordance: present only inside a vendor -->
+          <lv_obj width="100%"
+                  height="content" scrollable="false" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
+                  style_flex_cross_place="center" hidden="true">
+            <bind_flag_if_not_eq subject="wizard_printer_view" flag="hidden" ref_value="1"/>
+            <ui_button name="vendor_back_btn" variant="secondary" text="Back" translation_tag="Back">
+              <event_cb trigger="clicked" callback="on_wizard_vendor_back_clicked"/>
+            </ui_button>
+            <!-- Vendor names are proper nouns; the title subject carries them untranslated -->
+            <text_body name="vendor_title_label" flex_grow="1" bind_text="wizard_printer_vendor_title" long_mode="dots"/>
+          </lv_obj>
+          <!-- Scrollable list of printer types (populated dynamically from PrinterDetector) -->
+          <lv_obj name="printer_type_list"
+                  width="100%" flex_grow="1" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                  style_bg_color="#screen_bg" style_bg_opa="255" style_radius="#border_radius" scrollable="true"
+                  flex_flow="column"/>
+          <!-- Empty search result message -->
+          <lv_obj width="100%"
+                  flex_grow="1" scrollable="false" hidden="true" flex_flow="column" style_flex_main_place="center"
+                  style_flex_cross_place="center">
+            <bind_flag_if cond="wizard_printer_view eq 2 and wizard_printer_match_count eq 0"
+                          flag="hidden" invert="true"/>
+            <text_body text="No printers found"
+                       translation_tag="No printers found" style_text_color="#text_muted" style_text_align="center"/>
+          </lv_obj>
+        </lv_obj>
       </lv_obj>
     </ui_card>
   </view>

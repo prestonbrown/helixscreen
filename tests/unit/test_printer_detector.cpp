@@ -4259,6 +4259,48 @@ TEST_CASE("PrinterDetector: find_list_index returns Unknown for missing printer"
     REQUIRE(idx == PrinterDetector::get_unknown_list_index());
 }
 
+TEST_CASE("PrinterDetector: get_list_entries aligns with get_list_names", "[printer][selector]") {
+    PrinterDetector::reload();
+
+    for (const char* kinematics : {"", "delta", "corexy"}) {
+        INFO("kinematics=" << kinematics);
+        const auto& names = PrinterDetector::get_list_names(kinematics);
+        const auto& entries = PrinterDetector::get_list_entries(kinematics);
+
+        REQUIRE(entries.size() == names.size());
+        for (size_t i = 0; i < names.size(); ++i) {
+            INFO("index " << i);
+            CHECK(entries[i].name == names[i]);
+        }
+    }
+}
+
+TEST_CASE("PrinterDetector: visible machines carry manufacturers, pseudo-entries do not",
+          "[printer][selector]") {
+    PrinterDetector::reload();
+
+    const auto& entries = PrinterDetector::get_list_entries("");
+    REQUIRE(entries.size() > 2);
+
+    // Everything except the two appended pseudo-entries has a vendor to
+    // drill into.
+    for (size_t i = 0; i + 2 < entries.size(); ++i) {
+        INFO("entry=" << entries[i].name);
+        CHECK_FALSE(entries[i].manufacturer.empty());
+    }
+    CHECK(entries[entries.size() - 2].name == "Custom/Other");
+    CHECK(entries[entries.size() - 2].manufacturer.empty());
+    CHECK(entries[entries.size() - 1].name == "Unknown");
+    CHECK(entries[entries.size() - 1].manufacturer.empty());
+
+    // Spot check the database's manufacturer field arrives unmodified.
+    const auto ad5m = std::find_if(entries.begin(), entries.end(), [](const PrinterListEntry& e) {
+        return e.name == "FlashForge Adventurer 5M";
+    });
+    REQUIRE(ad5m != entries.end());
+    CHECK(ad5m->manufacturer == "FlashForge");
+}
+
 // ============================================================================
 // Combined Scoring Tests
 // ============================================================================
