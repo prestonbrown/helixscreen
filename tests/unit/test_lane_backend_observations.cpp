@@ -38,6 +38,7 @@
 #include "test_helpers/toolchanger_test_access.h"
 #include "toolchanger_addon.h"
 
+#include <map>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -2615,6 +2616,46 @@ TEST_CASE_METHOD(LVGLTestFixture, "a colordict row is read by the tree's hex gra
     CHECK(QidiBoxTestAccess::color_count(*harness) == 4);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "what the colordict admits decides the write-back id",
+                 "[lane][ingest][qidi]") {
+    // The stock file's own shape: every row a six-digit #RRGGBB, which is what
+    // both records of officiall_filas_list.cfg in this tree contain. Widening
+    // the parse admits nothing extra from a file like this.
+    const std::string stock = "[colordict]\n1 = #FAFAFA\n2 = #060606\n";
+
+    // Plain backends, not harnesses: this case asks what the palette admits and
+    // what resolve_color_id then picks, neither of which needs a lane id, and
+    // registering a second harness would clear the first out from under it.
+    AmsBackendQidi narrow(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(narrow, stock);
+    REQUIRE(QidiBoxTestAccess::color_count(narrow) == 2);
+
+    // A row in one of the newly-admitted spellings. It is a palette MEMBER, so
+    // it is also a nearest-match target: resolve_color_id scans the whole map,
+    // and set_slot_info writes back the id it picks.
+    AmsBackendQidi widened(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(widened, stock + "3 = F11\n");
+    REQUIRE(QidiBoxTestAccess::color_count(widened) == 3);
+    REQUIRE(QidiBoxTestAccess::get_color(widened, 3).has_value());
+    CHECK(*QidiBoxTestAccess::get_color(widened, 3) == 0xFF1111u);
+
+    const auto palette_of = [](const AmsBackendQidi& box, std::initializer_list<int> ids) {
+        std::map<int, uint32_t> out;
+        for (int id : ids) {
+            if (auto rgb = QidiBoxTestAccess::get_color(box, id)) {
+                out[id] = *rgb;
+            }
+        }
+        return out;
+    };
+
+    // A near-red the stock palette has no good answer for: black is merely the
+    // less wrong of two bad matches.
+    constexpr uint32_t kNearRed = 0xEE1111u;
+    CHECK(QidiBoxTestAccess::resolve_color_id(palette_of(narrow, {1, 2, 3}), kNearRed) == 2);
+    CHECK(QidiBoxTestAccess::resolve_color_id(palette_of(widened, {1, 2, 3}), kNearRed) == 3);
+}
+
 // ---------------------------------------------------------------------------
 // Mock
 // ---------------------------------------------------------------------------
@@ -2634,17 +2675,20 @@ TEST_CASE_METHOD(LVGLTestFixture, "the mock's simulated population becomes lane 
     CHECK(lane.vendor_cache->material == "PLA");
     REQUIRE(lane.vendor_cache->color_rgb.has_value());
     CHECK(*lane.vendor_cache->color_rgb == 0x1A1A2Eu);
-    CHECK(lane.vendor_cache->color_name == "Jet Black");
 
-    // The Spoolman handles really are on the slot, so the fields below are
-    // absent from the record by decision rather than for want of a value: no
-    // lane's brand or spool binding comes from firmware, and a mock that filed
-    // them would let a case pass against a reading no backend can produce.
+    // Every field below really is on the slot, so its absence from the record
+    // is a decision and not a missing value. The bound is what keeps the mock
+    // from being more capable than hardware: no lane's brand or spool binding
+    // comes from firmware, and firmware reports a colour as hex, never as a
+    // name. Colour NAME is the sharpest of these, because this backend is the
+    // only producer in the tree that could file one.
     const auto slot = harness->get_slot_info(0);
+    REQUIRE(slot.color_name == "Jet Black");
     REQUIRE(slot.spoolman_id == 1);
     REQUIRE(slot.total_weight_g > 0.0f);
     REQUIRE_FALSE(slot.spool_name.empty());
 
+    CHECK_FALSE(lane.vendor_cache->color_name.has_value());
     CHECK_FALSE(lane.vendor_cache->brand.has_value());
     CHECK_FALSE(lane.vendor_cache->spoolman_id.has_value());
     CHECK_FALSE(lane.vendor_cache->spool_name.has_value());

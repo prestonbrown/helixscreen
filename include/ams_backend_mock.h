@@ -851,13 +851,17 @@ class AmsBackendMock : public AmsBackend {
      *
      * The simulated population is this backend's firmware: the constructor seeds
      * it from SAMPLE_FILAMENTS and each rig mode rebuilds it, which is the same
-     * signal a real backend gets from a parse. Presence is Sensed; colour,
-     * colour name and material are VendorCache.
+     * signal a real backend gets from a parse. Presence is Sensed; colour and
+     * material are VendorCache.
      *
-     * Brand is deliberately absent, for the reason the constructor gives: no
-     * lane's brand comes from firmware, so a mock that filed one would let a
-     * test pass against a reading no real backend produces. The Spoolman fields
-     * on these slots are Spoolman's to file, not this backend's.
+     * Nothing else is, and the bound is deliberate: a mock that files a field
+     * no hardware reports lets a case pass against a reading no backend can
+     * produce. Brand is out for the reason the constructor gives, that a real
+     * lane's brand comes only from the override store or the Spoolman identity
+     * cache. Colour NAME is out for the same reason one step further on:
+     * firmware reports hex, and a name comes from our own naming or from
+     * Spoolman. The Spoolman handles and weights on these slots are Spoolman's
+     * to file, not this backend's.
      *
      * Called from start(), which AmsState reaches only after registration has
      * stamped a backend index; an earlier call files onto INVALID_LANE_ID and

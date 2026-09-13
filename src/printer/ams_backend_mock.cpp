@@ -393,7 +393,6 @@ void AmsBackendMock::publish_lane_observations() {
         int slot_index;
         SlotStatus status;
         uint32_t color_rgb;
-        std::string color_name;
         std::string material;
     };
 
@@ -407,8 +406,8 @@ void AmsBackendMock::publish_lane_observations() {
             if (!entry) {
                 continue;
             }
-            readings.push_back({i, entry->info.status, entry->info.color_rgb,
-                                entry->info.color_name, entry->info.material});
+            readings.push_back(
+                {i, entry->info.status, entry->info.color_rgb, entry->info.material});
         }
     }
 
@@ -425,9 +424,6 @@ void AmsBackendMock::publish_lane_observations() {
         helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
         if (!r.material.empty()) {
             cache.material = r.material;
-        }
-        if (!r.color_name.empty()) {
-            cache.color_name = r.color_name;
         }
         if (helix::ams::is_declarable_color(r.color_rgb)) {
             cache.color_rgb = r.color_rgb;
