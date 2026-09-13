@@ -71,7 +71,7 @@ TEST_CASE_METHOD(XMLTestFixture, "timelapse_video_card: metadata band routes cli
 TEST_CASE_METHOD(XMLTestFixture, "nozzle_temp_row: value area routes clicks to row root",
                  "[xml][hittest][sweep]") {
     REQUIRE(register_from("A:ui_xml/components/nozzle_temp_row.xml"));
-    const char* attrs[] = {"tool_name", "T0", nullptr};
+    const char* attrs[] = {"tool_name", "T0", "tool_short", "Tool 1", "tool_number", "1", nullptr};
     lv_obj_t* root = create_component("nozzle_temp_row", attrs);
     REQUIRE(root != nullptr);
     lv_obj_set_width(root, 300);
@@ -79,11 +79,18 @@ TEST_CASE_METHOD(XMLTestFixture, "nozzle_temp_row: value area routes clicks to r
 
     lv_obj_t* value_group = lv_obj_find_by_name(root, "value_group");
     lv_obj_t* temp_label = lv_obj_find_by_name(root, "temp_label");
+    lv_obj_t* left_group = lv_obj_find_by_name(root, "tool_left_group");
     REQUIRE(value_group != nullptr);
     REQUIRE(temp_label != nullptr);
+    REQUIRE(left_group != nullptr);
 
     check_reaches_root(test_screen(), root, value_group, "value_group");
     check_reaches_root(test_screen(), root, temp_label, "temp_label");
+    check_reaches_root(test_screen(), root, left_group, "tool_left_group");
+    // The spelling labels live inside the nested group; whatever the layout
+    // subjects say, a tap on the visible one must still reach the row.
+    check_reaches_root(test_screen(), root, lv_obj_find_by_name(root, "tool_label_long"),
+                       "tool_label_long");
 }
 
 // nozzle_temps_widget.cpp:500 attaches CLICKED to the bed row root.

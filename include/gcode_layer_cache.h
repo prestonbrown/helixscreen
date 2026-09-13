@@ -57,6 +57,30 @@ class GCodeLayerCache {
     /// Approximate bytes per segment (for estimation)
     static constexpr size_t BYTES_PER_SEGMENT = 40;
 
+    /// A RAM tier's cache budget, with the label logs use for it.
+    struct BudgetTier {
+        size_t budget_bytes;
+        const char* name;
+    };
+
+    /**
+     * @brief The budget tier a device with @p total_ram_kb of total RAM gets.
+     *
+     * GCodeStreamingController sizes its cache from this, and the 2D streaming
+     * memory gate (is_gcode_2d_streaming_safe_impl) prices those same bytes
+     * before authorizing a render, so both read one rule. A total of 0 means
+     * the system total could not be read and lands in the smallest tier.
+     */
+    static BudgetTier budget_tier_for_total_ram_kb(size_t total_ram_kb) {
+        MemoryInfo mem;
+        mem.total_kb = total_ram_kb;
+        if (mem.is_constrained_device())
+            return {DEFAULT_BUDGET_CONSTRAINED, "constrained"};
+        if (mem.is_normal_device())
+            return {DEFAULT_BUDGET_NORMAL, "normal"};
+        return {DEFAULT_BUDGET_GOOD, "good"};
+    }
+
     /**
      * @brief Construct cache with memory budget
      * @param memory_budget_bytes Maximum memory usage in bytes

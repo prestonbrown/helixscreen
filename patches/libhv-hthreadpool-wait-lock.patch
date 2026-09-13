@@ -1,5 +1,5 @@
 diff --git a/cpputil/hthreadpool.h b/cpputil/hthreadpool.h
-index 8df9871..402bd96 100644
+index 8df9871..224cf12 100644
 --- a/cpputil/hthreadpool.h
 +++ b/cpputil/hthreadpool.h
 @@ -109,8 +109,16 @@ public:
@@ -33,3 +33,53 @@ index 8df9871..402bd96 100644
              createThread();
          }
          using RetType = decltype(fn(args...));
+@@ -147,8 +158,20 @@ public:
+ 
+ protected:
+     bool createThread() {
+-        if (cur_thread_num >= max_thread_num) return false;
+-        std::thread* thread = new std::thread([this] {
++        // PATCH NOTE(helixscreen): reserve the worker slot under thread_mutex
++        // BEFORE spawning. An unlocked cap check lets concurrent commits both
++        // pass at cur < max and both spawn, running live workers past
++        // max_thread_num (#1585). cur_thread_num counts the reserved worker
++        // from here, so a committer arriving mid-spawn sees the pool's true
++        // size.
++        thread_mutex.lock();
++        if (cur_thread_num >= max_thread_num) {
++            thread_mutex.unlock();
++            return false;
++        }
++        ++cur_thread_num;
++        thread_mutex.unlock();
++        auto worker = [this] {
+             while (status != STOP) {
+                 while (status == PAUSE) {
+                     std::this_thread::yield();
+@@ -177,14 +200,24 @@ protected:
+                     ++idle_thread_num;
+                 }
+             }
+-        });
++        };
++        std::thread* thread = nullptr;
++        try {
++            thread = new std::thread(std::move(worker));
++        } catch (...) {
++            // The reservation must not outlive a spawn that produced no
++            // worker.
++            --cur_thread_num;
++            throw;
++        }
+         addThread(thread);
+         return true;
+     }
+ 
+     void addThread(std::thread* thread) {
+         thread_mutex.lock();
+-        ++cur_thread_num;
++        // PATCH NOTE(helixscreen): createThread() reserved cur_thread_num
++        // under this lock before spawning; account only idle here.
+         ++idle_thread_num;
+         ThreadData data;
+         data.thread = std::shared_ptr<std::thread>(thread);

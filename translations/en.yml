@@ -125,6 +125,7 @@ translations:
   ALL DEVICES: ALL DEVICES
   AMS: AMS
   'AMS Active: ': 'AMS Active: '
+  AMS is busy: AMS is busy
   API not available: API not available
   APPEARANCE: APPEARANCE
   AUTO FANS: AUTO FANS
@@ -293,7 +294,7 @@ translations:
   Bed mesh operation timed out: Bed mesh operation timed out
   'Bed mesh...': 'Bed mesh...'
   Bed target set to {}°C: Bed target set to {}°C
-  Bed temp must be 0-200°C: Bed temp must be 0-200°C
+  Bed temp must be 0-%d°C: Bed temp must be 0-%d°C
   Bed warming timed out: Bed warming timed out
   Belt A: Belt A
   Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.
@@ -430,6 +431,7 @@ translations:
   Camera: Camera
   Can't connect — try forgetting and re-pairing the printer: Can't connect — try forgetting
     and re-pairing the printer
+  Can't move filament while the print is paused: Can't move filament while the print is paused
   Can't read filament RFID tag: Can't read filament RFID tag
   Cancel: Cancel
   Cancel Escalation: Cancel Escalation
@@ -446,11 +448,13 @@ translations:
     not available'
   'Cannot modify G-code: {}. Printing original file.': 'Cannot modify G-code: {}.
     Printing original file.'
+  Cannot perform this action now: Cannot perform this action now
   'Cannot remap G-code: no temp directory available': 'Cannot remap G-code: no temp
     directory available'
   'Cannot remap: internal error': 'Cannot remap: internal error'
   'Cannot reprint: not connected to printer': 'Cannot reprint: not connected to printer'
   Cannot restart — no filename: Cannot restart — no filename
+  Cannot run filament operation while printing: Cannot run filament operation while printing
   'Cannot start print: internal error': 'Cannot start print: internal error'
   'Cannot start print: not connected to printer': 'Cannot start print: not connected
     to printer'
@@ -493,6 +497,8 @@ translations:
   Changes can be reversed anytime using the Macro Viewer.: Changes can be reversed
     anytime using the Macro Viewer.
   Check Again: Check Again
+  Check Klipper console for details: Check Klipper console for details
+  Check extruder temperature and try again. Manual removal may be required.: Check extruder temperature and try again. Manual removal may be required.
   Check filament: Check filament
   Check for Updates: Check for Updates
   Check slot: Check slot
@@ -501,12 +507,14 @@ translations:
   Check slots failed: Check slots failed
   Check that only one filament path is active: Check that only one filament path is active
   Check that the cutter mechanism is properly installed: Check that the cutter mechanism is properly installed
+  Check that the printer is powered on and connected to the network: Check that the printer is powered on and connected to the network
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor
   Check the RS-485 cable between printer and CFS: Check the RS-485 cable between printer and CFS
   Check the buffer unit on the back of the printer: Check the buffer unit on the back of the printer
   Check the filament path and try again.: Check the filament path and try again.
   ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
   : Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
+  Check the provided value and try again: Check the provided value and try again
   Check the spool and the filament path for a jam, then retry: Check the spool and the filament path for a jam, then retry
   Check your heater's rating (typically 40-60W for hotends): Check your heater's rating
     (typically 40-60W for hotends)
@@ -574,6 +582,7 @@ translations:
   Color: Color
   Color Mismatch: Color Mismatch
   Color Sensors: Color Sensors
+  Command failed: Command failed
   Communication Test: Communication Test
   Compact: Compact
   Compare: Compare
@@ -900,6 +909,7 @@ translations:
   Enhanced {} operations in PRINT_START: Enhanced {} operations in PRINT_START
   Enhancement Complete!: Enhancement Complete!
   Enhancement Failed: Enhancement Failed
+  Ensure Happy Hare or AFC is installed and configured: Ensure Happy Hare or AFC is installed and configured
   Enter Current PIN: Enter Current PIN
   Enter G-code command...: Enter G-code command...
   Enter New PIN: Enter New PIN
@@ -982,6 +992,7 @@ translations:
     on material
   Extruder motor calibration failed: Extruder motor calibration failed
   Extruder to Nozzle: Extruder to Nozzle
+  Extruder too cold: Extruder too cold
   'Extruding prime line...': 'Extruding prime line...'
   FAILED: FAILED
   FILAMENTS: FILAMENTS
@@ -1078,6 +1089,7 @@ translations:
   Failed to toggle %s: Failed to toggle %s
   'Failed to toggle timelapse: {}': 'Failed to toggle timelapse: {}'
   'Failed to turn off heaters: {}': 'Failed to turn off heaters: {}'
+  Failed to unload filament: Failed to unload filament
   'Failed to unload: {}': 'Failed to unload: {}'
   ? "Failed to update configuration.\nCheck printer connection."
   : "Failed to update configuration.\nCheck printer connection."
@@ -1096,6 +1108,7 @@ translations:
   Fans: Fans
   Farther: Farther
   Favorites: Favorites
+  Feature not available: Feature not available
   'Features: ': 'Features: '
   Feed Assist: Feed Assist
   Feed assist and debug tools: Feed assist and debug tools
@@ -1103,6 +1116,7 @@ translations:
   Feed filament: Feed filament
   Feed filament directly to extruder: Feed filament directly to extruder
   Feed filament from current slot: Feed filament from current slot
+  Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload
   Feeder: Feeder
   Feeders: Feeders
   Feeding filament forward: Feeding filament forward
@@ -1140,6 +1154,7 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   Filament is still present after the cut — the blade may be dull or misaligned: Filament is still present after the cut — the blade may be dull or misaligned
+  Filament jam detected: Filament jam detected
   Filament jammed at the extruder gear: Filament jammed at the extruder gear
   'Filament load failed: {}': 'Filament load failed: {}'
   Filament never reached the CFS hub sensor: Filament never reached the CFS hub sensor
@@ -1152,6 +1167,7 @@ translations:
   Filament ran out at the toolhead: Filament ran out at the toolhead
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.
+  Filament reload failed: Filament reload failed
   Filament runout: Filament runout
   Filament runout and motion detection sensors: Filament runout and motion detection
     sensors
@@ -1175,6 +1191,7 @@ translations:
   'Filter Fan: On': 'Filter Fan: On'
   Fine: Fine
   Finish: Finish
+  Finish or cancel the print before loading, unloading, or changing filament: Finish or cancel the print before loading, unloading, or changing filament
   'Finishing clean...': 'Finishing clean...'
   Finishing up...: Finishing up...
   Firmware Restart: Firmware Restart
@@ -1262,6 +1279,7 @@ translations:
   Heat bed before calibrating for accurate offset with thermal expansion.: Heat bed
     before calibrating for accurate offset with thermal expansion.
   Heat nozzle: Heat nozzle
+  Heat the extruder to at least {}°C before loading filament: Heat the extruder to at least {}°C before loading filament
   Heat to at least %d°C for filament operations: Heat to at least %d°C for filament operations
   Heatbed Temperature: Heatbed Temperature
   Heated Bed: Heated Bed
@@ -1429,10 +1447,13 @@ translations:
   Interface size. Applies after restart.: Interface size. Applies after restart.
   'Internal error: API not available': 'Internal error: API not available'
   'Internal error: no scan result': 'Internal error: no scan result'
+  Invalid number: Invalid number
+  Invalid parameter: Invalid parameter
   Invalid port number: Invalid port number
   'Invalid sheet template index: {} (have {})': 'Invalid sheet template index: {}
     (have {})'
   Invalid status response from printer: Invalid status response from printer
+  Invalid tool number: Invalid tool number
   Issue description: Issue description
   It can be un-archived in Spoolman's web UI.: It can be un-archived in Spoolman's web UI.
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying
@@ -1528,9 +1549,12 @@ translations:
   Live view from your webcam: Live view from your webcam
   Load: Load
   Load Filament: Load Filament
+  Load a filament first before trying to unload: Load a filament first before trying to unload
   Load a new spool in this slot, or turn on auto-refill to switch to a matching one: Load a new spool in this slot, or turn on auto-refill to switch to a matching one
   Load complete: Load complete
+  Load failed: Load failed
   Load filament: Load filament
+  Load filament first: Load filament first
   Load may still be running — response timed out: Load may still be running — response
     timed out
   Load or unload filament.: Load or unload filament.
@@ -1628,6 +1652,7 @@ translations:
   Manual Feed: Manual Feed
   Manual Retract: Manual Retract
   Manual feed and retract operations: Manual feed and retract operations
+  Manually clear the jam and retry the operation: Manually clear the jam and retry the operation
   Manually pull the filament back through the connector: Manually pull the filament back through the connector
   Map to closest colors with matching material: Map to closest colors with matching
     material
@@ -1783,9 +1808,11 @@ translations:
   No effects available: No effects available
   No events queued: No events queued
   No fans detected: No fans detected
+  No filament: No filament
   No filament environment sensors: No filament environment sensors
   No filament loaded to unload: No filament loaded to unload
   No filament sensor detected: No filament sensor detected
+  No filament. Load filament and retry.: No filament. Load filament and retry.
   No filaments found: No filaments found
   No file loaded: No file loaded
   No file to reprint: No file to reprint
@@ -1799,6 +1826,7 @@ translations:
   No media installed: No media installed
   No mesh data: No mesh data
   No mesh loaded: No mesh loaded
+  No multi-filament system detected: No multi-filament system detected
   No network. Scan QR code to report on your phone.: No network. Scan QR code to report
     on your phone.
   No networks found: No networks found
@@ -1852,6 +1880,7 @@ translations:
   Not yet calibrated: Not yet calibrated
   Notes: Notes
   Notes (optional): Notes (optional)
+  Nothing loaded: Nothing loaded
   Nothing starred yet. Tap the star on a filament to add it here.: Nothing starred yet. Tap the star on a filament to add it here.
   Nothing to remap: Nothing to remap
   Notification: Notification
@@ -1876,7 +1905,7 @@ translations:
   Nozzle did not reach {}°C — {} cancelled: Nozzle did not reach {}°C — {} cancelled
   Nozzle min cannot exceed max: Nozzle min cannot exceed max
   Nozzle target set to {}°C: Nozzle target set to {}°C
-  Nozzle temp must be 100-500°C: Nozzle temp must be 100-500°C
+  Nozzle temp must be 100-%d°C: Nozzle temp must be 100-%d°C
   Nozzle, bed, and chamber in one widget: Nozzle, bed, and chamber in one widget
   'Nozzle:': 'Nozzle:'
   OD: OD
@@ -1907,6 +1936,7 @@ translations:
   Open motion controls for jogging: Open motion controls for jogging
   Open the CFS unit and remove the broken filament from the slot: Open the CFS unit and remove the broken filament from the slot
   Operation already in progress: Operation already in progress
+  Operation timed out: Operation timed out
   Operations: Operations
   Optimize Your Printing: Optimize Your Printing
   Optimizes temperature control for stable, consistent heating.: Optimizes temperature
@@ -2044,6 +2074,7 @@ translations:
   Preheat cancelled: Preheat cancelled
   'Preheat: all {} tools + bed set': 'Preheat: all {} tools + bed set'
   'Preheat: {} + bed set': 'Preheat: {} + bed set'
+  Preload failed: Preload failed
   'Prepared': 'Prepared'
   Preparing: Preparing
   Preparing Print: Preparing Print
@@ -2126,7 +2157,9 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): Printer
     accepted job but isn't printing — check cover, paper, and label type (firmware
     status=0x{:02X} error=0x{:02X})
+  Printer caps bed at %d°C: Printer caps bed at %d°C
   Printer caps chamber at %d°C: Printer caps chamber at %d°C
+  Printer caps nozzle at %d°C: Printer caps nozzle at %d°C
   Printer connection unavailable: Printer connection unavailable
   Printer database format error: Printer database format error
   Printer database is corrupt: Printer database is corrupt
@@ -2139,6 +2172,7 @@ translations:
   Printer is busy - {} stays in the queue: Printer is busy - {} stays in the queue
   Printer is not paired — pair it first: Printer is not paired — pair it first
   Printer name: Printer name
+  Printer not connected: Printer not connected
   Printer not ready: Printer not ready
   Printer ready: Printer ready
   Printer type mismatch: Printer type mismatch
@@ -2337,6 +2371,7 @@ translations:
   Restart Now: Restart Now
   Restart Required: Restart Required
   'Restart failed: not connected': 'Restart failed: not connected'
+  Restart from the beginning to recover: Restart from the beginning to recover
   Restart the display application: Restart the display application
   Restart the printer or screen: Restart the printer or screen
   Restarting HelixScreen...: Restarting HelixScreen...
@@ -2506,6 +2541,9 @@ translations:
   Select Sensors: Select Sensors
   Select Spool: Select Spool
   Select a filament slot to load: Select a filament slot to load
+  Select a valid number: Select a valid number
+  Select a valid number (1-{}): Select a valid number (1-{})
+  Select a valid tool: Select a valid tool
   Select fan: Select fan
   Select gate: Select gate
   Select macro for first button: Select macro for first button
@@ -2892,6 +2930,7 @@ translations:
   ? This device has very little RAM. Resonance calibration is memory-intensive and may cause a "Timer Too Close" error. Continue anyway?
   : This device has very little RAM. Resonance calibration is memory-intensive and may cause a "Timer Too Close" error. Continue anyway?
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?
+  This feature requires different hardware or configuration: This feature requires different hardware or configuration
   This filament system does not report buffer or flow data.: This filament system does not report buffer or flow data.
   This file was sliced for {} but {} is loaded.: This file was sliced for {} but {}
     is loaded.
@@ -3008,6 +3047,7 @@ translations:
   Trigger: Trigger
   'Troubleshooting:': 'Troubleshooting:'
   Try adjusting your search or filters: Try adjusting your search or filters
+  Try the operation again. If it persists, check for mechanical issues.: Try the operation again. If it persists, check for mechanical issues.
   Tune: Tune
   Tuning tower enabled - start a print to test: Tuning tower enabled - start a print
     to test
@@ -3057,6 +3097,7 @@ translations:
   Unload: Unload
   Unload Distance: Unload Distance
   Unload Filament: Unload Filament
+  Unload failed: Unload failed
   Unload filament: Unload filament
   Unload macro not configured: Unload macro not configured
   Unload may still be running — response timed out: Unload may still be running —
@@ -3135,6 +3176,8 @@ translations:
   WPA3: WPA3
   Wait for the current filament operation to finish: Wait for the current filament
     operation to finish
+  Wait for the current operation to complete: Wait for the current operation to complete
+  Wait for the current operation to complete or cancel it first: Wait for the current operation to complete or cancel it first
   Wait until the print finishes: Wait until the print finishes
   Waiting for Moonraker...: Waiting for Moonraker...
   'Waiting for %s to finish. One heater at a time.': 'Waiting for %s to finish. One heater at a time.'

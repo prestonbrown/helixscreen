@@ -962,14 +962,10 @@ void TemperatureService::on_heater_custom_clicked(lv_event_t* e) {
     auto& h = self->heaters_[idx(type)];
     s_keypad_data[idx(type)] = {self, type};
 
-    // Ensure the chamber's configured ceiling is being fetched before reading
-    // the keypad range (no-op once known / non-chamber). The controller owns
-    // the effective ceiling (configured max clamped to the heater default).
-    float max_value = h.config.keypad_range.max;
-    if (self->controller_) {
-        self->controller_->ensure_limits(type);
-        max_value = self->controller_->keypad_range(type).max;
-    }
+    // The controller owns the effective keypad ceiling (configured max over
+    // the heater default); custom_keypad_max() triggers its async limit fetch
+    // and applies the fallback only when no ceiling is known at all.
+    const float max_value = self->custom_keypad_max(type, h.config.keypad_range.max);
 
     ui_keypad_config_t keypad_config = {
         .initial_value = static_cast<float>(helix::ui::temperature::deci_to_degrees(h.target)),

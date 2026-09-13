@@ -1892,7 +1892,11 @@ class AmsState {
 
     // String subjects (need buffers)
     lv_subject_t ams_action_detail_;
-    char action_detail_buf_[64];
+    // Holds a translated Snapmaker feeder error ("フィーダー 4: フィラメントが
+    // ありません。…"), the longest composition any producer hands this subject.
+    // A translated CJK sentence runs far past ASCII length, and a short buffer
+    // truncates mid-codepoint via lv_strlcpy with no error.
+    char action_detail_buf_[128];
     lv_subject_t ams_system_name_;
     char system_name_buf_[32];
     lv_subject_t ams_system_logo_;

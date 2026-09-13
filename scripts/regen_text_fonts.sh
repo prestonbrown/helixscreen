@@ -97,52 +97,12 @@ UNICODE_RANGES+=",0x2026"        # Ellipsis
 UNICODE_RANGES+=",0x20AC"        # Euro sign
 UNICODE_RANGES+=",0x2122"        # Trademark
 
-# Extract ALL CJK characters from translations and C++ sources
+# Extract ALL CJK characters from translations and C++ sources.
+# scripts/translations/cjk_charset.py is the single extractor \u2014 the staleness
+# gate compares its output against the manifest written below, so the bake and
+# the gate cannot drift apart on what counts as "needed".
 echo "Extracting CJK characters from translations and C++ sources..."
-ALL_CJKCHARS=$(python3 << 'EOF'
-import glob
-import re
-
-chars = set()
-
-# CJK Unicode ranges to scan for
-CJK_RANGES = [
-    r'[\u3000-\u303f]',   # CJK Symbols and Punctuation
-    r'[\u3040-\u309f]',   # Hiragana
-    r'[\u30a0-\u30ff]',   # Katakana
-    r'[\u3400-\u4dbf]',   # CJK Unified Ideographs Extension A
-    r'[\u4e00-\u9fff]',   # CJK Unified Ideographs
-    r'[\uff00-\uffef]',   # Halfwidth and Fullwidth Forms
-]
-
-def extract_cjk(content):
-    """Extract all CJK characters from a string."""
-    found = set()
-    for pattern in CJK_RANGES:
-        found.update(re.findall(pattern, content))
-    return found
-
-# Translation files
-for path in ['translations/zh.yml', 'translations/ja.yml']:
-    try:
-        with open(path, 'r') as f:
-            chars.update(extract_cjk(f.read()))
-    except FileNotFoundError:
-        pass
-
-# C++ source files (catches hardcoded CJK strings like welcome text)
-for pattern in ['src/**/*.cpp', 'src/**/*.h', 'include/**/*.h']:
-    for path in glob.glob(pattern, recursive=True):
-        try:
-            with open(path, 'r') as f:
-                chars.update(extract_cjk(f.read()))
-        except (FileNotFoundError, UnicodeDecodeError):
-            pass
-
-if chars:
-    print(','.join(f'0x{ord(c):04x}' for c in sorted(chars)))
-EOF
-)
+ALL_CJKCHARS=$(python3 scripts/translations/cjk_charset.py | paste -sd, -)
 if [ -n "$ALL_CJKCHARS" ]; then
     ALL_CJK_COUNT=$(echo "$ALL_CJKCHARS" | tr ',' '\n' | wc -l | tr -d ' ')
     echo "Found $ALL_CJK_COUNT unique CJK characters total"

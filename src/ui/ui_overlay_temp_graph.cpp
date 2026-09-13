@@ -772,15 +772,11 @@ void TempGraphOverlay::on_temp_graph_custom_clicked(lv_event_t* e) {
 
     auto& heater = overlay.temp_control_panel_->heater(type);
 
-    // The controller owns the effective keypad ceiling (configured max clamped to
-    // the heater default). Trigger its async limit fetch (no-op once known /
-    // non-chamber), then read the range from it. No controller → fall back to the
-    // heater's static config range.
-    float max_value = heater.config.keypad_range.max;
-    if (helix::TemperatureController* c = overlay.temp_control_panel_->controller()) {
-        c->ensure_limits(type);
-        max_value = c->keypad_range(type).max;
-    }
+    // The service answers through the shared keypad-ceiling authority
+    // (configured max over the heater default, async fetch triggered inside);
+    // no controller → the heater's static config range.
+    const float max_value =
+        overlay.temp_control_panel_->custom_keypad_max(type, heater.config.keypad_range.max);
 
     // Store context for keypad callback (static because keypad outlives this scope).
     // No lifetime token needed — the overlay is a global singleton that outlives the keypad.

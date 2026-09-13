@@ -22,62 +22,86 @@ using namespace helix;
 
 // ============================================================================
 // is_gcode_2d_streaming_safe_impl Tests
+//
+// The gate prices what a streaming render allocates: the layer index (one
+// 40-byte gcode::StreamingLayerEntry per layer, one layer per 500 bytes of
+// G-code), the layer cache at this RAM tier's budget, an ARGB8888 ghost buffer
+// the size of the display, a 3MB margin, and — only when the G-code cache
+// directory is RAM-backed — the downloaded file itself.
+//
+// Expected totals below are computed by hand rather than from the gate's own
+// constants: a test that recomputes the formula agrees with any formula.
 // ============================================================================
 
+namespace {
+
+/// 128MB board (Elegoo Centauri Carbon class): constrained tier, 2MB cache.
+constexpr size_t CONSTRAINED_TOTAL_KB = 128 * 1024;
+/// 384MB board: normal tier, 16MB cache.
+constexpr size_t NORMAL_TOTAL_KB = 384 * 1024;
+/// 1GB board: good tier, 32MB cache.
+constexpr size_t GOOD_TOTAL_KB = 1024 * 1024;
+
+/// Whether the resolved G-code cache directory is tmpfs/ramfs.
+constexpr bool ON_FLASH = false;
+constexpr bool ON_TMPFS = true;
+
+} // namespace
+
 TEST_CASE("2D streaming safe: small file with plenty of RAM", "[memory][streaming]") {
-    // 1MB file, 64MB available, 800x480 display
-    // Expected: layer_index ~48KB, cache 1MB, ghost ~1.5MB, margin 3MB = ~5.5MB needed
+    // 1MB file, 64MB available, 800x480 display, 1GB board.
+    // index 81 + cache 32768 + ghost 1500 + margin 3072 = 37421KB needed.
     size_t file_size = 1 * 1024 * 1024; // 1MB
     size_t available_kb = 64 * 1024;    // 64MB
     int display_width = 800;
     int display_height = 480;
 
-    REQUIRE(
-        is_gcode_2d_streaming_safe_impl(file_size, available_kb, display_width, display_height));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, available_kb, GOOD_TOTAL_KB, display_width,
+                                            display_height, ON_FLASH));
 }
 
 TEST_CASE("2D streaming safe: large file with plenty of RAM", "[memory][streaming]") {
-    // 50MB file, 128MB available, 800x480 display
-    // Expected: layer_index ~2.4MB, cache 1MB, ghost ~1.5MB, margin 3MB = ~8MB needed
+    // 50MB file, 128MB available, 800x480 display, 384MB board.
+    // index 4095 + cache 16384 + ghost 1500 + margin 3072 = 25051KB needed.
     size_t file_size = 50 * 1024 * 1024; // 50MB
     size_t available_kb = 128 * 1024;    // 128MB
     int display_width = 800;
     int display_height = 480;
 
-    REQUIRE(
-        is_gcode_2d_streaming_safe_impl(file_size, available_kb, display_width, display_height));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, available_kb, NORMAL_TOTAL_KB, display_width,
+                                            display_height, ON_FLASH));
 }
 
 TEST_CASE("2D streaming safe: AD5M typical scenario", "[memory][streaming]") {
-    // 12.8MB file (real print), 38MB available, 800x480 display
-    // Expected: layer_index ~614KB, cache 1MB, ghost ~1.5MB, margin 3MB = ~6.2MB needed
-    // 38MB available > 6.2MB needed -> should pass
+    // 12.8MB file (real print), 38MB available, 800x480, 47MB board caching to
+    // /data (real storage).
+    // index 1023 + cache 2048 + ghost 1500 + margin 3072 = 7643KB needed.
     size_t file_size = 12800 * 1024; // 12.8MB
     size_t available_kb = 38 * 1024; // 38MB
+    size_t total_kb = 47 * 1024;     // 47MB
     int display_width = 800;
     int display_height = 480;
 
-    REQUIRE(
-        is_gcode_2d_streaming_safe_impl(file_size, available_kb, display_width, display_height));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, available_kb, total_kb, display_width,
+                                            display_height, ON_FLASH));
 }
 
 TEST_CASE("2D streaming unsafe: insufficient RAM for requirements", "[memory][streaming]") {
-    // 10MB file, only 4MB available, 800x480 display
-    // Expected: layer_index ~480KB, cache 1MB, ghost ~1.5MB, margin 3MB = ~6MB needed
-    // 4MB available < 6MB needed -> should fail
+    // 10MB file, only 4MB available, 800x480 display.
+    // index 819 + cache 2048 + ghost 1500 + margin 3072 = 7439KB needed.
     size_t file_size = 10 * 1024 * 1024; // 10MB
     size_t available_kb = 4 * 1024;      // 4MB (very constrained)
     int display_width = 800;
     int display_height = 480;
 
-    REQUIRE_FALSE(
-        is_gcode_2d_streaming_safe_impl(file_size, available_kb, display_width, display_height));
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(file_size, available_kb, CONSTRAINED_TOTAL_KB,
+                                                  display_width, display_height, ON_FLASH));
 }
 
 TEST_CASE("2D streaming: larger display increases ghost buffer requirement",
           "[memory][streaming]") {
-    // Same file, same RAM, but 1920x1080 display
-    // Ghost buffer: 1920 * 1080 * 4 = ~8MB vs ~1.5MB for 800x480
+    // Same file, same RAM, but 1920x1080 display.
+    // Ghost buffer: 1920 * 1080 * 4 = 8100KB vs 1500KB for 800x480.
     size_t file_size = 5 * 1024 * 1024; // 5MB
     size_t available_kb = 10 * 1024;    // 10MB
     int small_width = 800;
@@ -85,12 +109,13 @@ TEST_CASE("2D streaming: larger display increases ghost buffer requirement",
     int large_width = 1920;
     int large_height = 1080;
 
-    // Small display should fit (ghost ~1.5MB, total ~6MB needed)
-    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, available_kb, small_width, small_height));
+    // Small display fits: index 409 + cache 2048 + ghost 1500 + margin 3072 = 7029KB.
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, available_kb, CONSTRAINED_TOTAL_KB,
+                                            small_width, small_height, ON_FLASH));
 
-    // Large display should NOT fit (ghost ~8MB alone exceeds available)
-    REQUIRE_FALSE(
-        is_gcode_2d_streaming_safe_impl(file_size, available_kb, large_width, large_height));
+    // Large display does not: same terms with ghost 8100 = 13629KB.
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(file_size, available_kb, CONSTRAINED_TOTAL_KB,
+                                                  large_width, large_height, ON_FLASH));
 }
 
 TEST_CASE("2D streaming: layer index scales with file size", "[memory][streaming]") {
@@ -99,53 +124,124 @@ TEST_CASE("2D streaming: layer index scales with file size", "[memory][streaming
     int display_width = 800;
     int display_height = 480;
 
-    // 1MB file: layer_index ~48KB, cache 1MB, ghost ~1.5MB, margin 3MB = ~5.5MB
+    // 1MB file: index 81 + cache 2048 + ghost 1500 + margin 3072 = 6701KB.
     size_t small_file = 1 * 1024 * 1024;
-    REQUIRE(
-        is_gcode_2d_streaming_safe_impl(small_file, available_kb, display_width, display_height));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(small_file, available_kb, CONSTRAINED_TOTAL_KB,
+                                            display_width, display_height, ON_FLASH));
 
-    // 100MB file: layer_index ~4.8MB, cache 1MB, ghost ~1.5MB, margin 3MB = ~10MB
-    // Should fail with only 8MB available
+    // 100MB file: index 8191 + cache 2048 + ghost 1500 + margin 3072 = 14811KB.
     size_t large_file = 100 * 1024 * 1024;
-    REQUIRE_FALSE(
-        is_gcode_2d_streaming_safe_impl(large_file, available_kb, display_width, display_height));
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(large_file, available_kb, CONSTRAINED_TOTAL_KB,
+                                                  display_width, display_height, ON_FLASH));
 }
 
-TEST_CASE("2D streaming: exact boundary calculation", "[memory][streaming][edge]") {
-    // Calculate exact memory needed and verify boundary behavior
-    // Formula: (file_size / 500 * 24) / 1024 + 1024 + (w * h * 4) / 1024 + 3072
-
-    size_t file_size = 10 * 1024 * 1024; // 10MB
+TEST_CASE("2D streaming: the layer index is priced at the real entry size",
+          "[memory][streaming][edge]") {
+    // 100MB of G-code is 209715 layers by the 1-per-500-bytes estimate, so the
+    // index alone is 209715 * 40 / 1024 = 8191KB. Total on a constrained board:
+    // 8191 + cache 2048 + ghost 1500 + margin 3072 = 14811KB.
+    size_t file_size = 100 * 1024 * 1024;
     int display_width = 800;
     int display_height = 480;
 
-    // Calculate expected requirement
-    size_t estimated_layers = file_size / 500;
-    size_t layer_index_kb = (estimated_layers * 24) / 1024;
-    size_t lru_cache_kb = 1024;
-    size_t ghost_buffer_kb = (800 * 480 * 4) / 1024;
-    size_t safety_margin_kb = 3 * 1024;
-    size_t total_needed_kb = layer_index_kb + lru_cache_kb + ghost_buffer_kb + safety_margin_kb;
+    // Exactly at the boundary is rejected (the gate uses > not >=).
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(file_size, 14811, CONSTRAINED_TOTAL_KB,
+                                                  display_width, display_height, ON_FLASH));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, 14812, CONSTRAINED_TOTAL_KB, display_width,
+                                            display_height, ON_FLASH));
 
-    // Exactly at boundary should fail (we use > not >=)
-    REQUIRE_FALSE(
-        is_gcode_2d_streaming_safe_impl(file_size, total_needed_kb, display_width, display_height));
+    // A per-entry price below sizeof(StreamingLayerEntry) authorizes this file
+    // at 12000KB available; the real index does not fit there.
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(file_size, 12000, CONSTRAINED_TOTAL_KB,
+                                                  display_width, display_height, ON_FLASH));
+}
 
-    // 1KB more should pass
-    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, total_needed_kb + 1, display_width,
-                                            display_height));
+TEST_CASE("2D streaming: the layer cache is priced at this device's budget tier",
+          "[memory][streaming][edge]") {
+    // Zero-size file: no index, so the cache budget is the only term that moves
+    // between tiers. Ghost 1500 + margin 3072 = 4572KB is common to all three.
+    size_t file_size = 0;
+    int display_width = 800;
+    int display_height = 480;
+
+    // Constrained (2MB cache): 4572 + 2048 = 6620KB.
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(file_size, 6620, CONSTRAINED_TOTAL_KB,
+                                                  display_width, display_height, ON_FLASH));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, 6621, CONSTRAINED_TOTAL_KB, display_width,
+                                            display_height, ON_FLASH));
+
+    // Normal (16MB cache): 4572 + 16384 = 20956KB.
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(file_size, 20956, NORMAL_TOTAL_KB, display_width,
+                                                  display_height, ON_FLASH));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, 20957, NORMAL_TOTAL_KB, display_width,
+                                            display_height, ON_FLASH));
+
+    // Good (32MB cache): 4572 + 32768 = 37340KB.
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(file_size, 37340, GOOD_TOTAL_KB, display_width,
+                                                  display_height, ON_FLASH));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, 37341, GOOD_TOTAL_KB, display_width,
+                                            display_height, ON_FLASH));
+}
+
+TEST_CASE("2D streaming: a RAM-backed cache directory charges the whole file",
+          "[memory][streaming][edge]") {
+    // 10MB file on a constrained board, 800x480:
+    // index 819 + cache 2048 + ghost 1500 + margin 3072 = 7439KB on storage.
+    // On tmpfs the 10240KB file is memory too: 17679KB.
+    size_t file_size = 10 * 1024 * 1024;
+    int display_width = 800;
+    int display_height = 480;
+
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, 7440, CONSTRAINED_TOTAL_KB, display_width,
+                                            display_height, ON_FLASH));
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(file_size, 7440, CONSTRAINED_TOTAL_KB,
+                                                  display_width, display_height, ON_TMPFS));
+
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(file_size, 17679, CONSTRAINED_TOTAL_KB,
+                                                  display_width, display_height, ON_TMPFS));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, 17680, CONSTRAINED_TOTAL_KB, display_width,
+                                            display_height, ON_TMPFS));
+}
+
+TEST_CASE("2D streaming: 6MB file on a 128MB board with a tmpfs cache directory",
+          "[memory][streaming][edge]") {
+    // 480x272 panel, 11976KB available, cache directory on tmpfs:
+    // index 487 + cache 2048 + ghost 510 + margin 3072 + spill 6095 = 12212KB,
+    // which does not fit. The same file cached on real storage costs 6117KB and
+    // streams fine — flash devices must keep the preview.
+    size_t file_size = 6241553;
+    size_t available_kb = 11976;
+    int display_width = 480;
+    int display_height = 272;
+
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(file_size, available_kb, CONSTRAINED_TOTAL_KB,
+                                                  display_width, display_height, ON_TMPFS));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, available_kb, CONSTRAINED_TOTAL_KB,
+                                            display_width, display_height, ON_FLASH));
+
+    // Boundaries either way, so every term is pinned.
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(file_size, 12212, CONSTRAINED_TOTAL_KB,
+                                                  display_width, display_height, ON_TMPFS));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, 12213, CONSTRAINED_TOTAL_KB, display_width,
+                                            display_height, ON_TMPFS));
+    REQUIRE_FALSE(is_gcode_2d_streaming_safe_impl(file_size, 6117, CONSTRAINED_TOTAL_KB,
+                                                  display_width, display_height, ON_FLASH));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, 6118, CONSTRAINED_TOTAL_KB, display_width,
+                                            display_height, ON_FLASH));
 }
 
 TEST_CASE("2D streaming: zero file size", "[memory][streaming][edge]") {
-    // Zero-size file needs: cache (1MB) + ghost (~1.5MB) + margin (3MB) = ~5.5MB
-    // Layer index is 0 for zero-size file
+    // No layer index and no spill for an empty file: cache 2048 + ghost 1500 +
+    // margin 3072 = 6620KB, tmpfs or not.
     size_t file_size = 0;
-    size_t available_kb = 6 * 1024; // 6MB - enough for cache + ghost + margin
+    size_t available_kb = 7 * 1024; // 7MB
     int display_width = 800;
     int display_height = 480;
 
-    REQUIRE(
-        is_gcode_2d_streaming_safe_impl(file_size, available_kb, display_width, display_height));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, available_kb, CONSTRAINED_TOTAL_KB,
+                                            display_width, display_height, ON_FLASH));
+    REQUIRE(is_gcode_2d_streaming_safe_impl(file_size, available_kb, CONSTRAINED_TOTAL_KB,
+                                            display_width, display_height, ON_TMPFS));
 }
 
 // ============================================================================

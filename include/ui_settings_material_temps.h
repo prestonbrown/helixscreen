@@ -6,6 +6,7 @@
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
+#include "temperature_controller.h"
 
 #include <string>
 
@@ -17,7 +18,7 @@ namespace helix::settings {
  *
  * Two-view overlay:
  * - List view: all materials grouped by category, showing current temps
- * - Edit view: three number inputs (nozzle min/max, bed temp) + save/reset
+ * - Edit view: four number inputs (nozzle min/max, bed, chamber) + save/reset
  *
  * Overrides are stored via MaterialSettingsManager and applied transparently
  * in filament::find_material().
@@ -48,22 +49,33 @@ class MaterialTempsOverlay : public OverlayBase {
     void handle_reset_defaults();
     void handle_back_clicked();
 
-    /// Reject-toast buffer for the localized chamber-range message. Must hold
-    /// the longest locale at the widest cap (ru is the longest today);
-    /// test_material_temps_chamber pins that it does.
+    /// Reject-toast buffer for the localized range messages (nozzle, bed,
+    /// chamber). Must hold the longest locale at the widest cap (ru is the
+    /// longest today); test_material_temps_chamber pins that it does.
     static constexpr size_t kToastBufBytes = 128;
+
+    /// Cap-hint text buffers: the longest locale's formatted hint (ru) plus
+    /// the widest cap's digits. Pinned by test_material_temps_chamber the
+    /// same way kToastBufBytes is.
+    static constexpr size_t kCapHintBufBytes = 96;
 
   private:
     void populate_material_list();
     void show_edit_view(const std::string& material_name);
     void show_list_view();
 
-    /// Effective chamber input ceiling (°C): the controller's cap (configfile
-    /// max_temp over the backend's conservative default) when a controller is
-    /// registered, otherwise the input's absolute ceiling. handle_save() and
-    /// the cap hint both ask this, so the view can never diverge from what a
-    /// send will actually apply.
-    int chamber_input_cap();
+    /// Effective input ceiling (°C) for one heater column: the shared
+    /// keypad-ceiling authority when a controller is registered, otherwise the
+    /// input's absolute ceiling. handle_save() and the cap hints both ask
+    /// this, so the view can never diverge from what a send will apply.
+    int input_cap(HeaterType type, int abs_max_c);
+
+    /// Set or clear one heater's cap-hint subjects: the gate subject carries
+    /// the cap (0 = nothing to surface), the text subject the formatted line —
+    /// the XML evaluator cannot format ints. The hint shows only when the
+    /// printer's ceiling is tighter than the input's own absolute maximum.
+    void update_cap_hint(lv_subject_t& gate, lv_subject_t& text, char* text_buf, const char* format,
+                         HeaterType type, int abs_max_c);
 
     // SubjectManager, declared ahead of the subjects it owns so it tears down
     // after them (names withdraw before storage dies).
@@ -79,13 +91,19 @@ class MaterialTempsOverlay : public OverlayBase {
     lv_subject_t edit_defaults_subject_;
     char edit_defaults_buf_[128];
 
-    // Effective chamber ceiling (°C) from TemperatureController when tighter
-    // than the input's absolute ceiling, 0 when there is nothing to surface.
-    // Drives the cap hint's visibility; the parallel string subject carries
-    // the formatted line (the XML evaluator cannot format ints).
+    // Effective ceiling (°C) from TemperatureController when tighter than the
+    // input's own absolute maximum, 0 when there is nothing to surface. Drives
+    // each cap hint's visibility; the parallel string subject carries the
+    // formatted line (the XML evaluator cannot format ints).
+    lv_subject_t nozzle_cap_subject_;
+    lv_subject_t nozzle_cap_text_subject_;
+    char nozzle_cap_text_buf_[kCapHintBufBytes];
+    lv_subject_t bed_cap_subject_;
+    lv_subject_t bed_cap_text_subject_;
+    char bed_cap_text_buf_[kCapHintBufBytes];
     lv_subject_t chamber_cap_subject_;
     lv_subject_t chamber_cap_text_subject_;
-    char chamber_cap_text_buf_[96];
+    char chamber_cap_text_buf_[kCapHintBufBytes];
 
     // Currently edited material name
     std::string editing_material_;

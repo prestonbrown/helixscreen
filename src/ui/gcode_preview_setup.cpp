@@ -17,17 +17,27 @@
 namespace helix::ui {
 
 using helix::gcode_viewer::decide_preview_mode;
+using helix::gcode_viewer::PreviewModeDecision;
 using helix::gcode_viewer::PreviewModeSource;
+
+namespace {
+
+/// Read the three live ladder sources once and resolve them.
+PreviewModeDecision live_preview_mode() {
+    const auto* config = get_runtime_config();
+    return decide_preview_mode(config ? config->gcode_render_mode : -1,
+                               std::getenv("HELIX_GCODE_MODE") != nullptr,
+                               DisplaySettingsManager::instance().get_gcode_render_mode());
+}
+
+} // namespace
 
 bool apply_preview_render_mode(lv_obj_t* viewer, const char* log_tag) {
     if (!viewer) {
         return false;
     }
 
-    const auto* config = get_runtime_config();
-    const auto decision = decide_preview_mode(
-        config ? config->gcode_render_mode : -1, std::getenv("HELIX_GCODE_MODE") != nullptr,
-        DisplaySettingsManager::instance().get_gcode_render_mode());
+    const auto decision = live_preview_mode();
 
     if (decision.apply) {
         ui_gcode_viewer_set_render_mode(viewer, decision.mode);
@@ -52,7 +62,11 @@ bool apply_preview_render_mode(lv_obj_t* viewer, const char* log_tag) {
         break;
     }
 
-    return decision.source != PreviewModeSource::ThumbnailOnly;
+    return decision.uses_viewer();
+}
+
+bool preview_viewer_enabled() {
+    return live_preview_mode().uses_viewer();
 }
 
 void set_preview_bottom_occluder(lv_obj_t* viewer, lv_obj_t* occluder) {

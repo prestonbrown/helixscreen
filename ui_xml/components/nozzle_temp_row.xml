@@ -2,22 +2,68 @@
 <component name="nozzle_temp_row">
   <api>
     <prop name="tool_name" type="string" default="Tool 1"/>
+    <prop name="tool_short" type="string" default="T0"/>
+    <prop name="tool_number" type="string" default="1"/>
   </api>
+  <styles>
+    <style name="nozzle_compact_font" text_font="#font_xs"/>
+    <style name="nozzle_row_full" width="100%"/>
+    <style name="nozzle_row_half" width="48%"/>
+  </styles>
   <view name="nozzle_row_root"
-        extends="lv_obj" width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_row="0"
-        style_pad_column="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+        extends="lv_obj" height="content" flex_flow="column" style_pad_all="0" style_pad_row="0" style_pad_column="0"
+        style_bg_opa="0" style_border_width="0" scrollable="false">
+    <!-- The row's width and every label's visibility/font bind off the layout
+         subjects NozzleTempsWidget::on_size_changed publishes, so a row built
+         by a late rebuild reads the same verdict its siblings already show.
+         nozzle_row_label_mode: 0=icon only, 1=bare number, 2=position label,
+         3=nozzle name; the root width follows the column count. -->
+    <bind_style_if_eq name="nozzle_row_full" subject="nozzle_row_columns" ref_value="1"/>
+    <bind_style_if_eq name="nozzle_row_half" subject="nozzle_row_columns" ref_value="2"/>
     <lv_obj width="100%"
             height="content" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
             style_pad_all="0" style_pad_row="0" style_pad_column="#space_sm" style_bg_opa="0" style_border_width="0"
             scrollable="false" clickable="false" event_bubble="true">
-      <text_small name="tool_label"
-                  width="content" text="$tool_name" style_text_color="#primary" style_min_width="#space_xl"/>
+      <!-- Same shape as nozzle_temp_bed_row's bed_left_group: the icon names the
+           heater, the label spells it out. Only one spelling is visible at a
+           time; flex drops the hidden ones entirely, which is what returns
+           their width to the value. -->
+      <lv_obj name="tool_left_group"
+              width="content" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+              style_pad_column="#space_xs" style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false"
+              event_bubble="true">
+        <icon name="tool_icon" src="heater" size="xs" variant="muted" clickable="false" event_bubble="true"/>
+        <!-- The number label carries no style_min_width: the floor is exactly
+             what would make this rung as wide as a spelling and defeat it. -->
+        <text_small name="tool_label_long"
+                    width="content" text="$tool_name" style_text_color="#primary" style_min_width="#space_xl">
+          <bind_flag_if_not_eq subject="nozzle_row_label_mode" flag="hidden" ref_value="3"/>
+          <bind_style_if_eq name="nozzle_compact_font" subject="nozzle_row_compact" ref_value="1"/>
+        </text_small>
+        <text_small name="tool_label_short"
+                    width="content" text="$tool_short" style_text_color="#primary" style_min_width="#space_xl">
+          <bind_flag_if_not_eq subject="nozzle_row_label_mode" flag="hidden" ref_value="2"/>
+          <bind_style_if_eq name="nozzle_compact_font" subject="nozzle_row_compact" ref_value="1"/>
+        </text_small>
+        <text_small name="tool_label_number" width="content" text="$tool_number" style_text_color="#primary">
+          <bind_flag_if_not_eq subject="nozzle_row_label_mode" flag="hidden" ref_value="1"/>
+          <bind_style_if_eq name="nozzle_compact_font" subject="nozzle_row_compact" ref_value="1"/>
+        </text_small>
+      </lv_obj>
       <lv_obj name="value_group"
               width="content" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
               style_pad_column="#space_xxs" style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false"
               event_bubble="true">
-        <text_small name="temp_label" text="0°" style_text_align="right"/>
-        <text_small name="target_label" text="off" style_text_color="#text_muted"/>
+        <text_small name="temp_label" text="0°" style_text_align="right">
+          <bind_style_if_eq name="nozzle_compact_font" subject="nozzle_row_compact" ref_value="1"/>
+        </text_small>
+        <text_small name="target_label" text="off" style_text_color="#text_muted">
+          <bind_style_if_eq name="nozzle_compact_font" subject="nozzle_row_compact" ref_value="1"/>
+          <!-- The value rung: at the number/icon rungs the target half hides
+               (one tap away in the graph overlay), which is what lets the
+               row keep the normal font in a 2-unit column during a print. -->
+          <bind_flag_if_lt subject="nozzle_row_label_mode" flag="hidden" ref_value="2"/>
+        </text_small>
       </lv_obj>
     </lv_obj>
   </view>

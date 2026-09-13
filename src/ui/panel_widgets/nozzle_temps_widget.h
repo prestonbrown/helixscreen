@@ -51,8 +51,12 @@ class NozzleTempsWidget : public PanelWidget {
         std::string name;
         std::string short_name; ///< Compact label (e.g. "T0") shown in narrow layouts
         std::string long_name;  ///< Verbose label (e.g. "Nozzle 1") shown when colspan >= 2
+        std::string
+            number_name; ///< Bare 1-based display number (e.g. "2"), the rung below both spellings
         lv_obj_t* row_obj = nullptr;
-        lv_obj_t* tool_label = nullptr;
+        lv_obj_t* label_long = nullptr;
+        lv_obj_t* label_short = nullptr;
+        lv_obj_t* label_number = nullptr;
         lv_obj_t* temp_label = nullptr;
         lv_obj_t* target_label = nullptr;
         // Lifetimes MUST be declared before observers: C++ destroys members in
@@ -86,15 +90,6 @@ class NozzleTempsWidget : public PanelWidget {
     int rebuild_gen_ = 0;     // Generation counter to break infinite rebuild cycles (L074)
     bool rebuilding_ = false; // Re-entrancy guard: drain() inside clear_rows() can fire
                               // version_observer_ which calls rebuild_rows() again (#723)
-    // decide_nozzle_layout()'s last verdict on whether the long label form
-    // ("Nozzle 1") fits, as opposed to the short one ("T0"). A row built by a
-    // *later* rebuild_rows() (e.g. late tool discovery bumping the extruder
-    // version after the widget already knows its real pixel width) picks its
-    // initial label off this instead of re-deriving from colspan, so it never
-    // disagrees with the pixel-based decision already applied to existing
-    // rows. Defaults true to match decide_nozzle_layout()'s own degenerate-
-    // width default and the pre-layout fallback branch below.
-    bool use_long_label_ = true;
 
     // MUST stay declared LAST: reverse-declaration destruction makes this the
     // first member torn down, invalidating every captured token before any
@@ -117,6 +112,7 @@ class NozzleTempsWidget : public PanelWidget {
 
     void create_extruder_row(lv_obj_t* container, ExtruderRow& row);
     void create_bed_row(lv_obj_t* container);
+
     void update_row_display(lv_obj_t* temp_label, lv_obj_t* target_label, int temp_deci,
                             int target_deci, bool is_bed);
 };

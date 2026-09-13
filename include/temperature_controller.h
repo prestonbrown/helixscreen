@@ -153,4 +153,13 @@ class TemperatureController {
     double conservative_chamber_max_ = 0;
 };
 
+/// Null-safe face of TemperatureController::effective_keypad_max(): the shared
+/// ceiling when a controller is reachable, the caller's own fallback otherwise.
+/// Every keypad/edit surface asks this — never composes ensure_limits +
+/// keypad_range at its call site — so no two input surfaces can disagree about
+/// the ceiling (#1615, #1619).
+inline float keypad_ceiling(TemperatureController* c, HeaterType type, float fallback_deg) {
+    return c ? c->effective_keypad_max(type, fallback_deg) : fallback_deg;
+}
+
 } // namespace helix

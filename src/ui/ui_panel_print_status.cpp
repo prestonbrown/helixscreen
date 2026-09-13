@@ -1173,7 +1173,7 @@ void PrintStatusPanel::on_activate() {
     // The render mode observer only fires when is_active_, so settings
     // changed while the panel was hidden must be applied here.
     int render_mode_val = DisplaySettingsManager::instance().get_gcode_render_mode();
-    bool thumbnail_only = (render_mode_val == 3);
+    bool thumbnail_only = !helix::ui::preview_viewer_enabled();
     if (gcode_viewer_ && !thumbnail_only) {
         auto render_mode = static_cast<GcodeViewerRenderMode>(render_mode_val);
         ui_gcode_viewer_set_render_mode(gcode_viewer_, render_mode);
@@ -3574,8 +3574,10 @@ void PrintStatusPanel::load_gcode_for_viewing(const std::string& filename) {
         return;
     }
 
-    // Check "Thumbnail Only" render mode - skip all gcode downloading/parsing
-    if (DisplaySettingsManager::instance().get_gcode_render_mode() == 3) {
+    // Thumbnail Only skips all gcode downloading/parsing. ensure_preview_current()
+    // already declines to arm the load, but the deferred timer is scheduled up to
+    // 5s ahead of firing, so the setting can flip inside that window.
+    if (!helix::ui::preview_viewer_enabled()) {
         spdlog::info("[{}] G-code render mode is Thumbnail Only - skipping G-code load",
                      get_name());
         show_gcode_viewer(false);
@@ -3914,16 +3916,22 @@ void PrintStatusPanel::ensure_preview_current() {
 
     bool want_viewer = lifecycle_.want_viewer();
 
-    helix::ui::PreviewAction action =
-        helix::ui::decide_preview_action(displayed_file_, gcode_displayed_file_, desired,
-                                         thumbnail_has_src, gcode_has_content, want_viewer);
+    // Thumbnail Only answers for the whole G-code pipeline, not just what is
+    // drawn: skipping the fetch here is what keeps a large file off the disk,
+    // out of the layer indexer and away from the background render pass while
+    // the printer needs the CPU.
+    bool viewer_enabled = helix::ui::preview_viewer_enabled();
+
+    helix::ui::PreviewAction action = helix::ui::decide_preview_action(
+        displayed_file_, gcode_displayed_file_, desired, thumbnail_has_src, gcode_has_content,
+        want_viewer, viewer_enabled);
 
     spdlog::debug("[{}] ensure_preview_current: thumb_file='{}' gcode_file='{}' desired='{}' "
-                  "thumb_src={} gcode_content={} want_viewer={} -> load_thumb={} load_gcode={} "
-                  "clear_gcode={}",
+                  "thumb_src={} gcode_content={} want_viewer={} viewer_enabled={} -> "
+                  "load_thumb={} load_gcode={} clear_gcode={}",
                   get_name(), displayed_file_, gcode_displayed_file_, desired, thumbnail_has_src,
-                  gcode_has_content, want_viewer, action.load_thumbnail, action.load_gcode,
-                  action.clear_gcode);
+                  gcode_has_content, want_viewer, viewer_enabled, action.load_thumbnail,
+                  action.load_gcode, action.clear_gcode);
 
     if (desired.empty()) {
         return; // Nothing to show.

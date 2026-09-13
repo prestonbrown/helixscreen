@@ -39,6 +39,21 @@ bool is_writable_dir(const std::string& dir);
 std::uint64_t available_space(const std::string& dir);
 
 /**
+ * @brief Does `dir` live on a RAM-backed filesystem (tmpfs/ramfs)?
+ *
+ * Bytes written to tmpfs are memory, not storage, and on a box without swap
+ * they cannot be reclaimed at all. A cache that lands there spends the same
+ * budget the app is trying to protect, so callers that size a cache or pick a
+ * spill location need to tell the two apart.
+ *
+ * Stats the path itself, so a directory reached through symlinks is classified
+ * by the filesystem it actually resolves to. Returns false when the path cannot
+ * be stat'd and on platforms with no tmpfs concept: the answer gates a warning,
+ * and a warning invented from a failed syscall is noise.
+ */
+bool is_ram_backed(const std::string& dir);
+
+/**
  * @brief Robust probe: is `dir` writable AND does it have enough free space?
  *
  * Converges the create+write+remove write-test from
