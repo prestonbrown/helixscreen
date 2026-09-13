@@ -11,6 +11,8 @@
 #include "display_numbering.h"
 #include "filament_database.h"
 #include "hh_defaults.h"
+#include "lane_source_store.h"
+#include "lane_translation.h"
 #include "runtime_config.h"
 #include "simulated_clock.h"
 
@@ -377,7 +379,61 @@ AmsError AmsBackendMock::start() {
         }
     }
 
+    // The rig is fully staged by now: every mode setter runs before the factory
+    // hands the backend over, and the scenarios above have applied. This is the
+    // first point past registration, so it is where the simulated population
+    // becomes lane readings.
+    publish_lane_observations();
+
     return AmsErrorHelper::success();
+}
+
+void AmsBackendMock::publish_lane_observations() {
+    struct Reading {
+        int slot_index;
+        SlotStatus status;
+        uint32_t color_rgb;
+        std::string color_name;
+        std::string material;
+    };
+
+    std::vector<Reading> readings;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const int count = slots_.slot_count();
+        readings.reserve(static_cast<size_t>(std::max(0, count)));
+        for (int i = 0; i < count; ++i) {
+            const auto* entry = slots_.get(i);
+            if (!entry) {
+                continue;
+            }
+            readings.push_back({i, entry->info.status, entry->info.color_rgb,
+                                entry->info.color_name, entry->info.material});
+        }
+    }
+
+    // Outside the lock, like every other event this backend publishes.
+    for (const auto& r : readings) {
+        // UNKNOWN is the simulated machine declining to state, which is not a
+        // statement that the lane is empty.
+        if (const auto reports = slot_status_reports_filament(r.status)) {
+            helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
+            sensed.present = *reports;
+            helix::ams::ingest(lane_id(r.slot_index), sensed);
+        }
+
+        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+        if (!r.material.empty()) {
+            cache.material = r.material;
+        }
+        if (!r.color_name.empty()) {
+            cache.color_name = r.color_name;
+        }
+        if (helix::ams::is_declarable_color(r.color_rgb)) {
+            cache.color_rgb = r.color_rgb;
+        }
+        helix::ams::ingest(lane_id(r.slot_index), cache);
+    }
 }
 
 void AmsBackendMock::stop() {

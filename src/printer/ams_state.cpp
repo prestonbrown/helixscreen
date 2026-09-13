@@ -658,8 +658,14 @@ void AmsState::init_subjects(bool register_xml) {
     if (backends_.empty()) {
         auto backend = AmsBackend::create(AmsType::NONE, nullptr, nullptr);
         if (backend) {
-            backend->start();
+            // Register first, start second, as init_backends_from_hardware()
+            // does. A backend answers INVALID_LANE_ID for every slot until
+            // add_backend() stamps its index, so anything start() files before
+            // then lands on no lane and is dropped.
             set_backend(std::move(backend));
+            if (auto* b = get_backend(0)) {
+                b->start();
+            }
             sync_from_backend();
             spdlog::debug("[AMS State] Backend initialized via factory ({} slots)",
                           lv_subject_get_int(&ams_slot_count_));

@@ -5,14 +5,19 @@
 // assert on the POPULATED SOURCES; a SlotInfo read appears only where one is
 // needed to establish a case's precondition.
 
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_ace.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
 #include "ams_backend_happy_hare.h"
+#include "ams_backend_mock.h"
+#include "ams_backend_qidi.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
+#include "ams_state.h"
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "lane_source_store.h"
@@ -26,7 +31,9 @@
 #include "test_helpers/afc_test_access.h"
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/happy_hare_test_access.h"
+#include "test_helpers/qidi_box_test_access.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_runtime_config.h"
 #include "test_helpers/snapmaker_test_access.h"
 #include "test_helpers/toolchanger_test_access.h"
 #include "toolchanger_addon.h"
@@ -45,10 +52,13 @@ using helix::AmsBackendAce;
 using helix::AmsBackendAd5xIfs;
 using helix::AmsBackendAfc;
 using helix::AmsBackendHappyHare;
+using helix::AmsBackendMock;
+using helix::AmsBackendQidi;
 using helix::AmsBackendSnapmaker;
 using helix::AmsBackendToolChanger;
 using helix::CfsTestAccess;
 using helix::HappyHareTestAccess;
+using helix::QidiBoxTestAccess;
 using helix::SnapmakerTestAccess;
 using helix::ToolChangerTestAccess;
 using helix::ams::lane_sources;
@@ -64,6 +74,8 @@ using CfsHarness = RegisteredBackend<AmsBackendCfs>;
 using AceHarness = RegisteredBackend<AmsBackendAce>;
 using SnapmakerHarness = RegisteredBackend<AmsBackendSnapmaker>;
 using ToolChangerHarness = RegisteredBackend<AmsBackendToolChanger>;
+using QidiHarness = RegisteredBackend<AmsBackendQidi>;
+using MockHarness = RegisteredBackend<AmsBackendMock>;
 
 /// One `box` object, delivered the way Moonraker delivers it. Which schema
 /// parsed, and whether the frame counts as a full update at all, are decisions
@@ -110,6 +122,21 @@ helix::ams::FilamentSlotOverride user_colour_and_material() {
     user.user_locked_color = true;
     user.material = "ABS";
     return user;
+}
+
+/// One `[fila<N>]` section, the shape apply_filas_list() reads out of the
+/// Box's officiall_filas_list.cfg.
+std::string fila_section(int id, const std::string& name, const std::string& type) {
+    return "[fila" + std::to_string(id) + "]\nfilament = " + name + "\ntype = " + type +
+           "\nmin_temp = 230\nmax_temp = 250\n";
+}
+
+/// A filas list carrying one profile, one colour and one vendor row.
+std::string filas_list(int fila_id, const std::string& type, int color_id,
+                       const std::string& color_hex, int vendor_id, const std::string& vendor) {
+    return fila_section(fila_id, type + " Basic", type) + "[colordict]\n" +
+           std::to_string(color_id) + " = " + color_hex + "\n[vendor_list]\n" +
+           std::to_string(vendor_id) + " = " + vendor + "\n";
 }
 
 /// Four lanes through AFC's own initialize_slots(), which is what a discovery
@@ -2418,4 +2445,310 @@ TEST_CASE_METHOD(LVGLTestFixture, "a Spoolman link declares the binding, not the
     CHECK(lane.vendor_cache->brand == "Polymaker");
     REQUIRE(lane.vendor_cache->color_rgb.has_value());
     CHECK(*lane.vendor_cache->color_rgb == 0x00FF00u);
+}
+
+// ---------------------------------------------------------------------------
+// QIDI Box
+// ---------------------------------------------------------------------------
+
+TEST_CASE_METHOD(LVGLTestFixture, "Qidi's saved ids resolve into a vendor cache",
+                 "[lane][ingest][qidi]") {
+    QidiHarness harness(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(*harness, filas_list(12, "PETG", 5, "#ED2C2C", 3, "QIDI"));
+
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1},
+                                                           {"filament_slot0", 12},
+                                                           {"color_slot0", 5},
+                                                           {"vendor_slot0", 3}});
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->material == "PETG");
+    REQUIRE(lane.vendor_cache->color_rgb.has_value());
+    CHECK(*lane.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(lane.vendor_cache->brand == "QIDI");
+    // Saved variables say what a slot was told it holds, never whether it does.
+    CHECK_FALSE(lane.vendor_cache->present.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Qidi files nothing for an id its tables do not resolve",
+                 "[lane][ingest][qidi]") {
+    QidiHarness harness(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(*harness, filas_list(12, "PETG", 5, "#ED2C2C", 3, "QIDI"));
+
+    // Slot 1's ids name rows the Box's tables do not have. That is not a slot
+    // with no filament in it, and it is not a slot holding whatever id 12
+    // happens to mean. Slot 0 carries resolvable ids in the same frame, so the
+    // loop demonstrably ran and reached the right slot.
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1},
+                                                           {"filament_slot0", 12},
+                                                           {"color_slot0", 5},
+                                                           {"vendor_slot0", 3},
+                                                           {"filament_slot1", 77},
+                                                           {"color_slot1", 88},
+                                                           {"vendor_slot1", 99}});
+
+    const auto resolved = lane_sources(harness.lane(0));
+    REQUIRE(resolved.vendor_cache.has_value());
+    CHECK(resolved.vendor_cache->material == "PETG");
+
+    const auto unresolved = lane_sources(harness.lane(1));
+    REQUIRE(unresolved.vendor_cache.has_value());
+    CHECK_FALSE(unresolved.vendor_cache->material.has_value());
+    CHECK_FALSE(unresolved.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(unresolved.vendor_cache->brand.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Qidi's vendor cache states its tables, not the slot it wrote",
+                 "[lane][ingest][qidi]") {
+    QidiHarness harness(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(*harness, filas_list(12, "PETG", 5, "#ED2C2C", 3, "QIDI"));
+
+    const nlohmann::json vars{
+        {"box_count", 1}, {"filament_slot0", 12}, {"color_slot0", 5}, {"vendor_slot0", 3}};
+    QidiBoxTestAccess::parse_vars(*harness, vars);
+
+    // A reload drops every row the ids name. SlotInfo persists across frames
+    // and nothing clears it, so the previous frame's values stay on the slot
+    // with nothing in the tables behind them.
+    QidiBoxTestAccess::apply_filas_list(*harness, filas_list(40, "ABS", 9, "#00FF00", 8, "Elegoo"));
+    QidiBoxTestAccess::parse_vars(*harness, vars);
+
+    // Precondition, not the behaviour under test: unless the orphaned values
+    // really are still on the slot, a read-back would pass for the wrong reason.
+    const auto slot = harness->get_slot_info(0);
+    REQUIRE(slot.material == "PETG");
+    REQUIRE(slot.color_rgb == 0xED2C2Cu);
+    REQUIRE(slot.brand == "QIDI");
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK_FALSE(lane.vendor_cache->material.has_value());
+    CHECK_FALSE(lane.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(lane.vendor_cache->brand.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Qidi palette grey is the no-colour sentinel",
+                 "[lane][ingest][qidi]") {
+    QidiHarness harness(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(*harness, "[colordict]\n1 = #808080\n2 = #000000\n");
+
+    QidiBoxTestAccess::parse_vars(
+        *harness, nlohmann::json{{"box_count", 1}, {"color_slot0", 1}, {"color_slot1", 2}});
+
+    // The palette row reaches the slot, because the Box did name a colour id.
+    REQUIRE(harness->get_slot_info(0).color_rgb == helix::AMS_DEFAULT_SLOT_COLOR);
+
+    const auto grey = lane_sources(harness.lane(0));
+    REQUIRE(grey.vendor_cache.has_value());
+    CHECK_FALSE(grey.vendor_cache->color_rgb.has_value());
+
+    // Black is a colour, and lands one row away in the same table.
+    const auto black = lane_sources(harness.lane(1));
+    REQUIRE(black.vendor_cache.has_value());
+    REQUIRE(black.vendor_cache->color_rgb.has_value());
+    CHECK(*black.vendor_cache->color_rgb == 0x000000u);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Qidi's presence follows the state word, jam included",
+                 "[lane][ingest][qidi]") {
+    QidiHarness harness(nullptr, nullptr);
+
+    // One frame, four state words: empty, spooled, seated, and a negative word
+    // the Box uses for a faulted lane.
+    QidiBoxTestAccess::parse_vars(
+        *harness,
+        nlohmann::json{{"box_count", 1}, {"slot0", 0}, {"slot1", 1}, {"slot2", 2}, {"slot3", -1}});
+
+    const auto empty = lane_sources(harness.lane(0));
+    REQUIRE(empty.sensed.has_value());
+    REQUIRE(empty.sensed->present.has_value());
+    CHECK(*empty.sensed->present == false);
+
+    const auto spooled = lane_sources(harness.lane(1));
+    REQUIRE(spooled.sensed.has_value());
+    REQUIRE(spooled.sensed->present.has_value());
+    CHECK(*spooled.sensed->present == true);
+
+    const auto seated = lane_sources(harness.lane(2));
+    REQUIRE(seated.sensed.has_value());
+    REQUIRE(seated.sensed->present.has_value());
+    CHECK(*seated.sensed->present == true);
+
+    // A jam is filament stuck in the path. Answering "no reading" here would
+    // retract a live presence record at the moment a lane faults.
+    REQUIRE(harness->get_slot_info(3).status == helix::SlotStatus::BLOCKED);
+    const auto jammed = lane_sources(harness.lane(3));
+    REQUIRE(jammed.sensed.has_value());
+    REQUIRE(jammed.sensed->present.has_value());
+    CHECK(*jammed.sensed->present == true);
+
+    // The state word says nothing about which spool is in the lane.
+    CHECK_FALSE(spooled.sensed->material.has_value());
+    CHECK_FALSE(spooled.sensed->color_rgb.has_value());
+    CHECK_FALSE(spooled.sensed->brand.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a colordict row is read by the tree's hex grammar",
+                 "[lane][ingest][qidi]") {
+    QidiHarness harness(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(*harness, "[colordict]\n"
+                                                  "1 = #ED2C2C\n"
+                                                  "2 = F00\n"
+                                                  "3 = #11223344\n"
+                                                  "4 = 0x00FF00\n"
+                                                  "5 = not a colour\n"
+                                                  "6 =\n");
+
+    REQUIRE(QidiBoxTestAccess::get_color(*harness, 1).has_value());
+    CHECK(*QidiBoxTestAccess::get_color(*harness, 1) == 0xED2C2Cu);
+    REQUIRE(QidiBoxTestAccess::get_color(*harness, 2).has_value());
+    CHECK(*QidiBoxTestAccess::get_color(*harness, 2) == 0xFF0000u);
+    // #RRGGBBAA drops the alpha byte, as it does for every other consumer.
+    REQUIRE(QidiBoxTestAccess::get_color(*harness, 3).has_value());
+    CHECK(*QidiBoxTestAccess::get_color(*harness, 3) == 0x112233u);
+    REQUIRE(QidiBoxTestAccess::get_color(*harness, 4).has_value());
+    CHECK(*QidiBoxTestAccess::get_color(*harness, 4) == 0x00FF00u);
+    // A row that states no colour is not an id to resolve against.
+    CHECK_FALSE(QidiBoxTestAccess::get_color(*harness, 5).has_value());
+    CHECK_FALSE(QidiBoxTestAccess::get_color(*harness, 6).has_value());
+    CHECK(QidiBoxTestAccess::color_count(*harness) == 4);
+}
+
+// ---------------------------------------------------------------------------
+// Mock
+// ---------------------------------------------------------------------------
+
+TEST_CASE_METHOD(LVGLTestFixture, "the mock's simulated population becomes lane readings",
+                 "[lane][ingest][mock]") {
+    MockHarness harness(4);
+    REQUIRE(harness->start().success());
+
+    const auto lane = lane_sources(harness.lane(0));
+
+    REQUIRE(lane.sensed.has_value());
+    REQUIRE(lane.sensed->present.has_value());
+    CHECK(*lane.sensed->present == true);
+
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->material == "PLA");
+    REQUIRE(lane.vendor_cache->color_rgb.has_value());
+    CHECK(*lane.vendor_cache->color_rgb == 0x1A1A2Eu);
+    CHECK(lane.vendor_cache->color_name == "Jet Black");
+
+    // The Spoolman handles really are on the slot, so the fields below are
+    // absent from the record by decision rather than for want of a value: no
+    // lane's brand or spool binding comes from firmware, and a mock that filed
+    // them would let a case pass against a reading no backend can produce.
+    const auto slot = harness->get_slot_info(0);
+    REQUIRE(slot.spoolman_id == 1);
+    REQUIRE(slot.total_weight_g > 0.0f);
+    REQUIRE_FALSE(slot.spool_name.empty());
+
+    CHECK_FALSE(lane.vendor_cache->brand.has_value());
+    CHECK_FALSE(lane.vendor_cache->spoolman_id.has_value());
+    CHECK_FALSE(lane.vendor_cache->spool_name.has_value());
+    CHECK_FALSE(lane.vendor_cache->total_weight_g.has_value());
+    CHECK_FALSE(lane.vendor_cache->remaining_weight_g.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "neither arm of the mock's set_slot_info is a reading",
+                 "[lane][ingest][mock]") {
+    MockHarness harness(4);
+    REQUIRE(harness->start().success());
+
+    // persist = true is the editor's path, which reaches the lane model through
+    // commit_slot_edit; persist = false is ToolState pushing a Spoolman-linked
+    // assignment onto a tool changer's shadow slot. Neither is the machine
+    // speaking, so neither disturbs what the population stated.
+    auto edited = harness->get_slot_info(0);
+    edited.material = "Declared-PC";
+    edited.color_rgb = 0x00FF00u;
+    edited.brand = "Polymaker";
+    REQUIRE(harness->set_slot_info(0, edited, /*persist=*/true).success());
+
+    auto pushed = harness->get_slot_info(1);
+    pushed.material = "Pushed-ASA";
+    pushed.color_rgb = 0x0000FFu;
+    REQUIRE(harness->set_slot_info(1, pushed, /*persist=*/false).success());
+
+    // Preconditions: both writes landed on the slots, so an unchanged record
+    // below is a decision and not a call that did nothing.
+    REQUIRE(harness->get_slot_info(0).material == "Declared-PC");
+    REQUIRE(harness->get_slot_info(0).color_rgb == 0x00FF00u);
+    REQUIRE(harness->get_slot_info(1).material == "Pushed-ASA");
+
+    const auto declared = lane_sources(harness.lane(0));
+    REQUIRE(declared.vendor_cache.has_value());
+    CHECK(declared.vendor_cache->material == "PLA");
+    REQUIRE(declared.vendor_cache->color_rgb.has_value());
+    CHECK(*declared.vendor_cache->color_rgb == 0x1A1A2Eu);
+    CHECK_FALSE(declared.vendor_cache->brand.has_value());
+
+    const auto pushed_lane = lane_sources(harness.lane(1));
+    REQUIRE(pushed_lane.vendor_cache.has_value());
+    CHECK(pushed_lane.vendor_cache->material == "Silk PLA");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the mock's colour sentinel is not a grey anybody chose",
+                 "[lane][ingest][mock]") {
+    MockHarness harness(4);
+
+    // set_slot_info writes the slot even though it files no reading, which is
+    // how a lane gets staged before the population is published.
+    auto black = harness->get_slot_info(0);
+    black.color_rgb = 0x000000u;
+    black.material = "Black-PLA";
+    REQUIRE(harness->set_slot_info(0, black, /*persist=*/false).success());
+
+    auto colourless = harness->get_slot_info(1);
+    colourless.color_rgb = helix::AMS_DEFAULT_SLOT_COLOR;
+    colourless.material = "Grey-PLA";
+    REQUIRE(harness->set_slot_info(1, colourless, /*persist=*/false).success());
+
+    REQUIRE(harness->start().success());
+
+    const auto real_black = lane_sources(harness.lane(0));
+    REQUIRE(real_black.vendor_cache.has_value());
+    REQUIRE(real_black.vendor_cache->color_rgb.has_value());
+    CHECK(*real_black.vendor_cache->color_rgb == 0x000000u);
+
+    // Same loop, same publish: the material still lands, so the missing colour
+    // is the sentinel rule and not a lane the loop skipped.
+    const auto sentinel = lane_sources(harness.lane(1));
+    REQUIRE(sentinel.vendor_cache.has_value());
+    CHECK(sentinel.vendor_cache->material == "Grey-PLA");
+    CHECK_FALSE(sentinel.vendor_cache->color_rgb.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the factory mock is registered before it starts",
+                 "[lane][ingest][mock]") {
+    ScopedRuntimeConfig scoped_config;
+    get_runtime_config()->test_mode = true;
+    get_runtime_config()->use_real_ams = false;
+    get_runtime_config()->disable_mock_ams = false;
+
+    auto& ams = helix::AmsState::instance();
+    ams.clear_backends();
+    ams.deinit_subjects();
+    // AmsState::init_subjects observes PrinterState's print-state subject; it
+    // must exist first or the observer attaches to nothing.
+    get_printer_state().init_subjects(false);
+    ams.init_subjects(false);
+
+    REQUIRE(ams.backend_count() == 1);
+
+    // A backend answers INVALID_LANE_ID for every slot until registration
+    // stamps its index, so a population published before that lands on no lane
+    // and every record here reads empty.
+    const auto lane = lane_sources(helix::ams::lane_id_for(0, 0));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->material == "PLA");
+    REQUIRE(lane.sensed.has_value());
+    REQUIRE(lane.sensed->present.has_value());
+    CHECK(*lane.sensed->present == true);
+
+    ams.clear_backends();
+    helix::ui::UpdateQueue::instance().drain();
+    ams.deinit_subjects();
 }

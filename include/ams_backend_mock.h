@@ -847,6 +847,27 @@ class AmsBackendMock : public AmsBackend {
     void mirror_dryer_to_unit(int unit);
 
     /**
+     * @brief File this backend's simulated slot population as lane observations
+     *
+     * The simulated population is this backend's firmware: the constructor seeds
+     * it from SAMPLE_FILAMENTS and each rig mode rebuilds it, which is the same
+     * signal a real backend gets from a parse. Presence is Sensed; colour,
+     * colour name and material are VendorCache.
+     *
+     * Brand is deliberately absent, for the reason the constructor gives: no
+     * lane's brand comes from firmware, so a mock that filed one would let a
+     * test pass against a reading no real backend produces. The Spoolman fields
+     * on these slots are Spoolman's to file, not this backend's.
+     *
+     * Called from start(), which AmsState reaches only after registration has
+     * stamped a backend index; an earlier call files onto INVALID_LANE_ID and
+     * is dropped.
+     *
+     * Takes mutex_ itself, so the caller must not hold it.
+     */
+    void publish_lane_observations();
+
+    /**
      * @brief Update action state with thread safety
      * @param action New action state
      * @param detail Operation detail string
