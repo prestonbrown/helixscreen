@@ -45,8 +45,7 @@ constexpr auto FIELD_ROSTER = std::make_tuple(
     // afterwards is its own state decrementing as filament is consumed.
     // Withholding it would blind the lane the moment the meter legitimately
     // reads back the seeded number.
-    field<false>(&Observation::remaining_weight_g), field<false>(&Observation::total_weight_g),
-    field<false>(&Observation::echo_token));
+    field<false>(&Observation::remaining_weight_g), field<false>(&Observation::total_weight_g));
 
 static_assert(std::tuple_size_v<decltype(FIELD_ROSTER)> ==
                   std::tuple_size_v<decltype(std::declval<Observation&>().fields())>,

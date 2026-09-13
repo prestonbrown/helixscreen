@@ -76,11 +76,10 @@ namespace {
 /// ties them. A field added to that struct has no name here, so the
 /// static_assert below stops the build and whoever added it has to say which
 /// backends are expected to file it.
-constexpr std::array<const char*, 13> kFieldNames = {
+constexpr std::array<const char*, 12> kFieldNames = {
     "present",     "color_rgb",          "color_name",         "material",
     "brand",       "spool_name",         "catalog_id",         "product_name",
-    "spoolman_id", "spoolman_vendor_id", "remaining_weight_g", "total_weight_g",
-    "echo_token"};
+    "spoolman_id", "spoolman_vendor_id", "remaining_weight_g", "total_weight_g"};
 
 static_assert(std::tuple_size_v<decltype(std::declval<Observation&>().fields())> ==
                   kFieldNames.size(),
@@ -346,6 +345,14 @@ const std::vector<BackendCensus>& expected_census() {
         // Bounded to what real firmware states: the simulated population carries
         // a brand, a spool name, a colour name, a Spoolman id and a weight, and
         // files none of them, because no machine in the fleet reports them.
+        //
+        // It is not a producer on the same footing as the eight above. Its one
+        // SlotInfo is both the simulated machine's state and the user's edits,
+        // with no firmware store behind it, so it can only state readings
+        // where no edit has landed yet: it files once, at the tail of start(),
+        // and its presence reading does not follow the simulated load. The
+        // single call site is what holds that, and a lint gate in
+        // tests/shell/test_code_lint.bats holds the single call site.
         {"Mock", {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material"}},
         // Saved ids resolved against the Box's own tables. A jam still reports
         // filament, so presence comes from the state word.
@@ -382,18 +389,16 @@ TEST_CASE_METHOD(LVGLTestFixture, "every backend files exactly the fields the ce
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "no backend frame translation files a catalog id, a vendor id, a colour name or "
-                 "an echo token",
+                 "no backend frame translation files a catalog id, a vendor id or a colour name",
                  "[lane][ingest][census]") {
-    // Four fields Observation carries that no producer writes. A consumer or a
-    // test resting on one of them is resting on a value nothing supplies.
+    // Three fields Observation carries that no producer writes. A consumer or
+    // a test resting on one of them is resting on a value nothing supplies.
     //
     // Scoped to frame translation on purpose: catalog_id and
     // spoolman_vendor_id DO reach a lane through the resync path, which reads
     // the shared override namespace and files a declaration rather than a
     // reading. Nothing a machine says carries either.
-    const std::vector<std::string> dead = {"catalog_id", "spoolman_vendor_id", "color_name",
-                                           "echo_token"};
+    const std::vector<std::string> dead = {"catalog_id", "spoolman_vendor_id", "color_name"};
 
     for (const auto& entry : census_of_every_backend()) {
         INFO("backend: " << entry.backend);

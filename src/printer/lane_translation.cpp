@@ -65,8 +65,7 @@ constexpr auto field(S slot, R record, O obs) {
 /// walk, so a field reaches or is refused by each of them here rather than in
 /// two places that agree only by convention.
 constexpr auto FIELD_ROSTER = std::make_tuple(
-    // Presence is sensed and never declared, and an echo token belongs to the
-    // write that produced it rather than to a source's identity statement.
+    // Presence is sensed, never declared, so neither translation carries it.
     field<FieldKind::Untranslated>(nullptr, nullptr, &Observation::present),
     field<FieldKind::Color>(&SlotInfo::color_rgb, &FilamentSlotOverride::color_rgb,
                             &Observation::color_rgb),
@@ -95,8 +94,7 @@ constexpr auto FIELD_ROSTER = std::make_tuple(
                              &FilamentSlotOverride::remaining_weight_g,
                              &Observation::remaining_weight_g),
     field<FieldKind::Weight>(&SlotInfo::total_weight_g, &FilamentSlotOverride::total_weight_g,
-                             &Observation::total_weight_g),
-    field<FieldKind::Untranslated>(nullptr, nullptr, &Observation::echo_token));
+                             &Observation::total_weight_g));
 
 static_assert(std::tuple_size_v<decltype(FIELD_ROSTER)> ==
                   std::tuple_size_v<decltype(std::declval<Observation&>().fields())>,

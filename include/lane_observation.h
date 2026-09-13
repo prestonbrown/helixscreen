@@ -43,11 +43,6 @@ struct Observation {
     std::optional<float> remaining_weight_g;
     std::optional<float> total_weight_g;
 
-    /// Set when this reading is the echo of a write we issued. Lets a consumer
-    /// tell its own value coming back from a third party's edit without the
-    /// per-backend suppressors that answer the same question today.
-    std::optional<uint64_t> echo_token;
-
     /// Every optional field above, as a tuple of references. Code that must
     /// touch all of them (amending one record onto another) folds over this
     /// instead of keeping its own field list, so a field added here reaches
@@ -55,13 +50,13 @@ struct Observation {
     auto fields() {
         return std::tie(present, color_rgb, color_name, material, brand, spool_name, catalog_id,
                         product_name, spoolman_id, spoolman_vendor_id, remaining_weight_g,
-                        total_weight_g, echo_token);
+                        total_weight_g);
     }
 
     auto fields() const {
         return std::tie(present, color_rgb, color_name, material, brand, spool_name, catalog_id,
                         product_name, spoolman_id, spoolman_vendor_id, remaining_weight_g,
-                        total_weight_g, echo_token);
+                        total_weight_g);
     }
 };
 

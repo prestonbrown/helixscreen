@@ -243,11 +243,12 @@ from one source. Every field is a `std::optional`, so "this source said nothing 
 material" and "this source reports the material as blank" are different states - the
 distinction no sentinel check (`!= 0`, `!empty()`, `>= 0.0f`) can make. The only constructor
 is `explicit Observation(ObservationSource)`, so a reading cannot exist without naming where
-it came from. Its `echo_token` marks a reading as the echo of a write HelixScreen itself
-issued, which is the question `AmsBackend::own_write_expectation`
-(`include/ams_backend.h#own_write_expectation`) and `SlotFingerprintTracker::expect`
-(`include/filament_slot_override_store.h#SlotFingerprintTracker/expect`) each answer for one
-backend family.
+it came from. It carries no field for "this is the echo of a write HelixScreen itself
+issued": that question is answered per backend family, by
+`AmsBackend::own_write_expectation` (`include/ams_backend.h#own_write_expectation`),
+`SlotFingerprintTracker::expect`
+(`include/filament_slot_override_store.h#SlotFingerprintTracker/expect`) and
+`helix::ams::OwnWriteEchoes` (`include/lane_echo.h#OwnWriteEchoes`).
 
 `ObservationSource` ([`include/lane_observation.h#ObservationSource`](../../../include/lane_observation.h))
 has five values, and the split that matters is presence against identity. `Sensed` is real
@@ -333,7 +334,7 @@ share; identity is where they diverge sharply:
 Read one consequence straight off that table: **on an ACE or an AD5X, brand and spool name have
 no firmware source at all.** A value a user sees in either field came from their own edit, from
 Spoolman, or from another tool writing the shared record, never from the printer. `catalog_id`,
-`color_name`, `spoolman_vendor_id` and `echo_token` are filed by no backend, so a consumer or a
+`color_name` and `spoolman_vendor_id` are filed by no backend, so a consumer or a
 test asserting on them is asserting on a field nothing fills.
 
 **A resync refiles the persisted record, on the one backend that needs it.**

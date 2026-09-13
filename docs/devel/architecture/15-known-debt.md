@@ -193,14 +193,16 @@ re-reads the shared `lane_data` namespace and files what it holds, but the overr
 writer has changed since startup reaches the source model without reaching the rendered slot
 (#1629).
 
-The echo question already has two hand-built answers here, `AmsBackend::own_write_expectation`
-([`include/ams_backend.h#own_write_expectation`](../../../include/ams_backend.h)) and
+The echo question has three hand-built answers here, `AmsBackend::own_write_expectation`
+([`include/ams_backend.h#own_write_expectation`](../../../include/ams_backend.h)),
 `SlotFingerprintTracker::expect`
-([`include/filament_slot_override_store.h#SlotFingerprintTracker/expect`](../../../include/filament_slot_override_store.h)),
-each suppressing one flavour of "is this reading someone else's write or the echo of my
-own?" - the job `Observation::echo_token` is shaped for. No producer fills that field, so the
-model states the question without yet answering it, which is the reason a precedence table
-alone does not finish this.
+([`include/filament_slot_override_store.h#SlotFingerprintTracker/expect`](../../../include/filament_slot_override_store.h))
+and `helix::ams::OwnWriteEchoes`
+([`include/lane_echo.h#OwnWriteEchoes`](../../../include/lane_echo.h)), each suppressing one
+flavour of "is this reading someone else's write or the echo of my own?" for one backend
+family. `Observation` carries no field for the answer, so the source model states which
+source spoke and not whose write it was, which is the reason a precedence table alone does
+not finish this.
 
 User-visible symptom and workaround for the AD5X case are in
 [`../../user/TROUBLESHOOTING.md`](../../user/TROUBLESHOOTING.md).
