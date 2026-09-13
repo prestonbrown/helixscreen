@@ -1229,7 +1229,8 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
     // record holds no reading rather than an assertion of absence. Reading the
     // cached array rather than SlotInfo::status is what keeps the merged
     // struct out of this: slot_status_from_happy_hare() is the one rule for
-    // what a gate_status integer means, and it already owns the vocabulary.
+    // what a gate_status integer means, and slot_status_reports_filament() the
+    // one rule for what a status says about occupancy.
     for (size_t i = 0; i < gate_status_raw_.size(); ++i) {
         // The gate count is fixed by the first gate_status frame, so a longer
         // array later names gates this backend has no slot for. Those are not
@@ -1238,10 +1239,8 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
             continue;
         }
         ams::Observation sensed(ams::ObservationSource::Sensed);
-        const SlotStatus gate = slot_status_from_happy_hare(gate_status_raw_[i]);
-        if (gate != SlotStatus::UNKNOWN) {
-            sensed.present = (gate != SlotStatus::EMPTY);
-        }
+        sensed.present =
+            slot_status_reports_filament(slot_status_from_happy_hare(gate_status_raw_[i]));
         ams::ingest(lane_id(static_cast<int>(i)), sensed);
     }
     for (const auto& [gate, reading] : gate_readings_) {
