@@ -14,6 +14,9 @@
 #if !defined(HELIX_PLATFORM_ESP32)
 #include <sys/statvfs.h> // newlib (ESP-IDF) has no statvfs
 #endif
+#if defined(__linux__)
+#include <sys/vfs.h> // statfs + f_type; Linux-only, no portable equivalent
+#endif
 #include <unistd.h>
 
 namespace helix::paths {
@@ -42,6 +45,32 @@ std::uint64_t available_space(const std::string& dir) {
     // (pi32/armhf, MIPS32) f_bavail/f_frsize are 32-bit and the product wraps
     // for any filesystem larger than ~4 GiB.
     return static_cast<std::uint64_t>(vfs.f_bavail) * static_cast<std::uint64_t>(vfs.f_frsize);
+#endif
+}
+
+bool is_ram_backed(const std::string& dir) {
+#if defined(__linux__)
+    if (dir.empty()) {
+        return false;
+    }
+    // Magic numbers rather than <linux/magic.h>: that header is absent from
+    // some cross toolchains, and these two values are fixed ABI.
+    //
+    // f_type is __fsword_t: a SIGNED 32-bit int on 32-bit targets (armv7, MIPS)
+    // and a signed 64-bit long on 64-bit ones. RAMFS_MAGIC has its top bit set,
+    // so comparing it directly sign-extends on the 64-bit side and never
+    // matches. Narrow to 32 bits first — every filesystem magic is a 32-bit
+    // value — and the comparison holds on both widths.
+    struct statfs fs {};
+    if (::statfs(dir.c_str(), &fs) != 0) {
+        return false;
+    }
+    const auto type = static_cast<std::uint32_t>(fs.f_type);
+    return type == 0x01021994U /* tmpfs */ || type == 0x858458f6U /* ramfs */;
+#else
+    // macOS is a development host and has no tmpfs; ESP32 has no statfs.
+    (void)dir;
+    return false;
 #endif
 }
 
