@@ -66,7 +66,7 @@ platform_wait_for_services() {
 # Pre-start setup: set the active flag so other services know HelixScreen
 # owns the display.
 platform_pre_start() {
-    export HELIX_CACHE_DIR="/data/helixscreen/cache"
+    export HELIX_CACHE_DIR="${HELIX_CACHE_DIR:-/data/helixscreen/cache}"
 
     # Logging policy: see hooks-ad5m-forgex.sh for the RAM/tmpfs rationale —
     # AD5M has 107 MB RAM, /tmp is a 54 MB tmpfs typically at <10 MB free, and
@@ -91,10 +91,10 @@ platform_pre_start() {
     # launcher subshell into it. That file is theirs — it carries the
     # [helix-launcher] stderr stream and any crash/glibc output. Reusing the
     # name would interleave two writers into one file.
-    export HELIX_LOG_DEST=file
-    export HELIX_LOG_FILE="/opt/config/mod_data/log/helix.log"
-    export HELIX_LOG_ROTATE_BYTES=1048576
-    export HELIX_LOG_ROTATE_FILES=3
+    export HELIX_LOG_DEST="${HELIX_LOG_DEST:-file}"
+    export HELIX_LOG_FILE="${HELIX_LOG_FILE:-/opt/config/mod_data/log/helix.log}"
+    export HELIX_LOG_ROTATE_BYTES="${HELIX_LOG_ROTATE_BYTES:-1048576}"
+    export HELIX_LOG_ROTATE_FILES="${HELIX_LOG_ROTATE_FILES:-3}"
     mkdir -p "/opt/config/mod_data/log" 2>/dev/null || true
 
     touch /tmp/helixscreen_active
