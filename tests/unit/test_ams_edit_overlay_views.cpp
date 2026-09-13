@@ -651,15 +651,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool-edit Save preserves an existing non-G
 // The spool-edit Save's no-highlight path (empty rebuilt list) reads
 // current_type() and current_vendor() as "the user changed the material
 // without picking a product". In the favorites view the Type dropdown is
-// bypassed (hidden), so current_type() was whatever family the slot seeded —
-// a stale heading — and current_vendor() was the "\x01Favorites" sentinel,
-// neither of which the user chose. An untouched Save then overwrote the
-// slot's material with the stale heading and its brand with the sentinel.
-//
-// The fix makes current_type() report empty in the favorites view, which
-// skips the whole overwrite block. Slot material is family-folded ("PLA-CF"
-// sits under the "PLA" heading) so a stale read is guaranteed to differ from
-// the slot's material and would fire the block.
+// bypassed (hidden), so current_type() reports empty — any non-empty read
+// there is a stale heading and current_vendor() the "\x01Favorites"
+// sentinel, neither of which the user chose; an untouched Save skips the
+// whole overwrite block. The slot's material is family-folded ("PLA-CF"
+// sits under the "PLA" heading), so a stale heading is guaranteed to differ
+// from the slot's material.
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "spool-edit Save in the favorites view leaves the slot untouched",
                  "[ams_edit_overlay][spool_edit][favorites]") {
