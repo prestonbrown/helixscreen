@@ -7,13 +7,11 @@
  *        (prestonbrown/helixscreen#1619).
  *
  * TemperatureController::effective_keypad_max() is the only composition of
- * ensure_limits + keypad_range. The surfaces that used to hand-compose it —
- * ControlsPanel's three target-edit keypads, TemperatureService's custom
- * keypad, and TempGraphOverlay's keypad (a forward to the service helper) —
- * all ask that one helper through the keypad_ceiling()/custom_keypad_max()
- * face. These cases pin, per surface, that a configured max below the
- * surface's own fallback WINS, so mutating the shared helper reddens every
- * consumer's suite at once.
+ * ensure_limits + keypad_range; every keypad surface must derive its ceiling
+ * from it through the keypad_ceiling()/custom_keypad_max() face, never
+ * compose the primitives itself. These cases pin, per surface, that a
+ * configured max below the surface's own fallback WINS, so mutating the
+ * shared helper reddens every consumer's suite at once.
  */
 
 #include "ui_panel_controls.h"
