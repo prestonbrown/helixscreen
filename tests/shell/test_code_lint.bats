@@ -1755,6 +1755,75 @@ check_lane_store_write_is_private() {
     [[ "$output" == *"was not found"* ]]
 }
 
+# --- The mock files its lane readings from exactly one call site ---
+# AmsBackendMock::publish_lane_observations() reads the persistent SlotInfo
+# that set_slot_info() writes a user's colour and material into, so it states
+# simulated firmware truth only where no edit can have landed yet: the tail of
+# start(). A second call site - from load_filament, unload_filament,
+# select_slot, change_tool or force_slot_status - would file the user's own
+# values back as something the simulated machine reported.
+#
+# The mock has one struct playing both roles and no simulated firmware behind
+# it, so it cannot express the invariant the way a real backend does, and the
+# number of callers is what bounds it instead.
+
+check_mock_publishes_lane_readings_once() {
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo "could not locate $file"
+        return 1
+    fi
+
+    if ! grep -qE '^void AmsBackendMock::publish_lane_observations\(\)' "$file"; then
+        echo "AmsBackendMock::publish_lane_observations is not defined in $file"
+        return 1
+    fi
+
+    local calls
+    calls=$(grep -nE 'publish_lane_observations\(\)' "$file" \
+            | grep -v '::publish_lane_observations' || true)
+    local count
+    count=$(printf '%s\n' "$calls" | grep -c . || true)
+
+    if [ "$count" -ne 1 ]; then
+        echo "expected exactly 1 call to publish_lane_observations() in $file, found $count:"
+        echo "$calls"
+        return 1
+    fi
+    return 0
+}
+
+@test "the mock files its lane readings from exactly one call site" {
+    run check_mock_publishes_lane_readings_once src/printer/ams_backend_mock.cpp
+    [ "$status" -eq 0 ]
+}
+
+@test "the mock publish gate fires when a second call site is added" {
+    local mutated="${BATS_TEST_TMPDIR}/mock_two_publishes.cpp"
+    sed -e 's@^\([[:space:]]*\)publish_lane_observations();@\1publish_lane_observations();\n\1publish_lane_observations();@' \
+        src/printer/ams_backend_mock.cpp > "$mutated"
+
+    run check_mock_publishes_lane_readings_once "$mutated"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"found 2"* ]]
+}
+
+@test "the mock publish gate fails closed when the method is renamed" {
+    local mutated="${BATS_TEST_TMPDIR}/mock_renamed_publish.cpp"
+    sed -e 's@publish_lane_observations@refile_lane_readings@g' \
+        src/printer/ams_backend_mock.cpp > "$mutated"
+
+    run check_mock_publishes_lane_readings_once "$mutated"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"is not defined in"* ]]
+}
+
+@test "the mock publish gate fails closed when the file is missing" {
+    run check_mock_publishes_lane_readings_once "${BATS_TEST_TMPDIR}/does_not_exist.cpp"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"could not locate"* ]]
+}
+
 # --- Hand-built tool labels and lane/slot offsets must route through display_numbering.h ---
 # include/display_numbering.h keeps the storage-index -> display-number `+ 1`
 # in exactly one function (helix::ui::lane_number()) and spells a gcode tool's

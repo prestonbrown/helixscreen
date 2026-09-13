@@ -5,11 +5,15 @@
 
 #include "ams_backend_toolchanger.h"
 #include "ams_error.h"
+#include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 
+#include <memory>
 #include <mutex>
 #include <string>
 #include <utility>
+
+#include "hv/json.hpp"
 
 namespace helix {
 
@@ -32,6 +36,13 @@ class ToolChangerTestAccess {
         return b.dispatch_operation(std::move(gcode), action);
     }
 
+    /// Point the backend at a lane-record store without a live Moonraker,
+    /// which is what a resync re-reads.
+    static void inject_override_store(AmsBackendToolChanger& b,
+                                      std::unique_ptr<helix::ams::FilamentSlotOverrideStore> s) {
+        b.override_store_ = std::move(s);
+    }
+
     /// Whether an optimistic dispatch is still armed and awaiting resolution.
     /// A cancelled home confirmation must clear this -- otherwise the next
     /// macro ack (or a superseding dispatch) resolves against a generation
@@ -51,6 +62,22 @@ class ToolChangerTestAccess {
     /// there self-deadlocks.
     static void call_on_started(AmsBackendToolChanger& b) {
         b.on_started();
+    }
+
+    /// Drive the REAL status path. handle_status_update() is protected, and it
+    /// is where every dock and carriage reading lands, so a case that wants a
+    /// later frame's effect has to go through it rather than poking members.
+    static void handle_status(AmsBackendToolChanger& b, const nlohmann::json& n) {
+        b.handle_status_update(n);
+    }
+
+    /// Put a user override in the map without a store behind it. On this
+    /// backend the override IS the only source of filament identity, so this is
+    /// how a case builds a slot whose every identity field is the user's.
+    static void seed_override(AmsBackendToolChanger& b, int slot_index,
+                              const helix::ams::FilamentSlotOverride& ovr) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.overrides_[slot_index] = ovr;
     }
 
     /// Name of the Moonraker DB namespace the store was pointed at, so a test

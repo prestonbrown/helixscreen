@@ -14,6 +14,8 @@
 #include "filament_slot_override_store.h"
 #include "json_utils.h"
 #include "klipper_error_table.h"
+#include "lane_source_store.h"
+#include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_param_cache.h"
 #include "moonraker_error.h"
@@ -53,16 +55,19 @@ std::string CfsMaterialDb::strip_code(const std::string& code) {
 }
 
 uint32_t CfsMaterialDb::parse_color(const std::string& color_str) {
-    if (color_str == "-1" || color_str == "None" || color_str.empty())
+    if (color_str == "-1" || color_str == "None")
         return DEFAULT_COLOR;
+    // Creality's leading-zero "0RRGGBB" is this firmware's own spelling and is
+    // owned here; what is left is ordinary hex, which helix::ams::read_lane_color
+    // reads by the same grammar as every other lane-shaped producer. A value
+    // carrying anything but a colour is refused whole rather than read up to its
+    // first bad character, so a trailing-garbage field renders as "no colour"
+    // instead of a plausible wrong one.
     std::string hex = color_str;
     if (hex.size() == 7 && hex[0] == '0')
         hex = hex.substr(1);
-    try {
-        return static_cast<uint32_t>(std::stoul(hex, nullptr, 16));
-    } catch (...) {
-        return DEFAULT_COLOR;
-    }
+    const auto reading = helix::ams::read_lane_color(hex);
+    return reading.kind == helix::ams::ColorReadingKind::Observed ? reading.rgb : DEFAULT_COLOR;
 }
 
 std::string CfsMaterialDb::slot_to_tnn(int global_index) {
@@ -857,28 +862,22 @@ AmsBackendCfs::parse_stock_box_status(const nlohmann::json& box_json,
 
 // --- Flat schema (community Kalico box.py reimplementations) ---------------
 
-// Parse a conventional "#RRGGBB" (or bare "RRGGBB") into 0xRRGGBB.
+// The flat schema's colour, as a SlotInfo value.
 //
-// NOT CfsMaterialDb::parse_color: that one owns Creality's leading-zero
-// "0RRGGBB" form and its "-1"/"None" sentinels. The flat schema uses the
-// ordinary web spelling, and marks "no color" with an empty string (the
-// external-spool entry). Anything unparseable — wrong length, non-hex digits,
-// empty — yields the default slot color rather than a partial read, so a
-// malformed field renders as "unknown color" instead of a plausible wrong one.
+// The grammar is helix::ams::read_lane_color's, which is every lane-shaped
+// producer's, so "#RRGGBB", a bare "RRGGBB", "#RGB", an "0x" prefix and the
+// 8-digit alpha form all mean here what they mean everywhere else. NOT
+// CfsMaterialDb::parse_color: that one owns Creality's leading-zero "0RRGGBB"
+// form and its "-1"/"None" sentinels, which are this firmware's alone.
+//
+// Both of the helper's non-colour answers land on AMS_DEFAULT_SLOT_COLOR,
+// because SlotInfo has no other way to say "no colour": the external-spool
+// entry writes the key empty (Cleared) and a malformed value is refused rather
+// than half-read (NoReading), and a bay renders as "unknown colour" for either.
 static uint32_t parse_flat_slot_color(const std::string& raw) {
-    std::string s = raw;
-    if (!s.empty() && s[0] == '#') {
-        s.erase(0, 1);
-    }
-    if (s.size() != 6) {
-        return AMS_DEFAULT_SLOT_COLOR;
-    }
-    for (char c : s) {
-        if (std::isxdigit(static_cast<unsigned char>(c)) == 0) {
-            return AMS_DEFAULT_SLOT_COLOR;
-        }
-    }
-    return static_cast<uint32_t>(std::stoul(s, nullptr, 16));
+    const auto reading = helix::ams::read_lane_color(raw);
+    return reading.kind == helix::ams::ColorReadingKind::Observed ? reading.rgb
+                                                                  : AMS_DEFAULT_SLOT_COLOR;
 }
 
 // The flat schema's box-gate presence reading, or nullopt when this frame
@@ -1264,6 +1263,44 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
                 own_labels = pushed_material_codes_;
             }
             auto new_info = parse_box_status(box, &own_labels);
+
+            // Firmware's own account of every bay this frame described. What
+            // makes this correct is the values, not the position: new_info is
+            // what the parse just built out of the payload, where the
+            // system_info_.units the override pass further down walks is the
+            // struct apply_overrides() has rewritten in place on every previous
+            // frame. A translation reading that back would file a user's own
+            // edit as something the box remembers.
+            //
+            // A bay this frame did not describe is not in new_info and is filed
+            // nothing. One ingest replaces a source's record whole, so a lane
+            // the box said nothing about keeps the reading it last stated.
+            for (const auto& unit : new_info.units) {
+                for (const auto& slot : unit.slots) {
+                    const helix::ams::LaneId lane = lane_id(slot.global_index);
+
+                    helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
+                    sensed.present = slot_status_reports_filament(slot.status);
+                    helix::ams::ingest(lane, sensed);
+
+                    // What the box remembers reading off a tag, which is a
+                    // cache of a past declaration and never evidence of what is
+                    // loaded. `name` says which PRODUCT the bay holds, a
+                    // different question from what a spool is called.
+                    helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+                    if (!slot.material.empty())
+                        cache.material = slot.material;
+                    if (!slot.brand.empty())
+                        cache.brand = slot.brand;
+                    if (!slot.spool_name.empty())
+                        cache.product_name = slot.spool_name;
+                    if (helix::ams::is_declarable_color(slot.color_rgb))
+                        cache.color_rgb = slot.color_rgb;
+                    if (slot.spoolman_id > 0)
+                        cache.spoolman_id = slot.spoolman_id;
+                    helix::ams::ingest(lane, cache);
+                }
+            }
 
             // Payload reads happen before the lock; the values converge under
             // it with everything else below.

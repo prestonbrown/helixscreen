@@ -5,6 +5,7 @@
 #include "helix_test_fixture.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
+#include "test_helpers/log_capture.h"
 
 #include <spdlog/spdlog.h>
 
@@ -222,6 +223,83 @@ TEST_CASE_METHOD(HelixTestFixture, "a funnel handed no lane writes nothing", "[l
     CHECK_FALSE(lane_sources(helix::ams::INVALID_LANE_ID).sensed.has_value());
 }
 
+TEST_CASE_METHOD(HelixTestFixture, "a dropped lane is reported once, and again when the id changes",
+                 "[lane][ingest]") {
+    helix::LogCapture log;
+
+    Observation sensed(ObservationSource::Sensed);
+    sensed.present = true;
+
+    // A producer filing through a backend that has no index yet reaches this
+    // three times per lane per frame, and the id is the whole content of the
+    // message, so the second and third repeat tell a reader nothing.
+    ingest(helix::ams::INVALID_LANE_ID, sensed);
+    ingest(helix::ams::INVALID_LANE_ID, sensed);
+    ingest(helix::ams::INVALID_LANE_ID, sensed);
+    CHECK(log.count_containing("names no position") == 1);
+
+    // The other funnel, on the SAME id: a machine reading filed on no lane and
+    // a person's edit thrown away are not the same loss, and the producer's
+    // flood runs first at startup, so one latch for both would silence the
+    // half that matters more.
+    Observation user(ObservationSource::LocalUser);
+    user.color_rgb = 0xBCBCBC;
+    helix::ams::commit_slot_edit(helix::ams::INVALID_LANE_ID, user);
+    CHECK(log.count_containing("names no position") == 2);
+
+    // It latches the same way once it has spoken.
+    helix::ams::commit_slot_edit(helix::ams::INVALID_LANE_ID, user);
+    CHECK(log.count_containing("names no position") == 2);
+
+    // A different id is a different fact and speaks for itself.
+    ingest(helix::ams::END_LANE_ID, sensed);
+    CHECK(log.count_containing("names no position") == 3);
+}
+
+TEST_CASE("a lane colour string reads as a value, a clear or nothing", "[lane][ingest]") {
+    using helix::ams::ColorReadingKind;
+    using helix::ams::read_lane_color;
+
+    SECTION("a colour, however the producer spells it") {
+        CHECK(read_lane_color("#ED2C2C").kind == ColorReadingKind::Observed);
+        CHECK(read_lane_color("#ED2C2C").rgb == 0xED2C2Cu);
+        CHECK(read_lane_color("ED2C2C").rgb == 0xED2C2Cu);
+        CHECK(read_lane_color("0xED2C2C").rgb == 0xED2C2Cu);
+        CHECK(read_lane_color("ed2c2c").rgb == 0xED2C2Cu);
+        // Pure black is a colour a spool can be, not a failure.
+        CHECK(read_lane_color("#000000").kind == ColorReadingKind::Observed);
+        CHECK(read_lane_color("#000000").rgb == 0x000000u);
+    }
+
+    SECTION("the short form expands rather than reading as a near-black") {
+        CHECK(read_lane_color("#F00").kind == ColorReadingKind::Observed);
+        CHECK(read_lane_color("#F00").rgb == 0xFF0000u);
+    }
+
+    SECTION("a slicer's 8-digit form drops alpha rather than carrying it") {
+        CHECK(read_lane_color("#800080FF").kind == ColorReadingKind::Observed);
+        CHECK(read_lane_color("#800080FF").rgb == 0x800080u);
+    }
+
+    SECTION("nothing but a prefix is the producer clearing the lane") {
+        CHECK(read_lane_color("").kind == ColorReadingKind::Cleared);
+        CHECK(read_lane_color("#").kind == ColorReadingKind::Cleared);
+        CHECK(read_lane_color("  ").kind == ColorReadingKind::Cleared);
+        CHECK(read_lane_color(" # ").kind == ColorReadingKind::Cleared);
+    }
+
+    SECTION("a value that is not a colour is no reading, which is not a clear") {
+        // Each of these has a reading a bare std::stoul would hand back: a
+        // partial parse of the head, or a negation. None of them is what the
+        // producer meant.
+        CHECK(read_lane_color("#zzzzzz").kind == ColorReadingKind::NoReading);
+        CHECK(read_lane_color("FF0000junk").kind == ColorReadingKind::NoReading);
+        CHECK(read_lane_color("-1").kind == ColorReadingKind::NoReading);
+        CHECK(read_lane_color("beef").kind == ColorReadingKind::NoReading);
+        CHECK(read_lane_color("None").kind == ColorReadingKind::NoReading);
+    }
+}
+
 TEST_CASE("the blocks are adjacent, which is why a slot index is bounded", "[lane][ingest]") {
     using helix::ams::lane_id_for;
     using helix::ams::LANES_PER_BACKEND;
@@ -253,6 +331,30 @@ TEST_CASE_METHOD(HelixTestFixture, "commit_slot_edit refuses a source that is no
     CHECK_FALSE(lane.vendor_cache.has_value());
     CHECK_FALSE(lane.local_user.has_value());
     CHECK(helix::ams::known_lanes().empty());
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "ingest refuses a LocalUser observation and leaves the user's record alone",
+                 "[lane][ingest]") {
+    Observation declared(ObservationSource::LocalUser);
+    declared.color_rgb = 0xBCBCBC;
+    helix::ams::commit_slot_edit(6, declared);
+
+    const auto before = lane_sources(6);
+    REQUIRE(before.local_user.has_value());
+    CHECK(before.local_user->color_rgb == 0xBCBCBC);
+
+    // ingest() replaces whole-record, so a LocalUser observation reaching it
+    // would destroy the user's declaration rather than merely fail to amend
+    // it. The colour differs from the one above so a silent pass-through
+    // shows up as a changed value, not a coincidental match.
+    Observation impostor(ObservationSource::LocalUser);
+    impostor.color_rgb = 0x000000;
+    ingest(6, impostor);
+
+    const auto after = lane_sources(6);
+    REQUIRE(after.local_user.has_value());
+    CHECK(after.local_user->color_rgb == 0xBCBCBC);
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "known_lanes lists every lane that has been written",

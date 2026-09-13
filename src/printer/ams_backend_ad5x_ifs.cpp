@@ -16,6 +16,8 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
+#include "lane_source_store.h"
+#include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "post_op_cooldown_manager.h"
 #include "print_lifecycle_state.h"
@@ -1120,13 +1122,25 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
 
     auto idx = static_cast<size_t>(slot_index);
 
-    // Color: parse hex string to uint32_t
-    if (!colors_[idx].empty()) {
-        try {
-            entry->info.color_rgb = static_cast<uint32_t>(std::stoul(colors_[idx], nullptr, 16));
-        } catch (...) {
-            // Invalid hex — leave color unchanged
-        }
+    // Color: read the string through the shared lane grammar. observed_color
+    // is what this call read out of colors_[idx], and it is the ONLY
+    // firmware-truth colour in scope below - entry->info.color_rgb stops being
+    // one the moment apply_overrides() has run over this persistent SlotInfo
+    // once.
+    //
+    // colors_[idx] is not guaranteed to be six hex digits: parse_adventurer_json
+    // stores ffmColorN as the printer sent it, minus a leading '#', and the
+    // stock UI writes the '#RGB' short form. Only an Observed reading is a
+    // colour; anything else leaves color_rgb alone so the last good colour
+    // stays on screen. Cleared lands there too, because an empty colors_[idx]
+    // is a slot no source has spoken for yet rather than the board stating the
+    // lane has no colour - parse_save_variables and handle_status_update run
+    // before parse_adventurer_json fills it.
+    std::optional<uint32_t> observed_color;
+    if (const auto reading = ams::read_lane_color(colors_[idx]);
+        reading.kind == ams::ColorReadingKind::Observed) {
+        observed_color = reading.rgb;
+        entry->info.color_rgb = reading.rgb;
     }
 
     // Material
@@ -1170,27 +1184,17 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
     // Reverse tool mapping: find first tool that maps to this port
     entry->info.mapped_tool = find_first_tool_for_port(slot_index + 1);
 
-    // External-edit detection MUST run BEFORE apply_overrides. entry->info
-    // .color_rgb is firmware-truth here IF colors_[idx] was non-empty above;
-    // after apply_overrides it would be masked by the (possibly stale)
-    // override and we'd miss the delta vs. the prior firmware baseline.
+    // External-edit detection MUST run BEFORE apply_overrides: it compares a
+    // firmware reading against the last firmware baseline, and apply_overrides
+    // masks entry->info with the (possibly stale) override.
     //
-    // When colors_[idx] is empty we have NO firmware reading yet —
-    // entry->info.color_rgb is whatever was left there by the SlotInfo
-    // default (AMS_DEFAULT_SLOT_COLOR / 0x808080) or a prior apply_overrides
-    // leak. Pass nullopt (the helper's explicit "no reading" signal) so we
-    // don't establish a phantom baseline that would later be misread as an
-    // external edit. Boot path: parse_save_variables / handle_status_update
-    // call update_slot_from_state BEFORE parse_adventurer_json fills in
-    // colors_[]; pre-fix this populated a 0x808080 baseline, then the first
-    // real parse triggered a bogus sync.
+    // observed_color is nullopt whenever this call read no colour at all: an
+    // empty colors_[idx] (parse_save_variables / handle_status_update run
+    // before parse_adventurer_json fills it), or a string that would not parse.
+    // That is the helper's explicit "no reading" signal, and it establishes no
+    // baseline, so a genuine later reading is not misread as an external edit.
+    // Any uint32_t inside the optional IS a reading, 0 for pure black included.
     //
-    // When colors_[idx] is non-empty, pass the parsed value AS-IS — including
-    // 0 for pure black. The helper accepts any uint32_t inside the optional
-    // as a real reading; only nullopt means "no reading" (replaces the prior
-    // ambiguous 0-as-no-signal sentinel that silently dropped black).
-    std::optional<uint32_t> observed_color =
-        colors_[idx].empty() ? std::nullopt : std::optional<uint32_t>{entry->info.color_rgb};
     // Pass slot_has_filament so the helper skips creating a phantom override
     // when a slot read came back as the empty-placeholder #808080 — the eject
     // path in parse_adventurer_json clears the override explicitly.
@@ -1199,6 +1203,33 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
     // the color detector, so a non-locked override's baked material would go
     // stale and mask firmware truth (#981/#1065 — color updated, type stuck).
     check_external_type_change(slot_index, materials_[idx], observed_color, port_presence_[idx]);
+
+    // Translate this frame's signal into the lane source model. Every value
+    // read here is one this call produced, never entry->info: apply_overrides
+    // rewrites that struct in place, so reading it back files the override
+    // store's content as something the board reported. What makes this correct
+    // is the values, not the position - the same block one line lower, reading
+    // entry->info, would launder every user edit into a vendor reading.
+    {
+        helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
+        // port_presence_ reads false on every lane until a sensor has actually
+        // spoken, which is a sensor nobody has queried rather than an empty
+        // lane. The record is filed either way: "nothing observed" and "no
+        // translation ran" are different facts.
+        if (ifs_status_ports_seen_.load() || has_per_port_sensors_) {
+            sensed.present = port_presence_[idx];
+        }
+        helix::ams::ingest(lane_id(slot_index), sensed);
+
+        // Adventurer5M.json keeps colour and type across an eject, so it is a
+        // cache of a past declaration and never evidence of presence.
+        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+        cache.color_rgb = observed_color;
+        if (!materials_[idx].empty()) {
+            cache.material = materials_[idx];
+        }
+        helix::ams::ingest(lane_id(slot_index), cache);
+    }
 
     // Layer user-configured overrides on top of firmware-reported data. Called
     // last so overrides win for any non-default field. Callers hold mutex_,
@@ -2701,7 +2732,7 @@ AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, 
         // slot lines, the Adventurer5M.json poll, and schedule_zcolor_query.
         if (!has_per_port_sensors_ && !ifs_status_ports_seen_.load()) {
             bool has_data =
-                !normalized_material.empty() || info.color_rgb != AMS_DEFAULT_SLOT_COLOR;
+                !normalized_material.empty() || ams::is_declarable_color(info.color_rgb);
             port_presence_[idx] = has_data;
         }
 

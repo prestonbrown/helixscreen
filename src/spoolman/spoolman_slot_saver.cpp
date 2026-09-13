@@ -4,6 +4,7 @@
 
 #include "filament_database.h"
 #include "i_moonraker_api.h"
+#include "lane_translation.h"
 #include "spoolman_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -30,7 +31,7 @@ SpoolmanSlotSaver::SpoolmanSlotSaver(IMoonrakerAPI* api) : api_(api) {}
 
 bool SpoolmanSlotSaver::is_filament_complete(const SlotInfo& slot) {
     return !slot.brand.empty() && !slot.material.empty() &&
-           slot.color_rgb != AMS_DEFAULT_SLOT_COLOR;
+           helix::ams::is_declarable_color(slot.color_rgb);
 }
 
 ChangeSet SpoolmanSlotSaver::detect_changes(const SlotInfo& original, const SlotInfo& edited) {

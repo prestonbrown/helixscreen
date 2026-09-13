@@ -74,6 +74,18 @@ LaneSources LaneSourceStore::get(LaneId lane) const {
 void LaneSourceStore::clear() {
     std::lock_guard<std::mutex> lock(mutex_);
     lanes_.clear();
+    warned_producer_drop_.reset();
+    warned_edit_drop_.reset();
+}
+
+bool LaneSourceStore::first_drop_of(DropSite site, LaneId lane) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto& latch = site == DropSite::Producer ? warned_producer_drop_ : warned_edit_drop_;
+    if (latch == lane) {
+        return false;
+    }
+    latch = lane;
+    return true;
 }
 
 std::vector<LaneId> LaneSourceStore::lanes() const {
@@ -88,9 +100,15 @@ std::vector<LaneId> LaneSourceStore::lanes() const {
 
 void ingest(LaneId lane, const Observation& obs) {
     if (!is_lane_id(lane)) {
-        spdlog::warn("[LaneSourceStore] ingest called with lane {}, which names no position; "
-                     "dropped",
-                     lane);
+        if (LaneSourceStore::instance().first_drop_of(LaneSourceStore::DropSite::Producer, lane)) {
+            spdlog::warn("[LaneSourceStore] ingest called with lane {}, which names no position; "
+                         "dropped. Repeats for this lane are silent.",
+                         lane);
+        }
+        return;
+    }
+    if (obs.source == ObservationSource::LocalUser) {
+        spdlog::warn("[LaneSourceStore] ingest called with a user source; dropped");
         return;
     }
     LaneSourceStore::instance().write(lane, obs, /*amend=*/false);
@@ -98,9 +116,11 @@ void ingest(LaneId lane, const Observation& obs) {
 
 void commit_slot_edit(LaneId lane, const Observation& obs) {
     if (!is_lane_id(lane)) {
-        spdlog::warn("[LaneSourceStore] commit_slot_edit called with lane {}, which names no "
-                     "position; dropped",
-                     lane);
+        if (LaneSourceStore::instance().first_drop_of(LaneSourceStore::DropSite::UserEdit, lane)) {
+            spdlog::warn("[LaneSourceStore] commit_slot_edit called with lane {}, which names no "
+                         "position; dropped. Repeats for this lane are silent.",
+                         lane);
+        }
         return;
     }
     if (obs.source != ObservationSource::LocalUser) {

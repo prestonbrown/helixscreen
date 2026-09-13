@@ -5436,7 +5436,8 @@ TEST_CASE("AFC 3-unit incremental arrival preserves all unit lanes",
     for (int i = 0; i < 12; ++i) {
         std::string lane_name = "lane" + std::to_string(i);
         nlohmann::json stepper_data = {
-            {"color", "FF" + std::to_string(1000 + i).substr(1)},
+            // Six hex digits per lane: a shorter run is not a colour.
+            {"color", "FF0" + std::to_string(1000 + i).substr(1)},
             {"material", "PLA"},
             {"spool_id", 300 + i},
             {"weight", 800},
@@ -6204,6 +6205,29 @@ TEST_CASE("AFC parse: a malformed colour still keeps the previous value", "[ams]
     // Garbage is a parse failure, NOT a clear — only empty means cleared.
     helper.feed_afc_stepper("lane1", {{"color", "#zzzzzz"}});
     REQUIRE(helper.get_system_info().get_slot_global(0)->color_rgb == 0xE53935);
+}
+
+TEST_CASE("AFC parse: the colour forms a slicer emits", "[ams][afc][status]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.initialize_slots_from_discovery();
+
+    SECTION("three digits expand to six") {
+        helper.feed_afc_stepper("lane1", {{"color", "#F00"}});
+        CHECK(helper.get_system_info().get_slot_global(0)->color_rgb == 0xFF0000);
+    }
+
+    SECTION("eight digits drop the alpha byte") {
+        helper.feed_afc_stepper("lane1", {{"color", "#800080FF"}});
+        CHECK(helper.get_system_info().get_slot_global(0)->color_rgb == 0x800080);
+    }
+
+    SECTION("a hex head with a tail behind it is not a colour") {
+        helper.feed_afc_stepper("lane1", {{"color", "#E53935"}});
+        REQUIRE(helper.get_system_info().get_slot_global(0)->color_rgb == 0xE53935);
+        helper.feed_afc_stepper("lane1", {{"color", "#FF0000junk"}});
+        CHECK(helper.get_system_info().get_slot_global(0)->color_rgb == 0xE53935);
+    }
 }
 
 TEST_CASE("AFC parse: absent fields are retained (deltas, not snapshots)", "[ams][afc][status]") {

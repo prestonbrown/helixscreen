@@ -456,6 +456,19 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// (needs api_), and on backends constructed without an API in tests.
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
 
+    /// The shared lane_data namespace this backend co-authors. request_resync()
+    /// re-reads it only where firmware states no identity of its own.
+    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
+        return override_store_.get();
+    }
+
+    /// klipper-toolchanger reports no filament identity, so nothing here files
+    /// a vendor-cache reading from a status frame and the persisted record is
+    /// the lane's only account of what a slot holds.
+    [[nodiscard]] bool firmware_publishes_lane_identity() const override {
+        return false;
+    }
+
     /**
      * @brief Parse individual tool state from Moonraker JSON
      *

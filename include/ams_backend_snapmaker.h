@@ -6,10 +6,13 @@
 #include "ams_subscription_backend.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "lane_echo.h"
+#include "lane_observation.h"
 
 #include <array>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -477,11 +480,34 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
     std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
 
+    /// The shared lane_data namespace this backend co-authors. request_resync()
+    /// re-reads it only where firmware states no identity of its own.
+    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
+        return override_store_.get();
+    }
+
     // Per-slot last-observed RFID CARD_UID. Shared with the other
     // RFID-fingerprint backend (CFS). Snapmaker never calls expect() — nothing
     // here writes a UID back to firmware, so every change is external. All
     // access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
+
+    /// What the user declared in their last edit of a channel, out of the
+    /// fields set_slot_info actually sent to /printer/filament_detect/set.
+    ///
+    /// The write target is filament_detect.info, the same object
+    /// parse_rfid_info reads, and VENDOR / MAIN_TYPE / SUB_TYPE are spelled
+    /// identically on both sides, so firmware reports a user's declaration
+    /// back through the RFID path where it is indistinguishable by value from
+    /// a tag reading.
+    ///
+    /// The boundary is the tag's CARD_UID, taken from rfid_tracker_: a
+    /// hardware identifier the edit UI cannot set, so a change is
+    /// unambiguously a different physical spool. It is the same signal
+    /// check_hardware_event_clear() trusts to delete the user's override, so
+    /// the suppression and the clear end together and neither can expose what
+    /// the other still holds. All access under mutex_.
+    helix::ams::OwnWriteEchoes own_write_echoes_;
 };
 
 } // namespace helix

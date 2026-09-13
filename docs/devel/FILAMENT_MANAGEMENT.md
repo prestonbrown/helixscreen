@@ -377,7 +377,7 @@ panel — not a slicer-to-printer write.
 
 - **Wire-format spec (public):** [`../specs/filament_slots.md`](../specs/filament_slots.md)
 - **Implementation notes (internal):** [`FILAMENT_SLOT_METADATA.md`](FILAMENT_SLOT_METADATA.md)
-- **Lane source model (written, not yet read):** [`architecture/07-filament-ams.md`](architecture/07-filament-ams.md) § "Lane identity by source" - the per-source `Observation` / `resolve()` model that carries where a value came from instead of inferring it from the value's shape. A human slot edit is filed there as that person's declaration; no backend writes to it and nothing reads it, so everything below still reads a lane through `SlotInfo` + `FilamentSlotOverride`.
+- **Lane source model (written, not yet read):** [`architecture/07-filament-ams.md`](architecture/07-filament-ams.md) § "Lane identity by source" - the per-source `Observation` / `resolve()` model that carries where a value came from instead of inferring it from the value's shape. All nine backends file their readings there and a human slot edit is filed as that person's declaration, but nothing reads any of it, so everything below still reads a lane through `SlotInfo` + `FilamentSlotOverride`.
 
 ### Material names as G-code parameter values
 

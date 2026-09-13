@@ -7,6 +7,7 @@
 
 #include <map>
 #include <mutex>
+#include <optional>
 #include <vector>
 
 namespace helix::ams {
@@ -101,13 +102,16 @@ static_assert(END_LANE_ID > FIRST_TOOL_LANE_ID,
 /// for obs.source whole and leaves every other source untouched. A field the
 /// source did not observe stops contributing, which is what keeps a stale
 /// frame from re-asserting a value its author has stopped standing behind.
+/// obs.source must not be LocalUser; commit_slot_edit() is that source's only
+/// funnel.
 ///
 /// A lane that is not a lane is warned about and dropped.
 void ingest(LaneId lane, const Observation& obs);
 
 /// The one way a human edit writes this store. Unlike ingest(), this AMENDS
 /// the user's record field by field: a person states what they changed, and
-/// what they declared earlier still stands. obs.source must be LocalUser.
+/// what they declared earlier still stands. obs.source must be LocalUser;
+/// every other source's only funnel is ingest().
 ///
 /// This is the declaration layer: it records the user's authorship as a lane
 /// source record. AmsState::commit_slot_edit (ams_state.h) is the method
@@ -161,6 +165,25 @@ class LaneSourceStore {
     /// observed fields onto whatever that source already holds.
     void write(LaneId lane, const Observation& obs, bool amend);
 
+    /// Which funnel threw a record away. The two are different facts about
+    /// different callers, so each speaks for itself.
+    enum class DropSite {
+        Producer, ///< ingest(): a machine reading filed on no lane.
+        UserEdit, ///< commit_slot_edit(): a person's edit thrown away.
+    };
+
+    /// True when @p site has not already warned about @p lane, latching it so
+    /// the next call naming the same pair is false.
+    ///
+    /// Each message carries its id and nothing else, so repeating one for the
+    /// same id tells a reader nothing they have not been told, and a producer
+    /// filing through a backend that has no index yet reaches this three times
+    /// per lane per frame - enough to push unrelated lines out of a test's log
+    /// ring. A changed id speaks again, and so does the other funnel: at
+    /// startup the producer's flood always runs first, and a lost user edit is
+    /// the more serious of the two to lose.
+    bool first_drop_of(DropSite site, LaneId lane);
+
     friend void ingest(LaneId, const Observation&);
     friend void commit_slot_edit(LaneId, const Observation&);
 
@@ -168,6 +191,12 @@ class LaneSourceStore {
     /// callbacks that will feed this in plan 4 land on an HTTP worker.
     mutable std::mutex mutex_;
     std::map<LaneId, LaneSources> lanes_;
+
+    /// The lane id each funnel's last dropped-lane warning named. Cleared with
+    /// the lanes, so a test that wants the warning gets it: every fixture
+    /// calls reset_lane_sources().
+    std::optional<LaneId> warned_producer_drop_;
+    std::optional<LaneId> warned_edit_drop_;
 };
 
 } // namespace helix::ams

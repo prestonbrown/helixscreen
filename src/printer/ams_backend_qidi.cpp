@@ -5,6 +5,8 @@
 
 #include "ams_error.h"
 #include "display_numbering.h"
+#include "lane_source_store.h"
+#include "lane_translation.h"
 #include "macro_param_cache.h"
 #include "settings_manager.h"
 #include "slot_registry.h"
@@ -755,6 +757,15 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
         }
 
         const auto& rfid = slot_rfid_[static_cast<size_t>(i)];
+
+        // The saved ids name rows in the Box's own tables, which makes a row
+        // that resolves the reading and an id that resolves against nothing no
+        // reading at all. The observed values are the LOOKUP RESULTS rather
+        // than what lands on slot->: SlotInfo persists across frames, so a
+        // table reload that drops a row leaves the last frame's value sitting
+        // there with nothing behind it, and reading it back would file that
+        // orphan as something the Box still says.
+        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
         if (rfid.filament_id > 0) {
             auto p = fila_profiles_.find(rfid.filament_id);
             if (p != fila_profiles_.end()) {
@@ -762,6 +773,7 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
                 slot->nozzle_temp_max = p->second.nozzle_max;
                 if (!p->second.type.empty()) {
                     slot->material = p->second.type;
+                    cache.material = p->second.type;
                 }
             }
         }
@@ -769,14 +781,21 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
             auto c = color_palette_.find(rfid.color_id);
             if (c != color_palette_.end()) {
                 slot->color_rgb = c->second;
+                // The palette row reaches here as a decoded integer, so the
+                // struct-side rule is the one that applies.
+                if (helix::ams::is_declarable_color(c->second)) {
+                    cache.color_rgb = c->second;
+                }
             }
         }
         if (rfid.vendor_id > 0) {
             auto v = vendor_names_.find(rfid.vendor_id);
             if (v != vendor_names_.end() && !v->second.empty()) {
                 slot->brand = v->second;
+                cache.brand = v->second;
             }
         }
+        helix::ams::ingest(lane_id(i), cache);
     }
 
     // Reconcile the LOADED stamp with the aggregate pair, after both writers.
@@ -796,6 +815,30 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
                 seated->status = SlotStatus::LOADED;
             }
         }
+    }
+
+    // Presence, once every writer of status has run: the slot<N> loop derives
+    // it from the state word, last_load_slot can promote a slot to LOADED, and
+    // the reconciliation above settles the two. A negative state word is
+    // BLOCKED, which reports filament - a jam is filament stuck in the path,
+    // and answering "no reading" there would retract a live presence record at
+    // the moment a lane jams.
+    //
+    // UNKNOWN is the Box declining to state, which is not a statement that the
+    // lane is empty, so a slot resting there keeps whatever the last frame that
+    // did speak established.
+    for (int i = 0; i < slot_count; ++i) {
+        const auto* s = system_info_.get_slot_global(i);
+        if (!s) {
+            continue;
+        }
+        const auto reports = slot_status_reports_filament(s->status);
+        if (!reports) {
+            continue;
+        }
+        helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
+        sensed.present = *reports;
+        helix::ams::ingest(lane_id(i), sensed);
     }
 }
 
@@ -840,27 +883,6 @@ void AmsBackendQidi::apply_filas_list(const std::string& content) {
             return false;
         }
     };
-    // `#RRGGBB` or `RRGGBB` → packed 0xRRGGBB. Returns nullopt on bad input.
-    auto parse_hex_color = [&](const std::string& v) -> std::optional<std::uint32_t> {
-        std::string body = trim(v);
-        if (!body.empty() && body.front() == '#') {
-            body.erase(0, 1);
-        }
-        if (body.size() != 6) {
-            return std::nullopt;
-        }
-        try {
-            std::size_t consumed = 0;
-            const unsigned long packed = std::stoul(body, &consumed, 16);
-            if (consumed != body.size()) {
-                return std::nullopt;
-            }
-            return static_cast<std::uint32_t>(packed & 0xFFFFFFu);
-        } catch (const std::exception&) {
-            return std::nullopt;
-        }
-    };
-
     enum class Section { None, Fila, Color, Vendor };
 
     std::map<int, FilaProfile> next_profiles;
@@ -939,8 +961,16 @@ void AmsBackendQidi::apply_filas_list(const std::string& content) {
         case Section::Color: {
             try {
                 int id = std::stoi(trim(key));
-                if (auto rgb = parse_hex_color(val)) {
-                    next_colors[id] = *rgb;
+                // A colordict row is a lane-shaped colour value like any other
+                // producer's, so the tree's one hex grammar reads it: `#RGB`,
+                // a bare `RRGGBB`, an `0x` prefix and the 8-digit `#RRGGBBAA`
+                // all mean here what they mean everywhere else. Only a row
+                // stating a colour becomes a palette entry; a blank row states
+                // that the id names none, which is not a colour to resolve
+                // against.
+                const auto reading = helix::ams::read_lane_color(val);
+                if (reading.kind == helix::ams::ColorReadingKind::Observed) {
+                    next_colors[id] = reading.rgb;
                 }
             } catch (const std::exception&) {
                 // Non-integer key in [colordict] — ignore.

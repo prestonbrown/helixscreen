@@ -12,6 +12,8 @@
 #include "filament_slot_override_store.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
+#include "lane_source_store.h"
+#include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "pause_cause.h"
@@ -759,11 +761,18 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
     if (err.result != AmsResult::SUCCESS)
         return err;
 
+    // The channel as it stood before this edit. user_edit_observation needs
+    // the whole struct to answer what the user declared, and that answer is
+    // what the write-back guard suppresses.
+    SlotInfo prior_slot;
+
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* slot = system_info_.units[0].get_slot(slot_index);
         if (!slot)
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_TOOLS - 1);
+
+        prior_slot = *slot;
 
         // Update the in-memory slot directly. Covers every SlotInfo field the
         // caller may set — a persist=false preview must not silently drop
@@ -907,14 +916,56 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
         payload["channel"] = slot_index;
         payload["info"] = info_obj;
 
-        // Log-only callback — no UI / member access — so a value-captured tag
-        // is safe even after the backend is destroyed (same rationale as
-        // save_async's callback above). Routes through MoonrakerRestAPI which
-        // dispatches on its own HTTP worker thread, NOT a raw std::thread
-        // (lesson L083: pthread EAGAIN on AD5M / CC1 / MIPS32).
+        // Remember what the USER declared, so the RFID parse can tell firmware
+        // repeating their choice back from a tag stating it.
+        //
+        // Recorded before dispatch, because the guard has to be armed before
+        // any echo can arrive. A write firmware never accepted disarms it from
+        // the response callback below.
+        if (slot_index >= 0 && slot_index < NUM_TOOLS) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            own_write_echoes_.stage(slot_index,
+                                    helix::ams::user_edit_observation(prior_slot, info));
+            if (auto* declared = own_write_echoes_.staged(slot_index)) {
+                // The POST has to have carried the key. A field the user
+                // cleared is omitted from the body, so firmware keeps the
+                // tag's value and what returns is the tag's, not theirs. RGB_1
+                // is sent unconditionally and needs no such drop.
+                //
+                // The POST spells colour RGB_1 and the parse reads ARGB_COLOR.
+                // Whether firmware translates between the two is not answered
+                // anywhere in the tree or in the firmware doc, so this assumes
+                // it does. If it does not, the declared colour simply never
+                // matches an incoming reading and the guard is inert.
+                if (!info_obj.contains("VENDOR"))
+                    declared->brand.reset();
+                if (!info_obj.contains("MAIN_TYPE"))
+                    declared->material.reset();
+                // SUB_TYPE goes out as the user's spool_name and comes back as
+                // the product line, which is the field the RFID parse files it
+                // under. Relocating here is what lets the shared guard stay a
+                // plain field-by-field filter.
+                if (info_obj.contains("SUB_TYPE"))
+                    declared->product_name = declared->spool_name;
+                declared->spool_name.reset();
+            }
+            // An unread channel arms against "no tag yet", so the first UID to
+            // arrive is a reading and ends the suppression.
+            own_write_echoes_.arm(slot_index,
+                                  rfid_tracker_.baseline(slot_index).value_or(std::string{}));
+        }
+
+        // Routes through MoonrakerRestAPI, which dispatches on its own HTTP
+        // worker thread, NOT a raw std::thread (lesson L083: pthread EAGAIN on
+        // AD5M / CC1 / MIPS32). The backend can be gone by the time this fires,
+        // so `this` is only ever reached through the lifetime token, which
+        // marshals to the main thread and skips a dead owner.
         const std::string tag = backend_log_tag();
+        auto tok = lifetime_.token();
         api_->rest().call_rest_post(
-            "/printer/filament_detect/set", payload, [tag, slot_index](const RestResponse& resp) {
+            "/printer/filament_detect/set", payload,
+            [this, tok, tag, slot_index](const RestResponse& resp) mutable {
+                bool accepted = resp.success;
                 if (!resp.success) {
                     // 404 on stock firmware (no Extended Firmware extension)
                     // is expected — log at debug, not warn, so we don't spam
@@ -927,12 +978,11 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
                         spdlog::warn("{} filament_detect/set failed for slot {}: HTTP {} {}", tag,
                                      slot_index, resp.status_code, resp.error);
                     }
-                    return;
-                }
-                // Success-shaped HTTP response can still carry "state":"error"
-                // (per filament_detect.md). Drain that as a warn — override is
-                // still saved to lane_data so user data isn't lost.
-                if (resp.data.is_object()) {
+                } else if (resp.data.is_object()) {
+                    // Success-shaped HTTP response can still carry
+                    // "state":"error" (per filament_detect.md). Drain that as a
+                    // warn; the override is still saved to lane_data so user
+                    // data isn't lost.
                     auto state_it = resp.data.find("state");
                     if (state_it != resp.data.end() && state_it->is_string() &&
                         state_it->get<std::string>() == "error") {
@@ -943,8 +993,21 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
                         }
                         spdlog::warn("{} filament_detect/set returned error for slot {}: {}", tag,
                                      slot_index, msg);
+                        accepted = false;
                     }
                 }
+                if (accepted) {
+                    return;
+                }
+                // Firmware holds none of these values, so nothing is going to
+                // echo them back. Leaving the guard armed withholds the next
+                // genuine tag reading until the UID changes, which is the harm
+                // it exists to prevent, pointed the other way. Stock firmware
+                // has no such endpoint at all, so this is the common path.
+                tok.defer("AmsBackendSnapmaker::set_slot_info.abandon_echo", [this, slot_index]() {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    own_write_echoes_.abandon(slot_index);
+                });
             });
     }
 
@@ -1225,6 +1288,62 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         slot->nozzle_temp_max = rfid.hotend_max_temp;
                         slot->bed_temp = rfid.bed_temp;
                         slot->total_weight_g = static_cast<float>(rfid.weight_g);
+
+                        // A tag read is a cache of what a vendor printed, not a
+                        // sensor of identity: it survives the spool leaving the
+                        // channel, so it never carries presence.
+                        //
+                        // Every value here is this parse's own, never slot->*.
+                        // SlotInfo persists across frames and apply_overrides
+                        // rewrites it in place at the tail of every one, so
+                        // reading the struct back would file a user's edit as
+                        // something the tag says.
+                        //
+                        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+                        if (!rfid.main_type.empty())
+                            cache.material = rfid.main_type;
+                        // Both spellings of "the tag named no vendor" retract
+                        // the brand here: whole-record replacement means this
+                        // record states what THIS read said, and a field the
+                        // read is silent about is not one it still stands
+                        // behind. SlotInfo above tests only the literal "NONE",
+                        // so it blanks on an absent key and KEEPS its last
+                        // value on the literal. That one input is the only
+                        // place the two layers disagree.
+                        if (!brand.empty() && brand != "NONE")
+                            cache.brand = brand;
+                        // SnapmakerRfidInfo::color_rgb rests on
+                        // AMS_DEFAULT_SLOT_COLOR when the tag carried no
+                        // ARGB_COLOR, which is that struct's "no reading" and
+                        // not a grey anybody chose.
+                        if (helix::ams::is_declarable_color(rfid.color_rgb))
+                            cache.color_rgb = rfid.color_rgb;
+                        // SUB_TYPE names the product line inside MAIN_TYPE
+                        // ("Silk" inside "PLA"), so it is the branded product
+                        // and routing it to material would destroy the
+                        // material. The SlotInfo field above keeps its own
+                        // spelling, and splits from this record on the
+                        // literal "NONE" for the same reason the brand guard
+                        // does.
+                        if (!rfid.sub_type.empty() && rfid.sub_type != "NONE")
+                            cache.product_name = rfid.sub_type;
+                        if (rfid.weight_g > 0)
+                            cache.total_weight_g = static_cast<float>(rfid.weight_g);
+                        // What this backend POSTed to filament_detect/set
+                        // lands in this same object, spelled the same way, so
+                        // a field repeating our own write is not a reading.
+                        // Withholding it matters most AFTER the user clears
+                        // their override: resolve() would otherwise fall
+                        // through to a VendorCache record still holding the
+                        // abandoned edit, and the lane could never get back to
+                        // what the machine says. WEIGHT is nobody's
+                        // declaration and passes through.
+                        const int withheld = own_write_echoes_.withhold(i, rfid.uid, cache);
+                        if (withheld > 0) {
+                            spdlog::debug("{} Slot {} withheld {} field(s) echoing our own write",
+                                          backend_log_tag(), i, withheld);
+                        }
+                        helix::ams::ingest(lane_id(i), cache);
                     }
                     changed = true;
                 }
@@ -1238,6 +1357,16 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                     if (!state_arr[i].is_number())
                         continue;
                     int state_val = state_arr[i].get<int>();
+
+                    // The state array is this frame's own key, so a frame that
+                    // omits it says nothing rather than retracting what the
+                    // last one sensed. What the array says is the reading, even
+                    // where the more authoritative extruder state below keeps
+                    // the slot's own stamp.
+                    helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
+                    sensed.present = (state_val != 0);
+                    helix::ams::ingest(lane_id(i), sensed);
+
                     auto* slot = system_info_.units[0].get_slot(i);
                     if (slot) {
                         // Only set from filament_detect if extruder state hasn't already
@@ -1564,6 +1693,30 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                 }
             }
 
+            // These three fields write SlotInfo and deliberately file NO lane
+            // observation, unlike the RFID parse above.
+            //
+            // print_task_config is a write surface, not a sensor.
+            // SET_PRINT_FILAMENT_CONFIG takes VENDOR / FILAMENT_TYPE /
+            // FILAMENT_SUBTYPE / FILAMENT_COLOR_RGBA as gcode parameters and
+            // persists them, so whoever sent that command set these values: the
+            // machine's own screen, a slicer, a console, or this backend's
+            // write-back through /printer/filament_detect/set, which firmware
+            // mirrors into this same struct. Filing any of it as VendorCache
+            // would return a user's own edit as firmware truth.
+            //
+            // The firmware carries the provenance bit itself, and it shows the
+            // channel is redundant rather than merely unsafe: filament_official
+            // marks a head whose entry came from a Snapmaker RFID spool, and
+            // SET_PRINT_FILAMENT_CONFIG is refused on such a head without
+            // FORCE. An official entry is the tag filament_detect.info already
+            // reports, which the RFID parse files; an unofficial one is
+            // somebody's declaration. Neither is a reading this key can
+            // contribute.
+            //
+            // A user's declaration reaches the lane model through
+            // commit_slot_edit, which is the funnel that records authorship.
+            //
             // filament_type: ["PLA", "PLA", ...] — material type per slot
             if (ptc.contains("filament_type") && ptc["filament_type"].is_array()) {
                 const auto& type_arr = ptc["filament_type"];

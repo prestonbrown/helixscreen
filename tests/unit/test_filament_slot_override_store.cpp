@@ -3491,3 +3491,97 @@ TEST_CASE("merge_override rule matrix", "[ams][override-merge]") {
         CHECK(slot.remaining_weight_g == 0.f);
     }
 }
+
+// =============================================================================
+// parse_namespace_document: the read half of a load, on its own
+// =============================================================================
+
+TEST_CASE("parsing a namespace document is the read half of a load",
+          "[filament_slot_override][parse_namespace]") {
+    const json doc = {
+        {"seated", 1},
+        {"lane1", {{"lane", "0"}, {"color", "#ED2C2C"}, {"material", "PETG"}}},
+        {"lane2", {{"lane", "1"}, {"color", "#000000"}, {"helix_locked_color", true}}},
+        {"junk", 42},
+    };
+
+    const auto records = helix::ams::parse_namespace_document(doc, helix::ams::LaneKeyStyle::Lane);
+
+    REQUIRE(records.size() == 2);
+    CHECK(records.at(0).record.material == "PETG");
+    CHECK(records.at(1).record.color_rgb == 0x000000u);
+    CHECK(records.at(1).record.color_set);
+    // The wire object travels with the record so a reader can still tell a
+    // lock key that was written from one the parser defaulted.
+    CHECK(records.at(1).wire.contains("helix_locked_color"));
+    CHECK_FALSE(records.at(0).wire.contains("helix_locked_color"));
+}
+
+TEST_CASE("a duplicate slot keeps the record under the canonical key",
+          "[filament_slot_override][parse_namespace]") {
+    const json doc = {
+        {"T0", {{"lane", "0"}, {"material", "ABS"}}},
+        {"lane1", {{"lane", "0"}, {"material", "PETG"}}},
+    };
+
+    const auto lane_style =
+        helix::ams::parse_namespace_document(doc, helix::ams::LaneKeyStyle::Lane);
+    CHECK(lane_style.at(0).record.material == "PETG");
+
+    const auto tool_style =
+        helix::ams::parse_namespace_document(doc, helix::ams::LaneKeyStyle::Tool);
+    CHECK(tool_style.at(0).record.material == "ABS");
+}
+
+TEST_CASE("a namespace document that is not an object parses to nothing",
+          "[filament_slot_override][parse_namespace]") {
+    CHECK(
+        helix::ams::parse_namespace_document(json("not an object"), helix::ams::LaneKeyStyle::Lane)
+            .empty());
+    CHECK(helix::ams::parse_namespace_document(json(nullptr), helix::ams::LaneKeyStyle::Lane)
+              .empty());
+}
+
+TEST_CASE("a reload hands back what the namespace holds",
+          "[filament_slot_override][parse_namespace]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+    api.mock_set_db_value("lane_data", "lane1", json{{"lane", "0"}, {"material", "PETG"}});
+    FilamentSlotOverrideStore store(&api, "ace");
+
+    int calls = 0;
+    std::unordered_map<int, helix::ams::LaneDataRecord> got;
+    store.reload_async([&](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+        ++calls;
+        got = std::move(records);
+    });
+
+    CHECK(calls == 1);
+    REQUIRE(got.count(0) == 1);
+    CHECK(got.at(0).record.material == "PETG");
+}
+
+TEST_CASE("a reload that cannot reach the database calls nothing back",
+          "[filament_slot_override][parse_namespace]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+    api.mock_set_db_value("lane_data", "lane1", json{{"lane", "0"}, {"material", "PETG"}});
+    FilamentSlotOverrideStore store(&api, "ace");
+
+    // An empty hand-back is not the same statement as no hand-back: a reader
+    // that treats the map as the namespace entire would wipe every lane on a
+    // round-trip that simply never reached the printer.
+    api.mock_reject_next_db_get();
+    int calls = 0;
+    store.reload_async([&](std::unordered_map<int, helix::ams::LaneDataRecord>) { ++calls; });
+    CHECK(calls == 0);
+
+    // The same store on the next attempt does call back, so the case above is
+    // an absence the code reached rather than one it never got to.
+    store.reload_async([&](std::unordered_map<int, helix::ams::LaneDataRecord>) { ++calls; });
+    CHECK(calls == 1);
+}

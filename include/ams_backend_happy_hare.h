@@ -8,6 +8,7 @@
 #include "async_lifetime_guard.h"
 #include "error_event.h"
 #include "filament_slot_override_store.h"
+#include "lane_observation.h"
 #include "slot_registry.h"
 
 #include <ctime>
@@ -493,6 +494,16 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// gate/filament pair arrive in independent deltas and
     /// refresh_gate_statuses_locked() needs both to derive a status.
     std::vector<int> gate_status_raw_;
+
+    /// What Happy Hare's gate map says about each gate's identity, keyed by
+    /// global gate index and accumulated across frames. Moonraker names only
+    /// the keys that changed, so one frame is never the whole map and a record
+    /// built from a single frame would blank every field that frame omits.
+    ///
+    /// Nothing folds an override into this, which is what separates it from
+    /// SlotInfo: apply_overrides() rewrites that struct in place, so reading it
+    /// back would file a user's own choice as something the MMU remembers.
+    std::map<int, helix::ams::Observation> gate_readings_;
 
     // Path visualization state
     int filament_pos_{0};     ///< Happy Hare filament_pos value

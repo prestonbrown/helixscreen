@@ -32,6 +32,9 @@ class HappyHareTestAccess {
     // --- private data -------------------------------------------------------
     // `auto&` deduces each member's own type, so adding an accessor never
     // restates a declaration that would then have to track the backend's.
+    template <class B> static auto& mutex(B& b) {
+        return b.mutex_;
+    }
     template <class B> static auto& slots(B& b) {
         return b.slots_;
     }

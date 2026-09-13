@@ -374,6 +374,7 @@ void MoonrakerAPIMock::database_post_item(const std::string& namespace_name, con
 void MoonrakerAPIMock::database_get_namespace(const std::string& namespace_name,
                                               std::function<void(const json&)> on_success,
                                               ErrorCallback on_error) {
+    ++db_namespace_get_count_;
     if (next_db_get_rejection_.has_value()) {
         MoonrakerError err = std::move(*next_db_get_rejection_);
         next_db_get_rejection_.reset();

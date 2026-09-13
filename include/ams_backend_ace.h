@@ -14,6 +14,7 @@
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <thread>
 #include <unordered_map>
 
@@ -247,10 +248,16 @@ class AmsBackendAce : public AmsSubscriptionBackend {
 
     /**
      * @brief Parse slot color from either RGB array [r,g,b] or hex string "#RRGGBB"
+     *
+     * Empty when the value carries no colour: a short or non-numeric array, a
+     * string the shared lane colour grammar refuses, any other JSON type. That
+     * is a different answer from pure black, which ACE reports for an empty bay
+     * and which is a real reading, so the two must not share a return value.
+     *
      * @param color_val JSON value (array or string)
-     * @return Parsed RGB color value
+     * @return Parsed RGB color value, or nullopt when the value states none
      */
-    static uint32_t parse_slot_color(const nlohmann::json& color_val);
+    static std::optional<uint32_t> parse_slot_color(const nlohmann::json& color_val);
 
     /**
      * @brief Pick the ace/filament_hub status object that actually carries slot
@@ -403,6 +410,12 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     // mutex_; apply_overrides reads inside the parse path under mutex_.
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
     std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
+
+    /// The shared lane_data namespace this backend co-authors. request_resync()
+    /// re-reads it only where firmware states no identity of its own.
+    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
+        return override_store_.get();
+    }
 
     // Previous slot status per slot index. Used as the swap-detection signal:
     // an EMPTY -> present transition fires the clear-override path. Map

@@ -134,15 +134,17 @@ The direction is proven: `format_temperature_pair()` ([`src/ui/ui_temperature_ut
 
 ### Provenance debt: a value's origin is inferred from its shape
 
-This one is half paid. The model that carries an origin exists - `Observation`,
-`LaneSources` and `resolve()`, described in [`07-filament-ams.md`](07-filament-ams.md) § "Lane identity by
-source" - and one producer feeds it: a human slot edit is filed as a `LocalUser` declaration
-through `helix::ams::commit_slot_edit`. No backend produces an `Observation`, and nothing
-consumes one. Every surface that reads a lane still works
-from firmware-reported `SlotInfo` merged with a persisted `FilamentSlotOverride`, where a
-field's origin is re-derived from the value it holds: `!= 0`, `!empty()`, `>= 0.0f`. Those
-tests answer "is there a value here", and the code asks them where it means "did a human
-choose this". They agree on most inputs, which is what makes the disagreements hard to see.
+This one is half paid, and the half that is paid is the half nobody can see. The model that
+carries an origin - `Observation`, `LaneSources` and `resolve()`, described in
+[`07-filament-ams.md`](07-filament-ams.md) § "Lane identity by source" - is fully supplied:
+all nine AMS backends file readings into it, and the human edit path files declarations.
+**Nothing consumes one.** No surface reads a `LaneSources`, `resolve()` has no production
+caller, and every lane a user sees is still firmware-reported `SlotInfo` merged with a
+persisted `FilamentSlotOverride`, where a field's origin is re-derived from the value it
+holds: `!= 0`, `!empty()`, `>= 0.0f`. Those tests answer "is there a value here", and the
+code asks them where it means "did a human choose this". They agree on most inputs, which is
+what makes the disagreements hard to see. Finishing the producers changed nothing a user can
+observe, and the questions below are what a read path has to answer before it can.
 
 The live instance is AD5X filament colour. `set_slot_info()`
 ([`src/printer/ams_backend_ad5x_ifs.cpp#set_slot_info`](../../../src/printer/ams_backend_ad5x_ifs.cpp)) sets
@@ -162,22 +164,45 @@ locked choice for the act of opening the dialog. The line below the offending on
 asks the right question for material (`user_locked_material = !normalized_material.empty()`);
 colour has no equivalent signal to ask, because a colour's value cannot say who chose it.
 
-Pure black is the same conflation one layer out. `0x000000` is a colour a user picks
-deliberately, and the most common filament there is, but the gcode-dispatch gate inside AFC's
-and Happy Hare's `set_slot_info()` reads `info.color_rgb != 0 && info.color_rgb !=
-AMS_DEFAULT_SLOT_COLOR`, so black never reaches firmware: the plugin's lane record, the
-printer's LEDs and every other `lane_data` reader keep the previous colour (#1597). Only the
-`!= 0` half of that gate is wrong: `AMS_DEFAULT_SLOT_COLOR` genuinely is the "no colour
-reading" sentinel, and dropping the whole condition makes `CLEAR_SPOOL` record grey as a
-deliberate pick.
+**A backend can read its own user's edit back as firmware truth.** Six backends write a
+user's identity to the printer - AFC, Happy Hare, CFS, AD5X IFS, QIDI Box and Snapmaker - and
+every one of them parses those same fields back out of the object firmware republishes them
+into, filing them as a `VendorCache` reading. What the lane then holds as "what the printer
+says" is the user's own edit, returned. Snapmaker is the only one that suppresses it, by
+withholding from its record the fields that echo a write it issued, with the RFID tag uid as
+the boundary that ends the suppression. AD5X IFS carries a second and sharper form of the same
+confusion: `set_slot_info()` writes the edited colour and material straight into the arrays
+`update_slot_from_state()` derives its firmware-truth record from, so the edit lands in that
+record before any gcode leaves the process, with no printer involved at all (#1631).
 
-The same shape already has two hand-built answers here, `AmsBackend::own_write_expectation`
-([`include/ams_backend.h#own_write_expectation`](../../../include/ams_backend.h)) and
+**Another tool's declaration is recorded as the printer's.** `to_lane_data_record()`
+([`src/printer/filament_slot_override_store.cpp#to_lane_data_record`](../../../src/printer/filament_slot_override_store.cpp))
+always emits both `helix_locked_*` keys, false included, and `classify_declaration()`
+([`src/printer/lane_translation.cpp#classify_declaration`](../../../src/printer/lane_translation.cpp))
+reads present-but-false as unlocked. So a record written by Mainsail, OrcaSlicer or a hand
+edit classifies as `VendorCache`, which means the printer's remembered identity. On an ACE,
+whose firmware states only colour and material, that is how brand, spool name,
+`spoolman_vendor_id` and weights reach a firmware-truth bucket having never come from
+firmware. `VendorCache` is the least wrong of the five sources that exist, so reclassifying is
+not obviously the fix (#1632).
+
+**A resync refreshes the model, not what a user sees.** `request_resync()`
+([`src/printer/ams_subscription_backend.cpp#request_resync`](../../../src/printer/ams_subscription_backend.cpp))
+re-reads the shared `lane_data` namespace and files what it holds, but the override map
+`apply_overrides()` renders from is loaded once at init and is not touched, so a record another
+writer has changed since startup reaches the source model without reaching the rendered slot
+(#1629).
+
+The echo question has three hand-built answers here, `AmsBackend::own_write_expectation`
+([`include/ams_backend.h#own_write_expectation`](../../../include/ams_backend.h)),
 `SlotFingerprintTracker::expect`
-([`include/filament_slot_override_store.h#SlotFingerprintTracker/expect`](../../../include/filament_slot_override_store.h)),
-each suppressing one flavour of "is this reading someone else's write or the echo of my
-own?" - the job `Observation::echo_token` is shaped for, and the reason a precedence table
-alone does not finish this.
+([`include/filament_slot_override_store.h#SlotFingerprintTracker/expect`](../../../include/filament_slot_override_store.h))
+and `helix::ams::OwnWriteEchoes`
+([`include/lane_echo.h#OwnWriteEchoes`](../../../include/lane_echo.h)), each suppressing one
+flavour of "is this reading someone else's write or the echo of my own?" for one backend
+family. `Observation` carries no field for the answer, so the source model states which
+source spoke and not whose write it was, which is the reason a precedence table alone does
+not finish this.
 
 User-visible symptom and workaround for the AD5X case are in
 [`../../user/TROUBLESHOOTING.md`](../../user/TROUBLESHOOTING.md).

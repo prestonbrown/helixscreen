@@ -3,8 +3,10 @@
 #include "lane_translation.h"
 
 #include "ams_types.h"
+#include "color_utils.h"
 #include "json_utils.h"
 
+#include <cctype>
 #include <cmath>
 #include <tuple>
 #include <type_traits>
@@ -24,14 +26,6 @@ constexpr float WEIGHT_EPSILON_G = 0.1f;
 /// a negative entry, so a negative can only have come from a clear.
 bool is_declarable_weight(float grams) {
     return grams >= 0.0f;
-}
-
-/// True when a colour is one a person or a record could have chosen.
-/// AMS_DEFAULT_SLOT_COLOR means "no colour reading", not a grey anyone
-/// picked, and both a cleared slot and a colourless lane_data record land on
-/// it, so filing it would hand every one of them a declared grey.
-bool is_declarable_color(uint32_t rgb) {
-    return rgb != AMS_DEFAULT_SLOT_COLOR;
 }
 
 bool weight_changed(float original, float edited) {
@@ -71,8 +65,7 @@ constexpr auto field(S slot, R record, O obs) {
 /// walk, so a field reaches or is refused by each of them here rather than in
 /// two places that agree only by convention.
 constexpr auto FIELD_ROSTER = std::make_tuple(
-    // Presence is sensed and never declared, and an echo token belongs to the
-    // write that produced it rather than to a source's identity statement.
+    // Presence is sensed, never declared, so neither translation carries it.
     field<FieldKind::Untranslated>(nullptr, nullptr, &Observation::present),
     field<FieldKind::Color>(&SlotInfo::color_rgb, &FilamentSlotOverride::color_rgb,
                             &Observation::color_rgb),
@@ -101,8 +94,7 @@ constexpr auto FIELD_ROSTER = std::make_tuple(
                              &FilamentSlotOverride::remaining_weight_g,
                              &Observation::remaining_weight_g),
     field<FieldKind::Weight>(&SlotInfo::total_weight_g, &FilamentSlotOverride::total_weight_g,
-                             &Observation::total_weight_g),
-    field<FieldKind::Untranslated>(nullptr, nullptr, &Observation::echo_token));
+                             &Observation::total_weight_g));
 
 static_assert(std::tuple_size_v<decltype(FIELD_ROSTER)> ==
                   std::tuple_size_v<decltype(std::declval<Observation&>().fields())>,
@@ -203,6 +195,34 @@ Observation declared_from_record(const FilamentSlotOverride& record, const nlohm
         }
     });
     return obs;
+}
+
+bool is_declarable_color(uint32_t rgb) {
+    return rgb != AMS_DEFAULT_SLOT_COLOR;
+}
+
+ColorReading read_lane_color(const std::string& raw) {
+    // A value that is only whitespace and a prefix carries no colour to fail
+    // to parse, so it is the producer saying the lane has none.
+    size_t begin = 0;
+    size_t end = raw.size();
+    while (begin < end && std::isspace(static_cast<unsigned char>(raw[begin]))) {
+        ++begin;
+    }
+    while (end > begin && std::isspace(static_cast<unsigned char>(raw[end - 1]))) {
+        --end;
+    }
+    if (begin < end && raw[begin] == '#') {
+        ++begin;
+    }
+    if (begin == end) {
+        return {ColorReadingKind::Cleared, 0};
+    }
+
+    if (const auto rgb = parse_hex_color(raw)) {
+        return {ColorReadingKind::Observed, *rgb};
+    }
+    return {ColorReadingKind::NoReading, 0};
 }
 
 } // namespace helix::ams

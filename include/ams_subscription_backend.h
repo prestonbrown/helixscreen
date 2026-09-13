@@ -7,6 +7,7 @@
 
 #include "ams_backend.h"
 #include "async_lifetime_guard.h"
+#include "filament_slot_override_store.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 
@@ -42,6 +43,20 @@ class AmsSubscriptionBackend : public AmsBackend {
     void stop() final;
     void release_subscriptions() final;
     [[nodiscard]] bool is_running() const final;
+
+    /// Re-read the lane-record store a backend names in lane_record_store()
+    /// and file what it holds as vendor-cache readings.
+    ///
+    /// This refreshes the lane SOURCE MODEL and nothing else. The override map
+    /// apply_overrides() merges onto firmware values is loaded once, at init,
+    /// and is not touched here, so a record another writer has changed since
+    /// then reaches the source model without reaching the rendered slot.
+    /// Refreshing that map is tracked separately: a live map replaced wholesale
+    /// mid-session has to answer for an edit made or in flight since it loaded.
+    ///
+    /// Runs only where firmware_publishes_lane_identity() is false. Elsewhere
+    /// there is nothing to file, so no request is issued.
+    void request_resync() override;
 
     // --- Event system (final) ---
     void set_event_callback(EventCallback callback) final;
@@ -255,6 +270,36 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// Exposed to derived backends that gate motion ops WITHOUT the running_/busy
     /// checks in check_preconditions() (e.g. QIDI Box).
     AmsError refuse_if_printing() const;
+
+    /// Whether this backend's firmware publishes lane identity of its own,
+    /// which it files as a VendorCache reading on every status frame.
+    ///
+    /// A lane with such a producer must not also receive the persisted record.
+    /// Both are the same source and ingest() replaces a source's record whole,
+    /// so the two arrival orders say different things and both are reachable:
+    /// a resync landing after a frame overwrites a fresh firmware reading with
+    /// a stored one. Nor is there a field to be gained by accepting that risk.
+    /// Whole-record replacement means the next frame retracts whatever the
+    /// persisted record carried beyond what firmware reports, so filing it
+    /// buys a window between two frames rather than a value a lane keeps.
+    ///
+    /// Defaults to true, so a backend that forgets to answer loses a re-read
+    /// rather than gaining a race.
+    [[nodiscard]] virtual bool firmware_publishes_lane_identity() const {
+        return true;
+    }
+
+    /// This backend's lane_data-shaped record store, or nullptr when it has
+    /// none. request_resync() re-reads it so a lane's shared record is not
+    /// frozen at whatever it said when the backend started.
+    ///
+    /// Only a store on a namespace OTHER writers co-author belongs here. A
+    /// namespace HelixScreen alone writes has no drift for a re-read to
+    /// correct, and re-filing its records would put a second producer on the
+    /// vendor-cache slot the backend's own firmware readings occupy.
+    virtual helix::ams::FilamentSlotOverrideStore* lane_record_store() {
+        return nullptr;
+    }
 
     // --- Protected state for derived classes ---
     IMoonrakerAPI* api_;

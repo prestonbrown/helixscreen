@@ -8,6 +8,7 @@
 #include "async_lifetime_guard.h"
 #include "error_event.h"
 #include "filament_slot_override_store.h"
+#include "lane_observation.h"
 #include "slot_registry.h"
 
 #include <chrono>
@@ -1261,6 +1262,25 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// map preserves "does AFC itself still hold a link?" for
     /// maybe_reassert_retained_spool_link() (#1289).
     std::unordered_map<std::string, int> lane_firmware_spool_id_;
+
+    /// What AFC itself has said about a lane, per observation source, built up
+    /// field by field across status frames and keyed by lane name the way the
+    /// two maps above are - a lane keeps its name when reorganize_slots()
+    /// moves its index.
+    ///
+    /// A status frame is a Moonraker delta and a lane record is written whole,
+    /// so a record assembled from one frame alone narrows the lane to whatever
+    /// that frame happened to mention: a frame carrying only `status` would
+    /// erase the lane's identity, and one carrying only `color` would drop its
+    /// material. SlotInfo cannot stand in for this, because apply_overrides()
+    /// folds the user's own declarations into it and those are not readings.
+    /// Nothing writes an override here, so what this holds is firmware's word
+    /// by construction.
+    struct LaneFirmwareReadings {
+        ams::Observation cache{ams::ObservationSource::VendorCache};
+        ams::Observation metered{ams::ObservationSource::Metered};
+    };
+    std::unordered_map<std::string, LaneFirmwareReadings> lane_firmware_readings_;
 
     /// Lanes last seen on each buffer, keyed by buffer name. AFC's buffer status
     /// arrives as a Moonraker delta, so a frame that changes only `state` omits
