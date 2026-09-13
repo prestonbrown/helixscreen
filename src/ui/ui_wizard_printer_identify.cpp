@@ -34,6 +34,14 @@
 
 using namespace helix;
 
+// Selector view states, values of the wizard_printer_view subject the XML
+// containers and header bind to.
+namespace {
+constexpr int kViewTiles = 0;  // vendor tile grid (browse level)
+constexpr int kViewVendor = 1; // one vendor's models, back affordance visible
+constexpr int kViewSearch = 2; // flat matches across every machine
+} // namespace
+
 // ============================================================================
 // External Subject (defined in ui_wizard.cpp)
 // ============================================================================
@@ -73,8 +81,10 @@ WizardPrinterIdentifyStep::~WizardPrinterIdentifyStep() {
     // NOTE: Do NOT log here - spdlog may be destroyed first
     screen_root_ = nullptr;
     printer_preview_image_ = nullptr;
-    // list_cache_container_ is parented to lv_layer_sys() — lv_deinit() handles it
+    // list_cache_container_ / tile_cache_container_ are parented to
+    // lv_layer_sys() — lv_deinit() handles them
     list_cache_container_ = nullptr;
+    tile_cache_container_ = nullptr;
 }
 
 // ============================================================================
@@ -147,6 +157,9 @@ void WizardPrinterIdentifyStep::init_subjects() {
         // Invalidate cached list — kinematics filter may differ for new printer
         if (list_cache_container_) {
             lv_obj_clean(list_cache_container_);
+        }
+        if (tile_cache_container_) {
+            lv_obj_clean(tile_cache_container_);
         }
 
         // Clear saved printer type so detection runs fresh for new printer
@@ -248,6 +261,13 @@ void WizardPrinterIdentifyStep::init_subjects() {
     }
 
     UI_SUBJECT_INIT_AND_REGISTER_INT(printer_type_selected_, default_type, "printer_type_selected");
+
+    // Selector view state: starts at the vendor tile grid; create() re-targets
+    // it to the selected machine's bucket when a real machine is selected.
+    UI_SUBJECT_INIT_AND_REGISTER_INT(printer_view_, kViewTiles, "wizard_printer_view");
+    UI_SUBJECT_INIT_AND_REGISTER_STRING(vendor_title_, vendor_title_buffer_, "",
+                                        "wizard_printer_vendor_title");
+    UI_SUBJECT_INIT_AND_REGISTER_INT(match_count_, 1, "wizard_printer_match_count");
 
     // Initialize detection status message
     const char* status_msg;
@@ -381,6 +401,10 @@ void WizardPrinterIdentifyStep::register_callbacks() {
 
     lv_xml_register_event_cb(nullptr, "on_printer_name_changed", on_printer_name_changed_static);
     lv_xml_register_event_cb(nullptr, "on_printer_type_changed", on_printer_type_changed_static);
+    lv_xml_register_event_cb(nullptr, "on_wizard_printer_search_changed",
+                             on_wizard_printer_search_changed);
+    lv_xml_register_event_cb(nullptr, "on_wizard_vendor_back_clicked",
+                             on_wizard_vendor_back_clicked);
 
     spdlog::debug("[{}] Event callbacks registered", get_name());
 }
@@ -413,7 +437,7 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
     if (xml_list) {
         if (list_cache_container_ && lv_obj_get_child_count(list_cache_container_) > 0) {
             // Cached list exists from a previous visit — reparent children back
-            // instead of rebuilding 68+ buttons (slow on MIPS, see issue #231)
+            // instead of rebuilding ~105 buttons (slow on MIPS, see issue #231)
             printer_type_list_ = xml_list;
             while (lv_obj_get_child_count(list_cache_container_) > 0) {
                 lv_obj_t* child = lv_obj_get_child(list_cache_container_, 0);
@@ -422,14 +446,6 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
             // Update selection highlight to reflect current state
             int selected = lv_subject_get_int(&printer_type_selected_);
             update_list_selection(selected);
-            // Scroll to selected item
-            if (selected >= 0 &&
-                selected < static_cast<int>(lv_obj_get_child_count(printer_type_list_))) {
-                lv_obj_t* selected_btn = lv_obj_get_child(printer_type_list_, selected);
-                if (selected_btn) {
-                    lv_obj_scroll_to_view(selected_btn, LV_ANIM_OFF);
-                }
-            }
             spdlog::debug("[{}] Restored cached printer type list ({} items)", get_name(),
                           lv_obj_get_child_count(printer_type_list_));
         } else {
@@ -442,6 +458,26 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
     } else {
         spdlog::warn("[{}] Printer type list not found in XML", get_name());
     }
+
+    // Vendor tile grid: same build-once/cache-across-visits treatment as the
+    // rows, for the same reason.
+    vendor_tiles_ = lv_obj_find_by_name(screen_root_, "vendor_tiles");
+    if (vendor_tiles_) {
+        if (tile_cache_container_ && lv_obj_get_child_count(tile_cache_container_) > 0) {
+            while (lv_obj_get_child_count(tile_cache_container_) > 0) {
+                lv_obj_t* child = lv_obj_get_child(tile_cache_container_, 0);
+                lv_obj_set_parent(child, vendor_tiles_);
+            }
+        } else {
+            populate_vendor_tiles();
+        }
+    } else {
+        spdlog::warn("[{}] Vendor tile grid not found in XML", get_name());
+    }
+
+    // A fresh textarea comes back empty; browsing state follows it.
+    search_query_.clear();
+    enter_initial_view();
 
     // Find and set up the name textarea
     lv_obj_t* name_ta = lv_obj_find_by_name(screen_root_, "printer_name_input");
@@ -562,7 +598,7 @@ void WizardPrinterIdentifyStep::cleanup() {
         LOG_ERROR_INTERNAL("[{}] Failed to save config: {}", get_name(), e.what());
     }
 
-    // Cache the printer type list so we don't rebuild 68+ buttons on revisit.
+    // Cache the printer type list so we don't rebuild ~105 buttons on revisit.
     // Reparent children to a persistent off-screen container before the wizard
     // framework deletes the step's widget tree. (issue #231)
     if (printer_type_list_ && lv_obj_get_child_count(printer_type_list_) > 0) {
@@ -580,10 +616,26 @@ void WizardPrinterIdentifyStep::cleanup() {
                       lv_obj_get_child_count(list_cache_container_));
     }
 
+    // Same for the vendor tiles.
+    if (vendor_tiles_ && lv_obj_get_child_count(vendor_tiles_) > 0) {
+        if (!tile_cache_container_) {
+            tile_cache_container_ = lv_obj_create(lv_layer_sys());
+            lv_obj_add_flag(tile_cache_container_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_size(tile_cache_container_, 0, 0);
+        }
+        while (lv_obj_get_child_count(vendor_tiles_) > 0) {
+            lv_obj_t* child = lv_obj_get_child(vendor_tiles_, 0);
+            lv_obj_set_parent(child, tile_cache_container_);
+        }
+        spdlog::debug("[{}] Cached {} vendor tiles for reuse", get_name(),
+                      lv_obj_get_child_count(tile_cache_container_));
+    }
+
     // Reset UI references (wizard framework handles deletion)
     screen_root_ = nullptr;
     printer_preview_image_ = nullptr;
     printer_type_list_ = nullptr;
+    vendor_tiles_ = nullptr;
 
     // Reset connection_test_passed to enabled (1) for other wizard steps
     lv_subject_set_int(&connection_test_passed, 1);
@@ -611,11 +663,14 @@ void WizardPrinterIdentifyStep::populate_printer_type_list() {
     // Clear any existing children
     lv_obj_clean(printer_type_list_);
 
-    // Get printer names from database (filtered by detected kinematics)
-    const auto& names = PrinterDetector::get_list_names(detected_kinematics_);
+    // Mirror the detector's list as selector entries (names + manufacturers);
+    // rows are created in the same order so child i is entry i.
+    build_selector_entries();
     int selected = lv_subject_get_int(&printer_type_selected_);
 
-    for (size_t i = 0; i < names.size(); ++i) {
+    for (size_t i = 0; i < selector_entries_.size(); ++i) {
+        const auto& entry = selector_entries_[i];
+
         // Create button for each printer type
         lv_obj_t* btn = lv_obj_create(printer_type_list_);
         lv_obj_set_width(btn, lv_pct(100));
@@ -623,6 +678,8 @@ void WizardPrinterIdentifyStep::populate_printer_type_list() {
         lv_obj_set_style_pad_all(btn, theme_manager_get_spacing("space_md"), LV_PART_MAIN);
         lv_obj_set_style_radius(btn, theme_manager_get_spacing("border_radius"), LV_PART_MAIN);
         lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(btn, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
 
         // Style based on selection state - non-selected items are transparent
         if (static_cast<int>(i) == selected) {
@@ -634,8 +691,9 @@ void WizardPrinterIdentifyStep::populate_printer_type_list() {
 
         // Create label inside button
         lv_obj_t* label = lv_label_create(btn);
-        lv_label_set_text(label, names[i].c_str());
+        lv_label_set_text(label, entry.label.c_str());
         lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), LV_PART_MAIN);
+        lv_obj_set_flex_grow(label, 1);
 
         // Set text color based on selection
         if (static_cast<int>(i) == selected) {
@@ -648,17 +706,22 @@ void WizardPrinterIdentifyStep::populate_printer_type_list() {
             lv_obj_set_style_text_color(label, theme_manager_get_color("text"), LV_PART_MAIN);
         }
 
+        // Vendor shown beside the model while searching, hidden otherwise (a
+        // drilled-in list is single-vendor by construction). Pseudo-machines
+        // have no vendor to show. Child 1 of the row.
+        lv_obj_t* vendor_label = lv_label_create(btn);
+        lv_label_set_text(vendor_label, entry.group.c_str());
+        lv_obj_set_style_text_font(vendor_label, theme_manager_get_font("font_small"),
+                                   LV_PART_MAIN);
+        lv_obj_set_style_text_color(vendor_label, theme_manager_get_color("text_muted"),
+                                    LV_PART_MAIN);
+        if (entry.group.empty()) {
+            lv_obj_add_flag(vendor_label, LV_OBJ_FLAG_HIDDEN);
+        }
+
         // Store index in user_data and attach click handler
         lv_obj_set_user_data(btn, reinterpret_cast<void*>(i));
         lv_obj_add_event_cb(btn, on_printer_type_item_clicked, LV_EVENT_CLICKED, this);
-    }
-
-    // Scroll to selected item
-    if (selected >= 0 && selected < static_cast<int>(names.size())) {
-        lv_obj_t* selected_btn = lv_obj_get_child(printer_type_list_, selected);
-        if (selected_btn) {
-            lv_obj_scroll_to_view(selected_btn, LV_ANIM_OFF);
-        }
     }
 }
 
@@ -692,6 +755,176 @@ void WizardPrinterIdentifyStep::update_list_selection(int selected_index) {
             }
         }
     }
+}
+
+// ============================================================================
+// Vendor Drill-In + Search
+// ============================================================================
+
+void WizardPrinterIdentifyStep::build_selector_entries() {
+    const auto& list = PrinterDetector::get_list_entries(detected_kinematics_);
+    selector_entries_.clear();
+    selector_entries_.reserve(list.size());
+    for (size_t i = 0; i < list.size(); ++i) {
+        selector_entries_.push_back({list[i].name, list[i].manufacturer, static_cast<int>(i)});
+    }
+}
+
+void WizardPrinterIdentifyStep::populate_vendor_tiles() {
+    if (!vendor_tiles_) {
+        return;
+    }
+
+    lv_obj_clean(vendor_tiles_);
+    vendor_groups_ = ui::group_selector_entries(selector_entries_);
+
+    for (size_t g = 0; g < vendor_groups_.size(); ++g) {
+        lv_obj_t* tile = lv_obj_create(vendor_tiles_);
+        char tile_name[32];
+        snprintf(tile_name, sizeof(tile_name), "vendor_tile_%u", static_cast<unsigned>(g));
+        lv_obj_set_name(tile, tile_name);
+        lv_obj_set_width(tile, lv_pct(48));
+        lv_obj_set_height(tile, LV_SIZE_CONTENT);
+        lv_obj_set_style_pad_all(tile, theme_manager_get_spacing("space_md"), LV_PART_MAIN);
+        lv_obj_set_style_radius(tile, theme_manager_get_spacing("border_radius"), LV_PART_MAIN);
+        lv_obj_set_style_bg_color(tile, theme_manager_get_color("card_bg"), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(tile, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_remove_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
+
+        lv_obj_t* label = lv_label_create(tile);
+        lv_label_set_text(label, vendor_groups_[g].name.c_str());
+        // Vendor names are single unbreakable words at this tile width
+        // ("PrintersForAnts"), so wrapping would clip; dots keep them legible.
+        // Width is the tile's content width so the dots mode has a bound.
+        lv_obj_set_width(label, lv_pct(100));
+        lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
+        lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), LV_PART_MAIN);
+        lv_obj_set_style_text_color(label, theme_manager_get_color("text"), LV_PART_MAIN);
+
+        lv_obj_set_user_data(tile, reinterpret_cast<void*>(g));
+        lv_obj_add_event_cb(tile, on_vendor_tile_clicked, LV_EVENT_CLICKED, this);
+    }
+
+    spdlog::debug("[{}] Built {} vendor tiles", get_name(), vendor_groups_.size());
+}
+
+void WizardPrinterIdentifyStep::apply_view(int view) {
+    lv_subject_set_int(&printer_view_, view);
+
+    if (!printer_type_list_) {
+        return;
+    }
+
+    int visible = 0;
+    const uint32_t row_count = lv_obj_get_child_count(printer_type_list_);
+    for (uint32_t i = 0; i < row_count; ++i) {
+        lv_obj_t* row = lv_obj_get_child(printer_type_list_, static_cast<int32_t>(i));
+        if (!row || i >= selector_entries_.size()) {
+            continue;
+        }
+        const auto& entry = selector_entries_[i];
+
+        const bool show = (view == kViewSearch)
+                              ? ui::selector_entry_matches(entry, search_query_)
+                              : (view == kViewVendor) && (entry.group == active_vendor_);
+        if (show) {
+            lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
+            ++visible;
+        } else {
+            lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        // Child 1 of a row is its vendor label (child 0 is the model name);
+        // shown only while searching, where the flat list mixes vendors.
+        lv_obj_t* vendor_label = lv_obj_get_child(row, 1);
+        if (vendor_label) {
+            if (view == kViewSearch && !entry.group.empty()) {
+                lv_obj_remove_flag(vendor_label, LV_OBJ_FLAG_HIDDEN);
+            } else {
+                lv_obj_add_flag(vendor_label, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
+    }
+
+    lv_subject_set_int(&match_count_, visible);
+    lv_obj_scroll_to_y(printer_type_list_, 0, LV_ANIM_OFF);
+}
+
+void WizardPrinterIdentifyStep::enter_initial_view() {
+    const int selected = lv_subject_get_int(&printer_type_selected_);
+    if (selected >= 0 && static_cast<size_t>(selected) < selector_entries_.size()) {
+        const auto& entry = selector_entries_[selected];
+        // A detected or previously selected machine opens inside its vendor's
+        // bucket, scrolled to the machine. Pseudo-machines ("Custom/Other",
+        // "Unknown") and no selection start at the tile grid.
+        if (!entry.group.empty()) {
+            active_vendor_ = entry.group;
+            snprintf(vendor_title_buffer_, sizeof(vendor_title_buffer_), "%s", entry.group.c_str());
+            lv_subject_notify(&vendor_title_);
+            apply_view(kViewVendor);
+            if (printer_type_list_) {
+                lv_obj_t* row = lv_obj_get_child(printer_type_list_, selected);
+                if (row) {
+                    lv_obj_scroll_to_view(row, LV_ANIM_OFF);
+                }
+            }
+            spdlog::debug("[{}] Opened vendor '{}' at selected machine", get_name(),
+                          active_vendor_);
+            return;
+        }
+    }
+
+    active_vendor_.clear();
+    apply_view(kViewTiles);
+}
+
+void WizardPrinterIdentifyStep::on_wizard_printer_search_changed(lv_event_t* e) {
+    WizardPrinterIdentifyStep* self = get_wizard_printer_identify_step();
+    if (!self) {
+        return;
+    }
+
+    lv_obj_t* ta = static_cast<lv_obj_t*>(lv_event_get_target(e));
+    const char* text = lv_textarea_get_text(ta);
+    std::string query(text ? text : "");
+    query.erase(0, query.find_first_not_of(" \t\n\r\f\v"));
+    query.erase(query.find_last_not_of(" \t\n\r\f\v") + 1);
+
+    self->search_query_ = query;
+    self->apply_view(query.empty() ? kViewTiles : kViewSearch);
+}
+
+void WizardPrinterIdentifyStep::on_wizard_vendor_back_clicked(lv_event_t* e) {
+    (void)e;
+    WizardPrinterIdentifyStep* self = get_wizard_printer_identify_step();
+    if (!self) {
+        return;
+    }
+
+    self->active_vendor_.clear();
+    self->apply_view(kViewTiles);
+    spdlog::debug("[{}] Returned to vendor tile grid", self->get_name());
+}
+
+void WizardPrinterIdentifyStep::on_vendor_tile_clicked(lv_event_t* e) {
+    auto* self = static_cast<WizardPrinterIdentifyStep*>(lv_event_get_user_data(e));
+    if (!self) {
+        return;
+    }
+
+    lv_obj_t* tile = static_cast<lv_obj_t*>(lv_event_get_target(e));
+    const int group_index =
+        static_cast<int>(reinterpret_cast<uintptr_t>(lv_obj_get_user_data(tile)));
+    if (group_index < 0 || static_cast<size_t>(group_index) >= self->vendor_groups_.size()) {
+        return;
+    }
+
+    self->active_vendor_ = self->vendor_groups_[group_index].name;
+    snprintf(self->vendor_title_buffer_, sizeof(self->vendor_title_buffer_), "%s",
+             self->active_vendor_.c_str());
+    lv_subject_notify(&self->vendor_title_);
+    self->apply_view(kViewVendor);
+    spdlog::debug("[{}] Drilled into vendor '{}'", self->get_name(), self->active_vendor_);
 }
 
 void WizardPrinterIdentifyStep::on_printer_type_item_clicked(lv_event_t* e) {

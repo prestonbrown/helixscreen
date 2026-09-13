@@ -109,6 +109,19 @@ struct PrinterHardwareData {
 };
 
 /**
+ * @brief One row of the printer selection list, with its manufacturer
+ *
+ * Selection UIs group the list by manufacturer (vendor tiles). The pseudo
+ * entries appended to every list ("Custom/Other", "Unknown") have no database
+ * row, so their manufacturer is empty.
+ */
+// NAMESPACE_OK: joins this header's global-scope types (PrinterDetectionResult et al.)
+struct PrinterListEntry {
+    std::string name;         ///< Display name, as get_list_names() returns it
+    std::string manufacturer; ///< Database `manufacturer` field; empty for pseudo-entries
+};
+
+/**
  * @brief Printer auto-detection using hardware fingerprints
  *
  * Data-driven printer detection system that loads heuristics from JSON database.
@@ -321,6 +334,20 @@ class PrinterDetector {
      * @return Index of the Unknown entry (last entry)
      */
     static int get_unknown_list_index(const std::string& kinematics);
+
+    /**
+     * @brief Get list names plus manufacturers, filtered by kinematics
+     *
+     * Element i is exactly get_list_names(kinematics)[i] with its manufacturer
+     * attached, so an index into one addresses the same machine in the other.
+     * The pseudo-entries ("Custom/Other", "Unknown") carry an empty
+     * manufacturer; every visible database machine carries its `manufacturer`
+     * field verbatim.
+     *
+     * @param kinematics Kinematics filter. Empty = unfiltered.
+     * @return Vector of {name, manufacturer} in list order
+     */
+    static const std::vector<PrinterListEntry>& get_list_entries(const std::string& kinematics);
 
     /**
      * @brief Get the pre-print option set for a printer

@@ -3,11 +3,14 @@
 
 #pragma once
 
+#include "ui_selector_model.h"
+
 #include "lvgl/lvgl.h"
 #include "wizard_step.h"
 
 #include <memory>
 #include <string>
+#include <vector>
 
 /**
  * @file ui_wizard_printer_identify.h
@@ -148,20 +151,43 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
     // Printer type list container (populated once, reparented across wizard visits)
     lv_obj_t* printer_type_list_ = nullptr;
 
+    // Vendor tile grid container (browse level of the type selector)
+    lv_obj_t* vendor_tiles_ = nullptr;
+
     // Persistent off-screen container to cache the populated list across wizard
     // step transitions. The wizard framework destroys the step's widget tree on
     // navigation, but we keep the list alive here to avoid expensive rebuild on
-    // revisit (68 buttons + labels = slow on MIPS, see issue #231).
+    // revisit (~105 buttons + labels = slow on MIPS, see issue #231).
     lv_obj_t* list_cache_container_ = nullptr;
 
-    // Subjects (3 total)
+    // Same caching role as list_cache_container_, for the vendor tiles.
+    lv_obj_t* tile_cache_container_ = nullptr;
+
+    // Subjects
     lv_subject_t printer_name_;
     lv_subject_t printer_type_selected_;
     lv_subject_t printer_detection_status_;
+    // Selector view state: 0 = vendor tiles, 1 = one vendor's models, 2 = search
+    lv_subject_t printer_view_;
+    // Active vendor's name while drilled in (bound to the header label)
+    lv_subject_t vendor_title_;
+    // Rows currently visible under the active view (0 shows "No printers found")
+    lv_subject_t match_count_;
 
     // String buffers (must be persistent)
     char printer_name_buffer_[128];
     char printer_detection_status_buffer_[256];
+    char vendor_title_buffer_[64];
+
+    // Selector model: one entry per row, index-aligned with the detector's list
+    std::vector<helix::ui::SelectorEntry> selector_entries_;
+    // Buckets rendered as tiles; entry pointers address selector_entries_
+    std::vector<helix::ui::SelectorGroup> vendor_groups_;
+
+    // Vendor whose models are shown when drilled in; empty at browse level
+    std::string active_vendor_;
+    // Current search query; empty means normal browsing
+    std::string search_query_;
 
     // State tracking
     bool printer_identify_validated_ = false;
@@ -179,9 +205,22 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
     void update_list_selection(int selected_index);
     static void on_printer_type_item_clicked(lv_event_t* e);
 
+    // Selector helpers (search + vendor drill-in over selector_entries_)
+    void build_selector_entries();
+    void populate_vendor_tiles();
+    // Applies row visibility + vendor labels + match count for a view, sets
+    // the wizard_printer_view subject the XML containers bind to.
+    void apply_view(int view);
+    // Opens the bucket holding the current selection and scrolls to it, or
+    // the tile grid when the selection has no vendor (pseudo-machine or none).
+    void enter_initial_view();
+
     // Static trampolines for LVGL callbacks
     static void on_printer_name_changed_static(lv_event_t* e);
     static void on_printer_type_changed_static(lv_event_t* e);
+    static void on_wizard_printer_search_changed(lv_event_t* e);
+    static void on_wizard_vendor_back_clicked(lv_event_t* e);
+    static void on_vendor_tile_clicked(lv_event_t* e);
 };
 
 // ============================================================================

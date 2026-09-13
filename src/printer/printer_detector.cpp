@@ -1341,13 +1341,15 @@ std::string extract_kinematics(const json& printer) {
 
 // Cached list data - built once and reused
 struct ListCache {
-    std::string options;            // Newline-separated string for lv_roller_set_options()
-    std::vector<std::string> names; // Vector of names for index lookups
+    std::string options;                   // Newline-separated string for lv_roller_set_options()
+    std::vector<std::string> names;        // Vector of names for index lookups
+    std::vector<PrinterListEntry> entries; // names + manufacturers, index-aligned with names
     bool built = false;
 
     void reset() {
         options.clear();
         names.clear();
+        entries.clear();
         built = false;
     }
 
@@ -1360,6 +1362,7 @@ struct ListCache {
             spdlog::warn("[PrinterDetector] Cannot build list without database");
             // Fallback to just Custom/Other and Unknown
             names = {"Custom/Other", "Unknown"};
+            entries = {{"Custom/Other", ""}, {"Unknown", ""}};
             options = "Custom/Other\nUnknown";
             built = true;
             return;
@@ -1367,12 +1370,13 @@ struct ListCache {
 
         if (!g_database.data.contains("printers") || !g_database.data["printers"].is_array()) {
             names = {"Custom/Other", "Unknown"};
+            entries = {{"Custom/Other", ""}, {"Unknown", ""}};
             options = "Custom/Other\nUnknown";
             built = true;
             return;
         }
 
-        // Collect all printer names that should appear in list
+        // Collect all printers that should appear in list
         for (const auto& printer : g_database.data["printers"]) {
             // Check enabled flag (defaults to true if missing) - allows user to hide bundled
             bool enabled = printer.value("enabled", true);
@@ -1388,16 +1392,24 @@ struct ListCache {
 
             std::string name = printer.value("name", "");
             if (!name.empty()) {
-                names.push_back(name);
+                entries.push_back({name, printer.value("manufacturer", "")});
             }
         }
 
-        // Sort alphabetically for consistent ordering
-        std::sort(names.begin(), names.end());
+        // Sort alphabetically for consistent ordering, then derive names from
+        // entries so the two vectors can never disagree.
+        std::sort(
+            entries.begin(), entries.end(),
+            [](const PrinterListEntry& a, const PrinterListEntry& b) { return a.name < b.name; });
+        for (const auto& entry : entries) {
+            names.push_back(entry.name);
+        }
 
         // Always append Custom/Other and Unknown at the end
         names.push_back("Custom/Other");
         names.push_back("Unknown");
+        entries.push_back({"Custom/Other", ""});
+        entries.push_back({"Unknown", ""});
 
         // Build newline-separated string for list display
         for (size_t i = 0; i < names.size(); ++i) {
@@ -1427,6 +1439,7 @@ void build_filtered_list(const std::string& kinematics_filter) {
 
     if (!g_database.load()) {
         g_filtered_list_cache.names = {"Custom/Other", "Unknown"};
+        g_filtered_list_cache.entries = {{"Custom/Other", ""}, {"Unknown", ""}};
         g_filtered_list_cache.options = "Custom/Other\nUnknown";
         g_filtered_list_cache.built = true;
         return;
@@ -1434,6 +1447,7 @@ void build_filtered_list(const std::string& kinematics_filter) {
 
     if (!g_database.data.contains("printers") || !g_database.data["printers"].is_array()) {
         g_filtered_list_cache.names = {"Custom/Other", "Unknown"};
+        g_filtered_list_cache.entries = {{"Custom/Other", ""}, {"Unknown", ""}};
         g_filtered_list_cache.options = "Custom/Other\nUnknown";
         g_filtered_list_cache.built = true;
         return;
@@ -1462,12 +1476,18 @@ void build_filtered_list(const std::string& kinematics_filter) {
         }
         // Printers with no kinematics heuristic are always included
 
-        g_filtered_list_cache.names.push_back(name);
+        g_filtered_list_cache.entries.push_back({name, printer.value("manufacturer", "")});
     }
 
-    std::sort(g_filtered_list_cache.names.begin(), g_filtered_list_cache.names.end());
+    std::sort(g_filtered_list_cache.entries.begin(), g_filtered_list_cache.entries.end(),
+              [](const PrinterListEntry& a, const PrinterListEntry& b) { return a.name < b.name; });
+    for (const auto& entry : g_filtered_list_cache.entries) {
+        g_filtered_list_cache.names.push_back(entry.name);
+    }
     g_filtered_list_cache.names.push_back("Custom/Other");
     g_filtered_list_cache.names.push_back("Unknown");
+    g_filtered_list_cache.entries.push_back({"Custom/Other", ""});
+    g_filtered_list_cache.entries.push_back({"Unknown", ""});
 
     for (size_t i = 0; i < g_filtered_list_cache.names.size(); ++i) {
         g_filtered_list_cache.options += g_filtered_list_cache.names[i];
@@ -1551,6 +1571,16 @@ const std::vector<std::string>& PrinterDetector::get_list_names(const std::strin
         return get_list_names();
     build_filtered_list(kinematics);
     return g_filtered_list_cache.names;
+}
+
+const std::vector<PrinterListEntry>&
+PrinterDetector::get_list_entries(const std::string& kinematics) {
+    if (kinematics.empty()) {
+        g_list_cache.build();
+        return g_list_cache.entries;
+    }
+    build_filtered_list(kinematics);
+    return g_filtered_list_cache.entries;
 }
 
 int PrinterDetector::find_list_index(const std::string& printer_name,
