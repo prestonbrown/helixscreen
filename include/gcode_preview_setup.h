@@ -36,6 +36,18 @@ namespace helix::ui {
 bool apply_preview_render_mode(lv_obj_t* viewer, const char* log_tag);
 
 /**
+ * @brief Is the G-code viewer used at all, per the live ladder?
+ *
+ * Same sources and same precedence as apply_preview_render_mode(), without
+ * touching a widget or logging, so a caller can ask the question before it has
+ * (or needs) a viewer. Thumbnail Only is the one answer of false, and it covers
+ * the whole pipeline: no download, no layer index, no render pass.
+ *
+ * @return true when the viewer will be used, false for Thumbnail Only.
+ */
+bool preview_viewer_enabled();
+
+/**
  * @brief Tell a preview which widget covers the bottom of it.
  *
  * The metadata strip is translucent and sits over the bottom of the preview in

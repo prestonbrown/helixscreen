@@ -48,13 +48,20 @@ struct PreviewAction {
  * @param gcode_has_content Does the gcode viewer currently hold geometry.
  * @param want_viewer       Lifecycle wants the 3D/2D viewer for the current
  *                          print state (independent of the render-mode setting).
+ * @param viewer_enabled    The render-mode setting permits the viewer at all.
+ *                          False is Thumbnail Only, where the G-code is never
+ *                          fetched, indexed or rendered. Gates ONLY load_gcode:
+ *                          the thumbnail is the content the user sees in that
+ *                          mode, and stale geometry still has to leave the
+ *                          screen.
  * @return Which resources to (re)load, and whether the viewer must drop
  *         geometry it holds for a different file before that happens.
  */
 inline PreviewAction decide_preview_action(const std::string& thumbnail_displayed_file,
                                            const std::string& gcode_displayed_file,
                                            const std::string& desired_file, bool thumbnail_has_src,
-                                           bool gcode_has_content, bool want_viewer) {
+                                           bool gcode_has_content, bool want_viewer,
+                                           bool viewer_enabled) {
     PreviewAction action{};
 
     // Nothing to show: no print selected. Leave widgets untouched.
@@ -87,13 +94,15 @@ inline PreviewAction decide_preview_action(const std::string& thumbnail_displaye
         action.clear_gcode = true;
     }
 
-    // Gcode geometry (re)loads whenever the lifecycle wants the viewer and the
-    // viewer's file differs or it holds no geometry. Do NOT gate on the current
-    // view-mode subject: the mode only flips to 3D/2D AFTER the gcode loads, so
-    // gating here would deadlock the load and pin the preview to the thumbnail.
-    // The render-mode setting (thumbnail-only / 3D-disabled) is enforced
-    // downstream in load_gcode_for_viewing().
-    if (want_viewer && (gcode_mismatch || !gcode_has_content)) {
+    // Gcode geometry (re)loads whenever the lifecycle wants the viewer, the
+    // render mode admits one, and the viewer's file differs or it holds no
+    // geometry. Do NOT gate on the current view-mode subject: the mode only
+    // flips to 3D/2D AFTER the gcode loads, so gating here would deadlock the
+    // load and pin the preview to the thumbnail. viewer_enabled is the whole
+    // pipeline's switch, not a display choice — a Thumbnail Only install must
+    // never download and re-read a multi-hundred-megabyte file it will not draw,
+    // because that work competes with the print itself.
+    if (want_viewer && viewer_enabled && (gcode_mismatch || !gcode_has_content)) {
         action.load_gcode = true;
     }
 

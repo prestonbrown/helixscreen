@@ -72,6 +72,21 @@ struct PreviewModeDecision {
     GcodeViewerRenderMode mode; ///< Only meaningful when `apply` is true
     PreviewModeSource source;
     bool apply; ///< false: leave the viewer's current mode alone
+
+    /**
+     * @brief Is the G-code viewer used at all under this outcome?
+     *
+     * ThumbnailOnly is the one tier that answers no, and it answers for the
+     * whole pipeline: the file is never downloaded, indexed or rendered. Every
+     * tier above it is an explicit request for a renderer, so a command-line
+     * mode or HELIX_GCODE_MODE turns the viewer back on.
+     *
+     * Distinct from `apply`, which is also false for Environment — there the
+     * viewer IS used, it is simply already in the requested mode.
+     */
+    bool uses_viewer() const {
+        return source != PreviewModeSource::ThumbnailOnly;
+    }
 };
 
 /// Thumbnail Only, as stored in the display settings.

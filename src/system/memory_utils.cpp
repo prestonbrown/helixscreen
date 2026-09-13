@@ -3,6 +3,11 @@
 
 #include "memory_utils.h"
 
+#include "app_globals.h"
+#include "gcode_layer_cache.h"
+#include "gcode_layer_index.h"
+#include "system/helix_paths.h"
+
 #include <lvgl/lvgl.h>
 #include <spdlog/spdlog.h>
 
@@ -220,29 +225,39 @@ bool is_gcode_3d_render_safe(size_t file_size_bytes) {
     return mem.available_kb > (estimated_memory_kb * 2);
 }
 
-bool is_gcode_2d_streaming_safe_impl(size_t file_size_bytes, size_t available_kb, int display_width,
-                                     int display_height) {
+bool is_gcode_2d_streaming_safe_impl(size_t file_size_bytes, size_t available_kb, size_t total_kb,
+                                     int display_width, int display_height,
+                                     bool cache_dir_is_ram_backed) {
     // 2D streaming mode memory requirements:
-    // 1. Layer index: ~24 bytes per layer (estimate 1 layer per 500 bytes of G-code)
-    // 2. LRU layer cache: 1MB fixed budget for parsed layer segments
+    // 1. Layer index: one StreamingLayerEntry per layer, estimating 1 layer per
+    //    500 bytes of G-code. Priced from the struct itself, so the gate cannot
+    //    reserve less per layer than GCodeLayerIndex allocates.
+    // 2. LRU layer cache: the budget GCodeStreamingController hands this RAM
+    //    tier. Adaptive mode may shrink it under pressure, never raise it, so
+    //    the tier budget is the ceiling to reserve.
     // 3. Ghost buffer: display_width * display_height * 4 bytes (ARGB8888)
     // 4. Safety margin: 3MB for other allocations
-    //
-    // Note: NO download spike - file streams directly to disk
+    // 5. Spill: the downloaded file itself when the cache directory is
+    //    RAM-backed. tmpfs/ramfs bytes ARE memory and, on a device without
+    //    swap, nothing can reclaim them while the file stays cached; on real
+    //    storage the download costs no RAM at all.
 
-    size_t estimated_layers = file_size_bytes / 500;
-    size_t layer_index_kb = (estimated_layers * 24) / 1024;
-    constexpr size_t lru_cache_kb = 1024; // 1MB
-    size_t ghost_buffer_kb =
+    const size_t estimated_layers = file_size_bytes / 500;
+    const size_t layer_index_kb = (estimated_layers * sizeof(gcode::StreamingLayerEntry)) / 1024;
+    const size_t lru_cache_kb =
+        gcode::GCodeLayerCache::budget_tier_for_total_ram_kb(total_kb).budget_bytes / 1024;
+    const size_t ghost_buffer_kb =
         (static_cast<size_t>(display_width) * static_cast<size_t>(display_height) * 4) / 1024;
     constexpr size_t safety_margin_kb = 3 * 1024; // 3MB
+    const size_t spill_kb = cache_dir_is_ram_backed ? file_size_bytes / 1024 : 0;
 
-    size_t total_needed_kb = layer_index_kb + lru_cache_kb + ghost_buffer_kb + safety_margin_kb;
+    const size_t total_needed_kb =
+        layer_index_kb + lru_cache_kb + ghost_buffer_kb + safety_margin_kb + spill_kb;
 
     spdlog::trace("[memory_utils] 2D streaming: need {}KB (index={}KB, cache={}KB, "
-                  "ghost={}KB@{}x{}, margin={}KB), available={}KB",
+                  "ghost={}KB@{}x{}, margin={}KB, spill={}KB), available={}KB",
                   total_needed_kb, layer_index_kb, lru_cache_kb, ghost_buffer_kb, display_width,
-                  display_height, safety_margin_kb, available_kb);
+                  display_height, safety_margin_kb, spill_kb, available_kb);
 
     return available_kb > total_needed_kb;
 }
@@ -272,8 +287,14 @@ bool is_gcode_2d_streaming_safe(size_t file_size_bytes) {
         display_height = lv_display_get_vertical_resolution(disp);
     }
 
-    return is_gcode_2d_streaming_safe_impl(file_size_bytes, mem.available_kb, display_width,
-                                           display_height);
+    // Resolved with the creating call, not peek_helix_cache_dir(): a directory
+    // that does not exist yet cannot be stat'd, and an unclassifiable path
+    // reads as storage — which is exactly the under-count this term exists to
+    // prevent. Same subdir the G-code preview downloads into.
+    const bool cache_dir_is_ram_backed = paths::is_ram_backed(get_helix_cache_dir("gcode_temp"));
+
+    return is_gcode_2d_streaming_safe_impl(file_size_bytes, mem.available_kb, mem.total_kb,
+                                           display_width, display_height, cache_dir_is_ram_backed);
 }
 
 // ============================================================================
