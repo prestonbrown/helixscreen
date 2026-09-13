@@ -10,6 +10,7 @@
 #include <array>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -482,6 +483,38 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     // here writes a UID back to firmware, so every change is external. All
     // access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
+
+    /// What set_slot_info last POSTed to /printer/filament_detect/set for a
+    /// channel, and the tag UID that channel carried at the time.
+    ///
+    /// The write target is filament_detect.info, the same object
+    /// parse_rfid_info reads, and VENDOR / MAIN_TYPE / SUB_TYPE are spelled
+    /// identically on both sides. So firmware reports a user's edit back
+    /// through the RFID path, where it is indistinguishable by value from a
+    /// tag reading. Filing that as VendorCache would survive the user later
+    /// clearing their override and leave the lane asserting an abandoned edit
+    /// as what the machine said, with no way back to firmware truth.
+    ///
+    /// A new CARD_UID on the channel is a different physical spool and ends
+    /// the suppression; nothing else does, because the echo outlives the
+    /// override that caused it.
+    struct PostedIdentity {
+        std::string brand;      ///< Empty when the POST omitted VENDOR.
+        std::string material;   ///< Empty when the POST omitted MAIN_TYPE.
+        std::string spool_name; ///< Empty when the POST omitted SUB_TYPE.
+        uint32_t color_rgb = 0;
+        bool color_posted = false;
+        /// rfid_tracker_ baseline when the POST went out. Empty means no tag
+        /// had been read yet, and any later UID is then a new reading.
+        std::string uid_at_post;
+    };
+    std::array<std::optional<PostedIdentity>, NUM_TOOLS> posted_identity_;
+
+    /// This channel's outstanding echo, or nullptr when there is none. Clears
+    /// the entry when @p observed_uid names a tag other than the one the POST
+    /// was made against. An empty observed_uid is the reader saying nothing,
+    /// which is not a swap. Caller must hold mutex_.
+    const PostedIdentity* own_write_echo_locked(int slot_index, const std::string& observed_uid);
 };
 
 } // namespace helix

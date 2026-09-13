@@ -905,6 +905,37 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
         payload["channel"] = slot_index;
         payload["info"] = info_obj;
 
+        // Remember the write so the RFID parse can tell firmware repeating it
+        // back from a tag stating it. Recorded before dispatch rather than in
+        // the response callback: the callback deliberately captures no `this`
+        // (it can outlive the backend), and a suppression that never fires
+        // costs nothing, because every field below is gated on an EXACT match
+        // with what was sent. On stock firmware the POST 404s and no echo
+        // arrives, so the only field this can withhold is one the tag happens
+        // to agree with, whose value resolve() would take from the user's own
+        // record anyway.
+        if (slot_index >= 0 && slot_index < NUM_TOOLS) {
+            PostedIdentity posted;
+            if (info_obj.contains("VENDOR"))
+                posted.brand = info_obj["VENDOR"].get<std::string>();
+            if (info_obj.contains("MAIN_TYPE"))
+                posted.material = info_obj["MAIN_TYPE"].get<std::string>();
+            if (info_obj.contains("SUB_TYPE"))
+                posted.spool_name = info_obj["SUB_TYPE"].get<std::string>();
+            // The POST spells colour RGB_1 and the parse reads ARGB_COLOR.
+            // Whether firmware translates between the two is not answered
+            // anywhere in the tree or in the firmware doc, so this assumes it
+            // does. If it does not, the posted colour simply never matches an
+            // incoming reading and the guard is inert.
+            posted.color_rgb = info.color_rgb;
+            posted.color_posted = true;
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (auto baseline = rfid_tracker_.baseline(slot_index)) {
+                posted.uid_at_post = *baseline;
+            }
+            posted_identity_[static_cast<size_t>(slot_index)] = std::move(posted);
+        }
+
         // Log-only callback — no UI / member access — so a value-captured tag
         // is safe even after the backend is destroyed (same rationale as
         // save_async's callback above). Routes through MoonrakerRestAPI which
@@ -1233,8 +1264,18 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // rewrites it in place at the tail of every one, so
                         // reading the struct back would file a user's edit as
                         // something the tag says.
+                        //
+                        // What this backend POSTed to filament_detect/set
+                        // lands in this same object, spelled the same way, so
+                        // a field repeating our own write is not a reading.
+                        // Withholding it matters most AFTER the user clears
+                        // their override: resolve() would otherwise fall
+                        // through to a VendorCache record still holding the
+                        // abandoned edit, and the lane could never get back to
+                        // what the machine says.
+                        const PostedIdentity* echo = own_write_echo_locked(i, rfid.uid);
                         helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
-                        if (!rfid.main_type.empty())
+                        if (!rfid.main_type.empty() && !(echo && echo->material == rfid.main_type))
                             cache.material = rfid.main_type;
                         // Both spellings of "the tag named no vendor" retract
                         // the brand here: whole-record replacement means this
@@ -1244,13 +1285,14 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // so it blanks on an absent key and KEEPS its last
                         // value on the literal. That one input is the only
                         // place the two layers disagree.
-                        if (!brand.empty() && brand != "NONE")
+                        if (!brand.empty() && brand != "NONE" && !(echo && echo->brand == brand))
                             cache.brand = brand;
                         // SnapmakerRfidInfo::color_rgb rests on
                         // AMS_DEFAULT_SLOT_COLOR when the tag carried no
                         // ARGB_COLOR, which is that struct's "no reading" and
                         // not a grey anybody chose.
-                        if (helix::ams::is_declarable_color(rfid.color_rgb))
+                        if (helix::ams::is_declarable_color(rfid.color_rgb) &&
+                            !(echo && echo->color_posted && echo->color_rgb == rfid.color_rgb))
                             cache.color_rgb = rfid.color_rgb;
                         // SUB_TYPE names the product line inside MAIN_TYPE
                         // ("Silk" inside "PLA"), so it is the branded product
@@ -1259,7 +1301,8 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // spelling, and splits from this record on the
                         // literal "NONE" for the same reason the brand guard
                         // does.
-                        if (!rfid.sub_type.empty() && rfid.sub_type != "NONE")
+                        if (!rfid.sub_type.empty() && rfid.sub_type != "NONE" &&
+                            !(echo && echo->spool_name == rfid.sub_type))
                             cache.product_name = rfid.sub_type;
                         if (rfid.weight_g > 0)
                             cache.total_weight_g = static_cast<float>(rfid.weight_g);
@@ -1613,21 +1656,6 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                 }
             }
 
-            // filament_type: ["PLA", "PLA", ...] — material type per slot
-            if (ptc.contains("filament_type") && ptc["filament_type"].is_array()) {
-                const auto& type_arr = ptc["filament_type"];
-                for (int i = 0; i < NUM_TOOLS && i < static_cast<int>(type_arr.size()); i++) {
-                    if (!type_arr[i].is_string())
-                        continue;
-                    auto* slot = system_info_.units[0].get_slot(i);
-                    if (slot) {
-                        auto type = type_arr[i].get<std::string>();
-                        slot->material = type; // Base type only (e.g., "PLA") for compact display
-                        changed = true;
-                    }
-                }
-            }
-
             // These three fields write SlotInfo and deliberately file NO lane
             // observation, unlike the RFID parse above.
             //
@@ -1652,6 +1680,21 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
             // A user's declaration reaches the lane model through
             // commit_slot_edit, which is the funnel that records authorship.
             //
+            // filament_type: ["PLA", "PLA", ...] — material type per slot
+            if (ptc.contains("filament_type") && ptc["filament_type"].is_array()) {
+                const auto& type_arr = ptc["filament_type"];
+                for (int i = 0; i < NUM_TOOLS && i < static_cast<int>(type_arr.size()); i++) {
+                    if (!type_arr[i].is_string())
+                        continue;
+                    auto* slot = system_info_.units[0].get_slot(i);
+                    if (slot) {
+                        auto type = type_arr[i].get<std::string>();
+                        slot->material = type; // Base type only (e.g., "PLA") for compact display
+                        changed = true;
+                    }
+                }
+            }
+
             // filament_vendor: ["Snapmaker", ...] — brand per slot
             if (ptc.contains("filament_vendor") && ptc["filament_vendor"].is_array()) {
                 const auto& vendor_arr = ptc["filament_vendor"];
@@ -1953,6 +1996,23 @@ void AmsBackendSnapmaker::check_hardware_event_clear(SlotInfo& slot, int slot_in
     // policy. Caller already holds mutex_.
     (void)ovr_it; // erased inside clear_override_locked
     clear_override_locked(slot_index, slot);
+}
+
+const AmsBackendSnapmaker::PostedIdentity*
+AmsBackendSnapmaker::own_write_echo_locked(int slot_index, const std::string& observed_uid) {
+    if (slot_index < 0 || slot_index >= NUM_TOOLS)
+        return nullptr;
+    auto& entry = posted_identity_[static_cast<size_t>(slot_index)];
+    if (!entry)
+        return nullptr;
+    // A tag this write was not made against is a different physical spool, so
+    // whatever we wrote to the old one stops explaining what is being read.
+    // An empty UID is the reader saying nothing this frame, not a swap.
+    if (!observed_uid.empty() && observed_uid != entry->uid_at_post) {
+        entry.reset();
+        return nullptr;
+    }
+    return &*entry;
 }
 
 void AmsBackendSnapmaker::clear_override_locked(int slot_index, SlotInfo& slot) {

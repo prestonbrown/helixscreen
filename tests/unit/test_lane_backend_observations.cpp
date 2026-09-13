@@ -16,7 +16,10 @@
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "lane_source_store.h"
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
 #include "printer_discovery.h"
+#include "printer_state.h"
 #include "test_helpers/ace_test_access.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/afc_test_access.h"
@@ -2171,4 +2174,118 @@ TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's print_task_config writes identity
     CHECK(lane.vendor_cache->brand == "Snapmaker");
     REQUIRE(lane.vendor_cache->color_rgb.has_value());
     CHECK(*lane.vendor_cache->color_rgb == 0xED2C2Cu);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's own write-back does not return as a vendor reading",
+                 "[lane][ingest][snapmaker]") {
+    // The write-back needs a real API behind it: /printer/filament_detect/set
+    // is only POSTed when one is attached, and that POST is what the parse has
+    // to recognise on the way back.
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    SnapmakerHarness harness(&api, nullptr);
+
+    const auto tag_uid = nlohmann::json::array({144, 32, 196, 2});
+
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1})},
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PLA"},
+                                                    {"MANUFACTURER", "Snapmaker"},
+                                                    {"SUB_TYPE", "Silk"},
+                                                    {"ARGB_COLOR", 0xFFED2C2C},
+                                                    {"CARD_UID", tag_uid},
+                                                }})},
+                                   });
+
+    const auto read = lane_sources(harness.lane(0));
+    REQUIRE(read.vendor_cache.has_value());
+    REQUIRE(read.vendor_cache->color_rgb.has_value());
+    CHECK(*read.vendor_cache->color_rgb == 0xED2C2Cu);
+
+    // The user edits through the production path, which POSTs VENDOR /
+    // MAIN_TYPE / SUB_TYPE / RGB_1 into filament_detect.info.
+    auto edit = harness->get_slot_info(0);
+    edit.brand = "Polymaker";
+    edit.material = "PETG";
+    edit.spool_name = "Matte";
+    edit.color_rgb = 0x00FF00u;
+    REQUIRE(harness->set_slot_info(0, edit, /*persist=*/true).success());
+    REQUIRE(api.rest_mock().mock_get_post_history().size() == 1);
+    REQUIRE(api.rest_mock().mock_get_post_history()[0].endpoint == "/printer/filament_detect/set");
+
+    // Firmware reports the write back through the same object the tag uses,
+    // with the same key spellings, on the same physical spool. WEIGHT is the
+    // control: nothing POSTs it, so it is a genuine reading and must still be
+    // filed while the four echoed fields are withheld.
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1})},
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PETG"},
+                                                    {"MANUFACTURER", "Polymaker"},
+                                                    {"SUB_TYPE", "Matte"},
+                                                    {"ARGB_COLOR", 0xFF00FF00},
+                                                    {"WEIGHT", 1000},
+                                                    {"CARD_UID", tag_uid},
+                                                }})},
+                                   });
+
+    const auto echoed = lane_sources(harness.lane(0));
+    REQUIRE(echoed.vendor_cache.has_value());
+    REQUIRE(echoed.vendor_cache->total_weight_g.has_value());
+    CHECK(*echoed.vendor_cache->total_weight_g == 1000.0F);
+    CHECK_FALSE(echoed.vendor_cache->material.has_value());
+    CHECK_FALSE(echoed.vendor_cache->brand.has_value());
+    CHECK_FALSE(echoed.vendor_cache->product_name.has_value());
+    CHECK_FALSE(echoed.vendor_cache->color_rgb.has_value());
+
+    // The same tag, re-read, reporting what is physically printed on it rather
+    // than what we wrote. The UID has not moved, so the echo is still
+    // outstanding, but these values are not the ones we sent and the guard
+    // must let every one of them through. Suppressing on the mere existence of
+    // an outstanding write, instead of on an exact value match, would lose a
+    // genuine reading here.
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1})},
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PLA"},
+                                                    {"MANUFACTURER", "Snapmaker"},
+                                                    {"SUB_TYPE", "Silk"},
+                                                    {"ARGB_COLOR", 0xFFED2C2C},
+                                                    {"CARD_UID", tag_uid},
+                                                }})},
+                                   });
+
+    const auto reasserted = lane_sources(harness.lane(0));
+    REQUIRE(reasserted.vendor_cache.has_value());
+    CHECK(reasserted.vendor_cache->material == "PLA");
+    CHECK(reasserted.vendor_cache->brand == "Snapmaker");
+    CHECK(reasserted.vendor_cache->product_name == "Silk");
+    REQUIRE(reasserted.vendor_cache->color_rgb.has_value());
+    CHECK(*reasserted.vendor_cache->color_rgb == 0xED2C2Cu);
+
+    // A different CARD_UID is a different physical spool, so the same values
+    // are now a tag stating them rather than firmware repeating us.
+    feed_filament_detect(*harness,
+                         nlohmann::json{
+                             {"state", nlohmann::json::array({1})},
+                             {"info", nlohmann::json::array({nlohmann::json{
+                                          {"MAIN_TYPE", "PETG"},
+                                          {"MANUFACTURER", "Polymaker"},
+                                          {"SUB_TYPE", "Matte"},
+                                          {"ARGB_COLOR", 0xFF00FF00},
+                                          {"CARD_UID", nlohmann::json::array({9, 9, 9, 9})},
+                                      }})},
+                         });
+
+    const auto swapped = lane_sources(harness.lane(0));
+    REQUIRE(swapped.vendor_cache.has_value());
+    CHECK(swapped.vendor_cache->material == "PETG");
+    CHECK(swapped.vendor_cache->brand == "Polymaker");
+    CHECK(swapped.vendor_cache->product_name == "Matte");
+    REQUIRE(swapped.vendor_cache->color_rgb.has_value());
+    CHECK(*swapped.vendor_cache->color_rgb == 0x00FF00u);
 }
