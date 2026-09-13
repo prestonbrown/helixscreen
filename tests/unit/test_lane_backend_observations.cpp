@@ -41,6 +41,7 @@
 
 #include <map>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -365,7 +366,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AD5X caches pure black as a colour", "[lane][
     CHECK(*lane.vendor_cache->color_rgb == 0x000000u);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "AD5X files no colour when the stored one will not parse",
+TEST_CASE_METHOD(LVGLTestFixture, "AD5X reads its stored colour with the shared lane grammar",
                  "[lane][ingest][ad5x]") {
     Ad5xHarness harness(nullptr, nullptr);
     Ad5xIfsTestAccess::set_ifs_status_ports_seen(*harness, true);
@@ -376,15 +377,38 @@ TEST_CASE_METHOD(LVGLTestFixture, "AD5X files no colour when the stored one will
     REQUIRE(parsed.vendor_cache.has_value());
     REQUIRE(parsed.vendor_cache->color_rgb == 0xED2C2Cu);
 
-    // parse_adventurer_json stores ffmColorN as the printer sent it, so
-    // colors_[] can hold a string that is not hex. The colour already on the
-    // lane must not stand in for one: the reading is gone, and "no colour
-    // observed" is a state this model can express.
-    Ad5xIfsTestAccess::set_color(*harness, 0, "notahexvalue");
+    // parse_adventurer_json stores ffmColorN as the printer sent it, minus a
+    // leading '#', so colors_[] holds whatever spelling the source used. Each
+    // of these is a value a digit-by-digit hex conversion answers differently
+    // from the grammar the other eight backends read a lane colour with, and
+    // the readable ones come first so an unreadable spelling has a colour on
+    // the lane it could wrongly stand in for.
+    struct Spelling {
+        const char* stored;
+        std::optional<uint32_t> expected;
+    };
+    const std::vector<Spelling> spellings = {
+        // The '#RGB' short form the stock UI writes, expanded rather than read
+        // as three leading zeroes.
+        {"ABC", 0xAABBCCu},
+        // '#RRGGBBAA': the alpha is shifted off, not left in the low byte.
+        {"ED2C2CAA", 0xED2C2Cu},
+        // Trailing junk voids the value instead of truncating to the hex
+        // digits in front of it.
+        {"ED2C2Cjunk", std::nullopt},
+        // Neither a sign nor a seven-digit run is a colour.
+        {"-1", std::nullopt},
+        {"1FFAA00", std::nullopt},
+    };
 
-    const auto lane = lane_sources(harness.lane(0));
-    REQUIRE(lane.vendor_cache.has_value());
-    CHECK_FALSE(lane.vendor_cache->color_rgb.has_value());
+    for (const auto& spelling : spellings) {
+        CAPTURE(spelling.stored);
+        Ad5xIfsTestAccess::set_color(*harness, 0, spelling.stored);
+
+        const auto lane = lane_sources(harness.lane(0));
+        REQUIRE(lane.vendor_cache.has_value());
+        CHECK(lane.vendor_cache->color_rgb == spelling.expected);
+    }
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "an override never reaches AD5X's vendor-cache record",
@@ -2318,6 +2342,77 @@ TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's own write-back does not return as
     CHECK(swapped.vendor_cache->product_name == "Matte");
     REQUIRE(swapped.vendor_cache->color_rgb.has_value());
     CHECK(*swapped.vendor_cache->color_rgb == 0x00FF00u);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Snapmaker write firmware refused withholds nothing",
+                 "[lane][ingest][snapmaker]") {
+    // Stock firmware carries no /printer/filament_detect/set, so the POST 404s
+    // and the values never reach the machine. Nothing is going to echo them,
+    // and a guard left armed would withhold the tag's own reading of those
+    // fields until the spool changes.
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    RestResponse not_found;
+    not_found.success = false;
+    not_found.status_code = 404;
+    not_found.error = "Not Found";
+    api.rest_mock().mock_queue_post_response("/printer/filament_detect/set", not_found);
+
+    SnapmakerHarness harness(&api, nullptr);
+
+    const auto tag_uid = nlohmann::json::array({144, 32, 196, 2});
+
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1})},
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PLA"},
+                                                    {"MANUFACTURER", "Snapmaker"},
+                                                    {"SUB_TYPE", "Silk"},
+                                                    {"ARGB_COLOR", 0xFFED2C2C},
+                                                    {"CARD_UID", tag_uid},
+                                                }})},
+                                   });
+
+    auto edit = harness->get_slot_info(0);
+    edit.brand = "Polymaker";
+    edit.material = "PETG";
+    edit.spool_name = "Matte";
+    edit.color_rgb = 0x00FF00u;
+    REQUIRE(harness->set_slot_info(0, edit, /*persist=*/true).success());
+    REQUIRE(api.rest_mock().mock_get_post_history().size() == 1);
+
+    // The refusal reaches the guard through the response callback, which
+    // marshals to the main thread before touching the backend.
+    helix::ui::UpdateQueue::instance().drain();
+
+    // The same physical spool, read again, now stating exactly what the user
+    // typed: they typed what the tag already said, or another writer put it
+    // there. With no write outstanding these are the tag's statement, and the
+    // WEIGHT alongside them is the control that a record was filed at all.
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1})},
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PETG"},
+                                                    {"MANUFACTURER", "Polymaker"},
+                                                    {"SUB_TYPE", "Matte"},
+                                                    {"ARGB_COLOR", 0xFF00FF00},
+                                                    {"WEIGHT", 1000},
+                                                    {"CARD_UID", tag_uid},
+                                                }})},
+                                   });
+
+    const auto read = lane_sources(harness.lane(0));
+    REQUIRE(read.vendor_cache.has_value());
+    REQUIRE(read.vendor_cache->total_weight_g.has_value());
+    CHECK(*read.vendor_cache->total_weight_g == 1000.0F);
+    CHECK(read.vendor_cache->material == "PETG");
+    CHECK(read.vendor_cache->brand == "Polymaker");
+    CHECK(read.vendor_cache->product_name == "Matte");
+    REQUIRE(read.vendor_cache->color_rgb.has_value());
+    CHECK(*read.vendor_cache->color_rgb == 0x00FF00u);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

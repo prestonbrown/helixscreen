@@ -1122,23 +1122,25 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
 
     auto idx = static_cast<size_t>(slot_index);
 
-    // Color: parse hex string to uint32_t. observed_color is what this call
-    // read out of colors_[idx], and it is the ONLY firmware-truth colour in
-    // scope below - entry->info.color_rgb stops being one the moment
-    // apply_overrides() has run over this persistent SlotInfo once.
+    // Color: read the string through the shared lane grammar. observed_color
+    // is what this call read out of colors_[idx], and it is the ONLY
+    // firmware-truth colour in scope below - entry->info.color_rgb stops being
+    // one the moment apply_overrides() has run over this persistent SlotInfo
+    // once.
     //
-    // colors_[idx] is not guaranteed to be hex: parse_adventurer_json stores
-    // ffmColorN as the printer sent it, minus a leading '#'. A string that will
-    // not parse is therefore no reading at all, and must yield nothing rather
-    // than whatever value happens to be sitting in entry->info.color_rgb.
+    // colors_[idx] is not guaranteed to be six hex digits: parse_adventurer_json
+    // stores ffmColorN as the printer sent it, minus a leading '#', and the
+    // stock UI writes the '#RGB' short form. Only an Observed reading is a
+    // colour; anything else leaves color_rgb alone so the last good colour
+    // stays on screen. Cleared lands there too, because an empty colors_[idx]
+    // is a slot no source has spoken for yet rather than the board stating the
+    // lane has no colour - parse_save_variables and handle_status_update run
+    // before parse_adventurer_json fills it.
     std::optional<uint32_t> observed_color;
-    if (!colors_[idx].empty()) {
-        try {
-            observed_color = static_cast<uint32_t>(std::stoul(colors_[idx], nullptr, 16));
-            entry->info.color_rgb = *observed_color;
-        } catch (...) {
-            // Leave color_rgb alone so the last good colour stays on screen.
-        }
+    if (const auto reading = ams::read_lane_color(colors_[idx]);
+        reading.kind == ams::ColorReadingKind::Observed) {
+        observed_color = reading.rgb;
+        entry->info.color_rgb = reading.rgb;
     }
 
     // Material
