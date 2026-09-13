@@ -757,11 +757,23 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
     if (err.result != AmsResult::SUCCESS)
         return err;
 
+    // What the channel held before this edit, so the write-back guard can
+    // record the user's DELTA rather than the merged struct the POST carries.
+    std::string prior_brand;
+    std::string prior_material;
+    std::string prior_spool_name;
+    uint32_t prior_color_rgb = AMS_DEFAULT_SLOT_COLOR;
+
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* slot = system_info_.units[0].get_slot(slot_index);
         if (!slot)
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_TOOLS - 1);
+
+        prior_brand = slot->brand;
+        prior_material = slot->material;
+        prior_spool_name = slot->spool_name;
+        prior_color_rgb = slot->color_rgb;
 
         // Update the in-memory slot directly. Covers every SlotInfo field the
         // caller may set — a persist=false preview must not silently drop
@@ -905,35 +917,44 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
         payload["channel"] = slot_index;
         payload["info"] = info_obj;
 
-        // Remember the write so the RFID parse can tell firmware repeating it
-        // back from a tag stating it. Recorded before dispatch rather than in
-        // the response callback: the callback deliberately captures no `this`
-        // (it can outlive the backend), and a suppression that never fires
-        // costs nothing, because every field below is gated on an EXACT match
-        // with what was sent. On stock firmware the POST 404s and no echo
-        // arrives, so the only field this can withhold is one the tag happens
-        // to agree with, whose value resolve() would take from the user's own
-        // record anyway.
+        // Remember what the USER declared, so the RFID parse can tell firmware
+        // repeating their choice back from a tag stating it.
+        //
+        // A field is recorded only when the user moved it AND the POST carried
+        // it. Both halves matter. The POST sends the whole merged SlotInfo, so
+        // a field the user left alone travels carrying the tag's own string;
+        // that comes back as firmware truth and has to be filed, because
+        // commit_slot_edit files only the delta and no other source holds it.
+        // And a field the user CLEARED is omitted from the POST, so firmware
+        // keeps the tag's value and what returns is the tag's.
+        //
+        // Recorded before dispatch rather than in the response callback: the
+        // callback deliberately captures no `this` (it can outlive the
+        // backend), and an expectation that never fires costs nothing, because
+        // every field is gated on an EXACT match. On stock firmware the POST
+        // 404s and no echo arrives, so the only field this can withhold is one
+        // the tag happens to agree with, whose value resolve() takes from the
+        // user's own record anyway.
         if (slot_index >= 0 && slot_index < NUM_TOOLS) {
-            PostedIdentity posted;
-            if (info_obj.contains("VENDOR"))
-                posted.brand = info_obj["VENDOR"].get<std::string>();
-            if (info_obj.contains("MAIN_TYPE"))
-                posted.material = info_obj["MAIN_TYPE"].get<std::string>();
-            if (info_obj.contains("SUB_TYPE"))
-                posted.spool_name = info_obj["SUB_TYPE"].get<std::string>();
+            DeclaredIdentity declared;
+            if (info.brand != prior_brand && info_obj.contains("VENDOR"))
+                declared.brand = info_obj["VENDOR"].get<std::string>();
+            if (info.material != prior_material && info_obj.contains("MAIN_TYPE"))
+                declared.material = info_obj["MAIN_TYPE"].get<std::string>();
+            if (info.spool_name != prior_spool_name && info_obj.contains("SUB_TYPE"))
+                declared.spool_name = info_obj["SUB_TYPE"].get<std::string>();
             // The POST spells colour RGB_1 and the parse reads ARGB_COLOR.
             // Whether firmware translates between the two is not answered
             // anywhere in the tree or in the firmware doc, so this assumes it
-            // does. If it does not, the posted colour simply never matches an
+            // does. If it does not, the declared colour simply never matches an
             // incoming reading and the guard is inert.
-            posted.color_rgb = info.color_rgb;
-            posted.color_posted = true;
+            if (info.color_rgb != prior_color_rgb)
+                declared.color_rgb = info.color_rgb;
             std::lock_guard<std::mutex> lock(mutex_);
             if (auto baseline = rfid_tracker_.baseline(slot_index)) {
-                posted.uid_at_post = *baseline;
+                declared.uid_at_post = *baseline;
             }
-            posted_identity_[static_cast<size_t>(slot_index)] = std::move(posted);
+            declared_identity_[static_cast<size_t>(slot_index)] = std::move(declared);
         }
 
         // Log-only callback — no UI / member access — so a value-captured tag
@@ -1273,7 +1294,7 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // through to a VendorCache record still holding the
                         // abandoned edit, and the lane could never get back to
                         // what the machine says.
-                        const PostedIdentity* echo = own_write_echo_locked(i, rfid.uid);
+                        const DeclaredIdentity* echo = own_write_echo_locked(i, rfid.uid);
                         helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
                         if (!rfid.main_type.empty() && !(echo && echo->material == rfid.main_type))
                             cache.material = rfid.main_type;
@@ -1292,7 +1313,7 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // ARGB_COLOR, which is that struct's "no reading" and
                         // not a grey anybody chose.
                         if (helix::ams::is_declarable_color(rfid.color_rgb) &&
-                            !(echo && echo->color_posted && echo->color_rgb == rfid.color_rgb))
+                            !(echo && echo->color_rgb == rfid.color_rgb))
                             cache.color_rgb = rfid.color_rgb;
                         // SUB_TYPE names the product line inside MAIN_TYPE
                         // ("Silk" inside "PLA"), so it is the branded product
@@ -1998,11 +2019,11 @@ void AmsBackendSnapmaker::check_hardware_event_clear(SlotInfo& slot, int slot_in
     clear_override_locked(slot_index, slot);
 }
 
-const AmsBackendSnapmaker::PostedIdentity*
+const AmsBackendSnapmaker::DeclaredIdentity*
 AmsBackendSnapmaker::own_write_echo_locked(int slot_index, const std::string& observed_uid) {
     if (slot_index < 0 || slot_index >= NUM_TOOLS)
         return nullptr;
-    auto& entry = posted_identity_[static_cast<size_t>(slot_index)];
+    auto& entry = declared_identity_[static_cast<size_t>(slot_index)];
     if (!entry)
         return nullptr;
     // A tag this write was not made against is a different physical spool, so

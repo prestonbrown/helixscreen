@@ -2289,3 +2289,67 @@ TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's own write-back does not return as
     REQUIRE(swapped.vendor_cache->color_rgb.has_value());
     CHECK(*swapped.vendor_cache->color_rgb == 0x00FF00u);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Snapmaker withholds only the fields the user moved, not the whole write-back",
+                 "[lane][ingest][snapmaker]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    SnapmakerHarness harness(&api, nullptr);
+
+    const auto tag_uid = nlohmann::json::array({144, 32, 196, 2});
+    const auto tag = nlohmann::json{
+        {"state", nlohmann::json::array({1})},
+        {"info", nlohmann::json::array({nlohmann::json{
+                     {"MAIN_TYPE", "PLA"},
+                     {"MANUFACTURER", "Snapmaker"},
+                     {"SUB_TYPE", "Silk"},
+                     {"ARGB_COLOR", 0xFFED2C2C},
+                     {"CARD_UID", tag_uid},
+                 }})},
+    };
+
+    feed_filament_detect(*harness, tag);
+
+    // The user changes the COLOUR and nothing else. commit_slot_edit files a
+    // strict delta, so LocalUser will hold the colour alone.
+    auto edit = harness->get_slot_info(0);
+    REQUIRE(edit.brand == "Snapmaker");
+    REQUIRE(edit.material == "PLA");
+    REQUIRE(edit.spool_name == "Silk");
+    edit.color_rgb = 0x00FF00u;
+    REQUIRE(harness->set_slot_info(0, edit, /*persist=*/true).success());
+
+    // set_slot_info POSTs the whole merged struct, so VENDOR / MAIN_TYPE /
+    // SUB_TYPE went out carrying the tag's own strings.
+    const auto history = api.rest_mock().mock_get_post_history();
+    REQUIRE(history.size() == 1);
+    const nlohmann::json body = history[0].body["info"];
+    REQUIRE(body["VENDOR"].get<std::string>() == "Snapmaker");
+    REQUIRE(body["MAIN_TYPE"].get<std::string>() == "PLA");
+    REQUIRE(body["SUB_TYPE"].get<std::string>() == "Silk");
+
+    // Firmware reports all four back. Only the colour is the user's
+    // declaration; the other three are the tag's own values making a round
+    // trip, and no other source holds them, so they must be filed.
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1})},
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PLA"},
+                                                    {"MANUFACTURER", "Snapmaker"},
+                                                    {"SUB_TYPE", "Silk"},
+                                                    {"ARGB_COLOR", 0xFF00FF00},
+                                                    {"CARD_UID", tag_uid},
+                                                }})},
+                                   });
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->material == "PLA");
+    CHECK(lane.vendor_cache->brand == "Snapmaker");
+    CHECK(lane.vendor_cache->product_name == "Silk");
+    CHECK_FALSE(lane.vendor_cache->color_rgb.has_value());
+}
