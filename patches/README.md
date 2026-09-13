@@ -94,7 +94,7 @@ LVGL 9.5 removed the entire XML system from core. These patches are now in `lib/
 |-------|---------|
 | `libhv-dns-resolver-fallback.patch` | Direct UDP DNS resolution fallback for statically-linked builds where `getaddrinfo()` fails |
 | `libhv-hlog-thread-safe-localtime.patch` | `_POSIX_C_SOURCE` define before the headers so `localtime_r()` is declared under `-std=c99` — the implicit-int return becomes a garbage pointer and the first `tm` dereference segfaults |
-| `libhv-hthreadpool-wait-lock.patch` | Take `task_mutex` in `hthreadpool` `wait()`/`commit()` — the unlocked `tasks` read raced a worker's pop (ThreadSanitizer via `ThumbnailProcessor`) |
+| `libhv-hthreadpool-wait-lock.patch` | Take `task_mutex` in `hthreadpool` `wait()`/`commit()` — the unlocked `tasks` read raced a worker's pop (ThreadSanitizer via `ThumbnailProcessor`) — and reserve the worker slot in `createThread()` under `thread_mutex` before spawning, so concurrent commits cannot both pass the cap check and run live workers past `max_thread_num` (#1585) |
 | `libhv-http-request-cancel-atomic.patch` | Dedicated `std::atomic` for `HttpRequest::Cancel()` — as a bitfield it shared a word with the redirect/proxy bits, so a cross-thread cancel raced `ParseUrl()`'s read-modify-write |
 | `libhv-openssl-static-link.patch` | OpenSSL/static build hook |
 | `libhv-streaming-upload.patch` | Streaming upload support |
