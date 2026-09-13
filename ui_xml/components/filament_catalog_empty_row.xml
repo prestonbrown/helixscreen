@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Empty-favorites placeholder row of the filament catalog selector. Built
+       only when the favorites view has no starred products (creation-time
+       conditional in rebuild_product_list), so it carries no hide/show state.
+       Non-interactive: a tap falls through to nothing. -->
+  <view name="catalog_empty_row"
+        extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
+        style_pad_hor="#space_md" style_pad_ver="#space_lg" style_bg_opa="0" scrollable="false" clickable="false">
+    <lv_label name="empty_label"
+              width="100%" text="Nothing starred yet. Tap the star on a filament to add it here."
+              translation_tag="Nothing starred yet. Tap the star on a filament to add it here." long_mode="wrap"
+              style_text_align="center" style_text_font="#font_body" style_text_color="#text_muted" clickable="false"/>
+  </view>
+</component>

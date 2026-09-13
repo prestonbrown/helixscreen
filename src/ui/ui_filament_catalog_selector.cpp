@@ -201,6 +201,12 @@ std::string FilamentCatalogSelector::current_type() const {
     lv_obj_t* dd = find_child("type_dropdown");
     if (!dd)
         return {};
+    // The favorites view bypasses the Type dropdown (hidden), so its selected
+    // heading is stale — reading it back would hand a host a material the user
+    // never chose. Empty tells the no-highlight Save paths there is no type
+    // edit to apply.
+    if (is_favorites_vendor(current_vendor()))
+        return {};
     char buf[64] = {};
     lv_dropdown_get_selected_str(dd, buf, sizeof(buf));
     return buf;
@@ -587,7 +593,7 @@ FilamentCatalogSelector::row_label_for_test(const helix::printer::EffectiveFilam
     // brand; in a family view it carries the variant type when it differs from
     // the heading.
     if (is_favorites_vendor(current_vendor()))
-        return p->name + " " + p->brand;
+        return p->brand.empty() ? p->name : p->name + " " + p->brand;
     const std::string family = current_type();
     if (!p->type.empty() && p->type != family)
         return p->name + " " + p->type;
@@ -616,9 +622,17 @@ void FilamentCatalogSelector::rebuild_product_list() {
     const bool favorites_view = is_favorites_vendor(current_vendor());
     const std::vector<std::string> favorite_ids = filament_favorites::load_favorite_ids();
     const std::set<std::string> starred(favorite_ids.begin(), favorite_ids.end());
-    const std::string family = current_type();
+    const std::string family = current_type(); // {} in the favorites view (stale dropdown)
+    const std::vector<const helix::printer::EffectiveFilament*> products =
+        ordered_products_for(current_vendor(), family);
+    if (favorites_view && products.empty()) {
+        // Empty favorites state: say why the list is empty instead of showing
+        // only the add-custom row. Creation-time conditional (rebuilt per
+        // view change), so there is no hide/show state to manage.
+        lv_xml_create(list, "filament_catalog_empty_row", nullptr);
+    }
 
-    for (const auto* p : ordered_products_for(current_vendor(), family)) {
+    for (const auto* p : products) {
         const bool is_current = (highlighted_id_ == p->id);
         auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "filament_catalog_row", nullptr));
         if (!row)

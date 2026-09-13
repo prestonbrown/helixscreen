@@ -16,8 +16,10 @@
 #include "ams_error.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "config.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
+#include "filament_favorites.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -641,6 +643,74 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool-edit Save preserves an existing non-G
     CHECK(access.working_info().material == "PLA"); // material unchanged
 
     close_editor_overlay();
+}
+
+// Regression (#1100) — the Favorites view must not leak its pseudo-vendor
+// sentinel or a stale type into a saved slot.
+//
+// The spool-edit Save's no-highlight path (empty rebuilt list) reads
+// current_type() and current_vendor() as "the user changed the material
+// without picking a product". In the favorites view the Type dropdown is
+// bypassed (hidden), so current_type() was whatever family the slot seeded —
+// a stale heading — and current_vendor() was the "\x01Favorites" sentinel,
+// neither of which the user chose. An untouched Save then overwrote the
+// slot's material with the stale heading and its brand with the sentinel.
+//
+// The fix makes current_type() report empty in the favorites view, which
+// skips the whole overwrite block. Slot material is family-folded ("PLA-CF"
+// sits under the "PLA" heading) so a stale read is guaranteed to differ from
+// the slot's material and would fire the block.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "spool-edit Save in the favorites view leaves the slot untouched",
+                 "[ams_edit_overlay][spool_edit][favorites]") {
+    // The favorites view must be EMPTY (no highlight possible) and the star
+    // state must not leak into other tests: snapshot, clear, restore.
+    const std::vector<std::string> saved_ids = helix::Config::get_instance()->get_string_array(
+        helix::filament_favorites::kFavoriteIdsPath);
+    helix::Config::get_instance()->set(helix::filament_favorites::kFavoriteIdsPath,
+                                       std::vector<std::string>{});
+
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    REQUIRE(spoolman_subj != nullptr);
+    lv_subject_set_int(spoolman_subj, 0);
+
+    SlotInfo cf;
+    cf.slot_index = 0;
+    cf.spoolman_id = 0;
+    cf.brand = "Sunlu";
+    cf.material = "PLA-CF";
+    cf.color_rgb = 0xFEF043;
+    cf.color_name = "Yellow";
+
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, cf, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    access.call_enter_spool_edit();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.view() == AmsEditOverlay::VIEW_SPOOL_EDIT);
+
+    // Into the (empty) Favorites view: no row exists to highlight — the exact
+    // state a user with zero stars, or one who just unstarred the last row,
+    // reaches before tapping Save.
+    access.details_selector().change_vendor_for_test(0);
+    REQUIRE(
+        FilamentCatalogSelector::is_favorites_vendor(access.details_selector().current_vendor()));
+    REQUIRE(access.details_selector().highlighted() == nullptr);
+
+    access.call_handle_spool_edit_save();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    CHECK(access.working_info().brand == "Sunlu");     // no sentinel written
+    CHECK(access.working_info().material == "PLA-CF"); // no stale heading written
+
+    close_editor_overlay();
+    helix::Config::get_instance()->set(helix::filament_favorites::kFavoriteIdsPath, saved_ids);
 }
 
 // Regression — a Spoolman-only vendor no longer reaches the vendor dropdown.

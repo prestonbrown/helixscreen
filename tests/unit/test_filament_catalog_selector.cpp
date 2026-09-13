@@ -664,9 +664,11 @@ TEST_CASE_METHOD(XMLTestFixture,
     REQUIRE_FALSE(notified_clear); // the select fired with a product, not a clear
 
     // Unstar the row the user is on: it disappears, the highlight goes with it,
-    // and the host hears the clearance.
+    // and the host hears the clearance. An empty favorites view shows the
+    // empty-state row instead of a bare add-custom row.
     sel.toggle_star_for_test("generic-pla");
     CHECK(sel.product_names_for_test().empty());
+    CHECK(lv_obj_find_by_name(root, "empty_label") != nullptr);
     CHECK(sel.highlighted() == nullptr);
     CHECK(notified_clear);
     // Persisted off immediately — no separate save step.

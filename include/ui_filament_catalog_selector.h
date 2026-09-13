@@ -125,7 +125,9 @@ class FilamentCatalogSelector {
     /// the material a user actually picked must read highlighted()->type; this
     /// is only a last-resort fallback for a heading with no products behind it
     /// (a firmware-whitelisted type the catalog does not stock), where the
-    /// heading text IS the whitelist type spelling.
+    /// heading text IS the whitelist type spelling. Empty in the favorites
+    /// view: the Type dropdown is bypassed there, so its selection is stale
+    /// and must never be read back as a material.
     [[nodiscard]] std::string current_type() const;
     [[nodiscard]] std::string type_options() const;
 
