@@ -23,7 +23,8 @@ setup() {
 
 # The value a hook exports for HELIX_CACHE_DIR, or empty when it sets none.
 hook_cache_dir() {
-    sed -n 's/.*export HELIX_CACHE_DIR="\([^"]*\)".*/\1/p' "$HOOKS_DIR/hooks-$1.sh"
+    sed -n 's/.*export HELIX_CACHE_DIR="\([^"]*\)".*/\1/p' "$HOOKS_DIR/hooks-$1.sh" \
+        | sed -E 's/^\$\{HELIX_CACHE_DIR:-(.*)\}$/\1/'
 }
 
 # --------------------------------------------------------------------------
@@ -183,14 +184,14 @@ CONSUMERS="src/system/log_collector.cpp src/system/debug_bundle_collector.cpp sr
 @test "k1 keeps its cache and logs off the payload" {
     run hook_cache_dir k1
     [ "$output" = "/usr/data/helixscreen-state/cache" ] || fail "k1 cache is '$output'"
-    run grep -c 'HELIX_LOG_FILE="/usr/data/helixscreen-state/logs/helix.log"' "$HOOKS_DIR/hooks-k1.sh"
+    run grep -c 'HELIX_LOG_FILE="${HELIX_LOG_FILE:-/usr/data/helixscreen-state/logs/helix.log}"' "$HOOKS_DIR/hooks-k1.sh"
     [ "$output" = "1" ] || fail "k1 log is not on the state tree"
 }
 
 @test "k2 keeps its cache and logs off the payload" {
     run hook_cache_dir k2
     [ "$output" = "/mnt/UDISK/helixscreen-state/cache" ] || fail "k2 cache is '$output'"
-    run grep -c 'HELIX_LOG_FILE="/mnt/UDISK/helixscreen-state/logs/helix.log"' "$HOOKS_DIR/hooks-k2.sh"
+    run grep -c 'HELIX_LOG_FILE="${HELIX_LOG_FILE:-/mnt/UDISK/helixscreen-state/logs/helix.log}"' "$HOOKS_DIR/hooks-k2.sh"
     [ "$output" = "1" ] || fail "k2 log is not on the state tree"
 }
 
@@ -202,7 +203,7 @@ CONSUMERS="src/system/log_collector.cpp src/system/debug_bundle_collector.cpp sr
 @test "ad5x keeps its log where the mod archiver looks, not on the state tree" {
     # ZMOD's TAR_CONFIG collects /opt/config/ and never /data or /srv, so this
     # one is deliberately NOT co-located with the cache.
-    run grep -c 'HELIX_LOG_FILE="/opt/config/mod_data/log/helix.log"' "$HOOKS_DIR/hooks-ad5x.sh"
+    run grep -c 'HELIX_LOG_FILE="${HELIX_LOG_FILE:-/opt/config/mod_data/log/helix.log}"' "$HOOKS_DIR/hooks-ad5x.sh"
     [ "$output" = "1" ] || fail "ad5x log moved off the mod's archive path"
     run hook_cache_dir ad5x
     [ "$output" = "/srv/helixscreen-state/cache" ] || fail "ad5x cache is '$output'"

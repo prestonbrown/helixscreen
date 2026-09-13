@@ -127,7 +127,7 @@ platform_pre_start() {
     # `type: web` entry does shutil.rmtree(path) before extracting. Anything
     # under it goes on every update - logs vanish exactly when someone needs
     # them, and the thumbnail cache is rebuilt from nothing.
-    export HELIX_CACHE_DIR="/user-resource/helixscreen-state/cache"
+    export HELIX_CACHE_DIR="${HELIX_CACHE_DIR:-/user-resource/helixscreen-state/cache}"
 
     # Let the COSMOS gui-switcher actually stop HelixScreen. The stock resonance
     # macro (_CALIBRATE_ALL_STEP_2) runs GUI_STOP -> `gui-switcher stop` before
@@ -137,7 +137,7 @@ platform_pre_start() {
     # so helix-watchdog advertises its own PID there (it is the process that
     # supervises the whole launcher->watchdog->helix-screen tree and can reap it
     # on SIGTERM). Opt-in via this env var so only CC1/COSMOS is affected.
-    export HELIX_GUI_PIDFILE="/var/run/gui.pid"
+    export HELIX_GUI_PIDFILE="${HELIX_GUI_PIDFILE:-/var/run/gui.pid}"
 
     # Repair any sibling gui-switcher wrapper a COSMOS upgrade clobbered in the
     # /etc overlay, so the next boot still hands the framebuffer to HelixScreen.
@@ -154,10 +154,10 @@ platform_pre_start() {
     # ~15 MiB) because helix logs are tiny at WARN/INFO and we don't want
     # surprise growth on flash. 1 MiB × 3 = ~3 MiB cap gives months of
     # headroom at normal levels.
-    export HELIX_LOG_DEST=file
-    export HELIX_LOG_FILE="/user-resource/helixscreen-state/logs/helix.log"
-    export HELIX_LOG_ROTATE_BYTES=1048576
-    export HELIX_LOG_ROTATE_FILES=3
+    export HELIX_LOG_DEST="${HELIX_LOG_DEST:-file}"
+    export HELIX_LOG_FILE="${HELIX_LOG_FILE:-/user-resource/helixscreen-state/logs/helix.log}"
+    export HELIX_LOG_ROTATE_BYTES="${HELIX_LOG_ROTATE_BYTES:-1048576}"
+    export HELIX_LOG_ROTATE_FILES="${HELIX_LOG_ROTATE_FILES:-3}"
     mkdir -p "/user-resource/helixscreen-state/logs" 2>/dev/null || true
 
     return 0

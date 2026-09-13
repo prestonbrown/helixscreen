@@ -364,9 +364,9 @@ platform_pre_start() {
     # `type: web` entry does shutil.rmtree(path) before extracting. Anything
     # under it goes on every update - logs vanish exactly when someone needs
     # them, and the thumbnail cache is rebuilt from nothing.
-    export HELIX_CACHE_DIR="/userdata/helixscreen-state/cache"
+    export HELIX_CACHE_DIR="${HELIX_CACHE_DIR:-/userdata/helixscreen-state/cache}"
     # Force DRM device — skip auto-detection which may race with connector state
-    export HELIX_DRM_DEVICE="/dev/dri/card0"
+    export HELIX_DRM_DEVICE="${HELIX_DRM_DEVICE:-/dev/dri/card0}"
 
     # Recover the camera supervisor if a prior helixscreen build killed it.
     # Idempotent: no-op when lmd is already alive.
