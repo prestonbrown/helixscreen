@@ -133,6 +133,7 @@ src/printer/ams_endless_spool.cpp
 src/printer/ams_environment_zone.cpp
 src/printer/ams_state.cpp
 src/printer/ams_subscription_backend.cpp
+src/printer/lane_echo.cpp
 src/printer/lane_resolver.cpp
 src/printer/lane_source_store.cpp
 src/printer/lane_translation.cpp

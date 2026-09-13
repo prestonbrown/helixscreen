@@ -915,14 +915,6 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
         // Remember what the USER declared, so the RFID parse can tell firmware
         // repeating their choice back from a tag stating it.
         //
-        // A field is recorded only when the user moved it AND the POST carried
-        // it. Both halves matter. The POST sends the whole merged SlotInfo, so
-        // a field the user left alone travels carrying the tag's own string;
-        // that comes back as firmware truth and has to be filed, because
-        // commit_slot_edit files only the delta and no other source holds it.
-        // And a field the user CLEARED is omitted from the POST, so firmware
-        // keeps the tag's value and what returns is the tag's.
-        //
         // Recorded before dispatch rather than in the response callback: the
         // callback deliberately captures no `this` (it can outlive the
         // backend), and an expectation that never fires costs nothing, because
@@ -931,33 +923,36 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
         // the tag happens to agree with, whose value resolve() takes from the
         // user's own record anyway.
         if (slot_index >= 0 && slot_index < NUM_TOOLS) {
-            DeclaredIdentity entry;
-            // Derived, never recomputed. This is the same call commit_slot_edit
-            // files as LocalUser, so the fields it sets and the fields
-            // suppressed below are one set by construction: no field can end up
-            // claimed by both layers, and none can end up held by neither.
-            entry.declared = helix::ams::user_edit_observation(prior_slot, info);
-            // Second condition: the POST has to have carried the key. A field
-            // the user cleared is omitted from the body, so firmware keeps the
-            // tag's value and what returns is the tag's, not theirs. RGB_1 is
-            // sent unconditionally and needs no such drop.
-            //
-            // The POST spells colour RGB_1 and the parse reads ARGB_COLOR.
-            // Whether firmware translates between the two is not answered
-            // anywhere in the tree or in the firmware doc, so this assumes it
-            // does. If it does not, the declared colour simply never matches an
-            // incoming reading and the guard is inert.
-            if (!info_obj.contains("VENDOR"))
-                entry.declared.brand.reset();
-            if (!info_obj.contains("MAIN_TYPE"))
-                entry.declared.material.reset();
-            if (!info_obj.contains("SUB_TYPE"))
-                entry.declared.spool_name.reset();
             std::lock_guard<std::mutex> lock(mutex_);
-            if (auto baseline = rfid_tracker_.baseline(slot_index)) {
-                entry.uid_at_post = *baseline;
+            own_write_echoes_.stage(slot_index,
+                                    helix::ams::user_edit_observation(prior_slot, info));
+            if (auto* declared = own_write_echoes_.staged(slot_index)) {
+                // The POST has to have carried the key. A field the user
+                // cleared is omitted from the body, so firmware keeps the
+                // tag's value and what returns is the tag's, not theirs. RGB_1
+                // is sent unconditionally and needs no such drop.
+                //
+                // The POST spells colour RGB_1 and the parse reads ARGB_COLOR.
+                // Whether firmware translates between the two is not answered
+                // anywhere in the tree or in the firmware doc, so this assumes
+                // it does. If it does not, the declared colour simply never
+                // matches an incoming reading and the guard is inert.
+                if (!info_obj.contains("VENDOR"))
+                    declared->brand.reset();
+                if (!info_obj.contains("MAIN_TYPE"))
+                    declared->material.reset();
+                // SUB_TYPE goes out as the user's spool_name and comes back as
+                // the product line, which is the field the RFID parse files it
+                // under. Relocating here is what lets the shared guard stay a
+                // plain field-by-field filter.
+                if (info_obj.contains("SUB_TYPE"))
+                    declared->product_name = declared->spool_name;
+                declared->spool_name.reset();
             }
-            declared_identity_[static_cast<size_t>(slot_index)] = std::move(entry);
+            // An unread channel arms against "no tag yet", so the first UID to
+            // arrive is a reading and ends the suppression.
+            own_write_echoes_.arm(slot_index,
+                                  rfid_tracker_.baseline(slot_index).value_or(std::string{}));
         }
 
         // Log-only callback — no UI / member access — so a value-captured tag
@@ -1289,18 +1284,8 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // reading the struct back would file a user's edit as
                         // something the tag says.
                         //
-                        // What this backend POSTed to filament_detect/set
-                        // lands in this same object, spelled the same way, so
-                        // a field repeating our own write is not a reading.
-                        // Withholding it matters most AFTER the user clears
-                        // their override: resolve() would otherwise fall
-                        // through to a VendorCache record still holding the
-                        // abandoned edit, and the lane could never get back to
-                        // what the machine says.
-                        const DeclaredIdentity* echo = own_write_echo_locked(i, rfid.uid);
                         helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
-                        if (!rfid.main_type.empty() &&
-                            !(echo && echo->declared.material == rfid.main_type))
+                        if (!rfid.main_type.empty())
                             cache.material = rfid.main_type;
                         // Both spellings of "the tag named no vendor" retract
                         // the brand here: whole-record replacement means this
@@ -1310,15 +1295,13 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // so it blanks on an absent key and KEEPS its last
                         // value on the literal. That one input is the only
                         // place the two layers disagree.
-                        if (!brand.empty() && brand != "NONE" &&
-                            !(echo && echo->declared.brand == brand))
+                        if (!brand.empty() && brand != "NONE")
                             cache.brand = brand;
                         // SnapmakerRfidInfo::color_rgb rests on
                         // AMS_DEFAULT_SLOT_COLOR when the tag carried no
                         // ARGB_COLOR, which is that struct's "no reading" and
                         // not a grey anybody chose.
-                        if (helix::ams::is_declarable_color(rfid.color_rgb) &&
-                            !(echo && echo->declared.color_rgb == rfid.color_rgb))
+                        if (helix::ams::is_declarable_color(rfid.color_rgb))
                             cache.color_rgb = rfid.color_rgb;
                         // SUB_TYPE names the product line inside MAIN_TYPE
                         // ("Silk" inside "PLA"), so it is the branded product
@@ -1327,11 +1310,24 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // spelling, and splits from this record on the
                         // literal "NONE" for the same reason the brand guard
                         // does.
-                        if (!rfid.sub_type.empty() && rfid.sub_type != "NONE" &&
-                            !(echo && echo->declared.spool_name == rfid.sub_type))
+                        if (!rfid.sub_type.empty() && rfid.sub_type != "NONE")
                             cache.product_name = rfid.sub_type;
                         if (rfid.weight_g > 0)
                             cache.total_weight_g = static_cast<float>(rfid.weight_g);
+                        // What this backend POSTed to filament_detect/set
+                        // lands in this same object, spelled the same way, so
+                        // a field repeating our own write is not a reading.
+                        // Withholding it matters most AFTER the user clears
+                        // their override: resolve() would otherwise fall
+                        // through to a VendorCache record still holding the
+                        // abandoned edit, and the lane could never get back to
+                        // what the machine says. WEIGHT is nobody's
+                        // declaration and passes through.
+                        const int withheld = own_write_echoes_.withhold(i, rfid.uid, cache);
+                        if (withheld > 0) {
+                            spdlog::debug("{} Slot {} withheld {} field(s) echoing our own write",
+                                          backend_log_tag(), i, withheld);
+                        }
                         helix::ams::ingest(lane_id(i), cache);
                     }
                     changed = true;
@@ -2022,23 +2018,6 @@ void AmsBackendSnapmaker::check_hardware_event_clear(SlotInfo& slot, int slot_in
     // policy. Caller already holds mutex_.
     (void)ovr_it; // erased inside clear_override_locked
     clear_override_locked(slot_index, slot);
-}
-
-const AmsBackendSnapmaker::DeclaredIdentity*
-AmsBackendSnapmaker::own_write_echo_locked(int slot_index, const std::string& observed_uid) {
-    if (slot_index < 0 || slot_index >= NUM_TOOLS)
-        return nullptr;
-    auto& entry = declared_identity_[static_cast<size_t>(slot_index)];
-    if (!entry)
-        return nullptr;
-    // A tag this write was not made against is a different physical spool, so
-    // whatever we wrote to the old one stops explaining what is being read.
-    // An empty UID is the reader saying nothing this frame, not a swap.
-    if (!observed_uid.empty() && observed_uid != entry->uid_at_post) {
-        entry.reset();
-        return nullptr;
-    }
-    return &*entry;
 }
 
 void AmsBackendSnapmaker::clear_override_locked(int slot_index, SlotInfo& slot) {

@@ -6,6 +6,7 @@
 #include "ams_subscription_backend.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "lane_echo.h"
 #include "lane_observation.h"
 
 #include <array>
@@ -491,53 +492,22 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     // access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
 
-    /// What the user DECLARED in their last edit of a channel, out of the
-    /// fields set_slot_info actually sent to /printer/filament_detect/set, and
-    /// the tag UID that channel carried at the time.
+    /// What the user declared in their last edit of a channel, out of the
+    /// fields set_slot_info actually sent to /printer/filament_detect/set.
     ///
     /// The write target is filament_detect.info, the same object
     /// parse_rfid_info reads, and VENDOR / MAIN_TYPE / SUB_TYPE are spelled
-    /// identically on both sides. So firmware reports a user's declaration
-    /// back through the RFID path, where it is indistinguishable by value from
-    /// a tag reading. Filing that as VendorCache would survive the user later
-    /// clearing their override and leave the lane asserting an abandoned edit
-    /// as what the machine said, with no way back to firmware truth.
+    /// identically on both sides, so firmware reports a user's declaration
+    /// back through the RFID path where it is indistinguishable by value from
+    /// a tag reading.
     ///
-    /// The DELTA and not the merged struct, which is what makes this the same
-    /// set of fields commit_slot_edit files as LocalUser. set_slot_info posts
-    /// the whole SlotInfo, so the fields the user left alone travel in the
-    /// POST carrying the tag's own strings; those come back as firmware truth
-    /// and must be filed. Recording them would withhold a value no other
-    /// source holds and blank the lane.
-    ///
-    /// A field the user cleared is absent here too: the POST omits an empty
-    /// VENDOR / MAIN_TYPE / SUB_TYPE, so firmware keeps the tag's value and
-    /// what comes back is the tag's, not the user's.
-    ///
-    /// A new CARD_UID on the channel is a different physical spool and ends
-    /// the suppression; nothing else does, because the echo outlives the
-    /// override that caused it.
-    struct DeclaredIdentity {
-        /// Taken from helix::ams::user_edit_observation, NOT recomputed. That
-        /// function is the definition of what a person declared in an edit, and
-        /// it is what commit_slot_edit files as LocalUser, so deriving from it
-        /// is what makes the two layers partition the fields instead of a
-        /// second copy of the rule agreeing with it by convention. A binding
-        /// change is the case where a recomputed per-field delta stops
-        /// agreeing: linking a spool carries its colour, brand and material
-        /// into the same commit, and nobody chose those.
-        helix::ams::Observation declared{helix::ams::ObservationSource::LocalUser};
-        /// rfid_tracker_ baseline when the edit went out. Empty means no tag
-        /// had been read yet, and any later UID is then a new reading.
-        std::string uid_at_post;
-    };
-    std::array<std::optional<DeclaredIdentity>, NUM_TOOLS> declared_identity_;
-
-    /// This channel's outstanding echo, or nullptr when there is none. Clears
-    /// the entry when @p observed_uid names a tag other than the one the edit
-    /// was made against. An empty observed_uid is the reader saying nothing,
-    /// which is not a swap. Caller must hold mutex_.
-    const DeclaredIdentity* own_write_echo_locked(int slot_index, const std::string& observed_uid);
+    /// The boundary is the tag's CARD_UID, taken from rfid_tracker_: a
+    /// hardware identifier the edit UI cannot set, so a change is
+    /// unambiguously a different physical spool. It is the same signal
+    /// check_hardware_event_clear() trusts to delete the user's override, so
+    /// the suppression and the clear end together and neither can expose what
+    /// the other still holds. All access under mutex_.
+    helix::ams::OwnWriteEchoes own_write_echoes_;
 };
 
 } // namespace helix
