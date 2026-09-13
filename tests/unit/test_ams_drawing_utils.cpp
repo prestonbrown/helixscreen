@@ -3,6 +3,7 @@
 #include "ui_spool_canvas.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../ui_test_utils.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
@@ -548,9 +549,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "create_lane_badge: shows 1-based number", "[u
 }
 
 // The number sits on a success or grey fill; the palette's text colour is not
-// chosen against either, so the label must take the fill's black-or-white.
+// chosen against either, so the label shifts toward its own pole until it
+// reads at 4:1.
 TEST_CASE_METHOD(LVGLTestFixture, "create_lane_badge: number is readable on its fill",
-                 "[ui][ams][badge]") {
+                 "[ui][ams][badge][1648]") {
     lv_obj_t* host = lv_obj_create(test_screen());
     for (bool active : {true, false}) {
         lv_obj_t* badge = ams_draw::create_lane_badge(host, 1, 16, active);
@@ -559,8 +561,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "create_lane_badge: number is readable on its 
         REQUIRE(lbl != nullptr);
         lv_color_t fill = lv_obj_get_style_bg_color(badge, LV_PART_MAIN);
         lv_color_t text = lv_obj_get_style_text_color(lbl, LV_PART_MAIN);
-        CAPTURE(active, lv_color_to_u32(fill) & 0xFFFFFF, lv_color_to_u32(text) & 0xFFFFFF);
-        CHECK(lv_color_eq(text, theme_manager_get_readable_on(fill)));
+        lv_color_t palette_text = theme_manager_get_color("text");
+        CAPTURE(active, lv_color_to_u32(fill) & 0xFFFFFF, lv_color_to_u32(text) & 0xFFFFFF,
+                lv_color_to_u32(palette_text) & 0xFFFFFF);
+        CHECK(wcag::contrast(text, fill) >= 4.0);
+        if (wcag::own_pole_reaches_4_1(palette_text, fill)) {
+            CHECK((wcag::luminance(text) > wcag::luminance(fill)) ==
+                  (wcag::luminance(palette_text) > wcag::luminance(fill)));
+        }
     }
     lv_obj_delete(host);
 }

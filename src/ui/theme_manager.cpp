@@ -412,14 +412,61 @@ static double srgb_channel_luminance(uint8_t v) {
     return (c <= 0.03928) ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4);
 }
 
+/// WCAG relative luminance of a color.
+static double srgb_relative_luminance(lv_color_t c) {
+    return 0.2126 * srgb_channel_luminance(c.red) + 0.7152 * srgb_channel_luminance(c.green) +
+           0.0722 * srgb_channel_luminance(c.blue);
+}
+
+/// WCAG contrast ratio between two colors (1.0 = identical).
+static double srgb_contrast_ratio(lv_color_t a, lv_color_t b) {
+    const double la = srgb_relative_luminance(a), lb = srgb_relative_luminance(b);
+    return (std::max(la, lb) + 0.05) / (std::min(la, lb) + 0.05);
+}
+
 lv_color_t theme_manager_get_readable_on(lv_color_t fill) {
-    const double lum = 0.2126 * srgb_channel_luminance(fill.red) +
-                       0.7152 * srgb_channel_luminance(fill.green) +
-                       0.0722 * srgb_channel_luminance(fill.blue);
+    const double lum = srgb_relative_luminance(fill);
     // Contrast against white is (1.05 / (lum + 0.05)); against black it is
     // ((lum + 0.05) / 0.05). They cross where lum == sqrt(1.05 * 0.05) - 0.05.
     constexpr double kCrossover = 0.1791; // sqrt(0.0525) - 0.05
     return (lum > kCrossover) ? lv_color_hex(0x000000) : lv_color_hex(0xFFFFFF);
+}
+
+/// Contrast a text colour must reach on its fill: 4:1, between WCAG AA
+/// large-text (3:1) and AA body text (4.5:1). Around fill luminance 0.18 no
+/// colour at all reaches 4.5, and light text is capped below 4.5 on every fill
+/// above 0.183, so a 4.5 bar would leave a light palette no way to keep its
+/// tint on its accents.
+static constexpr double kTextContrastThreshold = 4.0;
+
+// NAMESPACE_OK: joins this header's global theme_manager_* free-function API
+lv_color_t theme_manager_get_contrast_adjusted_text(lv_color_t text, lv_color_t fill) {
+    if (srgb_contrast_ratio(text, fill) >= kTextContrastThreshold)
+        return text;
+
+    // Blend toward the pole on the text's own side of the fill so the theme's
+    // tint survives; the ratio rises monotonically with the blend amount.
+    const lv_color_t pole = (srgb_relative_luminance(text) > srgb_relative_luminance(fill))
+                                ? lv_color_hex(0xFFFFFF)
+                                : lv_color_hex(0x000000);
+
+    // Smallest 8-bit blend that clears the threshold. The ratio at mix 0 is
+    // the failing ratio checked above and grows monotonically toward the pole,
+    // so a binary search finds the first passing mix.
+    uint8_t lo = 0, hi = 255;
+    while (lo < hi) {
+        const uint8_t mid = lo + (hi - lo) / 2;
+        if (srgb_contrast_ratio(lv_color_mix(pole, text, mid), fill) >= kTextContrastThreshold)
+            hi = mid;
+        else
+            lo = mid + 1;
+    }
+    const lv_color_t blended = lv_color_mix(pole, text, lo);
+    // Even the pure pole misses the threshold when no tint on the text's own
+    // side can reach 4:1; fall back to whichever pure pole reads best.
+    if (srgb_contrast_ratio(blended, fill) < kTextContrastThreshold)
+        return theme_manager_get_readable_on(fill);
+    return blended;
 }
 
 // ============================================================================
@@ -2154,8 +2201,9 @@ static bool is_muted_text_font(const lv_font_t* font);
 /**
  * Helper to update button label text with contrast-aware color
  *
- * A filled button is an accent surface, so its text is black or white by
- * luminance (theme_manager_get_readable_on()), never the palette's muted text.
+ * A filled button is an accent surface: its text starts from the palette text
+ * colour and shifts toward its own pole just enough to stay readable
+ * (theme_manager_get_contrast_adjusted_text()).
  */
 static void apply_button_text_contrast(lv_obj_t* btn) {
     if (!btn)
@@ -2163,7 +2211,8 @@ static void apply_button_text_contrast(lv_obj_t* btn) {
 
     // Get button's background color and pick a readable foreground for it
     lv_color_t bg_color = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
-    lv_color_t text_color = theme_manager_get_readable_on(bg_color);
+    lv_color_t current_text = theme_manager_get_color("text");
+    lv_color_t text_color = theme_manager_get_contrast_adjusted_text(current_text, bg_color);
 
     // Check for disabled state - use muted color
     bool btn_disabled = lv_obj_has_state(btn, LV_STATE_DISABLED);
@@ -2172,8 +2221,7 @@ static void apply_button_text_contrast(lv_obj_t* btn) {
         text_color = lv_color_mix(text_color, lv_color_hex(0x888888), 128);
     }
 
-    // Get current text colors to detect text/muted-variant icons
-    lv_color_t current_text = theme_manager_get_color("text");
+    // Get current muted color to detect text/muted-variant icons
     lv_color_t current_muted = theme_manager_get_color("text_muted");
 
     // Also check contrast text from both palettes for icon detection

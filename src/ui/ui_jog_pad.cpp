@@ -123,8 +123,10 @@ static void load_colors(jog_pad_state_t* state, const char* /*component_scope_na
     // The 8 zone boundaries stay a subtle dark border line
     state->jog_color_boundary_lines = theme_manager_get_color("border");
 
-    // The ring is an accent fill, so labels and highlight take black-or-white, not palette text
-    lv_color_t ring_contrast = theme_manager_get_readable_on(state->jog_color_outer_ring);
+    // The ring is an accent fill, so labels and highlight start from the palette text
+    // colour and shift toward its pole as 4:1 needs
+    lv_color_t ring_contrast = theme_manager_get_contrast_adjusted_text(
+        theme_manager_get_color("text"), state->jog_color_outer_ring);
     state->jog_color_axis_labels = ring_contrast;
     state->jog_color_distance_labels = ring_contrast;
     state->jog_color_highlight = ring_contrast;

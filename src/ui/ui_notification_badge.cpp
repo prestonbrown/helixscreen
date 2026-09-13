@@ -47,9 +47,11 @@ void update_badge_text_contrast(lv_obj_t* badge) {
         return;
     }
 
-    // The severity fill is an accent, so the count is black-or-white, not palette text
+    // The severity fill is an accent, so the count starts from the palette text colour
+    // and shifts toward its pole as 4:1 needs
     lv_color_t bg = lv_obj_get_style_bg_color(badge, LV_PART_MAIN);
-    lv_color_t text_color = theme_manager_get_readable_on(bg);
+    lv_color_t text_color =
+        theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), bg);
 
     lv_obj_set_style_text_color(label, text_color, LV_PART_MAIN);
 

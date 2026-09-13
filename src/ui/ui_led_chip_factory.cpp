@@ -94,9 +94,11 @@ static void update_led_chip_state(lv_obj_t* chip, bool selected) {
         }
         lv_obj_set_style_border_width(chip, 0, 0);
 
-        // Tertiary is an accent fill: black-or-white, not the palette's muted text
+        // Tertiary is an accent fill: the label starts from the palette text colour and
+        // shifts toward its pole as 4:1 needs
         lv_color_t bg = theme_manager_get_color("tertiary");
-        lv_color_t text = theme_manager_get_readable_on(bg);
+        lv_color_t text =
+            theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), bg);
         lv_obj_set_style_text_color(chip, text, 0);
 
         if (icon) {

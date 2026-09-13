@@ -7,6 +7,8 @@
 
 #include "lvgl/lvgl.h"
 
+#include <algorithm>
+#include <cmath>
 #include <functional>
 #include <string>
 
@@ -62,6 +64,44 @@ void ensure_headless_display();
  * then.
  */
 void ensure_displays_never_block_on_flush();
+
+/**
+ * @brief WCAG contrast math shared by tests that assert readability
+ *
+ * Deliberately independent of theme_manager's implementation so a wrong
+ * formula in the source cannot make the tests agree with it.
+ */
+namespace wcag {
+
+/// WCAG relative luminance of one 8-bit sRGB channel.
+inline double channel_luminance(uint8_t v) {
+    const double c = v / 255.0;
+    return (c <= 0.03928) ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4);
+}
+
+/// WCAG relative luminance of a color.
+inline double luminance(lv_color_t c) {
+    return 0.2126 * channel_luminance(c.red) + 0.7152 * channel_luminance(c.green) +
+           0.0722 * channel_luminance(c.blue);
+}
+
+/// WCAG contrast ratio between two colors (1.0 = identical).
+inline double contrast(lv_color_t a, lv_color_t b) {
+    const double la = luminance(a), lb = luminance(b);
+    return (std::max(la, lb) + 0.05) / (std::min(la, lb) + 0.05);
+}
+
+/// True when blending @p text toward the pole on its own side of @p fill
+/// (white for text lighter than the fill, black for darker) can itself reach
+/// a 4:1 ratio. White reaches 4:1 below fill luminance 0.2125, black above
+/// 0.15; outside those bounds no tint on the text's side is readable and a
+/// side-preservation assertion would be demanding the impossible.
+inline bool own_pole_reaches_4_1(lv_color_t text, lv_color_t fill) {
+    const double lf = luminance(fill);
+    return (luminance(text) > lf) ? (lf <= 0.2125) : (lf >= 0.15);
+}
+
+} // namespace wcag
 
 // Install a real TemperatureHistoryManager for get_temperature_history_manager()
 // to return (tests default to nullptr). Lets a test exercise history backfill

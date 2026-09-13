@@ -14,6 +14,7 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "../ui_test_utils.h"
 
 #include <cstring>
 
@@ -135,30 +136,65 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button can be created via XML",
     REQUIRE(lv_obj_is_valid(btn));
 }
 
-// A solid variant is an accent fill: the label takes black-or-white by
-// luminance, never the palette's muted text colour.
-TEST_CASE_METHOD(UiButtonTestFixture, "ui_button solid variant label is readable on its fill",
-                 "[ui_button][contrast][quick]") {
-    for (const char* variant : {"primary", "warning", "success"}) {
-        const char* attrs[] = {"text", "Go", "variant", variant, nullptr};
-        lv_obj_t* btn = create_button(attrs);
-        REQUIRE(btn != nullptr);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+namespace {
+// Tests initialize the theme in light mode; the label flip this suite pins is
+// a dark-mode behaviour, so flip the active mode for the test and put back
+// whatever mode was active, even when a REQUIRE abandons the case.
+class ScopedThemeMode {
+  public:
+    ScopedThemeMode() : was_dark_(theme_manager_is_dark_mode()) {}
+    ~ScopedThemeMode() {
+        theme_manager_apply_theme(theme_manager_get_active_theme(), was_dark_);
+    }
 
-        lv_obj_t* label = nullptr;
-        for (uint32_t i = 0; i < lv_obj_get_child_count(btn); ++i) {
-            lv_obj_t* child = lv_obj_get_child(btn, i);
-            if (lv_obj_check_type(child, &lv_label_class)) {
-                label = child;
-                break;
+    void set(bool dark) {
+        theme_manager_apply_theme(theme_manager_get_active_theme(), dark);
+    }
+
+  private:
+    bool was_dark_;
+};
+} // namespace
+
+// A solid variant is an accent fill: the label starts from the palette text
+// colour and shifts toward its own pole only as far as 4:1 contrast needs. On
+// fills where no tint on that side can reach 4:1 (the light theme's dark text
+// on its dark navy primary), the label falls back to the readable pole.
+TEST_CASE_METHOD(UiButtonTestFixture, "ui_button solid variant label is readable on its fill",
+                 "[ui_button][contrast][quick][1648]") {
+    ScopedThemeMode mode;
+    for (bool dark : {false, true}) {
+        mode.set(dark);
+        for (const char* variant : {"primary", "warning", "success"}) {
+            const char* attrs[] = {"text", "Go", "variant", variant, nullptr};
+            lv_obj_t* btn = create_button(attrs);
+            REQUIRE(btn != nullptr);
+            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+            lv_obj_t* label = nullptr;
+            for (uint32_t i = 0; i < lv_obj_get_child_count(btn); ++i) {
+                lv_obj_t* child = lv_obj_get_child(btn, i);
+                if (lv_obj_check_type(child, &lv_label_class)) {
+                    label = child;
+                    break;
+                }
+            }
+            REQUIRE(label != nullptr);
+
+            lv_color_t fill = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
+            lv_color_t text = lv_obj_get_style_text_color(label, LV_PART_MAIN);
+            lv_color_t palette_text = theme_manager_get_color("text");
+            CAPTURE(dark, variant, lv_color_to_u32(fill) & 0xFFFFFF,
+                    lv_color_to_u32(text) & 0xFFFFFF, lv_color_to_u32(palette_text) & 0xFFFFFF);
+            CHECK(wcag::contrast(text, fill) >= 4.0);
+            // The shift stays on the palette text's side of the fill whenever
+            // that side can reach 4:1 at all; flipping to the opposite pole is
+            // what a pure black-or-white picker does.
+            if (wcag::own_pole_reaches_4_1(palette_text, fill)) {
+                CHECK((wcag::luminance(text) > wcag::luminance(fill)) ==
+                      (wcag::luminance(palette_text) > wcag::luminance(fill)));
             }
         }
-        REQUIRE(label != nullptr);
-
-        lv_color_t fill = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
-        lv_color_t text = lv_obj_get_style_text_color(label, LV_PART_MAIN);
-        CAPTURE(variant, lv_color_to_u32(fill) & 0xFFFFFF, lv_color_to_u32(text) & 0xFFFFFF);
-        CHECK(lv_color_eq(text, theme_manager_get_readable_on(fill)));
     }
 }
 

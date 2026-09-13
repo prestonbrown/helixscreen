@@ -68,17 +68,18 @@ static void init_step_progress_colors(const char* scope_name) {
     color_active = get_step_color(scope, dark, "step_active_light", "step_active_dark", "primary");
     color_completed =
         get_step_color(scope, dark, "step_completed_light", "step_completed_dark", "success");
-    // The circles are accent fills, so the glyphs on them are black-or-white by
-    // luminance unless the component scope names its own colours.
-    color_number_pending =
-        get_step_color(scope, dark, "step_number_pending_light", "step_number_pending_dark",
-                       theme_manager_get_readable_on(color_pending));
-    color_number_active =
-        get_step_color(scope, dark, "step_number_active_light", "step_number_active_dark",
-                       theme_manager_get_readable_on(color_active));
-    color_checkmark =
-        get_step_color(scope, dark, "step_number_active_light", "step_number_active_dark",
-                       theme_manager_get_readable_on(color_completed));
+    // The circles are accent fills, so the glyphs on them start from the
+    // palette text colour and shift toward their pole as 4:1 needs, unless the
+    // component scope names its own colours.
+    color_number_pending = get_step_color(
+        scope, dark, "step_number_pending_light", "step_number_pending_dark",
+        theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), color_pending));
+    color_number_active = get_step_color(
+        scope, dark, "step_number_active_light", "step_number_active_dark",
+        theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), color_active));
+    color_checkmark = get_step_color(
+        scope, dark, "step_number_active_light", "step_number_active_dark",
+        theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), color_completed));
     color_label_active =
         get_step_color(scope, dark, "step_label_active_light", "step_label_active_dark", "text");
     color_label_inactive = get_step_color(scope, dark, "step_label_inactive_light",

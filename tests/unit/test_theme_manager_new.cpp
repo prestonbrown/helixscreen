@@ -10,6 +10,7 @@
  * - StyleEntry struct: binds a role to a configure function
  */
 
+#include "../ui_test_utils.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
 
@@ -442,25 +443,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
 // theme_manager_get_readable_on: contrast on an accent fill
 // ============================================================================
 
-namespace {
-
-/// WCAG relative luminance, independent of the implementation under test.
-double wcag_luminance(lv_color_t c) {
-    auto chan = [](uint8_t v) {
-        const double s = v / 255.0;
-        return (s <= 0.03928) ? s / 12.92 : std::pow((s + 0.055) / 1.055, 2.4);
-    };
-    return 0.2126 * chan(c.red) + 0.7152 * chan(c.green) + 0.0722 * chan(c.blue);
-}
-
-double wcag_contrast(lv_color_t a, lv_color_t b) {
-    const double la = wcag_luminance(a), lb = wcag_luminance(b);
-    const double hi = std::max(la, lb), lo = std::min(la, lb);
-    return (hi + 0.05) / (lo + 0.05);
-}
-
-} // namespace
-
 TEST_CASE("theme_manager_get_readable_on returns white on a dark fill", "[theme]") {
     lv_color_t fg = theme_manager_get_readable_on(lv_color_hex(0x1B3A5C));
     CHECK(fg.red == 0xFF);
@@ -478,8 +460,7 @@ TEST_CASE("theme_manager_get_readable_on returns black on a light fill", "[theme
 // The point of the helper: whatever it returns must actually be readable. A
 // fixed choice cannot satisfy this — pure black fails on a dark navy accent and
 // the palette's own text color fails on a saturated mid-tone.
-TEST_CASE("theme_manager_get_readable_on clears WCAG AA on every accent it is given",
-          "[theme]") {
+TEST_CASE("theme_manager_get_readable_on clears WCAG AA on every accent it is given", "[theme]") {
     // Accents drawn from the shipped theme presets, spanning dark navy through
     // saturated mid-tone to bright yellow.
     const uint32_t accents[] = {
@@ -489,7 +470,7 @@ TEST_CASE("theme_manager_get_readable_on clears WCAG AA on every accent it is gi
     };
     for (uint32_t hex : accents) {
         lv_color_t fill = lv_color_hex(hex);
-        double ratio = wcag_contrast(theme_manager_get_readable_on(fill), fill);
+        double ratio = wcag::contrast(theme_manager_get_readable_on(fill), fill);
         CAPTURE(hex, ratio);
         CHECK(ratio >= 4.5);
     }
@@ -518,16 +499,120 @@ TEST_CASE("theme_manager_get_readable_on clears WCAG AA on every shipped theme a
 
         auto check_palette = [&](const helix::ModePalette& palette, const char* mode) {
             for (const char* accent : kAccents) {
-                const std::string& hex =
-                    accent == std::string("primary")     ? palette.primary
-                    : accent == std::string("secondary") ? palette.secondary
-                    : accent == std::string("success")   ? palette.success
-                    : accent == std::string("warning")   ? palette.warning
-                                                         : palette.danger;
+                const std::string& hex = accent == std::string("primary")     ? palette.primary
+                                         : accent == std::string("secondary") ? palette.secondary
+                                         : accent == std::string("success")   ? palette.success
+                                         : accent == std::string("warning")   ? palette.warning
+                                                                              : palette.danger;
                 lv_color_t fill = theme_manager_parse_hex_color(hex.c_str());
-                double ratio = wcag_contrast(theme_manager_get_readable_on(fill), fill);
+                double ratio = wcag::contrast(theme_manager_get_readable_on(fill), fill);
                 CAPTURE(mode, accent, hex, ratio);
                 CHECK(ratio >= 4.5);
+                ++combinations;
+            }
+        };
+        if (theme.supports_dark())
+            check_palette(theme.dark, "dark");
+        if (theme.supports_light())
+            check_palette(theme.light, "light");
+    }
+    // A wrong directory would pass vacuously; the shipped set is 18 themes.
+    REQUIRE(combinations >= 18 * 5);
+}
+
+// ============================================================================
+// theme_manager_get_contrast_adjusted_text: the palette's own text colour,
+// shifted toward its pole only as far as 4:1 requires
+// ============================================================================
+
+// Passing palette text comes back byte-for-byte: no shift, no rounding.
+TEST_CASE("contrast_adjusted_text returns passing palette text unchanged",
+          "[theme][contrast][1648]") {
+    lv_color_t text = lv_color_hex(0xE8E8EC);
+    lv_color_t fill = lv_color_hex(0x1B1B1F);
+    REQUIRE(wcag::contrast(text, fill) >= 4.0);
+    lv_color_t result = theme_manager_get_contrast_adjusted_text(text, fill);
+    CHECK(result.red == text.red);
+    CHECK(result.green == text.green);
+    CHECK(result.blue == text.blue);
+}
+
+// helixscreen dark: the Controls Motion button's #E8E8EC label on the #3A7CC8
+// primary measures ~3.5:1. The shift must stay light and keep the theme's
+// tint instead of flipping to black.
+TEST_CASE("contrast_adjusted_text keeps the dark-theme label light on primary #3A7CC8",
+          "[theme][contrast][1648]") {
+    lv_color_t text = lv_color_hex(0xE8E8EC);
+    lv_color_t fill = lv_color_hex(0x3A7CC8);
+    REQUIRE(wcag::contrast(text, fill) < 4.0);
+    lv_color_t result = theme_manager_get_contrast_adjusted_text(text, fill);
+    CAPTURE(lv_color_to_u32(result) & 0xFFFFFF, wcag::contrast(result, fill));
+    CHECK(wcag::contrast(result, fill) >= 4.0);
+    CHECK(wcag::luminance(result) > wcag::luminance(fill));
+    // Pure white is not required to reach 4:1 here, so the tint must survive.
+    CHECK((lv_color_to_u32(result) & 0xFFFFFF) != 0xFFFFFF);
+    CHECK((lv_color_to_u32(result) & 0xFFFFFF) != 0x000000);
+}
+
+// Mirror on the dark side: mid-grey text on a light grey fill darkens toward
+// black just enough, without snapping to pure black.
+TEST_CASE("contrast_adjusted_text darkens failing dark text without snapping to black",
+          "[theme][contrast][1648]") {
+    lv_color_t text = lv_color_hex(0x666666);
+    lv_color_t fill = lv_color_hex(0xB0B0B0);
+    REQUIRE(wcag::contrast(text, fill) < 4.0);
+    lv_color_t result = theme_manager_get_contrast_adjusted_text(text, fill);
+    CAPTURE(lv_color_to_u32(result) & 0xFFFFFF, wcag::contrast(result, fill));
+    CHECK(wcag::contrast(result, fill) >= 4.0);
+    CHECK(wcag::luminance(result) < wcag::luminance(fill));
+    CHECK((lv_color_to_u32(result) & 0xFFFFFF) != 0x000000);
+}
+
+// When no tint on the text's own side can reach 4:1 (light text on a light
+// fill), the function falls back to the pure-pole picker, which can.
+TEST_CASE(
+    "contrast_adjusted_text falls back to the readable pole when its own side cannot reach 4:1",
+    "[theme][contrast][1648]") {
+    lv_color_t text = lv_color_hex(0xFFFFFF);
+    lv_color_t fill = lv_color_hex(0xB0B0B0);
+    REQUIRE(wcag::contrast(text, fill) < 4.0); // white is the best light-side try
+    lv_color_t result = theme_manager_get_contrast_adjusted_text(text, fill);
+    CHECK(lv_color_eq(result, theme_manager_get_readable_on(fill)));
+}
+
+// Every shipped theme, every mode it supports: the palette's own text on every
+// accent either already clears 4:1 byte-for-byte or shifts until it does.
+TEST_CASE("contrast_adjusted_text clears 4:1 for palette text on every shipped accent",
+          "[theme][contrast][1648]") {
+    static const char* const kAccents[] = {"primary", "secondary", "success", "warning", "danger"};
+
+    int combinations = 0;
+    for (const auto& entry :
+         std::filesystem::directory_iterator(helix::get_default_themes_directory())) {
+        if (entry.path().extension() != ".json")
+            continue;
+        const std::string filename = entry.path().filename().string();
+        std::ifstream in(entry.path());
+        std::stringstream buf;
+        buf << in.rdbuf();
+        helix::ThemeData theme = helix::parse_theme_json(buf.str(), filename);
+        CAPTURE(filename);
+        REQUIRE(theme.is_valid());
+
+        auto check_palette = [&](const helix::ModePalette& palette, const char* mode) {
+            lv_color_t text = theme_manager_parse_hex_color(palette.text.c_str());
+            for (const char* accent : kAccents) {
+                const std::string& hex = accent == std::string("primary")     ? palette.primary
+                                         : accent == std::string("secondary") ? palette.secondary
+                                         : accent == std::string("success")   ? palette.success
+                                         : accent == std::string("warning")   ? palette.warning
+                                                                              : palette.danger;
+                lv_color_t fill = theme_manager_parse_hex_color(hex.c_str());
+                lv_color_t result = theme_manager_get_contrast_adjusted_text(text, fill);
+                CAPTURE(mode, accent, palette.text, hex, lv_color_to_u32(result) & 0xFFFFFF);
+                CHECK(wcag::contrast(result, fill) >= 4.0);
+                if (wcag::contrast(text, fill) >= 4.0)
+                    CHECK(lv_color_eq(result, text));
                 ++combinations;
             }
         };

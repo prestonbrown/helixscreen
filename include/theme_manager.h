@@ -675,9 +675,9 @@ lv_color_t theme_manager_get_contrast_color(lv_color_t bg_color);
  * @brief Get a foreground guaranteed readable on a saturated fill
  *
  * Returns pure black or pure white, whichever has the higher WCAG contrast
- * ratio against @p fill. Use this for content drawn on an accent fill — a
- * primary-filled button or pill, a colored badge — where the fill is chosen for
- * emphasis rather than as a background tone.
+ * ratio against @p fill. Use this when pure maximum contrast matters more
+ * than keeping the theme's tint — non-text chrome such as divider lines, or
+ * the fallback when a tinted colour cannot reach the contrast bar.
  *
  * Deliberately NOT theme_manager_get_contrast_color(). That one answers a
  * different question: it hands back the palette's own text color for the
@@ -691,6 +691,27 @@ lv_color_t theme_manager_get_contrast_color(lv_color_t bg_color);
  * @return Black or white, whichever reads better on @p fill
  */
 lv_color_t theme_manager_get_readable_on(lv_color_t fill);
+
+/**
+ * @brief Shift a palette text colour just enough to read on a fill
+ *
+ * Keeps the theme's own text colour wherever it already clears a 4:1 WCAG
+ * contrast ratio against @p fill (returned byte-for-byte). Otherwise blends
+ * @p text toward the pole on its own side of the fill — light text toward
+ * white, dark text toward black — by the smallest amount that reaches 4:1,
+ * so the theme's tint survives instead of snapping to pure black or white.
+ * When no colour on the text's own side can reach 4:1, falls back to
+ * theme_manager_get_readable_on().
+ *
+ * Use this for text and text-coloured glyphs on an accent fill where the
+ * palette's text colour is the intended starting point.
+ *
+ * @param text Palette text colour intended for this context
+ * @param fill Background fill the text sits on
+ * @return @p text unchanged, or the nearest tint toward its pole that clears 4:1
+ */
+// NAMESPACE_OK: joins this header's global theme_manager_* free-function API
+lv_color_t theme_manager_get_contrast_adjusted_text(lv_color_t text, lv_color_t fill);
 
 /**
  * @brief Apply palette colors to a single widget based on its type

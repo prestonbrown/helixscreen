@@ -354,8 +354,11 @@ static void ui_text_button_apply(lv_xml_parser_state_t* state, const char** attr
 
     // Only apply auto-contrast if parent has a visible background
     if (bg_opa > LV_OPA_50) {
-        // The parent is a filled button, so its colour is an accent (matches ui_button)
-        lv_color_t text_color = theme_manager_get_readable_on(bg_color);
+        // The parent is a filled button, so its colour is an accent; the label
+        // starts from the palette text colour and shifts only as far as needed
+        // (matches ui_button)
+        lv_color_t text_color =
+            theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), bg_color);
         lv_obj_set_style_text_color(label, text_color, LV_PART_MAIN);
     }
 }

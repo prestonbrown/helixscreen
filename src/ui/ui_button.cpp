@@ -237,8 +237,9 @@ void stop(lv_obj_t* arc) {
  *
  * Handles both internal label/icon (from text= attr) and XML child labels
  * (from layout="column" buttons with text_body/text_small children).
- * Solid variants are accent fills, so the text is theme_manager_get_readable_on()
- * (black or white), never the palette's muted text colour.
+ * Solid variants are accent fills, so the text starts from the palette text
+ * colour and shifts toward its own pole just enough to stay readable
+ * (theme_manager_get_contrast_adjusted_text()).
  *
  * @param btn The button widget
  */
@@ -271,7 +272,7 @@ void update_button_text_contrast(lv_obj_t* btn) {
             bg = lv_color_mix(bg, screen_bg, LV_OPA_50);
         }
 
-        text_color = theme_manager_get_readable_on(bg);
+        text_color = theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), bg);
     }
 
     spdlog::trace("[ui_button] contrast: ghost={} disabled={} text=0x{:06X}", is_ghost, is_disabled,
