@@ -7986,18 +7986,20 @@ install_procd_shim_k2() {
 }
 
 # K2 web-server carve-out (prestonbrown/helixscreen#1617). The runtime hook
-# runs `/etc/init.d/app disable`, and procd disables the app service as a
-# whole — so web-server (ports 80/443/9998/9999, Creality Cloud) would
-# never start at boot. Install an rc.common script that starts exactly
-# web-server, independent of the app service, and enable it so procd's boot
-# iterator runs it.
+# runs `/etc/init.d/app stop` + `disable`, and on this Tina/procd box both
+# take a running web-server down too — so the hook restores the carve-out
+# at the end of every HelixScreen start, through the rc.common script this
+# installs at /etc/init.d/helix-k2-webserver. The script is the service-
+# shaped starter the hook calls and the manual handle; its rc.d boot entry
+# is belt-and-braces (procd's boot iterator dispatches the helixscreen shim
+# but not this S99 on real hardware).
 #
 # Must be called AFTER start_service: the service start is what runs
-# platform_stop_competing_uis, whose `/etc/init.d/app stop` takes the stock
-# web-server down, and the explicit start here brings the carve-out back
-# for the current session without a reboot. No-op when the stock app
-# service is absent (a firmware without the stock set has nothing to carve
-# out of) or when procd's rc.common is missing.
+# platform_stop_competing_uis — the hook's own restore already brings
+# web-server back, and the explicit start here is the same belt-and-braces
+# for paths that bypass the hook (a direct launcher start, say). No-op when
+# the stock app service is absent (a firmware without the stock set has
+# nothing to carve out of) or when procd's rc.common is missing.
 install_k2_webserver_backend() {
     [ "${1:-}" = "k2" ] || return 0
 
@@ -12571,14 +12573,14 @@ main() {
 
     # K2: install and start the web-server carve-out
     # (prestonbrown/helixscreen#1617). Must follow start_service: the
-    # service start runs platform_stop_competing_uis, whose
-    # /etc/init.d/app stop takes the stock web-server down, and this
-    # brings the carve-out back for the current session while the
-    # installed script keeps it across reboots. No-op off K2. The || guard
-    # keeps a carve-out failure non-fatal: we run under set -eu with the
-    # service already started, and a supplementary backend must not abort
-    # the install before cleanup_* runs — the function has already logged
-    # the error and the manual fix.
+    # service start runs platform_stop_competing_uis, whose app stop+
+    # disable take the stock web-server down — the hook's own restore and
+    # this start both bring the carve-out back for the current session,
+    # and the hook keeps it across reboots and restarts. No-op off K2.
+    # The || guard keeps a carve-out failure non-fatal: we run under
+    # set -eu with the service already started, and a supplementary
+    # backend must not abort the install before cleanup_* runs — the
+    # function has already logged the error and the manual fix.
     install_k2_webserver_backend "$platform" ||
         log_warn "Web-server carve-out incomplete; the UI install itself is fine"
 

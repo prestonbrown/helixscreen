@@ -10,14 +10,19 @@
 # audio-server, wifi-server, upgrade-server. HelixScreen keeps that service
 # disabled — display-server contends for the framebuffer, and Monitor and
 # the master/app pair are the stock UI watchdog and AI failure detection
-# the install announces as removed. procd disables a service as a whole, so
-# web-server (ports 80/443/9998/9999, Creality Cloud) would never start at
-# boot either. This script starts exactly that one process, outside the app
-# service, so it boots independently of it.
+# the install announces as removed. procd disables a service as a whole,
+# and its stop+disable also take a RUNNING web-server down, so the
+# carve-out's liveness is restored by hooks-k2.sh's
+# platform_stop_competing_uis — which calls this script at the end of every
+# HelixScreen start (boot and restart alike). Nothing in this file may be
+# load-bearing for liveness: procd's boot iterator dispatches the
+# helixscreen shim but has been observed to skip this S99 entry, so the
+# rc.d boot symlink below is belt-and-braces only. The script itself
+# provides the manual/service-shaped way to start, stop and query exactly
+# web-server (ports 80/443/9998/9999).
 #
-# The rc.common shebang and the DEPEND directive are the procd boot
-# iterator's contract: plain SysV scripts are silently skipped at boot on
-# this firmware ([L086]).
+# The rc.common shebang and the DEPEND directive remain the procd
+# contract for any manual dispatch ([L086]).
 
 # Harden PATH against third-party mods that prepend command-shim directories
 # (e.g. k2-improvements' /mnt/UDISK/bin wrappers). Stock system directories

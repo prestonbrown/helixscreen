@@ -4431,18 +4431,20 @@ install_procd_shim_k2() {
 }
 
 # K2 web-server carve-out (prestonbrown/helixscreen#1617). The runtime hook
-# runs `/etc/init.d/app disable`, and procd disables the app service as a
-# whole — so web-server (ports 80/443/9998/9999, Creality Cloud) would
-# never start at boot. Install an rc.common script that starts exactly
-# web-server, independent of the app service, and enable it so procd's boot
-# iterator runs it.
+# runs `/etc/init.d/app stop` + `disable`, and on this Tina/procd box both
+# take a running web-server down too — so the hook restores the carve-out
+# at the end of every HelixScreen start, through the rc.common script this
+# installs at /etc/init.d/helix-k2-webserver. The script is the service-
+# shaped starter the hook calls and the manual handle; its rc.d boot entry
+# is belt-and-braces (procd's boot iterator dispatches the helixscreen shim
+# but not this S99 on real hardware).
 #
 # Must be called AFTER start_service: the service start is what runs
-# platform_stop_competing_uis, whose `/etc/init.d/app stop` takes the stock
-# web-server down, and the explicit start here brings the carve-out back
-# for the current session without a reboot. No-op when the stock app
-# service is absent (a firmware without the stock set has nothing to carve
-# out of) or when procd's rc.common is missing.
+# platform_stop_competing_uis — the hook's own restore already brings
+# web-server back, and the explicit start here is the same belt-and-braces
+# for paths that bypass the hook (a direct launcher start, say). No-op when
+# the stock app service is absent (a firmware without the stock set has
+# nothing to carve out of) or when procd's rc.common is missing.
 install_k2_webserver_backend() {
     [ "${1:-}" = "k2" ] || return 0
 
@@ -4943,7 +4945,15 @@ deploy_platform_hooks() {
     mkdir -p "${install_dir}/platform" 2>/dev/null || $SUDO mkdir -p "${install_dir}/platform" 2>/dev/null || true
     cp "$hooks_src" "${install_dir}/platform/hooks.sh" 2>/dev/null || $SUDO cp "$hooks_src" "${install_dir}/platform/hooks.sh" 2>/dev/null || true
     chmod +x "${install_dir}/platform/hooks.sh" 2>/dev/null || $SUDO chmod +x "${install_dir}/platform/hooks.sh" 2>/dev/null || true
-    log_info "Deployed platform hooks: $platform"
+
+    # Every copy above is non-fatal, so success has to be observed rather than
+    # assumed. A missing hooks.sh leaves each platform_* function the no-op stub
+    # the init script declares, and nothing else reports that.
+    if [ -s "${install_dir}/platform/hooks.sh" ]; then
+        log_info "Deployed platform hooks: $platform"
+    else
+        log_warn "Platform hooks NOT deployed: ${install_dir}/platform/hooks.sh is missing or empty"
+    fi
 }
 
 # Fix ownership of install directory for non-root service users.
