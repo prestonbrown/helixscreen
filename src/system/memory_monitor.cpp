@@ -273,7 +273,8 @@ void MemoryMonitor::log_now(const char* context, spdlog::level::level_enum level
 MemoryPressureLevel compute_pressure_level(const MemoryStats& stats,
                                            const MemoryThresholds& thresholds,
                                            MemoryPressureLevel current_level,
-                                           const MemoryInfo& sys_info, int64_t growth_kb) {
+                                           const MemoryInfo& sys_info, int64_t growth_kb,
+                                           uint32_t sustained_warning_secs) {
     MemoryPressureLevel level = MemoryPressureLevel::none;
 
     // RSS thresholds — check escalations first, then hysteresis holds
@@ -329,6 +330,15 @@ MemoryPressureLevel compute_pressure_level(const MemoryStats& stats,
         }
     }
 
+    // A warning that will not clear is the steady state, not a spike. Escalate
+    // it so the responders gated at critical are reachable on a device whose
+    // idle free memory never rises out of the warning band. Escalation reads
+    // the level computed above, so it can only promote real pressure.
+    if (level == MemoryPressureLevel::warning &&
+        sustained_warning_secs >= thresholds.sustained_warning_secs_to_critical) {
+        level = MemoryPressureLevel::critical;
+    }
+
     return level;
 }
 
@@ -362,8 +372,16 @@ void MemoryMonitor::evaluate_thresholds(const MemoryStats& stats) {
     }
 
     auto current = pressure_level_.load();
-    MemoryPressureLevel level =
-        compute_pressure_level(stats, thresholds_, current, sys_info, growth_kb);
+
+    const auto now_tp = std::chrono::steady_clock::now();
+    if (current < MemoryPressureLevel::warning) {
+        warning_since_ = now_tp;
+    }
+    const auto sustained =
+        std::chrono::duration_cast<std::chrono::seconds>(now_tp - warning_since_);
+
+    MemoryPressureLevel level = compute_pressure_level(
+        stats, thresholds_, current, sys_info, growth_kb, static_cast<uint32_t>(sustained.count()));
 
     // Update atomic level
     pressure_level_.store(level);
