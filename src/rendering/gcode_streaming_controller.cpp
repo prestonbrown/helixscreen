@@ -153,30 +153,19 @@ GCodeStreamingController::GCodeStreamingController()
     : cache_(GCodeLayerCache::DEFAULT_BUDGET_NORMAL) {
     // Select cache budget tier based on total system RAM
     auto mem = get_system_memory_info();
-    size_t budget;
-    const char* tier_name;
+    const GCodeLayerCache::BudgetTier tier =
+        GCodeLayerCache::budget_tier_for_total_ram_kb(mem.total_kb);
 
-    if (mem.is_constrained_device()) {
-        budget = GCodeLayerCache::DEFAULT_BUDGET_CONSTRAINED;
-        tier_name = "constrained";
-    } else if (mem.is_normal_device()) {
-        budget = GCodeLayerCache::DEFAULT_BUDGET_NORMAL;
-        tier_name = "normal";
-    } else {
-        budget = GCodeLayerCache::DEFAULT_BUDGET_GOOD;
-        tier_name = "good";
-    }
-
-    cache_.set_memory_budget(budget);
+    cache_.set_memory_budget(tier.budget_bytes);
 
     // Enable adaptive mode on constrained/normal devices (not desktop)
     if (!mem.is_good_device()) {
-        cache_.set_adaptive_mode(true, 15, MIN_CACHE_BUDGET, budget);
+        cache_.set_adaptive_mode(true, 15, MIN_CACHE_BUDGET, tier.budget_bytes);
     }
 
     spdlog::info("[StreamingController] {} device (total: {}MB, available: {}MB), "
                  "using {}MB cache budget{}",
-                 tier_name, mem.total_mb(), mem.available_mb(), budget / (1024 * 1024),
+                 tier.name, mem.total_mb(), mem.available_mb(), tier.budget_bytes / (1024 * 1024),
                  mem.is_good_device() ? "" : " with adaptive mode");
 
     register_memory_responder();
