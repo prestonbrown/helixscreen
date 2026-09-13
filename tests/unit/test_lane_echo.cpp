@@ -153,6 +153,11 @@ TEST_CASE("a declaration of nothing this guard can withhold is not armed", "[lan
     echoes.stage(0, binding);
     echoes.arm(0, "TAG-A");
 
+    // Dropped outright rather than armed against a boundary it can never
+    // reach, so a preview, a refused dispatch and a binding-only edit all
+    // leave the slot holding nothing.
+    CHECK(echoes.staged(0) == nullptr);
+
     Observation record = echoed();
     record.spoolman_id = 42;
     CHECK(echoes.withhold(0, "TAG-A", record) == 0);
