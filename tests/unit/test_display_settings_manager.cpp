@@ -4,7 +4,12 @@
 #include "../lvgl_test_fixture.h"
 #include "config.h"
 #include "display_settings_manager.h"
+#include "gcode_preview_setup.h"
+#include "gcode_render_mode_policy.h"
+#include "runtime_config.h"
 #include "settings_manager.h"
+
+#include <cstdlib>
 
 #include "../catch_amalgamated.hpp"
 
@@ -190,6 +195,33 @@ TEST_CASE_METHOD(LVGLTestFixture, "DisplaySettingsManager set/get round trips",
         DisplaySettingsManager::instance().set_gcode_render_mode(0);
         REQUIRE(DisplaySettingsManager::instance().get_gcode_render_mode() == 0);
     }
+
+    DisplaySettingsManager::instance().deinit_subjects();
+}
+
+// The preview asks one question before it fetches anything: is the G-code viewer
+// used at all. Thumbnail Only answers no, and that answer has to reach the live
+// reader, because the whole G-code pipeline - download, layer index, background
+// render pass - hangs off it.
+TEST_CASE_METHOD(LVGLTestFixture, "preview_viewer_enabled follows the persisted render mode",
+                 "[display_settings][render_mode]") {
+    DisplaySettingsManager::instance().init_subjects();
+
+    // The ladder puts a command-line mode above the setting, so this test only
+    // says anything about the settings tier while nothing is pinned above it.
+    const RuntimeConfig* runtime = get_runtime_config();
+    REQUIRE((runtime == nullptr || runtime->gcode_render_mode < 0));
+    REQUIRE(std::getenv("HELIX_GCODE_MODE") == nullptr);
+
+    DisplaySettingsManager::instance().set_gcode_render_mode(
+        helix::gcode_viewer::RENDER_MODE_THUMBNAIL_ONLY);
+    CHECK_FALSE(helix::ui::preview_viewer_enabled());
+
+    DisplaySettingsManager::instance().set_gcode_render_mode(2);
+    CHECK(helix::ui::preview_viewer_enabled());
+
+    DisplaySettingsManager::instance().set_gcode_render_mode(0);
+    CHECK(helix::ui::preview_viewer_enabled());
 
     DisplaySettingsManager::instance().deinit_subjects();
 }
