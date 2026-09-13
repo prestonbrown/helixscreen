@@ -767,14 +767,14 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     // set_slot_info persist path, check_hardware_event_clear) all hold
     // mutex_. Reads happen inside apply_overrides, which is also called
     // under mutex_.
-    /// The shared lane_data namespace this backend co-authors, which
-    /// request_resync() re-reads.
+    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
+    std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
+
+    /// The shared lane_data namespace this backend co-authors. request_resync()
+    /// re-reads it only where firmware states no identity of its own.
     helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
         return override_store_.get();
     }
-
-    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
-    std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
 
     // Per-slot last-observed RFID fingerprint (material_type + "|" +
     // color_value, using the raw pre-strip_code strings), plus the pending

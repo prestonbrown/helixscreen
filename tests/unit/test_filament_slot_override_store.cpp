@@ -3493,7 +3493,7 @@ TEST_CASE("merge_override rule matrix", "[ams][override-merge]") {
 }
 
 // =============================================================================
-// parse_namespace_document — the read half of a load, on its own
+// parse_namespace_document: the read half of a load, on its own
 // =============================================================================
 
 TEST_CASE("parsing a namespace document is the read half of a load",

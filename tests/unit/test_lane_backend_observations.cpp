@@ -2812,9 +2812,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "the factory mock is registered before it star
 // source's record whole, and both arrival orders happen, so a second producer
 // there overwrites a fresh reading with a stored one. Nor is a field gained by
 // allowing it: the next frame retracts whatever the stored record carried
-// beyond what firmware reports. Of the seven backends holding a record store,
-// klipper-toolchanger is the only one whose firmware reports no identity, so
-// it is the only one that files.
+// beyond what firmware reports. klipper-toolchanger is the one backend whose
+// firmware reports no identity, so it is the one that files.
 
 namespace {
 
@@ -2869,17 +2868,30 @@ TEST_CASE_METHOD(LVGLTestFixture, "a resync re-reads the shared namespace into t
 
 TEST_CASE_METHOD(LVGLTestFixture, "a resync reaches the backend's own block, not slot indices",
                  "[lane][ingest][resync]") {
-    ToolChangerHarness harness(nullptr, nullptr);
+    // set_backend() clears and installs backend 0; add_backend() appends
+    // backend 1 without clearing. The tool changer therefore answers a block
+    // other than 0, so a record filed on block 0 is provably not its own.
+    // The mock is never started, so it files nothing of its own.
+    MockHarness filler(4);
+    auto owned = std::make_unique<AmsBackendToolChanger>(nullptr, nullptr);
+    auto* backend = owned.get();
+    REQUIRE(helix::AmsState::instance().add_backend(std::move(owned)) == 1);
+
     LaneDataDb db;
     db.seed("T1", nlohmann::json{{"lane", "1"}, {"material", "PC"}});
-    ToolChangerTestAccess::inject_override_store(*harness, toolchanger_store(db));
+    ToolChangerTestAccess::inject_override_store(*backend, toolchanger_store(db));
 
-    harness->request_resync();
+    backend->request_resync();
     helix::ui::UpdateQueue::instance().drain();
 
-    const auto lane = lane_sources(harness.lane(1));
+    // Slot 1, not slot 0: the slot index is carried as well as the block.
+    const auto lane = lane_sources(backend->lane_id(1));
     REQUIRE(lane.vendor_cache.has_value());
     CHECK(lane.vendor_cache->material == "PC");
+
+    // Block 0 belongs to the other backend. Deriving the id from the slot
+    // index alone would land the record there.
+    CHECK_FALSE(lane_sources(helix::ams::lane_id_for(0, 1)).vendor_cache.has_value());
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a resync files no declaration for a record naming a spool",
@@ -2959,7 +2971,11 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "[lane][ingest][resync]") {
     // Each of these files a vendor-cache record from its own status frames, so
     // the persisted record has a live producer to race and nothing to add to
-    // it. Only one harness may be live at a time, so each takes its own scope.
+    // it. That answer is what excludes them, whichever namespace their store
+    // sits on: AFC and Happy Hare reach the same outcome and also publish a
+    // bypass lane into the shared one.
+    //
+    // Only one harness may be live at a time, so each takes its own scope.
     {
         AceHarness harness(nullptr, nullptr);
         LaneDataDb db;
@@ -3016,13 +3032,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
         // nothing to ask for, so the database is never reached.
         CHECK(db.api.mock_db_namespace_get_count() == 0);
     }
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "a backend whose namespace nobody else writes re-reads nothing",
-                 "[lane][ingest][resync]") {
-    // AFC and Happy Hare keep their overrides in a namespace HelixScreen alone
-    // writes, so there is no drift for a re-read to correct. They name no
-    // record store at all, which is the other way a backend files nothing.
     {
         AfcHarness harness(nullptr, nullptr);
         harness->request_resync();

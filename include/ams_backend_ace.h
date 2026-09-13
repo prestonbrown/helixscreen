@@ -408,14 +408,14 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     // remaining weight, etc.) layered over firmware-reported state.
     // Both writers (on_started initial load, set_slot_info persist path) hold
     // mutex_; apply_overrides reads inside the parse path under mutex_.
-    /// The shared lane_data namespace this backend co-authors, which
-    /// request_resync() re-reads.
+    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
+    std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
+
+    /// The shared lane_data namespace this backend co-authors. request_resync()
+    /// re-reads it only where firmware states no identity of its own.
     helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
         return override_store_.get();
     }
-
-    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
-    std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
 
     // Previous slot status per slot index. Used as the swap-detection signal:
     // an EMPTY -> present transition fires the clear-override path. Map

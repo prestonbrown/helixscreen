@@ -728,8 +728,14 @@ void PrintSelectDetailView::on_activate() {
 
     // Ask the active AMS backend to refresh its slot/state view. Lets users
     // self-recover from any drift between cached UI state and printer truth
-    // by navigating away and back. Default backend impl is a no-op; AD5X IFS
-    // re-reads Adventurer5M.json + GET_ZCOLOR. Debounced internally.
+    // by navigating away and back. AD5X IFS re-reads Adventurer5M.json +
+    // GET_ZCOLOR and debounces that itself; a tool changer re-reads the shared
+    // lane_data namespace into the lane source model; every other backend does
+    // nothing here.
+    //
+    // The lane_data re-read is NOT coalesced: one database_get_namespace per
+    // entry into this view, with out-of-order completions settled by whichever
+    // lands last. A known gap, and a cheap one while nothing reads the result.
     if (auto* backend = AmsState::instance().get_backend()) {
         backend->request_resync();
     }
