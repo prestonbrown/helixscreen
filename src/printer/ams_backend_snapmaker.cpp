@@ -1236,6 +1236,14 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
                         if (!rfid.main_type.empty())
                             cache.material = rfid.main_type;
+                        // Both spellings of "the tag named no vendor" retract
+                        // the brand here: whole-record replacement means this
+                        // record states what THIS read said, and a field the
+                        // read is silent about is not one it still stands
+                        // behind. SlotInfo above tests only the literal "NONE",
+                        // so it blanks on an absent key and KEEPS its last
+                        // value on the literal. That one input is the only
+                        // place the two layers disagree.
                         if (!brand.empty() && brand != "NONE")
                             cache.brand = brand;
                         // SnapmakerRfidInfo::color_rgb rests on
@@ -1248,7 +1256,9 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // ("Silk" inside "PLA"), so it is the branded product
                         // and routing it to material would destroy the
                         // material. The SlotInfo field above keeps its own
-                        // spelling.
+                        // spelling, and splits from this record on the
+                        // literal "NONE" for the same reason the brand guard
+                        // does.
                         if (!rfid.sub_type.empty() && rfid.sub_type != "NONE")
                             cache.product_name = rfid.sub_type;
                         if (rfid.weight_g > 0)
@@ -1618,6 +1628,30 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                 }
             }
 
+            // These three fields write SlotInfo and deliberately file NO lane
+            // observation, unlike the RFID parse above.
+            //
+            // print_task_config is a write surface, not a sensor.
+            // SET_PRINT_FILAMENT_CONFIG takes VENDOR / FILAMENT_TYPE /
+            // FILAMENT_SUBTYPE / FILAMENT_COLOR_RGBA as gcode parameters and
+            // persists them, so whoever sent that command set these values: the
+            // machine's own screen, a slicer, a console, or this backend's
+            // write-back through /printer/filament_detect/set, which firmware
+            // mirrors into this same struct. Filing any of it as VendorCache
+            // would return a user's own edit as firmware truth.
+            //
+            // The firmware carries the provenance bit itself, and it shows the
+            // channel is redundant rather than merely unsafe: filament_official
+            // marks a head whose entry came from a Snapmaker RFID spool, and
+            // SET_PRINT_FILAMENT_CONFIG is refused on such a head without
+            // FORCE. An official entry is the tag filament_detect.info already
+            // reports, which the RFID parse files; an unofficial one is
+            // somebody's declaration. Neither is a reading this key can
+            // contribute.
+            //
+            // A user's declaration reaches the lane model through
+            // commit_slot_edit, which is the funnel that records authorship.
+            //
             // filament_vendor: ["Snapmaker", ...] — brand per slot
             if (ptc.contains("filament_vendor") && ptc["filament_vendor"].is_array()) {
                 const auto& vendor_arr = ptc["filament_vendor"];

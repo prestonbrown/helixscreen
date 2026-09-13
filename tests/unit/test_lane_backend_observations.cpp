@@ -157,6 +157,17 @@ void feed_filament_detect(AmsBackendSnapmaker& backend, const nlohmann::json& fd
     SnapmakerTestAccess::handle_status(backend, notification);
 }
 
+/// One print_task_config object, through the same envelope. This is Snapmaker's
+/// second identity writer and the one that files no observation, so a case
+/// needs to drive it separately from filament_detect.
+void feed_print_task_config(AmsBackendSnapmaker& backend, const nlohmann::json& ptc) {
+    nlohmann::json params;
+    params["print_task_config"] = ptc;
+    nlohmann::json notification;
+    notification["params"] = nlohmann::json::array({params, 0.0});
+    SnapmakerTestAccess::handle_status(backend, notification);
+}
+
 /// One tool-changer status object, delivered the way Moonraker delivers it.
 void feed_toolchanger(AmsBackendToolChanger& backend, const nlohmann::json& status) {
     nlohmann::json notification;
@@ -1791,21 +1802,32 @@ TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's NONE tag states nothing about ide
                  "[lane][ingest][snapmaker]") {
     SnapmakerHarness harness(nullptr, nullptr);
 
-    feed_filament_detect(
-        *harness, nlohmann::json{
-                      {"state", nlohmann::json::array({1, 0, 0, 0})},
-                      {"info", nlohmann::json::array({nlohmann::json{{"MAIN_TYPE", "NONE"}}})},
-                  });
+    feed_filament_detect(*harness,
+                         nlohmann::json{
+                             {"state", nlohmann::json::array({1, 1, 0, 0})},
+                             {"info", nlohmann::json::array({
+                                          nlohmann::json{{"MAIN_TYPE", "NONE"}},
+                                          // The positive control, and it has to live in this same
+                                          // info array. The Sensed record cannot play that part:
+                                          // it is filed by the state loop, over a different wire
+                                          // key, so it stays green with the whole identity ingest
+                                          // deleted. A neighbour that DOES declare is what makes
+                                          // lane 0's silence a decision the loop took.
+                                          nlohmann::json{{"MAIN_TYPE", "PLA"}},
+                                      })},
+                         });
 
     const auto lane = lane_sources(harness.lane(0));
     // Presence still came through: the channel senses filament even with no
-    // readable tag, which is the whole shape of "sensed, not declared". It is
-    // also what proves this frame reached the translation, so the absence
-    // below is a decision and not a backend that never ran.
+    // readable tag, which is the whole shape of "sensed, not declared".
     REQUIRE(lane.sensed.has_value());
     REQUIRE(lane.sensed->present.has_value());
     CHECK(*lane.sensed->present == true);
     CHECK_FALSE(lane.vendor_cache.has_value());
+
+    const auto control = lane_sources(harness.lane(1));
+    REQUIRE(control.vendor_cache.has_value());
+    CHECK(control.vendor_cache->material == "PLA");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker files no colour for a tag that carried none",
@@ -1916,6 +1938,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "a tool changer senses docking and declares no
 
     harness->set_discovered_tools({"T0", "T1"});
 
+    // AmsState hands a backend its tool list BEFORE add_backend() stamps an
+    // index, so the records initialize_tools() filed land on no lane in
+    // production. Drop them and drive a real status frame, which is the path a
+    // machine takes.
+    helix::ams::reset_lane_sources();
+    REQUIRE_FALSE(lane_sources(harness.lane(0)).sensed.has_value());
+    feed_toolchanger(*harness,
+                     nlohmann::json{{"toolchanger", {{"status", "ready"}, {"tool_number", 0}}}});
+
     const auto lane = lane_sources(harness.lane(0));
     REQUIRE(lane.sensed.has_value());
     REQUIRE(lane.sensed->present.has_value());
@@ -1988,9 +2019,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "an override never becomes a tool changer's ve
     // statement and there is nothing else for a read-back to pick up.
     ToolChangerTestAccess::seed_override(*harness, 0, user_colour_and_material());
 
-    // Rediscovery resets the slots and re-layers the override, which is the
-    // frame that would launder it.
-    harness->set_discovered_tools({"T0", "T1"});
+    // The production laundering shape, which a second set_discovered_tools()
+    // does not reach: a real status frame, where refresh_slot_statuses_locked
+    // files the reading and the tail re-layer runs apply_overrides after it.
+    helix::ams::reset_lane_sources();
+    feed_toolchanger(*harness,
+                     nlohmann::json{{"toolchanger", {{"status", "ready"}, {"tool_number", 0}}}});
 
     REQUIRE(harness->get_slot_info(0).color_rgb == 0x00FF00u);
     REQUIRE(harness->get_slot_info(0).material == "ABS");
@@ -2001,4 +2035,140 @@ TEST_CASE_METHOD(LVGLTestFixture, "an override never becomes a tool changer's ve
     REQUIRE(lane.sensed->present.has_value());
     CHECK(*lane.sensed->present == true);
     CHECK_FALSE(lane.vendor_cache.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker reads NONE as a tag saying nothing, not as a brand",
+                 "[lane][ingest][snapmaker]") {
+    SnapmakerHarness harness(nullptr, nullptr);
+
+    // "NONE" is the firmware's spelling for an unset string, and it reaches the
+    // brand through two keys: MANUFACTURER is preferred and VENDOR is the
+    // fallback, so each has to be refused on its own.
+    feed_filament_detect(
+        *harness, nlohmann::json{
+                      {"state", nlohmann::json::array({1, 1, 1})},
+                      {"info", nlohmann::json::array({
+                                   nlohmann::json{{"MAIN_TYPE", "PLA"}, {"MANUFACTURER", "NONE"}},
+                                   nlohmann::json{{"MAIN_TYPE", "PLA"}, {"VENDOR", "NONE"}},
+                                   nlohmann::json{{"MAIN_TYPE", "PLA"}, {"VENDOR", "Polymaker"}},
+                               })},
+                  });
+
+    const auto manufacturer_none = lane_sources(harness.lane(0));
+    REQUIRE(manufacturer_none.vendor_cache.has_value());
+    CHECK_FALSE(manufacturer_none.vendor_cache->brand.has_value());
+    // The material on the same record is the control: this entry was read and
+    // filed, and the brand guard is what dropped the one field.
+    CHECK(manufacturer_none.vendor_cache->material == "PLA");
+
+    const auto vendor_none = lane_sources(harness.lane(1));
+    REQUIRE(vendor_none.vendor_cache.has_value());
+    CHECK_FALSE(vendor_none.vendor_cache->brand.has_value());
+    CHECK(vendor_none.vendor_cache->material == "PLA");
+
+    // The fallback key naming a real vendor still reaches the record.
+    const auto vendor_real = lane_sources(harness.lane(2));
+    REQUIRE(vendor_real.vendor_cache.has_value());
+    CHECK(vendor_real.vendor_cache->brand == "Polymaker");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Snapmaker tag that stops naming a vendor retracts it",
+                 "[lane][ingest][snapmaker]") {
+    SnapmakerHarness harness(nullptr, nullptr);
+
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1})},
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PLA"},
+                                                    {"MANUFACTURER", "Snapmaker"},
+                                                    {"SUB_TYPE", "Silk"},
+                                                }})},
+                                   });
+
+    const auto stated = lane_sources(harness.lane(0));
+    REQUIRE(stated.vendor_cache.has_value());
+    CHECK(stated.vendor_cache->brand == "Snapmaker");
+    CHECK(stated.vendor_cache->product_name == "Silk");
+    REQUIRE(harness->get_slot_info(0).brand == "Snapmaker");
+    REQUIRE(harness->get_slot_info(0).spool_name == "Silk");
+
+    // The firmware spelling "NONE". The record retracts, because whole-record
+    // replacement means it states what THIS read said. SlotInfo keeps the old
+    // value, because its guards test the literal and it has no way to say "no
+    // longer stated". This is the one input where the two layers disagree, and
+    // the disagreement is deliberate.
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1})},
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PLA"},
+                                                    {"MANUFACTURER", "NONE"},
+                                                    {"SUB_TYPE", "NONE"},
+                                                }})},
+                                   });
+
+    const auto spelled_none = lane_sources(harness.lane(0));
+    REQUIRE(spelled_none.vendor_cache.has_value());
+    // Material is the control: this read did reach the ingest.
+    CHECK(spelled_none.vendor_cache->material == "PLA");
+    CHECK_FALSE(spelled_none.vendor_cache->brand.has_value());
+    CHECK_FALSE(spelled_none.vendor_cache->product_name.has_value());
+    CHECK(harness->get_slot_info(0).brand == "Snapmaker");
+    CHECK(harness->get_slot_info(0).spool_name == "Silk");
+
+    // An ABSENT key is the other spelling of the same silence, and here the two
+    // layers agree: both guards let the empty string through to SlotInfo, so it
+    // blanks rather than keeping.
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1})},
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PLA"},
+                                                }})},
+                                   });
+
+    const auto absent = lane_sources(harness.lane(0));
+    REQUIRE(absent.vendor_cache.has_value());
+    CHECK(absent.vendor_cache->material == "PLA");
+    CHECK_FALSE(absent.vendor_cache->brand.has_value());
+    CHECK_FALSE(absent.vendor_cache->product_name.has_value());
+    CHECK(harness->get_slot_info(0).brand.empty());
+    CHECK(harness->get_slot_info(0).spool_name.empty());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's print_task_config writes identity and observes none",
+                 "[lane][ingest][snapmaker]") {
+    SnapmakerHarness harness(nullptr, nullptr);
+
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1})},
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PLA"},
+                                                    {"MANUFACTURER", "Snapmaker"},
+                                                    {"ARGB_COLOR", 0xFFED2C2C},
+                                                }})},
+                                   });
+
+    // SET_PRINT_FILAMENT_CONFIG takes these as gcode parameters, so whoever
+    // sent that command set them: the machine's screen, a slicer, a console, or
+    // this backend's own write-back, which firmware mirrors into this struct.
+    // It is a write surface and files nothing.
+    feed_print_task_config(*harness,
+                           nlohmann::json{
+                               {"filament_type", nlohmann::json::array({"PETG"})},
+                               {"filament_vendor", nlohmann::json::array({"SomebodyElse"})},
+                               {"filament_color_rgba", nlohmann::json::array({"00FF00FF"})},
+                           });
+
+    // The control: the parse ran and took every field onto the merged struct.
+    REQUIRE(harness->get_slot_info(0).material == "PETG");
+    REQUIRE(harness->get_slot_info(0).brand == "SomebodyElse");
+    REQUIRE(harness->get_slot_info(0).color_rgb == 0x00FF00u);
+
+    // The record still holds the tag read, which is the only thing on this
+    // backend that was measured rather than declared.
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->material == "PLA");
+    CHECK(lane.vendor_cache->brand == "Snapmaker");
+    REQUIRE(lane.vendor_cache->color_rgb.has_value());
+    CHECK(*lane.vendor_cache->color_rgb == 0xED2C2Cu);
 }
