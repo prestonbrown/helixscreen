@@ -21,9 +21,12 @@ setup() {
     load helpers
 }
 
-# The value a hook exports for HELIX_CACHE_DIR, or empty when it sets none.
+# The platform default a hook supplies for HELIX_CACHE_DIR, or empty when it
+# sets none. Hooks default rather than override - export VAR="${VAR:-value}" -
+# so the surrounding parameter expansion is unwrapped to get at the value.
 hook_cache_dir() {
-    sed -n 's/.*export HELIX_CACHE_DIR="\([^"]*\)".*/\1/p' "$HOOKS_DIR/hooks-$1.sh"
+    sed -n 's/.*export HELIX_CACHE_DIR="\([^"]*\)".*/\1/p' "$HOOKS_DIR/hooks-$1.sh" \
+        | sed -E 's/^\$\{HELIX_CACHE_DIR:-(.*)\}$/\1/'
 }
 
 # --------------------------------------------------------------------------

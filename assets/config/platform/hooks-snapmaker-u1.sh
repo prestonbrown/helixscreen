@@ -359,9 +359,9 @@ stop_remote_screen() {
 }
 
 platform_pre_start() {
-    export HELIX_CACHE_DIR="/userdata/helixscreen/cache"
+    export HELIX_CACHE_DIR="${HELIX_CACHE_DIR:-/userdata/helixscreen/cache}"
     # Force DRM device — skip auto-detection which may race with connector state
-    export HELIX_DRM_DEVICE="/dev/dri/card0"
+    export HELIX_DRM_DEVICE="${HELIX_DRM_DEVICE:-/dev/dri/card0}"
 
     # Recover the camera supervisor if a prior helixscreen build killed it.
     # Idempotent: no-op when lmd is already alive.

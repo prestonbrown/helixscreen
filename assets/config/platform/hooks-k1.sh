@@ -86,7 +86,7 @@ platform_wait_for_services() {
 }
 
 platform_pre_start() {
-    export HELIX_CACHE_DIR="/usr/data/helixscreen/cache"
+    export HELIX_CACHE_DIR="${HELIX_CACHE_DIR:-/usr/data/helixscreen/cache}"
 
     # Logging policy: write to /usr/data (mmcblk0p10 ext4, ~5.7 GB free on
     # a typical install), NOT to /tmp. /tmp here is a ~104 MB tmpfs and
@@ -96,10 +96,10 @@ platform_pre_start() {
     # UI. Constrain rotation to 1 MiB × 3 (~3 MiB cap); at WARN/INFO that
     # gives months of headroom, and a debug session still has a bounded
     # window before rolling over.
-    export HELIX_LOG_DEST=file
-    export HELIX_LOG_FILE="/usr/data/helixscreen/logs/helix.log"
-    export HELIX_LOG_ROTATE_BYTES=1048576
-    export HELIX_LOG_ROTATE_FILES=3
+    export HELIX_LOG_DEST="${HELIX_LOG_DEST:-file}"
+    export HELIX_LOG_FILE="${HELIX_LOG_FILE:-/usr/data/helixscreen/logs/helix.log}"
+    export HELIX_LOG_ROTATE_BYTES="${HELIX_LOG_ROTATE_BYTES:-1048576}"
+    export HELIX_LOG_ROTATE_FILES="${HELIX_LOG_ROTATE_FILES:-3}"
     mkdir -p "/usr/data/helixscreen/logs" 2>/dev/null || true
 }
 

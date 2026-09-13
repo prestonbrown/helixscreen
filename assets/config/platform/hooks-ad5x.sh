@@ -65,7 +65,7 @@ platform_wait_for_services() {
 platform_pre_start() {
     # Durable and NOT collected by TAR_CONFIG, so a support archive does not carry
     # a cache. /srv/helixscreen lives on /usr/data inside the chroot.
-    export HELIX_CACHE_DIR="/srv/helixscreen/cache"
+    export HELIX_CACHE_DIR="${HELIX_CACHE_DIR:-/srv/helixscreen/cache}"
     mkdir -p "$HELIX_CACHE_DIR" 2>/dev/null || true
 
     # Log where the user can actually send it from. ghzserg's tar_config.sh has a
@@ -81,10 +81,10 @@ platform_pre_start() {
     # hardcodes LOGFILE=/opt/config/mod_data/log/helixscreen.log and redirects the
     # launcher subshell into it. That file is theirs and carries the
     # [helix-launcher] stream; reusing the name interleaves two writers.
-    export HELIX_LOG_DEST=file
-    export HELIX_LOG_FILE="/opt/config/mod_data/log/helix.log"
-    export HELIX_LOG_ROTATE_BYTES=1048576
-    export HELIX_LOG_ROTATE_FILES=3
+    export HELIX_LOG_DEST="${HELIX_LOG_DEST:-file}"
+    export HELIX_LOG_FILE="${HELIX_LOG_FILE:-/opt/config/mod_data/log/helix.log}"
+    export HELIX_LOG_ROTATE_BYTES="${HELIX_LOG_ROTATE_BYTES:-1048576}"
+    export HELIX_LOG_ROTATE_FILES="${HELIX_LOG_ROTATE_FILES:-3}"
     mkdir -p "/opt/config/mod_data/log" 2>/dev/null || true
 
     # Remote control (helix-screen ctl) stays OFF by default. To enable it on this
