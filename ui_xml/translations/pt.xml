@@ -1025,6 +1025,7 @@
   <translation tag="FanSelect" pt="Selecionar Ventoinha"/>
   <translation tag="Fans" pt="Ventoinhas"/>
   <translation tag="Farther" pt="Mais Longe"/>
+  <translation tag="Favorites" pt="Favoritos"/>
   <translation tag="Feature not available" pt="Recurso não disponível"/>
   <translation tag="Features: " pt="Recursos: "/>
   <translation tag="Feed Assist" pt="Assistência de alimentação"/>
@@ -1726,6 +1727,7 @@
   <translation tag="Notes" pt="Notas"/>
   <translation tag="Notes (optional)" pt="Notas (opcional)"/>
   <translation tag="Nothing loaded" pt="Nada carregado"/>
+  <translation tag="Nothing starred yet. Tap the star on a filament to add it here." pt="Nada marcado ainda. Toque na estrela de um filamento para o adicionar aqui."/>
   <translation tag="Nothing to remap" pt="Nada para remapear"/>
   <translation tag="Notification" pt="Notificação"/>
   <translation tag="Notifications" pt="Notificações"/>

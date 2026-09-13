@@ -1107,6 +1107,7 @@ translations:
   FanSelect: FanSelect
   Fans: Fans
   Farther: Farther
+  Favorites: Favorites
   Feature not available: Feature not available
   'Features: ': 'Features: '
   Feed Assist: Feed Assist
@@ -1880,6 +1881,7 @@ translations:
   Notes: Notes
   Notes (optional): Notes (optional)
   Nothing loaded: Nothing loaded
+  Nothing starred yet. Tap the star on a filament to add it here.: Nothing starred yet. Tap the star on a filament to add it here.
   Nothing to remap: Nothing to remap
   Notification: Notification
   Notifications: Notifications

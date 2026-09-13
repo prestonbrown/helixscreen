@@ -1025,6 +1025,7 @@
   <translation tag="FanSelect" es="Seleccionar ventilador"/>
   <translation tag="Fans" es="Ventiladores"/>
   <translation tag="Farther" es="Más lejos"/>
+  <translation tag="Favorites" es="Favoritos"/>
   <translation tag="Feature not available" es="Función no disponible"/>
   <translation tag="Features: " es="Características: "/>
   <translation tag="Feed Assist" es="Asistencia de alimentación"/>
@@ -1726,6 +1727,7 @@
   <translation tag="Notes" es="Notas"/>
   <translation tag="Notes (optional)" es="Notas (opcional)"/>
   <translation tag="Nothing loaded" es="Nada cargado"/>
+  <translation tag="Nothing starred yet. Tap the star on a filament to add it here." es="Nada marcado aún. Toca la estrella de un filamento para añadirlo aquí."/>
   <translation tag="Nothing to remap" es="Nada que reasignar"/>
   <translation tag="Notification" es="Notificación"/>
   <translation tag="Notifications" es="Notificaciones"/>

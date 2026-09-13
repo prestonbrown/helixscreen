@@ -1047,6 +1047,7 @@ translations:
   FanSelect: ファンを選択
   Fans: ファン
   Farther: 遠く
+  Favorites: 'お気に入り'
   Feature not available: この機能は利用できません
   'Features: ': '機能: '
   Feed Assist: '送りアシスト'
@@ -1777,6 +1778,7 @@ translations:
   Notes: メモ
   Notes (optional): メモ（オプション）
   Nothing loaded: 装填されていません
+  Nothing starred yet. Tap the star on a filament to add it here.: 'まだ何も登録されていません。フィラメントの星をタップしてここに追加してください。'
   Nothing to remap: リマップするものがありません
   Notification: 通知
   Notifications: 通知

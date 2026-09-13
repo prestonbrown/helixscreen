@@ -1124,6 +1124,7 @@ translations:
   FanSelect: Выбрать вентилятор
   Fans: Вентиляторы
   Farther: Дальше
+  Favorites: 'Избранное'
   Feature not available: Функция недоступна
   'Features: ': 'Функции: '
   Feed Assist: 'Помощь подачи'
@@ -1902,6 +1903,7 @@ translations:
   Notes: Заметки
   Notes (optional): Заметки (необязательно)
   Nothing loaded: Ничего не загружено
+  Nothing starred yet. Tap the star on a filament to add it here.: 'Пока ничего не отмечено. Нажмите звезду у филамента, чтобы добавить его сюда.'
   Nothing to remap: Нечего переназначать
   Notification: Уведомление
   Notifications: Уведомления

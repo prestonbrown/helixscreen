@@ -1136,6 +1136,7 @@ translations:
   FanSelect: Seleziona ventola
   Fans: Ventole
   Farther: Più lontano
+  Favorites: 'Preferiti'
   Feature not available: Funzione non disponibile
   'Features: ': 'Caratteristiche: '
   Feed Assist: 'Assistenza all''alimentazione'
@@ -1922,6 +1923,7 @@ translations:
   Notes: Note
   Notes (optional): Note (facoltativo)
   Nothing loaded: Nulla caricato
+  Nothing starred yet. Tap the star on a filament to add it here.: 'Niente ancora tra i preferiti. Tocca la stella di un filamento per aggiungerlo qui.'
   Nothing to remap: Niente da rimappare
   Notification: Notifica
   Notifications: Notifiche

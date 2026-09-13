@@ -1025,6 +1025,7 @@
   <translation tag="FanSelect" ja="ファンを選択"/>
   <translation tag="Fans" ja="ファン"/>
   <translation tag="Farther" ja="遠く"/>
+  <translation tag="Favorites" ja="お気に入り"/>
   <translation tag="Feature not available" ja="この機能は利用できません"/>
   <translation tag="Features: " ja="機能: "/>
   <translation tag="Feed Assist" ja="送りアシスト"/>
@@ -1726,6 +1727,7 @@
   <translation tag="Notes" ja="メモ"/>
   <translation tag="Notes (optional)" ja="メモ（オプション）"/>
   <translation tag="Nothing loaded" ja="装填されていません"/>
+  <translation tag="Nothing starred yet. Tap the star on a filament to add it here." ja="まだ何も登録されていません。フィラメントの星をタップしてここに追加してください。"/>
   <translation tag="Nothing to remap" ja="リマップするものがありません"/>
   <translation tag="Notification" ja="通知"/>
   <translation tag="Notifications" ja="通知"/>

@@ -1041,6 +1041,7 @@ translations:
   FanSelect: 选择风扇
   Fans: 风扇
   Farther: 更远
+  Favorites: '收藏'
   Feature not available: 功能不可用
   'Features: ': '特性: '
   Feed Assist: '送料辅助'
@@ -1769,6 +1770,7 @@ translations:
   Notes: 备注
   Notes (optional): 备注（可选）
   Nothing loaded: 未装载耗材
+  Nothing starred yet. Tap the star on a filament to add it here.: '还没有收藏。点击耗材行的星标即可收藏到这里。'
   Nothing to remap: 没有可重新映射的内容
   Notification: 通知
   Notifications: 通知
