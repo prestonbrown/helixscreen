@@ -919,13 +919,9 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
         // Remember what the USER declared, so the RFID parse can tell firmware
         // repeating their choice back from a tag stating it.
         //
-        // Recorded before dispatch rather than in the response callback: the
-        // callback deliberately captures no `this` (it can outlive the
-        // backend), and an expectation that never fires costs nothing, because
-        // every field is gated on an EXACT match. On stock firmware the POST
-        // 404s and no echo arrives, so the only field this can withhold is one
-        // the tag happens to agree with, whose value resolve() takes from the
-        // user's own record anyway.
+        // Recorded before dispatch, because the guard has to be armed before
+        // any echo can arrive. A write firmware never accepted disarms it from
+        // the response callback below.
         if (slot_index >= 0 && slot_index < NUM_TOOLS) {
             std::lock_guard<std::mutex> lock(mutex_);
             own_write_echoes_.stage(slot_index,
@@ -959,14 +955,17 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
                                   rfid_tracker_.baseline(slot_index).value_or(std::string{}));
         }
 
-        // Log-only callback — no UI / member access — so a value-captured tag
-        // is safe even after the backend is destroyed (same rationale as
-        // save_async's callback above). Routes through MoonrakerRestAPI which
-        // dispatches on its own HTTP worker thread, NOT a raw std::thread
-        // (lesson L083: pthread EAGAIN on AD5M / CC1 / MIPS32).
+        // Routes through MoonrakerRestAPI, which dispatches on its own HTTP
+        // worker thread, NOT a raw std::thread (lesson L083: pthread EAGAIN on
+        // AD5M / CC1 / MIPS32). The backend can be gone by the time this fires,
+        // so `this` is only ever reached through the lifetime token, which
+        // marshals to the main thread and skips a dead owner.
         const std::string tag = backend_log_tag();
+        auto tok = lifetime_.token();
         api_->rest().call_rest_post(
-            "/printer/filament_detect/set", payload, [tag, slot_index](const RestResponse& resp) {
+            "/printer/filament_detect/set", payload,
+            [this, tok, tag, slot_index](const RestResponse& resp) mutable {
+                bool accepted = resp.success;
                 if (!resp.success) {
                     // 404 on stock firmware (no Extended Firmware extension)
                     // is expected — log at debug, not warn, so we don't spam
@@ -979,12 +978,11 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
                         spdlog::warn("{} filament_detect/set failed for slot {}: HTTP {} {}", tag,
                                      slot_index, resp.status_code, resp.error);
                     }
-                    return;
-                }
-                // Success-shaped HTTP response can still carry "state":"error"
-                // (per filament_detect.md). Drain that as a warn — override is
-                // still saved to lane_data so user data isn't lost.
-                if (resp.data.is_object()) {
+                } else if (resp.data.is_object()) {
+                    // Success-shaped HTTP response can still carry
+                    // "state":"error" (per filament_detect.md). Drain that as a
+                    // warn; the override is still saved to lane_data so user
+                    // data isn't lost.
                     auto state_it = resp.data.find("state");
                     if (state_it != resp.data.end() && state_it->is_string() &&
                         state_it->get<std::string>() == "error") {
@@ -995,8 +993,21 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
                         }
                         spdlog::warn("{} filament_detect/set returned error for slot {}: {}", tag,
                                      slot_index, msg);
+                        accepted = false;
                     }
                 }
+                if (accepted) {
+                    return;
+                }
+                // Firmware holds none of these values, so nothing is going to
+                // echo them back. Leaving the guard armed withholds the next
+                // genuine tag reading until the UID changes, which is the harm
+                // it exists to prevent, pointed the other way. Stock firmware
+                // has no such endpoint at all, so this is the common path.
+                tok.defer("AmsBackendSnapmaker::set_slot_info.abandon_echo", [this, slot_index]() {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    own_write_echoes_.abandon(slot_index);
+                });
             });
     }
 
