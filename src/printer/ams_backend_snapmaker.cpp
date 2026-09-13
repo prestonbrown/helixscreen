@@ -12,6 +12,8 @@
 #include "filament_slot_override_store.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
+#include "lane_source_store.h"
+#include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "pause_cause.h"
@@ -1221,6 +1223,37 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         slot->nozzle_temp_max = rfid.hotend_max_temp;
                         slot->bed_temp = rfid.bed_temp;
                         slot->total_weight_g = static_cast<float>(rfid.weight_g);
+
+                        // A tag read is a cache of what a vendor printed, not a
+                        // sensor of identity: it survives the spool leaving the
+                        // channel, so it never carries presence.
+                        //
+                        // Every value here is this parse's own, never slot->*.
+                        // SlotInfo persists across frames and apply_overrides
+                        // rewrites it in place at the tail of every one, so
+                        // reading the struct back would file a user's edit as
+                        // something the tag says.
+                        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+                        if (!rfid.main_type.empty())
+                            cache.material = rfid.main_type;
+                        if (!brand.empty() && brand != "NONE")
+                            cache.brand = brand;
+                        // SnapmakerRfidInfo::color_rgb rests on
+                        // AMS_DEFAULT_SLOT_COLOR when the tag carried no
+                        // ARGB_COLOR, which is that struct's "no reading" and
+                        // not a grey anybody chose.
+                        if (helix::ams::is_declarable_color(rfid.color_rgb))
+                            cache.color_rgb = rfid.color_rgb;
+                        // SUB_TYPE names the product line inside MAIN_TYPE
+                        // ("Silk" inside "PLA"), so it is the branded product
+                        // and routing it to material would destroy the
+                        // material. The SlotInfo field above keeps its own
+                        // spelling.
+                        if (!rfid.sub_type.empty() && rfid.sub_type != "NONE")
+                            cache.product_name = rfid.sub_type;
+                        if (rfid.weight_g > 0)
+                            cache.total_weight_g = static_cast<float>(rfid.weight_g);
+                        helix::ams::ingest(lane_id(i), cache);
                     }
                     changed = true;
                 }
@@ -1234,6 +1267,16 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                     if (!state_arr[i].is_number())
                         continue;
                     int state_val = state_arr[i].get<int>();
+
+                    // The state array is this frame's own key, so a frame that
+                    // omits it says nothing rather than retracting what the
+                    // last one sensed. What the array says is the reading, even
+                    // where the more authoritative extruder state below keeps
+                    // the slot's own stamp.
+                    helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
+                    sensed.present = (state_val != 0);
+                    helix::ams::ingest(lane_id(i), sensed);
+
                     auto* slot = system_info_.units[0].get_slot(i);
                     if (slot) {
                         // Only set from filament_detect if extruder state hasn't already

@@ -11,15 +11,21 @@
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
 #include "ams_backend_happy_hare.h"
+#include "ams_backend_snapmaker.h"
+#include "ams_backend_toolchanger.h"
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "lane_source_store.h"
+#include "printer_discovery.h"
 #include "test_helpers/ace_test_access.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/afc_test_access.h"
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/happy_hare_test_access.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/snapmaker_test_access.h"
+#include "test_helpers/toolchanger_test_access.h"
+#include "toolchanger_addon.h"
 
 #include <mutex>
 #include <string>
@@ -35,8 +41,12 @@ using helix::AmsBackendAce;
 using helix::AmsBackendAd5xIfs;
 using helix::AmsBackendAfc;
 using helix::AmsBackendHappyHare;
+using helix::AmsBackendSnapmaker;
+using helix::AmsBackendToolChanger;
 using helix::CfsTestAccess;
 using helix::HappyHareTestAccess;
+using helix::SnapmakerTestAccess;
+using helix::ToolChangerTestAccess;
 using helix::ams::lane_sources;
 using helix::printer::AmsBackendCfs;
 using helix::test::RegisteredBackend;
@@ -48,6 +58,8 @@ using AfcHarness = RegisteredBackend<AmsBackendAfc>;
 using HappyHareHarness = RegisteredBackend<AmsBackendHappyHare>;
 using CfsHarness = RegisteredBackend<AmsBackendCfs>;
 using AceHarness = RegisteredBackend<AmsBackendAce>;
+using SnapmakerHarness = RegisteredBackend<AmsBackendSnapmaker>;
+using ToolChangerHarness = RegisteredBackend<AmsBackendToolChanger>;
 
 /// One `box` object, delivered the way Moonraker delivers it. Which schema
 /// parsed, and whether the frame counts as a full update at all, are decisions
@@ -132,6 +144,35 @@ void feed_mmu(AmsBackendHappyHare& backend, const nlohmann::json& mmu) {
     nlohmann::json notification;
     notification["params"] = nlohmann::json::array({params, 0.0});
     HappyHareTestAccess::handle_status_update(backend, notification);
+}
+
+/// One filament_detect object, through the notify envelope handle_status_update
+/// unwraps. RFID identity and channel presence arrive under the same key, which
+/// is why one frame feeds both of this backend's records.
+void feed_filament_detect(AmsBackendSnapmaker& backend, const nlohmann::json& fd) {
+    nlohmann::json params;
+    params["filament_detect"] = fd;
+    nlohmann::json notification;
+    notification["params"] = nlohmann::json::array({params, 0.0});
+    SnapmakerTestAccess::handle_status(backend, notification);
+}
+
+/// One tool-changer status object, delivered the way Moonraker delivers it.
+void feed_toolchanger(AmsBackendToolChanger& backend, const nlohmann::json& status) {
+    nlohmann::json notification;
+    notification["method"] = "notify_status_update";
+    notification["params"] = nlohmann::json::array({status, 0.0});
+    ToolChangerTestAccess::handle_status(backend, notification);
+}
+
+/// A stock upstream MedusaHC object list, which is what gives a tool changer
+/// dock sensors at all. Without them every toolhead is assumed present and
+/// EMPTY is not an answer the backend can reach.
+helix::PrinterDiscovery medusahc_discovery() {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "tool T2",
+                                            "pin_watch io", "servo my_servo", "extruder"}));
+    return hw;
 }
 } // namespace
 
@@ -1692,4 +1733,272 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE's REST bridge files on the same lanes as 
     REQUIRE(slot1.vendor_cache.has_value());
     CHECK_FALSE(slot1.vendor_cache->material.has_value());
     CHECK_FALSE(slot1.vendor_cache->color_rgb.has_value());
+}
+
+// ============================================================================
+// Snapmaker
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's RFID product line is not a spool name",
+                 "[lane][ingest][snapmaker]") {
+    SnapmakerHarness harness(nullptr, nullptr);
+
+    feed_filament_detect(*harness,
+                         nlohmann::json{
+                             {"state", nlohmann::json::array({1, 0, 0, 0})},
+                             {"info", nlohmann::json::array({nlohmann::json{
+                                          {"MAIN_TYPE", "PLA"},
+                                          {"SUB_TYPE", "Silk"},
+                                          {"MANUFACTURER", "Snapmaker"},
+                                          {"ARGB_COLOR", 0xFFED2C2C},
+                                          {"WEIGHT", 1000},
+                                          {"CARD_UID", nlohmann::json::array({144, 32, 196, 2})},
+                                      }})},
+                         });
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.sensed.has_value());
+    REQUIRE(lane.sensed->present.has_value());
+    CHECK(*lane.sensed->present == true);
+
+    REQUIRE(lane.vendor_cache.has_value());
+    // MAIN_TYPE is the material and keeps the field.
+    CHECK(lane.vendor_cache->material == "PLA");
+    // SUB_TYPE names the product line inside that material, so it is the
+    // branded product rather than a second spelling of the material. The
+    // SlotInfo this same parse writes spells it spool_name; the record
+    // deliberately does not agree with it.
+    CHECK(lane.vendor_cache->product_name == "Silk");
+    CHECK_FALSE(lane.vendor_cache->spool_name.has_value());
+    CHECK(harness->get_slot_info(0).spool_name == "Silk");
+
+    CHECK(lane.vendor_cache->brand == "Snapmaker");
+    REQUIRE(lane.vendor_cache->color_rgb.has_value());
+    CHECK(*lane.vendor_cache->color_rgb == 0xED2C2Cu);
+    REQUIRE(lane.vendor_cache->total_weight_g.has_value());
+    CHECK(*lane.vendor_cache->total_weight_g == 1000.0F);
+
+    // A channel the same frame reports empty. The info array carried one entry,
+    // so nothing declared anything here.
+    const auto empty = lane_sources(harness.lane(1));
+    REQUIRE(empty.sensed.has_value());
+    REQUIRE(empty.sensed->present.has_value());
+    CHECK(*empty.sensed->present == false);
+    CHECK_FALSE(empty.vendor_cache.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's NONE tag states nothing about identity",
+                 "[lane][ingest][snapmaker]") {
+    SnapmakerHarness harness(nullptr, nullptr);
+
+    feed_filament_detect(
+        *harness, nlohmann::json{
+                      {"state", nlohmann::json::array({1, 0, 0, 0})},
+                      {"info", nlohmann::json::array({nlohmann::json{{"MAIN_TYPE", "NONE"}}})},
+                  });
+
+    const auto lane = lane_sources(harness.lane(0));
+    // Presence still came through: the channel senses filament even with no
+    // readable tag, which is the whole shape of "sensed, not declared". It is
+    // also what proves this frame reached the translation, so the absence
+    // below is a decision and not a backend that never ran.
+    REQUIRE(lane.sensed.has_value());
+    REQUIRE(lane.sensed->present.has_value());
+    CHECK(*lane.sensed->present == true);
+    CHECK_FALSE(lane.vendor_cache.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker files no colour for a tag that carried none",
+                 "[lane][ingest][snapmaker]") {
+    SnapmakerHarness harness(nullptr, nullptr);
+
+    // A tag with an identity but no ARGB_COLOR. SnapmakerRfidInfo::color_rgb
+    // rests on AMS_DEFAULT_SLOT_COLOR, which is that struct's "no reading" and
+    // not a grey a vendor printed on a spool.
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1, 1})},
+                                       {"info", nlohmann::json::array({
+                                                    nlohmann::json{
+                                                        {"MAIN_TYPE", "PETG"},
+                                                        {"SUB_TYPE", "NONE"},
+                                                    },
+                                                    // A tag the reader answered for but that
+                                                    // named nothing at all. Every field rests
+                                                    // on its struct default, so the record
+                                                    // carries none of them.
+                                                    nlohmann::json{{"BED_TEMP", 60}},
+                                                })},
+                                   });
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->material == "PETG");
+    CHECK_FALSE(lane.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(lane.vendor_cache->product_name.has_value());
+    CHECK_FALSE(lane.vendor_cache->total_weight_g.has_value());
+    CHECK_FALSE(lane.vendor_cache->brand.has_value());
+    // The sentinel still reaches SlotInfo, so the record's silence is the only
+    // place the difference between "grey" and "no reading" survives.
+    CHECK(harness->get_slot_info(0).color_rgb == helix::AMS_DEFAULT_SLOT_COLOR);
+
+    const auto silent = lane_sources(harness.lane(1));
+    REQUIRE(silent.vendor_cache.has_value());
+    CHECK_FALSE(silent.vendor_cache->material.has_value());
+    CHECK_FALSE(silent.vendor_cache->brand.has_value());
+    CHECK_FALSE(silent.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(silent.vendor_cache->product_name.has_value());
+    CHECK_FALSE(silent.vendor_cache->total_weight_g.has_value());
+
+    // Pure black is a colour a vendor can print, and the same guard keeps it.
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PETG"},
+                                                    {"ARGB_COLOR", 0xFF000000},
+                                                }})},
+                                   });
+
+    const auto black = lane_sources(harness.lane(0));
+    REQUIRE(black.vendor_cache.has_value());
+    REQUIRE(black.vendor_cache->color_rgb.has_value());
+    CHECK(*black.vendor_cache->color_rgb == 0x000000u);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an override never reaches Snapmaker's vendor-cache record",
+                 "[lane][ingest][snapmaker]") {
+    SnapmakerHarness harness(nullptr, nullptr);
+
+    const auto tag = nlohmann::json{
+        {"state", nlohmann::json::array({1})},
+        {"info", nlohmann::json::array({nlohmann::json{
+                     {"MAIN_TYPE", "PLA"},
+                     {"ARGB_COLOR", 0xFFED2C2C},
+                 }})},
+    };
+
+    // Frame one establishes firmware truth on the lane.
+    feed_filament_detect(*harness, tag);
+    REQUIRE(harness->get_slot_info(0).color_rgb == 0xED2C2Cu);
+
+    // The user overrides it. apply_overrides runs at the tail of every frame
+    // and rewrites the persistent SlotInfo in place, so from here the merged
+    // struct carries the user's colour and material rather than the tag's.
+    //
+    // Both locks are needed for that: this backend mirrors firmware truth back
+    // into the record on the OverwriteAlways policy, which replaces an unlocked
+    // field with what the tag says before apply_overrides ever reads it.
+    auto user = user_colour_and_material();
+    user.user_locked_material = true;
+    SnapmakerTestAccess::seed_override(*harness, 0, user);
+
+    // Frame two re-reads the same tag. The record must say what the tag says.
+    feed_filament_detect(*harness, tag);
+
+    // Precondition, not the behaviour under test: unless the override actually
+    // wins on the merged slot there is no laundering for the case to catch and
+    // the assertions below would hold for the wrong reason.
+    REQUIRE(harness->get_slot_info(0).color_rgb == 0x00FF00u);
+    REQUIRE(harness->get_slot_info(0).material == "ABS");
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.vendor_cache.has_value());
+    REQUIRE(lane.vendor_cache->color_rgb.has_value());
+    CHECK(*lane.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(lane.vendor_cache->material == "PLA");
+}
+
+// ============================================================================
+// Tool changer
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "a tool changer senses docking and declares nothing",
+                 "[lane][ingest][toolchanger]") {
+    ToolChangerHarness harness(nullptr, nullptr);
+
+    harness->set_discovered_tools({"T0", "T1"});
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.sensed.has_value());
+    REQUIRE(lane.sensed->present.has_value());
+    CHECK(*lane.sensed->present == true);
+
+    // klipper-toolchanger reports whether a tool is docked and nothing about
+    // what it holds. initialize_tools() puts the tool's own name in
+    // SlotInfo::spool_name and rests the colour on the sentinel; neither is a
+    // reading, so this backend files no identity record at all. Both are
+    // asserted here because they are what a read-back of the merged struct
+    // would have filed.
+    CHECK(harness->get_slot_info(0).spool_name == "T0");
+    CHECK(harness->get_slot_info(0).color_rgb == helix::AMS_DEFAULT_SLOT_COLOR);
+    CHECK_FALSE(lane.vendor_cache.has_value());
+
+    const auto second = lane_sources(harness.lane(1));
+    REQUIRE(second.sensed.has_value());
+    REQUIRE(second.sensed->present.has_value());
+    CHECK(*second.sensed->present == true);
+    CHECK_FALSE(second.vendor_cache.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a vacated dock retracts a tool changer's presence reading",
+                 "[lane][ingest][toolchanger]") {
+    ToolChangerHarness harness(nullptr, nullptr);
+    harness->set_discovered_tools({"T0", "T1", "T2"});
+    harness->set_tool_sensor(helix::toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+
+    // AmsState hands a backend its tool list BEFORE add_backend() stamps an
+    // index, so nothing the resulting initialize_tools() files has a lane to
+    // land on in production. Dropping those records leaves this case resting on
+    // the status path alone, which is the one that runs with an index.
+    helix::ams::reset_lane_sources();
+    REQUIRE_FALSE(lane_sources(harness.lane(0)).sensed.has_value());
+
+    // T1 is on the head and T2's dock reads vacant, which means that hot end
+    // has been taken out of the machine.
+    feed_toolchanger(*harness,
+                     nlohmann::json{{"medusahc",
+                                     {{"operation", "idle"},
+                                      {"current_tool", 1},
+                                      {"sensors", {{"e", 1}, {"t0", 1}, {"t1", 0}, {"t2", 0}}}}}});
+
+    REQUIRE(harness->get_slot_info(2).status == helix::SlotStatus::EMPTY);
+
+    const auto docked = lane_sources(harness.lane(0));
+    REQUIRE(docked.sensed.has_value());
+    REQUIRE(docked.sensed->present.has_value());
+    CHECK(*docked.sensed->present == true);
+
+    const auto carriage = lane_sources(harness.lane(1));
+    REQUIRE(carriage.sensed.has_value());
+    REQUIRE(carriage.sensed->present.has_value());
+    CHECK(*carriage.sensed->present == true);
+
+    const auto vacated = lane_sources(harness.lane(2));
+    REQUIRE(vacated.sensed.has_value());
+    REQUIRE(vacated.sensed->present.has_value());
+    CHECK(*vacated.sensed->present == false);
+    CHECK_FALSE(vacated.vendor_cache.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an override never becomes a tool changer's vendor reading",
+                 "[lane][ingest][toolchanger]") {
+    ToolChangerHarness harness(nullptr, nullptr);
+    harness->set_discovered_tools({"T0", "T1"});
+
+    // On this backend the override store is the ONLY source of filament
+    // identity, so every identity field on the merged slot is the user's own
+    // statement and there is nothing else for a read-back to pick up.
+    ToolChangerTestAccess::seed_override(*harness, 0, user_colour_and_material());
+
+    // Rediscovery resets the slots and re-layers the override, which is the
+    // frame that would launder it.
+    harness->set_discovered_tools({"T0", "T1"});
+
+    REQUIRE(harness->get_slot_info(0).color_rgb == 0x00FF00u);
+    REQUIRE(harness->get_slot_info(0).material == "ABS");
+
+    const auto lane = lane_sources(harness.lane(0));
+    // The presence record is the proof that the translation ran on this frame.
+    REQUIRE(lane.sensed.has_value());
+    REQUIRE(lane.sensed->present.has_value());
+    CHECK(*lane.sensed->present == true);
+    CHECK_FALSE(lane.vendor_cache.has_value());
 }

@@ -8,6 +8,7 @@
 #include "ams_state.h"
 #include "ams_tool_map_sync.h"
 #include "i_moonraker_api.h"
+#include "lane_source_store.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "settings_manager.h"
 
@@ -807,19 +808,31 @@ void AmsBackendToolChanger::refresh_slot_statuses_locked() {
     for (int i = 0; i < static_cast<int>(slots.size()); ++i) {
         // current_slot, not current_tool — `i` indexes physical toolheads, and
         // under an ASSIGN_TOOL remap the carriage tool's G-code number is not
-        // its slot index (see the tool_number parse). The old comparison
-        // stamped LOADED on the lane that merely shares an index with the
-        // number.
+        // its slot index (see the tool_number parse). Comparing against the
+        // number stamps LOADED on the lane that merely shares an index with it.
         if (system_info_.current_slot >= 0 && i == system_info_.current_slot) {
             // The mounted tool's own dock always reads vacant — that is where it
             // came from — so the carriage wins over the dock reading.
             slots[i].status = SlotStatus::LOADED;
-            continue;
+        } else {
+            const bool dock_vacant = i < static_cast<int>(dock_seated_.size()) &&
+                                     dock_seated_[static_cast<size_t>(i)].has_value() &&
+                                     !*dock_seated_[static_cast<size_t>(i)];
+            slots[i].status = dock_vacant ? SlotStatus::EMPTY : SlotStatus::AVAILABLE;
         }
-        const bool dock_vacant = i < static_cast<int>(dock_seated_.size()) &&
-                                 dock_seated_[static_cast<size_t>(i)].has_value() &&
-                                 !*dock_seated_[static_cast<size_t>(i)];
-        slots[i].status = dock_vacant ? SlotStatus::EMPTY : SlotStatus::AVAILABLE;
+
+        // Docking is the whole of what this backend senses, and it files no
+        // identity record at all: klipper-toolchanger reports none, so the only
+        // filament identity a slot ever carries is the override store's, which
+        // is a person's statement and not a firmware reading.
+        //
+        // The stamp read here is the one assigned a line above, from the
+        // carriage tool and the dock sensors. apply_overrides() runs after this
+        // and rewrites the same structs, so the position is what keeps a user's
+        // values out of the record.
+        helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
+        sensed.present = slot_status_reports_filament(slots[i].status);
+        helix::ams::ingest(lane_id(i), sensed);
     }
 }
 
