@@ -2640,10 +2640,9 @@ void AmsBackendHappyHare::persist_override(int slot_index, const SlotInfo& info)
     // a non-empty value is always a user pick.
     o.catalog_id = info.catalog_id;
     o.product_name = info.product_name;
-    // AMS_DEFAULT_SLOT_COLOR is the "no color reading" sentinel (see
-    // SlotInfo::has_identity), not a color a user would ever pick, so it
-    // stays unrecorded; a deliberate pure black (#000000) still records.
-    if (info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
+    // A deliberate pure black (#000000) records; the "no color reading"
+    // sentinel does not.
+    if (ams::is_declarable_color(info.color_rgb)) {
         o.color_rgb = info.color_rgb;
         o.color_set = true;
     }
@@ -2808,10 +2807,9 @@ AmsError AmsBackendHappyHare::set_slot_info(int slot_index, const SlotInfo& info
         bool has_changes = false;
         std::string cmd = fmt::format("MMU_GATE_MAP GATE={}", slot_index);
 
-        // Color (hex format, no # prefix). AMS_DEFAULT_SLOT_COLOR is the "no
-        // color reading" sentinel (see SlotInfo::has_identity); a deliberate
-        // pure black (#000000) still reaches the gate map.
-        if (info.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
+        // Color (hex format, no # prefix). A deliberate pure black (#000000)
+        // reaches the gate map; the "no color reading" sentinel does not.
+        if (ams::is_declarable_color(info.color_rgb)) {
             cmd += fmt::format(" COLOR={:06X}", info.color_rgb & 0xFFFFFF);
             has_changes = true;
         }

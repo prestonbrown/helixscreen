@@ -8,6 +8,7 @@
 #include "filament_variants.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
+#include "lane_translation.h"
 #include "moonraker_error.h"
 
 #include <spdlog/spdlog.h>
@@ -1867,10 +1868,9 @@ bool publish_external_lane(FilamentSlotOverrideStore* store, int lane_index, con
     }
 
     // Identity = anything a slicer could map to: a Spoolman link, a material,
-    // or a picked color. SlotInfo's color default (AMS_DEFAULT_SLOT_COLOR
-    // gray) is the "never picked" sentinel — black (0x000000) is a real pick
-    // and must publish.
-    const bool color_picked = spool != nullptr && spool->color_rgb != AMS_DEFAULT_SLOT_COLOR;
+    // or a picked color. Black (0x000000) is a real pick and must publish; the
+    // "never picked" sentinel must not.
+    const bool color_picked = spool != nullptr && is_declarable_color(spool->color_rgb);
     const bool has_identity =
         spool != nullptr && (spool->spoolman_id > 0 || !spool->material.empty() || color_picked);
 

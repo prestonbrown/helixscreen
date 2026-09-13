@@ -813,11 +813,13 @@ void AmsBackendAce::parse_ace_object(const json& data) {
                 // own edit as the hub's memory.
                 const bool frame_states_status =
                     slot_json.contains("status") && slot_json["status"].is_string();
+                std::optional<bool> observed_present;
                 if (frame_states_status) {
-                    slot.status = slot_status_from_string(slot_json["status"].get<std::string>());
+                    const SlotStatus status =
+                        slot_status_from_string(slot_json["status"].get<std::string>());
+                    observed_present = slot_status_reports_filament(status);
+                    slot.status = status;
                 }
-                const std::optional<bool> observed_present =
-                    frame_states_status ? slot_status_reports_filament(slot.status) : std::nullopt;
 
                 // Parse color: ValgACE returns [r, g, b] array
                 std::optional<uint32_t> observed_color;

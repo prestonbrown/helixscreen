@@ -17,6 +17,7 @@
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "lane_source_store.h"
+#include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "post_op_cooldown_manager.h"
 #include "print_lifecycle_state.h"
@@ -2729,7 +2730,7 @@ AmsError AmsBackendAd5xIfs::set_slot_info(int slot_index, const SlotInfo& info, 
         // slot lines, the Adventurer5M.json poll, and schedule_zcolor_query.
         if (!has_per_port_sensors_ && !ifs_status_ports_seen_.load()) {
             bool has_data =
-                !normalized_material.empty() || info.color_rgb != AMS_DEFAULT_SLOT_COLOR;
+                !normalized_material.empty() || ams::is_declarable_color(info.color_rgb);
             port_presence_[idx] = has_data;
         }
 

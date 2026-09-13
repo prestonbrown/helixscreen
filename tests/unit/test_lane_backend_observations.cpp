@@ -135,6 +135,56 @@ void feed_mmu(AmsBackendHappyHare& backend, const nlohmann::json& mmu) {
 }
 } // namespace
 
+/// The presence vocabulary every producer in this file consumes, pinned over
+/// the whole enum. A producer's own case can only reach the statuses its
+/// firmware emits, so no backend test covers the rule end to end.
+TEST_CASE("the presence vocabulary answers for every slot status", "[lane][ingest]") {
+    using helix::slot_status_reports_filament;
+    using helix::SlotStatus;
+
+    auto stated = [](SlotStatus status) { return slot_status_reports_filament(status); };
+
+    const auto empty = stated(SlotStatus::EMPTY);
+    REQUIRE(empty.has_value());
+    CHECK(*empty == false);
+
+    for (SlotStatus occupied :
+         {SlotStatus::AVAILABLE, SlotStatus::LOADED, SlotStatus::FROM_BUFFER}) {
+        INFO("status " << helix::slot_status_to_string(occupied));
+        const auto reading = stated(occupied);
+        REQUIRE(reading.has_value());
+        CHECK(*reading == true);
+    }
+
+    // A jam is filament stuck in the path, so a blocked bay holds filament.
+    // QIDI reports it for any negative state word, and both SlotInfo::
+    // is_present() and helix::ui::classify_lane() count it present; answering
+    // "no reading" here would retract a live reading the moment a lane jams.
+    const auto blocked = stated(SlotStatus::BLOCKED);
+    REQUIRE(blocked.has_value());
+    CHECK(*blocked == true);
+
+    // The one status where this rule and is_present() differ, and the reason
+    // the answer is three-valued at all.
+    CHECK_FALSE(stated(SlotStatus::UNKNOWN).has_value());
+
+    // The contract between the two rules, asserted rather than described: they
+    // agree on every status but UNKNOWN. Either one drifting fails here.
+    for (SlotStatus status : {SlotStatus::EMPTY, SlotStatus::AVAILABLE, SlotStatus::LOADED,
+                              SlotStatus::FROM_BUFFER, SlotStatus::BLOCKED}) {
+        INFO("status " << helix::slot_status_to_string(status));
+        helix::SlotInfo slot;
+        slot.status = status;
+        const auto reading = stated(status);
+        REQUIRE(reading.has_value());
+        CHECK(*reading == slot.is_present());
+    }
+
+    helix::SlotInfo unknown_slot;
+    unknown_slot.status = SlotStatus::UNKNOWN;
+    CHECK_FALSE(unknown_slot.is_present());
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "a registered backend's slots are its own block of lanes",
                  "[lane][ingest][ad5x]") {
     Ad5xHarness harness(nullptr, nullptr);
@@ -538,11 +588,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "each AFC lane accumulates its own identity",
     feed_afc_lane(*harness, "lane2", {{"color", "#00AEFF"}, {"material", "PLA"}});
 
     const auto changed = lane_sources(harness.lane(1));
+    REQUIRE(changed.vendor_cache.has_value());
     REQUIRE(changed.vendor_cache->color_rgb.has_value());
     CHECK(*changed.vendor_cache->color_rgb == 0x00AEFFu);
     CHECK(changed.vendor_cache->material == "PLA");
 
     const auto untouched = lane_sources(harness.lane(0));
+    REQUIRE(untouched.vendor_cache.has_value());
     REQUIRE(untouched.vendor_cache->color_rgb.has_value());
     CHECK(*untouched.vendor_cache->color_rgb == 0xED2C2Cu);
     CHECK(untouched.vendor_cache->material == "PETG");
@@ -605,6 +657,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC's DB snapshot files on the same lane as i
     feed_afc_lane_data(*harness, {{"lane3", {{"color", "#zzzzzz"}}}});
 
     const auto unreadable = lane_sources(harness.lane(2));
+    REQUIRE(unreadable.vendor_cache.has_value());
     REQUIRE(unreadable.vendor_cache->color_rgb.has_value());
     CHECK(*unreadable.vendor_cache->color_rgb == 0xED2C2Cu);
 
@@ -756,6 +809,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a Happy Hare frame without metadata does not 
     const auto gate0 = lane_sources(harness.lane(0));
     REQUIRE(gate0.sensed->present.has_value());
     CHECK(*gate0.sensed->present == false);
+    REQUIRE(gate0.vendor_cache.has_value());
     CHECK(gate0.vendor_cache->material == "PETG");
     REQUIRE(gate0.vendor_cache->color_rgb.has_value());
     CHECK(*gate0.vendor_cache->color_rgb == 0xED2C2Cu);
@@ -806,12 +860,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "each Happy Hare gate accumulates its own iden
                         {"gate_spool_id", nlohmann::json::array({7, 12, 0})}});
 
     const auto changed = lane_sources(harness.lane(1));
+    REQUIRE(changed.vendor_cache.has_value());
     REQUIRE(changed.vendor_cache->color_rgb.has_value());
     CHECK(*changed.vendor_cache->color_rgb == 0x00AEFFu);
     CHECK(changed.vendor_cache->material == "PLA");
     CHECK(changed.vendor_cache->spoolman_id == 12);
 
     const auto untouched = lane_sources(harness.lane(0));
+    REQUIRE(untouched.vendor_cache.has_value());
     REQUIRE(untouched.vendor_cache->color_rgb.has_value());
     CHECK(*untouched.vendor_cache->color_rgb == 0xED2C2Cu);
     CHECK(untouched.vendor_cache->material == "PETG");
@@ -913,6 +969,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "an unreadable Happy Hare colour leaves the re
     // last readable word stands in both the record and the slot.
     feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"zzzzzz", "a4b2bc"})}});
     const auto unreadable = lane_sources(harness.lane(0));
+    REQUIRE(unreadable.vendor_cache.has_value());
     REQUIRE(unreadable.vendor_cache->color_rgb.has_value());
     CHECK(*unreadable.vendor_cache->color_rgb == 0xED2C2Cu);
     CHECK(harness->get_slot_info(0).color_rgb == 0xED2C2Cu);
@@ -941,6 +998,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Happy Hare files the colour its numeric gate 
     CHECK(*packed.vendor_cache->color_rgb == 0xED2C2Cu);
 
     const auto triplet = lane_sources(harness.lane(1));
+    REQUIRE(triplet.vendor_cache.has_value());
     REQUIRE(triplet.vendor_cache->color_rgb.has_value());
     CHECK(*triplet.vendor_cache->color_rgb == 0x00FF00u);
 }
@@ -1231,6 +1289,39 @@ TEST_CASE_METHOD(LVGLTestFixture, "CFS reads both its wire colours by the shared
         CHECK(*lane.sensed->present == true);
     }
 
+    SECTION("a stock value the old parse refused now reads") {
+        CfsHarness harness(nullptr, nullptr);
+        // Creality's leading-zero "0RRGGBB" is this function's own to strip;
+        // what is left is read by the grammar every other lane-shaped producer
+        // uses, so the ordinary web spellings mean here what they mean there.
+        // Nothing validates this field before it reaches the parse.
+        feed_cfs_box(
+            *harness,
+            stock_box("T1",
+                      nlohmann::json{
+                          {"vender", nlohmann::json::array({"Creality", "Creality", "Creality"})},
+                          {"remain_len", nlohmann::json::array({"100", "100", "100"})},
+                          {"color_value", nlohmann::json::array({"#ED2C2C", "#F00", "0ED2C2C"})},
+                          {"material_type", nlohmann::json::array({"-1", "-1", "-1"})}}));
+
+        const auto hashed = lane_sources(harness.lane(0));
+        REQUIRE(hashed.vendor_cache.has_value());
+        REQUIRE(hashed.vendor_cache->color_rgb.has_value());
+        CHECK(*hashed.vendor_cache->color_rgb == 0xED2C2Cu);
+
+        const auto three_digit = lane_sources(harness.lane(1));
+        REQUIRE(three_digit.vendor_cache.has_value());
+        REQUIRE(three_digit.vendor_cache->color_rgb.has_value());
+        CHECK(*three_digit.vendor_cache->color_rgb == 0xFF0000u);
+
+        // The Creality form this function still owns, so the delegation cannot
+        // quietly take the leading-zero rule with it.
+        const auto creality = lane_sources(harness.lane(2));
+        REQUIRE(creality.vendor_cache.has_value());
+        REQUIRE(creality.vendor_cache->color_rgb.has_value());
+        CHECK(*creality.vendor_cache->color_rgb == 0xED2C2Cu);
+    }
+
     SECTION("the flat schema reads every spelling the shared grammar accepts") {
         CfsHarness harness(nullptr, nullptr);
         feed_cfs_box(*harness,
@@ -1241,14 +1332,17 @@ TEST_CASE_METHOD(LVGLTestFixture, "CFS reads both its wire colours by the shared
                           nlohmann::json{{"index", 3}, {"color", "nothex"}, {"present", true}}})));
 
         const auto three_digit = lane_sources(harness.lane(0));
+        REQUIRE(three_digit.vendor_cache.has_value());
         REQUIRE(three_digit.vendor_cache->color_rgb.has_value());
         CHECK(*three_digit.vendor_cache->color_rgb == 0xFF0000u);
 
         const auto prefixed = lane_sources(harness.lane(1));
+        REQUIRE(prefixed.vendor_cache.has_value());
         REQUIRE(prefixed.vendor_cache->color_rgb.has_value());
         CHECK(*prefixed.vendor_cache->color_rgb == 0xED2C2Cu);
 
         const auto with_alpha = lane_sources(harness.lane(2));
+        REQUIRE(with_alpha.vendor_cache.has_value());
         REQUIRE(with_alpha.vendor_cache->color_rgb.has_value());
         CHECK(*with_alpha.vendor_cache->color_rgb == 0x112233u);
 
@@ -1545,11 +1639,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE reads a colour string by the shared gramm
                                      })}});
 
     const auto three_digit = lane_sources(harness.lane(0));
+    REQUIRE(three_digit.vendor_cache.has_value());
     REQUIRE(three_digit.vendor_cache->color_rgb.has_value());
     CHECK(*three_digit.vendor_cache->color_rgb == 0xFF0000u);
     CHECK(harness->get_slot_info(0).color_rgb == 0xFF0000u);
 
     const auto with_alpha = lane_sources(harness.lane(1));
+    REQUIRE(with_alpha.vendor_cache.has_value());
     REQUIRE(with_alpha.vendor_cache->color_rgb.has_value());
     CHECK(*with_alpha.vendor_cache->color_rgb == 0x112233u);
 
@@ -1558,6 +1654,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE reads a colour string by the shared gramm
     CHECK_FALSE(trailing_junk.vendor_cache->color_rgb.has_value());
 
     const auto prefixed = lane_sources(harness.lane(3));
+    REQUIRE(prefixed.vendor_cache.has_value());
     REQUIRE(prefixed.vendor_cache->color_rgb.has_value());
     CHECK(*prefixed.vendor_cache->color_rgb == 0xED2C2Cu);
 }

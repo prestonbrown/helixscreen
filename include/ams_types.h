@@ -188,13 +188,28 @@ inline const char* slot_status_to_string(SlotStatus status) {
 }
 
 /**
- * @brief What a slot status says about filament being in the bay
+ * @brief What a slot status STATES about filament being in the bay
  *
- * Three answers, not two. An unset result is "no reading", which is a
- * different claim from "the bay is empty": UNKNOWN is a backend saying it does
- * not know, and BLOCKED describes the path rather than the bay, so neither may
- * be read as an absence. A producer filing a lane observation carries the
- * answer across unchanged, so the distinction survives into the lane store.
+ * Three answers, not two, and that is the whole reason this sits beside
+ * SlotInfo::is_present() rather than replacing it. They answer different
+ * questions and agree on every status but one:
+ *
+ *   - is_present() asks "should this lane behave and draw as occupied". A
+ *     caller lighting a button or painting a cell has to decide, so UNKNOWN
+ *     folds into "not present" - there is no third thing to draw.
+ *     helix::ui::classify_lane() (ams_lane_state.h) makes the same fold for
+ *     the same reason.
+ *   - this asks "did the machine state occupancy at all", which a lane
+ *     observation must be able to answer with "it did not". An unset result is
+ *     no reading, and under the lane store's whole-record replacement that is
+ *     what RETRACTS a stale reading instead of asserting an empty bay.
+ *
+ * UNKNOWN is the one divergence, and it is the point: a backend saying it does
+ * not know is not the backend reporting an empty bay.
+ *
+ * BLOCKED is filament. A jam is filament stuck in the path, which is why both
+ * rules above count it present, and retracting a reading the moment a lane
+ * jams would be the stale assertion this model exists to remove.
  *
  * @param status The slot status enum value
  * @return true/false when the status states occupancy, nullopt when it does not
@@ -206,9 +221,9 @@ inline const char* slot_status_to_string(SlotStatus status) {
     case SlotStatus::AVAILABLE:
     case SlotStatus::LOADED:
     case SlotStatus::FROM_BUFFER:
+    case SlotStatus::BLOCKED:
         return true;
     case SlotStatus::UNKNOWN:
-    case SlotStatus::BLOCKED:
         break;
     }
     return std::nullopt;
@@ -1022,6 +1037,12 @@ struct SlotInfo {
 
     /**
      * @brief Check if filament is present in this slot
+     *
+     * Two-valued on purpose: a caller drawing a cell or gating an affordance
+     * has to decide, so UNKNOWN reads as not present. A caller recording what
+     * the machine STATED wants slot_status_reports_filament() instead, which
+     * can answer "no reading" and so can retract one.
+     *
      * @return true for AVAILABLE, LOADED, FROM_BUFFER, BLOCKED; false for EMPTY, UNKNOWN
      */
     [[nodiscard]] bool is_present() const {
