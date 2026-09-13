@@ -204,6 +204,7 @@ src/system/cjk_font_manager.cpp
 src/system/config.cpp
 src/system/config_backup.cpp
 src/system/display_settings_manager.cpp
+src/system/filament_favorites.cpp
 src/system/helix_plugin_installer.cpp
 src/system/http_executor.cpp
 src/system/input_settings_manager.cpp

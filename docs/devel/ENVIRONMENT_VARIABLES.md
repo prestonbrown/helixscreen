@@ -73,9 +73,9 @@ Override the automatic display backend detection.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `sdl`, `drm`, `fbdev` |
+| **Values** | `sdl`, `drm`, `fbdev`, `egl` |
 | **Default** | `fbdev` (CPU rendering, maximum compatibility) |
-| **File** | `src/api/display_backend.cpp` |
+| **File** | `src/api/display_backend.cpp`, `scripts/helix-launcher.sh#select_binary` |
 
 **Backend comparison:**
 
@@ -83,9 +83,14 @@ Override the automatic display backend detection.
 |---------|-----------|----------|
 | `fbdev` | CPU (software), plain memory copy | Maximum compatibility, all hardware, SPI displays |
 | `drm` | CPU (software), vsynced page flip via dumb buffers | Pi 3B+, Pi 4, Pi 5, BTT CB1 with HDMI/DSI displays |
+| `egl` | CPU rasterizes, GPU composites and presents | Boards with a working Mesa GL userspace |
 | `sdl` | SDL2 (desktop development) | Development on Linux/macOS desktops |
 
 The `drm` backend uses DRM (Direct Rendering Manager) dumb buffers with a vsynced page flip, which avoids tearing that a plain memory copy can show. Rendering itself is CPU-based on both `drm` and `fbdev`. The `fbdev` backend is the safe default that works everywhere, including SPI displays that lack DRM support.
+
+`egl` is different in kind from the other three: it names a **separate binary**, `helix-screen-egl`, not a runtime switch inside one. Which of LVGL's two DRM drivers a binary carries is compiled in, so the launcher picks a binary rather than a mode. Setting `HELIX_DISPLAY_BACKEND=egl` tells `scripts/helix-launcher.sh` to run that binary without probing first; the launcher then exports `HELIX_DISPLAY_BACKEND=drm` for the app itself, because the EGL binary still presents through LVGL's DRM driver.
+
+Left unset, the launcher runs `helix-screen-egl --probe-egl` and takes the EGL rung only when that exits 0, which requires a hardware renderer — a context that resolves to llvmpipe is refused, since it would spend CPU to save CPU. A board whose probe declines steps down to `drm`, never straight to `fbdev`. See `docs/devel/GPU_ACCELERATION.md` for what the rung is worth per board.
 
 ```bash
 # Force SDL backend (useful for debugging on embedded systems)

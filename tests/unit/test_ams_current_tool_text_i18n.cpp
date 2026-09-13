@@ -66,3 +66,35 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_current_tool_text survives a long transla
     const std::string round_tripped(lv_subject_get_string(ams.get_current_tool_text_subject()));
     CHECK(round_tripped == label);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "ams_action_detail holds the longest translated feeder error whole",
+                 "[ams][ams_state][i18n]") {
+    ScopedLanguage restore_lang;
+
+    get_printer_state().init_subjects(false);
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+
+    helix::ui::ensure_translation_loaded("ja");
+    lv_translation_set_language("ja");
+
+    // The longest composition any producer hands this subject: Snapmaker's
+    // no_filament frame after a lane prefix, in the worst locale by encoded
+    // size. A 64-byte buffer truncates this mid-codepoint.
+    const std::string detail = helix::ui::lane_label(helix::ui::LaneNoun::Feeder, 3) + ": " +
+                               lv_tr("No filament. Load filament and retry.");
+    REQUIRE(detail.size() > 64); // otherwise this test cannot distinguish old from new
+    // A toolchange narration an earlier test left latched outranks the
+    // operation detail in recompute_action_detail(), so clear it first
+    // (the same reset idiom test_afc_console_corpus.cpp uses).
+    ams.set_narration_phase(-1, "");
+    ams.set_action_detail(detail);
+
+    const std::string round_tripped(lv_subject_get_string(ams.get_ams_action_detail_subject()));
+    CHECK(round_tripped == detail);
+
+    // last_operation_detail_ persists in the singleton; clear it so later
+    // tests derive the detail from their own state.
+    ams.set_action_detail("");
+}

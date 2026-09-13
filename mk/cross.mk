@@ -74,8 +74,9 @@ ifeq ($(PLATFORM_TARGET),pi)
     # Without it SIGABRT reports get garbage frames. Matches ad5x/cc1/k1/k2/snapmaker-u1.
     TARGET_CFLAGS := -march=armv8-a -fno-omit-frame-pointer -funwind-tables -I/usr/aarch64-linux-gnu/include -I/usr/include/libdrm -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD -DHELIX_BINARY_VARIANT=\"drm\"
     DISPLAY_BACKEND := drm
-    # No LVGL EGL path is compiled yet; LV_USE_OPENGLES gates it and is 0.
-    # Setting this to yes without that trips the #error in display_backend_drm.cpp.
+    # This binary presents through DRM dumb buffers. The GPU presentation path
+    # is a separate binary built by ENABLE_EGL_RUNG below, so that flipping this
+    # would rebuild the wrong one.
     ENABLE_OPENGLES := no
     ENABLE_SDL := no
     ENABLE_GLES_3D := yes
@@ -88,6 +89,8 @@ ifeq ($(PLATFORM_TARGET),pi)
     # Strip binary for size - embedded targets don't need debug symbols
     STRIP_BINARY := yes
     FONT_TIERS := all
+    # Also link helix-screen-egl, which the launcher probes for and prefers.
+    ENABLE_EGL_RUNG := yes
 
 else ifeq ($(PLATFORM_TARGET),pi-fbdev)
     # -------------------------------------------------------------------------
@@ -135,6 +138,7 @@ else ifeq ($(PLATFORM_TARGET),pi-both)
     STRIP_BINARY := yes
     FONT_TIERS := all
     PI_DUAL_LINK := yes
+    ENABLE_EGL_RUNG := yes
 
 else ifeq ($(PLATFORM_TARGET),pi32)
     # -------------------------------------------------------------------------
@@ -1651,6 +1655,30 @@ define sync-device-features
 	fi
 endef
 
+# Deploy the platform hook file the init script sources at boot.
+#
+#   $(1) ssh target, $(2) deploy dir, $(3) hook key (assets/config/platform/hooks-<key>.sh)
+#
+# The init script sources $(2)/platform/hooks.sh. Without that file every hook
+# stays the no-op stub it declares: platform_pre_start() never exports
+# HELIX_CACHE_DIR, so the cache falls back down the cascade, and
+# platform_stop_competing_uis() leaves the stock UI running. Both are silent,
+# which is why this verifies the file landed instead of trusting the copy.
+define deploy-platform-hooks
+	@if [ -z "$(3)" ]; then \
+		echo "$(DIM)No platform hook key - skipping hooks$(RESET)"; \
+	elif [ ! -f assets/config/platform/hooks-$(3).sh ]; then \
+		echo "$(RED)Platform hook not in tree: assets/config/platform/hooks-$(3).sh$(RESET)"; \
+		exit 1; \
+	else \
+		echo "$(DIM)Deploying platform hooks ($(3))...$(RESET)"; \
+		ssh $(1) "mkdir -p $(2)/platform"; \
+		cat assets/config/platform/hooks-$(3).sh | ssh $(1) "cat > $(2)/platform/hooks.sh && chmod +x $(2)/platform/hooks.sh"; \
+		ssh $(1) "test -s $(2)/platform/hooks.sh" || { \
+			echo "$(RED)Platform hooks did not land on the device$(RESET)"; exit 1; }; \
+	fi
+endef
+
 define deploy-common
 	@echo "$(CYAN)Deploying HelixScreen to $(1):$(2)...$(RESET)"
 	@# Generate pre-rendered splash images if missing (all small-display platforms use the same files)
@@ -1673,12 +1701,17 @@ define deploy-common
 	@# Stop running processes and prepare directory
 	@# Stop update watcher first (prevents PathChanged restart during file sync),
 	@# then stop the main service and kill any stragglers
-	ssh $(1) "sudo systemctl stop helixscreen-update.path 2>/dev/null; sudo systemctl stop helixscreen 2>/dev/null; systemctl --user stop helix-screen 2>/dev/null; killall helix-watchdog helix-screen helix-splash 2>/dev/null; sleep 0.5; killall -9 helix-watchdog helix-screen helix-splash 2>/dev/null; while pidof helix-screen helix-splash helix-watchdog >/dev/null 2>&1; do sleep 0.2; done; true"
+	ssh $(1) "sudo systemctl stop helixscreen-update.path 2>/dev/null; sudo systemctl stop helixscreen 2>/dev/null; systemctl --user stop helix-screen 2>/dev/null; killall helix-watchdog helix-screen helix-screen-egl helix-splash 2>/dev/null; sleep 0.5; killall -9 helix-watchdog helix-screen helix-screen-egl helix-splash 2>/dev/null; while pidof helix-screen helix-screen-egl helix-splash helix-watchdog >/dev/null 2>&1; do sleep 0.2; done; true"
 	ssh $(1) "mkdir -p $(2)/bin"
 	ssh $(1) "rm -f $(2)/*.xml 2>/dev/null || true"
 	@# Sync binaries and launcher to bin/
 	rsync -avzz --progress $(3)/helix-screen $(3)/helix-splash $(1):$(2)/bin/
 	@if [ -f $(3)/helix-watchdog ]; then rsync -avzz $(3)/helix-watchdog $(1):$(2)/bin/; fi
+	@# The EGL rung, on targets that build one. helix-launcher.sh probes for it
+	@# and prefers it; without this the device keeps whatever it had, and a stale
+	@# one would be probed and run in place of the binary just deployed.
+	@if [ -f $(3)/helix-screen-egl ]; then rsync -avzz $(3)/helix-screen-egl $(1):$(2)/bin/; \
+	else ssh $(1) "rm -f $(2)/bin/helix-screen-egl"; fi
 	@# Sync Bluetooth plugin if built (runtime-loaded via dlopen, same dir as binary)
 	@BT_SO_DIR=$$(dirname $(3))"/lib/libhelix-bluetooth.so"; \
 	if [ -f "$$BT_SO_DIR" ]; then \
@@ -1701,6 +1734,7 @@ define deploy-common
 	@echo "$(DIM)Fixing file ownership...$(RESET)"
 	@ssh $(1) "if [ \$$(id -u) -ne 0 ]; then sudo chown -R \$$(id -u):\$$(id -g) $(2); else chown -R \$$(id -u):\$$(id -g) $(2)/config 2>/dev/null || true; fi"
 	$(call sync-device-features,$(1),$(2),$(3))
+	$(call deploy-platform-hooks,$(1),$(2),$(4))
 endef
 
 # =============================================================================
@@ -2168,6 +2202,7 @@ deploy-cc1:
 	@# Transfer assets via tar (uses shared DEPLOY_TAR_EXCLUDES and DEPLOY_ASSET_DIRS)
 	@echo "$(DIM)Transferring assets...$(RESET)"
 	COPYFILE_DISABLE=1 tar -cf - $(DEPLOY_TAR_EXCLUDES) $(DEPLOY_TAR_NO_TRACKER) $(DEPLOY_ASSET_DIRS) | ssh $(CC1_SSH_TARGET) "cd $(CC1_DEPLOY_DIR) && tar -xof -"
+	$(call deploy-platform-hooks,$(CC1_SSH_TARGET),$(CC1_DEPLOY_DIR),cc1)
 	@# Transfer pre-rendered images
 	@if [ -d build/assets/images/prerendered ] && ls build/assets/images/prerendered/*.bin >/dev/null 2>&1; then \
 		echo "$(DIM)Transferring pre-rendered images...$(RESET)"; \
@@ -2194,7 +2229,7 @@ deploy-cc1:
 deploy-cc1-fg:
 	@test -f build/cc1/bin/helix-screen || { echo "$(RED)Error: build/cc1/bin/helix-screen not found. Run 'make cc1-docker' first.$(RESET)"; exit 1; }
 	@test -f build/cc1/bin/helix-splash || { echo "$(RED)Error: build/cc1/bin/helix-splash not found. Run 'make cc1-docker' first.$(RESET)"; exit 1; }
-	$(call deploy-common,$(CC1_SSH_TARGET),$(CC1_DEPLOY_DIR),build/cc1/bin)
+	$(call deploy-common,$(CC1_SSH_TARGET),$(CC1_DEPLOY_DIR),build/cc1/bin,cc1)
 	@echo "$(CYAN)Starting helix-screen on $(CC1_HOST) (foreground, verbose)...$(RESET)"
 	ssh -t $(CC1_SSH_TARGET) "cd $(CC1_DEPLOY_DIR) && ./bin/helix-launcher.sh --debug"
 
@@ -2250,7 +2285,7 @@ define snapmaker-u1-deploy-common
 	@if [ -f build/snapmaker-u1/bin/helix-watchdog ]; then scp build/snapmaker-u1/bin/helix-watchdog $(SNAPMAKER_U1_SSH_TARGET):$(SNAPMAKER_U1_DEPLOY_DIR)/bin/; fi
 	ssh $(SNAPMAKER_U1_SSH_TARGET) "chmod +x $(SNAPMAKER_U1_DEPLOY_DIR)/bin/helix-*"
 	COPYFILE_DISABLE=1 tar -cf - $(DEPLOY_TAR_EXCLUDES) $(DEPLOY_TAR_NO_TRACKER) $(DEPLOY_ASSET_DIRS) | ssh $(SNAPMAKER_U1_SSH_TARGET) "cd $(SNAPMAKER_U1_DEPLOY_DIR) && tar -xof -"
-	cat assets/config/platform/hooks-snapmaker-u1.sh | ssh $(SNAPMAKER_U1_SSH_TARGET) "cat > $(SNAPMAKER_U1_DEPLOY_DIR)/platform/hooks.sh && chmod +x $(SNAPMAKER_U1_DEPLOY_DIR)/platform/hooks.sh"
+	$(call deploy-platform-hooks,$(SNAPMAKER_U1_SSH_TARGET),$(SNAPMAKER_U1_DEPLOY_DIR),snapmaker-u1)
 	scp scripts/helix-launcher.sh $(SNAPMAKER_U1_SSH_TARGET):$(SNAPMAKER_U1_DEPLOY_DIR)/bin/ && ssh $(SNAPMAKER_U1_SSH_TARGET) "chmod +x $(SNAPMAKER_U1_DEPLOY_DIR)/bin/helix-launcher.sh"
 	@# Patch the init script AT THE PATH THE INSTALLER USES — config/helixscreen.init.
 	@# install_service_snapmaker_u1() (scripts/install.sh) patches that copy, and
@@ -2375,6 +2410,7 @@ deploy-k1:
 	@# Transfer assets via tar
 	@echo "$(DIM)Transferring assets...$(RESET)"
 	COPYFILE_DISABLE=1 tar -cf - $(DEPLOY_TAR_EXCLUDES) $(DEPLOY_TAR_NO_TRACKER) $(DEPLOY_ASSET_DIRS) | ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && tar -xof -"
+	$(call deploy-platform-hooks,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),k1)
 	@# Transfer pre-rendered images
 	@if [ -d build/assets/images/prerendered ] && ls build/assets/images/prerendered/*.bin >/dev/null 2>&1; then \
 		echo "$(DIM)Transferring pre-rendered images...$(RESET)"; \
@@ -2402,7 +2438,7 @@ deploy-k1:
 deploy-k1-fg:
 	@test -f build/mips/bin/helix-screen || { echo "$(RED)Error: build/mips/bin/helix-screen not found. Run 'make mips-docker' first.$(RESET)"; exit 1; }
 	@test -f build/mips/bin/helix-splash || { echo "$(RED)Error: build/mips/bin/helix-splash not found. Run 'make mips-docker' first.$(RESET)"; exit 1; }
-	$(call deploy-common,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/mips/bin)
+	$(call deploy-common,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/mips/bin,k1)
 	@echo "$(CYAN)Starting helix-screen on $(K1_HOST) (foreground, verbose)...$(RESET)"
 	ssh -t $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./bin/helix-launcher.sh --debug"
 
@@ -2467,6 +2503,7 @@ deploy-k1-dynamic:
 	@# Transfer assets via tar
 	@echo "$(DIM)Transferring assets...$(RESET)"
 	COPYFILE_DISABLE=1 tar -cf - $(DEPLOY_TAR_EXCLUDES) $(DEPLOY_TAR_NO_TRACKER) $(DEPLOY_ASSET_DIRS) | ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && tar -xof -"
+	$(call deploy-platform-hooks,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),k1)
 	@# Transfer pre-rendered images
 	@if [ -d build/assets/images/prerendered ] && ls build/assets/images/prerendered/*.bin >/dev/null 2>&1; then \
 		echo "$(DIM)Transferring pre-rendered images...$(RESET)"; \
@@ -2487,7 +2524,7 @@ deploy-k1-dynamic:
 deploy-k1-dynamic-fg:
 	@test -f build/k1-dynamic/bin/helix-screen || { echo "$(RED)Error: build/k1-dynamic/bin/helix-screen not found. Run 'make k1-dynamic-docker' first.$(RESET)"; exit 1; }
 	@test -f build/k1-dynamic/bin/helix-splash || { echo "$(RED)Error: build/k1-dynamic/bin/helix-splash not found. Run 'make k1-dynamic-docker' first.$(RESET)"; exit 1; }
-	$(call deploy-common,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/k1-dynamic/bin)
+	$(call deploy-common,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/k1-dynamic/bin,k1)
 	@echo "$(CYAN)Starting helix-screen on $(K1_HOST) (foreground, verbose)...$(RESET)"
 	ssh -t $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./bin/helix-launcher.sh --debug"
 
@@ -2560,10 +2597,8 @@ deploy-k2:
 	fi
 	@# Stop running processes, remove stale lock, and prepare directory
 	ssh $(K2_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; killall -9 helix-watchdog helix-screen helix-splash 2>/dev/null || true; rm -f /tmp/helix-screen.lock; mkdir -p $(K2_DEPLOY_DIR)/bin $(K2_DEPLOY_DIR)/platform"
-	@# Deploy platform hooks (stops stock display-server cleanly via procd)
-	@if [ -f assets/config/platform/hooks-k2.sh ]; then \
-		cat assets/config/platform/hooks-k2.sh | ssh $(K2_SSH_TARGET) "cat > $(K2_DEPLOY_DIR)/platform/hooks.sh && chmod +x $(K2_DEPLOY_DIR)/platform/hooks.sh"; \
-	fi
+	@# Platform hooks stop the stock display-server cleanly via procd.
+	$(call deploy-platform-hooks,$(K2_SSH_TARGET),$(K2_DEPLOY_DIR),k2)
 	@# Transfer binaries via cat/ssh
 	@echo "$(DIM)Transferring binaries...$(RESET)"
 	cat build/k2/bin/helix-screen | ssh $(K2_SSH_TARGET) "cat > $(K2_DEPLOY_DIR)/bin/helix-screen && chmod +x $(K2_DEPLOY_DIR)/bin/helix-screen"
@@ -2584,17 +2619,21 @@ deploy-k2:
 	@if [ -d build/assets/images/printers/prerendered ] && ls build/assets/images/printers/prerendered/*.bin >/dev/null 2>&1; then \
 		COPYFILE_DISABLE=1 tar -cf - -C build/assets/images/printers prerendered | ssh $(K2_SSH_TARGET) "cd $(K2_DEPLOY_DIR)/assets/images/printers && tar -xof -"; \
 	fi
-	@# Install/update init script + procd shim for boot persistence.
+	@# Install/update init script + procd shim for boot persistence, plus
+	@# the web-server carve-out (prestonbrown/helixscreen#1617): the runtime
+	@# hook disables /etc/init.d/app as a whole, so the carved-out web-server
+	@# needs its own rc.common starter or port 80 never answers after reboot.
 	@# K2 (procd) silently skips plain SysV scripts at boot ([L086]) — only
 	@# scripts with `#!/bin/sh /etc/rc.common` + DEPEND= are invoked. The
 	@# shim at /etc/init.d/helixscreen is what procd's boot iterator picks up;
-	@# it delegates to the SysV script. Single source of truth for the shim
-	@# is config/helixscreen-k2-procd-shim.sh — also used by
-	@# install_procd_shim_k2() in scripts/lib/installer/service.sh. One ssh
-	@# (set -e) so any failure aborts the deploy; rc.d symlinks are verified
-	@# post-enable because `enable` exits 0 even when the symlinks are wrong.
-	@echo "$(DIM)Installing init script + procd shim...$(RESET)"
-	@COPYFILE_DISABLE=1 tar -cf - -C config helixscreen.init helixscreen-k2-procd-shim.sh \
+	@# it delegates to the SysV script. Single sources of truth are
+	@# config/helixscreen-k2-procd-shim.sh and config/k2-webserver.init —
+	@# also used by install_procd_shim_k2() and install_k2_webserver_backend()
+	@# in scripts/lib/installer/service.sh. One ssh (set -e) so any failure
+	@# aborts the deploy; rc.d symlinks are verified post-enable because
+	@# `enable` exits 0 even when the symlinks are wrong.
+	@echo "$(DIM)Installing init script + procd shim + web-server carve-out...$(RESET)"
+	@COPYFILE_DISABLE=1 tar -cf - -C config helixscreen.init helixscreen-k2-procd-shim.sh k2-webserver.init \
 		| ssh $(K2_SSH_TARGET) 'set -e; \
 			cd /tmp && tar -xof - && \
 			cp helixscreen.init /etc/init.d/S99helixscreen && \
@@ -2610,8 +2649,18 @@ deploy-k2:
 				echo "ERROR: rc.d symlinks not pointing at shim (S99=$$s99 K01=$$k01)" >&2; \
 				exit 1; \
 			fi; \
-			rm -f /tmp/helixscreen.init /tmp/helixscreen-k2-procd-shim.sh; \
-			echo "Init script + procd shim installed (boot symlinks verified)"'
+			cp k2-webserver.init /etc/init.d/helix-k2-webserver && \
+			chmod +x /etc/init.d/helix-k2-webserver && \
+			rm -f /etc/rc.d/S99helix-k2-webserver /etc/rc.d/K01helix-k2-webserver && \
+			/etc/init.d/helix-k2-webserver enable && \
+			ws99=$$(readlink /etc/rc.d/S99helix-k2-webserver 2>/dev/null || true); \
+			if [ "$$ws99" != "../init.d/helix-k2-webserver" ]; then \
+				echo "ERROR: web-server carve-out rc.d symlink wrong (S99=$$ws99)" >&2; \
+				exit 1; \
+			fi; \
+			/etc/init.d/helix-k2-webserver start || true; \
+			rm -f /tmp/helixscreen.init /tmp/helixscreen-k2-procd-shim.sh /tmp/k2-webserver.init; \
+			echo "Init script + procd shim + web-server carve-out installed (boot symlinks verified)"'
 	@echo "$(GREEN)✓ Deployed to $(K2_HOST):$(K2_DEPLOY_DIR)$(RESET)"
 	$(call sync-device-features,$(K2_SSH_TARGET),$(K2_DEPLOY_DIR),build/k2/bin)
 	@echo "$(CYAN)Starting helix-screen on $(K2_HOST)...$(RESET)"
@@ -2806,6 +2855,7 @@ release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash build/pi-fbdev
 	@if [ -f build/pi/bin/helix-watchdog ]; then cp build/pi/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
 	@if [ -f build/pi/lib/libhelix-bluetooth.so ]; then cp build/pi/lib/libhelix-bluetooth.so $(RELEASE_DIR)/helixscreen/bin/; fi
 	@if [ -f build/pi-fbdev/bin/helix-screen ]; then cp build/pi-fbdev/bin/helix-screen $(RELEASE_DIR)/helixscreen/bin/helix-screen-fbdev; fi
+	@if [ -f build/pi/bin/helix-screen-egl ]; then cp build/pi/bin/helix-screen-egl $(RELEASE_DIR)/helixscreen/bin/; fi
 	@cp scripts/helix-launcher.sh $(RELEASE_DIR)/helixscreen/bin/
 	$(call release-copy-xml-config,$(RELEASE_DIR)/helixscreen)
 	@# Remove any personal config — release ships template only (installer copies it on first run)

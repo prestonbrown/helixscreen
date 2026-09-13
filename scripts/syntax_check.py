@@ -21,16 +21,18 @@ cross build in CI is what gates it.
 import json
 import os
 import pathlib
-import shlex
 import subprocess
 import sys
 import time
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from merge_compile_commands import entry_argv  # noqa: E402
 
 DB_NAME = "compile_commands.json"
 
 
 def flags_for(entry: dict) -> list[str]:
-    argv = entry.get("arguments") or shlex.split(entry["command"])
+    argv = entry_argv(entry)
     out: list[str] = []
     skip = False
     for arg in argv:
@@ -46,6 +48,37 @@ def flags_for(entry: dict) -> list[str]:
     return out
 
 
+def leading_guard(path: str) -> str | None:
+    """The macro a whole file hangs on, or None.
+
+    A file whose body sits inside `#ifdef HELIX_DISPLAY_DRM` preprocesses to
+    nothing when that macro is off, and an empty translation unit compiles
+    clean no matter what the file says. Finding the guard is what lets the
+    caller compile the code instead of the void.
+    """
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().split("\n")
+    except OSError:
+        return None
+    guard = None
+    for line in lines[:30]:
+        parts = line.split()
+        if len(parts) >= 2 and parts[0] in ("#ifdef", "#if") and parts[1].startswith(
+            ("HELIX_", "ENABLE_")
+        ):
+            guard = parts[1]
+            break
+    if guard is None:
+        return None
+    last_endif = max(
+        (i for i, ln in enumerate(lines) if ln.startswith("#endif")), default=None
+    )
+    if last_endif is None or len(lines) - last_endif > 4:
+        return None
+    return guard
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print(__doc__)
@@ -59,7 +92,7 @@ def main() -> int:
     )
     db_path = root / DB_NAME
     if not db_path.exists():
-        print(f"{DB_NAME} not found: run 'make compile-db' (or a build) first", file=sys.stderr)
+        print(f"{DB_NAME} not found: run 'make compile_commands' (or a build) first", file=sys.stderr)
         return 2
 
     db = json.loads(db_path.read_text())
@@ -88,14 +121,43 @@ def main() -> int:
                 continue
             borrowed = f" (flags borrowed from {os.path.relpath(entry['file'], root)})"
 
-        cmd = flags_for(entry) + ["-fsyntax-only", rel]
+        flags = flags_for(entry)
+        # A file wholly inside a guard the native build never defines would
+        # otherwise compile as an empty translation unit and pass regardless of
+        # its contents. Turn the guard on so the code is what gets checked.
+        guard = leading_guard(os.path.join(root, rel))
+        forced = ""
+        if guard and not any(f == f"-D{guard}" or f.startswith(f"-D{guard}=") for f in flags):
+            flags = flags + [f"-D{guard}"]
+            # Guarded code often includes headers the native build has no
+            # reason to put on the search path. mk/cross.mk adds the same
+            # directory for the device builds that do compile these files.
+            for extra in ("/usr/include/libdrm",):
+                if os.path.isdir(extra):
+                    flags = flags + ["-I" + extra]
+            forced = f" (forced -D{guard})"
+
+        cmd = flags + ["-fsyntax-only", rel]
         started = time.monotonic()
         result = subprocess.run(
             cmd, cwd=entry.get("directory", root), capture_output=True, text=True, check=False
         )
         elapsed = time.monotonic() - started
+
+        # A guard that is off natively often gates headers this host has no
+        # reason to carry. That is "not checked here", which is worth saying;
+        # it is not a pass and it is not a defect in the file.
+        missing_header = result.returncode != 0 and (
+            "No such file or directory" in result.stderr or "file not found" in result.stderr
+        )
+        if forced and missing_header:
+            print(f"{rel}: UNCHECKED ({elapsed:.1f}s) - {guard} is off natively "
+                  f"and its headers are unavailable here")
+            skipped += 1
+            continue
+
         status = "ok" if result.returncode == 0 else "FAILED"
-        print(f"{rel}: {status} ({elapsed:.1f}s){borrowed}")
+        print(f"{rel}: {status} ({elapsed:.1f}s){borrowed}{forced}")
         checked += 1
         if result.returncode != 0:
             sys.stderr.write(result.stderr)

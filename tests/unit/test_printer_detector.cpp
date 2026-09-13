@@ -34,6 +34,10 @@ using namespace helix;
 
 namespace {
 
+// Heuristic-class scores stay under this test-chosen bar, below the
+// production autosave bar AUTOSAVE_MIN_CONFIDENCE = 85 (#1284).
+constexpr int kHeuristicClassCeiling = 70;
+
 std::string printers_fixture_path(const std::string& slug) {
     std::string src = __FILE__;
     auto pos = src.rfind("/tests/unit/");
@@ -1576,6 +1580,76 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: Combined heuristics -
     REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
 }
 
+// A delta rig's class evidence - delta kinematics, delta_calibrate, the
+// stepper_a/b/c naming - is carried by every delta vendor in the database, so
+// it pins the family and says nothing about the vendor. A hostname pattern one
+// entry carries and its look-alikes lack is corroborating evidence here and
+// earns nothing toward separation between candidates both published at 100.
+// The vendor decision needs hardware: the GD32F303 MCU, opted in as a
+// separator (prestonbrown/helixscreen#1607).
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: bare delta vendors stay ambiguous without MCU corroboration",
+                 "[printer][detector][1607]") {
+    auto delta_rig = [](const char* hostname, const char* mcu = nullptr) {
+        PrinterHardwareData hardware{.heaters = {"extruder", "heater_bed"},
+                                     .hostname = hostname,
+                                     .printer_objects = {"delta_calibrate"},
+                                     .steppers = {"stepper_a", "stepper_b", "stepper_c"},
+                                     .kinematics = "delta"};
+        if (mcu) {
+            hardware.mcu = mcu;
+            hardware.mcu_list = {mcu};
+        }
+        return hardware;
+    };
+
+    const std::vector<std::string> delta_family = PrinterDetector::get_list_names("delta");
+    const auto in_delta_family = [&delta_family](const std::string& name) {
+        return std::find(delta_family.begin(), delta_family.end(), name) != delta_family.end();
+    };
+
+    SECTION("a bare delta reports the family, not a vendor") {
+        auto result = PrinterDetector::detect(delta_rig("test"));
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.detected());
+        REQUIRE(in_delta_family(result.type_name));
+        REQUIRE(in_delta_family(result.runner_up_type_name));
+        REQUIRE(result.runner_up_type_name != result.type_name);
+        REQUIRE(result.margin() == 0);
+        REQUIRE(result.tied_count > 1);
+        REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+    }
+
+    SECTION("an flsun hostname without the MCU stays ambiguous") {
+        for (const char* host : {"flsun", "flsun-v400"}) {
+            auto result = PrinterDetector::detect(delta_rig(host));
+            INFO("hostname '" << host << "' -> " << result.type_name << " @ " << result.confidence
+                              << ", runner-up " << result.runner_up_type_name << " @ "
+                              << result.runner_up_confidence << ", margin " << result.margin()
+                              << ", " << result.tied_count << " tied");
+            REQUIRE(result.detected());
+            REQUIRE(in_delta_family(result.type_name));
+            // A hostname string the user can set to anything is not hardware:
+            // without the MCU the vendor stays a guess nothing may persist.
+            REQUIRE(result.margin() == 0);
+            REQUIRE(result.tied_count > 1);
+            REQUIRE(result.ambiguous());
+            REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+        }
+    }
+
+    SECTION("the MCU corroborated capture keeps the FLSUN V400 vendor verdict") {
+        auto result = PrinterDetector::detect(delta_rig("flsun-v400", "GD32F303"));
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.detected());
+        REQUIRE(result.type_name == "FLSUN V400");
+        REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+        REQUIRE(PrinterDetector::meets_autosave_threshold(result));
+    }
+}
+
 TEST_CASE_METHOD(PrinterDetectorFixture,
                  "PrinterDetector: board_match heuristic - Fysetc board identifies Doron Velta",
                  "[printer][board_match]") {
@@ -2394,7 +2468,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
             result.runner_up_confidence);
     // Nothing in the product acts on a score this low - it neither warns nor saves.
-    REQUIRE(result.confidence < 70);
+    REQUIRE(result.confidence < kHeuristicClassCeiling);
     REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
     // The SV06 has not been ruled out, it simply has no more claim than its
     // look-alikes: it ties for the lead rather than winning.
@@ -2420,7 +2494,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 
     CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
             result.runner_up_confidence);
-    REQUIRE(result.confidence < 70);
+    REQUIRE(result.confidence < kHeuristicClassCeiling);
     REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
     REQUIRE(result.runner_up_confidence == result.confidence);
 }
@@ -3486,14 +3560,14 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
             result.runner_up_confidence, result.margin(), result.tied_count);
 
     REQUIRE(result.detected());
-    // The Max 4 capture carries the shared QIDI stock firmware, so the family
-    // leads and the models tie. The pinned regression is that its shared
-    // objects do not drag the machine to the Artillery M1 Pro.
-    REQUIRE(result.type_name.rfind("Qidi", 0) == 0);
+    // The capture carries Max 4-only hardware alongside the shared QIDI stock
+    // firmware - multi_color_controller and the second auxiliary fan - so the
+    // Max 4 leads its family on identifying evidence. The pinned regression is
+    // that the shared objects do not drag the machine to the Artillery M1 Pro.
+    REQUIRE(result.type_name == "Qidi Max 4");
     REQUIRE(result.type_name != "Artillery M1 Pro");
-    REQUIRE(result.margin() == 0);
-    REQUIRE(result.tied_count > 1);
-    REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+    REQUIRE(PrinterDetector::meets_autosave_threshold(result));
 }
 
 // ============================================================================
@@ -3858,12 +3932,13 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
             result.runner_up_confidence, result.margin(), result.tied_count);
 
     REQUIRE(result.detected());
-    // The saturating bonus flattens the model-level evidence, so the Kobra 2
-    // and the plain Kobra tie and only the vendor is named.
-    REQUIRE(result.type_name.rfind("Anycubic Kobra", 0) == 0);
-    REQUIRE(result.runner_up_type_name.rfind("Anycubic Kobra", 0) == 0);
-    REQUIRE(result.margin() == 0);
-    REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+    // The HC32F460 MCU is hardware only the Kobra 2 family carries, so the
+    // full fingerprint names the model: like the FLSUN V400's GD32F303, the
+    // machine's own board separates it from the plain Kobra, whose entry
+    // claims no MCU and falls behind on identifying evidence.
+    REQUIRE(result.type_name == "Anycubic Kobra 2");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+    REQUIRE(PrinterDetector::meets_autosave_threshold(result));
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: Combined - FLSUN V400 full fingerprint",
@@ -5711,7 +5786,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 
     // May still be suggested (corroborating signal), but never >=70 where it
     // would override the saved type or arm the mismatch warning.
-    REQUIRE(result.confidence < 70);
+    REQUIRE(result.confidence < kHeuristicClassCeiling);
     REQUIRE(PrinterDetector::classify_type_mismatch("Voron 2.4", result, "") !=
             PrinterDetector::MismatchDecision::Warn);
 }
@@ -5923,9 +5998,13 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 // The creality_k2_plus and creality_k2_pro database entries are identical apart
 // from their k2plus/k2pro hostname heuristic and their build_volume_range
 // window. A host named plainly "creality-k2" matches neither hostname pattern,
-// so the build volume is the ONLY thing that can tell the two apart. Before the
-// discovery-side parse the field was empty on every in-app run, because its one
-// writer (the safety-limits fetch) is kicked off after detection has finished.
+// so the build volume is the ONLY thing that can tell the two apart. Both
+// windows opt in as separators: a bed inside one entry's window gives that
+// entry a real margin over the sibling, enough to auto-save; a bed in neither
+// window leaves the family tie, which stays a guess nothing may persist.
+// Before the discovery-side parse the field was empty on every in-app run,
+// because its one writer (the safety-limits fetch) is kicked off after
+// detection has finished.
 TEST_CASE_METHOD(PrinterDetectorFixture,
                  "PrinterDetector: build volume from configfile.settings decides K2 Pro vs K2 Plus",
                  "[printer][build_volume][detector]") {
@@ -5942,24 +6021,32 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
         return disc;
     };
 
-    SECTION("Without the settings parse the volume is empty and K2 Pro is unreachable") {
+    auto parse_bed = [](helix::PrinterDiscovery& disc, double bed) {
+        nlohmann::json settings = {{"stepper_x", {{"position_min", 0.0}, {"position_max", bed}}},
+                                   {"stepper_y", {{"position_min", 0.0}, {"position_max", bed}}},
+                                   {"stepper_z", {{"position_min", 0.0}, {"position_max", bed}}}};
+        REQUIRE(disc.parse_build_volume(settings));
+    };
+
+    SECTION("Without the settings parse the volume is empty and the family tie stands") {
         helix::PrinterDiscovery disc = make_discovery();
         REQUIRE(disc.build_volume().x_max == 0.0f);
 
         auto result = PrinterDetector::auto_detect(disc);
         CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
                 result.runner_up_confidence, result.margin(), result.tied_count);
-        // The two entries tie; whichever wins, it cannot be the K2 Pro, because
-        // nothing in the snapshot distinguishes a 300mm bed from a 350mm one.
-        REQUIRE(result.type_name != "Creality K2 Pro");
+        // Nothing in the snapshot distinguishes a 300mm bed from a 350mm one, so
+        // the family is pinned and the model is not: the siblings tie.
+        REQUIRE(result.type_name.rfind("Creality K2", 0) == 0);
+        REQUIRE(result.runner_up_type_name.rfind("Creality K2", 0) == 0);
+        REQUIRE(result.runner_up_confidence == result.confidence);
+        REQUIRE(result.margin() == 0);
+        REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
     }
 
-    SECTION("A 300mm bed in configfile.settings tips the tie to the K2 Pro") {
+    SECTION("A 300mm bed in configfile.settings separates the K2 Pro") {
         helix::PrinterDiscovery disc = make_discovery();
-        nlohmann::json settings = {{"stepper_x", {{"position_min", 0.0}, {"position_max", 300.0}}},
-                                   {"stepper_y", {{"position_min", 0.0}, {"position_max", 300.0}}},
-                                   {"stepper_z", {{"position_min", 0.0}, {"position_max", 300.0}}}};
-        REQUIRE(disc.parse_build_volume(settings));
+        parse_bed(disc, 300.0);
         // CHECK, not REQUIRE: the point of the section is the verdict below, and
         // a REQUIRE here would abort before the verdict could be observed.
         CHECK(disc.build_volume().x_max == 300.0f);
@@ -5968,22 +6055,17 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
         CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
                 result.runner_up_confidence, result.margin(), result.tied_count);
         REQUIRE(result.detected());
-        // The shared K2 platform ties the score; the bed size tips the tiebreak
-        // from the default K2 Plus to the K2 Pro whose window contains it.
+        // The bed is evidence, not a tiebreak: the entry whose window contains it
+        // leads its sibling by a margin, and the detection may persist.
         REQUIRE(result.type_name == "Creality K2 Pro");
         REQUIRE(result.runner_up_type_name == "Creality K2 Plus");
-        REQUIRE(result.margin() == 0);
-        // A tie between two different machines is a guess, not an
-        // identification: nothing may be persisted off the back of it.
-        REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+        REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+        REQUIRE(PrinterDetector::meets_autosave_threshold(result));
     }
 
-    SECTION("A 350mm bed in configfile.settings keeps the tie on the K2 Plus") {
+    SECTION("A 350mm bed in configfile.settings separates the K2 Plus") {
         helix::PrinterDiscovery disc = make_discovery();
-        nlohmann::json settings = {{"stepper_x", {{"position_min", 0.0}, {"position_max", 350.0}}},
-                                   {"stepper_y", {{"position_min", 0.0}, {"position_max", 350.0}}},
-                                   {"stepper_z", {{"position_min", 0.0}, {"position_max", 350.0}}}};
-        REQUIRE(disc.parse_build_volume(settings));
+        parse_bed(disc, 350.0);
 
         auto result = PrinterDetector::auto_detect(disc);
         CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
@@ -5991,7 +6073,83 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
         REQUIRE(result.detected());
         REQUIRE(result.type_name == "Creality K2 Plus");
         REQUIRE(result.runner_up_type_name == "Creality K2 Pro");
+        REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+        REQUIRE(PrinterDetector::meets_autosave_threshold(result));
+    }
+
+    SECTION("A 320mm bed is in neither window and the family tie stands") {
+        // Between the Pro window (290-310mm) and the Plus window (340-360mm) a
+        // reported volume names neither sibling: the family is pinned, the
+        // model is not, and the tie must stay unpersisted.
+        helix::PrinterDiscovery disc = make_discovery();
+        parse_bed(disc, 320.0);
+
+        auto result = PrinterDetector::auto_detect(disc);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.detected());
+        REQUIRE(result.type_name.rfind("Creality K2", 0) == 0);
+        REQUIRE(result.runner_up_type_name.rfind("Creality K2", 0) == 0);
+        REQUIRE(result.runner_up_confidence == result.confidence);
         REQUIRE(result.margin() == 0);
+        REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+    }
+
+    SECTION("Conflicting hostname and bed keep the winner and force no autosave") {
+        // The hostname names the Plus while the bed names the Pro: each model
+        // holds one separator-grade fact, and they point at different machines.
+        // The published confidence still decides the winner (the k2plus
+        // hostname outbases the Pro's plain k2), while the separator lands
+        // only in the Pro's uncapped score where margin() reads it — so the
+        // result reports the conflict instead of flipping the winner or
+        // persisting a guess over either reading.
+        helix::PrinterDiscovery disc = make_discovery();
+        disc.set_hostname("creality-k2plus");
+        parse_bed(disc, 300.0);
+
+        auto result = PrinterDetector::auto_detect(disc);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.detected());
+        REQUIRE(result.type_name == "Creality K2 Plus");
+        REQUIRE(result.confidence == 100);
+        REQUIRE(result.runner_up_type_name == "Creality K2 Pro");
+        // Winner uncapped: 90 (k2plus) + 12 bonus, no separator of its own.
+        // Runner-up: 85 (plain k2) + 12 + the 55-point separator the 300mm
+        // bed matched = 152.
+        REQUIRE(result.uncapped_confidence == 102);
+        REQUIRE(result.runner_up_uncapped_confidence == 152);
+        REQUIRE(result.margin() == -50);
+        REQUIRE(result.ambiguous());
+        REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+    }
+
+    SECTION("A bed below the identification bar separates nothing") {
+        // The separator fires only once the non-volume evidence alone clears
+        // the autosave bar. On a host that names no family and reports only one
+        // K2 platform object, the entries stay below it (motor_control bases at
+        // 75), and the bed must not lift them: otherwise a sparse corexy rig
+        // sharing the window collects a sibling's name it did not earn.
+        helix::PrinterDiscovery disc;
+        disc.parse_objects(
+            nlohmann::json::array({"extruder", "heater_bed", "bed_mesh", "motor_control"}));
+        disc.set_printer_objects({"extruder", "heater_bed", "bed_mesh", "motor_control"});
+        disc.set_hostname("mainsailos");
+        disc.parse_config_keys(nlohmann::json{{"printer", {{"kinematics", "corexy"}}}});
+        parse_bed(disc, 300.0);
+
+        auto result = PrinterDetector::auto_detect(disc);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.detected());
+        REQUIRE(result.type_name.rfind("Creality K2", 0) == 0);
+        REQUIRE(result.runner_up_type_name.rfind("Creality K2", 0) == 0);
+        // Below the identification bar the bed separates nothing: it is
+        // corroborating evidence, so it adds no bonus weight, and its
+        // separator opt-in does not fire. The detection stays under the
+        // autosave bar a real match would clear.
+        REQUIRE(result.margin() == 0);
+        REQUIRE(result.confidence < PrinterDetector::AUTOSAVE_MIN_CONFIDENCE);
         REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
     }
 }
@@ -6033,7 +6191,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: a build volume alone 
                                          .build_volume = BuildVolume{0, bed, 0, bed, 0}};
             auto result = PrinterDetector::detect(hardware);
             INFO("bed " << bed << "mm -> " << result.type_name << " @" << result.confidence);
-            REQUIRE(result.confidence < 70);
+            REQUIRE(result.confidence < kHeuristicClassCeiling);
         }
     }
 
@@ -6120,7 +6278,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: class evidence alone 
         INFO("got " << result.type_name << " @" << result.confidence);
         // CoreXY (40) may still lead somewhere, but the chamber sensor must not
         // lift anyone to a confident answer.
-        REQUIRE(result.confidence < 70);
+        REQUIRE(result.confidence < kHeuristicClassCeiling);
     }
 
     SECTION("an MCU part number on a nameless rig names no printer") {
@@ -6133,7 +6291,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: class evidence alone 
                                      .build_volume = BuildVolume{0, 235, 0, 235, 0}};
         auto result = PrinterDetector::detect(hardware);
         INFO("got " << result.type_name << " @" << result.confidence);
-        REQUIRE(result.confidence < 70);
+        REQUIRE(result.confidence < kHeuristicClassCeiling);
     }
 }
 

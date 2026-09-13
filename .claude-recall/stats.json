@@ -5,9 +5,9 @@
     "last": "2026-05-19"
   },
   "L009": {
-    "uses": 19,
-    "velocity": 0,
-    "last": "2026-05-19"
+    "uses": 20,
+    "velocity": 1,
+    "last": "2026-09-11"
   },
   "L011": {
     "uses": 1,
@@ -423,5 +423,25 @@
     "uses": 1,
     "velocity": 1,
     "last": "2026-09-08"
+  },
+  "L128": {
+    "uses": 0,
+    "velocity": 0,
+    "last": ""
+  },
+  "L129": {
+    "uses": 0,
+    "velocity": 0,
+    "last": ""
+  },
+  "L130": {
+    "uses": 0,
+    "velocity": 0,
+    "last": ""
+  },
+  "L131": {
+    "uses": 0,
+    "velocity": 0,
+    "last": "2026-09-11"
   }
 }

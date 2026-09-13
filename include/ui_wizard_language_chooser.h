@@ -203,11 +203,16 @@ namespace helix {
  * @brief Display-size face for the cycling Welcome header, per breakpoint
  *
  * The header is the first thing a user ever sees and sits a size class above
- * a section heading (prestonbrown/helixscreen#1599). The 48/64 faces are
- * xxlarge-tier (mk/fonts.mk) and the XML name map only registers them on
- * xxlarge displays, so XML cannot name them at lower breakpoints; this is
- * the computed-font exception, and builds without those faces step down to
- * the largest face they link.
+ * a section heading (prestonbrown/helixscreen#1599). The 48/64 faces are the
+ * hi-DPI scale rungs (xxlarge tier per mk/fonts.mk; HELIX_HAS_HIDPI_FONTS
+ * from the top-level Makefile);
+ * no XML font constant names them, so this is the computed-font exception.
+ * Below those rungs the ladder's top steps down the linked tiers:
+ * noto_sans_32 where the build reaches tier 5 (the largest text face the xlarge
+ * tier links — k2; prestonbrown/helixscreen#1609), noto_sans_28 at tier 4
+ * (equal to font_heading_large — FONTS_LARGE links nothing larger), and
+ * noto_sans_26 at tier 3. A tier-6 build with the hi-DPI flag off (ESP32)
+ * takes the tier-5 rung as well.
  *
  * @param bp Current UI breakpoint
  * @return Font for the welcome header at that tier

@@ -13,6 +13,7 @@
 #include "drm_rotation_strategy.h"
 #include "helix_display_telemetry.h"
 #include "input_device_scanner.h"
+#include "touch_calibration.h"
 #include "touch_calibration_wrapper.h"
 
 #include <spdlog/spdlog.h>
@@ -22,12 +23,20 @@
 // lv_conf_internal.h derives LV_LINUX_DRM_USE_EGL from LV_USE_OPENGLES and
 // redefines it with no #ifndef guard, so a value set in lv_conf.h does not
 // survive. Ask the preprocessor what it resolved to, never the header.
-// This gate covers only the request-set direction: HELIX_ENABLE_OPENGLES set
-// without LV_LINUX_DRM_USE_EGL resolving to 1 is an error. LV_USE_OPENGLES set
-// to 1 in lv_conf.h without HELIX_ENABLE_OPENGLES produces neither warning nor
-// error.
+//
+// Both directions are errors, and they fail differently. A request with no
+// result gives a binary that believes it is GPU-accelerated and presents
+// through dumb buffers. A result with no request is worse: mk/egl-link.mk
+// builds two binaries from one set of objects and tells them apart by this
+// macro alone, so LV_USE_OPENGLES turned on in lv_conf.h would put the EGL
+// driver in BOTH of them, leaving nothing to step down to when the probe
+// declines.
 #if defined(HELIX_ENABLE_OPENGLES) && !LV_LINUX_DRM_USE_EGL
 #error "HELIX_ENABLE_OPENGLES set but LVGL resolved LV_LINUX_DRM_USE_EGL to 0"
+#endif
+#if !defined(HELIX_ENABLE_OPENGLES) && LV_LINUX_DRM_USE_EGL
+#error "LVGL resolved LV_LINUX_DRM_USE_EGL to 1 without HELIX_ENABLE_OPENGLES: \
+set ENABLE_OPENGLES in the build, do not edit LV_USE_OPENGLES in lv_conf.h"
 #endif
 
 // System includes for device access checks and DRM capability detection
@@ -433,6 +442,19 @@ lv_display_t* DisplayBackendDRM::create_display(int width, int height) {
         display_ = nullptr;
         return nullptr;
     }
+
+#if LV_LINUX_DRM_USE_EGL
+    // LVGL's 32bpp native format is XRGB8888 and it leaves the X byte at 0x00.
+    // The EGL path uploads that buffer as GL_RGBA, so X arrives as alpha, and
+    // the fragment shader multiplies RGB by it -- every pixel LVGL did not make
+    // fully opaque loses its colour. ARGB8888 makes LVGL maintain the byte as a
+    // real alpha instead. Same defect the AD5M hit through its LCD controller
+    // (see DisplayBackendFbdev::init), reached here through a different consumer.
+    if (lv_display_get_color_format(display_) == LV_COLOR_FORMAT_XRGB8888) {
+        lv_display_set_color_format(display_, LV_COLOR_FORMAT_ARGB8888);
+        spdlog::info("[DRM Backend] Color format XRGB8888 -> ARGB8888 for the EGL path");
+    }
+#endif
 
     // Belt and suspenders: after LVGL sets up, check the actual resolution
     // it landed on. If it differs from what the user asked for and we
@@ -999,6 +1021,16 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
         spdlog::error("[DRM Backend] Failed to create any input device");
     }
 
+    // LVGL rotates pointer input from the display's rotation, which the plane
+    // path clears, so the transform is chained onto the driver's own read
+    // instead. It is inert until a plane actually owns an angle.
+    if (pointer_ != nullptr) {
+        original_read_cb_ = lv_indev_get_read_cb(pointer_);
+        lv_indev_set_read_cb(pointer_, pointer_rotation_read_cb);
+        spdlog::info("[DRM Backend] Pointer rotation hook installed (plane at {}°)",
+                     plane_rotation_degrees_);
+    }
+
     return pointer_;
 }
 
@@ -1039,11 +1071,12 @@ lv_indev_t* DisplayBackendDRM::create_input_keyboard() {
     return nullptr;
 }
 
-void DisplayBackendDRM::set_display_rotation(lv_display_rotation_t rot, int phys_w, int phys_h) {
+void DisplayBackendDRM::set_display_rotation(lv_display_t* disp, lv_display_rotation_t rot,
+                                             int phys_w, int phys_h) {
     (void)phys_w;
     (void)phys_h;
 
-    if (display_ == nullptr) {
+    if (disp == nullptr) {
         spdlog::warn("[DRM Backend] Cannot set rotation — display not created");
         return;
     }
@@ -1072,32 +1105,70 @@ void DisplayBackendDRM::set_display_rotation(lv_display_rotation_t rot, int phys
 #if LV_LINUX_DRM_USE_EGL
     uint64_t supported_mask = 0;
 #else
-    uint64_t supported_mask = lv_linux_drm_get_plane_rotation_mask(display_);
+    uint64_t supported_mask = lv_linux_drm_get_plane_rotation_mask(disp);
 #endif
     auto strategy = choose_drm_rotation_strategy(drm_rot, supported_mask);
 
     if (drm_rotation_needs_full_render(strategy)) {
-        lv_display_set_render_mode(display_, LV_DISPLAY_RENDER_MODE_FULL);
+        lv_display_set_render_mode(disp, LV_DISPLAY_RENDER_MODE_FULL);
     }
 
     if (lvgl_rotation_action_for(strategy) == LvglRotationAction::CLEAR_TO_ZERO) {
-        lv_display_set_rotation(display_, LV_DISPLAY_ROTATION_0);
-        lv_display_set_matrix_rotation(display_, false);
+        lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_0);
+        lv_display_set_matrix_rotation(disp, false);
     } else {
-        lv_display_set_rotation(display_, rot);
+        lv_display_set_rotation(disp, rot);
     }
 
+    // Only the plane path leaves a non-zero angle here: on every other path
+    // LVGL carries the rotation and transforms pointer input itself.
+    plane_rotation_degrees_ = 0;
     if (strategy == DrmRotationStrategy::HARDWARE) {
 #if !LV_LINUX_DRM_USE_EGL
-        lv_linux_drm_set_rotation(display_, drm_rot);
-        spdlog::info("[DRM Backend] Plane rotation {}° (LVGL left unrotated)",
-                     static_cast<int>(rot) * 90);
+        lv_linux_drm_set_rotation(disp, drm_rot);
+        plane_rotation_degrees_ = static_cast<int>(rot) * 90;
+        panel_w_ = phys_w;
+        panel_h_ = phys_h;
+        spdlog::info("[DRM Backend] Plane rotation {}° (LVGL left unrotated, touch follows)",
+                     plane_rotation_degrees_);
 #endif
     } else if (strategy == DrmRotationStrategy::SOFTWARE) {
         spdlog::info("[DRM Backend] Software rotation {}° (plane supports 0x{:X})",
                      static_cast<int>(rot) * 90, supported_mask);
     } else {
         spdlog::debug("[DRM Backend] No rotation needed");
+    }
+}
+
+int DisplayBackendDRM::applied_rotation_degrees(lv_display_t* disp) const {
+    if (plane_rotation_degrees_ != 0) {
+        return plane_rotation_degrees_;
+    }
+    return DisplayBackend::applied_rotation_degrees(disp);
+}
+
+void DisplayBackendDRM::pointer_rotation_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
+    DisplayBackend* active = DisplayBackend::active();
+    if (active == nullptr || active->type() != DisplayBackendType::DRM) {
+        return;
+    }
+    auto* self = static_cast<DisplayBackendDRM*>(active);
+    if (self->original_read_cb_ != nullptr) {
+        self->original_read_cb_(indev, data);
+    }
+    if (self->plane_rotation_degrees_ == 0 || self->panel_w_ <= 0 || self->panel_h_ <= 0) {
+        return;
+    }
+    const PointerXY raw{data->point.x, data->point.y};
+    const PointerXY rotated = rotate_pointer_for_plane(raw, self->plane_rotation_degrees_,
+                                                       self->panel_w_, self->panel_h_);
+    data->point.x = rotated.x;
+    data->point.y = rotated.y;
+
+    if (helix::is_touch_debug_enabled() && data->state == LV_INDEV_STATE_PRESSED) {
+        spdlog::warn("[TouchDebug] plane_rotate {}°: raw=({},{}) -> screen=({},{}) panel={}x{}",
+                     self->plane_rotation_degrees_, raw.x, raw.y, rotated.x, rotated.y,
+                     self->panel_w_, self->panel_h_);
     }
 }
 
@@ -1130,10 +1201,13 @@ bool DisplayBackendDRM::supports_hardware_rotation(lv_display_rotation_t rot) co
     }
 
 #if LV_LINUX_DRM_USE_EGL
-    // EGL rotation not yet supported: lv_display_set_rotation() triggers
-    // layer_reshape_draw_buf which conflicts with the EGL-sized draw buffer.
-    // Needs a GL-only rotation path that bypasses LVGL's buffer reshape.
-    // For now, fall back to fbdev (works) or panel_orientation (kernel).
+    // The EGL driver compiles out lv_linux_drm_set_rotation(), so no plane can
+    // own rotation on this build whatever the hardware advertises. Saying so
+    // is what sends DisplayManager into try_drm_to_fbdev_fallback(), which
+    // rebuilds the display and the input devices on fbdev in-process: the panel
+    // does rotate, it just stops being a DRM display while it does. A false
+    // here is the mechanism that makes rotation work, not a gap in it
+    // (prestonbrown/helixscreen#1581).
     return false;
 #else
     uint64_t supported_mask =

@@ -77,6 +77,21 @@ scripts/setup-worktree.sh feature/my-branch  # Symlinks shared deps, builds fast
 #   gets NONE of this: no lib/ symlinks, no submodules, no build. Prefer this
 #   script; if you are already in one, `git submodule update --init --recursive`
 #   and a full build before trusting anything it produces.
+
+scripts/teardown-worktree.sh my-branch       # Remove a finished worktree + branch
+scripts/teardown-worktree.sh my-branch -n    # ...or just print the plan
+#   `git worktree remove` REFUSES here ("working trees containing submodules
+#   cannot be moved or removed") because of those private checkouts, so removal
+#   is a guarded rm -rf plus a prune. rm -rf removes a lib/ symlink, never its
+#   target, so the main tree's shared copies survive.
+#   Refuses to discard anything unique: uncommitted changes (--force overrides),
+#   unpushed commits in lib/helix-xml (ours, edited directly), a branch not
+#   contained in --into (default main), or a live build/test/git process with
+#   its cwd inside the tree. Also releases the tree's helix-claim, which would
+#   otherwise read LIVE forever against a directory that no longer exists.
+#   If `git branch -d` refuses on a branch this script has CONFIRMED is merged,
+#   the cause is almost always that -d also checks the branch's UPSTREAM: the
+#   work is on local main but main has not been pushed. Push, or --force-branch.
 ```
 
 **XML changes need no rebuild:** `ui_xml/*.xml` is loaded at runtime. Hot reload is **on by default for native dev builds** (cross-compiled release builds default it off): the running app re-registers components within ~500ms of a save and rebuilds the active panel/overlay/modal in place. `HELIX_HOT_RELOAD=1`/`0` overrides the default either way. Invalid XML (mid-write truncation, syntax errors) is silently skipped on the polling thread; the existing UI stays live and the next poll retries.

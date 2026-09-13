@@ -125,3 +125,35 @@ TEST_CASE("decide_preview_mode - Thumbnail Only still yields to the command line
     REQUIRE(d.source == PreviewModeSource::CommandLine);
     REQUIRE(d.apply);
 }
+
+// --- uses_viewer(): is the G-code pipeline run at all -----------------------
+//
+// Thumbnail Only is the one outcome that skips the whole pipeline — no
+// download, no layer index, no render pass — so this is the flag the print
+// preview gates its fetch on, not `apply`. The two differ for Environment, and
+// a gate wired to `apply` would silently stop fetching under HELIX_GCODE_MODE.
+
+TEST_CASE("uses_viewer - Thumbnail Only is the only outcome that skips the viewer",
+          "[gcode][render_mode]") {
+    CHECK_FALSE(decide_preview_mode(-1, false, RENDER_MODE_THUMBNAIL_ONLY).uses_viewer());
+
+    CHECK(decide_preview_mode(-1, false, /*settings=*/0).uses_viewer());
+    CHECK(decide_preview_mode(-1, false, /*settings=*/1).uses_viewer());
+    CHECK(decide_preview_mode(-1, false, /*settings=*/2).uses_viewer());
+}
+
+TEST_CASE("uses_viewer - an explicit override outranks a saved Thumbnail Only",
+          "[gcode][render_mode]") {
+    // Same precedence the mode ladder applies: asking for a renderer on the
+    // command line, or through HELIX_GCODE_MODE, asks for the viewer.
+    CHECK(decide_preview_mode(/*cmdline=*/2, false, RENDER_MODE_THUMBNAIL_ONLY).uses_viewer());
+    CHECK(decide_preview_mode(-1, /*env_set=*/true, RENDER_MODE_THUMBNAIL_ONLY).uses_viewer());
+}
+
+TEST_CASE("uses_viewer - is not a restatement of apply", "[gcode][render_mode]") {
+    // HELIX_GCODE_MODE needs no re-apply (decide_render_mode() already set the
+    // mode at widget creation), but the viewer is very much in use.
+    auto d = decide_preview_mode(-1, /*env_set=*/true, /*settings=*/1);
+    CHECK_FALSE(d.apply);
+    CHECK(d.uses_viewer());
+}

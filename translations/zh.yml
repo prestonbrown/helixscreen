@@ -121,6 +121,7 @@ translations:
   ALL DEVICES: 所有设备
   AMS: AMS
   'AMS Active: ': 'AMS 已激活: '
+  AMS is busy: AMS 正忙
   API not available: API 不可用
   APPEARANCE: 外观
   AUTO FANS: 自动风扇
@@ -257,6 +258,7 @@ translations:
   Beacon auto-calibrate sent: Beacon自动校准已发送
   Beacon calibrate sent: Beacon校准已发送
   Bed: 热床
+  Bed (°C): 热床 (°C)
   Bed Heater: 热床加热器
   Bed Level: 热床调平
   Bed Leveling: 热床调平
@@ -270,13 +272,12 @@ translations:
   Bed Screw Results: 热床螺丝结果
   Bed Screws: 热床螺丝
   Bed Temp: 热床温度
-  Bed Temp (°C): 热床温度 (°C)
   Bed Temperature: 热床温度
   Bed is Level!: 热床已水平！
   Bed mesh operation timed out: 热床网格操作超时
   Bed mesh...: 热床网格...
   Bed target set to {}°C: 热床目标已设为 {}°C
-  Bed temp must be 0-200°C: 热床温度必须为 0-200°C
+  Bed temp must be 0-%d°C: 热床温度必须为 0-%d°C
   Bed warming timed out: 热床加热超时
   Belt A: 皮带 A
   Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: 皮带 A（前右）偏紧 %.0f Hz。请拉紧前左的皮带 B，或松开皮带 A。
@@ -402,6 +403,7 @@ translations:
   Cam: 摄像
   Camera: 摄像头
   Can't connect — try forgetting and re-pairing the printer: 无法连接 — 请尝试忘记并重新配对打印机
+  Can't move filament while the print is paused: 打印暂停期间无法移动耗材
   Can't read filament RFID tag: 无法读取耗材 RFID 标签
   Cancel: 取消
   Cancel Escalation: 取消升级
@@ -414,10 +416,12 @@ translations:
   'Cannot modify G-code: no temp directory available': '无法修改 G-code: 无可用临时目录'
   'Cannot modify G-code: scan result not available': '无法修改 G-code: 扫描结果不可用'
   'Cannot modify G-code: {}. Printing original file.': '无法修改 G-code: {}。正在打印原始文件。'
+  Cannot perform this action now: 当前无法执行此操作
   'Cannot remap G-code: no temp directory available': 无法重新映射 G-code：没有可用的临时目录
   'Cannot remap: internal error': 无法重新映射：内部错误
   'Cannot reprint: not connected to printer': '无法重新打印: 未连接打印机'
   Cannot restart — no filename: 无法重启 — 没有文件名
+  Cannot run filament operation while printing: 打印期间无法执行耗材操作
   'Cannot start print: internal error': '无法开始打印: 内部错误'
   'Cannot start print: not connected to printer': '无法开始打印: 未连接打印机'
   'Cannot start print: printer is {}': '无法开始打印: 打印机状态为 {}'
@@ -430,6 +434,7 @@ translations:
   Center QR code in frame: 将 QR 码对准画面中央
   'Chamb:': '腔:'
   Chamber: 腔体
+  Chamber (°C): 腔体 (°C)
   Chamber Cooling Fan: 腔体冷却风扇
   Chamber Fan: 腔体风扇
   Chamber Heater: 仓室加热器
@@ -440,6 +445,7 @@ translations:
   Chamber at %d°C: 腔体温度：%d°C
   Chamber heating to %d°C...: 腔体加热至 %d°C...
   Chamber target set to {}°C: 腔体目标温度设置为 {}°C
+  Chamber temp must be 0-%d°C: 腔体温度必须为 0-%d°C
   Change: 更改
   Change Address: 更改地址
   Change Blade: '更换刀片'
@@ -454,6 +460,8 @@ translations:
   Changes are temporary and reset on printer reboot: 更改是临时的，打印机重启后会重置
   Changes can be reversed anytime using the Macro Viewer.: 可随时使用 Macro Viewer 恢复更改。
   Check Again: 重新检查
+  Check Klipper console for details: 详情请查看 Klipper 控制台
+  Check extruder temperature and try again. Manual removal may be required.: 请检查挤出机温度后重试。可能需要手动取出。
   Check filament: 检查耗材
   Check for Updates: 检查更新
   Check slot: 检查槽位
@@ -462,12 +470,14 @@ translations:
   Check slots failed: 检查槽位失败
   Check that only one filament path is active: 请确认只有一条耗材通路处于活动状态
   Check that the cutter mechanism is properly installed: 请检查切刀机构是否正确安装
+  Check that the printer is powered on and connected to the network: 请检查打印机是否已开机并连接到网络
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: 请检查拖链沿线的 PTFE 管是否折弯，以及进入挤出机传感器处的弯曲
   Check the RS-485 cable between printer and CFS: 请检查打印机与 CFS 之间的 RS-485 线缆
   Check the buffer unit on the back of the printer: 请检查打印机背面的缓冲单元
   Check the filament path and try again.: 检查耗材路径并重试。
   ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
   : 请检查从槽位到集线器的通路是否缠绕或阻力过大。若槽位送料顺畅，可能是集线器传感器或送料电机故障
+  Check the provided value and try again: 请检查所提供的值后重试
   Check the spool and the filament path for a jam, then retry: 请检查料盘和耗材通路是否卡住，然后重试
   Check your heater's rating (typically 40-60W for hotends): 检查加热器功率（热端通常为 40-60W）
   Checking: 检查中
@@ -527,6 +537,7 @@ translations:
   Color: 颜色
   Color Mismatch: 颜色不匹配
   Color Sensors: 颜色传感器
+  Command failed: 命令失败
   Communication Test: '通信测试'
   Compact: 紧凑
   Compare: 比较
@@ -701,6 +712,7 @@ translations:
   Debug: 调试
   Default border thickness: 默认边框厚度
   'Default: %d-%d°C nozzle, %d°C bed': '默认: 喷嘴 %d-%d°C,热床 %d°C'
+  'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': ''
   Defaults restored: 已恢复默认设置
   Define macros in your printer.cfg: 在 printer.cfg 中定义宏
   Delete: 删除
@@ -840,6 +852,7 @@ translations:
   Enhanced {} operations in PRINT_START: 增强了 PRINT_START 中的 {} 项操作
   Enhancement Complete!: 增强完成！
   Enhancement Failed: 增强失败
+  Ensure Happy Hare or AFC is installed and configured: 请确保已安装并配置 Happy Hare 或 AFC
   Enter Current PIN: 输入当前 PIN 码
   Enter G-code command...: 输入 G-code 命令...
   Enter New PIN: 输入新 PIN
@@ -916,6 +929,7 @@ translations:
   Extruder heats automatically based on material: 挤出机根据材料自动加热
   Extruder motor calibration failed: 挤出机电机校准失败
   Extruder to Nozzle: '挤出机至喷嘴'
+  Extruder too cold: 挤出机温度过低
   Extruding prime line...: 正在挤出引导线...
   FAILED: 失败
   FILAMENTS: 耗材
@@ -1009,6 +1023,7 @@ translations:
   Failed to toggle %s: 切换 %s 失败
   'Failed to toggle timelapse: {}': '切换延时摄影失败: {}'
   'Failed to turn off heaters: {}': '关闭加热器失败: {}'
+  Failed to unload filament: 卸载耗材失败
   'Failed to unload: {}': '卸载失败: {}'
   ? "Failed to update configuration.\nCheck printer connection."
   : "更新配置失败。\n请检查打印机连接。"
@@ -1026,6 +1041,8 @@ translations:
   FanSelect: 选择风扇
   Fans: 风扇
   Farther: 更远
+  Favorites: '收藏'
+  Feature not available: 功能不可用
   'Features: ': '特性: '
   Feed Assist: '送料辅助'
   Feed assist and debug tools: 送料辅助与调试工具
@@ -1033,6 +1050,7 @@ translations:
   Feed filament: 进料
   Feed filament directly to extruder: 将耗材直接送入挤出机
   Feed filament from current slot: '从当前槽位送入耗材'
+  Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: 用手将耗材送过传感器后按“恢复”，或取消打印以使用“加载/卸载”
   Feeder: 送料器
   Feeders: 送料器
   Feeding filament forward: 正在向前送料
@@ -1069,6 +1087,7 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : 卸载后耗材仍留在喷嘴处。切断或回抽可能未完成。请先清理工具头，再装载其他料盘。
   Filament is still present after the cut — the blade may be dull or misaligned: 切断后仍有耗材残留。刀片可能已钝或未对准
+  Filament jam detected: 检测到耗材堵塞
   Filament jammed at the extruder gear: 耗材卡在挤出机齿轮处
   'Filament load failed: {}': '耗材加载失败: {}'
   Filament never reached the CFS hub sensor: 耗材未到达 CFS 集线器传感器
@@ -1081,6 +1100,7 @@ translations:
   Filament ran out at the toolhead: '工具头处耗材已用尽'
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: '耗材已用尽。自动续料已关闭，CFS 不会自行更换料盘。请装入耗材后恢复打印。'
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: 耗材已用尽。CFS 知道哪些料盘匹配，但这些槽位都是空的。请装载其中一个，然后恢复打印。
+  Filament reload failed: 耗材重新装载失败
   Filament runout: 耗材用尽
   Filament runout and motion detection sensors: 耗材用尽和运动检测传感器
   Filament saved: 耗材已保存
@@ -1102,6 +1122,7 @@ translations:
   'Filter Fan: On': '滤网风扇: 开'
   Fine: 细调
   Finish: 完成
+  Finish or cancel the print before loading, unloading, or changing filament: 在装载、卸载或更换耗材之前，请先完成或取消打印
   Finishing clean...: 即将完成清洁...
   Finishing up...: 即将完成...
   Firmware Restart: 固件重启
@@ -1185,6 +1206,7 @@ translations:
   Heat Soaking...: 正在预热浸泡...
   Heat bed before calibrating for accurate offset with thermal expansion.: 校准前加热热床，以获得考虑热膨胀的精确偏移。
   Heat nozzle: 加热喷嘴
+  Heat the extruder to at least {}°C before loading filament: 装载耗材前请将挤出机加热至至少 {}°C
   Heat to at least %d°C for filament operations: 请加热至至少 %d°C 以进行耗材操作
   Heatbed Temperature: 热床温度
   Heated Bed: 加热床
@@ -1336,9 +1358,12 @@ translations:
   Interface size. Applies after restart.: 界面大小。重启后生效。
   'Internal error: API not available': '内部错误: API 不可用'
   'Internal error: no scan result': '内部错误: 无扫描结果'
+  Invalid number: 无效编号
+  Invalid parameter: 无效参数
   Invalid port number: 无效的端口号
   'Invalid sheet template index: {} (have {})': '标签纸模板索引无效: {} (实际有 {})'
   Invalid status response from printer: 打印机返回的状态响应无效
+  Invalid tool number: 无效工具编号
   Issue description: 问题描述
   It can be un-archived in Spoolman's web UI.: 可以在 Spoolman 的网页界面中取消归档。
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: 它卡在集线器传感器与集线器齿轮之间。请打开 CFS 清理集线器后重试
@@ -1427,9 +1452,12 @@ translations:
   Live view from your webcam: 摄像头实时画面
   Load: 加载
   Load Filament: 加载耗材
+  Load a filament first before trying to unload: 请先装载耗材，再尝试卸载
   Load a new spool in this slot, or turn on auto-refill to switch to a matching one: 请在此槽位装入新料盘，或开启自动续料以切换到匹配的料盘
   Load complete: '装载完成'
+  Load failed: 装载失败
   Load filament: '装载耗材'
+  Load filament first: 请先装载耗材
   Load may still be running — response timed out: 加载可能仍在运行 — 响应超时
   Load or unload filament.: 装载或卸载耗材。
   Load the required filaments or start anyway?: 加载所需耗材还是直接开始？
@@ -1523,6 +1551,7 @@ translations:
   Manual Feed: '手动送料'
   Manual Retract: '手动回抽'
   Manual feed and retract operations: 手动送料与回抽操作
+  Manually clear the jam and retry the operation: 请手动清除堵塞后重试操作
   Manually pull the filament back through the connector: 请手动将耗材从接头处抽回
   Map to closest colors with matching material: 按匹配材料映射最接近的颜色
   Marginal: 偏高
@@ -1670,9 +1699,11 @@ translations:
   No effects available: 无可用特效
   No events queued: 无排队事件
   No fans detected: 未检测到风扇
+  No filament: 无耗材
   No filament environment sensors: 无耗材环境传感器
   No filament loaded to unload: 没有已加载的耗材可卸载
   No filament sensor detected: '未检测到耗材传感器'
+  No filament. Load filament and retry.: 无耗材。请装载耗材后重试。
   No filaments found: 未找到耗材
   No file loaded: 未加载文件
   No file to reprint: 没有可重新打印的文件
@@ -1686,6 +1717,7 @@ translations:
   No media installed: 未安装介质
   No mesh data: 没有网格数据
   No mesh loaded: 未加载网格
+  No multi-filament system detected: 未检测到多耗材系统
   No network. Scan QR code to report on your phone.: 无网络。扫描二维码在手机上报告。
   No networks found: 未找到网络
   No notifications: 无通知
@@ -1737,6 +1769,8 @@ translations:
   Not yet calibrated: 尚未校准
   Notes: 备注
   Notes (optional): 备注（可选）
+  Nothing loaded: 未装载耗材
+  Nothing starred yet. Tap the star on a filament to add it here.: '还没有收藏。点击耗材行的星标即可收藏到这里。'
   Nothing to remap: 没有可重新映射的内容
   Notification: 通知
   Notifications: 通知
@@ -1760,7 +1794,7 @@ translations:
   Nozzle did not reach {}°C — {} cancelled: 喷嘴未达到 {}°C — {} 已取消
   Nozzle min cannot exceed max: 喷嘴最低温度不能超过最高温度
   Nozzle target set to {}°C: 喷嘴目标已设为 {}°C
-  Nozzle temp must be 100-500°C: 喷嘴温度必须为 100-500°C
+  Nozzle temp must be 100-%d°C: 喷嘴温度必须为 100-%d°C
   Nozzle, bed, and chamber in one widget: 喷嘴、热床和腔体合为一个小组件
   'Nozzle:': 喷嘴：
   OD: OD
@@ -1791,6 +1825,7 @@ translations:
   Open motion controls for jogging: 打开手动移动控制
   Open the CFS unit and remove the broken filament from the slot: 请打开 CFS 单元并从槽位中取出断裂的耗材
   Operation already in progress: 操作正在进行中
+  Operation timed out: 操作超时
   Operations: 操作
   Optimize Your Printing: 优化您的打印
   Optimizes temperature control for stable, consistent heating.: 优化温度控制，实现稳定一致的加热。
@@ -1920,6 +1955,7 @@ translations:
   Preheat cancelled: 预热已取消
   'Preheat: all {} tools + bed set': '预热: 全部 {} 工具 + 热床已设置'
   'Preheat: {} + bed set': '预热: {} + 热床已设置'
+  Preload failed: 预装载失败
   Prepared: 已就绪
   Preparing: 准备中
   Preparing Print: 准备打印
@@ -2000,6 +2036,9 @@ translations:
   Printer Type: 打印机类型
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): 打印机已接受作业但未开始打印
     — 请检查盖板、纸张和标签类型 (firmware status=0x{:02X} error=0x{:02X})
+  Printer caps bed at %d°C: 打印机热床上限为 %d°C
+  Printer caps chamber at %d°C: 打印机腔体上限为 %d°C
+  Printer caps nozzle at %d°C: 打印机喷嘴上限为 %d°C
   Printer connection unavailable: 打印机连接不可用
   Printer database format error: 打印机数据库格式错误
   Printer database is corrupt: 打印机数据库已损坏
@@ -2010,6 +2049,7 @@ translations:
   Printer is busy - {} stays in the queue: '打印机忙碌中 – {} 保留在队列中'
   Printer is not paired — pair it first: 打印机未配对 — 请先进行配对
   Printer name: 打印机名称
+  Printer not connected: 打印机未连接
   Printer not ready: 打印机未就绪
   Printer ready: 打印机就绪
   Printer type mismatch: 打印机类型不匹配
@@ -2198,6 +2238,7 @@ translations:
   Restart Now: 立即重启
   Restart Required: 需要重启
   'Restart failed: not connected': '重启失败: 未连接'
+  Restart from the beginning to recover: 请从头重新开始以恢复打印
   Restart the display application: 重启显示应用程序
   Restart the printer or screen: 重启打印机或屏幕
   Restarting HelixScreen...: 正在重启 HelixScreen…
@@ -2353,6 +2394,9 @@ translations:
   Select Sensors: 选择传感器
   Select Spool: 选择料盘
   Select a filament slot to load: 选择要加载的耗材槽位
+  Select a valid number: 请选择有效编号
+  Select a valid number (1-{}): 请选择有效编号（1-{}）
+  Select a valid tool: 请选择有效工具
   Select fan: 选择风扇
   Select gate: '选择槽位'
   Select macro for first button: 为第一个按钮选择宏
@@ -2706,6 +2750,7 @@ translations:
   ? This device has very little RAM. Resonance calibration is memory-intensive and may cause a "Timer Too Close" error. Continue anyway?
   : 此设备内存极少。共振校准会占用大量内存，可能导致 "Timer Too Close" 错误。仍要继续吗？
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: 这与关联的 Spoolman 料盘不匹配。是否添加为新料盘，或更新关联料盘以匹配？
+  This feature requires different hardware or configuration: 此功能需要不同的硬件或配置
   This filament system does not report buffer or flow data.: 此耗材系统不报告缓冲区或流量数据。
   This file was sliced for {} but {} is loaded.: 此文件为 {} 切片，但当前加载的是 {}。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: 此文件为 {} 切片，但当前加载的是 {}。打印会比当前装载的料盘所需更慢、更热。
@@ -2808,6 +2853,7 @@ translations:
   Trigger: 触发器
   'Troubleshooting:': 故障排除：
   Try adjusting your search or filters: 尝试调整搜索或筛选条件
+  Try the operation again. If it persists, check for mechanical issues.: 请重试该操作。如果问题持续存在，请检查是否有机械故障。
   Tune: 调优
   Tuning tower enabled - start a print to test: 调优塔已启用 - 开始打印以测试
   Turbo: 极速
@@ -2853,6 +2899,7 @@ translations:
   Unload: 卸载
   Unload Distance: '卸载距离'
   Unload Filament: 卸载耗材
+  Unload failed: 卸载失败
   Unload filament: '卸载耗材'
   Unload macro not configured: 卸载宏未配置
   Unload may still be running — response timed out: 卸载可能仍在运行 — 响应超时
@@ -2928,6 +2975,8 @@ translations:
   WPA/WPA2: 'WPA/WPA2'
   WPA3: 'WPA3'
   Wait for the current filament operation to finish: 请等待当前耗材操作完成
+  Wait for the current operation to complete: 请等待当前操作完成
+  Wait for the current operation to complete or cancel it first: 请等待当前操作完成，或先将其取消
   Wait until the print finishes: 请等待打印完成
   Waiting for Moonraker...: 正在等待 Moonraker...
   'Waiting for %s to finish. One heater at a time.': ''

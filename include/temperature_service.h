@@ -13,6 +13,7 @@
 #include "panel_lifecycle.h"
 #include "subject_managed_panel.h"
 #include "temp_graph_controller.h"
+#include "temperature_controller.h"
 
 #include <array>
 #include <functional>
@@ -245,6 +246,14 @@ class TemperatureService {
     }
     helix::TemperatureController* controller() {
         return controller_;
+    }
+
+    /// Effective ceiling (°C) for this service's custom-temperature keypad:
+    /// the shared keypad-ceiling authority when a controller is wired, the
+    /// heater's static config range otherwise. The temp panels' own custom
+    /// button and TempGraphOverlay's keypad both ask this (#1619).
+    float custom_keypad_max(helix::HeaterType type, float fallback_deg) {
+        return helix::keypad_ceiling(controller_, type, fallback_deg);
     }
 
     // ── Mini combined graph (filament panel) ────────────────────────────

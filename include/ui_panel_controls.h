@@ -462,6 +462,12 @@ class ControlsPanel : public PanelBase {
     void handle_nozzle_target_edit();
     void handle_bed_target_edit();
     void handle_chamber_target_edit();
+
+    /// Effective ceiling (°C) a target-edit keypad offers: the shared
+    /// keypad-ceiling authority when the controller is reachable, this panel's
+    /// own compiled-in member otherwise. All three target-edit keypads ask
+    /// this (#1619).
+    int target_edit_max(helix::HeaterType type, int fallback_deg) const;
     void handle_custom_nozzle_confirmed(float value);
     void handle_custom_bed_confirmed(float value);
     void handle_custom_chamber_confirmed(float value);

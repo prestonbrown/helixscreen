@@ -1,15 +1,30 @@
 <?xml version="1.0"?>
 <component name="panel_widget_nozzle_temps">
+  <styles>
+    <!-- layout="flex" is load-bearing: a style carrying flex_flow alone sets
+         the flow VALUE without activating LV_STYLE_LAYOUT, and the container
+         keeps no layout at all - every row piles onto the first. The inline
+         flex_flow attribute does not have this gap because lv_obj_set_flex_flow
+         sets both. -->
+    <style name="nozzle_cols_one" layout="flex" flex_flow="column" pad_column="0" flex_main_place="start"/>
+    <style name="nozzle_cols_two"
+           layout="flex" flex_flow="row_wrap" pad_column="#space_md" flex_main_place="space_between"/>
+  </styles>
   <view name="nozzle_temps_root"
         extends="lv_obj" width="100%" height="100%" flex_flow="column" style_flex_main_place="start"
         style_flex_cross_place="center" style_pad_all="#space_xs" style_pad_row="0" style_pad_column="0"
         scrollable="true" style_bg_color="#card_bg" style_bg_opa="255" style_radius="#border_radius"
         style_border_width="0">
     <text_small name="nozzle_temps_title"
-                width="100%" text="Nozzle Temps" style_text_align="left" style_text_color="#text_muted"
+                width="100%" long_mode="dots" text="Nozzle Temps" style_text_align="left" style_text_color="#text_muted"
                 style_pad_left="#space_xxs" style_pad_bottom="0"/>
+    <!-- The container's flow binds off nozzle_row_columns (1 or 2), published by
+         NozzleTempsWidget::on_size_changed from decide_nozzle_layout(). -->
     <lv_obj name="nozzle_temps_container"
-            width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_row="#space_xxs"
-            style_pad_column="0" scrollable="false" style_bg_opa="0" style_border_width="0"/>
+            width="100%" height="content" style_pad_all="0" style_pad_row="#space_xxs" scrollable="false"
+            style_bg_opa="0" style_border_width="0">
+      <bind_style_if_eq name="nozzle_cols_one" subject="nozzle_row_columns" ref_value="1"/>
+      <bind_style_if_eq name="nozzle_cols_two" subject="nozzle_row_columns" ref_value="2"/>
+    </lv_obj>
   </view>
 </component>

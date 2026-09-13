@@ -155,9 +155,10 @@ Deploy directory: `/mnt/UDISK/helixscreen` (override with `K2_DEPLOY_DIR`). SSH 
 2. Deploys platform hooks (`config/platform/hooks-k2.sh` → /mnt/UDISK/helixscreen/platform/hooks.sh)
 3. Transfers binaries, assets, XML layouts, and config
 4. Installs SysV init script at `/etc/init.d/S99helixscreen` for boot persistence
-5. Platform hooks stop the stock Creality UI (`display-server`, `Monitor`, etc.) via procd
-6. Platform hooks start `wpa_supplicant` to replace the stock `wifi-server`
-7. Starts HelixScreen on the framebuffer
+5. Installs the web-server carve-out at `/etc/init.d/helix-k2-webserver` (`config/k2-webserver.init`), an rc.common script that starts the stock `web-server` at boot — the platform hooks disable `/etc/init.d/app` as a whole, and without its own starter the carve-out would die with it at the next reboot (prestonbrown/helixscreen#1617)
+6. Platform hooks stop the stock Creality UI (`display-server`, `Monitor`, etc.) via procd
+7. Platform hooks start `wpa_supplicant` to replace the stock `wifi-server`
+8. Starts HelixScreen on the framebuffer
 
 ### Reverting to Stock UI
 
@@ -166,6 +167,11 @@ To restore the stock Creality touchscreen:
 ```bash
 ssh root@<printer-ip>
 killall helix-screen helix-splash helix-watchdog 2>/dev/null
+killall web-server 2>/dev/null            # Free port 80 for the stock instance
+/etc/init.d/helix-k2-webserver disable    # Drop the carve-out's boot symlink (NOT the
+                                          # /etc/rc.d/S99... spelling: rc.common derives
+                                          # link names from basename $0, so that one
+                                          # computes S99S99... and removes nothing)
 /etc/init.d/app enable   # Re-enable stock UI on boot
 /etc/init.d/app start    # Start stock UI now
 ```
@@ -787,6 +793,7 @@ Note that `chamber_temp` is **not** universal on K2 hardware either: the Kalico 
 ### Platform
 - **Low CPU** — Dual Cortex-A7 at ~57 BogoMIPS. Performance-sensitive features (bed mesh 3D, animations) may need throttling.
 - **No curl** — BusyBox wget only, no HTTPS support.
+- **Web-server carve-out** — The platform hooks disable the stock procd service `/etc/init.d/app` as a whole (the display stack and AI daemons must stay down), which would also keep `web-server` — ports 80/443/9998/9999, Creality Cloud — from starting at boot. `/etc/init.d/helix-k2-webserver` (`config/k2-webserver.init`, an rc.common script plain SysV would be skipped by procd's boot iterator) starts exactly that one process independently; the installer (`install_k2_webserver_backend`), `make deploy-k2`, and uninstall (as a `sysv-created` service) all carry it (prestonbrown/helixscreen#1617).
 - **WiFi managed by platform hooks** — The stock `wifi-server` is killed when HelixScreen takes over the display. Platform hooks (`hooks-k2.sh`) start `wpa_supplicant` directly using credentials at `/etc/wifi/wpa_supplicant/wpa_supplicant.conf`. WiFi configuration changes made via the stock UI are preserved.
 - **Non-standard control socket** — `hooks-k2.sh` launches `wpa_supplicant` without `-O`, so the control socket lands at the `ctrl_interface=` from the stock conf — `/etc/wifi/wpa_supplicant/sockets/wlan0` on K2 — not the usual `/run/wpa_supplicant`. The WiFi backend searches that location (and auto-detects any `-O` path from the live process), so network discovery works without manual symlinks. Firmware that uses yet another path can be pointed at it via `HELIX_WPA_SOCKET_DIR`. Surfaced by a community **K2 Plus** report.
 

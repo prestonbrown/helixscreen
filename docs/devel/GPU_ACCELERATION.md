@@ -3,9 +3,11 @@
 What the GPU can and cannot do for HelixScreen, measured on real boards rather
 than argued from source. Read this before proposing work on the rendering path.
 
-**Today HelixScreen ships software rendering on every target.** That is a
-deliberate position, not an unfinished one: the EGL presentation path is real
-and measurably faster, and the nanovg draw unit is unusable upstream. The
+**HelixScreen rasterizes on the CPU on every target.** What differs per board
+is how those pixels reach the screen: the `pi` target ships a GPU presentation
+binary alongside the software one and picks between them at boot, everything
+else presents through DRM dumb buffers or fbdev. The nanovg draw unit, which
+would move rasterization itself onto the GPU, is unusable upstream. The
 sections below say how much each is worth and what blocks it.
 
 ---
@@ -18,7 +20,11 @@ alternatives — each rung builds on the one below.
 | Rung | What it does | State here |
 |------|--------------|-----------|
 | `lv_draw_sw` into a dumb buffer | CPU rasterizes, kernel scans out | **ships** |
-| `lv_draw_sw` into a GBM/EGL surface | CPU rasterizes, GPU composites and presents | **measured, works** |
+| `lv_draw_sw` into a GBM/EGL surface | CPU rasterizes, GPU composites and presents | **ships on `pi`**, probe-gated |
+
+The EGL rung's CPU numbers below were first recorded against a build that was
+rendering incorrectly - see "The alpha trap" - so treat any measurement of this
+path as provisional until someone has looked at the panel.
 | `lv_draw_nanovg` | GPU rasterizes widgets | **broken upstream**, see below |
 | `lv_draw_opengles` | GPU rasterizes, different unit | not evaluated |
 
@@ -48,8 +54,9 @@ Same binary, same panel, same scene; only `ENABLE_OPENGLES` differs. Measured
 Two things to carry forward:
 
 **The CB1 gains the most throughput and the least CPU relief, at the highest
-memory cost.** It is a 969 MB board; +70 MB is not free there. Any ladder that
-turns EGL on everywhere has to answer for that specific square.
+memory cost.** It is a 969 MB board. How much of that +70 MB is a cost the
+board cannot get back is the next section, and the answer decides what can be
+done about it.
 
 **nanovg's remaining headroom is small.** Profiling the EGL build shows roughly
 31% of its remaining 24.7% CPU is software rasterization — so a perfect GPU
@@ -57,8 +64,115 @@ draw unit could recover about **7.7 CPU points**, against the ~15 EGL already
 delivers. nanovg was assumed to be the bigger prize; it is not, and it is not
 close.
 
+### What the RSS number is made of
+
+Same method on both boards, measured 2026-09-12: force the DRM rung through a
+systemd drop-in, restart, idle 100 s at the home panel, read
+`/proc/<pid>/status` and `/proc/<pid>/smaps`; remove the drop-in and repeat on
+the EGL rung. Figures are MiB.
+
+| | Pi 5 (4 GB, V3D) | Pi 3B (856 MB, vc4) | CB1 (970 MB, Mali-G31) |
+|---|---|---|---|
+| VmRSS, DRM rung | 105.7 | 51.2 | 53.1 |
+| VmRSS, EGL rung | 122.1 | 117.0 | 121.4 |
+| **VmRSS delta** | **+16.4** | **+65.8** | **+68.4** |
+| RssAnon delta | +11.3 | +20.5 | +19.8 |
+| RssFile delta | +5.1 | +45.3 | +48.6 |
+
+The boards differ by 4x on the headline and agree closely on the part that
+cannot be reclaimed. The gap is Mesa's text, and which binary faults it in.
+
+The CB1 settles the question its GPU family raised. Panfrost holds no GPU
+memory as shmem - `RssShmem` is 0 on both rungs - so its anonymous delta lands
+with vc4's and V3D's rather than near its own RSS headline.
+
+The EGL process on every board holds `libLLVM` resident (39.8 MiB on the Pi 5,
+38.5 on the Pi 3B, 41.1 on the CB1) plus `libgallium` (9.7 / 10.8 / 11.4). That
+is roughly 50 MiB of shared, file-backed library text.
+
+**The base DRM binary links the same three GL libraries** - `ENABLE_GLES_3D=yes`
+builds the 3D gcode viewer into it, so `libEGL`, `libGLESv2` and `libgbm` are on
+both binaries' `ldd` output, and the two files differ by 56 bytes. Whether it
+pays Mesa's residency therefore depends only on whether GL initialises. On the
+Pi 5 it does, unprompted, within 100 s of boot: the DRM process already holds
+`libLLVM` resident and maps `/dev/dri/card1`. On the Pi 3B it does not, with
+zero `libLLVM` mappings.
+
+So the Pi 5's +16 MB is not a cheaper GPU path. It is a board that had already
+paid for Mesa on the rung below. **The durable cost of the EGL rung is the
+anonymous delta, +11 to +21 MiB, on all three boards and both GPU families.** The rest is shared library text, which the
+kernel evicts under pressure and which the DRM rung pays too the moment anything
+initialises GL.
+
 Reproduce with `tools/drm_gpu_probe.c` (build instructions in its header) for
 plane masks and renderer strings, then an A/B of `ENABLE_OPENGLES=no|yes`.
+
+---
+
+## How a board gets the EGL rung
+
+Three binaries, selected by `scripts/helix-launcher.sh#select_binary` at boot:
+
+```
+helix-screen-egl     GPU presentation      taken only if --probe-egl exits 0
+helix-screen         DRM dumb buffers      the default
+helix-screen-fbdev   /dev/fb0              when the DRM binary's libs are missing
+```
+
+Which of LVGL's two DRM drivers a binary carries is a compile-time choice, so
+this is a choice of binary and not a runtime mode. `mk/egl-link.mk` builds the
+third one from the DRM build's objects, recompiling only the translation units
+that read the EGL config macros — `src/api/display_backend_drm.cpp` and LVGL's
+own DRM and OpenGL ES drivers.
+
+That sharing is measured, not assumed. Building the `pi` target twice, once per
+`ENABLE_OPENGLES` value, and comparing all 1465 objects: **811 differ as raw
+bytes, but only 14 differ once debug info is stripped**, and one of those is
+`libhv`'s `htime.o`, which embeds `__DATE__`/`__TIME__` and so differs between
+any two builds. The remaining 13:
+
+| Object | Belongs to |
+|---|---|
+| `api/display_backend_drm.o` | the app — the only file under `src/` or `include/` that reads an EGL config macro |
+| `lvgl/.../drm/lv_linux_drm.o`, `lv_linux_drm_egl.o` | which DRM back end compiles at all |
+| `lvgl/.../opengles/` ×9 | empty translation units without the config |
+| `display/display_backend_drm.o` | `libhelix-display.a`, which only the splash and watchdog link — not part of this rung |
+
+The raw-byte number is the trap here: comparing objects without stripping says
+811 files changed and implies the EGL binary needs a full second build. It
+does not. Strip the debug info and the answer is 12 objects in the main binary.
+
+**Selection is a probe, not a crash.** A failed EGL init inside one binary
+would fall through to fbdev in-process and skip the middle rung entirely,
+silently demoting a board from dumb buffers to `/dev/fb0`. So the probe is a
+separate process: `helix-screen-egl --probe-egl` does the bring-up
+(`gbm_create_device`, `eglInitialize`, `eglChooseConfig`, `eglCreateContext`),
+prints what answered, and exits 0 or non-zero. A bring-up that aborts inside
+the driver takes down only the probe. A board whose probe declines runs the DRM
+binary; it never drops two rungs at once.
+
+**The probe refuses a software renderer.** The CB1's original failure was a
+stale Mesa in `/opt/panfrost` missing `kms_swrast`/`swrast`; the inverse —
+succeeding into llvmpipe — is worse than failing, because every pixel is still
+rasterized by the CPU and the handoff to a GPU that is not there costs extra on
+top. `gl_renderer_is_software()` in `include/gcode_gl_fallback.h` is the
+predicate. It is deliberately a different question from
+`gl_renderer_is_denylisted()` beside it: that one names hardware whose driver
+faults during 3D draws, and Panfrost is on it while still presenting through
+EGL correctly.
+
+**Verifying the binary is the one you think it is.** A build that links the base
+objects into the EGL binary produces something that runs fine and presents
+through dumb buffers, while the launcher believes it is on the GPU. There is no
+other symptom, so `make verify-egl` checks for `lv_opengles_init` — defined only
+inside `#if LV_USE_OPENGLES` — in the EGL binary and asserts its absence from
+the base one. The trap it guards is real: `lv_opengles_shader.c` holds its GLSL
+in C++11 raw string literals, so it compiles as C++ when the config is on and as
+plain C when it is off, and the stock rules put both at the same object path.
+
+**Overrides.** `HELIX_DISPLAY_BACKEND=egl` skips the probe and forces the rung;
+`=drm` and `=fbdev` force the rungs below it. `HELIX_DRM_DEVICE` pins the node
+the probe opens, exactly as it pins the one the display backend opens.
 
 ---
 
@@ -70,10 +184,31 @@ Measured per board, not inferred from the SoC.
 |-------|----------|------------------------|-------|
 | Pi 5 | V3D | no (DSI panel reports mask `0x0`) | a `0x0` mask passes any rotation test vacuously — never verify rotation here |
 | Pi 3B | vc4 | **yes** (mask `0x35`) | the only board with a rotation-capable plane, a connected panel, and working EGL at once |
-| CB1 | Mali-G31 (Panfrost) | not measured | needs Mesa 25.x; the vendor Mesa 21.3.9 in `/opt/panfrost` fails `gbm_create_device` for want of `kms_swrast`/`swrast` |
+| CB1 | Mali-G31 (Panfrost) | not measured | EGL rung verified rendering 2026-09-12 on Mesa 25.0.7; the vendor Mesa 21.3.9 in `/opt/panfrost` fails `gbm_create_device` for want of `kms_swrast`/`swrast`, so this needs Mesa 25.x |
 
 The CB1's `gbm_create_device` failure was a stale userspace Mesa, not a hardware
 limit. On current Armbian it reports `GL_RENDERER = Mali-G31 (Panfrost)`.
+
+### What bounds this, beyond the owned boards
+
+- **The Snapmaker U1 is permanently excluded.** It carries no `libEGL`,
+  `libGLESv2` or `libgbm`, and its `card1` is an RKNPU rather than a GPU. Its
+  plane mask `0x21` is rotate-0 plus reflect-y, which is not rotation.
+- **The fleet is not the product.** `x86_64` with `amdgpu` reports plane mask
+  `0xf`, full 90/180/270, and `x86`/`x86-both` are shipped targets. Nobody here
+  owns such a board, so "no owned board advertises 90 or 270" is not a safety
+  argument for anything.
+- **The Pi 5 splits render and scanout** (`v3d` render node, `drm-rp1-dsi`
+  scanout) and depends on Mesa kmsro to pair them.
+- **The sysroot Mesa is 20.3 (Bullseye) against a 24.2/25.0 runtime.** That is
+  why `LV_USE_LINUX_DRM_GBM_BUFFERS` is off; leave it off unless that changes.
+- **The Pi 4 is unowned.** Any claim about it is untested.
+
+All three owned boards have now rendered the EGL rung correctly: Pi 5 (V3D), Pi
+3B (vc4) and CB1 (Panfrost), each confirmed by eye on the panel rather than by
+log lines alone. That matters here more than usual, because the defect this path
+shipped with was invisible to every automated signal available (see "The alpha
+trap" below).
 
 ---
 
@@ -87,6 +222,26 @@ app calls vanish; the one that matters in practice is
 **Forced mode selection is unavailable on the EGL path.** The connector's own
 preferred mode is what you get. `src/api/display_backend_drm.cpp` guards the
 call and warns rather than failing to link.
+
+No shipped per-board config sets a mode override, so this reaches only an install
+whose resolution was chosen by hand - which the CB1's is, at 800x480. On the EGL
+rung that choice is logged and ignored, and the panel comes up at its preferred
+mode instead. It is harmless there only because the connector prefers the same
+mode. Whether a configured resolution should make the launcher decline the rung is
+a per-board policy question, not a probe question - the probe cannot see the
+config.
+
+**Rotation takes the board off this rung entirely.**
+`DisplayBackendDRM::supports_hardware_rotation()` returns false for every nonzero
+angle under EGL, because the plane rotation entry points live in the dumb-buffer
+driver. `DisplayManager` answers that by deleting the DRM display and rebuilding on
+fbdev in-process, input devices included. So a board configured to rotate selects
+`helix-screen-egl` at boot, brings EGL up, then presents through `/dev/fb0` anyway.
+
+Verified on the Pi 3B at 180 degrees: the picture does invert, touch is rebuilt on
+the fbdev backend, and the log records the whole handover. Rotation and GPU
+presentation are mutually exclusive today, so a board that needs rotation gains
+nothing from this rung.
 
 ---
 
@@ -150,6 +305,45 @@ before upload.
 - **Anything that falls back to the software unit is invisible** on this path:
   `lv_linux_drm_egl.c`'s flush callback ignores `px_map` entirely, so SW output
   is rasterized into a buffer nobody presents.
+
+---
+
+## The alpha trap, and why nothing automated caught it
+
+**LVGL's 32bpp native format is `XRGB8888`, and it leaves the X byte at
+`0x00`.** That byte is don't-care by contract, so LVGL writes `0xFF` there on
+full-word draw paths and leaves it alone otherwise.
+
+The EGL path gives it meaning. `lv_linux_drm_egl.c` uploads the buffer as
+`GL_RGBA`, so X arrives as alpha, and the fragment shader in
+`lv_opengles_shader.c` computes `texColor.rgb * combinedAlpha`. Every pixel LVGL
+did not leave fully opaque is multiplied to black. Measured on a Pi 3B: 4.9% of
+pixels carried `X=0x00`, and the light-blue nav icon read
+`R=58 G=124 B=200 X=0`. On screen that is icons, borders, shading and
+antialiased text rendering black while flat fills look perfect.
+
+`DisplayBackendDRM::create_display` forces `ARGB8888` on the EGL path so LVGL
+maintains the byte. `DisplayBackendFbdev::init` already did the same thing for
+the AD5M, whose LCD controller read that byte as alpha and produced a magenta
+ghost. Same defect, two different consumers. fbdev, DRM dumb buffers and SDL are
+all immune because they ignore the fourth byte of XRGB.
+
+**This is the part worth remembering.** Every automated signal said the broken
+build was healthy:
+
+| Check | What it said |
+|---|---|
+| Process liveness | running, stable |
+| CPU | down 38%, the measured win |
+| `ctl ping` / `ctl current` | responsive |
+| GL errors (`LV_USE_OPENGLES_DEBUG` is 1) | none |
+| `ctl screenshot` | **clean** - `lv_snapshot_take()` re-renders the widget tree and never reads the presented buffer |
+
+The screenshot is the trap: it looks like proof and is not, because the fault is
+downstream of where it samples. The only detector was a person looking at the
+panel. **A visual check is therefore mandatory when changing this rung, not
+advisory** - and to inspect the presented buffer rather than a re-render, dump
+`ctx->texture.fb1` from the flush callback and read the bytes.
 
 ---
 

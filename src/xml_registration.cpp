@@ -404,6 +404,7 @@ void register_xml_components() {
     register_xml("spoolman_panel.xml");
     register_xml("components/filament_catalog_row.xml");
     register_xml("components/filament_catalog_add_row.xml");
+    register_xml("components/filament_catalog_empty_row.xml");
     register_xml("components/filament_catalog_selector.xml");
     register_xml("components/filament_catalog_picker.xml");
     register_xml("filament_product_edit_modal.xml");

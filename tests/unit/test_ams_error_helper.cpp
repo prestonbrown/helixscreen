@@ -7,15 +7,35 @@
  * number and a physical position for the user.
  */
 
+#include "../lvgl_test_fixture.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_mock.h"
 #include "ams_error.h"
 #include "ams_types.h"
 #include "display_numbering.h"
+#include "lvgl/src/others/translation/lv_translation.h"
+#include "translation_loader.h"
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
+
+namespace {
+
+// LVGL has no pack-unregister API, so selecting a language nothing has loaded
+// makes every subsequent lookup miss again — the same restore idiom
+// test_ams_current_tool_text_i18n.cpp uses.
+class ScopedLanguage {
+  public:
+    ScopedLanguage() = default;
+    ~ScopedLanguage() {
+        lv_translation_set_language(helix::ui::kIdentityLocale);
+    }
+    ScopedLanguage(const ScopedLanguage&) = delete;
+    ScopedLanguage& operator=(const ScopedLanguage&) = delete;
+};
+
+} // namespace
 
 TEST_CASE("tool_out_of_range names the tool as a gcode T-number", "[ams][numbering]") {
     const auto err = AmsErrorHelper::tool_out_of_range(7);
@@ -47,14 +67,14 @@ TEST_CASE("tool_out_of_range still names a negative tool in the technical detail
 // the machine; the technical detail keeps the storage index a log reader wants.
 
 TEST_CASE("a position error names the backend's noun, 1-based", "[ams][numbering]") {
-    CHECK(AmsErrorHelper::slot_not_available(ui::LaneNoun::Gate, 2).user_msg == "Gate 3 is empty");
-    CHECK(AmsErrorHelper::slot_blocked(ui::LaneNoun::Lane, 0).user_msg == "Lane 1 blocked");
+    // The position is a bare prefix before a colon: the translated frame that
+    // follows cannot agree with a noun that varies per backend and locale.
+    CHECK(AmsErrorHelper::slot_not_available(ui::LaneNoun::Gate, 2).user_msg ==
+          "Gate 3: No filament");
     // invalid_slot names the KIND, not a position: no index exists to compose a
     // label from, and "Invalid Feeder 8 number" is worse than either.
     CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Feeder, 7, 3).user_msg ==
-          "Invalid Feeder number");
-    CHECK(AmsErrorHelper::load_failed(ui::LaneNoun::Slot, 1).user_msg ==
-          "Failed to load filament from Slot 2");
+          "Feeder: Invalid number");
 }
 
 TEST_CASE("a position error keeps the raw index in the technical detail", "[ams][numbering]") {
@@ -67,11 +87,13 @@ TEST_CASE("a position error keeps the raw index in the technical detail", "[ams]
 TEST_CASE("the suggested span is 1-based", "[ams][numbering]") {
     // max_slot arrives 0-based at every call site (NUM_PORTS - 1,
     // total_slots - 1, CFS_MAX_SLOTS - 1), so a four-position backend passes 3
-    // and the user must be told 1-4, not 0-3 and not 1-3.
+    // and the user must be told 1-4, not 0-3 and not 1-3. The noun is not in
+    // the suggestion: the user_msg prefix already names it, and a frame holding
+    // it would need its adjective to agree with it.
     CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Lane, 9, 3).suggestion ==
-          "Select a valid Lane (1-4)");
+          "Select a valid number (1-4)");
     CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Slot, 99, 15).suggestion ==
-          "Select a valid Slot (1-16)");
+          "Select a valid number (1-16)");
 }
 
 TEST_CASE("the suggested span survives a one-position backend", "[ams][numbering]") {
@@ -81,27 +103,48 @@ TEST_CASE("the suggested span survives a one-position backend", "[ams][numbering
     // value sees 0, decides there is no range, and silently drops it. The
     // four-position case above passes either way, so this one is not redundant.
     CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Slot, 4, 0).suggestion ==
-          "Select a valid Slot (1-1)");
+          "Select a valid number (1-1)");
     CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Gate, 4, 0).suggestion ==
-          "Select a valid Gate (1-1)");
+          "Select a valid number (1-1)");
 }
 
 TEST_CASE("a backend with no positions offers no span", "[ams][numbering]") {
     // max_slot -1 is "nothing reported yet", the one case with no range to give.
     CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Lane, 0, -1).suggestion ==
-          "Select a valid Lane");
+          "Select a valid number");
 }
 
 TEST_CASE("a position error still names a sentinel index", "[ams][numbering]") {
     // lane_label() has no spelling for a negative index, and backends do pass
     // one: every guard here reads "< 0 || >= max" and hands the value through
-    // on either side of that OR. The three helpers that name a specific
-    // position must still say which value was rejected.
+    // on either side of that OR. The helpers that name a specific position must
+    // still say which value was rejected.
     CHECK(AmsErrorHelper::slot_not_available(ui::LaneNoun::Gate, -1).user_msg ==
-          "Gate -1 is empty");
-    CHECK(AmsErrorHelper::slot_blocked(ui::LaneNoun::Lane, -1).user_msg == "Lane -1 blocked");
-    CHECK(AmsErrorHelper::load_failed(ui::LaneNoun::Slot, -1).user_msg ==
-          "Failed to load filament from Slot -1");
+          "Gate -1: No filament");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a position error translates frame and prefix as one locale",
+                 "[ams][numbering][i18n]") {
+    ScopedLanguage restore_lang;
+
+    helix::ui::ensure_translation_loaded("ru");
+    lv_translation_set_language("ru");
+
+    // Guard the setup: with no pack loaded lv_tr() returns the English tag, and
+    // the assertions below would pass vacuously against English.
+    const std::string frame = lv_tr("No filament");
+    REQUIRE(frame != "No filament");
+
+    // The prefix ("Шлюз 3") and the frame must read as one locale — an English
+    // tail after a translated prefix is the mixed-script failure mode.
+    const std::string msg = AmsErrorHelper::slot_not_available(ui::LaneNoun::Gate, 2).user_msg;
+    CHECK(msg == std::string(lv_tr("Gate")) + " 3: " + frame);
+    CHECK(msg.find("empty") == std::string::npos);
+
+    const std::string suggestion =
+        AmsErrorHelper::slot_not_available(ui::LaneNoun::Gate, 2).suggestion;
+    REQUIRE(suggestion != "Load filament first");
+    CHECK(suggestion == std::string(lv_tr("Load filament first")));
 }
 
 TEST_CASE("Happy Hare reports an out-of-range gate as a gate", "[ams][numbering]") {
@@ -112,7 +155,7 @@ TEST_CASE("Happy Hare reports an out-of-range gate as a gate", "[ams][numbering]
 
     const auto err = backend.set_slot_info(2, helix::SlotInfo{}, /*persist=*/false);
     CHECK(err.result == AmsResult::INVALID_SLOT);
-    CHECK(err.user_msg == "Invalid Gate number");
+    CHECK(err.user_msg == "Gate: Invalid number");
 }
 
 TEST_CASE("the mock backend reports a bad index without deadlocking", "[ams][numbering]") {
@@ -124,5 +167,5 @@ TEST_CASE("the mock backend reports a bad index without deadlocking", "[ams][num
     REQUIRE(mock.get_type() == AmsType::HAPPY_HARE); // the mock's default persona
     const auto err = mock.set_slot_info(9, helix::SlotInfo{}, /*persist=*/false);
     CHECK(err.result == AmsResult::INVALID_SLOT);
-    CHECK(err.user_msg == "Invalid Gate number");
+    CHECK(err.user_msg == "Gate: Invalid number");
 }

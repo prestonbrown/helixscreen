@@ -1064,13 +1064,4 @@ void DisplayBackendFbdev::clear_calibration() {
     spdlog::info("[Fbdev Backend] Stored calibration cleared — device is uncalibrated");
 }
 
-void DisplayBackendFbdev::set_display_rotation(lv_display_rotation_t rot, int phys_w, int phys_h) {
-    // No-op for fbdev — LVGL's indev_pointer_proc() already calls
-    // lv_display_rotate_point() to transform touch coordinates for
-    // the current display rotation. No manual touch transform needed.
-    (void)rot;
-    (void)phys_w;
-    (void)phys_h;
-}
-
 #endif // HELIX_DISPLAY_FBDEV

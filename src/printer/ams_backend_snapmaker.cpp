@@ -54,16 +54,17 @@ constexpr std::array<std::string_view, 8> KNOWN_SUB_TYPES = {
 }
 
 // Map a raw firmware channel_error token to a user-facing message. The firmware
-// emits machine tokens (e.g. "no_filament") that are meaningless to a user and
-// were previously shown verbatim in the AMS loading-error modal. Unknown tokens
-// fall back to the raw string so we never hide a novel error behind a generic
-// message. Single source of truth shared by the error-set path here and any
-// modal that surfaces operation_detail.
+// emits machine tokens (e.g. "no_filament") that are meaningless to a user.
+// Unknown tokens fall back to the raw string so we never hide a novel error
+// behind a generic message. Single source of truth shared by the error-set path
+// here and any modal that surfaces operation_detail.
 [[nodiscard]] std::string friendly_channel_error(const std::string& token, helix::ui::LaneNoun noun,
                                                  int lane_index) {
     if (token == "no_filament") {
-        return fmt::format("No filament in {}. Load filament and retry.",
-                           helix::ui::lane_label(noun, lane_index));
+        // The lane is a bare prefix, not part of the sentence: the frame must
+        // not agree with a noun that varies per locale and backend.
+        return helix::ui::lane_label(noun, lane_index) + ": " +
+               lv_tr("No filament. Load filament and retry.");
     }
     return token;
 }
@@ -74,15 +75,15 @@ constexpr std::array<std::string_view, 8> KNOWN_SUB_TYPES = {
 // state lands. lane_index is 0-based.
 [[nodiscard]] std::string friendly_channel_state_fail(const std::string& state,
                                                       helix::ui::LaneNoun noun, int lane_index) {
-    const std::string lane = helix::ui::lane_label(noun, lane_index);
+    const std::string lane = helix::ui::lane_label(noun, lane_index) + ": ";
     if (state.rfind("unload_", 0) == 0) {
-        return fmt::format("Unload failed on {}.", lane);
+        return lane + lv_tr("Unload failed");
     }
     if (state.rfind("preload_", 0) == 0) {
-        return fmt::format("Preload failed on {}.", lane);
+        return lane + lv_tr("Preload failed");
     }
     // load_fail, manual_sta_*_fail, and any other feed failure.
-    return fmt::format("Load failed on {}.", lane);
+    return lane + lv_tr("Load failed");
 }
 
 // Classification of a single Snapmaker U1 filament_feed channel_state. The
@@ -728,19 +729,22 @@ void AmsBackendSnapmaker::prepare_for_resume(int slot_index, ResumeReadyCallback
         },
         [this, tok, on_ready, tag, slot](const MoonrakerError& err) mutable {
             std::string msg = err.message;
-            tok.defer("AmsBackendSnapmaker::prepare_for_resume.err", [this,
-                                                                      cb = std::move(on_ready), tag,
-                                                                      slot, msg]() {
-                spdlog::error("{} prepare_for_resume: tool {} AMS load failed: {}", tag, slot, msg);
-                // Load failed → RESUME is never dispatched; report failure.
-                // Name the slot, not the firmware's own error text, which
-                // may spell it with a 0-based extruder name we don't own.
-                if (cb) {
-                    cb(AmsError(
-                        AmsResult::COMMAND_FAILED, "prepare_for_resume AMS load failed: " + msg,
-                        "Filament reload failed for " + helix::ui::lane_label(lane_noun(), slot)));
-                }
-            });
+            tok.defer("AmsBackendSnapmaker::prepare_for_resume.err",
+                      [this, cb = std::move(on_ready), tag, slot, msg]() {
+                          spdlog::error("{} prepare_for_resume: tool {} AMS load failed: {}", tag,
+                                        slot, msg);
+                          // Load failed → RESUME is never dispatched; report failure.
+                          // Name the slot, not the firmware's own error text, which
+                          // may spell it with a 0-based extruder name we don't own.
+                          if (cb) {
+                              // Bare prefix before the colon — the frame must not agree
+                              // with a noun that varies per locale and backend.
+                              cb(AmsError(AmsResult::COMMAND_FAILED,
+                                          "prepare_for_resume AMS load failed: " + msg,
+                                          helix::ui::lane_label(lane_noun(), slot) + ": " +
+                                              lv_tr("Filament reload failed")));
+                          }
+                      });
         },
         // AUTO_FEEDING heats from cold + feeds + flushes; measured ~86s live, so
         // give generous headroom.

@@ -181,7 +181,6 @@ class DisplayBackendFbdev : public DisplayBackend {
      * The DRM backend needs this override for hardware plane rotation,
      * but fbdev software rotation needs no additional touch transform.
      */
-    void set_display_rotation(lv_display_rotation_t rot, int phys_w, int phys_h) override;
 
   private:
     std::string fb_device_ = "/dev/fb0";

@@ -42,8 +42,13 @@ struct PrinterDetectionResult {
     /// Scores before the 100 ceiling, for the winner and for that runner-up.
     /// The published confidence saturates, which flattens a real lead between
     /// two strong candidates into an apparent tie, so margin() is measured on
-    /// these. Zero on a result assembled by hand rather than returned by
-    /// detect(), where the published confidence is the only score there is.
+    /// these. The bonus inside them counts identifying matches only: a
+    /// corroborating match that raised it would separate look-alikes by how
+    /// much corroboration one entry happens to author. Zero on a result
+    /// assembled by hand rather than returned by detect(), where the published
+    /// confidence is the only score there is. A separator's weight lands here
+    /// and nowhere else: it is separation between look-alikes, not confidence
+    /// in the identification.
     int uncapped_confidence = 0;
     int runner_up_uncapped_confidence = 0;
 

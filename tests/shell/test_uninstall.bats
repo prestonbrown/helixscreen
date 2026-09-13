@@ -257,6 +257,23 @@ setup() {
     [ -x "$script" ]
 }
 
+@test "reenable_disabled_services removes a sysv-created script" {
+    # sysv-created entries are init scripts HelixScreen itself wrote (the K1
+    # Creality backend, prestonbrown/helixscreen#1468); the reversal is
+    # stop-and-remove, so the restored stock script has no twin competing
+    # with it at the same boot slot.
+    mkdir -p "$INSTALL_DIR/config"
+    local script="$BATS_TEST_TMPDIR/S99creality-backend" stops="$BATS_TEST_TMPDIR/stops.log"
+    printf '#!/bin/sh\necho "stopped $0" >> "%s"\n' "$stops" > "$script"
+    chmod +x "$script"
+
+    echo "sysv-created:$script" > "$INSTALL_DIR/config/.disabled_services"
+
+    reenable_disabled_services
+    grep -qF "stopped $script" "$stops"
+    [ ! -f "$script" ]
+}
+
 # ============================================================================
 # Moonraker (remove_update_manager_section)
 # ============================================================================

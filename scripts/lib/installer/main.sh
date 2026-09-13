@@ -38,7 +38,10 @@ usage() {
     echo "  --update       Update existing installation (preserves config)"
     echo "  --uninstall    Remove HelixScreen"
     echo "  --clean        Clean install: remove old installation completely,"
-    echo "                 including config and caches (asks for confirmation)"
+    echo "                 including config and caches. The disabled-services"
+    echo "                 ledger is kept, so a later uninstall can still"
+    echo "                 re-enable a stock UI this install disabled."
+    echo "                 Asks for confirmation."
     echo "  --yes, -y      Confirm destructive prompts non-interactively."
     echo "                 Required for --clean when stdin is not a terminal"
     echo "                 (e.g. curl ... | sh -s -- --clean --yes)"
@@ -777,6 +780,16 @@ main() {
     # SSH (#535). Runs on both fresh install and self-update.
     if [ "$platform" = "k1" ]; then
         ensure_k1_ssh
+        # Re-record the stock UI disable against the payload that just landed:
+        # extract_release replaces INSTALL_DIR between the stop step and the
+        # config symlink setup, and a self-update run skips the stop step
+        # entirely. Idempotent (record_disabled_service dedups).
+        record_k1_stock_ui_disable
+        # Install and start the stock Creality backend trio
+        # (prestonbrown/helixscreen#1468). Runs post-extract (the init script
+        # ships in the release package) and on self-update, which skips
+        # stop_competing_uis and would otherwise never see it installed.
+        install_k1_creality_backend
     fi
 
     # Verify all shared library dependencies are satisfied before starting
@@ -835,6 +848,20 @@ main() {
 
     # Start service
     start_service "$platform"
+
+    # K2: install and start the web-server carve-out
+    # (prestonbrown/helixscreen#1617). Must follow start_service: the
+    # service start runs platform_stop_competing_uis, whose
+    # /etc/init.d/app stop takes the stock web-server down, and this
+    # brings the carve-out back for the current session while the
+    # installed script keeps it across reboots. No-op off K2. The || guard
+    # keeps a carve-out failure non-fatal: we run under set -eu with the
+    # service already started, and a supplementary backend must not abort
+    # the install before cleanup_* runs — the function has already logged
+    # the error and the manual fix.
+    install_k2_webserver_backend "$platform" ||
+        log_warn "Web-server carve-out incomplete; the UI install itself is fine"
+
     cleanup_old_install
     cleanup_migrated_install
     cleanup_stale_cache_dirs

@@ -100,6 +100,7 @@ gate_scripts() {
     # Widening to scripts/ must not drop the original coverage.
     filter_selects config/platform/foo.sh
     filter_selects config/helixscreen.init
+    filter_selects config/creality-backend.init
 }
 
 @test "the generated installer bundles are excluded" {

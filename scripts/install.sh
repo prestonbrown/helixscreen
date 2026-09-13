@@ -4452,20 +4452,64 @@ stop_kmod_competing_uis() {
     done
 }
 
-# Stop stock Creality UI on K1 series (display-server, Monitor, master-server, etc.)
-# S99start_app launches the entire stock Creality UI stack
+# Whether the stock Creality backend (master-server, app-server, web-server)
+# is kept alive on K1 series printers (prestonbrown/helixscreen#1468).
+# 1 = install /etc/init.d/S99creality-backend so the trio starts at boot and
+#     Creality Print / Creality Cloud keep reaching the printer.
+# 0 = leave the whole stock stack down (the backend ports stay closed).
+# This is the one-line default the platform carries; flip it here if the
+# on-device coexistence verification says otherwise.
+K1_CREALITY_BACKEND_ENABLED="${K1_CREALITY_BACKEND_ENABLED:-1}"
+
+# Where the backend init script is deployed. S99creality-backend sorts before
+# S99helixscreen and S99start_app, so the backend is up before the UI takes
+# the display and before any stock script a later restore re-enables.
+K1_CREALITY_BACKEND_INIT="/etc/init.d/S99creality-backend"
+
+# Stop the stock Creality display stack on K1 series. Monitor and
+# display-server are the framebuffer contenders; the backend trio
+# (master-server, app-server, web-server) is what Creality Print and the
+# Creality Cloud app talk to and is deliberately left to
+# /etc/init.d/S99creality-backend (prestonbrown/helixscreen#1468).
+# Disable and record the stock K1 UI init script, adopting a disable that
+# predates this run. Split out of stop_k1_stock_competing_uis so main.sh's
+# post-extract K1 block can re-run it after extract_release replaces the
+# payload: the ledger lives in INSTALL_DIR/config, which the fresh-install
+# swap moves aside with the old payload.
+record_k1_stock_ui_disable() {
+    # The record must exist no matter which install did the chmod. An
+    # S99start_app that is already de-executed is a disable an earlier
+    # HelixScreen install left behind (or an operator following our docs),
+    # and hooks-k1.sh de-executes it again at every launch while it is
+    # executable, so for as long as HelixScreen is installed the disable is
+    # ours to reverse. Uninstall chmod +x's recorded targets only, and no
+    # scan fallback names S99start_app, so an unrecorded disable would leave
+    # the stock UI dead after uninstall.
+    [ -f /etc/init.d/S99start_app ] || return 0
+    # Disable so it doesn't restart on reboot (reversible)
+    chmod a-x /etc/init.d/S99start_app 2>/dev/null || true
+    record_disabled_service "sysv-chmod" "/etc/init.d/S99start_app"
+}
+
 stop_k1_stock_competing_uis() {
-    if [ -x /etc/init.d/S99start_app ]; then
-        log_info "Stopping stock Creality UI (S99start_app)..."
-        /etc/init.d/S99start_app stop 2>/dev/null || true
-        # Disable so it doesn't restart on reboot (reversible)
-        chmod a-x /etc/init.d/S99start_app 2>/dev/null || true
-        record_disabled_service "sysv-chmod" "/etc/init.d/S99start_app"
+    if [ -f /etc/init.d/S99start_app ]; then
+        if [ -x /etc/init.d/S99start_app ]; then
+            log_info "Stopping stock Creality UI (S99start_app)..."
+            /etc/init.d/S99start_app stop 2>/dev/null || true
+        fi
+        record_k1_stock_ui_disable
         found_any=true
+
+        if [ "$K1_CREALITY_BACKEND_ENABLED" = "1" ]; then
+            log_warn "Stock Creality display UI disabled; the backend servers (master-server, app-server, web-server) are kept running so Creality Print and Creality Cloud can reach this printer."
+        else
+            log_warn "Stock Creality backend disabled; Creality Print and the Creality Cloud app will no longer reach this printer."
+        fi
     fi
 
-    # Kill any remaining stock Creality UI processes
-    for proc in display-server Monitor master-server audio-server wifi-server app-server upgrade-server web-server; do
+    # Kill any remaining framebuffer contenders. Monitor dies first: it is a
+    # watchdog that respawns display-server moments after the kill below.
+    for proc in Monitor display-server; do
         if kill_process_by_name "$proc"; then
             log_info "Killed remaining $proc process"
             found_any=true
@@ -4475,6 +4519,48 @@ stop_k1_stock_competing_uis() {
     # S99start_app also manages dropbear (SSH) on stock K1 firmware.
     # Disabling it kills SSH on next reboot (#535). Ensure SSH survives.
     ensure_k1_ssh
+}
+
+# Install the init script that starts the stock Creality backend trio at boot
+# (prestonbrown/helixscreen#1468). Must run AFTER extract_release: the script
+# ships in the release package as config/creality-backend.init. The installed
+# path is recorded with type "sysv-created" so reenable_disabled_services
+# removes it on uninstall, leaving S99start_app to bring the whole stock
+# stack back. No-op on Simple AF hosts (they remove S99start_app and its
+# stack themselves, so there is no stock backend of ours to spare) and on
+# every non-K1 firmware.
+install_k1_creality_backend() {
+    if [ "$K1_CREALITY_BACKEND_ENABLED" != "1" ]; then
+        return 0
+    fi
+
+    case "${K1_FIRMWARE:-}" in
+        stock_klipper|guilouz) ;;
+        *) return 0 ;;
+    esac
+
+    local src="${INSTALL_DIR}/config/creality-backend.init"
+    if [ ! -f "$src" ]; then
+        log_warn "creality-backend.init missing from ${INSTALL_DIR}/config (the payload being installed may predate prestonbrown/helixscreen#1468); the Creality backend will not start at boot"
+        return 0
+    fi
+
+    # Plain copy first (installs run as root on the K1 family), sudo fallback
+    # for a non-root caller, both non-fatal.
+    mkdir -p "$(dirname "$K1_CREALITY_BACKEND_INIT")" 2>/dev/null \
+        || $SUDO mkdir -p "$(dirname "$K1_CREALITY_BACKEND_INIT")" 2>/dev/null || true
+    if cp "$src" "$K1_CREALITY_BACKEND_INIT" 2>/dev/null \
+       || $SUDO cp "$src" "$K1_CREALITY_BACKEND_INIT" 2>/dev/null; then
+        chmod +x "$K1_CREALITY_BACKEND_INIT" 2>/dev/null \
+            || $SUDO chmod +x "$K1_CREALITY_BACKEND_INIT" 2>/dev/null || true
+        record_disabled_service "sysv-created" "$K1_CREALITY_BACKEND_INIT"
+        log_info "Installed Creality backend init script: $K1_CREALITY_BACKEND_INIT"
+        # Bring the trio up now, so the backend survives this install session
+        # without a reboot (S99start_app's own stop, above, took it down).
+        "$K1_CREALITY_BACKEND_INIT" start 2>/dev/null || true
+    else
+        log_warn "Could not install $K1_CREALITY_BACKEND_INIT; the Creality backend will not start at boot"
+    fi
 }
 
 # Stop the Sovol SV06 Ace stock touchscreen UI (#986).
@@ -7496,11 +7582,14 @@ extract_release() {
         # dialog the user already dismissed (dismiss only rotates crash.txt to
         # crash_1.txt; it does not survive the .old round-trip). crash_history.json
         # is intentionally NOT pruned — it is the dedup store and should persist.
+        # .helix-fresh-install is install context, not user data: restoring a
+        # stale marker marks an update's restored config as freshly installed.
         $(file_sudo "${INSTALL_BACKUP}/config") rm -f \
             "${INSTALL_BACKUP}/config/crash.txt" \
             "${INSTALL_BACKUP}/config/"crash_*.txt \
             "${INSTALL_BACKUP}/config/crash_report.txt" \
-            "${INSTALL_BACKUP}/config/.crash_restart_count" 2>/dev/null || true
+            "${INSTALL_BACKUP}/config/.crash_restart_count" \
+            "${INSTALL_BACKUP}/config/.helix-fresh-install" 2>/dev/null || true
     fi
 
     # Restore any remaining user data from previous config/ (custom_images/,
@@ -7509,10 +7598,13 @@ extract_release() {
     # Uses [ ! -e ] instead of cp -n for BusyBox compatibility.
     # For directories that exist in both old and new installs (e.g. printer_database.d/),
     # merge at the file level so user additions are preserved alongside new bundled files.
+    # The /.* pass alongside the bare glob restores dotfiles (.disabled_services
+    # and any other config/.* state) that a bare glob silently skips.
     if [ -n "${INSTALL_BACKUP:-}" ] && [ -d "${INSTALL_BACKUP}/config" ]; then
-        for _item in "${INSTALL_BACKUP}/config"/*; do
+        for _item in "${INSTALL_BACKUP}/config"/* "${INSTALL_BACKUP}/config"/.*; do
             [ -e "$_item" ] || continue
             _base=$(basename "$_item")
+            case "$_base" in .|..) continue ;; esac
             if [ ! -e "${INSTALL_DIR}/config/${_base}" ]; then
                 # Item doesn't exist in new install — restore the whole thing
                 if $(file_sudo "${INSTALL_DIR}/config") cp -r "$_item" "${INSTALL_DIR}/config/${_base}" 2>/dev/null; then
@@ -7522,9 +7614,11 @@ extract_release() {
                 fi
             elif [ -d "$_item" ] && [ -d "${INSTALL_DIR}/config/${_base}" ]; then
                 # Both old and new have this directory — merge individual files
-                for _subitem in "$_item"/*; do
+                # (dotfiles included, same /.* pass as the outer loop)
+                for _subitem in "$_item"/* "$_item"/.*; do
                     [ -e "$_subitem" ] || continue
                     _subbase=$(basename "$_subitem")
+                    case "$_subbase" in .|..) continue ;; esac
                     if [ ! -e "${INSTALL_DIR}/config/${_base}/${_subbase}" ]; then
                         if $(file_sudo "${INSTALL_DIR}/config/${_base}") cp -r "$_subitem" "${INSTALL_DIR}/config/${_base}/${_subbase}" 2>/dev/null; then
                             log_info "Restored user data: config/${_base}/${_subbase}"
@@ -7889,6 +7983,77 @@ install_procd_shim_k2() {
     fi
 
     log_success "Installed K2 procd shim at $shim_dest (boot symlink verified)"
+}
+
+# K2 web-server carve-out (prestonbrown/helixscreen#1617). The runtime hook
+# runs `/etc/init.d/app disable`, and procd disables the app service as a
+# whole — so web-server (ports 80/443/9998/9999, Creality Cloud) would
+# never start at boot. Install an rc.common script that starts exactly
+# web-server, independent of the app service, and enable it so procd's boot
+# iterator runs it.
+#
+# Must be called AFTER start_service: the service start is what runs
+# platform_stop_competing_uis, whose `/etc/init.d/app stop` takes the stock
+# web-server down, and the explicit start here brings the carve-out back
+# for the current session without a reboot. No-op when the stock app
+# service is absent (a firmware without the stock set has nothing to carve
+# out of) or when procd's rc.common is missing.
+install_k2_webserver_backend() {
+    [ "${1:-}" = "k2" ] || return 0
+
+    if [ ! -f /etc/init.d/app ]; then
+        log_info "No stock /etc/init.d/app on this host; skipping web-server carve-out"
+        return 0
+    fi
+
+    if [ ! -x /etc/rc.common ]; then
+        log_warn "K2 web-server carve-out: /etc/rc.common not found — skipping"
+        return 0
+    fi
+
+    local src="${INSTALL_DIR}/config/k2-webserver.init"
+    local dest="/etc/init.d/helix-k2-webserver"
+
+    if [ ! -f "$src" ]; then
+        log_warn "k2-webserver.init missing from ${INSTALL_DIR}/config (the payload being installed may predate prestonbrown/helixscreen#1617); the web-server carve-out will not survive reboot"
+        return 0
+    fi
+
+    cp "$src" "$dest" 2>/dev/null || $SUDO cp "$src" "$dest" 2>/dev/null || {
+        log_warn "Could not install $dest; the web-server carve-out will not survive reboot"
+        return 0
+    }
+    chmod +x "$dest" 2>/dev/null || $SUDO chmod +x "$dest" 2>/dev/null || true
+
+    # Drop any existing rc.d entry before enabling — `enable` exits 0 even
+    # when it produced no symlink, so the boot entry is verified by link
+    # the same way install_procd_shim_k2 does. enable and start go through
+    # $SUDO for the same reason the shim's do: a non-root caller must not
+    # leave the carve-out half-installed.
+    $SUDO rm -f /etc/rc.d/S99helix-k2-webserver /etc/rc.d/K01helix-k2-webserver 2>/dev/null || true
+    if ! $SUDO "$dest" enable; then
+        log_error "K2 web-server carve-out: enable failed — web-server will not start at boot"
+        log_error "Manual fix: $SUDO $dest enable"
+        return 1
+    fi
+    local ws_target
+    ws_target=$(readlink /etc/rc.d/S99helix-k2-webserver 2>/dev/null || true)
+    if [ "$ws_target" != "../init.d/helix-k2-webserver" ]; then
+        log_error "K2 web-server carve-out: /etc/rc.d/S99helix-k2-webserver -> '$ws_target' (expected '../init.d/helix-k2-webserver')"
+        log_error "web-server will not start at boot (see [L086])."
+        return 1
+    fi
+
+    record_disabled_service "sysv-created" "$dest"
+    log_info "Installed K2 web-server carve-out: $dest (boot symlink verified)"
+    # Bring web-server up now — the stock instance died with the app stop
+    # the service start just ran. A failed start is logged, not fatal: the
+    # boot entry above is already verified, so the carve-out comes up at
+    # the next reboot regardless.
+    if ! $SUDO "$dest" start 2>/dev/null; then
+        log_warn "K2 web-server carve-out: start failed; it will start at the next boot"
+    fi
+    return 0
 }
 
 install_service_snapmaker_u1() {
@@ -8333,7 +8498,15 @@ deploy_platform_hooks() {
     mkdir -p "${install_dir}/platform" 2>/dev/null || $SUDO mkdir -p "${install_dir}/platform" 2>/dev/null || true
     cp "$hooks_src" "${install_dir}/platform/hooks.sh" 2>/dev/null || $SUDO cp "$hooks_src" "${install_dir}/platform/hooks.sh" 2>/dev/null || true
     chmod +x "${install_dir}/platform/hooks.sh" 2>/dev/null || $SUDO chmod +x "${install_dir}/platform/hooks.sh" 2>/dev/null || true
-    log_info "Deployed platform hooks: $platform"
+
+    # Every copy above is non-fatal, so success has to be observed rather than
+    # assumed. A missing hooks.sh leaves each platform_* function the no-op stub
+    # the init script declares, and nothing else reports that.
+    if [ -s "${install_dir}/platform/hooks.sh" ]; then
+        log_info "Deployed platform hooks: $platform"
+    else
+        log_warn "Platform hooks NOT deployed: ${install_dir}/platform/hooks.sh is missing or empty"
+    fi
 }
 
 # Fix ownership of install directory for non-root service users.
@@ -10718,6 +10891,24 @@ reenable_disabled_services() {
                     HELIX_REENABLED_SCRIPTS="${HELIX_REENABLED_SCRIPTS} ${target}"
                 fi
                 ;;
+            sysv-created)
+                # An init script HelixScreen itself wrote (the K1 Creality
+                # backend, prestonbrown/helixscreen#1468; the K2 web-server
+                # carve-out, prestonbrown/helixscreen#1617). Stopping and
+                # removing it is the only correct reversal: chmod +x would
+                # leave our script competing with the restored stock one.
+                # An rc.common script must also be disabled, or its rc.d
+                # boot symlinks outlive the script they point at.
+                if [ -f "$target" ]; then
+                    log_info "Removing HelixScreen init script: $target"
+                    if [ -x /etc/rc.common ] && \
+                       awk 'NR==1 {exit !/\/etc\/rc\.common/}' "$target" 2>/dev/null; then
+                        $SUDO "$target" disable 2>/dev/null || true
+                    fi
+                    $SUDO "$target" stop 2>/dev/null || true
+                    $SUDO rm -f "$target"
+                fi
+                ;;
         esac
     done < "$state_file"
 }
@@ -10843,6 +11034,9 @@ restore_previous_ui_platform() {
     if [ -z "$restored_ui" ] && [ -f /etc/init.d/app ] && \
        { [ "$platform" = "k2" ] || [ -f /mnt/UDISK/printer_data/config/printer.cfg ]; }; then
         log_info "Re-enabling Creality stock UI (/etc/init.d/app)..."
+        # Drop any web-server the carve-out left running so the stock
+        # instance app start is about to spawn can bind its port.
+        killall web-server 2>/dev/null || true
         $SUDO /etc/init.d/app enable 2>/dev/null || true
         $SUDO /etc/init.d/app start 2>/dev/null || true
         restored_ui="Creality stock UI (/etc/init.d/app)"
@@ -11457,14 +11651,45 @@ clean_old_installation() {
     $SUDO rm -f /etc/polkit-1/rules.d/50-helixscreen-network.rules
     $SUDO systemctl daemon-reload 2>/dev/null || true
 
-    # Remove <klipper config dir>/helixscreen/ (user config) in clean mode
+    # Remove <klipper config dir>/helixscreen/ (user config) in clean mode.
+    # The disabled-services ledger rides the wipe out: it records /etc
+    # init-script disables that --clean leaves in place, and the install
+    # continuing after the wipe cannot re-record them (the stock UI is
+    # already de-executed by then), so dropping the ledger would strand it.
     local pd_config
     pd_config="$(klipper_config_dir)"
     if [ -n "$pd_config" ]; then
         local pd_helix="${pd_config}/helixscreen"
+        local pd_ledger="${pd_helix}/.disabled_services"
+        local ledger_keep="${pd_config}/.disabled_services.clean-keep"
+        # A keep file with no live ledger is a carry a killed run left
+        # half-done, and the only surviving copy of the ledger: put it back
+        # before this run decides anything about pd_helix.
+        if [ -f "$ledger_keep" ] && [ ! -f "$pd_ledger" ]; then
+            if $(file_sudo "$pd_config") mkdir -p "$pd_helix" 2>/dev/null \
+               && $(file_sudo "$ledger_keep") mv "$ledger_keep" "$pd_ledger" 2>/dev/null; then
+                log_info "Recovered the disabled-services ledger from an interrupted clean"
+            fi
+        fi
         if [ -d "$pd_helix" ] || [ -L "$pd_helix" ]; then
+            local carried=false
+            if [ -f "$pd_ledger" ]; then
+                if $(file_sudo "$pd_ledger") mv "$pd_ledger" "$ledger_keep" 2>/dev/null; then
+                    carried=true
+                else
+                    log_warn "Could not set the disabled-services ledger aside; --clean drops it (a later uninstall may leave a stock UI disabled)"
+                fi
+            fi
             log_info "Removing user config: $pd_helix"
             $SUDO rm -rf "$pd_helix"
+            if [ "$carried" = true ]; then
+                if $(file_sudo "$pd_config") mkdir -p "$pd_helix" 2>/dev/null \
+                   && $(file_sudo "$ledger_keep") mv "$ledger_keep" "$pd_ledger" 2>/dev/null; then
+                    :
+                else
+                    log_warn "Could not restore the disabled-services ledger after the wipe (it is at $ledger_keep); a later uninstall may leave a stock UI disabled"
+                fi
+            fi
         fi
     fi
 
@@ -11533,7 +11758,10 @@ usage() {
     echo "  --update       Update existing installation (preserves config)"
     echo "  --uninstall    Remove HelixScreen"
     echo "  --clean        Clean install: remove old installation completely,"
-    echo "                 including config and caches (asks for confirmation)"
+    echo "                 including config and caches. The disabled-services"
+    echo "                 ledger is kept, so a later uninstall can still"
+    echo "                 re-enable a stock UI this install disabled."
+    echo "                 Asks for confirmation."
     echo "  --yes, -y      Confirm destructive prompts non-interactively."
     echo "                 Required for --clean when stdin is not a terminal"
     echo "                 (e.g. curl ... | sh -s -- --clean --yes)"
@@ -12272,6 +12500,16 @@ main() {
     # SSH (#535). Runs on both fresh install and self-update.
     if [ "$platform" = "k1" ]; then
         ensure_k1_ssh
+        # Re-record the stock UI disable against the payload that just landed:
+        # extract_release replaces INSTALL_DIR between the stop step and the
+        # config symlink setup, and a self-update run skips the stop step
+        # entirely. Idempotent (record_disabled_service dedups).
+        record_k1_stock_ui_disable
+        # Install and start the stock Creality backend trio
+        # (prestonbrown/helixscreen#1468). Runs post-extract (the init script
+        # ships in the release package) and on self-update, which skips
+        # stop_competing_uis and would otherwise never see it installed.
+        install_k1_creality_backend
     fi
 
     # Verify all shared library dependencies are satisfied before starting
@@ -12330,6 +12568,20 @@ main() {
 
     # Start service
     start_service "$platform"
+
+    # K2: install and start the web-server carve-out
+    # (prestonbrown/helixscreen#1617). Must follow start_service: the
+    # service start runs platform_stop_competing_uis, whose
+    # /etc/init.d/app stop takes the stock web-server down, and this
+    # brings the carve-out back for the current session while the
+    # installed script keeps it across reboots. No-op off K2. The || guard
+    # keeps a carve-out failure non-fatal: we run under set -eu with the
+    # service already started, and a supplementary backend must not abort
+    # the install before cleanup_* runs — the function has already logged
+    # the error and the manual fix.
+    install_k2_webserver_backend "$platform" ||
+        log_warn "Web-server carve-out incomplete; the UI install itself is fine"
+
     cleanup_old_install
     cleanup_migrated_install
     cleanup_stale_cache_dirs

@@ -26,8 +26,9 @@
     "macro_exclude": "Exclude this printer if a G-code macro is present",
     "tool_count": "Count of extruder tools (tool_count_1, tool_count_2, tool_count_4)",
     "cpu_arch_match": "Match against host CPU architecture string",
-    "_modifier_corroborating": "Set true on a heuristic whose evidence names a CLASS of printer rather than a model: a chamber thermistor (every enclosed machine has one) or an MCU claimed by more than one manufacturer. It still adds to the match bonus but can never be the base score, so it cannot identify a printer on its own. A chip only one vendor uses stays identifying.",
-    "_modifier_identifying": "Set true on a build_volume_range whose window is distinctive enough to lead. Volumes are corroborating by default because models overlap in the common bands; this opts an unusual size back in. It still needs the entry's kinematics to match, so a size alone never names a printer."
+    "_modifier_corroborating": "Set true on a heuristic whose evidence names a CLASS of printer rather than a model: a chamber thermistor (every enclosed machine has one) or an MCU claimed by more than one model. The flag is per-entry authoring - vendor hostnames stay identifying where an entry authors them as model signals and corroborate where it does not. It can never be the base score and adds nothing to the match bonus, so it cannot identify a printer or separate look-alikes on its own; it supports through match_count and the separator opt-in.",
+    "_modifier_identifying": "Set true on a build_volume_range whose window is distinctive enough to lead. Volumes are corroborating by default because models overlap in the common bands; this opts an unusual size back in. It still needs the entry's kinematics to match, so a size alone never names a printer.",
+    "_modifier_separator": "Set true on a corroborating heuristic whose evidence names the model within a family the entry's other heuristics identify: a bed size (K2 Plus against K2 Pro) or an MCU part number separating vendors whose class evidence ties. A match adds its weight to the uncapped score - the margin between look-alikes - once the entry's non-separator base clears the autosave bar; it never raises the published confidence and never becomes the base, so a rig reporting only that one fact still earns nothing."
   },
   "console_filter_sets": {
     "creality_rs485": {
@@ -1670,7 +1671,8 @@
           "min_y": 340,
           "max_y": 360,
           "confidence": 55,
-          "reason": "Build volume ~350mm (K2 Plus size)"
+          "reason": "Build volume ~350mm (K2 Plus size); separates Plus from Pro once the K2 platform is identified",
+          "separator": true
         }
       ],
       "_print_start_default_phases_comment": "Measured on a K2 Plus 2026-08-18 (three captured prints): three homing rail rounds ~15s; nozzle wipe plus both BOX_NOZZLE_CLEAN passes ~60s; the bed-mesh toggle is optional (emit_when_disabled: false) and its check-passed validation runs ~6s - a failed check re-meshes (67-pt adaptive) and the prediction history learns that after the first such print. Heating is omitted - the thermal model owns those.",
@@ -1813,7 +1815,8 @@
           "min_y": 340,
           "max_y": 360,
           "confidence": 55,
-          "reason": "Build volume ~350mm (K2 Plus size)"
+          "reason": "Build volume ~350mm (K2 Plus size); separates Plus from Pro once the K2 platform is identified",
+          "separator": true
         }
       ]
     },
@@ -1951,7 +1954,8 @@
           "min_y": 290,
           "max_y": 310,
           "confidence": 55,
-          "reason": "Build volume ~300mm (K2 Pro size)"
+          "reason": "Build volume ~300mm (K2 Pro size); separates Pro from Plus once the K2 platform is identified",
+          "separator": true
         }
       ],
       "_print_start_default_phases_comment": "Measured on a K2 Plus 2026-08-18 (three captured prints): three homing rail rounds ~15s; nozzle wipe plus both BOX_NOZZLE_CLEAN passes ~60s; the bed-mesh toggle is optional (emit_when_disabled: false) and its check-passed validation runs ~6s - a failed check re-meshes (67-pt adaptive) and the prediction history learns that after the first such print. Heating is omitted - the thermal model owns those.",
@@ -3692,7 +3696,8 @@
           "field": "mcu",
           "pattern": "STM32F407",
           "confidence": 35,
-          "reason": "STM32F407 main MCU (QIDI new-generation board)"
+          "reason": "STM32F407 main MCU (QIDI new-generation board)",
+          "corroborating": true
         }
       ]
     },
@@ -3787,7 +3792,8 @@
           "field": "mcu",
           "pattern": "STM32F407",
           "confidence": 35,
-          "reason": "STM32F407 main MCU (QIDI new-generation board)"
+          "reason": "STM32F407 main MCU (QIDI new-generation board)",
+          "corroborating": true
         }
       ]
     },
@@ -3826,7 +3832,8 @@
           "field": "hostname",
           "pattern": "flsun",
           "confidence": 90,
-          "reason": "Hostname contains 'flsun'"
+          "reason": "Hostname contains 'flsun'",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -3841,7 +3848,8 @@
           "pattern": "GD32F303",
           "confidence": 40,
           "reason": "GD32F303 MCU (MKS Robin Nano V2 clone)",
-          "corroborating": true
+          "corroborating": true,
+          "separator": true
         }
       ]
     },
@@ -3870,7 +3878,8 @@
           "field": "hostname",
           "pattern": "flsun",
           "confidence": 90,
-          "reason": "Hostname contains 'flsun'"
+          "reason": "Hostname contains 'flsun'",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -3906,7 +3915,8 @@
           "pattern": "GD32F303",
           "confidence": 40,
           "reason": "GD32F303 MCU (MKS Robin Nano)",
-          "corroborating": true
+          "corroborating": true,
+          "separator": true
         }
       ]
     },
@@ -3942,14 +3952,16 @@
           "field": "hostname",
           "pattern": "flsun",
           "confidence": 90,
-          "reason": "Hostname contains 'flsun'"
+          "reason": "Hostname contains 'flsun'",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "delta",
           "confidence": 60,
-          "reason": "Hostname contains 'delta'"
+          "reason": "Hostname contains 'delta'",
+          "corroborating": true
         }
       ]
     },
@@ -3985,7 +3997,8 @@
           "field": "hostname",
           "pattern": "doron",
           "confidence": 85,
-          "reason": "Hostname contains 'doron'"
+          "reason": "Hostname contains 'doron'",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -4045,7 +4058,8 @@
           "field": "hostname",
           "pattern": "venture",
           "confidence": 90,
-          "reason": "Hostname contains 'venture'"
+          "reason": "Hostname contains 'venture'",
+          "corroborating": true
         },
         {
           "type": "build_volume_range",
@@ -4473,7 +4487,8 @@
           "field": "hostname",
           "pattern": "sovol",
           "confidence": 85,
-          "reason": "Hostname contains 'sovol'"
+          "reason": "Hostname contains 'sovol'",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -4555,7 +4570,8 @@
           "field": "hostname",
           "pattern": "sovol",
           "confidence": 85,
-          "reason": "Hostname contains 'sovol'"
+          "reason": "Hostname contains 'sovol'",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -4601,7 +4617,8 @@
           "field": "hostname",
           "pattern": "sovol",
           "confidence": 85,
-          "reason": "Hostname contains 'sovol'"
+          "reason": "Hostname contains 'sovol'",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -4654,7 +4671,8 @@
           "field": "hostname",
           "pattern": "sovol",
           "confidence": 85,
-          "reason": "Hostname contains 'sovol'"
+          "reason": "Hostname contains 'sovol'",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -4670,6 +4688,7 @@
       "name": "Sovol SV06 ACE",
       "manufacturer": "Sovol",
       "image": "sovol-sv06-ace.png",
+      "notes": "smart_effector is weighted as keystone hardware (90) because hostname-free ACE identification rests on it clearing the separator bar. Mainline Klipper also ships smart_effector for Duet3D probe boards, so a rare Duet3D rig reporting it with a 200-240mm bed and no hostname is an accepted collision - it is misidentified as an ACE rather than declined, because a lower weight would leave the load-cell stack below the separator bar and hostname-free ACEs would go ambiguous.",
       "preset": "sovol_sv06_ace",
       "display": {
         "resolution": "480x272",
@@ -4694,13 +4713,14 @@
           "min_y": 200,
           "max_y": 240,
           "confidence": 50,
-          "reason": "Build volume ~220mm (SV06 ACE size)"
+          "reason": "Build volume ~220mm (SV06 ACE size)",
+          "separator": true
         },
         {
           "type": "object_exists",
           "field": "printer_objects",
           "pattern": "smart_effector",
-          "confidence": 72,
+          "confidence": 90,
           "reason": "smart_effector load-cell nozzle probe (ACE; plain SV06 uses inductive probe)"
         },
         {
@@ -4722,7 +4742,8 @@
           "field": "hostname",
           "pattern": "sovol",
           "confidence": 85,
-          "reason": "Hostname contains 'sovol'"
+          "reason": "Hostname contains 'sovol'",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -4775,7 +4796,8 @@
           "field": "hostname",
           "pattern": "sovol",
           "confidence": 85,
-          "reason": "Hostname contains 'sovol'"
+          "reason": "Hostname contains 'sovol'",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -4798,6 +4820,7 @@
       "name": "Sovol SV06 Plus ACE",
       "manufacturer": "Sovol",
       "image": "sovol-sv06-plus-ace.png",
+      "notes": "smart_effector is weighted as keystone hardware (90) because hostname-free ACE identification rests on it clearing the separator bar. Mainline Klipper also ships smart_effector for Duet3D probe boards, so a rare Duet3D rig reporting it with a 280-320mm bed and no hostname is an accepted collision - it is misidentified as an ACE rather than declined, because a lower weight would leave the load-cell stack below the separator bar and hostname-free ACEs would go ambiguous.",
       "display": {
         "resolution": "480x272",
         "touch_controller": "goodix",
@@ -4821,13 +4844,14 @@
           "min_y": 280,
           "max_y": 320,
           "confidence": 60,
-          "reason": "Build volume ~300mm (SV06 Plus ACE size)"
+          "reason": "Build volume ~300mm (SV06 Plus ACE size)",
+          "separator": true
         },
         {
           "type": "object_exists",
           "field": "printer_objects",
           "pattern": "smart_effector",
-          "confidence": 72,
+          "confidence": 90,
           "reason": "smart_effector load-cell nozzle probe (ACE; plain SV06 Plus uses inductive probe)"
         },
         {
@@ -4849,7 +4873,8 @@
           "field": "hostname",
           "pattern": "sovol",
           "confidence": 85,
-          "reason": "Hostname contains 'sovol'"
+          "reason": "Hostname contains 'sovol'",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -4916,7 +4941,8 @@
           "field": "hostname",
           "pattern": "sovol",
           "confidence": 85,
-          "reason": "Hostname contains 'sovol'"
+          "reason": "Hostname contains 'sovol'",
+          "corroborating": true
         },
         {
           "type": "hostname_match",
@@ -5245,6 +5271,13 @@
           "pattern": "k3v2",
           "confidence": 96,
           "reason": "Hostname contains 'k3v2'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "anycubic",
+          "confidence": 80,
+          "reason": "Hostname contains 'anycubic'"
         }
       ]
     },

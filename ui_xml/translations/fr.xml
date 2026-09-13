@@ -123,6 +123,7 @@
   <translation tag="ALL DEVICES" fr="TOUS LES APPAREILS"/>
   <translation tag="AMS" fr="AMS"/>
   <translation tag="AMS Active: " fr="AMS actif : "/>
+  <translation tag="AMS is busy" fr="L&apos;AMS est occupé"/>
   <translation tag="API not available" fr="API non disponible"/>
   <translation tag="APPEARANCE" fr="APPARENCE"/>
   <translation tag="AUTO FANS" fr="VENTILATEURS AUTO"/>
@@ -256,6 +257,7 @@
   <translation tag="Beacon auto-calibrate sent" fr="Beacon auto-calibrage envoyé"/>
   <translation tag="Beacon calibrate sent" fr="Beacon calibrage envoyé"/>
   <translation tag="Bed" fr="Plateau"/>
+  <translation tag="Bed (°C)" fr="Plateau (°C)"/>
   <translation tag="Bed Heater" fr="Chauffage du plateau"/>
   <translation tag="Bed Level" fr="Niveau du plateau"/>
   <translation tag="Bed Leveling" fr="Mise à niveau du plateau"/>
@@ -269,13 +271,12 @@
   <translation tag="Bed Screw Results" fr="Résultats des vis du plateau"/>
   <translation tag="Bed Screws" fr="Vis du plateau"/>
   <translation tag="Bed Temp" fr="Temp. du plateau"/>
-  <translation tag="Bed Temp (°C)" fr="Temp. plateau (°C)"/>
   <translation tag="Bed Temperature" fr="Température du plateau"/>
   <translation tag="Bed is Level!" fr="Le plateau est niveau !"/>
   <translation tag="Bed mesh operation timed out" fr="Maillage du plateau — délai dépassé"/>
   <translation tag="Bed mesh..." fr="Maillage du plateau..."/>
   <translation tag="Bed target set to {}°C" fr="Cible plateau réglée à {}°C"/>
-  <translation tag="Bed temp must be 0-200°C" fr="La température du plateau doit être entre 0 et 200°C"/>
+  <translation tag="Bed temp must be 0-%d°C" fr="La température du plateau doit être entre 0 et %d°C"/>
   <translation tag="Bed warming timed out" fr="Préchauffage du plateau — délai dépassé"/>
   <translation tag="Belt A" fr="Courroie A"/>
   <translation tag="Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A." fr="La courroie A (avant droite) est plus tendue de %.0f Hz. Tendez la courroie B, à l&apos;avant gauche, ou détendez la courroie A."/>
@@ -399,6 +400,7 @@
   <translation tag="Cam" fr="Cam"/>
   <translation tag="Camera" fr="Caméra"/>
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" fr="Connexion impossible — essayez d&apos;oublier et de réappairer l&apos;imprimante"/>
+  <translation tag="Can&apos;t move filament while the print is paused" fr="Impossible de déplacer le filament pendant une impression en pause"/>
   <translation tag="Can&apos;t read filament RFID tag" fr="Impossible de lire l&apos;étiquette RFID du filament"/>
   <translation tag="Cancel" fr="Annuler"/>
   <translation tag="Cancel Escalation" fr="Annuler l&apos;escalade"/>
@@ -411,10 +413,12 @@
   <translation tag="Cannot modify G-code: no temp directory available" fr="Impossible de modifier le G-Code : aucun répertoire temporaire disponible"/>
   <translation tag="Cannot modify G-code: scan result not available" fr="Impossible de modifier le G-Code : résultat du scan non disponible"/>
   <translation tag="Cannot modify G-code: {}. Printing original file." fr="Impossible de modifier le G-Code : {}. Impression du fichier original."/>
+  <translation tag="Cannot perform this action now" fr="Impossible d&apos;effectuer cette action maintenant"/>
   <translation tag="Cannot remap G-code: no temp directory available" fr="Impossible de remapper le G-Code : aucun répertoire temporaire disponible"/>
   <translation tag="Cannot remap: internal error" fr="Impossible de remapper : erreur interne"/>
   <translation tag="Cannot reprint: not connected to printer" fr="Impossible de réimprimer : non connecté à l&apos;imprimante"/>
   <translation tag="Cannot restart — no filename" fr="Impossible de redémarrer — pas de nom de fichier"/>
+  <translation tag="Cannot run filament operation while printing" fr="Impossible d&apos;effectuer une opération de filament pendant l&apos;impression"/>
   <translation tag="Cannot start print: internal error" fr="Impossible de démarrer l&apos;impression : erreur interne"/>
   <translation tag="Cannot start print: not connected to printer" fr="Impossible de démarrer l&apos;impression : non connecté à l&apos;imprimante"/>
   <translation tag="Cannot start print: printer is {}" fr="Impossible de démarrer l&apos;impression : l&apos;imprimante est {}"/>
@@ -426,6 +430,7 @@
   <translation tag="Center QR code in frame" fr="Centrez le QR code dans le cadre"/>
   <translation tag="Chamb:" fr="Chambre :"/>
   <translation tag="Chamber" fr="Enceinte"/>
+  <translation tag="Chamber (°C)" fr="Enceinte (°C)"/>
   <translation tag="Chamber Cooling Fan" fr="Ventilateur de refroidissement de chambre"/>
   <translation tag="Chamber Fan" fr="Ventilateur de chambre"/>
   <translation tag="Chamber Heater" fr="Chauffage de chambre"/>
@@ -436,6 +441,7 @@
   <translation tag="Chamber at %d°C" fr="Chambre à %d°C"/>
   <translation tag="Chamber heating to %d°C..." fr="Chauffe de la chambre à %d°C..."/>
   <translation tag="Chamber target set to {}°C" fr="Cible de chambre définie à {}°C"/>
+  <translation tag="Chamber temp must be 0-%d°C" fr="La température de l&apos;enceinte doit être entre 0 et %d°C"/>
   <translation tag="Change" fr="Modifier"/>
   <translation tag="Change Address" fr="Changer l&apos;adresse"/>
   <translation tag="Change Blade" fr="Changer la lame"/>
@@ -450,6 +456,8 @@
   <translation tag="Changes are temporary and reset on printer reboot" fr="Les modifications sont temporaires et réinitialisées au redémarrage de l&apos;imprimante"/>
   <translation tag="Changes can be reversed anytime using the Macro Viewer." fr="Les modifications peuvent être annulées à tout moment via le Macro Viewer."/>
   <translation tag="Check Again" fr="Revérifier"/>
+  <translation tag="Check Klipper console for details" fr="Consultez la console Klipper pour plus de détails"/>
+  <translation tag="Check extruder temperature and try again. Manual removal may be required." fr="Vérifiez la température de l&apos;extrudeur et réessayez. Une extraction manuelle peut être nécessaire."/>
   <translation tag="Check filament" fr="Vérifier le filament"/>
   <translation tag="Check for Updates" fr="Vérifier les mises à jour"/>
   <translation tag="Check slot" fr="Vérifier le slot"/>
@@ -458,11 +466,13 @@
   <translation tag="Check slots failed" fr="Échec de la vérification des slots"/>
   <translation tag="Check that only one filament path is active" fr="Vérifiez qu&apos;un seul chemin de filament est actif"/>
   <translation tag="Check that the cutter mechanism is properly installed" fr="Vérifiez que le mécanisme de coupe est correctement installé"/>
+  <translation tag="Check that the printer is powered on and connected to the network" fr="Vérifiez que l&apos;imprimante est allumée et connectée au réseau"/>
   <translation tag="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor" fr="Vérifiez le tube PTFE le long de la chaîne porte-câbles à la recherche de plis, ainsi que le coude à l&apos;entrée du capteur d&apos;extrudeur"/>
   <translation tag="Check the RS-485 cable between printer and CFS" fr="Vérifiez le câble RS-485 entre l&apos;imprimante et le CFS"/>
   <translation tag="Check the buffer unit on the back of the printer" fr="Vérifiez l&apos;unité tampon à l&apos;arrière de l&apos;imprimante"/>
   <translation tag="Check the filament path and try again." fr="Vérifiez le chemin du filament et réessayez."/>
   <translation tag="Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed" fr="Vérifiez le trajet du slot vers le hub à la recherche d&apos;un emmêlement ou d&apos;une résistance. Si le slot avance librement, le capteur du hub ou le moteur d&apos;entraînement est peut-être défaillant"/>
+  <translation tag="Check the provided value and try again" fr="Vérifiez la valeur fournie et réessayez"/>
   <translation tag="Check the spool and the filament path for a jam, then retry" fr="Vérifiez la bobine et le chemin du filament, puis réessayez"/>
   <translation tag="Check your heater&apos;s rating (typically 40-60W for hotends)" fr="Vérifiez la puissance de votre chauffage (généralement 40-60W pour les hotends)"/>
   <translation tag="Checking" fr="Vérification"/>
@@ -522,6 +532,7 @@
   <translation tag="Color" fr="Couleur"/>
   <translation tag="Color Mismatch" fr="Couleur incompatible"/>
   <translation tag="Color Sensors" fr="Capteurs de couleur"/>
+  <translation tag="Command failed" fr="Échec de la commande"/>
   <translation tag="Communication Test" fr="Test de communication"/>
   <translation tag="Compact" fr="Compact"/>
   <translation tag="Compare" fr="Comparer"/>
@@ -691,6 +702,7 @@
   <translation tag="Debug" fr="Débogage"/>
   <translation tag="Default border thickness" fr="Épaisseur de bordure par défaut"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" fr="Par défaut : buse %d-%d°C, plateau %d°C"/>
+  <translation tag="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber"/>
   <translation tag="Defaults restored" fr="Valeurs par défaut restaurées"/>
   <translation tag="Define macros in your printer.cfg" fr="Définissez les macros dans votre printer.cfg"/>
   <translation tag="Delete" fr="Supprimer"/>
@@ -828,6 +840,7 @@
   <translation tag="Enhanced {} operations in PRINT_START" fr="{} opérations améliorées dans PRINT_START"/>
   <translation tag="Enhancement Complete!" fr="Amélioration terminée !"/>
   <translation tag="Enhancement Failed" fr="Amélioration échouée"/>
+  <translation tag="Ensure Happy Hare or AFC is installed and configured" fr="Vérifiez que Happy Hare ou AFC est installé et configuré"/>
   <translation tag="Enter Current PIN" fr="Saisissez le code PIN actuel"/>
   <translation tag="Enter G-code command..." fr="Entrez une commande G-code..."/>
   <translation tag="Enter New PIN" fr="Entrez le nouveau PIN"/>
@@ -904,6 +917,7 @@
   <translation tag="Extruder heats automatically based on material" fr="L&apos;extrudeur chauffe automatiquement selon le matériau"/>
   <translation tag="Extruder motor calibration failed" fr="Échec de l&apos;étalonnage du moteur d&apos;extrudeur"/>
   <translation tag="Extruder to Nozzle" fr="Extrudeur à la buse"/>
+  <translation tag="Extruder too cold" fr="Extrudeur trop froid"/>
   <translation tag="Extruding prime line..." fr="Extrusion de la ligne d&apos;amorçage..."/>
   <translation tag="FAILED" fr="ÉCHOUÉ"/>
   <translation tag="FILAMENTS" fr="FILAMENTS"/>
@@ -995,6 +1009,7 @@
   <translation tag="Failed to toggle %s" fr="Échec du basculement de %s"/>
   <translation tag="Failed to toggle timelapse: {}" fr="Échec de la bascule timelapse : {}"/>
   <translation tag="Failed to turn off heaters: {}" fr="Échec de l&apos;arrêt des chauffages : {}"/>
+  <translation tag="Failed to unload filament" fr="Échec du déchargement du filament"/>
   <translation tag="Failed to unload: {}" fr="Échec du déchargement : {}"/>
   <translation tag="Failed to update configuration.&#10;Check printer connection." fr="Échec de la mise à jour.&#10;Vérifiez la connexion."/>
   <translation tag="Failed to update moonraker.conf." fr="Échec de la mise à jour de moonraker.conf."/>
@@ -1010,6 +1025,8 @@
   <translation tag="FanSelect" fr="Sélection du ventilateur"/>
   <translation tag="Fans" fr="Ventilateurs"/>
   <translation tag="Farther" fr="Plus loin"/>
+  <translation tag="Favorites" fr="Favoris"/>
+  <translation tag="Feature not available" fr="Fonctionnalité non disponible"/>
   <translation tag="Features: " fr="Fonctionnalités : "/>
   <translation tag="Feed Assist" fr="Assistance d&apos;alimentation"/>
   <translation tag="Feed assist and debug tools" fr="Assistance d&apos;alimentation et outils de débogage"/>
@@ -1017,6 +1034,7 @@
   <translation tag="Feed filament" fr="Alimenter le filament"/>
   <translation tag="Feed filament directly to extruder" fr="Alimenter le filament directement vers l&apos;extrudeur"/>
   <translation tag="Feed filament from current slot" fr="Alimenter le filament depuis le slot actuel"/>
+  <translation tag="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload" fr="Insérez le filament à la main jusqu&apos;après le capteur, puis appuyez sur Reprendre — ou annulez l&apos;impression pour utiliser Charger/Décharger"/>
   <translation tag="Feeder" fr="Alimentateur"/>
   <translation tag="Feeders" fr="Alimentateurs"/>
   <translation tag="Feeding filament forward" fr="Avancement du filament"/>
@@ -1051,6 +1069,7 @@
   <translation tag="Filament is pulling tight" fr="Le filament est sous tension"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." fr="Le filament est encore à la buse après le déchargement. La coupe ou la rétractation n&apos;a peut-être pas abouti. Dégagez la tête d&apos;outil avant de charger une autre bobine."/>
   <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" fr="Du filament est encore présent après la coupe. La lame est peut-être émoussée ou mal alignée"/>
+  <translation tag="Filament jam detected" fr="Bourrage de filament détecté"/>
   <translation tag="Filament jammed at the extruder gear" fr="Filament coincé au niveau de l&apos;engrenage d&apos;extrudeur"/>
   <translation tag="Filament load failed: {}" fr="Échec du chargement du filament : {}"/>
   <translation tag="Filament never reached the CFS hub sensor" fr="Le filament n&apos;a jamais atteint le capteur du hub CFS"/>
@@ -1062,6 +1081,7 @@
   <translation tag="Filament ran out at the toolhead" fr="Filament épuisé à la tête d&apos;outil"/>
   <translation tag="Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume." fr="Filament épuisé. Le réapprovisionnement automatique est désactivé, le CFS ne changera donc pas de bobine tout seul. Chargez du filament, puis reprenez."/>
   <translation tag="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume." fr="Filament épuisé. Le CFS sait quelles bobines correspondent, mais ces slots sont vides. Chargez-en une, puis reprenez."/>
+  <translation tag="Filament reload failed" fr="Échec du rechargement du filament"/>
   <translation tag="Filament runout" fr="Fin de filament"/>
   <translation tag="Filament runout and motion detection sensors" fr="Capteurs de fin de filament et de détection de mouvement"/>
   <translation tag="Filament saved" fr="Filament enregistré"/>
@@ -1083,6 +1103,7 @@
   <translation tag="Filter Fan: On" fr="Ventilateur de filtration : allumé"/>
   <translation tag="Fine" fr="Fin"/>
   <translation tag="Finish" fr="Terminer"/>
+  <translation tag="Finish or cancel the print before loading, unloading, or changing filament" fr="Terminez ou annulez l&apos;impression avant de charger, décharger ou changer le filament"/>
   <translation tag="Finishing clean..." fr="Finalisation du nettoyage..."/>
   <translation tag="Finishing up..." fr="Finalisation..."/>
   <translation tag="Firmware Restart" fr="Redémarrage firmware"/>
@@ -1161,6 +1182,7 @@
   <translation tag="Heat Soaking..." fr="Stabilisation thermique..."/>
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." fr="Chauffez le plateau avant de calibrer pour un offset précis avec la dilatation thermique."/>
   <translation tag="Heat nozzle" fr="Chauffer la buse"/>
+  <translation tag="Heat the extruder to at least {}°C before loading filament" fr="Chauffez l&apos;extrudeur à au moins {}°C avant de charger le filament"/>
   <translation tag="Heat to at least %d°C for filament operations" fr="Chauffez à au moins %d°C pour les opérations sur le filament"/>
   <translation tag="Heatbed Temperature" fr="Température du plateau chauffant"/>
   <translation tag="Heated Bed" fr="Plateau chauffant"/>
@@ -1306,9 +1328,12 @@
   <translation tag="Interface size. Applies after restart." fr="Taille de l&apos;interface. Effectif après redémarrage."/>
   <translation tag="Internal error: API not available" fr="Erreur interne : API non disponible"/>
   <translation tag="Internal error: no scan result" fr="Erreur interne : aucun résultat de scan"/>
+  <translation tag="Invalid number" fr="Numéro non valide"/>
+  <translation tag="Invalid parameter" fr="Paramètre non valide"/>
   <translation tag="Invalid port number" fr="Numéro de port invalide"/>
   <translation tag="Invalid sheet template index: {} (have {})" fr="Index de modèle de feuille invalide : {} (sur {})"/>
   <translation tag="Invalid status response from printer" fr="Réponse d&apos;état invalide de l&apos;imprimante"/>
+  <translation tag="Invalid tool number" fr="Numéro d&apos;outil non valide"/>
   <translation tag="Issue description" fr="Description du problème"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." fr="Elle peut être désarchivée dans l&apos;interface web de Spoolman."/>
   <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" fr="Il est coincé entre le capteur du hub et son engrenage. Ouvrez le CFS et dégagez le hub avant de réessayer"/>
@@ -1391,9 +1416,12 @@
   <translation tag="Live view from your webcam" fr="Vue en direct de votre webcam"/>
   <translation tag="Load" fr="Charger"/>
   <translation tag="Load Filament" fr="Charger le filament"/>
+  <translation tag="Load a filament first before trying to unload" fr="Chargez d&apos;abord du filament avant d&apos;essayer de le décharger"/>
   <translation tag="Load a new spool in this slot, or turn on auto-refill to switch to a matching one" fr="Chargez une nouvelle bobine dans ce slot, ou activez le réapprovisionnement automatique pour basculer sur une bobine équivalente"/>
   <translation tag="Load complete" fr="Chargement terminé"/>
+  <translation tag="Load failed" fr="Échec du chargement"/>
   <translation tag="Load filament" fr="Charger le filament"/>
+  <translation tag="Load filament first" fr="Chargez d&apos;abord du filament"/>
   <translation tag="Load may still be running — response timed out" fr="Le chargement est peut-être encore en cours — délai dépassé"/>
   <translation tag="Load or unload filament." fr="Chargez ou déchargez du filament."/>
   <translation tag="Load the required filaments or start anyway?" fr="Charger les filaments requis ou démarrer quand même ?"/>
@@ -1487,6 +1515,7 @@
   <translation tag="Manual Feed" fr="Alimentation manuelle"/>
   <translation tag="Manual Retract" fr="Rétraction manuelle"/>
   <translation tag="Manual feed and retract operations" fr="Opérations manuelles d&apos;extrusion et de rétraction"/>
+  <translation tag="Manually clear the jam and retry the operation" fr="Dégagez le bourrage manuellement et réessayez l&apos;opération"/>
   <translation tag="Manually pull the filament back through the connector" fr="Retirez le filament à la main à travers le connecteur"/>
   <translation tag="Map to closest colors with matching material" fr="Associer aux couleurs les plus proches avec matériau compatible"/>
   <translation tag="Marginal" fr="Marginal"/>
@@ -1628,9 +1657,11 @@
   <translation tag="No effects available" fr="Aucun effet disponible"/>
   <translation tag="No events queued" fr="Aucun événement en file"/>
   <translation tag="No fans detected" fr="Aucun ventilateur détecté"/>
+  <translation tag="No filament" fr="Pas de filament"/>
   <translation tag="No filament environment sensors" fr="Aucun capteur d&apos;environnement de filament"/>
   <translation tag="No filament loaded to unload" fr="Aucun filament chargé à décharger"/>
   <translation tag="No filament sensor detected" fr="Aucun capteur de filament détecté"/>
+  <translation tag="No filament. Load filament and retry." fr="Pas de filament. Chargez du filament et réessayez."/>
   <translation tag="No filaments found" fr="Aucun filament trouvé"/>
   <translation tag="No file loaded" fr="Aucun fichier chargé"/>
   <translation tag="No file to reprint" fr="Aucun fichier à réimprimer"/>
@@ -1644,6 +1675,7 @@
   <translation tag="No media installed" fr="Aucun média installé"/>
   <translation tag="No mesh data" fr="Pas de données de maillage"/>
   <translation tag="No mesh loaded" fr="Aucun maillage de plateau chargé"/>
+  <translation tag="No multi-filament system detected" fr="Aucun système multi-filaments détecté"/>
   <translation tag="No network. Scan QR code to report on your phone." fr="Pas de réseau. Scannez le QR code pour signaler depuis votre téléphone."/>
   <translation tag="No networks found" fr="Aucun réseau trouvé"/>
   <translation tag="No notifications" fr="Aucune notification"/>
@@ -1694,6 +1726,8 @@
   <translation tag="Not yet calibrated" fr="Pas encore calibré"/>
   <translation tag="Notes" fr="Notes"/>
   <translation tag="Notes (optional)" fr="Notes (facultatif)"/>
+  <translation tag="Nothing loaded" fr="Rien de chargé"/>
+  <translation tag="Nothing starred yet. Tap the star on a filament to add it here." fr="Rien d&apos;étoilé pour le moment. Touchez l&apos;étoile d&apos;un filament pour l&apos;ajouter ici."/>
   <translation tag="Nothing to remap" fr="Rien à réaffecter"/>
   <translation tag="Notification" fr="Notification"/>
   <translation tag="Notifications" fr="Notifications"/>
@@ -1717,7 +1751,7 @@
   <translation tag="Nozzle did not reach {}°C — {} cancelled" fr="La buse n&apos;a pas atteint {}°C — {} annulé"/>
   <translation tag="Nozzle min cannot exceed max" fr="Le minimum de la buse ne peut pas dépasser le maximum"/>
   <translation tag="Nozzle target set to {}°C" fr="Cible buse réglée à {}°C"/>
-  <translation tag="Nozzle temp must be 100-500°C" fr="La température de la buse doit être entre 100 et 500°C"/>
+  <translation tag="Nozzle temp must be 100-%d°C" fr="La température de la buse doit être entre 100 et %d°C"/>
   <translation tag="Nozzle, bed, and chamber in one widget" fr="Buse, plateau et enceinte réunis"/>
   <translation tag="Nozzle:" fr="Buse :"/>
   <translation tag="OD" fr="OD"/>
@@ -1748,6 +1782,7 @@
   <translation tag="Open motion controls for jogging" fr="Ouvrir les commandes de mouvement"/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" fr="Ouvrez l&apos;unité CFS et retirez le filament cassé du slot"/>
   <translation tag="Operation already in progress" fr="Opération déjà en cours"/>
+  <translation tag="Operation timed out" fr="Délai dépassé pour l&apos;opération"/>
   <translation tag="Operations" fr="Opérations"/>
   <translation tag="Optimize Your Printing" fr="Optimisez votre impression"/>
   <translation tag="Optimizes temperature control for stable, consistent heating." fr="Optimise le contrôle de température pour un chauffage stable et constant."/>
@@ -1870,6 +1905,7 @@
   <translation tag="Preheat cancelled" fr="Préchauffage annulé"/>
   <translation tag="Preheat: all {} tools + bed set" fr="Préchauffage : tous les {} outils + plateau réglé"/>
   <translation tag="Preheat: {} + bed set" fr="Préchauffage : {} + plateau réglé"/>
+  <translation tag="Preload failed" fr="Échec du préchargement"/>
   <translation tag="Prepared" fr="Préparé"/>
   <translation tag="Preparing" fr="Préparation"/>
   <translation tag="Preparing Print" fr="Préparation de l&apos;impression"/>
@@ -1948,6 +1984,9 @@
   <translation tag="Printer Shutdown" fr="Arrêt de l&apos;imprimante"/>
   <translation tag="Printer Type" fr="Type d&apos;imprimante"/>
   <translation tag="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})" fr="L&apos;imprimante a accepté la tâche mais n&apos;imprime pas — vérifiez le capot, le papier et le type d&apos;étiquette (état firmware=0x{:02X} erreur=0x{:02X})"/>
+  <translation tag="Printer caps bed at %d°C" fr="L&apos;imprimante limite le plateau à %d°C"/>
+  <translation tag="Printer caps chamber at %d°C" fr="L&apos;imprimante limite l&apos;enceinte à %d°C"/>
+  <translation tag="Printer caps nozzle at %d°C" fr="L&apos;imprimante limite la buse à %d°C"/>
   <translation tag="Printer connection unavailable" fr="Connexion à l&apos;imprimante indisponible"/>
   <translation tag="Printer database format error" fr="Erreur de format de la base de données d&apos;imprimantes"/>
   <translation tag="Printer database is corrupt" fr="La base de données d&apos;imprimantes est corrompue"/>
@@ -1958,6 +1997,7 @@
   <translation tag="Printer is busy - {} stays in the queue" fr="L&apos;imprimante est occupée – {} reste dans la file"/>
   <translation tag="Printer is not paired — pair it first" fr="L&apos;imprimante n&apos;est pas appairée — appairez-la d&apos;abord"/>
   <translation tag="Printer name" fr="Nom de l&apos;imprimante"/>
+  <translation tag="Printer not connected" fr="Imprimante non connectée"/>
   <translation tag="Printer not ready" fr="Imprimante non prête"/>
   <translation tag="Printer ready" fr="Imprimante prête"/>
   <translation tag="Printer type mismatch" fr="Type d&apos;imprimante incompatible"/>
@@ -2143,6 +2183,7 @@
   <translation tag="Restart Now" fr="Redémarrer maintenant"/>
   <translation tag="Restart Required" fr="Redémarrage requis"/>
   <translation tag="Restart failed: not connected" fr="Échec du redémarrage : non connecté"/>
+  <translation tag="Restart from the beginning to recover" fr="Relancez depuis le début pour récupérer l&apos;impression"/>
   <translation tag="Restart the display application" fr="Redémarrer l&apos;application d&apos;affichage"/>
   <translation tag="Restart the printer or screen" fr="Redémarrer l&apos;imprimante ou l&apos;écran"/>
   <translation tag="Restarting HelixScreen..." fr="Redémarrage de HelixScreen..."/>
@@ -2291,6 +2332,9 @@
   <translation tag="Select Sensors" fr="Sélectionner les capteurs"/>
   <translation tag="Select Spool" fr="Sélectionner une bobine"/>
   <translation tag="Select a filament slot to load" fr="Sélectionnez un emplacement de filament à charger"/>
+  <translation tag="Select a valid number" fr="Sélectionnez un numéro valide"/>
+  <translation tag="Select a valid number (1-{})" fr="Sélectionnez un numéro valide (1-{})"/>
+  <translation tag="Select a valid tool" fr="Sélectionnez un outil valide"/>
   <translation tag="Select fan" fr="Sélectionner un ventilateur"/>
   <translation tag="Select gate" fr="Sélectionner le slot"/>
   <translation tag="Select macro for first button" fr="Sélectionner la macro pour le premier bouton"/>
@@ -2624,6 +2668,7 @@
   <translation tag="This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a &quot;Timer Too Close&quot; error or restart mid-test. Continue anyway?" fr="Cet appareil ne dispose que de {} Mo de RAM. La calibration de résonance est gourmande en mémoire et peut amener le firmware de l&apos;imprimante à signaler une erreur &quot;Timer Too Close&quot; ou à redémarrer en cours de test. Continuer quand même ?"/>
   <translation tag="This device has very little RAM. Resonance calibration is memory-intensive and may cause a &quot;Timer Too Close&quot; error. Continue anyway?" fr="Cet appareil dispose de très peu de RAM. La calibration de résonance est gourmande en mémoire et peut provoquer une erreur &quot;Timer Too Close&quot;. Continuer quand même ?"/>
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?" fr="Cela ne correspond pas à la bobine Spoolman liée. L&apos;ajouter comme nouvelle bobine, ou mettre à jour la bobine liée pour correspondre ?"/>
+  <translation tag="This feature requires different hardware or configuration" fr="Cette fonctionnalité requiert un autre matériel ou une autre configuration"/>
   <translation tag="This filament system does not report buffer or flow data." fr="Ce système de filament ne fournit ni données de tampon ni données de débit."/>
   <translation tag="This file was sliced for {} but {} is loaded." fr="Ce fichier a été tranché pour {} mais {} est chargé."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." fr="Ce fichier a été tranché pour {}, mais {} est chargé. L&apos;impression sera plus lente et plus chaude que ce qu&apos;exige la bobine chargée."/>
@@ -2714,6 +2759,7 @@
   <translation tag="Trigger" fr="Déclencheur"/>
   <translation tag="Troubleshooting:" fr="Dépannage :"/>
   <translation tag="Try adjusting your search or filters" fr="Essayez d&apos;ajuster votre recherche ou vos filtres"/>
+  <translation tag="Try the operation again. If it persists, check for mechanical issues." fr="Réessayez l&apos;opération. Si le problème persiste, vérifiez s&apos;il y a des problèmes mécaniques."/>
   <translation tag="Tune" fr="Régler"/>
   <translation tag="Tuning tower enabled - start a print to test" fr="Tour de réglage activée - lancez une impression pour tester"/>
   <translation tag="Turbo" fr="Turbo"/>
@@ -2758,6 +2804,7 @@
   <translation tag="Unload" fr="Décharger"/>
   <translation tag="Unload Distance" fr="Distance de déchargement"/>
   <translation tag="Unload Filament" fr="Décharger le filament"/>
+  <translation tag="Unload failed" fr="Échec du déchargement"/>
   <translation tag="Unload filament" fr="Décharger le filament"/>
   <translation tag="Unload macro not configured" fr="Macro de déchargement non configurée"/>
   <translation tag="Unload may still be running — response timed out" fr="Le déchargement est peut-être encore en cours — délai dépassé"/>
@@ -2833,6 +2880,8 @@
   <translation tag="WPA/WPA2" fr="WPA/WPA2"/>
   <translation tag="WPA3" fr="WPA3"/>
   <translation tag="Wait for the current filament operation to finish" fr="Attendez la fin de l&apos;opération de filament en cours"/>
+  <translation tag="Wait for the current operation to complete" fr="Attendez la fin de l&apos;opération en cours"/>
+  <translation tag="Wait for the current operation to complete or cancel it first" fr="Attendez la fin de l&apos;opération en cours ou annulez-la d&apos;abord"/>
   <translation tag="Wait until the print finishes" fr="Attendez la fin de l&apos;impression"/>
   <translation tag="Waiting for %s to finish. One heater at a time."/>
   <translation tag="Waiting for Moonraker..." fr="En attente de Moonraker..."/>

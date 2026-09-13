@@ -1044,10 +1044,9 @@ qc_phase2() {
 # shrinks.
 echo "🎨 Checking code formatting (clang-format)..."
 # Unformatted when the gate started blocking; each entry leaves when it is
-# next staged and auto-formatted.
-CLANG_FORMAT_BASELINE="
-src/system/pwm_sound_backend.cpp
-"
+# next staged and auto-formatted. Empty: every entry has come clean, so the
+# gate now fails any unformatted file outright rather than reporting it.
+CLANG_FORMAT_BASELINE=""
 CF_OK=false
 if qc_resolve_clang_format; then CF_OK=true; fi
 if [ -n "$FILES" ]; then
@@ -2454,7 +2453,7 @@ echo -n "📢 Checking spdlog-only logging..."
 
 # stdout IS the product in these files (CLI subcommands, splash, demo, ctl client),
 # so printing there is correct. Everywhere else, logging goes through spdlog.
-LOG_ALLOW='src/system/cli_args.cpp|src/application/detect_printer_cmd.cpp|src/helix_splash.cpp|src/lvgl-demo/|src/remote/remote_client.cpp'
+LOG_ALLOW='src/system/cli_args.cpp|src/application/detect_printer_cmd.cpp|src/application/probe_egl_cmd.cpp|src/helix_splash.cpp|src/lvgl-demo/|src/remote/remote_client.cpp'
 LOG_HITS=$(grep -rnE '\bprintf\(|std::cout|std::cerr|\bLV_LOG_[A-Z]+\(' src include 2>/dev/null \
              | grep -vE "$LOG_ALLOW" || true)
 if [ -z "$LOG_HITS" ]; then
@@ -2883,6 +2882,46 @@ echo ""
 }
 
 # ====================================================================
+# CJK runtime font staleness + artifact coverage
+# ====================================================================
+qc_cjk_fonts() {
+  local EXIT_CODE=0
+# A translated string whose glyph never got baked renders as tofu in zh/ja
+# with no build error and no runtime warning. Two halves, both needed:
+# check_cjk_font_staleness.sh diffs the codepoints the translations need
+# against the manifest the bake recorded; check_cjk_font_coverage.py parses
+# the .bin cmap tables themselves so a stale bake cannot hide behind a
+# freshly written manifest. Both inputs are git-tracked files, so this runs
+# in every clone — no .otf source fonts required.
+SECTION_START=$(date +%s)
+echo -n "🌐 Checking CJK font bake..."
+
+if [ -f "scripts/check_cjk_font_staleness.sh" ]; then
+  if bash scripts/check_cjk_font_staleness.sh >/tmp/cjk_stale.out 2>&1 \
+     && python3 scripts/check_cjk_font_coverage.py >/tmp/cjk_cov.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ Every needed CJK codepoint is baked into the runtime fonts"
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/cjk_stale.out /tmp/cjk_cov.out
+    echo "   Fix: make regen-text-fonts, rebuild, commit assets/fonts/cjk/."
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_cjk_font_staleness.sh not found — skipping"
+fi
+
+echo ""
+
+# ====================================================================
+  return $EXIT_CODE
+}
+
+# ====================================================================
 # Shell Script Linting (shellcheck)
 # ====================================================================
 qc_shellcheck() {
@@ -2920,12 +2959,12 @@ SHELLCHECK_BASELINE=""
 SHELL_FILES=""
 if [ "$STAGED_ONLY" = true ]; then
   SHELL_FILES=$(git diff --cached --name-only --diff-filter=ACM | \
-    grep -E '(config/platform/.*\.sh|config/helixscreen\.init|^scripts/.*\.sh)$' || true)
+    grep -E '(config/platform/.*\.sh|config/.*\.init|^scripts/.*\.sh)$' || true)
 else
   SHELL_FILES=$(find config/platform -name "*.sh" 2>/dev/null || true)
-  if [ -f "config/helixscreen.init" ]; then
-    SHELL_FILES="$SHELL_FILES config/helixscreen.init"
-  fi
+  # Every init script at the top of config/ ships to devices (helixscreen.init,
+  # creality-backend.init); lint all of them, not a hand-kept name list.
+  SHELL_FILES="$SHELL_FILES $(find config -maxdepth 1 -name '*.init' 2>/dev/null || true)"
   SHELL_FILES="$SHELL_FILES $(git ls-files 'scripts/*.sh' 'scripts/**/*.sh' 2>/dev/null || true)"
 fi
 # Drop the generated bundles regardless of how the list was built.
@@ -3268,7 +3307,7 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_icon_names qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_todo_markers qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules qc_bats_inert"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_icon_names qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_todo_markers qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_cjk_fonts qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules qc_bats_inert"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -3305,6 +3344,10 @@ qc_trigger_re() {
                         echo '^server/crash-worker/|^scripts/gen_lvgl_event_codes\.py$|^lib/lvgl$|^lv_conf\.h$' ;;
     qc_translation_fmt) echo '^translations/|^ui_xml/|\.py$' ;;
     qc_base_locale)     echo '^translations/' ;;
+    # Any locale's catalog can introduce a CJK codepoint, and so can a
+    # hardcoded string in src/; the artifacts themselves live under
+    # assets/fonts/cjk/.
+    qc_cjk_fonts)       echo '^translations/|^src/|^include/|^assets/fonts/cjk/|^scripts/(regen_text_fonts\.sh|check_cjk_font_staleness\.sh|check_cjk_font_coverage\.py|translations/cjk_charset\.py)$' ;;
     # Any src/ or ui_xml/ file can introduce a user-facing string, so this
     # wakes on both trees rather than only on the catalogs they land in.
     qc_translation_coverage)

@@ -165,6 +165,35 @@ EOF
     [ "$status" -eq 0 ]
 }
 
+# A fragment is rewritten only when its object is, so the database holds
+# entries recorded by builds that quoted their defines differently, all
+# stamped with the current version and therefore trusted. The double-quoted
+# shape - a quoted define with no shell-quoting layer around it - is one of
+# them. A POSIX split strips those quotes, the version macro becomes a bare
+# 1.1.0-beta.1, and clang reports "invalid suffix" and "undeclared identifier
+# beta" at every HELIX_VERSION use site - findings about the recording, not
+# about the code.
+@test "gate keeps a double-quoted define a string" {
+    cat > "$FIXTURE_DIR/version_user.cpp" <<'EOF'
+const char* version() {
+    return HELIX_VERSION;
+}
+EOF
+    cat > "$FIXTURE_DIR/version_user.ccj" <<EOF
+{"directory": "$FIXTURE_DIR", "file": "version_user.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION=\"$CURRENT_VERSION\" -c version_user.cpp -o version_user.o"}
+EOF
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" "$FIXTURE_DIR/version_user.cpp"
+    if grep -qF "SKIP:" <<<"$output"; then
+        skip "clang unavailable"
+    fi
+    refute grep -qF "invalid suffix" <<<"$output"
+    refute grep -qF "undeclared identifier" <<<"$output"
+    [ "$status" -eq 0 ]
+    # Prove the TU was checked, not skipped: an absence assertion with the TU
+    # never compiled would pass with the bug present.
+    grep -qF "checked 1 TU(s): 1 clean" <<<"$output"
+}
+
 # Every object tree emits its own fragment for the same source, so obj/,
 # obj-asan/, obj-O0/ and obj-tsan/ each contribute an entry and only the tree
 # built most recently carries today's flags. The gate must pick the entry that

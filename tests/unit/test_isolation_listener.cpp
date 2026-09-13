@@ -113,6 +113,25 @@ std::string describe(const ThreadIdentity& thread) {
     return thread.wchan.empty() ? thread.name : thread.name + "[" + thread.wchan + "]";
 }
 
+// Live thread count with the process-lifetime thumbnail pool's own workers
+// subtracted. That pool is elastic by design: workers retire after
+// max_idle_time and regrow on the next burst, so the raw count dips and
+// recovers across test boundaries with nothing leaking — a recovery landing
+// on a test boundary reads as a +1 "leak" that is really the pool returning
+// to the size the baseline captured (#1585). Counting beyond the pool keeps
+// those transitions out of the comparison while a foreign thread (an event
+// loop, a raw spawn) still reads as the +1 it is. Private pools are
+// deliberately NOT subtracted: one of those outliving its test is a real
+// leak. Returns -1 when the raw count is unavailable.
+int live_thread_count_beyond_thumbnail_pool() {
+    int count = helix::test::live_thread_count();
+    if (count < 0) {
+        return count;
+    }
+    auto pool = ThumbnailProcessorTestAccess::pool(helix::ThumbnailProcessor::instance());
+    return count - (pool ? pool->currentThreadNum() : 0);
+}
+
 // The threads in `now` whose id is absent from `before`, tallied like the
 // producer list: "helix-tests[ep_poll], helix-tests[futex_wait] x3". Empty when
 // nothing is new, and when the platform supplies no identities at all.
@@ -175,7 +194,10 @@ class IsolationListener : public Catch::EventListenerBase {
         //
         // This baseline is the pool's maximum, not a constant. A worker that
         // idles past max_idle_time retires itself, so the count can sit below
-        // this between bursts of thumbnail work.
+        // this between bursts of thumbnail work — which is why the per-test
+        // comparison counts threads BEYOND the pool rather than raw: both the
+        // retirement dip and the regrowth that follows are pool-internal
+        // elasticity, not a leaked thread.
         {
             auto pool = ThumbnailProcessorTestAccess::pool(helix::ThumbnailProcessor::instance());
             std::promise<void> hold;
@@ -226,15 +248,17 @@ class IsolationListener : public Catch::EventListenerBase {
         cwd_ = current_cwd();
         data_dir_ = env_or("HELIX_DATA_DIR");
         config_dir_ = env_or("HELIX_CONFIG_DIR");
-        threads_ = live_thread_count();
+        const int raw_threads = helix::test::live_thread_count();
+        threads_ = live_thread_count_beyond_thumbnail_pool();
 
         // Keep the identity snapshot level with the count, so an arrival
         // reported below is one that appeared during THIS test case. The walk
         // costs a file per thread, so it only runs when the set has actually
         // moved since the snapshot — after warm-up that is the rare case, and
-        // never on a platform that supplies no identities.
-        if (threads_ >= 0 && !known_threads_.empty() &&
-            static_cast<int>(known_threads_.size()) != threads_) {
+        // never on a platform that supplies no identities. Compared against
+        // the raw count: identities include the elastic pool's workers.
+        if (raw_threads >= 0 && !known_threads_.empty() &&
+            static_cast<int>(known_threads_.size()) != raw_threads) {
             known_threads_ = live_thread_identities();
         }
     }
@@ -305,13 +329,16 @@ class IsolationListener : public Catch::EventListenerBase {
         }
 
         // Thread leaks can't be healed; settle briefly to avoid flagging a thread
-        // that is mid-exit, then report a genuine increase.
-        int now = live_thread_count();
+        // that is mid-exit, then report a genuine increase. The comparison is
+        // pool-adjusted on both sides (see
+        // live_thread_count_beyond_thumbnail_pool), so the settle loop has to
+        // re-read the same adjusted count.
+        int now = live_thread_count_beyond_thumbnail_pool();
         if (threads_ >= 0 && now > threads_) {
-            for (int i = 0; i < 20 && live_thread_count() > threads_; ++i) {
+            for (int i = 0; i < 20 && live_thread_count_beyond_thumbnail_pool() > threads_; ++i) {
                 usleep(5000); // up to 100ms for a joining/exiting thread to clear
             }
-            now = live_thread_count();
+            now = live_thread_count_beyond_thumbnail_pool();
             if (now > threads_) {
                 // Sampled here and nowhere else in the per-case path: naming
                 // the arrival is worth a file per thread once a leak is already

@@ -106,6 +106,65 @@ TEST_CASE("gl_renderer_is_denylisted does not match bare Mali without Panfrost",
 }
 
 // ---------------------------------------------------------------------------
+// Software-renderer refusal: the EGL presentation rung must not accept llvmpipe
+//
+// A software rasterizer creates a context and answers every GL call, so the
+// only signal that the GPU was never reached is the renderer string. Accepting
+// it costs more CPU than the software path it replaces, which is the opposite
+// of why the rung exists. These tests FAIL if the predicate stops recognising
+// a software renderer, or starts rejecting real hardware.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("Software renderers are refused", "[gcode][gl_fallback][egl]") {
+    using helix::gcode::gl_renderer_is_software;
+
+    SECTION("Mesa software rasterizers") {
+        REQUIRE(gl_renderer_is_software("llvmpipe (LLVM 15.0.6, 128 bits)"));
+        REQUIRE(gl_renderer_is_software("softpipe"));
+        REQUIRE(gl_renderer_is_software("swrast"));
+        REQUIRE(gl_renderer_is_software("kms_swrast"));
+    }
+
+    SECTION("case-insensitive") {
+        REQUIRE(gl_renderer_is_software("LLVMpipe"));
+        REQUIRE(gl_renderer_is_software("KMS_SWRAST"));
+    }
+
+    SECTION("real GPUs are accepted") {
+        REQUIRE_FALSE(gl_renderer_is_software("V3D 7.1.7"));
+        REQUIRE_FALSE(gl_renderer_is_software("Mali-G31 (Panfrost)"));
+        REQUIRE_FALSE(gl_renderer_is_software("Mali-G52 (Panfrost)"));
+        REQUIRE_FALSE(gl_renderer_is_software("AMD Radeon Graphics (radeonsi)"));
+        REQUIRE_FALSE(gl_renderer_is_software("VC4 V3D 2.1"));
+    }
+
+    SECTION("absent renderer string is not a software claim") {
+        // A null string means the query failed, which the caller reports as a
+        // failed probe on its own. Guessing "software" here would conflate the
+        // two and hide a broken context behind a renderer verdict.
+        REQUIRE_FALSE(gl_renderer_is_software(nullptr));
+        REQUIRE_FALSE(gl_renderer_is_software(""));
+    }
+}
+
+TEST_CASE("Software refusal and the 3D draw denylist are independent",
+          "[gcode][gl_fallback][egl]") {
+    using helix::gcode::gl_renderer_is_denylisted;
+    using helix::gcode::gl_renderer_is_software;
+
+    // Panfrost faults inside glDrawArrays but presents through EGL correctly:
+    // the measured CB1 gain is real. Folding these two questions into one
+    // predicate would cost that board the presentation rung.
+    REQUIRE(gl_renderer_is_denylisted("Mali-G31 (Panfrost)"));
+    REQUIRE_FALSE(gl_renderer_is_software("Mali-G31 (Panfrost)"));
+
+    // And the inverse: llvmpipe is safe to draw 3D on, but must never be
+    // chosen for presentation.
+    REQUIRE_FALSE(gl_renderer_is_denylisted("llvmpipe (LLVM 15.0.6, 128 bits)"));
+    REQUIRE(gl_renderer_is_software("llvmpipe (LLVM 15.0.6, 128 bits)"));
+}
+
+// ---------------------------------------------------------------------------
 // Init-failure fallback: "no GL at all" must reach the viewer (issue #1555)
 //
 // The denylist and fatal-draw-error layers above only fire once a GL context

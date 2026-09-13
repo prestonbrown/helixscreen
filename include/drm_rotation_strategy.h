@@ -17,13 +17,12 @@
 /**
  * @brief Strategy for applying display rotation on DRM backend
  *
- * In the shipped configuration neither HARDWARE nor SOFTWARE is ever acted on.
- * HARDWARE is chosen only when plane_may_own_rotation() allows it, which is never
- * (touch input does not follow the plane). SOFTWARE is chosen only for a plane that
- * cannot honor the request, and DisplayManager::try_drm_to_fbdev_fallback has already
- * replaced this backend with fbdev by that point, so
- * DisplayBackendDRM::set_display_rotation is never called for it either. Every
- * nonzero angle rotates through the fbdev backend instead.
+ * HARDWARE is reachable only on a plane whose rotation mask advertises the angle,
+ * and only under the dumb-buffer driver: the EGL build compiles the plane rotation
+ * entry points out, so it reports no hardware rotation at all. SOFTWARE is chosen
+ * for a plane that cannot honour the request, which DisplayManager answers by
+ * swapping in fbdev before this backend is asked to apply it - so on any board
+ * without a capable plane, every nonzero angle still rotates through fbdev.
  */
 enum class DrmRotationStrategy {
     NONE,     ///< No rotation needed (0°)
@@ -48,6 +47,35 @@ enum class DrmRotationStrategy {
  */
 DrmRotationStrategy choose_drm_rotation_strategy(uint64_t requested_drm_rot,
                                                  uint64_t supported_mask);
+
+/**
+ * @brief A pointer sample in the panel's own coordinate frame
+ */
+struct PointerXY { // NAMESPACE_OK: matches DrmRotationStrategy, this file's global-scope types
+    int32_t x;
+    int32_t y;
+};
+
+/**
+ * @brief Map a raw touch point onto a picture some other device rotated
+ *
+ * LVGL transforms pointer input from its own display rotation and early-returns
+ * at zero, so a panel rotated by a scanout plane presents a rotated picture to
+ * an untransformed touch frame. This applies the transform LVGL would have.
+ *
+ * The arithmetic deliberately mirrors `lv_display_rotate_point()`, which reads
+ * the display's RAW hor_res/ver_res rather than the rotation-swapping getters -
+ * so both take panel dimensions here. `tests/unit/test_display_rotation_source.cpp`
+ * asserts the two agree at every angle rather than trusting that they do.
+ *
+ * @param p        raw point in the panel's native frame
+ * @param degrees  angle the picture is presented at: 0, 90, 180 or 270
+ * @param panel_w  native panel width, before rotation
+ * @param panel_h  native panel height, before rotation
+ * @return the point in the rotated picture's frame; unchanged for any other angle
+ */
+// NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope API
+PointerXY rotate_pointer_for_plane(PointerXY p, int degrees, int32_t panel_w, int32_t panel_h);
 
 /**
  * @brief What LVGL should be told about rotation for a given strategy
@@ -85,10 +113,16 @@ bool drm_rotation_needs_full_render(DrmRotationStrategy strategy);
 /**
  * @brief Whether the DRM plane is allowed to own the rotation
  *
- * Rotating the scanout plane rotates the picture but not the touch frame: LVGL
- * transforms pointer input solely from its own display rotation, which the plane
- * path clears. Until something rotates touch to match, every nonzero angle belongs
- * to the software path (prestonbrown/helixscreen#1275).
+ * Rotating the scanout plane rotates the picture but not the touch frame, since
+ * LVGL transforms pointer input solely from its own display rotation and the
+ * plane path clears that. `DisplayBackendDRM` closes the gap by chaining
+ * rotate_pointer_for_plane() onto the pointer's read callback and reporting the
+ * plane's angle from applied_rotation_degrees(), so the two transforms are
+ * mutually exclusive and the touch pipeline still sees the angle the panel is
+ * really at (prestonbrown/helixscreen#1275).
+ *
+ * A plane still only gets an angle its rotation mask advertises; everything else
+ * falls to the software path.
  */
 // NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope function
 bool plane_may_own_rotation();

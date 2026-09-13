@@ -1,0 +1,85 @@
+#!/bin/sh /etc/rc.common
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Starts the stock Creality web-server on K2 series printers, so Creality
+# Cloud and remote monitoring keep reaching the printer with HelixScreen
+# installed (prestonbrown/helixscreen#1617).
+#
+# The stock /etc/init.d/app procd service starts the whole Creality set:
+# display-server, Monitor, master-server, app-server, web-server,
+# audio-server, wifi-server, upgrade-server. HelixScreen keeps that service
+# disabled — display-server contends for the framebuffer, and Monitor and
+# the master/app pair are the stock UI watchdog and AI failure detection
+# the install announces as removed. procd disables a service as a whole, so
+# web-server (ports 80/443/9998/9999, Creality Cloud) would never start at
+# boot either. This script starts exactly that one process, outside the app
+# service, so it boots independently of it.
+#
+# The rc.common shebang and the DEPEND directive are the procd boot
+# iterator's contract: plain SysV scripts are silently skipped at boot on
+# this firmware ([L086]).
+
+# Harden PATH against third-party mods that prepend command-shim directories
+# (e.g. k2-improvements' /mnt/UDISK/bin wrappers). Stock system directories
+# first, so pidof resolves to the real binary at boot.
+export PATH="/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
+
+# Read by /etc/rc.common, which sources this script at dispatch time —
+# nothing in this file references them.
+# shellcheck disable=SC2034  # rc.common boot-slot and dependency directives
+START=99
+# shellcheck disable=SC2034  # rc.common shutdown-slot directive
+STOP=01
+# shellcheck disable=SC2034  # rc.common boot-iterator gating directive
+DEPEND="done"
+
+WEBSERVER_BIN="/usr/bin/web-server"
+PIDFILE="/var/run/helix-k2-webserver.pid"
+
+start() {
+    # Whoever's web-server is already running, the port is served; never
+    # launch a second one to fight it for the bind.
+    pidof web-server >/dev/null 2>&1 && return 0
+    # A firmware without the Creality stack has nothing to start.
+    [ -x "$WEBSERVER_BIN" ] || return 0
+    # Ensure a valid CWD: a launcher run from a deleted or unmounted
+    # directory makes the daemon's relative-path lookups fail.
+    cd / 2>/dev/null || true
+    "$WEBSERVER_BIN" >/dev/null 2>&1 &
+    echo $! > "$PIDFILE" 2>/dev/null
+    return 0
+}
+
+boot() {
+    start
+}
+
+stop() {
+    # Kill only the process this script started (pidfile), never by name:
+    # after an uninstall restores /etc/init.d/app, the stock service's own
+    # web-server must survive this stop.
+    if [ -f "$PIDFILE" ]; then
+        _pid=$(cat "$PIDFILE" 2>/dev/null)
+        if [ -n "$_pid" ]; then
+            kill "$_pid" 2>/dev/null || true
+        fi
+        rm -f "$PIDFILE" 2>/dev/null || true
+    fi
+    unset _pid
+    return 0
+}
+
+restart() {
+    stop
+    sleep 1
+    start
+}
+
+status() {
+    if _pids=$(pidof web-server 2>/dev/null) && [ -n "$_pids" ]; then
+        echo "web-server is running (PID $_pids)"
+        return 0
+    fi
+    echo "web-server is not running"
+    return 1
+}

@@ -16,8 +16,10 @@
 #include "ams_error.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "config.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
+#include "filament_favorites.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -132,6 +134,12 @@ class AmsEditOverlayViewTestAccess {
     }
     bool details_color_set() {
         return overlay_.details_color_set_;
+    }
+    SpoolInfo detail_original() {
+        return overlay_.detail_original_;
+    }
+    SpoolInfo detail_working() {
+        return overlay_.detail_working_;
     }
     static void build_spool_patches(const SpoolInfo& original, const SpoolInfo& edited,
                                     nlohmann::json& spool_patch, nlohmann::json& filament_patch) {
@@ -637,6 +645,71 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool-edit Save preserves an existing non-G
     close_editor_overlay();
 }
 
+// Regression (#1100) — the Favorites view must not leak its pseudo-vendor
+// sentinel or a stale type into a saved slot.
+//
+// The spool-edit Save's no-highlight path (empty rebuilt list) reads
+// current_type() and current_vendor() as "the user changed the material
+// without picking a product". In the favorites view the Type dropdown is
+// bypassed (hidden), so current_type() reports empty — any non-empty read
+// there is a stale heading and current_vendor() the "\x01Favorites"
+// sentinel, neither of which the user chose; an untouched Save skips the
+// whole overwrite block. The slot's material is family-folded ("PLA-CF"
+// sits under the "PLA" heading), so a stale heading is guaranteed to differ
+// from the slot's material.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "spool-edit Save in the favorites view leaves the slot untouched",
+                 "[ams_edit_overlay][spool_edit][favorites]") {
+    // The favorites view must be EMPTY (no highlight possible) and the star
+    // state must not leak into other tests: snapshot, clear, restore.
+    const std::vector<std::string> saved_ids = helix::Config::get_instance()->get_string_array(
+        helix::filament_favorites::kFavoriteIdsPath);
+    helix::Config::get_instance()->set(helix::filament_favorites::kFavoriteIdsPath,
+                                       std::vector<std::string>{});
+
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    REQUIRE(spoolman_subj != nullptr);
+    lv_subject_set_int(spoolman_subj, 0);
+
+    SlotInfo cf;
+    cf.slot_index = 0;
+    cf.spoolman_id = 0;
+    cf.brand = "Sunlu";
+    cf.material = "PLA-CF";
+    cf.color_rgb = 0xFEF043;
+    cf.color_name = "Yellow";
+
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, cf, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    access.call_enter_spool_edit();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.view() == AmsEditOverlay::VIEW_SPOOL_EDIT);
+
+    // Into the (empty) Favorites view: no row exists to highlight — the exact
+    // state a user with zero stars, or one who just unstarred the last row,
+    // reaches before tapping Save.
+    access.details_selector().change_vendor_for_test(0);
+    REQUIRE(
+        FilamentCatalogSelector::is_favorites_vendor(access.details_selector().current_vendor()));
+    REQUIRE(access.details_selector().highlighted() == nullptr);
+
+    access.call_handle_spool_edit_save();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    CHECK(access.working_info().brand == "Sunlu");     // no sentinel written
+    CHECK(access.working_info().material == "PLA-CF"); // no stale heading written
+
+    close_editor_overlay();
+    helix::Config::get_instance()->set(helix::filament_favorites::kFavoriteIdsPath, saved_ids);
+}
+
 // Regression — a Spoolman-only vendor no longer reaches the vendor dropdown.
 //
 // A vendor can live on the Spoolman server without a matching entry in the
@@ -1046,6 +1119,108 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(access.view() == AmsEditOverlay::VIEW_SPOOL_EDIT);
     CHECK(access.working_info().remaining_weight_g == before_remaining);
     CHECK(access.working_info().total_weight_g == before_total);
+
+    close_editor_overlay();
+}
+
+// Pure black is a deliberate colour — #1597 made it dispatchable and
+// persistable, and the HSV picker's darkest reachable swatch is near-black —
+// so only the grey sentinel means "no colour reading". The spool-edit seed
+// must file black on the Spoolman patch baseline, and the sentinel must file
+// nothing: seeding it would hand every colourless slot a declared grey
+// (prestonbrown/helixscreen#1608).
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "spool-edit seeds black as a colour and the grey sentinel as none",
+                 "[ams_edit_overlay][spool_edit][color][1608]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo black = untracked_slot();
+    black.color_rgb = 0x000000;
+    black.color_name = "Black";
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, black, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_enter_spool_edit();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    CHECK(access.detail_original().color_hex == "#000000");
+
+    // Round-trip: seeding black on the original side must not read as an edit.
+    // The untouched Save stages no colour write to Spoolman.
+    nlohmann::json spool_patch;
+    nlohmann::json filament_patch;
+    access.build_spool_patches(access.detail_original(), access.detail_working(), spool_patch,
+                               filament_patch);
+    CHECK_FALSE(filament_patch.contains("color_hex"));
+
+    close_editor_overlay();
+
+    SlotInfo sentinel = untracked_slot();
+    sentinel.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+    sentinel.color_name.clear();
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, sentinel, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_enter_spool_edit();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    CHECK(access.detail_original().color_hex.empty());
+
+    close_editor_overlay();
+}
+
+// The custom colour view opens on the slot's own colour. Black is a real
+// colour, so the picker/hex seed must carry it — not the grey sentinel,
+// which an unnoticed Apply would commit over the black
+// (prestonbrown/helixscreen#1608).
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "custom color view opens on the slot's black, not the grey sentinel",
+                 "[ams_edit_overlay][color][1608]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo black = untracked_slot();
+    black.color_rgb = 0x000000;
+    black.color_name = "Black";
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, black, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_enter_spool_edit();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_open_color_view();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    lv_obj_t* hex_input = access.widget("ams_color_hex_input");
+    REQUIRE(hex_input != nullptr);
+    CHECK(std::string(lv_textarea_get_text(hex_input)) == "#000000");
+
+    close_editor_overlay();
+
+    // A sentinel slot keeps its grey starting point: the picker needs some
+    // seed, and the sentinel grey is what the slot's own chip already shows.
+    SlotInfo sentinel = untracked_slot();
+    sentinel.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+    sentinel.color_name.clear();
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, sentinel, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_enter_spool_edit();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_open_color_view();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    // close_editor_overlay() tears the widget tree down, so re-find the input
+    // in the rebuilt tree rather than reusing the pointer from the first half.
+    hex_input = access.widget("ams_color_hex_input");
+    REQUIRE(hex_input != nullptr);
+    CHECK(std::string(lv_textarea_get_text(hex_input)) == "#808080");
 
     close_editor_overlay();
 }

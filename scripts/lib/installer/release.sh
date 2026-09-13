@@ -2001,11 +2001,14 @@ extract_release() {
         # dialog the user already dismissed (dismiss only rotates crash.txt to
         # crash_1.txt; it does not survive the .old round-trip). crash_history.json
         # is intentionally NOT pruned — it is the dedup store and should persist.
+        # .helix-fresh-install is install context, not user data: restoring a
+        # stale marker marks an update's restored config as freshly installed.
         $(file_sudo "${INSTALL_BACKUP}/config") rm -f \
             "${INSTALL_BACKUP}/config/crash.txt" \
             "${INSTALL_BACKUP}/config/"crash_*.txt \
             "${INSTALL_BACKUP}/config/crash_report.txt" \
-            "${INSTALL_BACKUP}/config/.crash_restart_count" 2>/dev/null || true
+            "${INSTALL_BACKUP}/config/.crash_restart_count" \
+            "${INSTALL_BACKUP}/config/.helix-fresh-install" 2>/dev/null || true
     fi
 
     # Restore any remaining user data from previous config/ (custom_images/,
@@ -2014,10 +2017,13 @@ extract_release() {
     # Uses [ ! -e ] instead of cp -n for BusyBox compatibility.
     # For directories that exist in both old and new installs (e.g. printer_database.d/),
     # merge at the file level so user additions are preserved alongside new bundled files.
+    # The /.* pass alongside the bare glob restores dotfiles (.disabled_services
+    # and any other config/.* state) that a bare glob silently skips.
     if [ -n "${INSTALL_BACKUP:-}" ] && [ -d "${INSTALL_BACKUP}/config" ]; then
-        for _item in "${INSTALL_BACKUP}/config"/*; do
+        for _item in "${INSTALL_BACKUP}/config"/* "${INSTALL_BACKUP}/config"/.*; do
             [ -e "$_item" ] || continue
             _base=$(basename "$_item")
+            case "$_base" in .|..) continue ;; esac
             if [ ! -e "${INSTALL_DIR}/config/${_base}" ]; then
                 # Item doesn't exist in new install — restore the whole thing
                 if $(file_sudo "${INSTALL_DIR}/config") cp -r "$_item" "${INSTALL_DIR}/config/${_base}" 2>/dev/null; then
@@ -2027,9 +2033,11 @@ extract_release() {
                 fi
             elif [ -d "$_item" ] && [ -d "${INSTALL_DIR}/config/${_base}" ]; then
                 # Both old and new have this directory — merge individual files
-                for _subitem in "$_item"/*; do
+                # (dotfiles included, same /.* pass as the outer loop)
+                for _subitem in "$_item"/* "$_item"/.*; do
                     [ -e "$_subitem" ] || continue
                     _subbase=$(basename "$_subitem")
+                    case "$_subbase" in .|..) continue ;; esac
                     if [ ! -e "${INSTALL_DIR}/config/${_base}/${_subbase}" ]; then
                         if $(file_sudo "${INSTALL_DIR}/config/${_base}") cp -r "$_subitem" "${INSTALL_DIR}/config/${_base}/${_subbase}" 2>/dev/null; then
                             log_info "Restored user data: config/${_base}/${_subbase}"

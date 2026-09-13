@@ -50,8 +50,16 @@ WizardFilamentSensorSelectStep::WizardFilamentSensorSelectStep() {
 }
 
 WizardFilamentSensorSelectStep::~WizardFilamentSensorSelectStep() {
-    // NOTE: Do NOT call LVGL functions here - LVGL may be destroyed first
     // NOTE: Do NOT log here - spdlog may be destroyed first
+
+    // Shutdown runs StaticPanelRegistry::destroy_all() BEFORE lv_deinit(), so
+    // an armed refresh one-shot is still in LVGL's timer list here, holding a
+    // freed `this`. A teardown that destroys the step without calling
+    // cleanup() first must not leave it armed. The shared helper goes through
+    // lv_timer_cancel_safe(), which no-ops when LVGL is already gone, so it is
+    // safe from the destructor either way (prestonbrown/helixscreen#1577).
+    cancel_refresh_timer();
+
     screen_root_ = nullptr;
 }
 
@@ -259,6 +267,35 @@ lv_obj_t* WizardFilamentSensorSelectStep::create(lv_obj_t* parent) {
 // Refresh
 // ============================================================================
 
+void WizardFilamentSensorSelectStep::schedule_deferred_refresh() {
+    // Re-arming must not stack a second one-shot behind a still-pending one.
+    cancel_refresh_timer();
+    refresh_timer_ = lv_timer_create(refresh_timer_cb, 1500, this);
+    lv_timer_set_repeat_count(refresh_timer_, 1); // One-shot timer
+}
+
+void WizardFilamentSensorSelectStep::cancel_refresh_timer() {
+    // Neuter rather than delete: cleanup() can run from inside lv_timer_handler
+    // (a Next click), where deleting a timer corrupts LVGL's timer list.
+    // lv_timer_cancel_safe() also no-ops when LVGL is already gone, so this is
+    // safe from the destructor as well.
+    if (refresh_timer_ && lv_is_initialized()) {
+        helix::ui::lv_timer_cancel_safe(refresh_timer_);
+    }
+    refresh_timer_ = nullptr;
+}
+
+void WizardFilamentSensorSelectStep::refresh_timer_cb(lv_timer_t* timer) {
+    auto* self = static_cast<WizardFilamentSensorSelectStep*>(lv_timer_get_user_data(timer));
+    if (!self) {
+        return;
+    }
+    // The timer is one-shot — LVGL deletes it immediately after this callback
+    // returns. Null the member FIRST so no later cancel can touch freed memory.
+    self->refresh_timer_ = nullptr;
+    self->refresh();
+}
+
 void WizardFilamentSensorSelectStep::refresh() {
     if (!screen_root_) {
         return; // No screen to refresh
@@ -364,13 +401,10 @@ void WizardFilamentSensorSelectStep::auto_configure_single_sensor() {
 void WizardFilamentSensorSelectStep::cleanup() {
     spdlog::debug("[{}] Cleaning up resources", get_name());
 
-    // Cancel pending refresh timer to prevent stale access after navigation.
-    // Use lv_timer_cancel_safe to avoid corrupting LVGL's timer linked list
-    // when cleanup is called from within lv_timer_handler (via click event).
-    if (refresh_timer_) {
-        helix::ui::lv_timer_cancel_safe(refresh_timer_);
-        refresh_timer_ = nullptr;
-    }
+    // A pending refresh must never fire into a screen that navigation is
+    // tearing down; the shared helper neuters instead of unlinking because
+    // cleanup can run from inside lv_timer_handler (via a click event).
+    cancel_refresh_timer();
 
     auto& sensor_mgr = helix::FilamentSensorManager::instance();
 

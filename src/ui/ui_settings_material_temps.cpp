@@ -14,7 +14,9 @@
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "material_settings_manager.h"
+#include "printer_state.h"
 #include "static_panel_registry.h"
+#include "temperature_controller.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -26,6 +28,13 @@
 #include <vector>
 
 namespace helix::settings {
+
+/// Ceilings the edit inputs accept when no controller cap is known — the
+/// ceilings the raw fields on their own suggest. Any effective cap below these
+/// is surfaced as a hint so the saved value cannot silently apply tighter.
+constexpr int NOZZLE_INPUT_ABS_MAX_C = 500;
+constexpr int BED_INPUT_ABS_MAX_C = 200;
+constexpr int CHAMBER_INPUT_ABS_MAX_C = 120;
 
 // ============================================================================
 // SINGLETON ACCESSOR
@@ -74,6 +83,17 @@ void MaterialTempsOverlay::init_subjects() {
                               "material_edit_defaults", subjects_);
 
     UI_MANAGED_SUBJECT_INT(has_macro_subject_, 0, "material_has_macro", subjects_);
+
+    // Effective cap hints (see update_cap_hint())
+    UI_MANAGED_SUBJECT_INT(nozzle_cap_subject_, 0, "material_nozzle_cap", subjects_);
+    UI_MANAGED_SUBJECT_STRING(nozzle_cap_text_subject_, nozzle_cap_text_buf_, "",
+                              "material_nozzle_cap_text", subjects_);
+    UI_MANAGED_SUBJECT_INT(bed_cap_subject_, 0, "material_bed_cap", subjects_);
+    UI_MANAGED_SUBJECT_STRING(bed_cap_text_subject_, bed_cap_text_buf_, "", "material_bed_cap_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_INT(chamber_cap_subject_, 0, "material_chamber_cap", subjects_);
+    UI_MANAGED_SUBJECT_STRING(chamber_cap_text_subject_, chamber_cap_text_buf_, "",
+                              "material_chamber_cap_text", subjects_);
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
@@ -266,16 +286,36 @@ void MaterialTempsOverlay::populate_material_list() {
 // EDIT VIEW
 // ============================================================================
 
+int MaterialTempsOverlay::input_cap(HeaterType type, int abs_max_c) {
+    return static_cast<int>(
+        keypad_ceiling(get_temperature_controller(), type, static_cast<float>(abs_max_c)));
+}
+
+void MaterialTempsOverlay::update_cap_hint(lv_subject_t& gate, lv_subject_t& text, char* text_buf,
+                                           const char* format, HeaterType type, int abs_max_c) {
+    const int cap = input_cap(type, abs_max_c);
+    if (cap < abs_max_c) {
+        snprintf(text_buf, kCapHintBufBytes, format, cap);
+        lv_subject_copy_string(&text, text_buf);
+        lv_subject_set_int(&gate, cap);
+    } else {
+        text_buf[0] = '\0';
+        lv_subject_copy_string(&text, text_buf);
+        lv_subject_set_int(&gate, 0);
+    }
+}
+
 void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
     editing_material_ = material_name;
 
     // Get database defaults (from static array, NOT find_material which has overrides)
-    int default_nozzle_min = 0, default_nozzle_max = 0, default_bed = 0;
+    int default_nozzle_min = 0, default_nozzle_max = 0, default_bed = 0, default_chamber = 0;
     for (const auto& mat : filament::MATERIALS) {
         if (std::string_view(mat.name) == material_name) {
             default_nozzle_min = mat.nozzle_min;
             default_nozzle_max = mat.nozzle_max;
             default_bed = mat.bed_temp;
+            default_chamber = mat.chamber_temp_c;
             break;
         }
     }
@@ -286,22 +326,33 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
     int cur_nozzle_min = (ovr && ovr->nozzle_min) ? *ovr->nozzle_min : default_nozzle_min;
     int cur_nozzle_max = (ovr && ovr->nozzle_max) ? *ovr->nozzle_max : default_nozzle_max;
     int cur_bed = (ovr && ovr->bed_temp) ? *ovr->bed_temp : default_bed;
+    int cur_chamber = (ovr && ovr->chamber_temp) ? *ovr->chamber_temp : default_chamber;
 
     // Update name subject
     snprintf(edit_name_buf_, sizeof(edit_name_buf_), "%s", material_name.c_str());
     lv_subject_copy_string(&edit_name_subject_, edit_name_buf_);
 
-    // Update defaults hint
-    snprintf(edit_defaults_buf_, sizeof(edit_defaults_buf_),
-             lv_tr("Default: %d-%d°C nozzle, %d°C bed"), default_nozzle_min, default_nozzle_max,
-             default_bed);
+    // Update defaults hint (chamber is mentioned only when its column is shown)
+    const bool has_chamber = get_printer_state().get_discovery().has_chamber_heater();
+    if (has_chamber) {
+        snprintf(edit_defaults_buf_, sizeof(edit_defaults_buf_),
+                 lv_tr("Default: %d-%d°C nozzle, %d°C bed, %d°C chamber"), default_nozzle_min,
+                 default_nozzle_max, default_bed, default_chamber);
+    } else {
+        snprintf(edit_defaults_buf_, sizeof(edit_defaults_buf_),
+                 lv_tr("Default: %d-%d°C nozzle, %d°C bed"), default_nozzle_min, default_nozzle_max,
+                 default_bed);
+    }
     lv_subject_copy_string(&edit_defaults_subject_, edit_defaults_buf_);
 
-    // Populate input fields
+    // Populate input fields. The chamber input is always filled even when its
+    // column is hidden: handle_save() reads it back, which keeps a stored
+    // chamber override intact on a printer whose heater is (currently) absent.
     if (edit_view_) {
         lv_obj_t* nozzle_min_input = lv_obj_find_by_name(edit_view_, "edit_nozzle_min");
         lv_obj_t* nozzle_max_input = lv_obj_find_by_name(edit_view_, "edit_nozzle_max");
         lv_obj_t* bed_temp_input = lv_obj_find_by_name(edit_view_, "edit_bed_temp");
+        lv_obj_t* chamber_temp_input = lv_obj_find_by_name(edit_view_, "edit_chamber_temp");
 
         char buf[8];
         if (nozzle_min_input) {
@@ -316,7 +367,25 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
             snprintf(buf, sizeof(buf), "%d", cur_bed);
             lv_textarea_set_text(bed_temp_input, buf);
         }
+        if (chamber_temp_input) {
+            snprintf(buf, sizeof(buf), "%d", cur_chamber);
+            lv_textarea_set_text(chamber_temp_input, buf);
+        }
     }
+
+    // Surface each input's effective cap whenever it is tighter than what the
+    // input on its own suggests, so what the user sets is what they get.
+    // Constraint: hints are computed here, at view-open — configured_max has
+    // no subject, so a ceiling that lands mid-session is enforced by the save-
+    // time re-read and shown on the next view-open, never restyled live.
+    update_cap_hint(nozzle_cap_subject_, nozzle_cap_text_subject_, nozzle_cap_text_buf_,
+                    lv_tr("Printer caps nozzle at %d°C"), HeaterType::Nozzle,
+                    NOZZLE_INPUT_ABS_MAX_C);
+    update_cap_hint(bed_cap_subject_, bed_cap_text_subject_, bed_cap_text_buf_,
+                    lv_tr("Printer caps bed at %d°C"), HeaterType::Bed, BED_INPUT_ABS_MAX_C);
+    update_cap_hint(chamber_cap_subject_, chamber_cap_text_subject_, chamber_cap_text_buf_,
+                    lv_tr("Printer caps chamber at %d°C"), HeaterType::Chamber,
+                    CHAMBER_INPUT_ABS_MAX_C);
 
     // Populate macro dropdown and select current override
     populate_macro_dropdown();
@@ -375,16 +444,19 @@ void MaterialTempsOverlay::handle_save() {
     lv_obj_t* nozzle_min_input = lv_obj_find_by_name(edit_view_, "edit_nozzle_min");
     lv_obj_t* nozzle_max_input = lv_obj_find_by_name(edit_view_, "edit_nozzle_max");
     lv_obj_t* bed_temp_input = lv_obj_find_by_name(edit_view_, "edit_bed_temp");
+    lv_obj_t* chamber_temp_input = lv_obj_find_by_name(edit_view_, "edit_chamber_temp");
 
-    if (!nozzle_min_input || !nozzle_max_input || !bed_temp_input) {
+    if (!nozzle_min_input || !nozzle_max_input || !bed_temp_input || !chamber_temp_input) {
         return;
     }
 
     const char* min_text = lv_textarea_get_text(nozzle_min_input);
     const char* max_text = lv_textarea_get_text(nozzle_max_input);
     const char* bed_text = lv_textarea_get_text(bed_temp_input);
+    const char* chamber_text = lv_textarea_get_text(chamber_temp_input);
 
-    if (!min_text || !min_text[0] || !max_text || !max_text[0] || !bed_text || !bed_text[0]) {
+    if (!min_text || !min_text[0] || !max_text || !max_text[0] || !bed_text || !bed_text[0] ||
+        !chamber_text || !chamber_text[0]) {
         ToastManager::instance().show(ToastSeverity::WARNING, lv_tr("All fields are required"),
                                       3000);
         return;
@@ -393,16 +465,30 @@ void MaterialTempsOverlay::handle_save() {
     int nozzle_min = atoi(min_text);
     int nozzle_max = atoi(max_text);
     int bed_temp = atoi(bed_text);
+    int chamber_temp = atoi(chamber_text);
 
-    // Validate ranges
-    if (nozzle_min < 100 || nozzle_max < 100 || nozzle_min > 500 || nozzle_max > 500) {
-        ToastManager::instance().show(ToastSeverity::WARNING,
-                                      lv_tr("Nozzle temp must be 100-500°C"), 3000);
+    // Re-read at save time: the configfile answer can land after the edit view
+    // was populated, and the bound the user is held to must be the live one.
+    const int nozzle_cap = input_cap(HeaterType::Nozzle, NOZZLE_INPUT_ABS_MAX_C);
+    if (nozzle_min < 100 || nozzle_max < 100 || nozzle_min > nozzle_cap ||
+        nozzle_max > nozzle_cap) {
+        char msg[kToastBufBytes];
+        snprintf(msg, sizeof(msg), lv_tr("Nozzle temp must be 100-%d°C"), nozzle_cap);
+        ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;
     }
-    if (bed_temp < 0 || bed_temp > 200) {
-        ToastManager::instance().show(ToastSeverity::WARNING, lv_tr("Bed temp must be 0-200°C"),
-                                      3000);
+    const int bed_cap = input_cap(HeaterType::Bed, BED_INPUT_ABS_MAX_C);
+    if (bed_temp < 0 || bed_temp > bed_cap) {
+        char msg[kToastBufBytes];
+        snprintf(msg, sizeof(msg), lv_tr("Bed temp must be 0-%d°C"), bed_cap);
+        ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
+        return;
+    }
+    const int chamber_cap = input_cap(HeaterType::Chamber, CHAMBER_INPUT_ABS_MAX_C);
+    if (chamber_temp < 0 || chamber_temp > chamber_cap) {
+        char msg[kToastBufBytes];
+        snprintf(msg, sizeof(msg), lv_tr("Chamber temp must be 0-%d°C"), chamber_cap);
+        ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;
     }
     if (nozzle_min > nozzle_max) {
@@ -421,6 +507,8 @@ void MaterialTempsOverlay::handle_save() {
                 ovr.nozzle_max = nozzle_max;
             if (bed_temp != mat.bed_temp)
                 ovr.bed_temp = bed_temp;
+            if (chamber_temp != mat.chamber_temp_c)
+                ovr.chamber_temp = chamber_temp;
             break;
         }
     }
@@ -439,7 +527,7 @@ void MaterialTempsOverlay::handle_save() {
     }
 
     // Only save if there are actual overrides
-    if (ovr.nozzle_min || ovr.nozzle_max || ovr.bed_temp || ovr.preheat_macro) {
+    if (ovr.nozzle_min || ovr.nozzle_max || ovr.bed_temp || ovr.chamber_temp || ovr.preheat_macro) {
         MaterialSettingsManager::instance().set_override(editing_material_, ovr);
     } else {
         // All values match defaults — clear any existing override

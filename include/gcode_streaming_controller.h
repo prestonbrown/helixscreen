@@ -142,7 +142,8 @@ class BackgroundGhostBuilder {
  * @brief Orchestrates streaming G-code loading for memory-constrained devices
  *
  * The streaming controller provides on-demand layer loading by coordinating:
- * - GCodeLayerIndex: Maps layer numbers to file byte offsets (~24 bytes/layer)
+ * - GCodeLayerIndex: Maps layer numbers to file byte offsets (one 40-byte
+ *   StreamingLayerEntry per layer)
  * - GCodeDataSource: Reads byte ranges from file or network
  * - GCodeLayerCache: LRU cache for parsed segment data
  * - GCodeParser: Converts raw G-code bytes to ToolpathSegments
@@ -164,7 +165,7 @@ class BackgroundGhostBuilder {
  *   }
  * @endcode
  *
- * Memory usage: Index (~24 bytes × layers) + Cache (configurable budget)
+ * Memory usage: Index (sizeof(StreamingLayerEntry) × layers) + Cache (configurable budget)
  */
 class GCodeStreamingController {
   public:

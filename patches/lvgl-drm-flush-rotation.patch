@@ -413,32 +413,10 @@ index 5afede049..fa1b28b56 100644
  /**
   * Get the horizontal resolution of a DRM mode
   * @param mode pointer to the DRM mode object
-@@ -118,6 +142,42 @@ int32_t lv_linux_drm_mode_get_refresh_rate(const lv_linux_drm_mode_t * mode);
+@@ -118,6 +142,20 @@ int32_t lv_linux_drm_mode_get_refresh_rate(const lv_linux_drm_mode_t * mode);
   */
  bool lv_linux_drm_mode_is_preferred(const lv_linux_drm_mode_t * mode);
  
-+#if LV_LINUX_DRM_USE_EGL
-+/**
-+ * Get the EGL display from a DRM display (cast to EGLDisplay)
-+ * @param disp pointer to the display object
-+ * @return EGLDisplay as void*, or NULL if not using EGL
-+ */
-+void * lv_linux_drm_get_egl_display(lv_display_t * disp);
-+
-+/**
-+ * Get the EGL context from a DRM display (cast to EGLContext)
-+ * @param disp pointer to the display object
-+ * @return EGLContext as void*, or NULL if not using EGL
-+ */
-+void * lv_linux_drm_get_egl_context(lv_display_t * disp);
-+
-+/**
-+ * Get the EGL config from a DRM display (cast to EGLConfig)
-+ * @param disp pointer to the display object
-+ * @return EGLConfig as void*, or NULL if not using EGL
-+ */
-+void * lv_linux_drm_get_egl_config(lv_display_t * disp);
-+#endif
 +
 +/**
 + * Get the open DRM master file descriptor backing a DRM display.

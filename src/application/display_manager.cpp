@@ -26,6 +26,7 @@
 #include "config.h"
 #include "display/lv_display_private.h"
 #include "display_settings_manager.h"
+#include "flush_stride.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "lvgl_log_handler.h"
@@ -378,11 +379,10 @@ bool DisplayManager::init(const Config& config) {
                              "/boot/firmware/cmdline.txt instead.");
                 rotation_degrees = 0;
             } else {
-                lv_display_set_rotation(m_display, lv_rot);
-
-                // The backend may clear LVGL's rotation when the scanout plane
-                // rotates instead, so read the resolution it settles on.
-                m_backend->set_display_rotation(lv_rot, phys_w, phys_h);
+                // The backend is the only writer of the rotation, and may leave
+                // LVGL's at zero when a scanout plane rotates instead, so read
+                // the resolution it settles on.
+                m_backend->set_display_rotation(m_display, lv_rot, phys_w, phys_h);
 
                 m_width = lv_display_get_horizontal_resolution(m_display);
                 m_height = lv_display_get_vertical_resolution(m_display);
@@ -1388,7 +1388,7 @@ bool DisplayManager::has_dimming_control() const {
 
 bool DisplayManager::is_software_rotated() const {
     return m_display && m_backend && m_backend->type() == DisplayBackendType::FBDEV &&
-           lv_display_get_rotation(m_display) != LV_DISPLAY_ROTATION_0;
+           m_backend->applied_rotation_degrees(m_display) != 0;
 }
 
 // ============================================================================
@@ -1645,12 +1645,10 @@ void DisplayManager::apply_rotation(int degrees) {
         return;
     }
 
-    lv_display_set_rotation(m_display, lv_rot);
-
     // The backend may clear LVGL's rotation when the scanout plane rotates
     // instead, so read the resolution it settles on — the same order init()
     // applies (#1275, #1587).
-    m_backend->set_display_rotation(lv_rot, phys_w, phys_h);
+    m_backend->set_display_rotation(m_display, lv_rot, phys_w, phys_h);
 
     m_width = lv_display_get_horizontal_resolution(m_display);
     m_height = lv_display_get_vertical_resolution(m_display);
@@ -1906,8 +1904,7 @@ void DisplayManager::run_rotation_probe() {
                 // Set the LVGL display rotation so the rendering actually
                 // changes on screen, then let the backend handle any
                 // hardware-specific adjustments (touch coords, etc.).
-                lv_display_set_rotation(m_display, rotations[i]);
-                m_backend->set_display_rotation(rotations[i], phys_w, phys_h);
+                m_backend->set_display_rotation(m_display, rotations[i], phys_w, phys_h);
                 m_width = lv_display_get_horizontal_resolution(m_display);
                 m_height = lv_display_get_vertical_resolution(m_display);
             }
@@ -1981,8 +1978,7 @@ void DisplayManager::run_rotation_probe() {
     // Ensure display is at the confirmed rotation
     if (!is_sdl) {
         lv_display_rotation_t confirmed_lv_rot = degrees_to_lv_rotation(confirmed_rotation);
-        lv_display_set_rotation(m_display, confirmed_lv_rot);
-        m_backend->set_display_rotation(confirmed_lv_rot, phys_w, phys_h);
+        m_backend->set_display_rotation(m_display, confirmed_lv_rot, phys_w, phys_h);
         m_width = lv_display_get_horizontal_resolution(m_display);
         m_height = lv_display_get_vertical_resolution(m_display);
     }
@@ -2159,15 +2155,10 @@ void DisplayManager::install_color_transform_hook() {
                 f.disp_w = lv_display_get_horizontal_resolution(d);
                 f.disp_h = lv_display_get_vertical_resolution(d);
                 f.color_format = (int)cf;
-                // Use the ACTUAL draw-buffer stride, not width_to_stride(area_w):
-                // the DRM backend renders into dumb buffers whose pitch is aligned
-                // and may exceed the area width (direct/full render mode). Reading
-                // px_map with the wrong stride mis-tracks rows. Fall back to the
-                // computed stride only if the active buffer can't be queried.
+                // Same dbuf-stride-or-fallback rule the colour-transform walk
+                // uses; the shared helper owns the derivation (#1610).
                 lv_draw_buf_t* dbuf = lv_display_get_buf_active(d);
-                f.src_stride = (dbuf && dbuf->header.stride > 0)
-                                   ? static_cast<uint32_t>(dbuf->header.stride)
-                                   : lv_draw_buf_width_to_stride(lv_area_get_width(area), cf);
+                f.src_stride = helix::flush_px_map_stride(dbuf, lv_area_get_width(area), cf);
                 // Hand the sink the real readable length so it never has to guess
                 // one from stride * disp_h. Only claim it when px_map IS the active
                 // draw buffer: with screen rotation (and any other backend that

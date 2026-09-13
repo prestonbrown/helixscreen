@@ -13,7 +13,9 @@
 # Options:
 #   --update    Update existing installation (preserves config)
 #   --uninstall Remove HelixScreen
-#   --clean     Remove old installation completely before installing (no config backup)
+#   --clean     Remove old installation completely before installing (no config
+#               backup; the disabled-services ledger is kept so uninstall can
+#               still re-enable a stock UI this install disabled)
 #   --version   Specify version (default: latest)
 #
 

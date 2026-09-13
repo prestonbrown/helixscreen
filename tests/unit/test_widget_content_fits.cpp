@@ -221,8 +221,14 @@ const std::vector<KnownClip> kKnownClipping = {
     // "Restart" caption below it, 1px, on the two smallest panels only.
     {"firmware_restart", "272x480"},  {"firmware_restart", "480x272"},
 
-    {"nozzle_temps",     "1024x600"}, {"nozzle_temps",     "1280x720"},
+    // Below the ladder's floor: at the authored minimum tile these
+    // geometries cannot hold the stack (the two smallest panels are narrower
+    // than icon + value at the compact font; 1024x600's minimum tile floors a
+    // pixel over at the large tier's fonts), and the card scrolls rather than
+    // clipping silently. Every wider geometry holds the ladder's output with
+    // no entry.
     {"nozzle_temps",     "272x480"},  {"nozzle_temps",     "480x400"},
+    {"nozzle_temps",     "1024x600"},
 
     {"power_device",     "1024x600"}, {"power_device",     "272x480"},
     {"power_device",     "480x272"},  {"power_device",     "480x320"},

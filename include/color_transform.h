@@ -53,9 +53,6 @@ class ColorTransform {
         return identity_;
     }
 
-    /** @brief Apply LUT in-place to a rendered buffer. Format-aware. */
-    void apply(uint8_t* buf, int width, int height, int stride_bytes, lv_color_format_t cf) const;
-
     /** @brief Apply LUT in-place to ONLY a sub-rectangle of a buffer. */
     void apply_area(uint8_t* buf, int buf_stride_bytes, int x, int y, int w, int h,
                     lv_color_format_t cf) const;
