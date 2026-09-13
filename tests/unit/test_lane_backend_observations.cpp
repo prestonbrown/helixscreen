@@ -2946,3 +2946,68 @@ TEST_CASE_METHOD(LVGLTestFixture, "a tool changer's resync reaches its own block
     REQUIRE(lane.vendor_cache.has_value());
     CHECK(lane.vendor_cache->material == "PC");
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "the IFS resync re-reads the shared namespace as well as its own",
+                 "[lane][ingest][resync]") {
+    Ad5xHarness harness(nullptr, nullptr);
+    LaneDataDb db;
+    db.seed("lane1", nlohmann::json{{"lane", "0"}, {"material", "PETG"}});
+    Ad5xIfsTestAccess::inject_override_store(*harness,
+                                             db.store("ifs", helix::ams::LaneKeyStyle::Lane));
+
+    // The backend's own resync reads a vendor file, which is a different
+    // source from the namespace its neighbours co-author, so the two are
+    // additive rather than one standing in for the other.
+    harness->request_resync();
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a backend whose namespace nobody else writes re-reads nothing",
+                 "[lane][ingest][resync]") {
+    AfcHarness harness(nullptr, nullptr);
+
+    // AFC and Happy Hare keep their overrides in a namespace HelixScreen
+    // alone writes, so there is no drift for a re-read to correct, and
+    // re-filing those records would put a second producer on the vendor-cache
+    // slot the backend's own firmware readings already occupy.
+    harness->request_resync();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(helix::ams::known_lanes().empty());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a CFS resync re-reads the shared namespace",
+                 "[lane][ingest][resync]") {
+    CfsHarness harness(nullptr, nullptr);
+    LaneDataDb db;
+    db.seed("lane3", nlohmann::json{{"lane", "2"}, {"material", "PLA-CF"}});
+    CfsTestAccess::inject_override_store(*harness, db.store("cfs", helix::ams::LaneKeyStyle::Lane));
+
+    harness->request_resync();
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto lane = lane_sources(harness.lane(2));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->material == "PLA-CF");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Snapmaker resync re-reads the shared namespace",
+                 "[lane][ingest][resync]") {
+    SnapmakerHarness harness(nullptr, nullptr);
+    LaneDataDb db;
+    // Snapmaker is a tool changer, so its canonical key is T<n>.
+    db.seed("T1", nlohmann::json{{"lane", "1"}, {"material", "ASA"}});
+    SnapmakerTestAccess::inject_override_store(
+        *harness, db.store("snapmaker", helix::ams::LaneKeyStyle::Tool));
+
+    harness->request_resync();
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto lane = lane_sources(harness.lane(1));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->material == "ASA");
+}
