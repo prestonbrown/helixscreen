@@ -51,6 +51,15 @@ struct MemoryThresholds {
     size_t clear_warn_available_kb = 0;
     size_t clear_critical_available_kb = 0;
 
+    /// How long available memory may sit in the warning band before the level
+    /// escalates to critical.
+    ///
+    /// A device whose idle free memory falls between warn_available_kb and
+    /// critical_available_kb is in warning permanently and reaches critical
+    /// only by running out, so every responder gated at critical never runs.
+    /// A dip that does not recover is not a dip.
+    uint32_t sustained_warning_secs_to_critical = 60;
+
     /// Build thresholds appropriate for the device tier
     static MemoryThresholds for_device(const MemoryInfo& info);
 };
@@ -232,14 +241,21 @@ class MemoryMonitor {
     // Rate limiting: last warning time per level
     static constexpr int NUM_LEVELS = 4;
     std::array<std::chrono::steady_clock::time_point, NUM_LEVELS> last_warning_time_{};
+
+    /// When the level first reached `warning` and stayed there; reset whenever
+    /// it drops below warning. Feeds compute_pressure_level's escalation.
+    std::chrono::steady_clock::time_point warning_since_{};
 };
 
 const char* pressure_level_to_string(MemoryPressureLevel level);
 
 /// Compute pressure level from stats — extracted for testability
+/// @param sustained_warning_secs How long the level has already been at
+///        `warning` without clearing. 0 for an instantaneous classification.
 MemoryPressureLevel compute_pressure_level(const MemoryStats& stats,
                                            const MemoryThresholds& thresholds,
                                            MemoryPressureLevel current_level,
-                                           const MemoryInfo& sys_info, int64_t growth_kb);
+                                           const MemoryInfo& sys_info, int64_t growth_kb,
+                                           uint32_t sustained_warning_secs = 0);
 
 } // namespace helix
