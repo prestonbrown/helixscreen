@@ -234,8 +234,9 @@ Loading prefers the DB and falls back to the local file, seeding the DB on the w
 ### Lane identity by source: one record per observer, resolved on read
 
 A self-contained model carries *where* a lane's values came from, instead of re-deriving it
-from the values themselves. Five types and twelve free functions across eight files, with one
-production caller: the human edit path files what a person declared, and nothing reads it.
+from the values themselves. Every AMS backend files into it and nothing reads it: the model is
+fully supplied and entirely unread, so the precedence argument can be settled in one place
+before a surface depends on it.
 
 `Observation` ([`include/lane_observation.h#"struct Observation"`](../../../include/lane_observation.h)) is one reading
 from one source. Every field is a `std::optional`, so "this source said nothing about the
@@ -284,21 +285,84 @@ Colour is the one exception to the identity ladder, and it is deliberately narro
 spool name and catalog identity belong to the spool, so a `LocalUser` record does not outrank
 Spoolman on any of them.
 
-**One production path writes, and nothing reads.** `AmsState::commit_slot_edit`
-(`src/printer/ams_state.cpp#commit_slot_edit`) records an accepted slot edit as a `LocalUser`
-`Observation` through `helix::ams::commit_slot_edit`, once the backend has taken it. No
-*backend* produces an `Observation` yet, no surface consumes a `ResolvedLane`, and `resolve()`
-has no production caller, so nothing the user sees is computed from any of this. Lanes are
-still read the way [`15-known-debt.md`](15-known-debt.md) § "Provenance debt" describes - firmware-reported
-`SlotInfo` merged with a persisted `FilamentSlotOverride` by `merge_override()`
-(`src/printer/filament_slot_override_store.cpp#merge_override`), each field's origin inferred from
-its shape. The model stands alone on purpose, so the precedence argument is readable and
-testable in one place before any producer or consumer moves onto it;
-[`tests/unit/test_lane_resolver.cpp`](../../../tests/unit/test_lane_resolver.cpp) pins every rung of both
-ladders, the colour exception, and the empty-versus-unobserved distinction the whole model
-rests on. Migrating producers and consumers onto it is not tracked as an issue; chapter 15 carries
-the debt it aims at, and prestonbrown/helixscreen#1597 is the one piece of that debt small
-enough to pay off without it.
+**Two funnels, and a private writer behind them.** `ingest()`
+([`include/lane_source_store.h#ingest`](../../../include/lane_source_store.h)) is the one way a
+machine reading reaches the store; `commit_slot_edit()`
+(`include/lane_source_store.h#commit_slot_edit`) is the one way a human edit does, called from
+`AmsState::commit_slot_edit` (`src/printer/ams_state.cpp#commit_slot_edit`) once the backend has
+accepted the edit, so a slot the backend refused gets no declaration. Each refuses the other's
+source. They also differ in what a write *means*: `ingest()` replaces that source's record
+whole, so a field the source did not observe this time stops contributing - which is what stops
+a stale frame re-asserting a value its author no longer stands behind, and why a guard that
+withholds a field **retracts** the reading rather than merely declining to add one.
+`commit_slot_edit()` amends the user's record field by field, because a person states what they
+changed and what they declared earlier still stands. `LaneSourceStore::write()`
+(`include/lane_source_store.h#LaneSourceStore/write`) is private with exactly those two friends,
+and [`tests/shell/test_code_lint.bats`](../../../tests/shell/test_code_lint.bats) fails the build
+on a third friend, on a loosened access specifier, and on a `LaneSourceStore::instance()`
+anywhere but the funnels' own file.
+
+**A lane id is a block, not a slot index.** `lane_id_for(backend_index, slot)`
+(`include/lane_source_store.h#lane_id_for`) gives each registered backend its own block of
+`LANES_PER_BACKEND` ids, with the bypass and the direct-drive tools in reserved blocks above
+them, so two coexisting backends cannot file onto one another's lanes.
+`AmsBackend::lane_id()` (`include/ams_backend.h#lane_id`) is the accessor every producer uses,
+and it answers `INVALID_LANE_ID` until `AmsState::add_backend` has stamped the index. A pair
+naming no lane - an unstamped backend, a slot index past the block - is dropped by both funnels
+with a warning, latched per funnel per lane so a producer filing on no lane cannot flood the
+log with one line per frame.
+
+**Nine producers, and what each one's firmware actually states.** Every backend translates its
+own signal into records built from the values that parse just read, never from the `SlotInfo`
+`apply_overrides()` has already merged a user's edit into - reading that struct back would file
+a person's choice as something the machine reported. Presence is the reading they nearly all
+share; identity is where they diverge sharply:
+
+| Backend | `Sensed` presence from | `VendorCache` identity | Other |
+|---------|------------------------|------------------------|-------|
+| AFC | `prep` / `load` / `tool_loaded`, when a frame carries one | `color_rgb`, `material`, `spool_name`, `brand`, `spoolman_id` | `Metered`: remaining and total weight |
+| Happy Hare | `gate_status`, when the gate is not "unknown" | `color_rgb`, `material`, `spool_name`, `spoolman_id` | |
+| CFS | the bay's parsed status | `color_rgb`, `material`, `brand`, `product_name`, `spoolman_id` | |
+| Snapmaker | `filament_detect.state` | `color_rgb`, `material`, `brand`, `product_name`, `total_weight_g` | |
+| QIDI Box | the slot state word, once every writer of status has run | `color_rgb`, `material`, `brand` | |
+| ACE | the hub's occupancy status, when the frame states one | `color_rgb`, `material` | |
+| AD5X IFS | port presence, once a port sensor has spoken | `color_rgb`, `material` | |
+| Tool changer | the dock, plus the carriage tool | none | |
+| Mock | the simulated slot status | `color_rgb`, `material` | |
+
+Read one consequence straight off that table: **on an ACE or an AD5X, brand and spool name have
+no firmware source at all.** A value a user sees in either field came from their own edit, from
+Spoolman, or from another tool writing the shared record, never from the printer. `catalog_id`,
+`color_name`, `spoolman_vendor_id` and `echo_token` are filed by no backend, so a consumer or a
+test asserting on them is asserting on a field nothing fills.
+
+**A resync refiles the persisted record, on the one backend that needs it.**
+`AmsSubscriptionBackend::request_resync()`
+([`src/printer/ams_subscription_backend.cpp#request_resync`](../../../src/printer/ams_subscription_backend.cpp))
+re-reads the `lane_data`-shaped store a backend names in `lane_record_store()`
+(`include/ams_subscription_backend.h#lane_record_store`) and files what it holds through
+`declared_from_record()` (`src/printer/lane_translation.cpp#declared_from_record`), keeping only
+what classifies as `VendorCache`: re-filing a record that names a spool, or one carrying a lock
+key, would forge a declaration out of a re-read. `firmware_publishes_lane_identity()`
+(`include/ams_subscription_backend.h#firmware_publishes_lane_identity`) gates the whole
+round-trip and defaults to **true**, because a lane whose firmware states its own identity
+already has a producer on the vendor-cache slot and a second one there races it - and whole-record
+replacement means the next frame retracts whatever the persisted record carried beyond what
+firmware reports, so filing it would buy a window between two frames rather than a value the
+lane keeps. The tool changer is the only backend that answers false, and therefore the only one
+whose resync files anything.
+
+**Nothing reads any of this.** No surface consumes a `ResolvedLane`, `resolve()` has no
+production caller, and nothing outside the funnels calls `lane_sources()`. Every lane a user
+sees is still firmware-reported `SlotInfo` merged with a persisted `FilamentSlotOverride` by
+`merge_override()` (`src/printer/filament_slot_override_store.cpp#merge_override`), each field's
+origin inferred from its shape, exactly as [`15-known-debt.md`](15-known-debt.md) § "Provenance
+debt" describes. [`tests/unit/test_lane_resolver.cpp`](../../../tests/unit/test_lane_resolver.cpp)
+pins every rung of both ladders, the colour exception and the empty-versus-unobserved
+distinction the model rests on, and
+[`tests/unit/test_lane_backend_observations.cpp`](../../../tests/unit/test_lane_backend_observations.cpp)
+pins what each producer files. What a read path still has to settle first is
+prestonbrown/helixscreen#1632.
 
 ### Spoolman without AMS
 
@@ -318,6 +382,7 @@ For debugging, every class in this chapter logs under a stable tag: `[AMS State]
 ## Patterns & gotchas
 
 - **Never name a filament system outside its backend file.** Generic code sees `AmsBackend*` and `AmsType`. If a new feature would need `if (type == AmsType::AFC)`, the answer is a capability question on the interface (`manages_active_spool()`, `tracks_weight_locally()`, `has_firmware_spool_persistence()`, ...) — the one-file test from chapter 06.
+- **A lane record enters through one of two funnels, and a producer's record is replaced whole.** `helix::ams::ingest()` for a machine reading, `helix::ams::commit_slot_edit()` for a human edit; `LaneSourceStore::write()` is private to exactly those two and the lint gate enforces it. Build the record from the values the parse just read, never from a `SlotInfo` `apply_overrides()` has rewritten, or a user's own edit is filed as firmware truth. And remember which way a withheld field cuts: leaving one out of an `ingest()` retracts it, it does not leave the last reading standing.
 - **Observing secondary-backend subjects requires the lifetime token.** `BackendSlotSubjects` are dynamic — destroyed in `clear_backends()`/rediscovery. Use the `SubjectLifetime`-taking accessor overloads; the plain ones are for one-frame reads on the main thread.
 - **Do not write subjects from backend-event context.** The event path queues *before* touching anything ([`src/printer/ams_state.cpp#update_slot`](../../../src/printer/ams_state.cpp#L2393)); the queued body is where mutex + subjects happen. A shortcut around `queue_update` reintroduces the bg-thread LVGL crash family (chapter 03).
 - **Don't "fix" the gram threshold.** Weight churn marking the record dirty is the L53W5PKG regression reborn; weights are re-fetched on connect, so persisting them buys nothing. Compare via `same_displayed_weight()` or not at all.
@@ -361,3 +426,4 @@ Read in this order; about 30 minutes total.
 12. [`src/printer/spoolman_manager.cpp#refresh_spoolman_weights`](../../../src/printer/spoolman_manager.cpp#L362) — the `persist=false` weight write-back and the feedback-loop comment; then [`include/spoolman_manager.h`](../../../include/spoolman_manager.h)-64 for the manager's charter (poll, breaker, identity cache, no-AMS operation).
 13. [`include/ams_state.h#get_subjects_lifetime`](../../../include/ams_state.h#L812) — the two-scope lifetime doc (`get_subjects_lifetime()` vs the per-slot tokens) with its PrintStatusPanel example; the best single comment on when observers need a token.
 14. [`include/filament_op_dispatch.h#helix::ui`](../../../include/filament_op_dispatch.h#L9) — the tier enum and header comment framing the four-dispatch-surface question; stop here — the ladder itself is FILAMENT_MANAGEMENT.md territory.
+15. [`include/lane_source_store.h#ingest`](../../../include/lane_source_store.h) - the lane model's entrance: the two funnels, the blocked address space above them, and the friend list guarding `LaneSourceStore::write` (`include/lane_source_store.h#LaneSourceStore/write`). Then the widest of the nine producers, [`src/printer/ams_backend_afc.cpp#parse_afc_stepper`](../../../src/printer/ams_backend_afc.cpp), which files all three of its sources from the accumulated `LaneFirmwareReadings` rather than from `SlotInfo`, and the narrowest, `src/printer/ams_backend_toolchanger.cpp#refresh_slot_statuses_locked`, which files presence and nothing else.
