@@ -429,7 +429,9 @@ int count_z_steppers(const std::vector<std::string>& steppers) {
 // other heuristics identify, a bed size that names the model opts in with
 // "separator": true. It stays corroborating - never the base - but its weight
 // joins the uncapped score, so the sibling whose window the bed missed loses by
-// a real margin instead of a heuristic-count tiebreak.
+// a real margin instead of a heuristic-count tiebreak. The same opt-in applies
+// to hardware: an MCU part number or a mainboard name can separate vendors
+// whose class evidence otherwise ties.
 bool is_corroborating_only(const json& heuristic) {
     if (heuristic.value("corroborating", false)) {
         return true;
@@ -836,8 +838,14 @@ PrinterDetectionResult execute_printer_heuristics(const json& printer,
     constexpr int MAX_BONUS = 12;
 
     int base_confidence = identifying->confidence;
-    int extra_matches = static_cast<int>(matches.size()) - 1;
-    int bonus = std::min(extra_matches * BONUS_PER_EXTRA_MATCH, MAX_BONUS);
+    // The bonus stacks identifying evidence only. Corroborating evidence
+    // supports an identification through match_count and opted-in separation;
+    // letting it raise the bonus would separate look-alikes by how much
+    // corroboration one entry happens to author, which is the match-count
+    // tiebreak in another form.
+    const int identifying_matches = static_cast<int>(std::count_if(
+        matches.begin(), matches.end(), [](const auto& m) { return !m.corroborating; }));
+    const int bonus = std::min((identifying_matches - 1) * BONUS_PER_EXTRA_MATCH, MAX_BONUS);
     int combined = std::min(base_confidence + bonus, 100);
 
     // A separator volume names the model inside a family the entry's other
@@ -865,9 +873,9 @@ PrinterDetectionResult execute_printer_heuristics(const json& printer,
         reason += fmt::format(" (+{} more)", matches.size() - 1);
     }
 
-    spdlog::debug("[PrinterDetector] {} scored {}% (base {} + bonus {} from {} matches, "
-                  "separation {})",
-                  printer_name, combined, base_confidence, bonus, matches.size(), separation);
+    spdlog::debug("[PrinterDetector] {} scored {}% (base {} + bonus {} from {} identifying "
+                  "matches, separation {})",
+                  printer_name, combined, base_confidence, bonus, identifying_matches, separation);
 
     PrinterDetectionResult result{printer_name, combined, reason, static_cast<int>(matches.size()),
                                   base_confidence};

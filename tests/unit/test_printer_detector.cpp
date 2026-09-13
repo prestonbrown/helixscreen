@@ -1580,6 +1580,77 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: Combined heuristics -
     REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
 }
 
+// A delta rig's class evidence - delta kinematics, delta_calibrate, the
+// stepper_a/b/c naming - is carried by every delta vendor in the database, so
+// it pins the family and says nothing about the vendor. The one thing that
+// could wrongly pin the vendor is the FLSUN entries' hostname patterns: a host
+// named "flsun" matches a heuristic the Doron entry lacks, and that extra match
+// used to become a 3-point "margin" between two candidates both published at
+// 100. The vendor decision needs hardware: the GD32F303 MCU, opted in as a
+// separator (prestonbrown/helixscreen#1607).
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: bare delta vendors stay ambiguous without MCU corroboration",
+                 "[printer][detector][1607]") {
+    auto delta_rig = [](const char* hostname, const char* mcu = nullptr) {
+        PrinterHardwareData hardware{.heaters = {"extruder", "heater_bed"},
+                                     .hostname = hostname,
+                                     .printer_objects = {"delta_calibrate"},
+                                     .steppers = {"stepper_a", "stepper_b", "stepper_c"},
+                                     .kinematics = "delta"};
+        if (mcu) {
+            hardware.mcu = mcu;
+            hardware.mcu_list = {mcu};
+        }
+        return hardware;
+    };
+
+    const std::vector<std::string> delta_family = PrinterDetector::get_list_names("delta");
+    const auto in_delta_family = [&delta_family](const std::string& name) {
+        return std::find(delta_family.begin(), delta_family.end(), name) != delta_family.end();
+    };
+
+    SECTION("a bare delta reports the family, not a vendor") {
+        auto result = PrinterDetector::detect(delta_rig("test"));
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.detected());
+        REQUIRE(in_delta_family(result.type_name));
+        REQUIRE(in_delta_family(result.runner_up_type_name));
+        REQUIRE(result.runner_up_type_name != result.type_name);
+        REQUIRE(result.margin() == 0);
+        REQUIRE(result.tied_count > 1);
+        REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+    }
+
+    SECTION("an flsun hostname without the MCU stays ambiguous") {
+        for (const char* host : {"flsun", "flsun-v400"}) {
+            auto result = PrinterDetector::detect(delta_rig(host));
+            INFO("hostname '" << host << "' -> " << result.type_name << " @ " << result.confidence
+                              << ", runner-up " << result.runner_up_type_name << " @ "
+                              << result.runner_up_confidence << ", margin " << result.margin()
+                              << ", " << result.tied_count << " tied");
+            REQUIRE(result.detected());
+            REQUIRE(in_delta_family(result.type_name));
+            // A hostname string the user can set to anything is not hardware:
+            // without the MCU the vendor stays a guess nothing may persist.
+            REQUIRE(result.margin() == 0);
+            REQUIRE(result.tied_count > 1);
+            REQUIRE(result.ambiguous());
+            REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+        }
+    }
+
+    SECTION("the MCU corroborated capture keeps the FLSUN V400 vendor verdict") {
+        auto result = PrinterDetector::detect(delta_rig("flsun-v400", "GD32F303"));
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.detected());
+        REQUIRE(result.type_name == "FLSUN V400");
+        REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+        REQUIRE(PrinterDetector::meets_autosave_threshold(result));
+    }
+}
+
 TEST_CASE_METHOD(PrinterDetectorFixture,
                  "PrinterDetector: board_match heuristic - Fysetc board identifies Doron Velta",
                  "[printer][board_match]") {
@@ -3490,14 +3561,14 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
             result.runner_up_confidence, result.margin(), result.tied_count);
 
     REQUIRE(result.detected());
-    // The Max 4 capture carries the shared QIDI stock firmware, so the family
-    // leads and the models tie. The pinned regression is that its shared
-    // objects do not drag the machine to the Artillery M1 Pro.
-    REQUIRE(result.type_name.rfind("Qidi", 0) == 0);
+    // The capture carries Max 4-only hardware alongside the shared QIDI stock
+    // firmware - multi_color_controller and the second auxiliary fan - so the
+    // Max 4 leads its family on identifying evidence. The pinned regression is
+    // that the shared objects do not drag the machine to the Artillery M1 Pro.
+    REQUIRE(result.type_name == "Qidi Max 4");
     REQUIRE(result.type_name != "Artillery M1 Pro");
-    REQUIRE(result.margin() == 0);
-    REQUIRE(result.tied_count > 1);
-    REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+    REQUIRE(PrinterDetector::meets_autosave_threshold(result));
 }
 
 // ============================================================================
@@ -3862,12 +3933,13 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
             result.runner_up_confidence, result.margin(), result.tied_count);
 
     REQUIRE(result.detected());
-    // The saturating bonus flattens the model-level evidence, so the Kobra 2
-    // and the plain Kobra tie and only the vendor is named.
-    REQUIRE(result.type_name.rfind("Anycubic Kobra", 0) == 0);
-    REQUIRE(result.runner_up_type_name.rfind("Anycubic Kobra", 0) == 0);
-    REQUIRE(result.margin() == 0);
-    REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
+    // The HC32F460 MCU is hardware only the Kobra 2 family carries, so the
+    // full fingerprint names the model: like the FLSUN V400's GD32F303, the
+    // machine's own board separates it from the plain Kobra, whose entry
+    // claims no MCU and falls behind on identifying evidence.
+    REQUIRE(result.type_name == "Anycubic Kobra 2");
+    REQUIRE(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+    REQUIRE(PrinterDetector::meets_autosave_threshold(result));
 }
 
 TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: Combined - FLSUN V400 full fingerprint",
@@ -6073,10 +6145,11 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
         REQUIRE(result.detected());
         REQUIRE(result.type_name.rfind("Creality K2", 0) == 0);
         REQUIRE(result.runner_up_type_name.rfind("Creality K2", 0) == 0);
-        // The margin is the volume's extra-match bonus (3), not its separator
-        // weight: below the identification bar the bed separates nothing, and
-        // the detection stays under the autosave bar a real match would clear.
-        REQUIRE(result.margin() == 3);
+        // Below the identification bar the bed separates nothing: it is
+        // corroborating evidence, so it adds no bonus weight, and its
+        // separator opt-in does not fire. The detection stays under the
+        // autosave bar a real match would clear.
+        REQUIRE(result.margin() == 0);
         REQUIRE(result.confidence < PrinterDetector::AUTOSAVE_MIN_CONFIDENCE);
         REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
     }

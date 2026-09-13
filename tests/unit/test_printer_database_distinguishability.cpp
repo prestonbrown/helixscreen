@@ -81,6 +81,14 @@ const std::map<std::string, std::string>& known_collisions() {
         {"zerog_mercury_one_plus_hydra", "same Trident overlap as zerog_mercury_one_hydra"},
         {"zerog_nebula_255", "same Trident overlap as zerog_mercury_one_hydra"},
         {"zerog_nebula_370", "same Trident overlap as zerog_mercury_one_hydra"},
+        {"flsun_delta",
+         "authors only class evidence - delta kinematics, delta_calibrate, stepper_a and "
+         "class-string hostnames; no hardware fingerprint separates it from the other delta "
+         "vendors, so a bare delta reports the family and stays ambiguous "
+         "(prestonbrown/helixscreen#1607)"},
+        {"venture_delta",
+         "same class-only authoring as flsun_delta; its bed window is corroborating and "
+         "separates nothing (prestonbrown/helixscreen#1607)"},
     };
     return known;
 }
