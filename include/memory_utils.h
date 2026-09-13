@@ -157,16 +157,20 @@ bool is_gcode_3d_render_safe(size_t file_size_bytes);
 /**
  * @brief Check if G-code 2D streaming rendering is safe for a given file
  *
- * 2D streaming mode uses layer-on-demand loading with LRU cache, so memory
- * requirements are much lower than 3D mode. File is streamed directly to disk
- * (no memory spike during download). Only needs RAM for:
- * - Layer index: ~24 bytes per layer (estimate 1 layer per 500 bytes of G-code)
- * - LRU cache: 1MB fixed budget for parsed layer segments
+ * 2D streaming mode uses layer-on-demand loading with an LRU cache, so memory
+ * requirements are much lower than 3D mode. It needs RAM for:
+ * - Layer index: one gcode::StreamingLayerEntry per layer (estimate 1 layer
+ *   per 500 bytes of G-code)
+ * - LRU cache: the budget GCodeStreamingController gives this RAM tier
  * - Ghost preview buffer: display_width * display_height * 4 bytes (ARGB8888)
  * - Safety margin: 3MB for other allocations
+ * - The file itself, when the G-code cache directory is RAM-backed: bytes on
+ *   tmpfs/ramfs are memory, so a "stream to disk" download spends the same
+ *   budget the render needs
  *
  * This is safe for much larger files than is_gcode_3d_render_safe().
- * Reads display dimensions from LVGL at runtime.
+ * Reads display dimensions from LVGL and the cache location from the cache
+ * cascade at runtime.
  *
  * @param file_size_bytes Size of the G-code file in bytes
  * @return true if 2D streaming rendering is safe, false if thumbnail-only recommended
@@ -181,12 +185,16 @@ bool is_gcode_2d_streaming_safe(size_t file_size_bytes);
  *
  * @param file_size_bytes Size of the G-code file in bytes
  * @param available_kb Available system memory in KB
+ * @param total_kb Total system memory in KB (picks the layer-cache budget tier)
  * @param display_width Display width in pixels (for ghost buffer calculation)
  * @param display_height Display height in pixels (for ghost buffer calculation)
+ * @param cache_dir_is_ram_backed True when the downloaded file lands on
+ *        tmpfs/ramfs, where it costs memory rather than storage
  * @return true if 2D streaming rendering is safe
  */
-bool is_gcode_2d_streaming_safe_impl(size_t file_size_bytes, size_t available_kb, int display_width,
-                                     int display_height);
+bool is_gcode_2d_streaming_safe_impl(size_t file_size_bytes, size_t available_kb, size_t total_kb,
+                                     int display_width, int display_height,
+                                     bool cache_dir_is_ram_backed);
 
 // ============================================================================
 // OOM priority
