@@ -377,11 +377,11 @@ bool all_viable(const std::string&) {
 /// so rung 1 wins and the platform rung does not.
 std::vector<CacheCandidate> device_shape() {
     return {
-        {"/usr/data/helixscreen/cache/helix_thumbs", "HELIX_CACHE_DIR", false, false},
-        {"/usr/data/helixscreen/cache/helix_thumbs", "MIPS", false, true},
-        {"/root/.cache/helix/helix_thumbs", nullptr, false, false},
-        {"/var/tmp/helix_helix_thumbs", nullptr, false, false},
-        {"/tmp/helix_helix_thumbs", nullptr, true, false},
+        {"/usr/data/helixscreen/cache/helix_thumbs", "HELIX_CACHE_DIR", false},
+        {"/usr/data/helixscreen/cache/helix_thumbs", "MIPS", true},
+        {"/root/.cache/helix/helix_thumbs", nullptr, false},
+        {"/var/tmp/helix_helix_thumbs", nullptr, false},
+        {"/tmp/helix_helix_thumbs", nullptr, false},
     };
 }
 } // namespace
@@ -400,10 +400,10 @@ TEST_CASE("sweep runs when the env rung wins but a platform rung exists", "[cach
 TEST_CASE("select_stale_paths never reclaims a deliberate rung", "[cache]") {
     // env wins, config sits below it. A config base_directory is stated intent.
     std::vector<CacheCandidate> c = {
-        {"/pinned/helix_thumbs", "HELIX_CACHE_DIR", false, false},
-        {"/configured/helix_thumbs", "config", false, false},
-        {"/platform/helix_thumbs", "MIPS", false, true},
-        {"/home/dev/.cache/helix/helix_thumbs", nullptr, false, false},
+        {"/pinned/helix_thumbs", "HELIX_CACHE_DIR", false},
+        {"/configured/helix_thumbs", "config", false},
+        {"/platform/helix_thumbs", "MIPS", true},
+        {"/home/dev/.cache/helix/helix_thumbs", nullptr, false},
     };
     const std::vector<std::string> stale = select_stale_paths(c, all_viable);
 
@@ -414,9 +414,9 @@ TEST_CASE("select_stale_paths never reclaims a deliberate rung", "[cache]") {
 TEST_CASE("select_stale_paths returns nothing without a platform rung", "[cache]") {
     // Desktop build: even with HELIX_CACHE_DIR redirected, ~/.cache/helix lives.
     std::vector<CacheCandidate> c = {
-        {"/pinned/helix_thumbs", "HELIX_CACHE_DIR", false, false},
-        {"/home/dev/.cache/helix/helix_thumbs", nullptr, false, false},
-        {"/tmp/helix_helix_thumbs", nullptr, true, false},
+        {"/pinned/helix_thumbs", "HELIX_CACHE_DIR", false},
+        {"/home/dev/.cache/helix/helix_thumbs", nullptr, false},
+        {"/tmp/helix_helix_thumbs", nullptr, false},
     };
     CHECK(select_stale_paths(c, all_viable).empty());
 }

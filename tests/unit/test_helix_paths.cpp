@@ -44,8 +44,12 @@ class EnvVarGuard {
             ::unsetenv(name_.c_str());
         }
     }
-    void set(const std::string& value) { ::setenv(name_.c_str(), value.c_str(), 1); }
-    void unset() { ::unsetenv(name_.c_str()); }
+    void set(const std::string& value) {
+        ::setenv(name_.c_str(), value.c_str(), 1);
+    }
+    void unset() {
+        ::unsetenv(name_.c_str());
+    }
 
   private:
     std::string name_;
@@ -217,7 +221,8 @@ TEST_CASE("home rejects control characters", "[helix_paths]") {
     EnvVarGuard home_guard("HOME");
 
     // Absolute path with an embedded control char (0x01) is rejected.
-    home_guard.set("/home/\x01" "bad");
+    home_guard.set("/home/\x01"
+                   "bad");
     CHECK(home() == "");
 
     // A clean absolute path is still accepted (guards against over-rejection).
@@ -277,4 +282,34 @@ TEST_CASE("first_writable_dir honors min_free_bytes", "[helix_paths]") {
     // be skipped, so no candidate qualifies.
     CHECK(first_writable_dir({dir.string()}, UINT64_MAX) == "");
     fs::remove_all(dir);
+}
+
+TEST_CASE("is_ram_backed separates tmpfs from storage", "[helix_paths]") {
+    // A path we cannot stat answers "not RAM" — the predicate gates a warning,
+    // and a warning invented from a failed syscall is noise.
+    CHECK_FALSE(is_ram_backed(""));
+    CHECK_FALSE(is_ram_backed("/no/such/path/really/unlikely/xyz"));
+
+#if defined(__linux__)
+    // /dev/shm is tmpfs on every Linux that has it; a build host without one
+    // cannot exercise the positive case.
+    if (fs::exists("/dev/shm")) {
+        CHECK(is_ram_backed("/dev/shm"));
+    }
+    // The tree the tests are running from is real storage.
+    CHECK_FALSE(is_ram_backed(fs::current_path().string()));
+
+    // Resolves through symlinks: the CC1 reaches tmpfs as /tmp -> /var/tmp ->
+    // /var/volatile/tmp, and a predicate that stopped at the link would miss it.
+    fs::path link = fs::temp_directory_path() / "helix_ram_link_test";
+    fs::remove(link);
+    if (fs::exists("/dev/shm")) {
+        std::error_code ec;
+        fs::create_directory_symlink("/dev/shm", link, ec);
+        if (!ec) {
+            CHECK(is_ram_backed(link.string()));
+            fs::remove(link);
+        }
+    }
+#endif
 }
