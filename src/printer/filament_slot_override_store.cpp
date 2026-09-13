@@ -1070,11 +1070,11 @@ parse_namespace_document(const nlohmann::json& namespace_doc, LaneKeyStyle key_s
     for (auto it = namespace_doc.begin(); it != namespace_doc.end(); ++it) {
         const std::string& key = it.key();
         // "seated" is a known sibling scalar (the 0-based seated-lane index),
-        // never a lane record — named-skip so the intent survives a future
+        // never a lane record, named-skip so the intent survives a future
         // where it grows into an object.
         if (key == "seated")
             continue;
-        // Non-objects are namespace siblings, not malformed records — a separate
+        // Non-objects are namespace siblings, not malformed records: a separate
         // debug line so genuine parse failures below stay distinguishable.
         if (!it.value().is_object()) {
             spdlog::debug("[FilamentSlotOverrideStore:{}] skipping non-object key: {}", log_tag,
