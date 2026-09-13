@@ -304,7 +304,7 @@ translations:
   Bed mesh operation timed out: Malha da mesa — tempo esgotado
   Bed mesh...: Malha da mesa...
   Bed target set to {}°C: Mesa configurada para {}°C
-  Bed temp must be 0-200°C: A temperatura da mesa deve ser 0-200°C
+  Bed temp must be 0-%d°C: A temperatura da mesa deve ser 0-%d°C
   Bed warming timed out: Aquecimento da mesa — tempo esgotado
   Belt A: Correia A
   Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: A correia A (dianteira direita) está mais apertada por %.0f Hz. Tensione a correia B, na dianteira esquerda, ou afrouxe a correia A.
@@ -1949,7 +1949,7 @@ translations:
   Nozzle did not reach {}°C — {} cancelled: O bico não atingiu {}°C — {} cancelado
   Nozzle min cannot exceed max: O mínimo do bico não pode exceder o máximo
   Nozzle target set to {}°C: Bico configurado para {}°C
-  Nozzle temp must be 100-500°C: A temperatura do bico deve ser 100-500°C
+  Nozzle temp must be 100-%d°C: A temperatura do bico deve ser 100-%d°C
   Nozzle, bed, and chamber in one widget: Bico, mesa e câmara em um widget
   'Nozzle:': 'Bico:'
   OD: OD
@@ -2205,7 +2205,9 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): A
     impressora aceitou o trabalho mas não está imprimindo — verifique a tampa, o papel
     e o tipo de etiqueta (firmware status=0x{:02X} error=0x{:02X})
+  Printer caps bed at %d°C: A impressora limita a mesa a %d°C
   Printer caps chamber at %d°C: A impressora limita a câmara a %d°C
+  Printer caps nozzle at %d°C: A impressora limita o bico a %d°C
   Printer connection unavailable: Conexão com a impressora indisponível
   Printer database format error: Erro de formato do banco de dados de impressoras
   Printer database is corrupt: O banco de dados de impressoras está corrompido

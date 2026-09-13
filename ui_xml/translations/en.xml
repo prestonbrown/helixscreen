@@ -276,7 +276,7 @@
   <translation tag="Bed mesh operation timed out" en="Bed mesh operation timed out"/>
   <translation tag="Bed mesh..." en="Bed mesh..."/>
   <translation tag="Bed target set to {}°C" en="Bed target set to {}°C"/>
-  <translation tag="Bed temp must be 0-200°C" en="Bed temp must be 0-200°C"/>
+  <translation tag="Bed temp must be 0-%d°C" en="Bed temp must be 0-%d°C"/>
   <translation tag="Bed warming timed out" en="Bed warming timed out"/>
   <translation tag="Belt A" en="Belt A"/>
   <translation tag="Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A." en="Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A."/>
@@ -1749,7 +1749,7 @@
   <translation tag="Nozzle did not reach {}°C — {} cancelled" en="Nozzle did not reach {}°C — {} cancelled"/>
   <translation tag="Nozzle min cannot exceed max" en="Nozzle min cannot exceed max"/>
   <translation tag="Nozzle target set to {}°C" en="Nozzle target set to {}°C"/>
-  <translation tag="Nozzle temp must be 100-500°C" en="Nozzle temp must be 100-500°C"/>
+  <translation tag="Nozzle temp must be 100-%d°C" en="Nozzle temp must be 100-%d°C"/>
   <translation tag="Nozzle, bed, and chamber in one widget" en="Nozzle, bed, and chamber in one widget"/>
   <translation tag="Nozzle:" en="Nozzle:"/>
   <translation tag="OD" en="OD"/>
@@ -1982,7 +1982,9 @@
   <translation tag="Printer Shutdown" en="Printer Shutdown"/>
   <translation tag="Printer Type" en="Printer Type"/>
   <translation tag="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})" en="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})"/>
+  <translation tag="Printer caps bed at %d°C" en="Printer caps bed at %d°C"/>
   <translation tag="Printer caps chamber at %d°C" en="Printer caps chamber at %d°C"/>
+  <translation tag="Printer caps nozzle at %d°C" en="Printer caps nozzle at %d°C"/>
   <translation tag="Printer connection unavailable" en="Printer connection unavailable"/>
   <translation tag="Printer database format error" en="Printer database format error"/>
   <translation tag="Printer database is corrupt" en="Printer database is corrupt"/>

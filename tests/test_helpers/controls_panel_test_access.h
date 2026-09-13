@@ -106,6 +106,15 @@ struct ControlsPanelTestAccess {
     static bool guard_active(ControlsPanel& p) {
         return p.operation_guard_.is_active();
     }
+
+    // --- Target-edit keypad ceiling ------------------------------------------
+    //
+    // The three heater keypads derive their maximum from the shared
+    // keypad-ceiling authority; this lets a test ask the panel the same
+    // question the keypad will be shown with (#1619).
+    static int target_edit_max(ControlsPanel& p, helix::HeaterType type, int fallback_deg) {
+        return p.target_edit_max(type, fallback_deg);
+    }
 };
 
 } // namespace helix::ui

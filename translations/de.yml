@@ -310,7 +310,7 @@ translations:
   Bed mesh operation timed out: Bettnetz-Vorgang Zeitüberschreitung
   Bed mesh...: Bettnetz...
   Bed target set to {}°C: Bett-Zieltemperatur auf {}°C gesetzt
-  Bed temp must be 0-200°C: Betttemperatur muss 0-200°C betragen
+  Bed temp must be 0-%d°C: Betttemperatur muss 0-%d°C betragen
   Bed warming timed out: Bettaufheizung Zeitüberschreitung
   Belt A: Riemen A
   Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: Riemen A (vorne rechts) ist um %.0f Hz stärker gespannt. Spannen Sie Riemen B, vorne links, oder lockern Sie Riemen A.
@@ -1955,7 +1955,7 @@ translations:
   Nozzle did not reach {}°C — {} cancelled: Düse erreichte {}°C nicht — {} abgebrochen
   Nozzle min cannot exceed max: Düse min darf max nicht überschreiten
   Nozzle target set to {}°C: Düsen-Zieltemperatur auf {}°C gesetzt
-  Nozzle temp must be 100-500°C: Düsentemperatur muss 100-500°C betragen
+  Nozzle temp must be 100-%d°C: Düsentemperatur muss 100-%d°C betragen
   Nozzle, bed, and chamber in one widget: Düse, Bett und Kammer in einem Widget
   'Nozzle:': 'Düse:'
   OD: OD
@@ -2212,7 +2212,9 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): Drucker
     hat Auftrag angenommen, druckt aber nicht – prüfen Sie Abdeckung, Papier und Etikettentyp
     (firmware status=0x{:02X} error=0x{:02X})
+  Printer caps bed at %d°C: Drucker begrenzt das Bett auf %d°C
   Printer caps chamber at %d°C: Drucker begrenzt die Kammer auf %d°C
+  Printer caps nozzle at %d°C: Drucker begrenzt die Düse auf %d°C
   Printer connection unavailable: Druckerverbindung nicht verfügbar
   Printer database format error: Formatfehler der Druckerdatenbank
   Printer database is corrupt: Druckerdatenbank ist beschädigt
