@@ -460,6 +460,13 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         return override_store_.get();
     }
 
+    /// klipper-toolchanger reports no filament identity, so nothing on this
+    /// backend files a vendor-cache reading from a status frame and the
+    /// persisted record is the lane's only account of what it holds.
+    [[nodiscard]] bool firmware_publishes_lane_identity() const override {
+        return false;
+    }
+
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
 
     /**

@@ -262,6 +262,24 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// checks in check_preconditions() (e.g. QIDI Box).
     AmsError refuse_if_printing() const;
 
+    /// Whether this backend's firmware publishes lane identity of its own,
+    /// which it files as a VendorCache reading on every status frame.
+    ///
+    /// A lane with such a producer must not also receive the persisted record.
+    /// Both are the same source and ingest() replaces a source's record whole,
+    /// so the two arrival orders say different things and both are reachable:
+    /// a resync landing after a frame overwrites a fresh firmware reading with
+    /// a stored one. Nor is there a field to be gained by accepting that risk.
+    /// Whole-record replacement means the next frame retracts whatever the
+    /// persisted record carried beyond what firmware reports, so filing it
+    /// buys a window between two frames rather than a value a lane keeps.
+    ///
+    /// Defaults to true, so a backend that forgets to answer loses a re-read
+    /// rather than gaining a race.
+    [[nodiscard]] virtual bool firmware_publishes_lane_identity() const {
+        return true;
+    }
+
     /// This backend's lane_data-shaped record store, or nullptr when it has
     /// none. request_resync() re-reads it so a lane's shared record is not
     /// frozen at whatever it said when the backend started.

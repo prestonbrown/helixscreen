@@ -2800,11 +2800,21 @@ TEST_CASE_METHOD(LVGLTestFixture, "the factory mock is registered before it star
 
 // --- The shared namespace, re-read ----------------------------------------
 //
-// The backends that co-author lane_data read it once at start. A resync is the
-// user saying "show me what is really there", so it goes back to the namespace
-// and files what it finds. Only the vendor-cache half of it: a record naming a
-// spool is the server's statement and one carrying a lock key is a person's,
-// and neither becomes true again merely because a re-read saw it.
+// A resync goes back to lane_data and re-reads it. What it FILES is bounded
+// twice over.
+//
+// By source: only records classifying as VendorCache. A record naming a spool
+// is the server's statement and one carrying a lock key is a person's, and
+// neither becomes true again merely because a re-read saw it.
+//
+// By lane: only where firmware states no identity of its own. Everywhere else
+// a status frame already files the vendor-cache record, ingest() replaces a
+// source's record whole, and both arrival orders happen, so a second producer
+// there overwrites a fresh reading with a stored one. Nor is a field gained by
+// allowing it: the next frame retracts whatever the stored record carried
+// beyond what firmware reports. Of the seven backends holding a record store,
+// klipper-toolchanger is the only one whose firmware reports no identity, so
+// it is the only one that files.
 
 namespace {
 
@@ -2827,14 +2837,22 @@ struct LaneDataDb {
     }
 };
 
+/// A tool changer keys its records T<n>; the slot a record names is the inner
+/// 0-based field in either style.
+std::unique_ptr<helix::ams::FilamentSlotOverrideStore> toolchanger_store(LaneDataDb& db) {
+    return db.store("toolchanger", helix::ams::LaneKeyStyle::Tool);
+}
+
 } // namespace
+
+// --- The one backend that files -------------------------------------------
 
 TEST_CASE_METHOD(LVGLTestFixture, "a resync re-reads the shared namespace into the model",
                  "[lane][ingest][resync]") {
-    AceHarness harness(nullptr, nullptr);
+    ToolChangerHarness harness(nullptr, nullptr);
     LaneDataDb db;
-    db.seed("lane1", nlohmann::json{{"lane", "0"}, {"material", "ASA"}, {"color", "#A4B2BC"}});
-    AceTestAccess::inject_override_store(*harness, db.store("ace", helix::ams::LaneKeyStyle::Lane));
+    db.seed("T0", nlohmann::json{{"lane", "0"}, {"material", "ASA"}, {"color", "#A4B2BC"}});
+    ToolChangerTestAccess::inject_override_store(*harness, toolchanger_store(db));
 
     REQUIRE_FALSE(lane_sources(harness.lane(0)).vendor_cache.has_value());
 
@@ -2848,17 +2866,31 @@ TEST_CASE_METHOD(LVGLTestFixture, "a resync re-reads the shared namespace into t
     CHECK(*lane.vendor_cache->color_rgb == 0xA4B2BCu);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "a resync reaches the backend's own block, not slot indices",
+                 "[lane][ingest][resync]") {
+    ToolChangerHarness harness(nullptr, nullptr);
+    LaneDataDb db;
+    db.seed("T1", nlohmann::json{{"lane", "1"}, {"material", "PC"}});
+    ToolChangerTestAccess::inject_override_store(*harness, toolchanger_store(db));
+
+    harness->request_resync();
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto lane = lane_sources(harness.lane(1));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->material == "PC");
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "a resync files no declaration for a record naming a spool",
                  "[lane][ingest][resync]") {
-    AceHarness harness(nullptr, nullptr);
+    ToolChangerHarness harness(nullptr, nullptr);
     LaneDataDb db;
-    db.seed("lane1",
-            nlohmann::json{
-                {"lane", "0"}, {"material", "PETG"}, {"color", "#ED2C2C"}, {"spool_id", 42}});
+    db.seed("T0", nlohmann::json{
+                      {"lane", "0"}, {"material", "PETG"}, {"color", "#ED2C2C"}, {"spool_id", 42}});
     // A plain record beside it, so the case proves the resync reached the
     // document rather than that it did nothing at all.
-    db.seed("lane2", nlohmann::json{{"lane", "1"}, {"material", "PLA"}});
-    AceTestAccess::inject_override_store(*harness, db.store("ace", helix::ams::LaneKeyStyle::Lane));
+    db.seed("T1", nlohmann::json{{"lane", "1"}, {"material", "PLA"}});
+    ToolChangerTestAccess::inject_override_store(*harness, toolchanger_store(db));
 
     harness->request_resync();
     helix::ui::UpdateQueue::instance().drain();
@@ -2874,14 +2906,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "a resync files no declaration for a record na
 
 TEST_CASE_METHOD(LVGLTestFixture, "a resync files no declaration for a locked record",
                  "[lane][ingest][resync]") {
-    AceHarness harness(nullptr, nullptr);
+    ToolChangerHarness harness(nullptr, nullptr);
     LaneDataDb db;
-    db.seed("lane1", nlohmann::json{{"lane", "0"},
-                                    {"material", "ABS"},
-                                    {"color", "#00FF00"},
-                                    {"helix_locked_color", true}});
-    db.seed("lane2", nlohmann::json{{"lane", "1"}, {"material", "PLA"}});
-    AceTestAccess::inject_override_store(*harness, db.store("ace", helix::ams::LaneKeyStyle::Lane));
+    db.seed("T0", nlohmann::json{{"lane", "0"},
+                                 {"material", "ABS"},
+                                 {"color", "#00FF00"},
+                                 {"helix_locked_color", true}});
+    db.seed("T1", nlohmann::json{{"lane", "1"}, {"material", "PLA"}});
+    ToolChangerTestAccess::inject_override_store(*harness, toolchanger_store(db));
 
     harness->request_resync();
     helix::ui::UpdateQueue::instance().drain();
@@ -2900,16 +2932,16 @@ TEST_CASE_METHOD(LVGLTestFixture, "a resync files no declaration for a locked re
 
 TEST_CASE_METHOD(LVGLTestFixture, "a re-read that cannot reach the database leaves the lane alone",
                  "[lane][ingest][resync]") {
-    AceHarness harness(nullptr, nullptr);
+    ToolChangerHarness harness(nullptr, nullptr);
     LaneDataDb db;
-    db.seed("lane1", nlohmann::json{{"lane", "0"}, {"material", "PLA"}});
-    AceTestAccess::inject_override_store(*harness, db.store("ace", helix::ams::LaneKeyStyle::Lane));
+    db.seed("T0", nlohmann::json{{"lane", "0"}, {"material", "PLA"}});
+    ToolChangerTestAccess::inject_override_store(*harness, toolchanger_store(db));
 
     harness->request_resync();
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lane_sources(harness.lane(0)).vendor_cache.has_value());
 
-    db.seed("lane1", nlohmann::json{{"lane", "0"}, {"material", "TPU"}});
+    db.seed("T0", nlohmann::json{{"lane", "0"}, {"material", "TPU"}});
     db.api.mock_reject_next_db_get();
     harness->request_resync();
     helix::ui::UpdateQueue::instance().drain();
@@ -2919,95 +2951,87 @@ TEST_CASE_METHOD(LVGLTestFixture, "a re-read that cannot reach the database leav
     CHECK(lane.vendor_cache->material == "PLA");
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "a resync with no store is a no-op, not a crash",
+// --- The six that do not ---------------------------------------------------
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a backend whose firmware states identity files nothing from the namespace",
                  "[lane][ingest][resync]") {
-    AceHarness harness(nullptr, nullptr);
-
-    harness->request_resync();
-    helix::ui::UpdateQueue::instance().drain();
-
-    CHECK(helix::ams::known_lanes().empty());
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "a tool changer's resync reaches its own block",
-                 "[lane][ingest][resync]") {
-    ToolChangerHarness harness(nullptr, nullptr);
-    LaneDataDb db;
-    // A tool changer keys its records T<n>; the slot a record names is the
-    // inner 0-based field in either style.
-    db.seed("T1", nlohmann::json{{"lane", "1"}, {"material", "PC"}});
-    ToolChangerTestAccess::inject_override_store(
-        *harness, db.store("toolchanger", helix::ams::LaneKeyStyle::Tool));
-
-    harness->request_resync();
-    helix::ui::UpdateQueue::instance().drain();
-
-    const auto lane = lane_sources(harness.lane(1));
-    REQUIRE(lane.vendor_cache.has_value());
-    CHECK(lane.vendor_cache->material == "PC");
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "the IFS resync re-reads the shared namespace as well as its own",
-                 "[lane][ingest][resync]") {
-    Ad5xHarness harness(nullptr, nullptr);
-    LaneDataDb db;
-    db.seed("lane1", nlohmann::json{{"lane", "0"}, {"material", "PETG"}});
-    Ad5xIfsTestAccess::inject_override_store(*harness,
-                                             db.store("ifs", helix::ams::LaneKeyStyle::Lane));
-
-    // The backend's own resync reads a vendor file, which is a different
-    // source from the namespace its neighbours co-author, so the two are
-    // additive rather than one standing in for the other.
-    harness->request_resync();
-    helix::ui::UpdateQueue::instance().drain();
-
-    const auto lane = lane_sources(harness.lane(0));
-    REQUIRE(lane.vendor_cache.has_value());
-    CHECK(lane.vendor_cache->material == "PETG");
+    // Each of these files a vendor-cache record from its own status frames, so
+    // the persisted record has a live producer to race and nothing to add to
+    // it. Only one harness may be live at a time, so each takes its own scope.
+    {
+        AceHarness harness(nullptr, nullptr);
+        LaneDataDb db;
+        db.seed("lane1", nlohmann::json{{"lane", "0"}, {"material", "ASA"}});
+        AceTestAccess::inject_override_store(*harness,
+                                             db.store("ace", helix::ams::LaneKeyStyle::Lane));
+        harness->request_resync();
+        helix::ui::UpdateQueue::instance().drain();
+        INFO("ACE");
+        CHECK(helix::ams::known_lanes().empty());
+    }
+    {
+        CfsHarness harness(nullptr, nullptr);
+        LaneDataDb db;
+        db.seed("lane3", nlohmann::json{{"lane", "2"}, {"material", "PLA-CF"}});
+        CfsTestAccess::inject_override_store(*harness,
+                                             db.store("cfs", helix::ams::LaneKeyStyle::Lane));
+        harness->request_resync();
+        helix::ui::UpdateQueue::instance().drain();
+        INFO("CFS");
+        CHECK(helix::ams::known_lanes().empty());
+    }
+    {
+        SnapmakerHarness harness(nullptr, nullptr);
+        LaneDataDb db;
+        db.seed("T1", nlohmann::json{{"lane", "1"}, {"material", "ASA"}});
+        SnapmakerTestAccess::inject_override_store(
+            *harness, db.store("snapmaker", helix::ams::LaneKeyStyle::Tool));
+        harness->request_resync();
+        helix::ui::UpdateQueue::instance().drain();
+        INFO("Snapmaker");
+        CHECK(helix::ams::known_lanes().empty());
+    }
+    {
+        Ad5xHarness harness(nullptr, nullptr);
+        LaneDataDb db;
+        db.seed("lane1", nlohmann::json{{"lane", "0"}, {"material", "PETG"}});
+        Ad5xIfsTestAccess::inject_override_store(*harness,
+                                                 db.store("ifs", helix::ams::LaneKeyStyle::Lane));
+        harness->request_resync();
+        helix::ui::UpdateQueue::instance().drain();
+        INFO("AD5X IFS");
+        CHECK(helix::ams::known_lanes().empty());
+    }
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a backend whose namespace nobody else writes re-reads nothing",
                  "[lane][ingest][resync]") {
-    AfcHarness harness(nullptr, nullptr);
+    // AFC and Happy Hare keep their overrides in a namespace HelixScreen alone
+    // writes, so there is no drift for a re-read to correct. They name no
+    // record store at all, which is the other way a backend files nothing.
+    {
+        AfcHarness harness(nullptr, nullptr);
+        harness->request_resync();
+        helix::ui::UpdateQueue::instance().drain();
+        INFO("AFC");
+        CHECK(helix::ams::known_lanes().empty());
+    }
+    {
+        HappyHareHarness harness(nullptr, nullptr);
+        harness->request_resync();
+        helix::ui::UpdateQueue::instance().drain();
+        INFO("Happy Hare");
+        CHECK(helix::ams::known_lanes().empty());
+    }
+}
 
-    // AFC and Happy Hare keep their overrides in a namespace HelixScreen
-    // alone writes, so there is no drift for a re-read to correct, and
-    // re-filing those records would put a second producer on the vendor-cache
-    // slot the backend's own firmware readings already occupy.
+TEST_CASE_METHOD(LVGLTestFixture, "a resync with no store is a no-op, not a crash",
+                 "[lane][ingest][resync]") {
+    ToolChangerHarness harness(nullptr, nullptr);
+
     harness->request_resync();
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK(helix::ams::known_lanes().empty());
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "a CFS resync re-reads the shared namespace",
-                 "[lane][ingest][resync]") {
-    CfsHarness harness(nullptr, nullptr);
-    LaneDataDb db;
-    db.seed("lane3", nlohmann::json{{"lane", "2"}, {"material", "PLA-CF"}});
-    CfsTestAccess::inject_override_store(*harness, db.store("cfs", helix::ams::LaneKeyStyle::Lane));
-
-    harness->request_resync();
-    helix::ui::UpdateQueue::instance().drain();
-
-    const auto lane = lane_sources(harness.lane(2));
-    REQUIRE(lane.vendor_cache.has_value());
-    CHECK(lane.vendor_cache->material == "PLA-CF");
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "a Snapmaker resync re-reads the shared namespace",
-                 "[lane][ingest][resync]") {
-    SnapmakerHarness harness(nullptr, nullptr);
-    LaneDataDb db;
-    // Snapmaker is a tool changer, so its canonical key is T<n>.
-    db.seed("T1", nlohmann::json{{"lane", "1"}, {"material", "ASA"}});
-    SnapmakerTestAccess::inject_override_store(
-        *harness, db.store("snapmaker", helix::ams::LaneKeyStyle::Tool));
-
-    harness->request_resync();
-    helix::ui::UpdateQueue::instance().drain();
-
-    const auto lane = lane_sources(harness.lane(1));
-    REQUIRE(lane.vendor_cache.has_value());
-    CHECK(lane.vendor_cache->material == "ASA");
 }

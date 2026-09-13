@@ -117,6 +117,9 @@ void AmsSubscriptionBackend::request_resync() {
     if (!store) {
         return;
     }
+    // A lane whose firmware states its own identity already has a producer on
+    // the vendor-cache slot, and a second one there races it.
+    const bool file_records = !firmware_publishes_lane_identity();
     // The record map is keyed by slot index, so the lambda needs this
     // backend's block to name a lane. Carried by value: the deferred callback
     // has no claim on `this` by the time it runs, and backend_index() is
@@ -124,7 +127,12 @@ void AmsSubscriptionBackend::request_resync() {
     const int block = backend_index();
     auto token = lifetime_.token();
     store->reload_async(
-        [token, block](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+        [token, block, file_records](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+            // The namespace has been re-read either way. What a backend with a
+            // live producer does with the result is nothing.
+            if (!file_records) {
+                return;
+            }
             token.defer("AmsSubscriptionBackend::resync_lane_records",
                         [block, records = std::move(records)]() {
                             for (const auto& [slot, entry] : records) {
