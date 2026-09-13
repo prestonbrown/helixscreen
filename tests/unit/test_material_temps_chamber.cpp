@@ -28,6 +28,7 @@
 #include "test_helpers/temperature_controller_test_access.h"
 
 #include <cstdio>
+#include <fstream>
 #include <lvgl.h>
 #include <memory>
 #include <string>
@@ -538,6 +539,52 @@ TEST_CASE("Bed and nozzle reject-toast buffers hold the longest locale at the wi
     };
     for (const auto& widest : ru_widest) {
         char buf[helix::settings::MaterialTempsOverlay::kToastBufBytes];
+        const int written = snprintf(buf, sizeof(buf), "%s", widest.c_str());
+        CHECK(written == static_cast<int>(widest.size()));
+        CHECK(std::string(buf) == widest);
+    }
+}
+
+// The i18n gates are presence-only: they verify a key exists with matching
+// format specifiers, not that its value is the intended string. A YAML folded
+// scalar whose continuation line an edit orphans folds its debris into the
+// next value ("... entre 100 et %d°C 500°C") and every gate stays green while
+// the app loads the corrupted line. This pin holds the loaded catalog's fr
+// value for the nozzle range key — the one a folded orphan corrupted — against
+// its intended literal.
+TEST_CASE("fr nozzle range key carries its intended value in the loaded catalog",
+          "[material_temps][1619]") {
+    std::ifstream catalog("ui_xml/translations/fr.xml");
+    REQUIRE(catalog.is_open());
+
+    const std::string needle = "<translation tag=\"Nozzle temp must be 100-%d°C\" fr=\"";
+    bool found = false;
+    std::string line;
+    while (std::getline(catalog, line)) {
+        const auto pos = line.find(needle);
+        if (pos == std::string::npos) {
+            continue;
+        }
+        found = true;
+        const auto value_end = line.find("\"/>", pos + needle.size());
+        REQUIRE(value_end != std::string::npos);
+        CHECK(line.substr(pos + needle.size(), value_end - pos - needle.size()) ==
+              "La température de la buse doit être entre 100 et %d°C");
+    }
+    REQUIRE(found);
+}
+
+// kCapHintBufBytes must hold the longest locale's formatted hint (ru) at the
+// widest cap each column can carry, the same worst case the hint snprintf
+// faces. A buffer that cuts it garbles the UTF-8 degree sign on the hint.
+TEST_CASE("Cap-hint buffers hold the longest locale at the widest cap", "[material_temps][1619]") {
+    const std::string ru_widest[] = {
+        "Сопло принтера ограничено 500°C",
+        "Стол принтера ограничен 200°C",
+        "Камера принтера ограничена 120°C",
+    };
+    for (const auto& widest : ru_widest) {
+        char buf[helix::settings::MaterialTempsOverlay::kCapHintBufBytes];
         const int written = snprintf(buf, sizeof(buf), "%s", widest.c_str());
         CHECK(written == static_cast<int>(widest.size()));
         CHECK(std::string(buf) == widest);

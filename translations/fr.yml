@@ -1963,7 +1963,6 @@ translations:
   Nozzle min cannot exceed max: Le minimum de la buse ne peut pas dépasser le maximum
   Nozzle target set to {}°C: Cible buse réglée à {}°C
   Nozzle temp must be 100-%d°C: La température de la buse doit être entre 100 et %d°C
-    500°C
   Nozzle, bed, and chamber in one widget: Buse, plateau et enceinte réunis
   'Nozzle:': 'Buse :'
   OD: OD

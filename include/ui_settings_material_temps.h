@@ -54,6 +54,11 @@ class MaterialTempsOverlay : public OverlayBase {
     /// longest today); test_material_temps_chamber pins that it does.
     static constexpr size_t kToastBufBytes = 128;
 
+    /// Cap-hint text buffers: the longest locale's formatted hint (ru) plus
+    /// the widest cap's digits. Pinned by test_material_temps_chamber the
+    /// same way kToastBufBytes is.
+    static constexpr size_t kCapHintBufBytes = 96;
+
   private:
     void populate_material_list();
     void show_edit_view(const std::string& material_name);
@@ -71,10 +76,6 @@ class MaterialTempsOverlay : public OverlayBase {
     /// printer's ceiling is tighter than the input's own absolute maximum.
     void update_cap_hint(lv_subject_t& gate, lv_subject_t& text, char* text_buf, const char* format,
                          HeaterType type, int abs_max_c);
-
-    /// Cap-hint text buffers: the longest locale's formatted hint (ru) plus
-    /// the widest cap's digits, with room to spare.
-    static constexpr size_t kCapHintBufBytes = 96;
 
     // SubjectManager, declared ahead of the subjects it owns so it tears down
     // after them (names withdraw before storage dies).
