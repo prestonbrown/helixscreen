@@ -16,6 +16,7 @@
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "lane_source_store.h"
+#include "lane_translation.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -2352,4 +2353,69 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(lane.vendor_cache->brand == "Snapmaker");
     CHECK(lane.vendor_cache->product_name == "Silk");
     CHECK_FALSE(lane.vendor_cache->color_rgb.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Spoolman link declares the binding, not the values it carries",
+                 "[lane][ingest][snapmaker]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    SnapmakerHarness harness(&api, nullptr);
+
+    const auto tag_uid = nlohmann::json::array({144, 32, 196, 2});
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1})},
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PLA"},
+                                                    {"MANUFACTURER", "Snapmaker"},
+                                                    {"ARGB_COLOR", 0xFFED2C2C},
+                                                    {"CARD_UID", tag_uid},
+                                                }})},
+                                   });
+
+    // Linking a spool carries the spool profile's brand, material and colour
+    // into the same commit. Nobody chose those, so user_edit_observation files
+    // the binding alone, and the write-back guard must not treat them as
+    // declarations either. A per-field delta recomputed beside it would.
+    const auto original = harness->get_slot_info(0);
+    auto edit = original;
+    edit.spoolman_id = 42;
+    edit.brand = "Polymaker";
+    edit.material = "PETG";
+    edit.color_rgb = 0x00FF00u;
+    REQUIRE(harness->set_slot_info(0, edit, /*persist=*/true).success());
+
+    // The user's own record, filed the way AmsState::commit_slot_edit files it.
+    helix::ams::commit_slot_edit(harness.lane(0),
+                                 helix::ams::user_edit_observation(original, edit));
+
+    const auto declared = lane_sources(harness.lane(0));
+    REQUIRE(declared.local_user.has_value());
+    REQUIRE(declared.local_user->spoolman_id.has_value());
+    CHECK(*declared.local_user->spoolman_id == 42);
+    CHECK_FALSE(declared.local_user->brand.has_value());
+    CHECK_FALSE(declared.local_user->material.has_value());
+    CHECK_FALSE(declared.local_user->color_rgb.has_value());
+
+    // Firmware echoes the POSTed values back through the RFID path. Since the
+    // user declared none of them, every one is firmware truth and must be
+    // filed: otherwise these three fields are held by no source at all.
+    feed_filament_detect(*harness, nlohmann::json{
+                                       {"state", nlohmann::json::array({1})},
+                                       {"info", nlohmann::json::array({nlohmann::json{
+                                                    {"MAIN_TYPE", "PETG"},
+                                                    {"MANUFACTURER", "Polymaker"},
+                                                    {"ARGB_COLOR", 0xFF00FF00},
+                                                    {"CARD_UID", tag_uid},
+                                                }})},
+                                   });
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.vendor_cache.has_value());
+    CHECK(lane.vendor_cache->material == "PETG");
+    CHECK(lane.vendor_cache->brand == "Polymaker");
+    REQUIRE(lane.vendor_cache->color_rgb.has_value());
+    CHECK(*lane.vendor_cache->color_rgb == 0x00FF00u);
 }

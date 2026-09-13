@@ -757,12 +757,10 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
     if (err.result != AmsResult::SUCCESS)
         return err;
 
-    // What the channel held before this edit, so the write-back guard can
-    // record the user's DELTA rather than the merged struct the POST carries.
-    std::string prior_brand;
-    std::string prior_material;
-    std::string prior_spool_name;
-    uint32_t prior_color_rgb = AMS_DEFAULT_SLOT_COLOR;
+    // The channel as it stood before this edit. user_edit_observation needs
+    // the whole struct to answer what the user declared, and that answer is
+    // what the write-back guard suppresses.
+    SlotInfo prior_slot;
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -770,10 +768,7 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
         if (!slot)
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, NUM_TOOLS - 1);
 
-        prior_brand = slot->brand;
-        prior_material = slot->material;
-        prior_spool_name = slot->spool_name;
-        prior_color_rgb = slot->color_rgb;
+        prior_slot = *slot;
 
         // Update the in-memory slot directly. Covers every SlotInfo field the
         // caller may set — a persist=false preview must not silently drop
@@ -936,25 +931,33 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
         // the tag happens to agree with, whose value resolve() takes from the
         // user's own record anyway.
         if (slot_index >= 0 && slot_index < NUM_TOOLS) {
-            DeclaredIdentity declared;
-            if (info.brand != prior_brand && info_obj.contains("VENDOR"))
-                declared.brand = info_obj["VENDOR"].get<std::string>();
-            if (info.material != prior_material && info_obj.contains("MAIN_TYPE"))
-                declared.material = info_obj["MAIN_TYPE"].get<std::string>();
-            if (info.spool_name != prior_spool_name && info_obj.contains("SUB_TYPE"))
-                declared.spool_name = info_obj["SUB_TYPE"].get<std::string>();
+            DeclaredIdentity entry;
+            // Derived, never recomputed. This is the same call commit_slot_edit
+            // files as LocalUser, so the fields it sets and the fields
+            // suppressed below are one set by construction: no field can end up
+            // claimed by both layers, and none can end up held by neither.
+            entry.declared = helix::ams::user_edit_observation(prior_slot, info);
+            // Second condition: the POST has to have carried the key. A field
+            // the user cleared is omitted from the body, so firmware keeps the
+            // tag's value and what returns is the tag's, not theirs. RGB_1 is
+            // sent unconditionally and needs no such drop.
+            //
             // The POST spells colour RGB_1 and the parse reads ARGB_COLOR.
             // Whether firmware translates between the two is not answered
             // anywhere in the tree or in the firmware doc, so this assumes it
             // does. If it does not, the declared colour simply never matches an
             // incoming reading and the guard is inert.
-            if (info.color_rgb != prior_color_rgb)
-                declared.color_rgb = info.color_rgb;
+            if (!info_obj.contains("VENDOR"))
+                entry.declared.brand.reset();
+            if (!info_obj.contains("MAIN_TYPE"))
+                entry.declared.material.reset();
+            if (!info_obj.contains("SUB_TYPE"))
+                entry.declared.spool_name.reset();
             std::lock_guard<std::mutex> lock(mutex_);
             if (auto baseline = rfid_tracker_.baseline(slot_index)) {
-                declared.uid_at_post = *baseline;
+                entry.uid_at_post = *baseline;
             }
-            declared_identity_[static_cast<size_t>(slot_index)] = std::move(declared);
+            declared_identity_[static_cast<size_t>(slot_index)] = std::move(entry);
         }
 
         // Log-only callback — no UI / member access — so a value-captured tag
@@ -1296,7 +1299,8 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // what the machine says.
                         const DeclaredIdentity* echo = own_write_echo_locked(i, rfid.uid);
                         helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
-                        if (!rfid.main_type.empty() && !(echo && echo->material == rfid.main_type))
+                        if (!rfid.main_type.empty() &&
+                            !(echo && echo->declared.material == rfid.main_type))
                             cache.material = rfid.main_type;
                         // Both spellings of "the tag named no vendor" retract
                         // the brand here: whole-record replacement means this
@@ -1306,14 +1310,15 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // so it blanks on an absent key and KEEPS its last
                         // value on the literal. That one input is the only
                         // place the two layers disagree.
-                        if (!brand.empty() && brand != "NONE" && !(echo && echo->brand == brand))
+                        if (!brand.empty() && brand != "NONE" &&
+                            !(echo && echo->declared.brand == brand))
                             cache.brand = brand;
                         // SnapmakerRfidInfo::color_rgb rests on
                         // AMS_DEFAULT_SLOT_COLOR when the tag carried no
                         // ARGB_COLOR, which is that struct's "no reading" and
                         // not a grey anybody chose.
                         if (helix::ams::is_declarable_color(rfid.color_rgb) &&
-                            !(echo && echo->color_rgb == rfid.color_rgb))
+                            !(echo && echo->declared.color_rgb == rfid.color_rgb))
                             cache.color_rgb = rfid.color_rgb;
                         // SUB_TYPE names the product line inside MAIN_TYPE
                         // ("Silk" inside "PLA"), so it is the branded product
@@ -1323,7 +1328,7 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // literal "NONE" for the same reason the brand guard
                         // does.
                         if (!rfid.sub_type.empty() && rfid.sub_type != "NONE" &&
-                            !(echo && echo->spool_name == rfid.sub_type))
+                            !(echo && echo->declared.spool_name == rfid.sub_type))
                             cache.product_name = rfid.sub_type;
                         if (rfid.weight_g > 0)
                             cache.total_weight_g = static_cast<float>(rfid.weight_g);

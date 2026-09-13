@@ -6,6 +6,7 @@
 #include "ams_subscription_backend.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "lane_observation.h"
 
 #include <array>
 #include <map>
@@ -511,14 +512,15 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// the suppression; nothing else does, because the echo outlives the
     /// override that caused it.
     struct DeclaredIdentity {
-        std::optional<std::string> brand;
-        std::optional<std::string> material;
-        std::optional<std::string> spool_name;
-        /// Optional rather than a value plus a "was it sent" flag: RGB_1 is
-        /// posted unconditionally, so a flag mirroring the POST would always
-        /// be true, and 0 and AMS_DEFAULT_SLOT_COLOR are both values a user
-        /// can mean.
-        std::optional<uint32_t> color_rgb;
+        /// Taken from helix::ams::user_edit_observation, NOT recomputed. That
+        /// function is the definition of what a person declared in an edit, and
+        /// it is what commit_slot_edit files as LocalUser, so deriving from it
+        /// is what makes the two layers partition the fields instead of a
+        /// second copy of the rule agreeing with it by convention. A binding
+        /// change is the case where a recomputed per-field delta stops
+        /// agreeing: linking a spool carries its colour, brand and material
+        /// into the same commit, and nobody chose those.
+        helix::ams::Observation declared{helix::ams::ObservationSource::LocalUser};
         /// rfid_tracker_ baseline when the edit went out. Empty means no tag
         /// had been read yet, and any later UID is then a new reading.
         std::string uid_at_post;
