@@ -550,8 +550,7 @@ TEST_CASE("Bed and nozzle reject-toast buffers hold the longest locale at the wi
 // scalar whose continuation line an edit orphans folds its debris into the
 // next value ("... entre 100 et %d°C 500°C") and every gate stays green while
 // the app loads the corrupted line. This pin holds the loaded catalog's fr
-// value for the nozzle range key — the one a folded orphan corrupted — against
-// its intended literal.
+// value for the nozzle range key against its intended literal.
 TEST_CASE("fr nozzle range key carries its intended value in the loaded catalog",
           "[material_temps][1619]") {
     std::ifstream catalog("ui_xml/translations/fr.xml");
