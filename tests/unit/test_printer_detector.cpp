@@ -1582,11 +1582,10 @@ TEST_CASE_METHOD(PrinterDetectorFixture, "PrinterDetector: Combined heuristics -
 
 // A delta rig's class evidence - delta kinematics, delta_calibrate, the
 // stepper_a/b/c naming - is carried by every delta vendor in the database, so
-// it pins the family and says nothing about the vendor. The one thing that
-// could wrongly pin the vendor is the FLSUN entries' hostname patterns: a host
-// named "flsun" matches a heuristic the Doron entry lacks, and that extra match
-// used to become a 3-point "margin" between two candidates both published at
-// 100. The vendor decision needs hardware: the GD32F303 MCU, opted in as a
+// it pins the family and says nothing about the vendor. A hostname pattern one
+// entry carries and its look-alikes lack is corroborating evidence here and
+// earns nothing toward separation between candidates both published at 100.
+// The vendor decision needs hardware: the GD32F303 MCU, opted in as a
 // separator (prestonbrown/helixscreen#1607).
 TEST_CASE_METHOD(PrinterDetectorFixture,
                  "PrinterDetector: bare delta vendors stay ambiguous without MCU corroboration",

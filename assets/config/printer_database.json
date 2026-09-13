@@ -26,7 +26,7 @@
     "macro_exclude": "Exclude this printer if a G-code macro is present",
     "tool_count": "Count of extruder tools (tool_count_1, tool_count_2, tool_count_4)",
     "cpu_arch_match": "Match against host CPU architecture string",
-    "_modifier_corroborating": "Set true on a heuristic whose evidence names a CLASS of printer rather than a model: a chamber thermistor (every enclosed machine has one), an MCU claimed by more than one model, or a hostname string the user can set to anything. It can never be the base score and adds nothing to the match bonus, so it cannot identify a printer or separate look-alikes on its own; it supports through match_count and the separator opt-in. A chip only one vendor uses stays identifying.",
+    "_modifier_corroborating": "Set true on a heuristic whose evidence names a CLASS of printer rather than a model: a chamber thermistor (every enclosed machine has one) or an MCU claimed by more than one model. The flag is per-entry authoring - vendor hostnames stay identifying where an entry authors them as model signals and corroborate where it does not. It can never be the base score and adds nothing to the match bonus, so it cannot identify a printer or separate look-alikes on its own; it supports through match_count and the separator opt-in.",
     "_modifier_identifying": "Set true on a build_volume_range whose window is distinctive enough to lead. Volumes are corroborating by default because models overlap in the common bands; this opts an unusual size back in. It still needs the entry's kinematics to match, so a size alone never names a printer.",
     "_modifier_separator": "Set true on a corroborating heuristic whose evidence names the model within a family the entry's other heuristics identify: a bed size (K2 Plus against K2 Pro) or an MCU part number separating vendors whose class evidence ties. A match adds its weight to the uncapped score - the margin between look-alikes - once the entry's non-separator base clears the autosave bar; it never raises the published confidence and never becomes the base, so a rig reporting only that one fact still earns nothing."
   },
@@ -4688,6 +4688,7 @@
       "name": "Sovol SV06 ACE",
       "manufacturer": "Sovol",
       "image": "sovol-sv06-ace.png",
+      "notes": "smart_effector is weighted as keystone hardware (90) because hostname-free ACE identification rests on it clearing the separator bar. Mainline Klipper also ships smart_effector for Duet3D probe boards, so a rare Duet3D rig reporting it with a 200-240mm bed and no hostname is an accepted collision - it is misidentified as an ACE rather than declined, because a lower weight would leave the load-cell stack below the separator bar and hostname-free ACEs would go ambiguous.",
       "preset": "sovol_sv06_ace",
       "display": {
         "resolution": "480x272",
@@ -4819,6 +4820,7 @@
       "name": "Sovol SV06 Plus ACE",
       "manufacturer": "Sovol",
       "image": "sovol-sv06-plus-ace.png",
+      "notes": "smart_effector is weighted as keystone hardware (90) because hostname-free ACE identification rests on it clearing the separator bar. Mainline Klipper also ships smart_effector for Duet3D probe boards, so a rare Duet3D rig reporting it with a 280-320mm bed and no hostname is an accepted collision - it is misidentified as an ACE rather than declined, because a lower weight would leave the load-cell stack below the separator bar and hostname-free ACEs would go ambiguous.",
       "display": {
         "resolution": "480x272",
         "touch_controller": "goodix",
