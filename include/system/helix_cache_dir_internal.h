@@ -23,7 +23,6 @@ struct CacheCandidate {
     /// Labels the rung in the log; nullptr means resolve quietly. Non-null also
     /// marks the rung deliberate - chosen on purpose, never reclaimed.
     const char* tier = nullptr;
-    bool ram_backed = false;
     /// True for the compile-time platform rung. Its presence marks an embedded
     /// build; it need not win, since every device hook exports HELIX_CACHE_DIR.
     bool platform = false;

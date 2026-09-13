@@ -1988,7 +1988,7 @@ void PrintSelectDetailView::load_gcode_for_preview() {
     // lane-matched colors (apply_preview_colors) — so the browser shows the
     // colors the print will actually use. Oversized files still degrade to the
     // thumbnail below via is_gcode_2d_streaming_safe().
-    if (DisplaySettingsManager::instance().get_gcode_render_mode() == 3) {
+    if (!helix::ui::preview_viewer_enabled()) {
         spdlog::info("[DetailView] G-code render mode is Thumbnail Only - skipping G-code load");
         lv_subject_set_int(&detail_gcode_loading_, 0);
         cancel_progress_timer();
