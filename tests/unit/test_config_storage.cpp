@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "../test_helpers/config_dir_guard.h"
 #include "../test_helpers/mock_config_storage.h"
 #include "config.h"
 #include "config_storage.h"
@@ -14,46 +15,7 @@
 
 namespace fs = std::filesystem;
 
-namespace {
-
-/// RAII guard: sandboxes HELIX_CONFIG_DIR into a temp directory for the
-/// duration of the test and restores the previous value (or unsets it) on
-/// scope exit — including when a REQUIRE in between throws.
-struct ConfigDirGuard {
-    fs::path dir;
-    std::string saved;
-    bool had_prev = false;
-
-    explicit ConfigDirGuard(const std::string& suffix) {
-        dir = fs::temp_directory_path() /
-              ("helix_config_dir_guard_" + suffix + "_" + std::to_string(::getpid()));
-        fs::remove_all(dir);
-        fs::create_directories(dir);
-        if (const char* prev = std::getenv("HELIX_CONFIG_DIR")) {
-            saved = prev;
-            had_prev = true;
-        }
-        setenv("HELIX_CONFIG_DIR", dir.string().c_str(), 1);
-    }
-
-    ~ConfigDirGuard() {
-        if (had_prev) {
-            setenv("HELIX_CONFIG_DIR", saved.c_str(), 1);
-        } else {
-            unsetenv("HELIX_CONFIG_DIR");
-        }
-        // Restore permissions before recursive removal — a chmod-000 file
-        // would otherwise be unremovable-by-content (though unlink itself
-        // only needs directory write permission, this is belt-and-suspenders).
-        std::error_code ec;
-        for (auto& entry : fs::recursive_directory_iterator(dir, ec)) {
-            fs::permissions(entry.path(), fs::perms::owner_all, ec);
-        }
-        fs::remove_all(dir, ec);
-    }
-};
-
-} // namespace
+using helix::ConfigDirGuard;
 
 TEST_CASE("file storage round-trips a document atomically", "[config][storage]") {
     fs::path dir = fs::temp_directory_path() / "helix-storage-test";
