@@ -4,7 +4,6 @@
 
 #include "scoped_env.h"
 
-#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <system_error>
@@ -19,12 +18,12 @@ namespace helix {
 /// `dir` to exercise a permission-denied path still cleans up.
 class ConfigDirGuard {
   public:
-    explicit ConfigDirGuard(const std::string& suffix) : env_("HELIX_CONFIG_DIR") {
-        dir = std::filesystem::temp_directory_path() /
-              ("helix_config_dir_guard_" + suffix + "_" + std::to_string(::getpid()));
+    explicit ConfigDirGuard(const std::string& suffix)
+        : dir(std::filesystem::temp_directory_path() /
+              ("helix_config_dir_guard_" + suffix + "_" + std::to_string(::getpid()))),
+          env_("HELIX_CONFIG_DIR", dir.string().c_str()) {
         std::filesystem::remove_all(dir);
         std::filesystem::create_directories(dir);
-        setenv("HELIX_CONFIG_DIR", dir.string().c_str(), 1);
     }
 
     ~ConfigDirGuard() {
