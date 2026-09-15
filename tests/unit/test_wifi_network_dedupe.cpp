@@ -1,15 +1,15 @@
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/config_dir_guard.h"
 #include "data_root_resolver.h"
 #include "wifi_backend_mock.h"
 #include "wifi_backend_wpa_supplicant.h"
 #include "wifi_saved_config.h"
 
-#include <cstdlib>
-#include <filesystem>
-
 #include "../catch_amalgamated.hpp"
+
+using helix::ConfigDirGuard;
 
 /**
  * connect_network() used to ADD_NETWORK unconditionally on every connect. A
@@ -81,44 +81,6 @@ TEST_CASE("find_network_id matches the last line without a trailing newline", "[
 
 namespace {
 
-/// Point HELIX_CONFIG_DIR at an isolated temp directory for the duration of a
-/// test, restoring whatever was there before on scope exit. Mirrors
-/// tests/unit/test_wifi_saved_config_store.cpp's guard of the same name —
-/// forget_network() touches the store on disk, so every test here needs its
-/// own isolated config dir rather than whatever "config" the process cwd
-/// resolves to by default.
-class ConfigDirGuard {
-  public:
-    explicit ConfigDirGuard(const std::string& dir) {
-        if (const char* prev = std::getenv("HELIX_CONFIG_DIR")) {
-            had_prev_ = true;
-            prev_ = prev;
-        }
-        setenv("HELIX_CONFIG_DIR", dir.c_str(), 1);
-    }
-
-    ~ConfigDirGuard() {
-        if (had_prev_)
-            setenv("HELIX_CONFIG_DIR", prev_.c_str(), 1);
-        else
-            unsetenv("HELIX_CONFIG_DIR");
-    }
-
-    ConfigDirGuard(const ConfigDirGuard&) = delete;
-    ConfigDirGuard& operator=(const ConfigDirGuard&) = delete;
-
-  private:
-    bool had_prev_ = false;
-    std::string prev_;
-};
-
-std::string make_temp_dir(const std::string& name) {
-    const std::string dir = "/tmp/" + name;
-    std::filesystem::remove_all(dir);
-    std::filesystem::create_directories(dir);
-    return dir;
-}
-
 /// Minimal concrete WifiBackend — implements only the pure virtuals, so
 /// forget_network() falls through to WifiBackend's own base-class default.
 /// Exists purely to prove that default is a real failure, not the silent
@@ -176,7 +138,7 @@ TEST_CASE("WifiBackend's base forget_network default is a failure, not a silent 
 }
 
 TEST_CASE("forget_network on the mock backend removes a connected SSID", "[wifi][forget]") {
-    ConfigDirGuard guard(make_temp_dir("helix_forget_mock_connected"));
+    ConfigDirGuard guard("forget_mock_connected");
 
     WifiBackendMock backend;
     REQUIRE(backend.start().success());
@@ -200,7 +162,7 @@ TEST_CASE("forget_network on the currently-connected SSID fires DISCONNECTED", "
     // mock into a genuinely connected state directly, so this test actually
     // reaches the DISCONNECTED branch in WifiBackendMock::forget_network()
     // instead of merely exercising the "not connected" path by accident.
-    ConfigDirGuard guard(make_temp_dir("helix_forget_mock_disconnect_event"));
+    ConfigDirGuard guard("forget_mock_disconnect_event");
 
     WifiBackendMock backend;
     REQUIRE(backend.start().success());
@@ -225,7 +187,7 @@ TEST_CASE("forget_network on the currently-connected SSID fires DISCONNECTED", "
 }
 
 TEST_CASE("forget_network on an unknown SSID returns NETWORK_NOT_FOUND", "[wifi][forget]") {
-    ConfigDirGuard guard(make_temp_dir("helix_forget_mock_unknown"));
+    ConfigDirGuard guard("forget_mock_unknown");
 
     WifiBackendMock backend;
     REQUIRE(backend.start().success());
@@ -242,7 +204,7 @@ TEST_CASE("forget_network removes the SSID from HelixScreen's own credential sto
     // forget that only forgets the backend's own idea of "saved" would be
     // silently resurrected on the next boot. Prove the store file itself
     // loses the entry — not merely that forget_network() reports success.
-    ConfigDirGuard guard(make_temp_dir("helix_forget_store"));
+    ConfigDirGuard guard("forget_store");
 
     REQUIRE(helix::wifi::store::save({"StoredOnlyNet", "somepassword"}));
     REQUIRE(helix::wifi::store::load().size() == 1);
@@ -262,7 +224,7 @@ TEST_CASE("forget_network removes the SSID from HelixScreen's own credential sto
 }
 
 TEST_CASE("forget_network on a stopped mock backend reports not-initialized", "[wifi][forget]") {
-    ConfigDirGuard guard(make_temp_dir("helix_forget_not_running"));
+    ConfigDirGuard guard("forget_not_running");
 
     WifiBackendMock backend; // never started
     WiFiError result = backend.forget_network("AnySSID");

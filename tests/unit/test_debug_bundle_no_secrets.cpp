@@ -1,6 +1,7 @@
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/config_dir_guard.h"
 #include "data_root_resolver.h"
 #include "system/debug_bundle_collector.h"
 #include "wifi_saved_config.h"
@@ -8,7 +9,6 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
-#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -16,6 +16,7 @@
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
+using helix::ConfigDirGuard;
 using json = nlohmann::json;
 
 /**
@@ -35,44 +36,6 @@ using json = nlohmann::json;
  */
 
 namespace {
-
-/// Point HELIX_CONFIG_DIR at an isolated temp directory for the duration of
-/// a test, restoring whatever was there before on scope exit. Mirrors
-/// tests/unit/test_wifi_saved_config_store.cpp's ConfigDirGuard — both the
-/// wifi store and collect_sanitized_settings() resolve paths through
-/// helix::writable_path(), which honors this variable.
-class ConfigDirGuard {
-  public:
-    explicit ConfigDirGuard(const std::string& dir) {
-        if (const char* prev = std::getenv("HELIX_CONFIG_DIR")) {
-            had_prev_ = true;
-            prev_ = prev;
-        }
-        setenv("HELIX_CONFIG_DIR", dir.c_str(), 1);
-    }
-
-    ~ConfigDirGuard() {
-        if (had_prev_)
-            setenv("HELIX_CONFIG_DIR", prev_.c_str(), 1);
-        else
-            unsetenv("HELIX_CONFIG_DIR");
-    }
-
-    ConfigDirGuard(const ConfigDirGuard&) = delete;
-    ConfigDirGuard& operator=(const ConfigDirGuard&) = delete;
-
-  private:
-    bool had_prev_ = false;
-    std::string prev_;
-};
-
-/// Fresh, empty temp dir per test so runs never see a previous test's store.
-std::string make_temp_dir(const std::string& name) {
-    const std::string dir = "/tmp/" + name;
-    std::filesystem::remove_all(dir);
-    std::filesystem::create_directories(dir);
-    return dir;
-}
 
 /// True if any key anywhere in the JSON tree (object keys at any depth,
 /// including inside arrays) is exactly @p key_name. Recurses into both
@@ -98,7 +61,7 @@ bool contains_key_anywhere(const json& node, const std::string& key_name) {
 } // namespace
 
 TEST_CASE("A saved WiFi PSK never reaches a debug bundle", "[debug-bundle][wifi][security]") {
-    ConfigDirGuard guard(make_temp_dir("helix_debug_bundle_no_secrets"));
+    ConfigDirGuard guard("debug_bundle_no_secrets");
 
     // A unique, long, greppable literal — unambiguous as a substring match,
     // and distinctive enough that it could not plausibly appear in the

@@ -4,6 +4,8 @@
 
 #include "scoped_env.h"
 
+#include <spdlog/spdlog.h>
+
 #include <cerrno>
 #include <cstdlib>
 #include <filesystem>
@@ -23,8 +25,7 @@ namespace helix {
 class ConfigDirGuard {
   public:
     explicit ConfigDirGuard(const std::string& suffix)
-        : dir(dir_path_for(suffix, ::getpid())),
-          env_("HELIX_CONFIG_DIR", dir.string().c_str()) {
+        : dir(dir_path_for(suffix, ::getpid())), env_("HELIX_CONFIG_DIR", dir.string().c_str()) {
         sweep_dead_sibling_dirs();
         std::filesystem::remove_all(dir);
         std::filesystem::create_directories(dir);
@@ -85,6 +86,14 @@ class ConfigDirGuard {
     void write_marker() const {
         std::ofstream marker(dir / k_marker_name, std::ios::trunc);
         marker << ::getpid() << '\n';
+        if (!marker) {
+            // A guard directory without the marker is invisible to the sweep
+            // forever, so a failed write is today's leak - say so where the
+            // accumulation will eventually be investigated.
+            spdlog::warn("[ConfigDirGuard] ownership marker would not write into {}; the "
+                         "stale-dir sweep will never clean this directory",
+                         dir.string());
+        }
     }
 
     /// A shard killed by its per-shard timeout never runs the destructor, so
@@ -94,11 +103,15 @@ class ConfigDirGuard {
     ///
     /// /tmp is world-writable, so the sweep assumes anything planted there
     /// could be hostile: a family-named entry that is not a real directory
-    /// (a symlink to an arbitrary tree) is skipped without being followed,
-    /// and permission restoration never chases symlinks either. A live pid
-    /// (a concurrent shard) is also left alone. Best effort throughout:
-    /// /tmp turns over while the iterator walks it, and a mid-scan race just
-    /// ends the sweep early.
+    /// (a symlink to an arbitrary tree) is skipped without being followed.
+    /// A live pid (a concurrent shard) is also left alone. Best effort
+    /// throughout: /tmp turns over while the iterator walks it, and a
+    /// mid-scan race just ends the sweep early.
+    ///
+    /// The marker requirement is deliberate and has a cost: directories
+    /// stranded before markers existed do not carry one, so the sweep will
+    /// never claim them - cleaning those is a one-time manual job, not
+    /// something to widen the sweep back open for.
     ///
     /// Once per process: the walk covers all of /tmp and the guard is
     /// constructed per test case. A later shard is a separate process and
@@ -139,21 +152,28 @@ class ConfigDirGuard {
 
     /// Permissions first, then removal: a killed or failing test may leave
     /// files chmod'd read-only behind, and the guard's own tests exercise
-    /// exactly that path.
+    /// exactly that path. @p path's own mode is restored first because a
+    /// read-only root would make its children unremovable.
     ///
-    /// Symlinks are skipped rather than chmodmed: perm_options::nofollow is
-    /// not supported by this platform's fchmodat (EINVAL on every call), and
-    /// a plain chmod would follow a symlink planted inside the tree and hit
-    /// its target. The walk never descends into symlinked directories and
-    /// remove_all() unlinks a symlink itself, so skipping the chmod is the
-    /// whole fix; @p path's own mode is restored first because a read-only
-    /// root would make its children unremovable.
+    /// Symlinked entries are not chmodmed, and each entry is re-stat'ed
+    /// immediately before its chmod because the iterator's status was cached
+    /// at readdir time. That narrows the swap-for-a-symlink race; it does
+    /// not close it - an entry replaced after its check can still redirect
+    /// that one chmod to the link's target. perm_options::nofollow would
+    /// close it and is unusable here: this platform's fchmodat rejects
+    /// AT_SYMLINK_NOFOLLOW (EINVAL on every call). Accepted residual risk
+    /// for test-only code - the walk stays inside a directory the marker
+    /// proved ours, the iterator never descends symlinked directories, and
+    /// remove_all() unlinks a symlink itself rather than following it.
     static void restore_permissions_and_remove(const std::filesystem::path& path) {
         std::error_code ec;
         std::filesystem::permissions(path, std::filesystem::perms::owner_all, ec);
         for (auto& entry : std::filesystem::recursive_directory_iterator(path, ec)) {
-            if (entry.is_symlink()) {
-                continue;
+            std::error_code link_ec;
+            if (std::filesystem::is_symlink(
+                    std::filesystem::symlink_status(entry.path(), link_ec)) ||
+                link_ec) {
+                continue; // a symlink, or gone since the walk passed it
             }
             std::filesystem::permissions(entry.path(), std::filesystem::perms::owner_all, ec);
         }
