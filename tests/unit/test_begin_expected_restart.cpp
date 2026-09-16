@@ -129,8 +129,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
     CHECK(notifications.empty()); // direct toast - no history row
 }
 
-TEST_CASE_METHOD(ExpectedRestartFixture,
-                 "the recovery window outlasts a real config-write restart",
+TEST_CASE_METHOD(ExpectedRestartFixture, "the recovery window outlasts a real config-write restart",
                  "[recovery][expectedrestart]") {
     // A K2 Plus takes ~17s from SAVE_CONFIG to klippy READY. A window that
     // expires first puts a "Printer Shutdown" dialog on screen in the middle of
@@ -270,6 +269,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
 TEST_CASE_METHOD(ExpectedRestartFixture, "bed-mesh SAVE_CONFIG initiates the restart contract",
                  "[expectedrestart][bedmesh][1359]") {
     BedMeshPanel panel;
+    panel.init_subjects();
     helix::ui::BedMeshPanelTestAccess::save_config(panel);
     settle();
 

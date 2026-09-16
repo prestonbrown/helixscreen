@@ -49,6 +49,18 @@ struct BedMeshPanelTestAccess {
     static lv_event_cb_t content_size_changed_cb() {
         return &BedMeshPanel::on_content_size_changed;
     }
+
+    /// The calibrate-state subject's type. start_calibration() notifies panel
+    /// subjects that only init_subjects() creates, so a test driving the
+    /// state machine proves first that the panel is initialized.
+    static int calibrate_state_type(const BedMeshPanel& p) {
+        return static_cast<int>(p.bed_mesh_calibrate_state_.type);
+    }
+
+    /// The calibrate-state machine's current value.
+    static int calibrate_state(const BedMeshPanel& p) {
+        return p.bed_mesh_calibrate_state_.value.num;
+    }
 };
 
 } // namespace ui

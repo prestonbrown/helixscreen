@@ -254,10 +254,30 @@ TEST_CASE_METHOD(CalibrationCollectorFixture,
 // Panel: the name comes first, and decides what is sent
 // ============================================================================
 
+// start_calibration() drives the panel's own calibrate-state and name
+// subjects, which only init_subjects() creates: driving the state machine on
+// an uninitialized panel notifies uninitialized subjects.
+TEST_CASE_METHOD(BedMeshPanelFlowFixture,
+                 "start_calibration moves an initialized panel into naming", "[bed_mesh_flow]") {
+    use_printer("");
+    BedMeshPanel panel;
+    panel.init_subjects();
+    REQUIRE(helix::ui::BedMeshPanelTestAccess::calibrate_state_type(panel) ==
+            static_cast<int>(LV_SUBJECT_TYPE_INT));
+
+    panel.start_calibration();
+    drain();
+
+    CHECK(helix::ui::BedMeshPanelTestAccess::calibrate_state(panel) ==
+          static_cast<int>(BedMeshCalibrationState::NAMING));
+    CHECK(sent().empty());
+}
+
 TEST_CASE_METHOD(BedMeshPanelFlowFixture, "the mesh is named before any calibration gcode is sent",
                  "[bed_mesh_flow]") {
     use_printer("");
     BedMeshPanel panel;
+    panel.init_subjects();
 
     panel.start_calibration();
     drain();
@@ -274,6 +294,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     use_printer("");
     set_bed(24.0, 0.0);
     BedMeshPanel panel;
+    panel.init_subjects();
     calibrate_as(panel, "default");
 
     const long mesh = first_sent(sent(), "BED_MESH_CALIBRATE");
@@ -290,6 +311,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a named mesh is probed straight into 
                  "[bed_mesh_flow]") {
     use_printer("");
     BedMeshPanel panel;
+    panel.init_subjects();
     calibrate_as(panel, "cold");
 
     const long mesh = first_sent(sent(), "BED_MESH_CALIBRATE");
@@ -314,6 +336,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         REQUIRE(lv_subject_get_int(get_printer_state().get_bed_target_subject()) == 700);
 
         BedMeshPanel panel;
+        panel.init_subjects();
         calibrate_as(panel, "default");
 
         // No preheat wait and no G28 ahead of it: the sequence does both itself.
@@ -325,6 +348,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         set_bed(100.4, 60.0);
 
         BedMeshPanel panel;
+        panel.init_subjects();
         calibrate_as(panel, "default");
 
         REQUIRE(sent().size() == 1);
@@ -336,6 +360,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         REQUIRE(lv_subject_get_int(get_printer_state().get_bed_temp_subject()) == 874);
 
         BedMeshPanel panel;
+        panel.init_subjects();
         calibrate_as(panel, "default");
 
         REQUIRE(sent().size() == 1);
@@ -346,6 +371,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         set_bed(24.0, 0.0);
 
         BedMeshPanel panel;
+        panel.init_subjects();
         calibrate_as(panel, "cold");
 
         REQUIRE(sent().size() == 1);
@@ -367,6 +393,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     SECTION("bed and nozzle both off") {
         set_bed(24.0, 0.0);
         BedMeshPanel panel;
+        panel.init_subjects();
         calibrate_as(panel, "default");
 
         // Nothing goes out ahead of the sequence: it heats the printer itself.
@@ -378,6 +405,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     SECTION("a bed the user was heating stays on") {
         set_bed(24.0, 70.0);
         BedMeshPanel panel;
+        panel.init_subjects();
         calibrate_as(panel, "default");
 
         REQUIRE(first_sent(sent(), "BED_MESH_CALIBRATE") == 0);
@@ -395,6 +423,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     set_bed(24.0, 0.0);
 
     BedMeshPanel panel;
+    panel.init_subjects();
     calibrate_as(panel, "default");
 
     const long wait = first_sent(sent(), "TEMPERATURE_WAIT");
@@ -415,6 +444,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     client.force_next_mesh_calibration("G29", "default");
 
     BedMeshPanel panel;
+    panel.init_subjects();
     calibrate_as(panel, "cold");
 
     const long mesh = first_sent(sent(), "G29");
@@ -441,6 +471,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         "// Unable to save to profile [cold], the bed has not been probed");
 
     BedMeshPanel panel;
+    panel.init_subjects();
     calibrate_as(panel, "cold");
 
     REQUIRE(any_sent(sent(), "BED_MESH_PROFILE SAVE=cold")); // the save was attempted
@@ -457,6 +488,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     client.force_next_mesh_calibration("BED_MESH_CALIBRATE", "default");
 
     BedMeshPanel panel;
+    panel.init_subjects();
     calibrate_as(panel, "cold");
 
     const long mesh = first_sent(sent(), "BED_MESH_CALIBRATE");
@@ -477,6 +509,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     SECTION("the copy plan, whose default did not change") {
         detect_macros({"gcode_macro G29"});
         BedMeshPanel panel;
+        panel.init_subjects();
         calibrate_as(panel, "cold");
         REQUIRE(any_sent(sent(), "G29"));
         // The default already there is not this calibration's mesh.
@@ -487,6 +520,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         detect_macros({"gcode_macro BED_MESH_CALIBRATE"});
         client.force_next_mesh_calibration("BED_MESH_CALIBRATE", "adaptive");
         BedMeshPanel panel;
+        panel.init_subjects();
         calibrate_as(panel, "cold");
         REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
         CHECK_FALSE(any_sent(sent(), "BED_MESH_PROFILE"));
@@ -508,6 +542,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     client.force_next_gcode_dropped_response("G29");
 
     BedMeshPanel panel;
+    panel.init_subjects();
     calibrate_as(panel, "cold");
     const long mesh = first_sent(sent(), "G29");
     REQUIRE(mesh >= 0);
@@ -556,6 +591,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         client.force_next_gcode_console_reply("BED_MESH_CALIBRATE",
                                               "// Unknown command:\"CLEAN_NOZZLE\"");
         BedMeshPanel panel;
+        panel.init_subjects();
         calibrate_as(panel, "default");
         REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
         CHECK(successes.empty());
@@ -566,6 +602,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         client.force_next_gcode_console_reply("BED_MESH_CALIBRATE",
                                               "// Unknown command:\"CLEAN_NOZZLE\"");
         BedMeshPanel panel;
+        panel.init_subjects();
         calibrate_as(panel, "default");
         REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
         CHECK(errors.empty());
@@ -577,6 +614,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
 TEST_CASE_METHOD(BedMeshPanelFlowFixture, "loading and deleting a profile quote its name",
                  "[bed_mesh_flow]") {
     BedMeshPanel panel;
+    panel.init_subjects();
 
     SECTION("load") {
         helix::ui::BedMeshPanelTestAccess::set_profile_name(panel, 0, "PEI Sheet");
@@ -598,6 +636,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture, "loading and deleting a profile quote 
 TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                  "a name Klipper would cut short is refused before probing", "[bed_mesh_flow]") {
     BedMeshPanel panel;
+    panel.init_subjects();
     panel.start_calibration();
     drain();
     panel.submit_calibration_name("cold;hot");
@@ -609,6 +648,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                  "renaming a profile to default is refused before anything is sent",
                  "[bed_mesh_flow]") {
     BedMeshPanel panel;
+    panel.init_subjects();
     panel.show_rename_modal("cold");
     panel.rename_profile_checked("default");
     drain();
@@ -625,6 +665,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         "// Unable to save to profile [warm], the bed has not been probed");
 
     BedMeshPanel panel;
+    panel.init_subjects();
     panel.show_rename_modal("cold");
     panel.rename_profile_checked("warm");
     drain();
