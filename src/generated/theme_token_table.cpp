@@ -572,6 +572,7 @@ const TokenEntry k_token_table[] = {
     {"px", "col_size_width", "80"},
     {"px", "col_modified_width", "130"},
     {"px", "col_time_width", "90"},
+    {"px", "col_filename_min_width", "120"},
     {"px", "metadata_row_height", "24"},
     {"px", "metadata_label_min_width", "30"},
     {"px", "metadata_clip_height_micro", "79"},

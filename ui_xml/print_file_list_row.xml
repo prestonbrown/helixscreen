@@ -16,11 +16,11 @@
         style_flex_cross_place="center" clickable="true">
     <!-- Filename (flex-grow, left-aligned) -->
     <text_small name="row_filename"
-                width="510" text="$filename" style_text_align="left" long_mode="dots" flex_grow="1" style_pad_all="0"
-                clickable="false"/>
-    <!-- Status (70px, centered) - contains icons for print history -->
+                text="$filename" style_text_align="left" long_mode="dots" flex_grow="1"
+                style_min_width="#col_filename_min_width" style_pad_all="0" clickable="false"/>
+    <!-- Status (centered) - contains icons for print history -->
     <lv_obj name="row_status"
-            width="70" height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
+            width="#col_status_width" height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
             style_flex_cross_place="center" style_pad_gap="#space_xxs" clickable="false">
       <!-- Currently printing indicator (accent = blue for info) -->
       <icon name="status_printing" src="clock" size="xs" variant="primary" style_translate_y="-2" hidden="true"/>
@@ -37,15 +37,21 @@
       <!-- Cancelled indicator (user stopped the print) -->
       <icon name="status_cancelled" src="cancel" size="xs" variant="warning" style_translate_y="-2" hidden="true"/>
     </lv_obj>
-    <!-- Size (80px, right-aligned) -->
+    <!-- Size (right-aligned) - hidden below MEDIUM, in lockstep with its header -->
     <text_small name="row_size"
-                width="80" text="$file_size" style_text_align="right" flex_grow="0" style_pad_all="0" clickable="false"/>
-    <!-- Modified date (130px, right-aligned) -->
+                width="#col_size_width" text="$file_size" style_text_align="right" flex_grow="0" style_pad_all="0"
+                clickable="false">
+      <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="3"/>
+    </text_small>
+    <!-- Modified date (right-aligned) - hidden below MEDIUM, in lockstep with its header -->
     <text_small name="row_modified"
-                width="130" text="$modified_date" style_text_align="right" flex_grow="0" style_pad_all="0"
-                clickable="false"/>
-    <!-- Print time (90px, right-aligned) -->
+                width="#col_modified_width" text="$modified_date" style_text_align="right" flex_grow="0"
+                style_pad_all="0" clickable="false">
+      <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="3"/>
+    </text_small>
+    <!-- Print time (right-aligned) -->
     <text_small name="row_print_time"
-                width="90" text="$print_time" style_text_align="right" flex_grow="0" style_pad_all="0" clickable="false"/>
+                width="#col_time_width" text="$print_time" style_text_align="right" flex_grow="0" style_pad_all="0"
+                clickable="false"/>
   </view>
 </component>

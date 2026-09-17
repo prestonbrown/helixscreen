@@ -15,6 +15,10 @@
     <px name="col_size_width" value="80"/>
     <px name="col_modified_width" value="130"/>
     <px name="col_time_width" value="90"/>
+    <!-- Floor for the flex-grow filename track. Without it a track starved by the
+         fixed columns collapses to 0 and the label wraps instead of clipping, so
+         "height=content" rows grow to several hundred px. -->
+    <px name="col_filename_min_width" value="120"/>
     <!-- Metadata dimensions for cards -->
     <px name="metadata_row_height" value="24"/>
     <!-- Minimum widths to prevent text crushing -->
@@ -110,8 +114,8 @@
         <!-- Filename header (flex-grow) -->
         <ui_button name="header_filename"
                    height="content" text="Filename" translation_tag="Filename" variant="ghost" flex_grow="1"
-                   flex_flow="row" style_pad_column="#space_xs" style_flex_main_place="center"
-                   style_flex_cross_place="center">
+                   style_min_width="#col_filename_min_width" flex_flow="row" style_pad_column="#space_xs"
+                   style_flex_main_place="center" style_flex_cross_place="center">
           <event_cb trigger="clicked" callback="on_print_select_header_filename"/>
           <icon name="header_filename_icon_up" src="arrow_up" size="xs" variant="primary" hidden="true"/>
           <icon name="header_filename_icon_down" src="arrow_down" size="xs" variant="primary" hidden="true"/>
@@ -127,6 +131,7 @@
                    width="#col_size_width" height="content" text="Size" translation_tag="Size" variant="ghost"
                    flex_flow="row" style_pad_column="#space_xs" style_flex_main_place="center"
                    style_flex_cross_place="center">
+          <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="3"/>
           <event_cb trigger="clicked" callback="on_print_select_header_size"/>
           <icon name="header_size_icon_up" src="arrow_up" size="xs" variant="primary" hidden="true"/>
           <icon name="header_size_icon_down" src="arrow_down" size="xs" variant="primary" hidden="true"/>
@@ -136,6 +141,7 @@
                    width="#col_modified_width" height="content" text="Modified" translation_tag="Modified"
                    variant="ghost" flex_flow="row" style_pad_column="#space_xs" style_flex_main_place="center"
                    style_flex_cross_place="center">
+          <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="3"/>
           <event_cb trigger="clicked" callback="on_print_select_header_modified"/>
           <icon name="header_modified_icon_up" src="arrow_up" size="xs" variant="primary" hidden="true"/>
           <icon name="header_modified_icon_down" src="arrow_down" size="xs" variant="primary" hidden="true"/>
