@@ -1626,12 +1626,11 @@ void PrintSelectDetailView::on_color_card_clicked() {
     // and this is the cheap way to make a stale one harmless.
     const auto block = current_remap_block();
     if (block == helix::printer::RemapBlock::NeedsPlugin) {
-        // The refusal is already on the card; the tap is the fix, not a repeat
-        // of the refusal.
-        spdlog::debug("[PrintSelect] filament card tap -> plugin setup");
-        if (on_plugin_setup_requested_) {
-            on_plugin_setup_requested_();
-        }
+        // The whole card is the help target here, not just the 24px cue: the
+        // card carries no remap to open, and a tap that explains beats a tap
+        // that silently does nothing. The Install button lives in that modal.
+        spdlog::debug("[PrintSelect] filament card tap -> remap help");
+        show_remap_help_modal();
         return;
     }
     if (block != helix::printer::RemapBlock::None) {

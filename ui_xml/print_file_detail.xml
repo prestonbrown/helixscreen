@@ -17,6 +17,11 @@
          pattern; a bare height attr would fight the bound style's precedence). -->
     <style name="mapping_rows_standard" height="40"/>
     <style name="mapping_rows_tall" height="48"/>
+    <!-- Dim the chips, never the whole card. The header carries the mismatch
+         and empty-slot lamps and the help cue, all of which still mean something
+         when a remap is unavailable, and a card dimmed through LV_STATE_DISABLED
+         also stops receiving touches. -->
+    <style name="mapping_rows_unmappable" opa="128"/>
   </styles>
   <view name="detail_view_root"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
@@ -255,12 +260,6 @@
                  flex_flow="column">
           <bind_flag_if_eq subject="filament_mapping_visible" flag="hidden" ref_value="0"/>
           <bind_flag_if_eq subject="color_card_remappable" flag="clickable" ref_value="1"/>
-          <!-- Greyed ONLY when a remap this printer could do is refused for a
-               reason the user can clear. A backend with no route, a one-tool job
-               and an in-flight plugin probe all just leave the chevron dark: the
-               chips are still worth reading and there is nothing to act on.
-               ui_card themes LV_STATE_DISABLED at LV_OPA_50 globally. -->
-          <bind_state_if_eq subject="color_card_remap_needs_setup" state="disabled" ref_value="1"/>
           <lv_obj width="100%"
                   height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
                   style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
@@ -320,6 +319,7 @@
                   style_flex_main_place="center" scrollable="false" clickable="false" event_bubble="true">
             <bind_style_if_lt name="mapping_rows_standard" subject="ui_breakpoint" ref_value="5"/>
             <bind_style_if_ge name="mapping_rows_tall" subject="ui_breakpoint" ref_value="5"/>
+            <bind_style_if_eq name="mapping_rows_unmappable" subject="color_card_remap_needs_setup" ref_value="1"/>
             <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="0"/>
             <!-- Chips added dynamically in C++ (clickable=false + event_bubble=true
                  on filament_swatch) so a tap reaches this card. -->

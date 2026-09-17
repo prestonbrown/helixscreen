@@ -758,16 +758,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
         // A greyed control with no way to ask why reads as a bug.
         CHECK(lv_subject_get_int(help_visible) == 1);
 
-        // The arrangement the explanation depends on. LVGL gates PRESSED,
+        // The card must NOT carry LV_STATE_DISABLED. LVGL gates PRESSED,
         // PRESSING and CLICKED on !lv_obj_has_state(obj, LV_STATE_DISABLED), so
-        // the greyed card takes no pointer events at all. The help icon must
-        // therefore be its own clickable, NON-disabled object; an icon that
-        // bubbled to the card would be dead in the one state it exists for.
+        // a disabled card takes no pointer events and the explanation becomes
+        // unreachable on a real panel - which a ctl-driven click would not
+        // catch, because ctl bypasses the input device entirely.
         lv_obj_t* const card = lv_obj_find_by_name(root, "filament_mapping_card");
         lv_obj_t* const help = lv_obj_find_by_name(root, "color_card_remap_help");
         REQUIRE(card != nullptr);
         REQUIRE(help != nullptr);
-        CHECK(lv_obj_has_state(card, LV_STATE_DISABLED));
+        CHECK_FALSE(lv_obj_has_state(card, LV_STATE_DISABLED));
         CHECK_FALSE(lv_obj_has_state(help, LV_STATE_DISABLED));
         CHECK(lv_obj_has_flag(help, LV_OBJ_FLAG_CLICKABLE));
         CHECK_FALSE(lv_obj_has_flag(help, LV_OBJ_FLAG_HIDDEN));
