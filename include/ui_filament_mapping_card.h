@@ -29,7 +29,7 @@ namespace helix::ui {
  * uses enough tools to be worth showing (any tool on a multi-tool printer,
  * 2+ on a single extruder) — see should_show(). Whether tapping the card
  * opens anything is a separate question, editable or not: see
- * PrintSelectDetailView::color_card_opens_remap().
+ * PrintSelectDetailView::current_remap_block().
  */
 class FilamentMappingCard {
   public:
@@ -202,7 +202,7 @@ class FilamentMappingCard {
      * mapping being editable — a second surface used to draw the chips on
      * non-editable backends (Snapmaker U1, ACE); it is gone, so hiding here
      * would show the user nothing. Whether a tap does anything is a separate
-     * question, answered by PrintSelectDetailView::color_card_opens_remap().
+     * question, answered by PrintSelectDetailView::current_remap_block().
      */
     [[nodiscard]] bool should_show() const {
         return should_show_;

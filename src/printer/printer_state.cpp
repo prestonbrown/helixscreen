@@ -941,6 +941,10 @@ bool PrinterState::is_phase_tracking_enabled() const {
     return plugin_status_state_.is_phase_tracking_enabled();
 }
 
+int PrinterState::helix_plugin_state() const {
+    return plugin_status_state_.helix_plugin_state();
+}
+
 void PrinterState::update_gcode_modification_visibility() {
     // Delegate to composite visibility component
     bool plugin = plugin_status_state_.service_has_helix_plugin();

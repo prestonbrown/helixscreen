@@ -1212,7 +1212,6 @@
   <translation tag="Install Update" it="Installa Aggiornamento"/>
   <translation tag="Install plugin" it="Installa plugin"/>
   <translation tag="Install script not found. Use the remote install command instead." it="Script di installazione non trovato. Usa invece il comando di installazione remota."/>
-  <translation tag="Install the HelixPrint plugin in Advanced settings to remap filament without affecting print history." it="Installa il plugin HelixPrint nelle impostazioni Avanzate per rimappare il filamento senza influenzare la cronologia di stampa."/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" it="Installa il plugin HelixPrint per abilitare modifiche G-code rapide. Esegui questo comando via SSH sulla stampante:"/>
   <translation tag="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;." it="Installare il plugin timelapse via SSH,&#10;poi toccare &quot;Ricontrolla&quot;."/>
   <translation tag="Install timelapse plugin" it="Installa plugin timelapse"/>
@@ -1996,7 +1995,7 @@
   <translation tag="Remaining (g)" it="Rimanente (g)"/>
   <translation tag="Remaining Weight (g)" it="Peso rimanente (g)"/>
   <translation tag="Remap Tool" it="Rimappa strumento"/>
-  <translation tag="Remap needs the HelixPrint plugin" it="La rimappatura richiede il plugin HelixPrint"/>
+  <translation tag="Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked."/>
   <translation tag="Remap…" it="Rimappa…"/>
   <translation tag="Remember slot spool details across an eject" it="Ricorda i dettagli della bobina dello slot dopo un&apos;espulsione"/>
   <translation tag="Remove" it="Rimuovi"/>
@@ -2511,6 +2510,11 @@
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL. Once installed, use Configure PRINT_START below to enable optional steps." it="Questo plugin permette a HelixScreen di controllare opzioni avvio stampa come mesh piano e QGL. Una volta installato, usa Configura PRINT_START sotto per abilitare i passaggi opzionali."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" it="Questa stampa richiede circa %.0fg ma la bobina ne ha circa %.0fg rimanenti. Avviare comunque?"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." it="Questa stampante sembra una {} (affidabilità {}%), ma è configurata come {}. Un tipo errato applica opzioni pre-stampa e preset errati."/>
+  <translation tag="This printer&apos;s Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works."/>
+  <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." it="Questo rimuove il componente Moonraker del plugin e riavvia Moonraker. La stampante si disconnetterà brevemente. Se sono ancora presenti vecchie righe di tracciamento delle fasi in PRINT_START, vengono rimosse anch&apos;esse, mantenendo i backup. Un riavvio di Klipper applica ciò."/>
+  <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." it="Sostituisce le macro di ausilio della stampante con la versione attuale e riavvia Klipper."/>
+  <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." it="Sostituisce le macro di ausilio della stampante con la versione attuale. Una stampa è in corso, quindi Klipper verrà riavviato al termine."/>
+  <translation tag="This system does not support bypass mode" it="Questo sistema non supporta la modalità bypass"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." it="Questo strumento sonda ogni vite del piano e indica quanto regolare."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." it="Questo applicherà lo Z-offset al tuo endstop e riavvierà Klipper per salvare la configurazione. La stampante si disconnetterà brevemente."/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." it="Questo applicherà lo Z-offset alla tua sonda e riavvierà Klipper per salvare la configurazione. La stampante si disconnetterà brevemente."/>

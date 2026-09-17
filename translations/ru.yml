@@ -1338,9 +1338,6 @@ translations:
   Install plugin: Установить плагин
   Install script not found. Use the remote install command instead.: Скрипт установки
     не найден. Используйте вместо этого команду удалённой установки.
-  Install the HelixPrint plugin in Advanced settings to remap filament without affecting print history.: Установите
-    плагин HelixPrint в расширенных настройках, чтобы переназначать филамент без влияния
-    на историю печати.
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 'Установите
     плагин HelixPrint для быстрой модификации G-code. Выполните эту команду через
     SSH на вашем принтере:'
@@ -2197,7 +2194,8 @@ translations:
   Remaining (g): Осталось (г)
   Remaining Weight (g): Оставшийся вес (г)
   Remap Tool: Переназначить инструмент
-  Remap needs the HelixPrint plugin: Для переназначения нужен плагин HelixPrint
+  ? Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked.
+  : ''
   Remap…: Переназначить…
   Remember slot spool details across an eject: Запоминать данные катушки слота после извлечения
   Remove: Удалить
@@ -2805,6 +2803,14 @@ translations:
     этой печати нужно около %.0fг, но на катушке осталось около %.0fг. Всё равно начать?
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.
+  ? This printer's Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works.
+  : ''
+  ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
+  : Это удаляет компонент Moonraker плагина и перезапускает Moonraker. Принтер ненадолго отключится. Если в PRINT_START всё ещё остались старые строки отслеживания фаз, они также удаляются, при этом резервные копии сохраняются. Перезапуск Klipper применяет эти изменения.
+  This replaces the printer's helper macros with the current version and restarts Klipper.: 'Это заменит вспомогательные макросы принтера текущей версией и перезапустит Klipper.'
+  ? This replaces the printer's helper macros with the current version. A print is running, so Klipper restarts after it finishes.
+  : 'Это заменит вспомогательные макросы принтера текущей версией. Идёт печать, поэтому Klipper перезапустится после её завершения.'
+  This system does not support bypass mode: 'Эта система не поддерживает режим обхода'
   This tool probes each bed screw and tells you how much to adjust.: Этот инструмент
     проверяет каждый винт стола и показывает, насколько его нужно отрегулировать.
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration.

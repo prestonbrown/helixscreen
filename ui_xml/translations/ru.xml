@@ -1212,7 +1212,6 @@
   <translation tag="Install Update" ru="Установить обновление"/>
   <translation tag="Install plugin" ru="Установить плагин"/>
   <translation tag="Install script not found. Use the remote install command instead." ru="Скрипт установки не найден. Используйте вместо этого команду удалённой установки."/>
-  <translation tag="Install the HelixPrint plugin in Advanced settings to remap filament without affecting print history." ru="Установите плагин HelixPrint в расширенных настройках, чтобы переназначать филамент без влияния на историю печати."/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" ru="Установите плагин HelixPrint для быстрой модификации G-code. Выполните эту команду через SSH на вашем принтере:"/>
   <translation tag="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;." ru="Установите плагин таймлапс через SSH,&#10;затем нажмите &quot;Проверить снова&quot;."/>
   <translation tag="Install timelapse plugin" ru="Установить плагин таймлапса"/>
@@ -1996,7 +1995,7 @@
   <translation tag="Remaining (g)" ru="Осталось (г)"/>
   <translation tag="Remaining Weight (g)" ru="Оставшийся вес (г)"/>
   <translation tag="Remap Tool" ru="Переназначить инструмент"/>
-  <translation tag="Remap needs the HelixPrint plugin" ru="Для переназначения нужен плагин HelixPrint"/>
+  <translation tag="Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked."/>
   <translation tag="Remap…" ru="Переназначить…"/>
   <translation tag="Remember slot spool details across an eject" ru="Запоминать данные катушки слота после извлечения"/>
   <translation tag="Remove" ru="Удалить"/>
@@ -2511,6 +2510,11 @@
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL. Once installed, use Configure PRINT_START below to enable optional steps." ru="Этот плагин позволяет HelixScreen управлять опциями начала печати, такими как сетка стола и QGL. После установки используйте «Настроить PRINT_START» ниже для включения опциональных шагов."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" ru="Для этой печати нужно около %.0fг, но на катушке осталось около %.0fг. Всё равно начать?"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ru="Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты."/>
+  <translation tag="This printer&apos;s Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works."/>
+  <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." ru="Это удаляет компонент Moonraker плагина и перезапускает Moonraker. Принтер ненадолго отключится. Если в PRINT_START всё ещё остались старые строки отслеживания фаз, они также удаляются, при этом резервные копии сохраняются. Перезапуск Klipper применяет эти изменения."/>
+  <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." ru="Это заменит вспомогательные макросы принтера текущей версией и перезапустит Klipper."/>
+  <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." ru="Это заменит вспомогательные макросы принтера текущей версией. Идёт печать, поэтому Klipper перезапустится после её завершения."/>
+  <translation tag="This system does not support bypass mode" ru="Эта система не поддерживает режим обхода"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ru="Этот инструмент проверяет каждый винт стола и показывает, насколько его нужно отрегулировать."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." ru="Z-offset будет применён к вашему концевику, и Klipper перезапустится для сохранения конфигурации. Принтер ненадолго отключится."/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." ru="Z-offset будет применён к вашему зонду, и Klipper перезапустится для сохранения конфигурации. Принтер ненадолго отключится."/>

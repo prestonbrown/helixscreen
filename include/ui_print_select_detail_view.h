@@ -8,6 +8,7 @@
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_preparation_manager.h"
 
+#include "ams_remap.h"
 #include "gcode_footer_summary.h"
 #include "moonraker_types.h"
 #include "overlay_base.h"
@@ -156,12 +157,22 @@ class PrintSelectDetailView : public OverlayBase {
      * @brief Set callback fired when the filament card is tapped.
      *
      * The panel wires this to the one remap opener every entry point shares.
-     * The tap is only offered on backends that can actually remap - see
-     * color_card_opens_remap(), which drives both the chevron and the card's
-     * clickable flag.
+     * The tap is only offered when current_remap_block() answers None, which
+     * also drives the chevron and the card's clickable flag.
      */
     void set_on_remap_requested(std::function<void()> callback) {
         on_remap_requested_ = std::move(callback);
+    }
+
+    /**
+     * @brief Set callback fired when the card's Set up affordance is tapped.
+     *
+     * Only reachable while current_remap_block() is NeedsPlugin. Wired by the
+     * panel to the plugin install modal, so a card that refuses a remap offers
+     * the one action that would make it work instead of dead-ending.
+     */
+    void set_on_plugin_setup_requested(std::function<void()> callback) {
+        on_plugin_setup_requested_ = std::move(callback);
     }
 
     /**
@@ -177,17 +188,19 @@ class PrintSelectDetailView : public OverlayBase {
     void on_color_card_clicked();
 
     /**
-     * @brief Does a tap on the filament card open the remap picker?
+     * @brief Why a tap on the filament card cannot open the picker, or None.
      *
-     * The single predicate behind both the chevron and the card's clickable
-     * flag, and the same one on_color_card_clicked() guards on. Split out
-     * because the card is the only way into the picker from this screen, and it
-     * used to be a bare "FILAMENTS" strip of chips with nothing saying it could
-     * be tapped — the picker existed and worked and no user could find it. On a
-     * backend that cannot remap, the same predicate stops the card claiming a
-     * tap it would silently drop.
+     * The single answer behind the chevron, the card's clickable flag, the
+     * disabled look, the stated reason and the tap guard, so none of them can
+     * describe a different state from the others. An instance method because
+     * two of its three terms are per-job: the tools this file uses, and the
+     * service-side plugin a rewrite needs.
+     *
+     * The card is the only way into the picker from this screen, so a chevron
+     * that lights on an unavailable backend is a tap the user is invited to
+     * make and then refused.
      */
-    [[nodiscard]] static bool color_card_opens_remap();
+    [[nodiscard]] helix::printer::RemapBlock current_remap_block() const;
 
     /**
      * @brief Set the visible subject for XML binding
@@ -700,6 +713,16 @@ class PrintSelectDetailView : public OverlayBase {
     // card that cues a tap and a card that answers one can never disagree.
     // Published with filament_mapping_visible_ by publish_card_visibility().
     lv_subject_t color_card_remappable_{};
+    // The rest of the card's remap story, published from the same place. One
+    // RemapBlock decides all four, so the greyed card, its stated reason and the
+    // affordance that fixes it cannot describe different states.
+    // 1 = the one case where the card would otherwise lie: a job this printer
+    // could remap, refused only because the plugin is absent. Drives the
+    // disabled look AND the Set up affordance, because they are one condition.
+    lv_subject_t color_card_remap_needs_setup_{};
+    lv_subject_t color_card_remap_hint_visible_{};
+    lv_subject_t color_card_remap_hint_{};
+    char color_card_remap_hint_buf_[256]{};
     lv_subject_t empty_tools_warning_{}; // 1 = at least one used tool's slot is empty
     // Cached backend-agnostic pre-flight validation result for the current file.
     // Computed in try_extract_gcode_colors() once the gcode is parsed; the single
@@ -716,6 +739,11 @@ class PrintSelectDetailView : public OverlayBase {
     // Observes the STATIC AmsState::slots_version subject — no SubjectLifetime
     // token (singleton, not a per-slot dynamic subject).
     ObserverGuard slots_version_observer_;
+    // The plugin probe completes after first paint and the Moonraker version
+    // lands with discovery, so both arrive after the card has already published.
+    // Without these the card would sit in its Probing look for the session.
+    ObserverGuard plugin_installed_observer_;
+    ObserverGuard moonraker_degraded_observer_;
 
     // Print preparation manager (owns it)
     std::unique_ptr<PrintPreparationManager> prep_manager_;
@@ -760,6 +788,7 @@ class PrintSelectDetailView : public OverlayBase {
     // "Remap…" button uses. Empty on backends where the card is purely
     // informational.
     std::function<void()> on_remap_requested_;
+    std::function<void()> on_plugin_setup_requested_;
 
     // === Internal Methods ===
 

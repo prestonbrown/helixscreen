@@ -721,13 +721,14 @@ bool PrintStartController::apply_filament_remaps() {
         return false;
     }
 
-    // Backends that apply the remap via their firmware-native pre-print path
-    // (Snapmaker U1: requires_preprint_send → build_preprint_gcode emits
-    // SET_PRINT_EXTRUDER_MAP / SET_PRINT_USED_EXTRUDERS) honor the user's choice
-    // even though their tool-mapping capabilities report editable=false. For
-    // those, skip the generic set_tool_mapping() path SILENTLY — the pre-print
-    // send (fired later from execute_print_start) does the work. Only warn when
-    // the backend can NEITHER edit its mapping NOR apply it via a pre-print send.
+    // Two routes honor the user's choice without a mapping table to write, and
+    // both must skip the generic set_tool_mapping() path SILENTLY:
+    //   - a firmware-native pre-print send (Snapmaker U1: requires_preprint_send
+    //     → build_preprint_gcode emits SET_PRINT_EXTRUDER_MAP /
+    //     SET_PRINT_USED_EXTRUDERS), fired later from execute_print_start
+    //   - GcodeRewrite, which rewrites the job file instead of moving a tool
+    //     number in firmware
+    // Only warn when the backend can do NONE of the three.
     if (!helix::printer::can_write_mapping_table(*backend)) {
         if (should_warn_remap_unsupported(*backend)) {
             spdlog::warn("[PrintStartController] Backend (idx={}) does not support editable tool "

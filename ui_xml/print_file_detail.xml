@@ -255,6 +255,12 @@
                  flex_flow="column">
           <bind_flag_if_eq subject="filament_mapping_visible" flag="hidden" ref_value="0"/>
           <bind_flag_if_eq subject="color_card_remappable" flag="clickable" ref_value="1"/>
+          <!-- Greyed ONLY when a remap this printer could do is refused for a
+               reason the user can clear. A backend with no route, a one-tool job
+               and an in-flight plugin probe all just leave the chevron dark: the
+               chips are still worth reading and there is nothing to act on.
+               ui_card themes LV_STATE_DISABLED at LV_OPA_50 globally. -->
+          <bind_state_if_eq subject="color_card_remap_needs_setup" state="disabled" ref_value="1"/>
           <lv_obj width="100%"
                   height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
                   style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
@@ -287,6 +293,15 @@
                   src="chevron_right" size="sm" variant="secondary" clickable="false" event_bubble="true">
               <bind_flag_if_eq subject="color_card_remappable" flag="hidden" ref_value="0"/>
             </icon>
+            <!-- Takes the chevron's place, never shares it: the two bind to
+                 conditions that cannot both hold. Same trailing edge either
+                 way, so the card reads as one affordance - a tap that opens the
+                 picker, or a tap that makes the picker possible. -->
+            <text_small name="color_card_remap_setup_label"
+                        text="Set up" translation_tag="Set up" style_text_color="#primary" clickable="false"
+                        event_bubble="true">
+              <bind_flag_if_eq subject="color_card_remap_needs_setup" flag="hidden" ref_value="0"/>
+            </text_small>
           </lv_obj>
           <!-- height is FIXED, not "content": the filament_swatch chips inside are
                height="100%" and collapse to zero in a content-height parent. And
@@ -330,6 +345,15 @@
                     height="100%" style_radius="4" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
                     event_bubble="true"/>
           </lv_obj>
+          <!-- Why the card is greyed, or what a remap will cost on this printer.
+               A disabled control with no stated reason reads as a bug, and the
+               two sentences that go here are the only place either fact is
+               offered - text and visibility both come from C++. -->
+          <text_small name="color_card_remap_hint_label"
+                      width="100%" long_mode="wrap" bind_text="color_card_remap_hint" style_text_color="#text_muted"
+                      clickable="false" event_bubble="true">
+            <bind_flag_if_eq subject="color_card_remap_hint_visible" flag="hidden" ref_value="0"/>
+          </text_small>
         </ui_card>
 
         <!-- Wrapper: zero-gap so the spacer doesn't inherit the parent's pad_gap.

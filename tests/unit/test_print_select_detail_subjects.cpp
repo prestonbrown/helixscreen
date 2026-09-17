@@ -30,11 +30,14 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_backend_mock.h"
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "pre_print_option.h"
 #include "preflight_validator.h"
+#include "printer_state.h"
 #include "tools_used_cache.h"
 
 #include <cstdlib>
@@ -687,7 +690,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no fil
 
 // The chevron and the card's clickable flag both read color_card_remappable,
 // and it is now published from the same call that publishes the card's
-// visibility. This walks the whole `card_visible && color_card_opens_remap()`
+// visibility. This walks the whole `card_visible && remap available`
 // truth table, because each half fails in its own way: without the first, a
 // hidden card lights a chevron pointing at chips nobody can see (the state the
 // retired second surface used to draw); without the second, a card on a backend
@@ -728,15 +731,65 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
 
     lv_subject_t* const visible = lv_xml_get_subject(nullptr, "filament_mapping_visible");
     lv_subject_t* const remappable = lv_xml_get_subject(nullptr, "color_card_remappable");
+    lv_subject_t* const needs_setup = lv_xml_get_subject(nullptr, "color_card_remap_needs_setup");
+    lv_subject_t* const hint_visible = lv_xml_get_subject(nullptr, "color_card_remap_hint_visible");
+    lv_subject_t* const hint = lv_xml_get_subject(nullptr, "color_card_remap_hint");
     REQUIRE(visible != nullptr);
     REQUIRE(remappable != nullptr);
+    REQUIRE(needs_setup != nullptr);
+    REQUIRE(hint_visible != nullptr);
+    REQUIRE(hint != nullptr);
 
     const std::vector<std::string> two_colors{"#FF0000", "#00FF00"};
     const std::vector<std::string> two_materials{"PLA", "PETG"};
 
+    SECTION("GcodeRewrite with no plugin: chevron dark, card greyed, reason stated") {
+        // The case this predicate exists for. A tool changer with no ASSIGN_TOOL
+        // rewrites the job file instead, which needs the HelixPrint plugin to
+        // keep print history readable. With the plugin term in the opener alone,
+        // can_remap() answered true here: chevron lit, tap refused.
+        ams.backend->set_remap_strategy(AmsBackend::RemapStrategy::GcodeRewrite);
+        get_printer_state().set_helix_plugin_installed(false);
+        helix::ui::UpdateQueue::instance().drain();
+        view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
+
+        CHECK(view.current_remap_block() == helix::printer::RemapBlock::NeedsPlugin);
+        CHECK(lv_subject_get_int(visible) == 1);
+        CHECK(lv_subject_get_int(remappable) == 0);
+        CHECK(lv_subject_get_int(needs_setup) == 1);
+        // A greyed control with no stated reason reads as a bug.
+        CHECK(lv_subject_get_int(hint_visible) == 1);
+        CHECK(std::string(lv_subject_get_string(hint)).find("HelixPrint") != std::string::npos);
+    }
+
+    SECTION("GcodeRewrite with the plugin: chevron lit, nothing greyed or explained") {
+        ams.backend->set_remap_strategy(AmsBackend::RemapStrategy::GcodeRewrite);
+        get_printer_state().set_helix_plugin_installed(true);
+        helix::ui::UpdateQueue::instance().drain();
+        view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
+
+        CHECK(view.current_remap_block() == helix::printer::RemapBlock::None);
+        CHECK(lv_subject_get_int(remappable) == 1);
+        CHECK(lv_subject_get_int(needs_setup) == 0);
+        CHECK(lv_subject_get_int(hint_visible) == 0);
+    }
+
+    SECTION("an unfinished plugin probe greys nothing") {
+        // -1 is what the subject holds until discovery answers, which is after
+        // first paint. Treating it as absent would grey the card on every boot
+        // and then withdraw it.
+        ams.backend->set_remap_strategy(AmsBackend::RemapStrategy::GcodeRewrite);
+        view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
+
+        CHECK(view.current_remap_block() == helix::printer::RemapBlock::Probing);
+        CHECK(lv_subject_get_int(remappable) == 0);
+        CHECK(lv_subject_get_int(needs_setup) == 0);
+        CHECK(lv_subject_get_int(hint_visible) == 0);
+    }
+
     SECTION("card shown on a backend with a picker: chevron lit") {
         // Snapmaker U1 shape - mapping not editable inline, but the backend has
-        // a native remap picker, so color_card_opens_remap() is true. The known
+        // a native remap picker, so current_remap_block() is None. The known
         // positive: without it the zeros below could be a subject nothing ever
         // sets.
         ams.backend->set_snapmaker_mode(true);
@@ -770,9 +823,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
         // also what left the picker unreachable under --test for the five
         // backends that really do declare Native.
         ams.backend->set_remap_strategy(AmsBackend::RemapStrategy::None);
-        REQUIRE_FALSE(helix::ui::PrintSelectDetailView::color_card_opens_remap());
         view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
 
+        // The reason, not just the absence: a dark chevron for the wrong reason
+        // is the bug this predicate exists to stop.
+        CHECK(view.current_remap_block() == helix::printer::RemapBlock::NoStrategy);
         CHECK(lv_subject_get_int(visible) == 1);
         CHECK(lv_subject_get_int(remappable) == 0);
         CHECK(lv_obj_find_by_name(root, "top_band") != nullptr);
@@ -791,7 +846,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A tap on the filament card opens the remap 
     CacheDirGuard guard;
     ScopedAmsBackend ams(4);
     // Snapmaker U1 shape: the only mock configuration where a tap is meant to
-    // reach the opener at all (color_card_opens_remap() gates on the backend's
+    // reach the opener at all (current_remap_block() gates on the backend's
     // remap strategy).
     ams.backend->set_snapmaker_mode(true);
 

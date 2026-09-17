@@ -1212,7 +1212,6 @@
   <translation tag="Install Update" ja="更新をインストール"/>
   <translation tag="Install plugin" ja="プラグインをインストール"/>
   <translation tag="Install script not found. Use the remote install command instead." ja="インストールスクリプトが見つかりません。代わりにリモートインストールコマンドを使用してください。"/>
-  <translation tag="Install the HelixPrint plugin in Advanced settings to remap filament without affecting print history." ja="印刷履歴に影響を与えずにフィラメントをリマップするには、詳細設定でHelixPrintプラグインをインストールしてください。"/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" ja="高速 G-code 修正を有効にするために HelixPrint プラグインをインストールしてください。プリンターで SSH 経由でこのコマンドを実行してください:"/>
   <translation tag="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;." ja="SSHでタイムラプスプラグインをインストールし、&#10;「再確認」をタップしてください。"/>
   <translation tag="Install timelapse plugin" ja="タイムラプスプラグインをインストール"/>
@@ -1996,7 +1995,7 @@
   <translation tag="Remaining (g)" ja="残量 (g)"/>
   <translation tag="Remaining Weight (g)" ja="残量（g）"/>
   <translation tag="Remap Tool" ja="ツールを再割当"/>
-  <translation tag="Remap needs the HelixPrint plugin" ja="リマップにはHelixPrintプラグインが必要です"/>
+  <translation tag="Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked."/>
   <translation tag="Remap…" ja="リマップ…"/>
   <translation tag="Remember slot spool details across an eject" ja="取り出し後もスロットのスプール情報を記憶します"/>
   <translation tag="Remove" ja="削除"/>
@@ -2511,6 +2510,11 @@
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL. Once installed, use Configure PRINT_START below to enable optional steps." ja="このプラグインにより、HelixScreen がベッドメッシュや QGL などの印刷開始オプションを制御できます。インストール後、以下の「PRINT_START を設定」を使用してオプションの手順を有効にしてください。"/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" ja="この印刷には約 %.0fg 必要ですが、スプールの残量は約 %.0fg です。それでも開始しますか？"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ja="このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。"/>
+  <translation tag="This printer&apos;s Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works."/>
+  <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." ja="プラグインの Moonraker コンポーネントを削除し、Moonraker を再起動します。プリンターは一時的に切断されます。PRINT_START に古いフェーズトラッキングの行が残っている場合、それらも削除されますが、バックアップは保持されます。Klipper を再起動すると、その変更が適用されます。"/>
+  <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." ja="プリンターのヘルパーマクロを現在のバージョンに置き換え、Klipper を再起動します。"/>
+  <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." ja="プリンターのヘルパーマクロを現在のバージョンに置き換えます。印刷中のため、Klipper は印刷完了後に再起動されます。"/>
+  <translation tag="This system does not support bypass mode" ja="このシステムはバイパスモードに対応していません"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ja="このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。"/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." ja="Z-offset をエンドストップに適用し、設定を保存するために Klipper を再起動します。プリンターは一時的に切断されます。"/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." ja="Z-offset をプローブに適用し、設定を保存するために Klipper を再起動します。プリンターは一時的に切断されます。"/>

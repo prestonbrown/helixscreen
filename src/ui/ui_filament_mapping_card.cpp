@@ -84,7 +84,7 @@ bool FilamentMappingCard::recompute_visibility() {
     // Snapmaker U1 / ACE, back when a second surface (the print-detail FILAMENTS
     // card) drew the same chips there. That surface is gone, so hiding here would
     // show the user nothing at all. Whether a TAP does anything is a separate
-    // question, answered by PrintSelectDetailView::color_card_opens_remap().
+    // question, answered by PrintSelectDetailView::current_remap_block().
 
     // A dead-control rule survives here even without the editable-backend gate
     // above: with bypass engaged a single-tool print takes its filament from

@@ -1234,8 +1234,6 @@ translations:
   Install Update: 安装更新
   Install plugin: 安装插件
   Install script not found. Use the remote install command instead.: 未找到安装脚本。请改用远程安装命令。
-  Install the HelixPrint plugin in Advanced settings to remap filament without affecting print history.: 在高级设置中安装
-    HelixPrint 插件，即可在不影响打印历史的情况下重新映射耗材。
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 安装
     HelixPrint 插件以启用快速 G-code 修改。通过 SSH 在打印机上运行此命令：
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
@@ -2038,7 +2036,8 @@ translations:
   Remaining (g): 剩余 (g)
   Remaining Weight (g): 剩余重量（克）
   Remap Tool: 重映射工具
-  Remap needs the HelixPrint plugin: 重新映射需要 HelixPrint 插件
+  ? Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked.
+  : ''
   Remap…: 重新映射……
   Remember slot spool details across an eject: 弹出后记住槽位的料盘详情
   Remove: 移除
@@ -2585,6 +2584,14 @@ translations:
     %.0fg，但料盘仅剩约 %.0fg。仍要开始吗？
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : 此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。
+  ? This printer's Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works.
+  : ''
+  ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
+  : 这会移除插件的 Moonraker 组件并重启 Moonraker。打印机将短暂断开连接。如果 PRINT_START 中仍有旧的阶段跟踪行，它们也会被移除，但会保留备份。重启 Klipper 后生效。
+  This replaces the printer's helper macros with the current version and restarts Klipper.: '这会将打印机的帮助宏替换为当前版本并重启 Klipper。'
+  ? This replaces the printer's helper macros with the current version. A print is running, so Klipper restarts after it finishes.
+  : '这会将打印机的帮助宏替换为当前版本。当前正在打印，Klipper 将在打印结束后重启。'
+  This system does not support bypass mode: '此系统不支持旁通模式'
   This tool probes each bed screw and tells you how much to adjust.: 此工具探测每个热床螺丝并告诉您需要调整多少。
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration.
     The printer will briefly disconnect.

@@ -1369,11 +1369,8 @@ translations:
   Install Root: Racine d'installation
   Install Update: Installer la mise à jour
   Install plugin: Installer le plugin
-  Install script not found. Use the remote install command instead.: Script dinstallation
-    introuvable. Utilisez plutôt la commande dinstallation distante.
-  Install the HelixPrint plugin in Advanced settings to remap filament without affecting print history.: Installez
-    le plugin HelixPrint dans les paramètres avancés pour remapper le filament sans
-    affecter l'historique d'impression.
+  Install script not found. Use the remote install command instead.: Script d'installation
+    introuvable. Utilisez plutôt la commande d'installation distante.
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 'Installez
     le plugin HelixPrint pour activer les modifications rapides de G-code. Exécutez
     cette commande via SSH sur votre imprimante :'
@@ -2244,7 +2241,8 @@ translations:
   Remaining (g): Restant (g)
   Remaining Weight (g): Poids restant (g)
   Remap Tool: Réassigner l'outil
-  Remap needs the HelixPrint plugin: La réaffectation nécessite le plugin HelixPrint
+  ? Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked.
+  : ''
   Remap…: Réaffecter…
   Remember slot spool details across an eject: Mémoriser les détails de la bobine du slot après une éjection
   Remove: Supprimer
@@ -2873,6 +2871,14 @@ translations:
     Démarrer quand même ?
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects.
+  ? This printer's Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works.
+  : ''
+  ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
+  : Cela supprime le composant Moonraker du plugin et redémarre Moonraker. L'imprimante se déconnectera brièvement. Si d'anciennes lignes de suivi des phases sont encore présentes dans PRINT_START, elles sont également supprimées, les sauvegardes étant conservées. Un redémarrage de Klipper applique cela.
+  This replaces the printer's helper macros with the current version and restarts Klipper.: 'Cela remplace les macros d''aide de l''imprimante par la version actuelle et redémarre Klipper.'
+  ? This replaces the printer's helper macros with the current version. A print is running, so Klipper restarts after it finishes.
+  : 'Cela remplace les macros d''aide de l''imprimante par la version actuelle. Une impression est en cours, Klipper redémarrera une fois terminée.'
+  This system does not support bypass mode: 'Ce système ne prend pas en charge le mode bypass'
   This tool probes each bed screw and tells you how much to adjust.: Cet outil palpe
     chaque vis du plateau et vous indique combien ajuster.
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration.

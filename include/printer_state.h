@@ -1628,6 +1628,12 @@ class PrinterState {
     /**
      * @brief Get Moonraker version subject for XML binding
      */
+    /// 1 when this Moonraker is too old for the HelixPrint plugin to restore a
+    /// rewritten job's original filename. See moonraker_history_is_degraded().
+    lv_subject_t* get_moonraker_history_degraded_subject() {
+        return versions_state_.get_moonraker_history_degraded_subject();
+    }
+
     lv_subject_t* get_moonraker_version_subject() {
         return versions_state_.get_moonraker_version_subject();
     }
@@ -1838,6 +1844,11 @@ class PrinterState {
      * @return True if the HelixPrint Moonraker plugin is installed
      */
     bool service_has_helix_plugin() const;
+
+    /// Tri-state plugin presence as published: -1 not probed, 0 absent,
+    /// 1 present. Callers that must tell "not probed yet" apart from "absent"
+    /// want this; service_has_helix_plugin() collapses both to false.
+    int helix_plugin_state() const;
 
     /**
      * @brief Set phase tracking enabled/disabled status

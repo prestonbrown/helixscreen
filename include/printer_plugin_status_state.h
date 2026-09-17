@@ -91,8 +91,12 @@ class PrinterPluginStatusState {
      *
      * @return true only when value is 1 (installed), false for -1 (unknown) or 0 (not installed)
      */
+    int helix_plugin_state() const {
+        return lv_subject_get_int(const_cast<lv_subject_t*>(&helix_plugin_installed_));
+    }
+
     bool service_has_helix_plugin() const {
-        return lv_subject_get_int(const_cast<lv_subject_t*>(&helix_plugin_installed_)) == 1;
+        return helix_plugin_state() == 1;
     }
 
     /**
