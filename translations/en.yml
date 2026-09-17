@@ -1079,6 +1079,8 @@ translations:
   Filament ran out at the toolhead: Filament ran out at the toolhead
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.
+  Filament reload failed: Filament reload failed
+  Filament remapping is unavailable: Filament remapping is unavailable
   Filament runout: Filament runout
   Filament runout and motion detection sensors: Filament runout and motion detection
     sensors
@@ -1985,6 +1987,7 @@ translations:
   Print error: Print error
   Print failed: Print failed
   Print history statistics: Print history statistics
+  Print history will show the rewritten name: Print history will show the rewritten name
   Print issue detected: Print issue detected
   'Print preparation failed: {}': 'Print preparation failed: {}'
   Print progress and file selection: Print progress and file selection
@@ -2166,8 +2169,10 @@ translations:
   Remaining (g): Remaining (g)
   Remaining Weight (g): Remaining Weight (g)
   Remap Tool: Remap Tool
-  ? Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked.
-  : Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked.
+  ? Remapping rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Remapping itself works normally.
+  : Remapping rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Remapping itself works normally.
+  ? "Remapping rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
+  : "Remapping rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   Remap…: Remap…
   Remember slot spool details across an eject: Remember slot spool details across an eject
   Remove: Remove
@@ -2766,8 +2771,6 @@ translations:
     print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
-  ? This printer's Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works.
-  : This printer's Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works.
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   This replaces the printer's helper macros with the current version and restarts Klipper.: This replaces the printer's helper macros with the current version and restarts Klipper.

@@ -293,15 +293,15 @@
                   src="chevron_right" size="sm" variant="secondary" clickable="false" event_bubble="true">
               <bind_flag_if_eq subject="color_card_remappable" flag="hidden" ref_value="0"/>
             </icon>
-            <!-- Takes the chevron's place, never shares it: the two bind to
-                 conditions that cannot both hold. Same trailing edge either
-                 way, so the card reads as one affordance - a tap that opens the
-                 picker, or a tap that makes the picker possible. -->
-            <text_small name="color_card_remap_setup_label"
-                        text="Set up" translation_tag="Set up" style_text_color="#primary" clickable="false"
-                        event_bubble="true">
-              <bind_flag_if_eq subject="color_card_remap_needs_setup" flag="hidden" ref_value="0"/>
-            </text_small>
+            <!-- Takes the chevron's place when a remap is unavailable or will
+                 cost something. Its own clickable object, never a bubbling chip:
+                 the card greys itself with LV_STATE_DISABLED and LVGL delivers
+                 no pointer events to a disabled object, so an icon relying on
+                 the card's handler would be dead exactly when it is needed. -->
+            <icon name="color_card_remap_help" src="help_circle" size="sm" variant="secondary" clickable="true">
+              <bind_flag_if_eq subject="color_card_remap_help_visible" flag="hidden" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_color_card_remap_help"/>
+            </icon>
           </lv_obj>
           <!-- height is FIXED, not "content": the filament_swatch chips inside are
                height="100%" and collapse to zero in a content-height parent. And
@@ -345,15 +345,6 @@
                     height="100%" style_radius="4" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
                     event_bubble="true"/>
           </lv_obj>
-          <!-- Why the card is greyed, or what a remap will cost on this printer.
-               A disabled control with no stated reason reads as a bug, and the
-               two sentences that go here are the only place either fact is
-               offered - text and visibility both come from C++. -->
-          <text_small name="color_card_remap_hint_label"
-                      width="100%" long_mode="wrap" bind_text="color_card_remap_hint" style_text_color="#text_muted"
-                      clickable="false" event_bubble="true">
-            <bind_flag_if_eq subject="color_card_remap_hint_visible" flag="hidden" ref_value="0"/>
-          </text_small>
         </ui_card>
 
         <!-- Wrapper: zero-gap so the spacer doesn't inherit the parent's pad_gap.

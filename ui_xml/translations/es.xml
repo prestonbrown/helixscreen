@@ -999,6 +999,8 @@
   <translation tag="Filament ran out at the toolhead" es="El filamento se agotó en el cabezal"/>
   <translation tag="Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume." es="El filamento se agotó. El rellenado automático está desactivado, así que el CFS no cambiará de bobina por sí solo. Carga filamento y reanuda."/>
   <translation tag="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume." es="El filamento se agotó. El CFS sabe qué bobinas coinciden, pero esas ranuras están vacías. Cargue una de ellas y reanude."/>
+  <translation tag="Filament reload failed" es="Error al recargar el filamento"/>
+  <translation tag="Filament remapping is unavailable"/>
   <translation tag="Filament runout" es="Filamento agotado"/>
   <translation tag="Filament runout and motion detection sensors" es="Sensores de detección de agotamiento y movimiento de filamento"/>
   <translation tag="Filament runout detection status" es="Estado de la detección de fin de filamento"/>
@@ -1831,6 +1833,7 @@
   <translation tag="Print error" es="Error de impresión"/>
   <translation tag="Print failed" es="Impresión fallida"/>
   <translation tag="Print history statistics" es="Estadísticas del historial de impresión"/>
+  <translation tag="Print history will show the rewritten name"/>
   <translation tag="Print issue detected" es="Problema de impresión detectado"/>
   <translation tag="Print preparation failed: {}" es="Error en preparación de impresión: {}"/>
   <translation tag="Print progress and file selection" es="Progreso de impresión y selección de archivos"/>
@@ -1995,7 +1998,8 @@
   <translation tag="Remaining (g)" es="Restante (g)"/>
   <translation tag="Remaining Weight (g)" es="Peso Restante (g)"/>
   <translation tag="Remap Tool" es="Reasignar Herramienta"/>
-  <translation tag="Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked."/>
+  <translation tag="Remapping rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Remapping itself works normally."/>
+  <translation tag="Remapping rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart."/>
   <translation tag="Remap…" es="Reasignar…"/>
   <translation tag="Remember slot spool details across an eject" es="Recordar los detalles de la bobina de la ranura tras una expulsión"/>
   <translation tag="Remove" es="Eliminar"/>
@@ -2510,7 +2514,6 @@
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL. Once installed, use Configure PRINT_START below to enable optional steps." es="Este plugin permite que HelixScreen controle opciones de inicio de impresión como malla de cama y QGL. Una vez instalado, use Configurar PRINT_START abajo para habilitar pasos opcionales."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" es="Esta impresión necesita aproximadamente %.0fg pero la bobina tiene aproximadamente %.0fg restantes. ¿Iniciar de todos modos?"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." es="Esta impresora parece una {} ({}% de confianza), pero está configurada como {}. Un tipo erróneo aplica opciones y preajustes de preimpresión incorrectos."/>
-  <translation tag="This printer&apos;s Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works."/>
   <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." es="Esto elimina el componente de Moonraker del plugin y reinicia Moonraker. La impresora se desconectará brevemente. Si aún hay líneas de seguimiento de fases antiguas en PRINT_START, también se eliminan, conservando copias de seguridad. Un reinicio de Klipper aplica eso."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." es="Esto reemplaza las macros de ayuda de la impresora por la versión actual y reinicia Klipper."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." es="Esto reemplaza las macros de ayuda de la impresora por la versión actual. Hay una impresión en curso, así que Klipper se reiniciará al terminar."/>

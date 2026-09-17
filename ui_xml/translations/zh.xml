@@ -999,6 +999,8 @@
   <translation tag="Filament ran out at the toolhead" zh="工具头处耗材已用尽"/>
   <translation tag="Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume." zh="耗材已用尽。自动续料已关闭，CFS 不会自行更换料盘。请装入耗材后恢复打印。"/>
   <translation tag="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume." zh="耗材已用尽。CFS 知道哪些料盘匹配，但这些槽位都是空的。请装载其中一个，然后恢复打印。"/>
+  <translation tag="Filament reload failed" zh="耗材重新装载失败"/>
+  <translation tag="Filament remapping is unavailable"/>
   <translation tag="Filament runout" zh="耗材用尽"/>
   <translation tag="Filament runout and motion detection sensors" zh="耗材用尽和运动检测传感器"/>
   <translation tag="Filament runout detection status" zh="耗材耗尽检测状态"/>
@@ -1831,6 +1833,7 @@
   <translation tag="Print error" zh="打印错误"/>
   <translation tag="Print failed" zh="打印失败"/>
   <translation tag="Print history statistics" zh="打印历史统计"/>
+  <translation tag="Print history will show the rewritten name"/>
   <translation tag="Print issue detected" zh="检测到打印问题"/>
   <translation tag="Print preparation failed: {}" zh="打印准备失败: {}"/>
   <translation tag="Print progress and file selection" zh="打印进度与文件选择"/>
@@ -1995,7 +1998,8 @@
   <translation tag="Remaining (g)" zh="剩余 (g)"/>
   <translation tag="Remaining Weight (g)" zh="剩余重量（克）"/>
   <translation tag="Remap Tool" zh="重映射工具"/>
-  <translation tag="Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked."/>
+  <translation tag="Remapping rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Remapping itself works normally."/>
+  <translation tag="Remapping rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart."/>
   <translation tag="Remap…" zh="重新映射……"/>
   <translation tag="Remember slot spool details across an eject" zh="弹出后记住槽位的料盘详情"/>
   <translation tag="Remove" zh="移除"/>
@@ -2510,7 +2514,6 @@
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL. Once installed, use Configure PRINT_START below to enable optional steps." zh="此插件让 HelixScreen 控制打印启动选项，如热床网格和 QGL。安装后，使用下面的配置 PRINT_START 启用可选步骤。"/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" zh="本次打印需要约 %.0fg，但料盘仅剩约 %.0fg。仍要开始吗？"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." zh="此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。"/>
-  <translation tag="This printer&apos;s Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works."/>
   <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." zh="这会移除插件的 Moonraker 组件并重启 Moonraker。打印机将短暂断开连接。如果 PRINT_START 中仍有旧的阶段跟踪行，它们也会被移除，但会保留备份。重启 Klipper 后生效。"/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." zh="这会将打印机的帮助宏替换为当前版本并重启 Klipper。"/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." zh="这会将打印机的帮助宏替换为当前版本。当前正在打印，Klipper 将在打印结束后重启。"/>

@@ -999,6 +999,8 @@
   <translation tag="Filament ran out at the toolhead" en="Filament ran out at the toolhead"/>
   <translation tag="Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume." en="Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume."/>
   <translation tag="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume." en="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume."/>
+  <translation tag="Filament reload failed" en="Filament reload failed"/>
+  <translation tag="Filament remapping is unavailable" en="Filament remapping is unavailable"/>
   <translation tag="Filament runout" en="Filament runout"/>
   <translation tag="Filament runout and motion detection sensors" en="Filament runout and motion detection sensors"/>
   <translation tag="Filament runout detection status" en="Filament runout detection status"/>
@@ -1831,6 +1833,7 @@
   <translation tag="Print error" en="Print error"/>
   <translation tag="Print failed" en="Print failed"/>
   <translation tag="Print history statistics" en="Print history statistics"/>
+  <translation tag="Print history will show the rewritten name" en="Print history will show the rewritten name"/>
   <translation tag="Print issue detected" en="Print issue detected"/>
   <translation tag="Print preparation failed: {}" en="Print preparation failed: {}"/>
   <translation tag="Print progress and file selection" en="Print progress and file selection"/>
@@ -1995,7 +1998,8 @@
   <translation tag="Remaining (g)" en="Remaining (g)"/>
   <translation tag="Remaining Weight (g)" en="Remaining Weight (g)"/>
   <translation tag="Remap Tool" en="Remap Tool"/>
-  <translation tag="Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked." en="Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked."/>
+  <translation tag="Remapping rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Remapping itself works normally." en="Remapping rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Remapping itself works normally."/>
+  <translation tag="Remapping rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." en="Remapping rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart."/>
   <translation tag="Remap…" en="Remap…"/>
   <translation tag="Remember slot spool details across an eject" en="Remember slot spool details across an eject"/>
   <translation tag="Remove" en="Remove"/>
@@ -2510,7 +2514,6 @@
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL. Once installed, use Configure PRINT_START below to enable optional steps." en="This plugin lets HelixScreen control print start options like bed mesh and QGL. Once installed, use Configure PRINT_START below to enable optional steps."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" en="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." en="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets."/>
-  <translation tag="This printer&apos;s Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works." en="This printer&apos;s Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works."/>
   <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." en="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." en="This replaces the printer&apos;s helper macros with the current version and restarts Klipper."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." en="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes."/>

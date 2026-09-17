@@ -1129,6 +1129,8 @@ translations:
   Filament ran out at the toolhead: 'Filament épuisé à la tête d''outil'
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: 'Filament épuisé. Le réapprovisionnement automatique est désactivé, le CFS ne changera donc pas de bobine tout seul. Chargez du filament, puis reprenez.'
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: Filament épuisé. Le CFS sait quelles bobines correspondent, mais ces slots sont vides. Chargez-en une, puis reprenez.
+  Filament reload failed: Échec du rechargement du filament
+  Filament remapping is unavailable: ''
   Filament runout: Fin de filament
   Filament runout and motion detection sensors: Capteurs de fin de filament et de
     détection de mouvement
@@ -2054,6 +2056,7 @@ translations:
   Print error: Erreur dimpression
   Print failed: Impression échouée
   Print history statistics: 'Statistiques de l''historique d''impression'
+  Print history will show the rewritten name: ''
   Print issue detected: Problème d'impression détecté
   'Print preparation failed: {}': 'Échec de la préparation de l''impression : {}'
   Print progress and file selection: 'Progression de l''impression et sélection de fichiers'
@@ -2241,7 +2244,9 @@ translations:
   Remaining (g): Restant (g)
   Remaining Weight (g): Poids restant (g)
   Remap Tool: Réassigner l'outil
-  ? Remapping rewrites the job file. Without the HelixPrint plugin your print history fills up with names like modified_1730824_benchy.gcode instead of the file you picked.
+  ? Remapping rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Remapping itself works normally.
+  : ''
+  ? "Remapping rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : ''
   Remap…: Réaffecter…
   Remember slot spool details across an eject: Mémoriser les détails de la bobine du slot après une éjection
@@ -2871,8 +2876,6 @@ translations:
     Démarrer quand même ?
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects.
-  ? This printer's Moonraker is too old to put the original filename back in your print history after a remap. Remapping still works.
-  : ''
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : Cela supprime le composant Moonraker du plugin et redémarre Moonraker. L'imprimante se déconnectera brièvement. Si d'anciennes lignes de suivi des phases sont encore présentes dans PRINT_START, elles sont également supprimées, les sauvegardes étant conservées. Un redémarrage de Klipper applique cela.
   This replaces the printer's helper macros with the current version and restarts Klipper.: 'Cela remplace les macros d''aide de l''imprimante par la version actuelle et redémarre Klipper.'

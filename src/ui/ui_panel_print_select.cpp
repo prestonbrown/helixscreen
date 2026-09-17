@@ -178,6 +178,11 @@ static void on_toggle_sliced_colors(lv_event_t* e) {
     get_global_print_select_panel().forward_sliced_colors_toggle(checked);
 }
 
+static void on_color_card_remap_help(lv_event_t* e) {
+    (void)e;
+    get_global_print_select_panel().show_remap_help();
+}
+
 static void on_print_select_detail_backdrop(lv_event_t* e) {
     auto* target = static_cast<lv_obj_t*>(lv_event_get_target(e));
     auto* current_target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
@@ -358,6 +363,7 @@ void PrintSelectPanel::init_subjects() {
         {"on_print_select_detail_backdrop", on_print_select_detail_backdrop},
         {"on_print_detail_back_clicked", on_print_detail_back_clicked},
         {"on_toggle_sliced_colors", on_toggle_sliced_colors},
+        {"on_color_card_remap_help", on_color_card_remap_help},
     });
 
     subjects_initialized_ = true;
@@ -2820,6 +2826,12 @@ void PrintSelectPanel::on_preflight_remap() {
 // apply_remap(), dispatched on RemapStrategy. Print-start is likewise already
 // strategy-dispatched (PrintStartController), so Native and SnapmakerNative both
 // read the same shared card store and need no special opener.
+void PrintSelectPanel::show_remap_help() {
+    if (detail_view_) {
+        detail_view_->show_remap_help_modal();
+    }
+}
+
 void PrintSelectPanel::open_remap_modal() {
     if (!detail_view_) {
         spdlog::warn("[{}] Remap requested with no detail view", get_name());

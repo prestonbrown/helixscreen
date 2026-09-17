@@ -193,10 +193,8 @@ void PrintSelectDetailView::init_subjects() {
     // chevron so a card cannot be greyed while its chevron still invites a tap.
     UI_MANAGED_SUBJECT_INT(color_card_remap_needs_setup_, 0, "color_card_remap_needs_setup",
                            subjects_);
-    UI_MANAGED_SUBJECT_INT(color_card_remap_hint_visible_, 0, "color_card_remap_hint_visible",
+    UI_MANAGED_SUBJECT_INT(color_card_remap_help_visible_, 0, "color_card_remap_help_visible",
                            subjects_);
-    UI_MANAGED_SUBJECT_STRING(color_card_remap_hint_, color_card_remap_hint_buf_, "",
-                              "color_card_remap_hint", subjects_);
 
     // Empty-tools warning visibility (0=hidden, 1=visible). Set by
     // recompute_preflight() when any T-command-referenced slot is empty.
@@ -1569,20 +1567,46 @@ void PrintSelectDetailView::publish_card_visibility() {
         available &&
         lv_subject_get_int(get_printer_state().get_moonraker_history_degraded_subject()) == 1;
 
-    const char* hint = "";
-    if (needs_setup) {
-        hint = lv_tr("Remapping rewrites the job file. Without the HelixPrint plugin your print "
-                     "history fills up with names like modified_1730824_benchy.gcode instead of "
-                     "the file you picked.");
-    } else if (card_visible && degraded) {
-        hint = lv_tr("This printer's Moonraker is too old to put the original filename back in "
-                     "your print history after a remap. Remapping still works.");
-    }
-    lv_subject_copy_string(&color_card_remap_hint_, hint);
-    lv_subject_set_int(&color_card_remap_hint_visible_, hint[0] != '\0' ? 1 : 0);
+    lv_subject_set_int(&color_card_remap_help_visible_,
+                       card_visible && (needs_setup || degraded) ? 1 : 0);
 
     spdlog::debug("[DetailView] filament card: visible={} remap={} setup={} degraded={}",
                   card_visible, helix::printer::remap_block_name(block), needs_setup, degraded);
+}
+
+void PrintSelectDetailView::show_remap_help_modal() {
+    if (current_remap_block() == helix::printer::RemapBlock::NeedsPlugin) {
+        helix::ui::ConfirmOptions opts;
+        opts.cancel_text = lv_tr("Not now");
+        opts.owner_token = lifetime_.token();
+        helix::ui::modal_confirm(
+            lv_tr("Filament remapping is unavailable"),
+            lv_tr("Remapping rewrites the job file before printing it. Without the HelixPrint "
+                  "plugin the rewritten copy is what lands in your print history, so finished "
+                  "jobs are listed under names like modified_1730824_benchy.gcode instead of the "
+                  "file you picked.\n\nInstalling the plugin takes a moment and needs no "
+                  "restart."),
+            ModalSeverity::Info, lv_tr("Install plugin"),
+            [this] {
+                if (on_plugin_setup_requested_) {
+                    on_plugin_setup_requested_();
+                }
+            },
+            opts);
+        return;
+    }
+
+    // The other reason the icon is offered: remapping works, but this Moonraker
+    // is too old for the plugin to put the original name back afterwards.
+    helix::ui::AlertOptions alert_opts;
+    alert_opts.owner_token = lifetime_.token();
+    helix::ui::modal_alert(
+        lv_tr("Print history will show the rewritten name"),
+        lv_tr("Remapping rewrites the job file before printing it. This printer's Moonraker is "
+              "too old for the HelixPrint plugin to restore the original filename afterwards, so "
+              "the finished job is listed under the rewritten name. Remapping itself works "
+              "normally."),
+        ModalSeverity::Info, lv_tr("OK"), nullptr, alert_opts);
 }
 
 helix::printer::RemapBlock PrintSelectDetailView::current_remap_block() const {

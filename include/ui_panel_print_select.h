@@ -490,6 +490,11 @@ class PrintSelectPanel : public PanelBase {
      */
     void show_delete_confirmation();
 
+    /// Explain the filament card's remap state. Reached from the card's help
+    /// icon, whose XML event_cb routes here so the icon keeps working while the
+    /// card itself is disabled.
+    void show_remap_help();
+
     /**
      * @brief Set reference to print status panel
      *

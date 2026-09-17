@@ -732,13 +732,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
     lv_subject_t* const visible = lv_xml_get_subject(nullptr, "filament_mapping_visible");
     lv_subject_t* const remappable = lv_xml_get_subject(nullptr, "color_card_remappable");
     lv_subject_t* const needs_setup = lv_xml_get_subject(nullptr, "color_card_remap_needs_setup");
-    lv_subject_t* const hint_visible = lv_xml_get_subject(nullptr, "color_card_remap_hint_visible");
-    lv_subject_t* const hint = lv_xml_get_subject(nullptr, "color_card_remap_hint");
+    lv_subject_t* const help_visible = lv_xml_get_subject(nullptr, "color_card_remap_help_visible");
     REQUIRE(visible != nullptr);
     REQUIRE(remappable != nullptr);
     REQUIRE(needs_setup != nullptr);
-    REQUIRE(hint_visible != nullptr);
-    REQUIRE(hint != nullptr);
+    REQUIRE(help_visible != nullptr);
 
     const std::vector<std::string> two_colors{"#FF0000", "#00FF00"};
     const std::vector<std::string> two_materials{"PLA", "PETG"};
@@ -757,9 +755,22 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
         CHECK(lv_subject_get_int(visible) == 1);
         CHECK(lv_subject_get_int(remappable) == 0);
         CHECK(lv_subject_get_int(needs_setup) == 1);
-        // A greyed control with no stated reason reads as a bug.
-        CHECK(lv_subject_get_int(hint_visible) == 1);
-        CHECK(std::string(lv_subject_get_string(hint)).find("HelixPrint") != std::string::npos);
+        // A greyed control with no way to ask why reads as a bug.
+        CHECK(lv_subject_get_int(help_visible) == 1);
+
+        // The arrangement the explanation depends on. LVGL gates PRESSED,
+        // PRESSING and CLICKED on !lv_obj_has_state(obj, LV_STATE_DISABLED), so
+        // the greyed card takes no pointer events at all. The help icon must
+        // therefore be its own clickable, NON-disabled object; an icon that
+        // bubbled to the card would be dead in the one state it exists for.
+        lv_obj_t* const card = lv_obj_find_by_name(root, "filament_mapping_card");
+        lv_obj_t* const help = lv_obj_find_by_name(root, "color_card_remap_help");
+        REQUIRE(card != nullptr);
+        REQUIRE(help != nullptr);
+        CHECK(lv_obj_has_state(card, LV_STATE_DISABLED));
+        CHECK_FALSE(lv_obj_has_state(help, LV_STATE_DISABLED));
+        CHECK(lv_obj_has_flag(help, LV_OBJ_FLAG_CLICKABLE));
+        CHECK_FALSE(lv_obj_has_flag(help, LV_OBJ_FLAG_HIDDEN));
     }
 
     SECTION("GcodeRewrite with the plugin: chevron lit, nothing greyed or explained") {
@@ -771,7 +782,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
         CHECK(view.current_remap_block() == helix::printer::RemapBlock::None);
         CHECK(lv_subject_get_int(remappable) == 1);
         CHECK(lv_subject_get_int(needs_setup) == 0);
-        CHECK(lv_subject_get_int(hint_visible) == 0);
+        CHECK(lv_subject_get_int(help_visible) == 0);
     }
 
     SECTION("an unfinished plugin probe greys nothing") {
@@ -784,7 +795,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
         CHECK(view.current_remap_block() == helix::printer::RemapBlock::Probing);
         CHECK(lv_subject_get_int(remappable) == 0);
         CHECK(lv_subject_get_int(needs_setup) == 0);
-        CHECK(lv_subject_get_int(hint_visible) == 0);
+        CHECK(lv_subject_get_int(help_visible) == 0);
     }
 
     SECTION("card shown on a backend with a picker: chevron lit") {

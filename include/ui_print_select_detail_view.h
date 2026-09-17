@@ -203,6 +203,17 @@ class PrintSelectDetailView : public OverlayBase {
     [[nodiscard]] helix::printer::RemapBlock current_remap_block() const;
 
     /**
+     * @brief Explain the card's remap state, and offer the fix when there is one.
+     *
+     * Opened from the card's help icon. The icon is its own clickable object
+     * rather than a chip that bubbles to the card, because LVGL refuses
+     * PRESSED/PRESSING/CLICKED on anything carrying LV_STATE_DISABLED - a greyed
+     * card takes no taps at all, so the explanation has to hang off something
+     * that is still enabled.
+     */
+    void show_remap_help_modal();
+
+    /**
      * @brief Set the visible subject for XML binding
      *
      * The subject should be initialized to 0 (hidden).
@@ -720,9 +731,10 @@ class PrintSelectDetailView : public OverlayBase {
     // could remap, refused only because the plugin is absent. Drives the
     // disabled look AND the Set up affordance, because they are one condition.
     lv_subject_t color_card_remap_needs_setup_{};
-    lv_subject_t color_card_remap_hint_visible_{};
-    lv_subject_t color_card_remap_hint_{};
-    char color_card_remap_hint_buf_[256]{};
+    // 1 = the card carries something worth explaining, so show the help icon.
+    // Covers both the refusal and the "this will misfile your history" advisory;
+    // the copy is chosen when the icon is tapped, not when it is published.
+    lv_subject_t color_card_remap_help_visible_{};
     lv_subject_t empty_tools_warning_{}; // 1 = at least one used tool's slot is empty
     // Cached backend-agnostic pre-flight validation result for the current file.
     // Computed in try_extract_gcode_colors() once the gcode is parsed; the single
