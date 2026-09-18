@@ -50,7 +50,8 @@ enum class AmsType {
     AD5X_IFS = 5,     ///< FlashForge AD5X IFS (Intelligent Filament Switching)
     CFS = 6,          ///< Creality Filament System (K2 series, RS-485)
     SNAPMAKER = 7,    ///< Snapmaker U1 SnapSwap toolchanger
-    QIDI_BOX = 8 ///< QIDI Box filament changer (PLUS4, Q2, MAX4 — hub AMS, 4 slots chainable to 16)
+    QIDI_BOX = 8, ///< QIDI Box filament changer (PLUS4, Q2, MAX4 — hub AMS, 4 slots chainable to 16)
+    OPENAMS = 9   ///< Native OpenAMS oams_manager API (not AFC OpenAMS hardware support)
 };
 
 /**
@@ -76,6 +77,8 @@ inline const char* ams_type_to_string(AmsType type) {
         return "Snapmaker";
     case AmsType::QIDI_BOX:
         return "QIDI Box"; // i18n: do not translate - product name
+    case AmsType::OPENAMS:
+        return "OpenAMS"; // i18n: do not translate - product name
     default:
         return "None";
     }
@@ -116,6 +119,9 @@ inline AmsType ams_type_from_string(std::string_view str) {
     if (str == "qidi_box" || str == "QIDI Box" || str == "qidibox") {
         return AmsType::QIDI_BOX;
     }
+    if (str == "openams" || str == "OpenAMS" || str == "oams_manager") {
+        return AmsType::OPENAMS;
+    }
     return AmsType::NONE;
 }
 
@@ -147,7 +153,7 @@ inline bool is_tool_changer(AmsType type) {
 inline bool is_filament_system(AmsType type) {
     return type == AmsType::HAPPY_HARE || type == AmsType::AFC || type == AmsType::ACE ||
            type == AmsType::AD5X_IFS || type == AmsType::CFS || type == AmsType::SNAPMAKER ||
-           type == AmsType::QIDI_BOX;
+           type == AmsType::QIDI_BOX || type == AmsType::OPENAMS;
 }
 
 /**

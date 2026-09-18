@@ -1257,7 +1257,7 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
     // Happy Hare MMU object (gate status, colors, materials, filament info)
     // Subscribe to specific fields only — nullptr means ALL fields, which causes
     // excessive notifications and Klipper-side serialization cost (#388)
-    if (hw.has_mmu()) {
+    if (hw.mmu_type() == AmsType::HAPPY_HARE) {
         // endless_spool_enabled is the ENABLE bit for endless_spool_groups. Happy Hare
         // ignores a GROUPS= write while it is 0, so an edit sent without reading it first
         // fails silently.
@@ -1301,6 +1301,14 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
                                                    "slicer_tool_map",
                                                    "toolchange_purge_volume",
                                                    "leds"});
+    }
+
+    // Native OpenAMS publishes one complete, versioned manager snapshot. The
+    // nested lane/unit/slot arrays are subscribed whole so topology changes
+    // and state changes cannot arrive as mismatched partial elements.
+    if (hw.mmu_type() == AmsType::OPENAMS) {
+        subscription_objects["oams_manager"] = json::array(
+            {"api_version", "schema", "ready", "commands", "lanes", "units", "groups"});
     }
 
     // All discovered AFC objects — narrow per object-type to the fields the
@@ -1576,8 +1584,11 @@ void MoonrakerDiscoverySequence::complete_discovery_subscription(uint64_t seq) {
     if (hw.has_fan_feedback()) {
         spdlog::debug("[MoonrakerDiscoverySequence] Subscribing to fan_feedback for RPM data");
     }
-    if (hw.has_mmu()) {
+    if (hw.mmu_type() == AmsType::HAPPY_HARE) {
         spdlog::info("[Moonraker Client] Subscribing to MMU object (Happy Hare)");
+    }
+    if (hw.mmu_type() == AmsType::OPENAMS) {
+        spdlog::info("[Moonraker Client] Subscribing to native OpenAMS manager API");
     }
     int afc_led_skipped = 0;
     for (const auto& afc_obj : afc_objects_) {

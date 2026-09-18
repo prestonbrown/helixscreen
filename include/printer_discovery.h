@@ -304,6 +304,10 @@ class PrinterDiscovery {
             else if (name == "mmu") {
                 has_mmu_ = true;
                 mmu_type_ = AmsType::HAPPY_HARE;
+            } else if (name == "oams_manager") {
+                // Latch separately and apply after the scan so native OpenAMS
+                // wins deterministically if legacy/unused AMS objects coexist.
+                has_openams_manager_ = true;
             } else if (name == "AFC") {
                 has_mmu_ = true;
                 mmu_type_ = AmsType::AFC;
@@ -665,6 +669,13 @@ class PrinterDiscovery {
             }
         }
 
+        // Native OpenAMS is a complete manager, not an AFC unit type. Prefer
+        // its own versioned API independent of object-list iteration order.
+        if (has_openams_manager_) {
+            has_mmu_ = true;
+            mmu_type_ = AmsType::OPENAMS;
+        }
+
         // multiACE hangs ACE Pro units off a Snapmaker U1's four toolheads and
         // registers a plain `ace` object, so it matches ACE detection above and
         // outranks the U1 fallback below. Its slots live per unit under
@@ -708,6 +719,8 @@ class PrinterDiscovery {
             } else if (mmu_type_ == AmsType::QIDI_BOX) {
                 // i18n: do not translate - product name
                 detected_ams_systems_.push_back({AmsType::QIDI_BOX, "QIDI Box"});
+            } else if (mmu_type_ == AmsType::OPENAMS) {
+                detected_ams_systems_.push_back({AmsType::OPENAMS, "OpenAMS"});
             }
         } else if (has_snapmaker_) {
             // Native Snapmaker filament system (no aftermarket MMU)
@@ -936,6 +949,7 @@ class PrinterDiscovery {
         has_probe_ = false;
         has_heater_bed_ = false;
         has_mmu_ = false;
+        has_openams_manager_ = false;
         has_snapmaker_ = false;
         has_tool_changer_ = false;
         has_pin_watch_ = false;
@@ -1695,6 +1709,7 @@ class PrinterDiscovery {
     bool has_probe_ = false;
     bool has_heater_bed_ = false;
     bool has_mmu_ = false;
+    bool has_openams_manager_ = false;
     bool has_snapmaker_ = false;
     bool has_tool_changer_ = false;
     bool has_pin_watch_ = false;
