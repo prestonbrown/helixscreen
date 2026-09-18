@@ -313,44 +313,22 @@ void PreheatWidget::handle_apply() {
         return;
     }
 
-    // Check for custom preheat macro
-    const auto* ovr = MaterialSettingsManager::instance().get_override(material_name);
-    if (ovr && ovr->preheat_macro && !ovr->preheat_macro->empty()) {
-        bool handles_heating = ovr->macro_handles_heating.value_or(true);
-
-        if (!handles_heating) {
-            // Macro is additive — set temps first
+    execute_material_preheat(
+        api, material_name,
+        [this, &material_name]() {
+            // Use the same targets as the label, including material overrides.
             const PreheatTargets t = targets_for_slot(selected_material_);
-            set_temperatures(t.nozzle, t.bed);
-        }
-
-        // Execute the macro
-        MacroParamResult no_params;
-        execute_macro_gcode(api, *ovr->preheat_macro, no_params, "[PreheatWidget]",
-                            get_printer_state().get_discovery());
-
-        spdlog::info("[PreheatWidget] Preheat {} via macro '{}' (handles_heating={})",
-                     material_name, *ovr->preheat_macro, handles_heating);
-        return;
-    }
-
-    // Default path: set temperatures. Same derivation the label uses, so the
-    // caption and the applied targets can never disagree.
-    const PreheatTargets t = targets_for_slot(selected_material_);
-    int nozzle = t.nozzle;
-    int bed = t.bed;
-
-    // The multi path only earns its per-heater fan-out when the printer has
-    // more than one nozzle. A single hotend behind an AMS takes the plain path,
-    // which routes through TemperatureController's Nozzle heater.
-    if (ToolState::instance().has_multiple_extruders()) {
-        set_temperatures_multi(nozzle, bed);
-    } else {
-        set_temperatures(nozzle, bed);
-    }
-
-    spdlog::info("[PreheatWidget] Preheat {} applied (nozzle={}°C, bed={}°C, tool_target={})",
-                 material_name, nozzle, bed, tool_target_);
+            // Multiple lanes sharing one hotend still use the active nozzle.
+            if (ToolState::instance().has_multiple_extruders()) {
+                set_temperatures_multi(t.nozzle, t.bed);
+            } else {
+                set_temperatures(t.nozzle, t.bed);
+            }
+            spdlog::info(
+                "[PreheatWidget] Preheat {} applied (nozzle={}°C, bed={}°C, tool_target={})",
+                material_name, t.nozzle, t.bed, tool_target_);
+        },
+        "[PreheatWidget]", printer_state_.get_discovery());
 }
 
 void PreheatWidget::handle_cooldown() {

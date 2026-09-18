@@ -9,6 +9,7 @@
 
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
+#include "material_settings_manager.h"
 #include "moonraker_error.h"
 #include "printer_discovery.h"
 
@@ -196,6 +197,31 @@ void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
             });
         },
         IMoonrakerAPI::MACRO_TIMEOUT_MS);
+}
+
+void execute_material_preheat(IMoonrakerAPI* api, const std::string& material_name,
+                              const std::function<void()>& set_temperatures, const char* caller_tag,
+                              const PrinterDiscovery& hw) {
+    if (!api) {
+        spdlog::warn("{} No API available — cannot preheat material", caller_tag);
+        return;
+    }
+
+    // Spool metadata may use a different case than the material settings key.
+    const auto material = filament::find_material(material_name);
+    const std::string key = material ? material->name : material_name;
+    const auto* override = MaterialSettingsManager::instance().get_override(key);
+    const std::string macro = override ? override->preheat_macro.value_or("") : "";
+    const bool handles_heating = override && override->macro_handles_heating.value_or(true);
+
+    if (macro.empty() || !handles_heating) {
+        set_temperatures();
+    }
+    if (!macro.empty()) {
+        execute_macro_gcode(api, macro, {}, caller_tag, hw);
+        spdlog::info("{} Preheat {} via macro '{}' (handles_heating={})", caller_tag, key, macro,
+                     handles_heating);
+    }
 }
 
 const std::unordered_set<std::string>& dangerous_command_names() {

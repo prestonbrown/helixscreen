@@ -39,6 +39,22 @@ struct FilamentPanelTestAccess {
         p.handle_load_button();
     }
 
+    static void handle_unload_button(FilamentPanel& p) {
+        p.handle_unload_button();
+    }
+
+    static void handle_preset_button(FilamentPanel& p, int slot) {
+        p.handle_preset_button(slot);
+    }
+
+    static void handle_spool_preset_button(FilamentPanel& p) {
+        p.handle_spool_preset_button();
+    }
+
+    static void update_spool_preset(FilamentPanel& p) {
+        p.update_spool_preset();
+    }
+
     static void execute_purge(FilamentPanel& p) {
         p.execute_purge();
     }

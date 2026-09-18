@@ -46,6 +46,10 @@ class PreheatWidgetTestAccess {
     static void handle_cooldown(PreheatWidget& widget) {
         widget.handle_cooldown();
     }
+
+    static void handle_apply(PreheatWidget& widget) {
+        widget.handle_apply();
+    }
 };
 
 } // namespace helix

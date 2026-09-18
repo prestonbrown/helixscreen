@@ -820,31 +820,34 @@ void FilamentPanel::handle_preset_button(int material_id) {
         }
     }
 
-    // Send temperature commands to printer (nozzle, bed, and chamber if applicable)
+    // An explicit preheat applies the selected material, not a filament-swap
+    // temperature floor. A configured heating macro owns all heater commands.
     if (selected_material_ == material_id) {
-        if (auto* c = get_temperature_controller()) {
-            // Switching material: hold the previous filament's temp if hotter so
-            // the old material still purges cleanly (keep_previous_hot).
-            c->set_target(helix::HeaterType::Nozzle, static_cast<double>(nozzle_target_),
-                          {.toast = true,
-                           .keep_previous_hot = true,
-                           .on_success = [target = nozzle_target_]() {
-                               NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}°C"), target);
-                           }});
-            c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
-                          {.toast = true, .on_success = [target = bed_target_]() {
-                               NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), target);
-                           }});
+        execute_material_preheat(
+            api_, helix::presets::name(material_id),
+            [this]() {
+                if (auto* c = get_temperature_controller()) {
+                    c->set_target(helix::HeaterType::Nozzle, static_cast<double>(nozzle_target_),
+                                  {.toast = true, .on_success = [target = nozzle_target_]() {
+                                       NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}°C"), target);
+                                   }});
+                    c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
+                                  {.toast = true, .on_success = [target = bed_target_]() {
+                                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), target);
+                                   }});
 
-            // Set chamber temperature if preset specifies one
-            if (chamber_target_ > 0) {
-                int target = deci_to_degrees(chamber_target_);
-                c->set_target(helix::HeaterType::Chamber, static_cast<double>(target),
-                              {.toast = true, .on_success = [target]() {
-                                   NOTIFY_SUCCESS(lv_tr("Chamber target set to {}°C"), target);
-                               }});
-            }
-        }
+                    // Set chamber temperature if preset specifies one
+                    if (chamber_target_ > 0) {
+                        int target = deci_to_degrees(chamber_target_);
+                        c->set_target(helix::HeaterType::Chamber, static_cast<double>(target),
+                                      {.toast = true, .on_success = [target]() {
+                                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}°C"),
+                                                          target);
+                                       }});
+                    }
+                }
+            },
+            "[FilamentPanel]", printer_state_.get_discovery());
     }
 }
 
@@ -2154,23 +2157,23 @@ void FilamentPanel::handle_spool_preset_button() {
     update_material_temp_display();
     update_status();
 
-    // Send temperature commands
-    if (auto* c = get_temperature_controller()) {
-        // Switching material via spool preset: hold the previous filament's temp
-        // if hotter so the old material still purges cleanly (keep_previous_hot).
-        c->set_target(
-            helix::HeaterType::Nozzle, static_cast<double>(nozzle_target_),
-            {.toast = true, .keep_previous_hot = true, .on_success = [t = nozzle_target_]() {
-                 NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}°C"), t);
-             }});
-        c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
-                      {.toast = true, .on_success = [t = bed_target_]() {
-                           NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), t);
-                       }});
-    }
-
-    spdlog::info("[{}] Spool preset applied: {} (nozzle={}°C, bed={}°C)", get_name(),
-                 cached_active_material_->display_name, nozzle_target_, bed_target_);
+    execute_material_preheat(
+        api_, cached_active_material_->material_name,
+        [this]() {
+            if (auto* c = get_temperature_controller()) {
+                c->set_target(helix::HeaterType::Nozzle, static_cast<double>(nozzle_target_),
+                              {.toast = true, .on_success = [t = nozzle_target_]() {
+                                   NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}°C"), t);
+                               }});
+                c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
+                              {.toast = true, .on_success = [t = bed_target_]() {
+                                   NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), t);
+                               }});
+            }
+            spdlog::info("[{}] Spool preset applied: {} (nozzle={}°C, bed={}°C)", get_name(),
+                         cached_active_material_->display_name, nozzle_target_, bed_target_);
+        },
+        "[FilamentPanel]", printer_state_.get_discovery());
 }
 
 void FilamentPanel::update_spool_preset() {
