@@ -353,7 +353,7 @@ AmsError AmsBackendAce::do_load_filament(int slot_index) {
     }
     emit_event(EVENT_STATE_CHANGED);
 
-    std::string gcode = "ACE_CHANGE_TOOL TOOL=" + std::to_string(slot_index);
+    std::string gcode = "ACE_LOAD_HEAD HEAD=0 SLOT=" + std::to_string(slot_index);
     auto token = lifetime_.token();
 
     return execute_gcode(
@@ -405,7 +405,7 @@ AmsError AmsBackendAce::do_unload_filament(int /*slot_index*/) {
     }
     emit_event(EVENT_STATE_CHANGED);
 
-    std::string gcode = "ACE_CHANGE_TOOL TOOL=-1";
+    std::string gcode = "ACE_UNLOAD_HEAD HEAD=0";
     auto token = lifetime_.token();
 
     return execute_gcode(
