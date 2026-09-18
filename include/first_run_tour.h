@@ -52,6 +52,10 @@ class FirstRunTour {
     void render_current_step();
 
     bool running_ = false;
+    // maybe_start() defers start_impl() by a tick, and start_impl() is what sets
+    // running_. Both entry points (HomePanel::on_activate and wizard completion)
+    // can fire in the same tick, so running_ alone would let both queue a start.
+    bool start_queued_ = false;
     std::size_t current_index_ = 0;
     std::vector<TourStep> steps_;
     std::unique_ptr<TourOverlay> overlay_;
