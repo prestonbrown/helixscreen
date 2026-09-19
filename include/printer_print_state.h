@@ -818,6 +818,12 @@ class PrinterPrintState {
     /// No-ops while progress_frozen_ is set.
     void publish_progress_display(int percent);
 
+    /// Take a candidate percentage from a status payload and decide whether it
+    /// becomes the print's progress. The sole writer of print_progress_, so the
+    /// clamp, the terminal-state ratchet and the paused hold are stated once and
+    /// every source is judged by the same rules.
+    void commit_progress(int percent);
+
     /// Hold the current display progress until the next print starts. Called on
     /// the transition into COMPLETE/CANCELLED/ERROR; completion pins 100 first.
     void freeze_progress_display(bool complete);

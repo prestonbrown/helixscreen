@@ -226,6 +226,44 @@ void PrinterPrintState::publish_progress_display(int percent) {
     }
 }
 
+void PrinterPrintState::commit_progress(int percent) {
+    if (percent > 100) {
+        percent = 100;
+    }
+    if (percent < 0) {
+        percent = 0;
+    }
+
+    // print_stats is parsed before this runs, and publish_lifecycle_state() with
+    // it, so the lifecycle already describes THIS payload rather than the
+    // previous tick's.
+    const PrintState lifecycle = get_print_lifecycle();
+
+    // A paused print is not advancing, so no payload arriving during the pause
+    // carries a new position. Klipper expires the M73 value behind
+    // display_status.progress and substitutes virtual_sdcard's byte position into
+    // the same field, and a pause is precisely when M73 stops being refreshed. On
+    // a multi-material print that byte position runs far ahead of the slicer's
+    // time estimate - the wipe tower is dense and quick - so accepting it here
+    // walks the bar to a number the print has not reached, then walks it back on
+    // resume.
+    if (lifecycle == PrintState::Paused) {
+        return;
+    }
+
+    // A finished print never counts down: a late sample a fraction short of where
+    // it stopped must not drag the number backwards.
+    const bool is_terminal_state =
+        (lifecycle == PrintState::Complete || lifecycle == PrintState::Cancelled ||
+         lifecycle == PrintState::Error);
+
+    const int current_progress = lv_subject_get_int(&print_progress_);
+    if ((!is_terminal_state || percent >= current_progress) && current_progress != percent) {
+        lv_subject_set_int(&print_progress_, percent);
+    }
+    publish_progress_display(percent);
+}
+
 void PrinterPrintState::freeze_progress_display(bool complete) {
     if (complete) {
         // A finished print is 100% even when the last virtual_sdcard sample
@@ -710,22 +748,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
     // update print_progress_ directly from slicer value
     if (slicer_progress_active_ && status.contains("display_status") &&
         !status.contains("virtual_sdcard")) {
-        int progress_pct = static_cast<int>(slicer_progress_ * 100.0 + 0.5);
-        if (progress_pct > 100)
-            progress_pct = 100;
-        if (progress_pct < 0)
-            progress_pct = 0;
-
-        auto current_state = static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_));
-        bool is_terminal_state =
-            (current_state == PrintJobState::COMPLETE ||
-             current_state == PrintJobState::CANCELLED || current_state == PrintJobState::ERROR);
-        int current_progress = lv_subject_get_int(&print_progress_);
-        if ((!is_terminal_state || progress_pct >= current_progress) &&
-            current_progress != progress_pct) {
-            lv_subject_set_int(&print_progress_, progress_pct);
-        }
-        publish_progress_display(progress_pct);
+        commit_progress(static_cast<int>(slicer_progress_ * 100.0 + 0.5));
     }
 
     // Per-extruder filament_used (from Klipper's extruder/extruder1/... objects).
@@ -818,25 +841,8 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
                 if (slicer_progress_active_) {
                     // Slicer active and display_status present — use slicer value
                     progress_pct = static_cast<int>(slicer_progress_ * 100.0 + 0.5);
-                    if (progress_pct > 100)
-                        progress_pct = 100;
-                    if (progress_pct < 0)
-                        progress_pct = 0;
                 }
-
-                // Guard: Don't reset progress to 0 in terminal print states
-                auto current_state =
-                    static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_));
-                bool is_terminal_state = (current_state == PrintJobState::COMPLETE ||
-                                          current_state == PrintJobState::CANCELLED ||
-                                          current_state == PrintJobState::ERROR);
-
-                int current_progress = lv_subject_get_int(&print_progress_);
-                if ((!is_terminal_state || progress_pct >= current_progress) &&
-                    current_progress != progress_pct) {
-                    lv_subject_set_int(&print_progress_, progress_pct);
-                }
-                publish_progress_display(progress_pct);
+                commit_progress(progress_pct);
             }
 
             // virtual_sdcard.layer / layer_count are the FALLBACK source —
