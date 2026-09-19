@@ -10,9 +10,11 @@
 //   Native       — backend owns the T0..Tn slot mapping internally (HH, AFC,
 //                  CFS, AD5X IFS, ToolChanger); helix does NOT rewrite gcode
 //   GcodeRewrite — helix must rewrite T-commands in the gcode file because the
-//                  backend has no internal tool-routing. Declared by ToolChanger
-//                  on a changer with no ASSIGN_TOOL; ACE declares None until the
-//                  ACE_CHANGE_TOOL family is handled
+//                  backend has no internal tool-routing. No backend declares it
+//                  on this line: a changer with no ASSIGN_TOOL answers None and
+//                  the remap is refused rather than rewritten, and ACE answers
+//                  None until the ACE_CHANGE_TOOL family is handled. The
+//                  GcodeRewrite rungs below are reachable only through a probe
 //   SnapmakerNative — firmware pre-print send, no gcode rewrite (Snapmaker U1)
 //
 // The per-backend probes come from tests/test_helpers/ams_backend_probes.h.
