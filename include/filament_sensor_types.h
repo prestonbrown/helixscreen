@@ -3,9 +3,21 @@
 
 #pragma once
 
+#include <chrono>
 #include <string>
 
 namespace helix {
+
+/// How long a runout-role sensor must stay clear -- while a job holds the machine
+/// and an AMS backend is present -- before the removal toast fires.
+///
+/// A tool change drags filament off the toolhead sensor and feeds the next lane
+/// past it, which is identical to a runout at the edge and tells them apart only
+/// by duration: a swap leaves the sensor clear for 26-33s and then refills, a
+/// runout never refills. Anything shorter than a swap reports every tool change
+/// as a runout. Detection and the runout subjects still fire on the edge; only
+/// the toast waits.
+constexpr std::chrono::seconds RUNOUT_TOAST_DWELL{45};
 
 /**
  * @brief Role that a filament sensor can be assigned to.
