@@ -296,3 +296,45 @@ TEST_CASE_METHOD(DwellFixture, "A dwell outstanding when the job ends is dropped
     CHECK_FALSE(
         PostUnloadGraceTestAccess::removal_dwell_pending(FilamentSensorManager::instance()));
 }
+
+TEST_CASE_METHOD(DwellFixture, "A runout that stops the print is still announced",
+                 "[runout][dwell][sensors]") {
+    printing_with(AmsType::AD5X_IFS);
+
+    ToastCapture toasts;
+    sensor(false);
+    REQUIRE(toasts.warnings_containing(REMOVED_WARNING) == 0);
+
+    // Klipper's runout_gcode cancels rather than pauses on plenty of printers,
+    // and a user faced with a runout-paused print often cancels it well inside
+    // the dwell. Either way the job ends with this sensor still empty, which is
+    // the runout itself - and on a backend that raises no fault of its own the
+    // toast is the only account of it the user gets.
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::CANCELLED);
+    helix::ui::UpdateQueue::instance().drain();
+    age_past_dwell();
+    tick();
+
+    CHECK(toasts.warnings_containing(REMOVED_WARNING) == 1);
+}
+
+TEST_CASE_METHOD(DwellFixture, "A dwell coming due mid filament operation stays quiet",
+                 "[runout][dwell][sensors]") {
+    printing_with(AmsType::AD5X_IFS);
+
+    ToastCapture toasts;
+    sensor(false);
+    REQUIRE(PostUnloadGraceTestAccess::removal_dwell_pending(FilamentSensorManager::instance()));
+
+    // Recovering from a runout means loading filament, and a load drags it past
+    // this sensor. The same term that silences the edge during an AMS operation
+    // has to hold at expiry, or the warning lands in the middle of the reload
+    // the user started to fix it.
+    AmsState::instance().set_action(AmsAction::LOADING);
+    REQUIRE(AmsState::instance().is_filament_operation_active());
+    age_past_dwell();
+    tick();
+
+    CHECK(toasts.warnings_containing(REMOVED_WARNING) == 0);
+    AmsState::instance().set_action(AmsAction::IDLE);
+}

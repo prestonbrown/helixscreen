@@ -972,6 +972,11 @@ void FilamentSensorManager::update_from_status(const json& status) {
     // already own the runout surface never reach here, and a printer with no
     // AMS has no tool change to confuse this with, so both keep the edge toast.
     const bool dwell_removal_toast = job_owns_machine && backend_type != AmsType::NONE;
+    // How the last job ended, which outlives the lifecycle's trip back to Idle.
+    // A print that finished on its own terms takes its end-of-print filament
+    // handling with it; any other ending stopped with the sensor already empty.
+    const auto print_outcome = static_cast<PrintOutcome>(
+        lv_subject_get_int(get_printer_state().get_print_outcome_subject()));
 
     // Phase 1: Update state under lock, collect notifications
     {
@@ -1141,17 +1146,32 @@ void FilamentSensorManager::update_from_status(const json& status) {
         // faster than the dwell, so the toast lands within a tick of coming due.
         for (auto it = pending_removal_toast_.begin(); it != pending_removal_toast_.end();) {
             auto state_it = states_.find(it->first);
-            // Refilled, gone from the sensor set, or the job no longer holds the
-            // machine: in each case the removal is not the printer running out
-            // mid-print, which is the only thing this toast exists to report.
-            // The idle-side suppressions own whatever happens after the job.
-            if (state_it == states_.end() || state_it->second.filament_detected ||
-                !job_owns_machine) {
+            // Refilled, or gone from the sensor set: nothing left to confirm.
+            if (state_it == states_.end() || state_it->second.filament_detected) {
+                it = pending_removal_toast_.erase(it);
+                continue;
+            }
+            // The job ended. One that COMPLETED did so on its own terms, and the
+            // end-of-print unload some backends run afterwards belongs to the
+            // idle-side suppressions. Any other ending stopped with this sensor
+            // already empty, which is the runout the dwell was opened to
+            // confirm - and where the backend raises no fault of its own, this
+            // toast is the only account the user gets. A runout_gcode that
+            // cancels the print lands here.
+            if (!job_owns_machine && print_outcome == PrintOutcome::COMPLETE) {
                 it = pending_removal_toast_.erase(it);
                 continue;
             }
             if (now - it->second < RUNOUT_TOAST_DWELL) {
                 ++it;
+                continue;
+            }
+            // Something is already accounting for the empty sensor by the time
+            // the dwell is up - an AMS operation moving filament past it, or the
+            // wizard walking the user through one. The same terms silence the
+            // edge, and a removal the user is performing needs no warning.
+            if (ams_active || is_wizard_active()) {
+                it = pending_removal_toast_.erase(it);
                 continue;
             }
             auto cfg =
