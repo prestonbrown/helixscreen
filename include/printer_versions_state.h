@@ -105,10 +105,6 @@ class PrinterVersionsState {
         return &klipper_version_;
     }
 
-    /**
-     * @brief Get Moonraker version subject for XML binding
-     * @return Pointer to string subject
-     */
     /// 1 when this Moonraker is below MIN_MOONRAKER_VERSION, 0 otherwise.
     /// Derived in set_moonraker_version_internal() from the RAW string, before
     /// the display form drops what a comparison needs.

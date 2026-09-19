@@ -134,7 +134,7 @@ class DwellFixture : public LVGLTestFixture {
   public:
     DwellFixture() {
         get_printer_state().init_subjects(false);
-        AmsState::instance().init_subjects(false);
+        AmsState::instance().init_subjects(true);
         AmsState::instance().clear_backends();
 
         auto& fsm = FilamentSensorManager::instance();
