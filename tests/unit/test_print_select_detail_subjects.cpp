@@ -798,6 +798,24 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
         CHECK(lv_subject_get_int(help_visible) == 0);
     }
 
+    SECTION("a firmware-table remap is never warned that the job file gets rewritten") {
+        // The degraded-history advisory only makes sense for a GcodeRewrite
+        // remap, which prints a modified copy and needs the plugin to put the
+        // original name back. A backend with its own picker routes in firmware
+        // and never touches the file, so an old Moonraker costs it nothing - and
+        // the modal behind this cue would tell its user the file is rewritten,
+        // which on that printer does not happen.
+        ams.backend->set_snapmaker_mode(true);
+        lv_subject_set_int(get_printer_state().get_moonraker_history_degraded_subject(), 1);
+        view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
+
+        REQUIRE(view.current_remap_block() == helix::printer::RemapBlock::None);
+        CHECK(lv_subject_get_int(remappable) == 1);
+        CHECK(lv_subject_get_int(help_visible) == 0);
+
+        lv_subject_set_int(get_printer_state().get_moonraker_history_degraded_subject(), 0);
+    }
+
     SECTION("card shown on a backend with a picker: chevron lit") {
         // Snapmaker U1 shape - mapping not editable inline, but the backend has
         // a native remap picker, so current_remap_block() is None. The known

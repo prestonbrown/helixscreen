@@ -2842,7 +2842,6 @@ void PrintSelectPanel::open_remap_modal() {
     if (!backend) {
         return;
     }
-    const auto strategy = backend->get_remap_strategy();
 
     // The same answer the card published, asked again here because this opener
     // is reachable from the preflight modal too and a subject is only as fresh

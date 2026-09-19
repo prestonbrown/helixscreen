@@ -1563,8 +1563,17 @@ void PrintSelectDetailView::publish_card_visibility() {
     // Available but the finished job will be misfiled: say so here rather than
     // at startup, where it was a claim about the whole app instead of about the
     // one thing it actually costs.
+    // Only a GcodeRewrite remap prints a modified copy and leans on the plugin to
+    // put the original name back, so only it can lose the history entry. A
+    // backend that routes through its own firmware table never touches the job
+    // file, and telling its user the file gets rewritten describes something the
+    // printer does not do. Same term remap_block() gates its plugin rung on.
+    const auto* backend = AmsState::instance().get_backend();
+    const bool rewrites_job_file =
+        backend != nullptr &&
+        backend->get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite;
     const bool degraded =
-        available &&
+        available && rewrites_job_file &&
         lv_subject_get_int(get_printer_state().get_moonraker_history_degraded_subject()) == 1;
 
     lv_subject_set_int(&color_card_remap_help_visible_,
