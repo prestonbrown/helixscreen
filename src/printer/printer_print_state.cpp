@@ -720,7 +720,15 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
     // Parse display_status (M73 progress + M117 message)
     if (status.contains("display_status")) {
         const auto& display = status["display_status"];
-        if (display.contains("progress") && display["progress"].is_number()) {
+        // Not while paused. Klipper expires the M73 value behind this field and
+        // substitutes virtual_sdcard's byte position, and a pause is exactly when
+        // M73 stops being refreshed. commit_progress() declines to publish during
+        // the pause, but recording the substituted value here would outlive it: a
+        // later display_status carrying only an M117 message leaves this member
+        // untouched and still reaches the publish below, handing it the byte
+        // position as though it were the slicer's estimate.
+        if (display.contains("progress") && display["progress"].is_number() &&
+            get_print_lifecycle() != PrintState::Paused) {
             double raw = display["progress"].get<double>();
             slicer_progress_ = raw;
             if (raw > 0.0 && !slicer_progress_active_) {

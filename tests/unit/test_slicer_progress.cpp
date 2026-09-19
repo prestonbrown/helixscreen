@@ -381,3 +381,30 @@ TEST_CASE("Paused progress: tracking resumes once the print does",
     state.update_from_status(json{{"display_status", {{"progress", 0.12}}}});
     CHECK(lv_subject_get_int(state.get_print_progress_subject()) == 12);
 }
+
+TEST_CASE("Paused progress: a message-only payload after resume cannot publish the paused value",
+          "[print][progress][slicer][paused]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    json printing = {{"print_stats", {{"state", "printing"}}}};
+    state.update_from_status(printing);
+    state.update_from_status(json{{"display_status", {{"progress", 0.11}}}});
+    REQUIRE(lv_subject_get_int(state.get_print_progress_subject()) == 11);
+
+    // Paused, and the field starts carrying byte position instead of M73.
+    state.update_from_status(json{{"print_stats", {{"state", "paused"}}}});
+    state.update_from_status(json{{"display_status", {{"progress", 0.25}}}});
+    REQUIRE(lv_subject_get_int(state.get_print_progress_subject()) == 11);
+
+    state.update_from_status(printing);
+
+    // An M117 update carries display_status with no progress field, so it
+    // refreshes nothing yet still reaches the publish. Declining to record the
+    // paused reading in the first place is what stops it arriving here.
+    state.update_from_status(json{{"display_status", {{"message", "Resuming"}}}});
+    CHECK(lv_subject_get_int(state.get_print_progress_subject()) == 11);
+}
