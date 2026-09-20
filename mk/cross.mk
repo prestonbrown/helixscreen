@@ -253,7 +253,14 @@ else ifeq ($(PLATFORM_TARGET),ad5m)
     # -static: Fully static binary - no runtime dependencies on system libs
     # This avoids glibc version mismatch (binary needs 2.33, system has 2.25)
     # -lstdc++fs: Required for std::experimental::filesystem on GCC 10.x
-    TARGET_LDFLAGS := -Wl,--gc-sections -flto -static -lstdc++fs
+    # -u pthread_join/-u pthread_detach: libstdc++'s thread.o references both
+    # weakly, and ld does not extract an archive member to satisfy a weak
+    # undefined symbol. Without a strong reference they stay unresolved, ld
+    # rewrites each call site to nop.w, and std::thread::join()/detach() fall
+    # through to __throw_system_error carrying the pthread_t handle as the
+    # error code instead of joining. Listing -lpthread does not prevent this.
+    TARGET_LDFLAGS := -Wl,--gc-sections -flto -static -lstdc++fs \
+                      -Wl,-u,pthread_join -Wl,-u,pthread_detach
     # SSL enabled for HTTPS/WSS support with Moonraker
     ENABLE_SSL := yes
     DISPLAY_BACKEND := fbdev
@@ -379,7 +386,14 @@ else ifeq ($(PLATFORM_TARGET),cc1)
     # -static: Fully static binary - no runtime dependencies on system libs
     # This avoids glibc version mismatch (binary needs 2.33, system has 2.23)
     # -lstdc++fs: Required for std::experimental::filesystem on GCC 10.x
-    TARGET_LDFLAGS := -Wl,--gc-sections -flto -static -lstdc++fs
+    # -u pthread_join/-u pthread_detach: libstdc++'s thread.o references both
+    # weakly, and ld does not extract an archive member to satisfy a weak
+    # undefined symbol. Without a strong reference they stay unresolved, ld
+    # rewrites each call site to nop.w, and std::thread::join()/detach() fall
+    # through to __throw_system_error carrying the pthread_t handle as the
+    # error code instead of joining. Listing -lpthread does not prevent this.
+    TARGET_LDFLAGS := -Wl,--gc-sections -flto -static -lstdc++fs \
+                      -Wl,-u,pthread_join -Wl,-u,pthread_detach
     # SSL enabled for HTTPS/WSS support with Moonraker
     ENABLE_SSL := yes
     DISPLAY_BACKEND := fbdev
