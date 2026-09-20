@@ -21,6 +21,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <unordered_set>
 #include <utility>
 
 /**
@@ -53,14 +54,14 @@ class ObserverGuard {
 
     ObserverGuard(lv_subject_t* subject, lv_observer_cb_t cb, void* user_data)
         : observer_(lv_subject_add_observer(subject, cb, user_data)),
-          created_epoch_(s_invalidation_epoch.load(std::memory_order_acquire)) {}
+          created_epoch_(s_invalidation_epoch.load(std::memory_order_acquire)), subject_(subject) {}
 
     /// Construct with a cleanup callback for the user_data context.
     /// The cleanup runs in reset() to free the context and expire weak tokens.
     ObserverGuard(lv_subject_t* subject, lv_observer_cb_t cb, void* user_data,
                   std::function<void()> cleanup)
         : observer_(lv_subject_add_observer(subject, cb, user_data)),
-          created_epoch_(s_invalidation_epoch.load(std::memory_order_acquire)),
+          created_epoch_(s_invalidation_epoch.load(std::memory_order_acquire)), subject_(subject),
           cleanup_(std::move(cleanup)) {}
 
     ~ObserverGuard() {
@@ -71,7 +72,7 @@ class ObserverGuard {
         : observer_(std::exchange(other.observer_, nullptr)),
           alive_token_(std::move(other.alive_token_)),
           has_alive_token_(std::exchange(other.has_alive_token_, false)),
-          created_epoch_(other.created_epoch_),
+          created_epoch_(other.created_epoch_), subject_(std::exchange(other.subject_, nullptr)),
           // std::exchange, not std::move: a moved-from std::function is left in
           // a valid but UNSPECIFIED state, and libc++ keeps the target when the
           // callable fits its small-object buffer - which `[ctx]{ delete ctx; }`
@@ -87,6 +88,7 @@ class ObserverGuard {
             alive_token_ = std::move(other.alive_token_);
             has_alive_token_ = std::exchange(other.has_alive_token_, false);
             created_epoch_ = other.created_epoch_;
+            subject_ = std::exchange(other.subject_, nullptr);
             cleanup_ = std::exchange(other.cleanup_, nullptr);
         }
         return *this;
@@ -96,15 +98,18 @@ class ObserverGuard {
     ObserverGuard& operator=(const ObserverGuard&) = delete;
 
     /**
-     * @brief Signal that all subjects have been torn down (soft restart).
+     * @brief Signal that the registry's subjects have been torn down (soft restart).
      *
      * Bumps a monotonic invalidation epoch. Any ObserverGuard created BEFORE
-     * this call had its subject freed by StaticSubjectRegistry::deinit_all()
-     * (LVGL already removed+freed the observer), so its reset() will skip
-     * lv_observer_remove() to avoid touching freed memory. Observers created
-     * AFTER this call — e.g. widgets built during init_printer_state()'s
-     * finalize_setup() before revalidate_all() — are attached to live
-     * subjects and are removed normally on reset().
+     * this call whose subject was freed by StaticSubjectRegistry::deinit_all()
+     * (LVGL already removed+freed the observer) will skip
+     * lv_observer_remove() to avoid touching freed memory — reset() consults
+     * the teardown exemption (mark_subject_teardown_exempt()), so guards on
+     * subjects the registry never frees (the reseeded theme globals) still
+     * remove theirs.
+     * Observers created AFTER this call — e.g. widgets built during
+     * init_printer_state()'s finalize_setup() before revalidate_all() — are
+     * attached to live subjects and are removed normally on reset().
      *
      * Call invalidate_all() AFTER StaticSubjectRegistry::deinit_all() and
      * BEFORE any re-initialization.
@@ -127,6 +132,35 @@ class ObserverGuard {
      */
     static void revalidate_all() {}
 
+    /**
+     * @brief Declare that a subject is never freed by a registry teardown.
+     *
+     * The invalidation epoch is process-global: it says a
+     * StaticSubjectRegistry::deinit_all() ran, not that any given subject was
+     * one of the freed ones. Subjects that deinit_all() never touches — the
+     * file-static theme globals, reseeded in place by theme_manager_init()
+     * rather than torn down — keep every observer allocated across the bump,
+     * so suppressing their removal orphans a live observer node whose context
+     * reset() is about to free. Owners register such subjects here, at the
+     * same place they initialize them.
+     *
+     * Registering a subject that IS in fact torn down while LVGL is
+     * initialized converts its guards' skip into a use-after-free, so the
+     * claim "no deinit path frees this subject mid-process" must hold.
+     *
+     * @threading Main thread only, like the rest of this class's statics.
+     */
+    static void mark_subject_teardown_exempt(lv_subject_t* subject) {
+        if (subject != nullptr) {
+            teardown_exempt_subjects().insert(subject);
+        }
+    }
+
+    /// Whether @p subject was registered by mark_subject_teardown_exempt().
+    static bool subject_is_teardown_exempt(const lv_subject_t* subject) {
+        return subject != nullptr && teardown_exempt_subjects().count(subject) != 0;
+    }
+
     void reset() {
         if (observer_) {
             // If we have a lifetime token and either (a) it expired (all shared_ptrs
@@ -145,17 +179,23 @@ class ObserverGuard {
                 auto locked = alive_token_.lock();
                 subject_dead = !locked || !*locked;
             }
-            // An observer created before the most recent invalidate_all() had
-            // its subject freed by StaticSubjectRegistry::deinit_all(); LVGL
-            // already removed+freed the observer, so lv_observer_remove() would
-            // touch freed memory. An observer created during/after that window
-            // (e.g. a widget built mid-reinit) is on a LIVE subject and must be
-            // removed normally — skipping it orphans a live observer node whose
-            // context we are about to free → UAF on the next notify (#449TVQ82,
-            // #X3RA4252). created_epoch_ distinguishes the two cases; the old
-            // global boolean could not.
+            // An observer created before the most recent invalidate_all() MAY
+            // have had its subject freed by StaticSubjectRegistry::deinit_all()
+            // — then LVGL already removed+freed the observer and
+            // lv_observer_remove() would touch freed memory. The epoch is
+            // process-global though: it says a registry teardown happened, not
+            // that THIS subject was one of the freed ones. A subject declared
+            // teardown-exempt by its owner (the reseeded theme globals) keeps
+            // its observers allocated across the bump, and skipping removal
+            // there orphans a live observer node whose context we are about to
+            // free → UAF on the next notify (#449TVQ82, #X3RA4252). An
+            // observer created during/after the window (e.g. a widget built
+            // mid-reinit) is on a LIVE subject and is removed normally —
+            // created_epoch_ distinguishes the two cases; the old global
+            // boolean could not.
             bool freed_by_deinit =
-                created_epoch_ < s_invalidation_epoch.load(std::memory_order_acquire);
+                created_epoch_ < s_invalidation_epoch.load(std::memory_order_acquire) &&
+                !subject_is_teardown_exempt(subject_);
             if (!subject_dead && !freed_by_deinit && lv_is_initialized()) {
                 lv_observer_remove(observer_);
             }
@@ -221,11 +261,20 @@ class ObserverGuard {
     }
 
   private:
+    /// Backing for mark_subject_teardown_exempt(). Deliberately never
+    /// destroyed: reset() can run from a static destructor, after any
+    /// destructor-ordered container would be gone.
+    static std::unordered_set<const lv_subject_t*>& teardown_exempt_subjects() {
+        static auto* subjects = new std::unordered_set<const lv_subject_t*>();
+        return *subjects;
+    }
+
     /// Monotonic counter bumped by invalidate_all() each teardown. Observers
     /// compare their created_epoch_ against it to decide whether their subject
-    /// was already freed by deinit_all() (skip removal) or is still live
-    /// (remove normally). Replaces the old global s_subjects_valid boolean,
-    /// which could not tell window-created observers from pre-teardown ones.
+    /// MAY have been freed by deinit_all() (skip removal unless the subject is
+    /// teardown-exempt) or is untouched (remove normally). Replaces the old
+    /// global s_subjects_valid boolean, which could not tell window-created
+    /// observers from pre-teardown ones.
     static inline std::atomic<uint64_t> s_invalidation_epoch{0};
 
     lv_observer_t* observer_ = nullptr;
@@ -235,9 +284,12 @@ class ObserverGuard {
     /// static-subject guards to falsely skip lv_observer_remove() and leak observers.
     bool has_alive_token_ = false;
     /// Invalidation epoch captured when this guard's observer was registered.
-    /// If < s_invalidation_epoch at reset() time, the subject was deinited by a
-    /// later teardown and the observer is already freed — skip removal.
+    /// If < s_invalidation_epoch at reset() time, a registry teardown may have
+    /// freed the observer — see subject_is_teardown_exempt().
     uint64_t created_epoch_ = 0;
+    /// The subject this guard's observer was registered on, consulted for the
+    /// teardown exemption during that decision.
+    lv_subject_t* subject_ = nullptr;
     /// Cleanup callback to free the observer context (LambdaObserverContext).
     /// When called, destroys the shared_ptr<bool> alive token, expiring weak_ptr
     /// copies held by deferred lambdas so they skip execution on destroyed widgets.

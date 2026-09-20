@@ -8,6 +8,7 @@
 #include "ui_fonts.h"
 #include "ui_gradient_canvas.h"
 #include "ui_icon.h"
+#include "ui_observer_guard.h"
 #include "ui_split_button.h"
 #include "ui_switch.h"
 
@@ -1582,6 +1583,7 @@ static void theme_manager_register_semantic_colors(lv_xml_component_scope_t* sco
                                    SWATCH_DESC_BUF_SIZE, swatch_descriptions[i]);
             char key[24];
             snprintf(key, sizeof(key), "swatch_%zu_desc", i);
+            ObserverGuard::mark_subject_teardown_exempt(&swatch_desc_subjects[i]);
             lv_xml_register_subject(nullptr, key, &swatch_desc_subjects[i]);
         }
         swatch_descs_initialized = true;
@@ -1739,6 +1741,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     if (!theme_subject_initialized) {
         lv_subject_init_int(&theme_changed_subject, 0);
         theme_subject_initialized = true;
+        ObserverGuard::mark_subject_teardown_exempt(&theme_changed_subject);
     }
 
     // Override runtime theme constants based on light/dark mode preference
@@ -1786,6 +1789,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         } else {
             lv_subject_set_int(&ui_breakpoint_subject, to_int(bp));
         }
+        ObserverGuard::mark_subject_teardown_exempt(&ui_breakpoint_subject);
         lv_xml_register_subject(nullptr, "ui_breakpoint", &ui_breakpoint_subject);
         spdlog::debug("[Theme] Registered ui_breakpoint subject: {} (min_dim={})", to_int(bp),
                       resp_res);
@@ -1804,6 +1808,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         } else {
             lv_subject_set_int(&ui_breakpoint_v_subject, to_int(vbp));
         }
+        ObserverGuard::mark_subject_teardown_exempt(&ui_breakpoint_v_subject);
         lv_xml_register_subject(nullptr, "ui_breakpoint_v", &ui_breakpoint_v_subject);
         spdlog::debug("[Theme] Registered ui_breakpoint_v subject: {} (vert_dim={})", to_int(vbp),
                       vert_res);
@@ -1826,6 +1831,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         } else {
             lv_subject_set_int(&ui_is_portrait_subject, is_portrait);
         }
+        ObserverGuard::mark_subject_teardown_exempt(&ui_is_portrait_subject);
         lv_xml_register_subject(nullptr, "ui_is_portrait", &ui_is_portrait_subject);
         spdlog::debug("[Theme] Registered ui_is_portrait subject: {} ({}x{})", is_portrait, hor_res,
                       ver_res);
