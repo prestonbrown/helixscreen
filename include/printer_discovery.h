@@ -376,6 +376,14 @@ class PrinterDiscovery {
                      name.rfind("AFC_lane ", 0) != 0 && name.rfind("AFC_buffer ", 0) != 0 &&
                      name.rfind("AFC_led ", 0) != 0) {
                 afc_unit_object_names_.push_back(name); // Store FULL name for Klipper queries
+                // A literal `AFC_unit` is PAXX's AFC-Lite stub. Real AFC's
+                // AFC_unit.py is a base class with no load_config_prefix, so
+                // every unit that exists registers its own hardware type
+                // (AFC_BoxTurtle, AFC_OpenAMS, AFC_HTLF, ...) and none can
+                // publish this name.
+                if (name.rfind("AFC_unit ", 0) == 0) {
+                    has_afc_lite_ = true;
+                }
             }
             // AFC buffer objects
             else if (name.rfind("AFC_buffer ", 0) == 0) {
@@ -619,6 +627,22 @@ class PrinterDiscovery {
             }
         }
 
+        // PAXX's AFC-Lite is a status-only stub that impersonates AFC so Fluidd
+        // and Mainsail will draw their AFC panel for a U1's four extruders. It
+        // reports no extruders and no hubs, so the unit infers as HUB and the
+        // path draws one nozzle behind a hub for a four-toolhead machine. Its
+        // every operation wraps the U1's own AUTO_FEEDING, which the Snapmaker
+        // backend already drives, so yielding costs nothing the stub provided
+        // and restores the four toolheads. Scoped to co-presence with
+        // filament_detect, which U1 firmware alone publishes: a bare AFC_unit
+        // on some other machine is displacing nothing better.
+        if (has_mmu_ && mmu_type_ == AmsType::AFC && has_afc_lite_ && has_snapmaker_) {
+            has_mmu_ = false;
+            spdlog::info("[PrinterDiscovery] AFC_unit alongside filament_detect: PAXX AFC-Lite on "
+                         "a Snapmaker U1. It reports no extruders, so the Snapmaker backend keeps "
+                         "the printer and its four toolheads.");
+        }
+
         // Collect all detected AMS systems
         detected_ams_systems_.clear();
 
@@ -822,6 +846,7 @@ class PrinterDiscovery {
         has_heater_bed_ = false;
         has_mmu_ = false;
         has_snapmaker_ = false;
+        has_afc_lite_ = false;
         has_tool_changer_ = false;
         has_pin_watch_ = false;
         pin_watch_object_name_.clear();
@@ -929,6 +954,13 @@ class PrinterDiscovery {
     /// Whether a pin_watch dock-sensor extra is configured.
     [[nodiscard]] bool has_pin_watch() const {
         return has_pin_watch_;
+    }
+
+    /// An `AFC_unit` object is present, which only PAXX's AFC-Lite stub
+    /// publishes. A plain fact about the object list; what it means for backend
+    /// selection is decided alongside has_snapmaker().
+    [[nodiscard]] bool has_afc_lite() const {
+        return has_afc_lite_;
     }
 
     /// Full Klipper object name of the pin_watch section (e.g. "pin_watch io"),
@@ -1625,6 +1657,7 @@ class PrinterDiscovery {
     bool has_heater_bed_ = false;
     bool has_mmu_ = false;
     bool has_snapmaker_ = false;
+    bool has_afc_lite_ = false;
     bool has_tool_changer_ = false;
     bool has_pin_watch_ = false;
     std::string pin_watch_object_name_;

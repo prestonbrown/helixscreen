@@ -138,6 +138,111 @@ TEST_CASE_METHOD(MultiBackendFixture,
     REQUIRE(hw.ace_object_names() == std::vector<std::string>{"ace"});
 }
 
+// ----------------------------------------------------------------------------
+// PAXX AFC-Lite on a Snapmaker U1
+//
+// PAXX ships a status-only stub that impersonates AFC so Fluidd and Mainsail
+// will draw their AFC panel for the U1's four extruders. It reports no
+// extruders and no hubs, so the unit infers as HUB and the panel draws one
+// nozzle behind a hub for a four-toolhead machine. The discriminator is the
+// `AFC_unit` object: real AFC's AFC_unit.py is a base class with no
+// load_config_prefix, so every real unit registers its own type instead
+// (AFC_BoxTurtle, AFC_OpenAMS, AFC_HTLF, ...) and only the stub can publish a
+// literal `AFC_unit`. The matrix below is the rule: it must fire on the stub
+// marker together with the U1's, and must leave both real AFC on a U1 and the
+// stub marker alone untouched.
+// ----------------------------------------------------------------------------
+
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "PrinterDiscovery: AFC-Lite alongside filament_detect keeps the Snapmaker backend",
+                 "[ams][afc][snapmaker][multi-backend]") {
+    helix::PrinterDiscovery hw;
+    // A U1's object list with the PAXX AFC stub enabled: the stock
+    // four-toolhead machine plus afc.cfg's [AFC], [AFC_unit U1] and lanes.
+    nlohmann::json objects = nlohmann::json::array(
+        {"AFC", "AFC_unit U1", "AFC_lane E0", "AFC_lane E1", "AFC_lane E2", "AFC_lane E3",
+         "filament_detect", "toolchanger", "tool T0", "tool T1", "tool T2", "tool T3", "extruder",
+         "extruder1", "extruder2", "extruder3", "print_task_config", "toolhead"});
+    hw.parse_objects(objects);
+
+    // The stub marker was seen: without this the case could pass on a typo in
+    // the object name rather than on the rule under test.
+    REQUIRE(hw.has_afc_lite());
+
+    REQUIRE_FALSE(hw.has_mmu());
+    REQUIRE(hw.has_snapmaker());
+    REQUIRE(hw.mmu_type() == AmsType::SNAPMAKER);
+
+    // Exactly one backend, and it is the U1's. A toolchanger with four tools is
+    // also present, so SNAPMAKER here also proves the fallback did not slide
+    // down to TOOL_CHANGER.
+    const auto& systems = hw.detected_ams_systems();
+    REQUIRE(systems.size() == 1);
+    REQUIRE(systems[0].type == AmsType::SNAPMAKER);
+}
+
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "PrinterDiscovery: real AFC hardware on a U1 still keeps the AFC backend",
+                 "[ams][afc][snapmaker][multi-backend]") {
+    helix::PrinterDiscovery hw;
+    // A Box Turtle genuinely wired to a U1: real AFC registers its unit under
+    // the hardware's own type, never a bare `AFC_unit`.
+    nlohmann::json objects = nlohmann::json::array(
+        {"AFC", "AFC_BoxTurtle Turtle_1", "AFC_stepper lane1", "AFC_stepper lane2",
+         "AFC_hub Turtle_1", "filament_detect", "extruder", "extruder1"});
+    hw.parse_objects(objects);
+
+    // The stub marker is absent, which is the whole reason AFC keeps this one.
+    REQUIRE_FALSE(hw.has_afc_lite());
+    REQUIRE(hw.has_snapmaker());
+
+    REQUIRE(hw.has_mmu());
+    REQUIRE(hw.mmu_type() == AmsType::AFC);
+
+    const auto& systems = hw.detected_ams_systems();
+    REQUIRE(systems.size() == 1);
+    REQUIRE(systems[0].type == AmsType::AFC);
+}
+
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "PrinterDiscovery: an AFC_unit object without filament_detect keeps AFC",
+                 "[ams][afc][multi-backend]") {
+    helix::PrinterDiscovery hw;
+    // No U1 marker anywhere, so nothing better is being displaced.
+    nlohmann::json objects = nlohmann::json::array(
+        {"AFC", "AFC_unit U1", "AFC_lane E0", "extruder", "heater_bed", "gcode_move"});
+    hw.parse_objects(objects);
+
+    REQUIRE(hw.has_afc_lite());
+    REQUIRE_FALSE(hw.has_snapmaker());
+
+    REQUIRE(hw.has_mmu());
+    REQUIRE(hw.mmu_type() == AmsType::AFC);
+
+    const auto& systems = hw.detected_ams_systems();
+    REQUIRE(systems.size() == 1);
+    REQUIRE(systems[0].type == AmsType::AFC);
+}
+
+// A Snapmaker U1 running a filament system we CAN read keeps that system. The
+// yield is scoped to the AFC-Lite stub, not to "any MMU on a U1".
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "PrinterDiscovery: a readable MMU alongside filament_detect still outranks the U1",
+                 "[ams][snapmaker][multi-backend]") {
+    helix::PrinterDiscovery hw;
+    nlohmann::json objects = nlohmann::json::array(
+        {"mmu", "mmu_encoder mmu_encoder", "filament_detect", "extruder", "heater_bed"});
+    hw.parse_objects(objects);
+
+    REQUIRE(hw.has_snapmaker());
+    REQUIRE(hw.has_mmu());
+    REQUIRE(hw.mmu_type() == AmsType::HAPPY_HARE);
+
+    const auto& systems = hw.detected_ams_systems();
+    REQUIRE(systems.size() == 1);
+    REQUIRE(systems[0].type == AmsType::HAPPY_HARE);
+}
+
 // ============================================================================
 // Task 2: Multi-backend storage tests
 // ============================================================================
