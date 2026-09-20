@@ -4,8 +4,30 @@
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>
+#include <string>
 
 namespace helix {
+
+/**
+ * @brief The oldest Moonraker whose History API can undo a job-file rewrite.
+ *
+ * Below this, History.save_job() and a list-shaped auxiliary_data are missing,
+ * so the HelixPrint plugin cannot put the original filename back on a finished
+ * job. Everything else the plugin does works from 0.8.x up. This is NOT an
+ * app-wide minimum: it gates one consequence of one feature, and it is stated
+ * where that feature is offered rather than at startup.
+ */
+inline constexpr const char* MIN_MOONRAKER_VERSION = "0.9.0";
+
+/**
+ * @brief True only for a version we could both read AND place below the floor.
+ *
+ * server.info omits moonraker_version on some builds and discovery substitutes
+ * the literal "unknown", which check_version_constraint() cannot parse and
+ * reports false for. Reading that as "too old" would degrade every printer that
+ * never announced a version, so anything unparseable answers false here.
+ */
+[[nodiscard]] bool moonraker_history_is_degraded(const std::string& version);
 
 /**
  * @brief Manages software version subjects for UI display
@@ -83,10 +105,13 @@ class PrinterVersionsState {
         return &klipper_version_;
     }
 
-    /**
-     * @brief Get Moonraker version subject for XML binding
-     * @return Pointer to string subject
-     */
+    /// 1 when this Moonraker is below MIN_MOONRAKER_VERSION, 0 otherwise.
+    /// Derived in set_moonraker_version_internal() from the RAW string, before
+    /// the display form drops what a comparison needs.
+    lv_subject_t* get_moonraker_history_degraded_subject() {
+        return &moonraker_history_degraded_;
+    }
+
     lv_subject_t* get_moonraker_version_subject() {
         return &moonraker_version_;
     }
@@ -109,6 +134,7 @@ class PrinterVersionsState {
     lv_subject_t klipper_version_{};
     lv_subject_t moonraker_version_{};
     lv_subject_t os_version_{};
+    lv_subject_t moonraker_history_degraded_{};
 
     // String buffers for subject storage
     char klipper_version_buf_[64]{};

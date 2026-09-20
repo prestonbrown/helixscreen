@@ -4,6 +4,8 @@
 
 #include "ams_backend.h"
 
+#include <cstdint>
+
 /**
  * @file ams_remap.h
  * @brief The capability questions generic code asks about tool remapping.
@@ -55,6 +57,81 @@ namespace printer {
  */
 [[nodiscard]] inline bool can_remap(const AmsBackend& backend) {
     return backend.get_remap_strategy() != AmsBackend::RemapStrategy::None && backend.remap_ready();
+}
+
+/**
+ * @brief Why an explicit tool->lane pick cannot be offered, or None if it can.
+ *
+ * can_remap() answers the backend's half. The two terms that decide the rest
+ * live outside the backend - whether the service-side helper a GcodeRewrite
+ * needs is installed, and whether this job has tools worth mapping - so they
+ * belong here too, where every surface offering the pick reads the same answer.
+ * Held apart from can_remap() because that one is a pure backend question with
+ * callers who have neither term to hand.
+ */
+enum class RemapBlock : uint8_t {
+    None,           ///< The pick can be offered.
+    Probing,        ///< Plugin presence not established yet; ask again shortly.
+    NoStrategy,     ///< Backend has no routing mechanism at all.
+    NotReady,       ///< Backend has a route that is not usable yet.
+    NeedsPlugin,    ///< GcodeRewrite without the HelixPrint plugin.
+    NothingToRemap, ///< This job uses no tools worth mapping.
+};
+
+/// Stable spelling for logs and bundles. Not user-facing: a reason a user reads
+/// has to say what it costs them, which is a UI string, not an enum name.
+[[nodiscard]] inline const char* remap_block_name(RemapBlock block) {
+    switch (block) {
+    case RemapBlock::None:
+        return "none";
+    case RemapBlock::Probing:
+        return "probing";
+    case RemapBlock::NoStrategy:
+        return "no-strategy";
+    case RemapBlock::NotReady:
+        return "not-ready";
+    case RemapBlock::NeedsPlugin:
+        return "needs-plugin";
+    case RemapBlock::NothingToRemap:
+        return "nothing-to-remap";
+    }
+    return "unknown";
+}
+
+/**
+ * @brief The whole availability question, for a given backend and job.
+ *
+ * @param plugin_installed Tri-state, as the helix_plugin_installed subject
+ *        publishes it: -1 not probed yet, 0 absent, 1 present. Only GcodeRewrite
+ *        consults it. -1 answers Probing rather than NeedsPlugin because the
+ *        probe completes after first paint, and a card that cannot tell those
+ *        apart shows its refusal on every boot before withdrawing it.
+ * @param mappable_tools How many tools this job actually uses.
+ */
+[[nodiscard]] inline RemapBlock remap_block(const AmsBackend& backend, int plugin_installed,
+                                            int mappable_tools) {
+    const auto strategy = backend.get_remap_strategy();
+    if (strategy == AmsBackend::RemapStrategy::None) {
+        return RemapBlock::NoStrategy;
+    }
+    if (!backend.remap_ready()) {
+        return RemapBlock::NotReady;
+    }
+    // Ahead of the plugin terms deliberately: a job with nothing to map is still
+    // unmappable once the plugin is installed, so naming the plugin here would
+    // send someone off to fix something that changes nothing for this file.
+    if (mappable_tools <= 0) {
+        return RemapBlock::NothingToRemap;
+    }
+    if (strategy == AmsBackend::RemapStrategy::GcodeRewrite) {
+        if (plugin_installed < 0) {
+            return RemapBlock::Probing;
+        }
+        if (plugin_installed != 1) {
+            return RemapBlock::NeedsPlugin;
+        }
+    }
+    return RemapBlock::None;
 }
 
 /**

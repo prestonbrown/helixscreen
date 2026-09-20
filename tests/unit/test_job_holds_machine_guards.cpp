@@ -144,10 +144,20 @@ class SensorEdgeToastFixture : public LVGLTestFixture {
     /// toasts that produced. Filtered on the message rather than counting every
     /// warning so an unrelated toast from another subsystem cannot be mistaken
     /// for the one under test.
+    ///
+    /// On a backend that could be changing tools the toast serves a dwell before
+    /// it fires, so the edge alone answers nothing; this drives past the dwell
+    /// and asks whether the removal was reported AT ALL, which is what each gate
+    /// below is about. A gate that suppresses the edge records no dwell either,
+    /// so it still decides the count.
     size_t report_head_empty() {
         warnings.clear();
         mgr.update_from_status(json{{"filament_switch_sensor toolhead_sensor",
                                      {{"filament_detected", false}, {"enabled", true}}}});
+        helix::ui::UpdateQueue::instance().drain();
+        PostUnloadGraceTestAccess::age_removal_dwell(mgr, helix::RUNOUT_TOAST_DWELL +
+                                                              std::chrono::seconds(1));
+        mgr.update_from_status(json::object());
         helix::ui::UpdateQueue::instance().drain();
         size_t n = 0;
         for (const auto& w : warnings) {

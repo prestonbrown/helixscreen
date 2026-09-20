@@ -624,6 +624,12 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
     // Runtime state (keyed by klipper_name)
     std::map<std::string, FilamentSensorState> states_;
 
+    /// Runout-role sensors whose removal toast is serving
+    /// helix::RUNOUT_TOAST_DWELL, keyed by klipper_name and holding
+    /// the moment the sensor went clear. Filament returning before the dwell
+    /// expires drops the entry, so a tool change announces nothing at all.
+    std::map<std::string, std::chrono::steady_clock::time_point> pending_removal_toast_;
+
     // State change callback
     StateChangeCallback state_change_callback_;
 

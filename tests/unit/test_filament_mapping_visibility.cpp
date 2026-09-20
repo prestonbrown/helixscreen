@@ -10,7 +10,7 @@
  * card - rendered the same information there. That second surface is gone, so
  * hiding on non-editable backends would show the user nothing at all. The
  * dead-control concern it existed for now lives entirely on the tap affordance
- * (PrintSelectDetailView::color_card_opens_remap).
+ * (PrintSelectDetailView::current_remap_block).
  *
  * The two gates that MUST survive the merge are pinned here too: the bypass
  * single-lane suppression (a K2 user printed off the bypass spool after reading

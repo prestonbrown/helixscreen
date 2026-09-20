@@ -301,3 +301,110 @@ TEST_CASE("Slicer progress: time estimation uses file progress when slicer inact
     // remaining = 600 * (100 - 80) / 80 = 150
     REQUIRE(lv_subject_get_int(state.get_print_time_left_subject()) == 150);
 }
+
+// ============================================================================
+// A Paused Print Does Not Advance
+// ============================================================================
+
+/*
+ * Klipper expires the M73 value behind display_status.progress and substitutes
+ * virtual_sdcard's byte position into the same field. A pause is exactly when
+ * M73 stops being refreshed, so the field a paused HelixScreen reads as "the
+ * slicer estimate" is really file position -- and on a multi-material print the
+ * two disagree by a wide margin, because the wipe tower is byte-dense and quick
+ * to print. Progress cannot advance while paused, so nothing arriving in that
+ * window is a new position, whichever source it came from.
+ */
+
+TEST_CASE("Paused progress: a differing payload cannot move the bar",
+          "[print][progress][slicer][paused]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    json printing = {{"print_stats", {{"state", "printing"}}}};
+    state.update_from_status(printing);
+    state.update_from_status(json{{"display_status", {{"progress", 0.11}}}});
+    REQUIRE(lv_subject_get_int(state.get_print_progress_subject()) == 11);
+
+    state.update_from_status(json{{"print_stats", {{"state", "paused"}}}});
+
+    // The same field now carries byte position instead of the slicer estimate.
+    state.update_from_status(json{{"display_status", {{"progress", 0.25}}}});
+    CHECK(lv_subject_get_int(state.get_print_progress_subject()) == 11);
+
+    // The bar the user watches binds the display subject, so it has to hold too.
+    CHECK(lv_subject_get_int(state.get_print_progress_display_subject()) == 11);
+}
+
+TEST_CASE("Paused progress: file position cannot move the bar either",
+          "[print][progress][slicer][paused]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    json printing = {{"print_stats", {{"state", "printing"}}}};
+    state.update_from_status(printing);
+    state.update_from_status(json{{"virtual_sdcard", {{"progress", 0.11}}}});
+    REQUIRE(lv_subject_get_int(state.get_print_progress_subject()) == 11);
+
+    state.update_from_status(json{{"print_stats", {{"state", "paused"}}}});
+    state.update_from_status(json{{"virtual_sdcard", {{"progress", 0.25}}}});
+
+    // Both writers are judged by the same rules, so neither gets a free pass.
+    CHECK(lv_subject_get_int(state.get_print_progress_subject()) == 11);
+}
+
+TEST_CASE("Paused progress: tracking resumes once the print does",
+          "[print][progress][slicer][paused]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    json printing = {{"print_stats", {{"state", "printing"}}}};
+    state.update_from_status(printing);
+    state.update_from_status(json{{"display_status", {{"progress", 0.11}}}});
+
+    state.update_from_status(json{{"print_stats", {{"state", "paused"}}}});
+    state.update_from_status(json{{"display_status", {{"progress", 0.25}}}});
+    REQUIRE(lv_subject_get_int(state.get_print_progress_subject()) == 11);
+
+    // Holding while paused must not latch. A pause that permanently froze the
+    // bar would trade a bouncing number for a dead one.
+    state.update_from_status(printing);
+    state.update_from_status(json{{"display_status", {{"progress", 0.12}}}});
+    CHECK(lv_subject_get_int(state.get_print_progress_subject()) == 12);
+}
+
+TEST_CASE("Paused progress: a message-only payload after resume cannot publish the paused value",
+          "[print][progress][slicer][paused]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    json printing = {{"print_stats", {{"state", "printing"}}}};
+    state.update_from_status(printing);
+    state.update_from_status(json{{"display_status", {{"progress", 0.11}}}});
+    REQUIRE(lv_subject_get_int(state.get_print_progress_subject()) == 11);
+
+    // Paused, and the field starts carrying byte position instead of M73.
+    state.update_from_status(json{{"print_stats", {{"state", "paused"}}}});
+    state.update_from_status(json{{"display_status", {{"progress", 0.25}}}});
+    REQUIRE(lv_subject_get_int(state.get_print_progress_subject()) == 11);
+
+    state.update_from_status(printing);
+
+    // An M117 update carries display_status with no progress field, so it
+    // refreshes nothing yet still reaches the publish. Declining to record the
+    // paused reading in the first place is what stops it arriving here.
+    state.update_from_status(json{{"display_status", {{"message", "Resuming"}}}});
+    CHECK(lv_subject_get_int(state.get_print_progress_subject()) == 11);
+}

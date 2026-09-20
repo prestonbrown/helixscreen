@@ -26,7 +26,27 @@ class PostUnloadGraceTestAccess {
         mgr.master_enabled_ = true;
         mgr.sync_mode_ = true;
         mgr.initial_status_received_ = false;
+        mgr.pending_removal_toast_.clear();
         clear_startup_grace(mgr);
+    }
+
+    /// Backdate every outstanding removal dwell, so a test can reach the far side
+    /// of helix::RUNOUT_TOAST_DWELL without waiting it out.
+    static void age_removal_dwell(helix::FilamentSensorManager& mgr,
+                                  std::chrono::steady_clock::duration by) {
+        std::lock_guard<std::recursive_mutex> lock(mgr.mutex_);
+        for (auto& [klipper_name, since] : mgr.pending_removal_toast_) {
+            (void)klipper_name;
+            since -= by;
+        }
+    }
+
+    /// Is a removal toast being held? Distinguishes "the dwell swallowed it" from
+    /// "some other gate suppressed it", which otherwise look identical from the
+    /// toast side.
+    [[nodiscard]] static bool removal_dwell_pending(helix::FilamentSensorManager& mgr) {
+        std::lock_guard<std::recursive_mutex> lock(mgr.mutex_);
+        return !mgr.pending_removal_toast_.empty();
     }
 
     /// discover_sensors() re-anchors the grace to "Moonraker just connected", so

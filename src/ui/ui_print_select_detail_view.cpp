@@ -189,6 +189,12 @@ void PrintSelectDetailView::init_subjects() {
     // Published alongside filament_mapping_visible_ by
     // publish_card_visibility(), against the same backend snapshot.
     UI_MANAGED_SUBJECT_INT(color_card_remappable_, 0, "color_card_remappable", subjects_);
+    // The three that describe a refusal. Published from the same call as the
+    // chevron so a card cannot be greyed while its chevron still invites a tap.
+    UI_MANAGED_SUBJECT_INT(color_card_remap_needs_setup_, 0, "color_card_remap_needs_setup",
+                           subjects_);
+    UI_MANAGED_SUBJECT_INT(color_card_remap_help_visible_, 0, "color_card_remap_help_visible",
+                           subjects_);
 
     // Empty-tools warning visibility (0=hidden, 1=visible). Set by
     // recompute_preflight() when any T-command-referenced slot is empty.
@@ -205,6 +211,18 @@ void PrintSelectDetailView::init_subjects() {
         AmsState::instance().get_slots_version_subject(), this,
         [](PrintSelectDetailView* self, int /*version*/) { self->on_ams_state_changed(); },
         AmsState::instance().get_subjects_lifetime());
+
+    // Both land after the card has already published: the plugin probe completes
+    // after first paint, and the Moonraker version arrives with discovery.
+    // Without these the card keeps whatever it decided before either was known.
+    plugin_installed_observer_ = observe_int_sync<PrintSelectDetailView>(
+        get_printer_state().get_helix_plugin_installed_subject(), this,
+        [](PrintSelectDetailView* self, int /*state*/) { self->publish_card_visibility(); },
+        get_printer_state().get_subjects_lifetime());
+    moonraker_degraded_observer_ = observe_int_sync<PrintSelectDetailView>(
+        get_printer_state().get_moonraker_history_degraded_subject(), this,
+        [](PrintSelectDetailView* self, int /*degraded*/) { self->publish_card_visibility(); },
+        get_printer_state().get_subjects_lifetime());
 
     subjects_initialized_ = true;
     spdlog::debug("[DetailView] Initialized pre-print option subjects");
@@ -1520,29 +1538,93 @@ void PrintSelectDetailView::open_filament_mapping_modal() {
 }
 
 void PrintSelectDetailView::publish_card_visibility() {
-    // ONE place, and the only writer of either subject, so the three sites that
-    // learn something new about the card - show(), the footer-palette backfill
-    // and render_authoritative_chips() - cannot drift into publishing different
-    // answers from the same state. Reads the card's cached should_show(), so a
-    // caller that changed anything the card decides on must run update() first.
+    // ONE place, and the only writer of any of these subjects, so the sites that
+    // learn something new about the card - show(), the footer-palette backfill,
+    // render_authoritative_chips() and the two capability observers - cannot
+    // drift into publishing different answers from the same state. Reads the
+    // card's cached should_show(), so a caller that changed anything the card
+    // decides on must run update() first.
     const bool card_visible = filament_mapping_card_.should_show();
     lv_subject_set_int(&filament_mapping_visible_, card_visible ? 1 : 0);
-    // Published from the same place, against the same backend snapshot: a card
-    // shown without this would advertise nothing, and a chevron shown without
-    // the card would point at a control that is not there. It also clears the
-    // card's clickable flag, so a hidden card cannot swallow a tap either.
-    lv_subject_set_int(&color_card_remappable_, card_visible && color_card_opens_remap() ? 1 : 0);
+
+    const auto block = current_remap_block();
+    const bool available = block == helix::printer::RemapBlock::None;
+    // A hidden card cannot swallow a tap or light a chevron either.
+    lv_subject_set_int(&color_card_remappable_, card_visible && available ? 1 : 0);
+
+    // The only refusal worth dressing up. A backend with no route at all, a
+    // one-tool job and an in-flight probe all just leave the chevron dark: the
+    // chips are still worth showing and there is nothing for the user to do.
+    // A missing plugin is the one case where the answer is "not yet, and here
+    // is how", so it is the one that greys the card and offers the fix.
+    const bool needs_setup = card_visible && block == helix::printer::RemapBlock::NeedsPlugin;
+    lv_subject_set_int(&color_card_remap_needs_setup_, needs_setup ? 1 : 0);
+
+    // Available but the finished job will be misfiled: say so here rather than
+    // at startup, where it was a claim about the whole app instead of about the
+    // one thing it actually costs.
+    // Only a GcodeRewrite remap prints a modified copy and leans on the plugin to
+    // put the original name back, so only it can lose the history entry. A
+    // backend that routes through its own firmware table never touches the job
+    // file, and telling its user the file gets rewritten describes something the
+    // printer does not do. Same term remap_block() gates its plugin rung on.
+    const auto* backend = AmsState::instance().get_backend();
+    const bool rewrites_job_file =
+        backend != nullptr &&
+        backend->get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite;
+    const bool degraded =
+        available && rewrites_job_file &&
+        lv_subject_get_int(get_printer_state().get_moonraker_history_degraded_subject()) == 1;
+
+    lv_subject_set_int(&color_card_remap_help_visible_,
+                       card_visible && (needs_setup || degraded) ? 1 : 0);
+
+    spdlog::debug("[DetailView] filament card: visible={} remap={} setup={} degraded={}",
+                  card_visible, helix::printer::remap_block_name(block), needs_setup, degraded);
 }
 
-bool PrintSelectDetailView::color_card_opens_remap() {
-    // ANY backend that can carry out the pick — route AND readiness. Asking the
-    // route alone advertised a tap on an AD5X before `_IFS_VARS` discovery, and
-    // nothing downstream refused it: the opener's plugin guard only turns away
-    // GcodeRewrite, and IFS declares Native. The picker opened and Done silently
-    // wrote state the firmware replays nothing from. Now the chevron goes dark
-    // instead.
+void PrintSelectDetailView::show_remap_help_modal() {
+    if (current_remap_block() == helix::printer::RemapBlock::NeedsPlugin) {
+        helix::ui::ConfirmOptions opts;
+        opts.cancel_text = lv_tr("Not now");
+        opts.owner_token = lifetime_.token();
+        helix::ui::modal_confirm(
+            lv_tr("Filament remapping is unavailable"),
+            lv_tr("Remapping rewrites the job file before printing it. Without the HelixPrint "
+                  "plugin the rewritten copy is what lands in your print history, so finished "
+                  "jobs are listed under names like modified_1730824_benchy.gcode instead of the "
+                  "file you picked.\n\nInstalling the plugin takes a moment and needs no "
+                  "restart."),
+            ModalSeverity::Info, lv_tr("Install plugin"),
+            [this] {
+                if (on_plugin_setup_requested_) {
+                    on_plugin_setup_requested_();
+                }
+            },
+            opts);
+        return;
+    }
+
+    // The other reason the icon is offered: remapping works, but this Moonraker
+    // is too old for the plugin to put the original name back afterwards.
+    helix::ui::AlertOptions alert_opts;
+    alert_opts.owner_token = lifetime_.token();
+    helix::ui::modal_alert(
+        lv_tr("Print history will show the rewritten name"),
+        lv_tr("Remapping rewrites the job file before printing it. This printer's Moonraker is "
+              "too old for the HelixPrint plugin to restore the original filename afterwards, so "
+              "the finished job is listed under the rewritten name. Remapping itself works "
+              "normally."),
+        ModalSeverity::Info, lv_tr("OK"), nullptr, alert_opts);
+}
+
+helix::printer::RemapBlock PrintSelectDetailView::current_remap_block() const {
     auto* backend = AmsState::instance().get_backend();
-    return backend && helix::printer::can_remap(*backend);
+    if (backend == nullptr) {
+        return helix::printer::RemapBlock::NoStrategy;
+    }
+    return helix::printer::remap_block(*backend, get_printer_state().helix_plugin_state(),
+                                       static_cast<int>(get_used_tool_info().size()));
 }
 
 void PrintSelectDetailView::on_color_card_clicked() {
@@ -1551,12 +1633,23 @@ void PrintSelectDetailView::on_color_card_clicked() {
     // Kept as a guard even though the XML clears the card's clickable flag on a
     // non-remappable backend: the flag can only be as fresh as the last publish,
     // and this is the cheap way to make a stale one harmless.
-    if (!color_card_opens_remap()) {
+    const auto block = current_remap_block();
+    if (block == helix::printer::RemapBlock::NeedsPlugin) {
+        // The whole card is the help target here, not just the 24px cue: the
+        // card carries no remap to open, and a tap that explains beats a tap
+        // that silently does nothing. The Install button lives in that modal.
+        spdlog::debug("[PrintSelect] filament card tap -> remap help");
+        show_remap_help_modal();
+        return;
+    }
+    if (block != helix::printer::RemapBlock::None) {
+        spdlog::debug("[PrintSelect] filament card tap ignored: {}",
+                      helix::printer::remap_block_name(block));
         return;
     }
     spdlog::debug("[PrintSelect] filament card tap -> remap modal");
     // on_remap_requested_ is wired by the panel in create_detail_view() right
-    // after construction, so the null check is just defensive — a tap before
+    // after construction, so the null check is just defensive - a tap before
     // wiring is a no-op, not a crash.
     if (on_remap_requested_) {
         on_remap_requested_();

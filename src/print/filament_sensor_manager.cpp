@@ -161,6 +161,10 @@ void FilamentSensorManager::discover_sensors(const std::vector<std::string>& kli
 
     // Clear existing sensors but preserve state for reconnection
     sensors_.clear();
+    // A dwell measures how long one sensor has been clear. Rediscovery may not
+    // return that sensor at all, and the stabilization grace restarts here
+    // regardless, so an outstanding dwell has nothing left to confirm.
+    pending_removal_toast_.clear();
     initial_status_received_ = false;
 
     for (const auto& klipper_name : klipper_sensor_names) {
@@ -921,6 +925,10 @@ void FilamentSensorManager::update_from_status(const json& status) {
         bool should_toast;
     };
     std::vector<Notification> notifications;
+    /// Removals whose dwell expired with the sensor still clear. Kept apart from
+    /// `notifications` because there is no sensor edge here to hand the
+    /// state-change callback - only a toast that was owed and is now due.
+    std::vector<FilamentSensorRole> dwell_expired_removals;
     StateChangeCallback callback_copy;
     bool any_changed = false;
 
@@ -956,6 +964,19 @@ void FilamentSensorManager::update_from_status(const json& status) {
     // per-backend table lives in backend_owns_runout_during_job().
     const bool runout_surface_owned_during_job =
         job_owns_machine && backend_owns_runout_during_job(backend_type);
+    // A tool change pulls filament off the toolhead sensor and feeds the next
+    // lane past it. At the edge that is identical to a runout; only duration
+    // separates them. Where a backend could be changing tools and a job holds
+    // the machine, the removal toast serves a dwell instead of firing on the
+    // edge, and filament returning inside the dwell cancels it. Backends that
+    // already own the runout surface never reach here, and a printer with no
+    // AMS has no tool change to confuse this with, so both keep the edge toast.
+    const bool dwell_removal_toast = job_owns_machine && backend_type != AmsType::NONE;
+    // How the last job ended, which outlives the lifecycle's trip back to Idle.
+    // A print that finished on its own terms takes its end-of-print filament
+    // handling with it; any other ending stopped with the sensor already empty.
+    const auto print_outcome = static_cast<PrintOutcome>(
+        lv_subject_get_int(get_printer_state().get_print_outcome_subject()));
 
     // Phase 1: Update state under lock, collect notifications
     {
@@ -1076,6 +1097,24 @@ void FilamentSensorManager::update_from_status(const json& status) {
                                      !ad5x_idle_unload && !post_unload_removal &&
                                      !runout_surface_owned_during_job && master_enabled_ &&
                                      sensor.enabled && sensor.role != FilamentSensorRole::NONE;
+                // A removal that owes a dwell is recorded, not announced. A
+                // refill inside the dwell drops the record and silences the
+                // insertion with it: nothing was said, so nothing needs saying.
+                // An edge already suppressed above records nothing - it is not
+                // owed a toast to defer.
+                if (notif.should_toast && !state.filament_detected && dwell_removal_toast) {
+                    pending_removal_toast_[sensor.klipper_name] = now;
+                    notif.should_toast = false;
+                    spdlog::debug("[FilamentSensorManager] Holding removal toast for {} - {}s "
+                                  "dwell, a tool change refills before it expires",
+                                  sensor.sensor_name, RUNOUT_TOAST_DWELL.count());
+                } else if (state.filament_detected &&
+                           pending_removal_toast_.erase(sensor.klipper_name) > 0) {
+                    notif.should_toast = false;
+                    spdlog::debug(
+                        "[FilamentSensorManager] {} refilled inside the dwell - not a runout",
+                        sensor.sensor_name);
+                }
                 if (within_grace_period && master_enabled_ && sensor.enabled &&
                     sensor.role != FilamentSensorRole::NONE) {
                     spdlog::debug("[FilamentSensorManager] Suppressing startup toast for {}",
@@ -1099,6 +1138,55 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 }
                 notifications.push_back(notif);
             }
+        }
+
+        // Dwell expiry. Swept on every status payload rather than on a timer, so
+        // a removal that outlasts its dwell is still announced when the sensor
+        // itself has gone quiet - during a print Moonraker pushes status far
+        // faster than the dwell, so the toast lands within a tick of coming due.
+        for (auto it = pending_removal_toast_.begin(); it != pending_removal_toast_.end();) {
+            auto state_it = states_.find(it->first);
+            // Refilled, or gone from the sensor set: nothing left to confirm.
+            if (state_it == states_.end() || state_it->second.filament_detected) {
+                it = pending_removal_toast_.erase(it);
+                continue;
+            }
+            // The job ended. One that COMPLETED did so on its own terms, and the
+            // end-of-print unload some backends run afterwards belongs to the
+            // idle-side suppressions. Any other ending stopped with this sensor
+            // already empty, which is the runout the dwell was opened to
+            // confirm - and where the backend raises no fault of its own, this
+            // toast is the only account the user gets. A runout_gcode that
+            // cancels the print lands here.
+            if (!job_owns_machine && print_outcome == PrintOutcome::COMPLETE) {
+                it = pending_removal_toast_.erase(it);
+                continue;
+            }
+            if (now - it->second < RUNOUT_TOAST_DWELL) {
+                ++it;
+                continue;
+            }
+            // Something is already accounting for the empty sensor by the time
+            // the dwell is up - an AMS operation moving filament past it, or the
+            // wizard walking the user through one. The same terms silence the
+            // edge, and a removal the user is performing needs no warning.
+            if (ams_active || is_wizard_active()) {
+                it = pending_removal_toast_.erase(it);
+                continue;
+            }
+            auto cfg =
+                std::find_if(sensors_.begin(), sensors_.end(), [&](const FilamentSensorConfig& s) {
+                    return s.klipper_name == it->first;
+                });
+            if (cfg != sensors_.end() && master_enabled_ && cfg->enabled &&
+                cfg->role != FilamentSensorRole::NONE) {
+                dwell_expired_removals.push_back(cfg->role);
+                spdlog::warn("[FilamentSensorManager] RUNOUT CONFIRMED: {} ({}) still clear "
+                             "after {}s",
+                             cfg->sensor_name, role_to_config_string(cfg->role),
+                             RUNOUT_TOAST_DWELL.count());
+            }
+            it = pending_removal_toast_.erase(it);
         }
 
         // Always update subjects on first status (initial_status_received_ handles this)
@@ -1140,6 +1228,10 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 NOTIFY_WARNING("{}: Filament removed", role_name);
             }
         }
+    }
+
+    for (FilamentSensorRole role : dwell_expired_removals) {
+        NOTIFY_WARNING("{}: Filament removed", role_to_display_string(role));
     }
 }
 

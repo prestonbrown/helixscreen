@@ -10,8 +10,10 @@
 #include "ams_backend.h"
 #include "ams_remap.h"
 #include "ams_state.h"
+#include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "printer_state.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -70,15 +72,17 @@ void PreflightCheckModal::on_show() {
     wire_cancel_button("btn_secondary");
     wire_tertiary_button("btn_tertiary");
 
-    // Remap is only offered when the active backend can actually remap — which
-    // is the declared route AND its readiness, not the route alone. A backend
-    // built to remap through a firmware object it has not discovered yet (AD5X
-    // IFS before `_IFS_VARS`) would otherwise be offered a write that is
-    // silently dropped at print start.
-    bool remap_supported = false;
+    // Remap is only offered when a remap can actually be carried out, which is
+    // more than the backend's declared route: a route it has not discovered yet
+    // (AD5X IFS before `_IFS_VARS`), a job with no tools, or a rewrite with no
+    // HelixPrint plugin all end in a refusal the opener would have to deliver.
+    // One tool check per tool, so checks.size() is this job's tool count.
+    auto block = helix::printer::RemapBlock::NoStrategy;
     if (auto* backend = AmsState::instance().get_backend()) {
-        remap_supported = helix::printer::can_remap(*backend);
+        block = helix::printer::remap_block(*backend, get_printer_state().helix_plugin_state(),
+                                            static_cast<int>(result_.checks.size()));
     }
+    const bool remap_supported = block == helix::printer::RemapBlock::None;
     if (auto* remap_btn = find_widget("btn_tertiary")) {
         if (remap_supported) {
             lv_obj_remove_flag(remap_btn, LV_OBJ_FLAG_HIDDEN);
@@ -121,8 +125,8 @@ void PreflightCheckModal::on_show() {
         lv_label_set_text(explain, text.c_str());
     }
 
-    spdlog::debug("[PreflightCheckModal] Shown with {} checks, remap_supported={}",
-                  result_.checks.size(), remap_supported);
+    spdlog::debug("[PreflightCheckModal] Shown with {} checks, remap={}", result_.checks.size(),
+                  helix::printer::remap_block_name(block));
 }
 
 void PreflightCheckModal::build_rows(lv_obj_t* list) {
