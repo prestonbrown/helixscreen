@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../lvgl_test_fixture.h"
+#include "../wait_finish_spy.h"
 #include "backdrop_blur.h"
 
 #include <algorithm>
@@ -224,4 +226,27 @@ TEST_CASE("circuit breaker: cleanup keeps blur disabled", "[backdrop_blur][circu
     // Cleanup keeps blur disabled (pending stability testing)
     helix::ui::backdrop_blur_cleanup();
     REQUIRE(is_blur_disabled());
+}
+
+// ============================================================================
+// Teardown drain (#1673)
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "backdrop image delete drains the draw units before freeing",
+                 "[backdrop_blur][drawbuf][1673]") {
+    // The blurred/darkened backdrop is a live image source until the modal
+    // teardown deletes its widget. The free must go through
+    // helix::safe_draw_buf_destroy() so no in-flight blend on the render
+    // thread reads the buffer after it is gone - the same failure shape as
+    // the K1 crash, where a blend source was munmap'd mid-draw.
+    reset_circuit_breaker();
+
+    lv_obj_t* parent = lv_obj_create(lv_screen_active());
+    lv_obj_t* img = helix::ui::create_blurred_backdrop(parent, 180);
+    REQUIRE(img != nullptr);
+
+    WaitForFinishSpy spy;
+    lv_obj_delete(img);
+
+    CHECK(spy.waits() >= 1);
 }

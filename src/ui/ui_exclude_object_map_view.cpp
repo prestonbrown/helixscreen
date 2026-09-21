@@ -5,6 +5,7 @@
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "lv_draw_buf_guard.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "printer_excluded_objects_state.h"
@@ -312,11 +313,9 @@ void ExcludeObjectMapView::destroy() {
         }
         canvas_ = nullptr;
 
-        // Free canvas draw buffer now that no live widget references it.
-        if (canvas_buf_) {
-            lv_draw_buf_destroy(canvas_buf_);
-            canvas_buf_ = nullptr;
-        }
+        // Free canvas draw buffer now that no live widget references it. A
+        // blend of it from the last refresh may still be in flight.
+        helix::safe_draw_buf_destroy(canvas_buf_, "exclmap");
 
         // Deferred delete: a bare lv_obj_delete(root_) here is a sync widget
         // deletion that can run inside a UpdateQueue process_pending batch

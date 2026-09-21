@@ -9,6 +9,7 @@
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "lv_draw_buf_guard.h"
 #include "lvgl/lvgl.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
@@ -420,8 +421,10 @@ static void spool_canvas_event_cb(lv_event_t* e) {
         auto it = s_registry.find(obj);
         if (it != s_registry.end()) {
             std::unique_ptr<SpoolCanvasData> data(it->second);
-            if (data && data->draw_buf) {
-                lv_draw_buf_destroy(data->draw_buf);
+            // The canvas was a composite source until this delete; a blend of
+            // it may still be in flight.
+            if (data) {
+                helix::safe_draw_buf_destroy(data->draw_buf, "spool");
             }
             lv_obj_set_user_data(obj, nullptr);
             s_registry.erase(it);
@@ -495,10 +498,10 @@ static void spool_canvas_xml_apply(lv_xml_parser_state_t* state, const char** at
             if (new_size != data->size && new_size > 0) {
                 data->size = new_size;
 
-                // Recreate draw buffer with new size
-                if (data->draw_buf) {
-                    lv_draw_buf_destroy(data->draw_buf);
-                }
+                // Recreate draw buffer with new size. The canvas still points
+                // at the old buffer until set_draw_buf below; a blend of it
+                // may be in flight.
+                helix::safe_draw_buf_destroy(data->draw_buf, "spool");
                 data->draw_buf =
                     lv_draw_buf_create(new_size, new_size, LV_COLOR_FORMAT_ARGB8888, 0);
                 if (data->draw_buf) {
@@ -616,9 +619,7 @@ void ui_spool_canvas_set_size(lv_obj_t* canvas, int32_t size) {
      * old image source from LVGL's cache, which reads its header.  Destroying
      * the old buffer first leaves a dangling pointer that corrupts the heap. */
     lv_canvas_set_draw_buf(data->canvas, data->draw_buf);
-    if (old_buf) {
-        lv_draw_buf_destroy(old_buf);
-    }
+    helix::safe_draw_buf_destroy(old_buf, "spool");
     lv_obj_set_size(data->canvas, size, size);
     redraw_spool(data);
 }

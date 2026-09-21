@@ -18,6 +18,7 @@
 
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "lv_draw_buf_guard.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "static_panel_registry.h"
 #include "theme_manager.h"
@@ -174,12 +175,11 @@ void TimelapseVideosOverlay::on_deactivate() {
 }
 
 void TimelapseVideosOverlay::cleanup() {
-    if (cached_gradient_) {
-        lv_draw_buf_destroy(cached_gradient_);
-        cached_gradient_ = nullptr;
-        cached_gradient_w_ = 0;
-        cached_gradient_h_ = 0;
-    }
+    // The grid's cards composited this gradient in the last refresh; drain
+    // before freeing.
+    helix::safe_draw_buf_destroy(cached_gradient_, "tl_grad");
+    cached_gradient_w_ = 0;
+    cached_gradient_h_ = 0;
     spdlog::debug("[{}] cleanup()", get_name());
     OverlayBase::cleanup();
 }
@@ -190,9 +190,9 @@ void TimelapseVideosOverlay::ensure_gradient_cache(int32_t card_width, int32_t c
         cached_gradient_dark_ == dark) {
         return;
     }
-    if (cached_gradient_) {
-        lv_draw_buf_destroy(cached_gradient_);
-    }
+    // clear_video_grid() has already removed the cards that referenced the old
+    // gradient; an in-flight blend of it may remain on the render thread.
+    helix::safe_draw_buf_destroy(cached_gradient_, "tl_grad");
     cached_gradient_ = ui_gradient_canvas_create_buf(card_width, card_height, dark, 0);
     cached_gradient_w_ = card_width;
     cached_gradient_h_ = card_height;

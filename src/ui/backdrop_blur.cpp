@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "data_root_resolver.h"
+#include "lv_draw_buf_guard.h"
 
 #include <spdlog/spdlog.h>
 
@@ -629,10 +630,12 @@ static bool gpu_blur(uint8_t* data, int width, int height) {
 // ============================================================================
 
 /// Event callback to free the draw_buf when the image widget is deleted.
+/// The render thread may still be blending this very image when the modal
+/// teardown deletes it, so the free must drain the draw units first.
 static void on_backdrop_image_deleted(lv_event_t* e) {
     auto* buf = static_cast<lv_draw_buf_t*>(lv_event_get_user_data(e));
     if (buf) {
-        lv_draw_buf_destroy(buf);
+        helix::safe_draw_buf_destroy(buf, "bd_img");
         spdlog::trace("[Backdrop Blur] Freed backdrop draw buffer");
     }
 }

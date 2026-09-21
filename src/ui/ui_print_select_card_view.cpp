@@ -7,6 +7,7 @@
 #include "ui_gradient_canvas.h"
 #include "ui_panel_print_select.h" // For PrintFileData, CardDimensions
 
+#include "lv_draw_buf_guard.h"
 #include "sound_manager.h"
 #include "theme_manager.h"
 #include "thumbnail_processor.h"
@@ -105,13 +106,11 @@ void PrintSelectCardView::clear_cached_state() {
     // Release theme observer before freeing gradient buffer
     theme_observer_.reset();
 
-    // Free cached gradient buffer
-    if (cached_gradient_) {
-        lv_draw_buf_destroy(cached_gradient_);
-        cached_gradient_ = nullptr;
-        cached_gradient_w_ = 0;
-        cached_gradient_h_ = 0;
-    }
+    // Free cached gradient buffer. Cards were still compositing it in the
+    // last refresh, so the drain must precede the free.
+    helix::safe_draw_buf_destroy(cached_gradient_, "ps_grad");
+    cached_gradient_w_ = 0;
+    cached_gradient_h_ = 0;
 
     // Clear data structures
     card_data_pool_.clear();
@@ -170,10 +169,9 @@ void PrintSelectCardView::ensure_gradient_cache(int32_t card_width, int32_t card
         apply_gradient_to_card(card);
     }
 
-    // Now safe to destroy old buffer — no card references it
-    if (old_gradient) {
-        lv_draw_buf_destroy(old_gradient);
-    }
+    // Now safe to destroy old buffer — no card references it, but a blend of
+    // it may still be in flight on the render thread.
+    helix::safe_draw_buf_destroy(old_gradient, "ps_grad");
 }
 
 void PrintSelectCardView::apply_gradient_to_card(lv_obj_t* card) {
