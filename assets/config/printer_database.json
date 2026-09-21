@@ -3957,8 +3957,8 @@
       ]
     },
     {
-      "id": "flsun_v400",
-      "name": "FLSUN V400",
+      "id": "flsun_delta",
+      "name": "FLSUN Delta",
       "manufacturer": "FLSUN",
       "image": "flsun-delta.png",
       "heuristics": [
@@ -3977,14 +3977,11 @@
           "reason": "Delta calibration present (delta printer signature)"
         },
         {
-          "type": "build_volume_range",
-          "field": "bed_mesh",
-          "min_x": 280,
-          "max_x": 320,
-          "min_y": 280,
-          "max_y": 320,
-          "confidence": 60,
-          "reason": "Build volume ~300mm diameter (V400 size)"
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "stepper_a",
+          "confidence": 85,
+          "reason": "Delta stepper naming (stepper_a/b/c)"
         },
         {
           "type": "hostname_match",
@@ -3997,18 +3994,10 @@
         {
           "type": "hostname_match",
           "field": "hostname",
-          "pattern": "v400",
-          "confidence": 95,
-          "reason": "Hostname contains 'v400'"
-        },
-        {
-          "type": "mcu_match",
-          "field": "mcu",
-          "pattern": "GD32F303",
-          "confidence": 40,
-          "reason": "GD32F303 MCU (MKS Robin Nano V2 clone)",
-          "corroborating": true,
-          "separator": true
+          "pattern": "delta",
+          "confidence": 60,
+          "reason": "Hostname contains 'delta'",
+          "corroborating": true
         }
       ]
     },
@@ -4136,8 +4125,8 @@
       ]
     },
     {
-      "id": "flsun_delta",
-      "name": "FLSUN Delta",
+      "id": "flsun_v400",
+      "name": "FLSUN V400",
       "manufacturer": "FLSUN",
       "image": "flsun-delta.png",
       "heuristics": [
@@ -4156,11 +4145,14 @@
           "reason": "Delta calibration present (delta printer signature)"
         },
         {
-          "type": "stepper_count",
-          "field": "steppers",
-          "pattern": "stepper_a",
-          "confidence": 85,
-          "reason": "Delta stepper naming (stepper_a/b/c)"
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 280,
+          "max_x": 320,
+          "min_y": 280,
+          "max_y": 320,
+          "confidence": 60,
+          "reason": "Build volume ~300mm diameter (V400 size)"
         },
         {
           "type": "hostname_match",
@@ -4173,10 +4165,18 @@
         {
           "type": "hostname_match",
           "field": "hostname",
-          "pattern": "delta",
-          "confidence": 60,
-          "reason": "Hostname contains 'delta'",
-          "corroborating": true
+          "pattern": "v400",
+          "confidence": 95,
+          "reason": "Hostname contains 'v400'"
+        },
+        {
+          "type": "mcu_match",
+          "field": "mcu",
+          "pattern": "GD32F303",
+          "confidence": 40,
+          "reason": "GD32F303 MCU (MKS Robin Nano V2 clone)",
+          "corroborating": true,
+          "separator": true
         }
       ]
     },
