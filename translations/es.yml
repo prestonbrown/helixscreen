@@ -1106,6 +1106,7 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : El filamento sigue en la boquilla tras la descarga. Es posible que el corte o la retracción no se hayan completado. Limpie el cabezal antes de cargar otra bobina.
   'Filament load failed: {}': 'Error al cargar filamento: {}'
+  Filament not set: ''
   Filament operation failed: Falló la operación de filamento
   Filament operation timed out: Operación de filamento — tiempo de espera agotado
   Filament ran out - nothing at the toolhead and the print is paused.: 'El filamento se agotó - no queda nada en el cabezal y la impresión está en pausa.'
@@ -2560,6 +2561,8 @@ translations:
   'Slot %d: %.0fg of %.0fg needed': 'Ranura %d: %.0fg de %.0fg necesarios'
   Slot 1: Ranura 1
   Slot {}: Ranura {}
+  ? Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print.
+  : ''
   Slot {} is blocked — manual intervention required: La ranura {} está bloqueada — se requiere intervención manual
   Slot {} matches.: 'La ranura {} coincide.'
   Slot {} spool cleared: Bobina de ranura {} eliminada

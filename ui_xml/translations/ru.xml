@@ -992,6 +992,7 @@
   <translation tag="Filament is pulling tight" ru="Филамент натянут"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." ru="После выгрузки филамент всё ещё находится у сопла. Отрезание или втягивание могло не завершиться. Очистите печатающую головку перед загрузкой другой катушки."/>
   <translation tag="Filament load failed: {}" ru="Ошибка загрузки филамента: {}"/>
+  <translation tag="Filament not set"/>
   <translation tag="Filament operation failed" ru="Операция с филаментом не удалась"/>
   <translation tag="Filament operation timed out" ru="Операция с филаментом — время ожидания истекло"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." ru="Филамент закончился - у печатающей головки ничего нет, печать приостановлена."/>
@@ -2292,6 +2293,7 @@
   <translation tag="Slot %d: %.0fg of %.0fg needed" ru="Слот %d: %.0fг из %.0fг"/>
   <translation tag="Slot 1" ru="Слот 1"/>
   <translation tag="Slot {}" ru="Слот {}"/>
+  <translation tag="Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print."/>
   <translation tag="Slot {} is blocked — manual intervention required" ru="Слот {} заблокирован — требуется ручное вмешательство"/>
   <translation tag="Slot {} matches." ru="Слот {} подходит."/>
   <translation tag="Slot {} spool cleared" ru="Катушка слота {} удалена"/>
