@@ -164,6 +164,9 @@ class MoonrakerDiscoverySequence {
     std::vector<std::string>& sensors() {
         return sensors_;
     }
+    std::vector<std::string>& load_cells() {
+        return load_cells_;
+    }
     std::vector<std::string>& fans() {
         return fans_;
     }
@@ -182,6 +185,9 @@ class MoonrakerDiscoverySequence {
 
     const std::vector<std::string>& heaters() const {
         return heaters_;
+    }
+    const std::vector<std::string>& load_cells() const {
+        return load_cells_;
     }
     const std::vector<std::string>& sensors() const {
         return sensors_;
@@ -304,8 +310,9 @@ class MoonrakerDiscoverySequence {
      */
     static nlohmann::json build_subscription_objects(
         const PrinterDiscovery& hw, const std::vector<std::string>& heaters,
-        const std::vector<std::string>& sensors, const std::vector<std::string>& fans,
-        const std::vector<std::string>& leds, const std::vector<std::string>& afc_objects,
+        const std::vector<std::string>& sensors, const std::vector<std::string>& load_cells,
+        const std::vector<std::string>& fans, const std::vector<std::string>& leds,
+        const std::vector<std::string>& afc_objects,
         const std::vector<std::string>& filament_sensors, const std::vector<std::string>& mcus);
 
   private:
@@ -319,6 +326,7 @@ class MoonrakerDiscoverySequence {
 
     // Hardware vectors
     std::vector<std::string> heaters_;
+    std::vector<std::string> load_cells_;
     std::vector<std::string> sensors_;
     std::vector<std::string> fans_;
     std::vector<std::string> leds_;

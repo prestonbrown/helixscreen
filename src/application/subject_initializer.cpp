@@ -53,6 +53,7 @@
 #include "filament_variants.h"
 #include "humidity_sensor_manager.h"
 #include "led/ui_led_control_overlay.h"
+#include "load_cell_manager.h"
 #include "lock_manager.h"
 #include "lvgl/lvgl.h"
 #include "material_settings_manager.h"
@@ -356,6 +357,7 @@ void SubjectInitializer::init_ams_subjects() {
     helix::sensors::AccelSensorManager::instance().init_subjects();
     helix::sensors::ColorSensorManager::instance().init_subjects();
     helix::sensors::TemperatureSensorManager::instance().init_subjects();
+    helix::sensors::LoadCellManager::instance().init_subjects();
 }
 
 void SubjectInitializer::init_panel_subjects(IMoonrakerAPI* api) {

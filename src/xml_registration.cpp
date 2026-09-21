@@ -431,6 +431,7 @@ void register_xml_components() {
     register_xml("width_indicator.xml");
     register_xml("probe_indicator.xml");
     register_xml("filament_sensor_row.xml");
+    register_xml("load_cell_row.xml");
     register_xml("temp_display.xml");
     register_xml("components/home_action_tile.xml");
     register_xml("components/nozzle_icon.xml");

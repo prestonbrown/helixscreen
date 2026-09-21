@@ -1186,6 +1186,7 @@
   <translation tag="Flying Toasters" es="Flying Toasters"/>
   <translation tag="Follow active tool" es="Seguir herramienta activa"/>
   <translation tag="Follow graph screen" es="Seguir pantalla del gráfico"/>
+  <translation tag="Force/weight sensors"/>
   <translation tag="Forget" es="Olvidar"/>
   <translation tag="Forget Network?" es="¿Olvidar red?"/>
   <translation tag="Forget network &apos;{}&apos;? You will need the password to reconnect." es="¿Olvidar la red &apos;{}&apos;? Necesitará la contraseña para reconectar."/>
@@ -1467,6 +1468,7 @@
   <translation tag="LED strip available for lighting control" es="Tira LED disponible para control de iluminación"/>
   <translation tag="LEDs" es="LEDs"/>
   <translation tag="LEDs controlled by the light button" es="LEDs controlados por el botón de luz"/>
+  <translation tag="LOAD CELLS"/>
   <translation tag="LOADED" es="CARGADO"/>
   <translation tag="LOCKED" es="BLOQUEADO"/>
   <translation tag="LOT-2024-001" es="LOT-2024-001"/>
@@ -1509,6 +1511,8 @@
   <translation tag="Listening" es="Escuchando"/>
   <translation tag="Live view from your webcam" es="Vista en vivo de tu webcam"/>
   <translation tag="Load" es="Cargar"/>
+  <translation tag="Load Cell"/>
+  <translation tag="Load Cells"/>
   <translation tag="Load Failed" es="Fallo al cargar"/>
   <translation tag="Load Filament" es="Cargar Filamento"/>
   <translation tag="Load a filament first before trying to unload" es="Cargue primero filamento antes de intentar descargar"/>
@@ -2616,13 +2620,13 @@
   <translation tag="Spool #{}" es="Bobina n.º {}"/>
   <translation tag="Spool Info" es="Info de bobina"/>
   <translation tag="Spool Not Found" es="Bobina no encontrada"/>
+  <translation tag="Spool Weight" es="Peso de Bobina"/>
   <translation tag="Spool Weight (g)" es="Peso de Bobina (g)"/>
   <translation tag="Spool archived" es="Bobina archivada"/>
   <translation tag="Spool created successfully" es="Bobina creada correctamente"/>
   <translation tag="Spool deleted" es="Bobina eliminada"/>
   <translation tag="Spool motor" es="Motor de bobina"/>
   <translation tag="Spool saved" es="Bobina guardada"/>
-  <translation tag="Spool wt (g)" es="Peso bobina (g)"/>
   <translation tag="Spoolman" es="Spoolman"/>
   <translation tag="Spoolman Not Available" es="Spoolman no disponible"/>
   <translation tag="Spoolman Server" es="Servidor Spoolman"/>

@@ -57,7 +57,7 @@
       <lv_obj height="content"
               flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="start"
               style_flex_cross_place="start" style_pad_gap="#space_sm" scrollable="false">
-        <!-- Row 1: Remaining (g) | Spool wt (g) | Price -->
+        <!-- Row 1: Remaining (g) | Spool Weight (g) | Price -->
         <lv_obj width="100%"
                 height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
           <lv_obj height="content"
@@ -69,7 +69,7 @@
           </lv_obj>
           <lv_obj height="content"
                   flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-            <text_small text="Spool wt (g)" translation_tag="Spool wt (g)"/>
+            <text_small text="Spool Weight (g)" translation_tag="Spool Weight (g)"/>
             <text_input name="field_spool_weight" width="100%" keyboard_hint="numeric" placeholder="0" max_length="8">
               <event_cb trigger="value_changed" callback="spoolman_edit_field_changed_cb"/>
             </text_input>

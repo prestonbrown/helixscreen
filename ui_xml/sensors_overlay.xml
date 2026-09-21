@@ -146,6 +146,26 @@
       </setting_group>
 
       <!-- ================================================================== -->
+      <!-- LOAD CELLS SECTION -->
+      <!-- ================================================================== -->
+      <setting_group name="load_cells_section">
+        <bind_flag_if_eq subject="load_cell_count" flag="hidden" ref_value="0"/>
+        <setting_group_header title="LOAD CELLS"
+                              title_tag="Load Cells" icon="weight" badge_name="load_cell_count_label" badge_text="0"
+                              hide_badge="false" hide_icon="false"/>
+        <lv_obj width="100%"
+                height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
+                style_pad_bottom="#space_md" scrollable="false" flex_flow="column" style_pad_gap="#space_sm">
+          <text_small width="100%"
+                      text="Force/weight sensors" translation_tag="Force/weight sensors" style_text_align="left"/>
+
+          <lv_obj name="load_cell_list"
+                  width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="column"
+                  style_pad_gap="#space_xs"/>
+        </lv_obj>
+      </setting_group>
+
+      <!-- ================================================================== -->
       <!-- TEMPERATURE SENSORS SECTION -->
       <!-- ================================================================== -->
       <setting_group name="temp_sensors_section">

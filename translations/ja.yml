@@ -1212,6 +1212,7 @@ translations:
   Flying Toasters: フライングトースター
   Follow active tool: アクティブツールに追従
   Follow graph screen: グラフ画面に追従
+  Force/weight sensors: ''
   Forget: 登録解除
   Forget Network?: ネットワークを登録解除しますか？
   Forget network '{}'? You will need the password to reconnect.: ネットワーク '{}' を登録解除しますか？再接続にはパスワードが必要です。
@@ -1511,6 +1512,7 @@ translations:
   LED strip available for lighting control: 照明制御用の LED ストリップが利用可能です
   LEDs: LED
   LEDs controlled by the light button: ライトボタンで制御される LED
+  LOAD CELLS: ''
   LOADED: 装填済み
   LOCKED: ロック中
   LOT-2024-001: LOT-2024-001
@@ -1556,6 +1558,8 @@ translations:
   Listening: 聞き取り中
   Live view from your webcam: ウェブカメラのライブ表示
   Load: 装填
+  Load Cell: ''
+  Load Cells: ''
   Load Failed: '装填に失敗しました'
   Load Filament: フィラメントを装填
   Load a filament first before trying to unload: 排出する前にまずフィラメントを装填してください
@@ -2697,13 +2701,13 @@ translations:
   'Spool #{}': 'スプール #{}'
   Spool Info: スプール情報
   Spool Not Found: 'スプールが見つかりません'
+  Spool Weight: スプール重量
   Spool Weight (g): スプール重量（g）
   Spool archived: スプールをアーカイブしました
   Spool created successfully: スプールを作成しました
   Spool deleted: スプールを削除しました
   Spool motor: スプールモーター
   Spool saved: スプールを保存しました
-  Spool wt (g): スプール重量 (g)
   Spoolman: Spoolman
   Spoolman Not Available: 'Spoolman は利用できません'
   Spoolman Server: Spoolman サーバー

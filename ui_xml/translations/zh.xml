@@ -1186,6 +1186,7 @@
   <translation tag="Flying Toasters" zh="飞行烤面包机"/>
   <translation tag="Follow active tool" zh="跟随当前工具"/>
   <translation tag="Follow graph screen" zh="跟随图表屏幕"/>
+  <translation tag="Force/weight sensors"/>
   <translation tag="Forget" zh="忘记"/>
   <translation tag="Forget Network?" zh="忘记网络？"/>
   <translation tag="Forget network &apos;{}&apos;? You will need the password to reconnect." zh="忘记网络 &apos;{}&apos;？重新连接时需要密码。"/>
@@ -1467,6 +1468,7 @@
   <translation tag="LED strip available for lighting control" zh="LED 灯带可用于照明控制"/>
   <translation tag="LEDs" zh="LED"/>
   <translation tag="LEDs controlled by the light button" zh="由灯光按钮控制的 LED"/>
+  <translation tag="LOAD CELLS"/>
   <translation tag="LOADED" zh="已加载"/>
   <translation tag="LOCKED" zh="已锁定"/>
   <translation tag="LOT-2024-001" zh="LOT-2024-001"/>
@@ -1509,6 +1511,8 @@
   <translation tag="Listening" zh="正在监听"/>
   <translation tag="Live view from your webcam" zh="摄像头实时画面"/>
   <translation tag="Load" zh="加载"/>
+  <translation tag="Load Cell"/>
+  <translation tag="Load Cells"/>
   <translation tag="Load Failed" zh="装载失败"/>
   <translation tag="Load Filament" zh="加载耗材"/>
   <translation tag="Load a filament first before trying to unload" zh="请先装载耗材，再尝试卸载"/>
@@ -2616,13 +2620,13 @@
   <translation tag="Spool #{}" zh="线轴 #{}"/>
   <translation tag="Spool Info" zh="料盘信息"/>
   <translation tag="Spool Not Found" zh="找不到料盘"/>
+  <translation tag="Spool Weight" zh="料盘重量"/>
   <translation tag="Spool Weight (g)" zh="料盘重量（克）"/>
   <translation tag="Spool archived" zh="料盘已归档"/>
   <translation tag="Spool created successfully" zh="料盘创建成功"/>
   <translation tag="Spool deleted" zh="料盘已删除"/>
   <translation tag="Spool motor" zh="料盘电机"/>
   <translation tag="Spool saved" zh="料盘已保存"/>
-  <translation tag="Spool wt (g)" zh="料盘重量 (g)"/>
   <translation tag="Spoolman" zh="Spoolman"/>
   <translation tag="Spoolman Not Available" zh="Spoolman 不可用"/>
   <translation tag="Spoolman Server" zh="Spoolman 服务器"/>

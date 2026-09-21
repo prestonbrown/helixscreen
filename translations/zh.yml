@@ -1208,6 +1208,7 @@ translations:
   Flying Toasters: 飞行烤面包机
   Follow active tool: 跟随当前工具
   Follow graph screen: 跟随图表屏幕
+  Force/weight sensors: ''
   Forget: 忘记
   Forget Network?: 忘记网络？
   Forget network '{}'? You will need the password to reconnect.: 忘记网络 '{}'？重新连接时需要密码。
@@ -1506,6 +1507,7 @@ translations:
   LED strip available for lighting control: LED 灯带可用于照明控制
   LEDs: LED
   LEDs controlled by the light button: 由灯光按钮控制的 LED
+  LOAD CELLS: ''
   LOADED: 已加载
   LOCKED: 已锁定
   LOT-2024-001: LOT-2024-001
@@ -1550,6 +1552,8 @@ translations:
   Listening: 正在监听
   Live view from your webcam: 摄像头实时画面
   Load: 加载
+  Load Cell: ''
+  Load Cells: ''
   Load Failed: '装载失败'
   Load Filament: 加载耗材
   Load a filament first before trying to unload: 请先装载耗材，再尝试卸载
@@ -2688,13 +2692,13 @@ translations:
   'Spool #{}': '线轴 #{}'
   Spool Info: 料盘信息
   Spool Not Found: '找不到料盘'
+  Spool Weight: 料盘重量
   Spool Weight (g): 料盘重量（克）
   Spool archived: 料盘已归档
   Spool created successfully: 料盘创建成功
   Spool deleted: 料盘已删除
   Spool motor: 料盘电机
   Spool saved: 料盘已保存
-  Spool wt (g): 料盘重量 (g)
   Spoolman: Spoolman
   Spoolman Not Available: 'Spoolman 不可用'
   Spoolman Server: Spoolman 服务器

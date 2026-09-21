@@ -20,6 +20,7 @@ enum class DeviceType {
     HEATER,          ///< extruder, heater_bed, heater_generic
     TEMP_SENSOR,     ///< temperature_sensor, temperature_fan
     LED,             ///< neopixel, led, dotstar
+    LOAD_CELL,       ///< load_cell
     FILAMENT_SENSOR, ///< filament_switch_sensor, filament_motion_sensor
     POWER_DEVICE,    ///< PSU, relay, GPIO devices
     MACRO,           ///< G-code macros

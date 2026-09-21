@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Load Cell Row Component -->
+<!-- A single row for load cells -->
+<!-- Shows sensor name, type badge, role dropdown, and enable toggle -->
+<!-- Usage: Created dynamically by C++ in sensor settings overlays -->
+<!-- NOTE: Dropdown options order MUST match WidthSensorRole enum: -->
+<!--   0 = NONE, 1 = FLOW_COMPENSATION -->
+<!-- See also: src/ui/ui_settings_sensors.cpp (static_cast<LoadCellRole>(index)) -->
+<!-- Note: Options are NOT translatable (LVGL dropdown limitation) -->
+<component>
+  <api>
+    <prop name="sensor_name" type="string" default="Load Cell"/>
+  </api>
+  <view name="sensor_row"
+        extends="lv_obj" width="100%" height="content" style_bg_opa="0" style_border_width="0"
+        style_pad_left="#space_sm" style_pad_right="#space_sm" style_pad_top="#space_md" style_pad_bottom="#space_md"
+        scrollable="false" flex_flow="column" style_pad_gap="#space_sm">
+    <!-- Top Row: Name + Type indicator -->
+    <lv_obj width="100%"
+            height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="space_between"
+            style_flex_cross_place="center">
+      <!-- Left: Sensor name -->
+      <lv_obj height="content"
+              style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
+              style_pad_gap="#space_sm">
+        <icon src="weight" size="sm" variant="primary"/>
+        <text_body name="name_label" text="$sensor_name"/>
+      </lv_obj>
+    </lv_obj>
+    <!-- Bottom Row: Role dropdown -->
+    <lv_obj width="100%"
+            height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="space_between"
+            style_flex_cross_place="center">
+      <!-- Role Dropdown -->
+      <lv_obj height="content"
+              style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
+              style_pad_gap="#space_sm">
+        <text_small text="Role:" translation_tag="Role:"/>
+        <lv_dropdown name="role_dropdown"
+                     width="160" height="36" options="None&#10;Spool Weight" options_tag="None&#10;Spool Weight"
+                     style_radius="#border_radius" style_border_width="0"/>
+      </lv_obj>
+    </lv_obj>
+    <!-- Divider at bottom -->
+    <divider_horizontal style_margin_top="#space_xs"/>
+  </view>
+</component>

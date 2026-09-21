@@ -1186,6 +1186,7 @@
   <translation tag="Flying Toasters" de="Flying Toasters"/>
   <translation tag="Follow active tool" de="Aktivem Werkzeug folgen"/>
   <translation tag="Follow graph screen" de="Diagrammbildschirm folgen"/>
+  <translation tag="Force/weight sensors" de="Kraft-/Gewichtssensoren"/>
   <translation tag="Forget" de="Vergessen"/>
   <translation tag="Forget Network?" de="Netzwerk vergessen?"/>
   <translation tag="Forget network &apos;{}&apos;? You will need the password to reconnect." de="Netzwerk &apos;{}&apos; vergessen? Sie benötigen das Passwort zum erneuten Verbinden."/>
@@ -1467,6 +1468,7 @@
   <translation tag="LED strip available for lighting control" de="LED-Streifen zur Beleuchtungssteuerung verfügbar"/>
   <translation tag="LEDs" de="LEDs"/>
   <translation tag="LEDs controlled by the light button" de="LEDs gesteuert durch die Lichttaste"/>
+  <translation tag="LOAD CELLS" de="WÄGEZELLEN"/>
   <translation tag="LOADED" de="GELADEN"/>
   <translation tag="LOCKED" de="GESPERRT"/>
   <translation tag="LOT-2024-001" de="LOT-2024-001"/>
@@ -1509,6 +1511,8 @@
   <translation tag="Listening" de="Zuhören"/>
   <translation tag="Live view from your webcam" de="Livebild Ihrer Webcam"/>
   <translation tag="Load" de="Laden"/>
+  <translation tag="Load Cell" de="Wägezelle"/>
+  <translation tag="Load Cells" de="Wägezellen"/>
   <translation tag="Load Failed" de="Laden fehlgeschlagen"/>
   <translation tag="Load Filament" de="Filament laden"/>
   <translation tag="Load a filament first before trying to unload" de="Laden Sie zuerst Filament, bevor Sie entladen"/>
@@ -2616,13 +2620,13 @@
   <translation tag="Spool #{}" de="Spule #{}"/>
   <translation tag="Spool Info" de="Spuleninfo"/>
   <translation tag="Spool Not Found" de="Spule nicht gefunden"/>
+  <translation tag="Spool Weight" de="Spulengewicht"/>
   <translation tag="Spool Weight (g)" de="Spulengewicht (g)"/>
   <translation tag="Spool archived" de="Spule archiviert"/>
   <translation tag="Spool created successfully" de="Spule erfolgreich erstellt"/>
   <translation tag="Spool deleted" de="Spule gelöscht"/>
   <translation tag="Spool motor" de="Spulenmotor"/>
   <translation tag="Spool saved" de="Spule gespeichert"/>
-  <translation tag="Spool wt (g)" de="Spulengewicht (g)"/>
   <translation tag="Spoolman" de="Spoolman"/>
   <translation tag="Spoolman Not Available" de="Spoolman nicht verfügbar"/>
   <translation tag="Spoolman Server" de="Spoolman-Server"/>

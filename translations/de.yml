@@ -1313,6 +1313,7 @@ translations:
   Flying Toasters: Flying Toasters
   Follow active tool: Aktivem Werkzeug folgen
   Follow graph screen: Diagrammbildschirm folgen
+  Force/weight sensors: 'Kraft-/Gewichtssensoren'
   Forget: Vergessen
   Forget Network?: Netzwerk vergessen?
   Forget network '{}'? You will need the password to reconnect.: Netzwerk '{}' vergessen? Sie benötigen das Passwort zum erneuten Verbinden.
@@ -1641,6 +1642,7 @@ translations:
     verfügbar
   LEDs: LEDs
   LEDs controlled by the light button: LEDs gesteuert durch die Lichttaste
+  LOAD CELLS: 'WÄGEZELLEN'
   LOADED: GELADEN
   LOCKED: GESPERRT
   LOT-2024-001: LOT-2024-001
@@ -1688,6 +1690,8 @@ translations:
   Listening: Zuhören
   Live view from your webcam: Livebild Ihrer Webcam
   Load: Laden
+  Load Cell: 'Wägezelle'
+  Load Cells: 'Wägezellen'
   Load Failed: 'Laden fehlgeschlagen'
   Load Filament: Filament laden
   Load a filament first before trying to unload: Laden Sie zuerst Filament, bevor Sie entladen
@@ -2906,13 +2910,13 @@ translations:
   'Spool #{}': 'Spule #{}'
   Spool Info: Spuleninfo
   Spool Not Found: 'Spule nicht gefunden'
+  Spool Weight: Spulengewicht
   Spool Weight (g): Spulengewicht (g)
   Spool archived: Spule archiviert
   Spool created successfully: Spule erfolgreich erstellt
   Spool deleted: Spule gelöscht
   Spool motor: Spulenmotor
   Spool saved: Spule gespeichert
-  Spool wt (g): Spulengewicht (g)
   Spoolman: Spoolman
   Spoolman Not Available: 'Spoolman nicht verfügbar'
   Spoolman Server: Spoolman-Server

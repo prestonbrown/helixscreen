@@ -52,6 +52,8 @@ const std::unordered_set<std::string> STRIP_PREFIXES = {
     "neopixel",
     "led",
     "dotstar",
+    // Load Cells
+    "load_cell",
     // Filament sensors
     "filament_switch_sensor",
     "filament_motion_sensor",
@@ -63,6 +65,7 @@ const std::unordered_map<DeviceType, std::string> TYPE_SUFFIXES = {
     {DeviceType::HEATER, "Heater"},
     {DeviceType::TEMP_SENSOR, "Temperature"},
     {DeviceType::LED, "LED"},
+    {DeviceType::LOAD_CELL, "Load Cell"},
     {DeviceType::FILAMENT_SENSOR, "Sensor"},
 };
 
@@ -73,6 +76,7 @@ const std::unordered_map<DeviceType, std::unordered_set<std::string>> SUFFIX_SKI
     {DeviceType::HEATER, {"heater", "heat", "heating"}},
     {DeviceType::TEMP_SENSOR, {"temp", "temperature", "thermistor"}},
     {DeviceType::LED, {"led", "leds", "light", "lights", "strip", "neopixel"}},
+    {DeviceType::LOAD_CELL, {"load cell", "weight"}},
     {DeviceType::FILAMENT_SENSOR, {"sensor", "detector"}},
 };
 

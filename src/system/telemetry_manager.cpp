@@ -22,6 +22,7 @@
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
+#include "load_cell_manager.h"
 #include "moonraker_client.h"
 #include "moonraker_types.h"
 #include "panel_widget_config.h"
@@ -1857,6 +1858,7 @@ nlohmann::json TelemetryManager::build_hw_fans_section(const helix::PrinterDisco
 nlohmann::json TelemetryManager::build_hw_sensors_section(const helix::PrinterDiscovery& hw) {
     json sensors;
     sensors["filament"] = static_cast<int>(FilamentSensorManager::instance().sensor_count());
+    sensors["load_cell"] = static_cast<int>(sensors::LoadCellManager::instance().sensor_count());
     sensors["temperature_extra"] =
         static_cast<int>(sensors::TemperatureSensorManager::instance().sensor_count());
     sensors["color"] = static_cast<int>(sensors::ColorSensorManager::instance().sensor_count());
