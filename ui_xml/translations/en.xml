@@ -992,6 +992,7 @@
   <translation tag="Filament is pulling tight" en="Filament is pulling tight"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." en="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool."/>
   <translation tag="Filament load failed: {}" en="Filament load failed: {}"/>
+  <translation tag="Filament not set" en="Filament not set"/>
   <translation tag="Filament operation failed" en="Filament operation failed"/>
   <translation tag="Filament operation timed out" en="Filament operation timed out"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." en="Filament ran out - nothing at the toolhead and the print is paused."/>
@@ -2292,6 +2293,7 @@
   <translation tag="Slot %d: %.0fg of %.0fg needed" en="Slot %d: %.0fg of %.0fg needed"/>
   <translation tag="Slot 1" en="Slot 1"/>
   <translation tag="Slot {}" en="Slot {}"/>
+  <translation tag="Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print." en="Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print."/>
   <translation tag="Slot {} is blocked — manual intervention required" en="Slot {} is blocked — manual intervention required"/>
   <translation tag="Slot {} matches." en="Slot {} matches."/>
   <translation tag="Slot {} spool cleared" en="Slot {} spool cleared"/>

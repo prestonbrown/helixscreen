@@ -2299,3 +2299,78 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker records the routing a configured t
         REQUIRE(backend.last_print_tool_mapping() == crossover);
     }
 }
+
+// ============================================================================
+// Resume-refusal classification
+// ============================================================================
+
+// The U1 refuses RESUME while a used extruder has no material assigned, and
+// says so only on the `!!` broadcast channel: print_stats.exception keeps
+// whatever paused the print (a runout), because the refusal is raised
+// oneshot. Uncoded `!!` on a paused printer otherwise falls through to
+// error_classify::classify(), which offers Resume — the one action the
+// firmware is guaranteed to refuse again until the material is set.
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker claims the not-edit-filament resume refusal",
+                 "[ams][snapmaker][error-center]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+    helix::ClassifyContext paused;
+    paused.is_paused = true;
+
+    SECTION("claims the refusal as a Snapmaker fault") {
+        auto ev = backend.classify_error("!! e2 not edit filament", paused);
+        REQUIRE(ev.has_value());
+        REQUIRE(ev->source == helix::ErrorSource::SNAPMAKER);
+        REQUIRE(ev->severity == helix::ErrorSeverity::CRITICAL);
+        REQUIRE(ev->sticky);
+    }
+
+    SECTION("names the slot the way the machine labels it") {
+        // Firmware counts extruders from 0; every slot the user reads is 1-based
+        // (ams_state.cpp display_slot). e2 is the third slot.
+        auto ev = backend.classify_error("!! e2 not edit filament", paused);
+        REQUIRE(ev.has_value());
+        REQUIRE(ev->detail.find('3') != std::string::npos);
+        REQUIRE(ev->detail.find("e2") == std::string::npos);
+    }
+
+    SECTION("offers no Resume — the firmware refuses it until the material is set") {
+        auto ev = backend.classify_error("!! e2 not edit filament", paused);
+        REQUIRE(ev.has_value());
+        REQUIRE_FALSE(ev->recovery_actions.empty());
+        for (const auto& action : ev->recovery_actions) {
+            REQUIRE(action.gcode.find("RESUME") == std::string::npos);
+        }
+    }
+
+    SECTION("keeps the firmware wording for cross-channel dedup") {
+        auto ev = backend.classify_error("!! e2 not edit filament", paused);
+        REQUIRE(ev.has_value());
+        REQUIRE(ev->raw_detail == "e2 not edit filament");
+    }
+
+    SECTION("every extruder index maps to its own slot") {
+        struct Case {
+            const char* line;
+            char slot;
+        };
+        for (const auto& c :
+             {Case{"!! e0 not edit filament", '1'}, Case{"!! e1 not edit filament", '2'},
+              Case{"!! e3 not edit filament", '4'}}) {
+            auto ev = backend.classify_error(c.line, paused);
+            REQUIRE(ev.has_value());
+            REQUIRE(ev->detail.find(c.slot) != std::string::npos);
+        }
+    }
+
+    SECTION("ignores the refusal when nothing is paused or printing") {
+        helix::ClassifyContext idle;
+        auto ev = backend.classify_error("!! e2 not edit filament", idle);
+        REQUIRE_FALSE(ev.has_value());
+    }
+
+    SECTION("leaves unrelated errors to the generic classifier") {
+        REQUIRE_FALSE(
+            backend.classify_error("!! Probe triggered prior to movement", paused).has_value());
+        REQUIRE_FALSE(backend.classify_error("// e2 not edit filament", paused).has_value());
+    }
+}

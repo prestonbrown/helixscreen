@@ -992,6 +992,7 @@
   <translation tag="Filament is pulling tight" fr="Le filament est sous tension"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." fr="Le filament est encore à la buse après le déchargement. La coupe ou la rétractation n&apos;a peut-être pas abouti. Dégagez la tête d&apos;outil avant de charger une autre bobine."/>
   <translation tag="Filament load failed: {}" fr="Échec du chargement du filament : {}"/>
+  <translation tag="Filament not set"/>
   <translation tag="Filament operation failed" fr="Échec de l&apos;opération filament"/>
   <translation tag="Filament operation timed out" fr="Opération filament — délai dépassé"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." fr="Filament épuisé - plus rien à la tête d&apos;outil et l&apos;impression est en pause."/>
@@ -2292,6 +2293,7 @@
   <translation tag="Slot %d: %.0fg of %.0fg needed" fr="Slot %d : %.0fg sur %.0fg requis"/>
   <translation tag="Slot 1" fr="Slot 1"/>
   <translation tag="Slot {}" fr="Emplacement {}"/>
+  <translation tag="Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print."/>
   <translation tag="Slot {} is blocked — manual intervention required" fr="Slot {} bloqué — intervention manuelle requise"/>
   <translation tag="Slot {} matches." fr="Le slot {} correspond."/>
   <translation tag="Slot {} spool cleared" fr="Bobine du slot {} effacée"/>

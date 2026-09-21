@@ -992,6 +992,7 @@
   <translation tag="Filament is pulling tight" ja="フィラメントが引っ張られています"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." ja="アンロード後もフィラメントがノズルに残っています。カットまたは引き戻しが完了していない可能性があります。別のスプールを装填する前にツールヘッドを空にしてください。"/>
   <translation tag="Filament load failed: {}" ja="フィラメントの装填に失敗しました: {}"/>
+  <translation tag="Filament not set"/>
   <translation tag="Filament operation failed" ja="フィラメント操作に失敗しました"/>
   <translation tag="Filament operation timed out" ja="フィラメント操作がタイムアウトしました"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." ja="フィラメントが切れました - ツールヘッドには何も残っておらず、印刷は一時停止しています。"/>
@@ -2292,6 +2293,7 @@
   <translation tag="Slot %d: %.0fg of %.0fg needed" ja="スロット %d: %.0fg（必要 %.0fg）"/>
   <translation tag="Slot 1" ja="スロット1"/>
   <translation tag="Slot {}" ja="スロット {}"/>
+  <translation tag="Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print."/>
   <translation tag="Slot {} is blocked — manual intervention required" ja="スロット {} がブロックされています — 手動での対応が必要です"/>
   <translation tag="Slot {} matches." ja="スロット {} が一致します。"/>
   <translation tag="Slot {} spool cleared" ja="スロット {} のスプールをクリアしました"/>

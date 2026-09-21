@@ -1091,6 +1091,7 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : После выгрузки филамент всё ещё находится у сопла. Отрезание или втягивание могло не завершиться. Очистите печатающую головку перед загрузкой другой катушки.
   'Filament load failed: {}': 'Ошибка загрузки филамента: {}'
+  Filament not set: ''
   Filament operation failed: Операция с филаментом не удалась
   Filament operation timed out: Операция с филаментом — время ожидания истекло
   Filament ran out - nothing at the toolhead and the print is paused.: 'Филамент закончился - у печатающей головки ничего нет, печать приостановлена.'
@@ -2532,6 +2533,8 @@ translations:
   'Slot %d: %.0fg of %.0fg needed': 'Слот %d: %.0fг из %.0fг'
   Slot 1: Слот 1
   Slot {}: Слот {}
+  ? Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print.
+  : ''
   Slot {} is blocked — manual intervention required: Слот {} заблокирован — требуется ручное вмешательство
   Slot {} matches.: 'Слот {} подходит.'
   Slot {} spool cleared: Катушка слота {} удалена

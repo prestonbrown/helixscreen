@@ -1071,6 +1071,7 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   'Filament load failed: {}': 'Filament load failed: {}'
+  Filament not set: Filament not set
   Filament operation failed: Filament operation failed
   Filament operation timed out: Filament operation timed out
   Filament ran out - nothing at the toolhead and the print is paused.: Filament ran out - nothing at the toolhead and the print is paused.
@@ -2499,6 +2500,8 @@ translations:
   'Slot %d: %.0fg of %.0fg needed': 'Slot %d: %.0fg of %.0fg needed'
   Slot 1: Slot 1
   Slot {}: Slot {}
+  ? Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print.
+  : Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print.
   Slot {} is blocked — manual intervention required: Slot {} is blocked — manual intervention required
   Slot {} matches.: Slot {} matches.
   Slot {} spool cleared: Slot {} spool cleared

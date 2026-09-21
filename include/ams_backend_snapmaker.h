@@ -10,6 +10,7 @@
 #include <array>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -206,6 +207,15 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     // invoke the callback immediately so the caller dispatches RESUME without
     // delay. on_ready is always called on the main thread.
     void prepare_for_resume(int slot_index, ResumeReadyCallback on_ready) override;
+
+    // The firmware refuses RESUME while a used extruder still has no material
+    // assigned, and raises that refusal oneshot: it reaches us only on the `!!`
+    // broadcast, while print_stats.exception keeps whatever paused the print.
+    // Left to error_classify::classify(), an uncoded `!!` on a paused printer is
+    // handed a Resume button, and this is the one fault that refuses it again on
+    // every tap.
+    [[nodiscard]] std::optional<helix::ErrorEvent>
+    classify_error(const std::string& raw_line, const helix::ClassifyContext& ctx) const override;
 
     // True when the motion sensor reports runout but the port sensor still
     // reads filament present — i.e. the encoder is stale (e.g., it never

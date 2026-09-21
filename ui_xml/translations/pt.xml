@@ -992,6 +992,7 @@
   <translation tag="Filament is pulling tight" pt="O filamento está puxando com tensão"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." pt="O filamento ainda está no bico após o descarregamento. O corte ou a retração pode não ter sido concluído. Limpe o cabeçote antes de carregar outro carretel."/>
   <translation tag="Filament load failed: {}" pt="Falha ao carregar filamento: {}"/>
+  <translation tag="Filament not set"/>
   <translation tag="Filament operation failed" pt="Falha na operação de filamento"/>
   <translation tag="Filament operation timed out" pt="Operação de filamento — tempo esgotado"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." pt="O filamento acabou - não há nada no cabeçote e a impressão está pausada."/>
@@ -2292,6 +2293,7 @@
   <translation tag="Slot %d: %.0fg of %.0fg needed" pt="Slot %d: %.0fg de %.0fg necessários"/>
   <translation tag="Slot 1" pt="Slot 1"/>
   <translation tag="Slot {}" pt="Slot {}"/>
+  <translation tag="Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print."/>
   <translation tag="Slot {} is blocked — manual intervention required" pt="Slot {} está bloqueado — intervenção manual necessária"/>
   <translation tag="Slot {} matches." pt="O slot {} corresponde."/>
   <translation tag="Slot {} spool cleared" pt="Bobina do slot {} removida"/>

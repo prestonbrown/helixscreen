@@ -1005,6 +1005,7 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : 卸载后耗材仍留在喷嘴处。切断或回抽可能未完成。请先清理工具头，再装载其他料盘。
   'Filament load failed: {}': '耗材加载失败: {}'
+  Filament not set: ''
   Filament operation failed: 耗材操作失败
   Filament operation timed out: 耗材操作超时
   Filament ran out - nothing at the toolhead and the print is paused.: '耗材已用尽 - 工具头处没有耗材，打印已暂停。'
@@ -2344,6 +2345,8 @@ translations:
   'Slot %d: %.0fg of %.0fg needed': '槽位 %d：%.0fg / 需要 %.0fg'
   Slot 1: 槽位 1
   Slot {}: 槽位 {}
+  ? Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print.
+  : ''
   Slot {} is blocked — manual intervention required: 槽位 {} 被阻塞 — 需要手动干预
   Slot {} matches.: '槽位 {} 匹配。'
   Slot {} spool cleared: 槽位 {} 料盘已清除

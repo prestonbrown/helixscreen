@@ -6,6 +6,7 @@
 #include "ui_toast_manager.h"
 
 #include "ams_error.h"
+#include "ams_fault_event.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "filament_slot_override.h"
@@ -2047,6 +2048,70 @@ std::string AmsBackendSnapmaker::preprint_gcode(const std::set<int>& tools_used,
         out += lines[i];
     }
     return out;
+}
+
+// The U1 blocks RESUME whenever a used extruder still reads filament_type
+// "" or "NONE" in print_task_config: INNER_CHECK_AND_RELOAD_FILAMENT_INFO
+// raises `e<N> not edit filament`. Tagless third-party spools land here,
+// because only a Snapmaker RFID spool fills that field on its own.
+//
+// The refusal is raised oneshot, so it never reaches print_stats.exception --
+// that still holds whatever paused the print, typically a runout. The generic
+// classifier would see an uncoded `!!` on a paused printer and offer Resume,
+// which this fault refuses again, redisplaying the same modal indefinitely.
+std::optional<helix::ErrorEvent>
+AmsBackendSnapmaker::classify_error(const std::string& raw_line,
+                                    const helix::ClassifyContext& ctx) const {
+    if (!helix::is_bang_line(raw_line)) {
+        return std::nullopt;
+    }
+
+    // Only meaningful against a job the user is trying to continue. Echoing the
+    // words into the console on an idle machine earns no modal.
+    if (!ctx.is_paused && !ctx.is_printing) {
+        return std::nullopt;
+    }
+
+    // Klipper's wording, verbatim: "e<N> not edit filament".
+    const std::string detail = helix::strip_bang_prefix(raw_line);
+    static constexpr std::string_view kSuffix = " not edit filament";
+    if (detail.empty() || detail.front() != 'e') {
+        return std::nullopt;
+    }
+    const auto suffix_pos = detail.find(kSuffix);
+    if (suffix_pos == std::string::npos || suffix_pos < 2) {
+        return std::nullopt;
+    }
+    const std::string digits = detail.substr(1, suffix_pos - 1);
+    if (digits.find_first_not_of("0123456789") != std::string::npos) {
+        return std::nullopt;
+    }
+
+    // Firmware counts extruders from 0; every slot number the user reads is
+    // 1-based, matching the machine's own labels and the slicer's filament list.
+    const int slot = std::stoi(digits) + 1;
+
+    spdlog::warn("{} Resume refused: extruder {} has no filament type assigned", backend_log_tag(),
+                 digits);
+
+    // No gcode fixes this in one tap: SET_PRINT_FILAMENT_CONFIG needs a vendor,
+    // type and subtype the user has to choose. So the action set is a plain
+    // dismiss and the sentence carries the fix. Offering Resume here would
+    // rebuild the loop this classifier exists to break.
+    std::vector<helix::RecoveryAction> actions;
+    actions.push_back(
+        {lv_tr("OK"), "", "ams_backend_snapmaker::not_edit_filament_dismiss", "", false});
+
+    helix::ErrorEvent e = helix::make_ams_fault_event(
+        helix::ErrorSource::SNAPMAKER, lv_tr("Filament not set"),
+        fmt::format(lv_tr("Slot {} has no filament type set, so the printer will not resume. "
+                          "Set its material in the filament panel, then resume the print."),
+                    slot),
+        std::move(actions));
+    // make_ams_fault_event leaves raw_detail empty; the router's cross-source
+    // dedup matches on the firmware's untranslated wording, not our sentence.
+    e.raw_detail = detail;
+    return e;
 }
 
 #endif // HELIX_HAS_SNAPMAKER
