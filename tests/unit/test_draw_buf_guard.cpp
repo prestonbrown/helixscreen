@@ -16,6 +16,7 @@
 // costs nothing at runtime and fails in a plain build, without ASan.
 
 #include "../lvgl_test_fixture.h"
+#include "../wait_finish_spy.h"
 #include "lv_draw_buf_guard.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/core/lv_global.h"
@@ -29,61 +30,6 @@
 #include "../catch_amalgamated.hpp"
 
 namespace {
-
-int g_wait_calls = 0;
-
-int32_t spy_wait_for_finish(lv_draw_unit_t*) {
-    g_wait_calls++;
-    return 0;
-}
-
-/// Never takes work. dispatch_cb is the one callback lv_draw_dispatch() calls
-/// without a null check, so it has to exist even though this unit draws
-/// nothing.
-int32_t spy_dispatch(lv_draw_unit_t*, lv_layer_t*) {
-    return LV_DRAW_UNIT_IDLE;
-}
-
-/// A draw unit that records every lv_draw_wait_for_finish() the code under test
-/// performs.
-///
-/// Registered and unregistered around one test rather than left in place: LVGL
-/// has no lv_draw_delete_unit(), units live until lv_deinit(), and the test
-/// binary never deinits. A permanent extra unit would take unit_cnt from 1 to
-/// 2, which switches lv_draw_get_available_task() to the multi-unit
-/// independence path for every later test in the shard.
-class WaitForFinishSpy {
-  public:
-    WaitForFinishSpy() {
-        unit_ = static_cast<lv_draw_unit_t*>(lv_draw_create_unit(sizeof(lv_draw_unit_t)));
-        REQUIRE(unit_ != nullptr);
-        unit_->name = "helix_test_wait_spy";
-        unit_->dispatch_cb = spy_dispatch;
-        unit_->wait_for_finish_cb = spy_wait_for_finish;
-        g_wait_calls = 0;
-    }
-
-    ~WaitForFinishSpy() {
-        // lv_draw_create_unit() pushes onto the head, and nothing else in this
-        // test creates one, so the spy is still the head.
-        lv_draw_global_info_t& info = LV_GLOBAL_DEFAULT()->draw_info;
-        if (info.unit_head == unit_) {
-            info.unit_head = unit_->next;
-            info.unit_cnt--;
-            lv_free(unit_);
-        }
-    }
-
-    WaitForFinishSpy(const WaitForFinishSpy&) = delete;
-    WaitForFinishSpy& operator=(const WaitForFinishSpy&) = delete;
-
-    int waits() const {
-        return g_wait_calls;
-    }
-
-  private:
-    lv_draw_unit_t* unit_ = nullptr;
-};
 
 /// Breadcrumb categories are truncated to 7 characters (crash_handler.cpp's
 /// `char category[8]`), so a probe tag has to fit or the assertion below hunts

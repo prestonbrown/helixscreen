@@ -13,6 +13,8 @@
 
 #include "ui_filament_path_internal.h"
 
+#include "lv_draw_buf_guard.h"
+
 #include <spdlog/spdlog.h>
 
 namespace helix::ui::fpath {
@@ -30,14 +32,8 @@ int32_t layered_overhang(int32_t widget_h) {
 }
 
 void layered_destroy_buffers(FilamentPathData* data) {
-    if (data->layers.static_buf) {
-        lv_draw_buf_destroy(data->layers.static_buf);
-        data->layers.static_buf = nullptr;
-    }
-    if (data->layers.overlay_buf) {
-        lv_draw_buf_destroy(data->layers.overlay_buf);
-        data->layers.overlay_buf = nullptr;
-    }
+    helix::safe_draw_buf_destroy(data->layers.static_buf, "fp_stat");
+    helix::safe_draw_buf_destroy(data->layers.overlay_buf, "fp_ovl");
 }
 
 // (Re)allocate canvas buffers to match widget dims. Returns true on success.
@@ -54,6 +50,8 @@ bool layered_ensure_buffers(FilamentPathData* data, int32_t w, int32_t h) {
     auto* new_static = lv_draw_buf_create(w, h, LV_COLOR_FORMAT_ARGB8888, 0);
     auto* new_overlay = lv_draw_buf_create(w, h, LV_COLOR_FORMAT_ARGB8888, 0);
     if (!new_static || !new_overlay) {
+        // These were never attached to a canvas, so no draw task can reference
+        // them — a plain free is correct and skips the drain.
         if (new_static)
             lv_draw_buf_destroy(new_static);
         if (new_overlay)
@@ -69,10 +67,10 @@ bool layered_ensure_buffers(FilamentPathData* data, int32_t w, int32_t h) {
         lv_canvas_set_draw_buf(data->layers.static_canvas, new_static);
     if (data->layers.overlay_canvas)
         lv_canvas_set_draw_buf(data->layers.overlay_canvas, new_overlay);
-    if (old_static)
-        lv_draw_buf_destroy(old_static);
-    if (old_overlay)
-        lv_draw_buf_destroy(old_overlay);
+    // The render thread may still be compositing the previous frame's canvas
+    // contents from the old buffers.
+    helix::safe_draw_buf_destroy(old_static, "fp_stat");
+    helix::safe_draw_buf_destroy(old_overlay, "fp_ovl");
 
     data->layers.canvas_w = w;
     data->layers.canvas_h = h;

@@ -5,6 +5,7 @@
 
 #include "ui_format_utils.h"
 
+#include "lv_draw_buf_guard.h"
 #include "system/crash_handler.h"
 #include "temp_graph_column_map.h"
 #include "temp_graph_internal.h"
@@ -147,10 +148,9 @@ static void chart_delete_cb(lv_event_t* e) {
         // already freed it — just null our pointer. The backing draw buffer is
         // ours to free.
         graph->gradient_canvas = nullptr;
-        if (graph->gradient_cache_buf) {
-            lv_draw_buf_destroy(graph->gradient_cache_buf);
-            graph->gradient_cache_buf = nullptr;
-        }
+        // The chart's draw callback blits this buffer during rendering; a
+        // blend may still be in flight when the chart is deleted.
+        helix::safe_draw_buf_destroy(graph->gradient_cache_buf, "tg_grad");
         graph->gradient_cache_w = 0;
         graph->gradient_cache_h = 0;
     }
@@ -456,10 +456,8 @@ static bool gradient_ensure_cache_buf(ui_temp_graph_t* graph, const temp_graph_g
 
     if (!graph->gradient_cache_buf || graph->gradient_cache_w != g.cw ||
         graph->gradient_cache_h != g.ch) {
-        if (graph->gradient_cache_buf) {
-            lv_draw_buf_destroy(graph->gradient_cache_buf);
-            graph->gradient_cache_buf = nullptr;
-        }
+        // The draw callback blits the old buffer; drain before replacing it.
+        helix::safe_draw_buf_destroy(graph->gradient_cache_buf, "tg_grad");
         graph->gradient_cache_buf = lv_draw_buf_create(g.cw, g.ch, LV_COLOR_FORMAT_ARGB8888, 0);
         if (graph->gradient_cache_buf) {
             // Bind the draw-buf directly. lv_canvas_set_buffer() would treat its
@@ -1649,10 +1647,7 @@ void ui_temp_graph_destroy(ui_temp_graph_t* graph) {
         // child of the chart and will be removed by the async chart deletion
         // cascade below — just null our pointer so nothing dereferences it.
         graph_ptr->gradient_canvas = nullptr;
-        if (graph_ptr->gradient_cache_buf) {
-            lv_draw_buf_destroy(graph_ptr->gradient_cache_buf);
-            graph_ptr->gradient_cache_buf = nullptr;
-        }
+        helix::safe_draw_buf_destroy(graph_ptr->gradient_cache_buf, "tg_grad");
 
         // Hide the chart before queuing the async delete: lv_refr's tree walk
         // skips LV_OBJ_FLAG_HIDDEN, so any display-refresh frame that fires
@@ -1681,10 +1676,7 @@ void ui_temp_graph_destroy(ui_temp_graph_t* graph) {
     // Defensive: free the gradient cache buffer if it somehow survived both the
     // chart-present path above and chart_delete_cb (e.g. destroy after a cascade
     // delete that didn't carry our user_data). Idempotent: pointer is nulled.
-    if (graph_ptr->gradient_cache_buf) {
-        lv_draw_buf_destroy(graph_ptr->gradient_cache_buf);
-        graph_ptr->gradient_cache_buf = nullptr;
-    }
+    helix::safe_draw_buf_destroy(graph_ptr->gradient_cache_buf, "tg_grad");
 
     // graph_ptr automatically freed via ~unique_ptr()
     spdlog::trace("[TempGraph] Destroyed");

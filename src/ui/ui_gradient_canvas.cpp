@@ -12,6 +12,7 @@
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "lv_draw_buf_guard.h"
 #include "lvgl/lvgl.h"
 #include "memory_utils.h"
 #include "theme_manager.h"
@@ -198,11 +199,9 @@ static void gradient_resize_to_widget(lv_obj_t* obj) {
     if (data->draw_buf && data->draw_buf->header.w == buf_w && data->draw_buf->header.h == buf_h)
         return;
 
-    // Destroy old buffer
-    if (data->draw_buf) {
-        lv_draw_buf_destroy(data->draw_buf);
-        data->draw_buf = nullptr;
-    }
+    // The widget's image src still points at the old buffer until the
+    // lv_image_set_src below; a blend of it may be in flight.
+    helix::safe_draw_buf_destroy(data->draw_buf, "grad_cv");
 
     data->draw_buf = lv_draw_buf_create(buf_w, buf_h, LV_COLOR_FORMAT_ARGB8888, 0);
     if (!data->draw_buf) {
@@ -230,10 +229,9 @@ static void gradient_delete_cb(lv_event_t* e) {
     std::unique_ptr<GradientData> data(get_gradient_data(obj));
     lv_obj_set_user_data(obj, nullptr);
     if (data) {
-        if (data->draw_buf) {
-            lv_draw_buf_destroy(data->draw_buf);
-            data->draw_buf = nullptr;
-        }
+        // The buffer was this image widget's src until now; a blend of it may
+        // still be in flight.
+        helix::safe_draw_buf_destroy(data->draw_buf, "grad_cv");
         // data automatically freed
     }
 }

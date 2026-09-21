@@ -7,6 +7,7 @@
 #include "ui_timer_guard.h" // lv_timer_cancel_safe
 #include "ui_utils.h"
 
+#include "lv_draw_buf_guard.h"
 #include "platform_capabilities.h"
 
 #include <spdlog/spdlog.h>
@@ -426,16 +427,12 @@ void FlyingToasterScreensaver::decode_sprites() {
 }
 
 void FlyingToasterScreensaver::free_sprites() {
+    // The sprites are live image sources; a blend of the saver's last frame
+    // may still be in flight when the overlay is torn down.
     for (auto& buf : m_decoded_frames) {
-        if (buf) {
-            lv_draw_buf_destroy(buf);
-            buf = nullptr;
-        }
+        helix::safe_draw_buf_destroy(buf, "toaster");
     }
-    if (m_decoded_toast) {
-        lv_draw_buf_destroy(m_decoded_toast);
-        m_decoded_toast = nullptr;
-    }
+    helix::safe_draw_buf_destroy(m_decoded_toast, "toast");
 }
 
 #endif // HELIX_ENABLE_SCREENSAVER

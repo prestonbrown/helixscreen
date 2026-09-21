@@ -10,6 +10,7 @@
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "lv_draw_buf_guard.h"
 #include "lvgl/lvgl.h"
 #include "memory_utils.h"
 
@@ -323,12 +324,10 @@ static void picker_delete_cb(lv_event_t* e) {
     lv_obj_set_user_data(obj, nullptr);
 
     if (data) {
-        if (data->sv_buf) {
-            lv_draw_buf_destroy(data->sv_buf);
-        }
-        if (data->hue_buf) {
-            lv_draw_buf_destroy(data->hue_buf);
-        }
+        // Both buffers are live image sources until this delete; a blend from
+        // the previous refresh may still be in flight.
+        helix::safe_draw_buf_destroy(data->sv_buf, "sv_buf");
+        helix::safe_draw_buf_destroy(data->hue_buf, "hue_buf");
         // data automatically freed by ~unique_ptr()
     }
 }
