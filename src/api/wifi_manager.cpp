@@ -17,6 +17,7 @@
 #include "ui_timer_guard.h"
 #include "ui_update_queue.h"
 
+#include "config.h"
 #include "http_executor.h"
 #include "log_redact.h"
 #include "lvgl/lvgl.h"
@@ -170,6 +171,16 @@ void WiFiManager::register_backend_callbacks(bool silent) {
                 return;
             }
             const bool want_on = SystemSettingsManager::instance().get_wifi_enabled();
+            // A soft-blocked radio on a machine where HelixScreen never
+            // configured WiFi is the administrator's decision (rfkill block,
+            // `nmcli radio wifi off`), not a stale block from a previous run.
+            // wifi_expected is written only by the wizard and the
+            // network-settings toggle, so false means no HelixScreen WiFi
+            // configuration exists to justify clearing a block against
+            // (#1697). This gates only the block-CLEARING direction; the
+            // reassert-off and stranding refusal below are untouched —
+            // declining to clear a block cannot strand a device.
+            const bool wifi_configured = Config::get_instance()->is_wifi_expected();
             if (!want_on && backend_) {
                 const auto iface = backend_->resolved_interface();
                 const bool safe_to_disable =
@@ -179,6 +190,15 @@ void WiFiManager::register_backend_callbacks(bool silent) {
                 if (safe_to_disable) {
                     spdlog::info("[WiFiManager] Stored setting is WiFi off — reasserting");
                     backend_->set_radio_enabled(false);
+                } else if (!wifi_configured && !backend_->is_radio_enabled()) {
+                    // No HelixScreen WiFi configuration and the radio is
+                    // soft-blocked: correcting the stored setting to "on"
+                    // over a blocked radio would be the same class of state
+                    // lie the correction below exists to eliminate. Touch
+                    // neither the radio nor the stored setting.
+                    spdlog::info("[WiFiManager] Stored setting is WiFi off and the radio is "
+                                 "soft-blocked, but WiFi was never configured in HelixScreen "
+                                 "— leaving both untouched");
                 } else {
                     // Radio stays on. Leaving wifi_enabled at its stored
                     // false would show "off" in the UI over a working
@@ -197,6 +217,14 @@ void WiFiManager::register_backend_callbacks(bool silent) {
                     }
                 }
             } else if (want_on && backend_ && !backend_->is_radio_enabled()) {
+                if (!wifi_configured) {
+                    // The stored default is on but WiFi was never configured
+                    // here — the block belongs to the administrator, and
+                    // HelixScreen must not clear it at every boot (#1697).
+                    spdlog::info("[WiFiManager] Radio is soft-blocked but WiFi was never "
+                                 "configured in HelixScreen — leaving the block in place");
+                    return;
+                }
                 // Mirror image of the off-reassert above: the stored setting
                 // is on, but the radio itself is soft-blocked — e.g. a stale
                 // rfkill soft-block from a previous run, or one this same
