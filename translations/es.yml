@@ -1115,7 +1115,7 @@ translations:
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: 'El filamento se agotó. El rellenado automático está desactivado, así que el CFS no cambiará de bobina por sí solo. Carga filamento y reanuda.'
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: El filamento se agotó. El CFS sabe qué bobinas coinciden, pero esas ranuras están vacías. Cargue una de ellas y reanude.
   Filament reload failed: Error al recargar el filamento
-  Filament remapping is unavailable: ''
+  Filament remapping is unavailable: La reasignación de filamento no está disponible
   Filament runout: Filamento agotado
   Filament runout and motion detection sensors: Sensores de detección de agotamiento
     y movimiento de filamento
@@ -2037,7 +2037,7 @@ translations:
   Print error: Error de impresión
   Print failed: Impresión fallida
   Print history statistics: 'Estadísticas del historial de impresión'
-  Print history will show the rewritten name: ''
+  Print history will show the rewritten name: El historial de impresión mostrará el nombre reescrito
   Print issue detected: Problema de impresión detectado
   'Print preparation failed: {}': 'Error en preparación de impresión: {}'
   Print progress and file selection: 'Progreso de impresión y selección de archivos'
@@ -2223,9 +2223,9 @@ translations:
   Remaining Weight (g): Peso Restante (g)
   Remap Tool: Reasignar Herramienta
   ? Remapping rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Remapping itself works normally.
-  : ''
+  : La reasignación reescribe el archivo de impresión antes de imprimirlo. El Moonraker de esta impresora es demasiado antiguo para que el plugin HelixPrint restaure después el nombre de archivo original, por lo que el trabajo terminado aparece con el nombre reescrito. La reasignación en sí funciona con normalidad.
   ? "Remapping rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
-  : ''
+  : "La reasignación reescribe el archivo de impresión antes de imprimirlo. Sin el plugin HelixPrint, la copia reescrita es la que queda en el historial de impresión, por lo que los trabajos terminados aparecen con nombres como modified_1730824_benchy.gcode en lugar del archivo elegido.\n\nInstalar el plugin toma un momento y no requiere reiniciar."
   Remap…: Reasignar…
   Remember slot spool details across an eject: Recordar los detalles de la bobina de la ranura tras una expulsión
   Remove: Eliminar
