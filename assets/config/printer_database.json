@@ -4013,6 +4013,62 @@
       ]
     },
     {
+      "id": "flsun_s1_pro",
+      "name": "FLSUN S1 Pro",
+      "manufacturer": "FLSUN",
+      "image": "flsun-s1.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "delta",
+          "confidence": 90,
+          "reason": "Delta kinematics"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "delta_calibrate",
+          "confidence": 95,
+          "reason": "Delta calibration present (delta printer signature)"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 320,
+          "max_x": 340,
+          "min_y": 320,
+          "max_y": 340,
+          "confidence": 60,
+          "reason": "Build volume ~330mm diameter (S1 Pro size)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "flsun",
+          "confidence": 90,
+          "reason": "Hostname contains 'flsun'",
+          "corroborating": true
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "s1",
+          "confidence": 95,
+          "reason": "Hostname contains 's1'"
+        },
+        {
+          "type": "mcu_match",
+          "field": "mcu",
+          "pattern": "stm32f103xe",
+          "confidence": 40,
+          "reason": "STM32F103XE MCU",
+          "corroborating": true,
+          "separator": true
+        }
+      ]
+    },
+    {
       "id": "flsun_sr",
       "name": "FLSUN Super Racer",
       "manufacturer": "FLSUN",
