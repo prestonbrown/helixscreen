@@ -448,11 +448,16 @@ class GCodeParser {
 
     /**
      * @brief Finalize parsing and return complete data structure
+     * @param whole_file true when this parser consumed the ENTIRE file, not a
+     *        per-layer chunk. Only then can auxiliary-only promotion apply: a
+     *        streaming chunk sees one layer and cannot know the rest of the
+     *        file holds real extrusion, so it must keep hiding auxiliary
+     *        geometry (a tower-only layer of a multi-color print).
      * @return Parsed file with all layers and objects
      *
      * Call this after all lines have been parsed. Clears internal state.
      */
-    ParsedGCodeFile finalize();
+    ParsedGCodeFile finalize(bool whole_file = false);
 
     /**
      * @brief Reset parser state for new file
@@ -714,6 +719,25 @@ class GCodeParser {
      * @param z Z coordinate
      */
     void start_new_layer(float z);
+
+    /**
+     * @brief When auxiliary extrusion is all the extrusion the parse holds,
+     *        promote it to the print.
+     *
+     * Calibration files (pressure advance, flow rate) tag their entire body
+     * `;TYPE:Custom`, so the auxiliary classification that hides purge lines
+     * and prime towers next to a real print would suppress the whole
+     * toolpath. When not one non-auxiliary extrusion segment exists, the
+     * auxiliary geometry IS the print: re-tag it Unknown (the unclassified
+     * bucket) so it draws and is bounds-included. Files that contain any real
+     * extrusion keep their purge hidden.
+     *
+     * add_segment() accumulated every derived field during parse under the
+     * auxiliary assumption, so this rebuilds each one: the running drawable
+     * count, per-layer and global bounding boxes, and object boxes. The
+     * per-layer extrusion/travel counts never filtered auxiliary and stand.
+     */
+    void promote_auxiliary_only_extrusion();
 
     /**
      * @brief Trim whitespace and comments from line
