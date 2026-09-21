@@ -1127,6 +1127,9 @@ TEST_CASE("READY refuses to disable the radio when interface resolution is incon
 TEST_CASE("READY clears a stale soft radio block when the stored setting is WiFi on",
           "[wifi][manager][radio][persistence]") {
     Config::get_instance();
+    // The CC1 this case models had WiFi configured in HelixScreen — the
+    // block-clearing reassert is reserved for such machines (#1697).
+    Config::get_instance()->set_wifi_expected(true);
     SystemSettingsManager::instance().init_subjects();
     SystemSettingsManager::instance().set_wifi_enabled(true);
 
@@ -1153,6 +1156,9 @@ TEST_CASE("READY clears a stale soft radio block when the stored setting is WiFi
     CHECK(SystemSettingsManager::instance().get_wifi_enabled());
 
     SystemSettingsManager::instance().deinit_subjects();
+    // /wifi_expected shares Config's process-lifetime data with every later
+    // test in this binary — restore the "never configured" default.
+    Config::get_instance()->set_wifi_expected(false);
 }
 
 // Steady-state case: stored setting is on and the radio already agrees. The
@@ -1180,6 +1186,46 @@ TEST_CASE("READY leaves an already-enabled radio alone when the stored setting i
     SystemSettingsManager::instance().deinit_subjects();
 }
 
+// #1697: a soft-blocked radio on a machine where WiFi was never configured
+// in HelixScreen is the administrator's decision, not a stale block. The
+// stored setting reads on because /wifi_enabled defaults to on, so the
+// stale-block branch would fire — and run `nmcli radio wifi on` / clear the
+// rfkill soft block an admin put there on purpose. wifi_expected is written
+// only by the wizard and the network-settings toggle, so it is exactly "this
+// HelixScreen ever configured WiFi". The block must survive us.
+TEST_CASE("READY leaves an admin's radio block alone when WiFi was never configured here",
+          "[wifi][manager][radio][persistence][1697]") {
+    Config::get_instance();
+    // Defensive: /wifi_expected lives in Config's in-memory data, which
+    // persists across tests in this binary. Pin both flags, not just the
+    // one this test is about, so a prior test's residue cannot mask the
+    // guard.
+    Config::get_instance()->set_wifi_expected(false);
+    SystemSettingsManager::instance().init_subjects();
+    SystemSettingsManager::instance().set_wifi_enabled(true);
+
+    auto backend = std::make_unique<WifiBackendMock>();
+    WifiBackendMock* raw = backend.get();
+    helix::wifi::WifiInterface iface;
+    iface.netdev = "wlan0";
+    raw->set_resolved_interface_for_test(iface);
+
+    // The radio carries an admin's rfkill/nmcli block: is_radio_enabled()
+    // is seeded from hardware ahead of READY firing.
+    raw->set_radio_enabled(false);
+    REQUIRE_FALSE(raw->is_radio_enabled());
+
+    WiFiManager manager(std::move(backend));
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(raw->is_radio_enabled());
+    // Nothing rewritten to manufacture agreement with a block we declined
+    // to clear: stored setting stays as the default left it.
+    CHECK(SystemSettingsManager::instance().get_wifi_enabled());
+
+    SystemSettingsManager::instance().deinit_subjects();
+}
+
 // The Task-15 refusal path (stored off, no wired fallback) corrects the
 // stored setting back to on — but a device that had already accumulated a
 // stale soft block before this fix would end up with wifi_enabled=true while
@@ -1189,6 +1235,10 @@ TEST_CASE("READY leaves an already-enabled radio alone when the stored setting i
 TEST_CASE("READY refusal path also clears a stale radio block, not just the stored setting",
           "[wifi][manager][radio][persistence]") {
     Config::get_instance();
+    // The device this case models accumulated its block while WiFi was
+    // configured in HelixScreen — the block-clearing half of the refusal
+    // path is reserved for such machines (#1697).
+    Config::get_instance()->set_wifi_expected(true);
     SystemSettingsManager::instance().init_subjects();
     SystemSettingsManager::instance().set_wifi_enabled(false);
 
@@ -1221,6 +1271,7 @@ TEST_CASE("READY refusal path also clears a stale radio block, not just the stor
 
     SystemSettingsManager::instance().deinit_subjects();
     WiFiManagerTestAccess::reset_sys_root();
+    Config::get_instance()->set_wifi_expected(false);
 }
 
 // ============================================================================
