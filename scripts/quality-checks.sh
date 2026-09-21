@@ -1618,11 +1618,11 @@ echo ""
 # A mid-body [[ ]] is not a failure on bash 3.2, which is what macOS ships and
 # what build.yml and nightly.yml run: only the LAST statement of a @test body
 # decides the result, so every assertion above it passes whatever it evaluates
-# to. This branch carries 270 such sites out of 848 examined, so a third of the
+# to. This branch carries 259 such sites out of 824 examined, so a third of the
 # shell suite's assertions cannot fail their test on that platform.
 #
 # A ratchet, not a wall. The debt predates the gate and gating at zero would
-# mean converting 270 sites before anything else could land. The number must
+# mean converting 259 sites before anything else could land. The number must
 # never go up; lower it when a file moves to the contains/lacks helpers in
 # tests/shell/helpers.bash.
 qc_bats_inert() {
@@ -1631,7 +1631,7 @@ SECTION_START=$(date +%s)
 echo -n "ð«¥ Checking bats assertions bash 3.2 swallows..."
 
 if [ -f "scripts/check_bats_inert_assertions.py" ]; then
-  if python3 scripts/check_bats_inert_assertions.py --max-allowed 270 >/tmp/bats_inert.out 2>&1; then
+  if python3 scripts/check_bats_inert_assertions.py --max-allowed 259 >/tmp/bats_inert.out 2>&1; then
     section_time $SECTION_START
     echo ""
     cat /tmp/bats_inert.out

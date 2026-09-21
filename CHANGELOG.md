@@ -5,6 +5,205 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-09-20
+
+<!-- whatsnew
+The first patch release on the 1.0 line.
+
+A Centauri Carbon is no longer identified as a Qidi. The pre-print screen learns each
+printer's real heating rate and stops claiming phases the printer has not reached.
+Filament colour and temperature edits stick, black included. Bed mesh profiles save
+under the name you chose.
+
+K2 install and restore verify the boot link before offering a reboot, and ForgeX
+machines keep the display mode they arrived on.
+-->
+
+The first patch release on the 1.0 line. The bulk of it is in five areas: which printer
+HelixScreen thinks it is talking to, what the pre-print screen claims the printer is
+doing, whether filament system edits survive being written, where a bed mesh actually
+gets saved, and the install and restore paths on K2 and ForgeX machines.
+
+### Added
+
+- **The pre-print screen follows printers that narrate through the display** - a
+  PRINT_START that reports its phases with SET_DISPLAY_TEXT or M117 was previously
+  invisible, because commands inside a macro never echo to the console. Those printers
+  now get a tracked pre-print sequence like any other.
+- **An aux fan role** - a printer declaring an auxiliary fan gets it named and mapped,
+  and a preset pointing at it resolves instead of silently doing nothing.
+
+### Fixed
+
+**Printer identification**
+
+- **A Centauri Carbon is no longer identified as a Qidi** - a machine running COSMOS
+  matched on a shared command and came up as the wrong printer at 89% confidence, which
+  meant the wrong profile for everything downstream. It now identifies exactly.
+
+**Starting a print**
+
+- **Heating estimates are per-printer and hold across prints** - the pre-print screen
+  learns each machine's real climb rate rather than a shared guess, saves the whole climb
+  rather than the part before a hold, and keeps what it learned when a timeout ends the
+  pre-print early.
+- **The pre-print screen waits for heaters to actually reach target** - it no longer ends
+  on a timeout while a heater is still climbing, and it treats a heater swinging around
+  its target as settled rather than still climbing.
+- **Centauri Carbon pre-print phases are tracked** - the COSMOS PRINT_START sequence
+  matched nothing, leaving every phase on a single default estimate. Its phases now map.
+- **A heat soak holds the screen open for the time it announces** - a COSMOS heat soak on
+  the Centauri Carbon no longer looks finished minutes before it is.
+- **A heating bed is labelled as one** - a heat soak relabels it correctly, and an idle
+  mesh step gives way to the nozzle heat rather than sitting in front of it.
+- **A file that would trigger an emergency stop is refused before printing** - a gcode
+  file calling a command the printer turns into an emergency stop is blocked up front.
+- **A file scanned too early is scanned again** - a file checked before the printer's
+  macros had been read was cleared on incomplete information and stayed cleared for the
+  rest of the session. That answer is now reused only while it still applies.
+- **K2 phase narration is the printer's, not ours** - our own pre-start echo stopped
+  claiming three phases the printer had not reached.
+- **A paused print stops advancing** - progress no longer creeps forward, and it is no
+  longer recorded internally either, whatever the printer reports.
+- **An active print keeps its status screen** - closing the screen during a print no
+  longer discards it, and a job that ends while the screen is hidden releases cleanly.
+- **A filament runout that stops the print is reported** - the removal notice also waits
+  until a tool change would have refilled, so it is not raised prematurely.
+- **The 2D preview appears complete** - it is built off screen and swapped in, rather than
+  drawing itself in front of you.
+
+**Filament systems**
+
+- **AFC and Happy Hare edits survive** - a slot's colour and temperatures are no longer
+  dropped when the override is written, clearing a slot erases it from disk, and Happy
+  Hare's override store is loaded at startup instead of being built empty.
+- **Black is a real colour** - a slot set to pure black is dispatched to AFC and Happy
+  Hare rather than read as unset (#1597), and the spool editor treats it the same way
+  (#1608).
+- **A spool weight edit changes only the weight** (#1652) - saving a meter reading no
+  longer rewrites the rest of the slot with it.
+- **Filament loading respects temperature limits** - a macro prefill stays above the
+  extrusion minimum and within the hotend's maximum, is handed the nozzle temperature the
+  panel is showing, and on a multi-tool machine uses the extruder the loading slot feeds
+  rather than whichever one is active.
+- **Homing consent is spent once and returned if unused** - a confirmed home before a
+  macro load homes first, a raw extrude never asks, and a failed dispatch releases the
+  consent it did not use.
+- **An unavailable remap explains itself** - the filament card no longer offers a remap it
+  would refuse, dims the chips rather than the whole card, and moves its refusal into a
+  help modal that offers the fix. A tool changer with no ASSIGN_TOOL refuses outright.
+- **The file-rewriting warning appears only when the file is rewritten** - printers that
+  route filament natively were warned that the job file would be modified before
+  printing, which was never true for them.
+- **Lane presence comes from the sensors** - silk sensors own whether a lane is loaded,
+  rather than inferring it from a Spoolman weight poll, and a single-position system is
+  no longer clamped to a one-slot span (#957).
+- **Snapmaker U1 with a PAXX AFC-Lite** - the Snapmaker filament system takes precedence
+  instead of the two fighting over the machine.
+- **CFS error messages match Creality's own table** - and the long CFS verdict message no
+  longer overflows its box in any language (#1605).
+
+**Bed mesh and calibration**
+
+- **A mesh is saved under the name you chose** - calibration reported success under the
+  chosen name while storing the mesh in `default`, and replacing another stored profile
+  now asks first.
+- **Profile names with spaces work everywhere** - names are quoted on every path they are
+  sent, and a name containing a semicolon is refused rather than silently breaking.
+- **A mesh is named before it is probed** - so it lands under the name printing will look
+  for, rather than somewhere printing cannot find it.
+- **The Centauri Carbon uses its own bed mesh macro** - COSMOS machines delegate to the
+  firmware's macro and count their mesh points, rather than reporting a mesh that was
+  never taken.
+- **Your own mesh macro is not failed for an optional command** - only a shipped
+  calibration sequence fails on a command the printer does not know. A wrapper macro of
+  your own kept probing while being reported as failed.
+- **Centauri Carbon mesh calibration no longer waits for a hot bed to cool** - and
+  heaters the COSMOS sequence turned on are turned back off when it finishes.
+- **Dismissing the mesh naming dialog leaves Probe working** - and the default profile is
+  re-probed without asking again.
+- **The mesh naming dialog speaks every language** - its save and replace messages were
+  English-only regardless of the language set.
+
+**Chamber heaters**
+
+- **A chamber heater or sensor counts only while the printer reports it** - a stale
+  assignment no longer presents itself as live, and a sensor named in configuration is
+  re-resolved on each discovery.
+- **Filament and material temperatures read the resolved chamber heater** - rather than a
+  different one than the rest of the screen is showing.
+
+**Installing and restoring**
+
+- **K2 stock UI restore verifies the boot link** (#1641) - it offers a reboot only once
+  the link is confirmed, reports an app that failed to start rather than claiming success,
+  and kills the carve-out web server properly.
+- **The K2 web server carve-out survives restarts and reboots** (#1641, #1665) - it runs
+  as a supervised service, and deploying records it in the ledger with both boot links
+  verified (#1667).
+- **An interrupted K2 or K1 install can be resumed** (#1668) - the disabled-services
+  ledger is found wherever the interrupted run left it, and the K1 sweep stops the web
+  server with the rest of the stock backend.
+- **ForgeX machines keep the display mode they arrived on** - a machine arriving in FEATHER
+  mode kept drawing over HelixScreen indefinitely, and the network daemon is now restored
+  at startup so first-run WiFi setup is reachable.
+- **Presets survive the wizard** (#837) - post-wizard migration seeds role keys that were
+  never set, a preset value is no longer lost during startup, and AD5M variants get the
+  second filament sensor they declare.
+
+**Networking**
+
+- **Hidden networks can be joined** - both network backends now send what their tool
+  requires for a hidden SSID.
+- **A network daemon that is installed but down is reported as such** - rather than being
+  read as absent and quietly replaced.
+
+**Screen and interface**
+
+- **The panel goes dark at sleep even where the backlight works** (#1594) - previously a
+  machine with working backlight control kept showing the last frame.
+- **A backlight write the kernel rejects is reported** (#1595) - instead of being treated
+  as applied.
+- **Home edit mode gestures are classified against their own press point** - so a drag
+  started in one tile is not attributed to another.
+- **The first-run tour behaves** - it starts once however many things ask for it, waits
+  for the wizard to finish, and does not open on top of home edit mode.
+- **The WiFi password dialog cannot be left dangling** (#1579) - anything else destroying
+  it no longer leaves a stale reference behind.
+- **A 2D render is not refused over a saved Thumbnail Only preference** - the two settings
+  are now one decision instead of disagreeing.
+- **Chinese reads correctly on the slot reservation message** - it used a character the
+  bundled font does not carry, so it drew as a missing glyph.
+- **LED detection reads live configuration** - and a synthetic strip is never reported
+  missing.
+- **Print list drops Size and Modified on narrow screens** - rather than crowding the
+  file name off.
+
+**Stability and performance**
+
+- **Several crashes on screens that rebuild themselves** - event guards that had stopped
+  applying were restored, and an observer on a value that is never freed is now removed
+  correctly.
+- **History no longer refetches on every timelapse frame** - a timelapse component moving
+  and rendering frames throughout a print cost a full history reload each time.
+- **Streaming a large gcode preview is budgeted honestly** - a RAM-backed cache was
+  charged nothing for the file it streamed, so the memory it used went uncounted.
+- **A memory warning that never clears escalates** - instead of sitting at warning
+  indefinitely.
+- **The Centauri Carbon caches to flash rather than RAM** - and the cache reports whether
+  it actually landed in RAM instead of assuming it did.
+- **Debug bundles find logs and crash files on every printer** - on Creality, Flashforge
+  and Centauri Carbon machines the bundle looked in one place that did not exist there, so
+  an uploaded bundle could be missing the crash report entirely.
+
+### Changed
+
+- **Crash reports name real functions on statically linked printers** - on the six
+  machines built without position-independent code, the load address was added to symbol
+  addresses that were already absolute, so backtraces pointed at the wrong code.
+- **Moonraker settings the environment file cannot change are no longer shipped** - they
+  only looked configurable.
+
 ## [1.0.0] - 2026-09-09
 
 <!-- whatsnew
@@ -6342,6 +6541,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.0.1]: https://github.com/prestonbrown/helixscreen/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/prestonbrown/helixscreen/compare/v0.99.118...v1.0.0
 [0.99.118]: https://github.com/prestonbrown/helixscreen/compare/v0.99.117...v0.99.118
 [0.99.117]: https://github.com/prestonbrown/helixscreen/compare/v0.99.116...v0.99.117
