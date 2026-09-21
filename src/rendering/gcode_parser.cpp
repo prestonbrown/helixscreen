@@ -1232,11 +1232,86 @@ std::string GCodeParser::trim_line(const std::string& line) {
     return std::string(sv.substr(start, end - start));
 }
 
-ParsedGCodeFile GCodeParser::finalize() {
+void GCodeParser::promote_auxiliary_only_extrusion() {
+    bool has_real_extrusion = false;
+    bool has_auxiliary_extrusion = false;
+    for (const auto& layer : layers_) {
+        for (const auto& seg : layer.segments) {
+            if (!seg.is_extrusion) {
+                continue;
+            }
+            if (is_auxiliary_geometry(seg.feature_type)) {
+                has_auxiliary_extrusion = true;
+            } else {
+                has_real_extrusion = true;
+            }
+        }
+    }
+    if (has_real_extrusion || !has_auxiliary_extrusion) {
+        return;
+    }
+
+    for (auto& layer : layers_) {
+        for (auto& seg : layer.segments) {
+            if (is_auxiliary_geometry(seg.feature_type)) {
+                seg.feature_type = FeatureType::Unknown;
+            }
+        }
+    }
+
+    // Re-apply every rule add_segment() gated on the auxiliary answer. The
+    // trigger guarantees none of these fired during parse (no non-auxiliary
+    // extrusion existed), so the bounds start empty and the running drawable
+    // count missed every promoted segment. The file's first segment starts at
+    // the implicit (0,0,0) origin and must not frame the print - the same
+    // skip add_segment() applies. Per-layer extrusion/travel counts never
+    // filtered auxiliary and need no rebuild.
+    drawable_segments_ = 0;
+    bool is_first_segment = true;
+    for (auto& layer : layers_) {
+        for (auto& seg : layer.segments) {
+            const bool auxiliary = is_auxiliary_geometry(seg.feature_type);
+            if (!auxiliary) {
+                ++drawable_segments_;
+            }
+            if (seg.is_extrusion && !auxiliary) {
+                if (!is_first_segment) {
+                    layer.bounding_box.expand(seg.start);
+                    global_bounds_.expand(seg.start);
+                }
+                layer.bounding_box.expand(seg.end);
+                global_bounds_.expand(seg.end);
+
+                // Object boxes filtered auxiliary during parse too; re-expand
+                // from the interned name each promoted segment carries. The
+                // interned "__WIPE_TOWER__" name has no GCodeObject, so the
+                // find() guard skips it.
+                if (seg.object_name_index >= 0 &&
+                    static_cast<size_t>(seg.object_name_index) < object_name_table_.size()) {
+                    auto it = objects_.find(object_name_table_[seg.object_name_index]);
+                    if (it != objects_.end()) {
+                        it->second.bounding_box.expand(seg.start);
+                        it->second.bounding_box.expand(seg.end);
+                    }
+                }
+            }
+            is_first_segment = false;
+        }
+    }
+
+    spdlog::debug("[GCode Parser] Auxiliary-only extrusion promoted to the print: {} segments",
+                  drawable_segments_);
+}
+
+ParsedGCodeFile GCodeParser::finalize(bool whole_file) {
     // start_new_layer() shrinks each layer as it is closed out; the last one never gets that
     // pass, so trim it here before the layers move into the result.
     if (!layers_.empty()) {
         layers_.back().segments.shrink_to_fit();
+    }
+
+    if (whole_file) {
+        promote_auxiliary_only_extrusion();
     }
 
     ParsedGCodeFile result;

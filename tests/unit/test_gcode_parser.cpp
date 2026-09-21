@@ -1521,6 +1521,119 @@ TEST_CASE("GCodeParser - stationary toolchange prime mints no segment",
     REQUIRE(file.global_bounding_box.max.y < 150.0f);
 }
 
+TEST_CASE("GCodeParser - auxiliary-only whole file promotes its extrusion to the print",
+          "[gcode][parser][feature_type]") {
+    // OrcaSlicer calibration files (pressure advance, flow rate) tag their
+    // entire body ;TYPE:Custom. The auxiliary classification exists to hide
+    // purge lines and prime towers NEXT TO a real print; applied to a file
+    // whose only extrusion is auxiliary it suppresses the whole toolpath. When
+    // finalize() has the whole file and finds not one non-auxiliary extrusion,
+    // the auxiliary geometry IS the print and must draw and frame normally.
+    SECTION("Custom-only body (calibration file shape)") {
+        GCodeParser parser;
+        parser.parse_line("M83");
+        parser.parse_line("G1 X10 Y10 Z0.2 F600"); // travel into position, before any ;TYPE:
+        parser.parse_line(";TYPE:Custom");
+        parser.parse_line("G1 X100 Y10 E0.5"); // the print, per the slicer's own tagging
+        parser.parse_line("G1 X100 Y100 E0.6");
+        auto file = parser.finalize(/*whole_file=*/true);
+
+        // The setup reached the branch: extrusion exists and none of it is
+        // auxiliary any more.
+        REQUIRE(file.total_segments == 3);
+        size_t extrusions = 0;
+        for (const auto& layer : file.layers) {
+            for (const auto& seg : layer.segments) {
+                REQUIRE_FALSE(is_auxiliary_geometry(seg.feature_type));
+                if (seg.is_extrusion) {
+                    ++extrusions;
+                }
+            }
+        }
+        REQUIRE(extrusions == 2);
+
+        // Drawability with extrusions shown - the blank-preview failure mode.
+        for (const auto& layer : file.layers) {
+            for (const auto& seg : layer.segments) {
+                CHECK(segment_drawable(seg, /*is_support=*/false, /*show_support=*/false,
+                                       /*show_extrusion=*/true,
+                                       /*show_travel=*/false) == seg.is_extrusion);
+            }
+        }
+
+        // Bounds were accumulated during parse under the auxiliary assumption,
+        // so they were never expanded; promotion must rebuild them.
+        REQUIRE_FALSE(file.global_bounding_box.is_empty());
+        CHECK(file.global_bounding_box.min.x == Approx(10.0f));
+        CHECK(file.global_bounding_box.max.x == Approx(100.0f));
+        CHECK(file.global_bounding_box.max.y == Approx(100.0f));
+        REQUIRE_FALSE(file.layers[0].bounding_box.is_empty());
+
+        // The running drawable count must include the promoted mass.
+        CHECK(file.drawable_segments == file.total_segments);
+    }
+
+    SECTION("Wipe-tower-only body promotes the same way") {
+        GCodeParser parser;
+        parser.parse_line("M83");
+        parser.parse_line("G1 X10 Y10 Z0.2 F600");
+        parser.parse_line(";TYPE:Wipe tower");
+        parser.parse_line("G1 X60 Y10 E0.5");
+        auto file = parser.finalize(/*whole_file=*/true);
+
+        REQUIRE(file.total_segments == 2);
+        REQUIRE(file.layers[0].segments[1].feature_type == FeatureType::Unknown);
+        CHECK_FALSE(file.global_bounding_box.is_empty());
+        CHECK(file.drawable_segments == file.total_segments);
+    }
+
+    SECTION("a per-layer chunk parse never promotes: it cannot see the rest of the file") {
+        // Streaming parses one layer at a time, and a tower-only layer of a
+        // normal multi-color print is indistinguishable from an
+        // auxiliary-only file at chunk granularity. The whole-file answer is
+        // the only safe one, so the default finalize() (what the streaming
+        // controller calls) must keep hiding auxiliary extrusion.
+        GCodeParser parser;
+        parser.parse_line("M83");
+        parser.parse_line("G1 X10 Y10 Z0.2 F600");
+        parser.parse_line(";TYPE:Custom");
+        parser.parse_line("G1 X100 Y10 E0.5");
+        auto file = parser.finalize();
+
+        REQUIRE(file.layers[0].segments[1].feature_type == FeatureType::Custom);
+        CHECK(file.global_bounding_box.is_empty());
+        CHECK(file.drawable_segments == 1); // the pre-marker travel only
+    }
+}
+
+TEST_CASE("GCodeParser - whole file with real extrusion keeps its purge auxiliary",
+          "[gcode][parser][feature_type]") {
+    // Promotion fires only when not one non-auxiliary extrusion exists
+    // anywhere in the file. A normal print's purge line stays hidden and out
+    // of every bounds even though finalize() was told it has the whole file.
+    GCodeParser parser;
+    parser.parse_line("M83");
+    parser.parse_line(";TYPE:Custom");
+    parser.parse_line("G1 X200 Y10 Z0.2 E5"); // purge line, out at the bed's edge
+    parser.parse_line(";TYPE:Outer wall");
+    parser.parse_line("G0 X10 Y10");      // travel from the purge to the part
+    parser.parse_line("G1 X50 Y50 E0.2"); // the part
+
+    auto file = parser.finalize(/*whole_file=*/true);
+    REQUIRE(file.total_segments == 3);
+    // The setup reached the branch's other side: real extrusion exists.
+    REQUIRE(file.layers[0].segments[2].is_extrusion);
+
+    REQUIRE(file.layers[0].segments[0].feature_type == FeatureType::Custom);
+    CHECK_FALSE(segment_drawable(file.layers[0].segments[0], /*is_support=*/false,
+                                 /*show_support=*/false, /*show_extrusion=*/true,
+                                 /*show_travel=*/true));
+    CHECK(file.global_bounding_box.max.x == Approx(50.0f));
+    CHECK(file.layers[0].bounding_box.max.x == Approx(50.0f));
+    // The purge extrusion is not drawable; the travel and the wall are.
+    CHECK(file.drawable_segments == 2);
+}
+
 TEST_CASE("GCodeParser - FeatureType normalization across slicer dialects",
           "[gcode][parser][feature_type]") {
     SECTION("OrcaSlicer / PrusaSlicer / Bambu dialect (space-separated)") {

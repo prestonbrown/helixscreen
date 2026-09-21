@@ -1862,8 +1862,8 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                     return;
                 }
 
-                result->gcode_file =
-                    std::make_unique<helix::gcode::ParsedGCodeFile>(parser.finalize());
+                result->gcode_file = std::make_unique<helix::gcode::ParsedGCodeFile>(
+                    parser.finalize(/*whole_file=*/true));
                 result->gcode_file->filename = path;
 
                 spdlog::debug("[GCode Viewer] Parsed {} layers, {} segments",
