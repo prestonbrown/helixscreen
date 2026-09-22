@@ -622,7 +622,7 @@ See `path_segment_from_afc_sensors()` in `ams_types.h`.
 
 #### Hub Bowden Length
 
-The bowden tube length from hub to toolhead is read from `AFC_hub.afc_bowden_length` and exposed as a slider in the device actions UI. Adjustable via `SET_BOWDEN_LENGTH LENGTH={mm}` G-code.
+The bowden tube length from hub to toolhead is read from `AFC_hub.afc_bowden_length` and exposed as a slider in the device actions UI. Adjustable via `SET_BOWDEN_LENGTH LENGTH={mm}` G-code. The generic calibration-section `bowden_length` slider is advertised only when a hub has been discovered (`AFC.hubs` non-empty or an `AFC_hub` object seen): `SET_BOWDEN_LENGTH` is HUB-keyed, so a hub-less topology (PARALLEL / direct_load) has nothing it can address.
 
 #### Per-Lane Stepper Fields
 
