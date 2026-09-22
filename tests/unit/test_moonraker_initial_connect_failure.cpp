@@ -140,7 +140,6 @@ TEST_CASE("A reachable-then-lost connection is not treated as an initial failure
     // is anchored on a real connect attempt rather than on mere elapsed time.
     LoopClient c;
 
-    std::mutex m;
     std::atomic<int> failures{0};
     c.client_->register_event_handler([&](const MoonrakerEvent& e) {
         if (e.type == MoonrakerEventType::CONNECTION_FAILED) {
@@ -161,9 +160,9 @@ TEST_CASE("A session that opened once does not re-fire the escalation after a dr
     // and later dropped is the health timer's domain: a failed reconnect after
     // a successful session must not fire the never-connected notification.
     // libhv's internal auto-reconnect never re-enters connect(), so the
-    // escalation's anchor still holds the original connect() timestamp and the
-    // elapsed time is meaningless there (debug bundle L7MUPL3V: connected for
-    // hours, one blip, "Never reached 127.0.0.1:7125 after 7990356ms").
+    // escalation's anchor still holds the original connect() timestamp and an
+    // elapsed time measured from it is meaningless there. (debug bundle
+    // L7MUPL3V)
     MockWebSocketServer server;
     REQUIRE(server.start(0) > 0);
 
@@ -176,8 +175,13 @@ TEST_CASE("A session that opened once does not re-fire the escalation after a dr
         events.push_back(e);
     });
 
+    // Count disconnect callbacks: the drop itself is one firing, and every
+    // failed reconnect attempt adds another (onclose runs the callback in both
+    // its arms). The assertions below prove nothing unless a retry actually
+    // happened, so this is the precondition, not a convenience.
+    std::atomic<int> disconnects{0};
     c.client_->set_initial_connect_failure_timeout(200);
-    c.client_->connect(server.url().c_str(), []() {}, []() {});
+    c.client_->connect(server.url().c_str(), []() {}, [&]() { disconnects.fetch_add(1); });
 
     // Precondition: the socket must open before we kill the server, or the
     // case collapses into the never-opened one above.
@@ -187,13 +191,18 @@ TEST_CASE("A session that opened once does not re-fire the escalation after a dr
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     REQUIRE(c.client_->get_connection_state() == ConnectionState::CONNECTED);
+    REQUIRE(disconnects.load() == 0);
 
     // Refuse the port so libhv's auto-reconnect (left at its default) fails
     // fast on loopback and runs the close-side escalation check.
     server.stop();
 
-    // The reconnect cadence is libhv's (~3s); two failed attempts fit in 8s.
-    std::this_thread::sleep_for(std::chrono::seconds(8));
+    const auto retried_by = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    while (std::chrono::steady_clock::now() < retried_by && disconnects.load() < 2) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    }
+    // The drop plus at least one failed reconnect attempt.
+    REQUIRE(disconnects.load() >= 2);
 
     {
         std::lock_guard<std::mutex> lk(m);
