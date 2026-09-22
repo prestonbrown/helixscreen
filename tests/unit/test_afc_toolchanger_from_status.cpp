@@ -421,6 +421,17 @@ TEST_CASE("Per-extruder device actions materialise from the status payload alone
         CHECK_FALSE(single.has_action("bowden_T0"));
         CHECK_FALSE(single.has_action("led_extruder_T0"));
     }
+
+    SECTION("a hub-less topology does not advertise the hub-keyed bowden slider") {
+        // SET_BOWDEN_LENGTH is HUB= keyed, and a PARALLEL / direct_load
+        // machine publishes no hub object for the slider to address — the
+        // control cannot succeed there.
+        AfcStatusDispatchHelper hubless;
+        nlohmann::json frame = single_extruder_status();
+        frame["hubs"] = nlohmann::json::array();
+        hubless.feed_afc(frame);
+        CHECK_FALSE(hubless.has_action("bowden_length"));
+    }
 }
 
 TEST_CASE("Per-extruder actions resolve names discovered from the status payload (#1200)",
@@ -444,5 +455,27 @@ TEST_CASE("Per-extruder actions resolve names discovered from the status payload
     SECTION("an index past the discovered extruders is refused, not sent") {
         CHECK_FALSE(afc.execute_device_action("led_extruder_T7"));
         CHECK(afc.captured.empty());
+    }
+
+    SECTION("plain led_extruder drives the first extruder on a single-extruder frame") {
+        AfcStatusDispatchHelper single;
+        single.feed_afc(single_extruder_status());
+
+        REQUIRE(single.execute_device_action("led_extruder"));
+        CHECK(single.sent("AFC_SET_EXTRUDER_LED EXTRUDER=extruder TURN_ON=1"));
+        REQUIRE(single.execute_device_action("led_extruder"));
+        CHECK(single.sent("AFC_SET_EXTRUDER_LED EXTRUDER=extruder TURN_ON=0"));
+    }
+
+    SECTION("plain led_extruder addresses Klipper's default extruder when none is discovered") {
+        // A frame that published no extruder names must not brick the toggle:
+        // Klipper's first extruder is always named `extruder`.
+        AfcStatusDispatchHelper bare;
+        nlohmann::json frame = single_extruder_status();
+        frame["extruders"] = nlohmann::json::array();
+        bare.feed_afc(frame);
+
+        REQUIRE(bare.execute_device_action("led_extruder"));
+        CHECK(bare.sent("AFC_SET_EXTRUDER_LED EXTRUDER=extruder TURN_ON=1"));
     }
 }

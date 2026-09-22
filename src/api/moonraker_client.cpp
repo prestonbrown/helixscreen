@@ -557,10 +557,13 @@ void MoonrakerClient::on_ws_open() {
 
     // Reset notification flags on successful connection
     reset_notification_flags();
-    // Re-arm the initial-connection escalation. A session that came up and later
-    // dies is the health timer's problem, but if this client is pointed at a new
-    // host that never answers, that streak deserves its own notification.
-    initial_failure_notified_.store(false, std::memory_order_relaxed);
+    // The initial connection this escalation tracks has been achieved. Only
+    // connect() re-arms it (new host, wizard, force_reconnect); libhv's own
+    // auto-reconnect never re-enters connect(), so a session that came up and
+    // later dies must not re-fire the never-connected notification with an
+    // elapsed time measured from the original connect() — that window belongs
+    // to the health timer's stall check.
+    initial_failure_notified_.store(true, std::memory_order_relaxed);
 
     invoke_connected_callback(on_connected, "WebSocket opened");
 }

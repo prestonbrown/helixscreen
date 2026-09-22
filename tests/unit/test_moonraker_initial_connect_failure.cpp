@@ -24,6 +24,7 @@
 
 #include "../../include/moonraker_client.h"
 #include "../../include/moonraker_error.h"
+#include "../mocks/mock_websocket_server.h"
 #include "hv/EventLoopThread.h"
 
 #include <atomic>
@@ -152,4 +153,55 @@ TEST_CASE("A reachable-then-lost connection is not treated as an initial failure
 
     CHECK(failures.load() == 0);
     CHECK(c.client_->get_connection_state() == ConnectionState::DISCONNECTED);
+}
+
+TEST_CASE("A session that opened once does not re-fire the escalation after a drop",
+          "[moonraker][client][regression][eventloop][slow]") {
+    // The escalation is for a host that never answers. A session that DID open
+    // and later dropped is the health timer's domain: a failed reconnect after
+    // a successful session must not fire the never-connected notification.
+    // libhv's internal auto-reconnect never re-enters connect(), so the
+    // escalation's anchor still holds the original connect() timestamp and the
+    // elapsed time is meaningless there (debug bundle L7MUPL3V: connected for
+    // hours, one blip, "Never reached 127.0.0.1:7125 after 7990356ms").
+    MockWebSocketServer server;
+    REQUIRE(server.start(0) > 0);
+
+    LoopClient c;
+
+    std::mutex m;
+    std::vector<MoonrakerEvent> events;
+    c.client_->register_event_handler([&](const MoonrakerEvent& e) {
+        std::lock_guard<std::mutex> lk(m);
+        events.push_back(e);
+    });
+
+    c.client_->set_initial_connect_failure_timeout(200);
+    c.client_->connect(server.url().c_str(), []() {}, []() {});
+
+    // Precondition: the socket must open before we kill the server, or the
+    // case collapses into the never-opened one above.
+    const auto opened_by = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (std::chrono::steady_clock::now() < opened_by &&
+           c.client_->get_connection_state() != ConnectionState::CONNECTED) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    REQUIRE(c.client_->get_connection_state() == ConnectionState::CONNECTED);
+
+    // Refuse the port so libhv's auto-reconnect (left at its default) fails
+    // fast on loopback and runs the close-side escalation check.
+    server.stop();
+
+    // The reconnect cadence is libhv's (~3s); two failed attempts fit in 8s.
+    std::this_thread::sleep_for(std::chrono::seconds(8));
+
+    {
+        std::lock_guard<std::mutex> lk(m);
+        for (const auto& e : events) {
+            CHECK(e.type != MoonrakerEventType::CONNECTION_FAILED);
+        }
+    }
+    CHECK(c.client_->get_connection_state() != ConnectionState::FAILED);
+
+    c.client_->disconnect();
 }
