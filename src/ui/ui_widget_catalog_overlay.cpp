@@ -398,11 +398,7 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     // DELETE cleanup exception: detect when NavigationManager pops the overlay
     // without going through close_catalog() (e.g., system back navigation)
     lv_obj_add_event_cb(
-        overlay,
-        [](lv_event_t* /*e*/) {
-            release_catalog_state();
-        },
-        LV_EVENT_DELETE, nullptr);
+        overlay, [](lv_event_t* /*e*/) { release_catalog_state(); }, LV_EVENT_DELETE, nullptr);
 
     // Find scroll container and populate
     lv_obj_t* scroll = lv_obj_find_by_name(overlay, "catalog_scroll");

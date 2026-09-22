@@ -486,9 +486,8 @@ void AboutSettingsOverlay::on_about_version_clicked(lv_event_t*) {
             // The two Update Channel rows swap on that subject, and toggling
             // beta also moves the effective channel whenever Dev is stored, so
             // the row arriving on screen needs its selection re-seeded.
-            sync_update_channel_rows(
-                get_about_settings_overlay().get_root(),
-                static_cast<int>(UpdateChecker::instance().get_channel()));
+            sync_update_channel_rows(get_about_settings_overlay().get_root(),
+                                     static_cast<int>(UpdateChecker::instance().get_channel()));
 
             ToastManager::instance().show(
                 ToastSeverity::SUCCESS,

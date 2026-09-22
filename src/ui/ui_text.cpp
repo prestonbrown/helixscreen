@@ -189,9 +189,8 @@ static void animations_pref_observer_cb(lv_observer_t* observer, lv_subject_t* s
     }
     auto declared = static_cast<lv_label_long_mode_t>(
         reinterpret_cast<intptr_t>(lv_observer_get_user_data(observer)));
-    lv_label_set_long_mode(label, helix::ui::animations_enabled(subject)
-                                      ? declared
-                                      : LV_LABEL_LONG_MODE_CLIP);
+    lv_label_set_long_mode(label, helix::ui::animations_enabled(subject) ? declared
+                                                                         : LV_LABEL_LONG_MODE_CLIP);
 }
 
 /**

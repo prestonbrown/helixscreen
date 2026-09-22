@@ -361,13 +361,11 @@ bool AmsSubscriptionBackend::toolhead_homed() const {
     return helix::toolhead_is_homed(api_->printer_state());
 }
 
-AmsError
-AmsSubscriptionBackend::ensure_homed_then(std::string gcode, std::function<void()> on_complete,
-                                          std::function<void(const MoonrakerError&)> on_error,
-                                          uint32_t timeout_ms, bool skip_homing, bool silent,
-                                          std::optional<bool> caller_surfaces_errors,
-                                          std::function<void(const MoonrakerError&)>
-                                              on_predispatch_error) {
+AmsError AmsSubscriptionBackend::ensure_homed_then(
+    std::string gcode, std::function<void()> on_complete,
+    std::function<void(const MoonrakerError&)> on_error, uint32_t timeout_ms, bool skip_homing,
+    bool silent, std::optional<bool> caller_surfaces_errors,
+    std::function<void(const MoonrakerError&)> on_predispatch_error) {
     // The homed answer comes from the live homed_axes subject, not an RPC:
     // toolhead is in the standing objects.subscribe set, so querying it again
     // was a redundant round trip. skip_homing short-circuits the check
