@@ -28,10 +28,17 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/active_print_media_manager_test_access.h"
+#include "../test_helpers/moonraker_client_test_access.h"
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "active_print_media_manager.h"
+#include "moonraker_api.h"
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
+#include "moonraker_file_api.h"
 #include "printer_state.h"
+#include "thumbnail_processor.h"
 
 #include <memory>
 #include <string>
@@ -49,6 +56,120 @@ namespace {
 // image" apart from "nothing to show".
 constexpr const char* THUMB_A = "A:assets/images/printer.png";
 constexpr const char* THUMB_B = "A:assets/images/folder.png";
+
+/// File API that answers metadata inline with a record carrying no
+/// thumbnails — the customized-Moonraker condition (a fork whose metadata
+/// path whitelist-drops them). A real router marshals this callback to the
+/// main thread; firing inline keeps the test single-threaded, which is also
+/// where the production callback applies its result.
+class NoThumbnailMetadataFileAPI : public MoonrakerFileAPI {
+  public:
+    using MoonrakerFileAPI::MoonrakerFileAPI;
+
+    void get_file_metadata(const std::string& filename, FileMetadataCallback on_success,
+                           ErrorCallback on_error, bool silent = false) override {
+        (void)silent;
+        last_filename_ = filename;
+        if (fail_metadata_) {
+            MoonrakerError err;
+            err.message = "metadata endpoint unavailable";
+            if (on_error) {
+                on_error(err);
+            }
+            return;
+        }
+        if (on_success) {
+            on_success(metadata_);
+        }
+    }
+
+    /// Filename of the most recent metadata request.
+    [[nodiscard]] const std::string& last_filename() const {
+        return last_filename_;
+    }
+
+    /// Fail every metadata request — the broken-endpoint shape, where the
+    /// retry ladder burns out and the give-up path is the only one left.
+    void set_fail_metadata(bool fail) {
+        fail_metadata_ = fail;
+    }
+
+  private:
+    FileMetadata metadata_; ///< default record: no thumbnails, no layer count
+    std::string last_filename_;
+    bool fail_metadata_ = false;
+};
+
+/// Transfer mock that counts partial downloads (the lane header extraction
+/// rides) and can serve canned gcode content instead of hitting disk, so a
+/// test can hand the manager a file with nothing embedded.
+class CountingTransferAPIMock : public MoonrakerFileTransferAPIMock {
+  public:
+    using MoonrakerFileTransferAPIMock::MoonrakerFileTransferAPIMock;
+
+    void download_file_partial(const std::string& root, const std::string& path, size_t max_bytes,
+                               StringCallback on_success, ErrorCallback on_error) override {
+        ++partial_downloads_;
+        if (fail_next_) {
+            fail_next_ = false;
+            MoonrakerError err;
+            err.message = "simulated transient download failure";
+            if (on_error) {
+                on_error(err);
+            }
+            return;
+        }
+        if (!canned_content_.empty()) {
+            if (on_success) {
+                on_success(canned_content_);
+            }
+            return;
+        }
+        MoonrakerFileTransferAPIMock::download_file_partial(root, path, max_bytes, on_success,
+                                                            on_error);
+    }
+
+    [[nodiscard]] int partial_downloads() const {
+        return partial_downloads_;
+    }
+
+    /// Serve this exact content for every partial download (empty = serve
+    /// real files from assets/test_gcodes/).
+    void serve_canned_content(const std::string& content) {
+        canned_content_ = content;
+    }
+
+    /// Fail exactly the next partial download (a WiFi blip shape), then
+    /// resume serving normally.
+    void fail_next_partial_download() {
+        fail_next_ = true;
+    }
+
+  private:
+    int partial_downloads_ = 0;
+    bool fail_next_ = false;
+    std::string canned_content_;
+};
+
+/// API for the self-serve cases: metadata from the no-thumbnail file API
+/// above, transfers from CountingTransferAPIMock (real files under
+/// assets/test_gcodes/, or canned content on request).
+class SelfServeMockAPI : public MoonrakerAPI {
+  public:
+    SelfServeMockAPI(helix::MoonrakerClient& client, helix::PrinterState& state)
+        : MoonrakerAPI(client, state) {
+        file_api_ = std::make_unique<NoThumbnailMetadataFileAPI>(client);
+        file_transfer_api_ = std::make_unique<CountingTransferAPIMock>(client, get_http_base_url());
+    }
+
+    NoThumbnailMetadataFileAPI& meta_files() {
+        return static_cast<NoThumbnailMetadataFileAPI&>(*file_api_);
+    }
+
+    CountingTransferAPIMock& transfers() {
+        return static_cast<CountingTransferAPIMock&>(*file_transfer_api_);
+    }
+};
 
 /// One PrinterState, one ActivePrintMediaManager, one PrintStatusPanel.
 ///
@@ -70,6 +191,7 @@ struct ActivePrintThumbnailFixture : public LVGLTestFixture {
     ~ActivePrintThumbnailFixture() override {
         panel_.reset();
         media_.reset();
+        api_.reset();
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     }
 
@@ -83,6 +205,16 @@ struct ActivePrintThumbnailFixture : public LVGLTestFixture {
         drain();
     }
 
+    /// Wire a mock API (metadata with no thumbnails, gcode transfers from
+    /// assets/test_gcodes/) into the manager, then bring up the consumers.
+    SelfServeMockAPI& start_consumers_with_api() {
+        api_ = std::make_unique<SelfServeMockAPI>(client_, state_);
+        start_consumers();
+        media().set_api(api_.get());
+        drain();
+        return *api_;
+    }
+
     /// Deliver a print_stats.filename update the way Moonraker does.
     void set_print_filename(const std::string& filename) {
         nlohmann::json status = {{"print_stats", {{"filename", filename}}}};
@@ -94,6 +226,30 @@ struct ActivePrintThumbnailFixture : public LVGLTestFixture {
     /// writes) only lands on a queue tick [L048].
     void drain() {
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    }
+
+    /// Settle every hop a self-serve thumbnail load takes: the prescale pool
+    /// task ThumbnailCache queues, and the queued publishes a drained
+    /// callback commits. Join the pool first, then drain — repeated, since a
+    /// drained callback can commit further pool work. (Model:
+    /// ActivePrintMediaAsyncFixture::drain in test_active_print_media_manager.cpp.)
+    void settle() {
+        auto& processor = helix::ThumbnailProcessor::instance();
+        auto& queue = helix::ui::UpdateQueue::instance();
+        for (int pass = 0; pass < 4; ++pass) {
+            processor.wait_for_completion();
+            if (processor.pending_tasks() == 0 &&
+                helix::ui::UpdateQueueTestAccess::queue_empty(queue)) {
+                break;
+            }
+            helix::ui::UpdateQueueTestAccess::drain_all(queue);
+        }
+    }
+
+    /// Simulate a Moonraker notification arriving (fires the persistent
+    /// method callbacks the manager registered on the client).
+    void fire_notification(const std::string& method, const json& msg) {
+        MoonrakerClientTestAccess::fire_method_callbacks(client_, method, msg);
     }
 
     std::string subject_path() {
@@ -115,6 +271,8 @@ struct ActivePrintThumbnailFixture : public LVGLTestFixture {
     }
 
     PrinterState state_;
+    MoonrakerClientMock client_;
+    std::unique_ptr<SelfServeMockAPI> api_;
     std::unique_ptr<ActivePrintMediaManager> media_;
     std::unique_ptr<PrintStatusPanel> panel_;
 };
@@ -240,4 +398,153 @@ TEST_CASE_METHOD(ActivePrintThumbnailFixture,
     // Print ends.
     set_print_filename("");
     CHECK_FALSE(subject_path().empty());
+}
+
+TEST_CASE_METHOD(ActivePrintThumbnailFixture,
+                 "Active print thumbnail: metadata without thumbnails self-serves from the "
+                 "gcode header",
+                 "[print_status][thumbnail][integration]") {
+    // The customized-Moonraker shape: the metadata record exists but carries
+    // no thumbnails, while the gcode file itself has embedded ones. The
+    // manager must extract them client-side rather than park on the
+    // placeholder for the whole print.
+    SelfServeMockAPI& api = start_consumers_with_api();
+
+    set_print_filename("3DBenchy.gcode");
+    settle();
+
+    // The branch precondition actually held: metadata was asked for this file
+    // and answered without thumbnails.
+    REQUIRE(api.meta_files().last_filename() == "3DBenchy.gcode");
+
+    CHECK(subject_path() != ActivePrintMediaManager::no_thumbnail_placeholder());
+    CHECK_FALSE(subject_path().empty());
+    CHECK(state().get_print_thumbnail_file() == "3DBenchy.gcode");
+    CHECK(panel_src() == subject_path());
+}
+
+TEST_CASE_METHOD(ActivePrintThumbnailFixture,
+                 "Active print thumbnail: a metadata error self-serves from the gcode header "
+                 "without waiting out the ladder",
+                 "[print_status][thumbnail][integration]") {
+    // The broken-endpoint shape: metadata errors on every attempt (a
+    // customized fork can 404 the endpoint outright). Waiting for the retry
+    // ladder to give up costs minutes of placeholder per print; the first
+    // error must already self-serve from the gcode header.
+    SelfServeMockAPI& api = start_consumers_with_api();
+    api.meta_files().set_fail_metadata(true);
+
+    set_print_filename("3DBenchy.gcode");
+    settle();
+
+    REQUIRE(api.meta_files().last_filename() == "3DBenchy.gcode");
+    REQUIRE(api.transfers().partial_downloads() >= 1);
+
+    REQUIRE(ActivePrintMediaManagerTestAccess::thumbnail_loaded(media()));
+    CHECK(subject_path() != ActivePrintMediaManager::no_thumbnail_placeholder());
+    CHECK(state().get_print_thumbnail_file() == "3DBenchy.gcode");
+    CHECK(panel_src() == subject_path());
+}
+
+TEST_CASE_METHOD(ActivePrintThumbnailFixture,
+                 "Active print thumbnail: a failed header extraction is not retried down the "
+                 "ladder",
+                 "[print_status][thumbnail][integration]") {
+    // A file with nothing embedded fails extraction permanently. The failure
+    // must be remembered: one header download for the whole retry ladder
+    // (error retries, the give-up path), not one per attempt.
+    SelfServeMockAPI& api = start_consumers_with_api();
+    api.meta_files().set_fail_metadata(true);
+    api.transfers().serve_canned_content("; no thumbnails here\nG28\n");
+
+    set_print_filename("no_thumb.gcode");
+    settle();
+
+    // The early self-serve ran once...
+    REQUIRE(api.transfers().partial_downloads() == 1);
+
+    // ...and walking the whole ladder (9 backoff retries, then give-up) must
+    // not download the header again.
+    ActivePrintMediaManager& mgr = media();
+    while (ActivePrintMediaManagerTestAccess::has_pending_retry(mgr)) {
+        REQUIRE(ActivePrintMediaManagerTestAccess::fire_pending_retry(mgr));
+        settle();
+    }
+    settle();
+
+    CHECK(api.transfers().partial_downloads() == 1);
+    CHECK_FALSE(ActivePrintMediaManagerTestAccess::thumbnail_loaded(mgr));
+    CHECK(subject_path() == ActivePrintMediaManager::no_thumbnail_placeholder());
+    CHECK(state().get_print_thumbnail_file() == "no_thumb.gcode");
+}
+
+TEST_CASE_METHOD(ActivePrintThumbnailFixture,
+                 "Active print thumbnail: a transient extraction failure does not poison "
+                 "self-serve",
+                 "[print_status][thumbnail][integration]") {
+    // A failed header DOWNLOAD is transient (WiFi blip, busy executor). Only
+    // the permanent verdict — the header was read and has nothing embedded —
+    // may stop self-serve from retrying: on a broken-metadata fork the
+    // extracted header is the only thumbnail source there is.
+    SelfServeMockAPI& api = start_consumers_with_api();
+    api.meta_files().set_fail_metadata(true);
+    api.transfers().fail_next_partial_download();
+
+    set_print_filename("3DBenchy.gcode");
+    settle();
+
+    // First self-serve attempted and failed transiently.
+    REQUIRE(api.transfers().partial_downloads() == 1);
+    REQUIRE_FALSE(ActivePrintMediaManagerTestAccess::thumbnail_loaded(media()));
+
+    // The ladder's first retry re-attempts extraction (not poisoned) and the
+    // file has thumbnails: it must publish.
+    REQUIRE(ActivePrintMediaManagerTestAccess::has_pending_retry(media()));
+    ActivePrintMediaManagerTestAccess::fire_pending_retry(media());
+    settle();
+
+    CHECK(api.transfers().partial_downloads() == 2);
+    REQUIRE(ActivePrintMediaManagerTestAccess::thumbnail_loaded(media()));
+    CHECK(subject_path() != ActivePrintMediaManager::no_thumbnail_placeholder());
+    CHECK(state().get_print_thumbnail_file() == "3DBenchy.gcode");
+}
+
+TEST_CASE_METHOD(ActivePrintThumbnailFixture,
+                 "Active print thumbnail: a completed self-serve is not re-downloaded by "
+                 "later reload triggers",
+                 "[print_status][thumbnail][integration]") {
+    // Once the extracted thumbnail is displayed (Fetched), the reload
+    // triggers that keep firing while metadata stays broken must not
+    // re-download and re-prescale the same header. The notification routes
+    // carry their own Fetched guards upstream; the live route for the gate
+    // under test is rearm at print-start confirmation with layers still
+    // missing (the broken-metadata fork shape), which re-enters the load,
+    // hits the metadata error, and reaches self-serve with origin Fetched.
+    SelfServeMockAPI& api = start_consumers_with_api();
+    api.meta_files().set_fail_metadata(true);
+
+    set_print_filename("3DBenchy.gcode");
+    settle();
+
+    REQUIRE(ActivePrintMediaManagerTestAccess::thumbnail_loaded(media()));
+    REQUIRE(api.transfers().partial_downloads() == 1);
+
+    // Upstream-gated routes (pin those guards too).
+    fire_notification("notify_filelist_changed",
+                      {{"params", json::array({{{"action", "modify_file"},
+                                                {"item", {{"path", "3DBenchy.gcode"}}}}})}});
+    settle();
+    fire_notification("notify_klippy_ready", {{"params", json::array({})}});
+    settle();
+    CHECK(api.transfers().partial_downloads() == 1);
+
+    // The ungated-for-self-serve route: rearm with layers missing reloads,
+    // the metadata error body reaches self_serve_from_gcode, and the Fetched
+    // gate must stop it there.
+    ActivePrintMediaManagerTestAccess::rearm_media(media());
+    settle();
+
+    CHECK(api.transfers().partial_downloads() == 1);
+    CHECK(ActivePrintMediaManagerTestAccess::thumbnail_loaded(media()));
+    CHECK(subject_path() != ActivePrintMediaManager::no_thumbnail_placeholder());
 }

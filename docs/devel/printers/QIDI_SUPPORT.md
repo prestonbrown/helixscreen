@@ -58,7 +58,7 @@ QIDI uses two generations of mainboard:
 
 No QIDI-side install is needed. Run HelixScreen on a Raspberry Pi, repurposed Android tablet, or any other supported device, and add the QIDI printer by hostname or IP. Auto-detection identifies the model from Klipper objects, macros, hostname, and build volume. The right print start profile and capabilities load automatically.
 
-This works on **stock firmware** (Q2, Max 4 all run standard Moonraker) and on **community stacks** like [FreeDi](https://github.com/Phil1988/FreeDi), [FreeQIDI](https://github.com/Phil1988/FreeQIDI), or [53Aries/Q2-Firmware](https://github.com/53Aries/Q2-Firmware) -- anything that exposes Moonraker on port 7125.
+This works on **stock firmware** (Q2 and Max 4 ship a customized Moonraker — its `/server/files/metadata` path is broken stock, so HelixScreen self-serves print thumbnails from the gcode header; everything else speaks standard Moonraker on port 7125) and on **community stacks** like [FreeDi](https://github.com/Phil1988/FreeDi), [FreeQIDI](https://github.com/Phil1988/FreeQIDI), or [53Aries/Q2-Firmware](https://github.com/53Aries/Q2-Firmware) -- anything that exposes Moonraker on port 7125.
 
 For the older 3-series (X-Smart 3, X-Plus 3, X-Max 3, Q1 Pro, Plus 4), FreeDi is the easy path to a clean Klipper + Moonraker + Mainsail stack. FreeDi's own `FreeDiLCD` keeps the printer's local TJC display alive; HelixScreen runs separately on your touchscreen device and controls the printer over the network.
 
@@ -253,7 +253,7 @@ Gathered from firmware analysis and user reports:
 - **Touch digitizer (measured, #943):** `Goodix Capacitive TouchScreen` on `/dev/input/event0` (phys `input/ts`), reporting both legacy ABS_X/Y and MT position axes. It **over-reports its ABS range**: EVIOCGABS advertises 0..799 x 0..479 (an 800x480 panel) but the glass only emits ~460x237, so evdev's linear scale delivers touches compressed to ~0.57x/0.49y of the screen — until first calibration only the top-left ~55%x49% of the UI is reachable. The affine calibration absorbs the compression fully (a≈1.74, e≈1.93); calibration working "correctly" can look broken mid-capture because raw capture space is that compressed space. Evidence: debug bundle N4ZN3YY2 (v0.99.114); the calibration span-check logs the captured/target ratio on every run. A controller that reports honestly needs no affine — don't copy this fix class elsewhere without the span-check evidence.
 - **WiFi:** USB dongle, Realtek RTL8188GU (Tenda), 2.4 GHz only
 - **SSH:** user `mks`, password `makerbase`
-- **Klipper stack:** Standard Klipper + Moonraker (port 7125) + Fluidd, managed via systemd
+- **Klipper stack:** Standard Klipper + Moonraker (port 7125) + Fluidd, managed via systemd. The Moonraker is a QIDI-customized fork: `/server/files/metadata` 404s for every file (a whitelist drops `thumbnails`, and a firmware-only mmu_server.py component calls `metadata.main(config)` across a signature mismatch), so HelixScreen extracts print thumbnails from the gcode header client-side instead of trusting metadata.
 - **Stock UI:** Closed-source binary at `/home/mks/QD_Q2/bin/client`, pinned to CPU core 0 via `taskset`
 
 Firmware source reference: [53Aries/Q2-Firmware](https://github.com/53Aries/Q2-Firmware)

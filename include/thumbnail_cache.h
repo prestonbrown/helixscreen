@@ -251,6 +251,11 @@ class ThumbnailCache {
      * downloaded via Moonraker's HTTP API (e.g., USB files where Moonraker
      * can't write .thumbs directory).
      *
+     * Overwriting a key drops the pre-scaled .bin variants derived from the
+     * previous PNG, so a re-slice under the same name cannot be served
+     * through stale prescaled artifacts (callers that pass no
+     * source_modified have no other freshness check).
+     *
      * @param source_identifier Unique identifier for this thumbnail (typically
      *        the relative_path that would be used with fetch(), e.g., "usb/file.gcode")
      * @param png_data Raw PNG bytes (must be valid PNG with magic header)
@@ -560,6 +565,13 @@ class ThumbnailCache {
     /// shape every write site uses so no write can reach eviction unindexed.
     void note_write_and_evict(const std::string& path);
 
+    /// Remove the pre-scaled .bin variants ({hash}_{w}x{h}_{format}.bin) for
+    /// one key. What both invalidate() and save_raw_png() use to keep a
+    /// freshly written PNG from being served through bins prescaled from the
+    /// previous one.
+    /// @pre mutex_ is held.
+    size_t remove_bin_variants_locked(const std::string& hash);
+
     /**
      * @brief Eviction pass proper.
      * @pre mutex_ is held.
@@ -652,3 +664,40 @@ class ThumbnailCache {
  * @return Reference to the global ThumbnailCache
  */
 ThumbnailCache& get_thumbnail_cache();
+
+namespace helix {
+
+/// Header size that covers every slicer's embedded-thumbnail comment block.
+constexpr size_t GCODE_THUMBNAIL_HEADER_BYTES = 100 * 1024;
+
+/// Error-text prefix marking a PERMANENT extraction verdict: the gcode header
+/// was read and contains no embedded thumbnails. Every other failure flavor
+/// (download error, cache write error) is transient and must stay retryable,
+/// so consumers keying a negative cache off extraction errors match THIS
+/// prefix, nothing else. Compared by prefix so the message still carries the
+/// path.
+inline constexpr const char* GCODE_THUMBNAIL_NONE_EMBEDDED = "no embedded thumbnails in ";
+
+/**
+ * @brief Self-serve a thumbnail from the gcode file header when metadata has none
+ *
+ * For files whose metadata record carries no thumbnails — a slicer run without
+ * them, a USB mount Moonraker can't write .thumbs to, or a customized Moonraker
+ * whose metadata path drops them — downloads the first @p max_header_bytes of
+ * @p gcode_path, extracts the largest embedded PNG, caches it under
+ * "<gcode_path>_extracted", and feeds it through the prescale pipeline via
+ * ThumbnailCache::fetch.
+ *
+ * The parse and the cache write run on the HttpExecutor worker thread; nothing
+ * there touches LVGL or the caller. Callbacks have the same contract as
+ * ThumbnailCache::fetch's: marshalled to the main thread, with @p on_success
+ * dropped when @p ctx has been superseded. @p on_error receives any failure
+ * along the way (download, no embedded thumbnails, cache write, prescale).
+ */
+void fetch_thumbnail_from_gcode(const std::string& gcode_path, size_t max_header_bytes,
+                                IMoonrakerAPI* api, const ThumbnailTarget& target,
+                                ThumbnailLoadContext ctx,
+                                ThumbnailCache::SuccessCallback on_success,
+                                ThumbnailCache::ErrorCallback on_error);
+
+} // namespace helix

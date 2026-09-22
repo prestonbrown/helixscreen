@@ -63,6 +63,12 @@ class ActivePrintMediaManagerTestAccess {
         m.on_retry_timer_fired();
         return true;
     }
+
+    /// Invoke rearm_media_if_incomplete() directly (normally driven by the
+    /// preparing-exit Confirmed observer at print-start confirmation).
+    static void rearm_media(ActivePrintMediaManager& m) {
+        m.rearm_media_if_incomplete();
+    }
 };
 
 } // namespace helix

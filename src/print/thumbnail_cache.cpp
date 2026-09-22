@@ -7,6 +7,7 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "gcode_parser.h"
 #include "system/crash_handler.h"
 #include "system/helix_paths.h"
 
@@ -756,24 +757,55 @@ std::string ThumbnailCache::save_raw_png(const std::string& source_identifier,
     // Generate cache path using same hash scheme as downloaded thumbnails
     std::string cache_path = get_cache_path(source_identifier);
 
-    // Write PNG data to cache file
-    std::ofstream file(cache_path, std::ios::binary);
-    if (!file) {
-        spdlog::error("[ThumbnailCache] Failed to create cache file: {}", cache_path);
+    // One lock scope for the write and the bin sweep. What it buys: every
+    // cache-side reader that takes mutex_ (eviction, invalidate, index
+    // maintenance) sees the new PNG and the retired prescaled variants as
+    // one step, never one without the other; note_write_and_evict takes the
+    // lock itself and stays outside. RESIDUAL, accepted:
+    // ThumbnailProcessor's fresh-bin probe (fetch_optimized's step 1) reads
+    // under its own mutex and never acquires ours, so a fetch racing this
+    // scope can still serve the previous .bin once — a one-shot stale render
+    // that self-corrects on the next load, reachable only when two surfaces
+    // extract the same file concurrently. Closing it fully would need
+    // sweep-before-write with resurrection handling, or per-key versioning.
+    try {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        // Write PNG data to cache file
+        std::ofstream file(cache_path, std::ios::binary);
+        if (!file) {
+            spdlog::error("[ThumbnailCache] Failed to create cache file: {}", cache_path);
+            return "";
+        }
+
+        file.write(reinterpret_cast<const char*>(png_data.data()),
+                   static_cast<std::streamsize>(png_data.size()));
+        file.close();
+
+        if (!file) {
+            spdlog::error("[ThumbnailCache] Failed to write PNG data to {}", cache_path);
+            return "";
+        }
+
+        spdlog::debug("[ThumbnailCache] Saved {} bytes from gcode extraction: {}", png_data.size(),
+                      cache_path);
+
+        // The pre-scaled .bin variants still on disk were derived from
+        // whatever PNG previously sat at this key. Nothing else invalidates
+        // them for callers that pass no source_modified, so a re-slice under
+        // the same name would keep being served through them.
+        size_t dropped = remove_bin_variants_locked(compute_hash(source_identifier));
+        if (dropped > 0) {
+            spdlog::debug("[ThumbnailCache] Dropped {} stale prescaled variants for {}", dropped,
+                          source_identifier);
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        // The fresh PNG may be on disk; a failed sweep only risks a stale
+        // bin, which the next source_modified-checked fetch catches.
+        spdlog::warn("[ThumbnailCache] Failed to write/sweep cache for {}: {}", source_identifier,
+                     e.what());
         return "";
     }
-
-    file.write(reinterpret_cast<const char*>(png_data.data()),
-               static_cast<std::streamsize>(png_data.size()));
-    file.close();
-
-    if (!file) {
-        spdlog::error("[ThumbnailCache] Failed to write PNG data to {}", cache_path);
-        return "";
-    }
-
-    spdlog::debug("[ThumbnailCache] Saved {} bytes from gcode extraction: {}", png_data.size(),
-                  cache_path);
 
     // Index the file we just wrote, then check whether it pushed us over.
     note_write_and_evict(cache_path);
@@ -812,6 +844,29 @@ size_t ThumbnailCache::clear_cache() {
     return count;
 }
 
+size_t ThumbnailCache::remove_bin_variants_locked(const std::string& hash) {
+    // .bin files are named: {hash}_{w}x{h}_{format}.bin
+    size_t count = 0;
+    for (const auto& entry : std::filesystem::directory_iterator(cache_dir_)) {
+        if (!std::filesystem::is_regular_file(entry.path())) {
+            continue;
+        }
+        std::string filename = entry.path().filename().string();
+        std::string prefix = hash + "_";
+        bool has_prefix =
+            filename.size() >= prefix.size() && filename.compare(0, prefix.size(), prefix) == 0;
+        bool has_suffix =
+            filename.size() >= 4 && filename.compare(filename.size() - 4, 4, ".bin") == 0;
+        if (has_prefix && has_suffix) {
+            std::filesystem::remove(entry.path());
+            forget_file_locked(entry.path());
+            ++count;
+            spdlog::debug("[ThumbnailCache] Invalidated BIN: {}", entry.path().string());
+        }
+    }
+    return count;
+}
+
 size_t ThumbnailCache::invalidate(const std::string& relative_path) {
     if (relative_path.empty()) {
         return 0;
@@ -833,24 +888,7 @@ size_t ThumbnailCache::invalidate(const std::string& relative_path) {
         }
 
         // Delete all pre-scaled .bin variants (e.g., {hash}_120x120_RGB565.bin)
-        for (const auto& entry : std::filesystem::directory_iterator(cache_dir_)) {
-            if (!std::filesystem::is_regular_file(entry.path())) {
-                continue;
-            }
-            std::string filename = entry.path().filename().string();
-            // .bin files are named: {hash}_{w}x{h}_{format}.bin
-            std::string prefix = hash + "_";
-            bool has_prefix =
-                filename.size() >= prefix.size() && filename.compare(0, prefix.size(), prefix) == 0;
-            bool has_suffix =
-                filename.size() >= 4 && filename.compare(filename.size() - 4, 4, ".bin") == 0;
-            if (has_prefix && has_suffix) {
-                std::filesystem::remove(entry.path());
-                forget_file_locked(entry.path());
-                ++count;
-                spdlog::debug("[ThumbnailCache] Invalidated BIN: {}", entry.path().string());
-            }
-        }
+        count += remove_bin_variants_locked(hash);
 
         if (count > 0) {
             spdlog::info("[ThumbnailCache] Invalidated {} cached files for {}", count,
@@ -1095,4 +1133,72 @@ std::string ThumbnailCache::get_if_cached(const ThumbnailRequest& req) const {
         return get_if_cached(req.key, req.source_modified);
     }
     return get_if_optimized(req.key, req.target, req.source_modified);
+}
+
+void helix::fetch_thumbnail_from_gcode(const std::string& gcode_path, size_t max_header_bytes,
+                                       IMoonrakerAPI* api, const helix::ThumbnailTarget& target,
+                                       ThumbnailLoadContext ctx,
+                                       ThumbnailCache::SuccessCallback on_success,
+                                       ThumbnailCache::ErrorCallback on_error) {
+    // Early failures surface on the HttpExecutor worker, while the ones from
+    // the fetch below are marshalled by the cache. Route everything through
+    // the queue so @p on_error always runs on the main thread (the same
+    // reason ThumbnailCache wraps its own callbacks — #960, #1202).
+    auto report_error = [on_error](const std::string& message) {
+        helix::ui::queue_update([on_error, message]() {
+            if (on_error) {
+                on_error(message);
+            }
+        });
+    };
+
+    if (!api) {
+        report_error("no API available for gcode thumbnail extraction");
+        return;
+    }
+
+    api->transfers().download_file_partial(
+        "gcodes", gcode_path, max_header_bytes,
+        [gcode_path, target, api, ctx, on_success, report_error](const std::string& content) {
+            // HttpExecutor worker. The parse and the cache write below are
+            // deliberately left here — they are the expensive part and touch
+            // no UI state and nothing owned by the caller, everything the
+            // body needs having been captured by value on the main thread.
+            auto thumbnails = helix::gcode::extract_thumbnails_from_content(content);
+            if (thumbnails.empty()) {
+                spdlog::debug("[ThumbnailCache] No embedded thumbnails in {}", gcode_path);
+                report_error(std::string(GCODE_THUMBNAIL_NONE_EMBEDDED) + gcode_path);
+                return;
+            }
+
+            // Use the largest thumbnail (already sorted largest-first)
+            const auto& best = thumbnails[0];
+            spdlog::debug("[ThumbnailCache] Extracted {}x{} thumbnail ({} bytes) from {}",
+                          best.width, best.height, best.png_data.size(), gcode_path);
+
+            // Save to cache using the gcode path as identifier
+            std::string cache_key = gcode_path + "_extracted";
+            std::string lvgl_path = get_thumbnail_cache().save_raw_png(cache_key, best.png_data);
+            if (lvgl_path.empty()) {
+                spdlog::warn("[ThumbnailCache] Failed to cache extracted thumbnail for {}",
+                             gcode_path);
+                report_error("failed to cache extracted thumbnail for " + gcode_path);
+                return;
+            }
+
+            // Feed through the prescale pipeline for .bin generation (avoids
+            // runtime scaling on every frame). fetch marshals the callbacks
+            // to the main thread and drops a superseded load via ctx.
+            ThumbnailRequest req;
+            req.key = cache_key;
+            req.target = target;
+            req.api = api;
+
+            get_thumbnail_cache().fetch(req, ctx, std::move(on_success), report_error);
+        },
+        [gcode_path, report_error](const MoonrakerError& error) {
+            spdlog::debug("[ThumbnailCache] Failed to download gcode header for {}: {}", gcode_path,
+                          error.message);
+            report_error(error.message);
+        });
 }

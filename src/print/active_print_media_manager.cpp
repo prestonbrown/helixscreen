@@ -196,6 +196,93 @@ bool ActivePrintMediaManager::has_thumbnail_for(const std::string& filename) {
            !filename.empty() && printer_state_.get_print_thumbnail_file() == filename;
 }
 
+ThumbnailCache::SuccessCallback
+ActivePrintMediaManager::fetched_thumbnail_callback(const std::string& filename,
+                                                    ThumbnailLoadContext ctx) {
+    return
+        [this, tok = lifetime_.token(), ctx, filename](const std::string& path, bool /*degraded*/) {
+            // Runs wherever the completing fetch marshalled it to (prescale worker
+            // or inline cache hit): no member access here, everything deferred.
+            tok.defer("ActivePrintMediaManager::on_thumbnail", [this, ctx, filename, path]() {
+                // Cleared BEFORE the staleness check: a superseded load's success
+                // is dropped below without another callback ever firing, and the
+                // pending flag must not outlive the extraction it names.
+                if (self_serve_pending_for_ == filename) {
+                    self_serve_pending_for_.clear();
+                }
+                if (!ctx.is_valid()) {
+                    spdlog::trace("[ActivePrintMediaManager] Stale thumbnail callback, ignoring");
+                    return;
+                }
+                publish_thumbnail(filename, path);
+                if (thumbnail_retry_count_ > 0) {
+                    spdlog::info("[ActivePrintMediaManager] Thumbnail loaded after {} retries: {}",
+                                 thumbnail_retry_count_, path);
+                } else {
+                    spdlog::info("[ActivePrintMediaManager] Thumbnail path set: {}", path);
+                }
+                thumbnail_origin_ = ThumbnailOrigin::Fetched;
+                thumbnail_retry_count_ = 0;
+                self_serve_failed_for_.clear();
+                cancel_thumbnail_retry();
+                helix::MemoryMonitor::log_now("thumbnail_loaded", spdlog::level::debug);
+            });
+        };
+}
+
+void ActivePrintMediaManager::self_serve_from_gcode(const std::string& filename,
+                                                    const std::string& gcode_path,
+                                                    const ThumbnailLoadContext& ctx) {
+#if defined(HELIX_PLATFORM_ESP32)
+    // No disk thumbnail cache on this platform, so header extraction has
+    // nowhere to land (save_raw_png refuses to write). Skip the download.
+    (void)filename;
+    (void)gcode_path;
+    (void)ctx;
+#else
+    if (!api_) {
+        return;
+    }
+    if (thumbnail_origin_ == ThumbnailOrigin::Fetched) {
+        // Same gate the metadata-success branch applies via skip_thumbnail:
+        // a completed load has nothing left to self-serve, and a metadata
+        // error arriving after the extraction published must not restart the
+        // download/prescale cycle for the already-displayed image.
+        return;
+    }
+    if (self_serve_pending_for_ == filename) {
+        spdlog::debug("[ActivePrintMediaManager] Gcode header extraction for '{}' already in "
+                      "flight, not starting a second download",
+                      filename);
+        return;
+    }
+    if (self_serve_failed_for_ == filename) {
+        spdlog::debug("[ActivePrintMediaManager] Skipping gcode header extraction for '{}' "
+                      "(already tried, nothing embedded)",
+                      filename);
+        return;
+    }
+    self_serve_pending_for_ = filename;
+    helix::fetch_thumbnail_from_gcode(
+        gcode_path, helix::GCODE_THUMBNAIL_HEADER_BYTES, api_,
+        helix::ThumbnailProcessor::get_target_for_display(helix::ThumbnailSize::Detail), ctx,
+        fetched_thumbnail_callback(filename, ctx), [this, filename](const std::string& error) {
+            // Marshalled to main by the helper. Only the PERMANENT verdict
+            // (header read, nothing embedded — GCODE_THUMBNAIL_NONE_EMBEDDED)
+            // may stop future attempts; transient failures stay retryable.
+            if (self_serve_pending_for_ == filename) {
+                self_serve_pending_for_.clear();
+            }
+            if (error.rfind(helix::GCODE_THUMBNAIL_NONE_EMBEDDED, 0) == 0) {
+                self_serve_failed_for_ = filename;
+            }
+            spdlog::debug("[ActivePrintMediaManager] Gcode header thumbnail extraction failed "
+                          "for '{}': {}",
+                          filename, error);
+        });
+#endif
+}
+
 void ActivePrintMediaManager::process_filename(const char* raw_filename) {
     // Empty filename means print ended or idle - DON'T clear immediately
     // The thumbnail/metadata should persist so the user can see what was printing
@@ -263,9 +350,13 @@ void ActivePrintMediaManager::process_filename(const char* raw_filename) {
 #endif
         }
         // New file: drop any pending retry for the previous file and reset
-        // the per-filename retry budget.
+        // the per-filename retry budget. The self-serve bookkeeping goes with
+        // it — a different file (or the next print of this one) may carry
+        // thumbnails even if the last attempt found none.
         cancel_thumbnail_retry();
         thumbnail_retry_count_ = 0;
+        self_serve_failed_for_.clear();
+        self_serve_pending_for_.clear();
         thumbnail_origin_ = preset_for_this_file ? ThumbnailOrigin::PreSet : ThumbnailOrigin::None;
         load_thumbnail_for_file(effective_filename);
         last_loaded_thumbnail_filename_ = effective_filename;
@@ -296,6 +387,13 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
         spdlog::debug("[ActivePrintMediaManager] No API available - skipping thumbnail load");
         return;
     }
+
+    // A new load generation supersedes any in-flight extraction: the cache
+    // drops a superseded success without invoking either callback, so the
+    // pending flag must not survive into this generation. The cost is at
+    // most one duplicate header download per generation, and only when the
+    // previous download outlasts the retry backoff.
+    self_serve_pending_for_.clear();
 
     // One staleness context per load. Creating it bumps thumbnail_load_generation_,
     // so every callback still in flight from an earlier load now reports stale.
@@ -446,6 +544,12 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                                 "incomplete",
                                 metadata_filename, thumbnail_retry_count_ + 1,
                                 MAX_EMPTY_THUMBNAIL_RETRIES + 1);
+                    // The gcode itself usually still carries embedded
+                    // thumbnails (slicers write them into the comment header
+                    // even when the metadata path drops them). Self-serve
+                    // from there; success publishes through the normal
+                    // channel and disarms the retry scheduled below.
+                    self_serve_from_gcode(filename, metadata_filename, ctx);
                     schedule_thumbnail_retry(filename, MAX_EMPTY_THUMBNAIL_RETRIES);
                     return;
                 }
@@ -558,33 +662,7 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                 req.source_modified = static_cast<time_t>(metadata.modified);
 
                 get_thumbnail_cache().fetch(
-                    req, ctx,
-                    [this, tok = lifetime_.token(), ctx, filename](const std::string& lvgl_path,
-                                                                   bool /*degraded*/) {
-                        // bg thread (thumbnail prescale worker): no member access here.
-                        std::string path = lvgl_path;
-                        tok.defer("ActivePrintMediaManager::on_thumbnail", [this, ctx, filename,
-                                                                            path]() {
-                            if (!ctx.is_valid()) {
-                                spdlog::trace("[ActivePrintMediaManager] Stale thumbnail "
-                                              "callback, ignoring");
-                                return;
-                            }
-                            publish_thumbnail(filename, path);
-                            if (thumbnail_retry_count_ > 0) {
-                                spdlog::info("[ActivePrintMediaManager] Thumbnail loaded after "
-                                             "{} retries: {}",
-                                             thumbnail_retry_count_, path);
-                            } else {
-                                spdlog::info("[ActivePrintMediaManager] Thumbnail path set: {}",
-                                             path);
-                            }
-                            thumbnail_origin_ = ThumbnailOrigin::Fetched;
-                            thumbnail_retry_count_ = 0;
-                            cancel_thumbnail_retry();
-                            helix::MemoryMonitor::log_now("thumbnail_loaded", spdlog::level::debug);
-                        });
-                    },
+                    req, ctx, fetched_thumbnail_callback(filename, ctx),
                     [this, tok = lifetime_.token(), ctx, filename](const std::string& error) {
                         // bg thread (HTTP worker): copy the message, marshal
                         // ALL member access (retry bookkeeping) to main.
@@ -620,6 +698,13 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                                        "for '{}' (attempt {}/{}): {}",
                                        metadata_filename, thumbnail_retry_count_ + 1,
                                        MAX_THUMBNAIL_ATTEMPTS, message);
+                          // A metadata endpoint that errors outright (a
+                          // customized fork can 404 it for every file) never
+                          // gets better within the ladder's lifetime, so
+                          // self-serve now rather than after the retries run
+                          // out. Genuinely transient failures still get the
+                          // ladder; a successful extraction disarms it.
+                          self_serve_from_gcode(filename, metadata_filename, ctx);
                           schedule_thumbnail_retry(filename);
                       });
         },
@@ -661,6 +746,24 @@ void ActivePrintMediaManager::schedule_thumbnail_retry(const std::string& filena
     if (thumbnail_retry_count_ >= max_retries) {
         spdlog::warn("[ActivePrintMediaManager] Giving up on thumbnail for '{}' after {} attempts",
                      filename, thumbnail_retry_count_ + 1);
+        // An extraction started by the error body that led here still holds
+        // the current generation. Creating a context now would bump it and
+        // drop that extraction's success as stale — with the ladder
+        // exhausted, nothing would ever re-attempt. Let the in-flight
+        // extraction finish: its success publishes and disarms.
+        if (self_serve_pending_for_ == filename) {
+            spdlog::debug("[ActivePrintMediaManager] Extraction for '{}' still in flight at "
+                          "ladder exhaustion - deferring to it",
+                          filename);
+            return;
+        }
+        // The metadata ladder is exhausted. On a Moonraker whose metadata
+        // path is broken entirely (a customized fork can 404 the endpoint
+        // for every file), the gcode header is the only source left. A file
+        // whose extraction already failed is skipped by the negative cache.
+        ThumbnailLoadContext extract_ctx =
+            ThumbnailLoadContext::create(lifetime_, &thumbnail_load_generation_);
+        self_serve_from_gcode(filename, resolve_gcode_filename(filename), extract_ctx);
         return;
     }
 
@@ -692,6 +795,10 @@ void ActivePrintMediaManager::rearm_media_if_incomplete() {
                  have_layers, have_thumbnail, last_effective_filename_);
     cancel_thumbnail_retry();
     thumbnail_retry_count_ = 0;
+    // A new print of the same file may be a re-slice that added thumbnails,
+    // so the permanent-extraction verdict does not carry across prints.
+    self_serve_failed_for_.clear();
+    self_serve_pending_for_.clear();
     load_thumbnail_for_file(last_effective_filename_);
 }
 

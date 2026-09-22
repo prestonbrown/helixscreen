@@ -9,6 +9,7 @@
 #include "async_lifetime_guard.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
+#include "thumbnail_cache.h"
 
 #include <atomic>
 #include <memory>
@@ -188,6 +189,23 @@ class ActivePrintMediaManager {
     /// different print never counts. Main thread only.
     [[nodiscard]] bool has_thumbnail_for(const std::string& filename);
 
+    /// Success callback shared by every path that completes a thumbnail load
+    /// for @p filename — the metadata fetch and the gcode-header self-serve
+    /// sites: publishes on the main thread and marks the load Fetched, which
+    /// is the only state that disarms the retry ladder and the Moonraker
+    /// re-triggers. Build on the main thread, hand to a marshalling fetch.
+    ThumbnailCache::SuccessCallback fetched_thumbnail_callback(const std::string& filename,
+                                                               ThumbnailLoadContext ctx);
+
+    /// Self-serve the active print's thumbnail from the gcode header — the
+    /// one route for every metadata failure shape (error response, record
+    /// with no thumbnails, retry ladder exhausted). A failed extraction is
+    /// remembered in a one-entry negative cache so retries, the give-up path,
+    /// and re-arms never re-download the header for a file that has nothing
+    /// embedded. Main thread only.
+    void self_serve_from_gcode(const std::string& filename, const std::string& gcode_path,
+                               const ThumbnailLoadContext& ctx);
+
     PrinterState& printer_state_;
     IMoonrakerAPI* api_ = nullptr;
     ObserverGuard print_filename_observer_;
@@ -215,6 +233,28 @@ class ActivePrintMediaManager {
     /// Only ThumbnailOrigin::Fetched disarms the retry ladder and the Moonraker
     /// re-triggers; a PreSet path skips the fetch with recovery still armed.
     ThumbnailOrigin thumbnail_origin_ = ThumbnailOrigin::None;
+
+    /// Filename whose gcode-header extraction already failed PERMANENTLY
+    /// (header read, nothing embedded — see GCODE_THUMBNAIL_NONE_EMBEDDED).
+    /// Transient failures never populate this: on a broken-metadata fork the
+    /// extracted header is the only thumbnail source, so a WiFi blip must not
+    /// park the print on the placeholder. One entry is enough — there is one
+    /// active file. A stale entry for a previous file never matches, any
+    /// completed load clears it, and a new print clears it (the file may have
+    /// been re-sliced with thumbnails).
+    std::string self_serve_failed_for_;
+
+    /// Filename with a gcode-header extraction currently in flight. The flag
+    /// suppresses SAME-TURN duplicates: the error body's serve followed by
+    /// the give-up branch's serve, and reload re-entry while one is live.
+    /// A retry firing mid-download deliberately REPLACES the in-flight
+    /// download (load_thumbnail_for_file clears this on entry): the older
+    /// extraction's success would be dropped as stale regardless, and the
+    /// cache drops superseded successes without invoking either callback, so
+    /// a flag that survived its generation would strand. Ceiling, accepted:
+    /// one replacement header download per rung, bounded by the ladder
+    /// length, and only when a download outlasts the retry backoff.
+    std::string self_serve_pending_for_;
 
     IMoonrakerAPI* listener_api_ = nullptr; ///< API the method callbacks are registered on
     std::string filelist_handler_name_;
