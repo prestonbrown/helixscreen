@@ -5806,6 +5806,16 @@ std::vector<helix::printer::DeviceAction> AmsBackendAfc::get_device_actions() co
     // Start from shared defaults for static actions
     auto actions = helix::printer::afc_default_actions();
 
+    // SET_BOWDEN_LENGTH is HUB-keyed, and a hub-less topology (PARALLEL /
+    // direct_load lanes) has nothing the slider could address — the control
+    // cannot succeed there. The execute path keeps its not_supported as
+    // defense.
+    if (hub_names_.empty()) {
+        actions.erase(std::remove_if(actions.begin(), actions.end(),
+                                     [](const DeviceAction& a) { return a.id == "bowden_length"; }),
+                      actions.end());
+    }
+
     // Overlay dynamic values onto default actions
     for (auto& a : actions) {
         if (a.id == "bowden_length") {
@@ -6249,6 +6259,20 @@ AmsError AmsBackendAfc::execute_device_action(const std::string& action_id, cons
         // value we want rather than asking for a toggle AFC has no verb for.
         return execute_gcode(afc_quiet_mode_ ? "AFC_QUIET_MODE ENABLE=0"
                                              : "AFC_QUIET_MODE ENABLE=1");
+    } else if (action_id == "led_extruder") {
+        // Single-extruder toolhead LED toggle. A multi-extruder topology is
+        // served per-extruder instead: get_device_actions() replaces this
+        // action with led_extruder_T<n> when it can see the extruders.
+        std::lock_guard<std::mutex> lock(mutex_);
+        const std::string name = extruders_.empty() ? "extruder" : extruders_[0].name;
+        bool currently_on = toolhead_led_state_[0];
+        int turn_on = currently_on ? 0 : 1;
+        auto err = execute_gcode(
+            fmt::format("AFC_SET_EXTRUDER_LED EXTRUDER={} TURN_ON={}", name, turn_on));
+        if (err) {
+            toolhead_led_state_[0] = !currently_on;
+        }
+        return err;
     } else if (action_id.rfind("led_extruder_T", 0) == 0) {
         // Per-extruder toolhead LED toggle: led_extruder_T0, led_extruder_T1, etc.
         try {

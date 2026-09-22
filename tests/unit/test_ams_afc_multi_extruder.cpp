@@ -355,6 +355,10 @@ TEST_CASE("AFC single extruder: single bowden_length action", "[ams][afc][multi_
     AmsBackendAfcMultiExtruderHelper helper;
     helper.initialize_test_lanes_with_slots(4);
 
+    // A real single-extruder machine (Box Turtle) names its hub, and the
+    // generic bowden slider is HUB-keyed — it is only advertised where one is.
+    helper.feed_afc_state(nlohmann::json{{"hubs", nlohmann::json::array({"Turtle_1"})}});
+
     // Single extruder — should get the standard single bowden_length action
     auto actions = helper.get_device_actions();
 
