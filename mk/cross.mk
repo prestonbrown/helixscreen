@@ -333,8 +333,6 @@ else ifeq ($(PLATFORM_TARGET),ad5x)
     HELIX_HAS_ACE := 0
     HELIX_HAS_QIDI := 0
     HELIX_HAS_SNAPMAKER := 0
-    # Unblank leaves the display engine cycling solid fills until restart.
-    HELIX_PANEL_POWER_OFF := 0
     # -Wl,--gc-sections: Remove unused sections during linking (works with -ffunction-sections)
     # -flto: Must match compiler flag for LTO to work
     TARGET_LDFLAGS := -Wl,--gc-sections -flto
@@ -461,8 +459,6 @@ else ifneq ($(filter mips k1,$(PLATFORM_TARGET)),)
     HELIX_HAS_ACE := 0
     HELIX_HAS_QIDI := 0
     HELIX_HAS_SNAPMAKER := 0
-    # Panel edges glow and flicker white after POWERDOWN/UNBLANK (#1708).
-    HELIX_PANEL_POWER_OFF := 0
     # Linker flags:
     # -Wl,--gc-sections: Remove unused sections (works with -ffunction-sections)
     # -flto=auto: Match compiler LTO flag, uses all CPUs
@@ -510,7 +506,6 @@ else ifeq ($(PLATFORM_TARGET),k1-dynamic)
     HELIX_HAS_ACE := 0
     HELIX_HAS_QIDI := 0
     HELIX_HAS_SNAPMAKER := 0
-    HELIX_PANEL_POWER_OFF := 0
     # Dynamic linking with NaN2008 dynamic linker
     # NO -static flag! System libs resolved at runtime on the K1.
     TARGET_LDFLAGS := -Wl,--gc-sections -Wl,-O2 -Wl,--as-needed \
@@ -552,8 +547,6 @@ else ifeq ($(PLATFORM_TARGET),k2)
     HELIX_HAS_ACE := 0
     HELIX_HAS_QIDI := 0
     HELIX_HAS_SNAPMAKER := 0
-    # Panel edges glow and flicker white after POWERDOWN/UNBLANK (#1708).
-    HELIX_PANEL_POWER_OFF := 0
     # The panel renders anything under ~20% of the PWM range as off, so the
     # brightness slider and dim level must never land there (#1709).
     HELIX_BACKLIGHT_FLOOR_PERCENT := 20
@@ -593,8 +586,6 @@ else ifeq ($(PLATFORM_TARGET),snapmaker-u1)
     HELIX_HAS_IFS := 0
     HELIX_HAS_ACE := 0
     HELIX_HAS_QIDI := 0
-    # DPMS-off disables the VOP2 CRTC and DPMS-on does not reliably re-enable it.
-    HELIX_PANEL_POWER_OFF := 0
     TARGET_LDFLAGS := -Wl,--gc-sections -flto -static-libstdc++ -static-libgcc
     SNAPMAKER_SKIP_LIBINPUT := yes
     ENABLE_SSL := yes

@@ -493,15 +493,15 @@ bool DisplayManager::init(const Config& config) {
         }
     }
 
-    // Real panel power-off (FB_BLANK_POWERDOWN / DRM connector DPMS-off), applied
-    // ALONGSIDE the backlight write rather than instead of it: enter_sleep() writes
-    // brightness 0 whichever mechanism it picks, and some panel controllers treat
-    // duty zero as "dim" and keep the LEDs powered, so a device that can dim still
-    // needs the panel cut (#1049, #1594).
+    // Real panel power-off (FB_BLANK_POWERDOWN / DRM connector DPMS-off) is the
+    // last resort for a panel with no controllable backlight. A device with a
+    // usable backlight sleeps by writing brightness 0 in enter_sleep(), because a
+    // power-down its driver does not expect can wedge the display engine or leave
+    // the panel lit on a no-signal pattern. See should_use_power_off().
     //
     // Config override: /display/panel_power_off (0 or 1). Missing (-1) = auto.
-    // It exists so a platform whose driver cannot survive a CRTC disable can be
-    // switched off in the field without waiting for a release.
+    // 1 cuts the panel on hardware whose backlight write leaves the LEDs lit
+    // (#1594); 0 keeps it powered on a panel that does not recover from it.
     bool has_usable_backlight = m_backlight && m_backlight->is_available();
     bool backend_can_power_off = m_backend && m_backend->supports_power_off();
     {
@@ -512,7 +512,8 @@ bool DisplayManager::init(const Config& config) {
             spdlog::info("[DisplayManager] Display power-off: {} (config override)",
                          m_use_power_off);
         } else {
-            m_use_power_off = should_use_power_off(m_use_hardware_blank, backend_can_power_off);
+            m_use_power_off = should_use_power_off(m_use_hardware_blank, has_usable_backlight,
+                                                   backend_can_power_off);
             spdlog::info("[DisplayManager] Display power-off: {} ({})", m_use_power_off,
                          m_use_power_off
                              ? m_backend->name()

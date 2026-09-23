@@ -423,6 +423,12 @@ Located in the `display` section:
 **Range:** `0` - `100`
 **Description:** Lowest brightness level the panel can still show, as a percentage of its raw brightness range. Every screen brightness above "off" stays at or above this floor, so the dimmest slider setting dims instead of blacking out; turning the screen off is unaffected. Change it if your panel goes black before the brightness slider reaches its minimum: raise the value until the dimmest setting stays visible. `0` disables the floor. Takes effect after a restart.
 
+### `panel_power_off`
+**Type:** integer
+**Default:** `-1` (automatic)
+**Values:** `-1` = automatic, `0` = never, `1` = always
+**Description:** Whether display sleep powers the screen panel down or just turns its backlight off. Automatic powers the panel down only when the screen has no brightness control; on every other screen, sleep turns the backlight off. Set `1` if your screen goes black at sleep but the backlight stays lit. Set `0` if at sleep your screen flashes colours, glows at the edges, or does not come back on when you wake it. Takes effect after a restart.
+
 ### `drm_device`
 **Type:** string
 **Default:** `""` (auto-detect)

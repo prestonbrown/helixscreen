@@ -1086,10 +1086,6 @@ HELIX_HAS_BELT_TUNER ?= 1
 # high-DPI UI scale factor reaches them, so a platform with a fixed panel and no
 # scale factor above 1.0 neither packs nor links those faces.
 HELIX_HAS_HIDPI_FONTS ?= 1
-# Real panel power-off (FB_BLANK_POWERDOWN / DRM DPMS-off) at display sleep, on
-# top of the backlight write. 0 on targets whose panel does not recover cleanly
-# from a power-down; the backlight write alone then sleeps the screen.
-HELIX_PANEL_POWER_OFF ?= 1
 # Lowest raw backlight level the panel renders visibly, as a percent of the raw
 # range. Nonzero percent scales across [floor, max] so the dimmest slider level
 # is the darkest visible level instead of black. settings.json's
@@ -1107,7 +1103,6 @@ CXXFLAGS += -DHELIX_HAS_LABEL_PRINTER=$(HELIX_HAS_LABEL_PRINTER) \
             -DHELIX_HAS_TIMELAPSE_VIEWER=$(HELIX_HAS_TIMELAPSE_VIEWER) \
             -DHELIX_HAS_BELT_TUNER=$(HELIX_HAS_BELT_TUNER) \
             -DHELIX_HAS_HIDPI_FONTS=$(HELIX_HAS_HIDPI_FONTS) \
-            -DHELIX_PANEL_POWER_OFF=$(HELIX_PANEL_POWER_OFF) \
             -DHELIX_BACKLIGHT_FLOOR_PERCENT=$(HELIX_BACKLIGHT_FLOOR_PERCENT)
 
 # Parallel build control
