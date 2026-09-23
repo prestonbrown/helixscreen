@@ -417,6 +417,12 @@ Located in the `display` section:
 **Range:** `1` - `100`
 **Description:** Brightness percentage when screen is dimmed.
 
+### `backlight_floor_percent`
+**Type:** integer
+**Default:** `0` (`20` on K2 builds)
+**Range:** `0` - `100`
+**Description:** Lowest brightness level the panel can still show, as a percentage of its raw brightness range. Every screen brightness above "off" stays at or above this floor, so the dimmest slider setting dims instead of blacking out; turning the screen off is unaffected. Change it if your panel goes black before the brightness slider reaches its minimum: raise the value until the dimmest setting stays visible. `0` disables the floor. Takes effect after a restart.
+
 ### `drm_device`
 **Type:** string
 **Default:** `""` (auto-detect)
