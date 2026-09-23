@@ -365,6 +365,16 @@ inline void safe_delete_subtree(lv_obj_t* obj) {
     // Free the whole condemned subtree (incl. obj and its descendants) off-tree
     // on the deferred path — escapes the UpdateQueue batch.
     helix::ui::defocus_tree(condemned);
+    if (StaticPanelRegistry::is_destroying_all()) {
+        // Inside the destroy_all() window the deferred delete silently skips,
+        // which would strand the whole subtree on layer_top for the rest of
+        // the session. Hand the condemned container to the registry instead:
+        // destroy_all()'s caller frees it once the window closes, with the
+        // subtree still inside this layout-less container (#983 guarantees
+        // hold until the delete). No-op outside the window.
+        StaticPanelRegistry::instance().record_orphaned_widget(condemned);
+        return;
+    }
     helix::ui::safe_delete_deferred(condemned);
 }
 
