@@ -87,4 +87,13 @@ std::vector<helix::wizard::StepId> unresolved_guided_steps(Config* config,
 /// untouched. Returns true if any key was changed.
 bool decline_unresolved_guided_roles(Config* config, const PrinterDiscovery& hw);
 
+/// End of a targeted reconfig session, shared by its Finish and Cancel paths:
+/// decline every guided role still Unresolved against `hw`. A session step can
+/// only resolve the roles it has a control for — the fan step has no aux
+/// dropdown — so a preset-saved role with no live match (e.g. fans/aux naming
+/// a fan the printer does not have) can never be satisfied inside the session;
+/// skipping this on Finish relaunches the wizard on every boot. Returns true
+/// if any key was changed.
+bool settle_targeted_reconfig(Config* config, const PrinterDiscovery& hw);
+
 } // namespace helix

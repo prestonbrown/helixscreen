@@ -3260,8 +3260,9 @@ void Application::setup_discovery_callbacks() {
             // Also gated on hw_changed: unresolved guided steps are purely a function of
             // (saved config, current hardware). If hardware is unchanged since the last
             // discovery, the result is identical and re-launching the wizard would just
-            // harass the user. The wizard cancel callback persists the decline, so the
-            // next discovery with the SAME hardware would also see no unresolved steps —
+            // harass the user. Ending the wizard session (Finish or Cancel) persists
+            // the decline, so the next discovery with the SAME hardware would also see
+            // no unresolved steps —
             // the hw_changed gate is defense-in-depth for the rare case where a prior
             // session was killed before the decline could be persisted.
             auto reconfig_steps = helix::unresolved_guided_steps(Config::get_instance(), hw);
@@ -3286,26 +3287,26 @@ void Application::setup_discovery_callbacks() {
                 ui_wizard_register_event_callbacks();
                 ui_wizard_container_register_responsive_constants();
                 ui_wizard_init_subjects();
-                // Cancel = dismiss the targeted session. Without this, Back on the first
-                // targeted step is a no-op (no prior step to retreat to). Cancelling an
-                // UNSATISFIABLE role (no candidate hardware exists) must also record the
-                // decision — otherwise the wizard re-launches on every reconnect forever.
-                // decline_unresolved_guided_roles() writes "" (declined) for each still-
-                // Unresolved guided role with a present saved key, read against the CURRENT
-                // discovered hardware (api->hardware()) at cancel time.
+                // Ending the session — Cancel here, Finish in the on_complete callback
+                // below — settles every guided role the session's steps could not
+                // resolve: a step only offers controls for the roles it shows (the fan
+                // step has no aux dropdown), so a preset-saved role with no live match
+                // can never be satisfied inside the session and would relaunch the
+                // wizard on every boot. settle_targeted_reconfig() writes "" (declined)
+                // for each such role, read against the CURRENT discovered hardware.
                 set_wizard_cancel_callback([api]() {
-                    // Record the cancel as a decline for each still-Unresolved guided
-                    // role (writes "" + saves internally). reapply_hardware_roles() is
-                    // intentionally NOT called here: ui_wizard_complete_targeted() fires
-                    // the on_complete callback (registered in ui_wizard_create_targeted
-                    // below), which already reapplies the roles. Calling it here too
-                    // would be a redundant double reapply.
-                    helix::decline_unresolved_guided_roles(Config::get_instance(), api->hardware());
+                    // reapply_hardware_roles() is intentionally NOT called here:
+                    // ui_wizard_complete_targeted() fires the on_complete callback
+                    // (registered in ui_wizard_create_targeted below), which already
+                    // reapplies the roles. Calling it here too would be a redundant
+                    // double reapply.
+                    helix::settle_targeted_reconfig(Config::get_instance(), api->hardware());
                     ui_wizard_complete_targeted();
                     set_wizard_cancel_callback(nullptr);
                 });
-                ui_wizard_create_targeted(app->m_screen, reconfig_steps, [app]() {
+                ui_wizard_create_targeted(app->m_screen, reconfig_steps, [app, api]() {
                     set_wizard_cancel_callback(nullptr);
+                    helix::settle_targeted_reconfig(Config::get_instance(), api->hardware());
                     app->reapply_hardware_roles();
                 });
             }

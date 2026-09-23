@@ -259,4 +259,8 @@ bool decline_unresolved_guided_roles(Config* config, const PrinterDiscovery& hw)
     return changed;
 }
 
+bool settle_targeted_reconfig(Config* config, const PrinterDiscovery& hw) {
+    return decline_unresolved_guided_roles(config, hw);
+}
+
 } // namespace helix

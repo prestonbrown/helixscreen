@@ -195,16 +195,17 @@ TEST_CASE("resolve_role_from_config: no persist leaves config untouched", "[hwro
 // unresolved_guided_steps: routes unresolvable guided roles to the targeted wizard
 // ---------------------------------------------------------------------------
 
-// Save/restore helper for the six guided role keys so each [reconfig] test starts
+// Save/restore helper for the seven guided role keys so each [reconfig] test starts
 // from a known clean slate regardless of residual singleton Config state.
 namespace {
 struct GuidedKeyStash {
     Config* cfg;
     std::vector<std::pair<std::string, std::string>> saved;
     explicit GuidedKeyStash(Config* c) : cfg(c) {
-        for (const char* suffix : {helix::wizard::PART_FAN, helix::wizard::HOTEND_FAN,
-                                   helix::wizard::CHAMBER_FAN, helix::wizard::EXHAUST_FAN,
-                                   helix::wizard::HOTEND_HEATER, helix::wizard::BED_HEATER}) {
+        for (const char* suffix :
+             {helix::wizard::PART_FAN, helix::wizard::HOTEND_FAN, helix::wizard::CHAMBER_FAN,
+              helix::wizard::EXHAUST_FAN, helix::wizard::AUX_FAN, helix::wizard::HOTEND_HEATER,
+              helix::wizard::BED_HEATER}) {
             std::string k = cfg->df() + suffix;
             saved.push_back({k, cfg->get<std::string>(k, "")});
         }
@@ -356,4 +357,32 @@ TEST_CASE("decline_unresolved_guided_roles: present unsatisfiable role becomes \
 
     // Idempotent: a second pass with the role now declined ("") changes nothing.
     REQUIRE_FALSE(helix::decline_unresolved_guided_roles(cfg, client.hardware()));
+}
+
+TEST_CASE("settle_targeted_reconfig: finishing declines guided roles the session's steps "
+          "cannot show",
+          "[hwrole][reconfig]") {
+    // A preset can save a role the current printer cannot satisfy (ForgeX/zmod
+    // AD5M Pro: fans/aux = "fan_generic internal_fan" with no such fan live).
+    // FanSelect has no aux dropdown, so finishing the session can never resolve
+    // the aux role — without the settlement the wizard relaunches every boot.
+    Config* cfg = Config::get_instance();
+    GuidedKeyStash stash(cfg);
+    stash.clear_all();
+    stash.set(helix::wizard::AUX_FAN, "fan_generic internal_fan");
+    stash.set(helix::wizard::PART_FAN, "fan"); // resolvable: the step has a control for it
+
+    MoonrakerClientMock client;
+    client.set_fans({"fan"}); // live part fan; nothing matches the aux vocabulary
+    client.set_heaters({});
+
+    // Discovery routes the unresolved aux role into a FanSelect session...
+    std::vector<helix::wizard::StepId> expected = {helix::wizard::StepId::FanSelect};
+    REQUIRE(helix::unresolved_guided_steps(cfg, client.hardware()) == expected);
+
+    // ...the user finishes it (the app's on_complete runs the settlement)...
+    REQUIRE(helix::settle_targeted_reconfig(cfg, client.hardware()));
+
+    // ...and the next boot must not relaunch the wizard.
+    REQUIRE(helix::unresolved_guided_steps(cfg, client.hardware()).empty());
 }
