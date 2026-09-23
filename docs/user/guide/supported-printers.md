@@ -120,7 +120,7 @@ The 4-series QIDI printers integrate the **QIDI Box** filament changer. The Q2 a
 
 **Status:** Supported.
 
-> **Good to know:** HelixScreen owns no QIDI hardware — the Q2 is community-validated. The QIDI Box write path (load/unload) is still being field-validated, and Max 4 box control differs from the Q2 and is a work in progress.
+> **Good to know:** HelixScreen owns no QIDI hardware — the Q2 is community-validated. The QIDI Box write path (load/unload) is still being field-validated, and Max 4 box control differs from the Q2 and is a work in progress. Installing on the printer replaces QIDI's stock screen app, which QIDI Studio box sync, QIDI cloud and QIDI Box filament edits depend on; uninstalling HelixScreen brings them back.
 
 ---
 

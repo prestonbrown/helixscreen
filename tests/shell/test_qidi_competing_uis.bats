@@ -250,6 +250,35 @@ capture_logs() {
     refute_grep "WARN" "$BATS_TEST_TMPDIR/log"
 }
 
+# --- the stock client carries more than the screen ---
+
+@test "qidi handler: warns once about the features the stock client carries" {
+    capture_logs
+    write_qd_client mks >/dev/null
+    write_unit "qidi-client.service" "/usr/bin/qidiclient" >/dev/null
+    mock_command_script "systemctl" "exit 0"
+    kill_process_by_path() { return 0; }
+    export -f kill_process_by_path
+
+    found_any=false
+    run stop_qidi_competing_uis
+    [ "$status" -eq 0 ]
+
+    [ "$(grep -c 'INFO Stopping stock QIDI UI' "$BATS_TEST_TMPDIR/log")" -eq 2 ]
+    [ "$(grep -c 'WARN QIDI Studio box sync' "$BATS_TEST_TMPDIR/log")" -eq 1 ]
+}
+
+@test "qidi handler: no stock-client warning on a non-QIDI host" {
+    capture_logs
+    mock_command_script "systemctl" "exit 0"
+
+    found_any=false
+    run stop_qidi_competing_uis
+    [ "$status" -eq 0 ]
+
+    [ ! -f "$BATS_TEST_TMPDIR/log" ] || refute_grep "QIDI Studio" "$BATS_TEST_TMPDIR/log"
+}
+
 # --- wiring ---
 
 @test "qidi: stop_competing_uis reaches the handler" {
