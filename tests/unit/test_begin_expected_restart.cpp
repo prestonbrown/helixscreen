@@ -323,6 +323,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "input-shaper SAVE_CONFIG initiates the
 TEST_CASE_METHOD(ExpectedRestartFixture, "PID SAVE_CONFIG initiates the restart contract",
                  "[expectedrestart][1359]") {
     PIDCalibrationPanel panel;
+    panel.init_subjects();
     panel.set_api(&api);
     helix::ui::PIDCalibrationPanelTestAccess::send_save_config(panel);
     settle();
