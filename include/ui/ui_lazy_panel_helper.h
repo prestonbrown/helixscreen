@@ -22,6 +22,7 @@
 
 #include "ui_nav_manager.h"
 #include "ui_toast_manager.h"
+#include "ui_utils.h"
 
 #include <spdlog/spdlog.h>
 
@@ -67,10 +68,28 @@ bool lazy_create_and_push_overlay(Getter getter, lv_obj_t*& cached_panel, lv_obj
                                   bool destroy_on_close = false) {
     spdlog::debug("[{}] {} clicked - opening panel", caller_name, panel_display_name);
 
+    PanelType& panel = getter();
+
+    // A printer switch destroys panel objects (StaticPanelRegistry::destroy_all)
+    // while their overlay widgets survive as hidden screen children, so a
+    // caller's cached widget can outlive the panel that created it. A cache the
+    // live panel did not create still carries the dead panel's bindings - XML
+    // subjects and raw-this C++ callbacks (the motion jog pad) - so pushing it
+    // fires them on freed memory.
+    if (cached_panel && cached_panel != panel.get_root()) {
+        if (panel.get_root() == nullptr) {
+            // The cache holds the dead panel's widget, still allocated: free it.
+            safe_delete_deferred(cached_panel);
+        } else {
+            // A rebuild already replaced the panel's widget; the cached one is
+            // freed memory, not ours to delete.
+            cached_panel = nullptr;
+        }
+        spdlog::info("[{}] {} overlay cache stale - rebuilding", caller_name, panel_display_name);
+    }
+
     // Create panel on first access (lazy initialization)
     if (!cached_panel && parent_screen) {
-        PanelType& panel = getter();
-
         // Initialize subjects and callbacks if not already done
         if (!panel.are_subjects_initialized()) {
             panel.init_subjects();
