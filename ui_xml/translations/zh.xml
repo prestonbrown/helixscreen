@@ -992,7 +992,7 @@
   <translation tag="Filament is pulling tight" zh="耗材拉紧"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." zh="卸载后耗材仍留在喷嘴处。切断或回抽可能未完成。请先清理工具头，再装载其他料盘。"/>
   <translation tag="Filament load failed: {}" zh="耗材加载失败: {}"/>
-  <translation tag="Filament not set"/>
+  <translation tag="Filament not set" zh="未设置耗材"/>
   <translation tag="Filament operation failed" zh="耗材操作失败"/>
   <translation tag="Filament operation timed out" zh="耗材操作超时"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." zh="耗材已用尽 - 工具头处没有耗材，打印已暂停。"/>
@@ -2293,7 +2293,7 @@
   <translation tag="Slot %d: %.0fg of %.0fg needed" zh="槽位 %d：%.0fg / 需要 %.0fg"/>
   <translation tag="Slot 1" zh="槽位 1"/>
   <translation tag="Slot {}" zh="槽位 {}"/>
-  <translation tag="Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print."/>
+  <translation tag="Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print." zh="槽位 {} 未设置耗材类型，打印机不会恢复。请在耗材面板中设置其材料，然后恢复打印。"/>
   <translation tag="Slot {} is blocked — manual intervention required" zh="槽位 {} 被阻塞 — 需要手动干预"/>
   <translation tag="Slot {} matches." zh="槽位 {} 匹配。"/>
   <translation tag="Slot {} spool cleared" zh="槽位 {} 料盘已清除"/>

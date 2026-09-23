@@ -1121,7 +1121,7 @@ translations:
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Le filament est encore à la buse après le déchargement. La coupe ou la rétractation n'a peut-être pas abouti. Dégagez la tête d'outil avant de charger une autre bobine.
   'Filament load failed: {}': 'Échec du chargement du filament : {}'
-  Filament not set: ''
+  Filament not set: 'Filament non défini'
   Filament operation failed: Échec de l'opération filament
   Filament operation timed out: Opération filament — délai dépassé
   Filament ran out - nothing at the toolhead and the print is paused.: 'Filament épuisé - plus rien à la tête d''outil et l''impression est en pause.'
@@ -2589,7 +2589,7 @@ translations:
   Slot 1: Slot 1
   Slot {}: Emplacement {}
   ? Slot {} has no filament type set, so the printer will not resume. Set its material in the filament panel, then resume the print.
-  : ''
+  : 'Le slot {} n''a aucun type de filament défini, l''imprimante ne reprendra donc pas. Définissez son matériau dans le panneau filament, puis reprenez l''impression.'
   Slot {} is blocked — manual intervention required: Slot {} bloqué — intervention manuelle requise
   Slot {} matches.: 'Le slot {} correspond.'
   Slot {} spool cleared: Bobine du slot {} effacée
