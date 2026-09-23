@@ -89,6 +89,15 @@ class DisplaySoundSettingsOverlay : public OverlayBase {
     void handle_display_rotation_changed(int index);
     void handle_dark_mode_changed(bool enabled);
     void handle_theme_settings_clicked();
+    /**
+     * @brief Make the theme explorer treat the active theme as committed
+     *
+     * Rebuilds the preset list, selects the active theme, and makes it what
+     * closing the explorer reverts to. Call after anything outside the explorer
+     * persists a theme (the editor's Save / Save As), or closing the explorer
+     * throws that theme away. No-op when the explorer is not open.
+     */
+    void sync_explorer_to_active_theme();
     void handle_brightness_changed(int value);
     void handle_brightness_commit(int value);
     void handle_widget_labels_changed(bool enabled);

@@ -825,6 +825,15 @@ void DisplaySoundSettingsOverlay::handle_theme_settings_clicked() {
             });
     }
 
+    sync_explorer_to_active_theme();
+
+    NavigationManager::instance().push_overlay(theme_explorer_overlay_);
+}
+
+void DisplaySoundSettingsOverlay::sync_explorer_to_active_theme() {
+    if (!theme_explorer_overlay_)
+        return;
+
     init_theme_preset_dropdown(theme_explorer_overlay_);
 
     cached_themes_ = helix::discover_themes(helix::get_themes_directory());
@@ -853,8 +862,6 @@ void DisplaySoundSettingsOverlay::handle_theme_settings_clicked() {
     }
 
     lv_subject_set_int(&theme_apply_disabled_subject_, 1);
-
-    NavigationManager::instance().push_overlay(theme_explorer_overlay_);
 }
 
 void DisplaySoundSettingsOverlay::handle_apply_theme_clicked() {

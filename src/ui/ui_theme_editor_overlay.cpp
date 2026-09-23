@@ -10,6 +10,7 @@
 #include "ui_keyboard_manager.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_settings_display_sound.h"
 #include "ui_toast_manager.h"
 
 #include "border_radius_sizes.h"
@@ -545,6 +546,7 @@ void ThemeEditorOverlay::handle_save_clicked() {
         theme_manager_apply_theme(editing_theme_, theme_manager_is_dark_mode());
 
         spdlog::info("[{}] Theme '{}' saved and applied live", get_name(), editing_theme_.name);
+        helix::settings::get_display_sound_settings_overlay().sync_explorer_to_active_theme();
 
         // Close the editor overlay
         NavigationManager::instance().go_back();
@@ -873,6 +875,7 @@ void ThemeEditorOverlay::handle_save_as_confirm() {
     theme_manager_apply_theme(editing_theme_, theme_manager_is_dark_mode());
 
     spdlog::info("[{}] Theme saved as '{}' and applied live", get_name(), editing_theme_.name);
+    helix::settings::get_display_sound_settings_overlay().sync_explorer_to_active_theme();
 
     // Close the editor overlay
     NavigationManager::instance().go_back();
