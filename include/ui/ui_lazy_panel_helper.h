@@ -81,11 +81,17 @@ bool lazy_create_and_push_overlay(Getter getter, lv_obj_t*& cached_panel, lv_obj
             // The cache holds the dead panel's widget, still allocated: free it.
             safe_delete_deferred(cached_panel);
         } else {
-            // A rebuild already replaced the panel's widget; the cached one is
-            // freed memory, not ours to delete.
-            cached_panel = nullptr;
+            // The panel already has a live widget another caller created (or a
+            // rebuild did). Adopt it: falling through to create() here would
+            // overwrite overlay_root_ and orphan that live widget. The cached
+            // pointer cannot be proved live (a rebuild may have freed it, or its
+            // address was reused), so it is dropped, not deleted; a still-
+            // allocated orphan in this shape is left for teardown, bounded at
+            // one per switch per extra caller.
+            cached_panel = panel.get_root();
         }
-        spdlog::info("[{}] {} overlay cache stale - rebuilding", caller_name, panel_display_name);
+        spdlog::info("[{}] {} overlay cache stale - resynced to the live panel", caller_name,
+                     panel_display_name);
     }
 
     // Create panel on first access (lazy initialization)

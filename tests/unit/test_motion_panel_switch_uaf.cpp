@@ -20,7 +20,9 @@
  *
  * These tests reproduce that sequence through the real caller path: open via
  * lazy_create_and_push_overlay, run StaticPanelRegistry::destroy_all() (the
- * switch's step that frees the panel), reopen via the same helper.
+ * switch's step that frees the panel), reopen via the same helper. The second
+ * case pins the two-caller shape: a second cache holding the pre-switch widget
+ * must adopt the live panel's rebuilt widget, not create a third and orphan it.
  */
 
 #include "ui_nav_manager.h"
@@ -96,6 +98,48 @@ TEST_CASE_METHOD(LVGLUITestFixture, "reopening motion after a printer switch reb
 
     // Leave the registry clean for the next test: the reopened panel
     // re-registered itself with StaticPanelRegistry.
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "two cached callers converge on one live overlay after a switch",
+                 "[motion][teardown][uaf][1707]") {
+    std::array<lv_obj_t*, UI_PANEL_COUNT> panels{};
+    for (auto& p : panels)
+        p = lv_obj_create(lv_screen_active());
+    NavigationManager::instance().set_panels(panels.data());
+
+    // Caller A opens; caller B's cache holds the same widget, which is what a
+    // second caller that opened pre-switch is left with.
+    lv_obj_t* cache_a = nullptr;
+    REQUIRE(helix::ui::lazy_create_and_push_overlay<MotionPanel>(
+        get_global_motion_panel, cache_a, lv_screen_active(), "Motion", "test"));
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* cache_b = cache_a;
+
+    StaticPanelRegistry::instance().destroy_all();
+
+    // Caller A reopens: the live panel has no widget, so the pre-switch one is
+    // freed and a fresh widget is built for the new panel.
+    REQUIRE(helix::ui::lazy_create_and_push_overlay<MotionPanel>(
+        get_global_motion_panel, cache_a, lv_screen_active(), "Motion", "test"));
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* rebuilt = get_global_motion_panel().get_root();
+    REQUIRE(rebuilt != nullptr);
+    REQUIRE(cache_a == rebuilt);
+
+    // Caller B reopens still holding the pre-switch widget: it must adopt the
+    // live root. Falling into create() here would overwrite the panel's root
+    // and leave the rebuilt widget orphaned behind a third one.
+    REQUIRE(helix::ui::lazy_create_and_push_overlay<MotionPanel>(
+        get_global_motion_panel, cache_b, lv_screen_active(), "Motion", "test"));
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(cache_b == rebuilt);
+    CHECK(get_global_motion_panel().get_root() == rebuilt);
+    REQUIRE(lv_obj_find_by_name(rebuilt, "jog_pad") != nullptr);
+
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();
 }
