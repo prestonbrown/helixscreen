@@ -23,8 +23,10 @@ set -e
 GITHUB_REPO="prestonbrown/helixscreen"
 SERVICE_NAME="helixscreen"
 
-# Previous UIs we may need to re-enable (for scanning)
-PREVIOUS_UIS="guppyscreen GuppyScreen featherscreen FeatherScreen klipperscreen KlipperScreen"
+# Previous UIs we may need to re-enable (for scanning). qidi-client and
+# makerbase-client are the QIDI stock screen units. The Sovol mksclient is left
+# out: it is a bare binary, and a restored UI gets run with `start`.
+PREVIOUS_UIS="guppyscreen GuppyScreen featherscreen FeatherScreen klipperscreen KlipperScreen qidi-client makerbase-client"
 
 
 # ============================================
@@ -5838,6 +5840,14 @@ _disabled_services_ledger_candidates() {
     done
 }
 
+# Enable a unit for the next boot. A failure is reported with the command that
+# fixes it by hand, and does not stop the uninstall: what follows still has to run.
+enable_unit_or_warn() {
+    if ! $SUDO systemctl enable "$1" 2>/dev/null; then
+        log_warn "Could not re-enable $1. Run: sudo systemctl enable --now $1"
+    fi
+}
+
 # Re-enable services that were disabled during installation
 # Reads the state file and reverses each recorded disable action
 #
@@ -5878,7 +5888,7 @@ reenable_disabled_services() {
         case "$type" in
             systemd)
                 log_info "Re-enabling systemd service: $target"
-                $SUDO systemctl enable "$target" 2>/dev/null || true
+                enable_unit_or_warn "$target"
                 HELIX_REENABLED_UNITS="${HELIX_REENABLED_UNITS} ${target}"
                 ;;
             sysv-chmod)
@@ -6612,7 +6622,7 @@ reenable_previous_ui() {
         if [ "$INIT_SYSTEM" = "systemd" ]; then
             if systemctl list-unit-files "${ui}.service" >/dev/null 2>&1; then
                 log_info "Found previous UI (systemd): $ui"
-                $SUDO systemctl enable "$ui" 2>/dev/null || true
+                enable_unit_or_warn "$ui"
                 if $SUDO systemctl start "$ui" 2>/dev/null; then
                     log_success "Re-enabled and started: $ui"
                     found_ui=true

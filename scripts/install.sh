@@ -9468,6 +9468,14 @@ _disabled_services_ledger_candidates() {
     done
 }
 
+# Enable a unit for the next boot. A failure is reported with the command that
+# fixes it by hand, and does not stop the uninstall: what follows still has to run.
+enable_unit_or_warn() {
+    if ! $SUDO systemctl enable "$1" 2>/dev/null; then
+        log_warn "Could not re-enable $1. Run: sudo systemctl enable --now $1"
+    fi
+}
+
 # Re-enable services that were disabled during installation
 # Reads the state file and reverses each recorded disable action
 #
@@ -9508,7 +9516,7 @@ reenable_disabled_services() {
         case "$type" in
             systemd)
                 log_info "Re-enabling systemd service: $target"
-                $SUDO systemctl enable "$target" 2>/dev/null || true
+                enable_unit_or_warn "$target"
                 HELIX_REENABLED_UNITS="${HELIX_REENABLED_UNITS} ${target}"
                 ;;
             sysv-chmod)

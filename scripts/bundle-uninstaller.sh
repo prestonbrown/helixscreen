@@ -65,8 +65,10 @@ set -e
 GITHUB_REPO="prestonbrown/helixscreen"
 SERVICE_NAME="helixscreen"
 
-# Previous UIs we may need to re-enable (for scanning)
-PREVIOUS_UIS="guppyscreen GuppyScreen featherscreen FeatherScreen klipperscreen KlipperScreen"
+# Previous UIs we may need to re-enable (for scanning). qidi-client and
+# makerbase-client are the QIDI stock screen units. The Sovol mksclient is left
+# out: it is a bare binary, and a restored UI gets run with `start`.
+PREVIOUS_UIS="guppyscreen GuppyScreen featherscreen FeatherScreen klipperscreen KlipperScreen qidi-client makerbase-client"
 
 HEADER
 
@@ -207,7 +209,7 @@ reenable_previous_ui() {
         if [ "$INIT_SYSTEM" = "systemd" ]; then
             if systemctl list-unit-files "${ui}.service" >/dev/null 2>&1; then
                 log_info "Found previous UI (systemd): $ui"
-                $SUDO systemctl enable "$ui" 2>/dev/null || true
+                enable_unit_or_warn "$ui"
                 if $SUDO systemctl start "$ui" 2>/dev/null; then
                     log_success "Re-enabled and started: $ui"
                     found_ui=true
