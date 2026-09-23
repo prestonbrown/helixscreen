@@ -6,6 +6,14 @@
 #include <memory>
 #include <string>
 
+// Lowest raw backlight level a panel still renders visibly, as a percent of
+// the raw range. 0 (Makefile default) keeps the plain linear percent map;
+// per-target values live in mk/cross.mk. /display/backlight_floor_percent in
+// settings.json overrides it per panel.
+#ifndef HELIX_BACKLIGHT_FLOOR_PERCENT
+#define HELIX_BACKLIGHT_FLOOR_PERCENT 0
+#endif
+
 /**
  * @brief Abstract backlight control interface
  *

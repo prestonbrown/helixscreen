@@ -554,6 +554,9 @@ else ifeq ($(PLATFORM_TARGET),k2)
     HELIX_HAS_SNAPMAKER := 0
     # Panel edges glow and flicker white after POWERDOWN/UNBLANK (#1708).
     HELIX_PANEL_POWER_OFF := 0
+    # The panel renders anything under ~20% of the PWM range as off, so the
+    # brightness slider and dim level must never land there (#1709).
+    HELIX_BACKLIGHT_FLOOR_PERCENT := 20
     TARGET_LDFLAGS := -Wl,--gc-sections -Wl,-O2 -Wl,--as-needed -flto=auto -static
     # HTTPS is required for the update check, R2 self-update download, telemetry,
     # and crash/debug-bundle upload. (Local Moonraker is plain HTTP and works

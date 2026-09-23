@@ -45,20 +45,38 @@ class FdGuard {
 
 namespace helix::backlight_internal {
 
+// Panel's minimum raw brightness as a percent of the raw range: the
+// settings.json override if set, else the compile-time per-target default.
+int backlight_floor_percent() {
+    int floor = HELIX_BACKLIGHT_FLOOR_PERCENT;
+    if (auto* config = helix::Config::get_instance()) {
+        floor = config->get<int>("/display/backlight_floor_percent", floor);
+    }
+    return std::clamp(floor, 0, 100);
+}
+
+// Map a 0-100 brightness percent onto a panel's raw range. 0 is fully off;
+// any nonzero percent scales across [floor, max] so the dimmest usable level
+// is the panel's floor rather than black (#1709). A requested-on level never
+// maps below 1: a truncated 0 would read as off on the panel (#972).
+int raw_from_percent(int percent, int max_raw, int floor_percent) {
+    if (percent <= 0) {
+        return 0;
+    }
+    const int clamped_floor = std::clamp(floor_percent, 0, 100);
+    const int floor_raw = clamped_floor * max_raw / 100;
+    int raw = floor_raw + (max_raw - floor_raw) * percent / 100;
+    return std::clamp(std::max(raw, 1), 0, max_raw);
+}
+
 // Map a 0-100 brightness percent to the Creality Sonic Pad `brightness` helper
 // invocation. <=0 powers the backlight off; otherwise it powers on and sets the
 // level scaled to 0..255 (never truncating a requested-on level to 0). (#972)
-std::string brightness_cli_command(int percent) {
+std::string brightness_cli_command(int percent, int floor_percent) {
     if (percent <= 0) {
         return "brightness -s 0";
     }
-    int level = percent * 255 / 100;
-    if (level < 1) {
-        level = 1; // a requested-on level must never read as "off"
-    }
-    if (level > 255) {
-        level = 255;
-    }
+    int level = raw_from_percent(percent, 255, floor_percent);
     return "brightness -s 1; brightness -d " + std::to_string(level);
 }
 
@@ -174,8 +192,8 @@ class BacklightBackendSysfs : public BacklightBackend {
         if (max_brightness_ <= 1) {
             target = (percent > 0) ? max_brightness_ : 0;
         } else {
-            target = (percent * max_brightness_) / 100;
-            target = std::clamp(target, 0, max_brightness_);
+            target = helix::backlight_internal::raw_from_percent(
+                percent, max_brightness_, helix::backlight_internal::backlight_floor_percent());
         }
 
         std::string brightness_path = device_path_ + "/brightness";
@@ -423,9 +441,9 @@ class BacklightBackendAllwinner : public BacklightBackend {
             return false;
         }
 
-        // Convert percentage to 0-255 range
-        int brightness = (percent * MAX_BRIGHTNESS) / 100;
-        brightness = std::clamp(brightness, 0, MAX_BRIGHTNESS);
+        // Convert percentage to 0-255 range, honoring the panel floor (#1709)
+        int brightness = helix::backlight_internal::raw_from_percent(
+            percent, MAX_BRIGHTNESS, helix::backlight_internal::backlight_floor_percent());
 
         // ioctl args: [screen_id, arg1, 0, 0]
         unsigned long args[4] = {0, 0, 0, 0};
@@ -579,7 +597,8 @@ class BacklightBackendBrightnessCli : public BacklightBackend {
 
     bool set_brightness(int percent) override {
         percent = std::clamp(percent, 0, 100);
-        std::string cmd = helix::backlight_internal::brightness_cli_command(percent);
+        std::string cmd = helix::backlight_internal::brightness_cli_command(
+            percent, helix::backlight_internal::backlight_floor_percent());
         int rc = std::system(cmd.c_str());
         if (rc != 0) {
             spdlog::warn("[Backlight-BrightnessCLI] '{}' exited {}", cmd, rc);
