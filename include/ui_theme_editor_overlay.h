@@ -137,9 +137,6 @@ class ThemeEditorOverlay : public OverlayBase {
     static void on_save_as_confirm(lv_event_t* e);
     static void on_save_as_cancel(lv_event_t* e);
 
-    // Theme preset dropdown callback
-    static void on_theme_preset_changed(lv_event_t* e);
-
     // Preview button callback
     static void on_theme_preview_clicked(lv_event_t* e);
 
@@ -166,10 +163,6 @@ class ThemeEditorOverlay : public OverlayBase {
 
     // Save As dialog handlers
     void handle_save_as_confirm();
-
-    // Theme preset handlers
-    void init_theme_preset_dropdown();
-    void handle_theme_preset_changed(int index);
 
     // Preview handler
     void handle_preview_clicked();

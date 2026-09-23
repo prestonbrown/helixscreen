@@ -145,8 +145,6 @@ void ThemeEditorOverlay::register_callbacks() {
         // Save As dialog callbacks
         {"on_theme_save_as_confirm", on_save_as_confirm},
         {"on_theme_save_as_cancel", on_save_as_cancel},
-        // Theme preset dropdown callback
-        {"on_theme_preset_changed", on_theme_preset_changed},
         // Preview button callback
         {"on_theme_preview_clicked", on_theme_preview_clicked},
     });
@@ -878,54 +876,6 @@ void ThemeEditorOverlay::handle_save_as_confirm() {
 
     // Close the editor overlay
     NavigationManager::instance().go_back();
-}
-
-// ============================================================================
-// THEME PRESET DROPDOWN
-// ============================================================================
-
-void ThemeEditorOverlay::on_theme_preset_changed(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[ThemeEditorOverlay] on_theme_preset_changed");
-    auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    int index = static_cast<int>(lv_dropdown_get_selected(dropdown));
-    get_theme_editor_overlay().handle_theme_preset_changed(index);
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void ThemeEditorOverlay::init_theme_preset_dropdown() {
-    if (!overlay_root_) {
-        return;
-    }
-
-    lv_obj_t* theme_preset_row = lv_obj_find_by_name(overlay_root_, "row_theme_preset");
-    lv_obj_t* theme_preset_dropdown =
-        theme_preset_row ? lv_obj_find_by_name(theme_preset_row, "dropdown") : nullptr;
-
-    if (theme_preset_dropdown) {
-        // Set dropdown options from discovered theme files
-        std::string options = DisplaySettingsManager::instance().get_theme_options();
-        lv_dropdown_set_options(theme_preset_dropdown, options.c_str());
-
-        // Set initial selection based on current theme
-        int current_index = DisplaySettingsManager::instance().get_theme_index();
-        lv_dropdown_set_selected(theme_preset_dropdown, static_cast<uint32_t>(current_index));
-
-        spdlog::debug("[{}] Theme dropdown initialized to index {} ({})", get_name(), current_index,
-                      DisplaySettingsManager::instance().get_theme_name());
-    } else {
-        spdlog::warn("[{}] Could not find theme preset dropdown", get_name());
-    }
-}
-
-void ThemeEditorOverlay::handle_theme_preset_changed(int index) {
-    // Get theme filename from index
-    DisplaySettingsManager::instance().set_theme_by_index(index);
-    std::string theme_name = DisplaySettingsManager::instance().get_theme_name();
-
-    // Load the selected theme into the editor
-    load_theme(theme_name);
-
-    spdlog::info("[{}] Theme preset changed to index {} ({})", get_name(), index, theme_name);
 }
 
 // ============================================================================
