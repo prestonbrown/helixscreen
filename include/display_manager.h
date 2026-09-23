@@ -10,6 +10,10 @@
 #include "touch_calibration.h"
 #include "touch_calibration_session.h"
 
+#ifndef HELIX_PANEL_POWER_OFF
+#define HELIX_PANEL_POWER_OFF 1 // Makefile default; per-target 0s live in mk/cross.mk
+#endif
+
 #include <functional>
 #include <lvgl.h>
 #include <memory>
@@ -182,19 +186,19 @@ class DisplayManager : public helix::ICalibrationSink {
      *
      * A hardware blank still wins, because those backends cut the panel themselves.
      *
-     * Two platforms are excluded at build time, because their panel does not
-     * come back from a power-down:
+     * Builds with HELIX_PANEL_POWER_OFF=0 (set per target in mk/cross.mk) never
+     * power the panel down, because their panels do not come back cleanly:
      *   - Snapmaker U1: DPMS-off disables the Rockchip VOP2 CRTC and wake's
      *     DPMS-on does not reliably re-enable it, so the panel stays black until
      *     reboot (assets/config/platform/hooks-snapmaker-u1.sh "DRM CRTC keepalive").
      *   - AD5X: unblanking leaves the display engine cycling solid fill colours
-     *     until the UI process restarts. Its sysfs backlight also reads
-     *     brightness=1 while the LEDs are physically dark, so the panel's real
-     *     state cannot be probed from userspace.
-     * The guard is a build-time check rather than a runtime probe because
+     *     until the UI restarts.
+     *   - Creality K1 / K2 series: after POWERDOWN/UNBLANK the panel edges glow
+     *     and flicker white until a power cycle (#1708).
+     * The gate is build-time because the display stack's own probes cannot tell:
      * DisplayBackendFbdev::supports_power_off() answers yes for any writable
-     * /dev/fb0 without asking the panel anything, and a misfiring probe on these
-     * devices leaves the user with a screen they cannot recover.
+     * /dev/fb0 without asking the panel anything, and a misfire leaves the user
+     * with a screen they cannot recover.
      *
      * Callers may override the outcome entirely via /display/panel_power_off.
      *
@@ -209,11 +213,7 @@ class DisplayManager : public helix::ICalibrationSink {
         if (use_hardware_blank) {
             return false;
         }
-#if defined(HELIX_PLATFORM_SNAPMAKER_U1) || defined(HELIX_PLATFORM_AD5X)
-        return false;
-#else
-        return true;
-#endif
+        return HELIX_PANEL_POWER_OFF != 0;
     }
 
     /**
