@@ -7,6 +7,7 @@
 #include "ui_panel_macros.h"
 
 #include "panel_widget_registry.h"
+#include "printer_cache_registry.h"
 #include "ui/ui_lazy_panel_helper.h"
 
 #include <spdlog/spdlog.h>
@@ -20,7 +21,15 @@ void register_macros_widget() {
     lv_xml_register_event_cb(nullptr, "macros_widget_clicked_cb", MacrosWidget::clicked_cb);
 }
 
-MacrosWidget::MacrosWidget() = default;
+MacrosWidget::MacrosWidget() {
+    // macros_panel_ is a static, so it survives the printer switch that
+    // destroys the MacrosPanel object - and teardown frees the orphaned
+    // overlay widget, which would leave the cache dangling. Every
+    // active-printer change fires this before teardown, so the cache never
+    // outlives its widget.
+    PrinterCacheRegistry::instance().register_invalidator("MacrosWidget",
+                                                          []() { macros_panel_ = nullptr; });
+}
 
 MacrosWidget::~MacrosWidget() {
     detach();

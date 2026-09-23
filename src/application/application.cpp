@@ -4900,7 +4900,13 @@ void Application::tear_down_printer_state() {
 
     // 14. Destroy all static panel/overlay globals (releases ObserverGuards).
     //     Subjects are still alive here, so lv_observer_remove() works correctly.
-    StaticPanelRegistry::instance().destroy_all();
+    //     The overlay roots the panel destructors hand back are freed right
+    //     here: LVGL is alive, the destroy_all() window is closed, and on a
+    //     soft restart nothing else deletes them - each open overlay is
+    //     400-800KB that would otherwise stay allocated as a hidden screen
+    //     child once per switch. Application::shutdown() keeps calling
+    //     destroy_all() directly: lv_deinit() frees every widget there.
+    helix::ui::destroy_static_panels();
 
     // 15. Release global observer guards that observe subjects about to be freed
     ui_notification_deinit();

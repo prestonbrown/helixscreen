@@ -8,6 +8,10 @@
 #include <string>
 #include <vector>
 
+// Incomplete LVGL object type - the registry only stores and hands back
+// pointers; it never calls into LVGL.
+typedef struct _lv_obj_t lv_obj_t;
+
 /**
  * @brief Registry for static panel/overlay instances to ensure proper destruction order
  *
@@ -60,12 +64,38 @@ class StaticPanelRegistry {
     void register_destroy(const char* name, std::function<void()> destroy_fn);
 
     /**
+     * @brief Hand a still-allocated overlay widget to the destroy_all() caller
+     *
+     * Panel destructors run inside destroy_all()'s window, where widget
+     * deletion is forbidden: LV_EVENT_DELETE would fire into the half-destroyed
+     * panel set, which is the crash the is_destroying_all() skip exists for. A
+     * panel whose overlay widget is still allocated therefore records the root
+     * here instead of deleting it, and destroy_all() hands the recorded roots
+     * back to its caller - the soft-restart caller frees them; the
+     * full-shutdown caller ignores them and lets lv_deinit() free the tree.
+     *
+     * No-op outside the destroy_all() window: there the widget's deletion is
+     * its owner's business (destroy_overlay_ui() or a rebuild), and recording
+     * it would have a later destroy_all() free whatever now lives at the
+     * address.
+     *
+     * @param widget Root overlay widget that outlived its panel
+     */
+    void record_orphaned_widget(lv_obj_t* widget);
+
+    /**
      * @brief Destroy all registered panels in reverse registration order
      *
      * Called from Application::shutdown() before LVGL deinit.
      * After this call, the registry is cleared but remains usable.
+     *
+     * @return Overlay widget roots recorded by panel destructors during the
+     *          run (see record_orphaned_widget()). The caller decides their
+     *          fate: a soft restart frees them (nothing else will - the panels
+     *          that owned them are gone); full shutdown ignores them and lets
+     *          lv_deinit() free every widget.
      */
-    void destroy_all();
+    std::vector<lv_obj_t*> destroy_all();
 
     /**
      * @brief Clear all registered entries without running callbacks
@@ -96,5 +126,9 @@ class StaticPanelRegistry {
     };
 
     std::vector<DestroyEntry> destroyers_;
+
+    // Overlay roots recorded during destroy_all()'s window (see
+    // record_orphaned_widget()). Drained by every destroy_all() return.
+    std::vector<lv_obj_t*> orphaned_widgets_;
     static std::atomic<bool> s_destroying_all_;
 };

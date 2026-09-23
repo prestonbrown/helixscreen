@@ -75,7 +75,10 @@ bool lazy_create_and_push_overlay(Getter getter, lv_obj_t*& cached_panel, lv_obj
     // caller's cached widget can outlive the panel that created it. A cache the
     // live panel did not create still carries the dead panel's bindings - XML
     // subjects and raw-this C++ callbacks (the motion jog pad) - so pushing it
-    // fires them on freed memory.
+    // fires them on freed memory. (Switch teardown now frees the orphaned
+    // widgets and PrinterCacheRegistry drops the static caches before it, so
+    // on that path this guard is a backstop; it still covers hot-reload
+    // rebuilds, where the panel object survives with a fresh root.)
     if (cached_panel && cached_panel != panel.get_root()) {
         if (panel.get_root() == nullptr) {
             // The cache holds the dead panel's widget, still allocated: free it.

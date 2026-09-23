@@ -8,6 +8,8 @@
 namespace helix {
 
 class GCodeConsoleWidget : public PanelWidget {
+    friend class GCodeConsoleWidgetTestAccess;
+
   public:
     GCodeConsoleWidget();
     ~GCodeConsoleWidget() override;

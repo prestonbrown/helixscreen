@@ -7,6 +7,7 @@
 #include "ui_panel_console.h"
 
 #include "panel_widget_registry.h"
+#include "printer_cache_registry.h"
 #include "ui/ui_lazy_panel_helper.h"
 
 #include <spdlog/spdlog.h>
@@ -20,7 +21,15 @@ void register_gcode_console_widget() {
     lv_xml_register_event_cb(nullptr, "gcode_console_clicked_cb", GCodeConsoleWidget::clicked_cb);
 }
 
-GCodeConsoleWidget::GCodeConsoleWidget() = default;
+GCodeConsoleWidget::GCodeConsoleWidget() {
+    // console_panel_ is a static, so it survives the printer switch that
+    // destroys the ConsolePanel object - and teardown frees the orphaned
+    // overlay widget, which would leave the cache dangling. Every
+    // active-printer change fires this before teardown, so the cache never
+    // outlives its widget.
+    PrinterCacheRegistry::instance().register_invalidator("GCodeConsoleWidget",
+                                                          []() { console_panel_ = nullptr; });
+}
 
 GCodeConsoleWidget::~GCodeConsoleWidget() {
     detach();

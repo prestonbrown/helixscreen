@@ -37,15 +37,26 @@ void StaticPanelRegistry::register_destroy(const char* name, std::function<void(
     spdlog::trace("[StaticPanelRegistry] Registered: {} (total: {})", name, destroyers_.size());
 }
 
+void StaticPanelRegistry::record_orphaned_widget(lv_obj_t* widget) {
+    // Outside the destroy_all() window the widget's deletion is its owner's
+    // business; recording it here would have a later destroy_all() free
+    // whatever now lives at the address.
+    if (!widget || !is_destroying_all()) {
+        return;
+    }
+    orphaned_widgets_.push_back(widget);
+}
+
 void StaticPanelRegistry::clear() {
     destroyers_.clear();
+    orphaned_widgets_.clear();
     spdlog::trace("[StaticPanelRegistry] Cleared all entries (no callbacks run)");
 }
 
-void StaticPanelRegistry::destroy_all() {
+std::vector<lv_obj_t*> StaticPanelRegistry::destroy_all() {
     if (destroyers_.empty()) {
         spdlog::debug("[StaticPanelRegistry] No panels registered, nothing to destroy");
-        return;
+        return {};
     }
 
     spdlog::trace("[StaticPanelRegistry] Destroying {} panels in reverse order...",
@@ -73,4 +84,9 @@ void StaticPanelRegistry::destroy_all() {
     }
     s_destroying_all_.store(false, std::memory_order_release);
     spdlog::trace("[StaticPanelRegistry] All panels destroyed");
+
+    // Hand the roots the panel destructors recorded to the caller. Moved out
+    // so nothing lingers past this call: a later destroy_all() must never be
+    // handed a pointer freed since this one.
+    return std::move(orphaned_widgets_);
 }
