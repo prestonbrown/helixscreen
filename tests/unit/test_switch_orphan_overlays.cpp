@@ -33,6 +33,7 @@
  * through the real caller path.
  */
 
+#include "ui_component_keypad.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_console.h"
 #include "ui_panel_macros.h"
@@ -169,4 +170,60 @@ TEST_CASE_METHOD(
     helix::PrinterCacheRegistry::instance().invalidate_all();
     helix::ui::destroy_static_panels();
     helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a printer switch frees the numeric keypad widget built on first show",
+                 "[overlays][teardown][switch][switch-orphans][keypad]") {
+    seed_nav_panels();
+
+    ui_keypad_init(lv_screen_active());
+    ui_keypad_config_t config = {};
+    config.initial_value = 100;
+    config.min_value = 0;
+    config.max_value = 300;
+    config.title_label = "Nozzle";
+    config.unit_label = "C";
+    config.allow_decimal = false;
+    ui_keypad_show(&config);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // The keypad is a bare screen child, not an OverlayBase panel: locate its
+    // tree through the XML view name the component gives its root.
+    lv_obj_t* keypad = lv_obj_find_by_name(lv_screen_active(), "keypad_panel");
+    REQUIRE(keypad != nullptr);
+    REQUIRE(lv_obj_find_by_name(keypad, "btn_backspace") != nullptr);
+    REQUIRE(ui_keypad_is_visible());
+
+    int deletes = 0;
+    lv_obj_add_event_cb(keypad, count_delete, LV_EVENT_DELETE, &deletes);
+
+    // The overlay-relevant slice of tear_down_printer_state(), in order. Step 14
+    // (destroy_static_panels) is the only place that could free the keypad tree:
+    // hide merely pops the nav stack, and step 20 deletes m_app_layout, not the
+    // screen the keypad hangs from.
+    NavigationManager::instance().shutdown();
+    helix::ui::destroy_static_panels();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(100); // the deferred delete lands on the timer tick
+
+    CHECK(deletes == 1);
+    CHECK_FALSE(ui_keypad_is_visible()); // the static points nowhere now
+
+    // Reopen the way the next printer session does: init registers the parent,
+    // and the first show builds a fresh tree on the same screen.
+    seed_nav_panels();
+    ui_keypad_init(lv_screen_active());
+    ui_keypad_show(&config);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* fresh = lv_obj_find_by_name(lv_screen_active(), "keypad_panel");
+    REQUIRE(fresh != nullptr);
+    REQUIRE(fresh != keypad);
+    REQUIRE(ui_keypad_is_visible());
+
+    // Leave the process clean for the next test: free the reopened tree too.
+    NavigationManager::instance().shutdown();
+    helix::ui::destroy_static_panels();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(100);
 }

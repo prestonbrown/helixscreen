@@ -82,6 +82,13 @@ void ui_keypad_init_subjects() {
 
     // Self-register cleanup — ensures deinit runs before lv_deinit()
     StaticPanelRegistry::instance().register_destroy("KeypadSubjects", []() {
+        // The keypad's tree hangs directly off the screen and nothing else
+        // frees it: hiding only pops the nav stack, and teardown deletes the
+        // app layout, not the screen. Deletion is forbidden inside the
+        // destroy_all() window, so hand the root to its caller the way
+        // OverlayBase's destructor does — a soft restart frees it, full
+        // shutdown lets lv_deinit() free every widget. No-op when never built.
+        StaticPanelRegistry::instance().record_orphaned_widget(keypad_widget);
         keypad_widget = nullptr;
         keypad_parent = nullptr;
         ui_keypad_deinit_subjects();
