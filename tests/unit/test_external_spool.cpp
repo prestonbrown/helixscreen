@@ -12,6 +12,7 @@
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "settings_manager.h"
+#include "test_helpers/unique_temp_dir.h"
 
 #include <cstdlib>
 #include <filesystem>
@@ -32,8 +33,7 @@ struct TempConfigFixture : public HelixTestFixture {
     std::string config_path;
 
     TempConfigFixture() {
-        temp_dir = std::filesystem::temp_directory_path().string() + "/helix_ext_spool_test_" +
-                   std::to_string(rand());
+        temp_dir = helix::test::unique_temp_dir("helix_ext_spool_test");
         std::filesystem::create_directories(temp_dir);
         config_path = temp_dir + "/settings.json";
 
@@ -75,8 +75,7 @@ struct ExternalSpoolCommitFixture : LVGLTestFixture {
     std::string config_path;
 
     ExternalSpoolCommitFixture() : api(client, get_printer_state()) {
-        temp_dir = std::filesystem::temp_directory_path().string() + "/helix_ext_spool_commit_" +
-                   std::to_string(rand());
+        temp_dir = helix::test::unique_temp_dir("helix_ext_spool_commit");
         std::filesystem::create_directories(temp_dir);
         config_path = temp_dir + "/settings.json";
 

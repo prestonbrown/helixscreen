@@ -16,6 +16,7 @@
 #include "settings_manager.h"
 #include "spoolman_manager.h"
 #include "spoolman_types.h"
+#include "test_helpers/unique_temp_dir.h"
 
 #include <cstdlib>
 #include <filesystem>
@@ -53,8 +54,7 @@ struct SpoolmanPanelCommitFixture : LVGLTestFixture {
     std::string config_path;
 
     SpoolmanPanelCommitFixture() : api(client, get_printer_state()) {
-        temp_dir = std::filesystem::temp_directory_path().string() +
-                   "/helix_spoolman_panel_commit_" + std::to_string(rand());
+        temp_dir = helix::test::unique_temp_dir("helix_spoolman_panel_commit");
         std::filesystem::create_directories(temp_dir);
         config_path = temp_dir + "/settings.json";
 

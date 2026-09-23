@@ -8,6 +8,7 @@
 #include "config_testing.h"
 #include "runtime_config.h"
 #include "static_subject_registry.h"
+#include "test_helpers/unique_temp_dir.h"
 #include "wizard_config_paths.h"
 
 #include <cstdlib>
@@ -1438,8 +1439,7 @@ TEST_CASE("Config::init() should NOT write log_level to new config file",
     // The fix (Step 5) will remove log_level from defaults, making this pass.
 
     // Create a temp directory for the test config
-    std::string temp_dir =
-        std::filesystem::temp_directory_path().string() + "/helix_test_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_test");
     std::filesystem::create_directories(temp_dir);
     std::string temp_config_path = temp_dir + "/test_config.json";
 
@@ -1562,8 +1562,7 @@ TEST_CASE_METHOD(ConfigTestFixture,
     REQUIRE(config.get<bool>("/sounds_enabled") == true);
 
     // Run init on a temp file to trigger migrations
-    std::string temp_dir = std::filesystem::temp_directory_path().string() +
-                           "/helix_migration_test_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_migration_test");
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/test_config.json";
 
@@ -1589,8 +1588,7 @@ TEST_CASE_METHOD(ConfigTestFixture,
                  "Config: config already at version 1 does NOT get sounds flipped",
                  "[core][config][migration][versioning]") {
     // Config that was already migrated — user may have re-enabled sounds
-    std::string temp_dir = std::filesystem::temp_directory_path().string() +
-                           "/helix_migration_test_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_migration_test");
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/test_config.json";
 
@@ -1623,8 +1621,7 @@ TEST_CASE_METHOD(ConfigTestFixture,
     // config this test is asserting about.
 
     // Brand new config — no file exists
-    std::string temp_dir = std::filesystem::temp_directory_path().string() + "/helix_fresh_test_" +
-                           std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_fresh_test");
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/fresh_config.json";
 
@@ -1650,8 +1647,7 @@ TEST_CASE_METHOD(ConfigTestFixture,
                  "Config: v0 config without sounds_enabled key just gets version stamp",
                  "[config][migration][versioning]") {
     // Edge case: old config that somehow never had sounds_enabled
-    std::string temp_dir = std::filesystem::temp_directory_path().string() +
-                           "/helix_nosound_test_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_nosound_test");
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/test_config.json";
 
@@ -2117,8 +2113,7 @@ TEST_CASE("Config: v13→v14 is a no-op when no legacy file exists",
 TEST_CASE_METHOD(ConfigTestFixture,
                  "Config: v14→v15 restores AD5X sleep preset after wizard override",
                  "[core][config][migration][versioning]") {
-    std::string temp_dir = std::filesystem::temp_directory_path().string() +
-                           "/helix_migration_v15_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_migration_v15");
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/test_config.json";
 
@@ -2152,8 +2147,7 @@ TEST_CASE_METHOD(ConfigTestFixture,
 TEST_CASE_METHOD(ConfigTestFixture,
                  "Config: v14→v15 restores AD5X sleep preset (multi-printer config)",
                  "[core][config][migration][versioning]") {
-    std::string temp_dir = std::filesystem::temp_directory_path().string() +
-                           "/helix_migration_v15_mp_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_migration_v15_mp");
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/test_config.json";
 
@@ -2186,8 +2180,7 @@ TEST_CASE_METHOD(ConfigTestFixture,
 TEST_CASE_METHOD(ConfigTestFixture,
                  "Config: v14→v15 preserves user workaround (sleep_backlight_off=false only)",
                  "[core][config][migration][versioning]") {
-    std::string temp_dir = std::filesystem::temp_directory_path().string() +
-                           "/helix_migration_v15_workaround_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_migration_v15_workaround");
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/test_config.json";
 
@@ -2215,8 +2208,7 @@ TEST_CASE_METHOD(ConfigTestFixture,
 // Non-AD5X printers must not be touched by the migration.
 TEST_CASE_METHOD(ConfigTestFixture, "Config: v14→v15 does not affect non-AD5X printers",
                  "[core][config][migration][versioning]") {
-    std::string temp_dir = std::filesystem::temp_directory_path().string() +
-                           "/helix_migration_v15_cc1_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_migration_v15_cc1");
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/test_config.json";
 
@@ -3365,7 +3357,7 @@ TEST_CASE("Config::init() keeps tarball default when backup is corrupt",
 
 TEST_CASE("Config: v10→v11 migration moves heat rates and strips heating phases",
           "[core][config][migration][v11]") {
-    std::string temp_dir = "/tmp/helix_test_v10_to_v11_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v10_to_v11");
     std::filesystem::remove_all(temp_dir);
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/test_config.json";
@@ -3431,7 +3423,7 @@ TEST_CASE("Config: v10→v11 migration moves heat rates and strips heating phase
 }
 
 TEST_CASE("Config: v10→v11 migration is idempotent", "[core][config][migration][v11]") {
-    std::string temp_dir = "/tmp/helix_test_v10_to_v11_idempotent_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v10_to_v11_idempotent");
     std::filesystem::remove_all(temp_dir);
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/test_config.json";
@@ -3468,7 +3460,7 @@ TEST_CASE("Config: v10→v11 migration is idempotent", "[core][config][migration
 
 TEST_CASE("Config: v10→v11 migration handles missing calibration data gracefully",
           "[core][config][migration][v11]") {
-    std::string temp_dir = "/tmp/helix_test_v10_to_v11_empty_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v10_to_v11_empty");
     std::filesystem::remove_all(temp_dir);
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/test_config.json";
@@ -3495,7 +3487,7 @@ TEST_CASE("Config: v10→v11 migration handles missing calibration data graceful
 
 TEST_CASE("Config: v11→v12 migration consolidates chamber keys for all printers",
           "[core][config][migration][v12]") {
-    std::string temp_dir = "/tmp/helix_test_v11_to_v12_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v11_to_v12");
     std::filesystem::remove_all(temp_dir);
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/test_config.json";
@@ -3547,7 +3539,7 @@ TEST_CASE("Config: v11→v12 migration consolidates chamber keys for all printer
 
 TEST_CASE("Config: v11→v12 migration does not overwrite canonical keys already set",
           "[core][config][migration][v12]") {
-    std::string temp_dir = "/tmp/helix_test_v11_to_v12_existing_" + std::to_string(rand());
+    std::string temp_dir = helix::test::unique_temp_dir("helix_test_v11_to_v12_existing");
     std::filesystem::remove_all(temp_dir);
     std::filesystem::create_directories(temp_dir);
     std::string temp_path = temp_dir + "/test_config.json";
@@ -3591,7 +3583,7 @@ TEST_CASE("Config: v15→v16 migration disables Flying Toasters on constrained t
     SECTION("BASIC tier with Flying Toasters: type flipped to 0 and notice queued") {
         helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::BASIC);
 
-        std::string temp_dir = "/tmp/helix_test_v15_to_v16_basic_" + std::to_string(rand());
+        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_basic");
         std::filesystem::remove_all(temp_dir);
         std::filesystem::create_directories(temp_dir);
         std::string temp_path = temp_dir + "/test_config.json";
@@ -3617,7 +3609,7 @@ TEST_CASE("Config: v15→v16 migration disables Flying Toasters on constrained t
     SECTION("EMBEDDED tier with Flying Toasters: type flipped to 0 and notice queued") {
         helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::EMBEDDED);
 
-        std::string temp_dir = "/tmp/helix_test_v15_to_v16_embedded_" + std::to_string(rand());
+        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_embedded");
         std::filesystem::remove_all(temp_dir);
         std::filesystem::create_directories(temp_dir);
         std::string temp_path = temp_dir + "/test_config.json";
@@ -3643,7 +3635,7 @@ TEST_CASE("Config: v15→v16 migration disables Flying Toasters on constrained t
     SECTION("STANDARD tier with Flying Toasters: setting untouched, no notice flag") {
         helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::STANDARD);
 
-        std::string temp_dir = "/tmp/helix_test_v15_to_v16_standard_" + std::to_string(rand());
+        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_standard");
         std::filesystem::remove_all(temp_dir);
         std::filesystem::create_directories(temp_dir);
         std::string temp_path = temp_dir + "/test_config.json";
@@ -3667,7 +3659,7 @@ TEST_CASE("Config: v15→v16 migration disables Flying Toasters on constrained t
     SECTION("BASIC tier with Starfield (type=2): untouched, no notice flag") {
         helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::BASIC);
 
-        std::string temp_dir = "/tmp/helix_test_v15_to_v16_starfield_" + std::to_string(rand());
+        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_starfield");
         std::filesystem::remove_all(temp_dir);
         std::filesystem::create_directories(temp_dir);
         std::string temp_path = temp_dir + "/test_config.json";
@@ -3691,7 +3683,7 @@ TEST_CASE("Config: v15→v16 migration disables Flying Toasters on constrained t
     SECTION("BASIC tier with Pipes 3D (type=3): untouched, no notice flag") {
         helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::BASIC);
 
-        std::string temp_dir = "/tmp/helix_test_v15_to_v16_pipes_" + std::to_string(rand());
+        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_pipes");
         std::filesystem::remove_all(temp_dir);
         std::filesystem::create_directories(temp_dir);
         std::string temp_path = temp_dir + "/test_config.json";
@@ -3715,7 +3707,7 @@ TEST_CASE("Config: v15→v16 migration disables Flying Toasters on constrained t
     SECTION("BASIC tier with screensaver already Off (type=0): no-op, no notice flag") {
         helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::BASIC);
 
-        std::string temp_dir = "/tmp/helix_test_v15_to_v16_off_" + std::to_string(rand());
+        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_off");
         std::filesystem::remove_all(temp_dir);
         std::filesystem::create_directories(temp_dir);
         std::string temp_path = temp_dir + "/test_config.json";
@@ -3739,7 +3731,7 @@ TEST_CASE("Config: v15→v16 migration disables Flying Toasters on constrained t
     SECTION("Already-v16 config: migration does not run, type stays as set") {
         helix::config_testing::set_forced_tier_for_migration(helix::PlatformTier::BASIC);
 
-        std::string temp_dir = "/tmp/helix_test_v15_to_v16_already_v16_" + std::to_string(rand());
+        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v15_to_v16_already_v16");
         std::filesystem::remove_all(temp_dir);
         std::filesystem::create_directories(temp_dir);
         std::string temp_path = temp_dir + "/test_config.json";
@@ -3765,7 +3757,7 @@ TEST_CASE("Config: v15→v16 migration disables Flying Toasters on constrained t
 TEST_CASE("Config: v16→v17 migration renames retired Voron printer_image IDs",
           "[core][config][migration][v17]") {
     SECTION("voron-24r2 and voron-0-2 rewritten; unrelated values left alone") {
-        std::string temp_dir = "/tmp/helix_test_v16_to_v17_rename_" + std::to_string(rand());
+        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v16_to_v17_rename");
         std::filesystem::remove_all(temp_dir);
         std::filesystem::create_directories(temp_dir);
         std::string temp_path = temp_dir + "/test_config.json";
@@ -3806,7 +3798,7 @@ TEST_CASE("Config: v16→v17 migration renames retired Voron printer_image IDs",
     }
 
     SECTION("Already-v17 config: migration does not run") {
-        std::string temp_dir = "/tmp/helix_test_v16_to_v17_already_" + std::to_string(rand());
+        std::string temp_dir = helix::test::unique_temp_dir("helix_test_v16_to_v17_already");
         std::filesystem::remove_all(temp_dir);
         std::filesystem::create_directories(temp_dir);
         std::string temp_path = temp_dir + "/test_config.json";
