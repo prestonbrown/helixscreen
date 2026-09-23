@@ -8,12 +8,13 @@
  * Run with: ./build/bin/helix-tests "[switch-orphans]"
  *
  * tear_down_printer_state() destroys the panel objects registered with
- * StaticPanelRegistry, but before this fix deleted none of their overlay
+ * StaticPanelRegistry, and nothing else on that path frees their overlay
  * widgets: NavigationManager::shutdown() clears tracking without freeing
  * widgets, the panel destructors skip deletion inside the destroy_all() window
  * (LV_EVENT_DELETE would fire into the half-destroyed panel set), and step 20
- * only deletes m_app_layout - overlays are parented to the SCREEN. Every
- * overlay opened before a switch therefore stayed allocated as a hidden screen
+ * only deletes m_app_layout - overlays are parented to the SCREEN. The switch
+ * therefore frees the recorded roots itself once the window closes; without
+ * that, every overlay opened before a switch stays allocated as a hidden screen
  * child for the rest of the session (~400-800KB each, once per switch).
  *
  * A surviving caller cache is more dangerous than the leak: a static like
