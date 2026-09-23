@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "gcode_data_source.h"
+#include "test_helpers/unique_temp_dir.h"
 
 #include <fstream>
 
@@ -15,7 +16,7 @@ namespace {
 class TempFile {
   public:
     explicit TempFile(const std::string& content) {
-        path_ = "/tmp/test_datasource_" + std::to_string(rand()) + ".gcode";
+        path_ = helix::test::unique_temp_file("test_datasource", "gcode");
         std::ofstream file(path_);
         file << content;
     }

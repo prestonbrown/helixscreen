@@ -61,7 +61,8 @@ struct TempConfigFixture : public HelixTestFixture {
         // which enqueues a phantom telemetry event in the next test's
         // queue, breaking queue-size assertions.
         Config::get_instance()->clear_path();
-        std::filesystem::remove_all(temp_dir);
+        std::error_code ec;
+        std::filesystem::remove_all(temp_dir, ec);
     }
 };
 
@@ -97,7 +98,8 @@ struct ExternalSpoolCommitFixture : LVGLTestFixture {
         // runs (base-class teardown has not happened yet).
         AmsState::instance().set_moonraker_api(nullptr);
         Config::get_instance()->clear_path();
-        std::filesystem::remove_all(temp_dir);
+        std::error_code ec;
+        std::filesystem::remove_all(temp_dir, ec);
     }
 };
 

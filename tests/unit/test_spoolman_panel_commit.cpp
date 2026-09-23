@@ -110,7 +110,8 @@ struct SpoolmanPanelCommitFixture : LVGLTestFixture {
         ams.deinit_subjects();
         SpoolmanManager::clear_identity_cache();
         Config::get_instance()->clear_path();
-        std::filesystem::remove_all(temp_dir);
+        std::error_code ec;
+        std::filesystem::remove_all(temp_dir, ec);
     }
 
     /// Link spoolman_id as the external spool on every store the panel's

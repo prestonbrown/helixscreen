@@ -5,6 +5,7 @@
 // IANA timezones on devices that ship without /usr/share/zoneinfo/ (notably
 // Elegoo Centauri Carbon running OpenCentauri COSMOS).
 
+#include "test_helpers/unique_temp_dir.h"
 #include "timezone_env.h"
 
 #include <cstdio>
@@ -33,8 +34,7 @@ void stage_zone(const fs::path& dest_root, const std::string& zone) {
 
 // Build a temp zoneinfo dir containing exactly UTC + America/New_York.
 fs::path make_temp_zoneinfo() {
-    fs::path root = fs::temp_directory_path() / ("helix_tz_test_" + std::to_string(::getpid()) +
-                                                 "_" + std::to_string(std::rand()));
+    fs::path root = helix::test::unique_temp_dir("helix_tz_test");
     fs::create_directories(root);
     stage_zone(root, "UTC");
     stage_zone(root, "America/New_York");

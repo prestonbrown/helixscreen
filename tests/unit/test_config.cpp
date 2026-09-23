@@ -1520,8 +1520,7 @@ struct BackupGuard {
     bool had_home;
 
     BackupGuard()
-        : temp_dir(std::filesystem::temp_directory_path().string() + "/helix_nobackup_" +
-                   std::to_string(getpid()) + "_" + std::to_string(rand())),
+        : temp_dir(helix::test::unique_temp_dir("helix_nobackup")),
           prev_state_dir(AppConstants::Update::detail::state_dir_ref()),
           prev_fallback_dir(AppConstants::Update::detail::backup_fallback_dir_ref()),
           had_home(std::getenv("HOME") != nullptr) {
@@ -3105,7 +3104,7 @@ struct TarballTestEnv {
     HomeGuard home;
 
     explicit TarballTestEnv(const std::string& name)
-        : dir("/tmp/helix_test_" + name + "_" + std::to_string(getpid())),
+        : dir(helix::test::unique_temp_dir("helix_test_" + name)),
           config_path((dir / "settings.json").string()),
           backup_dir((dir / ".helixscreen").string()), home(dir.string()) {
         std::filesystem::remove_all(dir);
@@ -3113,7 +3112,8 @@ struct TarballTestEnv {
     }
 
     ~TarballTestEnv() {
-        std::filesystem::remove_all(dir);
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);
     }
 
     void write_config(const json& j) {
@@ -3855,8 +3855,7 @@ struct BackupSandbox {
     bool had_home;
 
     explicit BackupSandbox(const std::string& name)
-        : dir("/tmp/helix_test_" + name + "_" + std::to_string(getpid()) + "_" +
-              std::to_string(rand())),
+        : dir(helix::test::unique_temp_dir("helix_test_" + name)),
           prev_state_dir(AppConstants::Update::detail::state_dir_ref()),
           prev_fallback_dir(AppConstants::Update::detail::backup_fallback_dir_ref()),
           had_home(std::getenv("HOME") != nullptr) {

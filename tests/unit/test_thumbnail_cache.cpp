@@ -10,6 +10,7 @@
 
 #include "../../include/thumbnail_cache.h"
 #include "app_globals.h"
+#include "test_helpers/unique_temp_dir.h"
 
 #include <cstdlib>
 #include <filesystem>
@@ -38,7 +39,7 @@ TEST_CASE("ThumbnailCache cache directory initialization", "[assets][cache]") {
 
     SECTION("Cache directory is writable") {
         std::string cache_dir = cache.get_cache_dir();
-        std::string test_file = cache_dir + "/.write_test_" + std::to_string(rand());
+        std::string test_file = cache_dir + "/.write_test_" + helix::test::unique_suffix();
 
         // Should be able to create a file
         std::ofstream ofs(test_file);
@@ -208,7 +209,7 @@ TEST_CASE("ThumbnailCache age validation", "[assets][cache][invalidation]") {
     ThumbnailCache& cache = get_thumbnail_cache();
 
     // Create a unique test file to avoid conflicts
-    std::string test_path = "test_age_validation_" + std::to_string(rand()) + ".png";
+    std::string test_path = "test_age_validation_" + helix::test::unique_suffix() + ".png";
     std::string cache_path = cache.get_cache_path(test_path);
 
     // Create a cached file
@@ -276,7 +277,7 @@ TEST_CASE("ThumbnailCache save_raw_png saves valid PNG data", "[assets][cache][s
         0xAE, 0x42, 0x60, 0x82                                // IEND CRC
     };
 
-    std::string source_id = "test_save_raw_png_" + std::to_string(rand());
+    std::string source_id = "test_save_raw_png_" + helix::test::unique_suffix();
 
     SECTION("Returns LVGL path for valid PNG data") {
         std::string result = cache.save_raw_png(source_id, valid_png);
@@ -312,8 +313,8 @@ TEST_CASE("ThumbnailCache save_raw_png saves valid PNG data", "[assets][cache][s
     }
 
     SECTION("Different source_ids create different cache files") {
-        std::string id1 = "test_save_raw_1_" + std::to_string(rand());
-        std::string id2 = "test_save_raw_2_" + std::to_string(rand());
+        std::string id1 = "test_save_raw_1_" + helix::test::unique_suffix();
+        std::string id2 = "test_save_raw_2_" + helix::test::unique_suffix();
 
         std::string path1 = cache.save_raw_png(id1, valid_png);
         std::string path2 = cache.save_raw_png(id2, valid_png);
@@ -375,7 +376,7 @@ TEST_CASE("ThumbnailCache save_raw_png integrates with cache eviction",
         0x25, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82};
 
     SECTION("Saved file can be found via get_if_cached") {
-        std::string source_id = "test_cache_integration_" + std::to_string(rand());
+        std::string source_id = "test_cache_integration_" + helix::test::unique_suffix();
 
         // Save the PNG
         std::string saved_path = cache.save_raw_png(source_id, valid_png);
@@ -391,7 +392,7 @@ TEST_CASE("ThumbnailCache save_raw_png integrates with cache eviction",
     }
 
     SECTION("Saved file can be invalidated") {
-        std::string source_id = "test_invalidate_" + std::to_string(rand());
+        std::string source_id = "test_invalidate_" + helix::test::unique_suffix();
 
         std::string saved_path = cache.save_raw_png(source_id, valid_png);
         REQUIRE(!saved_path.empty());
@@ -413,7 +414,7 @@ TEST_CASE("ThumbnailCache invalidation removes all variants", "[assets][cache][i
     ThumbnailCache& cache = get_thumbnail_cache();
 
     // Create a unique test path
-    std::string test_path = "test_invalidate_variants_" + std::to_string(rand()) + ".png";
+    std::string test_path = "test_invalidate_variants_" + helix::test::unique_suffix() + ".png";
     std::string cache_path = cache.get_cache_path(test_path);
     std::string cache_dir = cache.get_cache_dir();
 

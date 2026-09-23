@@ -7,6 +7,7 @@
 // exercise the real journalctl path — that's validated on-device.
 
 #include "system/log_collector.h"
+#include "test_helpers/unique_temp_dir.h"
 
 #include <chrono>
 #include <cstdlib>
@@ -24,8 +25,7 @@ namespace {
 struct TempDirGuard {
     fs::path path;
     TempDirGuard() {
-        path = fs::temp_directory_path() / ("helix-logs-test-" + std::to_string(::getpid()) + "-" +
-                                            std::to_string(std::rand()));
+        path = helix::test::unique_temp_dir("helix-logs-test");
         fs::create_directories(path);
     }
     ~TempDirGuard() {
