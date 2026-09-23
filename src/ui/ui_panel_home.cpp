@@ -21,6 +21,7 @@
 #include "first_run_tour.h"
 #include "input_settings_manager.h"
 #include "lock_manager.h"
+#include "lvgl/src/others/translation/lv_translation.h" // lv_tr
 #include "observer_factory.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
@@ -216,8 +217,17 @@ void HomePanel::build_carousel() {
         lv_obj_t* plus_label = lv_label_create(plus_btn);
         lv_label_set_text(plus_label, ui_icon::lookup_codepoint("plus"));
         lv_obj_set_style_text_font(plus_label, &mdi_icons_32, LV_PART_MAIN);
-        lv_obj_set_style_text_color(plus_label, theme_manager_get_color("secondary"), LV_PART_MAIN);
+        lv_obj_set_style_text_color(plus_label, theme_manager_get_color("primary"), LV_PART_MAIN);
         lv_obj_align(plus_label, LV_ALIGN_CENTER, 0, 0);
+
+        // The tile is the only thing on an empty page, so the caption is what
+        // makes it read as a control rather than decoration.
+        lv_obj_t* caption = lv_label_create(add_page_tile_);
+        lv_obj_set_name(caption, "add_page_caption");
+        lv_label_set_text(caption, lv_tr("Add page"));
+        lv_obj_set_style_text_color(caption, theme_manager_get_color("text"), LV_PART_MAIN);
+        lv_obj_align_to(caption, plus_btn, LV_ALIGN_OUT_BOTTOM_MID, 0,
+                        theme_manager_get_spacing("space_md"));
 
         ui_carousel_add_item(carousel_, add_page_tile_);
 

@@ -36,6 +36,47 @@ struct HomePanelTestAccess {
         return panel.grid_edit_mode_.is_active();
     }
 
+    /// Run build_carousel() against whatever tree setup() stored. The caller
+    /// supplies a panel containing a named "carousel_host" child (see
+    /// make_home_panel_tree in the carousel tests) and seeds the widget config
+    /// pages beforehand.
+    static void build_carousel(HomePanel& panel) {
+        panel.build_carousel();
+    }
+
+    /// Drop every raw pointer into the carousel tree and detach page widgets,
+    /// so the tree can be deleted without leaving the panel holding dangling
+    /// references. Mirrors the cleanup half of rebuild_carousel().
+    static void teardown_carousel(HomePanel& panel) {
+        panel.page_observer_.reset();
+        for (auto& page : panel.page_widgets_) {
+            for (auto& w : page) {
+                if (w)
+                    w->detach();
+            }
+        }
+        panel.page_widgets_.clear();
+        panel.page_containers_.clear();
+        panel.page_visible_ids_.clear();
+        panel.carousel_ = nullptr;
+        panel.carousel_host_ = nullptr;
+        panel.add_page_tile_ = nullptr;
+        panel.arrow_left_ = nullptr;
+        panel.arrow_right_ = nullptr;
+        panel.subjects_.deinit_all();
+    }
+
+    /// The "+" tile built by build_carousel(), or null when the page cap
+    /// suppressed it.
+    static lv_obj_t* add_page_tile(HomePanel& panel) {
+        return panel.add_page_tile_;
+    }
+
+    /// The carousel object build_carousel() created, for state queries.
+    static lv_obj_t* carousel(HomePanel& panel) {
+        return panel.carousel_;
+    }
+
     /// The XML-registered LV_EVENT_LONG_PRESSED handler, as wired onto
     /// carousel_host_ in production.
     static lv_event_cb_t long_press_cb() {
