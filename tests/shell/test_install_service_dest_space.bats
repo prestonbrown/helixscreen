@@ -190,6 +190,21 @@ EOF
     [ "$disk" -lt "$dl" ]
 }
 
+@test "the release is staged before the stock UI is stopped or the old install cleaned" {
+    # A download that 404s or fails validation must exit while the printer is
+    # still untouched: with the stock UI stopped first, a failed download
+    # leaves a machine with no working screen at all.
+    local main_sh="$LIB_DIR/main.sh"
+    local dl stop clean
+    dl=$(grep -n '^\s*download_release ' "$main_sh" | head -1 | cut -d: -f1)
+    stop=$(grep -n '^\s*stop_competing_uis' "$main_sh" | head -1 | cut -d: -f1)
+    clean=$(grep -n '^\s*clean_old_installation ' "$main_sh" | head -1 | cut -d: -f1)
+
+    [ -n "$dl" ] && [ -n "$stop" ] && [ -n "$clean" ]
+    [ "$dl" -lt "$stop" ]
+    [ "$dl" -lt "$clean" ]
+}
+
 @test "check_disk_space chains the service-destination check" {
     grep -q 'check_service_dest_space' "$LIB_DIR/requirements.sh"
     # Chained from check_disk_space, not left as an orphan definition.

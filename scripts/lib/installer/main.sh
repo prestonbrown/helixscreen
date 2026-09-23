@@ -415,6 +415,19 @@ main() {
     fi
     log_info "Target version: ${BOLD}${version}${NC}"
 
+    # Download/stage the release archive BEFORE any step that modifies the
+    # running printer (stock-UI disable, competing-UI shutdown, old-install
+    # cleanup, service stop): a failed download must leave the machine exactly
+    # as it was - stock UI enabled, old install intact, service running. The
+    # download also needs the network, and stopping UIs can take it away
+    # (e.g. Snapmaker U1's stock GUI owns wpa_supplicant, so restarting it
+    # drops WiFi/SSH mid-update).
+    if [ -n "$local_tarball" ]; then
+        use_local_tarball "$local_tarball"
+    else
+        download_release "$version" "$download_platform"
+    fi
+
     # Configure platform-specific settings before stopping UIs
     configure_platform
 
@@ -424,17 +437,6 @@ main() {
     # Clean old installation if requested
     if [ "$clean_mode" = true ]; then
         clean_old_installation "$platform"
-    fi
-
-    # Download/stage the release archive BEFORE stopping the service.
-    # Stopping helixscreen first can disrupt the network on some platforms
-    # (e.g. Snapmaker U1 where platform_post_stop restarts the stock GUI which
-    # owns wpa_supplicant and drops WiFi/SSH mid-update). Staging first also
-    # means a failed download leaves the running service untouched.
-    if [ -n "$local_tarball" ]; then
-        use_local_tarball "$local_tarball"
-    else
-        download_release "$version" "$download_platform"
     fi
 
     if [ "$update_mode" = true ]; then
