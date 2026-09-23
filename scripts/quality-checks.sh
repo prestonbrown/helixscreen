@@ -2084,7 +2084,7 @@ fi
 
 echo ""
 
-SECTION_START=$(start_section)
+SECTION_START=$(date +%s)
 echo -n "🔄 Checking touch-range rotation source..."
 
 # The gate lives in create_input_pointer(), which needs a real fbdev/DRM device
@@ -2111,7 +2111,7 @@ fi
 
 echo ""
 
-SECTION_START=$(start_section)
+SECTION_START=$(date +%s)
 echo -n "🕰️  Checking comments for commit-SHA citations..."
 
 # Ratchet. Comments explain the code as it is; how it got here belongs in the
