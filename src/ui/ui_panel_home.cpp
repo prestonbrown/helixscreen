@@ -21,7 +21,6 @@
 #include "first_run_tour.h"
 #include "input_settings_manager.h"
 #include "lock_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h" // lv_tr
 #include "observer_factory.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
