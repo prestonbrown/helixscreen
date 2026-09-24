@@ -692,6 +692,14 @@ lv_color_t theme_manager_get_contrast_color(lv_color_t bg_color);
  */
 lv_color_t theme_manager_get_readable_on(lv_color_t fill);
 
+/// Contrast a text colour must reach on its fill: 4:1, between WCAG AA
+/// large-text (3:1) and AA body text (4.5:1). Around fill luminance 0.18 no
+/// colour at all reaches 4.5, and light text is capped below 4.5 on every fill
+/// above 0.183, so a 4.5 bar would leave a light palette no way to keep its
+/// tint on its accents.
+// NAMESPACE_OK: joins this header's global theme_manager_* free-function API
+inline constexpr double kThemeTextContrastThreshold = 4.0;
+
 /**
  * @brief Shift a palette text colour just enough to read on a fill
  *
@@ -712,6 +720,30 @@ lv_color_t theme_manager_get_readable_on(lv_color_t fill);
  */
 // NAMESPACE_OK: joins this header's global theme_manager_* free-function API
 lv_color_t theme_manager_get_contrast_adjusted_text(lv_color_t text, lv_color_t fill);
+
+/**
+ * @brief Contrast helper for a fill drawn below full opacity
+ *
+ * A translucent fill lands on screen as a mix of its own colour and whatever
+ * is behind it, so contrast must be judged against that composite, not the
+ * raw fill colour. Composites @p fill over @p backing at @p fill_opa and
+ * hands the result to the opaque-fill overload.
+ *
+ * Use this wherever an object's bg_opa sits below LV_OPA_COVER (chrome
+ * pills, scrims, badges). Contrast computed against the raw fill of a
+ * translucent object answers a colour that never reaches the screen.
+ *
+ * @param text Palette text colour intended for this context
+ * @param fill Fill colour as set on the object
+ * @param backing Colour the fill is drawn over
+ * @param fill_opa Opacity the fill is drawn at
+ * @param min_ratio WCAG ratio the result must reach on the composited fill
+ * @return Colour readable on the fill as it actually renders
+ */
+// NAMESPACE_OK: joins this header's global theme_manager_* free-function API
+lv_color_t theme_manager_get_contrast_adjusted_text(lv_color_t text, lv_color_t fill,
+                                                    lv_color_t backing, lv_opa_t fill_opa,
+                                                    double min_ratio = kThemeTextContrastThreshold);
 
 /**
  * @brief Apply palette colors to a single widget based on its type

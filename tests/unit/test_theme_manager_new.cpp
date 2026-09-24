@@ -624,3 +624,63 @@ TEST_CASE("contrast_adjusted_text clears 4:1 for palette text on every shipped a
     // A wrong directory would pass vacuously; the shipped set is 18 themes.
     REQUIRE(combinations >= 18 * 5);
 }
+
+// ============================================================================
+// theme_manager_get_contrast_adjusted_text (translucent overload): contrast is
+// judged against the fill as it renders, composited over its backing
+// ============================================================================
+
+// The edit-mode chrome pills: the palette's text colour drawn at LV_OPA_50
+// over the card. The icon must clear WCAG AA (4.5:1) against the pill as it
+// actually lands on screen - judged against the raw fill it measures as low
+// as ~1.3:1 (dark) and ~3.0:1 (light).
+TEST_CASE("contrast_adjusted_text translucent overload clears WCAG AA on the chrome pill",
+          "[theme][contrast][edit-chrome]") {
+    struct PillCase {
+        const char* name;
+        uint32_t text, backing;
+    };
+    // helixscreen default theme, both modes; the pill overhangs the widget
+    // edge, so both the card and the screen background count as backing.
+    const PillCase cases[] = {
+        {"dark/card", 0xE8E8EC, 0x202023},
+        {"dark/screen", 0xE8E8EC, 0x19191C},
+        {"light/card", 0x2A2A2E, 0xFFFFFF},
+        {"light/screen", 0x2A2A2E, 0xF0F0F4},
+    };
+    for (const auto& c : cases) {
+        const lv_color_t text = lv_color_hex(c.text);
+        const lv_color_t fill = text; // the pill fill is the text colour itself
+        const lv_color_t backing = lv_color_hex(c.backing);
+        const lv_color_t composited = lv_color_mix(fill, backing, LV_OPA_50);
+        const lv_color_t icon =
+            theme_manager_get_contrast_adjusted_text(text, fill, backing, LV_OPA_50, 4.5);
+        CAPTURE(c.name, lv_color_to_u32(icon) & 0xFFFFFF, lv_color_to_u32(composited) & 0xFFFFFF,
+                wcag::contrast(icon, composited));
+        CHECK(wcag::contrast(icon, composited) >= 4.5);
+    }
+}
+
+// The delete-page pill: danger fill at LV_OPA_80 over the screen background.
+// The helper's own contract is 4:1, so that is the bar here.
+TEST_CASE("contrast_adjusted_text translucent overload holds 4:1 on the delete-page pill",
+          "[theme][contrast][edit-chrome]") {
+    const lv_color_t white = lv_color_hex(0xFFFFFF);
+    const struct {
+        const char* name;
+        uint32_t danger, screen;
+    } cases[] = {
+        {"dark", 0xD94848, 0x19191C},
+        {"light", 0xC43030, 0xF0F0F4},
+    };
+    for (const auto& c : cases) {
+        const lv_color_t fill = lv_color_hex(c.danger);
+        const lv_color_t backing = lv_color_hex(c.screen);
+        const lv_color_t composited = lv_color_mix(fill, backing, LV_OPA_80);
+        const lv_color_t icon =
+            theme_manager_get_contrast_adjusted_text(white, fill, backing, LV_OPA_80);
+        CAPTURE(c.name, lv_color_to_u32(icon) & 0xFFFFFF, lv_color_to_u32(composited) & 0xFFFFFF,
+                wcag::contrast(icon, composited));
+        CHECK(wcag::contrast(icon, composited) >= 4.0);
+    }
+}

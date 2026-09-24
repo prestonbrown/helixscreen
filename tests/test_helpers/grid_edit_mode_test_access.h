@@ -79,6 +79,20 @@ struct GridEditModeTestAccess {
         return em.dragging_;
     }
 
+    /// The selection chrome's trash and configure pills, or nullptr when the
+    /// widget draws no chrome. Contrast tests read their icon colours.
+    static lv_obj_t* remove_button(const GridEditMode& em) {
+        return em.remove_btn_;
+    }
+    static lv_obj_t* configure_button(const GridEditMode& em) {
+        return em.configure_btn_;
+    }
+
+    /// The delete-page button on the shield, or nullptr when none is drawn.
+    static lv_obj_t* delete_page_button(const GridEditMode& em) {
+        return em.delete_page_btn_;
+    }
+
     /// The press point every gesture is classified against: press_owns_widget()
     /// and detect_resize_edge() both read it, so which press it came from
     /// decides whether a gesture is a drag or an edge resize. drag_pending_ is
