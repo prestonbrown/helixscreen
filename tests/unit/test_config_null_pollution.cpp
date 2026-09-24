@@ -18,6 +18,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
+#include "../test_helpers/unique_temp_dir.h"
 #include "config.h"
 #include "hardware_validator.h"
 #include "led/led_auto_state.h"
@@ -91,7 +92,7 @@ class ConfigPollutionFixture : public HelixTestFixture {
     Config* saved_instance_ = nullptr;
 
     void SetUp() {
-        temp_dir = (fs::temp_directory_path() / "helix_config_pollution_test").string();
+        temp_dir = helix::test::unique_temp_dir("helix_config_pollution_test");
         fs::remove_all(temp_dir);
         fs::create_directories(temp_dir);
 
