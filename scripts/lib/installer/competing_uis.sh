@@ -242,6 +242,28 @@ stop_qidi_competing_uis() {
     fi
 }
 
+# QIDI .3mf thumbnails (prestonbrown/helixscreen#1713): QIDI's customized
+# Moonraker hardcodes every uploaded .3mf's thumbnail metadata at
+# .thumbs/<subdir>/<stem>/plate_N.png and extracts no image itself; the stock
+# screen client this installer stops is what wrote those files. The units,
+# their gate and their refresh live in the shipped
+# $INSTALL_DIR/config/qidi-3mf-thumbs-units.sh so the install path and the
+# post-update refresh path (which has no sudo under NoNewPrivileges) run the
+# same code. This step just invokes the installed copy with the resolved
+# Klipper identity; it exits 0 with a logged reason wherever the capability
+# gate does not hold. Runs post-extract, since the payload carries it.
+install_qidi_3mf_thumbs() {
+    local units_sh="${INSTALL_DIR}/config/qidi-3mf-thumbs-units.sh"
+
+    if [ ! -f "$units_sh" ]; then
+        log_warn "QIDI thumbnail units script missing under ${INSTALL_DIR}/config -- skipping"
+        return 0
+    fi
+    HELIX_QIDI_HOME="${HELIX_QIDI_HOME:-${KLIPPER_HOME:-}}" \
+        $SUDO "$units_sh" "${KLIPPER_USER:-}" "${KLIPPER_GROUP:-}" || true
+    return 0
+}
+
 # Ensure SSH (dropbear) is running and will start on boot.
 # On stock K1 firmware, dropbear is managed by S99start_app which we disable.
 # This creates an independent dropbear init script so SSH survives reboots.

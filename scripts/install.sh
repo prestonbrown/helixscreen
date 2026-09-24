@@ -3502,6 +3502,28 @@ stop_qidi_competing_uis() {
     fi
 }
 
+# QIDI .3mf thumbnails (prestonbrown/helixscreen#1713): QIDI's customized
+# Moonraker hardcodes every uploaded .3mf's thumbnail metadata at
+# .thumbs/<subdir>/<stem>/plate_N.png and extracts no image itself; the stock
+# screen client this installer stops is what wrote those files. The units,
+# their gate and their refresh live in the shipped
+# $INSTALL_DIR/config/qidi-3mf-thumbs-units.sh so the install path and the
+# post-update refresh path (which has no sudo under NoNewPrivileges) run the
+# same code. This step just invokes the installed copy with the resolved
+# Klipper identity; it exits 0 with a logged reason wherever the capability
+# gate does not hold. Runs post-extract, since the payload carries it.
+install_qidi_3mf_thumbs() {
+    local units_sh="${INSTALL_DIR}/config/qidi-3mf-thumbs-units.sh"
+
+    if [ ! -f "$units_sh" ]; then
+        log_warn "QIDI thumbnail units script missing under ${INSTALL_DIR}/config -- skipping"
+        return 0
+    fi
+    HELIX_QIDI_HOME="${HELIX_QIDI_HOME:-${KLIPPER_HOME:-}}" \
+        $SUDO "$units_sh" "${KLIPPER_USER:-}" "${KLIPPER_GROUP:-}" || true
+    return 0
+}
+
 # Ensure SSH (dropbear) is running and will start on boot.
 # On stock K1 firmware, dropbear is managed by S99start_app which we disable.
 # This creates an independent dropbear init script so SSH survives reboots.
@@ -9485,6 +9507,19 @@ enable_unit_or_warn() {
     fi
 }
 
+# Remove the QIDI .3mf thumbnail helper units (prestonbrown/helixscreen#1713).
+# The helper script itself ships in $INSTALL_DIR/config/ and rides the install
+# dir's removal out; the generated PNGs under gcodes/.thumbs stay. No-op when
+# the units are absent (they are only installed on QIDI-class systemd hosts).
+uninstall_qidi_3mf_thumbs() {
+    $SUDO systemctl stop helixscreen-3mf-thumbs.path 2>/dev/null || true
+    $SUDO systemctl disable helixscreen-3mf-thumbs.path 2>/dev/null || true
+    $SUDO systemctl disable helixscreen-3mf-thumbs.service 2>/dev/null || true
+    $SUDO rm -f /etc/systemd/system/helixscreen-3mf-thumbs.path
+    $SUDO rm -f /etc/systemd/system/helixscreen-3mf-thumbs.service
+    return 0
+}
+
 # Re-enable services that were disabled during installation
 # Reads the state file and reverses each recorded disable action
 #
@@ -9876,6 +9911,7 @@ uninstall() {
         $SUDO systemctl disable helixscreen-update.path 2>/dev/null || true
         $SUDO rm -f /etc/systemd/system/helixscreen-update.path
         $SUDO rm -f /etc/systemd/system/helixscreen-update.service
+        uninstall_qidi_3mf_thumbs
         # Remove permission rules (udev, polkit)
         $SUDO rm -f /etc/udev/rules.d/99-helixscreen-backlight.rules
         $SUDO rm -f /etc/polkit-1/localauthority/50-local.d/helixscreen-network.pkla
@@ -10135,6 +10171,7 @@ clean_old_installation() {
     $SUDO systemctl disable helixscreen-update.path 2>/dev/null || true
     $SUDO rm -f /etc/systemd/system/helixscreen-update.path
     $SUDO rm -f /etc/systemd/system/helixscreen-update.service
+    uninstall_qidi_3mf_thumbs
     # Remove permission rules (udev, polkit)
     $SUDO rm -f /etc/udev/rules.d/99-helixscreen-backlight.rules
     $SUDO rm -f /etc/polkit-1/localauthority/50-local.d/helixscreen-network.pkla
@@ -10618,6 +10655,12 @@ main() {
     # self-skips on the root-only platforms (ad5m/ad5x/k1/k2), when KLIPPER_USER
     # is root, and under NoNewPrivileges where sudo is unavailable.
     install_permission_rules "$platform"
+
+    # QIDI: take over the .3mf plate-thumbnail duty the stopped stock screen
+    # carried (prestonbrown/helixscreen#1713). No-op off QIDI-class hosts and
+    # on firmware whose Moonraker extracts thumbnails itself. Post-extract
+    # because the helper and its unit templates ship in the payload's config/.
+    install_qidi_3mf_thumbs
 
     # Install KIAUH extension if KIAUH is detected
     install_kiauh_extension "$skip_kiauh_registration" || true

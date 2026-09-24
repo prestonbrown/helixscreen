@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# systemd path unit -- watch the gcodes root for QIDI .3mf uploads
+#
+# QIDI's customized Moonraker hardcodes .3mf thumbnail metadata at
+# .thumbs/<subdir>/<stem>/plate_N.png, and the stock screen client is what
+# wrote those files. HelixScreen stops that client, so
+# helixscreen-3mf-thumbs.service regenerates the thumbnails instead.
+#
+# PathChanged is not recursive: an upload into a subfolder is picked up at
+# the next top-level change, or at boot via the service's own WantedBy
+# backfill run.
+
+[Unit]
+Description=Watch the gcodes root for QIDI .3mf uploads
+
+[Path]
+PathChanged=@@GCODES_DIR@@
+
+[Install]
+WantedBy=multi-user.target

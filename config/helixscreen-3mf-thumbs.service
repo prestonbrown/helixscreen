@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# systemd service -- materialise QIDI .3mf plate thumbnails for Moonraker
+#
+# Triggered by helixscreen-3mf-thumbs.path when the gcodes root changes, and
+# enabled directly so it also runs once at boot as a backfill. The script is
+# stat-only when nothing changed.
+
+[Unit]
+Description=Materialise QIDI .3mf plate thumbnails for Moonraker
+
+[Service]
+Type=oneshot
+User=@@HELIX_USER@@
+Group=@@HELIX_GROUP@@
+ExecStart=@@PYTHON3@@ @@INSTALL_DIR@@/config/qidi_3mf_thumbs.py @@GCODES_DIR@@
+
+[Install]
+WantedBy=multi-user.target

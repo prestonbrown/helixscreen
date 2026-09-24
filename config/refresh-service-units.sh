@@ -92,6 +92,16 @@ done
 
 systemctl daemon-reload
 
+# Refresh the QIDI .3mf thumbnail helper units when that duty is active here
+# (prestonbrown/helixscreen#1713). The in-app update path cannot install them
+# itself (NoNewPrivileges blocks sudo), so this root-privileged refresh is
+# what brings them to an updating machine. The gate lives inside the helper
+# script so install-time and update-time cannot disagree about when it
+# applies; USER_VAL is the user the main service runs as, i.e. the Klipper
+# user, read above before the service file was overwritten.
+[ -x "${IDIR}/config/qidi-3mf-thumbs-units.sh" ] && \
+    "${IDIR}/config/qidi-3mf-thumbs-units.sh" "${USER_VAL:-root}" "${GROUP_VAL:-root}" || true
+
 # --- Restore config symlinks after Moonraker update ---
 #
 # Moonraker type:web does shutil.rmtree(INSTALL_DIR) then extracts a fresh ZIP.
