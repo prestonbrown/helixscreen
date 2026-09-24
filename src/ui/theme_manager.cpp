@@ -432,16 +432,12 @@ lv_color_t theme_manager_get_readable_on(lv_color_t fill) {
     return (lum > kCrossover) ? lv_color_hex(0x000000) : lv_color_hex(0xFFFFFF);
 }
 
-/// Contrast a text colour must reach on its fill: 4:1, between WCAG AA
-/// large-text (3:1) and AA body text (4.5:1). Around fill luminance 0.18 no
-/// colour at all reaches 4.5, and light text is capped below 4.5 on every fill
-/// above 0.183, so a 4.5 bar would leave a light palette no way to keep its
-/// tint on its accents.
-static constexpr double kTextContrastThreshold = 4.0;
-
-// NAMESPACE_OK: joins this header's global theme_manager_* free-function API
-lv_color_t theme_manager_get_contrast_adjusted_text(lv_color_t text, lv_color_t fill) {
-    if (srgb_contrast_ratio(text, fill) >= kTextContrastThreshold)
+/// Core of the contrast_adjusted_text pair: returns @p text when it already
+/// clears @p min_ratio on @p fill, else the smallest blend toward its pole
+/// that does, else the readable pure pole.
+static lv_color_t contrast_adjusted_text_for_ratio(lv_color_t text, lv_color_t fill,
+                                                   double min_ratio) {
+    if (srgb_contrast_ratio(text, fill) >= min_ratio)
         return text;
 
     // Blend toward the pole on the text's own side of the fill so the theme's
@@ -456,17 +452,29 @@ lv_color_t theme_manager_get_contrast_adjusted_text(lv_color_t text, lv_color_t 
     uint8_t lo = 0, hi = 255;
     while (lo < hi) {
         const uint8_t mid = lo + (hi - lo) / 2;
-        if (srgb_contrast_ratio(lv_color_mix(pole, text, mid), fill) >= kTextContrastThreshold)
+        if (srgb_contrast_ratio(lv_color_mix(pole, text, mid), fill) >= min_ratio)
             hi = mid;
         else
             lo = mid + 1;
     }
     const lv_color_t blended = lv_color_mix(pole, text, lo);
     // Even the pure pole misses the threshold when no tint on the text's own
-    // side can reach 4:1; fall back to whichever pure pole reads best.
-    if (srgb_contrast_ratio(blended, fill) < kTextContrastThreshold)
+    // side can reach it; fall back to whichever pure pole reads best.
+    if (srgb_contrast_ratio(blended, fill) < min_ratio)
         return theme_manager_get_readable_on(fill);
     return blended;
+}
+
+// NAMESPACE_OK: joins this header's global theme_manager_* free-function API
+lv_color_t theme_manager_get_contrast_adjusted_text(lv_color_t text, lv_color_t fill) {
+    return contrast_adjusted_text_for_ratio(text, fill, kThemeTextContrastThreshold);
+}
+
+// NAMESPACE_OK: joins this header's global theme_manager_* free-function API
+lv_color_t theme_manager_get_contrast_adjusted_text(lv_color_t text, lv_color_t fill,
+                                                    lv_color_t backing, lv_opa_t fill_opa,
+                                                    double min_ratio) {
+    return contrast_adjusted_text_for_ratio(text, lv_color_mix(fill, backing, fill_opa), min_ratio);
 }
 
 // ============================================================================
