@@ -233,6 +233,148 @@ stop_qidi_competing_uis() {
     done
 }
 
+# Locate the file_manager/metadata.py of the installed Moonraker, so its
+# contents can gate the QIDI thumbnail helper. Same roots and layouts as
+# find_moonraker_update_manager_dir (moonraker.sh): the detected Klipper
+# user's checkout first, then the static candidate list, each tried as a git
+# checkout, a bare package dir, and Creality's nested repo-in-install-dir.
+# MOONRAKER_SRC_PATHS lives in moonraker.sh and is unset when only this
+# module is sourced, which is exactly the tests' fixture seam.
+# Echoes the first existing metadata.py, or empty.
+_qidi_moonraker_metadata_path() {
+    local root sub
+
+    for root in ${KLIPPER_HOME:+"${KLIPPER_HOME}/moonraker"} ${MOONRAKER_SRC_PATHS:-}; do
+        [ -n "$root" ] || continue
+        for sub in "$root/moonraker/components/file_manager/metadata.py" \
+                   "$root/components/file_manager/metadata.py" \
+                   "$root/moonraker/moonraker/components/file_manager/metadata.py"; do
+            if [ -f "$sub" ]; then
+                echo "$sub"
+                return 0
+            fi
+        done
+    done
+    return 0
+}
+
+# Substitute the QIDI thumbnail unit's placeholders into a staged copy.
+# Reads gcodes_dir/python_bin/KLIPPER_USER from the calling
+# install_qidi_3mf_thumbs scope (POSIX dynamic scoping, like found_any in the
+# stop handlers above). Staging rather than sed -i on the destination keeps
+# the caller's cmp meaningful: it compares what would be installed.
+_qidi_template_unit() {
+    local src=$1 dst=$2
+
+    sed -e "s|@@GCODES_DIR@@|${gcodes_dir}|g" \
+        -e "s|@@INSTALL_DIR@@|${INSTALL_DIR}|g" \
+        -e "s|@@HELIX_USER@@|${KLIPPER_USER}|g" \
+        -e "s|@@HELIX_GROUP@@|${KLIPPER_GROUP:-${KLIPPER_USER}}|g" \
+        -e "s|@@PYTHON3@@|${python_bin}|g" \
+        "$src" > "$dst" 2>/dev/null
+}
+
+# QIDI .3mf thumbnails (prestonbrown/helixscreen#1713): QIDI's customized
+# Moonraker hardcodes every uploaded .3mf's thumbnail metadata at
+# .thumbs/<subdir>/<stem>/plate_N.png and extracts no image itself; the stock
+# screen client this installer stops is what wrote those files. Install a
+# stdlib-python replacement (shipped in the payload at
+# $INSTALL_DIR/config/qidi_3mf_thumbs.py) driven by a path unit on the gcodes
+# root, so Fluidd and HelixScreen both see plate thumbnails again.
+#
+# Two gates, both required:
+#   (a) a QIDI-class SBC (the host whose stock screen we stopped), and
+#   (b) a Moonraker whose metadata.py contains generate_thumb_path; older
+#       QIDI firmware extracts thumbnails itself and needs no second writer.
+# No-op everywhere else. Runs post-extract, since the payload carries the
+# script and the unit templates. Idempotent: nothing reaches systemctl when
+# both units are already current.
+install_qidi_3mf_thumbs() {
+    local path_src svc_src helper_src path_dest svc_dest
+    local metadata gcodes_dir python_bin dst src
+    local staged_path staged_svc changed=false
+
+    _is_qidi_class_sbc || return 0
+    [ "$INIT_SYSTEM" = "systemd" ] || return 0
+
+    metadata="$(_qidi_moonraker_metadata_path)"
+    if [ -z "$metadata" ] || ! grep -q "generate_thumb_path" "$metadata" 2>/dev/null; then
+        log_info "QIDI Moonraker extracts .3mf thumbnails itself -- skipping the thumbnail helper"
+        return 0
+    fi
+
+    # The stock layout is <klipper home>/printer_data/gcodes on both firmware
+    # generations (mks on 1.1.x, qidi on 01.01.02+). HELIX_QIDI_GCODES_DIR
+    # redirects tests and odd mounts.
+    gcodes_dir="${HELIX_QIDI_GCODES_DIR:-${KLIPPER_HOME:-}/printer_data/gcodes}"
+    if [ ! -d "$gcodes_dir" ]; then
+        log_warn "QIDI gcodes directory not found at $gcodes_dir -- skipping the thumbnail helper"
+        return 0
+    fi
+
+    # The helper runs as the Klipper/Moonraker user so its .thumbs output is
+    # owned by the same user that reads it. No root fallback: root-owned
+    # thumbnails in a user-owned tree outlive every later regeneration.
+    if [ -z "${KLIPPER_USER:-}" ] || [ "$KLIPPER_USER" = "root" ]; then
+        log_warn "Klipper user unresolved -- skipping the QIDI thumbnail helper"
+        return 0
+    fi
+
+    python_bin="$(command -v python3 2>/dev/null || true)"
+    if [ -z "$python_bin" ]; then
+        log_warn "python3 not found -- skipping the QIDI thumbnail helper"
+        return 0
+    fi
+
+    path_src="${INSTALL_DIR}/config/helixscreen-3mf-thumbs.path"
+    svc_src="${INSTALL_DIR}/config/helixscreen-3mf-thumbs.service"
+    helper_src="${INSTALL_DIR}/config/qidi_3mf_thumbs.py"
+    if [ ! -f "$path_src" ] || [ ! -f "$svc_src" ] || [ ! -f "$helper_src" ]; then
+        log_warn "QIDI thumbnail helper payload missing under ${INSTALL_DIR}/config -- skipping"
+        return 0
+    fi
+    path_dest="/etc/systemd/system/helixscreen-3mf-thumbs.path"
+    svc_dest="/etc/systemd/system/helixscreen-3mf-thumbs.service"
+
+    mkdir -p "${TMP_DIR:-/tmp}"
+    staged_path="${TMP_DIR:-/tmp}/helixscreen-3mf-thumbs.path.staged"
+    staged_svc="${TMP_DIR:-/tmp}/helixscreen-3mf-thumbs.service.staged"
+    if ! _qidi_template_unit "$path_src" "$staged_path" \
+         || ! _qidi_template_unit "$svc_src" "$staged_svc"; then
+        log_warn "Could not template the QIDI thumbnail units -- skipping"
+        return 0
+    fi
+
+    for dst_src in "$path_dest:$staged_path" "$svc_dest:$staged_svc"; do
+        dst="${dst_src%%:*}"
+        src="${dst_src#*:}"
+        if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
+            continue
+        fi
+        if $SUDO cp "$src" "$dst" 2>/dev/null; then
+            changed=true
+        else
+            log_warn "Could not install $dst -- skipping the QIDI thumbnail helper"
+            return 0
+        fi
+    done
+
+    if [ "$changed" = false ]; then
+        log_info "QIDI thumbnail helper units already current"
+        return 0
+    fi
+
+    log_info "Installing QIDI .3mf thumbnail helper (gcodes root: $gcodes_dir)"
+    $SUDO systemctl daemon-reload 2>/dev/null || true
+    # Enabled directly, the service runs once per boot as a backfill; the
+    # path unit picks up new uploads in between.
+    $SUDO systemctl enable helixscreen-3mf-thumbs.service 2>/dev/null || true
+    $SUDO systemctl enable helixscreen-3mf-thumbs.path 2>/dev/null || true
+    $SUDO systemctl start helixscreen-3mf-thumbs.path 2>/dev/null || true
+    $SUDO systemctl start helixscreen-3mf-thumbs.service 2>/dev/null || true
+    return 0
+}
+
 # Ensure SSH (dropbear) is running and will start on boot.
 # On stock K1 firmware, dropbear is managed by S99start_app which we disable.
 # This creates an independent dropbear init script so SSH survives reboots.

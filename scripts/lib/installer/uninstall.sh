@@ -122,6 +122,19 @@ _disabled_services_ledger_candidates() {
     done
 }
 
+# Remove the QIDI .3mf thumbnail helper units (prestonbrown/helixscreen#1713).
+# The helper script itself ships in $INSTALL_DIR/config/ and rides the install
+# dir's removal out; the generated PNGs under gcodes/.thumbs stay. No-op when
+# the units are absent (they are only installed on QIDI-class systemd hosts).
+uninstall_qidi_3mf_thumbs() {
+    $SUDO systemctl stop helixscreen-3mf-thumbs.path 2>/dev/null || true
+    $SUDO systemctl disable helixscreen-3mf-thumbs.path 2>/dev/null || true
+    $SUDO systemctl disable helixscreen-3mf-thumbs.service 2>/dev/null || true
+    $SUDO rm -f /etc/systemd/system/helixscreen-3mf-thumbs.path
+    $SUDO rm -f /etc/systemd/system/helixscreen-3mf-thumbs.service
+    return 0
+}
+
 # Re-enable services that were disabled during installation
 # Reads the state file and reverses each recorded disable action
 #
@@ -513,6 +526,7 @@ uninstall() {
         $SUDO systemctl disable helixscreen-update.path 2>/dev/null || true
         $SUDO rm -f /etc/systemd/system/helixscreen-update.path
         $SUDO rm -f /etc/systemd/system/helixscreen-update.service
+        uninstall_qidi_3mf_thumbs
         # Remove permission rules (udev, polkit)
         $SUDO rm -f /etc/udev/rules.d/99-helixscreen-backlight.rules
         $SUDO rm -f /etc/polkit-1/localauthority/50-local.d/helixscreen-network.pkla
@@ -772,6 +786,7 @@ clean_old_installation() {
     $SUDO systemctl disable helixscreen-update.path 2>/dev/null || true
     $SUDO rm -f /etc/systemd/system/helixscreen-update.path
     $SUDO rm -f /etc/systemd/system/helixscreen-update.service
+    uninstall_qidi_3mf_thumbs
     # Remove permission rules (udev, polkit)
     $SUDO rm -f /etc/udev/rules.d/99-helixscreen-backlight.rules
     $SUDO rm -f /etc/polkit-1/localauthority/50-local.d/helixscreen-network.pkla

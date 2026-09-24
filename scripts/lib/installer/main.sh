@@ -465,6 +465,12 @@ main() {
     # is root, and under NoNewPrivileges where sudo is unavailable.
     install_permission_rules "$platform"
 
+    # QIDI: take over the .3mf plate-thumbnail duty the stopped stock screen
+    # carried (prestonbrown/helixscreen#1713). No-op off QIDI-class hosts and
+    # on firmware whose Moonraker extracts thumbnails itself. Post-extract
+    # because the helper and its unit templates ship in the payload's config/.
+    install_qidi_3mf_thumbs
+
     # Install KIAUH extension if KIAUH is detected
     install_kiauh_extension "$skip_kiauh_registration" || true
 
