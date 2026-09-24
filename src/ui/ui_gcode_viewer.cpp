@@ -1313,6 +1313,22 @@ static void gcode_viewer_size_changed_cb(lv_event_t* e) {
  * lv_obj_invalidate(obj). Idempotent — when the renderer is healthy, each
  * tick simply observes a moving cached_up_to_layer_ and does nothing.
  */
+/// Forget what the stall watchdog has observed. The cache it compares against
+/// restarts on a resume or a new load, so the next tick samples a fresh baseline
+/// instead of counting an old stall against new content.
+static void gcode_viewer_watchdog_restart(gcode_viewer_state_t* st) {
+    st->watchdog_last_cached_layer_ = -2;
+    st->watchdog_last_target_layer_ = -2;
+    st->watchdog_stall_streak_ = 0;
+}
+
+/// Whether the viewer is drawn at all: shown, and on a display that accepts
+/// redraws. Panel power-off sleep stops redraws for the whole display.
+static bool gcode_viewer_can_draw(lv_obj_t* obj) {
+    lv_display_t* disp = lv_obj_get_display(obj);
+    return lv_obj_is_visible(obj) && disp != nullptr && lv_display_is_invalidation_enabled(disp);
+}
+
 static void gcode_viewer_watchdog_cb(lv_timer_t* timer) {
     auto* obj = static_cast<lv_obj_t*>(lv_timer_get_user_data(timer));
     if (!obj)
@@ -1343,9 +1359,12 @@ static void gcode_viewer_watchdog_cb(lv_timer_t* timer) {
     // avoids the ghost-build false-positive: ghost thread running with solid
     // cache complete is a healthy waiting state, not a stall. See
     // gcode_viewer_watchdog.h; logic is unit-tested in test_gcode_viewer_watchdog.
-    const helix::gcode_viewer::WatchdogObservation obs{
-        cached, target, st->watchdog_last_cached_layer_, st->watchdog_last_target_layer_,
-        st->watchdog_stall_streak_};
+    const helix::gcode_viewer::WatchdogObservation obs{cached,
+                                                       target,
+                                                       st->watchdog_last_cached_layer_,
+                                                       st->watchdog_last_target_layer_,
+                                                       st->watchdog_stall_streak_,
+                                                       gcode_viewer_can_draw(obj)};
     const auto decision =
         helix::gcode_viewer::watchdog_evaluate(obs, gcode_viewer_state_t::WATCHDOG_MAX_STALL_KICKS);
     st->watchdog_stall_streak_ = decision.stall_streak;
@@ -1541,6 +1560,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     st->first_render = true;        // Reset for new file
     st->first_frame_fired_ = false; // Reset first-frame callback for new file
     st->budget_forced_2d_ = false;  // Reset budget 2D override for new file
+    gcode_viewer_watchdog_restart(st);
 
     // Bump generation so any in-flight async callbacks from a prior load are rejected
     const uint64_t gen = st->bump_generation();
@@ -2196,11 +2216,8 @@ void ui_gcode_viewer_set_paused(lv_obj_t* obj, bool paused) {
         if (!paused) {
             lv_obj_invalidate(obj);
 
-            // Reset watchdog baseline on resume — the layer-stall comparison
-            // should start fresh from the resumed state, not flag the post-pause
-            // tick as "stalled" just because the cache didn't move while paused.
-            st->watchdog_last_cached_layer_ = -2;
-            st->watchdog_last_target_layer_ = -2;
+            // The cache did not move while paused, which is not a stall.
+            gcode_viewer_watchdog_restart(st);
         }
     }
 }
@@ -3043,6 +3060,33 @@ extern "C" void ui_gcode_viewer_register(void) {
     spdlog::trace("[GCode Viewer] Registered <gcode_viewer> widget with LVGL XML system");
 }
 
+namespace helix::test_access {
+
+GcodeViewerWatchdogTrack gcode_viewer_watchdog_track(lv_obj_t* viewer) {
+    gcode_viewer_state_t* st = viewer ? get_state(viewer) : nullptr;
+    if (!st) {
+        return {};
+    }
+    return {st->watchdog_last_cached_layer_, st->watchdog_last_target_layer_,
+            st->watchdog_stall_streak_};
+}
+
+void gcode_viewer_set_watchdog_track(lv_obj_t* viewer, const GcodeViewerWatchdogTrack& track) {
+    gcode_viewer_state_t* st = viewer ? get_state(viewer) : nullptr;
+    if (!st) {
+        return;
+    }
+    st->watchdog_last_cached_layer_ = track.prev_cached;
+    st->watchdog_last_target_layer_ = track.prev_target;
+    st->watchdog_stall_streak_ = track.stall_streak;
+}
+
+bool gcode_viewer_watchdog_can_draw(lv_obj_t* viewer) {
+    return viewer != nullptr && gcode_viewer_can_draw(viewer);
+}
+
+} // namespace helix::test_access
+
 #else // !HELIX_HAS_GCODE_VIEWER
 
 // Compiled-out build (HELIX_HAS_GCODE_VIEWER=0): stub widget keeps XML layouts
@@ -3280,5 +3324,15 @@ bool ui_gcode_viewer_pump_offscreen_2d(lv_obj_t*) {
 float ui_gcode_viewer_get_load_progress(lv_obj_t*) {
     return 0.0f;
 }
+
+namespace helix::test_access {
+GcodeViewerWatchdogTrack gcode_viewer_watchdog_track(lv_obj_t*) {
+    return {};
+}
+void gcode_viewer_set_watchdog_track(lv_obj_t*, const GcodeViewerWatchdogTrack&) {}
+bool gcode_viewer_watchdog_can_draw(lv_obj_t*) {
+    return false;
+}
+} // namespace helix::test_access
 
 #endif // HELIX_HAS_GCODE_VIEWER

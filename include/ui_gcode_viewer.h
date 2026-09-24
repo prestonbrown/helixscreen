@@ -725,4 +725,21 @@ float ui_gcode_viewer_get_load_progress(lv_obj_t* obj);
  */
 bool ui_gcode_viewer_pump_offscreen_2d(lv_obj_t* obj);
 
+namespace helix::test_access {
+/// What the stall watchdog carries between ticks (-2 = never sampled).
+struct GcodeViewerWatchdogTrack {
+    int prev_cached = -2;
+    int prev_target = -2;
+    int stall_streak = 0;
+};
+
+/// Read or seed the watchdog's between-tick state, which production only
+/// reaches through a 2D render stalling on a live print.
+GcodeViewerWatchdogTrack gcode_viewer_watchdog_track(lv_obj_t* viewer);
+void gcode_viewer_set_watchdog_track(lv_obj_t* viewer, const GcodeViewerWatchdogTrack& track);
+
+/// Whether the watchdog treats @p viewer as drawn this tick.
+bool gcode_viewer_watchdog_can_draw(lv_obj_t* viewer);
+} // namespace helix::test_access
+
 #endif
