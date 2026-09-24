@@ -56,21 +56,21 @@ One page is designated as the **main page** (the first page by default). This is
 
 ### Adding a Page
 
-You add a page while swiping normally — not in Edit Mode:
+You add a page while swiping normally, not in Edit Mode:
 
-1. **Swipe left** past your last page — an **"Add page" tile** appears, with a round "+" button and its caption
-2. Tap the **"+"** — a new empty page is created immediately and you land on it
+1. **Swipe left** past your last page: an **"Add page" tile** appears, with a round "+" button and its caption
+2. Tap the **"+"**: a new empty page is created immediately and you land on it
 3. Add widgets to the new page as usual (long-press an empty spot on it to open the Widget Catalog)
 
 You can have up to **8 pages** maximum.
 
 ### Deleting a Page
 
-1. **Long-press** the widget grid to enter **Edit Mode** while on the page you want to delete (this must be a secondary page — see below)
+1. **Long-press** the widget grid to enter **Edit Mode** while on the page you want to delete (this must be a secondary page; see below)
 2. Tap the **red trash button** in the top-right corner
 3. Confirm with **Delete** in the "Delete Page" dialog
 
-The page and all widgets on it are removed. The **main page cannot be deleted** — the trash button only appears on secondary pages, and only when you have more than one page.
+The page and all widgets on it are removed. The **main page cannot be deleted**: the trash button only appears on secondary pages, and only when you have more than one page.
 
 ### Page Limit
 
