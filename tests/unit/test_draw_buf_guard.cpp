@@ -83,11 +83,16 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_draw_buf_destroy drains the draw units b
 
     helix::safe_draw_buf_destroy(buf, "test_buf");
 
-    // The whole point of the helper: no in-flight draw task can still be
-    // reading the buffer by the time lv_draw_buf_destroy() runs. Dropping the
-    // lv_draw_wait_for_finish() call - which is exactly what
-    // GCodeGLESRenderer::clear_cached_frame() had done - leaves this at 0.
+    // The whole point of the helper: no in-flight draw task can still be reading the
+    // buffer by the time lv_draw_buf_destroy() runs. Dropping the
+    // lv_draw_wait_for_finish() call leaves this at 0. A draw unit only renders on its
+    // own thread when LVGL has an OS, so only then is there anything to drain; a
+    // single-threaded build has already finished every task and drains nothing.
+#if LV_USE_OS
     CHECK(spy.waits() == 1);
+#else
+    CHECK(spy.waits() == 0);
+#endif
 
     // And the caller is not left holding the pointer it just handed over.
     CHECK(buf == nullptr);
