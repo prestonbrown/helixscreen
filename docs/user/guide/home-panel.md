@@ -56,15 +56,25 @@ One page is designated as the **main page** (the first page by default). This is
 
 ### Adding a Page
 
-1. Enter **Edit Mode** (long-press the widget grid)
-2. Swipe to the **last page** — a **"+" tile** appears
-3. Tap the **"+"** to create a new empty page
-4. You can have up to **8 pages** maximum
-5. Exit Edit Mode and start adding widgets to your new page
+You add a page while swiping normally, not in Edit Mode:
+
+1. **Swipe left** past your last page: an **"Add page" tile** appears, with a round "+" button and its caption
+2. Tap the **"+"**: a new empty page is created immediately and you land on it
+3. Add widgets to the new page as usual: long-press to enter Edit Mode, then long-press an empty spot to open the Widget Catalog (see [Adding a Widget](#adding-a-widget))
+
+You can have up to **8 pages** maximum.
+
+### Deleting a Page
+
+1. **Long-press** the widget grid to enter **Edit Mode** while on the page you want to delete (this must be a secondary page; see below)
+2. Tap the **red trash button** in the top-right corner
+3. Confirm with **Delete** in the "Delete Page" dialog
+
+The page and all widgets on it are removed. The **main page cannot be deleted**: the trash button only appears on secondary pages, and only when you have more than one page.
 
 ### Page Limit
 
-The dashboard supports up to **8 pages**. Once you reach the limit, the "+" tile no longer appears.
+The dashboard supports up to **8 pages**. Once you reach the limit, the "Add page" tile no longer appears when you swipe past your last page.
 
 ---
 
@@ -74,7 +84,7 @@ Edit Mode is how you customize your dashboard layout. While in Edit Mode, all no
 
 > **Edit Mode is on by default.** If it triggers accidentally when a finger rests on the screen (common on a tablet lying flat), you have two options: turn it off entirely with **Allow Home Screen Editing** under **Settings → System → Touch & Input**, or raise the **Long Press Time** slider in the same page so a longer hold is required. Both take effect immediately.
 
-**Page swiping in Edit Mode:** Swiping between pages is disabled while in Edit Mode so you can drag widgets without accidentally changing pages. The one exception is swiping past the last page to reach the "+" add-page tile. When you exit Edit Mode, normal page swiping is re-enabled.
+**Page swiping in Edit Mode:** Swiping between pages is disabled while in Edit Mode so you can drag widgets without accidentally changing pages. Add and delete pages from outside Edit Mode (adding) or via the trash button (deleting) as described under [Multiple Pages](#adding-a-page). When you exit Edit Mode, normal page swiping is re-enabled.
 
 ### Entering Edit Mode
 
