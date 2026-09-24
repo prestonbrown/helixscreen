@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Installer gating for the QIDI .3mf plate-thumbnail helper
-# (prestonbrown/helixscreen#1713): the helper units are installed only on a
-# QIDI-class host whose Moonraker fork hardcodes the .thumbs path
-# (generate_thumb_path in file_manager/metadata.py), and uninstall removes
-# them again.
+# Installer and Moonraker-update refresh gating for the QIDI .3mf
+# plate-thumbnail helper (prestonbrown/helixscreen#1713). Both paths run the
+# same shipped script, config/qidi-3mf-thumbs-units.sh, whose capability gate
+# is generate_thumb_path in Moonraker's file_manager metadata.py; uninstall
+# removes the units again.
 
 WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
@@ -24,6 +24,12 @@ setup() {
     export ETC_SYSTEMD="$MOCK_ROOT/etc/systemd/system"
     export GCODES_DIR="$MOCK_ROOT/home/qidi/printer_data/gcodes"
     mkdir -p "$ETC_SYSTEMD" "$GCODES_DIR"
+    # The shipped gate+install script, with /etc redirected into the fixture.
+    # It sits at its real payload location so its own IDIR discovery works.
+    sed -e "s|/etc/systemd/system|$ETC_SYSTEMD|g" \
+        "$WORKTREE_ROOT/config/qidi-3mf-thumbs-units.sh" \
+        > "$INSTALL_DIR/config/qidi-3mf-thumbs-units.sh"
+    chmod +x "$INSTALL_DIR/config/qidi-3mf-thumbs-units.sh"
 
     export DISABLED_SERVICES_FILE="$INSTALL_DIR/config/.disabled_services"
     export TMP_DIR="$BATS_TEST_TMPDIR/stage"
@@ -56,18 +62,13 @@ write_moonraker_metadata() {
     printf '%s\n' "$1" > "$meta"
 }
 
-be_qidi() { _is_qidi_class_sbc() { return 0; }; }
-not_qidi() { _is_qidi_class_sbc() { return 1; }; }
-
-@test "qidi thumbs: installs the units when qidi-class and moonraker hardcodes the thumb path" {
-    be_qidi
+@test "qidi thumbs: installs the units when moonraker hardcodes the thumb path" {
     write_moonraker_metadata 'def generate_thumb_path(input_filepath, root_path, plant_index):
     return ".thumbs/plate_1.png"'
 
-    log_info() { echo "INFO: $*"; }
     run install_qidi_3mf_thumbs
     [ "$status" -eq 0 ]
-    echo "$output" | grep -q "thumbnail helper"
+    echo "$output" | grep -q "thumbnail helper units"
 
     [ -f "$ETC_SYSTEMD/helixscreen-3mf-thumbs.path" ]
     [ -f "$ETC_SYSTEMD/helixscreen-3mf-thumbs.service" ]
@@ -86,8 +87,7 @@ not_qidi() { _is_qidi_class_sbc() { return 1; }; }
     grep -q "start helixscreen-3mf-thumbs.service" "$SYSTEMD_LOG"
 }
 
-@test "qidi thumbs: install is idempotent (second run touches no systemd state)" {
-    be_qidi
+@test "qidi thumbs: unchanged units are not rewritten, only enablement is repaired" {
     write_moonraker_metadata "def generate_thumb_path(): pass"
 
     run install_qidi_3mf_thumbs
@@ -95,64 +95,54 @@ not_qidi() { _is_qidi_class_sbc() { return 1; }; }
     local first
     first=$(cat "$ETC_SYSTEMD/helixscreen-3mf-thumbs.service")
 
-    # systemctl failing loudly proves the second run never reaches it.
-    mock_command_script systemctl 'echo "systemctl must not run again" >&2; exit 1'
     : > "$SYSTEMD_LOG"
     run install_qidi_3mf_thumbs
     [ "$status" -eq 0 ]
-    [ -z "$(cat "$SYSTEMD_LOG")" ]
     [ "$(cat "$ETC_SYSTEMD/helixscreen-3mf-thumbs.service")" = "$first" ]
+    # Cheap idempotent state repair runs on the no-change path too...
+    grep -q "enable helixscreen-3mf-thumbs.service" "$SYSTEMD_LOG"
+    grep -q "enable helixscreen-3mf-thumbs.path" "$SYSTEMD_LOG"
+    grep -q "start helixscreen-3mf-thumbs.path" "$SYSTEMD_LOG"
+    # ...but nothing heavier: no reload, no backfill re-run.
+    ! grep -q "daemon-reload" "$SYSTEMD_LOG"
+    ! grep -q "start helixscreen-3mf-thumbs.service" "$SYSTEMD_LOG"
 }
 
 @test "qidi thumbs: skips when metadata.py lacks generate_thumb_path" {
-    be_qidi
     write_moonraker_metadata "def extract_3mf(zf, filename): pass"
 
-    log_info() { echo "INFO: $*"; }
     run install_qidi_3mf_thumbs
     [ "$status" -eq 0 ]
-    echo "$output" | grep -qi "skipping.*thumbnail"
+    echo "$output" | grep -q "extracts .3mf thumbnails itself"
     [ ! -e "$ETC_SYSTEMD/helixscreen-3mf-thumbs.path" ]
     [ ! -e "$ETC_SYSTEMD/helixscreen-3mf-thumbs.service" ]
 }
 
 @test "qidi thumbs: skips when no moonraker metadata.py is found" {
-    be_qidi
-
     run install_qidi_3mf_thumbs
     [ "$status" -eq 0 ]
+    echo "$output" | grep -q "no Moonraker metadata.py"
     [ ! -e "$ETC_SYSTEMD/helixscreen-3mf-thumbs.path" ]
-}
-
-@test "qidi thumbs: skips on a non-qidi host" {
-    not_qidi
-    write_moonraker_metadata "def generate_thumb_path(): pass"
-
-    run install_qidi_3mf_thumbs
-    [ "$status" -eq 0 ]
-    [ ! -e "$ETC_SYSTEMD/helixscreen-3mf-thumbs.path" ]
-    [ ! -e "$ETC_SYSTEMD/helixscreen-3mf-thumbs.service" ]
 }
 
 @test "qidi thumbs: skips when the gcodes directory is missing" {
-    be_qidi
     write_moonraker_metadata "def generate_thumb_path(): pass"
     rm -rf "$GCODES_DIR"
 
-    log_warn() { echo "WARN: $*"; }
     run install_qidi_3mf_thumbs
     [ "$status" -eq 0 ]
+    echo "$output" | grep -q "gcodes directory not found"
     [ ! -e "$ETC_SYSTEMD/helixscreen-3mf-thumbs.path" ]
 }
 
 @test "qidi thumbs: never falls back to running as root" {
-    be_qidi
     write_moonraker_metadata "def generate_thumb_path(): pass"
     KLIPPER_USER="root"
     KLIPPER_GROUP="root"
 
     run install_qidi_3mf_thumbs
     [ "$status" -eq 0 ]
+    echo "$output" | grep -q "non-root service user"
     [ ! -e "$ETC_SYSTEMD/helixscreen-3mf-thumbs.service" ]
 }
 
@@ -201,4 +191,54 @@ EOF
 
 @test "qidi thumbs: main install flow wires the step in" {
     grep -q "install_qidi_3mf_thumbs" "$WORKTREE_ROOT/scripts/lib/installer/main.sh"
+}
+
+# The Moonraker web-update refresh: an in-app update runs install.sh under
+# NoNewPrivileges (no sudo), so this root-privileged path is what installs the
+# units on a machine updating from a release that lacked them.
+setup_refresh_fixture() {
+    sed -e "s|/etc/systemd/system|$ETC_SYSTEMD|g" \
+        "$WORKTREE_ROOT/config/refresh-service-units.sh" \
+        > "$INSTALL_DIR/config/refresh-service-units.sh"
+    # A stable install dir so the refresh's settle-wait returns immediately.
+    mkdir -p "$INSTALL_DIR/bin"
+    printf '#!/bin/sh\n' > "$INSTALL_DIR/bin/helix-screen"
+    printf '{}' > "$INSTALL_DIR/release_info.json"
+    # The identity source the refresh reads before overwriting the service:
+    # User= there is the Klipper user on these single-user installs.
+    cat > "$ETC_SYSTEMD/helixscreen.service" <<EOF
+[Service]
+User=qidi
+Group=qidi
+EOF
+}
+
+@test "qidi thumbs: update refresh installs the units on a host that had none" {
+    setup_refresh_fixture
+    write_moonraker_metadata "def generate_thumb_path(): pass"
+    # The refresh learns the home the way it does in production would be via
+    # passwd; the fixture's home is not in the real passwd, so name it.
+    export HELIX_QIDI_HOME="$MOCK_ROOT/home/qidi"
+
+    run sh "$INSTALL_DIR/config/refresh-service-units.sh"
+    [ "$status" -eq 0 ]
+
+    [ -f "$ETC_SYSTEMD/helixscreen-3mf-thumbs.path" ]
+    [ -f "$ETC_SYSTEMD/helixscreen-3mf-thumbs.service" ]
+    grep -qF "PathChanged=$GCODES_DIR" "$ETC_SYSTEMD/helixscreen-3mf-thumbs.path"
+    grep -qF "User=qidi" "$ETC_SYSTEMD/helixscreen-3mf-thumbs.service"
+    grep -q "enable helixscreen-3mf-thumbs.path" "$SYSTEMD_LOG"
+}
+
+@test "qidi thumbs: update refresh does nothing when the gate fails" {
+    setup_refresh_fixture
+    write_moonraker_metadata "def extract_3mf(zf, filename): pass"
+    export HELIX_QIDI_HOME="$MOCK_ROOT/home/qidi"
+
+    run sh "$INSTALL_DIR/config/refresh-service-units.sh"
+    [ "$status" -eq 0 ]
+
+    [ ! -e "$ETC_SYSTEMD/helixscreen-3mf-thumbs.path" ]
+    [ ! -e "$ETC_SYSTEMD/helixscreen-3mf-thumbs.service" ]
+    echo "$output" | grep -q "generate_thumb_path"
 }

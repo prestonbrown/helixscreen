@@ -7,6 +7,8 @@ which nothing writes once the stock screen client is stopped
 (prestonbrown/helixscreen#1713).
 """
 
+import importlib.util
+import io
 import os
 import subprocess
 import sys
@@ -190,3 +192,103 @@ def test_missing_root_exits_nonzero(tmp_path):
     res = run_helper(tmp_path / "nowhere")
     assert res.returncode != 0
     assert res.stderr.strip()
+
+
+def make_corrupt_member_3mf(path):
+    """A zip whose central directory is intact but whose plate member's
+    deflate stream has a flipped byte: it opens fine, and only reading the
+    member raises."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("Metadata/plate_1.png", bytes(range(256)) * 16)
+    raw = bytearray(buf.getvalue())
+    header = raw.index(b"PK\x03\x04")
+    name_len = raw[header + 26] | (raw[header + 27] << 8)
+    extra_len = raw[header + 28] | (raw[header + 29] << 8)
+    data_start = header + 30 + name_len + extra_len
+    # Byte 0 is the deflate header (BFINAL/BTYPE); corrupting it raises
+    # zlib.error from read(), where a mid-stream flip only fails the CRC.
+    raw[data_start] ^= 0xFF
+    path.write_bytes(bytes(raw))
+    return path
+
+
+def load_helper_module():
+    spec = importlib.util.spec_from_file_location("qidi_3mf_thumbs", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_corrupt_deflate_member_does_not_stop_the_run(root):
+    make_corrupt_member_3mf(root / "Broken.3mf")
+    make_3mf(root / "Fine.3mf", {1: PNG1})
+
+    res = run_helper(root)
+    assert res.returncode == 0
+    assert "Broken.3mf" in res.stderr
+    assert not (root / ".thumbs" / "Broken").exists()
+    assert (root / ".thumbs" / "Fine" / "plate_1.png").read_bytes() == PNG1
+
+
+def test_current_destination_is_not_decompressed(root):
+    # A current destination plus a member that cannot be read: silence (no
+    # skip log, no rewrite) is the proof the member was never decompressed,
+    # because reading it would raise and log.
+    make_corrupt_member_3mf(root / "Fresh.3mf")
+    dest = root / ".thumbs" / "Fresh" / "plate_1.png"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"\x89PNG existing")
+    os.utime(dest, None)  # newer than the archive: nothing to do
+
+    res = run_helper(root)
+    assert res.returncode == 0, res.stderr
+    assert res.stderr == ""
+    assert dest.read_bytes() == b"\x89PNG existing"
+
+
+def test_oversized_plate_member_is_refused(root):
+    make_3mf(root / "Huge.3mf", {1: b"\0" * (16 * 1024 * 1024 + 1)})
+
+    res = run_helper(root)
+    assert res.returncode == 0
+    assert not (root / ".thumbs" / "Huge" / "plate_1.png").exists()
+    assert "too large" in res.stderr
+
+
+def test_unreadable_archive_is_retried_once(root, monkeypatch):
+    # A copy still in flight reads as a bad zip on the first pass; the helper
+    # pauses and retries exactly the unreadable files.
+    module = load_helper_module()
+    make_3mf(root / "Racing.3mf", {1: PNG1})
+
+    real_zipfile = zipfile.ZipFile
+    opens = {"n": 0}
+
+    class FlakyZip:
+        def __init__(self, path):
+            opens["n"] += 1
+            if opens["n"] == 1:
+                raise zipfile.BadZipFile("upload still in flight")
+            self._zf = real_zipfile(path)
+
+        def __enter__(self):
+            self._zf.__enter__()
+            return self
+
+        def __exit__(self, *exc):
+            return self._zf.__exit__(*exc)
+
+        def __getattr__(self, name):
+            return getattr(self._zf, name)
+
+    monkeypatch.setattr(module.zipfile, "ZipFile", FlakyZip)
+    sleeps = []
+    monkeypatch.setattr(module.time, "sleep", lambda s: sleeps.append(s))
+
+    wrote = module.extract_thumbs(str(root))
+
+    assert wrote == 1
+    assert opens["n"] == 2
+    assert sleeps == [2]
+    assert (root / ".thumbs" / "Racing" / "plate_1.png").read_bytes() == PNG1
