@@ -463,12 +463,16 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
     const int BTN_OVERHANG = BTN_SIZE / 4; // 25% shift outside widget bounds
     // The pills are text-colour fills at half opacity that float out over the
     // grid container, so the icon colour is contrasted against that composite
-    // over the screen background (the darker worst case; widget cards sit
-    // within a few units of it), not against the raw fill.
+    // over the screen background, not against the raw fill. In the shipped
+    // themes the screen composite is the harder of the two backings the pill
+    // overlaps (screen and widget card) for the icon polarity chosen.
+    // The icons are small glyphs, so they are held to the 4.5:1 body-text
+    // bar rather than the 4:1 large-text default.
+    constexpr double kChromeIconContrast = 4.5;
     const lv_color_t btn_bg = theme_manager_get_color("text");
     const lv_color_t pill_backing = theme_manager_get_color("screen_bg");
     const lv_color_t icon_color = theme_manager_get_contrast_adjusted_text(
-        theme_manager_get_color("text"), btn_bg, pill_backing, LV_OPA_50, 4.5);
+        theme_manager_get_color("text"), btn_bg, pill_backing, LV_OPA_50, kChromeIconContrast);
 
     // Shared construction for the trash and configure pills: floating circle,
     // translucent fill, centred icon. Dynamic overlay chrome uses
