@@ -37,9 +37,8 @@ struct HomePanelTestAccess {
     }
 
     /// Run build_carousel() against whatever tree setup() stored. The caller
-    /// supplies a panel containing a named "carousel_host" child (see
-    /// make_home_panel_tree in the carousel tests) and seeds the widget config
-    /// pages beforehand.
+    /// supplies a panel containing a named "carousel_host" child and seeds
+    /// the widget config pages beforehand.
     static void build_carousel(HomePanel& panel) {
         panel.build_carousel();
     }

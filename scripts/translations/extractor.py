@@ -186,6 +186,9 @@ CPP_TRANSLATABLE_PATTERNS = [
     r"lv_tr\s*\(\s*" + ADJACENT_LITERALS_GROUP,
     # lv_label_set_text(label, "text")
     r"lv_label_set_text\s*\([^,]+,\s*" + ADJACENT_LITERALS_GROUP,
+    # lv_label_set_translation_tag(label, "text") - the tag IS the translation
+    # key; LVGL refreshes the label from it on a language switch
+    r"lv_label_set_translation_tag\s*\([^,]+,\s*" + ADJACENT_LITERALS_GROUP,
     # return "Status Text"  (for status strings) — single literal only
     r'return\s+"([A-Z][a-z][^"]{2,30})"',
 ]

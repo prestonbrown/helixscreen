@@ -215,6 +215,7 @@ void HomePanel::build_carousel() {
         lv_obj_remove_flag(plus_btn, LV_OBJ_FLAG_SCROLLABLE);
 
         lv_obj_t* plus_label = lv_label_create(plus_btn);
+        lv_obj_set_name(plus_label, "add_page_plus");
         lv_label_set_text(plus_label, ui_icon::lookup_codepoint("plus"));
         lv_obj_set_style_text_font(plus_label, &mdi_icons_32, LV_PART_MAIN);
         lv_obj_set_style_text_color(plus_label, theme_manager_get_color("primary"), LV_PART_MAIN);
@@ -224,7 +225,9 @@ void HomePanel::build_carousel() {
         // makes it read as a control rather than decoration.
         lv_obj_t* caption = lv_label_create(add_page_tile_);
         lv_obj_set_name(caption, "add_page_caption");
-        lv_label_set_text(caption, lv_tr("Add page"));
+        // The tag (not lv_label_set_text + lv_tr) is what makes LVGL refresh
+        // this caption when the user switches language while the panel is up.
+        lv_label_set_translation_tag(caption, "Add page");
         lv_obj_set_style_text_color(caption, theme_manager_get_color("text"), LV_PART_MAIN);
         lv_obj_align_to(caption, plus_btn, LV_ALIGN_OUT_BOTTOM_MID, 0,
                         theme_manager_get_spacing("space_md"));
