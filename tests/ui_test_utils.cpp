@@ -770,9 +770,9 @@ bool ToastManager::is_visible() const {
     return false;
 }
 
-// refresh_duplicate() is NOT stubbed here — it's defined inline in
-// include/ui_toast_manager.h so the test binary links the same
-// implementation the real app uses. See the comment on that declaration.
+// refresh_duplicate() and find_owning_toast() are NOT stubbed here — they are
+// defined inline in include/ui_toast_manager.h so the test binary links the
+// same implementations the real app uses. See the comments on those declarations.
 
 // Text input widget implementation for tests
 // This is a full implementation, not a stub, because tests need to actually

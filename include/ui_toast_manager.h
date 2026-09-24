@@ -138,6 +138,28 @@ class ToastManager {
         }
         return false;
     }
+    /** Resolve the toast that owns @p node: @p node itself or any descendant
+     *  of a widget in active_. Returns active_.end() when the node lives
+     *  outside every registered toast — the safe no-op answer for event
+     *  callbacks that can fire after their toast's list entry is gone
+     *  (deinit_subjects runs on printer switches, not only before lv_deinit).
+     *
+     *  Defined inline for the same reason as refresh_duplicate() above:
+     *  mk/tests.mk excludes ui_toast_manager.o from the test build and
+     *  tests/ui_test_utils.cpp stubs the class, so an out-of-line definition
+     *  would never be linked into helix-tests and the unit tests would
+     *  exercise a stub, not the real walk. Depends only on lvgl.h; do not
+     *  move it to ui_toast_manager.cpp or add includes here. */
+    ToastList::iterator find_owning_toast(lv_obj_t* node) {
+        while (node) {
+            for (auto it = active_.begin(); it != active_.end(); ++it) {
+                if (it->widget == node)
+                    return it;
+            }
+            node = lv_obj_get_parent(node);
+        }
+        return active_.end();
+    }
     void begin_exit(ToastList::iterator it);
     void force_remove(ToastList::iterator it); // no animation
     void finalize_remove(lv_obj_t* widget);    // called from exit-anim completion
