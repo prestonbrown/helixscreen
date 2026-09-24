@@ -4257,6 +4257,7 @@
       "name": "FLSUN S1 / S1 Pro",
       "manufacturer": "FLSUN",
       "image": "flsun-s1.png",
+      "z_offset_calibration_strategy": "endstop",
       "heuristics": [
         {
           "type": "object_required",
