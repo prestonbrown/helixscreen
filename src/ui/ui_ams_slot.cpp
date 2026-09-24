@@ -292,11 +292,40 @@ static void apply_slot_material(AmsSlotData* data, const char* material) {
         lv_label_set_text(data->material_label, "--");
         return;
     }
-    std::string text = material;
-    if (data->total_count > 4 && text.length() > 4) {
-        text = text.substr(0, 4);
+    std::string text;
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (backend && data->slot_index >= 0) {
+        SlotInfo slot = backend->get_slot_info(data->slot_index);
+        const auto identity = SpoolmanManager::find_identity(slot.spoolman_id);
+        const auto parts =
+            resolve_filament_label_parts(slot, identity ? &*identity : nullptr, "");
+
+        std::string primary = parts.name.empty() ? parts.brand : parts.name;
+        std::string mat = parts.material.empty() ? (material ? material : "") : parts.material;
+
+        if (!primary.empty()) {
+            // Deduplicate redundant material tokens from primary descriptor
+            if (!mat.empty() && primary.rfind(mat + " ", 0) == 0) {
+                primary = primary.substr(mat.length() + 1);
+            }
+            // Format 2-line layout for <= 4 slots
+            if (data->total_count <= 4) {
+                if (primary.length() > 10) {
+                    primary = primary.substr(0, 9) + "…";
+                }
+                if (!mat.empty() && !material_is_redundant(primary, mat)) {
+                    text = primary + "\n" + mat;
+                } else {
+                    text = primary;
+                }
+            } else {
+                text = primary + " " + mat;
+                if (text.length() > 8) text = text.substr(0, 8);
+            }
+        }
     }
     lv_label_set_text(data->material_label, text.c_str());
+    lv_obj_set_style_text_align(data->material_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
 }
 
 /// Re-apply the material label from the live per-slot material subject.
