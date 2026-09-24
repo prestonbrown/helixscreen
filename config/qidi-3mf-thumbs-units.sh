@@ -7,15 +7,14 @@
 # One copy of the gate, shared by both callers so they cannot drift:
 #   - scripts/lib/installer/competing_uis.sh runs this (via $SUDO) at install
 #     time, passing the Klipper user it resolved;
-#   - config/refresh-service-units.sh runs it as root after a Moonraker web
-#     update replaces the install dir -- the in-app update path has no sudo
-#     under NoNewPrivileges, so that refresh is what installs the units on an
-#     updating 1.0.1 machine.
+#   - config/refresh-service-units.sh runs it as root after an update
+#     replaces the install dir; the in-app update path has no sudo under
+#     NoNewPrivileges, so that refresh is how an updating machine gets them.
 #
-# The gate is a capability, not a vendor: wherever Moonraker's file_manager
-# metadata.py hardcodes generate_thumb_path, the stock screen client was the
-# only writer of gcodes/.thumbs/<subdir>/<stem>/plate_N.png and something has
-# to replace it. Only QIDI's Moonraker fork carries that function.
+# The gate is a capability, not a vendor: a Moonraker whose file_manager
+# metadata.py has generate_thumb_path advertises
+# gcodes/.thumbs/<subdir>/<stem>/plate_N.png for every .3mf without writing
+# it. Only QIDI's Moonraker fork carries that function.
 #
 # Usage: qidi-3mf-thumbs-units.sh <user> [group]
 # <user> is the Klipper/Moonraker user -- the one helixscreen.service runs
@@ -92,10 +91,17 @@ fi
 path_dest="/etc/systemd/system/helixscreen-3mf-thumbs.path"
 svc_dest="/etc/systemd/system/helixscreen-3mf-thumbs.service"
 
+# A private staging dir: this runs as root, and a fixed name under a
+# world-writable /tmp could be pre-planted as a symlink.
 TMPD="${TMP_DIR:-/tmp}"
 mkdir -p "$TMPD" 2>/dev/null || true
-staged_path="${TMPD}/helixscreen-3mf-thumbs.path.staged"
-staged_svc="${TMPD}/helixscreen-3mf-thumbs.service.staged"
+stage_dir="$(mktemp -d "${TMPD}/helixscreen-3mf-thumbs.XXXXXX" 2>/dev/null)" || {
+    qlog "could not create a staging directory -- skipping"
+    exit 0
+}
+trap 'rm -rf "$stage_dir"' EXIT
+staged_path="${stage_dir}/helixscreen-3mf-thumbs.path"
+staged_svc="${stage_dir}/helixscreen-3mf-thumbs.service"
 
 # Substitute the unit templates' placeholders into staged copies. Staging
 # rather than sed -i on the destination keeps the cmp below meaningful: it
