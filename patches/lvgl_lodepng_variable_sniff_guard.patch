@@ -1,0 +1,19 @@
+diff --git a/src/libs/lodepng/lv_lodepng.c b/src/libs/lodepng/lv_lodepng.c
+index 4ec0b1d13..56387056c 100644
+--- a/src/libs/lodepng/lv_lodepng.c
++++ b/src/libs/lodepng/lv_lodepng.c
+@@ -114,6 +114,14 @@ static lv_result_t decoder_info(lv_image_decoder_t * decoder, lv_image_decoder_d
+             const uint32_t data_size = img_dsc->data_size;
+             size = ((uint32_t *)img_dsc->data) + 4;
+ 
++            /* HelixScreen: only a source that declares itself encoded can be a PNG. A draw
++             * buffer names its pixel format, and its bytes are whatever it holds: a canvas
++             * buffer probed before it is cleared still carries the heap's previous contents,
++             * which can start with a PNG signature and would give the widget a size read
++             * from unrelated bytes (prestonbrown/helixscreen#1673). */
++            if(img_dsc->header.cf != LV_COLOR_FORMAT_UNKNOWN && img_dsc->header.cf != LV_COLOR_FORMAT_RAW &&
++               img_dsc->header.cf != LV_COLOR_FORMAT_RAW_ALPHA) return LV_RESULT_INVALID;
++
+             if(data_size < sizeof(magic)) return LV_RESULT_INVALID;
+             if(lv_memcmp(img_dsc->data, magic, sizeof(magic)) != 0) return LV_RESULT_INVALID;
+         }
