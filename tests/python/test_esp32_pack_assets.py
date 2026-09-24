@@ -43,17 +43,12 @@ def _skip_or_fail(reason: str) -> None:
 
     managed_components/ is gitignored (firmware/helixscreen-esp32/.gitignore)
     and holds zero tracked files -- it exists only after `idf.py reconfigure`.
-    A plain skipif reports green forever while every assertion below is silently
-    discarded, so the skip has to be impossible somewhere.
+    A plain skipif would report green forever while every assertion below is
+    silently discarded.
 
-    That somewhere is esp32-build.yml: its build already runs `idf.py
-    reconfigure` to vendor the component before packing the storage image, so
-    the packer is present and the round-trip is genuinely verifiable there. That
-    job runs this module with HELIX_FROGFS_REQUIRED=1, which turns every gate
-    below into a failure. Keying on $CI instead made the nightly test-python job
-    -- a plain checkout with no ESP-IDF, where the dependency cannot be fetched
-    -- fail on a gap it has no way to close. test_esp32_pack_assets_ci.bats pins
-    the esp32-build wiring so the skip cannot quietly become universal again."""
+    HELIX_FROGFS_REQUIRED=1 turns every gate below into a failure, for a job
+    that has vendored the packer. This release line runs no ESP32 firmware
+    build, so no job sets it and the module skips."""
     if os.environ.get("HELIX_FROGFS_REQUIRED"):
         pytest.fail(
             f"{reason}\n"
