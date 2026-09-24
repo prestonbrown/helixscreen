@@ -60,7 +60,7 @@ You add a page while swiping normally, not in Edit Mode:
 
 1. **Swipe left** past your last page: an **"Add page" tile** appears, with a round "+" button and its caption
 2. Tap the **"+"**: a new empty page is created immediately and you land on it
-3. Add widgets to the new page as usual (long-press an empty spot on it to open the Widget Catalog)
+3. Add widgets to the new page as usual: long-press to enter Edit Mode, then long-press an empty spot to open the Widget Catalog (see [Adding a Widget](#adding-a-widget))
 
 You can have up to **8 pages** maximum.
 
