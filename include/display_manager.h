@@ -690,6 +690,11 @@ class DisplayManager : public helix::ICalibrationSink {
     // Tick at which preview was started; used to gate activity-based dismiss
     // so the click that *launched* the preview doesn't immediately close it.
     uint32_t m_preview_start_tick_ms = 0;
+    // True while a lifecycle suspend DisplayManager itself requested (idle dim
+    // or screensaver preview) is still outstanding. NavigationManager's suspend
+    // has a second owner — Application's background/foreground pair — so a wake
+    // must only resume a suspend this manager took.
+    bool m_lifecycle_suspended = false;
 #endif
     bool m_wake_requested = false; // Set by input wrapper when touch detected while sleeping
     int m_dim_timeout_sec = 600;

@@ -22,12 +22,14 @@
 #include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "backlight_backend.h"
 #include "config.h"
 #include "display/lv_display_private.h" // inv_en_cnt, restored after every test
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "lvgl_test_fixture.h"
 #include "panel_lifecycle.h"
+#include "test_helpers/display_manager_test_access.h"
 #include "theme_manager.h"
 
 #include <array>
@@ -67,6 +69,27 @@ class CountingPanel : public PanelBase {
 };
 
 constexpr helix::PanelId TEST_PANEL = helix::PanelId::Home;
+
+/// Available backlight so the screensaver-off idle path dims instead, which
+/// marks the display dimmed without suspending any lifecycle.
+class FakeDimBacklight : public BacklightBackend {
+  public:
+    bool set_brightness(int percent) override {
+        last_brightness = percent;
+        return true;
+    }
+    int get_brightness() const override {
+        return last_brightness;
+    }
+    bool is_available() const override {
+        return true;
+    }
+    const char* name() const override {
+        return "FakeDimBacklight";
+    }
+
+    int last_brightness = 100;
+};
 
 /**
  * @brief NavigationManager seeded the way the running app has it
@@ -199,6 +222,37 @@ TEST_CASE_METHOD(SleepWakeFixture, "waking from sleep resumes the panel the scre
     mgr.check_display_sleep();
     REQUIRE(mgr.is_display_dimmed());
     REQUIRE(panel_.deactivates == 2);
+}
+
+TEST_CASE_METHOD(SleepWakeFixture, "waking does not resume a lifecycle Application suspended",
+                 "[application][display][sleep][wake][1245]") {
+    // Application::on_enter_background() owns a second suspend of the same
+    // NavigationManager latch. A wake that arrives while the app is backgrounded
+    // (print completion, remote control) must only resume a suspend
+    // DisplayManager itself requested — here a screensaver-off backlight dim,
+    // which marks the display dimmed without suspending anything.
+    configure_idle(/*screensaver_type=*/0, /*dim_sec=*/30, /*sleep_sec=*/60);
+
+    DisplayManager mgr;
+    DisplayManagerTestAccess::set_backlight(mgr, std::make_unique<FakeDimBacklight>());
+    mgr.set_dim_timeout(1);
+
+    lv_display_trigger_activity(nullptr);
+    process_lvgl(1300);
+    mgr.check_display_sleep();
+    REQUIRE(mgr.is_display_dimmed());
+    REQUIRE(panel_.deactivates == 0); // the dim stage suspended nothing
+
+    // Application-style suspend, straight through NavigationManager.
+    NavigationManager::instance().suspend_active();
+    REQUIRE(panel_.deactivates == 1);
+
+    lv_display_trigger_activity(nullptr);
+    mgr.check_display_sleep();
+    REQUIRE_FALSE(mgr.is_display_dimmed());
+    // The wake must not steal Application's suspend.
+    REQUIRE(panel_.activates == 0);
+    REQUIRE(panel_.deactivates == 1);
 }
 
 TEST_CASE_METHOD(SleepWakeFixture,
