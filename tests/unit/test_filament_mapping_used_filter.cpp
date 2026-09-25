@@ -338,6 +338,27 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Unknown gcode colour draws no fill o
     process_lvgl(100);
 }
 
+TEST_CASE_METHOD(MappingCardRenderFixture,
+                 "Top band names the material, falling back to the tool number",
+                 "[filament_mapping][swatch]") {
+    card.update({"#FF0000", "#00FF00"}, {"ASA", ""});
+    REQUIRE(lv_obj_get_child_count(rows) == 2);
+
+    auto visible_text = [&](uint32_t idx, const char* name) -> std::string {
+        lv_obj_t* const lbl =
+            lv_obj_find_by_name(lv_obj_get_child(rows, static_cast<int32_t>(idx)), name);
+        REQUIRE(lbl != nullptr);
+        return lv_obj_has_flag(lbl, LV_OBJ_FLAG_HIDDEN) ? "" : lv_label_get_text(lbl);
+    };
+
+    CHECK(visible_text(0, "material_label") == "ASA");
+    CHECK(visible_text(0, "tool_label").empty());
+    CHECK(visible_text(1, "material_label").empty());
+    CHECK(visible_text(1, "tool_label") == "T1");
+
+    process_lvgl(100);
+}
+
 namespace {
 
 /// Load lane @p index with a colour and material. The card reads lanes through

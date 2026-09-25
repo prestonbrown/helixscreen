@@ -7,7 +7,9 @@
        unified tile split by a thin horizontal divider into two equal-size,
        full-bleed color bands:
          - TOP band "top_band": bg = the GCODE FILE intended color for this
-           tool (slicer palette). Label "tool_label" = gcode tool number ("T0").
+           tool (slicer palette). Label "material_label" = the file's material
+           for this tool ("ASA"), or "tool_label" = gcode tool number ("T0")
+           when the file names no material.
          - DIVIDER "divider": thin horizontal rule; color set per chip from C++.
          - BOTTOM band "bottom_band": bg = the ACTUAL present color of the
            EFFECTIVE mapped slot. Label "slot_label" = mapped lane number ("1").
@@ -22,7 +24,7 @@
        C++ (FilamentMappingCard::rebuild_compact_view) owns only the dynamic data:
          - top_band bg = gcode/palette intended color
          - bottom_band bg = mapped slot present color (or empty variant)
-         - tool_label text + contrast color (against top band bg)
+         - material_label or tool_label text + contrast color (against top band bg)
          - slot_label text + contrast color (against bottom band bg)
          - divider bg color (contrast against a blend of both bands)
          - LV_STATE_USER_1 on bottom_band for the empty-slot variant
@@ -63,6 +65,12 @@
       <lv_label name="tool_label"
                 text="" flex_grow="1" style_text_align="center" style_text_font="#font_small" style_text_color="#text"
                 clickable="false" event_bubble="true"/>
+      <!-- The file's material for this tool. Shown instead of tool_label
+           whenever it is known; the smaller font fits "PETG" and "PA-CF" in
+           the 40px chip, and anything longer clips rather than wrapping. -->
+      <lv_label name="material_label"
+                text="" hidden="true" flex_grow="1" long_mode="clip" style_text_align="center"
+                style_text_font="#font_xs" style_text_color="#text" clickable="false" event_bubble="true"/>
     </lv_obj>
     <!-- Divider: thin full-width rule (width="100%" for the same reason as the
          bands); color set per chip from C++. -->
