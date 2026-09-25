@@ -68,6 +68,7 @@ LVGL_PATCHED_FILES := \
 	src/widgets/label/lv_label.h \
 	src/widgets/label/lv_label_private.h \
 	src/libs/lodepng/lodepng.c \
+	src/libs/lodepng/lv_lodepng.c \
 	src/others/translation/lv_translation.c \
 	lv_conf_template.h
 # NOTE: src/misc/lv_check_arg.h is deliberately absent — the backport patch
@@ -608,6 +609,13 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD)
 		echo "$(GREEN)✓ lodepng bit-depth guard patch applied$(RESET)"; \
 	else \
 		echo "$(GREEN)✓ LVGL lodepng bit-depth guard patch already applied$(RESET)"; \
+	fi
+	$(Q)if git -C $(LVGL_DIR) apply --check $(PATCH_DIR)/lvgl_lodepng_variable_sniff_guard.patch 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying LVGL lodepng variable-source sniff guard (#1673)...$(RESET)"; \
+		git -C $(LVGL_DIR) apply $(PATCH_DIR)/lvgl_lodepng_variable_sniff_guard.patch && \
+		echo "$(GREEN)✓ lodepng variable-source sniff guard patch applied$(RESET)"; \
+	else \
+		echo "$(GREEN)✓ LVGL lodepng variable-source sniff guard patch already applied$(RESET)"; \
 	fi
 	$(Q)if git -C $(LVGL_DIR) apply --check $(PATCH_DIR)/lvgl_drm_egl_render_mode_fix.patch 2>/dev/null; then \
 		echo "$(YELLOW)→ Applying LVGL DRM EGL render mode fix (upstream ce112eb)...$(RESET)"; \
