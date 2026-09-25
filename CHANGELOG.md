@@ -13,13 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The file detail view no longer freezes the screen on large G-code files** - backing out
   while the preview was still building waited out the whole build on the interface thread,
-  tens of seconds on a large print. Cancelling now stops the indexing, geometry and cache
-  work promptly instead
+  which could take many seconds on a large print. Cancelling now stops the indexing,
+  geometry and cache work promptly instead
   ([#1706](https://github.com/prestonbrown/helixscreen/issues/1706)).
-- **File thumbnails no longer stall the list on printers without file metadata** - a
-  Moonraker that ignores range requests, as the QIDI Q2's does, answered a small header
-  request with the whole multi-megabyte gcode file, and every file-list entry parsed its
-  full file. The excess is discarded on arrival now
+- **File thumbnails on printers without file metadata stay bounded** - if Moonraker ignores
+  range requests and answers a small header read with the whole G-code file, only the
+  requested bytes are kept and parsed
   ([#1706](https://github.com/prestonbrown/helixscreen/issues/1706)).
 
 ## [1.0.2] - 2026-09-25
