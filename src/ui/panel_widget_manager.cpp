@@ -29,6 +29,12 @@
 
 namespace helix {
 
+PanelWidgetManager::PanelWidgetManager() = default;
+
+PanelWidgetManager::~PanelWidgetManager() {
+    s_destroyed_ = true;
+}
+
 PanelWidgetManager& PanelWidgetManager::instance() {
     static PanelWidgetManager instance;
     return instance;
@@ -55,8 +61,8 @@ void PanelWidgetManager::init_widget_subjects() {
 
     widget_subjects_initialized_ = true;
 
-    // Self-register per-printer cache invalidation. panel_configs_ / active_configs_ /
-    // grid_descriptors_ all derive from /printers/<active>/panel_widgets/<panel>, so an
+    // Self-register per-printer cache invalidation. panel_configs_ / active_configs_
+    // both derive from /printers/<active>/panel_widgets/<panel>, so an
     // active-printer change must drop them (#804). This manager is a process-lifetime
     // singleton, so there is no matching unregister().
     PrinterCacheRegistry::instance().register_invalidator(
@@ -623,13 +629,10 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
     // Generate grid descriptors sized to actual content
     // Columns: use breakpoint column count (fills available width)
     // Rows: use max of current and cached row count for stable sizing
-    // Installing a fresh generation for this key is the first moment a
-    // previously-retired one is unreferenced (the container's style re-points
-    // to the new arrays at the end of this populate) — drop it now.
-    retired_grid_descriptors_.erase(make_cache_key(panel_id, page_index));
-    auto& dsc = grid_descriptors_[make_cache_key(panel_id, page_index)];
+    // Built as a local and handed to the container's slot at install time
+    // (near the end of this populate) — that handoff owns the arrays' lifetime.
+    GridDescriptors dsc;
     dsc.col_dsc = GridLayout::make_col_dsc(breakpoint);
-    dsc.row_dsc.clear();
     for (int r = 0; r < grid_rows; ++r) {
         dsc.row_dsc.push_back(LV_GRID_FR(1));
     }
@@ -929,12 +932,14 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
     // per-cell grid placement. Install the grid descriptor + activate the grid
     // layout last so the very first grid_update runs over a complete, valid grid
     // in a single clean pass — never over a half-built one (#983).
+    // install_grid_descriptors stores the arrays in the container's
+    // grid_descriptors_ slot (re-pointing the style and only then freeing the
+    // previous generation), so they remain valid for the lifetime of the grid.
     // lv_obj_set_grid_dsc_array() is what turns the container into a live grid;
     // lv_obj_set_layout() is belt-and-suspenders. The explicit update_layout
     // forces that pass now and re-flows widgets whose attach() read a pre-grid
-    // size. `dsc` is stored in grid_descriptors_ (a member), so its backing
-    // arrays remain valid for the lifetime of the active grid.
-    lv_obj_set_grid_dsc_array(container, dsc.col_dsc.data(), dsc.row_dsc.data());
+    // size.
+    install_grid_descriptors(container, std::move(dsc));
     lv_obj_set_layout(container, LV_LAYOUT_GRID);
     lv_obj_update_layout(container);
 
@@ -1129,12 +1134,10 @@ void PanelWidgetManager::clear_panel_config(const std::string& panel_id) {
             ++it;
         }
     }
-    // Also erase grid descriptors for all pages of this panel. The vectors are
-    // RETIRED, not freed: the containers laid out with them may still exist and
-    // their grid style holds the raw dsc pointers (LVGL does not copy them).
-    // Freeing here was the 2026-08-17 nightly's heap-use-after-free —
-    // GridEditMode::current_metrics -> grid_count_tracks read the freed arrays.
-    retire_grid_descriptors_matching(prefix);
+    // Grid descriptors are keyed by container, not by this panel's pages: the
+    // containers laid out with them may still exist and their grid style holds
+    // the raw dsc pointers (LVGL does not copy them). They are freed when their
+    // container is deleted.
 }
 
 void PanelWidgetManager::clear_all_panel_configs() {
@@ -1146,30 +1149,39 @@ void PanelWidgetManager::clear_all_panel_configs() {
         (void)panel_id;
         config.mark_dirty();
     }
-    // Drop the per-page derived caches wholesale — they key on "panel:page" and
-    // describe the old printer's resolved widget list / grid geometry. Descriptors
-    // are retired (see clear_panel_config) so grids laid out for the previous
-    // printer keep reading valid memory until their containers are destroyed.
+    // Drop the per-page widget-list cache wholesale — it keys on "panel:page" and
+    // describes the old printer's resolved widget list. Grid descriptors stay
+    // put: they are keyed by container, so grids laid out for the previous
+    // printer keep reading valid memory until their containers are deleted.
     active_configs_.clear();
-    retire_grid_descriptors_matching({});
 }
 
-void PanelWidgetManager::retire_grid_descriptors_matching(const std::string& prefix) {
-    // Move descriptor arrays whose cache key starts with `prefix` (empty prefix:
-    // all of them) out of grid_descriptors_ and into the retirement map. LVGL's
-    // grid style holds the raw dsc pointers without copying, and the clear paths
-    // have no container handle to unstyle, so an array must outlive every
-    // container still laid out with it. populate_page() drops the retired entry
-    // for a key at the same moment it installs a fresh one — the re-point of the
-    // container's style is what makes the old array unreferenced.
-    for (auto it = grid_descriptors_.begin(); it != grid_descriptors_.end();) {
-        if (prefix.empty() || it->first.compare(0, prefix.size(), prefix) == 0) {
-            retired_grid_descriptors_[it->first] = std::move(it->second);
-            it = grid_descriptors_.erase(it);
-        } else {
-            ++it;
-        }
+void PanelWidgetManager::install_grid_descriptors(lv_obj_t* container, GridDescriptors&& fresh) {
+    auto [slot, inserted] = grid_descriptors_.try_emplace(container);
+    if (inserted) {
+        // First generation for this container: drop the slot when the container
+        // dies, keeping the map bounded by live containers.
+        // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
+        lv_obj_add_event_cb(container, &PanelWidgetManager::on_container_delete, LV_EVENT_DELETE,
+                            nullptr);
     }
+    GridDescriptors retired = std::move(slot->second);
+    slot->second = std::move(fresh);
+    lv_obj_set_grid_dsc_array(container, slot->second.col_dsc.data(), slot->second.row_dsc.data());
+    // `retired` frees the previous generation's buffers HERE, after the
+    // container's style has been re-pointed above: the style holds the raw
+    // pointers, so freeing any earlier would leave every reader of the old
+    // arrays (a layout pass, GridEditMode::current_metrics) on freed memory.
+}
+
+bool PanelWidgetManager::s_destroyed_ = false;
+
+void PanelWidgetManager::on_container_delete(lv_event_t* e) {
+    if (s_destroyed_) {
+        return;
+    }
+    auto* container = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    PanelWidgetManager::instance().grid_descriptors_.erase(container);
 }
 
 PanelWidgetConfig& PanelWidgetManager::get_widget_config(const std::string& panel_id) {

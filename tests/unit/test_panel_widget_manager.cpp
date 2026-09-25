@@ -4,8 +4,10 @@
 #include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/panel_widget_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "misc/lv_timer_private.h"
@@ -1023,5 +1025,190 @@ TEST_CASE_METHOD(XMLTestFixture, "Visible widget ids do not depend on klippy_sta
     REQUIRE_FALSE(when_ready.empty());
     CHECK(when_ready == when_shutdown);
 
+    mgr.clear_panel_config(panel_id);
+}
+
+namespace {
+
+/// Copy the descriptor arrays a container's grid style points at, up to (not
+/// including) the LV_GRID_TEMPLATE_LAST sentinel. Reading them back later and
+/// comparing is the whole test: LVGL stores the RAW pointers, so anything that
+/// frees the arrays between the two reads shows up as changed contents.
+std::pair<std::vector<int32_t>, std::vector<int32_t>> snapshot_grid_dsc(lv_obj_t* container) {
+    std::pair<std::vector<int32_t>, std::vector<int32_t>> out;
+    for (const int32_t* p = lv_obj_get_style_grid_column_dsc_array(container, LV_PART_MAIN);
+         *p != LV_GRID_TEMPLATE_LAST; ++p) {
+        out.first.push_back(*p);
+    }
+    for (const int32_t* p = lv_obj_get_style_grid_row_dsc_array(container, LV_PART_MAIN);
+         *p != LV_GRID_TEMPLATE_LAST; ++p) {
+        out.second.push_back(*p);
+    }
+    return out;
+}
+
+/// Render a descriptor snapshot for a Catch2 INFO line.
+std::string dsc_to_string(const std::vector<int32_t>& v) {
+    std::string out;
+    for (int32_t x : v) {
+        if (!out.empty())
+            out += ", ";
+        out += std::to_string(x);
+    }
+    return out;
+}
+
+} // namespace
+
+// A printer switch clears every cached panel config and the new session
+// populates a NEW page container for the same panel:page while the previous
+// session's container is still alive awaiting its deferred delete. The old
+// container's grid style holds raw pointers into the manager's descriptor
+// arrays (LVGL does not copy them), so those arrays must stay valid for as
+// long as any container laid out with them exists - their lifetime belongs to
+// the container, not to the cache key.
+//
+// B is given more rows than A (through the cached row count the grid sizes
+// itself from): a same-size B could have its fresh arrays land on A's
+// just-freed buffers (malloc reuses the chunk), which would make A read
+// plausible-but-aliasing data. A different row count keeps the row arrays in
+// different size classes.
+TEST_CASE_METHOD(
+    XMLTestFixture,
+    "PanelWidgetManager keeps the old container's grid readable across a printer switch",
+    "[panel_widget][manager][switch]") {
+    helix::init_widget_registrations();
+
+    lv_xml_register_component_from_data(
+        "test_grid_spy_widget",
+        "<component><view extends=\"lv_obj\" width=\"100%\" height=\"100%\"/></component>");
+
+    const auto* clock_def = helix::find_widget_def("clock");
+    REQUIRE(clock_def != nullptr);
+    WidgetFactory original_clock_factory = clock_def->factory;
+    helix::register_widget_factory("clock", [](const std::string&) -> std::unique_ptr<PanelWidget> {
+        return std::make_unique<GridSpyWidget>();
+    });
+
+    const std::string panel_id = "test_switch_dsc_lifetime";
+
+    auto* cfg = Config::get_instance();
+    nlohmann::json widget_cfg = {{"main_page_index", 0},
+                                 {"next_page_id", 2},
+                                 {"pages",
+                                  {{{"id", "main"}, {"widgets", nlohmann::json::array()}},
+                                   {{"id", "spy"},
+                                    {"widgets",
+                                     {{{"id", "clock"},
+                                       {"enabled", true},
+                                       {"col", 0},
+                                       {"row", 0},
+                                       {"colspan", 1},
+                                       {"rowspan", 1}}}}}}}};
+    cfg->set<nlohmann::json>(cfg->df() + "panel_widgets/" + panel_id, widget_cfg);
+
+    auto& mgr = PanelWidgetManager::instance();
+    mgr.get_widget_config(panel_id).mark_dirty();
+    mgr.clear_panel_config(panel_id);
+
+    const std::string cached_rows_path = "/ui/cached_grid/" + panel_id + "/rows";
+
+    // Session 1: populate container A for the key.
+    cfg->set(cached_rows_path, 4);
+    lv_obj_t* container_a = lv_obj_create(test_screen());
+    lv_obj_set_size(container_a, 400, 300);
+    process_lvgl(10);
+    auto widgets_a = mgr.populate_widgets(panel_id, container_a, /*page_index=*/1);
+    REQUIRE(lv_obj_get_style_layout(container_a, LV_PART_MAIN) == LV_LAYOUT_GRID);
+
+    const auto [col_expected, row_expected] = snapshot_grid_dsc(container_a);
+    // The arrays must be long enough that the sentinel sits past the 16 bytes
+    // an allocator writes into a freed small chunk; otherwise the snapshot
+    // read below could itself walk off a freed array.
+    REQUIRE(col_expected.size() >= 4);
+    REQUIRE(row_expected.size() >= 4);
+
+    // The switch: every cached panel config invalidated, then the new session
+    // builds a NEW container for the SAME key while A is still alive.
+    widgets_a.clear();
+    mgr.clear_all_panel_configs();
+
+    cfg->set(cached_rows_path, 8);
+    lv_obj_t* container_b = lv_obj_create(test_screen());
+    lv_obj_set_size(container_b, 400, 700);
+    process_lvgl(10);
+    auto widgets_b = mgr.populate_widgets(panel_id, container_b, /*page_index=*/1);
+    REQUIRE(lv_obj_get_style_layout(container_b, LV_PART_MAIN) == LV_LAYOUT_GRID);
+    REQUIRE(container_b != container_a);
+
+    // A's grid must still read exactly what was installed into it.
+    const auto [col_now, row_now] = snapshot_grid_dsc(container_a);
+    INFO("col expected: " << dsc_to_string(col_expected) << " now: " << dsc_to_string(col_now));
+    INFO("row expected: " << dsc_to_string(row_expected) << " now: " << dsc_to_string(row_now));
+    CHECK(col_now == col_expected);
+    CHECK(row_now == row_expected);
+
+    // And a layout pass over A must survive - the lv_refr_now() the switch
+    // takes right after building the new tree is what walked the freed arrays
+    // in count_tracks.
+    lv_obj_update_layout(container_a);
+
+    helix::register_widget_factory("clock", original_clock_factory);
+    mgr.clear_panel_config(panel_id);
+}
+
+// The container owns its descriptor slot: deleting it drops the slot, so the
+// map is bounded by live containers no matter how many printer switches or
+// rebuilds came before.
+TEST_CASE_METHOD(XMLTestFixture,
+                 "PanelWidgetManager drops grid descriptors when their container is deleted",
+                 "[panel_widget][manager][switch]") {
+    helix::init_widget_registrations();
+
+    lv_xml_register_component_from_data(
+        "test_grid_spy_widget",
+        "<component><view extends=\"lv_obj\" width=\"100%\" height=\"100%\"/></component>");
+
+    const auto* clock_def = helix::find_widget_def("clock");
+    REQUIRE(clock_def != nullptr);
+    WidgetFactory original_clock_factory = clock_def->factory;
+    helix::register_widget_factory("clock", [](const std::string&) -> std::unique_ptr<PanelWidget> {
+        return std::make_unique<GridSpyWidget>();
+    });
+
+    const std::string panel_id = "test_switch_dsc_delete";
+    auto* cfg = Config::get_instance();
+    nlohmann::json widget_cfg = {{"main_page_index", 0},
+                                 {"next_page_id", 2},
+                                 {"pages",
+                                  {{{"id", "main"}, {"widgets", nlohmann::json::array()}},
+                                   {{"id", "spy"},
+                                    {"widgets",
+                                     {{{"id", "clock"},
+                                       {"enabled", true},
+                                       {"col", 0},
+                                       {"row", 0},
+                                       {"colspan", 1},
+                                       {"rowspan", 1}}}}}}}};
+    cfg->set<nlohmann::json>(cfg->df() + "panel_widgets/" + panel_id, widget_cfg);
+
+    auto& mgr = PanelWidgetManager::instance();
+    mgr.get_widget_config(panel_id).mark_dirty();
+    mgr.clear_panel_config(panel_id);
+
+    // Whatever earlier tests in this binary left behind, the count starts known.
+    const size_t before = PanelWidgetManagerTestAccess::grid_descriptor_count(mgr);
+
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 400, 300);
+    process_lvgl(10);
+    auto widgets = mgr.populate_widgets(panel_id, container, /*page_index=*/1);
+    REQUIRE(lv_obj_get_style_layout(container, LV_PART_MAIN) == LV_LAYOUT_GRID);
+    REQUIRE(PanelWidgetManagerTestAccess::grid_descriptor_count(mgr) == before + 1);
+
+    lv_obj_delete(container);
+    REQUIRE(PanelWidgetManagerTestAccess::grid_descriptor_count(mgr) == before);
+
+    helix::register_widget_factory("clock", original_clock_factory);
     mgr.clear_panel_config(panel_id);
 }
