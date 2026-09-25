@@ -525,8 +525,10 @@ uint8_t GeometryBuilder::add_to_color_palette(RibbonGeometry& geometry, uint32_t
 }
 
 RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
-                                      const SimplificationOptions& options) {
+                                      const SimplificationOptions& options,
+                                      const std::function<bool()>& should_cancel) {
     current_gcode_ = &gcode;
+    const auto cancelled = [&should_cancel] { return should_cancel && should_cancel(); };
 
     // Start timing
     auto build_start = std::chrono::high_resolution_clock::now();
@@ -580,6 +582,10 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     all_segments.reserve(gcode.drawable_segments > 0 ? gcode.drawable_segments
                                                      : gcode.total_segments);
     for (size_t li = 0; li < gcode.layers.size(); ++li) {
+        if (li % 64 == 0 && cancelled()) {
+            spdlog::info("[GCode::Builder] Build cancelled during collection");
+            return {};
+        }
         for (const auto& seg : gcode.layers[li].segments) {
             if (is_auxiliary_geometry(seg.feature_type)) {
                 continue;
@@ -614,7 +620,11 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     // Step 1: Simplify segments (merge collinear lines)
     std::vector<ToolpathSegment> simplified;
     if (validated_opts.enable_merging) {
-        simplified = simplify_segments(all_segments, validated_opts);
+        simplified = simplify_segments(all_segments, validated_opts, should_cancel);
+        if (cancelled()) {
+            spdlog::info("[GCode::Builder] Build cancelled during simplification");
+            return {};
+        }
 
         // all_segments is dead from here on — release it before generating geometry so the
         // raw and simplified copies never coexist with the vertex buffer.
@@ -724,6 +734,10 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
             segments_since_budget_check++;
             if (segments_since_budget_check >= GeometryBudgetManager::CHECK_INTERVAL_SEGMENTS) {
                 segments_since_budget_check = 0;
+                if (cancelled()) {
+                    spdlog::info("[GCode::Builder] Build cancelled during emission");
+                    return {};
+                }
                 size_t current_mem = geometry.memory_usage();
                 float threshold = static_cast<float>(budget_limit_bytes_) *
                                   GeometryBudgetManager::BUDGET_THRESHOLD;
@@ -987,7 +1001,8 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
 
 std::vector<ToolpathSegment>
 GeometryBuilder::simplify_segments(const std::vector<ToolpathSegment>& segments,
-                                   const SimplificationOptions& options) {
+                                   const SimplificationOptions& options,
+                                   const std::function<bool()>& should_cancel) {
     if (segments.empty()) {
         return {};
     }
@@ -999,6 +1014,9 @@ GeometryBuilder::simplify_segments(const std::vector<ToolpathSegment>& segments,
     ToolpathSegment current = segments[0];
 
     for (size_t i = 1; i < segments.size(); ++i) {
+        if ((i % 4096) == 0 && should_cancel && should_cancel()) {
+            return {};
+        }
         const auto& next = segments[i];
 
         // Can only merge segments if:

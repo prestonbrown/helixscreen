@@ -1706,3 +1706,41 @@ TEST_CASE("quantization slack preserves the historical 1.5x margin", "[gcode][ge
     // being conservative and vertices can quantize out of range.
     CHECK(margin > helix::gcode::tube_half_diagonal(width));
 }
+
+TEST_CASE("Geometry Builder: a cancelled build emits no geometry", "[gcode][geometry][cancel]") {
+    // The viewer's build thread runs this pass after parsing; leaving the
+    // preview joins that thread on the UI thread, so the pass must be
+    // stoppable rather than costing a full build's wall clock (#1706).
+    // The predicate fires from the first check, so a build that honours it
+    // returns at once and empty.
+    auto make_gcode = []() {
+        ParsedGCodeFile gcode;
+        Layer layer;
+        layer.z_height = 0.2f;
+        layer.segment_count_extrusion = 50000;
+        for (int i = 0; i < 50000; ++i) {
+            ToolpathSegment seg;
+            seg.start = glm::vec3(i % 100, (i / 100) % 100, 0.2f);
+            seg.end = seg.start + glm::vec3(1.0f, 0.3f, 0.0f);
+            seg.is_extrusion = true;
+            seg.extrusion_amount = 1.0f;
+            seg.width = 0.4f;
+            layer.segments.push_back(seg);
+        }
+        gcode.layers.push_back(std::move(layer));
+        gcode.total_segments = 50000;
+        gcode.drawable_segments = 50000;
+        return gcode;
+    };
+
+    SimplificationOptions options;
+    options.enable_merging = false;
+
+    GeometryBuilder full_builder;
+    RibbonGeometry full = full_builder.build(make_gcode(), options);
+    REQUIRE_FALSE(full.vertices.empty());
+
+    GeometryBuilder cancelled_builder;
+    RibbonGeometry cancelled = cancelled_builder.build(make_gcode(), options, [] { return true; });
+    REQUIRE(cancelled.vertices.empty());
+}

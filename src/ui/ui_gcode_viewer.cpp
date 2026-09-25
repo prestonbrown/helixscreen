@@ -488,7 +488,8 @@ static bool has_gcode_data(const gcode_viewer_state_t* st) {
 /// the budget. Shared between the initial async-load path and the on-demand
 /// path that fires when the user switches to 3D mode after starting in 2D.
 static std::unique_ptr<helix::gcode::RibbonGeometry>
-build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const char* context_tag) {
+build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const char* context_tag,
+                            const std::function<bool()>& should_cancel = {}) {
     helix::gcode::GeometryBudgetManager budget_mgr;
     size_t available_kb = budget_mgr.read_system_available_kb();
     size_t budget = budget_mgr.calculate_budget(available_kb);
@@ -530,8 +531,13 @@ build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const cha
                                                  : budget_config.tier == 2 ? 30.0f
                                                                            : 15.0f};
 
-    auto geometry = std::make_unique<helix::gcode::RibbonGeometry>(builder.build(file, opts));
+    auto geometry =
+        std::make_unique<helix::gcode::RibbonGeometry>(builder.build(file, opts, should_cancel));
 
+    if (should_cancel && should_cancel()) {
+        spdlog::info("[GCode Viewer] {}: build cancelled - discarding geometry", context_tag);
+        return nullptr;
+    }
     if (builder.was_budget_exceeded()) {
         spdlog::warn("[GCode Viewer] {}: budget exceeded — falling back to 2D", context_tag);
         return nullptr;
@@ -1898,8 +1904,8 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 // Segments are deliberately retained even after the build so the 2D
                 // renderer can walk them when the user switches back.
                 if (!st->is_using_2d_mode()) {
-                    result->geometry =
-                        build_3d_geometry_in_budget(*result->gcode_file, "Initial load");
+                    result->geometry = build_3d_geometry_in_budget(
+                        *result->gcode_file, "Initial load", [st]() { return st->is_cancelled(); });
                     if (!result->geometry) {
                         result->force_2d = true;
                     }
