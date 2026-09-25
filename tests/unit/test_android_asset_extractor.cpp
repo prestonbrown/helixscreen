@@ -9,6 +9,7 @@
  */
 
 #include "android_asset_extractor.h"
+#include "test_helpers/unique_temp_dir.h"
 
 #include <filesystem>
 #include <fstream>
@@ -39,7 +40,7 @@ bool is_non_shippable_config_file(const std::string& filename);
 class TempDir {
   public:
     TempDir(const std::string& prefix) {
-        path_ = fs::temp_directory_path() / (prefix + "_" + std::to_string(counter_++));
+        path_ = fs::temp_directory_path() / (prefix + "_" + helix::test::unique_suffix());
         fs::create_directories(path_);
     }
 
@@ -61,7 +62,6 @@ class TempDir {
 
   private:
     fs::path path_;
-    static inline int counter_ = 0;
 };
 
 // Helper to write a file with content
