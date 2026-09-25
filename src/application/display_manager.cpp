@@ -1237,9 +1237,12 @@ void DisplayManager::wake_display() {
     if (m_screensaver_active) {
         ScreensaverManager::instance().stop();
         m_screensaver_active = false;
-        // Resume active panel lifecycle to restart widget timers
-        NavigationManager::instance().resume_active();
     }
+    // Resume the suspended lifecycle even when the screensaver is already
+    // stopped: enter_sleep() clears m_screensaver_active without resuming, so
+    // gating here would leave the view deactivated after a sleep that followed
+    // a dim. No-op when nothing is suspended.
+    NavigationManager::instance().resume_active();
 #else
     constexpr bool was_preview = false;
 #endif
