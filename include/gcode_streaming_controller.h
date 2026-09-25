@@ -233,6 +233,12 @@ class GCodeStreamingController {
      */
     bool open_source(std::unique_ptr<GCodeDataSource> source);
 
+    /// Test seam: when set, the async index worker calls it as its first
+    /// statement, before build_index() runs. Lets a test park the worker in
+    /// the launch window and prove a close() that lands there still cancels
+    /// the build. Null (and inert) outside tests.
+    static std::function<void()> index_worker_gate;
+
     /**
      * @brief Close current file and release resources
      */
@@ -545,6 +551,12 @@ class GCodeStreamingController {
     // callback withdraws consent and the scan unwinds, so the join costs one
     // progress interval instead of the rest of the build. Cleared when a new
     // build starts.
+    // Arming discipline: close() and the destructor arm this before joining
+    // the worker; the openers disarm it on the CALLING thread, after close()
+    // has joined the prior worker. build_index() never writes it - a
+    // worker-side reset would wipe a cancel that lands between the async
+    // launch and the worker's first poll, and the close() holding the future
+    // would then wait out the whole build it asked to stop.
     std::atomic<bool> index_cancel_requested_{false};
     mutable std::mutex callback_mutex_; // Protects index_complete_callback_
     std::function<void(bool)> index_complete_callback_;

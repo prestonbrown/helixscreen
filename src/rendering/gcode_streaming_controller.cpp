@@ -178,6 +178,8 @@ GCodeStreamingController::GCodeStreamingController(size_t cache_budget_bytes)
     register_memory_responder();
 }
 
+std::function<void()> GCodeStreamingController::index_worker_gate;
+
 void GCodeStreamingController::register_memory_responder() {
     // Capture weak_ptr so the callback becomes a no-op after destruction.
     // MemoryMonitor copies the callback list before iterating, so
@@ -252,6 +254,7 @@ GCodeStreamingController::~GCodeStreamingController() {
 
 bool GCodeStreamingController::open_file(const std::string& filepath) {
     close();
+    index_cancel_requested_.store(false, std::memory_order_relaxed);
 
     spdlog::info("[StreamingController] Opening file: {}", filepath);
 
@@ -283,6 +286,7 @@ bool GCodeStreamingController::open_file(const std::string& filepath) {
 void GCodeStreamingController::open_file_async(const std::string& filepath,
                                                std::function<void(bool)> on_complete) {
     close();
+    index_cancel_requested_.store(false, std::memory_order_relaxed);
 
     spdlog::info("[StreamingController] Opening file async: {}", filepath);
 
@@ -313,6 +317,9 @@ void GCodeStreamingController::open_file_async(const std::string& filepath,
     index_future_ = std::async(std::launch::async, [this, filepath]() {
         bool success = false;
         try {
+            if (index_worker_gate) {
+                index_worker_gate();
+            }
             success = build_index();
         } catch (const std::exception& e) {
             spdlog::error("[StreamingController] Exception during build_index: {}", e.what());
@@ -363,6 +370,7 @@ void GCodeStreamingController::open_file_async(const std::string& filepath,
 
 bool GCodeStreamingController::open_source(std::unique_ptr<GCodeDataSource> source) {
     close();
+    index_cancel_requested_.store(false, std::memory_order_relaxed);
 
     if (!source || !source->is_valid()) {
         spdlog::error("[StreamingController] Invalid data source");
@@ -843,10 +851,6 @@ bool GCodeStreamingController::build_index() {
     if (!data_source_) {
         return false;
     }
-
-    // Any canceller of the previous build has finished joining it before this
-    // one starts, so arming here cannot race with a close().
-    index_cancel_requested_.store(false, std::memory_order_relaxed);
 
     // Use the virtual method to get an indexable file path
     // FileDataSource returns its original filepath; sources that stage data on

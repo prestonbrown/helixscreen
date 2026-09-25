@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstdio>
 #include <fstream>
+#include <future>
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -842,4 +843,58 @@ TEST_CASE("close during async indexing returns promptly", "[gcode][streaming][ca
 
     const auto close_time = timed([&] { controller.close(); });
     REQUIRE(ms_of(close_time) * 2 < ms_of(full));
+}
+
+TEST_CASE("close in the async launch window still cancels the build",
+          "[gcode][streaming][cancel]") {
+    // The window between open_file_async's std::async and the worker's first
+    // instruction is real: a close() landing there arms
+    // index_cancel_requested_ and blocks on the future, so if the worker
+    // resets the flag as it starts, the caller asked to stop and the build
+    // runs to completion anyway under it (#1706: backing out of a preview
+    // must not freeze the UI for the rest of the build). The gate parks the
+    // worker inside that window so the scheduling race is deterministic.
+    BigGCodeFile file(200ull * 1024 * 1024);
+    GCodeStreamingController controller;
+
+    const auto full = timed([&] { REQUIRE(controller.open_file(file.path())); });
+    controller.close();
+
+    std::promise<void> parked_promise;
+    auto parked = parked_promise.get_future();
+    std::promise<void> release_promise;
+    auto release = release_promise.get_future().share();
+
+    // However the assertions below end, the gate must go back to null: a
+    // parked gate would hang every later async open in this binary.
+    struct GateGuard {
+        ~GateGuard() {
+            GCodeStreamingController::index_worker_gate = nullptr;
+        }
+    } gate_guard;
+    GCodeStreamingController::index_worker_gate = [&] {
+        parked_promise.set_value();
+        release.wait_for(std::chrono::seconds(10));
+    };
+
+    std::atomic<bool> completed{false};
+    std::atomic<bool> result{true};
+    controller.open_file_async(file.path(), [&](bool ok) {
+        result.store(ok);
+        completed.store(true);
+    });
+    REQUIRE(parked.wait_for(std::chrono::seconds(10)) == std::future_status::ready);
+
+    // The worker is parked before build_index: this close() lands in the
+    // launch window and must not wait out a full build once it is let go.
+    std::thread closer([&] { controller.close(); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    const auto released = SteadyClock::now();
+    release_promise.set_value();
+    closer.join();
+    const long wait_ms = ms_of(SteadyClock::now() - released);
+
+    REQUIRE(completed.load());
+    REQUIRE_FALSE(result.load());
+    REQUIRE(wait_ms * 3 < ms_of(full));
 }
