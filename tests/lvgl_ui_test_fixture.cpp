@@ -32,6 +32,7 @@
 
 #include "app_globals.h"
 #include "printer_state.h"
+#include "src/ui/panel_widgets/print_status_widget.h"
 
 // Event callbacks
 #include "ui_emergency_stop.h"
@@ -223,6 +224,11 @@ void LVGLUITestFixture::cleanup() {
 
         // Wizard subjects
         ui_wizard_deinit_subjects();
+
+        // The formatter singleton observes PrinterState subjects; deiniting them
+        // first leaves its guards pointing at freed observer nodes, which the
+        // base fixture's reset_all() then walks.
+        helix::PrintStatusWidget::destroy_formatter_for_test();
 
         // PrinterState subjects
         get_printer_state().deinit_subjects();
