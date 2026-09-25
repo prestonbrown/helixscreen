@@ -14,6 +14,7 @@
 #include "moonraker_api_internal.h"
 #include "spdlog/spdlog.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -110,6 +111,31 @@ void MoonrakerFileTransferAPI::download_file_partial(const std::string& root,
         std::string range_header = "bytes=0-" + std::to_string(max_bytes - 1);
         req->SetHeader("Range", range_header);
 
+        // Stream the body through a per-chunk callback, the same pattern
+        // requests::downloadFile uses. With http_cb set, libhv hands each body
+        // chunk to us instead of accumulating resp->body, which is what lets
+        // the transfer be stopped mid-body: the client's recv loop checks
+        // req->cancel after every chunk, so cancelling the moment max_bytes
+        // have arrived closes the connection instead of letting a
+        // Range-ignoring 200 push the whole file over the wire and occupy
+        // this slow-lane worker for the full transfer.
+        std::string body;
+        req->http_cb = [&req, &body, max_bytes](HttpMessage* /*resp*/, http_parser_state state,
+                                                const char* data, size_t size) {
+            if (state != HP_BODY || data == nullptr || size == 0) {
+                return;
+            }
+            // Keep only what fits. A Range-honouring 206 sends exactly
+            // max_bytes, so this caps nothing and Cancel() lands on a
+            // transfer that is finishing anyway; a Range-ignoring 200 is cut
+            // off at max_bytes.
+            size_t take = std::min(size, max_bytes - body.size());
+            body.append(data, take);
+            if (body.size() >= max_bytes) {
+                req->Cancel();
+            }
+        };
+
         auto resp = requests::request(req);
 
         // Accept both 200 (full file) and 206 (partial content)
@@ -117,22 +143,19 @@ void MoonrakerFileTransferAPI::download_file_partial(const std::string& root,
             return;
         }
 
-        spdlog::debug("[Moonraker API] Partial download: {} bytes from {} (status {})",
-                      resp->body.size(), path, static_cast<int>(resp->status_code));
+        spdlog::debug("[Moonraker API] Partial download: {} bytes from {} (status {})", body.size(),
+                      path, static_cast<int>(resp->status_code));
 
-        // A server that ignores Range answers 200 with the whole file. The
-        // excess bytes already crossed the wire, but the caller asked for
-        // max_bytes: hand it no more than that so downstream parse and memory
-        // stay bounded no matter what the server sent.
-        if (resp->body.size() > max_bytes) {
+        // body never exceeds max_bytes by construction; a full 200 that hit
+        // the cap is a server that ignored Range.
+        if (resp->status_code == 200 && body.size() == max_bytes) {
             spdlog::warn("[Moonraker API] Partial download: server ignored Range for {} "
-                         "(sent {} bytes, keeping first {})",
-                         path, resp->body.size(), max_bytes);
-            resp->body.resize(max_bytes);
+                         "(aborted the transfer at {} bytes)",
+                         path, max_bytes);
         }
 
         if (on_success) {
-            on_success(resp->body);
+            on_success(body);
         }
     });
 }

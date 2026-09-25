@@ -7,12 +7,12 @@
  *        into a whole-file payload
  *
  * download_file_partial asks for the first N bytes, download_file_tail for the
- * last N. A server that ignores Range answers 200 with the entire file, and
- * both functions used to forward that body unclamped: the thumbnail-header
- * fetch on a metadata-less server (one 100 KB request per list entry) then
- * parsed a whole multi-MB gcode file per entry on the single slow-lane worker.
- * The clamps live in the two shared transfer functions; these tests drive the
- * real HTTP client against a local responder that honours or ignores Range.
+ * last N. A server that ignores Range answers 200 with the entire file: both
+ * functions clamp what they hand on, and the head path also aborts the
+ * transfer once N bytes have arrived, so the excess never crosses the wire or
+ * occupies the single slow-lane worker. These tests drive the real HTTP client
+ * against a local responder that honours or ignores Range and counts the body
+ * bytes it managed to push.
  *
  * Stays in the default sweep, no [slow]: everything here is self-contained
  * loopback threads (the responder plus HttpExecutor::slow), each wait is
@@ -38,6 +38,12 @@
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
+
+// Not every platform has MSG_NOSIGNAL; the loopback responder needs it so a
+// client hangup fails send() instead of killing the test process with SIGPIPE.
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
 
 #include "../catch_amalgamated.hpp"
 
@@ -97,6 +103,25 @@ class RangeResponder {
         return "http://127.0.0.1:" + std::to_string(port_);
     }
 
+    /// Body bytes the responder pushed before send failed or completed. Only
+    /// meaningful once wait_writes_done() has returned.
+    [[nodiscard]] size_t content_written() const {
+        return content_written_.load();
+    }
+
+    /// Wait until the write loop finished for the current/last connection, so
+    /// content_written() reads its final value. Returns false on timeout.
+    bool wait_writes_done(int timeout_ms) const {
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+        while (!writes_done_.load()) {
+            if (std::chrono::steady_clock::now() > deadline) {
+                return false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+        return true;
+    }
+
   private:
     void serve() {
         while (!stop_) {
@@ -110,6 +135,11 @@ class RangeResponder {
     }
 
     void handle(int conn) {
+        handle_request(conn);
+        writes_done_ = true;
+    }
+
+    void handle_request(int conn) {
         std::string headers;
         char buf[2048];
         while (headers.find("\r\n\r\n") == std::string::npos) {
@@ -152,19 +182,46 @@ class RangeResponder {
             }
         }
 
+        // Cap the send buffer so a client that stops reading stalls this loop
+        // after a bounded amount, instead of letting kernel autotuning buffer
+        // the whole body.
+        int sndbuf = SEND_BUFFER;
+        ::setsockopt(conn, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
+
         std::string resp = "HTTP/1.1 " + status + "\r\nContent-Type: text/plain\r\n";
         resp += "Content-Length: " + std::to_string(content.size()) + "\r\n";
         resp += "Connection: close\r\n\r\n";
-        resp += content;
-        ::send(conn, resp.data(), resp.size(), 0);
+        if (::send(conn, resp.data(), resp.size(), MSG_NOSIGNAL) !=
+            static_cast<ssize_t>(resp.size())) {
+            return;
+        }
+
+        // Body in chunks, counting what actually left: a client hangup makes
+        // send fail once the socket buffers fill or the peer resets, so
+        // content_written() measures the bytes the client let cross.
+        size_t off = 0;
+        while (off < content.size()) {
+            size_t n = std::min(BODY_CHUNK, content.size() - off);
+            ssize_t w = ::send(conn, content.data() + off, n, MSG_NOSIGNAL);
+            if (w <= 0) {
+                return;
+            }
+            off += static_cast<size_t>(w);
+            content_written_ += static_cast<size_t>(w);
+        }
     }
 
     std::string body_;
     bool honour_range_;
     int listen_fd_ = -1;
     int port_ = 0;
+    std::atomic<size_t> content_written_{0};
+    std::atomic<bool> writes_done_{false};
     std::atomic<bool> stop_{false};
     std::thread thread_;
+
+    static constexpr size_t BODY_CHUNK = 16 * 1024;
+    static constexpr int SEND_BUFFER = 32 * 1024;
 };
 
 struct TransferOutcome {
@@ -209,6 +266,12 @@ constexpr size_t PAYLOAD_SIZE = 64 * 1024;
 constexpr size_t PARTIAL_BYTES = 4096;
 constexpr size_t TAIL_BYTES = 1024;
 
+// The abort test's payload and wire bound. A client that fails to abort pulls
+// the whole multi-MB body; one that hangs up at max_bytes lets the server push
+// only the abort point plus whatever kernel socket buffers absorbed.
+constexpr size_t BIG_PAYLOAD_SIZE = 4 * 1024 * 1024;
+constexpr size_t WIRE_SLACK = 512 * 1024;
+
 } // namespace
 
 TEST_CASE("partial download clamps a Range-ignoring 200 body", "[api][transfer][range]") {
@@ -223,6 +286,28 @@ TEST_CASE("partial download clamps a Range-ignoring 200 body", "[api][transfer][
     REQUIRE(out.ok);
     REQUIRE(out.body.size() == PARTIAL_BYTES);
     REQUIRE(out.body == payload.substr(0, PARTIAL_BYTES));
+}
+
+TEST_CASE("partial download aborts a Range-ignoring 200 at max_bytes", "[api][transfer][range]") {
+    // Guard the bound against vacuousness: the payload must dwarf what the
+    // server is allowed to push past the abort point.
+    REQUIRE(BIG_PAYLOAD_SIZE > PARTIAL_BYTES + WIRE_SLACK);
+    const std::string payload = make_payload(BIG_PAYLOAD_SIZE);
+    RangeResponder server(/*honour_range=*/false, payload);
+    TransferHarness harness(server.base_url());
+
+    const auto out = await([&](auto ok, auto err) {
+        harness.api->download_file_partial("gcodes", "some_file.gcode", PARTIAL_BYTES, ok, err);
+    });
+
+    REQUIRE(out.ok);
+    REQUIRE(out.body.size() == PARTIAL_BYTES);
+    REQUIRE(out.body == payload.substr(0, PARTIAL_BYTES));
+
+    // The client must hang up once max_bytes arrived: the server got to push
+    // the abort point plus kernel-buffer slack, not the whole file.
+    REQUIRE(server.wait_writes_done(2000));
+    REQUIRE(server.content_written() < PARTIAL_BYTES + WIRE_SLACK);
 }
 
 TEST_CASE("tail download clamps a Range-ignoring 200 body to the last bytes",
