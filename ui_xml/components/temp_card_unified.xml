@@ -24,7 +24,7 @@
       <bind_style_if_eq name="temp_row_gap_tiny" subject="ui_breakpoint" ref_value="1"/>
       <bind_style_if_ge name="temp_row_gap_standard" subject="ui_breakpoint" ref_value="2"/>
       <!-- Icon is always shown; the text label joins it at MEDIUM+ breakpoints -->
-      <nozzle_icon size="sm" badge_size="#badge_size_on_sm_icon" badge_font="#font_badge_compact"/>
+      <nozzle_icon size="sm"/>
       <!-- Text label for MEDIUM+ breakpoints -->
       <text_small text="Nozzle" translation_tag="Nozzle" clickable="false" event_bubble="true">
         <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="3"/>

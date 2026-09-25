@@ -9,35 +9,47 @@
     <prop name="rung_subject" type="string" default=""/>
     <prop name="size" type="string" default="#icon_size"/>
     <prop name="badge_subject" type="string" default="show_tool_badge"/>
-    <prop name="badge_size" type="string" default="#badge_size"/>
-    <prop name="badge_font" type="string" default="#font_xs"/>
+    <!-- Subject carrying the number the digit shows. The default is
+         ToolState's active-tool number; the temp overlay overrides it with its
+         own picked-tool subject so the digit names what the card displays. -->
+    <prop name="badge_text_subject" type="string" default="tool_badge_text"/>
+    <prop name="badge_font" type="string" default="#font_body_bold"/>
   </api>
   <!--
-    Nozzle Icon with Tool Badge
+    Nozzle Icon with Tool Subscript
 
-    Shows a heater icon with an automatic tool badge (0, 1, etc.)
-    overlaid in the top-right corner when a multi-tool printer is detected.
+    Shows a heater icon. On a multi-tool printer (badge subject 1) the tool's
+    display number sits beside the glyph as a bold subscript digit, bottom
+    aligned with the glyph like the 1 in T1 — no border, background or other
+    chrome, so the pair reads as one "tool token" without covering the nozzle
+    outline.
 
-    Binds to ToolState subjects:
-    - show_tool_badge: 1 = show badge, 0 = hide (single-tool)
-    - tool_badge_text: Active tool's 1-based display number (e.g., "1" for tool
+    The digit is the number ALONE. Display contexts never spell "T<n>":
+    the T prefix is the 0-based G-code spelling and reads as off-by-one next
+    to this 1-based digit. tool_badge_text already carries the 1-based
+    number via lane_number_text() (include/display_numbering.h) — do not
+    format a number anywhere else.
+
+    Binds to ToolState subjects by default:
+    - show_tool_badge: 1 = show digit, 0/empty = bare icon (single-tool)
+    - tool_badge_text: the tool's 1-based display number (e.g., "1" for tool
       index 0), not the full name
 
-    badge_size/badge_font default to #badge_size and #font_xs, which are
-    breakpoint-scaled and assume a roomy icon (size="xl"). The icon rungs are
-    TOKENS, not fixed sizes: icon_font_xs..icon_font_xl each resolve to a
-    different face per breakpoint tier (globals.xml), so "lg" is 48px at medium
-    and 80px at xxlarge. A call site using a small icon must pass badge_size and
-    badge_font together, because a disc can never be smaller than the line
-    height of the font inside it. See #badge_size_on_sm_icon /
-    #font_badge_compact in globals.xml.
+    badge_font defaults to #font_body_bold: a breakpoint-scaled bold face, and
+    the smallest one at that — noto_sans_bold ships nothing below 14px, so at
+    micro/tiny/small every icon's digit is the 14px floor. That floor is the
+    legibility clamp: rather than shrink the digit toward half the glyph with
+    a face that does not exist, the digit stays at the smallest bold text
+    size the app uses at that breakpoint.
 
     The inner glyph is always named "nozzle_icon_glyph" (not the $size wrapper's
     own name) for C++ lookup — HeaterIconBinder::default_icon_name(Nozzle)
-    searches for that name specifically, same as the bed/chamber heater_icon glyphs.
+    searches for that name specifically, same as the bed/chamber heater_icon
+    glyphs. It keeps its HeaterIconBinder heat tint beside the digit.
   -->
   <view name="nozzle_icon"
-        width="content" height="content" style_pad_all="0" scrollable="false" clickable="false" event_bubble="true">
+        width="content" height="content" flex_flow="row" style_flex_cross_place="end" style_pad_all="0"
+        style_pad_column="#space_xxs" scrollable="false" clickable="false" event_bubble="true">
     <icon name="nozzle_icon_glyph" src="heater" size="$size" variant="secondary" clickable="false" event_bubble="true">
       <bind_style_if_eq name="styles.tile_icon_xs" subject="$rung_subject" ref_value="0"/>
       <bind_style_if_eq name="styles.tile_icon_sm" subject="$rung_subject" ref_value="1"/>
@@ -45,20 +57,18 @@
       <bind_style_if_eq name="styles.tile_icon_lg" subject="$rung_subject" ref_value="3"/>
       <bind_style_if_eq name="styles.tile_icon_xl" subject="$rung_subject" ref_value="4"/>
     </icon>
-    <!-- hidden="true" is the static default the empty-subject contract requires: a
-         call site passing badge_subject="" installs no binding at all, so whatever
-         flag state the markup declares is the one that sticks. Without it the disc
-         stayed visible with empty text on every badge-less call site. When the
-         subject does resolve, the binding below both adds and removes the flag, so
-         the default is overridden in either direction. -->
-    <lv_obj name="tool_badge"
-            width="$badge_size" height="$badge_size" align="top_right" x="-#space_xxs" y="#space_xxs"
-            style_radius="1000" style_bg_color="#info" style_bg_opa="255" style_border_width="0" style_pad_all="0"
-            hidden="true" scrollable="false" clickable="false" event_bubble="true">
+    <!-- The digit carries hidden="true" as the static default the
+         empty-subject contract requires: a call site passing badge_subject=""
+         installs no binding at all, so the flag state the markup declares is
+         the one that sticks. When the subject does resolve, the binding both
+         adds and removes the flag, so the default is overridden either way.
+         flex cross place "end" bottom-aligns the digit with the glyph; a
+         hidden child does not participate in the flex layout, so a
+         single-tool icon renders exactly bare. -->
+    <text_tiny name="tool_badge"
+               bind_text="$badge_text_subject" style_text_font="$badge_font" style_text_color="#secondary" hidden="true"
+               clickable="false" event_bubble="true">
       <bind_flag_if_eq subject="$badge_subject" flag="hidden" ref_value="0"/>
-      <text_tiny bind_text="tool_badge_text"
-                 style_text_font="$badge_font" style_text_color="#text" style_text_align="center" align="center"
-                 clickable="false" event_bubble="true"/>
-    </lv_obj>
+    </text_tiny>
   </view>
 </component>

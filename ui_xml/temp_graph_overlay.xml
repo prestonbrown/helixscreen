@@ -135,7 +135,7 @@
               <lv_obj height="content"
                       flex_flow="column" style_flex_cross_place="start" style_pad_all="0" style_pad_gap="#space_xs"
                       scrollable="false">
-                <nozzle_icon name="nozzle_heater_icon" size="xl"/>
+                <nozzle_icon name="nozzle_heater_icon" size="xl" badge_text_subject="temp_graph_nozzle_badge"/>
                 <lv_obj style_pad_all="0"
                         scrollable="false" flex_flow="column" style_flex_main_place="center"
                         style_flex_cross_place="start" style_pad_gap="#space_xxs">
@@ -198,7 +198,7 @@
             <ui_card name="nozzle_display_card"
                      width="content" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
                      style_flex_cross_place="center" style_pad_gap="#space_xs" style_pad_all="#space_sm">
-              <nozzle_icon name="nozzle_heater_icon" size="md"/>
+              <nozzle_icon name="nozzle_heater_icon" size="md" badge_text_subject="temp_graph_nozzle_badge"/>
               <temp_display name="nozzle_temp_display"
                             size="md" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"
                             event_cb="on_temp_graph_custom_clicked"/>
