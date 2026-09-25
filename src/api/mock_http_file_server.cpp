@@ -16,6 +16,7 @@
 #include <cstring>
 #include <fstream>
 #include <netinet/in.h>
+#include <optional>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -73,39 +74,87 @@ static bool range_ignore_enabled() {
     return enabled;
 }
 
+/// Strictly parse the unsigned decimal spanning s[from, to). An empty span or
+/// any non-digit is malformed: "bytes=abc-def" must be ignored as a whole, not
+/// clamped to a 1-byte 206 at offset 0.
+std::optional<size_t> parse_range_num(const std::string& s, size_t from, size_t to) {
+    if (from >= to) {
+        return std::nullopt;
+    }
+    size_t v = 0;
+    for (size_t i = from; i < to; i++) {
+        if (s[i] < '0' || s[i] > '9') {
+            return std::nullopt;
+        }
+        v = v * 10 + static_cast<size_t>(s[i] - '0');
+    }
+    return v;
+}
+
 /// Slice a body per a "bytes=a-b" / "bytes=-n" Range header and mark the
 /// response 206, the way a range-supporting Moonraker answers. libhv does not
 /// do this for a handler-set body, so the server must honour the header
 /// itself; HELIX_MOCK_RANGE_IGNORE skips this to emulate a server that never
-/// implemented ranges (200, whole file).
+/// implemented ranges (200, whole file). A malformed header (non-numeric
+/// bounds, an inverted span) is ignored the same way - 200, whole body - while
+/// valid syntax that selects no bytes ("bytes=-0", a start past the body)
+/// answers 416 naming the full size in Content-Range.
 void apply_range(HttpRequest* req, HttpResponse* resp) {
     std::string range = req->GetHeader("Range");
     if (range.rfind("bytes=", 0) != 0 || resp->body.empty()) {
         return;
     }
+    const size_t size = resp->body.size();
     size_t dash = range.find('-', 6);
     if (dash == std::string::npos) {
         return;
     }
+
+    auto unsatisfiable = [&] {
+        resp->status_code = HTTP_STATUS_RANGE_NOT_SATISFIABLE;
+        resp->SetHeader("Content-Range", "bytes */" + std::to_string(size));
+        resp->body.clear();
+    };
+
     size_t start = 0;
     size_t end = 0;
     if (dash == 6) { // suffix form: the last N bytes
-        size_t n = static_cast<size_t>(atoi(range.c_str() + 7));
-        n = std::min(n, resp->body.size());
-        start = resp->body.size() - n;
-        end = resp->body.size() - 1;
-    } else {
-        start = static_cast<size_t>(atoi(range.c_str() + 6));
-        end = range.size() > dash + 1 ? static_cast<size_t>(atoi(range.c_str() + dash + 1))
-                                      : resp->body.size() - 1;
-        end = std::min(end, resp->body.size() - 1);
-        if (start > end) {
+        auto n = parse_range_num(range, 7, range.size());
+        if (!n) {
             return;
         }
+        if (*n == 0) {
+            unsatisfiable();
+            return;
+        }
+        const size_t take = std::min(*n, size);
+        start = size - take;
+        end = size - 1;
+    } else {
+        auto first = parse_range_num(range, 6, dash);
+        const bool last_explicit = dash + 1 < range.size();
+        auto last = last_explicit ? parse_range_num(range, dash + 1, range.size())
+                                  : std::optional<size_t>(size - 1);
+        if (!first || !last) {
+            return;
+        }
+        // Only an explicitly inverted span is invalid syntax; an open-ended
+        // range has no end to invert, and a start past the body is valid
+        // syntax that selects nothing.
+        if (last_explicit && *first > *last) {
+            return;
+        }
+        if (*first >= size) {
+            unsatisfiable();
+            return;
+        }
+        start = *first;
+        end = std::min(*last, size - 1);
     }
+
     resp->status_code = HTTP_STATUS_PARTIAL_CONTENT;
     resp->SetHeader("Content-Range", "bytes " + std::to_string(start) + "-" + std::to_string(end) +
-                                         "/" + std::to_string(resp->body.size()));
+                                         "/" + std::to_string(size));
     resp->body = resp->body.substr(start, end - start + 1);
 }
 
