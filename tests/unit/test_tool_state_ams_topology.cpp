@@ -10,6 +10,10 @@
 #include "static_subject_registry.h"
 #include "tool_state.h"
 
+#include <spdlog/sinks/ostream_sink.h>
+#include <spdlog/spdlog.h>
+
+#include <sstream>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -92,6 +96,24 @@ TEST_CASE_METHOD(ToolStateFixture, "[ToolState][ams-topology] clear_ams_topology
 
     // After clear, tools_ is empty (callers must invoke init_tools again to repopulate)
     REQUIRE(ToolState::instance().tool_count() == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "[ToolState][ams-topology] clear_ams_topology before init is a silent no-op",
+                 "[tool-state][ams][ams-topology]") {
+    // Shutdown clears AMS backends unconditionally, including on paths such as
+    // --version that exit before any subject is initialized.
+    ToolState::instance().deinit_subjects();
+    REQUIRE_FALSE(ToolState::instance().ams_topology_active());
+
+    std::ostringstream captured;
+    auto prev_logger = spdlog::default_logger();
+    spdlog::set_default_logger(std::make_shared<spdlog::logger>(
+        "capture", std::make_shared<spdlog::sinks::ostream_sink_st>(captured)));
+    ToolState::instance().clear_ams_topology();
+    spdlog::set_default_logger(prev_logger);
+
+    CHECK(captured.str().find("clear_ams_topology() before init_subjects()") == std::string::npos);
 }
 
 TEST_CASE_METHOD(ToolStateFixture,
