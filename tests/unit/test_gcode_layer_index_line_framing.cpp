@@ -163,7 +163,10 @@ TEST_CASE("layer index: progress is reported and ends at the whole file",
 
     std::vector<float> seen;
     GCodeLayerIndex index;
-    REQUIRE(index.build_from_file(f.path.string(), [&](float p) { seen.push_back(p); }));
+    REQUIRE(index.build_from_file(f.path.string(), [&](float p) {
+        seen.push_back(p);
+        return true;
+    }));
 
     REQUIRE_FALSE(seen.empty());
     for (float p : seen) {

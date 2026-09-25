@@ -541,6 +541,11 @@ class GCodeStreamingController {
     std::future<bool> index_future_;
     std::atomic<bool> indexing_{false};
     std::atomic<float> index_progress_{0.0f};
+    // Set by close()/destructor before joining index_future_: the progress
+    // callback withdraws consent and the scan unwinds, so the join costs one
+    // progress interval instead of the rest of the build. Cleared when a new
+    // build starts.
+    std::atomic<bool> index_cancel_requested_{false};
     mutable std::mutex callback_mutex_; // Protects index_complete_callback_
     std::function<void(bool)> index_complete_callback_;
 

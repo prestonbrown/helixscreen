@@ -236,7 +236,8 @@ GCodeStreamingController::~GCodeStreamingController() {
 
     // Wait for any async indexing to complete
     if (index_future_.valid()) {
-        indexing_.store(false); // Signal cancellation
+        indexing_.store(false);
+        index_cancel_requested_.store(true, std::memory_order_relaxed);
         try {
             index_future_.wait();
         } catch (...) {
@@ -388,6 +389,7 @@ void GCodeStreamingController::close() {
     // Wait for async operations
     if (index_future_.valid()) {
         indexing_.store(false);
+        index_cancel_requested_.store(true, std::memory_order_relaxed);
         try {
             index_future_.wait();
         } catch (...) {
@@ -842,6 +844,10 @@ bool GCodeStreamingController::build_index() {
         return false;
     }
 
+    // Any canceller of the previous build has finished joining it before this
+    // one starts, so arming here cannot race with a close().
+    index_cancel_requested_.store(false, std::memory_order_relaxed);
+
     // Use the virtual method to get an indexable file path
     // FileDataSource returns its original filepath; sources that stage data on
     // disk return the staged path once ensure_indexable() has materialized it
@@ -853,8 +859,10 @@ bool GCodeStreamingController::build_index() {
         // drive an indeterminate spinner — on a 133MB print that is 69 seconds
         // of a UI that looks hung. Storing an atomic from the scan thread is
         // the whole cost; the UI polls it on its own clock.
-        return index_.build_from_file(file_path,
-                                      [this](float fraction) { index_progress_.store(fraction); });
+        return index_.build_from_file(file_path, [this](float fraction) {
+            index_progress_.store(fraction);
+            return !index_cancel_requested_.load(std::memory_order_relaxed);
+        });
     }
 
     // Sources without file path (e.g., MemoryDataSource) cannot be indexed
