@@ -336,6 +336,15 @@ class PrinterState {
         temperature_state_.set_active_extruder(name);
     }
 
+    // Viewer pin: see PrinterTemperatureState::pin_active_extruder.
+    void pin_active_extruder(const std::string& name) {
+        temperature_state_.pin_active_extruder(name);
+    }
+
+    void clear_active_extruder_pin() {
+        temperature_state_.clear_active_extruder_pin();
+    }
+
     // Active extruder's latched last non-zero target (°C); 0 if unknown.
     float get_active_extruder_last_nonzero_target() const {
         return temperature_state_.get_active_extruder_last_nonzero_target();

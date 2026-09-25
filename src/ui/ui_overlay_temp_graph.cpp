@@ -22,15 +22,27 @@
 #include "temperature_sensor_types.h"
 #include "temperature_service.h"
 #include "theme_manager.h"
+#include "tool_state.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <string_view>
 #include <utility>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// The trailing number token of an extruder's display name ("Nozzle 3" -> "3").
+/// Empty when the name carries no number (single-extruder "Nozzle").
+static std::string_view extruder_number_token(const std::string& display_name) {
+    const auto pos = display_name.find_last_of(' ');
+    if (pos == std::string::npos) {
+        return {};
+    }
+    return {display_name.data() + pos + 1, display_name.size() - pos - 1};
+}
 
 /**
  * Map overlay Mode to HeaterType for temperature control.
@@ -144,6 +156,10 @@ void TempGraphOverlay::init_subjects() {
         // XML create and the first lv_subject_set_int in open().
         UI_MANAGED_SUBJECT_INT(mode_subject_, static_cast<int>(mode_), "temp_graph_mode",
                                subjects_);
+        // The nozzle digit, kept in step with the extruder the card
+        // displays (picked tool while pinned, machine tool otherwise).
+        UI_MANAGED_SUBJECT_STRING(nozzle_badge_subject_, nozzle_badge_buffer_, "",
+                                  "temp_graph_nozzle_badge", subjects_);
     });
 }
 
@@ -180,6 +196,21 @@ void TempGraphOverlay::on_activate() {
     nozzle_icon_binder_.bind(overlay_root_, *printer_state_, helix::HeaterType::Nozzle);
     bed_icon_binder_.bind(overlay_root_, *printer_state_, helix::HeaterType::Bed);
     chamber_icon_binder_.bind(overlay_root_, *printer_state_, helix::HeaterType::Chamber);
+
+    // Keep the digit's tool number aligned with the card while the overlay
+    // is open: the pair of ToolState subjects fires on every toolchange and
+    // tool-list rebuild (the same pair ui_ams_tool_text observes for the
+    // global badge). Unbound in on_deactivating().
+    auto& tools = helix::ToolState::instance();
+    nozzle_badge_tool_observer_ = helix::ui::observe_int_sync<TempGraphOverlay>(
+        tools.get_active_tool_subject(), this,
+        [](TempGraphOverlay* self, int /*tool*/) { self->publish_nozzle_badge(); },
+        tools.get_subjects_lifetime());
+    nozzle_badge_version_observer_ = helix::ui::observe_int_sync<TempGraphOverlay>(
+        tools.get_tools_version_subject(), this,
+        [](TempGraphOverlay* self, int /*version*/) { self->publish_nozzle_badge(); },
+        tools.get_subjects_lifetime());
+    publish_nozzle_badge();
 
     discover_series();
 
@@ -267,6 +298,15 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
     nozzle_icon_binder_.unbind();
     bed_icon_binder_.unbind();
     chamber_icon_binder_.unbind();
+    nozzle_badge_tool_observer_.reset();
+    nozzle_badge_version_observer_.reset();
+
+    // The extruder pin is a property of THIS view: dropping the overlay means
+    // nothing on screen is pinned anymore, and the active extruder subjects go
+    // back to following the machine's toolhead.
+    if (printer_state_) {
+        printer_state_->clear_active_extruder_pin();
+    }
 
     // Clear any pinned caption before the controller (and its graph) are torn
     // down below.
@@ -886,7 +926,7 @@ void TempGraphOverlay::rebuild_extruder_selector() {
         lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
 
-        bool is_active = (ext->name == active_extruder_name_);
+        bool is_active = (ext->name == temp_state.active_extruder_name());
         lv_obj_set_style_bg_color(
             btn,
             is_active ? theme_manager_get_color("primary") : theme_manager_get_color("card_bg"), 0);
@@ -903,10 +943,8 @@ void TempGraphOverlay::rebuild_extruder_selector() {
         // Saves horizontal space so 4+ pills fit without clipping; the full
         // "Nozzle N" wording still appears in status messages and the heater
         // icon caption.
-        auto space_pos = ext->display_name.find_last_of(' ');
-        std::string pill_text = (space_pos != std::string::npos)
-                                    ? ext->display_name.substr(space_pos + 1)
-                                    : ext->display_name;
+        auto number = extruder_number_token(ext->display_name);
+        std::string pill_text = number.empty() ? ext->display_name : std::string(number);
         lv_label_set_text(label, pill_text.c_str());
         lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), 0);
         lv_obj_set_style_text_color(
@@ -936,8 +974,12 @@ void TempGraphOverlay::on_extruder_selected(lv_event_t* e) {
     if (!name)
         return;
 
-    self->active_extruder_name_ = name;
-    self->printer_state_->set_active_extruder(name);
+    // Pin, don't set: a plain set would be undone by the next toolhead status
+    // frame naming the machine's active tool, leaving the card showing one
+    // tool while the picked pill stays highlighted. The pin is cleared when
+    // the overlay deactivates.
+    self->printer_state_->pin_active_extruder(name);
+    self->publish_nozzle_badge();
 
     // Defer rebuild (#80) AND use safe_clean_children in rebuild_extruder_selector
     // (#776): lifetime_.defer moves work off the click stack so we don't delete
@@ -948,4 +990,23 @@ void TempGraphOverlay::on_extruder_selected(lv_event_t* e) {
                           [self]() { self->rebuild_extruder_selector(); });
 
     spdlog::debug("[TempGraphOverlay] Selected extruder: {}", name);
+}
+
+void TempGraphOverlay::publish_nozzle_badge() {
+    if (!printer_state_) {
+        return;
+    }
+
+    // The card's temp reads the active extruder subjects, which the pin holds
+    // on the picked tool — so the digit names exactly that extruder.
+    auto& temp_state = printer_state_->temperature_state();
+    const auto& extruders = temp_state.extruders();
+    auto it = extruders.find(temp_state.active_extruder_name());
+    if (it == extruders.end()) {
+        lv_subject_copy_string(&nozzle_badge_subject_, "");
+        return;
+    }
+    auto number = extruder_number_token(it->second.display_name);
+    std::string text(number);
+    lv_subject_copy_string(&nozzle_badge_subject_, text.c_str());
 }

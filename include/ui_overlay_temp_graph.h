@@ -7,6 +7,7 @@
 #include "ui_heater_icon_binder.h"
 #include "ui_temp_graph.h"
 
+#include "observer_factory.h"
 #include "overlay_base.h"
 #include "temp_graph_controller.h"
 
@@ -163,8 +164,16 @@ class TempGraphOverlay : public OverlayBase {
     helix::PrinterState* printer_state_ = nullptr;
     TemperatureService* temp_control_panel_ = nullptr;
 
-    // Active extruder name (for nozzle mode)
-    std::string active_extruder_name_ = "extruder";
+    // The tool number the nozzle subscript digit shows. Mirrors whichever extruder the
+    // card displays — the picked one while a pick is held (the pin), the
+    // machine's active tool otherwise. Bound in on_activate() to ToolState's
+    // active_tool/tools_version pair (the same two subjects ui_ams_tool_text
+    // observes for the badge), unbound in on_deactivating().
+    lv_subject_t nozzle_badge_subject_{};
+    char nozzle_badge_buffer_[16]{};
+    ObserverGuard nozzle_badge_tool_observer_;
+    ObserverGuard nozzle_badge_version_observer_;
+    void publish_nozzle_badge();
 
     // Subject management
     SubjectManager subjects_;

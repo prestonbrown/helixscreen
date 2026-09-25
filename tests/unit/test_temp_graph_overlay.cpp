@@ -150,15 +150,16 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 TEST_CASE_METHOD(
     LVGLTestFixture,
-    "TempGraphOverlay: init_subjects publishes temp_graph_mode, destructor withdraws it",
+    "TempGraphOverlay: init_subjects publishes its two subjects, destructor withdraws them",
     "[temp_graph_overlay]") {
-    // init_subjects() publishes one subject — temp_graph_mode — which drives
-    // strip visibility and graph_outer width from XML (see temp_graph_overlay.xml's
-    // <subjects> block). The SubjectManager destructor (deinit_all, run from
-    // ~TempGraphOverlay via the subjects_ member) must withdraw the name so it
-    // does not outlive the overlay. This pins both halves: the publish count AND
-    // the destructor cleanup. If a second subject is ever added, bump the +1 and
-    // name the newcomer here so the withdrawal stays covered too.
+    // init_subjects() publishes two subjects — temp_graph_mode (strip
+    // visibility and graph_outer width, see temp_graph_overlay.xml's <subjects>
+    // block) and temp_graph_nozzle_badge (the tool number the nozzle digit
+    // shows). The SubjectManager destructor (deinit_all, run from
+    // ~TempGraphOverlay via the subjects_ member) must withdraw both names so
+    // they do not outlive the overlay. This pins both halves: the publish count
+    // AND the destructor cleanup. If a third subject is ever added, bump the +2
+    // and name the newcomer here so the withdrawal stays covered too.
     auto name_present = [](const std::string& needle) {
         auto all = SubjectDebugRegistry::instance().list_all();
         return std::any_of(all.begin(), all.end(),
@@ -173,14 +174,17 @@ TEST_CASE_METHOD(
         overlay.init_subjects();
         REQUIRE(overlay.are_subjects_initialized());
 
-        // Exactly one subject published: temp_graph_mode.
-        REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before + 1);
+        // Exactly two subjects published: temp_graph_mode,
+        // temp_graph_nozzle_badge.
+        REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before + 2);
         REQUIRE(name_present("temp_graph_mode"));
+        REQUIRE(name_present("temp_graph_nozzle_badge"));
         // Destructor runs here.
     }
 
     REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before);
     REQUIRE_FALSE(name_present("temp_graph_mode"));
+    REQUIRE_FALSE(name_present("temp_graph_nozzle_badge"));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: destructor safe without init_subjects",
