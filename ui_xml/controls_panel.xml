@@ -40,11 +40,12 @@
       <!-- Card 1: Position (Toolhead Position + Motion) -->
       <ui_card name="card_position"
                height="100%" flex_grow="1" flex_flow="column" style_flex_main_place="space_between"
-               style_radius="#border_radius" style_pad_all="#space_sm" scrollable="false">
+               style_radius="#border_radius" style_pad_all="#space_sm" scrollable="false" clickable="true">
+        <event_cb trigger="clicked" callback="on_controls_quick_actions"/>
         <!-- Header -->
         <lv_obj flex_flow="row"
                 style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="0"
-                style_pad_gap="#space_sm">
+                style_pad_gap="#space_sm" clickable="false">
           <icon src="axis_arrow" size="sm" variant="primary"/>
           <text_small text="Position"
                       translation_tag="Position" text_transform="uppercase" style_translate_y="2"
@@ -53,14 +54,15 @@
         <!-- Position display with homing indicators -->
         <!-- Split into static label + dynamic value for proper alignment with proportional fonts -->
         <lv_obj width="100%"
-                height="content" style_pad_all="0" scrollable="false" flex_flow="column" style_pad_gap="#space_xxs">
+                height="content" style_pad_all="0" scrollable="false" flex_flow="column" style_pad_gap="#space_xxs"
+                clickable="false">
           <!-- X Position Row -->
           <lv_obj width="100%"
                   height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
-                  style_pad_gap="#space_xs">
+                  style_pad_gap="#space_xs" clickable="false">
             <text_muted width="content" text="X:"/>
             <text_body name="pos_x" bind_text="controls_pos_x" flex_grow="1" style_text_align="right"/>
-            <lv_obj width="10" height="10" style_radius="9999" style_margin_left="#space_xs">
+            <lv_obj width="10" height="10" style_radius="9999" style_margin_left="#space_xs" clickable="false">
               <bind_style name="indicator_homed" subject="x_homed" ref_value="1"/>
               <bind_style name="indicator_unhomed" subject="x_homed" ref_value="0"/>
             </lv_obj>
@@ -68,10 +70,10 @@
           <!-- Y Position Row -->
           <lv_obj width="100%"
                   height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
-                  style_pad_gap="#space_xs">
+                  style_pad_gap="#space_xs" clickable="false">
             <text_muted width="content" text="Y:"/>
             <text_body name="pos_y" bind_text="controls_pos_y" flex_grow="1" style_text_align="right"/>
-            <lv_obj width="10" height="10" style_radius="9999" style_margin_left="#space_xs">
+            <lv_obj width="10" height="10" style_radius="9999" style_margin_left="#space_xs" clickable="false">
               <bind_style name="indicator_homed" subject="y_homed" ref_value="1"/>
               <bind_style name="indicator_unhomed" subject="y_homed" ref_value="0"/>
             </lv_obj>
@@ -79,10 +81,10 @@
           <!-- Z Position Row -->
           <lv_obj width="100%"
                   height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
-                  style_pad_gap="#space_xs">
+                  style_pad_gap="#space_xs" clickable="false">
             <text_muted width="content" text="Z:"/>
             <text_body name="pos_z" bind_text="controls_pos_z" flex_grow="1" style_text_align="right"/>
-            <lv_obj width="10" height="10" style_radius="9999" style_margin_left="#space_xs">
+            <lv_obj width="10" height="10" style_radius="9999" style_margin_left="#space_xs" clickable="false">
               <bind_style name="indicator_homed" subject="z_homed" ref_value="1"/>
               <bind_style name="indicator_unhomed" subject="z_homed" ref_value="0"/>
             </lv_obj>
@@ -135,10 +137,11 @@
           <ui_card name="card_temperatures"
                    height="100%" flex_grow="1" flex_flow="column" style_flex_main_place="start"
                    style_flex_cross_place="center" style_radius="#border_radius" style_pad_all="#space_sm"
-                   scrollable="false">
+                   scrollable="false" clickable="true">
+            <event_cb trigger="clicked" callback="on_nozzle_temp_clicked"/>
             <lv_obj width="100%"
                     height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
-                    style_pad_gap="#space_sm" scrollable="false">
+                    style_pad_gap="#space_sm" scrollable="false" clickable="false">
               <icon src="thermometer" size="sm" variant="primary"/>
               <text_small text="Temperature"
                           translation_tag="Temperature" text_transform="uppercase" style_translate_y="2"
@@ -260,7 +263,7 @@
             <event_cb trigger="clicked" callback="on_controls_cooling"/>
             <lv_obj width="100%"
                     height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
-                    style_pad_gap="#space_sm" scrollable="false">
+                    style_pad_gap="#space_sm" scrollable="false" clickable="false">
               <icon name="fan_icon" src="fan" size="sm" variant="primary"/>
               <text_small text="Cooling"
                           translation_tag="Cooling" text_transform="uppercase" style_translate_y="2"
@@ -271,7 +274,7 @@
             <lv_obj width="100%"
                     height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
                     style_pad_left="#space_lg" style_pad_right="0" style_bg_opa="0" style_border_width="0"
-                    scrollable="false">
+                    scrollable="false" clickable="false">
               <bind_style_if_eq name="slider_container_compact" subject="ui_breakpoint" ref_value="1"/>
               <bind_style_if_ge name="slider_container_standard" subject="ui_breakpoint" ref_value="2"/>
               <lv_slider name="part_fan_slider"
