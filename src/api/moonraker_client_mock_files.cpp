@@ -54,6 +54,21 @@ static std::vector<std::string> scan_mock_gcode_files() {
     closedir(dir);
     std::sort(files.begin(), files.end());
 
+    // HELIX_MOCK_FILE_COUNT=N — pad the listing to N entries by cycling the
+    // real filenames. Duplicate entries still resolve to real files for
+    // downloads and metadata, so a large-N print-select panel measures the
+    // per-file cost, not a wall of not-found errors.
+    if (const char* v = std::getenv("HELIX_MOCK_FILE_COUNT"); v && *v) {
+        size_t want = static_cast<size_t>(atoi(v));
+        if (want > files.size() && !files.empty()) {
+            const size_t real = files.size();
+            files.reserve(want);
+            for (size_t i = real; i < want; i++) {
+                files.push_back(files[i % real]);
+            }
+        }
+    }
+
     spdlog::debug("[MoonrakerClientMock] Found {} mock G-code files", files.size());
     return files;
 }

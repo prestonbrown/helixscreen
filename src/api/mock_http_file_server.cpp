@@ -10,7 +10,9 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <arpa/inet.h>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <netinet/in.h>
@@ -58,6 +60,53 @@ std::string make_gcode_header(const std::vector<uint8_t>& png) {
     out += "; thumbnail end\n";
     out += ";FLAVOR:Marlin\n;Generated with MockHttpFileServer\nG28\n";
     return out;
+}
+
+/// HELIX_MOCK_RANGE_IGNORE=1 — drop the Range header from every request so
+/// libhv answers 200 with the whole body instead of slicing a 206: the
+/// behaviour of server forks that never implemented byte ranges.
+static bool range_ignore_enabled() {
+    static const bool enabled = [] {
+        const char* v = std::getenv("HELIX_MOCK_RANGE_IGNORE");
+        return v && v[0] && std::string(v) != "0";
+    }();
+    return enabled;
+}
+
+/// Slice a body per a "bytes=a-b" / "bytes=-n" Range header and mark the
+/// response 206, the way a range-supporting Moonraker answers. libhv does not
+/// do this for a handler-set body, so the server must honour the header
+/// itself; HELIX_MOCK_RANGE_IGNORE skips this to emulate a server that never
+/// implemented ranges (200, whole file).
+void apply_range(HttpRequest* req, HttpResponse* resp) {
+    std::string range = req->GetHeader("Range");
+    if (range.rfind("bytes=", 0) != 0 || resp->body.empty()) {
+        return;
+    }
+    size_t dash = range.find('-', 6);
+    if (dash == std::string::npos) {
+        return;
+    }
+    size_t start = 0;
+    size_t end = 0;
+    if (dash == 6) { // suffix form: the last N bytes
+        size_t n = static_cast<size_t>(atoi(range.c_str() + 7));
+        n = std::min(n, resp->body.size());
+        start = resp->body.size() - n;
+        end = resp->body.size() - 1;
+    } else {
+        start = static_cast<size_t>(atoi(range.c_str() + 6));
+        end = range.size() > dash + 1 ? static_cast<size_t>(atoi(range.c_str() + dash + 1))
+                                      : resp->body.size() - 1;
+        end = std::min(end, resp->body.size() - 1);
+        if (start > end) {
+            return;
+        }
+    }
+    resp->status_code = HTTP_STATUS_PARTIAL_CONTENT;
+    resp->SetHeader("Content-Range", "bytes " + std::to_string(start) + "-" + std::to_string(end) +
+                                         "/" + std::to_string(resp->body.size()));
+    resp->body = resp->body.substr(start, end - start + 1);
 }
 
 bool ends_with(const std::string& s, const std::string& suffix) {
@@ -135,12 +184,17 @@ bool MockHttpFileServer::start() {
     const std::string& gcode = impl_->gcode_header;
     impl_->router.GET(
         "/server/files/gcodes/*", [&png, &gcode](HttpRequest* req, HttpResponse* resp) {
+            if (range_ignore_enabled()) {
+                req->headers.erase("Range");
+            }
             const std::string& path = req->path;
             if (ends_with(path, ".png")) {
                 resp->content_type = APPLICATION_OCTET_STREAM;
                 resp->body.assign(reinterpret_cast<const char*>(png.data()), png.size());
-                spdlog::debug("[MockHttpFileServer] 200 {} ({} bytes, png)", path, png.size());
-                return 200;
+                apply_range(req, resp);
+                spdlog::debug("[MockHttpFileServer] {} {} ({} bytes, png)",
+                              static_cast<int>(resp->status_code), path, resp->body.size());
+                return static_cast<int>(resp->status_code);
             }
             if (ends_with(path, ".gcode")) {
                 // HELIX_MOCK_GCODE_SERVE=<path> — serve a real file's bytes (any
@@ -158,22 +212,23 @@ bool MockHttpFileServer::start() {
                         resp->content_type = TEXT_PLAIN;
                         resp->body.assign((std::istreambuf_iterator<char>(f)),
                                           std::istreambuf_iterator<char>());
-                        spdlog::debug("[MockHttpFileServer] 200 {} ({} bytes, from {})", path,
-                                      resp->body.size(), serve_file);
-                        return 200;
+                        apply_range(req, resp);
+                        spdlog::debug("[MockHttpFileServer] {} {} ({} bytes, from {})",
+                                      static_cast<int>(resp->status_code), path, resp->body.size(),
+                                      serve_file);
+                        return static_cast<int>(resp->status_code);
                     }
                     spdlog::warn("[MockHttpFileServer] HELIX_MOCK_GCODE_SERVE file unreadable: {}",
                                  serve_file);
                 }
-                // download_file_partial() asks for a byte range; libhv answers the
-                // Range itself when the body is set, and a caller that asked for
-                // the first 100 KB of a shorter body simply gets the whole thing —
-                // which is what a real short gcode file does too.
+                // A synthesized header shorter than a requested range slices to
+                // whatever exists, the same way a real short gcode file answers.
                 resp->content_type = TEXT_PLAIN;
                 resp->body = gcode;
-                spdlog::debug("[MockHttpFileServer] 200 {} ({} bytes, gcode header)", path,
-                              gcode.size());
-                return 200;
+                apply_range(req, resp);
+                spdlog::debug("[MockHttpFileServer] {} {} ({} bytes, gcode header)",
+                              static_cast<int>(resp->status_code), path, resp->body.size());
+                return static_cast<int>(resp->status_code);
             }
             spdlog::debug("[MockHttpFileServer] 404 {}", path);
             return 404;
