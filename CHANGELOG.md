@@ -17,8 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   geometry and cache work promptly instead
   ([#1706](https://github.com/prestonbrown/helixscreen/issues/1706)).
 - **File thumbnails on printers without file metadata stay bounded** - if Moonraker ignores
-  range requests and answers a small header read with the whole G-code file, only the
-  requested bytes are kept and parsed
+  range requests and answers a small header read with the whole G-code file, the download
+  stops once the requested bytes have arrived
   ([#1706](https://github.com/prestonbrown/helixscreen/issues/1706)).
 - **Pre-print status on the Snapmaker U1 shows each real step** - the preparation screen
   used to sit on one label for most of the run: "Priming..." replaced every step from the
