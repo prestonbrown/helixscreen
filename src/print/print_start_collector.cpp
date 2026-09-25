@@ -418,28 +418,6 @@ void PrintStartCollector::complete_from_external_signal(const char* source) {
     update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
 }
 
-void PrintStartCollector::note_priming() {
-    if (!active_.load()) {
-        return;
-    }
-    {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        // Don't regress out of COMPLETE, and don't re-announce once already
-        // showing PURGING. update_phase() also guards COMPLETE→COMPLETE, but we
-        // must not flip a finished pre-print back to "Priming...".
-        if (current_phase_ == PrintStartPhase::COMPLETE ||
-            current_phase_ == PrintStartPhase::PURGING) {
-            return;
-        }
-    }
-    spdlog::info("[PrintStartCollector] print_duration positive pre-layer-1 → Priming");
-    // Mark as a real signal so the proactive temperature heuristic stays gated
-    // off (the firmware/extrusion is authoritative here), then advance the
-    // displayed phase. NOT a completion — that stays on the current_layer edge.
-    real_signal_seen_.store(true, std::memory_order_relaxed);
-    update_phase(PrintStartPhase::PURGING, lv_tr("Priming..."));
-}
-
 void PrintStartCollector::note_bed_mesh_presence(bool present) {
     if (!active_.load()) {
         return;

@@ -3276,46 +3276,100 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
 }
 
 // ============================================================================
-// Snapmaker U1: the initial prime/purge line ("G1 X110 E15") extrudes with NO
-// observable gcode_response (PRINT_PREEXTRUDING only fires for a 2nd tool
-// mid-print). print_stats.print_duration going 0->positive while current_layer
-// is still < 1 is the one real, observable "priming has begun" signal. The
-// collector must show PURGING "Priming..." but must NOT complete the pre-print
-// phase — completion stays gated on the genuine current_layer 0->1 edge.
+// Full U1 pre-print replay at the device's real pace (one print, klippy.log
+// timestamps): homing, Z touch, bed inspect, extruder switch check, auto-feed,
+// Z calibration mesh, plate detect + 4 probes — then ~129s of true silence
+// while klippy-internal flow calibration and nozzle clean run (no
+// gcode_response exists for them) — then the real bed mesh (~14s), then ~39s
+// of quiet prime line before layer 1. Nothing narrates the silent prime line,
+// and the collector has no priming inference to guess at it: the last
+// declared phase owns the display through each silent stretch, and only the
+// genuine current_layer 0->1 edge completes the pre-print.
 // ============================================================================
 
 TEST_CASE_METHOD(SnapmakerCollectorFixture,
-                 "Snapmaker U1: note_priming shows Priming without completing pre-print",
+                 "Snapmaker U1: full pre-print replay at real pace - declared phases own the "
+                 "display, no inferred Priming",
                  "[print][collector][snapmaker][preprint]") {
     collector().start();
     drain_async_updates();
 
-    // Sequence has reached the mesh, pre-layer-1.
+    // One print_stats tick: 1s of collector time.
+    auto tick = [&]() {
+        PrintStartCollectorTestAccess::advance_clock_ms(collector(), 1000);
+        drain_async_updates();
+        return get_current_message();
+    };
+    auto quiet_ticks = [&](int seconds, const char* hold) {
+        for (int i = 0; i < seconds; ++i) {
+            const std::string msg = tick();
+            INFO("quiet tick " << i << ": " << msg);
+            REQUIRE(msg.find(hold) != std::string::npos);
+            REQUIRE(msg.find("Priming") == std::string::npos);
+        }
+    };
+
+    feed_gcode("// trigger_mcu_pos: {\"z\": 150}");
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+    REQUIRE(get_current_message().find("Homing axes") != std::string::npos);
+
+    feed_gcode("// probe_start_x: 110.0");
+    REQUIRE(get_current_message().find("Probing Z") != std::string::npos);
+
+    feed_gcode("// Success: Set action code PRINT_BED_DETECTING");
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message().find("Inspecting bed") != std::string::npos);
+
+    // print_duration goes positive here on the real printer; nothing infers
+    // a label from it.
+    feed_gcode("// Success: Set action code PRINT_SWITCH_CHECKING");
+    REQUIRE(get_current_message().find("Checking extruders") != std::string::npos);
+    REQUIRE(tick().find("Checking extruders") != std::string::npos);
+
+    feed_gcode("// Success: Set action code PRINT_AUTO_FEEDING");
+    REQUIRE(get_current_message().find("Loading filament") != std::string::npos);
+    REQUIRE(tick().find("Loading filament") != std::string::npos);
+
+    // Z calibration mesh.
     feed_gcode("// z offset: -0.05");
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message().find("Bed mesh") != std::string::npos);
+    feed_gcode("// probe at 10.000,10.000 is z=-0.100000");
+    feed_gcode("// probe at 50.000,10.000 is z=-0.105000");
+    REQUIRE(tick().find("Bed mesh") != std::string::npos);
     feed_gcode("// z_mesh_complete: -0.02573436601557052");
+
+    // Plate detect and its four probes: the last narrated pre-mesh step.
+    feed_gcode("// Success: Set action code DETECT_PLATE");
+    REQUIRE(get_current_message().find("Detecting plate") != std::string::npos);
+    feed_gcode("// probe at 10.000,10.000 is z=-0.200000");
+    feed_gcode("// probe at 35.000,10.000 is z=-0.205000");
+    feed_gcode("// probe at 60.000,10.000 is z=-0.210000");
+    feed_gcode("// probe at 85.000,10.000 is z=-0.215000");
+    REQUIRE(tick().find("Detecting plate") != std::string::npos);
+
+    // ~129s of true silence: flow calibration and nozzle clean are
+    // klippy-internal and narrate nothing. The display must keep the plate
+    // label the whole way — nothing speaks during a silent stretch.
+    quiet_ticks(129, "Detecting plate");
     REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
 
-    // print_duration went positive (prime extrusion) while current_layer < 1.
-    collector().note_priming();
-    drain_async_updates();
-    INFO("After note_priming: phase=" << static_cast<int>(get_current_phase())
-                                      << " msg=" << get_current_message());
-    REQUIRE(get_current_phase() == PrintStartPhase::PURGING);
-    REQUIRE(get_current_message().find("Priming") != std::string::npos);
+    // The real bed mesh (~14s end to end).
+    feed_gcode("// z offset: -0.06");
+    REQUIRE(get_current_message().find("Bed mesh") != std::string::npos);
+    feed_gcode("// probe at 20.000,20.000 is z=-0.300000");
+    feed_gcode("// probe at 60.000,20.000 is z=-0.305000");
+    REQUIRE(tick().find("Bed mesh") != std::string::npos);
+    feed_gcode("// z_mesh_complete: -0.03000000000000000");
 
-    // CRITICAL: priming is a phase UPDATE, not completion. It must NOT advance to
-    // COMPLETE — that only happens on the real first-layer (current_layer 0->1).
-    REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
+    // ~39s of quiet prime line before layer 1: the prime is not narrated, so
+    // the mesh label holds until the layer edge completes the pre-print.
+    quiet_ticks(39, "Bed mesh");
 
-    // A second note_priming is a no-op (already PURGING) and still not COMPLETE.
-    collector().note_priming();
-    drain_async_updates();
-    REQUIRE(get_current_phase() == PrintStartPhase::PURGING);
-
-    // The genuine first-layer signal completes it (as before).
     collector().complete_from_external_signal("first layer");
     drain_async_updates();
     REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
+    REQUIRE(get_current_message().find("Starting Print") != std::string::npos);
 }
 
 // ============================================================================
