@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   range requests and answers a small header read with the whole G-code file, only the
   requested bytes are kept and parsed
   ([#1706](https://github.com/prestonbrown/helixscreen/issues/1706)).
+- **Pre-print status on the Snapmaker U1 shows each real step** - the preparation screen
+  used to sit on one label for most of the run: "Priming..." replaced every step from the
+  first toolhead move until the first layer, and a step following an earlier related one
+  (probing Z after homing the axes, bed mesh and plate detection after the bed inspection)
+  kept showing the first step's name instead of its own. Each step now shows as it happens:
+  homing, probing Z, bed mesh, plate detection.
 
 ## [1.0.2] - 2026-09-25
 
