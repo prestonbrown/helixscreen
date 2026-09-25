@@ -120,6 +120,17 @@ void MoonrakerFileTransferAPI::download_file_partial(const std::string& root,
         spdlog::debug("[Moonraker API] Partial download: {} bytes from {} (status {})",
                       resp->body.size(), path, static_cast<int>(resp->status_code));
 
+        // A server that ignores Range answers 200 with the whole file. The
+        // excess bytes already crossed the wire, but the caller asked for
+        // max_bytes: hand it no more than that so downstream parse and memory
+        // stay bounded no matter what the server sent.
+        if (resp->body.size() > max_bytes) {
+            spdlog::warn("[Moonraker API] Partial download: server ignored Range for {} "
+                         "(sent {} bytes, keeping first {})",
+                         path, resp->body.size(), max_bytes);
+            resp->body.resize(max_bytes);
+        }
+
         if (on_success) {
             on_success(resp->body);
         }
@@ -172,6 +183,15 @@ void MoonrakerFileTransferAPI::download_file_tail(const std::string& root, const
 
         spdlog::debug("[Moonraker API] Tail download: {} bytes from {} (status {})",
                       resp->body.size(), path, static_cast<int>(resp->status_code));
+
+        // Same Range-ignoring guard as the head path, keeping the LAST
+        // max_bytes: a tail reader parses the end of the file.
+        if (resp->body.size() > max_bytes) {
+            spdlog::warn("[Moonraker API] Tail download: server ignored Range for {} "
+                         "(sent {} bytes, keeping last {})",
+                         path, resp->body.size(), max_bytes);
+            resp->body.erase(0, resp->body.size() - max_bytes);
+        }
 
         if (on_success) {
             on_success(resp->body);
