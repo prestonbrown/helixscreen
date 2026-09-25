@@ -329,11 +329,13 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
 }
 
 void ToolState::clear_ams_topology() {
+    // Nothing to clear is not an error: set_ams_topology() refuses before init,
+    // so an inactive topology is the normal state on early-exit shutdown paths.
+    if (!ams_topology_active_)
+        return;
     if (!subjects_ready(subjects_initialized_, "clear_ams_topology()")) {
         return;
     }
-    if (!ams_topology_active_)
-        return;
     ams_topology_active_ = false;
     ams_topology_tool_count_ = 0;
     ams_topology_tool_to_slot_.clear();
