@@ -13,6 +13,11 @@
  * parsed a whole multi-MB gcode file per entry on the single slow-lane worker.
  * The clamps live in the two shared transfer functions; these tests drive the
  * real HTTP client against a local responder that honours or ignores Range.
+ *
+ * Stays in the default sweep, no [slow]: everything here is self-contained
+ * loopback threads (the responder plus HttpExecutor::slow), each wait is
+ * bounded by await()'s 10 s promise timeout, and the whole tag runs in
+ * well under a second.
  */
 
 #include "moonraker_client_mock.h"

@@ -61,6 +61,64 @@ HELIX_MOCK_REMOTE_THUMBS=1 HELIX_THUMB_CACHE_MAX_MB=1 \
   HELIX_CACHE_DIR=/tmp/ht ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_GCODE_SERVE`
+
+Serve a real file's bytes from `MockHttpFileServer` instead of the tiny synthesised gcode header, reproducing big-file flows end to end at any size.
+
+| Property | Value |
+|----------|-------|
+| **Values** | path to a gcode file readable by the app |
+| **Default** | unset (`.gcode` requests get a synthesised thumbnail-bearing header) |
+| **File** | `src/api/mock_http_file_server.cpp` |
+
+With this set, every `.gcode` request the mock server receives returns the named file's bytes, so the whole-file preview download and the byte-range reads the tail/footer scanners issue run against a realistically sized payload. The server starts with every `--test` mock run; pair with `HELIX_MOCK_REMOTE_THUMBS=1` to route the file fetches over real HTTP as the #1706 repro does. Range headers are honoured per `apply_range`, subject to `HELIX_MOCK_RANGE_IGNORE`.
+
+```bash
+HELIX_MOCK_REMOTE_THUMBS=1 HELIX_MOCK_GCODE_SERVE=/tmp/huge.gcode \
+  ./build/bin/helix-screen --test -vv
+```
+
+### `HELIX_MOCK_RANGE_IGNORE`
+
+Make the mock file server drop every `Range` header, answering `200` with the whole body: the behaviour of server forks that never implemented byte ranges.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` / any non-empty, non-`0` value to enable |
+| **Default** | unset (ranges honoured: `206` slices, `416` for unsatisfiable) |
+| **File** | `src/api/mock_http_file_server.cpp` (`range_ignore_enabled`, applied in `apply_range`) |
+
+This is the server half of the Qidi Q2 single-file freeze (prestonbrown/helixscreen#1706): a range-ignoring server turned the bounded thumbnail-header fetch into a whole-file download per list entry. Set it to reproduce that class of failure against the client-side clamps, which live in `download_file_partial` / `download_file_tail` (`src/api/moonraker_file_transfer_api.cpp`) and are pinned by `tests/unit/test_moonraker_transfer_range.cpp`. The server's own Range behaviour is pinned by `tests/unit/test_mock_http_file_server_range.cpp`.
+
+```bash
+HELIX_MOCK_REMOTE_THUMBS=1 HELIX_MOCK_RANGE_IGNORE=1 \
+  HELIX_MOCK_FILE_COUNT=200 ./build/bin/helix-screen --test -vv
+```
+
+### `HELIX_MOCK_FILE_COUNT`
+
+Pad the mock's file listing to N entries by cycling the built-in names, so list-scale paths (per-entry metadata fetches, sort, scroll) run against a big list without shipping big files.
+
+| Property | Value |
+|----------|-------|
+| **Values** | positive integer |
+| **Default** | unset (the handful of built-in mock files) |
+| **File** | `src/api/moonraker_client_mock_files.cpp` |
+
+Padded entries reuse the built-in filenames in rotation, so they carry the same thumbnails and metadata; the point is the count, not the variety. Pair with `HELIX_MOCK_RANGE_IGNORE` and `HELIX_MOCK_REMOTE_THUMBS` to make each entry's metadata fetch a whole-file download, the #1706 shape at full scale.
+
+### `HELIX_MOCK_METADATA_404`
+
+Make `server.files.metadata` and `server.files.metascan` fail with a 404, as Moonraker forks without the metadata component do.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` / any non-empty, non-`0` value to enable |
+| **Default** | unset (metadata answers normally) |
+| **File** | `src/api/moonraker_client_mock_files.cpp` |
+
+With metadata unavailable, the UI falls back to reading thumbnails and layer counts straight out of the gcode file, which is the per-file path that #1706 froze. This knob forces that fallback without needing a metadata-less server.
+
 ### `HELIX_MOCK_AUTO_PRINT`
 
 Boot the mock printer straight into an active print so print-gated features can be exercised under `--test` without manually driving a print-start flow.
