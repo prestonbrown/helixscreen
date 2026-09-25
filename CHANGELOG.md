@@ -10,16 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- whatsnew
 The second patch release on the 1.0 line.
 
-Several crashes are gone: the K1 blank-screen crash, a tap on a stale toast after a
-printer switch, and panels left behind by a switch. Sleep no longer makes K2 and AD5X
-panels glow or flicker, and the K2 dim end stays visible. QIDI printers get their .3mf
-thumbnails back, and themes keep text readable on coloured buttons.
+Display sleep is fixed: panels that wedged, glowed or showed a test pattern on AD5X, U1,
+K1, K2 and Pi DSI now sleep by turning the backlight off, and the screen comes back
+properly on wake. Several crashes are gone, including the K1 blank-screen crash and
+crashes after a printer switch. QIDI printers get their .3mf thumbnails back.
 -->
 
-The second patch release on the 1.0 line. Most of it is stability: crashes on K1 class
-boards and after a printer switch, and what a display does when it goes to sleep. The
-rest is QIDI install and uninstall, readable text on coloured fills, and a handful of
-home screen and print preview fixes.
+The second patch release on the 1.0 line. The headline is display sleep: 1.0.1 powered the
+panel down alongside the backlight, and on several boards that wedged the panel or lit it
+up instead of turning it off. 1.0.2 goes back to switching the backlight off and powering
+the panel down only where there is no backlight to switch. The rest is mostly stability,
+on K1 class boards and around printer switching, plus QIDI install fixes and readable text
+on coloured buttons.
 
 ### Added
 
@@ -29,50 +31,66 @@ home screen and print preview fixes.
 
 ### Fixed
 
+**Display sleep and backlight**
+
+- **Sleep turns the backlight off and leaves the panel powered** - powering the panel down
+  alongside a working backlight wedged or lit up panels on AD5X, U1, K1 and K2 (the K2
+  Plus glowed and flickered white at the edges) and showed a colour test pattern on a Pi 4
+  DSI screen. Sleep now switches the backlight off, and powers the panel down only on
+  boards with no backlight control. `/display/panel_power_off` turns panel power-off back
+  on for a screen that needs it
+  ([#1594](https://github.com/prestonbrown/helixscreen/issues/1594),
+  [#1708](https://github.com/prestonbrown/helixscreen/issues/1708)).
+- **Waking from sleep brings the screen fully back** - after dimming, then the screensaver,
+  then sleep, the panel on screen woke up frozen: its live values and timers stayed
+  stopped, and every later screensaver skipped pausing it.
+- **The K2 brightness slider no longer blacks out the screen at its low end** - the lowest
+  settings map onto the panel's visible range, with a `/display/backlight_floor_percent`
+  setting for other panels that go dark early
+  ([#1709](https://github.com/prestonbrown/helixscreen/issues/1709)).
+- **No false "Failed to load G-code preview"** when a print starts while the display is
+  asleep.
+
 **Crashes and stability**
 
-- **K1 class boards no longer crash drawing a QR code or an image** - a canvas buffer
-  could be mistaken for a PNG and drawn at a nonsense size, and draw buffers could be
-  freed while a render was still reading them. Both are fixed
+- **K1 class boards no longer crash drawing a QR code or an image** - a canvas buffer could
+  be mistaken for a PNG and drawn at a nonsense size, and draw buffers could be freed while
+  a render was still reading them
   ([#1673](https://github.com/prestonbrown/helixscreen/issues/1673)).
-- **Toasts after a printer switch** - a toast left over from the previous printer stayed
-  on screen forever, and tapping its button could crash the app. A switch now clears them
-  ([#1719](https://github.com/prestonbrown/helixscreen/issues/1719)).
-- **A printer switch frees what it leaves behind** - overlays, the numeric keypad and the
-  AMS panels opened before a switch are released, not kept as hidden copies, and the
-  motion overlay reopens against the new printer rather than the old one
-  ([#1707](https://github.com/prestonbrown/helixscreen/issues/1707)).
-- **Home pages no longer read freed grid layouts** after the page set changes.
-- **A dropped connection is not reported as a first-time failure** - a session that had
-  connected and later lost Moonraker no longer escalates as if it never connected.
+- **Switching printers no longer sets up a crash** - a toast left over from the previous
+  printer stayed on screen forever and crashed the app when tapped
+  ([#1719](https://github.com/prestonbrown/helixscreen/issues/1719)); the motion, console
+  and macros overlays reopened as stale copies, and tapping home on the motion overlay
+  crashed ([#1707](https://github.com/prestonbrown/helixscreen/issues/1707)); and home
+  pages could keep drawing with layout data the switch had freed.
+- **Switching printers no longer leaks memory** - every overlay, the numeric keypad and the
+  AMS panels opened before a switch stayed allocated as hidden copies, several hundred KB
+  each, for the rest of the session. They are freed now.
+- **A brief connection drop no longer raises the connection-failed dialog** - a printer
+  that had connected and lost Moonraker for a few seconds was treated as one that never
+  connected.
+- **Lower CPU use while drawing** on every shipped board, up to a quarter less on some
+  screens.
 
-**Display and sleep**
+**Touch**
 
-- **Sleep turns the backlight off and leaves the panel powered** - powering the panel
-  down made K2 Plus panels glow and flicker at the edges, and wedged or lit up panels on
-  AD5X, U1, K1 and a Pi 4 DSI. Panel power-off is now opt-in through
-  `/display/panel_power_off`, for boards with no backlight control
-  ([#1708](https://github.com/prestonbrown/helixscreen/issues/1708)).
-- **The K2 brightness slider no longer blacks out the screen at its low end** - the
-  lowest settings map onto the panel's visible range, with a
-  `/display/backlight_floor_percent` setting for other panels
-  ([#1709](https://github.com/prestonbrown/helixscreen/issues/1709)).
 - **Touch lines up on panels whose driver reports its range sideways** - portrait panels
   such as the Creator 5 Pro's scale touch correctly
   ([#1450](https://github.com/prestonbrown/helixscreen/issues/1450)). If you set
   `HELIX_TOUCH_SWAP_AXES=1` to work around this, remove it, or the axes swap twice.
-- **Lower CPU use while drawing** on every shipped board.
-- **No false "Failed to load G-code preview"** when a print starts while the display is
-  asleep.
 
 **Install and uninstall**
 
 - **QIDI printers show .3mf thumbnails again** - with the stock screen stopped, nothing
-  unpacked plate thumbnails from .3mf files, so Fluidd and HelixScreen showed none. A
-  small helper service now does it
+  unpacked plate thumbnails from .3mf files, so Fluidd and HelixScreen showed none. A small
+  helper service now does it, set up on install and on update
   ([#1713](https://github.com/prestonbrown/helixscreen/issues/1713)).
-- **A failed download no longer leaves a printer with no screen** - the installer
-  downloads and checks the release before it disables the stock UI.
+- **The QIDI installer warns what the stock client carries** - on newer QIDI firmware,
+  stopping it breaks QIDI Studio box sync, QIDI cloud and box filament edits. The installer
+  says so once, and the QIDI guide describes the trade-off.
+- **A failed download no longer leaves a printer with no screen** - the installer downloads
+  and checks the release before it disables the stock UI, which also keeps the network up
+  on boards whose stock UI runs WiFi, like the U1.
 - **Uninstall restores the QIDI and MKS stock screen** instead of leaving the boot splash
   up until a reboot.
 - **WiFi respects a radio an administrator blocked** - on a machine where WiFi was never
@@ -81,31 +99,35 @@ home screen and print preview fixes.
 
 **Themes**
 
-- **Text on coloured buttons and badges stays readable** - AMS lane badges, screws-tilt
-  indicators, exclude-object badges, step circles and similar pick text that contrasts
-  with their fill while keeping the theme's tint where it can
+- **Text on coloured buttons stays readable** - buttons, badges, AMS lane and slot badges,
+  filament swatches, LED chips, action prompts, the jog pad, screws-tilt indicators and
+  step circles missed readable contrast on most shipped themes. They now pick text that
+  reads on their fill, keeping the theme's tint where it can
   ([#1496](https://github.com/prestonbrown/helixscreen/issues/1496),
   [#1648](https://github.com/prestonbrown/helixscreen/issues/1648)).
-- **A theme saved in the editor sticks** when the theme explorer closes, and the
-  explorer's preset picker keeps previewing after the editor has been opened.
+- **A theme saved in the editor sticks** when the theme explorer closes, and the explorer's
+  preset picker keeps previewing after the editor has been opened.
 - **Edit mode's trash and configure icons are visible** against their selection pill in
   light and dark themes.
 
 **Home screen**
 
-- **The add-page tile is labelled** - it reads "Add page" in the current language, and
-  the plus sign no longer looks disabled.
+- **The add-page tile is labelled** - it reads "Add page" in the current language, and the
+  plus sign no longer looks disabled. The user guide now describes adding and deleting
+  pages as 1.0 does it.
 - **Tapping anywhere on a controls card opens its overlay**, header included.
 
 **Printing and filament systems**
 
-- **The print status thumbnail shows on printers whose Moonraker metadata is broken** -
-  it is read from the gcode header when metadata is missing, as on QIDI Q2 and Max 4.
-- **Calibration files preview** - OrcaSlicer pressure advance, flow and retraction tests
-  no longer render blank.
-- **Snapmaker U1 explains a refused resume** when an extruder's filament type is unset.
-- **AFC shows only device actions it can run** - single-extruder machines no longer get
-  an "Unknown action" on tap.
+- **The print status thumbnail shows on printers whose Moonraker metadata is broken** - it
+  is read from the gcode header when metadata is missing, as on QIDI Q2 and Max 4.
+- **Calibration files preview** - OrcaSlicer pressure advance, flow and retraction tests no
+  longer render blank.
+- **Snapmaker U1 explains a refused resume** when an extruder's filament type is unset, and
+  offers only a dismiss where Resume would be refused again.
+- **AFC shows only device actions it can run** - single-extruder machines no longer get an
+  "Unknown action" on the LED action, and setups without a hub no longer show a bowden
+  length slider they cannot use.
 - **The printer setup wizard stops reopening on every boot** on ForgeX and zmod AD5M Pro
   machines after a targeted reconfigure.
 - **Filament remap and Snapmaker filament messages are translated** into all eight
