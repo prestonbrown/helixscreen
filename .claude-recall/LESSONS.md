@@ -336,3 +336,4 @@
 ### [L123] DECLARATIVE_OK marker must sit on the matched line or the one directly above
 - **Learned**: 2026-08-29 | **Category**: gotcha
 > scripts/check_imperative_ui.py honors a DECLARATIVE_OK annotation only on the matched line or the immediately preceding line. A multi-line explanation block with the marker several lines above the call silently fails to suppress and the gate count rises (367 -> 368 twice while annotating a hidden context-menu button). Working shape: explanation comment block first, then a single-line // DECLARATIVE_OK: <reason> directly above the flagged call, and keep the call itself on one line so the marker stays adjacent.
+

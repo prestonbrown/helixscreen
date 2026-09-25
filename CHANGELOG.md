@@ -5,6 +5,112 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-09-25
+
+<!-- whatsnew
+The second patch release on the 1.0 line.
+
+Several crashes are gone: the K1 blank-screen crash, a tap on a stale toast after a
+printer switch, and panels left behind by a switch. Sleep no longer makes K2 and AD5X
+panels glow or flicker, and the K2 dim end stays visible. QIDI printers get their .3mf
+thumbnails back, and themes keep text readable on coloured buttons.
+-->
+
+The second patch release on the 1.0 line. Most of it is stability: crashes on K1 class
+boards and after a printer switch, and what a display does when it goes to sleep. The
+rest is QIDI install and uninstall, readable text on coloured fills, and a handful of
+home screen and print preview fixes.
+
+### Added
+
+- **The filament mapping chip names the material** - the top band of each tool's chip
+  shows the file's material for that tool (PLA, ASA) on the tool's colour, falling back
+  to the tool number when the file names none.
+
+### Fixed
+
+**Crashes and stability**
+
+- **K1 class boards no longer crash drawing a QR code or an image** - a canvas buffer
+  could be mistaken for a PNG and drawn at a nonsense size, and draw buffers could be
+  freed while a render was still reading them. Both are fixed
+  ([#1673](https://github.com/prestonbrown/helixscreen/issues/1673)).
+- **Toasts after a printer switch** - a toast left over from the previous printer stayed
+  on screen forever, and tapping its button could crash the app. A switch now clears them
+  ([#1719](https://github.com/prestonbrown/helixscreen/issues/1719)).
+- **A printer switch frees what it leaves behind** - overlays, the numeric keypad and the
+  AMS panels opened before a switch are released, not kept as hidden copies, and the
+  motion overlay reopens against the new printer rather than the old one
+  ([#1707](https://github.com/prestonbrown/helixscreen/issues/1707)).
+- **Home pages no longer read freed grid layouts** after the page set changes.
+- **A dropped connection is not reported as a first-time failure** - a session that had
+  connected and later lost Moonraker no longer escalates as if it never connected.
+
+**Display and sleep**
+
+- **Sleep turns the backlight off and leaves the panel powered** - powering the panel
+  down made K2 Plus panels glow and flicker at the edges, and wedged or lit up panels on
+  AD5X, U1, K1 and a Pi 4 DSI. Panel power-off is now opt-in through
+  `/display/panel_power_off`, for boards with no backlight control
+  ([#1708](https://github.com/prestonbrown/helixscreen/issues/1708)).
+- **The K2 brightness slider no longer blacks out the screen at its low end** - the
+  lowest settings map onto the panel's visible range, with a
+  `/display/backlight_floor_percent` setting for other panels
+  ([#1709](https://github.com/prestonbrown/helixscreen/issues/1709)).
+- **Touch lines up on panels whose driver reports its range sideways** - portrait panels
+  such as the Creator 5 Pro's scale touch correctly
+  ([#1450](https://github.com/prestonbrown/helixscreen/issues/1450)). If you set
+  `HELIX_TOUCH_SWAP_AXES=1` to work around this, remove it, or the axes swap twice.
+- **Lower CPU use while drawing** on every shipped board.
+- **No false "Failed to load G-code preview"** when a print starts while the display is
+  asleep.
+
+**Install and uninstall**
+
+- **QIDI printers show .3mf thumbnails again** - with the stock screen stopped, nothing
+  unpacked plate thumbnails from .3mf files, so Fluidd and HelixScreen showed none. A
+  small helper service now does it
+  ([#1713](https://github.com/prestonbrown/helixscreen/issues/1713)).
+- **A failed download no longer leaves a printer with no screen** - the installer
+  downloads and checks the release before it disables the stock UI.
+- **Uninstall restores the QIDI and MKS stock screen** instead of leaving the boot splash
+  up until a reboot.
+- **WiFi respects a radio an administrator blocked** - on a machine where WiFi was never
+  set up in HelixScreen, a radio blocked at boot stays blocked
+  ([#1697](https://github.com/prestonbrown/helixscreen/issues/1697)).
+
+**Themes**
+
+- **Text on coloured buttons and badges stays readable** - AMS lane badges, screws-tilt
+  indicators, exclude-object badges, step circles and similar pick text that contrasts
+  with their fill while keeping the theme's tint where it can
+  ([#1496](https://github.com/prestonbrown/helixscreen/issues/1496),
+  [#1648](https://github.com/prestonbrown/helixscreen/issues/1648)).
+- **A theme saved in the editor sticks** when the theme explorer closes, and the
+  explorer's preset picker keeps previewing after the editor has been opened.
+- **Edit mode's trash and configure icons are visible** against their selection pill in
+  light and dark themes.
+
+**Home screen**
+
+- **The add-page tile is labelled** - it reads "Add page" in the current language, and
+  the plus sign no longer looks disabled.
+- **Tapping anywhere on a controls card opens its overlay**, header included.
+
+**Printing and filament systems**
+
+- **The print status thumbnail shows on printers whose Moonraker metadata is broken** -
+  it is read from the gcode header when metadata is missing, as on QIDI Q2 and Max 4.
+- **Calibration files preview** - OrcaSlicer pressure advance, flow and retraction tests
+  no longer render blank.
+- **Snapmaker U1 explains a refused resume** when an extruder's filament type is unset.
+- **AFC shows only device actions it can run** - single-extruder machines no longer get
+  an "Unknown action" on tap.
+- **The printer setup wizard stops reopening on every boot** on ForgeX and zmod AD5M Pro
+  machines after a targeted reconfigure.
+- **Filament remap and Snapmaker filament messages are translated** into all eight
+  languages.
+
 ## [1.0.1] - 2026-09-20
 
 <!-- whatsnew
@@ -6541,6 +6647,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.0.2]: https://github.com/prestonbrown/helixscreen/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/prestonbrown/helixscreen/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/prestonbrown/helixscreen/compare/v0.99.118...v1.0.0
 [0.99.118]: https://github.com/prestonbrown/helixscreen/compare/v0.99.117...v0.99.118
