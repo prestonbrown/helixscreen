@@ -72,6 +72,22 @@ class GCodeLayerRendererTestAccess {
         return renderer.tool_palette_;
     }
 
+    /// Drive one solid-cache batch directly. render() only reaches this path
+    /// after warmup frames with a live canvas; a budget test wants the batch
+    /// in isolation, with layers_per_frame_ pinned high so a wall-clock box
+    /// is the only thing that can stop the batch early.
+    static int render_solid_batch(GCodeLayerRenderer& renderer, int from_layer, int to_layer,
+                                  int width, int height) {
+        renderer.ensure_cache(width, height);
+        return renderer.render_layers_to_cache(from_layer, to_layer);
+    }
+
+    /// Pin the adaptive layer count. render_layers_to_cache reads it per call;
+    /// adaptation only runs from render(), which the direct-call tests skip.
+    static void pin_layers_per_frame(GCodeLayerRenderer& renderer, int layers) {
+        renderer.layers_per_frame_ = layers;
+    }
+
     /// The per-segment draw gate, private because every draw path consults it
     /// internally. A test pins its feature-type filtering here.
     static bool renders_segment(const GCodeLayerRenderer& renderer, const ToolpathSegment& seg) {

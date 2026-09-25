@@ -844,6 +844,8 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
     int layer_count = get_layer_count();
     size_t segments_rendered = 0;
     int last_rendered = from_layer - 1;
+    const auto batch_deadline =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(SOLID_BATCH_BUDGET_MS);
 
     // Breadcrumb the streaming render range. A SIGBUS has been seen here when
     // the gcode object-name lookup table held a corrupted node (bundle
@@ -859,6 +861,14 @@ int GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
     int line_width = get_extrusion_pixel_width();
 
     for (int layer_idx = from_layer; layer_idx <= to_layer; ++layer_idx) {
+        // The first layer always renders (the deadline is ahead of it), so a
+        // batch makes progress however expensive a single layer is; after
+        // that, yield the remainder to the next frame once the budget is spent.
+        if (layer_idx > from_layer && std::chrono::steady_clock::now() >= batch_deadline) {
+            spdlog::debug("[GCodeLayerRenderer] Batch budget hit after layer {}", last_rendered);
+            break;
+        }
+
         if (layer_idx < 0 || layer_idx >= layer_count) {
             // Out-of-range slot — treat as rendered so the caller advances.
             // (Bounds-clamped target_layer normally prevents this.)
