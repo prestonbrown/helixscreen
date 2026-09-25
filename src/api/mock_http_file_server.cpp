@@ -63,7 +63,7 @@ std::string make_gcode_header(const std::vector<uint8_t>& png) {
     return out;
 }
 
-/// HELIX_MOCK_RANGE_IGNORE=1 — drop the Range header from every request so
+/// HELIX_MOCK_RANGE_IGNORE=1 - drop the Range header from every request so
 /// libhv answers 200 with the whole body instead of slicing a 206: the
 /// behaviour of server forks that never implemented byte ranges.
 static bool range_ignore_enabled() {
@@ -246,7 +246,7 @@ bool MockHttpFileServer::start() {
                 return static_cast<int>(resp->status_code);
             }
             if (ends_with(path, ".gcode")) {
-                // HELIX_MOCK_GCODE_SERVE=<path> — serve a real file's bytes (any
+                // HELIX_MOCK_GCODE_SERVE=<path> - serve a real file's bytes (any
                 // size) instead of the tiny synthesised header. Reproduces the
                 // big-file flows end to end: the whole-file preview download and
                 // the byte-range reads the tail/footer scanners issue. libhv

@@ -54,7 +54,7 @@ static std::vector<std::string> scan_mock_gcode_files() {
     closedir(dir);
     std::sort(files.begin(), files.end());
 
-    // HELIX_MOCK_FILE_COUNT=N — pad the listing to N entries by cycling the
+    // HELIX_MOCK_FILE_COUNT=N - pad the listing to N entries by cycling the
     // real filenames. Duplicate entries still resolve to real files for
     // downloads and metadata, so a large-N print-select panel measures the
     // per-file cost, not a wall of not-found errors.
@@ -297,7 +297,7 @@ static json build_mock_file_metadata_response(const std::string& filename) {
 
 namespace mock_internal {
 
-/// HELIX_MOCK_METADATA_404=1 — server.files.metadata and .metascan fail with
+/// HELIX_MOCK_METADATA_404=1 - server.files.metadata and .metascan fail with
 /// file-not-found for every file, the behaviour of vendor Moonraker forks that
 /// never populate their metadata DB (e.g. Qidi Q2).
 static bool metadata_404_enabled() {
