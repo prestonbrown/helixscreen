@@ -3244,6 +3244,38 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
 }
 
 // ============================================================================
+// A response_pattern whose phase enum was already detected may still refine
+// the MESSAGE when it differs (the U1 narrates "Probing Z..." through a
+// HOMING enum the first homing signal already claimed), but it may never
+// move the phase backwards.
+// ============================================================================
+
+TEST_CASE_METHOD(SnapmakerCollectorFixture,
+                 "Snapmaker U1: already-detected phase refines the message, never moves back",
+                 "[print][collector][snapmaker][preprint]") {
+    collector().start();
+    drain_async_updates();
+
+    feed_gcode("// trigger_mcu_pos: {");
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+    REQUIRE(get_current_message().find("Homing axes") != std::string::npos);
+
+    // Same HOMING enum, different message: the label refines in place.
+    feed_gcode("// probe_start_x: 110.0");
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+    REQUIRE(get_current_message().find("Probing Z") != std::string::npos);
+
+    feed_gcode("// Success: Set action code PRINT_BED_DETECTING");
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message().find("Inspecting bed") != std::string::npos);
+
+    // A late repeat of an earlier enum must not drag the phase back.
+    feed_gcode("// probe_start_x: 110.0");
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message().find("Inspecting bed") != std::string::npos);
+}
+
+// ============================================================================
 // Snapmaker U1: the initial prime/purge line ("G1 X110 E15") extrudes with NO
 // observable gcode_response (PRINT_PREEXTRUDING only fires for a 2nd tool
 // mid-print). print_stats.print_duration going 0->positive while current_layer

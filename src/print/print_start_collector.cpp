@@ -1229,23 +1229,25 @@ void PrintStartCollector::check_phase_patterns(const std::string& line) {
         // match.message arrives already translated: try_match_pattern
         // resolves the template through the loaded pack before substituting
         // $1 capture groups.
-        // Response patterns fire once per phase, so a phase already detected
-        // updates only when it is the phase showing, it carries sub-steps, and
-        // the message changes. BED_MESH routes several probe operations
-        // through one phase (Snapmaker U1 "Detecting plate" then "Bed mesh"),
-        // and maybe_reset_for_mesh_subphase_locked() inside update_phase
-        // restarts the "(n)" count on the change. HEATING_BED holds a heat
-        // soak, and temperatures often enter the phase before the macro says
-        // a word. A relabel never changes which phase is showing.
+        // Update when this is a NEW phase, OR when the phase was already
+        // detected and this line names the same or a later one with a
+        // DIFFERENT message. Firmwares narrate several distinct steps through
+        // one phase enum (the U1 routes "Homing axes"/"Probing Z" through
+        // HOMING and "Detecting plate"/"Bed mesh" through BED_MESH), so
+        // without the message refinement every step after the enum's first
+        // detection keeps the first label. The refinement is bounded: it may
+        // not name a phase earlier than the one on display, so a late repeat
+        // of an old pattern cannot drag the phase backwards.
+        // maybe_reset_for_mesh_subphase_locked() (inside update_phase) resets
+        // the probe counter on a BED_MESH message change so the "(n)" count
+        // restarts.
         bool should_update = false;
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
-            const bool carries_substeps = match.phase == PrintStartPhase::BED_MESH ||
-                                          match.phase == PrintStartPhase::HEATING_BED;
             if (detected_phases_.find(match.phase) == detected_phases_.end()) {
                 detected_phases_.insert(match.phase);
                 should_update = true;
-            } else if (carries_substeps && match.phase == current_phase_ &&
+            } else if (static_cast<int>(match.phase) >= static_cast<int>(current_phase_) &&
                        trim_trailing_ellipsis(match.message) !=
                            trim_trailing_ellipsis(current_message_)) {
                 should_update = true;
