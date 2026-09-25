@@ -143,6 +143,28 @@ bool MockHttpFileServer::start() {
                 return 200;
             }
             if (ends_with(path, ".gcode")) {
+                // HELIX_MOCK_GCODE_SERVE=<path> — serve a real file's bytes (any
+                // size) instead of the tiny synthesised header. Reproduces the
+                // big-file flows end to end: the whole-file preview download and
+                // the byte-range reads the tail/footer scanners issue. libhv
+                // slices the Range out of the body either way.
+                static const std::string serve_file = [] {
+                    const char* v = std::getenv("HELIX_MOCK_GCODE_SERVE");
+                    return v ? std::string(v) : std::string();
+                }();
+                if (!serve_file.empty()) {
+                    std::ifstream f(serve_file, std::ios::binary);
+                    if (f) {
+                        resp->content_type = TEXT_PLAIN;
+                        resp->body.assign((std::istreambuf_iterator<char>(f)),
+                                          std::istreambuf_iterator<char>());
+                        spdlog::debug("[MockHttpFileServer] 200 {} ({} bytes, from {})", path,
+                                      resp->body.size(), serve_file);
+                        return 200;
+                    }
+                    spdlog::warn("[MockHttpFileServer] HELIX_MOCK_GCODE_SERVE file unreadable: {}",
+                                 serve_file);
+                }
                 // download_file_partial() asks for a byte range; libhv answers the
                 // Range itself when the body is set, and a caller that asked for
                 // the first 100 KB of a shorter body simply gets the whole thing —

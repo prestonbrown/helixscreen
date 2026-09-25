@@ -282,6 +282,17 @@ static json build_mock_file_metadata_response(const std::string& filename) {
 
 namespace mock_internal {
 
+/// HELIX_MOCK_METADATA_404=1 — server.files.metadata and .metascan fail with
+/// file-not-found for every file, the behaviour of vendor Moonraker forks that
+/// never populate their metadata DB (e.g. Qidi Q2).
+static bool metadata_404_enabled() {
+    static const bool enabled = [] {
+        const char* v = std::getenv("HELIX_MOCK_METADATA_404");
+        return v && v[0] && std::string(v) != "0";
+    }();
+    return enabled;
+}
+
 void register_file_handlers(std::unordered_map<std::string, MethodHandler>& registry) {
     // server.files.list - List files in a directory
     registry["server.files.list"] =
@@ -346,6 +357,10 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
         if (params.contains("filename")) {
             filename = params["filename"].get<std::string>();
         }
+        if (metadata_404_enabled() && error_cb) {
+            error_cb(MoonrakerError::file_not_found("server.files.metadata", filename));
+            return true;
+        }
         if (!filename.empty()) {
             if (success_cb) {
                 json response = build_mock_file_metadata_response(filename);
@@ -370,6 +385,10 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
         std::string filename;
         if (params.contains("filename")) {
             filename = params["filename"].get<std::string>();
+        }
+        if (metadata_404_enabled() && error_cb) {
+            error_cb(MoonrakerError::file_not_found("server.files.metascan", filename));
+            return true;
         }
         if (!filename.empty()) {
             if (success_cb) {
