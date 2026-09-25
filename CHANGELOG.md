@@ -13,7 +13,8 @@ The second patch release on the 1.0 line.
 Display sleep is fixed: panels that wedged, glowed or showed a test pattern on AD5X, U1,
 K1, K2 and Pi DSI now sleep by turning the backlight off, and the screen comes back
 properly on wake. Several crashes are gone, including the K1 blank-screen crash and
-crashes after a printer switch. QIDI printers get their .3mf thumbnails back.
+crashes after a printer switch. QIDI printers get their .3mf thumbnails back, and the
+file detail view no longer freezes the screen on large G-code files.
 -->
 
 The second patch release on the 1.0 line. The headline is display sleep: 1.0.1 powered the
@@ -121,6 +122,16 @@ on coloured buttons.
 
 - **The print status thumbnail shows on printers whose Moonraker metadata is broken** - it
   is read from the gcode header when metadata is missing, as on QIDI Q2 and Max 4.
+- **The file detail view no longer freezes the screen on large G-code files** - backing out
+  while the preview was still building waited out the whole build on the interface thread,
+  tens of seconds on a large print. Cancelling now stops the indexing, geometry and cache
+  work promptly instead
+  ([#1706](https://github.com/prestonbrown/helixscreen/issues/1706)).
+- **File thumbnails no longer stall the list on printers without file metadata** - a
+  Moonraker that ignores range requests, as the QIDI Q2's does, answered a small header
+  request with the whole multi-megabyte gcode file, and every file-list entry parsed its
+  full file. The excess is discarded on arrival now
+  ([#1706](https://github.com/prestonbrown/helixscreen/issues/1706)).
 - **Calibration files preview** - OrcaSlicer pressure advance, flow and retraction tests no
   longer render blank.
 - **Snapmaker U1 explains a refused resume** when an extruder's filament type is unset, and
