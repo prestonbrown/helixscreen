@@ -1898,8 +1898,10 @@ If your config is lost or corrupted:
 1. **Automatic:** HelixScreen restores from rolling backup on next launch
 2. **Manual:** Check for `settings.json.corrupt` in your config directory — this
    contains your previous (invalid) config that you can manually fix
-3. **Fresh start:** Copy `settings.json.template` to `settings.json` and re-run
-   the setup wizard
+3. **Fresh start:** delete `settings.json` **and** the backup copies (see
+   [Reset HelixScreen or re-run the setup wizard](TROUBLESHOOTING.md#reset-helixscreen-or-re-run-the-setup-wizard)),
+   or use **Settings > System > Factory Reset**. A template copy alone is replaced
+   from the rolling backup on the next start
 
 ### If you have a helixconfig.json
 HelixScreen renames it to `settings.json` on startup — no manual action needed.
