@@ -1625,6 +1625,18 @@ Marks that `helix-screen` is running under `helix-watchdog`. When an in-app acti
 
 Set automatically by the watchdog. You should not need to set it by hand — doing so on a genuinely unsupervised process turns "restart" into "quit and stay dead".
 
+### `HELIX_SERVICE_RESTARTS`
+
+Declares that the service manager restarts HelixScreen when it exits. `config/helixscreen.service` sets it beside `Restart=always`. After an update, `helix-watchdog` exits instead of respawning the app in place, so systemd restarts the whole service and `ExecStartPre` refreshes the installed units as root (prestonbrown/helixscreen#1713). Without it, every clean exit respawns in place.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Any non-empty value (presence is the signal) |
+| **Default** | Unset |
+| **Files** | `config/helixscreen.service`, `src/helix_watchdog.cpp`, `include/watchdog_restart_policy.h#hand_clean_exit_to_service_manager` |
+
+Not a systemd probe: `INVOCATION_ID` is also set for an init script wrapped by systemd-sysv-generator, whose unit does not restart, so exiting there would leave the screen dark. Never set it on a unit without `Restart=always`.
+
 ### `INVOCATION_ID`
 
 Standard systemd variable, set for every unit invocation. HelixScreen uses its presence purely as a "running under systemd" probe, checked *before* `HELIX_SUPERVISED` on the same restart path.

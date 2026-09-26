@@ -123,6 +123,9 @@ ExecStopPost=+/bin/sh -c '/bin/systemctl start helixscreen-update.path 2>/dev/nu
 # Restart policy - always restart unless explicitly stopped
 Restart=always
 RestartSec=3
+# Tells helix-watchdog this unit restarts it, so after an update it exits and
+# lets the restart run ExecStartPre instead of respawning the app in place.
+Environment=HELIX_SERVICE_RESTARTS=1
 
 # Resource limits
 LimitNOFILE=65536
