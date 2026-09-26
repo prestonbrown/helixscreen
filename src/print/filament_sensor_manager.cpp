@@ -245,6 +245,8 @@ void FilamentSensorManager::discover_sensors(const std::vector<std::string>& kli
             states_[klipper_name] = state;
         } else {
             states_[klipper_name].available = true;
+            // Values kept across a reconnect are a baseline, not a report.
+            states_[klipper_name].reported = false;
         }
 
         spdlog::debug("[FilamentSensorManager] Discovered sensor: {} (type: {})", sensor_name,
@@ -1073,6 +1075,7 @@ void FilamentSensorManager::update_from_status(const json& status) {
             const auto& sensor_data = status[key];
             auto& state = states_[sensor.klipper_name];
             FilamentSensorState old_state = state;
+            state.reported = true;
 
             // Update filament_detected. Subscriptions targeting specific fields
             // (filament_detected, enabled, detection_count) cause Moonraker to send
@@ -1185,8 +1188,9 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 // Judged on the state going INTO the frame: a pause macro can
                 // stand the sensor down inside the same status batch that
                 // carries the runout.
-                if (!state.filament_detected && old_state.enabled && job_owns_machine &&
-                    !ams_active && sensor.enabled && sensor.role != FilamentSensorRole::NONE) {
+                if (!state.filament_detected && old_state.reported && old_state.enabled &&
+                    job_owns_machine && !ams_active && sensor.enabled &&
+                    sensor.role != FilamentSensorRole::NONE) {
                     observed_runouts_.insert(sensor.klipper_name);
                 }
                 notif.should_toast = !within_grace_period && !is_wizard_active() && !ams_active &&

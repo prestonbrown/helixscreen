@@ -680,3 +680,24 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "an observed runout is forgotten when t
     feed(nlohmann::json::object());
     CHECK_FALSE(fsm.has_any_runout());
 }
+
+// Joining a job already under way (a restart, a reconnect): the first frame
+// that reaches a sensor reads empty and stood down. The defaults it replaces
+// are not an observation, so nothing was seen on duty.
+TEST_CASE_METHOD(FirmwareEnabledFixture, "a sensor's first report mid-job latches nothing",
+                 "[runout][1714][modal]") {
+    ScopedPrinting printing;
+
+    SECTION("after discovery") {
+        seed_sensors({HEAD0});
+    }
+    SECTION("after a reconnect rediscovers it") {
+        seed_sensors({HEAD0});
+        feed(sensor_frame(HEAD0, true, true));
+        seed_sensors({HEAD0});
+    }
+
+    feed(sensor_frame(HEAD0, false, false));
+    CHECK_FALSE(fsm.has_any_runout());
+    CHECK_FALSE(fsm.has_real_runout());
+}
