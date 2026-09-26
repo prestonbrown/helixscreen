@@ -222,6 +222,7 @@ translations:
   Archive Spool?: 归档料盘？
   Are you sure you want to cancel this print? All progress will be lost.: 确定要取消此打印吗？所有进度将丢失。
   Are you sure? This will power off or restart this device.: 确定吗？这将关闭或重启此设备。
+  Ask for parameters: '询问参数'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: 分配 Klipper
     宏通过开/关、切换或预设控制 LED
   Assign a role to enable sensor monitoring: 分配角色以启用传感器监控
@@ -756,6 +757,7 @@ translations:
   Day: 日
   Debug: 调试
   Default: '默认'
+  Default Parameters: '默认参数'
   Default border thickness: 默认边框厚度
   'Default: %d-%d°C nozzle, %d°C bed': '默认: 喷嘴 %d-%d°C,热床 %d°C'
   'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': '默认: 喷嘴 %d-%d°C,热床 %d°C,腔体 %d°C'
@@ -1922,6 +1924,7 @@ translations:
   Objects: 对象
   'Off': 关
   'Off:': '关:'
+  'Off: runs with these values without asking': '关: 不询问,直接以这些值运行'
   Offsets saved: 偏移已保存
   "Old setting on today's data: {} residual - now: {}": 旧设置（今日数据）：残余 {} — 当前：{}
   'On': 开
@@ -1930,7 +1933,7 @@ translations:
   On/Off: 开/关
   On/Off (state-aware): 开/关（状态跟踪）
   'On:': '开:'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: 单击即可无参数运行此宏。危险宏仍会询问。
+  One tap runs this macro. Dangerous macros still ask.: '单击即可运行此宏。危险宏仍会询问。'
   Ooze Reduction: '减少渗漏'
   Open: 打开
   Open Source Licenses: 开源许可证
@@ -2482,6 +2485,7 @@ translations:
   Saved Z-Offset: 已保存 Z 偏移
   Saved to crash_report.txt (QR not available): 已保存到 crash_report.txt（二维码不可用）
   Saved to printer configuration.: 已保存到打印机配置。
+  Saved values, and whether to ask before running: '保存的值,以及运行前是否询问'
   Saves to Klipper config and restarts firmware.: 保存到 Klipper 配置并重启固件。
   Saving Configuration...: 正在保存配置...
   Saving Z-offset...: 正在保存 Z 偏移...

@@ -220,6 +220,7 @@
   <translation tag="Archive Spool?" ja="スプールをアーカイブしますか？"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." ja="この印刷をキャンセルしますか？すべての進行状況が失われます。"/>
   <translation tag="Are you sure? This will power off or restart this device." ja="よろしいですか？このデバイスの電源がオフまたは再起動されます。"/>
+  <translation tag="Ask for parameters" ja="パラメータを確認する"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" ja="Klipper マクロを割り当ててオン/オフ、トグル、プリセットで LED を制御"/>
   <translation tag="Assign a role to enable sensor monitoring" ja="センサー監視を有効にするには役割を割り当ててください"/>
   <translation tag="Assisted Retract" ja="アシスト付き引き戻し"/>
@@ -743,6 +744,7 @@
   <translation tag="Day" ja="日"/>
   <translation tag="Debug" ja="デバッグ"/>
   <translation tag="Default" ja="デフォルト"/>
+  <translation tag="Default Parameters" ja="デフォルトのパラメータ"/>
   <translation tag="Default border thickness" ja="デフォルトの境界線の太さ"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" ja="デフォルト: ノズル %d〜%d°C、ベッド %d°C"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber" ja="デフォルト: ノズル %d〜%d°C、ベッド %d°C、チャンバー %d°C"/>
@@ -1876,6 +1878,7 @@
   <translation tag="Objects" ja="オブジェクト"/>
   <translation tag="Off" ja="オフ"/>
   <translation tag="Off:" ja="オフ:"/>
+  <translation tag="Off: runs with these values without asking" ja="オフ: これらの値で確認なしに実行"/>
   <translation tag="Offsets saved" ja="オフセットを保存しました"/>
   <translation tag="Old setting on today&apos;s data: {} residual - now: {}" ja="旧設定を今日のデータに適用: 残留 {} - 現在: {}"/>
   <translation tag="On" ja="オン"/>
@@ -1884,7 +1887,7 @@
   <translation tag="On/Off" ja="オン/オフ"/>
   <translation tag="On/Off (state-aware)" ja="オン/オフ（状態追跡）"/>
   <translation tag="On:" ja="オン:"/>
-  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask." ja="ワンタップでこのマクロをパラメータなしで実行します。危険なマクロは確認を求めます。"/>
+  <translation tag="One tap runs this macro. Dangerous macros still ask." ja="ワンタップでこのマクロを実行します。危険なマクロは確認を求めます。"/>
   <translation tag="Ooze Reduction" ja="にじみ低減"/>
   <translation tag="Open" ja="開く"/>
   <translation tag="Open Source Licenses" ja="オープンソースライセンス"/>
@@ -2418,6 +2421,7 @@
   <translation tag="Saved Z-Offset" ja="保存されたZ-Offset"/>
   <translation tag="Saved to crash_report.txt (QR not available)" ja="crash_report.txt に保存しました（QR 利用不可）"/>
   <translation tag="Saved to printer configuration." ja="プリンター設定に保存しました。"/>
+  <translation tag="Saved values, and whether to ask before running" ja="保存した値と、実行前に確認するかどうか"/>
   <translation tag="Saves to Klipper config and restarts firmware." ja="Klipper 設定に保存してファームウェアを再起動します。"/>
   <translation tag="Saving Configuration..." ja="設定を保存中..."/>
   <translation tag="Saving Z-offset..." ja="Zオフセットを保存中..."/>

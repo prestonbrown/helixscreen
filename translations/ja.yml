@@ -223,6 +223,7 @@ translations:
   Archive Spool?: スプールをアーカイブしますか？
   Are you sure you want to cancel this print? All progress will be lost.: この印刷をキャンセルしますか？すべての進行状況が失われます。
   Are you sure? This will power off or restart this device.: よろしいですか？このデバイスの電源がオフまたは再起動されます。
+  Ask for parameters: 'パラメータを確認する'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper マクロを割り当ててオン/オフ、トグル、プリセットで
     LED を制御
   Assign a role to enable sensor monitoring: センサー監視を有効にするには役割を割り当ててください
@@ -758,6 +759,7 @@ translations:
   Day: 日
   Debug: デバッグ
   Default: 'デフォルト'
+  Default Parameters: 'デフォルトのパラメータ'
   Default border thickness: デフォルトの境界線の太さ
   'Default: %d-%d°C nozzle, %d°C bed': 'デフォルト: ノズル %d〜%d°C、ベッド %d°C'
   'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': 'デフォルト: ノズル %d〜%d°C、ベッド %d°C、チャンバー %d°C'
@@ -1929,6 +1931,7 @@ translations:
   Objects: オブジェクト
   'Off': オフ
   'Off:': 'オフ:'
+  'Off: runs with these values without asking': 'オフ: これらの値で確認なしに実行'
   Offsets saved: オフセットを保存しました
   "Old setting on today's data: {} residual - now: {}": '旧設定を今日のデータに適用: 残留 {} - 現在: {}'
   'On': オン
@@ -1937,7 +1940,7 @@ translations:
   On/Off: オン/オフ
   On/Off (state-aware): オン/オフ（状態追跡）
   'On:': 'オン:'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: ワンタップでこのマクロをパラメータなしで実行します。危険なマクロは確認を求めます。
+  One tap runs this macro. Dangerous macros still ask.: 'ワンタップでこのマクロを実行します。危険なマクロは確認を求めます。'
   Ooze Reduction: 'にじみ低減'
   Open: 開く
   Open Source Licenses: オープンソースライセンス
@@ -2491,6 +2494,7 @@ translations:
   Saved Z-Offset: 保存されたZ-Offset
   Saved to crash_report.txt (QR not available): crash_report.txt に保存しました（QR 利用不可）
   Saved to printer configuration.: プリンター設定に保存しました。
+  Saved values, and whether to ask before running: '保存した値と、実行前に確認するかどうか'
   Saves to Klipper config and restarts firmware.: Klipper 設定に保存してファームウェアを再起動します。
   Saving Configuration...: 設定を保存中...
   Saving Z-offset...: Zオフセットを保存中...

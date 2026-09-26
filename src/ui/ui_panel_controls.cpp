@@ -30,6 +30,7 @@
 #include "format_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_executor.h"
+#include "macro_param_defaults.h"
 #include "moonraker_api.h"
 #include "observer_factory.h"
 #include "operation_timeout_guard.h"
@@ -1473,33 +1474,37 @@ void ControlsPanel::execute_macro(size_t index) {
         return;
     }
 
-    // Quick buttons never prompt for parameters, so the decision weighs only
-    // the Safety setting; the cached macro info goes unread on that path.
+    // Quick buttons never raise the param modal, so the decision weighs the
+    // Safety setting and the macro's saved defaults: a saved record rides along
+    // on the run, filtered to the declared names.
+    const auto& info = StandardMacros::instance().get(*slot);
+    const helix::CachedMacroInfo cached = helix::MacroParamCache::instance().get(info.get_macro());
     helix::MacroRunRequest run_req;
     run_req.prompt_for_params = false;
     run_req.confirm_plain_run =
         helix::SafetySettingsManager::instance().get_macro_require_confirmation();
-    if (helix::decide_macro_run(helix::CachedMacroInfo{}, run_req).action !=
-        helix::MacroRunAction::ConfirmRun) {
-        do_execute_macro(index);
+    run_req.saved_values = helix::MacroParamDefaults::instance().get(info.get_macro()).values;
+    const helix::MacroRunDecision decision = helix::decide_macro_run(cached, run_req);
+    if (decision.action != helix::MacroRunAction::ConfirmRun) {
+        do_execute_macro(index, decision.params);
         return;
     }
 
-    const auto& info = StandardMacros::instance().get(*slot);
     std::string msg = fmt::format(lv_tr("Run {}?"), info.translated_name());
     helix::ui::ConfirmOptions opts;
     opts.on_dismiss = [this] { macro_run_confirmation_dialog_.release(); };
     opts.owner_token = object_lifetime_.token();
     macro_run_confirmation_dialog_ = helix::ui::modal_confirm(
         lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
-        [this, index] {
+        [this, index, params = decision.params] {
             macro_run_confirmation_dialog_.release(); // the dialog closes itself
-            do_execute_macro(index);
+            do_execute_macro(index, params);
         },
         opts);
 }
 
-void ControlsPanel::do_execute_macro(size_t index) {
+void ControlsPanel::do_execute_macro(size_t index,
+                                     const std::map<std::string, std::string>& params) {
     const std::optional<StandardMacroSlot>* slots[] = {&macro_1_slot_, &macro_2_slot_,
                                                        &macro_3_slot_, &macro_4_slot_};
     if (index >= 4) {
@@ -1517,7 +1522,7 @@ void ControlsPanel::do_execute_macro(size_t index) {
 
     NOTIFY_INFO(lv_tr("Running {}..."), info.translated_name());
     if (!StandardMacros::instance().execute(
-            *slot, api_,
+            *slot, api_, params,
             [name = std::string(info.translated_name())]() {
                 NOTIFY_SUCCESS(lv_tr("{} complete"), name);
             },

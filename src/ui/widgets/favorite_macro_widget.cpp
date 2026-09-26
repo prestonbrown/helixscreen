@@ -18,6 +18,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_executor.h"
 #include "macro_param_cache.h"
+#include "macro_param_defaults.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
@@ -41,6 +42,8 @@ void register_favorite_macro_widgets() {
                              FavoriteMacroConfigModal::close_cb);
     lv_xml_register_event_cb(nullptr, "fav_macro_config_confirm_cb",
                              FavoriteMacroConfigModal::require_confirm_cb);
+    lv_xml_register_event_cb(nullptr, "fav_macro_config_defaults_cb",
+                             FavoriteMacroConfigModal::defaults_cb);
     lv_xml_register_event_cb(nullptr, "fav_macro_config_tab_macro_cb",
                              FavoriteMacroConfigModal::tab_macro_cb);
     lv_xml_register_event_cb(nullptr, "fav_macro_config_tab_appearance_cb",
@@ -60,13 +63,14 @@ helix::MacroParamModal& get_shared_param_modal() {
     return modal;
 }
 
-// Widget-independent state (api ptr + macro name + parent screen) for the
-// after-confirmation dispatch, so those paths never touch the originating
-// widget, which may be destroyed while a dialog is open.
+// Widget-independent state (api ptr + macro name + parent screen + the macro's
+// saved defaults) for the after-confirmation dispatch, so those paths never
+// touch the originating widget, which may be destroyed while a dialog is open.
 struct MacroExecCtx {
     std::string macro_name;
     IMoonrakerAPI* api;
     lv_obj_t* parent_screen;
+    helix::MacroParamDefaultRecord defaults;
 };
 
 // After-confirmation dispatch: a free function so it can run from a dialog
@@ -77,11 +81,17 @@ struct MacroExecCtx {
 void run_macro_after_confirm(MacroExecCtx ctx) {
     auto cached = helix::MacroParamCache::instance().get(ctx.macro_name);
 
-    const helix::MacroRunDecision decision = helix::decide_macro_run(cached, {});
+    helix::MacroRunRequest req;
+    req.prompt_for_params = ctx.defaults.ask_for_params;
+    req.saved_values = ctx.defaults.values;
+
+    const helix::MacroRunDecision decision = helix::decide_macro_run(cached, req);
 
     if (decision.action == helix::MacroRunAction::Run) {
-        helix::execute_macro_gcode(ctx.api, ctx.macro_name, {}, "[FavoriteMacroWidget]",
-                                   get_printer_state().get_discovery());
+        helix::execute_macro_gcode(
+            ctx.api, ctx.macro_name,
+            helix::macro_param_result_from_values(cached.params, decision.params),
+            "[FavoriteMacroWidget]", get_printer_state().get_discovery());
         return;
     }
     if (!ctx.parent_screen) {
@@ -96,7 +106,7 @@ void run_macro_after_confirm(MacroExecCtx ctx) {
     };
     if (decision.action == helix::MacroRunAction::Prompt) {
         get_shared_param_modal().show_for_macro(ctx.parent_screen, ctx.macro_name, cached.params,
-                                                std::move(on_result));
+                                                std::move(on_result), decision.params);
     } else {
         get_shared_param_modal().show_for_unknown_params(ctx.parent_screen, ctx.macro_name,
                                                          std::move(on_result));
@@ -291,14 +301,22 @@ void FavoriteMacroWidget::fetch_and_execute() {
 
     auto cached = MacroParamCache::instance().get(macro_name_);
 
+    // Saved defaults: with Require Confirmation? off the widget runs the macro
+    // outright, so it sends the saved values; with it on, ask must also be on
+    // for the param modal to appear.
+    const helix::MacroParamDefaultRecord defaults =
+        helix::MacroParamDefaults::instance().get(macro_name_);
+
     helix::MacroRunRequest req;
     req.dangerous = helix::is_dangerous_macro(macro_name_, get_printer_state().get_discovery());
-    req.prompt_for_params = require_confirmation_;
+    req.prompt_for_params = require_confirmation_ && defaults.ask_for_params;
     req.confirm_plain_run =
         require_confirmation_ &&
         helix::SafetySettingsManager::instance().get_macro_require_confirmation();
+    req.saved_values = defaults.values;
 
-    const helix::MacroRunAction action = helix::decide_macro_run(cached, req).action;
+    const helix::MacroRunDecision decision = helix::decide_macro_run(cached, req);
+    const helix::MacroRunAction action = decision.action;
 
     // Dangerous macros always require a confirmation modal: the home-screen tile
     // is one accidental tap away from EMERGENCY_STOP / FIRMWARE_RESTART (#925).
@@ -320,34 +338,38 @@ void FavoriteMacroWidget::fetch_and_execute() {
         };
         helix::ui::modal_confirm(
             lv_tr("Run Dangerous Macro?"), msg.c_str(), ::ModalSeverity::Warning, lv_tr("Run"),
-            [macro_name = macro_name_, api, parent = parent_screen_] {
-                run_macro_after_confirm({macro_name, api, parent});
+            [macro_name = macro_name_, api, parent = parent_screen_, defaults] {
+                run_macro_after_confirm({macro_name, api, parent, defaults});
             },
             opts);
         return;
     }
 
-    // One tap runs the macro with no parameters and no dialog: the per-widget
+    // One tap runs the macro with no dialog: the per-widget
     // "Require Confirmation?" opt-out, whose whole point is suppressing the
     // Settings → Safety confirmation as well as the parameter-entry modal. A
     // run-confirmation with no parent screen also lands here — a detached
-    // widget cannot hang a dialog, so the run proceeds unconfirmed.
+    // widget cannot hang a dialog, so the run proceeds unconfirmed. Either way
+    // the saved values go with it.
     if (action == helix::MacroRunAction::Run ||
         (action == helix::MacroRunAction::ConfirmRun && !parent_screen_)) {
-        helix::execute_macro_gcode(api, macro_name_, {}, "[FavoriteMacroWidget]",
-                                   get_printer_state().get_discovery());
+        helix::execute_macro_gcode(
+            api, macro_name_, helix::macro_param_result_from_values(cached.params, decision.params),
+            "[FavoriteMacroWidget]", get_printer_state().get_discovery());
         return;
     }
 
     // Optional run-confirmation gate (Settings → Safety toggle, default on).
     // Only applies when running without a param modal. Mirrors MacrosPanel logic.
     if (action == helix::MacroRunAction::ConfirmRun) {
+        const helix::MacroParamResult params =
+            helix::macro_param_result_from_values(cached.params, decision.params);
         std::string display = helix::get_display_name(macro_name_, helix::DeviceType::MACRO);
         std::string msg = fmt::format(lv_tr("Run {}?"), display);
         helix::ui::modal_confirm(lv_tr("Run Macro?"), msg.c_str(), ::ModalSeverity::Info,
-                                 lv_tr("Run"), [macro_name = macro_name_, api] {
+                                 lv_tr("Run"), [macro_name = macro_name_, api, params] {
                                      helix::execute_macro_gcode(
-                                         api, macro_name, {}, "[FavoriteMacroWidget]",
+                                         api, macro_name, params, "[FavoriteMacroWidget]",
                                          get_printer_state().get_discovery());
                                  });
         return;
@@ -356,7 +378,7 @@ void FavoriteMacroWidget::fetch_and_execute() {
     // Has params, or params unknown — show the parameter-entry modal, which is
     // itself the implicit confirmation step (macros registered via Klipper's
     // register_command report UNKNOWN params and get the same treatment).
-    run_macro_after_confirm({macro_name_, api, parent_screen_});
+    run_macro_after_confirm({macro_name_, api, parent_screen_, defaults});
 }
 
 void FavoriteMacroWidget::clicked_cb(lv_event_t* e) {

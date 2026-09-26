@@ -240,6 +240,7 @@ translations:
     что хотите отменить печать? Весь прогресс будет потерян.
   Are you sure? This will power off or restart this device.: Вы уверены? Это выключит
     или перезагрузит данное устройство.
+  Ask for parameters: 'Спрашивать параметры'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Назначьте
     макросы Klipper для управления LED через вкл/выкл, переключение или пресеты
   Assign a role to enable sensor monitoring: Назначьте роль для мониторинга датчика
@@ -816,6 +817,7 @@ translations:
   Day: День
   Debug: Отладка
   Default: 'По умолчанию'
+  Default Parameters: 'Параметры по умолчанию'
   Default border thickness: Толщина границы по умолчанию
   'Default: %d-%d°C nozzle, %d°C bed': 'По умолчанию: сопло %d-%d°C, стол %d°C'
   'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': 'По умолчанию: сопло %d-%d°C, стол %d°C, камера %d°C'
@@ -2047,6 +2049,7 @@ translations:
   Objects: Объекты
   'Off': Выкл
   'Off:': 'Выкл:'
+  'Off: runs with these values without asking': 'Выкл.: запуск с этими значениями без запроса'
   Offsets saved: Смещения сохранены
   "Old setting on today's data: {} residual - now: {}": 'Прежняя настройка на сегодняшних данных: остаточная вибрация {} — сейчас: {}'
   'On': Вкл
@@ -2055,7 +2058,7 @@ translations:
   On/Off: Вкл/Выкл
   On/Off (state-aware): Вкл/Выкл (с отслеживанием)
   'On:': 'Вкл:'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: Один тап запускает этот макрос без параметров. Опасные макросы всё равно запрашивают подтверждение.
+  One tap runs this macro. Dangerous macros still ask.: 'Один тап запускает этот макрос. Опасные макросы всё равно запрашивают подтверждение.'
   Ooze Reduction: 'Снижение подтекания'
   Open: Открыть
   Open Source Licenses: Лицензии с открытым кодом
@@ -2640,6 +2643,7 @@ translations:
   Saved Z-Offset: Сохранённый Z-Offset
   Saved to crash_report.txt (QR not available): Сохранено в crash_report.txt (QR недоступен)
   Saved to printer configuration.: Сохранено в конфигурацию принтера.
+  Saved values, and whether to ask before running: 'Сохранённые значения и запрос перед запуском'
   Saves to Klipper config and restarts firmware.: Сохраняет в конфигурацию Klipper
     и перезапускает прошивку.
   Saving Configuration...: Сохранение конфигурации...

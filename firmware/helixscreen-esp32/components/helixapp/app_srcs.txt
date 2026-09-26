@@ -163,6 +163,7 @@ src/printer/klipper_error_table.cpp
 src/printer/macro_executor.cpp
 src/printer/macro_modification_manager.cpp
 src/printer/macro_param_cache.cpp
+src/printer/macro_param_defaults.cpp
 src/printer/pause_cause.cpp
 src/printer/power_device_state.cpp
 src/printer/power_loss_sensor.cpp

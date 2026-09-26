@@ -249,6 +249,7 @@ translations:
     verloren.
   Are you sure? This will power off or restart this device.: Sind Sie sicher? Dies
     schaltet dieses Gerät aus oder startet es neu.
+  Ask for parameters: 'Nach Parametern fragen'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper-Makros
     zuweisen, um LEDs per Ein/Aus, Umschalten oder Voreinstellungen zu steuern
   Assign a role to enable sensor monitoring: Rolle zuweisen, um Sensorüberwachung
@@ -833,6 +834,7 @@ translations:
   Day: Tag
   Debug: Debug
   Default: 'Standard'
+  Default Parameters: 'Standardparameter'
   Default border thickness: Standard-Rahmendicke
   'Default: %d-%d°C nozzle, %d°C bed': 'Standard: %d-%d°C Düse, %d°C Bett'
   'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': 'Standard: %d-%d°C Düse, %d°C Bett, %d°C Kammer'
@@ -2076,6 +2078,7 @@ translations:
   Objects: Objekte
   'Off': Aus
   'Off:': 'Aus:'
+  'Off: runs with these values without asking': 'Aus: führt diese Werte aus, ohne zu fragen'
   Offsets saved: Offsets gespeichert
   "Old setting on today's data: {} residual - now: {}": 'Alte Einstellung auf heutigen Daten: {} Restvibration - jetzt: {}'
   'On': Ein
@@ -2085,7 +2088,7 @@ translations:
   On/Off: Ein/Aus
   On/Off (state-aware): Ein/Aus (zustandsbewusst)
   'On:': 'Ein:'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: Ein Tipp führt dieses Makro ohne Parameter aus. Gefährliche Makros fragen weiterhin nach.
+  One tap runs this macro. Dangerous macros still ask.: 'Ein Tipp führt dieses Makro aus. Gefährliche Makros fragen weiterhin nach.'
   Ooze Reduction: 'Ooze-Reduzierung'
   Open: Öffnen
   Open Source Licenses: Open-Source-Lizenzen
@@ -2674,6 +2677,7 @@ translations:
   Saved to crash_report.txt (QR not available): In crash_report.txt gespeichert (QR
     nicht verfügbar)
   Saved to printer configuration.: In Druckerkonfiguration gespeichert.
+  Saved values, and whether to ask before running: 'Gespeicherte Werte und ob vor dem Ausführen gefragt wird'
   Saves to Klipper config and restarts firmware.: Speichert in Klipper-Konfiguration
     und startet Firmware neu.
   Saving Configuration...: Konfiguration wird gespeichert...

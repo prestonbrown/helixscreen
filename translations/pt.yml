@@ -244,6 +244,7 @@ translations:
     de que deseja cancelar esta impressão? Todo o progresso será perdido.
   Are you sure? This will power off or restart this device.: Tem certeza? Isso desligará
     ou reiniciará este dispositivo.
+  Ask for parameters: 'Perguntar parâmetros'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Atribuir macros
     Klipper para controlar LEDs via ligar/desligar, alternar ou predefinições
   Assign a role to enable sensor monitoring: Atribua uma função para habilitar o monitoramento
@@ -829,6 +830,7 @@ translations:
   Day: Dia
   Debug: Depuração
   Default: 'Padrão'
+  Default Parameters: 'Parâmetros padrão'
   Default border thickness: Espessura padrão da borda
   'Default: %d-%d°C nozzle, %d°C bed': 'Padrão: %d-%d°C bico, %d°C mesa'
   'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': 'Padrão: %d-%d°C bico, %d°C mesa, %d°C câmara'
@@ -2071,6 +2073,7 @@ translations:
   Objects: Objetos
   'Off': Desligado
   'Off:': 'Desligado:'
+  'Off: runs with these values without asking': 'Desativado: executa com estes valores sem perguntar'
   Offsets saved: Offsets salvos
   "Old setting on today's data: {} residual - now: {}": 'Configuração antiga nos dados de hoje: {} residual - atual: {}'
   'On': Ligado
@@ -2079,7 +2082,7 @@ translations:
   On/Off: Liga/Desliga
   On/Off (state-aware): Ligar/Desligar (com estado)
   'On:': 'Ligado:'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: Um toque executa esta macro sem parâmetros. Macros perigosas ainda pedem confirmação.
+  One tap runs this macro. Dangerous macros still ask.: 'Um toque executa esta macro. Macros perigosas ainda pedem confirmação.'
   Ooze Reduction: 'Redução de escorrimento'
   Open: Abrir
   Open Source Licenses: Licenças de código aberto
@@ -2670,6 +2673,7 @@ translations:
   Saved to crash_report.txt (QR not available): Salvo em crash_report.txt (QR não
     disponível)
   Saved to printer configuration.: Salvo na configuração da impressora.
+  Saved values, and whether to ask before running: 'Valores salvos e se deve perguntar antes de executar'
   Saves to Klipper config and restarts firmware.: Salva na configuração do Klipper
     e reinicia o firmware.
   Saving Configuration...: Salvando Configuração...

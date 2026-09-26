@@ -220,6 +220,7 @@
   <translation tag="Archive Spool?" en="Archive Spool?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." en="Are you sure you want to cancel this print? All progress will be lost."/>
   <translation tag="Are you sure? This will power off or restart this device." en="Are you sure? This will power off or restart this device."/>
+  <translation tag="Ask for parameters" en="Ask for parameters"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" en="Assign Klipper macros to control LEDs via on/off, toggle, or presets"/>
   <translation tag="Assign a role to enable sensor monitoring" en="Assign a role to enable sensor monitoring"/>
   <translation tag="Assisted Retract" en="Assisted Retract"/>
@@ -743,6 +744,7 @@
   <translation tag="Day" en="Day"/>
   <translation tag="Debug" en="Debug"/>
   <translation tag="Default" en="Default"/>
+  <translation tag="Default Parameters" en="Default Parameters"/>
   <translation tag="Default border thickness" en="Default border thickness"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" en="Default: %d-%d°C nozzle, %d°C bed"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber" en="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber"/>
@@ -1876,6 +1878,7 @@
   <translation tag="Objects" en="Objects"/>
   <translation tag="Off" en="Off"/>
   <translation tag="Off:" en="Off:"/>
+  <translation tag="Off: runs with these values without asking" en="Off: runs with these values without asking"/>
   <translation tag="Offsets saved" en="Offsets saved"/>
   <translation tag="Old setting on today&apos;s data: {} residual - now: {}" en="Old setting on today&apos;s data: {} residual - now: {}"/>
   <translation tag="On" en="On"/>
@@ -1884,7 +1887,7 @@
   <translation tag="On/Off" en="On/Off"/>
   <translation tag="On/Off (state-aware)" en="On/Off (state-aware)"/>
   <translation tag="On:" en="On:"/>
-  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask." en="One tap runs this macro with no parameters. Dangerous macros still ask."/>
+  <translation tag="One tap runs this macro. Dangerous macros still ask." en="One tap runs this macro. Dangerous macros still ask."/>
   <translation tag="Ooze Reduction" en="Ooze Reduction"/>
   <translation tag="Open" en="Open"/>
   <translation tag="Open Source Licenses" en="Open Source Licenses"/>
@@ -2418,6 +2421,7 @@
   <translation tag="Saved Z-Offset" en="Saved Z-Offset"/>
   <translation tag="Saved to crash_report.txt (QR not available)" en="Saved to crash_report.txt (QR not available)"/>
   <translation tag="Saved to printer configuration." en="Saved to printer configuration."/>
+  <translation tag="Saved values, and whether to ask before running" en="Saved values, and whether to ask before running"/>
   <translation tag="Saves to Klipper config and restarts firmware." en="Saves to Klipper config and restarts firmware."/>
   <translation tag="Saving Configuration..." en="Saving Configuration..."/>
   <translation tag="Saving Z-offset..." en="Saving Z-offset..."/>

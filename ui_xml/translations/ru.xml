@@ -220,6 +220,7 @@
   <translation tag="Archive Spool?" ru="Архивировать катушку?"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." ru="Вы уверены, что хотите отменить печать? Весь прогресс будет потерян."/>
   <translation tag="Are you sure? This will power off or restart this device." ru="Вы уверены? Это выключит или перезагрузит данное устройство."/>
+  <translation tag="Ask for parameters" ru="Спрашивать параметры"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" ru="Назначьте макросы Klipper для управления LED через вкл/выкл, переключение или пресеты"/>
   <translation tag="Assign a role to enable sensor monitoring" ru="Назначьте роль для мониторинга датчика"/>
   <translation tag="Assisted Retract" ru="Ретракция с поддержкой"/>
@@ -743,6 +744,7 @@
   <translation tag="Day" ru="День"/>
   <translation tag="Debug" ru="Отладка"/>
   <translation tag="Default" ru="По умолчанию"/>
+  <translation tag="Default Parameters" ru="Параметры по умолчанию"/>
   <translation tag="Default border thickness" ru="Толщина границы по умолчанию"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" ru="По умолчанию: сопло %d-%d°C, стол %d°C"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber" ru="По умолчанию: сопло %d-%d°C, стол %d°C, камера %d°C"/>
@@ -1876,6 +1878,7 @@
   <translation tag="Objects" ru="Объекты"/>
   <translation tag="Off" ru="Выкл"/>
   <translation tag="Off:" ru="Выкл:"/>
+  <translation tag="Off: runs with these values without asking" ru="Выкл.: запуск с этими значениями без запроса"/>
   <translation tag="Offsets saved" ru="Смещения сохранены"/>
   <translation tag="Old setting on today&apos;s data: {} residual - now: {}" ru="Прежняя настройка на сегодняшних данных: остаточная вибрация {} — сейчас: {}"/>
   <translation tag="On" ru="Вкл"/>
@@ -1884,7 +1887,7 @@
   <translation tag="On/Off" ru="Вкл/Выкл"/>
   <translation tag="On/Off (state-aware)" ru="Вкл/Выкл (с отслеживанием)"/>
   <translation tag="On:" ru="Вкл:"/>
-  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask." ru="Один тап запускает этот макрос без параметров. Опасные макросы всё равно запрашивают подтверждение."/>
+  <translation tag="One tap runs this macro. Dangerous macros still ask." ru="Один тап запускает этот макрос. Опасные макросы всё равно запрашивают подтверждение."/>
   <translation tag="Ooze Reduction" ru="Снижение подтекания"/>
   <translation tag="Open" ru="Открыть"/>
   <translation tag="Open Source Licenses" ru="Лицензии с открытым кодом"/>
@@ -2418,6 +2421,7 @@
   <translation tag="Saved Z-Offset" ru="Сохранённый Z-Offset"/>
   <translation tag="Saved to crash_report.txt (QR not available)" ru="Сохранено в crash_report.txt (QR недоступен)"/>
   <translation tag="Saved to printer configuration." ru="Сохранено в конфигурацию принтера."/>
+  <translation tag="Saved values, and whether to ask before running" ru="Сохранённые значения и запрос перед запуском"/>
   <translation tag="Saves to Klipper config and restarts firmware." ru="Сохраняет в конфигурацию Klipper и перезапускает прошивку."/>
   <translation tag="Saving Configuration..." ru="Сохранение конфигурации..."/>
   <translation tag="Saving Z-offset..." ru="Сохранение Z-offset..."/>

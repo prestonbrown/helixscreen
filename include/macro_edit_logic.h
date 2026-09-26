@@ -51,14 +51,16 @@ inline std::vector<std::string> filter_visible(const std::vector<std::string>& a
     return visible;
 }
 
-// The three per-row display-state ints bound by macro_card.xml.
+// The four per-row display-state ints bound by macro_card.xml.
 //   visible       -> checkbox state (edit mode) / always-on (normal mode)
 //   desc_hidden   -> hide the description sub-label
 //   chevron_hidden-> hide the tappable chevron
+//   defaults_hidden -> hide the edit-mode "Default Parameters" button
 struct RowValues {
     int visible;
     int desc_hidden;
     int chevron_hidden;
+    int defaults_hidden;
 };
 
 // Compute a row's display state.
@@ -67,7 +69,10 @@ struct RowValues {
 //   is_hidden  : this macro is in the pending-hidden set (edit mode only)
 //   has_desc   : the macro has a non-empty cached description
 //   no_params  : the macro is KNOWN_NO_PARAMS (no chevron in normal mode)
-inline RowValues compute_row_values(bool edit_mode, bool is_hidden, bool has_desc, bool no_params) {
+//   has_params : the macro is KNOWN_PARAMS (defaults button in edit mode);
+//                there is no field list to save otherwise
+inline RowValues compute_row_values(bool edit_mode, bool is_hidden, bool has_desc, bool no_params,
+                                    bool has_params = false) {
     RowValues rv;
     // In edit mode the checkbox reflects visibility (un-hidden == checked);
     // in normal mode every displayed row is visible.
@@ -78,6 +83,9 @@ inline RowValues compute_row_values(bool edit_mode, bool is_hidden, bool has_des
     rv.desc_hidden = !has_desc ? 1 : 0;
     // No chevron in edit mode, or when the macro takes no parameters.
     rv.chevron_hidden = (edit_mode || no_params) ? 1 : 0;
+    // Saved defaults need a declared parameter list, and editing them is an
+    // edit-mode action.
+    rv.defaults_hidden = (edit_mode && has_params) ? 0 : 1;
     return rv;
 }
 

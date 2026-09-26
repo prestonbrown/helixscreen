@@ -103,6 +103,12 @@ struct ControlsPanelTestAccess {
         return ControlsPanel::homing_text(started);
     }
 
+    /// Invoke the macro quick button's dispatch, the same entry the touch
+    /// handler and the remote-control server use.
+    static void execute_macro(ControlsPanel& p, size_t index) {
+        p.execute_macro(index);
+    }
+
     static bool guard_active(ControlsPanel& p) {
         return p.operation_guard_.is_active();
     }
