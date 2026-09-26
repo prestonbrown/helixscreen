@@ -138,6 +138,7 @@ bool backend_owns_runout_surface(helix::AmsType type) {
         return true;
     case helix::AmsType::ACE:
     case helix::AmsType::QIDI_BOX:
+    case helix::AmsType::OPENAMS: // no error hook
     case helix::AmsType::TOOL_CHANGER:
     case helix::AmsType::SNAPMAKER:
     case helix::AmsType::NONE:
@@ -162,6 +163,7 @@ bool backend_owns_runout_during_job(helix::AmsType type) {
     case helix::AmsType::ACE:      // no error hook: the toast is the only runout signal
     case helix::AmsType::QIDI_BOX: // current_error() reports lane-BLOCKED faults, not
                                    // runout; for runout the toast is the only signal
+    case helix::AmsType::OPENAMS:  // no error hook: the toast is the only runout signal
     case helix::AmsType::TOOL_CHANGER:
     case helix::AmsType::SNAPMAKER:
     case helix::AmsType::NONE:

@@ -55,6 +55,7 @@ HelixScreen uses a backend abstraction layer to support multiple multi-filament 
 | `src/printer/slot_registry.cpp` | SlotRegistry implementation (name/index mapping, reorganize, tool map) |
 | `include/ams_backend_happy_hare.h` | Happy Hare MMU implementation |
 | `include/ams_backend_afc.h` | AFC (Armored Turtle / Box Turtle) implementation |
+| `include/ams_backend_openams.h` | klipper_openams through its versioned `oams_manager` API; `include/openams_api.h` holds the contract's "supported" test |
 | `include/ams_backend_ace.h` | ACE (Anycubic ACE Pro) implementation |
 | `include/ams_backend_toolchanger.h` | Physical tool changer (viesturz/klipper-toolchanger) |
 | `include/ams_backend_ad5x_ifs.h` | FlashForge AD5X IFS (Intelligent Filament Switching) |
@@ -72,7 +73,7 @@ HelixScreen uses a backend abstraction layer to support multiple multi-filament 
 
 ### Data Flow
 
-1. **Discovery**: `PrinterDiscovery::parse_objects()` scans Klipper's `printer.objects.list` for `mmu`, `AFC`, `toolchanger`, `ace`, `AFC_stepper lane*`, `AFC_hub *`, `tool T*`, and `filament_switch_sensor _ifs_port_sensor_*` objects.
+1. **Discovery**: `PrinterDiscovery::parse_objects()` scans Klipper's `printer.objects.list` for `mmu`, `AFC`, `toolchanger`, `ace`, `AFC_stepper lane*`, `AFC_hub *`, `tool T*`, and `filament_switch_sensor _ifs_port_sensor_*` objects. A system whose name cannot decide the claim (`oams_manager`) is settled from its status by `claim_status_query()` / `settle_status_claims()` before the hardware callback fires ([FILAMENT_BACKEND_OPENAMS.md](FILAMENT_BACKEND_OPENAMS.md)).
 2. **Backend Creation**: `AmsState::init_backend_from_hardware()` calls `AmsBackend::create()` with the detected `AmsType` and Moonraker dependencies.
 3. **Slot State**: Each backend stores per-slot state in its `SlotRegistry` instance (`slots_`), which provides indexed access, name lookup, and multi-unit reorganization. Moonraker status updates write to the registry under the backend's mutex.
 4. **State Sync**: Backend emits events (`STATE_CHANGED`, `SLOT_CHANGED`, etc.) which `AmsState` translates to LVGL subject updates.
@@ -152,6 +153,7 @@ aggregate, and add a test that fails if it stops.
 | Backend | Authority | Basis |
 |---------|-----------|-------|
 | AFC | `true` | `AFC_stepper.<lane>.tool_loaded` (#1194) |
+| OpenAMS | `true` | `oams_manager.units[].slots[].loaded`, plus each lane's `current_slot` |
 | Snapmaker | overrides outright | returns `status == LOADED` verbatim |
 | AD5X IFS | `true` | firmware active-lane pointer + head sensor (#1199) |
 | QIDI Box | `true` | `save_variables slot<N> == 2` (#1199) |
@@ -552,6 +554,7 @@ additional configuration. **Verified against OrcaSlicer upstream/main
 | Snapmaker U1 | HelixScreen (`FilamentSlotOverrideStore`) | `T<n>` (0-based) — tool changer | `lane_data` namespace |
 | ACE (Anycubic ACE Pro) | HelixScreen (`FilamentSlotOverrideStore`) | `laneN` (1-based) | `lane_data` namespace |
 | CFS (Creality K2) | HelixScreen (`FilamentSlotOverrideStore`) | `laneN` (1-based) | `lane_data` namespace |
+| OpenAMS (klipper_openams) | HelixScreen (`FilamentSlotOverrideStore`) | `laneN` (1-based) | `lane_data` namespace |
 | AFC / Box Turtle | AFC's own Klipper plugin | `T(n)` per mapping (virtual-tools firmware, #832); `laneN` (1-based) before | `lane_data` namespace (AFC is the originator) |
 | Happy Hare | Happy Hare's own Klipper plugin (components/mmu_server.py `push_lane_data`) | `laneN` (1-based) | `lane_data` namespace — Orca prefers it over the live `mmu` object |
 | Tool Changer | (not applicable — no per-slot metadata) | — | N/A |
@@ -561,7 +564,7 @@ not hardcoded per backend: tool changers (Snapmaker U1, generic
 klipper-toolchanger) write `T<n>`, filament systems write `laneN`. See the
 interoperability subsection below.
 
-IFS, Snapmaker, ACE, and CFS share the `FilamentSlotOverrideStore`
+IFS, Snapmaker, ACE, CFS, and OpenAMS share the `FilamentSlotOverrideStore`
 infrastructure and publish to `lane_data`; AFC and Happy Hare each write
 `lane_data` via their own Klipper plugins. **HelixScreen never writes
 `lane_data` for the AFC or Happy Hare backends** — those plugins own their
@@ -1536,6 +1539,7 @@ Each backend has its own leaf doc covering the protocol, data sources, G-code co
 |---------|----------|----------|
 | Happy Hare | ERCF / Tradrack and other selector-based MMUs (Klipper add-on) | [FILAMENT_BACKEND_HAPPY_HARE.md](FILAMENT_BACKEND_HAPPY_HARE.md) |
 | AFC | Box Turtle, OpenAMS, Toolchanger units (AFC-Klipper-Add-On) | [FILAMENT_BACKEND_AFC.md](FILAMENT_BACKEND_AFC.md) |
+| OpenAMS | klipper_openams on its own, through the `oams_manager` UI API (AFC, when present, keeps the printer) | [FILAMENT_BACKEND_OPENAMS.md](FILAMENT_BACKEND_OPENAMS.md) |
 | ACE | Anycubic ACE Pro 4-slot hub (native GoKlipper/Rinkhals; ValgACE REST fallback) | [FILAMENT_BACKEND_ACE.md](FILAMENT_BACKEND_ACE.md) |
 | Tool Changer | viesturz/klipper-toolchanger physical toolheads | [FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md) |
 | AD5X IFS | FlashForge Adventurer 5X Intelligent Filament Switching via ZMOD | [FILAMENT_BACKEND_AD5X_IFS.md](FILAMENT_BACKEND_AD5X_IFS.md) |
@@ -1555,7 +1559,8 @@ enum class AmsType {
     AD5X_IFS = 5,     // FlashForge AD5X IFS (Intelligent Filament Switching)
     CFS = 6,          // Creality Filament System (K2 series, RS-485)
     SNAPMAKER = 7,    // Snapmaker U1 SnapSwap toolchanger
-    QIDI_BOX = 8      // QIDI Box (PLUS4 / Q2 / MAX4, hub-style, 4 slots chainable to 16)
+    QIDI_BOX = 8,     // QIDI Box (PLUS4 / Q2 / MAX4, hub-style, 4 slots chainable to 16)
+    OPENAMS = 9       // klipper_openams through its versioned oams_manager API
 };
 ```
 

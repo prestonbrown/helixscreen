@@ -355,6 +355,7 @@ When multiple backends are detected:
 | **CFS** | Creality Filament System (K2 series, plus K1/K1C/K1 Max with the official CFS upgrade) |
 | **Happy Hare** | MMU2, ERCF, 3MS, Tradrack, EMU |
 | **AFC** | Box Turtle, OpenAMS, ViViD |
+| **OpenAMS** | klipper_openams without AFC. Needs a klipper_openams version that publishes its UI API; Load and Unload also need the `OPENAMS_LOAD` / `OPENAMS_UNLOAD` macros from its `oams_macros.cfg` |
 | **ACE** | Anycubic ACE Pro (via ValgACE/BunnyACE/DuckACE Klipper drivers) |
 | **Tool Changer** | Toolchanger-based filament routing |
 | **AD5X IFS** | FlashForge Adventurer 5X Intelligent Filament Switching (requires ZMOD firmware v1.7.0 or newer) |

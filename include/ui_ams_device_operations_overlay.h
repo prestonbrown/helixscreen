@@ -16,6 +16,7 @@
 #pragma once
 
 #include "ui_bypass_toggle_controller.h"
+#include "ui_observer_guard.h"
 
 #include "ams_types.h"
 #include "overlay_base.h"
@@ -128,6 +129,9 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
 
     /// Update subjects from backend state
     void update_from_backend();
+
+    /// Set can_abort_subject_ from the current backend
+    void update_abort_available();
 
     /// Populate section list rows from backend sections
     void populate_section_list();
@@ -257,6 +261,15 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     /// edges), single-unit Happy Hare (groups) and the mock — and stays hidden
     /// for read-only systems (CFS, AD5X IFS) and backends with no endless spool.
     lv_subject_t can_reset_endless_spool_subject_;
+
+    /// Subject enabling Abort (0=disabled, 1=enabled). Set from
+    /// AmsBackend::can_cancel_operation() on refresh and on every AMS action
+    /// change, since what the backend can cancel follows what it is running.
+    lv_subject_t can_abort_subject_;
+
+    /// AMS action observer that keeps can_abort_subject_ current while the
+    /// overlay exists.
+    ObserverGuard action_observer_;
 
     /// Cached section metadata for row click dispatch
     std::vector<helix::printer::DeviceSection> cached_sections_;

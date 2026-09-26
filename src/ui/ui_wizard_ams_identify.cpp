@@ -175,6 +175,8 @@ std::string WizardAmsIdentifyStep::get_ams_type_name() const {
         return "Snapmaker SnapSwap";
     case helix::AmsType::QIDI_BOX:
         return "QIDI Box"; // i18n: do not translate - product name
+    case helix::AmsType::OPENAMS:
+        return "OpenAMS"; // i18n: do not translate - product name
     default:
         return lv_tr("Unknown");
     }

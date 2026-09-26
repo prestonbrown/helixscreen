@@ -5,6 +5,7 @@
 
 #include "ams_backend_afc.h"
 #include "ams_backend_happy_hare.h"
+#include "ams_backend_openams.h"
 #include "ams_state.h"
 #include "settings_manager.h"
 #ifdef HELIX_ENABLE_MOCKS
@@ -798,6 +799,7 @@ bool AmsBackend::sensor_belongs_to_backend(AmsType type, const std::string& bare
     case AmsType::TOOL_CHANGER:
     case AmsType::SNAPMAKER:
     case AmsType::QIDI_BOX:
+    case AmsType::OPENAMS:
     case AmsType::NONE:
     default:
         return false;
@@ -883,6 +885,15 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type) {
         return std::make_unique<AmsBackendMock>(config->mock_ams_gate_count);
 #else
         spdlog::warn("[AMS Backend] QIDI Box detected but no API/client provided");
+        return nullptr;
+#endif
+
+    case AmsType::OPENAMS:
+#ifdef HELIX_ENABLE_MOCKS
+        spdlog::warn("[AMS Backend] OpenAMS detected but no API/client provided - using mock");
+        return std::make_unique<AmsBackendMock>(config->mock_ams_gate_count);
+#else
+        spdlog::warn("[AMS Backend] OpenAMS detected but no API/client provided");
         return nullptr;
 #endif
 
@@ -999,6 +1010,14 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, IMoonraker
         spdlog::info("[AMS Backend] QIDI Box support not compiled in");
         return nullptr;
 #endif
+
+    case AmsType::OPENAMS:
+        if (!api || !client) {
+            spdlog::error("[AMS Backend] OpenAMS requires IMoonrakerAPI and MoonrakerClient");
+            return nullptr;
+        }
+        spdlog::debug("[AMS Backend] Creating OpenAMS backend");
+        return std::make_unique<AmsBackendOpenAms>(api, client);
 
     case AmsType::NONE:
     default:

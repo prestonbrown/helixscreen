@@ -85,7 +85,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_is_tool_changer agrees with the predicate
                  "[ams][toolchanger][subject]") {
     // Pin the subject to is_tool_changer() itself rather than a list of types,
     // so a new tool-changer AmsType cannot be added without the subject following.
-    for (int raw = 0; raw <= static_cast<int>(helix::AmsType::QIDI_BOX); ++raw) {
+    for (int raw = 0; raw <= static_cast<int>(helix::AmsType::OPENAMS); ++raw) {
         auto type = static_cast<helix::AmsType>(raw);
         CAPTURE(raw, helix::ams_type_to_string(type));
         CHECK(lv_subject_get_int(install(type)) == (helix::is_tool_changer(type) ? 1 : 0));

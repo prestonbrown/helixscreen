@@ -1532,6 +1532,16 @@ class AmsBackend {
      */
     virtual AmsError cancel() = 0;
 
+    /**
+     * @brief Whether cancel() can reach what is running now
+     *
+     * False while the running operation holds something cancel() would queue
+     * behind, so the UI withholds Abort rather than offering one that fails.
+     */
+    [[nodiscard]] virtual bool can_cancel_operation() const {
+        return true;
+    }
+
     // ========================================================================
     // Resume Preparation
     // ========================================================================

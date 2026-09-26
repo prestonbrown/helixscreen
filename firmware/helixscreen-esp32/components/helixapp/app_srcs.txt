@@ -126,6 +126,7 @@ src/printer/ams_backend_ad5x_ifs.cpp
 src/printer/ams_backend_afc.cpp
 src/printer/ams_backend_cfs.cpp
 src/printer/ams_backend_happy_hare.cpp
+src/printer/ams_backend_openams.cpp
 src/printer/ams_bypass_policy.cpp
 src/printer/ams_backend_qidi.cpp
 src/printer/ams_backend_snapmaker.cpp
