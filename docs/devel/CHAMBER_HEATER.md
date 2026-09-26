@@ -184,8 +184,7 @@ generic kinds above; they are deliberately not subjects, so nothing can bind a v
 | `chamber_filter_fan_percent_text` | string | Filtration-fan speed ("--" = unknown). The number stays a private member, as with the element temp |
 | `chamber_filter_fan_requested` | int | Our output_pin request (-1 unknown / 0 / 1) — what the toggle click inverts |
 | `chamber_filter_fan_device_driven` | int 0/1 | Device runs the fan on its own (heater warmup / thermal purge); the card badges the readout and disables the switch |
-| `chamber_filter_fan_on` / `..._text` | int / string | Fan RUNNING state: reported speed when the backend has one, the pin otherwise |
-| `chamber_filter_fan_icon` | string | Running-state icon name ("fan"/"fan_off"). Unconsumed since the icon-button toggle became a switch; kept as the canonical fan-state icon spelling |
+| `chamber_filter_fan_on` | int | Fan RUNNING state: reported speed when the backend has one, the pin otherwise |
 | `printer_has_chamber_heater_diagnostics` | int 0/1 | Capability: the diagnostics surfaces (card block / strip) are built at all |
 | `printer_has_chamber_filter_fan` | int 0/1 | Capability: filter-fan toggle and its readout column |
 | `printer_has_chamber_element_temp` | int 0/1 | Capability: element readout column, from the backend's `reports_element_temp()` |

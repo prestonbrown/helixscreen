@@ -1273,8 +1273,6 @@ translations:
   'File not found: {}': 'Arquivo não encontrado: {}'
   Filename: Nome do Arquivo
   Filter Fan: Ventoinha do Filtro
-  'Filter Fan: Off': 'Ventoinha do Filtro: Desligado'
-  'Filter Fan: On': 'Ventoinha do Filtro: Ligado'
   Fine: Fino
   Fine Inner: Fino Interno
   Fine Outer: Fino Externo

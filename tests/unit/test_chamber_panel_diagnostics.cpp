@@ -17,7 +17,7 @@
  * strip's info row) and bind_flag_if_eq (element / filter-fan capability),
  * readouts bind the *_text formatter subjects, and the switch and the
  * banner's Reset fire TemperatureService XML callbacks that delegate to the
- * globally-registered TemperatureController — never the api directly.
+ * globally-registered TemperatureController: never the api directly.
  *
  * The unit-test display is 800x480 (card path); the geometry cases resize it
  * through ScopedResolution + theme_manager_refresh_layout_constants() to
@@ -48,7 +48,7 @@ using helix::TemperatureController;
 
 namespace {
 
-/// Set an int subject in the XML registry — the name the overlay binds, which
+/// Set an int subject in the XML registry: the name the overlay binds, which
 /// may be this fixture's registration or a prior test's; either way it is the
 /// live subject the overlay's bindings observe.
 lv_subject_t* set_xml_int(const char* name, int value) {
@@ -83,7 +83,7 @@ nlohmann::json faulted_dragonbreath_status() {
 
 /// Drives the fixture display to a geometry and refreshes the derived layout
 /// state (ui_breakpoint / ui_is_portrait / token tiers), restoring both on the
-/// way out — the same discipline as test_is_portrait_subject.cpp's
+/// way out: the same discipline as test_is_portrait_subject.cpp's
 /// RestoreDisplayConsts: theme_manager writes into a SHARED XML scope, so a
 /// stale tier would decide layout for every later test in this binary.
 class ScopedGeometry {
@@ -113,7 +113,7 @@ class ScopedGeometry {
 /// in the same shape production's xml_registration.cpp uses. temp_graph_mode
 /// is a TempGraphOverlay-owned subject in production; the fixture registers a
 /// static stand-in (the XML subject registry is process-global and never
-/// forgets an entry, so a fixture member would dangle after this test — same
+/// forgets an entry, so a fixture member would dangle after this test: same
 /// reasoning as AdvancedPowerGroupFixture's host-power subject).
 class ChamberOverlayFixture : public XMLTestFixture {
   public:
@@ -128,7 +128,7 @@ class ChamberOverlayFixture : public XMLTestFixture {
             mode_subject_ = &mode_subject;
         }
         // A prior test case may have left another mode on the shared static
-        // subject — chamber is the default for every section here.
+        // subject: chamber is the default for every section here.
         lv_subject_set_int(mode_subject_, 3);
 
         REQUIRE(register_component("components/nozzle_icon"));
@@ -138,7 +138,7 @@ class ChamberOverlayFixture : public XMLTestFixture {
         REQUIRE(register_component("header_bar"));
         REQUIRE(register_component("overlay_panel"));
         // The card's two diagnostics callbacks must exist before the overlay's
-        // XML resolves them — same registration TemperatureService performs.
+        // XML resolves them: same registration TemperatureService performs.
         lv_xml_register_event_cb(nullptr, "on_chamber_fault_reset_clicked",
                                  TemperatureService::on_chamber_fault_reset_clicked);
         lv_xml_register_event_cb(nullptr, "on_chamber_filter_fan_clicked",
@@ -153,7 +153,7 @@ class ChamberOverlayFixture : public XMLTestFixture {
     /// Creates the overlay at the display's CURRENT geometry. Call after any
     /// ScopedGeometry so the structural breakpoint gates evaluate against the
     /// resized screen. Capability gates default to 0 (surfaces not built);
-    /// raise them before the build so the structural <if> fires — the
+    /// raise them before the build so the structural <if> fires: the
     /// hidden-when-off cases re-set them explicitly (the reactive cond
     /// rebuilds).
     lv_obj_t* build_overlay() {
@@ -261,7 +261,7 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
         CHECK(hidden(lv_obj_find_by_name(overlay_, "offline_label")));
 
         // Offline with no fault: the banner carries the offline message, and
-        // the Reset button is HIDDEN — DRAGONBREATH_RESET clears a latched
+        // the Reset button is HIDDEN: DRAGONBREATH_RESET clears a latched
         // fault ON the device and cannot reach one that is not answering.
         set_xml_int("chamber_heater_fault", 0);
         set_xml_int("chamber_heater_offline", 1);
@@ -419,6 +419,30 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "micro landscape renders the compact str
         CHECK(hidden(lv_obj_find_by_name(overlay_, "strip_info_row")));
         REQUIRE(lv_obj_find_by_name(overlay_, "reset_fault_button") != nullptr);
     }
+
+    // A backend with no filter-fan pin must not offer a live switch.
+    SECTION("no filter-fan capability hides the strip's switch") {
+        set_xml_int("printer_has_chamber_filter_fan", 0);
+        helix::ui::UpdateQueue::instance().drain();
+
+        CHECK(hidden(lv_obj_find_by_name(overlay_, "filter_fan_readout")));
+        CHECK(hidden(lv_obj_find_by_name(overlay_, "filter_fan_switch")));
+    }
+
+    // "External" must show once at this size: the strip carries the marker,
+    // the card's header badge stands down (the card's diagnostics block is
+    // merely hidden here, so its badge widget still exists).
+    SECTION("external marker shows on the strip, not the card header") {
+        set_xml_int("chamber_heater_externally_controlled", 1);
+        helix::ui::UpdateQueue::instance().drain();
+
+        CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "external_control_badge")));
+        lv_obj_t* right_column = lv_obj_find_by_name(overlay_, "chamber_control_strip");
+        REQUIRE(right_column != nullptr);
+        lv_obj_t* card_badge = lv_obj_find_by_name(right_column, "external_control_badge");
+        REQUIRE(card_badge != nullptr);
+        CHECK(hidden(card_badge));
+    }
 }
 
 // ============================================================================
@@ -461,7 +485,7 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "chamber card fits the right column at 4
 
     // Fits means no scroll: the left column's scrollable must have nothing
     // below the fold. A layout regression that squeezes the chart does not
-    // necessarily shrink it past the floor above — it overflows instead,
+    // necessarily shrink it past the floor above: it overflows instead,
     // which is the failure the fitting rule exists to catch.
     lv_obj_t* left_column = lv_obj_find_by_name(overlay_, "graph_outer_container");
     REQUIRE(left_column != nullptr);
@@ -479,7 +503,7 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "chamber card controls drive the control
     build_overlay();
 
     // The XML callbacks reach the controller through app_globals, exactly as
-    // production wires it — register the fixture's controller there.
+    // production wires it: register the fixture's controller there.
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, state());
     TemperatureController controller(state(), &api);
@@ -530,7 +554,7 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "chamber card controls drive the control
 
         // The running state is the DEVICE's business: a fan the device runs
         // at full speed while our request is still off must not flip the next
-        // toggle to VALUE=0 — the toggle inverts the request.
+        // toggle to VALUE=0: the toggle inverts the request.
         set_xml_int("chamber_filter_fan_on", 1);
         set_xml_int("chamber_filter_fan_requested", 0);
         client.clear_gcode_script_history();
@@ -538,6 +562,41 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "chamber card controls drive the control
         helix::ui::UpdateQueue::instance().drain();
         REQUIRE(client.gcode_script_history().size() == 1);
         CHECK(client.gcode_script_history()[0] == "SET_PIN PIN=dragonbreath_filter VALUE=1");
+    }
+
+    // The switch flips ITSELF on tap, but chamber_filter_fan_on only changes
+    // when a status frame confirms the new state. A click whose request no
+    // frame has confirmed yet (rejected SET_PIN, Klippy not ready, device
+    // reporting 0%) must snap the switch back to what the subject says, not
+    // leave the tapped position.
+    SECTION("filter-fan switch snaps back when the request changes nothing") {
+        lv_obj_t* fan_switch = lv_obj_find_by_name(overlay_, "filter_fan_switch");
+        REQUIRE(fan_switch != nullptr);
+
+        set_xml_int("chamber_filter_fan_requested", 0);
+        set_xml_int("chamber_filter_fan_on", 0);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE_FALSE(lv_obj_has_state(fan_switch, LV_STATE_CHECKED));
+
+        // The tap's optimistic flip: checked, with no confirmation behind it.
+        lv_obj_add_state(fan_switch, LV_STATE_CHECKED);
+        client.clear_gcode_script_history();
+        lv_obj_send_event(fan_switch, LV_EVENT_VALUE_CHANGED, nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+        // Preconditions: the click reached the controller, and no status
+        // frame confirmed the flip (nothing here processes the SET_PIN into
+        // a chamber_filter_fan_on change).
+        REQUIRE(client.gcode_script_history().size() == 1);
+        REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "chamber_filter_fan_on")) == 0);
+        CHECK_FALSE(lv_obj_has_state(fan_switch, LV_STATE_CHECKED));
+
+        // The same notify follows the truth upward: a confirmed on-state
+        // leaves the switch checked.
+        set_xml_int("chamber_filter_fan_on", 1);
+        helix::ui::UpdateQueue::instance().drain();
+        lv_obj_send_event(fan_switch, LV_EVENT_VALUE_CHANGED, nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(lv_obj_has_state(fan_switch, LV_STATE_CHECKED));
     }
 
     // Drop the registration so later tests' get_temperature_controller()
@@ -567,32 +626,22 @@ TEST_CASE("diagnostics parse block writes display text subjects", "[chamber][sub
           "106°C"); // canonical decimal-drop rule: whole degrees at/above 100
     CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_percent_text_subject())) ==
           "100%");
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_on_text_subject())) ==
-          std::string(lv_tr("Filter Fan: On")));
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_icon_subject())) == "fan");
 
     // The pin is a request, not the fan: a pin-only delta updates the
-    // request, and the running pair follows the reported fan speed (100%
+    // request, and the running state follows the reported fan speed (100%
     // above) until a diagnostics frame says otherwise.
     ts.update_from_status({{"output_pin dragonbreath_filter", {{"value", 0.0}}}});
     CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_requested_subject()) == 0);
     CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_on_subject()) == 1);
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_on_text_subject())) ==
-          std::string(lv_tr("Filter Fan: On")));
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_icon_subject())) == "fan");
     CHECK(std::string(lv_subject_get_string(ts.get_chamber_heater_element_temp_text_subject())) ==
           "106°C");
 
     // Sub-100 element temp keeps its one decimal; the fan stopping is what
-    // flips the running pair.
+    // flips the running state.
     ts.update_from_status(nlohmann::json::parse(
         R"({"dragonbreath": {"fault": false, "fault_reason": null, "ptc_temp": 39.4,
                             "fan_percent": 0, "fan_reason": "off"}})"));
     CHECK(std::string(lv_subject_get_string(ts.get_chamber_heater_element_temp_text_subject())) ==
           "39.4°C");
     CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_on_subject()) == 0);
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_on_text_subject())) ==
-          std::string(lv_tr("Filter Fan: Off")));
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_icon_subject())) ==
-          "fan_off");
 }

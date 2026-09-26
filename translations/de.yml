@@ -1285,8 +1285,6 @@ translations:
   'File not found: {}': 'Datei nicht gefunden: {}'
   Filename: Dateiname
   Filter Fan: Filterlüfter
-  'Filter Fan: Off': 'Filterlüfter: Aus'
-  'Filter Fan: On': 'Filterlüfter: Ein'
   Fine: Fein
   Fine Inner: Fein Innen
   Fine Outer: Fein Außen

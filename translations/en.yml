@@ -1242,8 +1242,6 @@ translations:
   'File not found: {}': 'File not found: {}'
   Filename: Filename
   Filter Fan: 'Filter Fan'
-  'Filter Fan: Off': 'Filter Fan: Off'
-  'Filter Fan: On': 'Filter Fan: On'
   Fine: Fine
   Fine Inner: Fine Inner
   Fine Outer: Fine Outer

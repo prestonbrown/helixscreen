@@ -4,14 +4,17 @@
 <component>
   <!-- Chamber-heater diagnostics strip (issue #1290): the compact fallback
        for the sizes where the diagnostics cannot live in the right column's
-       chamber card — portrait always, and micro landscape (480x272), where
+       chamber card: portrait always, and micro landscape (480x272), where
        the right column has no room for the fault banner and the readout rows
        beside the presets. temp_graph_overlay.xml gates this instantiation
        with (ui_is_portrait or ui_breakpoint eq 0); everywhere else the
-       diagnostics render inside chamber_display_card instead.
+       diagnostics render inside chamber_display_card instead. At micro
+       landscape the card's copy of this markup is bind-hidden, not unbuilt,
+       so the inner widget names exist twice in the tree. Known and
+       harmless: the card's copy is hidden and inert.
 
-       One info row — element icon + value, filter-fan icon + percent, muted
-       External marker, and the fan switch — sized so the tightest target
+       One info row: element icon + value, filter-fan icon + percent, muted
+       External marker, and the fan switch, sized so the tightest target
        (272x480 chamber mode: ~300px for chart + strip) keeps a usable chart
        with zero scroll. A fault replaces the info row with the one-row
        chamber_fault_banner: on a heater that is faulted, inhibited or
@@ -20,10 +23,10 @@
        Data arrives exclusively through global subjects; the switch and the
        banner's Reset fire TemperatureService XML callbacks that delegate to
        the globally registered TemperatureController. While the device drives
-       the filter fan itself the percent readout is replaced by a Device
-       badge and the switch disables — the pin is a request the device
+       the filter fan itself the percent readout gains a muted Device badge
+       beside it and the switch disables: the pin is a request the device
        overrides. The caller owns outer visibility: instantiate inside
-       <if cond="printer_has_chamber_heater_diagnostics and temp_graph_mode 3">. -->
+       <if cond="printer_has_chamber_heater_diagnostics and temp_graph_mode eq 3">. -->
   <view name="chamber_diagnostics_card"
         extends="ui_card" width="100%" height="content" style_radius="0" flex_flow="column" style_pad_all="#space_xxs"
         style_pad_gap="#space_xxs" style_margin_top="#space_sm">
@@ -59,10 +62,11 @@
         <bind_flag_if cond="chamber_heater_externally_controlled" flag="hidden" invert="true"/>
       </text_small>
       <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
-      <!-- Filter fan switch — only when the backend wires a filter-fan pin.
+      <!-- Filter fan switch: only when the backend wires a filter-fan pin.
            Disabled while the device drives the fan itself: the pin is a
            request the device overrides, so the switch cannot stop it. -->
       <ui_switch name="filter_fan_switch" size="small">
+        <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
         <bind_state_if_eq subject="chamber_filter_fan_on" state="checked" ref_value="1"/>
         <bind_state_if_eq subject="chamber_filter_fan_device_driven" state="disabled" ref_value="1"/>
         <event_cb trigger="value_changed" callback="on_chamber_filter_fan_clicked"/>

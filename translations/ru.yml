@@ -1259,8 +1259,6 @@ translations:
   'File not found: {}': 'Файл не найден: {}'
   Filename: Имя файла
   Filter Fan: Вентилятор фильтра
-  'Filter Fan: Off': 'Вентилятор фильтра: Выкл'
-  'Filter Fan: On': 'Вентилятор фильтра: Вкл'
   Fine: Точно
   Fine Inner: Точно (внутренний)
   Fine Outer: Точно (внешний)

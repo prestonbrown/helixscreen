@@ -1158,8 +1158,6 @@
   <translation tag="File not found: {}" pt="Arquivo não encontrado: {}"/>
   <translation tag="Filename" pt="Nome do Arquivo"/>
   <translation tag="Filter Fan" pt="Ventoinha do Filtro"/>
-  <translation tag="Filter Fan: Off" pt="Ventoinha do Filtro: Desligado"/>
-  <translation tag="Filter Fan: On" pt="Ventoinha do Filtro: Ligado"/>
   <translation tag="Fine" pt="Fino"/>
   <translation tag="Fine Inner" pt="Fino Interno"/>
   <translation tag="Fine Outer" pt="Fino Externo"/>

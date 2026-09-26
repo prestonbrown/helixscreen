@@ -93,7 +93,7 @@
                 width="100%" flex_grow="1" style_pad_all="0" scrollable="false" style_border_opa="0">
           <!-- Temperature graph created programmatically in C++ -->
         </lv_obj>
-        <!-- Chamber-heater diagnostics strip — the compact fallback for the
+        <!-- Chamber-heater diagnostics strip: the compact fallback for the
              sizes where the diagnostics cannot live in the right column's
              chamber card: portrait always, and micro landscape (480x272),
              whose right column has no room beside the presets. Everywhere
@@ -357,15 +357,14 @@
 
         <if cond="ui_is_portrait eq 0">
           <!-- LANDSCAPE: the chamber card carries everything about the
-               heater — display, status, and (on printers with a diagnostics
-               surface) the fault banner, element and filter-fan rows, which
-               replace the diagnostics card that used to sit under the chart.
-               Header row holds the sm chamber icon, the External marker and
-               the heater status; the temp readout stands alone below it (the
-               target is rendered inline by temp_display). The diagnostics
-               block is bind-hidden rather than a nested <if>: the engine's
-               if/else capture is flat, one level per parent, so an <if>
-               inside this branch would swallow the portrait <else> below. -->
+               heater: display, status, and (on printers with a diagnostics
+               surface) the fault banner, element and filter-fan rows. One
+               row holds the sm chamber icon, the temp readout, the External
+               marker and the heater status (the target is rendered inline
+               by temp_display). The diagnostics block is bind-hidden rather
+               than a nested <if>: the engine's if/else capture is flat, one
+               level per parent, so an <if> inside this branch would swallow
+               the portrait <else> below. -->
           <ui_card name="chamber_display_card"
                    width="100%" height="content" style_radius="0" flex_flow="column" style_flex_main_place="start"
                    style_pad_gap="#space_xxs" style_pad_all="#space_sm">
@@ -375,22 +374,24 @@
                     height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
                     style_flex_cross_place="center" scrollable="false">
               <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="sm"/>
+              <temp_display name="chamber_temp_display"
+                            size="lg" show_target="true" bind_current="chamber_temp"
+                            bind_target="chamber_effective_target" bind_mode="chamber_mode"
+                            event_cb="on_temp_graph_custom_clicked"/>
               <!-- Another controller is driving the heater: the device's own
                    web UI, a button on the unit, or the appliance's own auto
                    cycle holding a target of its own. Informational, not a
-                   fault. -->
+                   fault. Hidden at micro landscape, where the under-chart
+                   strip already carries the marker. -->
               <text_small name="external_control_badge"
                           text="External" translation_tag="External" style_text_color="#text_muted">
-                <bind_flag_if cond="chamber_heater_externally_controlled" flag="hidden" invert="true"/>
+                <bind_flag_if cond="chamber_heater_externally_controlled and ui_breakpoint gt 0"
+                              flag="hidden" invert="true"/>
               </text_small>
               <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
               <heater_status name="chamber_status_msg"
                              state_subject="chamber_status_state" duty_subject="chamber_status"/>
             </lv_obj>
-            <temp_display name="chamber_temp_display"
-                          size="lg" show_target="true" bind_current="chamber_temp"
-                          bind_target="chamber_effective_target" bind_mode="chamber_mode"
-                          event_cb="on_temp_graph_custom_clicked"/>
             <lv_obj name="chamber_diagnostics_block"
                     width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
                     scrollable="false">
@@ -424,7 +425,7 @@
                             text="Device" translation_tag="Device" style_text_color="#text_muted">
                   <bind_flag_if cond="chamber_filter_fan_device_driven" flag="hidden" invert="true"/>
                 </text_small>
-                <!-- Filter fan switch — only when the backend wires a
+                <!-- Filter fan switch: only when the backend wires a
                      filter-fan pin. Disabled while the device drives the fan
                      itself: the pin is a request the device overrides, so the
                      switch cannot stop it. -->
