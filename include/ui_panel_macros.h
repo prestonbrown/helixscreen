@@ -77,9 +77,10 @@ class MacrosPanel : public OverlayBase {
      * @brief XML event callbacks (registered globally via
      * lv_xml_register_event_cb). Route to the singleton via the global accessor.
      */
-    static void on_macro_row_clicked(lv_event_t* e);     ///< tap: toggle (edit) or run
-    static void on_macro_card_long_press(lv_event_t* e); ///< long-press: enter edit mode
-    static void on_macros_edit_save(lv_event_t* e);      ///< header Save: persist + exit edit
+    static void on_macro_row_clicked(lv_event_t* e);      ///< tap: toggle (edit) or run
+    static void on_macro_card_long_press(lv_event_t* e);  ///< long-press: enter edit mode
+    static void on_macro_defaults_clicked(lv_event_t* e); ///< edit-mode tune button per row
+    static void on_macros_edit_save(lv_event_t* e);       ///< header Save: persist + exit edit
     static void
     on_macros_back_clicked(lv_event_t* e); ///< header Back: exit edit mode, else pop overlay
 
@@ -150,6 +151,8 @@ class MacrosPanel : public OverlayBase {
                                                      helix::xml::IndexedSubjectPool::Type::Int};
     helix::xml::IndexedSubjectPool chevron_hidden_pool_{"macro_chevron_hidden",
                                                         helix::xml::IndexedSubjectPool::Type::Int};
+    helix::xml::IndexedSubjectPool defaults_hidden_pool_{"macro_defaults_hidden",
+                                                         helix::xml::IndexedSubjectPool::Type::Int};
 
     // Macro parameter modal and dangerous macro confirmation
     helix::MacroParamModal param_modal_;

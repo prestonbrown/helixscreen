@@ -42,6 +42,8 @@ void register_favorite_macro_widgets() {
                              FavoriteMacroConfigModal::close_cb);
     lv_xml_register_event_cb(nullptr, "fav_macro_config_confirm_cb",
                              FavoriteMacroConfigModal::require_confirm_cb);
+    lv_xml_register_event_cb(nullptr, "fav_macro_config_defaults_cb",
+                             FavoriteMacroConfigModal::defaults_cb);
     lv_xml_register_event_cb(nullptr, "fav_macro_config_tab_macro_cb",
                              FavoriteMacroConfigModal::tab_macro_cb);
     lv_xml_register_event_cb(nullptr, "fav_macro_config_tab_appearance_cb",

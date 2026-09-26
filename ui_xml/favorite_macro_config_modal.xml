@@ -99,13 +99,25 @@
                           description="Prompt before running this macro"
                           description_tag="Prompt before running this macro" subject="fav_macro_require_confirm"
                           callback="fav_macro_config_confirm_cb"/>
+      <!-- Saved parameter defaults. Only macros with a declared parameter list
+           have defaults to edit (the subject is recomputed per macro). The
+           visibility bind lives on a plain wrapper: a hidden flex child drops
+           out of layout, so the wrapper costs nothing when the row is absent. -->
+      <lv_obj name="default_params_wrap"
+              width="100%" height="content" style_pad_all="0" style_border_width="0" style_bg_opa="0" scrollable="false">
+        <bind_flag_if_eq subject="fav_macro_has_param_defaults" flag="hidden" ref_value="0"/>
+        <setting_action_row name="row_default_params"
+                            label="Default Parameters" label_tag="Default Parameters" icon="tune"
+                            description="Saved values, and whether to ask before running"
+                            description_tag="Saved values, and whether to ask before running"
+                            callback="fav_macro_config_defaults_cb"/>
+      </lv_obj>
       <!-- Visible only while confirmation is off. Dangerous macros are named
            explicitly because the per-widget opt-out deliberately does not
            reach them. -->
       <info_note name="run_immediately_hint"
-                 icon="flash" icon_variant="warning"
-                 text="One tap runs this macro with no parameters. Dangerous macros still ask."
-                 text_tag="One tap runs this macro with no parameters. Dangerous macros still ask.">
+                 icon="flash" icon_variant="warning" text="One tap runs this macro. Dangerous macros still ask."
+                 text_tag="One tap runs this macro. Dangerous macros still ask.">
         <bind_flag_if_eq subject="fav_macro_require_confirm" flag="hidden" ref_value="1"/>
       </info_note>
     </lv_obj>

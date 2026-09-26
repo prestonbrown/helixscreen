@@ -236,6 +236,7 @@ translations:
     sure you want to cancel this print? All progress will be lost.
   Are you sure? This will power off or restart this device.: Are you sure? This will
     power off or restart this device.
+  Ask for parameters: Ask for parameters
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Assign Klipper
     macros to control LEDs via on/off, toggle, or presets
   Assign a role to enable sensor monitoring: Assign a role to enable sensor monitoring
@@ -802,6 +803,7 @@ translations:
   Day: Day
   Debug: Debug
   Default: Default
+  Default Parameters: Default Parameters
   Default border thickness: Default border thickness
   'Default: %d-%d°C nozzle, %d°C bed': 'Default: %d-%d°C nozzle, %d°C bed'
   'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': 'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber'
@@ -2023,6 +2025,7 @@ translations:
   Objects: Objects
   'Off': 'Off'
   'Off:': 'Off:'
+  'Off: runs with these values without asking': 'Off: runs with these values without asking'
   Offsets saved: Offsets saved
   "Old setting on today's data: {} residual - now: {}": "Old setting on today's data: {} residual - now: {}"
   'On': 'On'
@@ -2031,7 +2034,7 @@ translations:
   On/Off: On/Off
   On/Off (state-aware): On/Off (state-aware)
   'On:': 'On:'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: One tap runs this macro with no parameters. Dangerous macros still ask.
+  One tap runs this macro. Dangerous macros still ask.: One tap runs this macro. Dangerous macros still ask.
   Ooze Reduction: Ooze Reduction
   Open: Open
   Open Source Licenses: Open Source Licenses
@@ -2612,6 +2615,7 @@ translations:
   Saved to crash_report.txt (QR not available): Saved to crash_report.txt (QR not
     available)
   Saved to printer configuration.: Saved to printer configuration.
+  Saved values, and whether to ask before running: Saved values, and whether to ask before running
   Saves to Klipper config and restarts firmware.: Saves to Klipper config and restarts
     firmware.
   Saving Configuration...: Saving Configuration...

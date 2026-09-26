@@ -220,6 +220,7 @@
   <translation tag="Archive Spool?" zh="归档料盘？"/>
   <translation tag="Are you sure you want to cancel this print? All progress will be lost." zh="确定要取消此打印吗？所有进度将丢失。"/>
   <translation tag="Are you sure? This will power off or restart this device." zh="确定吗？这将关闭或重启此设备。"/>
+  <translation tag="Ask for parameters" zh="询问参数"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" zh="分配 Klipper 宏通过开/关、切换或预设控制 LED"/>
   <translation tag="Assign a role to enable sensor monitoring" zh="分配角色以启用传感器监控"/>
   <translation tag="Assisted Retract" zh="辅助回抽"/>
@@ -743,6 +744,7 @@
   <translation tag="Day" zh="日"/>
   <translation tag="Debug" zh="调试"/>
   <translation tag="Default" zh="默认"/>
+  <translation tag="Default Parameters" zh="默认参数"/>
   <translation tag="Default border thickness" zh="默认边框厚度"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed" zh="默认: 喷嘴 %d-%d°C,热床 %d°C"/>
   <translation tag="Default: %d-%d°C nozzle, %d°C bed, %d°C chamber" zh="默认: 喷嘴 %d-%d°C,热床 %d°C,腔体 %d°C"/>
@@ -1876,6 +1878,7 @@
   <translation tag="Objects" zh="对象"/>
   <translation tag="Off" zh="关"/>
   <translation tag="Off:" zh="关:"/>
+  <translation tag="Off: runs with these values without asking" zh="关: 不询问,直接以这些值运行"/>
   <translation tag="Offsets saved" zh="偏移已保存"/>
   <translation tag="Old setting on today&apos;s data: {} residual - now: {}" zh="旧设置（今日数据）：残余 {} — 当前：{}"/>
   <translation tag="On" zh="开"/>
@@ -1884,7 +1887,7 @@
   <translation tag="On/Off" zh="开/关"/>
   <translation tag="On/Off (state-aware)" zh="开/关（状态跟踪）"/>
   <translation tag="On:" zh="开:"/>
-  <translation tag="One tap runs this macro with no parameters. Dangerous macros still ask." zh="单击即可无参数运行此宏。危险宏仍会询问。"/>
+  <translation tag="One tap runs this macro. Dangerous macros still ask." zh="单击即可运行此宏。危险宏仍会询问。"/>
   <translation tag="Ooze Reduction" zh="减少渗漏"/>
   <translation tag="Open" zh="打开"/>
   <translation tag="Open Source Licenses" zh="开源许可证"/>
@@ -2418,6 +2421,7 @@
   <translation tag="Saved Z-Offset" zh="已保存 Z 偏移"/>
   <translation tag="Saved to crash_report.txt (QR not available)" zh="已保存到 crash_report.txt（二维码不可用）"/>
   <translation tag="Saved to printer configuration." zh="已保存到打印机配置。"/>
+  <translation tag="Saved values, and whether to ask before running" zh="保存的值,以及运行前是否询问"/>
   <translation tag="Saves to Klipper config and restarts firmware." zh="保存到 Klipper 配置并重启固件。"/>
   <translation tag="Saving Configuration..." zh="正在保存配置..."/>
   <translation tag="Saving Z-offset..." zh="正在保存 Z 偏移..."/>

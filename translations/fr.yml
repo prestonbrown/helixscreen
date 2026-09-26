@@ -249,6 +249,7 @@ translations:
     sûr de vouloir annuler cette impression ? Toute la progression sera perdue.
   Are you sure? This will power off or restart this device.: Êtes-vous sûr ? Cela
     va éteindre ou redémarrer cet appareil.
+  Ask for parameters: 'Demander les paramètres'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Assigner des
     macros Klipper pour contrôler les LED via on/off, bascule ou préréglages
   Assign a role to enable sensor monitoring: Attribuez un rôle pour activer la surveillance
@@ -834,6 +835,7 @@ translations:
   Day: Jour
   Debug: Débogage
   Default: 'Par défaut'
+  Default Parameters: 'Paramètres par défaut'
   Default border thickness: Épaisseur de bordure par défaut
   'Default: %d-%d°C nozzle, %d°C bed': 'Par défaut : buse %d-%d°C, plateau %d°C'
   'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': 'Par défaut : buse %d-%d°C, plateau %d°C, enceinte %d°C'
@@ -2083,6 +2085,7 @@ translations:
   Objects: Objets
   'Off': Éteint
   'Off:': 'Arrêt :'
+  'Off: runs with these values without asking': 'Désactivé : exécute avec ces valeurs sans demander'
   Offsets saved: Offsets enregistrés
   "Old setting on today's data: {} residual - now: {}": 'Ancien réglage sur les données du jour : {} résiduel - maintenant : {}'
   'On': Allumé
@@ -2091,7 +2094,7 @@ translations:
   On/Off: Marche/Arrêt
   On/Off (state-aware): On/Off (avec suivi d'état)
   'On:': 'Marche :'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: Un appui exécute cette macro sans paramètres. Les macros dangereuses demandent toujours confirmation.
+  One tap runs this macro. Dangerous macros still ask.: 'Un appui exécute cette macro. Les macros dangereuses demandent toujours confirmation.'
   Ooze Reduction: 'Réduction du suintement'
   Open: Ouvrir
   Open Source Licenses: Licences open source
@@ -2685,6 +2688,7 @@ translations:
   Saved to crash_report.txt (QR not available): Enregistré dans crash_report.txt (QR
     non disponible)
   Saved to printer configuration.: Enregistré dans la configuration de l'imprimante.
+  Saved values, and whether to ask before running: 'Valeurs enregistrées et demande de confirmation avant exécution ou non'
   Saves to Klipper config and restarts firmware.: Enregistre dans la config Klipper
     et redémarre le firmware.
   Saving Configuration...: Enregistrement de la configuration...

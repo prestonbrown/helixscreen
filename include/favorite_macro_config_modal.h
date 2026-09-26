@@ -3,6 +3,8 @@
 
 #include "ui_modal.h"
 
+#include "macro_param_modal.h"
+
 #include <functional>
 #include <string>
 
@@ -33,6 +35,7 @@ class FavoriteMacroConfigModal : public Modal {
     static void tab_options_cb(lv_event_t* e);
     static void close_cb(lv_event_t* e);
     static void require_confirm_cb(lv_event_t* e);
+    static void defaults_cb(lv_event_t* e);
     static void macro_row_cb(lv_event_t* e);
     static void icon_cell_cb(lv_event_t* e);
     static void color_swatch_cb(lv_event_t* e);
@@ -51,6 +54,12 @@ class FavoriteMacroConfigModal : public Modal {
     void select_icon(const std::string& name);
     void select_color(uint32_t color);
     void select_require_confirmation(bool enabled);
+    /// Opens the macro's saved-defaults editor (KNOWN_PARAMS macros only; the
+    /// Options row is hidden otherwise). Stays open behind it.
+    void open_defaults_editor();
+    /// Republishes fav_macro_has_param_defaults from the configured macro's
+    /// parameter knowledge.
+    void refresh_param_defaults_visible();
     IMoonrakerAPI* get_api() const;
 
     std::string widget_id_;
@@ -65,6 +74,10 @@ class FavoriteMacroConfigModal : public Modal {
     lv_obj_t* macro_list_ = nullptr;
     lv_obj_t* icon_grid_ = nullptr;
     lv_obj_t* color_grid_ = nullptr;
+
+    /// Saved-defaults editor opened from the Options tab. Owned here so it is
+    /// never shown by an already-destroyed config modal.
+    MacroParamModal param_modal_;
 
     static FavoriteMacroConfigModal* s_active_;
 };
