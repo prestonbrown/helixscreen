@@ -265,4 +265,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(afc.has_override(1));
     CHECK(afc.visible_spool_id(1) == 42);
     CHECK(afc.peek_expectation(1, 42) == std::make_pair(0, 0));
+
+    // Another writer re-binds the lane: the break clears the override filed
+    // under the same key.
+    afc.feed_stepper("lane2", nlohmann::json{{"spool_id", 99}});
+    CHECK_FALSE(afc.has_override(1));
 }
