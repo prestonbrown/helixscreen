@@ -318,7 +318,9 @@ static void setup_lane_bar_observers(LaneBarData* data) {
                 auto* d = get_lane_bar_data(o);
                 if (!d || pct < 0)
                     return;
-                d->fill_pct = std::clamp(pct, 0, 100);
+                // The shared bar-family floor: a present-but-spent lane keeps
+                // a visible sliver (see ams_draw::floor_fill_pct).
+                d->fill_pct = ams_draw::floor_fill_pct(pct);
                 apply_lane_state(d, d->last_state);
             },
             state.get_subjects_lifetime());
@@ -368,7 +370,7 @@ static void setup_lane_bar_observers(LaneBarData* data) {
     if (fill_subject) {
         int pct = lv_subject_get_int(fill_subject);
         if (pct >= 0) {
-            data->fill_pct = std::clamp(pct, 0, 100);
+            data->fill_pct = ams_draw::floor_fill_pct(pct);
         }
     }
     if (lane_state_subject) {

@@ -48,6 +48,15 @@ helix::SlotError::Severity worst_unit_severity(const helix::AmsUnit& unit);
 // Data Helpers
 // ============================================================================
 
+/**
+ * Floor a display_fill_pct-encoded value for BAR rendering: -1 propagates
+ * ("no data", callers keep the previous render), anything else clamps to
+ * min_pct..100 so a present-but-spent lane keeps a visible sliver instead of
+ * vanishing. THE shared rule - every bar-family surface must go through it or
+ * the same lane renders empty on one surface and floored on another.
+ */
+int floor_fill_pct(int pct, int min_pct = 5);
+
 /** Calculate fill percentage from SlotInfo weight data (returns min_pct..100, or 100 if unknown) */
 int fill_percent_from_slot(const helix::SlotInfo& slot, int min_pct = 5);
 
