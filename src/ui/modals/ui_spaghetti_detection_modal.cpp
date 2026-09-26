@@ -9,6 +9,7 @@
 #include "app_globals.h"
 #include "i_moonraker_api.h"
 #include "settings_manager.h"
+#include "static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -18,16 +19,24 @@
 lv_subject_t SpaghettiDetectionModal::tune_available_subject_;
 char SpaghettiDetectionModal::message_buf_[256];
 lv_subject_t SpaghettiDetectionModal::message_subject_;
+SubjectManager SpaghettiDetectionModal::subjects_;
 bool SpaghettiDetectionModal::subjects_initialized_ = false;
 
 void SpaghettiDetectionModal::init_subjects() {
     if (subjects_initialized_)
         return;
-    lv_subject_init_int(&tune_available_subject_, 0);
-    lv_subject_init_string(&message_subject_, message_buf_, nullptr, sizeof(message_buf_), "");
-    lv_xml_register_subject(nullptr, "spaghetti_tune_available", &tune_available_subject_);
-    lv_xml_register_subject(nullptr, "spaghetti_message", &message_subject_);
+    UI_MANAGED_SUBJECT_INT(tune_available_subject_, 0, "spaghetti_tune_available", subjects_);
+    UI_MANAGED_SUBJECT_STRING(message_subject_, message_buf_, "", "spaghetti_message", subjects_);
     subjects_initialized_ = true;
+
+    // The subjects must die before lv_deinit(), and a re-initialised LVGL
+    // must see them registered again.
+    StaticSubjectRegistry::instance().register_deinit("SpaghettiDetectionModal", [] {
+        if (!subjects_initialized_)
+            return;
+        subjects_.deinit_all();
+        subjects_initialized_ = false;
+    });
 }
 
 void SpaghettiDetectionModal::on_show() {

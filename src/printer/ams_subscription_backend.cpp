@@ -811,8 +811,15 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
     if (!api_) {
         // The send never went out, but on_error still owes the caller its
         // unwind: an optimistic AmsAction set before this dispatch stays set
-        // forever if only the return value reports the refusal.
-        return refuse_dispatch_no_api(on_error);
+        // forever if only the return value reports the refusal. Callers may
+        // hold mutex_ here, so this leg touches no backend state itself.
+        if (on_error) {
+            MoonrakerError synthetic;
+            synthetic.type = MoonrakerErrorType::CONNECTION_LOST;
+            synthetic.message = "IMoonrakerAPI not available";
+            on_error(synthetic);
+        }
+        return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
     }
     const char* tag = backend_log_tag();
     spdlog::info("{} Executing G-code: {}", tag, gcode);

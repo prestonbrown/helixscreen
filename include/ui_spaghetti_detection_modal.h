@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 
 #include "detection_manager.h"
+#include "subject_managed_panel.h"
 
 #include <functional>
 #include <string>
@@ -119,12 +120,13 @@ class SpaghettiDetectionModal : public Modal {
   private:
     static void init_subjects();
 
-    // Static (shared across instances) because lv_xml_register_subject keeps
-    // the first registration for a name: per-instance subjects would leave the
-    // registry with dangling pointers once a modal is freed.
+    // Shared across instances because the XML registry keeps the first
+    // registration for a name; a per-instance subject would dangle once its
+    // modal is freed. Torn down through StaticSubjectRegistry.
     static lv_subject_t tune_available_subject_;
     static char message_buf_[256];
     static lv_subject_t message_subject_;
+    static SubjectManager subjects_;
     static bool subjects_initialized_;
 
     std::string message_;

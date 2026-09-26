@@ -291,6 +291,11 @@ class AmsBackendAceTestHelper : public AmsBackendAce {
         running_ = state;
     }
 
+    void set_test_action(AmsAction action) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        system_info_.action = action;
+    }
+
     // Load and unload resolve through this seam, so a test can assert what was
     // sent and fire the driver's ack when it chooses. A driver that ignores a
     // toolchange still acks it, which is the case worth reproducing.
@@ -938,6 +943,19 @@ TEST_CASE("ACE unload refused at the send unwinds UNLOADING", "[ams][ace][1720]"
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK(helper.get_test_system_info().action == AmsAction::IDLE);
+}
+
+// With no on_error to hand the refusal to, the no-API leg touches no backend
+// state: callers may send while holding the backend's mutex.
+TEST_CASE("ACE send refused with no on_error leaves the action alone", "[ams][ace][1720]") {
+    AmsBackendAceTestHelper helper;
+    helper.dispatch_via_base = true;
+    helper.set_test_action(AmsAction::LOADING);
+
+    auto err = helper.execute_gcode("ACE_TEST", nullptr, nullptr, false);
+
+    CHECK_FALSE(err.success());
+    CHECK(helper.get_test_system_info().action == AmsAction::LOADING);
 }
 
 // ============================================================================
