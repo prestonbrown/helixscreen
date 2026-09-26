@@ -85,3 +85,26 @@ write_manifest() {
     grep -q "cjk_charset.py failed" <<<"$output"
     refute_sh 'grep -q "Done!" <<<"'"$output"'"'
 }
+
+# Hand-authored CJK outside the translation pipeline renders from the same baked
+# font, so the gate has to see it too (#1622).
+
+@test "red when a ui_xml file needs a codepoint the manifest lacks" {
+    write_manifest 0x4e3a 0x544a 0x5e8a 0x62a5 0x6c61 0x70ed 0x810f 0x88ab
+    mkdir -p "$FIXTURE/ui_xml"
+    # 日 (0x65e5) appears only in the XML.
+    echo '<lv_label text="日"/>' > "$FIXTURE/ui_xml/wizard_language_chooser.xml"
+    run bash "$GATE" --root "$FIXTURE"
+    [ "$status" -eq 1 ] || fail "expected exit 1, got $status: $output"
+    echo "$output" | grep -q "0x65e5" || fail "did not name the missing codepoint: $output"
+}
+
+@test "red when printer_database.json needs a codepoint the manifest lacks" {
+    write_manifest 0x4e3a 0x544a 0x5e8a 0x62a5 0x6c61 0x70ed 0x810f 0x88ab
+    mkdir -p "$FIXTURE/assets/config"
+    # 参 (0x53c2) appears only in the printer database.
+    echo '{"prefix": "sys参"}' > "$FIXTURE/assets/config/printer_database.json"
+    run bash "$GATE" --root "$FIXTURE"
+    [ "$status" -eq 1 ] || fail "expected exit 1, got $status: $output"
+    echo "$output" | grep -q "0x53c2" || fail "did not name the missing codepoint: $output"
+}

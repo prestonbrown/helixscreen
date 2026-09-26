@@ -3460,9 +3460,9 @@ qc_trigger_re() {
     qc_translation_fmt) echo '^translations/|^ui_xml/|\.py$' ;;
     qc_base_locale)     echo '^translations/' ;;
     # Any locale's catalog can introduce a CJK codepoint, and so can a
-    # hardcoded string in src/; the artifacts themselves live under
-    # assets/fonts/cjk/.
-    qc_cjk_fonts)       echo '^translations/|^src/|^include/|^assets/fonts/cjk/|^scripts/(regen_text_fonts\.sh|check_cjk_font_staleness\.sh|check_cjk_font_coverage\.py|translations/cjk_charset\.py)$' ;;
+    # hardcoded string in src/, an XML layout or the printer database; the
+    # artifacts themselves live under assets/fonts/cjk/.
+    qc_cjk_fonts)       echo '^translations/|^src/|^include/|^ui_xml/|^assets/config/printer_database\.json$|^assets/fonts/cjk/|^scripts/(regen_text_fonts\.sh|check_cjk_font_staleness\.sh|check_cjk_font_coverage\.py|translations/cjk_charset\.py)$' ;;
     # Any src/ or ui_xml/ file can introduce a user-facing string, so this
     # wakes on both trees rather than only on the catalogs they land in.
     qc_translation_coverage)

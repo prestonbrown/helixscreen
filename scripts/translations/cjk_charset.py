@@ -9,7 +9,8 @@ staleness gate can never disagree about what counts as "needed".
 
 Scans every translations/*.yml locale (any locale can carry CJK — restricting
 to zh/ja would let a stray CJK char in another catalog render tofu) plus the
-C++ sources, for hardcoded CJK strings like the first-run wizard welcome text.
+C++ sources, XML layouts and printer database, for hardcoded CJK strings like
+the first-run wizard welcome text.
 
 Prints one 0xXXXX codepoint per line, sorted — the format the staleness gate
 and the manifest both use.
@@ -34,8 +35,11 @@ CJK_RANGES = [
     r'[＀-￯]',   # Halfwidth and Fullwidth Forms
 ]
 
-# Hardcoded CJK can live in any compiled source, not only src/ui.
-SOURCE_GLOBS = ['src/**/*.cpp', 'src/**/*.h', 'include/**/*.h']
+# Hardcoded CJK can live in any compiled source, not only src/ui, and in the
+# hand-authored runtime data the same font renders: XML layouts (the wizard's
+# language chooser) and the printer database.
+SOURCE_GLOBS = ['src/**/*.cpp', 'src/**/*.h', 'include/**/*.h',
+                'ui_xml/**/*.xml', 'assets/config/printer_database.json']
 
 
 def needed_codepoints(root: Path) -> list[int]:
