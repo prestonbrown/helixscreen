@@ -47,8 +47,14 @@ SHARD_RETRIES ?= 3
 # this share of the box carry [serial] and run alone afterwards.
 SLOW_SHARDS ?= 16
 
+# Catch2 shards by position, so declaration order packs a file's slow cases into
+# one shard. A fixed-seed shuffle spreads them and stays reproducible; a failing
+# shard's diagnostics print the exact command, order flags included.
+SLOW_ORDER ?= --order rand --rng-seed 1
+
 # Run tests in parallel using Catch2 sharding
-# Args: $(1) = test filter (e.g., "~[.] ~[slow]"), $(2) = shard count (default NPROCS)
+# Args: $(1) = test filter (e.g., "~[.] ~[slow]"), $(2) = shard count (default NPROCS),
+#       $(3) = Catch2 order flags (default: declaration order)
 # Collects PIDs and waits for all, failing if any shard fails
 # Each shard is wrapped in a timeout to prevent infinite hangs
 # Each shard log starts with a host/nproc/git/ts header so flakes (e.g. #1121)
@@ -59,7 +65,7 @@ define run_tests_parallel
 	shard_dir=$$(mktemp -d "$(SHARD_ARTIFACT_ROOT)/helix-shards-XXXXXX"); \
 	pids=""; \
 	for i in $$(seq 0 $$(($(or $(2),$(NPROCS))-1))); do \
-		(echo "=== shard $$i/$(or $(2),$(NPROCS)) host=$$(hostname) nproc=$$(nproc 2>/dev/null || echo '?') git=$$(git rev-parse --short HEAD 2>/dev/null || echo unknown) ts=$$(date -Iseconds) order=decl seed=0"; $(if $(TIMEOUT_CMD),$(TIMEOUT_CMD) $(SHARD_TIMEOUT)) $(TEST_BIN) $(1) --shard-count $(or $(2),$(NPROCS)) --shard-index $$i 2>&1; echo $$? > "$$shard_dir/$$i.exit") | \
+		(echo "=== shard $$i/$(or $(2),$(NPROCS)) host=$$(hostname) nproc=$$(nproc 2>/dev/null || echo '?') git=$$(git rev-parse --short HEAD 2>/dev/null || echo unknown) ts=$$(date -Iseconds) order=$(or $(3),decl seed=0)"; $(if $(TIMEOUT_CMD),$(TIMEOUT_CMD) $(SHARD_TIMEOUT)) $(TEST_BIN) $(1) $(3) --shard-count $(or $(2),$(NPROCS)) --shard-index $$i 2>&1; echo $$? > "$$shard_dir/$$i.exit") | \
 			tee "$$shard_dir/$$i.log" | sed "s/^/[shard $$i] /" & \
 		pids="$$pids $$!"; \
 	done; \
@@ -90,7 +96,7 @@ define run_tests_parallel
 		fi; \
 	done; \
 	if [ -n "$$suspect" ]; then \
-		$(call diagnose_shards,$$shard_dir,$$suspect,$(1),$(or $(2),$(NPROCS))); \
+		$(call diagnose_shards,$$shard_dir,$$suspect,$(1),$(or $(2),$(NPROCS)),$(3)); \
 	else \
 		rm -rf "$$shard_dir"; \
 	fi; \
@@ -114,7 +120,7 @@ endef
 # moving between runs is not evidence either.
 #
 # Args: $(1) = shard dir, $(2) = space-separated shard indices, $(3) = filter,
-#       $(4) = the shard count the run used
+#       $(4) = the shard count the run used, $(5) = its Catch2 order flags
 define diagnose_shards
 	echo ""; \
 	echo "$(CYAN)$(BOLD)── shard diagnostics ──$(RESET)"; \
@@ -122,7 +128,7 @@ define diagnose_shards
 	for s in $(2); do \
 		echo ""; \
 		echo "$(BOLD)shard $$s$(RESET)"; \
-		$(TEST_BIN) $(3) --shard-count $(4) --shard-index $$s --list-tests --reporter xml 2>/dev/null \
+		$(TEST_BIN) $(3) $(5) --shard-count $(4) --shard-index $$s --list-tests --reporter xml 2>/dev/null \
 			| python3 scripts/catch2_shard_tests.py > "$(1)/$$s.tests" 2>/dev/null || true; \
 		n=$$(wc -l < "$(1)/$$s.tests" 2>/dev/null | tr -d ' '); \
 		echo "  ran $${n:-?} test case(s) → $(1)/$$s.tests ($(TEST_BIN) --input-file replays it)"; \
@@ -133,12 +139,12 @@ define diagnose_shards
 		else \
 			echo "  no FAILED marker — died after its assertions passed (teardown/static dtor)"; \
 		fi; \
-		printf '  reproduce: %s %s --shard-count %s --shard-index %s\n' \
-			"$(TEST_BIN)" '$(3)' "$(4)" "$$s"; \
+		printf '  reproduce: %s %s %s--shard-count %s --shard-index %s\n' \
+			"$(TEST_BIN)" '$(3)' "$(if $(5),$(5) )" "$(4)" "$$s"; \
 		echo "  $(CYAN)re-running this shard sequentially x$(SHARD_RETRIES)…$(RESET)"; \
 		hits=0; last_rc=0; \
 		for attempt in $$(seq 1 $(SHARD_RETRIES)); do \
-			if $(if $(TIMEOUT_CMD),$(TIMEOUT_CMD) $(SHARD_TIMEOUT)) $(TEST_BIN) $(3) \
+			if $(if $(TIMEOUT_CMD),$(TIMEOUT_CMD) $(SHARD_TIMEOUT)) $(TEST_BIN) $(3) $(5) \
 					--shard-count $(4) --shard-index $$s > "$(1)/$$s.retry.log" 2>&1; then \
 				: ; \
 			else \
@@ -830,7 +836,7 @@ test-fast: test-build
 # Exits non-zero through the recipe when either tier fails.
 define run_slow_tiers
 	echo "$(CYAN)$(BOLD)Running [slow] tests in $(SLOW_SHARDS) shards...$(RESET)"; \
-	$(call run_tests_parallel,"[slow] ~[serial]",$(SLOW_SHARDS)); \
+	$(call run_tests_parallel,"[slow] ~[serial]",$(SLOW_SHARDS),$(SLOW_ORDER)); \
 	echo "$(CYAN)$(BOLD)Running [slow][serial] tests sequentially...$(RESET)"; \
 	$(TEST_BIN) "[slow][serial]" --allow-running-no-tests --durations yes
 endef

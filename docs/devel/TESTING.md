@@ -104,7 +104,7 @@ These validate fundamental functionality:
 |--------|----------|
 | `make test-run` | Parallel, excludes `[slow]` and hidden |
 | `make test-fast` | Same as test-run |
-| `make test-all` | Fast tests in `NPROCS` shards, then `[slow]` in `SLOW_SHARDS` (16) shards, then `[slow][serial]` alone |
+| `make test-all` | Fast tests in `NPROCS` shards, then `[slow]` in `SLOW_SHARDS` (16) shards in `SLOW_ORDER` (fixed-seed shuffle), then `[slow][serial]` alone |
 | `make test-slow` | Only `[slow]`: the same two slow tiers as `test-all` |
 | `make test-eventloop` | Only `[eventloop]` tests (5-10 min) |
 | `make test-serial` | Sequential for debugging |
