@@ -967,19 +967,20 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A tap on the filament card opens the remap 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "print button disables with a visible reason while a print runs",
                  "[print_select][detail][xml][1395]") {
-    lv_subject_t can_print;
+    // Static: the global registry outlives the test, and print_file_detail's
+    // bindings resolve these production names in whatever test builds that
+    // view next. A stack subject here dangles for that test (SIGSEGV adding
+    // an observer to the dead subject).
+    static lv_subject_t can_print;
     lv_subject_init_int(&can_print, 0);
     lv_xml_register_subject(nullptr, "print_select_can_print", &can_print);
 
-    // Static: the reason label's cond= references this name, and the global
-    // registry outlives the test — a stack subject here would dangle for
-    // whatever resolves the name next.
     static lv_subject_t button_mode;
     lv_subject_init_int(&button_mode, 0);
     lv_xml_register_subject(nullptr, "print_select_button_mode", &button_mode);
 
-    char reason_buf[96];
-    lv_subject_t reason;
+    static char reason_buf[96];
+    static lv_subject_t reason;
     lv_subject_init_string(&reason, reason_buf, nullptr, sizeof(reason_buf),
                            "Printing: start after this job");
     lv_xml_register_subject(nullptr, "print_select_blocked_reason", &reason);
