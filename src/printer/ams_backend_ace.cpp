@@ -20,6 +20,7 @@
 #include "ams_bypass_policy.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "lane_apply.h"
 #include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
@@ -511,24 +512,12 @@ namespace {
 /// bay when the spool went in.
 constexpr int kAcePendingReadParsePasses = 8;
 
-/// Put @p info's filament fields on @p slot, covering every SlotInfo field the
-/// caller may have set, so get_slot_info returns them at once.
+/// Put @p info's resolver-owned filament fields on @p slot so get_slot_info
+/// returns them at once. The catalog product identity rides along: a sync that
+/// dropped it would make the editor snap back to a different variant on the
+/// next get_slot_info().
 void write_filament_fields(SlotInfo& slot, const SlotInfo& info) {
-    slot.color_rgb = info.color_rgb;
-    slot.color_name = info.color_name;
-    slot.material = info.material;
-    slot.brand = info.brand;
-    // Carry the catalog product identity through a sync too: one that dropped
-    // it would make the editor snap back to a different variant on the next
-    // get_slot_info().
-    slot.catalog_id = info.catalog_id;
-    slot.product_name = info.product_name;
-    slot.spool_name = info.spool_name;
-    slot.spoolman_id = info.spoolman_id;
-    slot.spoolman_filament_id = info.spoolman_filament_id;
-    slot.spoolman_vendor_id = info.spoolman_vendor_id;
-    slot.remaining_weight_g = info.remaining_weight_g;
-    slot.total_weight_g = info.total_weight_g;
+    helix::ams::copy_resolver_owned_identity(slot, info);
 }
 
 } // namespace
@@ -553,27 +542,8 @@ AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info,
     spdlog::info("[ACE] Updated slot {} info: {} {}", slot_index, info.material, info.color_name);
 
     if (override_store_) {
-        // Re-read from overrides_ under the lock to pick up the staged copy.
-        helix::ams::FilamentSlotOverride ovr_to_save;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            auto it = overrides_.find(slot_index);
-            if (it != overrides_.end()) {
-                ovr_to_save = it->second;
-            }
-        }
-        // Capture by value — save_async's MR callback may fire long after
-        // this returns (MR tracker ~60s timeout). Do NOT capture `this`:
-        // the backend may outlive its store, but the store will outlive
-        // the scheduled save by design.
-        const std::string tag = backend_log_tag();
-        override_store_->save_async(
-            slot_index, ovr_to_save, [tag, slot_index](bool success, const std::string& err) {
-                if (!success) {
-                    spdlog::warn("{} Override persist failed for slot {}: {}", tag, slot_index,
-                                 err);
-                }
-            });
+        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
+                                            backend_log_tag(), "Override");
     }
 
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));

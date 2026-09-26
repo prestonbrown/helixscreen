@@ -1740,25 +1740,8 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info,
     }
 
     if (override_store_) {
-        // Re-read from overrides_ under the lock to pick up the staged copy.
-        helix::ams::FilamentSlotOverride ovr_to_save;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            auto it = overrides_.find(slot_index);
-            if (it != overrides_.end()) {
-                ovr_to_save = it->second;
-            }
-        }
-        // Capture by value: save_async's Moonraker callback may fire long
-        // after this returns. Do NOT capture `this`.
-        const std::string tag = backend_log_tag();
-        override_store_->save_async(
-            slot_index, ovr_to_save, [tag, slot_index](bool success, const std::string& err) {
-                if (!success) {
-                    spdlog::warn("{} Override persist failed for slot {}: {}", tag, slot_index,
-                                 err);
-                }
-            });
+        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
+                                            backend_log_tag(), "Override");
     }
 
     return AmsErrorHelper::success();
