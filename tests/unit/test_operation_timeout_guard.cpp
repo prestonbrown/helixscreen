@@ -291,7 +291,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
         },
         20, &runs);
     lv_timer_set_repeat_count(timer, 1);
-    REQUIRE(count_lvgl_timers() == timers_before + 1);
+    // It points at this frame's runs, so it must not outlive a failed check.
+    const bool linked = count_lvgl_timers() == timers_before + 1;
+    if (!linked) {
+        lv_timer_delete(timer);
+    }
+    REQUIRE(linked);
 
     run_handler_over({timer});
 
@@ -324,7 +329,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "OperationTimeoutGuard: another timer's callba
         },
         0, &guard);
     lv_timer_set_repeat_count(ender, 1);
-    REQUIRE(lv_timer_get_next(ender) == guard_timer);
+    // It points at this frame's guard, so it must not outlive a failed check.
+    const bool guard_timer_next = lv_timer_get_next(ender) == guard_timer;
+    if (!guard_timer_next) {
+        lv_timer_delete(ender);
+    }
+    REQUIRE(guard_timer_next);
 
     run_handler_over({ender, guard_timer});
 
