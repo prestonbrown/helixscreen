@@ -1520,8 +1520,9 @@ class PrinterDiscovery {
      *
      * A [gcode_macro SET_FILAMENT_SENSOR] wrapper must rename the builtin
      * (rename_existing), and a wrapper may treat every call as a user setting
-     * and persist it. HelixScreen's toggles are temporary firmware state, so
-     * they go to the builtin under its renamed name.
+     * and persist it. HelixScreen's toggles are temporary firmware state, not
+     * user settings, so they go to the builtin under its renamed name and skip
+     * the wrapper's side effects on purpose.
      *
      * @param settings JSON object from a configfile.settings response
      * @return true when a wrapper's rename_existing was found and stored
