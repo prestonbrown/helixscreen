@@ -1206,6 +1206,12 @@ static int run_watchdog(const WatchdogArgs& args) {
 
         // Normal exit (code 0) - just restart silently
         if (!crash.was_signaled && crash.exit_code == 0) {
+            if (helix::watchdog::hand_clean_exit_to_service_manager(was_update_restart,
+                                                                    getenv("INVOCATION_ID"))) {
+                spdlog::info("[Watchdog] Update restart under systemd - exiting so the "
+                             "service restarts and refreshes its units");
+                break;
+            }
             spdlog::info("[Watchdog] Child exited normally, restarting");
             continue;
         }

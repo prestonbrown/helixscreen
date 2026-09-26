@@ -196,3 +196,17 @@ TEST_CASE("Class names are distinct and log-safe", "[watchdog][restart]") {
     CHECK(std::string(exec_failure_class_name(ExecFailureClass::PERMANENT)) == "permanent");
     CHECK(std::string(exec_failure_class_name(ExecFailureClass::NONE)) == "unclassified");
 }
+
+TEST_CASE("Only an update restart under systemd is handed to the service manager",
+          "[watchdog][restart]") {
+    // Under systemd, exiting lets Restart=always re-run ExecStartPre (#1713).
+    CHECK(hand_clean_exit_to_service_manager(true, "0123456789abcdef0123456789abcdef"));
+
+    // Off systemd nothing restarts the watchdog: exiting leaves a dead screen.
+    CHECK_FALSE(hand_clean_exit_to_service_manager(true, nullptr));
+    CHECK_FALSE(hand_clean_exit_to_service_manager(true, ""));
+
+    // An ordinary clean exit (Restart App, SIGTERM fast exit) respawns in place.
+    CHECK_FALSE(hand_clean_exit_to_service_manager(false, "0123456789abcdef0123456789abcdef"));
+    CHECK_FALSE(hand_clean_exit_to_service_manager(false, nullptr));
+}

@@ -234,6 +234,31 @@ inline RestartDecision decide_restart_action(ExecFailureClass cls, int consecuti
     return decision;
 }
 
+// =============================================================================
+// Clean exits
+// =============================================================================
+
+/**
+ * @brief Whether a clean child exit should end the watchdog instead of respawning.
+ *
+ * An update replaces the install dir, and under systemd the root-privileged
+ * unit refresh (helixscreen.service's ExecStartPre) only runs when the service
+ * itself restarts. Respawning the child inside the running service skips it,
+ * so a release's unit changes never reach the machine until a reboot
+ * (prestonbrown/helixscreen#1713). Exiting lets Restart=always restart the
+ * whole service.
+ *
+ * Without systemd nothing would bring the watchdog back, so every other clean
+ * exit, and every clean exit off systemd, respawns in place.
+ *
+ * @param was_update_restart  The child left the update-restart marker.
+ * @param invocation_id       getenv("INVOCATION_ID"): systemd sets it for
+ *                            every process of a service, nothing else does.
+ */
+inline bool hand_clean_exit_to_service_manager(bool was_update_restart, const char* invocation_id) {
+    return was_update_restart && invocation_id != nullptr && invocation_id[0] != '\0';
+}
+
 } // namespace helix::watchdog
 
 #endif // HELIX_WATCHDOG_RESTART_POLICY_H

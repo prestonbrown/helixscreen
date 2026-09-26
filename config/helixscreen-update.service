@@ -31,8 +31,9 @@ ExecStartPre=/bin/sh -c '\
 ExecStartPre=/bin/sleep 10
 
 # Skip restart if helix-screen is handling the update itself (self-update).
-# The app writes a sentinel before _exit(0), and the watchdog restarts the
-# child internally.  The sentinel is NOT deleted — the path watcher can fire
+# The app writes a sentinel before _exit(0); helix-watchdog then exits too, and
+# helixscreen.service's Restart=always restarts it, running ExecStartPre's unit
+# refresh.  The sentinel is NOT deleted — the path watcher can fire
 # multiple times after an atomic directory swap (inotify invalidation +
 # delayed systemd rescan), so the sentinel must persist to block all
 # spurious triggers.  Cleaned up by the app on next successful startup.
