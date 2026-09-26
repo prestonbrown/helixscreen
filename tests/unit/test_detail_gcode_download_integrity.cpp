@@ -45,6 +45,7 @@
 #include "macro_param_cache.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "print_status_preview_decision.h"
 #include "printer_state.h"
 #include "tools_used_cache.h"
 
@@ -142,6 +143,7 @@ class DelayedFileTransfers : public MoonrakerFileTransferAPIMock {
                                const std::string& dest_path, StringCallback on_success,
                                ErrorCallback on_error, ProgressCallback on_progress) override {
         (void)on_progress;
+        ++download_count;
         if (!hold_transfers) {
             MoonrakerFileTransferAPIMock::download_file_to_path(
                 root, path, dest_path, std::move(on_success), std::move(on_error));
@@ -176,6 +178,7 @@ class DelayedFileTransfers : public MoonrakerFileTransferAPIMock {
     /// holds the whole-file download.
     void download_file_partial(const std::string& root, const std::string& path, size_t max_bytes,
                                StringCallback on_success, ErrorCallback on_error) override {
+        ++partial_read_count;
         if (!hold_partials) {
             MoonrakerFileTransferAPIMock::download_file_partial(
                 root, path, max_bytes, std::move(on_success), std::move(on_error));
@@ -204,6 +207,9 @@ class DelayedFileTransfers : public MoonrakerFileTransferAPIMock {
     /// persists only the used-tool set, so a cache hit must NOT suppress the
     /// read that also answers the palette and the per-tool grams.
     int tail_read_count = 0;
+    /// Whole-file downloads and preamble reads, counted the same way.
+    int download_count = 0;
+    int partial_read_count = 0;
 
     /// Resolve every held transfer (copies the real asset, fires callbacks
     /// synchronously — same as an unheld call).
@@ -834,4 +840,60 @@ TEST_CASE_METHOD(DetailDownloadFixture,
         CHECK_FALSE(prep->has_printer_stop_answer_for(name));
         CHECK(prep->printer_stop_check_for(name).state == helix::PrinterStopCheck::State::NotRun);
     }
+}
+
+// ============================================================================
+// Files with nothing for the viewer to draw keep the thumbnail
+// (prestonbrown/helixscreen#1713)
+// ============================================================================
+
+namespace {
+int subject_int(const char* name) {
+    lv_subject_t* s = lv_xml_get_subject(nullptr, name);
+    REQUIRE(s != nullptr);
+    return lv_subject_get_int(s);
+}
+} // namespace
+
+TEST_CASE_METHOD(DetailDownloadFixture, "A .3mf project reads none of its bytes",
+                 "[print_select][detail_view][qidi_3mf]") {
+    CacheDirGuard guard;
+    const std::string name = "qidi_" + std::to_string(::getpid()) + " (PETG).gcode.3mf";
+    const std::string zip = std::string("PK\x03\x04", 4) + "not gcode";
+    PlantedAsset file(name, zip);
+
+    view_.show(name, "", "PETG", {"#FF0000"}, {}, zip.size(), 42);
+    drain_queue_chain();
+
+    // A zip has no G-code for the viewer, the tools scan or the operations scan.
+    CHECK(transfers_.download_count == 0);
+    CHECK(transfers_.tail_read_count == 0);
+    CHECK(transfers_.partial_read_count == 0);
+
+    // Nothing is left pending: a Print tap is not held on a scan that never runs.
+    CHECK(view_.is_print_start_ready());
+    CHECK(view_.get_prep_manager()->printer_stop_check_for(name).state ==
+          helix::PrinterStopCheck::State::NotRun);
+
+    CHECK(subject_int("detail_gcode_viewer_mode") == helix::ui::PREVIEW_MODE_THUMBNAIL);
+    CHECK(subject_int("detail_gcode_loading") == 0);
+
+    pop_and_drain();
+}
+
+TEST_CASE_METHOD(DetailDownloadFixture, "A G-code file with no layers keeps the thumbnail",
+                 "[print_select][detail_view][qidi_3mf]") {
+    CacheDirGuard guard;
+    const std::string name = "no_layers_" + std::to_string(::getpid()) + ".gcode";
+    const std::string content = "M117 nothing to print\nG28\n";
+    PlantedAsset file(name, content);
+
+    view_.show(name, "", "PLA", {"#FF0000"}, {}, content.size(), 42);
+    REQUIRE(wait_until([this]() { return view_.is_gcode_loaded(); }, 15000));
+    drain_queue_chain();
+
+    CHECK(subject_int("detail_gcode_viewer_mode") == helix::ui::PREVIEW_MODE_THUMBNAIL);
+    CHECK(subject_int("detail_viewer_first_frame") == 0);
+
+    pop_and_drain();
 }

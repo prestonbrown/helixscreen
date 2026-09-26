@@ -149,3 +149,15 @@ TEST_CASE("thumbnail_source_describes() rejects an unrelated print", "[filename_
     CHECK_FALSE(thumbnail_source_describes("printB.gcode", "printA.gcode"));
     CHECK_FALSE(thumbnail_source_describes("dir/printB.gcode", "other/printA.gcode"));
 }
+
+TEST_CASE("is_3mf() matches a .3mf suffix in any case", "[filename_utils][qidi_3mf]") {
+    using helix::gcode::is_3mf;
+    CHECK(is_3mf("Foo (PETG).gcode.3mf"));
+    CHECK(is_3mf("dir/Model.3MF"));
+    CHECK(is_3mf(".3mf"));
+    CHECK_FALSE(is_3mf("Foo.gcode"));
+    CHECK_FALSE(is_3mf("shadow_native_plate_1.gcode"));
+    CHECK_FALSE(is_3mf("3mf"));
+    CHECK_FALSE(is_3mf("Foo.3mf.gcode"));
+    CHECK_FALSE(is_3mf(""));
+}

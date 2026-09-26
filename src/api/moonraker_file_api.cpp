@@ -5,6 +5,7 @@
 
 #include "ui_error_reporting.h"
 
+#include "json_utils.h"
 #include "moonraker_api_internal.h"
 #include "moonraker_client.h"
 #include "spdlog/spdlog.h"
@@ -455,11 +456,10 @@ FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
         return {};
     };
 
+    // Some Moonraker forks send numeric metadata as JSON strings ("0.2")
+    // (prestonbrown/helixscreen#1713).
     auto get_double = [&result](const char* key) -> double {
-        if (result.contains(key) && result[key].is_number()) {
-            return result[key].get<double>();
-        }
-        return 0.0;
+        return helix::json_util::safe_double(result, key);
     };
 
     auto get_uint64 = [&result](const char* key) -> uint64_t {

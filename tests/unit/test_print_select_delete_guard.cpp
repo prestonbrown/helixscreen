@@ -30,6 +30,8 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "display_settings_manager.h"
+#include "format_utils.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -286,4 +288,35 @@ TEST_CASE("MoonrakerClientMock server.files.delete_file removes the file and rep
 
     mock.stop_temperature_simulation();
     mock.disconnect();
+}
+
+// ============================================================================
+// Metadata rows for a file with no object height (prestonbrown/helixscreen#1713)
+// ============================================================================
+
+TEST_CASE_METHOD(PrintSelectDeleteFixture,
+                 "A file with no object or layer height shows the unavailable glyph alone",
+                 "[print_select][metadata][qidi_3mf]") {
+    PlantedGcode file("metadata_no_height.gcode");
+    panel_->refresh_files(true);
+    drain();
+    REQUIRE(PrintSelectPanelTestAccess::list_contains(*panel_, file.name()));
+
+    FileMetadata meta;
+    meta.filename = file.name();
+    PrintSelectPanelTestAccess::apply_metadata(*panel_, file.name(), meta);
+    drain();
+    const PrintFileData* row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
+    REQUIRE(row != nullptr);
+    CHECK(row->print_height_str == helix::format::UNAVAILABLE);
+    CHECK(row->layer_height_str == helix::format::UNAVAILABLE);
+
+    meta.object_height = 42.0;
+    meta.layer_height = 0.2;
+    PrintSelectPanelTestAccess::apply_metadata(*panel_, file.name(), meta);
+    drain();
+    row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
+    REQUIRE(row != nullptr);
+    CHECK(row->print_height_str == std::string("42 mm ") + lv_tr("tall"));
+    CHECK(row->layer_height_str == "0.20 mm");
 }

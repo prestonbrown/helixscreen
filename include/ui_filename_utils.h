@@ -122,4 +122,12 @@ bool thumbnail_source_describes(const std::string& raw, const std::string& sourc
  */
 bool is_native_3mf_shadow(const std::string& name);
 
+/**
+ * @brief Test whether a filename names a `.3mf` project file (case-insensitive).
+ *
+ * A `.3mf` is a zip archive, not G-code: there are no layers to parse and no
+ * G-code lines to scan in its bytes.
+ */
+bool is_3mf(const std::string& name);
+
 } // namespace helix::gcode

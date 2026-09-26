@@ -16,6 +16,7 @@
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client.h"
 #include "../../include/moonraker_client_mock.h"
+#include "../../include/moonraker_file_api.h"
 #include "../../include/ui_print_select_usb_source.h"
 #include "../../lvgl/lvgl.h"
 #include "../ui_test_utils.h"
@@ -159,6 +160,32 @@ TEST_CASE_METHOD(MetadataAPITestFixture, "metascan_file is silent by default",
     REQUIRE(success_called);
     REQUIRE(mock_client.last_send_method() == "server.files.metascan");
     REQUIRE(mock_client.last_send_silent() == true);
+}
+
+namespace {
+/// Exposes the protected metadata parser.
+class MetadataParseProbe : public MoonrakerFileAPI {
+  public:
+    using MoonrakerFileAPI::MoonrakerFileAPI;
+    using MoonrakerFileAPI::parse_file_metadata;
+};
+} // namespace
+
+TEST_CASE_METHOD(MetadataAPITestFixture, "Metadata sent as JSON strings still parses",
+                 "[metadata][api][qidi_3mf]") {
+    // A QIDI Moonraker copies layer_height out of the 3mf project config as a string.
+    MetadataParseProbe probe(mock_client);
+    json response;
+    response["result"] = {{"filename", "Foo (PETG).gcode.3mf"},
+                          {"layer_height", "0.2"},
+                          {"first_layer_height", "0.25"},
+                          {"object_height", "12.5"},
+                          {"estimated_time", 600.0}};
+    const FileMetadata m = probe.parse_file_metadata(response);
+    CHECK(m.layer_height == Catch::Approx(0.2));
+    CHECK(m.first_layer_height == Catch::Approx(0.25));
+    CHECK(m.object_height == Catch::Approx(12.5));
+    CHECK(m.estimated_time == Catch::Approx(600.0));
 }
 
 // ============================================================================

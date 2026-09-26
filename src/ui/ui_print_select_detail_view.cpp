@@ -1865,8 +1865,9 @@ void PrintSelectDetailView::kick_off_headless_tools_scan() {
         return;
     }
 
-    if (!api_ || current_filename_.empty()) {
-        // No way to scan — mark done with no result so the gate degrades to
+    if (!api_ || current_filename_.empty() || helix::gcode::is_3mf(current_filename_)) {
+        // No way to scan (a .3mf is a zip with no G-code lines to read) —
+        // mark done with no result so the gate degrades to
         // "proceed without tools_used" instead of hanging, publish readiness
         // (skeleton resolves immediately), and release any deferred attempt
         // right away rather than making it wait out the safety timeout.
@@ -2146,8 +2147,11 @@ void PrintSelectDetailView::load_gcode_for_preview() {
     // lane-matched colors (apply_preview_colors) — so the browser shows the
     // colors the print will actually use. Oversized files still degrade to the
     // thumbnail below via is_gcode_2d_streaming_safe().
-    if (!helix::ui::preview_viewer_enabled()) {
-        spdlog::info("[DetailView] G-code render mode is Thumbnail Only - skipping G-code load");
+    // A .3mf takes the same path: it is a zip with no layers for the viewer to
+    // parse (prestonbrown/helixscreen#1713).
+    if (!helix::ui::preview_viewer_enabled() || helix::gcode::is_3mf(current_filename_)) {
+        spdlog::info("[DetailView] Thumbnail Only render mode or a .3mf file - skipping G-code "
+                     "load");
         lv_subject_set_int(&detail_gcode_loading_, 0);
         cancel_progress_timer();
         show_gcode_viewer(false);
@@ -2287,6 +2291,14 @@ void PrintSelectDetailView::begin_viewer_load(const std::string& path) {
             // The viewer parse also satisfies pre-flight readiness on full
             // platforms — release any run_when_preflight_ready() attempt.
             self->fire_on_preflight_ready();
+
+            // A parse that found no layers has nothing to draw, and revealing
+            // it would hide the thumbnail behind an empty viewer.
+            if (ui_gcode_viewer_get_layer_count(viewer) == 0) {
+                spdlog::debug("[DetailView] G-code has no layers - keeping thumbnail");
+                self->show_gcode_viewer(false);
+                return;
+            }
 
             // Unpause, show, then reset camera (must be visible for layout)
             ui_gcode_viewer_set_paused(viewer, false);

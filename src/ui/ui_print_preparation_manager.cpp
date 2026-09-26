@@ -5,6 +5,7 @@
 
 #include "ui_busy_overlay.h"
 #include "ui_error_reporting.h"
+#include "ui_filename_utils.h"
 #include "ui_panel_print_status.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_temperature_utils.h"
@@ -520,6 +521,12 @@ void PrintPreparationManager::scan_file_for_operations(const std::string& filena
     if (!api_) {
         spdlog::warn("[PrintPreparationManager] Cannot scan G-code - no API connection");
         answer_printer_stop_check(filename, printer_stop_not_run("no printer connection"));
+        return;
+    }
+
+    if (helix::gcode::is_3mf(filename)) {
+        answer_printer_stop_check(filename,
+                                  printer_stop_not_run("a .3mf project holds no G-code to scan"));
         return;
     }
 

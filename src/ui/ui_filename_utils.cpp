@@ -131,4 +131,15 @@ bool is_native_3mf_shadow(const std::string& name) {
     return name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
+bool is_3mf(const std::string& name) {
+    if (name.size() < 4) {
+        return false;
+    }
+    std::string suffix = name.substr(name.size() - 4);
+    for (char& c : suffix) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return suffix == ".3mf";
+}
+
 } // namespace helix::gcode
