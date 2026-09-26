@@ -183,6 +183,27 @@ Components are reusable UI pieces defined with the `<component>` tag.
 | `color` | Hex colors | `default="0xff4444"` |
 | `subject` | Subject references | For data binding |
 
+#### Slot Injection into a Component Instance
+
+A component can expose a named widget as a slot for the instantiating screen to
+fill. Nest a `<component_name-slot_name>` tag inside the instantiation; the
+engine splits the tag at the first `-`, requires the prefix to be a registered
+component, and re-parents the tag's children into the widget named `slot_name`
+inside that instance:
+
+```xml
+<header_bar title="Motion">
+    <header_bar-header_content>
+        <lv_label name="my_readout" bind_text="some_subject"/>
+    </header_bar-header_content>
+</header_bar>
+```
+
+`header_bar` does this with its `header_content` strip (between the title
+region and the action buttons). A slot widget should be `width="content"` and
+not clickable, so an unfilled slot costs its container no layout and steals no
+taps.
+
 ### 2. Subjects (Reactive Data)
 
 Subjects are observable data containers that automatically update bound widgets.
@@ -918,6 +939,16 @@ When using `flex_grow`, the parent MUST have explicit height:
 <lv_obj flex_flow="column" height="100%"
         style_flex_main_place="center" style_flex_cross_place="center">
     <lv_label text="Centered"/>
+</lv_obj>
+
+<!-- Row of mixed-height children in a taller container: cross_place alone
+     centers each child within a track only as tall as the tallest child, and
+     that track sits at the TOP of the container, so the children read as
+     top-aligned. track_place positions the track itself. -->
+<lv_obj flex_flow="row" height="100%"
+        style_flex_cross_place="center" style_flex_track_place="center">
+    <lv_label text="X"/>
+    <lv_label text="235.00"/>
 </lv_obj>
 
 <!-- Single child: use align, NOT flex (flex conflicts with align) -->
