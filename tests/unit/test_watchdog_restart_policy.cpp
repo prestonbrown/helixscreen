@@ -197,16 +197,16 @@ TEST_CASE("Class names are distinct and log-safe", "[watchdog][restart]") {
     CHECK(std::string(exec_failure_class_name(ExecFailureClass::NONE)) == "unclassified");
 }
 
-TEST_CASE("Only an update restart under systemd is handed to the service manager",
+TEST_CASE("Only an update restart under a restarting service is handed off",
           "[watchdog][restart]") {
-    // Under systemd, exiting lets Restart=always re-run ExecStartPre (#1713).
-    CHECK(hand_clean_exit_to_service_manager(true, "0123456789abcdef0123456789abcdef"));
+    // helixscreen.service restarts on exit and re-runs ExecStartPre (#1713).
+    CHECK(hand_clean_exit_to_service_manager(true, "1"));
 
-    // Off systemd nothing restarts the watchdog: exiting leaves a dead screen.
+    // Nothing declared a restarting service: exiting leaves a dead screen.
     CHECK_FALSE(hand_clean_exit_to_service_manager(true, nullptr));
     CHECK_FALSE(hand_clean_exit_to_service_manager(true, ""));
 
     // An ordinary clean exit (Restart App, SIGTERM fast exit) respawns in place.
-    CHECK_FALSE(hand_clean_exit_to_service_manager(false, "0123456789abcdef0123456789abcdef"));
+    CHECK_FALSE(hand_clean_exit_to_service_manager(false, "1"));
     CHECK_FALSE(hand_clean_exit_to_service_manager(false, nullptr));
 }

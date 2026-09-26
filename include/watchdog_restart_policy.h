@@ -248,15 +248,18 @@ inline RestartDecision decide_restart_action(ExecFailureClass cls, int consecuti
  * (prestonbrown/helixscreen#1713). Exiting lets Restart=always restart the
  * whole service.
  *
- * Without systemd nothing would bring the watchdog back, so every other clean
- * exit, and every clean exit off systemd, respawns in place.
+ * Only a service manager that restarts on a clean exit can take that over, so
+ * the unit has to say so: helixscreen.service sets HELIX_SERVICE_RESTARTS
+ * beside Restart=always. INVOCATION_ID is not enough, because systemd also sets
+ * it for an init script wrapped by systemd-sysv-generator, whose unit does not
+ * restart. Every other clean exit respawns in place.
  *
  * @param was_update_restart  The child left the update-restart marker.
- * @param invocation_id       getenv("INVOCATION_ID"): systemd sets it for
- *                            every process of a service, nothing else does.
+ * @param service_restarts    getenv("HELIX_SERVICE_RESTARTS").
  */
-inline bool hand_clean_exit_to_service_manager(bool was_update_restart, const char* invocation_id) {
-    return was_update_restart && invocation_id != nullptr && invocation_id[0] != '\0';
+inline bool hand_clean_exit_to_service_manager(bool was_update_restart,
+                                               const char* service_restarts) {
+    return was_update_restart && service_restarts != nullptr && service_restarts[0] != '\0';
 }
 
 } // namespace helix::watchdog
