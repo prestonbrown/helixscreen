@@ -2371,8 +2371,7 @@ bool AmsState::write_slot_subjects(AmsBackend& backend, int slot_index, const Sl
 
     // Lane presentation classification (Present, Ghosted, Empty): the input
     // every lane rendering surface binds to.
-    int new_lane_state =
-        static_cast<int>(helix::ui::classify_lane(slot.status, helix::ui::lane_has_identity(slot)));
+    int new_lane_state = static_cast<int>(helix::ui::classify_lane(slot));
     if (lv_subject_get_int(&slot_lane_states_[slot_index]) != new_lane_state) {
         lv_subject_set_int(&slot_lane_states_[slot_index], new_lane_state);
         changed = true;

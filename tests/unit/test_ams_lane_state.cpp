@@ -58,12 +58,23 @@ static_assert(classify_lane(SlotStatus::EMPTY, false) == LaneState::Empty);
 TEST_CASE("Lane classification is exhaustively pinned", "[ams][lane_state]") {
     for (SlotStatus status : ALL_STATUSES) {
         for (bool identity : {false, true}) {
-            INFO("status=" << name_of(status) << " identity=" << identity);
-            const bool absent = (status == SlotStatus::EMPTY || status == SlotStatus::UNKNOWN);
-            const LaneState expected = !absent    ? LaneState::Present
-                                       : identity ? LaneState::Ghosted
-                                                  : LaneState::Empty;
-            CHECK(classify_lane(status, identity) == expected);
+            for (bool weights : {false, true}) {
+                INFO("status=" << name_of(status) << " identity=" << identity
+                               << " weights=" << weights);
+                const bool absent = (status == SlotStatus::EMPTY || status == SlotStatus::UNKNOWN);
+                const LaneState expected = (status == SlotStatus::UNKNOWN && weights)
+                                               ? LaneState::Ghosted
+                                           : !absent  ? LaneState::Present
+                                           : identity ? LaneState::Ghosted
+                                                      : LaneState::Empty;
+                CHECK(classify_lane(status, identity, weights) == expected);
+                // The SlotInfo overload reads the same signals off the slot.
+                SlotInfo s;
+                s.status = status;
+                s.material = identity ? "PLA" : "";
+                s.total_weight_g = weights ? 1000.0f : 0.0f;
+                CHECK(classify_lane(s) == expected);
+            }
         }
     }
 }
@@ -78,6 +89,29 @@ TEST_CASE("UNKNOWN is classified exactly as EMPTY", "[ams][lane_state]") {
         INFO("identity=" << identity);
         CHECK(classify_lane(SlotStatus::UNKNOWN, identity) ==
               classify_lane(SlotStatus::EMPTY, identity));
+    }
+}
+
+TEST_CASE("UNKNOWN with weights is ghosted, not blanked", "[ams][lane_state]") {
+    // Presence unconfirmed but the scale is configured: the weight is real
+    // user data, and hiding a weighed spool reads worse than showing it
+    // dimmed. This is the deliberate resolution of the second #1368 UNKNOWN
+    // outcome (weights without identity used to split the surfaces).
+    SECTION("no identity, weights configured") {
+        SlotInfo s;
+        s.status = SlotStatus::UNKNOWN;
+        s.total_weight_g = 1000.0f;
+        s.remaining_weight_g = 400.0f;
+        CHECK(classify_lane(s) == LaneState::Ghosted);
+        CHECK(lane_fill_level(s) == Catch::Approx(0.4f));
+    }
+    SECTION("EMPTY outranks the scale even with weights") {
+        SlotInfo s;
+        s.status = SlotStatus::EMPTY;
+        s.total_weight_g = 1000.0f;
+        s.remaining_weight_g = 400.0f;
+        CHECK(classify_lane(s) == LaneState::Empty);
+        CHECK(lane_fill_level(s) == Catch::Approx(0.0f));
     }
 }
 

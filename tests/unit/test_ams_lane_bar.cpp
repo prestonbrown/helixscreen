@@ -9,6 +9,7 @@
 #include "ams_lane_state.h"
 #include "ams_state.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "theme_manager.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -123,5 +124,56 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: the lane_state subject drives re
     lv_subject_set_int(st, static_cast<int>(helix::ui::LaneState::Empty));
     process_lvgl(20);
     CHECK_FALSE(visible(bar, "bar_fill"));
+    lv_obj_delete(bar);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: has_error drives the status line",
+                 "[ams][lane_bar]") {
+    ui_ams_lane_bar_register();
+    AmsState::instance().init_subjects(true);
+    lv_subject_set_int(AmsState::instance().get_slot_lane_state_subject(0),
+                       static_cast<int>(helix::ui::LaneState::Present));
+    lv_subject_set_int(AmsState::instance().get_slot_error_severity_subject(0), SlotError::ERROR);
+
+    lv_obj_t* bar = make_bar(test_screen(), 0);
+    REQUIRE(bar != nullptr);
+    process_lvgl(20);
+
+    // No error yet: hidden, regardless of severity being set.
+    CHECK_FALSE(visible(bar, "status_line"));
+
+    // has_error flips it visible with the severity color.
+    lv_subject_set_int(AmsState::instance().get_slot_has_error_subject(0), 1);
+    process_lvgl(20);
+    CHECK(visible(bar, "status_line"));
+    lv_obj_t* line = lv_obj_find_by_name(bar, "status_line");
+    REQUIRE(line != nullptr);
+    CHECK(lv_color_eq(lv_obj_get_style_bg_color(line, LV_PART_MAIN),
+                      theme_manager_get_color("danger")));
+
+    // And back off again.
+    lv_subject_set_int(AmsState::instance().get_slot_has_error_subject(0), 0);
+    process_lvgl(20);
+    CHECK_FALSE(visible(bar, "status_line"));
+    lv_obj_delete(bar);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: bar_width/bar_height attrs size the column",
+                 "[ams][lane_bar]") {
+    // Consumers with a MEASURED bar width (overview, mini-status) pass it in;
+    // the widget must not force its token default on them.
+    ui_ams_lane_bar_register();
+    AmsState::instance().init_subjects(true);
+
+    const char* attrs[] = {"slot_index", "0", "bar_width", "12", "bar_height", "40", nullptr};
+    lv_obj_t* bar = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ams_lane_bar", attrs));
+    REQUIRE(bar != nullptr);
+    process_lvgl(20);
+    lv_obj_update_layout(bar);
+
+    CHECK(lv_obj_get_width(bar) == 12);
+    lv_obj_t* bg = lv_obj_find_by_name(bar, "bar_bg");
+    REQUIRE(bg != nullptr);
+    CHECK(lv_obj_get_height(bg) == 40);
     lv_obj_delete(bar);
 }
