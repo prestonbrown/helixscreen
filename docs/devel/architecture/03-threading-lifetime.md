@@ -154,22 +154,23 @@ Supporting rules that trip contributors:
 
 - **Sync deletion inside any queued callback is banned** — and "queued callback" includes `defer`, `bg_cb`, and the observer factories, since they all route through `UpdateQueue`. Replace the inner deletion: `safe_delete_deferred()` ([`include/ui_utils.h#safe_delete_deferred`](../../../include/ui_utils.h#L200)), `lv_obj_delete_async()`, `safe_clean_children()` (`include/ui_utils.h#safe_clean_children`), `safe_delete_subtree()` (`include/ui_utils.h#safe_delete_subtree`). The replacements ride LVGL's own async list, which genuinely runs outside our drain.
 - **`lifetime_.defer` does not escape the batch.** It queues through `queue_update()` like everything else; the generation guard protects `this`, not the batch contents. Comments claiming otherwise are wrong — fix them.
-- **Timers: prefer `LvglTimerGuard`** ([`include/ui_timer_guard.h#helix::ui`](../../../include/ui_timer_guard.h#L33)) for new code. For a raw `lv_timer_t*`, share one `cancel_*_timer()` helper between `cleanup()` and the destructor and cancel with `lv_timer_cancel_safe()` (`include/ui_timer_guard.h#lv_timer_cancel_safe`) — it neuters the timer instead of unlinking it, safe from a destructor and from inside `lv_timer_handler` (#750, #751). The exemplar, [`src/ui/ui_screensaver.cpp#~FlyingToasterScreensaver`](../../../src/ui/ui_screensaver.cpp#L174), is four lines:
+- **Timers: prefer `LvglTimerGuard`** ([`include/ui_timer_guard.h#helix::ui`](../../../include/ui_timer_guard.h#L33)) for new code. For a raw `lv_timer_t*`, share one `cancel_*_timer()` helper between `cleanup()` and the destructor and cancel with `lv_timer_cancel_safe()` (`include/ui_timer_guard.h#lv_timer_cancel_safe`) — it neuters the timer instead of unlinking it, safe from a destructor and from inside `lv_timer_handler` (#750, #751). The exemplar is the screensaver frame timer, whose destructor and `SaverBase::stop()` both route through one `cancel()` ([`src/ui/screensaver_frame_timer.cpp#~SaverFrameTimer`](../../../src/ui/screensaver_frame_timer.cpp#L13)):
 
   ```cpp
-  FlyingToasterScreensaver::~FlyingToasterScreensaver() {
-      // ... rationale comment citing #750, #751, #1173 ...
-      cancel_timer();
+  SaverFrameTimer::~SaverFrameTimer() {
+      cancel();
   }
-  void FlyingToasterScreensaver::cancel_timer() {
-      if (m_tick_timer) {
-          helix::ui::lv_timer_cancel_safe(m_tick_timer);
-          m_tick_timer = nullptr;
+  void SaverFrameTimer::cancel() {
+      if (timer_) {
+          // Neuters instead of unlinking and guards on lv_is_initialized(), which is what makes it
+          // safe from the destructor, from inside lv_timer_handler and after lv_deinit (#750, #1173).
+          lv_timer_cancel_safe(timer_);
+          timer_ = nullptr;
       }
   }
   ```
 
-  (condensed from [`src/ui/ui_screensaver.cpp#~FlyingToasterScreensaver`](../../../src/ui/ui_screensaver.cpp#L174); the comment explains why the manager not stopping the active screensaver first makes dtor cancellation mandatory). The gate accepts a `// TIMER_DTOR_OK: <reason>` annotation for `LifetimeToken`-guarded timer callbacks.
+  (verbatim from [`src/ui/screensaver_frame_timer.cpp#cancel`](../../../src/ui/screensaver_frame_timer.cpp#L30); the comment names every context cancellation must survive - the destructor, a callback already inside `lv_timer_handler`, and teardown after `lv_deinit()`). The gate accepts a `// TIMER_DTOR_OK: <reason>` annotation for `LifetimeToken`-guarded timer callbacks.
 - **`ObserverGuard::reset()`, never `release()`**, in normal cleanup — `release()` leaks the observer context and corrupts rendering; it exists only for pre-deinit registry callbacks (#579, seventeen reports).
 - **Custom-widget state memory is RAII-wrapped, never raw `lv_malloc`/`lv_free`.** Build state with `lvgl_make_unique<T>()` ([`include/ui_widget_memory.h`](../../../include/ui_widget_memory.h)) and hand ownership to the widget via `release()` into `user_data`; the `LV_EVENT_DELETE` callback re-wraps the raw pointer in an `lvgl_unique_ptr<T>` on entry so an early return or exception cannot leak it. Nested buffers use `lvgl_make_unique_array<T>(n)` (`include/ui_widget_memory.h#lvgl_make_unique_array`). Reference shapes: [`src/ui/ui_jog_pad.cpp`](../../../src/ui/ui_jog_pad.cpp) (flat struct on `user_data`), [`src/ui/ui_step_progress.cpp`](../../../src/ui/ui_step_progress.cpp) (nested per-item arrays).
 - **No new detached `std::thread` spawns.** Grep for an existing pool first (`HttpExecutor::fast()/slow()`, `BusThread`); a fresh detached spawn reintroduces the `EAGAIN` abort on the smallest device you ship to. The one sanctioned shape is the try/catch spawn with a toast, and only for domains with no pool.
@@ -198,5 +199,5 @@ Read in this order; about 25 minutes total.
 8. [`src/bluetooth/bt_bus_thread.h#helix::bluetooth`](../../../src/bluetooth/bt_bus_thread.h#L19) — `BusWork` and the single-thread sd-bus ownership contract, including the null-bus idle-worker defense.
 9. [`include/ui_utils.h#helix::ui`](../../../include/ui_utils.h#L96) — the comment explaining why `safe_delete` (`include/ui_utils.h#safe_delete`) is unsafe inside queued callbacks, then the deferred family at `include/ui_utils.h#safe_delete_deferred`, `include/ui_utils.h#safe_clean_children`, `include/ui_utils.h#safe_delete_subtree`.
 10. [`include/ui_timer_guard.h#helix::ui`](../../../include/ui_timer_guard.h#L18) — `lv_timer_cancel_safe()`: five lines that neuter instead of unlink; then `LvglTimerGuard` (`include/ui_timer_guard.h#"class LvglTimerGuard {"`).
-11. [`src/ui/ui_screensaver.cpp#~FlyingToasterScreensaver`](../../../src/ui/ui_screensaver.cpp#L174) — a real shared-cancel helper called from both teardown paths, with the #750/#751/#1173 rationale written out in the comment.
+11. [`src/ui/screensaver_frame_timer.cpp#~SaverFrameTimer`](../../../src/ui/screensaver_frame_timer.cpp#L13) — a real shared-cancel helper called from both teardown paths (`SaverBase::stop()` and the destructor), with the #750/#1173 rationale written out in the comment.
 12. [`scripts/check_l081_anti_pattern.py`](../../../scripts/check_l081_anti_pattern.py) and [`scripts/check_timer_destructor_cancel.py`](../../../scripts/check_timer_destructor_cancel.py) — read only the header comments: exactly what each gate flags and the approved shapes. Five minutes that will save a review round-trip.

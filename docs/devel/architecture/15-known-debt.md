@@ -203,7 +203,7 @@ change somebody else made since (#1629).
 The echo question has three hand-built answers here, `AmsBackend::own_write_expectation`
 ([`include/ams_backend.h#own_write_expectation`](../../../include/ams_backend.h)),
 `SlotFingerprintTracker::expect_any_of`
-([`include/filament_slot_override_store.h#SlotFingerprintTracker/expect_any_of`](../../../include/filament_slot_override_store.h))
+([`include/filament_slot_override_store.h#SlotFingerprintTracker/"expect_any_of(int slot_index,"`](../../../include/filament_slot_override_store.h))
 and `helix::ams::OwnWriteEchoes`
 ([`include/lane_echo.h#OwnWriteEchoes`](../../../include/lane_echo.h)), each suppressing one
 flavour of "is this reading someone else's write or the echo of my own?" for one backend
