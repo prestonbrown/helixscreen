@@ -793,14 +793,30 @@ TEST_CASE_METHOD(PresetConfigFixture, "k1 preset claims no aux fan and no fixed 
     TearDown();
 }
 
-// The creator5 presets ship the four fd_ex head switches with role "none":
-// FilamentSensorManager maps only e<N>_filament names to a head, so an fd_ex
-// sensor with the runout role counts any empty docked head as a runout and
-// pops the guidance modal. Runout stays off until verified on hardware
+// The creator5 presets give each fd_ex head switch the runout role and name the
+// head it watches in "lane": the names encode no head, and without the lane a
+// switch cannot speak for its own head in the pre-print check
 // (prestonbrown/helixscreen#1714). mutate-diff does not mutate assets/*.json,
 // which leaves this the only guard over that data.
+static void check_fd_ex_runout_lanes(const nlohmann::json& sensors) {
+    int switches = 0;
+    for (const auto& sensor : sensors) {
+        const std::string klipper_name = sensor.at("klipper_name").get<std::string>();
+        const std::string prefix = "filament_switch_sensor fd_ex";
+        if (klipper_name.rfind(prefix, 0) != 0) {
+            continue;
+        }
+        ++switches;
+        INFO(klipper_name);
+        CHECK(sensor.at("role").get<std::string>() == "runout");
+        CHECK(sensor.value("lane", -1) == std::stoi(klipper_name.substr(prefix.size())));
+    }
+    // The loop must have seen the four head switches, not an empty array.
+    REQUIRE(switches == 4);
+}
+
 TEST_CASE_METHOD(PresetConfigFixture,
-                 "creator5 preset ships fd_ex switches without the runout role",
+                 "creator5 preset gives each fd_ex switch the runout role for its own head",
                  "[config][preset][creator5]") {
     SetUp();
 
@@ -810,18 +826,7 @@ TEST_CASE_METHOD(PresetConfigFixture,
     auto& pd = printer_data();
 
     REQUIRE(pd.contains("filament_sensors"));
-    int switches = 0;
-    for (const auto& sensor : pd["filament_sensors"]["sensors"]) {
-        const std::string klipper_name = sensor.at("klipper_name").get<std::string>();
-        if (klipper_name.find("fd_ex") == std::string::npos) {
-            continue;
-        }
-        ++switches;
-        INFO(klipper_name << " has role " << sensor.at("role").get<std::string>());
-        CHECK(sensor.at("role").get<std::string>() != "runout");
-    }
-    // The loop must have seen the four head switches, not an empty array.
-    REQUIRE(switches == 4);
+    check_fd_ex_runout_lanes(pd["filament_sensors"]["sensors"]);
 
     TearDown();
 }
@@ -857,7 +862,7 @@ TEST_CASE_METHOD(PresetConfigFixture, "creator5 preset carries no chamber heater
 }
 
 TEST_CASE_METHOD(PresetConfigFixture,
-                 "creator5_pro preset ships fd_ex switches without the runout role",
+                 "creator5_pro preset gives each fd_ex switch the runout role for its own head",
                  "[config][preset][creator5]") {
     SetUp();
 
@@ -867,18 +872,7 @@ TEST_CASE_METHOD(PresetConfigFixture,
     auto& pd = printer_data();
 
     REQUIRE(pd.contains("filament_sensors"));
-    int switches = 0;
-    for (const auto& sensor : pd["filament_sensors"]["sensors"]) {
-        const std::string klipper_name = sensor.at("klipper_name").get<std::string>();
-        if (klipper_name.find("fd_ex") == std::string::npos) {
-            continue;
-        }
-        ++switches;
-        INFO(klipper_name << " has role " << sensor.at("role").get<std::string>());
-        CHECK(sensor.at("role").get<std::string>() != "runout");
-    }
-    // The loop must have seen the four head switches, not an empty array.
-    REQUIRE(switches == 4);
+    check_fd_ex_runout_lanes(pd["filament_sensors"]["sensors"]);
 
     // The Pro's chamber heater is what separates it from the Creator 5; the
     // preset must keep mapping it.
