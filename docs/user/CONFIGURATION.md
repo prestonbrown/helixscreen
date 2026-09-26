@@ -453,7 +453,7 @@ Framebuffer displays (AD5M, K1, K2, CC1, AD5X) rotate by any angle with no meani
 **Type:** integer
 **Default:** `-1` (automatic)
 **Values:** `-1` = automatic, `0` = never, `1` = always
-**Description:** Whether display sleep powers the screen panel down or just turns its backlight off. Automatic powers the panel down only when the screen has no brightness control; on every other screen, sleep turns the backlight off. Set `1` if your screen goes black at sleep but the backlight stays lit. Set `0` if at sleep your screen flashes colours, glows at the edges, or does not come back on when you wake it. Takes effect after a restart.
+**Description:** Whether display sleep powers the screen panel down or just turns its backlight off. Automatic powers the panel down only when the screen has no brightness control; on every other screen, sleep turns the backlight off. Set `1` if your screen goes black at sleep but the backlight stays lit. Set `0` if at sleep your screen flashes colours, glows at the edges, or does not come back on when you wake it. Takes effect after a restart. See [Troubleshooting](TROUBLESHOOTING.md#screen-goes-dark-at-sleep-but-the-backlight-stays-on).
 
 ### `screensaver_type`
 **Type:** integer
