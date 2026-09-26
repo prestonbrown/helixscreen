@@ -28,6 +28,7 @@
 
 #include "../test_fixtures.h"
 #include "app_globals.h"
+#include "lvgl/src/widgets/label/lv_label_private.h" // lv_label_t::dot_begin: the ellipsization signal
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
@@ -100,9 +101,7 @@ void set_worst_case_chamber_data() {
 }
 
 /// Single-line natural width of a label's current text in the label's own
-/// font: the width long_mode="dots" measures against when it ellipsizes
-/// (lv_label_get_text keeps returning the full source, so the glyph width is
-/// the only honest signal).
+/// font, for labels that clip rather than ellipsize.
 int32_t label_text_width(lv_obj_t* label) {
     const lv_font_t* font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
     const int32_t letter_space = lv_obj_get_style_text_letter_space(label, LV_PART_MAIN);
@@ -112,11 +111,21 @@ int32_t label_text_width(lv_obj_t* label) {
     return text_size.x;
 }
 
-/// Every visible label in the subtree must render its whole text: natural
-/// width within the label's content width. The fault banner's reason label
-/// is the one designed ellipsis (vendor reasons of unbounded length share a
-/// row with the Reset action), so its subtree is skipped by name. Hidden
-/// subtrees are skipped too: they take no layout, so their widths are stale.
+/// lv_label's "unset" marker for dot_begin (LV_LABEL_DOT_BEGIN_INV lives in
+/// lv_label.c, unreached from here).
+constexpr uint32_t kLabelDotBeginNone = 0xFFFFFFFF;
+
+/// Every visible label in the subtree must render its whole text. Dots-mode
+/// labels rewrite their own text in place when they ellipsize
+/// (lv_label_set_dots), so lv_label_get_text() returns the SHORTENED string
+/// and a width comparison against it is self-referential: it measures the
+/// ellipsized text against the width that produced it. dot_begin is the
+/// engine's own record of whether that rewrite ever fired, and is the only
+/// honest signal. Clip-mode labels have no such marker, so they keep the
+/// width comparison. The fault banner's reason label is the one designed
+/// ellipsis (vendor reasons of unbounded length share a row with the Reset
+/// action), so its subtree is skipped by name. Hidden subtrees are skipped
+/// too: they take no layout, so their widths are stale.
 void check_no_label_truncated(lv_obj_t* root) {
     for (uint32_t i = 0; i < lv_obj_get_child_count(root); ++i) {
         lv_obj_t* child = lv_obj_get_child(root, i);
@@ -127,11 +136,18 @@ void check_no_label_truncated(lv_obj_t* root) {
             continue;
         check_no_label_truncated(child);
         if (lv_obj_check_type(child, &lv_label_class)) {
-            const int32_t content_width = lv_obj_get_width(child) -
-                                          lv_obj_get_style_pad_left(child, LV_PART_MAIN) -
-                                          lv_obj_get_style_pad_right(child, LV_PART_MAIN);
-            CAPTURE(child_name);
-            CHECK(label_text_width(child) <= content_width);
+            const lv_label_long_mode_t mode = lv_label_get_long_mode(child);
+            if (mode == LV_LABEL_LONG_MODE_DOTS) {
+                const lv_label_t* label = (const lv_label_t*)child;
+                CAPTURE(child_name);
+                CHECK(label->dot_begin == kLabelDotBeginNone);
+            } else if (mode == LV_LABEL_LONG_MODE_CLIP) {
+                const int32_t content_width = lv_obj_get_width(child) -
+                                              lv_obj_get_style_pad_left(child, LV_PART_MAIN) -
+                                              lv_obj_get_style_pad_right(child, LV_PART_MAIN);
+                CAPTURE(child_name);
+                CHECK(label_text_width(child) <= content_width);
+            }
         }
     }
 }
@@ -504,11 +520,11 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
         CHECK(hidden(lv_obj_find_by_name(overlay_, "fault_banner")));
 
         // The compact sm temp variant shows in the header row; the md one
-        // and the tiny-only standalone row stand down (fonts are
-        // creation-time, so the swap is bind-hidden widgets).
+        // stands down (fonts are creation-time, so the swap is bind-hidden
+        // widgets). No standalone row variant exists at any size.
         CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "chamber_temp_display_compact")));
         CHECK(hidden(lv_obj_find_by_name(overlay_, "chamber_temp_display")));
-        CHECK(hidden(lv_obj_find_by_name(overlay_, "chamber_temp_display_row")));
+        CHECK(lv_obj_find_by_name(overlay_, "chamber_temp_display_row") == nullptr);
 
         // Nothing under the chart at this size either.
         lv_obj_t* graph_outer = lv_obj_find_by_name(overlay_, "graph_outer_container");
@@ -686,11 +702,10 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
 TEST_CASE_METHOD(ChamberOverlayFixture,
                  "chamber card header keeps the status inside the card at the narrow widths",
                  "[chamber][panel][geometry]") {
-    // The widest header the card renders: "37.7 / 60°C" beside a flame glyph
-    // and "100%". Micro carries the readout inside the header row; tiny keeps
-    // it on its own row below (the header comment in the XML says why), so
-    // there the assertion guards a regression that folds the readout back
-    // into the row and overflows it again.
+    // The widest header the card renders: "37.7 / 60°C" beside a glyph and
+    // "100%". Micro and tiny both carry the readout inside the header row
+    // (tiny on the xs icon + sm readout), so the assertion guards a
+    // regression that overflows the row again at either width.
     const std::pair<int32_t, int32_t> sizes[] = {{480, 272}, {480, 320}};
     for (const auto& [w, h] : sizes) {
         CAPTURE(w);
@@ -707,12 +722,8 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
         REQUIRE(status != nullptr);
         REQUIRE_FALSE(hidden(status));
         // The readout must be on screen for this to measure the real worst
-        // case: micro in the header row, tiny on the standalone row.
-        if (h == 272) {
-            REQUIRE_FALSE(hidden(lv_obj_find_by_name(overlay_, "chamber_temp_display_compact")));
-        } else {
-            REQUIRE_FALSE(hidden(lv_obj_find_by_name(overlay_, "chamber_temp_display_row")));
-        }
+        // case: the compact sm variant in the header row at both sizes.
+        REQUIRE_FALSE(hidden(lv_obj_find_by_name(overlay_, "chamber_temp_display_compact")));
 
         const int32_t content_right = abs_x2(card) - lv_obj_get_style_pad_right(card, LV_PART_MAIN);
         CHECK(abs_x2(status) <= content_right);
@@ -722,9 +733,10 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
 TEST_CASE_METHOD(ChamberOverlayFixture, "no chamber card label is truncated at any breakpoint",
                  "[chamber][panel][geometry]") {
     // Every size the overlay ships to: the landscape ladder plus both
-    // portrait widths. The muted words ride along only where they fit in
-    // full (small and up); narrower columns show icon + value, never an
-    // ellipsized word.
+    // portrait widths. The element word rides along only where it fits in
+    // full (small and up); narrower columns show icon + value. The fan word
+    // is gone at every size: it never fits beside the percent and switch, so
+    // its row is icon + value everywhere.
     const std::pair<int32_t, int32_t> sizes[] = {{480, 272},  {480, 320}, {800, 480},
                                                  {1024, 600}, {272, 480}, {320, 480}};
     for (const auto& [w, h] : sizes) {
@@ -738,16 +750,13 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "no chamber card label is truncated at a
 
         const bool words_expected = std::min(w, h) >= 480;
         lv_obj_t* element_label = lv_obj_find_by_name(overlay_, "element_readout_label");
-        lv_obj_t* fan_label = lv_obj_find_by_name(overlay_, "fan_readout_label");
         REQUIRE(element_label != nullptr);
-        REQUIRE(fan_label != nullptr);
         if (words_expected) {
             CHECK_FALSE(hidden(element_label));
-            CHECK_FALSE(hidden(fan_label));
         } else {
             CHECK(hidden(element_label));
-            CHECK(hidden(fan_label));
         }
+        CHECK(lv_obj_find_by_name(overlay_, "fan_readout_label") == nullptr);
 
         // Percent and the Device badge are mutually exclusive; both shapes of
         // the fan row must fit.
@@ -778,10 +787,11 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
             lv_obj_get_height(lv_obj_find_by_name(overlay_, "chamber_preset_1"))};
     };
 
-    // Healthy baseline: the block is already at its per-breakpoint height.
+    // Healthy baseline: the chamber_preset_h token at tiny (48), not the
+    // generic #button_height (32) the rows used to carry.
     const auto healthy = button_heights();
     for (const int32_t height : healthy)
-        CHECK(height > 0);
+        CHECK(height == 48);
 
     // Tallest card content: banner with reason plus every readout row.
     set_worst_case_chamber_data();

@@ -384,18 +384,22 @@
             <bind_style_if name="tg_chamber_fault_border"
                            cond="chamber_heater_fault or chamber_heater_inhibited or chamber_heater_offline"/>
             <lv_obj width="100%"
-                    height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
-                    style_flex_cross_place="center" scrollable="false">
-              <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="sm"/>
-              <!-- The readout shares the icon's row: icon, temp, External,
-                   spacer, status right-aligned. Micro swaps in the sm
-                   variant (fonts are creation-time; hidden widgets skip
-                   layout). Tiny keeps the readout on its own row below: its
-                   column is narrower than micro's while its fonts are larger
-                   (the chart's taller floor takes the width), and even the
-                   xs readout overruns the header row there by 4px, so a
-                   one-row header cannot hold current+target beside a flame
-                   and duty at that width. -->
+                    height="content" flex_flow="row" style_pad_all="0" style_flex_cross_place="center"
+                    scrollable="false" style_pad_gap="#chamber_header_gap">
+              <!-- Row gap: the space_xs ladder with tiny demoted to xxs,
+                   whose one-row header only fits the card at the tighter
+                   gap. Inline so the token resolves at the CURRENT tier
+                   (a <style> bakes its token value at process init). -->
+              <!-- Tiny builds the xs glyph (16px): the one-row header's width
+                   budget needs the 8px back that the sm glyph (24px at tiny)
+                   costs. The swap rides the responsive string token, like
+                   icon_size does for the home tiles; micro already resolves
+                   sm to a 16px face, so only tiny changes. -->
+              <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="#chamber_icon_size"/>
+              <!-- The readout shares the icon's row at every landscape size:
+                   icon, temp, External, spacer, status right-aligned. Small
+                   and up carry the md variant; micro and tiny the sm one
+                   (fonts are creation-time; hidden widgets skip layout). -->
               <temp_display name="chamber_temp_display"
                             size="md" show_target="true" bind_current="chamber_temp"
                             bind_target="chamber_effective_target" bind_mode="chamber_mode"
@@ -406,7 +410,7 @@
                             size="sm" show_target="true" bind_current="chamber_temp"
                             bind_target="chamber_effective_target" bind_mode="chamber_mode"
                             event_cb="on_temp_graph_custom_clicked">
-                <bind_flag_if cond="ui_breakpoint ne 0" flag="hidden"/>
+                <bind_flag_if cond="ui_breakpoint gt 1" flag="hidden"/>
               </temp_display>
               <!-- Another controller is driving the heater: the device's own
                    web UI, a button on the unit, or the appliance's own auto
@@ -420,14 +424,6 @@
               <heater_status name="chamber_status_msg"
                              state_subject="chamber_status_state" duty_subject="chamber_status"/>
             </lv_obj>
-            <!-- Tiny landscape only: the readout that does not fit the
-                 header row at that width (see the header comment). -->
-            <temp_display name="chamber_temp_display_row"
-                          size="lg" show_target="true" bind_current="chamber_temp"
-                          bind_target="chamber_effective_target" bind_mode="chamber_mode"
-                          event_cb="on_temp_graph_custom_clicked">
-              <bind_flag_if cond="ui_breakpoint ne 1" flag="hidden"/>
-            </temp_display>
             <lv_obj name="chamber_diagnostics_block"
                     width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
                     scrollable="false">
@@ -457,11 +453,10 @@
                       style_flex_cross_place="center" scrollable="false">
                 <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
                 <icon name="fan_readout_icon" src="fan" size="xs"/>
-                <text_muted name="fan_readout_label"
-                            height="#chamber_readout_h" text="Filter Fan" translation_tag="Filter Fan" flex_grow="1"
-                            long_mode="dots">
-                  <bind_flag_if cond="ui_breakpoint gt 1" flag="hidden" invert="true"/>
-                </text_muted>
+                <!-- Icon + value only at every size: "Filter Fan" does not fit
+                     in full beside the percent and the switch even at the
+                     widest shipped column (medium misses by a few px), so the
+                     word would render ellipsized. The icon carries the meaning. -->
                 <!-- Device-driven: the Device badge REPLACES the percent (the
                      number describes our pin request, which the device is
                      overriding), so the switch cannot be pushed out of the
@@ -475,12 +470,7 @@
                             text="Device" translation_tag="Device" style_text_color="#text_muted">
                   <bind_flag_if cond="chamber_filter_fan_device_driven" flag="hidden" invert="true"/>
                 </text_small>
-                <!-- Where the Filter Fan word is dropped, this spacer is what
-                     keeps the switch at the right edge; where the word shows,
-                     the word grows and the spacer collapses. -->
-                <lv_obj name="fan_row_spacer" height="1" flex_grow="1" style_pad_all="0" scrollable="false">
-                  <bind_flag_if cond="ui_breakpoint gt 1" flag="hidden"/>
-                </lv_obj>
+                <lv_obj name="fan_row_spacer" height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
                 <!-- Filter fan switch: only when the backend wires a
                      filter-fan pin. Disabled while the device drives the fan
                      itself: the pin is a request the device overrides, so the
@@ -498,13 +488,14 @@
                changes height between healthy, faulted and offline. -->
           <lv_obj name="chamber_strip_spacer" width="100%" flex_grow="1" style_pad_all="0" scrollable="false"/>
           <!-- Preset buttons: hidden when chamber is sensor-only. Fixed at
-               the standard button height per breakpoint (the tallest that
-               still fits the faulted card with zero scroll), pinned to the
-               bottom of the column. Two explicit rows rather than one
-               row_wrap grid: a row_wrap track sizes to its content, so
-               buttons inside it cannot be told to fill a fixed height. -->
+               the chamber_preset_h token per breakpoint (the tallest that
+               still fits the faulted strip with zero scroll and #space_xs
+               of spacer left), pinned to the bottom of the column. Two
+               explicit rows rather than one row_wrap grid: a row_wrap track
+               sizes to its content, so buttons inside it cannot be told to
+               fill a fixed height. -->
           <lv_obj name="chamber_preset_row_1"
-                  width="100%" height="#button_height" style_pad_all="0" scrollable="false" flex_flow="row"
+                  width="100%" height="#chamber_preset_h" style_pad_all="0" scrollable="false" flex_flow="row"
                   style_flex_main_place="space_between" style_pad_gap="#space_xs">
             <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
             <ui_button name="chamber_preset_off"
@@ -517,7 +508,7 @@
             </ui_button>
           </lv_obj>
           <lv_obj name="chamber_preset_row_2"
-                  width="100%" height="#button_height" style_pad_all="0" scrollable="false" flex_flow="row"
+                  width="100%" height="#chamber_preset_h" style_pad_all="0" scrollable="false" flex_flow="row"
                   style_flex_main_place="space_between" style_pad_gap="#space_xs">
             <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
             <ui_button name="chamber_preset_2" width="48%" height="100%" text="50°C">
@@ -528,7 +519,7 @@
             </ui_button>
           </lv_obj>
           <ui_button name="chamber_btn_custom"
-                     width="100%" height="#button_height" text="Custom..." translation_tag="Custom..."
+                     width="100%" height="#chamber_preset_h" text="Custom..." translation_tag="Custom..."
                      variant="secondary">
             <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
@@ -600,12 +591,8 @@
                 <icon src="fan" size="xs">
                   <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
                 </icon>
-                <text_muted name="fan_readout_label"
-                            height="#chamber_readout_h" text="Filter Fan" translation_tag="Filter Fan" flex_grow="1"
-                            long_mode="dots">
-                  <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
-                  <bind_flag_if cond="ui_breakpoint gt 1" flag="hidden" invert="true"/>
-                </text_muted>
+                <!-- Icon + value only: the fan word never fits in full beside
+                     the percent and switch (see the landscape fan row). -->
                 <!-- Device-driven: the badge REPLACES the percent so the
                      switch stays inside the card (see landscape fan row). -->
                 <text_small name="fan_percent_label" bind_text="chamber_filter_fan_percent_text">

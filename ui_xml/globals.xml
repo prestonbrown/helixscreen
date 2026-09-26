@@ -127,6 +127,16 @@
     <string name="icon_size_xlarge" value="lg"/>
     <string name="icon_size_xxlarge" value="lg"/>
 
+    <!-- Chamber card header glyph: sm everywhere except tiny, whose one-row
+         header needs the 16px xs face (sm is 24px at tiny, 16px at micro, so
+         micro is unchanged and only tiny shrinks). xlarge/xxlarge fall back
+         to _large. -->
+    <string name="chamber_icon_size_micro" value="sm"/>
+    <string name="chamber_icon_size_tiny" value="xs"/>
+    <string name="chamber_icon_size_small" value="sm"/>
+    <string name="chamber_icon_size_medium" value="sm"/>
+    <string name="chamber_icon_size_large" value="sm"/>
+
     <!-- Literal text that begins with '#'. resolve_consts() treats a leading
          '#' as a const reference on EVERY attribute, and only lets a value
          through unchanged when it is exactly 6 hex digits (is_hex_color), so
@@ -279,6 +289,29 @@
     <px name="button_height_large" value="72"/>
     <px name="button_height_xlarge" value="80"/>
     <px name="button_height_xxlarge" value="96"/>
+
+    <!-- Chamber preset buttons (temp overlay, landscape column). The tallest
+         fixed height that fits the FAULTED strip with zero scroll and at
+         least #space_xs of spacer left above the buttons: measured spare
+         above the buttons at fault is 19/51/40/55 px for
+         micro/tiny/medium/large, shared across the three rows, so
+         h = button_height + (spare - space_xs) / 3 rounded down.
+         No shipped landscape panel renders small or above; small keeps the
+         ladder monotone and xlarge/xxlarge fall back to _large. -->
+    <px name="chamber_preset_h_micro" value="31"/>
+    <px name="chamber_preset_h_tiny" value="48"/>
+    <px name="chamber_preset_h_small" value="52"/>
+    <px name="chamber_preset_h_medium" value="63"/>
+    <px name="chamber_preset_h_large" value="88"/>
+
+    <!-- Chamber card header row gap: the space_xs ladder with tiny demoted
+         to xxs, so the one-row header (xs icon + sm readout + status) fits
+         the tiny card's content width. xlarge/xxlarge fall back to _large. -->
+    <px name="chamber_header_gap_micro" value="2"/>
+    <px name="chamber_header_gap_tiny" value="1"/>
+    <px name="chamber_header_gap_small" value="4"/>
+    <px name="chamber_header_gap_medium" value="5"/>
+    <px name="chamber_header_gap_large" value="6"/>
 
     <px name="button_height_lg_micro" value="34"/>
     <px name="button_height_lg_tiny" value="40"/>
