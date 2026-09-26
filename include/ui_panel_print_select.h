@@ -265,6 +265,9 @@ class PrintSelectPanel : public PanelBase {
         return "print_select_panel";
     }
 
+    /// Re-render the held file list into the views a rebuild recreated.
+    void repopulate() override;
+
     /**
      * @brief Called when panel becomes visible
      *

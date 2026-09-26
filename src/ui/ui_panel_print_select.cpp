@@ -483,7 +483,12 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     });
 
     // Initialize file data provider for Moonraker files
-    file_provider_ = std::make_unique<helix::ui::PrintSelectFileProvider>();
+    // A rebuild re-runs setup(). The provider holds no widgets, and an in-flight
+    // get_directory callback reads the provider it was issued from, so it is
+    // created once and kept (#1616).
+    if (!file_provider_) {
+        file_provider_ = std::make_unique<helix::ui::PrintSelectFileProvider>();
+    }
     file_provider_->set_api(api_);
     file_provider_->set_on_files_ready([self, token = self->object_lifetime_.token()](
                                            std::vector<PrintFileData>&& files) {
@@ -1854,6 +1859,19 @@ void PrintSelectPanel::check_moonraker_usb_symlink() {
                           error.message);
             // usb_source_ will show USB tab when drive is inserted
         });
+}
+
+void PrintSelectPanel::repopulate() {
+    // The rebuilt card/list views start empty, and a refresh returning the same
+    // listing skips repopulation, so re-render the list already held (#1616).
+    if (current_view_mode_ == PrintSelectViewMode::LIST) {
+        helix::ui::icon::set_source(view_toggle_icon_, "grid_view");
+        populate_list_view();
+    } else {
+        populate_card_view();
+    }
+    update_sort_indicators();
+    update_empty_state();
 }
 
 void PrintSelectPanel::on_activate() {
