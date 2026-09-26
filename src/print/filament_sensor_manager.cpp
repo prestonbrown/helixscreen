@@ -332,9 +332,14 @@ void FilamentSensorManager::load_config_from_file() {
                     if (sensor_json.contains("enabled")) {
                         sensor->enabled = sensor_json["enabled"].get<bool>();
                     }
-                    if (auto lane = sensor_json.find("lane");
-                        lane != sensor_json.end() && lane->is_number_integer()) {
-                        sensor->lane = lane->get<int>();
+                    if (auto lane = sensor_json.find("lane"); lane != sensor_json.end()) {
+                        if (lane->is_number_integer() && lane->get<int>() >= 0) {
+                            sensor->lane = lane->get<int>();
+                        } else {
+                            spdlog::warn("[FilamentSensorManager] {}: ignoring lane {} (expected "
+                                         "a slot index, 0 or more)",
+                                         klipper_name, lane->dump());
+                        }
                     }
                     spdlog::debug(
                         "[FilamentSensorManager] Loaded config for {}: role={}, enabled={}",
@@ -391,15 +396,17 @@ void FilamentSensorManager::set_sensor_role(const std::string& klipper_name,
                                             FilamentSensorRole role) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-    // A role has one holder per lane: assigning it clears it from any other
-    // sensor watching the same lane, and from every sensor watching none. Heads
-    // with a sensor each keep one RUNOUT holder apiece.
+    // A role has one holder, except RUNOUT, which has one per lane: assigning it
+    // clears it from any other sensor watching the same lane, and from every
+    // sensor watching none. Heads with a sensor each keep one RUNOUT holder
+    // apiece. The other roles' readers look up a single holder.
     if (role != FilamentSensorRole::NONE) {
         const auto* assigned = find_config(klipper_name);
         const int assigned_lane = assigned ? lane_index_for_sensor(*assigned) : -1;
         for (auto& sensor : sensors_) {
             const int lane = lane_index_for_sensor(sensor);
-            const bool shares_lane = assigned_lane < 0 || lane < 0 || lane == assigned_lane;
+            const bool shares_lane = role != FilamentSensorRole::RUNOUT || assigned_lane < 0 ||
+                                     lane < 0 || lane == assigned_lane;
             if (sensor.role == role && sensor.klipper_name != klipper_name && shares_lane) {
                 spdlog::debug("[FilamentSensorManager] Clearing role {} from {}",
                               role_to_config_string(role), sensor.sensor_name);
@@ -710,9 +717,12 @@ bool FilamentSensorManager::has_real_runout() const {
         // This sensor reports no filament. Decide whether it is a real runout.
         // If it maps to an AMS lane and the backend says that lane is EMPTY /
         // not-present, it is an intentionally-empty lane, not a runout.
-        const int lane = backend ? sensor.lane : -1;
+        // A lane the backend has no slot for is no lane: the sensor stays
+        // unscoped rather than reading as an empty slot.
+        const SlotInfo slot =
+            backend && sensor.lane >= 0 ? backend->get_slot_info(sensor.lane) : SlotInfo{};
+        const int lane = slot.slot_index >= 0 ? sensor.lane : -1;
         if (lane >= 0) {
-            const SlotInfo slot = backend->get_slot_info(lane);
             if (!slot.is_present()) {
                 spdlog::debug("[FilamentSensorManager] has_real_runout: ignoring {} - lane {} "
                               "is empty/never-loaded (not a runout)",
