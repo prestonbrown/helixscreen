@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_filename_utils.h"
+#include "ui_format_utils.h"
+
 #include "../helix_test_fixture.h"
 #include "../test_helpers/print_history_manager_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
@@ -301,6 +304,8 @@ PrintHistoryJob make_history_job(const char* filename, bool exists, double ended
     job.status = PrintJobStatus::COMPLETED;
     job.start_time = now - ended_secs_ago - 3600.0;
     job.end_time = now - ended_secs_ago;
+    job.print_duration = 3600.0;
+    job.filament_used = 12500.0;
     job.duration_str = "1h 00m";
     job.filament_str = "12.5m";
     return job;
@@ -341,7 +346,7 @@ TEST_CASE_METHOD(HelixTestFixture, "DetailedFormatter idle tile skips a deleted 
         FormatterScope fs; // ctor populates the idle fields
         UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
 
-        REQUIRE(subject_text("print_status_idle_filename") == "still_here.gcode");
+        REQUIRE(subject_text("print_status_idle_filename") == "still_here");
         // Timing comes from the surviving job too, not the deleted head.
         REQUIRE(subject_text("print_status_idle_when") == "Completed 2h ago");
         REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "print_status_idle_has_last")) == 1);
@@ -371,5 +376,130 @@ TEST_CASE_METHOD(HelixTestFixture,
         // print_status_detailed_idle.xml binds the Reprint Last button's
         // disabled state to this being 0.
         REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "print_status_idle_has_last")) == 0);
+    }
+}
+
+// =============================================================================
+// describe_last_print: what the idle tile says about the newest reprintable job.
+// Moonraker leaves end_time null (parsed as 0) and the durations and filament at
+// 0 on in_progress rows and on rows it marks interrupted after a power loss
+// (prestonbrown/helixscreen#1713).
+// =============================================================================
+
+namespace {
+
+constexpr double kNow = 1'800'000'000.0;
+
+PrintHistoryJob job_with(PrintJobStatus status, double start_time, double end_time) {
+    PrintHistoryJob job;
+    job.filename = "benchy.gcode";
+    job.exists = true;
+    job.status = status;
+    job.start_time = start_time;
+    job.end_time = end_time;
+    job.duration_str = "0s";
+    job.filament_str = "0mm";
+    return job;
+}
+
+std::string relative(double secs) {
+    return helix::ui::format_relative_time(static_cast<uint64_t>(secs * 1000.0));
+}
+
+} // namespace
+
+TEST_CASE("describe_last_print: a completed job reads its age from end_time",
+          "[print_status][last_print]") {
+    auto job = job_with(PrintJobStatus::COMPLETED, kNow - 3 * 3600.0, kNow - 2 * 3600.0);
+    REQUIRE(describe_last_print(job, kNow).when == "Completed 2h ago");
+}
+
+TEST_CASE("describe_last_print: end_time 0 falls back to start_time",
+          "[print_status][last_print]") {
+    auto job = job_with(PrintJobStatus::ERROR, kNow - 3 * 3600.0, 0.0);
+    const std::string when = describe_last_print(job, kNow).when;
+    REQUIRE(when == std::string(lv_tr("Failed")) + " • " + relative(3 * 3600.0));
+}
+
+TEST_CASE("describe_last_print: no timestamps at all shows no age", "[print_status][last_print]") {
+    SECTION("failed") {
+        auto job = job_with(PrintJobStatus::ERROR, 0.0, 0.0);
+        REQUIRE(describe_last_print(job, kNow).when == lv_tr("Failed"));
+    }
+    SECTION("completed") {
+        auto job = job_with(PrintJobStatus::COMPLETED, 0.0, 0.0);
+        REQUIRE(describe_last_print(job, kNow).when == lv_tr("Completed"));
+    }
+    SECTION("in progress") {
+        auto job = job_with(PrintJobStatus::IN_PROGRESS, 0.0, 0.0);
+        REQUIRE(describe_last_print(job, kNow).when.empty());
+    }
+}
+
+TEST_CASE("describe_last_print: only a completed job says Completed",
+          "[print_status][last_print]") {
+    const double start = kNow - 2 * 86400.0;
+    const double end = kNow - 86400.0 - 3600.0;
+
+    auto cancelled = job_with(PrintJobStatus::CANCELLED, start, end);
+    REQUIRE(describe_last_print(cancelled, kNow).when ==
+            std::string(lv_tr("Cancelled")) + " • " + relative(kNow - end));
+
+    auto failed = job_with(PrintJobStatus::ERROR, start, end);
+    REQUIRE(describe_last_print(failed, kNow).when ==
+            std::string(lv_tr("Failed")) + " • " + relative(kNow - end));
+
+    // A stale in_progress row makes no claim about how the print ended.
+    auto in_progress = job_with(PrintJobStatus::IN_PROGRESS, start, 0.0);
+    REQUIRE(describe_last_print(in_progress, kNow).when == relative(kNow - start));
+}
+
+TEST_CASE("describe_last_print: zero filament and duration hide the meta line",
+          "[print_status][last_print]") {
+    auto job = job_with(PrintJobStatus::ERROR, kNow - 60.0, 0.0);
+    REQUIRE(job.filament_str == "0mm"); // the strings the parser emits for zero
+    REQUIRE(describe_last_print(job, kNow).meta.empty());
+
+    job.print_duration = 5400.0;
+    job.duration_str = "1h 30m";
+    REQUIRE(describe_last_print(job, kNow).meta == "1h 30m");
+
+    job.filament_used = 2500.0;
+    job.filament_str = "2.5m";
+    REQUIRE(describe_last_print(job, kNow).meta ==
+            fmt::format(lv_tr("{} filament • {}"), "2.5m", "1h 30m"));
+}
+
+TEST_CASE("describe_last_print: the filename displays the way the file grid shows it",
+          "[print_status][last_print]") {
+    auto job = job_with(PrintJobStatus::COMPLETED, kNow - 120.0, kNow - 60.0);
+    job.filename = "calib/Центровка (PLA).gcode.3mf";
+    const std::string shown = describe_last_print(job, kNow).filename;
+    REQUIRE(shown == helix::gcode::get_display_filename(job.filename));
+    REQUIRE(shown.find(".3mf") == std::string::npos);
+    REQUIRE(shown.find("calib/") == std::string::npos);
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "DetailedFormatter idle tile on an interrupted Moonraker row",
+                 "[print_status][formatter][last_print]") {
+    PrintStatusWidget::destroy_formatter_for_test();
+
+    PrinterState& ps = get_printer_state();
+    PrinterStateTestAccess::reset(ps);
+    ps.init_subjects(false);
+
+    PrintHistoryJob row = job_with(PrintJobStatus::ERROR, 0.0, 0.0);
+    row.filename = "Центровка (PLA).gcode.3mf";
+    ScopedHistory history({row});
+
+    {
+        FormatterScope fs;
+        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+
+        REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "print_status_idle_has_last")) == 1);
+        REQUIRE(subject_text("print_status_idle_filename") ==
+                helix::gcode::get_display_filename(row.filename));
+        REQUIRE(subject_text("print_status_idle_when") == lv_tr("Failed"));
+        REQUIRE(subject_text("print_status_idle_meta").empty());
     }
 }
