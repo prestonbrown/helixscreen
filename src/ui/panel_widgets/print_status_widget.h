@@ -36,6 +36,17 @@ enum class PrintJobState;
 // subjects without exposing them on the production API (see [L065]).
 class PrintStatusWidgetTestAccess;
 
+/// The idle tile's three lines describing the newest reprintable print.
+struct LastPrintText {
+    std::string filename;
+    std::string when;
+    std::string meta;
+};
+
+/// Decides the idle tile's text for `job`. `now_s` is the current Unix time in
+/// seconds, passed in so every branch is reachable from a test.
+[[nodiscard]] LastPrintText describe_last_print(const PrintHistoryJob& job, double now_s);
+
 class PrintStatusWidget : public PanelWidget {
     friend class PrintStatusWidgetTestAccess;
 
