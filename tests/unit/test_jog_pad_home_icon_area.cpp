@@ -37,8 +37,8 @@ TEST_CASE("home icon label box follows the font line height", "[jog_pad][motion]
 
     // Line height TALLER than 0.8 * radius (16px): the pairing where a
     // radius-derived box height would clip the glyph and sit it low in the
-    // ring. The old half-height was 0.4 * radius = 8; the font-derived one
-    // is 9, so these extents go red if the radius creeps back in.
+    // ring. The font-derived half-height is line_height/2 = 9, so these
+    // extents go red if the radius creeps back in.
     lv_font_t font = font_with_line_height(18);
     lv_area_t area = helix::jog_pad_home_icon_area(cx, cy, radius, &font);
 

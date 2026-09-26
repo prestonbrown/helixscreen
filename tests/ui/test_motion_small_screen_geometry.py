@@ -3,8 +3,8 @@
 """Motion overlay geometry across small-landscape and portrait screens.
 
 Coordinates ride in the header_bar content slot on landscape screens and in
-a full-width strip under the header on portrait screens; the jog pad takes
-the width the position card used to occupy. These tests pin, per resolution:
+a full-width strip under the header on portrait screens; the jog pad claims
+the shared row's leftover width. These tests pin, per resolution:
 
   - landscape: the widest realistic coordinate values ("350.00" x2 + "250.00")
     render through the slot without touching the title or the e-stop button,
@@ -143,7 +143,7 @@ def test_landscape_header_coords_fit_and_pad_grew(size, pad_floor, tmp_path):
             pad = _geom(app, "jog_pad")
             assert pad["w"] >= pad_floor and pad["h"] >= pad_floor, (
                 f"{size}: jog pad is {pad['w']}x{pad['h']}, floor is {pad_floor} "
-                "- the width the position card vacated did not reach the pad")
+                "- the shared row's leftover width did not reach the pad")
     finally:
         _restore_size(before)
 

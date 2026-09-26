@@ -1850,7 +1850,6 @@ translations:
   More points = more accurate, but takes longer.: Mais pontos = mais preciso, mas
     demora mais.
   Motion: Movimento
-  'Motion: XYZ': 'Movimento: XYZ'
   Motor controller error: Erro do controlador do motor
   Motor parameter setup failed: Falha na configuração dos parâmetros do motor
   Motor speeds and acceleration: 'Velocidades do motor e aceleração'
@@ -3580,7 +3579,6 @@ translations:
   Z Tilt Adjust...: Ajuste de inclinação Z...
   Z jog blocked at axis limit: Movimento Z bloqueado no limite do eixo
   Z jog feedrate: Velocidade de movimento do eixo Z
-  Z mm: Z mm
   Z motor calibration failed: Falha na calibração do motor Z
   Z probes for bed leveling and mesh generation: Sondas Z para nivelamento da mesa
     e geração de malha

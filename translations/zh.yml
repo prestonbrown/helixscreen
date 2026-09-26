@@ -1711,7 +1711,6 @@ translations:
   'Moonraker: ': 'Moonraker: '
   More points = more accurate, but takes longer.: 点数越多越精确，但耗时更长。
   Motion: 运动
-  'Motion: XYZ': 运动：XYZ
   Motor controller error: 电机控制器错误
   Motor parameter setup failed: 电机参数设置失败
   Motor speeds and acceleration: '电机速度与加速度'
@@ -3302,7 +3301,6 @@ translations:
   Z Tilt Adjust...: 正在调整Z倾斜...
   Z jog blocked at axis limit: Z 轴移动已限制在轴极限
   Z jog feedrate: Z 轴移动速度
-  Z mm: Z mm
   Z motor calibration failed: Z 电机校准失败
   Z probes for bed leveling and mesh generation: 用于热床调平和网格生成的 Z 探针
   'Z-Off:': Z 偏移：

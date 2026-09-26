@@ -111,6 +111,11 @@ class MotionPanel : public OverlayBase {
     lv_subject_t jog_mode_fine_active_;   // 1 when Fine mode active
     lv_subject_t jog_mode_coarse_active_; // 1 when Coarse mode active
     lv_subject_t jog_mode_turbo_active_;  // 1 when Turbo mode active
+    // Per-axis homing state (0=unhomed, 1=homed) for declarative bind_style:
+    // the coordinate readouts mute an axis whose position is not trustworthy.
+    lv_subject_t motion_x_homed_;
+    lv_subject_t motion_y_homed_;
+    lv_subject_t motion_z_homed_;
     char pos_x_buf_[32];
     char pos_y_buf_[32];
     char pos_z_buf_[32];

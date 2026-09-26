@@ -12,6 +12,11 @@
     <!-- Jog mode toggle button styles -->
     <style name="filter_btn_selected" bg_color="#primary" bg_opa="255"/>
     <style name="filter_btn_unselected" bg_color="#primary" bg_opa="40"/>
+    <!-- Coordinate readouts mute an axis that is not homed: its reported
+         position is not trustworthy, and "0.00" must not read as a real 0. -->
+    <style name="axis_letter_homed" text_color="#primary"/>
+    <style name="axis_value_homed" text_color="#text"/>
+    <style name="axis_unhomed" text_color="#text_muted"/>
   </styles>
   <view name="motion_panel"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_pad_all="0"
@@ -35,16 +40,34 @@
            so the duplicate-name gate would flag sharing them). -->
       <header_bar-header_content>
         <lv_obj name="header_coords"
-                width="content" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-                scrollable="false" clickable="false" flex_flow="row" style_pad_gap="#space_sm"
+                width="content" height="100%" style_pad_all="0" style_pad_left="#space_sm" style_bg_opa="0"
+                style_border_width="0" scrollable="false" clickable="false" flex_flow="row" style_pad_gap="#space_sm"
                 style_flex_cross_place="center" style_flex_track_place="center">
           <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="1"/>
-          <lv_label name="header_pos_x_letter" text="X" style_text_font="#font_body_bold" style_text_color="#primary"/>
-          <lv_label name="header_pos_x" bind_text="motion_pos_x" style_text_font="#font_mono"/>
-          <lv_label name="header_pos_y_letter" text="Y" style_text_font="#font_body_bold" style_text_color="#primary"/>
-          <lv_label name="header_pos_y" bind_text="motion_pos_y" style_text_font="#font_mono"/>
-          <lv_label name="header_pos_z_letter" text="Z" style_text_font="#font_body_bold" style_text_color="#primary"/>
-          <lv_label name="header_pos_z" bind_text="motion_pos_z" style_text_font="#font_mono"/>
+          <lv_label name="header_pos_x_letter" text="X" style_text_font="#font_body_bold">
+            <bind_style name="axis_letter_homed" subject="motion_x_homed" ref_value="1"/>
+            <bind_style name="axis_unhomed" subject="motion_x_homed" ref_value="0"/>
+          </lv_label>
+          <lv_label name="header_pos_x" bind_text="motion_pos_x" style_text_font="#font_mono">
+            <bind_style name="axis_value_homed" subject="motion_x_homed" ref_value="1"/>
+            <bind_style name="axis_unhomed" subject="motion_x_homed" ref_value="0"/>
+          </lv_label>
+          <lv_label name="header_pos_y_letter" text="Y" style_text_font="#font_body_bold">
+            <bind_style name="axis_letter_homed" subject="motion_y_homed" ref_value="1"/>
+            <bind_style name="axis_unhomed" subject="motion_y_homed" ref_value="0"/>
+          </lv_label>
+          <lv_label name="header_pos_y" bind_text="motion_pos_y" style_text_font="#font_mono">
+            <bind_style name="axis_value_homed" subject="motion_y_homed" ref_value="1"/>
+            <bind_style name="axis_unhomed" subject="motion_y_homed" ref_value="0"/>
+          </lv_label>
+          <lv_label name="header_pos_z_letter" text="Z" style_text_font="#font_body_bold">
+            <bind_style name="axis_letter_homed" subject="motion_z_homed" ref_value="1"/>
+            <bind_style name="axis_unhomed" subject="motion_z_homed" ref_value="0"/>
+          </lv_label>
+          <lv_label name="header_pos_z" bind_text="motion_pos_z" style_text_font="#font_mono">
+            <bind_style name="axis_value_homed" subject="motion_z_homed" ref_value="1"/>
+            <bind_style name="axis_unhomed" subject="motion_z_homed" ref_value="0"/>
+          </lv_label>
         </lv_obj>
       </header_bar-header_content>
     </header_bar>
@@ -58,12 +81,30 @@
               width="100%" height="content" style_pad_all="0" style_pad_hor="#space_lg" style_bg_opa="0"
               style_border_width="0" scrollable="false" clickable="false" flex_flow="row"
               style_flex_main_place="space_evenly" style_flex_cross_place="center" style_flex_track_place="center">
-        <lv_label name="row_pos_x_letter" text="X" style_text_font="#font_body_bold" style_text_color="#primary"/>
-        <lv_label name="row_pos_x" bind_text="motion_pos_x" style_text_font="#font_mono"/>
-        <lv_label name="row_pos_y_letter" text="Y" style_text_font="#font_body_bold" style_text_color="#primary"/>
-        <lv_label name="row_pos_y" bind_text="motion_pos_y" style_text_font="#font_mono"/>
-        <lv_label name="row_pos_z_letter" text="Z" style_text_font="#font_body_bold" style_text_color="#primary"/>
-        <lv_label name="row_pos_z" bind_text="motion_pos_z" style_text_font="#font_mono"/>
+        <lv_label name="row_pos_x_letter" text="X" style_text_font="#font_body_bold">
+          <bind_style name="axis_letter_homed" subject="motion_x_homed" ref_value="1"/>
+          <bind_style name="axis_unhomed" subject="motion_x_homed" ref_value="0"/>
+        </lv_label>
+        <lv_label name="row_pos_x" bind_text="motion_pos_x" style_text_font="#font_mono">
+          <bind_style name="axis_value_homed" subject="motion_x_homed" ref_value="1"/>
+          <bind_style name="axis_unhomed" subject="motion_x_homed" ref_value="0"/>
+        </lv_label>
+        <lv_label name="row_pos_y_letter" text="Y" style_text_font="#font_body_bold">
+          <bind_style name="axis_letter_homed" subject="motion_y_homed" ref_value="1"/>
+          <bind_style name="axis_unhomed" subject="motion_y_homed" ref_value="0"/>
+        </lv_label>
+        <lv_label name="row_pos_y" bind_text="motion_pos_y" style_text_font="#font_mono">
+          <bind_style name="axis_value_homed" subject="motion_y_homed" ref_value="1"/>
+          <bind_style name="axis_unhomed" subject="motion_y_homed" ref_value="0"/>
+        </lv_label>
+        <lv_label name="row_pos_z_letter" text="Z" style_text_font="#font_body_bold">
+          <bind_style name="axis_letter_homed" subject="motion_z_homed" ref_value="1"/>
+          <bind_style name="axis_unhomed" subject="motion_z_homed" ref_value="0"/>
+        </lv_label>
+        <lv_label name="row_pos_z" bind_text="motion_pos_z" style_text_font="#font_mono">
+          <bind_style name="axis_value_homed" subject="motion_z_homed" ref_value="1"/>
+          <bind_style name="axis_unhomed" subject="motion_z_homed" ref_value="0"/>
+        </lv_label>
       </lv_obj>
       <lv_obj name="overlay_content"
               width="100%" flex_grow="1" style_pad_all="#space_sm" scrollable="false" style_border_opa="0"
@@ -159,8 +200,8 @@
         </lv_obj>
       </lv_obj>
       <else/>
-      <!-- LANDSCAPE: coordinates in the header slot, jog pad re-centred in the
-           width the position card used to take, Z column on the right. -->
+      <!-- LANDSCAPE: coordinates in the header slot, jog pad filling the left
+           column, Z column on the right. -->
       <lv_obj name="overlay_content"
               width="100%" flex_grow="1" style_pad_all="#space_sm" style_pad_hor="#space_lg" scrollable="false"
               style_border_opa="0" flex_flow="row" style_pad_gap="#space_md">

@@ -1827,7 +1827,6 @@ translations:
   'Moonraker: ': 'Moonraker: '
   More points = more accurate, but takes longer.: Больше точек — точнее, но дольше.
   Motion: Движение
-  'Motion: XYZ': 'Движение: XYZ'
   Motor controller error: Ошибка контроллера двигателя
   Motor parameter setup failed: Не удалась настройка параметров двигателя
   Motor speeds and acceleration: 'Скорости моторов и ускорение'
@@ -3531,7 +3530,6 @@ translations:
   Z Tilt Adjust...: Регулировка наклона Z...
   Z jog blocked at axis limit: Перемещение по Z заблокировано на пределе оси
   Z jog feedrate: Скорость перемещения по оси Z
-  Z mm: Z mm
   Z motor calibration failed: Не удалась калибровка двигателя Z
   Z probes for bed leveling and mesh generation: Z-зонды для выравнивания стола и
     создания сетки

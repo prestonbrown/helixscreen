@@ -1805,7 +1805,6 @@ translations:
   More points = more accurate, but takes longer.: More points = more accurate, but
     takes longer.
   Motion: Motion
-  'Motion: XYZ': 'Motion: XYZ'
   Motor controller error: Motor controller error
   Motor parameter setup failed: Motor parameter setup failed
   Motor speeds and acceleration: Motor speeds and acceleration
@@ -3498,7 +3497,6 @@ translations:
   Z Tilt Adjust...: Z Tilt Adjust...
   Z jog blocked at axis limit: Z jog blocked at axis limit
   Z jog feedrate: Z jog feedrate
-  Z mm: Z mm
   Z motor calibration failed: Z motor calibration failed
   Z probes for bed leveling and mesh generation: Z probes for bed leveling and mesh
     generation

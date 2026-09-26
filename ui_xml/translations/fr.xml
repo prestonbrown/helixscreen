@@ -1671,7 +1671,6 @@
   <translation tag="Moonraker: " fr="Moonraker : "/>
   <translation tag="More points = more accurate, but takes longer." fr="Plus de points = plus précis, mais prend plus de temps."/>
   <translation tag="Motion" fr="Mouvement"/>
-  <translation tag="Motion: XYZ" fr="Mouvement : XYZ"/>
   <translation tag="Motor controller error" fr="Erreur du contrôleur de moteur"/>
   <translation tag="Motor parameter setup failed" fr="Échec de la configuration des paramètres moteur"/>
   <translation tag="Motor speeds and acceleration" fr="Vitesses moteur et accélération"/>
@@ -3186,7 +3185,6 @@
   <translation tag="Z Tilt Adjust..." fr="Ajustement inclinaison Z..."/>
   <translation tag="Z jog blocked at axis limit" fr="Déplacement Z bloqué à la limite de l&apos;axe"/>
   <translation tag="Z jog feedrate" fr="Vitesse d&apos;avance du déplacement Z"/>
-  <translation tag="Z mm" fr="Z mm"/>
   <translation tag="Z motor calibration failed" fr="Échec de l&apos;étalonnage du moteur Z"/>
   <translation tag="Z probes for bed leveling and mesh generation" fr="Sondes Z pour la mise à niveau du plateau et la génération de maillage"/>
   <translation tag="Z-Off:" fr="Z-Off :"/>

@@ -204,6 +204,12 @@ void MotionPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(jog_mode_turbo_active_, (current_mode_ == JogMode::Turbo) ? 1 : 0,
                            "motion_jog_mode_turbo_active", subjects_);
 
+    // Per-axis homed flags (0=unhomed, 1=homed). Prefixed with motion_ to
+    // avoid collision with ControlsPanel's x_homed/y_homed/z_homed.
+    UI_MANAGED_SUBJECT_INT(motion_x_homed_, 0, "motion_x_homed", subjects_);
+    UI_MANAGED_SUBJECT_INT(motion_y_homed_, 0, "motion_y_homed", subjects_);
+    UI_MANAGED_SUBJECT_INT(motion_z_homed_, 0, "motion_z_homed", subjects_);
+
     // Register PrinterState observers (RAII - auto-removed on destruction)
     register_position_observers();
 
@@ -476,16 +482,25 @@ void MotionPanel::register_position_observers() {
         },
         get_printer_state().get_subjects_lifetime());
 
-    // Observe homed_axes from PrinterState to recolor the custom-drawn center
-    // home button: warning tint until all axes are homed.
+    // Observe homed_axes from PrinterState to publish the per-axis homed
+    // subjects (the readouts mute an unhomed axis) and recolor the
+    // custom-drawn center home button: warning tint until all axes are homed.
     homed_axes_observer_ = observe_string<MotionPanel>(
         get_printer_state().get_homed_axes_subject(), this,
         [](MotionPanel* self, const char* axes) {
             if (!self->subjects_initialized_)
                 return;
-            bool all = strchr(axes, 'x') && strchr(axes, 'y') && strchr(axes, 'z');
+            int x = (strchr(axes, 'x') != nullptr) ? 1 : 0;
+            int y = (strchr(axes, 'y') != nullptr) ? 1 : 0;
+            int z = (strchr(axes, 'z') != nullptr) ? 1 : 0;
+            if (lv_subject_get_int(&self->motion_x_homed_) != x)
+                lv_subject_set_int(&self->motion_x_homed_, x);
+            if (lv_subject_get_int(&self->motion_y_homed_) != y)
+                lv_subject_set_int(&self->motion_y_homed_, y);
+            if (lv_subject_get_int(&self->motion_z_homed_) != z)
+                lv_subject_set_int(&self->motion_z_homed_, z);
             if (self->jog_pad_)
-                ui_jog_pad_set_homed(self->jog_pad_, all);
+                ui_jog_pad_set_homed(self->jog_pad_, x && y && z);
         },
         get_printer_state().get_subjects_lifetime());
 

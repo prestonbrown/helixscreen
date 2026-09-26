@@ -1717,7 +1717,6 @@ translations:
   'Moonraker: ': 'Moonraker: '
   More points = more accurate, but takes longer.: ポイント数が多いほど精度が上がりますが、時間がかかります。
   Motion: 動作
-  'Motion: XYZ': '動作: XYZ'
   Motor controller error: モーターコントローラーのエラー
   Motor parameter setup failed: モーターパラメーターの設定に失敗しました
   Motor speeds and acceleration: 'モーター速度と加速度'
@@ -3312,7 +3311,6 @@ translations:
   Z Tilt Adjust...: Zチルト調整中...
   Z jog blocked at axis limit: Z軸移動は軸の限界でブロックされました
   Z jog feedrate: Z軸のジョグ移動速度
-  Z mm: Z mm
   Z motor calibration failed: Z モーターの校正に失敗しました
   Z probes for bed leveling and mesh generation: ベッドレベリングとメッシュ生成用 Z プローブ
   'Z-Off:': 'Z-Off:'
