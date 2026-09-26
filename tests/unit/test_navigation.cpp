@@ -12,6 +12,9 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+#include <cstdlib>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
@@ -461,6 +464,43 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: the bar swaps axes with ui_is_p
     // on the axis the live orientation style asks for.
     REQUIRE(land_step >= land_btn_h);
     REQUIRE(port_step >= port_btn_w);
+}
+
+// ui_button_create() writes a local height, which outranks any bound style, so
+// the landscape edit buttons cap their inline height with max_height instead.
+// Unclamped, the + button fills the whole nav strip (#1553).
+TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: landscape edit buttons clamp to button_height",
+                 "[navbar][ui_integration]") {
+    REQUIRE(navbar_ != nullptr);
+
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    ScopedSubjectInt restore_portrait(portrait);
+    lv_subject_set_int(portrait, 0);
+
+    const char* token = lv_xml_get_const(nullptr, "button_height");
+    REQUIRE(token != nullptr);
+    const int32_t button_height = std::atoi(token);
+    REQUIRE(button_height > 0);
+
+    // Hidden objects take no part in flex layout; edit mode is what shows them.
+    lv_obj_t* add = lv_obj_find_by_name(navbar_, "nav_btn_edit_add");
+    lv_obj_t* done = lv_obj_find_by_name(navbar_, "nav_btn_edit_done");
+    REQUIRE(add != nullptr);
+    REQUIRE(done != nullptr);
+    lv_obj_remove_flag(add, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(done, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_update_layout(navbar_);
+
+    const int32_t bar_h = lv_obj_get_height(navbar_);
+    INFO("bar " << bar_h << ", button_height " << button_height << ", add "
+                << lv_obj_get_height(add) << ", done " << lv_obj_get_height(done));
+
+    // min_height is the touch-target floor and wins where button_height sits below it.
+    CHECK(lv_obj_get_height(add) <= std::max<int32_t>(button_height, 48));
+    CHECK(lv_obj_get_height(done) <= std::max<int32_t>(button_height, 36));
+    CHECK(lv_obj_get_height(add) < bar_h);
+    CHECK(lv_obj_get_height(done) < bar_h);
 }
 
 /**
