@@ -379,7 +379,7 @@ class BlockLineReader {
 } // namespace
 
 bool GCodeLayerIndex::build_from_file(const std::string& filepath,
-                                      const std::function<void(float)>& on_progress) {
+                                      const std::function<bool(float)>& on_progress) {
     auto start_time = std::chrono::high_resolution_clock::now();
 
     // Clear any previous data
@@ -461,8 +461,13 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath,
         stats_.total_lines++;
 
         if (on_progress && (stats_.total_lines % INDEX_PROGRESS_LINE_INTERVAL) == 0) {
-            on_progress(
-                static_cast<float>(static_cast<double>(current_offset) / total_for_progress));
+            if (!on_progress(
+                    static_cast<float>(static_cast<double>(current_offset) / total_for_progress))) {
+                spdlog::info("[LayerIndex] Build cancelled at line {} ({:.0f}%)",
+                             stats_.total_lines,
+                             100.0 * static_cast<double>(current_offset) / total_for_progress);
+                return false;
+            }
         }
 
         // Scheduled-pause + M73 tracking. current_offset still points at this

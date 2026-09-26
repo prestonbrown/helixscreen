@@ -198,23 +198,6 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     }
 
     /**
-     * @brief Mark the prime/purge line as in progress (phase UPDATE, not completion)
-     *
-     * Called when print_stats.print_duration first goes positive while the real
-     * first layer has NOT yet been reached (current_layer < 1). On firmwares
-     * whose prime/purge line emits no observable gcode_response (Snapmaker U1:
-     * the initial "G1 X110 E15" prime extrudes silently; the PRINT_PREEXTRUDING
-     * action code only fires for a SECOND tool mid-print), print_duration going
-     * 0->positive is the one real, observable signal that priming has begun.
-     *
-     * This advances the displayed phase to PURGING ("Priming...") but does NOT
-     * complete the pre-print phase — completion stays gated on the genuine
-     * current_layer 0->1 edge (MoonrakerManager::should_complete_preprint). A
-     * no-op once already at COMPLETE or PURGING.
-     */
-    void note_priming();
-
-    /**
      * @brief Record the printer's live bed-mesh presence
      *
      * Fed from the bed_mesh status stream. A mesh that disappears while the

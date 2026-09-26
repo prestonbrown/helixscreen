@@ -56,7 +56,7 @@ translations:
   1 event queued: 1 событие в очереди
   1 hour ago: 1 ч. назад
   1 layer: 1 слой
-  1 line in helixscreen.env was ignored: ''
+  1 line in helixscreen.env was ignored: 'В helixscreen.env проигнорирована 1 строка'
   1 min: '1 мин'
   1 min ago: 1 мин. назад
   1 minute: 1 минута
@@ -245,7 +245,7 @@ translations:
   Assign a role to enable sensor monitoring: Назначьте роль для мониторинга датчика
   Assisted Retract: 'Ретракция с поддержкой'
   Assisting: Помощь
-  At least {} lines in helixscreen.env were ignored: ''
+  At least {} lines in helixscreen.env were ignored: 'В helixscreen.env проигнорировано не менее {} строк'
   Authentication failed: Ошибка аутентификации
   Auto: Авто
   Auto Bed Mesh: Авто сетка стола
@@ -1273,8 +1273,8 @@ translations:
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: Прошивка не сообщает о байпасе. Включите, если филамент подаётся прямо в экструдер.
   Firmware restarting...: Перезапуск прошивки...
   Firmware saved X = Y's value; the measured X result was discarded: Прошивка сохранила для X значение Y; результат измерения X был отброшен
-  'Fix: chmod 644 {}, then restart': ''
-  'Fix: chown {} {}, then restart': ''
+  'Fix: chmod 644 {}, then restart': 'Исправление: chmod 644 {}, затем перезапустите'
+  'Fix: chown {} {}, then restart': 'Исправление: chown {} {}, затем перезапустите'
   FlashForge Adventurer 5M: FlashForge Adventurer 5M
   FlashForge Adventurer 5X: FlashForge Adventurer 5X
   FlashForge IFS: FlashForge IFS
@@ -2697,7 +2697,7 @@ translations:
   Security: Безопасность
   Security, network, host, and administration: Безопасность, сеть, хост и администрирование
   See exactly what data will be sent: Посмотрите, какие именно данные будут отправлены
-  See the log: ''
+  See the log: 'Подробности в журнале'
   See the quick tour of HelixScreen again: Посмотреть краткий тур по HelixScreen снова
   Select: Выбрать
   Select 'None' if you don't have a filament sensor, or if you don't want to pause on runout.: Выберите
@@ -2854,6 +2854,7 @@ translations:
     Kaarlonen
   Spaghetti Detection: Обнаружение «спагетти»
   Spaghetti detected: Обнаружены «спагетти»
+  Spaghetti detected (%d%%): Обнаружены «спагетти» (%d%%)
   Spaghetti detected — print paused: Обнаружены «спагетти» — печать приостановлена
   Speaker: Динамик
   Speed: Скорость
@@ -3310,8 +3311,8 @@ translations:
   Unavailable: Недоступно
   Unavailable on this printer: Недоступно на этом принтере
   Understanding Results: Понимание результатов
-  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
-  : "Неравномерное натяжение ремня вызывает дефекты печати, такие как смещения слоёв, VFA (вертикальные мелкие артефакты) и ringing.\n\nЭтот инструмент вибрирует каждый путь ремня и измеряет резонансную частоту — совпадающие частоты означают сбалансированное натяжение.\n\nДля CoreXY пути A и B должны отличаться на несколько Гц."
+  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nPluck each belt by hand and this tool listens through the accelerometer to measure the belt's frequency. Matched frequencies mean balanced tension.\n\nOn CoreXY, belts A and B should be within a few Hz of each other."
+  : "Неравномерное натяжение ремня вызывает дефекты печати, такие как смещения слоёв, VFA (вертикальные мелкие артефакты) и ringing.\n\nДёрните каждый ремень рукой, и этот инструмент измерит частоту ремня с помощью акселерометра. Совпадающие частоты означают сбалансированное натяжение.\n\nДля CoreXY ремни A и B должны отличаться на несколько Гц."
   Uninstall: Удалить
   Uninstall HelixPrint Plugin: Удалить плагин HelixPrint
   Uninstall HelixPrint Plugin?: Удалить плагин HelixPrint?
@@ -3581,10 +3582,10 @@ translations:
   feeder not in automatic mode: 'фидер не в автоматическом режиме'
   filament sensor disabled: 'датчик филамента отключён'
   heated bed: подогреваемый стол
-  'helixscreen.env ignored: owned by uid {}': ''
-  'helixscreen.env ignored: untrusted symlink chain': ''
-  'helixscreen.env ignored: writable by other users': ''
-  'helixscreen.env ignored: {}': ''
+  'helixscreen.env ignored: owned by uid {}': 'helixscreen.env проигнорирован: принадлежит uid {}'
+  'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env проигнорирован: недоверенная цепочка символических ссылок'
+  'helixscreen.env ignored: writable by other users': 'helixscreen.env проигнорирован: доступен на запись другим пользователям'
+  'helixscreen.env ignored: {}': 'helixscreen.env проигнорирован: {}'
   idle: простой
   in unit {} slot {}: 'в блоке {} слот {}'
   layers: слои
@@ -3641,7 +3642,7 @@ translations:
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} установлен, но переключение на резервную катушку выключено, поэтому автоматической замены не будет.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} установлен, но прочитать его настройку резервной катушки не удалось - не рассчитывайте на автоматическую замену.'
   '{} is not set up on this printer': '{} не настроен на этом принтере'
-  '{} lines in helixscreen.env were ignored': ''
+  '{} lines in helixscreen.env were ignored': 'В helixscreen.env проигнорировано строк: {}'
   '{} macro not configured': Макрос {} не настроен
   '{} matches.': '{} подходит.'
   '{} may cause unintended changes. Are you sure?': '{} может привести к непреднамеренным

@@ -379,8 +379,9 @@ class PrintPreparationManager {
     /**
      * @brief Rewrite tool commands in a G-code file and print the modified copy.
      *
-     * For RemapStrategy::GcodeRewrite backends (Snapmaker U1, ACE) that own no
-     * internal tool table: the only way to redirect a logical tool to a
+     * For RemapStrategy::GcodeRewrite backends - a tool changer driving its
+     * swaps with its own T<n> macros rather than klipper-toolchanger - that
+     * own no internal tool table: the only way to redirect a logical tool to a
      * different physical head is to rewrite the Tx / ACTIVATE_EXTRUDER /
      * SET_GCODE_VARIABLE lines in the file itself.
      *

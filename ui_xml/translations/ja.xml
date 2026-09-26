@@ -55,7 +55,7 @@
   <translation tag="1 event queued" ja="1件のイベント待機中"/>
   <translation tag="1 hour ago" ja="1時間前"/>
   <translation tag="1 layer" ja="1レイヤー"/>
-  <translation tag="1 line in helixscreen.env was ignored"/>
+  <translation tag="1 line in helixscreen.env was ignored" ja="helixscreen.env の1行が無視されました"/>
   <translation tag="1 min" ja="1分"/>
   <translation tag="1 min ago" ja="1分前"/>
   <translation tag="1 minute" ja="1分"/>
@@ -224,7 +224,7 @@
   <translation tag="Assign a role to enable sensor monitoring" ja="センサー監視を有効にするには役割を割り当ててください"/>
   <translation tag="Assisted Retract" ja="アシスト付き引き戻し"/>
   <translation tag="Assisting" ja="アシスト中"/>
-  <translation tag="At least {} lines in helixscreen.env were ignored"/>
+  <translation tag="At least {} lines in helixscreen.env were ignored" ja="helixscreen.env の少なくとも{}行が無視されました"/>
   <translation tag="Authentication failed" ja="認証に失敗しました"/>
   <translation tag="Auto" ja="自動"/>
   <translation tag="Auto Bed Mesh" ja="自動ベッドメッシュ"/>
@@ -1172,8 +1172,8 @@
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" ja="ファームウェアはバイパスがないと報告しています。フィラメントをエクストルーダーに直接送っている場合は有効にしてください"/>
   <translation tag="Firmware restarting..." ja="ファームウェア再起動中..."/>
   <translation tag="Firmware saved X = Y&apos;s value; the measured X result was discarded" ja="ファームウェアは X の値として Y の値を保存しました。測定された X の結果は破棄されました。"/>
-  <translation tag="Fix: chmod 644 {}, then restart"/>
-  <translation tag="Fix: chown {} {}, then restart"/>
+  <translation tag="Fix: chmod 644 {}, then restart" ja="修正：chmod 644 {} を実行して再起動してください"/>
+  <translation tag="Fix: chown {} {}, then restart" ja="修正：chown {} {} を実行して再起動してください"/>
   <translation tag="FlashForge Adventurer 5M" ja="FlashForge Adventurer 5M"/>
   <translation tag="FlashForge Adventurer 5X" ja="FlashForge Adventurer 5X"/>
   <translation tag="FlashForge IFS" ja="FlashForge IFS"/>
@@ -2466,7 +2466,7 @@
   <translation tag="Security" ja="セキュリティ"/>
   <translation tag="Security, network, host, and administration" ja="セキュリティ、ネットワーク、ホスト、管理"/>
   <translation tag="See exactly what data will be sent" ja="送信されるデータを正確に確認"/>
-  <translation tag="See the log"/>
+  <translation tag="See the log" ja="ログを確認してください"/>
   <translation tag="See the quick tour of HelixScreen again" ja="HelixScreen のクイックツアーをもう一度見る"/>
   <translation tag="Select" ja="選択"/>
   <translation tag="Select &apos;None&apos; if you don&apos;t have a filament sensor, or if you don&apos;t want to pause on runout." ja="フィラメントセンサーがない場合、またはフィラメント切れで一時停止したくない場合は「なし」を選択してください。"/>
@@ -2602,6 +2602,7 @@
   <translation tag="Space Debris mod by Markus &apos;Captain&apos; Kaarlonen" ja="Space Debris mod by Markus &apos;Captain&apos; Kaarlonen"/>
   <translation tag="Spaghetti Detection" ja="スパゲッティ検出"/>
   <translation tag="Spaghetti detected" ja="スパゲッティを検出しました"/>
+  <translation tag="Spaghetti detected (%d%%)" ja="スパゲッティを検出しました（%d%%）"/>
   <translation tag="Spaghetti detected — print paused" ja="スパゲッティを検出しました — 印刷を一時停止しました"/>
   <translation tag="Speaker" ja="スピーカー"/>
   <translation tag="Speed" ja="速度"/>
@@ -2986,7 +2987,7 @@
   <translation tag="Unavailable" ja="利用不可"/>
   <translation tag="Unavailable on this printer" ja="このプリンターでは利用できません"/>
   <translation tag="Understanding Results" ja="結果の理解"/>
-  <translation tag="Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.&#10;&#10;This tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.&#10;&#10;For CoreXY, Path A and B should be within a few Hz of each other." ja="ベルト張力が不均一だと、レイヤーシフトや VFA(垂直微細アーティファクト)、リンギングなどの印刷不良が発生します。&#10;&#10;このツールは各ベルトパスを振動させて共振周波数を測定します — 周波数が一致していれば張力が均等であることを意味します。&#10;&#10;CoreXY では、パス A と B は数 Hz 以内に収まっている必要があります。"/>
+  <translation tag="Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.&#10;&#10;Pluck each belt by hand and this tool listens through the accelerometer to measure the belt&apos;s frequency. Matched frequencies mean balanced tension.&#10;&#10;On CoreXY, belts A and B should be within a few Hz of each other." ja="ベルト張力が不均一だと、レイヤーシフトや VFA(垂直微細アーティファクト)、リンギングなどの印刷不良が発生します。&#10;&#10;各ベルトを手ではじくと、このツールが加速度センサーでベルトの周波数を測定します。周波数が一致していれば張力が均等であることを意味します。&#10;&#10;CoreXY では、ベルト A と B は数 Hz 以内に収まっている必要があります。"/>
   <translation tag="Uninstall" ja="アンインストール"/>
   <translation tag="Uninstall HelixPrint Plugin" ja="HelixPrint プラグインをアンインストール"/>
   <translation tag="Uninstall HelixPrint Plugin?" ja="HelixPrint プラグインをアンインストールしますか？"/>
@@ -3233,10 +3234,10 @@
   <translation tag="feeder not in automatic mode" ja="フィーダーが自動モードではありません"/>
   <translation tag="filament sensor disabled" ja="フィラメントセンサーが無効"/>
   <translation tag="heated bed" ja="ヒートベッド"/>
-  <translation tag="helixscreen.env ignored: owned by uid {}"/>
-  <translation tag="helixscreen.env ignored: untrusted symlink chain"/>
-  <translation tag="helixscreen.env ignored: writable by other users"/>
-  <translation tag="helixscreen.env ignored: {}"/>
+  <translation tag="helixscreen.env ignored: owned by uid {}" ja="helixscreen.env は無視されました：uid {} が所有しています"/>
+  <translation tag="helixscreen.env ignored: untrusted symlink chain" ja="helixscreen.env は無視されました：信頼できないシンボリックリンクチェーンです"/>
+  <translation tag="helixscreen.env ignored: writable by other users" ja="helixscreen.env は無視されました：他のユーザーが書き込み可能です"/>
+  <translation tag="helixscreen.env ignored: {}" ja="helixscreen.env は無視されました：{}"/>
   <translation tag="idle" ja="アイドル"/>
   <translation tag="in unit {} slot {}" ja="ユニット {} スロット {}"/>
   <translation tag="layers" ja="レイヤー"/>
@@ -3288,7 +3289,7 @@
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." ja="{} はインストールされていますが、予備スプールへの切り替えがオフになっているため、自動切り替えは行われません。"/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." ja="{} はインストールされていますが、予備スプールの設定を読み取れませんでした - 自動切り替えを当てにしないでください。"/>
   <translation tag="{} is not set up on this printer" ja="{} はこのプリンターで設定されていません"/>
-  <translation tag="{} lines in helixscreen.env were ignored"/>
+  <translation tag="{} lines in helixscreen.env were ignored" ja="helixscreen.env の{}行が無視されました"/>
   <translation tag="{} macro not configured" ja="{} マクロが未設定です"/>
   <translation tag="{} matches." ja="{} が一致します。"/>
   <translation tag="{} may cause unintended changes. Are you sure?" ja="{} は意図しない変更を引き起こす可能性があります。よろしいですか？"/>

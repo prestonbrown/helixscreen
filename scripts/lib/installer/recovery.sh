@@ -102,7 +102,7 @@ fi
 if [ -x /root/printer_software/klipper/scripts/klipper-restart.sh ]; then
     exec /root/printer_software/klipper/scripts/klipper-restart.sh
 fi
-echo "helix-recover: no known klipper restart mechanism on this AD5M firmware" >&2
+echo "helix-recover: no known klipper restart mechanism on this FlashForge firmware" >&2
 exit 1
 EOF
 }

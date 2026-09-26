@@ -19,6 +19,7 @@
 // HELIX_CONFIG_DIR keeps backup-restore search paths inside the temp dir.
 
 #include "config.h"
+#include "test_helpers/unique_temp_dir.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -43,7 +44,7 @@ class MigrationV21Fixture {
     bool had_config_dir_ = false;
 
     void SetUp() {
-        temp_dir = (fs::temp_directory_path() / "helix_migration_v21_test").string();
+        temp_dir = helix::test::unique_temp_dir("helix_migration_v21_test");
         fs::remove_all(temp_dir);
         fs::create_directories(temp_dir);
 

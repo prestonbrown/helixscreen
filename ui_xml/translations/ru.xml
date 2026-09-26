@@ -55,7 +55,7 @@
   <translation tag="1 event queued" ru="1 событие в очереди"/>
   <translation tag="1 hour ago" ru="1 ч. назад"/>
   <translation tag="1 layer" ru="1 слой"/>
-  <translation tag="1 line in helixscreen.env was ignored"/>
+  <translation tag="1 line in helixscreen.env was ignored" ru="В helixscreen.env проигнорирована 1 строка"/>
   <translation tag="1 min" ru="1 мин"/>
   <translation tag="1 min ago" ru="1 мин. назад"/>
   <translation tag="1 minute" ru="1 минута"/>
@@ -224,7 +224,7 @@
   <translation tag="Assign a role to enable sensor monitoring" ru="Назначьте роль для мониторинга датчика"/>
   <translation tag="Assisted Retract" ru="Ретракция с поддержкой"/>
   <translation tag="Assisting" ru="Помощь"/>
-  <translation tag="At least {} lines in helixscreen.env were ignored"/>
+  <translation tag="At least {} lines in helixscreen.env were ignored" ru="В helixscreen.env проигнорировано не менее {} строк"/>
   <translation tag="Authentication failed" ru="Ошибка аутентификации"/>
   <translation tag="Auto" ru="Авто"/>
   <translation tag="Auto Bed Mesh" ru="Авто сетка стола"/>
@@ -1172,8 +1172,8 @@
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" ru="Прошивка не сообщает о байпасе. Включите, если филамент подаётся прямо в экструдер."/>
   <translation tag="Firmware restarting..." ru="Перезапуск прошивки..."/>
   <translation tag="Firmware saved X = Y&apos;s value; the measured X result was discarded" ru="Прошивка сохранила для X значение Y; результат измерения X был отброшен"/>
-  <translation tag="Fix: chmod 644 {}, then restart"/>
-  <translation tag="Fix: chown {} {}, then restart"/>
+  <translation tag="Fix: chmod 644 {}, then restart" ru="Исправление: chmod 644 {}, затем перезапустите"/>
+  <translation tag="Fix: chown {} {}, then restart" ru="Исправление: chown {} {}, затем перезапустите"/>
   <translation tag="FlashForge Adventurer 5M" ru="FlashForge Adventurer 5M"/>
   <translation tag="FlashForge Adventurer 5X" ru="FlashForge Adventurer 5X"/>
   <translation tag="FlashForge IFS" ru="FlashForge IFS"/>
@@ -2466,7 +2466,7 @@
   <translation tag="Security" ru="Безопасность"/>
   <translation tag="Security, network, host, and administration" ru="Безопасность, сеть, хост и администрирование"/>
   <translation tag="See exactly what data will be sent" ru="Посмотрите, какие именно данные будут отправлены"/>
-  <translation tag="See the log"/>
+  <translation tag="See the log" ru="Подробности в журнале"/>
   <translation tag="See the quick tour of HelixScreen again" ru="Посмотреть краткий тур по HelixScreen снова"/>
   <translation tag="Select" ru="Выбрать"/>
   <translation tag="Select &apos;None&apos; if you don&apos;t have a filament sensor, or if you don&apos;t want to pause on runout." ru="Выберите &apos;Нет&apos;, если у вас нет датчика филамента или пауза по окончании филамента не нужна."/>
@@ -2602,6 +2602,7 @@
   <translation tag="Space Debris mod by Markus &apos;Captain&apos; Kaarlonen" ru="Space Debris мод от Markus &apos;Captain&apos; Kaarlonen"/>
   <translation tag="Spaghetti Detection" ru="Обнаружение «спагетти»"/>
   <translation tag="Spaghetti detected" ru="Обнаружены «спагетти»"/>
+  <translation tag="Spaghetti detected (%d%%)" ru="Обнаружены «спагетти» (%d%%)"/>
   <translation tag="Spaghetti detected — print paused" ru="Обнаружены «спагетти» — печать приостановлена"/>
   <translation tag="Speaker" ru="Динамик"/>
   <translation tag="Speed" ru="Скорость"/>
@@ -2986,7 +2987,7 @@
   <translation tag="Unavailable" ru="Недоступно"/>
   <translation tag="Unavailable on this printer" ru="Недоступно на этом принтере"/>
   <translation tag="Understanding Results" ru="Понимание результатов"/>
-  <translation tag="Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.&#10;&#10;This tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.&#10;&#10;For CoreXY, Path A and B should be within a few Hz of each other." ru="Неравномерное натяжение ремня вызывает дефекты печати, такие как смещения слоёв, VFA (вертикальные мелкие артефакты) и ringing.&#10;&#10;Этот инструмент вибрирует каждый путь ремня и измеряет резонансную частоту — совпадающие частоты означают сбалансированное натяжение.&#10;&#10;Для CoreXY пути A и B должны отличаться на несколько Гц."/>
+  <translation tag="Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.&#10;&#10;Pluck each belt by hand and this tool listens through the accelerometer to measure the belt&apos;s frequency. Matched frequencies mean balanced tension.&#10;&#10;On CoreXY, belts A and B should be within a few Hz of each other." ru="Неравномерное натяжение ремня вызывает дефекты печати, такие как смещения слоёв, VFA (вертикальные мелкие артефакты) и ringing.&#10;&#10;Дёрните каждый ремень рукой, и этот инструмент измерит частоту ремня с помощью акселерометра. Совпадающие частоты означают сбалансированное натяжение.&#10;&#10;Для CoreXY ремни A и B должны отличаться на несколько Гц."/>
   <translation tag="Uninstall" ru="Удалить"/>
   <translation tag="Uninstall HelixPrint Plugin" ru="Удалить плагин HelixPrint"/>
   <translation tag="Uninstall HelixPrint Plugin?" ru="Удалить плагин HelixPrint?"/>
@@ -3233,10 +3234,10 @@
   <translation tag="feeder not in automatic mode" ru="фидер не в автоматическом режиме"/>
   <translation tag="filament sensor disabled" ru="датчик филамента отключён"/>
   <translation tag="heated bed" ru="подогреваемый стол"/>
-  <translation tag="helixscreen.env ignored: owned by uid {}"/>
-  <translation tag="helixscreen.env ignored: untrusted symlink chain"/>
-  <translation tag="helixscreen.env ignored: writable by other users"/>
-  <translation tag="helixscreen.env ignored: {}"/>
+  <translation tag="helixscreen.env ignored: owned by uid {}" ru="helixscreen.env проигнорирован: принадлежит uid {}"/>
+  <translation tag="helixscreen.env ignored: untrusted symlink chain" ru="helixscreen.env проигнорирован: недоверенная цепочка символических ссылок"/>
+  <translation tag="helixscreen.env ignored: writable by other users" ru="helixscreen.env проигнорирован: доступен на запись другим пользователям"/>
+  <translation tag="helixscreen.env ignored: {}" ru="helixscreen.env проигнорирован: {}"/>
   <translation tag="idle" ru="простой"/>
   <translation tag="in unit {} slot {}" ru="в блоке {} слот {}"/>
   <translation tag="layers" ru="слои"/>
@@ -3288,7 +3289,7 @@
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." ru="{} установлен, но переключение на резервную катушку выключено, поэтому автоматической замены не будет."/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." ru="{} установлен, но прочитать его настройку резервной катушки не удалось - не рассчитывайте на автоматическую замену."/>
   <translation tag="{} is not set up on this printer" ru="{} не настроен на этом принтере"/>
-  <translation tag="{} lines in helixscreen.env were ignored"/>
+  <translation tag="{} lines in helixscreen.env were ignored" ru="В helixscreen.env проигнорировано строк: {}"/>
   <translation tag="{} macro not configured" ru="Макрос {} не настроен"/>
   <translation tag="{} matches." ru="{} подходит."/>
   <translation tag="{} may cause unintended changes. Are you sure?" ru="{} может привести к непреднамеренным изменениям. Вы уверены?"/>

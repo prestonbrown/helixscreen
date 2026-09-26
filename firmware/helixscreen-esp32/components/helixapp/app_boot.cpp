@@ -882,25 +882,26 @@ extern "C" void app_boot_ui(void) {
 
     // init() does NOT drain the queue: warnings enqueued during pre-UI boot
     // (display/asset backends) stay stranded unless drained explicitly.
-    helix::PendingStartupWarnings::instance().drain(
-        [](helix::PendingStartupWarnings::Severity sev, const std::string& msg) {
-            ToastSeverity toast_sev = ToastSeverity::INFO;
-            switch (sev) {
-            case helix::PendingStartupWarnings::Severity::INFO:
-                toast_sev = ToastSeverity::INFO;
-                break;
-            case helix::PendingStartupWarnings::Severity::SUCCESS:
-                toast_sev = ToastSeverity::SUCCESS;
-                break;
-            case helix::PendingStartupWarnings::Severity::WARNING:
-                toast_sev = ToastSeverity::WARNING;
-                break;
-            case helix::PendingStartupWarnings::Severity::ERROR:
-                toast_sev = ToastSeverity::ERROR;
-                break;
-            }
-            ToastManager::instance().show(toast_sev, msg.c_str(), 8000);
-        });
+    helix::PendingStartupWarnings::instance().drain([](helix::PendingStartupWarnings::Severity sev,
+                                                       const std::string& msg,
+                                                       uint32_t duration_ms) {
+        ToastSeverity toast_sev = ToastSeverity::INFO;
+        switch (sev) {
+        case helix::PendingStartupWarnings::Severity::INFO:
+            toast_sev = ToastSeverity::INFO;
+            break;
+        case helix::PendingStartupWarnings::Severity::SUCCESS:
+            toast_sev = ToastSeverity::SUCCESS;
+            break;
+        case helix::PendingStartupWarnings::Severity::WARNING:
+            toast_sev = ToastSeverity::WARNING;
+            break;
+        case helix::PendingStartupWarnings::Severity::ERROR:
+            toast_sev = ToastSeverity::ERROR;
+            break;
+        }
+        ToastManager::instance().show(toast_sev, msg.c_str(), duration_ms);
+    });
 
 #if CONFIG_HELIX_MOCK_PRINTER
     // Before the shell builds: seed READY/CONNECTED + the printer identity so the

@@ -374,10 +374,10 @@ void MoonrakerManager::create_client(const RuntimeConfig& runtime_config) {
         // Through the shared accessor so the logged figure is the one the mock
         // will actually run at, clamp included.
         double speedup = helix::sim::SimSpeed::global().factor();
-        // HELIX_MOCK_PRINTER=voron_24|voron_trident|k1|k1max|ad5m|generic_corexy|
-        // generic_bedslinger|multi_extruder|delta — defaults to Voron 2.4. K2 and
-        // CC1 don't have dedicated mock types yet; they fall through to the
-        // default with a warning.
+        // HELIX_MOCK_PRINTER=voron_24|voron_trident|k1|k1max|ad5m|creator5|
+        // creator5_zmod|generic_corexy|generic_bedslinger|multi_extruder|delta
+        // defaults to Voron 2.4. K2 and CC1 don't have dedicated mock types
+        // yet; they fall through to the default with a warning.
         const char* type_env = std::getenv("HELIX_MOCK_PRINTER");
         auto type = MoonrakerClientMock::PrinterType::VORON_24;
         const char* type_name = "Voron 2.4";
@@ -398,6 +398,12 @@ void MoonrakerManager::create_client(const RuntimeConfig& runtime_config) {
             } else if (t == "ad5m") {
                 type = MoonrakerClientMock::PrinterType::FLASHFORGE_AD5M;
                 type_name = "Flashforge AD5M";
+            } else if (t == "creator5") {
+                type = MoonrakerClientMock::PrinterType::FLASHFORGE_CREATOR5;
+                type_name = "FlashForge Creator 5 Pro";
+            } else if (t == "creator5_zmod") {
+                type = MoonrakerClientMock::PrinterType::FLASHFORGE_CREATOR5_ZMOD;
+                type_name = "FlashForge Creator 5 Pro (Z-Mod)";
             } else if (t == "generic_corexy") {
                 type = MoonrakerClientMock::PrinterType::GENERIC_COREXY;
                 type_name = "Generic CoreXY";
@@ -410,8 +416,8 @@ void MoonrakerManager::create_client(const RuntimeConfig& runtime_config) {
             } else if (t != "voron_24") {
                 spdlog::warn("[MoonrakerManager] HELIX_MOCK_PRINTER='{}' not recognised "
                              "— falling back to Voron 2.4. Valid: voron_24, voron_trident, "
-                             "k1, k1max, ad5m, generic_corexy, generic_bedslinger, multi_extruder, "
-                             "delta.",
+                             "k1, k1max, ad5m, creator5, creator5_zmod, generic_corexy, "
+                             "generic_bedslinger, multi_extruder, delta.",
                              t);
             }
         }
@@ -998,19 +1004,6 @@ void MoonrakerManager::init_print_start_collector() {
                 s_layer_current_subject ? lv_subject_get_int(s_layer_current_subject) : 0;
             bool printer_reports_layers = get_printer_state().printer_reports_layers();
             collector->note_current_layer(current_layer);
-            // Prime/purge phase nudge (layer-reporting printers only): on the
-            // U1 the initial prime line ("G1 X110 E15") extrudes silently — no
-            // gcode_response, and PRINT_PREEXTRUDING only fires for a 2nd tool
-            // mid-print. print_duration going 0->positive while current_layer is
-            // still < 1 is the one observable "priming has begun" signal. Show
-            // "Priming..." WITHOUT completing — completion stays gated on the
-            // genuine current_layer 0->1 edge below / in the layer observer.
-            // Skipped for non-reporting printers: there, print_duration>0 IS the
-            // completion signal (handled by should_complete_preprint), so a
-            // PURGING nudge would just be immediately replaced by COMPLETE.
-            if (printer_reports_layers && print_duration > 0 && current_layer < 1) {
-                collector->note_priming();
-            }
             if (should_complete_preprint(printer_reports_layers, current_layer, print_duration,
                                          collector->has_seen_layer_zero(),
                                          collector->has_seen_layer_advance())) {

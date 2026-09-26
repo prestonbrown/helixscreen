@@ -239,6 +239,16 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
         return HappyHareTestAccess::slots(*this).get(slot_index);
     }
 
+    /**
+     * @brief Pre-gate sensor state for a gate, or nullptr when no frame ever
+     * reported it
+     */
+    const helix::HappyHareGateSensor* get_gate_sensor(int slot_index) const {
+        const auto& map = HappyHareTestAccess::gate_sensors(*this);
+        auto it = map.find(slot_index);
+        return it != map.end() ? &it->second : nullptr;
+    }
+
     // G-code capture for persistence tests
     std::vector<std::string> captured_gcodes;
 
@@ -483,6 +493,42 @@ TEST_CASE("Happy Hare persistence: MMU_GATE_MAP clear Spoolman with -1",
 
     // Should send: SPOOLID=-1 to clear
     REQUIRE(helper.has_gcode_containing("SPOOLID=-1"));
+}
+
+TEST_CASE("Happy Hare persistence: clearing one field names it empty",
+          "[ams][happy_hare][persistence]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
+    AmsBackendHappyHareTestHelper& helper = *helper_reg;
+    helper.initialize_test_gates(2);
+
+    SlotInfo* slot = helper.get_mutable_slot(0);
+    REQUIRE(slot != nullptr);
+    slot->material = "PLA";
+    slot->color_rgb = 0xED2C2C;
+    SlotInfo* second = helper.get_mutable_slot(1);
+    REQUIRE(second != nullptr);
+    second->material = "PLA";
+    second->color_rgb = 0xED2C2C;
+
+    // The editor saves the whole slot, so the clear is an edit that keeps the
+    // colour and empties the material. Happy Hare keeps an omitted parameter
+    // at its current value, so the write must name the emptied field with an
+    // explicit empty or the gate map goes on remembering PLA.
+    SlotInfo cleared_material = *slot;
+    cleared_material.material.clear();
+    helix::test::apply_edit(helper, 0, cleared_material);
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=ED2C2C MATERIAL="));
+
+    // The same edit on the colour, keeping the material.
+    SlotInfo cleared_color = *second;
+    cleared_color.color_rgb = helix::AMS_DEFAULT_SLOT_COLOR;
+    helix::test::apply_edit(helper, 1, cleared_color);
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 COLOR= MATERIAL=PLA"));
+
+    // Neither took the full wipe: a single-field clear keeps every other
+    // field the gate map holds.
+    REQUIRE_FALSE(helper.has_gcode_containing("SPOOLID=-1"));
+    REQUIRE_FALSE(helper.has_gcode_containing("NAME="));
 }
 
 // ============================================================================
@@ -2714,15 +2760,15 @@ TEST_CASE_METHOD(AmsBackendHappyHareTestHelper, "EMU aggregate sensor format",
         REQUIRE(info.units[0].has_slot_sensors == true);
 
         // All gates should report having pre-gate sensors
-        auto slot0 = get_slot_entry(0);
-        REQUIRE(slot0 != nullptr);
-        REQUIRE(slot0->sensors.has_pre_gate_sensor == true);
-        REQUIRE(slot0->sensors.pre_gate_triggered == true);
+        auto gate0 = get_gate_sensor(0);
+        REQUIRE(gate0 != nullptr);
+        REQUIRE(gate0->has_pre_gate_sensor == true);
+        REQUIRE(gate0->pre_gate_triggered == true);
 
         // Other gates have sensor hardware but we only know current gate's reading
-        auto slot1 = get_slot_entry(1);
-        REQUIRE(slot1 != nullptr);
-        REQUIRE(slot1->sensors.has_pre_gate_sensor == true);
+        auto gate1 = get_gate_sensor(1);
+        REQUIRE(gate1 != nullptr);
+        REQUIRE(gate1->has_pre_gate_sensor == true);
     }
 
     SECTION("aggregate sensors with different active gate") {
@@ -2730,10 +2776,10 @@ TEST_CASE_METHOD(AmsBackendHappyHareTestHelper, "EMU aggregate sensor format",
                                    {"sensors", {{"mmu_pre_gate", false}, {"mmu_gear", true}}}};
         test_parse_mmu_state(mmu_data);
 
-        auto slot2 = get_slot_entry(2);
-        REQUIRE(slot2 != nullptr);
-        REQUIRE(slot2->sensors.has_pre_gate_sensor == true);
-        REQUIRE(slot2->sensors.pre_gate_triggered == false);
+        auto gate2 = get_gate_sensor(2);
+        REQUIRE(gate2 != nullptr);
+        REQUIRE(gate2->has_pre_gate_sensor == true);
+        REQUIRE(gate2->pre_gate_triggered == false);
     }
 }
 

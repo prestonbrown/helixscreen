@@ -1,8 +1,11 @@
 # Print Start Profiles (Developer Guide)
 
-How the modular print start profile system works, how to add profiles for new printers, and full reference for all fields and phases.
+How HelixScreen turns "the printer is preparing a print" into a truthful status line, a progress bar, and an ETA - across firmwares that narrate everything, firmwares that narrate nothing, and firmwares in between: the observer pipeline and its signal sources, the evidence kinds, the full field and phase reference, and how to author a profile for a new printer.
 
-**User-facing doc**: [PRINT_START_INTEGRATION.md](PRINT_START_INTEGRATION.md) - macros, slicer setup, troubleshooting. That is the modder's half of the same system: this guide covers the profile side (what HelixScreen ships and how to extend it), that one covers making a user's existing macros legible to HelixScreen with no profile at all.
+Two sibling docs own the adjacent detail:
+
+- [PRINT_START_INTEGRATION.md](PRINT_START_INTEGRATION.md) - user-facing setup: macros, slicer options, controllable pre-print operations, troubleshooting. That is the modder's half of the same system: this guide covers the profile side (what HelixScreen ships and how to extend it), that one covers making a user's existing macros legible to HelixScreen with no profile at all.
+- [PREPRINT_PREDICTION.md](PREPRINT_PREDICTION.md) - the ETA engine: phase timing, thermal model, weighted history buckets.
 
 ---
 
@@ -27,6 +30,43 @@ assets/config/printer_database.json        assets/config/print_start_profiles/
 ```
 
 The active profile is loaded by `PrintStartProfile::load()` and drives `PrintStartCollector`. Any status objects it declares (`phase_object`, `status_signals`) are subscribed generically during discovery - `PrintStartProfile::required_status_objects()` feeds `MoonrakerDiscoverySequence::build_subscription_objects()` (`src/api/moonraker_discovery_sequence.cpp`), so a profile adding a status dependency needs no C++ change.
+
+### The Pipeline
+
+```
+                     ┌────────────────────────────────────────────────┐
+ arming (when to     │ MoonrakerManager::init_print_start_collector() │
+ listen)             │ + PrintCollectorArming (print_stats edge)      │
+                     └───────────────────────┬────────────────────────┘
+                                             │ start()/stop()
+                                             ▼
+ signal sources ───────────────────▶ PrintStartCollector ──▶ PrinterState subjects
+ (below, all gated                     (phase machine,         (phase, message,
+  on active_)                           probe counters,        remaining, progress)
+                                        position classifier,
+                                        ETA/easing)
+                                             │
+                                             ▼
+                                    print-status panel UI (XML-bound)
+```
+
+The collector is a `shared_ptr` owned by `MoonrakerManager`, recreated on every printer switch.
+
+### Signal Sources
+
+| # | Source | Arrives on | Gate | Effect |
+|---|--------|-----------|------|--------|
+| 1 | `notify_gcode_response` lines | WS thread (client callback) | active + profile patterns | phase transitions, messages; `real_signal_seen_` latches and mutes proactive detection |
+| 2 | `probe at X,Y is z=Z` lines (subset of #1) | WS thread | active, in/pre-mesh | mesh point counting (N/M); buffered until `MESH_PROBE_ENTRY_THRESHOLD` distinct points confirm a sweep, then credited; intercepted BEFORE pattern matching so they can never re-announce BED_MESH and reset the denominator |
+| 3 | bed-mesh presence flap (`bed_mesh.probed_matrix` present→absent) | WS thread (`MoonrakerAPI` bed_mesh callback → `set_bed_mesh_presence_observer`) | active + phase==CLEANING | enters BED_MESH ("Bed Meshing...") + fetches the probe denominator; observer copied under a mutex (weakly-ordered targets read stale-null otherwise) |
+| 4 | toolhead position subjects (`toolhead.position`, already subscribed) | main thread (queued status updates; 3 permanent `ObserverGuard`s) | active + profile `position_signals` | `PrintStartPositionClassifier`: centre Z-descents → "Probing Z...", ≥3-distinct-corner tour → "Checking Bed Mesh...", row march → BED_MESH entry |
+| 5 | heater targets / temps / layers / progress (fallback observers) | main thread (subject observers) | active + `enable_fallbacks()` + NOT `real_signal_seen_` | proactive heating phases, adaptive timeouts, completion fallbacks |
+
+Sources 3 and 4 exist because Creality K1-class firmware forwards nothing to the console for ~3 minutes of Z-probing, corner validation, and mesh sweep - while sources that ARE not console output keep flowing. They only fill silence: a real console marker always outranks them, and their refinements are message-only unless the sweep march promotes BED_MESH (the same edge as the flap, so the two corroborate each other).
+
+### Arming and Windows
+
+`should_start_print_collector()` arms on a STANDBY→PRINTING transition with zero progress AND zero `print_duration` (joining a print mid-job must not raise the pre-print overlay). `PrintStartCollector::note_host_side_pre_start()` declares that the dispatch came from our own pre-start gcode block; the prediction history then re-filters to the host-pre-start bucket so its minutes of extra work never average into printer-edge prints (and vice versa). The user-visible side of the two arming paths - what each covers and when each opens - is in [PRINT_START_INTEGRATION.md](PRINT_START_INTEGRATION.md).
 
 ### The Three Kinds of Evidence
 
@@ -75,6 +115,40 @@ How evidence arbitrates once matched:
 | **`sequential`** | Known firmware with deterministic output | Each signal maps to a specific 0-100% value. Progress jumps directly to that value. Smooth, predictable bar for printers we've profiled. |
 
 ---
+
+## Evidence Rubric
+
+Walk this whole list before writing or changing a profile, a collector rule, or a pre-print
+inference. Console narration is only one source, and a phase that looks unnarrated is often
+plainly visible in another one. For every row, record in the change what the source showed for
+each stretch of the real start, including "nothing".
+
+| Source | Where to read it | What it can settle |
+|--------|------------------|--------------------|
+| The G-code file itself | Moonraker file download, or `GCodeOpsDetector`'s pre-scan in the device log (`Found PRINT_START call at line`, `First extrusion at line`, the operation list) | The exact scripted order when start G-code is inlined (slicer-side start sequences like the U1's): homing, cleaning, mesh, the purge/prime line, with line numbers and byte offsets |
+| File position | `virtual_sdcard.file_position` / `progress` | Which scripted line the printer is executing now, against the pre-scan. The printed file may be HelixScreen's modified copy (`.helix_temp/modified_*`), whose offsets differ from the original |
+| Macro definitions | `configfile.config` (`gcode_macro *`), the vendor's klipper extras | What a `PRINT_START` or vendor macro really does, and in what order, when the file only calls it |
+| Console narration | `server.gcode_store`, the device HelixScreen log (`-vvv`), klippy.log | Firmware/macro lines and action codes, with timestamps |
+| Structured state | `display_status.message`, vendor status objects | Published phase strings (`phase_object`) |
+| Toolhead position | `toolhead.position`, `motion_report.live_position`, `gcode_move` | Probing descents, corner tours, mesh row marches, parking at a purge bucket or cutter, first-layer height |
+| Extrusion | `motion_report.live_extruder_velocity`, E in `live_position` | Purge and prime lines, flow calibration, filament loads: anything that extrudes |
+| Heaters | every heater's `target`, `temperature`, `power` | Heating and soak stretches, reheat before priming, per-tool preheats on a toolchanger |
+| Fans, tools, filament | fan objects, `toolhead.extruder`, AMS/feeder objects | Tool changes, feeds, cooling steps |
+| Print state | `print_stats.state`, `print_duration`, `info.current_layer` | When the printer thinks printing began (often well before layer 1) and the real first-layer edge |
+| Timing | timestamps across all of the above | Silent gaps and how long each stretch really lasts |
+
+Rules that come out of the walk:
+
+- **A declared signal outranks an inference.** When the printer or the file positively
+  identifies a stretch, use that; infer only what no source identifies.
+- **An inference must be checked against every silent gap in a real capture**, not just the one
+  it was written for. A quiet-time or position rule that fits the prime line can fire just as
+  well inside an earlier unnarrated calibration stretch.
+- **Replay tests keep the real timing.** A replay that compresses a two-minute silent gap into
+  one tick proves nothing about a rule that depends on silence or elapsed time. Take the gaps
+  from the capture's timestamps.
+- **No source is also a finding.** Write down which stretches nothing identifies; the bar's
+  weighted progress covers those, and a confident wrong label is worse than a generic one.
 
 ## All Phases
 
@@ -257,7 +331,7 @@ The declared object is subscribed automatically during discovery. Klipper notifi
 
 **The extractor never reads profile JSON.** `scripts/translations/extractor.py` globs `*.cpp`, `*.h` and `*.xml` only, so a message string that exists nowhere but a profile file is not a key in any language pack and ships English in every locale. The generic profile's strings escape this because `make_builtin_default()` spells the same wording in C++ under `lv_tr()`, where the extractor sees it. So: reuse the wording from an existing profile where the phase is the same. That keeps the panel's message from varying by printer for the same event, and it is also what keeps a new profile translated. Wording that genuinely has no precedent has to reach the extractor from a `.cpp`, `.h` or `.xml` file as well, or it stays English.
 
-**Non-console signals.** Two phase signals do not arrive through `notify_gcode_response`: a bed-mesh status clear while CLEANING enters BED_MESH ("Bed Leveling...", denominator fetched then), and `probe at X,Y is z=Z` lines are consumed as mesh points (never re-matched against `response_patterns`, so a BED_MESH pattern cannot re-announce the phase and reset the probe counters mid-sweep). See the "Silent-phase signals" section of [PRINT_START_INTEGRATION.md](PRINT_START_INTEGRATION.md); the full observer map - all five signal sources, threading, and the tests that pin them - is [PRINT_START_OBSERVERS.md](PRINT_START_OBSERVERS.md).
+**Non-console signals.** Two phase signals do not arrive through `notify_gcode_response`: a bed-mesh status clear while CLEANING enters BED_MESH ("Bed Leveling...", denominator fetched then), and `probe at X,Y is z=Z` lines are consumed as mesh points (never re-matched against `response_patterns`, so a BED_MESH pattern cannot re-announce the phase and reset the probe counters mid-sweep). Both are rows in the [Signal Sources](#signal-sources) table above, which also maps the toolhead-position stream and the fallback observers.
 
 ---
 
@@ -294,7 +368,9 @@ Run a print on the target printer and save the full console output - from `START
 ./build/bin/helix-screen -vvv  # TRACE level shows all G-code responses
 ```
 
-Or check Moonraker's console / gcode store, or klipper's `printer.log`. Then read the capture and ask, in this order (strongest evidence first):
+Or check Moonraker's console / gcode store, or klipper's `printer.log`. The console is only one
+of the sources: walk the whole [Evidence Rubric](#evidence-rubric) for the same start, with
+timestamps. Then read the capture and ask, in this order (strongest evidence first):
 
 - Does the firmware or a mod publish a status object carrying state, or does the macro write its progress to `display_status.message` with `SET_DISPLAY_TEXT` / `M117`? (`phase_object` candidate - and on a macro-driven Klipper printer the console will be nearly empty, so check this first)
 - Do the macros print structured state lines? (`signal_formats` candidate)
@@ -523,47 +599,52 @@ Timeouts are deliberately reluctant: active mesh probing suppresses every one bu
 | `tests/unit/test_print_start_collector.cpp` | Integration tests with collector |
 | `tests/unit/test_preprint_predictor.cpp` | Predictor unit tests (weighting, FIFO, edge cases) |
 | `docs/devel/PRINT_START_INTEGRATION.md` | User-facing setup guide |
-| `docs/devel/PRINT_START_OBSERVERS.md` | The whole pre-print observer system: five signal sources, threading, tests |
 
 ---
 
 ## Thread Safety Notes
 
 - `set_profile()` must be called **before** `start()`. It is rejected (with a warning) if the collector is active.
+- The collector is a `shared_ptr` owned by `MoonrakerManager`, recreated on every printer switch. Every background-thread entry point holds it via `weak_ptr` (`s_collector`) and drops out if the collector was replaced.
 - `profile_` is a `shared_ptr` that is read-only after `start()`. No mutex needed for reads.
-- `state_mutex_` protects `detected_phases_`, `current_phase_`, `print_start_detected_`, and `printing_state_start_`. All writes happen under the lock.
+- `state_mutex_` protects `detected_phases_`, `current_phase_`, `print_start_detected_`, and `printing_state_start_`. Console lines, probe lines, and the bed-mesh flap fire on the WS thread; the collector serializes everything through `state_mutex_`. `lv_tr` at that call site is the documented #1219 debt family - follow the existing `note_bed_mesh_presence` shape if you add a sibling.
 - `update_phase()` calls `state_.set_print_start_state()` **outside** the lock (it posts to the UI thread via `ui_queue_update()`).
 - WebSocket callbacks run on a background thread - both `on_gcode_response` and the status-frame handlers (`handle_phase_object_status()`, `handle_status_signals()`) - so a profile match never touches LVGL directly. `check_fallback_completion()` runs on the main thread from the ETA timer.
+- Position and fallback observers fire on the main thread via queued subject sets. Their guards are permanent for the manager's lifetime and early-out on `!active_` before locking - the same shape as the heater-target fallback observers.
+- `MoonrakerManager::shutdown()` RELEASES (not resets) every observer guard: subjects may already be deinitialized at that point (#579 family). Any new guard must be added there.
+- The bed-mesh presence observer is copied under `bed_mesh_presence_mutex_` before invocation - weakly-ordered targets would otherwise read a stale null.
+
+---
+
+## Where the Behavior Is Pinned
+
+| Behavior | Test |
+|----------|------|
+| K1C mesh sweep keeps its denominator (N/25, no sub-phase wipe) | `test_print_start_collector.cpp` - K1C replay fixture |
+| Flap during CLEANING enters Bed Meshing | `test_print_start_collector.cpp` - flap test |
+| ETA re-baselines on heater-target arrival and staged rise | `test_print_start_collector.cpp` - `[eta]` tests |
+| A heating phase completes at its target, not when the chain's marker passes (concurrent-heat firmware) | `test_print_start_collector.cpp` - "Remaining keeps unfinished heating work" |
+| Timeouts wait for both heaters at target (2°C) and count a climbing heater or a status-signal rule as activity (a new high under the current target, not a swing back up); the ceiling ignores temps, heaters and rules but waits out narration; the backstop ignores everything | `test_print_start_collector.cpp` - "Timeout fallback waits for the heaters to reach their targets", "A heater still closing on its target counts as activity", "A heater cycling under its target is not climbing", "A heater sampled during the last print is not climbing on the next", "The ceiling ends a pre-print whose heater never settles", "The ceiling waits for a narrating printer to go quiet", "A printer that never stops narrating ends at the backstop", "The ceiling stretches for a long prediction", "A status-signal rule is not a line the ceiling waits out", "A status-signal rule holds the timeout like a climbing heater" |
+| A pattern's declared hold (a COSMOS heat soak's silent G4) counts as the printer talking until it ends and is left out of the ceiling; its display copy holds once; the backstop leaves out at most one ceiling of held time | `test_print_start_collector.cpp` - "A declared hold counts as the printer talking until it ends", "A declared hold is left out of the time the ceiling measures", "A printer that keeps announcing holds still ends at the backstop", "a long COSMOS heat soak holds the pre-print open"; `test_print_start_profile.cpp` - "a pattern's hold comes from the capture group it names"; `test_print_start_profile_cosmos.cpp` |
+| A database entry's `thermal_rates` replace the bed-size guess (unknown heater names skipped); a timeout completion saves the rates it measured but not its phase timings; homing takes the predictor's floor in both the collector and the print details estimate | `test_thermal_rate_model.cpp` - "ThermalRateManager takes measured rates from the printer database"; `test_printer_detector.cpp` - "pre-print lookups share one entry, and rates name known heaters"; `test_print_start_collector.cpp` - "A timeout completion keeps the heating rates it measured", real COSMOS replay's database-rates section; `test_preprint_predictor.cpp` - "homing estimate never drops below the floor"; `test_print_preparation_manager.cpp` - "estimate takes its homing time from the predictor" |
+| A pre-print saves its whole measured climb as the heating rate, holds between climbs left out | `test_thermal_rate_model.cpp` - "ThermalRateModel leaves a hold between two climbs out of the rate it keeps", "ThermalRateModel keeps the rate of the whole climb, not its last approach"; `test_print_start_collector.cpp` - "a COSMOS pre-print learns the heating rates it took" |
+| A bed mesh with no probing under way gives way to the nozzle heating toward a target set after the mesh began; a recent probe line or an unchanged target keeps the mesh | `test_print_start_collector.cpp` - "A bed mesh with no probing under way gives way to the nozzle heat after it", "a quiet COSMOS park and purge shows the nozzle heating" |
+| A real COSMOS pre-print completes at its skew check, not on a timeout | `test_print_start_collector.cpp` - "real COSMOS pre-print completes at its last step" (replay of the 2026-09-14 CC1 klippy.log) |
+| Entering a phase releases the monotonic anchor (no frozen countdown through a long mesh) | `test_print_start_collector.cpp` - "Entering a phase releases the monotonic countdown anchor" |
+| Sweep-march promotion credits the buffered pre-mesh probes (count matches the physical taps) | `test_print_start_collector.cpp` - "Buffered pre-mesh probes are credited" |
+| Position chain wipe → centre → corners → sweep on real captures | `test_print_start_position_classifier.cpp` (corpus: `tests/fixtures/print_start_position_corpus.json`, extracted from the 2026-08-19 K1C klippy.log capture) |
+| Position → message/phase integration, and the no-flag negative | `test_print_start_collector.cpp` - `[position]` integration tests |
+| K1C first-print ETA defaults from measured durations | `test_printer_detector.cpp` - `print_start_default_phases` |
+| K2 patterns match the real narration; `BED_MESH_CLEAR` deliberately NOT a mesh pattern | `test_print_start_profile_k2.cpp` (captures: 2026-08-18 K2 Plus klippy.log) |
+| A Klipper shutdown or error stops the collector even while print_stats still reports a job (the U1 reports `paused` after a verify_heater shutdown) | `test_moonraker_manager.cpp` - "should_stop_collector_on_klippy_state stops on shutdown and error" (the decision; the observer wiring in `MoonrakerManager::init_print_start_collector` is not constructible in a unit test) |
+| While a heater wait reports (the once-a-second `B:.. /.. T0:.. /..` lines of M109/M190/TEMPERATURE_WAIT) after a real signal, the label shows the heater short of its target, nozzle first, then the bed, then a chamber heater once both are at target (SOAKING, "Heating chamber..."). A phase signal ends the wait; otherwise the first tick after the reports stop restores the displaced phase, message and sequential progress. Stray lines, a heater merely warming behind a phase, and firmware HEATING_* phases are left alone; reports count as activity for the timeouts | `test_print_start_collector.cpp` - `[heater_wait]` tests, including "a bed wait after plate detect shows Heating Bed until it ends", "a wait shows the nozzle while it is short, then the bed", "a long chamber wait holds the pre-print past its deadline", "A phase signal right after a wait's last report keeps its phase", "A chamber wait does not relabel a heating phase the firmware announced", "A heater wait gives a sequential profile's phase, message and progress back", and "real heater waits show the bed heating between firmware phases" (replay of `tests/fixtures/u1_heater_wait_console.txt`, the 2026-09-23 U1 gcode_store) |
+| Whole chain (wiring, observers, collector) against a real capture, no printer | `HELIX_MOCK_REPLAY=<script> --test` (see MOCK_ENVIRONMENT_VARIABLES.md; script from `scripts/extract_mock_replay.py`) |
 
 ---
 
 ## Pre-Print ETA Prediction
 
-The `PreprintPredictor` uses historical timing data from previous prints to estimate how long the remaining preparation will take. It integrates with `PrintStartCollector` and is exposed as subjects on `PrinterPrintState`. This is the summary; the engine is documented in full in [PREPRINT_PREDICTION.md](PREPRINT_PREDICTION.md).
-
-### How It Works
-
-1. **During PRINT_START**, the collector records timestamps when each phase is entered
-2. **On completion**, `save_prediction_entry()` writes one entry to config (`/print_start_history/entries`): the per-phase durations, minus the two heating phases, plus the wall clock of the whole measured window as `total`
-3. **On next print**, the predictor loads the entries matching this print's measurement window and temperature bucket, and averages them with an exponential time decay - weight `exp(0.23 * i)` for entry `i`, oldest first, normalized to sum to 1 - so the newest entry counts most and any entry count works
-4. **Real-time remaining** is computed by the collector rather than the predictor alone: `compute_predicted_weights()` combines the predictor's per-phase shape with the thermal model's heating estimate, and `update_eta_display()` counts the result down every 5 seconds
-
-### Key Design Decisions
-
-- **Pure logic class**: `PreprintPredictor` has no LVGL or Config dependencies, making it fully unit-testable
-- **FIFO with cap**: keeps the newest `MAX_ENTRIES` (10) entries of the bucket it loaded
-- **No total-duration cap**: outliers are rejected per phase by median absolute deviation, so one anomalous probe sequence does not discard the homing data recorded beside it
-- **Phase subset handling**: Redistributes weights when phases appear in only some entries
-- **60-second cache**: `predicted_total_from_config()` caches parsed config to avoid repeated JSON parsing
-
-### Files
-
-| File | Purpose |
-|------|---------|
-| `include/preprint_predictor.h` | Pure prediction logic, weighted averages |
-| `src/print/preprint_predictor.cpp` | Config integration, caching |
-| `tests/unit/test_preprint_predictor.cpp` | Prediction unit tests: weighting, FIFO, window and temp-bucket filtering, remaining-time edge cases |
-| `include/printer_print_state.h` | Exposes `preprint_remaining_` and `preprint_elapsed_` subjects |
+The ETA during preparation - `PreprintPredictor` history buckets, the thermal model, weighted averaging, and the live countdown - is documented in full in [PREPRINT_PREDICTION.md](PREPRINT_PREDICTION.md).
 
 ---
 

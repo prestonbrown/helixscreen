@@ -118,7 +118,7 @@ passes the window the collector is currently measuring
 before the temp-bucket logic runs), because mixing the populations produces an
 estimate wrong for both and feeds a too-small predicted total into the
 collector's adaptive timeout. The arming paths are documented in
-[PRINT_START_INTEGRATION.md](PRINT_START_INTEGRATION.md).
+[PRINT_START_PROFILES.md](PRINT_START_PROFILES.md) ("Arming and Windows").
 
 Legacy entries recorded before window tagging existed (`window` absent on disk,
 read back as `Unknown`) count as `PrinterEdge` - not as a wildcard. Commit
@@ -311,9 +311,11 @@ whose narration the profile never matches accumulates no history.
 `ThermalRateModel` estimates for the two heating phases, `predicted_phases()` for the rest,
 normalized into `predicted_phase_weights_` as fractions summing to 1.0. The absolute total is
 `predictor_.predicted_total()` when history exists and the composite sum when it does not.
-Weights are recomputed when a heater target first appears or rises substantially, because a
+Weights are recomputed when a heater target first appears or rises by 15°C or more
+(`TARGET_RISE_RECOMPUTE_DEGREES`) - not merely when time passes - because a
 bed-first macro issues its `M109` long after preparation begins and the nozzle phase carries
-no weight until it does.
+no weight until it does, and a provisional 0°C-targets estimate must not freeze the display
+when the real one arrives a second later.
 
 The live countdown is the collector's, not the predictor's: `PrintStartCollector#update_eta_display`. The predictor supplies the historical shape (per-phase weights and a wall-clock total); the collector is what turns that into a number on screen, because three of the four inputs are live printer state the predictor never sees.
 

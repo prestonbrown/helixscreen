@@ -2821,6 +2821,7 @@ translations:
     Kaarlonen
   Spaghetti Detection: Spaghetti Detection
   Spaghetti detected: Spaghetti detected
+  Spaghetti detected (%d%%): Spaghetti detected (%d%%)
   Spaghetti detected — print paused: Spaghetti detected — print paused
   Speaker: Speaker
   Speed: Speed
@@ -3275,8 +3276,8 @@ translations:
   Unavailable: Unavailable
   Unavailable on this printer: Unavailable on this printer
   Understanding Results: Understanding Results
-  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
-  : "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
+  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nPluck each belt by hand and this tool listens through the accelerometer to measure the belt's frequency. Matched frequencies mean balanced tension.\n\nOn CoreXY, belts A and B should be within a few Hz of each other."
+  : "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nPluck each belt by hand and this tool listens through the accelerometer to measure the belt's frequency. Matched frequencies mean balanced tension.\n\nOn CoreXY, belts A and B should be within a few Hz of each other."
   Uninstall: Uninstall
   Uninstall HelixPrint Plugin: Uninstall HelixPrint Plugin
   Uninstall HelixPrint Plugin?: Uninstall HelixPrint Plugin?

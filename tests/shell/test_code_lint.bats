@@ -616,6 +616,22 @@ EOF
   [[ "$output" == *"^src/"* ]]
 }
 
+@test "the coverage gate fails on empty locale values via CI's pytest" {
+  # The dry run proves a KEY exists; `make translation-sync` writes a new key
+  # as an EMPTY placeholder, and an empty value renders as empty text in that
+  # locale (the English-tag fallback only fires on a MISSING key). The gate
+  # must run the same scan CI's Code Quality job runs -
+  # tests/python/test_cpp_translation_coverage.py - so a tree the hook passes
+  # cannot fail CI on the same rule.
+  if [ ! -x .venv/bin/python ]; then
+    skip "translations venv not set up (run 'make venv-setup')"
+  fi
+  run bash -c "sed -n '/^qc_translation_coverage() {/,/^}/p' scripts/quality-checks.sh"
+  [ "$status" -eq 0 ]
+  contains "tests/python/test_cpp_translation_coverage.py" "$output"
+  contains "-m pytest" "$output"
+}
+
 # A missing .venv used to turn this gate into a warning in every mode. The full
 # sweep is what pre-push and CI run, and a fresh clone (a cloud session, a new
 # box) has no .venv until someone runs `make venv-setup`, so the last gate before

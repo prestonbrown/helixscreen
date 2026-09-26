@@ -354,7 +354,8 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
     }
 
     int new_active = topo.active_tool;
-    if (new_active < 0 || new_active >= static_cast<int>(tools_.size())) {
+    const bool empty_carriage = topo.allows_empty_carriage && new_active == -1;
+    if (!empty_carriage && (new_active < 0 || new_active >= static_cast<int>(tools_.size()))) {
         new_active = 0; // Out-of-range falls back to T0 (matches init_tools convention)
     }
     if (new_active != active_tool_index_) {

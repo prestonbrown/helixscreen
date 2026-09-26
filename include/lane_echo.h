@@ -61,6 +61,13 @@ class OwnWriteEchoes {
     ///         only the edit it belongs to.
     std::uint64_t stage(int slot_index, Observation declared);
 
+    /// The stamp of the slot's current staging, armed or not: 0 when the slot
+    /// holds none. A caller that cannot see stage()'s return (a commit funnel
+    /// around the backend's own apply) captures this before the dispatch and
+    /// answers it to the matched abandon(), so a refusal cancels only the
+    /// staging the refused edit created.
+    [[nodiscard]] std::uint64_t staged_sequence(int slot_index) const;
+
     /// The staged declaration, for the caller to prune down to the fields its
     /// write actually carried and to relocate any field its read path spells
     /// under a different name. nullptr when nothing is staged.
@@ -114,6 +121,17 @@ class OwnWriteEchoes {
     /// the predecessor's went out and firmware is still repeating it.
     void abandon(int slot_index, std::uint64_t staged_sequence);
 
+    /// The matched, partial form: the failure answer of ONE command of the
+    /// staging @p staged_sequence, whose write carried the fields @p fields
+    /// holds values in. No echo of those is coming, so their declarations
+    /// come off - replaced by the suspended predecessor's for the same
+    /// fields, because firmware still holds whatever the predecessor's write
+    /// put there and keeps repeating it. The staging's other fields stay
+    /// armed: their commands went out, and their echoes are owed the guard a
+    /// whole abandon() would drop. A staging left declaring nothing
+    /// suppressible falls back to the matched abandon().
+    void abandon_fields(int slot_index, std::uint64_t staged_sequence, const Observation& fields);
+
     /// Remove from @p producer_record every field whose value repeats this
     /// slot's armed declaration, and return how many were removed. The count
     /// is the only handle a consumer has on the difference between a field
@@ -151,6 +169,16 @@ class OwnWriteEchoes {
     /// filing it would put the abandoned edit back as the machine's word one
     /// frame after the echo was withheld.
     int strip_standing(int slot_index, Observation& producer_record) const;
+
+    /// Whether an armed declaration stands on @p slot_index: a write of ours
+    /// firmware may still echo. A record read while one stands cannot be
+    /// judged the newest statement on its lane - our own write is the newest
+    /// thing that happened to the lane, and the record is either that write's
+    /// echo or something older - so a caller deciding newest-edit-wins must
+    /// decline while this is true and let the strip alone decide what files.
+    /// An unarmed staging suppresses nothing and its write never went out,
+    /// so it does not count.
+    [[nodiscard]] bool standing(int slot_index) const;
 
   private:
     struct Entry {

@@ -3136,7 +3136,7 @@ void PrintSelectPanel::on_preflight_remap() {
 //
 // The per-backend difference is ONLY in how the chosen mapping is applied — see
 // apply_remap(), dispatched on RemapStrategy. Print-start is likewise already
-// strategy-dispatched (PrintStartController), so Native and SnapmakerNative both
+// strategy-dispatched (PrintStartController), so Native and PrePrintSend both
 // read the same shared card store and need no special opener.
 void PrintSelectPanel::show_remap_help() {
     if (detail_view_) {
@@ -3211,11 +3211,12 @@ void PrintSelectPanel::apply_remap(const std::vector<helix::ToolMapping>& update
 
     switch (backend->get_remap_strategy()) {
     case AmsBackend::RemapStrategy::GcodeRewrite: {
-        // Generic fallback (no backend ships it yet; ACE once ACE_CHANGE_TOOL
-        // lands): rewrite the Tx / ACTIVATE_EXTRUDER / SET_GCODE_VARIABLE lines in
-        // the gcode and print the modified copy via the HelixPrint plugin (history
+        // Rewrite the Tx / ACTIVATE_EXTRUDER / SET_GCODE_VARIABLE lines in the
+        // gcode and print the modified copy via the HelixPrint plugin (history
         // stays under the original filename). Plugin presence was already guarded
-        // in open_remap_modal().
+        // in open_remap_modal(). Taken by a tool changer driving swaps with its
+        // own T<n> macros rather than klipper-toolchanger; ACE will take it once
+        // its ACE_CHANGE_TOOL family lands, until then ACE stays None.
         std::map<int, int> remap;
         for (const auto& m : updated) {
             if (m.tool_index < 0 || m.mapped_slot < 0) {
@@ -3246,7 +3247,7 @@ void PrintSelectPanel::apply_remap(const std::vector<helix::ToolMapping>& update
         break;
     }
 
-    case AmsBackend::RemapStrategy::SnapmakerNative: {
+    case AmsBackend::RemapStrategy::PrePrintSend: {
         // Snapmaker U1: log each non-identity choice for on-device confirmation,
         // then push the full vector into the shared card store. The backend send
         // (SET_PRINT_EXTRUDER_MAP via build_preprint_gcode) happens at print-start

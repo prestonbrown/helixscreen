@@ -10,10 +10,13 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <arpa/inet.h>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <netinet/in.h>
+#include <optional>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -58,6 +61,101 @@ std::string make_gcode_header(const std::vector<uint8_t>& png) {
     out += "; thumbnail end\n";
     out += ";FLAVOR:Marlin\n;Generated with MockHttpFileServer\nG28\n";
     return out;
+}
+
+/// HELIX_MOCK_RANGE_IGNORE=1 - drop the Range header from every request so
+/// libhv answers 200 with the whole body instead of slicing a 206: the
+/// behaviour of server forks that never implemented byte ranges.
+static bool range_ignore_enabled() {
+    static const bool enabled = [] {
+        const char* v = std::getenv("HELIX_MOCK_RANGE_IGNORE");
+        return v && v[0] && std::string(v) != "0";
+    }();
+    return enabled;
+}
+
+/// Strictly parse the unsigned decimal spanning s[from, to). An empty span or
+/// any non-digit is malformed: "bytes=abc-def" must be ignored as a whole, not
+/// clamped to a 1-byte 206 at offset 0.
+std::optional<size_t> parse_range_num(const std::string& s, size_t from, size_t to) {
+    if (from >= to) {
+        return std::nullopt;
+    }
+    size_t v = 0;
+    for (size_t i = from; i < to; i++) {
+        if (s[i] < '0' || s[i] > '9') {
+            return std::nullopt;
+        }
+        v = v * 10 + static_cast<size_t>(s[i] - '0');
+    }
+    return v;
+}
+
+/// Slice a body per a "bytes=a-b" / "bytes=-n" Range header and mark the
+/// response 206, the way a range-supporting Moonraker answers. libhv does not
+/// do this for a handler-set body, so the server must honour the header
+/// itself; HELIX_MOCK_RANGE_IGNORE skips this to emulate a server that never
+/// implemented ranges (200, whole file). A malformed header (non-numeric
+/// bounds, an inverted span) is ignored the same way - 200, whole body - while
+/// valid syntax that selects no bytes ("bytes=-0", a start past the body)
+/// answers 416 naming the full size in Content-Range.
+void apply_range(HttpRequest* req, HttpResponse* resp) {
+    std::string range = req->GetHeader("Range");
+    if (range.rfind("bytes=", 0) != 0 || resp->body.empty()) {
+        return;
+    }
+    const size_t size = resp->body.size();
+    size_t dash = range.find('-', 6);
+    if (dash == std::string::npos) {
+        return;
+    }
+
+    auto unsatisfiable = [&] {
+        resp->status_code = HTTP_STATUS_RANGE_NOT_SATISFIABLE;
+        resp->SetHeader("Content-Range", "bytes */" + std::to_string(size));
+        resp->body.clear();
+    };
+
+    size_t start = 0;
+    size_t end = 0;
+    if (dash == 6) { // suffix form: the last N bytes
+        auto n = parse_range_num(range, 7, range.size());
+        if (!n) {
+            return;
+        }
+        if (*n == 0) {
+            unsatisfiable();
+            return;
+        }
+        const size_t take = std::min(*n, size);
+        start = size - take;
+        end = size - 1;
+    } else {
+        auto first = parse_range_num(range, 6, dash);
+        const bool last_explicit = dash + 1 < range.size();
+        auto last = last_explicit ? parse_range_num(range, dash + 1, range.size())
+                                  : std::optional<size_t>(size - 1);
+        if (!first || !last) {
+            return;
+        }
+        // Only an explicitly inverted span is invalid syntax; an open-ended
+        // range has no end to invert, and a start past the body is valid
+        // syntax that selects nothing.
+        if (last_explicit && *first > *last) {
+            return;
+        }
+        if (*first >= size) {
+            unsatisfiable();
+            return;
+        }
+        start = *first;
+        end = std::min(*last, size - 1);
+    }
+
+    resp->status_code = HTTP_STATUS_PARTIAL_CONTENT;
+    resp->SetHeader("Content-Range", "bytes " + std::to_string(start) + "-" + std::to_string(end) +
+                                         "/" + std::to_string(size));
+    resp->body = resp->body.substr(start, end - start + 1);
 }
 
 bool ends_with(const std::string& s, const std::string& suffix) {
@@ -135,23 +233,51 @@ bool MockHttpFileServer::start() {
     const std::string& gcode = impl_->gcode_header;
     impl_->router.GET(
         "/server/files/gcodes/*", [&png, &gcode](HttpRequest* req, HttpResponse* resp) {
+            if (range_ignore_enabled()) {
+                req->headers.erase("Range");
+            }
             const std::string& path = req->path;
             if (ends_with(path, ".png")) {
                 resp->content_type = APPLICATION_OCTET_STREAM;
                 resp->body.assign(reinterpret_cast<const char*>(png.data()), png.size());
-                spdlog::debug("[MockHttpFileServer] 200 {} ({} bytes, png)", path, png.size());
-                return 200;
+                apply_range(req, resp);
+                spdlog::debug("[MockHttpFileServer] {} {} ({} bytes, png)",
+                              static_cast<int>(resp->status_code), path, resp->body.size());
+                return static_cast<int>(resp->status_code);
             }
             if (ends_with(path, ".gcode")) {
-                // download_file_partial() asks for a byte range; libhv answers the
-                // Range itself when the body is set, and a caller that asked for
-                // the first 100 KB of a shorter body simply gets the whole thing —
-                // which is what a real short gcode file does too.
+                // HELIX_MOCK_GCODE_SERVE=<path> - serve a real file's bytes (any
+                // size) instead of the tiny synthesised header. Reproduces the
+                // big-file flows end to end: the whole-file preview download and
+                // the byte-range reads the tail/footer scanners issue. libhv
+                // slices the Range out of the body either way.
+                static const std::string serve_file = [] {
+                    const char* v = std::getenv("HELIX_MOCK_GCODE_SERVE");
+                    return v ? std::string(v) : std::string();
+                }();
+                if (!serve_file.empty()) {
+                    std::ifstream f(serve_file, std::ios::binary);
+                    if (f) {
+                        resp->content_type = TEXT_PLAIN;
+                        resp->body.assign((std::istreambuf_iterator<char>(f)),
+                                          std::istreambuf_iterator<char>());
+                        apply_range(req, resp);
+                        spdlog::debug("[MockHttpFileServer] {} {} ({} bytes, from {})",
+                                      static_cast<int>(resp->status_code), path, resp->body.size(),
+                                      serve_file);
+                        return static_cast<int>(resp->status_code);
+                    }
+                    spdlog::warn("[MockHttpFileServer] HELIX_MOCK_GCODE_SERVE file unreadable: {}",
+                                 serve_file);
+                }
+                // A synthesized header shorter than a requested range slices to
+                // whatever exists, the same way a real short gcode file answers.
                 resp->content_type = TEXT_PLAIN;
                 resp->body = gcode;
-                spdlog::debug("[MockHttpFileServer] 200 {} ({} bytes, gcode header)", path,
-                              gcode.size());
-                return 200;
+                apply_range(req, resp);
+                spdlog::debug("[MockHttpFileServer] {} {} ({} bytes, gcode header)",
+                              static_cast<int>(resp->status_code), path, resp->body.size());
+                return static_cast<int>(resp->status_code);
             }
             spdlog::debug("[MockHttpFileServer] 404 {}", path);
             return 404;

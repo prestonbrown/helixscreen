@@ -381,7 +381,12 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
     // after. apply_user_edit() records the stored authorship from this same
     // answer rather than diffing its own read of the slot, which a frame
     // landing while the editor was open has already moved.
-    const helix::ams::Observation declaration = helix::ams::user_edit_observation(original, info);
+    helix::ams::Observation declaration = helix::ams::user_edit_observation(original, info);
+    if (firmware_stores_color_and_material(slot_index)) {
+        declaration.color_rgb.reset();
+        declaration.color_name.reset();
+        declaration.material.reset();
+    }
     const bool binding_changed = original.spoolman_id != info.spoolman_id;
 
     // An edit that keeps a spool cannot move what the spool states about
@@ -399,10 +404,26 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
         applied.product_name.clear();
     }
 
+    // The slot's staging stamp before the dispatch: a backend that stages its
+    // echo guard inside apply_user_edit() moves it, and a refusal must cancel
+    // that staging without erasing the armed guard of an earlier edit whose
+    // write did go out.
+    const std::uint64_t echo_sequence = own_write_echo_sequence(slot_index);
     AmsError err = apply_user_edit(slot_index, applied, declaration);
     // A partly applied edit still changed what it applied: a binding that
     // reached firmware is bound whatever the call says about the rest.
     if (!err.success() && !err.partially_applied) {
+        // The dispatch refused the edit, so firmware holds nothing it could
+        // echo back. A backend that had staged its guard by then would
+        // withhold the next genuine reading as its own failed write, so the
+        // refusal cancels it here rather than in each backend's failure path.
+        // Matched to the staging this refusal created: an unmoved stamp means
+        // this edit staged nothing, and the cancel restores rather than erases
+        // any armed predecessor the staging suspended.
+        const std::uint64_t refused_sequence = own_write_echo_sequence(slot_index);
+        if (refused_sequence != 0 && refused_sequence != echo_sequence) {
+            abandon_own_write_echoes(slot_index, refused_sequence);
+        }
         return err;
     }
 
@@ -581,6 +602,15 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
         ams_type = to_lower(mock_ams_env);
     }
 
+    // No explicit topology: let the printer persona choose one. A Creator 5 Pro
+    // is a 4-head tool changer, so the generic Happy Hare default would
+    // misrepresent it. MoonrakerClientMock owns the rule so this and
+    // is_mock_toolchanger() cannot disagree about what the mock is presenting.
+    if (ams_type.empty() && MoonrakerClientMock::mock_toolchanger_selected()) {
+        ams_type = "toolchanger";
+        spdlog::info("[AMS Backend] Persona implies a tool changer (no HELIX_MOCK_AMS set)");
+    }
+
     if (!ams_type.empty()) {
         if (ams_type == "afc" || ams_type == "box_turtle" || ams_type == "boxturtle") {
             mock->set_afc_mode(true);
@@ -723,6 +753,14 @@ static std::unique_ptr<AmsBackend> try_create_mock(IMoonrakerClient* mock_client
                          mode);
             return nullptr;
         }
+    }
+    // Personas that model firmware HelixScreen talks to through a production
+    // backend are mock hardware too: decline, and real discovery builds that
+    // backend against the mock's objects.
+    if (!mock_ams_env && MoonrakerClientMock::mock_hardware_persona()) {
+        spdlog::info("[AMS Backend] Mock printer persona is mock hardware - deferring to real "
+                     "discovery");
+        return nullptr;
     }
 
     spdlog::debug("[AMS Backend] Creating mock backend with {} gates (mock mode enabled)",

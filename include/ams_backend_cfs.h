@@ -8,6 +8,8 @@
 #include "async_lifetime_guard.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "lane_binding.h"
+#include "lane_echo.h"
 
 #include <atomic>
 #include <map>
@@ -395,6 +397,13 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// Flat (`slots[]`) parse — community Kalico box.py reimplementations.
     static AmsSystemInfo parse_flat_box_status(const nlohmann::json& box_json);
 
+    /// Fold a persisted flat-schema fingerprint with exactly three pipes
+    /// (material|brand|product|colour, the legacy four-field composite) onto
+    /// the current two-field shape, so an upgrade does not read every stored
+    /// spool as a swap at its first poll. Fewer or more pipes is already
+    /// current or a value no build of ours wrote, and is left as found.
+    static std::string normalize_legacy_flat_fingerprint(const std::string& stored);
+
     /// True when this `box` payload comes from the community box.py, i.e. the
     /// firmware speaks CfsMacroVariant::Fork.
     ///
@@ -608,7 +617,16 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// the gcode without a live Moonraker connection.
     virtual void push_slot_identity_to_firmware(int global_index, const std::string& material,
                                                 const std::string& brand,
-                                                const std::string& catalog_id, uint32_t color_rgb);
+                                                const std::string& catalog_id, uint32_t color_rgb,
+                                                const helix::ams::Observation* declared = nullptr);
+
+    /// Both CFS write paths (BOX_MODIFY_TN_DATA, the fork's _BOX_SLOT_SET)
+    /// are republished by firmware through the same material_type /
+    /// color_value fields a real RFID read uses, so this backend's parses
+    /// filter their own writes through this guard.
+    [[nodiscard]] helix::ams::OwnWriteEchoes* own_write_echoes() override {
+        return &own_write_echoes_;
+    }
 
   private:
     friend class helix::CfsTestAccess;
@@ -872,6 +890,55 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     // expected fingerprints for an identity push we issued. Shared with the
     // other RFID-fingerprint backend (Snapmaker). All access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
+
+    // What the user declared in an edit of each bay, staged against the
+    // write so this backend does not file its own write-back echo as the
+    // box's RFID reading. The suppression ends when the user disowns the
+    // write (Clear Spool) or the fingerprint's own swap detection fires.
+    // All access under mutex_.
+    helix::ams::OwnWriteEchoes own_write_echoes_;
+
+    // Insert-edge bookkeeping for docs/specs/filament_slots.md §6: the last
+    // presence this backend derived for each bay, and the tag evidence it
+    // last read there. All access under mutex_.
+    std::unordered_map<int, bool> bay_present_;
+    std::unordered_map<int, helix::ams::SpoolEvidence> bay_evidence_;
+
+    // A stock-schema insert whose RFID probe has not answered yet. The stock
+    // arrays latch the pulled spool's colour and material, so the edge frame
+    // restates them and says nothing about the new spool; the probe's answer
+    // is the first later frame stating something DIFFERENT from what the
+    // edge captured. All access under mutex_.
+    struct PendingInsert {
+        // The reading to compare the answer against (the pulled spool's).
+        std::optional<helix::ams::SpoolEvidence> before;
+        // The latched statement the edge frame made, raw: change from it is
+        // the probe answering, whatever the values are.
+        std::string edge_material;
+        std::optional<uint32_t> edge_color;
+        // Edge-following frames that restated the edge values unchanged.
+        int quiet_frames = 0;
+    };
+    std::unordered_map<int, PendingInsert> pending_inserts_;
+
+    // Frames an insert may wait for the probe's answer before the reader is
+    // taken to have none. The probe fires on the first idle poll after the
+    // edge, so this only bounds the wait, it does not race it.
+    static constexpr int kInsertProbeWaitFrames = 3;
+
+    // Feeds one frame's occupancy for a bay through the insert rule. On the
+    // flat schema the edge is judged at once; on the stock schema it opens a
+    // pending insert judged by the probe's answering frame. Returns true when
+    // the override was cleared. Caller must hold mutex_.
+    bool note_insert_edge_locked(SlotInfo& slot, int slot_index);
+
+    // Applies one classified insert verdict: a different spool drops what
+    // described the old one through the Clear Spool funnel, no evidence keeps
+    // everything and asks the user, the same spool keeps everything silently.
+    // Returns true when the override was cleared. Caller must hold mutex_.
+    bool judge_insert_locked(SlotInfo& slot, int slot_index,
+                             const std::optional<helix::ams::SpoolEvidence>& before,
+                             const helix::ams::SpoolEvidence& after);
 
     /// material_type codes THIS app wrote to a bay via
     /// push_slot_identity_to_firmware, keyed by global slot index.

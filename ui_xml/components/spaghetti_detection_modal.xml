@@ -19,24 +19,30 @@
       <!-- Camera frame preview. Image source is fed from C++ on_show() when a
            frame is available; otherwise it stays empty. -->
       <lv_image name="detection_preview" align="center"/>
-      <!-- Detection message text. Set from C++ on_show(). -->
-      <text_body name="detection_text" width="100%" long_mode="wrap" style_text_align="center"/>
+      <!-- Detection message text, published on spaghetti_message by on_show(). -->
+      <text_body name="detection_text"
+                 width="100%" long_mode="wrap" style_text_align="center" bind_text="spaghetti_message"/>
     </lv_obj>
 
     <!-- Divider above the button row -->
     <divider_horizontal/>
 
     <!-- Button row: Resume (primary), Abort (secondary/danger), Reduce Sensitivity
-         (tertiary, hidden when the source cannot tune), Turn off detection (quaternary).
+         (tertiary, hidden via spaghetti_tune_available when the source cannot tune),
+         Turn off detection (quaternary).
          Wired programmatically; no XML callbacks to avoid double-wiring. -->
     <lv_obj width="100%" height="#button_height" style_pad_all="0" style_pad_gap="0" flex_flow="row">
       <ui_button name="btn_secondary"
                  height="100%" flex_grow="1" style_radius="0" style_border_width="0" variant="danger" text="Abort"
                  translation_tag="Abort"/>
-      <divider_vertical name="divider_tune"/>
+      <divider_vertical name="divider_tune">
+        <bind_flag_if_eq subject="spaghetti_tune_available" flag="hidden" ref_value="0"/>
+      </divider_vertical>
       <ui_button name="btn_tertiary"
                  height="100%" flex_grow="1" style_radius="0" style_border_width="0" text="Reduce Sensitivity"
-                 translation_tag="Reduce Sensitivity"/>
+                 translation_tag="Reduce Sensitivity">
+        <bind_flag_if_eq subject="spaghetti_tune_available" flag="hidden" ref_value="0"/>
+      </ui_button>
       <divider_vertical/>
       <ui_button name="btn_quaternary"
                  height="100%" flex_grow="1" style_radius="0" style_border_width="0" text="Turn off detection"

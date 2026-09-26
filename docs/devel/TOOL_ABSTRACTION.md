@@ -178,6 +178,20 @@ ToolInfo {
 
 Updates `active_tool_index_` and the `active_tool` subject.
 
+### The Empty Carriage
+
+Whether `-1` is a real active-tool value depends on the topology. When an AMS
+backend owns the tool list, `build_ams_topology()`
+(`src/printer/ams_state.cpp#build_ams_topology`) fills
+`ToolTopology::allows_empty_carriage` from `AmsBackend::load_mounts_tool()`
+(`include/ams_backend.h#load_mounts_tool`): true where selecting a slot physically
+mounts a tool, so the carriage can also hold nothing, as on a tool changer like
+the FlashForge Creator 5. `ToolState::set_ams_topology()`
+(`src/printer/tool_state.cpp#set_ams_topology`) then publishes `active_tool` = -1
+and the UI shows no head as active. Lane-based systems (AFC, AMS) leave the flag
+false and keep the fallback: an out-of-range report maps to T0, because a lane
+feeder always has a tool behind it.
+
 ### Per-Tool Objects
 
 Each tool's status is keyed as `"tool <name>"`:
@@ -245,7 +259,7 @@ This allows a tool changer where T0 feeds from an AFC (backend 0) and T1 feeds f
 
 | Subject Name | Type | Description |
 |--------------|------|-------------|
-| `active_tool` | int | Index of the currently active tool |
+| `active_tool` | int | Index of the currently active tool; -1 = empty carriage (tool changer topologies only, see [The Empty Carriage](#the-empty-carriage)) |
 | `tool_count` | int | Total number of tools |
 | `tools_version` | int | Monotonically increasing counter, bumped on any tool data change |
 

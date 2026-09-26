@@ -55,7 +55,7 @@
   <translation tag="1 event queued" zh="1 个事件排队中"/>
   <translation tag="1 hour ago" zh="1小时前"/>
   <translation tag="1 layer" zh="1 层"/>
-  <translation tag="1 line in helixscreen.env was ignored"/>
+  <translation tag="1 line in helixscreen.env was ignored" zh="helixscreen.env 中有 1 行被忽略"/>
   <translation tag="1 min" zh="1分钟"/>
   <translation tag="1 min ago" zh="1分钟前"/>
   <translation tag="1 minute" zh="1 分钟"/>
@@ -224,7 +224,7 @@
   <translation tag="Assign a role to enable sensor monitoring" zh="分配角色以启用传感器监控"/>
   <translation tag="Assisted Retract" zh="辅助回抽"/>
   <translation tag="Assisting" zh="辅助中"/>
-  <translation tag="At least {} lines in helixscreen.env were ignored"/>
+  <translation tag="At least {} lines in helixscreen.env were ignored" zh="helixscreen.env 中至少有 {} 行被忽略"/>
   <translation tag="Authentication failed" zh="认证失败"/>
   <translation tag="Auto" zh="自动"/>
   <translation tag="Auto Bed Mesh" zh="自动热床网格"/>
@@ -1172,8 +1172,8 @@
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" zh="固件报告未配置旁路。如果您将耗材直接送入挤出机，请启用此选项"/>
   <translation tag="Firmware restarting..." zh="固件重启中..."/>
   <translation tag="Firmware saved X = Y&apos;s value; the measured X result was discarded" zh="固件将 X 轴保存为 Y 轴的值；实测的 X 轴结果已被丢弃"/>
-  <translation tag="Fix: chmod 644 {}, then restart"/>
-  <translation tag="Fix: chown {} {}, then restart"/>
+  <translation tag="Fix: chmod 644 {}, then restart" zh="修复：chmod 644 {}，然后重启"/>
+  <translation tag="Fix: chown {} {}, then restart" zh="修复：chown {} {}，然后重启"/>
   <translation tag="FlashForge Adventurer 5M" zh="FlashForge Adventurer 5M"/>
   <translation tag="FlashForge Adventurer 5X" zh="FlashForge Adventurer 5X"/>
   <translation tag="FlashForge IFS" zh="FlashForge IFS"/>
@@ -2466,7 +2466,7 @@
   <translation tag="Security" zh="安全"/>
   <translation tag="Security, network, host, and administration" zh="安全、网络、主机和管理"/>
   <translation tag="See exactly what data will be sent" zh="查看将发送的确切数据"/>
-  <translation tag="See the log"/>
+  <translation tag="See the log" zh="请查看日志"/>
   <translation tag="See the quick tour of HelixScreen again" zh="再次查看 HelixScreen 的快速漫游"/>
   <translation tag="Select" zh="选择"/>
   <translation tag="Select &apos;None&apos; if you don&apos;t have a filament sensor, or if you don&apos;t want to pause on runout." zh="如果您没有耗材传感器，或不想在断料时暂停，请选择「无」。"/>
@@ -2602,6 +2602,7 @@
   <translation tag="Space Debris mod by Markus &apos;Captain&apos; Kaarlonen" zh="Space Debris mod by Markus &apos;Captain&apos; Kaarlonen"/>
   <translation tag="Spaghetti Detection" zh="拉丝故障检测"/>
   <translation tag="Spaghetti detected" zh="检测到拉丝故障"/>
+  <translation tag="Spaghetti detected (%d%%)" zh="检测到拉丝故障（%d%%）"/>
   <translation tag="Spaghetti detected — print paused" zh="检测到拉丝故障 — 打印已暂停"/>
   <translation tag="Speaker" zh="扬声器"/>
   <translation tag="Speed" zh="速度"/>
@@ -2986,7 +2987,7 @@
   <translation tag="Unavailable" zh="不可用"/>
   <translation tag="Unavailable on this printer" zh="此打印机上不可用"/>
   <translation tag="Understanding Results" zh="了解结果"/>
-  <translation tag="Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.&#10;&#10;This tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.&#10;&#10;For CoreXY, Path A and B should be within a few Hz of each other." zh="皮带张力不均会导致层错位、VFA(垂直细纹)和振纹等打印瑕疵。&#10;&#10;此工具会振动每条皮带路径并测量共振频率 — 频率匹配意味着张力均衡。&#10;&#10;对于 CoreXY,路径 A 与 B 应相差在几 Hz 以内。"/>
+  <translation tag="Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.&#10;&#10;Pluck each belt by hand and this tool listens through the accelerometer to measure the belt&apos;s frequency. Matched frequencies mean balanced tension.&#10;&#10;On CoreXY, belts A and B should be within a few Hz of each other." zh="皮带张力不均会导致层错位、VFA(垂直细纹)和振纹等打印瑕疵。&#10;&#10;用手拨动每条皮带，此工具会通过加速度传感器测量皮带的频率。频率匹配意味着张力均衡。&#10;&#10;对于 CoreXY,皮带 A 与 B 应相差在几 Hz 以内。"/>
   <translation tag="Uninstall" zh="卸载"/>
   <translation tag="Uninstall HelixPrint Plugin" zh="卸载 HelixPrint 插件"/>
   <translation tag="Uninstall HelixPrint Plugin?" zh="卸载 HelixPrint 插件？"/>
@@ -3233,10 +3234,10 @@
   <translation tag="feeder not in automatic mode" zh="送料器未处于自动模式"/>
   <translation tag="filament sensor disabled" zh="耗材传感器已禁用"/>
   <translation tag="heated bed" zh="热床"/>
-  <translation tag="helixscreen.env ignored: owned by uid {}"/>
-  <translation tag="helixscreen.env ignored: untrusted symlink chain"/>
-  <translation tag="helixscreen.env ignored: writable by other users"/>
-  <translation tag="helixscreen.env ignored: {}"/>
+  <translation tag="helixscreen.env ignored: owned by uid {}" zh="已忽略 helixscreen.env：属主为 uid {}"/>
+  <translation tag="helixscreen.env ignored: untrusted symlink chain" zh="已忽略 helixscreen.env：符号链接链不受信任"/>
+  <translation tag="helixscreen.env ignored: writable by other users" zh="已忽略 helixscreen.env：其他用户可写入"/>
+  <translation tag="helixscreen.env ignored: {}" zh="已忽略 helixscreen.env：{}"/>
   <translation tag="idle" zh="空闲"/>
   <translation tag="in unit {} slot {}" zh="在单元 {} 槽位 {}"/>
   <translation tag="layers" zh="层"/>
@@ -3288,7 +3289,7 @@
   <translation tag="{} is installed but its backup-spool switching is turned off, so no automatic swap will happen." zh="{} 已安装，但其备用料盘切换已关闭，因此不会自动切换。"/>
   <translation tag="{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap." zh="{} 已安装，但无法读取其备用料盘设置 - 请勿指望自动切换。"/>
   <translation tag="{} is not set up on this printer" zh="{} 未在此打印机上设置"/>
-  <translation tag="{} lines in helixscreen.env were ignored"/>
+  <translation tag="{} lines in helixscreen.env were ignored" zh="helixscreen.env 中有 {} 行被忽略"/>
   <translation tag="{} macro not configured" zh="{} 宏未配置"/>
   <translation tag="{} matches." zh="{} 匹配。"/>
   <translation tag="{} may cause unintended changes. Are you sure?" zh="{} 可能导致意外更改。确定吗？"/>

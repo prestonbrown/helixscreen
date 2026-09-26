@@ -6,6 +6,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <chrono>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -158,6 +159,10 @@ void commit_slot_edit(LaneId lane, const Observation& obs) {
         withdraw_cleared_fields(rung, obs);
     }
     merge_observed_fields(rung, statement);
+    // The stamp of the newest edit this rung has absorbed: the caller's when
+    // it filed from a record, and this moment for an edit made here. The
+    // next record another tool writes is measured against it.
+    rung.edited_at = statement.edited_at.value_or(std::chrono::system_clock::now());
     LaneSourceStore::instance().drop_source(lane, ObservationSource::LocalUser);
     if (any_observed(rung)) {
         LaneSourceStore::instance().write(lane, rung, /*amend=*/false);

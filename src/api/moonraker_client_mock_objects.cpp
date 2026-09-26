@@ -427,6 +427,10 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     status_obj["medusahc"] = medusa;
                 }
             }
+            // Z-Mod's colour registry (creator5_zmod persona).
+            if (objects.contains("zmod_color")) {
+                status_obj["zmod_color"] = self->zmod_color_status();
+            }
             for (auto it = objects.begin(); it != objects.end(); ++it) {
                 if (it.key() != "pin_watch" && it.key().rfind("pin_watch ", 0) != 0) {
                     continue;
@@ -666,6 +670,10 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 if (auto medusa = self->medusa_status_json(); !medusa.empty()) {
                     status_obj["medusahc"] = medusa;
                 }
+            }
+            // Z-Mod's colour registry (creator5_zmod persona).
+            if (objects.contains("zmod_color")) {
+                status_obj["zmod_color"] = self->zmod_color_status();
             }
             for (auto it = objects.begin(); it != objects.end(); ++it) {
                 if (it.key() != "pin_watch" && it.key().rfind("pin_watch ", 0) != 0) {

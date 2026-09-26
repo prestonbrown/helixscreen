@@ -105,6 +105,22 @@ void AmsSubscriptionBackend::stop() {
     spdlog::info("{} Backend stopped", backend_log_tag());
 }
 
+std::uint64_t AmsSubscriptionBackend::own_write_echo_sequence(int slot_index) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (auto* echoes = own_write_echoes()) {
+        return echoes->staged_sequence(slot_index);
+    }
+    return 0;
+}
+
+void AmsSubscriptionBackend::abandon_own_write_echoes(int slot_index,
+                                                      std::uint64_t staged_sequence) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (auto* echoes = own_write_echoes()) {
+        echoes->abandon(slot_index, staged_sequence);
+    }
+}
+
 void AmsSubscriptionBackend::release_subscriptions() {
     subscription_.release();
 }
@@ -143,44 +159,86 @@ void AmsSubscriptionBackend::request_resync() {
     const int block = backend_index();
     auto token = lifetime_.token();
     AmsSubscriptionBackend* self = this;
-    store->reload_async(
-        [token, block, self](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
-            token.defer("AmsSubscriptionBackend::resync_lane_records",
-                        [self, block, records = std::move(records)]() {
-                            for (const auto& [slot, entry] : records) {
-                                // Only what the namespace merely remembers is
-                                // re-filed. A record naming a spool is the
-                                // server's statement and one declaring a colour or material
-                                // is a person's; re-filing either would forge a
-                                // declaration out of a re-read, which is the
-                                // confusion the source model exists to end.
-                                //
-                                // Remembered rather than VendorCache because this
-                                // re-reads our own store, not a firmware frame.
-                                helix::ams::Observation obs =
-                                    helix::ams::declared_from_record(entry.record);
-                                if (obs.source != helix::ams::ObservationSource::Remembered) {
-                                    continue;
-                                }
-                                // A co-authored namespace carries the mirror of
-                                // this backend's own write, so the re-read
-                                // strips what it can see is a standing
-                                // declaration. It is a stored record, not a
-                                // live producer: a value that differs from the
-                                // declaration is staleness in the store, not
-                                // firmware demonstrating it can say something
-                                // else, so it releases nothing - withholding
-                                // here would let one stale record unhook the
-                                // guard while the live firmware is still
-                                // echoing the write.
-                                if (helix::ams::OwnWriteEchoes* echoes = self->own_write_echoes()) {
-                                    std::lock_guard<std::mutex> lock(self->mutex_);
-                                    echoes->strip_standing(slot, obs);
-                                }
-                                helix::ams::ingest(helix::ams::lane_id_for(block, slot), obs);
-                            }
-                        });
-        });
+    store->reload_async([token, block,
+                         self](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+        token.defer(
+            "AmsSubscriptionBackend::resync_lane_records",
+            [self, block, records = std::move(records)]() {
+                for (const auto& [slot, entry] : records) {
+                    // Only what the namespace merely remembers is
+                    // re-filed. A record naming a spool is the
+                    // server's statement and one declaring a colour or material
+                    // is a person's; re-filing either would forge a
+                    // declaration out of a re-read, which is the
+                    // confusion the source model exists to end.
+                    //
+                    // Remembered rather than VendorCache because this
+                    // re-reads our own store, not a firmware frame.
+                    helix::ams::Observation obs = helix::ams::declared_from_record(entry.record);
+                    if (obs.source != helix::ams::ObservationSource::Remembered) {
+                        continue;
+                    }
+                    // A co-authored namespace carries the mirror of
+                    // this backend's own write, so the re-read
+                    // strips what it can see is a standing
+                    // declaration. It is a stored record, not a
+                    // live producer: a value that differs from the
+                    // declaration is staleness in the store, not
+                    // firmware demonstrating it can say something
+                    // else, so it releases nothing - withholding
+                    // here would let one stale record unhook the
+                    // guard while the live firmware is still
+                    // echoing the write.
+                    //
+                    // The strip runs first either way: firmware
+                    // mirrors a write back with none of our
+                    // authorship keys, so a foreign-looking record
+                    // can still be that echo. What the guard strips
+                    // is our write whatever the record reads as;
+                    // what survives is not explained by any write
+                    // of ours. A slot with the guard still standing
+                    // has a write of ours unconfirmed in flight,
+                    // which is newer than anything a stored record
+                    // can say about the lane: there the strip alone
+                    // decides what files, and the promotion below
+                    // is not this record's to judge.
+                    bool write_in_flight = false;
+                    if (helix::ams::OwnWriteEchoes* echoes = self->own_write_echoes()) {
+                        std::lock_guard<std::mutex> lock(self->mutex_);
+                        echoes->strip_standing(slot, obs);
+                        write_in_flight = echoes->standing(slot);
+                    }
+                    const helix::ams::LaneId lane = helix::ams::lane_id_for(block, slot);
+                    // A record another tool wrote is the newest
+                    // statement on the lane when it displaces what
+                    // stands there (prestonbrown/helixscreen#1632):
+                    // it files on the user's rung, where it
+                    // resolves over firmware's cache and yields to
+                    // whatever edit lands next. A record the
+                    // backend's own firmware plugin wrote is a
+                    // reading, not an edit, and keeps filing as
+                    // remembered; anything else does too, below
+                    // whatever a person said.
+                    if (!write_in_flight && !helix::ams::wire_authored_by_helix(entry.wire) &&
+                        !helix::ams::wire_authored_by_firmware(entry.wire) &&
+                        helix::ams::outside_edit_wins(entry.record,
+                                                      helix::ams::lane_sources(lane).local_user)) {
+                        obs.source = helix::ams::ObservationSource::LocalUser;
+                        // Weights are the meter's, and this rung
+                        // outranks it: a record filing as a
+                        // statement carries identity alone.
+                        obs.remaining_weight_g.reset();
+                        obs.total_weight_g.reset();
+                        if (entry.record.updated_at.time_since_epoch().count() > 0) {
+                            obs.edited_at = entry.record.updated_at;
+                        }
+                        helix::ams::commit_slot_edit(lane, obs);
+                        continue;
+                    }
+                    helix::ams::ingest(lane, obs);
+                }
+            });
+    });
 }
 
 void AmsSubscriptionBackend::repaint_slot_from_lane(int slot_index) {
@@ -603,6 +661,15 @@ void AmsSubscriptionBackend::handle_dispatch_error(
     system_info_.action = AmsAction::IDLE;
 }
 
+AmsError AmsSubscriptionBackend::refuse_dispatch_no_api(
+    const std::function<void(const MoonrakerError&)>& on_error) {
+    MoonrakerError synthetic;
+    synthetic.type = MoonrakerErrorType::CONNECTION_LOST;
+    synthetic.message = "IMoonrakerAPI not available";
+    handle_dispatch_error(synthetic, on_error);
+    return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
+}
+
 AmsError
 AmsSubscriptionBackend::dispatch_payload(std::string gcode, std::function<void()> on_complete,
                                          std::function<void(const MoonrakerError&)> on_error,
@@ -626,11 +693,7 @@ AmsSubscriptionBackend::dispatch_payload(std::string gcode, std::function<void()
     // directly, the same way AmsBackendCfs::dispatch_action_script used to
     // before this method existed to replace its fork.
     if (!api_) {
-        MoonrakerError synthetic;
-        synthetic.type = MoonrakerErrorType::CONNECTION_LOST;
-        synthetic.message = "IMoonrakerAPI not available";
-        handle_dispatch_error(synthetic, on_error);
-        return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
+        return refuse_dispatch_no_api(on_error);
     }
 
     const char* tag = backend_log_tag();
@@ -746,6 +809,16 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
                                                std::function<void(const MoonrakerError&)> on_error,
                                                bool silent) {
     if (!api_) {
+        // The send never went out, but on_error still owes the caller its
+        // unwind: an optimistic AmsAction set before this dispatch stays set
+        // forever if only the return value reports the refusal. Callers may
+        // hold mutex_ here, so this leg touches no backend state itself.
+        if (on_error) {
+            MoonrakerError synthetic;
+            synthetic.type = MoonrakerErrorType::CONNECTION_LOST;
+            synthetic.message = "IMoonrakerAPI not available";
+            on_error(synthetic);
+        }
         return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
     }
     const char* tag = backend_log_tag();

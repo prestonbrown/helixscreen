@@ -55,7 +55,7 @@ translations:
   1 event queued: 1 个事件排队中
   1 hour ago: 1小时前
   1 layer: 1 层
-  1 line in helixscreen.env was ignored: ''
+  1 line in helixscreen.env was ignored: 'helixscreen.env 中有 1 行被忽略'
   1 min: '1分钟'
   1 min ago: 1分钟前
   1 minute: 1 分钟
@@ -227,7 +227,7 @@ translations:
   Assign a role to enable sensor monitoring: 分配角色以启用传感器监控
   Assisted Retract: '辅助回抽'
   Assisting: 辅助中
-  At least {} lines in helixscreen.env were ignored: ''
+  At least {} lines in helixscreen.env were ignored: 'helixscreen.env 中至少有 {} 行被忽略'
   Authentication failed: 认证失败
   Auto: 自动
   Auto Bed Mesh: 自动热床网格
@@ -1194,8 +1194,8 @@ translations:
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: 固件报告未配置旁路。如果您将耗材直接送入挤出机，请启用此选项
   Firmware restarting...: 固件重启中...
   Firmware saved X = Y's value; the measured X result was discarded: 固件将 X 轴保存为 Y 轴的值；实测的 X 轴结果已被丢弃
-  'Fix: chmod 644 {}, then restart': ''
-  'Fix: chown {} {}, then restart': ''
+  'Fix: chmod 644 {}, then restart': '修复：chmod 644 {}，然后重启'
+  'Fix: chown {} {}, then restart': '修复：chown {} {}，然后重启'
   FlashForge Adventurer 5M: FlashForge Adventurer 5M
   FlashForge Adventurer 5X: FlashForge Adventurer 5X
   FlashForge IFS: FlashForge IFS
@@ -2534,7 +2534,7 @@ translations:
   Security: 安全
   Security, network, host, and administration: 安全、网络、主机和管理
   See exactly what data will be sent: 查看将发送的确切数据
-  See the log: ''
+  See the log: '请查看日志'
   See the quick tour of HelixScreen again: 再次查看 HelixScreen 的快速漫游
   Select: 选择
   Select 'None' if you don't have a filament sensor, or if you don't want to pause on runout.: 如果您没有耗材传感器，或不想在断料时暂停，请选择「无」。
@@ -2674,6 +2674,7 @@ translations:
     Kaarlonen
   Spaghetti Detection: 拉丝故障检测
   Spaghetti detected: 检测到拉丝故障
+  Spaghetti detected (%d%%): 检测到拉丝故障（%d%%）
   Spaghetti detected — print paused: 检测到拉丝故障 — 打印已暂停
   Speaker: 扬声器
   Speed: 速度
@@ -3092,8 +3093,8 @@ translations:
   Unavailable: 不可用
   Unavailable on this printer: 此打印机上不可用
   Understanding Results: 了解结果
-  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
-  : "皮带张力不均会导致层错位、VFA(垂直细纹)和振纹等打印瑕疵。\n\n此工具会振动每条皮带路径并测量共振频率 — 频率匹配意味着张力均衡。\n\n对于 CoreXY,路径 A 与 B 应相差在几 Hz 以内。"
+  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nPluck each belt by hand and this tool listens through the accelerometer to measure the belt's frequency. Matched frequencies mean balanced tension.\n\nOn CoreXY, belts A and B should be within a few Hz of each other."
+  : "皮带张力不均会导致层错位、VFA(垂直细纹)和振纹等打印瑕疵。\n\n用手拨动每条皮带，此工具会通过加速度传感器测量皮带的频率。频率匹配意味着张力均衡。\n\n对于 CoreXY,皮带 A 与 B 应相差在几 Hz 以内。"
   Uninstall: 卸载
   Uninstall HelixPrint Plugin: 卸载 HelixPrint 插件
   Uninstall HelixPrint Plugin?: 卸载 HelixPrint 插件？
@@ -3349,10 +3350,10 @@ translations:
   feeder not in automatic mode: '送料器未处于自动模式'
   filament sensor disabled: '耗材传感器已禁用'
   heated bed: 热床
-  'helixscreen.env ignored: owned by uid {}': ''
-  'helixscreen.env ignored: untrusted symlink chain': ''
-  'helixscreen.env ignored: writable by other users': ''
-  'helixscreen.env ignored: {}': ''
+  'helixscreen.env ignored: owned by uid {}': '已忽略 helixscreen.env：属主为 uid {}'
+  'helixscreen.env ignored: untrusted symlink chain': '已忽略 helixscreen.env：符号链接链不受信任'
+  'helixscreen.env ignored: writable by other users': '已忽略 helixscreen.env：其他用户可写入'
+  'helixscreen.env ignored: {}': '已忽略 helixscreen.env：{}'
   idle: 空闲
   in unit {} slot {}: 在单元 {} 槽位 {}
   layers: 层
@@ -3409,7 +3410,7 @@ translations:
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} 已安装，但其备用料盘切换已关闭，因此不会自动切换。'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} 已安装，但无法读取其备用料盘设置 - 请勿指望自动切换。'
   '{} is not set up on this printer': '{} 未在此打印机上设置'
-  '{} lines in helixscreen.env were ignored': ''
+  '{} lines in helixscreen.env were ignored': 'helixscreen.env 中有 {} 行被忽略'
   '{} macro not configured': '{} 宏未配置'
   '{} matches.': '{} 匹配。'
   '{} may cause unintended changes. Are you sure?': '{} 可能导致意外更改。确定吗？'

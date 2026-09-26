@@ -26,50 +26,42 @@ void PrintSelectFileSorter::apply_sort(std::vector<PrintFileData>& files) {
     auto sort_column = current_column_;
     auto sort_direction = current_direction_;
 
+    // Ascending lexicographic order over (column key, filename), used for
+    // entries of the same kind (both directories or both files). Descending
+    // reuses it with swapped arguments: negating the result instead would
+    // report "a < b and b < a" for fully equal entries, which is not a
+    // strict weak ordering and corrupts std::sort.
+    auto ascending = [sort_column](const PrintFileData& a, const PrintFileData& b) {
+        switch (sort_column) {
+        case SortColumn::FILENAME:
+            return a.filename < b.filename;
+        case SortColumn::SIZE:
+            return (a.file_size_bytes != b.file_size_bytes)
+                       ? (a.file_size_bytes < b.file_size_bytes)
+                       : (a.filename < b.filename);
+        case SortColumn::MODIFIED:
+            return (a.modified_timestamp != b.modified_timestamp)
+                       ? (a.modified_timestamp < b.modified_timestamp)
+                       : (a.filename < b.filename);
+        case SortColumn::PRINT_TIME:
+            return (a.print_time_minutes != b.print_time_minutes)
+                       ? (a.print_time_minutes < b.print_time_minutes)
+                       : (a.filename < b.filename);
+        case SortColumn::FILAMENT:
+            return (a.filament_grams != b.filament_grams) ? (a.filament_grams < b.filament_grams)
+                                                          : (a.filename < b.filename);
+        }
+        return false;
+    };
+
     std::sort(files.begin(), files.end(),
-              [sort_column, sort_direction](const PrintFileData& a, const PrintFileData& b) {
-                  // Directories always sort to top
+              [ascending, sort_direction](const PrintFileData& a, const PrintFileData& b) {
+                  // Directories always sort to top, regardless of direction
                   if (a.is_dir != b.is_dir) {
                       return a.is_dir;
                   }
-
-                  bool result = false;
-
-                  // Filename tiebreaker ensures strict weak ordering when
-                  // primary values are equal (e.g. all directories have
-                  // modified_timestamp=0). Without this, descending sort
-                  // with equal values violates comp(a,b) && comp(b,a) = UB.
-                  switch (sort_column) {
-                  case SortColumn::FILENAME:
-                      result = a.filename < b.filename;
-                      break;
-                  case SortColumn::SIZE:
-                      result = (a.file_size_bytes != b.file_size_bytes)
-                                   ? (a.file_size_bytes < b.file_size_bytes)
-                                   : (a.filename < b.filename);
-                      break;
-                  case SortColumn::MODIFIED:
-                      result = (a.modified_timestamp != b.modified_timestamp)
-                                   ? (a.modified_timestamp < b.modified_timestamp)
-                                   : (a.filename < b.filename);
-                      break;
-                  case SortColumn::PRINT_TIME:
-                      result = (a.print_time_minutes != b.print_time_minutes)
-                                   ? (a.print_time_minutes < b.print_time_minutes)
-                                   : (a.filename < b.filename);
-                      break;
-                  case SortColumn::FILAMENT:
-                      result = (a.filament_grams != b.filament_grams)
-                                   ? (a.filament_grams < b.filament_grams)
-                                   : (a.filename < b.filename);
-                      break;
-                  }
-
-                  if (sort_direction == SortDirection::DESCENDING) {
-                      result = !result;
-                  }
-
-                  return result;
+                  return sort_direction == SortDirection::DESCENDING ? ascending(b, a)
+                                                                     : ascending(a, b);
               });
 
     // Pin ".." parent directory to position 0 (after sort, bulletproof)

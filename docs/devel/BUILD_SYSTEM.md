@@ -32,6 +32,9 @@ make ad5x-docker
 # Build for Creality K1 series (MIPS32, dynamic/glibc)
 make k1-dynamic-docker
 
+# Build for FlashForge Creator 5 Pro (MIPS32r2, static/musl, shares the K1 image)
+make creator5-docker
+
 # Build for Creality K2 series (ARM, tested on K2 Plus)
 make k2-docker
 
@@ -206,6 +209,14 @@ make cross-info          # Show cross-compilation help
 - **Docker Image**: `helixscreen/toolchain-k1-dynamic` (custom, builds toolchain from source)
 - **GCC 7.5 constraints**: See [GCC 7.5 Compatibility](#gcc-75-compatibility-k1-dynamic-target) section above
 - **Why two K1 targets?** Static/musl is simpler and more portable. Dynamic/glibc produces smaller binaries (shared system libs) and avoids musl edge cases, but requires the custom NaN2008 toolchain.
+
+#### FlashForge Creator 5 Pro
+- **CPU**: Ingenic X2000 (XBurst2, MIPS32r2 dual-core @ 1.2 GHz)
+- **Build**: the unified `mips` target (`make creator5` / `make creator5-docker`) — same binary and toolchain as the K1/AD5X (`mipsel-k1-linux-musl-`, GCC 13 + musl, NaN2008/FP64, fully static, LTO on)
+- **Display**: 480×800 portrait framebuffer (`/dev/fb0`); the creator5 preset rotates 90
+- **Input**: evdev for touch (`/dev/input/event2`)
+- **NaN encoding**: the Creator 5 Pro kernel refuses legacy-NaN executables with `ENOEXEC`; the unified target's NaN2008 output is the encoding it execs
+- See `docs/devel/printers/FLASHFORGE_CREATOR5_PRO_SUPPORT.md`
 
 #### Creality K2 Series (K2, K2 Pro, K2 Plus) — Tested on K2 Plus
 - **CPU**: Allwinner sun8iw20p1 (ARM Cortex-A7, dual-core, 57 BogoMIPS)

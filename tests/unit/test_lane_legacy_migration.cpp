@@ -132,9 +132,10 @@ TEST_CASE_METHOD(HelixTestFixture, "Ingesting the same namespace twice changes n
 
 TEST_CASE_METHOD(HelixTestFixture, "Classification reads the document the store actually received",
                  "[lane][migration]") {
-    // A record with a colour and NO lock key must come back as a cache: a
-    // missing key is never the user's declaration, whatever value it sits
-    // beside.
+    // A record with a colour and NO lock key is not this application's word:
+    // a missing key is never the user's declaration, whatever value it sits
+    // beside. With no helix_ key of any kind on the document, what wrote it
+    // is another tool (#1632), and its colour is that tool's statement.
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
     state.init_subjects(false);
@@ -149,9 +150,9 @@ TEST_CASE_METHOD(HelixTestFixture, "Classification reads the document the store 
 
     ingest_legacy_records(store, LegacyLockKeys::LaneData, 0);
     const auto lane = lane_sources(lane_id_for(0, 0));
-    CHECK_FALSE(lane.local_user.has_value());
-    REQUIRE(lane.remembered.has_value());
-    CHECK(lane.remembered->color_rgb == 0xED2C2Cu);
+    REQUIRE(lane.local_user.has_value());
+    CHECK(lane.local_user->color_rgb == 0xED2C2Cu);
+    CHECK_FALSE(lane.remembered.has_value());
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "A load that falls back to the on-disk cache ingests nothing",
@@ -261,13 +262,16 @@ TEST_CASE_METHOD(HelixTestFixture,
     // its brand counts as declared only beside a colour or material
     // declaration on the same record, which a true lock key over a value is.
     // That declaration is the evidence a person edited the record: the
-    // auto-mirror declares nothing and can populate no brand of its own.
+    // auto-mirror declares nothing and can populate no brand of its own. The
+    // helix_material key is what keeps the document ours: without a helix_
+    // key of any kind it would be another tool's write outright (#1632).
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
     state.init_subjects(false);
     MoonrakerAPIMock api(client, state);
 
-    nlohmann::json record{{"lane", 0}, {"vendor", "Hatchbox"}, {"color", "#3355FF"}};
+    nlohmann::json record{
+        {"lane", 0}, {"vendor", "Hatchbox"}, {"color", "#3355FF"}, {"helix_material", "PLA"}};
     const bool locked = GENERATE(true, false);
     if (locked) {
         record["helix_locked_color"] = true;
@@ -353,6 +357,252 @@ TEST_CASE_METHOD(HelixTestFixture,
     frame.brand = "Firmware Brand";
     ingest(lane, frame);
     CHECK(resolved_lane(lane).brand == "Firmware Brand");
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "A record another tool wrote files as the lane's statement",
+                 "[lane][migration]") {
+    // Mainsail's spool dialog and Orca's printer agent write lane_data with
+    // none of our authorship keys, replacing whatever record stood there. The
+    // newest edit wins whoever made it (prestonbrown/helixscreen#1632), so a
+    // foreign record's identity is a statement about the lane, not a memory:
+    // it files on the user's rung and outranks what firmware's cache says.
+    using helix::ams::from_lane_data_record;
+    using helix::ams::sources_from_record;
+
+    const nlohmann::json wire{{"lane", 0},
+                              {"color", "#ED2C2C"},
+                              {"material", "PLA"},
+                              {"bed_temp", 60},
+                              {"nozzle_temp", 200}};
+    const auto parsed = from_lane_data_record(wire);
+    REQUIRE(parsed.has_value());
+
+    const auto sources = sources_from_record(parsed->second, wire, LegacyLockKeys::LaneData);
+    REQUIRE(sources.local_user.has_value());
+    REQUIRE(sources.local_user->color_rgb.has_value());
+    CHECK(*sources.local_user->color_rgb == 0xED2C2Cu);
+    CHECK(sources.local_user->material == "PLA");
+    CHECK_FALSE(sources.remembered.has_value());
+    // Temps are not lane-model identity, and no weight rode in with this
+    // record, so nothing files as metered.
+    CHECK_FALSE(sources.metered.has_value());
+
+    const helix::ams::LaneId lane = lane_id_for(0, 0);
+    file_lane_sources(lane, sources);
+    Observation frame(ObservationSource::VendorCache);
+    frame.color_rgb = 0x00AEFFu;
+    frame.material = "PETG";
+    ingest(lane, frame);
+    const auto resolved = resolved_lane(lane);
+    REQUIRE(resolved.color_rgb.has_value());
+    CHECK(*resolved.color_rgb == 0xED2C2Cu);
+    CHECK(resolved.material == "PLA");
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "A record's scan_time becomes its statement's stamp",
+                 "[lane][migration]") {
+    using helix::ams::from_lane_data_record;
+    using helix::ams::sources_from_record;
+
+    const nlohmann::json wire{{"lane", 0},
+                              {"color", "#ED2C2C"},
+                              {"material", "PLA"},
+                              {"scan_time", "2026-09-25T12:00:00Z"}};
+    const auto parsed = from_lane_data_record(wire);
+    REQUIRE(parsed.has_value());
+
+    const auto sources = sources_from_record(parsed->second, wire, LegacyLockKeys::LaneData);
+    REQUIRE(sources.local_user.has_value());
+    REQUIRE(sources.local_user->edited_at.has_value());
+    CHECK(*sources.local_user->edited_at == parsed->second.updated_at);
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "Our own record coming back files as remembered, not a statement",
+                 "[lane][migration]") {
+    // The authorship keys are what tell our own write from another tool's.
+    // A record carrying them files by its declared bits however fresh its
+    // scan_time is, so re-reading our own record never promotes it over the
+    // edit that wrote it.
+    using helix::ams::from_lane_data_record;
+    using helix::ams::sources_from_record;
+
+    const nlohmann::json wire{{"lane", 0},
+                              {"color", "#ED2C2C"},
+                              {"material", "PLA"},
+                              {"helix_declared", nlohmann::json::array()},
+                              {"helix_locked_color", false},
+                              {"helix_locked_material", false},
+                              {"scan_time", "2026-09-25T13:00:00Z"}};
+    const auto parsed = from_lane_data_record(wire);
+    REQUIRE(parsed.has_value());
+
+    const auto sources = sources_from_record(parsed->second, wire, LegacyLockKeys::LaneData);
+    REQUIRE(sources.remembered.has_value());
+    CHECK_FALSE(sources.local_user.has_value());
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "A record our legacy mirror wrote is not another tool's statement",
+                 "[lane][migration]") {
+    // The 0.99.x auto-mirror wrote lane_data with `vendor` and `spool_name`
+    // and none of today's helix_ keys, so the authorship question has to
+    // answer those spellings as ours: reading such a mirror as foreign would
+    // promote it to the user's rung at load and paint over the live tag
+    // reading. The namespace's shared spellings (`vendor_name`, `name`) stay
+    // another tool's, whatever values they carry.
+    using helix::ams::from_lane_data_record;
+    using helix::ams::sources_from_record;
+
+    const nlohmann::json mirror{{"lane", 0},
+                                {"color", "#ED2C2C"},
+                                {"material", "PLA"},
+                                {"vendor", "AFC Basics"},
+                                {"spool_name", "Quiet PLA"},
+                                {"scan_time", "2026-09-25T12:00:00Z"}};
+    const auto parsed = from_lane_data_record(mirror);
+    REQUIRE(parsed.has_value());
+
+    const auto ours = sources_from_record(parsed->second, mirror, LegacyLockKeys::LaneData);
+    CHECK_FALSE(ours.local_user.has_value());
+    REQUIRE(ours.remembered.has_value());
+    CHECK(ours.remembered->brand == "AFC Basics");
+    CHECK(ours.remembered->spool_name == "Quiet PLA");
+
+    // The same identity under the shared spellings: a foreign document.
+    const nlohmann::json foreign{{"lane", 0},           {"color", "#ED2C2C"},
+                                 {"material", "PLA"},   {"vendor_name", "AFC Basics"},
+                                 {"name", "Quiet PLA"}, {"scan_time", "2026-09-25T12:00:00Z"}};
+    const auto parsed_foreign = from_lane_data_record(foreign);
+    REQUIRE(parsed_foreign.has_value());
+
+    const auto theirs =
+        sources_from_record(parsed_foreign->second, foreign, LegacyLockKeys::LaneData);
+    REQUIRE(theirs.local_user.has_value());
+    CHECK_FALSE(theirs.remembered.has_value());
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "A record AFC's own plugin wrote is firmware, not an outside edit",
+                 "[lane][migration]") {
+    // send_lane_data writes the lane's record with its own bookkeeping keys
+    // (td, lane, extruder_index) and scan_time = the TD-1's scan time, ""
+    // without a TD-1. Both spellings must file as readings, never as the
+    // lane's statement: the empty one would win the promotion outright, and
+    // the scan-time one would win it whenever a rescan landed after the
+    // user's edit, even though a scan clock is not an edit clock.
+    using helix::ams::from_lane_data_record;
+    using helix::ams::sources_from_record;
+
+    const auto plugin_record = [](const char* scan_time) {
+        return nlohmann::json{{"lane", 0},           {"td", "1"},
+                              {"extruder_index", 0}, {"color", "#ED2C2C"},
+                              {"material", "PLA"},   {"bed_temp", 60},
+                              {"nozzle_temp", 210},  {"spool_id", nullptr},
+                              {"weight", 1000},      {"scan_time", scan_time}};
+    };
+
+    for (const char* scan_time : {"", "2026-09-25T13:00:00Z"}) {
+        const nlohmann::json wire = plugin_record(scan_time);
+        const auto parsed = from_lane_data_record(wire);
+        REQUIRE(parsed.has_value());
+
+        const auto sources = sources_from_record(parsed->second, wire, LegacyLockKeys::LaneData);
+        CHECK_FALSE(sources.local_user.has_value());
+        REQUIRE(sources.remembered.has_value());
+        CHECK(sources.remembered->color_rgb == 0xED2C2Cu);
+        CHECK(sources.remembered->material == "PLA");
+    }
+}
+
+TEST_CASE("An outside record displaces only a statement it is newer than", "[lane][migration]") {
+    using helix::ams::outside_edit_wins;
+
+    helix::ams::FilamentSlotOverride record;
+    helix::ams::Observation standing(ObservationSource::LocalUser);
+
+    // Nothing standing: the record is the only statement anyone made.
+    CHECK(outside_edit_wins(record, std::nullopt));
+    CHECK(outside_edit_wins(record, standing));
+
+    const auto at = [](int hours) {
+        return std::chrono::system_clock::time_point{
+            std::chrono::seconds(1790337600 + hours * 3600)};
+    };
+    record.updated_at = at(1);
+
+    // Stamped by its writer: newer displaces, equal and older stay below the
+    // lane's own edit.
+    standing.edited_at = at(0);
+    CHECK(outside_edit_wins(record, standing));
+    standing.edited_at = at(1);
+    CHECK_FALSE(outside_edit_wins(record, standing));
+    standing.edited_at = at(2);
+    CHECK_FALSE(outside_edit_wins(record, standing));
+
+    // Unstampable: a foreign writer that writes no scan_time replaced our
+    // stamped record wholesale, so theirs is the newest edit there is.
+    record.updated_at = {};
+    CHECK(outside_edit_wins(record, standing));
+}
+
+TEST_CASE("A foreign stamp in JS or Python spelling still orders", "[lane][migration]") {
+    // toISOString() writes fractional seconds, isoformat() writes a numeric
+    // offset: both name an instant, and reading either as unstamped would let
+    // a stale foreign record win outright over a newer user statement.
+    using helix::ams::from_lane_data_record;
+    using helix::ams::outside_edit_wins;
+
+    const auto stamp = [](const char* scan_time) {
+        const nlohmann::json wire{{"lane", 0}, {"color", "#ED2C2C"}, {"scan_time", scan_time}};
+        const auto parsed = from_lane_data_record(wire);
+        REQUIRE(parsed.has_value());
+        return parsed->second.updated_at;
+    };
+
+    // The fraction is sub-second, not a reject: .500Z sits strictly between
+    // the plain second and the next one.
+    const auto half_past = stamp("2026-09-25T12:00:00.500Z");
+    CHECK(half_past > stamp("2026-09-25T12:00:00Z"));
+    CHECK(half_past < stamp("2026-09-25T12:00:01Z"));
+
+    // An offset is a zone, not garbage: 14:00 at +02:00 and 10:00 at -02:00
+    // are both 12:00 UTC.
+    CHECK(stamp("2026-09-25T14:00:00+02:00") == stamp("2026-09-25T12:00:00Z"));
+    CHECK(stamp("2026-09-25T10:00:00-02:00") == stamp("2026-09-25T12:00:00Z"));
+
+    // A zoneless wall time names no instant and reads as unstamped.
+    CHECK(stamp("2026-09-25T12:00:00").time_since_epoch().count() == 0);
+
+    // The pay-off: a fractional stamp older than the statement does not win,
+    // where an unparsable one read as "no stamp" and won outright.
+    helix::ams::Observation standing(ObservationSource::LocalUser);
+    standing.edited_at = stamp("2026-09-25T13:00:00Z");
+    helix::ams::FilamentSlotOverride record;
+    record.updated_at = stamp("2026-09-25T12:00:00.123Z");
+    CHECK_FALSE(outside_edit_wins(record, standing));
+}
+
+TEST_CASE("A statement stamped before the product existed keeps the lane", "[lane][migration]") {
+    // A device without an RTC stamps 1970 (or its build date) until NTP
+    // reaches it. Ordering a foreign record against such a stamp would let
+    // even a stale record beat a newer user edit, so an unknowable order
+    // means the record does not displace.
+    using helix::ams::outside_edit_wins;
+
+    helix::ams::FilamentSlotOverride record;
+    record.updated_at = std::chrono::system_clock::time_point{std::chrono::seconds(1790337600)};
+    helix::ams::Observation standing(ObservationSource::LocalUser);
+
+    // The unread clock: the order is unknowable, so the statement stays.
+    standing.edited_at = std::chrono::system_clock::time_point{std::chrono::seconds(86400)};
+    CHECK_FALSE(outside_edit_wins(record, standing));
+
+    // A readable clock keeps the ordinary rule in both directions.
+    standing.edited_at = std::chrono::system_clock::time_point{std::chrono::seconds(1790341200)};
+    CHECK_FALSE(outside_edit_wins(record, standing));
+    standing.edited_at = std::chrono::system_clock::time_point{std::chrono::seconds(1790334000)};
+    CHECK(outside_edit_wins(record, standing));
 }
 
 TEST_CASE("Colour and material answer through the load rule in both wire formats",

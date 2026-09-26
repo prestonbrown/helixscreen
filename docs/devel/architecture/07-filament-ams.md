@@ -296,7 +296,7 @@ Spoolman on any of them.
 ([`include/lane_source_store.h#ingest`](../../../include/lane_source_store.h)) is the one way a
 machine reading reaches the store; `commit_slot_edit()`
 (`include/lane_source_store.h#commit_slot_edit`) is the one way a human edit does, called from
-`AmsBackend::commit_user_edit` (`src/printer/ams_backend.cpp#AmsBackend::commit_user_edit`), which
+`AmsBackend::commit_user_edit` (`src/printer/ams_backend.cpp#commit_user_edit`), which
 `AmsState::commit_slot_edit` (`src/printer/ams_state.cpp#commit_slot_edit`) runs, once the backend
 has accepted the edit, so a slot the backend refused gets no declaration. Each refuses the other's
 source. They also differ in what a write *means*: `ingest()` replaces that source's record
@@ -345,6 +345,24 @@ from that one answer rather than guessed again from the record's values. On a la
 Spoolman spool, what the spool states about itself (material, brand, spool name, vendor id) is not
 the person's to move: an edit that keeps the spool claims none of it, and
 `keep_spool_owned_identity()` puts the spool's values in its place.
+
+**Firmware that keeps the values takes them out of the declaration.** `AmsBackend::commit_user_edit`
+([`src/printer/ams_backend.cpp#commit_user_edit`](../../../src/printer/ams_backend.cpp))
+strips `color_rgb`, `color_name` and `material` from the declaration when
+`firmware_stores_color_and_material()`
+([`include/ams_backend.h#firmware_stores_color_and_material`](../../../include/ams_backend.h))
+says the machine itself keeps them: today that is the tool changer backend with Z-Mod's
+material source ([`src/printer/toolchanger_addon.cpp#resolve_material_source`](../../../src/printer/toolchanger_addon.cpp)),
+whose `zmod_color` object both stores and echoes each head's type and colour. That true
+answer is earned per machine, not assumed: the question
+([`src/printer/ams_backend_toolchanger.cpp#firmware_stores_color_and_material`](../../../src/printer/ams_backend_toolchanger.cpp))
+turns true only after a status frame has carried both `slots` and `palette`, the two
+fields Z-Mod's pending status update adds - until such a frame arrives it stays false and
+an edit keeps declaring its values. The ladder is the
+reason: a `LocalUser` colour record outranks the firmware's `VendorCache`, so a declaration left
+standing would outrank every change later made at the printer. The edit still writes the values
+through to the firmware, whose echo files them as the vendor's own reading - the declaration is
+what is withheld, not the write.
 
 **Authorship accumulates.** One edit speaks only about the fields it moved, so `amend_authorship()`
 ([`src/printer/lane_translation.cpp#amend_authorship`](../../../src/printer/lane_translation.cpp))

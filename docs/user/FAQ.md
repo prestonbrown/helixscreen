@@ -36,6 +36,7 @@ HelixScreen works with any Klipper-based printer running Moonraker. Tested and s
 | Creality Hi | **Preliminary** | Auto-detected; Cartesian bedslinger with optional CFS. Untested on our hardware. |
 | Anycubic Kobra 2 Pro / Kobra 3 / 3 V2 / 3 Max / S1 / S1 Max | **Community** | Auto-detected on [Rinkhals](https://github.com/jbatonnet/Rinkhals) firmware; native ACE (`filament_hub`) supported. Untested on our hardware. |
 | FlashForge AD5X | **Tested** | IFS filament system integrated |
+| FlashForge Creator 5 / Creator 5 Pro | **Preliminary** | Four-head tool changer, auto-detected on either replacement firmware: [Z-Mod](https://wiki.zmod.link/C5PRO/) or [Reforge](https://github.com/Klipper4FlashForge/firmware). Mounting and parking a head is driven from the screen. On Z-Mod, each head's material and colour are read from the printer itself once Z-Mod ships its pending status update; until then, edits stay on the screen. Untested on our hardware. |
 | SOVOL SV06 / SV08 | **Tested** | Community reports welcome |
 | Elegoo Centauri Carbon 1 | **Tested** | Requires [OpenCentauri COSMOS](https://docs.opencentauri.cc/klipper-conversion/cosmos/cosmos/) firmware 26.07.0 or newer; ships with factory white-balance calibration |
 | Snapmaker U1 (SnapSwap toolchanger) | **Tested** | Native four-head support with RFID spool recognition. Needs SSH — stock firmware (1.2+) via its **Root access** option, or PAXX Extended Firmware (SSH on by default). Tested on PAXX 1.2.x–1.4.x; the stock-firmware path is unverified on a real stock device. Reinstall after a firmware update. On PAXX firmware you can also view/control the screen remotely in Mainsail/Fluidd (the "gui" webcam) via the firmware's `web remote_screen` toggle; physical cameras work normally. |
@@ -439,17 +440,14 @@ The wizard runs when no valid configuration exists. Causes:
 
 Go to **Settings > System > Host** and enter the new address. HelixScreen disconnects from the current printer and connects to the new one right away.
 
-To re-run the whole setup wizard instead:
+To re-run the whole setup wizard instead, use **Settings > System > Factory Reset** (wipes all HelixScreen settings and their backup copies), or stop the service and start the app once with the wizard flag:
 
 ```bash
-# Either delete the config to trigger wizard on next start:
-# (fallback path if no Klipper ecosystem: /opt/helixscreen/config/settings.json)
-sudo rm ~/helixscreen/config/settings.json
-sudo systemctl restart helixscreen
-
-# Or force wizard with command-line flag:
+sudo systemctl stop helixscreen
 helix-screen --wizard
 ```
+
+Deleting `settings.json` by hand does not re-run the wizard on its own: HelixScreen restores it from a rolling backup on the next start. See [Reset HelixScreen or re-run the setup wizard](TROUBLESHOOTING.md#reset-helixscreen-or-re-run-the-setup-wizard) for the full manual procedure.
 
 ---
 

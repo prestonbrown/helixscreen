@@ -118,7 +118,7 @@
                             description="AFC retracts filament from the toolhead at end of print"
                             description_tag="AFC retracts filament from the toolhead at end of print"
                             subject="afc_unload_after_print" callback="on_ams_afc_unload_after_print_toggled">
-          <bind_flag_if_eq subject="ams_device_ops_is_afc" flag="hidden" ref_value="0"/>
+          <bind_flag_if_eq subject="ams_device_ops_unload_after_print_configurable" flag="hidden" ref_value="0"/>
         </setting_toggle_row>
         <!-- Keep the bypass spool on the Multi-Filament panel even when bypass
              is disengaged. AFC publishes a virtual bypass whether or not one is
@@ -128,7 +128,7 @@
                             description="Keep the bypass spool visible when bypass is off"
                             description_tag="Keep the bypass spool visible when bypass is off"
                             subject="ams_always_show_bypass_spool" callback="on_ams_always_show_bypass_spool_toggled">
-          <bind_flag_if_eq subject="ams_device_ops_is_afc" flag="hidden" ref_value="0"/>
+          <bind_flag_if_eq subject="ams_device_ops_bypass_is_virtual" flag="hidden" ref_value="0"/>
         </setting_toggle_row>
         <!-- Retention across eject: keep the previously assigned spool details
              so reloading the same spool after maintenance needs no re-selection

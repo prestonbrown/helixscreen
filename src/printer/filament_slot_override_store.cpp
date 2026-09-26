@@ -74,22 +74,57 @@ std::string string_with_alias(const nlohmann::json& j, const char* primary, cons
     return helix::json_util::safe_string(j, alias);
 }
 
+// A stamp is UTC only with an explicit zone: 'Z', or a numeric offset as
+// JavaScript's toISOString() and Python's isoformat() write them
+// ("...12:00:00.123Z", "...14:00:00+02:00"). A zoneless wall time names no
+// instant and parses as unstamped.
 std::chrono::system_clock::time_point parse_iso8601(const std::string& s) {
     std::tm tm{};
     std::istringstream is(s);
-    is >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
+    is >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
     if (is.fail())
         return {};
+    // Fractional seconds: at most six digits become microseconds, the rest
+    // are consumed so the zone still parses.
+    long micros = 0;
+    int seen = 0;
+    if (is.peek() == '.') {
+        is.get();
+        while (std::isdigit(static_cast<unsigned char>(is.peek())) != 0) {
+            const int digit = is.get() - '0';
+            if (seen < 6)
+                micros = micros * 10 + digit;
+            ++seen;
+        }
+        if (seen == 0)
+            return {};
+    }
+    // The zone. 'Z' is UTC itself; a numeric offset is subtracted from the
+    // wall time to reach UTC, the direction POSIX offsets read.
+    long offset_sec = 0;
+    const int zone = is.get();
+    if (zone != 'Z' && zone != 'z') {
+        if (zone != '+' && zone != '-')
+            return {};
+        std::tm off{};
+        is >> std::get_time(&off, "%H:%M");
+        if (is.fail() || off.tm_hour > 23 || off.tm_min > 59)
+            return {};
+        offset_sec = 3600L * off.tm_hour + 60L * off.tm_min;
+        if (zone == '-')
+            offset_sec = -offset_sec;
+    }
 #if defined(HELIX_PLATFORM_ESP32)
     // newlib has no timegm(); compute days-since-epoch directly (UTC, no DST).
     const int y = tm.tm_year + 1900, mo = tm.tm_mon + 1;
     const int a = (14 - mo) / 12, yy = y + 4800 - a, mm = mo + 12 * a - 3;
     const long days = tm.tm_mday + (153 * mm + 2) / 5 + 365L * yy + yy / 4 - yy / 100 + yy / 400 -
                       32045 - 2440588;
-    const time_t t = days * 86400L + tm.tm_hour * 3600L + tm.tm_min * 60L + tm.tm_sec;
-    return std::chrono::system_clock::from_time_t(t);
+    const time_t t = days * 86400L + tm.tm_hour * 3600L + tm.tm_min * 60L + tm.tm_sec - offset_sec;
+    return std::chrono::system_clock::from_time_t(t) + std::chrono::microseconds(micros);
 #else
-    return std::chrono::system_clock::from_time_t(timegm(&tm));
+    const time_t t = timegm(&tm) - offset_sec;
+    return std::chrono::system_clock::from_time_t(t) + std::chrono::microseconds(micros);
 #endif
 }
 
@@ -2211,6 +2246,31 @@ bool publish_external_lane(FilamentSlotOverrideStore* store, int lane_index, con
     spdlog::debug("{} published external spool as lane {} (material={}, color=#{:06X})", log_tag,
                   lane_index, spool->material, spool->color_rgb);
     return true;
+}
+
+void save_override_async(FilamentSlotOverrideStore* store, int slot_index,
+                         const FilamentSlotOverride& record, const std::string& tag,
+                         const char* noun) {
+    store->save_async(slot_index, record, [tag, slot_index, noun](bool success, std::string err) {
+        if (!success) {
+            spdlog::warn("{} {} persist failed for slot {}: {}", tag, noun, slot_index, err);
+        }
+    });
+}
+
+void persist_staged_override(FilamentSlotOverrideStore* store, std::mutex& mutex,
+                             std::unordered_map<int, FilamentSlotOverride>& overrides,
+                             int slot_index, const std::string& tag, const char* noun) {
+    FilamentSlotOverride record;
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = overrides.find(slot_index);
+        if (it == overrides.end()) {
+            return;
+        }
+        record = it->second;
+    }
+    save_override_async(store, slot_index, record, tag, noun);
 }
 
 } // namespace helix::ams

@@ -1,6 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_test_utils.h"
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_afc.h"
 #include "ams_state.h"
@@ -10,6 +13,7 @@
 #include "filament_op_router.h"
 #include "filament_slot_override_store.h"
 #include "lane_translation.h"
+#include "lvgl_ui_test_fixture.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -119,21 +123,24 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
     }
 
     void set_lane_prep_sensor(int lane_index, bool state) {
-        auto* entry = AfcTestAccess::slots(*this).get_mut(lane_index);
-        if (entry)
-            entry->sensors.prep = state;
+        if (AfcTestAccess::slots(*this).is_valid_index(lane_index)) {
+            AfcTestAccess::lane_sensors(*this)[AfcTestAccess::slots(*this).name_of(lane_index)]
+                .prep = state;
+        }
     }
 
     void set_lane_load_sensor(int lane_index, bool state) {
-        auto* entry = AfcTestAccess::slots(*this).get_mut(lane_index);
-        if (entry)
-            entry->sensors.load = state;
+        if (AfcTestAccess::slots(*this).is_valid_index(lane_index)) {
+            AfcTestAccess::lane_sensors(*this)[AfcTestAccess::slots(*this).name_of(lane_index)]
+                .load = state;
+        }
     }
 
     void set_lane_loaded_to_hub(int lane_index, bool state) {
-        auto* entry = AfcTestAccess::slots(*this).get_mut(lane_index);
-        if (entry)
-            entry->sensors.loaded_to_hub = state;
+        if (AfcTestAccess::slots(*this).is_valid_index(lane_index)) {
+            AfcTestAccess::lane_sensors(*this)[AfcTestAccess::slots(*this).name_of(lane_index)]
+                .loaded_to_hub = state;
+        }
     }
 
     // AFC_stepper.extruder — which extruder this lane feeds. Present whether or
@@ -313,6 +320,15 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
 
     std::function<void()> pending_macro_ack;
 
+    // SET_COLOR/SET_MATERIAL dispatch through the error-callback form so a
+    // refused macro can cancel its echo guard. Capture it like the others.
+    AmsError execute_gcode(const std::string& gcode, std::function<void()>,
+                           std::function<void(const MoonrakerError&)> /*on_error*/,
+                           bool /*silent*/ = true) override {
+        captured_gcodes.push_back(gcode);
+        return AmsErrorHelper::success();
+    }
+
     // Override execute_gcode_notify to capture commands (avoids real API call)
     AmsError execute_gcode_notify(const std::string& gcode, const std::string& /*success_msg*/,
                                   const std::string& /*error_prefix*/) override {
@@ -483,12 +499,10 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
     }
 
     // Access to extended parsing state (reads from registry)
-    helix::printer::SlotSensors get_lane_sensors(int index) const {
-        const auto* entry = AfcTestAccess::slots(*this).get(index);
-        if (entry) {
-            return entry->sensors;
-        }
-        return {};
+    helix::AfcLaneSensors get_lane_sensors(int index) const {
+        const auto& map = AfcTestAccess::lane_sensors(*this);
+        auto it = map.find(AfcTestAccess::slots(*this).name_of(index));
+        return it != map.end() ? it->second : helix::AfcLaneSensors{};
     }
     bool get_hub_sensor() const {
         // Returns true if any hub sensor is triggered (backward compat)
@@ -6350,6 +6364,90 @@ TEST_CASE("AFC parse: null spool_id clears the Spoolman link", "[ams][afc][statu
     // AFC's clear_values() emits spool_id: null
     helper.feed_afc_stepper("lane1", {{"spool_id", nullptr}});
     REQUIRE(helper.get_system_info().get_slot_global(0)->spoolman_id == 0);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "AFC an insert on a lane the plugin names no spool for offers the notice",
+                 "[ams][afc][status][1710]") {
+    // The empty -> loaded edge is an insert, and the spool_id binding is the
+    // plugin's only word on what went in: a lane it leaves unnamed asks (the
+    // stored record could describe a spool that left), a lane it names never
+    // does.
+    helix::test::RegisteredBackend<AmsBackendAfcTestHelper> harness;
+    AmsBackendAfcTestHelper& helper = *harness;
+    helper.initialize_test_lanes(4);
+    helper.initialize_slots_from_discovery();
+
+    SlotInfo info;
+    info.material = "PETG";
+    info.color_rgb = 0x1188FF;
+    helix::test::apply_edit(helper, 0, info);
+    REQUIRE(AfcTestAccess::overrides(helper).count(0) == 1);
+
+    std::vector<std::pair<ToastSeverity, std::string>> toasts;
+    helix::ui::set_test_toast_hook([&](ToastSeverity severity, const std::string& msg, uint32_t) {
+        toasts.emplace_back(severity, msg);
+    });
+
+    // An insert is an edge out of an OBSERVED empty, so the lanes start by
+    // reporting empty: initialize_slots() writes UNKNOWN, and a lane whose
+    // first frame already says Loaded is a baseline sighting, not an insert.
+    helper.feed_afc_stepper("lane1", {{"status", "None"}});
+    helper.feed_afc_stepper("lane2", {{"status", "None"}});
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(toasts.empty());
+
+    // lane1 (slot 0) goes empty -> present with no spool named.
+    helper.feed_afc_stepper("lane1", {{"status", "Loaded"}});
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts[0].first == ToastSeverity::INFO);
+    CHECK(helper.get_system_info().get_slot_global(0)->status == SlotStatus::AVAILABLE);
+
+    // lane2 (slot 1) inserts with the plugin naming its spool: no ask.
+    helper.feed_afc_stepper("lane2", {{"spool_id", 86}, {"status", "Loaded"}});
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(toasts.size() == 1);
+
+    helix::ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "AFC a loaded lane's first frame after start raises no notice",
+                 "[ams][afc][status][1710]") {
+    // initialize_slots() writes SlotStatus::UNKNOWN: until a frame says
+    // otherwise, the lane's emptiness has never been observed, so the first
+    // presence frame on every loaded lane at boot or reconnect is a baseline,
+    // not an insert. Asking "same spool?" once per lane per boot would train
+    // the notice away.
+    helix::test::RegisteredBackend<AmsBackendAfcTestHelper> harness;
+    AmsBackendAfcTestHelper& helper = *harness;
+    helper.initialize_test_lanes(4);
+    helper.initialize_slots_from_discovery();
+
+    SlotInfo info;
+    info.material = "PETG";
+    info.color_rgb = 0x1188FF;
+    helix::test::apply_edit(helper, 0, info);
+
+    std::vector<std::pair<ToastSeverity, std::string>> toasts;
+    helix::ui::set_test_toast_hook([&](ToastSeverity severity, const std::string& msg, uint32_t) {
+        toasts.emplace_back(severity, msg);
+    });
+
+    // First frame of a loaded lane: a baseline sighting, no ask.
+    helper.feed_afc_stepper("lane1", {{"status", "Loaded"}});
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(toasts.empty());
+
+    // The same lane later empties and inserts: that edge IS observed, and
+    // the notice asks.
+    helper.feed_afc_stepper("lane1", {{"status", "None"}});
+    helper.feed_afc_stepper("lane1", {{"status", "Loaded"}});
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts[0].first == ToastSeverity::INFO);
+
+    helix::ui::set_test_toast_hook(nullptr);
 }
 
 TEST_CASE("AFC parse: empty colour clears rather than sticking", "[ams][afc][status]") {

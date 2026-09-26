@@ -8,6 +8,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_ace.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_afc.h"
@@ -45,6 +46,7 @@
 #include "test_helpers/toolchanger_test_access.h"
 #include "toolchanger_addon.h"
 
+#include <chrono>
 #include <filesystem>
 #include <map>
 #include <mutex>
@@ -88,6 +90,68 @@ using SnapmakerHarness = RegisteredBackend<AmsBackendSnapmaker>;
 using ToolChangerHarness = RegisteredBackend<AmsBackendToolChanger>;
 using QidiHarness = RegisteredBackend<AmsBackendQidi>;
 using MockHarness = RegisteredBackend<AmsBackendMock>;
+
+/// An AFC backend whose write to firmware can be made to fail after it has
+/// staged its echo guard: the state a refused dispatch leaves behind, which
+/// the shared commit funnel has to clean up (prestonbrown/helixscreen#1633).
+class RefusedWriteAfc : public AmsBackendAfc {
+  public:
+    using AmsBackendAfc::AmsBackendAfc;
+
+    bool refuse_writes = false;
+
+    helix::AmsError apply_user_edit(int slot_index, const helix::SlotInfo& info,
+                                    const helix::ams::Observation& declared) override {
+        // Stage and arm exactly as a write-back backend does ahead of its
+        // dispatch, then answer as the dispatch itself would: success means
+        // the write went out and its echo is coming, refusal means nothing
+        // reached firmware.
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (auto* echoes = own_write_echoes()) {
+            echoes->stage(slot_index, declared);
+            echoes->arm(slot_index, std::string{});
+        }
+        if (!refuse_writes) {
+            return helix::AmsErrorHelper::success();
+        }
+        return helix::AmsError(helix::AmsResult::COMMAND_FAILED, "refused", lv_tr("Write failed"));
+    }
+};
+
+using RefusedWriteAfcHarness = RegisteredBackend<RefusedWriteAfc>;
+
+/// An AFC backend running the real apply_user_edit dispatch chain, whose
+/// SET_COLOR/SET_MATERIAL send answers the way a refused Moonraker call does:
+/// through the error callback, after the send itself already returned
+/// (prestonbrown/helixscreen#1633).
+class RefusedGcodeAfc : public AmsBackendAfc {
+  public:
+    using AmsBackendAfc::AmsBackendAfc;
+
+    // Per command: a case refusing only one SET_* proves that dispatch's own
+    // cancel, where refusing both lets either cancel clear the shared guard.
+    bool refuse_set_color = false;
+    bool refuse_set_material = false;
+
+    helix::AmsError execute_gcode(const std::string& gcode, std::function<void()>,
+                                  std::function<void(const MoonrakerError&)> on_error,
+                                  bool /*silent*/ = true) override {
+        const bool refused = (refuse_set_color && gcode.rfind("SET_COLOR ", 0) == 0) ||
+                             (refuse_set_material && gcode.rfind("SET_MATERIAL ", 0) == 0);
+        if (refused && on_error &&
+            (gcode.rfind("SET_COLOR ", 0) == 0 || gcode.rfind("SET_MATERIAL ", 0) == 0)) {
+            // Inline, on the dispatching thread, while apply_user_edit still
+            // holds the backend mutex: the tightest shape the callback fires in.
+            MoonrakerError err;
+            err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+            err.message = "macro refused";
+            on_error(err);
+        }
+        return helix::AmsErrorHelper::success();
+    }
+};
+
+using RefusedGcodeAfcHarness = RegisteredBackend<RefusedGcodeAfc>;
 
 /// One `box` object, delivered the way Moonraker delivers it. Which schema
 /// parsed, and whether the frame counts as a full update at all, are decisions
@@ -140,6 +204,29 @@ std::string filas_list(int fila_id, const std::string& type, int color_id,
            std::to_string(color_id) + " = " + color_hex + "\n[vendor_list]\n" +
            std::to_string(vendor_id) + " = " + vendor + "\n";
 }
+
+/// Three fila profiles (two of them the same material under different names),
+/// two palette rows and two vendor rows: enough table for a slot-0 edit, a
+/// slot-1 control naming different rows, and a fila id change that decodes to
+/// the same material.
+std::string qidi_tables() {
+    return fila_section(12, "PETG Basic", "PETG") + fila_section(14, "PETG Rapido", "PETG") +
+           fila_section(40, "ABS Rapido", "ABS") +
+           "[colordict]\n5 = #ED2C2C\n9 = #00FF00\n[vendor_list]\n3 = QIDI\n8 = Elegoo\n";
+}
+
+/// Capture the toasts a case fires, and stop capturing when it ends. The
+/// insert rule's ask is a toast, so this is how a lane test observes it.
+struct ToastRecorder {
+    std::vector<std::string> messages;
+    ToastRecorder() {
+        helix::ui::set_test_toast_hook(
+            [this](ToastSeverity, const std::string& msg, uint32_t) { messages.push_back(msg); });
+    }
+    ~ToastRecorder() {
+        helix::ui::set_test_toast_hook(nullptr);
+    }
+};
 
 /// Four lanes through AFC's own initialize_slots(), which is what a discovery
 /// answer ends in.
@@ -1070,6 +1157,155 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK_FALSE(after.vendor_cache->material.has_value());
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "a refused write leaves no guard to withhold firmware's value",
+                 "[lane][ingest][afc]") {
+    RefusedWriteAfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    feed_afc_lane(
+        *harness, "lane1",
+        {{"prep", true}, {"status", "Loaded"}, {"color", "#ED2C2C"}, {"material", "PLA"}});
+
+    // The commit funnel the application's editor and Clear Spool both ride.
+    // The dispatch fails outright, so the edit is refused whole: nothing is
+    // filed on the lane and firmware was never written.
+    harness->refuse_writes = true;
+    const helix::SlotInfo original = harness->get_slot_info(0);
+    helix::SlotInfo edit = original;
+    edit.color_rgb = 0x00FF00u;
+    edit.material = "PETG";
+    const helix::AmsError error = harness->commit_user_edit(0, original, edit);
+    CHECK_FALSE(error.success());
+    CHECK_FALSE(error.partially_applied);
+    CHECK_FALSE(lane_sources(harness.lane(0)).local_user.has_value());
+
+    // Firmware's next frame is a reading, not an echo: the write never went
+    // out, so the values it states must file rather than be withheld by the
+    // guard the failed dispatch staged.
+    feed_afc_lane(*harness, "lane1", {{"color", "#00FF00"}, {"material", "PETG"}});
+    const auto sources = lane_sources(harness.lane(0));
+    REQUIRE(sources.vendor_cache.has_value());
+    REQUIRE(sources.vendor_cache->color_rgb.has_value());
+    CHECK(*sources.vendor_cache->color_rgb == 0x00FF00u);
+    CHECK(sources.vendor_cache->material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a refused write restores the guard of the edit it suspended",
+                 "[lane][ingest][afc]") {
+    // An edit whose write went out arms a guard firmware will echo back. A
+    // LATER edit refused after staging suspends that guard as its carry; the
+    // refusal must stand the earlier guard up again, because erasing it would
+    // let the earlier write's echo file as the machine's own word.
+    RefusedWriteAfcHarness harness(nullptr, nullptr);
+    init_afc_lanes(*harness);
+
+    feed_afc_lane(
+        *harness, "lane1",
+        {{"prep", true}, {"status", "Loaded"}, {"color", "#ED2C2C"}, {"material", "PLA"}});
+
+    // Edit A goes out: its values are now ours, coming back.
+    const helix::SlotInfo before_a = harness->get_slot_info(0);
+    helix::SlotInfo edit_a = before_a;
+    edit_a.color_rgb = 0xFF0000u;
+    edit_a.material = "ABS";
+    REQUIRE(harness->commit_user_edit(0, before_a, edit_a).success());
+
+    // Edit B is refused: nothing of it reached firmware.
+    harness->refuse_writes = true;
+    const helix::SlotInfo before_b = harness->get_slot_info(0);
+    helix::SlotInfo edit_b = before_b;
+    edit_b.color_rgb = 0x00FF00u;
+    CHECK_FALSE(harness->commit_user_edit(0, before_b, edit_b).success());
+
+    // Firmware's next frame repeats edit A's values: still our own write
+    // being echoed, so neither field may file as the machine's word.
+    feed_afc_lane(*harness, "lane1", {{"color", "#FF0000"}, {"material", "ABS"}});
+    {
+        const auto sources = lane_sources(harness.lane(0));
+        CHECK(!(sources.vendor_cache && sources.vendor_cache->color_rgb == 0xFF0000u));
+        CHECK(!(sources.vendor_cache && sources.vendor_cache->material == "ABS"));
+    }
+
+    // A value neither edit wrote is a reading and files.
+    feed_afc_lane(*harness, "lane1", {{"color", "#0000FF"}});
+    {
+        const auto sources = lane_sources(harness.lane(0));
+        REQUIRE(sources.vendor_cache.has_value());
+        REQUIRE(sources.vendor_cache->color_rgb.has_value());
+        CHECK(*sources.vendor_cache->color_rgb == 0x0000FFu);
+    }
+}
+
+namespace {
+/// The shared body of the two refused-dispatch cases: @p refuse_material
+/// flips exactly one SET_* send to fail through the error callback after the
+/// send returned success, while the other SET_* went out. The refused
+/// command's field never reached firmware, so the same value on the next
+/// frame is a reading and must file; the accepted command's field DID reach
+/// firmware, so the same value on that frame is our own write echoing and
+/// must stay withheld.
+void assert_refused_set_command_releases_only_its_own_field(RefusedGcodeAfcHarness& harness,
+                                                            bool refuse_material) {
+    if (refuse_material) {
+        harness->refuse_set_material = true;
+    } else {
+        harness->refuse_set_color = true;
+    }
+    init_afc_lanes(*harness);
+
+    feed_afc_lane(
+        *harness, "lane1",
+        {{"prep", true}, {"status", "Loaded"}, {"color", "#ED2C2C"}, {"material", "PLA"}});
+
+    // The edit's send returns success, then Moonraker refuses one SET_*
+    // macro through the error callback: the dispatch failed after the guard
+    // was already staged and armed.
+    auto edit = harness->get_slot_info(0);
+    edit.color_rgb = 0x00FF00u;
+    edit.material = "PETG";
+    REQUIRE(helix::test::apply_edit(*harness, 0, edit).success());
+    // The cancel hops off the callback's thread before taking the backend
+    // mutex, which apply_user_edit still holds.
+    helix::ui::UpdateQueue::instance().drain();
+
+    // filament_name is the proof the frame parsed, which makes each field's
+    // presence or absence below the release's doing rather than a guard that
+    // never armed.
+    feed_afc_lane(*harness, "lane1",
+                  {{"color", "#00FF00"}, {"material", "PETG"}, {"filament_name", "AFC Basics"}});
+
+    const auto sources = lane_sources(harness.lane(0));
+    REQUIRE(sources.vendor_cache.has_value());
+    REQUIRE(sources.vendor_cache->spool_name.has_value());
+    CHECK(*sources.vendor_cache->spool_name == "AFC Basics");
+    if (refuse_material) {
+        // SET_MATERIAL never reached firmware: PETG on the frame is a
+        // reading and files. SET_COLOR did: the green on the frame is our
+        // own write echoing, and filing it would put the edit back as the
+        // machine's word.
+        REQUIRE(sources.vendor_cache->material.has_value());
+        CHECK(*sources.vendor_cache->material == "PETG");
+        CHECK_FALSE(sources.vendor_cache->color_rgb.has_value());
+    } else {
+        REQUIRE(sources.vendor_cache->color_rgb.has_value());
+        CHECK(*sources.vendor_cache->color_rgb == 0x00FF00u);
+        CHECK_FALSE(sources.vendor_cache->material.has_value());
+    }
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "a refused SET_COLOR releases its own guard, not SET_MATERIAL's",
+                 "[lane][ingest][afc]") {
+    RefusedGcodeAfcHarness harness(nullptr, nullptr);
+    assert_refused_set_command_releases_only_its_own_field(harness, /*refuse_material=*/false);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a refused SET_MATERIAL releases its own guard, not SET_COLOR's",
+                 "[lane][ingest][afc]") {
+    RefusedGcodeAfcHarness harness(nullptr, nullptr);
+    assert_refused_set_command_releases_only_its_own_field(harness, /*refuse_material=*/true);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "a frame with no sensor key neither sets nor erases AFC presence",
                  "[lane][ingest][afc]") {
     AfcHarness harness(nullptr, nullptr);
@@ -1634,6 +1870,365 @@ TEST_CASE_METHOD(LVGLTestFixture, "a user's own name never decides Happy Hare's 
     const auto lane = lane_sources(harness.lane(0));
     REQUIRE(lane.vendor_cache.has_value());
     CHECK(lane.vendor_cache->spool_name == "EMU Black");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Happy Hare's own write-back does not return as a vendor reading",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c"})},
+                        {"gate_material", nlohmann::json::array({"PLA"})},
+                        {"gate_name", nlohmann::json::array({"Spool A"})}});
+
+    // The user retypes colour and material, so one MMU_GATE_MAP carries both
+    // and the gate map echoes them through the very keys they went to. The
+    // frame also restates a name the incremental write never sends, which is
+    // the proof below that the frame was parsed at all.
+    auto edit = harness->get_slot_info(0);
+    edit.color_rgb = 0x00FF00u;
+    edit.material = "PETG";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"00ff00"})},
+                        {"gate_material", nlohmann::json::array({"PETG"})},
+                        {"gate_name", nlohmann::json::array({"Spool A"})}});
+
+    const auto echoed = lane_sources(harness.lane(0));
+    REQUIRE(echoed.vendor_cache.has_value());
+    CHECK(echoed.vendor_cache->spool_name == "Spool A");
+    CHECK_FALSE(echoed.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(echoed.vendor_cache->material.has_value());
+
+    // The harm lands at the clear: filed, the echo would leave the abandoned
+    // edit standing as the gate map's own word once the override is gone.
+    harness->clear_slot_override(0);
+    const auto resolved = helix::ams::resolved_lane(harness.lane(0));
+    CHECK_FALSE(resolved.color_rgb.has_value());
+    CHECK_FALSE(resolved.material.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a differing Happy Hare value ends its own field's suppression",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c"})},
+                        {"gate_material", nlohmann::json::array({"PLA"})}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.color_rgb = 0x00FF00u;
+    edit.material = "PETG";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    // Firmware says a colour the write did not send: it has demonstrated it can
+    // state its own, so the colour is released while the material stays an
+    // outstanding echo. The frame says nothing about material, and the
+    // accumulator's pre-edit PLA is the gate map's last word, not this frame's
+    // claim, so it files rather than releasing the material declaration.
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"00aeff"})}});
+
+    const auto differed = lane_sources(harness.lane(0));
+    REQUIRE(differed.vendor_cache.has_value());
+    REQUIRE(differed.vendor_cache->color_rgb.has_value());
+    CHECK(*differed.vendor_cache->color_rgb == 0x00AEFFu);
+    CHECK(differed.vendor_cache->material == "PLA");
+
+    // The material echo is still withheld: the colour having moved releases
+    // nothing but itself, and the withheld field files absent.
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"00aeff"})},
+                        {"gate_material", nlohmann::json::array({"PETG"})}});
+
+    const auto after = lane_sources(harness.lane(0));
+    REQUIRE(after.vendor_cache.has_value());
+    CHECK_FALSE(after.vendor_cache->material.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an echoed field stays withheld on frames that go silent",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c"})},
+                        {"gate_material", nlohmann::json::array({"PLA"})}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.color_rgb = 0x00FF00u;
+    edit.material = "PETG";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    // The echo itself: both fields name the write, so both file absent.
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"00ff00"})},
+                        {"gate_material", nlohmann::json::array({"PETG"})}});
+    const auto echoed = lane_sources(harness.lane(0));
+    CHECK_FALSE(echoed.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(echoed.vendor_cache->material.has_value());
+
+    // A later delta about nothing but gate status. The accumulator still holds
+    // the echoed values, and filing it whole would put the abandoned edit back
+    // as the machine's word one frame after the echo was withheld.
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})}});
+
+    const auto silent = lane_sources(harness.lane(0));
+    REQUIRE(silent.vendor_cache.has_value());
+    CHECK_FALSE(silent.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(silent.vendor_cache->material.has_value());
+
+    // A differing value still releases only its own field, so the suppression
+    // the silent frame rode over is the declaration, not a dead entry.
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"00aeff"})}});
+
+    const auto differed = lane_sources(harness.lane(0));
+    REQUIRE(differed.vendor_cache.has_value());
+    REQUIRE(differed.vendor_cache->color_rgb.has_value());
+    CHECK(*differed.vendor_cache->color_rgb == 0x00AEFFu);
+    CHECK_FALSE(differed.vendor_cache->material.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a firmware clear releases the declaration it names",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c"})},
+                        {"gate_material", nlohmann::json::array({"PLA"})}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.color_rgb = 0x00FF00u;
+    edit.material = "PETG";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"00ff00"})},
+                        {"gate_material", nlohmann::json::array({"PETG"})}});
+    const auto echoed = lane_sources(harness.lane(0));
+    CHECK_FALSE(echoed.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(echoed.vendor_cache->material.has_value());
+
+    // The gate map wiped: Happy Hare publishes the keys empty, which is the
+    // gate stating the values are GONE, not falling silent about them, so the
+    // declarations end here rather than standing guard over an emptied gate.
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({""})},
+                        {"gate_material", nlohmann::json::array({""})}});
+
+    // An untagged spool loaded into the emptied gate republishes values equal
+    // to the old declarations, so only the clear above can have released
+    // them: these are fresh readings and must file, or the gate shows no
+    // identity at all.
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})},
+                        {"gate_color", nlohmann::json::array({"00ff00"})},
+                        {"gate_material", nlohmann::json::array({"PETG"})}});
+
+    const auto reloaded = lane_sources(harness.lane(0));
+    REQUIRE(reloaded.vendor_cache.has_value());
+    REQUIRE(reloaded.vendor_cache->color_rgb.has_value());
+    CHECK(*reloaded.vendor_cache->color_rgb == 0x00FF00u);
+    CHECK(reloaded.vendor_cache->material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "clearing a spool ends its echo suppression",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c"})},
+                        {"gate_material", nlohmann::json::array({"PLA"})}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.color_rgb = 0x00FF00u;
+    edit.material = "PETG";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"00ff00"})},
+                        {"gate_material", nlohmann::json::array({"PETG"})}});
+    const auto echoed = lane_sources(harness.lane(0));
+    CHECK_FALSE(echoed.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(echoed.vendor_cache->material.has_value());
+
+    // The Clear Spool gesture. The gate is being emptied deliberately, so a
+    // frame restating the edit's values afterwards is the machine's own
+    // reading, not an echo to hide.
+    harness->clear_slot_override(0);
+
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"00ff00"})},
+                        {"gate_material", nlohmann::json::array({"PETG"})}});
+
+    const auto after = lane_sources(harness.lane(0));
+    REQUIRE(after.vendor_cache.has_value());
+    REQUIRE(after.vendor_cache->color_rgb.has_value());
+    CHECK(*after.vendor_cache->color_rgb == 0x00FF00u);
+    CHECK(after.vendor_cache->material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Happy Hare edit arms nothing its write cannot carry",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.color_rgb = 0x123456u;
+    edit.color_name = "Peacock";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    // A producer record restating both fields. The colour strips, which is
+    // the control: it proves the guard holds an armed entry for this gate,
+    // so the name surviving is the prune and not an empty guard.
+    helix::ams::Observation probe(helix::ams::ObservationSource::VendorCache);
+    probe.color_rgb = 0x123456u;
+    probe.color_name = "Peacock";
+    harness->own_write_echoes()->withhold(0, std::string{}, probe);
+    CHECK_FALSE(probe.color_rgb.has_value());
+    // The incremental MMU_GATE_MAP carries no colour name, so firmware
+    // holding one is its own reading: the name must not hold a declaration
+    // that strips it.
+    CHECK(probe.color_name == "Peacock");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an external re-bind ends Happy Hare's echo suppression",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c"})},
+                        {"gate_material", nlohmann::json::array({"PLA"})},
+                        {"gate_spool_id", nlohmann::json::array({7})}});
+
+    // Link a spool: a binding change, so the write carries no identity a
+    // person chose and nothing arms.
+    auto link = harness->get_slot_info(0);
+    link.spoolman_id = 42;
+    helix::test::edit_slot_as_user(*harness, 0, link);
+    feed_mmu(*harness, {{"gate_spool_id", nlohmann::json::array({42})}});
+
+    // A colour edit on the kept link. The spool owns material, brand and
+    // name, but the colour is the lane's own, so COLOR arms the guard.
+    auto edit = harness->get_slot_info(0);
+    edit.color_rgb = 0x00FF00u;
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"00ff00"})}});
+    const auto echoed = lane_sources(harness.lane(0));
+    CHECK_FALSE(echoed.vendor_cache->color_rgb.has_value());
+
+    // Another writer puts a different spool on the gate, one whose colour
+    // reads exactly what we wrote: value-difference cannot see this swap,
+    // only the re-bind verdict can. The verdict runs after this frame's
+    // ingest, so this frame is the last one withheld.
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"00ff00"})},
+                        {"gate_spool_id", nlohmann::json::array({99})}});
+
+    // The standing colour now files as the new spool's own statement rather
+    // than being withheld as ours forever.
+    feed_mmu(*harness, {{"gate_color", nlohmann::json::array({"00ff00"})}});
+
+    const auto rebound = lane_sources(harness.lane(0));
+    REQUIRE(rebound.vendor_cache.has_value());
+    REQUIRE(rebound.vendor_cache->color_rgb.has_value());
+    CHECK(*rebound.vendor_cache->color_rgb == 0x00FF00u);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "clearing one field of a gate does not bring the old value back",
+                 "[lane][ingest][happy_hare]") {
+    HappyHareHarness harness(nullptr, nullptr);
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c"})},
+                        {"gate_material", nlohmann::json::array({"PLA"})}});
+
+    // The user clears the material and keeps the colour. Happy Hare keeps an
+    // omitted parameter at its current value, so the write must carry the
+    // explicit empty or the gate map goes on remembering PLA - and once the
+    // override is gone that remembered value would stand as the machine's
+    // own word on what the user deliberately removed.
+    auto edit = harness->get_slot_info(0);
+    edit.material = "";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    feed_mmu(*harness, {{"gate_material", nlohmann::json::array({""})}});
+
+    const auto cleared = lane_sources(harness.lane(0));
+    REQUIRE(cleared.vendor_cache.has_value());
+    CHECK_FALSE(cleared.vendor_cache->material.has_value());
+    REQUIRE(cleared.vendor_cache->color_rgb.has_value());
+    CHECK(*cleared.vendor_cache->color_rgb == 0xED2C2Cu);
+
+    harness->clear_slot_override(0);
+    const auto resolved = helix::ams::resolved_lane(harness.lane(0));
+    CHECK_FALSE(resolved.material.has_value());
+    // The colour the edit kept survives the clear as the gate map's reading.
+    REQUIRE(resolved.color_rgb.has_value());
+    CHECK(*resolved.color_rgb == 0xED2C2Cu);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a Happy Hare insert nothing names a spool for keeps the details and asks",
+                 "[lane][ingest][happy_hare][1710]") {
+    HappyHareHarness harness(nullptr, nullptr);
+    ToastRecorder toasts;
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({0})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c"})},
+                        {"gate_material", nlohmann::json::array({"PLA"})}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PETG";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    // A spool goes in. Happy Hare senses occupancy alone and the gate map is
+    // memory a person maintains, so the insert itself reads nothing about the
+    // spool, and no binding names one: whether the details still standing
+    // describe the spool now in the gate is the user's to answer.
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(toasts.messages.size() == 1);
+    CHECK(toasts.messages.front().find("Gate 1") != std::string::npos);
+    // Asking changes nothing: the declared details stand until answered.
+    const auto resolved = helix::ams::resolved_lane(harness.lane(0));
+    REQUIRE(resolved.material.has_value());
+    CHECK(*resolved.material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Happy Hare insert the MMU names a spool for asks nothing",
+                 "[lane][ingest][happy_hare][1710]") {
+    HappyHareHarness harness(nullptr, nullptr);
+    ToastRecorder toasts;
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({0})},
+                        {"gate_spool_id", nlohmann::json::array({7})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c"})}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PLA";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    // The gate fills and the MMU still names spool 7: the binding answers the
+    // same-spool question, so nobody is asked. (A different id would have
+    // re-bound through the gate_spool_id verdict already.)
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})},
+                        {"gate_spool_id", nlohmann::json::array({7})}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(toasts.messages.empty());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Happy Hare frame with no insert asks nothing",
+                 "[lane][ingest][happy_hare][1710]") {
+    HappyHareHarness harness(nullptr, nullptr);
+    ToastRecorder toasts;
+
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})},
+                        {"gate_color", nlohmann::json::array({"ed2c2c"})}});
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PLA";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    // The gate held filament through both frames; the ask belongs to an
+    // insert, not to a poll.
+    feed_mmu(*harness, {{"gate_status", nlohmann::json::array({1})}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(toasts.messages.empty());
 }
 
 // --- CFS ---------------------------------------------------------------
@@ -3279,6 +3874,403 @@ TEST_CASE_METHOD(LVGLTestFixture, "Qidi's vendor cache states its tables, not th
     CHECK_FALSE(lane.vendor_cache->brand.has_value());
 }
 
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a Qidi edit's own SAVE_VARIABLE echo does not return as a reading",
+                 "[lane][ingest][qidi]") {
+    QidiHarness harness(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(*harness, qidi_tables());
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 2}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PETG Basic";
+    edit.color_rgb = 0xED2C2Cu;
+    // Lowercase on purpose: the write carries the vendor row's id, and the
+    // echo files the row's own spelling, so the guard must compare against
+    // "QIDI" rather than the string the user typed.
+    edit.brand = "qidi";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    // What save_variables republishes after the push: the ids the edit
+    // resolved to, on both slots. Slot 1 names different rows, so its filing
+    // is the proof the frame was parsed at all.
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 2},
+                                                           {"filament_slot0", 12},
+                                                           {"color_slot0", 5},
+                                                           {"vendor_slot0", 3},
+                                                           {"filament_slot1", 40},
+                                                           {"color_slot1", 9},
+                                                           {"vendor_slot1", 8}});
+
+    const auto echoed = lane_sources(harness.lane(0));
+    REQUIRE(echoed.vendor_cache.has_value());
+    CHECK_FALSE(echoed.vendor_cache->material.has_value());
+    CHECK_FALSE(echoed.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(echoed.vendor_cache->brand.has_value());
+
+    const auto control = lane_sources(harness.lane(1));
+    REQUIRE(control.vendor_cache.has_value());
+    CHECK(control.vendor_cache->material == "ABS");
+    REQUIRE(control.vendor_cache->color_rgb.has_value());
+    CHECK(*control.vendor_cache->color_rgb == 0x00FF00u);
+    CHECK(control.vendor_cache->brand == "Elegoo");
+
+    // Filed, the echo would leave the abandoned edit standing as the Box's
+    // word once the override is gone.
+    harness->clear_slot_override(0);
+    const auto resolved = helix::ams::resolved_lane(harness.lane(0));
+    CHECK_FALSE(resolved.material.has_value());
+    CHECK_FALSE(resolved.color_rgb.has_value());
+    CHECK_FALSE(resolved.brand.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Qidi frame restating the saved ids keeps the echo withheld",
+                 "[lane][ingest][qidi]") {
+    QidiHarness harness(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(*harness, qidi_tables());
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PETG Basic";
+    edit.color_rgb = 0xED2C2Cu;
+    edit.brand = "QIDI";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    const nlohmann::json echo{
+        {"box_count", 1}, {"filament_slot0", 12}, {"color_slot0", 5}, {"vendor_slot0", 3}};
+    QidiBoxTestAccess::parse_vars(*harness, echo);
+    const auto withheld = lane_sources(harness.lane(0));
+    REQUIRE(withheld.vendor_cache.has_value());
+    CHECK_FALSE(withheld.vendor_cache->material.has_value());
+
+    // A frame silent about the ids still repaints them: the saved ids stand,
+    // so the cache the parse files restates the write the same way.
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1}, {"slot0", 1}});
+    const auto restated = lane_sources(harness.lane(0));
+    REQUIRE(restated.vendor_cache.has_value());
+    CHECK_FALSE(restated.vendor_cache->material.has_value());
+    CHECK_FALSE(restated.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(restated.vendor_cache->brand.has_value());
+
+    // A different spool's ids move the fingerprint, which is the Box's own
+    // swap signal: the clear that follows drops the guard, and this frame
+    // files the new identity in the same pass.
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1},
+                                                           {"filament_slot0", 40},
+                                                           {"color_slot0", 9},
+                                                           {"vendor_slot0", 8}});
+    const auto swapped = lane_sources(harness.lane(0));
+    REQUIRE(swapped.vendor_cache.has_value());
+    CHECK(swapped.vendor_cache->material == "ABS");
+    REQUIRE(swapped.vendor_cache->color_rgb.has_value());
+    CHECK(*swapped.vendor_cache->color_rgb == 0x00FF00u);
+    CHECK(swapped.vendor_cache->brand == "Elegoo");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Qidi spool swap clears the echo guard with the override",
+                 "[lane][ingest][qidi]") {
+    QidiHarness harness(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(*harness, qidi_tables());
+
+    // The same rows the edit below rewrites, so the echo frames stay
+    // fingerprint-Unchanged and only the guard is under test.
+    const nlohmann::json echo{
+        {"box_count", 1}, {"filament_slot0", 12}, {"color_slot0", 5}, {"vendor_slot0", 3}};
+    QidiBoxTestAccess::parse_vars(*harness, echo);
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PETG Basic";
+    edit.color_rgb = 0xED2C2Cu;
+    edit.brand = "QIDI";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    QidiBoxTestAccess::parse_vars(*harness, echo);
+    const auto withheld = lane_sources(harness.lane(0));
+    REQUIRE(withheld.vendor_cache.has_value());
+    CHECK_FALSE(withheld.vendor_cache->material.has_value());
+    CHECK_FALSE(withheld.vendor_cache->color_rgb.has_value());
+    CHECK_FALSE(withheld.vendor_cache->brand.has_value());
+
+    // A different fila row with the colour row kept: the fingerprint moves to
+    // a row pair nothing of ours explains, and the material it decodes to
+    // differs from the edit's, which is the swap verdict. The clear that
+    // follows drops the guard, so this frame files the whole identity -
+    // including the colour, which repeats the edit and would stay withheld
+    // with the guard standing - rather than holding it back as an echo.
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1},
+                                                           {"filament_slot0", 40},
+                                                           {"color_slot0", 5},
+                                                           {"vendor_slot0", 3}});
+    const auto swapped = lane_sources(harness.lane(0));
+    REQUIRE(swapped.vendor_cache.has_value());
+    CHECK(swapped.vendor_cache->material == "ABS");
+    REQUIRE(swapped.vendor_cache->color_rgb.has_value());
+    CHECK(*swapped.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(swapped.vendor_cache->brand == "QIDI");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "clearing a Qidi slot ends its echo suppression",
+                 "[lane][ingest][qidi]") {
+    QidiHarness harness(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(*harness, qidi_tables());
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PETG Basic";
+    edit.color_rgb = 0xED2C2Cu;
+    edit.brand = "QIDI";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    const nlohmann::json echo{
+        {"box_count", 1}, {"filament_slot0", 12}, {"color_slot0", 5}, {"vendor_slot0", 3}};
+    QidiBoxTestAccess::parse_vars(*harness, echo);
+    const auto withheld = lane_sources(harness.lane(0));
+    REQUIRE(withheld.vendor_cache.has_value());
+    CHECK_FALSE(withheld.vendor_cache->material.has_value());
+
+    harness->clear_slot_override(0);
+
+    // The clear zeroes the saved ids, and whatever the Box states from here
+    // is its own word: restating the same rows must file.
+    QidiBoxTestAccess::parse_vars(*harness, echo);
+    const auto refiled = lane_sources(harness.lane(0));
+    REQUIRE(refiled.vendor_cache.has_value());
+    CHECK(refiled.vendor_cache->material == "PETG");
+    REQUIRE(refiled.vendor_cache->color_rgb.has_value());
+    CHECK(*refiled.vendor_cache->color_rgb == 0xED2C2Cu);
+    CHECK(refiled.vendor_cache->brand == "QIDI");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Qidi edit arms nothing its SAVE_VARIABLEs cannot carry",
+                 "[lane][ingest][qidi]") {
+    QidiHarness harness(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(*harness, qidi_tables());
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PETG Basic";
+    edit.color_rgb = 0xED2C2Cu;
+    edit.brand = "qidi";
+    edit.spool_name = "Benchy spool";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    // A producer record restating the fields. The three id-carried fields
+    // strip, which is the control: it proves the guard holds an armed entry
+    // spelling them the way the Box does - the row's type, the palette row's
+    // colour, the vendor row's own spelling - so the name surviving is the
+    // prune and not an empty guard.
+    helix::ams::Observation probe(helix::ams::ObservationSource::VendorCache);
+    probe.material = "PETG";
+    probe.color_rgb = 0xED2C2Cu;
+    probe.brand = "QIDI";
+    probe.spool_name = "Benchy spool";
+    harness->own_write_echoes()->withhold(0, std::string{}, probe);
+    CHECK_FALSE(probe.material.has_value());
+    CHECK_FALSE(probe.color_rgb.has_value());
+    CHECK_FALSE(probe.brand.has_value());
+    // No SAVE_VARIABLE carries a spool name, so the Box holding one is its
+    // own reading: the name must not hold a declaration that strips it.
+    CHECK(probe.spool_name == "Benchy spool");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Qidi vendor change alone is not a spool swap",
+                 "[lane][ingest][qidi][1710]") {
+    QidiHarness harness(nullptr, nullptr);
+    QidiBoxTestAccess::apply_filas_list(*harness, qidi_tables());
+
+    const nlohmann::json base{
+        {"box_count", 1}, {"filament_slot0", 12}, {"color_slot0", 5}, {"vendor_slot0", 3}};
+    QidiBoxTestAccess::parse_vars(*harness, base);
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PETG Basic";
+    edit.color_rgb = 0xED2C2Cu;
+    edit.brand = "QIDI";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    // Another writer moves only the vendor row. The vendor id is not evidence
+    // about the spool - it is the Box's own table, not something the spool
+    // carries - so the slot's details are not a description of a departed
+    // spool and the override stands; the new vendor repaints the brand.
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1},
+                                                           {"filament_slot0", 12},
+                                                           {"color_slot0", 5},
+                                                           {"vendor_slot0", 8}});
+
+    const auto info = harness->get_slot_info(0);
+    CHECK(info.material == "PETG Basic");
+    CHECK(info.brand == "Elegoo");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Qidi rows that decode alike are one spool",
+                 "[lane][ingest][qidi][1710]") {
+    QidiHarness harness(nullptr, nullptr);
+    ToastRecorder toasts;
+    QidiBoxTestAccess::apply_filas_list(*harness, qidi_tables());
+
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1},
+                                                           {"filament_slot0", 12},
+                                                           {"color_slot0", 5},
+                                                           {"vendor_slot0", 3}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PETG Basic";
+    edit.color_rgb = 0xED2C2Cu;
+    edit.brand = "QIDI";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    // The fila row changes but both rows are PETG under a different name, and
+    // the colour row does not move: what the reader read off the spool decodes
+    // to the same material and colour, which is one spool by the insert rule,
+    // not a swap. The details stand and nobody is asked.
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1},
+                                                           {"filament_slot0", 14},
+                                                           {"color_slot0", 5},
+                                                           {"vendor_slot0", 3}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(harness->get_slot_info(0).material == "PETG Basic");
+    CHECK(toasts.messages.empty());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Qidi insert the reader read nothing about asks",
+                 "[lane][ingest][qidi][1710]") {
+    QidiHarness harness(nullptr, nullptr);
+    ToastRecorder toasts;
+    QidiBoxTestAccess::apply_filas_list(*harness, qidi_tables());
+
+    // The slot sits empty while the saved ids stand in the variables: those
+    // are the Box's memory of the last spool, not a read of the slot.
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1},
+                                                           {"slot0", 0},
+                                                           {"filament_slot0", 12},
+                                                           {"color_slot0", 5},
+                                                           {"vendor_slot0", 3}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PETG Basic";
+    edit.color_rgb = 0xED2C2Cu;
+    edit.brand = "QIDI";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    // Filament appears and the ids did not move: the reader read nothing off
+    // the spool that went in, so nothing says whether the details standing on
+    // the slot describe it. Keep them, and ask.
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1}, {"slot0", 1}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(toasts.messages.size() == 1);
+    CHECK(harness->get_slot_info(0).material == "PETG Basic");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Qidi insert whose tag decodes the same asks nothing",
+                 "[lane][ingest][qidi][1710]") {
+    QidiHarness harness(nullptr, nullptr);
+    ToastRecorder toasts;
+    QidiBoxTestAccess::apply_filas_list(*harness, qidi_tables());
+
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1},
+                                                           {"slot0", 0},
+                                                           {"filament_slot0", 12},
+                                                           {"color_slot0", 5},
+                                                           {"vendor_slot0", 3}});
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PETG Basic";
+    edit.color_rgb = 0xED2C2Cu;
+    edit.brand = "QIDI";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+
+    // The insert brings a tag the Box reads: both fila rows decode to PETG and
+    // the colour is unchanged, so the reading proves the same spool and the
+    // ask is not offered.
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1},
+                                                           {"slot0", 1},
+                                                           {"filament_slot0", 14},
+                                                           {"color_slot0", 5},
+                                                           {"vendor_slot0", 3}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(toasts.messages.empty());
+    CHECK(harness->get_slot_info(0).material == "PETG Basic");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a Qidi fingerprint stored with a vendor component folds to two",
+                 "[lane][ingest][qidi][1710]") {
+    CHECK(QidiBoxTestAccess::normalize_legacy_fingerprint("12|5|3") == "12|5");
+    // Already the current shape, empty, or a value no build of ours wrote:
+    // left exactly as found.
+    CHECK(QidiBoxTestAccess::normalize_legacy_fingerprint("12|5") == "12|5");
+    CHECK(QidiBoxTestAccess::normalize_legacy_fingerprint("").empty());
+    CHECK(QidiBoxTestAccess::normalize_legacy_fingerprint("box") == "box");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a Qidi swap the tables have not decoded still clears the override",
+                 "[lane][ingest][qidi][1710]") {
+    QidiHarness harness(nullptr, nullptr);
+    ToastRecorder toasts;
+    // No apply_filas_list: the officiall_filas_list.cfg fetch has not landed,
+    // so no id in the fingerprint decodes to a material or a colour.
+
+    const nlohmann::json base{{"box_count", 1}, {"filament_slot0", 12}, {"color_slot0", 5}};
+    QidiBoxTestAccess::parse_vars(*harness, base);
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PETG Basic";
+    edit.color_rgb = 0xED2C2Cu;
+    edit.brand = "QIDI";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+    REQUIRE(QidiBoxTestAccess::get_override(*harness, 0).has_value());
+
+    // A different spool's ids arrive with the tables still missing. Both
+    // composites fall back to the raw ids, the ids differ, so the change is a
+    // swap: the override must not outlive a swap just because a config fetch
+    // is late. A differing-ids verdict is an answer, not a question, so the
+    // ask is not offered either.
+    QidiBoxTestAccess::parse_vars(
+        *harness, nlohmann::json{{"box_count", 1}, {"filament_slot0", 40}, {"color_slot0", 9}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(QidiBoxTestAccess::get_override(*harness, 0).has_value());
+    CHECK(harness->get_slot_info(0).material != "PETG Basic");
+    CHECK(toasts.messages.empty());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Qidi ids that match with no tables keep the override",
+                 "[lane][ingest][qidi][1710]") {
+    QidiHarness harness(nullptr, nullptr);
+    ToastRecorder toasts;
+    // Tables missing here too: whatever the fallback does, it must not turn a
+    // quiet frame into a clearance.
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{
+                                                {"box_count", 1},
+                                                {"filament_slot0", 12},
+                                                {"color_slot0", 5},
+                                                {"vendor_slot0", 3},
+                                            });
+
+    auto edit = harness->get_slot_info(0);
+    edit.material = "PETG Basic";
+    edit.color_rgb = 0xED2C2Cu;
+    edit.brand = "QIDI";
+    helix::test::edit_slot_as_user(*harness, 0, edit);
+    REQUIRE(QidiBoxTestAccess::get_override(*harness, 0).has_value());
+
+    // The fila and colour ids stand; only the vendor row moves. The
+    // fingerprint is unchanged and no id the spool carries moved, so the
+    // override survives a late or failed table fetch untouched.
+    QidiBoxTestAccess::parse_vars(*harness, nlohmann::json{{"box_count", 1},
+                                                           {"filament_slot0", 12},
+                                                           {"color_slot0", 5},
+                                                           {"vendor_slot0", 8}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto override_after = QidiBoxTestAccess::get_override(*harness, 0);
+    REQUIRE(override_after.has_value());
+    CHECK(harness->get_slot_info(0).material == "PETG Basic");
+    CHECK(toasts.messages.empty());
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "a Qidi palette grey is the no-colour sentinel",
                  "[lane][ingest][qidi]") {
     QidiHarness harness(nullptr, nullptr);
@@ -3574,7 +4566,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "the factory mock is registered before it star
 //
 // By source: only records classifying as VendorCache. A record naming a spool
 // is the server's statement and one carrying a lock key is a person's, and
-// neither becomes true again merely because a re-read saw it.
+// neither becomes true again merely because a re-read saw it. A record this
+// application did not write is another tool's statement and may displace the
+// lane's own (#1632) - unless a write of ours is still in flight on the slot,
+// where the guard's strip alone decides what files.
 //
 // By lane: only where firmware states no identity of its own. Everywhere else
 // a status frame already files the vendor-cache record, ingest() replaces a
@@ -3694,10 +4689,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "a resync re-reads the shared namespace into t
 
     CHECK(db.api.mock_db_namespace_get_count() == 1);
     const auto lane = lane_sources(harness.lane(0));
-    REQUIRE(lane.remembered.has_value());
-    CHECK(lane.remembered->material == "ASA");
-    REQUIRE(lane.remembered->color_rgb.has_value());
-    CHECK(*lane.remembered->color_rgb == 0xA4B2BCu);
+    REQUIRE(lane.local_user.has_value());
+    CHECK(lane.local_user->material == "ASA");
+    REQUIRE(lane.local_user->color_rgb.has_value());
+    CHECK(*lane.local_user->color_rgb == 0xA4B2BCu);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a resync reaches the backend's own block, not slot indices",
@@ -3720,12 +4715,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "a resync reaches the backend's own block, not
 
     // Slot 1, not slot 0: the slot index is carried as well as the block.
     const auto lane = lane_sources(backend->lane_id(1));
-    REQUIRE(lane.remembered.has_value());
-    CHECK(lane.remembered->material == "PC");
+    REQUIRE(lane.local_user.has_value());
+    CHECK(lane.local_user->material == "PC");
 
     // Block 0 belongs to the other backend. Deriving the id from the slot
     // index alone would land the record there.
-    CHECK_FALSE(lane_sources(helix::ams::lane_id_for(0, 1)).remembered.has_value());
+    CHECK_FALSE(lane_sources(helix::ams::lane_id_for(0, 1)).local_user.has_value());
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a resync files no declaration for a record naming a spool",
@@ -3747,8 +4742,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "a resync files no declaration for a record na
     CHECK_FALSE(linked.remembered.has_value());
 
     const auto plain = lane_sources(harness.lane(1));
-    REQUIRE(plain.remembered.has_value());
-    CHECK(plain.remembered->material == "PLA");
+    REQUIRE(plain.local_user.has_value());
+    CHECK(plain.local_user->material == "PLA");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a resync files no declaration for a locked record",
@@ -3773,8 +4768,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "a resync files no declaration for a locked re
     CHECK_FALSE(locked.remembered.has_value());
 
     const auto plain = lane_sources(harness.lane(1));
-    REQUIRE(plain.remembered.has_value());
-    CHECK(plain.remembered->material == "PLA");
+    REQUIRE(plain.local_user.has_value());
+    CHECK(plain.local_user->material == "PLA");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a re-read that cannot reach the database leaves the lane alone",
@@ -3786,7 +4781,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a re-read that cannot reach the database leav
 
     harness->request_resync();
     helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(lane_sources(harness.lane(0)).remembered.has_value());
+    REQUIRE(lane_sources(harness.lane(0)).local_user.has_value());
 
     db.seed("T0", nlohmann::json{{"lane", "0"}, {"material", "TPU"}});
     db.api.mock_reject_next_db_get();
@@ -3794,8 +4789,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "a re-read that cannot reach the database leav
     helix::ui::UpdateQueue::instance().drain();
 
     const auto lane = lane_sources(harness.lane(0));
-    REQUIRE(lane.remembered.has_value());
-    CHECK(lane.remembered->material == "PLA");
+    REQUIRE(lane.local_user.has_value());
+    CHECK(lane.local_user->material == "PLA");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a resync withholds the fields of a write this backend sent",
@@ -3832,16 +4827,114 @@ TEST_CASE_METHOD(LVGLTestFixture, "a resync withholds the fields of a write this
     CHECK_FALSE(echoed.remembered->material.has_value());
     CHECK_FALSE(echoed.remembered->color_rgb.has_value());
 
-    // Without a write outstanding the same record files whole, so the
-    // withholding is the guard's and not the resync's.
+    // Without a write outstanding the same record files whole - as another
+    // tool's statement, on the user's rung (#1632) - so the withholding is
+    // the guard's and not the resync's.
     db.seed("T1", nlohmann::json{{"lane", "1"}, {"material", "PETG"}, {"color", "#00FF00"}});
     harness->request_resync();
     helix::ui::UpdateQueue::instance().drain();
     const auto plain = lane_sources(harness.lane(1));
-    REQUIRE(plain.remembered.has_value());
-    CHECK(plain.remembered->material == "PETG");
-    REQUIRE(plain.remembered->color_rgb.has_value());
-    CHECK(*plain.remembered->color_rgb == 0x00FF00u);
+    REQUIRE(plain.local_user.has_value());
+    CHECK(plain.local_user->material == "PETG");
+    REQUIRE(plain.local_user->color_rgb.has_value());
+    CHECK(*plain.local_user->color_rgb == 0x00FF00u);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a resync promotes a record another tool wrote over an older edit",
+                 "[lane][ingest][resync]") {
+    ToolChangerHarness harness(nullptr, nullptr);
+    LaneDataDb db;
+
+    // The lane's standing statement: an edit made here, stamped 12:00.
+    const auto at = [](int hours) {
+        return std::chrono::system_clock::time_point{
+            std::chrono::seconds(1790337600 + hours * 3600)};
+    };
+    helix::ams::Observation mine(helix::ams::ObservationSource::LocalUser);
+    mine.color_rgb = 0x00FF00u;
+    mine.material = "PETG";
+    mine.edited_at = at(0);
+    helix::ams::commit_slot_edit(harness.lane(0), mine);
+
+    // Another tool replaced the record at 13:00 with its own identity.
+    db.seed("T0", nlohmann::json{{"lane", "0"},
+                                 {"color", "#ED2C2C"},
+                                 {"material", "PLA"},
+                                 {"scan_time", "2026-09-25T13:00:00Z"}});
+    ToolChangerTestAccess::inject_override_store(*harness, toolchanger_store(db));
+
+    harness->request_resync();
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.local_user.has_value());
+    REQUIRE(lane.local_user->color_rgb.has_value());
+    CHECK(*lane.local_user->color_rgb == 0xED2C2Cu);
+    CHECK(lane.local_user->material == "PLA");
+    // The winning statement carries the record's stamp, so a later edit here
+    // displaces it and a later record elsewhere does too.
+    REQUIRE(lane.local_user->edited_at.has_value());
+    CHECK(*lane.local_user->edited_at == at(1));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a resync keeps an outside record older than the lane's edit below it",
+                 "[lane][ingest][resync]") {
+    ToolChangerHarness harness(nullptr, nullptr);
+    LaneDataDb db;
+
+    const auto at = [](int hours) {
+        return std::chrono::system_clock::time_point{
+            std::chrono::seconds(1790337600 + hours * 3600)};
+    };
+    helix::ams::Observation mine(helix::ams::ObservationSource::LocalUser);
+    mine.color_rgb = 0x00FF00u;
+    mine.material = "PETG";
+    mine.edited_at = at(2);
+    helix::ams::commit_slot_edit(harness.lane(0), mine);
+
+    // Stamped 10:00, two hours before the edit standing on the lane.
+    db.seed("T0", nlohmann::json{{"lane", "0"},
+                                 {"color", "#ED2C2C"},
+                                 {"material", "PLA"},
+                                 {"scan_time", "2026-09-25T10:00:00Z"}});
+    ToolChangerTestAccess::inject_override_store(*harness, toolchanger_store(db));
+
+    harness->request_resync();
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.local_user.has_value());
+    CHECK(lane.local_user->material == "PETG");
+    // The older record ranks below the lane's own edit, as a memory.
+    REQUIRE(lane.remembered.has_value());
+    CHECK(lane.remembered->material == "PLA");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a resync promotes a record another tool left no stamp on",
+                 "[lane][ingest][resync]") {
+    // Mainsail and Orca write no scan_time. Their record still displaced ours
+    // in the namespace - our writes always carry one - so the absence of a
+    // stamp is itself the evidence theirs is the newer edit.
+    ToolChangerHarness harness(nullptr, nullptr);
+    LaneDataDb db;
+
+    helix::ams::Observation mine(helix::ams::ObservationSource::LocalUser);
+    mine.material = "PETG";
+    mine.edited_at = std::chrono::system_clock::time_point{std::chrono::seconds(1790337600)};
+    helix::ams::commit_slot_edit(harness.lane(0), mine);
+
+    db.seed("T0", nlohmann::json{{"lane", "0"}, {"material", "PLA"}});
+    ToolChangerTestAccess::inject_override_store(*harness, toolchanger_store(db));
+
+    harness->request_resync();
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto lane = lane_sources(harness.lane(0));
+    REQUIRE(lane.local_user.has_value());
+    CHECK(lane.local_user->material == "PLA");
+    CHECK_FALSE(lane.remembered.has_value());
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "AFC's resync consults its own echo guard",

@@ -794,6 +794,13 @@ class GCodeLayerRenderer {
     static constexpr int MIN_LAYERS_PER_FRAME = 1;
     static constexpr int MAX_LAYERS_PER_FRAME = 100;
     static constexpr int DEFAULT_ADAPTIVE_TARGET_MS = 16; // ~60 FPS
+    // Wall-clock cap on one render_layers_to_cache() batch. The layer count
+    // above is sized for cheap full-file lookups, but a streaming miss parses
+    // the layer on the calling thread, so a full batch can cost hundreds of
+    // milliseconds per frame on a slow board. steady_clock rather than
+    // lv_tick_get(): the box must measure real time, including under a test
+    // fixture whose lv_tick is virtual.
+    static constexpr int SOLID_BATCH_BUDGET_MS = 8;
 
     // Constrained device limits (AD5M, low-RAM embedded < 256MB)
     static constexpr int CONSTRAINED_START_LPF = 5;

@@ -56,7 +56,7 @@ translations:
   1 event queued: 1 evento na fila
   1 hour ago: há 1 hora
   1 layer: 1 camada
-  1 line in helixscreen.env was ignored: ''
+  1 line in helixscreen.env was ignored: '1 linha do helixscreen.env foi ignorada'
   1 min: '1 min'
   1 min ago: há 1 min
   1 minute: 1 minuto
@@ -250,7 +250,7 @@ translations:
     do sensor
   Assisted Retract: 'Retração assistida'
   Assisting: Assistindo
-  At least {} lines in helixscreen.env were ignored: ''
+  At least {} lines in helixscreen.env were ignored: 'Pelo menos {} linhas do helixscreen.env foram ignoradas'
   Authentication failed: Falha na autenticação
   Auto: Automático
   Auto Bed Mesh: Malha da Mesa Automática
@@ -1289,8 +1289,8 @@ translations:
     extrusor
   Firmware restarting...: Reiniciando firmware...
   Firmware saved X = Y's value; the measured X result was discarded: O firmware salvou o valor de Y para X; o resultado medido de X foi descartado
-  'Fix: chmod 644 {}, then restart': ''
-  'Fix: chown {} {}, then restart': ''
+  'Fix: chmod 644 {}, then restart': 'Correção: chmod 644 {}, depois reinicie'
+  'Fix: chown {} {}, then restart': 'Correção: chown {} {}, depois reinicie'
   FlashForge Adventurer 5M: FlashForge Adventurer 5M
   FlashForge Adventurer 5X: FlashForge Adventurer 5X
   FlashForge IFS: FlashForge IFS
@@ -2728,7 +2728,7 @@ translations:
   Security: Segurança
   Security, network, host, and administration: Segurança, rede, host e administração
   See exactly what data will be sent: Veja exatamente quais dados serão enviados
-  See the log: ''
+  See the log: 'Verifique o registro'
   See the quick tour of HelixScreen again: Veja novamente o tour rápido do HelixScreen
   Select: Selecionar
   Select 'None' if you don't have a filament sensor, or if you don't want to pause on runout.: Selecione
@@ -2888,6 +2888,7 @@ translations:
     Kaarlonen
   Spaghetti Detection: Detecção de espaguete
   Spaghetti detected: Espaguete detectado
+  Spaghetti detected (%d%%): Espaguete detectado (%d%%)
   Spaghetti detected — print paused: Espaguete detectado — impressão pausada
   Speaker: Alto-falante
   Speed: Velocidade
@@ -3355,8 +3356,8 @@ translations:
   Unavailable: Indisponível
   Unavailable on this printer: Não disponível nesta impressora
   Understanding Results: Entender resultados
-  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
-  : "A tensão desigual da correia causa artefatos de impressão como deslocamentos de camada, VFAs (artefatos verticais finos) e ringing.\n\nEsta ferramenta vibra cada caminho de correia e mede a frequência de ressonância — frequências coincidentes significam tensão equilibrada.\n\nPara CoreXY, o Caminho A e B devem estar a poucos Hz um do outro."
+  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nPluck each belt by hand and this tool listens through the accelerometer to measure the belt's frequency. Matched frequencies mean balanced tension.\n\nOn CoreXY, belts A and B should be within a few Hz of each other."
+  : "A tensão desigual da correia causa artefatos de impressão como deslocamentos de camada, VFAs (artefatos verticais finos) e ringing.\n\nBelisque cada correia com a mão e esta ferramenta escuta pelo acelerômetro para medir a frequência da correia. Frequências coincidentes significam tensão equilibrada.\n\nPara CoreXY, as correias A e B devem estar a poucos Hz uma da outra."
   Uninstall: Desinstalar
   Uninstall HelixPrint Plugin: Desinstalar Plugin HelixPrint
   Uninstall HelixPrint Plugin?: Desinstalar Plugin HelixPrint?
@@ -3630,10 +3631,10 @@ translations:
   feeder not in automatic mode: 'alimentador não está em modo automático'
   filament sensor disabled: 'sensor de filamento desativado'
   heated bed: mesa aquecida
-  'helixscreen.env ignored: owned by uid {}': ''
-  'helixscreen.env ignored: untrusted symlink chain': ''
-  'helixscreen.env ignored: writable by other users': ''
-  'helixscreen.env ignored: {}': ''
+  'helixscreen.env ignored: owned by uid {}': 'helixscreen.env ignorado: pertence ao uid {}'
+  'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env ignorado: cadeia de links simbólicos não confiável'
+  'helixscreen.env ignored: writable by other users': 'helixscreen.env ignorado: gravável por outros usuários'
+  'helixscreen.env ignored: {}': 'helixscreen.env ignorado: {}'
   idle: ocioso
   in unit {} slot {}: na unidade {} slot {}
   layers: camadas
@@ -3691,7 +3692,7 @@ translations:
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} está instalado mas sua troca para carretel reserva está desligada, então não haverá troca automática.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} está instalado, mas não foi possível ler sua configuração de carretel reserva - não conte com uma troca automática.'
   '{} is not set up on this printer': '{} não está configurado nesta impressora'
-  '{} lines in helixscreen.env were ignored': ''
+  '{} lines in helixscreen.env were ignored': '{} linhas do helixscreen.env foram ignoradas'
   '{} macro not configured': Macro {} não configurado
   '{} matches.': '{} corresponde.'
   '{} may cause unintended changes. Are you sure?': '{} pode causar alterações não

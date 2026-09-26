@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -58,6 +59,14 @@ struct Observation {
 
     std::optional<float> remaining_weight_g;
     std::optional<float> total_weight_g;
+
+    /// When this statement was made, from the record it was filed from.
+    ///
+    /// Bookkeeping for the newest-edit-wins comparison between a lane's own
+    /// statement and a record another tool wrote, never part of what the
+    /// statement says: it deliberately stays out of fields(), so no amend or
+    /// merge carries it and resolve() never sees it.
+    std::optional<std::chrono::system_clock::time_point> edited_at;
 
     /// Every optional field above, as a tuple of references. Code that must
     /// touch all of them (amending one record onto another) folds over this

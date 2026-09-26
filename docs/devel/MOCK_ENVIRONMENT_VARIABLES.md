@@ -61,6 +61,64 @@ HELIX_MOCK_REMOTE_THUMBS=1 HELIX_THUMB_CACHE_MAX_MB=1 \
   HELIX_CACHE_DIR=/tmp/ht ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_GCODE_SERVE`
+
+Serve a real file's bytes from `MockHttpFileServer` instead of the tiny synthesised gcode header, reproducing big-file flows end to end at any size.
+
+| Property | Value |
+|----------|-------|
+| **Values** | path to a gcode file readable by the app |
+| **Default** | unset (`.gcode` requests get a synthesised thumbnail-bearing header) |
+| **File** | `src/api/mock_http_file_server.cpp` |
+
+With this set, every `.gcode` request the mock server receives returns the named file's bytes, so the whole-file preview download and the byte-range reads the tail/footer scanners issue run against a realistically sized payload. The server starts with every `--test` mock run; pair with `HELIX_MOCK_REMOTE_THUMBS=1` to route the file fetches over real HTTP as the #1706 repro does. Range headers are honoured per `apply_range`, subject to `HELIX_MOCK_RANGE_IGNORE`.
+
+```bash
+HELIX_MOCK_REMOTE_THUMBS=1 HELIX_MOCK_GCODE_SERVE=/tmp/huge.gcode \
+  ./build/bin/helix-screen --test -vv
+```
+
+### `HELIX_MOCK_RANGE_IGNORE`
+
+Make the mock file server drop every `Range` header, answering `200` with the whole body: the behaviour of server forks that never implemented byte ranges.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` / any non-empty, non-`0` value to enable |
+| **Default** | unset (ranges honoured: `206` slices, `416` for unsatisfiable) |
+| **File** | `src/api/mock_http_file_server.cpp` (`range_ignore_enabled`, applied in `apply_range`) |
+
+This is the server half of the Qidi Q2 single-file freeze (prestonbrown/helixscreen#1706): a range-ignoring server turned the bounded thumbnail-header fetch into a whole-file download per list entry. Set it to reproduce that class of failure against the client-side clamps, which live in `download_file_partial` / `download_file_tail` (`src/api/moonraker_file_transfer_api.cpp`) and are pinned by `tests/unit/test_moonraker_transfer_range.cpp`. The server's own Range behaviour is pinned by `tests/unit/test_mock_http_file_server_range.cpp`.
+
+```bash
+HELIX_MOCK_REMOTE_THUMBS=1 HELIX_MOCK_RANGE_IGNORE=1 \
+  HELIX_MOCK_FILE_COUNT=200 ./build/bin/helix-screen --test -vv
+```
+
+### `HELIX_MOCK_FILE_COUNT`
+
+Pad the mock's file listing to N entries by cycling the built-in names, so list-scale paths (per-entry metadata fetches, sort, scroll) run against a big list without shipping big files.
+
+| Property | Value |
+|----------|-------|
+| **Values** | positive integer |
+| **Default** | unset (the handful of built-in mock files) |
+| **File** | `src/api/moonraker_client_mock_files.cpp` |
+
+Padded entries reuse the built-in filenames in rotation, so they carry the same thumbnails and metadata; the point is the count, not the variety. Pair with `HELIX_MOCK_RANGE_IGNORE` and `HELIX_MOCK_REMOTE_THUMBS` to make each entry's metadata fetch a whole-file download, the #1706 shape at full scale.
+
+### `HELIX_MOCK_METADATA_404`
+
+Make `server.files.metadata` and `server.files.metascan` fail with a 404, as Moonraker forks without the metadata component do.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` / any non-empty, non-`0` value to enable |
+| **Default** | unset (metadata answers normally) |
+| **File** | `src/api/moonraker_client_mock_files.cpp` |
+
+With metadata unavailable, the UI falls back to reading thumbnails and layer counts straight out of the gcode file, which is the per-file path that #1706 froze. This knob forces that fallback without needing a metadata-less server.
+
 ### `HELIX_MOCK_AUTO_PRINT`
 
 Boot the mock printer straight into an active print so print-gated features can be exercised under `--test` without manually driving a print-start flow.
@@ -646,7 +704,7 @@ Select which printer the mock Moonraker client impersonates. Drives the mock's r
 
 | Property | Value |
 |----------|-------|
-| **Values** | `voron_24`, `voron_trident`, `k1`, `k1max`, `ad5m`, `generic_corexy`, `generic_bedslinger`, `multi_extruder`, `delta` |
+| **Values** | `voron_24`, `voron_trident`, `k1`, `k1max`, `ad5m`, `creator5`, `creator5_zmod`, `generic_corexy`, `generic_bedslinger`, `multi_extruder`, `delta` |
 | **Default** | `voron_24` (Voron 2.4) |
 | **File** | `src/application/moonraker_manager.cpp` |
 
@@ -659,9 +717,79 @@ HELIX_MOCK_PRINTER=multi_extruder ./build/bin/helix-screen --test -vv
 
 # Linear delta: reports kinematics=delta, so per-axis homing is hidden
 HELIX_MOCK_PRINTER=delta ./build/bin/helix-screen --test -vv
+
+# FlashForge Creator 5 Pro mock (4-head tool changer)
+HELIX_MOCK_PRINTER=creator5 ./build/bin/helix-screen --test -vv
+
+# FlashForge Creator 5 Pro on Z-Mod firmware (mock hardware, real tool changer backend)
+HELIX_MOCK_PRINTER=creator5_zmod ./build/bin/helix-screen --test -vv
 ```
 
 The `delta` persona changes the kinematics and hardware only. Its build volume is the same 0-based 235x235x250 box the other generic personas report, not a real delta's centred round bed, so it does not exercise negative coordinates or a round bed mesh.
+
+#### The `creator5` persona
+
+Both Creator 5 personas model the **Creator 5 Pro** (the heated-chamber model), so
+`creator5` here names the mock persona, not the printer: the preset it mirrors is
+`assets/config/presets/creator5_pro.json`. The mock and the shipped preset
+describe the same machine: 4 extruders (`extruder`, `extruder1..3`), chamber heater
+`heater_generic chamber_heater`, fans `heater_fan heat_fan` / `fan_generic fanM106`
+/ `fan_generic chamber_fan` / `fan_generic chamber_loop_fan`, LED `led chamber_led`,
+and one runout switch per head (`fd_ex0..fd_ex3`).
+
+It also advertises the Creator 5 Pro fingerprint in `printer.objects.list`
+(`ff_toolchange`, `gcode_button extruder_grab0..3`, `heater_generic chamber_heater`,
+`gcode_macro TOOLCHANGE_PARK`, `gcode_macro BED_MESH_CALIBRATE`), so
+`PrinterDetector` resolves it to **FlashForge Creator 5 Pro** at 99% confidence
+rather than a generic CoreXY; without the chamber heater object it would resolve
+to the heater-free Creator 5.
+
+**The persona implies a tool changer.** A Creator 5 Pro is a 4-head changer, so
+with no `HELIX_MOCK_AMS` set it selects the toolchanger backend rather than
+falling back to the generic Happy Hare default: you get 4 tools mapped to
+`extruder`/`extruder1..3` from `HELIX_MOCK_PRINTER=creator5` alone. An explicit
+`HELIX_MOCK_AMS` always wins, so other topologies stay testable against the
+persona:
+
+```bash
+# Tool changer, implied by the persona
+HELIX_MOCK_PRINTER=creator5 ./build/bin/helix-screen --test -vv
+
+# Force a different topology on the same persona
+HELIX_MOCK_PRINTER=creator5 HELIX_MOCK_AMS=afc ./build/bin/helix-screen --test -vv
+```
+
+The rule lives in `MoonrakerClientMock::mock_toolchanger_selected()`, which both
+the mock client and `ams_backend.cpp` consult so they cannot disagree about what
+the mock is presenting.
+
+Build volume is deliberately left at the generic mock value: the Creator 5 Pro's
+real travel limits are not documented in this repo, and detection keys off
+`ff_toolchange`, not the volume.
+
+#### The `creator5_zmod` persona
+
+The same machine running Z-Mod firmware: mock HARDWARE, not a mock backend.
+Where `creator5` advertises the Reforge fingerprint (`ff_toolchange`,
+`gcode_button extruder_grab0..3`) and stands the mock toolchanger up, this
+persona publishes Z-Mod's own objects (`zmod`, `zmod_color`, `save_variables`,
+`gcode_button extruder_pos1..4` and `extruder_grab1..4`; Z-Mod's buttons are
+1-based) plus the Pro's `heater_generic chamber_heater` and the per-head sensor
+pairs `fd_ex0..3` / `fm_ex0..3`, and pushes no `mmu` and no `toolchanger` object.
+
+The point is that real discovery runs: `AmsBackend::try_create_mock()` declines
+this persona (see `MoonrakerClientMock::mock_hardware_persona()`), so
+`toolchanger_addon` detects the Z-Mod row and the production
+`AmsBackendToolChanger` drives 4 slots against the mock's `zmod_color` status,
+the same escape hatch the MedusaHC modes use. The persona implies `--real-ams`
+(`cli_args.cpp`), so no second flag is needed. An explicit `HELIX_MOCK_AMS`
+still wins over the persona.
+
+The mock answers the firmware's macros: `_T_IN T=<n>` / `_T_OUT` republish
+`zmod_color.active_tool_id`, and `CHANGE_ZCOLOR SLOT=<n> HEX=<hex> TYPE=<t>`
+stores the slot's Material/HEX: upper-cased when the HEX is one of Z-Mod's 24
+palette colours, snapped to white (`FFFFFF`, palette index 0) when it is not,
+exactly as the firmware does. An unknown `TYPE` is refused with a gcode error.
 
 **Unrecognized values fall back to Voron 2.4** with a warning listing the valid set — they are not fatal. K2 and CC1 have no dedicated mock type yet and hit that fallback.
 

@@ -1,11 +1,13 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "gcode_layer_index.h"
 #include "gcode_streaming_controller.h"
 
 #include <chrono>
 #include <cstdio>
 #include <fstream>
+#include <future>
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -263,9 +265,9 @@ TEST_CASE("GCodeStreamingController cache management", "[gcode][streaming]") {
         // Syncing after each call pins how many runs happen: the worker takes
         // one centre at a time and drops a queued centre in favour of a newer
         // one, so back-to-back calls would coalesce into an unknown number.
-        controller.get_layer_segments(0); // miss 0
+        controller.get_layer_segments(0);    // miss 0
         controller.wait_for_prefetch_idle(); // hit 0, miss 1, miss 2
-        controller.get_layer_segments(0); // hit 0
+        controller.get_layer_segments(0);    // hit 0
         controller.wait_for_prefetch_idle(); // hit 0, hit 1, hit 2
 
         // 5 hits against 3 misses.
@@ -749,4 +751,173 @@ TEST_CASE("BackgroundGhostBuilder error handling", "[gcode][streaming][ghost]") 
         // Should have rendered all layers from second build
         REQUIRE(builder.layers_rendered() == 3);
     }
+}
+
+// =============================================================================
+// Index cancellation
+//
+// close() and the destructor join an in-flight index build on the CALLING
+// thread. On a Q2-class device indexing a large file runs for tens of
+// seconds, so if the build cannot be stopped, backing out of a preview
+// mid-index freezes the UI for the rest of the build (#1706). The progress
+// callback is the stop signal: build_from_file polls it and unwinds.
+// =============================================================================
+
+namespace {
+
+// A file big enough that indexing it takes a measurable fraction of a second.
+// Indexing throughput is ~300 MB/s on current dev hardware, so ~100 MB buys a
+// ~300 ms full build: long enough that a cancelled build finishing at full
+// speed is clearly distinguishable, short enough to keep the suite quick.
+class BigGCodeFile {
+  public:
+    explicit BigGCodeFile(uint64_t target_bytes) {
+        char temp_path[] = "/tmp/gcode_cancel_test_XXXXXX";
+        int fd = mkstemp(temp_path);
+        if (fd == -1) {
+            throw std::runtime_error("Failed to create temp file");
+        }
+        path_ = temp_path;
+
+        // One block per layer: a marker, the Z move that starts the layer
+        // (marker mode waits for it), then plain moves, ~0.5 MB. The line
+        // count is what indexes the file; content only has to parse.
+        std::string block = ";LAYER:block\nG1 Z0.400 F600\n";
+        while (block.size() < 500 * 1024) {
+            block += "G1 X100.000 Y100.000 E1.0000\n";
+        }
+
+        FILE* f = fdopen(fd, "w");
+        if (!f) {
+            close(fd);
+            throw std::runtime_error("Failed to open temp file for writing");
+        }
+        uint64_t written = 0;
+        while (written < target_bytes) {
+            if (fwrite(block.data(), 1, block.size(), f) == 0) {
+                fclose(f);
+                throw std::runtime_error("Failed to write temp file");
+            }
+            written += block.size();
+        }
+        fclose(f);
+    }
+
+    ~BigGCodeFile() {
+        std::remove(path_.c_str());
+    }
+
+    const std::string& path() const {
+        return path_;
+    }
+
+  private:
+    std::string path_;
+};
+
+using SteadyClock = std::chrono::steady_clock;
+
+template <typename F> SteadyClock::duration timed(F&& f) {
+    const auto start = SteadyClock::now();
+    f();
+    return SteadyClock::now() - start;
+}
+
+long ms_of(SteadyClock::duration d) {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(d).count();
+}
+
+} // namespace
+
+TEST_CASE("index build stops when the progress callback withdraws consent",
+          "[gcode][streaming][cancel]") {
+    BigGCodeFile file(100ull * 1024 * 1024);
+    GCodeLayerIndex index;
+
+    const auto full = timed([&] { REQUIRE(index.build_from_file(file.path())); });
+
+    bool completed = true;
+    const auto cancelled =
+        timed([&] { completed = index.build_from_file(file.path(), [](float) { return false; }); });
+    REQUIRE_FALSE(completed);
+    REQUIRE(ms_of(cancelled) * 2 < ms_of(full));
+}
+
+TEST_CASE("close during async indexing returns promptly", "[gcode][streaming][cancel]") {
+    BigGCodeFile file(200ull * 1024 * 1024);
+    GCodeStreamingController controller;
+
+    // Time one full synchronous build on THIS machine; the bound for a
+    // mid-index close is derived from it so the test holds at any host speed.
+    const auto full = timed([&] { REQUIRE(controller.open_file(file.path())); });
+    controller.close();
+
+    std::atomic<bool> completed{false};
+    controller.open_file_async(file.path(), [&](bool) { completed.store(true); });
+
+    while (!completed.load() && !controller.is_indexing()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    // Land the close a few percent into the build: early enough that most of
+    // the work is still ahead, late enough that it is genuinely running.
+    while (!completed.load() && controller.get_index_progress() < 0.05f) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+
+    const auto close_time = timed([&] { controller.close(); });
+    REQUIRE(ms_of(close_time) * 2 < ms_of(full));
+}
+
+TEST_CASE("close in the async launch window still cancels the build",
+          "[gcode][streaming][cancel]") {
+    // The window between open_file_async's std::async and the worker's first
+    // instruction is real: a close() landing there arms
+    // index_cancel_requested_ and blocks on the future, so if the worker
+    // resets the flag as it starts, the caller asked to stop and the build
+    // runs to completion anyway under it (#1706: backing out of a preview
+    // must not freeze the UI for the rest of the build). The gate parks the
+    // worker inside that window so the scheduling race is deterministic.
+    BigGCodeFile file(200ull * 1024 * 1024);
+    GCodeStreamingController controller;
+
+    const auto full = timed([&] { REQUIRE(controller.open_file(file.path())); });
+    controller.close();
+
+    std::promise<void> parked_promise;
+    auto parked = parked_promise.get_future();
+    std::promise<void> release_promise;
+    auto release = release_promise.get_future().share();
+
+    // However the assertions below end, the gate must go back to null: a
+    // parked gate would hang every later async open in this binary.
+    struct GateGuard {
+        ~GateGuard() {
+            GCodeStreamingController::index_worker_gate = nullptr;
+        }
+    } gate_guard;
+    GCodeStreamingController::index_worker_gate = [&] {
+        parked_promise.set_value();
+        release.wait_for(std::chrono::seconds(10));
+    };
+
+    std::atomic<bool> completed{false};
+    std::atomic<bool> result{true};
+    controller.open_file_async(file.path(), [&](bool ok) {
+        result.store(ok);
+        completed.store(true);
+    });
+    REQUIRE(parked.wait_for(std::chrono::seconds(10)) == std::future_status::ready);
+
+    // The worker is parked before build_index: this close() lands in the
+    // launch window and must not wait out a full build once it is let go.
+    std::thread closer([&] { controller.close(); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    const auto released = SteadyClock::now();
+    release_promise.set_value();
+    closer.join();
+    const long wait_ms = ms_of(SteadyClock::now() - released);
+
+    REQUIRE(completed.load());
+    REQUIRE_FALSE(result.load());
+    REQUIRE(wait_ms * 3 < ms_of(full));
 }

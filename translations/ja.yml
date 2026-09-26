@@ -56,7 +56,7 @@ translations:
   1 event queued: 1件のイベント待機中
   1 hour ago: 1時間前
   1 layer: 1レイヤー
-  1 line in helixscreen.env was ignored: ''
+  1 line in helixscreen.env was ignored: 'helixscreen.env の1行が無視されました'
   1 min: '1分'
   1 min ago: 1分前
   1 minute: 1分
@@ -228,7 +228,7 @@ translations:
   Assign a role to enable sensor monitoring: センサー監視を有効にするには役割を割り当ててください
   Assisted Retract: 'アシスト付き引き戻し'
   Assisting: アシスト中
-  At least {} lines in helixscreen.env were ignored: ''
+  At least {} lines in helixscreen.env were ignored: 'helixscreen.env の少なくとも{}行が無視されました'
   Authentication failed: 認証に失敗しました
   Auto: 自動
   Auto Bed Mesh: 自動ベッドメッシュ
@@ -1198,8 +1198,8 @@ translations:
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: ファームウェアはバイパスがないと報告しています。フィラメントをエクストルーダーに直接送っている場合は有効にしてください
   Firmware restarting...: ファームウェア再起動中...
   Firmware saved X = Y's value; the measured X result was discarded: ファームウェアは X の値として Y の値を保存しました。測定された X の結果は破棄されました。
-  'Fix: chmod 644 {}, then restart': ''
-  'Fix: chown {} {}, then restart': ''
+  'Fix: chmod 644 {}, then restart': '修正：chmod 644 {} を実行して再起動してください'
+  'Fix: chown {} {}, then restart': '修正：chown {} {} を実行して再起動してください'
   FlashForge Adventurer 5M: FlashForge Adventurer 5M
   FlashForge Adventurer 5X: FlashForge Adventurer 5X
   FlashForge IFS: FlashForge IFS
@@ -2543,7 +2543,7 @@ translations:
   Security: セキュリティ
   Security, network, host, and administration: セキュリティ、ネットワーク、ホスト、管理
   See exactly what data will be sent: 送信されるデータを正確に確認
-  See the log: ''
+  See the log: 'ログを確認してください'
   See the quick tour of HelixScreen again: HelixScreen のクイックツアーをもう一度見る
   Select: 選択
   Select 'None' if you don't have a filament sensor, or if you don't want to pause on runout.: フィラメントセンサーがない場合、またはフィラメント切れで一時停止したくない場合は「なし」を選択してください。
@@ -2683,6 +2683,7 @@ translations:
     Kaarlonen
   Spaghetti Detection: スパゲッティ検出
   Spaghetti detected: スパゲッティを検出しました
+  Spaghetti detected (%d%%): スパゲッティを検出しました（%d%%）
   Spaghetti detected — print paused: スパゲッティを検出しました — 印刷を一時停止しました
   Speaker: スピーカー
   Speed: 速度
@@ -3102,8 +3103,8 @@ translations:
   Unavailable: 利用不可
   Unavailable on this printer: このプリンターでは利用できません
   Understanding Results: 結果の理解
-  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
-  : "ベルト張力が不均一だと、レイヤーシフトや VFA(垂直微細アーティファクト)、リンギングなどの印刷不良が発生します。\n\nこのツールは各ベルトパスを振動させて共振周波数を測定します — 周波数が一致していれば張力が均等であることを意味します。\n\nCoreXY では、パス A と B は数 Hz 以内に収まっている必要があります。"
+  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nPluck each belt by hand and this tool listens through the accelerometer to measure the belt's frequency. Matched frequencies mean balanced tension.\n\nOn CoreXY, belts A and B should be within a few Hz of each other."
+  : "ベルト張力が不均一だと、レイヤーシフトや VFA(垂直微細アーティファクト)、リンギングなどの印刷不良が発生します。\n\n各ベルトを手ではじくと、このツールが加速度センサーでベルトの周波数を測定します。周波数が一致していれば張力が均等であることを意味します。\n\nCoreXY では、ベルト A と B は数 Hz 以内に収まっている必要があります。"
   Uninstall: アンインストール
   Uninstall HelixPrint Plugin: HelixPrint プラグインをアンインストール
   Uninstall HelixPrint Plugin?: HelixPrint プラグインをアンインストールしますか？
@@ -3360,10 +3361,10 @@ translations:
   feeder not in automatic mode: 'フィーダーが自動モードではありません'
   filament sensor disabled: 'フィラメントセンサーが無効'
   heated bed: ヒートベッド
-  'helixscreen.env ignored: owned by uid {}': ''
-  'helixscreen.env ignored: untrusted symlink chain': ''
-  'helixscreen.env ignored: writable by other users': ''
-  'helixscreen.env ignored: {}': ''
+  'helixscreen.env ignored: owned by uid {}': 'helixscreen.env は無視されました：uid {} が所有しています'
+  'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env は無視されました：信頼できないシンボリックリンクチェーンです'
+  'helixscreen.env ignored: writable by other users': 'helixscreen.env は無視されました：他のユーザーが書き込み可能です'
+  'helixscreen.env ignored: {}': 'helixscreen.env は無視されました：{}'
   idle: アイドル
   in unit {} slot {}: 'ユニット {} スロット {}'
   layers: レイヤー
@@ -3420,7 +3421,7 @@ translations:
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} はインストールされていますが、予備スプールへの切り替えがオフになっているため、自動切り替えは行われません。'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} はインストールされていますが、予備スプールの設定を読み取れませんでした - 自動切り替えを当てにしないでください。'
   '{} is not set up on this printer': '{} はこのプリンターで設定されていません'
-  '{} lines in helixscreen.env were ignored': ''
+  '{} lines in helixscreen.env were ignored': 'helixscreen.env の{}行が無視されました'
   '{} macro not configured': '{} マクロが未設定です'
   '{} matches.': '{} が一致します。'
   '{} may cause unintended changes. Are you sure?': '{} は意図しない変更を引き起こす可能性があります。よろしいですか？'

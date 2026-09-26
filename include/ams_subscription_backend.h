@@ -398,6 +398,13 @@ class AmsSubscriptionBackend : public AmsBackend {
         return nullptr;
     }
 
+    /// commit_user_edit()'s refusal hooks: a dispatch that failed outright
+    /// wrote nothing firmware can echo, so the staging it created cancels
+    /// rather than withholding the next genuine reading, and the armed
+    /// predecessor that staging suspended stands again.
+    std::uint64_t own_write_echo_sequence(int slot_index) override;
+    void abandon_own_write_echoes(int slot_index, std::uint64_t staged_sequence) override;
+
     // --- Protected state for derived classes ---
     IMoonrakerAPI* api_;
     helix::IMoonrakerClient* client_;
@@ -517,6 +524,14 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// before reaching this -- it touches system_info_ under mutex_ directly.
     void handle_dispatch_error(const MoonrakerError& err,
                                const std::function<void(const MoonrakerError&)>& on_error);
+
+    /// The dispatch leg every sender shares when there is no IMoonrakerAPI to
+    /// send through: deliver the same CONNECTION_LOST the wire would have
+    /// reported to @p on_error, and tell the caller the send was refused. A
+    /// caller that set an optimistic AmsAction before dispatching unwinds it
+    /// in on_error, so skipping the callback strands the action forever
+    /// (prestonbrown/helixscreen#1720).
+    AmsError refuse_dispatch_no_api(const std::function<void(const MoonrakerError&)>& on_error);
 };
 
 } // namespace helix

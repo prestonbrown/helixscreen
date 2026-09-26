@@ -11,6 +11,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace helix {
@@ -79,6 +80,18 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
     [[nodiscard]] AmsType get_type() const override;
     [[nodiscard]] SlotInfo get_slot_info(int slot_index) const override;
+
+    /// The material list the firmware itself validates against, once a frame
+    /// has carried it. nullopt until then, or when the firmware states no such
+    /// list - which keeps the edit dropdown unrestricted, like every other
+    /// backend that treats material as a free-form label.
+    [[nodiscard]] std::optional<std::vector<std::string>> get_supported_materials() const override;
+
+    /// True once a frame has carried the firmware's slots AND palette: only
+    /// then can an edit be snapped into the palette and normalized into the
+    /// types before it is sent. Before that, an edit stays local as on any
+    /// tool changer.
+    [[nodiscard]] bool firmware_stores_color_and_material(int slot_index) const override;
 
     // Tool changers give each tool its own independent toolhead with no shared
     // physical tray/housing, so the AMS detail view's tray graphic is hidden.
@@ -328,6 +341,13 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         tool_commands_ = std::move(commands);
     }
 
+    /// The firmware material store this machine keeps. Absent means
+    /// HelixScreen's own store is the only one.
+    void set_material_source(helix::toolchanger_addon::MaterialSource source) override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        material_source_ = std::move(source);
+    }
+
     // Device Actions -- the feeder, when the machine has one.
     [[nodiscard]] std::vector<helix::printer::DeviceSection> get_device_sections() const override;
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
@@ -367,6 +387,14 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     helix::toolchanger_addon::ToolSensor tool_sensor_;
     /// Absent whenever klipper-toolchanger owns the swap.
     helix::toolchanger_addon::ToolCommands tool_commands_;
+    /// Firmware material store this machine keeps; absent unless
+    /// set_material_source() said otherwise.
+    helix::toolchanger_addon::MaterialSource material_source_;
+    /// Latched from the material source. Each arrives only in frames that
+    /// changed it, so a frame without it is not a clearing.
+    std::optional<std::vector<std::string>> firmware_valid_types_;
+    std::optional<std::vector<std::pair<int, std::uint32_t>>> firmware_palette_;
+    bool firmware_slots_seen_ = false;
     /// Latest per-dock occupancy from the dock sensors, indexed by slot: true
     /// seated, false empty, nullopt never reported. Kept across frames, because
     /// Moonraker republishes only what CHANGED and a frame carrying just the
@@ -450,6 +478,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Apply an add-on dock-sensor reading over the toolchanger's own claim.
     /// Caller holds mutex_.
     void apply_tool_sensor_locked(const helix::toolchanger_addon::ToolReading& reading);
+
+    /// Latch one firmware material reading: the types and palette it carried,
+    /// and each slot's material and colour filed as vendor-cache observations.
+    /// Caller holds mutex_.
+    void apply_material_reading_locked(const helix::toolchanger_addon::MaterialReading& reading);
 
     /// Is this slot's toolhead on the carriage, as far as anything can tell?
     /// The one rule behind can_unload_from_toolhead() and

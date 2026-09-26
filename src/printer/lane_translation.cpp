@@ -6,6 +6,7 @@
 #include "color_utils.h"
 #include "json_utils.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
@@ -495,6 +496,55 @@ Observation declared_from_record(const FilamentSlotOverride& record) {
     return obs;
 }
 
+bool wire_authored_by_firmware(const nlohmann::json& wire) {
+    // AFC's plugin writes each lane's record itself (AFC_lane.py
+    // send_lane_data): colour, material, temps, weight, spool_id and its own
+    // bookkeeping keys - td, lane and extruder_index, which no third-party
+    // tool emits - under the shared identity spellings not at all. A document
+    // shaped this way is the firmware stating what it measured.
+    return wire.contains("extruder_index") && wire.contains("td") && !wire.contains("vendor_name");
+}
+
+bool wire_authored_by_helix(const nlohmann::json& wire, LegacyLockKeys keys) {
+    // The private cache is this application's own file: nothing else writes
+    // it, so every record in it is ours whatever keys it carries.
+    if (keys == LegacyLockKeys::LocalCache) {
+        return true;
+    }
+    // In the shared namespace the helix_ prefix is ours alone - no other
+    // writer emits it - so any key carrying it was written by some build of
+    // HelixScreen, whatever that build's authorship keys were. So are the
+    // legacy spellings `vendor` and `spool_name`: a 0.99.x mirror wrote them
+    // without the prefix, and the namespace's shared spellings are
+    // `vendor_name` and `name`, which a foreign document carries instead. A
+    // document with none of our keys can only have replaced ours wholesale.
+    const auto ours = [](const std::string& key) {
+        return key.rfind("helix_", 0) == 0 || key == "vendor" || key == "spool_name";
+    };
+    return std::any_of(wire.items().begin(), wire.items().end(),
+                       [&](const auto& entry) { return ours(entry.key()); });
+}
+
+bool outside_edit_wins(const FilamentSlotOverride& record,
+                       const std::optional<Observation>& standing_user) {
+    if (!standing_user.has_value() || !standing_user->edited_at.has_value()) {
+        return true;
+    }
+    if (record.updated_at.time_since_epoch().count() <= 0) {
+        return true;
+    }
+    // A statement stamped before this product existed is a device with no RTC
+    // writing before NTP reached it, not a moment in the lane's history:
+    // ordering a foreign record against it would let even a stale record beat
+    // a newer user edit. The order is unknowable, so the record does not get
+    // to displace; the statement keeps the lane until something ordered
+    // replaces it.
+    if (*standing_user->edited_at < k_unknown_stamp_before) {
+        return false;
+    }
+    return record.updated_at > *standing_user->edited_at;
+}
+
 LaneSources sources_from_record(const FilamentSlotOverride& record, const nlohmann::json& wire,
                                 LegacyLockKeys keys) {
     LaneSources sources;
@@ -567,6 +617,16 @@ LaneSources sources_from_record(const FilamentSlotOverride& record, const nlohma
     const bool has_declared = wire.contains(declared_key_name(keys));
     const bool legacy_declared = color_declared || declares_material(record);
 
+    // A record without our authorship keys was written by another tool that
+    // replaced ours in the namespace (prestonbrown/helixscreen#1632). Its
+    // identity is that tool's statement about the lane, not a memory of ours,
+    // so it files on the user's rung, where it resolves over firmware's cache
+    // and yields to whatever edit lands next. A record the backend's own
+    // firmware plugin wrote is the opposite case: a reading, not an edit, so
+    // it stays on the remembered rung however its scan_time compares.
+    const bool outside_statement =
+        !wire_authored_by_helix(wire, keys) && !wire_authored_by_firmware(wire);
+
     // Whether the user declared the field at roster position `index`. Colour
     // and material answer from their bits whatever the record's age, because
     // the parser already read an older record's lock keys into them; the rest
@@ -589,12 +649,13 @@ LaneSources sources_from_record(const FilamentSlotOverride& record, const nlohma
     bool have_remembered = false;
 
     if (record.color_set && is_declarable_color(record.color_rgb)) {
-        Observation& target = color_declared ? user : remembered;
+        const bool to_user = color_declared || outside_statement;
+        Observation& target = to_user ? user : remembered;
         target.color_rgb = record.color_rgb;
         if (!record.color_name.empty()) {
             target.color_name = record.color_name;
         }
-        (color_declared ? have_user : have_remembered) = true;
+        (to_user ? have_user : have_remembered) = true;
     }
     // Every remaining field whose source turns on who wrote it. The colour is
     // not among them: its row is walked above, together with the colour name
@@ -619,7 +680,7 @@ LaneSources sources_from_record(const FilamentSlotOverride& record, const nlohma
                 // cannot either.
                 return;
             }
-            const bool is_declared = declared_field(index);
+            const bool is_declared = declared_field(index) || outside_statement;
             Observation& target = is_declared ? user : remembered;
             target.*(f.obs) = value;
             (is_declared ? have_user : have_remembered) = true;
@@ -630,6 +691,11 @@ LaneSources sources_from_record(const FilamentSlotOverride& record, const nlohma
         have_user = true;
     }
 
+    // The statement carries the record's stamp when its writer left one, so
+    // the next edit - here or in another tool - is measured against it.
+    if (record.updated_at.time_since_epoch().count() > 0) {
+        user.edited_at = record.updated_at;
+    }
     if (have_user) {
         sources.apply(user);
     }

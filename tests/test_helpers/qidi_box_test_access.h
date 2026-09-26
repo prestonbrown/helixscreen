@@ -131,5 +131,8 @@ class QidiBoxTestAccess {
     static std::optional<std::string> last_fingerprint(const AmsBackendQidi& b, int slot_index) {
         return b.rfid_tracker_.baseline(slot_index);
     }
+    static std::string normalize_legacy_fingerprint(const std::string& stored) {
+        return AmsBackendQidi::normalize_legacy_fingerprint(stored);
+    }
 };
 } // namespace helix

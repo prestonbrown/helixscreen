@@ -7,6 +7,7 @@
 #include "config.h"
 #include "helix_version.h"
 #include "logging_init.h"
+#include "mock_persona.h"
 #include "runtime_config.h"
 #include "theme_manager.h"
 
@@ -725,7 +726,9 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
     // hotend changer does, and the production AmsBackendToolChanger is meant to
     // drive them. That is exactly what --real-ams already means, so imply it
     // rather than adding a third knob that can disagree with this one. Same for
-    // the standalone IFS module mode (real AmsBackendAd5xIfs).
+    // the standalone IFS module mode (real AmsBackendAd5xIfs) and the CFS
+    // modes. The creator5_zmod printer persona is the same deal keyed on the
+    // printer env var instead; an explicit HELIX_MOCK_AMS still wins.
     if (config.test_mode && !config.use_real_ams) {
         if (const char* ams_env = std::getenv("HELIX_MOCK_AMS"); ams_env && ams_env[0]) {
             const std::string mode = ascii_lower(ams_env);
@@ -746,6 +749,12 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
                              "CFS backend)",
                              mode);
             }
+        } else if (const char* printer_env = std::getenv("HELIX_MOCK_PRINTER");
+                   printer_env && helix::mock::is_hardware_persona(printer_env)) {
+            config.use_real_ams = true;
+            spdlog::info("[CLI] HELIX_MOCK_PRINTER={} implies --real-ams (mock "
+                         "hardware, real tool-changer backend)",
+                         printer_env);
         }
     }
 

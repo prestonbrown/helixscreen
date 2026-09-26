@@ -8,6 +8,7 @@
 #include "error_event.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "lane_echo.h"
 #include "slot_registry.h"
 
 #include <array>
@@ -104,6 +105,14 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
   public:
     AmsBackendAd5xIfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendAd5xIfs() override;
+
+    /// The write target (IFS_SET_MATERIAL / Adventurer5M.json / _IFS_VARS) is
+    /// republished through the same ffmColor/ffmType fields a real reading
+    /// uses, so this backend's parses filter their own writes through this
+    /// guard.
+    [[nodiscard]] helix::ams::OwnWriteEchoes* own_write_echoes() override {
+        return &own_write_echoes_;
+    }
 
     static constexpr int NUM_PORTS = 4;
     static constexpr int TOOL_MAP_SIZE = 16;
@@ -1211,6 +1220,39 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     std::vector<std::string> custom_material_types_;
     std::array<int, TOOL_MAP_SIZE> tool_map_;   // tool_map_[tool] = port (1-4, 5=unmapped)
     std::array<bool, NUM_PORTS> port_presence_; // Per-port filament sensor state
+    // Whether any presence signal has ever spoken for each port. The first
+    // sighting is the session's baseline, never an insert edge, so the insert
+    // notice never fires for a spool that was already seated at boot.
+    // Guarded by mutex_.
+    std::array<bool, NUM_PORTS> presence_observed_{};
+
+    // Whether a parse just moved this port's colour/material latch, i.e. the
+    // values are a fresh statement from firmware rather than a cached re-file.
+    // settle_port_locked and the slot-info readers re-run
+    // update_slot_from_state() with the OLD latch; feeding those to the echo
+    // guard's differ-check would release the declaration on pre-edit values.
+    // Set at every latch write, consumed (once) by update_slot_from_state().
+    // Guarded by mutex_.
+    std::array<bool, NUM_PORTS> identity_statement_fresh_{};
+
+    // What the user declared in an edit of each port, staged against the
+    // write's boundary so this backend does not file its own write-back echo
+    // (IFS_SET_MATERIAL / Adventurer5M.json / _IFS_VARS all re-publish through
+    // the ffmColor/ffmType fields a real reading uses). The boundary is
+    // presence itself: a transition names a different physical occupant, which
+    // is the only token this hardware offers. All access under mutex_.
+    helix::ams::OwnWriteEchoes own_write_echoes_;
+
+    // Presence-edge bookkeeping shared by every presence source (per-port
+    // sensors, IFS_STATUS Ports, GET_ZCOLOR slot lines, the pre-SILENT JSON
+    // inference): ends the port's echo suppression on any transition and
+    // raises the unverified-insert notice on a rising edge a presence sensor
+    // observed. A file-inferred edge (sensor_edge false) never raises the
+    // notice: Adventurer5M.json latches identity across an eject and our own
+    // edit writes it, so its rising edge is as likely to be the write coming
+    // back as a spool going in. Caller must hold mutex_.
+    void note_presence_transition_locked(int slot_index, bool was_present, bool now_present,
+                                         bool sensor_edge = true);
     // Per-port instant of the last optimistic eject clear. On the constrained
     // AD5X the RS-485 silk sensor lags ~1s after IFS_F11 cold-retracts a lane, so
     // the eject follow-up IFS_STATUS/GET_ZCOLOR can still read the just-ejected

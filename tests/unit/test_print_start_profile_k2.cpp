@@ -11,7 +11,7 @@ using namespace helix;
 // Creality K2 Profile Tests
 //
 // Every input line below is verbatim from a K2 Plus klippy.log capture
-// (2026-08-18, three prints; see PRINT_START_OBSERVERS.md for the source).
+// (2026-08-18, three prints; see PRINT_START_PROFILES.md for the source).
 // The K2 narrates through [GCODE]/[DEBUG] respond echoes when started from
 // a path that enables them, and stays fully silent otherwise - which is why
 // the profile also enables position_signals.

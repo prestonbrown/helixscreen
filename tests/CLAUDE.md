@@ -376,6 +376,10 @@ It costs a sentence and it is the only record that the cycle happened.
 issue number for bug-fix tests (`[1178]`) so the whole fix runs with
 `./build/bin/helix-tests "[1178]"`.
 
+`[slow]` runs sharded (`SLOW_SHARDS`, default 16) in `test-all` and `test-slow`. A `[slow]`
+test that only fails with sibling shards running gets `[serial]` as well, which moves it to
+a single-process pass after the shards.
+
 ---
 
 ## Shell tests never touch the host

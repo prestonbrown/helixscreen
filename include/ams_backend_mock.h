@@ -265,7 +265,7 @@ class AmsBackendMock : public AmsBackend {
     /// inherited identity agrees for T0-T3 and diverges from T4 up, which is
     /// exactly where a U1 file with extended tools lands.
     [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override;
-    /// SnapmakerNative in Snapmaker mode, otherwise whatever
+    /// PrePrintSend in Snapmaker mode, otherwise whatever
     /// set_remap_strategy() was given — Native by default, because every other
     /// mode stands in for a backend that owns its tool->slot table and writes it
     /// directly (AFC, CFS, Happy Hare, QIDI, the tool changer).
@@ -546,16 +546,17 @@ class AmsBackendMock : public AmsBackend {
      */
     [[nodiscard]] bool is_afc_mode() const;
 
-    /**
-     * @brief Report as an AFC system while AFC mode is on.
-     *
-     * The mock claimed to be a Box Turtle in every other respect but left this
-     * at the base-class default, so `HELIX_MOCK_AMS=afc` produced a system that
-     * looked like AFC to the panels and not-AFC to anything asking this. The
-     * AFC-only rows in the device-operations overlay were therefore invisible in
-     * the mock, and #1229's bypass rule could not be exercised there at all.
-     */
-    [[nodiscard]] bool is_afc_system() const override {
+    /// Mirrors AmsBackendAfc while AFC mode is on: the mock claims to be a Box
+    /// Turtle in every other respect, so the capabilities whose only true
+    /// override is AFC's must answer the same way or `HELIX_MOCK_AMS=afc`
+    /// produces a system that looks like AFC to the panels and not-AFC to
+    /// anything asking a capability (#1229's bypass rule could not be exercised
+    /// in the mock at all when these sat at the base-class default).
+    [[nodiscard]] bool bypass_is_virtual() const override {
+        return is_afc_mode();
+    }
+
+    [[nodiscard]] bool supports_configurable_unload_after_print() const override {
         return is_afc_mode();
     }
 
@@ -669,7 +670,7 @@ class AmsBackendMock : public AmsBackend {
 
     /**
      * @brief Set Snapmaker U1 SnapSwap mode (4 slots, PARALLEL, NON-editable
-     *        tool mapping, SnapmakerNative remap strategy).
+     *        tool mapping, PrePrintSend remap strategy).
      *
      * Mirrors AmsBackendSnapmaker: the FilamentMappingCard still renders its
      * two-tone chips, but the mapping is not editable inline and a tap opens

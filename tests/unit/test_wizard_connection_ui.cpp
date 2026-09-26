@@ -301,6 +301,19 @@ class WizardConnectionLifetimeFixture : public LVGLTestFixture {
 };
 
 TEST_CASE_METHOD(WizardConnectionLifetimeFixture,
+                 "Connection step: IP and port subjects carry the seeded defaults",
+                 "[wizard][connection]") {
+    // Regression: seeding the string subject from its own buffer aliased
+    // snprintf's source and destination and left both fields blank.
+    lv_subject_t* ip = lv_xml_get_subject(nullptr, "connection_ip");
+    lv_subject_t* port = lv_xml_get_subject(nullptr, "connection_port");
+    REQUIRE(ip != nullptr);
+    REQUIRE(port != nullptr);
+    CHECK(std::string(lv_subject_get_string(ip)).find_first_not_of(" ") != std::string::npos);
+    CHECK(std::string(lv_subject_get_string(port)) == "7125");
+}
+
+TEST_CASE_METHOD(WizardConnectionLifetimeFixture,
                  "Connection step: cleanup expires lifetime tokens",
                  "[wizard][connection][lifetime]") {
     auto tok = step->lifetime_token_for_test();

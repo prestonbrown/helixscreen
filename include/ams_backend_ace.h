@@ -9,6 +9,7 @@
 #include "async_lifetime_guard.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "lane_binding.h"
 #include "moonraker_types.h"
 
 #include <atomic>
@@ -451,24 +452,36 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     // is the only source for those fields; color/material come from both the
     // firmware and user edits and the override wins per the merge policy.
 
-    // Hardware-event detection: ACE has no RFID UID, so "user physically
-    // swapped the spool" is inferred from a status transition EMPTY -> present
-    // (AVAILABLE / LOADED). When detected, the stored override for the slot
-    // is cleared so stale brand/spool_name/spoolman_id from the previous
-    // spool don't bleed onto the new one. Override-exclusive fields on `slot`
-    // are zeroed in place so the cleared state is visible in the very next
-    // get_slot_info() read.
+    // Insert-edge verdict (prestonbrown/helixscreen#1710). The status
+    // transition EMPTY -> present (AVAILABLE / LOADED) is "a spool was put
+    // in"; what that insert does to the stored override is the insert rule's
+    // call on the two tag readings: DifferentSpool clears the override (via
+    // clear_override_locked, so stale brand/spool_name/spoolman_id from the
+    // previous spool don't bleed onto the new one), SameSpool keeps it, and
+    // NoEvidence keeps it and offers the same-spool notice on the UI thread.
+    //
+    // The frame that reports the spool can precede the one carrying its tag
+    // read, so an insert edge whose frame carries no read does not judge: it
+    // arms pending_insert_reads_, the first rfid-bearing frame for the bay
+    // judges it, and a read that never lands expires to the no-evidence
+    // notice after kAcePendingReadParsePasses parse passes. A bay that
+    // empties with an insert still pending drops it.
     //
     // Called from parse_ace_object BEFORE apply_resolved_lane, so the check
     // decides based on parsed firmware status (not the resolved view). The
     // caller is responsible for skipping the very first observation (no prior
-    // prev_slot_status_ entry) — first-observation is a baseline and never
-    // fires. Limitation: a LOADED -> EMPTY -> LOADED sequence (user unloaded
-    // and reinserted the same spool) looks identical to a swap under this
-    // status-based heuristic and clears the override. Documented tradeoff —
-    // ACE's single signal is too coarse to distinguish the two cases.
+    // prev_slot_status_ entry) - first-observation is a baseline and never
+    // fires.
     void check_hardware_event_clear(SlotInfo& slot, int slot_index, SlotStatus previous_status,
-                                    SlotStatus current_status);
+                                    SlotStatus current_status,
+                                    const helix::ams::SpoolEvidence& inserted);
+
+    /// Classify one insert against the reading the bay's previous occupant
+    /// left in last_spool_evidence_ and act on the verdict:
+    /// DifferentSpool clears the override, NoEvidence offers the same-spool
+    /// notice, SameSpool keeps everything. Caller holds mutex_.
+    void judge_insert_locked(SlotInfo& slot, int slot_index,
+                             const helix::ams::SpoolEvidence& inserted);
 
     /// Mutable slot lookup. ACE is always single-unit, and the two REST
     /// parsers size units[0].slots independently, so index directly rather
@@ -555,13 +568,30 @@ class AmsBackendAce : public AmsSubscriptionBackend {
         return override_store_.get();
     }
 
-    // Previous slot status per slot index. Used as the swap-detection signal:
-    // an EMPTY -> present transition fires the clear-override path. Map
-    // presence also acts as the baseline guard: absent entry means "no prior
-    // observation" and the check is skipped (first observation never clears).
-    // Access is always under mutex_ (parse_ace_object is the only
-    // writer/reader).
+    // Previous slot status per slot index. Used as the insert-edge signal:
+    // an EMPTY -> present transition runs the insert rule. Map presence also
+    // acts as the baseline guard: absent entry means "no prior observation"
+    // and the check is skipped (first observation never clears). Access is
+    // always under mutex_ (parse_ace_object is the only writer/reader);
+    // cleared in on_started() so a reconnect re-baselines.
     std::unordered_map<int, SlotStatus> prev_slot_status_;
+
+    // What the hub's tag reader last got off the spool occupying each bay.
+    // Written only by frames that carry a read (rfid true), and deliberately
+    // NOT cleared when the bay empties: the reading of the spool that left is
+    // the comparison side of the insert rule when the next one arrives, and a
+    // no-read frame stating hub memory must not overwrite it. All access
+    // under mutex_ (parse_ace_object); cleared in on_started() so a
+    // reconnect re-baselines.
+    std::unordered_map<int, helix::ams::SpoolEvidence> last_spool_evidence_;
+
+    // Inserts whose tag read had not landed when the bay reported the spool:
+    // slot index -> parse passes since the arm. Armed by
+    // check_hardware_event_clear on the EMPTY -> present edge of a frame
+    // carrying no read; judged and erased on the first rfid-bearing frame for
+    // the bay; erased when the bay empties or when the read expires. All
+    // access under mutex_ (parse_ace_object).
+    std::unordered_map<int, int> pending_insert_reads_;
 };
 
 } // namespace helix

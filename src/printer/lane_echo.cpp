@@ -98,6 +98,11 @@ std::uint64_t OwnWriteEchoes::stage(int slot_index, Observation declared) {
     return entry.sequence;
 }
 
+std::uint64_t OwnWriteEchoes::staged_sequence(int slot_index) const {
+    const auto it = entries_.find(slot_index);
+    return it == entries_.end() ? 0 : it->second.sequence;
+}
+
 Observation* OwnWriteEchoes::staged(int slot_index) {
     auto it = entries_.find(slot_index);
     return it == entries_.end() ? nullptr : &it->second.declared;
@@ -159,6 +164,28 @@ void OwnWriteEchoes::abandon(int slot_index, std::uint64_t staged_sequence) {
     entries_.erase(it);
 }
 
+void OwnWriteEchoes::abandon_fields(int slot_index, std::uint64_t staged_sequence,
+                                    const Observation& fields) {
+    auto it = entries_.find(slot_index);
+    if (it == entries_.end() || it->second.sequence != staged_sequence)
+        return;
+    Entry& entry = it->second;
+    for_each_suppressible([&](auto member) {
+        if (!(fields.*member).has_value())
+            return;
+        if (entry.carry_armed) {
+            // The refused command's echo is not coming, but firmware still
+            // holds whatever the predecessor's write left at this field and
+            // keeps repeating it, so the predecessor's declaration stands.
+            (entry.declared.*member) = entry.carry_declared.*member;
+        } else {
+            (entry.declared.*member).reset();
+        }
+    });
+    if (!declares_anything(entry.declared))
+        abandon(slot_index, staged_sequence);
+}
+
 int OwnWriteEchoes::withhold(int slot_index, const std::string& boundary,
                              Observation& producer_record, const Observation& cleared) {
     auto it = entries_.find(slot_index);
@@ -215,6 +242,11 @@ int OwnWriteEchoes::strip_standing(int slot_index, Observation& producer_record)
         }
     });
     return stripped;
+}
+
+bool OwnWriteEchoes::standing(int slot_index) const {
+    const auto it = entries_.find(slot_index);
+    return it != entries_.end() && it->second.armed;
 }
 
 } // namespace helix::ams

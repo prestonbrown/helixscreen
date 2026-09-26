@@ -6,6 +6,8 @@
 #include "ams_subscription_backend.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "lane_binding.h"
+#include "lane_echo.h"
 
 #include <cstdint>
 #include <ctime>
@@ -189,6 +191,12 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
     void clear_slot_override(int slot_index) override;
 
+    /// The resync files stored records through this backend's echo guard,
+    /// the same one its parses consult.
+    [[nodiscard]] helix::ams::OwnWriteEchoes* own_write_echoes() override {
+        return &own_write_echoes_;
+    }
+
     AmsError enable_bypass() override;
     AmsError disable_bypass() override;
 
@@ -340,22 +348,39 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     static int resolve_vendor_id(const std::map<int, std::string>& vendors,
                                  const std::string& brand);
 
+    /// Fold a persisted fingerprint from a build whose composite counted the
+    /// vendor id onto the current shape, which counts evidence only. Values
+    /// already current, empty, or not ours pass through unchanged.
+    static std::string normalize_legacy_fingerprint(const std::string& stored);
+
     /// Observe one slot's tag fingerprint and clear a standing user edit when
-    /// it changed for a reason other than our own identity push. Caller must
-    /// hold mutex_. Returns whether the change cleared an override.
-    bool check_hardware_event_clear(SlotInfo& slot, int slot_index,
-                                    const std::string& observed_uid);
+    /// the ids a change carried decode to a different spool than the ones they
+    /// replaced, for a reason other than our own identity push. *verdict (when
+    /// given) receives the insert rule's classification of the change; it is
+    /// left untouched unless the fingerprint actually changed, so a caller
+    /// holding a NoEvidence default keeps it. Caller must hold mutex_.
+    /// Returns whether the change cleared an override.
+    bool check_hardware_event_clear(SlotInfo& slot, int slot_index, const std::string& observed_uid,
+                                    helix::ams::InsertVerdict* verdict = nullptr);
+
+    /// Decode a "fila|color" fingerprint back through the Box's tables into
+    /// the evidence those ids state about the spool: the fila row's material
+    /// and the palette row's colour. No tag UID exists on this Box, so the
+    /// ids themselves are the read and a non-empty fingerprint is a finished
+    /// one. Caller must hold mutex_.
+    [[nodiscard]] helix::ams::SpoolEvidence
+    fingerprint_evidence_locked(const std::string& fingerprint) const;
 
     /// Cross-product the per-field id lists into the fingerprint set the slot
     /// may report while our own SAVE_VARIABLEs echo back one field at a time,
     /// and register it with rfid_tracker_ so each echo reads as OwnWriteEcho
-    /// instead of a spool swap. Returns the staged values, for a
-    /// forget_expected() release when none of the writes dispatch. Caller
-    /// must hold mutex_.
+    /// instead of a spool swap. The vendor write needs no composite of its
+    /// own: the fingerprint does not count the vendor id. Returns the staged
+    /// values, for a forget_expected() release when none of the writes
+    /// dispatch. Caller must hold mutex_.
     std::vector<std::string> expect_own_write_echoes_locked(int slot_index, const std::string& base,
                                                             const std::vector<int>& fila_vals,
-                                                            const std::vector<int>& color_vals,
-                                                            const std::vector<int>& vendor_vals);
+                                                            const std::vector<int>& color_vals);
 
     /// Erase the slot's override in both stores (the in-memory map and the
     /// persisted record) and reset the override-exclusive fields on the live
@@ -372,6 +397,15 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     // an identity push we issued. Shared with the other fingerprint backends
     // (CFS, Snapmaker). All access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
+
+    /// What the user's own SAVE_VARIABLE push declared, so the ids echoing
+    /// back through save_variables are not filed as the Box's reading. The
+    /// ids name table rows rather than spelling the values, so the staged
+    /// declaration is relocated to what the rows resolve to. No boundary
+    /// token exists for this lane: suppression ends on a value the write did
+    /// not carry, or with the override at the fingerprint-change clear, which
+    /// is the Box's own spool-swap signal.
+    helix::ams::OwnWriteEchoes own_write_echoes_;
 };
 
 } // namespace helix
