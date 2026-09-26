@@ -710,6 +710,44 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture, "camera ignores a replaced root's la
     CHECK(helix::CameraWidgetTestAccess::camera_image(*attached.widget) != nullptr);
 }
 
+// The fullscreen overlay is a child of the screen, not the tile, and a screen
+// teardown erases its NavigationManager close callback without running it. The
+// frame deferral prefers fullscreen_image_ over the tile image, and the
+// destructor deletes fullscreen_overlay_, so both must drop with the overlay
+// (#1430).
+TEST_CASE_METHOD(HomeWidgetTeardownFixture,
+                 "camera drops its fullscreen pointers when the overlay is deleted raw",
+                 "[camera][teardown][uaf]") {
+    using helix::CameraWidgetTestAccess;
+    AttachedCamera attached(*this);
+
+    CameraWidgetTestAccess::show_fullscreen_overlay(*attached.widget);
+    UpdateQueue::instance().drain();
+    lv_obj_t* overlay = CameraWidgetTestAccess::fullscreen_overlay(*attached.widget);
+    REQUIRE(overlay != nullptr);
+    REQUIRE(CameraWidgetTestAccess::fullscreen_image(*attached.widget) != nullptr);
+    REQUIRE(CameraWidgetTestAccess::fullscreen_spinner(*attached.widget) != nullptr);
+    REQUIRE(attached.widget->has_overlay_open());
+
+    lv_obj_delete(overlay);
+    UpdateQueue::instance().drain();
+
+    CHECK(CameraWidgetTestAccess::fullscreen_overlay(*attached.widget) == nullptr);
+    CHECK(CameraWidgetTestAccess::fullscreen_image(*attached.widget) == nullptr);
+    CHECK(CameraWidgetTestAccess::fullscreen_spinner(*attached.widget) == nullptr);
+    CHECK_FALSE(attached.widget->has_overlay_open());
+
+    // The single-owner slot is free again: a second overlay opens.
+    CameraWidgetTestAccess::show_fullscreen_overlay(*attached.widget);
+    UpdateQueue::instance().drain();
+    REQUIRE(CameraWidgetTestAccess::fullscreen_overlay(*attached.widget) != nullptr);
+
+    // detach() deletes the live overlay and nothing else.
+    attached.widget.reset();
+    UpdateQueue::instance().drain();
+    SUCCEED("widget destroyed after a raw overlay delete without touching freed memory");
+}
+
 #endif // HELIX_HAS_CAMERA
 
 // --------------------------------------------------------------------------

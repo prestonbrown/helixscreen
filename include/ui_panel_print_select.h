@@ -265,6 +265,9 @@ class PrintSelectPanel : public PanelBase {
         return "print_select_panel";
     }
 
+    /// Re-render the held file list into the views a rebuild recreated.
+    void repopulate() override;
+
     /**
      * @brief Called when panel becomes visible
      *
@@ -841,6 +844,9 @@ class PrintSelectPanel : public PanelBase {
      * @param preserve_scroll If true, preserve scroll position; otherwise reset to top
      */
     void populate_list_view(bool preserve_scroll = false);
+
+    /// Populate whichever view current_view_mode_ selects.
+    void populate_current_view(bool preserve_scroll = false);
 
     /**
      * @brief Animate view container entrance with fade-in
