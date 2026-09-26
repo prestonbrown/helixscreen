@@ -164,11 +164,17 @@ TEST_CASE("KNOWN_NO_PARAMS runs, with a plain confirm only when asked and not da
     }
 }
 
-TEST_CASE("prompt_for_params=false runs with empty params even for a params-taking macro",
+TEST_CASE("prompt_for_params=false runs immediately with whatever was offered",
           "[macro][run_decision]") {
-    SECTION("KNOWN_PARAMS with a full prefill available still sends nothing") {
+    SECTION("KNOWN_PARAMS with a full set of known values sends them") {
         auto decision = decide_macro_run(params({"TEMP", "SPEED"}),
                                          router_click(true, {{"TEMP", "210"}, {"SPEED", "50"}}));
+        CHECK(decision.action == MacroRunAction::Run);
+        CHECK(decision.params ==
+              std::map<std::string, std::string>{{"SPEED", "50"}, {"TEMP", "210"}});
+    }
+    SECTION("nothing offered sends nothing") {
+        auto decision = decide_macro_run(params({"TEMP", "SPEED"}), quick_button(false));
         CHECK(decision.action == MacroRunAction::Run);
         CHECK(decision.params.empty());
     }
@@ -313,6 +319,18 @@ TEST_CASE("ask off runs with the saved values, filtered to declared params",
     }
 }
 
+TEST_CASE("an ask-off run overlays known_values on the saved values", "[macro][run_decision]") {
+    // A filament load with Ask off and a computed nozzle temp: the computed
+    // temp must still reach the macro alongside the saved LENGTH, and win on
+    // the name both supply. Dropping it would heat with a stale value.
+    auto req = with_saved(router_click(false, {{"TEMP", "250"}}), false,
+                          {{"LENGTH", "100"}, {"TEMP", "200"}});
+    auto decision = decide_macro_run(params({"TEMP", "LENGTH"}), req);
+    CHECK(decision.action == MacroRunAction::Run);
+    CHECK(decision.params ==
+          std::map<std::string, std::string>{{"LENGTH", "100"}, {"TEMP", "250"}});
+}
+
 TEST_CASE("ConfirmRun carries the saved values so the confirmed run sends them",
           "[macro][run_decision]") {
     auto decision =
@@ -382,7 +400,10 @@ TEST_CASE("favorite widget after a dangerous confirm ignores every confirmation 
 
 TEST_CASE("filament router: suppress runs a params-taking macro with no parameters",
           "[macro][run_decision]") {
-    auto decision = decide_macro_run(params({"TEMP"}), router_click(true, {{"TEMP", "210"}}));
+    // The router empties known_values under Suppress, so the decision sees a
+    // plain run with nothing offered; the no-send guarantee itself is pinned
+    // in test_filament_dispatch_surfaces.cpp, at the router.
+    auto decision = decide_macro_run(params({"TEMP"}), router_click(true));
     CHECK(decision.action == MacroRunAction::Run);
     CHECK(decision.params.empty());
 }

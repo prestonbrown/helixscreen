@@ -127,8 +127,9 @@ struct MacroRunRequest {
     /// Candidate values for the macro's declared parameters, keyed by name.
     std::map<std::string, std::string> known_values;
     /// The macro's saved defaults (MacroParamDefaults record values), keyed by
-    /// name. They prefill the prompt and ride along on unattended runs, but
-    /// they never complete a run on their own: only known_values may.
+    /// name. They prefill the prompt and ride along on unattended runs — where
+    /// known_values name the same parameter, the known value wins — but they
+    /// never complete a run on their own: only known_values may.
     std::map<std::string, std::string> saved_values;
 };
 
@@ -148,8 +149,9 @@ struct MacroRunDecision {
 /// An unconfirmed dangerous macro outranks everything. A click that will raise
 /// no param modal (prompt_for_params false, or the macro takes none) is a plain
 /// run, confirmed only when asked and never twice for a dangerous macro; a
-/// plain run carries the saved values filtered to the macro's declared names.
-/// A macro with declared parameters runs without a prompt only when
+/// plain run carries the saved values overlaid by known_values (the caller's
+/// computed value wins on a shared name), both filtered to the macro's declared
+/// names. A macro with declared parameters runs without a prompt only when
 /// known_values covers every one of them, else prompts with the names it did
 /// cover plus the saved values for the rest - a full saved set still prompts,
 /// because a saved value is what the user last typed, not what they chose for

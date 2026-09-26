@@ -338,11 +338,13 @@ bool is_dangerous_macro(const std::string& name, const PrinterDiscovery& hw) {
 
 namespace {
 
-/// Saved values restricted to the names this macro declares. Saved keys are
+/// Params a plain run (no param modal) sends: the saved values overlaid by the
+/// caller's known_values — the computed one wins where both name a parameter —
+/// each filtered to the names this macro declares. Saved and known keys are
 /// spelled the way the macro declares them, so an exact-name match is the
 /// filter; undeclared names belong to some other macro's signature.
-std::map<std::string, std::string> saved_values_declared_only(const CachedMacroInfo& cached,
-                                                              const MacroRunRequest& req) {
+std::map<std::string, std::string> plain_run_params(const CachedMacroInfo& cached,
+                                                    const MacroRunRequest& req) {
     std::map<std::string, std::string> out;
     if (cached.knowledge != MacroParamKnowledge::KNOWN_PARAMS) {
         return out;
@@ -350,6 +352,9 @@ std::map<std::string, std::string> saved_values_declared_only(const CachedMacroI
     for (const auto& param : cached.params) {
         if (auto it = req.saved_values.find(param.name); it != req.saved_values.end()) {
             out.emplace(param.name, it->second);
+        }
+        if (auto it = req.known_values.find(param.name); it != req.known_values.end()) {
+            out.insert_or_assign(param.name, it->second);
         }
     }
     return out;
@@ -363,17 +368,19 @@ MacroRunDecision decide_macro_run(const CachedMacroInfo& cached, const MacroRunR
     }
 
     // A click that will raise no param modal - the caller never allows one, or
-    // the macro takes no parameters. A saved record rides along, filtered to
-    // the declared names, so an ask-off run still sends its saved values.
+    // the macro takes no parameters. A saved record rides along with the
+    // caller's known_values overlaid on it (both filtered to the declared
+    // names), so an ask-off filament load still heats with the temp the
+    // surface computed.
     if (!req.prompt_for_params || cached.knowledge == MacroParamKnowledge::KNOWN_NO_PARAMS) {
         // The dangerous-macro confirm already ran; a second "Run X?" on top of
         // it would ask the same question twice. The confirmed run still sends
-        // the saved values.
-        std::map<std::string, std::string> saved = saved_values_declared_only(cached, req);
+        // the same params.
+        std::map<std::string, std::string> params = plain_run_params(cached, req);
         if (req.confirm_plain_run && !req.dangerous) {
-            return {MacroRunAction::ConfirmRun, std::move(saved)};
+            return {MacroRunAction::ConfirmRun, std::move(params)};
         }
-        return {MacroRunAction::Run, std::move(saved)};
+        return {MacroRunAction::Run, std::move(params)};
     }
 
     if (cached.knowledge == MacroParamKnowledge::KNOWN_PARAMS) {

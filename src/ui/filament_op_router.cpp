@@ -69,7 +69,11 @@ bool dispatch_filament_macro(const std::string& macro_name, ParamPolicy policy,
 
     helix::MacroRunRequest req;
     req.prompt_for_params = policy != ParamPolicy::Suppress && defaults.ask_for_params;
-    req.known_values = known_values;
+    // Suppress must keep sending exactly what it did before saved defaults:
+    // the saved values only, and nothing without a record. Passing the
+    // computed values through would make it a sender it never was.
+    req.known_values =
+        policy == ParamPolicy::Suppress ? std::map<std::string, std::string>{} : known_values;
     req.saved_values = defaults.values;
 
     const helix::MacroRunDecision decision = helix::decide_macro_run(cached, req);
@@ -81,10 +85,17 @@ bool dispatch_filament_macro(const std::string& macro_name, ParamPolicy policy,
             spdlog::debug("[FilamentRouter] Executing '{}' with no parameters (policy={})",
                           macro_name, policy == ParamPolicy::Suppress ? "suppress" : "no-params");
             run({});
-        } else {
+        } else if (req.prompt_for_params) {
+            // A prompting surface lands here only when its computed values
+            // covered every declared parameter.
             spdlog::info("[FilamentRouter] Every parameter of '{}' is known — running without a "
                          "prompt",
                          macro_name);
+            run(helix::macro_param_result_from_values(cached.params, decision.params));
+        } else {
+            spdlog::info("[FilamentRouter] '{}' runs with no param prompt (Ask off or suppressed) "
+                         "— {} value(s) from saved defaults and computed state",
+                         macro_name, decision.params.size());
             run(helix::macro_param_result_from_values(cached.params, decision.params));
         }
         return false;

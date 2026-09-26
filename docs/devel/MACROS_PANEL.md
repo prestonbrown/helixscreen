@@ -184,9 +184,12 @@ quick buttons. Its rules, which the header comment states in full:
 - **Prefill is saved overlaid by known.** When the modal does open, it shows
   the saved values with `known_values` (e.g. a quick button's preset) winning
   on any parameter both supply.
-- A run that raises no modal carries the saved values filtered to the macro's
-  declared names; dangerous-macro confirmation is decided before any of this
-  and cannot be disarmed by it.
+- A run that raises no modal carries the saved values overlaid by the caller's
+  known_values — a filament load's computed nozzle temp wins over a saved TEMP
+  on the same name — both filtered to the macro's declared names. A
+  `Suppress`-policy surface passes no known values, so it keeps sending only
+  the saved record's values (nothing without a record). Dangerous-macro
+  confirmation is decided before any of this and cannot be disarmed by it.
 
 Each surface builds the same `MacroRunRequest`: `prompt_for_params` is the
 conjunction of its own policy and the record's `ask_for_params` — the panel

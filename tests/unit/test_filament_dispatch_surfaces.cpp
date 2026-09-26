@@ -590,6 +590,53 @@ TEST_CASE_METHOD(DispatchSurfaceFixture,
     CHECK(prompted_prefill == ParamValues({{"TEMP", "220"}, {"SPEED", "60"}}));
 }
 
+TEST_CASE_METHOD(DispatchSurfaceFixture,
+                 "an ask-off dispatch sends saved and computed values together, computed winning",
+                 "[filament][dispatch][wiring][macro]") {
+    // A load with a saved LENGTH, a saved TEMP and a live nozzle temp: Ask off
+    // runs unprompted with both sources merged, the computed temp winning.
+    cache_macros({{"LOAD_FILAMENT", "{% set TEMP = params.TEMP|default(200)|int %}\n"
+                                    "{% set LENGTH = params.LENGTH|default(50)|int %}\nG1 E10"}});
+    helix::MacroParamDefaultRecord record;
+    record.values = {{"LENGTH", "100"}, {"TEMP", "200"}};
+    record.ask_for_params = false;
+    helix::MacroParamDefaults::instance().set("LOAD_FILAMENT", record);
+
+    MacroParamResult received;
+    const bool prompted = helix::ui::dispatch_filament_macro(
+        "LOAD_FILAMENT", ParamPolicy::Prompt,
+        [&received](const MacroParamResult& result) { received = result; }, {{"TEMP", "250"}});
+
+    CHECK_FALSE(prompted);
+    CHECK(prompt_count == 0);
+    CHECK(received.params == ParamValues({{"LENGTH", "100"}, {"TEMP", "250"}}));
+}
+
+TEST_CASE_METHOD(DispatchSurfaceFixture,
+                 "a suppressed surface with computed values and no record still sends nothing",
+                 "[filament][dispatch][wiring][macro]") {
+    // Suppress exists to never stack a modal mid-dialog; it must not turn into
+    // a sender of computed values either; with no saved record the run is bare.
+    cache_macros({{"LOAD_FILAMENT", "{% set TEMP = params.TEMP|default(200)|int %}\nG1 E10"}});
+    helix::MacroParamDefaults::instance().clear("LOAD_FILAMENT");
+
+    bool ran = false;
+    MacroParamResult received;
+    const bool prompted =
+        helix::ui::dispatch_filament_macro("LOAD_FILAMENT", ParamPolicy::Suppress,
+                                           [&ran, &received](const MacroParamResult& result) {
+                                               ran = true;
+                                               received = result;
+                                           },
+                                           {{"TEMP", "250"}});
+
+    CHECK_FALSE(prompted);
+    CHECK(prompt_count == 0);
+    CHECK(ran);
+    CHECK(received.params.empty());
+    CHECK(received.variables.empty());
+}
+
 // =============================================================================
 // Values the surface already knows: prefilled, and sent without a prompt when
 // they cover every parameter the macro takes
