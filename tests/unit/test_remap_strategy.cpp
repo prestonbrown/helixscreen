@@ -14,7 +14,7 @@
 //                  backend has no internal tool-routing. Declared by ToolChanger
 //                  on a changer with no ASSIGN_TOOL; ACE declares None until the
 //                  ACE_CHANGE_TOOL family is handled
-//   SnapmakerNative — firmware pre-print send, no gcode rewrite (Snapmaker U1)
+//   PrePrintSend: firmware pre-print send, no gcode rewrite (Snapmaker U1)
 //
 // The per-backend probes come from tests/test_helpers/ams_backend_probes.h.
 
@@ -179,10 +179,10 @@ TEST_CASE("Native-strategy backends return RemapStrategy::Native", "[ams][strate
     }
 }
 
-TEST_CASE("Snapmaker returns RemapStrategy::SnapmakerNative", "[ams][strategy]") {
+TEST_CASE("Snapmaker returns RemapStrategy::PrePrintSend", "[ams][strategy]") {
     SECTION("Snapmaker") {
         SnapmakerProbe sm;
-        REQUIRE(sm.get_remap_strategy() == AmsBackend::RemapStrategy::SnapmakerNative);
+        REQUIRE(sm.get_remap_strategy() == AmsBackend::RemapStrategy::PrePrintSend);
     }
 }
 
@@ -250,8 +250,8 @@ TEST_CASE("can_remap needs both a declared route and readiness", "[ams][strategy
     const Case cases[] = {
         {"Native and ready", RS::Native, true, true},
         {"Native, not ready", RS::Native, false, false},
-        {"SnapmakerNative and ready", RS::SnapmakerNative, true, true},
-        {"SnapmakerNative, not ready", RS::SnapmakerNative, false, false},
+        {"PrePrintSend and ready", RS::PrePrintSend, true, true},
+        {"PrePrintSend, not ready", RS::PrePrintSend, false, false},
         {"GcodeRewrite and ready", RS::GcodeRewrite, true, true},
         {"None but ready", RS::None, true, false},
         {"None and not ready", RS::None, false, false},
@@ -278,7 +278,7 @@ TEST_CASE("can_write_mapping_table needs a table-writing route AND readiness", "
         // pick by rewriting the job file and has no table either, and a Native
         // backend that has not discovered its firmware object yet writes
         // nothing that lands.
-        {"SnapmakerNative and ready", RS::SnapmakerNative, true, false},
+        {"PrePrintSend and ready", RS::PrePrintSend, true, false},
         {"Native, not ready", RS::Native, false, false},
         {"GcodeRewrite and ready", RS::GcodeRewrite, true, false},
         {"GcodeRewrite, not ready", RS::GcodeRewrite, false, false},
@@ -299,8 +299,8 @@ TEST_CASE("remap_is_persistent separates the routes that outlive the send", "[am
     // Native writes the machine's own table; GcodeRewrite writes the job file.
     CHECK(helix::printer::remap_is_persistent(RS::Native));
     CHECK(helix::printer::remap_is_persistent(RS::GcodeRewrite));
-    // SnapmakerNative tells the firmware once, before PRINT_START. Nothing keeps it.
-    CHECK_FALSE(helix::printer::remap_is_persistent(RS::SnapmakerNative));
+    // PrePrintSend tells the firmware once, before PRINT_START. Nothing keeps it.
+    CHECK_FALSE(helix::printer::remap_is_persistent(RS::PrePrintSend));
     CHECK_FALSE(helix::printer::remap_is_persistent(RS::None));
 }
 
@@ -352,7 +352,7 @@ TEST_CASE("owns_tool_mapping_table is answered independently of remap capability
 // requires_preprint_send(): a backend capability that gates whether
 // PrintStartController must emit build_preprint_gcode() BEFORE PRINT_START.
 // Previously the controller proxied this as
-// `get_remap_strategy() == SnapmakerNative` (a backend-type check disguised as
+// `get_remap_strategy() == PrePrintSend` (a backend-type check disguised as
 // a strategy comparison). Only Snapmaker U1 needs the pre-send; everyone else
 // takes the unchanged synchronous start path. Pin each backend so a regression
 // (e.g. accidentally enabling the pre-send for a Native backend) fails here.
@@ -556,7 +556,7 @@ TEST_CASE("Only GcodeRewrite consults the plugin", "[ams][strategy][block]") {
 
     SECTION("routes that write firmware state ignore the plugin entirely") {
         for (auto strategy :
-             {AmsBackend::RemapStrategy::Native, AmsBackend::RemapStrategy::SnapmakerNative}) {
+             {AmsBackend::RemapStrategy::Native, AmsBackend::RemapStrategy::PrePrintSend}) {
             backend.set_remap_strategy(strategy);
             CHECK(remap_block(backend, 0, 4) == RemapBlock::None);
             CHECK(remap_block(backend, -1, 4) == RemapBlock::None);
@@ -576,7 +576,7 @@ TEST_CASE("remap_block agrees with can_remap wherever can_remap has an opinion",
     // remap_block() reports a backend-side block, nor no where it reports None.
     for (auto strategy :
          {AmsBackend::RemapStrategy::None, AmsBackend::RemapStrategy::Native,
-          AmsBackend::RemapStrategy::GcodeRewrite, AmsBackend::RemapStrategy::SnapmakerNative}) {
+          AmsBackend::RemapStrategy::GcodeRewrite, AmsBackend::RemapStrategy::PrePrintSend}) {
         for (bool ready : {false, true}) {
             backend.set_remap_strategy(strategy);
             backend.set_remap_ready(ready);

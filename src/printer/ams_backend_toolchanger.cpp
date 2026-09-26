@@ -1369,24 +1369,8 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
     // Persist BEFORE the remap's early return, or a slot edit that also moved a
     // tool number would send ASSIGN_TOOL and silently drop the metadata.
     if (override_store_) {
-        helix::ams::FilamentSlotOverride ovr_to_save;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            auto it = overrides_.find(slot_index);
-            if (it != overrides_.end()) {
-                ovr_to_save = it->second;
-            }
-        }
-        // Capture the tag by value: save_async's Moonraker callback can fire
-        // long after this returns, and must not touch `this`.
-        const std::string tag = backend_log_tag();
-        override_store_->save_async(
-            slot_index, ovr_to_save, [tag, slot_index](bool success, const std::string& err) {
-                if (!success) {
-                    spdlog::warn("{} Override persist failed for slot {}: {}", tag, slot_index,
-                                 err);
-                }
-            });
+        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
+                                            backend_log_tag(), "Override");
     }
 
     // Emit OUTSIDE the lock to avoid deadlock with callbacks, and ahead of the

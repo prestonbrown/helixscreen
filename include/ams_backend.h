@@ -2312,18 +2312,20 @@ class AmsBackend {
      * Tx tool-change commands need to be rewritten before the print starts, or
      * whether the backend handles routing internally.
      *
-     *  None            — base / default; no multi-tool routing (single-extruder,
-     *                    no AMS attached)
-     *  Native          — backend owns the T0..Tn → slot mapping internally
-     *                    (Happy Hare, AFC, CFS, AD5X IFS, ToolChanger); helix
-     *                    does NOT rewrite gcode
-     *  GcodeRewrite    — helix must rewrite Tx commands in the gcode file because
-     *                    the firmware has no internal tool-routing table (ACE)
-     *  SnapmakerNative — backend emits firmware-native print_task_config gcode
-     *                    (SET_PRINT_USED_EXTRUDERS / SET_PRINT_EXTRUDER_MAP) before
-     *                    PRINT_START; no gcode-file rewrite (Snapmaker U1)
+     *  None        : base / default; no multi-tool routing (single-extruder,
+     *                 no AMS attached)
+     *  Native      : backend owns the T0..Tn → slot mapping internally
+     *                 (Happy Hare, AFC, CFS, AD5X IFS, ToolChanger); helix
+     *                 does NOT rewrite gcode
+     *  GcodeRewrite: helix must rewrite Tx commands in the gcode file because
+     *                 the firmware has no internal tool-routing table (a tool
+     *                 changer driving swaps with its own T<n> macros rather
+     *                 than klipper-toolchanger)
+     *  PrePrintSend: backend emits firmware-native print_task_config gcode
+     *                 (SET_PRINT_USED_EXTRUDERS / SET_PRINT_EXTRUDER_MAP) before
+     *                 PRINT_START; no gcode-file rewrite (Snapmaker U1)
      */
-    enum class RemapStrategy { None, Native, GcodeRewrite, SnapmakerNative };
+    enum class RemapStrategy { None, Native, GcodeRewrite, PrePrintSend };
 
     /**
      * @brief Get the tool-remapping strategy for this backend.
@@ -2410,15 +2412,34 @@ class AmsBackend {
     }
 
     /**
-     * @brief Whether this backend is an AFC (Armored Turtle) system.
+     * @brief Whether the reported bypass position is virtual rather than physical.
      *
-     * Identity gate for AFC-specific UI sections (e.g. the unload-after-print
-     * toggle in the device-operations overlay) that have no behavioral analogue
-     * on other backends. Only AFC overrides this.
+     * True on a backend whose firmware publishes a bypass sensor whether or not
+     * the user has anything wired to it, so `supports_bypass` alone cannot tell
+     * a real bypass position from a phantom one. The bypass node on the
+     * filament path is hidden while bypass is disengaged on such a backend,
+     * unless the user opts back in via the always-show setting; on a backend
+     * with a physical bypass the node stays visible whenever supported.
      *
-     * @return true if this is an AFC backend
+     * @return true if bypass support is reported even with no bypass hardware
      */
-    [[nodiscard]] virtual bool is_afc_system() const {
+    [[nodiscard]] virtual bool bypass_is_virtual() const {
+        return false;
+    }
+
+    /**
+     * @brief Whether the user decides, from this screen, whether the toolhead
+     *        unloads after a print.
+     *
+     * Drives the unload-after-print toggle row in the device-operations
+     * overlay. Backends whose firmware fixes the behavior one way (always
+     * unloads, or never does) have nothing for the toggle to decide, so the
+     * row stays hidden there; the setting the toggle writes is what the
+     * backend's end-of-print macros consult.
+     *
+     * @return true if the post-print toolhead unload is a user setting here
+     */
+    [[nodiscard]] virtual bool supports_configurable_unload_after_print() const {
         return false;
     }
 

@@ -10,49 +10,16 @@
 
 namespace helix::printer {
 
-/// Unified per-slot sensor state. Replaces AFC's LaneSensors and
-/// Happy Hare's GateSensorState with a single struct usable by all backends.
-struct SlotSensors {
-    // AFC binary sensors
-    bool prep = false;
-    bool load = false;
-    bool loaded_to_hub = false;
-
-    // Happy Hare pre-gate sensor
-    bool has_pre_gate_sensor = false;
-    bool pre_gate_triggered = false;
-
-    // AFC selector sensor. Only units with a physical selector (HTLF,
-    // QuattroBox) publish `selector`; has_selector records whether the field
-    // was ever seen so a Box Turtle isn't rendered as "selector clear".
-    bool has_selector = false;
-    bool selector = false;
-
-    // AFC buffer/readiness
-    std::string buffer_status;
-    std::string filament_status;
-    float dist_hub = 0.0f;
-
-    /// Hex colour AFC drives the lane's status LED to. Firmware emits it as the
-    /// second half of the same `get_filament_status()` split that produces
-    /// filament_status, so it is that string's severity colour straight from
-    /// the firmware rather than one we re-derive.
-    std::string filament_status_led;
-
-    /// Comma-separated names of the homing endstops configured on this lane
-    /// (e.g. "load,hub,tool_start,tool_end,buffer_advance,buffer_trailing").
-    /// Absent on lanes with no `_endstops` — a per-lane capability list.
-    std::string endstops;
-};
-
-/// A single slot in the registry. Owns all per-slot state.
+/// A single slot in the registry. Owns all per-slot state. Sensor readings a
+/// backend parses from its own firmware belong in that backend, keyed the way
+/// it addresses slots, not here: the registry is shared by nine backends and
+/// cannot carry one backend's sensor vocabulary without taxing the other eight.
 struct SlotEntry {
     int global_index = -1;
     int unit_index = -1;
     std::string backend_name; // "lane4" (AFC), "0" (HH) — for G-code
 
     SlotInfo info;
-    SlotSensors sensors;
     int endless_spool_backup = -1;
 };
 

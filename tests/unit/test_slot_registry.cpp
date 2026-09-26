@@ -176,8 +176,6 @@ TEST_CASE("SlotRegistry reorganize preserves slot data", "[slot_registry][reorga
     reg.get_mut(1)->info.color_rgb = 0xFF0000;
     reg.get_mut(1)->info.material = "PLA";
     reg.get_mut(1)->info.status = helix::SlotStatus::AVAILABLE;
-    reg.get_mut(1)->sensors.prep = true;
-    reg.get_mut(1)->sensors.load = true;
     reg.get_mut(1)->endless_spool_backup = 2;
 
     // Reorganize into 2 units — s1 moves from index 1 to a new position
@@ -195,8 +193,6 @@ TEST_CASE("SlotRegistry reorganize preserves slot data", "[slot_registry][reorga
         REQUIRE(entry->info.color_rgb == 0xFF0000);
         REQUIRE(entry->info.material == "PLA");
         REQUIRE(entry->info.status == helix::SlotStatus::AVAILABLE);
-        REQUIRE(entry->sensors.prep == true);
-        REQUIRE(entry->sensors.load == true);
         REQUIRE(entry->endless_spool_backup == 2);
     }
 

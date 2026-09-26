@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -247,6 +248,32 @@ class FilamentSlotOverrideStore {
     // files that pre-date the unified filament_slot_overrides.json format.
     std::filesystem::path cache_dir_effective() const;
 };
+
+// =============================================================================
+// Shared persist tail
+// =============================================================================
+//
+// A backend that just staged an override record persists it with the same tail
+// everywhere: snapshot the record out of the map under the lock, hand it to
+// save_async, and report a failure under the backend's log tag. The callback
+// captures nothing but its by-value arguments because it can fire long after
+// the caller returns (the Moonraker tracker holds it ~60s), and it must not
+// touch the backend: the backend may outlive its store, but the store
+// outlives the scheduled save by design.
+
+/// Schedule @p store's save of @p record for @p slot_index, warning with
+/// "<tag> <noun> persist failed for slot <n>: <err>" when it fails. @p noun
+/// names what was persisted ("Override", "weight", "lock release").
+void save_override_async(FilamentSlotOverrideStore* store, int slot_index,
+                         const FilamentSlotOverride& record, const std::string& tag,
+                         const char* noun);
+
+/// Snapshot @p overrides' record for @p slot_index under @p mutex and persist
+/// it. A slot with no staged record saves nothing. This is the tail every
+/// apply_user_edit() ends with, after stage_user_override() staged the edit.
+void persist_staged_override(FilamentSlotOverrideStore* store, std::mutex& mutex,
+                             std::unordered_map<int, FilamentSlotOverride>& overrides,
+                             int slot_index, const std::string& tag, const char* noun);
 
 // =============================================================================
 // Shared construct-and-load
