@@ -4,6 +4,7 @@
 #include "backlight_backend.h"
 
 #include "config.h"
+#include "platform_info.h"
 #include "runtime_config.h"
 #include "spdlog/spdlog.h"
 
@@ -49,23 +50,43 @@ namespace helix::backlight_internal {
 // settings.json override if set, else the compile-time per-target default.
 int backlight_floor_percent() {
     int floor = HELIX_BACKLIGHT_FLOOR_PERCENT;
+#if defined(HELIX_PLATFORM_MIPS)
+    // One binary serves the K1 series and the AD5X; the floor is the K1
+    // panel's, and the AD5X panel has none.
+    if (helix::ad5x_mod_layout_present()) {
+        floor = 0;
+    }
+#endif
     if (auto* config = helix::Config::get_instance()) {
         floor = config->get<int>("/display/backlight_floor_percent", floor);
     }
     return std::clamp(floor, 0, 100);
 }
 
-// Map a 0-100 brightness percent onto a panel's raw range. 0 is fully off;
-// any nonzero percent scales across [floor, max] so the dimmest usable level
-// is the panel's floor rather than black (#1709). A requested-on level never
-// maps below 1: a truncated 0 would read as off on the panel (#972).
+// The brightness slider's minimum, which every configured-brightness path
+// clamps to as well.
+constexpr int kMinUserBrightnessPercent = 10;
+
+// Map a 0-100 brightness percent onto a panel's raw range. 0 is fully off.
+// With no floor it is the plain linear map. With a floor, the user range
+// [kMinUserBrightnessPercent, 100] spans [floor, max], so the dimmest level a
+// user can pick is the dimmest the panel still shows (#1709); lower on-levels
+// land on the floor. A requested-on level never maps below 1: a truncated 0
+// would read as off on the panel (#972).
 int raw_from_percent(int percent, int max_raw, int floor_percent) {
     if (percent <= 0) {
         return 0;
     }
     const int clamped_floor = std::clamp(floor_percent, 0, 100);
-    const int floor_raw = clamped_floor * max_raw / 100;
-    int raw = floor_raw + (max_raw - floor_raw) * percent / 100;
+    int raw = 0;
+    if (clamped_floor == 0) {
+        raw = max_raw * percent / 100;
+    } else {
+        const int floor_raw = clamped_floor * max_raw / 100;
+        const int above_min =
+            std::max(percent, kMinUserBrightnessPercent) - kMinUserBrightnessPercent;
+        raw = floor_raw + (max_raw - floor_raw) * above_min / (100 - kMinUserBrightnessPercent);
+    }
     return std::clamp(std::max(raw, 1), 0, max_raw);
 }
 
