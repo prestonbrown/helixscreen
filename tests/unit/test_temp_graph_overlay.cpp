@@ -159,7 +159,7 @@ TEST_CASE_METHOD(
     LVGLTestFixture,
     "TempGraphOverlay: init_subjects publishes its four subjects, destructor withdraws them",
     "[temp_graph_overlay]") {
-    // init_subjects() publishes four subjects — temp_graph_mode (strip
+    // init_subjects() publishes four subjects - temp_graph_mode (strip
     // visibility and graph_outer width, see temp_graph_overlay.xml's <subjects>
     // block), temp_graph_nozzle_badge (the tool number the nozzle digit
     // shows), and temp_graph_nozzle_temp/temp_graph_nozzle_target (the nozzle
@@ -262,6 +262,13 @@ class TempGraphOverlayTestAccess {
     static void repoint(TempGraphOverlay& o) {
         o.repoint_nozzle_card();
     }
+    /// Arm the rediscovery watch the way on_activate does. Tests cannot call
+    /// on_activate() directly - it resolves the GLOBAL printer state, not the
+    /// fixture's - so this is the fixture's stand-in for that half of
+    /// activation.
+    static void arm_version_watch(TempGraphOverlay& o) {
+        o.watch_extruder_version();
+    }
     static int card_temp(TempGraphOverlay& o) {
         return lv_subject_get_int(&o.nozzle_card_temp_subject_);
     }
@@ -338,8 +345,8 @@ TEST_CASE_METHOD(
     // extruder before the keypad's stacked push deactivates this overlay.
     TempGraphOverlayTestAccess::custom_clicked(overlay);
 
-    // That stacked push reports NavigateAway — the same reason a real close
-    // reports — and the pick must survive it: the user is still mid-entry on
+    // That stacked push reports NavigateAway - the same reason a real close
+    // reports - and the pick must survive it: the user is still mid-entry on
     // this card.
     overlay.on_deactivate(DeactivateReason::NavigateAway);
     REQUIRE(TempGraphOverlayTestAccess::picked(overlay) == "extruder1");
@@ -362,9 +369,10 @@ TEST_CASE_METHOD(
     TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
 }
 
-TEST_CASE_METHOD(TempGraphOverlayPickFixture,
-                 "TempGraphOverlay: the card mirrors the pick and drops it when the overlay leaves",
-                 "[temp_graph_overlay][active-extruder]") {
+TEST_CASE_METHOD(
+    TempGraphOverlayPickFixture,
+    "TempGraphOverlay: the card mirrors the pick and open() restarts on the active tool",
+    "[temp_graph_overlay][active-extruder]") {
     TempGraphOverlay overlay;
     overlay.init_subjects();
     seed_two_tools();
@@ -390,8 +398,16 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 2610);
 
-    // Leaving the overlay drops the pick; the next bind follows the machine.
+    // Leaving the overlay KEEPS the pick: the custom-entry keypad stacks on
+    // top of this overlay, and its confirm must still reach the picked tool.
     overlay.on_deactivate(DeactivateReason::NavigateAway);
+    REQUIRE(TempGraphOverlayTestAccess::picked(overlay) == "extruder1");
+
+    // Reopening is the fresh view: open() drops the pick so the card starts on
+    // the machine's active tool. A null parent on a never-created overlay
+    // skips both lazy creation and the NavigationManager push, so this call
+    // exercises exactly the pick-clear.
+    overlay.open(TempGraphOverlay::Mode::Nozzle, nullptr);
     REQUIRE(TempGraphOverlayTestAccess::picked(overlay).empty());
 
     TempGraphOverlayTestAccess::repoint(overlay);
@@ -408,12 +424,14 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
 
     TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
     TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
+    TempGraphOverlayTestAccess::arm_version_watch(overlay);
     TempGraphOverlayTestAccess::repoint(overlay);
 
     TempGraphOverlayTestAccess::select(overlay, "extruder1");
     REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 2600);
 
-    // Rediscovery rebuilds the extruder map WITHOUT the picked tool.
+    // Rediscovery rebuilds the extruder map WITHOUT the picked tool; the
+    // version bump the rebuild makes is what repoints the card here.
     state.init_extruders({"extruder"});
     state.update_from_status({{"extruder", {{"temperature", 56.0}, {"target", 56.0}}}});
     helix::ui::UpdateQueue::instance().drain();
@@ -421,6 +439,34 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
     REQUIRE(TempGraphOverlayTestAccess::picked(overlay).empty());
     REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 560);
     REQUIRE(TempGraphOverlayTestAccess::card_target(overlay) == 560);
+}
+
+TEST_CASE_METHOD(TempGraphOverlayPickFixture,
+                 "TempGraphOverlay: activation settles - the update queue drains to empty",
+                 "[temp_graph_overlay][active-extruder]") {
+    // lv_subject_add_observer notifies on attach, and observe_int_sync defers
+    // the handler through UpdateQueue, so arming the version watch queues one
+    // repoint. That repoint must not re-arm the watch: a re-arming repoint
+    // queues another repoint on every drain and the queue never empties while
+    // the overlay is up. Arm, pick, drain three times, then demand a quiet
+    // queue.
+    TempGraphOverlay overlay;
+    overlay.init_subjects();
+    seed_two_tools();
+
+    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
+    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
+    TempGraphOverlayTestAccess::arm_version_watch(overlay);
+    TempGraphOverlayTestAccess::select(overlay, "extruder1");
+
+    for (int i = 0; i < 3; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    REQUIRE(helix::ui::UpdateQueue::instance().pending_count() == 0);
+    // The drains delivered the real work too: the card sits on the pick.
+    REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 2600);
+    REQUIRE(std::string(TempGraphOverlayTestAccess::badge(overlay)) == "2");
 }
 
 // =============================================================================

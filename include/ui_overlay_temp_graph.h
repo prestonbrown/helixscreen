@@ -137,6 +137,9 @@ class TempGraphOverlay : public OverlayBase {
     /// them; call after any change to the pick, the extruder list, or
     /// activation state.
     void repoint_nozzle_card();
+    /// Arm the one-per-activation extruder_version watch whose handler calls
+    /// repoint_nozzle_card().
+    void watch_extruder_version();
 
     // Preset helpers
     struct PresetData {
@@ -189,7 +192,7 @@ class TempGraphOverlay : public OverlayBase {
     TemperatureService* temp_control_panel_ = nullptr;
 
     // The tool number the nozzle subscript digit shows. Mirrors whichever extruder the
-    // card displays — the picked one while a pick is held, the
+    // card displays - the picked one while a pick is held, the
     // machine's active tool otherwise. Bound in on_activate() to ToolState's
     // active_tool/tools_version pair (the same two subjects ui_ams_tool_text
     // observes for the badge), unbound in on_deactivating().
@@ -201,15 +204,11 @@ class TempGraphOverlay : public OverlayBase {
 
     // The extruder the card is displaying, as a VIEW pick (Klipper name; empty
     // = follow the machine's tool). Distinct from the machine's active
-    // extruder, which other surfaces keep tracking.
+    // extruder, which other surfaces keep tracking. Survives every
+    // deactivation (the custom-entry keypad stacks on top of this overlay and
+    // its confirm still targets the picked tool); open() drops it, because
+    // opening is the one thing that means a fresh view.
     std::string picked_extruder_;
-
-    // True between opening the custom-entry keypad and the deactivation that
-    // keypad's stacked push causes. A NavigateAway deactivate fires both when
-    // this overlay is popped and when the keypad stacks on top, synchronously
-    // indistinguishable; this flag is the discriminator that keeps the pick
-    // alive across the keypad.
-    bool nozzle_keypad_stacked_ = false;
 
     // Mirror of the displayed extruder's decidegree current/target. The card's
     // temp_display binds these by name (temp_graph_nozzle_temp/target);
@@ -221,7 +220,11 @@ class TempGraphOverlay : public OverlayBase {
     ObserverGuard nozzle_card_temp_observer_;
     ObserverGuard nozzle_card_target_observer_;
     // Rediscovery bumps extruder_version; the observer repoints so a pick
-    // whose extruder vanished falls back instead of freezing the card.
+    // whose extruder vanished falls back instead of freezing the card. Armed
+    // once per activation by watch_extruder_version(); repoint_nozzle_card()
+    // must not re-arm it, or every queued repoint re-fires itself and the
+    // queue never drains (lv_subject_add_observer notifies on attach, and
+    // observe_int_sync defers the handler through queue_update).
     ObserverGuard extruder_version_observer_;
 
     // Subject management

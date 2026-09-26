@@ -319,6 +319,13 @@ class PrinterTemperatureState {
         return &extruder_version_;
     }
 
+    /// Death signal for every subject this state owns (the active-extruder
+    /// mirrors, the version subject and the per-extruder subjects alike).
+    /// Hand to observe_*() by anything that can outlive a deinit.
+    [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
+        return subjects_.get_subjects_lifetime();
+    }
+
     /**
      * @brief Set the sensor name used to read chamber temperature
      * @param name Klipper sensor name (e.g., "temperature_sensor chamber")
