@@ -109,9 +109,9 @@ TEST_CASE("a K1C fingerprint does not detect as a K2", "[printer_database][evide
     CHECK(result.type_name.find("K2") == std::string::npos);
 }
 
-// Extension files get their required fields checked at load time; the bundled
-// file does not, so a bad entry there ships silently. Image existence is
-// scripts/check_printer_images.py's job.
+// The loader checks only that an extension file's new printers carry a name;
+// nothing checks the bundled file, so a bad entry there ships silently. Image
+// existence is scripts/check_printer_images.py's job.
 TEST_CASE("every bundled printer entry is well-formed and uniquely named",
           "[printer_database][schema]") {
     const nlohmann::json db = load_database();
@@ -125,6 +125,7 @@ TEST_CASE("every bundled printer entry is well-formed and uniquely named",
         return s;
     };
 
+    const std::regex slug("[a-z0-9]+([_-][a-z0-9]+)*");
     std::set<std::string> ids;
     std::set<std::string> names; // lookups by name are case-insensitive
     for (const auto& printer : db["printers"]) {
@@ -139,7 +140,7 @@ TEST_CASE("every bundled printer entry is well-formed and uniquely named",
         CHECK(printer.contains("heuristics"));
         CHECK(printer.value("heuristics", nlohmann::json()).is_array());
 
-        CHECK(std::regex_match(id, std::regex("[a-z0-9]+([_-][a-z0-9]+)*")));
+        CHECK(std::regex_match(id, slug));
         CHECK(ids.insert(id).second);
         CHECK(names.insert(lower(printer["name"].get<std::string>())).second);
     }
