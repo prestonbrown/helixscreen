@@ -9,7 +9,8 @@ staleness gate can never disagree about what counts as "needed".
 
 Scans every translations/*.yml locale (any locale can carry CJK — restricting
 to zh/ja would let a stray CJK char in another catalog render tofu) plus the
-C++ sources, for hardcoded CJK strings like the first-run wizard welcome text.
+C++ sources, XML layouts and printer database, for hardcoded CJK strings like
+the first-run wizard welcome text.
 
 Prints one 0xXXXX codepoint per line, sorted — the format the staleness gate
 and the manifest both use.
@@ -34,21 +35,28 @@ CJK_RANGES = [
     r'[＀-￯]',   # Halfwidth and Fullwidth Forms
 ]
 
-# Hardcoded CJK can live in any compiled source, not only src/ui.
-SOURCE_GLOBS = ['src/**/*.cpp', 'src/**/*.h', 'include/**/*.h']
+# Hardcoded CJK can live in any compiled source, not only src/ui, and in the
+# hand-authored runtime data the same font renders: XML layouts (the wizard's
+# language chooser, and the generated ui_xml/translations/*.xml, which is what
+# actually renders) and the printer database.
+SOURCE_GLOBS = ['src/**/*.cpp', 'src/**/*.h', 'include/**/*.h',
+                'ui_xml/**/*.xml', 'assets/config/printer_database.json']
 
 
-def needed_codepoints(root: Path) -> list[int]:
+def needed_codepoints(root: Path, paths: list[str] | None = None) -> list[int]:
+    """Codepoints used under root: the translations plus SOURCE_GLOBS, or only
+    the given root-relative globs when paths is set."""
     chars: set[str] = set()
 
     def extract(content: str) -> None:
         for pattern in CJK_RANGES:
             chars.update(re.findall(pattern, content))
 
-    for path in sorted(glob.glob(str(root / 'translations' / '*.yml'))):
-        extract(Path(path).read_text(encoding='utf-8'))
+    if paths is None:
+        for path in sorted(glob.glob(str(root / 'translations' / '*.yml'))):
+            extract(Path(path).read_text(encoding='utf-8'))
 
-    for pattern in SOURCE_GLOBS:
+    for pattern in paths if paths is not None else SOURCE_GLOBS:
         for path in glob.glob(str(root / pattern), recursive=True):
             try:
                 extract(Path(path).read_text(encoding='utf-8'))
@@ -61,10 +69,12 @@ def needed_codepoints(root: Path) -> list[int]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', default='.', help='repository root to scan')
+    parser.add_argument('--paths', nargs='+', metavar='GLOB',
+                        help='scan only these root-relative globs')
     args = parser.parse_args()
 
     root = Path(args.root)
-    codepoints = needed_codepoints(root)
+    codepoints = needed_codepoints(root, args.paths)
     if not codepoints:
         # An empty result means the scan matched nothing — for this repo that
         # is a broken scan, not an empty language. Refuse to print an empty
