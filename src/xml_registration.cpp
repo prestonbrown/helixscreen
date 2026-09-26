@@ -436,6 +436,10 @@ void register_xml_components() {
     register_xml("components/nozzle_icon.xml");
     register_xml("components/heater_icon.xml");
     register_xml("components/heater_status.xml");
+    // Chamber-heater fault banner — shared by the chamber card inside
+    // temp_graph_overlay and the chamber_diagnostics_card strip, so it must
+    // load before both (and before temp_graph_overlay.xml, later here).
+    register_xml("components/chamber_fault_banner.xml");
     // Chamber-heater diagnostics card — instantiated by temp_graph_overlay's
     // graph column (must be registered before temp_graph_overlay.xml, which
     // is loaded later in this function).

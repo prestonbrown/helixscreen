@@ -40,7 +40,9 @@ PrinterState::set_hardware  (src/printer/printer_state.cpp)
         configfile max_temp  >  backend conservative_max  >  heater default (80)
   |
   v
-ui_xml/components/chamber_diagnostics_card.xml  (temp graph overlay, chamber-mode-gated)
+temp_graph_overlay.xml chamber card (diagnostics in the right column)
+  +-> ui_xml/components/chamber_fault_banner.xml (shared one-row banner + Reset)
+  +-> ui_xml/components/chamber_diagnostics_card.xml (compact strip, portrait + 480x272)
 ```
 
 The invariant: **vendor JSON schemas are translated to the generic `ChamberHeaterDiagnostics` struct at the backend border** — subjects, UI, and controllers never see a vendor field name. Adding a brand means one new `.cpp` file and one registry line; nothing else in the tree changes.
@@ -61,7 +63,9 @@ The invariant: **vendor JSON schemas are translated to the generic `ChamberHeate
 | `src/printer/printer_temperature_state.cpp` | Diagnostics parse block: translates backend output to subjects; also owns all `chamber_heater_*` / `chamber_filter_fan_*` subject registration and display-string formatters |
 | `src/printer/printer_state.cpp` | The wiring block: gates both the diagnostics source and the TemperatureController action surface on resolved-heater == discovery-pick |
 | `src/ui/temperature_controller.cpp` | `set_chamber_actions()`, `reset_chamber_fault()`, `set_chamber_filter_fan()`, and the `ensure_limits()` ceiling fallback |
-| `ui_xml/components/chamber_diagnostics_card.xml` | The card: fault/inhibited/offline banner + Reset (hidden while the device is offline), element temp + filter fan %, filter-fan toggle. Structural portrait branch renders a compact variant (single info row with an inline icon-button fan toggle, one-line banner) so 272x480 chamber mode fits with no scroll. Instantiated in `temp_graph_overlay.xml` behind `<if cond="printer_has_chamber_heater_diagnostics and temp_graph_mode eq 3">` |
+| `ui_xml/temp_graph_overlay.xml` | Where the diagnostics render: above the micro/tiny landscape line they live in the right column's `chamber_display_card` (fault banner via the shared component, hairline, element row, filter-fan row with a `ui_switch`); the card's border goes `#danger` while faulted/inhibited/offline. The under-chart `<if cond="printer_has_chamber_heater_diagnostics and temp_graph_mode eq 3 and (ui_is_portrait or ui_breakpoint eq 0)">` builds the compact strip instead on portrait and 480x272, where the right column has no room beside the presets |
+| `ui_xml/components/chamber_fault_banner.xml` | Shared one-row banner: reason text (or "Heater offline") plus a compact Reset that hides while the device is offline. Instantiated by both surfaces above, which never coexist |
+| `ui_xml/components/chamber_diagnostics_card.xml` | The compact strip for portrait and 480x272: one info row (element icon + value, filter-fan icon + percent, muted External marker, fan switch) sized so 272x480 chamber mode keeps a usable chart with zero scroll; a fault replaces the info row with the banner |
 | `src/api/moonraker_client_mock.cpp` | Mock chamber backend shape (`HELIX_MOCK_OBJECTS` dragonbreath trio), registry-based chamber-status key |
 | `tests/unit/test_chamber_*.cpp` | Backend match/parse, subjects, ceiling, actions, discovery, mock — tags under `[chamber]` |
 
@@ -179,10 +183,10 @@ generic kinds above; they are deliberately not subjects, so nothing can bind a v
 | `chamber_heater_element_temp_text` | string | Heating-element temp ("--" = unknown). The number stays a private member: nothing graphs, thresholds or colours the element, so no int subject is registered |
 | `chamber_filter_fan_percent_text` | string | Filtration-fan speed ("--" = unknown). The number stays a private member, as with the element temp |
 | `chamber_filter_fan_requested` | int | Our output_pin request (-1 unknown / 0 / 1) — what the toggle click inverts |
-| `chamber_filter_fan_device_driven` | int 0/1 | Device runs the fan on its own (heater warmup / thermal purge); the card badges the readout and disables the toggle |
+| `chamber_filter_fan_device_driven` | int 0/1 | Device runs the fan on its own (heater warmup / thermal purge); the card badges the readout and disables the switch |
 | `chamber_filter_fan_on` / `..._text` | int / string | Fan RUNNING state: reported speed when the backend has one, the pin otherwise |
-| `chamber_filter_fan_icon` | string | Toggle icon name ("fan"/"fan_off") — bind_icon source for the compact portrait card |
-| `printer_has_chamber_heater_diagnostics` | int 0/1 | Capability: diagnostics card is built at all |
+| `chamber_filter_fan_icon` | string | Running-state icon name ("fan"/"fan_off"). Unconsumed since the icon-button toggle became a switch; kept as the canonical fan-state icon spelling |
+| `printer_has_chamber_heater_diagnostics` | int 0/1 | Capability: the diagnostics surfaces (card block / strip) are built at all |
 | `printer_has_chamber_filter_fan` | int 0/1 | Capability: filter-fan toggle and its readout column |
 | `printer_has_chamber_element_temp` | int 0/1 | Capability: element readout column, from the backend's `reports_element_temp()` |
 

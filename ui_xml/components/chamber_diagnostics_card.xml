@@ -2,177 +2,71 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- Chamber-heater diagnostics card (issue #1290): fault/inhibited banner
-       with a Reset action, heating-element + filter-fan readouts, and the
-       filter-fan toggle. Rendered by temp_graph_overlay below the chart.
+  <!-- Chamber-heater diagnostics strip (issue #1290): the compact fallback
+       for the sizes where the diagnostics cannot live in the right column's
+       chamber card — portrait always, and micro landscape (480x272), where
+       the right column has no room for the fault banner and the readout rows
+       beside the presets. temp_graph_overlay.xml gates this instantiation
+       with (ui_is_portrait or ui_breakpoint eq 0); everywhere else the
+       diagnostics render inside chamber_display_card instead.
 
-       Data arrives exclusively through global subjects and both buttons fire
-       TemperatureService XML callbacks that delegate to the globally
-       registered TemperatureController — nothing here is instance-specific,
-       which is what lets the overlay instantiate it in one place for both
-       orientations.
+       One info row — element icon + value, filter-fan icon + percent, muted
+       External marker, and the fan switch — sized so the tightest target
+       (272x480 chamber mode: ~300px for chart + strip) keeps a usable chart
+       with zero scroll. A fault replaces the info row with the one-row
+       chamber_fault_banner: on a heater that is faulted, inhibited or
+       offline, the reason and its Reset action are the whole story.
 
-       The caller owns outer visibility: instantiate inside
-       <if cond="printer_has_chamber_heater_diagnostics and temp_graph_mode eq 3">
-       so non-chamber printers never build the subtree. Every inner gate is
-       bind-based because it flips at runtime: the banner on
-       fault-or-inhibited-or-offline, the Mode column on external control, and
-       the Element and Filter Fan columns on their capability subjects —
-       backends differ in what they report, and a permanently blank readout
-       tells the user nothing. While the device drives the filter fan itself,
-       the percent readout gains a Device badge and the toggle disables — the
-       pin is a request the device overrides.
-
-       Orientation is a structural branch (nozzle_control_strip pattern):
-       landscape keeps the comfortable stacked layout; portrait collapses to
-       a compact variant — the tightest target (272x480 chamber mode) has
-       ~300px for chart + card, and the stacked layout (~120px unfaulted,
-       ~190px faulted) pushed the card below a scroll. Compact is a single
-       info row with the fan toggle inline (icon button driven by the
-       chamber_filter_fan_icon subject) plus a condensed one-line banner.
-       Names repeat across the if/else branches;
-       check_duplicate_xml_names.py skips branch pairs by design. -->
-  <styles>
-    <!-- Padding axis is bound (not inline on the view) so the compact branch
-         can tighten it — an inline style_pad_all would outrank the bind. -->
-    <style name="cdc_pad_roomy" style_pad_all="#space_sm" style_pad_gap="#space_xs"/>
-    <style name="cdc_pad_compact" style_pad_all="#space_xs" style_pad_gap="#space_xxs"/>
-  </styles>
+       Data arrives exclusively through global subjects; the switch and the
+       banner's Reset fire TemperatureService XML callbacks that delegate to
+       the globally registered TemperatureController. While the device drives
+       the filter fan itself the percent readout is replaced by a Device
+       badge and the switch disables — the pin is a request the device
+       overrides. The caller owns outer visibility: instantiate inside
+       <if cond="printer_has_chamber_heater_diagnostics and temp_graph_mode 3">. -->
   <view name="chamber_diagnostics_card"
-        extends="ui_card" width="100%" height="content" style_margin_top="#space_sm" flex_flow="column">
-    <bind_style_if name="cdc_pad_compact" cond="ui_is_portrait"/>
-    <bind_style_if name="cdc_pad_roomy" cond="ui_is_portrait" invert="true"/>
-    <if cond="ui_is_portrait eq 0">
-      <!-- LANDSCAPE: comfortable stacked layout — banner, readout pair,
-           full-width toggle button. -->
-      <!-- Fault / inhibited banner -->
-      <lv_obj name="fault_banner"
-              width="100%" height="content" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-              style_flex_cross_place="center" scrollable="false" style_bg_color="#danger" style_bg_opa="25"
-              style_radius="#border_radius_sm" style_border_width="#border_width" style_border_color="#danger">
-        <bind_flag_if cond="chamber_heater_fault or chamber_heater_inhibited or chamber_heater_offline"
-                      flag="hidden" invert="true"/>
-        <text_small name="offline_label"
-                    text="Heater offline" translation_tag="Heater offline" style_text_color="#danger" flex_grow="1">
-          <bind_flag_if cond="chamber_heater_offline" flag="hidden" invert="true"/>
-        </text_small>
-        <text_small name="fault_reason_label"
-                    bind_text="chamber_heater_fault_reason_text" style_text_color="#danger" flex_grow="1">
-          <bind_flag_if cond="chamber_heater_offline" flag="hidden"/>
-        </text_small>
-        <ui_button name="reset_fault_button" text="Reset" translation_tag="Reset" variant="secondary">
-          <bind_flag_if cond="chamber_heater_offline" flag="hidden"/>
-          <event_cb trigger="clicked" callback="on_chamber_fault_reset_clicked"/>
-        </ui_button>
+        extends="ui_card" width="100%" height="content" style_radius="0" flex_flow="column" style_pad_all="#space_xxs"
+        style_pad_gap="#space_xxs" style_margin_top="#space_sm">
+    <chamber_fault_banner name="fault_banner"/>
+    <lv_obj name="strip_info_row"
+            width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm"
+            style_flex_cross_place="center" scrollable="false">
+      <bind_flag_if cond="chamber_heater_fault or chamber_heater_inhibited or chamber_heater_offline" flag="hidden"/>
+      <lv_obj name="element_readout"
+              height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xxs"
+              style_flex_cross_place="center" scrollable="false">
+        <bind_flag_if_eq subject="printer_has_chamber_element_temp" flag="hidden" ref_value="0"/>
+        <icon src="radiator" size="xs"/>
+        <text_small name="element_temp_label" bind_text="chamber_heater_element_temp_text" long_mode="dots"/>
       </lv_obj>
-      <!-- Info row: heating-element temp + filter fan speed -->
-      <lv_obj width="100%" height="content" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-        <lv_obj name="element_readout" height="content" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-          <bind_flag_if_eq subject="printer_has_chamber_element_temp" flag="hidden" ref_value="0"/>
-          <text_muted text="Element" translation_tag="Element"/>
-          <lv_obj height="content" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false">
-            <text_small name="element_temp_label" bind_text="chamber_heater_element_temp_text"/>
-          </lv_obj>
-        </lv_obj>
-        <lv_obj name="filter_fan_readout"
-                height="content" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-          <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
-          <text_muted text="Filter Fan" translation_tag="Filter Fan"/>
-          <lv_obj height="content" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false">
-            <text_small name="fan_percent_label" bind_text="chamber_filter_fan_percent_text"/>
-            <!-- Device badge: the fan runs on the device's own initiative
-                 (heater warmup / thermal purge), not on our pin request. -->
-            <text_small name="fan_device_badge" text="Device" translation_tag="Device" style_text_color="#text_muted">
-              <bind_flag_if cond="chamber_filter_fan_device_driven" flag="hidden" invert="true"/>
-            </text_small>
-          </lv_obj>
-        </lv_obj>
-        <!-- Another controller is driving the heater: the device's own web UI,
-             a button on the unit, or the appliance's own auto cycle holding a
-             target of its own. Informational, not a fault. -->
-        <lv_obj name="external_control_readout"
-                height="content" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-          <bind_flag_if cond="chamber_heater_externally_controlled" flag="hidden" invert="true"/>
-          <text_muted text="Mode" translation_tag="Mode"/>
-          <text_small name="external_control_badge" text="External" translation_tag="External"/>
-        </lv_obj>
-      </lv_obj>
-      <!-- Filter fan toggle — only when the backend wires a filter-fan pin.
-           Disabled while the device drives the fan itself: the pin is a
-           request the device overrides, so the toggle cannot stop it. -->
-      <ui_button name="filter_fan_button" width="100%" variant="ghost" bind_text="chamber_filter_fan_on_text">
+      <lv_obj name="filter_fan_readout"
+              height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xxs"
+              style_flex_cross_place="center" scrollable="false">
         <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
+        <icon src="fan" size="xs"/>
+        <text_small name="fan_percent_label" bind_text="chamber_filter_fan_percent_text"/>
+        <!-- Device badge: the fan runs on the device's own initiative
+             (heater warmup / thermal purge), not on our pin request. -->
+        <text_small name="fan_device_badge" text="Device" translation_tag="Device" style_text_color="#text_muted">
+          <bind_flag_if cond="chamber_filter_fan_device_driven" flag="hidden" invert="true"/>
+        </text_small>
+      </lv_obj>
+      <!-- Another controller is driving the heater: the device's own web UI,
+           a button on the unit, or the appliance's own auto cycle holding a
+           target of its own. Informational, not a fault. -->
+      <text_small name="external_control_badge"
+                  text="External" translation_tag="External" style_text_color="#text_muted">
+        <bind_flag_if cond="chamber_heater_externally_controlled" flag="hidden" invert="true"/>
+      </text_small>
+      <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+      <!-- Filter fan switch — only when the backend wires a filter-fan pin.
+           Disabled while the device drives the fan itself: the pin is a
+           request the device overrides, so the switch cannot stop it. -->
+      <ui_switch name="filter_fan_switch" size="small">
+        <bind_state_if_eq subject="chamber_filter_fan_on" state="checked" ref_value="1"/>
         <bind_state_if_eq subject="chamber_filter_fan_device_driven" state="disabled" ref_value="1"/>
-        <event_cb trigger="clicked" callback="on_chamber_filter_fan_clicked"/>
-      </ui_button>
-      <else/>
-      <!-- PORTRAIT: compact variant sized so chart + card fit the ~300px a
-           272x480 window leaves — no scroll. Banner is one condensed row
-           (reason + small Reset); readouts share a single row with the fan
-           toggle as a small icon button instead of a stacked full-width
-           button. -->
-      <lv_obj name="fault_banner"
-              width="100%" height="content" flex_flow="row" style_pad_all="#space_xxs" style_pad_gap="#space_xs"
-              style_flex_cross_place="center" scrollable="false" style_bg_color="#danger" style_bg_opa="25"
-              style_radius="#border_radius_sm" style_border_width="#border_width" style_border_color="#danger">
-        <bind_flag_if cond="chamber_heater_fault or chamber_heater_inhibited or chamber_heater_offline"
-                      flag="hidden" invert="true"/>
-        <text_small name="offline_label"
-                    text="Heater offline" translation_tag="Heater offline" style_text_color="#danger" flex_grow="1">
-          <bind_flag_if cond="chamber_heater_offline" flag="hidden" invert="true"/>
-        </text_small>
-        <text_small name="fault_reason_label"
-                    bind_text="chamber_heater_fault_reason_text" style_text_color="#danger" flex_grow="1">
-          <bind_flag_if cond="chamber_heater_offline" flag="hidden"/>
-        </text_small>
-        <ui_button name="reset_fault_button"
-                   height="#button_height_sm_tiny" text="Reset" translation_tag="Reset" variant="ghost"
-                   style_pad_left="#space_xs" style_pad_right="#space_xs" style_border_width="#border_width"
-                   style_border_color="#border" style_border_opa="255">
-          <bind_flag_if cond="chamber_heater_offline" flag="hidden"/>
-          <event_cb trigger="clicked" callback="on_chamber_fault_reset_clicked"/>
-        </ui_button>
-      </lv_obj>
-      <lv_obj width="100%"
-              height="content" flex_flow="row" style_pad_gap="#space_md" style_flex_cross_place="center"
-              scrollable="false">
-        <lv_obj name="element_readout" height="content" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-          <bind_flag_if_eq subject="printer_has_chamber_element_temp" flag="hidden" ref_value="0"/>
-          <text_muted text="Element" translation_tag="Element"/>
-          <lv_obj height="content" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false">
-            <text_small name="element_temp_label" bind_text="chamber_heater_element_temp_text"/>
-          </lv_obj>
-        </lv_obj>
-        <lv_obj name="filter_fan_readout"
-                height="content" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-          <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
-          <text_muted text="Filter Fan" translation_tag="Filter Fan"/>
-          <lv_obj height="content" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false">
-            <text_small name="fan_percent_label" bind_text="chamber_filter_fan_percent_text"/>
-            <text_small name="fan_device_badge" text="Device" translation_tag="Device" style_text_color="#text_muted">
-              <bind_flag_if cond="chamber_filter_fan_device_driven" flag="hidden" invert="true"/>
-            </text_small>
-          </lv_obj>
-        </lv_obj>
-        <!-- Another controller is driving the heater: the device's own web UI,
-             a button on the unit, or the appliance's own auto cycle holding a
-             target of its own. Informational, not a fault. -->
-        <lv_obj name="external_control_readout"
-                height="content" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-          <bind_flag_if cond="chamber_heater_externally_controlled" flag="hidden" invert="true"/>
-          <text_muted text="Mode" translation_tag="Mode"/>
-          <text_small name="external_control_badge" text="External" translation_tag="External"/>
-        </lv_obj>
-        <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false" style_border_opa="0"/>
-        <ui_button name="filter_fan_button"
-                   width="#icon_button_size" height="#icon_button_size" variant="ghost"
-                   bind_icon="chamber_filter_fan_icon" style_border_width="#border_width" style_border_color="#border"
-                   style_border_opa="255">
-          <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
-          <bind_state_if_eq subject="chamber_filter_fan_device_driven" state="disabled" ref_value="1"/>
-          <event_cb trigger="clicked" callback="on_chamber_filter_fan_clicked"/>
-        </ui_button>
-      </lv_obj>
-    </if>
+        <event_cb trigger="value_changed" callback="on_chamber_filter_fan_clicked"/>
+      </ui_switch>
+    </lv_obj>
   </view>
 </component>
