@@ -36,6 +36,7 @@
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <string_view>
 
 namespace helix::ui {
 
@@ -525,6 +526,10 @@ void PACalibrationPanel::on_result(float k) {
             ? lv_tr("The printer applied this value and keeps it for this tool.")
             : lv_tr("Copy it into this filament's slicer profile. The printer keeps nothing."));
 
+    // The kind lands inside a translated sentence, so it is translated too.
+    const auto extruder_kind_label = [](const char* kind) -> const char* {
+        return std::string_view(kind) == "direct drive" ? lv_tr("direct drive") : kind;
+    };
     const bool plausible = helix::pacal::is_plausible(hw, k);
     const auto range = helix::pacal::sane_range(hw);
 
@@ -534,13 +539,13 @@ void PACalibrationPanel::on_result(float k) {
         &result_sanity_,
         plausible
             ? fmt::format(fmt::runtime(lv_tr("Typical for a {} extruder ({:.2f}-{:.2f}).")),
-                          range.extruder_kind, range.low, range.high)
+                          extruder_kind_label(range.extruder_kind), range.low, range.high)
                   .c_str()
             // The one judgement the machine cannot make for itself: a value
             // that parsed fine and is still wrong.
             : fmt::format(fmt::runtime(lv_tr("Outside the usual {:.2f}-{:.2f} for a {} extruder. "
                                              "Worth measuring again before trusting it.")),
-                          range.low, range.high, range.extruder_kind)
+                          range.low, range.high, extruder_kind_label(range.extruder_kind))
                   .c_str());
 
     lv_subject_set_int(&progress_, 100);

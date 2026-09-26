@@ -3244,6 +3244,7 @@
   <translation tag="chamber heater" de="Kammerheizung" en="chamber heater" es="calentador de cámara" fr="chauffage du caisson" it="riscaldatore camera" ja="チャンバーヒーター" pt="aquecedor da câmara" ru="нагреватель камеры" zh="腔体加热器"/>
   <translation tag="complete" de="abgeschlossen" en="complete" es="completo" fr="terminé" it="completato" ja="完了" pt="concluído" ru="завершено" zh="完成"/>
   <translation tag="cores" de="Kerne" en="cores" es="núcleos" fr="cœurs" it="core" ja="コア" pt="núcleos" ru="ядер" zh="核心"/>
+  <translation tag="direct drive" de="Direct-Drive" en="direct drive" es="de accionamiento directo" fr="à entraînement direct" it="direct drive" ja="ダイレクトドライブ" pt="de acionamento direto" ru="с прямой подачей" zh="直驱"/>
   <translation tag="disable" de="deaktivieren" en="disable" es="deshabilitar" fr="désactiver" it="disabilita" ja="無効化" pt="desabilitar" ru="отключить" zh="禁用"/>
   <translation tag="disabled" de="deaktiviert" en="disabled" es="desactivado" fr="désactivé" it="disabilitato" ja="無効" pt="desabilitado" ru="отключено" zh="已禁用"/>
   <translation tag="e.g. Jet Black" de="z.B. Tiefschwarz" en="e.g. Jet Black" es="p. ej. Negro Azabache" fr="p. ex. Noir profond" it="es. Nero intenso" ja="例：ジェットブラック" pt="ex. Preto Fosco" ru="напр. Чёрный" zh="例如 炭黑"/>
