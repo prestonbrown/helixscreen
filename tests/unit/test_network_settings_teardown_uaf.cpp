@@ -3,22 +3,19 @@
 
 /**
  * @file test_network_settings_teardown_uaf.cpp
- * @brief The overlay must uninstall its modal DELETE hooks before it dies
+ * @brief The overlay must leave no modal DELETE hook behind when it dies
  *
- * NetworkSettingsOverlay arms an LV_EVENT_DELETE hook carrying `this` on every
- * modal it opens, so a modal the modal system closes on its own cannot leave a
- * dangling cached pointer behind (#1341). The hook is the mirror image of that
- * problem when the overlay dies first: ~NetworkSettingsOverlay() closes any
- * still-open modal with modal_hide(), which only starts an exit ANIMATION -
- * ModalStack::animate_exit() deletes the tree when the animation completes,
- * after the destructor has returned. The overlay is owned by
+ * NetworkSettingsOverlay watches every modal it opens so a modal the modal
+ * system closes on its own leaves a null behind (#1341). The mirror image is
+ * the overlay dying first: ~NetworkSettingsOverlay() closes any still-open
+ * modal with modal_hide(), which only starts an exit ANIMATION, and the modal
+ * tree is deleted after the destructor has returned. The overlay is owned by
  * StaticPanelRegistry, whose destroy_all() runs before lv_deinit(), so the
- * modal tree routinely outlives it and on_modal_deleted() then writes
- * `*cached = nullptr` through freed memory.
+ * modal tree routinely outlives it, and a hook still installed would then
+ * write through freed memory (#1298).
  *
- * Same family as the ASan-confirmed PowerPanel hook fixed in b0afff654 (#1298),
- * and tested the same way: by reading LVGL's event list rather than triggering
- * the crash, so it fails in a plain build.
+ * Tested by reading LVGL's event list rather than triggering the crash, so it
+ * fails in a plain build.
  */
 
 #include "ui_overlay_network_settings.h"
@@ -45,12 +42,12 @@ class NetworkOverlayTeardownFixture : public LVGLTestFixture {
         return std::make_unique<NetworkSettingsOverlay>();
     }
 
-    /// A stand-in for a modal: a real screen child, watched by the real
-    /// handler, exactly as show_password_modal() and friends arm it.
-    lv_obj_t* watched_modal(NetworkSettingsOverlay& overlay) {
+    /// A stand-in for a modal: a real screen child. Assigning it to one of the
+    /// overlay's handles arms the watch, exactly as show_password_modal() and
+    /// friends do.
+    lv_obj_t* watched_modal() {
         lv_obj_t* modal = lv_obj_create(test_screen());
         REQUIRE(modal != nullptr);
-        Access::watch(overlay, modal);
         return modal;
     }
 };
@@ -62,35 +59,37 @@ TEST_CASE_METHOD(NetworkOverlayTeardownFixture,
                  "[network_settings][teardown][uaf]") {
     auto overlay = make_overlay();
 
-    lv_obj_t* password = watched_modal(*overlay);
-    lv_obj_t* hidden = watched_modal(*overlay);
-    lv_obj_t* test_modal = watched_modal(*overlay);
-    lv_obj_t* step = watched_modal(*overlay);
+    lv_obj_t* password = watched_modal();
+    lv_obj_t* hidden = watched_modal();
+    lv_obj_t* test_modal = watched_modal();
+    lv_obj_t* step = watched_modal();
     Access::password_modal(*overlay) = password;
     Access::hidden_network_modal(*overlay) = hidden;
     Access::test_modal(*overlay) = test_modal;
     Access::step_widget(*overlay) = step;
 
     // Guards against the test passing for the wrong reason: with no hook armed,
-    // its absence after destruction would prove nothing.
-    const void* dead = overlay.get();
-    REQUIRE(event_hook_installed(password, dead));
-    REQUIRE(event_hook_installed(hidden, dead));
-    REQUIRE(event_hook_installed(test_modal, dead));
-    REQUIRE(event_hook_installed(step, dead));
+    // its absence after destruction would prove nothing. Each hook carries the
+    // address of its handle, which lives inside the overlay.
+    const void* dead_password = &Access::password_modal(*overlay);
+    const void* dead_hidden = &Access::hidden_network_modal(*overlay);
+    const void* dead_test = &Access::test_modal(*overlay);
+    const void* dead_step = &Access::step_widget(*overlay);
+    REQUIRE(event_hook_installed(password, dead_password));
+    REQUIRE(event_hook_installed(hidden, dead_hidden));
+    REQUIRE(event_hook_installed(test_modal, dead_test));
+    REQUIRE(event_hook_installed(step, dead_step));
 
     overlay.reset();
 
-    // All four slots share one handler, and step_widget_ is the one a partial
-    // fix drops - it is a grandchild of test_modal_ rather than a modal.
-    CHECK_FALSE(event_hook_installed(password, dead));
-    CHECK_FALSE(event_hook_installed(hidden, dead));
-    CHECK_FALSE(event_hook_installed(test_modal, dead));
-    CHECK_FALSE(event_hook_installed(step, dead));
+    CHECK_FALSE(event_hook_installed(password, dead_password));
+    CHECK_FALSE(event_hook_installed(hidden, dead_hidden));
+    CHECK_FALSE(event_hook_installed(test_modal, dead_test));
+    CHECK_FALSE(event_hook_installed(step, dead_step));
 
     // The modals outlive the overlay exactly as they do when animate_exit()
-    // completes after destroy_all(). With a hook still installed, this is
-    // on_modal_deleted() running on freed memory.
+    // completes after destroy_all(). A hook still installed would write into
+    // the freed overlay here.
     lv_obj_delete(password);
     lv_obj_delete(hidden);
     lv_obj_delete(test_modal);
@@ -104,8 +103,8 @@ TEST_CASE_METHOD(NetworkOverlayTeardownFixture,
                  "[network_settings][teardown][uaf]") {
     auto overlay = make_overlay();
 
-    lv_obj_t* early = watched_modal(*overlay);
-    lv_obj_t* survivor = watched_modal(*overlay);
+    lv_obj_t* early = watched_modal();
+    lv_obj_t* survivor = watched_modal();
     Access::password_modal(*overlay) = early;
     Access::hidden_network_modal(*overlay) = survivor;
 
@@ -115,9 +114,10 @@ TEST_CASE_METHOD(NetworkOverlayTeardownFixture,
     REQUIRE(Access::password_modal(*overlay) == nullptr);
     REQUIRE(Access::hidden_network_modal(*overlay) == survivor);
 
-    // The destructor has to walk past the nulled slot rather than into it, and
-    // still disarm the one that is left.
-    const void* dead = overlay.get();
+    // The destructor has to walk past the nulled handle rather than into it,
+    // and still disarm the one that is left.
+    const void* dead = &Access::hidden_network_modal(*overlay);
+    REQUIRE(event_hook_installed(survivor, dead));
     overlay.reset();
 
     CHECK_FALSE(event_hook_installed(survivor, dead));

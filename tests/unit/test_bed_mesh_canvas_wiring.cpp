@@ -3,38 +3,23 @@
 
 /**
  * @file test_bed_mesh_canvas_wiring.cpp
- * @brief Regression coverage for the BedMeshPanel::canvas_ use-after-free fix
+ * @brief BedMeshPanel::canvas_ survives the in-place orientation rebuild
  *
  * bed_mesh_panel.xml's top-level <if cond="ui_is_portrait eq 1"> is REACTIVE
- * (its cond references a subject), so LVGL's XML engine rebuilds
- * overlay_content — and bed_mesh_canvas beneath it — in place on every
- * orientation flip (xml_frag_rebuild -> xml_frag_teardown,
- * lib/helix-xml/src/xml/lv_xml.c): the old widgets are reparented into an
- * off-tree, hidden "condemned" sink and lv_obj_delete_async()'d. Nothing
- * previously nulled BedMeshPanel::canvas_ on that path (only on_ui_destroyed(),
- * which a rebuild never calls), so every canvas_ dereference between a flip
- * and the panel's eventual destruction was a potential use-after-free.
+ * (its cond references a subject), so the XML engine rebuilds overlay_content
+ * and bed_mesh_canvas beneath it in place on every orientation flip
+ * (xml_frag_rebuild -> xml_frag_teardown, lib/helix-xml/src/xml/lv_xml.c): the
+ * old widgets are reparented into an off-tree, hidden "condemned" sink and
+ * lv_obj_delete_async()'d. on_ui_destroyed() never runs on that path, so
+ * canvas_ has to clear itself when its widget dies, and the rewire has to
+ * point it at the new one.
  *
- * wire_canvas_and_content() / on_canvas_deleted_cb() /
- * rewire_after_orientation_flip() are the fix. Driving the actual XML <if>
- * end-to-end needs the full app's XML registration (header_bar, the bed_mesh
- * custom widget, both stat/profile card components, several modals) plus a
- * MoonrakerAPI — test_subject_initializer.cpp notes this whole class of
- * dependency is only practically exercised as a real running app, which is
- * exactly where this fix was ALSO verified live, by forcing real
- * `ui_is_portrait` flips against a running `--test` instance via
- * `helix-screen ctl set ui_is_portrait <0|1>` with the bed mesh panel open,
- * repeatedly, and confirming no crash, correct post-flip canvas geometry,
- * and correct mesh values via `ctl geom`/`ctl text`.
- *
- * This test instead isolates the two private methods that make the rebuild
- * safe, feeding them minimal hand-built trees standing in for
- * overlay_content/bed_mesh_canvas — no XML, no Moonraker, no
- * NavigationManager. In particular it pins a bug caught while writing it:
- * an early version of on_canvas_deleted_cb() nulled canvas_ unconditionally
- * whenever ANY canvas this panel had ever owned was deleted, including a
- * STALE one whose async delete lands after a rewire already pointed canvas_
- * at the new widget — see the fourth test case below.
+ * Driving the actual XML <if> end to end needs the full app's XML registration
+ * plus a MoonrakerAPI, so these cases feed wire_canvas_and_content() minimal
+ * hand-built trees standing in for overlay_content/bed_mesh_canvas: no XML, no
+ * Moonraker, no NavigationManager. The stale-delete case matters most: a late
+ * async delete of the old canvas must not clear a canvas_ already rewired to
+ * the new widget.
  */
 
 #include "ui_panel_bed_mesh.h"
@@ -97,10 +82,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(BedMeshPanelTestAccess::canvas(panel) == canvas);
 
     // Simulates xml_frag_teardown's eventual lv_obj_delete_async() landing.
-    // Without the LV_EVENT_DELETE guard this fix adds, canvas_ would still
-    // point at this now-freed lv_obj_t* — remove the
-    // lv_obj_add_event_cb(canvas_, on_canvas_deleted_cb, ...) call in
-    // wire_canvas_and_content() and this assertion goes red.
+    // canvas_ must not keep pointing at the freed widget.
     lv_obj_delete(canvas);
 
     CHECK(BedMeshPanelTestAccess::canvas(panel) == nullptr);
@@ -118,11 +100,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // re-wires canvas_ to a brand-new widget SYNCHRONOUSLY (LVGL's FIFO
     // observer order guarantees this runs right after the XML <if>'s own
     // rebuild), but the OLD canvas's condemned-sink deletion is asynchronous
-    // and lands on a LATER tick. on_canvas_deleted_cb() must check WHICH
-    // widget triggered it - without that check, this late delete nulls out
-    // the CURRENT, perfectly valid canvas_ instead of the dead one that
-    // actually fired, since every canvas this panel has ever owned shares
-    // the same user_data (`this`) on this same callback.
+    // and lands on a LATER tick. That late delete must leave the CURRENT,
+    // perfectly valid canvas_ alone.
     BedMeshPanel panel;
     lv_obj_t* content_a = make_named(test_screen(), "overlay_content");
     lv_obj_t* old_canvas = make_named(content_a, "bed_mesh_canvas");
@@ -159,10 +138,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // widget calls apply_portrait_canvas_height() on freed memory, reads
     // overlay_root_ out of it, and writes through whatever that garbage
     // resolves to — heap corruption that detonates far from here.
-    //
-    // The destructor used to reach the registration only via overlay_root_,
-    // which is null on every path that wires without create() and on any
-    // teardown that clears the root first, so it silently removed nothing.
+    // overlay_root_ is null on every path that wires without create() and on
+    // any teardown that clears the root first, so the destructor cannot find
+    // the registration through it.
     lv_obj_t* content = make_named(test_screen(), "overlay_content");
     make_named(content, "bed_mesh_canvas");
 

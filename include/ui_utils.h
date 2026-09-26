@@ -5,6 +5,7 @@
 
 #include "ui_effects.h"
 #include "ui_update_queue.h"
+#include "ui_widget_ref.h"
 
 #include "lvgl/lvgl.h"
 #include "static_panel_registry.h"
@@ -263,6 +264,14 @@ inline void safe_delete_deferred_raw(lv_obj_t* obj) {
         lv_obj_set_parent(obj, layer);
     }
     lv_obj_delete_async(obj);
+}
+
+/// safe_delete_deferred() for a WidgetRef: the handle lets go first, then the
+/// widget is deferred-deleted exactly as the pointer overload does it.
+inline void safe_delete_deferred(WidgetRef& ref) {
+    lv_obj_t* obj = ref.get();
+    ref = nullptr;
+    safe_delete_deferred(obj);
 }
 
 /**
