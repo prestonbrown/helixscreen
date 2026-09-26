@@ -35,6 +35,10 @@ setup() {
     # Create a fake /etc/os-release indicating Debian (Pi-like system)
     mkdir -p "$BATS_TEST_TMPDIR/etc"
     echo 'ID=debian' > "$BATS_TEST_TMPDIR/etc/os-release"
+    # ff_machine_id's chroot fallback reads os-release through this override
+    # (same seam as moonraker.sh); point it at the sandbox copy so the suite
+    # never consults the host's real codename.
+    export OS_RELEASE_FILE="$BATS_TEST_TMPDIR/etc/os-release"
     # Create a fake /home/pi directory to trigger is_pi=true
     mkdir -p "$BATS_TEST_TMPDIR/home/pi"
 }
@@ -189,6 +193,181 @@ _mock_ad5x_detect_platform() {
     [ "$INSTALL_DIR" = "/srv/helixscreen" ]
     [ "$INIT_SCRIPT_DEST" = "/etc/init.d/S80helixscreen" ]
     [ "$PREVIOUS_UI_SCRIPT" = "" ]
+}
+
+# --- Creator 5 / Creator 5 Pro board naming (issue 1714) ---
+#
+# The Creator 5 boards are MIPS FlashForge machines with the AD5X's exact
+# layout, payload and Z-Mod install shape, so detect_platform keeps returning
+# "ad5x" for them. The stock firmware names the board in
+# /usr/prog/app_startup.sh's MACHINE= line; ff_machine_id reads it so the
+# user-facing messages can name the actual board. Inside the Z-Mod chroot
+# (where the installer must run) that file is unreachable, and the name rides
+# in the first word of the chroot os-release's VERSION_CODENAME instead.
+
+_write_ff_machine() {
+    printf 'MACHINE=%s\n' "$1" > "$BATS_TEST_TMPDIR/app_startup.sh"
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/app_startup.sh"
+}
+
+# Write the chroot-shaped os-release: no app_startup.sh at hand, and a
+# VERSION_CODENAME of "<MACHINE> <version>" as the chroot's start.sh stamps it.
+_write_ff_os_release() {
+    {
+        echo 'ID=buildroot'
+        [ -z "${1:-}" ] || printf 'VERSION_CODENAME="%s"\n' "$1"
+    } > "$OS_RELEASE_FILE"
+}
+
+@test "C5: ff_machine_id reads MACHINE=AD5X" {
+    _write_ff_machine "AD5X"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "AD5X" ]
+}
+
+@test "C5: ff_machine_id reads MACHINE=Creator5" {
+    _write_ff_machine "Creator5"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "Creator5" ]
+}
+
+@test "C5: ff_machine_id reads MACHINE=Creator5Pro without folding into Creator5" {
+    # Creator5 is a prefix of Creator5Pro; the plain-Creator5 verdict must not
+    # swallow the Pro (nor the Pro the plain).
+    _write_ff_machine "Creator5Pro"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "Creator5Pro" ]
+}
+
+@test "C5: ff_machine_id trims CR and padding around the value" {
+    printf 'MACHINE=Creator5Pro \r\n' > "$BATS_TEST_TMPDIR/app_startup.sh"
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/app_startup.sh"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "Creator5Pro" ]
+}
+
+@test "C5: ff_machine_id returns empty for an unknown MACHINE value" {
+    _write_ff_machine "GuimeraX"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "" ]
+}
+
+@test "C5: ff_machine_id returns empty when app_startup.sh is missing" {
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/no-such-app_startup.sh"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "" ]
+}
+
+@test "C5: ff_machine_id returns empty when the path is unreadable" {
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "" ]
+}
+
+@test "C5: ff_machine_id falls back to the chroot os-release (Creator5Pro)" {
+    _write_ff_os_release "Creator5Pro 1.7.3"
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/no-such-app_startup.sh"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "Creator5Pro" ]
+}
+
+@test "C5: ff_machine_id falls back to the chroot os-release (Creator5)" {
+    _write_ff_os_release "Creator5 1.7.3"
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/no-such-app_startup.sh"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "Creator5" ]
+}
+
+@test "C5: ff_machine_id falls back to the chroot os-release (AD5X)" {
+    _write_ff_os_release "AD5X 1.2.3"
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/no-such-app_startup.sh"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "AD5X" ]
+}
+
+@test "C5: ff_machine_id returns empty for an unrelated os-release codename" {
+    _write_ff_os_release "bookworm"
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/no-such-app_startup.sh"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "" ]
+}
+
+@test "C5: ff_machine_id returns empty when os-release has no VERSION_CODENAME" {
+    _write_ff_os_release ""
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/no-such-app_startup.sh"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "" ]
+}
+
+@test "C5: app_startup.sh wins when both sources exist" {
+    _write_ff_machine "AD5X"
+    _write_ff_os_release "Creator5Pro 1.7.3"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "AD5X" ]
+}
+
+@test "C5: ad5x_board_name maps every MACHINE value to its display name" {
+    local machine want
+    for machine in AD5X Creator5 Creator5Pro; do
+        case "$machine" in
+            AD5X)      want="FlashForge AD5X" ;;
+            Creator5)  want="FlashForge Creator 5" ;;
+            Creator5Pro) want="FlashForge Creator 5 Pro" ;;
+        esac
+        _write_ff_machine "$machine"
+        run ad5x_board_name
+        [ "$status" -eq 0 ]
+        [ "$output" = "$want" ] || fail "MACHINE=$machine named '$output', want '$want'"
+    done
+}
+
+@test "C5: ad5x_board_name falls back to FlashForge AD5X without a MACHINE line" {
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/no-such-app_startup.sh"
+    run ad5x_board_name
+    [ "$status" -eq 0 ]
+    [ "$output" = "FlashForge AD5X" ]
+}
+
+@test "C5: set_install_paths names the actual board in the ad5x platform log" {
+    detect_tmp_dir() { TMP_DIR="/tmp/helixscreen-install"; }
+    local _log=""
+    log_info() { _log="${_log}INFO: $*
+"; }
+    _write_ff_machine "Creator5Pro"
+
+    # Called directly (not via run): INSTALL_DIR is a side effect the run
+    # subshell would not carry back.
+    set_install_paths "ad5x"
+
+    [ "$INSTALL_DIR" = "/srv/helixscreen" ] || fail "INSTALL_DIR='$INSTALL_DIR'"
+    [[ "$_log" == *"Platform: FlashForge Creator 5 Pro (ZMOD)"* ]] \
+        || fail "platform log names the wrong board: $_log"
+}
+
+@test "C5: mod_check_chroot_context names the actual board in its refusal" {
+    _setup_zmod_ad5x_sandbox
+    [ -n "$HOST_MOD_CHROOT" ] || fail "probe did not find the zmod chroot"
+    log_error() { echo "ERROR: $*"; }
+    _write_ff_machine "Creator5"
+
+    run mod_check_chroot_context
+
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"FlashForge Creator 5 manual installs must run inside the ZMOD chroot"* ]] \
+        || fail "refusal names the wrong board: $output"
 }
 
 # --- AD5X Forge-X (mod-probed) detection tests ---

@@ -472,9 +472,18 @@ install_platform_hooks() {
 #
 # All other platforms (k1, k2, ad5m, snapmaker-u1, x86, …) get the single
 # "Detected platform: X" line — there's no device-name ambiguity to clear up.
+# ad5x is the exception on the non-Pi side: one install package covers the
+# AD5X and both Creator 5 boards, so the board name leads and the key is
+# reframed as the package, same shape as the non-Pi SBC case above.
 print_platform_banner() {
     local platform="$1"
     local _hw_label
+
+    if [ "$platform" = "ad5x" ]; then
+        log_info "Detected hardware: ${BOLD}$(ad5x_board_name)${NC}"
+        log_info "Install package: ${BOLD}${platform}${NC} (unified MIPS FlashForge build)"
+        return 0
+    fi
 
     if [ "$platform" != "pi" ] && [ "$platform" != "pi32" ]; then
         log_info "Detected platform: ${BOLD}${platform}${NC}"
@@ -658,6 +667,7 @@ main() {
         log_error "HelixScreen supports:"
         log_error "  - Raspberry Pi (aarch64/armv7l)"
         log_error "  - FlashForge Adventurer 5M (armv7l)"
+        log_error "  - FlashForge AD5X / Creator 5 / Creator 5 Pro (mips, Z-Mod)"
         log_error "  - Creality K1 series with Simple AF"
         log_error "  - Creality K2 series (K2/K2 Pro/K2 Plus)"
         log_error "  - x86_64 Debian/Ubuntu (x86_64)"
