@@ -2854,6 +2854,7 @@ translations:
     Kaarlonen
   Spaghetti Detection: Обнаружение «спагетти»
   Spaghetti detected: Обнаружены «спагетти»
+  Spaghetti detected (%d%%): Обнаружены «спагетти» (%d%%)
   Spaghetti detected — print paused: Обнаружены «спагетти» — печать приостановлена
   Speaker: Динамик
   Speed: Скорость

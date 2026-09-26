@@ -2602,6 +2602,7 @@
   <translation tag="Space Debris mod by Markus &apos;Captain&apos; Kaarlonen" en="Space Debris mod by Markus &apos;Captain&apos; Kaarlonen"/>
   <translation tag="Spaghetti Detection" en="Spaghetti Detection"/>
   <translation tag="Spaghetti detected" en="Spaghetti detected"/>
+  <translation tag="Spaghetti detected (%d%%)" en="Spaghetti detected (%d%%)"/>
   <translation tag="Spaghetti detected — print paused" en="Spaghetti detected — print paused"/>
   <translation tag="Speaker" en="Speaker"/>
   <translation tag="Speed" en="Speed"/>

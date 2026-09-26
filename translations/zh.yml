@@ -2674,6 +2674,7 @@ translations:
     Kaarlonen
   Spaghetti Detection: 拉丝故障检测
   Spaghetti detected: 检测到拉丝故障
+  Spaghetti detected (%d%%): 检测到拉丝故障（%d%%）
   Spaghetti detected — print paused: 检测到拉丝故障 — 打印已暂停
   Speaker: 扬声器
   Speed: 速度

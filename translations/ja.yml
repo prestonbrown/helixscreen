@@ -2683,6 +2683,7 @@ translations:
     Kaarlonen
   Spaghetti Detection: スパゲッティ検出
   Spaghetti detected: スパゲッティを検出しました
+  Spaghetti detected (%d%%): スパゲッティを検出しました（%d%%）
   Spaghetti detected — print paused: スパゲッティを検出しました — 印刷を一時停止しました
   Speaker: スピーカー
   Speed: 速度
