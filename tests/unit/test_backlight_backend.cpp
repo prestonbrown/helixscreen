@@ -33,6 +33,8 @@ std::string brightness_cli_command(int percent, int floor_percent = 0);
 // Pure percent -> raw mapping shared by every backend (also defined in
 // backlight_backend.cpp).
 int raw_from_percent(int percent, int max_raw, int floor_percent);
+int build_floor_percent(bool dev_disp_backend, int build_floor);
+int backlight_floor_percent(int build_floor);
 } // namespace helix::backlight_internal
 
 TEST_CASE("brightness_cli_command: zero or negative powers the backlight off",
@@ -85,6 +87,14 @@ TEST_CASE("raw_from_percent: with a floor, the slider range spans [floor, max]",
     REQUIRE(helix::backlight_internal::raw_from_percent(10, 255, 20) == 51);
     REQUIRE(helix::backlight_internal::raw_from_percent(55, 255, 20) == 153);
     REQUIRE(helix::backlight_internal::raw_from_percent(100, 255, 20) == 255);
+}
+
+TEST_CASE("build floor: the sysfs panel takes it, the /dev/disp panel does not",
+          "[api][backlight][1709]") {
+    // The floor is measured on community K2 firmware's sysfs backlight; stock
+    // firmware's Allwinner /dev/disp panel stays lit to raw 6 of 255.
+    REQUIRE(helix::backlight_internal::build_floor_percent(false, 20) == 20);
+    REQUIRE(helix::backlight_internal::build_floor_percent(true, 20) == 0);
 }
 
 TEST_CASE("raw_from_percent: a requested-on level never maps to off", "[api][backlight][1709]") {
@@ -208,6 +218,18 @@ TEST_CASE("Sysfs backend set_brightness writes brightness file", "[api][backligh
     REQUIRE(backend->set_brightness(50));
     // 50% of 255 = 127
     REQUIRE(fake.read_file("brightness") == "127");
+}
+
+TEST_CASE("backlight_floor_percent: the settings override wins on every backend",
+          "[api][backlight][1709]") {
+    {
+        ScopedBacklightFloor floor(15);
+        REQUIRE(helix::backlight_internal::backlight_floor_percent(20) == 15);
+        REQUIRE(helix::backlight_internal::backlight_floor_percent(0) == 15);
+    }
+    helix::Config::get_instance()->get_json("/display").erase("backlight_floor_percent");
+    REQUIRE(helix::backlight_internal::backlight_floor_percent(20) == 20);
+    REQUIRE(helix::backlight_internal::backlight_floor_percent(0) == 0);
 }
 
 TEST_CASE("Sysfs backend honors /display/backlight_floor_percent",

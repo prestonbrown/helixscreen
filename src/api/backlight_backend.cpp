@@ -46,17 +46,18 @@ class FdGuard {
 
 namespace helix::backlight_internal {
 
+// The compile-time floor belongs to the sysfs panel on community K2 firmware,
+// which renders anything under ~20% as off. The Allwinner /dev/disp panel on
+// stock K2 firmware stays lit down to raw 6 of 255 and takes no floor.
+int build_floor_percent(bool dev_disp_backend, int build_floor) {
+    return dev_disp_backend ? 0 : build_floor;
+}
+
 // Panel's minimum raw brightness as a percent of the raw range: the
-// settings.json override if set, else the compile-time per-target default.
-int backlight_floor_percent() {
-    int floor = HELIX_BACKLIGHT_FLOOR_PERCENT;
-#if defined(HELIX_PLATFORM_MIPS)
-    // One binary serves the K1 series and the AD5X; the floor is the K1
-    // panel's, and the AD5X panel has none.
-    if (helix::ad5x_mod_layout_present()) {
-        floor = 0;
-    }
-#endif
+// settings.json /display/backlight_floor_percent override if set (every
+// backend honours it), else @p build_floor.
+int backlight_floor_percent(int build_floor) {
+    int floor = build_floor;
     if (auto* config = helix::Config::get_instance()) {
         floor = config->get<int>("/display/backlight_floor_percent", floor);
     }
@@ -214,7 +215,10 @@ class BacklightBackendSysfs : public BacklightBackend {
             target = (percent > 0) ? max_brightness_ : 0;
         } else {
             target = helix::backlight_internal::raw_from_percent(
-                percent, max_brightness_, helix::backlight_internal::backlight_floor_percent());
+                percent, max_brightness_,
+                helix::backlight_internal::backlight_floor_percent(
+                    helix::backlight_internal::build_floor_percent(false,
+                                                                   HELIX_BACKLIGHT_FLOOR_PERCENT)));
         }
 
         std::string brightness_path = device_path_ + "/brightness";
@@ -464,7 +468,10 @@ class BacklightBackendAllwinner : public BacklightBackend {
 
         // Convert percentage to 0-255 range, honoring the panel floor (#1709)
         int brightness = helix::backlight_internal::raw_from_percent(
-            percent, MAX_BRIGHTNESS, helix::backlight_internal::backlight_floor_percent());
+            percent, MAX_BRIGHTNESS,
+            helix::backlight_internal::backlight_floor_percent(
+                helix::backlight_internal::build_floor_percent(true,
+                                                               HELIX_BACKLIGHT_FLOOR_PERCENT)));
 
         // ioctl args: [screen_id, arg1, 0, 0]
         unsigned long args[4] = {0, 0, 0, 0};
@@ -619,7 +626,9 @@ class BacklightBackendBrightnessCli : public BacklightBackend {
     bool set_brightness(int percent) override {
         percent = std::clamp(percent, 0, 100);
         std::string cmd = helix::backlight_internal::brightness_cli_command(
-            percent, helix::backlight_internal::backlight_floor_percent());
+            percent, helix::backlight_internal::backlight_floor_percent(
+                         helix::backlight_internal::build_floor_percent(
+                             false, HELIX_BACKLIGHT_FLOOR_PERCENT)));
         int rc = std::system(cmd.c_str());
         if (rc != 0) {
             spdlog::warn("[Backlight-BrightnessCLI] '{}' exited {}", cmd, rc);

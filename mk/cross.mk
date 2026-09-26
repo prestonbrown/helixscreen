@@ -466,10 +466,6 @@ else ifneq ($(filter mips k1 ad5x,$(PLATFORM_TARGET)),)
     # -Wl,-O2: Linker optimization level
     # -Wl,--as-needed: Only link libraries that are actually used
     # -flto=auto: Match compiler LTO flag, uses all CPUs
-    # The K1 panel renders anything under ~20% of the PWM range as off, so the
-    # brightness slider and dim level must never land there (#1709). The AD5X
-    # shares this binary; the backlight backend drops the floor on that board.
-    HELIX_BACKLIGHT_FLOOR_PERCENT := 20
     TARGET_LDFLAGS := -Wl,--gc-sections -Wl,-O2 -Wl,--as-needed -flto=auto -static
     # SSL enabled for HTTPS/WSS support (updates, remote Moonraker)
     ENABLE_SSL := yes
@@ -523,9 +519,6 @@ else ifeq ($(PLATFORM_TARGET),k1-dynamic)
     HELIX_HAS_SNAPMAKER := 0
     # Dynamic linking with NaN2008 dynamic linker
     # NO -static flag! System libs resolved at runtime on the K1.
-    # The K1 panel renders anything under ~20% of the PWM range as off, so the
-    # brightness slider and dim level must never land there (#1709).
-    HELIX_BACKLIGHT_FLOOR_PERCENT := 20
     TARGET_LDFLAGS := -Wl,--gc-sections -Wl,-O2 -Wl,--as-needed \
         -Wl,--dynamic-linker=/lib/ld-linux-mipsn8.so.1
     ENABLE_SSL := yes
@@ -567,8 +560,10 @@ else ifeq ($(PLATFORM_TARGET),k2)
     HELIX_HAS_ACE := 0
     HELIX_HAS_QIDI := 0
     HELIX_HAS_SNAPMAKER := 0
-    # The panel renders anything under ~20% of the PWM range as off, so the
-    # brightness slider and dim level must never land there (#1709).
+    # The sysfs backlight on community K2 firmware renders anything under ~20%
+    # of its range as off, so the brightness slider and dim level must never
+    # land there (#1709). Stock firmware drives the panel through /dev/disp,
+    # which stays lit to raw 6 of 255; that backend ignores this floor.
     HELIX_BACKLIGHT_FLOOR_PERCENT := 20
     TARGET_LDFLAGS := -Wl,--gc-sections -Wl,-O2 -Wl,--as-needed -flto=auto -static
     # HTTPS is required for the update check, R2 self-update download, telemetry,
