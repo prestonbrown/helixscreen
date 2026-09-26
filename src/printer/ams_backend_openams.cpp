@@ -822,7 +822,6 @@ AmsError AmsBackendOpenAms::clear_fault(int slot_index) {
 
 AmsError AmsBackendOpenAms::apply_user_edit(int slot_index, const SlotInfo& info,
                                             const helix::ams::Observation& declared) {
-    helix::ams::FilamentSlotOverride to_save;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         SlotInfo* slot = system_info_.get_slot_global(slot_index);
@@ -832,21 +831,10 @@ AmsError AmsBackendOpenAms::apply_user_edit(int slot_index, const SlotInfo& info
         }
         write_filament_fields(*slot, info);
         helix::ams::stage_user_override(overrides_, slot_index, info, declared);
-        auto it = overrides_.find(slot_index);
-        if (it != overrides_.end()) {
-            to_save = it->second;
-        }
     }
     if (override_store_) {
-        // The tag is captured by value: the save can complete after this
-        // backend is gone.
-        const std::string tag = backend_log_tag();
-        override_store_->save_async(
-            slot_index, to_save, [tag, slot_index](bool ok, const std::string& error) {
-                if (!ok) {
-                    spdlog::warn("{} Failed to persist slot {}: {}", tag, slot_index, error);
-                }
-            });
+        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
+                                            backend_log_tag(), "Override");
     }
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));
     return AmsErrorHelper::success();
