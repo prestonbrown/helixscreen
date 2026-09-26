@@ -10,16 +10,19 @@
 
     Named children accessible via lv_obj_find_by_name():
     - material_label: text_small showing material type (PLA, PETG, etc.)
-    - spool_container: holds the spool visualization (canvas added by C++)
+    - spool_container: holds the lane spool widget and the badges
+    - lane_spool: ams_lane_spool widget (spool graphic, empty placeholder,
+      error dot; renders itself from AmsState's per-slot subjects — C++ only
+      points it at a slot index)
     - status_badge: circular badge at bottom-right for slot number + status color
     - slot_badge_label: text_small inside status_badge showing slot number
     - tool_badge: rounded rect at top-left showing tool assignment (T0, T1)
     - tool_badge_label: text_small inside tool_badge
 
     Requires C++ backing (ui_ams_slot.cpp) to handle:
-    - Creating spool_canvas inside spool_container (3D visualization)
-    - Setting up subjects and observers for color/status/current_slot
-    - Dynamic styling based on slot state (highlight, opacity)
+    - Pointing lane_spool at the slot index (index arrives after view creation)
+    - Observers for status badge color, material label, current_slot highlight
+    - Dynamic styling based on slot state (highlight, opacity, staggering)
   -->
   <view name="ams_slot_view"
         extends="lv_obj" width="content" height="content" flex_flow="column" style_flex_main_place="start"
@@ -30,11 +33,16 @@
     <text_small name="material_label"
                 text="--" style_text_color="#text" style_text_letter_space="1" clickable="true" event_bubble="true"/>
 
-    <!-- Spool container - holds canvas (created in C++) and badges -->
+    <!-- Spool container - holds the lane spool widget and the badges -->
     <!-- Size is set dynamically in C++ based on space_lg token -->
     <lv_obj name="spool_container"
             width="72" height="72" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
             overflow_visible="true" event_bubble="true">
+
+      <!-- Lane spool graphic: sizes itself from the ams_slot_spool_size token;
+           slot_index is assigned by ui_ams_slot.cpp once parsed. Created first
+           so the badges below render on top of it. -->
+      <ams_lane_spool name="lane_spool" align="center" clickable="false" event_bubble="true"/>
 
       <!-- Status badge (bottom-right) - shows slot number with status color.
            clickable="false" so taps on the badge bubble up to the slot click

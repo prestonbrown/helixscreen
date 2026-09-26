@@ -3,12 +3,12 @@
 
 #include "ui_ams_slot.h"
 
+#include "ui_ams_lane_spool.h"
 #include "ui_fonts.h"
-#include "ui_icon_codepoints.h"
 #include "ui_observer_guard.h"
-#include "ui_spool_canvas.h"
 #include "ui_update_queue.h"
 
+#include "ams_lane_state.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "data_root_resolver.h"
@@ -45,44 +45,40 @@ using namespace helix;
  */
 struct AmsSlotData {
     int slot_index = -1;
-    int total_count = 4;      // Total slots being displayed (for stagger calculation)
-    bool use_3d_style = true; // Cached style setting
+    int total_count = 4; // Total slots being displayed (for stagger calculation)
 
-    // Last status seen from the per-slot status subject. The material label's
-    // text depends on it (an ejected, unassigned lane reads "Empty", not "--"),
-    // and the two arrive on SEPARATE subjects with no ordering guarantee — so
-    // the material path reads the status from here rather than racing for it.
-    SlotStatus last_status = SlotStatus::UNKNOWN;
+    // Last lane classification seen from the per-slot lane_state subject. The
+    // material label's text and ghost strength depend on it (an Empty lane
+    // reads "Empty", a Ghosted one dims alongside its spool), and lane_state
+    // and material arrive on SEPARATE subjects with no ordering guarantee — so
+    // the material path reads the classification from here rather than racing
+    // for it.
+    helix::ui::LaneState last_lane_state = helix::ui::LaneState::Empty;
 
     // RAII observer handles - automatically removed when this struct is destroyed
-    ObserverGuard color_observer;
-    ObserverGuard status_observer;
-    ObserverGuard fill_observer;     ///< Per-slot fill percent (spool visual fill)
-    ObserverGuard material_observer; ///< Per-slot material type label (static subject)
+    ObserverGuard status_observer;     ///< Per-slot status -> badge color
+    ObserverGuard lane_state_observer; ///< Per-slot lane_state -> label text + ghost
+    ObserverGuard material_observer;   ///< Per-slot material type label (static subject)
     ObserverGuard current_slot_observer;
     ObserverGuard filament_loaded_observer;
     ObserverGuard active_loaded_observer; ///< Per-slot active-loaded (single highlight source)
     ObserverGuard action_observer;
     ObserverGuard target_slot_observer;
 
-    // Lifetime tokens paired with the observers that bind per-backend subjects.
-    // Secondary-backend (index > 0) color/status/fill subjects are DYNAMIC —
-    // recreated on backend rediscovery — so each such observer needs a token
+    // Lifetime token paired with the status observer, the one observer left
+    // here that binds a per-backend subject. Secondary-backend (index > 0)
+    // status subjects are DYNAMIC —
+    // recreated on backend rediscovery — so that observer needs a token
     // that expires when AmsState tears the subject down (L084). For backend 0
-    // the accessors return an empty (always-alive) token; harmless. MUST be
+    // the accessor returns an empty (always-alive) token; harmless. MUST be
     // reset BEFORE the matching observer (see cleanup paths, #705).
-    SubjectLifetime color_lifetime;
     SubjectLifetime status_lifetime;
-    SubjectLifetime fill_lifetime;
 
-    // Skeuomorphic spool visualization layers (flat style)
-    lv_obj_t* spool_container = nullptr; // Container for all spool elements
-    lv_obj_t* spool_outer = nullptr;     // Outer ring (flange - darker shade)
-    lv_obj_t* color_swatch = nullptr;    // Main filament color ring (flat) or spool_canvas (3D)
-    lv_obj_t* spool_hub = nullptr;       // Center hub (dark) - only for flat style
+    lv_obj_t* spool_container = nullptr; // Container for the lane spool + badges
 
-    // 3D spool canvas widget (when use_3d_style is true)
-    lv_obj_t* spool_canvas = nullptr;
+    // The lane spool graphic (spool, placeholder, error dot) renders itself
+    // from the per-slot subjects; ams_slot only points it at a slot index.
+    lv_obj_t* lane_spool = nullptr;
 
     // Other UI elements
     lv_obj_t* material_label = nullptr;
@@ -94,20 +90,9 @@ struct AmsSlotData {
     lv_obj_t* tool_badge = nullptr;      // Tool badge label (T0, T1, etc.)
     lv_obj_t* container = nullptr;       // The ams_slot widget itself
 
-    // Fill level for Spoolman integration (0.0 = empty, 1.0 = full)
-    float fill_level = 1.0f;
-
-    // Empty slot placeholder (dashed-style circle shown when no filament assigned)
-    lv_obj_t* empty_placeholder = nullptr;
-
-    // Error/health indicators (dynamic overlays on spool_container)
-    lv_obj_t* error_indicator = nullptr; // Error icon badge at top-right of spool
-
     // Pulsing state - when true, highlight updates are skipped to preserve animation
     bool is_pulsing = false;
 };
-
-// Note: Icons are accessed via helix::ui::icon::lookup_codepoint() from ui_icon_codepoints.h
 
 // Static registry mapping lv_obj_t* -> AmsSlotData*
 // Used for safe cleanup during lv_deinit() when user_data may be unreliable
@@ -143,19 +128,16 @@ static void unregister_slot_data(lv_obj_t* obj) {
             // expiring weak_alive tokens so deferred callbacks in the UpdateQueue
             // are safely skipped. Using release() here caused use-after-free:
             // zombie observers would fire on subject changes, queue callbacks with
-            // stale widget pointers, and crash in apply_slot_status (#579).
+            // stale widget pointers, and crash in apply_status_badge (#579).
             // Note: cleanup_all_slot_data() uses release() for pre-deinit when
             // subjects may already be destroyed — that path is correct.
             //
-            // Reset the dynamic-subject lifetimes BEFORE their observers so the
+            // Reset the dynamic-subject lifetime BEFORE its observer so the
             // observer's weak_ptr is already expired (secondary-backend subjects
             // are dynamic; wrong order = remove on a freed subject, #705).
-            data->color_lifetime.reset();
             data->status_lifetime.reset();
-            data->fill_lifetime.reset();
-            data->color_observer.reset();
             data->status_observer.reset();
-            data->fill_observer.reset();
+            data->lane_state_observer.reset();
             data->current_slot_observer.reset();
             data->filament_loaded_observer.reset();
             data->active_loaded_observer.reset();
@@ -179,13 +161,10 @@ static void cleanup_all_slot_data() {
             continue;
 
         // Release ObserverGuards while global subjects are still alive. Reset the
-        // dynamic-subject lifetimes first (same #705 ordering as above).
-        data->color_lifetime.reset();
+        // dynamic-subject lifetime first (same #705 ordering as above).
         data->status_lifetime.reset();
-        data->fill_lifetime.reset();
-        data->color_observer.release();
         data->status_observer.release();
-        data->fill_observer.release();
+        data->lane_state_observer.release();
         data->current_slot_observer.release();
         data->filament_loaded_observer.release();
         data->active_loaded_observer.release();
@@ -199,92 +178,30 @@ static void cleanup_all_slot_data() {
 }
 
 // ============================================================================
-// Fill Level Helpers
+// Material Label
 // ============================================================================
-
-/**
- * @brief Update the filament visualization based on fill level
- *
- * Simulates remaining filament on spool:
- * - 3D style: Updates spool_canvas fill_level
- * - Flat style: Resizes concentric ring
- */
-static void update_filament_ring_size(AmsSlotData* data) {
-    if (!data)
-        return;
-    ams_draw::SpoolVisual sv{};
-    sv.use_3d = data->use_3d_style;
-    sv.canvas = data->spool_canvas;
-    sv.color_swatch = data->color_swatch;
-    sv.spool_hub = data->spool_hub;
-    sv.container = data->spool_container;
-    ams_draw::spool_visual_set_fill(sv, data->fill_level);
-}
-
-/**
- * @brief Store a fill percent (0-100) on the slot and re-render the spool.
- *
- * The single clamp-and-store path for the per-slot fill subject: used by the
- * fill-subject observer and the initial-value apply in setup_slot_observers().
- */
-static void apply_slot_fill_pct(AmsSlotData* data, int pct) {
-    if (!data)
-        return;
-    pct = std::clamp(pct, 0, 100);
-    data->fill_level = static_cast<float>(pct) / 100.0f;
-    update_filament_ring_size(data);
-}
-
-/**
- * @brief Does this lane still carry an identity after being ejected?
- *
- * Spoolman link, material, brand or spool name — the override is deliberately
- * NOT cleared on eject (#1071), so a lane that has one is "assigned, not
- * present" rather than genuinely unused. THE predicate for the empty-lane
- * presentation, shared by apply_slot_status() (which ghosts the spool) and
- * apply_slot_material() (which picks the label text) so the two cannot reach
- * opposite conclusions about the same lane. ui_ams_mini_status.cpp runs the
- * identical test for the strip the filament panel embeds (4da7a07db).
- */
-static bool slot_has_retained_identity(int slot_index) {
-    AmsBackend* backend = AmsState::instance().get_backend();
-    if (!backend || slot_index < 0)
-        return false;
-    SlotInfo slot_info = backend->get_slot_info(slot_index);
-    return slot_info.spoolman_id > 0 || !slot_info.material.empty() || !slot_info.brand.empty() ||
-           !slot_info.spool_name.empty();
-}
 
 /**
  * @brief Apply the material-type label from the per-slot material subject.
  *
- * The widget owns its own material rendering (like fill and color) so every
- * ams_slot consumer — AmsPanel, AmsOverviewPanel, AmsDetail — repaints on a
- * material-only change without any container re-reading it imperatively
- * (#1065). Long names truncate to 4 chars when 5+ slots share a row (overlap
- * guard, matching the old refresh_slots()). Material names (PLA, PETG, …) are
- * not translated.
+ * The widget owns its own material rendering so every ams_slot consumer —
+ * AmsPanel, AmsOverviewPanel, AmsDetail — repaints on a material-only change
+ * without any container re-reading it imperatively (#1065). Long names
+ * truncate to 4 chars when 5+ slots share a row (overlap guard). Material
+ * names (PLA, PETG, ...) are not translated.
  *
- * Steady-state rule for the label, shared with apply_slot_status() and with the
- * mini status strip (4da7a07db):
+ * Steady-state rule, keyed on the lane classification — the same
+ * ams_slot_N_lane_state subject that drives the embedded spool widget, so the
+ * label and the graphic cannot reach opposite conclusions about one lane:
  *
- *   present              -> material ("--" if the lane reports none)
- *   ejected + assigned   -> retained material, ghosted by apply_slot_status()
- *   ejected + unassigned -> lv_tr("Empty") at full strength
- *
- * The last arm has to live HERE, not only in apply_slot_status(). Status and
- * material are separate subjects with separate observers: setup_slot_observers()
- * applies status first and material second, so a material path that always wrote
- * "--" overwrote the status path's "Empty" on every first paint, and afterwards
- * the lane read whichever of the two had fired most recently.
+ *   Empty              -> lv_tr("Empty") at full strength ("Empty" is UI copy,
+ *                         not a material name, so it is translated)
+ *   Ghosted / Present  -> material ("--" if the lane reports none)
  */
-static void apply_slot_material(AmsSlotData* data, const char* material) {
+static void apply_material_label(AmsSlotData* data, const char* material) {
     if (!data || !data->material_label)
         return;
-    if (data->last_status == SlotStatus::EMPTY && !slot_has_retained_identity(data->slot_index)) {
-        // Name the lane's purpose instead of showing a placeholder for a
-        // material that was never there. "Empty" is UI copy, not a material
-        // name, so unlike the material itself it is translated.
+    if (data->last_lane_state == helix::ui::LaneState::Empty) {
         lv_label_set_text(data->material_label, lv_tr("Empty"));
         return;
     }
@@ -301,16 +218,19 @@ static void apply_slot_material(AmsSlotData* data, const char* material) {
 
 /// Re-apply the material label from the live per-slot material subject.
 ///
-/// Used by apply_slot_status(), whose outcome changes what the label should
-/// read. Goes through apply_slot_material() rather than writing text itself, so
-/// the rule above has exactly one implementation.
+/// Used by apply_lane_state(), whose outcome changes what the label should
+/// read. Goes through apply_material_label() rather than writing text itself,
+/// so the rule above has exactly one implementation.
 static void refresh_slot_material_label(AmsSlotData* data) {
     if (!data || !data->material_label)
         return;
     lv_subject_t* material_subject =
         AmsState::instance().get_slot_material_subject(data->slot_index);
-    apply_slot_material(data, material_subject ? lv_subject_get_string(material_subject) : nullptr);
+    apply_material_label(data,
+                         material_subject ? lv_subject_get_string(material_subject) : nullptr);
 }
+
+// ============================================================================
 
 // ============================================================================
 // Observer Callbacks
@@ -319,37 +239,20 @@ static void refresh_slot_material_label(AmsSlotData* data) {
 // Helper functions for observer logic (called by lambdas and initial triggers)
 
 /**
- * @brief Update slot color visualization
+ * @brief Color the status badge from the per-slot status subject.
+ *
+ * The badge itself always shows (every physical gate stays numbered/visible);
+ * only its color tracks the status. Spool visibility/ghosting is NOT handled
+ * here - the embedded ams_lane_spool renders that from the lane_state subject.
  */
-static void apply_slot_color(AmsSlotData* data, int color_int) {
-    lv_color_t filament_color = lv_color_hex(static_cast<uint32_t>(color_int));
-    ams_draw::SpoolVisual sv{};
-    sv.use_3d = data->use_3d_style;
-    sv.canvas = data->spool_canvas;
-    sv.color_swatch = data->color_swatch;
-    sv.spool_outer = data->spool_outer;
-    ams_draw::spool_visual_set_color(sv, filament_color);
-    spdlog::trace("[AmsSlot] Slot {} color updated to 0x{:06X}", data->slot_index,
-                  static_cast<uint32_t>(color_int));
-}
-
-/**
- * @brief Update slot status badge and opacity
- */
-static void apply_slot_status(AmsSlotData* data, int status_int) {
+static void apply_status_badge(AmsSlotData* data, int status_int) {
     if (!data)
         return;
     auto status = static_cast<SlotStatus>(status_int);
-    // Record before the early-out: the material label's rule keys on this, and
-    // a slot widget without a status badge still has a material label.
-    data->last_status = status;
-    if (!data->status_badge_bg) {
-        refresh_slot_material_label(data);
+    if (!data->status_badge_bg)
         return;
-    }
 
     lv_color_t badge_bg = theme_manager_get_color("ams_badge_bg");
-    bool show_badge = true;
     switch (status) {
     case SlotStatus::AVAILABLE:
     case SlotStatus::LOADED:
@@ -360,7 +263,7 @@ static void apply_slot_status(AmsSlotData* data, int status_int) {
         badge_bg = theme_manager_get_color("danger");
         break;
     case SlotStatus::EMPTY:
-        // Always show badge so all physical gates are visible (gray for empty)
+        // Gray for empty, but the badge stays so all physical gates are visible
         badge_bg = theme_manager_get_color("ams_badge_bg");
         break;
     case SlotStatus::UNKNOWN:
@@ -368,100 +271,46 @@ static void apply_slot_status(AmsSlotData* data, int status_int) {
         badge_bg = theme_manager_get_color("ams_badge_bg");
         break;
     }
-    if (show_badge) {
-        lv_obj_remove_flag(data->status_badge_bg, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_bg_color(data->status_badge_bg, badge_bg, LV_PART_MAIN);
+    lv_obj_remove_flag(data->status_badge_bg, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_bg_color(data->status_badge_bg, badge_bg, LV_PART_MAIN);
 
-        // Status fills are accents, so the label starts from the palette text colour and
-        // shifts toward its pole as 4:1 needs
-        if (data->slot_badge) {
-            lv_color_t text_color =
-                theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), badge_bg);
-            lv_obj_set_style_text_color(data->slot_badge, text_color, LV_PART_MAIN);
-        }
-    } else {
-        lv_obj_add_flag(data->status_badge_bg, LV_OBJ_FLAG_HIDDEN);
+    // Status fills are accents, so the label starts from the palette text colour and
+    // shifts toward its pole as 4:1 needs
+    if (data->slot_badge) {
+        lv_color_t text_color =
+            theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), badge_bg);
+        lv_obj_set_style_text_color(data->slot_badge, text_color, LV_PART_MAIN);
     }
-    // Handle spool visibility based on status and assignment
-    lv_opa_t spool_opa = LV_OPA_COVER;
-    bool show_spool = true;
-    bool show_empty_placeholder = false;
-
-    if (status == SlotStatus::EMPTY) {
-        // Brand/spool_name cover IFS-style backends where a user-configured
-        // override exists without a Spoolman ID, so we still ghost-render the
-        // spool visual — see slot_has_retained_identity().
-        if (slot_has_retained_identity(data->slot_index)) {
-            // Assigned but empty: ghosted spool
-            spool_opa = ams_draw::GHOST_OPA;
-        } else {
-            // Unassigned and empty: hide spool, show empty placeholder circle.
-            // The label's "Empty" text is NOT written here — the shared
-            // refresh below owns it, so the material observer firing afterwards
-            // reaches the same answer instead of replacing it with "--".
-            show_spool = false;
-            show_empty_placeholder = true;
-        }
-    }
-
-    // Apply visibility and opacity to spool elements
-    // Always keep spool_container visible for click targeting
-    if (show_spool) {
-        if (data->color_swatch)
-            lv_obj_remove_flag(data->color_swatch, LV_OBJ_FLAG_HIDDEN);
-        if (data->spool_outer)
-            lv_obj_remove_flag(data->spool_outer, LV_OBJ_FLAG_HIDDEN);
-        if (data->spool_hub)
-            lv_obj_remove_flag(data->spool_hub, LV_OBJ_FLAG_HIDDEN);
-        if (data->spool_canvas)
-            lv_obj_remove_flag(data->spool_canvas, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        if (data->color_swatch)
-            lv_obj_add_flag(data->color_swatch, LV_OBJ_FLAG_HIDDEN);
-        if (data->spool_outer)
-            lv_obj_add_flag(data->spool_outer, LV_OBJ_FLAG_HIDDEN);
-        if (data->spool_hub)
-            lv_obj_add_flag(data->spool_hub, LV_OBJ_FLAG_HIDDEN);
-        if (data->spool_canvas)
-            lv_obj_add_flag(data->spool_canvas, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (data->color_swatch)
-        lv_obj_set_style_bg_opa(data->color_swatch, spool_opa, LV_PART_MAIN);
-    if (data->spool_outer)
-        lv_obj_set_style_bg_opa(data->spool_outer, spool_opa, LV_PART_MAIN);
-    if (data->spool_canvas)
-        lv_obj_set_style_opa(data->spool_canvas, spool_opa, LV_PART_MAIN);
-
-    // Ghost the material-type label in lockstep with the spool visual. On an
-    // empty-but-assigned lane spool_opa is ams_draw::GHOST_OPA, so the retained material
-    // (kept intact per #1071 — the override is NOT cleared on eject) renders
-    // dimmed and reads as "assigned, not present" rather than "still loaded"
-    // (#1065). A loaded/available lane leaves spool_opa at LV_OPA_COVER, so the
-    // material stays full-strength. Reuses the color-ghost opacity — no new
-    // token. The unassigned-empty case keeps spool_opa at COVER (spool hidden,
-    // "Empty" placeholder text shown), so its label is not dimmed.
-    if (data->material_label)
-        lv_obj_set_style_text_opa(data->material_label, spool_opa, LV_PART_MAIN);
-
-    // The label's TEXT depends on the status we just applied, so re-derive it
-    // from the one rule (apply_slot_material) now that last_status is current.
-    refresh_slot_material_label(data);
-
-    // Show/hide empty slot placeholder
-    if (data->empty_placeholder) {
-        if (show_empty_placeholder) {
-            lv_obj_remove_flag(data->empty_placeholder, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(data->empty_placeholder, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    spdlog::trace("[AmsSlot] Slot {} status={} badge={} spool={}", data->slot_index,
-                  slot_status_to_string(status), show_badge ? "visible" : "hidden",
-                  show_empty_placeholder ? "placeholder"
-                  : show_spool           ? (spool_opa == LV_OPA_COVER ? "full" : "ghosted")
-                                         : "hidden");
+    spdlog::trace("[AmsSlot] Slot {} status={} badge color applied", data->slot_index,
+                  slot_status_to_string(status));
 }
+
+/**
+ * @brief Apply the lane classification: label text + label ghost strength.
+ *
+ * The spool graphic's own presentation (hidden vs ghosted vs full) lives in
+ * the embedded ams_lane_spool, driven by the same lane_state subject. What the
+ * label needs on top of that: an Empty lane reads "Empty" at full strength, a
+ * Ghosted lane dims its retained material in lockstep with the spool (#1065/
+ * #1071 - the dimming says "assigned, not present").
+ */
+static void apply_lane_state(AmsSlotData* data, int state_int) {
+    if (!data)
+        return;
+    data->last_lane_state = static_cast<helix::ui::LaneState>(state_int);
+    if (data->material_label) {
+        lv_obj_set_style_text_opa(data->material_label,
+                                  data->last_lane_state == helix::ui::LaneState::Ghosted
+                                      ? ams_draw::GHOST_OPA
+                                      : LV_OPA_COVER,
+                                  LV_PART_MAIN);
+    }
+    // The label's TEXT depends on the classification just recorded, so
+    // re-derive it from the one rule now that last_lane_state is current.
+    refresh_slot_material_label(data);
+}
+
+/**
 
 /**
  * @brief Apply current slot highlight logic
@@ -618,39 +467,6 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
         spdlog::trace("[AmsSlot] Slot {} tool badge: hidden", data->slot_index);
     }
 }
-
-/**
- * @brief Update error indicator based on SlotInfo.error
- *
- * Shows a small colored dot at top-right of spool_container when the slot
- * has an error. Color varies by severity: red for ERROR, amber for WARNING.
- * Optionally pulsates when animations are enabled.
- */
-static void apply_slot_error(AmsSlotData* data, const SlotInfo& slot) {
-    if (!data || !data->error_indicator) {
-        return;
-    }
-
-    if (slot.error.has_value()) {
-        lv_color_t badge_color = ams_draw::severity_color(slot.error->severity);
-        lv_obj_set_style_bg_color(data->error_indicator, badge_color, LV_PART_MAIN);
-        lv_obj_remove_flag(data->error_indicator, LV_OBJ_FLAG_HIDDEN);
-
-        // Start pulsating animation if animations are enabled
-        if (DisplaySettingsManager::instance().get_animations_enabled()) {
-            ams_draw::start_pulse(data->error_indicator, badge_color);
-        } else {
-            ams_draw::stop_pulse(data->error_indicator);
-        }
-
-        spdlog::trace("[AmsSlot] Slot {} error indicator: severity={}, msg='{}'", data->slot_index,
-                      static_cast<int>(slot.error->severity), slot.error->message);
-    } else {
-        ams_draw::stop_pulse(data->error_indicator);
-        lv_obj_add_flag(data->error_indicator, LV_OBJ_FLAG_HIDDEN);
-    }
-}
-
 // ============================================================================
 // Widget Event Handler (for cleanup)
 // ============================================================================
@@ -675,39 +491,6 @@ static void ams_slot_event_cb(lv_event_t* e) {
 // ============================================================================
 // Widget Creation (Internal)
 // ============================================================================
-
-/**
- * @brief Create spool visualization inside spool_container
- *
- * Creates either 3D canvas or flat concentric rings based on config.
- * The spool_container is created by XML; this function populates it.
- */
-static void create_spool_visualization(AmsSlotData* data) {
-    if (!data || !data->spool_container) {
-        spdlog::error("[AmsSlot] create_spool_visualization: missing spool_container");
-        return;
-    }
-
-    ams_draw::SpoolVisual sv = ams_draw::create_spool_visual(data->spool_container, 0);
-    data->use_3d_style = sv.use_3d;
-    data->spool_canvas = sv.canvas;
-    data->spool_outer = sv.spool_outer;
-    data->color_swatch = sv.color_swatch;
-    data->spool_hub = sv.spool_hub;
-    data->empty_placeholder = sv.empty_placeholder;
-    data->error_indicator = sv.error_indicator;
-
-    // Move badges and indicators to front so they render on top of the spool visualization
-    // (badges are created by XML before spool canvas/rings are added in C++)
-    // Note: status_badge_bg is reparented to badge_layer by ams_detail_update_badges()
-    if (data->tool_badge_bg) {
-        lv_obj_move_to_index(data->tool_badge_bg, -1);
-    }
-    if (data->error_indicator) {
-        lv_obj_move_to_index(data->error_indicator, -1);
-    }
-}
-
 /**
  * @brief Setup observers for a given slot index
  * Uses observer factory pattern for type-safe lambda observers
@@ -721,21 +504,17 @@ static void setup_slot_observers(AmsSlotData* data) {
     using helix::ui::observe_int_sync;
     AmsState& state = AmsState::instance();
 
-    // Get per-slot subjects (using active backend for multi-backend systems).
-    // color/status/fill go through the token'd overloads: for secondary backends
-    // these subjects are dynamic (recreated on rediscovery), so the paired
-    // SubjectLifetime members keep the observers from firing on a freed subject.
-    // Reset the lifetimes BEFORE rebinding (the accessor overwrites them).
+    // Get per-slot subjects. Status goes through the token'd overload: for a
+    // secondary backend the subject is dynamic (recreated on rediscovery), so
+    // the paired SubjectLifetime member keeps the observer from firing on a
+    // freed subject. Reset the lifetime BEFORE rebinding (the accessor
+    // overwrites it). lane_state is a static-array subject, like the ones the
+    // embedded ams_lane_spool observes.
     int backend_idx = state.active_backend_index();
-    data->color_lifetime.reset();
     data->status_lifetime.reset();
-    data->fill_lifetime.reset();
-    lv_subject_t* color_subject =
-        state.get_slot_color_subject(backend_idx, data->slot_index, data->color_lifetime);
     lv_subject_t* status_subject =
         state.get_slot_status_subject(backend_idx, data->slot_index, data->status_lifetime);
-    lv_subject_t* fill_subject =
-        state.get_slot_fill_subject(backend_idx, data->slot_index, data->fill_lifetime);
+    lv_subject_t* lane_state_subject = state.get_slot_lane_state_subject(data->slot_index);
     lv_subject_t* current_slot_subject = state.get_current_slot_subject();
     lv_subject_t* filament_loaded_subject = state.get_filament_loaded_subject();
 
@@ -743,44 +522,26 @@ static void setup_slot_observers(AmsSlotData* data) {
     // use-after-free when deferred callback executes after widget deletion.
     // The registry lookup acts as a validity check. (fixes #83)
     lv_obj_t* obj = data->container;
-    if (color_subject) {
-        data->color_observer = observe_int_sync<lv_obj_t>(
-            color_subject, obj,
-            [](lv_obj_t* o, int color_int) {
-                auto* d = get_slot_data(o);
-                if (!d)
-                    return;
-                apply_slot_color(d, color_int);
-                // Material has its own per-slot subject + observer (below), so
-                // it no longer piggybacks on the color change (#1065).
-            },
-            data->color_lifetime);
-    }
     if (status_subject) {
         data->status_observer = observe_int_sync<lv_obj_t>(
             status_subject, obj,
             [](lv_obj_t* o, int status_int) {
                 auto* d = get_slot_data(o);
                 if (d)
-                    apply_slot_status(d, status_int);
+                    apply_status_badge(d, status_int);
             },
             data->status_lifetime);
     }
-    if (fill_subject) {
-        // Per-slot fill observer: the STRUCTURAL fix. The ams_slot widget owns
-        // its fill rendering — no panel has to push fill imperatively.
-        // pct < 0 means "no data" → leave the current render untouched.
-        data->fill_observer = observe_int_sync<lv_obj_t>(
-            fill_subject, obj,
-            [](lv_obj_t* o, int pct) {
+    if (lane_state_subject) {
+        data->lane_state_observer = observe_int_sync<lv_obj_t>(
+            lane_state_subject, obj,
+            [](lv_obj_t* o, int state_int) {
                 auto* d = get_slot_data(o);
-                if (!d || pct < 0)
-                    return;
-                apply_slot_fill_pct(d, pct);
+                if (d)
+                    apply_lane_state(d, state_int);
             },
-            data->fill_lifetime);
+            state.get_subjects_lifetime());
     }
-
     // Per-slot material observer: the STRUCTURAL fix for material, mirroring
     // fill. The ams_slot widget owns its material label, so a material-only
     // change (type edited while color is unchanged) repaints on EVERY consumer
@@ -794,23 +555,11 @@ static void setup_slot_observers(AmsSlotData* data) {
                 auto* d = get_slot_data(o);
                 if (!d)
                     return;
-                apply_slot_material(d, mat);
-                // An identity-only change (assigning a spool to an already-EMPTY
-                // lane) moves the material subject but NOT the status subject, so
-                // apply_slot_status() never re-runs and the spool stays hidden
-                // behind the unassigned-empty placeholder while the label reads
-                // the new material. The two disagree because they are applied by
-                // separate observers off the same predicate. Re-derive the spool
-                // presentation here so a lane that just gained an assignment
-                // ghosts instead of staying blank.
-                //
-                // Cannot recurse: apply_slot_status() reaches the label through
-                // refresh_slot_material_label(), which READS the subject and
-                // calls apply_slot_material() directly — it never writes the
-                // subject, so this observer is not re-entered.
-                if (d->last_status == SlotStatus::EMPTY) {
-                    apply_slot_status(d, static_cast<int>(SlotStatus::EMPTY));
-                }
+                apply_material_label(d, mat);
+                // No spool re-derive on an identity-only change: AmsState
+                // recomputes the lane classification on the same update, so the
+                // lane_state subject fires and the embedded ams_lane_spool
+                // ghosts (or un-ghosts) itself.
             },
             state.get_subjects_lifetime());
     }
@@ -893,36 +642,30 @@ static void setup_slot_observers(AmsSlotData* data) {
         lv_label_set_text(data->slot_badge, badge_text);
     }
 
-    // Trigger initial updates from current subject values
-    if (color_subject && data->color_observer) {
-        apply_slot_color(data, lv_subject_get_int(color_subject));
-    }
+    // Trigger initial updates from current subject values. lane_state applies
+    // BEFORE material so the label rule reads a current classification on the
+    // first paint.
     if (status_subject && data->status_observer) {
-        apply_slot_status(data, lv_subject_get_int(status_subject));
+        apply_status_badge(data, lv_subject_get_int(status_subject));
     }
-    if (fill_subject && data->fill_observer) {
-        int pct = lv_subject_get_int(fill_subject);
-        if (pct >= 0) {
-            apply_slot_fill_pct(data, pct);
-        }
+    if (lane_state_subject && data->lane_state_observer) {
+        apply_lane_state(data, lv_subject_get_int(lane_state_subject));
     }
     if (current_slot_subject && data->current_slot_observer) {
         apply_current_slot_highlight(data, lv_subject_get_int(current_slot_subject));
     }
     if (material_subject && data->material_observer) {
-        apply_slot_material(data, lv_subject_get_string(material_subject));
+        apply_material_label(data, lv_subject_get_string(material_subject));
     }
 
-    // Update tool badge + error indicator from backend. Material is NOT read
-    // here — it flows from the per-slot material subject via the observer above,
-    // so it stays reactive on every consumer (#1065).
+    // Update tool badge from backend. Material and the error dot are NOT read
+    // here — material flows from the per-slot material subject via the observer
+    // above, and the error dot is the embedded ams_lane_spool's, driven by the
+    // has_error/severity subjects.
     AmsBackend* backend = state.get_backend();
     if (backend) {
         SlotInfo slot = backend->get_slot_info(data->slot_index);
-        // Update tool badge based on slot's mapped_tool
         apply_tool_badge(data, slot.mapped_tool, slot.tool_mapping_override);
-        // Update error indicator from slot data
-        apply_slot_error(data, slot);
     }
 
     spdlog::trace("[AmsSlot] Created observers for slot {}", data->slot_index);
@@ -961,19 +704,17 @@ static void* ams_slot_xml_create(lv_xml_parser_state_t* state, const char** attr
     // Find XML-created children by name
     data->material_label = lv_obj_find_by_name(obj, "material_label");
     data->spool_container = lv_obj_find_by_name(obj, "spool_container");
+    data->lane_spool = lv_obj_find_by_name(obj, "lane_spool");
     data->status_badge_bg = lv_obj_find_by_name(obj, "status_badge");
     data->slot_badge = lv_obj_find_by_name(obj, "slot_badge_label");
     data->tool_badge_bg = lv_obj_find_by_name(obj, "tool_badge");
     data->tool_badge = lv_obj_find_by_name(obj, "tool_badge_label");
 
     // Validate required children were found
-    if (!data->spool_container) {
-        spdlog::error("[AmsSlot] Failed to find spool_container in XML");
+    if (!data->spool_container || !data->lane_spool) {
+        spdlog::error("[AmsSlot] Failed to find spool_container/lane_spool in XML");
         return obj; // Return obj anyway so it gets cleaned up properly
     }
-
-    // Create spool visualization (stays in C++)
-    create_spool_visualization(data);
 
     // Set initial text on labels (direct imperative updates, no subject indirection)
     if (data->material_label) {
@@ -1028,13 +769,17 @@ static void ams_slot_xml_apply(lv_xml_parser_state_t* state, const char** attrs)
             int new_index = atoi(value);
             if (new_index != data->slot_index) {
                 // Clear existing observers
-                data->color_observer.reset();
                 data->status_observer.reset();
+                data->lane_state_observer.reset();
                 data->material_observer.reset();
                 data->current_slot_observer.reset();
                 data->filament_loaded_observer.reset();
 
                 data->slot_index = new_index;
+
+                // Point the embedded spool widget at the lane first - it owns
+                // the color/fill/error observers for the graphic.
+                helix::ui::ams_lane_spool_set_index(data->lane_spool, new_index);
 
                 // Setup new observers
                 setup_slot_observers(data);
@@ -1042,15 +787,12 @@ static void ams_slot_xml_apply(lv_xml_parser_state_t* state, const char** attrs)
                 spdlog::debug("[AmsSlot] Set slot_index={}", data->slot_index);
             }
         } else if (strcmp(name, "fill_level") == 0) {
-            // Parse fill level (0.0 = empty, 1.0 = full)
+            // Creation-time fill (test panel); a later per-slot fill subject
+            // value overrides it. Applied by the embedded spool widget, which
+            // clamps.
             float fill = strtof(value, nullptr);
-            if (fill < 0.0f)
-                fill = 0.0f;
-            if (fill > 1.0f)
-                fill = 1.0f;
-            data->fill_level = fill;
-            update_filament_ring_size(data);
-            spdlog::trace("[AmsSlot] Set fill_level={:.2f}", data->fill_level);
+            helix::ui::ams_lane_spool_set_fill_level(data->lane_spool, fill);
+            spdlog::trace("[AmsSlot] Set fill_level={:.2f}", fill);
         }
     }
 }
@@ -1060,6 +802,10 @@ static void ams_slot_xml_apply(lv_xml_parser_state_t* state, const char** attrs)
 // ============================================================================
 
 void ui_ams_slot_register(void) {
+    // The view embeds <ams_lane_spool>; it must be registered before the view
+    // is instantiated.
+    ui_ams_lane_spool_register();
+
     // Register the XML component first (defines the structural template)
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/ams_slot_view.xml").c_str());
@@ -1102,12 +848,16 @@ void ui_ams_slot_set_index(lv_obj_t* obj, int slot_index) {
     }
 
     // Clear existing observers
-    data->color_observer.reset();
     data->status_observer.reset();
+    data->lane_state_observer.reset();
     data->current_slot_observer.reset();
     data->filament_loaded_observer.reset();
 
     data->slot_index = slot_index;
+
+    // Point the embedded spool widget at the lane first - it owns the
+    // color/fill/error observers for the graphic.
+    helix::ui::ams_lane_spool_set_index(data->lane_spool, slot_index);
 
     // Setup new observers
     setup_slot_observers(data);
@@ -1123,14 +873,13 @@ void ui_ams_slot_refresh(lv_obj_t* obj) {
         return;
     }
 
-    // Only update non-observer properties here.
-    // Color, status, current-slot highlight, and material are driven by
-    // observers (material via the per-slot material subject, #1065).
+    // Only update non-observer properties here. Color, fill, status, lane
+    // state, current-slot highlight, material and the error dot are all driven
+    // by observers (this widget's or the embedded ams_lane_spool's).
     AmsBackend* backend = AmsState::instance().get_backend();
     if (backend) {
         SlotInfo slot = backend->get_slot_info(data->slot_index);
         apply_tool_badge(data, slot.mapped_tool, slot.tool_mapping_override);
-        apply_slot_error(data, slot);
     }
 
     spdlog::trace("[AmsSlot] Refreshed slot {}", data->slot_index);
@@ -1146,7 +895,8 @@ float ui_ams_slot_get_fill_level(lv_obj_t* obj) {
         return 1.0f;
     }
 
-    return data->fill_level;
+    // The embedded spool widget owns the fill render; report what it applied.
+    return helix::ui::ams_lane_spool_get_fill_level(data->lane_spool);
 }
 
 void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count) {
@@ -1364,7 +1114,7 @@ void ui_ams_slot_detach_layers(lv_obj_t* obj) {
     // These widgets will be deleted by lv_obj_clean() on those layers during rebuild,
     // BEFORE this slot's DELETE event fires and unregister_slot_data() runs.
     // Without nulling, deferred observer callbacks find non-null but dangling pointers
-    // and crash in apply_slot_status() / apply_slot_color() (#604).
+    // and crash in apply_status_badge() (#604).
     data->status_badge_bg = nullptr;
     data->slot_badge = nullptr;
     data->material_label = nullptr;
