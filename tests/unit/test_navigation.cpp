@@ -692,9 +692,8 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band backdrop deletion scrubs ov
     // does exactly that), which frees it with no go_back() involved.
     lv_obj_delete(backdrop);
 
-    // Regression assertion: overlay_backdrop_ is a scalar, so scrub_deleted_widget()
-    // must clear it explicitly. Without that, deinit_subjects() reaches
-    // lv_obj_del(overlay_backdrop_) on freed memory — a heap-use-after-free that
+    // overlay_backdrop_ must clear itself, or deinit_subjects() reaches
+    // lv_obj_del(overlay_backdrop_) on freed memory, a heap-use-after-free that
     // detonates in whatever unrelated test runs next.
     REQUIRE(NavigationManagerTestAccess::overlay_backdrop(nav) == nullptr);
 

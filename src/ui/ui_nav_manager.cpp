@@ -1220,12 +1220,6 @@ void NavigationManager::init_overlay_backdrop(lv_obj_t* screen) {
 
 void NavigationManager::set_app_layout(lv_obj_t* app_layout) {
     app_layout_widget_ = app_layout;
-    // Scalar counterpart to the containers scrub_deleted_widget() already covers.
-    // refresh_overlay_backdrop() and the go_back() screen sweeps compare screen
-    // children against this pointer, so a stale one silently misclassifies a
-    // live widget as the app layout.
-    // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
-    ensure_delete_hook(app_layout_widget_);
     spdlog::trace("[NavigationManager] App layout widget registered");
 }
 
@@ -1458,8 +1452,8 @@ void NavigationManager::set_panels(lv_obj_t** panels) {
     for (int i = 0; i < UI_PANEL_COUNT; i++) {
         panel_widgets_[i] = panels[i];
         // The panel layer owns these trees; nothing tells nav when one dies.
-        // Without the hook the slot outlives the widget and every later
-        // show/hide sweep writes through freed memory.
+        // The slot clears itself, but panel_stack_ holds the widget too and
+        // needs the scrub.
         // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
         ensure_delete_hook(panel_widgets_[i]);
     }
@@ -1514,12 +1508,11 @@ void NavigationManager::replace_panel_widget(helix::PanelId id, lv_obj_t* new_wi
     // An open overlay keeps the main panel beneath it in panel_stack_; go_back()
     // must reveal the successor, not the widget it displaced (#1294).
     if (panel_widgets_[idx])
-        std::replace(panel_stack_.begin(), panel_stack_.end(), panel_widgets_[idx], new_widget);
+        std::replace(panel_stack_.begin(), panel_stack_.end(), panel_widgets_[idx].get(),
+                     new_widget);
     panel_widgets_[idx] = new_widget;
-    // The successor needs its own hook — the outgoing widget's does not transfer,
-    // and its own later delete only scrubs slots that still point at it, so a
-    // swap can never blank the live successor. Same reasoning as
-    // rekey_overlay_widget().
+    // The successor needs its own scrub hook for panel_stack_; the outgoing
+    // widget's does not transfer. Same reasoning as rekey_overlay_widget().
     // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
     ensure_delete_hook(new_widget);
     spdlog::debug("[NavigationManager] Panel widget for {} swapped to {}", panel_id_to_name(id),
@@ -1690,29 +1683,12 @@ void NavigationManager::scrub_deleted_widget(lv_obj_t* widget) {
     persistent_overlay_instances_.erase(widget);
     // Drop the backdrop map entry only — out of scope to delete the backdrop here.
     overlay_backdrops_.erase(widget);
-    // The active backdrop is a scalar, not a widget-keyed container, so it needs
-    // an explicit clear. Without it deinit_subjects() lv_obj_del()s freed memory
-    // whenever the backdrop died with its parent screen.
-    if (widget == overlay_backdrop_)
-        overlay_backdrop_ = nullptr;
     overlay_close_callbacks_.erase(widget);
     zoom_source_rects_.erase(widget);
     overlay_is_destination_.erase(widget);
     overlay_width_unmanaged_.erase(widget);
     panel_stack_.erase(std::remove(panel_stack_.begin(), panel_stack_.end(), widget),
                        panel_stack_.end());
-
-    // panel_widgets_ and app_layout_widget_ are scalars like overlay_backdrop_,
-    // so they need explicit clears too. handle_active_panel_change() runs from a
-    // queued observer apply and writes LV_OBJ_FLAG_HIDDEN through every non-null
-    // slot, guarded only by that null check — a panel deleted between the enqueue
-    // and the drain is a dangling pointer the loop still writes to.
-    for (int i = 0; i < UI_PANEL_COUNT; i++) {
-        if (panel_widgets_[i] == widget)
-            panel_widgets_[i] = nullptr;
-    }
-    if (widget == app_layout_widget_)
-        app_layout_widget_ = nullptr;
 
     delete_hooked_.erase(widget);
 
@@ -1737,10 +1713,6 @@ void NavigationManager::adopt_overlay_backdrop(lv_obj_t* screen) {
     // hides it; CLICKED consumes the tap for the keyboard dismiss.
     lv_obj_add_event_cb(overlay_backdrop_, backdrop_click_event_cb, LV_EVENT_PRESSED, nullptr);
     lv_obj_add_event_cb(overlay_backdrop_, backdrop_click_event_cb, LV_EVENT_CLICKED, nullptr);
-    // Scalar counterpart to the widget-keyed containers scrub_deleted_widget()
-    // already covers: deleting the parent screen frees the backdrop with no
-    // go_back(), and deinit_subjects() would then lv_obj_del() freed memory.
-    ensure_delete_hook(overlay_backdrop_);
 }
 
 void NavigationManager::refresh_overlay_backdrop() {
@@ -1805,11 +1777,7 @@ void NavigationManager::refresh_overlay_backdrop() {
 
     lv_obj_add_event_cb(fresh, backdrop_click_event_cb, LV_EVENT_PRESSED, nullptr);
     lv_obj_add_event_cb(fresh, backdrop_click_event_cb, LV_EVENT_CLICKED, nullptr);
-    ensure_delete_hook(fresh);
 
-    // Reassign before the delete is queued: scrub_deleted_widget() clears
-    // overlay_backdrop_ only when the dying widget IS the current one, so the
-    // outgoing delete must find the pointer already moved on.
     overlay_backdrop_ = fresh;
     helix::ui::safe_delete_deferred(outgoing);
 

@@ -162,7 +162,7 @@ WizardWifiStep::~WizardWifiStep() {
 
     // Clear pointers (widgets still exist, owned by LVGL)
     screen_root_ = nullptr;
-    stop_watching_password_modal();
+    password_modal_ = nullptr;
     network_list_container_ = nullptr;
 }
 
@@ -1097,11 +1097,6 @@ void WizardWifiStep::show_password_modal(const char* ssid) {
         return;
     }
 
-    // Every modal carries an unconditional backdrop-tap and ESC handler that
-    // closes it through Modal::hide() without telling us, so this is the only
-    // thing keeping password_modal_ honest for the async connect result.
-    lv_obj_add_event_cb(password_modal_, on_modal_deleted, LV_EVENT_DELETE, this);
-
     lv_subject_copy_string(&wifi_password_modal_ssid_, ssid);
 
     lv_obj_t* password_input = lv_obj_find_by_name(password_modal_, "password_input");
@@ -1129,31 +1124,12 @@ void WizardWifiStep::show_password_modal(const char* ssid) {
     spdlog::info("[{}] Password modal shown for SSID: {}", get_name(), helix::redact::ssid(ssid));
 }
 
-void WizardWifiStep::on_modal_deleted(lv_event_t* e) {
-    auto* self = static_cast<WizardWifiStep*>(lv_event_get_user_data(e));
-    if (!self) {
-        return;
-    }
-    // Compare by identity: a late DELETE from a previous dialog must not clear
-    // the pointer to the one now on screen.
-    if (self->password_modal_ && self->password_modal_ == lv_event_get_target_obj(e)) {
-        self->password_modal_ = nullptr;
-    }
-}
-
-void WizardWifiStep::stop_watching_password_modal() {
-    if (password_modal_) {
-        lv_obj_remove_event_cb_with_user_data(password_modal_, on_modal_deleted, this);
-        password_modal_ = nullptr;
-    }
-}
-
 void WizardWifiStep::hide_password_modal() {
     if (password_modal_) {
         spdlog::debug("[{}] Hiding password modal", get_name());
 
         lv_obj_t* dialog = password_modal_;
-        stop_watching_password_modal();
+        password_modal_ = nullptr;
         helix::ui::modal_hide(dialog);
     }
 
@@ -1189,7 +1165,7 @@ void WizardWifiStep::cleanup() {
     ethernet_manager_.reset();
 
     screen_root_ = nullptr;
-    stop_watching_password_modal();
+    password_modal_ = nullptr;
     network_list_container_ = nullptr;
     current_ssid_[0] = '\0';
     current_network_is_secured_ = false;

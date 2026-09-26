@@ -2231,6 +2231,33 @@ fi
 echo ""
 
 SECTION_START=$(date +%s)
+echo -n "🧷 Checking raw cached widget pointers..."
+
+if [ -f "scripts/check_cached_widget_pointers.py" ]; then
+  # Ratcheting baseline: the count of raw lv_obj_t* data members may fall, never
+  # rise. A cached widget outlives its widget whenever something other than its
+  # owner deletes the tree, and owner-keyed guards still read valid then. Hold
+  # new ones as helix::ui::WidgetRef, or annotate `// WIDGET_PTR_OK: <why>`.
+  if python3 scripts/check_cached_widget_pointers.py --max-allowed=591 \
+      >/tmp/cached_widget_ptrs.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    tail -1 /tmp/cached_widget_ptrs.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/cached_widget_ptrs.out
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_cached_widget_pointers.py not found — skipping"
+fi
+
+echo ""
+
+SECTION_START=$(date +%s)
 echo -n "🖥️  Checking DRM dumb-buffer mmap offset width..."
 
 # DRM allocates dumb-buffer mmap offsets from 4 GiB upward, so a 32-bit off_t

@@ -5,23 +5,19 @@
  * @file test_nav_panel_widget_uaf.cpp
  * @brief NavigationManager must not write through a deleted panel widget
  *
- * panel_widgets_[UI_PANEL_COUNT] is a raw lv_obj_t* array whose entries nothing
- * used to clear when the widget died. handle_active_panel_change() sweeps that
- * array and calls lv_obj_add_flag()/lv_obj_remove_flag() on every non-null
- * entry, guarded only by the null check — so a deleted panel is a dangling
- * pointer the sweep still writes to.
+ * handle_active_panel_change() sweeps panel_widgets_[UI_PANEL_COUNT] and calls
+ * lv_obj_add_flag()/lv_obj_remove_flag() on every non-null entry, guarded only
+ * by the null check, so a deleted panel must leave a null slot behind.
  *
  * It is reachable asynchronously: init() wires handle_active_panel_change to the
  * active_panel subject through observe_int_sync, which defers the apply onto the
  * UpdateQueue. A panel change queued before a teardown lands after it, against
  * panels that no longer exist. That is the shape of the real crash — a queued
- * apply left over from one test firing during the next test's fixture drain
- * (EXC_BAD_ACCESS / KERN_INVALID_ADDRESS at 0xf9 inside lv_obj_add_flag).
+ * apply left over from one test firing during the next test's fixture drain.
  *
- * The fix is the mechanism already in the file: ensure_delete_hook() on every
- * path that stores a panel pointer, and scrub_deleted_widget() nulling the
- * matching slots. These tests drive both orderings — synchronous sweep after a
- * delete, and delete between enqueue and drain.
+ * The slots are WidgetRefs, so each clears itself on its widget's delete.
+ * These tests drive both orderings: synchronous sweep after a delete, and
+ * delete between enqueue and drain.
  */
 
 #include "ui_update_queue.h"

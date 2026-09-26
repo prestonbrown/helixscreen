@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "async_lifetime_guard.h"
 #include "lvgl/lvgl.h"
 #include "platform_info.h"
@@ -154,7 +156,7 @@ class WizardWifiStep : public helix::wizard::Step {
 
     // Screen instances
     lv_obj_t* screen_root_ = nullptr;
-    lv_obj_t* password_modal_ = nullptr;
+    helix::ui::WidgetRef password_modal_;
     lv_obj_t* network_list_container_ = nullptr;
 
     // Subjects (8 total - visibility controlled by Modal system)
@@ -224,17 +226,6 @@ class WizardWifiStep : public helix::wizard::Step {
     static void on_network_item_clicked_static(lv_event_t* e);
     static void on_modal_cancel_clicked_static(lv_event_t* e);
     static void on_modal_connect_clicked_static(lv_event_t* e);
-
-    /// Drops password_modal_ when anything other than hide_password_modal()
-    /// destroys the dialog, so the deferred connect result cannot walk a freed
-    /// tree (prestonbrown/helixscreen#1579).
-    static void on_modal_deleted(lv_event_t* e);
-
-    /// Uninstalls on_modal_deleted and clears password_modal_. Teardown must
-    /// run this while the step is still valid: modal_hide() only starts an exit
-    /// animation, so the dialog tree outlives the step that the handler writes
-    /// through.
-    void stop_watching_password_modal();
 
     // Static helpers
     static const char* get_status_text(const char* status_name);

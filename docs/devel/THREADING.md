@@ -320,6 +320,27 @@ api->test([this, tok]() { ... });
   the owner
 - The destructor calls `invalidate()` automatically
 
+### A token guards the owner, never the widget: `WidgetRef`
+
+`AsyncLifetimeGuard` tokens, and `observe_int_sync`'s `weak_alive`, expire with their
+**owner**. A widget runs on a different clock: a raw `lv_obj_delete()` of the tree, a
+hot-reload rebuild, or a backdrop tap dismissing a modal frees it while the owner, and every
+token keyed on the owner, stays valid. A deferred callback that null-checks a cached raw
+`lv_obj_t*` member then walks freed memory with its guard reading "alive".
+
+Hold a cached widget as `helix::ui::WidgetRef` (`include/ui_widget_ref.h`). It listens for
+the widget's own `LV_EVENT_DELETE` and becomes `nullptr`, whichever path deleted it; assigning
+a new widget or `nullptr` unhooks the old one, and so does its destructor. It converts to
+`lv_obj_t*`, so call sites stay as they are, but null is still null: an LVGL setter handed a
+cleared handle crashes, so a path that can run after the widget dies checks it first. It
+neither copies nor moves (the hook carries its address), so it lives as a member or in a
+fixed-size array. `safe_delete_deferred()` takes one directly.
+
+A hand-written `LV_EVENT_DELETE` hook is still right when the delete has to do more than
+clear a pointer (drop rows, cancel a timer, clear a static owner). Raw `lv_obj_t*` members
+are ratcheted by `scripts/check_cached_widget_pointers.py`; opt out with
+`// WIDGET_PTR_OK: <reason>`.
+
 ### Deprecated — do not use in new code
 
 `shared_ptr<bool> callback_guard_` / `alive_guard_`, `shared_ptr<atomic<bool>> alive_`,

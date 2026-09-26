@@ -5,12 +5,11 @@
  * @file test_wizard_wifi_modal_lifetime.cpp
  * @brief The wizard WiFi step's cached modal pointer must not outlive its modal.
  *
- * WizardWifiStep keeps the raw lv_obj_t* that modal_show() returns for the
- * password modal, and the deferred connect-result callback walks it with
- * lv_obj_find_by_name(). Every modal carries an unconditional backdrop-tap and
- * ESC handler that closes it through Modal::hide() without telling the caller,
- * so a dismissal the step did not drive leaves that member pointing at freed
- * memory while the in-flight join is still running
+ * WizardWifiStep keeps the password modal that modal_show() returns, and the
+ * deferred connect-result callback walks it with lv_obj_find_by_name(). Every
+ * modal carries an unconditional backdrop-tap and ESC handler that closes it
+ * through Modal::hide() without telling the caller, so a dismissal the step did
+ * not drive must still leave a null behind while the in-flight join is running
  * (prestonbrown/helixscreen#1579).
  *
  * The lifetime token the callback already carries cannot cover this: it guards
@@ -112,10 +111,8 @@ TEST_CASE_METHOD(WizardWifiModalFixture, "A dying modal clears only its own cach
     lv_obj_t* stale = lv_obj_create(lv_screen_active());
     REQUIRE(live != nullptr);
     REQUIRE(stale != nullptr);
-    Access::watch(s, live);
-    Access::watch(s, stale);
-
-    // The step is showing `live`; `stale` is a previous dialog on its way out.
+    // The step moved on to `live`; `stale` is a previous dialog on its way out.
+    Access::password_modal(s) = stale;
     Access::password_modal(s) = live;
     lv_obj_delete(stale);
     process_lvgl(50);

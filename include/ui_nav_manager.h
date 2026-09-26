@@ -5,6 +5,7 @@
 
 #include "ui_observer_guard.h"
 #include "ui_printer_switch_menu.h"
+#include "ui_widget_ref.h"
 
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
@@ -653,19 +654,18 @@ class NavigationManager {
     // When LVGL deletes a tracked widget through ANY path (e.g. a teardown that
     // bypasses go_back), LV_EVENT_DELETE fires synchronously just before the
     // memory is freed. scrub_deleted_widget() erases the widget from every
-    // widget-keyed bookkeeping container — plus the scalars overlay_backdrop_,
-    // app_layout_widget_ and the matching panel_widgets_ slots — so neither
-    // panel_stack_.back() on the next push_overlay() nor the show/hide sweep in
-    // handle_active_panel_change() can dereference freed memory.
+    // widget-keyed bookkeeping container, so panel_stack_.back() on the next
+    // push_overlay() cannot dereference freed memory. The scalars
+    // (overlay_backdrop_, app_layout_widget_, panel_widgets_) are WidgetRefs
+    // and clear themselves.
     void scrub_deleted_widget(lv_obj_t* widget);
     // Attach the LV_EVENT_DELETE scrub callback to a widget exactly once.
     void ensure_delete_hook(lv_obj_t* widget);
     static void overlay_delete_event_cb(lv_event_t* e);
     // Create the darkened backdrop over `screen` and adopt it as
-    // overlay_backdrop_, wiring its click handlers and the delete scrub. The
-    // backdrop is a child of `screen`, so any path that deletes the screen frees
-    // it without going through go_back(); the scrub hook is what keeps
-    // overlay_backdrop_ from outliving it.
+    // overlay_backdrop_, wiring its click handlers. The backdrop is a child of
+    // `screen`, so any path that deletes the screen frees it without going
+    // through go_back(); overlay_backdrop_ clears itself when that happens.
     void adopt_overlay_backdrop(lv_obj_t* screen);
     /**
      * @brief Re-take the overlay backdrop snapshot from the live widget tree
@@ -716,7 +716,7 @@ class NavigationManager {
     bool suspended_ = false; // True when screensaver has suspended lifecycle
 
     // Panel widget tracking for show/hide
-    lv_obj_t* panel_widgets_[UI_PANEL_COUNT] = {nullptr};
+    helix::ui::WidgetRef panel_widgets_[UI_PANEL_COUNT];
 
     // C++ panel instances for lifecycle dispatch (on_activate/on_deactivate)
     std::array<PanelBase*, UI_PANEL_COUNT> panel_instances_ = {};
@@ -745,7 +745,7 @@ class NavigationManager {
     std::unordered_map<lv_obj_t*, IPanelLifecycle*> persistent_overlay_instances_;
 
     // App layout widget reference
-    lv_obj_t* app_layout_widget_ = nullptr;
+    helix::ui::WidgetRef app_layout_widget_;
 
     // Panel stack: tracks ALL visible panels in z-order
     std::vector<lv_obj_t*> panel_stack_;
@@ -754,7 +754,7 @@ class NavigationManager {
     std::unordered_map<lv_obj_t*, helix::OverlayCloseCallback> overlay_close_callbacks_;
 
     // Shared overlay backdrop widget (for first overlay)
-    lv_obj_t* overlay_backdrop_ = nullptr;
+    helix::ui::WidgetRef overlay_backdrop_;
 
     // Latched at the dismiss-backdrop's LV_EVENT_PRESSED with the on-screen
     // keyboard's visibility. LVGL's click-focus DEFOCUS (which hides the

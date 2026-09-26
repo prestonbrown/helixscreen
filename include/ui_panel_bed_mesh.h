@@ -5,6 +5,7 @@
 
 #include "ui_observer_guard.h"
 #include "ui_subscription_guard.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "bed_mesh_calibration_plan.h"
@@ -217,14 +218,13 @@ class BedMeshPanel : public OverlayBase {
     lv_obj_t* delete_modal_widget_ = nullptr;
 
     // ========== UI Widget Pointers ==========
-    lv_obj_t* canvas_ = nullptr;
+    helix::ui::WidgetRef canvas_;
     // The overlay_content wire_canvas_and_content() last registered
     // on_content_size_changed on. Tracked rather than re-derived from
     // overlay_root_ at destruction: overlay_root_ is null on every path that
     // wires without create(), so a lookup through it removes nothing and the
     // registration outlives `this` with user_data pointing at freed memory.
-    // Nulled by on_content_deleted_cb, same dangling guard as canvas_.
-    lv_obj_t* content_ = nullptr;
+    helix::ui::WidgetRef content_;
     lv_obj_t* profile_dropdown_ = nullptr;
     lv_obj_t* rename_name_input_ = nullptr;
 
@@ -320,8 +320,6 @@ class BedMeshPanel : public OverlayBase {
     // found. Shared by create() (initial) and rewire_after_orientation_flip()
     // (post-rebuild) so the two paths cannot silently diverge.
     bool wire_canvas_and_content(lv_obj_t* overlay_content);
-    static void on_canvas_deleted_cb(lv_event_t* e);
-    static void on_content_deleted_cb(lv_event_t* e);
     // Re-applies the render-mode/zero-plane/auto-evaluate settings create()
     // applies once at startup — split out so rewire_after_orientation_flip()
     // can re-run it against the brand-new custom widget instance a rebuild

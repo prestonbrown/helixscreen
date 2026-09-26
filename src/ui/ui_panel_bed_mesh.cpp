@@ -129,27 +129,14 @@ BedMeshPanel::~BedMeshPanel() {
             delete_modal_widget_ = nullptr;
         }
 
-        // wire_canvas_and_content() registers on_canvas_deleted_cb (canvas_)
-        // plus on_content_size_changed and on_content_deleted_cb (content_),
-        // all with user_data=this.
-        // StaticPanelRegistry::destroy_all() runs BEFORE lv_deinit() and
-        // before a soft restart's explicit widget-tree deletion — in both
-        // paths `this` is about to be freed while canvas_/overlay_content
-        // are still live widgets. Without removing these here, the later
-        // real deletion would fire on_canvas_deleted_cb with user_data
-        // pointing at freed memory (rule 5's hazard class, DELETE variant —
-        // worse than the analogous SIZE_CHANGED case because DELETE is
-        // GUARANTEED to fire during teardown). lv_obj_remove_event_cb()
-        // removes every registration of the given callback function
-        // regardless of how many accumulated, so this is correct even if
-        // wire_canvas_and_content() were ever called more than once against
-        // the same still-live widget.
-        if (canvas_) {
-            lv_obj_remove_event_cb(canvas_, on_canvas_deleted_cb);
-        }
+        // wire_canvas_and_content() registers on_content_size_changed on
+        // content_ with user_data=this. StaticPanelRegistry::destroy_all() runs
+        // BEFORE lv_deinit() and before a soft restart's explicit widget-tree
+        // deletion, so `this` is freed while overlay_content is still live;
+        // the registration has to go with it. lv_obj_remove_event_cb() removes
+        // every registration of the callback, however many accumulated.
         if (content_) {
             lv_obj_remove_event_cb(content_, on_content_size_changed);
-            lv_obj_remove_event_cb(content_, on_content_deleted_cb);
         }
     }
 
@@ -344,24 +331,18 @@ lv_obj_t* BedMeshPanel::create(lv_obj_t* parent) {
 // zero-size "condemned" sink and lv_obj_delete_async()s the sink, so the old
 // widgets are gone (or about to be) the moment the rebuild runs.
 //
-// Nothing else in this file ever learned that canvas_ or the SIZE_CHANGED
-// registration on the old overlay_content had gone stale — on_ui_destroyed()
-// (which nulls canvas_) is only called on full panel teardown, never on an
-// in-place XML rebuild. Every canvas_ dereference between a rotation and the
-// panel's eventual destruction — including ensure_async_rendering()'s
-// ui_bed_mesh_request_async_render(canvas_) reachable from the resize path
-// in src/application/application.cpp — was a potential use-after-free.
-//
-// Real hardware never resizes or rotates at runtime, so this only matters
-// for the SDL dev window — but "don't crash" applies there too. The fix is
-// two independent, minimal pieces:
-//   1. wire_canvas_and_content() installs an LV_EVENT_DELETE guard directly
-//      on canvas_ that nulls it the instant the widget is actually deleted,
-//      from WHICHEVER path deletes it. canvas_ can therefore never dangle —
-//      every existing call site already checks `if (canvas_)` first.
+// on_ui_destroyed() runs only on full panel teardown, never on an in-place
+// XML rebuild, so the rebuild is handled in two pieces:
+//   1. canvas_ and content_ are WidgetRefs: whichever path deletes the old
+//      tree leaves them null, and every call site checks `if (canvas_)` first
+//      (ensure_async_rendering() is reachable from the resize path in
+//      src/application/application.cpp).
 //   2. setup_orientation_rewire_observer() + rewire_after_orientation_flip()
 //      re-run the same wiring against the freshly rebuilt tree, so a flip
-//      leaves the panel fully functional instead of merely non-crashing.
+//      leaves the panel fully functional.
+//
+// Real hardware never resizes or rotates at runtime, so this matters for the
+// SDL dev window.
 
 bool BedMeshPanel::wire_canvas_and_content(lv_obj_t* overlay_content) {
     if (!overlay_content) {
@@ -374,14 +355,6 @@ bool BedMeshPanel::wire_canvas_and_content(lv_obj_t* overlay_content) {
         spdlog::error("[{}] Canvas widget 'bed_mesh_canvas' not found in XML", get_name());
         return false;
     }
-
-    // Belt-and-suspenders against on_ui_destroyed() (full teardown) AND the
-    // <if> rebuild path above — whichever deletes this widget, canvas_ ends
-    // up null rather than dangling.
-    // Remove first for the same reason as the SIZE_CHANGED registration below:
-    // create()'s immediate observer fire re-enters against the same canvas.
-    lv_obj_remove_event_cb(canvas_, on_canvas_deleted_cb);
-    lv_obj_add_event_cb(canvas_, on_canvas_deleted_cb, LV_EVENT_DELETE, this);
 
     // Wire LV_EVENT_SIZE_CHANGED on overlay_content so the portrait canvas
     // height recomputes whenever the column resizes (rotation, or the
@@ -396,46 +369,10 @@ bool BedMeshPanel::wire_canvas_and_content(lv_obj_t* overlay_content) {
     // overlay_content that was just wired here. Remove before adding so that
     // path leaves one registration rather than two.
     lv_obj_remove_event_cb(overlay_content, on_content_size_changed);
-    lv_obj_remove_event_cb(overlay_content, on_content_deleted_cb);
     lv_obj_add_event_cb(overlay_content, on_content_size_changed, LV_EVENT_SIZE_CHANGED, this);
-    lv_obj_add_event_cb(overlay_content, on_content_deleted_cb, LV_EVENT_DELETE, this);
     content_ = overlay_content;
 
     return true;
-}
-
-void BedMeshPanel::on_canvas_deleted_cb(lv_event_t* e) {
-    auto* self = static_cast<BedMeshPanel*>(lv_event_get_user_data(e));
-    if (!self) {
-        return;
-    }
-    // Guard against a STALE canvas's delete clobbering a already-rewired
-    // canvas_: xml_frag_teardown reparents the old canvas into an off-tree
-    // sink and lv_obj_delete_async()s it, so its LV_EVENT_DELETE fires on a
-    // LATER tick — by which time rewire_after_orientation_flip() has
-    // already, synchronously, pointed canvas_ at the brand-new widget from
-    // the rebuild. Without this check, that late DELETE would null out the
-    // CURRENT valid canvas_ instead of the dead one that actually triggered
-    // it, since every canvas this panel has ever owned shares the same
-    // user_data (`this`) on this same callback.
-    if (lv_event_get_target(e) == self->canvas_) {
-        self->canvas_ = nullptr;
-    }
-}
-
-void BedMeshPanel::on_content_deleted_cb(lv_event_t* e) {
-    auto* self = static_cast<BedMeshPanel*>(lv_event_get_user_data(e));
-    if (!self) {
-        return;
-    }
-    // Same stale-widget check as on_canvas_deleted_cb, for the same reason:
-    // the condemned overlay_content's async delete lands after
-    // rewire_after_orientation_flip() has already pointed content_ at the
-    // rebuilt one, and every overlay_content this panel has ever wired shares
-    // user_data (`this`) on this callback.
-    if (lv_event_get_target(e) == self->content_) {
-        self->content_ = nullptr;
-    }
 }
 
 void BedMeshPanel::apply_canvas_render_settings() {

@@ -54,6 +54,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "lvgl/lvgl.h"
 #include "network_tester.h"
 #include "overlay_base.h"
@@ -234,15 +236,15 @@ class NetworkSettingsOverlay : public OverlayBase {
     bool callbacks_registered_ = false;
 
     // Network test modal
-    lv_obj_t* test_modal_ = nullptr;
-    lv_obj_t* step_widget_ = nullptr;
+    helix::ui::WidgetRef test_modal_;
+    helix::ui::WidgetRef step_widget_;
     lv_subject_t test_complete_; // Controls close button enabled state
 
     // Hidden network modal (visibility controlled by Modal system)
-    lv_obj_t* hidden_network_modal_ = nullptr;
+    helix::ui::WidgetRef hidden_network_modal_;
 
     // Password modal for secured networks
-    lv_obj_t* password_modal_ = nullptr;
+    helix::ui::WidgetRef password_modal_;
 
     friend class NetworkSettingsOverlayTestAccess;
 
@@ -340,9 +342,6 @@ class NetworkSettingsOverlay : public OverlayBase {
     void hide_password_modal();
 
     // Password modal callbacks
-    /// Nulls whichever cached modal pointer matches the object being destroyed,
-    /// including destruction this class does not drive itself (#1341).
-    static void on_modal_deleted(lv_event_t* e);
     static void on_wifi_password_cancel(lv_event_t* e);
     static void on_wifi_password_connect(lv_event_t* e);
     void handle_password_cancel_clicked();

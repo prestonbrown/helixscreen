@@ -5,13 +5,11 @@
  * @file test_network_settings_modal_lifetime.cpp
  * @brief #1341 — cached modal pointers must not outlive their modal.
  *
- * NetworkSettingsOverlay caches raw lv_obj_t* for its three modals and its
- * async WiFi callbacks null-check those pointers before walking them with
- * lv_obj_find_by_name(). The overlay nulls each pointer for the dismissals it
- * drives itself, but a modal closed by the modal system (back gesture,
- * ModalStack unwinding) left a dangling NON-NULL pointer, so the null check
- * passed and the walk went into freed memory — SIGBUS on the AD5X's MIPS core,
- * silent corruption elsewhere.
+ * NetworkSettingsOverlay caches its three modals and the network test's step
+ * widget, and its async WiFi callbacks null-check them before walking them
+ * with lv_obj_find_by_name(). A modal closed by the modal system (back gesture,
+ * ModalStack unwinding) rather than by the overlay must still leave a null
+ * behind, or the null check passes and the walk goes into freed memory.
  *
  * The lifetime token those callbacks already carry cannot cover this: it guards
  * the overlay, which is a singleton that outlives every modal it opens.
@@ -35,11 +33,11 @@ class NetworkModalLifetimeFixture : public LVGLTestFixture {
         return get_network_settings_overlay();
     }
 
-    /// A stand-in for a modal: a real screen child, watched by the real handler.
+    /// A stand-in for a modal: a real screen child. Assigning it to one of the
+    /// overlay's handles is what arms the delete watch.
     lv_obj_t* make_watched_modal() {
         lv_obj_t* modal = lv_obj_create(lv_screen_active());
         REQUIRE(modal != nullptr);
-        Access::watch(overlay(), modal);
         return modal;
     }
 };
@@ -100,7 +98,6 @@ TEST_CASE_METHOD(NetworkModalLifetimeFixture, "A step widget dies with the modal
     lv_obj_t* modal = make_watched_modal();
     lv_obj_t* container = lv_obj_create(modal);
     lv_obj_t* widget = lv_obj_create(container);
-    Access::watch(overlay(), widget);
     Access::test_modal(overlay()) = modal;
     Access::step_widget(overlay()) = widget;
 
@@ -112,8 +109,7 @@ TEST_CASE_METHOD(NetworkModalLifetimeFixture, "A step widget dies with the modal
 
 TEST_CASE_METHOD(NetworkModalLifetimeFixture, "A dying modal clears only its own cached pointer",
                  "[network_settings][modal_lifetime][1341]") {
-    // All three pointers share one handler, so a careless implementation could
-    // null whichever slot it looked at first.
+    // Each handle must clear only when its own modal dies.
     lv_obj_t* password = make_watched_modal();
     lv_obj_t* hidden = make_watched_modal();
     Access::password_modal(overlay()) = password;
