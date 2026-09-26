@@ -546,7 +546,11 @@ bool FilamentSensorManager::is_filament_detected(FilamentSensorRole role) const 
         return false;
     }
 
-    const auto* config = find_config_by_role(role);
+    // Presence question, not a runout decision: the pre-print check and the
+    // load/unload buttons want to know whether filament is physically there,
+    // and a firmware stand-down (SET_FILAMENT_SENSOR ENABLE=0) leaves the
+    // reading live. Runout alerting uses monitors_runout() instead.
+    const auto* config = find_monitoring_config_by_role(role);
     if (!config || !config->enabled) {
         return false;
     }
@@ -566,7 +570,9 @@ bool FilamentSensorManager::is_sensor_available(FilamentSensorRole role) const {
         return false;
     }
 
-    const auto* config = find_config_by_role(role);
+    // Same presence split as is_filament_detected: the sensor must exist and
+    // be user-enabled, but a firmware stand-down does not hide it.
+    const auto* config = find_monitoring_config_by_role(role);
     if (!config || !config->enabled) {
         return false;
     }
@@ -607,7 +613,7 @@ bool FilamentSensorManager::has_any_runout() const {
     }
 
     for (const auto& sensor : sensors_) {
-        if (!sensor.enabled || sensor.role == FilamentSensorRole::NONE) {
+        if (!monitors_runout(sensor)) {
             spdlog::trace(
                 "[FilamentSensorManager] has_any_runout: skipping {} (enabled={}, role={})",
                 sensor.sensor_name, sensor.enabled, role_to_config_string(sensor.role));
@@ -671,7 +677,7 @@ bool FilamentSensorManager::has_real_runout() const {
         }
 
         for (const auto& sensor : sensors_) {
-            if (!sensor.enabled || sensor.role == FilamentSensorRole::NONE) {
+            if (!monitors_runout(sensor)) {
                 continue;
             }
 
@@ -756,10 +762,11 @@ FilamentSensorManager::scan_required_lanes(const std::set<int>& tools_used,
         return scan;
     }
 
-    // Runout protection state. find_config_by_role returns the first RUNOUT
-    // sensor; on multi-lane (Snapmaker) all four share the role, so any one
-    // gating works for the "is runout protection active" question.
-    const auto* runout_cfg = find_config_by_role(FilamentSensorRole::RUNOUT);
+    // Runout protection state. The monitoring pick returns the first RUNOUT
+    // sensor the firmware is running; on multi-lane (Snapmaker) all four share
+    // the role, so any one gating works for the "is runout protection active"
+    // question.
+    const auto* runout_cfg = find_monitoring_config_by_role(FilamentSensorRole::RUNOUT);
     scan.runout_configured = (runout_cfg != nullptr);
     if (!runout_cfg) {
         return scan;
@@ -775,8 +782,10 @@ FilamentSensorManager::scan_required_lanes(const std::set<int>& tools_used,
     if (!scan.backend) {
         // No lane truth — capture the aggregate runout sensor reading so the
         // caller can fall back to the unscoped behavior (non-AMS printers).
+        // A sensor the firmware stood down has no reading worth falling back
+        // to (Klipper is not acting on it), so it leaves the badge hidden.
         if (auto it = states_.find(runout_cfg->klipper_name);
-            it != states_.end() && it->second.available) {
+            it != states_.end() && it->second.available && it->second.enabled) {
             scan.sensor_available = true;
             scan.aggregate_detected = it->second.filament_detected;
         }
@@ -1021,10 +1030,16 @@ void FilamentSensorManager::update_from_status(const json& status) {
             if (auto it = sensor_data.find("enabled");
                 it != sensor_data.end() && it->is_boolean()) {
                 state.enabled = it->get<bool>();
+                // A stand-down/stand-up with filament_detected unchanged is
+                // still a subject-level change: the runout badge mutes or
+                // unmutes with the firmware flag.
+                if (state.enabled != old_state.enabled) {
+                    any_changed = true;
+                }
                 // Honest armed-set bookkeeping: a sensor we armed for bypass
                 // that the firmware now reports disabled was stood down by
                 // someone else (vendor macros toggle this sensor around their
-                // own operations) — we no longer own its state, so a later
+                // own operations), so we no longer own its state and a later
                 // bypass disengage must not send a restore for it.
                 if (!state.enabled) {
                     auto armed_it =
@@ -1053,7 +1068,7 @@ void FilamentSensorManager::update_from_status(const json& status) {
 
                 // Log at WARN if this is a runout (filament gone) on an active sensor
                 if (!state.filament_detected && sensor.role != FilamentSensorRole::NONE &&
-                    sensor.enabled) {
+                    sensor.enabled && state.enabled) {
                     spdlog::warn("[FilamentSensorManager] RUNOUT: {} ({}) filament gone",
                                  sensor.sensor_name, role_to_config_string(sensor.role));
                 } else {
@@ -1093,10 +1108,18 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 // this same edge (ui_manual_pull_prompt.cpp) is a separate,
                 // deliberately-armed INFO and is untouched here.
                 const bool post_unload_removal = !state.filament_detected && post_unload_grace;
+                // A sensor the firmware stood down (or just stood up) does not
+                // announce edges: the change happened outside its monitoring
+                // window, so we did not observe it. Re-enabling a sensor that
+                // reads empty IS a runout for the decision queries (Klipper
+                // resumes acting on it), but the removal itself was not seen,
+                // so no "filament removed" toast for it.
+                const bool observed_while_monitoring = old_state.enabled && state.enabled;
                 notif.should_toast = !within_grace_period && !is_wizard_active() && !ams_active &&
                                      !ad5x_idle_unload && !post_unload_removal &&
                                      !runout_surface_owned_during_job && master_enabled_ &&
-                                     sensor.enabled && sensor.role != FilamentSensorRole::NONE;
+                                     observed_while_monitoring && sensor.enabled &&
+                                     sensor.role != FilamentSensorRole::NONE;
                 // A removal that owes a dwell is recorded, not announced. A
                 // refill inside the dwell drops the record and silences the
                 // insertion with it: nothing was said, so nothing needs saying.
@@ -1178,8 +1201,14 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 std::find_if(sensors_.begin(), sensors_.end(), [&](const FilamentSensorConfig& s) {
                     return s.klipper_name == it->first;
                 });
-            if (cfg != sensors_.end() && master_enabled_ && cfg->enabled &&
-                cfg->role != FilamentSensorRole::NONE) {
+            if (state_it != states_.end() && !state_it->second.enabled) {
+                // Stood down mid-dwell: the sensor stopped monitoring, so the
+                // removal it was confirming is no longer ours to announce.
+                spdlog::debug("[FilamentSensorManager] Dropping dwell toast for {} - firmware "
+                              "stood the sensor down",
+                              it->first);
+            } else if (cfg != sensors_.end() && master_enabled_ && cfg->enabled &&
+                       cfg->role != FilamentSensorRole::NONE) {
                 dwell_expired_removals.push_back(cfg->role);
                 spdlog::warn("[FilamentSensorManager] RUNOUT CONFIRMED: {} ({}) still clear "
                              "after {}s",
@@ -1368,6 +1397,32 @@ FilamentSensorManager::find_config_by_role(FilamentSensorRole role) const {
     return nullptr;
 }
 
+bool FilamentSensorManager::monitors_runout(const FilamentSensorConfig& config) const {
+    if (!config.enabled || config.role == FilamentSensorRole::NONE) {
+        return false;
+    }
+    auto it = states_.find(config.klipper_name);
+    return it != states_.end() && it->second.enabled;
+}
+
+const FilamentSensorConfig*
+FilamentSensorManager::find_monitoring_config_by_role(FilamentSensorRole role) const {
+    const FilamentSensorConfig* fallback = nullptr;
+    for (const auto& sensor : sensors_) {
+        if (sensor.role != role) {
+            continue;
+        }
+        if (!fallback) {
+            fallback = &sensor;
+        }
+        auto it = states_.find(sensor.klipper_name);
+        if (it != states_.end() && it->second.enabled) {
+            return &sensor;
+        }
+    }
+    return fallback;
+}
+
 void FilamentSensorManager::update_subjects() {
     if (!subjects_initialized_) {
         return;
@@ -1376,7 +1431,11 @@ void FilamentSensorManager::update_subjects() {
     // Helper to get subject value for a role. See init_subjects() for the
     // -1/0/1/2 encoding rationale.
     auto get_role_value = [this](FilamentSensorRole role) -> int {
-        const auto* config = find_config_by_role(role);
+        // The monitoring pick skips sensors the firmware stood down: with
+        // several sensors sharing a role (multi-head hardware), a stood-down
+        // parked head must not speak for the role while the running head
+        // reports filament.
+        const auto* config = find_monitoring_config_by_role(role);
         if (!config) {
             return -1; // No sensor configured for this role — hide
         }
@@ -1394,6 +1453,10 @@ void FilamentSensorManager::update_subjects() {
                        // as user-disabled; treat as no-opinion)
         }
 
+        // When every holder is stood down the fallback holder's live reading
+        // shows: the subject is the sensor tile's display, and a firmware
+        // stand-down is not a user-visible "protection off" state. Runout
+        // decisions do not read this value; they ask monitors_runout().
         return it->second.filament_detected ? 1 : 0;
     };
 

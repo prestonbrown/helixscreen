@@ -312,6 +312,11 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
     /**
      * @brief Check if filament is detected for a given role
      *
+     * Presence query, not a runout decision: a sensor the firmware stood down
+     * (SET_FILAMENT_SENSOR ENABLE=0) still reports and is still read. With
+     * several holders of the role the firmware-running one is preferred, then
+     * the first holder. Runout alerting is gated separately (monitors_runout).
+     *
      * Returns false if master disabled, sensor disabled, or no sensor assigned to role.
      *
      * @param role The sensor role to check
@@ -321,6 +326,9 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
 
     /**
      * @brief Check if a sensor is available (exists and enabled)
+     *
+     * Same presence split as is_filament_detected: a firmware stand-down does
+     * not make the sensor unavailable.
      *
      * @param role The sensor role to check
      * @return true if sensor exists, is enabled, and is available in Klipper
@@ -591,6 +599,28 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
      * @return Pointer to config, or nullptr if no sensor has this role
      */
     const FilamentSensorConfig* find_config_by_role(FilamentSensorRole role) const;
+
+    /**
+     * @brief Whether this sensor's reading counts for runout/presence decisions
+     *
+     * One rule shared by every runout consumer: the user's config enables the
+     * sensor, it holds a role, and the firmware is running it. Klipper keeps
+     * reporting filament_detected for a sensor stood down with
+     * SET_FILAMENT_SENSOR ENABLE=0 but takes no runout action of its own, so
+     * neither do we. The state default is enabled=true, so a sensor that has
+     * never reported the field counts as running. Caller MUST hold mutex_.
+     */
+    [[nodiscard]] bool monitors_runout(const FilamentSensorConfig& config) const;
+
+    /**
+     * @brief First holder of @p role the firmware is running
+     *
+     * When every holder of the role is stood down, the first holder is
+     * returned anyway, so a caller can still tell "configured but not
+     * running" from "no sensor holds this role". Caller MUST hold mutex_.
+     */
+    [[nodiscard]] const FilamentSensorConfig*
+    find_monitoring_config_by_role(FilamentSensorRole role) const;
 
     /// Result of one scoped lane scan — shared by find_empty_required_lanes()
     /// and compute_scoped_runout_value() (dedups config lookup + backend fetch +

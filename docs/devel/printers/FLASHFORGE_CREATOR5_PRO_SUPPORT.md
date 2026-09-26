@@ -224,7 +224,9 @@ Each item below says whether it is done or still open.
 8. **Init** (open): no systemd; the stock stack is started from BusyBox init scripts. An
    init.d script modeled on the AD5X/ZMOD `S80guppyscreen` pattern is the likely shape.
 9. **Runout on an empty docked head** (open): the preset ships `fd_ex0..3` with role
-   `"none"`, runout disabled. `FilamentSensorManager#lane_index_for_sensor` maps only
-   `e<N>_filament` names to a head, so an fd_ex sensor with the runout role counts any
-   empty docked head as filament loss and raises the runout guidance. Giving them the
-   runout role needs hardware verification of what the switches actually report.
+   `"none"`, runout disabled. A sensor the firmware holds disabled does not count as a
+   runout (#1714), so parked heads are safe as long as the firmware stands them down;
+   `FilamentSensorManager#lane_index_for_sensor` still maps only `e<N>_filament` names to a
+   head, though, so an *enabled* fd_ex sensor with the runout role counts an empty docked
+   head as filament loss. Giving them the runout role needs hardware verification of what
+   the switches actually report and which heads the firmware enables.
