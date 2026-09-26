@@ -312,6 +312,11 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
     /**
      * @brief Check if filament is detected for a given role
      *
+     * Presence query, not a runout decision: a sensor the firmware stood down
+     * (SET_FILAMENT_SENSOR ENABLE=0) still reports and is still read. With
+     * several holders of the role the firmware-running one is preferred, then
+     * the first holder. Runout alerting is gated separately (monitors_runout).
+     *
      * Returns false if master disabled, sensor disabled, or no sensor assigned to role.
      *
      * @param role The sensor role to check
@@ -321,6 +326,9 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
 
     /**
      * @brief Check if a sensor is available (exists and enabled)
+     *
+     * Same presence split as is_filament_detected: a firmware stand-down does
+     * not make the sensor unavailable.
      *
      * @param role The sensor role to check
      * @return true if sensor exists, is enabled, and is available in Klipper

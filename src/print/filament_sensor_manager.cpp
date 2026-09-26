@@ -546,8 +546,12 @@ bool FilamentSensorManager::is_filament_detected(FilamentSensorRole role) const 
         return false;
     }
 
-    const auto* config = find_config_by_role(role);
-    if (!config || !monitors_runout(*config)) {
+    // Presence question, not a runout decision: the pre-print check and the
+    // load/unload buttons want to know whether filament is physically there,
+    // and a firmware stand-down (SET_FILAMENT_SENSOR ENABLE=0) leaves the
+    // reading live. Runout alerting uses monitors_runout() instead.
+    const auto* config = find_monitoring_config_by_role(role);
+    if (!config || !config->enabled) {
         return false;
     }
 
@@ -566,8 +570,10 @@ bool FilamentSensorManager::is_sensor_available(FilamentSensorRole role) const {
         return false;
     }
 
-    const auto* config = find_config_by_role(role);
-    if (!config || !monitors_runout(*config)) {
+    // Same presence split as is_filament_detected: the sensor must exist and
+    // be user-enabled, but a firmware stand-down does not hide it.
+    const auto* config = find_monitoring_config_by_role(role);
+    if (!config || !config->enabled) {
         return false;
     }
 

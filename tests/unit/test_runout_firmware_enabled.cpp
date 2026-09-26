@@ -8,10 +8,12 @@
  * Klipper's filament_switch_sensor / filament_motion_sensor status carries
  * `enabled` (SET_FILAMENT_SENSOR ENABLE=0/1). A stood-down sensor still
  * reports filament_detected live but takes no runout action of its own, so
- * no HelixScreen runout decision may act on its reading either. The concrete
- * shape: multi-tool hardware (FlashForge Creator 5 on Z-Mod, fd_ex0..3) where
- * the firmware enables only the active head's sensor and the parked heads
- * read empty.
+ * no HelixScreen runout ALERT may act on its reading; presence queries
+ * (is_filament_detected / is_sensor_available) keep reading it, because the
+ * pre-print check and the load/unload buttons ask whether filament is
+ * physically there. The concrete shape: multi-tool hardware (FlashForge
+ * Creator 5 on Z-Mod, fd_ex0..3) where the firmware enables only the active
+ * head's sensor and the parked heads read empty.
  */
 
 #include "ui_update_queue.h"
@@ -97,9 +99,10 @@ class FirmwareEnabledFixture : public LVGLTestFixture {
         AmsState::instance().clear_backends();
     }
 
-    /// Discover @p klipper names and give every sensor the RUNOUT role, the
-    /// way a preset/settings.json restore does (no single-RUNOUT exclusivity).
-    void seed_runout_sensors(std::initializer_list<const char*> klipper_names) {
+    /// Discover @p klipper names and give every sensor @p role, the way a
+    /// preset/settings.json restore does (no single-RUNOUT exclusivity).
+    void seed_sensors(std::initializer_list<const char*> klipper_names,
+                      FilamentSensorRole role = FilamentSensorRole::RUNOUT) {
         std::vector<std::string> names;
         names.reserve(klipper_names.size());
         for (const char* name : klipper_names) {
@@ -107,7 +110,7 @@ class FirmwareEnabledFixture : public LVGLTestFixture {
         }
         fsm.discover_sensors(names);
         for (const auto& name : names) {
-            PostUnloadGraceTestAccess::force_role(fsm, name, FilamentSensorRole::RUNOUT);
+            PostUnloadGraceTestAccess::force_role(fsm, name, role);
         }
         PostUnloadGraceTestAccess::clear_startup_grace(fsm);
     }
@@ -123,7 +126,7 @@ class FirmwareEnabledFixture : public LVGLTestFixture {
 TEST_CASE_METHOD(FirmwareEnabledFixture,
                  "stood-down empty runout sensor raises no runout; re-enabled it does",
                  "[runout][1714]") {
-    seed_runout_sensors({HEAD0});
+    seed_sensors({HEAD0});
 
     // Firmware disabled the sensor and it reads empty (a parked head).
     feed(sensor_frame(HEAD0, false, false));
@@ -139,7 +142,7 @@ TEST_CASE_METHOD(FirmwareEnabledFixture,
 
 TEST_CASE_METHOD(FirmwareEnabledFixture, "a sensor that never reported enabled counts as running",
                  "[runout][1714]") {
-    seed_runout_sensors({HEAD0});
+    seed_sensors({HEAD0});
 
     // No `enabled` field in any frame (older Moonraker / object without it):
     // the state default (enabled=true) must keep the sensor in the decision.
@@ -150,7 +153,7 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "a sensor that never reported enabled c
 
 TEST_CASE_METHOD(FirmwareEnabledFixture,
                  "delta frame without enabled keeps the prior firmware state", "[runout][1714]") {
-    seed_runout_sensors({HEAD0});
+    seed_sensors({HEAD0});
 
     feed(sensor_frame(HEAD0, true, false));         // stood down, filament present
     feed(sensor_frame(HEAD0, false, std::nullopt)); // delta: detected only
@@ -163,7 +166,7 @@ TEST_CASE_METHOD(FirmwareEnabledFixture,
 
 TEST_CASE_METHOD(FirmwareEnabledFixture, "two runout sensors: only the running one counts",
                  "[runout][1714]") {
-    seed_runout_sensors({HEAD0, HEAD1});
+    seed_sensors({HEAD0, HEAD1});
 
     // Head 0 stood down and empty, head 1 running and present -> no runout.
     feed(sensor_frame(HEAD0, false, false));
@@ -186,7 +189,7 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "two runout sensors: only the running o
 TEST_CASE_METHOD(FirmwareEnabledFixture,
                  "runout subject speaks for the running sensor, falls back to the first holder",
                  "[runout][1714][subject]") {
-    seed_runout_sensors({HEAD0, HEAD1});
+    seed_sensors({HEAD0, HEAD1});
 
     // First RUNOUT sensor stood down and EMPTY; second running and present.
     // The subject must report the running head (1 = loaded), not the parked
@@ -212,10 +215,11 @@ TEST_CASE_METHOD(FirmwareEnabledFixture,
     CHECK_FALSE(fsm.has_real_runout());
 }
 
-TEST_CASE_METHOD(FirmwareEnabledFixture,
-                 "pre-print gate: stood-down runout sensor raises no warning",
-                 "[runout][1714][print-start]") {
-    seed_runout_sensors({HEAD0});
+TEST_CASE_METHOD(
+    FirmwareEnabledFixture,
+    "pre-print gate still warns on a stood-down empty sensor; runout alerts stay silent",
+    "[runout][1714][print-start]") {
+    seed_sensors({HEAD0});
 
     // The same three levers ui_print_start_controller gathers from the manager.
     auto gather_runout_ctx = [this] {
@@ -231,24 +235,60 @@ TEST_CASE_METHOD(FirmwareEnabledFixture,
     });
     REQUIRE(gate_it != gates.end());
 
-    // Stood down and empty: unavailable for the runout question -> Pass.
+    // Stood down and empty: the presence queries still read the sensor (the
+    // pre-print check runs between PRINT_END's ENABLE=0 and PRINT_START's
+    // ENABLE=1), so the gate warns "No Filament Detected" as it always did.
+    // Only the runout ALERT path ignores the reading.
     feed(sensor_frame(HEAD0, false, false));
     auto ctx = gather_runout_ctx();
     REQUIRE(ctx.runout_enabled);
-    REQUIRE_FALSE(ctx.runout_available);
-    CHECK(gate_it->evaluate(ctx).verdict == CheckResult::Verdict::Pass);
+    REQUIRE(ctx.runout_available);
+    REQUIRE_FALSE(ctx.runout_detected);
+    CHECK(gate_it->evaluate(ctx).verdict == CheckResult::Verdict::Warn);
+    CHECK_FALSE(fsm.has_any_runout());
+    CHECK_FALSE(fsm.has_real_runout());
 
-    // Control: running and empty -> the gate still warns.
+    // Control: running and empty -> the same warning.
     feed(sensor_frame(HEAD0, false, true));
     ctx = gather_runout_ctx();
     REQUIRE(ctx.runout_available);
     REQUIRE_FALSE(ctx.runout_detected);
     CHECK(gate_it->evaluate(ctx).verdict == CheckResult::Verdict::Warn);
+    CHECK(fsm.has_any_runout());
+}
+
+TEST_CASE_METHOD(FirmwareEnabledFixture, "toolhead presence reads a firmware-disabled sensor",
+                 "[runout][1714][sensors]") {
+    seed_sensors({HEAD0}, FilamentSensorRole::TOOLHEAD);
+
+    // The load/unload buttons gate on toolhead presence; a firmware
+    // stand-down must not make the toolhead look empty or absent.
+    feed(sensor_frame(HEAD0, true, false));
+    CHECK(fsm.is_sensor_available(FilamentSensorRole::TOOLHEAD));
+    CHECK(fsm.is_filament_detected(FilamentSensorRole::TOOLHEAD));
+
+    // The empty reading flows through the same way.
+    feed(sensor_frame(HEAD0, false, false));
+    CHECK(fsm.is_sensor_available(FilamentSensorRole::TOOLHEAD));
+    CHECK_FALSE(fsm.is_filament_detected(FilamentSensorRole::TOOLHEAD));
+}
+
+TEST_CASE_METHOD(FirmwareEnabledFixture,
+                 "presence reads the running holder when the first is stood down",
+                 "[runout][1714][sensors]") {
+    seed_sensors({HEAD0, HEAD1});
+
+    // First holder stood down and empty, second running and present: the
+    // presence queries must read the running head, not the parked one.
+    feed(sensor_frame(HEAD0, false, false));
+    feed(sensor_frame(HEAD1, true, true));
+    CHECK(fsm.is_sensor_available(FilamentSensorRole::RUNOUT));
+    CHECK(fsm.is_filament_detected(FilamentSensorRole::RUNOUT));
 }
 
 TEST_CASE_METHOD(FirmwareEnabledFixture, "no removal toast for an edge on a stood-down sensor",
                  "[runout][1714][toast]") {
-    seed_runout_sensors({HEAD0});
+    seed_sensors({HEAD0});
     feed(sensor_frame(HEAD0, true, true));
     REQUIRE_FALSE(fsm.is_in_startup_grace_period());
     REQUIRE_FALSE(is_wizard_active());
