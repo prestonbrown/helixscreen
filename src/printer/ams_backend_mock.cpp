@@ -460,7 +460,7 @@ AmsSystemInfo AmsBackendMock::get_system_info() const {
         return system_info_;
     }
 
-    // Build slot data from registry, then overlay non-slot metadata.
+    // Slot data comes from the registry, everything else from system_info_.
     //
     // BOTH tool-map directions come from build_system_info() — SlotInfo::mapped_tool
     // per slot and AmsSystemInfo::tool_to_slot_map — and nothing below overwrites
@@ -468,57 +468,7 @@ AmsSystemInfo AmsBackendMock::get_system_info() const {
     // struct that the mock maintains: any mode setup that writes it is writing to
     // a value no reader ever sees. Route mapping through slots_.set_tool_map() /
     // slots_.set_tool_mapping() instead, which keeps the two directions in step.
-    auto info = slots_.build_system_info();
-
-    // Copy system-level fields not managed by registry
-    info.type = system_info_.type;
-    info.type_name = system_info_.type_name;
-    info.version = system_info_.version;
-    info.action = system_info_.action;
-    info.operation_detail = system_info_.operation_detail;
-    info.current_slot = system_info_.current_slot;
-    info.current_tool = system_info_.current_tool;
-    info.pending_target_slot = system_info_.pending_target_slot;
-    info.current_toolchange = system_info_.current_toolchange;
-    info.number_of_toolchanges = system_info_.number_of_toolchanges;
-    info.filament_loaded = system_info_.filament_loaded;
-    info.endless_spool_enabled = system_info_.endless_spool_enabled;
-    info.supports_bypass = system_info_.supports_bypass;
-    info.has_hardware_bypass_sensor = system_info_.has_hardware_bypass_sensor;
-    info.tip_method = system_info_.tip_method;
-    info.supports_purge = system_info_.supports_purge;
-
-    // Copy unit-level metadata not managed by registry
-    for (size_t u = 0; u < info.units.size() && u < system_info_.units.size(); ++u) {
-        info.units[u].name = system_info_.units[u].name;
-        // display_name was missing here while AmsBackendAfc copied it, so every
-        // mock profile that set one (htlf, torture) fell back to the internal
-        // name in the UI.
-        info.units[u].display_name = system_info_.units[u].display_name;
-        info.units[u].connected = system_info_.units[u].connected;
-        info.units[u].has_hub_sensor = system_info_.units[u].has_hub_sensor;
-        info.units[u].hub_sensor_triggered = system_info_.units[u].hub_sensor_triggered;
-        info.units[u].buffer_health = system_info_.units[u].buffer_health;
-        info.units[u].topology = system_info_.units[u].topology;
-        info.units[u].lane_is_hub_routed = system_info_.units[u].lane_is_hub_routed;
-        info.units[u].hub_tool_label = system_info_.units[u].hub_tool_label;
-        info.units[u].has_encoder = system_info_.units[u].has_encoder;
-        info.units[u].has_toolhead_sensor = system_info_.units[u].has_toolhead_sensor;
-        info.units[u].has_slot_sensors = system_info_.units[u].has_slot_sensors;
-        info.units[u].firmware_version = system_info_.units[u].firmware_version;
-    }
-
-    // Copy clog detection / encoder / flowguard / sync feedback fields
-    info.clog_detection = system_info_.clog_detection;
-    info.encoder_flow_rate = system_info_.encoder_flow_rate;
-    info.encoder_info = system_info_.encoder_info;
-    info.flowguard_info = system_info_.flowguard_info;
-    info.sync_feedback_flow_rate = system_info_.sync_feedback_flow_rate;
-    info.sync_feedback_state = system_info_.sync_feedback_state;
-    info.sync_feedback_bias = system_info_.sync_feedback_bias;
-    info.sync_feedback_bias_raw = system_info_.sync_feedback_bias_raw;
-    info.espooler_state = system_info_.espooler_state;
-    info.sync_drive = system_info_.sync_drive;
+    auto info = slots_.build_system_info(system_info_);
 
     // Populate environment sensor data based on configured mode
     populate_environment_data(info);

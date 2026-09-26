@@ -121,7 +121,13 @@ class SlotRegistry {
     std::vector<int> backup_edges() const;
 
     // === Snapshot ===
-    AmsSystemInfo build_system_info() const;
+    /// @p base with the slot-owned fields replaced: total_slots,
+    /// tool_to_slot_map, and each unit's index, slot range and slots. Everything
+    /// else in @p base, unit metadata included, passes through untouched, so a
+    /// backend hands in its own system_info_ and no field has to be copied by
+    /// name. Units are the registry's: a base unit past the registry's count is
+    /// dropped, and a registry unit the base lacks takes the registry's name.
+    AmsSystemInfo build_system_info(AmsSystemInfo base = {}) const;
 
     // === Lifecycle ===
     bool is_initialized() const;
