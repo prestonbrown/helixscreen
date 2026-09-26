@@ -66,13 +66,13 @@ TEST_CASE_METHOD(XMLTestFixture, "A rising breakpoint registers the font tiers s
     CHECK(AssetManager::registered_font_tier() == to_int(UiBreakpoint::XXLarge));
 
     // Only the *additional* tiers, not the whole table again. The four gates
-    // above SMALL contribute 3 (medium) + 4 (large) + 5 (xlarge) + 13 (xxlarge)
+    // above SMALL contribute 4 (medium) + 4 (large) + 5 (xlarge) + 13 (xxlarge)
     // faces; update this number when a tier gains or loses a face.
     //
     // xxlarge went 7 -> 13 with the six high-DPI rungs (noto_sans_48/64,
     // bold_48/64, light_32/40) that the UI scale factor steps up into.
 #if HELIX_MAX_FONT_TIER >= 6
-    CHECK(rise == 25);
+    CHECK(rise == 26);
 #else
     CHECK(rise > 0);
 #endif

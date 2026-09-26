@@ -11,7 +11,6 @@
 
 #include "app_globals.h"
 #include "config.h"
-#include "display_numbering.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -445,8 +444,9 @@ void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
     int tool_count = static_cast<int>(heaters.size());
     if (tool_target_ == -1) {
         NOTIFY_SUCCESS(lv_tr("Preheat: all {} tools + bed set"), tool_count);
-    } else {
-        NOTIFY_SUCCESS(lv_tr("Preheat: {} + bed set"), helix::ui::tool_label(tool_target_));
+    } else if (tool_target_ < static_cast<int>(ToolState::instance().tools().size())) {
+        NOTIFY_SUCCESS(lv_tr("Preheat: {} + bed set"),
+                       ToolState::instance().tools()[tool_target_].display_label);
     }
 }
 

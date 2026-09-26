@@ -5,6 +5,8 @@
 
 #include "ui_modal.h"
 
+#include "macro_param_defaults.h"
+
 #include <functional>
 #include <map>
 #include <string>
@@ -55,6 +57,9 @@ struct MacroParamResult {
 /// Callback invoked when user confirms macro execution with parameters
 using MacroExecuteCallback = std::function<void(const MacroParamResult& result)>;
 
+/// Callback invoked when the user saves a macro's default parameters
+using MacroParamSaveCallback = std::function<void(const MacroParamDefaultRecord& record)>;
+
 /// Modal dialog that prompts for macro parameter values before execution.
 /// Dynamically creates labeled textarea fields for each detected parameter.
 class MacroParamModal : public Modal {
@@ -87,9 +92,20 @@ class MacroParamModal : public Modal {
     void show_for_unknown_params(lv_obj_t* parent, const std::string& macro_name,
                                  MacroExecuteCallback on_execute);
 
+    /// Show the modal in save mode: same field list as show_for_macro(),
+    /// prefilled with @p record's values, titled "Default Parameters", primary
+    /// button "Save", plus an "Ask for parameters" toggle below the fields.
+    /// Saving hands the filled record to @p on_save; the macro is NOT run.
+    /// KNOWN_PARAMS macros only - there is no field list to save otherwise.
+    void show_for_defaults(lv_obj_t* parent, const std::string& macro_name,
+                           const std::vector<MacroParam>& params,
+                           const MacroParamDefaultRecord& record, MacroParamSaveCallback on_save);
+
     // Static callbacks for button wiring
     static void run_cb(lv_event_t* e);
     static void cancel_cb(lv_event_t* e);
+    static void save_cb(lv_event_t* e);
+    static void ask_toggled_cb(lv_event_t* e);
 
   protected:
     void on_show() override;
@@ -103,15 +119,18 @@ class MacroParamModal : public Modal {
     std::vector<MacroParam> params_;
     std::map<std::string, std::string> prefill_; ///< Initial field text, by parameter name
     MacroExecuteCallback on_execute_;
+    MacroParamSaveCallback on_save_; ///< Save-mode primary action; runs nothing.
     /// textareas_[i] is params_[i]'s field, nullptr when it could not be built.
     std::vector<lv_obj_t*> textareas_;
     bool raw_mode_ = false;            ///< True when showing raw text input (UNKNOWN macros)
     lv_obj_t* raw_textarea_ = nullptr; ///< Textarea for raw param input
+    bool save_mode_ = false;           ///< True when editing saved defaults, not running.
 
     void show_common(lv_obj_t* parent);
     void dismiss();
     void populate_param_fields();
     MacroParamResult collect_values() const;
+    void on_save_clicked();
 
     static MacroParamModal* s_active_instance_;
 };

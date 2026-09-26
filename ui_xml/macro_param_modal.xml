@@ -13,7 +13,12 @@
             style_flex_cross_place="center" scrollable="false">
       <lv_obj height="content"
               flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false" flex_grow="1">
-        <text_heading name="modal_title" text="Run Macro" translation_tag="Run Macro"/>
+        <text_heading name="modal_title" text="Run Macro" translation_tag="Run Macro">
+          <bind_flag_if_eq subject="macro_param_modal_save_mode" flag="hidden" ref_value="1"/>
+        </text_heading>
+        <text_heading name="modal_title_save" text="Default Parameters" translation_tag="Default Parameters">
+          <bind_flag_if_eq subject="macro_param_modal_save_mode" flag="hidden" ref_value="0"/>
+        </text_heading>
         <text_muted name="modal_subtitle" text=""/>
       </lv_obj>
       <ui_button name="btn_close" width="40" height="40" icon="close" variant="ghost" focusable="false">
@@ -26,9 +31,27 @@
     <lv_obj name="param_list"
             width="100%" flex_grow="1" flex_flow="column" style_pad_all="#space_lg" style_pad_gap="#space_sm"
             scrollable="true"/>
-    <!-- Button row — always pinned at bottom -->
-    <modal_button_row primary_text="Run"
-                      primary_callback="macro_param_modal_run_cb" secondary_text="Cancel"
-                      secondary_callback="macro_param_modal_cancel_cb"/>
+    <!-- Save mode only: the "Ask for parameters" toggle under the fields -->
+    <lv_obj name="save_extras"
+            width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="0" scrollable="false">
+      <bind_flag_if_eq subject="macro_param_modal_save_mode" flag="hidden" ref_value="0"/>
+      <divider_horizontal/>
+      <setting_toggle_row name="ask_row"
+                          label="Ask for parameters" label_tag="Ask for parameters"
+                          description="Off: runs with these values without asking"
+                          description_tag="Off: runs with these values without asking" subject="macro_param_modal_ask"
+                          callback="macro_param_modal_ask_cb"/>
+    </lv_obj>
+    <!-- Button rows — always pinned at bottom; save mode swaps Run for Save -->
+    <modal_button_row name="run_button_row"
+                      primary_text="Run" primary_callback="macro_param_modal_run_cb" secondary_text="Cancel"
+                      secondary_callback="macro_param_modal_cancel_cb">
+      <bind_flag_if_eq subject="macro_param_modal_save_mode" flag="hidden" ref_value="1"/>
+    </modal_button_row>
+    <modal_button_row name="save_button_row"
+                      primary_text="Save" primary_callback="macro_param_modal_save_cb" secondary_text="Cancel"
+                      secondary_callback="macro_param_modal_cancel_cb">
+      <bind_flag_if_eq subject="macro_param_modal_save_mode" flag="hidden" ref_value="0"/>
+    </modal_button_row>
   </view>
 </component>

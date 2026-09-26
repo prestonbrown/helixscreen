@@ -14,6 +14,7 @@
 #include "ui_notification.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_panel_bed_mesh.h"
+#include "ui_panel_calibration_pa.h"
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_panel_motion.h"
@@ -30,6 +31,7 @@
 #include "format_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_executor.h"
+#include "macro_param_defaults.h"
 #include "moonraker_api.h"
 #include "observer_factory.h"
 #include "operation_timeout_guard.h"
@@ -93,6 +95,7 @@ ControlsPanel::~ControlsPanel() {
     safe_delete_obj(motion_panel_);
     safe_delete_obj(fan_control_panel_);
     safe_delete_obj(bed_mesh_panel_);
+    safe_delete_obj(pa_cal_panel_);
     safe_delete_obj(zoffset_panel_);
     safe_delete_obj(screws_panel_);
     // Modal dialogs: ModalGuard handles cleanup automatically via RAII
@@ -260,6 +263,7 @@ void ControlsPanel::init_subjects() {
         {"on_calibration_bed_mesh", on_calibration_bed_mesh},
         {"on_calibration_zoffset", on_calibration_zoffset},
         {"on_calibration_tool_offsets", on_calibration_tool_offsets},
+        {"on_calibration_pa", on_calibration_pa},
         {"on_calibration_screws", on_calibration_screws},
         {"on_calibration_motors", on_calibration_motors},
 
@@ -1473,33 +1477,37 @@ void ControlsPanel::execute_macro(size_t index) {
         return;
     }
 
-    // Quick buttons never prompt for parameters, so the decision weighs only
-    // the Safety setting; the cached macro info goes unread on that path.
+    // Quick buttons never raise the param modal, so the decision weighs the
+    // Safety setting and the macro's saved defaults: a saved record rides along
+    // on the run, filtered to the declared names.
+    const auto& info = StandardMacros::instance().get(*slot);
+    const helix::CachedMacroInfo cached = helix::MacroParamCache::instance().get(info.get_macro());
     helix::MacroRunRequest run_req;
     run_req.prompt_for_params = false;
     run_req.confirm_plain_run =
         helix::SafetySettingsManager::instance().get_macro_require_confirmation();
-    if (helix::decide_macro_run(helix::CachedMacroInfo{}, run_req).action !=
-        helix::MacroRunAction::ConfirmRun) {
-        do_execute_macro(index);
+    run_req.saved_values = helix::MacroParamDefaults::instance().get(info.get_macro()).values;
+    const helix::MacroRunDecision decision = helix::decide_macro_run(cached, run_req);
+    if (decision.action != helix::MacroRunAction::ConfirmRun) {
+        do_execute_macro(index, decision.params);
         return;
     }
 
-    const auto& info = StandardMacros::instance().get(*slot);
     std::string msg = fmt::format(lv_tr("Run {}?"), info.translated_name());
     helix::ui::ConfirmOptions opts;
     opts.on_dismiss = [this] { macro_run_confirmation_dialog_.release(); };
     opts.owner_token = object_lifetime_.token();
     macro_run_confirmation_dialog_ = helix::ui::modal_confirm(
         lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
-        [this, index] {
+        [this, index, params = decision.params] {
             macro_run_confirmation_dialog_.release(); // the dialog closes itself
-            do_execute_macro(index);
+            do_execute_macro(index, params);
         },
         opts);
 }
 
-void ControlsPanel::do_execute_macro(size_t index) {
+void ControlsPanel::do_execute_macro(size_t index,
+                                     const std::map<std::string, std::string>& params) {
     const std::optional<StandardMacroSlot>* slots[] = {&macro_1_slot_, &macro_2_slot_,
                                                        &macro_3_slot_, &macro_4_slot_};
     if (index >= 4) {
@@ -1517,7 +1525,7 @@ void ControlsPanel::do_execute_macro(size_t index) {
 
     NOTIFY_INFO(lv_tr("Running {}..."), info.translated_name());
     if (!StandardMacros::instance().execute(
-            *slot, api_,
+            *slot, api_, params,
             [name = std::string(info.translated_name())]() {
                 NOTIFY_SUCCESS(lv_tr("{} complete"), name);
             },
@@ -1640,6 +1648,17 @@ void ControlsPanel::handle_calibration_tool_offsets() {
         "Tool Offset Calibration", get_name());
 }
 
+void ControlsPanel::handle_calibration_pa() {
+#if defined(HELIX_PLATFORM_ESP32)
+    helix::ui::show_feature_unavailable_toast();
+    return;
+#endif
+    helix::ui::get_global_pa_cal_panel().set_api(get_moonraker_api());
+    helix::ui::lazy_create_and_push_overlay<helix::ui::PACalibrationPanel>(
+        helix::ui::get_global_pa_cal_panel, pa_cal_panel_, parent_screen_, "Pressure Advance",
+        get_name());
+}
+
 void ControlsPanel::handle_calibration_zoffset() {
 #if defined(HELIX_PLATFORM_ESP32)
     helix::ui::show_feature_unavailable_toast();
@@ -1689,6 +1708,7 @@ PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, chamber_target_edit)
 PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, calibration_bed_mesh)
 PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, calibration_zoffset)
 PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, calibration_tool_offsets)
+PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, calibration_pa)
 PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, calibration_screws)
 PANEL_TRAMPOLINE(ControlsPanel, get_global_controls_panel, calibration_motors)
 

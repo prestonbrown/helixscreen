@@ -336,38 +336,92 @@ bool is_dangerous_macro(const std::string& name, const PrinterDiscovery& hw) {
     return is_dangerous_macro(name) || hw.macro_restarts_host(name);
 }
 
+namespace {
+
+/// Params a plain run (no param modal) sends: the saved values overlaid by the
+/// caller's known_values — the computed one wins where both name a parameter —
+/// each filtered to the names this macro declares. Saved and known keys are
+/// spelled the way the macro declares them, so an exact-name match is the
+/// filter; undeclared names belong to some other macro's signature.
+std::map<std::string, std::string> plain_run_params(const CachedMacroInfo& cached,
+                                                    const MacroRunRequest& req) {
+    std::map<std::string, std::string> out;
+    if (cached.knowledge != MacroParamKnowledge::KNOWN_PARAMS) {
+        return out;
+    }
+    for (const auto& param : cached.params) {
+        if (auto it = req.saved_values.find(param.name); it != req.saved_values.end()) {
+            out.emplace(param.name, it->second);
+        }
+        if (auto it = req.known_values.find(param.name); it != req.known_values.end()) {
+            out.insert_or_assign(param.name, it->second);
+        }
+    }
+    return out;
+}
+
+} // namespace
+
 MacroRunDecision decide_macro_run(const CachedMacroInfo& cached, const MacroRunRequest& req) {
     if (req.dangerous && !req.dangerous_confirmed) {
         return {MacroRunAction::ConfirmDangerous, {}};
     }
 
     // A click that will raise no param modal - the caller never allows one, or
-    // the macro takes no parameters.
+    // the macro takes no parameters. A saved record rides along with the
+    // caller's known_values overlaid on it (both filtered to the declared
+    // names), so an ask-off filament load still heats with the temp the
+    // surface computed.
     if (!req.prompt_for_params || cached.knowledge == MacroParamKnowledge::KNOWN_NO_PARAMS) {
         // The dangerous-macro confirm already ran; a second "Run X?" on top of
-        // it would ask the same question twice.
+        // it would ask the same question twice. The confirmed run still sends
+        // the same params.
+        std::map<std::string, std::string> params = plain_run_params(cached, req);
         if (req.confirm_plain_run && !req.dangerous) {
-            return {MacroRunAction::ConfirmRun, {}};
+            return {MacroRunAction::ConfirmRun, std::move(params)};
         }
-        return {MacroRunAction::Run, {}};
+        return {MacroRunAction::Run, std::move(params)};
     }
 
     if (cached.knowledge == MacroParamKnowledge::KNOWN_PARAMS) {
         // Only names the macro declares can be prefilled; anything else in
-        // known_values belongs to some other macro's signature.
+        // known_values or saved_values belongs to some other macro's signature.
+        std::map<std::string, std::string> known;
         std::map<std::string, std::string> prefill;
         for (const auto& param : cached.params) {
             if (auto it = req.known_values.find(param.name); it != req.known_values.end()) {
+                known.emplace(param.name, it->second);
+                prefill.emplace(param.name, it->second); // caller-computed wins
+            } else if (auto it = req.saved_values.find(param.name); it != req.saved_values.end()) {
                 prefill.emplace(param.name, it->second);
             }
         }
-        if (prefill.size() == cached.params.size()) {
-            return {MacroRunAction::Run, std::move(prefill)};
+        // Saved values deliberately do not count toward this check: they
+        // prefill the modal, they never skip it.
+        if (known.size() == cached.params.size()) {
+            return {MacroRunAction::Run, std::move(known)};
         }
         return {MacroRunAction::Prompt, std::move(prefill)};
     }
 
     return {MacroRunAction::PromptUnknown, {}};
+}
+
+MacroParamResult macro_param_result_from_values(const std::vector<MacroParam>& params,
+                                                const std::map<std::string, std::string>& values) {
+    MacroParamResult result;
+    for (const auto& [name, value] : values) {
+        const std::string& key = name; // a structured binding is not capturable in C++17
+        const bool is_variable =
+            std::any_of(params.begin(), params.end(),
+                        [&](const MacroParam& p) { return p.name == key && p.is_variable; });
+        if (is_variable) {
+            result.variables[name] = value;
+        } else {
+            result.params[name] = value;
+        }
+    }
+    return result;
 }
 
 MacroHostEffect macro_host_effect(const std::string& name, const PrinterDiscovery& hw) {

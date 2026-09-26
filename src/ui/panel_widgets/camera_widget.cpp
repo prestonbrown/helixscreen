@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <utility>
 #include <vector>
 
 // Module-level subject for status text binding (static — shared across instances)
@@ -622,6 +623,10 @@ void CameraWidget::open_fullscreen() {
     if (!stream_) {
         return; // No URLs available
     }
+    show_fullscreen_overlay();
+}
+
+void CameraWidget::show_fullscreen_overlay() {
     // Only one fullscreen camera at a time across all instances
     if (s_fullscreen_owner) {
         return;
@@ -646,6 +651,7 @@ void CameraWidget::open_fullscreen() {
     fullscreen_image_ = lv_obj_find_by_name(overlay, "fullscreen_camera_image");
     fullscreen_spinner_ = lv_obj_find_by_name(overlay, "fullscreen_spinner");
     s_fullscreen_owner = this;
+    lv_obj_add_event_cb(overlay, on_fullscreen_overlay_deleted, LV_EVENT_DELETE, nullptr);
 
     if (fullscreen_image_) {
         lv_image_set_inner_align(fullscreen_image_, LV_IMAGE_ALIGN_COVER);
@@ -670,7 +676,11 @@ void CameraWidget::open_fullscreen() {
         }
         fullscreen_image_ = nullptr;
         fullscreen_spinner_ = nullptr;
-        s_fullscreen_owner = nullptr;
+        // A raw overlay delete frees the slot before this queued close runs, so
+        // another widget may own it by now.
+        if (s_fullscreen_owner == this) {
+            s_fullscreen_owner = nullptr;
+        }
 
         // Delete the overlay widget tree
         helix::ui::safe_delete_obj(fullscreen_overlay_);
@@ -699,6 +709,22 @@ void CameraWidget::open_fullscreen() {
     spdlog::info("[CameraWidget] Opened fullscreen camera");
 }
 
+void CameraWidget::on_fullscreen_overlay_deleted(lv_event_t* e) {
+    // Resolved through s_fullscreen_owner rather than user data: every
+    // deliberate close clears the owner before deleting the overlay, so only an
+    // unplanned delete reaches the body, and a widget destroyed first is never
+    // dereferenced.
+    CameraWidget* owner = s_fullscreen_owner;
+    if (!owner || owner->fullscreen_overlay_ != lv_event_get_target(e)) {
+        return;
+    }
+    owner->fullscreen_overlay_ = nullptr;
+    owner->fullscreen_image_ = nullptr;
+    owner->fullscreen_spinner_ = nullptr;
+    s_fullscreen_owner = nullptr;
+    spdlog::debug("[CameraWidget] Fullscreen overlay deleted without a close");
+}
+
 void CameraWidget::close_fullscreen() {
     if (!fullscreen_overlay_) {
         return;
@@ -722,6 +748,62 @@ struct StandaloneFullscreen {
 };
 
 static StandaloneFullscreen* s_standalone = nullptr;
+
+/// Tear down the standalone viewer: stream, image source, overlay and state.
+void close_standalone() {
+    if (!s_standalone)
+        return;
+
+    // Invalidate lifetime BEFORE clearing image src — queued frame deferrals
+    // become no-ops and won't reference freed draw buffers.
+    s_standalone->lifetime.invalidate();
+
+    // Clear image src and wait for any in-flight render before stop() frees
+    // the draw buffers the render thread may still be blending from (#749).
+    if (lv_is_initialized()) {
+        if (s_standalone->image) {
+            lv_image_set_src(s_standalone->image, nullptr);
+        }
+        lv_draw_wait_for_finish();
+    }
+
+    // Move the stream onto a background worker. CameraStream::stop() joins
+    // the stream thread with a 5s timeout; running it inline on the main
+    // thread freezes UI input.
+    std::unique_ptr<CameraStream> stream = std::move(s_standalone->stream);
+    if (stream) {
+        helix::http::HttpExecutor::fast().submit(
+            [stream = std::shared_ptr<CameraStream>(std::move(stream))]() mutable {
+                stream->stop();
+                if (stream->was_detached()) {
+                    spdlog::warn(
+                        "[CameraWidget] Standalone stream thread detached, leaking to avoid UAF");
+                    // Intentionally leak: thread still holds raw pointers
+                    (void)new std::shared_ptr<CameraStream>(stream);
+                }
+            });
+    }
+
+    // Taken out first: deleting it fires on_standalone_overlay_deleted(), which
+    // must see this close already under way.
+    lv_obj_t* overlay = std::exchange(s_standalone->overlay, nullptr);
+    helix::ui::safe_delete_obj(overlay);
+
+    delete s_standalone;
+    s_standalone = nullptr;
+    spdlog::debug("[CameraWidget] Standalone fullscreen closed");
+}
+
+/// A screen teardown frees the overlay without running the NavigationManager
+/// close callback, which would leave the stream writing frames into a freed
+/// image and every later open refused as already open (#1430).
+void on_standalone_overlay_deleted(lv_event_t* e) {
+    if (!s_standalone || s_standalone->overlay != lv_event_get_target(e)) {
+        return;
+    }
+    s_standalone->overlay = nullptr;
+    close_standalone();
+}
 
 } // namespace
 
@@ -823,45 +905,12 @@ void open_standalone_camera_fullscreen(lv_obj_t* parent_screen) {
         });
 
     NavigationManager::instance().register_overlay_instance(overlay, nullptr);
-    NavigationManager::instance().register_overlay_close_callback(overlay, []() {
-        if (!s_standalone)
-            return;
-
-        // Invalidate lifetime BEFORE clearing image src — queued frame deferrals
-        // become no-ops and won't reference freed draw buffers.
-        s_standalone->lifetime.invalidate();
-
-        // Clear image src and wait for any in-flight render before stop() frees
-        // the draw buffers the render thread may still be blending from (#749).
-        if (lv_is_initialized()) {
-            if (s_standalone->image) {
-                lv_image_set_src(s_standalone->image, nullptr);
-            }
-            lv_draw_wait_for_finish();
+    lv_obj_add_event_cb(overlay, on_standalone_overlay_deleted, LV_EVENT_DELETE, nullptr);
+    // The close is queued; a stale one must not shut a viewer opened since.
+    NavigationManager::instance().register_overlay_close_callback(overlay, [overlay]() {
+        if (s_standalone && s_standalone->overlay == overlay) {
+            close_standalone();
         }
-
-        // Move the stream onto a background worker. CameraStream::stop() joins
-        // the stream thread with a 5s timeout — running it inline on the main
-        // thread freezes UI input (the close button looked unresponsive #957-ish).
-        std::unique_ptr<CameraStream> stream = std::move(s_standalone->stream);
-        if (stream) {
-            helix::http::HttpExecutor::fast().submit([stream = std::shared_ptr<CameraStream>(
-                                                          std::move(stream))]() mutable {
-                stream->stop();
-                if (stream->was_detached()) {
-                    spdlog::warn(
-                        "[CameraWidget] Standalone stream thread detached, leaking to avoid UAF");
-                    // Intentionally leak: thread still holds raw pointers
-                    (void)new std::shared_ptr<CameraStream>(stream);
-                }
-            });
-        }
-
-        helix::ui::safe_delete_obj(s_standalone->overlay);
-
-        delete s_standalone;
-        s_standalone = nullptr;
-        spdlog::debug("[CameraWidget] Standalone fullscreen closed");
     });
 
     // Same width-unmanaged marking as CameraWidget::open_fullscreen(): this is
@@ -885,6 +934,7 @@ void CameraWidget::destroy_fullscreen() {
         lv_image_set_src(fullscreen_image_, nullptr);
     }
     fullscreen_image_ = nullptr;
+    fullscreen_spinner_ = nullptr;
     s_fullscreen_owner = nullptr;
 
     NavigationManager::instance().unregister_overlay_close_callback(fullscreen_overlay_);

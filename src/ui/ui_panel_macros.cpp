@@ -20,6 +20,7 @@
 #include "macro_edit_logic.h"
 #include "macro_executor.h"
 #include "macro_param_cache.h"
+#include "macro_param_defaults.h"
 #include "moonraker_client.h"
 #include "observer_factory.h"
 #include "printer_state.h"
@@ -109,6 +110,7 @@ void MacrosPanel::register_callbacks() {
 
     lv_xml_register_event_cb(nullptr, "on_macro_row_clicked", on_macro_row_clicked);
     lv_xml_register_event_cb(nullptr, "on_macro_card_long_press", on_macro_card_long_press);
+    lv_xml_register_event_cb(nullptr, "on_macro_defaults_clicked", on_macro_defaults_clicked);
     lv_xml_register_event_cb(nullptr, "on_macros_edit_save", on_macros_edit_save);
     lv_xml_register_event_cb(nullptr, "on_macros_back_clicked", on_macros_back_clicked);
 
@@ -205,6 +207,7 @@ void MacrosPanel::on_ui_destroyed() {
     visible_pool_.reclaim();
     desc_hidden_pool_.reclaim();
     chevron_hidden_pool_.reclaim();
+    defaults_hidden_pool_.reclaim();
 }
 
 // ============================================================================
@@ -245,12 +248,13 @@ void MacrosPanel::rebuild_rows() {
 
     const size_t n = displayed_.size();
 
-    // Grow all five pools before setting any values (grow-only within session).
+    // Grow all six pools before setting any values (grow-only within session).
     name_pool_.ensure_size(n);
     desc_pool_.ensure_size(n);
     visible_pool_.ensure_size(n);
     desc_hidden_pool_.ensure_size(n);
     chevron_hidden_pool_.ensure_size(n);
+    defaults_hidden_pool_.ensure_size(n);
 
     // Populate every pool BEFORE publishing the count, so the repeat binds to
     // already-populated subjects (no first-frame flash).
@@ -260,16 +264,18 @@ void MacrosPanel::rebuild_rows() {
         auto cached = helix::MacroParamCache::instance().get(macro);
         const bool has_desc = !cached.description.empty();
         const bool no_params = (cached.knowledge == helix::MacroParamKnowledge::KNOWN_NO_PARAMS);
+        const bool has_params = (cached.knowledge == helix::MacroParamKnowledge::KNOWN_PARAMS);
         const bool is_hidden = pending_hidden_.count(macro) > 0;
 
-        const auto rv =
-            helix::macros::compute_row_values(edit_mode_, is_hidden, has_desc, no_params);
+        const auto rv = helix::macros::compute_row_values(edit_mode_, is_hidden, has_desc,
+                                                          no_params, has_params);
 
         name_pool_.set_string(i, display_name);
         desc_pool_.set_string(i, cached.description);
         visible_pool_.set_int(i, rv.visible);
         desc_hidden_pool_.set_int(i, rv.desc_hidden);
         chevron_hidden_pool_.set_int(i, rv.chevron_hidden);
+        defaults_hidden_pool_.set_int(i, rv.defaults_hidden);
     }
 
     lv_subject_set_int(&macro_row_count_, static_cast<int>(n));
@@ -346,10 +352,6 @@ std::string MacrosPanel::prettify_macro_name(const std::string& name) {
 // Run path
 // ============================================================================
 
-void MacrosPanel::execute_macro(const std::string& macro_name) {
-    execute_with_params(macro_name, {});
-}
-
 void MacrosPanel::fetch_params_and_execute(const std::string& macro_name) {
     IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
@@ -406,15 +408,26 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
     req.confirm_plain_run =
         helix::SafetySettingsManager::instance().get_macro_require_confirmation();
 
+    // Saved defaults: ask off runs (or confirms a run) with the saved values;
+    // ask on prefills the param modal with them. Either way a missing record
+    // behaves exactly as before.
+    const helix::MacroParamDefaultRecord defaults =
+        helix::MacroParamDefaults::instance().get(macro_name);
+    req.prompt_for_params = defaults.ask_for_params;
+    req.saved_values = defaults.values;
+
     const helix::MacroRunDecision decision = helix::decide_macro_run(cached, req);
 
     if (decision.action == helix::MacroRunAction::Run) {
-        execute_macro(macro_name);
+        execute_with_params(macro_name,
+                            helix::macro_param_result_from_values(cached.params, decision.params));
         return;
     }
 
     if (decision.action == helix::MacroRunAction::ConfirmRun) {
         pending_run_macro_ = macro_name;
+        const helix::MacroParamResult params =
+            helix::macro_param_result_from_values(cached.params, decision.params);
         std::string msg = fmt::format(lv_tr("Run {}?"), prettify_macro_name(macro_name));
         helix::ui::ConfirmOptions opts;
         opts.on_cancel = [this] { pending_run_macro_.clear(); };
@@ -422,10 +435,10 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
         opts.owner_token = lifetime_.token();
         helix::ui::modal_confirm(
             lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
-            [this] {
+            [this, params] {
                 std::string macro = pending_run_macro_;
                 pending_run_macro_.clear();
-                execute_macro(macro);
+                execute_with_params(macro, params);
             },
             opts);
         return;
@@ -447,7 +460,7 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
     };
 
     if (decision.action == helix::MacroRunAction::Prompt) {
-        param_modal_.show_for_macro(screen, macro_name, cached.params, on_result);
+        param_modal_.show_for_macro(screen, macro_name, cached.params, on_result, decision.params);
     } else {
         param_modal_.show_for_unknown_params(screen, macro_name, on_result);
     }
@@ -508,6 +521,50 @@ void MacrosPanel::on_macro_card_long_press(lv_event_t* e) {
         }
         self.enter_edit_mode();
     }
+
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void MacrosPanel::on_macro_defaults_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[MacrosPanel] on_macro_defaults_clicked");
+
+    auto& self = get_global_macros_panel();
+
+    const char* ud = static_cast<const char*>(lv_event_get_user_data(e));
+    if (!ud) {
+        return;
+    }
+    const size_t i = static_cast<size_t>(atoi(ud));
+    if (i >= self.displayed_.size()) {
+        return;
+    }
+    const std::string& macro = self.displayed_[i];
+
+    auto cached = helix::MacroParamCache::instance().get(macro);
+    if (cached.knowledge != helix::MacroParamKnowledge::KNOWN_PARAMS) {
+        // No declared parameter list to edit. The button is hidden for these
+        // rows; this is the belt for a stale row index after a rebuild.
+        spdlog::debug("[{}] No saved-defaults editor for '{}' (knowledge != KNOWN_PARAMS)",
+                      self.get_name(), macro);
+        return;
+    }
+
+    lv_obj_t* screen = lv_screen_active();
+    if (!screen) {
+        spdlog::warn("[{}] No active screen for the defaults editor of '{}'", self.get_name(),
+                     macro);
+        return;
+    }
+
+    auto token = self.lifetime_.token();
+    std::string name = macro;
+    self.param_modal_.show_for_defaults(
+        screen, name, cached.params, helix::MacroParamDefaults::instance().get(name),
+        [token, name](const helix::MacroParamDefaultRecord& record) {
+            if (token.expired())
+                return;
+            helix::MacroParamDefaults::instance().set(name, record);
+        });
 
     LVGL_SAFE_EVENT_CB_END();
 }

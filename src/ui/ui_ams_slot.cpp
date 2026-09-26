@@ -70,8 +70,8 @@ struct AmsSlotData {
     // status subjects are DYNAMIC -
     // recreated on backend rediscovery - so that observer needs a token
     // that expires when AmsState tears the subject down (L084). For backend 0
-    // the accessor returns an empty (always-alive) token; harmless. MUST be
-    // reset BEFORE the matching observer (see cleanup paths, #705).
+    // the accessor returns AmsState's subjects lifetime. MUST be reset BEFORE
+    // the matching observer (see cleanup paths, #705).
     SubjectLifetime status_lifetime;
     SubjectLifetime lane_state_lifetime;
 
@@ -497,8 +497,7 @@ static void setup_slot_observers(AmsSlotData* data) {
     // secondary backend the subject is dynamic (recreated on rediscovery), so
     // the paired SubjectLifetime member keeps the observer from firing on a
     // freed subject. Reset the lifetime BEFORE rebinding (the accessor
-    // overwrites it). lane_state is a static-array subject, like the ones the
-    // embedded ams_lane_spool observes.
+    // overwrites it).
     int backend_idx = state.active_backend_index();
     data->status_lifetime.reset();
     lv_subject_t* status_subject =
@@ -530,7 +529,7 @@ static void setup_slot_observers(AmsSlotData* data) {
                 if (d)
                     apply_lane_state(d, state_int);
             },
-            backend_idx == 0 ? state.get_subjects_lifetime() : data->lane_state_lifetime);
+            data->lane_state_lifetime);
     }
     // Per-slot material observer: the STRUCTURAL fix for material, mirroring
     // fill. The ams_slot widget owns its material label, so a material-only

@@ -424,45 +424,7 @@ AmsSystemInfo AmsBackendAfc::get_system_info() const {
         return system_info_;
     }
 
-    // Build slot data from registry, then overlay non-slot metadata from system_info_
-    auto info = slots_.build_system_info();
-
-    // Copy system-level fields not managed by registry
-    info.type = system_info_.type;
-    info.type_name = system_info_.type_name;
-    info.version = system_info_.version;
-    info.action = system_info_.action;
-    info.operation_detail = system_info_.operation_detail;
-    info.current_slot = system_info_.current_slot;
-    info.current_tool = system_info_.current_tool;
-    info.pending_target_slot = system_info_.pending_target_slot;
-    info.current_toolchange = system_info_.current_toolchange;
-    info.number_of_toolchanges = system_info_.number_of_toolchanges;
-    info.next_slot = system_info_.next_slot;
-    info.position_saved = system_info_.position_saved;
-    info.spoolman_url = system_info_.spoolman_url;
-    info.filament_loaded = system_info_.filament_loaded;
-    info.endless_spool_enabled = system_info_.endless_spool_enabled;
-    info.supports_bypass = system_info_.supports_bypass;
-    info.has_hardware_bypass_sensor = system_info_.has_hardware_bypass_sensor;
-    info.tip_method = system_info_.tip_method;
-    info.supports_purge = system_info_.supports_purge;
-
-    // Copy unit-level metadata not managed by registry
-    for (size_t u = 0; u < info.units.size() && u < system_info_.units.size(); ++u) {
-        info.units[u].name = system_info_.units[u].name;
-        info.units[u].display_name = system_info_.units[u].display_name;
-        info.units[u].connected = system_info_.units[u].connected;
-        info.units[u].has_hub_sensor = system_info_.units[u].has_hub_sensor;
-        info.units[u].hub_sensor_triggered = system_info_.units[u].hub_sensor_triggered;
-        info.units[u].buffer_health = system_info_.units[u].buffer_health;
-        info.units[u].topology = system_info_.units[u].topology;
-        info.units[u].lane_is_hub_routed = system_info_.units[u].lane_is_hub_routed;
-        info.units[u].hub_tool_label = system_info_.units[u].hub_tool_label;
-        info.units[u].has_encoder = system_info_.units[u].has_encoder;
-        info.units[u].has_toolhead_sensor = system_info_.units[u].has_toolhead_sensor;
-        info.units[u].has_slot_sensors = system_info_.units[u].has_slot_sensors;
-    }
+    auto info = slots_.build_system_info(system_info_);
 
     // An FPS_PSF buffer measures the same thing Happy Hare's sync_feedback_bias
     // does, so publish it the same way and every consumer of that signal (the

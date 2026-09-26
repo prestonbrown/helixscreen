@@ -10791,6 +10791,8 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
     REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
     REQUIRE(Ad5xIfsTestAccess::runout_active(backend));
     REQUIRE(Ad5xIfsTestAccess::filament_runout(backend));
+    // AmsState reads the flag from the snapshot, not from the backend's fields.
+    REQUIRE(backend.get_system_info().filament_runout);
     // ERROR is the only edge AmsErrorBridge watches, so it is the only route to
     // current_error() and the recovery modal.
     REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);

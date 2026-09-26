@@ -419,6 +419,28 @@ class MoonrakerAdvancedAPI : public IAdvancedAPI {
                              MPCCalibrateCallback on_complete, ErrorCallback on_error,
                              MPCProgressCallback on_progress = nullptr) override;
 
+    /**
+     * @brief Run one automatic pressure-advance calibration
+     *
+     * Sends `proc.start_gcode` and watches the console for `proc.result_pattern`,
+     * whose first capture is the measured K. Which firmware this is, what the
+     * command is called and what its output looks like are all decided by
+     * helix::pacal::procedure_for() - this method knows none of it.
+     *
+     * As with PID_CALIBRATE the console result line, not the RPC reply, is the
+     * authority for completion: a run that outlives its RPC timeout is still
+     * running, and the collector stays registered to catch the result.
+     *
+     * @param proc Resolved procedure from helix::pacal
+     * @param on_complete Called with the measured K on success
+     * @param on_error Called on refusal or failure
+     * @param on_progress Best-effort per-attempt progress; may never fire
+     */
+    std::function<void()> start_pa_calibrate(const helix::pacal::Procedure& proc,
+                                             PACalibrateCallback on_complete,
+                                             ErrorCallback on_error,
+                                             PAProgressCallback on_progress = nullptr) override;
+
     // ========================================================================
     // Machine Limits Operations
     // ========================================================================

@@ -1076,10 +1076,10 @@ To add a new submodule patch:
 
 ### Patch Gotchas (hard-won)
 
-Two traps cost a full debugging session on 2026-06-14 when the libhv DNS resolver
-fallback patch silently stopped reaching the binary on the AD5M (on-machine
-update checks failed with "Connection failed"). Both are now regression-tested in
-`tests/shell/test_libhv_dns_resolver_patch.bats`.
+The libhv DNS resolver fallback patch has three traps. The first two make the
+patch silently miss the binary (on the AD5M, on-machine update checks fail with
+"Connection failed"); the third breaks a pristine parallel build. All three are
+regression-tested in `tests/shell/test_libhv_dns_resolver_patch.bats`.
 
 1. **Guard on the actual change, not on a side effect.** A patch that adds NEW
    files *and* edits an existing one must not gate re-application on the new
@@ -1106,6 +1106,18 @@ update checks failed with "Connection failed"). Both are now regression-tested i
    ```
    When in doubt, `rm build/<plat>/lib/libhv.a` to force a clean archive, and
    confirm a patch's marker actually made it in: `strings <binary> | grep <sym>`.
+
+3. **A file a patch creates needs a producer rule in every build flavour.** The
+   patch creates `base/dns_resolv.c`, which the cross app build and the native
+   test build (`test_dns_resolver`) both compile. On a pristine tree the file
+   does not exist when make reads the graph, so without
+   ```make
+   $(LIBHV_DIR)/base/dns_resolv.c: $(PATCHES_STAMP)
+   ```
+   a `-j` build fails with "No rule to make target 'lib/libhv/base/dns_resolv.c'".
+   The rule sits in `mk/rules.mk` outside any cross-only conditional; the case
+   "dns_resolv.c depends on the patch stamp in a native build" pins it by
+   reading the make database with `CROSS_COMPILE` empty (#1411).
 
 ## Multi-Display Support (macOS)
 
@@ -1911,7 +1923,7 @@ did link them.
 | `HELIX_HAS_ACE` | 1 | ACE vendor backend (0 on non-Anker cross targets) |
 | `HELIX_HAS_QIDI` | 1 | QIDI Box vendor backend (0 on non-QIDI cross targets) |
 | `HELIX_HAS_SNAPMAKER` | 1 | SnapSwap vendor backend (0 except `snapmaker-u1`) |
-| `HELIX_BACKLIGHT_FLOOR_PERCENT` | 0 | Lowest visible raw backlight level, percent of the raw range (20 on `k2`, whose panel renders lower PWM as off, #1709; `/display/backlight_floor_percent` in settings.json overrides per panel) |
+| `HELIX_BACKLIGHT_FLOOR_PERCENT` | 0 | Lowest visible raw backlight level, percent of the raw range. 20 on `k2`, applied only by the sysfs and Sonic Pad CLI backends (the sysfs panel on community K2 firmware renders lower levels as off, #1709); the Allwinner `/dev/disp` backend ignores it. `/display/backlight_floor_percent` in settings.json overrides it on every backend |
 
 ### Linker flags by platform
 

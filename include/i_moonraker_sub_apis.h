@@ -29,6 +29,7 @@
 #include "json_fwd.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
+#include "pa_calibration.h"
 #include "print_history_data.h"
 #include "spoolman_types.h"
 
@@ -245,6 +246,14 @@ class IAdvancedAPI {
     using PIDProgressCallback = std::function<void(int sample, float tolerance)>;
     using PIDCalibrateCallback = std::function<void(float kp, float ki, float kd)>;
 
+    /// Measured pressure advance (Klipper's K). One number is the whole result.
+    using PACalibrateCallback = std::function<void(float k)>;
+    /// Best-effort per-attempt progress: how many candidate measurements the
+    /// firmware has reported so far, against how many a run typically makes,
+    /// and the candidate K that attempt tried. `k_so_far` is <= 0 when the
+    /// firmware reports an attempt without a value.
+    using PAProgressCallback = std::function<void(int attempt, int expected, float k_so_far)>;
+
     /// Result struct for MPC calibration
     struct MPCResult {
         float block_heat_capacity = 0;
@@ -346,6 +355,16 @@ class IAdvancedAPI {
                                      int fan_breakpoints, MPCCalibrateCallback on_complete,
                                      ErrorCallback on_error,
                                      MPCProgressCallback on_progress = nullptr) = 0;
+
+    /// Run one automatic pressure-advance calibration. `proc` carries the
+    /// already-resolved command and console patterns (helix::pacal), so this
+    /// layer stays firmware-agnostic: it sends, it watches, it reports.
+    /// Returns a cancel handle that stops listening; no callback fires after
+    /// it. The firmware still finishes the run it is in.
+    virtual std::function<void()> start_pa_calibrate(const helix::pacal::Procedure& proc,
+                                                     PACalibrateCallback on_complete,
+                                                     ErrorCallback on_error,
+                                                     PAProgressCallback on_progress = nullptr) = 0;
 
     virtual void get_machine_limits(helix::MachineLimitsCallback on_success,
                                     ErrorCallback on_error) = 0;

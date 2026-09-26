@@ -80,7 +80,9 @@ fi
 
 echo "CJK fonts found - will include Chinese and Japanese support"
 
-# Wizard welcome page CJK codepoints — always compiled into .c fonts
+# Wizard welcome page CJK codepoints — always compiled into .c fonts.
+# check_cjk_font_staleness.sh reads this line and fails if the language
+# chooser shows a character missing from it.
 # 欢迎！中文ようこそ！日本語
 WIZARD_CJK="0x3046,0x3053,0x305d,0x3088,0x4e2d,0x6587,0x65e5,0x672c,0x6b22,0x8a9e,0x8fce,0xff01"
 
@@ -97,11 +99,12 @@ UNICODE_RANGES+=",0x2026"        # Ellipsis
 UNICODE_RANGES+=",0x20AC"        # Euro sign
 UNICODE_RANGES+=",0x2122"        # Trademark
 
-# Extract ALL CJK characters from translations and C++ sources.
+# Extract ALL CJK characters from translations, C++ sources, XML layouts and
+# the printer database.
 # scripts/translations/cjk_charset.py is the single extractor \u2014 the staleness
 # gate compares its output against the manifest written below, so the bake and
 # the gate cannot drift apart on what counts as "needed".
-echo "Extracting CJK characters from translations and C++ sources..."
+echo "Extracting CJK characters from translations, sources, XML and printer database..."
 # The extractor decides what the bake needs. paste always exits 0, so a piped
 # capture hides a failed scan: the bake below then skips on an empty set
 # while the script still prints Done. Capture the scan alone so its exit
@@ -115,7 +118,7 @@ if [ -n "$ALL_CJKCHARS" ]; then
     ALL_CJK_COUNT=$(echo "$ALL_CJKCHARS" | tr ',' '\n' | wc -l | tr -d ' ')
     echo "Found $ALL_CJK_COUNT unique CJK characters total"
 else
-    echo "WARNING: No CJK characters found in translations or source files"
+    echo "WARNING: No CJK characters found in translations, sources, XML or printer database"
 fi
 
 # Runtime CJK = full extracted set (for .bin files)

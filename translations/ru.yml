@@ -69,6 +69,7 @@ translations:
   12 Hour: 12 часов
   120 seconds: 120 секунд
   15 seconds: 15 секунд
+  170-300 °C: '170-300 °C'
   180°: 180°
   180° Upside Down: 180° вверх ногами
   2 min: '2 мин'
@@ -106,6 +107,7 @@ translations:
   = Tighten: = Затянуть
   A: A
   A backup of %s is created before applying: 'Перед применением создаётся резервная копия %s'
+  A few minutes, nearly all of it heating. You judge nothing by eye.: 'Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз.'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Не удалось восстановить вывод ввода-вывода двигателя. Выключите и включите принтер
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Не удалось записать параметры двигателя. Выключите и включите принтер и повторите попытку
   A newer version of the helper macros is available: 'Доступна более новая версия вспомогательных макросов'
@@ -240,12 +242,14 @@ translations:
     что хотите отменить печать? Весь прогресс будет потерян.
   Are you sure? This will power off or restart this device.: Вы уверены? Это выключит
     или перезагрузит данное устройство.
+  Ask for parameters: 'Спрашивать параметры'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Назначьте
     макросы Klipper для управления LED через вкл/выкл, переключение или пресеты
   Assign a role to enable sensor monitoring: Назначьте роль для мониторинга датчика
   Assisted Retract: 'Ретракция с поддержкой'
   Assisting: Помощь
   At least {} lines in helixscreen.env were ignored: 'В helixscreen.env проигнорировано не менее {} строк'
+  At {}°C, about {} minutes.: 'При {}°C около {} минут.'
   Authentication failed: Ошибка аутентификации
   Auto: Авто
   Auto Bed Mesh: Авто сетка стола
@@ -269,6 +273,7 @@ translations:
   Automatic: Автоматический
   Automatic Heater Control Calibration: Автоматическая калибровка нагревателя
   Automatic LED Control: Автоматическое управление LED
+  Automatic calibration: 'Автоматическая калибровка'
   Aux: Доп
   Available: Доступен
   Available Networks: Доступные сети
@@ -315,6 +320,7 @@ translations:
   Bed target set to {}°C: Целевая температура стола {}°C
   Bed temp must be 0-%d°C: Температура стола должна быть 0-%d°C
   Bed warming timed out: Нагрев стола — время ожидания истекло
+  Before starting: 'Перед началом'
   Belt A: Ремень A
   Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A.: Ремень A (спереди справа) туже на %.0f Гц. Подтяните ремень B спереди слева или ослабьте ремень A.
   Belt B: Ремень B
@@ -729,6 +735,7 @@ translations:
   Copied to clipboard!: Скопировано в буфер обмена!
   Copy Command: Копировать команду
   Copy failed - use SSH manually: Ошибка копирования - используйте SSH вручную
+  Copy it into this filament's slicer profile. The printer keeps nothing.: 'Перепишите его в профиль слайсера для этого филамента. Принтер ничего не сохраняет.'
   Corner roundness: Скругление углов
   Correction (Ki): Коррекция (Ki)
   Could not add to queue: Не удалось добавить в очередь
@@ -816,6 +823,7 @@ translations:
   Day: День
   Debug: Отладка
   Default: 'По умолчанию'
+  Default Parameters: 'Параметры по умолчанию'
   Default border thickness: Толщина границы по умолчанию
   'Default: %d-%d°C nozzle, %d°C bed': 'По умолчанию: сопло %d-%d°C, стол %d°C'
   'Default: %d-%d°C nozzle, %d°C bed, %d°C chamber': 'По умолчанию: сопло %d-%d°C, стол %d°C, камера %d°C'
@@ -1227,6 +1235,7 @@ translations:
   Filament is still present after the cut — the blade may be dull or misaligned: После реза филамент остался. Возможно, лезвие затупилось или смещено
   Filament jam detected: Обнаружен затор филамента
   Filament jammed at the extruder gear: Филамент застрял в шестерне экструдера
+  Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'В экструдере должен быть филамент, стол установлен, и ничто не мешает печатающей головке.'
   Filament never reached the CFS hub sensor: Филамент не дошёл до датчика хаба CFS
   Filament not set: 'Филамент не задан'
   Filament operation failed: Операция с филаментом не удалась
@@ -1258,9 +1267,6 @@ translations:
   File Will Stop the Printer: 'Файл остановит принтер'
   'File not found: {}': 'Файл не найден: {}'
   Filename: Имя файла
-  Filter Fan: Вентилятор фильтра
-  'Filter Fan: Off': 'Вентилятор фильтра: Выкл'
-  'Filter Fan: On': 'Вентилятор фильтра: Вкл'
   Fine: Точно
   Fine Inner: Точно (внутренний)
   Fine Outer: Точно (внешний)
@@ -1380,6 +1386,8 @@ translations:
   Heating bed to $1°C...: Нагрев стола до $1°C...
   Heating bed...: Нагрев стола...
   Heating chamber...: Нагрев камеры...
+  Heating is nearly the whole wait. Leaving the screen now stops the run.: 'Нагрев занимает почти всё ожидание. Если покинуть экран сейчас, запуск остановится.'
+  Heating nozzle: 'Нагрев сопла'
   Heating nozzle to $1°C...: Нагрев сопла до $1°C...
   Heating nozzle...: Нагрев сопла...
   Heating to %d°C... %.0f°C: Нагрев до %d°C... %.0f°C
@@ -1568,6 +1576,7 @@ translations:
   Joining Wi-Fi disconnects the wired network.: Подключение к Wi-Fi отключает проводную сеть.
   Just now: Только что
   Just queued: 'Только что в очереди'
+  K so far: 'Текущее K'
   KEYBOARD LAYOUT: РАСКЛАДКА КЛАВИАТУРЫ
   KLICKY CONTROLS: УПРАВЛЕНИЕ KLICKY
   Keep Navigation Bar: Сохранить панель навигации
@@ -1629,6 +1638,7 @@ translations:
   Last: Последняя
   # Source: history_dashboard_panel.xml:114
   Last 7 days: 'Последние 7 дней'
+  Last measured: 'Последний замер'
   Last print cancelled: Последняя печать отменена
   Last print failed: Последняя печать не удалась
   Later: Позже
@@ -1794,12 +1804,15 @@ translations:
   Maximum: Максимум
   Maximum acceleration (mm/s²): Максимальное ускорение (мм/с²)
   Maximum toolhead speed (mm/s): Максимальная скорость печатающей головки (мм/с)
+  Measure: 'Измерить'
   Measure and compare belt path frequencies: Измерить и сравнить частоты путей ремня
   Measure belt path frequencies: Измерить частоты путей ремня
   Measure every tool's XYZ offset automatically: Автоматически измеряет смещение XYZ каждого инструмента
   Measured (shaper off): Измерено (шейпер выключен)
   Measured filament diameter: Измеренный диаметр филамента
+  Measured pressure advance: 'Измеренный Pressure Advance'
   Measurement Failed: Измерение не удалось
+  Measuring: 'Измерение'
   Measuring accelerometer noise...: 'Измерение шума акселерометра...'
   Measuring vibrations... {}%: 'Измерение вибраций... {}%'
   Measuring wheel error: Ошибка измерительного колеса
@@ -2010,6 +2023,7 @@ translations:
   Nothing starred yet. Tap the star on a filament to add it here.: 'Пока ничего не отмечено. Нажмите звезду у филамента, чтобы добавить его сюда.'
   Nothing to remap: Нечего переназначать
   'Nothing to unload: no filament at the nozzle': 'Выгружать нечего: в сопле нет филамента'
+  Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Ничего не изменилось. Температура и материал сохранены, повторить можно одним нажатием.'
   Notification: Уведомление
   Notifications: Уведомления
   Notify when print finishes: Уведомить о завершении печати
@@ -2046,6 +2060,7 @@ translations:
   Objects: Объекты
   'Off': Выкл
   'Off:': 'Выкл:'
+  'Off: runs with these values without asking': 'Выкл.: запуск с этими значениями без запроса'
   Offsets saved: Смещения сохранены
   "Old setting on today's data: {} residual - now: {}": 'Прежняя настройка на сегодняшних данных: остаточная вибрация {} — сейчас: {}'
   'On': Вкл
@@ -2054,7 +2069,7 @@ translations:
   On/Off: Вкл/Выкл
   On/Off (state-aware): Вкл/Выкл (с отслеживанием)
   'On:': 'Вкл:'
-  One tap runs this macro with no parameters. Dangerous macros still ask.: Один тап запускает этот макрос без параметров. Опасные макросы всё равно запрашивают подтверждение.
+  One tap runs this macro. Dangerous macros still ask.: 'Один тап запускает этот макрос. Опасные макросы всё равно запрашивают подтверждение.'
   Ooze Reduction: 'Снижение подтекания'
   Open: Открыть
   Open Source Licenses: Лицензии с открытым кодом
@@ -2080,6 +2095,7 @@ translations:
   Output Device: Устройство вывода
   Output Mode: Режим вывода
   Output Pin: Выходной пин
+  Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it.: 'Вне обычного диапазона ({:.2f}-{:.2f}) для экструдера {}. Стоит измерить ещё раз, прежде чем доверять.'
   Overheating: Перегрев
   'Overlay Visits: ': 'Посещений оверлея: '
   Overlays Opened: Открыто оверлеев
@@ -2210,6 +2226,8 @@ translations:
   Press Abort to stop: Нажмите «Прервать», чтобы остановить
   Press Scan to search: Нажмите «Поиск» для сканирования
   'Pressure:': 'Давление:'
+  Pressure Adv.: 'Pressure Adv.'
+  Pressure Advance: 'Pressure Advance'
   Pressure Advance Calibration: 'Калибровка Pressure Advance'
   Preview Sounds: Предпросмотр звуков
   Previous: Прежняя
@@ -2402,6 +2420,7 @@ translations:
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
   Re-identify: Определить снова
+  Re-measure: 'Измерить снова'
   Re-probe: Перепроверить
   Re-read spool RFID tags and remaining length: 'Перечитать RFID-метки катушек и остаток'
   Re-seat the Bowden tube connector on the CFS unit: Переустановите разъём трубки Боудена на блоке CFS
@@ -2451,6 +2470,7 @@ translations:
   Release filament: Отпустить филамент
   Release or grip the filament by hand: Отпустите или зажмите филамент вручную
   Release the filament: Отпустить филамент
+  Remaining: 'Осталось'
   Remaining (g): Осталось (г)
   Remaining Weight (g): Оставшийся вес (г)
   Remap Tool: Переназначить инструмент
@@ -2591,6 +2611,7 @@ translations:
   Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves): Выполнять
     загрузку/выгрузку филамента даже при холодном сопле (для макросов, которые сами
     нагревают сопло)
+  Run stopped: 'Запуск остановлен'
   Run test sequence on all lanes: 'Запустить тестовую последовательность на всех каналах'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Запустите установщик HelixScreen с ключом --update в терминале на этом принтере. Отсканируйте код, чтобы получить команду для вашей платформы.
   Run {}?: Запустить {}?
@@ -2639,6 +2660,7 @@ translations:
   Saved Z-Offset: Сохранённый Z-Offset
   Saved to crash_report.txt (QR not available): Сохранено в crash_report.txt (QR недоступен)
   Saved to printer configuration.: Сохранено в конфигурацию принтера.
+  Saved values, and whether to ask before running: 'Сохранённые значения и запрос перед запуском'
   Saves to Klipper config and restarts firmware.: Сохраняет в конфигурацию Klipper
     и перезапускает прошивку.
   Saving Configuration...: Сохранение конфигурации...
@@ -3004,6 +3026,7 @@ translations:
   Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d: Нажмите на
     перекрестие (точка %1$d из 3) — касание %2$d из %3$d
   Tap to assign: Нажмите для назначения
+  Target: 'Цель'
   Target Frequency: Целевая частота
   Target Temperature: Целевая температура
   Target Version: Целевая версия
@@ -3079,10 +3102,16 @@ translations:
   The left RFID reader in this CFS unit may need service: Левому RFID-считывателю этого блока CFS может требоваться обслуживание
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : Загружена катушка {}, но файл нарезан для {}. Филамент с наполнителем печатается с меньшим потоком и требует закалённого сопла.
+  The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: 'Сопло делает несколько коротких тестовых перемещений в углу, в стороне от зоны печати, и повторяет их до сходимости.'
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : Печать на паузе. Смена инструмента сейчас переместит печатающую головку и заменит филамент в сопле. Возобновите печать после завершения смены.
+  The printer applied this value and keeps it for this tool.: 'Принтер применил это значение и сохранил его для этого инструмента.'
+  The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз.'
+  The printer finishes this measurement on its own.: 'Принтер завершит это измерение сам.'
   The printer halted this print and cannot resume it. Restart from the beginning?: Принтер
     остановил эту печать и не может её возобновить. Начать с начала?
+  ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
+  : 'Принтер нагревает сопло, делает несколько коротких тестовых перемещений в углу стола и сам их измеряет. Он повторяет, пока показания не сойдутся, и затем сообщает одно число.'
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: Принтер ищет ноль и прощупывает резак (около 1 минуты). Держите путь филамента свободным.
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: Принтер не запаркован. Продолжение выполнит парковку всех осей, печатающая головка переместится. Убедитесь, что стол свободен.
   The printer lost power during a print. It can resume where it left off.: Принтер потерял питание во время печати. Он может продолжить с места остановки.
@@ -3277,6 +3306,7 @@ translations:
   Trigger: Триггер
   'Troubleshooting:': 'Устранение неполадок:'
   Try adjusting your search or filters: Попробуйте изменить поиск или фильтры
+  Try again: 'Повторить'
   Try the operation again. If it persists, check for mechanical issues.: Повторите операцию. Если проблема не исчезает, проверьте механические неисправности.
   Tune: Настройка
   Tuning tower enabled - start a print to test: Башня настройки включена — начните
@@ -3298,6 +3328,7 @@ translations:
   Type: Тип
   Type to preview input field...: Введите для предпросмотра поля ввода...
   'Type:': 'Тип:'
+  Typical for a {} extruder ({:.2f}-{:.2f}).: 'Типично для экструдера {} ({:.2f}-{:.2f}).'
   UI Scale: Масштаб интерфейса
   UI Sounds: Звуки интерфейса
   UI scale applies after restart: Масштаб интерфейса применяется после перезапуска
@@ -3555,12 +3586,14 @@ translations:
   'Z:': 'Z:'
   'Z: 0.000': 'Z: 0.000'
   already loaded: 'уже загружен'
+  attempt {}: 'попытка {}'
   bed: стол
   busy: 'занят'
   by Preston Brown: от Preston Brown
   chamber heater: нагреватель камеры
   complete: завершено
   cores: ядер
+  direct drive: с прямой подачей
   disable: отключить
   disabled: отключено
   e.g. Jet Black: напр. Чёрный
@@ -3590,6 +3623,7 @@ translations:
   layers: слои
   left: осталось
   loaded: 'загружен'
+  locked: 'заблокировано'
   mm before clog: мм до засора
   needs: требуется
   not detected: не обнаружено
@@ -3615,6 +3649,7 @@ translations:
   started: запущено
   steppers: шаговые двигатели
   tall: высотой
+  target {}°: 'цель {}°'
   tool(s): инструмент(ы)
   used: использ.
   v%s available: Доступна v%s

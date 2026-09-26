@@ -194,6 +194,30 @@ TEST_CASE("bypass arming: re-arm after a real firmware disable echo", "[ams][byp
     CHECK(sent[0] == "SET_FILAMENT_SENSOR SENSOR=filament_sensor ENABLE=1");
 }
 
+TEST_CASE("bypass arming: a wrapped SET_FILAMENT_SENSOR is bypassed for the renamed builtin",
+          "[ams][bypass-arming]") {
+    BypassArmingFixture fx;
+    // A [gcode_macro SET_FILAMENT_SENSOR] with rename_existing saves the state
+    // as a user setting; the temporary arm and restore go to the builtin.
+    REQUIRE(fx.api->hardware().parse_sensor_toggle_command(
+        json{{"gcode_macro set_filament_sensor",
+              {{"rename_existing", "_SET_FILAMENT_SENSOR"}, {"gcode", "..."}}}}));
+    fx.seed_toolhead_sensor(/*firmware_enabled=*/false);
+
+    fx.mgr.on_bypass_active_changed(true);
+    helix::ui::UpdateQueue::instance().drain();
+    auto sent = fx.gcode_sent();
+    REQUIRE(sent.size() == 1);
+    CHECK(sent[0] == "_SET_FILAMENT_SENSOR SENSOR=filament_sensor ENABLE=1");
+
+    fx.client.clear_gcode_script_history();
+    fx.mgr.on_bypass_active_changed(false);
+    helix::ui::UpdateQueue::instance().drain();
+    sent = fx.gcode_sent();
+    REQUIRE(sent.size() == 1);
+    CHECK(sent[0] == "_SET_FILAMENT_SENSOR SENSOR=filament_sensor ENABLE=0");
+}
+
 // ---------------------------------------------------------------------------
 // CFS external-spool lane_data publish (slicer sync)
 // ---------------------------------------------------------------------------

@@ -445,9 +445,11 @@ Framebuffer displays (AD5M, K1, K2, CC1, AD5X) rotate by any angle with no meani
 
 ### `backlight_floor_percent`
 **Type:** integer
-**Default:** `0` (`20` on K2 builds)
+**Default:** `0` (`20` on K2 builds, for sysfs backlights only)
 **Range:** `0` - `100`
-**Description:** Lowest brightness level the panel can still show, as a percentage of its raw brightness range. Every screen brightness above "off" stays at or above this floor, so the dimmest slider setting dims instead of blacking out; turning the screen off is unaffected. Change it if your panel goes black before the brightness slider reaches its minimum: raise the value until the dimmest setting stays visible. `0` disables the floor. Takes effect after a restart.
+**Description:** Lowest brightness level the panel can still show, as a percentage of its raw brightness range. With a floor set, the brightness slider's minimum lands exactly on the floor and 100% on full brightness, so the dimmest setting dims instead of blacking out; turning the screen off is unaffected. `0` disables the floor.
+
+The K2 build default applies only when the backlight is a sysfs device (`/sys/class/backlight`), as on community K2 firmware. Stock K2 firmware drives its panel through `/dev/disp`, stays visible almost down to zero, and takes no floor. A value you set here applies to every kind of backlight. Set it if your panel goes black before the slider reaches its minimum: raise it until the dimmest setting stays visible. Takes effect after a restart.
 
 ### `panel_power_off`
 **Type:** integer

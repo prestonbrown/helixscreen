@@ -12,6 +12,9 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+#include <cstdlib>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
@@ -463,6 +466,47 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: the bar swaps axes with ui_is_p
     REQUIRE(port_step >= port_btn_w);
 }
 
+// ui_button_create() writes a local height, which outranks any bound style, so
+// the landscape edit buttons cap their inline height with max_height instead.
+// Unclamped, the + button fills the whole nav strip (#1553).
+TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: landscape edit buttons clamp to button_height",
+                 "[navbar][ui_integration]") {
+    REQUIRE(navbar_ != nullptr);
+
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    ScopedSubjectInt restore_portrait(portrait);
+    lv_subject_set_int(portrait, 0);
+
+    const char* token = lv_xml_get_const(nullptr, "button_height");
+    REQUIRE(token != nullptr);
+    const int32_t button_height = std::atoi(token);
+    REQUIRE(button_height > 0);
+
+    // Hidden objects take no part in flex layout; edit mode is what shows them.
+    lv_obj_t* add = lv_obj_find_by_name(navbar_, "nav_btn_edit_add");
+    lv_obj_t* done = lv_obj_find_by_name(navbar_, "nav_btn_edit_done");
+    REQUIRE(add != nullptr);
+    REQUIRE(done != nullptr);
+    lv_obj_remove_flag(add, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(done, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_update_layout(navbar_);
+
+    const int32_t bar_h = lv_obj_get_height(navbar_);
+    INFO("bar " << bar_h << ", button_height " << button_height << ", add "
+                << lv_obj_get_height(add) << ", done " << lv_obj_get_height(done));
+
+    // min_height is the touch-target floor and wins where button_height sits below it.
+    const int32_t add_floor = lv_obj_get_style_min_height(add, LV_PART_MAIN);
+    const int32_t done_floor = lv_obj_get_style_min_height(done, LV_PART_MAIN);
+    REQUIRE(add_floor > 0);
+    REQUIRE(done_floor > 0);
+    CHECK(lv_obj_get_height(add) <= std::max(button_height, add_floor));
+    CHECK(lv_obj_get_height(done) <= std::max(button_height, done_floor));
+    CHECK(lv_obj_get_height(add) < bar_h);
+    CHECK(lv_obj_get_height(done) < bar_h);
+}
+
 /**
  * @brief Test fixture for the app shell, built from ui_xml/app_layout.xml
  *
@@ -715,6 +759,51 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band widget deletion scrubs pane
     // is not delete-hooked; the fixture's deinit_subjects() clears panel_stack_
     // without dereferencing, so leaving a stale base pointer is harmless.
     lv_obj_delete(base);
+}
+
+// A hot-reload rebuild of the main panel under an open overlay swaps its widget
+// through replace_panel_widget(); the stack entry beneath the overlay must follow,
+// or go_back() reveals the displaced widget and leaves the rebuilt one hidden (#1294).
+TEST_CASE_METHOD(NavbarIconTestFixture,
+                 "replace_panel_widget rekeys the main panel beneath an open overlay",
+                 "[navigation][overlay][hot_reload]") {
+    auto& nav = NavigationManager::instance();
+
+    lv_obj_t* base = lv_obj_create(test_screen());
+    REQUIRE(base != nullptr);
+    lv_obj_t* panels[UI_PANEL_COUNT] = {nullptr};
+    panels[static_cast<int>(PanelId::Home)] = base;
+    nav.set_panels(panels);
+
+    MockPanelLifecycle mock_panel;
+    lv_obj_t* overlay = lv_obj_create(test_screen());
+    REQUIRE(overlay != nullptr);
+    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    nav.register_overlay_instance(overlay, &mock_panel);
+    nav.push_overlay(overlay);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(nav.is_panel_on_top(overlay));
+
+    // PanelBase::rebuild() creates the successor with the old widget's visibility.
+    lv_obj_t* rebuilt = lv_obj_create(test_screen());
+    REQUIRE(rebuilt != nullptr);
+    lv_obj_add_flag(rebuilt, LV_OBJ_FLAG_HIDDEN);
+    nav.replace_panel_widget(PanelId::Home, rebuilt);
+
+    CHECK(nav.is_panel_in_stack(rebuilt));
+    CHECK_FALSE(nav.is_panel_in_stack(base));
+    CHECK(nav.is_panel_on_top(overlay));
+
+    nav.go_back();
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    CHECK_FALSE(nav.is_panel_in_stack(overlay));
+    CHECK(nav.is_panel_on_top(rebuilt));
+    CHECK_FALSE(lv_obj_has_flag(rebuilt, LV_OBJ_FLAG_HIDDEN));
+
+    lv_obj_delete(overlay);
+    lv_obj_delete(base);
+    lv_obj_delete(rebuilt);
 }
 
 // ============================================================================

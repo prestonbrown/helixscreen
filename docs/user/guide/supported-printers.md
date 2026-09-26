@@ -93,7 +93,7 @@ Runs on the K2's built-in screen and, unlike the K1, **works with stock firmware
 - **Humidity and temperature monitoring** - each CFS unit is one box on the [filament environment screen](filament.md#filament-drying-and-humidity). The CFS has no heater, so there are readings to watch but no drying controls
 - **External-spool bypass** — toggle it in the AMS panel: the CFS is stood down, the toolhead runout sensor is switched on for protection, and the spool is published to OrcaSlicer as an extra lane. See [Filament → CFS and the External Spool](filament.md#cfs-and-the-external-spool)
 - **Chamber heater** control (K2 Pro / Plus)
-- **AI print monitoring** offered as a pre-print option when the firmware provides it; stock K2 firmware does not, so the toggle is normally absent (see [Print Monitoring](print-monitoring.md#creality-k2-ai-detection)). Filament runout is detected and acted on by the printer's own firmware, which pauses the job; HelixScreen reports what the CFS decided and offers the recovery buttons
+- **Spaghetti detection**: HelixScreen runs the K2's own AI model on camera snapshots during a print and can pause it (see [Print Monitoring](print-monitoring.md#print-failure-detection)). Filament runout is detected and acted on by the printer's own firmware, which pauses the job; HelixScreen reports what the CFS decided and offers the recovery buttons
 
 **Requirements:** Stock firmware works out of the box. See [Installation → Creality K2 Series](install-k2.md).
 

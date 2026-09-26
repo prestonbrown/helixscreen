@@ -610,8 +610,8 @@ class AmsState {
      * (currently Snapmaker U1): -1 = none/not-applicable, 0 = Home, 1 = Select,
      * 2 = Heat, 3 = Move (Retract on unload / Feed on load). Synced from
      * AmsSystemInfo::operation_phase in sync_from_backend(). Drives the sidebar
-     * step bar's current step on the Snapmaker backend. Static-lifetime
-     * singleton subject — no SubjectLifetime token needed to observe it.
+     * step bar's current step on the Snapmaker backend. Registered with
+     * subjects_; observe with get_subjects_lifetime().
      *
      * @return Subject holding the operation phase index
      */
@@ -627,7 +627,7 @@ class AmsState {
      * and should be replaced by an indeterminate "Working…" busy state; 0
      * otherwise. Synced from AmsSystemInfo::operation_indeterminate in
      * sync_from_backend() (AD5X IFS drives it; other backends leave it 0).
-     * Static-lifetime singleton subject — no SubjectLifetime token needed.
+     * Registered with subjects_; observe with get_subjects_lifetime().
      *
      * @return Subject holding the indeterminate busy flag (0/1)
      */
@@ -831,7 +831,7 @@ class AmsState {
      *
      * 1 = filament present at the active tool's port/buffer sensor, 0 = absent.
      * The runout dialog observes this to gate Resume on auto-feed backends.
-     * Static-lifetime subject — no SubjectLifetime token needed to observe it.
+     * Registered with subjects_; observe with get_subjects_lifetime().
      *
      * @return Subject holding 1 (present) or 0 (absent)
      */
@@ -1193,8 +1193,7 @@ class AmsState {
      * @brief Per-backend lane_state / has_error / error_severity subjects.
      *
      * Same token rule as get_slot_fill_subject(int, int, SubjectLifetime&):
-     * backend 0 returns the static subject with an emptied token; a secondary
-     * backend's subject is dynamic and its observers MUST hold the token.
+     * observers MUST hold the token for every backend.
      */
     [[nodiscard]] lv_subject_t* get_slot_lane_state_subject(int backend_index, int slot_index,
                                                             SubjectLifetime& lifetime);
@@ -1218,9 +1217,9 @@ class AmsState {
     /**
      * @brief Token'd overload of get_slot_color_subject for observer safety.
      *
-     * For secondary backends the returned subject is DYNAMIC (recreated on
-     * backend rediscovery), so observers MUST hold the lifetime token. For
-     * backend 0 the subject is static and the token is emptied (always-alive).
+     * Observers MUST hold the lifetime token. For secondary backends it dies
+     * when the subject is recreated on backend rediscovery; for backend 0 it
+     * is get_subjects_lifetime(), which dies in deinit_subjects().
      */
     [[nodiscard]] lv_subject_t* get_slot_color_subject(int backend_index, int slot_index,
                                                        SubjectLifetime& lifetime);
@@ -1287,9 +1286,8 @@ class AmsState {
     /**
      * @brief Get per-slot fill-level subject for a specific backend and slot.
      *
-     * For backend 0 the subject is static and the token is emptied. For
-     * secondary backends the subject is DYNAMIC and observers MUST hold the
-     * lifetime token.
+     * Observers MUST hold the lifetime token: get_subjects_lifetime() for
+     * backend 0, the per-backend token for secondary backends.
      * @see get_slot_color_subject(int, int, SubjectLifetime&)
      */
     [[nodiscard]] lv_subject_t* get_slot_fill_subject(int backend_index, int slot_index,
@@ -1301,12 +1299,10 @@ class AmsState {
     //
     // These reflect real-time, Moonraker-fed per-slot state the panel observes
     // to redraw the filament path and active-lane highlight as sensors change.
-    // They are backed by static arrays (singleton lifetime, same as the color /
-    // status / remaining subjects above), so the bare accessors are safe to
-    // observe directly. A (slot, SubjectLifetime&) overload is provided for
-    // call-site symmetry with the project's dynamic-subject pattern; because the
-    // subjects are static, it returns an EMPTY lifetime token (always alive),
-    // which is the documented contract for static subjects (ui_observer_guard.h).
+    // The arrays live in the singleton but are registered with subjects_, so
+    // deinit_subjects() frees their observers like the color / status /
+    // remaining subjects above. Observe through the (slot, SubjectLifetime&)
+    // overload, which hands out get_subjects_lifetime().
 
     /**
      * @brief Get per-slot filament path-segment subject.
@@ -1775,8 +1771,8 @@ class AmsState {
         void write(int i, const SlotInfo& slot);
     };
 
-    /// Secondary-backend subject from @p member, or the static @p primary for
-    /// backend 0, with the lifetime token set accordingly.
+    /// Secondary-backend subject from @p member, or @p primary for backend 0,
+    /// with the lifetime token set accordingly.
     lv_subject_t* backend_slot_subject(int backend_index, int slot_index, SubjectLifetime& lifetime,
                                        std::vector<lv_subject_t> BackendSlotSubjects::*member,
                                        lv_subject_t* primary);
@@ -1832,11 +1828,11 @@ class AmsState {
     lv_subject_t ams_is_filament_system_;
     lv_subject_t ams_action_;
     /// Granular load/unload sub-phase (-1=none, 0=Home, 1=Select, 2=Heat,
-    /// 3=Move). Snapmaker U1 only; static-lifetime singleton subject.
+    /// 3=Move). Snapmaker U1 only; registered with subjects_.
     lv_subject_t ams_operation_phase_;
     /// 1 while an active op's phase-progress feed has stalled (~8s) so the frozen
     /// live-temp number should read as "Working…"; 0 otherwise. AD5X IFS only.
-    /// Static-lifetime singleton subject.
+    /// Registered with subjects_.
     lv_subject_t ams_operation_indeterminate_;
     lv_subject_t toolchange_step_; ///< current narration phase index (-1 = none/idle)
     /// Active toolchange operation for the narration router to resolve a phase
@@ -1909,9 +1905,9 @@ class AmsState {
     /// 1 = filament present at the active tool's port/buffer sensor, 0 = absent.
     /// Auto-feed backends (Snapmaker U1) update this from the port sensor — NOT
     /// the toolhead motion sensor — so the runout dialog can gate Resume on the
-    /// signal that flips true the moment a fresh spool is re-fed. Static-lifetime
-    /// singleton subject (no SubjectLifetime token needed). Defaults to 1 so
-    /// non-auto-feed / unknown backends never gate Resume.
+    /// signal that flips true the moment a fresh spool is re-fed. Registered with
+    /// subjects_. Defaults to 1 so non-auto-feed / unknown backends never gate
+    /// Resume.
     lv_subject_t active_tool_port_present_;
     std::vector<int> last_tool_map_;
     /// Companion to last_tool_map_ for the APPLIED routing (get_tool_mapping()),

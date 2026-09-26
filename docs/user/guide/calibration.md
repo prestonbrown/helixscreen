@@ -280,6 +280,24 @@ The **target frequency** is a property of the *free span*, not of the printer: a
 
 ---
 
+## Pressure Advance
+
+Some printers can measure pressure advance themselves instead of printing a tuning tower you judge by eye. On those, a **Pressure Adv.** button appears on the Controls panel. Today that is the **Snapmaker U1** and the **FlashForge Creator 5 Pro**; on other printers the button stays hidden.
+
+1. Tap **Pressure Adv.** and pick the tool to measure. Picking a tool mounts it.
+2. Set the nozzle temperature for the filament that's loaded, or tap a material preset.
+3. Tap **Start** and confirm. Filament must be loaded: the printer heats the nozzle and extrudes a series of short test moves, which takes a few minutes (about 3 on the U1, up to 5 on the Creator 5 Pro).
+4. Read the result. A value outside the usual range for the extruder is flagged so you can measure again.
+
+Where the result goes depends on the printer:
+
+- **Snapmaker U1:** the printer applies the value and keeps it for that tool.
+- **Creator 5 Pro:** the printer keeps nothing. Copy the value into the filament's slicer profile.
+
+Leaving the screen while it is still heating stops the run. Once measuring has started, **Stop** ends the run on the screen, but the printer finishes that measurement on its own and the nozzle stays hot.
+
+---
+
 ## Heater Calibration (PID / MPC)
 
 ![Heater Calibration Panel](../../images/user/controls-pid.png)

@@ -406,6 +406,12 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         return;
     }
 
+    // A rebuild re-runs setup(); drop the views bound to the condemned tree
+    // first, so an early return below leaves populate_*_view() guarded rather
+    // than writing into it.
+    card_view_.reset();
+    list_view_.reset();
+
     // Find widget references
     card_view_container_ = lv_obj_find_by_name(panel_, "card_view_container");
     list_view_container_ = lv_obj_find_by_name(panel_, "list_view_container");
@@ -473,17 +479,18 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         self->apply_sort();
         // Preserve scroll if still in the same directory (e.g., refresh after file changes)
         bool same_dir = (self->current_path_ == self->last_populated_path_);
-        if (self->current_view_mode_ == PrintSelectViewMode::CARD) {
-            self->populate_card_view(same_dir);
-        } else {
-            self->populate_list_view(same_dir);
-        }
+        self->populate_current_view(same_dir);
         self->last_populated_path_ = self->current_path_;
         self->update_empty_state();
     });
 
     // Initialize file data provider for Moonraker files
-    file_provider_ = std::make_unique<helix::ui::PrintSelectFileProvider>();
+    // A rebuild re-runs setup(). The provider holds no widgets, and an in-flight
+    // get_directory callback reads the provider it was issued from, so it is
+    // created once and kept (#1616).
+    if (!file_provider_) {
+        file_provider_ = std::make_unique<helix::ui::PrintSelectFileProvider>();
+    }
     file_provider_->set_api(api_);
     file_provider_->set_on_files_ready([self, token = self->object_lifetime_.token()](
                                            std::vector<PrintFileData>&& files) {
@@ -631,11 +638,7 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                         lv_tr("Showing the 50 newest files. See more in the printer's web UI."));
                 }
 #endif
-                if (panel->current_view_mode_ == PrintSelectViewMode::CARD) {
-                    panel->populate_card_view(same_dir);
-                } else {
-                    panel->populate_list_view(same_dir);
-                }
+                panel->populate_current_view(same_dir);
             } else {
                 spdlog::trace("[{}] File list unchanged, skipping repopulation", panel->get_name());
             }
@@ -922,12 +925,7 @@ void PrintSelectPanel::sort_by(PrintSelectSortColumn column) {
     apply_sort();
     update_sort_indicators();
 
-    // Repopulate current view
-    if (current_view_mode_ == PrintSelectViewMode::CARD) {
-        populate_card_view();
-    } else {
-        populate_list_view();
-    }
+    populate_current_view();
 
     spdlog::debug("[{}] Sorted by column {}, direction {}", get_name(), static_cast<int>(column),
                   static_cast<int>(current_sort_direction_));
@@ -951,11 +949,7 @@ void PrintSelectPanel::set_sort_recent() {
     apply_sort();
     update_sort_indicators();
 
-    if (current_view_mode_ == PrintSelectViewMode::CARD) {
-        populate_card_view();
-    } else {
-        populate_list_view();
-    }
+    populate_current_view();
 
     // Show "Recently Printed" context banner
     if (panel_) {
@@ -1856,6 +1850,17 @@ void PrintSelectPanel::check_moonraker_usb_symlink() {
         });
 }
 
+void PrintSelectPanel::repopulate() {
+    // The rebuilt card/list views start empty, and a refresh returning the same
+    // listing skips repopulation, so re-render the list already held (#1616).
+    if (current_view_mode_ == PrintSelectViewMode::LIST) {
+        helix::ui::icon::set_source(view_toggle_icon_, "grid_view");
+    }
+    populate_current_view();
+    update_sort_indicators();
+    update_empty_state();
+}
+
 void PrintSelectPanel::on_activate() {
     // "Print Last" flow: suppress panel flash while detail view is pending/open
     if (return_to_home_on_close_) {
@@ -2434,6 +2439,14 @@ void PrintSelectPanel::populate_list_view(bool preserve_scroll) {
     }
 
     spdlog::debug("[{}] List view populated with {} files", get_name(), file_list_.size());
+}
+
+void PrintSelectPanel::populate_current_view(bool preserve_scroll) {
+    if (current_view_mode_ == PrintSelectViewMode::CARD) {
+        populate_card_view(preserve_scroll);
+    } else {
+        populate_list_view(preserve_scroll);
+    }
 }
 
 void PrintSelectPanel::apply_sort() {

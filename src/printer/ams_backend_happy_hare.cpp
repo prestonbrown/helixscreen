@@ -200,52 +200,7 @@ AmsSystemInfo AmsBackendHappyHare::get_system_info() const {
         return system_info_;
     }
 
-    // Build slot data from registry, then overlay non-slot metadata
-    auto info = slots_.build_system_info();
-
-    // Copy system-level fields not managed by registry
-    info.type = system_info_.type;
-    info.type_name = system_info_.type_name;
-    info.version = system_info_.version;
-    info.action = system_info_.action;
-    info.operation_detail = system_info_.operation_detail;
-    info.current_slot = system_info_.current_slot;
-    info.current_tool = system_info_.current_tool;
-    info.pending_target_slot = system_info_.pending_target_slot;
-    info.current_toolchange = system_info_.current_toolchange;
-    info.number_of_toolchanges = system_info_.number_of_toolchanges;
-    info.filament_loaded = system_info_.filament_loaded;
-    info.endless_spool_enabled = system_info_.endless_spool_enabled;
-    info.supports_bypass = system_info_.supports_bypass;
-    info.has_hardware_bypass_sensor = system_info_.has_hardware_bypass_sensor;
-    info.tip_method = system_info_.tip_method;
-    info.supports_purge = system_info_.supports_purge;
-
-    // Happy Hare v4 extended fields
-    info.spoolman_mode = system_info_.spoolman_mode;
-    info.pending_spool_id = system_info_.pending_spool_id;
-    info.espooler_state = system_info_.espooler_state;
-    info.sync_feedback_state = system_info_.sync_feedback_state;
-    info.sync_drive = system_info_.sync_drive;
-    info.clog_detection = system_info_.clog_detection;
-    info.encoder_flow_rate = system_info_.encoder_flow_rate;
-    info.encoder_info = system_info_.encoder_info;
-    info.flowguard_info = system_info_.flowguard_info;
-    info.sync_feedback_flow_rate = system_info_.sync_feedback_flow_rate;
-    info.sync_feedback_bias = system_info_.sync_feedback_bias;
-    info.sync_feedback_bias_raw = system_info_.sync_feedback_bias_raw;
-    info.toolchange_purge_volume = system_info_.toolchange_purge_volume;
-
-    // Copy unit-level metadata not managed by registry
-    for (size_t u = 0; u < info.units.size() && u < system_info_.units.size(); ++u) {
-        info.units[u].connected = system_info_.units[u].connected;
-        info.units[u].has_encoder = system_info_.units[u].has_encoder;
-        info.units[u].has_toolhead_sensor = system_info_.units[u].has_toolhead_sensor;
-        info.units[u].has_slot_sensors = system_info_.units[u].has_slot_sensors;
-        info.units[u].topology = system_info_.units[u].topology;
-        info.units[u].has_hub_sensor = system_info_.units[u].has_hub_sensor;
-        info.units[u].hub_sensor_triggered = system_info_.units[u].hub_sensor_triggered;
-    }
+    auto info = slots_.build_system_info(system_info_);
 
     // Surface per-unit environment data (box heater temp + humidity) so the AMS
     // panel indicator (heat-waves icon, live temp) and the dryer overlay show a
@@ -1625,11 +1580,7 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
 
         AmsUnit unit;
         unit.unit_index = u;
-        if (num_units_ > 1) {
-            unit.name = fmt::format("MMU Unit {}", u + 1);
-        } else {
-            unit.name = "Happy Hare MMU";
-        }
+        unit.name = num_units_ > 1 ? "Unit " + std::to_string(u + 1) : std::string("MMU");
         unit.slot_count = unit_gates;
         unit.first_slot_global_index = global_offset;
         unit.connected = true;
@@ -1673,11 +1624,7 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
             for (int g = 0; g < count; ++g) {
                 names.push_back(std::to_string(sr_offset + g));
             }
-            std::string unit_name = "Unit " + std::to_string(u + 1);
-            if (num_units_ == 1) {
-                unit_name = "MMU";
-            }
-            sr_units.push_back({unit_name, names});
+            sr_units.push_back({system_info_.units[u].name, names});
             sr_offset += count;
         }
         slots_.initialize_units(sr_units);

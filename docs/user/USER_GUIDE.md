@@ -75,7 +75,7 @@ Print spool labels to Brother QL, Phomemo, Niimbot, or MakeID thermal printers v
 Set up a USB or Bluetooth barcode scanner to read Spoolman QR codes. Includes the `ClassicBondedOnly=false` fix for Bluetooth HID scanners that fail the "bonded device" check.
 
 ### [Calibration & Tuning](guide/calibration.md)
-Bed mesh visualization, screws tilt adjust, input shaper resonance testing, Z-offset calibration, and PID tuning.
+Bed mesh visualization, screws tilt adjust, input shaper resonance testing, Z-offset calibration, pressure advance measurement, and PID tuning.
 
 ![Bed Mesh](../images/screenshot-bed-mesh-panel.png)
 

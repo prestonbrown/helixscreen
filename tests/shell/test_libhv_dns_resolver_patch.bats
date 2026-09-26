@@ -139,3 +139,15 @@ setup() {
     [ -f "$work/base/dns_resolv.c" ]
     [ -f "$work/base/dns_resolv.h" ]
 }
+
+@test "dns_resolv.c depends on the patch stamp in a native build (#1411)" {
+    # The patch CREATES dns_resolv.c, and native test builds compile it for
+    # test_dns_resolver. Without the stamp as its prerequisite a pristine-tree
+    # parallel build can reach the compile before patches apply and die with
+    # "No rule to make target 'lib/libhv/base/dns_resolv.c'". `help` has no
+    # prerequisites, so -pn prints the database without walking the graph.
+    cd "$REPO_ROOT" || return 1
+    local db
+    db="$(make -pn help CROSS_COMPILE= 2>/dev/null)"
+    grep -qE '^lib/libhv/base/dns_resolv\.c:.*\.patches-applied( |$)' <<<"$db"
+}

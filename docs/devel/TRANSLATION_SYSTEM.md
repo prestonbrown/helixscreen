@@ -492,6 +492,10 @@ WARNING: Missing 'New Feature' in fr
 
 Fill in missing translations in the appropriate YAML files.
 
+### CJK text renders as tofu
+
+The runtime CJK fonts (`assets/fonts/cjk/*.bin`) are subset to the characters `scripts/translations/cjk_charset.py` finds in the translations, C++ sources, XML layouts and `assets/config/printer_database.json`; `scripts/check_cjk_font_staleness.sh` (run by the commit hook) fails when that set holds a character the baked manifest lacks, and `make regen-text-fonts` fixes it. The first-run language chooser renders before any `.bin` loads, from the compiled `.c` fonts, so its characters must also be in `WIZARD_CJK` in `scripts/regen_text_fonts.sh`; the same gate enforces that (#1622).
+
 ### Plural form not working
 
 1. Verify the key uses dictionary format in YAML

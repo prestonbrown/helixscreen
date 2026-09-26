@@ -259,13 +259,14 @@ endif
 	}
 	$(call emit-compile-command,$(CC),$(CFLAGS) $(INCLUDES) $(LV_CONF),$<,$@)
 
-# Compile libhv dns_resolv.c for safe_resolve.h (cross-compiled targets only)
-# dns_resolv.c is created by the libhv DNS resolver fallback patch, so we must
-# tell make it's produced by PATCHES_STAMP to prevent parallel build races
-# (make would otherwise fail with "No rule to make target 'dns_resolv.c'").
-ifneq ($(APP_DNS_RESOLV_OBJ),)
+# dns_resolv.c is created by the libhv DNS resolver fallback patch, so make has
+# to know PATCHES_STAMP produces it, or a parallel build on a pristine tree fails
+# with "No rule to make target 'dns_resolv.c'". Unconditional: the native test
+# build compiles it too (DNS_RESOLV_OBJ in tests.mk).
 $(LIBHV_DIR)/base/dns_resolv.c: $(PATCHES_STAMP)
 
+# Compile libhv dns_resolv.c for safe_resolve.h (cross-compiled targets only)
+ifneq ($(APP_DNS_RESOLV_OBJ),)
 $(APP_DNS_RESOLV_OBJ): $(LIBHV_DIR)/base/dns_resolv.c $(LIBHV_LIB)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[CC]$(RESET) $<"

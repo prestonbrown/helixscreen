@@ -289,3 +289,70 @@ TEST_CASE("Discovery settles the OpenAMS claim before the hardware callback",
         CHECK_FALSE(client.subscribe_params["objects"].contains("oams_manager"));
     }
 }
+
+// ============================================================================
+// Sensor toggle command resolved from configfile.settings
+// ============================================================================
+
+namespace {
+
+/// The real discovery sequence with @c extra_settings merged into every
+/// configfile.settings reply the mock serves.
+class ConfigfileSettingsClient : public TestDiscoveryClient {
+  public:
+    using MoonrakerClientMock::send_jsonrpc;
+    using TestDiscoveryClient::TestDiscoveryClient;
+
+    helix::RequestId send_jsonrpc(
+        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
+        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms, bool silent,
+        std::optional<helix::rpc_error_policy::CallerIntent> intent) override {
+        if (method == "printer.objects.query" && success_cb && params.contains("objects") &&
+            params["objects"].contains("configfile")) {
+            success_cb = [inner = std::move(success_cb), extra = extra_settings](const json& r) {
+                json patched = r;
+                auto& status = patched["result"]["status"];
+                if (status.contains("configfile") && status["configfile"].contains("settings")) {
+                    status["configfile"]["settings"].merge_patch(extra);
+                }
+                inner(patched);
+            };
+        }
+        return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
+                                                 std::move(error_cb), timeout_ms, silent, intent);
+    }
+
+    json extra_settings = json::object();
+};
+
+std::string discovered_toggle_command(ConfigfileSettingsClient& client) {
+    std::string command;
+    bool completed = false;
+    client.set_on_discovery_complete(
+        [&command](const helix::PrinterDiscovery& hw, const json& /*initial_status*/) {
+            command = hw.sensor_toggle_command();
+        });
+    client.discover_printer_real([&completed]() { completed = true; },
+                                 [](const std::string& reason) { FAIL(reason); });
+    REQUIRE(completed);
+    return command;
+}
+
+} // namespace
+
+TEST_CASE("Discovery resolves the sensor toggle command from configfile.settings",
+          "[discovery][klippy_gate][filament]") {
+    LVGLTestFixture fixture;
+    ConfigfileSettingsClient client(MoonrakerClientMock::PrinterType::VORON_24);
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+
+    SECTION("a SET_FILAMENT_SENSOR wrapper names the renamed builtin") {
+        client.extra_settings = json{
+            {"gcode_macro set_filament_sensor", {{"rename_existing", "_SET_FILAMENT_SENSOR"}}}};
+        CHECK(discovered_toggle_command(client) == "_SET_FILAMENT_SENSOR");
+    }
+
+    SECTION("no wrapper keeps the builtin") {
+        CHECK(discovered_toggle_command(client) == "SET_FILAMENT_SENSOR");
+    }
+}
