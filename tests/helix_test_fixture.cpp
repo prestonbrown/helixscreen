@@ -24,6 +24,7 @@
 #include "safety_settings_manager.h"
 #include "system_settings_manager.h"
 #include "temperature_sensor_manager.h"
+#include "test_helpers/ams_state_test_access.h"
 #include "test_helpers/config_test_access.h"
 #include "test_helpers/emergency_stop_test_access.h"
 #include "test_helpers/print_control_buttons_test_access.h"
@@ -34,6 +35,8 @@
 #include <filesystem>
 #include <string>
 #include <unistd.h>
+
+#include "hv/json.hpp"
 
 namespace {
 // Force SDL's dummy audio driver for the WHOLE test binary, before any code can
@@ -268,6 +271,21 @@ void HelixTestFixture::reset_all() {
     // touches no observer lists and is safe whether or not subjects exist.
     helix::PrinterStateTestAccess::clear_data(get_printer_state());
 
+    // The print lifecycle lives in subjects, so clear_data() leaves it alone,
+    // and a test that drove the global printer into a job leaves the next test
+    // reading a print in progress (Clear Spool refused, pause paths armed).
+    // Returned to standby through the production path, which notifies only
+    // when a value actually moves.
+    {
+        auto& ps = get_printer_state();
+        if (ps.are_subjects_initialized() &&
+            (ps.get_print_lifecycle() != PrintState::Idle || ps.is_in_print_start())) {
+            ps.reset_print_start_state(); // deferred: drained below
+            ps.update_from_status(nlohmann::json{{"print_stats", {{"state", "standby"}}}});
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    }
+
     // SystemSettingsManager language back to "en" (matches config default).
     // init_subjects() is idempotent — first call creates the subjects, later
     // calls are no-ops. Required because set_language() writes to an LVGL subject.
@@ -365,6 +383,7 @@ void HelixTestFixture::reset_all() {
     // only exchanges the atomic and clears a plain int high-water mark - no
     // subject writes - so it is safe to call unconditionally here.
     helix::AmsState::instance().set_active_step_operation(helix::StepOperationType::LOAD_SWAP);
+    helix::AmsStateTestAccess::clear_narration(helix::AmsState::instance());
 
     // DisplaySettingsManager's animations_enabled is a process-global subject
     // that defaults to the platform value (true on desktop). A fixture-less

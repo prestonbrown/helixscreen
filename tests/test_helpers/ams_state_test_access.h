@@ -53,5 +53,15 @@ class AmsStateTestAccess {
     static void sync_clog_meter(AmsState& ams, const AmsSystemInfo& info) {
         ams.sync_clog_meter_from_info(info);
     }
+
+    /// Drop a toolchange narration left latched by an earlier test. It clears
+    /// only on an action edge to IDLE, and a test that ends already IDLE never
+    /// produces one, so the stale label would outrank every later detail.
+    static void clear_narration(AmsState& ams) {
+        std::lock_guard<std::recursive_mutex> lock(ams.mutex_);
+        if (ams.initialized_ && !ams.last_narration_label_.empty()) {
+            ams.set_narration_phase(-1, "");
+        }
+    }
 };
 } // namespace helix

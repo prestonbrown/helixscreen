@@ -307,6 +307,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_subject_set_int(printer.get_print_state_enum_subject(),
                        static_cast<int>(helix::PrintJobState::COMPLETE));
     helix::ui::UpdateQueue::instance().drain();
+    tracker.unregister_sink(handle);
     tracker.stop();
     ams.clear_backends();
     ams.clear_external_spool_info();
