@@ -20,6 +20,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
@@ -29,6 +30,7 @@
 #include "filament_sensor_types.h"
 #include "print_start_checks.h"
 #include "printer_discovery.h"
+#include "printer_state.h"
 #include "test_helpers/registered_backend.h"
 #include "toolchanger_addon.h"
 
@@ -392,7 +394,6 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "tool changer pre-print scan reads each
     feed(sensor_frame(HEAD2, true, false));
     feed(sensor_frame(HEAD3, false, false));
     CHECK(fsm.find_empty_required_lanes({2}, identity).empty());
-    CHECK(fsm.compute_scoped_runout_value({2}, identity) == 1);
 
     // Head 0 loaded, head 2 empty: the print on head 2 is named, the one on
     // head 0 is not.
@@ -401,7 +402,6 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "tool changer pre-print scan reads each
     const auto empty = fsm.find_empty_required_lanes({2}, identity);
     REQUIRE(empty.size() == 1);
     CHECK(empty[0] == std::pair<int, int>{2, 2});
-    CHECK(fsm.compute_scoped_runout_value({2}, identity) == 0);
     CHECK(fsm.find_empty_required_lanes({0}, identity).empty());
 
     // The gate warns from that scan.
@@ -419,6 +419,41 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "tool changer pre-print scan reads each
 
     // No tool usage known: nothing to scope, so nothing is named.
     CHECK(fsm.find_empty_required_lanes({}, identity).empty());
+}
+
+// During a print the firmware runs only the active head's sensor. A head it
+// stood down is not being fed from, so its empty reading is no runout for the
+// badge, while the pre-print scan over the same readings still names it.
+TEST_CASE_METHOD(FirmwareEnabledFixture,
+                 "tool changer badge ignores a head the firmware stood down",
+                 "[runout][1714][badge]") {
+    helix::test::RegisteredBackend<helix::test::ToolChangerHelper> tc(4);
+    REQUIRE_FALSE(AmsState::instance().get_backend()->slot_status_tracks_filament());
+    seed_sensors({HEAD0, HEAD1, HEAD2, HEAD3});
+    ScopedSensorLanes lanes(fsm, {HEAD0, HEAD1, HEAD2, HEAD3});
+    const std::map<int, int> identity;
+
+    // Head 0 ran out, the firmware moved the job to head 2 and stood head 0
+    // down: the badge for a file on T0 and T2 stays clear.
+    feed(sensor_frame(HEAD0, false, false));
+    feed(sensor_frame(HEAD1, false, false));
+    feed(sensor_frame(HEAD2, true, true));
+    feed(sensor_frame(HEAD3, false, false));
+    CHECK(fsm.compute_scoped_runout_value({0, 2}, identity) == 1);
+
+    // The pre-print scan over the same readings still names head 0.
+    const auto empty = fsm.find_empty_required_lanes({0, 2}, identity);
+    REQUIRE(empty.size() == 1);
+    CHECK(empty[0] == std::pair<int, int>{0, 0});
+
+    // Head 0 empty while the firmware runs it: the badge goes red.
+    feed(sensor_frame(HEAD0, false, true));
+    CHECK(fsm.compute_scoped_runout_value({0, 2}, identity) == 0);
+
+    // The running head empty: red as well.
+    feed(sensor_frame(HEAD0, false, false));
+    feed(sensor_frame(HEAD2, false, true));
+    CHECK(fsm.compute_scoped_runout_value({0, 2}, identity) == 0);
 }
 
 TEST_CASE_METHOD(FirmwareEnabledFixture, "a RUNOUT sensor with no lane is no head's reading",
@@ -523,4 +558,184 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "tool changer runout is scoped to the h
     // Control: the carriage head's enabled sensor reading empty is a runout.
     feed(sensor_frame(HEAD1, false, true));
     CHECK(fsm.has_real_runout());
+}
+
+namespace {
+/// A job holds the machine for the life of this object.
+class ScopedPrinting {
+  public:
+    ScopedPrinting() {
+        get_printer_state().init_subjects(false);
+        set(helix::PrintJobState::PRINTING);
+    }
+    ~ScopedPrinting() {
+        set(helix::PrintJobState::STANDBY);
+    }
+    ScopedPrinting(const ScopedPrinting&) = delete;
+    ScopedPrinting& operator=(const ScopedPrinting&) = delete;
+
+    static void set(helix::PrintJobState state) {
+        helix::test::set_wire_state(get_printer_state(), state);
+        helix::ui::UpdateQueue::instance().drain();
+    }
+};
+
+/// A tool changer with @p carriage on the carriage and every other tool docked.
+nlohmann::json medusa_with_carriage(int carriage) {
+    nlohmann::json sensors = {{"e", 1}};
+    for (int t = 0; t < 4; ++t) {
+        sensors["t" + std::to_string(t)] = t == carriage ? 0 : 1;
+    }
+    return nlohmann::json{
+        {"medusahc", {{"operation", "idle"}, {"current_tool", carriage}, {"sensors", sensors}}}};
+}
+} // namespace
+
+// Z-Mod on a Creator 5 with no matching spool: the head's switch goes empty
+// while enabled, and the PAUSE that follows stands every sensor down.
+TEST_CASE_METHOD(FirmwareEnabledFixture, "a runout seen on duty survives the pause's stand-down",
+                 "[runout][1714][modal]") {
+    helix::test::RegisteredBackend<helix::test::ToolChangerHelper> tc(4);
+    (*tc).set_tool_sensor(toolchanger_addon::resolve_tool_sensor(docked_toolchanger_discovery()));
+    (*tc).feed(medusa_with_carriage(0));
+    REQUIRE((*tc).get_current_slot() == 0);
+
+    seed_sensors({HEAD0, HEAD1, HEAD2, HEAD3});
+    ScopedSensorLanes lanes(fsm, {HEAD0, HEAD1, HEAD2, HEAD3});
+    ScopedPrinting printing;
+    feed(sensor_frame(HEAD0, true, true));
+
+    // Through PrinterState, the way Moonraker delivers it: print_stats and the
+    // sensor in one status batch.
+    auto paused_with_head0 = [](bool detected, bool enabled) {
+        nlohmann::json frame = sensor_frame(HEAD0, detected, enabled);
+        frame["print_stats"] = {{"state", "paused"}};
+        get_printer_state().update_from_status(frame);
+        helix::ui::UpdateQueue::instance().drain();
+    };
+
+    SECTION("pause, then the stand-down in a later frame") {
+        feed(sensor_frame(HEAD0, false, true));
+        REQUIRE(fsm.has_real_runout());
+        ScopedPrinting::set(helix::PrintJobState::PAUSED);
+        feed(sensor_frame(HEAD0, false, false));
+    }
+    SECTION("pause and stand-down in one frame") {
+        feed(sensor_frame(HEAD0, false, true));
+        paused_with_head0(false, false);
+    }
+    SECTION("runout, pause and stand-down in one frame") {
+        paused_with_head0(false, false);
+    }
+
+    CHECK(fsm.has_real_runout());
+    // The modal's auto-close watches any_runout; it must not read the
+    // stand-down as the runout resolving.
+    CHECK(fsm.has_any_runout());
+
+    // Filament back in the head clears it, stood down or not.
+    feed(sensor_frame(HEAD0, true, false));
+    CHECK_FALSE(fsm.has_real_runout());
+    CHECK_FALSE(fsm.has_any_runout());
+}
+
+TEST_CASE_METHOD(FirmwareEnabledFixture,
+                 "after an auto-swap to another head, a later pause is not a runout",
+                 "[runout][1714][modal]") {
+    helix::test::RegisteredBackend<helix::test::ToolChangerHelper> tc(4);
+    (*tc).set_tool_sensor(toolchanger_addon::resolve_tool_sensor(docked_toolchanger_discovery()));
+    (*tc).feed(medusa_with_carriage(0));
+
+    seed_sensors({HEAD0, HEAD1, HEAD2, HEAD3});
+    ScopedSensorLanes lanes(fsm, {HEAD0, HEAD1, HEAD2, HEAD3});
+    ScopedPrinting printing;
+    feed(sensor_frame(HEAD0, true, true));
+
+    // Head 0 runs out; Z-Mod finds head 2, stands head 0 down and mounts head 2.
+    feed(sensor_frame(HEAD0, false, true));
+    feed(sensor_frame(HEAD0, false, false));
+    (*tc).feed(medusa_with_carriage(2));
+    REQUIRE((*tc).get_current_slot() == 2);
+    feed(sensor_frame(HEAD2, true, true));
+
+    CHECK_FALSE(fsm.has_real_runout());
+    CHECK_FALSE(fsm.has_any_runout());
+    ScopedPrinting::set(helix::PrintJobState::PAUSED);
+    CHECK_FALSE(fsm.has_real_runout());
+}
+
+TEST_CASE_METHOD(FirmwareEnabledFixture,
+                 "a sensor stood down while printing brings no modal to a later pause",
+                 "[runout][1714][modal]") {
+    // No lanes and no backend: nothing but the latch decides here.
+    seed_sensors({HEAD0});
+    ScopedPrinting printing;
+    feed(sensor_frame(HEAD0, true, true));
+    feed(sensor_frame(HEAD0, false, true));
+    REQUIRE(fsm.has_real_runout());
+
+    // The user decides it misreads: SET_FILAMENT_SENSOR ENABLE=0, printing on.
+    feed(sensor_frame(HEAD0, false, false));
+    CHECK_FALSE(fsm.has_any_runout());
+
+    ScopedPrinting::set(helix::PrintJobState::PAUSED);
+    CHECK_FALSE(fsm.has_real_runout());
+    CHECK_FALSE(fsm.has_any_runout());
+}
+
+TEST_CASE_METHOD(FirmwareEnabledFixture, "a sensor the user keeps disabled raises no runout",
+                 "[runout][1714][modal]") {
+    helix::test::RegisteredBackend<helix::test::ToolChangerHelper> tc(4);
+    (*tc).set_tool_sensor(toolchanger_addon::resolve_tool_sensor(docked_toolchanger_discovery()));
+    (*tc).feed(medusa_with_carriage(1));
+
+    seed_sensors({HEAD0, HEAD1, HEAD2, HEAD3});
+    ScopedSensorLanes lanes(fsm, {HEAD0, HEAD1, HEAD2, HEAD3});
+    ScopedPrinting printing;
+
+    // Held off through save_variables, often because it misreads: it was never
+    // on duty, so its empty reading says nothing when the user pauses.
+    feed(sensor_frame(HEAD1, true, false));
+    feed(sensor_frame(HEAD1, false, false));
+    ScopedPrinting::set(helix::PrintJobState::PAUSED);
+
+    CHECK_FALSE(fsm.has_real_runout());
+    CHECK_FALSE(fsm.has_any_runout());
+}
+
+TEST_CASE_METHOD(FirmwareEnabledFixture, "an observed runout is forgotten when the job ends",
+                 "[runout][1714][modal]") {
+    seed_sensors({HEAD0});
+    {
+        ScopedPrinting printing;
+        feed(sensor_frame(HEAD0, true, true));
+        feed(sensor_frame(HEAD0, false, true));
+        ScopedPrinting::set(helix::PrintJobState::PAUSED);
+        feed(sensor_frame(HEAD0, false, false));
+        REQUIRE(fsm.has_any_runout());
+    }
+    // The next payload after the job lets go of the machine.
+    feed(nlohmann::json::object());
+    CHECK_FALSE(fsm.has_any_runout());
+}
+
+// Joining a job already under way (a restart, a reconnect): the first frame
+// that reaches a sensor reads empty and stood down. The defaults it replaces
+// are not an observation, so nothing was seen on duty.
+TEST_CASE_METHOD(FirmwareEnabledFixture, "a sensor's first report mid-job latches nothing",
+                 "[runout][1714][modal]") {
+    ScopedPrinting printing;
+
+    SECTION("after discovery") {
+        seed_sensors({HEAD0});
+    }
+    SECTION("after a reconnect rediscovers it") {
+        seed_sensors({HEAD0});
+        feed(sensor_frame(HEAD0, true, true));
+        seed_sensors({HEAD0});
+    }
+
+    feed(sensor_frame(HEAD0, false, false));
+    CHECK_FALSE(fsm.has_any_runout());
+    CHECK_FALSE(fsm.has_real_runout());
 }

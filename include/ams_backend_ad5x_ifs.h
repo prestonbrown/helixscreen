@@ -342,6 +342,10 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     AmsError reset() override;
     AmsError cancel() override;
 
+    /// False while a firmware-driven filament change runs: its macro holds
+    /// the G-code queue, so a cancel would only land after the change ends.
+    [[nodiscard]] bool can_cancel_operation() const override;
+
     [[nodiscard]] std::optional<helix::ErrorEvent> current_error() const override;
 
     /// Pre-print unaccounted gate: the SWITCH pair only, never head_filament_
@@ -955,6 +959,15 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// locks internally.
     /// @return true if the frame carried either object.
     bool apply_ifs_module_objects(const nlohmann::json& status);
+
+    /// Z-Mod's change macro keeps the target tool in
+    /// `gcode_macro END_CHANGE_FILAMENT`.last_data.channel from the start of a
+    /// filament change to its end, and 99 otherwise. Its runout auto-swap and
+    /// its own tool changes run through it without any op of ours, so while it
+    /// reads a tool the backend reports SELECTING and a head-sensor edge in
+    /// that window counts as a change, not a runout. Call with mutex_
+    /// RELEASED - it locks internally.
+    void apply_zmod_change_macro(const nlohmann::json& status);
 
     // GET_ZCOLOR SILENT=1 primary-truth query. zmod's Adventurer5M.json
     // is a stale last-known-colors cache; SILENT=1 emits one line per
@@ -1572,6 +1585,19 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// none), re-supplied into Ports-only diff frames for the same reason
     /// zmod_last_chan_ exists. Guarded by mutex_.
     std::optional<int> module_last_chan_;
+    /// True while the SELECTING in system_info_.action was set by
+    /// apply_zmod_change_macro, so only that source clears it. Guarded by mutex_.
+    bool zmod_change_owns_action_ = false;
+    /// Whether that change started while a job held the machine. Guarded by mutex_.
+    bool zmod_change_in_job_ = false;
+    /// A change that aborts mid-chain never reaches END_CHANGE_FILAMENT, so
+    /// last_data.channel stays set. Once released for that, the channel is
+    /// ignored until it next reads idle. Guarded by mutex_.
+    bool zmod_change_stale_ = false;
+
+    /// Give up a Z-Mod change's SELECTING: action back to IDLE, channel
+    /// ignored until it reads idle again. Caller holds mutex_.
+    void release_zmod_change_locked(const char* reason);
 
     // User-provided per-slot metadata (brand, spool name, spoolman IDs, remaining
     // weight, etc.) layered over firmware-reported state.

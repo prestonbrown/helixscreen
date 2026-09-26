@@ -201,6 +201,7 @@ void FilamentSensorManager::discover_sensors(const std::vector<std::string>& kli
     // return that sensor at all, and the stabilization grace restarts here
     // regardless, so an outstanding dwell has nothing left to confirm.
     pending_removal_toast_.clear();
+    observed_runouts_.clear();
     initial_status_received_ = false;
 
     for (const auto& klipper_name : klipper_sensor_names) {
@@ -244,6 +245,8 @@ void FilamentSensorManager::discover_sensors(const std::vector<std::string>& kli
             states_[klipper_name] = state;
         } else {
             states_[klipper_name].available = true;
+            // Values kept across a reconnect are a baseline, not a report.
+            states_[klipper_name].reported = false;
         }
 
         spdlog::debug("[FilamentSensorManager] Discovered sensor: {} (type: {})", sensor_name,
@@ -689,6 +692,7 @@ bool FilamentSensorManager::has_real_runout() const {
         std::string sensor_name;
         FilamentSensorRole role;
         int lane;
+        bool stood_down;
     };
     std::vector<Candidate> candidates;
     {
@@ -707,7 +711,8 @@ bool FilamentSensorManager::has_real_runout() const {
             if (it == states_.end() || !it->second.available || it->second.filament_detected) {
                 continue; // sensor present and filament detected -> not a runout
             }
-            candidates.push_back({sensor.sensor_name, sensor.role, lane_index_for_sensor(sensor)});
+            candidates.push_back({sensor.sensor_name, sensor.role, lane_index_for_sensor(sensor),
+                                  !it->second.enabled});
         }
     }
 
@@ -726,6 +731,16 @@ bool FilamentSensorManager::has_real_runout() const {
             if (!slot.is_present()) {
                 spdlog::debug("[FilamentSensorManager] has_real_runout: ignoring {} - lane {} "
                               "is empty/never-loaded (not a runout)",
+                              sensor.sensor_name, lane);
+                continue;
+            }
+
+            // A stood-down sensor counts only for the lane it ran out on. Once
+            // the firmware has moved the print to another lane, the empty one
+            // it left behind is not what a later pause is about.
+            if (sensor.stood_down && backend->get_current_slot() != lane) {
+                spdlog::debug("[FilamentSensorManager] has_real_runout: ignoring {} - stood "
+                              "down, and lane {} is no longer the current one",
                               sensor.sensor_name, lane);
                 continue;
             }
@@ -774,9 +789,8 @@ int slot_for_tool(int tool, const std::map<int, int>& remap,
 }
 } // namespace
 
-FilamentSensorManager::ScopedRunoutScan
-FilamentSensorManager::scan_required_lanes(const std::set<int>& tools_used,
-                                           const std::map<int, int>& remap) const {
+FilamentSensorManager::ScopedRunoutScan FilamentSensorManager::scan_required_lanes(
+    const std::set<int>& tools_used, const std::map<int, int>& remap, bool read_stood_down) const {
     // Caller holds mutex_ (recursive). Single source of truth for both
     // find_empty_required_lanes() and compute_scoped_runout_value() — dedups the
     // runout-config lookup, backend fetch, availability gate, and per-lane scan.
@@ -854,7 +868,7 @@ FilamentSensorManager::scan_required_lanes(const std::set<int>& tools_used,
 
         // Where the slot status is not a filament reading, a RUNOUT sensor
         // watching that slot is. A firmware stand-down leaves the reading live,
-        // and this check runs while the firmware holds every head's sensor down.
+        // which the pre-print check relies on while every head is held down.
         if (!scan.backend->slot_status_tracks_filament()) {
             for (const auto& sensor : sensors_) {
                 if (sensor.role != FilamentSensorRole::RUNOUT || !sensor.enabled ||
@@ -862,7 +876,8 @@ FilamentSensorManager::scan_required_lanes(const std::set<int>& tools_used,
                     continue;
                 }
                 auto it = states_.find(sensor.klipper_name);
-                if (it != states_.end() && it->second.available && !it->second.filament_detected) {
+                if (it != states_.end() && it->second.available &&
+                    (read_stood_down || it->second.enabled) && !it->second.filament_detected) {
                     spdlog::debug("[FilamentSensorManager] required tool {} -> lane {} is empty "
                                   "({} reads no filament)",
                                   tool, slot, sensor.sensor_name);
@@ -881,7 +896,7 @@ FilamentSensorManager::find_empty_required_lanes(const std::set<int>& tools_used
                                                  const std::map<int, int>& remap) const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-    const ScopedRunoutScan scan = scan_required_lanes(tools_used, remap);
+    const ScopedRunoutScan scan = scan_required_lanes(tools_used, remap, /*read_stood_down=*/true);
 
     // No lane truth, no runout protection, or no fresh data -> no genuinely-empty
     // required lanes to report. The caller falls back to the aggregate sensor
@@ -909,7 +924,7 @@ int FilamentSensorManager::compute_scoped_runout_value(const std::set<int>& tool
                                                        const std::map<int, int>& remap) const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-    const ScopedRunoutScan scan = scan_required_lanes(tools_used, remap);
+    const ScopedRunoutScan scan = scan_required_lanes(tools_used, remap, /*read_stood_down=*/false);
 
     if (scan.no_used_tools || !scan.runout_configured) {
         return -1; // No tools to scope, or no runout sensor -> hide.
@@ -1040,6 +1055,11 @@ void FilamentSensorManager::update_from_status(const json& status) {
         // Copy callback for use outside lock
         callback_copy = state_change_callback_;
 
+        if (!job_owns_machine && !observed_runouts_.empty()) {
+            observed_runouts_.clear();
+            any_changed = true;
+        }
+
         // Process filament_switch_sensor updates
         for (const auto& sensor : sensors_) {
             // Build the Klipper object key (e.g., "filament_switch_sensor fsensor")
@@ -1055,6 +1075,7 @@ void FilamentSensorManager::update_from_status(const json& status) {
             const auto& sensor_data = status[key];
             auto& state = states_[sensor.klipper_name];
             FilamentSensorState old_state = state;
+            state.reported = true;
 
             // Update filament_detected. Subscriptions targeting specific fields
             // (filament_detected, enabled, detection_count) cause Moonraker to send
@@ -1111,6 +1132,9 @@ void FilamentSensorManager::update_from_status(const json& status) {
             // Check for state change
             if (state.filament_detected != old_state.filament_detected) {
                 any_changed = true;
+                if (state.filament_detected) {
+                    observed_runouts_.erase(sensor.klipper_name);
+                }
 
                 // Log at WARN if this is a runout (filament gone) on an active sensor
                 if (!state.filament_detected && sensor.role != FilamentSensorRole::NONE &&
@@ -1161,6 +1185,14 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 // resumes acting on it), but the removal itself was not seen,
                 // so no "filament removed" toast for it.
                 const bool observed_while_monitoring = old_state.enabled && state.enabled;
+                // Judged on the state going INTO the frame: a pause macro can
+                // stand the sensor down inside the same status batch that
+                // carries the runout.
+                if (!state.filament_detected && old_state.reported && old_state.enabled &&
+                    job_owns_machine && !ams_active && sensor.enabled &&
+                    sensor.role != FilamentSensorRole::NONE) {
+                    observed_runouts_.insert(sensor.klipper_name);
+                }
                 notif.should_toast = !within_grace_period && !is_wizard_active() && !ams_active &&
                                      !ad5x_idle_unload && !post_unload_removal &&
                                      !runout_surface_owned_during_job && master_enabled_ &&
@@ -1206,6 +1238,15 @@ void FilamentSensorManager::update_from_status(const json& status) {
                         sensor.sensor_name, ams_type_to_string(backend_type));
                 }
                 notifications.push_back(notif);
+            }
+
+            // The pause macro stands sensors down only once the job reads
+            // Paused (PrinterState applies print_stats before this runs). A
+            // stand-down while the job runs on means the firmware moved the
+            // print to another sensor, or the user took a misreading one off
+            // duty: either way, its runout is no longer this job's.
+            if (old_state.enabled && !state.enabled && lifecycle != PrintState::Paused) {
+                observed_runouts_.erase(sensor.klipper_name);
             }
         }
 
@@ -1448,7 +1489,8 @@ bool FilamentSensorManager::monitors_runout(const FilamentSensorConfig& config) 
         return false;
     }
     auto it = states_.find(config.klipper_name);
-    return it != states_.end() && it->second.enabled;
+    return it != states_.end() &&
+           (it->second.enabled || observed_runouts_.count(config.klipper_name) > 0);
 }
 
 const FilamentSensorConfig*

@@ -607,7 +607,9 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
      * reporting filament_detected for a sensor stood down with
      * SET_FILAMENT_SENSOR ENABLE=0 but takes no runout action of its own, so
      * neither do we. The state default is enabled=true, so a sensor that has
-     * never reported the field counts as running. Caller MUST hold mutex_.
+     * never reported the field counts as running. A runout observed while the
+     * firmware ran the sensor keeps counting after a stand-down (see
+     * observed_runouts_). Caller MUST hold mutex_.
      */
     [[nodiscard]] bool monitors_runout(const FilamentSensorConfig& config) const;
 
@@ -635,8 +637,13 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
     };
 
     /// Shared scoped lane scan. Caller MUST hold mutex_ (recursive).
+    /// @p read_stood_down: whether a head sensor the firmware has stood down
+    /// still counts as that head's reading. The pre-print check needs it (the
+    /// firmware holds every head down between prints); the running-print badge
+    /// does not (a stood-down head is one the job is not feeding from).
     [[nodiscard]] ScopedRunoutScan scan_required_lanes(const std::set<int>& tools_used,
-                                                       const std::map<int, int>& remap) const;
+                                                       const std::map<int, int>& remap,
+                                                       bool read_stood_down) const;
 
     /**
      * @brief Update all LVGL subjects from current state
@@ -672,6 +679,13 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
     /// the moment the sensor went clear. Filament returning before the dwell
     /// expires drops the entry, so a tool change announces nothing at all.
     std::map<std::string, std::chrono::steady_clock::time_point> pending_removal_toast_;
+
+    /// Sensors that went empty while the firmware ran them, mid-job and outside
+    /// a filament operation, and have not refilled since. A pause macro that
+    /// stands every sensor down still leaves this runout for the modal to
+    /// report; a sensor the user keeps disabled never gets here. Cleared on
+    /// refill and when the job lets go of the machine. Keyed by klipper_name.
+    std::set<std::string> observed_runouts_;
 
     // State change callback
     StateChangeCallback state_change_callback_;
