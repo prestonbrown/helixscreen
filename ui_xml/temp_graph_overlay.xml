@@ -135,17 +135,17 @@
               <lv_obj height="content"
                       flex_flow="column" style_flex_cross_place="start" style_pad_all="0" style_pad_gap="#space_xs"
                       scrollable="false">
-                <nozzle_icon name="nozzle_heater_icon" size="xl"/>
+                <nozzle_icon name="nozzle_heater_icon" size="xl" badge_text_subject="temp_graph_nozzle_badge"/>
                 <lv_obj style_pad_all="0"
                         scrollable="false" flex_flow="column" style_flex_main_place="center"
                         style_flex_cross_place="start" style_pad_gap="#space_xxs">
                   <text_small style_border_width="0" text="Current / Target" translation_tag="Current / Target"/>
                   <temp_display name="nozzle_temp_display"
-                                size="lg" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"
-                                event_cb="on_temp_graph_custom_clicked"/>
+                                size="lg" show_target="true" bind_current="temp_graph_nozzle_temp"
+                                bind_target="temp_graph_nozzle_target" event_cb="on_temp_graph_custom_clicked"/>
                 </lv_obj>
-                <text_small name="nozzle_status_msg"
-                            style_border_width="0" bind_text="nozzle_status" style_text_align="left"/>
+                <heater_status name="nozzle_status_msg"
+                               state_subject="temp_graph_nozzle_status_state" duty_subject="temp_graph_nozzle_status"/>
               </lv_obj>
               <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
             </lv_obj>
@@ -198,12 +198,12 @@
             <ui_card name="nozzle_display_card"
                      width="content" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
                      style_flex_cross_place="center" style_pad_gap="#space_xs" style_pad_all="#space_sm">
-              <nozzle_icon name="nozzle_heater_icon" size="md"/>
+              <nozzle_icon name="nozzle_heater_icon" size="md" badge_text_subject="temp_graph_nozzle_badge"/>
               <temp_display name="nozzle_temp_display"
-                            size="md" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"
-                            event_cb="on_temp_graph_custom_clicked"/>
-              <text_small name="nozzle_status_msg"
-                          style_border_width="0" bind_text="nozzle_status" style_text_align="center"/>
+                            size="md" show_target="true" bind_current="temp_graph_nozzle_temp"
+                            bind_target="temp_graph_nozzle_target" event_cb="on_temp_graph_custom_clicked"/>
+              <heater_status name="nozzle_status_msg"
+                             state_subject="temp_graph_nozzle_status_state" duty_subject="temp_graph_nozzle_status"/>
             </ui_card>
           </lv_obj>
           <lv_obj height="content"
@@ -268,7 +268,7 @@
                                 size="lg" show_target="true" bind_current="bed_temp" bind_target="bed_target"
                                 event_cb="on_temp_graph_custom_clicked"/>
                 </lv_obj>
-                <text_small name="bed_status_msg" bind_text="bed_status" style_text_align="left"/>
+                <heater_status name="bed_status_msg" state_subject="bed_status_state" duty_subject="bed_status"/>
               </lv_obj>
               <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
             </lv_obj>
@@ -309,7 +309,7 @@
               <temp_display name="bed_temp_display"
                             size="md" show_target="true" bind_current="bed_temp" bind_target="bed_target"
                             event_cb="on_temp_graph_custom_clicked"/>
-              <text_small name="bed_status_msg" bind_text="bed_status" style_text_align="center"/>
+              <heater_status name="bed_status_msg" state_subject="bed_status_state" duty_subject="bed_status"/>
             </ui_card>
           </lv_obj>
           <lv_obj height="content"
@@ -370,7 +370,8 @@
                                 bind_target="chamber_effective_target" bind_mode="chamber_mode"
                                 event_cb="on_temp_graph_custom_clicked"/>
                 </lv_obj>
-                <text_small name="chamber_status_msg" bind_text="chamber_status" style_text_align="left"/>
+                <heater_status name="chamber_status_msg"
+                               state_subject="chamber_status_state" duty_subject="chamber_status"/>
               </lv_obj>
               <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
             </lv_obj>
@@ -418,7 +419,8 @@
                             size="md" show_target="true" bind_current="chamber_temp"
                             bind_target="chamber_effective_target" bind_mode="chamber_mode"
                             event_cb="on_temp_graph_custom_clicked"/>
-              <text_small name="chamber_status_msg" bind_text="chamber_status" style_text_align="center"/>
+              <heater_status name="chamber_status_msg"
+                             state_subject="chamber_status_state" duty_subject="chamber_status"/>
             </ui_card>
           </lv_obj>
           <lv_obj height="content"

@@ -29,10 +29,11 @@ static void update_tool_badge(helix::ToolState* ts) {
     const auto* tool = ts->has_multiple_extruders() ? ts->active_tool() : nullptr;
     if (tool) {
         // 1-based number only ("1"), not the full tool name ("T0"). The badge
-        // is a disc overlaid on the nozzle glyph it annotates, so its diameter
-        // is bounded by the icon; two glyphs force it wide enough to cover the
-        // icon. Call sites that want the full name bind a text label beside
-        // the icon instead (print_status_detailed_active.xml).
+        // is a bold subscript digit beside the nozzle glyph; digit-only is the
+        // display convention everywhere (the "T" spelling is the 0-based
+        // G-code form, see include/display_numbering.h). Call sites that want
+        // the full name bind a text label beside the icon instead
+        // (print_status_detailed_active.xml).
         const std::string label = helix::ui::lane_number_text(tool->index);
         lv_subject_copy_string(ts->get_tool_badge_text_subject(), label.c_str());
         lv_subject_set_int(ts->get_show_tool_badge_subject(), 1);

@@ -58,7 +58,7 @@ void init_direction_subjects() {
 // extractor cannot see them at the lv_tr() call site in dispatch(). This never
 // runs; it lists every reason as a literal key.
 // clang-format off
-static void eligibility_reason_translation_hints_() {
+[[maybe_unused]] static void eligibility_reason_translation_hints_() {
     (void)lv_tr("empty"); (void)lv_tr("already loaded"); (void)lv_tr("not loaded");
     (void)lv_tr("feeder not in automatic mode"); (void)lv_tr("filament sensor disabled");
     (void)lv_tr("busy"); (void)lv_tr("feeder error");

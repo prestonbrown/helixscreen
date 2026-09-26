@@ -21,7 +21,7 @@ bool bypass_node_visible_for(const AmsBackend* backend) {
     }
     return bypass_node_visible(
         helix::bypass_available_for(backend->get_system_info().supports_bypass),
-        backend->is_bypass_active(), backend->is_afc_system(),
+        backend->is_bypass_active(), backend->bypass_is_virtual(),
         SettingsManager::instance().get_ams_always_show_bypass_spool());
 }
 

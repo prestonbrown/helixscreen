@@ -440,17 +440,14 @@ The wizard runs when no valid configuration exists. Causes:
 
 Go to **Settings > System > Host** and enter the new address. HelixScreen disconnects from the current printer and connects to the new one right away.
 
-To re-run the whole setup wizard instead:
+To re-run the whole setup wizard instead, use **Settings > System > Factory Reset** (wipes all HelixScreen settings and their backup copies), or stop the service and start the app once with the wizard flag:
 
 ```bash
-# Either delete the config to trigger wizard on next start:
-# (fallback path if no Klipper ecosystem: /opt/helixscreen/config/settings.json)
-sudo rm ~/helixscreen/config/settings.json
-sudo systemctl restart helixscreen
-
-# Or force wizard with command-line flag:
+sudo systemctl stop helixscreen
 helix-screen --wizard
 ```
+
+Deleting `settings.json` by hand does not re-run the wizard on its own: HelixScreen restores it from a rolling backup on the next start. See [Reset HelixScreen or re-run the setup wizard](TROUBLESHOOTING.md#reset-helixscreen-or-re-run-the-setup-wizard) for the full manual procedure.
 
 ---
 

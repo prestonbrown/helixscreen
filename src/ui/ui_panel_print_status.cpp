@@ -598,12 +598,16 @@ void PrintStatusPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(remaining_subject_, remaining_buf_, "0h 00m", "print_remaining",
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(eta_subject_, eta_buf_, "", "print_eta", subjects_);
-    UI_MANAGED_SUBJECT_STRING(nozzle_status_subject_, nozzle_status_buf_, "Off",
-                              "print_nozzle_status", subjects_);
-    UI_MANAGED_SUBJECT_STRING(bed_status_subject_, bed_status_buf_, "Off", "print_bed_status",
+    UI_MANAGED_SUBJECT_STRING(nozzle_status_subject_, nozzle_status_buf_, "", "print_nozzle_status",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(bed_status_subject_, bed_status_buf_, "", "print_bed_status",
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(chamber_status_subject_, chamber_status_buf_, "",
                               "print_chamber_status", subjects_);
+    UI_MANAGED_SUBJECT_INT(nozzle_status_state_subject_, 0, "print_nozzle_status_state", subjects_);
+    UI_MANAGED_SUBJECT_INT(bed_status_state_subject_, 0, "print_bed_status_state", subjects_);
+    UI_MANAGED_SUBJECT_INT(chamber_status_state_subject_, 0, "print_chamber_status_state",
+                           subjects_);
     UI_MANAGED_SUBJECT_STRING(speed_subject_, speed_buf_, "100%", "print_speed_text", subjects_);
     UI_MANAGED_SUBJECT_STRING(flow_subject_, flow_buf_, "100%", "print_flow_text", subjects_);
     UI_MANAGED_SUBJECT_STRING(objects_text_subject_, objects_text_buf_, "", "print_objects_text",
@@ -2035,6 +2039,24 @@ void PrintStatusPanel::update_filament_used_text() {
     lv_subject_copy_string(&filament_used_text_subject_, filament_used_text_buf_);
 }
 
+void PrintStatusPanel::update_heater_status_rows() {
+    // Glyph state + duty text come from the one shared classifier; the XML row
+    // maps the state int to the flame/check/snowflake glyph pair.
+    auto nozzle = helix::ui::temperature::classify_heater_status(
+        lifecycle_.nozzle_current(), lifecycle_.nozzle_target(),
+        lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Nozzle)));
+    lv_subject_set_int(&nozzle_status_state_subject_, static_cast<int>(nozzle.state));
+    std::snprintf(nozzle_status_buf_, sizeof(nozzle_status_buf_), "%s", nozzle.duty.c_str());
+    lv_subject_copy_string(&nozzle_status_subject_, nozzle_status_buf_);
+
+    auto bed = helix::ui::temperature::classify_heater_status(
+        lifecycle_.bed_current(), lifecycle_.bed_target(),
+        lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Bed)));
+    lv_subject_set_int(&bed_status_state_subject_, static_cast<int>(bed.state));
+    std::snprintf(bed_status_buf_, sizeof(bed_status_buf_), "%s", bed.duty.c_str());
+    lv_subject_copy_string(&bed_status_subject_, bed_status_buf_);
+}
+
 void PrintStatusPanel::update_all_displays() {
     // Guard: don't update if subjects aren't initialized yet
     if (!subjects_initialized_) {
@@ -2059,22 +2081,8 @@ void PrintStatusPanel::update_all_displays() {
         lv_subject_copy_string(&remaining_subject_, remaining_buf_);
     }
 
-    // Heater status text (Off / Heating... / Ready)
-    auto nozzle_heater = helix::ui::temperature::heater_display(lifecycle_.nozzle_current(),
-                                                                lifecycle_.nozzle_target());
-    auto nozzle_status = helix::ui::temperature::status_with_duty(
-        nozzle_heater.status,
-        lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Nozzle)));
-    std::snprintf(nozzle_status_buf_, sizeof(nozzle_status_buf_), "%s", nozzle_status.c_str());
-    lv_subject_copy_string(&nozzle_status_subject_, nozzle_status_buf_);
-
-    auto bed_heater =
-        helix::ui::temperature::heater_display(lifecycle_.bed_current(), lifecycle_.bed_target());
-    auto bed_status = helix::ui::temperature::status_with_duty(
-        bed_heater.status,
-        lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Bed)));
-    std::snprintf(bed_status_buf_, sizeof(bed_status_buf_), "%s", bed_status.c_str());
-    lv_subject_copy_string(&bed_status_subject_, bed_status_buf_);
+    // Heater status (state glyph + duty)
+    update_heater_status_rows();
 
     update_speed_flow_text();
 
@@ -2443,21 +2451,7 @@ void PrintStatusPanel::on_temperature_changed() {
     // Update only temperature-related subjects (not the full display refresh).
     // Temperature observers fire frequently during heating (4 subjects x ~1Hz each),
     // and update_all_displays() re-renders ALL subjects causing visible flickering.
-    auto nozzle_heater = helix::ui::temperature::heater_display(lifecycle_.nozzle_current(),
-                                                                lifecycle_.nozzle_target());
-    auto nozzle_status = helix::ui::temperature::status_with_duty(
-        nozzle_heater.status,
-        lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Nozzle)));
-    std::snprintf(nozzle_status_buf_, sizeof(nozzle_status_buf_), "%s", nozzle_status.c_str());
-    lv_subject_copy_string(&nozzle_status_subject_, nozzle_status_buf_);
-
-    auto bed_heater =
-        helix::ui::temperature::heater_display(lifecycle_.bed_current(), lifecycle_.bed_target());
-    auto bed_status = helix::ui::temperature::status_with_duty(
-        bed_heater.status,
-        lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Bed)));
-    std::snprintf(bed_status_buf_, sizeof(bed_status_buf_), "%s", bed_status.c_str());
-    lv_subject_copy_string(&bed_status_subject_, bed_status_buf_);
+    update_heater_status_rows();
 
     spdlog::trace("[{}] Temperatures updated: nozzle {}/{}°C, bed {}/{}°C", get_name(),
                   lifecycle_.nozzle_current(), lifecycle_.nozzle_target(), lifecycle_.bed_current(),
@@ -3083,13 +3077,15 @@ void PrintStatusPanel::update_chamber_status() {
     if (!has_heater || target == 0) {
         // Sensor-only or heater off: no status text
         chamber_status_buf_[0] = '\0';
+        lv_subject_set_int(&chamber_status_state_subject_,
+                           static_cast<int>(helix::ui::temperature::HeaterStatusState::None));
     } else {
-        auto chamber_heater = helix::ui::temperature::heater_display(current, target);
-        auto chamber_status = helix::ui::temperature::status_with_duty(
-            chamber_heater.status, lv_subject_get_int(printer_state_.get_heater_power_subject(
-                                       helix::HeaterType::Chamber)));
-        std::snprintf(chamber_status_buf_, sizeof(chamber_status_buf_), "%s",
-                      chamber_status.c_str());
+        auto chamber = helix::ui::temperature::classify_heater_status(
+            current, target,
+            lv_subject_get_int(
+                printer_state_.get_heater_power_subject(helix::HeaterType::Chamber)));
+        lv_subject_set_int(&chamber_status_state_subject_, static_cast<int>(chamber.state));
+        std::snprintf(chamber_status_buf_, sizeof(chamber_status_buf_), "%s", chamber.duty.c_str());
     }
     lv_subject_copy_string(&chamber_status_subject_, chamber_status_buf_);
 }

@@ -21,6 +21,17 @@ using json = nlohmann::json;
 
 namespace {
 
+#if defined(HELIX_PLATFORM_ESP32)
+// ESP-IDF has one user and no symlinks: newlib declares no lstat and links no
+// geteuid, and on that VFS stat and uid 0 are what they would answer.
+int lstat(const char* path, struct stat* st) {
+    return stat(path, st);
+}
+uid_t geteuid() {
+    return 0;
+}
+#endif
+
 bool owned_by_root_or_self(uid_t uid) {
     return uid == 0 || uid == geteuid();
 }

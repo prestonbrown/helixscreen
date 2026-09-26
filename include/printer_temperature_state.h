@@ -46,8 +46,10 @@ struct ExtruderInfo {
     float last_nonzero_target = 0.0f;
     std::unique_ptr<lv_subject_t> temp_subject;   ///< Decidegrees (value * 10)
     std::unique_ptr<lv_subject_t> target_subject; ///< Decidegrees
+    std::unique_ptr<lv_subject_t> power_subject;  ///< Duty in whole percent, -1 until reported
     SubjectLifetime temp_lifetime;   ///< Lifetime token for temp_subject (for ObserverGuard safety)
     SubjectLifetime target_lifetime; ///< Lifetime token for target_subject
+    SubjectLifetime power_lifetime;  ///< Lifetime token for power_subject
 };
 
 /**
@@ -118,6 +120,11 @@ class PrinterTemperatureState {
     lv_subject_t* get_extruder_temp_subject(const std::string& name, SubjectLifetime& lifetime);
     /// Get per-extruder target subject with lifetime token (use when creating observers)
     lv_subject_t* get_extruder_target_subject(const std::string& name, SubjectLifetime& lifetime);
+
+    /// Get a specific extruder's heater duty with lifetime token (whole
+    /// percent, -1 until that heater reports one). Distinct from the nullary
+    /// overload, which is the ACTIVE extruder's mirror.
+    lv_subject_t* get_extruder_power_subject(const std::string& name, SubjectLifetime& lifetime);
 
     lv_subject_t* get_extruder_power_subject() {
         return &active_extruder_power_;
@@ -317,6 +324,13 @@ class PrinterTemperatureState {
     /// Version subject, bumped when extruder list changes (for UI rebuild triggers)
     lv_subject_t* get_extruder_version_subject() {
         return &extruder_version_;
+    }
+
+    /// Death signal for every subject this state owns (the active-extruder
+    /// mirrors, the version subject and the per-extruder subjects alike).
+    /// Hand to observe_*() by anything that can outlive a deinit.
+    [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
+        return subjects_.get_subjects_lifetime();
     }
 
     /**
@@ -547,7 +561,9 @@ class PrinterTemperatureState {
     std::unordered_map<std::string, ExtruderInfo> extruders_;
     lv_subject_t extruder_version_{}; ///< Bumped when extruder list changes
 
-    // Active extruder name (defaults to "extruder")
+    // Active extruder name (defaults to "extruder"). Follows the machine's
+    // toolhead status; a surface that wants to show a different tool reads the
+    // per-extruder subjects instead of these mirrors.
     std::string active_extruder_name_ = "extruder";
 
     // Chamber configuration

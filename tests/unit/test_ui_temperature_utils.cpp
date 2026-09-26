@@ -525,13 +525,13 @@ TEST_CASE("Temperature Utils: the status word never contradicts the number shown
     SECTION("Above the band: the rounded reading is what gets classified") {
         auto result = heater_display(2229, 2200);
         REQUIRE(result.temp == "223 / 220°C");
-        REQUIRE(result.status == "Cooling");
+        REQUIRE(result.state == HeatState::Cooling);
     }
 
     SECTION("Just under target: the number reads as the target and so does the state") {
         auto result = heater_display(2196, 2200);
         REQUIRE(result.temp == "220 / 220°C");
-        REQUIRE(result.status == "Ready");
+        REQUIRE(result.state == HeatState::AtTemp);
     }
 
     // The invariant behind both cases: whenever the current and target render as
@@ -548,7 +548,7 @@ TEST_CASE("Temperature Utils: the status word never contradicts the number shown
             }
             INFO("current decidegrees " << deci << " renders as " << cur_buf);
             auto result = heater_display(deci, target_deci);
-            REQUIRE(result.status == "Ready");
+            REQUIRE(result.state == HeatState::AtTemp);
         }
     }
 }

@@ -349,9 +349,12 @@ class PrintStatusPanel : public OverlayBase {
     lv_subject_t elapsed_subject_;
     lv_subject_t remaining_subject_;
     lv_subject_t eta_subject_;
-    lv_subject_t nozzle_status_subject_;
-    lv_subject_t bed_status_subject_;
-    lv_subject_t chamber_status_subject_;
+    lv_subject_t nozzle_status_subject_;        ///< duty text ("" = none)
+    lv_subject_t bed_status_subject_;           ///< duty text ("" = none)
+    lv_subject_t chamber_status_subject_;       ///< duty text ("" = none)
+    lv_subject_t nozzle_status_state_subject_;  ///< HeaterStatusState int
+    lv_subject_t bed_status_state_subject_;     ///< HeaterStatusState int
+    lv_subject_t chamber_status_state_subject_; ///< HeaterStatusState int
     lv_subject_t speed_subject_;
     lv_subject_t flow_subject_;
     lv_subject_t
@@ -635,6 +638,7 @@ class PrintStatusPanel : public OverlayBase {
     void update_filament_used_text();
 
     void update_all_displays();
+    void update_heater_status_rows();
     void show_gcode_viewer(bool show);
     /// True when @p print_filename still names the print PrinterState reports as
     /// effective. A gcode fetch crosses a metadata lookup, a download and the

@@ -194,3 +194,58 @@ TEST_CASE("an inline style_text_font still outranks an icon's bound face",
     // And it is genuinely overriding a different rung, not echoing it.
     CHECK(lv_obj_get_style_text_font(lv_obj_find_by_name(root, "plain_icon"), LV_PART_MAIN) == sm);
 }
+
+namespace {
+
+/// Same shape as nozzle_icon/heater_icon: a component whose rung prop defaults
+/// to empty, so a call site that does not size itself resolves the binding's
+/// subject to "". The app registers an int-0 subject under that empty name
+/// (src/xml_registration.cpp), so without an engine-side skip the eq-0 rung
+/// style installs and pins the glyph to the xs face at every breakpoint.
+constexpr const char* EMPTY_RUNG_FIXTURE_XML = R"(<component>
+  <api>
+    <prop name="rung_subject" type="string" default=""/>
+  </api>
+  <styles>
+    <style name="xs_rung" text_font="#icon_font_xs"/>
+  </styles>
+  <view name="root" extends="lv_obj">
+    <icon name="unsized_icon" src="power" size="sm">
+      <bind_style_if_eq name="xs_rung" subject="$rung_subject" ref_value="0"/>
+    </icon>
+  </view>
+</component>)";
+
+void ensure_empty_name_subject() {
+    // Mirrors the app's global "" noop subject: int 0, registered under the
+    // empty name. Without this the binding would resolve NULL and skip, and
+    // the test could not tell a guarded skip from a failed lookup.
+    static lv_subject_t subject;
+    static bool registered = false;
+    if (!registered) {
+        lv_subject_init_int(&subject, 0);
+        lv_xml_register_subject(nullptr, "", &subject);
+        registered = true;
+    }
+}
+
+} // namespace
+
+TEST_CASE("a rung bind left at its empty default installs no style", "[xml][icon][font]") {
+    XMLTestFixture fixture;
+    ensure_empty_name_subject();
+
+    const lv_font_t* sm = icon_rung("icon_font_sm");
+    const lv_font_t* xs = icon_rung("icon_font_xs");
+    REQUIRE(sm != xs);
+
+    REQUIRE(lv_xml_register_component_from_data("icon_empty_rung_fixture",
+                                                EMPTY_RUNG_FIXTURE_XML) == LV_RESULT_OK);
+    lv_obj_t* root = static_cast<lv_obj_t*>(
+        lv_xml_create(fixture.test_screen(), "icon_empty_rung_fixture", nullptr));
+    REQUIRE(root != nullptr);
+    lv_obj_t* unsized = lv_obj_find_by_name(root, "unsized_icon");
+    REQUIRE(unsized != nullptr);
+
+    CHECK(lv_obj_get_style_text_font(unsized, LV_PART_MAIN) == sm);
+}

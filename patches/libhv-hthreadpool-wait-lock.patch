@@ -1,8 +1,25 @@
 diff --git a/cpputil/hthreadpool.h b/cpputil/hthreadpool.h
-index 8df9871..87b0cec 100644
+index 8df9871..814e578 100644
 --- a/cpputil/hthreadpool.h
 +++ b/cpputil/hthreadpool.h
-@@ -109,8 +109,16 @@ public:
+@@ -80,7 +80,15 @@ public:
+ 
+     int stop() {
+         if (status == STOP) return -1;
+-        status = STOP;
++        {
++            // PATCH NOTE(helixscreen): publish STOP under task_mutex. A worker
++            // checks its wait predicate holding that mutex; an unlocked store
++            // plus notify can land between the check and the block, and the
++            // lost wakeup leaves the worker asleep for max_idle_time (60s)
++            // while join() below waits on it.
++            std::lock_guard<std::mutex> locker(task_mutex);
++            status = STOP;
++        }
+         task_cond.notify_all();
+         for (auto& i : threads) {
+             if (i.thread->joinable()) {
+@@ -109,8 +117,16 @@ public:
  
      int wait() {
          while (status != STOP) {
@@ -21,7 +38,7 @@ index 8df9871..87b0cec 100644
              }
              std::this_thread::yield();
          }
-@@ -127,7 +135,10 @@ public:
+@@ -127,7 +143,10 @@ public:
      template<class Fn, class... Args>
      auto commit(Fn&& fn, Args&&... args) -> std::future<decltype(fn(args...))> {
          if (status == STOP) start();
@@ -33,7 +50,7 @@ index 8df9871..87b0cec 100644
              createThread();
          }
          using RetType = decltype(fn(args...));
-@@ -147,8 +158,20 @@ public:
+@@ -147,8 +166,20 @@ public:
  
  protected:
      bool createThread() {
@@ -56,7 +73,7 @@ index 8df9871..87b0cec 100644
              while (status != STOP) {
                  while (status == PAUSE) {
                      std::this_thread::yield();
-@@ -177,14 +200,27 @@ protected:
+@@ -177,14 +208,27 @@ protected:
                      ++idle_thread_num;
                  }
              }

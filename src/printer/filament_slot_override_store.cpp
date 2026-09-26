@@ -2248,4 +2248,29 @@ bool publish_external_lane(FilamentSlotOverrideStore* store, int lane_index, con
     return true;
 }
 
+void save_override_async(FilamentSlotOverrideStore* store, int slot_index,
+                         const FilamentSlotOverride& record, const std::string& tag,
+                         const char* noun) {
+    store->save_async(slot_index, record, [tag, slot_index, noun](bool success, std::string err) {
+        if (!success) {
+            spdlog::warn("{} {} persist failed for slot {}: {}", tag, noun, slot_index, err);
+        }
+    });
+}
+
+void persist_staged_override(FilamentSlotOverrideStore* store, std::mutex& mutex,
+                             std::unordered_map<int, FilamentSlotOverride>& overrides,
+                             int slot_index, const std::string& tag, const char* noun) {
+    FilamentSlotOverride record;
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = overrides.find(slot_index);
+        if (it == overrides.end()) {
+            return;
+        }
+        record = it->second;
+    }
+    save_override_async(store, slot_index, record, tag, noun);
+}
+
 } // namespace helix::ams

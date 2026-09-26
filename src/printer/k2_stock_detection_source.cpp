@@ -308,7 +308,11 @@ void K2StockDetectionSource::fire(const PollResult& r) {
     e.kind = DetectionKind::Spaghetti;
     e.attributable = true;
     e.confidence = r.prob;
-    e.already_paused = false;
+    // A job the user (or anything else) already paused needs no second pause
+    // from the response: the presenter reads this flag to skip its own.
+    // RAW_PRINT_STATE_OK: already_paused asks PAUSED specifically; the
+    // lifecycle collapses paused and printing into one PrintState.
+    e.already_paused = state_->get_print_job_state() == PrintJobState::PAUSED;
     e.message = "Spaghetti detected (" + std::to_string(pct) + "%)";
     if (cb_)
         cb_(e);

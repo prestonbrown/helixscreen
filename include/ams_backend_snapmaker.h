@@ -300,7 +300,7 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     // (SET_PRINT_USED_EXTRUDERS / SET_PRINT_EXTRUDER_MAP) emitted before
     // PRINT_START; no gcode-file rewrite is needed.
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
-        return RemapStrategy::SnapmakerNative;
+        return RemapStrategy::PrePrintSend;
     }
 
     // Configuration

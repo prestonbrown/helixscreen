@@ -852,6 +852,51 @@ After restart, flags on the language selection screen should show correct colors
 
 ---
 
+### Screen goes dark at sleep but the backlight stays on
+
+**Symptoms:**
+- When the screen sleeps (idle timeout), the picture goes black but the panel still glows: you can see the backlight shining through, especially in a dark room
+- Touching the screen wakes it normally
+
+**Cause:**
+By default, sleep turns the backlight off and leaves the panel powered, so waking is instant. Some panel controllers treat "backlight at zero" as "very dim" rather than "off", so the LEDs stay lit. Powering the whole panel down fixes these screens, but it breaks others (see the next section), so it is not the default.
+
+**Fix - power the panel down at sleep:**
+
+1. SSH into your printer
+2. Edit `settings.json` (typically `~/helixscreen/config/settings.json`; see [Configuration](CONFIGURATION.md) for other platforms)
+3. Find the `"display"` section and set:
+
+   ```json
+   "panel_power_off": 1
+   ```
+
+4. Save the file and restart HelixScreen:
+
+   ```bash
+   sudo systemctl restart helixscreen
+   ```
+
+   (Use your platform's restart command - see [Quick Debugging Guide](#quick-debugging-guide) for the SysV-init variants.)
+
+5. Let the screen sleep, then touch it to wake it.
+
+To confirm the setting was picked up, look for this line in the log after the restart:
+
+```
+[DisplayManager] Display power-off: true (config override)
+```
+
+If it says `false (config override)`, your display driver has no way to power the panel down, and this setting cannot help on your hardware.
+
+**If it makes things worse:**
+On some screens, a full power-down causes flashing colours, edges that glow white, a colour test pattern, or a screen that does not come back when touched. If you see any of these, SSH in, set `"panel_power_off": -1` (automatic) or remove the line, and restart HelixScreen. Screen sleep in **Settings → Display** can also be set to **Never** as a fallback.
+
+**Helping us fix it:**
+If `panel_power_off: 1` works for you, please tell us your printer and screen model (or send a debug bundle from **Settings → Help & About → Upload Debug Bundle**). We can then turn it on automatically for that hardware.
+
+---
+
 ### Random solid colors during screen sleep (AD5X)
 
 **Symptoms:**
@@ -1828,6 +1873,27 @@ Auto-detection only commits to a model when it is confident enough. Below that b
 **In the wizard:** pick your model by hand at the **Printer Setup: Identity** step. The full database is there.
 
 **After setup:** if the wrong model got saved, correct it from Printer Manager — tap the printer image on the Home Panel, then the **printer model** row underneath the printer name, and pick the right model. It applies immediately, with nothing wiped. On the next connect, HelixScreen may also flag the mismatch itself and offer **Choose Model** — see [Wrong printer model identified](#wrong-printer-model-identified) above for that flow.
+
+---
+
+### Reset HelixScreen or re-run the setup wizard
+
+**Option 1: Factory Reset from the UI (easiest).** Go to **Settings > System > Factory Reset** and confirm. This wipes all HelixScreen settings, clears the backup copies so the old settings cannot come back, and restarts the Setup Wizard on the next start. It does not touch Klipper, Moonraker, or any files on the printer itself.
+
+**Option 2: touch is unusable, recalibrate only.** A full reset is not needed just to fix touch. Either add `HELIX_TOUCH_CALIBRATE=1` to the `helixscreen.env` file in your install's `config/` directory and restart the service (remove the line once calibration succeeds, the env var does not self-clear), or stop the service, add `"force_calibration": true` inside the `"input"` section of `settings.json`, and start it again (the flag clears itself after a successful calibration). See [Forcing Recalibration](guide/touch-calibration.md#forcing-recalibration) for the full walkthrough.
+
+**Option 3: full manual reset over SSH.** Deleting `settings.json` alone does not re-run the wizard: HelixScreen keeps rolling backup copies outside the install directory and restores the most recent one the next time the file is missing. To truly start over:
+
+1. Stop the service (`sudo systemctl stop helixscreen` on Raspberry Pi; `/etc/init.d/S99helixscreen stop` on K1 / K2 / Snapmaker U1; `/etc/init.d/S80helixscreen stop` on AD5M, AD5X and Creator 5 (Z-Mod); `/etc/init.d/helixscreen stop` on CC1)
+2. Delete the config and every backup copy (the install directory for your platform is in [Config File Locations](guide/touch-calibration.md#config-file-locations), for example `/srv/helixscreen` on FlashForge Z-Mod installs). Drop `sudo` on printers where you are already root (FlashForge, Creality, Snapmaker U1):
+   ```bash
+   sudo rm -f /srv/helixscreen/config/settings.json   # your install dir here
+   sudo rm -f /var/lib/helixscreen/*.backup
+   sudo rm -f ~/.helixscreen/*.backup                 # HOME is /root on Z-Mod installs, so /root/.helixscreen
+   ```
+3. Start the service again. The Setup Wizard runs from scratch.
+
+To re-run the wizard without wiping your settings, stop the service and start the app once by hand with `helix-screen --wizard`.
 
 ---
 

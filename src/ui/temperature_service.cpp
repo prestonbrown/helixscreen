@@ -358,23 +358,26 @@ void TemperatureService::update_status(HeaterType type) {
         h.read_only = (lv_subject_get_int(cap_subj) == 0);
     }
 
-    // Use heater_display() for consistent status strings and color across all panels
-    auto result = helix::ui::temperature::heater_display(h.current, h.target);
     const int power_pct = lv_subject_get_int(printer_state_.get_heater_power_subject(type));
 
     if (h.read_only) {
-        // Nothing of ours drives this chamber, so there is no duty to report.
+        // Nothing of ours drives this chamber, so there is no duty to report;
+        // the word is all the status area can say.
         snprintf(h.status_buf.data(), h.status_buf.size(), "%s", lv_tr("Monitoring"));
-    } else if (type == HeaterType::Chamber) {
-        // Delegate to the shared helper so the controls panel and the temp-graph
-        // overlay always produce identical output (single source of truth).
-        auto mode_int = lv_subject_get_int(printer_state_.get_chamber_mode_subject());
-        auto status = helix::ui::temperature::chamber_status_text(
-            h.current, h.target, static_cast<helix::ChamberMode>(mode_int), power_pct);
-        snprintf(h.status_buf.data(), h.status_buf.size(), "%s", status.c_str());
+        lv_subject_set_int(&h.status_state_subject,
+                           static_cast<int>(helix::ui::temperature::HeaterStatusState::None));
     } else {
-        auto status = helix::ui::temperature::status_with_duty(result.status, power_pct);
-        snprintf(h.status_buf.data(), h.status_buf.size(), "%s", status.c_str());
+        // One shared classifier feeds this overlay and the controls panel, so
+        // they can never disagree. The chamber passes its mode: Maintaining
+        // treats the target as a cooling ceiling, not a heat goal.
+        auto mode = (type == HeaterType::Chamber)
+                        ? static_cast<helix::ChamberMode>(
+                              lv_subject_get_int(printer_state_.get_chamber_mode_subject()))
+                        : helix::ChamberMode::Heating;
+        auto status =
+            helix::ui::temperature::classify_heater_status(h.current, h.target, power_pct, mode);
+        lv_subject_set_int(&h.status_state_subject, static_cast<int>(status.state));
+        snprintf(h.status_buf.data(), h.status_buf.size(), "%s", status.duty.c_str());
     }
 
     lv_subject_copy_string(&h.status_subject, h.status_buf.data());
@@ -479,6 +482,8 @@ void TemperatureService::init_subjects() {
     const char* display_names[] = {"nozzle_temp_display", "bed_temp_display",
                                    "chamber_temp_display"};
     const char* status_names[] = {"nozzle_status", "bed_status", "chamber_status"};
+    const char* status_state_names[] = {"nozzle_status_state", "bed_status_state",
+                                        "chamber_status_state"};
     const char* heating_names[] = {"nozzle_heating", "bed_heating", "chamber_heating"};
 
     for (int i = 0; i < helix::HEATER_TYPE_COUNT; ++i) {
@@ -492,8 +497,9 @@ void TemperatureService::init_subjects() {
         // Initialize subjects
         UI_MANAGED_SUBJECT_STRING_N(h.display_subject, h.display_buf.data(), h.display_buf.size(),
                                     h.display_buf.data(), display_names[i], subjects_);
-        UI_MANAGED_SUBJECT_STRING_N(h.status_subject, h.status_buf.data(), h.status_buf.size(),
-                                    lv_tr("Idle"), status_names[i], subjects_);
+        UI_MANAGED_SUBJECT_STRING_N(h.status_subject, h.status_buf.data(), h.status_buf.size(), "",
+                                    status_names[i], subjects_);
+        UI_MANAGED_SUBJECT_INT(h.status_state_subject, 0, status_state_names[i], subjects_);
         UI_MANAGED_SUBJECT_INT(h.heating_subject, 0, heating_names[i], subjects_);
     }
 

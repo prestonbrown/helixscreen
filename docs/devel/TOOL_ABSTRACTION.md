@@ -288,9 +288,9 @@ if (tool) {
 
 ## UI Patterns
 
-### Active Tool Badge (HomePanel)
+### Active Tool Number (HomePanel)
 
-The home panel shows a tool badge (e.g., "T1") when multiple tools are present. Hidden on single-tool printers via `bind_flag_if_eq` on `tool_count`.
+On multi-tool printers the nozzle icon carries the active tool's number as a bold subscript digit beside the glyph (`nozzle_icon.xml#tool_badge`, bound to `tool_badge_text` — the 1-based digit from `lane_number_text()`, never a "T" prefix). Hidden on single-tool printers via `bind_flag_if_eq` on the badge subject.
 
 ### Tool-Prefixed Temperatures (PrintStatusPanel)
 

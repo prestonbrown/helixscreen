@@ -51,7 +51,7 @@
 
 TEST_CASE("remap warning: Snapmaker applies via its pre-print send, so it is SILENT",
           "[print-start][filament-gate][remap]") {
-    // RemapStrategy::SnapmakerNative: no persistent table is written and the
+    // RemapStrategy::PrePrintSend: no persistent table is written and the
     // remap still reaches the printer, through build_preprint_gcode.
     SnapmakerProbe sm;
     CHECK_FALSE(PrintStartControllerTestAccess::should_warn_remap_unsupported(sm));

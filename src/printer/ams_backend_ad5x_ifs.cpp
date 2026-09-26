@@ -1650,15 +1650,8 @@ void AmsBackendAd5xIfs::release_color_material_locks_locked(int slot_index,
     // Persist so a restart reloads the released record rather than the locked
     // one. Capture by value: the callback can fire long after this returns.
     if (override_store_) {
-        helix::ams::FilamentSlotOverride snapshot = ovr;
-        const std::string tag = backend_log_tag();
-        override_store_->save_async(
-            slot_index, snapshot, [tag, slot_index](bool success, std::string err) {
-                if (!success) {
-                    spdlog::warn("{} lock release persist failed for slot {}: {}", tag, slot_index,
-                                 err);
-                }
-            });
+        helix::ams::save_override_async(override_store_.get(), slot_index, ovr, backend_log_tag(),
+                                        "lock release");
     }
 }
 
@@ -2815,26 +2808,14 @@ std::string AmsBackendAd5xIfs::write_port_locked(int slot_index, SlotInfo& slot,
                   backend_log_tag(), slot_index, info.color_rgb & 0xFFFFFF, normalized_material,
                   info.material, port_presence_[idx]);
 
-    // Update entry directly. Covers every SlotInfo field the caller may
-    // have set, not just the IFS-native color/material, otherwise a
-    // sync would silently drop brand /
-    // spool_name / spoolman_* / color_name and the UI would snap back
-    // to the previous values on the next get_slot_info().
-    slot.color_rgb = info.color_rgb;
-    slot.color_name = info.color_name;
+    // Update entry directly. Covers every resolver-owned SlotInfo field the
+    // caller may have set, not just the IFS-native color/material, otherwise a
+    // sync would silently drop brand / spool_name / spoolman_* / color_name and
+    // the UI would snap back to the previous values on the next
+    // get_slot_info(). material comes from normalized_material: firmware
+    // re-reads the spelling it issued, not the string the user typed.
+    helix::ams::copy_resolver_owned_identity(slot, info);
     slot.material = normalized_material;
-    slot.brand = info.brand;
-    // Carry the catalog product identity through a sync too: one that dropped
-    // it would make the editor snap back to a different variant on the next
-    // get_slot_info().
-    slot.catalog_id = info.catalog_id;
-    slot.product_name = info.product_name;
-    slot.spool_name = info.spool_name;
-    slot.spoolman_id = info.spoolman_id;
-    slot.spoolman_filament_id = info.spoolman_filament_id;
-    slot.spoolman_vendor_id = info.spoolman_vendor_id;
-    slot.remaining_weight_g = info.remaining_weight_g;
-    slot.total_weight_g = info.total_weight_g;
 
     return normalized_material;
 }
@@ -2970,29 +2951,8 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
     // instance) sees the full record in lane_data even when it's not
     // also listening to _IFS_VARS.
     if (override_store_) {
-        // Re-read from overrides_ under the lock to get the same object
-        // we staged above (including the normalized material). Cheap —
-        // FilamentSlotOverride is a small POD-ish struct.
-        helix::ams::FilamentSlotOverride ovr_to_save;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            auto it = overrides_.find(slot_index);
-            if (it != overrides_.end()) {
-                ovr_to_save = it->second;
-            }
-        }
-        // Capture backend_log_tag by value — the save callback may fire
-        // well after apply_user_edit returns (MR tracker ~60s timeout).
-        // Do NOT capture `this`: the backend may outlive its store, but
-        // the store will outlive the scheduled save by design.
-        const std::string tag = backend_log_tag();
-        override_store_->save_async(
-            slot_index, ovr_to_save, [tag, slot_index](bool success, const std::string& err) {
-                if (!success) {
-                    spdlog::warn("{} Override persist failed for slot {}: {}", tag, slot_index,
-                                 err);
-                }
-            });
+        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
+                                            backend_log_tag(), "Override");
     }
 
     if (ifs_module_live_.load()) {
@@ -3158,13 +3118,8 @@ void AmsBackendAd5xIfs::update_slot_weight_impl(int slot_index, float remaining_
     }
 
     if (persist && override_store_) {
-        const std::string tag = backend_log_tag();
-        override_store_->save_async(
-            slot_index, ovr_to_save, [tag, slot_index](bool ok, const std::string& err) {
-                if (!ok) {
-                    spdlog::warn("{} weight persist failed for slot {}: {}", tag, slot_index, err);
-                }
-            });
+        helix::ams::save_override_async(override_store_.get(), slot_index, ovr_to_save,
+                                        backend_log_tag(), "weight");
     }
 
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));

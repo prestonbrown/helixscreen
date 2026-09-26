@@ -2882,6 +2882,7 @@ translations:
     Kaarlonen
   Spaghetti Detection: Rilevamento spaghetti
   Spaghetti detected: Spaghetti rilevati
+  Spaghetti detected (%d%%): Spaghetti rilevati (%d%%)
   Spaghetti detected — print paused: Spaghetti rilevati — stampa in pausa
   Speaker: Altoparlante
   Speed: Velocità
@@ -3349,8 +3350,8 @@ translations:
   Unavailable: Non disponibile
   Unavailable on this printer: Non disponibile su questa stampante
   Understanding Results: Capire i risultati
-  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
-  : "Una tensione non uniforme della cinghia causa artefatti di stampa come spostamenti di strato, VFA (artefatti verticali fini) e ringing.\n\nQuesto strumento fa vibrare ciascun percorso della cinghia e misura la frequenza di risonanza — frequenze corrispondenti indicano una tensione bilanciata.\n\nPer CoreXY, il percorso A e B dovrebbero differire di pochi Hz."
+  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nPluck each belt by hand and this tool listens through the accelerometer to measure the belt's frequency. Matched frequencies mean balanced tension.\n\nOn CoreXY, belts A and B should be within a few Hz of each other."
+  : "Una tensione non uniforme della cinghia causa artefatti di stampa come spostamenti di strato, VFA (artefatti verticali fini) e ringing.\n\nPizzica ogni cinghia a mano e questo strumento ascolta tramite l'accelerometro per misurare la frequenza della cinghia. Frequenze corrispondenti indicano una tensione bilanciata.\n\nPer CoreXY, le cinghie A e B dovrebbero differire di pochi Hz."
   Uninstall: Disinstalla
   Uninstall HelixPrint Plugin: Disinstalla plugin HelixPrint
   Uninstall HelixPrint Plugin?: Disinstallare il plugin HelixPrint?

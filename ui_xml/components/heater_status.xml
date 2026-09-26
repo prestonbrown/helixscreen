@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <api>
+    <!-- Int subject carrying HeaterStatusState: 0 none, 1 heating, 2 ready,
+         3 cooling. The engine skips a binding whose subject resolves to "",
+         so with the default the markup's hidden="true" is what sticks. -->
+    <prop name="state_subject" type="string" default=""/>
+    <prop name="duty_subject" type="string" default=""/>
+  </api>
+  <!--
+    Heater Status Area
+
+    The status area is a state glyph plus duty text: a status word's length
+    overflows narrow heater rows. The state subject picks the
+    glyph: flame while heating (warning amber), check at target (success),
+    snowflake while cooling (info), nothing when off. The duty text renders
+    amber while heating and muted otherwise, and is empty when there is no
+    duty to show.
+
+    All three glyphs stay in the tree and only flip visibility, so a state
+    change never rebuilds the row.
+  -->
+  <view name="heater_status"
+        width="content" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+        style_pad_column="#space_xxs" scrollable="false" clickable="false" event_bubble="true">
+    <icon name="status_heating"
+          src="fire" size="xs" style_text_color="#warning" hidden="true" clickable="false" event_bubble="true">
+      <bind_flag_if_not_eq subject="$state_subject" flag="hidden" ref_value="1"/>
+    </icon>
+    <icon name="status_ready"
+          src="check" size="xs" style_text_color="#success" hidden="true" clickable="false" event_bubble="true">
+      <bind_flag_if_not_eq subject="$state_subject" flag="hidden" ref_value="2"/>
+    </icon>
+    <icon name="status_cooling"
+          src="cooldown" size="xs" style_text_color="#info" hidden="true" clickable="false" event_bubble="true">
+      <bind_flag_if_not_eq subject="$state_subject" flag="hidden" ref_value="3"/>
+    </icon>
+    <!-- Duty color is bound, not inline: an inline style_text_color would
+         outrank both bound styles, leaving the amber unreachable. -->
+    <text_small name="status_duty" bind_text="$duty_subject" style_text_align="right">
+      <bind_style_if_eq name="styles.heater_duty_heating" subject="$state_subject" ref_value="1"/>
+      <bind_style_if_not_eq name="styles.heater_duty_muted" subject="$state_subject" ref_value="1"/>
+    </text_small>
+  </view>
+</component>

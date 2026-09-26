@@ -291,6 +291,11 @@ class AmsBackendAceTestHelper : public AmsBackendAce {
         running_ = state;
     }
 
+    void set_test_action(AmsAction action) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        system_info_.action = action;
+    }
+
     // Load and unload resolve through this seam, so a test can assert what was
     // sent and fire the driver's ack when it chooses. A driver that ignores a
     // toolchange still acks it, which is the case worth reproducing.
@@ -305,12 +310,22 @@ class AmsBackendAceTestHelper : public AmsBackendAce {
     }
 
     helix::AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                                  std::function<void(const MoonrakerError&)> /*on_error*/,
-                                  bool /*silent*/) override {
+                                  std::function<void(const MoonrakerError&)> on_error,
+                                  bool silent) override {
+        if (dispatch_via_base) {
+            return AmsSubscriptionBackend::execute_gcode(gcode, std::move(on_complete),
+                                                         std::move(on_error), silent);
+        }
         captured_gcodes.push_back(gcode);
         pending_ack = std::move(on_complete);
         return helix::AmsErrorHelper::success();
     }
+
+  public:
+    // Routes the completion-form dispatch to the REAL AmsSubscriptionBackend
+    // implementation (api_ is null here) instead of the capture seam, so a
+    // test can exercise the dispatch's own refusal legs.
+    bool dispatch_via_base = false;
 };
 
 // ============================================================================
@@ -910,6 +925,37 @@ TEST_CASE("ACE operations require API", "[ams][ace][preconditions]") {
 
     err = helper.start_drying(45.0f, 240);
     REQUIRE(!err.success());
+}
+
+// A dispatch that never goes out still has to unwind the optimistic action the
+// op set before it, or is_busy() refuses every later op (prestonbrown/helixscreen#1720).
+TEST_CASE("ACE unload refused at the send unwinds UNLOADING", "[ams][ace][1720]") {
+    AmsBackendAceTestHelper helper;
+    helper.set_running(true);
+    helper.dispatch_via_base = true;
+
+    auto err = helper.unload_filament(0);
+    REQUIRE_FALSE(err.success());
+
+    // The refusal came from the dispatch itself, not the capture seam.
+    REQUIRE(helper.captured_gcodes.empty());
+
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(helper.get_test_system_info().action == AmsAction::IDLE);
+}
+
+// With no on_error to hand the refusal to, the no-API leg touches no backend
+// state: callers may send while holding the backend's mutex.
+TEST_CASE("ACE send refused with no on_error leaves the action alone", "[ams][ace][1720]") {
+    AmsBackendAceTestHelper helper;
+    helper.dispatch_via_base = true;
+    helper.set_test_action(AmsAction::LOADING);
+
+    auto err = helper.execute_gcode("ACE_TEST", nullptr, nullptr, false);
+
+    CHECK_FALSE(err.success());
+    CHECK(helper.get_test_system_info().action == AmsAction::LOADING);
 }
 
 // ============================================================================

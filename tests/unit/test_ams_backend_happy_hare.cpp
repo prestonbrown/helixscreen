@@ -239,6 +239,16 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
         return HappyHareTestAccess::slots(*this).get(slot_index);
     }
 
+    /**
+     * @brief Pre-gate sensor state for a gate, or nullptr when no frame ever
+     * reported it
+     */
+    const helix::HappyHareGateSensor* get_gate_sensor(int slot_index) const {
+        const auto& map = HappyHareTestAccess::gate_sensors(*this);
+        auto it = map.find(slot_index);
+        return it != map.end() ? &it->second : nullptr;
+    }
+
     // G-code capture for persistence tests
     std::vector<std::string> captured_gcodes;
 
@@ -2750,15 +2760,15 @@ TEST_CASE_METHOD(AmsBackendHappyHareTestHelper, "EMU aggregate sensor format",
         REQUIRE(info.units[0].has_slot_sensors == true);
 
         // All gates should report having pre-gate sensors
-        auto slot0 = get_slot_entry(0);
-        REQUIRE(slot0 != nullptr);
-        REQUIRE(slot0->sensors.has_pre_gate_sensor == true);
-        REQUIRE(slot0->sensors.pre_gate_triggered == true);
+        auto gate0 = get_gate_sensor(0);
+        REQUIRE(gate0 != nullptr);
+        REQUIRE(gate0->has_pre_gate_sensor == true);
+        REQUIRE(gate0->pre_gate_triggered == true);
 
         // Other gates have sensor hardware but we only know current gate's reading
-        auto slot1 = get_slot_entry(1);
-        REQUIRE(slot1 != nullptr);
-        REQUIRE(slot1->sensors.has_pre_gate_sensor == true);
+        auto gate1 = get_gate_sensor(1);
+        REQUIRE(gate1 != nullptr);
+        REQUIRE(gate1->has_pre_gate_sensor == true);
     }
 
     SECTION("aggregate sensors with different active gate") {
@@ -2766,10 +2776,10 @@ TEST_CASE_METHOD(AmsBackendHappyHareTestHelper, "EMU aggregate sensor format",
                                    {"sensors", {{"mmu_pre_gate", false}, {"mmu_gear", true}}}};
         test_parse_mmu_state(mmu_data);
 
-        auto slot2 = get_slot_entry(2);
-        REQUIRE(slot2 != nullptr);
-        REQUIRE(slot2->sensors.has_pre_gate_sensor == true);
-        REQUIRE(slot2->sensors.pre_gate_triggered == false);
+        auto gate2 = get_gate_sensor(2);
+        REQUIRE(gate2 != nullptr);
+        REQUIRE(gate2->has_pre_gate_sensor == true);
+        REQUIRE(gate2->pre_gate_triggered == false);
     }
 }
 

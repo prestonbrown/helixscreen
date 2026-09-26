@@ -227,6 +227,11 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     lv_xml_register_component_from_file("A:ui_xml/overlay_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/components/nozzle_icon.xml");
 
+    // The heater status area rides inside controls_panel, temp_card_unified and
+    // temp_graph_overlay; an unregistered instance silently vanishes from the
+    // tree and only the surrounding row renders.
+    lv_xml_register_component_from_file("A:ui_xml/components/heater_status.xml");
+
     // Dependencies of print_status_preview_card. An unregistered component
     // name inside a parsed file makes that element (and only it) vanish from
     // the built tree - the card's two progress bars were silently absent from

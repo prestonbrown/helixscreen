@@ -187,19 +187,22 @@ class ControlsPanel : public PanelBase {
     lv_subject_t nozzle_temp_subject_{};
     char nozzle_temp_buf_[32] = {};
     lv_subject_t nozzle_pct_subject_{};
-    lv_subject_t nozzle_status_subject_{};
+    lv_subject_t nozzle_status_subject_{}; ///< duty text ("" = none)
     char nozzle_status_buf_[helix::ui::temperature::HEATER_STATUS_BUF_BYTES] = {};
+    lv_subject_t nozzle_status_state_subject_{}; ///< HeaterStatusState int
 
     // Bed temperature display
     lv_subject_t bed_temp_subject_{};
     char bed_temp_buf_[32] = {};
     lv_subject_t bed_pct_subject_{};
-    lv_subject_t bed_status_subject_{};
+    lv_subject_t bed_status_subject_{}; ///< duty text ("" = none)
     char bed_status_buf_[helix::ui::temperature::HEATER_STATUS_BUF_BYTES] = {};
+    lv_subject_t bed_status_state_subject_{}; ///< HeaterStatusState int
 
     // Chamber temperature display
-    lv_subject_t chamber_status_subject_{};
+    lv_subject_t chamber_status_subject_{}; ///< duty text ("" = none)
     char chamber_status_buf_[helix::ui::temperature::HEATER_STATUS_BUF_BYTES] = {};
+    lv_subject_t chamber_status_state_subject_{}; ///< HeaterStatusState int
 
     // Heating icon animators (nozzle/bed/chamber), bound from the panel's own
     // container so lv_obj_find_by_name() cannot pick up another panel's

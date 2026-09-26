@@ -672,7 +672,7 @@ PathSegment AmsBackendAfc::get_slot_filament_segment(int slot_index) const {
         return PathSegment::NONE;
     }
 
-    const auto& sensors = entry->sensors;
+    const auto& sensors = lane_sensors_for(entry->backend_name);
 
     // Check sensors from furthest to nearest. PathSegment::HUB is deliberately
     // unreachable here: AFC's per-lane loaded_to_hub is latched at prep and
@@ -1142,7 +1142,7 @@ PathSegment AmsBackendAfc::compute_filament_segment_unlocked() const {
     if (lane_to_check >= 0) {
         const auto* entry = slots_.get(lane_to_check);
         if (entry) {
-            const auto& sensors = entry->sensors;
+            const auto& sensors = lane_sensors_for(current_lane_name_);
 
             if (sensors.load) {
                 return PathSegment::LANE;
@@ -1159,7 +1159,7 @@ PathSegment AmsBackendAfc::compute_filament_segment_unlocked() const {
         const auto* entry = slots_.get(i);
         if (!entry)
             continue;
-        const auto& sensors = entry->sensors;
+        const auto& sensors = lane_sensors_for(slots_.name_of(i));
 
         if (sensors.load) {
             return PathSegment::LANE;
@@ -2403,7 +2403,7 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     }
 
     // Update sensor state for this lane
-    auto& sensors = entry->sensors;
+    auto& sensors = lane_sensors_for(lane_name);
     if (data.contains("prep") && data["prep"].is_boolean()) {
         sensors.prep = data["prep"].get<bool>();
     }
@@ -4629,11 +4629,22 @@ void AmsBackendAfc::apply_mount_state(bool extruder_set_active_slot, bool afc_st
     }
 }
 
+AfcLaneSensors& AmsBackendAfc::lane_sensors_for(const std::string& lane_name) {
+    return lane_sensors_[lane_name];
+}
+
+const AfcLaneSensors& AmsBackendAfc::lane_sensors_for(const std::string& lane_name) const {
+    static const AfcLaneSensors kUnobserved;
+    auto it = lane_sensors_.find(lane_name);
+    return it != lane_sensors_.end() ? it->second : kUnobserved;
+}
+
 void AmsBackendAfc::initialize_slots(const std::vector<std::string>& lane_names) {
     int lane_count = static_cast<int>(lane_names.size());
 
     // Initialize registry (sets is_initialized = true, creates SlotEntry per lane)
     slots_.initialize("AFC Box Turtle", lane_names);
+    lane_sensors_.clear();
 
     // Set up system_info_ for non-slot fields (unit-level metadata)
     AmsUnit unit;
@@ -5194,7 +5205,7 @@ bool AmsBackendAfc::can_recover_lane_position(int slot_index) const {
     // It also matches cmd_AFC_RESET's own picker, which builds its candidate
     // list from lanes with raw_load_state true. AFC publishes that as `load`.
     const helix::printer::SlotEntry* entry = slots_.get(slot_index);
-    if (!entry || !entry->sensors.load) {
+    if (!entry || !lane_sensors_for(entry->backend_name).load) {
         return false;
     }
 
@@ -6334,7 +6345,7 @@ std::vector<helix::printer::DeviceAction> AmsBackendAfc::get_device_actions() co
         std::string lane_name = slots_.name_of(i);
         std::string id = "dist_hub_" + lane_name;
         std::string label = "Hub Distance (" + lane_name + ")";
-        float current = entry->sensors.dist_hub;
+        float current = lane_sensors_for(lane_name).dist_hub;
 
         actions.push_back(DeviceAction{id,
                                        label,

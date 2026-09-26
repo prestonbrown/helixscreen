@@ -24,4 +24,9 @@ std::string find_backup(const std::vector<std::string>& paths);
 bool restore_from_backup(const std::string& target_path, const char* label,
                          const std::vector<std::string>& backup_paths);
 
+/// Remove every backup file that exists in the priority-ordered lists.
+/// A factory reset calls this so a later restore cannot resurrect the
+/// pre-reset config from a surviving tier. Logs each removal at info.
+void remove_backups(const std::vector<std::string>& backup_paths);
+
 } // namespace helix::config_backup
