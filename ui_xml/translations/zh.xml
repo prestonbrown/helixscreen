@@ -3186,6 +3186,7 @@
   <translation tag="Z Tilt Adjust..." zh="正在调整Z倾斜..."/>
   <translation tag="Z jog blocked at axis limit" zh="Z 轴移动已限制在轴极限"/>
   <translation tag="Z jog feedrate" zh="Z 轴移动速度"/>
+  <translation tag="Z mm" zh="Z mm"/>
   <translation tag="Z motor calibration failed" zh="Z 电机校准失败"/>
   <translation tag="Z probes for bed leveling and mesh generation" zh="用于热床调平和网格生成的 Z 探针"/>
   <translation tag="Z-Off:" zh="Z 偏移："/>

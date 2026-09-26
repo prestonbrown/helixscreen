@@ -3186,6 +3186,7 @@
   <translation tag="Z Tilt Adjust..." pt="Ajuste de inclinação Z..."/>
   <translation tag="Z jog blocked at axis limit" pt="Movimento Z bloqueado no limite do eixo"/>
   <translation tag="Z jog feedrate" pt="Velocidade de movimento do eixo Z"/>
+  <translation tag="Z mm" pt="Z mm"/>
   <translation tag="Z motor calibration failed" pt="Falha na calibração do motor Z"/>
   <translation tag="Z probes for bed leveling and mesh generation" pt="Sondas Z para nivelamento da mesa e geração de malha"/>
   <translation tag="Z-Off:" pt="Z-Offset:"/>

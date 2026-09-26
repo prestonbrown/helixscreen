@@ -3186,6 +3186,7 @@
   <translation tag="Z Tilt Adjust..." ja="Zチルト調整中..."/>
   <translation tag="Z jog blocked at axis limit" ja="Z軸移動は軸の限界でブロックされました"/>
   <translation tag="Z jog feedrate" ja="Z軸のジョグ移動速度"/>
+  <translation tag="Z mm" ja="Z mm"/>
   <translation tag="Z motor calibration failed" ja="Z モーターの校正に失敗しました"/>
   <translation tag="Z probes for bed leveling and mesh generation" ja="ベッドレベリングとメッシュ生成用 Z プローブ"/>
   <translation tag="Z-Off:" ja="Z-Off:"/>

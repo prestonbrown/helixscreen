@@ -3186,6 +3186,7 @@
   <translation tag="Z Tilt Adjust..." ru="Регулировка наклона Z..."/>
   <translation tag="Z jog blocked at axis limit" ru="Перемещение по Z заблокировано на пределе оси"/>
   <translation tag="Z jog feedrate" ru="Скорость перемещения по оси Z"/>
+  <translation tag="Z mm" ru="Z mm"/>
   <translation tag="Z motor calibration failed" ru="Не удалась калибровка двигателя Z"/>
   <translation tag="Z probes for bed leveling and mesh generation" ru="Z-зонды для выравнивания стола и создания сетки"/>
   <translation tag="Z-Off:" ru="Z-Off:"/>

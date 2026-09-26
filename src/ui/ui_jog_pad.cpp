@@ -328,14 +328,8 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     home_label_dsc.font = get_icon_font(radius);
     home_label_dsc.align = LV_TEXT_ALIGN_CENTER;
 
-    // Scale icon area proportionally to home button size
-    lv_coord_t icon_half_w = (lv_coord_t)(home_radius * 0.6f);
-    lv_coord_t icon_half_h = (lv_coord_t)(home_radius * 0.4f);
-    lv_area_t home_label_area;
-    home_label_area.x1 = center_x - icon_half_w;
-    home_label_area.y1 = center_y - icon_half_h;
-    home_label_area.x2 = center_x + icon_half_w;
-    home_label_area.y2 = center_y + icon_half_h;
+    lv_area_t home_label_area =
+        helix::jog_pad_home_icon_area(center_x, center_y, home_radius, home_label_dsc.font);
     lv_draw_label(layer, &home_label_dsc, &home_label_area);
 
     // Draw zone boundary lines to show the edges of each directional click zone
@@ -665,6 +659,20 @@ static void jog_pad_delete_cb(lv_event_t* e) {
 }
 
 // Public API Implementation
+namespace helix {
+lv_area_t jog_pad_home_icon_area(lv_coord_t center_x, lv_coord_t center_y, lv_coord_t home_radius,
+                                 const lv_font_t* font) {
+    lv_coord_t icon_half_w = (lv_coord_t)(home_radius * 0.6f);
+    lv_coord_t icon_half_h = lv_font_get_line_height(font) / 2;
+    lv_area_t area;
+    area.x1 = center_x - icon_half_w;
+    area.y1 = center_y - icon_half_h;
+    area.x2 = center_x + icon_half_w;
+    area.y2 = center_y + icon_half_h;
+    return area;
+}
+} // namespace helix
+
 lv_obj_t* ui_jog_pad_create(lv_obj_t* parent) {
     // Create base object
     lv_obj_t* obj = lv_obj_create(parent);
