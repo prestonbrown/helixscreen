@@ -762,8 +762,6 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
     std::function<void(ConnectionState, ConnectionState)> state_change_callback_;
     mutable std::mutex state_callback_mutex_; // Protect state_change_callback_ during destruction
     uint32_t connection_timeout_ms_;
-    uint32_t reconnect_attempts_ = 0;
-    uint32_t max_reconnect_attempts_ = 0; // 0 = infinite
 
     // Connection parameters (from config)
     uint32_t keepalive_interval_ms_;
