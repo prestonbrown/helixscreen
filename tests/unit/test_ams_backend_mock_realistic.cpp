@@ -48,20 +48,11 @@ class FastTimingScope {
     double original_speedup_ = 1.0;
 };
 
-// Every case below that waits on the mock's operation thread is tagged [slow].
+// Cases that assert on an operation's result join its thread with
+// wait_for_operation_thread() before reading, so they hold under any load.
 //
-// They wait with wall-clock std::this_thread::sleep_for - 100ms to 1500ms sized
-// against the mock's phase timings - so under the 96-way parallel shard pool on a
-// loaded box the sleep expires before the phase advances and the assertion catches
-// an intermediate value. Observed twice: "realistic mode load operation phases"
-// reading a mid-load phase, and "error recovery sequence" seeing
-// infer_error_segment()==4 where NONE was expected. Both pass in isolation and in
-// their own shard, which is what makes them read as an unrelated regression in
-// whatever branch happens to be running.
-//
-// [slow] keeps them out of the parallel run. The real fix is condition-based
-// waiting (tests/CLAUDE.md, "condition-based-waiting"), which would let them come
-// back into the default run.
+// The cancel case alone stays [slow]: it samples the action mid-flight, and the
+// operation thread can re-set a phase between its cancel check and set_action().
 
 TEST_CASE("AmsBackendMock realistic mode defaults", "[ams][mock][realistic]") {
     AmsBackendMock backend(4);
@@ -83,8 +74,7 @@ TEST_CASE("AmsBackendMock realistic mode defaults", "[ams][mock][realistic]") {
     }
 }
 
-TEST_CASE("AmsBackendMock realistic mode load operation phases",
-          "[ams][mock][realistic][load][slow]") {
+TEST_CASE("AmsBackendMock realistic mode load operation phases", "[ams][mock][realistic][load]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored
 
     // Declare before backend so they outlive it (backend destructor joins threads)
@@ -110,8 +100,7 @@ TEST_CASE("AmsBackendMock realistic mode load operation phases",
         auto result = backend.unload_active_filament();
         REQUIRE(result);
 
-        // Wait for unload to complete (with 1000x speedup: ~20ms total)
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        backend.wait_for_operation_thread();
         {
             std::lock_guard<std::mutex> lock(actions_mtx);
             observed_actions.clear();
@@ -121,8 +110,7 @@ TEST_CASE("AmsBackendMock realistic mode load operation phases",
         result = backend.load_filament(1);
         REQUIRE(result);
 
-        // Wait for operation to complete (with 1000x speedup: ~12ms total)
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        backend.wait_for_operation_thread();
 
         // Verify phase sequence: HEATING → LOADING → IDLE
         // (CHECKING is only used in recovery, not normal load)
@@ -154,7 +142,7 @@ TEST_CASE("AmsBackendMock realistic mode load operation phases",
 }
 
 TEST_CASE("AmsBackendMock realistic mode unload operation phases",
-          "[ams][mock][realistic][unload][slow]") {
+          "[ams][mock][realistic][unload]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored
 
     // Declare before backend so they outlive it (backend destructor joins threads)
@@ -180,8 +168,7 @@ TEST_CASE("AmsBackendMock realistic mode unload operation phases",
         auto result = backend.unload_active_filament();
         REQUIRE(result);
 
-        // Wait for operation to complete (with 1000x speedup: ~15ms total)
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        backend.wait_for_operation_thread();
 
         // Verify phase sequence
         std::lock_guard<std::mutex> lock(actions_mtx);
@@ -212,7 +199,7 @@ TEST_CASE("AmsBackendMock realistic mode unload operation phases",
     backend.stop();
 }
 
-TEST_CASE("AmsBackendMock simple mode skips extra phases", "[ams][mock][realistic][simple][slow]") {
+TEST_CASE("AmsBackendMock simple mode skips extra phases", "[ams][mock][realistic][simple]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored
 
     // Declare before backend so they outlive it (backend destructor joins threads)
@@ -238,7 +225,7 @@ TEST_CASE("AmsBackendMock simple mode skips extra phases", "[ams][mock][realisti
         auto result = backend.unload_active_filament();
         REQUIRE(result);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        backend.wait_for_operation_thread();
 
         // Should NOT see HEATING or CUTTING in simple mode
         std::lock_guard<std::mutex> lock(actions_mtx);
@@ -263,8 +250,7 @@ TEST_CASE("AmsBackendMock simple mode skips extra phases", "[ams][mock][realisti
     backend.stop();
 }
 
-TEST_CASE("AmsBackendMock realistic mode completes to IDLE",
-          "[ams][mock][realistic][completion][slow]") {
+TEST_CASE("AmsBackendMock realistic mode completes to IDLE", "[ams][mock][realistic][completion]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored
 
     AmsBackendMock backend(4);
@@ -275,11 +261,11 @@ TEST_CASE("AmsBackendMock realistic mode completes to IDLE",
     SECTION("load completes to IDLE state") {
         // Unload first
         backend.unload_active_filament();
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        backend.wait_for_operation_thread();
 
         // Load
         backend.load_filament(1);
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        backend.wait_for_operation_thread();
 
         auto action = backend.get_current_action();
         REQUIRE(action == AmsAction::IDLE);
@@ -291,7 +277,7 @@ TEST_CASE("AmsBackendMock realistic mode completes to IDLE",
 
     SECTION("unload completes to IDLE state") {
         backend.unload_active_filament();
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        backend.wait_for_operation_thread();
 
         auto action = backend.get_current_action();
         REQUIRE(action == AmsAction::IDLE);
@@ -334,8 +320,7 @@ TEST_CASE("AmsBackendMock realistic mode can be cancelled",
 // Phase 5: Mock Loading State Machine - SELECTING, PAUSED, Recovery
 // ============================================================================
 
-TEST_CASE("AmsBackendMock tool change shows SELECTING phase",
-          "[ams][mock][realistic][selecting][slow]") {
+TEST_CASE("AmsBackendMock tool change shows SELECTING phase", "[ams][mock][realistic][selecting]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored
 
     // Declare before backend so they outlive it (backend destructor joins threads)
@@ -361,8 +346,7 @@ TEST_CASE("AmsBackendMock tool change shows SELECTING phase",
         auto result = backend.change_tool(1);
         REQUIRE(result);
 
-        // Wait for operation to complete (generous for slow CI)
-        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+        backend.wait_for_operation_thread();
 
         // Verify SELECTING phase appears between UNLOADING and LOADING phases
         std::lock_guard<std::mutex> lock(actions_mtx);
@@ -430,7 +414,7 @@ TEST_CASE("AmsBackendMock PAUSED state handling", "[ams][mock][realistic][paused
     backend.stop();
 }
 
-TEST_CASE("AmsBackendMock error recovery sequence", "[ams][mock][realistic][recovery][slow]") {
+TEST_CASE("AmsBackendMock error recovery sequence", "[ams][mock][realistic][recovery]") {
     FastTimingScope timing_guard; // RAII: 1000x speedup, auto-restored
 
     // Declare before backend so they outlive it (backend destructor joins threads)
@@ -464,8 +448,7 @@ TEST_CASE("AmsBackendMock error recovery sequence", "[ams][mock][realistic][reco
         auto result = backend.recover();
         REQUIRE(result);
 
-        // Wait for recovery sequence to complete
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        backend.wait_for_operation_thread();
 
         // Verify recovery sequence: ERROR → CHECKING → IDLE
         std::lock_guard<std::mutex> lock(actions_mtx);
@@ -493,7 +476,7 @@ TEST_CASE("AmsBackendMock error recovery sequence", "[ams][mock][realistic][reco
         REQUIRE(backend.infer_error_segment() != PathSegment::NONE);
 
         backend.recover();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        backend.wait_for_operation_thread();
 
         REQUIRE(backend.infer_error_segment() == PathSegment::NONE);
     }
