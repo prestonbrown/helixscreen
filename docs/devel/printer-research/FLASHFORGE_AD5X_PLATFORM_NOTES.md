@@ -211,9 +211,11 @@ shipping one.
 
 **Mitigation in helix:**
 
-- `HELIX_HAS_CAMERA=0` is already set for `HELIX_PLATFORM_AD5X` in
-  `lv_conf.h:856-863` — the camera widget, `CameraStream`, QR scanner
-  overlay, and camera-config modal are all compile-time excluded.
+- `HELIX_HAS_CAMERA=0` is set for `HELIX_PLATFORM_AD5X` in `lv_conf.h`,
+  so the camera widget, `CameraStream` and the camera-config modal are
+  compile-time excluded. The QR scanner overlay is not: without a camera
+  it polls the webcam's HTTP snapshot URL, or listens to a USB barcode
+  scanner alone, and neither path opens `/dev/video*`.
 - Pending fix: gate the webcam *discovery* code in
   `moonraker_discovery_sequence.cpp` on `HELIX_HAS_CAMERA` so we don't
   even probe `server.webcams.list` on platforms that can't render it.
