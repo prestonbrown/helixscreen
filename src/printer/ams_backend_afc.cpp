@@ -2365,8 +2365,7 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
 // AFC Object Parsing (AFC_stepper, AFC_hub, AFC_extruder)
 // ============================================================================
 
-void AmsBackendAfc::invalidate_broken_binding(int slot_index, const SlotInfo& slot,
-                                              int firmware_spool_id) {
+void AmsBackendAfc::invalidate_broken_binding(int slot_index, int firmware_spool_id) {
     if (reconcile_lane_binding(slot_index, firmware_spool_id) == ams::BindingVerdict::Holds) {
         return;
     }
@@ -2376,9 +2375,8 @@ void AmsBackendAfc::invalidate_broken_binding(int slot_index, const SlotInfo& sl
     // explaining what is read now. Unconditional by design - the verdict
     // describes the lane, not whichever edit armed the guard.
     own_write_echoes_.abandon(slot_index);
-    helix::ams::clear_persisted_override(
-        override_store_.get(), overrides_,
-        slot.global_index >= 0 ? slot.global_index : slot.slot_index, backend_log_tag());
+    helix::ams::clear_persisted_override(override_store_.get(), overrides_, slot_index,
+                                         backend_log_tag());
 }
 
 void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_name,
@@ -2788,7 +2786,7 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // with itself and no binding could ever look broken. The own-write
     // expectation is consulted inside reconcile_lane_binding(), so a frame
     // still naming the id we just overwrote suppresses the re-bind.
-    invalidate_broken_binding(slot_index, slot, firmware.cache.spoolman_id.value_or(0));
+    invalidate_broken_binding(slot_index, firmware.cache.spoolman_id.value_or(0));
 
     // Presence is the one reading AFC can stop having: prep, load and
     // tool_loaded are real sensors, and a frame naming none of them is not a
@@ -2805,7 +2803,7 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // landed, the binding has to have been reconciled, and slot.status has to
     // be this frame's, or the lane paints a reading one frame stale or a
     // binding that was just dropped.
-    apply_resolved_lane(slot, slot.global_index >= 0 ? slot.global_index : slot.slot_index);
+    apply_resolved_lane(slot, slot_index);
 
     // Populate or clear per-slot error based on lane status
     if (has_status) {
@@ -3026,12 +3024,7 @@ void AmsBackendAfc::maybe_reassert_retained_spool_link(int slot_index,
     // The write rides record_own_spool_write() like apply_user_edit's own
     // re-link, so the firmware echo of OUR push cannot be misread by the
     // merge's re-bind rule as another writer's statement.
-    const int override_key = [=]() {
-        // Same key convention as the apply_resolved_lane() call above us.
-        auto* entry = slots_.get_mut(slot_index);
-        return entry && entry->info.global_index >= 0 ? entry->info.global_index : slot_index;
-    }();
-    auto it = overrides_.find(override_key);
+    auto it = overrides_.find(slot_index);
     if (it == overrides_.end() || it->second.spoolman_id <= 0) {
         return; // nothing retained for this lane — no identity to re-assert
     }
@@ -3054,7 +3047,7 @@ void AmsBackendAfc::maybe_reassert_retained_spool_link(int slot_index,
                  lane_name, slot_index, retained_id);
     // Record before dispatching, exactly like apply_user_edit's SET_SPOOL_ID
     // path: firmware_id (0 here) is what firmware last reported.
-    record_own_spool_write(override_key, retained_id, firmware_id);
+    record_own_spool_write(slot_index, retained_id, firmware_id);
     AmsError err =
         execute_gcode(fmt::format("SET_SPOOL_ID LANE={} SPOOL_ID={}", lane_name, retained_id));
     if (!err) {
@@ -4375,14 +4368,14 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
 
         // The same binding check parse_afc_stepper() runs, on the id this
         // parser read.
-        invalidate_broken_binding(i, slot, firmware.cache.spoolman_id.value_or(0));
+        invalidate_broken_binding(i, firmware.cache.spoolman_id.value_or(0));
 
         // Re-supply the user's attached identity on top of firmware truth, the
         // same way parse_afc_stepper() does. Without this, which parser ran last
         // decided whether an override was visible: the status path applied it,
         // the DB path silently dropped it. Must follow every firmware read above
         // so the override still wins.
-        apply_resolved_lane(slot, slot.global_index >= 0 ? slot.global_index : slot.slot_index);
+        apply_resolved_lane(slot, i);
 
         // NO WEIGHT IS READ FROM lane_data, on any AFC version. This is deliberate.
         //

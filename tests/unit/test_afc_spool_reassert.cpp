@@ -100,6 +100,13 @@ class AfcReassertHelper : public AmsBackendAfc {
         return own_write_expectation(slot_index, firmware_id);
     }
 
+    /// Overwrite the global_index copy on a lane's SlotInfo, so a test can tell
+    /// a store keyed by registry position from one keyed by that field.
+    void stamp_global_index(int slot_index, int global_index) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        AfcTestAccess::slots(*this).get_mut(slot_index)->info.global_index = global_index;
+    }
+
     std::vector<std::string> captured_gcodes;
 };
 } // namespace helix
@@ -224,4 +231,38 @@ TEST_CASE_METHOD(LVGLTestFixture,
     afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"}}); // transition 2
     afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"}}); // level: no write
     CHECK(afc.gcode_count("SET_SPOOL_ID LANE=lane1 SPOOL_ID=42") == 2);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "AFC re-assert keys the lane by registry position, not SlotInfo::global_index "
+                 "(#1644)",
+                 "[1644][ams][afc]") {
+    SettingsManager::instance().init_subjects();
+    SettingsManager::instance().set_ams_keep_spool_info_on_eject(true);
+
+    helix::test::RegisteredBackend<AfcReassertHelper> afc_reg;
+    AfcReassertHelper& afc = *afc_reg;
+    afc.set_override(1, spool_override(42));
+    // The registry stamps global_index equal to the lane's position, so the two
+    // keys only come apart when the field is forced; every store must follow
+    // the position regardless.
+    afc.stamp_global_index(1, 7);
+
+    afc.feed_stepper("lane2", nlohmann::json{{"status", "None"}, {"spool_id", nullptr}});
+    afc.feed_stepper("lane2", nlohmann::json{{"status", "Loaded"}});
+    CHECK(afc.gcode_count("SET_SPOOL_ID LANE=lane2 SPOOL_ID=42") == 1);
+    CHECK(afc.peek_expectation(1, 0) == std::make_pair(0, 42));
+
+    // A frame still naming the pre-push id (none) holds the binding and keeps
+    // the expectation pending.
+    afc.feed_stepper("lane2", nlohmann::json{{"status", "Loaded"}, {"spool_id", nullptr}});
+    CHECK(afc.has_override(1));
+    CHECK(afc.visible_spool_id(1) == 42);
+    CHECK(afc.peek_expectation(1, 0) == std::make_pair(0, 42));
+
+    // The echo lands under the same key the push was recorded under.
+    afc.feed_stepper("lane2", nlohmann::json{{"spool_id", 42}});
+    CHECK(afc.has_override(1));
+    CHECK(afc.visible_spool_id(1) == 42);
+    CHECK(afc.peek_expectation(1, 42) == std::make_pair(0, 0));
 }
