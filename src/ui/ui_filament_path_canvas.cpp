@@ -873,16 +873,22 @@ void ui_filament_path_canvas_set_buffer_fault_state(lv_obj_t* obj, int state) {
     }
 }
 
-void ui_filament_path_canvas_set_buffer_info(lv_obj_t* obj, bool present, int state) {
+void ui_filament_path_canvas_set_buffer_info(lv_obj_t* obj, bool present, int state,
+                                             const char* label) {
     auto* data = get_data(obj);
     if (!data)
         return;
 
     state = LV_CLAMP(0, state, 2);
-    if (data->buffer_present != present || data->buffer_state != state) {
+    if (!label)
+        label = "BUF";
+    if (data->buffer_present != present || data->buffer_state != state ||
+        std::strcmp(data->buffer_label, label) != 0) {
         data->buffer_present = present;
         data->buffer_state = state;
-        spdlog::debug("[FilamentPath] Buffer info: present={}, state={}", present, state);
+        data->buffer_label = label;
+        spdlog::debug("[FilamentPath] Buffer info: present={}, state={}, label={}", present, state,
+                      label);
         layered_mark_dirty(obj, true, true);
     }
 }

@@ -367,8 +367,11 @@ void ui_filament_path_canvas_set_buffer_fault_state(lv_obj_t* obj, int state);
  * @param obj The filament_path_canvas widget
  * @param present true to draw the buffer element
  * @param state 0=neutral (even coil), 1=compressed (tight coil), 2=tension (stretched coil)
+ * @param label Text drawn in the box: "BUF", or "FPS" for a filament pressure
+ *              sensor. A static string; the canvas keeps the pointer.
  */
-void ui_filament_path_canvas_set_buffer_info(lv_obj_t* obj, bool present, int state);
+void ui_filament_path_canvas_set_buffer_info(lv_obj_t* obj, bool present, int state,
+                                             const char* label = "BUF");
 
 /**
  * @brief Set proportional buffer bias for smooth color interpolation

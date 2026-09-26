@@ -239,6 +239,7 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
     std::vector<int> next_remote_ids;
     std::unordered_map<int, int> remote_to_global;
     std::set<PathTopology> topologies;
+    std::vector<std::string> unit_lanes;
 
     for (const auto& unit_json : array_member(snapshot_, "units")) {
         if (!unit_json.is_object()) {
@@ -287,6 +288,7 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
             unit.slots.push_back(std::move(slot));
         }
         unit.slot_count = static_cast<int>(unit.slots.size());
+        unit_lanes.push_back(string_member(unit_json, "lane"));
         next.units.push_back(std::move(unit));
     }
 
@@ -324,9 +326,24 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
     lane_states_.clear();
     std::set<int> current_slots;
     std::string current_group;
+    std::unordered_map<std::string, BufferHealth> lane_fps;
     for (const auto& lane_json : array_member(snapshot_, "lanes")) {
         if (!lane_json.is_object()) {
             continue;
+        }
+        // The lane's filament pressure sensor: compression from 0 (none) to 1
+        // (full). A manager that publishes no pressure leaves the lane with no
+        // buffer rather than a made-up reading.
+        auto pressure = lane_json.find("pressure");
+        if (pressure != lane_json.end() && pressure->is_number()) {
+            BufferHealth fps;
+            fps.fps_value = fps.smoothed_fps = pressure->get<float>();
+            fps.fps_reported = true;
+            auto set_point = lane_json.find("set_point");
+            if (set_point != lane_json.end() && set_point->is_number()) {
+                fps.fps_set_point = set_point->get<float>();
+            }
+            lane_fps[string_member(lane_json, "id")] = fps;
         }
         const std::string state = string_member(lane_json, "state");
         lane_states_.push_back(ams_normalize_state_token(state));
@@ -342,6 +359,13 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
                 slot->status = SlotStatus::LOADED;
             }
             current_group = string_member(lane_json, "current_group");
+        }
+    }
+
+    for (std::size_t u = 0; u < next.units.size(); ++u) {
+        auto fps = lane_fps.find(unit_lanes[u]);
+        if (fps != lane_fps.end()) {
+            next.units[u].buffer_health = fps->second;
         }
     }
 

@@ -237,7 +237,7 @@ void draw_buffer_coil(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t hub_
         }
     }
 
-    draw_hub_box(ctx, cx, cy, box_w, box_h, buf_bg, border_color, "BUF");
+    draw_hub_box(ctx, cx, cy, box_w, box_h, buf_bg, border_color, ctx.data->buffer_label);
 }
 
 // Draw animated filament tip (a glowing dot that moves along the path)

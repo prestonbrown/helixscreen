@@ -57,6 +57,27 @@ or tool is reported: independent lanes are not folded into one value.
 A status without a supported API (for example, after a downgrade) presents nothing: no
 units, no action and no error.
 
+## Filament pressure sensor
+
+Each lane may carry `pressure` and `set_point` (klipper_openams
+[UI_API.md](https://github.com/OpenAMSOrg/klipper_openams/blob/master/docs/UI_API.md)).
+`pressure` is the lane's FPS reading: compression from 0.0 (none) to 1.0 (full).
+The FPS measures compression only, never tension. `set_point` is the compression
+the feeding unit's hub motor regulates to.
+
+The backend puts the reading on every unit of that lane as its `BufferHealth`
+(`fps_value`, `fps_set_point`, `fps_reported`), so:
+
+- the path canvas draws the buffer box, labelled **FPS** because the buffer
+  reports pressure (`ui_ams_detail.cpp`); any buffer that reports pressure gets
+  the same label;
+- tapping it opens the buffer modal's pressure view, "Pressure: 62%".
+
+It is deliberately not published as `sync_feedback_bias`. That signal is
+bipolar (tension below zero, compression above), so an under-target reading
+would be shown as tension the sensor cannot measure. A manager that publishes
+no `pressure` gets no buffer box.
+
 ## Operations
 
 Every action uses the command the manager advertises in `commands`. **A missing command
@@ -123,6 +144,7 @@ OpenAMS reports no colour, material or spool identity, so identity is HelixScree
 | Endless spool | Not exposed |
 | Runout surface | No error hook, so the generic runout modal and toast remain (`runtime_config.cpp`) |
 | Environment sensors | No |
+| Filament pressure | Per lane, from `lanes[].pressure`; drawn as the FPS box, no bias tint |
 
 ## Tests
 

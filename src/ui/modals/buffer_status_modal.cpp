@@ -86,6 +86,22 @@ void BufferStatusModal::init_subjects() {
     subjects_initialized_ = true;
 }
 
+namespace helix {
+namespace {
+
+/// The unit's filament pressure sensor, or nullptr when its buffer reports no
+/// pressure (or it has no buffer).
+const BufferHealth* pressure_sensor(const AmsSystemInfo& info, int unit) {
+    if (unit < 0 || unit >= static_cast<int>(info.units.size())) {
+        return nullptr;
+    }
+    const auto& health = info.units[static_cast<std::size_t>(unit)].buffer_health;
+    return health.has_value() && health->fps_reported ? &*health : nullptr;
+}
+
+} // namespace
+} // namespace helix
+
 void BufferStatusModal::populate(const helix::AmsSystemInfo& info, int effective_unit) {
     // Cleared up front: the modal's subjects are static, so a message left from
     // a previous open would otherwise sit under a supported backend's body.
@@ -185,6 +201,13 @@ void BufferStatusModal::populate(const helix::AmsSystemInfo& info, int effective
             lv_subject_copy_string(&afc_state_subject_, lv_tr("No buffer data available"));
             lv_subject_set_int(&show_distance_subject_, 0);
         }
+    } else if (const helix::BufferHealth* fps = helix::pressure_sensor(info, effective_unit)) {
+        // A filament pressure sensor measures compression only, 0 to 1, so its
+        // reading is the whole story: no tension side, no spool motor.
+        lv_subject_set_int(&type_subject_, 3);
+        lv_subject_set_int(&show_meter_subject_, 0);
+        auto text = fmt::format("{} {:.0f}%", lv_tr("Pressure:"), fps->fps_value * 100.0f);
+        lv_subject_copy_string(&description_subject_, text.c_str());
     } else {
         // Neither buffer backend. Stock CFS, AD5X IFS, tool changers, ACE,
         // Snapmaker and QIDI report none of this - see AmsBackendCfs's own note

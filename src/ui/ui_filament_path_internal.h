@@ -292,6 +292,7 @@ struct FilamentPathData {
     bool buffer_present = false; // true = draw buffer box between hub and toolhead
     int buffer_state = 0;        // 0=neutral, 1=compressed, 2=tension (coil icon spacing)
     float buffer_bias = -2.0f;   ///< Proportional bias [-1.0,1.0], -2=unavailable (use discrete)
+    const char* buffer_label = "BUF"; ///< Box text; a static string, never translated
 
     // Callbacks
     filament_path_slot_cb_t slot_callback = nullptr;

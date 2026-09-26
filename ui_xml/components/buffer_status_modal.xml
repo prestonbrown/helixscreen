@@ -42,11 +42,18 @@
       <lv_obj name="info_col" width="1" height="content" flex_grow="1" flex_flow="column" style_pad_gap="#space_xs">
 
         <!-- ============ Unsupported system ============ -->
-        <!-- buf_type 0 = neither Happy Hare nor AFC. Without this the dialog is
+        <!-- buf_type 0 = no Happy Hare, AFC or pressure-sensor data. Without this the dialog is
              a header and a button row over an empty box. -->
         <lv_obj name="unsupported_section" width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs">
           <bind_flag_if_not_eq subject="buf_type" flag="hidden" ref_value="0"/>
           <text_small name="unsupported_text" width="100%" bind_text="buf_unsupported" long_mode="wrap"/>
+        </lv_obj>
+
+        <!-- ============ Filament pressure sensor ============ -->
+        <!-- buf_type 3 = a pressure sensor reporting compression only. -->
+        <lv_obj name="pressure_section" width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs">
+          <bind_flag_if_not_eq subject="buf_type" flag="hidden" ref_value="3"/>
+          <text_small name="pressure_description" width="100%" bind_text="buf_description" long_mode="wrap"/>
         </lv_obj>
 
         <!-- ============ Happy Hare section ============ -->

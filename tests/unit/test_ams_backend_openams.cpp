@@ -266,6 +266,34 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS snapshot maps units, slots, groups a
     CHECK(backend.get_tool_mapping() == std::vector<int>{1, 2, 3, 4});
 }
 
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS reports each lane's FPS as its units' buffer",
+                 "[ams][openams]") {
+    OpenAmsHarness backend;
+
+    SECTION("a lane with a pressure reading") {
+        json m = manager(json::array({lane("loaded", "T1", 2)}));
+        m["lanes"][0]["pressure"] = 0.62;
+        m["lanes"][0]["set_point"] = 0.5;
+        backend.feed(m);
+
+        const auto info = backend.get_system_info();
+        REQUIRE(info.units[0].buffer_health.has_value());
+        const auto& fps = *info.units[0].buffer_health;
+        CHECK(fps.fps_reported);
+        CHECK(fps.fps_value == Catch::Approx(0.62f));
+        CHECK(fps.fps_set_point == Catch::Approx(0.5f));
+        CHECK_FALSE(fps.fault_detection_enabled);
+
+        // Compression only: nothing is presented as a tension/compression bias.
+        CHECK_FALSE(backend.supports_sync_feedback_visualization(info));
+    }
+
+    SECTION("a manager that publishes no pressure") {
+        backend.feed(manager());
+        CHECK_FALSE(backend.get_system_info().units[0].buffer_health.has_value());
+    }
+}
+
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS keeps the snapshot across partial status updates",
                  "[ams][openams]") {
     OpenAmsHarness backend;

@@ -401,3 +401,30 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(modal.type_value() == 1);
     CHECK(std::string(modal.unsupported_value()).empty());
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal shows a pressure sensor's reading",
+                 "[buffer_status_modal][openams]") {
+    TestableBufferStatusModal modal;
+    helix::AmsSystemInfo info;
+    info.type = helix::AmsType::OPENAMS;
+    helix::AmsUnit unit;
+    helix::BufferHealth fps;
+    fps.fps_value = fps.smoothed_fps = 0.62f;
+    fps.fps_set_point = 0.5f;
+    fps.fps_reported = true;
+    unit.buffer_health = fps;
+    info.units.push_back(unit);
+
+    modal.populate(info, 0);
+
+    CHECK(modal.type_value() == 3);
+    CHECK(modal.show_meter_value() == 0);
+    CHECK(std::string(modal.description_value()).find("62%") != std::string::npos);
+    CHECK(std::string(modal.unsupported_value()).empty());
+
+    SECTION("a buffer with no pressure reading stays unsupported") {
+        info.units[0].buffer_health->fps_reported = false;
+        modal.populate(info, 0);
+        CHECK(modal.type_value() == 0);
+    }
+}
