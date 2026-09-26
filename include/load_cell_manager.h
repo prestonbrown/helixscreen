@@ -169,13 +169,6 @@ class LoadCellManager : public ISensorManager {
     parse_klipper_name(const std::string& klipper_name) const;
 
     /**
-     * @brief Find config by Klipper name
-     * @return Pointer to config, or nullptr if not found
-     */
-    LoadCellConfig* find_config(const std::string& klipper_name);
-    const LoadCellConfig* find_config(const std::string& klipper_name) const;
-
-    /**
      * @brief Find config by assigned role
      * @return Pointer to config, or nullptr if no load cell has this role
      */

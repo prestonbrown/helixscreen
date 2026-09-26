@@ -299,24 +299,6 @@ LoadCellManager::parse_klipper_name(const std::string& klipper_name) const {
     return std::nullopt;
 }
 
-LoadCellConfig* LoadCellManager::find_config(const std::string& klipper_name) {
-    for (auto& sensor : sensors_) {
-        if (sensor.klipper_name == klipper_name) {
-            return &sensor;
-        }
-    }
-    return nullptr;
-}
-
-const LoadCellConfig* LoadCellManager::find_config(const std::string& klipper_name) const {
-    for (const auto& sensor : sensors_) {
-        if (sensor.klipper_name == klipper_name) {
-            return &sensor;
-        }
-    }
-    return nullptr;
-}
-
 const LoadCellConfig* LoadCellManager::find_config_by_role(LoadCellRole role) const {
     for (const auto& load_cell : sensors_) {
         if (load_cell.role == role) {
