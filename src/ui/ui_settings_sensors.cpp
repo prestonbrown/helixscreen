@@ -925,7 +925,7 @@ void SensorSettingsOverlay::populate_load_cells() {
     // Create a row for each load cell using XML component
     for (const auto& sensor : sensors) {
         // Create sensor row from XML component
-        const char* attrs[] = {"sensor_name", sensor.sensor_name.c_str(), nullptr};
+        const char* attrs[] = {"sensor_name", sensor.display_name.c_str(), nullptr};
         auto* row = static_cast<lv_obj_t*>(lv_xml_create(sensors_list, "load_cell_row", attrs));
         if (!row) {
             spdlog::error("[{}] Failed to create sensor row for {}", get_name(),
@@ -940,18 +940,6 @@ void SensorSettingsOverlay::populate_load_cells() {
             spdlog::error("[{}] Failed to attach sensor name to row: {}", get_name(),
                           sensor.klipper_name);
             continue;
-        }
-        // Borrowed pointer into the row-owned copy; valid until the row dies,
-        // which is also when the child handlers below stop firing.
-        char* klipper_name = const_cast<char*>(helix::ui::get_owned_user_string(row));
-
-        // Wire up role dropdown
-        lv_obj_t* role_dropdown = lv_obj_find_by_name(row, "role_dropdown");
-        if (role_dropdown) {
-            lv_dropdown_set_selected(role_dropdown, static_cast<uint32_t>(sensor.role));
-
-            // Disable dropdown. Persisting load cell roles is not supported yet.
-            lv_obj_add_state(role_dropdown, LV_STATE_DISABLED);
         }
 
         spdlog::debug("[{}]   Created row for load_cell: {}", get_name(), sensor.sensor_name);
