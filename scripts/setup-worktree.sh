@@ -245,6 +245,7 @@ done
 
 # Get the main tree root (where this script lives)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/worktree_lib.sh"
 MAIN_TREE="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # SCRIPT_DIR/.. is only the main tree when this copy of the script is the main
@@ -483,6 +484,9 @@ link_lib_from_main() {
 
     checkout_private_submodules
     warn_if_docker_mount_probes_lvgl
+
+    echo -e "${CYAN}Restoring shared submodule pointers...${RESET}"
+    restore_shared_module_pointers "$MAIN_TREE" "$WORKTREE_PATH"
 }
 
 # mk/cross.mk bind-mounts the directory the symlinked lib/ entries point into, so

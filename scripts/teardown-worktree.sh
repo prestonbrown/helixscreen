@@ -91,40 +91,7 @@ fi
 
 MAIN_ABS="$(cd "$MAIN_TREE" && pwd -P)"
 
-# Canonicalize $1 (resolve symlinks) without requiring it to exist, so a
-# worktree a previous run already emptied - but never pruned - can still be
-# found and finished. GNU realpath's -m does exactly this; BSD/macOS
-# realpath has no -m at all (it fails outright), so a `-m` probe on the
-# empty string decides which path this run takes rather than assuming.
-# `cd "$dir" && pwd -P` (portable everywhere) then handles the part of $1
-# that already exists, and the remaining, not-yet-created tail is appended
-# as given - resolving nothing further, but never failing.
-#
-# Probed against "/", which always exists: BSD realpath rejects the -m flag
-# itself regardless of its argument, so the probe's target doesn't matter,
-# only that it can never fail for a reason unrelated to -m support.
-HAVE_REALPATH_M=1
-realpath -m -- "/" >/dev/null 2>&1 || HAVE_REALPATH_M=0
-
-canonicalize_path() {
-    local p="$1"
-    if (( HAVE_REALPATH_M )); then
-        realpath -m -- "$p"
-        return
-    fi
-    if [[ -d "$p" ]]; then
-        (cd -- "$p" && pwd -P)
-        return
-    fi
-    local parent base
-    parent="$(dirname -- "$p")"
-    base="$(basename -- "$p")"
-    if [[ -d "$parent" ]]; then
-        printf '%s/%s\n' "$(cd -- "$parent" && pwd -P)" "$base"
-    else
-        printf '%s\n' "$p"
-    fi
-}
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib/worktree_lib.sh"
 
 # Resolve a bare name against .worktrees/, a path as given.
 if [[ "$TARGET" == */* || -d "$TARGET" ]]; then
@@ -332,29 +299,9 @@ fi
 run git -C "$MAIN_ABS" worktree prune
 
 # --- shared submodule pointers -------------------------------------------------
-# .git/modules/<name> is common to every worktree, so initializing a submodule
-# inside one repoints that shared core.worktree at it. Left aimed at a directory
-# this script is about to delete, every OTHER worktree symlinking that submodule
-# fails `git status` with "cannot chdir", and so does the main tree.
 say ""
 say "${BOLD}Restoring shared submodule pointers${RESET}"
-restored=0
-for cfg in "$MAIN_ABS"/.git/modules/*/config "$MAIN_ABS"/.git/modules/lib/*/config; do
-    [[ -f "$cfg" ]] || continue
-    target="$(git config --file "$cfg" --get core.worktree 2>/dev/null || true)"
-    [[ -n "$target" ]] || continue
-    resolved="$(canonicalize_path "$(dirname -- "$cfg")/$target")"
-    [[ "$resolved" == "$WT_ABS"/* ]] || continue
-    # Keep the existing ../ depth (it differs between .git/modules/<n>/ and
-    # .git/modules/lib/<n>/) and swap the path tail back to the main tree's copy.
-    prefix="$(printf '%s' "$target" | sed -E 's#^((\.\./)+).*#\1#')"
-    run git config --file "$cfg" core.worktree "${prefix}${resolved#"$WT_ABS"/}"
-    say "  $(basename -- "$(dirname -- "$cfg")"): pointed here, restored to the main tree"
-    restored=$((restored + 1))
-done
-if (( restored == 0 )); then
-    say "  none pointed into this worktree"
-fi
+restore_shared_module_pointers "$MAIN_ABS" "$WT_ABS" run
 
 # The claim, if any, outlives the directory and would read LIVE forever.
 if [[ -x "$MAIN_ABS/scripts/helix-claim" ]]; then

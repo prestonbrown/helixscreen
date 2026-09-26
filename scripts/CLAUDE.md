@@ -186,6 +186,7 @@ each screen maps to a navigation recipe in `screenshot-recipes.sh`, the single s
 |------|---------|
 | `lib/installer/` | Modular installer components sourced by `install-dev.sh` |
 | `lib/lvgl_image_lib.sh` | Shared LVGL image conversion helpers |
+| `lib/worktree_lib.sh` | Shared by `setup-worktree.sh` and `teardown-worktree.sh`: portable `canonicalize_path` and `restore_shared_module_pointers`, which aims a shared `.git/modules/*` `core.worktree` pointing into a worktree back at the main tree (#1621) |
 | `kiauh/` | KIAUH integration (Klipper installer plugin) |
 | `translations/` | Python package for translation extraction, sync, and coverage |
 
