@@ -65,8 +65,7 @@ void LoadCellManager::discover(const std::vector<std::string>& klipper_objects) 
             LoadCellConfig config(klipper_name, *sensor_name, display_name);
 
             // Auto-categorize based on sensor name, or whether it is the only load cell.
-            if (sensor_name->find("spool") != std::string::npos ||
-                (*sensor_name == "" && klipper_objects.size() == 1)) {
+            if (sensor_name->find("spool") != std::string::npos || klipper_objects.size() == 1) {
                 config.role = LoadCellRole::SPOOL_WEIGHT;
                 config.priority = 0;
             } else {
