@@ -1588,6 +1588,16 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// True while the SELECTING in system_info_.action was set by
     /// apply_zmod_change_macro, so only that source clears it. Guarded by mutex_.
     bool zmod_change_owns_action_ = false;
+    /// Whether that change started while a job held the machine. Guarded by mutex_.
+    bool zmod_change_in_job_ = false;
+    /// A change that aborts mid-chain never reaches END_CHANGE_FILAMENT, so
+    /// last_data.channel stays set. Once released for that, the channel is
+    /// ignored until it next reads idle. Guarded by mutex_.
+    bool zmod_change_stale_ = false;
+
+    /// Give up a Z-Mod change's SELECTING: action back to IDLE, channel
+    /// ignored until it reads idle again. Caller holds mutex_.
+    void release_zmod_change_locked(const char* reason);
 
     // User-provided per-slot metadata (brand, spool name, spoolman IDs, remaining
     // weight, etc.) layered over firmware-reported state.

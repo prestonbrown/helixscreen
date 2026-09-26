@@ -74,6 +74,11 @@ namespace {
     return get_printer_state().get_print_lifecycle() == PrintState::Paused;
 }
 
+[[nodiscard]] bool job_holds_machine_now() {
+    return get_printer_state().are_subjects_initialized() &&
+           job_holds_machine(get_printer_state().get_print_lifecycle());
+}
+
 /// Fallback purge for a runout recovery: 50 mm of fresh filament at 10 mm/s.
 /// Same numbers the filament panel's purge fallback uses
 /// (ui_panel_filament.cpp, ui_filament_runout_handler.cpp) - deliberately a
@@ -671,8 +676,10 @@ void AmsBackendAd5xIfs::handle_status_update(const json& notification) {
     // an EVENT_STATE_CHANGED -> sync_from_backend refresh, so treat a toggle as a
     // state change worth publishing (#1065 row 14).
     const bool indet_before = system_info_.operation_indeterminate;
+    const AmsAction action_before_timeout = system_info_.action;
     check_action_timeout();
     const bool indet_toggled = system_info_.operation_indeterminate != indet_before;
+    const bool timeout_changed_action = system_info_.action != action_before_timeout;
 
     // Unattended-runout detector (#1250). Deliberately AFTER check_action_timeout:
     // a timed-out operation owns the ERROR state, and the runout predicate
@@ -715,7 +722,7 @@ void AmsBackendAd5xIfs::handle_status_update(const json& notification) {
     // now carried by the backend-neutral `ams_endless_state` / `ams_endless_text`
     // subjects, which AmsState derives from get_endless_spool_capabilities() when
     // it handles the EVENT_STATE_CHANGED below.
-    if (state_changed || indet_toggled || runout_changed) {
+    if (state_changed || indet_toggled || runout_changed || timeout_changed_action) {
         emit_event(EVENT_STATE_CHANGED);
     }
 
@@ -2495,6 +2502,16 @@ AmsError AmsBackendAd5xIfs::reset() {
     return execute_gcode(reset_cmd);
 }
 
+void AmsBackendAd5xIfs::release_zmod_change_locked(const char* reason) {
+    spdlog::warn("{} Z-Mod filament change released: {}", backend_log_tag(), reason);
+    if (system_info_.action == AmsAction::SELECTING) {
+        system_info_.action = AmsAction::IDLE;
+        set_operation_detail_locked("");
+    }
+    zmod_change_owns_action_ = false;
+    zmod_change_stale_ = true;
+}
+
 bool AmsBackendAd5xIfs::can_cancel_operation() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return !zmod_change_owns_action_;
@@ -2515,6 +2532,7 @@ void AmsBackendAd5xIfs::apply_zmod_change_macro(const json& status) {
         return;
     }
     const bool changing = channel->get<int>() != ZMOD_CHANGE_IDLE_CHANNEL;
+    const bool in_job = job_holds_machine_now();
 
     bool action_changed = false;
     {
@@ -2523,18 +2541,23 @@ void AmsBackendAd5xIfs::apply_zmod_change_macro(const json& status) {
         if (changing) {
             // Our own ops drive the action through the phase tracker; this only
             // speaks for a change nothing of ours started.
-            if (!phase_tracker_.active && system_info_.action == AmsAction::IDLE) {
+            if (!zmod_change_stale_ && !phase_tracker_.active &&
+                system_info_.action == AmsAction::IDLE) {
                 system_info_.action = AmsAction::SELECTING;
                 action_start_time_ = std::chrono::steady_clock::now();
                 set_operation_detail_locked("Changing filament");
                 zmod_change_owns_action_ = true;
+                zmod_change_in_job_ = in_job;
             }
-        } else if (zmod_change_owns_action_) {
-            if (system_info_.action == AmsAction::SELECTING) {
-                system_info_.action = AmsAction::IDLE;
-                set_operation_detail_locked("");
+        } else {
+            zmod_change_stale_ = false;
+            if (zmod_change_owns_action_) {
+                if (system_info_.action == AmsAction::SELECTING) {
+                    system_info_.action = AmsAction::IDLE;
+                    set_operation_detail_locked("");
+                }
+                zmod_change_owns_action_ = false;
             }
-            zmod_change_owns_action_ = false;
         }
         if (phase_tracker_.active) {
             zmod_change_owns_action_ = false;
@@ -6802,6 +6825,15 @@ void AmsBackendAd5xIfs::check_action_timeout() {
             since_progress > std::chrono::seconds(INDETERMINATE_THRESHOLD_SECONDS);
     } else {
         system_info_.operation_indeterminate = false;
+    }
+
+    if (zmod_change_owns_action_) {
+        const auto held = std::chrono::steady_clock::now() - action_start_time_;
+        if (held >= std::chrono::seconds(SWAP_LOADING_TIMEOUT_SECONDS)) {
+            release_zmod_change_locked("END_CHANGE_FILAMENT never ran");
+        } else if (zmod_change_in_job_ && !job_holds_machine_now()) {
+            release_zmod_change_locked("the job ended mid-change");
+        }
     }
 
     const AmsAction a = system_info_.action;
