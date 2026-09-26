@@ -717,6 +717,51 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band widget deletion scrubs pane
     lv_obj_delete(base);
 }
 
+// A hot-reload rebuild of the main panel under an open overlay swaps its widget
+// through replace_panel_widget(); the stack entry beneath the overlay must follow,
+// or go_back() reveals the displaced widget and leaves the rebuilt one hidden (#1294).
+TEST_CASE_METHOD(NavbarIconTestFixture,
+                 "replace_panel_widget rekeys the main panel beneath an open overlay",
+                 "[navigation][overlay][hot_reload]") {
+    auto& nav = NavigationManager::instance();
+
+    lv_obj_t* base = lv_obj_create(test_screen());
+    REQUIRE(base != nullptr);
+    lv_obj_t* panels[UI_PANEL_COUNT] = {nullptr};
+    panels[static_cast<int>(PanelId::Home)] = base;
+    nav.set_panels(panels);
+
+    MockPanelLifecycle mock_panel;
+    lv_obj_t* overlay = lv_obj_create(test_screen());
+    REQUIRE(overlay != nullptr);
+    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    nav.register_overlay_instance(overlay, &mock_panel);
+    nav.push_overlay(overlay);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(nav.is_panel_on_top(overlay));
+
+    // PanelBase::rebuild() creates the successor with the old widget's visibility.
+    lv_obj_t* rebuilt = lv_obj_create(test_screen());
+    REQUIRE(rebuilt != nullptr);
+    lv_obj_add_flag(rebuilt, LV_OBJ_FLAG_HIDDEN);
+    nav.replace_panel_widget(PanelId::Home, rebuilt);
+
+    CHECK(nav.is_panel_in_stack(rebuilt));
+    CHECK_FALSE(nav.is_panel_in_stack(base));
+    CHECK(nav.is_panel_on_top(overlay));
+
+    nav.go_back();
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    CHECK_FALSE(nav.is_panel_in_stack(overlay));
+    CHECK(nav.is_panel_on_top(rebuilt));
+    CHECK_FALSE(lv_obj_has_flag(rebuilt, LV_OBJ_FLAG_HIDDEN));
+
+    lv_obj_delete(overlay);
+    lv_obj_delete(base);
+    lv_obj_delete(rebuilt);
+}
+
 // ============================================================================
 // Backdrop tap must not dismiss the overlay while the on-screen keyboard is up
 // ============================================================================
