@@ -691,3 +691,29 @@ TEST_CASE_METHOD(MigrationFutureFixture,
 
     CHECK_FALSE(fs::exists(config_path + ".pre-migration"));
 }
+
+TEST_CASE_METHOD(MigrationFutureFixture,
+                 "Config: a snapshot at the starting version outlives a repeat migrating boot",
+                 "[config][migration][backup]") {
+    // A migration that throws leaves settings.json partly migrated but still
+    // stamped with its starting version, so the next boot migrates from that
+    // version again. The copy taken before the first attempt is the original.
+    const std::string snapshot = config_path + ".pre-migration";
+    json old_doc = populated_config();
+    old_doc["config_version"] = CURRENT_CONFIG_VERSION - 1;
+
+    SECTION("a snapshot at the same version is kept") {
+        const std::string original =
+            json{{"config_version", CURRENT_CONFIG_VERSION - 1}, {"marker", "original"}}.dump();
+        std::ofstream(snapshot) << original;
+        write_and_init(old_doc);
+        CHECK(read_bytes(snapshot) == original);
+    }
+    SECTION("a snapshot from an older version is replaced") {
+        std::ofstream(snapshot) << json{
+            {"config_version", CURRENT_CONFIG_VERSION - 2},
+            {"marker", "older"}}.dump();
+        write_and_init(old_doc);
+        CHECK(read_bytes(snapshot) == old_doc.dump(2));
+    }
+}

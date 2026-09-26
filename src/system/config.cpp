@@ -2035,6 +2035,13 @@ void Config::init(const std::string& config_path) {
     ensure_storage();
     bool config_modified = false;
 
+    // Probe for read-only storage before attempting any writes.
+    read_only_mode_ = storage_->read_only();
+    if (read_only_mode_) {
+        spdlog::warn("[Config] Read-only storage ({}): config changes will not be persisted",
+                     storage_->describe());
+    }
+
     // A thrown load() means the document is present but unreadable (e.g.
     // permission denied) — distinct from "absent" (nullopt, no throw). Both
     // cases route into the "load existing config" branch below so a
@@ -2042,8 +2049,8 @@ void Config::init(const std::string& config_path) {
     // backup-restore recovery as a parse failure, instead of being silently
     // treated as first-boot and reset to defaults.
     std::optional<std::string> loaded_doc;
-    // True while `data` is the document parsed from `path` itself, rather than
-    // a backup or defaults standing in for it.
+    // True while `data` is the document parsed from `path`, whatever put it
+    // there (a backup restored onto a missing file counts).
     bool data_is_on_disk_doc = false;
     bool load_read_failed = false;
     std::string load_read_error;
@@ -2168,13 +2175,27 @@ void Config::init(const std::string& config_path) {
             // without this copy nothing keeps the pre-upgrade document. It is a
             // fixed sibling of settings.json that no restore path searches, and
             // a file copy, so it applies only when the storage is that file.
-            // ponytail: one generation only - the next migrating boot overwrites
-            // it; keep a versioned name per migration if older ones are wanted.
+            // A snapshot already at version_before is kept: the file on disk
+            // may be a partly migrated document that still carries that
+            // version, and the first copy is the original.
+            // ponytail: one generation only - the next migrating boot from a
+            // different version overwrites it; keep a versioned name per
+            // migration if older ones are wanted.
+            const std::string snapshot = path + ".pre-migration";
             if (data_is_on_disk_doc && version_before > 0 &&
                 version_before < CURRENT_CONFIG_VERSION && storage_->describe() == path &&
-                !storage_->read_only()) {
-                const std::string snapshot = path + ".pre-migration";
-                if (write_backup_file(path, snapshot)) {
+                !read_only_mode_) {
+                int snapshot_version = 0;
+                try {
+                    snapshot_version = helix::json_util::safe_int(
+                        json::parse(std::ifstream(snapshot)), "config_version", 0);
+                } catch (const json::exception&) {
+                    // Absent or unreadable: nothing worth keeping.
+                }
+                if (snapshot_version == version_before) {
+                    spdlog::debug("[Config] Keeping existing v{} pre-migration copy: {}",
+                                  version_before, snapshot);
+                } else if (write_backup_file(path, snapshot)) {
                     spdlog::info("[Config] Saved v{} config before migrating: {}", version_before,
                                  snapshot);
                 } else {
@@ -2368,13 +2389,6 @@ void Config::init(const std::string& config_path) {
                 }
             }
         }
-    }
-
-    // Probe for read-only storage before attempting any writes.
-    read_only_mode_ = storage_->read_only();
-    if (read_only_mode_) {
-        spdlog::warn("[Config] Read-only storage ({}): config changes will not be persisted",
-                     storage_->describe());
     }
 
     // Save updated config with any new defaults or migrations.
