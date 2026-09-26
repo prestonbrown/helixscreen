@@ -731,15 +731,10 @@ void SensorSettingsOverlay::update_temperature_sensor_count() {
 // CHAMBER ASSIGNMENT
 // ============================================================================
 
-namespace {
-
-/// Labels shared by both chamber assignment dropdowns.
-ChamberAssignmentLabels assignment_labels() {
+ChamberAssignmentLabels chamber_assignment_labels() {
     return ChamberAssignmentLabels{lv_tr("Auto"), lv_tr("(none detected)"), lv_tr("not detected"),
                                    lv_tr("None (disable)")};
 }
-
-} // namespace
 
 void SensorSettingsOverlay::populate_chamber_assignment() {
     if (!overlay_root_)
@@ -760,9 +755,9 @@ void SensorSettingsOverlay::populate_chamber_assignment() {
             assignable.push_back(heater);
         }
 
-        auto built = build_chamber_assignment_options(assignable, discovery.chamber_heater_name(),
-                                                      settings.get_chamber_heater_assignment(),
-                                                      "heater_generic ", assignment_labels());
+        auto built = build_chamber_assignment_options(
+            assignable, discovery.chamber_heater_name(), settings.get_chamber_heater_assignment(),
+            "heater_generic ", chamber_assignment_labels());
 
         lv_dropdown_set_options(heater_dd, built.options.c_str());
         lv_dropdown_set_selected(heater_dd, built.selected);
@@ -824,9 +819,9 @@ void SensorSettingsOverlay::populate_chamber_assignment() {
         const std::string& detected_sensor = discovery.chamber_sensor_name().empty()
                                                  ? discovery.chamber_heater_object_name()
                                                  : discovery.chamber_sensor_name();
-        auto built = build_chamber_assignment_options(discovery.sensors(), detected_sensor,
-                                                      settings.get_chamber_sensor_assignment(),
-                                                      "temperature_sensor ", assignment_labels());
+        auto built = build_chamber_assignment_options(
+            discovery.sensors(), detected_sensor, settings.get_chamber_sensor_assignment(),
+            "temperature_sensor ", chamber_assignment_labels());
 
         lv_dropdown_set_options(sensor_dd, built.options.c_str());
         lv_dropdown_set_selected(sensor_dd, built.selected);
