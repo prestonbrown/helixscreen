@@ -9,32 +9,6 @@
 namespace helix::units {
 
 // ============================================================================
-// Force Conversions (decigrams = grams × 10)
-// ============================================================================
-
-/**
- * @brief Convert grams to decigrams (for UI display with 0.1 g precision)
- * @param grams Force in grams
- * @return Force in decigrams (1 dg = 0.1 g)
- *
- * Example: 317.4 g → 3174 dg
- */
-inline int to_decigrams(double grams) {
-    if (!std::isfinite(grams))
-        return 0;
-    return static_cast<int>(grams * 10.0);
-}
-
-/**
- * @brief Convert decigrams back to grams
- * @param grams Weight in decigrams
- * @return Weight in grams
- */
-inline double from_decigrams(int decigrams) {
-    return static_cast<double>(decigrams) / 10.0;
-}
-
-// ============================================================================
 // Temperature Conversions (decidegrees = degrees × 10)
 // ============================================================================
 

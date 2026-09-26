@@ -129,15 +129,9 @@ class LoadCellManager : public ISensorManager {
      */
     [[nodiscard]] size_t sensor_count() const;
 
-    // ========================================================================
-    // LVGL Subjects
-    // ========================================================================
-
-    /**
-     * @brief Get subject for sensor count (for conditional UI visibility)
-     * @return Subject (int: number of discovered sensors)
-     */
-    [[nodiscard]] lv_subject_t* get_sensor_count_subject();
+    // ============================================================================
+    // Testing Support
+    // ============================================================================
 
     /**
      * @brief Enable synchronous mode for testing
