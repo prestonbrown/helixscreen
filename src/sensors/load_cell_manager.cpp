@@ -44,79 +44,81 @@ std::string LoadCellManager::category_name() const {
 }
 
 void LoadCellManager::discover(const std::vector<std::string>& klipper_objects) {
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    {
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-    spdlog::debug("[LoadCellManager] Discovering load cells from {} objects",
-                  klipper_objects.size());
+        spdlog::debug("[LoadCellManager] Discovering load cells from {} objects",
+                      klipper_objects.size());
 
-    // Clear existing sensors
-    sensors_.clear();
+        // Clear existing sensors
+        sensors_.clear();
 
-    for (const auto& klipper_name : klipper_objects) {
-        const auto sensor_name = parse_klipper_name(klipper_name);
-        if (!sensor_name) {
-            continue;
+        for (const auto& klipper_name : klipper_objects) {
+            const auto sensor_name = parse_klipper_name(klipper_name);
+            if (!sensor_name) {
+                continue;
+            }
+
+            // Generate display name
+            std::string display_name = helix::get_display_name(*sensor_name, DeviceType::LOAD_CELL);
+
+            LoadCellConfig config(klipper_name, *sensor_name, display_name);
+
+            // Auto-categorize based on sensor name, or whether it is the only load cell.
+            if (sensor_name->find("spool") != std::string::npos ||
+                (*sensor_name == "" && klipper_objects.size() == 1)) {
+                config.role = LoadCellRole::SPOOL_WEIGHT;
+                config.priority = 0;
+            } else {
+                config.role = LoadCellRole::NONE;
+                config.priority = 100;
+            }
+
+            sensors_.push_back(config);
+
+            // Initialize state if not already present
+            if (states_.find(klipper_name) == states_.end()) {
+                LoadCellState state;
+                state.available = true;
+                states_[klipper_name] = state;
+            } else {
+                states_[klipper_name].available = true;
+            }
+
+            spdlog::debug("[LoadCellManager] Discovered sensor: {} (role: {}, priority: {})",
+                          *sensor_name, load_cell_role_to_string(config.role), config.priority);
         }
 
-        // Generate display name
-        std::string display_name = helix::get_display_name(*sensor_name, DeviceType::LOAD_CELL);
-
-        LoadCellConfig config(klipper_name, *sensor_name, display_name);
-
-        // Auto-categorize based on sensor name, or whether it is the only load cell.
-        if (sensor_name->find("spool") != std::string::npos ||
-            (*sensor_name == "" && klipper_objects.size() == 1)) {
-            config.role = LoadCellRole::SPOOL_WEIGHT;
-            config.priority = 0;
-        } else {
-            config.role = LoadCellRole::NONE;
-            config.priority = 100;
-        }
-
-        sensors_.push_back(config);
-
-        // Initialize state if not already present
-        if (states_.find(klipper_name) == states_.end()) {
-            LoadCellState state;
-            state.available = true;
-            states_[klipper_name] = state;
-        } else {
-            states_[klipper_name].available = true;
-        }
-
-        spdlog::debug("[LoadCellManager] Discovered sensor: {} (role: {}, priority: {})",
-                      *sensor_name, load_cell_role_to_string(config.role), config.priority);
-    }
-
-    // Mark sensors that disappeared as unavailable
-    for (auto& [name, state] : states_) {
-        bool found = false;
-        for (const auto& sensor : sensors_) {
-            if (sensor.klipper_name == name) {
-                found = true;
-                break;
+        // Mark sensors that disappeared as unavailable
+        for (auto& [name, state] : states_) {
+            bool found = false;
+            for (const auto& sensor : sensors_) {
+                if (sensor.klipper_name == name) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                state.available = false;
             }
         }
-        if (!found) {
-            state.available = false;
+
+        // Remove stale entries to prevent unbounded memory growth
+        for (auto it = states_.begin(); it != states_.end();) {
+            if (!it->second.available) {
+                it = states_.erase(it);
+            } else {
+                ++it;
+            }
         }
-    }
 
-    // Remove stale entries to prevent unbounded memory growth
-    for (auto it = states_.begin(); it != states_.end();) {
-        if (!it->second.available) {
-            it = states_.erase(it);
-        } else {
-            ++it;
+        // Update sensor count subject
+        if (subjects_initialized_) {
+            lv_subject_set_int(&sensor_count_, static_cast<int>(sensors_.size()));
         }
-    }
 
-    // Update sensor count subject
-    if (subjects_initialized_) {
-        lv_subject_set_int(&sensor_count_, static_cast<int>(sensors_.size()));
+        spdlog::debug("[LoadCellManager] Discovered {} load cells", sensors_.size());
     }
-
-    spdlog::debug("[LoadCellManager] Discovered {} load cells", sensors_.size());
 
     // Update subjects to reflect new state
     update_subjects();
@@ -124,6 +126,7 @@ void LoadCellManager::discover(const std::vector<std::string>& klipper_objects) 
 
 void LoadCellManager::update_from_status(const nlohmann::json& status) {
     bool any_changed = false;
+    auto sync_update_subjects = false;
 
     {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -158,7 +161,7 @@ void LoadCellManager::update_from_status(const nlohmann::json& status) {
         if (any_changed) {
             if (sync_mode_) {
                 spdlog::trace("[LoadCellManager] sync_mode: updating subjects synchronously");
-                update_subjects();
+                sync_update_subjects = true;
             } else {
                 spdlog::trace("[LoadCellManager] async_mode: deferring via ui_queue_update");
                 auto tok = lifetime_.token();
@@ -166,6 +169,10 @@ void LoadCellManager::update_from_status(const nlohmann::json& status) {
                           [] { LoadCellManager::instance().update_subjects_on_main_thread(); });
             }
         }
+    }
+
+    if (sync_update_subjects) {
+        update_subjects();
     }
 }
 
@@ -257,6 +264,7 @@ std::vector<LoadCellConfig> LoadCellManager::get_sensors_sorted() const {
 
 size_t LoadCellManager::sensor_count() const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     return sensors_.size();
 }
 
@@ -300,6 +308,8 @@ LoadCellManager::parse_klipper_name(const std::string& klipper_name) const {
 }
 
 const LoadCellConfig* LoadCellManager::find_config_by_role(LoadCellRole role) const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
     for (const auto& load_cell : sensors_) {
         if (load_cell.role == role) {
             return &load_cell;
