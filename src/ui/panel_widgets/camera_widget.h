@@ -59,6 +59,12 @@ class CameraWidget : public PanelWidget {
     void update_stream_fps(); // Re-evaluate and set max_fps based on current state
     void set_status_text(const char* text);
     void destroy_fullscreen(); // Synchronous cleanup of fullscreen overlay
+    /// Create the fullscreen overlay on the active screen and push it, unless
+    /// another widget already owns one. The caller has already started the stream.
+    void show_fullscreen_overlay();
+    /// LV_EVENT_DELETE on the fullscreen overlay. A screen teardown frees it
+    /// without running the NavigationManager close callback (#1430).
+    static void on_fullscreen_overlay_deleted(lv_event_t* e);
 
     /// Null the tile-tree pointers (root, screen, image, overlay, status
     /// label) without touching the stream, the observers, or the fullscreen
