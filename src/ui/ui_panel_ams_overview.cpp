@@ -1408,7 +1408,6 @@ void AmsOverviewPanel::show_detail_context_menu(int slot_index, lv_obj_t* near_w
             break;
 
         case helix::ui::AmsContextMenu::MenuAction::SCAN_QR: {
-#if HELIX_HAS_CAMERA
             spdlog::info("[AmsOverview] SCAN_QR action for slot {}", slot);
             auto& scanner = helix::ui::get_qr_scanner_overlay();
             scanner.show(parent_screen_, slot, [slot](const SpoolInfo& spool) {
@@ -1428,7 +1427,6 @@ void AmsOverviewPanel::show_detail_context_menu(int slot_index, lv_obj_t* near_w
                 }
                 spdlog::info("[AmsOverview] QR scan assigned spool #{} to slot {}", spool.id, slot);
             });
-#endif // HELIX_HAS_CAMERA
             break;
         }
 
