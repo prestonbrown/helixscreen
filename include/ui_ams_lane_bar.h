@@ -37,4 +37,17 @@ void ui_ams_lane_bar_register(void);
 
 #ifdef __cplusplus
 }
+
+namespace helix::ui {
+/**
+ * @brief Create one ams_lane_bar per slot for slots
+ * [first_slot_index, first_slot_index + slot_count).
+ *
+ * For C++ consumers whose lane count and bar width are MEASURED (overview
+ * mini bars, mini-status bar mode): the loop stays in C++ (declarative rule
+ * 8's measured-layout exception), the per-lane rendering stays in the widget.
+ */
+void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_count,
+                               int32_t bar_width, int32_t bar_height);
+} // namespace helix::ui
 #endif

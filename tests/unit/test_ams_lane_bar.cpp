@@ -177,3 +177,45 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: bar_width/bar_height attrs size 
     CHECK(lv_obj_get_height(bg) == 40);
     lv_obj_delete(bar);
 }
+
+TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: create_range binds each bar to its own slot",
+                 "[ams][lane_bar]") {
+    // The measured-layout consumers (overview mini bars, mini-status bar mode)
+    // create their bars through this helper. The assertion that matters is the
+    // INDEX MATH: three bars for slots 4..6 must each render the state of
+    // their own subject, not a neighbour's.
+    ui_ams_lane_bar_register();
+    AmsState::instance().init_subjects(true);
+    auto set_state = [](int slot, helix::ui::LaneState st) {
+        lv_subject_set_int(AmsState::instance().get_slot_lane_state_subject(slot),
+                           static_cast<int>(st));
+    };
+    set_state(4, helix::ui::LaneState::Empty);
+    set_state(5, helix::ui::LaneState::Present);
+    lv_subject_set_int(AmsState::instance().get_slot_fill_subject(5), 60);
+    set_state(6, helix::ui::LaneState::Ghosted);
+
+    lv_obj_t* row = lv_obj_create(test_screen());
+    helix::ui::ams_lane_bar_create_range(row, 4, 3, 12, 40);
+    process_lvgl(20);
+
+    lv_obj_t* bar0 = lv_obj_get_child(row, 0);
+    lv_obj_t* bar1 = lv_obj_get_child(row, 1);
+    lv_obj_t* bar2 = lv_obj_get_child(row, 2);
+    REQUIRE(bar0 != nullptr);
+    REQUIRE(bar1 != nullptr);
+    REQUIRE(bar2 != nullptr);
+    CHECK(lv_obj_get_child_count(row) == 3);
+
+    CHECK_FALSE(visible(bar0, "bar_fill")); // slot 4: Empty
+    CHECK(visible(bar1, "bar_fill"));       // slot 5: Present
+    CHECK(lv_obj_get_style_opa(bar1, LV_PART_MAIN) == LV_OPA_COVER);
+    CHECK(visible(bar2, "bar_fill")); // slot 6: Ghosted keeps its fill
+    CHECK(lv_obj_get_style_opa(bar2, LV_PART_MAIN) < LV_OPA_COVER);
+
+    // Repaint reaches the bars through the subjects, no rebuild needed.
+    set_state(5, helix::ui::LaneState::Empty);
+    process_lvgl(20);
+    CHECK_FALSE(visible(bar1, "bar_fill"));
+    lv_obj_delete(row);
+}

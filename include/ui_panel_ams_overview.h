@@ -97,6 +97,10 @@ class AmsOverviewPanel : public PanelBase {
         lv_obj_t* slot_count_label = nullptr; // "4 slots"
         lv_obj_t* error_badge = nullptr;      // Error badge dot (top-right)
         int unit_index = -1;
+        /// Geometry the lane bars were built at: rebuild is due only when the
+        /// lane count or the measured width moves off these.
+        int bars_slot_count = 0;
+        int32_t bars_width = 0;
         /// Untruncated display name. name_label uses long_mode="dots", and LVGL
         /// rewrites that label's own buffer with the ellipsized text - so
         /// lv_label_get_text() cannot answer "how wide does this name want to
