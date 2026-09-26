@@ -133,6 +133,7 @@ to skip verification. Use `--sim-speed 4..10` to reach an active print in second
 | `check_modal_chrome_budget.py` | A modal's chrome matches the content cap it budgets against: everything but a divider and the button row lives inside the scroll container; a second button row switches to the tall-chrome token; no card raised above the shared 85% cap (`MODAL_CHROME_OK` opt-out) |
 | `check_raw_print_job_state.py` | Every read of the raw print wire (`PrintJobState::…`, `get_print_job_state()`, `get_print_state_enum_subject()`) says why it is not on the lifecycle — `// RAW_PRINT_STATE_OK: <reason>` (baseline 0) |
 | `check_print_state_cast.py` | No hand-casting `lv_subject_get_int()` into `PrintState`/`PrintJobState`; the typed accessors pair each subject with its own enum (`PRINT_STATE_CAST_OK` opt-out) |
+| `check_ams_xml_mirror.py` | `src/printer/ams_state.cpp#register_xml_subject_names` publishes exactly the XML subject names `src/printer/ams_state.cpp#init_subjects` does, loops included (#1439) |
 | spdlog-only | No `printf`/`cout`/`LV_LOG_` outside CLI subcommands |
 | design tokens | Hardcoded colors ratcheted; no private `_lv_*` APIs |
 | copyright, icon fonts, XML validity, shellcheck | Headers, codepoint sync, well-formed XML |

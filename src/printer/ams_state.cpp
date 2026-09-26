@@ -747,7 +747,8 @@ void AmsState::register_xml_subject_names() {
     // MUST mirror the registration list in init_subjects(): same names, same
     // order, same loops. A name registered there but not here stays
     // unpublished after a register_xml=false first init
-    // (prestonbrown/helixscreen#1374).
+    // (prestonbrown/helixscreen#1374). scripts/check_ams_xml_mirror.py fails
+    // the commit when the two name sets differ.
 
     // Backend selector subjects
     helix::xml::register_subject_in_current_scope("backend_count", &backend_count_);
