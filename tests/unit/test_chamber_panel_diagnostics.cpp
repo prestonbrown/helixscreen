@@ -4,24 +4,24 @@
 /**
  * @file test_chamber_panel_diagnostics.cpp
  * @brief Chamber-heater diagnostics placement in the temp graph overlay
- *        (issue #1290): above the micro/tiny landscape line everything about
- *        the heater lives in the right column's chamber card; portrait and
- *        micro landscape get a one-row strip under the chart instead.
+ *        (issue #1290): everything about the heater lives in the chamber
+ *        card at every size - the landscape right column (all breakpoints,
+ *        compacted at micro 480x272) and the portrait full-width band under
+ *        the chart. Nothing renders under the chart itself.
  *
- * Both surfaces are pure declarative XML: the strip is a structural
- * <if cond="printer_has_chamber_heater_diagnostics and temp_graph_mode eq 3
- * and (ui_is_portrait or ui_breakpoint eq 0)"> under the chart, the card's
- * diagnostics block is bind-hidden (the engine's if/else capture is flat, so
- * no <if> can nest inside the card's orientation branch). Inner visibility
- * comes from bind_flag_if (fault OR inhibited banner, fault replaces the
- * strip's info row) and bind_flag_if_eq (element / filter-fan capability),
- * readouts bind the *_text formatter subjects, and the switch and the
- * banner's Reset fire TemperatureService XML callbacks that delegate to the
- * globally-registered TemperatureController: never the api directly.
+ * The card is pure declarative XML: the diagnostics block is bind-hidden
+ * (the engine's if/else capture is flat, so no <if> can nest inside the
+ * card's orientation branch). Inner visibility comes from bind_flag_if
+ * (fault OR inhibited banner; portrait swaps the readout row for it) and
+ * bind_flag_if_eq (element / filter-fan capability), readouts bind the
+ * *_text formatter subjects, and the switch and the banner's Reset fire
+ * TemperatureService XML callbacks that delegate to the globally-registered
+ * TemperatureController: never the api directly.
  *
- * The unit-test display is 800x480 (card path); the geometry cases resize it
- * through ScopedResolution + theme_manager_refresh_layout_constants() to
- * exercise the 480x320 card and the 480x272 strip at their real breakpoints.
+ * The unit-test display is 800x480; the geometry cases resize it through
+ * ScopedResolution + theme_manager_refresh_layout_constants() to exercise
+ * 480x320, micro landscape 480x272 and portrait 272x480 at their real
+ * breakpoints.
  */
 
 #include "ui_update_queue.h"
@@ -118,8 +118,9 @@ class ScopedGeometry {
 class ChamberOverlayFixture : public XMLTestFixture {
   public:
     ChamberOverlayFixture() : XMLTestFixture() {
-        // Chamber mode BEFORE build: the strip's outer gate is a structural
-        // <if cond="... temp_graph_mode eq 3"> evaluated at view creation.
+        // Chamber mode BEFORE build: the chamber strip's hidden bind and the
+        // graph column's width bind both observe it, and the orientation
+        // branch is structural, evaluated at view creation.
         mode_subject_ = lv_xml_get_subject(nullptr, "temp_graph_mode");
         if (!mode_subject_) {
             static lv_subject_t mode_subject;
@@ -134,7 +135,6 @@ class ChamberOverlayFixture : public XMLTestFixture {
         REQUIRE(register_component("components/nozzle_icon"));
         REQUIRE(register_component("components/heater_icon"));
         REQUIRE(register_component("components/chamber_fault_banner"));
-        REQUIRE(register_component("components/chamber_diagnostics_card"));
         REQUIRE(register_component("header_bar"));
         REQUIRE(register_component("overlay_panel"));
         // The card's two diagnostics callbacks must exist before the overlay's
@@ -151,11 +151,10 @@ class ChamberOverlayFixture : public XMLTestFixture {
     }
 
     /// Creates the overlay at the display's CURRENT geometry. Call after any
-    /// ScopedGeometry so the structural breakpoint gates evaluate against the
-    /// resized screen. Capability gates default to 0 (surfaces not built);
-    /// raise them before the build so the structural <if> fires: the
-    /// hidden-when-off cases re-set them explicitly (the reactive cond
-    /// rebuilds).
+    /// ScopedGeometry so the structural orientation branch evaluates against
+    /// the resized screen. Capability gates default to 0 (surfaces not
+    /// built); raise them before the build so the bind-hidden block shows:
+    /// the hidden-when-off cases re-set them explicitly.
     lv_obj_t* build_overlay() {
         lv_subject_set_int(mode_subject_, 3);
         set_xml_int("printer_has_chamber_heater_diagnostics", 1);
@@ -224,8 +223,12 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
         REQUIRE(percent != nullptr);
         CHECK(std::string(lv_label_get_text(percent)) == "100%");
 
-        // Above the micro/tiny line the under-chart strip is not built at all.
-        CHECK(lv_obj_find_by_name(overlay_, "chamber_diagnostics_card") == nullptr);
+        // Nothing about the heater renders under the chart: the diagnostics
+        // widgets exist in the card but not inside the graph column.
+        lv_obj_t* graph_outer = lv_obj_find_by_name(overlay_, "graph_outer_container");
+        REQUIRE(graph_outer != nullptr);
+        CHECK(lv_obj_find_by_name(graph_outer, "filter_fan_switch") == nullptr);
+        CHECK(lv_obj_find_by_name(graph_outer, "element_temp_label") == nullptr);
     }
 
     SECTION("fault and inhibited both clear hides the banner, keeps the block") {
@@ -286,32 +289,35 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
         CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "reset_fault_button")));
     }
 
-    SECTION("no diagnostics capability hides the block, builds no strip") {
-        // Dropping the capability bind-hides the card's diagnostics block;
-        // the under-chart strip stays structurally unbuilt at this
-        // breakpoint either way.
+    SECTION("no diagnostics capability hides the block, keeps the card") {
+        // Dropping the capability bind-hides the card's diagnostics block
+        // (banner, readouts, switch); the display header row stays.
         set_xml_int("printer_has_chamber_heater_diagnostics", 0);
         helix::ui::UpdateQueue::instance().drain();
 
         CHECK(hidden(lv_obj_find_by_name(overlay_, "chamber_diagnostics_block")));
-        CHECK(lv_obj_find_by_name(overlay_, "chamber_diagnostics_card") == nullptr);
         CHECK(lv_obj_find_by_name(overlay_, "fault_banner") !=
               nullptr); // bind-hidden, not torn down
+        CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "chamber_temp_display")));
     }
 
-    SECTION("non-chamber modes build no strip (structural mode gate)") {
+    SECTION("non-chamber modes hide the chamber strip (mode bind)") {
+        lv_obj_t* strip = lv_obj_find_by_name(overlay_, "chamber_control_strip");
+        REQUIRE(strip != nullptr);
+
         set_xml_int("temp_graph_mode", 1); // Nozzle
         helix::ui::UpdateQueue::instance().drain();
-        CHECK(lv_obj_find_by_name(overlay_, "chamber_diagnostics_card") == nullptr);
+        CHECK(hidden(strip));
 
         set_xml_int("temp_graph_mode", 0); // GraphOnly
         helix::ui::UpdateQueue::instance().drain();
-        CHECK(lv_obj_find_by_name(overlay_, "chamber_diagnostics_card") == nullptr);
+        CHECK(hidden(strip));
 
-        // Back to chamber: the reactive cond still leaves the card path in
-        // place (the strip belongs to the other breakpoint).
+        // Back to chamber: the strip returns with the card's diagnostics
+        // block still in place.
         set_xml_int("temp_graph_mode", 3);
         helix::ui::UpdateQueue::instance().drain();
+        CHECK_FALSE(hidden(strip));
         lv_obj_t* block = lv_obj_find_by_name(overlay_, "chamber_diagnostics_block");
         REQUIRE(block != nullptr);
         CHECK_FALSE(hidden(block));
@@ -359,21 +365,27 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
         REQUIRE(fan_switch != nullptr);
         lv_obj_t* badge = lv_obj_find_by_name(overlay_, "fan_device_badge");
         REQUIRE(badge != nullptr);
+        lv_obj_t* percent = lv_obj_find_by_name(overlay_, "fan_percent_label");
+        REQUIRE(percent != nullptr);
 
-        // Our request driving the fan: no badge, switch usable, checked state
-        // follows the running subject.
+        // Our request driving the fan: percent shows, no badge, switch
+        // usable, checked state follows the running subject.
         set_xml_int("chamber_filter_fan_on", 1);
         set_xml_int("chamber_filter_fan_device_driven", 0);
         helix::ui::UpdateQueue::instance().drain();
+        CHECK_FALSE(hidden(percent));
         CHECK(hidden(badge));
         CHECK_FALSE(lv_obj_has_state(fan_switch, LV_STATE_DISABLED));
         CHECK(lv_obj_has_state(fan_switch, LV_STATE_CHECKED));
 
-        // Device's own initiative: badge appears beside the percent, switch
-        // disables (a flip here cannot stop a fan the device is running).
+        // Device's own initiative: the badge REPLACES the percent (the
+        // number describes our pin request, which the device is overriding)
+        // and the switch disables (a flip here cannot stop a fan the device
+        // is running).
         set_xml_int("chamber_filter_fan_on", 0);
         set_xml_int("chamber_filter_fan_device_driven", 1);
         helix::ui::UpdateQueue::instance().drain();
+        CHECK(hidden(percent));
         CHECK_FALSE(hidden(badge));
         CHECK(lv_obj_has_state(fan_switch, LV_STATE_DISABLED));
         CHECK_FALSE(lv_obj_has_state(fan_switch, LV_STATE_CHECKED));
@@ -381,10 +393,11 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
 }
 
 // ============================================================================
-// Strip path (micro landscape): one info row, fault replaces it
+// Micro landscape (480x272): the same card, compacted, still everything
 // ============================================================================
 
-TEST_CASE_METHOD(ChamberOverlayFixture, "micro landscape renders the compact strip under the chart",
+TEST_CASE_METHOD(ChamberOverlayFixture,
+                 "micro landscape renders the compact card, nothing under the chart",
                  "[chamber][panel][xml]") {
     ScopedGeometry micro(480, 272);
     build_overlay();
@@ -393,55 +406,53 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "micro landscape renders the compact str
     set_xml_string("chamber_filter_fan_percent_text", "100%");
     helix::ui::UpdateQueue::instance().drain();
 
-    SECTION("healthy: info row with element, fan percent and switch") {
-        lv_obj_t* strip = lv_obj_find_by_name(overlay_, "chamber_diagnostics_card");
-        REQUIRE(strip != nullptr);
-        CHECK_FALSE(hidden(strip));
-
-        CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "strip_info_row")));
-        CHECK(hidden(lv_obj_find_by_name(overlay_, "fault_banner")));
+    SECTION("healthy: compact card with element, fan percent and switch") {
+        lv_obj_t* block = lv_obj_find_by_name(overlay_, "chamber_diagnostics_block");
+        REQUIRE(block != nullptr);
+        CHECK_FALSE(hidden(block));
 
         CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(overlay_, "element_temp_label"))) ==
               "106°C");
         CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(overlay_, "fan_percent_label"))) ==
               "100%");
         REQUIRE(lv_obj_find_by_name(overlay_, "filter_fan_switch") != nullptr);
+        CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "filter_fan_readout")));
+        CHECK(hidden(lv_obj_find_by_name(overlay_, "fault_banner")));
 
-        // The card's diagnostics block is the other breakpoint's surface.
-        CHECK(hidden(lv_obj_find_by_name(overlay_, "chamber_diagnostics_block")));
+        // The compact md temp variant shows; the lg one stands down (the
+        // font is creation-time, so the swap is two bind-hidden widgets).
+        CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "chamber_temp_display_compact")));
+        CHECK(hidden(lv_obj_find_by_name(overlay_, "chamber_temp_display")));
+
+        // Nothing under the chart at this size either.
+        lv_obj_t* graph_outer = lv_obj_find_by_name(overlay_, "graph_outer_container");
+        REQUIRE(graph_outer != nullptr);
+        CHECK(lv_obj_find_by_name(graph_outer, "filter_fan_switch") == nullptr);
     }
 
-    SECTION("faulted: the banner replaces the info row") {
+    SECTION("faulted: the banner shows inside the card") {
         set_xml_int("chamber_heater_fault", 1);
         helix::ui::UpdateQueue::instance().drain();
 
         CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "fault_banner")));
-        CHECK(hidden(lv_obj_find_by_name(overlay_, "strip_info_row")));
         REQUIRE(lv_obj_find_by_name(overlay_, "reset_fault_button") != nullptr);
     }
 
     // A backend with no filter-fan pin must not offer a live switch.
-    SECTION("no filter-fan capability hides the strip's switch") {
+    SECTION("no filter-fan capability hides the fan readout") {
         set_xml_int("printer_has_chamber_filter_fan", 0);
         helix::ui::UpdateQueue::instance().drain();
 
         CHECK(hidden(lv_obj_find_by_name(overlay_, "filter_fan_readout")));
-        CHECK(hidden(lv_obj_find_by_name(overlay_, "filter_fan_switch")));
     }
 
-    // "External" must show once at this size: the strip carries the marker,
-    // the card's header badge stands down (the card's diagnostics block is
-    // merely hidden here, so its badge widget still exists).
-    SECTION("external marker shows on the strip, not the card header") {
+    // The External marker lives in the card's header at this size too, not
+    // on a second surface.
+    SECTION("external marker shows in the card header") {
         set_xml_int("chamber_heater_externally_controlled", 1);
         helix::ui::UpdateQueue::instance().drain();
 
         CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "external_control_badge")));
-        lv_obj_t* right_column = lv_obj_find_by_name(overlay_, "chamber_control_strip");
-        REQUIRE(right_column != nullptr);
-        lv_obj_t* card_badge = lv_obj_find_by_name(right_column, "external_control_badge");
-        REQUIRE(card_badge != nullptr);
-        CHECK(hidden(card_badge));
     }
 }
 
@@ -475,10 +486,10 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "chamber card fits the right column at 4
     const int32_t content_bottom = lv_obj_get_y(custom) + lv_obj_get_height(custom);
     CHECK(content_bottom <= lv_obj_get_height(strip));
 
-    // The chart keeps (nearly) the whole left column with the diagnostics
-    // gone from under it: 230px measured faulted at this size against 97px
-    // when the diagnostics card sat under the chart. The floor leaves room
-    // for token drift without re-admitting the old layout.
+    // The chart keeps (nearly) the whole left column: nothing about the
+    // heater renders under it at any size. 230px measured faulted at this
+    // size. The floor leaves room for token drift without re-admitting a
+    // compact-under-chart fallback.
     lv_obj_t* graph = lv_obj_find_by_name(overlay_, "graph_container");
     REQUIRE(graph != nullptr);
     CHECK(lv_obj_get_height(graph) >= 220);
@@ -491,6 +502,94 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "chamber card fits the right column at 4
     REQUIRE(left_column != nullptr);
     CHECK(lv_obj_get_scroll_bottom(left_column) == 0);
     CHECK(lv_obj_get_scroll_y(left_column) == 0);
+
+    // Device-driven (set above): the badge replaces the percent, so the
+    // switch cannot be pushed past the card's right edge.
+    lv_obj_t* card = lv_obj_find_by_name(overlay_, "chamber_display_card");
+    REQUIRE(card != nullptr);
+    lv_obj_t* fan_switch = lv_obj_find_by_name(overlay_, "filter_fan_switch");
+    REQUIRE(fan_switch != nullptr);
+    CHECK(lv_obj_get_x2(fan_switch) <= lv_obj_get_x2(card));
+    CHECK(hidden(lv_obj_find_by_name(overlay_, "fan_percent_label")));
+}
+
+TEST_CASE_METHOD(ChamberOverlayFixture, "micro landscape fits the faulted card with zero scroll",
+                 "[chamber][panel][geometry]") {
+    ScopedGeometry micro(480, 272);
+    build_overlay();
+
+    // Worst case at the tightest landscape target: banner + element + fan
+    // rows all visible in the compacted card.
+    set_xml_int("chamber_heater_fault", 1);
+    set_xml_int("chamber_heater_inhibited", 1);
+    set_xml_int("chamber_heater_offline", 0);
+    set_xml_int("chamber_filter_fan_device_driven", 1);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_update_layout(overlay_);
+
+    REQUIRE_FALSE(hidden(lv_obj_find_by_name(overlay_, "fault_banner")));
+    REQUIRE_FALSE(hidden(lv_obj_find_by_name(overlay_, "element_readout")));
+    REQUIRE_FALSE(hidden(lv_obj_find_by_name(overlay_, "filter_fan_readout")));
+
+    lv_obj_t* strip = lv_obj_find_by_name(overlay_, "chamber_control_strip");
+    REQUIRE(strip != nullptr);
+    // chamber_btn_custom is the column's last child: its bottom must not
+    // pass the strip's, or the column has overflowed.
+    lv_obj_t* custom = lv_obj_find_by_name(overlay_, "chamber_btn_custom");
+    REQUIRE(custom != nullptr);
+    const int32_t content_bottom = lv_obj_get_y(custom) + lv_obj_get_height(custom);
+    CHECK(content_bottom <= lv_obj_get_height(strip));
+
+    lv_obj_t* left_column = lv_obj_find_by_name(overlay_, "graph_outer_container");
+    REQUIRE(left_column != nullptr);
+    CHECK(lv_obj_get_scroll_bottom(left_column) == 0);
+    CHECK(lv_obj_get_scroll_y(left_column) == 0);
+
+    // The switch stays inside the compacted card with the badge in place of
+    // the percent.
+    lv_obj_t* card = lv_obj_find_by_name(overlay_, "chamber_display_card");
+    REQUIRE(card != nullptr);
+    lv_obj_t* fan_switch = lv_obj_find_by_name(overlay_, "filter_fan_switch");
+    REQUIRE(fan_switch != nullptr);
+    CHECK(lv_obj_get_x2(fan_switch) <= lv_obj_get_x2(card));
+    CHECK(hidden(lv_obj_find_by_name(overlay_, "fan_percent_label")));
+}
+
+TEST_CASE_METHOD(ChamberOverlayFixture,
+                 "portrait 272x480 fits the faulted band with a usable chart",
+                 "[chamber][panel][geometry]") {
+    ScopedGeometry portrait(272, 480);
+    build_overlay();
+
+    // Faulted portrait: the banner replaces the readout row inside the
+    // full-width band, and the chart keeps every spare pixel above it.
+    set_xml_int("chamber_heater_fault", 1);
+    set_xml_int("chamber_heater_inhibited", 1);
+    set_xml_int("chamber_heater_offline", 0);
+    set_xml_int("chamber_filter_fan_device_driven", 1);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_update_layout(overlay_);
+
+    REQUIRE_FALSE(hidden(lv_obj_find_by_name(overlay_, "fault_banner")));
+    CHECK(hidden(lv_obj_find_by_name(overlay_, "chamber_readout_row")));
+
+    lv_obj_t* graph = lv_obj_find_by_name(overlay_, "graph_container");
+    REQUIRE(graph != nullptr);
+    CHECK(lv_obj_get_height(graph) >= 110);
+
+    lv_obj_t* left_column = lv_obj_find_by_name(overlay_, "graph_outer_container");
+    REQUIRE(left_column != nullptr);
+    CHECK(lv_obj_get_scroll_bottom(left_column) == 0);
+    CHECK(lv_obj_get_scroll_y(left_column) == 0);
+
+    // The band's own column must not overflow either: Custom is its last
+    // child and nothing grows below the card.
+    lv_obj_t* strip = lv_obj_find_by_name(overlay_, "chamber_control_strip");
+    REQUIRE(strip != nullptr);
+    lv_obj_t* custom = lv_obj_find_by_name(overlay_, "chamber_btn_custom");
+    REQUIRE(custom != nullptr);
+    const int32_t content_bottom = lv_obj_get_y(custom) + lv_obj_get_height(custom);
+    CHECK(content_bottom <= lv_obj_get_height(strip));
 }
 
 // ============================================================================

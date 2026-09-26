@@ -42,7 +42,6 @@ PrinterState::set_hardware  (src/printer/printer_state.cpp)
   v
 temp_graph_overlay.xml chamber card (diagnostics in the right column)
   +-> ui_xml/components/chamber_fault_banner.xml (shared one-row banner + Reset)
-  +-> ui_xml/components/chamber_diagnostics_card.xml (compact strip, portrait + 480x272)
 ```
 
 The invariant: **vendor JSON schemas are translated to the generic `ChamberHeaterDiagnostics` struct at the backend border** — subjects, UI, and controllers never see a vendor field name. Adding a brand means one new `.cpp` file and one registry line; nothing else in the tree changes.
@@ -63,9 +62,8 @@ The invariant: **vendor JSON schemas are translated to the generic `ChamberHeate
 | `src/printer/printer_temperature_state.cpp` | Diagnostics parse block: translates backend output to subjects; also owns all `chamber_heater_*` / `chamber_filter_fan_*` subject registration and display-string formatters |
 | `src/printer/printer_state.cpp` | The wiring block: gates both the diagnostics source and the TemperatureController action surface on resolved-heater == discovery-pick |
 | `src/ui/temperature_controller.cpp` | `set_chamber_actions()`, `reset_chamber_fault()`, `set_chamber_filter_fan()`, and the `ensure_limits()` ceiling fallback |
-| `ui_xml/temp_graph_overlay.xml` | Where the diagnostics render: above the micro/tiny landscape line they live in the right column's `chamber_display_card` (fault banner via the shared component, hairline, element row, filter-fan row with a `ui_switch`); the card's border goes `#danger` while faulted/inhibited/offline. The under-chart `<if cond="printer_has_chamber_heater_diagnostics and temp_graph_mode eq 3 and (ui_is_portrait or ui_breakpoint eq 0)">` builds the compact strip instead on portrait and 480x272, where the right column has no room beside the presets |
-| `ui_xml/components/chamber_fault_banner.xml` | Shared one-row banner: reason text (or "Heater offline") plus a compact Reset that hides while the device is offline. Instantiated by both surfaces above, which never coexist |
-| `ui_xml/components/chamber_diagnostics_card.xml` | The compact strip for portrait and 480x272: one info row (element icon + value, filter-fan icon + percent, muted External marker, fan switch) sized so 272x480 chamber mode keeps a usable chart with zero scroll; a fault replaces the info row with the banner |
+| `ui_xml/temp_graph_overlay.xml` | Where the diagnostics render: always inside the chamber card, at every size. Landscape is the right column's `chamber_display_card` (fault banner via the shared component, hairline, element row, filter-fan row with a `ui_switch`), compacted at micro landscape (480x272) with a smaller temp readout and tighter padding; portrait is a full-width band between the chart and the preset buttons. The card's border goes `#danger` while faulted/inhibited/offline, and nothing about the heater ever renders under the chart |
+| `ui_xml/components/chamber_fault_banner.xml` | Shared one-row banner: reason text (or "Heater offline") plus a compact Reset that hides while the device is offline. Instantiated by both orientation branches of the chamber card; each ships it and the banner self-hides while healthy |
 | `src/api/moonraker_client_mock.cpp` | Mock chamber backend shape (`HELIX_MOCK_OBJECTS` dragonbreath trio), registry-based chamber-status key |
 | `tests/unit/test_chamber_*.cpp` | Backend match/parse, subjects, ceiling, actions, discovery, mock — tags under `[chamber]` |
 

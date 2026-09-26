@@ -3,13 +3,10 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <!-- One-row chamber-heater fault banner: reason (or "Heater offline") plus
-       a compact Reset action. Shared by the landscape chamber card in
-       temp_graph_overlay.xml and the compact strip in
-       chamber_diagnostics_card.xml. The strip renders at portrait and micro
-       landscape (breakpoint 0); the card's diagnostics block renders above
-       that. At micro landscape both are built and the card's copy is
-       bind-hidden, so the banner's widget names exist twice in the tree,
-       harmlessly.
+       a compact Reset action. Instantiated by both orientation branches of
+       the chamber card in temp_graph_overlay.xml (landscape diagnostics
+       block, portrait band); the banner self-hides when healthy, so each
+       branch ships it unconditionally and only the faulted one shows it.
 
        All gates are bind-based: the banner row hides unless the heater is
        faulted, inhibited or offline; offline swaps the reason text for
