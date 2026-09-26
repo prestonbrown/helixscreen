@@ -186,34 +186,24 @@ static void cleanup_all_slot_data() {
  *
  * The widget owns its own material rendering so every ams_slot consumer —
  * AmsPanel, AmsOverviewPanel, AmsDetail — repaints on a material-only change
- * without any container re-reading it imperatively (#1065). Long names
- * truncate to 4 chars when 5+ slots share a row (overlap guard). Material
- * names (PLA, PETG, ...) are not translated.
- *
- * Steady-state rule, keyed on the lane classification — the same
- * ams_slot_N_lane_state subject that drives the embedded spool widget, so the
- * label and the graphic cannot reach opposite conclusions about one lane:
- *
- *   Empty              -> lv_tr("Empty") at full strength ("Empty" is UI copy,
- *                         not a material name, so it is translated)
- *   Ghosted / Present  -> material ("--" if the lane reports none)
+ * without any container re-reading it imperatively (#1065). The text itself
+ * comes from the spool family's shared rule, helix::ui::lane_material_text(),
+ * keyed on the same lane_state subject that drives the embedded spool widget
+ * so the label and the graphic cannot reach opposite conclusions about one
+ * lane. What is ams_slot's own: long names truncate to 4 chars when 5+ slots
+ * share a row (overlap guard; the mini strip ellipsizes instead).
  */
 static void apply_material_label(AmsSlotData* data, const char* material) {
     if (!data || !data->material_label)
         return;
-    if (data->last_lane_state == helix::ui::LaneState::Empty) {
-        lv_label_set_text(data->material_label, lv_tr("Empty"));
+    const char* text = helix::ui::lane_material_text(data->last_lane_state, material);
+    if (data->last_lane_state != helix::ui::LaneState::Empty && data->total_count > 4 &&
+        std::strlen(text) > 4) {
+        std::string truncated(text, 4);
+        lv_label_set_text(data->material_label, truncated.c_str());
         return;
     }
-    if (!material || material[0] == '\0') {
-        lv_label_set_text(data->material_label, "--");
-        return;
-    }
-    std::string text = material;
-    if (data->total_count > 4 && text.length() > 4) {
-        text = text.substr(0, 4);
-    }
-    lv_label_set_text(data->material_label, text.c_str());
+    lv_label_set_text(data->material_label, text);
 }
 
 /// Re-apply the material label from the live per-slot material subject.

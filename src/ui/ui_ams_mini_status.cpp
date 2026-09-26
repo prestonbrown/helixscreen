@@ -4,6 +4,7 @@
 #include "ui_ams_mini_status.h"
 
 #include "ui_ams_lane_bar.h"
+#include "ui_ams_lane_spool.h"
 #include "ui_fonts.h"
 #include "ui_nav_manager.h"
 #include "ui_observer_guard.h"
@@ -13,6 +14,7 @@
 #include "ui_utils.h"
 
 #include "ams_backend.h"
+#include "ams_lane_state.h"
 #include "ams_state.h"
 #include "config.h"
 #include "display_numbering.h"
@@ -75,8 +77,8 @@ static constexpr int MAX_SPOOL_IMG_PX = 56;
  *
  * Derived rather than chosen: a cell is [spool graphic][gap][text column], so
  * the narrowest useful cell is the smallest spool that still reads as a spool,
- * plus the badge slack create_spool_visual() adds around it, plus the gap, plus
- * enough room for the widest material string actually about to be drawn.
+ * plus the badge slack the ams_lane_spool widget adds around it, plus the gap,
+ * plus enough room for the widest material string actually about to be drawn.
  *
  * Deriving it is what keeps the two halves of the layout consistent. They were
  * two independent constants before - a flat 60px divisor here and a flat 34px
@@ -87,7 +89,7 @@ static constexpr int MAX_SPOOL_IMG_PX = 56;
  * per line. Sharing one `min_text` makes that disagreement unrepresentable.
  */
 static int min_spool_cell_w(int min_text, int gap) {
-    return MIN_SPOOL_IMG_PX + ams_draw::SPOOL_VISUAL_BADGE_MARGIN_PX + gap + min_text;
+    return MIN_SPOOL_IMG_PX + helix::ui::AMS_LANE_SPOOL_BADGE_MARGIN_PX + gap + min_text;
 }
 
 // ============================================================================
@@ -101,76 +103,19 @@ static constexpr uint32_t AMS_MINI_STATUS_MAGIC = 0x414D5331;
 enum class AmsMiniMode { BAR, SPOOL };
 
 /**
- * @brief Per-slot data for the wide spool render mode
+ * @brief Per-lane data for the wide spool render mode
+ *
+ * Only what the strip still renders by hand: the text column and the lane
+ * badge. The spool graphic, its fill, ghosting and error dot render from the
+ * per-slot subjects inside each cell's embedded ams_lane_spool widget, so
+ * they carry no cache here.
  */
 struct SpoolCellData {
-    uint32_t color_rgb = 0x808080;
-    float fill_level = 1.0f; // 0.0-1.0 for the spool graphic
-    int remaining_pct = -1;  // actual % remaining; -1 = unknown (blank label)
-    std::string material;    // "" => render "--"
-    bool present = false;
-    int lane_number = 1;   // 1-based, for the badge
-    bool active = false;   // actively-loaded lane (success-colored badge)
-    bool assigned = false; // lane still carries identity while ejected (#1071)
-
-    bool operator==(const SpoolCellData& o) const {
-        return color_rgb == o.color_rgb && fill_level == o.fill_level &&
-               remaining_pct == o.remaining_pct && material == o.material && present == o.present &&
-               lane_number == o.lane_number && active == o.active && assigned == o.assigned;
-    }
+    helix::ui::LaneState lane_state = helix::ui::LaneState::Empty;
+    std::string material;   // "" => label reads "--"
+    int remaining_pct = -1; // actual % remaining; -1 = unknown (blank label)
+    bool active = false;    // actively-loaded lane (success-colored badge)
 };
-
-/**
- * @brief Is this lane the one firmware considers seated and loaded?
- *
- * SINGLE SOURCE OF TRUTH for the active-lane highlight: the per-slot
- * active-loaded subject (AmsBackend::slot_is_actively_loaded(i)) — the same read
- * apply_current_slot_highlight() makes in ui_ams_slot.cpp. Deriving it here from
- * `i == current_slot` instead diverged from the AMS panel: after an idle unload
- * the strip kept the lane badged while the panel's glow had already cleared, and
- * on AFC/CFS — where firmware's current_slot can name a lane the per-slot parse
- * disagrees with (#1194) — the two surfaces could light DIFFERENT lanes.
- *
- * Unlike the ams_slot widget (one lane, per-slot observer) this widget needs no
- * per-slot observer: AmsState bumps slots_version on every slot_active_loaded
- * delta (sync_from_backend and update_slot both do), and the slots_version
- * observer re-reads every lane. A per-slot observer would race the wholesale
- * rebuild — the same reasoning that keeps fill on the snapshot (#705/#776).
- *
- * Out-of-range lanes (beyond AmsState::MAX_SLOTS) have no subject and report
- * inactive, matching ams_slot's fallback.
- */
-static bool slot_is_active_loaded(int slot_index) {
-    lv_subject_t* subject = helix::AmsState::instance().get_slot_active_loaded_subject(slot_index);
-    return subject && lv_subject_get_int(subject) != 0;
-}
-
-/**
- * @brief Dim a spool visual to the "assigned but ejected" ghost strength.
- *
- * Mirrors apply_slot_status() in ui_ams_slot.cpp: an empty lane that still
- * carries identity (Spoolman link, material, brand, or spool name — deliberately
- * NOT cleared on eject, #1071) renders its retained spool at ams_draw::GHOST_OPA so it
- * reads as "assigned, not present" rather than "still loaded" (#1065). Call
- * AFTER spool_visual_set_color(), which resets bg_opa to COVER.
- */
-static void spool_visual_set_ghost_opa(const ams_draw::SpoolVisual& sv, lv_opa_t opa) {
-    if (sv.color_swatch)
-        lv_obj_set_style_bg_opa(sv.color_swatch, opa, LV_PART_MAIN);
-    if (sv.spool_outer)
-        lv_obj_set_style_bg_opa(sv.spool_outer, opa, LV_PART_MAIN);
-    if (sv.canvas)
-        lv_obj_set_style_opa(sv.canvas, opa, LV_PART_MAIN);
-}
-
-/** Map an integer fill percent (0-100) to the spool graphic's 0.0-1.0 level. */
-static inline float fill_level_from_pct(int fill_pct) {
-    if (fill_pct <= 0)
-        return 0.0f;
-    if (fill_pct >= 100)
-        return 1.0f;
-    return fill_pct / 100.0f;
-}
 
 /**
  * @brief Per-unit row info for multi-unit stacked display
@@ -215,20 +160,13 @@ struct AmsMiniStatusData {
     // moves. Rendering inside each bar comes from the AmsState per-slot subjects.
     lv_obj_t* lane_bars[AMS_MINI_STATUS_MAX_VISIBLE] = {};
 
-    // Per-slot data for the spool render mode (sized to slot_count; uncapped for multi-unit)
+    // Per-lane data for the spool render mode (sized to slot_count; uncapped for multi-unit)
     std::vector<SpoolCellData> spool_cells;
 
-    // Cached signature of what spools_container currently renders. rebuild_spools
-    // skips the expensive clean+recreate when these still match the live inputs,
-    // avoiding constant canvas alloc/free churn on every AmsState sync.
-    std::vector<SpoolCellData> rendered_cells;
-    int rendered_width_px = -1;
-    bool rendered_3d = true;
-    int rendered_height = -1;
-    // Measured width of the widest material label at the last render. Not
-    // implied by any of the above: a breakpoint change moves font_small (and so
-    // every cell's text column) without moving width_px or the row height.
-    int rendered_min_text = -1;
+    // Pooled spool cells, one per entry of spool_cells. Created once per lane
+    // and updated in place on every sync; only a lane count change adds or
+    // removes cells.
+    std::vector<lv_obj_t*> spool_cell_objs;
 
     // Auto-binding observer (observe AmsState slots_version subject)
     // Uses ObserverGuard for RAII lifecycle management
@@ -285,7 +223,7 @@ static lv_obj_t* ensure_unit_row(AmsMiniStatusData* data, int unit_index) {
  */
 static int32_t effective_max_bar_width(const AmsMiniStatusData* data) {
     // width_px <= 0 is the struct's default before ui_ams_mini_status_set_width()
-    // has ever run — set_slot_count()/set_slot_full() can trigger a rebuild in
+    // has ever run — set_slot_count()/set_slot_label() can trigger a rebuild in
     // that state, so this is a real, reachable path, not just a >=150 fallback.
     if (data->width_px <= 0)
         return MAX_BAR_WIDTH_PX; // Default: 16
@@ -627,17 +565,12 @@ static void apply_spools_card_surface(AmsMiniStatusData* data) {
 /**
  * @brief The string a spool cell draws in its material label.
  *
- * Shared by the width measurement below and the render loop, so what the layout
+ * The spool family's shared rule (helix::ui::lane_material_text), shared by
+ * the width measurement below and the cell update loop, so what the layout
  * reserves room for cannot drift from what actually gets drawn.
  */
 static const char* spool_material_text(const SpoolCellData& cd) {
-    if (!cd.present && !cd.assigned) {
-        // Unassigned empty lane: name its purpose instead of showing "--",
-        // matching the ams_slot material label (translated; "Empty" is UI copy,
-        // not a material name).
-        return lv_tr("Empty");
-    }
-    return cd.material.empty() ? "--" : cd.material.c_str(); // material: no i18n
+    return helix::ui::lane_material_text(cd.lane_state, cd.material.c_str());
 }
 
 /**
@@ -704,6 +637,103 @@ static int min_readable_text_w(lv_obj_t* sc) {
     return static_cast<int>(size.x);
 }
 
+/// Detach and batch-delete every pooled cell (the strip went empty; rebuild
+/// may run inside a queued callback, so deletion stays deferred and batched).
+static void drop_spool_cells(AmsMiniStatusData* data) {
+    if (data->spool_cell_objs.empty())
+        return;
+    lv_obj_t* dead = lv_obj_create(lv_screen_active());
+    if (dead) {
+        lv_obj_add_flag(dead, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(dead, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_size(dead, 0, 0);
+        for (lv_obj_t* cell : data->spool_cell_objs)
+            if (cell)
+                lv_obj_set_parent(cell, dead);
+        helix::ui::safe_delete_deferred(dead);
+    }
+    data->spool_cell_objs.clear();
+}
+
+/**
+ * @brief Create one pooled spool cell for lane @p slot_index.
+ *
+ * A transparent wrap holding the lane's embedded ams_lane_spool widget
+ * (created before the badge so the badge renders above it) plus the
+ * lane-number badge, and the material/percent text column. Created once per
+ * lane; rebuild_spools() updates everything data- or layout-dependent in
+ * place, so creation bakes only the structure and the names.
+ */
+static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_size) {
+    char nm[32];
+
+    lv_obj_t* cell = lv_obj_create(parent);
+    snprintf(nm, sizeof(nm), "spool_cell_%d", slot_index);
+    lv_obj_set_name(cell, nm);
+    lv_obj_set_style_pad_all(cell, 0, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(cell, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(cell, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
+    // Bubble taps/long-presses to the widget root: tap -> AMS overlay,
+    // long-press -> grid edit mode (matches the bar view).
+    lv_obj_add_flag(cell, LV_OBJ_FLAG_EVENT_BUBBLE);
+
+    // Spool wrap (square) holds the lane's spool widget + lane badge. The
+    // wrap is content-sized around the widget, whose root already carries the
+    // badge slack, so the badge (bottom-right aligned) hugs the spool's edge.
+    lv_obj_t* wrap = ams_draw::create_transparent_container(cell);
+    const std::string idx = std::to_string(slot_index);
+    const std::string sz = std::to_string(spool_size);
+    const char* attrs[] = {"slot_index", idx.c_str(), "spool_size", sz.c_str(), nullptr};
+    lv_obj_t* lspool = static_cast<lv_obj_t*>(lv_xml_create(wrap, "ams_lane_spool", attrs));
+    if (!lspool)
+        spdlog::error("[AmsMiniStatus] ams_lane_spool creation failed for slot {}", slot_index);
+
+    lv_obj_t* badge = ams_draw::create_lane_badge(wrap, helix::ui::lane_number(slot_index),
+                                                  spool_size * 2 / 5, false);
+    if (badge) {
+        snprintf(nm, sizeof(nm), "spool_badge_%d", slot_index);
+        lv_obj_set_name(badge, nm);
+    }
+
+    // Text column (vertically centered), material over percent.
+    lv_obj_t* col = lv_obj_create(cell);
+    snprintf(nm, sizeof(nm), "spool_text_%d", slot_index);
+    lv_obj_set_name(col, nm);
+    lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(col, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_style_pad_all(col, 0, LV_PART_MAIN);
+    // The stacked height budget counts the two label lines and nothing
+    // between them, so the row gap has to actually be zero.
+    lv_obj_set_style_pad_row(col, 0, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(col, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(col, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(col, LV_OBJ_FLAG_EVENT_BUBBLE);
+
+    lv_obj_t* mat = lv_label_create(col);
+    snprintf(nm, sizeof(nm), "spool_material_%d", slot_index);
+    lv_obj_set_name(mat, nm);
+    lv_obj_set_style_text_align(mat, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_add_flag(mat, LV_OBJ_FLAG_EVENT_BUBBLE);
+    const lv_font_t* fs = theme_manager_get_font("font_small");
+    if (fs)
+        lv_obj_set_style_text_font(mat, fs, LV_PART_MAIN);
+    lv_obj_set_style_text_color(mat, theme_manager_get_color("text"), LV_PART_MAIN);
+
+    lv_obj_t* pct = lv_label_create(col);
+    snprintf(nm, sizeof(nm), "spool_pct_%d", slot_index);
+    lv_obj_set_name(pct, nm);
+    lv_obj_set_style_text_align(pct, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_add_flag(pct, LV_OBJ_FLAG_EVENT_BUBBLE);
+    const lv_font_t* fxs = theme_manager_get_font("font_xs");
+    if (fxs)
+        lv_obj_set_style_text_font(pct, fxs, LV_PART_MAIN);
+    lv_obj_set_style_text_color(pct, theme_manager_get_color("text_muted"), LV_PART_MAIN);
+
+    return cell;
+}
+
 /**
  * @brief Render the wide spool view (width_px >= w_normal()).
  *
@@ -762,9 +792,9 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     if (avail_w <= 0)
         avail_w = data->width_px; // before layout resolves
     int gap = theme_manager_get_spacing("space_xxs");
-    // What create_spool_visual() adds around the graphic for the lane badge, so
-    // the wrap object is this much wider than the spool size asked for.
-    const int badge_margin = ams_draw::SPOOL_VISUAL_BADGE_MARGIN_PX;
+    // What the ams_lane_spool widget adds around the graphic for the lane
+    // badge, so a cell is this much wider than the spool size asked for.
+    const int badge_margin = helix::ui::AMS_LANE_SPOOL_BADGE_MARGIN_PX;
     const int lanes = std::max(1, data->slot_count);
     // The widest material string this render will draw, in the font that will
     // draw it. Both the cell count and the text reservation come from it, so the
@@ -867,169 +897,138 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             text_w = min_text;
     }
 
-    // Dirty-check: the render is fully determined by the cell data, available
-    // width, the spool style, and the measured text width. If none changed
-    // since the last real render and the cells already exist on screen, skip
-    // the costly clean+recreate (and its transient 2x canvas-memory peak). The
-    // container was un-hidden above, so a bar->spool switch with identical data
-    // still shows the existing cells.
-    //
-    // min_text is in the signature because it is a render input the other four
-    // do not cover: a breakpoint change moves font_small without necessarily
-    // moving width_px or avail_h, and that alone re-sizes every cell.
-    bool unchanged = (data->rendered_width_px == data->width_px) && (data->rendered_3d == cur_3d) &&
-                     (data->rendered_height == avail_h) && (data->rendered_min_text == min_text) &&
-                     (data->rendered_cells == data->spool_cells) &&
-                     (lv_obj_get_child_count(sc) > 0);
-    if (unchanged)
-        return; // identical render already on screen — skip churn
-
-    // Safe teardown of previous cells (rebuild may run inside a queued callback).
-    helix::ui::safe_clean_children(sc);
-
-    int n = static_cast<int>(data->spool_cells.size());
+    const int n = static_cast<int>(data->spool_cells.size());
     if (n <= 0) {
         lv_obj_add_flag(data->container, LV_OBJ_FLAG_HIDDEN);
-        // Container is now empty — invalidate the cache so a later non-empty
-        // render with otherwise-matching inputs isn't wrongly skipped.
-        data->rendered_cells.clear();
-        data->rendered_width_px = -1;
-        data->rendered_height = -1;
-        data->rendered_min_text = -1;
+        drop_spool_cells(data);
         return;
     }
     lv_obj_remove_flag(data->container, LV_OBJ_FLAG_HIDDEN);
 
+    // Pool to size: cells come and go only with the lane count. Extras are
+    // reparented to a hidden donor and batch-deleted at the end (a rebuild can
+    // run inside a queued callback, and cascading per-cell deletes corrupt
+    // LVGL's event list during rapid rebuild cycles).
+    lv_obj_t* condemned = nullptr;
+    auto condemn = [&](lv_obj_t* o) {
+        if (!o)
+            return;
+        if (!condemned) {
+            condemned = lv_obj_create(lv_screen_active());
+            if (!condemned)
+                return;
+            lv_obj_add_flag(condemned, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_remove_flag(condemned, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_size(condemned, 0, 0);
+        }
+        lv_obj_set_parent(o, condemned);
+    };
+    if (static_cast<int>(data->spool_cell_objs.size()) > n) {
+        for (int i = n; i < static_cast<int>(data->spool_cell_objs.size()); ++i)
+            condemn(data->spool_cell_objs[i]);
+        data->spool_cell_objs.resize(n);
+    } else {
+        data->spool_cell_objs.resize(n, nullptr);
+    }
+
+    char nm[32];
+    auto cell_part = [&](lv_obj_t* root, const char* fmt, int idx) -> lv_obj_t* {
+        snprintf(nm, sizeof(nm), fmt, idx);
+        return lv_obj_find_by_name(root, nm);
+    };
+
     for (int i = 0; i < n; ++i) {
         const SpoolCellData& cd = data->spool_cells[i];
+        if (!data->spool_cell_objs[i])
+            data->spool_cell_objs[i] = create_spool_cell(sc, i, spool_size);
+        lv_obj_t* cell = data->spool_cell_objs[i];
+        if (!cell)
+            continue;
 
-        lv_obj_t* cell = lv_obj_create(sc);
-        char nm[32];
-        snprintf(nm, sizeof(nm), "spool_cell_%d", i);
-        lv_obj_set_name(cell, nm);
-        lv_obj_set_size(cell, cell_px, lv_pct(100));
         // Stacked cells put the name under the spool; wide ones sit it alongside.
+        lv_obj_set_size(cell, cell_px, lv_pct(100));
         lv_obj_set_flex_flow(cell, stacked ? LV_FLEX_FLOW_COLUMN : LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(cell, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                               LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_all(cell, 0, LV_PART_MAIN);
         lv_obj_set_style_pad_column(cell, gap, LV_PART_MAIN);
-        // A column-flow cell spaces its children by pad_row, not pad_column, and
-        // the stacked height budget counts exactly one `gap` between the spool
-        // and the text block.
+        // A column-flow cell spaces its children by pad_row, and the stacked
+        // height budget counts exactly one `gap` between the spool and the
+        // text block.
         lv_obj_set_style_pad_row(cell, gap, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(cell, LV_OPA_TRANSP, LV_PART_MAIN);
-        lv_obj_set_style_border_width(cell, 0, LV_PART_MAIN);
-        lv_obj_remove_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
-        // Bubble taps/long-presses to the widget root: tap -> AMS overlay,
-        // long-press -> grid edit mode (matches the bar view).
-        lv_obj_add_flag(cell, LV_OBJ_FLAG_EVENT_BUBBLE);
 
-        // Spool wrap (square) holds spool visual + lane badge.
-        lv_obj_t* wrap = lv_obj_create(cell);
-        lv_obj_set_style_pad_all(wrap, 0, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(wrap, LV_OPA_TRANSP, LV_PART_MAIN);
-        lv_obj_set_style_border_width(wrap, 0, LV_PART_MAIN);
-        lv_obj_remove_flag(wrap, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(wrap, LV_OBJ_FLAG_EVENT_BUBBLE);
-        // Empty-lane presentation, ported from apply_slot_status() in
-        // ui_ams_slot.cpp so a lane reads the same on both surfaces:
-        //   present              -> full-strength spool, material text
-        //   ejected + assigned   -> spool KEPT, ghosted at ams_draw::GHOST_OPA, label
-        //                           ghosted with it ("assigned, not present")
-        //   ejected + unassigned -> spool hidden, dashed placeholder, "Empty"
-        const bool ghosted = !cd.present && cd.assigned;
-        ams_draw::SpoolVisual sv = ams_draw::create_spool_visual(wrap, spool_size);
-        ams_draw::spool_visual_set_color(sv, lv_color_hex(cd.color_rgb));
-        ams_draw::spool_visual_set_fill(sv, cd.fill_level);
-        ams_draw::spool_visual_set_empty(sv, !cd.present && !cd.assigned);
-        spool_visual_set_ghost_opa(sv, ghosted ? ams_draw::GHOST_OPA : LV_OPA_COVER);
-        lv_obj_t* badge =
-            ams_draw::create_lane_badge(wrap, cd.lane_number, spool_size * 2 / 5, cd.active);
-        if (badge) {
-            snprintf(nm, sizeof(nm), "spool_badge_%d", i);
-            lv_obj_set_name(badge, nm);
+        // The graphic renders itself from the per-slot subjects; its size is
+        // the one thing the cell still owes it (no-op unless the measured
+        // size or the spool style moved).
+        if (lv_obj_t* lspool = lv_obj_find_by_name(cell, "lane_spool"))
+            helix::ui::ams_lane_spool_set_size(lspool, spool_size);
+
+        if (lv_obj_t* badge = cell_part(cell, "spool_badge_%d", i)) {
+            const int badge_size = spool_size * 2 / 5;
+            lv_obj_set_size(badge, badge_size, badge_size);
+            ams_draw::set_lane_badge_active(badge, cd.active);
         }
 
         // Text column (vertically centered), material over percent. A cell
         // squeezed hard enough to fit every lane has no column at all: the
         // spool and its lane badge carry the row on their own.
-        if (text_w <= 0)
-            continue;
-
-        lv_obj_t* col = lv_obj_create(cell);
-        lv_obj_set_width(col, text_w);
-        // Stacked, the column is one line under the spool and must not claim the
-        // row's full height or it pushes the spool out of the cell.
-        lv_obj_set_height(col, stacked ? LV_SIZE_CONTENT : lv_pct(100));
-        lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(col, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-        lv_obj_set_style_pad_all(col, 0, LV_PART_MAIN);
-        // The stacked height budget counts the two label lines and nothing
-        // between them, so the row gap has to actually be zero.
-        lv_obj_set_style_pad_row(col, 0, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, LV_PART_MAIN);
-        lv_obj_set_style_border_width(col, 0, LV_PART_MAIN);
-        lv_obj_remove_flag(col, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(col, LV_OBJ_FLAG_EVENT_BUBBLE);
-
-        lv_obj_t* mat = lv_label_create(col);
-        snprintf(nm, sizeof(nm), "spool_material_%d", i);
-        lv_obj_set_name(mat, nm);
-        lv_obj_set_width(mat, text_w);
-        // A squeezed column is sized for a shortened name, not the widest one,
-        // so it ellipsizes rather than wrapping a name across lines the row has
-        // no height for. LV_LABEL_LONG_DOT only cuts a line once the label's
-        // height stops it wrapping, so the height has to be pinned to one line
-        // for the dots to ever appear.
-        lv_label_set_long_mode(mat, ellipsize ? LV_LABEL_LONG_DOT : LV_LABEL_LONG_WRAP);
-        if (ellipsize) {
-            const lv_font_t* mf = theme_manager_get_font("font_small");
-            if (mf)
-                lv_obj_set_height(mat, lv_font_get_line_height(mf));
+        const bool show_text = text_w > 0;
+        const bool show_pct = !stacked || stacked_pct;
+        const lv_opa_t text_opa =
+            cd.lane_state == helix::ui::LaneState::Ghosted ? ams_draw::GHOST_OPA : LV_OPA_COVER;
+        lv_obj_t* col = cell_part(cell, "spool_text_%d", i);
+        if (col) {
+            lv_obj_set_width(col, text_w);
+            // Stacked, the column is one line under the spool and must not claim the
+            // row's full height or it pushes the spool out of the cell.
+            lv_obj_set_height(col, stacked ? LV_SIZE_CONTENT : lv_pct(100));
+            if (show_text)
+                lv_obj_remove_flag(col, LV_OBJ_FLAG_HIDDEN);
+            else
+                lv_obj_add_flag(col, LV_OBJ_FLAG_HIDDEN);
         }
-        lv_obj_set_style_text_align(mat, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-        lv_obj_add_flag(mat, LV_OBJ_FLAG_EVENT_BUBBLE);
-        // Same helper measure_widest_material() sized text_w from, so the
-        // string drawn here is the one the column was reserved for.
-        lv_label_set_text(mat, spool_material_text(cd));
-        const lv_font_t* fs = theme_manager_get_font("font_small");
-        if (fs)
-            lv_obj_set_style_text_font(mat, fs, LV_PART_MAIN);
-        lv_obj_set_style_text_color(mat, theme_manager_get_color("text"), LV_PART_MAIN);
-        lv_obj_set_style_text_opa(mat, ghosted ? ams_draw::GHOST_OPA : LV_OPA_COVER, LV_PART_MAIN);
 
-        if (stacked && !stacked_pct)
-            continue; // the row had height for the name only
-
-        lv_obj_t* pct = lv_label_create(col);
-        snprintf(nm, sizeof(nm), "spool_pct_%d", i);
-        lv_obj_set_name(pct, nm);
-        lv_obj_set_width(pct, text_w);
-        lv_obj_set_style_text_align(pct, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-        lv_obj_add_flag(pct, LV_OBJ_FLAG_EVENT_BUBBLE);
-        if (cd.remaining_pct >= 0) {
-            char p[16];
-            snprintf(p, sizeof(p), "%d%%", cd.remaining_pct);
-            lv_label_set_text(pct, p);
-        } else {
-            lv_label_set_text(pct, "");
+        lv_obj_t* mat = cell_part(cell, "spool_material_%d", i);
+        if (mat) {
+            lv_obj_set_width(mat, text_w);
+            // A squeezed column is sized for a shortened name, not the widest one,
+            // so it ellipsizes rather than wrapping a name across lines the row has
+            // no height for. LV_LABEL_LONG_DOT only cuts a line once the label's
+            // height stops it wrapping, so the height has to be pinned to one line
+            // for the dots to ever appear.
+            lv_label_set_long_mode(mat, ellipsize ? LV_LABEL_LONG_DOT : LV_LABEL_LONG_WRAP);
+            if (ellipsize) {
+                const lv_font_t* mf = theme_manager_get_font("font_small");
+                if (mf)
+                    lv_obj_set_height(mat, lv_font_get_line_height(mf));
+            }
+            lv_obj_set_style_text_opa(mat, text_opa, LV_PART_MAIN);
+            // Same helper measure_widest_material() sized text_w from, so the
+            // string drawn here is the one the column was reserved for.
+            lv_label_set_text(mat, spool_material_text(cd));
         }
-        const lv_font_t* fxs = theme_manager_get_font("font_xs");
-        if (fxs)
-            lv_obj_set_style_text_font(pct, fxs, LV_PART_MAIN);
-        lv_obj_set_style_text_color(pct, theme_manager_get_color("text_muted"), LV_PART_MAIN);
-        // Ghost the whole text group together — a full-strength percent beside a
-        // dimmed material would read as two different lanes.
-        lv_obj_set_style_text_opa(pct, ghosted ? ams_draw::GHOST_OPA : LV_OPA_COVER, LV_PART_MAIN);
+
+        lv_obj_t* pct = cell_part(cell, "spool_pct_%d", i);
+        if (pct) {
+            lv_obj_set_width(pct, text_w);
+            if (cd.remaining_pct >= 0) {
+                char pb[16];
+                snprintf(pb, sizeof(pb), "%d%%", cd.remaining_pct);
+                lv_label_set_text(pct, pb);
+            } else {
+                lv_label_set_text(pct, "");
+            }
+            // Ghost the whole text group together """ + EM + """ a full-strength percent beside a
+            // dimmed material would read as two different lanes.
+            lv_obj_set_style_text_opa(pct, text_opa, LV_PART_MAIN);
+            if (show_text && show_pct)
+                lv_obj_remove_flag(pct, LV_OBJ_FLAG_HIDDEN);
+            else
+                lv_obj_add_flag(pct, LV_OBJ_FLAG_HIDDEN);
+        }
     }
 
-    // Record the rendered signature so an identical subsequent sync can be skipped.
-    data->rendered_cells = data->spool_cells;
-    data->rendered_width_px = data->width_px;
-    data->rendered_3d = cur_3d;
-    data->rendered_height = avail_h;
-    data->rendered_min_text = min_text;
+    if (condemned)
+        helix::ui::safe_delete_deferred(condemned);
 }
 
 /**
@@ -1193,7 +1192,7 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
     }
 
     // Observe current_slot as a re-sync trigger. The highlight itself now comes
-    // from the per-slot active-loaded subject (slot_is_active_loaded above), and
+    // from the per-slot active-loaded subject (read in sync_from_ams_state), and
     // every delta on that subject bumps slots_version, so the observer above is
     // what keeps the strip live; this one covers a current_slot move that leaves
     // the active-loaded flags untouched.
@@ -1242,32 +1241,23 @@ void ui_ams_mini_status_set_max_visible(lv_obj_t* obj, int max_visible) {
     rebuild(data);
 }
 
-void ui_ams_mini_status_set_slot_full(lv_obj_t* obj, int slot_index, uint32_t color_rgb,
-                                      int fill_pct, bool present, const char* material,
-                                      int remaining_pct) {
+void ui_ams_mini_status_set_slot_label(lv_obj_t* obj, int slot_index, const char* material,
+                                       int remaining_pct) {
     auto* data = get_data(obj);
     if (!data || slot_index < 0)
         return;
 
-    // Spool-mode cache (uncapped; multi-unit safe).
+    // Spool-mode label cache (uncapped; multi-unit safe). Programmatic path
+    // for embedders/tests: the AmsState path in sync_from_ams_state() is the
+    // real one, and the graphics render from the per-slot subjects.
     if (static_cast<int>(data->spool_cells.size()) <= slot_index)
         data->spool_cells.resize(slot_index + 1);
     SpoolCellData& c = data->spool_cells[slot_index];
-    c.color_rgb = color_rgb;
-    c.fill_level = fill_level_from_pct(fill_pct);
-    c.remaining_pct = remaining_pct;
     c.material = material ? material : "";
-    c.present = present;
-    // This programmatic path carries no Spoolman/brand handles, so a retained
-    // material is the only "assigned" evidence it can offer (the AmsState path
-    // in sync_from_ams_state() sees the full predicate).
-    c.assigned = !c.material.empty();
-    c.lane_number = helix::ui::lane_number(slot_index);
-}
-
-void ui_ams_mini_status_set_slot(lv_obj_t* obj, int slot_index, uint32_t color_rgb, int fill_pct,
-                                 bool present) {
-    ui_ams_mini_status_set_slot_full(obj, slot_index, color_rgb, fill_pct, present, "", -1);
+    c.remaining_pct = remaining_pct;
+    // No classification source on this path: a lane carrying a material reads
+    // as present, an empty one as Empty (the label rule's two visible halves).
+    c.lane_state = c.material.empty() ? helix::ui::LaneState::Empty : helix::ui::LaneState::Present;
 }
 
 /** Timer callback for deferred refresh */
@@ -1369,48 +1359,35 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
         data->unit_rows[u].slot_count = 0;
     }
 
-    // Populate both render-mode caches from backend slot info. The bar cache is
-    // capped at AMS_MINI_STATUS_MAX_VISIBLE; the spool cache is uncapped (sized to
-    // slot_count) so the wide spool view sees every lane on multi-unit systems.
+    // Spool-mode label/badge cache (uncapped, so the wide spool view sees
+    // every lane on multi-unit systems). The spool graphic, fill, ghosting
+    // and error dot are NOT collected: each cell's embedded ams_lane_spool
+    // renders them from the per-slot subjects. The lane classification and
+    // the active-loaded flag are read from those same subjects rather than
+    // re-derived here, so the strip's labels and its graphics cannot disagree
+    // about one lane (out-of-range lanes have no subject and read
+    // Empty/inactive, ams_slot's fallback).
     data->spool_cells.assign(slot_count, SpoolCellData{});
     for (int i = 0; i < slot_count; ++i) {
         helix::SlotInfo slot = backend->get_slot_info(i);
-        // Fill is read from this slots_version snapshot on purpose. This widget
-        // rebuilds all bars/cells wholesale on every sync; a per-slot fill
-        // subject observer (as in the ams_slot widget) would race that rebuild
-        // and touch just-recreated objects — the #705/#776 family. Semantics are
-        // still unified: fill_percent_from_slot uses SlotInfo::display_fill_pct,
-        // with the SHARED default min_pct so a present-but-spent lane keeps the
-        // same visible sliver the overview's mini bars give it (passing 0 here
-        // made the identical lane render empty on one surface and not the
-        // other). -1 = "no data" → floored to 0 so the bar/spool renders empty
-        // rather than a phantom fill (was 100/full for weightless slots).
-        int fill_pct = ams_draw::fill_percent_from_slot(slot);
-        if (fill_pct < 0)
-            fill_pct = 0;
         int rem = -1;
         float p = slot.get_remaining_percent();
         if (p >= 0.0f)
             rem = static_cast<int>(p + 0.5f);
 
-        const bool active = slot_is_active_loaded(i);
-        // "Assigned" = the lane still carries identity after an eject — the
-        // override is deliberately NOT cleared (#1071). Same predicate as
-        // apply_slot_status() in ui_ams_slot.cpp; brand/spool_name cover
-        // IFS-style backends with a user override but no Spoolman id.
-        const bool assigned = slot.spoolman_id > 0 || !slot.material.empty() ||
-                              !slot.brand.empty() || !slot.spool_name.empty();
+        lv_subject_t* lane_state_subject =
+            helix::AmsState::instance().get_slot_lane_state_subject(i);
+        lv_subject_t* active_subject =
+            helix::AmsState::instance().get_slot_active_loaded_subject(i);
 
-        // Spool-mode cache (uncapped).
         SpoolCellData& c = data->spool_cells[i];
-        c.color_rgb = slot.color_rgb;
-        c.fill_level = fill_level_from_pct(fill_pct);
-        c.remaining_pct = rem;
+        c.lane_state =
+            lane_state_subject
+                ? static_cast<helix::ui::LaneState>(lv_subject_get_int(lane_state_subject))
+                : helix::ui::LaneState::Empty;
         c.material = slot.material;
-        c.present = slot.is_present();
-        c.lane_number = helix::ui::lane_number(i);
-        c.active = active;
-        c.assigned = assigned;
+        c.remaining_pct = rem;
+        c.active = active_subject && lv_subject_get_int(active_subject) != 0;
     }
 
     rebuild(data);
@@ -1523,7 +1500,7 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
     }
 
     // Observe current_slot as a re-sync trigger. The highlight itself now comes
-    // from the per-slot active-loaded subject (slot_is_active_loaded above), and
+    // from the per-slot active-loaded subject (read in sync_from_ams_state), and
     // every delta on that subject bumps slots_version, so the observer above is
     // what keeps the strip live; this one covers a current_slot move that leaves
     // the active-loaded flags untouched.
@@ -1565,6 +1542,7 @@ static void ui_ams_mini_status_xml_apply(lv_xml_parser_state_t* state, const cha
 
 void ui_ams_mini_status_init(void) {
     ui_ams_lane_bar_register();
+    ui_ams_lane_spool_register();
     lv_xml_register_widget("ams_mini_status", ui_ams_mini_status_xml_create,
                            ui_ams_mini_status_xml_apply);
     spdlog::trace("[AmsMiniStatus] Registered ams_mini_status XML widget");

@@ -50,7 +50,14 @@ void ui_ams_lane_spool_register(void);
 
 #ifdef __cplusplus
 
+#include "ams_lane_state.h"
+
 namespace helix::ui {
+
+/// Slack the widget's root adds around the spool graphic so the lane badge,
+/// aligned to its corner, is not clipped. A caller laying out a fixed-width
+/// cell around the widget subtracts this to know what is left beside it.
+inline constexpr int32_t AMS_LANE_SPOOL_BADGE_MARGIN_PX = 8;
 
 /**
  * @brief Point an ams_lane_spool widget at a different slot index
@@ -74,6 +81,31 @@ float ams_lane_spool_get_fill_level(lv_obj_t* spool);
  * A later per-slot fill subject value overrides it.
  */
 void ams_lane_spool_set_fill_level(lv_obj_t* spool, float fill_level);
+
+/**
+ * @brief Resize the spool graphic (px; <= 0 is refused)
+ *
+ * Rebuilds the visual layers at the new size and repaints them with the
+ * cached presentation, so the widget keeps rendering from its subjects. Also
+ * rebuilds when /ams/spool_style has flipped since the last build. No-op when
+ * size and style already match.
+ */
+void ams_lane_spool_set_size(lv_obj_t* spool, int32_t spool_size);
+
+/**
+ * @brief The spool family's material-label rule
+ *
+ * One implementation of what a lane's material label reads, shared by the
+ * ams_slot label and the mini-status strip's spool cells so the two surfaces
+ * cannot reach different conclusions about one lane:
+ *
+ *   Empty    -> lv_tr("Empty") (UI copy, not a material name)
+ *   Ghosted / Present with no material -> "--"
+ *   otherwise -> the material name (not translated)
+ *
+ * Callers own their own truncation, ellipsizing and ghost opacity.
+ */
+const char* lane_material_text(helix::ui::LaneState state, const char* material);
 
 } // namespace helix::ui
 

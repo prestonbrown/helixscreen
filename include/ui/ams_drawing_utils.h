@@ -82,7 +82,7 @@ std::string get_unit_display_name(const helix::AmsUnit& unit, int unit_index);
 lv_obj_t* create_transparent_container(lv_obj_t* parent);
 
 // ============================================================================
-// Spool Visualization (shared by the AMS overlay slot and the home widget)
+// Spool-Family Presentation
 // ============================================================================
 
 /// Opacity of a spool visual and its labels on a lane that is assigned but not
@@ -90,50 +90,15 @@ lv_obj_t* create_transparent_container(lv_obj_t* parent);
 /// so two views of the same lane cannot ghost to different strengths.
 inline constexpr lv_opa_t GHOST_OPA = LV_OPA_30;
 
-/** Widget handles produced by create_spool_visual() */
-struct SpoolVisual {
-    lv_obj_t* container = nullptr;
-    bool use_3d = true;
-    int32_t spool_size = 0;
-    lv_obj_t* canvas = nullptr;            ///< 3D-only: pseudo-3D spool canvas
-    lv_obj_t* spool_outer = nullptr;       ///< flat-only: outer flange ring
-    lv_obj_t* color_swatch = nullptr;      ///< flat-only: filament color ring
-    lv_obj_t* spool_hub = nullptr;         ///< flat-only: center hub
-    lv_obj_t* empty_placeholder = nullptr; ///< dashed-circle "empty" placeholder (hidden)
-    lv_obj_t* error_indicator = nullptr;   ///< error dot, top-right (hidden)
-};
-
-/// Slack create_spool_visual() adds around the spool graphic so the lane badge,
-/// which is aligned to the container's bottom-right corner, is not clipped.
-///
-/// Exported because it is the difference between the spool size a caller asks
-/// for and the width the container actually occupies in a flex row. A caller
-/// laying out a fixed-width cell around the spool has to subtract it to know
-/// what is left for anything beside it; ui_ams_mini_status.cpp's spool cells do
-/// exactly that, and used to carry their own copy of the literal.
-inline constexpr int32_t SPOOL_VISUAL_BADGE_MARGIN_PX = 8;
-
-/**
- * @brief Build a spool visualization into @p container, honoring /ams/spool_style.
- * @param container Parent to populate (its size is set to
- *        spool_size + SPOOL_VISUAL_BADGE_MARGIN_PX, square).
- * @param spool_size Spool graphic size in px; <= 0 uses the "ams_slot_spool_size" token.
- */
-SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size = 0);
-
-/** Update spool color (3D canvas or flat color_swatch + darkened outer flange) */
-void spool_visual_set_color(const SpoolVisual& sv, lv_color_t color);
-
-/** Update spool fill level 0.0-1.0 (3D canvas fill or flat concentric ring size) */
-void spool_visual_set_fill(const SpoolVisual& sv, float fill_level);
-
-/** Toggle the empty-slot placeholder vs. the spool graphic */
-void spool_visual_set_empty(const SpoolVisual& sv, bool empty);
-
 /** Create a circular lane-number badge (1-based) using AMS badge tokens.
  *  @param parent typically the spool container; caller may re-align.
  *  @param active when true, uses the "success" accent color for the active (loaded) lane. */
 lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, bool active = false);
+
+/** Recolor an existing lane badge for its lane's loaded state (see
+ *  create_lane_badge): "success" while actively loaded, the neutral
+ *  ams_badge_bg token otherwise, with the label's contrast text following. */
+void set_lane_badge_active(lv_obj_t* badge, bool active);
 
 // Shared dashed-circle draw callback for the empty-slot placeholder (moved here from
 // ui_ams_slot.cpp so both the overlay and the home widget share it).
