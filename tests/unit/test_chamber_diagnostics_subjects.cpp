@@ -236,7 +236,7 @@ TEST_CASE("a fault_reason null delta clears the reason text", "[chamber][subject
 // The pin is a REQUEST; the device also runs the filter fan on its own while
 // heating and while purging residual element heat (measured on the rig,
 // issue #1290). The running-state subjects must follow the reported fan
-// speed, not the pin, or the card shows "Filter Fan 100%" beside a
+// speed, not the pin, or the card shows "100%" beside a
 // switch that is off.
 TEST_CASE("device-driven filter fan keeps the switch on the reported speed",
           "[chamber][subjects]") {

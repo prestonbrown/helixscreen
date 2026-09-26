@@ -85,12 +85,13 @@ int32_t abs_x2(lv_obj_t* obj) {
 
 /// The widest data the chamber card renders: 2-digit current and target
 /// ("37.7 / 60°C"), heating glyph with "100%", element at "106.2°C", fan at
-/// "100%", fault banner carrying its reason.
+/// "100%", fault banner carrying its reason, External marker shown.
 void set_worst_case_chamber_data() {
     set_xml_int("chamber_temp", 377);
     set_xml_int("chamber_effective_target", 600);
     set_xml_int("chamber_status_state", 1);
     set_xml_string("chamber_status", "100%");
+    set_xml_int("chamber_heater_externally_controlled", 1);
     set_xml_int("chamber_heater_fault", 1);
     set_xml_int("chamber_heater_inhibited", 0);
     set_xml_int("chamber_heater_offline", 0);
@@ -149,6 +150,24 @@ void check_no_label_truncated(lv_obj_t* root) {
                 CHECK(label_text_width(child) <= content_width);
             }
         }
+    }
+}
+
+/// Every visible widget in the card must end inside the card's content area.
+/// A row whose natural width exceeds the column (a third text beside the
+/// readout and the status) overflows instead of shrinking: LVGL keeps the
+/// children's sizes and lets the last ones run past the edge, which no
+/// truncation check sees because the labels themselves never ellipsize.
+/// Hidden subtrees are skipped: they take no layout, so their coordinates
+/// are stale.
+void check_no_descendant_past_card_content(lv_obj_t* node, int32_t content_right) {
+    for (uint32_t i = 0; i < lv_obj_get_child_count(node); ++i) {
+        lv_obj_t* child = lv_obj_get_child(node, i);
+        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))
+            continue;
+        check_no_descendant_past_card_content(child, content_right);
+        CAPTURE(lv_obj_get_name(child));
+        CHECK(abs_x2(child) <= content_right);
     }
 }
 
@@ -445,8 +464,8 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
         CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "filter_fan_readout")));
     }
 
-    // The External badge annotates the heater from the card's header row, so
-    // it survives a backend that reports no element temperature.
+    // The External badge annotates the heater from inside the card, so it
+    // survives a backend that reports no element temperature.
     SECTION("external control shows with no element readout beside it") {
         set_xml_int("printer_has_chamber_element_temp", 0);
         set_xml_int("chamber_heater_externally_controlled", 1);
@@ -548,9 +567,9 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
         CHECK(hidden(lv_obj_find_by_name(overlay_, "filter_fan_readout")));
     }
 
-    // The External marker lives in the card's header at this size too, not
-    // on a second surface.
-    SECTION("external marker shows in the card header") {
+    // The External marker stays inside the card at this size too, not on a
+    // second surface.
+    SECTION("external marker shows inside the card") {
         set_xml_int("chamber_heater_externally_controlled", 1);
         helix::ui::UpdateQueue::instance().drain();
 
@@ -665,9 +684,12 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
 
     // Faulted portrait: the banner replaces the readout row inside the
     // full-width band, and the chart keeps every spare pixel above it.
+    // External is stated explicitly: the marker's row claims chart pixels,
+    // and a shuffled earlier case must not decide this floor.
     set_xml_int("chamber_heater_fault", 1);
     set_xml_int("chamber_heater_inhibited", 1);
     set_xml_int("chamber_heater_offline", 0);
+    set_xml_int("chamber_heater_externally_controlled", 0);
     set_xml_int("chamber_filter_fan_device_driven", 1);
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_update_layout(overlay_);
@@ -773,6 +795,77 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "no chamber card label is truncated at a
 }
 
 TEST_CASE_METHOD(ChamberOverlayFixture,
+                 "chamber card keeps every visible widget inside the card at every size and state",
+                 "[chamber][panel][geometry]") {
+    // The full matrix the card ships to: both portrait widths and the
+    // landscape ladder, each in healthy/fault/offline, with the fan row in
+    // both shapes (percent vs Device badge) and the External marker on and
+    // off. Content-width labels overflow rather than ellipsize, so this edge
+    // walk is the only check that sees a row wider than the column.
+    const std::pair<int32_t, int32_t> sizes[] = {{480, 272},  {480, 320}, {800, 480},
+                                                 {1024, 600}, {272, 480}, {320, 480}};
+    for (const auto& [w, h] : sizes) {
+        CAPTURE(w);
+        CAPTURE(h);
+        ScopedGeometry geo(w, h);
+        build_overlay();
+        for (int state = 0; state < 3; ++state) {
+            // 0 healthy, 1 fault, 2 offline.
+            for (int device_driven : {0, 1}) {
+                for (int external : {0, 1}) {
+                    CAPTURE(state);
+                    CAPTURE(device_driven);
+                    CAPTURE(external);
+                    set_worst_case_chamber_data();
+                    set_xml_int("chamber_heater_fault", state == 1 ? 1 : 0);
+                    set_xml_int("chamber_heater_inhibited", 0);
+                    set_xml_int("chamber_heater_offline", state == 2 ? 1 : 0);
+                    set_xml_int("chamber_filter_fan_device_driven", device_driven);
+                    set_xml_int("chamber_heater_externally_controlled", external);
+                    helix::ui::UpdateQueue::instance().drain();
+                    lv_obj_update_layout(overlay_);
+
+                    lv_obj_t* card = lv_obj_find_by_name(overlay_, "chamber_display_card");
+                    REQUIRE(card != nullptr);
+                    const int32_t content_right =
+                        abs_x2(card) - lv_obj_get_style_pad_right(card, LV_PART_MAIN);
+                    check_no_descendant_past_card_content(card, content_right);
+                }
+            }
+        }
+    }
+}
+
+TEST_CASE_METHOD(ChamberOverlayFixture,
+                 "portrait readout row hides the fan labels without a filter fan",
+                 "[chamber][panel][xml]") {
+    ScopedGeometry portrait(272, 480);
+    build_overlay();
+
+    // Healthy row: element value, fan percent, switch. The row is flat in
+    // portrait (one row, per-widget gates), so a backend with no filter-fan
+    // pin must gate the percent and the Device badge individually or the row
+    // renders a stray percent beside the hidden icon and switch.
+    set_xml_int("chamber_heater_fault", 0);
+    set_xml_int("chamber_heater_inhibited", 0);
+    set_xml_int("chamber_heater_offline", 0);
+    set_xml_int("chamber_filter_fan_device_driven", 0);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE_FALSE(hidden(lv_obj_find_by_name(overlay_, "chamber_readout_row")));
+
+    set_xml_int("printer_has_chamber_filter_fan", 0);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(hidden(lv_obj_find_by_name(overlay_, "fan_percent_label")));
+    CHECK(hidden(lv_obj_find_by_name(overlay_, "fan_device_badge")));
+    CHECK(hidden(lv_obj_find_by_name(overlay_, "filter_fan_switch")));
+    CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "element_temp_label")));
+
+    set_xml_int("printer_has_chamber_filter_fan", 1);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "fan_percent_label")));
+}
+
+TEST_CASE_METHOD(ChamberOverlayFixture,
                  "chamber buttons hold a fixed height between healthy and faulted at 480x320",
                  "[chamber][panel][geometry]") {
     ScopedGeometry tiny(480, 320);
@@ -787,13 +880,14 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
             lv_obj_get_height(lv_obj_find_by_name(overlay_, "chamber_preset_1"))};
     };
 
-    // Healthy baseline: the chamber_preset_h token at tiny (48), not the
-    // generic #button_height (32) the rows used to carry.
+    // Healthy baseline: the chamber_preset_h token at tiny (43), above the
+    // generic #button_height (32) these rows would otherwise fall back to.
     const auto healthy = button_heights();
     for (const int32_t height : healthy)
-        CHECK(height == 48);
+        CHECK(height == 43);
 
-    // Tallest card content: banner with reason plus every readout row.
+    // Tallest card content: banner with reason plus every readout row and
+    // the External marker.
     set_worst_case_chamber_data();
     set_xml_int("chamber_heater_inhibited", 1);
     helix::ui::UpdateQueue::instance().drain();
@@ -801,11 +895,18 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
 
     CHECK(faulted == healthy);
 
-    // The taller card fits: the spacer absorbed it and no scroll appeared.
+    // The taller card fits: the spacer kept at least #space_xs (2 at tiny)
+    // and the column's last child stays inside the strip. The strip is not
+    // scrollable, so an overflowing column never scrolls - it runs past the
+    // edge, and only this comparison sees it.
     lv_obj_t* strip = lv_obj_find_by_name(overlay_, "chamber_control_strip");
     REQUIRE(strip != nullptr);
-    CHECK(lv_obj_get_scroll_bottom(strip) == 0);
-    CHECK(lv_obj_get_scroll_y(strip) == 0);
+    lv_obj_t* spacer = lv_obj_find_by_name(overlay_, "chamber_strip_spacer");
+    REQUIRE(spacer != nullptr);
+    CHECK(lv_obj_get_height(spacer) >= 2);
+    lv_obj_t* custom = lv_obj_find_by_name(overlay_, "chamber_btn_custom");
+    REQUIRE(custom != nullptr);
+    CHECK(lv_obj_get_y(custom) + lv_obj_get_height(custom) <= lv_obj_get_height(strip));
 }
 
 // ============================================================================

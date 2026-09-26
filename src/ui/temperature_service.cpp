@@ -919,7 +919,7 @@ void TemperatureService::keypad_value_cb(float value, void* user_data) {
 static KeypadCallbackData s_keypad_data[helix::HEATER_TYPE_COUNT];
 
 // ============================================================================
-// XML event callbacks — chamber-heater diagnostics (issue #1290)
+// XML event callbacks - chamber-heater diagnostics (issue #1290)
 // ============================================================================
 // Both fire from the chamber card's banner and filter-fan switch inside
 // temp_graph_overlay with no instance user data, so they reach the

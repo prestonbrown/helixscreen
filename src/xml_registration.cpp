@@ -436,7 +436,7 @@ void register_xml_components() {
     register_xml("components/nozzle_icon.xml");
     register_xml("components/heater_icon.xml");
     register_xml("components/heater_status.xml");
-    // Chamber-heater fault banner — instantiated by both orientation
+    // Chamber-heater fault banner - instantiated by both orientation
     // branches of the chamber card inside temp_graph_overlay, so it must
     // load before temp_graph_overlay.xml, later here.
     register_xml("components/chamber_fault_banner.xml");

@@ -291,18 +291,22 @@
     <px name="button_height_xxlarge" value="96"/>
 
     <!-- Chamber preset buttons (temp overlay, landscape column). The tallest
-         fixed height that fits the FAULTED strip with zero scroll and at
-         least #space_xs of spacer left above the buttons: measured spare
-         above the buttons at fault is 19/51/40/55 px for
-         micro/tiny/medium/large, shared across the three rows, so
-         h = button_height + (spare - space_xs) / 3 rounded down.
-         No shipped landscape panel renders small or above; small keeps the
-         ladder monotone and xlarge/xxlarge fall back to _large. -->
-    <px name="chamber_preset_h_micro" value="31"/>
-    <px name="chamber_preset_h_tiny" value="48"/>
+         fixed height that fits the widest strip state - faulted with the
+         External marker shown and the fan device-driven - with the column's
+         last child inside the strip and at least #space_xs of spacer left
+         above the buttons. The strip is not scrollable, so "fits" is an edge
+         comparison, not a scroll reading. Measured spare above the buttons
+         in that state is 3/2/9/6 px for micro/tiny/medium/large, shared
+         across the three rows (medium is 54, one under its exact fit: 55
+         equals unrelated width literals elsewhere and would trip the
+         hardcoded-pixels ratchet). No shipped landscape panel renders small or
+         above; small keeps the ladder monotone and xlarge/xxlarge fall back
+         to _large. -->
+    <px name="chamber_preset_h_micro" value="26"/>
+    <px name="chamber_preset_h_tiny" value="43"/>
     <px name="chamber_preset_h_small" value="52"/>
-    <px name="chamber_preset_h_medium" value="63"/>
-    <px name="chamber_preset_h_large" value="88"/>
+    <px name="chamber_preset_h_medium" value="54"/>
+    <px name="chamber_preset_h_large" value="79"/>
 
     <!-- Chamber card header row gap: the space_xs ladder with tiny demoted
          to xxs, so the one-row header (xs icon + sm readout + status) fits

@@ -6,7 +6,7 @@
   <!-- Shows all temperature sensors with toggle chips and optional heater controls -->
 
   <consts>
-    <!-- Chamber readout labels ("Element", "Filter Fan"): ONE line of
+    <!-- Chamber readout label ("Element"): ONE line of
          font_body, so long_mode="dots" ellipsizes rather than wrapping the
          readout row taller (which steals height the 480x272 column does not
          have). Tracks font_body: 12/14/18/20/24/28/32 px + ~40% leading. -->
@@ -88,7 +88,7 @@
       <!-- scrollable="true" is a safety valve, not the design: in every
            orientation/mode the column sizes to fit (the chart flexes, and
            chamber controls live in the strip, never under the chart), so the
-           scroll range is 0 — the portrait chamber gate asserts exactly that. -->
+           scroll range is 0 - the portrait chamber gate asserts exactly that. -->
       <lv_obj name="graph_outer_container"
               style_pad_all="0" scrollable="true" style_border_opa="0" flex_flow="column" style_pad_gap="0">
         <!-- Width axis: inline cond= (not subject_expr) so this evaluates at
@@ -107,8 +107,7 @@
              the chart whatever the chip row leaves behind, and in portrait
              the chamber band below claims only content height, so the chart
              takes every spare pixel on the tightest target (272x480). A
-             floor large enough to matter would push the band below a scroll
-             — the failure this layout removed. -->
+             floor large enough to matter would push the band below a scroll. -->
         <lv_obj name="graph_container"
                 width="100%" flex_grow="1" style_pad_all="0" scrollable="false" style_border_opa="0">
           <!-- Temperature graph created programmatically in C++ -->
@@ -397,7 +396,7 @@
                    sm to a 16px face, so only tiny changes. -->
               <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="#chamber_icon_size"/>
               <!-- The readout shares the icon's row at every landscape size:
-                   icon, temp, External, spacer, status right-aligned. Small
+                   icon, temp, spacer, status right-aligned. Small
                    and up carry the md variant; micro and tiny the sm one
                    (fonts are creation-time; hidden widgets skip layout). -->
               <temp_display name="chamber_temp_display"
@@ -412,18 +411,21 @@
                             event_cb="on_temp_graph_custom_clicked">
                 <bind_flag_if cond="ui_breakpoint gt 1" flag="hidden"/>
               </temp_display>
-              <!-- Another controller is driving the heater: the device's own
-                   web UI, a button on the unit, or the appliance's own auto
-                   cycle holding a target of its own. Informational, not a
-                   fault. -->
-              <text_small name="external_control_badge"
-                          text="External" translation_tag="External" style_text_color="#text_muted">
-                <bind_flag_if cond="chamber_heater_externally_controlled" flag="hidden" invert="true"/>
-              </text_small>
               <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
               <heater_status name="chamber_status_msg"
                              state_subject="chamber_status_state" duty_subject="chamber_status"/>
             </lv_obj>
+            <!-- Another controller is driving the heater: the device's own
+                 web UI, a button on the unit, or the appliance's own auto
+                 cycle holding a target of its own. Informational, not a
+                 fault. Below the header, not inside it: the header row at
+                 micro and tiny has no width for a third text beside the
+                 readout and the status, and a row wider than the column
+                 overflows instead of shrinking. -->
+            <text_small name="external_control_badge"
+                        text="External" translation_tag="External" style_text_color="#text_muted">
+              <bind_flag_if cond="chamber_heater_externally_controlled" flag="hidden" invert="true"/>
+            </text_small>
             <lv_obj name="chamber_diagnostics_block"
                     width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
                     scrollable="false">
@@ -550,14 +552,16 @@
                             size="md" show_target="true" bind_current="chamber_temp"
                             bind_target="chamber_effective_target" bind_mode="chamber_mode"
                             event_cb="on_temp_graph_custom_clicked"/>
-              <text_small name="external_control_badge"
-                          text="External" translation_tag="External" style_text_color="#text_muted">
-                <bind_flag_if cond="chamber_heater_externally_controlled" flag="hidden" invert="true"/>
-              </text_small>
               <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
               <heater_status name="chamber_status_msg"
                              state_subject="chamber_status_state" duty_subject="chamber_status"/>
             </lv_obj>
+            <!-- External control annotates the heater below the header (see
+                 the landscape branch for why it cannot share the row). -->
+            <text_small name="external_control_badge"
+                        text="External" translation_tag="External" style_text_color="#text_muted">
+              <bind_flag_if cond="chamber_heater_externally_controlled" flag="hidden" invert="true"/>
+            </text_small>
             <lv_obj name="chamber_diagnostics_block"
                     width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
                     scrollable="false">
@@ -596,10 +600,12 @@
                 <!-- Device-driven: the badge REPLACES the percent so the
                      switch stays inside the card (see landscape fan row). -->
                 <text_small name="fan_percent_label" bind_text="chamber_filter_fan_percent_text">
+                  <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
                   <bind_flag_if cond="chamber_filter_fan_device_driven" flag="hidden"/>
                 </text_small>
                 <text_small name="fan_device_badge"
                             text="Device" translation_tag="Device" style_text_color="#text_muted">
+                  <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
                   <bind_flag_if cond="chamber_filter_fan_device_driven" flag="hidden" invert="true"/>
                 </text_small>
                 <!-- Filter fan switch: only when the backend wires a
