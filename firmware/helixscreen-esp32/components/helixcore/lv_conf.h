@@ -598,21 +598,19 @@
 /*Optionally declare custom fonts here.
  *You can use these fonts as default font too and they will be available globally.
  *E.g. #define LV_FONT_CUSTOM_DECLARE   LV_FONT_DECLARE(my_font_1) LV_FONT_DECLARE(my_font_2)*/
-/* Medium-tier (800x480 K-Touch) compiled faces — only the faces the _medium
+/* Medium-tier (800x480 K-Touch) faces - only the faces the _medium
  * breakpoint's globals.xml font tokens reference. CJK companions are Plan 5.
  * Plain extern, NOT the LV_FONT_DECLARE() macro (which always adds const):
  * LV_FONT_CUSTOM_DECLARE is pulled in by every TU that includes lvgl.h —
  * including each font's own .c file — so the qualifier here must match that
  * file's own definition further down in the same TU, or gcc errors with
- * "conflicting type qualifiers". Every face except noto_sans_18 is now non-const
- * here: their glyph .c left HELIX_FONT_SRCS (moved to runtime .bin) and their
- * symbols are the writable, runtime-populated shims in moved_fonts_shim.c — so
- * the qualifier matches the shim's definition, not a compiled font .c. The
- * committed desktop AND firmware-twin .c sources for the ex-const faces
- * (source_code_pro_14, mdi_icons_16/24/32) were de-const'd in lockstep so a
- * move-back into the compile stays qualifier-clean. Only noto_sans_18 stays
- * compiled in (the boot fallback anchor); it is non-const like the noto_sans_*
- * faces (older font_conv run). Const-ness was checked per-file with
+ * "conflicting type qualifiers". Every face is non-const here: its glyph data
+ * lives in a runtime .bin (frogfs storage partition) and its symbol is the
+ * writable, runtime-populated shim in moved_fonts_shim.c, so the qualifier
+ * matches the shim's definition, not a compiled font .c. The committed desktop
+ * AND firmware-twin .c sources for the ex-const faces (source_code_pro_14,
+ * mdi_icons_16/24/32) are de-const'd in lockstep so a move-back into the
+ * compile stays qualifier-clean. Const-ness was checked per-file with
  * `grep -A2 '#if LVGL_VERSION_MAJOR >= 8' assets/fonts/<name>.c`. Matches the
  * desktop lv_conf.h idiom for noto_sans_14 (`extern lv_font_t ...;`, also
  * non-const), extended to the medium tier's full face list. */
@@ -630,10 +628,10 @@
     extern lv_font_t mdi_icons_64; /* non-const: runtime-populated from .bin (moved_fonts_shim.c) */
 
 /*Always set a default font*/
-/* Repointing this: noto_sans_18 is the ONLY Helix face compiled into the image
- * (helixcore/CMakeLists.txt HELIX_FONT_SRCS). Every other face is a zero-init
- * shim symbol in moved_fonts_shim.c, filled from a .bin at boot, so none of
- * them is a legal compile-time default. */
+/* No Helix face is compiled into the image: all 11 are zero-init shim symbols
+ * in moved_fonts_shim.c, filled from a frogfs .bin at boot, so none of them is
+ * a legal compile-time default. The default is LVGL's built-in montserrat_14,
+ * which doubles as the .bin load-failure fallback (font_registration.c). */
 #define LV_FONT_DEFAULT &lv_font_montserrat_14
 
 /*Enable handling large font and/or fonts with a lot of characters.
