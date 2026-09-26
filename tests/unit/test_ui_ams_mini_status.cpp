@@ -6,6 +6,7 @@
  * @brief Tests for the ams_mini_status home dashboard widget (wide spool view)
  */
 
+#include "ui_ams_lane_bar.h"
 #include "ui_ams_mini_status.h"
 #include "ui_update_queue.h"
 
@@ -62,14 +63,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: set_width applies its width argum
     REQUIRE(UITest::find_by_name(w, "ams_spools_container") == spools);
     REQUIRE(lv_obj_has_flag(spools, LV_OBJ_FLAG_HIDDEN));
 
-    // Bar mode renders ams_lane_bar widgets: each bar carries the widget's
-    // named children, so a regression back to hand-rolled slot columns shows
-    // up here as a missing bar_bg.
+    // Bar mode renders ams_lane_bar widgets, each bound to its slot.
     lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
     REQUIRE(bars != nullptr);
     lv_obj_t* bar0 = lv_obj_get_child(bars, 0);
     REQUIRE(bar0 != nullptr);
-    REQUIRE(UITest::find_by_name(bar0, "bar_bg") != nullptr);
+    REQUIRE(helix::ui::ams_lane_bar_slot_index(bar0) == 0);
 
     // ...and coming back up shows it again.
     ui_ams_mini_status_set_width(w, 260);
@@ -359,4 +358,92 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: observers survive AmsState's subj
     helix::ui::UpdateQueue::instance().drain();
 
     SUCCEED("widget teardown completed without walking freed observer nodes");
+}
+
+namespace {
+/// A mock whose slots split into units of the given sizes.
+class UnitSplitMock : public AmsBackendMock {
+  public:
+    explicit UnitSplitMock(int slot_count) : AmsBackendMock(slot_count) {}
+    std::vector<int> unit_sizes;
+
+    [[nodiscard]] AmsSystemInfo get_system_info() const override {
+        AmsSystemInfo info = AmsBackendMock::get_system_info();
+        std::vector<SlotInfo> all;
+        for (const auto& unit : info.units)
+            all.insert(all.end(), unit.slots.begin(), unit.slots.end());
+        info.units.clear();
+        int first = 0;
+        for (size_t u = 0; u < unit_sizes.size(); ++u) {
+            AmsUnit unit;
+            unit.unit_index = static_cast<int>(u);
+            unit.name = "Unit_" + std::to_string(u);
+            unit.slot_count = unit_sizes[u];
+            unit.first_slot_global_index = first;
+            for (int s = 0; s < unit_sizes[u] && first + s < static_cast<int>(all.size()); ++s)
+                unit.slots.push_back(all[first + s]);
+            info.units.push_back(unit);
+            first += unit_sizes[u];
+        }
+        return info;
+    }
+};
+} // namespace
+
+// Bars are pooled across rebuilds while unit rows come and go. A row condemned
+// with bars still inside would free them under the pool's pointers.
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: a condemned unit row keeps its pooled bars",
+                 "[ui][ams_mini]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<UnitSplitMock>(8);
+    auto* raw = mock.get();
+    raw->unit_sizes = {3, 3, 2};
+    ams.set_backend(std::move(mock));
+    ams.sync_from_backend();
+
+    ui_ams_mini_status_init();
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    ui_ams_mini_status_set_width(w, 130);
+    helix::ui::UpdateQueue::instance().drain();
+
+    auto bar_for_slot = [&](int slot) -> lv_obj_t* {
+        lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
+        std::vector<lv_obj_t*> stack{bars};
+        while (!stack.empty()) {
+            lv_obj_t* o = stack.back();
+            stack.pop_back();
+            if (helix::ui::ams_lane_bar_slot_index(o) == slot)
+                return o;
+            for (uint32_t i = 0; i < lv_obj_get_child_count(o); ++i)
+                stack.push_back(lv_obj_get_child(o, static_cast<int32_t>(i)));
+        }
+        return nullptr;
+    };
+    REQUIRE(bar_for_slot(7) != nullptr);
+
+    // Three units -> two: the third unit's row is condemned. Its bars must
+    // survive the deferred delete.
+    raw->unit_sizes = {3, 3};
+    ams.sync_from_backend();
+    ams.bump_slots_version(); // a unit split alone moves no slot field
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+    lv_obj_t* bar7 = bar_for_slot(7);
+    REQUIRE(bar7 != nullptr);
+    CHECK(lv_obj_has_flag(bar7, LV_OBJ_FLAG_HIDDEN));
+
+    // ...and come back when the unit does.
+    raw->unit_sizes = {3, 3, 2};
+    ams.sync_from_backend();
+    ams.bump_slots_version(); // a unit split alone moves no slot field
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+    bar7 = bar_for_slot(7);
+    REQUIRE(bar7 != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(bar7, LV_OBJ_FLAG_HIDDEN));
+
+    lv_obj_delete(w);
+    ams.clear_backends();
+    ams.deinit_subjects();
 }

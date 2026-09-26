@@ -509,6 +509,11 @@ void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_
     }
 }
 
+int ams_lane_bar_slot_index(lv_obj_t* obj) {
+    const LaneBarData* d = get_lane_bar_data(obj);
+    return d ? d->slot_index : -1;
+}
+
 void ams_lane_bar_resize(lv_obj_t* bar, int32_t bar_width, int32_t bar_height) {
     if (!bar)
         return;

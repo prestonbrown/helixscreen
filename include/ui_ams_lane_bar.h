@@ -58,5 +58,8 @@ void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_
  * same meaning as the create attrs.
  */
 void ams_lane_bar_resize(lv_obj_t* bar, int32_t bar_width, int32_t bar_height);
+
+/// The slot @p obj is bound to, or -1 when @p obj is not a live ams_lane_bar.
+int ams_lane_bar_slot_index(lv_obj_t* obj);
 } // namespace helix::ui
 #endif

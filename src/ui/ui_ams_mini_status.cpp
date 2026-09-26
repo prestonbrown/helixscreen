@@ -345,6 +345,14 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     auto condemn_row = [&](lv_obj_t* row) {
         if (!row)
             return;
+        // The pool outlives rows: a bar left inside a condemned row is freed
+        // with it while lane_bars[] still points at it.
+        for (lv_obj_t* bar : data->lane_bars) {
+            if (bar && lv_obj_get_parent(bar) == row) {
+                lv_obj_set_parent(bar, data->bars_container);
+                lv_obj_add_flag(bar, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
         if (!condemned_parent) {
             condemned_parent = lv_obj_create(lv_screen_active());
             if (!condemned_parent)
@@ -456,16 +464,8 @@ static void rebuild_bars(AmsMiniStatusData* data) {
         // === Single-unit layout (original behavior) ===
 
         // Clean up any leftover unit row containers from a previous multi-unit state
-        // Reparent any slot containers back to bars_container first
         for (int u = 0; u < 8; ++u) {
             if (data->unit_rows[u].row_container) {
-                // Move children back to bars_container before deleting the row
-                for (int i = 0; i < AMS_MINI_STATUS_MAX_VISIBLE; ++i) {
-                    lv_obj_t* bar = data->lane_bars[i];
-                    if (bar && lv_obj_get_parent(bar) == data->unit_rows[u].row_container) {
-                        lv_obj_set_parent(bar, data->bars_container);
-                    }
-                }
                 condemn_row(data->unit_rows[u].row_container);
                 data->unit_rows[u].row_container = nullptr;
             }
