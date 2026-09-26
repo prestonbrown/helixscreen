@@ -326,7 +326,7 @@
           </lv_obj>
           <lv_obj width="content"
                   height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-            <text_small text="Spool Weight (g)" translation_tag="Spool Weight (g)"/>
+            <text_small text="Spool wt (g)" translation_tag="Spool wt (g)"/>
             <text_input name="detail_field_spool_weight"
                         width="#field_w_num" keyboard_hint="numeric" placeholder="0" max_length="8">
               <event_cb trigger="value_changed" callback="ams_edit_detail_field_changed_cb"/>

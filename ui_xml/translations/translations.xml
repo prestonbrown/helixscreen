@@ -2627,6 +2627,7 @@
   <translation tag="Spool deleted" de="Spule gelöscht" en="Spool deleted" es="Bobina eliminada" fr="Bobine supprimée" it="Bobina eliminata" ja="スプールを削除しました" pt="Carretel excluído" ru="Катушка удалена" zh="料盘已删除"/>
   <translation tag="Spool motor" de="Spulenmotor" en="Spool motor" es="Motor de bobina" fr="Moteur de bobine" it="Motore bobina" ja="スプールモーター" pt="Motor da bobina" ru="Мотор катушки" zh="料盘电机"/>
   <translation tag="Spool saved" de="Spule gespeichert" en="Spool saved" es="Bobina guardada" fr="Bobine enregistrée" it="Bobina salvata" ja="スプールを保存しました" pt="Carretel salvo" ru="Катушка сохранена" zh="料盘已保存"/>
+  <translation tag="Spool wt (g)" de="Spulengewicht (g)" en="Spool wt (g)" es="Peso bobina (g)" fr="Poids bobine (g)" it="Peso bobina (g)" ja="スプール重量 (g)" pt="Peso carretel (g)" ru="Вес катушки (г)" zh="料盘重量 (g)"/>
   <translation tag="Spoolman" de="Spoolman" en="Spoolman" es="Spoolman" fr="Spoolman" it="Spoolman" ja="Spoolman" pt="Spoolman" ru="Spoolman" zh="Spoolman"/>
   <translation tag="Spoolman Not Available" de="Spoolman nicht verfügbar" en="Spoolman Not Available" es="Spoolman no disponible" fr="Spoolman indisponible" it="Spoolman non disponibile" ja="Spoolman は利用できません" pt="Spoolman indisponível" ru="Spoolman недоступен" zh="Spoolman 不可用"/>
   <translation tag="Spoolman Server" de="Spoolman-Server" en="Spoolman Server" es="Servidor Spoolman" fr="Serveur Spoolman" it="Server Spoolman" ja="Spoolman サーバー" pt="Servidor Spoolman" ru="Сервер Spoolman" zh="Spoolman 服务器"/>

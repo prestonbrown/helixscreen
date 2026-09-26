@@ -2627,6 +2627,7 @@
   <translation tag="Spool deleted" zh="料盘已删除"/>
   <translation tag="Spool motor" zh="料盘电机"/>
   <translation tag="Spool saved" zh="料盘已保存"/>
+  <translation tag="Spool wt (g)" zh="料盘重量 (g)"/>
   <translation tag="Spoolman" zh="Spoolman"/>
   <translation tag="Spoolman Not Available" zh="Spoolman 不可用"/>
   <translation tag="Spoolman Server" zh="Spoolman 服务器"/>
