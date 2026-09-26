@@ -10,7 +10,6 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
-#include "filament_mapper.h"
 #include "i_moonraker_api.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"

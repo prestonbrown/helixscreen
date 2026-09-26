@@ -16,7 +16,6 @@
 // distinct phantom type.
 class IMoonrakerAPI;
 
-#include <atomic>
 #include <chrono>
 #include <functional>
 #include <map>
