@@ -406,6 +406,12 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         return;
     }
 
+    // A rebuild re-runs setup(); drop the views bound to the condemned tree
+    // first, so an early return below leaves populate_*_view() guarded rather
+    // than writing into it.
+    card_view_.reset();
+    list_view_.reset();
+
     // Find widget references
     card_view_container_ = lv_obj_find_by_name(panel_, "card_view_container");
     list_view_container_ = lv_obj_find_by_name(panel_, "list_view_container");
