@@ -23,13 +23,21 @@ TEST_CASE("BorderRadiusSizes: pixel value at breakpoint", "[theme]") {
     REQUIRE(BorderRadiusSizes::pixels(3, "_micro") == 3);
     // "None" is always 0
     REQUIRE(BorderRadiusSizes::pixels(0, "_xxlarge") == 0);
-    // "Full" is always 9999
-    REQUIRE(BorderRadiusSizes::pixels(7, "_tiny") == 9999);
+}
+
+TEST_CASE("BorderRadiusSizes: Full rounds buttons but stops surfaces at Pill", "[theme]") {
+    // A near-square dialog at radius 9999 renders as a circle, clipping its content.
+    for (const char* bp : {"_micro", "_tiny", "_medium", "_xxlarge"}) {
+        CAPTURE(bp);
+        REQUIRE(BorderRadiusSizes::button_pixels(7, bp) == 9999);
+        REQUIRE(BorderRadiusSizes::pixels(7, bp) == BorderRadiusSizes::pixels(6, bp));
+        REQUIRE(BorderRadiusSizes::button_pixels(4, bp) == BorderRadiusSizes::pixels(4, bp));
+    }
 }
 
 TEST_CASE("BorderRadiusSizes: clamp out-of-range index", "[theme]") {
     // Index 99 should clamp to max valid (7)
-    REQUIRE(BorderRadiusSizes::pixels(99, "_large") == 9999);
+    REQUIRE(BorderRadiusSizes::button_pixels(99, "_large") == 9999);
     // Negative index should clamp to 0
     REQUIRE(BorderRadiusSizes::pixels(-1, "_large") == 0);
 }

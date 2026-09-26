@@ -800,6 +800,9 @@ static ThemePalette convert_to_theme_palette(const theme_palette_t* p,
     palette.danger = p->danger;
     palette.focus = p->focus;
     palette.border_radius = resolve_border_radius(props);
+    palette.button_radius = helix::BorderRadiusSizes::button_pixels(
+        props.border_radius_size,
+        theme_manager_get_breakpoint_suffix(responsive_dimension(theme_display)));
     palette.border_width = props.border_width;
     palette.border_opacity = props.border_opacity;
     palette.shadow_width = props.shadow_intensity;
