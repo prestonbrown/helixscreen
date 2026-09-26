@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_ams_lane_bar.h"
+#include "ui_panel_ams_overview.h"
 
 #include "../test_fixtures.h"
 #include "../ui_test_utils.h"
@@ -218,4 +219,17 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: create_range binds each bar to i
     process_lvgl(20);
     CHECK_FALSE(visible(bar1, "bar_fill"));
     lv_obj_delete(row);
+}
+
+// A unit card's bars bind global slot indices. AFC going from 4+4 lanes to
+// 6+4 keeps the second unit's count at 4 but moves its start from 4 to 6,
+// and bars left bound to 4..7 would paint the first unit's lanes.
+TEST_CASE("lane_bars_stale: a shifted unit start rebuilds even at the same count",
+          "[ams][lane_bar]") {
+    using helix::ui::lane_bars_stale;
+    const helix::ui::LaneBarsGeometry built{4, 4, 20};
+    CHECK_FALSE(lane_bars_stale(built, {4, 4, 20}));
+    CHECK(lane_bars_stale(built, {6, 4, 20}));
+    CHECK(lane_bars_stale(built, {4, 6, 20}));
+    CHECK(lane_bars_stale(built, {4, 4, 24}));
 }

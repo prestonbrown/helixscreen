@@ -490,8 +490,9 @@ void AmsOverviewPanel::update_unit_card(UnitCard& card, const AmsUnit& unit,
     if (card.bars_container) {
         lv_obj_update_layout(card.bars_container);
         int slot_count = static_cast<int>(unit.slots.size());
-        if (slot_count != card.bars_slot_count ||
-            measured_bar_width(card.bars_container, slot_count) != card.bars_width) {
+        if (helix::ui::lane_bars_stale(card.bars_built,
+                                       {unit.first_slot_global_index, slot_count,
+                                        measured_bar_width(card.bars_container, slot_count)})) {
             helix::ui::safe_clean_children(card.bars_container);
             create_mini_bars(card, unit);
         }
@@ -515,7 +516,7 @@ void AmsOverviewPanel::create_mini_bars(UnitCard& card, const AmsUnit& unit) {
 
     int slot_count = static_cast<int>(unit.slots.size());
     if (slot_count <= 0) {
-        card.bars_slot_count = 0;
+        card.bars_built = {unit.first_slot_global_index, 0, 0};
         return;
     }
 
@@ -525,8 +526,7 @@ void AmsOverviewPanel::create_mini_bars(UnitCard& card, const AmsUnit& unit) {
     // inside ams_lane_bar, so the bars repaint in place instead of being
     // rebuilt on every refresh.
     int32_t bar_width = measured_bar_width(card.bars_container, slot_count);
-    card.bars_slot_count = slot_count;
-    card.bars_width = bar_width;
+    card.bars_built = {unit.first_slot_global_index, slot_count, bar_width};
 
     helix::ui::ams_lane_bar_create_range(card.bars_container, unit.first_slot_global_index,
                                          slot_count, bar_width, MINI_BAR_HEIGHT_PX);
