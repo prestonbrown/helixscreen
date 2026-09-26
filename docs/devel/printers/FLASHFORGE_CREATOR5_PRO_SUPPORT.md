@@ -53,11 +53,12 @@ The unified build defines only `HELIX_PLATFORM_MIPS`, so `UpdateChecker::get_pla
 returns `"mips"` and self-update fetches the unified `mips` asset, the same bytes this
 board runs. No creator5-specific asset exists or is needed.
 
-The installer is the one place the board is still misnamed: `detect_platform()`
+The installer keeps the **ad5x** platform key for these boards: `detect_platform()`
 (`scripts/lib/installer/platform.sh`) classifies any MIPS box with `/usr/data` +
-`/usr/prog` as **ad5x**. That downloads the unified mips build under the ad5x alias
-(correct binary, wrong label), so `install.sh` works on this printer but reports it as an
-AD5X. Giving the installer a Creator 5 Pro fingerprint is open work.
+`/usr/prog` that way, which downloads the unified mips build under the ad5x alias
+(correct binary, correct paths). The board's own name comes from the `MACHINE=` line in
+the stock `<app_startup.sh>` (`ff_machine_id()`), so `install.sh` reports a Creator 5 or
+Creator 5 Pro as itself and only uses "ad5x" as the install-package label.
 
 ## NaN encoding
 
@@ -177,8 +178,8 @@ Each item below says whether it is done or still open.
 
 1. **Sanity on the printer** (done): `bin/helix-screen --version` runs. (`readelf -h` on
    the binary must list `nan2008` in Flags; without it the kernel answers ENOEXEC.)
-   `install.sh` reports the board as an AD5X (see "Platform key and self-update" above);
-   unpack the tarball by hand, or accept the mislabel, until it gets a fingerprint.
+   `install.sh` names the board from its `MACHINE=` line (see "Platform key and
+   self-update" above) and installs the unified mips payload.
 2. **Stock UI coexistence** (done): on the stock firmware, unlike the K1's
    `display-server`, `firmwareExe` is not just a UI: stopping it also kills the 8898 REST
    API, the cloud link and the stock print orchestration (tool grab/release for
