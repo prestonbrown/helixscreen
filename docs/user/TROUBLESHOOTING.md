@@ -805,6 +805,51 @@ After restart, flags on the language selection screen should show correct colors
 
 ---
 
+### Screen goes dark at sleep but the backlight stays on
+
+**Symptoms:**
+- When the screen sleeps (idle timeout), the picture goes black but the panel still glows: you can see the backlight shining through, especially in a dark room
+- Touching the screen wakes it normally
+
+**Cause:**
+By default, sleep turns the backlight off and leaves the panel powered, so waking is instant. Some panel controllers treat "backlight at zero" as "very dim" rather than "off", so the LEDs stay lit. Powering the whole panel down fixes these screens, but it breaks others (see the next section), so it is not the default.
+
+**Fix - power the panel down at sleep:**
+
+1. SSH into your printer
+2. Edit `settings.json` (typically `~/helixscreen/config/settings.json`; see [Configuration](CONFIGURATION.md) for other platforms)
+3. Find the `"display"` section and set:
+
+   ```json
+   "panel_power_off": 1
+   ```
+
+4. Save the file and restart HelixScreen:
+
+   ```bash
+   sudo systemctl restart helixscreen
+   ```
+
+   (Use your platform's restart command - see [Quick Debugging Guide](#quick-debugging-guide) for the SysV-init variants.)
+
+5. Let the screen sleep, then touch it to wake it.
+
+To confirm the setting was picked up, look for this line in the log after the restart:
+
+```
+[DisplayManager] Display power-off: true (config override)
+```
+
+If it says `false (config override)`, your display driver has no way to power the panel down, and this setting cannot help on your hardware.
+
+**If it makes things worse:**
+On some screens, a full power-down causes flashing colours, edges that glow white, a colour test pattern, or a screen that does not come back when touched. If you see any of these, SSH in, set `"panel_power_off": -1` (automatic) or remove the line, and restart HelixScreen. Screen sleep in **Settings → Display** can also be set to **Never** as a fallback.
+
+**Helping us fix it:**
+If `panel_power_off: 1` works for you, please tell us your printer and screen model (or send a debug bundle from **Settings → Help & About → Upload Debug Bundle**). We can then turn it on automatically for that hardware.
+
+---
+
 ### Random solid colors during screen sleep (AD5X)
 
 **Symptoms:**
