@@ -24,7 +24,6 @@
 
 #pragma once
 
-#include "chamber_assignment_options.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
 
@@ -297,6 +296,8 @@ class SensorSettingsOverlay : public OverlayBase {
  * @return Reference to singleton SensorSettingsOverlay
  */
 SensorSettingsOverlay& get_sensor_settings_overlay();
+
+struct ChamberAssignmentLabels;
 
 /// Translated labels both chamber assignment dropdowns are built from.
 ChamberAssignmentLabels chamber_assignment_labels();
