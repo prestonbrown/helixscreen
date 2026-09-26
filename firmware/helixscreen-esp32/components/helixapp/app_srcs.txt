@@ -204,6 +204,7 @@ src/printer/toolchanger_addon.cpp
 src/printer/zmod_color_status.cpp
 src/printer/toolhead_homing.cpp
 src/printer/tool_offset_calibration.cpp
+src/printer/pa_calibration.cpp
 src/printer/tool_offsets.cpp
 src/printer/tool_state.cpp
 src/printer/tool_offsets.cpp

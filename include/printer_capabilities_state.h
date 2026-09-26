@@ -353,6 +353,11 @@ class PrinterCapabilitiesState {
         return const_cast<lv_subject_t*>(&hide_manual_z_calibration_);
     }
 
+    /// 1 if the firmware can measure pressure advance by itself
+    lv_subject_t* get_printer_has_pa_cal_subject() const {
+        return const_cast<lv_subject_t*>(&printer_has_pa_cal_);
+    }
+
     /// 1 if printer has an enabled webcam configured
     lv_subject_t* get_printer_has_webcam_subject() const {
         return const_cast<lv_subject_t*>(&printer_has_webcam_);
@@ -478,6 +483,7 @@ class PrinterCapabilitiesState {
     lv_subject_t printer_bed_moves_{};               // 0=gantry moves on Z, 1=bed moves on Z
     lv_subject_t printer_has_chamber_sensor_{};      // chamber temperature sensor
     lv_subject_t printer_has_chamber_heater_{};      // active chamber heater (heater_generic)
+    lv_subject_t printer_has_pa_cal_{};              // firmware measures pressure advance
     // 0 on deltas: every axis homes together
     lv_subject_t printer_has_individual_xyz_homing_{};
     lv_subject_t

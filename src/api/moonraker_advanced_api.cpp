@@ -829,6 +829,178 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
 
 namespace helix {
 /**
+ * @brief State machine for collecting an automatic pressure-advance run
+ *
+ * The firmware measures pressure advance itself and reports one number. Which
+ * firmware, what the command is called and what its output looks like all come
+ * in on the Procedure (helix::pacal) - this collector only applies the patterns
+ * it is handed, so a second firmware needs no change here.
+ *
+ * Expected output is whatever `proc.result_pattern` matches, in the shape
+ * that provider's firmware prints its final value.
+ *
+ * Progress is best-effort. `proc.attempt_pattern` matches a per-candidate
+ * measurement line and the collector COUNTS matches rather than reading a
+ * number out of one, because no firmware publishes that line as a contract. A
+ * pattern that never matches costs nothing: the panel simply shows no attempt
+ * chips, and the result path is untouched.
+ *
+ * Error handling:
+ *   - "Unknown command" naming proc.command_word: firmware cannot do this
+ *   - a line starting "!! " or "Error:": a Klipper error
+ *   - proc.failure_pattern: the firmware ending the run in its own words
+ *
+ * No timeout here; the caller owns the UI-level one.
+ */
+class PACalibrateCollector : public std::enable_shared_from_this<PACalibrateCollector> {
+  public:
+    using PACallback = IAdvancedAPI::PACalibrateCallback;
+    using PAProgressCallback = IAdvancedAPI::PAProgressCallback;
+
+    PACalibrateCollector(IMoonrakerClient& client, helix::pacal::Procedure proc,
+                         PACallback on_success, MoonrakerAdvancedAPI::ErrorCallback on_error,
+                         PAProgressCallback on_progress = nullptr)
+        : client_(client), proc_(std::move(proc)), on_success_(std::move(on_success)),
+          on_error_(std::move(on_error)), on_progress_(std::move(on_progress)),
+          result_re_(proc_.result_pattern) {
+        if (!proc_.attempt_pattern.empty()) {
+            attempt_re_ = std::regex(proc_.attempt_pattern);
+            has_attempt_re_ = true;
+        }
+        if (!proc_.failure_pattern.empty()) {
+            failure_re_ = std::regex(proc_.failure_pattern);
+            has_failure_re_ = true;
+        }
+    }
+
+    ~PACalibrateCollector() {
+        unregister();
+    }
+
+    void start() {
+        static std::atomic<uint64_t> s_collector_id{0};
+        handler_name_ = "pa_calibrate_collector_" + std::to_string(++s_collector_id);
+        auto self = shared_from_this();
+        client_.register_method_callback("notify_gcode_response", handler_name_,
+                                         [self](const json& msg) { self->on_gcode_response(msg); });
+        registered_.store(true);
+        spdlog::debug("[PACalibrateCollector] Started (handler: {}, provider: {})", handler_name_,
+                      proc_.provider);
+    }
+
+    void unregister() {
+        bool was = registered_.exchange(false);
+        if (was) {
+            client_.unregister_method_callback("notify_gcode_response", handler_name_);
+            spdlog::debug("[PACalibrateCollector] Unregistered");
+        }
+    }
+
+    void mark_completed() {
+        completed_.store(true);
+    }
+
+    void on_gcode_response(const json& msg) {
+        if (completed_.load())
+            return;
+        if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty())
+            return;
+
+        const std::string& line = msg["params"][0].get_ref<const std::string&>();
+        spdlog::trace("[PACalibrateCollector] Received: {}", line);
+
+        // Result first: on firmwares that apply the value through
+        // SET_PRESSURE_ADVANCE the winning line can also satisfy a loose
+        // attempt pattern, and reading it as progress would drop the result.
+        std::smatch match;
+        if (std::regex_search(line, match, result_re_) && match.size() >= 2) {
+            try {
+                complete_success(std::stof(match[1].str()));
+            } catch (const std::exception& ex) {
+                spdlog::warn("[PACalibrateCollector] Unparseable K in '{}': {}", line, ex.what());
+            }
+            return;
+        }
+
+        std::smatch attempt_match;
+        if (has_attempt_re_ && std::regex_search(line, attempt_match, attempt_re_)) {
+            const int attempt = ++attempts_seen_;
+            // The candidate K this attempt tried, when the pattern captures it.
+            // Without it the panel's "K so far" readout has nothing to show and
+            // a repeating extrusion looks like a stuck machine.
+            float k_so_far = -1.0f;
+            if (attempt_match.size() >= 2) {
+                try {
+                    k_so_far = std::stof(attempt_match[1].str());
+                } catch (const std::exception&) {
+                    k_so_far = -1.0f;
+                }
+            }
+            spdlog::debug("[PACalibrateCollector] Attempt {} of ~{} (k={:.4f})", attempt,
+                          proc_.expected_attempts, k_so_far);
+            if (on_progress_)
+                on_progress_(attempt, proc_.expected_attempts, k_so_far);
+            return;
+        }
+
+        // The command is not installed on this firmware. Worth its own message:
+        // it is a capability problem, not a run that went wrong.
+        if (line.find("Unknown command") != std::string::npos &&
+            line.find(proc_.command_word) != std::string::npos) {
+            complete_error(proc_.command_word +
+                           " is not available on this printer, so pressure advance"
+                           " cannot be measured automatically.");
+            return;
+        }
+
+        // Only a line Klipper marks as an error: progress lines can carry words
+        // like "fitting error" and must not end the run.
+        if (line.rfind("!! ", 0) == 0 || line.rfind("Error:", 0) == 0 ||
+            (has_failure_re_ && std::regex_search(line, failure_re_))) {
+            complete_error(line);
+            return;
+        }
+    }
+
+  private:
+    void complete_success(float k) {
+        if (completed_.exchange(true))
+            return;
+        spdlog::info("[PACalibrateCollector] Pressure advance measured: {:.4f} ({})", k,
+                     proc_.provider);
+        unregister();
+        if (on_success_)
+            on_success_(k);
+    }
+
+    void complete_error(const std::string& message) {
+        if (completed_.exchange(true))
+            return;
+        spdlog::error("[PACalibrateCollector] Error: {}", message);
+        unregister();
+        if (on_error_) {
+            MoonrakerError err = MoonrakerError::json_rpc_error(proc_.command_word, message);
+            on_error_(err);
+        }
+    }
+
+    IMoonrakerClient& client_;
+    helix::pacal::Procedure proc_;
+    PACallback on_success_;
+    MoonrakerAdvancedAPI::ErrorCallback on_error_;
+    PAProgressCallback on_progress_;
+    std::regex result_re_;
+    std::regex attempt_re_;
+    bool has_attempt_re_ = false;
+    std::regex failure_re_;
+    bool has_failure_re_ = false;
+    int attempts_seen_ = 0;
+    std::string handler_name_;
+    std::atomic<bool> registered_{false};
+    std::atomic<bool> completed_{false};
+};
+
+/**
  * @brief State machine for collecting MPC_CALIBRATE gcode responses
  *
  * Kalico sends MPC calibration output as multiple gcode_response lines.
@@ -2844,6 +3016,49 @@ void MoonrakerAdvancedAPI::start_pid_calibrate(
         PID_TIMEOUT_MS, true);
 }
 
+std::function<void()>
+MoonrakerAdvancedAPI::start_pa_calibrate(const helix::pacal::Procedure& proc,
+                                         MoonrakerAdvancedAPI::PACalibrateCallback on_complete,
+                                         ErrorCallback on_error, PAProgressCallback on_progress) {
+    spdlog::info("[MoonrakerAPI] Starting pressure advance calibration: {} ({})", proc.start_gcode,
+                 proc.provider);
+
+    auto collector = std::make_shared<PACalibrateCollector>(client_, proc, std::move(on_complete),
+                                                            on_error, std::move(on_progress));
+    collector->start();
+
+    const std::string command_word = proc.command_word;
+
+    // silent=true: a refusal is rendered by the panel as the whole stage, in the
+    // machine's own words. A global toast on top of that says it twice.
+    api_.execute_gcode(
+        proc.start_gcode, nullptr,
+        [collector, on_error, command_word](const MoonrakerError& err) {
+            // Same contract as PID_CALIBRATE: the console result line, not this
+            // RPC, is the authority. A calibration that spends two minutes
+            // heating can outlive the RPC timeout and still be running, so on
+            // timeout we leave the collector listening.
+            if (err.type == MoonrakerErrorType::TIMEOUT) {
+                spdlog::warn("[MoonrakerAPI] {} RPC timed out; collector still listening for"
+                             " result (calibration may still be running)",
+                             command_word);
+                return;
+            }
+            spdlog::error("[MoonrakerAPI] Failed to send {}: {}", command_word, err.message);
+            collector->mark_completed();
+            collector->unregister();
+            if (on_error)
+                on_error(err);
+        },
+        proc.timeout_ms, true);
+
+    // Klipper cannot interrupt a running command, so cancelling only stops
+    // listening: the firmware finishes the measurement it is in.
+    return [collector]() {
+        collector->mark_completed();
+        collector->unregister();
+    };
+}
 void MoonrakerAdvancedAPI::start_mpc_calibrate(
     const std::string& heater, int target_temp, int fan_breakpoints,
     MoonrakerAdvancedAPI::MPCCalibrateCallback on_complete, ErrorCallback on_error,

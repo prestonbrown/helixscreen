@@ -1073,6 +1073,10 @@ void MoonrakerClientMock::populate_capabilities() {
     // uses "tool TN" to match the established test convention (test_hardware_validator).
     if (is_mock_toolchanger()) {
         mock_objects.push_back("toolchanger");
+        // The object that marks a firmware able to measure pressure advance
+        // (the U1's flow calibrator depends on it), so the PA calibration
+        // screen is reachable in --test. Stock Klipper has none.
+        mock_objects.push_back("filament_parameters");
         for (int i = 0; i < 4; ++i) {
             mock_objects.push_back("tool T" + std::to_string(i));
         }
@@ -5349,6 +5353,9 @@ void MoonrakerClientMock::temperature_simulation_loop() {
 
         uint32_t tick = tick_count_.fetch_add(1);
 
+        // Fire any due mock pressure-advance console lines
+        service_pending_pa_lines();
+
         // Simulated time step covered by one real tick
         double effective_dt = sim_speed().accelerate_progress(base_dt);
 
@@ -6381,6 +6388,94 @@ void MoonrakerClientMock::dispatch_manual_probe_update() {
 // G-code Response Simulation (for PRINT_START progress tracking)
 // ============================================================================
 
+bool MoonrakerClientMock::simulate_pa_calibration(
+    const std::string& script, std::function<void(const nlohmann::json&)> success_cb,
+    std::function<void(const MoonrakerError&)> error_cb) {
+    if (script.rfind("FLOW_CALIBRATE", 0) != 0) {
+        return false;
+    }
+    record_gcode_script(script);
+
+    const char* fail_env = std::getenv("HELIX_MOCK_PA_FAIL");
+    const bool should_fail = fail_env && *fail_env && std::string(fail_env) != "0";
+
+    // Roughly what the real thing costs once the nozzle is already hot: a
+    // handful of purge-and-measure cycles, not an instant answer.
+    constexpr int CANDIDATES = 5;
+    constexpr int STEP_MS = 1200;
+
+    std::lock_guard<std::mutex> lock(pa_cal_mutex_);
+    pending_pa_lines_.clear();
+    auto due = std::chrono::steady_clock::now();
+
+    if (should_fail) {
+        due += std::chrono::milliseconds(STEP_MS);
+        pending_pa_lines_.push_back({due, "!! [flow_calibrate] not edit filament info!", true,
+                                     std::move(success_cb), std::move(error_cb)});
+        spdlog::info("[MoonrakerClientMock] FLOW_CALIBRATE: simulating refusal"
+                     " (HELIX_MOCK_PA_FAIL)");
+        return true;
+    }
+
+    // Candidate probes, in the U1 flow calibrator's own format: each measured
+    // K, then the flow mismatch it read there. Shaped like a real root-find
+    // converging on 0.0412.
+    static constexpr double CANDIDATE_K[CANDIDATES] = {0.0200, 0.0600, 0.0400, 0.0420, 0.0412};
+    static constexpr double CANDIDATE_AREA[CANDIDATES] = {0.0181, -0.0142, 0.0011, -0.0004,
+                                                          0.00002};
+    for (int i = 0; i < CANDIDATES; ++i) {
+        due += std::chrono::milliseconds(STEP_MS);
+        pending_pa_lines_.push_back(
+            {due, fmt::format("// measure k: {:.5f}", CANDIDATE_K[i]), false, nullptr, nullptr});
+        pending_pa_lines_.push_back({due, fmt::format("// measure area: {:.5f}", CANDIDATE_AREA[i]),
+                                     false, nullptr, nullptr});
+    }
+
+    // The result line the firmware prints as it applies the value.
+    due += std::chrono::milliseconds(STEP_MS);
+    pending_pa_lines_.push_back(
+        {due, "// Got pressure advance: 0.0412", true, std::move(success_cb), std::move(error_cb)});
+
+    spdlog::info("[MoonrakerClientMock] FLOW_CALIBRATE: simulating {} candidates (~{}s)",
+                 CANDIDATES, ((CANDIDATES + 1) * STEP_MS) / 1000);
+    return true;
+}
+
+void MoonrakerClientMock::service_pending_pa_lines() {
+    std::vector<PendingPaLine> due;
+    {
+        std::lock_guard<std::mutex> lock(pa_cal_mutex_);
+        auto now = std::chrono::steady_clock::now();
+        for (auto it = pending_pa_lines_.begin(); it != pending_pa_lines_.end();) {
+            if (it->due <= now) {
+                due.push_back(std::move(*it));
+                it = pending_pa_lines_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    for (auto& item : due) {
+        dispatch_gcode_response(item.line);
+        if (!item.is_final) {
+            continue;
+        }
+        // A refusal answers the RPC as an error, the way Klipper does; a
+        // successful run answers plainly and lets the console line carry the
+        // result, which is the contract the collector relies on.
+        if (item.line.rfind("!! ", 0) == 0) {
+            if (item.error_cb) {
+                MoonrakerError err;
+                err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+                err.message = item.line.substr(3);
+                err.method = "printer.gcode.script";
+                item.error_cb(err);
+            }
+        } else if (item.success_cb) {
+            item.success_cb(nlohmann::json{{"result", "ok"}});
+        }
+    }
+}
 void MoonrakerClientMock::dispatch_gcode_response(const std::string& line) {
     // Build notify_gcode_response message format:
     // {"method": "notify_gcode_response", "params": ["<line>"]}

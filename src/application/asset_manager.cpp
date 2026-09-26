@@ -109,7 +109,12 @@ int register_medium_tier_fonts() {
     lv_xml_register_font(nullptr, "montserrat_26", &noto_sans_26);            // font_heading_medium
     lv_xml_register_font(nullptr, "noto_sans_26", &noto_sans_26);             // font_heading_medium
     lv_xml_register_font(nullptr, "noto_sans_light_16", &noto_sans_light_16); // font_small_medium
-    return 3;
+    // font_display_medium. The largest bold face, registered from MEDIUM up
+    // rather than XXLARGE because that is the first tier whose tokens name it:
+    // a font registered only at its own tier is invisible to every smaller
+    // display, and the token silently resolves to nothing.
+    lv_xml_register_font(nullptr, "noto_sans_bold_40", &noto_sans_bold_40);
+    return 4;
 #else
     return 0;
 #endif
@@ -146,7 +151,8 @@ int register_xlarge_tier_fonts() {
 int register_xxlarge_tier_fonts() {
 #if HELIX_MAX_FONT_TIER >= 6
     lv_xml_register_font(nullptr, "noto_sans_40", &noto_sans_40);
-    lv_xml_register_font(nullptr, "noto_sans_bold_40", &noto_sans_bold_40);
+    // noto_sans_bold_40 is registered by the MEDIUM tier (font_display), which
+    // every larger tier runs through first.
     lv_xml_register_font(nullptr, "noto_sans_light_26", &noto_sans_light_26);
     lv_xml_register_font(nullptr, "source_code_pro_20", &source_code_pro_20);
     lv_xml_register_font(nullptr, "source_code_pro_24", &source_code_pro_24);

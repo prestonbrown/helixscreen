@@ -1083,6 +1083,21 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
                                           std::function<void(const nlohmann::json&)> success_cb,
                                           std::function<void(const MoonrakerError&)> error_cb);
 
+    /**
+     * @brief Simulate an automatic pressure-advance run
+     *
+     * Mirrors what a measuring firmware does on the console: a few candidate
+     * probes a beat apart, then the applied value echoed the way Klipper's own
+     * SET_PRESSURE_ADVANCE echoes it. Asynchronous, so the panel's phase list,
+     * attempt counter and progress bar are all exercised in mock mode rather
+     * than jumping straight to a result.
+     *
+     * @return true if the script was handled here
+     */
+    bool simulate_pa_calibration(const std::string& script,
+                                 std::function<void(const nlohmann::json&)> success_cb,
+                                 std::function<void(const MoonrakerError&)> error_cb);
+
     /// The inverse: which axis a PARAMETER= names, or nullopt for any other
     /// tool parameter (the mock models only the three offsets).
     static std::optional<helix::Axis> tool_offset_axis(const std::string& param);
@@ -1147,6 +1162,21 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // Test visibility into the chamber-key cache and the synchronous initial
     // state dispatch (see tests/test_helpers/moonraker_client_mock_test_access.h).
     friend class helix::MoonrakerClientMockTestAccess;
+
+    /// One console line the pressure-advance simulation still owes, and when.
+    struct PendingPaLine {
+        std::chrono::steady_clock::time_point due;
+        std::string line;
+        bool is_final;
+        std::function<void(const nlohmann::json&)> success_cb;
+        std::function<void(const MoonrakerError&)> error_cb;
+    };
+    /// HELIX_MOCK_PA_FAIL=1 makes the run refuse with a realistic runout
+    /// message. The refusal path is otherwise unreachable in mock mode, and it
+    /// is one of the states the panel handles most visibly.
+    std::vector<PendingPaLine> pending_pa_lines_;
+    mutable std::mutex pa_cal_mutex_;
+    void service_pending_pa_lines();
 
     /**
      * @brief Populate hardware lists based on configured printer type
