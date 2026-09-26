@@ -349,10 +349,18 @@ void LoadCellManager::update_subjects() {
     if (spool_weight && *spool_weight >= 0) {
         auto& ams_state = AmsState::instance();
         auto spool_info = ams_state.raw_external_spool_info().value_or(SlotInfo{});
-        // Only update the value if it changed significantly to
-        // avoid frequent UI redraws due to measurement noise.
-        if (spool_info.remaining_weight_g == -1 ||
-            (std::abs(spool_info.remaining_weight_g - *spool_weight) > 0.5)) {
+        auto weight_changed = false;
+        if (spool_info.remaining_weight_g == -1) {
+            weight_changed = true;
+        } else {
+            // Only update the value if it changed significantly to
+            // avoid frequent UI redraws due to measurement noise.
+            auto delta = *spool_weight - spool_info.remaining_weight_g;
+            // Avoid flip-flopping by using different deltas for
+            // increasing/decreasing weight.
+            weight_changed = delta <= -0.5 || delta >= 1.0;
+        }
+        if (weight_changed) {
             spool_info.remaining_weight_g = *spool_weight;
             ams_state.set_external_spool_info_in_memory(spool_info);
 
