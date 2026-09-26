@@ -1125,6 +1125,9 @@ void AmsState::clear_backends() {
     post_unload_runout_grace_ = false;
     post_unload_runout_grace_at_ = {};
     saw_unload_in_op_ = false;
+    // Per-slot unload times index the departing backend's slots; kept, they
+    // would suppress a real runout on the same index of the next backend.
+    last_unload_time_ = {};
 
     // Drop AMS-derived tool topology so the UI doesn't show stale tool pills
     // between backend disappearance and the next reconnect's init_tools().
@@ -2909,7 +2912,7 @@ void AmsState::set_action_detail(const std::string& detail) {
 // exist so the translation extractor can find the literals. The enum→string
 // helpers themselves stay un-translated because they're also used for logs.
 // clang-format off
-static void ams_status_translation_hints_() {
+[[maybe_unused]] static void ams_status_translation_hints_() {
     // AmsAction values
     (void)lv_tr("Idle"); (void)lv_tr("Loading"); (void)lv_tr("Unloading");
     (void)lv_tr("Selecting"); (void)lv_tr("Resetting"); (void)lv_tr("Forming Tip");
