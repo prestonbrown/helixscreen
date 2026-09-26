@@ -914,6 +914,22 @@ HELIX_MOCK_OBJECTS="heater_generic dragonbreath dragonbreath output_pin dragonbr
   HELIX_MOCK_DRAGONBREATH_OFFLINE=1 ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_DRAGONBREATH_EXTERNAL`
+
+Have the appliance drive the heater itself: every synthesized dragonbreath status frame reports `mode: "power_on"` with `source: "device"` and `lease_owned: false` - heating with neither our lease nor a klipper source, the frame shape the backend parses into the External marker. Pairs with `HELIX_MOCK_DRAGONBREATH_FAULT` (and a preset click, which brings the Device fan badge with it) to stage the widest chamber card.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Exactly `1` |
+| **Default** | Unset - nominal frame (`source: "klipper"`) |
+| **File** | `src/api/moonraker_client_mock.cpp` |
+
+```bash
+# Chamber heater driven by the appliance's own control
+HELIX_MOCK_OBJECTS="heater_generic dragonbreath dragonbreath output_pin dragonbreath_filter" \
+  HELIX_MOCK_DRAGONBREATH_EXTERNAL=1 ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_PANDA_BREATH_AUTO`
 
 Put the stock Panda Breath into its own auto cycle: the status frame reports `work_mode: 1`, `work_on: true`, `auto_enabled: true` and a `device_target` of its own while our `target` stays 0. This is the state the appliance sits in at rest, and the only one that raises the diagnostics card's External badge.

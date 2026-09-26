@@ -510,24 +510,29 @@ void MoonrakerClientMock::append_chamber_backend_status(json& status_obj, double
             // transition rather than having to be rebuilt.
             const bool mock_fault = mock_env_flag("HELIX_MOCK_DRAGONBREATH_FAULT");
             const bool mock_offline = mock_env_flag("HELIX_MOCK_DRAGONBREATH_OFFLINE");
+            // The appliance holding its own target with neither our lease nor
+            // a klipper source: the only frame shape that raises the External
+            // marker (heating && !ours in the backend parse).
+            const bool mock_external = mock_env_flag("HELIX_MOCK_DRAGONBREATH_EXTERNAL");
             // PTC element rides a few degrees above chamber air, drifting
             // with the same slow sine the other mock sensors use.
             const double ptc_temp =
                 chamber_temp + 4.0 + 2.0 * std::sin(2.0 * M_PI * sim_time / 75.0);
-            status_obj[diag] = {{"temperature", chamber_temp},
-                                {"target", chamber_target},
-                                {"fault", mock_fault},
-                                {"inhibited", false},
-                                {"fault_reason", mock_fault ? json("ptc_overtemp") : json(nullptr)},
-                                {"ptc_temp", ptc_temp},
-                                {"fan_percent", (filter_on || device_fan) ? 100 : 0},
-                                {"fan_reason", filter_on    ? "requested"
-                                               : device_fan ? "heater"
-                                                            : "off"},
-                                {"mode", chamber_target > 0.0 ? "power_on" : "off"},
-                                {"source", "klipper"},
-                                {"lease_owned", chamber_target > 0.0},
-                                {"connected", !mock_offline}};
+            status_obj[diag] = {
+                {"temperature", chamber_temp},
+                {"target", chamber_target},
+                {"fault", mock_fault},
+                {"inhibited", false},
+                {"fault_reason", mock_fault ? json("ptc_overtemp") : json(nullptr)},
+                {"ptc_temp", ptc_temp},
+                {"fan_percent", (filter_on || device_fan) ? 100 : 0},
+                {"fan_reason", filter_on    ? "requested"
+                               : device_fan ? "heater"
+                                            : "off"},
+                {"mode", (chamber_target > 0.0 || mock_external) ? "power_on" : "off"},
+                {"source", mock_external ? "device" : "klipper"},
+                {"lease_owned", !mock_external && chamber_target > 0.0},
+                {"connected", !mock_offline}};
         } else if (backend->id() == "panda_breath") {
             // VENDOR_OK: mirrors the stock Panda Breath binding's status
             // object as captured live on the U1 rig (issue #1290).

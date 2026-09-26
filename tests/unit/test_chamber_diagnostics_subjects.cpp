@@ -236,9 +236,9 @@ TEST_CASE("a fault_reason null delta clears the reason text", "[chamber][subject
 // The pin is a REQUEST; the device also runs the filter fan on its own while
 // heating and while purging residual element heat (measured on the rig,
 // issue #1290). The running-state subjects must follow the reported fan
-// speed, not the pin, or the card shows "Filter Fan 100%" beside an
-// "Filter Fan: Off" toggle.
-TEST_CASE("device-driven filter fan keeps label and icon on the reported speed",
+// speed, not the pin, or the card shows "100%" beside a
+// switch that is off.
+TEST_CASE("device-driven filter fan keeps the switch on the reported speed",
           "[chamber][subjects]") {
     LVGLTestFixture fixture;
 
@@ -258,9 +258,6 @@ TEST_CASE("device-driven filter fan keeps label and icon on the reported speed",
     CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_percent_text_subject())) ==
           "100%");
     CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_on_subject()) == 1);
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_on_text_subject())) ==
-          std::string(lv_tr("Filter Fan: On")));
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_icon_subject())) == "fan");
     // The pin stays our request; the device-driven flag is what the card's
     // Device badge and toggle-disable bind.
     CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_requested_subject()) == 0);
@@ -274,10 +271,6 @@ TEST_CASE("device-driven filter fan keeps label and icon on the reported speed",
       "output_pin dragonbreath_filter": {"value": 0.0}})"));
     CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_on_subject()) == 0);
     CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_device_driven_subject()) == 0);
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_on_text_subject())) ==
-          std::string(lv_tr("Filter Fan: Off")));
-    CHECK(std::string(lv_subject_get_string(ts.get_chamber_filter_fan_icon_subject())) ==
-          "fan_off");
 }
 
 // Comms health: the appliance reports its own radio link. An engaged false is
@@ -435,9 +428,8 @@ TEST_CASE("chamber diagnostics subjects are XML-registered", "[chamber][xml][str
     for (const char* name :
          {"chamber_heater_fault", "chamber_heater_inhibited", "chamber_heater_offline",
           "chamber_heater_fault_reason_text", "chamber_heater_element_temp_text",
-          "chamber_filter_fan_percent_text", "chamber_filter_fan_on", "chamber_filter_fan_on_text",
-          "chamber_filter_fan_icon", "chamber_filter_fan_requested",
-          "chamber_filter_fan_device_driven"}) {
+          "chamber_filter_fan_percent_text", "chamber_filter_fan_on",
+          "chamber_filter_fan_requested", "chamber_filter_fan_device_driven"}) {
         CAPTURE(name);
         REQUIRE(lv_xml_get_subject(nullptr, name) != nullptr);
     }

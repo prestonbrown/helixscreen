@@ -436,10 +436,10 @@ void register_xml_components() {
     register_xml("components/nozzle_icon.xml");
     register_xml("components/heater_icon.xml");
     register_xml("components/heater_status.xml");
-    // Chamber-heater diagnostics card — instantiated by temp_graph_overlay's
-    // graph column (must be registered before temp_graph_overlay.xml, which
-    // is loaded later in this function).
-    register_xml("components/chamber_diagnostics_card.xml");
+    // Chamber-heater fault banner - instantiated by both orientation
+    // branches of the chamber card inside temp_graph_overlay, so it must
+    // load before temp_graph_overlay.xml, later here.
+    register_xml("components/chamber_fault_banner.xml");
     // Shared progress arc widget — diameter-driven stroke thickness, see
     // include/ui_progress_arc.h for the C++ companion (attach_progress_arc).
     register_xml("components/helix_progress_arc.xml");

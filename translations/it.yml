@@ -1281,9 +1281,6 @@ translations:
   File Will Stop the Printer: 'Il file fermerà la stampante'
   'File not found: {}': 'File non trovato: {}'
   Filename: Nome file
-  Filter Fan: Ventola filtro
-  'Filter Fan: Off': 'Ventola filtro: Off'
-  'Filter Fan: On': 'Ventola filtro: On'
   Fine: Preciso
   Fine Inner: Preciso interno
   Fine Outer: Preciso esterno

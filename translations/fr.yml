@@ -1297,9 +1297,6 @@ translations:
   File Will Stop the Printer: 'Le fichier arrêtera l''imprimante'
   'File not found: {}': 'Fichier introuvable : {}'
   Filename: Nom du fichier
-  Filter Fan: Ventilateur de filtration
-  'Filter Fan: Off': 'Ventilateur de filtration : éteint'
-  'Filter Fan: On': 'Ventilateur de filtration : allumé'
   Fine: Fin
   Fine Inner: Fin intérieur
   Fine Outer: Fin extérieur

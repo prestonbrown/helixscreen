@@ -1166,9 +1166,6 @@
   <translation tag="File Will Stop the Printer" ja="ファイルがプリンターを停止します"/>
   <translation tag="File not found: {}" ja="ファイルが見つかりません: {}"/>
   <translation tag="Filename" ja="ファイル名"/>
-  <translation tag="Filter Fan" ja="フィルターファン"/>
-  <translation tag="Filter Fan: Off" ja="フィルターファン: オフ"/>
-  <translation tag="Filter Fan: On" ja="フィルターファン: オン"/>
   <translation tag="Fine" ja="微動"/>
   <translation tag="Fine Inner" ja="微動・内側"/>
   <translation tag="Fine Outer" ja="微動・外側"/>

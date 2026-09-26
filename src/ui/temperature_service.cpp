@@ -919,12 +919,12 @@ void TemperatureService::keypad_value_cb(float value, void* user_data) {
 static KeypadCallbackData s_keypad_data[helix::HEATER_TYPE_COUNT];
 
 // ============================================================================
-// XML event callbacks — chamber-heater diagnostics card (issue #1290)
+// XML event callbacks - chamber-heater diagnostics (issue #1290)
 // ============================================================================
-// Both fire from the chamber-diagnostics card (components/
-// chamber_diagnostics_card.xml, instantiated by temp_graph_overlay) with no
-// instance user data, so they reach the controller through the same
-// app_globals registration production wires in SubjectInitializer.
+// Both fire from the chamber card's banner and filter-fan switch inside
+// temp_graph_overlay with no instance user data, so they reach the
+// controller through the same app_globals registration production wires in
+// SubjectInitializer.
 
 void TemperatureService::on_chamber_fault_reset_clicked(lv_event_t* /*e*/) {
     if (auto* tc = get_temperature_controller()) {
@@ -938,14 +938,21 @@ void TemperatureService::on_chamber_filter_fan_clicked(lv_event_t* /*e*/) {
     auto* tc = get_temperature_controller();
     if (!tc) {
         spdlog::warn("[TempPanel] chamber filter-fan clicked with no controller registered");
-        return;
+    } else {
+        // Toggle: invert OUR pin request, not the running state: the device also
+        // runs this fan on its own, and a click must not read that as "already
+        // on". A missing subject (state torn down mid-click) or an unknown value
+        // fails safe to "turn on".
+        lv_subject_t* req_subj = lv_xml_get_subject(nullptr, "chamber_filter_fan_requested");
+        tc->set_chamber_filter_fan(!req_subj || lv_subject_get_int(req_subj) != 1);
     }
-    // Toggle: invert OUR pin request, not the running state — the device also
-    // runs this fan on its own, and a click must not read that as "already
-    // on". A missing subject (state torn down mid-click) or an unknown value
-    // fails safe to "turn on".
-    lv_subject_t* req_subj = lv_xml_get_subject(nullptr, "chamber_filter_fan_requested");
-    tc->set_chamber_filter_fan(!req_subj || lv_subject_get_int(req_subj) != 1);
+    // The switch flips itself on tap, but chamber_filter_fan_on only changes
+    // when a status frame confirms the new state. Re-notify it with the
+    // current value so a request that changed nothing (rejected SET_PIN,
+    // Klippy not ready) snaps the switch back to the truth.
+    if (auto* s = lv_xml_get_subject(nullptr, "chamber_filter_fan_on")) {
+        lv_subject_notify(s);
+    }
 }
 
 void TemperatureService::on_heater_custom_clicked(lv_event_t* e) {

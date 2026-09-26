@@ -132,14 +132,6 @@ void PrinterTemperatureState::init_subjects(bool register_xml) {
     chamber_heater_element_temp_text_lifetime_ = std::make_shared<bool>(true);
     INIT_SUBJECT_STRING(chamber_filter_fan_percent_text, "--", subjects_, register_xml);
     chamber_filter_fan_percent_text_lifetime_ = std::make_shared<bool>(true);
-    INIT_SUBJECT_STRING(chamber_filter_fan_on_text, lv_tr("Filter Fan: Off"), subjects_,
-                        register_xml);
-    chamber_filter_fan_on_text_lifetime_ = std::make_shared<bool>(true);
-    // Icon-name subject for the compact portrait card's icon-button toggle
-    // (bind_icon); mirrors chamber_filter_fan_on_text, set from the same
-    // running state.
-    INIT_SUBJECT_STRING(chamber_filter_fan_icon, "fan_off", subjects_, register_xml);
-    chamber_filter_fan_icon_lifetime_ = std::make_shared<bool>(true);
 
     // Extruder version subject (bumped when extruder list changes)
     INIT_SUBJECT_INT(extruder_version, 0, subjects_, register_xml);
@@ -209,12 +201,6 @@ void PrinterTemperatureState::deinit_subjects() {
     if (chamber_filter_fan_percent_text_lifetime_)
         *chamber_filter_fan_percent_text_lifetime_ = false;
     chamber_filter_fan_percent_text_lifetime_.reset();
-    if (chamber_filter_fan_on_text_lifetime_)
-        *chamber_filter_fan_on_text_lifetime_ = false;
-    chamber_filter_fan_on_text_lifetime_.reset();
-    if (chamber_filter_fan_icon_lifetime_)
-        *chamber_filter_fan_icon_lifetime_ = false;
-    chamber_filter_fan_icon_lifetime_.reset();
     for (auto& [name, info] : extruders_) {
         if (info.temp_lifetime)
             *info.temp_lifetime = false;
@@ -693,7 +679,7 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
         }
     }
     // Filter-fan running state: the speed the backend reports wins when there
-    // is one, so the label/icon agree with the percent beside them. Backends
+    // is one, so the switch state agrees with the percent beside it. Backends
     // with a pin but no reported speed fall back to the pin. Neither surface
     // in the frame (delta) leaves the subjects at their last values.
     if (chamber_filter_fan_percent_ >= 0 ||
@@ -702,9 +688,6 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
                                 ? (chamber_filter_fan_percent_ > 0 ? 1 : 0)
                                 : lv_subject_get_int(&chamber_filter_fan_requested_);
         lv_subject_set_int(&chamber_filter_fan_on_, running);
-        lv_subject_copy_string(&chamber_filter_fan_on_text_,
-                               running ? lv_tr("Filter Fan: On") : lv_tr("Filter Fan: Off"));
-        lv_subject_copy_string(&chamber_filter_fan_icon_, running ? "fan" : "fan_off");
     }
 
     // Effective chamber setpoint + control mode: delegate to the single source of

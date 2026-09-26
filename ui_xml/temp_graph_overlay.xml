@@ -5,6 +5,20 @@
   <!-- Unified Temperature Graph Overlay -->
   <!-- Shows all temperature sensors with toggle chips and optional heater controls -->
 
+  <consts>
+    <!-- Chamber readout label ("Element"): ONE line of
+         font_body, so long_mode="dots" ellipsizes rather than wrapping the
+         readout row taller (which steals height the 480x272 column does not
+         have). Tracks font_body: 12/14/18/20/24/28/32 px + ~40% leading. -->
+    <px name="chamber_readout_h_micro" value="17"/>
+    <px name="chamber_readout_h_tiny" value="17"/>
+    <px name="chamber_readout_h_small" value="20"/>
+    <px name="chamber_readout_h_medium" value="25"/>
+    <px name="chamber_readout_h_large" value="28"/>
+    <px name="chamber_readout_h_xlarge" value="34"/>
+    <px name="chamber_readout_h_xxlarge" value="45"/>
+  </consts>
+
   <!-- Two independent axes drive the layout:
        * orientation (ui_is_portrait) — overlay_content's flex direction,
          graph_outer's container behavior (flex_grow vs full height),
@@ -45,11 +59,20 @@
          style sets only what it names; the strip elements have no inline
          flex_flow (inline would override the bind per AGENTS.md rule 6). -->
     <style name="tg_strip_landscape"
-           width="33%" height="100%" layout="flex" flex_flow="column" style_flex_main_place="start"
-           style_flex_cross_place="center"/>
+           width="33%" height="100%" layout="flex" flex_flow="column" flex_main_place="start" flex_cross_place="center"/>
     <style name="tg_strip_portrait"
-           width="100%" height="content" layout="flex" flex_flow="row" style_flex_main_place="start"
-           style_flex_cross_place="center"/>
+           width="100%" height="content" layout="flex" flex_flow="row" flex_main_place="start" flex_cross_place="center"/>
+    <!-- Chamber card danger frame: faulted, inhibited or offline heaters get
+         the danger border while the reason banner carries the detail. -->
+    <style name="tg_chamber_fault_border" border_color="#danger" border_width="#border_width"/>
+    <!-- Chamber strip orientation axis. Landscape reuses tg_strip_landscape
+         (the 33% column); portrait is its own COLUMN band under the chart:
+         card, one preset row, Custom stacked. It cannot share
+         tg_strip_portrait, which is a row for the nozzle card-beside-controls
+         layout. -->
+    <style name="tg_chamber_strip_portrait"
+           width="100%" height="content" layout="flex" flex_flow="column" flex_main_place="start"
+           flex_cross_place="center"/>
   </styles>
   <view name="temp_graph_overlay" extends="overlay_panel" title="Temperature" title_tag="Temperature">
     <!-- Content area: graph+chips left, controls right (side-by-side) -->
@@ -63,9 +86,9 @@
 
       <!-- Left column: Chip row + Temperature Graph -->
       <!-- scrollable="true" is a safety valve, not the design: in every
-           orientation/mode the column sizes to fit (the chart flexes, and the
-           portrait diagnostics card has a compact variant), so the scroll
-           range is 0 — the portrait chamber gate asserts exactly that. -->
+           orientation/mode the column sizes to fit (the chart flexes, and
+           chamber controls live in the strip, never under the chart), so the
+           scroll range is 0 - the portrait chamber gate asserts exactly that. -->
       <lv_obj name="graph_outer_container"
               style_pad_all="0" scrollable="true" style_border_opa="0" flex_flow="column" style_pad_gap="0">
         <!-- Width axis: inline cond= (not subject_expr) so this evaluates at
@@ -81,24 +104,14 @@
           <!-- Chips populated programmatically in C++ -->
         </lv_obj>
         <!-- Graph fills remaining space. No min_height floor: flex_grow gives
-             the chart whatever the chip row and (portrait chamber mode) the
-             compact diagnostics card leave behind, and the card is compact
-             precisely so that remainder stays a usable chart on the tightest
-             target (272x480). A floor large enough to matter would push the
-             card below a scroll — the failure this layout removed. -->
+             the chart whatever the chip row leaves behind, and in portrait
+             the chamber band below claims only content height, so the chart
+             takes every spare pixel on the tightest target (272x480). A
+             floor large enough to matter would push the band below a scroll. -->
         <lv_obj name="graph_container"
                 width="100%" flex_grow="1" style_pad_all="0" scrollable="false" style_border_opa="0">
           <!-- Temperature graph created programmatically in C++ -->
         </lv_obj>
-        <!-- Chamber-heater diagnostics card — only when the matched backend
-             provides a diagnostics surface (external appliances, #1290) AND
-             the overlay is in chamber mode. Structural <if>: the whole card
-             is never built on printers without one, and the reactive cond
-             rebuilds it when the cached overlay is reopened in a different
-             mode (TempGraphOverlay::open re-seeds temp_graph_mode). -->
-        <if cond="printer_has_chamber_heater_diagnostics and temp_graph_mode eq 3">
-          <chamber_diagnostics_card/>
-        </if>
       </lv_obj>
 
       <!-- ════════════════════════════════════════════════════════════════ -->
@@ -345,113 +358,297 @@
       <!-- Right Column: CHAMBER controls (shown in chamber mode only)    -->
       <!-- ════════════════════════════════════════════════════════════════ -->
       <lv_obj name="chamber_control_strip"
-              style_pad_all="0" scrollable="false" style_border_opa="0" style_pad_gap="#space_sm" hidden="true">
+              style_pad_all="0" scrollable="false" style_border_opa="0" style_pad_gap="#space_xs" hidden="true">
         <bind_flag_if_not_eq subject="temp_graph_mode" flag="hidden" ref_value="3"/>
-        <bind_style_if name="tg_strip_portrait" cond="ui_is_portrait"/>
+        <bind_style_if name="tg_chamber_strip_portrait" cond="ui_is_portrait"/>
         <bind_style_if name="tg_strip_landscape" cond="ui_is_portrait" invert="true"/>
 
         <if cond="ui_is_portrait eq 0">
-          <!-- LANDSCAPE -->
+          <!-- LANDSCAPE: the chamber card carries everything about the heater
+               at every breakpoint: display, status, and (on printers with a
+               diagnostics surface) the fault banner, element and filter-fan
+               rows. One header row: sm chamber icon, temp readout, External
+               marker, spacer, heater status right-aligned. The temp readout's
+               font is creation-time, so micro and tiny landscape swap in the
+               sm variant by hiding the md one; hidden widgets skip layout,
+               and the same two-variant trick would not work for a nested
+               <if> (the engine's if/else capture is flat, one level per
+               parent, so an <if> inside this branch would swallow the
+               portrait <else> below). -->
           <ui_card name="chamber_display_card"
-                   width="100%" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
-                   style_pad_gap="#space_xs" style_pad_all="#space_sm">
-            <lv_obj width="100%" flex_flow="row" style_pad_all="0" scrollable="false">
+                   width="100%" height="content" style_radius="0" flex_flow="column" style_flex_main_place="start"
+                   style_pad_all="#space_sm" style_pad_gap="#space_xxs">
+            <!-- Pads are inline, not bound: ui_card sets its own pads as local
+                 styles at creation, and a bound style can never outrank those.
+                 Fault border is fine bound - the card's border comes from an
+                 added theme style, which a later bound style does outrank. -->
+            <bind_style_if name="tg_chamber_fault_border"
+                           cond="chamber_heater_fault or chamber_heater_inhibited or chamber_heater_offline"/>
+            <lv_obj width="100%"
+                    height="content" flex_flow="row" style_pad_all="0" style_flex_cross_place="center"
+                    scrollable="false" style_pad_gap="#chamber_header_gap">
+              <!-- Row gap: the space_xs ladder with tiny demoted to xxs,
+                   whose one-row header only fits the card at the tighter
+                   gap. Inline so the token resolves at the CURRENT tier
+                   (a <style> bakes its token value at process init). -->
+              <!-- Tiny builds the xs glyph (16px): the one-row header's width
+                   budget needs the 8px back that the sm glyph (24px at tiny)
+                   costs. The swap rides the responsive string token, like
+                   icon_size does for the home tiles; micro already resolves
+                   sm to a 16px face, so only tiny changes. -->
+              <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="#chamber_icon_size"/>
+              <!-- The readout shares the icon's row at every landscape size:
+                   icon, temp, spacer, status right-aligned. Small
+                   and up carry the md variant; micro and tiny the sm one
+                   (fonts are creation-time; hidden widgets skip layout). -->
+              <temp_display name="chamber_temp_display"
+                            size="md" show_target="true" bind_current="chamber_temp"
+                            bind_target="chamber_effective_target" bind_mode="chamber_mode"
+                            event_cb="on_temp_graph_custom_clicked">
+                <bind_flag_if cond="ui_breakpoint lt 2" flag="hidden"/>
+              </temp_display>
+              <temp_display name="chamber_temp_display_compact"
+                            size="sm" show_target="true" bind_current="chamber_temp"
+                            bind_target="chamber_effective_target" bind_mode="chamber_mode"
+                            event_cb="on_temp_graph_custom_clicked">
+                <bind_flag_if cond="ui_breakpoint gt 1" flag="hidden"/>
+              </temp_display>
               <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
-              <lv_obj height="content"
-                      flex_flow="column" style_flex_cross_place="start" style_pad_all="0" style_pad_gap="#space_xs"
-                      scrollable="false">
-                <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="xl"/>
-                <lv_obj style_pad_all="0"
-                        scrollable="false" flex_flow="column" style_flex_main_place="center"
-                        style_flex_cross_place="start" style_pad_gap="#space_xxs">
-                  <text_small text="Current / Target" translation_tag="Current / Target"/>
-                  <temp_display name="chamber_temp_display"
-                                size="lg" show_target="true" bind_current="chamber_temp"
-                                bind_target="chamber_effective_target" bind_mode="chamber_mode"
-                                event_cb="on_temp_graph_custom_clicked"/>
-                </lv_obj>
-                <heater_status name="chamber_status_msg"
-                               state_subject="chamber_status_state" duty_subject="chamber_status"/>
+              <heater_status name="chamber_status_msg"
+                             state_subject="chamber_status_state" duty_subject="chamber_status"/>
+            </lv_obj>
+            <!-- Another controller is driving the heater: the device's own
+                 web UI, a button on the unit, or the appliance's own auto
+                 cycle holding a target of its own. Informational, not a
+                 fault. Below the header, not inside it: the header row at
+                 micro and tiny has no width for a third text beside the
+                 readout and the status, and a row wider than the column
+                 overflows instead of shrinking. -->
+            <text_small name="external_control_badge"
+                        text="External" translation_tag="External" style_text_color="#text_muted">
+              <bind_flag_if cond="chamber_heater_externally_controlled" flag="hidden" invert="true"/>
+            </text_small>
+            <lv_obj name="chamber_diagnostics_block"
+                    width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
+                    scrollable="false">
+              <bind_flag_if cond="printer_has_chamber_heater_diagnostics" flag="hidden" invert="true"/>
+              <chamber_fault_banner name="fault_banner"/>
+              <lv_obj width="100%"
+                      height="1" style_pad_all="0" scrollable="false" style_bg_opa="0"
+                      style_border_width="#border_width" style_border_side="bottom" style_border_color="#border"
+                      style_border_opa="60"/>
+              <lv_obj name="element_readout"
+                      width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
+                      style_flex_cross_place="center" scrollable="false">
+                <bind_flag_if_eq subject="printer_has_chamber_element_temp" flag="hidden" ref_value="0"/>
+                <icon name="element_readout_icon" src="radiator" size="xs"/>
+                <!-- The muted word rides along only where it fits in full
+                     (small and up); the narrower columns show icon + value,
+                     never an ellipsized label. -->
+                <text_muted name="element_readout_label"
+                            height="#chamber_readout_h" text="Element" translation_tag="Element" flex_grow="1"
+                            long_mode="dots">
+                  <bind_flag_if cond="ui_breakpoint gt 1" flag="hidden" invert="true"/>
+                </text_muted>
+                <text_small name="element_temp_label" bind_text="chamber_heater_element_temp_text"/>
               </lv_obj>
-              <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+              <lv_obj name="filter_fan_readout"
+                      width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
+                      style_flex_cross_place="center" scrollable="false">
+                <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
+                <icon name="fan_readout_icon" src="fan" size="xs"/>
+                <!-- Icon + value only at every size: "Filter Fan" does not fit
+                     in full beside the percent and the switch even at the
+                     widest shipped column (medium misses by a few px), so the
+                     word would render ellipsized. The icon carries the meaning. -->
+                <!-- Device-driven: the Device badge REPLACES the percent (the
+                     number describes our pin request, which the device is
+                     overriding), so the switch cannot be pushed out of the
+                     card by the wider row. -->
+                <text_small name="fan_percent_label" bind_text="chamber_filter_fan_percent_text">
+                  <bind_flag_if cond="chamber_filter_fan_device_driven" flag="hidden"/>
+                </text_small>
+                <!-- Device badge: the fan runs on the device's own initiative
+                     (heater warmup / thermal purge), not on our pin request. -->
+                <text_small name="fan_device_badge"
+                            text="Device" translation_tag="Device" style_text_color="#text_muted">
+                  <bind_flag_if cond="chamber_filter_fan_device_driven" flag="hidden" invert="true"/>
+                </text_small>
+                <lv_obj name="fan_row_spacer" height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+                <!-- Filter fan switch: only when the backend wires a
+                     filter-fan pin. Disabled while the device drives the fan
+                     itself: the pin is a request the device overrides, so the
+                     switch cannot stop it. -->
+                <ui_switch name="filter_fan_switch" size="small">
+                  <bind_state_if_eq subject="chamber_filter_fan_on" state="checked" ref_value="1"/>
+                  <bind_state_if_eq subject="chamber_filter_fan_device_driven" state="disabled" ref_value="1"/>
+                  <event_cb trigger="value_changed" callback="on_chamber_filter_fan_clicked"/>
+                </ui_switch>
+              </lv_obj>
             </lv_obj>
           </ui_card>
-          <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
-          <!-- Preset buttons: hidden when chamber is sensor-only -->
-          <lv_obj name="chamber_preset_grid"
-                  width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
+          <!-- The card grows downward from the top on a fault; this spacer
+               absorbs that growth so the button block below never moves or
+               changes height between healthy, faulted and offline. -->
+          <lv_obj name="chamber_strip_spacer" width="100%" flex_grow="1" style_pad_all="0" scrollable="false"/>
+          <!-- Preset buttons: hidden when chamber is sensor-only. Fixed at
+               the chamber_preset_h token per breakpoint (the tallest that
+               still fits the faulted strip with zero scroll and #space_xs
+               of spacer left), pinned to the bottom of the column. Two
+               explicit rows rather than one row_wrap grid: a row_wrap track
+               sizes to its content, so buttons inside it cannot be told to
+               fill a fixed height. -->
+          <lv_obj name="chamber_preset_row_1"
+                  width="100%" height="#chamber_preset_h" style_pad_all="0" scrollable="false" flex_flow="row"
                   style_flex_main_place="space_between" style_pad_gap="#space_xs">
             <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
             <ui_button name="chamber_preset_off"
-                       width="48%" text="Off" translation_tag="Off" variant="ghost" style_border_width="#border_width"
-                       style_border_color="#border" style_border_opa="255">
+                       width="48%" height="100%" text="Off" translation_tag="Off" variant="ghost"
+                       style_border_width="#border_width" style_border_color="#border" style_border_opa="255">
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="chamber_preset_1" width="48%" text="40°C">
+            <ui_button name="chamber_preset_1" width="48%" height="100%" text="40°C">
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="chamber_preset_2" width="48%" text="50°C">
+          </lv_obj>
+          <lv_obj name="chamber_preset_row_2"
+                  width="100%" height="#chamber_preset_h" style_pad_all="0" scrollable="false" flex_flow="row"
+                  style_flex_main_place="space_between" style_pad_gap="#space_xs">
+            <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
+            <ui_button name="chamber_preset_2" width="48%" height="100%" text="50°C">
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="chamber_preset_3" width="48%" text="60°C">
+            <ui_button name="chamber_preset_3" width="48%" height="100%" text="60°C">
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
           </lv_obj>
           <ui_button name="chamber_btn_custom"
-                     width="100%" text="Custom..." translation_tag="Custom..." variant="secondary">
+                     width="100%" height="#chamber_preset_h" text="Custom..." translation_tag="Custom..."
+                     variant="secondary">
             <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
           </ui_button>
           <else/>
-          <!-- PORTRAIT: compact card | right column. The chamber_has_heater
-               guard applies to the preset grid and Custom button in both
-               branches; a sensor-only chamber degrades to just the display
-               card on the left and an empty right column. Card is wrapped in
-               a full-height centering container (see nozzle strip comment). -->
-          <lv_obj width="content"
-                  height="100%" flex_flow="column" style_flex_main_place="center" style_pad_all="0" scrollable="false"
-                  style_border_opa="0">
-            <ui_card name="chamber_display_card"
-                     width="content" height="content" style_radius="0" flex_flow="column" style_flex_main_place="center"
-                     style_flex_cross_place="center" style_pad_gap="#space_xs" style_pad_all="#space_sm">
-              <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="md"/>
+          <!-- PORTRAIT: the chamber card is a full-width band between the
+               chart and the buttons. Row 1 carries the sm icon, the md temp
+               readout, the External marker and the status right-aligned; the
+               diagnostics block below swaps its readout row for the fault
+               banner when the heater is faulted, inhibited or offline (bind
+               pairs, not a nested <if>: the capture is flat). Presets sit in
+               ONE row below the card at the standard button height, Custom
+               full-width under them, and every spare pixel goes to the chart:
+               graph_container already flex_grows, and nothing in this band
+               grows. The chamber_has_heater guard applies to the preset row
+               and Custom in both branches; a sensor-only chamber degrades to
+               the band alone. -->
+          <ui_card name="chamber_display_card"
+                   width="100%" height="content" style_radius="0" flex_flow="column" style_flex_main_place="start"
+                   style_pad_gap="#space_xxs" style_pad_all="#space_sm">
+            <bind_style_if name="tg_chamber_fault_border"
+                           cond="chamber_heater_fault or chamber_heater_inhibited or chamber_heater_offline"/>
+            <lv_obj width="100%"
+                    height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
+                    style_flex_cross_place="center" scrollable="false">
+              <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="sm"/>
               <temp_display name="chamber_temp_display"
                             size="md" show_target="true" bind_current="chamber_temp"
                             bind_target="chamber_effective_target" bind_mode="chamber_mode"
                             event_cb="on_temp_graph_custom_clicked"/>
+              <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
               <heater_status name="chamber_status_msg"
                              state_subject="chamber_status_state" duty_subject="chamber_status"/>
-            </ui_card>
-          </lv_obj>
-          <lv_obj height="content"
-                  flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm" scrollable="false"
-                  style_border_opa="0">
-            <lv_obj name="chamber_preset_grid"
-                    width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
-                    style_flex_main_place="space_between" style_pad_gap="#space_xs">
-              <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
-              <ui_button name="chamber_preset_off"
-                         width="48%" height="#button_height_tiny" text="Off" translation_tag="Off" variant="ghost"
-                         style_border_width="#border_width" style_border_color="#border" style_border_opa="255">
-                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-              </ui_button>
-              <ui_button name="chamber_preset_1" width="48%" height="#button_height_tiny" text="40°C">
-                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-              </ui_button>
-              <ui_button name="chamber_preset_2" width="48%" height="#button_height_tiny" text="50°C">
-                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-              </ui_button>
-              <ui_button name="chamber_preset_3" width="48%" height="#button_height_tiny" text="60°C">
-                <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
-              </ui_button>
             </lv_obj>
-            <ui_button name="chamber_btn_custom"
-                       width="100%" height="#button_height_tiny" text="Custom..." translation_tag="Custom..."
-                       variant="secondary">
-              <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
-              <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
+            <!-- External control annotates the heater below the header (see
+                 the landscape branch for why it cannot share the row). -->
+            <text_small name="external_control_badge"
+                        text="External" translation_tag="External" style_text_color="#text_muted">
+              <bind_flag_if cond="chamber_heater_externally_controlled" flag="hidden" invert="true"/>
+            </text_small>
+            <lv_obj name="chamber_diagnostics_block"
+                    width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
+                    scrollable="false">
+              <bind_flag_if cond="printer_has_chamber_heater_diagnostics" flag="hidden" invert="true"/>
+              <!-- Healthy readout row: element left, filter fan with the
+                   switch at the right edge; a fault replaces the whole row
+                   with the banner below. One flat row (not grouped), so the
+                   definite width reaches the grow labels: the switch cannot
+                   be pushed out of the card. The muted words ride along only
+                   at small and up, where they fit in full; narrower portraits
+                   show icon + value and icon + percent/Device + switch. Each
+                   part keeps its capability gate per widget. -->
+              <lv_obj name="chamber_readout_row"
+                      width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
+                      style_flex_cross_place="center" scrollable="false">
+                <bind_flag_if cond="chamber_heater_fault or chamber_heater_inhibited or chamber_heater_offline"
+                              flag="hidden"/>
+                <icon src="radiator" size="xs">
+                  <bind_flag_if_eq subject="printer_has_chamber_element_temp" flag="hidden" ref_value="0"/>
+                </icon>
+                <text_muted name="element_readout_label"
+                            height="#chamber_readout_h" text="Element" translation_tag="Element" flex_grow="1"
+                            long_mode="dots">
+                  <bind_flag_if_eq subject="printer_has_chamber_element_temp" flag="hidden" ref_value="0"/>
+                  <bind_flag_if cond="ui_breakpoint gt 1" flag="hidden" invert="true"/>
+                </text_muted>
+                <text_small name="element_temp_label" bind_text="chamber_heater_element_temp_text">
+                  <bind_flag_if_eq subject="printer_has_chamber_element_temp" flag="hidden" ref_value="0"/>
+                </text_small>
+                <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+                <icon src="fan" size="xs">
+                  <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
+                </icon>
+                <!-- Icon + value only: the fan word never fits in full beside
+                     the percent and switch (see the landscape fan row). -->
+                <!-- Device-driven: the badge REPLACES the percent so the
+                     switch stays inside the card (see landscape fan row). -->
+                <text_small name="fan_percent_label" bind_text="chamber_filter_fan_percent_text">
+                  <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
+                  <bind_flag_if cond="chamber_filter_fan_device_driven" flag="hidden"/>
+                </text_small>
+                <text_small name="fan_device_badge"
+                            text="Device" translation_tag="Device" style_text_color="#text_muted">
+                  <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
+                  <bind_flag_if cond="chamber_filter_fan_device_driven" flag="hidden" invert="true"/>
+                </text_small>
+                <!-- Filter fan switch: only when the backend wires a
+                     filter-fan pin. Disabled while the device drives the
+                     fan itself: the pin is a request the device overrides,
+                     so the switch cannot stop it. -->
+                <ui_switch name="filter_fan_switch" size="small">
+                  <bind_flag_if_eq subject="printer_has_chamber_filter_fan" flag="hidden" ref_value="0"/>
+                  <bind_state_if_eq subject="chamber_filter_fan_on" state="checked" ref_value="1"/>
+                  <bind_state_if_eq subject="chamber_filter_fan_device_driven" state="disabled" ref_value="1"/>
+                  <event_cb trigger="value_changed" callback="on_chamber_filter_fan_clicked"/>
+                </ui_switch>
+              </lv_obj>
+              <chamber_fault_banner name="fault_banner"/>
+            </lv_obj>
+          </ui_card>
+          <lv_obj name="chamber_preset_grid"
+                  width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                  style_pad_gap="#space_xs">
+            <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
+            <ui_button name="chamber_preset_off"
+                       height="#button_height" flex_grow="1" text="Off" translation_tag="Off" variant="ghost"
+                       style_border_width="#border_width" style_border_color="#border" style_border_opa="255">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+            <ui_button name="chamber_preset_1" height="#button_height" flex_grow="1" text="40°C">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+            <ui_button name="chamber_preset_2" height="#button_height" flex_grow="1" text="50°C">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
+            </ui_button>
+            <ui_button name="chamber_preset_3" height="#button_height" flex_grow="1" text="60°C">
+              <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
           </lv_obj>
+          <ui_button name="chamber_btn_custom"
+                     width="100%" height="#button_height" text="Custom..." translation_tag="Custom..."
+                     variant="secondary">
+            <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
+          </ui_button>
         </if>
       </lv_obj>
 

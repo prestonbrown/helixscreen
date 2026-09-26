@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- One-row chamber-heater fault banner: reason (or "Heater offline") plus
+       a compact Reset action. Instantiated by both orientation branches of
+       the chamber card in temp_graph_overlay.xml (landscape diagnostics
+       block, portrait band); the banner self-hides when healthy, so each
+       branch ships it unconditionally and only the faulted one shows it.
+
+       All gates are bind-based: the banner row hides unless the heater is
+       faulted, inhibited or offline; offline swaps the reason text for
+       "Heater offline" and hides Reset (nothing to reset into a dead
+       appliance). Fires the TemperatureService XML callback that delegates
+       to the globally registered TemperatureController. -->
+  <view name="chamber_fault_banner"
+        width="100%" height="content" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+        style_flex_cross_place="center" scrollable="false" style_bg_color="#danger" style_bg_opa="25"
+        style_radius="#border_radius_sm" style_border_width="#border_width" style_border_color="#danger">
+    <bind_flag_if cond="chamber_heater_fault or chamber_heater_inhibited or chamber_heater_offline"
+                  flag="hidden" invert="true"/>
+    <text_small name="offline_label"
+                text="Heater offline" translation_tag="Heater offline" style_text_color="#danger" flex_grow="1"
+                long_mode="dots">
+      <bind_flag_if cond="chamber_heater_offline" flag="hidden" invert="true"/>
+    </text_small>
+    <text_small name="fault_reason_label"
+                bind_text="chamber_heater_fault_reason_text" style_text_color="#danger" flex_grow="1" long_mode="dots">
+      <bind_flag_if cond="chamber_heater_offline" flag="hidden"/>
+    </text_small>
+    <!-- Pin the text to the font_small token, like the filament preset
+         buttons: the button's width sets how much of the row the reason
+         label gets, so the wrap point must follow the breakpoint. -->
+    <ui_button name="reset_fault_button"
+               height="#button_height_sm_tiny" text="Reset" translation_tag="Reset" variant="ghost"
+               style_text_font="#font_small" style_pad_left="#space_xs" style_pad_right="#space_xs"
+               style_border_width="#border_width" style_border_color="#border" style_border_opa="255">
+      <bind_flag_if cond="chamber_heater_offline" flag="hidden"/>
+      <event_cb trigger="clicked" callback="on_chamber_fault_reset_clicked"/>
+    </ui_button>
+  </view>
+</component>

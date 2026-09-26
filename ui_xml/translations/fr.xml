@@ -1166,9 +1166,6 @@
   <translation tag="File Will Stop the Printer" fr="Le fichier arrêtera l&apos;imprimante"/>
   <translation tag="File not found: {}" fr="Fichier introuvable : {}"/>
   <translation tag="Filename" fr="Nom du fichier"/>
-  <translation tag="Filter Fan" fr="Ventilateur de filtration"/>
-  <translation tag="Filter Fan: Off" fr="Ventilateur de filtration : éteint"/>
-  <translation tag="Filter Fan: On" fr="Ventilateur de filtration : allumé"/>
   <translation tag="Fine" fr="Fin"/>
   <translation tag="Fine Inner" fr="Fin intérieur"/>
   <translation tag="Fine Outer" fr="Fin extérieur"/>

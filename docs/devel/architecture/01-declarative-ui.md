@@ -153,9 +153,9 @@ Structural conditionals avoid building both branches: `<if cond="expr">...</if>`
 
 Three files, no direct references between them. The XML names a subject and a callback; C++ publishes both by name; the engine ties them at instantiation. This is the shape essentially every interactive element in the app takes.
 
-The overlay those three files produce, as the user meets it — the preset buttons bottom-right are the excerpt's `preset_1`/`preset_2`/`preset_3` widgets, their labels ("PLA", "PETG", "ABS") arriving through the `preset_material_*` subjects that [`preset_materials.cpp`](../../../src/system/preset_materials.cpp) registers (the red banner + card under the chart is the chamber-diagnostics surface from [`components/chamber_diagnostics_card.xml`](../../../ui_xml/components/chamber_diagnostics_card.xml)):
+The overlay those three files produce, as the user meets it - the preset buttons bottom-right are the excerpt's `preset_1`/`preset_2`/`preset_3` widgets, their labels ("PLA", "PETG", "ABS") arriving through the `preset_material_*` subjects that [`preset_materials.cpp`](../../../src/system/preset_materials.cpp) registers (the faulted chamber card in the right column carries the shared banner from [`components/chamber_fault_banner.xml`](../../../ui_xml/components/chamber_fault_banner.xml)):
 
-<img src="../../images/screenshot-temp-graph-overlay.png" alt="The temperature graph overlay: chart, current/target card, preset buttons, and the chamber diagnostics card" width="800"/>
+<img src="../../images/screenshot-temp-graph-overlay.png" alt="The temperature graph overlay: chart, current/target card, preset buttons, and the faulted chamber card in the right column" width="800"/>
 
 ### The globals scope: where subjects live
 
