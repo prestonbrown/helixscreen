@@ -845,6 +845,9 @@ class PrintSelectPanel : public PanelBase {
      */
     void populate_list_view(bool preserve_scroll = false);
 
+    /// Populate whichever view current_view_mode_ selects.
+    void populate_current_view(bool preserve_scroll = false);
+
     /**
      * @brief Animate view container entrance with fade-in
      * @param container The view container to animate (card or list)

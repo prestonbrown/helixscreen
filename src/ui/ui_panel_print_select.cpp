@@ -473,11 +473,7 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         self->apply_sort();
         // Preserve scroll if still in the same directory (e.g., refresh after file changes)
         bool same_dir = (self->current_path_ == self->last_populated_path_);
-        if (self->current_view_mode_ == PrintSelectViewMode::CARD) {
-            self->populate_card_view(same_dir);
-        } else {
-            self->populate_list_view(same_dir);
-        }
+        self->populate_current_view(same_dir);
         self->last_populated_path_ = self->current_path_;
         self->update_empty_state();
     });
@@ -636,11 +632,7 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                         lv_tr("Showing the 50 newest files. See more in the printer's web UI."));
                 }
 #endif
-                if (panel->current_view_mode_ == PrintSelectViewMode::CARD) {
-                    panel->populate_card_view(same_dir);
-                } else {
-                    panel->populate_list_view(same_dir);
-                }
+                panel->populate_current_view(same_dir);
             } else {
                 spdlog::trace("[{}] File list unchanged, skipping repopulation", panel->get_name());
             }
@@ -927,12 +919,7 @@ void PrintSelectPanel::sort_by(PrintSelectSortColumn column) {
     apply_sort();
     update_sort_indicators();
 
-    // Repopulate current view
-    if (current_view_mode_ == PrintSelectViewMode::CARD) {
-        populate_card_view();
-    } else {
-        populate_list_view();
-    }
+    populate_current_view();
 
     spdlog::debug("[{}] Sorted by column {}, direction {}", get_name(), static_cast<int>(column),
                   static_cast<int>(current_sort_direction_));
@@ -956,11 +943,7 @@ void PrintSelectPanel::set_sort_recent() {
     apply_sort();
     update_sort_indicators();
 
-    if (current_view_mode_ == PrintSelectViewMode::CARD) {
-        populate_card_view();
-    } else {
-        populate_list_view();
-    }
+    populate_current_view();
 
     // Show "Recently Printed" context banner
     if (panel_) {
@@ -1866,10 +1849,8 @@ void PrintSelectPanel::repopulate() {
     // listing skips repopulation, so re-render the list already held (#1616).
     if (current_view_mode_ == PrintSelectViewMode::LIST) {
         helix::ui::icon::set_source(view_toggle_icon_, "grid_view");
-        populate_list_view();
-    } else {
-        populate_card_view();
     }
+    populate_current_view();
     update_sort_indicators();
     update_empty_state();
 }
@@ -2452,6 +2433,14 @@ void PrintSelectPanel::populate_list_view(bool preserve_scroll) {
     }
 
     spdlog::debug("[{}] List view populated with {} files", get_name(), file_list_.size());
+}
+
+void PrintSelectPanel::populate_current_view(bool preserve_scroll) {
+    if (current_view_mode_ == PrintSelectViewMode::CARD) {
+        populate_card_view(preserve_scroll);
+    } else {
+        populate_list_view(preserve_scroll);
+    }
 }
 
 void PrintSelectPanel::apply_sort() {
