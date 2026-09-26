@@ -12260,3 +12260,67 @@ TEST_CASE("AD5X JSON-inferred presence is not an insert edge (#1710)", "[ams][ad
 
     helix::ui::set_test_toast_hook(nullptr);
 }
+
+namespace {
+json zmod_change_frame(int channel) {
+    return json{{"gcode_macro END_CHANGE_FILAMENT", {{"last_data", {{"channel", channel}}}}}};
+}
+} // namespace
+
+// A Z-Mod change that aborts mid-chain (INSERT_PRUTOK_IFS raising on a jam)
+// never reaches END_CHANGE_FILAMENT, so last_data.channel never returns to 99.
+TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS gives up a Z-Mod change that never ends",
+                 "[ams][ad5x_ifs][runout][1714]") {
+    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
+    AmsBackendAd5xIfs& backend = *backend_reg;
+    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+
+    // The head runs out, the sensor pauses the job, and ANALOG_PRUTOK starts
+    // the change to a matching spool, which then jams.
+    set_print_state(helix::PrintJobState::PRINTING);
+    seat_then_drop_head(backend);
+    REQUIRE(Ad5xIfsTestAccess::head_empty_armed(backend));
+    set_print_state(helix::PrintJobState::PAUSED);
+    Ad5xIfsTestAccess::handle_status(backend, zmod_change_frame(1));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
+    REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(backend));
+    REQUIRE(backend.get_system_info().is_busy());
+
+    // Past the swap budget the action goes back to IDLE, not ERROR.
+    Ad5xIfsTestAccess::set_action_age(backend, std::chrono::seconds(181));
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK_FALSE(backend.get_system_info().is_busy());
+    CHECK(backend.can_cancel_operation());
+
+    // The runout prompt, the AD5X's only runout surface, can raise again.
+    CHECK(Ad5xIfsTestAccess::evaluate_runout(backend));
+    CHECK(Ad5xIfsTestAccess::runout_active(backend));
+
+    // The user resumes; the fault clears.
+    set_print_state(helix::PrintJobState::PRINTING);
+    Ad5xIfsTestAccess::evaluate_runout(backend);
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+
+    // The stale channel is ignored until it reads idle; the next change counts.
+    Ad5xIfsTestAccess::handle_status(backend, zmod_change_frame(1));
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    Ad5xIfsTestAccess::handle_status(backend, zmod_change_frame(99));
+    Ad5xIfsTestAccess::handle_status(backend, zmod_change_frame(2));
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+}
+
+TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS gives up a Z-Mod change when the job ends",
+                 "[ams][ad5x_ifs][1714]") {
+    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
+    AmsBackendAd5xIfs& backend = *backend_reg;
+
+    set_print_state(helix::PrintJobState::PRINTING);
+    Ad5xIfsTestAccess::handle_status(backend, zmod_change_frame(1));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+
+    set_print_state(helix::PrintJobState::CANCELLED);
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+}

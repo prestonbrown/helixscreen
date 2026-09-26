@@ -81,9 +81,11 @@ struct FilamentSensorState {
     bool enabled;           ///< Klipper-level enabled state (motion sensors)
     int detection_count;    ///< Motion sensors: cumulative detection events
     bool available;         ///< Whether the sensor exists in current Klipper config
+    bool reported;          ///< A status frame for it has arrived since discovery
 
     FilamentSensorState()
-        : filament_detected(true), enabled(true), detection_count(0), available(false) {}
+        : filament_detected(true), enabled(true), detection_count(0), available(false),
+          reported(false) {}
     // filament_detected defaults to TRUE (optimistic "present until proven empty"). The
     // false default meant that any read before Moonraker's first status update arrived
     // saw every sensor as a runout — a false positive that hit FilamentRunoutHandler
