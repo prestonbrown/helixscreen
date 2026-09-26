@@ -1239,6 +1239,15 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 }
                 notifications.push_back(notif);
             }
+
+            // The pause macro stands sensors down only once the job reads
+            // Paused (PrinterState applies print_stats before this runs). A
+            // stand-down while the job runs on means the firmware moved the
+            // print to another sensor, or the user took a misreading one off
+            // duty: either way, its runout is no longer this job's.
+            if (old_state.enabled && !state.enabled && lifecycle != PrintState::Paused) {
+                observed_runouts_.erase(sensor.klipper_name);
+            }
         }
 
         // Dwell expiry. Swept on every status payload rather than on a timer, so

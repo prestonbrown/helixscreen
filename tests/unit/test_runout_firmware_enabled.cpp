@@ -605,13 +605,27 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "a runout seen on duty survives the pau
     ScopedPrinting printing;
     feed(sensor_frame(HEAD0, true, true));
 
-    SECTION("stand-down in a later frame") {
+    // Through PrinterState, the way Moonraker delivers it: print_stats and the
+    // sensor in one status batch.
+    auto paused_with_head0 = [](bool detected, bool enabled) {
+        nlohmann::json frame = sensor_frame(HEAD0, detected, enabled);
+        frame["print_stats"] = {{"state", "paused"}};
+        get_printer_state().update_from_status(frame);
+        helix::ui::UpdateQueue::instance().drain();
+    };
+
+    SECTION("pause, then the stand-down in a later frame") {
         feed(sensor_frame(HEAD0, false, true));
         REQUIRE(fsm.has_real_runout());
+        ScopedPrinting::set(helix::PrintJobState::PAUSED);
         feed(sensor_frame(HEAD0, false, false));
     }
-    SECTION("stand-down in the same frame") {
-        feed(sensor_frame(HEAD0, false, false));
+    SECTION("pause and stand-down in one frame") {
+        feed(sensor_frame(HEAD0, false, true));
+        paused_with_head0(false, false);
+    }
+    SECTION("runout, pause and stand-down in one frame") {
+        paused_with_head0(false, false);
     }
 
     CHECK(fsm.has_real_runout());
@@ -645,6 +659,28 @@ TEST_CASE_METHOD(FirmwareEnabledFixture,
     feed(sensor_frame(HEAD2, true, true));
 
     CHECK_FALSE(fsm.has_real_runout());
+    CHECK_FALSE(fsm.has_any_runout());
+    ScopedPrinting::set(helix::PrintJobState::PAUSED);
+    CHECK_FALSE(fsm.has_real_runout());
+}
+
+TEST_CASE_METHOD(FirmwareEnabledFixture,
+                 "a sensor stood down while printing brings no modal to a later pause",
+                 "[runout][1714][modal]") {
+    // No lanes and no backend: nothing but the latch decides here.
+    seed_sensors({HEAD0});
+    ScopedPrinting printing;
+    feed(sensor_frame(HEAD0, true, true));
+    feed(sensor_frame(HEAD0, false, true));
+    REQUIRE(fsm.has_real_runout());
+
+    // The user decides it misreads: SET_FILAMENT_SENSOR ENABLE=0, printing on.
+    feed(sensor_frame(HEAD0, false, false));
+    CHECK_FALSE(fsm.has_any_runout());
+
+    ScopedPrinting::set(helix::PrintJobState::PAUSED);
+    CHECK_FALSE(fsm.has_real_runout());
+    CHECK_FALSE(fsm.has_any_runout());
 }
 
 TEST_CASE_METHOD(FirmwareEnabledFixture, "a sensor the user keeps disabled raises no runout",
@@ -673,6 +709,8 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "an observed runout is forgotten when t
     {
         ScopedPrinting printing;
         feed(sensor_frame(HEAD0, true, true));
+        feed(sensor_frame(HEAD0, false, true));
+        ScopedPrinting::set(helix::PrintJobState::PAUSED);
         feed(sensor_frame(HEAD0, false, false));
         REQUIRE(fsm.has_any_runout());
     }
