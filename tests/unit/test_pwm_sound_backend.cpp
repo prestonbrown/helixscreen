@@ -1192,6 +1192,13 @@ TEST_CASE("render loop paces near 8 kHz with real clock", "[sound][pwm][slow]") 
     PWMSoundBackend backend(base, 0, 6);
     REQUIRE(backend.initialize());
 
+    // Times a fixed number of writes rather than counting writes in a fixed
+    // window: the thread is SCHED_IDLE, so a loaded host legitimately starves
+    // it, and load can only make these writes slower. A loop that stops
+    // pacing bursts them in a few ms; an over-sleep of orders of magnitude
+    // (a unit error in the deadline) misses wait_for's timeout.
+    constexpr uint64_t WRITES = 800; // 100 ms of audio at 8 kHz
+    const auto start = std::chrono::steady_clock::now();
     backend.set_render_source([](float* buf, size_t frames, int sr) {
         for (size_t i = 0; i < frames; i++) {
             buf[i] = 0.4f * std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) /
@@ -1199,17 +1206,11 @@ TEST_CASE("render loop paces near 8 kHz with real clock", "[sound][pwm][slow]") 
         }
     });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    uint64_t writes = PWMSoundBackendTestAccess::duty_writes(backend);
+    REQUIRE(wait_for([&] { return PWMSoundBackendTestAccess::duty_writes(backend) >= WRITES; }));
+    const auto elapsed = std::chrono::steady_clock::now() - start;
     backend.clear_render_source();
 
-    // 0.5 s at 8 kHz = 4000 writes. Far undershooting means over-sleeping;
-    // overshooting means the deadline pacing broke and the loop bursts. The
-    // generous lower bound: the thread is SCHED_IDLE, so a heavily loaded
-    // host legitimately starves it well below real time (observed once under
-    // 19 concurrent compiles); 1500 still proves pacing vs an unpaced burst.
-    REQUIRE(writes >= 1500);
-    REQUIRE(writes <= 9000);
+    REQUIRE(elapsed >= std::chrono::milliseconds(50));
 
     cleanup_mock_sysfs(base);
 }
