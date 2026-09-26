@@ -1261,6 +1261,8 @@ void AmsEditOverlay::on_detail_field_changed_cb(lv_event_t* e) {
 }
 
 void AmsEditOverlay::handle_scan_qr() {
+#if !defined(                                                                                      \
+    HELIX_PLATFORM_ESP32) // the ESP32 build has no QR scanner overlay; its button stays hidden
     spdlog::info("[AmsEditOverlay] Scan QR requested for slot {}", slot_index_);
 
     // The scanner overlay pushes ON TOP of the editor (spec §13.5). Our
@@ -1303,6 +1305,7 @@ void AmsEditOverlay::handle_scan_qr() {
             // to do — session state was never torn down.
             spdlog::debug("[AmsEditOverlay] QR scan cancelled - editor resumes");
         });
+#endif
 }
 
 #if HELIX_HAS_LABEL_PRINTER

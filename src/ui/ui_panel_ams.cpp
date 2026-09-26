@@ -1423,6 +1423,8 @@ void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point
             break;
 
         case helix::ui::AmsContextMenu::MenuAction::SCAN_QR: {
+#if !defined(                                                                                      \
+    HELIX_PLATFORM_ESP32) // the ESP32 build has no QR scanner overlay; its button stays hidden
             auto& scanner = helix::ui::get_qr_scanner_overlay();
             scanner.show(parent_screen_, slot, [slot](const SpoolInfo& spool) {
                 AmsBackend* be = AmsState::instance().get_backend();
@@ -1441,6 +1443,7 @@ void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point
                 }
                 spdlog::info("[AmsPanel] QR scan assigned spool #{} to slot {}", spool.id, slot);
             });
+#endif
             break;
         }
 
