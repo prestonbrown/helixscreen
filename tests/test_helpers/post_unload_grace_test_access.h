@@ -25,6 +25,7 @@ class PostUnloadGraceTestAccess {
         mgr.sensors_.clear();
         mgr.states_.clear();
         mgr.bypass_armed_.clear();
+        mgr.bypass_disarmed_.clear();
         mgr.master_enabled_ = true;
         mgr.sync_mode_ = true;
         mgr.initial_status_received_ = false;
@@ -55,6 +56,22 @@ class PostUnloadGraceTestAccess {
     /// this has to run AFTER the sensors are installed, not before.
     static void clear_startup_grace(helix::FilamentSensorManager& mgr) {
         mgr.startup_time_ = std::chrono::steady_clock::now() - std::chrono::minutes(1);
+    }
+
+    /// Set a sensor's role directly, bypassing set_sensor_role()'s
+    /// single-RUNOUT exclusivity. Production reaches a multi-RUNOUT state via
+    /// load_config (settings.json restore), which writes sensor->role per
+    /// entry with no exclusivity check.
+    static void force_role(helix::FilamentSensorManager& mgr, const std::string& klipper,
+                           helix::FilamentSensorRole role) {
+        std::lock_guard<std::recursive_mutex> lock(mgr.mutex_);
+        for (auto& s : mgr.sensors_) {
+            if (s.klipper_name == klipper) {
+                s.role = role;
+                s.enabled = true;
+                return;
+            }
+        }
     }
 };
 } // namespace helix

@@ -250,12 +250,15 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
      * system (e.g. Creality's macros toggle it around every CFS operation),
      * a bypass print would otherwise run with no runout protection at all.
      *
-     * Sends `SET_FILAMENT_SENSOR SENSOR=<name> ENABLE=1` for every RUNOUT-role
-     * sensor that is present in Klipper and currently DISABLED at the firmware
-     * level, recording what it armed. Idempotent: already-enabled or already
-     * armed sensors are skipped. The HelixScreen-side enabled flag (user
-     * config) is deliberately untouched — arming is a temporary firmware-state
-     * change, not a settings change.
+     * Sends `SET_FILAMENT_SENSOR SENSOR=<name> ENABLE=1` only for RUNOUT-role
+     * sensors that HelixScreen itself stood down (a previous bypass restore,
+     * recorded in the self-disarmed set). A sensor the firmware disabled on
+     * its own is never enabled here: the firmware is managing it (per-head
+     * enable on multi-tool hardware), and overriding it would turn parked,
+     * intentionally-empty sensors into runouts the moment the enable lands.
+     * Idempotent: already-enabled or already-armed sensors are skipped. The
+     * HelixScreen-side enabled flag (user config) is deliberately untouched:
+     * arming is a temporary firmware-state change, not a settings change.
      *
      * @param api API handle for the gcode send (may be null — no-op then)
      * @return number of sensors newly armed
@@ -592,6 +595,28 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
      */
     const FilamentSensorConfig* find_config_by_role(FilamentSensorRole role) const;
 
+    /**
+     * @brief Whether this sensor's reading counts for runout/presence decisions
+     *
+     * One rule shared by every runout consumer: the user's config enables the
+     * sensor, it holds a role, and the firmware is running it. Klipper keeps
+     * reporting filament_detected for a sensor stood down with
+     * SET_FILAMENT_SENSOR ENABLE=0 but takes no runout action of its own, so
+     * neither do we. The state default is enabled=true, so a sensor that has
+     * never reported the field counts as running. Caller MUST hold mutex_.
+     */
+    [[nodiscard]] bool monitors_runout(const FilamentSensorConfig& config) const;
+
+    /**
+     * @brief First holder of @p role the firmware is running
+     *
+     * When every holder of the role is stood down, the first holder is
+     * returned anyway, so a caller can still tell "configured but not
+     * running" from "no sensor holds this role". Caller MUST hold mutex_.
+     */
+    [[nodiscard]] const FilamentSensorConfig*
+    find_monitoring_config_by_role(FilamentSensorRole role) const;
+
     /// Result of one scoped lane scan — shared by find_empty_required_lanes()
     /// and compute_scoped_runout_value() (dedups config lookup + backend fetch +
     /// availability gate + per-lane scan).
@@ -625,6 +650,11 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
     /// Klipper names of sensors WE armed for bypass (restore set). Empty when
     /// no bypass arming is outstanding.
     std::vector<std::string> bypass_armed_;
+
+    /// Klipper names of sensors WE stood down (bypass restore). Only these may
+    /// be re-armed by a later bypass engage; a sensor the firmware disabled on
+    /// its own is the firmware's to manage.
+    std::vector<std::string> bypass_disarmed_;
 
     /// API handle for bypass arming sends (not owned). Set by
     /// MoonrakerManager; may be null.

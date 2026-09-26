@@ -1218,6 +1218,8 @@ A merely-`silent` request records **nothing** in the RPC ledger. `silent` means 
 
 Note that for AFC, Happy Hare, AD5X IFS and CFS the generic surface is *also* structurally blind: each claims its own sensors through `owns_filament_sensor()`, so `PrinterHardware::is_ams_sensor()` hides them from the wizard's sensor picker, they never get a `FilamentSensorRole`, and `FilamentSensorManager::has_real_runout()` skips them. The suppression above is belt-and-braces for the configs where an AMS lane sensor *does* carry a role (AFC's `...eN_filament` naming is the case `has_real_runout()`'s lane-mapping branch exists for).
 
+Every runout decision additionally requires the firmware to be *running* the sensor: Klipper's `filament_switch_sensor`/`filament_motion_sensor` status carries `enabled` (`SET_FILAMENT_SENSOR ENABLE=0/1`), and a stood-down sensor still reports `filament_detected` live but takes no runout action of its own, so `monitors_runout()` (config enabled + role + `state.enabled`) gates `has_any_runout()`/`has_real_runout()`, the role queries and the edge toasts. A sensor that has never reported the field counts as running, and a Moonraker delta omitting it does not reset it (#1714).
+
 ---
 
 ## Filament Op Dispatch: Which Surface Owns What
@@ -2174,13 +2176,16 @@ the bypass passes no backend lane, so mid-print runout protection falls to the t
 sensor alone — and on firmwares that leave that sensor disabled outside their own filament
 system (Creality's macros toggle it around every CFS operation; the K2 sits at
 `enabled: false` between sequences), a bypass print would run with no protection at all.
-Engaging bypass arms every RUNOUT-role sensor the firmware holds disabled
+Engaging bypass arms a RUNOUT-role sensor the firmware holds disabled only when HelixScreen
+itself stood it down (a previous bypass restore, recorded in the self-disarmed set)
 (`SET_FILAMENT_SENSOR SENSOR=<name> ENABLE=1`, bare name, same form the vendor macros use);
-disengaging restores exactly what we armed. Firmware reports of a sensor being disabled
-behind our back (vendor macro ran mid-bypass) drop it from the armed set, so the restore
-never sends a command for state we no longer own. The user's monitoring switches (master
-enable, per-sensor enable) gate the arming — it is a temporary firmware-state change, not a
-settings change.
+disengaging restores exactly what we armed. A sensor the firmware disabled on its own is
+never armed: the firmware is managing it (per-head enable on multi-tool hardware), and
+enabling it here would turn parked, intentionally-empty sensors into runouts the moment the
+echo lands (#1714). Firmware reports of a sensor being disabled behind our back (vendor
+macro ran mid-bypass) drop it from the armed set, so the restore never sends a command for
+state we no longer own. The user's monitoring switches (master enable, per-sensor enable)
+gate the arming, which is a temporary firmware-state change, not a settings change.
 
 **External lane publish** (`AmsBackend::publish_external_spool_lane` +
 `helix::ams::publish_external_lane`): the external spool is published as the lane one past
