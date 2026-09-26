@@ -424,21 +424,25 @@ TEST_CASE("Bypass node visibility rule", "[ams][afc][1229][toolchanger][bypass]"
         // The #1229 case: AFC publishes a virtual bypass whether or not one is
         // wired, so an always-visible node advertised hardware the machine does
         // not have — and got painted with the loaded lane's filament.
-        CHECK_FALSE(bypass_node_visible(true, /*active=*/false, /*is_afc=*/true,
+        CHECK_FALSE(bypass_node_visible(true, /*active=*/false, /*bypass_is_virtual=*/true,
                                         /*always_show=*/false));
     }
 
     SECTION("the opt-in setting brings it back") {
-        CHECK(bypass_node_visible(true, /*active=*/false, /*is_afc=*/true, /*always_show=*/true));
+        CHECK(bypass_node_visible(true, /*active=*/false, /*bypass_is_virtual=*/true,
+                                  /*always_show=*/true));
     }
 
     SECTION("an engaged bypass is always shown, setting or not") {
-        CHECK(bypass_node_visible(true, /*active=*/true, /*is_afc=*/true, /*always_show=*/false));
-        CHECK(bypass_node_visible(true, /*active=*/true, /*is_afc=*/true, /*always_show=*/true));
+        CHECK(bypass_node_visible(true, /*active=*/true, /*bypass_is_virtual=*/true,
+                                  /*always_show=*/false));
+        CHECK(bypass_node_visible(true, /*active=*/true, /*bypass_is_virtual=*/true,
+                                  /*always_show=*/true));
     }
 
     SECTION("non-AFC backends are unaffected — their bypass is a real position") {
-        CHECK(bypass_node_visible(true, /*active=*/false, /*is_afc=*/false, /*always_show=*/false));
+        CHECK(bypass_node_visible(true, /*active=*/false, /*bypass_is_virtual=*/false,
+                                  /*always_show=*/false));
     }
 }
 
@@ -488,7 +492,7 @@ TEST_CASE("AFC toolchanger: the captured machine hides its bypass node",
     // what put a green "ASA / Bypass" spool on the reporter's screen.
     REQUIRE_FALSE(afc.is_bypass_active());
     REQUIRE(afc.get_system_info().supports_bypass);
-    REQUIRE(afc.is_afc_system());
+    REQUIRE(afc.bypass_is_virtual());
 
     INFO("the bypass node was drawn on a machine with bypass disengaged");
     CHECK_FALSE(helix::ui::bypass_node_visible_for(&afc));

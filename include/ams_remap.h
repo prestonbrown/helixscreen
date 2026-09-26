@@ -32,7 +32,7 @@ namespace printer {
  * @brief Does this strategy leave the routing somewhere that outlives the send?
  *
  * Native writes the machine's own mapping table and GcodeRewrite writes the job
- * file, so both survive being sent. SnapmakerNative does not: the firmware is
+ * file, so both survive being sent. PrePrintSend does not: the firmware is
  * told once, before PRINT_START, and nothing persists afterwards.
  *
  * This is the STRATEGY-only half. Callers gating a real write want

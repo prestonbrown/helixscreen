@@ -191,7 +191,13 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         return info.sync_feedback_bias > -1.5f;
     }
     [[nodiscard]] AmsType get_type() const override;
-    [[nodiscard]] bool is_afc_system() const override {
+    /// AFC firmware publishes a bypass sensor whether or not one is wired.
+    [[nodiscard]] bool bypass_is_virtual() const override {
+        return true;
+    }
+    /// The end-of-print macros consult the user's setting, so the toggle row
+    /// is offered.
+    [[nodiscard]] bool supports_configurable_unload_after_print() const override {
         return true;
     }
     /// AFC users have a console; the screen passes their command through rather

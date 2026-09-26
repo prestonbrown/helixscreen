@@ -221,7 +221,8 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
 
     /// Subject for AFC backend detection (0=not AFC, 1=AFC) — gates the
     /// unload-after-print toggle, which only applies to AFC systems
-    lv_subject_t is_afc_subject_;
+    lv_subject_t unload_after_print_configurable_subject_;
+    lv_subject_t bypass_is_virtual_subject_;
 
     /// Subject gating the keep-spool-info-on-eject row (0=hidden, 1=shown).
     /// Set from AmsBackend::printer_reports_spool_ids(), so the row appears
