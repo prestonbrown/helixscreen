@@ -411,9 +411,10 @@ MacroParamResult macro_param_result_from_values(const std::vector<MacroParam>& p
                                                 const std::map<std::string, std::string>& values) {
     MacroParamResult result;
     for (const auto& [name, value] : values) {
+        const std::string& key = name; // a structured binding is not capturable in C++17
         const bool is_variable =
             std::any_of(params.begin(), params.end(),
-                        [&](const MacroParam& p) { return p.name == name && p.is_variable; });
+                        [&](const MacroParam& p) { return p.name == key && p.is_variable; });
         if (is_variable) {
             result.variables[name] = value;
         } else {
