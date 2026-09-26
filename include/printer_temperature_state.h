@@ -46,8 +46,10 @@ struct ExtruderInfo {
     float last_nonzero_target = 0.0f;
     std::unique_ptr<lv_subject_t> temp_subject;   ///< Decidegrees (value * 10)
     std::unique_ptr<lv_subject_t> target_subject; ///< Decidegrees
+    std::unique_ptr<lv_subject_t> power_subject;  ///< Duty in whole percent, -1 until reported
     SubjectLifetime temp_lifetime;   ///< Lifetime token for temp_subject (for ObserverGuard safety)
     SubjectLifetime target_lifetime; ///< Lifetime token for target_subject
+    SubjectLifetime power_lifetime;  ///< Lifetime token for power_subject
 };
 
 /**
@@ -118,6 +120,11 @@ class PrinterTemperatureState {
     lv_subject_t* get_extruder_temp_subject(const std::string& name, SubjectLifetime& lifetime);
     /// Get per-extruder target subject with lifetime token (use when creating observers)
     lv_subject_t* get_extruder_target_subject(const std::string& name, SubjectLifetime& lifetime);
+
+    /// Get a specific extruder's heater duty with lifetime token (whole
+    /// percent, -1 until that heater reports one). Distinct from the nullary
+    /// overload, which is the ACTIVE extruder's mirror.
+    lv_subject_t* get_extruder_power_subject(const std::string& name, SubjectLifetime& lifetime);
 
     lv_subject_t* get_extruder_power_subject() {
         return &active_extruder_power_;

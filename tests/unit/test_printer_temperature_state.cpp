@@ -324,3 +324,43 @@ TEST_CASE("PrinterTemperatureState: out-of-range duty is clamped", "[core][tempe
 
     PrinterTemperatureStateTestAccess::reset(state);
 }
+
+TEST_CASE("PrinterTemperatureState: per-extruder power reaches its own subject",
+          "[core][temperature][power]") {
+    lv_init_safe();
+    PrinterTemperatureState state;
+    state.init_subjects(false);
+    state.init_extruders({"extruder", "extruder1"});
+
+    // The machine's tool is extruder; a duty frame for the OTHER head must
+    // land on that head's subject without leaking into the active mirror.
+    state.update_from_status({{"extruder1", {{"power", 0.73}}}});
+
+    SubjectLifetime picked;
+    REQUIRE(state.get_extruder_power_subject("extruder1", picked) != nullptr);
+    CHECK(lv_subject_get_int(state.get_extruder_power_subject("extruder1", picked)) == 73);
+    CHECK(lv_subject_get_int(state.get_extruder_power_subject()) == -1);
+    SubjectLifetime idle;
+    CHECK(lv_subject_get_int(state.get_extruder_power_subject("extruder", idle)) == -1);
+
+    PrinterTemperatureStateTestAccess::reset(state);
+}
+
+TEST_CASE("PrinterTemperatureState: a toolchange resyncs active power",
+          "[core][temperature][power]") {
+    lv_init_safe();
+    PrinterTemperatureState state;
+    state.init_subjects(false);
+    state.init_extruders({"extruder", "extruder1"});
+
+    state.update_from_status({{"extruder", {{"power", 1.0}}}, {"extruder1", {{"power", 0.0}}}});
+    REQUIRE(lv_subject_get_int(state.get_extruder_power_subject()) == 100);
+
+    // Moonraker deltas omit unchanged fields, so an idle new tool may never
+    // carry a power frame after the change: the mirror must take extruder1's
+    // last known duty at the toolchange, not keep the old tool's 100.
+    state.set_active_extruder("extruder1");
+    CHECK(lv_subject_get_int(state.get_extruder_power_subject()) == 0);
+
+    PrinterTemperatureStateTestAccess::reset(state);
+}
