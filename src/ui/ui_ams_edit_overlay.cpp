@@ -1261,7 +1261,6 @@ void AmsEditOverlay::on_detail_field_changed_cb(lv_event_t* e) {
 }
 
 void AmsEditOverlay::handle_scan_qr() {
-#if HELIX_HAS_CAMERA
     spdlog::info("[AmsEditOverlay] Scan QR requested for slot {}", slot_index_);
 
     // The scanner overlay pushes ON TOP of the editor (spec §13.5). Our
@@ -1304,9 +1303,6 @@ void AmsEditOverlay::handle_scan_qr() {
             // to do — session state was never torn down.
             spdlog::debug("[AmsEditOverlay] QR scan cancelled - editor resumes");
         });
-#else
-    spdlog::debug("[AmsEditOverlay] Scan QR unavailable (no camera) for slot {}", slot_index_);
-#endif // HELIX_HAS_CAMERA
 }
 
 #if HELIX_HAS_LABEL_PRINTER
