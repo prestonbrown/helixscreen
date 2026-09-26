@@ -16,7 +16,8 @@ Home Panel
 ├── FavoriteMacroWidget (1x1) ──→ Executes a single configured macro
 │   └── fetch_and_execute()
 │       ├── Dangerous? → modal_confirm()   (always, ignores the toggle)
-│       ├── require_confirmation off → execute_macro_gcode(), no params, no dialog
+│       ├── require_confirmation off → execute_macro_gcode() with the saved
+│       │                                values, no dialog
 │       └── require_confirmation on  → same three knowledge levels as the panel,
 │                                      with the Safety confirm on KNOWN_NO_PARAMS
 │
@@ -52,6 +53,8 @@ MacrosPanel (overlay)
 | `ui_xml/macro_panel.xml` | Layout: overlay_panel with scrollable macro_list + empty_state |
 | `ui_xml/macro_card.xml` | Reusable card component: icon + name + chevron, clicked callback |
 | `include/macro_param_cache.h` | Pre-parsed macro parameters (populated during discovery) |
+| `include/macro_param_defaults.h` | Saved per-macro parameter defaults + the Ask toggle |
+| `include/macro_executor.h` | `decide_macro_run()`: the one run decision every surface shares |
 | `include/macro_param_modal.h` | Modal for user input when macro has parameters |
 | `include/standard_macros.h` | 10 standard macro slots with auto-detection |
 | `include/macro_manager.h` | HelixScreen helper macro (helix_macros.cfg) install/update |
@@ -108,8 +111,8 @@ config modal. It governs both prompts a run can raise:
 
 | `require_confirmation` | Tapping the widget |
 |------------------------|--------------------|
-| `true` (default) | `KNOWN_PARAMS` / `UNKNOWN` → `MacroParamModal`. `KNOWN_NO_PARAMS` → the Settings → Safety "Confirm before running macros" dialog, when that setting is on. |
-| `false` | `execute_macro_gcode()` with no parameters and no dialog. |
+| `true` (default) | `KNOWN_PARAMS` / `UNKNOWN` → `MacroParamModal` (prefilled with the saved defaults when a record exists). `KNOWN_NO_PARAMS` → the Settings → Safety "Confirm before running macros" dialog, when that setting is on. |
+| `false` | `execute_macro_gcode()` with no dialog. The saved defaults' values ride along; with no record the macro runs bare, as before. |
 
 The two prompts collapse into one switch because they answer the same question:
 for a macro with parameters the param modal *is* the confirmation step, so a
@@ -122,6 +125,14 @@ still does; `require_confirmation` sits in front of it.
 would otherwise raise the freeform param modal on every tap regardless of whether
 they take arguments. Turning confirmation off is how a user says "this one takes
 nothing, just run it".
+
+**Interaction with saved defaults.** The saved record carries its own
+`ask_for_params` toggle (below). On the widget the two switches multiply: the
+param modal appears only when `require_confirmation && ask_for_params`. Turning
+either off suppresses it — `require_confirmation` off because the whole widget is
+one-tap by design, `ask_for_params` off because the user saved these values
+precisely to stop retyping them. In both cases the saved values still go with the
+run; only the form disappears.
 
 **Storage.** `require_confirmation` is written into the widget's `config` object
 under `panel_widgets/<panel>/pages[]/widgets[]`, and omitted when `true` to keep
@@ -151,6 +162,44 @@ Parameters come in two types, handled differently at execution time:
 |------|--------|-----------|
 | **Variables** | `variable_*` in Klipper macro config | `SET_GCODE_VARIABLE` commands sent before macro call |
 | **Params** | Jinja2 `params.*` references | Appended as `KEY=VALUE` to the macro call |
+
+### Saved parameter defaults
+
+`MacroParamDefaults` (`include/macro_param_defaults.h`) keeps one record per
+macro — a `values` map plus an `ask_for_params` toggle that defaults on — under
+the active printer's config subtree, keyed by lowercased macro name exactly like
+MacroParamCache. A record with no values and ask still on is removed, so a macro
+whose fields were all cleared costs nothing. There is no config migration: the
+key simply appears the first time a record is saved.
+
+The run decision is `decide_macro_run()` (`include/macro_executor.h`), one pure
+function every surface calls — panel, favorite-macro widget, filament router,
+quick buttons. Its rules, which the header comment states in full:
+
+- **Saved values never complete a run on their own.** A `KNOWN_PARAMS` macro
+  runs without a prompt only when the caller's `known_values` cover every
+  declared parameter; a fully-saved record still prompts, because a saved value
+  is what the user last typed, not what they chose for this run. What skips the
+  prompt is `ask_for_params` off (or the surface's own policy suppressing it).
+- **Prefill is saved overlaid by known.** When the modal does open, it shows
+  the saved values with `known_values` (e.g. a quick button's preset) winning
+  on any parameter both supply.
+- A run that raises no modal carries the saved values filtered to the macro's
+  declared names; dangerous-macro confirmation is decided before any of this
+  and cannot be disarmed by it.
+
+Each surface builds the same `MacroRunRequest`: `prompt_for_params` is the
+conjunction of its own policy and the record's `ask_for_params` — the panel
+passes ask as-is, the widget `require_confirmation && ask`, the filament router
+`(policy != Suppress) && ask` — and `saved_values` carries the record's values.
+
+**Editing a record.** Two entry points, both `KNOWN_PARAMS` macros only: the
+Macros panel's edit mode shows a tune action on those rows, and the widget
+config modal's Options tab shows a "Default Parameters" action row (hidden
+otherwise, via the `fav_macro_has_param_defaults` subject recomputed per macro).
+Both open `MacroParamModal::show_for_defaults()` — the same parameter fields
+prefilled from the record, retitled "Default Parameters", with Save/Cancel and
+the "Ask for parameters" toggle under the fields.
 
 ---
 
@@ -276,6 +325,9 @@ Extends `lv_button` with API props:
 |-----------|----------|
 | `test_helix_macro_manager.cpp` | Helper macro install/update |
 | `test_macro_param_cache.cpp` | Parameter caching |
+| `test_macro_param_defaults.cpp` | Saved-defaults store: set/get/clear, per-printer isolation |
+| `test_macro_param_modal_defaults.cpp` | Save-mode modal: prefill, toggle, Save hands back the record |
+| `test_macro_run_decision.cpp` | `decide_macro_run()`: saved values never complete a run |
 | `test_macro_param_parser.cpp` | Jinja2 parameter parsing |
 | `test_standard_macros.cpp` | Slot resolution and auto-detection |
 | `test_subject_macros.cpp` | XML subject bindings |
