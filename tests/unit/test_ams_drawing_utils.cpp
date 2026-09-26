@@ -188,8 +188,7 @@ TEST_CASE("ams_draw::fill_percent_from_slot metadata-only falls back to full", "
 }
 
 TEST_CASE("ams_draw::fill_percent_from_slot empty lane renders empty", "[ams_draw][fill]") {
-    // Not-present lane → 0 ratio, clamped up to min_pct (matches prior behavior
-    // for a 0% present slot; style_slot_bar gates the bar on is_present anyway).
+    // Not-present lane → 0 ratio, clamped up to min_pct.
     SlotInfo slot;
     slot.status = SlotStatus::EMPTY;
     REQUIRE(ams_draw::fill_percent_from_slot(slot, 0) == 0);
@@ -359,59 +358,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::create_slot_column creates all part
     // bar_bg and status_line are children of container
     REQUIRE(lv_obj_get_parent(col.bar_bg) == col.container);
     REQUIRE(lv_obj_get_parent(col.status_line) == col.container);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::style_slot_bar loaded state", "[ams_draw][slot_bar]") {
-    auto col = ams_draw::create_slot_column(test_screen(), 10, 40, 4);
-
-    ams_draw::BarStyleParams params;
-    params.color_rgb = 0xFF0000;
-    params.fill_pct = 75;
-    params.is_present = true;
-    params.is_loaded = true;
-    params.has_error = false;
-    ams_draw::style_slot_bar(col, params, 4);
-
-    // Loaded: 2px border, text color, 80% opacity
-    REQUIRE(lv_obj_get_style_border_width(col.bar_bg, LV_PART_MAIN) == 2);
-    REQUIRE(lv_obj_get_style_border_opa(col.bar_bg, LV_PART_MAIN) == LV_OPA_80);
-
-    // Fill visible
-    REQUIRE_FALSE(lv_obj_has_flag(col.bar_fill, LV_OBJ_FLAG_HIDDEN));
-
-    // Status line hidden (loaded shown via border, not status line)
-    REQUIRE(lv_obj_has_flag(col.status_line, LV_OBJ_FLAG_HIDDEN));
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::style_slot_bar error state shows status line",
-                 "[ams_draw][slot_bar]") {
-    auto col = ams_draw::create_slot_column(test_screen(), 10, 40, 4);
-
-    ams_draw::BarStyleParams params;
-    params.color_rgb = 0x00FF00;
-    params.fill_pct = 50;
-    params.is_present = true;
-    params.is_loaded = false;
-    params.has_error = true;
-    params.severity = SlotError::ERROR;
-    ams_draw::style_slot_bar(col, params, 4);
-
-    // Error: status line visible
-    REQUIRE_FALSE(lv_obj_has_flag(col.status_line, LV_OBJ_FLAG_HIDDEN));
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::style_slot_bar empty state ghosted",
-                 "[ams_draw][slot_bar]") {
-    auto col = ams_draw::create_slot_column(test_screen(), 10, 40, 4);
-
-    ams_draw::BarStyleParams params;
-    params.is_present = false;
-    ams_draw::style_slot_bar(col, params, 4);
-
-    // Empty: 20% border opacity, fill hidden, status line hidden
-    REQUIRE(lv_obj_get_style_border_opa(col.bar_bg, LV_PART_MAIN) == LV_OPA_20);
-    REQUIRE(lv_obj_has_flag(col.bar_fill, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE(lv_obj_has_flag(col.status_line, LV_OBJ_FLAG_HIDDEN));
 }
 
 // ============================================================================

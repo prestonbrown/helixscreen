@@ -70,7 +70,7 @@ inline constexpr float ASSUMED_FILL_LEVEL = 1.0f;
  * with weights: an EMPTY status confirms absence and outranks the scale.
  */
 [[nodiscard]] constexpr LaneState classify_lane(SlotStatus status, bool has_identity,
-                                                bool has_weights = false) {
+                                                bool has_weights) {
     if (status == SlotStatus::UNKNOWN && has_weights) {
         return LaneState::Ghosted;
     }

@@ -50,7 +50,7 @@ struct AmsSlotData {
     // Last lane classification seen from the per-slot lane_state subject. The
     // material label's text and ghost strength depend on it (an Empty lane
     // reads "Empty", a Ghosted one dims alongside its spool), and lane_state
-    // and material arrive on SEPARATE subjects with no ordering guarantee — so
+    // and material arrive on SEPARATE subjects with no ordering guarantee - so
     // the material path reads the classification from here rather than racing
     // for it.
     helix::ui::LaneState last_lane_state = helix::ui::LaneState::Empty;
@@ -67,8 +67,8 @@ struct AmsSlotData {
 
     // Lifetime token paired with the status observer, the one observer left
     // here that binds a per-backend subject. Secondary-backend (index > 0)
-    // status subjects are DYNAMIC —
-    // recreated on backend rediscovery — so that observer needs a token
+    // status subjects are DYNAMIC -
+    // recreated on backend rediscovery - so that observer needs a token
     // that expires when AmsState tears the subject down (L084). For backend 0
     // the accessor returns an empty (always-alive) token; harmless. MUST be
     // reset BEFORE the matching observer (see cleanup paths, #705).
@@ -187,8 +187,8 @@ static void cleanup_all_slot_data() {
 /**
  * @brief Apply the material-type label from the per-slot material subject.
  *
- * The widget owns its own material rendering so every ams_slot consumer —
- * AmsPanel, AmsOverviewPanel, AmsDetail — repaints on a material-only change
+ * The widget owns its own material rendering so every ams_slot consumer -
+ * AmsPanel, AmsOverviewPanel, AmsDetail - repaints on a material-only change
  * without any container re-reading it imperatively (#1065). The text itself
  * comes from the spool family's shared rule, helix::ui::lane_material_text(),
  * keyed on the same lane_state subject that drives the embedded spool widget
@@ -222,8 +222,6 @@ static void refresh_slot_material_label(AmsSlotData* data) {
     apply_material_label(data,
                          material_subject ? lv_subject_get_string(material_subject) : nullptr);
 }
-
-// ============================================================================
 
 // ============================================================================
 // Observer Callbacks
@@ -302,8 +300,6 @@ static void apply_lane_state(AmsSlotData* data, int state_int) {
     // re-derive it from the one rule now that last_lane_state is current.
     refresh_slot_material_label(data);
 }
-
-/**
 
 /**
  * @brief Apply current slot highlight logic
@@ -653,7 +649,7 @@ static void setup_slot_observers(AmsSlotData* data) {
     }
 
     // Update tool badge from backend. Material and the error dot are NOT read
-    // here — material flows from the per-slot material subject via the observer
+    // here - material flows from the per-slot material subject via the observer
     // above, and the error dot is the embedded ams_lane_spool's, driven by the
     // has_error/severity subjects.
     AmsBackend* backend = state.get_backend();

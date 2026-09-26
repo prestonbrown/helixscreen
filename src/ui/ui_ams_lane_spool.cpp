@@ -82,7 +82,7 @@ static void draw_dashed_circle_cb(lv_event_t* e) {
     // Draw 16 dashes of 15 degrees each with 7.5 degree gaps
     constexpr int DASH_COUNT = 16;
     constexpr int DASH_ANGLE = 15;
-    constexpr int GAP_ANGLE = 7; // 16 * (15 + 7) = 352 — 360
+    constexpr int GAP_ANGLE = 7; // 16 * (15 + 7) = 352 - 360
     for (int d = 0; d < DASH_COUNT; d++) {
         arc_dsc.start_angle = static_cast<uint16_t>(d * (DASH_ANGLE + GAP_ANGLE));
         arc_dsc.end_angle = static_cast<uint16_t>(arc_dsc.start_angle + DASH_ANGLE);
@@ -220,7 +220,7 @@ static SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) 
             lv_obj_align(plus, LV_ALIGN_CENTER, 0, 0);
             lv_obj_add_flag(plus, LV_OBJ_FLAG_EVENT_BUBBLE);
         }
-        // Named so lv_obj_find_by_name() reaches it — it is the one element that
+        // Named so lv_obj_find_by_name() reaches it - it is the one element that
         // exists in both the flat and 3D branches, which makes it the stable
         // handle for "is this lane rendering as unassigned-empty?" from tests
         // and from `helix-screen ctl`.
@@ -307,7 +307,7 @@ static void spool_visual_set_empty(const SpoolVisual& sv, bool empty) {
 /**
  * @brief User data stored on each ams_lane_spool widget.
  *
- * The spool layers themselves are built by ams_draw::create_spool_visual()
+ * The spool layers themselves are built by create_spool_visual() below
  * into the widget root; this struct holds the returned handles, the last
  * applied inputs, and the observer set. Registry-managed like ui_ams_slot.cpp
  * and ui_ams_lane_bar.cpp: lv_obj user_data can carry other payload on
@@ -317,7 +317,7 @@ struct LaneSpoolData {
     int slot_index = -1;
     int backend_index = 0;
     float fill_level = 1.0f; ///< Last applied fill (0.0-1.0), from slot_fill.
-    bool has_error = false;  ///< From slot_has_error — error dot visibility.
+    bool has_error = false;  ///< From slot_has_error - error dot visibility.
     SlotError::Severity severity = SlotError::Severity::INFO; ///< Error dot color.
 
     /// Last-applied presentation, so a size rebuild can repaint fresh layers.
@@ -404,7 +404,7 @@ static void cleanup_all_lane_spool_data() {
  * One switch over LaneState, no opacity arithmetic at the call sites:
  * - Empty: the spool graphic is hidden and the dashed placeholder shows, so
  *   the lane stays countable without claiming anything is loaded.
- * - Ghosted: the graphic renders at GHOST_OPA — the dimming is the disclaimer
+ * - Ghosted: the graphic renders at GHOST_OPA - the dimming is the disclaimer
  *   that says "assigned, not present" (#1071/#1065).
  * - Present: full strength.
  *
@@ -461,7 +461,7 @@ static void apply_color(LaneSpoolData* d, int color_int) {
  * Otherwise the fill renders RAW (0 paints an empty spool) by deliberation,
  * unlike the bar family's ams_draw::floor_fill_pct(): the bar floor exists so
  * a present-but-spent lane keeps a visible sliver, and the spool graphic
- * already gives the lane that visibility on its own — an empty spool is still a
+ * already gives the lane that visibility on its own - an empty spool is still a
  * drawn spool, not a vanished bar. Painting filament that does not exist
  * would add nothing the graphic lacks. The remaining-percent LABEL beside a
  * strip spool is where exactness is communicated instead.
@@ -533,7 +533,7 @@ static void setup_lane_spool_observers(LaneSpoolData* data) {
     const SubjectLifetime lifetime = b == 0 ? state.get_subjects_lifetime() : data->lifetime;
 
     // Capture the root object (not the data pointer) to avoid use-after-free
-    // when a deferred callback runs after widget deletion — the registry
+    // when a deferred callback runs after widget deletion - the registry
     // lookup is the validity check (same pattern as ui_ams_slot.cpp, #83).
     lv_obj_t* obj = data->sv.container;
 
@@ -765,7 +765,7 @@ void ams_lane_spool_set_fill_level(lv_obj_t* spool, float fill_level) {
 void ui_ams_lane_spool_register(void) {
     lv_xml_register_widget("ams_lane_spool", ams_lane_spool_xml_create, ams_lane_spool_xml_apply);
 
-    // Self-register cleanup — ensures spool data is released before lv_deinit()
+    // Self-register cleanup - ensures spool data is released before lv_deinit()
     // so that lv_subject_deinit() can safely remove observers from live
     // widgets (mirrors ui_ams_slot_register()).
     StaticSubjectRegistry::instance().register_deinit("AmsLaneSpoolWidgets",

@@ -51,9 +51,9 @@ const char* name_of(SlotStatus s) {
 }
 } // namespace
 
-static_assert(classify_lane(SlotStatus::LOADED, false) == LaneState::Present);
-static_assert(classify_lane(SlotStatus::EMPTY, true) == LaneState::Ghosted);
-static_assert(classify_lane(SlotStatus::EMPTY, false) == LaneState::Empty);
+static_assert(classify_lane(SlotStatus::LOADED, false, false) == LaneState::Present);
+static_assert(classify_lane(SlotStatus::EMPTY, true, false) == LaneState::Ghosted);
+static_assert(classify_lane(SlotStatus::EMPTY, false, false) == LaneState::Empty);
 
 TEST_CASE("Lane classification is exhaustively pinned", "[ams][lane_state]") {
     for (SlotStatus status : ALL_STATUSES) {
@@ -87,8 +87,8 @@ TEST_CASE("UNKNOWN is classified exactly as EMPTY", "[ams][lane_state]") {
     // dims instead of blanking.
     for (bool identity : {false, true}) {
         INFO("identity=" << identity);
-        CHECK(classify_lane(SlotStatus::UNKNOWN, identity) ==
-              classify_lane(SlotStatus::EMPTY, identity));
+        CHECK(classify_lane(SlotStatus::UNKNOWN, identity, false) ==
+              classify_lane(SlotStatus::EMPTY, identity, false));
     }
 }
 

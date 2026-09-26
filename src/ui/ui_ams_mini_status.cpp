@@ -45,8 +45,6 @@ static constexpr int32_t MIN_BAR_WIDTH_PX = 3;
 /** Maximum bar width in pixels (prevents bars from becoming too wide) */
 static constexpr int32_t MAX_BAR_WIDTH_PX = 16;
 
-/** Border radius for bar corners in pixels (very rounded appearance) */
-
 /**
  * Smallest spool graphic the wide view will draw (px).
  *
@@ -223,7 +221,7 @@ static lv_obj_t* ensure_unit_row(AmsMiniStatusData* data, int unit_index) {
  */
 static int32_t effective_max_bar_width(const AmsMiniStatusData* data) {
     // width_px <= 0 is the struct's default before ui_ams_mini_status_set_width()
-    // has ever run — set_slot_count()/set_slot_label() can trigger a rebuild in
+    // has ever run - set_slot_count()/set_slot_label() can trigger a rebuild in
     // that state, so this is a real, reachable path, not just a >=150 fallback.
     if (data->width_px <= 0)
         return MAX_BAR_WIDTH_PX; // Default: 16
@@ -1017,7 +1015,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             } else {
                 lv_label_set_text(pct, "");
             }
-            // Ghost the whole text group together """ + EM + """ a full-strength percent beside a
+            // Ghost the whole text group together: a full-strength percent beside a
             // dimmed material would read as two different lanes.
             lv_obj_set_style_text_opa(pct, text_opa, LV_PART_MAIN);
             if (show_text && show_pct)

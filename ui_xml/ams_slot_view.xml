@@ -12,7 +12,7 @@
     - material_label: text_small showing material type (PLA, PETG, etc.)
     - spool_container: holds the lane spool widget and the badges
     - lane_spool: ams_lane_spool widget (spool graphic, empty placeholder,
-      error dot; renders itself from AmsState's per-slot subjects — C++ only
+      error dot; renders itself from AmsState's per-slot subjects - C++ only
       points it at a slot index)
     - status_badge: circular badge at bottom-right for slot number + status color
     - slot_badge_label: text_small inside status_badge showing slot number

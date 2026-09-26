@@ -286,56 +286,6 @@ SlotColumn create_slot_column(lv_obj_t* parent, int32_t bar_width, int32_t bar_h
     return col;
 }
 
-void style_slot_bar(const SlotColumn& col, const BarStyleParams& params, int32_t bar_radius) {
-    (void)bar_radius; // Reserved for future dynamic radius changes
-    if (!col.bar_bg || !col.bar_fill) {
-        return;
-    }
-
-    // --- Bar background border ---
-    if (params.is_loaded && !params.has_error) {
-        // Loaded: wider, brighter border
-        lv_obj_set_style_border_width(col.bar_bg, 2, LV_PART_MAIN);
-        lv_obj_set_style_border_color(col.bar_bg, theme_manager_get_color("text"), LV_PART_MAIN);
-        lv_obj_set_style_border_opa(col.bar_bg, LV_OPA_80, LV_PART_MAIN);
-    } else {
-        lv_obj_set_style_border_width(col.bar_bg, 1, LV_PART_MAIN);
-        lv_obj_set_style_border_color(col.bar_bg, theme_manager_get_color("text_muted"),
-                                      LV_PART_MAIN);
-        lv_obj_set_style_border_opa(col.bar_bg, params.is_present ? LV_OPA_50 : LV_OPA_20,
-                                    LV_PART_MAIN);
-    }
-
-    // --- Fill gradient ---
-    if (params.is_present && params.fill_pct > 0) {
-        lv_color_t base_color = lv_color_hex(params.color_rgb);
-        lv_color_t light_color = lighten_color(base_color, 50);
-
-        lv_obj_set_style_bg_color(col.bar_fill, light_color, LV_PART_MAIN);
-        lv_obj_set_style_bg_grad_color(col.bar_fill, base_color, LV_PART_MAIN);
-        lv_obj_set_style_bg_grad_dir(col.bar_fill, LV_GRAD_DIR_VER, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(col.bar_fill, LV_OPA_COVER, LV_PART_MAIN);
-
-        lv_obj_set_height(col.bar_fill, LV_PCT(params.fill_pct));
-        lv_obj_align(col.bar_fill, LV_ALIGN_BOTTOM_MID, 0, 0);
-        lv_obj_remove_flag(col.bar_fill, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(col.bar_fill, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    // --- Status line ---
-    if (col.status_line) {
-        if (params.has_error) {
-            lv_color_t error_color = severity_color(params.severity);
-            lv_obj_set_style_bg_color(col.status_line, error_color, LV_PART_MAIN);
-            lv_obj_set_style_bg_opa(col.status_line, LV_OPA_COVER, LV_PART_MAIN);
-            lv_obj_remove_flag(col.status_line, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(col.status_line, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-}
-
 // ============================================================================
 // Logo Helpers
 // ============================================================================

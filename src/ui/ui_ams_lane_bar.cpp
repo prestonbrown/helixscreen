@@ -50,7 +50,7 @@ struct LaneBarData {
     /// what the base border should fall back to.
     helix::ui::LaneState last_state = helix::ui::LaneState::Empty;
     bool is_active = false; ///< From slot_active_loaded — decoration only.
-    bool has_error = false; ///< From slot_has_error — status_line visibility.
+    bool has_error = false; ///< From slot_has_error - status_line visibility.
     SlotError::Severity severity = SlotError::Severity::INFO; ///< Status line color.
 
     // Widget object and named children (see ams_draw::create_slot_column()).
@@ -209,7 +209,7 @@ static void apply_active_decoration(LaneBarData* d, bool active) {
 }
 
 /// Error rides the status_line: visible with a severity color when the lane
-/// has an error (BLOCKED or a carried SlotError — the derivation AmsState
+/// has an error (BLOCKED or a carried SlotError - the derivation AmsState
 /// publishes as ams_slot_N_has_error), hidden otherwise. Independent of the
 /// base state on purpose: a blocked lane is still Present, an erroring lane
 /// can also be empty of filament.
@@ -264,7 +264,7 @@ static void ams_lane_bar_event_cb(lv_event_t* e) {
  * Resolves AmsState's per-slot subjects (lane_state, color, fill,
  * active_loaded, has_error, error_severity) and observes each with
  * observe_int_sync<lv_obj_t>. All are static-array (singleton-lifetime)
- * subjects (ams_state.cpp) — only the active_loaded accessor offers a
+ * subjects (ams_state.cpp) - only the active_loaded accessor offers a
  * token'd overload, so only that observer carries a SubjectLifetime; it is
  * always the empty (always-alive) contract, held for symmetry with the
  * project's dynamic-subject pattern.
@@ -403,7 +403,7 @@ static void* ams_lane_bar_xml_create(lv_xml_parser_state_t* state, const char** 
 
     // Compact vertical bar, sized from spacing tokens by default. Consumers
     // whose bar width is MEASURED (overview and mini-status compute it from
-    // the container) pass bar_width/bar_height attrs instead — layout stays
+    // the container) pass bar_width/bar_height attrs instead - layout stays
     // in C++ (declarative rule 8's measured-layout exception), rendering
     // stays here.
     int32_t bar_radius = theme_manager_get_spacing("border_radius_small");
