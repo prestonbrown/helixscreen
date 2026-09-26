@@ -2312,16 +2312,16 @@ class AmsBackend {
      * Tx tool-change commands need to be rewritten before the print starts, or
      * whether the backend handles routing internally.
      *
-     *  None         — base / default; no multi-tool routing (single-extruder,
+     *  None        : base / default; no multi-tool routing (single-extruder,
      *                 no AMS attached)
-     *  Native       — backend owns the T0..Tn → slot mapping internally
+     *  Native      : backend owns the T0..Tn → slot mapping internally
      *                 (Happy Hare, AFC, CFS, AD5X IFS, ToolChanger); helix
      *                 does NOT rewrite gcode
-     *  GcodeRewrite — helix must rewrite Tx commands in the gcode file because
+     *  GcodeRewrite: helix must rewrite Tx commands in the gcode file because
      *                 the firmware has no internal tool-routing table (a tool
      *                 changer driving swaps with its own T<n> macros rather
      *                 than klipper-toolchanger)
-     *  PrePrintSend — backend emits firmware-native print_task_config gcode
+     *  PrePrintSend: backend emits firmware-native print_task_config gcode
      *                 (SET_PRINT_USED_EXTRUDERS / SET_PRINT_EXTRUDER_MAP) before
      *                 PRINT_START; no gcode-file rewrite (Snapmaker U1)
      */

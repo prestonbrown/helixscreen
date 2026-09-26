@@ -219,9 +219,11 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     /// Subject for backend presence (0=no backend, 1=has backend)
     lv_subject_t has_backend_subject_;
 
-    /// Subject for AFC backend detection (0=not AFC, 1=AFC) — gates the
-    /// unload-after-print toggle, which only applies to AFC systems
+    /// 1 when the backend lets the user choose whether it unloads after a
+    /// print; gates the unload-after-print toggle.
     lv_subject_t unload_after_print_configurable_subject_;
+    /// 1 when the bypass lane is virtual (no physical bypass sensor); gates
+    /// the always-show-bypass row.
     lv_subject_t bypass_is_virtual_subject_;
 
     /// Subject gating the keep-spool-info-on-eject row (0=hidden, 1=shown).

@@ -14,7 +14,7 @@
 //                  backend has no internal tool-routing. Declared by ToolChanger
 //                  on a changer with no ASSIGN_TOOL; ACE declares None until the
 //                  ACE_CHANGE_TOOL family is handled
-//   PrePrintSend — firmware pre-print send, no gcode rewrite (Snapmaker U1)
+//   PrePrintSend: firmware pre-print send, no gcode rewrite (Snapmaker U1)
 //
 // The per-backend probes come from tests/test_helpers/ams_backend_probes.h.
 
