@@ -124,6 +124,11 @@ bool thumbnail_source_describes(const std::string& raw, const std::string& sourc
 bool is_native_3mf_shadow(const std::string& name);
 
 /**
+ * @brief Does @p s end with @p suffix, ignoring ASCII case?
+ */
+bool ends_with_ci(const std::string& s, const std::string& suffix);
+
+/**
  * @brief Test whether a filename names a `.3mf` project file (case-insensitive).
  *
  * A `.3mf` is a zip archive, not G-code: there are no layers to parse and no

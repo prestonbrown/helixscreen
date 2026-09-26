@@ -41,10 +41,12 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "gcode_ops_detector.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "macro_param_cache.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "print_start_checks.h"
 #include "print_status_preview_decision.h"
 #include "printer_state.h"
 #include "tools_used_cache.h"
@@ -877,6 +879,67 @@ TEST_CASE_METHOD(DetailDownloadFixture, "A .3mf project reads none of its bytes"
 
     CHECK(subject_int("detail_gcode_viewer_mode") == helix::ui::PREVIEW_MODE_THUMBNAIL);
     CHECK(subject_int("detail_gcode_loading") == 0);
+
+    pop_and_drain();
+}
+
+TEST_CASE_METHOD(DetailDownloadFixture,
+                 "A .3mf opened after a G-code file carries none of its embedded operations",
+                 "[print_select][detail_view][qidi_3mf]") {
+    CacheDirGuard guard;
+    EnvGuard mem_fail("HELIX_FORCE_GCODE_MEMORY_FAIL", "1");
+    const std::string pid = std::to_string(::getpid());
+    const std::string gcode_name = "embedded_mesh_" + pid + ".gcode";
+    const std::string gcode = "G28\nBED_MESH_CALIBRATE\nG1 X10 Y10 E1\n";
+    PlantedAsset gcode_file(gcode_name, gcode);
+
+    view_.show(gcode_name, "", "PLA", {"#FF0000"}, {}, gcode.size(), 42);
+    drain_queue_chain();
+    auto* prep = view_.get_prep_manager();
+    REQUIRE(prep != nullptr);
+    REQUIRE(prep->has_scan_result_for(gcode_name));
+    REQUIRE(prep->get_scan_result()->has_operation(helix::gcode::OperationType::BED_MESH));
+    pop_and_drain();
+
+    const std::string zip_name = "qidi_" + pid + ".gcode.3mf";
+    const std::string zip = std::string("PK\x03\x04", 4) + "not gcode";
+    PlantedAsset zip_file(zip_name, zip);
+    view_.show(zip_name, "", "PETG", {"#FF0000"}, {}, zip.size(), 42);
+    drain_queue_chain();
+
+    // Every reader of the scan cache (ops to disable, plugin requirement,
+    // capability matrix, modify-and-print) sees the .3mf's empty answer.
+    prep = view_.get_prep_manager();
+    REQUIRE(prep != nullptr);
+    CHECK(prep->has_scan_result_for(zip_name));
+    REQUIRE(prep->get_scan_result().has_value());
+    CHECK(prep->get_scan_result()->operations.empty());
+
+    pop_and_drain();
+}
+
+TEST_CASE_METHOD(DetailDownloadFixture, "A .3mf still fetches metadata for the pre-print checks",
+                 "[print_select][detail_view][qidi_3mf]") {
+    CacheDirGuard guard;
+    const std::string name = "qidi_meta_" + std::to_string(::getpid()) + ".gcode.3mf";
+    const std::string zip = std::string("PK\x03\x04", 4) + "not gcode";
+    PlantedAsset file(name, zip);
+
+    view_.show(name, "", "PETG", {"#FF0000"}, {}, zip.size(), 42);
+    drain_queue_chain();
+
+    const auto metadata = view_.get_file_metadata();
+    REQUIRE(metadata.has_value());
+    REQUIRE(metadata->filament_weight_total > 0.0);
+
+    helix::PrintStartContext ctx;
+    ctx.metadata = metadata;
+    SlotInfo spool;
+    spool.remaining_weight_g = 0.5f;
+    ctx.external_spool = spool;
+    const auto shortfall = helix::insufficient_spool_weight_in(ctx);
+    REQUIRE(shortfall.has_value());
+    CHECK(shortfall->first == Catch::Approx(metadata->filament_weight_total));
 
     pop_and_drain();
 }

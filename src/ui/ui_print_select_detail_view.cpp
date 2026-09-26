@@ -2139,6 +2139,51 @@ void PrintSelectDetailView::load_gcode_for_preview() {
     lv_subject_set_int(&detail_gcode_loading_, 1);
     start_progress_timer();
 
+    auto tok = lifetime_.token();
+
+    // Metadata fetch, in every render mode and for a .3mf too: it is the only
+    // writer of cached_file_metadata_, which PrintStartController's pre-print
+    // checks (filament weight, per-tool weights) read. It also re-checks the
+    // streaming-safety gate against the authoritative size; in thumbnail mode
+    // its show_gcode_viewer(false) calls leave the thumbnail as it is.
+    const std::string file_path =
+        current_path_.empty() ? current_filename_ : current_path_ + "/" + current_filename_;
+
+    api_->files().get_file_metadata(
+        file_path,
+        [this, tok](const FileMetadata& metadata) {
+            // L081 Mechanism C: marshal member writes + LVGL/show_gcode_viewer
+            // to main thread before touching `this`.
+            tok.defer("DetailView::metadata_apply", [this, metadata]() {
+                // Cache for PrintStartController's pre-print checks (e.g., filament weight)
+                cached_file_metadata_ = metadata;
+
+                // Check if file is safe to render given available RAM. When
+                // the shared file already loaded this same size passed the
+                // download's local gate below, so this only bites on the paths
+                // where the ensure-callback hadn't resolved yet.
+                if (!helix::is_gcode_2d_streaming_safe(metadata.size)) {
+                    auto mem = helix::get_system_memory_info();
+                    spdlog::warn("[DetailView] G-code too large for streaming: file={} bytes, "
+                                 "available RAM={}MB - using thumbnail",
+                                 metadata.size, mem.available_mb());
+                    show_gcode_viewer(false);
+                    return;
+                }
+                spdlog::debug("[DetailView] G-code size {} bytes - metadata cached", metadata.size);
+            });
+        },
+        [this, tok](const MoonrakerError& err) {
+            // L081 Mechanism C: marshal LVGL show_gcode_viewer to main thread.
+            tok.defer("DetailView::metadata_error", [this, err]() {
+                spdlog::debug("[DetailView] Failed to get G-code metadata: {} - skipping preview",
+                              err.message);
+                show_gcode_viewer(false);
+            });
+        },
+        true // silent
+    );
+
     // Check "Thumbnail Only" render mode - skip all gcode downloading/parsing.
     // This is the ONLY user-forced skip: past here we render whatever mode the
     // viewer is in (3D on GLES devices, 2D-layer otherwise), just like the
@@ -2158,15 +2203,12 @@ void PrintSelectDetailView::load_gcode_for_preview() {
         return;
     }
 
-    auto tok = lifetime_.token();
-
-    // Shared download FIRST: when the file is already on disk the viewer
-    // loads immediately — no wait on the metadata round-trip (preserves the
-    // old cached-file fast path). On a cold open this starts the ONE
-    // transfer the headless tools scan joins. The streaming-safety gate
-    // applies to the on-disk bytes either way (same size metadata.size
-    // reports); the metadata gate below re-checks the authoritative size on
-    // cold downloads.
+    // Shared download: when the file is already on disk the viewer loads
+    // immediately, with no wait on the metadata round-trip. On a cold open
+    // this starts the ONE transfer the headless tools scan joins. The
+    // streaming-safety gate applies to the on-disk bytes either way (same size
+    // metadata.size reports); the metadata gate above re-checks the
+    // authoritative size on cold downloads.
     ensure_gcode_downloaded([this, tok](bool ok, const std::string& path) {
         if (!ok) {
             spdlog::debug("[DetailView] Shared G-code download unavailable - using thumbnail");
@@ -2212,47 +2254,6 @@ void PrintSelectDetailView::load_gcode_for_preview() {
         spdlog::info("[DetailView] Using G-code file ({} bytes): {}", local_size, path);
         begin_viewer_load(path);
     });
-
-    // Metadata fetch (parallel, as today): populates cached_file_metadata_
-    // for PrintStartController's pre-print checks (e.g. filament weight) and
-    // re-checks the streaming-safety gate against the authoritative size.
-    const std::string file_path =
-        current_path_.empty() ? current_filename_ : current_path_ + "/" + current_filename_;
-
-    api_->files().get_file_metadata(
-        file_path,
-        [this, tok](const FileMetadata& metadata) {
-            // L081 Mechanism C: marshal member writes + LVGL/show_gcode_viewer
-            // to main thread before touching `this`.
-            tok.defer("DetailView::metadata_apply", [this, metadata]() {
-                // Cache for PrintStartController's pre-print checks (e.g., filament weight)
-                cached_file_metadata_ = metadata;
-
-                // Check if file is safe to render given available RAM. When
-                // the shared file already loaded this same size passed the
-                // local gate above, so this only bites on the paths where the
-                // ensure-callback hadn't resolved yet.
-                if (!helix::is_gcode_2d_streaming_safe(metadata.size)) {
-                    auto mem = helix::get_system_memory_info();
-                    spdlog::warn("[DetailView] G-code too large for streaming: file={} bytes, "
-                                 "available RAM={}MB - using thumbnail",
-                                 metadata.size, mem.available_mb());
-                    show_gcode_viewer(false);
-                    return;
-                }
-                spdlog::debug("[DetailView] G-code size {} bytes - metadata cached", metadata.size);
-            });
-        },
-        [this, tok](const MoonrakerError& err) {
-            // L081 Mechanism C: marshal LVGL show_gcode_viewer to main thread.
-            tok.defer("DetailView::metadata_error", [this, err]() {
-                spdlog::debug("[DetailView] Failed to get G-code metadata: {} - skipping preview",
-                              err.message);
-                show_gcode_viewer(false);
-            });
-        },
-        true // silent
-    );
 }
 
 void PrintSelectDetailView::begin_viewer_load(const std::string& path) {

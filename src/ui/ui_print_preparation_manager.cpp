@@ -525,6 +525,10 @@ void PrintPreparationManager::scan_file_for_operations(const std::string& filena
     }
 
     if (helix::gcode::is_3mf(filename)) {
+        // An empty result, not none: every cache reader must stop seeing the
+        // previously opened file's operations.
+        cached_scan_result_ = gcode::ScanResult{};
+        cached_scan_filename_ = filename;
         answer_printer_stop_check(filename,
                                   printer_stop_not_run("a .3mf project holds no G-code to scan"));
         return;

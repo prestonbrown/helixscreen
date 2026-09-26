@@ -3,6 +3,7 @@
 
 #include "ui_print_select_file_provider.h"
 
+#include "ui_filename_utils.h"
 #include "ui_panel_print_select.h" // For PrintFileData
 #include "ui_print_select_card_view.h"
 #include "ui_update_queue.h"
@@ -147,17 +148,10 @@ void PrintSelectFileProvider::refresh_files(const std::string& current_path,
                         file.filename, PrintSelectCardView::FOLDER_ICON, false));
                 } else {
                     // Only show printable files (.gcode, .gco, .g, .3mf)
-                    auto has_ext = [](const std::string& name, const char* ext) {
-                        size_t elen = strlen(ext);
-                        if (name.size() <= elen)
-                            return false;
-                        std::string suffix = name.substr(name.size() - elen);
-                        for (auto& c : suffix)
-                            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-                        return suffix == ext;
-                    };
-                    if (!has_ext(file.filename, ".gcode") && !has_ext(file.filename, ".gco") &&
-                        !has_ext(file.filename, ".g") && !has_ext(file.filename, ".3mf")) {
+                    using helix::gcode::ends_with_ci;
+                    const std::string& name = file.filename;
+                    if (!ends_with_ci(name, ".gcode") && !ends_with_ci(name, ".gco") &&
+                        !ends_with_ci(name, ".g") && !ends_with_ci(name, ".3mf")) {
                         continue;
                     }
 

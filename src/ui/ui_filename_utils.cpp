@@ -5,6 +5,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+#include <cctype>
 #include <vector>
 
 namespace helix::gcode {
@@ -34,23 +36,10 @@ std::string strip_gcode_extension(const std::string& filename) {
         return is_3mf(inner) ? inner : strip_gcode_extension(inner);
     }
 
-    // Common G-code extensions (case-insensitive check)
-    static const std::vector<std::string> extensions = {".gcode", ".gco", ".g", ".3mf"};
-
+    static const std::vector<std::string> extensions = {".gcode", ".gco", ".g"};
     for (const auto& ext : extensions) {
-        if (filename.size() > ext.size()) {
-            size_t pos = filename.size() - ext.size();
-            // Case-insensitive suffix comparison
-            std::string suffix = filename.substr(pos);
-            std::string suffix_lower;
-            suffix_lower.reserve(suffix.size());
-            for (char c : suffix) {
-                suffix_lower.push_back(
-                    static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-            }
-            if (suffix_lower == ext) {
-                return filename.substr(0, pos);
-            }
+        if (filename.size() > ext.size() && ends_with_ci(filename, ext)) {
+            return filename.substr(0, filename.size() - ext.size());
         }
     }
 
@@ -137,15 +126,18 @@ bool is_native_3mf_shadow(const std::string& name) {
     return name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-bool is_3mf(const std::string& name) {
-    if (name.size() < 4) {
+bool ends_with_ci(const std::string& s, const std::string& suffix) {
+    if (s.size() < suffix.size()) {
         return false;
     }
-    std::string suffix = name.substr(name.size() - 4);
-    for (char& c : suffix) {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
-    return suffix == ".3mf";
+    return std::equal(suffix.rbegin(), suffix.rend(), s.rbegin(), [](char a, char b) {
+        return std::tolower(static_cast<unsigned char>(a)) ==
+               std::tolower(static_cast<unsigned char>(b));
+    });
+}
+
+bool is_3mf(const std::string& name) {
+    return ends_with_ci(name, ".3mf");
 }
 
 } // namespace helix::gcode
