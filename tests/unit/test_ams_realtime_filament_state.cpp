@@ -780,6 +780,39 @@ TEST_CASE_METHOD(LVGLTestFixture, "Per-slot token'd accessors hand out a token d
         CHECK_FALSE(*lt);
     }
 
+    // A secondary backend's subjects are freed by clear_backends(), which runs
+    // on rediscovery as well as inside deinit_subjects(), so its token must die
+    // there and not only at deinit_subjects().
+    const std::vector<std::pair<const char*, Accessor>> secondary = {
+        {"color", [&](SubjectLifetime& lt) { return ams.get_slot_color_subject(1, 0, lt); }},
+        {"status", [&](SubjectLifetime& lt) { return ams.get_slot_status_subject(1, 0, lt); }},
+        {"fill", [&](SubjectLifetime& lt) { return ams.get_slot_fill_subject(1, 0, lt); }},
+        {"lane_state",
+         [&](SubjectLifetime& lt) { return ams.get_slot_lane_state_subject(1, 0, lt); }},
+        {"has_error",
+         [&](SubjectLifetime& lt) { return ams.get_slot_has_error_subject(1, 0, lt); }},
+        {"error_severity",
+         [&](SubjectLifetime& lt) { return ams.get_slot_error_severity_subject(1, 0, lt); }},
+    };
+    ams.init_subjects(false);
+    for (const auto& [name, get] : secondary) {
+        INFO("secondary " << name);
+        ams.set_backend(std::make_unique<AmsBackendMock>(4));
+        REQUIRE(ams.add_backend(std::make_unique<AmsBackendMock>(4)) == 1);
+        SubjectLifetime lt;
+        REQUIRE(get(lt) != nullptr);
+        REQUIRE(lt);
+        REQUIRE(*lt);
+        ams.clear_backends();
+        CHECK_FALSE(*lt);
+    }
+    ams.set_backend(std::make_unique<AmsBackendMock>(4));
+    REQUIRE(ams.add_backend(std::make_unique<AmsBackendMock>(4)) == 1);
+    SubjectLifetime secondary_lt;
+    REQUIRE(ams.get_slot_lane_state_subject(1, 0, secondary_lt) != nullptr);
+    ams.deinit_subjects();
+    CHECK_FALSE(*secondary_lt);
+
     // No subject, no token.
     ams.init_subjects(false);
     SubjectLifetime lt = std::make_shared<bool>(true);
