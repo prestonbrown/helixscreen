@@ -148,7 +148,7 @@ If nothing else works:
 1. Go to **Settings > System > Factory Reset**
 2. Confirm the reset
 
-This resets **all** settings and re-runs the Setup Wizard from scratch, including calibration if your screen needs it. Only use this as a last resort.
+This resets **all** settings and re-runs the Setup Wizard from scratch, including calibration if your screen needs it. The reset also clears the backup copies of your settings, so the wizard cannot be skipped by a restore. Only use this as a last resort. If the screen is too broken to reach Settings at all, use Method 2 or 3 above, or the SSH procedure in [Reset HelixScreen or re-run the setup wizard](../TROUBLESHOOTING.md#reset-helixscreen-or-re-run-the-setup-wizard).
 
 ---
 

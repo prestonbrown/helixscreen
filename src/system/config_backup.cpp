@@ -107,4 +107,15 @@ bool restore_from_backup(const std::string& target_path, const char* label,
     }
 }
 
+void remove_backups(const std::vector<std::string>& backup_paths) {
+    for (const auto& path : backup_paths) {
+        std::error_code ec;
+        if (fs::remove(path, ec)) {
+            spdlog::info("[Config] Removed backup: {}", path);
+        } else if (ec) {
+            spdlog::warn("[Config] Failed to remove backup {}: {}", path, ec.message());
+        }
+    }
+}
+
 } // namespace helix::config_backup

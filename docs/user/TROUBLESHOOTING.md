@@ -1876,6 +1876,27 @@ Auto-detection only commits to a model when it is confident enough. Below that b
 
 ---
 
+### Reset HelixScreen or re-run the setup wizard
+
+**Option 1: Factory Reset from the UI (easiest).** Go to **Settings > System > Factory Reset** and confirm. This wipes all HelixScreen settings, clears the backup copies so the old settings cannot come back, and restarts the Setup Wizard on the next start. It does not touch Klipper, Moonraker, or any files on the printer itself.
+
+**Option 2: touch is unusable, recalibrate only.** A full reset is not needed just to fix touch. Either add `HELIX_TOUCH_CALIBRATE=1` to the `helixscreen.env` file in your install's `config/` directory and restart the service (remove the line once calibration succeeds, the env var does not self-clear), or stop the service, add `"force_calibration": true` inside the `"input"` section of `settings.json`, and start it again (the flag clears itself after a successful calibration). See [Forcing Recalibration](guide/touch-calibration.md#forcing-recalibration) for the full walkthrough.
+
+**Option 3: full manual reset over SSH.** Deleting `settings.json` alone does not re-run the wizard: HelixScreen keeps rolling backup copies outside the install directory and restores the most recent one the next time the file is missing. To truly start over:
+
+1. Stop the service (`sudo systemctl stop helixscreen` on Raspberry Pi; `/etc/init.d/S99helixscreen stop` on K1 / K2 / Snapmaker U1; `/etc/init.d/S80helixscreen stop` on AD5M, AD5X and Creator 5 (Z-Mod); `/etc/init.d/helixscreen stop` on CC1)
+2. Delete the config and every backup copy (the install directory for your platform is in [Config File Locations](guide/touch-calibration.md#config-file-locations), for example `/srv/helixscreen` on FlashForge Z-Mod installs). Drop `sudo` on printers where you are already root (FlashForge, Creality, Snapmaker U1):
+   ```bash
+   sudo rm -f /srv/helixscreen/config/settings.json   # your install dir here
+   sudo rm -f /var/lib/helixscreen/*.backup
+   sudo rm -f ~/.helixscreen/*.backup                 # HOME is /root on Z-Mod installs, so /root/.helixscreen
+   ```
+3. Start the service again. The Setup Wizard runs from scratch.
+
+To re-run the wizard without wiping your settings, stop the service and start the app once by hand with `helix-screen --wizard`.
+
+---
+
 ## Creality K1 Series Issues
 
 Covers the K1, K1C and K1 Max on stock or Guilouz Helper Script firmware.
