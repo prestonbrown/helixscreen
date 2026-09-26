@@ -216,26 +216,11 @@ HeaterDisplayResult heater_display(int current_deci, int target_deci) {
     }
 
     // Determine status using shared tolerance constant. Classified in
-    // decidegrees against the displayed reading so the word matches both the
+    // decidegrees against the displayed reading so the glyph matches both the
     // string above and the temp_display card showing the same heater.
     const HeatState state =
         classify_heat_state(shown_deci, target_deci, DEFAULT_AT_TEMP_TOLERANCE_DECI);
-    switch (state) {
-    case HeatState::Off:
-        result.status = lv_tr("Off");
-        break;
-    case HeatState::Heating:
-        result.status = lv_tr("Heating...");
-        break;
-    case HeatState::Cooling:
-        result.status = lv_tr("Cooling");
-        break;
-    case HeatState::Neutral:
-        // classify_heat_state() (mode-unaware) never returns Neutral.
-    case HeatState::AtTemp:
-        result.status = lv_tr("Ready");
-        break;
-    }
+    result.state = state;
 
     // Get color from the same heating state logic
     result.color = get_heating_state_color(state);
@@ -302,28 +287,33 @@ const char* chamber_mode_word(helix::ChamberMode mode) {
     }
 }
 
-std::string status_with_duty(const std::string& status, int power_pct) {
-    if (power_pct <= 0) {
-        return status;
+// Map a thermal classification onto the status-area states. Chamber Neutral
+// (maintaining at or below the cooling ceiling) is the "holding, satisfied"
+// answer, so it reads as Ready rather than None.
+static HeaterStatusState status_state_of(HeatState heat) {
+    switch (heat) {
+    case HeatState::Heating:
+        return HeaterStatusState::Heating;
+    case HeatState::AtTemp:
+    case HeatState::Neutral:
+        return HeaterStatusState::Ready;
+    case HeatState::Cooling:
+        return HeaterStatusState::Cooling;
+    case HeatState::Off:
+        break;
     }
-    return status + " \xc2\xb7 " + std::to_string(power_pct) + "%"; // " · " UTF-8 middle dot
+    return HeaterStatusState::None;
 }
 
-std::string chamber_status_text(int current_deci, int target_deci, helix::ChamberMode mode,
-                                int power_pct) {
-    // Resolve the mode word (untranslated key), then localise at the call site.
-    std::string mode_str = lv_tr(chamber_mode_word(mode));
-
-    // Append thermal progress ("Ready" / "Cooling") only when it adds information
-    // beyond the mode word.  Suppress "Heating · Heating..." and the Off cases.
-    auto result = heater_display(current_deci, target_deci);
-    const std::string& progress = result.status; // already localised
-    if (target_deci <= 0 || progress == std::string(lv_tr("Heating...")) ||
-        progress == std::string(lv_tr("Off"))) {
-        return status_with_duty(mode_str, power_pct);
+HeaterStatus classify_heater_status(int current_deci, int target_deci, int power_pct,
+                                    helix::ChamberMode mode) {
+    HeaterStatus status;
+    status.state = status_state_of(classify_heat_state_with_mode(
+        displayed_deci(current_deci), target_deci, mode, DEFAULT_AT_TEMP_TOLERANCE_DECI));
+    if (power_pct > 0) {
+        status.duty = std::to_string(power_pct) + "%";
     }
-    return status_with_duty(mode_str + " \xc2\xb7 " + progress, // " · " UTF-8 middle dot
-                            power_pct);
+    return status;
 }
 
 } // namespace temperature

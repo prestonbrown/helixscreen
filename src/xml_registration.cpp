@@ -435,6 +435,7 @@ void register_xml_components() {
     register_xml("components/home_action_tile.xml");
     register_xml("components/nozzle_icon.xml");
     register_xml("components/heater_icon.xml");
+    register_xml("components/heater_status.xml");
     // Chamber-heater diagnostics card — instantiated by temp_graph_overlay's
     // graph column (must be registered before temp_graph_overlay.xml, which
     // is loaded later in this function).

@@ -444,10 +444,12 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: nozzle_status binding updates 
     REQUIRE(register_component("controls_panel"));
     set_xml_subject_str("controls_nozzle_status", "Heating");
     lv_obj_t* panel = create_component("controls_panel");
-    CHECK(label_text_of(require_named(panel, "nozzle_status")) == "Heating");
+    CHECK(label_text_of(require_named(require_named(panel, "nozzle_status"), "status_duty")) ==
+          "Heating");
 
     set_xml_subject_str("controls_nozzle_status", "");
-    CHECK(label_text_of(require_named(panel, "nozzle_status")).empty());
+    CHECK(
+        label_text_of(require_named(require_named(panel, "nozzle_status"), "status_duty")).empty());
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "controls_panel: bed_status binding updates status text",
@@ -456,10 +458,11 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: bed_status binding updates sta
     REQUIRE(register_component("controls_panel"));
     set_xml_subject_str("controls_bed_status", "Heating");
     lv_obj_t* panel = create_component("controls_panel");
-    CHECK(label_text_of(require_named(panel, "bed_status")) == "Heating");
+    CHECK(label_text_of(require_named(require_named(panel, "bed_status"), "status_duty")) ==
+          "Heating");
 
     set_xml_subject_str("controls_bed_status", "");
-    CHECK(label_text_of(require_named(panel, "bed_status")).empty());
+    CHECK(label_text_of(require_named(require_named(panel, "bed_status"), "status_duty")).empty());
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "controls_panel: all_homed drives btn_home_all background",

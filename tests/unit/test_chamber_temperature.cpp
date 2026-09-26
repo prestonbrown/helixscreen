@@ -1155,174 +1155,96 @@ TEST_CASE("chamber raw subjects are NOT XML-registered; canonical subjects ARE",
 }
 
 // ============================================================================
-// Chamber status string must be mode-aware: in Maintaining state the effective
-// target is the cooling-fan ceiling (positive), so heater_display with the
-// effective target produces a non-"Off" status.  Previously the ControlsPanel
-// passed cached_chamber_target_ (raw heater target = 0 in Maintaining) and got
-// "Off" wrongly.
+// The chamber status area classifies against the EFFECTIVE target with the
+// chamber mode in hand. In Maintaining the effective target is the cooling-fan
+// ceiling (positive) while the raw heater target reads 0, so a mode-blind call
+// on the raw target says "nothing happening" while the room is being held.
 // ============================================================================
 
-TEST_CASE("chamber status uses effective target — Maintaining shows non-Off status",
+TEST_CASE("chamber status classifies against the effective target, mode-aware",
           "[chamber][controls][status]") {
-    using helix::ui::temperature::heater_display;
+    using helix::ui::temperature::classify_heater_status;
+    using H = helix::ui::temperature::HeaterStatusState;
 
-    // Simulate Maintaining state: heater target = 0, fan target = 360 deci (36°C)
-    // chamber_effective_target = 360, chamber_mode = Maintaining
-    int cached_chamber_temp_deci = 380; // 38°C — current
-    int cached_chamber_target_raw = 0;  // raw heater target (WRONG to display)
-    int cached_effective_target = 360;  // chamber_effective_target (CORRECT)
-
-    // The old (buggy) path: heater_display with raw heater target → "Off"
-    auto bad_result = heater_display(cached_chamber_temp_deci, cached_chamber_target_raw);
-    REQUIRE(bad_result.status == std::string(lv_tr("Off")));
-
-    // The correct path: heater_display with effective target → not "Off"
-    auto good_result = heater_display(cached_chamber_temp_deci, cached_effective_target);
-    REQUIRE(good_result.status != std::string(lv_tr("Off")));
-    // At 38°C current vs 36°C target (within tolerance → "Cooling" since above target)
-    // Either way it must not say "Off"
-    REQUIRE(good_result.status.find("Off") == std::string::npos);
+    // Maintaining: raw heater target = 0, fan ceiling = 360 deci (36C),
+    // chamber at 370 deci (37C).
+    // The wrong inputs (raw heater target, no mode) say nothing is happening.
+    REQUIRE(classify_heater_status(370, 0, 0).state == H::None);
+    // The right inputs (effective target + mode) say the chamber is held.
+    REQUIRE(classify_heater_status(370, 360, 0, helix::ChamberMode::Maintaining).state == H::Ready);
 }
 
-// ============================================================================
-// chamber_status_text() — shared helper is the single source of truth for
-// both the controls panel and the temp-graph overlay.
-//
-// These tests verify the helper produces the correct mode word and that
-// the OLD mode-blind code path (heater_display alone, ignoring mode) would
-// have produced wrong output for the Maintaining case — confirming the fix.
-// ============================================================================
+TEST_CASE("chamber Maintaining below the ceiling never lights the flame",
+          "[chamber][controls][status][temperature]") {
+    using helix::ui::temperature::classify_heater_status;
+    using H = helix::ui::temperature::HeaterStatusState;
 
-TEST_CASE("chamber_status_text: Maintaining mode leads with Maintaining word",
+    // 26.5C against a 36C ceiling: climbing toward a ceiling is holding work,
+    // not heating - the check glyph, never the flame.
+    REQUIRE(classify_heater_status(265, 360, 0, helix::ChamberMode::Maintaining).state == H::Ready);
+    // The mode-blind call on the same reading is the regression this guards.
+    REQUIRE(classify_heater_status(265, 360, 0).state == H::Heating);
+}
+
+TEST_CASE("chamber Heating mode and Off classify plainly",
           "[chamber][controls][status][temperature]") {
     using helix::ChamberMode;
-    using helix::ui::temperature::chamber_status_text;
-    using helix::ui::temperature::heater_display;
+    using helix::ui::temperature::classify_heater_status;
+    using H = helix::ui::temperature::HeaterStatusState;
 
-    // Maintaining state: heater=0, fan target=360 deci (36°C), current=265 deci (26.5°C)
-    // → mode=Maintaining, effective=360, current is below target → heater_display → "Heating..."
-    int current = 265;
-    int effective = 360;
-
-    auto status = chamber_status_text(current, effective, ChamberMode::Maintaining);
-
-    // Must contain the Maintaining word
-    REQUIRE(status.find(lv_tr("Maintaining")) != std::string::npos);
-    // Must NOT contain "Heating" as the primary word (no regression to mode-blind path)
-    // Note: "Maintaining" itself doesn't contain "Heating", so this is a clean check
-    REQUIRE(status.find(lv_tr("Heating")) == std::string::npos);
-
-    // Confirm the old mode-blind path (heater_display with effective target alone)
-    // would say "Heating..." — the exact regression this fix addresses.
-    auto blind_result = heater_display(current, effective);
-    REQUIRE(blind_result.status == std::string(lv_tr("Heating...")));
+    // Heating state: heater target 600 deci (60C), current 250 deci (25C).
+    REQUIRE(classify_heater_status(250, 600, 0, ChamberMode::Heating).state == H::Heating);
+    // Off: effective target is the production 0 when mode is Off. Both a cold
+    // chamber and a warm-but-idle one say nothing.
+    REQUIRE(classify_heater_status(0, 0, 0, ChamberMode::Off).state == H::None);
+    REQUIRE(classify_heater_status(250, 0, 0, ChamberMode::Off).state == H::None);
 }
 
-TEST_CASE("chamber_status_text: Heating mode leads with Heating word",
-          "[chamber][controls][status][temperature]") {
-    using helix::ChamberMode;
-    using helix::ui::temperature::chamber_status_text;
-
-    // Heating state: heater target = 600 deci (60°C), current = 250 deci (25°C)
-    int current = 250;
-    int target = 600;
-
-    auto status = chamber_status_text(current, target, ChamberMode::Heating);
-
-    // Must lead with the Heating mode word
-    REQUIRE(status.find(lv_tr("Heating")) != std::string::npos);
-    // thermal progress "Heating..." would be suppressed (avoids "Heating · Heating...")
-    // so the result should just be the mode word alone
-    REQUIRE(status == std::string(lv_tr("Heating")));
-}
-
-TEST_CASE("chamber_status_text: Off mode returns Off", "[chamber][controls][status][temperature]") {
-    using helix::ChamberMode;
-    using helix::ui::temperature::chamber_status_text;
-
-    // Off: effective target = 0 (production value when mode is Off).
-    // Both current-is-zero and current-is-nonzero (warm chamber cooling down) cases.
-    REQUIRE(chamber_status_text(0, 0, ChamberMode::Off) == std::string(lv_tr("Off")));
-    REQUIRE(chamber_status_text(250, 0, ChamberMode::Off) == std::string(lv_tr("Off")));
-}
-
-TEST_CASE("chamber_status_text: Maintaining appends thermal progress when at-temp or cooling",
-          "[chamber][controls][status][temperature]") {
-    using helix::ChamberMode;
-    using helix::ui::temperature::chamber_status_text;
-
-    // At-temp: current ~= target (within 2°C tolerance in degrees, i.e. 20 deci)
-    // 360 deci target, 360 deci current → "Ready"
-    {
-        auto status = chamber_status_text(360, 360, ChamberMode::Maintaining);
-        // Should be "Maintaining · Ready" (progress adds info beyond the mode word)
-        REQUIRE(status.find(lv_tr("Maintaining")) != std::string::npos);
-        REQUIRE(status.find(lv_tr("Ready")) != std::string::npos);
-    }
-
-    // Cooling: current well above target
-    // 500 deci current (50°C), 360 deci target (36°C) → "Cooling"
-    {
-        auto status = chamber_status_text(500, 360, ChamberMode::Maintaining);
-        REQUIRE(status.find(lv_tr("Maintaining")) != std::string::npos);
-        REQUIRE(status.find(lv_tr("Cooling")) != std::string::npos);
-    }
-}
-
-TEST_CASE("every heater status string fits the buffer its surfaces render from",
+TEST_CASE("every heater duty string fits the buffer its surfaces render from",
           "[chamber][temperature]") {
-    using helix::ui::temperature::chamber_status_text;
+    using helix::ui::temperature::classify_heater_status;
     using helix::ui::temperature::HEATER_STATUS_BUF_BYTES;
 
-    // The composer joins a mode word to a progress word. A surface whose
-    // buffer cannot hold the join renders the heater cut short while a surface
-    // with a larger buffer renders it whole, and the two disagree on screen.
-    std::string longest;
-    for (auto mode :
-         {helix::ChamberMode::Off, helix::ChamberMode::Heating, helix::ChamberMode::Maintaining}) {
-        for (int current : {0, 300, 600, 900}) {
-            for (int target : {0, 400, 600}) {
-                std::string s = chamber_status_text(current, target, mode);
-                if (s.size() > longest.size()) {
-                    longest = s;
-                }
+    // The status area renders the duty text and, for a read-only chamber, the
+    // translated "Monitoring" word. A surface whose buffer cannot hold the
+    // longest of those renders it cut short while a surface with a larger
+    // buffer renders it whole, and the two disagree on screen.
+    std::string longest = std::string(lv_tr("Monitoring"));
+    for (int duty : {-1, 0, 4, 47, 100}) {
+        for (auto mode : {helix::ChamberMode::Off, helix::ChamberMode::Heating,
+                          helix::ChamberMode::Maintaining}) {
+            auto s = classify_heater_status(350, 600, duty, mode).duty;
+            if (s.size() > longest.size()) {
+                longest = s;
             }
         }
     }
     CAPTURE(longest);
     CAPTURE(longest.size());
 
-    // Non-vacuity: the longest join has to outgrow a small buffer, or this
-    // test would hold for any size at all.
-    REQUIRE(longest.size() >= 16);
+    // Non-vacuity: the longest candidate has to outgrow a small buffer, or
+    // this test would hold for any size at all.
+    REQUIRE(longest.size() >= 8);
 
     std::array<char, HEATER_STATUS_BUF_BYTES> buf{};
     std::snprintf(buf.data(), buf.size(), "%s", longest.c_str());
     CHECK(std::string(buf.data()) == longest);
 }
 
-TEST_CASE("a driving element appends its duty to the status phrase",
-          "[chamber][temperature][power]") {
-    using helix::ui::temperature::chamber_status_text;
-    using helix::ui::temperature::status_with_duty;
+TEST_CASE("a driving element carries its duty percent", "[chamber][temperature][power]") {
+    using helix::ui::temperature::classify_heater_status;
 
-    // A heater drawing nothing says so with its state word. Hanging "0%" off
+    // A heater drawing nothing says so with its glyph alone. Hanging "0%" off
     // every idle heater would put a number on every row that never moves.
-    CHECK(status_with_duty("Ready", -1) == "Ready");
-    CHECK(status_with_duty("Ready", 0) == "Ready");
-    CHECK(status_with_duty("Ready", 4) == "Ready \xc2\xb7 4%");
+    CHECK(classify_heater_status(1980, 2000, -1).duty.empty());
+    CHECK(classify_heater_status(1980, 2000, 0).duty.empty());
+    CHECK(classify_heater_status(1980, 2000, 4).duty == "4%");
 
-    // The chamber case that matters: climbing, so the progress word is
-    // suppressed and the duty is what is left to say.
-    CHECK(chamber_status_text(350, 600, helix::ChamberMode::Heating, 100) ==
-          "Heating \xc2\xb7 100%");
+    // The chamber case that matters: climbing toward the target, so the duty
+    // is the only thing left to say.
+    CHECK(classify_heater_status(350, 600, 100, helix::ChamberMode::Heating).duty == "100%");
 
-    // Flat out and still short of target is the shape of a chamber that will
-    // never arrive; the same reading at a trickle is one that is holding.
-    CHECK(chamber_status_text(550, 600, helix::ChamberMode::Heating, 100) !=
-          chamber_status_text(550, 600, helix::ChamberMode::Heating, 5));
-
-    // Unknown duty leaves every phrase exactly as it was.
-    CHECK(chamber_status_text(350, 600, helix::ChamberMode::Heating, -1) ==
-          chamber_status_text(350, 600, helix::ChamberMode::Heating));
+    // Full power still short of target is a chamber that may never arrive; the
+    // same reading at a trickle is one that is holding.
+    CHECK(classify_heater_status(550, 600, 100).duty != classify_heater_status(550, 600, 5).duty);
 }

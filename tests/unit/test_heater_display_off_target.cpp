@@ -28,7 +28,7 @@ TEST_CASE("heater_display: a zero target renders the reading alone",
     SECTION("cold nozzle, heater off") {
         auto r = heater_display(/*current_deci=*/250, /*target_deci=*/0);
         CHECK(r.temp == "25°C");
-        CHECK(r.status == "Off");
+        CHECK(r.state == helix::ui::temperature::HeatState::Off);
         CHECK(r.pct == 0);
     }
 
@@ -37,13 +37,13 @@ TEST_CASE("heater_display: a zero target renders the reading alone",
         // which looks like an active command to crash-cool the hotend.
         auto r = heater_display(/*current_deci=*/1800, /*target_deci=*/0);
         CHECK(r.temp == "180°C");
-        CHECK(r.status == "Off");
+        CHECK(r.state == helix::ui::temperature::HeatState::Off);
     }
 
     SECTION("a negative target is off too, not a pair") {
         auto r = heater_display(/*current_deci=*/250, /*target_deci=*/-10);
         CHECK(r.temp == "25°C");
-        CHECK(r.status == "Off");
+        CHECK(r.state == helix::ui::temperature::HeatState::Off);
     }
 }
 

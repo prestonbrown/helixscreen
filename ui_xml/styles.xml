@@ -47,6 +47,12 @@
     <style name="tile_icon_lg" text_font="#icon_font_lg"/>
     <style name="tile_icon_xl" text_font="#icon_font_xl"/>
 
+    <!-- Heater status-area duty text. Two mutually exclusive bindings partition
+         the state space (heating vs everything else); the pair lives here so
+         every heater surface colors the duty identically. -->
+    <style name="heater_duty_heating" text_color="#warning"/>
+    <style name="heater_duty_muted" text_color="#text_muted"/>
+
     <!-- A style carrying flex_flow must also carry layout="flex": the inline
          attribute path sets both, the style path does not, and a container
          with no active layout piles every child onto the first while

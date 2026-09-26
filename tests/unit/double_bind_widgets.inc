@@ -19,7 +19,6 @@
 static const BindGroup kDoubleBindWidgets[] = {
     {"ams_current_tool", "ams_current_tool", BindKind::Flag, "hidden", {{"ams_slot_count", -1}, {"ams_current_tool", 0}}, 2, {{0, 0}, {1, -1}}, 2, true},
     {"ams_device_operations", "label_printer_retains_note", BindKind::Flag, "hidden", {{"ams_device_ops_printer_retains_spool_info", -1}, {"ams_device_ops_reports_spool_ids", -1}}, 2, {{0, 0}, {1, 0}}, 2, true},
-    {"components/panel_widget_led", "light_button", BindKind::State, "disabled", {{"printer_connection_state", 2}, {"led_command_in_flight", 0}}, 2, {{0, 3}, {1, 1}}, 2, true},
     {"controls_panel", "chamber_status", BindKind::Flag, "hidden", {{"ui_breakpoint", 0}, {"printer_has_chamber", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
     {"controls_panel", "btn_qgl", BindKind::State, "disabled", {{"job_holds_machine", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
     {"controls_panel", "btn_z_tilt", BindKind::State, "disabled", {{"job_holds_machine", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
@@ -38,6 +37,7 @@ static const BindGroup kDoubleBindWidgets[] = {
     {"navigation_bar", "nav_btn_filament", BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"home_edit_mode", 0}}, 2, {{0, 2}, {1, 1}}, 2, true},
     {"network_settings_overlay", "refresh_btn", BindKind::State, "disabled", {{"wifi_scanning", 0}, {"wifi_hardware_available", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
     {"network_settings_overlay", "wifi_disabled_placeholder", BindKind::Flag, "hidden", {{"wifi_enabled", 0}, {"wifi_hardware_available", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
+    {"print_file_detail", "filament_mapping_card", BindKind::Flag, "hidden", {{"filament_mapping_visible", -1}, {"print_select_button_mode", 0}}, 2, {{0, 0}, {1, 1}}, 2, true},
     {"print_status_panel", "speed_flow_row", BindKind::Flag, "hidden", {{"ui_breakpoint", 0}}, 1, {{0, 1}, {0, 2}}, 2, false},
     {"probe_indicator", "probe_indicator", BindKind::Flag, "hidden", {{"probe_count", -1}, {"probe_triggered", 0}}, 2, {{0, 0}, {1, -1}}, 2, true},
     {"spool_wizard", "create_btn", BindKind::State, "disabled", {{"spool_wizard_can_proceed", -1}, {"wizard_creating", 0}}, 2, {{0, 0}, {1, 1}}, 2, true},
@@ -46,8 +46,8 @@ static const BindGroup kDoubleBindWidgets[] = {
 // clang-format on
 
 // Groups the scan found but that no test can drive; see the header comment.
-static constexpr int kUndrivableGroups = 10;
+static constexpr int kUndrivableGroups = 19;
 
 // Total groups in ui_xml/. A new double-bind widget moves this, which is the
 // point: it has to be regenerated and re-run rather than silently uncovered.
-static constexpr int kTotalGroups = 35;
+static constexpr int kTotalGroups = 44;

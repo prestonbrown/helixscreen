@@ -171,12 +171,13 @@
                 <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
               </lv_obj>
             </lv_obj>
-            <text_small name="nozzle_status"
-                        width="100%" bind_text="controls_nozzle_status" style_text_color="#text"
-                        style_text_align="right">
+            <lv_obj name="nozzle_status"
+                    width="100%" height="content" flex_flow="row" style_flex_main_place="end" style_pad_all="0"
+                    scrollable="false" clickable="false">
               <!-- Hidden on TINY screens (breakpoint 0) -->
               <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
-            </text_small>
+              <heater_status state_subject="controls_nozzle_status_state" duty_subject="controls_nozzle_status"/>
+            </lv_obj>
             <!-- Bed section (clickable) -->
             <lv_obj name="btn_bed_temp"
                     width="100%" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
@@ -204,10 +205,12 @@
                 <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
               </lv_obj>
             </lv_obj>
-            <text_small name="bed_status"
-                        width="100%" bind_text="controls_bed_status" style_text_color="#text" style_text_align="right">
+            <lv_obj name="bed_status"
+                    width="100%" height="content" flex_flow="row" style_flex_main_place="end" style_pad_all="0"
+                    scrollable="false" clickable="false">
               <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
-            </text_small>
+              <heater_status state_subject="controls_bed_status_state" duty_subject="controls_bed_status"/>
+            </lv_obj>
             <!-- Chamber section (visible only if printer has chamber sensor) -->
             <lv_obj name="btn_chamber_temp"
                     width="100%" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
@@ -237,13 +240,14 @@
                 <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
               </lv_obj>
             </lv_obj>
-            <text_small name="chamber_status"
-                        width="100%" bind_text="controls_chamber_status" style_text_color="#text"
-                        style_text_align="right">
+            <lv_obj name="chamber_status"
+                    width="100%" height="content" flex_flow="row" style_flex_main_place="end" style_pad_all="0"
+                    scrollable="false" clickable="false">
               <!-- Hidden on TINY screens (breakpoint 0) and when printer has no chamber -->
               <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
               <bind_flag_if_eq subject="printer_has_chamber" flag="hidden" ref_value="0"/>
-            </text_small>
+              <heater_status state_subject="controls_chamber_status_state" duty_subject="controls_chamber_status"/>
+            </lv_obj>
             <!-- Secondary temperature sensors list (populated dynamically) -->
             <lv_obj name="secondary_temps_list"
                     width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="column"

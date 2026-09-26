@@ -19,13 +19,13 @@ using namespace helix::ui::temperature;
 TEST_CASE("heater_display: off state when target is 0", "[temperature][heater_display]") {
     auto result = heater_display(250, 0); // 25°C, off
     REQUIRE(result.temp == "25°C");
-    REQUIRE(result.status == "Off");
+    REQUIRE(result.state == HeatState::Off);
     REQUIRE(result.pct == 0);
 }
 
 TEST_CASE("heater_display: off state when target is negative", "[temperature][heater_display]") {
     auto result = heater_display(250, -10); // 25°C, negative target
-    REQUIRE(result.status == "Off");
+    REQUIRE(result.state == HeatState::Off);
     REQUIRE(result.pct == 0);
 }
 
@@ -37,7 +37,7 @@ TEST_CASE("heater_display: heating state", "[temperature][heater_display]") {
     // 150°C current, 200°C target -> 75%
     auto result = heater_display(1500, 2000);
     REQUIRE(result.temp == "150 / 200°C");
-    REQUIRE(result.status == "Heating...");
+    REQUIRE(result.state == HeatState::Heating);
     REQUIRE(result.pct == 75);
 }
 
@@ -45,7 +45,7 @@ TEST_CASE("heater_display: heating from zero", "[temperature][heater_display]") 
     auto result = heater_display(0, 2000);
     REQUIRE(result.temp == "0 / 200°C");
     REQUIRE(result.pct == 0);
-    REQUIRE(result.status == "Heating...");
+    REQUIRE(result.state == HeatState::Heating);
 }
 
 // ============================================================================
@@ -56,13 +56,13 @@ TEST_CASE("heater_display: ready state within tolerance", "[temperature][heater_
     // 198°C with 200°C target -> within +/-2 -> Ready
     auto result = heater_display(1980, 2000);
     REQUIRE(result.temp == "198 / 200°C");
-    REQUIRE(result.status == "Ready");
+    REQUIRE(result.state == HeatState::AtTemp);
     REQUIRE(result.pct == 99);
 }
 
 TEST_CASE("heater_display: ready state at exact target", "[temperature][heater_display]") {
     auto result = heater_display(2000, 2000);
-    REQUIRE(result.status == "Ready");
+    REQUIRE(result.state == HeatState::AtTemp);
     REQUIRE(result.pct == 100);
 }
 
@@ -73,7 +73,7 @@ TEST_CASE("heater_display: ready state at exact target", "[temperature][heater_d
 TEST_CASE("heater_display: cooling state above tolerance", "[temperature][heater_display]") {
     // 210°C with 200°C target -> 210 > 202 -> Cooling
     auto result = heater_display(2100, 2000);
-    REQUIRE(result.status == "Cooling");
+    REQUIRE(result.state == HeatState::Cooling);
     REQUIRE(result.pct == 100);
 }
 
@@ -85,28 +85,90 @@ TEST_CASE("heater_display: exactly at lower tolerance boundary is Ready",
           "[temperature][heater_display]") {
     // 198°C with 200°C target -> 198 >= 200-2 -> Ready
     auto result = heater_display(1980, 2000);
-    REQUIRE(result.status == "Ready");
+    REQUIRE(result.state == HeatState::AtTemp);
 }
 
 TEST_CASE("heater_display: exactly at upper tolerance boundary is Ready",
           "[temperature][heater_display]") {
     // 202°C with 200°C target -> 202 <= 200+2 -> Ready
     auto result = heater_display(2020, 2000);
-    REQUIRE(result.status == "Ready");
+    REQUIRE(result.state == HeatState::AtTemp);
 }
 
 TEST_CASE("heater_display: just below lower tolerance boundary is Heating",
           "[temperature][heater_display]") {
     // 197°C with 200°C target -> 197 < 198 -> Heating
     auto result = heater_display(1970, 2000);
-    REQUIRE(result.status == "Heating...");
+    REQUIRE(result.state == HeatState::Heating);
 }
 
 TEST_CASE("heater_display: just above upper tolerance boundary is Cooling",
           "[temperature][heater_display]") {
     // 203°C with 200°C target -> 203 > 202 -> Cooling
     auto result = heater_display(2030, 2000);
-    REQUIRE(result.status == "Cooling");
+    REQUIRE(result.state == HeatState::Cooling);
+}
+
+// ============================================================================
+// classify_heater_status() - the status-area classification every surface
+// renders as glyph + duty. The state picks the glyph (none/flame/check/
+// snowflake); the duty string is the only text.
+// ============================================================================
+
+TEST_CASE("classify_heater_status: state holds across duty 0/partial/100",
+          "[temperature][heater_status]") {
+    struct Case {
+        int current;
+        int target;
+        HeaterStatusState state;
+    };
+    const Case cases[] = {
+        {250, 0, HeaterStatusState::None}, // heater off
+        {1500, 2000, HeaterStatusState::Heating},
+        {2000, 2000, HeaterStatusState::Ready},
+        {2100, 2000, HeaterStatusState::Cooling},
+    };
+    const int duties[] = {0, 47, 100};
+    for (const auto& c : cases) {
+        for (int duty : duties) {
+            auto s = classify_heater_status(c.current, c.target, duty);
+            REQUIRE(s.state == c.state);
+            if (duty > 0) {
+                REQUIRE(s.duty == std::to_string(duty) + "%");
+            } else {
+                REQUIRE(s.duty.empty());
+            }
+        }
+    }
+}
+
+TEST_CASE("classify_heater_status: an unknown duty renders none", "[temperature][heater_status]") {
+    REQUIRE(classify_heater_status(1500, 2000, -1).duty.empty());
+}
+
+TEST_CASE("classify_heater_status: classifies the reading the screen renders",
+          "[temperature][heater_status]") {
+    // 2175 deci prints as "218" (half-to-even), which is the at-temp boundary
+    // against a 220 target; the glyph judges the printed number, so Ready.
+    REQUIRE(classify_heater_status(2175, 2200, 50).state == HeaterStatusState::Ready);
+}
+
+TEST_CASE("classify_heater_status: chamber Maintaining folds Neutral into Ready",
+          "[temperature][heater_status][chamber_mode]") {
+    using helix::ChamberMode;
+    // At/below the cooling ceiling: holding, satisfied - the check glyph, never
+    // the flame (the ceiling is not a heat goal).
+    REQUIRE(classify_heater_status(1500, 2000, 0, ChamberMode::Maintaining).state ==
+            HeaterStatusState::Ready);
+    REQUIRE(classify_heater_status(2000, 2000, 0, ChamberMode::Maintaining).state ==
+            HeaterStatusState::Ready);
+    // Above the ceiling: shedding heat.
+    REQUIRE(classify_heater_status(2100, 2000, 0, ChamberMode::Maintaining).state ==
+            HeaterStatusState::Cooling);
+    // Heating mode and the plain default pass through the 4-state logic.
+    REQUIRE(classify_heater_status(1500, 2000, 0, ChamberMode::Heating).state ==
+            HeaterStatusState::Heating);
+    REQUIRE(classify_heater_status(1500, 2000, 0).state == HeaterStatusState::Heating);
 }
 
 // ============================================================================

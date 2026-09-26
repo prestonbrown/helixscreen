@@ -32,9 +32,7 @@
       <temp_display name="nozzle_temp"
                     size="md" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"
                     flex_grow="1" clickable="false" event_bubble="true"/>
-      <text_small name="nozzle_status"
-                  bind_text="print_nozzle_status" style_text_align="right" style_min_width="50" clickable="false"
-                  event_bubble="true"/>
+      <heater_status name="nozzle_status" state_subject="print_nozzle_status_state" duty_subject="print_nozzle_status"/>
     </lv_obj>
 
     <!-- Bed row -->
@@ -52,9 +50,7 @@
       <temp_display name="bed_temp"
                     size="md" show_target="true" bind_current="bed_temp" bind_target="bed_target" flex_grow="1"
                     clickable="false" event_bubble="true"/>
-      <text_small name="bed_status"
-                  bind_text="print_bed_status" style_text_align="right" style_min_width="50" clickable="false"
-                  event_bubble="true"/>
+      <heater_status name="bed_status" state_subject="print_bed_status_state" duty_subject="print_bed_status"/>
     </lv_obj>
 
     <!-- Chamber row (hidden when no chamber sensor/heater) -->
@@ -73,9 +69,8 @@
       <temp_display name="chamber_temp_display"
                     size="md" show_target="true" bind_current="chamber_temp" bind_target="chamber_effective_target"
                     bind_mode="chamber_mode" flex_grow="1" clickable="false" event_bubble="true"/>
-      <text_small name="chamber_status"
-                  bind_text="print_chamber_status" style_text_align="right" style_min_width="50" clickable="false"
-                  event_bubble="true"/>
+      <heater_status name="chamber_status"
+                     state_subject="print_chamber_status_state" duty_subject="print_chamber_status"/>
     </lv_obj>
 
   </view>

@@ -132,19 +132,24 @@ void ControlsPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(nozzle_temp_subject_, nozzle_temp_buf_, "—°C", "controls_nozzle_temp",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(nozzle_pct_subject_, 0, "controls_nozzle_pct", subjects_);
-    UI_MANAGED_SUBJECT_STRING(nozzle_status_subject_, nozzle_status_buf_, lv_tr("Off"),
+    UI_MANAGED_SUBJECT_STRING(nozzle_status_subject_, nozzle_status_buf_, "",
                               "controls_nozzle_status", subjects_);
+    UI_MANAGED_SUBJECT_INT(nozzle_status_state_subject_, 0, "controls_nozzle_status_state",
+                           subjects_);
 
     // Bed temperature display
     UI_MANAGED_SUBJECT_STRING(bed_temp_subject_, bed_temp_buf_, "—°C", "controls_bed_temp",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(bed_pct_subject_, 0, "controls_bed_pct", subjects_);
-    UI_MANAGED_SUBJECT_STRING(bed_status_subject_, bed_status_buf_, lv_tr("Off"),
-                              "controls_bed_status", subjects_);
+    UI_MANAGED_SUBJECT_STRING(bed_status_subject_, bed_status_buf_, "", "controls_bed_status",
+                              subjects_);
+    UI_MANAGED_SUBJECT_INT(bed_status_state_subject_, 0, "controls_bed_status_state", subjects_);
 
     // Chamber temperature display
-    UI_MANAGED_SUBJECT_STRING(chamber_status_subject_, chamber_status_buf_, lv_tr("Off"),
+    UI_MANAGED_SUBJECT_STRING(chamber_status_subject_, chamber_status_buf_, "",
                               "controls_chamber_status", subjects_);
+    UI_MANAGED_SUBJECT_INT(chamber_status_state_subject_, 0, "controls_chamber_status_state",
+                           subjects_);
 
     // Fan speed display
     UI_MANAGED_SUBJECT_STRING(fan_speed_subject_, fan_speed_buf_, lv_tr("Off"),
@@ -772,10 +777,11 @@ void ControlsPanel::update_nozzle_temp_display() {
 
     lv_subject_set_int(&nozzle_pct_subject_, result.pct);
 
-    auto nozzle_status = helix::ui::temperature::status_with_duty(
-        result.status,
+    auto nozzle = helix::ui::temperature::classify_heater_status(
+        cached_extruder_temp_, cached_extruder_target_,
         lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Nozzle)));
-    std::snprintf(nozzle_status_buf_, sizeof(nozzle_status_buf_), "%s", nozzle_status.c_str());
+    lv_subject_set_int(&nozzle_status_state_subject_, static_cast<int>(nozzle.state));
+    std::snprintf(nozzle_status_buf_, sizeof(nozzle_status_buf_), "%s", nozzle.duty.c_str());
     lv_subject_copy_string(&nozzle_status_subject_, nozzle_status_buf_);
 }
 
@@ -787,23 +793,25 @@ void ControlsPanel::update_bed_temp_display() {
 
     lv_subject_set_int(&bed_pct_subject_, result.pct);
 
-    auto bed_status = helix::ui::temperature::status_with_duty(
-        result.status,
+    auto bed = helix::ui::temperature::classify_heater_status(
+        cached_bed_temp_, cached_bed_target_,
         lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Bed)));
-    std::snprintf(bed_status_buf_, sizeof(bed_status_buf_), "%s", bed_status.c_str());
+    lv_subject_set_int(&bed_status_state_subject_, static_cast<int>(bed.state));
+    std::snprintf(bed_status_buf_, sizeof(bed_status_buf_), "%s", bed.duty.c_str());
     lv_subject_copy_string(&bed_status_subject_, bed_status_buf_);
 }
 
 void ControlsPanel::update_chamber_temp_display() {
-    // Delegate to the shared helper so this panel and the temp-graph overlay
-    // always produce identical output (single source of truth).  The mode drives
-    // the leading word (Off/Heating/Maintaining); thermal progress ("Ready"/
-    // "Cooling") is appended only when it adds information.
-    auto status = helix::ui::temperature::chamber_status_text(
+    // Delegate to the shared classifier so this panel and the temp-graph overlay
+    // always produce identical output (single source of truth). Maintaining
+    // mode treats the target as a cooling ceiling, so the classifier needs the
+    // mode, not just the numbers.
+    auto chamber = helix::ui::temperature::classify_heater_status(
         cached_chamber_temp_, cached_chamber_effective_target_,
-        static_cast<helix::ChamberMode>(cached_chamber_mode_),
-        lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Chamber)));
-    std::snprintf(chamber_status_buf_, sizeof(chamber_status_buf_), "%s", status.c_str());
+        lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Chamber)),
+        static_cast<helix::ChamberMode>(cached_chamber_mode_));
+    lv_subject_set_int(&chamber_status_state_subject_, static_cast<int>(chamber.state));
+    std::snprintf(chamber_status_buf_, sizeof(chamber_status_buf_), "%s", chamber.duty.c_str());
     lv_subject_copy_string(&chamber_status_subject_, chamber_status_buf_);
 }
 

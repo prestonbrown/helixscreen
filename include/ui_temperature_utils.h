@@ -299,13 +299,13 @@ constexpr int DEFAULT_AT_TEMP_TOLERANCE = 2;
 constexpr int DEFAULT_AT_TEMP_TOLERANCE_DECI = DEFAULT_AT_TEMP_TOLERANCE * 10;
 
 /**
- * @brief Bytes a rendered heater status string needs, including its terminator.
+ * @brief Bytes a heater status-area string needs, including its terminator.
  *
- * `chamber_status_text()` joins a mode word to a progress word, and both are
- * translated, so the longest composition is several times the longest English
- * word. Every surface that snprintf's a status into a fixed buffer sizes it
- * from here: a surface with a smaller buffer renders the same heater cut short
- * while another renders it whole, and the two then disagree on screen.
+ * Duty text is a few bytes, but the read-only chamber surface writes the
+ * translated "Monitoring" word into the same buffer. Every surface that
+ * snprintf's status text into a fixed buffer sizes it from here: a surface
+ * with a smaller buffer renders the same heater cut short while another
+ * renders it whole, and the two then disagree on screen.
  */
 constexpr std::size_t HEATER_STATUS_BUF_BYTES = 64;
 
@@ -428,15 +428,15 @@ const char* get_heating_state_variant(int current_deg, int target_deg,
 /**
  * @brief Result of formatting a heater display
  *
- * Contains all the information needed to display a heater status:
+ * Contains all the information needed to display a heater reading:
  * - temp: formatted temperature string (e.g., "150°C" or "150 / 200°C")
- * - status: semantic status ("Off", "Heating...", "Ready", or "Cooling")
+ * - state: classified thermal state (same thresholds as the color below)
  * - pct: percentage towards target (0-100, clamped)
  * - color: theme color matching the heating state (from get_heating_state_color)
  */
 struct HeaterDisplayResult {
     std::string temp;
-    std::string status;
+    HeatState state;
     int pct;
     lv_color_t color;
 };
@@ -448,17 +448,58 @@ struct HeaterDisplayResult {
  * produces a consistent display result used across all heater displays.
  * Includes a color field from get_heating_state_color() for one-call convenience.
  *
- * Status logic (DEFAULT_AT_TEMP_TOLERANCE, matches get_heating_state_color):
- * - target <= 0: "Off"
- * - current < target - tolerance: "Heating..."
- * - current > target + tolerance: "Cooling"
- * - within +/- tolerance: "Ready"
+ * State logic (DEFAULT_AT_TEMP_TOLERANCE, matches get_heating_state_color):
+ * - target <= 0: Off
+ * - current < target - tolerance: Heating
+ * - current > target + tolerance: Cooling
+ * - within +/- tolerance: AtTemp
  *
  * @param current_deci Current temperature in decidegrees
  * @param target_deci Target temperature in decidegrees (0 = off)
- * @return HeaterDisplayResult with formatted temp, status, percentage, and color
+ * @return HeaterDisplayResult with formatted temp, state, percentage, and color
  */
 HeaterDisplayResult heater_display(int current_deci, int target_deci);
+
+/**
+ * @brief What a heater's status area shows: one glyph state, plus duty text.
+ *
+ * The status area is the glyph + duty pair that replaced the status word
+ * ("Heating... · 100%") on every heater surface. The states map to rendering
+ * per surface (flame/check/snowflake glyphs, amber/muted duty text); this
+ * classification is the single decision all of them bind to.
+ */
+enum class HeaterStatusState {
+    None,    ///< heater off, or nothing to say
+    Heating, ///< below target: flame glyph, duty in warning color
+    Ready,   ///< at target (or chamber holding at/below its ceiling): check glyph
+    Cooling  ///< above target (or above the chamber ceiling): snowflake glyph
+};
+
+/**
+ * @brief Classify a heater's status area from decidegree readings and duty.
+ *
+ * One pure decision shared by every heater surface: the print status rows, the
+ * temp-graph overlay cards and the controls panel each write the state int and
+ * the duty string into their own subjects and let XML map them to glyphs.
+ *
+ * Classifies the displayed reading (displayed_deci) so the glyph matches the
+ * number on screen, same as heater_display(). Duty is "" when power_pct <= 0:
+ * an unknown duty and a zero one both render as no duty rather than hanging
+ * "0%" off every idle heater.
+ *
+ * @param current_deci Current temperature in decidegrees
+ * @param target_deci Target temperature in decidegrees (0 = off)
+ * @param power_pct Heater power duty 0-100 (<= 0 = omit)
+ * @param mode ChamberMode for the chamber (Maintaining folds Neutral into
+ *             Ready); plain heaters take the default
+ */
+struct HeaterStatus {
+    HeaterStatusState state;
+    std::string duty; ///< "", or "NN%"
+};
+
+HeaterStatus classify_heater_status(int current_deci, int target_deci, int power_pct,
+                                    helix::ChamberMode mode = helix::ChamberMode::Heating);
 
 // ============================================================================
 // Heater GCode
@@ -539,35 +580,6 @@ inline const char* build_heater_off_gcode(const std::string& heater_full_name, c
                                           size_t buffer_size) {
     return build_heater_gcode(heater_full_name, 0, buffer, buffer_size);
 }
-
-/**
- * @brief Compose the chamber status string from mode + thermal progress.
- *
- * Single source of truth used by both the controls panel and the temp-graph
- * overlay so they can never diverge.  Leads with the M141 control mode word
- * (Off / Maintaining / Heating), then appends thermal progress ("Ready" /
- * "Cooling") only when it adds information beyond the mode word — suppresses
- * "Heating · Heating..." and "Off · Off".
- *
- * @param current_deci  Current chamber temperature in decidegrees
- * @param target_deci   Effective chamber target in decidegrees (heater target
- *                       when Heating, fan ceiling when Maintaining, 0 when Off)
- * @param mode           ChamberMode enum value (Off / Heating / Maintaining)
- * @return Localised status string, e.g. "Maintaining", "Heating", "Maintaining · Cooling"
- */
-std::string chamber_status_text(int current_deci, int target_deci, helix::ChamberMode mode,
-                                int power_pct = -1);
-
-/**
- * @brief Append a heater's duty to its status phrase while the element drives.
- *
- * A temperature alone cannot say whether an element is holding with a trickle
- * or pinned flat out and still losing ground, which is the difference between
- * a chamber that will reach its target and one that never will. A heater
- * drawing nothing says so with its state word, so an unknown duty and a zero
- * one both render unchanged rather than hanging "0%" off every idle heater.
- */
-std::string status_with_duty(const std::string& status, int power_pct);
 
 } // namespace temperature
 } // namespace ui

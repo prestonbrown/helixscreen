@@ -60,8 +60,9 @@ struct HeaterState {
 
     // LVGL subjects for XML data binding
     lv_subject_t display_subject{};
-    lv_subject_t status_subject{};
-    lv_subject_t heating_subject{}; ///< 0=off, 1=on (for icon visibility)
+    lv_subject_t status_subject{};       ///< duty text ("" = none; "Monitoring" read-only)
+    lv_subject_t status_state_subject{}; ///< HeaterStatusState int (glyph pick)
+    lv_subject_t heating_subject{};      ///< 0=off, 1=on (for icon visibility)
 
     // Subject string buffers
     std::array<char, 32> display_buf{};
