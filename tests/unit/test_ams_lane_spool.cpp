@@ -195,6 +195,9 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_slot embeds ams_lane_spool and forwards a 
                  "[ams][lane_spool]") {
     ui_ams_slot_register();
     AmsState::instance().init_subjects(true);
+    // The per-slot fill subject outlives tests; -1 is "no data", which leaves
+    // the creation-time attribute standing.
+    lv_subject_set_int(AmsState::instance().get_slot_fill_subject(0), -1);
 
     const char* attrs[] = {"slot_index", "0", "fill_level", "0.25", nullptr};
     auto* slot = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ams_slot", attrs));
