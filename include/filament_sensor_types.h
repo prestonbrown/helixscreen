@@ -58,6 +58,9 @@ struct FilamentSensorConfig {
     FilamentSensorRole role;  ///< User-assigned role
     FilamentSensorType type;  ///< Type of sensor (switch or motion)
     bool enabled;             ///< Whether this sensor is actively monitored
+    /// AMS slot / toolhead this sensor watches, from the "lane" config key. -1
+    /// leaves it to the sensor name (see lane_index_for_sensor).
+    int lane = -1;
 
     FilamentSensorConfig()
         : role(FilamentSensorRole::NONE), type(FilamentSensorType::SWITCH), enabled(true) {}

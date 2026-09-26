@@ -2502,6 +2502,17 @@ class AmsBackend {
     }
 
     /**
+     * @brief Whether get_slot_info(i).status says anything about filament.
+     *
+     * A backend whose slot status tracks something else (a tool changer's dock
+     * state) answers false, and the pre-print check then takes a RUNOUT sensor
+     * mapped to that slot as the slot's filament reading.
+     */
+    [[nodiscard]] virtual bool slot_status_tracks_filament() const {
+        return true;
+    }
+
+    /**
      * @brief Whether the per-slot tool badge ("T0", "T1", ...) should be hidden.
      *
      * AmsBackendToolChanger suppresses it; every other backend shows it.

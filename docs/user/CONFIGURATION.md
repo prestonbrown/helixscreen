@@ -1532,6 +1532,7 @@ Located in the `filament_sensors` section:
 - `klipper_name` - Full Klipper object name (e.g., `"filament_switch_sensor fsensor"`)
 - `role` - Sensor role: `"none"`, `"runout"`, `"toolhead"`, `"entry"`
 - `enabled` - Boolean to enable/disable individual sensor
+- `lane` - Optional. The filament slot or toolhead (0-based) this sensor watches, for printers with one sensor per head. Each head can then have its own `runout` sensor, and the check before a print reads the sensors of the heads the file uses.
 
 **Example:**
 ```json
