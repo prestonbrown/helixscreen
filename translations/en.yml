@@ -3498,6 +3498,7 @@ translations:
   Z Tilt Adjust...: Z Tilt Adjust...
   Z jog blocked at axis limit: Z jog blocked at axis limit
   Z jog feedrate: Z jog feedrate
+  Z mm: Z mm
   Z motor calibration failed: Z motor calibration failed
   Z probes for bed leveling and mesh generation: Z probes for bed leveling and mesh
     generation

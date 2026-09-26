@@ -3575,6 +3575,7 @@ translations:
   Z Tilt Adjust...: Ajuste de inclinación Z...
   Z jog blocked at axis limit: Movimiento Z bloqueado en el límite del eje
   Z jog feedrate: Velocidad de avance del movimiento Z
+  Z mm: Z mm
   Z motor calibration failed: Falló la calibración del motor Z
   Z probes for bed leveling and mesh generation: Sondas Z para nivelación de cama
     y generación de malla

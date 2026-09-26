@@ -102,21 +102,18 @@ class MotionPanel : public OverlayBase {
 
     lv_subject_t pos_x_subject_;
     lv_subject_t pos_y_subject_;
-    lv_subject_t pos_z_subject_;           // Commanded Z position
-    lv_subject_t pos_z_actual_subject_;    // Actual Z position (with mesh compensation)
-    lv_subject_t motion_z_actual_visible_; // 1 when actual differs from commanded
-    lv_subject_t z_axis_label_subject_;    // "Bed" or "Print Head"
-    lv_subject_t z_up_icon_subject_;       // "arrow_expand_up" or "arrow_up"
-    lv_subject_t z_down_icon_subject_;     // "arrow_expand_down" or "arrow_down"
-    lv_subject_t z_large_label_subject_;   // "10mm" or "1mm" (large Z button label)
-    lv_subject_t z_small_label_subject_;   // "1mm" or "0.1mm" (small Z button label)
-    lv_subject_t jog_mode_fine_active_;    // 1 when Fine mode active
-    lv_subject_t jog_mode_coarse_active_;  // 1 when Coarse mode active
-    lv_subject_t jog_mode_turbo_active_;   // 1 when Turbo mode active
+    lv_subject_t pos_z_subject_;          // Commanded Z position
+    lv_subject_t z_axis_label_subject_;   // "Bed" or "Print Head"
+    lv_subject_t z_up_icon_subject_;      // "arrow_expand_up" or "arrow_up"
+    lv_subject_t z_down_icon_subject_;    // "arrow_expand_down" or "arrow_down"
+    lv_subject_t z_large_label_subject_;  // "10mm" or "1mm" (large Z button label)
+    lv_subject_t z_small_label_subject_;  // "1mm" or "0.1mm" (small Z button label)
+    lv_subject_t jog_mode_fine_active_;   // 1 when Fine mode active
+    lv_subject_t jog_mode_coarse_active_; // 1 when Coarse mode active
+    lv_subject_t jog_mode_turbo_active_;  // 1 when Turbo mode active
     char pos_x_buf_[32];
     char pos_y_buf_[32];
     char pos_z_buf_[32];
-    char pos_z_actual_buf_[32];
     char z_axis_label_buf_[16];
     char z_up_icon_buf_[24];
     char z_down_icon_buf_[24];
@@ -129,9 +126,7 @@ class MotionPanel : public OverlayBase {
     float current_y_ = 0.0f;
     float current_z_ = 0.0f; // Gcode (commanded) Z position
 
-    // For Z display: track both commanded and actual positions
     int gcode_z_centimm_ = 0;
-    int actual_z_centimm_ = 0;
 
     lv_obj_t* jog_pad_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
@@ -148,15 +143,9 @@ class MotionPanel : public OverlayBase {
     // Send one relative move; ack/error callbacks re-enter the coalescer.
     void send_jog_move(const helix::AxisMove& move);
 
-    // Homing state subjects (0=unhomed, 1=homed) for declarative XML bind_style
-    lv_subject_t motion_x_homed_;
-    lv_subject_t motion_y_homed_;
-    lv_subject_t motion_z_homed_;
-
     ObserverGuard position_x_observer_;
     ObserverGuard position_y_observer_;
     ObserverGuard gcode_z_observer_;
-    ObserverGuard actual_z_observer_;
     ObserverGuard bed_moves_observer_;
     ObserverGuard homed_axes_observer_;
     ObserverGuard jog_ready_observer_;

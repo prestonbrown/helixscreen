@@ -3302,6 +3302,7 @@ translations:
   Z Tilt Adjust...: 正在调整Z倾斜...
   Z jog blocked at axis limit: Z 轴移动已限制在轴极限
   Z jog feedrate: Z 轴移动速度
+  Z mm: Z mm
   Z motor calibration failed: Z 电机校准失败
   Z probes for bed leveling and mesh generation: 用于热床调平和网格生成的 Z 探针
   'Z-Off:': Z 偏移：

@@ -616,11 +616,6 @@ void register_xml_components() {
     register_xml("components/home_next_page_slot.xml");
     register_xml("home_panel.xml");
     register_xml("controls_panel.xml");
-    // The X/Y/Z position card is shared between motion_panel.xml's landscape
-    // and portrait arrangements (see the <if>/<else> there), so it is its own
-    // component rather than markup duplicated per branch. Must be registered
-    // before motion_panel.xml, which uses it.
-    register_xml("components/motion_position_card.xml");
     register_xml("motion_panel.xml");
     // TempGraphOverlay is the only temperature overlay; there are no per-heater
     // nozzle/bed/chamber_temp_panel.xml components. TemperatureService::setup_panel()

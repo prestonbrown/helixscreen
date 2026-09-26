@@ -328,7 +328,7 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/header_bar.xml", 1},
     {"ui_xml/micro/controls_panel.xml", 10},
     {"ui_xml/micro/header_bar.xml", 1},
-    {"ui_xml/motion_panel.xml", 2},
+    {"ui_xml/motion_panel.xml", 4},
 };
 
 /// Control-bearing files that command nothing on the printer. A guard appearing

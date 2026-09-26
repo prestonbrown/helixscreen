@@ -49,6 +49,13 @@ static void format_distance_label(char* buf, size_t n, float mm) {
     }
 }
 
+/// Axis readouts share one line in the header (and the portrait strip under
+/// it), so they carry no unit suffix; digit alignment comes from the mono
+/// font the readout labels use, not from padding in the string.
+static void format_axis_value(char* buf, size_t n, float mm) {
+    std::snprintf(buf, n, "%.2f", static_cast<double>(mm));
+}
+
 helix::JogModeDistances helix::get_jog_mode_distances(JogMode mode) {
     auto& settings = SettingsManager::instance();
     JogModeDistances d{};
@@ -119,9 +126,9 @@ DEFINE_GLOBAL_PANEL(MotionPanel, motion)
 
 MotionPanel::MotionPanel() {
     // Initialize buffer contents (axis labels are in XML, values only here)
-    std::strcpy(pos_x_buf_, "— mm");
-    std::strcpy(pos_y_buf_, "— mm");
-    std::strcpy(pos_z_buf_, "— mm");
+    std::strcpy(pos_x_buf_, "—");
+    std::strcpy(pos_y_buf_, "—");
+    std::strcpy(pos_z_buf_, "—");
     std::strcpy(z_axis_label_buf_, "Z Axis"); // Default before kinematics detected
     std::strcpy(z_up_icon_buf_, "arrow_up");
     std::strcpy(z_down_icon_buf_, "arrow_down");
@@ -166,12 +173,9 @@ void MotionPanel::init_subjects() {
 
     // Initialize position subjects with default placeholder values
     // Axis labels are in XML, subjects contain values only
-    UI_MANAGED_SUBJECT_STRING(pos_x_subject_, pos_x_buf_, "— mm", "motion_pos_x", subjects_);
-    UI_MANAGED_SUBJECT_STRING(pos_y_subject_, pos_y_buf_, "— mm", "motion_pos_y", subjects_);
-    UI_MANAGED_SUBJECT_STRING(pos_z_subject_, pos_z_buf_, "— mm", "motion_pos_z", subjects_);
-    UI_MANAGED_SUBJECT_STRING(pos_z_actual_subject_, pos_z_actual_buf_, "", "motion_pos_z_actual",
-                              subjects_);
-    UI_MANAGED_SUBJECT_INT(motion_z_actual_visible_, 0, "motion_z_actual_visible", subjects_);
+    UI_MANAGED_SUBJECT_STRING(pos_x_subject_, pos_x_buf_, "—", "motion_pos_x", subjects_);
+    UI_MANAGED_SUBJECT_STRING(pos_y_subject_, pos_y_buf_, "—", "motion_pos_y", subjects_);
+    UI_MANAGED_SUBJECT_STRING(pos_z_subject_, pos_z_buf_, "—", "motion_pos_z", subjects_);
 
     // Z-axis label: "Bed" (corexy/corexz) or "Print Head" (cartesian/delta)
     UI_MANAGED_SUBJECT_STRING(z_axis_label_subject_, z_axis_label_buf_, "Z Axis",
@@ -200,12 +204,6 @@ void MotionPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(jog_mode_turbo_active_, (current_mode_ == JogMode::Turbo) ? 1 : 0,
                            "motion_jog_mode_turbo_active", subjects_);
 
-    // Homing status subjects for declarative bind_style indicators (0=unhomed, 1=homed)
-    // Prefixed with motion_ to avoid collision with ControlsPanel's x_homed/y_homed/z_homed
-    UI_MANAGED_SUBJECT_INT(motion_x_homed_, 0, "motion_x_homed", subjects_);
-    UI_MANAGED_SUBJECT_INT(motion_y_homed_, 0, "motion_y_homed", subjects_);
-    UI_MANAGED_SUBJECT_INT(motion_z_homed_, 0, "motion_z_homed", subjects_);
-
     // Register PrinterState observers (RAII - auto-removed on destruction)
     register_position_observers();
 
@@ -216,22 +214,21 @@ void MotionPanel::init_subjects() {
     int x_centimm = lv_subject_get_int(get_printer_state().get_gcode_position_x_subject());
     int y_centimm = lv_subject_get_int(get_printer_state().get_gcode_position_y_subject());
     gcode_z_centimm_ = lv_subject_get_int(get_printer_state().get_gcode_position_z_subject());
-    actual_z_centimm_ = lv_subject_get_int(get_printer_state().get_position_z_subject());
     int bed_moves = lv_subject_get_int(get_printer_state().get_printer_bed_moves_subject());
 
     // Update X position display
     float x = static_cast<float>(helix::units::from_centimm(x_centimm));
     current_x_ = x;
-    helix::format::format_distance_mm(x, 2, pos_x_buf_, sizeof(pos_x_buf_));
+    format_axis_value(pos_x_buf_, sizeof(pos_x_buf_), x);
     lv_subject_copy_string(&pos_x_subject_, pos_x_buf_);
 
     // Update Y position display
     float y = static_cast<float>(helix::units::from_centimm(y_centimm));
     current_y_ = y;
-    helix::format::format_distance_mm(y, 2, pos_y_buf_, sizeof(pos_y_buf_));
+    format_axis_value(pos_y_buf_, sizeof(pos_y_buf_), y);
     lv_subject_copy_string(&pos_y_subject_, pos_y_buf_);
 
-    // Update Z position display (uses gcode_z_centimm_ and actual_z_centimm_ we just set)
+    // Update Z position display
     current_z_ = static_cast<float>(helix::units::from_centimm(gcode_z_centimm_));
     update_z_display();
 
@@ -437,7 +434,7 @@ void MotionPanel::register_position_observers() {
                 return;
             float x = static_cast<float>(helix::units::from_centimm(centimm));
             self->current_x_ = x;
-            helix::format::format_distance_mm(x, 2, self->pos_x_buf_, sizeof(self->pos_x_buf_));
+            format_axis_value(self->pos_x_buf_, sizeof(self->pos_x_buf_), x);
             lv_subject_copy_string(&self->pos_x_subject_, self->pos_x_buf_);
         },
         get_printer_state().get_subjects_lifetime());
@@ -449,13 +446,13 @@ void MotionPanel::register_position_observers() {
                 return;
             float y = static_cast<float>(helix::units::from_centimm(centimm));
             self->current_y_ = y;
-            helix::format::format_distance_mm(y, 2, self->pos_y_buf_, sizeof(self->pos_y_buf_));
+            format_axis_value(self->pos_y_buf_, sizeof(self->pos_y_buf_), y);
             lv_subject_copy_string(&self->pos_y_subject_, self->pos_y_buf_);
         },
         get_printer_state().get_subjects_lifetime());
 
-    // Z needs both gcode (commanded) and actual (with mesh compensation) positions
-    // Display shows commanded with actual in brackets when they differ
+    // The readout shows the commanded (gcode) Z; mesh-compensated toolhead Z
+    // has no display here.
     gcode_z_observer_ = observe_int_sync<MotionPanel>(
         get_printer_state().get_gcode_position_z_subject(), this,
         [](MotionPanel* self, int centimm) {
@@ -463,16 +460,6 @@ void MotionPanel::register_position_observers() {
                 return;
             self->gcode_z_centimm_ = centimm;
             self->current_z_ = static_cast<float>(helix::units::from_centimm(centimm));
-            self->update_z_display();
-        },
-        get_printer_state().get_subjects_lifetime());
-
-    actual_z_observer_ = observe_int_sync<MotionPanel>(
-        get_printer_state().get_position_z_subject(), this,
-        [](MotionPanel* self, int centimm) {
-            if (!self->subjects_initialized_)
-                return;
-            self->actual_z_centimm_ = centimm;
             self->update_z_display();
         },
         get_printer_state().get_subjects_lifetime());
@@ -489,28 +476,16 @@ void MotionPanel::register_position_observers() {
         },
         get_printer_state().get_subjects_lifetime());
 
-    // Observe homed_axes from PrinterState to update homing indicator subjects
-    // Same pattern as ControlsPanel - parse "xyz" string into individual integer subjects
+    // Observe homed_axes from PrinterState to recolor the custom-drawn center
+    // home button: warning tint until all axes are homed.
     homed_axes_observer_ = observe_string<MotionPanel>(
         get_printer_state().get_homed_axes_subject(), this,
         [](MotionPanel* self, const char* axes) {
             if (!self->subjects_initialized_)
                 return;
-            int x = (strchr(axes, 'x') != nullptr) ? 1 : 0;
-            int y = (strchr(axes, 'y') != nullptr) ? 1 : 0;
-            int z = (strchr(axes, 'z') != nullptr) ? 1 : 0;
-
-            if (lv_subject_get_int(&self->motion_x_homed_) != x)
-                lv_subject_set_int(&self->motion_x_homed_, x);
-            if (lv_subject_get_int(&self->motion_y_homed_) != y)
-                lv_subject_set_int(&self->motion_y_homed_, y);
-            if (lv_subject_get_int(&self->motion_z_homed_) != z)
-                lv_subject_set_int(&self->motion_z_homed_, z);
-
-            // Recolor the custom-drawn center home button:
-            // warning tint until all axes are homed.
+            bool all = strchr(axes, 'x') && strchr(axes, 'y') && strchr(axes, 'z');
             if (self->jog_pad_)
-                ui_jog_pad_set_homed(self->jog_pad_, x && y && z);
+                ui_jog_pad_set_homed(self->jog_pad_, all);
         },
         get_printer_state().get_subjects_lifetime());
 
@@ -563,23 +538,8 @@ void MotionPanel::update_z_axis_label(bool bed_moves) {
 
 void MotionPanel::update_z_display() {
     float gcode_z = static_cast<float>(helix::units::from_centimm(gcode_z_centimm_));
-    float actual_z = static_cast<float>(helix::units::from_centimm(actual_z_centimm_));
-
-    // Commanded Z is always shown
-    helix::format::format_distance_mm(gcode_z, 2, pos_z_buf_, sizeof(pos_z_buf_));
+    format_axis_value(pos_z_buf_, sizeof(pos_z_buf_), gcode_z);
     lv_subject_copy_string(&pos_z_subject_, pos_z_buf_);
-
-    // Actual Z row shown only when it differs from commanded (e.g., mesh compensation)
-    // Use 1 centimm (0.01mm) threshold to avoid floating point noise
-    bool differs = std::abs(gcode_z_centimm_ - actual_z_centimm_) > 1;
-    if (differs) {
-        helix::format::format_distance_mm(actual_z, 2, pos_z_actual_buf_,
-                                          sizeof(pos_z_actual_buf_));
-    } else {
-        pos_z_actual_buf_[0] = '\0';
-    }
-    lv_subject_copy_string(&pos_z_actual_subject_, pos_z_actual_buf_);
-    lv_subject_set_int(&motion_z_actual_visible_, differs ? 1 : 0);
 }
 
 // ============================================================================
@@ -664,17 +624,15 @@ void MotionPanel::set_position(float x, float y, float z) {
     current_y_ = y;
     current_z_ = z;
 
-    // When set directly via API, gcode and actual are the same
     int z_centimm = helix::units::to_centimm(static_cast<double>(z));
     gcode_z_centimm_ = z_centimm;
-    actual_z_centimm_ = z_centimm;
 
     if (!subjects_initialized_)
         return;
 
     // Update subjects (will automatically update bound UI elements)
-    helix::format::format_distance_mm(x, 2, pos_x_buf_, sizeof(pos_x_buf_));
-    helix::format::format_distance_mm(y, 2, pos_y_buf_, sizeof(pos_y_buf_));
+    format_axis_value(pos_x_buf_, sizeof(pos_x_buf_), x);
+    format_axis_value(pos_y_buf_, sizeof(pos_y_buf_), y);
 
     lv_subject_copy_string(&pos_x_subject_, pos_x_buf_);
     lv_subject_copy_string(&pos_y_subject_, pos_y_buf_);
