@@ -63,6 +63,48 @@ void FilamentSensorManager::discover(const std::vector<std::string>& klipper_obj
     discover_sensors(sensor_names);
 }
 
+namespace {
+nlohmann::json sensor_config_json(const FilamentSensorConfig& sensor) {
+    nlohmann::json sensor_json;
+    sensor_json["klipper_name"] = sensor.klipper_name;
+    sensor_json["role"] = role_to_config_string(sensor.role);
+    sensor_json["enabled"] = sensor.enabled;
+    sensor_json["type"] = type_to_config_string(sensor.type);
+    if (sensor.lane >= 0) {
+        sensor_json["lane"] = sensor.lane;
+    }
+    return sensor_json;
+}
+
+// The AMS slot a sensor watches, or -1 when it watches none (a single-extruder
+// "runout" sensor), in which case the caller must NOT lane-scope it. An explicit
+// "lane" in the sensor's config wins; otherwise the Snapmaker U1 name
+// "e<N>_filament" (motion or switch form) encodes slot N.
+[[nodiscard]] int lane_index_for_sensor(const FilamentSensorConfig& sensor) {
+    if (sensor.lane >= 0) {
+        return sensor.lane;
+    }
+    const std::string& sensor_name = sensor.sensor_name;
+    // Match "e<N>_filament" where <N> is one or more digits.
+    if (sensor_name.size() < 3 || sensor_name.front() != 'e') {
+        return -1;
+    }
+    size_t pos = 1;
+    int value = 0;
+    while (pos < sensor_name.size() && std::isdigit(static_cast<unsigned char>(sensor_name[pos]))) {
+        value = value * 10 + (sensor_name[pos] - '0');
+        ++pos;
+    }
+    if (pos == 1) {
+        return -1; // no digits after 'e'
+    }
+    if (sensor_name.compare(pos, std::string::npos, "_filament") != 0) {
+        return -1;
+    }
+    return value;
+}
+} // namespace
+
 void FilamentSensorManager::load_config(const nlohmann::json& /*config*/) {
     // This manager uses legacy Config-based persistence
     // Delegate to the file-based config loader
@@ -79,12 +121,7 @@ nlohmann::json FilamentSensorManager::save_config() const {
 
     nlohmann::json sensors_array = nlohmann::json::array();
     for (const auto& sensor : sensors_) {
-        nlohmann::json sensor_json;
-        sensor_json["klipper_name"] = sensor.klipper_name;
-        sensor_json["role"] = role_to_config_string(sensor.role);
-        sensor_json["enabled"] = sensor.enabled;
-        sensor_json["type"] = type_to_config_string(sensor.type);
-        sensors_array.push_back(sensor_json);
+        sensors_array.push_back(sensor_config_json(sensor));
     }
     config["sensors"] = sensors_array;
 
@@ -295,6 +332,15 @@ void FilamentSensorManager::load_config_from_file() {
                     if (sensor_json.contains("enabled")) {
                         sensor->enabled = sensor_json["enabled"].get<bool>();
                     }
+                    if (auto lane = sensor_json.find("lane"); lane != sensor_json.end()) {
+                        if (lane->is_number_integer() && lane->get<int>() >= 0) {
+                            sensor->lane = lane->get<int>();
+                        } else {
+                            spdlog::warn("[FilamentSensorManager] {}: ignoring lane {} (expected "
+                                         "a slot index, 0 or more)",
+                                         klipper_name, lane->dump());
+                        }
+                    }
                     spdlog::debug(
                         "[FilamentSensorManager] Loaded config for {}: role={}, enabled={}",
                         klipper_name, role_to_config_string(sensor->role), sensor->enabled);
@@ -335,12 +381,7 @@ void FilamentSensorManager::save_config_to_file() {
 
     json sensors_array = json::array();
     for (const auto& sensor : sensors_) {
-        json sensor_json;
-        sensor_json["klipper_name"] = sensor.klipper_name;
-        sensor_json["role"] = role_to_config_string(sensor.role);
-        sensor_json["enabled"] = sensor.enabled;
-        sensor_json["type"] = type_to_config_string(sensor.type);
-        sensors_array.push_back(sensor_json);
+        sensors_array.push_back(sensor_config_json(sensor));
     }
     fs_config["sensors"] = sensors_array;
 
@@ -355,10 +396,18 @@ void FilamentSensorManager::set_sensor_role(const std::string& klipper_name,
                                             FilamentSensorRole role) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-    // If assigning a role, clear it from any other sensor first
+    // A role has one holder, except RUNOUT, which has one per lane: assigning it
+    // clears it from any other sensor watching the same lane, and from every
+    // sensor watching none. Heads with a sensor each keep one RUNOUT holder
+    // apiece. The other roles' readers look up a single holder.
     if (role != FilamentSensorRole::NONE) {
+        const auto* assigned = find_config(klipper_name);
+        const int assigned_lane = assigned ? lane_index_for_sensor(*assigned) : -1;
         for (auto& sensor : sensors_) {
-            if (sensor.role == role && sensor.klipper_name != klipper_name) {
+            const int lane = lane_index_for_sensor(sensor);
+            const bool shares_lane = role != FilamentSensorRole::RUNOUT || assigned_lane < 0 ||
+                                     lane < 0 || lane == assigned_lane;
+            if (sensor.role == role && sensor.klipper_name != klipper_name && shares_lane) {
                 spdlog::debug("[FilamentSensorManager] Clearing role {} from {}",
                               role_to_config_string(role), sensor.sensor_name);
                 sensor.role = FilamentSensorRole::NONE;
@@ -630,33 +679,6 @@ bool FilamentSensorManager::has_any_runout() const {
     return false;
 }
 
-namespace {
-// Map a per-lane filament sensor short name to its AMS slot index. Snapmaker U1
-// names its per-tool motion sensors "e0_filament" .. "e3_filament" (and the
-// matching filament_switch_sensor form). Returns the slot index, or -1 if the
-// name does not encode a lane (e.g. a single-extruder "runout" sensor) — in
-// which case the caller must NOT lane-scope it.
-[[nodiscard]] int lane_index_for_sensor(const std::string& sensor_name) {
-    // Match "e<N>_filament" where <N> is one or more digits.
-    if (sensor_name.size() < 3 || sensor_name.front() != 'e') {
-        return -1;
-    }
-    size_t pos = 1;
-    int value = 0;
-    while (pos < sensor_name.size() && std::isdigit(static_cast<unsigned char>(sensor_name[pos]))) {
-        value = value * 10 + (sensor_name[pos] - '0');
-        ++pos;
-    }
-    if (pos == 1) {
-        return -1; // no digits after 'e'
-    }
-    if (sensor_name.compare(pos, std::string::npos, "_filament") != 0) {
-        return -1;
-    }
-    return value;
-}
-} // namespace
-
 bool FilamentSensorManager::has_real_runout() const {
     // Snapshot the sensors that report no filament, then release mutex_ before
     // asking AmsState anything. AmsState calls into this class from under its own
@@ -666,6 +688,7 @@ bool FilamentSensorManager::has_real_runout() const {
     struct Candidate {
         std::string sensor_name;
         FilamentSensorRole role;
+        int lane;
     };
     std::vector<Candidate> candidates;
     {
@@ -684,7 +707,7 @@ bool FilamentSensorManager::has_real_runout() const {
             if (it == states_.end() || !it->second.available || it->second.filament_detected) {
                 continue; // sensor present and filament detected -> not a runout
             }
-            candidates.push_back({sensor.sensor_name, sensor.role});
+            candidates.push_back({sensor.sensor_name, sensor.role, lane_index_for_sensor(sensor)});
         }
     }
 
@@ -694,9 +717,12 @@ bool FilamentSensorManager::has_real_runout() const {
         // This sensor reports no filament. Decide whether it is a real runout.
         // If it maps to an AMS lane and the backend says that lane is EMPTY /
         // not-present, it is an intentionally-empty lane, not a runout.
-        const int lane = backend ? lane_index_for_sensor(sensor.sensor_name) : -1;
+        // A lane the backend has no slot for is no lane: the sensor stays
+        // unscoped rather than reading as an empty slot.
+        const SlotInfo slot =
+            backend && sensor.lane >= 0 ? backend->get_slot_info(sensor.lane) : SlotInfo{};
+        const int lane = slot.slot_index >= 0 ? sensor.lane : -1;
         if (lane >= 0) {
-            const SlotInfo slot = backend->get_slot_info(lane);
             if (!slot.is_present()) {
                 spdlog::debug("[FilamentSensorManager] has_real_runout: ignoring {} - lane {} "
                               "is empty/never-loaded (not a runout)",
@@ -823,6 +849,27 @@ FilamentSensorManager::scan_required_lanes(const std::set<int>& tools_used,
                           "(lane truth)",
                           tool, slot);
             scan.empty_lanes.emplace_back(tool, slot);
+            continue;
+        }
+
+        // Where the slot status is not a filament reading, a RUNOUT sensor
+        // watching that slot is. A firmware stand-down leaves the reading live,
+        // and this check runs while the firmware holds every head's sensor down.
+        if (!scan.backend->slot_status_tracks_filament()) {
+            for (const auto& sensor : sensors_) {
+                if (sensor.role != FilamentSensorRole::RUNOUT || !sensor.enabled ||
+                    lane_index_for_sensor(sensor) != slot) {
+                    continue;
+                }
+                auto it = states_.find(sensor.klipper_name);
+                if (it != states_.end() && it->second.available && !it->second.filament_detected) {
+                    spdlog::debug("[FilamentSensorManager] required tool {} -> lane {} is empty "
+                                  "({} reads no filament)",
+                                  tool, slot, sensor.sensor_name);
+                    scan.empty_lanes.emplace_back(tool, slot);
+                    break;
+                }
+            }
         }
     }
 

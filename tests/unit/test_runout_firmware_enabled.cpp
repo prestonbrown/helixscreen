@@ -20,15 +20,21 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
+#include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "config.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "print_start_checks.h"
+#include "printer_discovery.h"
+#include "test_helpers/registered_backend.h"
+#include "toolchanger_addon.h"
 
 #include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -40,6 +46,8 @@ namespace {
 
 constexpr const char* HEAD0 = "filament_switch_sensor fd_ex0";
 constexpr const char* HEAD1 = "filament_switch_sensor fd_ex1";
+constexpr const char* HEAD2 = "filament_switch_sensor fd_ex2";
+constexpr const char* HEAD3 = "filament_switch_sensor fd_ex3";
 
 /// Substring of the removal toast; the full text is prefixed with the role's
 /// display name.
@@ -80,6 +88,59 @@ class ToastCapture {
   private:
     std::vector<std::string> warnings_;
 };
+
+/// Writes a filament_sensors block naming each sensor's lane, loads it the way
+/// startup does, and on scope exit puts the previous block back and drops the
+/// sensors it configured, so no later test inherits their lanes or roles.
+class ScopedSensorLanes {
+  public:
+    ScopedSensorLanes(FilamentSensorManager& fsm,
+                      std::vector<std::pair<const char*, nlohmann::json>> lanes)
+        : fsm_(fsm), path_(Config::get_instance()->df() + "filament_sensors") {
+        auto& node = Config::get_instance()->get_json(path_);
+        saved_ = node;
+        nlohmann::json sensors = nlohmann::json::array();
+        for (const auto& [klipper, lane] : lanes) {
+            sensors.push_back(
+                {{"klipper_name", klipper}, {"role", "runout"}, {"enabled", true}, {"lane", lane}});
+        }
+        node = nlohmann::json{{"master_enabled", true}, {"sensors", sensors}};
+        fsm.load_config_from_file();
+    }
+    /// Head N's sensor watches lane N.
+    ScopedSensorLanes(FilamentSensorManager& fsm, std::initializer_list<const char*> heads)
+        : ScopedSensorLanes(fsm, numbered(heads)) {}
+    ~ScopedSensorLanes() {
+        Config::get_instance()->get_json(path_) = saved_;
+        PostUnloadGraceTestAccess::reset(fsm_);
+    }
+    ScopedSensorLanes(const ScopedSensorLanes&) = delete;
+    ScopedSensorLanes& operator=(const ScopedSensorLanes&) = delete;
+
+  private:
+    static std::vector<std::pair<const char*, nlohmann::json>>
+    numbered(std::initializer_list<const char*> heads) {
+        std::vector<std::pair<const char*, nlohmann::json>> lanes;
+        int lane = 0;
+        for (const char* klipper : heads) {
+            lanes.emplace_back(klipper, lane++);
+        }
+        return lanes;
+    }
+
+    FilamentSensorManager& fsm_;
+    std::string path_;
+    nlohmann::json saved_;
+};
+
+/// A tool changer whose dock sensors report which docks hold a tool.
+PrinterDiscovery docked_toolchanger_discovery() {
+    PrinterDiscovery hw;
+    hw.parse_objects(
+        nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "tool T2", "tool T3",
+                               "pin_watch io", "servo my_servo", "extruder"}));
+    return hw;
+}
 
 /// Real manager, no AMS backend, startup grace expired: the firmware-enabled
 /// term is the only thing that can suppress a runout here.
@@ -310,4 +371,156 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "no removal toast for an edge on a stoo
     feed(sensor_frame(HEAD0, true, true));
     feed(sensor_frame(HEAD0, false, true));
     CHECK(toasts.warnings_containing(REMOVED_WARNING) == 1);
+}
+
+// A tool changer's slot status is where each tool sits, not whether it holds
+// filament, so the pre-print scan takes each head's own RUNOUT sensor as that
+// head's reading. The firmware holds every head's sensor down before a print,
+// and the readings stay live.
+TEST_CASE_METHOD(FirmwareEnabledFixture, "tool changer pre-print scan reads each head's sensor",
+                 "[runout][1714][print-start]") {
+    helix::test::RegisteredBackend<helix::test::ToolChangerHelper> tc(4);
+    REQUIRE_FALSE(AmsState::instance().get_backend()->slot_status_tracks_filament());
+    seed_sensors({HEAD0, HEAD1, HEAD2, HEAD3});
+    ScopedSensorLanes lanes(fsm, {HEAD0, HEAD1, HEAD2, HEAD3});
+    const std::map<int, int> identity;
+
+    // Head 0 empty, head 2 loaded, every sensor stood down: a print on head 2
+    // is ready, and head 0 does not speak for it.
+    feed(sensor_frame(HEAD0, false, false));
+    feed(sensor_frame(HEAD1, false, false));
+    feed(sensor_frame(HEAD2, true, false));
+    feed(sensor_frame(HEAD3, false, false));
+    CHECK(fsm.find_empty_required_lanes({2}, identity).empty());
+    CHECK(fsm.compute_scoped_runout_value({2}, identity) == 1);
+
+    // Head 0 loaded, head 2 empty: the print on head 2 is named, the one on
+    // head 0 is not.
+    feed(sensor_frame(HEAD0, true, false));
+    feed(sensor_frame(HEAD2, false, false));
+    const auto empty = fsm.find_empty_required_lanes({2}, identity);
+    REQUIRE(empty.size() == 1);
+    CHECK(empty[0] == std::pair<int, int>{2, 2});
+    CHECK(fsm.compute_scoped_runout_value({2}, identity) == 0);
+    CHECK(fsm.find_empty_required_lanes({0}, identity).empty());
+
+    // The gate warns from that scan.
+    PrintStartContext ctx;
+    ctx.ams_manages_filament = true;
+    ctx.has_active_backend = true;
+    ctx.tools_used = {2};
+    ctx.empty_required_lanes = empty;
+    const auto& gates = default_print_start_gates();
+    const auto gate_it = std::find_if(gates.begin(), gates.end(), [](const PrintStartGate& g) {
+        return g.name == "required_filament_present";
+    });
+    REQUIRE(gate_it != gates.end());
+    CHECK(gate_it->evaluate(ctx).verdict == CheckResult::Verdict::Warn);
+
+    // No tool usage known: nothing to scope, so nothing is named.
+    CHECK(fsm.find_empty_required_lanes({}, identity).empty());
+}
+
+TEST_CASE_METHOD(FirmwareEnabledFixture, "a RUNOUT sensor with no lane is no head's reading",
+                 "[runout][1714][print-start]") {
+    helix::test::RegisteredBackend<helix::test::ToolChangerHelper> tc(4);
+    seed_sensors({HEAD0, HEAD1, HEAD2, HEAD3});
+
+    // The fd_ex names encode no lane, so without the config key every head
+    // falls back to its dock status, which reads present.
+    feed(sensor_frame(HEAD2, false, false));
+    CHECK(fsm.find_empty_required_lanes({2}, {}).empty());
+}
+
+TEST_CASE_METHOD(FirmwareEnabledFixture, "RUNOUT keeps one holder per lane",
+                 "[runout][1714][sensors]") {
+    constexpr const char* SHARED = "filament_switch_sensor runout";
+    seed_sensors({HEAD0, HEAD1, HEAD2, HEAD3, SHARED}, FilamentSensorRole::NONE);
+    ScopedSensorLanes lanes(fsm, {HEAD0, HEAD1, HEAD2, HEAD3});
+    auto role_of = [this](const char* klipper) {
+        for (const auto& s : fsm.get_sensors()) {
+            if (s.klipper_name == klipper) {
+                return s.role;
+            }
+        }
+        return FilamentSensorRole::NONE;
+    };
+
+    // Re-picking one head's switch in settings leaves the other heads alone.
+    fsm.set_sensor_role(HEAD1, FilamentSensorRole::RUNOUT);
+    CHECK(role_of(HEAD0) == FilamentSensorRole::RUNOUT);
+    CHECK(role_of(HEAD1) == FilamentSensorRole::RUNOUT);
+    CHECK(role_of(HEAD2) == FilamentSensorRole::RUNOUT);
+    CHECK(role_of(HEAD3) == FilamentSensorRole::RUNOUT);
+
+    // The lane survives a save.
+    int saved_lanes = 0;
+    const nlohmann::json saved = fsm.save_config();
+    for (const auto& entry : saved["sensors"]) {
+        if (entry.value("klipper_name", "") == HEAD3) {
+            CHECK(entry.value("lane", -1) == 3);
+            ++saved_lanes;
+        }
+    }
+    CHECK(saved_lanes == 1);
+
+    // A sensor watching no lane is the whole printer's: it takes the role alone.
+    fsm.set_sensor_role(SHARED, FilamentSensorRole::RUNOUT);
+    CHECK(role_of(SHARED) == FilamentSensorRole::RUNOUT);
+    CHECK(role_of(HEAD0) == FilamentSensorRole::NONE);
+    CHECK(role_of(HEAD2) == FilamentSensorRole::NONE);
+
+    // Every other role keeps a single holder, lanes or not.
+    fsm.set_sensor_role(HEAD0, FilamentSensorRole::TOOLHEAD);
+    fsm.set_sensor_role(HEAD1, FilamentSensorRole::TOOLHEAD);
+    CHECK(role_of(HEAD0) == FilamentSensorRole::NONE);
+    CHECK(role_of(HEAD1) == FilamentSensorRole::TOOLHEAD);
+}
+
+TEST_CASE_METHOD(FirmwareEnabledFixture,
+                 "a lane the backend has no slot for leaves the sensor unscoped",
+                 "[runout][1714]") {
+    helix::test::RegisteredBackend<helix::test::ToolChangerHelper> tc(4);
+    seed_sensors({HEAD0});
+    ScopedSensorLanes lanes(fsm, {{HEAD0, 7}});
+    REQUIRE((*tc).get_slot_info(7).slot_index < 0);
+
+    feed(sensor_frame(HEAD0, false, true));
+    CHECK(fsm.has_real_runout());
+}
+
+TEST_CASE_METHOD(FirmwareEnabledFixture, "a malformed lane is ignored", "[runout][1714]") {
+    seed_sensors({HEAD0, HEAD1});
+    ScopedSensorLanes lanes(fsm, {{HEAD0, -2}, {HEAD1, "two"}});
+    for (const auto& s : fsm.get_sensors()) {
+        INFO(s.klipper_name);
+        CHECK(s.lane == -1);
+    }
+}
+
+// A tool changer lane-scopes an ENABLED head sensor through its dock status: a
+// head whose dock reads empty has nothing to run out of, while the head on the
+// carriage does.
+TEST_CASE_METHOD(FirmwareEnabledFixture, "tool changer runout is scoped to the head's slot",
+                 "[runout][1714]") {
+    helix::test::RegisteredBackend<helix::test::ToolChangerHelper> tc(4);
+    (*tc).set_tool_sensor(toolchanger_addon::resolve_tool_sensor(docked_toolchanger_discovery()));
+    (*tc).feed(
+        nlohmann::json{{"medusahc",
+                        {{"operation", "idle"},
+                         {"current_tool", 1},
+                         {"sensors", {{"e", 1}, {"t0", 1}, {"t1", 0}, {"t2", 0}, {"t3", 1}}}}}});
+    REQUIRE((*tc).get_slot_info(2).status == SlotStatus::EMPTY);
+    REQUIRE((*tc).get_slot_info(1).status == SlotStatus::LOADED);
+
+    seed_sensors({HEAD0, HEAD1, HEAD2, HEAD3});
+    ScopedSensorLanes lanes(fsm, {HEAD0, HEAD1, HEAD2, HEAD3});
+
+    feed(sensor_frame(HEAD2, false, true));
+    CHECK(fsm.has_any_runout());
+    CHECK_FALSE(fsm.has_real_runout());
+
+    // Control: the carriage head's enabled sensor reading empty is a runout.
+    feed(sensor_frame(HEAD1, false, true));
+    CHECK(fsm.has_real_runout());
 }

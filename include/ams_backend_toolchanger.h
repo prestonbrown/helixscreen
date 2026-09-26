@@ -98,6 +98,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     [[nodiscard]] bool has_physical_tray() const override {
         return false;
     }
+    // A slot's status is where its tool sits (carriage, dock, removed); nothing
+    // here senses filament.
+    [[nodiscard]] bool slot_status_tracks_filament() const override {
+        return false;
+    }
     // The per-slot tool badge ("T0", "T1", ...) is redundant with the toolhead
     // label shown below each slot on a tool changer.
     [[nodiscard]] bool should_hide_slot_tool_badge() const override {

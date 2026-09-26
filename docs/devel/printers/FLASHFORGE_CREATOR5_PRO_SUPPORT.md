@@ -206,7 +206,7 @@ Each item below says whether it is done or still open.
    extruder_grab1`, 4 extruders, requires `heater_generic chamber_heater`) and
    `flashforge_creator_5` for the heater-free model (same fingerprints, excluding on the
    chamber heater). Presets: `creator5_pro.json` (4 hotends, chamber heater,
-   part/chamber fans, LED, `fd_ex*` switches with runout off, rotate 90) and
+   part/chamber fans, LED, `fd_ex*` switches as per-head runout sensors, rotate 90) and
    `creator5.json` (the same minus the chamber heater and chamber fans). Without the
    entries the detector resolves the AD5X, which matches on hostname, MIPS and 4 tools;
    the entries are what tell them apart, with the AD5X side excluding on
@@ -223,10 +223,13 @@ Each item below says whether it is done or still open.
    running.
 8. **Init** (open): no systemd; the stock stack is started from BusyBox init scripts. An
    init.d script modeled on the AD5X/ZMOD `S80guppyscreen` pattern is the likely shape.
-9. **Runout on an empty docked head** (open): the preset ships `fd_ex0..3` with role
-   `"none"`, runout disabled. A sensor the firmware holds disabled does not count as a
-   runout (#1714), so parked heads are safe as long as the firmware stands them down;
-   `FilamentSensorManager#lane_index_for_sensor` still maps only `e<N>_filament` names to a
-   head, though, so an *enabled* fd_ex sensor with the runout role counts an empty docked
-   head as filament loss. Giving them the runout role needs hardware verification of what
-   the switches actually report and which heads the firmware enables.
+9. **Per-head runout** (hw-verify): the presets give `fd_ex0..3` the runout role and
+   `"lane": N`, because the names encode no head. Z-Mod holds every `fd_ex`/`fm_ex` sensor
+   disabled in standby and enables only the active head's pair while printing
+   (`_ENABLE_SENSOR` keys on `zmod_color.active_tool_id`), so a runout alert only ever
+   comes from the printing head: a sensor the firmware holds disabled raises none (#1714).
+   The pre-print check reads the heads the file uses, and their sensors, even while
+   stood down: `AmsBackendToolChanger` answers `slot_status_tracks_filament()` false,
+   so `FilamentSensorManager#scan_required_lanes` takes each required head's `fd_ex`
+   reading as that head's filament state. Not yet confirmed on a real C5: whether a
+   stood-down switch keeps reporting live.
