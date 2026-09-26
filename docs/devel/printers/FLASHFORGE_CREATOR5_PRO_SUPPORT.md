@@ -57,8 +57,10 @@ The installer keeps the **ad5x** platform key for these boards: `detect_platform
 (`scripts/lib/installer/platform.sh`) classifies any MIPS box with `/usr/data` +
 `/usr/prog` that way, which downloads the unified mips build under the ad5x alias
 (correct binary, correct paths). The board's own name comes from the `MACHINE=` line in
-the stock `<app_startup.sh>` (`ff_machine_id()`), so `install.sh` reports a Creator 5 or
-Creator 5 Pro as itself and only uses "ad5x" as the install-package label.
+the stock `<app_startup.sh>` (`ff_machine_id()`), or, inside the Z-Mod chroot where that
+file is unreachable, from the first word of `VERSION_CODENAME` in the chroot's
+os-release; so `install.sh` reports a Creator 5 or Creator 5 Pro as itself and only uses
+"ad5x" as the install-package label.
 
 ## NaN encoding
 

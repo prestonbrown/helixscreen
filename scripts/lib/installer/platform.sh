@@ -99,24 +99,39 @@ describe_hardware() {
     echo "ARM SBC"
 }
 
-# The board a stock FlashForge MIPS firmware names for itself. app_startup.sh
-# carries one MACHINE= line whose value is AD5X, Creator5 or Creator5Pro; the
-# three boards share the unified MIPS payload, the /usr/data + /usr/prog
-# layout, the root user and the Z-Mod install shape, so they all ride the
-# platform key "ad5x" and this is the only thing that tells them apart. The
-# path is env-overridable so the bats suite can point the read at a sandbox
-# (same convention as HELIX_MOD_TREE_CANDIDATES in host_profile.sh).
+# The board a FlashForge MIPS firmware names for itself, from the one of two
+# places it is written that this shell can reach: the MACHINE= line of
+# /usr/prog/app_startup.sh on the host, or, inside the Z-Mod chroot (whose
+# prepare.sh bind-mounts only /usr/prog/config, leaving app_startup.sh
+# unreachable), the first word of VERSION_CODENAME in the chroot's os-release:
+# the chroot's start.sh runs as `start.sh "$SWAP" "$VER" "$MACHINE"` and writes
+# VERSION_CODENAME="<MACHINE> <version>" on every boot. The three boards (AD5X,
+# Creator5, Creator5Pro) share the unified MIPS payload, the /usr/data +
+# /usr/prog layout, the root user and the Z-Mod install shape, so they all ride
+# the platform key "ad5x" and this is the only thing that tells them apart.
+# Both paths are env-overridable so the bats suite can point the reads at a
+# sandbox; OS_RELEASE_FILE is the same override moonraker.sh reads os-release
+# through, and HELIX_FF_MACHINE_FILE follows HELIX_MOD_TREE_CANDIDATES.
 #
-# Echoes the MACHINE value, or nothing when the file is missing, unreadable or
-# carries no recognized value.
+# Echoes the MACHINE value, or nothing when neither source carries a
+# recognized value.
 ff_machine_id() {
     local _v
-    # tail keeps one answer when the file carries several MACHINE= lines, and
+    # tail keeps one answer when a file carries several MACHINE= lines, and
     # makes the pipeline's exit status sed-independent under set -e.
     _v=$(sed -n 's/^MACHINE=//p' "${HELIX_FF_MACHINE_FILE:-/usr/prog/app_startup.sh}" 2>/dev/null | tail -n 1)
     _v=$(printf '%s' "$_v" | tr -d ' \t\r')
     # Whole-value match: Creator5 is a prefix of Creator5Pro, so a prefix test
     # would fold the Pro into the plain Creator 5.
+    case "$_v" in
+        AD5X|Creator5|Creator5Pro) printf '%s\n' "$_v"; return 0 ;;
+    esac
+    _v=$(sed -n 's/^VERSION_CODENAME=//p' "${OS_RELEASE_FILE:-/etc/os-release}" 2>/dev/null | tail -n 1)
+    # Strip os-release's shell quoting and CR, then keep the first word: the
+    # rest of the value is the firmware version, and a distro codename left
+    # over (bookworm & co) simply fails the whole-value match below.
+    _v=$(printf '%s' "$_v" | tr -d "\"'\r")
+    _v="${_v%% *}"
     case "$_v" in
         AD5X|Creator5|Creator5Pro) printf '%s\n' "$_v" ;;
     esac

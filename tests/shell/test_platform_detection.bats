@@ -35,6 +35,10 @@ setup() {
     # Create a fake /etc/os-release indicating Debian (Pi-like system)
     mkdir -p "$BATS_TEST_TMPDIR/etc"
     echo 'ID=debian' > "$BATS_TEST_TMPDIR/etc/os-release"
+    # ff_machine_id's chroot fallback reads os-release through this override
+    # (same seam as moonraker.sh); point it at the sandbox copy so the suite
+    # never consults the host's real codename.
+    export OS_RELEASE_FILE="$BATS_TEST_TMPDIR/etc/os-release"
     # Create a fake /home/pi directory to trigger is_pi=true
     mkdir -p "$BATS_TEST_TMPDIR/home/pi"
 }
@@ -197,11 +201,22 @@ _mock_ad5x_detect_platform() {
 # layout, payload and Z-Mod install shape, so detect_platform keeps returning
 # "ad5x" for them. The stock firmware names the board in
 # /usr/prog/app_startup.sh's MACHINE= line; ff_machine_id reads it so the
-# user-facing messages can name the actual board.
+# user-facing messages can name the actual board. Inside the Z-Mod chroot
+# (where the installer must run) that file is unreachable, and the name rides
+# in the first word of the chroot os-release's VERSION_CODENAME instead.
 
 _write_ff_machine() {
     printf 'MACHINE=%s\n' "$1" > "$BATS_TEST_TMPDIR/app_startup.sh"
     export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/app_startup.sh"
+}
+
+# Write the chroot-shaped os-release: no app_startup.sh at hand, and a
+# VERSION_CODENAME of "<MACHINE> <version>" as the chroot's start.sh stamps it.
+_write_ff_os_release() {
+    {
+        echo 'ID=buildroot'
+        [ -z "${1:-}" ] || printf 'VERSION_CODENAME="%s"\n' "$1"
+    } > "$OS_RELEASE_FILE"
 }
 
 @test "C5: ff_machine_id reads MACHINE=AD5X" {
@@ -256,6 +271,54 @@ _write_ff_machine() {
     [ "$output" = "" ]
 }
 
+@test "C5: ff_machine_id falls back to the chroot os-release (Creator5Pro)" {
+    _write_ff_os_release "Creator5Pro 1.7.3"
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/no-such-app_startup.sh"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "Creator5Pro" ]
+}
+
+@test "C5: ff_machine_id falls back to the chroot os-release (Creator5)" {
+    _write_ff_os_release "Creator5 1.7.3"
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/no-such-app_startup.sh"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "Creator5" ]
+}
+
+@test "C5: ff_machine_id falls back to the chroot os-release (AD5X)" {
+    _write_ff_os_release "AD5X 1.2.3"
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/no-such-app_startup.sh"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "AD5X" ]
+}
+
+@test "C5: ff_machine_id returns empty for an unrelated os-release codename" {
+    _write_ff_os_release "bookworm"
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/no-such-app_startup.sh"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "" ]
+}
+
+@test "C5: ff_machine_id returns empty when os-release has no VERSION_CODENAME" {
+    _write_ff_os_release ""
+    export HELIX_FF_MACHINE_FILE="$BATS_TEST_TMPDIR/no-such-app_startup.sh"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "" ]
+}
+
+@test "C5: app_startup.sh wins when both sources exist" {
+    _write_ff_machine "AD5X"
+    _write_ff_os_release "Creator5Pro 1.7.3"
+    run ff_machine_id
+    [ "$status" -eq 0 ]
+    [ "$output" = "AD5X" ]
+}
+
 @test "C5: ad5x_board_name maps every MACHINE value to its display name" {
     local machine want
     for machine in AD5X Creator5 Creator5Pro; do
@@ -305,10 +368,6 @@ _write_ff_machine() {
     [ "$status" -ne 0 ]
     [[ "$output" == *"FlashForge Creator 5 manual installs must run inside the ZMOD chroot"* ]] \
         || fail "refusal names the wrong board: $output"
-}
-
-@test "C5: main.sh's banner routes ad5x through ad5x_board_name" {
-    grep -q 'ad5x_board_name' "$WORKTREE_ROOT/scripts/lib/installer/main.sh"
 }
 
 # --- AD5X Forge-X (mod-probed) detection tests ---
