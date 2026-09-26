@@ -1,0 +1,354 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Pressure Advance Calibration Panel -->
+<!-- -->
+<!-- The screen exists to get four decimal digits out of a machine with no -->
+<!-- keyboard and no clipboard, so the frame is two columns in every state: -->
+<!-- TARGET on the left, never more than two decisions and never moving or -->
+<!-- resizing; one STAGE on the right that swaps content and carries the whole -->
+<!-- arc — what the number is, the two to three minutes of waiting (nearly all -->
+<!-- of it heating), then the number itself. Nothing reflows between states, so -->
+<!-- the eye keeps its place across a long wait and only the stage repaints. -->
+<!-- -->
+<!-- The printer only MEASURES. Nothing is applied and nothing is saved, so the -->
+<!-- result carries one quiet button (Re-measure) rather than three unequal -->
+<!-- acts dressed as equals. -->
+<!-- -->
+<!-- Design: docs/mockups/pa-calibration/DESIGN_BRIEF.md + the Claude Design -->
+<!-- canvas it produced ("Pressure Advance.dc.html"). -->
+<component>
+  <styles>
+    <!-- Selected chips are a tint of #primary rather than a new token, so they
+         track the theme's accent in both light and dark. A bound style must
+         never be paired with an inline style_bg_* on the same widget — the
+         inline one is a local style and wins, so the highlight would never
+         appear (the trap documented on calibration_tool_offset_panel). -->
+    <style name="pa_chip_on" bg_color="#primary" bg_opa="40" border_color="#primary"/>
+    <style name="pa_chip_off" bg_color="#card_bg" bg_opa="255" border_color="#border"/>
+    <!-- Inputs while a run owns the machine: present, legible, plainly inert. -->
+    <style name="pa_chip_locked" bg_opa="0" border_color="#border"/>
+
+    <style name="pa_stage_running" bg_color="#primary" bg_opa="40" border_color="#primary"/>
+    <style name="pa_stage_good" bg_color="#success" bg_opa="40" border_color="#success"/>
+    <style name="pa_stage_bad" bg_color="#danger" bg_opa="40" border_color="#danger"/>
+
+    <style name="pa_text_on" text_color="#text"/>
+    <style name="pa_text_off" text_color="#text_subtle"/>
+    <style name="pa_text_accent" text_color="#primary"/>
+    <style name="pa_text_good" text_color="#success"/>
+    <style name="pa_text_warn" text_color="#warning"/>
+
+    <!-- Phase row: pending / running / done, one style per state. -->
+    <style name="pa_phase_now" bg_color="#primary" bg_opa="40" border_color="#primary"/>
+    <style name="pa_phase_idle" bg_opa="0" border_color="#border"/>
+
+    <!-- The action button's two lives. Stop is destructive-adjacent, so it
+         reads as danger without being a full alarm. -->
+    <style name="pa_action_go" bg_color="#primary" bg_opa="255" border_color="#primary"/>
+    <style name="pa_action_stop" bg_color="#danger" bg_opa="40" border_color="#danger"/>
+  </styles>
+
+  <view name="calibration_pa_panel"
+        extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
+        style_bg_color="#card_bg" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column">
+
+    <header_bar name="overlay_header" title="Pressure Advance" title_tag="Pressure Advance"/>
+
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_all="#space_md" flex_flow="row" style_pad_gap="#space_md"
+            scrollable="false">
+      <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+
+      <!-- ================================================================ -->
+      <!-- TARGET — the left column. Two decisions, identical in every       -->
+      <!-- state. On Micro/Tiny panels there is not room for two columns at  -->
+      <!-- once, so this one steps aside while a run owns the screen: setup  -->
+      <!-- and stage become separate screens rather than side by side.       -->
+      <!-- ================================================================ -->
+      <lv_obj name="pa_target_col"
+              width="34%" height="100%" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column" style_bg_opa="0"
+              style_border_width="0" scrollable="false">
+        <bind_flag_if cond="ui_breakpoint le 1 and pa_cal_state ne 0" flag="hidden"/>
+
+        <text_small text="Target" translation_tag="Target" text_transform="uppercase" style_text_color="#text_muted"/>
+
+        <!-- Tool. Pressure advance belongs to an extruder, so on a tool
+             changer this is the first decision on the screen. On the majority
+             of printers there is exactly one extruder and no choice to make —
+             the row is not rendered at all, rather than rendered stranded. -->
+        <lv_obj name="pa_tool_row"
+                width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
+                style_bg_opa="0" style_border_width="0" scrollable="false">
+          <bind_flag_if_eq subject="pa_cal_multi_tool" flag="hidden" ref_value="0"/>
+          <repeat count="pa_cal_tool_count">
+            <!-- A little horizontal padding is load-bearing: without it the
+                 sub-label is exactly as wide as the chip, and LVGL clips the
+                 first character instead of deciding the text is long enough to
+                 ellipsize. -->
+            <lv_obj name="pa_tool_chip_${i}"
+                    width="1" height="#button_height" flex_grow="1" style_pad_ver="0" style_pad_hor="#space_xxs"
+                    style_radius="#border_radius" style_border_width="1" flex_flow="column"
+                    style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="0" clickable="true"
+                    scrollable="false">
+              <bind_style_if_eq name="pa_chip_on" subject="pa_cal_tool_selected_${i}" ref_value="1"/>
+              <bind_style_if name="pa_chip_off" cond="pa_cal_tool_selected_${i} eq 0 and pa_cal_inputs_live eq 1"/>
+              <bind_style_if name="pa_chip_locked" cond="pa_cal_tool_selected_${i} eq 0 and pa_cal_inputs_live eq 0"/>
+              <bind_state_if_eq subject="pa_cal_inputs_live" state="disabled" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_pa_cal_tool" user_data="$i"/>
+              <!-- Both labels are pinned to one line. long_mode="dots" only
+                   draws an ellipsis when the label's HEIGHT is bounded; on an
+                   auto-height label LVGL wraps instead, and a two-line spool
+                   name pushed the T-number out of the top of the chip. -->
+              <text_small name="pa_tool_id_${i}" height="content" text="T${i}" style_text_color="#text"/>
+              <text_small name="pa_tool_sub_${i}"
+                          width="100%" height="#spinner_xs" bind_text="pa_cal_tool_sub_${i}" style_text_font="#font_xs"
+                          style_text_color="#text_muted" long_mode="dots" style_text_align="center"/>
+            </lv_obj>
+          </repeat>
+        </lv_obj>
+
+        <!-- Nozzle temperature. Part of the input, not an afterthought: the
+             same filament wants a different value at 200° and at 230°. -->
+        <lv_obj name="pa_temp_card"
+                width="100%" height="content" style_bg_color="#section_bg_color" style_bg_opa="255"
+                style_radius="#border_radius" style_pad_all="#space_sm" style_pad_gap="#space_sm" flex_flow="column"
+                scrollable="false">
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center" style_bg_opa="0"
+                  style_border_width="0" scrollable="false">
+            <text_small text="Nozzle" translation_tag="Nozzle" text_transform="uppercase" style_text_color="#text_muted"/>
+            <lv_obj height="1"
+                    flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+            <text_small name="pa_temp_note" bind_text="pa_cal_temp_note" style_text_color="#text_muted"/>
+          </lv_obj>
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
+                  style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" scrollable="false">
+            <ui_button name="pa_btn_temp_down" width="#button_height" height="#button_height" text="-">
+              <bind_state_if_eq subject="pa_cal_inputs_live" state="disabled" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_pa_cal_temp_down"/>
+            </ui_button>
+            <lv_label name="pa_temp_display"
+                      flex_grow="1" bind_text="pa_cal_temp_display" style_text_font="#font_heading"
+                      style_text_align="center">
+              <bind_style_if_eq name="pa_text_on" subject="pa_cal_inputs_live" ref_value="1"/>
+              <bind_style_if_eq name="pa_text_off" subject="pa_cal_inputs_live" ref_value="0"/>
+            </lv_label>
+            <ui_button name="pa_btn_temp_up" width="#button_height" height="#button_height" text="+">
+              <bind_state_if_eq subject="pa_cal_inputs_live" state="disabled" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_pa_cal_temp_up"/>
+            </ui_button>
+          </lv_obj>
+        </lv_obj>
+
+        <!-- Material presets. Identity comes from the shared preset subjects,
+             so a slot the user reassigned reads the same here as everywhere
+             else. Two columns: a preset name is user data and "Generic PETG"
+             does not fit a quarter-width button at any tier below LARGE. -->
+        <lv_obj name="pa_preset_grid"
+                width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row_wrap"
+                style_flex_main_place="space_between" style_bg_opa="0" style_border_width="0" scrollable="false">
+          <repeat count="4">
+            <lv_obj name="pa_preset_${i}"
+                    width="48%" height="#button_height" style_pad_hor="#space_xs" style_pad_ver="0"
+                    style_radius="#border_radius" style_border_width="1" flex_flow="column"
+                    style_flex_main_place="center" style_pad_gap="0" clickable="true" scrollable="false">
+              <bind_style_if_eq name="pa_chip_on" subject="pa_cal_preset_selected_${i}" ref_value="1"/>
+              <bind_style_if name="pa_chip_off" cond="pa_cal_preset_selected_${i} eq 0 and pa_cal_inputs_live eq 1"/>
+              <bind_style_if name="pa_chip_locked" cond="pa_cal_preset_selected_${i} eq 0 and pa_cal_inputs_live eq 0"/>
+              <bind_state_if_eq subject="pa_cal_inputs_live" state="disabled" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_pa_cal_preset" user_data="$i"/>
+              <text_small name="pa_preset_name_${i}"
+                          width="100%" height="#badge_size" bind_text="preset_material_${i}_name" long_mode="dots"/>
+              <text_small name="pa_preset_temp_${i}"
+                          height="#spinner_xs" bind_text="pa_cal_preset_temp_${i}" style_text_font="#font_xs"
+                          style_text_color="#text_muted"/>
+            </lv_obj>
+          </repeat>
+        </lv_obj>
+
+        <lv_obj width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+      </lv_obj>
+
+      <!-- ================================================================ -->
+      <!-- STAGE — the right column. One card at a time, same slot.          -->
+      <!-- ================================================================ -->
+      <lv_obj name="pa_stage_col"
+              width="1" height="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"
+              style_bg_opa="0" style_border_width="0" scrollable="false">
+
+        <!-- A — idle. What the number is and what the machine is about to do,
+             in the fewest words that still leave a newcomer oriented. -->
+        <lv_obj name="pa_stage_explain"
+                width="100%" flex_grow="1" style_bg_color="#section_bg_color" style_bg_opa="255"
+                style_radius="#border_radius" style_pad_all="#space_md" style_pad_gap="#space_sm" flex_flow="column"
+                scrollable="true">
+          <bind_flag_if_not_eq subject="pa_cal_state" flag="hidden" ref_value="0"/>
+          <text_heading text="Automatic calibration" translation_tag="Automatic calibration"/>
+          <text_body width="100%"
+                     text="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number."
+                     translation_tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number."
+                     style_text_color="#text_muted" long_mode="wrap"/>
+          <text_body width="100%"
+                     text="Two to three minutes, nearly all of it heating. You judge nothing by eye."
+                     translation_tag="Two to three minutes, nearly all of it heating. You judge nothing by eye."
+                     style_text_color="#text_muted" long_mode="wrap"/>
+          <!-- The last run, when there is one. The most useful thing on a
+               return visit, and the reason idle is not one empty card. -->
+          <lv_obj name="pa_last_result_row"
+                  width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
+                  style_flex_cross_place="end" style_bg_opa="0" style_border_width="0" scrollable="false">
+            <bind_flag_if_eq subject="pa_cal_has_last" flag="hidden" ref_value="0"/>
+            <text_small text="Last measured" translation_tag="Last measured" style_text_color="#text_muted"/>
+            <text_body name="pa_last_value" bind_text="pa_cal_last_value"/>
+            <text_small name="pa_last_context" bind_text="pa_cal_last_context" style_text_color="#text_muted"/>
+          </lv_obj>
+          <lv_obj width="100%"
+                  flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+        </lv_obj>
+
+        <!-- D/E — the wait. Heating and measuring are one bar but two plainly
+             separate phases, because they feel nothing alike: two minutes of a
+             rising number, then half a minute of the machine extruding. The
+             big readout is whichever number is actually moving. -->
+        <lv_obj name="pa_stage_progress"
+                width="100%" flex_grow="1" style_radius="#border_radius" style_border_width="1"
+                style_pad_all="#space_md" style_pad_gap="#space_sm" flex_flow="column" scrollable="false">
+          <bind_flag_if cond="pa_cal_state ne 1 and pa_cal_state ne 2" flag="hidden"/>
+          <bind_style_if name="pa_stage_running" cond="pa_cal_state eq 1 or pa_cal_state eq 2"/>
+
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="row"
+                  style_flex_cross_place="end" style_bg_opa="0" style_border_width="0" scrollable="false">
+            <lv_obj width="content"
+                    height="content" style_pad_all="0" style_pad_gap="0" flex_flow="column" style_bg_opa="0"
+                    style_border_width="0" scrollable="false">
+              <text_small name="pa_phase_label"
+                          bind_text="pa_cal_phase_label" text_transform="uppercase" style_text_color="#text_muted"/>
+              <lv_label name="pa_big" bind_text="pa_cal_big" style_text_font="#font_xl" style_text_color="#text"/>
+            </lv_obj>
+            <text_small name="pa_big_sub" bind_text="pa_cal_big_sub" style_text_color="#text_muted"/>
+            <lv_obj height="1"
+                    flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+            <lv_obj width="content"
+                    height="content" style_pad_all="0" style_pad_gap="0" flex_flow="column" style_flex_cross_place="end"
+                    style_bg_opa="0" style_border_width="0" scrollable="false">
+              <text_small text="Remaining" translation_tag="Remaining" style_text_color="#text_muted"/>
+              <text_body name="pa_remaining" bind_text="pa_cal_remaining"/>
+            </lv_obj>
+          </lv_obj>
+
+          <progress_bar name="pa_progress_bar" width="100%" bind_value="pa_cal_progress"/>
+
+          <!-- Two phase rows. Which one is running, and what each costs. -->
+          <repeat count="2">
+            <lv_obj name="pa_phase_row_${i}"
+                    width="100%" height="#button_height" style_pad_hor="#space_sm" style_pad_ver="0"
+                    style_radius="#border_radius" style_border_width="1" flex_flow="row" style_flex_cross_place="center"
+                    style_pad_gap="#space_sm" scrollable="false">
+              <bind_style_if_eq name="pa_phase_now" subject="pa_cal_phase_state_${i}" ref_value="1"/>
+              <bind_style_if_not_eq name="pa_phase_idle" subject="pa_cal_phase_state_${i}" ref_value="1"/>
+              <text_body name="pa_phase_name_${i}" bind_text="pa_cal_phase_name_${i}">
+                <bind_style_if_eq name="pa_text_accent" subject="pa_cal_phase_state_${i}" ref_value="1"/>
+                <bind_style_if_eq name="pa_text_off" subject="pa_cal_phase_state_${i}" ref_value="0"/>
+                <bind_style_if_eq name="pa_text_good" subject="pa_cal_phase_state_${i}" ref_value="2"/>
+              </text_body>
+              <lv_obj height="1"
+                      flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+              <text_small name="pa_phase_meta_${i}" bind_text="pa_cal_phase_meta_${i}" style_text_color="#text_muted"/>
+            </lv_obj>
+          </repeat>
+
+          <lv_obj width="100%"
+                  flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+          <text_small name="pa_prog_foot"
+                      width="100%" bind_text="pa_cal_prog_foot" style_text_color="#text_muted" long_mode="wrap"/>
+        </lv_obj>
+
+        <!-- F — the number. The whole stage; nothing competes with it. -->
+        <lv_obj name="pa_stage_result"
+                width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"
+                style_bg_opa="0" style_border_width="0" scrollable="false">
+          <bind_flag_if_not_eq subject="pa_cal_state" flag="hidden" ref_value="3"/>
+          <lv_obj width="100%"
+                  flex_grow="1" style_radius="#border_radius" style_border_width="1" style_pad_all="#space_md"
+                  style_pad_gap="#space_sm" flex_flow="column" style_flex_main_place="center"
+                  style_flex_cross_place="center" scrollable="false">
+            <bind_style_if_eq name="pa_stage_good" subject="pa_cal_result_plausible" ref_value="1"/>
+            <bind_style_if_eq name="pa_stage_bad" subject="pa_cal_result_plausible" ref_value="0"/>
+            <text_small width="100%"
+                        text="Measured pressure advance" translation_tag="Measured pressure advance"
+                        text_transform="uppercase" style_text_align="center">
+              <bind_style_if_eq name="pa_text_good" subject="pa_cal_result_plausible" ref_value="1"/>
+              <bind_style_if_eq name="pa_text_warn" subject="pa_cal_result_plausible" ref_value="0"/>
+            </text_small>
+            <!-- The whole reason the screen exists, so it gets the one token
+                 reserved for a number carried off the machine by eye.
+                 font_display is 40px at MEDIUM and up - the largest bold face
+                 that is baked, since bitmap fonts cannot be scaled. The design
+                 asked for 88px; generating a face that size is a font-pipeline
+                 change with real flash cost on every 800x480 device, so 40px
+                 plus an otherwise empty card is where this lands. -->
+            <lv_label name="pa_result_value"
+                      bind_text="pa_cal_result" style_text_font="#font_display" style_text_color="#text"/>
+            <text_small name="pa_result_sanity"
+                        width="90%" bind_text="pa_cal_result_sanity" style_text_align="center" long_mode="wrap">
+              <bind_style_if_eq name="pa_text_good" subject="pa_cal_result_plausible" ref_value="1"/>
+              <bind_style_if_eq name="pa_text_warn" subject="pa_cal_result_plausible" ref_value="0"/>
+            </text_small>
+            <text_small width="90%"
+                        text="Copy it into this filament's slicer profile — the printer keeps nothing."
+                        translation_tag="Copy it into this filament's slicer profile — the printer keeps nothing."
+                        style_text_color="#text_muted" style_text_align="center" long_mode="wrap"/>
+          </lv_obj>
+          <ui_button name="pa_btn_remeasure"
+                     width="100%" height="#button_height" variant="ghost" text="Re-measure" translation_tag="Re-measure">
+            <event_cb trigger="clicked" callback="on_pa_cal_reset"/>
+          </ui_button>
+        </lv_obj>
+
+        <!-- G — refused. The machine's own sentence at full size, then what is
+             still true afterwards. A failed run changes nothing. -->
+        <lv_obj name="pa_stage_error"
+                width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"
+                style_bg_opa="0" style_border_width="0" scrollable="false">
+          <bind_flag_if_not_eq subject="pa_cal_state" flag="hidden" ref_value="4"/>
+          <lv_obj width="100%"
+                  flex_grow="1" style_bg_color="#danger" style_bg_opa="40" style_border_color="#danger"
+                  style_radius="#border_radius" style_border_width="1" style_pad_all="#space_md"
+                  style_pad_gap="#space_sm" flex_flow="column" scrollable="true">
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="row"
+                    style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" scrollable="false">
+              <icon src="alert_circle" size="sm" variant="danger"/>
+              <text_heading name="pa_error_title" flex_grow="1" bind_text="pa_cal_error_title" long_mode="dots"/>
+            </lv_obj>
+            <!-- The firmware's verbatim words, in the monospace face the rest
+                 of the app uses for machine output. 100-200 characters is
+                 normal here, and this is the most valuable text on the screen
+                 when it appears — never a small muted one-liner. -->
+            <text_small name="pa_error_detail" width="100%" bind_text="pa_cal_error_detail" long_mode="wrap"/>
+            <text_body name="pa_error_hint"
+                       width="100%" bind_text="pa_cal_error_hint" style_text_color="#text_muted" long_mode="wrap"/>
+            <lv_obj width="100%"
+                    flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+          </lv_obj>
+          <ui_button name="pa_btn_retry"
+                     width="100%" height="#button_height" text="Try again" translation_tag="Try again">
+            <event_cb trigger="clicked" callback="on_pa_cal_start"/>
+          </ui_button>
+        </lv_obj>
+
+        <!-- The one action, in a slot that never moves. Complete and failed
+             carry their own button inside the stage, so this hides there. -->
+        <ui_button name="pa_action_btn" width="100%" height="#button_height" bind_text="pa_cal_action_text">
+          <bind_flag_if cond="pa_cal_state eq 3 or pa_cal_state eq 4" flag="hidden"/>
+          <bind_style_if_eq name="pa_action_go" subject="pa_cal_action_is_stop" ref_value="0"/>
+          <bind_style_if_eq name="pa_action_stop" subject="pa_cal_action_is_stop" ref_value="1"/>
+          <event_cb trigger="clicked" callback="on_pa_cal_action"/>
+        </ui_button>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

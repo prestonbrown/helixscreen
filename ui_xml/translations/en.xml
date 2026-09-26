@@ -67,6 +67,7 @@
   <translation tag="12 Hour" en="12 Hour"/>
   <translation tag="120 seconds" en="120 seconds"/>
   <translation tag="15 seconds" en="15 seconds"/>
+  <translation tag="170-300 °C" en="170-300 °C"/>
   <translation tag="180°" en="180°"/>
   <translation tag="180° Upside Down" en="180° Upside Down"/>
   <translation tag="2 min" en="2 min"/>
@@ -138,6 +139,7 @@
   <translation tag="Abort failed" en="Abort failed"/>
   <translation tag="Aborting AFC operation..." en="Aborting AFC operation..."/>
   <translation tag="About" en="About"/>
+  <translation tag="About 3 minutes at {}°C." en="About 3 minutes at {}°C."/>
   <translation tag="Accel to Decel" en="Accel to Decel"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" en="Acceleration to deceleration limit (mm/s²)"/>
   <translation tag="Accelerometer" en="Accelerometer"/>
@@ -245,6 +247,7 @@
   <translation tag="Automatic" en="Automatic"/>
   <translation tag="Automatic Heater Control Calibration" en="Automatic Heater Control Calibration"/>
   <translation tag="Automatic LED Control" en="Automatic LED Control"/>
+  <translation tag="Automatic calibration" en="Automatic calibration"/>
   <translation tag="Aux" en="Aux"/>
   <translation tag="Available" en="Available"/>
   <translation tag="Available Networks" en="Available Networks"/>
@@ -291,6 +294,7 @@
   <translation tag="Bed target set to {}°C" en="Bed target set to {}°C"/>
   <translation tag="Bed temp must be 0-%d°C" en="Bed temp must be 0-%d°C"/>
   <translation tag="Bed warming timed out" en="Bed warming timed out"/>
+  <translation tag="Before starting" en="Before starting"/>
   <translation tag="Belt A" en="Belt A"/>
   <translation tag="Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A." en="Belt A (front right) is tighter by %.0f Hz. Tighten belt B, on the front left, or loosen belt A."/>
   <translation tag="Belt B" en="Belt B"/>
@@ -660,6 +664,7 @@
   <translation tag="Copied to clipboard!" en="Copied to clipboard!"/>
   <translation tag="Copy Command" en="Copy Command"/>
   <translation tag="Copy failed - use SSH manually" en="Copy failed - use SSH manually"/>
+  <translation tag="Copy it into this filament&apos;s slicer profile — the printer keeps nothing." en="Copy it into this filament&apos;s slicer profile — the printer keeps nothing."/>
   <translation tag="Corner roundness" en="Corner roundness"/>
   <translation tag="Correction (Ki)" en="Correction (Ki)"/>
   <translation tag="Could not add to queue" en="Could not add to queue"/>
@@ -1128,6 +1133,7 @@
   <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" en="Filament is still present after the cut — the blade may be dull or misaligned"/>
   <translation tag="Filament jam detected" en="Filament jam detected"/>
   <translation tag="Filament jammed at the extruder gear" en="Filament jammed at the extruder gear"/>
+  <translation tag="Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head." en="Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head."/>
   <translation tag="Filament never reached the CFS hub sensor" en="Filament never reached the CFS hub sensor"/>
   <translation tag="Filament not set" en="Filament not set"/>
   <translation tag="Filament operation failed" en="Filament operation failed"/>
@@ -1270,6 +1276,8 @@
   <translation tag="Heating bed to $1°C..." en="Heating bed to $1°C..."/>
   <translation tag="Heating bed..." en="Heating bed..."/>
   <translation tag="Heating chamber..." en="Heating chamber..."/>
+  <translation tag="Heating is nearly the whole wait. You can leave the screen — the run stops." en="Heating is nearly the whole wait. You can leave the screen — the run stops."/>
+  <translation tag="Heating nozzle" en="Heating nozzle"/>
   <translation tag="Heating nozzle to $1°C..." en="Heating nozzle to $1°C..."/>
   <translation tag="Heating nozzle..." en="Heating nozzle..."/>
   <translation tag="Heating to %d°C... %.0f°C" en="Heating to %d°C... %.0f°C"/>
@@ -1433,6 +1441,7 @@
   <translation tag="Joining Wi-Fi disconnects the wired network." en="Joining Wi-Fi disconnects the wired network."/>
   <translation tag="Just now" en="Just now"/>
   <translation tag="Just queued" en="Just queued"/>
+  <translation tag="K so far" en="K so far"/>
   <translation tag="KEYBOARD LAYOUT" en="KEYBOARD LAYOUT"/>
   <translation tag="KLICKY CONTROLS" en="KLICKY CONTROLS"/>
   <translation tag="Keep Navigation Bar" en="Keep Navigation Bar"/>
@@ -1483,6 +1492,7 @@
   <translation tag="Language, theme, brightness, and sound" en="Language, theme, brightness, and sound"/>
   <translation tag="Last" en="Last"/>
   <translation tag="Last 7 days" en="Last 7 days"/>
+  <translation tag="Last measured" en="Last measured"/>
   <translation tag="Last print cancelled" en="Last print cancelled"/>
   <translation tag="Last print failed" en="Last print failed"/>
   <translation tag="Later" en="Later"/>
@@ -1637,12 +1647,15 @@
   <translation tag="Maximum" en="Maximum"/>
   <translation tag="Maximum acceleration (mm/s²)" en="Maximum acceleration (mm/s²)"/>
   <translation tag="Maximum toolhead speed (mm/s)" en="Maximum toolhead speed (mm/s)"/>
+  <translation tag="Measure" en="Measure"/>
   <translation tag="Measure and compare belt path frequencies" en="Measure and compare belt path frequencies"/>
   <translation tag="Measure belt path frequencies" en="Measure belt path frequencies"/>
   <translation tag="Measure every tool&apos;s XYZ offset automatically" en="Measure every tool&apos;s XYZ offset automatically"/>
   <translation tag="Measured (shaper off)" en="Measured (shaper off)"/>
   <translation tag="Measured filament diameter" en="Measured filament diameter"/>
+  <translation tag="Measured pressure advance" en="Measured pressure advance"/>
   <translation tag="Measurement Failed" en="Measurement Failed"/>
+  <translation tag="Measuring" en="Measuring"/>
   <translation tag="Measuring accelerometer noise..." en="Measuring accelerometer noise..."/>
   <translation tag="Measuring vibrations... {}%" en="Measuring vibrations... {}%"/>
   <translation tag="Measuring wheel error" en="Measuring wheel error"/>
@@ -1840,6 +1853,7 @@
   <translation tag="Nothing starred yet. Tap the star on a filament to add it here." en="Nothing starred yet. Tap the star on a filament to add it here."/>
   <translation tag="Nothing to remap" en="Nothing to remap"/>
   <translation tag="Nothing to unload: no filament at the nozzle" en="Nothing to unload: no filament at the nozzle"/>
+  <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." en="Nothing was changed. Temperature and material are kept, so a retry is one tap."/>
   <translation tag="Notification" en="Notification"/>
   <translation tag="Notifications" en="Notifications"/>
   <translation tag="Notify when print finishes" en="Notify when print finishes"/>
@@ -1908,6 +1922,7 @@
   <translation tag="Output Device" en="Output Device"/>
   <translation tag="Output Mode" en="Output Mode"/>
   <translation tag="Output Pin" en="Output Pin"/>
+  <translation tag="Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it." en="Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it."/>
   <translation tag="Overheating" en="Overheating"/>
   <translation tag="Overlay Visits: " en="Overlay Visits: "/>
   <translation tag="Overlays Opened" en="Overlays Opened"/>
@@ -2027,6 +2042,8 @@
   <translation tag="Presets" en="Presets"/>
   <translation tag="Press Abort to stop" en="Press Abort to stop"/>
   <translation tag="Press Scan to search" en="Press Scan to search"/>
+  <translation tag="Pressure Adv." en="Pressure Adv."/>
+  <translation tag="Pressure Advance" en="Pressure Advance"/>
   <translation tag="Pressure Advance Calibration" en="Pressure Advance Calibration"/>
   <translation tag="Pressure:" en="Pressure:"/>
   <translation tag="Preview Sounds" en="Preview Sounds"/>
@@ -2203,6 +2220,7 @@
   <translation tag="Raspberry Pi" en="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" en="Raspberry Pi (32-bit)"/>
   <translation tag="Re-identify" en="Re-identify"/>
+  <translation tag="Re-measure" en="Re-measure"/>
   <translation tag="Re-probe" en="Re-probe"/>
   <translation tag="Re-read spool RFID tags and remaining length" en="Re-read spool RFID tags and remaining length"/>
   <translation tag="Re-seat the Bowden tube connector on the CFS unit" en="Re-seat the Bowden tube connector on the CFS unit"/>
@@ -2246,6 +2264,7 @@
   <translation tag="Release filament" en="Release filament"/>
   <translation tag="Release or grip the filament by hand" en="Release or grip the filament by hand"/>
   <translation tag="Release the filament" en="Release the filament"/>
+  <translation tag="Remaining" en="Remaining"/>
   <translation tag="Remaining (g)" en="Remaining (g)"/>
   <translation tag="Remaining Weight (g)" en="Remaining Weight (g)"/>
   <translation tag="Remap Tool" en="Remap Tool"/>
@@ -2376,6 +2395,7 @@
   <translation tag="Run a macro you choose, in one tap" en="Run a macro you choose, in one tap"/>
   <translation tag="Run brush cleaning sequence" en="Run brush cleaning sequence"/>
   <translation tag="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)" en="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)"/>
+  <translation tag="Run stopped" en="Run stopped"/>
   <translation tag="Run test sequence on all lanes" en="Run test sequence on all lanes"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." en="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform."/>
   <translation tag="Run {}?" en="Run {}?"/>
@@ -2740,6 +2760,7 @@
   <translation tag="Tap anywhere to begin calibration" en="Tap anywhere to begin calibration"/>
   <translation tag="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d" en="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d"/>
   <translation tag="Tap to assign" en="Tap to assign"/>
+  <translation tag="Target" en="Target"/>
   <translation tag="Target Frequency" en="Target Frequency"/>
   <translation tag="Target Temperature" en="Target Temperature"/>
   <translation tag="Target Version" en="Target Version"/>
@@ -2801,8 +2822,11 @@
   <translation tag="The helper macros are installed and activate after Klipper restarts." en="The helper macros are installed and activate after Klipper restarts."/>
   <translation tag="The left RFID reader in this CFS unit may need service" en="The left RFID reader in this CFS unit may need service"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." en="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle."/>
+  <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." en="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself."/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." en="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes."/>
+  <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." en="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" en="The printer halted this print and cannot resume it. Restart from the beginning?"/>
+  <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." en="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." en="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." en="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." en="The printer lost power during a print. It can resume where it left off."/>
@@ -2956,6 +2980,7 @@
   <translation tag="Trigger" en="Trigger"/>
   <translation tag="Troubleshooting:" en="Troubleshooting:"/>
   <translation tag="Try adjusting your search or filters" en="Try adjusting your search or filters"/>
+  <translation tag="Try again" en="Try again"/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." en="Try the operation again. If it persists, check for mechanical issues."/>
   <translation tag="Tune" en="Tune"/>
   <translation tag="Tuning tower enabled - start a print to test" en="Tuning tower enabled - start a print to test"/>
@@ -2973,9 +2998,11 @@
   <translation tag="Turn the extruder heater off after a load or unload finishes" en="Turn the extruder heater off after a load or unload finishes"/>
   <translation tag="Turn the picture to match how the screen is mounted. Applies after restart." en="Turn the picture to match how the screen is mounted. Applies after restart."/>
   <translation tag="Turn the printer&apos;s lights on or off" en="Turn the printer&apos;s lights on or off"/>
+  <translation tag="Two to three minutes, nearly all of it heating. You judge nothing by eye." en="Two to three minutes, nearly all of it heating. You judge nothing by eye."/>
   <translation tag="Type" en="Type"/>
   <translation tag="Type to preview input field..." en="Type to preview input field..."/>
   <translation tag="Type:" en="Type:"/>
+  <translation tag="Typical for a {} extruder ({:.2f}-{:.2f})." en="Typical for a {} extruder ({:.2f}-{:.2f})."/>
   <translation tag="UI Scale" en="UI Scale"/>
   <translation tag="UI Sounds" en="UI Sounds"/>
   <translation tag="UI scale applies after restart" en="UI scale applies after restart"/>
@@ -3208,6 +3235,7 @@
   <translation tag="Z:" en="Z:"/>
   <translation tag="Z: 0.000" en="Z: 0.000"/>
   <translation tag="already loaded" en="already loaded"/>
+  <translation tag="attempt {}" en="attempt {}"/>
   <translation tag="bed" en="bed"/>
   <translation tag="busy" en="busy"/>
   <translation tag="by Preston Brown" en="by Preston Brown"/>
@@ -3243,6 +3271,7 @@
   <translation tag="layers" en="layers"/>
   <translation tag="left" en="left"/>
   <translation tag="loaded" en="loaded"/>
+  <translation tag="locked" en="locked"/>
   <translation tag="mm before clog" en="mm before clog"/>
   <translation tag="needs" en="needs"/>
   <translation tag="not detected" en="not detected"/>
@@ -3263,6 +3292,7 @@
   <translation tag="started" en="started"/>
   <translation tag="steppers" en="steppers"/>
   <translation tag="tall" en="tall"/>
+  <translation tag="target {}°" en="target {}°"/>
   <translation tag="tool(s)" en="tool(s)"/>
   <translation tag="used" en="used"/>
   <translation tag="v%s available" en="v%s available"/>

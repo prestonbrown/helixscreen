@@ -36,6 +36,13 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
             return true;
         }
 
+        // Pressure advance completes asynchronously (a handful of candidate
+        // probes) so the panel's phase list and attempt counter are observable
+        // in mock mode rather than snapping straight to a number.
+        if (self->simulate_pa_calibration(script, success_cb, error_cb)) {
+            return true;
+        }
+
         // Real Klipper executes a multi-line script line-by-line; the per-command
         // parsers in gcode_script() assume a SINGLE command (e.g. they `find('S')`
         // globally, which a multi-line script would point at the wrong token and

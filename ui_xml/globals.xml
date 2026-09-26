@@ -439,6 +439,23 @@
     <string name="font_xl_xlarge" value="noto_sans_bold_32"/>
     <string name="font_xl_xxlarge" value="noto_sans_bold_40"/>
     <!-- NO BASE font_xl - registered at runtime -->
+    <!-- font_display variants: ONE number that is the whole point of a screen.
+         Reserved for a readout the user has to carry off the machine by eye -
+         the measured pressure advance, which is transcribed into a slicer with
+         no clipboard to help. Everywhere else font_xl is the display face; this
+         exists because 28px in the middle of an otherwise empty card does not
+         read as "this is the answer", and bitmap fonts cannot be scaled up.
+         40px is the largest bold face that exists, so this is the ceiling
+         rather than a preference. Below MEDIUM there is no room for it and the
+         token falls back to the font_xl ladder. -->
+    <string name="font_display_micro" value="noto_sans_bold_16"/>
+    <string name="font_display_tiny" value="noto_sans_bold_18"/>
+    <string name="font_display_small" value="noto_sans_bold_20"/>
+    <string name="font_display_medium" value="noto_sans_bold_40"/>
+    <string name="font_display_large" value="noto_sans_bold_40"/>
+    <string name="font_display_xlarge" value="noto_sans_bold_40"/>
+    <string name="font_display_xxlarge" value="noto_sans_bold_40"/>
+    <!-- NO BASE font_display - registered at runtime -->
     <!-- font_body_bold variants (bold weight at body size, e.g. markdown strong/section
          headers). Sizes track font_body but step up to the nearest available bold glyph
          (noto_sans_bold ships 14/16/18/20/24/28 always, 32 at xlarge tier, 40 at xxlarge). -->
