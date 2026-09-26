@@ -60,11 +60,12 @@ namespace helix::ui {
 inline constexpr int32_t AMS_LANE_SPOOL_BADGE_MARGIN_PX = 8;
 
 /**
- * @brief Point an ams_lane_spool widget at a different slot index
+ * @brief Point an ams_lane_spool widget at a slot of a backend
  *
- * Rebinds all per-slot observers. No-op on a non-ams_lane_spool object.
+ * Rebinds all per-slot observers when either index changes. No-op on a
+ * non-ams_lane_spool object. A widget created from XML binds backend 0.
  */
-void ams_lane_spool_set_index(lv_obj_t* spool, int slot_index);
+void ams_lane_spool_set_index(lv_obj_t* spool, int slot_index, int backend_index);
 
 /**
  * @brief Last fill level the widget applied (0.0-1.0), 1.0 when unbound

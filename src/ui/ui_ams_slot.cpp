@@ -73,6 +73,7 @@ struct AmsSlotData {
     // the accessor returns an empty (always-alive) token; harmless. MUST be
     // reset BEFORE the matching observer (see cleanup paths, #705).
     SubjectLifetime status_lifetime;
+    SubjectLifetime lane_state_lifetime;
 
     lv_obj_t* spool_container = nullptr; // Container for the lane spool + badges
 
@@ -136,6 +137,7 @@ static void unregister_slot_data(lv_obj_t* obj) {
             // observer's weak_ptr is already expired (secondary-backend subjects
             // are dynamic; wrong order = remove on a freed subject, #705).
             data->status_lifetime.reset();
+            data->lane_state_lifetime.reset();
             data->status_observer.reset();
             data->lane_state_observer.reset();
             data->current_slot_observer.reset();
@@ -163,6 +165,7 @@ static void cleanup_all_slot_data() {
         // Release ObserverGuards while global subjects are still alive. Reset the
         // dynamic-subject lifetime first (same #705 ordering as above).
         data->status_lifetime.reset();
+        data->lane_state_lifetime.reset();
         data->status_observer.release();
         data->lane_state_observer.release();
         data->current_slot_observer.release();
@@ -504,7 +507,8 @@ static void setup_slot_observers(AmsSlotData* data) {
     data->status_lifetime.reset();
     lv_subject_t* status_subject =
         state.get_slot_status_subject(backend_idx, data->slot_index, data->status_lifetime);
-    lv_subject_t* lane_state_subject = state.get_slot_lane_state_subject(data->slot_index);
+    lv_subject_t* lane_state_subject =
+        state.get_slot_lane_state_subject(backend_idx, data->slot_index, data->lane_state_lifetime);
     lv_subject_t* current_slot_subject = state.get_current_slot_subject();
     lv_subject_t* filament_loaded_subject = state.get_filament_loaded_subject();
 
@@ -530,7 +534,7 @@ static void setup_slot_observers(AmsSlotData* data) {
                 if (d)
                     apply_lane_state(d, state_int);
             },
-            state.get_subjects_lifetime());
+            backend_idx == 0 ? state.get_subjects_lifetime() : data->lane_state_lifetime);
     }
     // Per-slot material observer: the STRUCTURAL fix for material, mirroring
     // fill. The ams_slot widget owns its material label, so a material-only
@@ -759,6 +763,8 @@ static void ams_slot_xml_apply(lv_xml_parser_state_t* state, const char** attrs)
             int new_index = atoi(value);
             if (new_index != data->slot_index) {
                 // Clear existing observers
+                data->status_lifetime.reset();
+                data->lane_state_lifetime.reset();
                 data->status_observer.reset();
                 data->lane_state_observer.reset();
                 data->material_observer.reset();
@@ -769,7 +775,8 @@ static void ams_slot_xml_apply(lv_xml_parser_state_t* state, const char** attrs)
 
                 // Point the embedded spool widget at the lane first - it owns
                 // the color/fill/error observers for the graphic.
-                helix::ui::ams_lane_spool_set_index(data->lane_spool, new_index);
+                helix::ui::ams_lane_spool_set_index(data->lane_spool, new_index,
+                                                    AmsState::instance().active_backend_index());
 
                 // Setup new observers
                 setup_slot_observers(data);
@@ -837,7 +844,9 @@ void ui_ams_slot_set_index(lv_obj_t* obj, int slot_index) {
         return; // No change
     }
 
-    // Clear existing observers
+    // Clear existing observers, dynamic-subject tokens first (#705)
+    data->status_lifetime.reset();
+    data->lane_state_lifetime.reset();
     data->status_observer.reset();
     data->lane_state_observer.reset();
     data->current_slot_observer.reset();
@@ -847,7 +856,8 @@ void ui_ams_slot_set_index(lv_obj_t* obj, int slot_index) {
 
     // Point the embedded spool widget at the lane first - it owns the
     // color/fill/error observers for the graphic.
-    helix::ui::ams_lane_spool_set_index(data->lane_spool, slot_index);
+    helix::ui::ams_lane_spool_set_index(data->lane_spool, slot_index,
+                                        AmsState::instance().active_backend_index());
 
     // Setup new observers
     setup_slot_observers(data);

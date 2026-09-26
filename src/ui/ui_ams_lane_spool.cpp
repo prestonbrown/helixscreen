@@ -315,6 +315,7 @@ static void spool_visual_set_empty(const SpoolVisual& sv, bool empty) {
  */
 struct LaneSpoolData {
     int slot_index = -1;
+    int backend_index = 0;
     float fill_level = 1.0f; ///< Last applied fill (0.0-1.0), from slot_fill.
     bool has_error = false;  ///< From slot_has_error — error dot visibility.
     SlotError::Severity severity = SlotError::Severity::INFO; ///< Error dot color.
@@ -324,6 +325,10 @@ struct LaneSpoolData {
     uint32_t color_int = 0x808080;
 
     SpoolVisual sv; ///< Layer handles (3D canvas or flat rings + placeholder + dot).
+
+    /// Death signal for a secondary backend's dynamic subjects; empty for
+    /// backend 0, whose observers carry AmsState's subjects lifetime instead.
+    SubjectLifetime lifetime;
 
     // RAII observer handles - automatically removed when this struct is destroyed.
     ObserverGuard lane_state_observer;
@@ -354,9 +359,9 @@ static void unregister_lane_spool_data(lv_obj_t* obj) {
         helix::ui::UpdateQueue::instance().drain();
         std::unique_ptr<LaneSpoolData> data(it->second);
         if (data) {
-            // All observed subjects are static-array (singleton lifetime), so
-            // reset() is safe on every path here (#579/#705 ordering notes in
-            // ui_ams_slot.cpp).
+            // Expire a secondary backend's token before its observers (#705
+            // ordering, as in ui_ams_slot.cpp).
+            data->lifetime.reset();
             data->lane_state_observer.reset();
             data->color_observer.reset();
             data->fill_observer.reset();
@@ -377,6 +382,7 @@ static void cleanup_all_lane_spool_data() {
     for (auto& [obj, data] : s_lane_spool_registry) {
         if (!data)
             continue;
+        data->lifetime.reset();
         data->lane_state_observer.release();
         data->color_observer.release();
         data->fill_observer.release();
@@ -498,12 +504,11 @@ static void ams_lane_spool_event_cb(lv_event_t* e) {
 // ============================================================================
 
 /**
- * @brief Setup observers for the widget's current slot_index.
+ * @brief Setup observers for the widget's current slot and backend.
  *
  * Resolves AmsState's per-slot subjects (lane_state, color, fill, has_error,
- * error_severity) and observes each with observe_int_sync<lv_obj_t>. All are
- * static-array (singleton-lifetime) subjects, so every observer carries
- * state.get_subjects_lifetime() — the same seam ams_lane_bar observes through.
+ * error_severity) for data->backend_index and observes each with
+ * observe_int_sync<lv_obj_t>.
  */
 static void setup_lane_spool_observers(LaneSpoolData* data) {
     if (data->slot_index < 0 || data->slot_index >= AmsState::MAX_SLOTS) {
@@ -514,11 +519,18 @@ static void setup_lane_spool_observers(LaneSpoolData* data) {
     using helix::ui::observe_int_sync;
     AmsState& state = AmsState::instance();
 
-    lv_subject_t* lane_state_subject = state.get_slot_lane_state_subject(data->slot_index);
-    lv_subject_t* color_subject = state.get_slot_color_subject(data->slot_index);
-    lv_subject_t* fill_subject = state.get_slot_fill_subject(data->slot_index);
-    lv_subject_t* has_error_subject = state.get_slot_has_error_subject(data->slot_index);
-    lv_subject_t* severity_subject = state.get_slot_error_severity_subject(data->slot_index);
+    // Backend 0's subjects are static and die with AmsState's subjects; a
+    // secondary backend's are dynamic and die with its lifetime token. Each
+    // accessor below sets the same token, so one member carries it.
+    const int b = data->backend_index;
+    const int slot = data->slot_index;
+    data->lifetime.reset();
+    lv_subject_t* lane_state_subject = state.get_slot_lane_state_subject(b, slot, data->lifetime);
+    lv_subject_t* color_subject = state.get_slot_color_subject(b, slot, data->lifetime);
+    lv_subject_t* fill_subject = state.get_slot_fill_subject(b, slot, data->lifetime);
+    lv_subject_t* has_error_subject = state.get_slot_has_error_subject(b, slot, data->lifetime);
+    lv_subject_t* severity_subject = state.get_slot_error_severity_subject(b, slot, data->lifetime);
+    const SubjectLifetime lifetime = b == 0 ? state.get_subjects_lifetime() : data->lifetime;
 
     // Capture the root object (not the data pointer) to avoid use-after-free
     // when a deferred callback runs after widget deletion — the registry
@@ -533,7 +545,7 @@ static void setup_lane_spool_observers(LaneSpoolData* data) {
                 if (d)
                     apply_lane_state(d, static_cast<helix::ui::LaneState>(state_int));
             },
-            state.get_subjects_lifetime());
+            lifetime);
     }
     if (color_subject) {
         data->color_observer = observe_int_sync<lv_obj_t>(
@@ -543,7 +555,7 @@ static void setup_lane_spool_observers(LaneSpoolData* data) {
                 if (d)
                     apply_color(d, color_int);
             },
-            state.get_subjects_lifetime());
+            lifetime);
     }
     if (fill_subject) {
         data->fill_observer = observe_int_sync<lv_obj_t>(
@@ -553,7 +565,7 @@ static void setup_lane_spool_observers(LaneSpoolData* data) {
                 if (d)
                     apply_fill_pct(d, pct);
             },
-            state.get_subjects_lifetime());
+            lifetime);
     }
     if (severity_subject) {
         // Color before visibility, so a has_error flip never paints one frame
@@ -567,7 +579,7 @@ static void setup_lane_spool_observers(LaneSpoolData* data) {
                 d->severity = static_cast<SlotError::Severity>(sev);
                 apply_error_decoration(d);
             },
-            state.get_subjects_lifetime());
+            lifetime);
     }
     if (has_error_subject) {
         data->has_error_observer = observe_int_sync<lv_obj_t>(
@@ -579,7 +591,7 @@ static void setup_lane_spool_observers(LaneSpoolData* data) {
                 d->has_error = has_error != 0;
                 apply_error_decoration(d);
             },
-            state.get_subjects_lifetime());
+            lifetime);
     }
 
     // Trigger initial paint from current subject values.
@@ -689,11 +701,12 @@ static void ams_lane_spool_xml_apply(lv_xml_parser_state_t* state, const char** 
 
 namespace helix::ui {
 
-void ams_lane_spool_set_index(lv_obj_t* spool, int slot_index) {
+void ams_lane_spool_set_index(lv_obj_t* spool, int slot_index, int backend_index) {
     auto* data = get_lane_spool_data(spool);
-    if (!data || slot_index == data->slot_index) {
+    if (!data || (slot_index == data->slot_index && backend_index == data->backend_index)) {
         return;
     }
+    data->lifetime.reset();
     data->lane_state_observer.reset();
     data->color_observer.reset();
     data->fill_observer.reset();
@@ -701,6 +714,7 @@ void ams_lane_spool_set_index(lv_obj_t* spool, int slot_index) {
     data->severity_observer.reset();
 
     data->slot_index = slot_index;
+    data->backend_index = backend_index;
     setup_lane_spool_observers(data);
 }
 

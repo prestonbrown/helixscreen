@@ -951,3 +951,45 @@ TEST_CASE("SlotInfo::display_fill_level: a real weight wins, an unweighed ghost 
     REQUIRE(ucfill.has_value());
     CHECK(*ucfill == Catch::Approx(1.0f));
 }
+
+// An ams_slot showing a secondary backend paints that backend's lane, not the
+// primary's lane with the same index.
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot paints its own lane",
+                 "[ui][ams_slot][multi_backend]") {
+    ui_ams_slot_register();
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+    ams.set_backend(std::make_unique<AmsBackendMock>(4));
+    const int second = ams.add_backend(std::make_unique<AmsBackendMock>(4));
+    REQUIRE(second == 1);
+
+    // Primary lane 0: present and 80% full. Secondary lane 0: empty, 30%.
+    lv_subject_set_int(ams.get_slot_lane_state_subject(0),
+                       static_cast<int>(helix::ui::LaneState::Present));
+    lv_subject_set_int(ams.get_slot_fill_subject(0), 80);
+    SubjectLifetime lt;
+    lv_subject_t* sec_state = ams.get_slot_lane_state_subject(second, 0, lt);
+    lv_subject_t* sec_fill = ams.get_slot_fill_subject(second, 0, lt);
+    REQUIRE(sec_state != nullptr);
+    REQUIRE(sec_fill != nullptr);
+    lv_subject_set_int(sec_state, static_cast<int>(helix::ui::LaneState::Empty));
+    lv_subject_set_int(sec_fill, 30);
+
+    ams.set_active_backend(second);
+    lv_obj_t* slot = create_ams_slot(test_screen(), 0);
+    REQUIRE(slot != nullptr);
+
+    CHECK(ui_ams_slot_get_fill_level(slot) == Catch::Approx(0.30f));
+    lv_obj_t* graphic = lv_obj_find_by_name(slot, "spool_graphic");
+    REQUIRE(graphic != nullptr);
+    CHECK(lv_obj_has_flag(graphic, LV_OBJ_FLAG_HIDDEN)); // secondary lane is Empty
+
+    // A later change on the secondary lane flows through.
+    lv_subject_set_int(sec_state, static_cast<int>(helix::ui::LaneState::Present));
+    process_lvgl(50);
+    CHECK_FALSE(lv_obj_has_flag(graphic, LV_OBJ_FLAG_HIDDEN));
+
+    lv_obj_delete(slot);
+    ams.set_active_backend(0);
+    ams.clear_backends();
+}
