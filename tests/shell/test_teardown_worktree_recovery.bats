@@ -216,6 +216,15 @@ module_pointer() {
     [ -d "$MAIN/.worktrees/doomed" ]
 }
 
+@test "a pointer into a sibling whose name extends the worktree's is left alone" {
+    make_worktree doomed
+    mkdir -p "$MAIN/.worktrees/doomed-2/lib"
+    fake_module_pointer lib/x "../../../../.worktrees/doomed-2/lib/x"
+    run "$SCRIPT" doomed --into master
+    [ "$status" -eq 0 ]
+    [ "$(module_pointer lib/x)" = "../../../../.worktrees/doomed-2/lib/x" ]
+}
+
 @test "a pointer aimed outside the removed worktree is left alone" {
     make_worktree doomed
     mkdir -p "$MAIN/lib/spdlog"

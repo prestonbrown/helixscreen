@@ -268,6 +268,14 @@ if [[ -n "$BRANCH" ]] && (( ! KEEP_BRANCH )); then
     fi
 fi
 
+# --- shared submodule pointers -------------------------------------------------
+# Before the removal: a pointer is matched by resolving its parent, which needs
+# the worktree on disk where realpath has no -m, and a dry run then sees the same
+# filesystem the real run does.
+say ""
+say "${BOLD}Restoring shared submodule pointers${RESET}"
+restore_shared_module_pointers "$MAIN_ABS" "$WT_ABS" "$DRY_RUN"
+
 # --- remove -------------------------------------------------------------------
 
 say ""
@@ -297,11 +305,6 @@ else
     rmdir "$WT_ABS" 2>/dev/null || true
 fi
 run git -C "$MAIN_ABS" worktree prune
-
-# --- shared submodule pointers -------------------------------------------------
-say ""
-say "${BOLD}Restoring shared submodule pointers${RESET}"
-restore_shared_module_pointers "$MAIN_ABS" "$WT_ABS" "$DRY_RUN"
 
 # The claim, if any, outlives the directory and would read LIVE forever.
 if [[ -x "$MAIN_ABS/scripts/helix-claim" ]]; then
