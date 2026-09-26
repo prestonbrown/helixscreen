@@ -27,6 +27,7 @@
 // Driven through the public Config::init() path (the migration runner is a
 // static function in config.cpp), same as the v18/v21 migration tests.
 
+#include "../test_helpers/mock_config_storage.h"
 #include "config.h"
 #include "config_testing.h"
 #include "platform_capabilities.h"
@@ -34,6 +35,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <optional>
 #include <string>
 #include <unistd.h>
@@ -628,4 +630,90 @@ TEST_CASE_METHOD(MigrationFutureFixture,
     CHECK(replayed["display"]["rotate"] == 0);
     CHECK(replayed["input"]["touch_device"] == "/dev/input/event3");
     CHECK(replayed["input"]["calibration"]["a"] == 1.0021);
+}
+
+// ============================================================================
+// Pre-migration snapshot (#1305): a migrating boot keeps the document it
+// started from beside settings.json, since the save that follows refreshes the
+// rolling backup with the migrated one.
+// ============================================================================
+
+namespace {
+
+std::string read_bytes(const std::string& file) {
+    std::ifstream f(file, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+}
+
+} // namespace
+
+TEST_CASE_METHOD(MigrationFutureFixture,
+                 "Config: a migrating boot snapshots the original document first",
+                 "[config][migration][backup]") {
+    json old_doc = populated_config();
+    old_doc["config_version"] = CURRENT_CONFIG_VERSION - 1;
+    const std::string original = old_doc.dump(2);
+    std::ofstream(config_path) << original;
+    config.init(config_path);
+
+    const std::string snapshot = config_path + ".pre-migration";
+    REQUIRE(fs::exists(snapshot));
+    CHECK(read_bytes(snapshot) == original);
+    CHECK(read_raw()["config_version"] == CURRENT_CONFIG_VERSION);
+}
+
+TEST_CASE_METHOD(MigrationFutureFixture,
+                 "Config: a boot with nothing to migrate writes no snapshot",
+                 "[config][migration][backup]") {
+    SECTION("current version") {
+        write_and_init(populated_config());
+    }
+    SECTION("future version") {
+        write_and_init(future_config(CURRENT_CONFIG_VERSION + 1));
+    }
+    SECTION("unversioned packaged default") {
+        json packaged = populated_config();
+        packaged.erase("config_version");
+        write_and_init(packaged);
+    }
+    CHECK_FALSE(fs::exists(config_path + ".pre-migration"));
+}
+
+TEST_CASE_METHOD(MigrationFutureFixture,
+                 "Config: a snapshot is only taken when the storage is the settings file",
+                 "[config][migration][backup]") {
+    // A file at the config path that the injected storage does not read.
+    std::ofstream(config_path) << populated_config().dump(2);
+    json old_doc = populated_config();
+    old_doc["config_version"] = CURRENT_CONFIG_VERSION - 1;
+    config.set_storage(std::make_unique<helix::test::MockConfigStorage>(old_doc.dump()));
+    config.init(config_path);
+
+    CHECK_FALSE(fs::exists(config_path + ".pre-migration"));
+}
+
+TEST_CASE_METHOD(MigrationFutureFixture,
+                 "Config: a snapshot at the starting version outlives a repeat migrating boot",
+                 "[config][migration][backup]") {
+    // A migration that throws leaves settings.json partly migrated but still
+    // stamped with its starting version, so the next boot migrates from that
+    // version again. The copy taken before the first attempt is the original.
+    const std::string snapshot = config_path + ".pre-migration";
+    json old_doc = populated_config();
+    old_doc["config_version"] = CURRENT_CONFIG_VERSION - 1;
+
+    SECTION("a snapshot at the same version is kept") {
+        const std::string original =
+            json{{"config_version", CURRENT_CONFIG_VERSION - 1}, {"marker", "original"}}.dump();
+        std::ofstream(snapshot) << original;
+        write_and_init(old_doc);
+        CHECK(read_bytes(snapshot) == original);
+    }
+    SECTION("a snapshot from an older version is replaced") {
+        std::ofstream(snapshot) << json{
+            {"config_version", CURRENT_CONFIG_VERSION - 2},
+            {"marker", "older"}}.dump();
+        write_and_init(old_doc);
+        CHECK(read_bytes(snapshot) == old_doc.dump(2));
+    }
 }

@@ -56,6 +56,19 @@ TEST_CASE("Moonraker sub-API classes satisfy their interfaces", "[compile][drift
                   "MoonrakerAdvancedAPI must derive from IAdvancedAPI");
     static_assert(!std::is_abstract_v<MoonrakerAdvancedAPI>,
                   "MoonrakerAdvancedAPI must implement every pure virtual from IAdvancedAPI");
+    // UI code reads the timeouts through IAdvancedAPI; a concrete-class
+    // redeclaration would let the two spellings disagree.
+    static_assert(MoonrakerAdvancedAPI::CALIBRATION_TIMEOUT_MS ==
+                  IAdvancedAPI::CALIBRATION_TIMEOUT_MS);
+    static_assert(MoonrakerAdvancedAPI::SELF_PREPARED_CALIBRATION_TIMEOUT_MS ==
+                  IAdvancedAPI::SELF_PREPARED_CALIBRATION_TIMEOUT_MS);
+    static_assert(MoonrakerAdvancedAPI::LEVELING_TIMEOUT_MS == IAdvancedAPI::LEVELING_TIMEOUT_MS);
+    static_assert(MoonrakerAdvancedAPI::SHAPER_TIMEOUT_MS == IAdvancedAPI::SHAPER_TIMEOUT_MS);
+    static_assert(MoonrakerAdvancedAPI::PID_TIMEOUT_MS == IAdvancedAPI::PID_TIMEOUT_MS);
+    static_assert(MoonrakerAdvancedAPI::MPC_TIMEOUT_MS == IAdvancedAPI::MPC_TIMEOUT_MS);
+    static_assert(MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS == IAdvancedAPI::PROBING_TIMEOUT_MS);
+    static_assert(MoonrakerAdvancedAPI::BELT_TENSION_TIMEOUT_MS ==
+                  IAdvancedAPI::BELT_TENSION_TIMEOUT_MS);
 
     static_assert(std::is_base_of_v<IRestAPI, MoonrakerRestAPI>,
                   "MoonrakerRestAPI must derive from IRestAPI");

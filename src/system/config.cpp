@@ -1817,6 +1817,7 @@ json get_default_config(const std::string& moonraker_host, bool include_user_pre
 using helix::config_backup::find_backup;
 using helix::config_backup::remove_backups;
 using helix::config_backup::restore_from_backup;
+using helix::config_backup::write_backup_file;
 using helix::config_backup::write_rolling_backup;
 
 /// Whether the rolling-backup tiers apply to this run.
@@ -2034,6 +2035,13 @@ void Config::init(const std::string& config_path) {
     ensure_storage();
     bool config_modified = false;
 
+    // Probe for read-only storage before attempting any writes.
+    read_only_mode_ = storage_->read_only();
+    if (read_only_mode_) {
+        spdlog::warn("[Config] Read-only storage ({}): config changes will not be persisted",
+                     storage_->describe());
+    }
+
     // A thrown load() means the document is present but unreadable (e.g.
     // permission denied) — distinct from "absent" (nullopt, no throw). Both
     // cases route into the "load existing config" branch below so a
@@ -2041,6 +2049,9 @@ void Config::init(const std::string& config_path) {
     // backup-restore recovery as a parse failure, instead of being silently
     // treated as first-boot and reset to defaults.
     std::optional<std::string> loaded_doc;
+    // True while `data` is the document parsed from `path`, whatever put it
+    // there (a backup restored onto a missing file counts).
+    bool data_is_on_disk_doc = false;
     bool load_read_failed = false;
     std::string load_read_error;
     try {
@@ -2070,6 +2081,7 @@ void Config::init(const std::string& config_path) {
         } else {
             try {
                 data = json::parse(*loaded_doc);
+                data_is_on_disk_doc = true;
 
                 // Detect tarball default that replaced user config during a Moonraker
                 // web update.  Moonraker type:web does rmtree() on the install dir and
@@ -2115,6 +2127,7 @@ void Config::init(const std::string& config_path) {
                                              "(no config_version) — restoring from backup: {}",
                                              backup_src);
                                 data = std::move(backup_data);
+                                data_is_on_disk_doc = false;
                                 config_modified = true;
                                 NOTIFY_WARNING("Settings restored after update");
                             }
@@ -2129,6 +2142,7 @@ void Config::init(const std::string& config_path) {
                 spdlog::error("[Config] Failed to parse {}: {}", path, e.what());
                 CONFIG_RECORD_ERROR("file_io", "config_read_failed",
                                     fmt::format("parse error: {}", e.what()));
+                data_is_on_disk_doc = false;
                 recover_config_from_backup_or_defaults(data, *storage_);
                 config_modified = true;
             }
@@ -2157,6 +2171,37 @@ void Config::init(const std::string& config_path) {
             // Run versioned migrations (v0→v1: disable sounds for existing configs, etc.)
             // Pass path so v13→v14 can find the legacy telemetry_config.json sidecar.
             int version_before = helix::json_util::safe_int(data, "config_version", 0);
+            // The save() after migrating also refreshes the rolling backup, so
+            // without this copy nothing keeps the pre-upgrade document. It is a
+            // fixed sibling of settings.json that no restore path searches, and
+            // a file copy, so it applies only when the storage is that file.
+            // A snapshot already at version_before is kept: the file on disk
+            // may be a partly migrated document that still carries that
+            // version, and the first copy is the original.
+            // ponytail: one generation only - the next migrating boot from a
+            // different version overwrites it; keep a versioned name per
+            // migration if older ones are wanted.
+            const std::string snapshot = path + ".pre-migration";
+            if (data_is_on_disk_doc && version_before > 0 &&
+                version_before < CURRENT_CONFIG_VERSION && storage_->describe() == path &&
+                !read_only_mode_) {
+                int snapshot_version = 0;
+                try {
+                    snapshot_version = helix::json_util::safe_int(
+                        json::parse(std::ifstream(snapshot)), "config_version", 0);
+                } catch (const json::exception&) {
+                    // Absent or unreadable: nothing worth keeping.
+                }
+                if (snapshot_version == version_before) {
+                    spdlog::debug("[Config] Keeping existing v{} pre-migration copy: {}",
+                                  version_before, snapshot);
+                } else if (write_backup_file(path, snapshot)) {
+                    spdlog::info("[Config] Saved v{} config before migrating: {}", version_before,
+                                 snapshot);
+                } else {
+                    spdlog::warn("[Config] Could not save pre-migration copy to {}", snapshot);
+                }
+            }
             run_versioned_migrations(data, path);
             // safe_int, not data["config_version"] — operator[] on the non-const
             // `data` VIVIFIES a null if a migration failed to stamp the version,
@@ -2344,13 +2389,6 @@ void Config::init(const std::string& config_path) {
                 }
             }
         }
-    }
-
-    // Probe for read-only storage before attempting any writes.
-    read_only_mode_ = storage_->read_only();
-    if (read_only_mode_) {
-        spdlog::warn("[Config] Read-only storage ({}): config changes will not be persisted",
-                     storage_->describe());
     }
 
     // Save updated config with any new defaults or migrations.

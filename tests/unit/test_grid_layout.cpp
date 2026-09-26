@@ -510,6 +510,7 @@ TEST_CASE("PanelWidgetDef: half-cell capability is classified per widget",
         {"control_buttons", {false, false}},
     };
 
+    helix::init_widget_registrations();
     for (const auto& def : helix::get_all_widget_defs()) {
         INFO("widget " << def.id);
         auto it = expected.find(def.id);
@@ -533,6 +534,8 @@ TEST_CASE("PanelWidgetDef: a sub-cell floor belongs only to a widget that can de
     // 31px stack.
     constexpr int cell = GridLayout::TRACKS_PER_CELL;
     int sub_cell = 0;
+    // The factories are filled in by registration, not by the static table.
+    helix::init_widget_registrations();
     for (const auto& def : helix::get_all_widget_defs()) {
         INFO("widget " << def.id);
         CHECK(def.effective_min_rowspan() >= cell);

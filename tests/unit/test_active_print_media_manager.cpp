@@ -18,6 +18,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "active_print_media_manager.h"
+#include "async_lifetime_guard.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_file_api.h"
@@ -809,6 +810,26 @@ class StubTransferAPI : public MoonrakerFileTransferAPI {
         }
     }
 
+    /// Holds every gcode header request open instead of sending it, so no
+    /// real HTTP request outlives the test and a test can fire its error late.
+    void download_file_partial(const std::string& root, const std::string& path, size_t max_bytes,
+                               StringCallback on_success, ErrorCallback on_error) override {
+        (void)root;
+        (void)path;
+        (void)max_bytes;
+        (void)on_success;
+        partial_errors_.push_back(std::move(on_error));
+    }
+    [[nodiscard]] size_t partial_count() const {
+        return partial_errors_.size();
+    }
+    void fire_partial_error_last(const MoonrakerError& err) {
+        REQUIRE(!partial_errors_.empty());
+        auto cb = partial_errors_.back();
+        REQUIRE(cb);
+        cb(err);
+    }
+
     void set_fail_downloads(bool fail) {
         fail_downloads_ = fail;
     }
@@ -848,6 +869,7 @@ class StubTransferAPI : public MoonrakerFileTransferAPI {
     bool capture_downloads_ = false;
     int download_count_ = 0;
     std::vector<Captured> captured_;
+    std::vector<ErrorCallback> partial_errors_;
 };
 
 /// MoonrakerAPI that installs the CapturingFileAPI in place of the real file API
@@ -1052,6 +1074,41 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
     drain();
 
     REQUIRE(get_layer_total() == 0);
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: gcode header error after manager destroy is skipped",
+                 "[ActivePrintMediaManager][async][lifetime]") {
+    set_print_filename_no_drain("doomed_header.gcode");
+    drain();
+    REQUIRE(files().has_pending());
+
+    // A metadata error self-serves from the gcode header; the stub holds that
+    // download open.
+    MoonrakerError metadata_err;
+    metadata_err.message = "Metadata not available";
+    files().fire_error_last(metadata_err);
+    drain();
+    REQUIRE(transfers_stub().partial_count() == 1);
+
+    (void)helix::async_lifetime::take_snapshot();
+    manager_ptr().reset();
+
+    // The download fails after the manager is gone (soft restart). Its error
+    // body touches members, so it must be dropped rather than run.
+    MoonrakerError download_err;
+    download_err.message = "connection reset";
+    transfers_stub().fire_partial_error_last(download_err);
+    drain();
+
+    auto snapshot = helix::async_lifetime::take_snapshot();
+    bool skipped = false;
+    for (const auto& entry : snapshot.entries) {
+        if (entry.tag == "ActivePrintMediaManager::on_extract_error") {
+            skipped = entry.count > 0;
+        }
+    }
+    REQUIRE(skipped);
 }
 
 TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,

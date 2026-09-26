@@ -358,7 +358,7 @@ void ZOffsetCalibrationPanel::set_state(State new_state) {
         });
         break;
     case State::PROBING:
-        operation_guard_.begin(PROBING_TIMEOUT_MS, [this] {
+        operation_guard_.begin(IAdvancedAPI::PROBING_TIMEOUT_MS, [this] {
             set_state(State::ERROR);
             NOTIFY_WARNING(lv_tr("Z-offset calibration timed out"));
         });
@@ -574,7 +574,7 @@ void ZOffsetCalibrationPanel::begin_probe_sequence() {
                         });
                 }
             },
-            MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS);
+            IAdvancedAPI::PROBING_TIMEOUT_MS);
     } else {
         // Probe calibrate or endstop strategy
         std::string gcode;
@@ -638,7 +638,7 @@ void ZOffsetCalibrationPanel::begin_probe_sequence() {
                     });
                 }
             },
-            MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS + prep_timeout_ms);
+            IAdvancedAPI::PROBING_TIMEOUT_MS + prep_timeout_ms);
     }
 }
 

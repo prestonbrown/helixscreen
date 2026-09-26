@@ -223,7 +223,6 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     // Operation timeout guard (PROBING: 180s, SAVING: 30s)
     OperationTimeoutGuard operation_guard_;
     static constexpr uint32_t WARMING_TIMEOUT_MS = 300000; // 5 min for bed to reach temp
-    static constexpr uint32_t PROBING_TIMEOUT_MS = 180000;
     static constexpr uint32_t SAVING_TIMEOUT_MS = 30000;
 
     /// Arm (or re-arm) the SAVING-state timeout.

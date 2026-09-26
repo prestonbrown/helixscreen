@@ -836,18 +836,25 @@ lv_obj_t* WizardConnectionStep::create(lv_obj_t* parent) {
         lv_timer_set_repeat_count(auto_probe_timer_, 1); // One-shot timer
     }
 
-    // Lazy-create mDNS discovery if none was injected
-    if (!mdns_discovery_) {
-        mdns_discovery_ = std::make_unique<MdnsDiscovery>();
+    // Discovery is a thread plus multicast traffic, so it only runs when the
+    // layout shows its results (#1217).
+    lv_obj_t* discovery_section = lv_obj_find_by_name(screen_root_, "discovery_section");
+    if (!discovery_section || lv_obj_has_flag(discovery_section, LV_OBJ_FLAG_HIDDEN)) {
+        spdlog::debug("[{}] Discovery section hidden, not starting mDNS discovery", get_name());
+    } else {
+        // Lazy-create mDNS discovery if none was injected
+        if (!mdns_discovery_) {
+            mdns_discovery_ = std::make_unique<MdnsDiscovery>();
+        }
+        spdlog::debug("[{}] Starting mDNS discovery", get_name());
+        auto mdns_tok = lifetime_.token();
+        mdns_discovery_->start_discovery(
+            [this, mdns_tok](const std::vector<DiscoveredPrinter>& printers) {
+                if (mdns_tok.expired())
+                    return;
+                on_printers_discovered(printers);
+            });
     }
-    spdlog::debug("[{}] Starting mDNS discovery", get_name());
-    auto mdns_tok = lifetime_.token();
-    mdns_discovery_->start_discovery(
-        [this, mdns_tok](const std::vector<DiscoveredPrinter>& printers) {
-            if (mdns_tok.expired())
-                return;
-            on_printers_discovered(printers);
-        });
 
     // Set initial help text (bind_text only fires on changes, not initial value)
     set_status(nullptr, StatusVariant::None,

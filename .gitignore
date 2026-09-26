@@ -42,6 +42,7 @@ ui-artifacts/
 # Local config (user-specific, use config/settings.json.template)
 config/settings.json
 config/settings-test.json
+config/*.pre-migration
 # Legacy names (in case old files appear during migration)
 config/helixconfig.json
 config/helixconfig-test.json

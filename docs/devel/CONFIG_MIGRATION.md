@@ -87,12 +87,16 @@ Both have dedicated tests: `tests/unit/test_config_migration_v24.cpp` and
    b. migrate_config_keys()     -- /display/calibration -> /input/calibration
 3. Run versioned migrations:
    a. Read config_version (default 0 if absent)
+      If 0 < version < CURRENT and the document came from disk, copy
+      settings.json to settings.json.pre-migration first
    b. if (version < 1) migrate_v0_to_v1()
    c. if (version < 2) migrate_v1_to_v2()
    d. Set config_version = CURRENT_CONFIG_VERSION
 4. Ensure required sections exist with defaults (printer, display, input, etc.)
 5. Save to disk if anything changed
 ```
+
+The `.pre-migration` copy is the only record of the pre-upgrade document: the save in step 5 also refreshes the rolling backup (`src/system/config_backup.cpp#write_rolling_backup`) with the migrated one. It holds one generation, overwritten by the next migrating boot from a different version. A copy already at the starting version is kept, since a migration that threw can leave settings.json partly migrated under its old stamp. No restore path reads it; recovering from it is a manual copy.
 
 Versioned migrations only run on **existing** configs. A fresh install skips straight to step 4 because `get_default_config()` already sets `config_version = CURRENT_CONFIG_VERSION`.
 

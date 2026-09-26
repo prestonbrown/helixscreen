@@ -1420,7 +1420,7 @@ void BedMeshPanel::prepare_and_probe() {
                             [this](const MoonrakerError& err) {
                                 on_calibration_error("Preheat failed: " + err.message);
                             }),
-            CALIBRATION_TIMEOUT_MS);
+            PREHEAT_TIMEOUT_MS);
     } else {
         // Heaters already on — go straight to home/probe
         start_home_and_probe();

@@ -1424,27 +1424,27 @@ void ControlsPanel::handle_home_z() {
 
 void ControlsPanel::handle_qgl() {
     spdlog::debug("[{}] QGL clicked", get_name());
-    run_quick_action(MoonrakerAdvancedAPI::LEVELING_TIMEOUT_MS,
+    run_quick_action(IAdvancedAPI::LEVELING_TIMEOUT_MS,
                      {lv_tr("Quad Gantry Level started..."), lv_tr("Quad Gantry Level complete"),
                       lv_tr("QGL timed out"),
                       lv_tr("QGL may still be running — response timed out"),
                       lv_tr("QGL failed: {}")},
                      [this](IMoonrakerAPI::SuccessCallback ok, IMoonrakerAPI::ErrorCallback err) {
                          api_->execute_gcode("QUAD_GANTRY_LEVEL", std::move(ok), std::move(err),
-                                             MoonrakerAdvancedAPI::LEVELING_TIMEOUT_MS);
+                                             IAdvancedAPI::LEVELING_TIMEOUT_MS);
                      });
 }
 
 void ControlsPanel::handle_z_tilt() {
     spdlog::debug("[{}] Z-Tilt clicked", get_name());
-    run_quick_action(MoonrakerAdvancedAPI::LEVELING_TIMEOUT_MS,
+    run_quick_action(IAdvancedAPI::LEVELING_TIMEOUT_MS,
                      {lv_tr("Z-Tilt Adjust started..."), lv_tr("Z-Tilt Adjust complete"),
                       lv_tr("Z-Tilt timed out"),
                       lv_tr("Z-Tilt may still be running — response timed out"),
                       lv_tr("Z-Tilt failed: {}")},
                      [this](IMoonrakerAPI::SuccessCallback ok, IMoonrakerAPI::ErrorCallback err) {
                          api_->execute_gcode("Z_TILT_ADJUST", std::move(ok), std::move(err),
-                                             MoonrakerAdvancedAPI::LEVELING_TIMEOUT_MS);
+                                             IAdvancedAPI::LEVELING_TIMEOUT_MS);
                      });
 }
 
