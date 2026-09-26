@@ -193,7 +193,16 @@ No widget types were added or removed; most of the existing ones changed.
   comes from the server. Your edits on AFC, Happy Hare and ACE are marked as yours in the
   printer's shared lane record, so Mainsail or Orca refreshing it does not wipe them. A
   reading from one source that leaves a field out no longer blanks what another source
-  knows.
+  knows. When a printer repeats an edit you made back to the screen, it is still read as
+  your edit, not as the printer's own data, so clearing it brings back what the printer
+  really reports (#1633). When another tool writes a lane after you did, the newer edit
+  wins, whichever side made it (#1632).
+- **A new spool is judged by what the hardware read** (#1710) - when a spool goes into a
+  slot, a different tag, or a different material or colour read off the spool, clears the
+  old spool's details; a matching read keeps them. When the hardware can't tell (an
+  untagged spool, or a slot the firmware only remembers), your details stay and a small
+  "Same spool?" notice offers Clear. It is not shown on the lane feeding a print, or for a
+  slot with nothing to clear.
 - **Spool swaps are noticed, even with the screen off** - each lane remembers a
   fingerprint of the spool it held, so a spool swapped while HelixScreen was not
   running clears the old spool's edits instead of painting them onto the new one.
@@ -258,6 +267,11 @@ No widget types were added or removed; most of the existing ones changed.
 
 **Calibration and tuning**
 
+- **Pressure advance, measured by the printer** (#1452) - on printers that can measure it
+  themselves, a Pressure Adv. button on the Controls panel runs the measurement for the
+  tool you pick and shows the result, flagged if it's outside the usual range. The
+  Snapmaker U1 applies and keeps the value; on the FlashForge Creator 5 Pro you copy it
+  into the slicer. Takes a few minutes and heats and purges. (thanks @Monstrofil)
 - **Belt tension by plucking** (#1303, #1231) - park the gantry, pluck each belt by hand,
   and the tuner listens on the accelerometer and reports the belt's frequency as the
   median of five good plucks, with a live waveform and spectrum. It reads the whole
@@ -395,9 +409,13 @@ No widget types were added or removed; most of the existing ones changed.
 - **K1: Creality Print keeps working** (#1468, #1637) - installing HelixScreen on a K1 no
   longer stops Creality's backend services, so Creality Print can still reach the
   printer. Only the stock screen is replaced.
-- **K2: installing says it stops the stock AI detection** (#1378) - the camera and the
-  detection service are taken over by the install, and the installer now says so before
-  you commit. Uninstalling restores both.
+- **K2: spaghetti detection keeps working** (#1378) - installing HelixScreen takes over the
+  camera and the stock detection service, so HelixScreen now runs the K2's own AI model on
+  camera snapshots during a print instead. It follows the printer's AI settings the first
+  time, then Settings -> Safety & Notifications -> Spaghetti Detection and Pause on
+  Detection are yours. The alert is translated and shows the detection's confidence, and
+  a print that is already paused is not paused again. Uninstalling restores the stock
+  service.
 - **Cool Down works on the base K2** - it no longer errors on a K2 whose chamber has a
   fan but no heater. Your own customised cooldown macro is never rewritten.
 - **The chamber heater owns the chamber reading** (#1465) - a probe named "chamber" no
@@ -497,6 +515,8 @@ No widget types were added or removed; most of the existing ones changed.
   raised an error on the first moment of an ordinary swap. Real dock faults still show,
   with one translated wording.
 - **An ACE load the driver declined** (#1676) still marked the slot as loaded.
+- **ACE stuck on Unloading** (#1720) - an unload that never reached the printer left the
+  ACE marked busy until restart.
 - **AFC in toolchanger mode** draws its real toolheads (a Box Turtle as four heads, not
   one nozzle behind a hub), single-extruder machines no longer get an "Unknown action"
   toast, and the bowden setting is not offered without a hub.
@@ -581,8 +601,10 @@ No widget types were added or removed; most of the existing ones changed.
   hardware planes.
 - **Panels that report their touch range sideways** (#1450) - one touch axis was squashed
   and the other clipped.
-- **K2: the dimmest brightness blacked the panel out** (#1709) - every nonzero level now
-  stays visible. `/display/backlight_floor_percent` sets the floor on other panels.
+- **K2: the dimmest brightness blacked the panel out** (#1709) - on community K2 firmware,
+  whose sysfs backlight goes dark at low levels, the slider's minimum now lands on the
+  lowest level the panel shows. Stock K2 firmware keeps its full dimming range.
+  `/display/backlight_floor_percent` sets the floor on any panel.
 
 **Printer identification**
 

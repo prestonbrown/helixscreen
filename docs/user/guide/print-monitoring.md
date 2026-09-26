@@ -158,37 +158,37 @@ Systems that *do* raise their own runout alert show that alert instead, so one r
 
 ## Print-Failure Detection
 
-Some printers include their own camera-based failure detection that watches for problems like spaghetti (a print that has detached and turned into a tangle). When that hardware flags a defect, HelixScreen surfaces it on the touchscreen so you can decide what to do without walking over to a web interface.
+Some printers can watch a print through their camera and flag spaghetti: a print that has come loose and turned into a tangle. HelixScreen supports this on two printers:
 
-**This is hardware-specific.** The interactive on-screen response described below currently applies to the **Snapmaker U1** running its stock firmware, whose defect-detection module reports failures HelixScreen can catch. Creality K2 printers handle AI monitoring differently — see [Creality K2 AI detection](#creality-k2-ai-detection) below.
+- **Snapmaker U1** (stock firmware): the printer's own defect detector flags the failure and pauses the print itself.
+- **Creality K2 family** (stock firmware, which ships Creality's AI model): HelixScreen runs the printer's own AI model on a camera snapshot every 25 seconds while a print is running, using the interval and sensitivity from the printer's AI settings.
 
-### What happens on a detection (Snapmaker U1)
+On other printers the detection settings stay hidden.
 
-When the U1's detector flags a spaghetti-type failure, the printer pauses the print on its own, and HelixScreen pops up a **Print issue detected** dialog describing the problem. You get three choices:
+### Settings
+
+Under **Settings > Safety & Notifications**:
+
+- **Spaghetti Detection** switches detection on or off. It's on by default. On a K2, the first time HelixScreen runs it copies the printer's own AI detection setting, so detection stays off if you had it off in Creality's settings. After that, HelixScreen's switch is the one that counts.
+- **Pause on Detection** decides whether a detection pauses the print or only warns you. It's hidden on the U1, which always pauses by itself.
+
+### What happens on a detection
+
+- **Pause on Detection on**, or a printer that paused by itself: the print is paused and a **Print issue detected** dialog explains what was seen, with the detection's confidence where the printer reports one.
+- **Pause on Detection off**: a warning toast appears and the print keeps going.
+
+The dialog offers:
 
 | Button | Action |
 |--------|--------|
 | **Resume** | Continues the paused print. |
 | **Abort** | Cancels the print. |
-| **Reduce Sensitivity** | Tells the printer to be less trigger-happy about flagging issues, and leaves the dialog open so you can then Resume or Abort. Use this if you're getting false alarms. |
+| **Reduce Sensitivity** | (U1 only) Tells the printer to be less quick to flag issues, and leaves the dialog open so you can then Resume or Abort. |
+| **Turn off detection** | Switches detection off, and leaves the dialog open for your Resume or Abort choice. |
 
-> **Note:** Only spaghetti-type failures are surfaced this way today. The U1's other defect codes (dirty bed, residue, dirty nozzle) are recognized internally but don't currently raise this dialog.
+> **Note:** On the U1, only spaghetti-type failures raise this dialog. Its other defect codes (dirty bed, residue, dirty nozzle) are recognized internally but not surfaced.
 
-> **Note:** The dialog shows the text description of the detected issue; it does not include a live camera still.
-
-### Is it always on?
-
-Failure detection is **on by default** on supported hardware, and there's currently no on-screen setting to switch it off or change how it responds. If you're getting false alarms, tap **Reduce Sensitivity** when the dialog appears — that tells the printer to be less aggressive about flagging issues.
-
-### Creality K2 AI detection
-
-Creality's **K2 Plus** and **K2 Pro** ship their own camera-based AI print monitoring in firmware. HelixScreen never runs that detection or shows its results — the most it can do is ask the printer to switch its own monitoring on for a print, offered as an **AI detection** pre-print option.
-
-**On current Creality firmware that option does not appear, and that is expected.** HelixScreen only offers it when the printer's firmware provides the command that drives it, and stock K2 firmware registers no AI command at all. Creality's AI stack is also disabled in the printer's own settings and driven by background services that HelixScreen replaces when it takes over the screen, so there would be nothing for the toggle to switch on.
-
-If you run firmware that does provide the command, the option appears in **Pre-Print Options** when you open a file, **off by default**. Turn it on and the printer runs its own monitoring for that print, handling any detection itself.
-
-> **Note:** Because this is handled entirely by the printer, the Resume / Abort / Reduce Sensitivity dialog above does **not** apply to K2 AI detection.
+> **Note:** The dialog shows a text description of the detected issue, not a camera still.
 
 ---
 
