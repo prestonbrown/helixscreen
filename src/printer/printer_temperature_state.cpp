@@ -364,47 +364,6 @@ void PrinterTemperatureState::set_active_extruder(const std::string& name) {
         return;
     }
 
-    printer_extruder_ = name;
-
-    // A held viewer pin owns what the active subjects mirror; the machine's
-    // toolhead name is only remembered above, for when the pin clears.
-    if (!extruder_pin_.empty()) {
-        return;
-    }
-
-    apply_active_extruder_(it->first, it->second);
-}
-
-void PrinterTemperatureState::pin_active_extruder(const std::string& name) {
-    auto it = extruders_.find(name);
-    if (it == extruders_.end()) {
-        spdlog::warn("[PrinterTemperatureState] Unknown extruder '{}', keeping '{}'", name,
-                     active_extruder_name_);
-        return;
-    }
-
-    extruder_pin_ = name;
-    spdlog::info("[PrinterTemperatureState] Active extruder pinned to '{}'", name);
-    apply_active_extruder_(it->first, it->second);
-}
-
-void PrinterTemperatureState::clear_active_extruder_pin() {
-    if (extruder_pin_.empty()) {
-        return;
-    }
-    spdlog::info("[PrinterTemperatureState] Active extruder pin cleared (was '{}')", extruder_pin_);
-    extruder_pin_.clear();
-
-    if (!printer_extruder_.empty()) {
-        auto it = extruders_.find(printer_extruder_);
-        if (it != extruders_.end()) {
-            apply_active_extruder_(it->first, it->second);
-        }
-    }
-}
-
-void PrinterTemperatureState::apply_active_extruder_(const std::string& name,
-                                                     const ExtruderInfo& info) {
     if (name == active_extruder_name_) {
         return; // No change needed
     }
@@ -414,6 +373,7 @@ void PrinterTemperatureState::apply_active_extruder_(const std::string& name,
     active_extruder_name_ = name;
 
     // Sync current values from per-extruder subjects to active subjects
+    const auto& info = it->second;
     if (info.temp_subject) {
         int new_temp = lv_subject_get_int(info.temp_subject.get());
         int old_temp = lv_subject_get_int(&active_extruder_temp_);

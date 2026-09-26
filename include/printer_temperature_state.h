@@ -428,25 +428,6 @@ class PrinterTemperatureState {
     void set_active_extruder(const std::string& name);
 
     /**
-     * @brief Pin the active extruder to a viewer's pick
-     *
-     * A pin is a VIEW selection: while one is held, set_active_extruder (the
-     * toolhead-status follower) records the machine's tool but leaves the
-     * active subjects mirroring the pinned extruder, so a surface showing a
-     * picked tool keeps showing it across klipper toolchanges. Clear it with
-     * clear_active_extruder_pin() when the picking surface closes; the pin
-     * then never outlives the view that created it.
-     *
-     * @param name Klipper extruder name (e.g., "extruder", "extruder1")
-     */
-    void pin_active_extruder(const std::string& name);
-
-    /**
-     * @brief Drop the viewer pin and re-follow the machine's active extruder
-     */
-    void clear_active_extruder_pin();
-
-    /**
      * @brief Get the name of the currently active extruder
      * @return Klipper name of active extruder (defaults to "extruder")
      */
@@ -482,9 +463,6 @@ class PrinterTemperatureState {
 
   private:
     friend class PrinterTemperatureStateTestAccess;
-
-    // Point the active subjects at `name`'s data (no-op when already active)
-    void apply_active_extruder_(const std::string& name, const ExtruderInfo& info);
 
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
@@ -569,14 +547,10 @@ class PrinterTemperatureState {
     std::unordered_map<std::string, ExtruderInfo> extruders_;
     lv_subject_t extruder_version_{}; ///< Bumped when extruder list changes
 
-    // Active extruder name (defaults to "extruder"). With a viewer pin held
-    // this is the PINNED name; printer_extruder_ carries what the machine's
-    // toolhead status last named, so clearing the pin can re-sync to it. It
-    // starts at the same default as active_extruder_name_ — a connection that
-    // never reports toolhead.extruder still has a machine tool to fall back to.
+    // Active extruder name (defaults to "extruder"). Follows the machine's
+    // toolhead status; a surface that wants to show a different tool reads the
+    // per-extruder subjects instead of these mirrors.
     std::string active_extruder_name_ = "extruder";
-    std::string printer_extruder_ = "extruder"; ///< Last name the toolhead status named
-    std::string extruder_pin_;                  ///< Viewer pick; empty = follow the machine
 
     // Chamber configuration
     std::string chamber_sensor_name_; ///< Klipper sensor name (e.g., "temperature_sensor chamber")
