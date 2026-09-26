@@ -13,7 +13,7 @@
  * layer to remain decoupled from the UI layer.
  */
 enum class MoonrakerEventType {
-    CONNECTION_FAILED,   ///< Max reconnect attempts exceeded
+    CONNECTION_FAILED,   ///< Reconnect stalled past the limit, or the socket never opened
     CONNECTION_LOST,     ///< WebSocket connection closed unexpectedly
     RECONNECTING,        ///< Attempting to reconnect
     RECONNECTED,         ///< Successfully reconnected after disconnect

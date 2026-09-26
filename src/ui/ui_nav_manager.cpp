@@ -1511,6 +1511,10 @@ void NavigationManager::replace_panel_widget(helix::PanelId id, lv_obj_t* new_wi
     int idx = static_cast<int>(id);
     if (idx < 0 || idx >= UI_PANEL_COUNT)
         return;
+    // An open overlay keeps the main panel beneath it in panel_stack_; go_back()
+    // must reveal the successor, not the widget it displaced (#1294).
+    if (panel_widgets_[idx])
+        std::replace(panel_stack_.begin(), panel_stack_.end(), panel_widgets_[idx], new_widget);
     panel_widgets_[idx] = new_widget;
     // The successor needs its own hook — the outgoing widget's does not transfer,
     // and its own later delete only scrubs slots that still point at it, so a

@@ -4,11 +4,15 @@
 # Fail if the translations need a CJK codepoint the runtime font doesn't bake.
 # Called after translation-sync (mk/translations.mk) and from quality-checks.
 #
-# Compares the CJK characters needed by the translations and C++ sources
-# against the codepoint manifest regen_text_fonts.sh records for the runtime
-# .bin fonts. A codepoint on the left and not the right renders as tofu in
-# zh/ja, with no build error and no runtime warning — this gate is the only
-# thing that says so.
+# Compares the CJK characters needed by the translations, C++ sources, XML
+# layouts and printer database against the codepoint manifest
+# regen_text_fonts.sh records for the runtime .bin fonts. A codepoint on the
+# left and not the right renders as tofu in zh/ja, with no build error and no
+# runtime warning — this gate is the only thing that says so.
+#
+# The first-run language chooser renders in the default locale, before any
+# .bin loads, so its CJK comes from the compiled .c fonts instead. Those bake
+# only regen_text_fonts.sh's WIZARD_CJK set, checked here separately.
 #
 # Both inputs are git-tracked files, so this runs in every clone and CI
 # runner. The CJK source .otf fonts are deliberately NOT required: they are
@@ -59,6 +63,27 @@ if [ "$MISSING_COUNT" -gt 0 ]; then
         echo "  ... and $((MISSING_COUNT - 30)) more"
     fi
     echo "Run 'make regen-text-fonts' to bake them, then rebuild and commit assets/fonts/cjk/."
+    exit 1
+fi
+
+WIZARD_SOURCES="ui_xml/wizard_language_chooser.xml src/ui/ui_wizard_language_chooser.cpp"
+# shellcheck disable=SC2086 # word-split into one glob per source
+WIZARD_NEEDED=$(python3 scripts/translations/cjk_charset.py --root "$ROOT" --paths $WIZARD_SOURCES)
+WIZARD_BAKED=$(sed -n 's/^WIZARD_CJK="\(.*\)"$/\1/p' "$ROOT/scripts/regen_text_fonts.sh" 2>/dev/null \
+    | tr ',' '\n' | tr 'A-F' 'a-f' | sort -u)
+
+if [ -z "$WIZARD_NEEDED" ] || [ -z "$WIZARD_BAKED" ]; then
+    echo "✗ Language chooser CJK scan or WIZARD_CJK in regen_text_fonts.sh is empty — refusing to pass vacuously."
+    exit 1
+fi
+
+WIZARD_MISSING=$(comm -23 <(echo "$WIZARD_NEEDED" | sort) <(echo "$WIZARD_BAKED"))
+if [ -n "$WIZARD_MISSING" ]; then
+    echo "✗ CJK codepoint(s) the language chooser shows but WIZARD_CJK does not compile into the .c fonts:"
+    echo "$WIZARD_MISSING" | while read -r cp; do
+        printf '  %s %s\n' "$cp" "$(python3 -c "import sys; print(chr(int(sys.argv[1], 16)))" "$cp")"
+    done
+    echo "Add them to WIZARD_CJK in scripts/regen_text_fonts.sh, run 'make regen-text-fonts', rebuild and commit."
     exit 1
 fi
 

@@ -73,6 +73,21 @@ class CameraWidgetTestAccess {
     static bool has_stream(const CameraWidget& w) {
         return w.stream_ != nullptr;
     }
+
+    /// Open the fullscreen overlay without the stream open_fullscreen()
+    /// requires, so a test can reach the overlay's lifetime with no camera.
+    static void show_fullscreen_overlay(CameraWidget& w) {
+        w.show_fullscreen_overlay();
+    }
+    static lv_obj_t* fullscreen_overlay(const CameraWidget& w) {
+        return w.fullscreen_overlay_;
+    }
+    static lv_obj_t* fullscreen_image(const CameraWidget& w) {
+        return w.fullscreen_image_;
+    }
+    static lv_obj_t* fullscreen_spinner(const CameraWidget& w) {
+        return w.fullscreen_spinner_;
+    }
 };
 
 } // namespace helix

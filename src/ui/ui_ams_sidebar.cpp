@@ -454,7 +454,8 @@ void AmsOperationSidebar::init_observers() {
     // Indeterminate "Working…" observer: when the backend flags a stalled
     // progress feed (frozen live-temp number), re-render the Heat step so it
     // swaps between the live temp readout and the busy "Working…" label
-    // (#1065 row 14). Static singleton subject — plain ObserverGuard.
+    // (#1065 row 14). AmsState frees the subject in deinit_subjects(), so the
+    // observer carries its subjects lifetime.
     indeterminate_observer_ = observe_int_sync<AmsOperationSidebar>(
         AmsState::instance().get_ams_operation_indeterminate_subject(), this,
         [](AmsOperationSidebar* self, int /*indeterminate*/) {

@@ -24,7 +24,10 @@
 #include "ams_state.h"
 #include "ams_types.h"
 
+#include <functional>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -219,12 +222,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes per-slot LIVE subjects on 
         CHECK(lv_subject_get_int(ams.get_slot_segment_subject(0)) == expected);
     }
 
-    SECTION("SubjectLifetime overload returns the same static subject + empty token") {
+    SECTION("SubjectLifetime overload returns the same subject + the subjects lifetime") {
         SubjectLifetime lt;
         lv_subject_t* s = ams.get_slot_active_loaded_subject(0, lt);
         CHECK(s == ams.get_slot_active_loaded_subject(0));
-        // Static subject → empty (always-alive) token.
-        CHECK(lt == nullptr);
+        CHECK(lt == ams.get_subjects_lifetime());
     }
 
     ams.clear_backends();
@@ -417,11 +419,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes per-slot fill subject on s
     CHECK(ams.get_slot_fill_subject(-1) == nullptr);
     CHECK(ams.get_slot_fill_subject(AmsState::MAX_SLOTS) == nullptr);
 
-    // Token'd overload: backend 0 is a static subject → same pointer, empty token.
+    // Token'd overload: backend 0 → same pointer, the subjects lifetime.
     SubjectLifetime lt;
     lv_subject_t* fs = ams.get_slot_fill_subject(0, 0, lt);
     CHECK(fs == ams.get_slot_fill_subject(0));
-    CHECK(lt == nullptr);
+    CHECK(lt == ams.get_subjects_lifetime());
 
     ams.clear_backends();
     ams.deinit_subjects();
@@ -740,4 +742,84 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes per-slot error state and s
         CHECK(lv_xml_get_subject(nullptr, "ams_slot_0_has_error") != nullptr);
         CHECK(lv_xml_get_subject(nullptr, "ams_slot_0_error_severity") != nullptr);
     }
+}
+
+// deinit_subjects() frees the observers of every per-slot subject, so the
+// token'd accessors must hand out a token that dies there, or an ObserverGuard
+// removes a freed observer node on reset (#1700).
+TEST_CASE_METHOD(LVGLTestFixture, "Per-slot token'd accessors hand out a token deinit kills",
+                 "[ams][lifetime]") {
+    auto& ams = AmsState::instance();
+
+    using Accessor = std::function<lv_subject_t*(SubjectLifetime&)>;
+    const std::vector<std::pair<const char*, Accessor>> accessors = {
+        {"segment", [&](SubjectLifetime& lt) { return ams.get_slot_segment_subject(0, lt); }},
+        {"toolhead_present",
+         [&](SubjectLifetime& lt) { return ams.get_slot_toolhead_present_subject(0, lt); }},
+        {"active_loaded",
+         [&](SubjectLifetime& lt) { return ams.get_slot_active_loaded_subject(0, lt); }},
+        {"color", [&](SubjectLifetime& lt) { return ams.get_slot_color_subject(0, 0, lt); }},
+        {"status", [&](SubjectLifetime& lt) { return ams.get_slot_status_subject(0, 0, lt); }},
+        {"fill", [&](SubjectLifetime& lt) { return ams.get_slot_fill_subject(0, 0, lt); }},
+        {"lane_state",
+         [&](SubjectLifetime& lt) { return ams.get_slot_lane_state_subject(0, 0, lt); }},
+        {"has_error",
+         [&](SubjectLifetime& lt) { return ams.get_slot_has_error_subject(0, 0, lt); }},
+        {"error_severity",
+         [&](SubjectLifetime& lt) { return ams.get_slot_error_severity_subject(0, 0, lt); }},
+    };
+
+    for (const auto& [name, get] : accessors) {
+        INFO(name);
+        ams.init_subjects(false);
+        SubjectLifetime lt;
+        REQUIRE(get(lt) != nullptr);
+        REQUIRE(lt);
+        REQUIRE(*lt);
+        ams.deinit_subjects();
+        CHECK_FALSE(*lt);
+    }
+
+    // A secondary backend's subjects are freed by clear_backends(), which runs
+    // on rediscovery as well as inside deinit_subjects(), so its token must die
+    // there and not only at deinit_subjects().
+    const std::vector<std::pair<const char*, Accessor>> secondary = {
+        {"color", [&](SubjectLifetime& lt) { return ams.get_slot_color_subject(1, 0, lt); }},
+        {"status", [&](SubjectLifetime& lt) { return ams.get_slot_status_subject(1, 0, lt); }},
+        {"fill", [&](SubjectLifetime& lt) { return ams.get_slot_fill_subject(1, 0, lt); }},
+        {"lane_state",
+         [&](SubjectLifetime& lt) { return ams.get_slot_lane_state_subject(1, 0, lt); }},
+        {"has_error",
+         [&](SubjectLifetime& lt) { return ams.get_slot_has_error_subject(1, 0, lt); }},
+        {"error_severity",
+         [&](SubjectLifetime& lt) { return ams.get_slot_error_severity_subject(1, 0, lt); }},
+    };
+    ams.init_subjects(false);
+    for (const auto& [name, get] : secondary) {
+        INFO("secondary " << name);
+        ams.set_backend(std::make_unique<AmsBackendMock>(4));
+        REQUIRE(ams.add_backend(std::make_unique<AmsBackendMock>(4)) == 1);
+        SubjectLifetime lt;
+        REQUIRE(get(lt) != nullptr);
+        REQUIRE(lt);
+        REQUIRE(*lt);
+        ams.clear_backends();
+        CHECK_FALSE(*lt);
+    }
+    ams.set_backend(std::make_unique<AmsBackendMock>(4));
+    REQUIRE(ams.add_backend(std::make_unique<AmsBackendMock>(4)) == 1);
+    SubjectLifetime secondary_lt;
+    REQUIRE(ams.get_slot_lane_state_subject(1, 0, secondary_lt) != nullptr);
+    ams.deinit_subjects();
+    CHECK_FALSE(*secondary_lt);
+
+    // No subject, no token.
+    ams.init_subjects(false);
+    SubjectLifetime lt = std::make_shared<bool>(true);
+    CHECK(ams.get_slot_segment_subject(AmsState::MAX_SLOTS, lt) == nullptr);
+    CHECK_FALSE(lt);
+    lt = std::make_shared<bool>(true);
+    CHECK(ams.get_slot_color_subject(0, AmsState::MAX_SLOTS, lt) == nullptr);
+    CHECK_FALSE(lt);
+    ams.deinit_subjects();
 }

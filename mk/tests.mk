@@ -1148,7 +1148,7 @@ $(OBJ_DIR)/tests/application/%.o: $(TEST_UNIT_DIR)/application/%.cpp $(LIBHV_LIB
 	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(PCH_FLAGS) -I$(TEST_DIR) -I$(TEST_UNIT_DIR)/application $(INCLUDES) $(LV_CONF),$<,$@)
 
 # Compile libhv dns_resolv.c for test_dns_resolver
-# dns_resolv.c dependency on PATCHES_STAMP is declared in rules.mk
+# rules.mk makes dns_resolv.c depend on PATCHES_STAMP, which creates it.
 # LIBHV_LIB orders this after libhv's build, which is what generates the
 # hconfig.h that $(LIBHV_INC) pulls in; without it a parallel build can read
 # the header while configure is still writing it.

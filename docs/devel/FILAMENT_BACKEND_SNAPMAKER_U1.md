@@ -859,10 +859,6 @@ which sets the map and derives `extruders_used` from per-tool usage in one comma
 - **Power loss / klippy crash mid-print** are not covered by the reset observation above.
   The read gate described earlier does not depend on the reset, only on a task being
   configured, so this is bounded rather than open.
-- **Whether `SM_PRINT_FLOW_CALIBRATE` is defined** in shipping firmware — it appears in the
-  slicer-baked block but is **not** present as a `gcode_macro` in this device's live config.
-  It may be a no-op / unknown-command-tolerant path, or defined in a build variant. Does not
-  affect feed or remap.
 - **Exact persistence semantics of `SET_PRINT_EXTRUDER_MAP`** (in-memory only) versus
   whether the stock screen always follows it with a save — a save step is inferred but the
   gui's exact call order was not captured live.

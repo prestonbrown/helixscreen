@@ -67,11 +67,9 @@ struct LaneBarData {
     ObserverGuard has_error_observer;
     ObserverGuard severity_observer;
 
-    // slot_active_loaded is a static-array (singleton-lifetime) subject, so
-    // this token is always the empty (always-alive) contract — see
-    // AmsState::get_slot_active_loaded_subject(int, SubjectLifetime&). Held
-    // anyway for call-site symmetry with the project's dynamic-subject
-    // pattern and reset ordering (#705).
+    // AmsState's subjects lifetime, handed out by
+    // AmsState::get_slot_active_loaded_subject(int, SubjectLifetime&). MUST be
+    // reset BEFORE the matching observer (#705).
     SubjectLifetime active_loaded_lifetime;
 };
 
@@ -263,11 +261,8 @@ static void ams_lane_bar_event_cb(lv_event_t* e) {
  *
  * Resolves AmsState's per-slot subjects (lane_state, color, fill,
  * active_loaded, has_error, error_severity) and observes each with
- * observe_int_sync<lv_obj_t>. All are static-array (singleton-lifetime)
- * subjects (ams_state.cpp) - only the active_loaded accessor offers a
- * token'd overload, so only that observer carries a SubjectLifetime; it is
- * always the empty (always-alive) contract, held for symmetry with the
- * project's dynamic-subject pattern.
+ * observe_int_sync<lv_obj_t>. Every observer carries AmsState's subjects
+ * lifetime, since deinit_subjects() frees their observer nodes.
  */
 static void setup_lane_bar_observers(LaneBarData* data) {
     if (data->slot_index < 0 || data->slot_index >= AmsState::MAX_SLOTS) {
