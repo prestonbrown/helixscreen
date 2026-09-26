@@ -60,7 +60,7 @@ void LoadCellManager::discover(const std::vector<std::string>& klipper_objects) 
             }
 
             // Generate display name
-            std::string display_name = helix::get_display_name(*sensor_name, DeviceType::LOAD_CELL);
+            std::string display_name = helix::get_display_name(klipper_name, DeviceType::LOAD_CELL);
 
             LoadCellConfig config(klipper_name, *sensor_name, display_name);
 
