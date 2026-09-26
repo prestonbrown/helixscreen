@@ -788,12 +788,12 @@ HELIX_MOCK_OBJECTS="heater_generic dragonbreath dragonbreath output_pin dragonbr
 
 ### `HELIX_MOCK_DRAGONBREATH_EXTERNAL`
 
-Have the appliance drive the heater itself: every synthesized dragonbreath status frame reports `mode: "power_on"` with `source: "device"` and `lease_owned: false` — heating with neither our lease nor a klipper source, the frame shape the backend parses into the External marker. Pairs with `HELIX_MOCK_DRAGONBREATH_FAULT` (and a preset click, which brings the Device fan badge with it) to stage the widest chamber card.
+Have the appliance drive the heater itself: every synthesized dragonbreath status frame reports `mode: "power_on"` with `source: "device"` and `lease_owned: false` - heating with neither our lease nor a klipper source, the frame shape the backend parses into the External marker. Pairs with `HELIX_MOCK_DRAGONBREATH_FAULT` (and a preset click, which brings the Device fan badge with it) to stage the widest chamber card.
 
 | Property | Value |
 |----------|-------|
 | **Values** | Exactly `1` |
-| **Default** | Unset — nominal frame (`source: "klipper"`) |
+| **Default** | Unset - nominal frame (`source: "klipper"`) |
 | **File** | `src/api/moonraker_client_mock.cpp` |
 
 ```bash

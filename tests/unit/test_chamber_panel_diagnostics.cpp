@@ -83,6 +83,16 @@ int32_t abs_x2(lv_obj_t* obj) {
     return coords.x2;
 }
 
+/// Absolute bottom edge. lv_obj_get_y() reads the STYLE position, which is 0
+/// for flex-placed children: the flex offset lives only in the computed
+/// coords, so a y+h<=height comparison against the parent never sees a
+/// flex overflow.
+int32_t abs_y2(lv_obj_t* obj) {
+    lv_area_t coords;
+    lv_obj_get_coords(obj, &coords);
+    return coords.y2;
+}
+
 /// The widest data the chamber card renders: 2-digit current and target
 /// ("37.7 / 60°C"), heating glyph with "100%", element at "106.2°C", fan at
 /// "100%", fault banner carrying its reason, External marker shown.
@@ -276,6 +286,7 @@ class ChamberOverlayFixture : public XMLTestFixture {
     /// the hidden-when-off cases re-set them explicitly.
     lv_obj_t* build_overlay() {
         lv_subject_set_int(mode_subject_, 3);
+        set_xml_int("printer_has_chamber_heater", 1);
         set_xml_int("printer_has_chamber_heater_diagnostics", 1);
         set_xml_int("printer_has_chamber_filter_fan", 1);
         set_xml_int("printer_has_chamber_element_temp", 1);
@@ -604,8 +615,7 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "chamber card fits the right column at 4
     // the strip's, or the column has overflowed into a scroll.
     lv_obj_t* custom = lv_obj_find_by_name(overlay_, "chamber_btn_custom");
     REQUIRE(custom != nullptr);
-    const int32_t content_bottom = lv_obj_get_y(custom) + lv_obj_get_height(custom);
-    CHECK(content_bottom <= lv_obj_get_height(strip));
+    CHECK(abs_y2(custom) <= abs_y2(strip));
 
     // The chart keeps (nearly) the whole left column: nothing about the
     // heater renders under it at any size. 230px measured faulted at this
@@ -640,11 +650,14 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "micro landscape fits the faulted card w
     build_overlay();
 
     // Worst case at the tightest landscape target: banner + element + fan
-    // rows all visible in the compacted card.
+    // rows all visible in the compacted card. Every subject is stated:
+    // they are process-global, so an unset one reads whatever an earlier
+    // case left behind.
     set_xml_int("chamber_heater_fault", 1);
     set_xml_int("chamber_heater_inhibited", 1);
     set_xml_int("chamber_heater_offline", 0);
     set_xml_int("chamber_filter_fan_device_driven", 1);
+    set_xml_int("chamber_heater_externally_controlled", 1);
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_update_layout(overlay_);
 
@@ -658,8 +671,7 @@ TEST_CASE_METHOD(ChamberOverlayFixture, "micro landscape fits the faulted card w
     // pass the strip's, or the column has overflowed.
     lv_obj_t* custom = lv_obj_find_by_name(overlay_, "chamber_btn_custom");
     REQUIRE(custom != nullptr);
-    const int32_t content_bottom = lv_obj_get_y(custom) + lv_obj_get_height(custom);
-    CHECK(content_bottom <= lv_obj_get_height(strip));
+    CHECK(abs_y2(custom) <= abs_y2(strip));
 
     lv_obj_t* left_column = lv_obj_find_by_name(overlay_, "graph_outer_container");
     REQUIRE(left_column != nullptr);
@@ -712,8 +724,7 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
     REQUIRE(strip != nullptr);
     lv_obj_t* custom = lv_obj_find_by_name(overlay_, "chamber_btn_custom");
     REQUIRE(custom != nullptr);
-    const int32_t content_bottom = lv_obj_get_y(custom) + lv_obj_get_height(custom);
-    CHECK(content_bottom <= lv_obj_get_height(strip));
+    CHECK(abs_y2(custom) <= abs_y2(strip));
 }
 
 // ============================================================================
@@ -801,7 +812,10 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
     // landscape ladder, each in healthy/fault/offline, with the fan row in
     // both shapes (percent vs Device badge) and the External marker on and
     // off. Content-width labels overflow rather than ellipsize, so this edge
-    // walk is the only check that sees a row wider than the column.
+    // walk is the only check that sees a row wider than the column; at the
+    // landscape sizes it also proves the column fits vertically, since the
+    // strip is not scrollable and an overflow runs past the edge instead
+    // of scrolling.
     const std::pair<int32_t, int32_t> sizes[] = {{480, 272},  {480, 320}, {800, 480},
                                                  {1024, 600}, {272, 480}, {320, 480}};
     for (const auto& [w, h] : sizes) {
@@ -830,6 +844,20 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
                     const int32_t content_right =
                         abs_x2(card) - lv_obj_get_style_pad_right(card, LV_PART_MAIN);
                     check_no_descendant_past_card_content(card, content_right);
+
+                    if (w > h) {
+                        // Vertical fit at every landscape size: the column's
+                        // last child must stay inside the strip, compared as
+                        // absolute edges (see abs_y2). The visibility
+                        // precondition matters: a hidden child keeps stale
+                        // creation coords, which would pass this vacuously.
+                        lv_obj_t* strip = lv_obj_find_by_name(overlay_, "chamber_control_strip");
+                        REQUIRE(strip != nullptr);
+                        lv_obj_t* custom = lv_obj_find_by_name(overlay_, "chamber_btn_custom");
+                        REQUIRE(custom != nullptr);
+                        CHECK_FALSE(hidden(custom));
+                        CHECK(abs_y2(custom) <= abs_y2(strip));
+                    }
                 }
             }
         }
@@ -906,7 +934,7 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
     CHECK(lv_obj_get_height(spacer) >= 2);
     lv_obj_t* custom = lv_obj_find_by_name(overlay_, "chamber_btn_custom");
     REQUIRE(custom != nullptr);
-    CHECK(lv_obj_get_y(custom) + lv_obj_get_height(custom) <= lv_obj_get_height(strip));
+    CHECK(abs_y2(custom) <= abs_y2(strip));
 }
 
 // ============================================================================

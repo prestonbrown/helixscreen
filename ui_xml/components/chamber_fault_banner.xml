@@ -28,10 +28,13 @@
                 bind_text="chamber_heater_fault_reason_text" style_text_color="#danger" flex_grow="1" long_mode="dots">
       <bind_flag_if cond="chamber_heater_offline" flag="hidden"/>
     </text_small>
+    <!-- Pin the text to the font_small token, like the filament preset
+         buttons: the button's width sets how much of the row the reason
+         label gets, so the wrap point must follow the breakpoint. -->
     <ui_button name="reset_fault_button"
                height="#button_height_sm_tiny" text="Reset" translation_tag="Reset" variant="ghost"
-               style_pad_left="#space_xs" style_pad_right="#space_xs" style_border_width="#border_width"
-               style_border_color="#border" style_border_opa="255">
+               style_text_font="#font_small" style_pad_left="#space_xs" style_pad_right="#space_xs"
+               style_border_width="#border_width" style_border_color="#border" style_border_opa="255">
       <bind_flag_if cond="chamber_heater_offline" flag="hidden"/>
       <event_cb trigger="clicked" callback="on_chamber_fault_reset_clicked"/>
     </ui_button>
