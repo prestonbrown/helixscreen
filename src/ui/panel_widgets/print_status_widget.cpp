@@ -5,6 +5,7 @@
 
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
+#include "ui_filename_utils.h"
 #include "ui_format_utils.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_temp_graph.h"
@@ -2039,6 +2040,61 @@ void PrintStatusWidget::DetailedFormatter::update_tool_label() {
     lv_subject_copy_string(&nozzle_tool_label_subject_, nozzle_tool_label_buf_);
 }
 
+namespace helix {
+
+LastPrintText describe_last_print(const PrintHistoryJob& job, double now_s) {
+    LastPrintText text;
+    text.filename = helix::gcode::get_display_filename(job.filename);
+
+    // Moonraker leaves end_time null, parsed as 0, on in_progress rows and on
+    // rows it marks interrupted at startup (prestonbrown/helixscreen#1713).
+    const double when_s = job.end_time > 0 ? job.end_time : job.start_time;
+    const long delta_s = static_cast<long>(now_s - when_s);
+    if (job.status == PrintJobStatus::COMPLETED) {
+        // Each branch is a whole sentence with the number as a placeholder. The
+        // unit stays inside the key rather than being appended, because a locale
+        // may put it before the number or attach a particle to it.
+        if (when_s <= 0) {
+            text.when = lv_tr("Completed");
+        } else if (delta_s < 60) {
+            text.when = lv_tr("Completed just now");
+        } else if (delta_s < 3600) {
+            text.when = fmt::format(lv_tr("Completed {}m ago"), delta_s / 60);
+        } else if (delta_s < 86400) {
+            text.when = fmt::format(lv_tr("Completed {}h ago"), delta_s / 3600);
+        } else {
+            text.when = fmt::format(lv_tr("Completed {}d ago"), delta_s / 86400);
+        }
+    } else {
+        // The idle tile never shows the running print, so an in_progress row
+        // here is one Moonraker has not finalised: it gets no status word.
+        const bool ended =
+            job.status == PrintJobStatus::CANCELLED || job.status == PrintJobStatus::ERROR;
+        const char* status = ended ? lv_tr(status_to_label(job.status)) : "";
+        const std::string age =
+            when_s > 0
+                ? ui::format_relative_time(static_cast<uint64_t>(std::max(0L, delta_s)) * 1000)
+                : "";
+        text.when = (*status && !age.empty()) ? fmt::format("{} • {}", status, age) : status + age;
+    }
+
+    const std::string duration = job.print_duration > 0 ? job.duration_str
+                                 : job.total_duration > 0
+                                     ? helix::format::duration(static_cast<int>(job.total_duration))
+                                     : "";
+    const bool has_filament = job.filament_used > 0 && !job.filament_str.empty();
+    if (has_filament && !duration.empty()) {
+        text.meta = fmt::format(lv_tr("{} filament • {}"), job.filament_str, duration);
+    } else if (has_filament) {
+        text.meta = fmt::format(lv_tr("{} filament"), job.filament_str);
+    } else {
+        text.meta = duration;
+    }
+    return text;
+}
+
+} // namespace helix
+
 void PrintStatusWidget::DetailedFormatter::update_idle_fields() {
     auto* hm = get_print_history_manager();
     // The tile's whole job is to offer a reprint, so it describes the newest
@@ -2054,41 +2110,14 @@ void PrintStatusWidget::DetailedFormatter::update_idle_fields() {
         lv_subject_set_int(&idle_has_last_subject_, 0);
         return;
     }
-    const PrintHistoryJob& job = *newest;
-    snprintf(idle_filename_buf_, sizeof(idle_filename_buf_), "%s", job.filename.c_str());
-    lv_subject_copy_string(&idle_filename_subject_, idle_filename_buf_);
-
-    double now_s =
+    const double now_s =
         std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
-    long delta_s = static_cast<long>(now_s - job.end_time);
-    // Each branch is a whole sentence with the number as a placeholder. The unit
-    // stays inside the key rather than being appended, because a locale may put
-    // it before the number or attach a particle to it.
-    std::string when;
-    if (delta_s < 60) {
-        when = lv_tr("Completed just now");
-    } else if (delta_s < 3600) {
-        when = fmt::format(lv_tr("Completed {}m ago"), delta_s / 60);
-    } else if (delta_s < 86400) {
-        when = fmt::format(lv_tr("Completed {}h ago"), delta_s / 3600);
-    } else {
-        when = fmt::format(lv_tr("Completed {}d ago"), delta_s / 86400);
-    }
-    snprintf(idle_when_buf_, sizeof(idle_when_buf_), "%s", when.c_str());
+    const LastPrintText text = describe_last_print(*newest, now_s);
+    snprintf(idle_filename_buf_, sizeof(idle_filename_buf_), "%s", text.filename.c_str());
+    lv_subject_copy_string(&idle_filename_subject_, idle_filename_buf_);
+    snprintf(idle_when_buf_, sizeof(idle_when_buf_), "%s", text.when.c_str());
     lv_subject_copy_string(&idle_when_subject_, idle_when_buf_);
-
-    if (!job.filament_str.empty() && !job.duration_str.empty()) {
-        const std::string meta =
-            fmt::format(lv_tr("{} filament • {}"), job.filament_str, job.duration_str);
-        snprintf(idle_meta_buf_, sizeof(idle_meta_buf_), "%s", meta.c_str());
-    } else if (!job.duration_str.empty()) {
-        snprintf(idle_meta_buf_, sizeof(idle_meta_buf_), "%s", job.duration_str.c_str());
-    } else if (job.total_duration > 0) {
-        int d = static_cast<int>(job.total_duration);
-        snprintf(idle_meta_buf_, sizeof(idle_meta_buf_), "%dh %02dm", d / 3600, (d % 3600) / 60);
-    } else {
-        idle_meta_buf_[0] = '\0';
-    }
+    snprintf(idle_meta_buf_, sizeof(idle_meta_buf_), "%s", text.meta.c_str());
     lv_subject_copy_string(&idle_meta_subject_, idle_meta_buf_);
     lv_subject_set_int(&idle_has_last_subject_, 1);
 }

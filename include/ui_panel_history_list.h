@@ -391,14 +391,6 @@ class HistoryListPanel : public OverlayBase {
      */
     static const char* get_status_color(PrintJobStatus status);
 
-    /**
-     * @brief Get display text for a job status
-     *
-     * @param status Job status enum
-     * @return Display string (e.g., "Completed", "Failed")
-     */
-    static const char* get_status_text(PrintJobStatus status);
-
     //
     // === Click Handlers ===
     //

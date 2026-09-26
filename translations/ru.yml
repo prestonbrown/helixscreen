@@ -3221,6 +3221,7 @@ translations:
   '{} disabled': '{} выключено'
   '{} enabled': '{} включено'
   '{} failed: {}': 'Ошибка {}: {}'
+  '{} filament': '{} филамента'
   '{} filament sensors available': 'Доступно датчиков филамента: {}'
   '{} filament • {}': '{} филамента • {}'
   '{} heater turned off': Нагреватель {} выключен

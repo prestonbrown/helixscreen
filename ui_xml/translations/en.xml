@@ -2863,6 +2863,7 @@
   <translation tag="{} disabled" en="{} disabled"/>
   <translation tag="{} enabled" en="{} enabled"/>
   <translation tag="{} failed: {}" en="{} failed: {}"/>
+  <translation tag="{} filament" en="{} filament"/>
   <translation tag="{} filament sensors available" en="{} filament sensors available"/>
   <translation tag="{} filament • {}" en="{} filament • {}"/>
   <translation tag="{} heater turned off" en="{} heater turned off"/>

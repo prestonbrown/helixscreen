@@ -215,21 +215,6 @@ static const char* get_status_color(PrintJobStatus status) {
     }
 }
 
-static const char* get_status_text(PrintJobStatus status) {
-    switch (status) {
-    case PrintJobStatus::COMPLETED:
-        return "Completed";
-    case PrintJobStatus::CANCELLED:
-        return "Cancelled";
-    case PrintJobStatus::ERROR:
-        return "Failed";
-    case PrintJobStatus::IN_PROGRESS:
-        return "In Progress";
-    default:
-        return "Unknown";
-    }
-}
-
 void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const PrintHistoryJob& job) {
     if (!row) {
         return;
@@ -261,7 +246,7 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
     }
 
     // Status text
-    const char* status_text = get_status_text(job.status);
+    const char* status_text = status_to_label(job.status);
     const char* status_color = get_status_color(job.status);
 
     lv_obj_t* status_label = lv_obj_find_by_name(row, "row_status");

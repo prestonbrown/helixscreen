@@ -2975,6 +2975,7 @@ translations:
   '{} disabled': '已停用{}'
   '{} enabled': '已启用{}'
   '{} failed: {}': '{} 失败：{}'
+  '{} filament': '耗材 {}'
   '{} filament sensors available': '{} 个耗材传感器可用'
   '{} filament • {}': '耗材 {} • {}'
   '{} heater turned off': '{} 加热器已关闭'

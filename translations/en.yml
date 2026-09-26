@@ -3188,6 +3188,7 @@ translations:
   '{} disabled': '{} disabled'
   '{} enabled': '{} enabled'
   '{} failed: {}': '{} failed: {}'
+  '{} filament': '{} filament'
   '{} filament sensors available': '{} filament sensors available'
   '{} filament • {}': '{} filament • {}'
   '{} heater turned off': '{} heater turned off'

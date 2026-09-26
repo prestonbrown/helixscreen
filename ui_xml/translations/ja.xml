@@ -2863,6 +2863,7 @@
   <translation tag="{} disabled" ja="{} を無効にしました"/>
   <translation tag="{} enabled" ja="{} を有効にしました"/>
   <translation tag="{} failed: {}" ja="{} に失敗しました: {}"/>
+  <translation tag="{} filament" ja="フィラメント {}"/>
   <translation tag="{} filament sensors available" ja="{} 個のフィラメントセンサーが利用可能です"/>
   <translation tag="{} filament • {}" ja="フィラメント {} • {}"/>
   <translation tag="{} heater turned off" ja="{} ヒーターをオフにしました"/>
