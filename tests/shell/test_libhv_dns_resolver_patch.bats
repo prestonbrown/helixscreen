@@ -149,5 +149,5 @@ setup() {
     cd "$REPO_ROOT" || return 1
     local db
     db="$(make -pn help CROSS_COMPILE= 2>/dev/null)"
-    grep -qE '^lib/libhv/base/dns_resolv\.c:.*build/\.patches-applied( |$)' <<<"$db"
+    grep -qE '^lib/libhv/base/dns_resolv\.c:.*\.patches-applied( |$)' <<<"$db"
 }
