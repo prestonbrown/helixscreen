@@ -774,9 +774,8 @@ int slot_for_tool(int tool, const std::map<int, int>& remap,
 }
 } // namespace
 
-FilamentSensorManager::ScopedRunoutScan
-FilamentSensorManager::scan_required_lanes(const std::set<int>& tools_used,
-                                           const std::map<int, int>& remap) const {
+FilamentSensorManager::ScopedRunoutScan FilamentSensorManager::scan_required_lanes(
+    const std::set<int>& tools_used, const std::map<int, int>& remap, bool read_stood_down) const {
     // Caller holds mutex_ (recursive). Single source of truth for both
     // find_empty_required_lanes() and compute_scoped_runout_value() — dedups the
     // runout-config lookup, backend fetch, availability gate, and per-lane scan.
@@ -854,7 +853,7 @@ FilamentSensorManager::scan_required_lanes(const std::set<int>& tools_used,
 
         // Where the slot status is not a filament reading, a RUNOUT sensor
         // watching that slot is. A firmware stand-down leaves the reading live,
-        // and this check runs while the firmware holds every head's sensor down.
+        // which the pre-print check relies on while every head is held down.
         if (!scan.backend->slot_status_tracks_filament()) {
             for (const auto& sensor : sensors_) {
                 if (sensor.role != FilamentSensorRole::RUNOUT || !sensor.enabled ||
@@ -862,7 +861,8 @@ FilamentSensorManager::scan_required_lanes(const std::set<int>& tools_used,
                     continue;
                 }
                 auto it = states_.find(sensor.klipper_name);
-                if (it != states_.end() && it->second.available && !it->second.filament_detected) {
+                if (it != states_.end() && it->second.available &&
+                    (read_stood_down || it->second.enabled) && !it->second.filament_detected) {
                     spdlog::debug("[FilamentSensorManager] required tool {} -> lane {} is empty "
                                   "({} reads no filament)",
                                   tool, slot, sensor.sensor_name);
@@ -881,7 +881,7 @@ FilamentSensorManager::find_empty_required_lanes(const std::set<int>& tools_used
                                                  const std::map<int, int>& remap) const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-    const ScopedRunoutScan scan = scan_required_lanes(tools_used, remap);
+    const ScopedRunoutScan scan = scan_required_lanes(tools_used, remap, /*read_stood_down=*/true);
 
     // No lane truth, no runout protection, or no fresh data -> no genuinely-empty
     // required lanes to report. The caller falls back to the aggregate sensor
@@ -909,7 +909,7 @@ int FilamentSensorManager::compute_scoped_runout_value(const std::set<int>& tool
                                                        const std::map<int, int>& remap) const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-    const ScopedRunoutScan scan = scan_required_lanes(tools_used, remap);
+    const ScopedRunoutScan scan = scan_required_lanes(tools_used, remap, /*read_stood_down=*/false);
 
     if (scan.no_used_tools || !scan.runout_configured) {
         return -1; // No tools to scope, or no runout sensor -> hide.

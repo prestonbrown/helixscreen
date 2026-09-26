@@ -635,8 +635,13 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
     };
 
     /// Shared scoped lane scan. Caller MUST hold mutex_ (recursive).
+    /// @p read_stood_down: whether a head sensor the firmware has stood down
+    /// still counts as that head's reading. The pre-print check needs it (the
+    /// firmware holds every head down between prints); the running-print badge
+    /// does not (a stood-down head is one the job is not feeding from).
     [[nodiscard]] ScopedRunoutScan scan_required_lanes(const std::set<int>& tools_used,
-                                                       const std::map<int, int>& remap) const;
+                                                       const std::map<int, int>& remap,
+                                                       bool read_stood_down) const;
 
     /**
      * @brief Update all LVGL subjects from current state

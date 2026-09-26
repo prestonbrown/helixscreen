@@ -392,7 +392,6 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "tool changer pre-print scan reads each
     feed(sensor_frame(HEAD2, true, false));
     feed(sensor_frame(HEAD3, false, false));
     CHECK(fsm.find_empty_required_lanes({2}, identity).empty());
-    CHECK(fsm.compute_scoped_runout_value({2}, identity) == 1);
 
     // Head 0 loaded, head 2 empty: the print on head 2 is named, the one on
     // head 0 is not.
@@ -401,7 +400,6 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "tool changer pre-print scan reads each
     const auto empty = fsm.find_empty_required_lanes({2}, identity);
     REQUIRE(empty.size() == 1);
     CHECK(empty[0] == std::pair<int, int>{2, 2});
-    CHECK(fsm.compute_scoped_runout_value({2}, identity) == 0);
     CHECK(fsm.find_empty_required_lanes({0}, identity).empty());
 
     // The gate warns from that scan.
@@ -419,6 +417,41 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "tool changer pre-print scan reads each
 
     // No tool usage known: nothing to scope, so nothing is named.
     CHECK(fsm.find_empty_required_lanes({}, identity).empty());
+}
+
+// During a print the firmware runs only the active head's sensor. A head it
+// stood down is not being fed from, so its empty reading is no runout for the
+// badge, while the pre-print scan over the same readings still names it.
+TEST_CASE_METHOD(FirmwareEnabledFixture,
+                 "tool changer badge ignores a head the firmware stood down",
+                 "[runout][1714][badge]") {
+    helix::test::RegisteredBackend<helix::test::ToolChangerHelper> tc(4);
+    REQUIRE_FALSE(AmsState::instance().get_backend()->slot_status_tracks_filament());
+    seed_sensors({HEAD0, HEAD1, HEAD2, HEAD3});
+    ScopedSensorLanes lanes(fsm, {HEAD0, HEAD1, HEAD2, HEAD3});
+    const std::map<int, int> identity;
+
+    // Head 0 ran out, the firmware moved the job to head 2 and stood head 0
+    // down: the badge for a file on T0 and T2 stays clear.
+    feed(sensor_frame(HEAD0, false, false));
+    feed(sensor_frame(HEAD1, false, false));
+    feed(sensor_frame(HEAD2, true, true));
+    feed(sensor_frame(HEAD3, false, false));
+    CHECK(fsm.compute_scoped_runout_value({0, 2}, identity) == 1);
+
+    // The pre-print scan over the same readings still names head 0.
+    const auto empty = fsm.find_empty_required_lanes({0, 2}, identity);
+    REQUIRE(empty.size() == 1);
+    CHECK(empty[0] == std::pair<int, int>{0, 0});
+
+    // Head 0 empty while the firmware runs it: the badge goes red.
+    feed(sensor_frame(HEAD0, false, true));
+    CHECK(fsm.compute_scoped_runout_value({0, 2}, identity) == 0);
+
+    // The running head empty: red as well.
+    feed(sensor_frame(HEAD0, false, false));
+    feed(sensor_frame(HEAD2, false, true));
+    CHECK(fsm.compute_scoped_runout_value({0, 2}, identity) == 0);
 }
 
 TEST_CASE_METHOD(FirmwareEnabledFixture, "a RUNOUT sensor with no lane is no head's reading",
