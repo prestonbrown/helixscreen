@@ -12,44 +12,41 @@
 
 #include <spdlog/spdlog.h>
 
+#include <cstdio>
 #include <memory>
+
+lv_subject_t SpaghettiDetectionModal::tune_available_subject_;
+char SpaghettiDetectionModal::message_buf_[256];
+lv_subject_t SpaghettiDetectionModal::message_subject_;
+bool SpaghettiDetectionModal::subjects_initialized_ = false;
+
+void SpaghettiDetectionModal::init_subjects() {
+    if (subjects_initialized_)
+        return;
+    lv_subject_init_int(&tune_available_subject_, 0);
+    lv_subject_init_string(&message_subject_, message_buf_, nullptr, sizeof(message_buf_), "");
+    lv_xml_register_subject(nullptr, "spaghetti_tune_available", &tune_available_subject_);
+    lv_xml_register_subject(nullptr, "spaghetti_message", &message_subject_);
+    subjects_initialized_ = true;
+}
 
 void SpaghettiDetectionModal::on_show() {
     // Wire the four action buttons programmatically (mirrors the runout-guidance
     // modal). No XML callbacks on these buttons, so there's no double-wiring.
     //   btn_primary    → on_ok()        → Resume
     //   btn_secondary  → on_cancel()    → Abort
-    //   btn_tertiary   → on_tertiary()  → Tune (hidden when the source can't tune)
+    //   btn_tertiary   → on_tertiary()  → Tune (hidden via subject when the source can't tune)
     //   btn_quaternary → on_quaternary()→ Turn off detection
     wire_ok_button("btn_primary");
     wire_cancel_button("btn_secondary");
     wire_tertiary_button("btn_tertiary");
     wire_quaternary_button("btn_quaternary");
 
-    // A dead Tune button is worse than none: hide it, with its divider, when
-    // this source exposes no tuning. (Mirrors the preview hiding below; this
-    // modal wires itself.)
-    const bool show_tune = static_cast<bool>(on_tune_);
-    if (lv_obj_t* tune_btn = find_widget("btn_tertiary")) {
-        if (show_tune)
-            lv_obj_remove_flag(tune_btn, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(tune_btn, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (lv_obj_t* tune_div = find_widget("divider_tune")) {
-        if (show_tune)
-            lv_obj_remove_flag(tune_div, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(tune_div, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    // Message text.
-    lv_obj_t* text = find_widget("detection_text");
-    if (text) {
-        lv_label_set_text(text, message_.c_str());
-    } else {
-        spdlog::warn("[SpaghettiDetectionModal] detection_text widget not found");
-    }
+    // Publish what the XML binds: a dead Tune button is worse than none, so
+    // its flag (with its divider's) rides spaghetti_tune_available, and the
+    // message text rides spaghetti_message.
+    lv_subject_set_int(&tune_available_subject_, on_tune_ ? 1 : 0);
+    lv_subject_copy_string(&message_subject_, message_.c_str());
 
     // Optional camera frame preview. Hide the image entirely when no frame is
     // available so it doesn't reserve empty space.
@@ -93,8 +90,17 @@ void present_detection(const DetectionEvent& e, DetectionPolicy p) {
     // Stack-owned via Modal::show_owned() (#1382): ModalStack frees the
     // instance when its entry goes, on every teardown path.
     auto modal = std::make_unique<SpaghettiDetectionModal>();
-    // TODO(#1506): no frame yet; the modal shows the detector's text only
-    modal->set_detection(e.message, nullptr);
+    // TODO(#1506): no frame yet; the modal shows the detector's text only.
+    // A confidence-bearing source (K2) gets the translated line; a source
+    // whose message is the printer's own string (U1) shows that verbatim.
+    char display[128];
+    if (e.confidence) {
+        const int pct = static_cast<int>(*e.confidence * 100.0f + 0.5f);
+        snprintf(display, sizeof(display), lv_tr("Spaghetti detected (%d%%)"), pct);
+    } else {
+        snprintf(display, sizeof(display), "%s", e.message.c_str());
+    }
+    modal->set_detection(display, nullptr);
     modal->set_on_resume(
         [] { get_moonraker_api()->job().resume_print([] {}, [](const MoonrakerError&) {}); });
     modal->set_on_abort([] { helix::AbortManager::instance().start_abort(); });

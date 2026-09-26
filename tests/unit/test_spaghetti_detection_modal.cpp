@@ -94,6 +94,44 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal shows message + inv
     }
 }
 
+// The Tune button and its divider ride the spaghetti_tune_available subject:
+// visible only when a tuner was attached, hidden otherwise. A dead Tune
+// button is worse than none.
+TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal hides the Tune row declaratively",
+                 "[detection][modal][1378]") {
+    SECTION("without a tuner: button and divider hidden") {
+        auto owned = std::make_unique<SpaghettiDetectionModal>();
+        auto* modal = owned.get();
+        modal->set_detection("detected noodle", nullptr);
+        REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
+
+        lv_obj_t* btn = lv_obj_find_by_name(modal->dialog(), "btn_tertiary");
+        lv_obj_t* div = lv_obj_find_by_name(modal->dialog(), "divider_tune");
+        REQUIRE(btn != nullptr);
+        REQUIRE(div != nullptr);
+        CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_has_flag(div, LV_OBJ_FLAG_HIDDEN));
+        modal->hide();
+        process_lvgl(50);
+    }
+    SECTION("with a tuner: button and divider shown") {
+        auto owned = std::make_unique<SpaghettiDetectionModal>();
+        auto* modal = owned.get();
+        modal->set_on_tune([] {});
+        modal->set_detection("detected noodle", nullptr);
+        REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
+
+        lv_obj_t* btn = lv_obj_find_by_name(modal->dialog(), "btn_tertiary");
+        lv_obj_t* div = lv_obj_find_by_name(modal->dialog(), "divider_tune");
+        REQUIRE(btn != nullptr);
+        REQUIRE(div != nullptr);
+        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_has_flag(div, LV_OBJ_FLAG_HIDDEN));
+        modal->hide();
+        process_lvgl(50);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // present_detection: the response ladder, end to end
 // ---------------------------------------------------------------------------
@@ -139,6 +177,25 @@ class PresenterFixture : public LVGLUITestFixture {
         e.already_paused = already_paused;
         e.message = "noodle detected";
         return e;
+    }
+
+    // The K2 shape: our own detection, carrying a confidence the presenter
+    // composes into the translated message. The raw message deliberately does
+    // NOT match the composed form, so the assertion can tell them apart.
+    helix::detection::DetectionEvent k2_event() const {
+        helix::detection::DetectionEvent e = spaghetti_event(false);
+        e.source_id = "k2_stock";
+        e.confidence = 0.78f;
+        return e;
+    }
+
+    static std::string modal_text(const char* widget) {
+        ModalStack& stack = ModalStack::instance();
+        lv_obj_t* dialog = stack.top_dialog();
+        REQUIRE(dialog != nullptr);
+        lv_obj_t* label = lv_obj_find_by_name(dialog, widget);
+        REQUIRE(label != nullptr);
+        return lv_label_get_text(label);
     }
 
     MoonrakerClientMock mock_client;
@@ -220,6 +277,33 @@ TEST_CASE_METHOD(PresenterFixture, "present_detection response ladder",
         // reported the print already paused.
         CHECK(mock_client.get_print_phase() == MoonrakerClientMock::MockPrintPhase::PREHEAT);
         CHECK(ModalStack::instance().top_component_name() == "spaghetti_detection_modal");
+        ModalStack::instance().clear();
+    }
+
+    SECTION("the modal message is composed through the translation key") {
+        sm.set_detection_enabled(true);
+        sm.set_detection_pause_on_detect(true);
+        mock_client.gcode_script("SDCARD_PRINT_FILE FILENAME=3DBenchy.gcode");
+        REQUIRE(mock_client.get_print_phase() == MoonrakerClientMock::MockPrintPhase::PREHEAT);
+
+        helix::detection::present_detection(k2_event(), DetectionPolicy::DeferToSource);
+
+        // The suite runs without a loaded locale, so lv_tr hands back the key
+        // itself; the composed form proves the percentage took the translated
+        // path rather than the source's English e.message verbatim.
+        CHECK(modal_text("detection_text") == "Spaghetti detected (78%)");
+        ModalStack::instance().clear();
+    }
+
+    SECTION("a source with no confidence shows the printer's message verbatim") {
+        sm.set_detection_enabled(true);
+        sm.set_detection_pause_on_detect(true);
+        mock_client.gcode_script("SDCARD_PRINT_FILE FILENAME=3DBenchy.gcode");
+        REQUIRE(mock_client.get_print_phase() == MoonrakerClientMock::MockPrintPhase::PREHEAT);
+
+        helix::detection::present_detection(spaghetti_event(true), DetectionPolicy::DeferToSource);
+
+        CHECK(modal_text("detection_text") == "noodle detected");
         ModalStack::instance().clear();
     }
 }

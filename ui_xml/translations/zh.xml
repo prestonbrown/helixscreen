@@ -2602,6 +2602,7 @@
   <translation tag="Space Debris mod by Markus &apos;Captain&apos; Kaarlonen" zh="Space Debris mod by Markus &apos;Captain&apos; Kaarlonen"/>
   <translation tag="Spaghetti Detection" zh="拉丝故障检测"/>
   <translation tag="Spaghetti detected" zh="检测到拉丝故障"/>
+  <translation tag="Spaghetti detected (%d%%)" zh="检测到拉丝故障（%d%%）"/>
   <translation tag="Spaghetti detected — print paused" zh="检测到拉丝故障 — 打印已暂停"/>
   <translation tag="Speaker" zh="扬声器"/>
   <translation tag="Speed" zh="速度"/>

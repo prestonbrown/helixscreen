@@ -41,6 +41,10 @@ class SpaghettiDetectionModal : public Modal {
   public:
     using Action = std::function<void()>;
 
+    SpaghettiDetectionModal() {
+        init_subjects();
+    }
+
     const char* get_name() const override {
         return "Spaghetti Detection";
     }
@@ -113,6 +117,16 @@ class SpaghettiDetectionModal : public Modal {
     }
 
   private:
+    static void init_subjects();
+
+    // Static (shared across instances) because lv_xml_register_subject keeps
+    // the first registration for a name: per-instance subjects would leave the
+    // registry with dangling pointers once a modal is freed.
+    static lv_subject_t tune_available_subject_;
+    static char message_buf_[256];
+    static lv_subject_t message_subject_;
+    static bool subjects_initialized_;
+
     std::string message_;
     lv_draw_buf_t* frame_ = nullptr;
     Action on_resume_, on_abort_, on_tune_, on_disable_;

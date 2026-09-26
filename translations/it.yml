@@ -2882,6 +2882,7 @@ translations:
     Kaarlonen
   Spaghetti Detection: Rilevamento spaghetti
   Spaghetti detected: Spaghetti rilevati
+  Spaghetti detected (%d%%): Spaghetti rilevati (%d%%)
   Spaghetti detected — print paused: Spaghetti rilevati — stampa in pausa
   Speaker: Altoparlante
   Speed: Velocità

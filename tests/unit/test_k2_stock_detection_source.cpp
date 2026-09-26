@@ -225,6 +225,13 @@ TEST_CASE_METHOD(XMLTestFixture, "K2StockSource thresholds and edge triggering",
         h.poll();
         CHECK(h.events.size() == 2);
     }
+    SECTION("a detection while the job is already paused says so (prestonbrown/helixscreen#1378)") {
+        h.runner_stdout = "label: 1 prob: 0.900000 x:1 y:2 w:3 h:4\n";
+        set_print_state(state(), "paused"); // the user paused; nothing has fired yet
+        h.poll();
+        REQUIRE(h.events.size() == 1);
+        CHECK(h.events.front().already_paused);
+    }
     SECTION("a round that outlives its job does not fire") {
         h.runner_stdout = "label: 1 prob: 0.900000 x:1 y:2 w:3 h:4\n";
         set_print_state(state(), "printing");
