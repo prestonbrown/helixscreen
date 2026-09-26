@@ -1580,7 +1580,6 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
 
         AmsUnit unit;
         unit.unit_index = u;
-        // The same names the registry gets below: the snapshot shows these.
         unit.name = num_units_ > 1 ? "Unit " + std::to_string(u + 1) : std::string("MMU");
         unit.slot_count = unit_gates;
         unit.first_slot_global_index = global_offset;
@@ -1625,11 +1624,7 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
             for (int g = 0; g < count; ++g) {
                 names.push_back(std::to_string(sr_offset + g));
             }
-            std::string unit_name = "Unit " + std::to_string(u + 1);
-            if (num_units_ == 1) {
-                unit_name = "MMU";
-            }
-            sr_units.push_back({unit_name, names});
+            sr_units.push_back({system_info_.units[u].name, names});
             sr_offset += count;
         }
         slots_.initialize_units(sr_units);
