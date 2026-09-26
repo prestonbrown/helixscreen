@@ -1179,6 +1179,42 @@ describe_hardware() {
     echo "ARM SBC"
 }
 
+# The board a stock FlashForge MIPS firmware names for itself. app_startup.sh
+# carries one MACHINE= line whose value is AD5X, Creator5 or Creator5Pro; the
+# three boards share the unified MIPS payload, the /usr/data + /usr/prog
+# layout, the root user and the Z-Mod install shape, so they all ride the
+# platform key "ad5x" and this is the only thing that tells them apart. The
+# path is env-overridable so the bats suite can point the read at a sandbox
+# (same convention as HELIX_MOD_TREE_CANDIDATES in host_profile.sh).
+#
+# Echoes the MACHINE value, or nothing when the file is missing, unreadable or
+# carries no recognized value.
+ff_machine_id() {
+    local _v
+    # tail keeps one answer when the file carries several MACHINE= lines, and
+    # makes the pipeline's exit status sed-independent under set -e.
+    _v=$(sed -n 's/^MACHINE=//p' "${HELIX_FF_MACHINE_FILE:-/usr/prog/app_startup.sh}" 2>/dev/null | tail -n 1)
+    _v=$(printf '%s' "$_v" | tr -d ' \t\r')
+    # Whole-value match: Creator5 is a prefix of Creator5Pro, so a prefix test
+    # would fold the Pro into the plain Creator 5.
+    case "$_v" in
+        AD5X|Creator5|Creator5Pro) printf '%s\n' "$_v" ;;
+    esac
+    return 0
+}
+
+# Board name for the user-facing messages of the ad5x platform. The platform
+# KEY stays "ad5x" everywhere (payload, paths, hooks); only what the user
+# reads carries this name. Unrecognized or unreadable MACHINE falls back to
+# the AD5X name, which is what the key has always meant.
+ad5x_board_name() {
+    case "$(ff_machine_id)" in
+        Creator5)    echo "FlashForge Creator 5" ;;
+        Creator5Pro) echo "FlashForge Creator 5 Pro" ;;
+        *)           echo "FlashForge AD5X" ;;
+    esac
+}
+
 # Resolve the primary group of a user, falling back to the user name.
 # Some firmwares (e.g. QIDI Q2 stock) ship a `mks` user without a matching
 # `mks` group, which makes `Group=mks` in the systemd unit fail with
@@ -1527,7 +1563,7 @@ mod_check_chroot_context() {
 
     log_error ""
     log_error "=========================================================="
-    log_error " AD5X manual installs must run inside the ZMOD chroot."
+    log_error " $(ad5x_board_name) manual installs must run inside the ZMOD chroot."
     log_error "=========================================================="
     log_error ""
     log_error "ZMOD installs HelixScreen into an overlay at:"
@@ -2114,7 +2150,7 @@ set_install_paths() {
         STALE_CACHE_DIRS="/srv/helixscreen/cache"
         INIT_SCRIPT_DEST="/etc/init.d/S80helixscreen"
         PREVIOUS_UI_SCRIPT=""
-        log_info "Platform: FlashForge AD5X (ZMOD)"
+        log_info "Platform: $(ad5x_board_name) (ZMOD)"
         log_info "Install directory: ${INSTALL_DIR}"
     elif [ "$platform" = "k1" ]; then
         # Creality K1 series - uses /usr/data structure.

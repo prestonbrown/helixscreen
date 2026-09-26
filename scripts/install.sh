@@ -1188,6 +1188,42 @@ describe_hardware() {
     echo "ARM SBC"
 }
 
+# The board a stock FlashForge MIPS firmware names for itself. app_startup.sh
+# carries one MACHINE= line whose value is AD5X, Creator5 or Creator5Pro; the
+# three boards share the unified MIPS payload, the /usr/data + /usr/prog
+# layout, the root user and the Z-Mod install shape, so they all ride the
+# platform key "ad5x" and this is the only thing that tells them apart. The
+# path is env-overridable so the bats suite can point the read at a sandbox
+# (same convention as HELIX_MOD_TREE_CANDIDATES in host_profile.sh).
+#
+# Echoes the MACHINE value, or nothing when the file is missing, unreadable or
+# carries no recognized value.
+ff_machine_id() {
+    local _v
+    # tail keeps one answer when the file carries several MACHINE= lines, and
+    # makes the pipeline's exit status sed-independent under set -e.
+    _v=$(sed -n 's/^MACHINE=//p' "${HELIX_FF_MACHINE_FILE:-/usr/prog/app_startup.sh}" 2>/dev/null | tail -n 1)
+    _v=$(printf '%s' "$_v" | tr -d ' \t\r')
+    # Whole-value match: Creator5 is a prefix of Creator5Pro, so a prefix test
+    # would fold the Pro into the plain Creator 5.
+    case "$_v" in
+        AD5X|Creator5|Creator5Pro) printf '%s\n' "$_v" ;;
+    esac
+    return 0
+}
+
+# Board name for the user-facing messages of the ad5x platform. The platform
+# KEY stays "ad5x" everywhere (payload, paths, hooks); only what the user
+# reads carries this name. Unrecognized or unreadable MACHINE falls back to
+# the AD5X name, which is what the key has always meant.
+ad5x_board_name() {
+    case "$(ff_machine_id)" in
+        Creator5)    echo "FlashForge Creator 5" ;;
+        Creator5Pro) echo "FlashForge Creator 5 Pro" ;;
+        *)           echo "FlashForge AD5X" ;;
+    esac
+}
+
 # Resolve the primary group of a user, falling back to the user name.
 # Some firmwares (e.g. QIDI Q2 stock) ship a `mks` user without a matching
 # `mks` group, which makes `Group=mks` in the systemd unit fail with
@@ -1536,7 +1572,7 @@ mod_check_chroot_context() {
 
     log_error ""
     log_error "=========================================================="
-    log_error " AD5X manual installs must run inside the ZMOD chroot."
+    log_error " $(ad5x_board_name) manual installs must run inside the ZMOD chroot."
     log_error "=========================================================="
     log_error ""
     log_error "ZMOD installs HelixScreen into an overlay at:"
@@ -2123,7 +2159,7 @@ set_install_paths() {
         STALE_CACHE_DIRS="/srv/helixscreen/cache"
         INIT_SCRIPT_DEST="/etc/init.d/S80helixscreen"
         PREVIOUS_UI_SCRIPT=""
-        log_info "Platform: FlashForge AD5X (ZMOD)"
+        log_info "Platform: $(ad5x_board_name) (ZMOD)"
         log_info "Install directory: ${INSTALL_DIR}"
     elif [ "$platform" = "k1" ]; then
         # Creality K1 series - uses /usr/data structure.
@@ -11219,7 +11255,7 @@ fi
 if [ -x /root/printer_software/klipper/scripts/klipper-restart.sh ]; then
     exec /root/printer_software/klipper/scripts/klipper-restart.sh
 fi
-echo "helix-recover: no known klipper restart mechanism on this AD5M firmware" >&2
+echo "helix-recover: no known klipper restart mechanism on this FlashForge firmware" >&2
 exit 1
 EOF
 }
@@ -12971,9 +13007,18 @@ install_platform_hooks() {
 #
 # All other platforms (k1, k2, ad5m, snapmaker-u1, x86, …) get the single
 # "Detected platform: X" line — there's no device-name ambiguity to clear up.
+# ad5x is the exception on the non-Pi side: one install package covers the
+# AD5X and both Creator 5 boards, so the board name leads and the key is
+# reframed as the package, same shape as the non-Pi SBC case above.
 print_platform_banner() {
     local platform="$1"
     local _hw_label
+
+    if [ "$platform" = "ad5x" ]; then
+        log_info "Detected hardware: ${BOLD}$(ad5x_board_name)${NC}"
+        log_info "Install package: ${BOLD}${platform}${NC} (unified MIPS FlashForge build)"
+        return 0
+    fi
 
     if [ "$platform" != "pi" ] && [ "$platform" != "pi32" ]; then
         log_info "Detected platform: ${BOLD}${platform}${NC}"
@@ -13157,6 +13202,7 @@ main() {
         log_error "HelixScreen supports:"
         log_error "  - Raspberry Pi (aarch64/armv7l)"
         log_error "  - FlashForge Adventurer 5M (armv7l)"
+        log_error "  - FlashForge AD5X / Creator 5 / Creator 5 Pro (mips, Z-Mod)"
         log_error "  - Creality K1 series with Simple AF"
         log_error "  - Creality K2 series (K2/K2 Pro/K2 Plus)"
         log_error "  - x86_64 Debian/Ubuntu (x86_64)"
