@@ -161,3 +161,16 @@ TEST_CASE("is_3mf() matches a .3mf suffix in any case", "[filename_utils][qidi_3
     CHECK_FALSE(is_3mf("Foo.3mf.gcode"));
     CHECK_FALSE(is_3mf(""));
 }
+
+TEST_CASE("strip_gcode_extension() removes a whole .gcode.3mf", "[filename_utils][qidi_3mf]") {
+    using helix::gcode::get_display_filename;
+    using helix::gcode::strip_gcode_extension;
+    CHECK(strip_gcode_extension("Foo (PETG).gcode.3mf") == "Foo (PETG)");
+    CHECK(strip_gcode_extension("Foo.GCODE.3MF") == "Foo");
+    CHECK(strip_gcode_extension("Foo.gco.3mf") == "Foo");
+    CHECK(strip_gcode_extension("Model.3mf") == "Model");
+    CHECK(strip_gcode_extension("Model.3mf.3mf") == "Model.3mf");
+    CHECK(strip_gcode_extension(".3mf") == ".3mf");
+    CHECK(strip_gcode_extension("Foo.gcode") == "Foo");
+    CHECK(get_display_filename("dir/Foo (PETG).gcode.3mf") == "Foo (PETG)");
+}

@@ -38,8 +38,9 @@ std::string join_gcode_path(const std::string& dir, const std::string& filename)
 /**
  * @brief Strip G-code file extensions for display
  *
- * Removes common G-code extensions (.gcode, .g, .gco, case-insensitive)
- * for cleaner display in the UI.
+ * Removes common G-code extensions (.gcode, .g, .gco, .3mf, case-insensitive)
+ * for cleaner display in the UI. A G-code extension under a .3mf goes with it,
+ * so "Foo.gcode.3mf" becomes "Foo".
  *
  * @param filename The original filename
  * @return Filename without G-code extension, or original if no match
