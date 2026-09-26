@@ -463,10 +463,9 @@ HeaterDisplayResult heater_display(int current_deci, int target_deci);
 /**
  * @brief What a heater's status area shows: one glyph state, plus duty text.
  *
- * The status area is the glyph + duty pair that replaced the status word
- * ("Heating... · 100%") on every heater surface. The states map to rendering
- * per surface (flame/check/snowflake glyphs, amber/muted duty text); this
- * classification is the single decision all of them bind to.
+ * The status area is a state glyph plus duty text. The states map to
+ * rendering per surface (flame/check/snowflake glyphs, amber/muted duty
+ * text); this classification is the single decision all of them bind to.
  */
 enum class HeaterStatusState {
     None,    ///< heater off, or nothing to say
@@ -566,8 +565,9 @@ ChamberSetpoint chamber_effective_setpoint(int heater_target_deci, int fan_targe
  * @brief Map a ChamberMode enum value to its untranslated status word.
  *
  * Returns "Heating", "Maintaining", or "Off".  Callers that display the string
- * must localise it at the call site via lv_tr().  Single source of truth shared
- * by the temperature-service display path and the chamber_status_text composer.
+ * must localise it at the call site via lv_tr().  Single definition of the
+ * words; TemperatureService (recompute_chamber_target() and setup_panel()) is
+ * the only caller, filling HeaterInfo::chamber_mode.
  */
 const char* chamber_mode_word(helix::ChamberMode mode);
 
