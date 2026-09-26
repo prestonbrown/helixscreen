@@ -266,20 +266,24 @@ void ActivePrintMediaManager::self_serve_from_gcode(const std::string& filename,
     helix::fetch_thumbnail_from_gcode(
         gcode_path, helix::GCODE_THUMBNAIL_HEADER_BYTES, api_,
         helix::ThumbnailProcessor::get_target_for_display(helix::ThumbnailSize::Detail), ctx,
-        fetched_thumbnail_callback(filename, ctx), [this, filename](const std::string& error) {
-            // Marshalled to main by the helper. Only the PERMANENT verdict
-            // (header read, nothing embedded — GCODE_THUMBNAIL_NONE_EMBEDDED)
-            // may stop future attempts; transient failures stay retryable.
+        fetched_thumbnail_callback(filename, ctx),
+        // The error can land after this manager is destroyed (soft restart),
+        // so it runs behind the lifetime guard like every other callback here.
+        lifetime_.bg_cb("ActivePrintMediaManager::on_extract_error", [this, filename](
+                                                                         const std::string& error) {
+            // Only the PERMANENT verdict (header read, nothing embedded —
+            // GCODE_THUMBNAIL_NONE_EMBEDDED) may stop future attempts;
+            // transient failures stay retryable.
             if (self_serve_pending_for_ == filename) {
                 self_serve_pending_for_.clear();
             }
             if (error.rfind(helix::GCODE_THUMBNAIL_NONE_EMBEDDED, 0) == 0) {
                 self_serve_failed_for_ = filename;
             }
-            spdlog::debug("[ActivePrintMediaManager] Gcode header thumbnail extraction failed "
-                          "for '{}': {}",
+            spdlog::debug("[ActivePrintMediaManager] Gcode header thumbnail extraction "
+                          "failed for '{}': {}",
                           filename, error);
-        });
+        }));
 #endif
 }
 
