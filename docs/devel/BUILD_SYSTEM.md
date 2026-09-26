@@ -709,12 +709,21 @@ git worktree list
 ### Cleanup
 
 ```bash
-# Remove a worktree
-git worktree remove .worktrees/my-feature
-
-# Or force remove if dirty
-git worktree remove --force .worktrees/my-feature
+./scripts/teardown-worktree.sh my-feature      # remove the worktree + its merged branch
+./scripts/teardown-worktree.sh my-feature -n   # print the plan, change nothing
 ```
+
+`git worktree remove` refuses these trees because of the private submodule checkouts, so
+teardown is a guarded `rm -rf` plus a prune.
+
+Every worktree shares the main repo's `.git/modules/<name>/`, and each of those gitdirs has
+one `core.worktree`. `--unlink` leaves empty submodule directories that git can initialize,
+which aims that shared pointer into the worktree; once the worktree is gone, `git status`
+fails with "cannot chdir" in the main tree and every other worktree. `--relink`, setup and
+teardown all run `scripts/lib/worktree_lib.sh#restore_shared_module_pointers`, which aims any
+shared pointer resolving inside the worktree back at the main tree's copy. Private checkouts
+keep their gitdirs under `.git/worktrees/<name>/modules/` and are never touched
+(prestonbrown/helixscreen#1621).
 
 ---
 

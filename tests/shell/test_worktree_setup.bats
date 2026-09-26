@@ -125,8 +125,9 @@ build_fixture_repo() {
     git init -q "$root/main"
     git -C "$root/main" config user.email "t@example.invalid"
     git -C "$root/main" config user.name "t"
-    mkdir -p "$root/main/scripts" "$root/main/patches" "$root/main/mk"
+    mkdir -p "$root/main/scripts/lib" "$root/main/patches" "$root/main/mk"
     cp scripts/setup-worktree.sh "$root/main/scripts/"
+    cp scripts/lib/worktree_lib.sh "$root/main/scripts/lib/"
     cp scripts/sync-worktree-mtimes.py "$root/main/scripts/"
     : > "$root/main/patches/.keep"
     # git refuses a file:// submodule unless the transport is allowed on the
@@ -151,6 +152,83 @@ build_fixture_repo() {
     run cat "$wt/lib/lvgl/.git"
     [[ "$output" == *"worktrees/iso/modules/"*"lvgl" ]] || { echo "$output" >&2; return 1; }
     rm -rf "$tmp"
+}
+
+# A shared .git/modules/<name> gitdir has one core.worktree for every tree.
+# --unlink leaves an empty directory git may initialize, which aims that pointer
+# here; --relink puts the symlink back and must aim the pointer back too, or
+# the main tree's `git status` depends on this worktree existing
+# (prestonbrown/helixscreen#1621).
+#
+# lib/ftxui is a real shared submodule, so --relink leaves the worktree's
+# lib/ftxui a symlink into the main tree by the time pointers are checked.
+add_shared_submodule() {
+    local root="$1"
+    git -C "$root/main" -c protocol.file.allow=always submodule add -q "$root/upstream" lib/ftxui
+    git -C "$root/main" commit -qm "shared submodule"
+}
+
+@test "--relink restores a shared submodule pointer aimed into the worktree" {
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    build_fixture_repo "$tmp"
+    add_shared_submodule "$tmp"
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/relink
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    modules="$tmp/main/.git/modules"
+    mkdir -p "$modules/spdlog"
+    git config --file "$modules/lib/ftxui/config" core.worktree "../../../../.worktrees/relink/lib/ftxui"
+    git config --file "$modules/spdlog/config" core.worktree "../../../lib/spdlog"
+
+    cd "$tmp/main/.worktrees/relink" || return 1
+    run bash scripts/setup-worktree.sh --relink
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+    [ -L lib/ftxui ] || { echo "lib/ftxui is not a symlink" >&2; return 1; }
+
+    [ "$(git config --file "$modules/lib/ftxui/config" core.worktree)" = "../../../../lib/ftxui" ]
+    [ "$(git config --file "$modules/spdlog/config" core.worktree)" = "../../../lib/spdlog" ]
+    cd / && rm -rf "$tmp"
+}
+
+@test "--relink restores an absolute pointer aimed into the worktree" {
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    build_fixture_repo "$tmp"
+    add_shared_submodule "$tmp"
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/absolute
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    modules="$tmp/main/.git/modules"
+    git config --file "$modules/lib/ftxui/config" core.worktree "$tmp/main/.worktrees/absolute/lib/ftxui"
+
+    cd "$tmp/main/.worktrees/absolute" || return 1
+    run bash scripts/setup-worktree.sh --relink
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    [ "$(git config --file "$modules/lib/ftxui/config" core.worktree)" = "../../../../lib/ftxui" ]
+    cd / && rm -rf "$tmp"
+}
+
+# A worktree outside the main tree gets a pointer with a longer ../ run than the
+# gitdir needs to reach the main tree, so the rewrite cannot keep its prefix.
+@test "--relink restores a pointer into a worktree that lives outside the main tree" {
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    build_fixture_repo "$tmp"
+    add_shared_submodule "$tmp"
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/away "$tmp/away"
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    modules="$tmp/main/.git/modules"
+    git config --file "$modules/lib/ftxui/config" core.worktree "../../../../../away/lib/ftxui"
+
+    cd "$tmp/away" || return 1
+    run bash scripts/setup-worktree.sh --relink
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    [ "$(git config --file "$modules/lib/ftxui/config" core.worktree)" = "../../../../lib/ftxui" ]
+    cd / && rm -rf "$tmp"
 }
 
 @test "patching a private submodule leaves the main tree's copy alone" {
@@ -314,9 +392,10 @@ exit 0'
     git -C "$tmp" init -q
     git -C "$tmp" config user.email "t@example.invalid"
     git -C "$tmp" config user.name "t"
-    mkdir -p "$tmp/lib/keepme" "$tmp/scripts"
+    mkdir -p "$tmp/lib/keepme" "$tmp/scripts/lib"
     echo "precious" > "$tmp/lib/keepme/file.txt"
     cp "$SCRIPT" "$tmp/scripts/setup-worktree.sh"
+    cp scripts/lib/worktree_lib.sh "$tmp/scripts/lib/"
     git -C "$tmp" add lib scripts
     git -C "$tmp" commit -qm init
 

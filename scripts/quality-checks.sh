@@ -3419,7 +3419,38 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_ALL="qc_phase1 qc_xml_tools qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_icon_names qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_todo_markers qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_cjk_fonts qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules qc_bats_inert"
+# AmsState publishes its XML subject names twice: init_subjects() on first init
+# and register_xml_subject_names() when a later init re-enters. A name missing
+# from the second stays unpublished after a register_xml=false first init, and
+# nothing else notices (prestonbrown/helixscreen#1439).
+qc_ams_xml_mirror() {
+  local EXIT_CODE=0
+SECTION_START=$(date +%s)
+echo -n "🪞 Checking the AmsState XML-name mirror..."
+
+if [ -f "scripts/check_ams_xml_mirror.py" ]; then
+  if python3 scripts/check_ams_xml_mirror.py >/tmp/ams_xml_mirror.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/ams_xml_mirror.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/ams_xml_mirror.out
+    echo "   Run: python3 scripts/check_ams_xml_mirror.py"
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_ams_xml_mirror.py not found - skipping"
+fi
+
+echo ""
+  return $EXIT_CODE
+}
+
+QC_ALL="qc_phase1 qc_xml_tools qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_icon_names qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_todo_markers qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_cjk_fonts qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules qc_ams_xml_mirror qc_bats_inert"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -3475,6 +3506,7 @@ qc_trigger_re() {
     qc_bats_inert)      echo '\.bats$|^tests/shell/helpers\.bash$|check_bats_inert_assertions\.py$' ;;
     qc_workflow_submodules)
                         echo '^\.github/workflows/|^\.github/actions/|check_workflow_submodules\.py$' ;;
+    qc_ams_xml_mirror)  echo '^src/printer/ams_state\.cpp$|^include/state/subject_macros\.h$|check_ams_xml_mirror\.py$' ;;
     *)                  echo '' ;;
   esac
 }

@@ -94,6 +94,19 @@ shim_bsd_stat() {
     lacks ".worktrees/gone" "$output"
 }
 
+# Without -m, a path resolves only while its parent exists, so a pointer into
+# the worktree has to be matched before the worktree is deleted.
+@test "a shared submodule pointer is restored without GNU realpath -m" {
+    shim_bsd_realpath
+    make_worktree doomed
+    mkdir -p "$MAIN/lib/ftxui" "$MAIN/.worktrees/doomed/lib" "$MAIN/.git/modules/lib/ftxui"
+    git config --file "$MAIN/.git/modules/lib/ftxui/config" core.worktree \
+        "../../../../.worktrees/doomed/lib/ftxui"
+    run "$SCRIPT" doomed --into master
+    [ "$status" -eq 0 ]
+    [ "$(git config --file "$MAIN/.git/modules/lib/ftxui/config" core.worktree)" = "../../../../lib/ftxui" ]
+}
+
 @test "the leftover-file report resolves real owners without GNU stat -c" {
     shim_bsd_stat
     make_worktree broken
