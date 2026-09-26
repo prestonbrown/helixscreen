@@ -128,7 +128,7 @@ Event coarsening is deliberate: `STATE_CHANGED`, op completions, errors, and att
 
 Subject storage is two-shaped:
 
-- **Backend 0** writes the flat arrays every single-backend XML binding already knows — `slot_colors_[i]`, `slot_statuses_[i]`, `slot_fills_[i]`, plus string and live-state families — inside `sync_from_backend()` ([`src/printer/ams_state.cpp#sync_from_backend`](../../../src/printer/ams_state.cpp#L1647)), per-slot loop at `src/printer/ams_state.cpp#"lv_subject_set_int(&slot_colors_[i], new_color)"`.
+- **Backend 0** writes the flat arrays every single-backend XML binding already knows — `slot_colors_[i]`, `slot_statuses_[i]`, `slot_fills_[i]`, plus string and live-state families — inside `sync_from_backend()` ([`src/printer/ams_state.cpp#sync_from_backend`](../../../src/printer/ams_state.cpp#L1778)), per-slot change-gated writes in `write_slot_subjects()` (`src/printer/ams_state.cpp#write_slot_subjects`).
 - **Backends at index 1+** get a `BackendSlotSubjects` struct ([`include/ams_state.h#AmsState`](../../../include/ams_state.h#L1688)) allocated at `add_backend()` time — dynamic `colors`/`statuses`/`fills` vectors sized to the backend's slot count. These subjects are destroyed on backend rediscovery, so the struct carries a `SubjectLifetime` token and the token-taking accessor overloads (`get_slot_color_subject(backend, slot, lifetime)`, `src/printer/ams_state.cpp#"AmsState::get_slot_color_subject(int backend_index, int slot_index,"`) hand it out; an observer that skips the token is chapter 03 bug #705 waiting.
 
 Both paths write change-gated — every value is compared before `lv_subject_set_*` fires, and a material-name delta additionally bumps `slots_version_` because the panel's material label has no direct binding (#1065). The fixed subject set (roughly 92 members in the header, capped at `MAX_SLOTS = 16` and `MAX_UNITS = 8`) splits into families the UI binds:
@@ -246,7 +246,7 @@ it came from. It carries no field for "this is the echo of a write HelixScreen i
 issued": that question is answered per backend family, by
 `AmsBackend::own_write_expectation` (`include/ams_backend.h#own_write_expectation`),
 `SlotFingerprintTracker::expect_any_of`
-(`include/filament_slot_override_store.h#SlotFingerprintTracker/expect_any_of`) and
+(`include/filament_slot_override_store.h#SlotFingerprintTracker/"expect_any_of(int slot_index,"`) and
 `helix::ams::OwnWriteEchoes` (`include/lane_echo.h#OwnWriteEchoes`).
 
 `ObservationSource` ([`include/lane_observation.h#ObservationSource`](../../../include/lane_observation.h))

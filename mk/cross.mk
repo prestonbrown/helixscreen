@@ -560,8 +560,10 @@ else ifeq ($(PLATFORM_TARGET),k2)
     HELIX_HAS_ACE := 0
     HELIX_HAS_QIDI := 0
     HELIX_HAS_SNAPMAKER := 0
-    # The panel renders anything under ~20% of the PWM range as off, so the
-    # brightness slider and dim level must never land there (#1709).
+    # The sysfs backlight on community K2 firmware renders anything under ~20%
+    # of its range as off, so the brightness slider and dim level must never
+    # land there (#1709). Stock firmware drives the panel through /dev/disp,
+    # which stays lit to raw 6 of 255; that backend ignores this floor.
     HELIX_BACKLIGHT_FLOOR_PERCENT := 20
     TARGET_LDFLAGS := -Wl,--gc-sections -Wl,-O2 -Wl,--as-needed -flto=auto -static
     # HTTPS is required for the update check, R2 self-update download, telemetry,

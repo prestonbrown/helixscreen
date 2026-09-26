@@ -457,7 +457,7 @@ is an out-of-bounds write, and the fix is bounds clipping —
 buffer, which is what `lv_draw_sw_blend` was missing.
 
 **Code that consumes a draw buffer must read `header.stride`**, never recompute
-a pitch from width. `src/application/color_transform.cpp#apply` takes the stride
+a pitch from width. `src/application/color_transform.cpp#apply_area` takes the stride
 as a parameter for exactly this reason.
 
 ---

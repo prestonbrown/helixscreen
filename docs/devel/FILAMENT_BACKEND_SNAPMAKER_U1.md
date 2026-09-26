@@ -410,7 +410,7 @@ Extended Firmware endpoint that 404s on stock firmware; the override still persi
    channel_state pair: `load_finish`
    (fed to nozzle) vs `preload_finish` (firmware assist stops short of the gear) -
    both already parsed into the channel-state machine
-   (`src/printer/ams_backend_snapmaker.cpp#classify_channel_state`, `:569-576`). What is missing is rig
+   (`src/printer/snapmaker_channel_state.cpp#classify_channel_state`). What is missing is rig
    confirmation that the state reliably means "filament at the gear" before the gate
    is revived.
 3. End-to-end timing of the pre-print `SET_PRINT_USED_EXTRUDERS` is unverified live.
