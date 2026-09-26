@@ -32,7 +32,6 @@ using namespace hv;
 // Anonymous namespace for file-scoped state
 namespace {
 // Rate limiting flags for reconnection notifications
-std::atomic<bool> g_already_notified_max_attempts{false};
 std::atomic<bool> g_already_notified_disconnect{false};
 
 // How long disconnect() waits for in-flight callbacks to drain before giving up.
@@ -77,7 +76,6 @@ std::string host_of_endpoint(const std::string& endpoint) {
 
 // Reset notification flags on successful connection
 void reset_notification_flags() {
-    g_already_notified_max_attempts.store(false);
     g_already_notified_disconnect.store(false);
 }
 
@@ -227,29 +225,6 @@ void MoonrakerClient::set_connection_state(ConnectionState new_state) {
             if (old_state != ConnectionState::RECONNECTING) {
                 reconnect_started_at_.store(steady_ticks_now(), std::memory_order_relaxed);
             }
-            reconnect_attempts_++;
-            if (max_reconnect_attempts_ > 0 && reconnect_attempts_ >= max_reconnect_attempts_) {
-                spdlog::error("[Moonraker Client] Max reconnect attempts ({}) exceeded",
-                              max_reconnect_attempts_);
-                TelemetryManager::instance().record_error(
-                    "websocket", "reconnect_failed",
-                    fmt::format("max attempts ({}) exceeded", max_reconnect_attempts_));
-
-                // Emit event only once during reconnect sequence
-                if (!g_already_notified_max_attempts.load()) {
-                    emit_event(MoonrakerEventType::CONNECTION_FAILED,
-                               fmt::format("Unable to reach printer after {} attempts. "
-                                           "Check power and network connection.",
-                                           max_reconnect_attempts_),
-                               true);
-                    g_already_notified_max_attempts.store(true);
-                }
-
-                set_connection_state(ConnectionState::FAILED);
-                return;
-            }
-        } else if (new_state == ConnectionState::CONNECTED) {
-            reconnect_attempts_ = 0; // Reset on successful connection
         }
 
         // Copy callback under lock to prevent race with destructor clearing it
@@ -352,7 +327,6 @@ void MoonrakerClient::disconnect() {
 
     // Reset connection state
     set_connection_state(ConnectionState::DISCONNECTED);
-    reconnect_attempts_ = 0;
 }
 
 void MoonrakerClient::force_reconnect() {

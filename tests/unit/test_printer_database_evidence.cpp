@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "printer_detector.h"
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <regex>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -103,4 +107,41 @@ TEST_CASE("a K1C fingerprint does not detect as a K2", "[printer_database][evide
     const PrinterDetectionResult result = PrinterDetector::detect(k1c);
     CAPTURE(result.type_name, result.confidence, result.reason);
     CHECK(result.type_name.find("K2") == std::string::npos);
+}
+
+// The loader checks only that an extension file's new printers carry a name;
+// nothing checks the bundled file, so a bad entry there ships silently. Image
+// existence is scripts/check_printer_images.py's job.
+TEST_CASE("every bundled printer entry is well-formed and uniquely named",
+          "[printer_database][schema]") {
+    const nlohmann::json db = load_database();
+    REQUIRE(db.contains("printers"));
+    REQUIRE(db["printers"].is_array());
+    REQUIRE_FALSE(db["printers"].empty());
+
+    auto lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        return s;
+    };
+
+    const std::regex slug("[a-z0-9]+([_-][a-z0-9]+)*");
+    std::set<std::string> ids;
+    std::set<std::string> names; // lookups by name are case-insensitive
+    for (const auto& printer : db["printers"]) {
+        const std::string id = printer.value("id", "");
+        INFO("printer id: '" << id << "'");
+        for (const char* field : {"id", "name", "manufacturer", "image"}) {
+            INFO("field: " << field);
+            REQUIRE(printer.contains(field));
+            REQUIRE(printer[field].is_string());
+            CHECK_FALSE(printer[field].get<std::string>().empty());
+        }
+        CHECK(printer.contains("heuristics"));
+        CHECK(printer.value("heuristics", nlohmann::json()).is_array());
+
+        CHECK(std::regex_match(id, slug));
+        CHECK(ids.insert(id).second);
+        CHECK(names.insert(lower(printer["name"].get<std::string>())).second);
+    }
 }

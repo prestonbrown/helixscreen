@@ -58,6 +58,12 @@ class AfcRebindHelper : public AmsBackendAfc {
         handle_status_update(notification);
     }
 
+    /// Drive the Moonraker DB path, the second parser that checks the binding.
+    void feed_lane_data(const nlohmann::json& lane_data) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        AfcTestAccess::parse_lane_data(*this, lane_data);
+    }
+
     [[nodiscard]] int visible_spool_id(int slot_index) const {
         return get_slot_info(slot_index).spoolman_id;
     }
@@ -115,6 +121,21 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC external re-bind clears our override (#12
     CHECK(afc.visible_spool_id(0) == 169); // firmware truth paints
     CHECK(afc.visible_brand(0).empty());   // our stale brand no longer shadows
     CHECK_FALSE(afc.has_override(0));      // record dropped
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AFC external re-bind via lane_data clears our override (#1671)",
+                 "[ams][afc][override-merge]") {
+    SettingsManager::instance().init_subjects();
+
+    helix::test::RegisteredBackend<AfcRebindHelper> afc_reg;
+    AfcRebindHelper& afc = *afc_reg;
+    afc.set_override(0, spool_override(42));
+    // The DB snapshot reports a DIFFERENT spool on lane1; lane2 is unchanged.
+    afc.feed_lane_data(
+        nlohmann::json{{"lane1", {{"spool_id", 169}}}, {"lane2", nlohmann::json::object()}});
+    CHECK(afc.visible_spool_id(0) == 169);
+    CHECK(afc.visible_brand(0).empty());
+    CHECK_FALSE(afc.has_override(0));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "AFC eject retains by default, clears with setting off (#1281)",
