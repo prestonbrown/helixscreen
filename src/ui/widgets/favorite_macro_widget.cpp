@@ -70,18 +70,14 @@ struct MacroExecCtx {
 };
 
 // After-confirmation dispatch: a free function so it can run from a dialog
-// callback without needing the widget instance to still exist. Both entry
-// points arrive past a confirmation gate (the dangerous-macro dialog, or the
-// widget's own click path), so the decision weighs parameters alone - the
-// per-widget setting and the Safety toggle do not apply a second time.
+// callback without needing the widget instance to still exist. It is reached
+// after the dangerous-macro dialog, or from a click headed for the param modal,
+// so it never asks "Run X?": the per-widget setting and the Safety toggle do
+// not apply here, and the decision weighs parameters alone.
 void run_macro_after_confirm(MacroExecCtx ctx) {
     auto cached = helix::MacroParamCache::instance().get(ctx.macro_name);
 
-    helix::MacroRunRequest req;
-    req.dangerous = true;
-    req.dangerous_confirmed = true;
-
-    const helix::MacroRunDecision decision = helix::decide_macro_run(cached, req);
+    const helix::MacroRunDecision decision = helix::decide_macro_run(cached, {});
 
     if (decision.action == helix::MacroRunAction::Run) {
         helix::execute_macro_gcode(ctx.api, ctx.macro_name, {}, "[FavoriteMacroWidget]",
@@ -304,10 +300,9 @@ void FavoriteMacroWidget::fetch_and_execute() {
 
     const helix::MacroRunAction action = helix::decide_macro_run(cached, req).action;
 
-    // Dangerous macros always require a confirmation modal — the home-screen tile
-    // is one accidental tap away from EMERGENCY_STOP / FIRMWARE_RESTART, and the
-    // MacrosPanel already enforces this; the home-screen widget previously
-    // bypassed it entirely (#925). The per-widget opt-out cannot disarm it.
+    // Dangerous macros always require a confirmation modal: the home-screen tile
+    // is one accidental tap away from EMERGENCY_STOP / FIRMWARE_RESTART (#925).
+    // The per-widget opt-out cannot disarm it.
     if (action == helix::MacroRunAction::ConfirmDangerous) {
         if (!parent_screen_) {
             spdlog::warn("[FavoriteMacroWidget] No parent screen for dangerous-macro confirm");
