@@ -16,6 +16,9 @@
 #include "ui_format_utils.h"
 #include "ui_panel_print_select.h"
 
+#include "format_utils.h"
+#include "lvgl/src/others/translation/lv_translation.h"
+
 #include <algorithm>
 #include <ctime>
 #include <string>
@@ -490,4 +493,17 @@ TEST_CASE("Sorting: large list preserves metadata_fetched integrity", "[ui][meta
         REQUIRE(files[i].filename == expected_name);
         REQUIRE(files[i].metadata_fetched == expected_fetched);
     }
+}
+
+TEST_CASE("Object height carries 'tall' only when there is a height", "[ui][metadata][qidi_3mf]") {
+    using helix::ui::format_print_height;
+    CHECK(format_print_height(42.0, true) == std::string("42 mm ") + lv_tr("tall"));
+    CHECK(format_print_height(0.0, true) == helix::format::UNAVAILABLE);
+    CHECK(format_print_height(42.0) == "42 mm");
+}
+
+TEST_CASE("Layer height reads as unavailable when unknown", "[ui][metadata][qidi_3mf]") {
+    using helix::ui::format_layer_height;
+    CHECK(format_layer_height(0.2) == "0.20 mm");
+    CHECK(format_layer_height(0.0) == helix::format::UNAVAILABLE);
 }

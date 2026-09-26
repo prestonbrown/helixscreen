@@ -80,7 +80,7 @@ std::string format_layer_count(uint32_t layer_count) {
     return std::string(buf);
 }
 
-std::string format_print_height(double height_mm) {
+std::string format_print_height(double height_mm, bool tall_suffix) {
     if (height_mm <= 0.0) {
         return helix::format::UNAVAILABLE;
     }
@@ -92,6 +92,20 @@ std::string format_print_height(double height_mm) {
     } else {
         snprintf(buf, sizeof(buf), "%.0f mm", height_mm);
     }
+    std::string out(buf);
+    if (tall_suffix) {
+        out += " ";
+        out += lv_tr("tall");
+    }
+    return out;
+}
+
+std::string format_layer_height(double height_mm) {
+    if (height_mm <= 0.0) {
+        return helix::format::UNAVAILABLE;
+    }
+    char buf[32];
+    helix::format::format_distance_mm(height_mm, 2, buf, sizeof(buf));
     return std::string(buf);
 }
 

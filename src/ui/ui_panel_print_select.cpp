@@ -72,6 +72,7 @@ using namespace helix;
 using helix::gcode::strip_gcode_extension;
 using helix::ui::format_filament_weight;
 using helix::ui::format_layer_count;
+using helix::ui::format_layer_height;
 using helix::ui::format_print_height;
 using helix::ui::format_print_time;
 
@@ -1188,17 +1189,8 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
     std::string print_time_str = format_print_time(total_minutes);
     std::string filament_str = format_filament_weight(filament_grams);
     std::string layer_count_str = format_layer_count(layer_count);
-    std::string print_height_str = format_print_height(object_height) + " " + lv_tr("tall");
-
-    // Format layer height (e.g., "0.24 mm")
-    char layer_height_buf[32];
-    if (layer_height > 0.0) {
-        helix::format::format_distance_mm(layer_height, 2, layer_height_buf,
-                                          sizeof(layer_height_buf));
-    } else {
-        snprintf(layer_height_buf, sizeof(layer_height_buf), "-");
-    }
-    std::string layer_height_str = layer_height_buf;
+    std::string print_height_str = format_print_height(object_height, /*tall_suffix=*/true);
+    std::string layer_height_str = format_layer_height(layer_height);
 
     // Check if thumbnail is a local file (background thread - filesystem OK)
     bool thumb_is_local = !thumb_path.empty() && std::filesystem::exists(thumb_path);

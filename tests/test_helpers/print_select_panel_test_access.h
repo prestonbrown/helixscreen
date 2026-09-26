@@ -26,6 +26,28 @@ struct PrintSelectPanelTestAccess {
         return panel.file_list_.size();
     }
 
+    /// The listed file named @p filename, or null.
+    static const PrintFileData* find_file(const PrintSelectPanel& panel,
+                                          const std::string& filename) {
+        for (const auto& file : panel.file_list_) {
+            if (!file.is_dir && file.filename == filename) {
+                return &file;
+            }
+        }
+        return nullptr;
+    }
+
+    /// Feed @p metadata through the panel's metadata apply for a listed file.
+    static void apply_metadata(PrintSelectPanel& panel, const std::string& filename,
+                               const FileMetadata& metadata) {
+        for (size_t i = 0; i < panel.file_list_.size(); ++i) {
+            if (panel.file_list_[i].filename == filename) {
+                panel.process_metadata_result(i, filename, metadata);
+                return;
+            }
+        }
+    }
+
     /// Whether the detail-view overlay is currently pushed (OverlayBase's
     /// is_visible, driven by NavigationManager activate/deactivate).
     static bool detail_view_visible(const PrintSelectPanel& panel) {

@@ -149,3 +149,38 @@ TEST_CASE("thumbnail_source_describes() rejects an unrelated print", "[filename_
     CHECK_FALSE(thumbnail_source_describes("printB.gcode", "printA.gcode"));
     CHECK_FALSE(thumbnail_source_describes("dir/printB.gcode", "other/printA.gcode"));
 }
+
+TEST_CASE("is_3mf() matches a .3mf suffix in any case", "[filename_utils][qidi_3mf]") {
+    using helix::gcode::is_3mf;
+    CHECK(is_3mf("Foo (PETG).gcode.3mf"));
+    CHECK(is_3mf("dir/Model.3MF"));
+    CHECK(is_3mf(".3mf"));
+    CHECK_FALSE(is_3mf("Foo.gcode"));
+    CHECK_FALSE(is_3mf("shadow_native_plate_1.gcode"));
+    CHECK_FALSE(is_3mf("3mf"));
+    CHECK_FALSE(is_3mf("foo3mf"));
+    CHECK_FALSE(is_3mf("Foo.3mf.gcode"));
+    CHECK_FALSE(is_3mf(""));
+}
+
+TEST_CASE("strip_gcode_extension() removes a whole .gcode.3mf", "[filename_utils][qidi_3mf]") {
+    using helix::gcode::get_display_filename;
+    using helix::gcode::strip_gcode_extension;
+    CHECK(strip_gcode_extension("Foo (PETG).gcode.3mf") == "Foo (PETG)");
+    CHECK(strip_gcode_extension("Foo.GCODE.3MF") == "Foo");
+    CHECK(strip_gcode_extension("Foo.gco.3mf") == "Foo");
+    CHECK(strip_gcode_extension("Model.3mf") == "Model");
+    CHECK(strip_gcode_extension("Model.3mf.3mf") == "Model.3mf");
+    CHECK(strip_gcode_extension(".3mf") == ".3mf");
+    CHECK(strip_gcode_extension("Foo.gcode") == "Foo");
+    CHECK(get_display_filename("dir/Foo (PETG).gcode.3mf") == "Foo (PETG)");
+}
+
+TEST_CASE("ends_with_ci() compares a suffix case-insensitively", "[filename_utils][qidi_3mf]") {
+    using helix::gcode::ends_with_ci;
+    CHECK(ends_with_ci("Foo.GCode", ".gcode"));
+    CHECK(ends_with_ci(".gcode", ".gcode"));
+    CHECK_FALSE(ends_with_ci("gcode", ".gcode"));
+    CHECK_FALSE(ends_with_ci("Foo.gcod", ".gcode"));
+    CHECK(ends_with_ci("anything", ""));
+}

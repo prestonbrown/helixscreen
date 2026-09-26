@@ -3804,17 +3804,7 @@ void PrintStatusPanel::load_gcode_for_viewing(const std::string& filename) {
         load_existing_gcode_path(metadata_filename, "gcodes", filename);
     };
 
-    auto ends_with_3mf = [](const std::string& name) {
-        if (name.size() < 4) {
-            return false;
-        }
-        const size_t pos = name.size() - 4;
-        return (name[pos] == '.' && (name[pos + 1] == '3') &&
-                (name[pos + 2] == 'm' || name[pos + 2] == 'M') &&
-                (name[pos + 3] == 'f' || name[pos + 3] == 'F'));
-    };
-
-    if (ends_with_3mf(filename)) {
+    if (helix::gcode::is_3mf(filename)) {
         api_->files().list_files(
             ".temp", "", false,
             [this, token, use_existing_download_path,

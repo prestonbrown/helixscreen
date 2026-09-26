@@ -38,8 +38,9 @@ std::string join_gcode_path(const std::string& dir, const std::string& filename)
 /**
  * @brief Strip G-code file extensions for display
  *
- * Removes common G-code extensions (.gcode, .g, .gco, case-insensitive)
- * for cleaner display in the UI.
+ * Removes common G-code extensions (.gcode, .g, .gco, .3mf, case-insensitive)
+ * for cleaner display in the UI. A G-code extension under a .3mf goes with it,
+ * so "Foo.gcode.3mf" becomes "Foo".
  *
  * @param filename The original filename
  * @return Filename without G-code extension, or original if no match
@@ -121,5 +122,18 @@ bool thumbnail_source_describes(const std::string& raw, const std::string& sourc
  * @return true if the name is a native-3MF shadow G-code file
  */
 bool is_native_3mf_shadow(const std::string& name);
+
+/**
+ * @brief Does @p s end with @p suffix, ignoring ASCII case?
+ */
+bool ends_with_ci(const std::string& s, const std::string& suffix);
+
+/**
+ * @brief Test whether a filename names a `.3mf` project file (case-insensitive).
+ *
+ * A `.3mf` is a zip archive, not G-code: there are no layers to parse and no
+ * G-code lines to scan in its bytes.
+ */
+bool is_3mf(const std::string& name);
 
 } // namespace helix::gcode

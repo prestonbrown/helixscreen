@@ -79,12 +79,20 @@ std::string format_layer_progress_compact(int current, int total, bool accurate,
  * @brief Format print height in millimeters
  *
  * Formats object height with appropriate precision.
- * Examples: "42.5 mm", "0.2 mm", "--" (if zero/unknown)
+ * Examples: "42.5 mm", "0.2 mm", helix::format::UNAVAILABLE (if zero/unknown)
  *
- * @param height_mm Object height in millimeters
+ * @param height_mm   Object height in millimeters
+ * @param tall_suffix Append the translated "tall" to a known height, never to
+ *                    the unavailable glyph
  * @return Formatted height string
  */
-std::string format_print_height(double height_mm);
+std::string format_print_height(double height_mm, bool tall_suffix = false);
+
+/**
+ * @brief Format a layer height, e.g. "0.20 mm", or helix::format::UNAVAILABLE
+ *        when zero/unknown
+ */
+std::string format_layer_height(double height_mm);
 
 /**
  * @brief Format file size from bytes to human-readable string
