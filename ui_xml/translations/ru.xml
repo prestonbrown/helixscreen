@@ -2863,6 +2863,7 @@
   <translation tag="{} disabled" ru="{} выключено"/>
   <translation tag="{} enabled" ru="{} включено"/>
   <translation tag="{} failed: {}" ru="Ошибка {}: {}"/>
+  <translation tag="{} filament" ru="{} филамента"/>
   <translation tag="{} filament sensors available" ru="Доступно датчиков филамента: {}"/>
   <translation tag="{} filament • {}" ru="{} филамента • {}"/>
   <translation tag="{} heater turned off" ru="Нагреватель {} выключен"/>

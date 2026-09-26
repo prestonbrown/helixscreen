@@ -3303,6 +3303,7 @@ translations:
   '{} disabled': '{} désactivé'
   '{} enabled': '{} activé'
   '{} failed: {}': '{} a échoué : {}'
+  '{} filament': '{} de filament'
   '{} filament sensors available': '{} capteurs de filament disponibles'
   '{} filament • {}': '{} de filament • {}'
   '{} heater turned off': Chauffage {} désactivé

@@ -673,21 +673,6 @@ const char* HistoryListPanel::get_status_color(PrintJobStatus status) {
     }
 }
 
-const char* HistoryListPanel::get_status_text(PrintJobStatus status) {
-    switch (status) {
-    case PrintJobStatus::COMPLETED:
-        return "Completed";
-    case PrintJobStatus::CANCELLED:
-        return "Cancelled";
-    case PrintJobStatus::ERROR:
-        return "Failed";
-    case PrintJobStatus::IN_PROGRESS:
-        return "In Progress";
-    default:
-        return "Unknown";
-    }
-}
-
 // ============================================================================
 // Click Handlers
 // ============================================================================
@@ -722,7 +707,7 @@ void HistoryListPanel::handle_row_click(size_t index) {
     selected_job_index_ = index;
     const auto& job = filtered_jobs_[index];
     spdlog::info("[{}] Row clicked: {} ({})", get_name(), job.filename,
-                 get_status_text(job.status));
+                 status_to_label(job.status));
 
     show_detail_overlay(job);
 }
@@ -1089,7 +1074,7 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
 void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     // Update string subjects using lv_subject_copy_string (LVGL 9.4 API)
     lv_subject_copy_string(&detail_filename_, job.filename.c_str());
-    lv_subject_copy_string(&detail_status_, get_status_text(job.status));
+    lv_subject_copy_string(&detail_status_, status_to_label(job.status));
     lv_subject_copy_string(&detail_status_icon_, status_to_icon(job.status));
     lv_subject_copy_string(&detail_status_variant_, status_to_variant(job.status));
 

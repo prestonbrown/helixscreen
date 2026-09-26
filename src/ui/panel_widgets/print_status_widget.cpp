@@ -2068,9 +2068,9 @@ LastPrintText describe_last_print(const PrintHistoryJob& job, double now_s) {
     } else {
         // The idle tile never shows the running print, so an in_progress row
         // here is one Moonraker has not finalised: it gets no status word.
-        const char* status = job.status == PrintJobStatus::CANCELLED ? lv_tr("Cancelled")
-                             : job.status == PrintJobStatus::ERROR   ? lv_tr("Failed")
-                                                                     : "";
+        const bool ended =
+            job.status == PrintJobStatus::CANCELLED || job.status == PrintJobStatus::ERROR;
+        const char* status = ended ? lv_tr(status_to_label(job.status)) : "";
         const std::string age =
             when_s > 0
                 ? ui::format_relative_time(static_cast<uint64_t>(std::max(0L, delta_s)) * 1000)
@@ -2078,15 +2078,17 @@ LastPrintText describe_last_print(const PrintHistoryJob& job, double now_s) {
         text.when = (*status && !age.empty()) ? fmt::format("{} • {}", status, age) : status + age;
     }
 
-    const bool has_duration = job.print_duration > 0 && !job.duration_str.empty();
+    const std::string duration = job.print_duration > 0 ? job.duration_str
+                                 : job.total_duration > 0
+                                     ? helix::format::duration(static_cast<int>(job.total_duration))
+                                     : "";
     const bool has_filament = job.filament_used > 0 && !job.filament_str.empty();
-    if (has_filament && has_duration) {
-        text.meta = fmt::format(lv_tr("{} filament • {}"), job.filament_str, job.duration_str);
-    } else if (has_duration) {
-        text.meta = job.duration_str;
-    } else if (job.total_duration > 0) {
-        int d = static_cast<int>(job.total_duration);
-        text.meta = fmt::format("{}h {:02}m", d / 3600, (d % 3600) / 60);
+    if (has_filament && !duration.empty()) {
+        text.meta = fmt::format(lv_tr("{} filament • {}"), job.filament_str, duration);
+    } else if (has_filament) {
+        text.meta = fmt::format(lv_tr("{} filament"), job.filament_str);
+    } else {
+        text.meta = duration;
     }
     return text;
 }

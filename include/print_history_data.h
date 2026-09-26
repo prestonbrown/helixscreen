@@ -123,6 +123,26 @@ struct FilamentUsageByType {
 }
 
 /**
+ * @brief Get the display word for a status
+ * @param status Job status
+ * @return Untranslated label, which is also its translation tag ("Completed", "Failed", ...)
+ */
+[[nodiscard]] inline const char* status_to_label(PrintJobStatus status) {
+    switch (status) {
+    case PrintJobStatus::COMPLETED:
+        return "Completed";
+    case PrintJobStatus::CANCELLED:
+        return "Cancelled";
+    case PrintJobStatus::ERROR:
+        return "Failed";
+    case PrintJobStatus::IN_PROGRESS:
+        return "In Progress";
+    default:
+        return "Unknown";
+    }
+}
+
+/**
  * @brief Get icon name for status (Material Design Icons)
  * @param status Job status
  * @return Icon name for use in XML

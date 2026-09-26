@@ -2987,6 +2987,7 @@ translations:
   '{} disabled': '{} を無効にしました'
   '{} enabled': '{} を有効にしました'
   '{} failed: {}': '{} に失敗しました: {}'
+  '{} filament': 'フィラメント {}'
   '{} filament sensors available': '{} 個のフィラメントセンサーが利用可能です'
   '{} filament • {}': 'フィラメント {} • {}'
   '{} heater turned off': '{} ヒーターをオフにしました'

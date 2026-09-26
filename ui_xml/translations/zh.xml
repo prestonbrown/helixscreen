@@ -2863,6 +2863,7 @@
   <translation tag="{} disabled" zh="已停用{}"/>
   <translation tag="{} enabled" zh="已启用{}"/>
   <translation tag="{} failed: {}" zh="{} 失败：{}"/>
+  <translation tag="{} filament" zh="耗材 {}"/>
   <translation tag="{} filament sensors available" zh="{} 个耗材传感器可用"/>
   <translation tag="{} filament • {}" zh="耗材 {} • {}"/>
   <translation tag="{} heater turned off" zh="{} 加热器已关闭"/>

@@ -8,6 +8,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "format_utils.h"
 #include "print_history_manager.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -468,6 +469,43 @@ TEST_CASE("describe_last_print: zero filament and duration hide the meta line",
     job.filament_str = "2.5m";
     REQUIRE(describe_last_print(job, kNow).meta ==
             fmt::format(lv_tr("{} filament • {}"), "2.5m", "1h 30m"));
+}
+
+TEST_CASE("describe_last_print: filament and duration each show on their own",
+          "[print_status][last_print]") {
+    auto job = job_with(PrintJobStatus::CANCELLED, kNow - 600.0, kNow - 300.0);
+
+    SECTION("filament with no print time") {
+        job.filament_used = 3000.0;
+        job.filament_str = "3.0m";
+        REQUIRE(describe_last_print(job, kNow).meta == fmt::format(lv_tr("{} filament"), "3.0m"));
+    }
+    SECTION("only wall-clock time, as when cancelled during heat-up") {
+        job.total_duration = 300.0;
+        REQUIRE(describe_last_print(job, kNow).meta == helix::format::duration(300));
+    }
+    SECTION("filament and wall-clock time") {
+        job.filament_used = 3000.0;
+        job.filament_str = "3.0m";
+        job.total_duration = 300.0;
+        REQUIRE(describe_last_print(job, kNow).meta ==
+                fmt::format(lv_tr("{} filament • {}"), "3.0m", helix::format::duration(300)));
+    }
+}
+
+TEST_CASE("describe_last_print: an end_time ahead of the clock reads as just now",
+          "[print_status][last_print]") {
+    auto job = job_with(PrintJobStatus::CANCELLED, kNow - 600.0, kNow + 120.0);
+    REQUIRE(describe_last_print(job, kNow).when ==
+            std::string(lv_tr("Cancelled")) + " • " + relative(0.0));
+}
+
+TEST_CASE("status_to_label names every job status", "[print_status][last_print][history]") {
+    REQUIRE(std::string(status_to_label(PrintJobStatus::COMPLETED)) == "Completed");
+    REQUIRE(std::string(status_to_label(PrintJobStatus::CANCELLED)) == "Cancelled");
+    REQUIRE(std::string(status_to_label(PrintJobStatus::ERROR)) == "Failed");
+    REQUIRE(std::string(status_to_label(PrintJobStatus::IN_PROGRESS)) == "In Progress");
+    REQUIRE(std::string(status_to_label(PrintJobStatus::UNKNOWN)) == "Unknown");
 }
 
 TEST_CASE("describe_last_print: the filename displays the way the file grid shows it",
