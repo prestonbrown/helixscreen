@@ -497,8 +497,12 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: landscape edit buttons clamp to
                 << lv_obj_get_height(add) << ", done " << lv_obj_get_height(done));
 
     // min_height is the touch-target floor and wins where button_height sits below it.
-    CHECK(lv_obj_get_height(add) <= std::max<int32_t>(button_height, 48));
-    CHECK(lv_obj_get_height(done) <= std::max<int32_t>(button_height, 36));
+    const int32_t add_floor = lv_obj_get_style_min_height(add, LV_PART_MAIN);
+    const int32_t done_floor = lv_obj_get_style_min_height(done, LV_PART_MAIN);
+    REQUIRE(add_floor > 0);
+    REQUIRE(done_floor > 0);
+    CHECK(lv_obj_get_height(add) <= std::max(button_height, add_floor));
+    CHECK(lv_obj_get_height(done) <= std::max(button_height, done_floor));
     CHECK(lv_obj_get_height(add) < bar_h);
     CHECK(lv_obj_get_height(done) < bar_h);
 }
