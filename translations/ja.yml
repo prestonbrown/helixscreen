@@ -104,6 +104,7 @@ translations:
   = Tighten: = 締める
   A: A
   A backup of %s is created before applying: '適用前に %s のバックアップを作成します'
+  A few minutes, nearly all of it heating. You judge nothing by eye.: '数分かかりますが、そのほとんどは加熱です。目視での判断は不要です。'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: モーターのIOピンを復元できませんでした。プリンターの電源を入れ直してください
   A motor's parameters couldn't be written. Power-cycle the printer to retry: モーターのパラメーターを書き込めませんでした。プリンターの電源を入れ直して再試行してください
   A newer version of the helper macros is available: 'ヘルパーマクロの新しいバージョンが利用可能です'
@@ -140,7 +141,6 @@ translations:
   Abort failed: 中止に失敗
   Aborting AFC operation...: AFC操作を中止中...
   About: バージョン情報
-  About 3 minutes at {}°C.: '{}°C で約3分です。'
   Accel to Decel: 加速から減速
   Acceleration to deceleration limit (mm/s²): 加速から減速の制限値 (mm/s²)
   Accelerometer: 加速度センサー
@@ -231,6 +231,7 @@ translations:
   Assisted Retract: 'アシスト付き引き戻し'
   Assisting: アシスト中
   At least {} lines in helixscreen.env were ignored: 'helixscreen.env の少なくとも{}行が無視されました'
+  At {}°C, about {} minutes.: '{}°C で約{}分です。'
   Authentication failed: 認証に失敗しました
   Auto: 自動
   Auto Bed Mesh: 自動ベッドメッシュ
@@ -676,7 +677,7 @@ translations:
   Copied to clipboard!: クリップボードにコピーしました！
   Copy Command: コマンドをコピー
   Copy failed - use SSH manually: コピー失敗 - SSHを手動で使用してください
-  Copy it into this filament's slicer profile — the printer keeps nothing.: 'この値をこのフィラメントのスライサー プロファイルに転記してください — プリンターには保存されません。'
+  Copy it into this filament's slicer profile. The printer keeps nothing.: 'この値をこのフィラメントのスライサー プロファイルに転記してください。プリンターには保存されません。'
   Corner roundness: 角の丸み
   Correction (Ki): 補正 (Ki)
   Could not add to queue: キューに追加できませんでした
@@ -1307,7 +1308,7 @@ translations:
   Heating bed to $1°C...: ベッドを$1°Cに加熱中...
   Heating bed...: ベッド加熱中...
   Heating chamber...: チャンバー加熱中...
-  Heating is nearly the whole wait. You can leave the screen — the run stops.: '待ち時間のほとんどは加熱です。画面を離れると実行は停止します。'
+  Heating is nearly the whole wait. Leaving the screen now stops the run.: '待ち時間のほとんどは加熱です。いま画面を離れると実行は停止します。'
   Heating nozzle: 'ノズル加熱中'
   Heating nozzle to $1°C...: ノズルを$1°Cに加熱中...
   Heating nozzle...: ノズル加熱中...
@@ -1976,7 +1977,7 @@ translations:
   Output Device: 出力デバイス
   Output Mode: 出力モード
   Output Pin: 出力ピン
-  Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it.: '{} エクストルーダーの通常範囲（{:.2f}-{:.2f}）外です — 信頼する前に再測定をおすすめします。'
+  Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it.: '通常範囲（{:.2f}-{:.2f}、{} エクストルーダー）外です。信頼する前に再測定をおすすめします。'
   Overheating: 過熱
   'Overlay Visits: ': 'オーバーレイ表示回数: '
   Overlays Opened: 開いたオーバーレイ数
@@ -2919,7 +2920,9 @@ translations:
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: 'ノズルは印刷領域から離れた隅で短いテスト移動を数回行い、結果が一致するまで繰り返します。'
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : 印刷は一時停止中です。ここでツールを交換すると、ツールヘッドが移動してノズルのフィラメントが入れ替わります。交換が完了したら印刷を再開してください。
+  The printer applied this value and keeps it for this tool.: 'プリンターはこの値を適用し、このツールに保存しました。'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。'
+  The printer finishes this measurement on its own.: 'この測定はプリンターが最後まで行います。'
   The printer halted this print and cannot resume it. Restart from the beginning?: プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : 'プリンターはノズルを加熱し、プレートの隅で短いテスト移動を数回行って自ら測定します。測定値が一致するまで繰り返し、最後にひとつの数値を報告します。'
@@ -3115,7 +3118,6 @@ translations:
   Turn the extruder heater off after a load or unload finishes: 装填または排出の完了後にエクストルーダーヒーターをオフにします
   Turn the picture to match how the screen is mounted. Applies after restart.: 画面の取り付け向きに合わせて表示を回転します。再起動後に適用されます。
   Turn the printer's lights on or off: プリンターのライトをオン/オフ
-  Two to three minutes, nearly all of it heating. You judge nothing by eye.: '2〜3分かかりますが、そのほとんどは加熱です。目視での判断は不要です。'
   Type: タイプ
   Type to preview input field...: 入力フィールドをプレビューするには入力してください...
   'Type:': 'タイプ:'

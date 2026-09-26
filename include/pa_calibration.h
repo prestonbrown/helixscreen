@@ -56,6 +56,19 @@ struct Procedure {
     /// the firmware does not report attempts.
     int expected_attempts = 0;
 
+    /// ECMAScript regex for a console line that ends the run without a
+    /// measurement, in the firmware's own words. Empty when the firmware only
+    /// fails through Klipper errors.
+    std::string failure_pattern;
+
+    /// Whether the firmware applies and keeps the measured K itself. When it
+    /// does not, the number only matters once it is copied into a slicer.
+    bool applies_result = false;
+
+    /// Typical wall-clock length of a run, heat-up included, for the copy that
+    /// sets expectations before it starts.
+    int estimate_minutes = 3;
+
     /// RPC timeout. Generous: like PID_CALIBRATE, the console result line is
     /// the real authority and a slow heat-up must not read as a failure.
     uint32_t timeout_ms = 600000; // 10 min
@@ -69,14 +82,15 @@ bool is_supported(const PrinterDiscovery& hw);
 /// Name of the matched firmware, or empty when unsupported. Logging only.
 std::string provider_name(const PrinterDiscovery& hw);
 
-/// Whether the calibration is addressed per-tool. False means the firmware
-/// calibrates whatever tool is currently active, and the panel must not offer
-/// a tool choice it cannot honour.
+/// Whether each tool is calibrated separately, so the panel offers a tool
+/// choice. False means the run covers the machine as a whole and a choice would
+/// silently do nothing.
 bool is_per_tool(const PrinterDiscovery& hw);
 
-/// The procedure for calibrating `tool_index` on this printer, or nullopt when
-/// the printer cannot do it. `tool_index` is ignored when !is_per_tool().
-std::optional<Procedure> procedure_for(const PrinterDiscovery& hw, int tool_index);
+/// The procedure for calibrating `tool_index` at `temp_c` on this printer, or
+/// nullopt when the printer cannot do it. Firmware that calibrates the mounted
+/// tool ignores `tool_index`; the panel mounts the chosen tool before a run.
+std::optional<Procedure> procedure_for(const PrinterDiscovery& hw, int tool_index, int temp_c);
 
 /// The band a measured K is expected to land in on this extruder kind. Bowden
 /// machines sit an order of magnitude above direct-drive ones, so "is this

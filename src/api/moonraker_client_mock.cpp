@@ -1073,10 +1073,10 @@ void MoonrakerClientMock::populate_capabilities() {
     // uses "tool TN" to match the established test convention (test_hardware_validator).
     if (is_mock_toolchanger()) {
         mock_objects.push_back("toolchanger");
-        // A measuring firmware's pressure-advance entry point, so the PA
-        // calibration screen is reachable in --test. Stock Klipper has no such
-        // command, which is exactly why the capability is gated on it.
-        mock_objects.push_back("gcode_macro SM_PRINT_FLOW_CALIBRATE");
+        // The object that marks a firmware able to measure pressure advance
+        // (the U1's flow calibrator depends on it), so the PA calibration
+        // screen is reachable in --test. Stock Klipper has none.
+        mock_objects.push_back("filament_parameters");
         for (int i = 0; i < 4; ++i) {
             mock_objects.push_back("tool T" + std::to_string(i));
         }
@@ -6391,7 +6391,7 @@ void MoonrakerClientMock::dispatch_manual_probe_update() {
 bool MoonrakerClientMock::simulate_pa_calibration(
     const std::string& script, std::function<void(const nlohmann::json&)> success_cb,
     std::function<void(const MoonrakerError&)> error_cb) {
-    if (script.find("SM_PRINT_FLOW_CALIBRATE") == std::string::npos) {
+    if (script.rfind("FLOW_CALIBRATE", 0) != 0) {
         return false;
     }
     record_gcode_script(script);
@@ -6410,36 +6410,33 @@ bool MoonrakerClientMock::simulate_pa_calibration(
 
     if (should_fail) {
         due += std::chrono::milliseconds(STEP_MS);
-        pending_pa_lines_.push_back(
-            {due,
-             "!! Extruder reported no filament at the sensor after 40 mm of priming. The"
-             " calibration was cancelled before any extrusion and the nozzle is cooling down.",
-             true, std::move(success_cb), std::move(error_cb)});
-        spdlog::info("[MoonrakerClientMock] SM_PRINT_FLOW_CALIBRATE: simulating refusal"
+        pending_pa_lines_.push_back({due, "!! [flow_calibrate] not edit filament info!", true,
+                                     std::move(success_cb), std::move(error_cb)});
+        spdlog::info("[MoonrakerClientMock] FLOW_CALIBRATE: simulating refusal"
                      " (HELIX_MOCK_PA_FAIL)");
         return true;
     }
 
-    // Candidate probes: the firmware sweeps K and reports the flow mismatch it
-    // measured at each one. Shaped like a real root-find converging on 0.0412.
+    // Candidate probes, in the U1 flow calibrator's own format: each measured
+    // K, then the flow mismatch it read there. Shaped like a real root-find
+    // converging on 0.0412.
     static constexpr double CANDIDATE_K[CANDIDATES] = {0.0200, 0.0600, 0.0400, 0.0420, 0.0412};
     static constexpr double CANDIDATE_AREA[CANDIDATES] = {0.0181, -0.0142, 0.0011, -0.0004,
                                                           0.00002};
     for (int i = 0; i < CANDIDATES; ++i) {
         due += std::chrono::milliseconds(STEP_MS);
-        pending_pa_lines_.push_back({due,
-                                     fmt::format("// flow calibrate: k={:.4f} area={:+.5f}",
-                                                 CANDIDATE_K[i], CANDIDATE_AREA[i]),
+        pending_pa_lines_.push_back(
+            {due, fmt::format("// measure k: {:.5f}", CANDIDATE_K[i]), false, nullptr, nullptr});
+        pending_pa_lines_.push_back({due, fmt::format("// measure area: {:.5f}", CANDIDATE_AREA[i]),
                                      false, nullptr, nullptr});
     }
 
-    // The applied value, in the shape Klipper's own SET_PRESSURE_ADVANCE echoes
-    // it — which is exactly what the collector's result pattern matches.
+    // The result line the firmware prints as it applies the value.
     due += std::chrono::milliseconds(STEP_MS);
     pending_pa_lines_.push_back(
-        {due, "// pressure_advance: 0.041200", true, std::move(success_cb), std::move(error_cb)});
+        {due, "// Got pressure advance: 0.0412", true, std::move(success_cb), std::move(error_cb)});
 
-    spdlog::info("[MoonrakerClientMock] SM_PRINT_FLOW_CALIBRATE: simulating {} candidates (~{}s)",
+    spdlog::info("[MoonrakerClientMock] FLOW_CALIBRATE: simulating {} candidates (~{}s)",
                  CANDIDATES, ((CANDIDATES + 1) * STEP_MS) / 1000);
     return true;
 }

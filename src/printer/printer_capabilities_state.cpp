@@ -193,7 +193,7 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
                        helix::tool_offset_calibration::supported(hardware) ? 1 : 0);
 
     // Automatic pressure advance calibration. Which firmwares can measure it,
-    // and how, belongs to helix::pacal — this only asks whether one matched.
+    // and how, belongs to helix::pacal - this only asks whether one matched.
     lv_subject_set_int(&printer_has_pa_cal_, helix::pacal::is_supported(hardware) ? 1 : 0);
 
     // Spoolman requires async check - default to 0, updated separately via set_spoolman_available()

@@ -101,6 +101,7 @@
   <translation tag="= Tighten" ja="= 締める"/>
   <translation tag="A" ja="A"/>
   <translation tag="A backup of %s is created before applying" ja="適用前に %s のバックアップを作成します"/>
+  <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." ja="数分かかりますが、そのほとんどは加熱です。目視での判断は不要です。"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" ja="モーターのIOピンを復元できませんでした。プリンターの電源を入れ直してください"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" ja="モーターのパラメーターを書き込めませんでした。プリンターの電源を入れ直して再試行してください"/>
   <translation tag="A newer version of the helper macros is available" ja="ヘルパーマクロの新しいバージョンが利用可能です"/>
@@ -139,7 +140,6 @@
   <translation tag="Abort failed" ja="中止に失敗"/>
   <translation tag="Aborting AFC operation..." ja="AFC操作を中止中..."/>
   <translation tag="About" ja="バージョン情報"/>
-  <translation tag="About 3 minutes at {}°C." ja="{}°C で約3分です。"/>
   <translation tag="Accel to Decel" ja="加速から減速"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" ja="加速から減速の制限値 (mm/s²)"/>
   <translation tag="Accelerometer" ja="加速度センサー"/>
@@ -227,6 +227,7 @@
   <translation tag="Assisted Retract" ja="アシスト付き引き戻し"/>
   <translation tag="Assisting" ja="アシスト中"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" ja="helixscreen.env の少なくとも{}行が無視されました"/>
+  <translation tag="At {}°C, about {} minutes." ja="{}°C で約{}分です。"/>
   <translation tag="Authentication failed" ja="認証に失敗しました"/>
   <translation tag="Auto" ja="自動"/>
   <translation tag="Auto Bed Mesh" ja="自動ベッドメッシュ"/>
@@ -664,7 +665,7 @@
   <translation tag="Copied to clipboard!" ja="クリップボードにコピーしました！"/>
   <translation tag="Copy Command" ja="コマンドをコピー"/>
   <translation tag="Copy failed - use SSH manually" ja="コピー失敗 - SSHを手動で使用してください"/>
-  <translation tag="Copy it into this filament&apos;s slicer profile — the printer keeps nothing." ja="この値をこのフィラメントのスライサー プロファイルに転記してください — プリンターには保存されません。"/>
+  <translation tag="Copy it into this filament&apos;s slicer profile. The printer keeps nothing." ja="この値をこのフィラメントのスライサー プロファイルに転記してください。プリンターには保存されません。"/>
   <translation tag="Corner roundness" ja="角の丸み"/>
   <translation tag="Correction (Ki)" ja="補正 (Ki)"/>
   <translation tag="Could not add to queue" ja="キューに追加できませんでした"/>
@@ -1276,7 +1277,7 @@
   <translation tag="Heating bed to $1°C..." ja="ベッドを$1°Cに加熱中..."/>
   <translation tag="Heating bed..." ja="ベッド加熱中..."/>
   <translation tag="Heating chamber..." ja="チャンバー加熱中..."/>
-  <translation tag="Heating is nearly the whole wait. You can leave the screen — the run stops." ja="待ち時間のほとんどは加熱です。画面を離れると実行は停止します。"/>
+  <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." ja="待ち時間のほとんどは加熱です。いま画面を離れると実行は停止します。"/>
   <translation tag="Heating nozzle" ja="ノズル加熱中"/>
   <translation tag="Heating nozzle to $1°C..." ja="ノズルを$1°Cに加熱中..."/>
   <translation tag="Heating nozzle..." ja="ノズル加熱中..."/>
@@ -1922,7 +1923,7 @@
   <translation tag="Output Device" ja="出力デバイス"/>
   <translation tag="Output Mode" ja="出力モード"/>
   <translation tag="Output Pin" ja="出力ピン"/>
-  <translation tag="Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it." ja="{} エクストルーダーの通常範囲（{:.2f}-{:.2f}）外です — 信頼する前に再測定をおすすめします。"/>
+  <translation tag="Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it." ja="通常範囲（{:.2f}-{:.2f}、{} エクストルーダー）外です。信頼する前に再測定をおすすめします。"/>
   <translation tag="Overheating" ja="過熱"/>
   <translation tag="Overlay Visits: " ja="オーバーレイ表示回数: "/>
   <translation tag="Overlays Opened" ja="開いたオーバーレイ数"/>
@@ -2824,7 +2825,9 @@
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." ja="装填中のスプールは {} ですが、このファイルは {} 用にスライスされています。充填材入りフィラメントはフローレートが低くなり、硬化ノズルが必要です。"/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." ja="ノズルは印刷領域から離れた隅で短いテスト移動を数回行い、結果が一致するまで繰り返します。"/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." ja="印刷は一時停止中です。ここでツールを交換すると、ツールヘッドが移動してノズルのフィラメントが入れ替わります。交換が完了したら印刷を再開してください。"/>
+  <translation tag="The printer applied this value and keeps it for this tool." ja="プリンターはこの値を適用し、このツールに保存しました。"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ja="プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。"/>
+  <translation tag="The printer finishes this measurement on its own." ja="この測定はプリンターが最後まで行います。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ja="プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ja="プリンターはノズルを加熱し、プレートの隅で短いテスト移動を数回行って自ら測定します。測定値が一致するまで繰り返し、最後にひとつの数値を報告します。"/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." ja="プリンターが原点復帰してカッターを走査します（約1分）。フィラメントの経路を空けてください。"/>
@@ -2998,7 +3001,6 @@
   <translation tag="Turn the extruder heater off after a load or unload finishes" ja="装填または排出の完了後にエクストルーダーヒーターをオフにします"/>
   <translation tag="Turn the picture to match how the screen is mounted. Applies after restart." ja="画面の取り付け向きに合わせて表示を回転します。再起動後に適用されます。"/>
   <translation tag="Turn the printer&apos;s lights on or off" ja="プリンターのライトをオン/オフ"/>
-  <translation tag="Two to three minutes, nearly all of it heating. You judge nothing by eye." ja="2〜3分かかりますが、そのほとんどは加熱です。目視での判断は不要です。"/>
   <translation tag="Type" ja="タイプ"/>
   <translation tag="Type to preview input field..." ja="入力フィールドをプレビューするには入力してください..."/>
   <translation tag="Type:" ja="タイプ:"/>

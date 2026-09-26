@@ -108,6 +108,7 @@ translations:
   = Tighten: = Stringere
   A: A
   A backup of %s is created before applying: 'Prima di applicare viene creato un backup di %s'
+  A few minutes, nearly all of it heating. You judge nothing by eye.: 'Pochi minuti, quasi tutti di riscaldamento. Non giudichi nulla a occhio.'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Impossibile ripristinare un pin IO del motore. Spegnere e riaccendere la stampante per ripristinare
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Impossibile scrivere i parametri di un motore. Spegnere e riaccendere la stampante e riprovare
   A newer version of the helper macros is available: 'È disponibile una versione più recente delle macro di ausilio'
@@ -146,7 +147,6 @@ translations:
   Abort failed: Interruzione fallita
   Aborting AFC operation...: Interruzione operazione AFC...
   About: Info
-  About 3 minutes at {}°C.: 'Circa 3 minuti a {}°C.'
   Accel to Decel: Accel. a Decel.
   Acceleration to deceleration limit (mm/s²): Limite accelerazione a decelerazione
     (mm/s²)
@@ -254,6 +254,7 @@ translations:
   Assisted Retract: 'Retrazione assistita'
   Assisting: Assistenza
   At least {} lines in helixscreen.env were ignored: 'Almeno {} righe di helixscreen.env sono state ignorate'
+  At {}°C, about {} minutes.: 'A {}°C, circa {} minuti.'
   Authentication failed: Autenticazione fallita
   Auto: Auto
   Auto Bed Mesh: Mesh piano automatica
@@ -740,7 +741,7 @@ translations:
   Copied to clipboard!: Copiato negli appunti!
   Copy Command: Copia comando
   Copy failed - use SSH manually: Copia fallita - usa SSH manualmente
-  Copy it into this filament's slicer profile — the printer keeps nothing.: 'Copialo nel profilo slicer di questo filamento — la stampante non conserva nulla.'
+  Copy it into this filament's slicer profile. The printer keeps nothing.: 'Copialo nel profilo slicer di questo filamento. La stampante non conserva nulla.'
   Corner roundness: Arrotondamento angoli
   Correction (Ki): Correzione (Ki)
   Could not add to queue: Impossibile aggiungere alla coda
@@ -1401,7 +1402,7 @@ translations:
   Heating bed to $1°C...: Riscaldamento piano a $1°C...
   Heating bed...: Riscaldamento piano...
   Heating chamber...: Riscaldamento camera...
-  Heating is nearly the whole wait. You can leave the screen — the run stops.: 'Il riscaldamento è quasi tutta l''attesa. Puoi lasciare la schermata — l''esecuzione si ferma.'
+  Heating is nearly the whole wait. Leaving the screen now stops the run.: 'Il riscaldamento è quasi tutta l''attesa. Se lasci la schermata ora, l''esecuzione si ferma.'
   Heating nozzle: 'Riscaldamento ugello'
   Heating nozzle to $1°C...: Riscaldamento ugello a $1°C...
   Heating nozzle...: Riscaldamento ugello...
@@ -2117,7 +2118,7 @@ translations:
   Output Device: Dispositivo di uscita
   Output Mode: Modalità uscita
   Output Pin: Pin di uscita
-  Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it.: 'Fuori dal consueto ({:.2f}-{:.2f}) per un estrusore {} — conviene rimisurare prima di fidarsene.'
+  Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it.: 'Fuori dal consueto ({:.2f}-{:.2f}) per un estrusore {}. Conviene rimisurare prima di fidarsene.'
   Overheating: Surriscaldamento
   'Overlay Visits: ': 'Visite overlay: '
   Overlays Opened: Overlay aperti
@@ -3134,7 +3135,9 @@ translations:
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : La stampa è in pausa. Cambiare utensile ora muove la testina e sostituisce il
     filamento all'ugello. Riprendi la stampa al termine del cambio.
+  The printer applied this value and keeps it for this tool.: 'La stampante ha applicato questo valore e lo conserva per questo strumento.'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'La stampante estrude in un angolo e ripete finché le letture concordano. Non giudichi nulla a occhio.'
+  The printer finishes this measurement on its own.: 'La stampante completa questa misurazione da sola.'
   The printer halted this print and cannot resume it. Restart from the beginning?: La
     stampante ha interrotto questa stampa e non può riprenderla. Riavviare dall'inizio?
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
@@ -3361,7 +3364,6 @@ translations:
   Turn the extruder heater off after a load or unload finishes: Spegni il riscaldatore dell'estrusore al termine di un caricamento o scaricamento
   Turn the picture to match how the screen is mounted. Applies after restart.: Ruota l'immagine in base a come è montato lo schermo. Ha effetto dopo il riavvio.
   Turn the printer's lights on or off: Accendi o spegni le luci
-  Two to three minutes, nearly all of it heating. You judge nothing by eye.: 'Due o tre minuti, quasi tutti di riscaldamento. Non giudichi nulla a occhio.'
   Type: Tipo
   Type to preview input field...: Digita per visualizzare anteprima campo input...
   'Type:': 'Tipo:'

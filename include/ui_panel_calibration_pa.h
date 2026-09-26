@@ -10,6 +10,7 @@
 #include "pa_calibration.h"
 #include "subject_managed_panel.h"
 
+#include <functional>
 #include <lvgl.h>
 #include <string>
 
@@ -27,7 +28,7 @@
  * human judging a printed part. Only firmwares that measure extrusion
  * back-pressure themselves can, and helix::pacal owns which those are. When no
  * provider matches, `printer_has_pa_cal` stays 0 and the entry point is hidden
- * — the screen never claims a capability the machine lacks.
+ * - the screen never claims a capability the machine lacks.
  *
  * ## The run
  *
@@ -44,16 +45,16 @@
  *
  * The printer reports a number; this panel does not send SET_PRESSURE_ADVANCE
  * and does not SAVE_CONFIG. The value belongs in the user's slicer profile,
- * per filament — which is the only place it can be right for the next spool
+ * per filament - which is the only place it can be right for the next spool
  * too. That is why COMPLETE carries one quiet button (Re-measure) instead of
  * three unequal acts dressed as equals.
  *
  * ## Subject bindings
  *
- * - pa_cal_state (int) — State below; drives which stage card is visible
- * - pa_cal_multi_tool / pa_cal_tool_count (int) — tool row shape
- * - pa_cal_tool_selected_N / pa_cal_tool_sub_N — per-tool chip
- * - pa_cal_inputs_live (int) — 1 while the target column is editable
+ * - pa_cal_state (int) - State below; drives which stage card is visible
+ * - pa_cal_multi_tool / pa_cal_tool_count (int) - tool row shape
+ * - pa_cal_tool_selected_N / pa_cal_tool_sub_N - per-tool chip
+ * - pa_cal_inputs_live (int) - 1 while the target column is editable
  * - pa_cal_temp_display / pa_cal_temp_note (string)
  * - pa_cal_preset_selected_N (int) / pa_cal_preset_temp_N (string)
  * - pa_cal_progress (int 0-100), pa_cal_phase_label / _big / _big_sub /
@@ -70,7 +71,7 @@ namespace helix::ui {
 class PACalibrationPanel : public OverlayBase {
   public:
     /// Fixed subject slots. Chips beyond the printer's tool count are never
-    /// built — <repeat> is driven by pa_cal_tool_count.
+    /// built - <repeat> is driven by pa_cal_tool_count.
     static constexpr int MAX_TOOLS = 4;
 
     /// Preset slots, mirroring helix::presets::PRESET_COUNT.
@@ -170,6 +171,8 @@ class PACalibrationPanel : public OverlayBase {
     void begin_run();
     void begin_measure();
     void stop_run(bool user_requested);
+    /// Typical minutes for a run on this printer, for the pre-run copy.
+    int estimate_minutes() const;
     void on_result(float k);
     void on_error(const std::string& message);
     void on_attempt(int attempt, int expected, float k_so_far);
@@ -177,7 +180,7 @@ class PACalibrationPanel : public OverlayBase {
     // --- state / display ---
     void set_state(State s);
     /// Repaint the tool chips. `adopt_active` seeds the selection from the
-    /// tool currently on the carriage — true only when the screen opens. On a
+    /// tool currently on the carriage - true only when the screen opens. On a
     /// plain refresh the selection is the USER's, and must not be dragged back
     /// to the mounted tool: a toolchange takes ~20s to confirm (and on some
     /// backends never reports at all), so following it would snap the chip back
@@ -236,9 +239,10 @@ class PACalibrationPanel : public OverlayBase {
     int result_temp_ = 0;
     std::string result_material_;
 
-    /// Set while stop_run() is unwinding, so the collector's own error (the
-    /// firmware noticing the cancel) does not overwrite the idle screen.
-    bool aborting_ = false;
+    /// Stops listening to the run in progress. Klipper cannot interrupt a
+    /// running command, so a stop mid-measurement leaves the firmware to
+    /// finish while the screen stops waiting for it.
+    std::function<void()> pa_cancel_;
 
     /// Ticks when the current phase began, for the remaining-time clock.
     uint32_t phase_start_tick_ms_ = 0;
@@ -292,6 +296,8 @@ class PACalibrationPanel : public OverlayBase {
     char result_buf_[16] = {};
     lv_subject_t result_sanity_;
     char result_sanity_buf_[128] = {};
+    lv_subject_t keep_note_;
+    char keep_note_buf_[128] = {};
 
     lv_subject_t error_title_;
     char error_title_buf_[64] = {};

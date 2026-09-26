@@ -10,6 +10,7 @@
 #include "ui_nav_manager.h"
 #include "ui_temperature_utils.h"
 #include "ui_timer_guard.h"
+#include "ui_toast_manager.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
@@ -132,6 +133,7 @@ void PACalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(remaining_, remaining_buf_, "--:--", "pa_cal_remaining", subjects_);
     UI_MANAGED_SUBJECT_STRING(prog_foot_, prog_foot_buf_, "", "pa_cal_prog_foot", subjects_);
     UI_MANAGED_SUBJECT_STRING(result_, result_buf_, "--", "pa_cal_result", subjects_);
+    UI_MANAGED_SUBJECT_STRING(keep_note_, keep_note_buf_, "", "pa_cal_keep_note", subjects_);
     UI_MANAGED_SUBJECT_STRING(result_sanity_, result_sanity_buf_, "", "pa_cal_result_sanity",
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(error_title_, error_title_buf_, "", "pa_cal_error_title", subjects_);
@@ -185,16 +187,15 @@ void PACalibrationPanel::on_activate() {
     OverlayBase::on_activate();
 
     // A run never survives leaving the screen, so opening it is always a clean
-    // slate — except for the last measured value, which is the most useful
+    // slate, except for the last measured value, which is the most useful
     // thing on the screen when coming back.
-    aborting_ = false;
     attempts_seen_ = 0;
 
     // The chips must show what is actually mounted. A toolchange started from
     // here takes ~20s and is confirmed by the printer, not by the tap, so the
     // selection follows ToolState rather than leading it.
     // The lifetime is mandatory, not optional: observe_* takes it as a
-    // defaulted parameter, so omitting it is silent — the guard never learns
+    // defaulted parameter, so omitting it is silent - the guard never learns
     // the subject died and reset() then touches freed memory (#705).
     auto& tool_state = helix::ToolState::instance();
     active_tool_observer_ = helix::ui::observe_int_sync<PACalibrationPanel>(
@@ -387,7 +388,8 @@ void PACalibrationPanel::confirm_and_start() {
                           "build plate on with nothing in the way of the head."),
                     lv_tr("The nozzle extrudes a few short test moves in a corner, away from the "
                           "print area, and repeats until it agrees with itself."),
-                    fmt::format(fmt::runtime(lv_tr("About 3 minutes at {}°C.")), target_temp_));
+                    fmt::format(fmt::runtime(lv_tr("At {}°C, about {} minutes.")), target_temp_,
+                                estimate_minutes()));
 
     modal_confirm(lv_tr("Before starting"), msg.c_str(), ModalSeverity::Warning, lv_tr("Start"),
                   []() { get_global_pa_cal_panel().begin_run(); });
@@ -399,7 +401,6 @@ void PACalibrationPanel::begin_run() {
         return;
     }
 
-    aborting_ = false;
     attempts_seen_ = 0;
     result_k_ = 0.0f;
     lv_subject_set_int(&progress_, 0);
@@ -419,12 +420,13 @@ void PACalibrationPanel::begin_run() {
     lv_subject_copy_string(&phase_label_, lv_tr("Heating nozzle"));
     lv_subject_copy_string(
         &prog_foot_,
-        lv_tr("Heating is nearly the whole wait. You can leave the screen — the run stops."));
+        lv_tr("Heating is nearly the whole wait. Leaving the screen now stops the run."));
     start_heat_tracking();
 }
 
 void PACalibrationPanel::begin_measure() {
-    auto proc = helix::pacal::procedure_for(get_printer_state().get_discovery(), selected_tool_);
+    auto proc = helix::pacal::procedure_for(get_printer_state().get_discovery(), selected_tool_,
+                                            target_temp_);
     if (!proc) {
         show_error("This printer cannot measure pressure advance automatically.");
         return;
@@ -445,7 +447,7 @@ void PACalibrationPanel::begin_measure() {
     // tok.defer, not queue_update: these fire on the response thread and the
     // guard drops the call if the panel is gone before the main-thread drain.
     auto tok = lifetime_.token();
-    api_->advanced().start_pa_calibrate(
+    pa_cancel_ = api_->advanced().start_pa_calibrate(
         *proc,
         [this, tok](float k) {
             tok.defer("PACalibrationPanel::on_result", [this, k]() { on_result(k); });
@@ -461,29 +463,45 @@ void PACalibrationPanel::begin_measure() {
         });
 }
 
+int PACalibrationPanel::estimate_minutes() const {
+    const auto proc = helix::pacal::procedure_for(get_printer_state().get_discovery(),
+                                                  selected_tool_, target_temp_);
+    return proc ? proc->estimate_minutes : helix::pacal::Procedure{}.estimate_minutes;
+}
+
 void PACalibrationPanel::stop_run(bool user_requested) {
     if (state_ != HEATING && state_ != MEASURING) {
         return;
     }
-    aborting_ = true;
     stop_heat_tracking();
 
-    // Cool down. Leaving a nozzle at 245° because somebody backed out of a
-    // calibration is its own small hazard.
-    if (auto* controller = get_temperature_controller()) {
+    if (state_ == MEASURING) {
+        // The command is running and Klipper cannot interrupt it. Cooling the
+        // nozzle under a firmware that is still purging turns a stop into a
+        // cold-extrude error, so the heater stays with the firmware and only
+        // the screen stops waiting.
+        if (pa_cancel_) {
+            pa_cancel_();
+            pa_cancel_ = nullptr;
+        }
+        ToastManager::instance().show(
+            ToastSeverity::INFO, lv_tr("The printer finishes this measurement on its own."), 5000);
+    } else if (auto* controller = get_temperature_controller()) {
+        // Nothing was sent yet: the heat-up is ours, so it is ours to undo.
         controller->set_target(selected_heater(), 0.0);
     }
 
     spdlog::info("[{}] Run stopped ({})", get_name(), user_requested ? "user" : "left screen");
     set_state(IDLE);
     lv_subject_set_int(&progress_, 0);
-    aborting_ = false;
 }
 
 void PACalibrationPanel::on_result(float k) {
-    if (aborting_) {
+    // A result only belongs to the run this screen is waiting on.
+    if (state_ != MEASURING) {
         return;
     }
+    pa_cancel_ = nullptr;
     stop_heat_tracking();
 
     result_k_ = k;
@@ -492,13 +510,21 @@ void PACalibrationPanel::on_result(float k) {
     result_temp_ = target_temp_;
     result_material_ = selected_preset_ >= 0 ? helix::presets::name(selected_preset_) : "";
 
-    // Nothing is applied and nothing is saved - the number belongs in the
-    // slicer, per filament. The nozzle has no more work to do.
+    // The nozzle has no more work to do.
     if (auto* controller = get_temperature_controller()) {
         controller->set_target(selected_heater(), 0.0);
     }
 
     const auto& hw = get_printer_state().get_discovery();
+    // Whether the value already lives on the printer decides what the user has
+    // left to do with it.
+    const auto proc = helix::pacal::procedure_for(hw, selected_tool_, target_temp_);
+    lv_subject_copy_string(
+        &keep_note_,
+        proc && proc->applies_result
+            ? lv_tr("The printer applied this value and keeps it for this tool.")
+            : lv_tr("Copy it into this filament's slicer profile. The printer keeps nothing."));
+
     const bool plausible = helix::pacal::is_plausible(hw, k);
     const auto range = helix::pacal::sane_range(hw);
 
@@ -512,8 +538,8 @@ void PACalibrationPanel::on_result(float k) {
                   .c_str()
             // The one judgement the machine cannot make for itself: a value
             // that parsed fine and is still wrong.
-            : fmt::format(fmt::runtime(lv_tr("Outside the usual {:.2f}-{:.2f} for a {} extruder — "
-                                             "worth measuring again before trusting it.")),
+            : fmt::format(fmt::runtime(lv_tr("Outside the usual {:.2f}-{:.2f} for a {} extruder. "
+                                             "Worth measuring again before trusting it.")),
                           range.low, range.high, range.extruder_kind)
                   .c_str());
 
@@ -524,10 +550,11 @@ void PACalibrationPanel::on_result(float k) {
 }
 
 void PACalibrationPanel::on_error(const std::string& message) {
-    if (aborting_) {
-        // The firmware noticing our own cancel is not news.
+    // An error only belongs to the run this screen is waiting on.
+    if (state_ != MEASURING) {
         return;
     }
+    pa_cancel_ = nullptr;
     stop_heat_tracking();
     if (auto* controller = get_temperature_controller()) {
         controller->set_target(selected_heater(), 0.0);
@@ -697,7 +724,7 @@ void PACalibrationPanel::select_tool(int tool) {
     if (!backend) {
         // Nothing can mount a tool, so nothing should pretend to. The chip
         // selection stays where the printer actually is.
-        spdlog::warn("[{}] No filament backend — cannot change tool", get_name());
+        spdlog::warn("[{}] No filament backend - cannot change tool", get_name());
         return;
     }
 
@@ -766,7 +793,7 @@ void PACalibrationPanel::on_tool_clicked(lv_event_t* e) {
             const int tool = std::atoi(arg);
             panel.selected_tool_ = tool;
             // Pressure advance belongs to an extruder, and the firmware
-            // measures whichever one is mounted — so picking a tool here has to
+            // measures whichever one is mounted - so picking a tool here has to
             // actually mount it, not just tint a chip.
             panel.select_tool(tool);
             panel.refresh_tools();

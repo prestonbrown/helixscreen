@@ -103,6 +103,7 @@ translations:
   = Tighten: = 拧紧
   A: 辅
   A backup of %s is created before applying: '应用前会创建 %s 的备份'
+  A few minutes, nearly all of it heating. You judge nothing by eye.: '需要几分钟，几乎全是加热时间。你无需用肉眼判断任何东西。'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: 无法恢复电机 IO 引脚。请重新为打印机上电以恢复
   A motor's parameters couldn't be written. Power-cycle the printer to retry: 无法写入电机参数。请重新为打印机上电后重试
   A newer version of the helper macros is available: '有更新版本的帮助宏可用'
@@ -139,7 +140,6 @@ translations:
   Abort failed: 中止失败
   Aborting AFC operation...: 正在中止AFC操作...
   About: 关于
-  About 3 minutes at {}°C.: '在 {}°C 下约需 3 分钟。'
   Accel to Decel: 加速到减速
   Acceleration to deceleration limit (mm/s²): 加速到减速限制 (mm/s²)
   Accelerometer: 加速度传感器
@@ -230,6 +230,7 @@ translations:
   Assisted Retract: '辅助回抽'
   Assisting: 辅助中
   At least {} lines in helixscreen.env were ignored: 'helixscreen.env 中至少有 {} 行被忽略'
+  At {}°C, about {} minutes.: '在 {}°C 下约需 {} 分钟。'
   Authentication failed: 认证失败
   Auto: 自动
   Auto Bed Mesh: 自动热床网格
@@ -674,7 +675,7 @@ translations:
   Copied to clipboard!: 已复制到剪贴板！
   Copy Command: 复制命令
   Copy failed - use SSH manually: 复制失败 - 请手动使用 SSH
-  Copy it into this filament's slicer profile — the printer keeps nothing.: '请把它复制到该耗材的切片软件配置中 — 打印机不会保存任何内容。'
+  Copy it into this filament's slicer profile. The printer keeps nothing.: '请把它复制到该耗材的切片软件配置中。打印机不会保存任何内容。'
   Corner roundness: 圆角程度
   Correction (Ki): 校正 (Ki)
   Could not add to queue: 无法添加到队列
@@ -1303,7 +1304,7 @@ translations:
   Heating bed to $1°C...: 正在加热热床至 $1°C...
   Heating bed...: 正在加热热床...
   Heating chamber...: 正在加热腔体...
-  Heating is nearly the whole wait. You can leave the screen — the run stops.: '加热占了几乎全部等待时间。你可以离开此页面 — 运行会随之停止。'
+  Heating is nearly the whole wait. Leaving the screen now stops the run.: '加热占了几乎全部等待时间。现在离开此页面会停止运行。'
   Heating nozzle: '喷嘴加热中'
   Heating nozzle to $1°C...: 正在加热喷嘴至 $1°C...
   Heating nozzle...: 正在加热喷嘴...
@@ -1969,7 +1970,7 @@ translations:
   Output Device: 输出设备
   Output Mode: 输出模式
   Output Pin: 输出引脚
-  Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it.: '超出 {} 挤出机的常见范围（{:.2f}-{:.2f}）— 建议再次测量后再采用。'
+  Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it.: '超出常见范围（{:.2f}-{:.2f}，{} 挤出机）。建议再次测量后再采用。'
   Overheating: 过热
   'Overlay Visits: ': '浮层访问次数: '
   Overlays Opened: 已打开浮层数
@@ -2910,7 +2911,9 @@ translations:
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: '喷嘴在远离打印区域的角落进行几次短促的测试挤出，并重复直到读数一致。'
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : 打印已暂停。现在切换工具会移动工具头并更换喷嘴处的耗材。切换完成后请恢复打印。
+  The printer applied this value and keeps it for this tool.: '打印机已应用此值，并为该工具保存。'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: '打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。'
+  The printer finishes this measurement on its own.: '打印机会自行完成这次测量。'
   The printer halted this print and cannot resume it. Restart from the beginning?: 打印机已停止此打印且无法恢复。从头重新开始？
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : '打印机会加热喷嘴，在打印板角落进行几次短促的测试挤出并自行测量。它会重复直到读数一致，然后给出一个数值。'
@@ -3105,7 +3108,6 @@ translations:
   Turn the extruder heater off after a load or unload finishes: 加载或卸载完成后关闭挤出机加热器
   Turn the picture to match how the screen is mounted. Applies after restart.: 旋转画面以匹配屏幕的安装方向。重启后生效。
   Turn the printer's lights on or off: 开启或关闭打印机灯光
-  Two to three minutes, nearly all of it heating. You judge nothing by eye.: '需要两到三分钟，几乎全是加热时间。你无需用肉眼判断任何东西。'
   Type: 类型
   Type to preview input field...: 输入以预览输入框...
   'Type:': '类型:'

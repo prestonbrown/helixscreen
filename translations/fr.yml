@@ -110,6 +110,7 @@ translations:
   = Tighten: = Serrer
   A: A
   A backup of %s is created before applying: 'Une sauvegarde de %s est créée avant l''application'
+  A few minutes, nearly all of it heating. You judge nothing by eye.: 'Quelques minutes, presque tout en chauffage. Vous ne jugez rien à l''œil.'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Une broche d'E/S moteur n'a pas pu être restaurée. Éteignez et rallumez l'imprimante pour récupérer
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Les paramètres d'un moteur n'ont pas pu être écrits. Éteignez et rallumez l'imprimante pour réessayer
   A newer version of the helper macros is available: 'Une version plus récente des macros d''aide est disponible'
@@ -148,7 +149,6 @@ translations:
   Abort failed: Échec de l'annulation
   Aborting AFC operation...: Annulation de l'opération AFC...
   About: À propos
-  About 3 minutes at {}°C.: 'Environ 3 minutes à {}°C.'
   Accel to Decel: Accél. à Décél.
   Acceleration to deceleration limit (mm/s²): Limite d'accélération à décélération
     (mm/s²)
@@ -258,6 +258,7 @@ translations:
   Assisted Retract: 'Rétraction assistée'
   Assisting: Assistance
   At least {} lines in helixscreen.env were ignored: 'Au moins {} lignes de helixscreen.env ont été ignorées'
+  At {}°C, about {} minutes.: 'À {}°C, environ {} minutes.'
   Authentication failed: Échec de l'authentification
   Auto: Auto
   Auto Bed Mesh: Maillage auto du plateau
@@ -751,7 +752,7 @@ translations:
   Copied to clipboard!: Copié dans le presse-papiers !
   Copy Command: Copier la commande
   Copy failed - use SSH manually: Copie échouée - utilisez SSH manuellement
-  Copy it into this filament's slicer profile — the printer keeps nothing.: 'Recopiez-le dans le profil de trancheur de ce filament — l''imprimante ne conserve rien.'
+  Copy it into this filament's slicer profile. The printer keeps nothing.: 'Recopiez-le dans le profil de trancheur de ce filament. L''imprimante ne conserve rien.'
   Corner roundness: Arrondi des coins
   Correction (Ki): Correction (Ki)
   Could not add to queue: Impossible d'ajouter à la file
@@ -1416,7 +1417,7 @@ translations:
   Heating bed to $1°C...: Chauffe du plateau à $1°C...
   Heating bed...: Chauffe du plateau...
   Heating chamber...: Chauffe de la chambre...
-  Heating is nearly the whole wait. You can leave the screen — the run stops.: 'Le chauffage est presque toute l''attente. Vous pouvez quitter l''écran — l''exécution s''arrête.'
+  Heating is nearly the whole wait. Leaving the screen now stops the run.: 'Le chauffage est presque toute l''attente. Quitter l''écran maintenant arrête l''exécution.'
   Heating nozzle: 'Chauffe de la buse'
   Heating nozzle to $1°C...: Chauffe de la buse à $1°C...
   Heating nozzle...: Chauffe de la buse...
@@ -2132,7 +2133,7 @@ translations:
   Output Device: Périphérique de sortie
   Output Mode: Mode de sortie
   Output Pin: Broche de sortie
-  Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it.: 'Hors de la plage habituelle ({:.2f}-{:.2f}) pour un extrudeur {} — à remesurer avant de s''y fier.'
+  Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it.: 'Hors de la plage habituelle ({:.2f}-{:.2f}) pour un extrudeur {}. À remesurer avant de s''y fier.'
   Overheating: Surchauffe
   'Overlay Visits: ': 'Visites de superposition : '
   Overlays Opened: Superpositions ouvertes
@@ -3159,7 +3160,9 @@ translations:
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: 'La buse fait quelques mouvements de test dans un coin, à l''écart de la zone d''impression, et répète jusqu''à convergence.'
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : L'impression est en pause. Changer d'outil maintenant déplace la tête d'impression et remplace le filament au niveau de la buse. Reprenez l'impression une fois le changement terminé.
+  The printer applied this value and keeps it for this tool.: 'L''imprimante a appliqué cette valeur et la conserve pour cet outil.'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'L''imprimante extrude dans un coin et répète jusqu''à ce que les mesures concordent. Vous ne jugez rien à l''œil.'
+  The printer finishes this measurement on its own.: 'L''imprimante termine cette mesure d''elle-même.'
   The printer halted this print and cannot resume it. Restart from the beginning?: L'imprimante
     a arrêté cette impression et ne peut pas la reprendre. Redémarrer depuis le début
     ?
@@ -3392,7 +3395,6 @@ translations:
   Turn the extruder heater off after a load or unload finishes: Éteindre le chauffage de l'extrudeur après un chargement ou un déchargement
   Turn the picture to match how the screen is mounted. Applies after restart.: Fait pivoter l'image selon l'orientation de montage de l'écran. Prend effet après redémarrage.
   Turn the printer's lights on or off: Allumer ou éteindre les lumières
-  Two to three minutes, nearly all of it heating. You judge nothing by eye.: 'Deux à trois minutes, presque tout en chauffage. Vous ne jugez rien à l''œil.'
   Type: Type
   Type to preview input field...: Tapez pour prévisualiser le champ de saisie...
   'Type:': 'Type :'

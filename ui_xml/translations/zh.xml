@@ -101,6 +101,7 @@
   <translation tag="= Tighten" zh="= 拧紧"/>
   <translation tag="A" zh="辅"/>
   <translation tag="A backup of %s is created before applying" zh="应用前会创建 %s 的备份"/>
+  <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." zh="需要几分钟，几乎全是加热时间。你无需用肉眼判断任何东西。"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" zh="无法恢复电机 IO 引脚。请重新为打印机上电以恢复"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" zh="无法写入电机参数。请重新为打印机上电后重试"/>
   <translation tag="A newer version of the helper macros is available" zh="有更新版本的帮助宏可用"/>
@@ -139,7 +140,6 @@
   <translation tag="Abort failed" zh="中止失败"/>
   <translation tag="Aborting AFC operation..." zh="正在中止AFC操作..."/>
   <translation tag="About" zh="关于"/>
-  <translation tag="About 3 minutes at {}°C." zh="在 {}°C 下约需 3 分钟。"/>
   <translation tag="Accel to Decel" zh="加速到减速"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" zh="加速到减速限制 (mm/s²)"/>
   <translation tag="Accelerometer" zh="加速度传感器"/>
@@ -227,6 +227,7 @@
   <translation tag="Assisted Retract" zh="辅助回抽"/>
   <translation tag="Assisting" zh="辅助中"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" zh="helixscreen.env 中至少有 {} 行被忽略"/>
+  <translation tag="At {}°C, about {} minutes." zh="在 {}°C 下约需 {} 分钟。"/>
   <translation tag="Authentication failed" zh="认证失败"/>
   <translation tag="Auto" zh="自动"/>
   <translation tag="Auto Bed Mesh" zh="自动热床网格"/>
@@ -664,7 +665,7 @@
   <translation tag="Copied to clipboard!" zh="已复制到剪贴板！"/>
   <translation tag="Copy Command" zh="复制命令"/>
   <translation tag="Copy failed - use SSH manually" zh="复制失败 - 请手动使用 SSH"/>
-  <translation tag="Copy it into this filament&apos;s slicer profile — the printer keeps nothing." zh="请把它复制到该耗材的切片软件配置中 — 打印机不会保存任何内容。"/>
+  <translation tag="Copy it into this filament&apos;s slicer profile. The printer keeps nothing." zh="请把它复制到该耗材的切片软件配置中。打印机不会保存任何内容。"/>
   <translation tag="Corner roundness" zh="圆角程度"/>
   <translation tag="Correction (Ki)" zh="校正 (Ki)"/>
   <translation tag="Could not add to queue" zh="无法添加到队列"/>
@@ -1276,7 +1277,7 @@
   <translation tag="Heating bed to $1°C..." zh="正在加热热床至 $1°C..."/>
   <translation tag="Heating bed..." zh="正在加热热床..."/>
   <translation tag="Heating chamber..." zh="正在加热腔体..."/>
-  <translation tag="Heating is nearly the whole wait. You can leave the screen — the run stops." zh="加热占了几乎全部等待时间。你可以离开此页面 — 运行会随之停止。"/>
+  <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." zh="加热占了几乎全部等待时间。现在离开此页面会停止运行。"/>
   <translation tag="Heating nozzle" zh="喷嘴加热中"/>
   <translation tag="Heating nozzle to $1°C..." zh="正在加热喷嘴至 $1°C..."/>
   <translation tag="Heating nozzle..." zh="正在加热喷嘴..."/>
@@ -1922,7 +1923,7 @@
   <translation tag="Output Device" zh="输出设备"/>
   <translation tag="Output Mode" zh="输出模式"/>
   <translation tag="Output Pin" zh="输出引脚"/>
-  <translation tag="Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it." zh="超出 {} 挤出机的常见范围（{:.2f}-{:.2f}）— 建议再次测量后再采用。"/>
+  <translation tag="Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it." zh="超出常见范围（{:.2f}-{:.2f}，{} 挤出机）。建议再次测量后再采用。"/>
   <translation tag="Overheating" zh="过热"/>
   <translation tag="Overlay Visits: " zh="浮层访问次数: "/>
   <translation tag="Overlays Opened" zh="已打开浮层数"/>
@@ -2824,7 +2825,9 @@
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." zh="当前装载的料盘是 {}，但此文件为 {} 切片。填充耗材需要以更低的流量运行，且需要硬化喷嘴。"/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." zh="喷嘴在远离打印区域的角落进行几次短促的测试挤出，并重复直到读数一致。"/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." zh="打印已暂停。现在切换工具会移动工具头并更换喷嘴处的耗材。切换完成后请恢复打印。"/>
+  <translation tag="The printer applied this value and keeps it for this tool." zh="打印机已应用此值，并为该工具保存。"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." zh="打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。"/>
+  <translation tag="The printer finishes this measurement on its own." zh="打印机会自行完成这次测量。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" zh="打印机已停止此打印且无法恢复。从头重新开始？"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." zh="打印机会加热喷嘴，在打印板角落进行几次短促的测试挤出并自行测量。它会重复直到读数一致，然后给出一个数值。"/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." zh="打印机将归零并扫过切刀（约1分钟）。请保持料路畅通。"/>
@@ -2998,7 +3001,6 @@
   <translation tag="Turn the extruder heater off after a load or unload finishes" zh="加载或卸载完成后关闭挤出机加热器"/>
   <translation tag="Turn the picture to match how the screen is mounted. Applies after restart." zh="旋转画面以匹配屏幕的安装方向。重启后生效。"/>
   <translation tag="Turn the printer&apos;s lights on or off" zh="开启或关闭打印机灯光"/>
-  <translation tag="Two to three minutes, nearly all of it heating. You judge nothing by eye." zh="需要两到三分钟，几乎全是加热时间。你无需用肉眼判断任何东西。"/>
   <translation tag="Type" zh="类型"/>
   <translation tag="Type to preview input field..." zh="输入以预览输入框..."/>
   <translation tag="Type:" zh="类型:"/>

@@ -102,6 +102,7 @@ translations:
   = Tighten: = Tighten
   A: A
   A backup of %s is created before applying: A backup of %s is created before applying
+  A few minutes, nearly all of it heating. You judge nothing by eye.: 'A few minutes, nearly all of it heating. You judge nothing by eye.'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: A motor IO pin couldn't be restored. Power-cycle the printer to recover
   A motor's parameters couldn't be written. Power-cycle the printer to retry: A motor's parameters couldn't be written. Power-cycle the printer to retry
   A newer version of the helper macros is available: A newer version of the helper macros is available
@@ -141,7 +142,6 @@ translations:
   Abort failed: Abort failed
   Aborting AFC operation...: Aborting AFC operation...
   About: About
-  About 3 minutes at {}°C.: About 3 minutes at {}°C.
   Accel to Decel: Accel to Decel
   Acceleration to deceleration limit (mm/s²): Acceleration to deceleration limit (mm/s²)
   Accelerometer: Accelerometer
@@ -244,6 +244,7 @@ translations:
   Assisted Retract: Assisted Retract
   Assisting: Assisting
   At least {} lines in helixscreen.env were ignored: At least {} lines in helixscreen.env were ignored
+  At {}°C, about {} minutes.: 'At {}°C, about {} minutes.'
   Authentication failed: Authentication failed
   Auto: Auto
   Auto Bed Mesh: Auto Bed Mesh
@@ -720,7 +721,7 @@ translations:
   Copied to clipboard!: Copied to clipboard!
   Copy Command: Copy Command
   Copy failed - use SSH manually: Copy failed - use SSH manually
-  Copy it into this filament's slicer profile — the printer keeps nothing.: Copy it into this filament's slicer profile — the printer keeps nothing.
+  Copy it into this filament's slicer profile. The printer keeps nothing.: 'Copy it into this filament''s slicer profile. The printer keeps nothing.'
   Corner roundness: Corner roundness
   Correction (Ki): Correction (Ki)
   Could not add to queue: Could not add to queue
@@ -1369,7 +1370,7 @@ translations:
   'Heating bed to $1°C...': 'Heating bed to $1°C...'
   'Heating bed...': 'Heating bed...'
   'Heating chamber...': 'Heating chamber...'
-  Heating is nearly the whole wait. You can leave the screen — the run stops.: Heating is nearly the whole wait. You can leave the screen — the run stops.
+  Heating is nearly the whole wait. Leaving the screen now stops the run.: 'Heating is nearly the whole wait. Leaving the screen now stops the run.'
   Heating nozzle: Heating nozzle
   'Heating nozzle to $1°C...': 'Heating nozzle to $1°C...'
   'Heating nozzle...': 'Heating nozzle...'
@@ -2071,7 +2072,7 @@ translations:
   Output Device: Output Device
   Output Mode: Output Mode
   Output Pin: Output Pin
-  Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it.: Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it.
+  Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it.: 'Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it.'
   Overheating: Overheating
   'Overlay Visits: ': 'Overlay Visits: '
   Overlays Opened: Overlays Opened
@@ -3070,7 +3071,9 @@ translations:
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
+  The printer applied this value and keeps it for this tool.: 'The printer applied this value and keeps it for this tool.'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.
+  The printer finishes this measurement on its own.: 'The printer finishes this measurement on its own.'
   The printer halted this print and cannot resume it. Restart from the beginning?: The
     printer halted this print and cannot resume it. Restart from the beginning?
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
@@ -3287,7 +3290,6 @@ translations:
   Turn the extruder heater off after a load or unload finishes: Turn the extruder heater off after a load or unload finishes
   Turn the picture to match how the screen is mounted. Applies after restart.: Turn the picture to match how the screen is mounted. Applies after restart.
   Turn the printer's lights on or off: Turn the printer's lights on or off
-  Two to three minutes, nearly all of it heating. You judge nothing by eye.: Two to three minutes, nearly all of it heating. You judge nothing by eye.
   Type: Type
   Type to preview input field...: Type to preview input field...
   'Type:': 'Type:'

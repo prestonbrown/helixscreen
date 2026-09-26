@@ -359,9 +359,12 @@ class IAdvancedAPI {
     /// Run one automatic pressure-advance calibration. `proc` carries the
     /// already-resolved command and console patterns (helix::pacal), so this
     /// layer stays firmware-agnostic: it sends, it watches, it reports.
-    virtual void start_pa_calibrate(const helix::pacal::Procedure& proc,
-                                    PACalibrateCallback on_complete, ErrorCallback on_error,
-                                    PAProgressCallback on_progress = nullptr) = 0;
+    /// Returns a cancel handle that stops listening; no callback fires after
+    /// it. The firmware still finishes the run it is in.
+    virtual std::function<void()> start_pa_calibrate(const helix::pacal::Procedure& proc,
+                                                     PACalibrateCallback on_complete,
+                                                     ErrorCallback on_error,
+                                                     PAProgressCallback on_progress = nullptr) = 0;
 
     virtual void get_machine_limits(helix::MachineLimitsCallback on_success,
                                     ErrorCallback on_error) = 0;

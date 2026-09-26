@@ -101,6 +101,7 @@
   <translation tag="= Tighten" es="= Apretar"/>
   <translation tag="A" es="A"/>
   <translation tag="A backup of %s is created before applying" es="Se crea una copia de seguridad de %s antes de aplicar"/>
+  <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." es="Unos minutos, casi todo calentando. No juzgas nada a ojo."/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" es="No se pudo restaurar un pin de E/S del motor. Apague y encienda la impresora para recuperarla"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" es="No se pudieron escribir los parámetros de un motor. Apague y encienda la impresora para reintentar"/>
   <translation tag="A newer version of the helper macros is available" es="Hay una versión más reciente de las macros de ayuda disponible"/>
@@ -139,7 +140,6 @@
   <translation tag="Abort failed" es="Error al cancelar"/>
   <translation tag="Aborting AFC operation..." es="Cancelando operación AFC..."/>
   <translation tag="About" es="Acerca de"/>
-  <translation tag="About 3 minutes at {}°C." es="Unos 3 minutos a {}°C."/>
   <translation tag="Accel to Decel" es="Acel a Desacel"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" es="Límite de aceleración a desaceleración (mm/s²)"/>
   <translation tag="Accelerometer" es="Acelerómetro"/>
@@ -227,6 +227,7 @@
   <translation tag="Assisted Retract" es="Retracción asistida"/>
   <translation tag="Assisting" es="Asistiendo"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" es="Al menos {} líneas de helixscreen.env fueron ignoradas"/>
+  <translation tag="At {}°C, about {} minutes." es="A {}°C, unos {} minutos."/>
   <translation tag="Authentication failed" es="Error de autenticación"/>
   <translation tag="Auto" es="Automático"/>
   <translation tag="Auto Bed Mesh" es="Malla de Cama Automática"/>
@@ -664,7 +665,7 @@
   <translation tag="Copied to clipboard!" es="¡Copiado al portapapeles!"/>
   <translation tag="Copy Command" es="Copiar Comando"/>
   <translation tag="Copy failed - use SSH manually" es="Error al copiar - use SSH manualmente"/>
-  <translation tag="Copy it into this filament&apos;s slicer profile — the printer keeps nothing." es="Cópialo en el perfil del laminador de este filamento — la impresora no guarda nada."/>
+  <translation tag="Copy it into this filament&apos;s slicer profile. The printer keeps nothing." es="Cópialo en el perfil del laminador de este filamento. La impresora no guarda nada."/>
   <translation tag="Corner roundness" es="Redondeo de esquinas"/>
   <translation tag="Correction (Ki)" es="Corrección (Ki)"/>
   <translation tag="Could not add to queue" es="No se pudo añadir a la cola"/>
@@ -1276,7 +1277,7 @@
   <translation tag="Heating bed to $1°C..." es="Calentando cama a $1°C..."/>
   <translation tag="Heating bed..." es="Calentando cama..."/>
   <translation tag="Heating chamber..." es="Calentando cámara..."/>
-  <translation tag="Heating is nearly the whole wait. You can leave the screen — the run stops." es="El calentamiento es casi toda la espera. Puedes salir de la pantalla — la ejecución se detiene."/>
+  <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." es="El calentamiento es casi toda la espera. Si sales de la pantalla ahora, la ejecución se detiene."/>
   <translation tag="Heating nozzle" es="Calentando boquilla"/>
   <translation tag="Heating nozzle to $1°C..." es="Calentando boquilla a $1°C..."/>
   <translation tag="Heating nozzle..." es="Calentando boquilla..."/>
@@ -1922,7 +1923,7 @@
   <translation tag="Output Device" es="Dispositivo de salida"/>
   <translation tag="Output Mode" es="Modo de Salida"/>
   <translation tag="Output Pin" es="Pin de Salida"/>
-  <translation tag="Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it." es="Fuera de lo habitual ({:.2f}-{:.2f}) para un extrusor {} — conviene volver a medir antes de fiarse."/>
+  <translation tag="Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it." es="Fuera de lo habitual ({:.2f}-{:.2f}) para un extrusor {}. Conviene volver a medir antes de fiarse."/>
   <translation tag="Overheating" es="Sobrecalentamiento"/>
   <translation tag="Overlay Visits: " es="Visitas de superposición: "/>
   <translation tag="Overlays Opened" es="Superposiciones abiertas"/>
@@ -2824,7 +2825,9 @@
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." es="La bobina cargada es {}, pero este archivo se laminó para {}. El filamento con relleno funciona con un caudal menor y necesita una boquilla endurecida."/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." es="La boquilla hace unos movimientos de prueba cortos en una esquina, lejos de la zona de impresión, y repite hasta que los valores coinciden."/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." es="La impresión está pausada. Cambiar de herramienta ahora mueve el cabezal y cambia el filamento en la boquilla. Reanude la impresión una vez que el cambio termine."/>
+  <translation tag="The printer applied this value and keeps it for this tool." es="La impresora aplicó este valor y lo conserva para esta herramienta."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." es="La impresora extruye en una esquina y repite hasta que las lecturas coinciden. Tú no juzgas nada a ojo."/>
+  <translation tag="The printer finishes this measurement on its own." es="La impresora termina esta medición por su cuenta."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" es="La impresora detuvo esta impresión y no puede reanudarla. ¿Reiniciar desde el principio?"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." es="La impresora calienta la boquilla, hace unos movimientos de prueba cortos en una esquina de la placa y los mide ella misma. Repite hasta que las lecturas coinciden y luego informa de un número."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." es="La impresora referencia y barre el cortador (unos 60 segundos). Mantenga despejada la ruta del filamento."/>
@@ -2998,7 +3001,6 @@
   <translation tag="Turn the extruder heater off after a load or unload finishes" es="Apagar el calentador del extrusor al terminar una carga o descarga"/>
   <translation tag="Turn the picture to match how the screen is mounted. Applies after restart." es="Gira la imagen para que coincida con el montaje de la pantalla. Se aplica tras reiniciar."/>
   <translation tag="Turn the printer&apos;s lights on or off" es="Encender o apagar las luces"/>
-  <translation tag="Two to three minutes, nearly all of it heating. You judge nothing by eye." es="De dos a tres minutos, casi todo calentando. No juzgas nada a ojo."/>
   <translation tag="Type" es="Tipo"/>
   <translation tag="Type to preview input field..." es="Escriba para previsualizar campo de entrada..."/>
   <translation tag="Type:" es="Tipo:"/>

@@ -107,6 +107,7 @@ translations:
   = Tighten: = Затянуть
   A: A
   A backup of %s is created before applying: 'Перед применением создаётся резервная копия %s'
+  A few minutes, nearly all of it heating. You judge nothing by eye.: 'Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз.'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Не удалось восстановить вывод ввода-вывода двигателя. Выключите и включите принтер
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Не удалось записать параметры двигателя. Выключите и включите принтер и повторите попытку
   A newer version of the helper macros is available: 'Доступна более новая версия вспомогательных макросов'
@@ -144,7 +145,6 @@ translations:
   Abort failed: Ошибка прерывания
   Aborting AFC operation...: Прерывание операции AFC...
   About: О программе
-  About 3 minutes at {}°C.: 'Около 3 минут при {}°C.'
   Accel to Decel: Ускорение к торможению
   Acceleration to deceleration limit (mm/s²): Предел ускорения к торможению (мм/с²)
   Accelerometer: Акселерометр
@@ -248,6 +248,7 @@ translations:
   Assisted Retract: 'Ретракция с поддержкой'
   Assisting: Помощь
   At least {} lines in helixscreen.env were ignored: 'В helixscreen.env проигнорировано не менее {} строк'
+  At {}°C, about {} minutes.: 'При {}°C около {} минут.'
   Authentication failed: Ошибка аутентификации
   Auto: Авто
   Auto Bed Mesh: Авто сетка стола
@@ -733,7 +734,7 @@ translations:
   Copied to clipboard!: Скопировано в буфер обмена!
   Copy Command: Копировать команду
   Copy failed - use SSH manually: Ошибка копирования - используйте SSH вручную
-  Copy it into this filament's slicer profile — the printer keeps nothing.: 'Перепишите его в профиль слайсера для этого филамента — принтер ничего не сохраняет.'
+  Copy it into this filament's slicer profile. The printer keeps nothing.: 'Перепишите его в профиль слайсера для этого филамента. Принтер ничего не сохраняет.'
   Corner roundness: Скругление углов
   Correction (Ki): Коррекция (Ki)
   Could not add to queue: Не удалось добавить в очередь
@@ -1386,7 +1387,7 @@ translations:
   Heating bed to $1°C...: Нагрев стола до $1°C...
   Heating bed...: Нагрев стола...
   Heating chamber...: Нагрев камеры...
-  Heating is nearly the whole wait. You can leave the screen — the run stops.: 'Нагрев — почти всё ожидание. Можно покинуть экран — запуск остановится.'
+  Heating is nearly the whole wait. Leaving the screen now stops the run.: 'Нагрев занимает почти всё ожидание. Если покинуть экран сейчас, запуск остановится.'
   Heating nozzle: 'Нагрев сопла'
   Heating nozzle to $1°C...: Нагрев сопла до $1°C...
   Heating nozzle...: Нагрев сопла...
@@ -2024,7 +2025,7 @@ translations:
   Nothing starred yet. Tap the star on a filament to add it here.: 'Пока ничего не отмечено. Нажмите звезду у филамента, чтобы добавить его сюда.'
   Nothing to remap: Нечего переназначать
   'Nothing to unload: no filament at the nozzle': 'Выгружать нечего: в сопле нет филамента'
-  Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Ничего не изменилось. Температура и материал сохранены — повторить можно одним нажатием.'
+  Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Ничего не изменилось. Температура и материал сохранены, повторить можно одним нажатием.'
   Notification: Уведомление
   Notifications: Уведомления
   Notify when print finishes: Уведомить о завершении печати
@@ -2095,7 +2096,7 @@ translations:
   Output Device: Устройство вывода
   Output Mode: Режим вывода
   Output Pin: Выходной пин
-  Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it.: 'Вне обычного диапазона ({:.2f}-{:.2f}) для экструдера {} — стоит измерить ещё раз, прежде чем доверять.'
+  Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it.: 'Вне обычного диапазона ({:.2f}-{:.2f}) для экструдера {}. Стоит измерить ещё раз, прежде чем доверять.'
   Overheating: Перегрев
   'Overlay Visits: ': 'Посещений оверлея: '
   Overlays Opened: Открыто оверлеев
@@ -3104,7 +3105,9 @@ translations:
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: 'Сопло делает несколько коротких тестовых перемещений в углу, в стороне от зоны печати, и повторяет их до сходимости.'
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : Печать на паузе. Смена инструмента сейчас переместит печатающую головку и заменит филамент в сопле. Возобновите печать после завершения смены.
+  The printer applied this value and keeps it for this tool.: 'Принтер применил это значение и сохранил его для этого инструмента.'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз.'
+  The printer finishes this measurement on its own.: 'Принтер завершит это измерение сам.'
   The printer halted this print and cannot resume it. Restart from the beginning?: Принтер
     остановил эту печать и не может её возобновить. Начать с начала?
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
@@ -3322,7 +3325,6 @@ translations:
   Turn the extruder heater off after a load or unload finishes: Выключать нагреватель экструдера после загрузки или выгрузки
   Turn the picture to match how the screen is mounted. Applies after restart.: Поворачивает изображение в соответствии с положением экрана. Применяется после перезапуска.
   Turn the printer's lights on or off: Включить или выключить подсветку
-  Two to three minutes, nearly all of it heating. You judge nothing by eye.: 'Две-три минуты, почти всё — нагрев. Ничего не нужно оценивать на глаз.'
   Type: Тип
   Type to preview input field...: Введите для предпросмотра поля ввода...
   'Type:': 'Тип:'

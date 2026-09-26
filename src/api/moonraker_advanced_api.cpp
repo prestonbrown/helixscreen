@@ -836,10 +836,8 @@ namespace helix {
  * in on the Procedure (helix::pacal) - this collector only applies the patterns
  * it is handed, so a second firmware needs no change here.
  *
- * Expected output is whatever `proc.result_pattern` matches; every provider so
- * far applies its measurement through Klipper's SET_PRESSURE_ADVANCE, which
- * echoes:
- *   pressure_advance: 0.041200
+ * Expected output is whatever `proc.result_pattern` matches, in the shape
+ * that provider's firmware prints its final value.
  *
  * Progress is best-effort. `proc.attempt_pattern` matches a per-candidate
  * measurement line and the collector COUNTS matches rather than reading a
@@ -848,8 +846,9 @@ namespace helix {
  * chips, and the result path is untouched.
  *
  * Error handling:
- *   - "Unknown command" naming proc.command_word - firmware cannot do this
- *   - "Error"/"error"/"!! " - Klipper error messages
+ *   - "Unknown command" naming proc.command_word: firmware cannot do this
+ *   - a line starting "!! " or "Error:": a Klipper error
+ *   - proc.failure_pattern: the firmware ending the run in its own words
  *
  * No timeout here; the caller owns the UI-level one.
  */
@@ -867,6 +866,10 @@ class PACalibrateCollector : public std::enable_shared_from_this<PACalibrateColl
         if (!proc_.attempt_pattern.empty()) {
             attempt_re_ = std::regex(proc_.attempt_pattern);
             has_attempt_re_ = true;
+        }
+        if (!proc_.failure_pattern.empty()) {
+            failure_re_ = std::regex(proc_.failure_pattern);
+            has_failure_re_ = true;
         }
     }
 
@@ -950,8 +953,10 @@ class PACalibrateCollector : public std::enable_shared_from_this<PACalibrateColl
             return;
         }
 
-        if (line.find("Error") != std::string::npos || line.find("error") != std::string::npos ||
-            line.rfind("!! ", 0) == 0) {
+        // Only a line Klipper marks as an error: progress lines can carry words
+        // like "fitting error" and must not end the run.
+        if (line.rfind("!! ", 0) == 0 || line.rfind("Error:", 0) == 0 ||
+            (has_failure_re_ && std::regex_search(line, failure_re_))) {
             complete_error(line);
             return;
         }
@@ -987,6 +992,8 @@ class PACalibrateCollector : public std::enable_shared_from_this<PACalibrateColl
     std::regex result_re_;
     std::regex attempt_re_;
     bool has_attempt_re_ = false;
+    std::regex failure_re_;
+    bool has_failure_re_ = false;
     int attempts_seen_ = 0;
     std::string handler_name_;
     std::atomic<bool> registered_{false};
@@ -3009,10 +3016,10 @@ void MoonrakerAdvancedAPI::start_pid_calibrate(
         PID_TIMEOUT_MS, true);
 }
 
-void MoonrakerAdvancedAPI::start_pa_calibrate(const helix::pacal::Procedure& proc,
-                                              MoonrakerAdvancedAPI::PACalibrateCallback on_complete,
-                                              ErrorCallback on_error,
-                                              PAProgressCallback on_progress) {
+std::function<void()>
+MoonrakerAdvancedAPI::start_pa_calibrate(const helix::pacal::Procedure& proc,
+                                         MoonrakerAdvancedAPI::PACalibrateCallback on_complete,
+                                         ErrorCallback on_error, PAProgressCallback on_progress) {
     spdlog::info("[MoonrakerAPI] Starting pressure advance calibration: {} ({})", proc.start_gcode,
                  proc.provider);
 
@@ -3044,6 +3051,13 @@ void MoonrakerAdvancedAPI::start_pa_calibrate(const helix::pacal::Procedure& pro
                 on_error(err);
         },
         proc.timeout_ms, true);
+
+    // Klipper cannot interrupt a running command, so cancelling only stops
+    // listening: the firmware finishes the measurement it is in.
+    return [collector]() {
+        collector->mark_completed();
+        collector->unregister();
+    };
 }
 void MoonrakerAdvancedAPI::start_mpc_calibrate(
     const std::string& heater, int target_temp, int fan_breakpoints,

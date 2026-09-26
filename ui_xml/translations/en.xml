@@ -101,6 +101,7 @@
   <translation tag="= Tighten" en="= Tighten"/>
   <translation tag="A" en="A"/>
   <translation tag="A backup of %s is created before applying" en="A backup of %s is created before applying"/>
+  <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." en="A few minutes, nearly all of it heating. You judge nothing by eye."/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" en="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" en="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry"/>
   <translation tag="A newer version of the helper macros is available" en="A newer version of the helper macros is available"/>
@@ -139,7 +140,6 @@
   <translation tag="Abort failed" en="Abort failed"/>
   <translation tag="Aborting AFC operation..." en="Aborting AFC operation..."/>
   <translation tag="About" en="About"/>
-  <translation tag="About 3 minutes at {}°C." en="About 3 minutes at {}°C."/>
   <translation tag="Accel to Decel" en="Accel to Decel"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" en="Acceleration to deceleration limit (mm/s²)"/>
   <translation tag="Accelerometer" en="Accelerometer"/>
@@ -227,6 +227,7 @@
   <translation tag="Assisted Retract" en="Assisted Retract"/>
   <translation tag="Assisting" en="Assisting"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" en="At least {} lines in helixscreen.env were ignored"/>
+  <translation tag="At {}°C, about {} minutes." en="At {}°C, about {} minutes."/>
   <translation tag="Authentication failed" en="Authentication failed"/>
   <translation tag="Auto" en="Auto"/>
   <translation tag="Auto Bed Mesh" en="Auto Bed Mesh"/>
@@ -664,7 +665,7 @@
   <translation tag="Copied to clipboard!" en="Copied to clipboard!"/>
   <translation tag="Copy Command" en="Copy Command"/>
   <translation tag="Copy failed - use SSH manually" en="Copy failed - use SSH manually"/>
-  <translation tag="Copy it into this filament&apos;s slicer profile — the printer keeps nothing." en="Copy it into this filament&apos;s slicer profile — the printer keeps nothing."/>
+  <translation tag="Copy it into this filament&apos;s slicer profile. The printer keeps nothing." en="Copy it into this filament&apos;s slicer profile. The printer keeps nothing."/>
   <translation tag="Corner roundness" en="Corner roundness"/>
   <translation tag="Correction (Ki)" en="Correction (Ki)"/>
   <translation tag="Could not add to queue" en="Could not add to queue"/>
@@ -1276,7 +1277,7 @@
   <translation tag="Heating bed to $1°C..." en="Heating bed to $1°C..."/>
   <translation tag="Heating bed..." en="Heating bed..."/>
   <translation tag="Heating chamber..." en="Heating chamber..."/>
-  <translation tag="Heating is nearly the whole wait. You can leave the screen — the run stops." en="Heating is nearly the whole wait. You can leave the screen — the run stops."/>
+  <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." en="Heating is nearly the whole wait. Leaving the screen now stops the run."/>
   <translation tag="Heating nozzle" en="Heating nozzle"/>
   <translation tag="Heating nozzle to $1°C..." en="Heating nozzle to $1°C..."/>
   <translation tag="Heating nozzle..." en="Heating nozzle..."/>
@@ -1922,7 +1923,7 @@
   <translation tag="Output Device" en="Output Device"/>
   <translation tag="Output Mode" en="Output Mode"/>
   <translation tag="Output Pin" en="Output Pin"/>
-  <translation tag="Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it." en="Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it."/>
+  <translation tag="Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it." en="Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it."/>
   <translation tag="Overheating" en="Overheating"/>
   <translation tag="Overlay Visits: " en="Overlay Visits: "/>
   <translation tag="Overlays Opened" en="Overlays Opened"/>
@@ -2824,7 +2825,9 @@
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." en="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle."/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." en="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself."/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." en="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes."/>
+  <translation tag="The printer applied this value and keeps it for this tool." en="The printer applied this value and keeps it for this tool."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." en="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye."/>
+  <translation tag="The printer finishes this measurement on its own." en="The printer finishes this measurement on its own."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" en="The printer halted this print and cannot resume it. Restart from the beginning?"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." en="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." en="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear."/>
@@ -2998,7 +3001,6 @@
   <translation tag="Turn the extruder heater off after a load or unload finishes" en="Turn the extruder heater off after a load or unload finishes"/>
   <translation tag="Turn the picture to match how the screen is mounted. Applies after restart." en="Turn the picture to match how the screen is mounted. Applies after restart."/>
   <translation tag="Turn the printer&apos;s lights on or off" en="Turn the printer&apos;s lights on or off"/>
-  <translation tag="Two to three minutes, nearly all of it heating. You judge nothing by eye." en="Two to three minutes, nearly all of it heating. You judge nothing by eye."/>
   <translation tag="Type" en="Type"/>
   <translation tag="Type to preview input field..." en="Type to preview input field..."/>
   <translation tag="Type:" en="Type:"/>

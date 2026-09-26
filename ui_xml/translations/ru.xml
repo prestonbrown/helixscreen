@@ -101,6 +101,7 @@
   <translation tag="= Tighten" ru="= Затянуть"/>
   <translation tag="A" ru="A"/>
   <translation tag="A backup of %s is created before applying" ru="Перед применением создаётся резервная копия %s"/>
+  <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." ru="Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз."/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" ru="Не удалось восстановить вывод ввода-вывода двигателя. Выключите и включите принтер"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" ru="Не удалось записать параметры двигателя. Выключите и включите принтер и повторите попытку"/>
   <translation tag="A newer version of the helper macros is available" ru="Доступна более новая версия вспомогательных макросов"/>
@@ -139,7 +140,6 @@
   <translation tag="Abort failed" ru="Ошибка прерывания"/>
   <translation tag="Aborting AFC operation..." ru="Прерывание операции AFC..."/>
   <translation tag="About" ru="О программе"/>
-  <translation tag="About 3 minutes at {}°C." ru="Около 3 минут при {}°C."/>
   <translation tag="Accel to Decel" ru="Ускорение к торможению"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" ru="Предел ускорения к торможению (мм/с²)"/>
   <translation tag="Accelerometer" ru="Акселерометр"/>
@@ -227,6 +227,7 @@
   <translation tag="Assisted Retract" ru="Ретракция с поддержкой"/>
   <translation tag="Assisting" ru="Помощь"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" ru="В helixscreen.env проигнорировано не менее {} строк"/>
+  <translation tag="At {}°C, about {} minutes." ru="При {}°C около {} минут."/>
   <translation tag="Authentication failed" ru="Ошибка аутентификации"/>
   <translation tag="Auto" ru="Авто"/>
   <translation tag="Auto Bed Mesh" ru="Авто сетка стола"/>
@@ -664,7 +665,7 @@
   <translation tag="Copied to clipboard!" ru="Скопировано в буфер обмена!"/>
   <translation tag="Copy Command" ru="Копировать команду"/>
   <translation tag="Copy failed - use SSH manually" ru="Ошибка копирования - используйте SSH вручную"/>
-  <translation tag="Copy it into this filament&apos;s slicer profile — the printer keeps nothing." ru="Перепишите его в профиль слайсера для этого филамента — принтер ничего не сохраняет."/>
+  <translation tag="Copy it into this filament&apos;s slicer profile. The printer keeps nothing." ru="Перепишите его в профиль слайсера для этого филамента. Принтер ничего не сохраняет."/>
   <translation tag="Corner roundness" ru="Скругление углов"/>
   <translation tag="Correction (Ki)" ru="Коррекция (Ki)"/>
   <translation tag="Could not add to queue" ru="Не удалось добавить в очередь"/>
@@ -1276,7 +1277,7 @@
   <translation tag="Heating bed to $1°C..." ru="Нагрев стола до $1°C..."/>
   <translation tag="Heating bed..." ru="Нагрев стола..."/>
   <translation tag="Heating chamber..." ru="Нагрев камеры..."/>
-  <translation tag="Heating is nearly the whole wait. You can leave the screen — the run stops." ru="Нагрев — почти всё ожидание. Можно покинуть экран — запуск остановится."/>
+  <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." ru="Нагрев занимает почти всё ожидание. Если покинуть экран сейчас, запуск остановится."/>
   <translation tag="Heating nozzle" ru="Нагрев сопла"/>
   <translation tag="Heating nozzle to $1°C..." ru="Нагрев сопла до $1°C..."/>
   <translation tag="Heating nozzle..." ru="Нагрев сопла..."/>
@@ -1853,7 +1854,7 @@
   <translation tag="Nothing starred yet. Tap the star on a filament to add it here." ru="Пока ничего не отмечено. Нажмите звезду у филамента, чтобы добавить его сюда."/>
   <translation tag="Nothing to remap" ru="Нечего переназначать"/>
   <translation tag="Nothing to unload: no filament at the nozzle" ru="Выгружать нечего: в сопле нет филамента"/>
-  <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." ru="Ничего не изменилось. Температура и материал сохранены — повторить можно одним нажатием."/>
+  <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." ru="Ничего не изменилось. Температура и материал сохранены, повторить можно одним нажатием."/>
   <translation tag="Notification" ru="Уведомление"/>
   <translation tag="Notifications" ru="Уведомления"/>
   <translation tag="Notify when print finishes" ru="Уведомить о завершении печати"/>
@@ -1922,7 +1923,7 @@
   <translation tag="Output Device" ru="Устройство вывода"/>
   <translation tag="Output Mode" ru="Режим вывода"/>
   <translation tag="Output Pin" ru="Выходной пин"/>
-  <translation tag="Outside the usual {:.2f}-{:.2f} for a {} extruder — worth measuring again before trusting it." ru="Вне обычного диапазона ({:.2f}-{:.2f}) для экструдера {} — стоит измерить ещё раз, прежде чем доверять."/>
+  <translation tag="Outside the usual {:.2f}-{:.2f} for a {} extruder. Worth measuring again before trusting it." ru="Вне обычного диапазона ({:.2f}-{:.2f}) для экструдера {}. Стоит измерить ещё раз, прежде чем доверять."/>
   <translation tag="Overheating" ru="Перегрев"/>
   <translation tag="Overlay Visits: " ru="Посещений оверлея: "/>
   <translation tag="Overlays Opened" ru="Открыто оверлеев"/>
@@ -2824,7 +2825,9 @@
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." ru="Загружена катушка {}, но файл нарезан для {}. Филамент с наполнителем печатается с меньшим потоком и требует закалённого сопла."/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." ru="Сопло делает несколько коротких тестовых перемещений в углу, в стороне от зоны печати, и повторяет их до сходимости."/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." ru="Печать на паузе. Смена инструмента сейчас переместит печатающую головку и заменит филамент в сопле. Возобновите печать после завершения смены."/>
+  <translation tag="The printer applied this value and keeps it for this tool." ru="Принтер применил это значение и сохранил его для этого инструмента."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ru="Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз."/>
+  <translation tag="The printer finishes this measurement on its own." ru="Принтер завершит это измерение сам."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ru="Принтер остановил эту печать и не может её возобновить. Начать с начала?"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ru="Принтер нагревает сопло, делает несколько коротких тестовых перемещений в углу стола и сам их измеряет. Он повторяет, пока показания не сойдутся, и затем сообщает одно число."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." ru="Принтер ищет ноль и прощупывает резак (около 1 минуты). Держите путь филамента свободным."/>
@@ -2998,7 +3001,6 @@
   <translation tag="Turn the extruder heater off after a load or unload finishes" ru="Выключать нагреватель экструдера после загрузки или выгрузки"/>
   <translation tag="Turn the picture to match how the screen is mounted. Applies after restart." ru="Поворачивает изображение в соответствии с положением экрана. Применяется после перезапуска."/>
   <translation tag="Turn the printer&apos;s lights on or off" ru="Включить или выключить подсветку"/>
-  <translation tag="Two to three minutes, nearly all of it heating. You judge nothing by eye." ru="Две-три минуты, почти всё — нагрев. Ничего не нужно оценивать на глаз."/>
   <translation tag="Type" ru="Тип"/>
   <translation tag="Type to preview input field..." ru="Введите для предпросмотра поля ввода..."/>
   <translation tag="Type:" ru="Тип:"/>

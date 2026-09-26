@@ -7,21 +7,18 @@
 <!-- keyboard and no clipboard, so the frame is two columns in every state: -->
 <!-- TARGET on the left, never more than two decisions and never moving or -->
 <!-- resizing; one STAGE on the right that swaps content and carries the whole -->
-<!-- arc — what the number is, the two to three minutes of waiting (nearly all -->
+<!-- arc - what the number is, the two to three minutes of waiting (nearly all -->
 <!-- of it heating), then the number itself. Nothing reflows between states, so -->
 <!-- the eye keeps its place across a long wait and only the stage repaints. -->
 <!-- -->
-<!-- The printer only MEASURES. Nothing is applied and nothing is saved, so the -->
-<!-- result carries one quiet button (Re-measure) rather than three unequal -->
-<!-- acts dressed as equals. -->
-<!-- -->
-<!-- Design: docs/mockups/pa-calibration/DESIGN_BRIEF.md + the Claude Design -->
-<!-- canvas it produced ("Pressure Advance.dc.html"). -->
+<!-- The screen only MEASURES: whether the printer keeps the value is the -->
+<!-- firmware's own behaviour, stated on the result, so the result carries one -->
+<!-- quiet button (Re-measure) rather than three unequal acts dressed as equals. -->
 <component>
   <styles>
     <!-- Selected chips are a tint of #primary rather than a new token, so they
          track the theme's accent in both light and dark. A bound style must
-         never be paired with an inline style_bg_* on the same widget — the
+         never be paired with an inline style_bg_* on the same widget - the
          inline one is a local style and wins, so the highlight would never
          appear (the trap documented on calibration_tool_offset_panel). -->
     <style name="pa_chip_on" bg_color="#primary" bg_opa="40" border_color="#primary"/>
@@ -61,7 +58,7 @@
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
 
       <!-- ================================================================ -->
-      <!-- TARGET — the left column. Two decisions, identical in every       -->
+      <!-- TARGET - the left column. Two decisions, identical in every       -->
       <!-- state. On Micro/Tiny panels there is not room for two columns at  -->
       <!-- once, so this one steps aside while a run owns the screen: setup  -->
       <!-- and stage become separate screens rather than side by side.       -->
@@ -75,7 +72,7 @@
 
         <!-- Tool. Pressure advance belongs to an extruder, so on a tool
              changer this is the first decision on the screen. On the majority
-             of printers there is exactly one extruder and no choice to make —
+             of printers there is exactly one extruder and no choice to make -
              the row is not rendered at all, rather than rendered stranded. -->
         <lv_obj name="pa_tool_row"
                 width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
@@ -172,13 +169,13 @@
       </lv_obj>
 
       <!-- ================================================================ -->
-      <!-- STAGE — the right column. One card at a time, same slot.          -->
+      <!-- STAGE - the right column. One card at a time, same slot.          -->
       <!-- ================================================================ -->
       <lv_obj name="pa_stage_col"
               width="1" height="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"
               style_bg_opa="0" style_border_width="0" scrollable="false">
 
-        <!-- A — idle. What the number is and what the machine is about to do,
+        <!-- A - idle. What the number is and what the machine is about to do,
              in the fewest words that still leave a newcomer oriented. -->
         <lv_obj name="pa_stage_explain"
                 width="100%" flex_grow="1" style_bg_color="#section_bg_color" style_bg_opa="255"
@@ -191,8 +188,8 @@
                      translation_tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number."
                      style_text_color="#text_muted" long_mode="wrap"/>
           <text_body width="100%"
-                     text="Two to three minutes, nearly all of it heating. You judge nothing by eye."
-                     translation_tag="Two to three minutes, nearly all of it heating. You judge nothing by eye."
+                     text="A few minutes, nearly all of it heating. You judge nothing by eye."
+                     translation_tag="A few minutes, nearly all of it heating. You judge nothing by eye."
                      style_text_color="#text_muted" long_mode="wrap"/>
           <!-- The last run, when there is one. The most useful thing on a
                return visit, and the reason idle is not one empty card. -->
@@ -208,7 +205,7 @@
                   flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"/>
         </lv_obj>
 
-        <!-- D/E — the wait. Heating and measuring are one bar but two plainly
+        <!-- D/E - the wait. Heating and measuring are one bar but two plainly
              separate phases, because they feel nothing alike: two minutes of a
              rising number, then half a minute of the machine extruding. The
              big readout is whichever number is actually moving. -->
@@ -266,7 +263,7 @@
                       width="100%" bind_text="pa_cal_prog_foot" style_text_color="#text_muted" long_mode="wrap"/>
         </lv_obj>
 
-        <!-- F — the number. The whole stage; nothing competes with it. -->
+        <!-- F - the number. The whole stage; nothing competes with it. -->
         <lv_obj name="pa_stage_result"
                 width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"
                 style_bg_opa="0" style_border_width="0" scrollable="false">
@@ -297,18 +294,18 @@
               <bind_style_if_eq name="pa_text_good" subject="pa_cal_result_plausible" ref_value="1"/>
               <bind_style_if_eq name="pa_text_warn" subject="pa_cal_result_plausible" ref_value="0"/>
             </text_small>
-            <text_small width="90%"
-                        text="Copy it into this filament's slicer profile — the printer keeps nothing."
-                        translation_tag="Copy it into this filament's slicer profile — the printer keeps nothing."
-                        style_text_color="#text_muted" style_text_align="center" long_mode="wrap"/>
+            <text_small name="pa_result_keep_note"
+                        width="90%" bind_text="pa_cal_keep_note" style_text_color="#text_muted"
+                        style_text_align="center" long_mode="wrap"/>
           </lv_obj>
           <ui_button name="pa_btn_remeasure"
-                     width="100%" height="#button_height" variant="ghost" text="Re-measure" translation_tag="Re-measure">
+                     width="100%" height="#button_height" moves_machine="true" variant="ghost" text="Re-measure"
+                     translation_tag="Re-measure">
             <event_cb trigger="clicked" callback="on_pa_cal_reset"/>
           </ui_button>
         </lv_obj>
 
-        <!-- G — refused. The machine's own sentence at full size, then what is
+        <!-- G - refused. The machine's own sentence at full size, then what is
              still true afterwards. A failed run changes nothing. -->
         <lv_obj name="pa_stage_error"
                 width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"
@@ -327,7 +324,7 @@
             <!-- The firmware's verbatim words, in the monospace face the rest
                  of the app uses for machine output. 100-200 characters is
                  normal here, and this is the most valuable text on the screen
-                 when it appears — never a small muted one-liner. -->
+                 when it appears - never a small muted one-liner. -->
             <text_small name="pa_error_detail" width="100%" bind_text="pa_cal_error_detail" long_mode="wrap"/>
             <text_body name="pa_error_hint"
                        width="100%" bind_text="pa_cal_error_hint" style_text_color="#text_muted" long_mode="wrap"/>
@@ -342,7 +339,8 @@
 
         <!-- The one action, in a slot that never moves. Complete and failed
              carry their own button inside the stage, so this hides there. -->
-        <ui_button name="pa_action_btn" width="100%" height="#button_height" bind_text="pa_cal_action_text">
+        <ui_button name="pa_action_btn"
+                   width="100%" height="#button_height" bind_text="pa_cal_action_text" moves_machine="true">
           <bind_flag_if cond="pa_cal_state eq 3 or pa_cal_state eq 4" flag="hidden"/>
           <bind_style_if_eq name="pa_action_go" subject="pa_cal_action_is_stop" ref_value="0"/>
           <bind_style_if_eq name="pa_action_stop" subject="pa_cal_action_is_stop" ref_value="1"/>

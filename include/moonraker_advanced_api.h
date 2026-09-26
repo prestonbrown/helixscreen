@@ -436,9 +436,10 @@ class MoonrakerAdvancedAPI : public IAdvancedAPI {
      * @param on_error Called on refusal or failure
      * @param on_progress Best-effort per-attempt progress; may never fire
      */
-    void start_pa_calibrate(const helix::pacal::Procedure& proc, PACalibrateCallback on_complete,
-                            ErrorCallback on_error,
-                            PAProgressCallback on_progress = nullptr) override;
+    std::function<void()> start_pa_calibrate(const helix::pacal::Procedure& proc,
+                                             PACalibrateCallback on_complete,
+                                             ErrorCallback on_error,
+                                             PAProgressCallback on_progress = nullptr) override;
 
     // ========================================================================
     // Machine Limits Operations

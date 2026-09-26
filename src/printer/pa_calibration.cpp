@@ -24,38 +24,42 @@ struct Provider {
     const char* detect_macro;
 
     /// Printer object whose presence identifies the firmware, for commands
-    /// registered by a klippy Python extra — those never appear in the object
-    /// list as "gcode_macro X", only as the extra's own config-section object.
-    /// Null when the firmware is detected by macro.
+    /// registered by a klippy Python extra: those never appear in the object
+    /// list as "gcode_macro X". Null when the firmware is detected by macro.
     const char* detect_object;
 
-    /// printf-style command template. Takes the tool index when per_tool,
-    /// otherwise used verbatim.
+    /// Command template. {tool} is the tool index and {temp} the nozzle
+    /// temperature; a template may use either, both or neither.
     const char* gcode;
 
-    /// Whether `gcode` addresses a specific extruder.
+    /// Whether each tool is calibrated separately.
     bool per_tool;
 
-    /// See Procedure - regexes over the firmware's console output.
+    /// See Procedure: regexes over the firmware's console output.
     const char* result_pattern;
     const char* attempt_pattern;
+    const char* failure_pattern;
     int expected_attempts;
+
+    /// See Procedure.
+    bool applies_result;
+    int estimate_minutes;
 
     /// The extruder kind this firmware's machines use, which is what makes the
     /// plausibility band meaningful. Detected extruder geometry does not exist
-    /// in PrinterDiscovery, and inferring it from kinematics would be a guess -
+    /// in PrinterDiscovery, and inferring it from kinematics would be a guess:
     /// the firmware entry knows its own hardware.
     SaneRange range;
 
     uint32_t timeout_ms;
 };
 
-/// Klipper acknowledges SET_PRESSURE_ADVANCE by echoing the applied value, so
-/// any firmware that applies its measurement through the standard path reports
-/// it in this shape. Shared by every provider that does so.
+/// Klipper acknowledges SET_PRESSURE_ADVANCE by echoing the applied value in
+/// this shape. A firmware that installs candidates through that command prints
+/// it once per candidate, so it can mark progress but never the result.
 constexpr const char* KLIPPER_PA_ECHO = R"(pressure_advance:\s*([0-9]*\.?[0-9]+))";
 
-/// Direct-drive extruders - the geometry on every machine below. The band is
+/// Direct-drive extruders, the geometry on every machine below. The band is
 /// the one every Klipper tuning guide quotes; a result outside it is not
 /// rejected, only flagged as worth measuring again.
 constexpr SaneRange DIRECT_DRIVE{0.02f, 0.08f, "direct drive"};
@@ -63,28 +67,39 @@ constexpr SaneRange DIRECT_DRIVE{0.02f, 0.08f, "direct drive"};
 // --- Snapmaker U1 flow calibrator --------------------------------------------
 //
 // The U1 carries an eddy-current inductance coil per toolhead and uses it to
-// measure extrusion back-pressure directly. SM_PRINT_FLOW_CALIBRATE purges in a
-// repeating slow/fast pattern for each candidate K, asks its native solver for
-// the signed flow mismatch ("area"), and root-finds the zero crossing through
-// roughly five (k, area) points before applying the winner via Klipper's own
-// SET_PRESSURE_ADVANCE - which is what puts the value on the console.
+// measure extrusion back-pressure directly. FLOW_CALIBRATE (the U1's
+// klippy/extras/flow_calibrator.py) purges in a repeating slow/fast pattern for
+// each candidate K on the MOUNTED extruder, asks its native solver for the
+// signed flow mismatch, root-finds the zero crossing through about five points,
+// then applies the winner and saves it to flow_calibrator.json. It sets K
+// through the extruder stepper directly, so no SET_PRESSURE_ADVANCE echo ever
+// reaches the console. Its own lines, from that source:
+//   measure k: 0.02000           once per candidate
+//   Got pressure advance: 0.0412 the result
+//   flow k is out of range, use default value:0.02
+//   abort calibration: <reason>
+//
+// SM_PRINT_FLOW_CALIBRATE is the print-job wrapper around it and returns
+// without a word outside a print, so it cannot drive this screen.
+//
+// The flow calibrator has no status object, so the firmware is recognised by
+// filament_parameters, the Snapmaker extra it cannot run without.
 //
 // Snapmaker calls this "flow calibration", but the number it computes IS the
 // Klipper pressure-advance K. See docs/devel/printers/SNAPMAKER_U1_SUPPORT.md
 // § Pre-Print Flow Calibration.
-//
-// The per-candidate progress pattern is best-effort: the firmware's own
-// per-candidate log line is not part of any published contract, so a non-match
-// simply means the panel shows no attempt chips. It never affects the result.
 constexpr Provider SNAPMAKER_U1{
     "Snapmaker U1 flow calibrator",
-    "SM_PRINT_FLOW_CALIBRATE",
-    /*detect_object=*/nullptr,
-    "SM_PRINT_FLOW_CALIBRATE EXTRUDER={}",
+    /*detect_macro=*/nullptr,
+    "filament_parameters",
+    "FLOW_CALIBRATE TEMP={temp}",
     /*per_tool=*/true,
-    KLIPPER_PA_ECHO,
-    R"(\bk\s*[=:]\s*([0-9]*\.?[0-9]+))",
+    R"(Got pressure advance:\s*([0-9]*\.?[0-9]+))",
+    R"(measure k:\s*([0-9]*\.?[0-9]+))",
+    R"(flow k is out of range|abort calibration:)",
     /*expected_attempts=*/5,
+    /*applies_result=*/true,
+    /*estimate_minutes=*/3,
     DIRECT_DRIVE,
     /*timeout_ms=*/600000, // 10 min: several purge cycles plus the heat-up
 };
@@ -101,11 +116,11 @@ constexpr Provider SNAPMAKER_U1{
 // The '=' result shape is deliberate. The sweep installs every candidate via
 // SET_PRESSURE_ADVANCE, whose "pressure_advance: <k>" echo would satisfy the
 // ':' shape on the FIRST candidate, minutes before the real result. Matching
-// '=' skips those echoes — and they double as the per-candidate progress
+// '=' skips those echoes, and they double as the per-candidate progress
 // lines, each carrying the K just tried.
 //
 // FF_PA_CALIBRATE is registered by the [ff_pa] Python extra, so it appears in
-// the object list as "ff_pa", never as a gcode_macro — hence detect_object.
+// the object list as "ff_pa", never as a gcode_macro: hence detect_object.
 //
 // The sweep structurally cannot report outside its candidate table, so the
 // plausibility band is that table's span (defaults 0.0100..0.0400).
@@ -115,11 +130,14 @@ constexpr Provider FLASHFORGE_EBOARD{
     "FlashForge eBoard PA calibrator",
     /*detect_macro=*/nullptr,
     "ff_pa",
-    "FF_PA_CALIBRATE TOOL={}",
+    "FF_PA_CALIBRATE TOOL={tool}",
     /*per_tool=*/true,
     R"(pressure_advance\s*=\s*([0-9]*\.?[0-9]+))",
     KLIPPER_PA_ECHO,
+    /*failure_pattern=*/"",
     /*expected_attempts=*/21, // 3 winning sweeps x 7 candidates, typically
+    /*applies_result=*/false,
+    /*estimate_minutes=*/5, // up to 5 sweeps of about a minute, plus heat-up
     FF_CANDIDATE_SPAN,
     /*timeout_ms=*/600000, // 10 min: up to 5 sweeps (~1 min each) plus heat-up
 };
@@ -158,7 +176,7 @@ bool is_per_tool(const PrinterDiscovery& hw) {
     return p && p->per_tool;
 }
 
-std::optional<Procedure> procedure_for(const PrinterDiscovery& hw, int tool_index) {
+std::optional<Procedure> procedure_for(const PrinterDiscovery& hw, int tool_index, int temp_c) {
     const Provider* p = match(hw);
     if (!p) {
         return std::nullopt;
@@ -166,10 +184,14 @@ std::optional<Procedure> procedure_for(const PrinterDiscovery& hw, int tool_inde
 
     Procedure proc;
     proc.provider = p->name;
-    proc.start_gcode = p->per_tool ? fmt::format(fmt::runtime(p->gcode), tool_index) : p->gcode;
+    proc.start_gcode =
+        fmt::format(fmt::runtime(p->gcode), fmt::arg("tool", tool_index), fmt::arg("temp", temp_c));
     proc.result_pattern = p->result_pattern;
     proc.attempt_pattern = p->attempt_pattern ? p->attempt_pattern : "";
+    proc.failure_pattern = p->failure_pattern ? p->failure_pattern : "";
     proc.expected_attempts = p->expected_attempts;
+    proc.applies_result = p->applies_result;
+    proc.estimate_minutes = p->estimate_minutes;
     proc.timeout_ms = p->timeout_ms;
 
     // The command word is the first token of the template, which is also what
