@@ -11,6 +11,10 @@
 
 static const char* TAG = "font_registration";
 
+// Repopulates the alias faces (components/helixapp/font_aliases.cpp) from the
+// now-populated noto_sans_18 shim; they hold montserrat_14 from static init.
+extern void helix_font_aliases_refresh(void);
+
 // Font symbols come from LV_FONT_CUSTOM_DECLARE in lv_conf.h (extern
 // lv_font_t declarations), backed by the .c sources compiled into helixcore
 // (see components/helixcore/CMakeLists.txt HELIX_FONT_SRCS). Referencing
@@ -25,7 +29,7 @@ static struct {
     const char* name;
     int64_t ms;
     bool ok;
-} s_load_results[10];
+} s_load_results[11];
 
 // Re-log the .bin load results outside the ~2s WiFi RF-cal serial dead window.
 // Called from app_boot at home-panel-up.
@@ -36,20 +40,21 @@ void helix_fonts_log_summary(void) {
         if (s_load_results[i].ok) {
             ESP_LOGI(TAG, "fonts: %s .bin %lld ms", s_load_results[i].name, s_load_results[i].ms);
         } else {
-            ESP_LOGW(TAG, "fonts: %s .bin LOAD FAILED (noto_sans_18 fallback)",
+            ESP_LOGW(TAG, "fonts: %s .bin LOAD FAILED (montserrat_14 fallback)",
                      s_load_results[i].name);
         }
     }
 }
 
 void helix_fonts_register(void) {
-    // These 10 faces' glyph data lives in frogfs .bin files (moved out of the
+    // These 11 faces' glyph data lives in frogfs .bin files (moved out of the
     // compiled app image; see components/helixcore/moved_fonts_shim.c for their
     // zero-init writable symbols). Populate the shim structs HERE — before the
     // lv_xml_register_font() token registrations below AND before the
     // AssetManager::register_all() by-symbol registrations (app_boot.cpp:266) —
     // so both point at valid, fully-populated shims. On load failure we fall
-    // back to a copy of noto_sans_18 (compiled in) so text still renders.
+    // back to a copy of lv_font_montserrat_14 (LVGL built-in, LV_FONT_DEFAULT,
+    // the only font compiled into the image) so text still renders.
     //
     // Results are also recorded for helix_fonts_log_summary(): these loads run
     // at ~2s, inside the WiFi RF-cal power dip that knocks the CH340 off USB —
@@ -60,6 +65,7 @@ void helix_fonts_register(void) {
         const char* path;
         lv_font_t* shim;
     } moved_faces[] = {
+        {"noto_sans_18", "A:/assets/assets/fonts/noto_sans_18.bin", &noto_sans_18},
         {"noto_sans_bold_28", "A:/assets/assets/fonts/noto_sans_bold_28.bin", &noto_sans_bold_28},
         {"noto_sans_light_16", "A:/assets/assets/fonts/noto_sans_light_16.bin",
          &noto_sans_light_16},
@@ -85,8 +91,8 @@ void helix_fonts_register(void) {
             *moved_faces[i].shim = *loaded;
             ESP_LOGI(TAG, "font %s loaded from .bin in %lld ms", moved_faces[i].name, dt_ms);
         } else {
-            *moved_faces[i].shim = noto_sans_18;
-            ESP_LOGW(TAG, "font %s .bin load FAILED (%lld ms) — fell back to noto_sans_18",
+            *moved_faces[i].shim = lv_font_montserrat_14;
+            ESP_LOGW(TAG, "font %s .bin load FAILED (%lld ms) — fell back to montserrat_14",
                      moved_faces[i].name, dt_ms);
         }
     }
@@ -94,6 +100,12 @@ void helix_fonts_register(void) {
     // The lv_binfont_create() results are intentionally never destroyed: they
     // live for the process lifetime and their glyph/cmap tables back the shim
     // struct-copies above, so lv_binfont_destroy would free data still in use.
+
+    // noto_sans_18 (first entry above) is populated or has its fallback; hand
+    // its glyphs to the alias faces before the token registrations below give
+    // LVGL their pointers. Whole-struct copy, so this must also precede
+    // CjkFontManager's ->fallback writes on those symbols (post-boot).
+    helix_font_aliases_refresh();
 
     lv_xml_register_font(NULL, "noto_sans_26", &noto_sans_26);
     lv_xml_register_font(NULL, "noto_sans_bold_28", &noto_sans_bold_28);
@@ -107,5 +119,5 @@ void helix_fonts_register(void) {
     lv_xml_register_font(NULL, "mdi_icons_48", &mdi_icons_48);
     lv_xml_register_font(NULL, "mdi_icons_64", &mdi_icons_64);
 
-    ESP_LOGI(TAG, "registered 11 medium-tier fonts (1 compiled + 10 runtime .bin)");
+    ESP_LOGI(TAG, "registered 11 medium-tier fonts (11 runtime .bin; montserrat_14 fallback)");
 }

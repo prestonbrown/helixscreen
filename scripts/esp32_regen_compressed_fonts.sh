@@ -23,16 +23,16 @@
 # originals so the firmware externs/aliases resolve unchanged. Const-ness of
 # the top-level `lv_font_t <name>` symbol is also matched to the desktop
 # originals AND to the firmware externs in
-# firmware/helixscreen-esp32/components/helixcore/lv_conf.h. After Plan A all
-# faces except noto_sans_18 are MOVED (runtime .bin + writable shim), so all of
-# them are const-stripped:
+# firmware/helixscreen-esp32/components/helixcore/lv_conf.h. All 11 faces are
+# MOVED (runtime .bin + writable shim), so all of them are const-stripped:
 #   - noto_sans_* faces  -> `lv_font_t <name>`  (const stripped, always were)
 #   - source_code_pro_14 -> `lv_font_t <name>`  (const stripped: moved face)
 #   - mdi_icons_*  faces -> `lv_font_t <name>`  (const stripped: moved faces)
-# The .bin twins (frogfs faces loaded at boot) are emitted for the moved faces:
-# noto_sans_26, noto_sans_bold_28, noto_sans_light_16, noto_sans_light_12,
-# source_code_pro_14, and mdi_icons_16/24/32/48/64 (10 total). noto_sans_18 is
-# the sole compiled-in anchor and has no .bin twin.
+# The .bin twins (frogfs faces loaded at boot) are emitted for all 11 faces:
+# noto_sans_18, noto_sans_26, noto_sans_bold_28, noto_sans_light_16,
+# noto_sans_light_12, source_code_pro_14, and mdi_icons_16/24/32/48/64. No
+# Helix face compiles into the app image; LVGL's built-in montserrat_14
+# (LV_FONT_DEFAULT) is the load-failure fallback.
 #
 # This script does NOT touch anything under assets/fonts/.
 
@@ -395,7 +395,7 @@ gen_noto() { # <src_ttf> <size> <outname> [bin]
 
 gen_noto "$FONT_REGULAR" 26 noto_sans_26 bin
 gen_noto "$FONT_BOLD"    28 noto_sans_bold_28 bin
-gen_noto "$FONT_REGULAR" 18 noto_sans_18
+gen_noto "$FONT_REGULAR" 18 noto_sans_18 bin
 gen_noto "$FONT_LIGHT"   16 noto_sans_light_16 bin
 gen_noto "$FONT_LIGHT"   12 noto_sans_light_12 bin
 
@@ -448,4 +448,4 @@ gen_mdi 48 bin
 gen_mdi 64 bin
 
 echo ""
-echo "Done. 11 compressed .c font twins + 10 .bin frogfs twins written to $OUT_DIR"
+echo "Done. 11 compressed .c font twins + 11 .bin frogfs twins written to $OUT_DIR"
