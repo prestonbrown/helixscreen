@@ -43,6 +43,7 @@
 #include "filament_op_router.h"
 #include "macro_executor.h"
 #include "macro_param_cache.h"
+#include "macro_param_defaults.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -505,6 +506,88 @@ TEST_CASE_METHOD(DispatchSurfaceFixture, "Runout purge with no macro falls back 
 
     CHECK(prompt_count == 0);
     CHECK(gcode_sent_containing("G1 E50"));
+}
+
+// =============================================================================
+// Saved parameter defaults on the shared dispatch
+// =============================================================================
+
+TEST_CASE_METHOD(DispatchSurfaceFixture,
+                 "dispatch_filament_macro runs a saved ask-off record with no prompt",
+                 "[filament][dispatch][wiring][macro]") {
+    cache_macros({{"LOAD_FILAMENT", "{% set TEMP = params.TEMP|default(200)|int %}\n"
+                                    "{% set SPEED = params.SPEED|default(50)|int %}\nG1 E10"}});
+    helix::MacroParamDefaultRecord record;
+    record.values = {{"TEMP", "210"}};
+    record.ask_for_params = false;
+    helix::MacroParamDefaults::instance().set("LOAD_FILAMENT", record);
+
+    MacroParamResult received;
+    const bool prompted = helix::ui::dispatch_filament_macro(
+        "LOAD_FILAMENT", ParamPolicy::Prompt,
+        [&received](const MacroParamResult& result) { received = result; });
+
+    CHECK_FALSE(prompted);
+    CHECK(prompt_count == 0);
+    // SPEED has no saved value, so it falls back to the macro's own default.
+    CHECK(received.params == ParamValues({{"TEMP", "210"}}));
+}
+
+TEST_CASE_METHOD(DispatchSurfaceFixture,
+                 "dispatch_filament_macro prefills the prompt with a saved ask-on record",
+                 "[filament][dispatch][wiring][macro]") {
+    cache_macros({{"LOAD_FILAMENT", "{% set TEMP = params.TEMP|default(200)|int %}\n"
+                                    "{% set SPEED = params.SPEED|default(50)|int %}\nG1 E10"}});
+    helix::MacroParamDefaultRecord record;
+    record.values = {{"TEMP", "210"}};
+    helix::MacroParamDefaults::instance().set("LOAD_FILAMENT", record);
+
+    MacroParamResult received;
+    const bool prompted = helix::ui::dispatch_filament_macro(
+        "LOAD_FILAMENT", ParamPolicy::Prompt,
+        [&received](const MacroParamResult& result) { received = result; });
+
+    // A saved set never completes the run on its own - ask is on, so the
+    // prompt still appears, carrying the saved value as its prefill.
+    CHECK(prompted);
+    CHECK(prompt_count == 1);
+    CHECK(prompted_prefill == ParamValues({{"TEMP", "210"}}));
+    CHECK(received.params.empty());
+}
+
+TEST_CASE_METHOD(DispatchSurfaceFixture, "a suppressed surface still sends the saved values",
+                 "[filament][dispatch][wiring][macro]") {
+    cache_macros({{"LOAD_FILAMENT", "{% set TEMP = params.TEMP|default(200)|int %}\nG1 E10"}});
+    helix::MacroParamDefaultRecord record; // ask on: the record's default
+    record.values = {{"TEMP", "210"}};
+    helix::MacroParamDefaults::instance().set("LOAD_FILAMENT", record);
+
+    MacroParamResult received;
+    const bool prompted = helix::ui::dispatch_filament_macro(
+        "LOAD_FILAMENT", ParamPolicy::Suppress,
+        [&received](const MacroParamResult& result) { received = result; });
+
+    CHECK_FALSE(prompted);
+    CHECK(prompt_count == 0);
+    CHECK(received.params == ParamValues({{"TEMP", "210"}}));
+}
+
+TEST_CASE_METHOD(DispatchSurfaceFixture,
+                 "caller-known values outrank the saved record on a prompted dispatch",
+                 "[filament][dispatch][wiring][macro]") {
+    cache_macros({{"LOAD_FILAMENT", "{% set TEMP = params.TEMP|default(200)|int %}\n"
+                                    "{% set SPEED = params.SPEED|default(50)|int %}\nG1 E10"}});
+    helix::MacroParamDefaultRecord record;
+    record.values = {{"TEMP", "210"}, {"SPEED", "60"}};
+    helix::MacroParamDefaults::instance().set("LOAD_FILAMENT", record);
+
+    const bool prompted = helix::ui::dispatch_filament_macro(
+        "LOAD_FILAMENT", ParamPolicy::Prompt, [](const MacroParamResult&) {}, {{"TEMP", "220"}});
+
+    // Known covers TEMP but not SPEED, so the prompt still appears - with the
+    // surface's live temperature over the record's, and SPEED from the record.
+    CHECK(prompted);
+    CHECK(prompted_prefill == ParamValues({{"TEMP", "220"}, {"SPEED", "60"}}));
 }
 
 // =============================================================================

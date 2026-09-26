@@ -122,7 +122,6 @@ class MacrosPanel : public OverlayBase {
     std::set<std::string> seed_default_hidden() const;
 
     // === Run path (unchanged) ===
-    void execute_macro(const std::string& macro_name);
     void fetch_params_and_execute(const std::string& macro_name);
     void fetch_params_and_run(const std::string& macro_name);
     void execute_with_params(const std::string& macro_name, const helix::MacroParamResult& result);

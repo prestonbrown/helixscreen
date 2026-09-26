@@ -557,8 +557,9 @@ class ControlsPanel : public PanelBase {
      * @brief Actually run a configured macro slot (bypasses confirmation)
      *
      * Called by execute_macro() directly or from the confirmation callback.
+     * @param params Saved parameter defaults to send with the macro (may be empty).
      */
-    void do_execute_macro(size_t index);
+    void do_execute_macro(size_t index, const std::map<std::string, std::string>& params = {});
 
     /**
      * @brief Update a single macro button's visibility and label

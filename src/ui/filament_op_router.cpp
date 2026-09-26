@@ -5,6 +5,7 @@
 
 #include "filament_op_slot_resolver.h"
 #include "macro_executor.h"
+#include "macro_param_defaults.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -61,9 +62,15 @@ bool dispatch_filament_macro(const std::string& macro_name, ParamPolicy policy,
 
     const helix::CachedMacroInfo cached = helix::MacroParamCache::instance().get(macro_name);
 
+    // Saved defaults: ask off runs with the saved values, ask on prefills the
+    // modal with them. Either way the surface's own policy still applies.
+    const helix::MacroParamDefaultRecord defaults =
+        helix::MacroParamDefaults::instance().get(macro_name);
+
     helix::MacroRunRequest req;
-    req.prompt_for_params = policy != ParamPolicy::Suppress;
+    req.prompt_for_params = policy != ParamPolicy::Suppress && defaults.ask_for_params;
     req.known_values = known_values;
+    req.saved_values = defaults.values;
 
     const helix::MacroRunDecision decision = helix::decide_macro_run(cached, req);
 
@@ -78,9 +85,7 @@ bool dispatch_filament_macro(const std::string& macro_name, ParamPolicy policy,
             spdlog::info("[FilamentRouter] Every parameter of '{}' is known — running without a "
                          "prompt",
                          macro_name);
-            helix::MacroParamResult result;
-            result.params = decision.params;
-            run(result);
+            run(helix::macro_param_result_from_values(cached.params, decision.params));
         }
         return false;
     }

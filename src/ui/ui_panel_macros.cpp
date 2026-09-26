@@ -20,6 +20,7 @@
 #include "macro_edit_logic.h"
 #include "macro_executor.h"
 #include "macro_param_cache.h"
+#include "macro_param_defaults.h"
 #include "moonraker_client.h"
 #include "observer_factory.h"
 #include "printer_state.h"
@@ -346,10 +347,6 @@ std::string MacrosPanel::prettify_macro_name(const std::string& name) {
 // Run path
 // ============================================================================
 
-void MacrosPanel::execute_macro(const std::string& macro_name) {
-    execute_with_params(macro_name, {});
-}
-
 void MacrosPanel::fetch_params_and_execute(const std::string& macro_name) {
     IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
@@ -406,15 +403,26 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
     req.confirm_plain_run =
         helix::SafetySettingsManager::instance().get_macro_require_confirmation();
 
+    // Saved defaults: ask off runs (or confirms a run) with the saved values;
+    // ask on prefills the param modal with them. Either way a missing record
+    // behaves exactly as before.
+    const helix::MacroParamDefaultRecord defaults =
+        helix::MacroParamDefaults::instance().get(macro_name);
+    req.prompt_for_params = defaults.ask_for_params;
+    req.saved_values = defaults.values;
+
     const helix::MacroRunDecision decision = helix::decide_macro_run(cached, req);
 
     if (decision.action == helix::MacroRunAction::Run) {
-        execute_macro(macro_name);
+        execute_with_params(macro_name,
+                            helix::macro_param_result_from_values(cached.params, decision.params));
         return;
     }
 
     if (decision.action == helix::MacroRunAction::ConfirmRun) {
         pending_run_macro_ = macro_name;
+        const helix::MacroParamResult params =
+            helix::macro_param_result_from_values(cached.params, decision.params);
         std::string msg = fmt::format(lv_tr("Run {}?"), prettify_macro_name(macro_name));
         helix::ui::ConfirmOptions opts;
         opts.on_cancel = [this] { pending_run_macro_.clear(); };
@@ -422,10 +430,10 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
         opts.owner_token = lifetime_.token();
         helix::ui::modal_confirm(
             lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
-            [this] {
+            [this, params] {
                 std::string macro = pending_run_macro_;
                 pending_run_macro_.clear();
-                execute_macro(macro);
+                execute_with_params(macro, params);
             },
             opts);
         return;
@@ -447,7 +455,7 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
     };
 
     if (decision.action == helix::MacroRunAction::Prompt) {
-        param_modal_.show_for_macro(screen, macro_name, cached.params, on_result);
+        param_modal_.show_for_macro(screen, macro_name, cached.params, on_result, decision.params);
     } else {
         param_modal_.show_for_unknown_params(screen, macro_name, on_result);
     }
