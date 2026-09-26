@@ -82,7 +82,9 @@ void PrinterTemperatureState::init_subjects(bool register_xml) {
 
     // Heater duty cycle, whole percent, -1 = the heater reports none.
     INIT_SUBJECT_INT(bed_power, -1, subjects_, register_xml);
-    INIT_SUBJECT_INT(chamber_power, -1, subjects_, register_xml);
+    INIT_SUBJECT_INT(chamber_power, -1, subjects_,
+                     register_xml); // SUBJECT_OK: read by pointer via
+                                    // PrinterState::get_heater_power_subject(HeaterType::Chamber)
 
     // Bed and chamber temperature subjects
     INIT_SUBJECT_INT(bed_temp, 0, subjects_, register_xml);

@@ -15,7 +15,6 @@ abort_state  # src/abort/abort_manager.cpp:63
 about_version_description  # src/ui/ui_settings_about.cpp:103
 ams_env_overlay_preset_text  # src/ui/ui_ams_environment_overlay.cpp:138
 bt_has_results  # src/ui/ui_panel_belt_tension.cpp:258
-chamber_power  # src/printer/printer_temperature_state.cpp:85
 detail_view_visible  # src/ui/ui_panel_print_select.cpp:340
 exclude_map_active  # src/ui/ui_panel_print_status.cpp:648
 filament_extrusion_allowed  # src/ui/ui_panel_filament.cpp:284
