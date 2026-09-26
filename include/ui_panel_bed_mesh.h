@@ -254,7 +254,9 @@ class BedMeshPanel : public OverlayBase {
     static constexpr uint32_t OPERATION_TIMEOUT_MS = 15000; // quick ops (delete, rename)
     static constexpr uint32_t SLOW_OPERATION_TIMEOUT_MS =
         120000; // load, save_config (Klipper restart)
-    static constexpr uint32_t CALIBRATION_TIMEOUT_MS = 300000; // 5 min for BED_MESH_CALIBRATE
+    /// Bounds the TEMPERATURE_WAIT that preheats for probing. The probing itself
+    /// is timed by the advanced API.
+    static constexpr uint32_t PREHEAT_TIMEOUT_MS = 300000; // 5 min
     static constexpr double PROBE_NOZZLE_TEMP =
         150.0; // °C — warm nozzle prevents ooze interference
     static constexpr double PROBE_BED_TEMP =

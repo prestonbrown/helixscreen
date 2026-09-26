@@ -15,7 +15,6 @@
 #include "app_globals.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
-#include "moonraker_advanced_api.h"
 #include "printer_state.h"
 #include "probe_preparation.h"
 #include "probe_sensor_manager.h"
@@ -712,8 +711,8 @@ void ProbeOverlay::handle_probe_accuracy() {
             spdlog::info("[Probe] PROBE_ACCURACY command completed");
         },
         [api = api_, handler_name = probe_acc_handler_name_,
-         backstop_ms = MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS +
-                       prep_timeout_ms](const MoonrakerError& err) {
+         backstop_ms =
+             IAdvancedAPI::PROBING_TIMEOUT_MS + prep_timeout_ms](const MoonrakerError& err) {
             // A dropped socket or an RPC timeout is not a probe result: the
             // printer may still be measuring, and its result lines arrive on
             // the same stream the handler is registered on. Keep listening
@@ -735,7 +734,7 @@ void ProbeOverlay::handle_probe_accuracy() {
             helix::ui::queue_update(
                 [msg]() { get_global_probe_overlay().set_accuracy_error(msg); });
         },
-        MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS + prep_timeout_ms);
+        IAdvancedAPI::PROBING_TIMEOUT_MS + prep_timeout_ms);
 }
 
 void ProbeOverlay::show_accuracy_results(const std::string& results_line) {

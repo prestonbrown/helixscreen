@@ -185,13 +185,12 @@ setup() {
 # — narrower and cheaper to just not have it.
 #
 # Compile-time-only exceptions NOT covered by this lint (by design, not by
-# gap): a few consumers reference concrete-class static constexpr timeouts
-# (MoonrakerAdvancedAPI::PROBING_TIMEOUT_MS, ::LEVELING_TIMEOUT_MS,
-# MoonrakerJobAPI::CANCEL_TIMEOUT_MS) and the MoonrakerAdvancedAPI::MPCResult
-# qualified-name alias. These aren't runtime polymorphism — MPCResult is
-# actually defined on IAdvancedAPI with the concrete class providing a `using`
-# alias purely so old qualified references keep resolving (see
-# include/i_moonraker_sub_apis.h and include/moonraker_advanced_api.h). The
+# gap): a consumer references a concrete-class static constexpr timeout
+# (MoonrakerJobAPI::CANCEL_TIMEOUT_MS) and the MoonrakerAdvancedAPI::MPCResult
+# qualified-name alias. These aren't runtime polymorphism — MPCResult and the
+# calibration timeouts are defined on IAdvancedAPI and reach the concrete class
+# by inheritance or a `using` alias, so old qualified references keep resolving
+# (see include/i_moonraker_sub_apis.h and include/moonraker_advanced_api.h). The
 # ten sub-API concrete class names are deliberately left out of the grep
 # pattern below rather than allowlisting each of those consumer files, which
 # would blur the "outside the network layer" invariant this test communicates.
