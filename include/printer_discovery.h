@@ -1038,6 +1038,7 @@ class PrinterDiscovery {
         macro_config_names_.clear();
         host_restarting_macros_.clear();
         host_halting_macros_.clear();
+        sensor_toggle_command_.clear();
         helix_macros_.clear();
         nozzle_clean_macro_.clear();
         purge_line_macro_.clear();
@@ -1514,6 +1515,39 @@ class PrinterDiscovery {
         return host_restarting_macros_;
     }
 
+    /**
+     * @brief Resolve the command that toggles a filament sensor in firmware
+     *
+     * A [gcode_macro SET_FILAMENT_SENSOR] wrapper must rename the builtin
+     * (rename_existing), and a wrapper may treat every call as a user setting
+     * and persist it. HelixScreen's toggles are temporary firmware state, not
+     * user settings, so they go to the builtin under its renamed name and skip
+     * the wrapper's side effects on purpose.
+     *
+     * @param settings JSON object from a configfile.settings response
+     * @return true when a wrapper's rename_existing was found and stored
+     */
+    bool parse_sensor_toggle_command(const nlohmann::json& settings) {
+        const auto wrapper = settings.find("gcode_macro set_filament_sensor");
+        if (wrapper == settings.end() || !wrapper->is_object()) {
+            return false;
+        }
+        const auto renamed = wrapper->find("rename_existing");
+        if (renamed == wrapper->end() || !renamed->is_string() ||
+            renamed->get<std::string>().empty()) {
+            return false;
+        }
+        sensor_toggle_command_ = renamed->get<std::string>();
+        return true;
+    }
+
+    /// The firmware command for SENSOR=<name> ENABLE=<0|1>. See
+    /// parse_sensor_toggle_command().
+    [[nodiscard]] std::string sensor_toggle_command() const {
+        return sensor_toggle_command_.empty() ? std::string("SET_FILAMENT_SENSOR")
+                                              : sensor_toggle_command_;
+    }
+
     /// Macros reaching a command that leaves the host DOWN, from
     /// helix::analyze_host_halting_macros(); stored uppercased like macros_.
     void set_host_halting_macros(std::unordered_set<std::string> macros) {
@@ -1828,6 +1862,7 @@ class PrinterDiscovery {
     std::unordered_map<std::string, std::string> macro_config_names_;
     std::unordered_set<std::string> host_restarting_macros_; ///< Macros that reach a host restart
     std::unordered_set<std::string> host_halting_macros_;    ///< Macros that reach a host halt
+    std::string sensor_toggle_command_; ///< Empty = the SET_FILAMENT_SENSOR builtin
     std::unordered_set<std::string> helix_macros_;
     std::string nozzle_clean_macro_;
     std::string purge_line_macro_;
