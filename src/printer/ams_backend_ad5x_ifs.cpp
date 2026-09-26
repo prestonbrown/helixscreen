@@ -1808,27 +1808,7 @@ AmsSystemInfo AmsBackendAd5xIfs::get_system_info() const {
     // This catches cases where the printer goes silent (network drop, Klipper crash).
     const_cast<AmsBackendAd5xIfs*>(this)->check_action_timeout();
 
-    auto info = slots_.build_system_info();
-
-    // Overlay our cached system info
-    info.type = system_info_.type;
-    info.type_name = system_info_.type_name;
-    info.total_slots = system_info_.total_slots;
-    info.current_tool = system_info_.current_tool;
-    info.current_slot = system_info_.current_slot;
-    info.filament_loaded = system_info_.filament_loaded;
-    info.action = system_info_.action;
-    // Surface the phase machine's live sub-phase + detail so
-    // AmsState::sync_from_backend can drive the ams_operation_phase subject and
-    // the operation-detail line. Without this the right-side step tracker renders
-    // the steps but never highlights the active one, and the detail goes blank
-    // (#1065 Bug 2: "the 1-2-3 steps show but fail to launch any of them").
-    info.operation_detail = system_info_.operation_detail;
-    info.operation_phase = system_info_.operation_phase;
-    info.operation_indeterminate = system_info_.operation_indeterminate;
-    info.supports_bypass = system_info_.supports_bypass;
-    info.endless_spool_enabled = system_info_.endless_spool_enabled;
-    info.supports_purge = system_info_.supports_purge;
+    auto info = slots_.build_system_info(system_info_);
 
     // Replace registry's tool map with IFS-specific 16-entry mapping
     info.tool_to_slot_map.clear();

@@ -322,6 +322,55 @@ TEST_CASE("SlotRegistry tool mapping", "[slot_registry][tool_mapping]") {
     }
 }
 
+TEST_CASE("SlotRegistry build_system_info keeps the base's own fields",
+          "[slot_registry][snapshot]") {
+    SlotRegistry reg;
+    reg.initialize_units({{"Unit_A", {"s0", "s1"}}, {"Unit_B", {"s2"}}});
+    reg.get_mut(0)->info.material = "PLA";
+    reg.set_tool_mapping(2, 0);
+
+    helix::AmsSystemInfo base;
+    base.version = "1.2.3";
+    base.filament_runout = true;
+    base.action = helix::AmsAction::ERROR;
+    base.total_slots = 99;
+    base.tool_to_slot_map = {7, 7, 7};
+    helix::AmsUnit stale;
+    stale.name = "Pretty A";
+    stale.display_name = "Box A";
+    stale.connected = true;
+    stale.slot_count = 9;
+    stale.first_slot_global_index = 40;
+    stale.slots.resize(9);
+    base.units.push_back(stale);
+
+    auto info = reg.build_system_info(base);
+
+    // Everything the registry does not own passes through.
+    CHECK(info.version == "1.2.3");
+    CHECK(info.filament_runout);
+    CHECK(info.action == helix::AmsAction::ERROR);
+    REQUIRE(info.units.size() == 2);
+    CHECK(info.units[0].name == "Pretty A");
+    CHECK(info.units[0].display_name == "Box A");
+    CHECK(info.units[0].connected);
+
+    // Slot-owned fields come from the registry.
+    CHECK(info.total_slots == 3);
+    CHECK(info.tool_to_slot_map == std::vector<int>{2});
+    CHECK(info.units[0].unit_index == 0);
+    CHECK(info.units[0].slot_count == 2);
+    CHECK(info.units[0].first_slot_global_index == 0);
+    REQUIRE(info.units[0].slots.size() == 2);
+    CHECK(info.units[0].slots[0].material == "PLA");
+
+    // A unit the base lacks is built from the registry alone.
+    CHECK(info.units[1].name == "Unit_B");
+    CHECK(info.units[1].unit_index == 1);
+    CHECK(info.units[1].first_slot_global_index == 2);
+    CHECK(info.units[1].slots.size() == 1);
+}
+
 TEST_CASE("SlotRegistry build_system_info", "[slot_registry][snapshot]") {
     SlotRegistry reg;
 

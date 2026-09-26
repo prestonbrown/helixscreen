@@ -2,6 +2,7 @@
 #include "slot_registry.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace helix::printer {
 
@@ -308,27 +309,31 @@ std::vector<int> SlotRegistry::backup_edges() const {
     return edges;
 }
 
-AmsSystemInfo SlotRegistry::build_system_info() const {
-    AmsSystemInfo info;
+AmsSystemInfo SlotRegistry::build_system_info(AmsSystemInfo base) const {
+    AmsSystemInfo info = std::move(base);
     info.total_slots = slot_count();
+
+    const size_t base_units = info.units.size();
+    info.units.resize(units_.size());
 
     for (int u = 0; u < static_cast<int>(units_.size()); ++u) {
         const auto& reg_unit = units_[u];
+        AmsUnit& unit = info.units[u];
 
-        AmsUnit unit;
+        if (static_cast<size_t>(u) >= base_units) {
+            unit.name = reg_unit.name;
+        }
         unit.unit_index = u;
-        unit.name = reg_unit.name;
         unit.slot_count = reg_unit.slot_count;
         unit.first_slot_global_index = reg_unit.first_slot;
 
+        unit.slots.clear();
         for (int s = 0; s < reg_unit.slot_count; ++s) {
             int gi = reg_unit.first_slot + s;
             if (is_valid_index(gi)) {
                 unit.slots.push_back(slots_[gi].info);
             }
         }
-
-        info.units.push_back(std::move(unit));
     }
 
     info.tool_to_slot_map = tool_to_slot_;
