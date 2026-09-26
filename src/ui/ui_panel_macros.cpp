@@ -358,10 +358,14 @@ void MacrosPanel::fetch_params_and_execute(const std::string& macro_name) {
         return;
     }
 
-    bool dangerous = helix::is_dangerous_macro(macro_name, get_printer_state().get_discovery());
+    helix::MacroRunRequest req;
+    req.dangerous = helix::is_dangerous_macro(macro_name, get_printer_state().get_discovery());
+    req.confirm_plain_run =
+        helix::SafetySettingsManager::instance().get_macro_require_confirmation();
 
     // For dangerous macros, show confirmation before doing anything else
-    if (dangerous) {
+    if (helix::decide_macro_run(helix::MacroParamCache::instance().get(macro_name), req).action ==
+        helix::MacroRunAction::ConfirmDangerous) {
         spdlog::warn("[{}] Dangerous macro requested: {}", get_name(), macro_name);
 
         // Store pending macro name for the confirmation callbacks; on_dismiss
@@ -394,30 +398,37 @@ void MacrosPanel::fetch_params_and_execute(const std::string& macro_name) {
 void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
     auto cached = helix::MacroParamCache::instance().get(macro_name);
 
-    if (cached.knowledge == helix::MacroParamKnowledge::KNOWN_NO_PARAMS) {
-        // Ask for generic run confirmation when the setting is on. Skip for
-        // dangerous macros — the dangerous-macro confirm already ran upstream.
-        bool needs_confirm =
-            helix::SafetySettingsManager::instance().get_macro_require_confirmation() &&
-            !helix::is_dangerous_macro(macro_name, get_printer_state().get_discovery());
-        if (needs_confirm) {
-            pending_run_macro_ = macro_name;
-            std::string msg = fmt::format(lv_tr("Run {}?"), prettify_macro_name(macro_name));
-            helix::ui::ConfirmOptions opts;
-            opts.on_cancel = [this] { pending_run_macro_.clear(); };
-            opts.on_dismiss = [this] { pending_run_macro_.clear(); };
-            opts.owner_token = lifetime_.token();
-            helix::ui::modal_confirm(
-                lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
-                [this] {
-                    std::string macro = pending_run_macro_;
-                    pending_run_macro_.clear();
-                    execute_macro(macro);
-                },
-                opts);
-            return;
-        }
+    // Reached straight from a row tap, or from the dangerous-macro dialog's
+    // Run button - where the dangerous flag recomputes true and suppresses the
+    // plain-run confirm below, so the macro is never confirmed twice.
+    helix::MacroRunRequest req;
+    req.dangerous = helix::is_dangerous_macro(macro_name, get_printer_state().get_discovery());
+    req.dangerous_confirmed = true;
+    req.confirm_plain_run =
+        helix::SafetySettingsManager::instance().get_macro_require_confirmation();
+
+    const helix::MacroRunDecision decision = helix::decide_macro_run(cached, req);
+
+    if (decision.action == helix::MacroRunAction::Run) {
         execute_macro(macro_name);
+        return;
+    }
+
+    if (decision.action == helix::MacroRunAction::ConfirmRun) {
+        pending_run_macro_ = macro_name;
+        std::string msg = fmt::format(lv_tr("Run {}?"), prettify_macro_name(macro_name));
+        helix::ui::ConfirmOptions opts;
+        opts.on_cancel = [this] { pending_run_macro_.clear(); };
+        opts.on_dismiss = [this] { pending_run_macro_.clear(); };
+        opts.owner_token = lifetime_.token();
+        helix::ui::modal_confirm(
+            lv_tr("Run Macro?"), msg.c_str(), ModalSeverity::Info, lv_tr("Run"),
+            [this] {
+                std::string macro = pending_run_macro_;
+                pending_run_macro_.clear();
+                execute_macro(macro);
+            },
+            opts);
         return;
     }
 
@@ -436,7 +447,7 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
         execute_with_params(name, result);
     };
 
-    if (cached.knowledge == helix::MacroParamKnowledge::KNOWN_PARAMS) {
+    if (decision.action == helix::MacroRunAction::Prompt) {
         param_modal_.show_for_macro(screen, macro_name, cached.params, on_result);
     } else {
         param_modal_.show_for_unknown_params(screen, macro_name, on_result);

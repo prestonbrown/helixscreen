@@ -28,6 +28,7 @@
 #include "app_globals.h"
 #include "format_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "macro_executor.h"
 #include "moonraker_api.h"
 #include "observer_factory.h"
 #include "operation_timeout_guard.h"
@@ -1559,7 +1560,14 @@ void ControlsPanel::execute_macro(size_t index) {
         return;
     }
 
-    if (!helix::SafetySettingsManager::instance().get_macro_require_confirmation()) {
+    // Quick buttons never prompt for parameters, so the decision weighs only
+    // the Safety setting; the cached macro info goes unread on that path.
+    helix::MacroRunRequest run_req;
+    run_req.prompt_for_params = false;
+    run_req.confirm_plain_run =
+        helix::SafetySettingsManager::instance().get_macro_require_confirmation();
+    if (helix::decide_macro_run(helix::CachedMacroInfo{}, run_req).action !=
+        helix::MacroRunAction::ConfirmRun) {
         do_execute_macro(index);
         return;
     }
