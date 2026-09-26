@@ -170,15 +170,29 @@ TEST_CASE("motion panel fills the header slot and carries the portrait strip", "
     }
 
     // Portrait: the strip under the header binds the same subjects under its
-    // own names, and the Z row places all four Z buttons plus the unit label.
+    // own names, one row pairs the jog pad with a tall Z column whose buttons
+    // reuse the landscape Z bindings, and a single bottom row carries the jog
+    // modes plus the capability-gated leveling buttons.
     CHECK(xml.find("name=\"coord_row\"") != std::string::npos);
     CHECK(xml.find("name=\"row_pos_x\" bind_text=\"motion_pos_x\"") != std::string::npos);
-    CHECK(xml.find("name=\"z_row\"") != std::string::npos);
-    const bool z_unit_label = xml.find("text=\"Z mm\"") != std::string::npos;
-    CHECK(z_unit_label);
+    CHECK(xml.find("name=\"pad_row\"") != std::string::npos);
+    CHECK(xml.find("name=\"z_column\"") != std::string::npos);
+    CHECK(xml.find("name=\"bottom_row\"") != std::string::npos);
+    CHECK(xml.find("name=\"btn_qgl\"") != std::string::npos);
+    CHECK(xml.find("icon_position=\"top\"") != std::string::npos);
+    const bool axis_label =
+        xml.find("name=\"z_axis_label\" width=\"100%\" bind_text=\"motion_z_axis_label\"") !=
+        std::string::npos;
+    CHECK(axis_label);
     for (const char* btn : {"z_up_large", "z_up_small", "z_down_small", "z_down_large"}) {
         CHECK(xml.find(std::string("name=\"") + btn + "\"") != std::string::npos);
     }
+    CHECK(xml.find(std::string("bind_text=\"motion_z_large_label\"")) != std::string::npos);
+    CHECK(xml.find(std::string("bind_text=\"motion_z_small_label\"")) != std::string::npos);
+    // The full-width Z row and its unit label must not come back: portrait
+    // stacks the Z controls beside the pad, not under it.
+    CHECK(xml.find("name=\"z_row\"") == std::string::npos);
+    CHECK(xml.find("text=\"Z mm\"") == std::string::npos);
 
     // The title is the same "Motion" key the controls panel button uses.
     const auto title_needle = xml.find("title=\"Motion\"");

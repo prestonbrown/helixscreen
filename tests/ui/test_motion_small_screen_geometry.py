@@ -9,9 +9,9 @@ the width the position card used to occupy. These tests pin, per resolution:
   - landscape: the widest realistic coordinate values ("350.00" x2 + "250.00")
     render through the slot without touching the title or the e-stop button,
     and the pad keeps the width the card freed up
-  - portrait: the coordinate strip sits under the header, the Z row sits
-    under the pad, the bottom row fits inside the panel, and the header-slot
-    copy stays hidden
+  - portrait: the coordinate strip sits under the header, the pad and the Z
+    column share one row with no dead band either side, the bottom row fits
+    inside the panel without scrolling, and the header-slot copy stays hidden
   - one control overlay: a header_bar that fills nothing renders at exactly
     the geometry it had before the slot existed
 
@@ -42,8 +42,8 @@ _LANDSCAPE = [
 ]
 
 _PORTRAIT = [
-    ("272x480", 114),
-    ("320x480", 114),
+    ("272x480", 204),
+    ("320x480", 244),
 ]
 
 # 1/100 mm: the widest realistic readout, 3 digits + 2 decimals per axis.
@@ -173,16 +173,32 @@ def test_portrait_strips_stack_and_fit(size, pad_floor, tmp_path):
             assert pad["w"] >= pad_floor and pad["h"] >= pad_floor, (
                 f"{size}: jog pad is {pad['w']}x{pad['h']}, floor is {pad_floor}")
 
-            z_row = _geom(app, "z_row")
-            assert z_row["y"] >= _bottom(pad), (
-                f"{size}: Z row at y={z_row['y']} is not below the pad "
-                f"(bottom {_bottom(pad)})")
+            # The full-width Z row under the pad is gone: portrait pairs the
+            # pad with a tall Z column in one row instead.
+            with pytest.raises(HelixCtlError):
+                app.geom("z_row")
+
+            # No dead band beside the circle: the pad hugs its row's left
+            # edge, the Z column hugs the right edge. 6px is space_sm-ish;
+            # anything wider means the wrapper stopped claiming the row.
+            pad_row = _geom(app, "pad_row")
+            z_col = _geom(app, "z_column")
+            assert pad["x"] - pad_row["x"] <= 6, (
+                f"{size}: {pad['x'] - pad_row['x']}px of dead space left of the "
+                f"jog pad - the wrapper is not claiming the row width")
+            assert _right(pad_row) - _right(z_col) <= 6, (
+                f"{size}: {_right(pad_row) - _right(z_col)}px of dead space "
+                f"right of the Z column")
+
+            content = _geom(app, "overlay_content")
+            assert all(v == 0 for v in content["scroll"].values()), (
+                f"{size}: overlay scrolled {content['scroll']} - portrait does "
+                f"not fit without scrolling")
             panel = _geom(app, "motion_panel")
-            leveling = _geom(app, "leveling_buttons")
-            assert _bottom(leveling) <= panel["y"] + panel["h"], (
-                f"{size}: leveling row bottom {_bottom(leveling)} exceeds the "
-                f"panel bottom {panel['y'] + panel['h']} - portrait does not fit "
-                f"without scroll")
+            bottom = _geom(app, "bottom_row")
+            assert _bottom(bottom) <= panel["y"] + panel["h"], (
+                f"{size}: bottom row bottom {_bottom(bottom)} exceeds the "
+                f"panel bottom {panel['y'] + panel['h']} - portrait does not fit")
     finally:
         _restore_size(before)
 
