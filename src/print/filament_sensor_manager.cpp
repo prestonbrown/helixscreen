@@ -12,6 +12,7 @@
 #include "config.h"
 #include "i_moonraker_api.h"
 #include "print_lifecycle_state.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "runtime_config.h" // backend_owns_runout_during_job()
 #include "spdlog/fmt/fmt.h"
@@ -574,11 +575,14 @@ void FilamentSensorManager::send_firmware_sensor_enable(IMoonrakerAPI* api,
     // prefix — which is exactly FilamentSensorConfig::sensor_name
     // (parse_klipper_name's split at discovery). Same convention Creality's
     // own macros use (`SET_FILAMENT_SENSOR SENSOR=filament_sensor ENABLE=0`).
+    // The command is the builtin's name, renamed when a macro wraps it, so a
+    // wrapper never records the toggle as a user setting.
     // Log-only error disposition: a failed arm/restore must not toast in the
     // middle of a bypass toggle; Klipper's `!!` broadcast still surfaces it.
     const char* what = enabled ? "arm" : "restore";
     api->execute_gcode(
-        fmt::format("SET_FILAMENT_SENSOR SENSOR={} ENABLE={}", sensor.sensor_name, enabled ? 1 : 0),
+        fmt::format("{} SENSOR={} ENABLE={}", api->hardware().sensor_toggle_command(),
+                    sensor.sensor_name, enabled ? 1 : 0),
         []() {},
         [what](const MoonrakerError& err) {
             spdlog::warn("[FilamentSensorManager] Bypass sensor {} failed: {}", what, err.message);
