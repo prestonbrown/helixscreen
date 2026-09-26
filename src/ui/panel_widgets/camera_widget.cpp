@@ -676,7 +676,11 @@ void CameraWidget::show_fullscreen_overlay() {
         }
         fullscreen_image_ = nullptr;
         fullscreen_spinner_ = nullptr;
-        s_fullscreen_owner = nullptr;
+        // A raw overlay delete frees the slot before this queued close runs, so
+        // another widget may own it by now.
+        if (s_fullscreen_owner == this) {
+            s_fullscreen_owner = nullptr;
+        }
 
         // Delete the overlay widget tree
         helix::ui::safe_delete_obj(fullscreen_overlay_);
@@ -764,8 +768,8 @@ void close_standalone() {
     }
 
     // Move the stream onto a background worker. CameraStream::stop() joins
-    // the stream thread with a 5s timeout — running it inline on the main
-    // thread freezes UI input (the close button looked unresponsive #957-ish).
+    // the stream thread with a 5s timeout; running it inline on the main
+    // thread freezes UI input.
     std::unique_ptr<CameraStream> stream = std::move(s_standalone->stream);
     if (stream) {
         helix::http::HttpExecutor::fast().submit(
@@ -902,7 +906,12 @@ void open_standalone_camera_fullscreen(lv_obj_t* parent_screen) {
 
     NavigationManager::instance().register_overlay_instance(overlay, nullptr);
     lv_obj_add_event_cb(overlay, on_standalone_overlay_deleted, LV_EVENT_DELETE, nullptr);
-    NavigationManager::instance().register_overlay_close_callback(overlay, close_standalone);
+    // The close is queued; a stale one must not shut a viewer opened since.
+    NavigationManager::instance().register_overlay_close_callback(overlay, [overlay]() {
+        if (s_standalone && s_standalone->overlay == overlay) {
+            close_standalone();
+        }
+    });
 
     // Same width-unmanaged marking as CameraWidget::open_fullscreen(): this is
     // the identical camera_fullscreen component, and without this it goes
