@@ -117,7 +117,7 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     tsm.discover(hardware.sensors());
 
     // Initialize load cell manager
-    // Load cells (load_cell) are discovered from the full objects list
+    // hardware.load_cells() returns load_cell objects
     auto& lcm = helix::sensors::LoadCellManager::instance();
     lcm.discover(hardware.load_cells());
 
