@@ -22,7 +22,6 @@
  * its own, not just the binding.
  */
 
-#include "observer_factory.h"
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_nav_manager.h"
 #include "ui_update_queue.h"
@@ -32,6 +31,7 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
@@ -39,13 +39,12 @@
 #include <lvgl/lvgl.h>
 
 #include <condition_variable>
+#include <fmt/format.h>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
-
-#include <fmt/format.h>
 
 #include "../catch_amalgamated.hpp"
 
@@ -58,14 +57,12 @@ namespace {
 /// test opens the gate.
 ///
 /// Every backend event becomes a queued sync that re-reads the backend's
-/// CURRENT state, and the controller chains on an observed UNLOADING->IDLE
-/// edge of the ams_action subject. At operation delay 0 the unload finishes in
-/// microseconds, so whether the main thread's first sync reads UNLOADING or
-/// already IDLE is a scheduling outcome; when it reads IDLE the edge is never
-/// published and the chain cannot fire, however long anyone waits. Holding the
-/// thread until the edge has been published makes the chain a fact of the
-/// test, not of the box it runs on. Events emitted on the owning thread pass
-/// straight through: the unload dispatch and the enable both emit there.
+/// CURRENT state, so at operation delay 0 whether the main thread's first sync
+/// reads UNLOADING or already IDLE is a scheduling outcome. The gate pins it:
+/// parking the operation thread makes the mid-unload sync a fact of the test
+/// rather than of the box it runs on, so the arming-edge assertion below is
+/// asserting something real. Events emitted on the owning thread pass straight
+/// through: the unload dispatch and the enable both emit there.
 class GatedBackendMock : public AmsBackendMock {
   public:
     explicit GatedBackendMock(int slot_count) : AmsBackendMock(slot_count) {}
@@ -126,10 +123,9 @@ class DeviceOpsBypassFixture : public LVGLUITestFixture {
     GatedBackendMock* backend = nullptr;
 
     /// Every value the ams_action subject published since the overlay came up,
-    /// in order. The controller chains on an observed UNLOADING->IDLE edge, so
-    /// when the enable never lands this sequence says whether the edge was
-    /// published at all (a lost edge) or published and not yet acted on (a
-    /// slow box). An empty list at expiry means no amount of waiting helps.
+    /// in order. When the enable never lands, this sequence says how far the
+    /// operation actually got - an empty list at expiry means the backend
+    /// published nothing and no amount of waiting helps.
     std::vector<int> published_actions;
     ObserverGuard action_recorder_;
 
@@ -245,8 +241,8 @@ class DeviceOpsBypassFixture : public LVGLUITestFixture {
                            "published_actions=[{}]",
                            backend->is_bypass_active(), ams_action_to_string(info.action),
                            info.current_slot, info.filament_loaded,
-                           ams_action_to_string(static_cast<AmsAction>(lv_subject_get_int(
-                               AmsState::instance().get_ams_action_subject()))),
+                           ams_action_to_string(static_cast<AmsAction>(
+                               lv_subject_get_int(AmsState::instance().get_ams_action_subject()))),
                            edges);
     }
 
@@ -300,9 +296,9 @@ TEST_CASE_METHOD(DeviceOpsBypassFixture,
     backend->close_gate();
     tap(toggle);
 
-    // The arming edge. The handler syncs AmsState right after dispatching the
-    // unload; with the operation thread parked, that sync can only read
-    // UNLOADING, so the edge the controller chains on is now on the subject.
+    // The handler syncs AmsState right after dispatching the unload; with the
+    // operation thread parked, that sync can only read UNLOADING. This pins the
+    // gate itself: without it the assertion below is a coin toss.
     REQUIRE(lv_subject_get_int(AmsState::instance().get_ams_action_subject()) ==
             static_cast<int>(AmsAction::UNLOADING));
 
@@ -316,7 +312,7 @@ TEST_CASE_METHOD(DeviceOpsBypassFixture,
     CHECK(backend->get_slot_info(0).status == SlotStatus::AVAILABLE);
 
     // ...and the chain still finishes the job the user asked for, driven by the
-    // controller's own ams_action observer off the real backend events.
+    // controller's own observer off the real backend events.
     const bool enabled = settle_until([this] { return backend->is_bypass_active(); });
     INFO("chain at expiry: " << chain_state());
     CHECK(enabled);

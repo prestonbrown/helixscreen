@@ -60,14 +60,15 @@ void BypassToggleController::toggle() {
     }
 
     // Enable path: #1229 chaining discipline — unload first when the backend
-    // allows implicit chaining, enable on UNLOADING->IDLE, disarm on ERROR.
+    // allows implicit chaining, then enable once poll_pending_engage() sees
+    // the lane clear.
     if (should_unload_before_bypass(info, backend->allows_implicit_chaining())) {
         spdlog::info("[BypassToggle] Unloading slot {} before enabling bypass", info.current_slot);
         pending_bypass_enable_ = true;
-        // Subscribe BEFORE starting the unload: the backend flips the action
-        // to UNLOADING as the op dispatches, and a later subscribe would miss
-        // that edge and never see prev==UNLOADING.
-        arm_action_observer();
+        // Subscribe BEFORE starting the unload: a backend that finishes inside
+        // the dispatch emits its events from there, and the sync those queue is
+        // the revision bump that settles the chain.
+        arm_backend_observer();
         AmsError error = backend->unload_active_filament();
         if (error.result == AmsResult::SUCCESS) {
             NOTIFY_INFO(lv_tr("Unloading before bypass..."));
@@ -89,63 +90,72 @@ void BypassToggleController::enable_now(AmsBackend* backend) {
     }
 }
 
-bool BypassToggleController::on_ams_action_changed(AmsAction prev, AmsAction next) {
-    // The pending flag is armed by the unload we started, so it must be
-    // disarmed by whichever way that unload ends. Clearing only on IDLE left
-    // a failed unload's flag set, and the next unrelated unload completion
-    // then enabled bypass out of nowhere. Only IDLE actually chains.
-    if (!pending_bypass_enable_ || prev != AmsAction::UNLOADING ||
-        (next != AmsAction::IDLE && next != AmsAction::ERROR)) {
+bool BypassToggleController::poll_pending_engage() {
+    if (!pending_bypass_enable_) {
         return false;
     }
-    pending_bypass_enable_ = false;
-    disarm_action_observer();
-    if (next == AmsAction::ERROR) {
-        spdlog::warn("[BypassToggle] Unload failed — cancelling pending bypass enable");
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        // The backend the chain was armed against is gone; nothing can settle it.
+        cancel_pending();
         return true;
     }
-    spdlog::info("[BypassToggle] Unload complete — enabling bypass");
-    if (AmsBackend* backend = AmsState::instance().get_backend()) {
-        enable_now(backend);
+    const AmsSystemInfo info = backend->get_system_info();
+    if (info.action == AmsAction::ERROR) {
+        // The chain is armed by the unload we started, so whichever way that
+        // unload ends has to disarm it: a chain left armed settles on the next
+        // unrelated unload and enables bypass nobody asked for.
+        spdlog::warn("[BypassToggle] Unload failed - cancelling pending bypass enable");
+        cancel_pending();
+        return true;
     }
+    // The same question toggle() asked to arm the chain. Still true means
+    // the lane the unload has to clear is still loaded - including the window
+    // before the dispatched op has started, which is why a bare "backend is
+    // idle" test cannot settle the chain on its own.
+    if (info.is_busy() || should_unload_before_bypass(info, backend->allows_implicit_chaining())) {
+        return false;
+    }
+    // Cleared before the enable: the sync queued off the enable's own events
+    // would settle a still-armed chain a second time.
+    pending_bypass_enable_ = false;
+    disarm_backend_observer();
+    spdlog::info("[BypassToggle] Lane clear - enabling bypass");
+    enable_now(backend);
     return true;
 }
 
 void BypassToggleController::cancel_pending() {
     pending_bypass_enable_ = false;
-    disarm_action_observer();
+    disarm_backend_observer();
 }
 
-void BypassToggleController::arm_action_observer() {
-    if (action_observer_) {
+void BypassToggleController::arm_backend_observer() {
+    if (backend_observer_) {
         return;
     }
     auto& ams = AmsState::instance();
-    lv_subject_t* subject = ams.get_ams_action_subject();
+    lv_subject_t* subject = ams.get_ams_data_revision_subject();
     if (!subject) {
         return;
     }
-    // Seed prev from the live subject so the first observed edge is computed
-    // against what the subject actually holds right now (IDLE before our
-    // unload dispatches, or already UNLOADING if the flip raced us).
-    prev_action_ = static_cast<AmsAction>(lv_subject_get_int(subject));
+    // ams_data_revision rather than ams_action: it is bumped after every
+    // backend-event sync, so it notifies even when the state the sync read is
+    // identical to the last one. The value itself is ignored - the handler
+    // re-reads the backend.
+    //
     // observe_int_sync defers the handler through ui_queue_update(), so the
-    // guard mutation on settle below never runs inside lv_subject_notify
-    // (issue #82 discipline). AmsState subjects fire on the main thread.
-    action_observer_ = observe_int_sync<BypassToggleController>(
-        subject, this,
-        [](BypassToggleController* self, int action_int) {
-            const AmsAction next = static_cast<AmsAction>(action_int);
-            self->on_ams_action_changed(self->prev_action_, next);
-            self->prev_action_ = next;
-        },
+    // guard mutation on settle never runs inside lv_subject_notify (issue #82
+    // discipline). AmsState subjects fire on the main thread.
+    backend_observer_ = observe_int_sync<BypassToggleController>(
+        subject, this, [](BypassToggleController* self, int) { self->poll_pending_engage(); },
         ams.get_subjects_lifetime());
 }
 
-void BypassToggleController::disarm_action_observer() {
+void BypassToggleController::disarm_backend_observer() {
     // [L085] reset(), never release(): the observer must come off the
     // subject so a settled controller is not pinged forever.
-    action_observer_.reset();
+    backend_observer_.reset();
 }
 
 } // namespace helix::ui
