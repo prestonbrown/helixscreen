@@ -7,6 +7,7 @@
 
 #include "ams_state.h"
 #include "filament_op_slot_resolver.h"
+#include "macro_executor.h"
 #include "printer_state.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -64,45 +65,38 @@ bool dispatch_filament_macro(const std::string& macro_name, ParamPolicy policy,
     }
 
     const helix::CachedMacroInfo cached = helix::MacroParamCache::instance().get(macro_name);
-    const bool takes_params = cached.knowledge == helix::MacroParamKnowledge::KNOWN_PARAMS ||
-                              cached.knowledge == helix::MacroParamKnowledge::UNKNOWN;
 
-    if (policy == ParamPolicy::Suppress || !takes_params) {
-        // KNOWN_NO_PARAMS, or a surface that must not stack a second modal —
-        // run straight through with an empty result.
-        spdlog::debug("[FilamentRouter] Executing '{}' with no parameters (policy={})", macro_name,
-                      policy == ParamPolicy::Suppress ? "suppress" : "no-params");
-        run({});
-        return false;
-    }
+    helix::MacroRunRequest req;
+    req.prompt_for_params = policy != ParamPolicy::Suppress;
+    req.known_values = known_values;
 
-    // Only a macro whose parameters are known can be filled: an UNKNOWN macro may
-    // read none of these names, so it always asks.
-    std::map<std::string, std::string> prefill;
-    if (cached.knowledge == helix::MacroParamKnowledge::KNOWN_PARAMS) {
-        for (const auto& param : cached.params) {
-            if (auto it = known_values.find(param.name); it != known_values.end()) {
-                prefill.emplace(param.name, it->second);
-            }
-        }
-        if (prefill.size() == cached.params.size()) {
+    const helix::MacroRunDecision decision = helix::decide_macro_run(cached, req);
+
+    if (decision.action == helix::MacroRunAction::Run) {
+        if (decision.params.empty()) {
+            // KNOWN_NO_PARAMS, or a surface that must not stack a second modal —
+            // run straight through with an empty result.
+            spdlog::debug("[FilamentRouter] Executing '{}' with no parameters (policy={})",
+                          macro_name, policy == ParamPolicy::Suppress ? "suppress" : "no-params");
+            run({});
+        } else {
             spdlog::info("[FilamentRouter] Every parameter of '{}' is known — running without a "
                          "prompt",
                          macro_name);
             helix::MacroParamResult result;
-            result.params = std::move(prefill);
+            result.params = decision.params;
             run(result);
-            return false;
         }
+        return false;
     }
 
     spdlog::info("[FilamentRouter] Macro '{}' takes parameters — prompting ({} prefilled)",
-                 macro_name, prefill.size());
+                 macro_name, decision.params.size());
     const ParamPrompter& prompter = prompter_slot();
     if (prompter) {
-        prompter(macro_name, cached, prefill, std::move(run));
+        prompter(macro_name, cached, decision.params, std::move(run));
     } else {
-        show_shared_param_modal(macro_name, cached, prefill, std::move(run));
+        show_shared_param_modal(macro_name, cached, decision.params, std::move(run));
     }
     return true;
 }

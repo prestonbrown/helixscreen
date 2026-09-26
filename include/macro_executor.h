@@ -3,8 +3,10 @@
 
 #pragma once
 
+#include "macro_param_cache.h"
 #include "macro_param_modal.h"
 
+#include <map>
 #include <string>
 #include <unordered_set>
 
@@ -76,6 +78,49 @@ analyze_host_halting_macros(const nlohmann::json& config_settings);
 /// recorded on PrinterDiscovery during discovery. Prefer this overload wherever
 /// a confirmation is being decided; the name-only form cannot see a wrapper.
 [[nodiscard]] bool is_dangerous_macro(const std::string& name, const PrinterDiscovery& hw);
+
+/// How a macro click proceeds, decided by decide_macro_run().
+enum class MacroRunAction {
+    ConfirmDangerous, ///< The dangerous-macro dialog must be accepted first.
+    Run,              ///< Execute now with the returned params.
+    ConfirmRun,       ///< Ask "Run X?" first, then execute with no params.
+    Prompt,           ///< Show the parameter modal, prefilled with the returned params.
+    PromptUnknown,    ///< Show the free-form modal for a macro whose params are unknown.
+};
+
+/// What one caller knows about the click it is dispatching. A caller that never
+/// checks a flag leaves it false.
+struct MacroRunRequest {
+    bool dangerous = false;           ///< is_dangerous_macro() on this printer.
+    bool dangerous_confirmed = false; ///< the dangerous-macro dialog was already accepted.
+    bool prompt_for_params = true;    ///< false: never raise the param modal, run with no params.
+    bool confirm_plain_run = false;   ///< ask "Run X?" before a run that raises no param modal.
+    /// Candidate values for the macro's declared parameters, keyed by name.
+    std::map<std::string, std::string> known_values;
+};
+
+/// The action to take plus the parameters it settled on: Run carries the params
+/// to send (empty unless a full prefill supplied them), Prompt carries the
+/// prefill for the modal.
+struct MacroRunDecision {
+    MacroRunAction action = MacroRunAction::Run;
+    std::map<std::string, std::string> params;
+};
+
+/// Decide how to run a macro: confirm it as dangerous, ask "Run X?", raise the
+/// parameter modal, or run it now. The one rule shared by the macro panel, the
+/// favorite-macro widget, the filament router and the quick buttons; each
+/// caller maps the returned action onto its own dialogs and lifetime handling.
+///
+/// An unconfirmed dangerous macro outranks everything. A click that will raise
+/// no param modal (prompt_for_params false, or the macro takes none) is a plain
+/// run, confirmed only when asked and never twice for a dangerous macro. A
+/// macro with declared parameters runs without a prompt when known_values
+/// covers every one of them, else prompts with the names it did cover; an
+/// UNKNOWN macro always prompts free-form. KNOWN_PARAMS always carries at
+/// least one parameter (MacroParamCache never stores an empty list as known).
+[[nodiscard]] MacroRunDecision decide_macro_run(const CachedMacroInfo& cached,
+                                                const MacroRunRequest& req);
 
 /// What a macro does to the Klipper host, which decides how to read a dropped rpc.
 enum class MacroHostEffect {
