@@ -102,6 +102,7 @@ class SensorSettingsOverlay : public OverlayBase {
      *
      * Registers callbacks for:
      * - on_switch_master_toggle_changed (switch sensor master enable)
+     * - on_chamber_heater_changed / on_chamber_sensor_changed (chamber assignment)
      */
     void register_callbacks() override;
 
@@ -272,11 +273,18 @@ class SensorSettingsOverlay : public OverlayBase {
     //
     // Note: overlay_root_ and parent_screen_ are inherited from OverlayBase
 
+    /// Klipper object behind each chamber dropdown's option index i + 1, rebuilt
+    /// with the options on every populate.
+    std::vector<std::string> chamber_heater_names_;
+    std::vector<std::string> chamber_sensor_names_;
+
     //
     // === Static Callbacks ===
     //
 
     static void on_switch_master_toggle_changed(lv_event_t* e);
+    static void on_chamber_heater_changed(lv_event_t* e);
+    static void on_chamber_sensor_changed(lv_event_t* e);
 };
 
 /**
@@ -288,5 +296,10 @@ class SensorSettingsOverlay : public OverlayBase {
  * @return Reference to singleton SensorSettingsOverlay
  */
 SensorSettingsOverlay& get_sensor_settings_overlay();
+
+struct ChamberAssignmentLabels;
+
+/// Translated labels both chamber assignment dropdowns are built from.
+ChamberAssignmentLabels chamber_assignment_labels();
 
 } // namespace helix::settings

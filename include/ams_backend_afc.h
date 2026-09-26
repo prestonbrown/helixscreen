@@ -606,6 +606,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// publish_external_spool_lane. AFC's plugin owns that namespace — our
     /// private override_store_ is deliberately NOT pointed at it.
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> lane_publish_store_;
+    /// Keyed by the lane's registry position (slots_ index), the one key every
+    /// per-lane store here shares: lane_id(), own-write expectations and
+    /// own_write_echoes_ all take it. Never a SlotInfo field: slot_index there
+    /// is unit-local, and global_index is a copy the registry stamps (#1644).
     std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
     /// Layer the user override over firmware values. Callers hold mutex_.
     /// Build + persist an override from a user edit, recording what @p declared
@@ -975,13 +979,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
      * might follow, because reaching it is also what retires the own-write
      * expectation for this lane.
      *
-     * @param slot_index Registry slot index for this lane, as the binding
-     *                   check numbers it
-     * @param slot The lane, which carries the key its stored override is
-     *             filed under
+     * @param slot_index Registry slot index for this lane, the key its binding
+     *                   and its stored override are both filed under
      * @param firmware_spool_id The id firmware states this frame, 0 for none
      */
-    void invalidate_broken_binding(int slot_index, const SlotInfo& slot, int firmware_spool_id);
+    void invalidate_broken_binding(int slot_index, int firmware_spool_id);
 
     /**
      * @brief Parse AFC_hub object for per-hub sensor state

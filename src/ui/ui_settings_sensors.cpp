@@ -70,6 +70,8 @@ void SensorSettingsOverlay::register_callbacks() {
     // Master toggle callback for switch sensors (used by XML event_cb)
     lv_xml_register_event_cb(nullptr, "on_switch_master_toggle_changed",
                              on_switch_master_toggle_changed);
+    lv_xml_register_event_cb(nullptr, "on_chamber_heater_changed", on_chamber_heater_changed);
+    lv_xml_register_event_cb(nullptr, "on_chamber_sensor_changed", on_chamber_sensor_changed);
 
     spdlog::debug("[{}] Callbacks registered", get_name());
 }
@@ -731,15 +733,10 @@ void SensorSettingsOverlay::update_temperature_sensor_count() {
 // CHAMBER ASSIGNMENT
 // ============================================================================
 
-namespace {
-
-/// Labels shared by both chamber assignment dropdowns.
-ChamberAssignmentLabels assignment_labels() {
+ChamberAssignmentLabels chamber_assignment_labels() {
     return ChamberAssignmentLabels{lv_tr("Auto"), lv_tr("(none detected)"), lv_tr("not detected"),
                                    lv_tr("None (disable)")};
 }
-
-} // namespace
 
 void SensorSettingsOverlay::populate_chamber_assignment() {
     if (!overlay_root_)
@@ -760,57 +757,14 @@ void SensorSettingsOverlay::populate_chamber_assignment() {
             assignable.push_back(heater);
         }
 
-        auto built = build_chamber_assignment_options(assignable, discovery.chamber_heater_name(),
-                                                      settings.get_chamber_heater_assignment(),
-                                                      "heater_generic ", assignment_labels());
+        auto built = build_chamber_assignment_options(
+            assignable, discovery.chamber_heater_name(), settings.get_chamber_heater_assignment(),
+            "heater_generic ", chamber_assignment_labels());
 
         lv_dropdown_set_options(heater_dd, built.options.c_str());
         lv_dropdown_set_selected(heater_dd, built.selected);
 
-        // Store heater names for the callback via user_data
-        auto* names = new std::vector<std::string>(std::move(built.names));
-        lv_obj_set_user_data(heater_dd, names);
-
-        // Cleanup on delete
-        lv_obj_add_event_cb(
-            heater_dd,
-            [](lv_event_t* e) {
-                lv_obj_t* obj = lv_event_get_target_obj(e);
-                if (auto* data =
-                        static_cast<std::vector<std::string>*>(lv_obj_get_user_data(obj))) {
-                    delete data;
-                    lv_obj_set_user_data(obj, nullptr);
-                }
-            },
-            LV_EVENT_DELETE, nullptr);
-
-        // Value changed handler
-        lv_obj_add_event_cb(
-            heater_dd,
-            [](lv_event_t* e) {
-                auto* dropdown = lv_event_get_target_obj(e);
-                auto* names_ptr =
-                    static_cast<std::vector<std::string>*>(lv_obj_get_user_data(dropdown));
-                if (!names_ptr)
-                    return;
-
-                uint32_t sel = lv_dropdown_get_selected(dropdown);
-                std::string value;
-
-                if (sel == 0) {
-                    value = "auto";
-                } else if (sel == names_ptr->size() + 1) {
-                    value = "none";
-                } else if (sel - 1 < names_ptr->size()) {
-                    value = (*names_ptr)[sel - 1];
-                } else {
-                    return;
-                }
-
-                helix::SettingsManager::instance().set_chamber_heater_assignment(value);
-                spdlog::info("[SensorSettings] Chamber heater assignment: {}", value);
-            },
-            LV_EVENT_VALUE_CHANGED, nullptr);
+        chamber_heater_names_ = std::move(built.names);
     }
 
     // --- Chamber Sensor Dropdown ---
@@ -824,57 +778,14 @@ void SensorSettingsOverlay::populate_chamber_assignment() {
         const std::string& detected_sensor = discovery.chamber_sensor_name().empty()
                                                  ? discovery.chamber_heater_object_name()
                                                  : discovery.chamber_sensor_name();
-        auto built = build_chamber_assignment_options(discovery.sensors(), detected_sensor,
-                                                      settings.get_chamber_sensor_assignment(),
-                                                      "temperature_sensor ", assignment_labels());
+        auto built = build_chamber_assignment_options(
+            discovery.sensors(), detected_sensor, settings.get_chamber_sensor_assignment(),
+            "temperature_sensor ", chamber_assignment_labels());
 
         lv_dropdown_set_options(sensor_dd, built.options.c_str());
         lv_dropdown_set_selected(sensor_dd, built.selected);
 
-        // Store sensor names for the callback via user_data
-        auto* names = new std::vector<std::string>(std::move(built.names));
-        lv_obj_set_user_data(sensor_dd, names);
-
-        // Cleanup on delete
-        lv_obj_add_event_cb(
-            sensor_dd,
-            [](lv_event_t* e) {
-                lv_obj_t* obj = lv_event_get_target_obj(e);
-                if (auto* data =
-                        static_cast<std::vector<std::string>*>(lv_obj_get_user_data(obj))) {
-                    delete data;
-                    lv_obj_set_user_data(obj, nullptr);
-                }
-            },
-            LV_EVENT_DELETE, nullptr);
-
-        // Value changed handler
-        lv_obj_add_event_cb(
-            sensor_dd,
-            [](lv_event_t* e) {
-                auto* dropdown = lv_event_get_target_obj(e);
-                auto* names_ptr =
-                    static_cast<std::vector<std::string>*>(lv_obj_get_user_data(dropdown));
-                if (!names_ptr)
-                    return;
-
-                uint32_t sel = lv_dropdown_get_selected(dropdown);
-                std::string value;
-
-                if (sel == 0) {
-                    value = "auto";
-                } else if (sel == names_ptr->size() + 1) {
-                    value = "none";
-                } else if (sel - 1 < names_ptr->size()) {
-                    value = (*names_ptr)[sel - 1];
-                } else {
-                    return;
-                }
-
-                helix::SettingsManager::instance().set_chamber_sensor_assignment(value);
-                spdlog::info("[SensorSettings] Chamber sensor assignment: {}", value);
-            },
-            LV_EVENT_VALUE_CHANGED, nullptr);
+        chamber_sensor_names_ = std::move(built.names);
     }
 }
 
@@ -994,6 +905,30 @@ void SensorSettingsOverlay::on_switch_master_toggle_changed(lv_event_t* e) {
     auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
     get_sensor_settings_overlay().handle_switch_master_toggle_changed(enabled);
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void SensorSettingsOverlay::on_chamber_heater_changed(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[SensorSettingsOverlay] on_chamber_heater_changed");
+    auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    const std::string value = chamber_assignment_for_index(
+        get_sensor_settings_overlay().chamber_heater_names_, lv_dropdown_get_selected(dropdown));
+    if (!value.empty()) {
+        helix::SettingsManager::instance().set_chamber_heater_assignment(value);
+        spdlog::info("[SensorSettings] Chamber heater assignment: {}", value);
+    }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void SensorSettingsOverlay::on_chamber_sensor_changed(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[SensorSettingsOverlay] on_chamber_sensor_changed");
+    auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    const std::string value = chamber_assignment_for_index(
+        get_sensor_settings_overlay().chamber_sensor_names_, lv_dropdown_get_selected(dropdown));
+    if (!value.empty()) {
+        helix::SettingsManager::instance().set_chamber_sensor_assignment(value);
+        spdlog::info("[SensorSettings] Chamber sensor assignment: {}", value);
+    }
     LVGL_SAFE_EVENT_CB_END();
 }
 

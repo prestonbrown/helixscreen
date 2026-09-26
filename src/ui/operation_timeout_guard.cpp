@@ -43,6 +43,13 @@ void OperationTimeoutGuard::end() {
     }
 }
 
+// lv_timer_delete() rather than lv_timer_cancel_safe(), so the timer is gone the
+// moment the guard is. The guard's own callback forgets timer_ before anything can
+// reach here, so this never deletes the timer being dispatched. It can delete the
+// one lv_timer_handler() has saved as its next, when another timer's callback ends
+// or destroys the guard; that is safe only because the handler restarts its walk
+// once state.timer_deleted is set. The "another timer's callback ends the guard"
+// canary in test_operation_timeout_guard.cpp pins that (#1576).
 void OperationTimeoutGuard::cancel_timer() {
     if (timer_ && lv_is_initialized()) {
         lv_timer_delete(timer_);
@@ -56,7 +63,8 @@ void OperationTimeoutGuard::timer_callback(lv_timer_t* timer) {
         return;
     }
 
-    // Timer has fired — LVGL already deleted it (repeat_count=1)
+    // One-shot (repeat_count=1): LVGL deletes it once this callback returns, so
+    // forget it now or end()/begin()/the destructor below would delete it too.
     self->timer_ = nullptr;
     self->active_ = false;
 
