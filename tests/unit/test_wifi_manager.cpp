@@ -10,6 +10,7 @@
 #include "../../include/wifi_interface.h"
 #include "../../include/wifi_manager.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../ui_test_utils.h"
 
@@ -147,7 +148,7 @@ struct MockWifiGuard {
 
 } // namespace
 
-class WiFiManagerTestFixture {
+class WiFiManagerTestFixture : public LVGLTestFixture {
   public:
     WiFiManagerTestFixture() {
         // Create fresh instance for each test as shared_ptr
@@ -163,7 +164,7 @@ class WiFiManagerTestFixture {
         connection_error.clear();
     }
 
-    ~WiFiManagerTestFixture() {
+    ~WiFiManagerTestFixture() override {
         // Cleanup - ensure scan stopped and backend disabled
         if (wifi_manager) {
             wifi_manager->stop_scan();
@@ -283,6 +284,22 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFiManager instance creation",
 // ============================================================================
 // Backend Initialization Tests
 // ============================================================================
+
+// Fixtures elsewhere in the binary shut the process-wide UpdateQueue down in
+// their destructors, and a shut-down queue drops every callback. Every result
+// these tests wait for arrives through that queue, so the fixture has to leave
+// it accepting work whatever ran before it.
+TEST_CASE("WiFiManagerTestFixture re-arms an UpdateQueue a previous fixture shut down",
+          "[wifi][isolation]") {
+    helix::ui::update_queue_shutdown();
+    WiFiManagerTestFixture fixture;
+
+    bool ran = false;
+    helix::ui::queue_update("wifi_isolation_probe", [&ran] { ran = true; });
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(ran);
+}
 
 TEST_CASE_METHOD(WiFiManagerTestFixture, "Backend initialization state",
                  "[.slow][macos-wifi][network][backend][init]") {
