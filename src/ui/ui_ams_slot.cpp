@@ -70,8 +70,8 @@ struct AmsSlotData {
     // status subjects are DYNAMIC -
     // recreated on backend rediscovery - so that observer needs a token
     // that expires when AmsState tears the subject down (L084). For backend 0
-    // the accessor returns an empty (always-alive) token; harmless. MUST be
-    // reset BEFORE the matching observer (see cleanup paths, #705).
+    // the accessor returns AmsState's subjects lifetime. MUST be reset BEFORE
+    // the matching observer (see cleanup paths, #705).
     SubjectLifetime status_lifetime;
     SubjectLifetime lane_state_lifetime;
 

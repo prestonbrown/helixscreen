@@ -1193,8 +1193,7 @@ class AmsState {
      * @brief Per-backend lane_state / has_error / error_severity subjects.
      *
      * Same token rule as get_slot_fill_subject(int, int, SubjectLifetime&):
-     * backend 0 returns the static subject with an emptied token; a secondary
-     * backend's subject is dynamic and its observers MUST hold the token.
+     * observers MUST hold the token for every backend.
      */
     [[nodiscard]] lv_subject_t* get_slot_lane_state_subject(int backend_index, int slot_index,
                                                             SubjectLifetime& lifetime);
@@ -1218,9 +1217,9 @@ class AmsState {
     /**
      * @brief Token'd overload of get_slot_color_subject for observer safety.
      *
-     * For secondary backends the returned subject is DYNAMIC (recreated on
-     * backend rediscovery), so observers MUST hold the lifetime token. For
-     * backend 0 the subject is static and the token is emptied (always-alive).
+     * Observers MUST hold the lifetime token. For secondary backends it dies
+     * when the subject is recreated on backend rediscovery; for backend 0 it
+     * is get_subjects_lifetime(), which dies in deinit_subjects().
      */
     [[nodiscard]] lv_subject_t* get_slot_color_subject(int backend_index, int slot_index,
                                                        SubjectLifetime& lifetime);
@@ -1287,9 +1286,8 @@ class AmsState {
     /**
      * @brief Get per-slot fill-level subject for a specific backend and slot.
      *
-     * For backend 0 the subject is static and the token is emptied. For
-     * secondary backends the subject is DYNAMIC and observers MUST hold the
-     * lifetime token.
+     * Observers MUST hold the lifetime token: get_subjects_lifetime() for
+     * backend 0, the per-backend token for secondary backends.
      * @see get_slot_color_subject(int, int, SubjectLifetime&)
      */
     [[nodiscard]] lv_subject_t* get_slot_fill_subject(int backend_index, int slot_index,
@@ -1301,12 +1299,10 @@ class AmsState {
     //
     // These reflect real-time, Moonraker-fed per-slot state the panel observes
     // to redraw the filament path and active-lane highlight as sensors change.
-    // They are backed by static arrays (singleton lifetime, same as the color /
-    // status / remaining subjects above), so the bare accessors are safe to
-    // observe directly. A (slot, SubjectLifetime&) overload is provided for
-    // call-site symmetry with the project's dynamic-subject pattern; because the
-    // subjects are static, it returns an EMPTY lifetime token (always alive),
-    // which is the documented contract for static subjects (ui_observer_guard.h).
+    // The arrays live in the singleton but are registered with subjects_, so
+    // deinit_subjects() frees their observers like the color / status /
+    // remaining subjects above. Observe through the (slot, SubjectLifetime&)
+    // overload, which hands out get_subjects_lifetime().
 
     /**
      * @brief Get per-slot filament path-segment subject.
@@ -1775,8 +1771,8 @@ class AmsState {
         void write(int i, const SlotInfo& slot);
     };
 
-    /// Secondary-backend subject from @p member, or the static @p primary for
-    /// backend 0, with the lifetime token set accordingly.
+    /// Secondary-backend subject from @p member, or @p primary for backend 0,
+    /// with the lifetime token set accordingly.
     lv_subject_t* backend_slot_subject(int backend_index, int slot_index, SubjectLifetime& lifetime,
                                        std::vector<lv_subject_t> BackendSlotSubjects::*member,
                                        lv_subject_t* primary);
