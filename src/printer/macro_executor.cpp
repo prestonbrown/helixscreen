@@ -336,6 +336,40 @@ bool is_dangerous_macro(const std::string& name, const PrinterDiscovery& hw) {
     return is_dangerous_macro(name) || hw.macro_restarts_host(name);
 }
 
+MacroRunDecision decide_macro_run(const CachedMacroInfo& cached, const MacroRunRequest& req) {
+    if (req.dangerous && !req.dangerous_confirmed) {
+        return {MacroRunAction::ConfirmDangerous, {}};
+    }
+
+    // A click that will raise no param modal - the caller never allows one, or
+    // the macro takes no parameters.
+    if (!req.prompt_for_params || cached.knowledge == MacroParamKnowledge::KNOWN_NO_PARAMS) {
+        // The dangerous-macro confirm already ran; a second "Run X?" on top of
+        // it would ask the same question twice.
+        if (req.confirm_plain_run && !req.dangerous) {
+            return {MacroRunAction::ConfirmRun, {}};
+        }
+        return {MacroRunAction::Run, {}};
+    }
+
+    if (cached.knowledge == MacroParamKnowledge::KNOWN_PARAMS) {
+        // Only names the macro declares can be prefilled; anything else in
+        // known_values belongs to some other macro's signature.
+        std::map<std::string, std::string> prefill;
+        for (const auto& param : cached.params) {
+            if (auto it = req.known_values.find(param.name); it != req.known_values.end()) {
+                prefill.emplace(param.name, it->second);
+            }
+        }
+        if (prefill.size() == cached.params.size()) {
+            return {MacroRunAction::Run, std::move(prefill)};
+        }
+        return {MacroRunAction::Prompt, std::move(prefill)};
+    }
+
+    return {MacroRunAction::PromptUnknown, {}};
+}
+
 MacroHostEffect macro_host_effect(const std::string& name, const PrinterDiscovery& hw) {
     const std::string upper = upper_copy(name);
     // Halts first: a macro reaching both leaves the host down, and that is the
