@@ -628,7 +628,7 @@ The bare `$i` sigil is a whole-value substitution: `text="$i"` becomes the index
 
 > ⚠️ **Resolve-once.** A `${expr}` is evaluated **once, when the widget is created** — subject operands are read at that moment and the composed value does **not** update if the subject changes later. A `<repeat count="subject">` rebuild re-runs composition; a standalone attribute does not. For a value that must track a subject live, use a `bind_*` binding, not composition.
 
-`<repeat>` is intercepted directly by the XML view parser (it creates no widget of its own), so its body must be well-formed markup that would be valid where the `<repeat>` sits. Nesting `<repeat>` inside another `<repeat>` is not yet supported.
+`<repeat>` is intercepted directly by the XML view parser (it creates no widget of its own), so its body must be well-formed markup that would be valid where the `<repeat>` sits. Nesting a `<repeat>` or `<if>` inside a `<repeat>` body is not supported. The engine logs `<repeat> nested inside <repeat> in '<file>' is not supported; skipping it`, skips the inner block, and still expands the outer one. Keep the inner loop in C++, or give the inner level its own component.
 
 #### Structural conditionals with `<if>` / `<else>`
 
@@ -645,7 +645,7 @@ subject-referencing cond rebuilds repeatedly rather than once:
 
 > ⚠️ **A reactively-rebuilt `<if>` must be the last child of its parent, or the only child of a dedicated container** — the same ordering constraint as [`<repeat>`](#repeating-fragments-with-repeat). On rebuild, LVGL appends the freshly-built body to the *end* of the parent's child list, so static siblings that come after the `<if>` in the document stay put while the rebuilt body lands after them, silently reordering the layout on every flip. A static `<if>` never rebuilds, so this only matters for a subject-referencing `cond`.
 
-Nested `<if>` (an `<if>` inside another `<if>`/`<repeat>` body) is not yet supported, same as nested `<repeat>`.
+Nested `<if>` (an `<if>` inside another `<if>` or `<repeat>` body) is not supported either: it is logged and skipped the same way.
 
 ### 4. Observer Cleanup in DELETE Handlers
 

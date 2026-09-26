@@ -322,6 +322,17 @@ Verified against two real slices: a single-color file with `enable_pressure_adva
 
 **HelixScreen relevance:** the routine is gated on the print task's `flow_calibrate` flag (disable-able per job), and emits `SET_MAIN_STATE MAIN_STATE=FLOW_CALIBRATION` plus per-extruder `{EXTRUDER}_FLOW_CALIBRATING` action codes — both surfaceable in the UI during the pre-print phase.
 
+**Running it outside a print.** `SM_PRINT_FLOW_CALIBRATE` is the print-job wrapper and returns without a word when no print task is running. The routine itself is `FLOW_CALIBRATE`, registered by the same Python extra (listed in `/printer/gcode/help`, never a `gcode_macro`). `FLOW_CALIBRATE TEMP=<c>` calibrates the **mounted** extruder: it homes X/Y if needed, moves to the discard position, heats to `TEMP` (clamped to the heater's limits), purges through about five candidates and applies and saves the result. The flow calibrator has no status object, so the capability is recognised by `filament_parameters`, the Snapmaker extra it cannot run without. Its console lines:
+
+| Line | Meaning |
+|---|---|
+| `measure k: 0.02000` | one per candidate |
+| `Got pressure advance: 0.0412` | the result |
+| `flow k is out of range, use default value:0.02` | failed; the default K was applied |
+| `abort calibration: <reason>` | failed |
+
+K is set through the extruder stepper directly, so no `SET_PRESSURE_ADVANCE` echo reaches the console. HelixScreen drives this from its Pressure Advance screen: its `SNAPMAKER_U1` provider row in `src/printer/pa_calibration.cpp` holds the command and patterns, and `src/printer/pa_calibration.cpp#procedure_for` turns it into a run.
+
 ## 480x320 Display Considerations
 
 The U1's 480x320 display uses the TINY layout preset. This is the smallest resolution HelixScreen supports, and several UI panels have known layout issues at this size. Key issues:
