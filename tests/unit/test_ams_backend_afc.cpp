@@ -123,21 +123,24 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
     }
 
     void set_lane_prep_sensor(int lane_index, bool state) {
-        auto* entry = AfcTestAccess::slots(*this).get_mut(lane_index);
-        if (entry)
-            entry->sensors.prep = state;
+        if (AfcTestAccess::slots(*this).is_valid_index(lane_index)) {
+            AfcTestAccess::lane_sensors(*this)[AfcTestAccess::slots(*this).name_of(lane_index)]
+                .prep = state;
+        }
     }
 
     void set_lane_load_sensor(int lane_index, bool state) {
-        auto* entry = AfcTestAccess::slots(*this).get_mut(lane_index);
-        if (entry)
-            entry->sensors.load = state;
+        if (AfcTestAccess::slots(*this).is_valid_index(lane_index)) {
+            AfcTestAccess::lane_sensors(*this)[AfcTestAccess::slots(*this).name_of(lane_index)]
+                .load = state;
+        }
     }
 
     void set_lane_loaded_to_hub(int lane_index, bool state) {
-        auto* entry = AfcTestAccess::slots(*this).get_mut(lane_index);
-        if (entry)
-            entry->sensors.loaded_to_hub = state;
+        if (AfcTestAccess::slots(*this).is_valid_index(lane_index)) {
+            AfcTestAccess::lane_sensors(*this)[AfcTestAccess::slots(*this).name_of(lane_index)]
+                .loaded_to_hub = state;
+        }
     }
 
     // AFC_stepper.extruder — which extruder this lane feeds. Present whether or
@@ -496,12 +499,10 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
     }
 
     // Access to extended parsing state (reads from registry)
-    helix::printer::SlotSensors get_lane_sensors(int index) const {
-        const auto* entry = AfcTestAccess::slots(*this).get(index);
-        if (entry) {
-            return entry->sensors;
-        }
-        return {};
+    helix::AfcLaneSensors get_lane_sensors(int index) const {
+        const auto& map = AfcTestAccess::lane_sensors(*this);
+        auto it = map.find(AfcTestAccess::slots(*this).name_of(index));
+        return it != map.end() ? it->second : helix::AfcLaneSensors{};
     }
     bool get_hub_sensor() const {
         // Returns true if any hub sensor is triggered (backward compat)

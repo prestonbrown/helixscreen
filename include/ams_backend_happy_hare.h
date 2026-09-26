@@ -47,6 +47,18 @@ class HappyHareTestAccess;
  * - MMU_HOME            - Home the selector
  * - MMU_RECOVER         - Attempt error recovery
  */
+/**
+ * @brief Pre-gate filament sensor readings for one gate, from printer.mmu.sensors
+ *
+ * Kept beside the registry slots rather than inside SlotEntry so the registry
+ * stays free of any one backend's sensor vocabulary. Keyed by global gate
+ * index like overrides_; initialize_slots() clears it with the registry.
+ */
+struct HappyHareGateSensor {
+    bool has_pre_gate_sensor = false; ///< Whether any frame ever reported this gate's sensor
+    bool pre_gate_triggered = false;  ///< Filament detected at the pre-gate position
+};
+
 class AmsBackendHappyHare : public AmsSubscriptionBackend {
   public:
     /**
@@ -329,6 +341,13 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     AmsError apply_endless_spool_backup(int slot_index, int backup_slot) override;
 
     // Allow test helper access to private members
+    /// Pre-gate sensor record for @p slot_index, or nullptr when the index is
+    /// out of range or no frame ever reported the gate's sensor.
+    const HappyHareGateSensor* gate_sensor(int slot_index) const;
+    /// Pre-gate sensor record for @p slot_index, creating it on first write;
+    /// nullptr only when the index is out of range.
+    HappyHareGateSensor* gate_sensor_mut(int slot_index);
+
     friend class HappyHareTestAccess;
 
     // --- AmsSubscriptionBackend hooks ---
@@ -535,6 +554,10 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// gate/filament pair arrive in independent deltas and
     /// refresh_gate_statuses_locked() needs both to derive a status.
     std::vector<int> gate_status_raw_;
+
+    /// Pre-gate sensor state per gate, keyed by global gate index. Cleared by
+    /// initialize_slots() together with the registry it mirrors.
+    std::unordered_map<int, HappyHareGateSensor> gate_sensors_;
 
     /// What Happy Hare's gate map says about each gate's identity, keyed by
     /// global gate index and accumulated across frames. Moonraker names only

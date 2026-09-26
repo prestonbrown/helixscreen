@@ -398,7 +398,8 @@ PathSegment AmsBackendHappyHare::get_slot_filament_segment(int slot_index) const
     // For non-active slots, check pre-gate sensor first for better visualization
     const auto* entry = slots_.get(slot_index);
     if (entry) {
-        if (entry->sensors.has_pre_gate_sensor && entry->sensors.pre_gate_triggered) {
+        const auto* gate = gate_sensor(slot_index);
+        if (gate && gate->has_pre_gate_sensor && gate->pre_gate_triggered) {
             return PathSegment::PREP; // Filament detected at pre-gate sensor
         }
 
@@ -419,11 +420,8 @@ PathSegment AmsBackendHappyHare::infer_error_segment() const {
 
 bool AmsBackendHappyHare::slot_has_prep_sensor(int slot_index) const {
     std::lock_guard<std::mutex> lock(mutex_);
-    const auto* entry = slots_.get(slot_index);
-    if (!entry) {
-        return false;
-    }
-    return entry->sensors.has_pre_gate_sensor;
+    const auto* gate = gate_sensor(slot_index);
+    return gate != nullptr && gate->has_pre_gate_sensor;
 }
 
 // ============================================================================
@@ -1167,17 +1165,17 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
                 continue;
             }
 
-            auto* entry = slots_.get_mut(gate_idx);
-            if (!entry) {
+            auto* gate = gate_sensor_mut(gate_idx);
+            if (!gate) {
                 continue;
             }
 
-            entry->sensors.has_pre_gate_sensor = true;
-            entry->sensors.pre_gate_triggered = it.value().is_boolean() && it.value().get<bool>();
+            gate->has_pre_gate_sensor = true;
+            gate->pre_gate_triggered = it.value().is_boolean() && it.value().get<bool>();
             any_sensor = true;
 
             spdlog::trace("[AMS HappyHare] Pre-gate sensor {}: present=true, triggered={}",
-                          gate_idx, entry->sensors.pre_gate_triggered);
+                          gate_idx, gate->pre_gate_triggered);
         }
 
         // If no per-gate sensors found, check for aggregate format (EMU)
@@ -1186,23 +1184,23 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
             bool pre_gate_val =
                 sensors["mmu_pre_gate"].is_boolean() && sensors["mmu_pre_gate"].get<bool>();
             // Note: mmu_gear sensor reading is available but not stored — UI only
-            // displays pre-gate sensor status. Add to SlotSensors if needed later.
+            // displays pre-gate sensor status. Add to HappyHareGateSensor if needed later.
 
             // Mark all gates as having sensors, clear stale trigger readings
             // (we only know the current gate's state from aggregate format)
             for (int i = 0; i < slots_.slot_count(); ++i) {
-                auto* entry = slots_.get_mut(i);
-                if (entry) {
-                    entry->sensors.has_pre_gate_sensor = true;
-                    entry->sensors.pre_gate_triggered = false;
+                auto* gate = gate_sensor_mut(i);
+                if (gate) {
+                    gate->has_pre_gate_sensor = true;
+                    gate->pre_gate_triggered = false;
                 }
             }
 
             // Set the current gate's actual reading
             if (system_info_.current_slot >= 0) {
-                auto* entry = slots_.get_mut(system_info_.current_slot);
-                if (entry) {
-                    entry->sensors.pre_gate_triggered = pre_gate_val;
+                auto* gate = gate_sensor_mut(system_info_.current_slot);
+                if (gate) {
+                    gate->pre_gate_triggered = pre_gate_val;
                 }
             }
 
@@ -1572,10 +1570,23 @@ void AmsBackendHappyHare::sync_narration_step() {
     }
 }
 
+const HappyHareGateSensor* AmsBackendHappyHare::gate_sensor(int slot_index) const {
+    auto it = gate_sensors_.find(slot_index);
+    return it != gate_sensors_.end() ? &it->second : nullptr;
+}
+
+HappyHareGateSensor* AmsBackendHappyHare::gate_sensor_mut(int slot_index) {
+    if (!slots_.is_valid_index(slot_index)) {
+        return nullptr;
+    }
+    return &gate_sensors_[slot_index];
+}
+
 void AmsBackendHappyHare::initialize_slots(int gate_count) {
     spdlog::info("[AMS HappyHare] Initializing {} slots across {} units", gate_count, num_units_);
 
     system_info_.units.clear();
+    gate_sensors_.clear();
 
     // Determine per-unit gate counts:
     // 1. Use per_unit_gate_counts_ if available (v4 dissimilar multi-MMU)

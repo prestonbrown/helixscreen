@@ -74,6 +74,28 @@ struct AfcExtruderInfo {
 };
 
 /**
+ * @brief Per-lane sensor readings straight from AFC's status lanes section
+ *
+ * Kept beside the registry slots rather than inside SlotEntry so the registry
+ * stays free of any one backend's sensor vocabulary: what a lane reports is
+ * AFC's business, and a backend with no status LED should not carry a field
+ * for one. Keyed by lane name, which is what the registry itself preserves
+ * slots by across a reorganize, so readings travel with their lane.
+ */
+struct AfcLaneSensors {
+    bool prep = false;               ///< <lane>_prep optical sensor
+    bool load = false;               ///< <lane>_load optical sensor
+    bool loaded_to_hub = false;      ///< Latched at prep; cannot distinguish hub from prepped-once
+    bool has_selector = false;       ///< Whether `selector` was ever seen (HTLF, QuattroBox only)
+    bool selector = false;           ///< Physical selector position sensor
+    std::string buffer_status;       ///< Lane's buffer state (advance/trailing endstop wording)
+    std::string filament_status;     ///< In Tool / Ready / Prep / Not Ready
+    std::string filament_status_led; ///< Hex colour AFC drives the lane's status LED to
+    std::string endstops;            ///< Comma-separated homing endstops configured on the lane
+    float dist_hub = 0.0f;           ///< Lane extruder's distance from the hub
+};
+
+/**
  * @brief Per-tool toolchanger state from the AFC_extruder Klipper object
  *
  * AFC v1.2.0 (#768) added these so UIs can show which toolhead is being docked
@@ -538,6 +560,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     AmsError apply_endless_spool_backup(int slot_index, int backup_slot) override;
 
     // Allow test helper access to private members
+    /// Lane sensor record for @p lane_name, creating it on first write.
+    AfcLaneSensors& lane_sensors_for(const std::string& lane_name);
+    /// Lane sensor record for @p lane_name, default-empty when none was ever
+    /// parsed; reads must not create entries.
+    const AfcLaneSensors& lane_sensors_for(const std::string& lane_name) const;
+
     friend class AfcTestAccess;
 
     // --- AmsSubscriptionBackend hooks ---
@@ -1187,6 +1215,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     std::unordered_map<std::string, AfcToolState> tool_states_;
 
     // Hub and toolhead sensors (from AFC_hub and AFC_extruder objects)
+    /// Per-lane sensor readings from the status lanes section, keyed by lane
+    /// name so they survive a registry reorganize with their lane. Cleared by
+    /// initialize_slots() together with the registry it mirrors.
+    std::unordered_map<std::string, AfcLaneSensors> lane_sensors_;
     std::unordered_map<std::string, bool> hub_sensors_; ///< Per-hub sensor state, keyed by hub name
     bool tool_start_sensor_{false};                     ///< Toolhead entry sensor
     bool tool_end_sensor_{false};                       ///< Toolhead exit/nozzle sensor
