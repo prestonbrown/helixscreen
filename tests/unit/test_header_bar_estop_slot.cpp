@@ -139,3 +139,29 @@ TEST_CASE("header_bar estop spacer markup pinned in both layout files", "[header
         CHECK(xml.find("emergency_stop_clicked") == std::string::npos);
     }
 }
+
+TEST_CASE("header_bar content slot markup pinned in both layout files", "[header_bar][xml]") {
+    // The micro override is chosen by layout-class resolution at runtime, not
+    // by the unit-test loader (which reads the base file), so a dropped slot
+    // in the micro variant would otherwise surface only as a screen's injected
+    // readout vanishing on 480x272 displays.
+    const std::string files[] = {"ui_xml/header_bar.xml", "ui_xml/micro/header_bar.xml"};
+    for (const std::string& path : files) {
+        std::ifstream file(path);
+        REQUIRE(file.is_open());
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        const std::string xml = buffer.str();
+
+        const auto slot_needle = xml.find('name="header_content"');
+        const bool has_slot = slot_needle != std::string::npos;
+        REQUIRE(has_slot); // per-file: a missing slot fails the loop iteration
+        const auto slot_end = xml.find('>', slot_needle);
+        REQUIRE(slot_end != std::string::npos);
+        const std::string slot_tag = xml.substr(slot_needle, slot_end - slot_needle);
+        // width=content is what makes an unfilled slot free; clickable=false
+        // keeps the back-button touch target intact.
+        CHECK(slot_tag.find('width="content"') != std::string::npos);
+        CHECK(slot_tag.find('clickable="false"') != std::string::npos);
+    }
+}

@@ -113,6 +113,14 @@
         <text_small name="header_title_badge_text" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
       </lv_obj>
     </lv_obj>
+    <!-- Content slot; mirrors the base header_bar. Filled by nesting a
+         <header_bar-header_content> tag inside the header_bar instantiation.
+         Unfilled it costs one space_xs of left pad out of the title's grow
+         region and nothing else. -->
+    <lv_obj name="header_content"
+            width="content" height="100%" style_pad_all="0" style_pad_left="#space_xs" style_pad_right="0"
+            style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false" flex_flow="row"
+            style_pad_gap="#space_xs" style_flex_cross_place="center"/>
     <!-- Secondary action button (left of primary, hidden by default). -->
     <!-- No style_max_height, as on the primary action button above:
          #header_button_height is a const of the base file, which this
