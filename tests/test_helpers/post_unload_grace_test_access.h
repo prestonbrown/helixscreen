@@ -25,7 +25,6 @@ class PostUnloadGraceTestAccess {
         mgr.sensors_.clear();
         mgr.states_.clear();
         mgr.bypass_armed_.clear();
-        mgr.bypass_disarmed_.clear();
         mgr.master_enabled_ = true;
         mgr.sync_mode_ = true;
         mgr.initial_status_received_ = false;

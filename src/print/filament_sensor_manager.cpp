@@ -109,11 +109,10 @@ void FilamentSensorManager::init_subjects() {
     //   -1 = no sensor configured for this role (hide indicator entirely)
     //    0 = sensor enabled, no filament / not triggered (empty/red)
     //    1 = sensor enabled, filament present / triggered (loaded/green)
-    //    2 = sensor configured but DISABLED (master toggle off, per-sensor
-    //        enabled=false, or the firmware stood it down with
-    //        SET_FILAMENT_SENSOR ENABLE=0) and renders as "off/unknown" so the
-    //        user can see runout protection is inactive instead of mistaking a
-    //        hidden indicator for "everything is fine".
+    //    2 = sensor configured but DISABLED (master toggle off or per-sensor
+    //        enabled=false) — render as "off/unknown" so the user can see
+    //        runout protection is inactive instead of mistaking a hidden
+    //        indicator for "everything is fine".
     UI_MANAGED_SUBJECT_INT(runout_detected_, -1, "filament_runout_detected", subjects_);
     // Print-scoped runout (FIX B): same encoding as filament_runout_detected but
     // considers only the active print's used tools (lane truth). Driven by
@@ -439,16 +438,6 @@ int FilamentSensorManager::arm_runout_sensors_for_bypass(IMoonrakerAPI* api) {
         if (!state.available || state.enabled) {
             continue;
         }
-        // And only one HelixScreen itself stood down (a previous bypass
-        // restore). A sensor the firmware disabled on its own stays down: the
-        // firmware is managing it (per-head enable on multi-tool hardware),
-        // and enabling it here would turn parked, intentionally-empty sensors
-        // into runouts the moment the echo lands.
-        auto disarmed_it =
-            std::find(bypass_disarmed_.begin(), bypass_disarmed_.end(), sensor.klipper_name);
-        if (disarmed_it == bypass_disarmed_.end()) {
-            continue;
-        }
         if (std::find(bypass_armed_.begin(), bypass_armed_.end(), sensor.klipper_name) !=
             bypass_armed_.end()) {
             continue; // already ours from a previous arm
@@ -458,7 +447,6 @@ int FilamentSensorManager::arm_runout_sensors_for_bypass(IMoonrakerAPI* api) {
         // call (e.g. two backends transitioning) idempotent even before the
         // echo lands.
         state.enabled = true;
-        bypass_disarmed_.erase(disarmed_it);
         bypass_armed_.push_back(sensor.klipper_name);
         spdlog::info("[FilamentSensorManager] Bypass: armed runout sensor {} at firmware level",
                      sensor.sensor_name);
@@ -491,12 +479,6 @@ int FilamentSensorManager::restore_runout_sensors_after_bypass(IMoonrakerAPI* ap
         send_firmware_sensor_enable(api, *sensor, false);
         if (auto it = states_.find(name); it != states_.end()) {
             it->second.enabled = false;
-        }
-        // This disable is ours: a later engage may re-arm it, while a
-        // firmware-initiated disable may not.
-        if (std::find(bypass_disarmed_.begin(), bypass_disarmed_.end(), name) ==
-            bypass_disarmed_.end()) {
-            bypass_disarmed_.push_back(name);
         }
         spdlog::info("[FilamentSensorManager] Bypass: restored runout sensor {} to disabled",
                      sensor->sensor_name);
@@ -1048,19 +1030,12 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 if (state.enabled != old_state.enabled) {
                     any_changed = true;
                 }
-                if (state.enabled) {
-                    // The sensor is running again, so a disable we owned for it
-                    // no longer holds: a later bypass engage must not treat it
-                    // as ours to re-arm.
-                    bypass_disarmed_.erase(std::remove(bypass_disarmed_.begin(),
-                                                       bypass_disarmed_.end(), sensor.klipper_name),
-                                           bypass_disarmed_.end());
-                } else {
-                    // Honest armed-set bookkeeping: a sensor we armed for bypass
-                    // that the firmware now reports disabled was stood down by
-                    // someone else (vendor macros toggle this sensor around their
-                    // own operations), so we no longer own its state and a later
-                    // bypass disengage must not send a restore for it.
+                // Honest armed-set bookkeeping: a sensor we armed for bypass
+                // that the firmware now reports disabled was stood down by
+                // someone else (vendor macros toggle this sensor around their
+                // own operations), so we no longer own its state and a later
+                // bypass disengage must not send a restore for it.
+                if (!state.enabled) {
                     auto armed_it =
                         std::find(bypass_armed_.begin(), bypass_armed_.end(), sensor.klipper_name);
                     if (armed_it != bypass_armed_.end()) {
@@ -1472,13 +1447,10 @@ void FilamentSensorManager::update_subjects() {
                        // as user-disabled; treat as no-opinion)
         }
 
-        // Every holder of the role is stood down at the firmware level:
-        // protection is inactive, which the muted state says better than a
-        // filament reading the firmware is not acting on.
-        if (!it->second.enabled) {
-            return 2;
-        }
-
+        // When every holder is stood down the fallback holder's live reading
+        // shows: the subject is the sensor tile's display, and a firmware
+        // stand-down is not a user-visible "protection off" state. Runout
+        // decisions do not read this value; they ask monitors_runout().
         return it->second.filament_detected ? 1 : 0;
     };
 

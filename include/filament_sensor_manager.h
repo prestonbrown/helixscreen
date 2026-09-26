@@ -250,15 +250,12 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
      * system (e.g. Creality's macros toggle it around every CFS operation),
      * a bypass print would otherwise run with no runout protection at all.
      *
-     * Sends `SET_FILAMENT_SENSOR SENSOR=<name> ENABLE=1` only for RUNOUT-role
-     * sensors that HelixScreen itself stood down (a previous bypass restore,
-     * recorded in the self-disarmed set). A sensor the firmware disabled on
-     * its own is never enabled here: the firmware is managing it (per-head
-     * enable on multi-tool hardware), and overriding it would turn parked,
-     * intentionally-empty sensors into runouts the moment the enable lands.
-     * Idempotent: already-enabled or already-armed sensors are skipped. The
-     * HelixScreen-side enabled flag (user config) is deliberately untouched:
-     * arming is a temporary firmware-state change, not a settings change.
+     * Sends `SET_FILAMENT_SENSOR SENSOR=<name> ENABLE=1` for every RUNOUT-role
+     * sensor that is present in Klipper and currently DISABLED at the firmware
+     * level, recording what it armed. Idempotent: already-enabled or already
+     * armed sensors are skipped. The HelixScreen-side enabled flag (user
+     * config) is deliberately untouched — arming is a temporary firmware-state
+     * change, not a settings change.
      *
      * @param api API handle for the gcode send (may be null — no-op then)
      * @return number of sensors newly armed
@@ -650,11 +647,6 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
     /// Klipper names of sensors WE armed for bypass (restore set). Empty when
     /// no bypass arming is outstanding.
     std::vector<std::string> bypass_armed_;
-
-    /// Klipper names of sensors WE stood down (bypass restore). Only these may
-    /// be re-armed by a later bypass engage; a sensor the firmware disabled on
-    /// its own is the firmware's to manage.
-    std::vector<std::string> bypass_disarmed_;
 
     /// API handle for bypass arming sends (not owned). Set by
     /// MoonrakerManager; may be null.

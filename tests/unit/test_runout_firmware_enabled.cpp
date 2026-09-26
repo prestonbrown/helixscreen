@@ -184,22 +184,32 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "two runout sensors: only the running o
 }
 
 TEST_CASE_METHOD(FirmwareEnabledFixture,
-                 "runout subject speaks for the running sensor, mutes when all are stood down",
+                 "runout subject speaks for the running sensor, falls back to the first holder",
                  "[runout][1714][subject]") {
     seed_runout_sensors({HEAD0, HEAD1});
 
     // First RUNOUT sensor stood down and EMPTY; second running and present.
     // The subject must report the running head (1 = loaded), not the parked
-    // one's reading (0) or a muted state.
+    // one's reading (0).
     feed(sensor_frame(HEAD0, false, false));
     feed(sensor_frame(HEAD1, true, true));
     REQUIRE(fsm.get_runout_detected_subject() != nullptr);
     CHECK(lv_subject_get_int(fsm.get_runout_detected_subject()) == 1);
 
-    // Every holder of the role stood down: protection inactive (2), never a
-    // filament reading.
+    // Every holder of the role stood down: the subject is the sensor tile's
+    // display, so it keeps the first holder's live reading (HEAD0 reads
+    // present) instead of muting. Runout decisions do not read this value.
+    feed(sensor_frame(HEAD0, true, false));
     feed(sensor_frame(HEAD1, true, false));
-    CHECK(lv_subject_get_int(fsm.get_runout_detected_subject()) == 2);
+    CHECK(lv_subject_get_int(fsm.get_runout_detected_subject()) == 1);
+
+    // The same fallback with the first holder empty: the tile shows the
+    // reading (0 = red), while has_any_runout stays false because no sensor
+    // is monitoring.
+    feed(sensor_frame(HEAD0, false, std::nullopt));
+    CHECK(lv_subject_get_int(fsm.get_runout_detected_subject()) == 0);
+    CHECK_FALSE(fsm.has_any_runout());
+    CHECK_FALSE(fsm.has_real_runout());
 }
 
 TEST_CASE_METHOD(FirmwareEnabledFixture,

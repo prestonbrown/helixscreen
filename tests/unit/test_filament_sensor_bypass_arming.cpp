@@ -7,12 +7,10 @@
  * Run with: ./build/bin/helix-tests "[bypass-arming]"
  *
  * Two halves of the same bypass story:
- *  1. Arming: when bypass engages, a RUNOUT-role sensor is armed via
- *     SET_FILAMENT_SENSOR only if HelixScreen itself stood it down (a previous
- *     bypass restore). A sensor the firmware disabled on its own stays down,
- *     and the arm is restored on disengage. Policy lives entirely in
- *     FilamentSensorManager (sensor abstraction layer); AmsState only notifies
- *     the transition.
+ *  1. Arming — when bypass engages, RUNOUT-role sensors the firmware holds
+ *     disabled are armed via SET_FILAMENT_SENSOR and restored on disengage.
+ *     Policy lives entirely in FilamentSensorManager (sensor abstraction
+ *     layer); AmsState only notifies the transition.
  *  2. Slicer sync — the external spool is published as the lane one past the
  *     last CFS bay in the shared lane_data namespace so OrcaSlicer can select
  *     it. Capability dispatch via AmsBackend::publish_external_spool_lane;
@@ -58,25 +56,10 @@ class BypassArmingTestAccess {
         mgr.sensors_.clear();
         mgr.states_.clear();
         mgr.bypass_armed_.clear();
-        mgr.bypass_disarmed_.clear();
         mgr.master_enabled_ = true;
         mgr.sync_mode_ = true;
         mgr.initial_status_received_ = false;
         mgr.startup_time_ = std::chrono::steady_clock::now() - std::chrono::seconds(10);
-    }
-
-    /// Pretend a previous bypass restore stood this sensor down, which is the
-    /// only disable HelixScreen may later re-arm.
-    static void mark_self_disarmed(FilamentSensorManager& mgr, const std::string& klipper) {
-        std::lock_guard<std::recursive_mutex> lock(mgr.mutex_);
-        mgr.bypass_disarmed_.push_back(klipper);
-    }
-
-    [[nodiscard]] static bool is_self_disarmed(FilamentSensorManager& mgr,
-                                               const std::string& klipper) {
-        std::lock_guard<std::recursive_mutex> lock(mgr.mutex_);
-        return std::find(mgr.bypass_disarmed_.begin(), mgr.bypass_disarmed_.end(), klipper) !=
-               mgr.bypass_disarmed_.end();
     }
 };
 } // namespace helix
@@ -120,12 +103,10 @@ class BypassArmingFixture : public HelixTestFixture {
 };
 } // namespace
 
-TEST_CASE("bypass arming: arms a self-disarmed runout sensor with bare name",
+TEST_CASE("bypass arming: engages firmware-disabled runout sensor with bare name",
           "[ams][bypass-arming]") {
     BypassArmingFixture fx;
     fx.seed_toolhead_sensor(/*firmware_enabled=*/false);
-    // A previous bypass restore stood this sensor down, so the disable is ours.
-    BypassArmingTestAccess::mark_self_disarmed(fx.mgr, "filament_switch_sensor filament_sensor");
 
     fx.mgr.on_bypass_active_changed(true);
     helix::ui::UpdateQueue::instance().drain();
@@ -138,26 +119,9 @@ TEST_CASE("bypass arming: arms a self-disarmed runout sensor with bare name",
     CHECK(fx.mgr.has_bypass_armed_sensors());
 }
 
-TEST_CASE("bypass arming: a firmware-disabled sensor is never armed", "[ams][bypass-arming]") {
-    BypassArmingFixture fx;
-    fx.seed_toolhead_sensor(/*firmware_enabled=*/false);
-    // Not in the self-disarmed set: the firmware stood this sensor down on its
-    // own (per-head enable on multi-tool hardware), and enabling it here would
-    // turn a parked, intentionally-empty sensor into a runout.
-    REQUIRE_FALSE(
-        BypassArmingTestAccess::is_self_disarmed(fx.mgr, "filament_switch_sensor filament_sensor"));
-
-    fx.mgr.on_bypass_active_changed(true);
-    helix::ui::UpdateQueue::instance().drain();
-    CHECK(fx.gcode_sent().empty());
-    CHECK_FALSE(fx.mgr.has_bypass_armed_sensors());
-}
-
 TEST_CASE("bypass arming: firmware-enabled sensor is left alone", "[ams][bypass-arming]") {
     BypassArmingFixture fx;
     fx.seed_toolhead_sensor(/*firmware_enabled=*/true);
-    // Even a self-disarmed bookkeeping entry must not arm a running sensor.
-    BypassArmingTestAccess::mark_self_disarmed(fx.mgr, "filament_switch_sensor filament_sensor");
 
     fx.mgr.on_bypass_active_changed(true);
     helix::ui::UpdateQueue::instance().drain();
@@ -168,7 +132,6 @@ TEST_CASE("bypass arming: firmware-enabled sensor is left alone", "[ams][bypass-
 TEST_CASE("bypass arming: master-disabled monitoring refuses to arm", "[ams][bypass-arming]") {
     BypassArmingFixture fx;
     fx.seed_toolhead_sensor(/*firmware_enabled=*/false);
-    BypassArmingTestAccess::mark_self_disarmed(fx.mgr, "filament_switch_sensor filament_sensor");
     fx.mgr.set_master_enabled(false);
 
     fx.mgr.on_bypass_active_changed(true);
@@ -180,7 +143,6 @@ TEST_CASE("bypass arming: arm is idempotent, restore sends exactly one disable",
           "[ams][bypass-arming]") {
     BypassArmingFixture fx;
     fx.seed_toolhead_sensor(/*firmware_enabled=*/false);
-    BypassArmingTestAccess::mark_self_disarmed(fx.mgr, "filament_switch_sensor filament_sensor");
 
     fx.mgr.on_bypass_active_changed(true);
     helix::ui::UpdateQueue::instance().drain();
@@ -206,27 +168,18 @@ TEST_CASE("bypass arming: arm is idempotent, restore sends exactly one disable",
     fx.mgr.on_bypass_active_changed(false);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(fx.gcode_sent().empty());
-
-    // The restore's disable is ours again, so a later engage re-arms.
-    fx.mgr.on_bypass_active_changed(true);
-    helix::ui::UpdateQueue::instance().drain();
-    sent = fx.gcode_sent();
-    REQUIRE(sent.size() == 1);
-    CHECK(sent[0] == "SET_FILAMENT_SENSOR SENSOR=filament_sensor ENABLE=1");
 }
 
-TEST_CASE("bypass arming: no re-arm after a real firmware disable echo", "[ams][bypass-arming]") {
+TEST_CASE("bypass arming: re-arm after a real firmware disable echo", "[ams][bypass-arming]") {
     BypassArmingFixture fx;
     fx.seed_toolhead_sensor(/*firmware_enabled=*/false);
-    BypassArmingTestAccess::mark_self_disarmed(fx.mgr, "filament_switch_sensor filament_sensor");
 
     fx.mgr.on_bypass_active_changed(true);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(fx.gcode_sent().size() == 1);
 
     // Someone else (a vendor macro) disabled the sensor again mid-bypass; the
-    // next status frame reports it. That disable is the firmware's, not ours,
-    // so no later engage may re-arm it.
+    // next status frame reports it, and a subsequent engage edge re-arms.
     fx.mgr.update_from_status(json{{"filament_switch_sensor filament_sensor",
                                     {{"filament_detected", true}, {"enabled", false}}}});
     helix::ui::UpdateQueue::instance().drain();
@@ -236,8 +189,9 @@ TEST_CASE("bypass arming: no re-arm after a real firmware disable echo", "[ams][
 
     fx.mgr.on_bypass_active_changed(true);
     helix::ui::UpdateQueue::instance().drain();
-    CHECK(fx.gcode_sent().empty());
-    CHECK_FALSE(fx.mgr.has_bypass_armed_sensors());
+    auto sent = fx.gcode_sent();
+    REQUIRE(sent.size() == 1);
+    CHECK(sent[0] == "SET_FILAMENT_SENSOR SENSOR=filament_sensor ENABLE=1");
 }
 
 // ---------------------------------------------------------------------------
