@@ -610,8 +610,8 @@ class AmsState {
      * (currently Snapmaker U1): -1 = none/not-applicable, 0 = Home, 1 = Select,
      * 2 = Heat, 3 = Move (Retract on unload / Feed on load). Synced from
      * AmsSystemInfo::operation_phase in sync_from_backend(). Drives the sidebar
-     * step bar's current step on the Snapmaker backend. Static-lifetime
-     * singleton subject — no SubjectLifetime token needed to observe it.
+     * step bar's current step on the Snapmaker backend. Registered with
+     * subjects_; observe with get_subjects_lifetime().
      *
      * @return Subject holding the operation phase index
      */
@@ -627,7 +627,7 @@ class AmsState {
      * and should be replaced by an indeterminate "Working…" busy state; 0
      * otherwise. Synced from AmsSystemInfo::operation_indeterminate in
      * sync_from_backend() (AD5X IFS drives it; other backends leave it 0).
-     * Static-lifetime singleton subject — no SubjectLifetime token needed.
+     * Registered with subjects_; observe with get_subjects_lifetime().
      *
      * @return Subject holding the indeterminate busy flag (0/1)
      */
@@ -831,7 +831,7 @@ class AmsState {
      *
      * 1 = filament present at the active tool's port/buffer sensor, 0 = absent.
      * The runout dialog observes this to gate Resume on auto-feed backends.
-     * Static-lifetime subject — no SubjectLifetime token needed to observe it.
+     * Registered with subjects_; observe with get_subjects_lifetime().
      *
      * @return Subject holding 1 (present) or 0 (absent)
      */
@@ -1828,11 +1828,11 @@ class AmsState {
     lv_subject_t ams_is_filament_system_;
     lv_subject_t ams_action_;
     /// Granular load/unload sub-phase (-1=none, 0=Home, 1=Select, 2=Heat,
-    /// 3=Move). Snapmaker U1 only; static-lifetime singleton subject.
+    /// 3=Move). Snapmaker U1 only; registered with subjects_.
     lv_subject_t ams_operation_phase_;
     /// 1 while an active op's phase-progress feed has stalled (~8s) so the frozen
     /// live-temp number should read as "Working…"; 0 otherwise. AD5X IFS only.
-    /// Static-lifetime singleton subject.
+    /// Registered with subjects_.
     lv_subject_t ams_operation_indeterminate_;
     lv_subject_t toolchange_step_; ///< current narration phase index (-1 = none/idle)
     /// Active toolchange operation for the narration router to resolve a phase
@@ -1905,9 +1905,9 @@ class AmsState {
     /// 1 = filament present at the active tool's port/buffer sensor, 0 = absent.
     /// Auto-feed backends (Snapmaker U1) update this from the port sensor — NOT
     /// the toolhead motion sensor — so the runout dialog can gate Resume on the
-    /// signal that flips true the moment a fresh spool is re-fed. Static-lifetime
-    /// singleton subject (no SubjectLifetime token needed). Defaults to 1 so
-    /// non-auto-feed / unknown backends never gate Resume.
+    /// signal that flips true the moment a fresh spool is re-fed. Registered with
+    /// subjects_. Defaults to 1 so non-auto-feed / unknown backends never gate
+    /// Resume.
     lv_subject_t active_tool_port_present_;
     std::vector<int> last_tool_map_;
     /// Companion to last_tool_map_ for the APPLIED routing (get_tool_mapping()),

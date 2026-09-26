@@ -144,7 +144,7 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
             int present =
                 lv_subject_get_int(AmsState::instance().get_active_tool_port_present_subject());
             runout_modal_.set_resume_blocked(present == 0);
-            // Static singleton subject → plain ObserverGuard, no SubjectLifetime.
+            // AmsState frees the subject in deinit_subjects(); hold its lifetime.
             port_present_observer_ = helix::ui::observe_int_sync<FilamentRunoutHandler>(
                 AmsState::instance().get_active_tool_port_present_subject(), this,
                 [](FilamentRunoutHandler* self, int port_present) {
