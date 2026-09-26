@@ -12,6 +12,7 @@
  */
 
 #include "ui_overlay_temp_graph.h"
+#include "ui_temperature_utils.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
@@ -157,18 +158,20 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 TEST_CASE_METHOD(
     LVGLTestFixture,
-    "TempGraphOverlay: init_subjects publishes its four subjects, destructor withdraws them",
+    "TempGraphOverlay: init_subjects publishes its six subjects, destructor withdraws them",
     "[temp_graph_overlay]") {
-    // init_subjects() publishes four subjects - temp_graph_mode (strip
+    // init_subjects() publishes six subjects - temp_graph_mode (strip
     // visibility and graph_outer width, see temp_graph_overlay.xml's <subjects>
     // block), temp_graph_nozzle_badge (the tool number the nozzle digit
-    // shows), and temp_graph_nozzle_temp/temp_graph_nozzle_target (the nozzle
-    // card's current/target, mirrored from whichever extruder it displays).
-    // The SubjectManager destructor (deinit_all, run from ~TempGraphOverlay
-    // via the subjects_ member) must withdraw all four names so they do not
-    // outlive the overlay. This pins both halves: the publish count AND the
-    // destructor cleanup. If a fifth subject is ever added, bump the +4 and
-    // name the newcomer here so the withdrawal stays covered too.
+    // shows), temp_graph_nozzle_temp/temp_graph_nozzle_target (the nozzle
+    // card's current/target, mirrored from whichever extruder it displays),
+    // and temp_graph_nozzle_status_state/temp_graph_nozzle_status (that same
+    // card's status glyph + duty). The SubjectManager destructor (deinit_all,
+    // run from ~TempGraphOverlay via the subjects_ member) must withdraw all
+    // six names so they do not outlive the overlay. This pins both halves:
+    // the publish count AND the destructor cleanup. If another subject is
+    // ever added, bump the +6 and name the newcomer here so the withdrawal
+    // stays covered too.
     auto name_present = [](const std::string& needle) {
         auto all = SubjectDebugRegistry::instance().list_all();
         return std::any_of(all.begin(), all.end(),
@@ -183,14 +186,17 @@ TEST_CASE_METHOD(
         overlay.init_subjects();
         REQUIRE(overlay.are_subjects_initialized());
 
-        // Exactly four subjects published: temp_graph_mode,
+        // Exactly six subjects published: temp_graph_mode,
         // temp_graph_nozzle_badge, temp_graph_nozzle_temp,
-        // temp_graph_nozzle_target.
-        REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before + 4);
+        // temp_graph_nozzle_target, temp_graph_nozzle_status_state,
+        // temp_graph_nozzle_status.
+        REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before + 6);
         REQUIRE(name_present("temp_graph_mode"));
         REQUIRE(name_present("temp_graph_nozzle_badge"));
         REQUIRE(name_present("temp_graph_nozzle_temp"));
         REQUIRE(name_present("temp_graph_nozzle_target"));
+        REQUIRE(name_present("temp_graph_nozzle_status_state"));
+        REQUIRE(name_present("temp_graph_nozzle_status"));
         // Destructor runs here.
     }
 
@@ -199,6 +205,8 @@ TEST_CASE_METHOD(
     REQUIRE_FALSE(name_present("temp_graph_nozzle_badge"));
     REQUIRE_FALSE(name_present("temp_graph_nozzle_temp"));
     REQUIRE_FALSE(name_present("temp_graph_nozzle_target"));
+    REQUIRE_FALSE(name_present("temp_graph_nozzle_status_state"));
+    REQUIRE_FALSE(name_present("temp_graph_nozzle_status"));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: destructor safe without init_subjects",
@@ -274,6 +282,12 @@ class TempGraphOverlayTestAccess {
     }
     static int card_target(TempGraphOverlay& o) {
         return lv_subject_get_int(&o.nozzle_card_target_subject_);
+    }
+    static int status_state(TempGraphOverlay& o) {
+        return lv_subject_get_int(&o.nozzle_card_status_state_subject_);
+    }
+    static const char* status_text(TempGraphOverlay& o) {
+        return lv_subject_get_string(&o.nozzle_card_status_subject_);
     }
     static const char* badge(TempGraphOverlay& o) {
         return lv_subject_get_string(&o.nozzle_badge_subject_);
@@ -439,6 +453,44 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
     REQUIRE(TempGraphOverlayTestAccess::picked(overlay).empty());
     REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 560);
     REQUIRE(TempGraphOverlayTestAccess::card_target(overlay) == 560);
+}
+
+TEST_CASE_METHOD(TempGraphOverlayPickFixture,
+                 "TempGraphOverlay: the card's status glyph and duty follow the picked tool",
+                 "[temp_graph_overlay][active-extruder][heater_status]") {
+    using helix::ui::temperature::HeaterStatusState;
+
+    TempGraphOverlay overlay;
+    overlay.init_subjects();
+
+    // Machine tool = tool 1, at temp and idle. Picked tool 2 heating from
+    // cold at full power, so which tool the status answers from is observable.
+    state.init_extruders({"extruder", "extruder1"});
+    state.update_from_status(
+        {{"extruder", {{"temperature", 55.0}, {"target", 55.0}, {"power", 0.0}}},
+         {"extruder1", {{"temperature", 100.0}, {"target", 210.0}, {"power", 1.0}}}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
+    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
+    TempGraphOverlayTestAccess::select(overlay, "extruder1");
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(state.active_extruder_name() == "extruder");
+    REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 1000);
+    REQUIRE(TempGraphOverlayTestAccess::status_state(overlay) ==
+            static_cast<int>(HeaterStatusState::Heating));
+    REQUIRE(std::string(TempGraphOverlayTestAccess::status_text(overlay)) == "100%");
+
+    // open() drops the pick: the status follows the machine's active tool,
+    // which is at temp with no duty to report.
+    overlay.open(TempGraphOverlay::Mode::Nozzle, nullptr);
+    REQUIRE(TempGraphOverlayTestAccess::picked(overlay).empty());
+    TempGraphOverlayTestAccess::repoint(overlay);
+    REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 550);
+    REQUIRE(TempGraphOverlayTestAccess::status_state(overlay) ==
+            static_cast<int>(HeaterStatusState::Ready));
+    REQUIRE(std::string(TempGraphOverlayTestAccess::status_text(overlay)).empty());
 }
 
 TEST_CASE_METHOD(TempGraphOverlayPickFixture,

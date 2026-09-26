@@ -167,6 +167,12 @@ void TempGraphOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(nozzle_card_temp_subject_, 0, "temp_graph_nozzle_temp", subjects_);
         UI_MANAGED_SUBJECT_INT(nozzle_card_target_subject_, 0, "temp_graph_nozzle_target",
                                subjects_);
+        // The card's status area (glyph + duty) for those same mirrors. 0 is
+        // HeaterStatusState::None, so an un-repointed card shows no glyph.
+        UI_MANAGED_SUBJECT_INT(nozzle_card_status_state_subject_, 0,
+                               "temp_graph_nozzle_status_state", subjects_);
+        UI_MANAGED_SUBJECT_STRING(nozzle_card_status_subject_, nozzle_card_status_buffer_, "",
+                                  "temp_graph_nozzle_status", subjects_);
     });
 }
 
@@ -316,6 +322,7 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
     nozzle_badge_version_observer_.reset();
     nozzle_card_temp_observer_.reset();
     nozzle_card_target_observer_.reset();
+    nozzle_card_power_observer_.reset();
     extruder_version_observer_.reset();
 
     // picked_extruder_ deliberately survives deactivation: the custom-entry
@@ -1064,6 +1071,7 @@ void TempGraphOverlay::watch_extruder_version() {
 void TempGraphOverlay::repoint_nozzle_card() {
     nozzle_card_temp_observer_.reset();
     nozzle_card_target_observer_.reset();
+    nozzle_card_power_observer_.reset();
     if (!printer_state_)
         return;
 
@@ -1080,17 +1088,21 @@ void TempGraphOverlay::repoint_nozzle_card() {
 
     lv_subject_t* temp_src = nullptr;
     lv_subject_t* target_src = nullptr;
+    lv_subject_t* power_src = nullptr;
     // The temperature state's own token covers the active-extruder mirrors;
     // the per-extruder getters overwrite it with that extruder's token.
     SubjectLifetime temp_lifetime = temp_state.get_subjects_lifetime();
     SubjectLifetime target_lifetime = temp_state.get_subjects_lifetime();
+    SubjectLifetime power_lifetime = temp_state.get_subjects_lifetime();
 
     if (picked_extruder_.empty()) {
         temp_src = printer_state_->get_active_extruder_temp_subject();
         target_src = printer_state_->get_active_extruder_target_subject();
+        power_src = printer_state_->get_extruder_power_subject();
     } else {
         temp_src = printer_state_->get_extruder_temp_subject(picked_extruder_, temp_lifetime);
         target_src = printer_state_->get_extruder_target_subject(picked_extruder_, target_lifetime);
+        power_src = printer_state_->get_extruder_power_subject(picked_extruder_, power_lifetime);
     }
     if (!temp_src || !target_src)
         return;
@@ -1099,20 +1111,43 @@ void TempGraphOverlay::repoint_nozzle_card() {
         temp_src, this,
         [](TempGraphOverlay* self, int value) {
             lv_subject_set_int(&self->nozzle_card_temp_subject_, value);
+            self->update_nozzle_card_status();
         },
         temp_lifetime);
     nozzle_card_target_observer_ = helix::ui::observe_int_sync<TempGraphOverlay>(
         target_src, this,
         [](TempGraphOverlay* self, int value) {
             lv_subject_set_int(&self->nozzle_card_target_subject_, value);
+            self->update_nozzle_card_status();
         },
         target_lifetime);
+    nozzle_card_power_observer_ = helix::ui::observe_int_sync<TempGraphOverlay>(
+        power_src, this,
+        [](TempGraphOverlay* self, int value) {
+            self->nozzle_card_power_ = value;
+            self->update_nozzle_card_status();
+        },
+        power_lifetime);
 
     // The observer delivers through the update queue, so its first delivery
     // lands one drain from now; seed synchronously to cover the gap.
     lv_subject_set_int(&nozzle_card_temp_subject_, lv_subject_get_int(temp_src));
     lv_subject_set_int(&nozzle_card_target_subject_, lv_subject_get_int(target_src));
+    nozzle_card_power_ = power_src ? lv_subject_get_int(power_src) : -1;
+    update_nozzle_card_status();
     publish_nozzle_badge();
+}
+
+void TempGraphOverlay::update_nozzle_card_status() {
+    // The same classifier and the same plain-heater mode TemperatureService
+    // passes for the nozzle, so the card's glyph and duty can never disagree
+    // with the service's spelling on any single tool.
+    const auto status = helix::ui::temperature::classify_heater_status(
+        lv_subject_get_int(&nozzle_card_temp_subject_),
+        lv_subject_get_int(&nozzle_card_target_subject_), nozzle_card_power_,
+        helix::ChamberMode::Heating);
+    lv_subject_set_int(&nozzle_card_status_state_subject_, static_cast<int>(status.state));
+    lv_subject_copy_string(&nozzle_card_status_subject_, status.duty.c_str());
 }
 
 void TempGraphOverlay::publish_nozzle_badge() {

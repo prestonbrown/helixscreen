@@ -144,7 +144,8 @@
                                 size="lg" show_target="true" bind_current="temp_graph_nozzle_temp"
                                 bind_target="temp_graph_nozzle_target" event_cb="on_temp_graph_custom_clicked"/>
                 </lv_obj>
-                <heater_status name="nozzle_status_msg" state_subject="nozzle_status_state" duty_subject="nozzle_status"/>
+                <heater_status name="nozzle_status_msg"
+                               state_subject="temp_graph_nozzle_status_state" duty_subject="temp_graph_nozzle_status"/>
               </lv_obj>
               <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
             </lv_obj>
@@ -201,7 +202,8 @@
               <temp_display name="nozzle_temp_display"
                             size="md" show_target="true" bind_current="temp_graph_nozzle_temp"
                             bind_target="temp_graph_nozzle_target" event_cb="on_temp_graph_custom_clicked"/>
-              <heater_status name="nozzle_status_msg" state_subject="nozzle_status_state" duty_subject="nozzle_status"/>
+              <heater_status name="nozzle_status_msg"
+                             state_subject="temp_graph_nozzle_status_state" duty_subject="temp_graph_nozzle_status"/>
             </ui_card>
           </lv_obj>
           <lv_obj height="content"

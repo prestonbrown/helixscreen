@@ -137,6 +137,9 @@ class TempGraphOverlay : public OverlayBase {
     /// them; call after any change to the pick, the extruder list, or
     /// activation state.
     void repoint_nozzle_card();
+    /// Recompute the card's status glyph + duty from the card temp/target
+    /// mirrors and the displayed extruder's cached heater power.
+    void update_nozzle_card_status();
     /// Arm the one-per-activation extruder_version watch whose handler calls
     /// repoint_nozzle_card().
     void watch_extruder_version();
@@ -217,8 +220,19 @@ class TempGraphOverlay : public OverlayBase {
     // already re-target on every machine toolchange.
     lv_subject_t nozzle_card_temp_subject_{};
     lv_subject_t nozzle_card_target_subject_{};
+    // The card's status area (glyph + duty), classified from the mirrors
+    // above plus the displayed extruder's own power. TemperatureService's
+    // nozzle status tracks the MACHINE's tool on purpose, so a card showing a
+    // picked tool computes its own.
+    lv_subject_t nozzle_card_status_state_subject_{};
+    lv_subject_t nozzle_card_status_subject_{};
+    char nozzle_card_status_buffer_[16]{};
+    /// Last power reading (whole percent, -1 unknown) from the displayed
+    /// extruder's power subject.
+    int nozzle_card_power_ = -1;
     ObserverGuard nozzle_card_temp_observer_;
     ObserverGuard nozzle_card_target_observer_;
+    ObserverGuard nozzle_card_power_observer_;
     // Rediscovery bumps extruder_version; the observer repoints so a pick
     // whose extruder vanished falls back instead of freezing the card. Armed
     // once per activation by watch_extruder_version(); repoint_nozzle_card()
