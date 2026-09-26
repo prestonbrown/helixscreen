@@ -4,7 +4,6 @@
 #include "backlight_backend.h"
 
 #include "config.h"
-#include "platform_info.h"
 #include "runtime_config.h"
 #include "spdlog/spdlog.h"
 
