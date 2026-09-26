@@ -325,97 +325,42 @@ TEST_CASE("PrinterTemperatureState: out-of-range duty is clamped", "[core][tempe
     PrinterTemperatureStateTestAccess::reset(state);
 }
 
-TEST_CASE("PrinterTemperatureState: a held pin survives a toolhead status change",
-          "[core][temperature][active-extruder]") {
+TEST_CASE("PrinterTemperatureState: per-extruder power reaches its own subject",
+          "[core][temperature][power]") {
     lv_init_safe();
     PrinterTemperatureState state;
     state.init_subjects(false);
     state.init_extruders({"extruder", "extruder1"});
 
-    // Two tools at different temperatures, so which one the active subjects
-    // mirror is observable.
-    state.update_from_status({{"extruder", {{"temperature", 55.0}, {"target", 55.0}}},
-                              {"extruder1", {{"temperature", 260.0}, {"target", 260.0}}}});
+    // The machine's tool is extruder; a duty frame for the OTHER head must
+    // land on that head's subject without leaking into the active mirror.
+    state.update_from_status({{"extruder1", {{"power", 0.73}}}});
 
-    // The viewer picks tool 1 (pin), then the machine reports tool 0 active.
-    state.pin_active_extruder("extruder1");
-    state.set_active_extruder("extruder");
-
-    REQUIRE(state.active_extruder_name() == "extruder1");
-    REQUIRE(lv_subject_get_int(state.get_active_extruder_temp_subject()) == 2600);
-    REQUIRE(lv_subject_get_int(state.get_active_extruder_target_subject()) == 2600);
-
-    // Status frames keep mirroring the pinned tool's data into the card.
-    state.update_from_status({{"extruder", {{"temperature", 60.0}, {"target", 60.0}}},
-                              {"extruder1", {{"temperature", 261.0}, {"target", 261.0}}}});
-    CHECK(lv_subject_get_int(state.get_active_extruder_temp_subject()) == 2610);
+    SubjectLifetime picked;
+    REQUIRE(state.get_extruder_power_subject("extruder1", picked) != nullptr);
+    CHECK(lv_subject_get_int(state.get_extruder_power_subject("extruder1", picked)) == 73);
+    CHECK(lv_subject_get_int(state.get_extruder_power_subject()) == -1);
+    SubjectLifetime idle;
+    CHECK(lv_subject_get_int(state.get_extruder_power_subject("extruder", idle)) == -1);
 
     PrinterTemperatureStateTestAccess::reset(state);
 }
 
-TEST_CASE("PrinterTemperatureState: clearing the pin re-syncs to the machine's extruder",
-          "[core][temperature][active-extruder]") {
+TEST_CASE("PrinterTemperatureState: a toolchange resyncs active power",
+          "[core][temperature][power]") {
     lv_init_safe();
     PrinterTemperatureState state;
     state.init_subjects(false);
     state.init_extruders({"extruder", "extruder1"});
 
-    state.update_from_status({{"extruder", {{"temperature", 55.0}, {"target", 55.0}}},
-                              {"extruder1", {{"temperature", 260.0}, {"target", 260.0}}}});
+    state.update_from_status({{"extruder", {{"power", 1.0}}}, {"extruder1", {{"power", 0.0}}}});
+    REQUIRE(lv_subject_get_int(state.get_extruder_power_subject()) == 100);
 
-    state.pin_active_extruder("extruder1");
-    state.set_active_extruder("extruder");
-    REQUIRE(state.active_extruder_name() == "extruder1");
-
-    state.clear_active_extruder_pin();
-    REQUIRE(state.active_extruder_name() == "extruder");
-    REQUIRE(lv_subject_get_int(state.get_active_extruder_temp_subject()) == 550);
-    REQUIRE(lv_subject_get_int(state.get_active_extruder_target_subject()) == 550);
-
-    // An unpinned state follows the toolhead status again, including a later
-    // toolchange.
+    // Moonraker deltas omit unchanged fields, so an idle new tool may never
+    // carry a power frame after the change: the mirror must take extruder1's
+    // last known duty at the toolchange, not keep the old tool's 100.
     state.set_active_extruder("extruder1");
-    CHECK(state.active_extruder_name() == "extruder1");
-
-    PrinterTemperatureStateTestAccess::reset(state);
-}
-
-TEST_CASE("PrinterTemperatureState: pinning an unknown extruder changes nothing",
-          "[core][temperature][active-extruder]") {
-    lv_init_safe();
-    PrinterTemperatureState state;
-    state.init_subjects(false);
-    state.init_extruders({"extruder", "extruder1"});
-
-    state.pin_active_extruder("extruder99");
-    REQUIRE(state.active_extruder_name() == "extruder");
-
-    // The failed pin holds nothing: a toolhead status change still applies.
-    state.set_active_extruder("extruder1");
-    CHECK(state.active_extruder_name() == "extruder1");
-
-    PrinterTemperatureStateTestAccess::reset(state);
-}
-
-TEST_CASE(
-    "PrinterTemperatureState: clearing a pin without any toolhead status falls back to extruder",
-    "[core][temperature][active-extruder]") {
-    lv_init_safe();
-    PrinterTemperatureState state;
-    state.init_subjects(false);
-    state.init_extruders({"extruder", "extruder1"});
-
-    state.update_from_status({{"extruder", {{"temperature", 55.0}, {"target", 55.0}}},
-                              {"extruder1", {{"temperature", 260.0}, {"target", 260.0}}}});
-
-    // A viewer picks a tool before any toolhead.extruder frame ever arrived.
-    state.pin_active_extruder("extruder1");
-    REQUIRE(state.active_extruder_name() == "extruder1");
-
-    state.clear_active_extruder_pin();
-    REQUIRE(state.active_extruder_name() == "extruder");
-    REQUIRE(lv_subject_get_int(state.get_active_extruder_temp_subject()) == 550);
-    REQUIRE(lv_subject_get_int(state.get_active_extruder_target_subject()) == 550);
+    CHECK(lv_subject_get_int(state.get_extruder_power_subject()) == 0);
 
     PrinterTemperatureStateTestAccess::reset(state);
 }
