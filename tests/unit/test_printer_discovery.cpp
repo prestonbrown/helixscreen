@@ -1857,6 +1857,36 @@ TEST_CASE("PrinterDiscovery: build volume parsed from configfile.settings steppe
     REQUIRE(discovery.build_volume().z_max == 340.0f);
 }
 
+TEST_CASE("PrinterDiscovery: sensor toggle command follows a SET_FILAMENT_SENSOR wrapper",
+          "[printer_discovery][filament]") {
+    helix::PrinterDiscovery discovery;
+    REQUIRE(discovery.sensor_toggle_command() == "SET_FILAMENT_SENSOR");
+
+    SECTION("no wrapper keeps the builtin name") {
+        CHECK_FALSE(discovery.parse_sensor_toggle_command(
+            json{{"gcode_macro other", {{"rename_existing", "_OTHER"}}}}));
+        CHECK(discovery.sensor_toggle_command() == "SET_FILAMENT_SENSOR");
+    }
+
+    SECTION("a wrapper's rename_existing names the builtin") {
+        REQUIRE(discovery.parse_sensor_toggle_command(
+            json{{"gcode_macro set_filament_sensor",
+                  {{"rename_existing", "_SET_FILAMENT_SENSOR"}, {"gcode", "..."}}}}));
+        CHECK(discovery.sensor_toggle_command() == "_SET_FILAMENT_SENSOR");
+
+        discovery.clear();
+        CHECK(discovery.sensor_toggle_command() == "SET_FILAMENT_SENSOR");
+    }
+
+    SECTION("a malformed rename_existing is ignored") {
+        CHECK_FALSE(discovery.parse_sensor_toggle_command(
+            json{{"gcode_macro set_filament_sensor", {{"rename_existing", ""}}}}));
+        CHECK_FALSE(discovery.parse_sensor_toggle_command(
+            json{{"gcode_macro set_filament_sensor", {{"rename_existing", 3}}}}));
+        CHECK(discovery.sensor_toggle_command() == "SET_FILAMENT_SENSOR");
+    }
+}
+
 TEST_CASE("PrinterDiscovery: build volume keeps negative axis minimums",
           "[printer_discovery][build_volume]") {
     // Voron-style configs park X/Y off the bed, so position_min is negative.
