@@ -305,12 +305,22 @@ class AmsBackendAceTestHelper : public AmsBackendAce {
     }
 
     helix::AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                                  std::function<void(const MoonrakerError&)> /*on_error*/,
-                                  bool /*silent*/) override {
+                                  std::function<void(const MoonrakerError&)> on_error,
+                                  bool silent) override {
+        if (dispatch_via_base) {
+            return AmsSubscriptionBackend::execute_gcode(gcode, std::move(on_complete),
+                                                         std::move(on_error), silent);
+        }
         captured_gcodes.push_back(gcode);
         pending_ack = std::move(on_complete);
         return helix::AmsErrorHelper::success();
     }
+
+  public:
+    // Routes the completion-form dispatch to the REAL AmsSubscriptionBackend
+    // implementation (api_ is null here) instead of the capture seam, so a
+    // test can exercise the dispatch's own refusal legs.
+    bool dispatch_via_base = false;
 };
 
 // ============================================================================
@@ -910,6 +920,24 @@ TEST_CASE("ACE operations require API", "[ams][ace][preconditions]") {
 
     err = helper.start_drying(45.0f, 240);
     REQUIRE(!err.success());
+}
+
+// A dispatch that never goes out still has to unwind the optimistic action the
+// op set before it, or is_busy() refuses every later op (prestonbrown/helixscreen#1720).
+TEST_CASE("ACE unload refused at the send unwinds UNLOADING", "[ams][ace][1720]") {
+    AmsBackendAceTestHelper helper;
+    helper.set_running(true);
+    helper.dispatch_via_base = true;
+
+    auto err = helper.unload_filament(0);
+    REQUIRE_FALSE(err.success());
+
+    // The refusal came from the dispatch itself, not the capture seam.
+    REQUIRE(helper.captured_gcodes.empty());
+
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(helper.get_test_system_info().action == AmsAction::IDLE);
 }
 
 // ============================================================================

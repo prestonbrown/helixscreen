@@ -661,6 +661,15 @@ void AmsSubscriptionBackend::handle_dispatch_error(
     system_info_.action = AmsAction::IDLE;
 }
 
+AmsError AmsSubscriptionBackend::refuse_dispatch_no_api(
+    const std::function<void(const MoonrakerError&)>& on_error) {
+    MoonrakerError synthetic;
+    synthetic.type = MoonrakerErrorType::CONNECTION_LOST;
+    synthetic.message = "IMoonrakerAPI not available";
+    handle_dispatch_error(synthetic, on_error);
+    return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
+}
+
 AmsError
 AmsSubscriptionBackend::dispatch_payload(std::string gcode, std::function<void()> on_complete,
                                          std::function<void(const MoonrakerError&)> on_error,
@@ -684,11 +693,7 @@ AmsSubscriptionBackend::dispatch_payload(std::string gcode, std::function<void()
     // directly, the same way AmsBackendCfs::dispatch_action_script used to
     // before this method existed to replace its fork.
     if (!api_) {
-        MoonrakerError synthetic;
-        synthetic.type = MoonrakerErrorType::CONNECTION_LOST;
-        synthetic.message = "IMoonrakerAPI not available";
-        handle_dispatch_error(synthetic, on_error);
-        return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
+        return refuse_dispatch_no_api(on_error);
     }
 
     const char* tag = backend_log_tag();
@@ -804,7 +809,10 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
                                                std::function<void(const MoonrakerError&)> on_error,
                                                bool silent) {
     if (!api_) {
-        return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
+        // The send never went out, but on_error still owes the caller its
+        // unwind: an optimistic AmsAction set before this dispatch stays set
+        // forever if only the return value reports the refusal.
+        return refuse_dispatch_no_api(on_error);
     }
     const char* tag = backend_log_tag();
     spdlog::info("{} Executing G-code: {}", tag, gcode);
