@@ -35,7 +35,7 @@ Size gate: unlike the old per-file LittleFS block-rounding budget, a packed
 frogfs image has no per-file flash-block tax — each entry costs its own
 (compressed) byte count plus a small fixed header (~8-20 bytes) padded to a
 4-byte boundary. The gate here is simply the packed image's total byte size
-against the `storage` partition (0x2c0000 = 2,883,584 bytes, partitions.csv),
+against the `storage` partition (0x240000 = 2,359,296 bytes, partitions.csv),
 minus a small safety margin for headroom (future growth without touching the
 partition table, and any esptool_py write-size rounding).
 """
@@ -63,12 +63,10 @@ DEFAULT_CACHE_DIR = FIRMWARE_DIR / "build" / "frogfs_cache"
 DEFAULT_OUTPUT = FIRMWARE_DIR / "build" / "storage_frogfs.bin"
 MKFROGFS = FIRMWARE_DIR / "managed_components" / "jkent__frogfs" / "tools" / "mkfrogfs.py"
 
-# `storage` partition size (partitions.csv: storage, data, spiffs, 0xd20000, 0x2c0000).
-# 0x2c0000 = 2,883,584. (The Stage B enabler brief cited 2,949,120 = 0x2d0000
-# for this constant, but that exceeds the actual partition by 64KB and would let
-# the packer green-light a container past the partition end; the partition table
-# is geometry-locked to 0x2c0000 to end the flash exactly at 0x1000000.)
-STORAGE_PARTITION_BYTES = 2_883_584
+# `storage` partition size (partitions.csv: storage, data, spiffs, 0xda0000, 0x240000).
+# 0x240000 = 2,359,296. Must match the table exactly: a larger constant lets the
+# packer green-light a container that runs past the partition end.
+STORAGE_PARTITION_BYTES = 2_359_296
 
 # Small fixed safety margin: frogfs itself has no per-file block tax, but we
 # keep headroom for incremental content growth between spec revisions and

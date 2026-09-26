@@ -167,8 +167,14 @@
 	#define LV_DRAW_SW_SUPPORT_RGB888		1
 	#define LV_DRAW_SW_SUPPORT_XRGB8888		1
 	#define LV_DRAW_SW_SUPPORT_ARGB8888		1
-	#define LV_DRAW_SW_SUPPORT_L8			1
-	#define LV_DRAW_SW_SUPPORT_AL88			1
+	/* L8, AL88 and premultiplied ARGB8888 are OFF: nothing in the tree renders
+	 * into or from them (LV_COLOR_FORMAT_L8/AL88/ARGB8888_PREMULTIPLIED appear
+	 * nowhere in src/ or the firmware), and lodepng decodes every PNG,
+	 * gray+alpha included, to ARGB8888. Together they are about 23KB of blend
+	 * code. PREMULTIPLIED must be spelled out for the same reason as I1 below. */
+	#define LV_DRAW_SW_SUPPORT_L8			0
+	#define LV_DRAW_SW_SUPPORT_AL88			0
+	#define LV_DRAW_SW_SUPPORT_ARGB8888_PREMULTIPLIED	0
 	#define LV_DRAW_SW_SUPPORT_A8			1
 	/* I1 (1-bit indexed) and RGB565_SWAPPED are both OFF on this panel. The
 	 * GT911/ST7701 board runs native little-endian RGB565 at 16 bpp with no
