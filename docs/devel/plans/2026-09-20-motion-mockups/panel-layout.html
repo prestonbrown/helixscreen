@@ -1,0 +1,157 @@
+<style>
+  .hx { --bg:#1b1f26; --card:#242931; --elev:#2b313b; --pri:#4a9eff; --dan:#e5484d;
+        --txt:#e8eaed; --mut:#8b93a0; --ok:#3fb950; --new:#f0a020; }
+  .hx-panel{background:#1b1f26;border-radius:8px;overflow:hidden;font-family:system-ui,sans-serif;
+        color:#e8eaed;width:100%;border:1px solid #333a45;}
+  .hx-hdr{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#242931;
+        border-bottom:1px solid #333a45;font-size:13px;font-weight:600;}
+  .hx-hdr .sp{margin-left:auto;display:flex;gap:6px;align-items:center;}
+  .hx-estop{width:22px;height:22px;border-radius:50%;background:#e5484d;display:flex;
+        align-items:center;justify-content:center;font-size:12px;}
+  .hx-body{display:flex;gap:8px;padding:10px;}
+  .hx-left{flex:3;display:flex;flex-direction:column;gap:8px;min-width:0;}
+  .hx-right{flex:1;max-width:92px;display:flex;flex-direction:column;gap:5px;}
+  .hx-row{display:flex;gap:8px;align-items:center;}
+  .hx-poscard{background:#2b313b;border-radius:6px;padding:7px 8px;font-size:11px;
+        line-height:1.7;min-width:78px;}
+  .hx-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#3fb950;
+        margin-left:4px;vertical-align:middle;}
+  .hx-pad{width:104px;height:104px;border-radius:50%;background:
+        radial-gradient(circle,#2b313b 0 26%, #323a46 26% 46%, #2b313b 46% 70%, #323a46 70% 100%);
+        position:relative;flex-shrink:0;margin:0 auto;}
+  .hx-pad::after{content:"⌂";position:absolute;inset:0;display:flex;align-items:center;
+        justify-content:center;font-size:15px;color:#e8eaed;}
+  .hx-pad span{position:absolute;font-size:9px;color:#8b93a0;}
+  .hx-btn{background:#2b313b;border-radius:5px;padding:6px 4px;font-size:10px;text-align:center;
+        flex:1;display:flex;align-items:center;justify-content:center;min-height:20px;}
+  .hx-mode{display:flex;gap:4px;}
+  .hx-mode div{flex:1;background:rgba(74,158,255,.16);border-radius:5px;padding:5px 2px;
+        font-size:10px;text-align:center;}
+  .hx-mode div.on{background:#4a9eff;color:#0d1117;font-weight:600;}
+  .hx-new{outline:2px solid #f0a020;outline-offset:1px;position:relative;}
+  .hx-tabs{display:flex;gap:4px;margin-bottom:2px;}
+  .hx-tabs div{flex:1;text-align:center;font-size:10px;padding:4px;border-radius:5px;
+        background:#2b313b;color:#8b93a0;}
+  .hx-tabs div.on{background:#4a9eff;color:#0d1117;font-weight:600;}
+  .hx-field{background:#2b313b;border-radius:5px;padding:6px 8px;font-size:11px;
+        display:flex;justify-content:space-between;align-items:center;}
+  .hx-field b{font-weight:600;color:#4a9eff;}
+  .cap{font-size:12px;color:#8b93a0;margin-top:10px;line-height:1.5;}
+  .keyline{font-size:11px;color:#f0a020;font-weight:600;letter-spacing:.04em;
+        text-transform:uppercase;margin-bottom:6px;}
+  .lay{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px;}
+  .lay .option{display:block;}
+</style>
+
+<h2>Where do the new controls go?</h2>
+<p class="subtitle">Three of the six additions need panel space: motors&nbsp;off (3), tappable coordinates (5), presets (6). Amber outline marks what's new. Click to pick.</p>
+
+<div class="options lay">
+
+  <!-- ============ A ============ -->
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <div class="keyline">In place + overflow menu</div>
+      <div class="hx-panel">
+        <div class="hx-hdr">‹ Motion: XYZ
+          <div class="sp">
+            <div class="hx-btn hx-new" style="flex:0;padding:3px 7px;">⋯</div>
+            <div class="hx-estop">!</div>
+          </div>
+        </div>
+        <div class="hx-body">
+          <div class="hx-left">
+            <div class="hx-row">
+              <div class="hx-poscard">
+                <div>X: <b class="hx-new" style="padding:0 3px;border-radius:3px;">150.0</b><i class="hx-dot"></i></div>
+                <div>Y: <b class="hx-new" style="padding:0 3px;border-radius:3px;">150.0</b><i class="hx-dot"></i></div>
+                <div>Z: <b class="hx-new" style="padding:0 3px;border-radius:3px;">10.00</b><i class="hx-dot"></i></div>
+              </div>
+              <div class="hx-pad"></div>
+            </div>
+            <div class="hx-mode"><div>Fine</div><div class="on">Coarse</div><div>Turbo</div></div>
+          </div>
+          <div class="hx-right">
+            <div class="hx-btn">▲ 10</div>
+            <div class="hx-btn">▲ 1</div>
+            <div style="font-size:9px;text-align:center;color:#8b93a0;">Bed</div>
+            <div class="hx-btn">▼ 1</div>
+            <div class="hx-btn">▼ 10</div>
+            <div style="display:flex;gap:4px;"><div class="hx-btn">QGL</div><div class="hx-btn">Z-Tilt</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">Coordinates become tap targets where they already sit, so entry costs zero space. Motors&nbsp;off and presets hide behind ⋯ in the header.<br><b>Nothing grows. Everything else is one extra tap.</b></p>
+    </div>
+  </div>
+
+  <!-- ============ B ============ -->
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <div class="keyline">Paged jog slot</div>
+      <div class="hx-panel">
+        <div class="hx-hdr">‹ Motion: XYZ <div class="sp"><div class="hx-estop">!</div></div></div>
+        <div class="hx-body">
+          <div class="hx-left">
+            <div class="hx-tabs hx-new"><div>Jog</div><div class="on">Move</div></div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <div class="hx-field">X <b>150.0</b></div>
+              <div class="hx-field">Y <b>150.0</b></div>
+              <div class="hx-field">Z <b>10.00</b></div>
+              <div style="display:flex;gap:4px;">
+                <div class="hx-btn">Center</div><div class="hx-btn">Front L</div><div class="hx-btn">Park</div>
+              </div>
+              <div class="hx-btn" style="flex:0;">Motors Off</div>
+            </div>
+          </div>
+          <div class="hx-right">
+            <div class="hx-btn">▲ 10</div>
+            <div class="hx-btn">▲ 1</div>
+            <div style="font-size:9px;text-align:center;color:#8b93a0;">Bed</div>
+            <div class="hx-btn">▼ 1</div>
+            <div class="hx-btn">▼ 10</div>
+            <div style="display:flex;gap:4px;"><div class="hx-btn">QGL</div><div class="hx-btn">Z-Tilt</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">The pad slot gets tabs. <b>Jog</b> is today's pad, unchanged. <b>Move</b> holds coordinates, presets and motors&nbsp;off as a real list with room to breathe.<br><b>This is also where a tap-to-move bed map lands later: a third tab, not a redesign.</b></p>
+    </div>
+  </div>
+
+  <!-- ============ C ============ -->
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <div class="keyline">Grow the right column</div>
+      <div class="hx-panel">
+        <div class="hx-hdr">‹ Motion: XYZ <div class="sp"><div class="hx-estop">!</div></div></div>
+        <div class="hx-body">
+          <div class="hx-left">
+            <div class="hx-row">
+              <div class="hx-poscard">
+                <div>X: <b class="hx-new" style="padding:0 3px;border-radius:3px;">150.0</b></div>
+                <div>Y: <b class="hx-new" style="padding:0 3px;border-radius:3px;">150.0</b></div>
+                <div>Z: <b class="hx-new" style="padding:0 3px;border-radius:3px;">10.00</b></div>
+              </div>
+              <div class="hx-pad" style="width:88px;height:88px;"></div>
+            </div>
+            <div class="hx-mode"><div>Fine</div><div class="on">Coarse</div><div>Turbo</div></div>
+          </div>
+          <div class="hx-right">
+            <div class="hx-btn" style="min-height:14px;">▲ 10</div>
+            <div class="hx-btn" style="min-height:14px;">▲ 1</div>
+            <div class="hx-btn" style="min-height:14px;">▼ 1</div>
+            <div class="hx-btn" style="min-height:14px;">▼ 10</div>
+            <div style="display:flex;gap:4px;"><div class="hx-btn">QGL</div><div class="hx-btn">Z-Tilt</div></div>
+            <div style="display:flex;gap:4px;" class="hx-new"><div class="hx-btn">Ctr</div><div class="hx-btn">Park</div></div>
+            <div class="hx-btn hx-new" style="min-height:14px;">Motors Off</div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">Presets and motors&nbsp;off join QGL/Z-Tilt as buttons. Simplest to build, no new navigation.<br><b>Note what it costs: the "Bed" label is gone, the pad shrank, and buttons are at minimum tap size. This is the one that breaks first on a 480px screen.</b></p>
+    </div>
+  </div>
+
+</div>

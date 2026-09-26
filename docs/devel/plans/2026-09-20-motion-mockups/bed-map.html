@@ -1,0 +1,124 @@
+<style>
+  .hx-panel{background:#1b1f26;border-radius:8px;overflow:hidden;font-family:system-ui,sans-serif;
+        color:#e8eaed;width:100%;border:1px solid #333a45;}
+  .hx-hdr{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#242931;
+        border-bottom:1px solid #333a45;font-size:13px;font-weight:600;}
+  .hx-hdr .sp{margin-left:auto;display:flex;gap:6px;align-items:center;}
+  .hx-estop{width:22px;height:22px;border-radius:50%;background:#e5484d;display:flex;
+        align-items:center;justify-content:center;font-size:12px;}
+  .hx-body{display:flex;gap:8px;padding:10px;}
+  .hx-left{flex:3;display:flex;flex-direction:column;gap:6px;min-width:0;}
+  .hx-right{flex:1;max-width:92px;display:flex;flex-direction:column;gap:5px;}
+  .hx-btn{background:#2b313b;border-radius:5px;padding:6px 4px;font-size:10px;text-align:center;
+        flex:1;display:flex;align-items:center;justify-content:center;min-height:20px;}
+  .hx-tabs{display:flex;gap:4px;}
+  .hx-tabs div{flex:1;text-align:center;font-size:10px;padding:5px;border-radius:5px;
+        background:#2b313b;color:#8b93a0;}
+  .hx-tabs div.on{background:#4a9eff;color:#0d1117;font-weight:600;}
+  .hx-new{outline:2px solid #f0a020;outline-offset:2px;}
+
+  /* --- bed map --- */
+  .bed{position:relative;background:#22272f;border:1px solid #3a424e;border-radius:4px;
+       width:150px;height:150px;margin:0 auto;
+       background-image:linear-gradient(#2e3540 1px,transparent 1px),
+                        linear-gradient(90deg,#2e3540 1px,transparent 1px);
+       background-size:33.3px 33.3px;}
+  .head{position:absolute;width:11px;height:11px;margin:-6px 0 0 -6px;border-radius:50%;
+        background:#4a9eff;box-shadow:0 0 0 3px rgba(74,158,255,.25);}
+  .head::before,.head::after{content:"";position:absolute;background:rgba(74,158,255,.45);}
+  .head::before{left:5px;top:-60px;width:1px;height:130px;}
+  .head::after{top:5px;left:-60px;height:1px;width:130px;}
+  .tgt{position:absolute;width:15px;height:15px;margin:-8px 0 0 -8px;border-radius:50%;
+       border:2px dashed #f0a020;}
+  .tgt::after{content:"";position:absolute;inset:5px;border-radius:50%;background:#f0a020;}
+  .bedlbl{font-size:8px;color:#6b7482;position:absolute;}
+  .coord{font-size:10px;color:#8b93a0;text-align:center;margin-top:4px;}
+  .coord b{color:#4a9eff;}
+  .coord i{color:#f0a020;font-style:normal;}
+
+  .cap{font-size:12px;color:#8b93a0;margin-top:10px;line-height:1.5;}
+  .keyline{font-size:11px;color:#f0a020;font-weight:600;letter-spacing:.04em;
+        text-transform:uppercase;margin-bottom:6px;}
+  .lay{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;}
+  .lay .option{display:block;}
+  .note{background:#242931;border-left:3px solid #4a9eff;padding:10px 12px;border-radius:0 6px 6px 0;
+        font-size:12.5px;color:#a8b0bd;line-height:1.6;margin:18px 0 6px;}
+  .note b{color:#e8eaed;}
+</style>
+
+<h2>Yes, a third tab</h2>
+<p class="subtitle">Jog / Move / Bed. The Z column stays put on every tab, so you can tap across the bed and still nudge Z without switching back.</p>
+
+<div class="hx-panel" style="max-width:420px;margin-bottom:6px;">
+  <div class="hx-hdr">‹ Motion: XYZ <div class="sp"><div class="hx-estop">!</div></div></div>
+  <div class="hx-body">
+    <div class="hx-left">
+      <div class="hx-tabs hx-new"><div>Jog</div><div>Move</div><div class="on">Bed</div></div>
+      <div class="bed">
+        <div class="head" style="left:68%;top:32%;"></div>
+        <span class="bedlbl" style="left:3px;bottom:2px;">0,0</span>
+        <span class="bedlbl" style="right:3px;top:2px;">220,220</span>
+      </div>
+      <div class="coord">Toolhead <b>X 150.0  Y 150.0</b></div>
+    </div>
+    <div class="hx-right">
+      <div class="hx-btn">▲ 10</div>
+      <div class="hx-btn">▲ 1</div>
+      <div style="font-size:9px;text-align:center;color:#8b93a0;">Bed</div>
+      <div class="hx-btn">▼ 1</div>
+      <div class="hx-btn">▼ 10</div>
+      <div style="display:flex;gap:4px;"><div class="hx-btn">QGL</div><div class="hx-btn">Z-Tilt</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>The part that actually needs deciding is what a tap does.</b> This is a touchscreen bolted to a printer, often at waist height, frequently brushed past. A tap that commits motion immediately is the difference between a great feature and a toolhead that wanders off because someone leaned on the panel.
+</div>
+
+<h3 style="margin-top:22px;">So: how does a tap commit?</h3>
+
+<div class="options lay">
+
+  <div class="option" data-choice="direct" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <div class="keyline">Tap moves immediately</div>
+      <div style="background:#1b1f26;border:1px solid #333a45;border-radius:8px;padding:14px;">
+        <div class="bed">
+          <div class="head" style="left:68%;top:32%;"></div>
+          <span class="bedlbl" style="left:3px;bottom:2px;">0,0</span>
+        </div>
+        <div class="coord">Tap anywhere &rarr; <b>moving now</b></div>
+      </div>
+      <p class="cap">One gesture, nothing in the way. Feels immediate and it is how a phone map behaves.<br><b>Also means any stray contact is a real move.</b> No undo on a gantry.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="confirm" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <div class="keyline">Tap aims, Go commits</div>
+      <div style="background:#1b1f26;border:1px solid #333a45;border-radius:8px;padding:14px;">
+        <div class="bed">
+          <div class="head" style="left:68%;top:32%;"></div>
+          <div class="tgt" style="left:25%;top:72%;"></div>
+          <span class="bedlbl" style="left:3px;bottom:2px;">0,0</span>
+        </div>
+        <div class="coord" style="display:flex;gap:6px;align-items:center;justify-content:center;margin-top:6px;">
+          <span>&rarr; <i>X 55.0  Y 62.0</i></span>
+          <span class="hx-btn" style="flex:0;padding:4px 14px;background:#4a9eff;color:#0d1117;font-weight:600;">Go</span>
+        </div>
+      </div>
+      <p class="cap">Tap drops a target and shows the exact coordinates it resolved to. Nothing moves until Go.<br><b>Drag the target to fine-tune, and you can read the number before you commit.</b> Two gestures instead of one.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="note" style="border-left-color:#f0a020;">
+  <b>Three things this tab needs regardless of which you pick:</b><br>
+  &bull; <b>Unhomed:</b> the map is meaningless without a reference, so it greys out with a Home prompt rather than guessing.<br>
+  &bull; <b>Printing:</b> disabled outright, same as the rest of the panel already does via <code>nav_buttons_enabled</code>.<br>
+  &bull; <b>Z stays where it is.</b> A tap moves XY only, at whatever Z you are at. If you are at Z&nbsp;0.2 that is a nozzle dragged across the bed, so the map should require a minimum Z or offer to lift first. Worth its own decision later.
+</div>

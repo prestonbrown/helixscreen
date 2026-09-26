@@ -1,0 +1,91 @@
+<style>
+  .bed{position:relative;background:#22272f;border:1px solid #3a424e;border-radius:4px;
+       width:170px;height:170px;margin:0 auto;
+       background-image:linear-gradient(#2e3540 1px,transparent 1px),
+                        linear-gradient(90deg,#2e3540 1px,transparent 1px);
+       background-size:37.8px 37.8px;}
+  .head{position:absolute;width:11px;height:11px;margin:-6px 0 0 -6px;border-radius:50%;
+        background:#4a9eff;box-shadow:0 0 0 3px rgba(74,158,255,.25);}
+  .tgt{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;
+       border:2px dashed #f0a020;}
+  .tgt::after{content:"";position:absolute;inset:5px;border-radius:50%;background:#f0a020;}
+  .finger{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;
+       background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.35);}
+  .finger::after{content:"";position:absolute;left:50%;top:50%;width:5px;height:5px;
+       margin:-2.5px 0 0 -2.5px;border-radius:50%;background:rgba(255,255,255,.6);}
+  .trail{position:absolute;height:2px;background:linear-gradient(90deg,rgba(240,160,32,0),#f0a020);
+       border-radius:2px;transform-origin:left center;}
+  .bedlbl{font-size:8px;color:#6b7482;position:absolute;}
+  .coord{font-size:11px;color:#8b93a0;text-align:center;margin-top:8px;}
+  .coord b{color:#4a9eff;} .coord i{color:#f0a020;font-style:normal;font-weight:600;}
+  .cap{font-size:12px;color:#8b93a0;margin-top:10px;line-height:1.55;}
+  .keyline{font-size:11px;color:#f0a020;font-weight:600;letter-spacing:.04em;
+        text-transform:uppercase;margin-bottom:8px;}
+  .lay{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px;}
+  .lay .option{display:block;}
+  .frame{background:#1b1f26;border:1px solid #333a45;border-radius:8px;padding:16px;}
+  .note{background:#242931;border-left:3px solid #e5484d;padding:11px 13px;border-radius:0 6px 6px 0;
+        font-size:12.5px;color:#a8b0bd;line-height:1.6;margin:16px 0;}
+  .note b{color:#e8eaed;}
+  .note.blue{border-left-color:#4a9eff;}
+</style>
+
+<h2>The problem with tap-only</h2>
+
+<div class="note">
+  <b>Your finger is bigger than the precision you want.</b> On a 480px panel this map gets maybe 170px across. A 220mm bed at 170px is about <b>1.3mm per pixel</b>, and a fingertip covers 20&ndash;30 pixels. So at the moment you commit, your finger is hiding roughly <b>30mm of bed</b> and you cannot see where you are about to send the nozzle. Tap-only is fine for "go over there". It cannot do "go to that spot".
+</div>
+
+<div class="frame" style="max-width:300px;margin-bottom:22px;">
+  <div class="bed">
+    <div class="head" style="left:70%;top:30%;"></div>
+    <div class="finger" style="left:32%;top:66%;"></div>
+    <span class="bedlbl" style="left:3px;bottom:2px;">0,0</span>
+  </div>
+  <div class="coord">committing to&hellip; <b>?</b></div>
+</div>
+
+<h3>So what should drag do?</h3>
+<p class="subtitle">Tap stays immediate either way, as you picked. This is only about what happens when the finger moves.</p>
+
+<div class="options lay">
+
+  <div class="option" data-choice="aim" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <div class="keyline">Drag aims &middot; release commits</div>
+      <div class="frame">
+        <div class="bed">
+          <div class="head" style="left:70%;top:30%;"></div>
+          <div class="tgt" style="left:32%;top:66%;"></div>
+          <div class="finger" style="left:32%;top:88%;"></div>
+          <span class="bedlbl" style="left:3px;bottom:2px;">0,0</span>
+        </div>
+        <div class="coord">target <i>X 70.4&nbsp; Y 44.9</i> &nbsp;&middot;&nbsp; lift to go</div>
+      </div>
+      <p class="cap">The target rides <b>above</b> your fingertip so you can see it, with a live coordinate readout. Nothing moves until you lift.<br><b>Solves the occlusion problem completely</b>, and it is one move per gesture. Drag off the bed edge and it clamps to the axis limit instead of erroring.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="follow" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <div class="keyline">Drag live-follows</div>
+      <div class="frame">
+        <div class="bed">
+          <div class="trail" style="left:46%;top:47%;width:52px;transform:rotate(38deg);"></div>
+          <div class="head" style="left:46%;top:47%;"></div>
+          <div class="finger" style="left:32%;top:66%;"></div>
+          <span class="bedlbl" style="left:3px;bottom:2px;">0,0</span>
+        </div>
+        <div class="coord">head chasing &middot; <b>lagging behind finger</b></div>
+      </div>
+      <p class="cap">The head chases your finger as you drag. Your coalescer makes this <b>safe</b>: one move in flight, latest target replaces the pending one, so at most one move outlives your release.<br><b>But it will not feel smooth.</b> Every queued move decelerates to zero at its target, so the head hops rather than glides, and your finger still hides the destination.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="note blue">
+  <b>I'd take A, and it composes with what you already chose.</b> Tap is the quick gesture, "go over there now". Drag is the precise one, "go exactly there", with the number visible before you commit. B is not unsafe thanks to the coalescer, it just spends a lot of gantry motion delivering a worse result than A, and it still cannot show you where you are aiming.
+</div>
