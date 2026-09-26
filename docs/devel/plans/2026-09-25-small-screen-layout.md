@@ -130,3 +130,7 @@ Found on the U1 and the mock at 480x320:
   read, before/after, in the commit body in one line.
 - XML is hot-reloaded; C++ needs `make t F=` for tests and `make -j` for the app.
 - One commit per phase on the branch; independent review before merge.
+- Mutation: ONE named hand mutation per commit on its most load-bearing test, at the end.
+  Never `make mutate-diff`. XML-only phases need none (geom + screenshots are the proof).
+  zeus (`scripts/zeus-run.sh mutate`) only for new logic nothing has mutation-tested, after
+  pushing, in parallel with review.
