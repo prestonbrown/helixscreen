@@ -64,6 +64,11 @@ struct DiscoveryFixture {
     json build() const {
         PrinterDiscovery hw;
         hw.parse_objects(all_objects);
+        return build(hw);
+    }
+
+    /// For a snapshot a test finished itself, e.g. one with a status claim settled.
+    json build(const PrinterDiscovery& hw) const {
         return MoonrakerDiscoverySequence::build_subscription_objects(
             hw, heaters, sensors, fans, leds, afc_objects, filament_sensors, mcus);
     }
@@ -707,5 +712,33 @@ TEST_CASE("Subscription: the U1 batch macro subscribes under its config-case key
 
         REQUIRE_FALSE(subs.contains("gcode_macro AUTO_FEEDING_BATCH"));
         REQUIRE_FALSE(subs.contains("gcode_macro auto_feeding_batch"));
+    }
+}
+
+TEST_CASE("Subscription: OpenAMS subscribes every oams_manager field its backend reads",
+          "[moonraker][subscription][openams]") {
+    // Mirrors ams_backend_openams.cpp#parse_snapshot_locked.
+    DiscoveryFixture fx;
+    fx.add("oams_manager", {});
+    fx.add("extruder", {"heater"});
+
+    SECTION("a settled v1 claim subscribes them") {
+        PrinterDiscovery hw;
+        hw.parse_objects(fx.all_objects);
+        hw.settle_status_claims(
+            json{{"oams_manager", {{"api_version", 1}, {"schema", "openams.manager"}}}});
+        json subs = fx.build(hw);
+
+        for (const char* field :
+             {"api_version", "schema", "ready", "commands", "lanes", "units", "groups"}) {
+            INFO(field);
+            CHECK(has_field(subs, "oams_manager", field));
+        }
+    }
+
+    SECTION("the name alone subscribes nothing") {
+        json subs = fx.build();
+
+        CHECK_FALSE(subs.contains("oams_manager"));
     }
 }

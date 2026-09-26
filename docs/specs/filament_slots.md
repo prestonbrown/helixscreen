@@ -405,6 +405,7 @@ ignores would call a same-spool insert a swap.
 | AD5X IFS | - | None: the IFS colour and type are firmware memory, set on the printer's menu | - | No evidence |
 | AFC | - | None | Per-lane `spool_id` | No evidence, unless the plugin names a different spool |
 | Happy Hare | - | None: the gate map is user-maintained | Per-gate `spool_id` | No evidence, unless the MMU names a different spool |
+| OpenAMS | - | None: the manager reports only `ready` and `loaded` | - | No evidence |
 | Tool changer | - | - | - | No insert signal; the rule never runs |
 
 Two rows carry caveats the table cannot hold. Every AD5X IFS insert is No

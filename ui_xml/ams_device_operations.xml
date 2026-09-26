@@ -41,6 +41,7 @@
           </ui_button>
           <!-- Abort Button -->
           <ui_button name="btn_abort" height="44" icon="stop" text="Abort" translation_tag="Abort" flex_grow="1">
+            <bind_state_if_eq subject="ams_device_ops_can_abort" state="disabled" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_ams_device_ops_abort"/>
           </ui_button>
         </lv_obj>

@@ -268,6 +268,7 @@ Labels include spool name, material, color swatch, temperatures, and a QR code. 
 **Yes.** Full multi-material support is available for:
 - **Happy Hare** — MMU2, ERCF, 3MS, Tradrack
 - **AFC-Klipper** — Box Turtle, OpenAMS and ViViD, with full lane data, a live step bar during tool changes, and more than 25 device settings and actions grouped into their own sections
+- **OpenAMS** without AFC — supported through klipper_openams' own UI API. Status appears as soon as that API is installed. Load and Unload work once its updated `OPENAMS_LOAD` / `OPENAMS_UNLOAD` macros are merged into your macro file; until then Unload is hidden and Load says the macro is missing
 - **ACE** (Anycubic ACE Pro) — supported on native Anycubic firmware (the `filament_hub` Klipper object, e.g. Kobra on Rinkhals) and on the community ValgACE/BunnyACE/DuckACE Klipper drivers
 - **Tool changers** — supported
 
