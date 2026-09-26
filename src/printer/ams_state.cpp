@@ -1608,15 +1608,63 @@ lv_subject_t* AmsState::get_slot_fill_subject(int backend_index, int slot_index,
     return &subs.fills[slot_index];
 }
 
+lv_subject_t* AmsState::backend_slot_subject(int backend_index, int slot_index,
+                                             SubjectLifetime& lifetime,
+                                             std::vector<lv_subject_t> BackendSlotSubjects::*member,
+                                             lv_subject_t* primary) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    lifetime.reset();
+    if (backend_index == 0) {
+        return primary; // static subject: empty (always-alive) token
+    }
+    int sec_idx = backend_index - 1;
+    if (sec_idx < 0 || sec_idx >= static_cast<int>(secondary_slot_subjects_.size())) {
+        return nullptr;
+    }
+    auto& subs = secondary_slot_subjects_[sec_idx];
+    if (slot_index < 0 || slot_index >= subs.slot_count) {
+        return nullptr;
+    }
+    lifetime = subs.lifetime;
+    return &(subs.*member)[slot_index];
+}
+
+lv_subject_t* AmsState::get_slot_lane_state_subject(int backend_index, int slot_index,
+                                                    SubjectLifetime& lifetime) {
+    return backend_slot_subject(
+        backend_index, slot_index, lifetime, &BackendSlotSubjects::lane_states,
+        backend_index == 0 ? get_slot_lane_state_subject(slot_index) : nullptr);
+}
+
+lv_subject_t* AmsState::get_slot_has_error_subject(int backend_index, int slot_index,
+                                                   SubjectLifetime& lifetime) {
+    return backend_slot_subject(
+        backend_index, slot_index, lifetime, &BackendSlotSubjects::has_errors,
+        backend_index == 0 ? get_slot_has_error_subject(slot_index) : nullptr);
+}
+
+lv_subject_t* AmsState::get_slot_error_severity_subject(int backend_index, int slot_index,
+                                                        SubjectLifetime& lifetime) {
+    return backend_slot_subject(
+        backend_index, slot_index, lifetime, &BackendSlotSubjects::severities,
+        backend_index == 0 ? get_slot_error_severity_subject(slot_index) : nullptr);
+}
+
 void AmsState::BackendSlotSubjects::init(int count) {
     slot_count = count;
     colors.resize(count);
     statuses.resize(count);
     fills.resize(count);
+    lane_states.resize(count);
+    has_errors.resize(count);
+    severities.resize(count);
     for (int i = 0; i < count; ++i) {
         lv_subject_init_int(&colors[i], static_cast<int>(AMS_DEFAULT_SLOT_COLOR));
         lv_subject_init_int(&statuses[i], static_cast<int>(SlotStatus::UNKNOWN));
         lv_subject_init_int(&fills[i], -1);
+        lv_subject_init_int(&lane_states[i], static_cast<int>(helix::ui::LaneState::Empty));
+        lv_subject_init_int(&has_errors[i], 0);
+        lv_subject_init_int(&severities[i], static_cast<int>(SlotError::Severity::INFO));
     }
     // Fresh lifetime token: observers bound via the token'd accessors expire
     // when deinit() invalidates it on backend rediscovery.
@@ -1634,12 +1682,28 @@ void AmsState::BackendSlotSubjects::deinit() {
         lv_subject_deinit(&c);
     for (auto& s : statuses)
         lv_subject_deinit(&s);
-    for (auto& f : fills)
-        lv_subject_deinit(&f);
+    for (auto* group : {&fills, &lane_states, &has_errors, &severities})
+        for (auto& subj : *group)
+            lv_subject_deinit(&subj);
     colors.clear();
     statuses.clear();
     fills.clear();
+    lane_states.clear();
+    has_errors.clear();
+    severities.clear();
     slot_count = 0;
+}
+
+void AmsState::BackendSlotSubjects::write(int i, const SlotInfo& slot) {
+    lv_subject_set_int(&colors[i], static_cast<int>(slot.color_rgb));
+    lv_subject_set_int(&statuses[i], static_cast<int>(slot.status));
+    lv_subject_set_int(&fills[i], slot.display_fill_pct());
+    lv_subject_set_int(&lane_states[i], static_cast<int>(helix::ui::classify_lane(slot)));
+    bool has_error = false;
+    int severity = 0;
+    slot_error_state(slot, has_error, severity);
+    lv_subject_set_int(&has_errors[i], has_error ? 1 : 0);
+    lv_subject_set_int(&severities[i], severity);
 }
 
 void AmsState::sync_backend(int backend_index) {
@@ -1666,9 +1730,7 @@ void AmsState::sync_backend(int backend_index) {
     for (int i = 0; i < std::min(info.total_slots, subs.slot_count); ++i) {
         const SlotInfo* slot = info.get_slot_global(i);
         if (slot) {
-            lv_subject_set_int(&subs.colors[i], static_cast<int>(slot->color_rgb));
-            lv_subject_set_int(&subs.statuses[i], static_cast<int>(slot->status));
-            lv_subject_set_int(&subs.fills[i], slot->display_fill_pct());
+            subs.write(i, *slot);
         }
     }
 
@@ -1705,9 +1767,7 @@ void AmsState::update_slot_for_backend(int backend_index, int slot_index) {
 
     SlotInfo slot = backend->get_slot_info(slot_index);
     if (slot.slot_index >= 0) {
-        lv_subject_set_int(&subs.colors[slot_index], static_cast<int>(slot.color_rgb));
-        lv_subject_set_int(&subs.statuses[slot_index], static_cast<int>(slot.status));
-        lv_subject_set_int(&subs.fills[slot_index], slot.display_fill_pct());
+        subs.write(slot_index, slot);
 
         spdlog::trace("[AMS State] Updated backend {} slot {} - color=0x{:06X}, status={}",
                       backend_index, slot_index, slot.color_rgb,
@@ -2374,8 +2434,7 @@ bool AmsState::write_slot_subjects(AmsBackend& backend, int slot_index, const Sl
 
     // Lane presentation classification (Present, Ghosted, Empty): the input
     // every lane rendering surface binds to.
-    int new_lane_state =
-        static_cast<int>(helix::ui::classify_lane(slot.status, helix::ui::lane_has_identity(slot)));
+    int new_lane_state = static_cast<int>(helix::ui::classify_lane(slot));
     if (lv_subject_get_int(&slot_lane_states_[slot_index]) != new_lane_state) {
         lv_subject_set_int(&slot_lane_states_[slot_index], new_lane_state);
         changed = true;

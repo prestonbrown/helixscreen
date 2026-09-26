@@ -164,7 +164,7 @@ lv_obj_t* bar_bg_for(lv_obj_t* widget, int lane) {
     return lv_obj_get_child(column, 0);
 }
 
-/** style_slot_bar() gives only the loaded lane a 2px outline. */
+/** The lane bar gives only the loaded lane a 2px outline. */
 bool bar_is_loaded(lv_obj_t* widget, int lane) {
     return lv_obj_get_style_border_width(bar_bg_for(widget, lane), LV_PART_MAIN) == 2;
 }

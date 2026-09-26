@@ -17,8 +17,10 @@ namespace helix::ui {
 enum class LaneState {
     /// Has filament. Draw it at lane_fill_level().
     Present,
-    /// Ejected but still carries an identity (#1071 keeps the override).
-    /// Draw it at its last known fill with the WHOLE cell dimmed.
+    /// Not confirmed present, but the lane still carries data worth keeping
+    /// on screen: an identity that survives ejection (#1071 keeps the
+    /// override) or a configured weight. Draw it at its last known fill with
+    /// the WHOLE cell dimmed - the dimming is the disclaimer.
     Ghosted,
     /// No filament and no identity. The spool rendering shows a placeholder
     /// and "Empty"; the bar rendering draws nothing and leaves the gap.
@@ -42,6 +44,16 @@ inline constexpr float ASSUMED_FILL_LEVEL = 1.0f;
 }
 
 /**
+ * @brief Does this lane carry weight data the user or firmware configured?
+ *
+ * Distinct from identity: weights say how much filament there is, identity
+ * says which spool it is. A lane can have either without the other.
+ */
+[[nodiscard]] inline bool lane_has_weights(const SlotInfo& slot) {
+    return slot.total_weight_g > 0.0f;
+}
+
+/**
  * @brief Classify a lane. Pure — testable with no display.
  *
  * UNKNOWN is treated exactly as EMPTY. It is not a steady state on any backend:
@@ -51,13 +63,27 @@ inline constexpr float ASSUMED_FILL_LEVEL = 1.0f;
  * ams_backend_afc.cpp:4339), plus one QIDI fallback for an unrecognised value.
  * Treating it as EMPTY lets it inherit the identity split, so a lane whose
  * material is already known dims rather than blanking during startup.
+ *
+ * One upgrade on top of that: UNKNOWN with configured weights is Ghosted, not
+ * Empty. The scale is real data saying filament is there, and hiding a spool
+ * the user weighed reads worse than showing it dimmed. EMPTY stays Empty even
+ * with weights: an EMPTY status confirms absence and outranks the scale.
  */
-[[nodiscard]] constexpr LaneState classify_lane(SlotStatus status, bool has_identity) {
+[[nodiscard]] constexpr LaneState classify_lane(SlotStatus status, bool has_identity,
+                                                bool has_weights) {
+    if (status == SlotStatus::UNKNOWN && has_weights) {
+        return LaneState::Ghosted;
+    }
     const bool absent = (status == SlotStatus::EMPTY || status == SlotStatus::UNKNOWN);
     if (!absent) {
         return LaneState::Present;
     }
     return has_identity ? LaneState::Ghosted : LaneState::Empty;
+}
+
+/// SlotInfo form: reads the identity and weight signals off the slot itself.
+[[nodiscard]] inline LaneState classify_lane(const SlotInfo& slot) {
+    return classify_lane(slot.status, lane_has_identity(slot), lane_has_weights(slot));
 }
 
 /**
@@ -69,7 +95,7 @@ inline constexpr float ASSUMED_FILL_LEVEL = 1.0f;
  * the disclaimer. Do not reuse this value without the ghost.
  */
 [[nodiscard]] inline float lane_fill_level(const SlotInfo& slot) {
-    if (classify_lane(slot.status, lane_has_identity(slot)) == LaneState::Empty) {
+    if (classify_lane(slot) == LaneState::Empty) {
         return 0.0f;
     }
     if (slot.total_weight_g > 0.0f && slot.remaining_weight_g >= 0.0f) {

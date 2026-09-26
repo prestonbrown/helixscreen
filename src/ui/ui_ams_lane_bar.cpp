@@ -21,6 +21,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <unordered_map>
@@ -49,6 +50,8 @@ struct LaneBarData {
     /// what the base border should fall back to.
     helix::ui::LaneState last_state = helix::ui::LaneState::Empty;
     bool is_active = false; ///< From slot_active_loaded — decoration only.
+    bool has_error = false; ///< From slot_has_error - status_line visibility.
+    SlotError::Severity severity = SlotError::Severity::INFO; ///< Status line color.
 
     // Widget object and named children (see ams_draw::create_slot_column()).
     lv_obj_t* root = nullptr; ///< == container; ghost opacity lands here.
@@ -61,6 +64,8 @@ struct LaneBarData {
     ObserverGuard color_observer;
     ObserverGuard fill_observer;
     ObserverGuard active_loaded_observer;
+    ObserverGuard has_error_observer;
+    ObserverGuard severity_observer;
 
     // slot_active_loaded is a static-array (singleton-lifetime) subject, so
     // this token is always the empty (always-alive) contract — see
@@ -101,6 +106,8 @@ static void unregister_lane_bar_data(lv_obj_t* obj) {
             data->color_observer.reset();
             data->fill_observer.reset();
             data->active_loaded_observer.reset();
+            data->has_error_observer.reset();
+            data->severity_observer.reset();
         }
         s_lane_bar_registry.erase(it);
     }
@@ -121,6 +128,8 @@ static void cleanup_all_lane_bar_data() {
         data->color_observer.release();
         data->fill_observer.release();
         data->active_loaded_observer.release();
+        data->has_error_observer.release();
+        data->severity_observer.release();
         delete data;
     }
     s_lane_bar_registry.clear();
@@ -199,9 +208,26 @@ static void apply_active_decoration(LaneBarData* d, bool active) {
     apply_lane_border(d);
 }
 
-/// Filament color for the fill gradient. Mirrors the (soon-to-be-retired)
-/// style_slot_bar()'s fill styling in ams_drawing_utils.cpp so the visual
-/// does not regress when the overview/mini-status panels switch over.
+/// Error rides the status_line: visible with a severity color when the lane
+/// has an error (BLOCKED or a carried SlotError - the derivation AmsState
+/// publishes as ams_slot_N_has_error), hidden otherwise. Independent of the
+/// base state on purpose: a blocked lane is still Present, an erroring lane
+/// can also be empty of filament.
+static void apply_error_decoration(LaneBarData* d) {
+    if (!d || !d->status_line)
+        return;
+    if (d->has_error) {
+        lv_obj_set_style_bg_color(d->status_line, ams_draw::severity_color(d->severity),
+                                  LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(d->status_line, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_remove_flag(d->status_line, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(d->status_line, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+/// Filament color for the fill gradient: a vertical light-to-base ramp of the
+/// slot color, matching the spool visuals' gradient direction.
 static void apply_lane_color(LaneBarData* d, int color_int) {
     if (!d || !d->bar_fill)
         return;
@@ -235,13 +261,13 @@ static void ams_lane_bar_event_cb(lv_event_t* e) {
 /**
  * @brief Setup observers for the widget's current slot_index.
  *
- * Resolves AmsState::get_slot_lane_state_subject(), get_slot_color_subject(),
- * get_slot_fill_subject() and get_slot_active_loaded_subject() and observes
- * each with observe_int_sync<lv_obj_t>. All four are static-array
- * (singleton-lifetime) subjects (ams_state.cpp) — only the active_loaded
- * accessor offers a token'd overload, so only that observer carries a
- * SubjectLifetime; it is always the empty (always-alive) contract, held for
- * symmetry with the project's dynamic-subject pattern.
+ * Resolves AmsState's per-slot subjects (lane_state, color, fill,
+ * active_loaded, has_error, error_severity) and observes each with
+ * observe_int_sync<lv_obj_t>. All are static-array (singleton-lifetime)
+ * subjects (ams_state.cpp) - only the active_loaded accessor offers a
+ * token'd overload, so only that observer carries a SubjectLifetime; it is
+ * always the empty (always-alive) contract, held for symmetry with the
+ * project's dynamic-subject pattern.
  */
 static void setup_lane_bar_observers(LaneBarData* data) {
     if (data->slot_index < 0 || data->slot_index >= AmsState::MAX_SLOTS) {
@@ -292,7 +318,9 @@ static void setup_lane_bar_observers(LaneBarData* data) {
                 auto* d = get_lane_bar_data(o);
                 if (!d || pct < 0)
                     return;
-                d->fill_pct = std::clamp(pct, 0, 100);
+                // The shared bar-family floor: a present-but-spent lane keeps
+                // a visible sliver (see ams_draw::floor_fill_pct).
+                d->fill_pct = ams_draw::floor_fill_pct(pct);
                 apply_lane_state(d, d->last_state);
             },
             state.get_subjects_lifetime());
@@ -307,6 +335,34 @@ static void setup_lane_bar_observers(LaneBarData* data) {
             },
             data->active_loaded_lifetime);
     }
+    lv_subject_t* has_error_subject = state.get_slot_has_error_subject(data->slot_index);
+    lv_subject_t* severity_subject = state.get_slot_error_severity_subject(data->slot_index);
+    if (severity_subject) {
+        // Color before visibility, so a has_error flip never paints one frame
+        // with the default color.
+        data->severity_observer = observe_int_sync<lv_obj_t>(
+            severity_subject, obj,
+            [](lv_obj_t* o, int sev) {
+                auto* d = get_lane_bar_data(o);
+                if (!d)
+                    return;
+                d->severity = static_cast<SlotError::Severity>(sev);
+                apply_error_decoration(d);
+            },
+            state.get_subjects_lifetime());
+    }
+    if (has_error_subject) {
+        data->has_error_observer = observe_int_sync<lv_obj_t>(
+            has_error_subject, obj,
+            [](lv_obj_t* o, int has_error) {
+                auto* d = get_lane_bar_data(o);
+                if (!d)
+                    return;
+                d->has_error = has_error != 0;
+                apply_error_decoration(d);
+            },
+            state.get_subjects_lifetime());
+    }
 
     // Trigger initial paint from current subject values. Fill and state are
     // read before the first apply_lane_state() so the initial fill height is
@@ -314,7 +370,7 @@ static void setup_lane_bar_observers(LaneBarData* data) {
     if (fill_subject) {
         int pct = lv_subject_get_int(fill_subject);
         if (pct >= 0) {
-            data->fill_pct = std::clamp(pct, 0, 100);
+            data->fill_pct = ams_draw::floor_fill_pct(pct);
         }
     }
     if (lane_state_subject) {
@@ -327,6 +383,13 @@ static void setup_lane_bar_observers(LaneBarData* data) {
     if (active_loaded_subject) {
         apply_active_decoration(data, lv_subject_get_int(active_loaded_subject) != 0);
     }
+    if (severity_subject) {
+        data->severity = static_cast<SlotError::Severity>(lv_subject_get_int(severity_subject));
+    }
+    if (has_error_subject) {
+        data->has_error = lv_subject_get_int(has_error_subject) != 0;
+        apply_error_decoration(data);
+    }
 
     spdlog::trace("[AmsLaneBar] Created observers for slot {}", data->slot_index);
 }
@@ -336,17 +399,23 @@ static void setup_lane_bar_observers(LaneBarData* data) {
 // ============================================================================
 
 static void* ams_lane_bar_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
-    LV_UNUSED(attrs);
-
     void* parent = lv_xml_state_get_parent(state);
 
-    // Compact vertical bar, sized entirely from spacing tokens. Consumers
-    // (Tasks 5/6) can override bar_bg/bar_fill/status_line width directly by
-    // name, the same way the overview/mini-status panels already resize the
-    // create_slot_column() columns they build today.
+    // Compact vertical bar, sized from spacing tokens by default. Consumers
+    // whose bar width is MEASURED (overview and mini-status compute it from
+    // the container) pass bar_width/bar_height attrs instead - layout stays
+    // in C++ (declarative rule 8's measured-layout exception), rendering
+    // stays here.
     int32_t bar_radius = theme_manager_get_spacing("border_radius_small");
     int32_t bar_width = theme_manager_get_spacing("space_lg");
     int32_t bar_height = bar_width * 3;
+    for (int i = 0; attrs && attrs[i]; i += 2) {
+        if (strcmp(attrs[i], "bar_width") == 0) {
+            bar_width = atoi(attrs[i + 1]);
+        } else if (strcmp(attrs[i], "bar_height") == 0) {
+            bar_height = atoi(attrs[i + 1]);
+        }
+    }
 
     ams_draw::SlotColumn col = ams_draw::create_slot_column(static_cast<lv_obj_t*>(parent),
                                                             bar_width, bar_height, bar_radius);
@@ -359,9 +428,8 @@ static void* ams_lane_bar_xml_create(lv_xml_parser_state_t* state, const char** 
     lv_obj_set_name(col.bar_fill, "bar_fill");
     if (col.status_line) {
         lv_obj_set_name(col.status_line, "status_line");
-        // No error subject is wired to this widget yet (out of Task 4's
-        // scope — see ams_lane_bar_row.xml's consumer, a later task). Default
-        // to hidden, matching style_slot_bar()'s "non-error: hidden" baseline.
+        // Hidden until the has_error observer says otherwise
+        // (apply_error_decoration()).
         lv_obj_add_flag(col.status_line, LV_OBJ_FLAG_HIDDEN);
     }
 
@@ -408,6 +476,8 @@ static void ams_lane_bar_xml_apply(lv_xml_parser_state_t* state, const char** at
                 data->color_observer.reset();
                 data->fill_observer.reset();
                 data->active_loaded_observer.reset();
+                data->has_error_observer.reset();
+                data->severity_observer.reset();
 
                 data->slot_index = new_index;
 
@@ -422,6 +492,42 @@ static void ams_lane_bar_xml_apply(lv_xml_parser_state_t* state, const char** at
 // ============================================================================
 // Public API
 // ============================================================================
+
+namespace helix::ui {
+void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_count,
+                               int32_t bar_width, int32_t bar_height) {
+    char idx_buf[8], w_buf[8], h_buf[8];
+    snprintf(w_buf, sizeof(w_buf), "%d", static_cast<int>(bar_width));
+    snprintf(h_buf, sizeof(h_buf), "%d", static_cast<int>(bar_height));
+    for (int s = 0; s < slot_count; ++s) {
+        snprintf(idx_buf, sizeof(idx_buf), "%d", first_slot_index + s);
+        const char* attrs[] = {"slot_index", idx_buf, "bar_width", w_buf,
+                               "bar_height", h_buf,   nullptr};
+        if (!lv_xml_create(parent, "ams_lane_bar", attrs)) {
+            spdlog::error("[AmsLaneBar] creation failed for slot {}", first_slot_index + s);
+        }
+    }
+}
+
+int ams_lane_bar_slot_index(lv_obj_t* obj) {
+    const LaneBarData* d = get_lane_bar_data(obj);
+    return d ? d->slot_index : -1;
+}
+
+void ams_lane_bar_resize(lv_obj_t* bar, int32_t bar_width, int32_t bar_height) {
+    if (!bar)
+        return;
+    lv_obj_set_width(bar, bar_width);
+    lv_obj_set_height(bar,
+                      bar_height + ams_draw::STATUS_LINE_HEIGHT_PX + ams_draw::STATUS_LINE_GAP_PX);
+    if (lv_obj_t* bg = lv_obj_find_by_name(bar, "bar_bg")) {
+        lv_obj_set_size(bg, bar_width, bar_height);
+    }
+    if (lv_obj_t* line = lv_obj_find_by_name(bar, "status_line")) {
+        lv_obj_set_width(line, bar_width);
+    }
+}
+} // namespace helix::ui
 
 void ui_ams_lane_bar_register(void) {
     lv_xml_register_widget("ams_lane_bar", ams_lane_bar_xml_create, ams_lane_bar_xml_apply);

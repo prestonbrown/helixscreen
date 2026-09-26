@@ -20,6 +20,25 @@
 #include <string>
 #include <vector>
 
+namespace helix::ui {
+
+/// The inputs a unit card's lane bars are built from.
+struct LaneBarsGeometry {
+    int first_slot = -1;
+    int slot_count = 0;
+    int32_t width = 0;
+};
+
+/// Whether bars built for @p built must be rebuilt for @p now. Each bar binds
+/// a global slot index, so a unit whose start shifts with an unchanged lane
+/// count still needs new bars; color, fill and state repaint in place.
+inline bool lane_bars_stale(const LaneBarsGeometry& built, const LaneBarsGeometry& now) {
+    return built.first_slot != now.first_slot || built.slot_count != now.slot_count ||
+           built.width != now.width;
+}
+
+} // namespace helix::ui
+
 /**
  * @file ui_panel_ams_overview.h
  * @brief Multi-unit AMS system overview panel with inline detail view
@@ -97,6 +116,8 @@ class AmsOverviewPanel : public PanelBase {
         lv_obj_t* slot_count_label = nullptr; // "4 slots"
         lv_obj_t* error_badge = nullptr;      // Error badge dot (top-right)
         int unit_index = -1;
+        /// What the lane bars were built for; see lane_bars_stale().
+        helix::ui::LaneBarsGeometry bars_built;
         /// Untruncated display name. name_label uses long_mode="dots", and LVGL
         /// rewrites that label's own buffer with the ellipsized text - so
         /// lv_label_get_text() cannot answer "how wide does this name want to

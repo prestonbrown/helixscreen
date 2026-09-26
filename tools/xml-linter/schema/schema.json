@@ -1889,6 +1889,23 @@
     },
     "ams_lane_bar": {
       "attributes": {
+        "bar_width": {
+          "type": "string"
+        },
+        "bar_height": {
+          "type": "string"
+        },
+        "slot_index": {
+          "type": "int"
+        }
+      },
+      "inherits": "lv_obj"
+    },
+    "ams_lane_spool": {
+      "attributes": {
+        "spool_size": {
+          "type": "string"
+        },
         "slot_index": {
           "type": "int"
         }
@@ -2850,6 +2867,7 @@
     "helix_sparkline",
     "setting_group",
     "ams_lane_bar",
+    "ams_lane_spool",
     "belt_trace",
     "pluck_animation"
   ],

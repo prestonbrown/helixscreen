@@ -2,13 +2,8 @@
 
 #include "ui/ams_drawing_utils.h"
 
-#include "ui_fonts.h"
-#include "ui_icon_codepoints.h"
-#include "ui_spool_canvas.h"
-
 #include "ams_backend.h"
 #include "ams_state.h"
-#include "config.h"
 #include "display_numbering.h"
 #include "theme_manager.h"
 
@@ -71,18 +66,21 @@ helix::SlotError::Severity worst_unit_severity(const helix::AmsUnit& unit) {
 // Data Helpers
 // ============================================================================
 
-int fill_percent_from_slot(const helix::SlotInfo& slot, int min_pct) {
+int floor_fill_pct(int pct, int min_pct) {
     // Canonical fill semantics (SlotInfo::display_fill_pct): real ratio when
     // both weights are known, 100% when only metadata is present, 0 for an
     // empty/ghost lane, and -1 when there is no data at all. -1 is propagated
     // so callers can skip/keep-previous instead of rendering a phantom bar; it
     // is what keeps a lane we know nothing about from being painted, which is a
     // different case from a known lane whose weight nobody tracks.
-    int pct = slot.display_fill_pct();
     if (pct < 0) {
         return -1;
     }
     return std::clamp(pct, min_pct, 100);
+}
+
+int fill_percent_from_slot(const helix::SlotInfo& slot, int min_pct) {
+    return floor_fill_pct(slot.display_fill_pct(), min_pct);
 }
 
 int32_t calc_bar_width(int32_t container_width, int slot_count, int32_t gap, int32_t min_width,
@@ -286,56 +284,6 @@ SlotColumn create_slot_column(lv_obj_t* parent, int32_t bar_width, int32_t bar_h
     lv_obj_set_style_radius(col.status_line, bar_radius / 2, LV_PART_MAIN);
 
     return col;
-}
-
-void style_slot_bar(const SlotColumn& col, const BarStyleParams& params, int32_t bar_radius) {
-    (void)bar_radius; // Reserved for future dynamic radius changes
-    if (!col.bar_bg || !col.bar_fill) {
-        return;
-    }
-
-    // --- Bar background border ---
-    if (params.is_loaded && !params.has_error) {
-        // Loaded: wider, brighter border
-        lv_obj_set_style_border_width(col.bar_bg, 2, LV_PART_MAIN);
-        lv_obj_set_style_border_color(col.bar_bg, theme_manager_get_color("text"), LV_PART_MAIN);
-        lv_obj_set_style_border_opa(col.bar_bg, LV_OPA_80, LV_PART_MAIN);
-    } else {
-        lv_obj_set_style_border_width(col.bar_bg, 1, LV_PART_MAIN);
-        lv_obj_set_style_border_color(col.bar_bg, theme_manager_get_color("text_muted"),
-                                      LV_PART_MAIN);
-        lv_obj_set_style_border_opa(col.bar_bg, params.is_present ? LV_OPA_50 : LV_OPA_20,
-                                    LV_PART_MAIN);
-    }
-
-    // --- Fill gradient ---
-    if (params.is_present && params.fill_pct > 0) {
-        lv_color_t base_color = lv_color_hex(params.color_rgb);
-        lv_color_t light_color = lighten_color(base_color, 50);
-
-        lv_obj_set_style_bg_color(col.bar_fill, light_color, LV_PART_MAIN);
-        lv_obj_set_style_bg_grad_color(col.bar_fill, base_color, LV_PART_MAIN);
-        lv_obj_set_style_bg_grad_dir(col.bar_fill, LV_GRAD_DIR_VER, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(col.bar_fill, LV_OPA_COVER, LV_PART_MAIN);
-
-        lv_obj_set_height(col.bar_fill, LV_PCT(params.fill_pct));
-        lv_obj_align(col.bar_fill, LV_ALIGN_BOTTOM_MID, 0, 0);
-        lv_obj_remove_flag(col.bar_fill, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(col.bar_fill, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    // --- Status line ---
-    if (col.status_line) {
-        if (params.has_error) {
-            lv_color_t error_color = severity_color(params.severity);
-            lv_obj_set_style_bg_color(col.status_line, error_color, LV_PART_MAIN);
-            lv_obj_set_style_bg_opa(col.status_line, LV_OPA_COVER, LV_PART_MAIN);
-            lv_obj_remove_flag(col.status_line, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(col.status_line, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
 }
 
 // ============================================================================
@@ -716,253 +664,12 @@ ToolBadgeLabels compute_tool_badge_labels(const SystemToolLayout& layout,
     return out;
 }
 
-// ============================================================================
-// Spool Visualization
-// ============================================================================
-
-// Draw a dashed circle using segmented arcs (LVGL 9.5 has no dashed border API)
-void draw_dashed_circle_cb(lv_event_t* e) {
-    auto* obj = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    auto* layer = static_cast<lv_layer_t*>(lv_event_get_layer(e));
-
-    int32_t w = lv_obj_get_width(obj);
-    int32_t h = lv_obj_get_height(obj);
-    lv_area_t coords;
-    lv_obj_get_coords(obj, &coords);
-    int32_t cx = coords.x1 + w / 2;
-    int32_t cy = coords.y1 + h / 2;
-    int32_t radius = LV_MIN(w, h) / 2 - 1;
-
-    lv_draw_arc_dsc_t arc_dsc;
-    lv_draw_arc_dsc_init(&arc_dsc);
-    arc_dsc.center.x = cx;
-    arc_dsc.center.y = cy;
-    arc_dsc.radius = static_cast<uint16_t>(radius);
-    arc_dsc.width = 2;
-    arc_dsc.color = theme_manager_get_color("text_muted");
-    arc_dsc.opa = LV_OPA_20;
-
-    // Draw 16 dashes of 15 degrees each with 7.5 degree gaps
-    constexpr int DASH_COUNT = 16;
-    constexpr int DASH_ANGLE = 15;
-    constexpr int GAP_ANGLE = 7; // 16 * (15 + 7) = 352 ≈ 360
-    for (int d = 0; d < DASH_COUNT; d++) {
-        arc_dsc.start_angle = static_cast<uint16_t>(d * (DASH_ANGLE + GAP_ANGLE));
-        arc_dsc.end_angle = static_cast<uint16_t>(arc_dsc.start_angle + DASH_ANGLE);
-        lv_draw_arc(layer, &arc_dsc);
-    }
-}
-
-static bool resolve_3d_spool_style() {
-    helix::Config* cfg = helix::Config::get_instance();
-    return cfg->get<std::string>("/ams/spool_style", "3d") == "3d";
-}
-
-SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) {
-    SpoolVisual sv;
-    if (!container)
-        return sv;
-    sv.container = container;
-    sv.use_3d = resolve_3d_spool_style();
-
-    // Spool size is a dedicated responsive token (see ams_panel.xml consts).
-    if (spool_size <= 0) {
-        spool_size = theme_manager_get_spacing("ams_slot_spool_size");
-        if (spool_size <= 0)
-            spool_size = theme_manager_get_spacing("space_lg") * 4;
-    }
-    sv.spool_size = spool_size;
-
-    int32_t container_size = spool_size + SPOOL_VISUAL_BADGE_MARGIN_PX; // Extra room for badge
-    lv_obj_set_size(container, container_size, container_size);
-
-    if (sv.use_3d) {
-        // ====================================================================
-        // 3D SPOOL CANVAS (Bambu-style pseudo-3D with gradients + AA)
-        // ====================================================================
-        lv_obj_t* canvas = ui_spool_canvas_create(container, spool_size);
-        if (canvas) {
-            lv_obj_align(canvas, LV_ALIGN_CENTER, 0, 0);
-            // Prevent flex layout from resizing the canvas
-            lv_obj_set_style_min_width(canvas, spool_size, LV_PART_MAIN);
-            lv_obj_set_style_min_height(canvas, spool_size, LV_PART_MAIN);
-            lv_obj_set_style_max_width(canvas, spool_size, LV_PART_MAIN);
-            lv_obj_set_style_max_height(canvas, spool_size, LV_PART_MAIN);
-            ui_spool_canvas_set_color(canvas, lv_color_hex(helix::AMS_DEFAULT_SLOT_COLOR));
-            ui_spool_canvas_set_fill_level(canvas, 1.0f);
-            lv_obj_add_flag(canvas, LV_OBJ_FLAG_EVENT_BUBBLE);
-            sv.canvas = canvas;
-            lv_obj_set_name(canvas, "spool_graphic");
-        }
-    } else {
-        // ====================================================================
-        // FLAT STYLE (skeuomorphic concentric rings)
-        // ====================================================================
-        int32_t filament_ring_size = spool_size - 8;
-        int32_t hub_size = spool_size / 3;
-
-        lv_obj_set_style_radius(container, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-        lv_obj_set_style_shadow_width(container, 8, LV_PART_MAIN);
-        lv_obj_set_style_shadow_opa(container, LV_OPA_20, LV_PART_MAIN);
-        lv_obj_set_style_shadow_offset_y(container, 2, LV_PART_MAIN);
-        lv_obj_set_style_shadow_color(container, lv_color_black(), LV_PART_MAIN);
-
-        // Layer 1: Outer ring (flange - darker shade of filament color)
-        lv_obj_t* outer_ring = lv_obj_create(container);
-        lv_obj_set_size(outer_ring, spool_size, spool_size);
-        lv_obj_align(outer_ring, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_set_style_radius(outer_ring, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(
-            outer_ring, ams_draw::darken_color(lv_color_hex(helix::AMS_DEFAULT_SLOT_COLOR), 50),
-            LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(outer_ring, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_style_border_width(outer_ring, 2, LV_PART_MAIN);
-        lv_obj_set_style_border_color(outer_ring, theme_manager_get_color("ams_hub"), LV_PART_MAIN);
-        lv_obj_set_style_border_opa(outer_ring, LV_OPA_50, LV_PART_MAIN);
-        lv_obj_remove_flag(outer_ring, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(outer_ring, LV_OBJ_FLAG_EVENT_BUBBLE);
-        sv.spool_outer = outer_ring;
-
-        // Layer 2: Main filament color ring
-        lv_obj_t* filament_ring = lv_obj_create(container);
-        lv_obj_set_size(filament_ring, filament_ring_size, filament_ring_size);
-        lv_obj_align(filament_ring, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_set_style_radius(filament_ring, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(filament_ring, lv_color_hex(helix::AMS_DEFAULT_SLOT_COLOR),
-                                  LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(filament_ring, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_style_border_width(filament_ring, 0, LV_PART_MAIN);
-        lv_obj_remove_flag(filament_ring, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(filament_ring, LV_OBJ_FLAG_EVENT_BUBBLE);
-        sv.color_swatch = filament_ring;
-        lv_obj_set_name(filament_ring, "spool_graphic");
-
-        // Layer 3: Center hub
-        lv_obj_t* hub = lv_obj_create(container);
-        lv_obj_set_size(hub, hub_size, hub_size);
-        lv_obj_align(hub, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_set_style_radius(hub, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(hub, theme_manager_get_color("ams_hub"), LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(hub, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_style_border_width(hub, 1, LV_PART_MAIN);
-        lv_obj_set_style_border_color(hub, theme_manager_get_color("ams_hub_border"), LV_PART_MAIN);
-        lv_obj_remove_flag(hub, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(hub, LV_OBJ_FLAG_EVENT_BUBBLE);
-        sv.spool_hub = hub;
-    }
-
-    // Create empty slot placeholder (circle outline with plus icon, initially hidden)
-    {
-        lv_obj_t* ph = lv_obj_create(container);
-        lv_obj_set_size(ph, spool_size - 4, spool_size - 4);
-        lv_obj_align(ph, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_set_style_radius(ph, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(ph, LV_OPA_TRANSP, LV_PART_MAIN);
-        lv_obj_set_style_border_width(ph, 0, LV_PART_MAIN);
-        lv_obj_add_event_cb(ph, ams_draw::draw_dashed_circle_cb, LV_EVENT_DRAW_MAIN, nullptr);
-        lv_obj_remove_flag(ph, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(ph, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_add_flag(ph, LV_OBJ_FLAG_HIDDEN);
-
-        // Plus icon centered in circle to communicate "empty, add filament"
-        const char* plus_glyph = helix::ui::icon::lookup_codepoint("plus");
-        if (plus_glyph) {
-            lv_obj_t* plus = lv_label_create(ph);
-            lv_label_set_text(plus, plus_glyph);
-            lv_obj_set_style_text_font(plus, &mdi_icons_24, LV_PART_MAIN);
-            lv_obj_set_style_text_color(plus, theme_manager_get_color("text_muted"), LV_PART_MAIN);
-            lv_obj_set_style_text_opa(plus, LV_OPA_20, LV_PART_MAIN);
-            lv_obj_align(plus, LV_ALIGN_CENTER, 0, 0);
-            lv_obj_add_flag(plus, LV_OBJ_FLAG_EVENT_BUBBLE);
-        }
-        // Named so lv_obj_find_by_name() reaches it — it is the one element that
-        // exists in both the flat and 3D branches, which makes it the stable
-        // handle for "is this lane rendering as unassigned-empty?" from tests
-        // and from `helix-screen ctl`.
-        lv_obj_set_name(ph, "empty_placeholder");
-        sv.empty_placeholder = ph;
-    }
-
-    // Create error indicator dot (top-right of container, initially hidden)
-    {
-        lv_obj_t* err = lv_obj_create(container);
-        lv_obj_set_size(err, 14, 14);
-        lv_obj_set_style_radius(err, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(err, theme_manager_get_color("danger"), LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(err, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_style_border_width(err, 0, LV_PART_MAIN);
-        lv_obj_set_align(err, LV_ALIGN_TOP_RIGHT);
-        lv_obj_set_style_translate_x(err, -2, LV_PART_MAIN);
-        lv_obj_set_style_translate_y(err, 2, LV_PART_MAIN);
-        lv_obj_remove_flag(err, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(err, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_add_flag(err, LV_OBJ_FLAG_HIDDEN);
-        sv.error_indicator = err;
-    }
-
-    return sv;
-}
-
-// Ported verbatim from ui_ams_slot.cpp apply_slot_color()
-void spool_visual_set_color(const SpoolVisual& sv, lv_color_t color) {
-    if (sv.use_3d) {
-        if (sv.canvas)
-            ui_spool_canvas_set_color(sv.canvas, color);
-    } else if (sv.color_swatch) {
-        lv_obj_set_style_bg_color(sv.color_swatch, color, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(sv.color_swatch, LV_OPA_COVER, LV_PART_MAIN);
-        if (sv.spool_outer)
-            lv_obj_set_style_bg_color(sv.spool_outer, ams_draw::darken_color(color, 50),
-                                      LV_PART_MAIN);
-    }
-}
-
-// Ported verbatim from ui_ams_slot.cpp update_filament_ring_size()
-void spool_visual_set_fill(const SpoolVisual& sv, float fill) {
-    if (fill < 0.0f)
-        fill = 0.0f;
-    if (fill > 1.0f)
-        fill = 1.0f;
-    if (sv.use_3d) {
-        if (sv.canvas)
-            ui_spool_canvas_set_fill_level(sv.canvas, fill);
-    } else if (sv.color_swatch && sv.container && sv.spool_hub) {
-        lv_obj_update_layout(sv.container);
-        int32_t spool_w = lv_obj_get_width(sv.container);
-        int32_t hub_w = lv_obj_get_width(sv.spool_hub);
-        int32_t min_ring = hub_w + 4;
-        int32_t max_ring = spool_w - 8;
-        int32_t ring_size = min_ring + static_cast<int32_t>((max_ring - min_ring) * fill);
-        lv_obj_set_size(sv.color_swatch, ring_size, ring_size);
-        lv_obj_align(sv.color_swatch, LV_ALIGN_CENTER, 0, 0);
-    }
-}
-
-void spool_visual_set_empty(const SpoolVisual& sv, bool empty) {
-    auto show = [&](lv_obj_t* o, bool visible) {
-        if (!o)
-            return;
-        if (visible)
-            lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
-    };
-    show(sv.empty_placeholder, empty);
-    show(sv.canvas, !empty);
-    show(sv.spool_outer, !empty);
-    show(sv.color_swatch, !empty);
-    show(sv.spool_hub, !empty);
-}
-
 lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, bool active) {
     if (!parent)
         return nullptr;
     lv_obj_t* badge = lv_obj_create(parent);
     lv_obj_set_size(badge, size, size);
     lv_obj_set_style_radius(badge, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-    lv_color_t bg =
-        active ? theme_manager_get_color("success") : theme_manager_get_color("ams_badge_bg");
-    lv_obj_set_style_bg_color(badge, bg, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(badge, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_width(badge, 1, LV_PART_MAIN);
     lv_obj_set_style_border_color(badge, theme_manager_get_color("card_bg"), LV_PART_MAIN);
@@ -977,14 +684,26 @@ lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, boo
     const lv_font_t* f = theme_manager_get_font("font_xs");
     if (f)
         lv_obj_set_style_text_font(lbl, f, LV_PART_MAIN);
-    // Both fills are accents, so the number starts from the palette text colour and
-    // shifts toward its pole as 4:1 needs
-    lv_obj_set_style_text_color(
-        lbl, theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), bg),
-        LV_PART_MAIN);
     lv_obj_center(lbl);
     lv_obj_add_flag(lbl, LV_OBJ_FLAG_EVENT_BUBBLE);
+    set_lane_badge_active(badge, active);
     return badge;
+}
+
+void set_lane_badge_active(lv_obj_t* badge, bool active) {
+    if (!badge)
+        return;
+    lv_color_t bg =
+        active ? theme_manager_get_color("success") : theme_manager_get_color("ams_badge_bg");
+    lv_obj_set_style_bg_color(badge, bg, LV_PART_MAIN);
+    if (lv_obj_get_child_count(badge) > 0) {
+        // Both fills are accents, so the number starts from the palette text colour and
+        // shifts toward its pole as 4:1 needs
+        lv_obj_set_style_text_color(
+            lv_obj_get_child(badge, 0),
+            theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), bg),
+            LV_PART_MAIN);
+    }
 }
 
 } // namespace ams_draw

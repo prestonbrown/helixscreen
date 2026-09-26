@@ -35,7 +35,7 @@ namespace {
 void fill_slots(lv_obj_t* w, int count) {
     ui_ams_mini_status_set_slot_count(w, count);
     for (int i = 0; i < count; ++i) {
-        ui_ams_mini_status_set_slot_full(w, i, 0xFF0000 + i, 50 + i, true, "PLA", 50 + i);
+        ui_ams_mini_status_set_slot_label(w, i, "PLA", 50 + i);
     }
 }
 
@@ -44,7 +44,7 @@ void fill_slots(lv_obj_t* w, int count) {
 void fill_slots_material(lv_obj_t* w, int count, const char* material) {
     ui_ams_mini_status_set_slot_count(w, count);
     for (int i = 0; i < count; ++i) {
-        ui_ams_mini_status_set_slot_full(w, i, 0xFF0000 + i, 50 + i, true, material, 50 + i);
+        ui_ams_mini_status_set_slot_label(w, i, material, 50 + i);
     }
 }
 
@@ -541,7 +541,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: a row too short to sta
     for (int i = 0; i < 8; ++i) {
         INFO("lane " << i);
         REQUIRE(UITest::find_by_name(w, ("spool_cell_" + std::to_string(i)).c_str()) != nullptr);
-        CHECK(UITest::find_by_name(w, ("spool_material_" + std::to_string(i)).c_str()) == nullptr);
+        // Cells are pooled, so a row with no width for text hides the column
+        // rather than never creating it.
+        lv_obj_t* col = UITest::find_by_name(w, ("spool_text_" + std::to_string(i)).c_str());
+        REQUIRE(col != nullptr);
+        CHECK(lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN));
     }
     CHECK(lv_obj_get_scroll_right(sc) <= 0);
 
