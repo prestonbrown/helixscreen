@@ -100,6 +100,16 @@ MacroRunRequest quick_button(bool safety_setting) {
     return req;
 }
 
+/// A caller's request with the per-macro saved defaults applied: the record's
+/// values ride along, and its ask_for_params flag ANDs into the caller's own
+/// willingness to prompt.
+MacroRunRequest with_saved(MacroRunRequest req, bool ask,
+                           std::map<std::string, std::string> values = {}) {
+    req.prompt_for_params = req.prompt_for_params && ask;
+    req.saved_values = std::move(values);
+    return req;
+}
+
 } // namespace
 
 // ============================================================================
@@ -213,6 +223,112 @@ TEST_CASE("a partial prefill prompts, carrying only the declared names it matche
         CHECK(decide_macro_run(params({"TEMP"}), widget_click(false, true, true)).action ==
               MacroRunAction::Prompt);
     }
+}
+
+// ============================================================================
+// Rule 3b: saved per-macro defaults - prefill and plain-run values, never a
+// silent auto-run
+// ============================================================================
+
+TEST_CASE("saved values prefill the prompt but never complete it", "[macro][run_decision]") {
+    SECTION("a full set of saved values still prompts while Ask for parameters is on") {
+        // The whole point of the toggle: saving every value must not quietly
+        // turn a prompting macro into a one-tap run.
+        auto decision = decide_macro_run(
+            params({"TEMP", "SPEED"}),
+            with_saved(panel_click(false, false), true, {{"TEMP", "210"}, {"SPEED", "50"}}));
+        CHECK(decision.action == MacroRunAction::Prompt);
+        CHECK(decision.params ==
+              std::map<std::string, std::string>{{"SPEED", "50"}, {"TEMP", "210"}});
+    }
+    SECTION("saved values naming undeclared parameters are filtered from the prefill") {
+        auto decision =
+            decide_macro_run(params({"TEMP"}), with_saved(panel_click(false, false), true,
+                                                          {{"TEMP", "210"}, {"PURGE", "1"}}));
+        CHECK(decision.action == MacroRunAction::Prompt);
+        CHECK(decision.params == std::map<std::string, std::string>{{"TEMP", "210"}});
+    }
+    SECTION("known_values win over saved_values on the names they share") {
+        // The filament router's computed nozzle temperature beats a saved TEMP.
+        auto req = with_saved(router_click(false, {{"TEMP", "215"}}), true,
+                              {{"TEMP", "210"}, {"SPEED", "50"}});
+        auto decision = decide_macro_run(params({"TEMP", "SPEED"}), req);
+        CHECK(decision.action == MacroRunAction::Prompt);
+        CHECK(decision.params ==
+              std::map<std::string, std::string>{{"SPEED", "50"}, {"TEMP", "215"}});
+    }
+    SECTION("known_values still completes the run on their own") {
+        auto req = with_saved(router_click(false, {{"TEMP", "215"}, {"SPEED", "50"}}), true,
+                              {{"TEMP", "210"}});
+        auto decision = decide_macro_run(params({"TEMP", "SPEED"}), req);
+        CHECK(decision.action == MacroRunAction::Run);
+        CHECK(decision.params ==
+              std::map<std::string, std::string>{{"SPEED", "50"}, {"TEMP", "215"}});
+    }
+}
+
+TEST_CASE("ask off runs with the saved values, filtered to declared params",
+          "[macro][run_decision]") {
+    SECTION("KNOWN_PARAMS") {
+        auto decision =
+            decide_macro_run(params({"TEMP", "SPEED"}),
+                             with_saved(panel_click(false, false), false,
+                                        {{"TEMP", "210"}, {"SPEED", "50"}, {"PURGE", "1"}}));
+        CHECK(decision.action == MacroRunAction::Run);
+        CHECK(decision.params ==
+              std::map<std::string, std::string>{{"SPEED", "50"}, {"TEMP", "210"}});
+    }
+    SECTION("UNKNOWN ignores saved values") {
+        auto decision = decide_macro_run(
+            unknown_params(), with_saved(panel_click(false, false), false, {{"TEMP", "210"}}));
+        CHECK(decision.action == MacroRunAction::Run);
+        CHECK(decision.params.empty());
+    }
+    SECTION("KNOWN_NO_PARAMS ignores saved values") {
+        auto decision = decide_macro_run(
+            no_params(), with_saved(panel_click(false, false), false, {{"TEMP", "210"}}));
+        CHECK(decision.action == MacroRunAction::Run);
+        CHECK(decision.params.empty());
+    }
+    SECTION("no record at all behaves exactly like today") {
+        auto decision =
+            decide_macro_run(params({"TEMP"}), with_saved(panel_click(false, false), true));
+        CHECK(decision.action == MacroRunAction::Prompt);
+        CHECK(decision.params.empty());
+    }
+    SECTION("the widget opt-out sends the saved values instead of nothing") {
+        for (bool safety : {false, true}) {
+            auto decision =
+                decide_macro_run(params({"TEMP"}), with_saved(widget_click(false, false, safety),
+                                                              true, {{"TEMP", "210"}}));
+            CHECK(decision.action == MacroRunAction::Run);
+            CHECK(decision.params == std::map<std::string, std::string>{{"TEMP", "210"}});
+        }
+    }
+    SECTION("quick buttons send the saved values") {
+        auto decision = decide_macro_run(params({"TEMP"}),
+                                         with_saved(quick_button(false), true, {{"TEMP", "210"}}));
+        CHECK(decision.action == MacroRunAction::Run);
+        CHECK(decision.params == std::map<std::string, std::string>{{"TEMP", "210"}});
+    }
+}
+
+TEST_CASE("ConfirmRun carries the saved values so the confirmed run sends them",
+          "[macro][run_decision]") {
+    auto decision =
+        decide_macro_run(params({"TEMP"}), with_saved(panel_click(false, true), false,
+                                                      {{"TEMP", "210"}, {"PURGE", "1"}}));
+    CHECK(decision.action == MacroRunAction::ConfirmRun);
+    CHECK(decision.params == std::map<std::string, std::string>{{"TEMP", "210"}});
+}
+
+TEST_CASE("an unconfirmed dangerous macro outranks saved values", "[macro][run_decision]") {
+    MacroRunRequest req = panel_click(true, false);
+    req.saved_values = {{"TEMP", "210"}};
+    req.prompt_for_params = false;
+    auto decision = decide_macro_run(params({"TEMP"}), req);
+    CHECK(decision.action == MacroRunAction::ConfirmDangerous);
+    CHECK(decision.params.empty());
 }
 
 // ============================================================================
