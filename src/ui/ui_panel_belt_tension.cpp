@@ -159,9 +159,10 @@ void ui_panel_belt_tension_register_callbacks() {
                  lv_tr("Belt Tension Check"),
                  lv_tr("Uneven belt tension causes print artifacts like layer shifts, "
                        "VFAs (vertical fine artifacts), and ringing.\n\n"
-                       "This tool vibrates each belt path and measures the resonant "
-                       "frequency \u2014 matched frequencies mean balanced tension.\n\n"
-                       "For CoreXY, Path A and B should be within a few Hz of each other."),
+                       "Pluck each belt by hand and this tool listens through the "
+                       "accelerometer to measure the belt's frequency. Matched frequencies "
+                       "mean balanced tension.\n\n"
+                       "On CoreXY, belts A and B should be within a few Hz of each other."),
                  ModalSeverity::Info, lv_tr("Got it"));
          }},
         {"belt_tension_results_help_cb",

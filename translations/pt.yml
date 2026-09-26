@@ -3356,8 +3356,8 @@ translations:
   Unavailable: Indisponível
   Unavailable on this printer: Não disponível nesta impressora
   Understanding Results: Entender resultados
-  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
-  : "A tensão desigual da correia causa artefatos de impressão como deslocamentos de camada, VFAs (artefatos verticais finos) e ringing.\n\nEsta ferramenta vibra cada caminho de correia e mede a frequência de ressonância — frequências coincidentes significam tensão equilibrada.\n\nPara CoreXY, o Caminho A e B devem estar a poucos Hz um do outro."
+  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nPluck each belt by hand and this tool listens through the accelerometer to measure the belt's frequency. Matched frequencies mean balanced tension.\n\nOn CoreXY, belts A and B should be within a few Hz of each other."
+  : "A tensão desigual da correia causa artefatos de impressão como deslocamentos de camada, VFAs (artefatos verticais finos) e ringing.\n\nBelisque cada correia com a mão e esta ferramenta escuta pelo acelerômetro para medir a frequência da correia. Frequências coincidentes significam tensão equilibrada.\n\nPara CoreXY, as correias A e B devem estar a poucos Hz uma da outra."
   Uninstall: Desinstalar
   Uninstall HelixPrint Plugin: Desinstalar Plugin HelixPrint
   Uninstall HelixPrint Plugin?: Desinstalar Plugin HelixPrint?

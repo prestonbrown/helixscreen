@@ -3311,8 +3311,8 @@ translations:
   Unavailable: Недоступно
   Unavailable on this printer: Недоступно на этом принтере
   Understanding Results: Понимание результатов
-  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nThis tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.\n\nFor CoreXY, Path A and B should be within a few Hz of each other."
-  : "Неравномерное натяжение ремня вызывает дефекты печати, такие как смещения слоёв, VFA (вертикальные мелкие артефакты) и ringing.\n\nЭтот инструмент вибрирует каждый путь ремня и измеряет резонансную частоту — совпадающие частоты означают сбалансированное натяжение.\n\nДля CoreXY пути A и B должны отличаться на несколько Гц."
+  ? "Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.\n\nPluck each belt by hand and this tool listens through the accelerometer to measure the belt's frequency. Matched frequencies mean balanced tension.\n\nOn CoreXY, belts A and B should be within a few Hz of each other."
+  : "Неравномерное натяжение ремня вызывает дефекты печати, такие как смещения слоёв, VFA (вертикальные мелкие артефакты) и ringing.\n\nДёрните каждый ремень рукой, и этот инструмент измерит частоту ремня с помощью акселерометра. Совпадающие частоты означают сбалансированное натяжение.\n\nДля CoreXY ремни A и B должны отличаться на несколько Гц."
   Uninstall: Удалить
   Uninstall HelixPrint Plugin: Удалить плагин HelixPrint
   Uninstall HelixPrint Plugin?: Удалить плагин HelixPrint?

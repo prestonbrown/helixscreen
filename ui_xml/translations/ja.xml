@@ -2987,7 +2987,7 @@
   <translation tag="Unavailable" ja="利用不可"/>
   <translation tag="Unavailable on this printer" ja="このプリンターでは利用できません"/>
   <translation tag="Understanding Results" ja="結果の理解"/>
-  <translation tag="Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.&#10;&#10;This tool vibrates each belt path and measures the resonant frequency — matched frequencies mean balanced tension.&#10;&#10;For CoreXY, Path A and B should be within a few Hz of each other." ja="ベルト張力が不均一だと、レイヤーシフトや VFA(垂直微細アーティファクト)、リンギングなどの印刷不良が発生します。&#10;&#10;このツールは各ベルトパスを振動させて共振周波数を測定します — 周波数が一致していれば張力が均等であることを意味します。&#10;&#10;CoreXY では、パス A と B は数 Hz 以内に収まっている必要があります。"/>
+  <translation tag="Uneven belt tension causes print artifacts like layer shifts, VFAs (vertical fine artifacts), and ringing.&#10;&#10;Pluck each belt by hand and this tool listens through the accelerometer to measure the belt&apos;s frequency. Matched frequencies mean balanced tension.&#10;&#10;On CoreXY, belts A and B should be within a few Hz of each other." ja="ベルト張力が不均一だと、レイヤーシフトや VFA(垂直微細アーティファクト)、リンギングなどの印刷不良が発生します。&#10;&#10;各ベルトを手ではじくと、このツールが加速度センサーでベルトの周波数を測定します。周波数が一致していれば張力が均等であることを意味します。&#10;&#10;CoreXY では、ベルト A と B は数 Hz 以内に収まっている必要があります。"/>
   <translation tag="Uninstall" ja="アンインストール"/>
   <translation tag="Uninstall HelixPrint Plugin" ja="HelixPrint プラグインをアンインストール"/>
   <translation tag="Uninstall HelixPrint Plugin?" ja="HelixPrint プラグインをアンインストールしますか？"/>
