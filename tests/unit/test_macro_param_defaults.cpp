@@ -37,6 +37,12 @@ void seed_two_printers() {
     REQUIRE(config->set_active_printer("voron"));
 }
 
+/// Write raw JSON of any shape straight into the store's leaf.
+void seed_store_json(const json& shape) {
+    auto* config = helix::Config::get_instance();
+    config->set<json>(config->df() + "macros/param_defaults", shape);
+}
+
 } // namespace
 
 TEST_CASE_METHOD(HelixTestFixture, "a missing record reads as empty and asking",
@@ -119,6 +125,51 @@ TEST_CASE_METHOD(HelixTestFixture, "clear removes one record and nothing else",
     MacroParamDefaults::instance().clear("clean_nozzle");
     CHECK(MacroParamDefaults::instance().get("CLEAN_NOZZLE").values.empty());
     CHECK_FALSE(MacroParamDefaults::instance().get("PURGE").values.empty());
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "a malformed record table reads as absent, then overwrites",
+                 "[macro][defaults]") {
+    helix::Config::get_instance()->reset_to_defaults();
+
+    for (const json& shape : {json::array({"clean_nozzle"}), json("oops")}) {
+        seed_store_json(shape);
+        auto record = MacroParamDefaults::instance().get("CLEAN_NOZZLE");
+        CHECK(record.values.empty());
+        CHECK(record.ask_for_params);
+
+        // Saving over the malformed table replaces it wholesale.
+        MacroParamDefaultRecord saved;
+        saved.values = {{"TEMP", "210"}};
+        MacroParamDefaults::instance().set("CLEAN_NOZZLE", saved);
+        auto back = MacroParamDefaults::instance().get("CLEAN_NOZZLE");
+        CHECK(back.values == Values({{"TEMP", "210"}}));
+        CHECK(back.ask_for_params);
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "malformed record fields read as their defaults",
+                 "[macro][defaults]") {
+    helix::Config::get_instance()->reset_to_defaults();
+
+    SECTION("ask spelled as a string keeps asking") {
+        seed_store_json(
+            json({{"clean_nozzle", {{"values", {{"TEMP", "210"}}}, {"ask", "false"}}}}));
+        auto record = MacroParamDefaults::instance().get("CLEAN_NOZZLE");
+        CHECK(record.values == Values({{"TEMP", "210"}}));
+        CHECK(record.ask_for_params);
+    }
+    SECTION("values that is not an object reads as no values") {
+        seed_store_json(json({{"clean_nozzle", {{"values", json::array({1})}, {"ask", false}}}}));
+        auto record = MacroParamDefaults::instance().get("CLEAN_NOZZLE");
+        CHECK(record.values.empty());
+        CHECK_FALSE(record.ask_for_params);
+    }
+    SECTION("a record that is not an object reads as absent") {
+        seed_store_json(json({{"clean_nozzle", "run it"}}));
+        auto record = MacroParamDefaults::instance().get("CLEAN_NOZZLE");
+        CHECK(record.values.empty());
+        CHECK(record.ask_for_params);
+    }
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "a printer switch never leaks another printer's records",

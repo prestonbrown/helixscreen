@@ -27,14 +27,21 @@ std::string store_key(const std::string& macro_name) {
 }
 
 /// Read the whole record table. Malformed data reads as absent, never throws:
-/// one hand-edited settings.json must not take macro running down.
+/// one hand-edited settings.json must not take macro running down. A table
+/// that is not an object reads as empty so the next set() replaces it.
 json read_record_table() {
+    json table;
     try {
-        return Config::get_instance()->get<json>(store_leaf(), json::object());
+        table = Config::get_instance()->get<json>(store_leaf(), json::object());
     } catch (const std::exception& e) {
         spdlog::warn("[MacroParamDefaults] {} malformed, ignoring: {}", store_leaf(), e.what());
         return json::object();
     }
+    if (!table.is_object()) {
+        spdlog::warn("[MacroParamDefaults] {} is not an object, ignoring", store_leaf());
+        return json::object();
+    }
+    return table;
 }
 
 void write_record_table(const json& table) {
@@ -63,7 +70,9 @@ MacroParamDefaultRecord MacroParamDefaults::get(const std::string& macro_name) c
             }
         }
     }
-    record.ask_for_params = node.value("ask", true);
+    if (const auto ask = node.find("ask"); ask != node.end() && ask->is_boolean()) {
+        record.ask_for_params = ask->get<bool>();
+    }
     return record;
 }
 
