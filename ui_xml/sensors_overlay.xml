@@ -171,7 +171,9 @@
                   style_flex_cross_place="center" scrollable="false">
             <text_body text="Chamber Heater"
                        translation_tag="Chamber Heater" style_text_color="#text" style_flex_grow="1"/>
-            <lv_dropdown name="chamber_heater_dropdown" options="Auto" style_min_width="250"/>
+            <lv_dropdown name="chamber_heater_dropdown" options="Auto" style_min_width="250">
+              <event_cb trigger="value_changed" callback="on_chamber_heater_changed"/>
+            </lv_dropdown>
           </lv_obj>
 
           <!-- Chamber Sensor Row -->
@@ -180,7 +182,9 @@
                   style_flex_cross_place="center" scrollable="false">
             <text_body text="Chamber Sensor"
                        translation_tag="Chamber Sensor" style_text_color="#text" style_flex_grow="1"/>
-            <lv_dropdown name="chamber_sensor_dropdown" options="Auto" style_min_width="250"/>
+            <lv_dropdown name="chamber_sensor_dropdown" options="Auto" style_min_width="250">
+              <event_cb trigger="value_changed" callback="on_chamber_sensor_changed"/>
+            </lv_dropdown>
           </lv_obj>
 
           <!-- Divider between chamber assignment and sensor list -->

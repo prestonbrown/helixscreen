@@ -73,4 +73,17 @@ build_chamber_assignment_options(const std::vector<std::string>& discovered,
     return out;
 }
 
+std::string chamber_assignment_for_index(const std::vector<std::string>& names, uint32_t index) {
+    if (index == 0) {
+        return "auto";
+    }
+    if (index == names.size() + 1) {
+        return "none";
+    }
+    if (index - 1 < names.size()) {
+        return names[index - 1];
+    }
+    return {};
+}
+
 } // namespace helix::settings

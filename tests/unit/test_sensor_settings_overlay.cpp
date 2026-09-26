@@ -168,3 +168,29 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     select_option(dd, expected.selected);
     CHECK(settings.get_chamber_sensor_assignment() == kMissingSensor);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Re-activating the sensor overlay adds no chamber dropdown handlers",
+                 "[sensors][settings][chamber]") {
+    ScopedChamberAssignments restore;
+    get_printer_state().set_hardware(chamber_discovery("heater_generic chamber"));
+
+    lv_obj_t* root = activate_overlay(test_screen());
+    lv_obj_t* heater_dd = lv_obj_find_by_name(root, "chamber_heater_dropdown");
+    lv_obj_t* sensor_dd = lv_obj_find_by_name(root, "chamber_sensor_dropdown");
+    REQUIRE(heater_dd != nullptr);
+    REQUIRE(sensor_dd != nullptr);
+    const uint32_t heater_handlers = lv_obj_get_event_count(heater_dd);
+    const uint32_t sensor_handlers = lv_obj_get_event_count(sensor_dd);
+
+    helix::settings::get_sensor_settings_overlay().on_activate();
+    helix::settings::get_sensor_settings_overlay().on_activate();
+
+    CHECK(lv_obj_get_event_count(heater_dd) == heater_handlers);
+    CHECK(lv_obj_get_event_count(sensor_dd) == sensor_handlers);
+
+    // The one handler still maps the rebuilt option list.
+    select_option(heater_dd, 1);
+    CHECK(helix::SettingsManager::instance().get_chamber_heater_assignment() ==
+          "heater_generic chamber");
+}

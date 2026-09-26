@@ -58,4 +58,16 @@ build_chamber_assignment_options(const std::vector<std::string>& discovered,
                                  const std::string& strip_prefix,
                                  const ChamberAssignmentLabels& labels);
 
+/**
+ * @brief The assignment an option index of a built dropdown stands for
+ *
+ * The inverse of build_chamber_assignment_options(): 0 is "auto", names.size() + 1
+ * is "none", and 1 through names.size() name names[index - 1].
+ *
+ * @param names  ChamberAssignmentOptions::names of the list the dropdown shows
+ * @param index  Selected option index
+ * @return The value to persist, or empty for an index outside the list
+ */
+std::string chamber_assignment_for_index(const std::vector<std::string>& names, uint32_t index);
+
 } // namespace helix::settings
