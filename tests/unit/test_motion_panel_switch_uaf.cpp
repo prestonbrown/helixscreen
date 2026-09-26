@@ -34,6 +34,9 @@
 #include "ui/ui_lazy_panel_helper.h"
 
 #include <array>
+#include <fstream>
+#include <sstream>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -142,4 +145,61 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE("motion panel fills the header slot and carries the portrait strip", "[motion][xml]") {
+    // Markup-level pins for the Motion panel's coordinate placement: the
+    // header slot is filled with the six bound labels in landscape, the
+    // portrait branch replaces it with a full-width strip under the header,
+    // and the deleted position card must not come back. Routing of slot
+    // children is exercised end-to-end by tests/ui geometry (ctl resolves
+    // header_pos_* under overlay_header/header_content on a live instance).
+    std::ifstream file("ui_xml/motion_panel.xml");
+    REQUIRE(file.is_open());
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    const std::string xml = buffer.str();
+
+    CHECK(xml.find("<header_bar-header_content>") != std::string::npos);
+    for (const char* axis : {"x", "y", "z"}) {
+        std::string letter = std::string("<lv_label name=\"header_pos_") + axis + "_letter\"";
+        std::string value =
+            std::string("name=\"header_pos_") + axis + "\" bind_text=\"motion_pos_" + axis + "\"";
+        CHECK(xml.find(letter) != std::string::npos);
+        CHECK(xml.find(value) != std::string::npos);
+    }
+
+    // Portrait: the strip under the header binds the same subjects under its
+    // own names, one row pairs the jog pad with a tall Z column whose buttons
+    // reuse the landscape Z bindings, and a single bottom row carries the jog
+    // modes plus the capability-gated leveling buttons.
+    CHECK(xml.find("name=\"coord_row\"") != std::string::npos);
+    CHECK(xml.find("name=\"row_pos_x\" bind_text=\"motion_pos_x\"") != std::string::npos);
+    CHECK(xml.find("name=\"pad_row\"") != std::string::npos);
+    CHECK(xml.find("name=\"z_column\"") != std::string::npos);
+    CHECK(xml.find("name=\"bottom_row\"") != std::string::npos);
+    CHECK(xml.find("name=\"btn_qgl\"") != std::string::npos);
+    CHECK(xml.find("icon_position=\"top\"") != std::string::npos);
+    const bool axis_label =
+        xml.find("name=\"z_axis_label\" width=\"100%\" bind_text=\"motion_z_axis_label\"") !=
+        std::string::npos;
+    CHECK(axis_label);
+    for (const char* btn : {"z_up_large", "z_up_small", "z_down_small", "z_down_large"}) {
+        CHECK(xml.find(std::string("name=\"") + btn + "\"") != std::string::npos);
+    }
+    CHECK(xml.find(std::string("bind_text=\"motion_z_large_label\"")) != std::string::npos);
+    CHECK(xml.find(std::string("bind_text=\"motion_z_small_label\"")) != std::string::npos);
+    // The full-width Z row and its unit label must not come back: portrait
+    // stacks the Z controls beside the pad, not under it.
+    CHECK(xml.find("name=\"z_row\"") == std::string::npos);
+    CHECK(xml.find("text=\"Z mm\"") == std::string::npos);
+
+    // The title is the same "Motion" key the controls panel button uses.
+    const auto title_needle = xml.find("title=\"Motion\"");
+    REQUIRE(title_needle != std::string::npos);
+    CHECK(xml.substr(title_needle, 40).find("title_tag=\"Motion\"") != std::string::npos);
+
+    // The position card is gone; a resurrection would orphan the deleted
+    // subjects (motion_x_homed & co.) that no C++ registers any more.
+    CHECK(xml.find("motion_position_card") == std::string::npos);
 }

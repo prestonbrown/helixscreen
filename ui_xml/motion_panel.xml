@@ -3,110 +3,223 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <!-- Motion Sub-Screen: XYZ Movement & Homing -->
-  <!-- Simplified button grid design (vs circular jog pad) -->
+  <!-- Coordinates live in the header slot on landscape screens and in a slim
+       full-width strip under the header on portrait screens, where the header
+       is too narrow to carry them beside the title. -->
   <!-- Jog pad colors are loaded from semantic theme tokens in C++ (ui_jog_pad.cpp) -->
   <!-- Uses shared backdrop from navigation system -->
-  <consts>
-    <!-- Position-card size floors. The card is size-to-content, and its "Act:"
-         Z sub-line appears/disappears live during Z-Tilt and probing; without
-         a floor sized for the WORST case (7-char values like "400.00 mm" on
-         every axis, homed dots shown, Act row present) each flip resized the
-         card and slid the jog pad with it. Values are measured per tier
-         (en and ja measured identical - the value digits dominate the row
-         width, not the translated "Act:" label), worst case +3px. Re-measure
-         via `ctl geom position_card` with position_x/position_z = 40000 and
-         the row visible if the card's content or fonts change. -->
-    <px name="motion_card_min_w_micro" value="118"/>
-    <px name="motion_card_min_w_tiny" value="118"/>
-    <px name="motion_card_min_w_small" value="118"/>
-    <px name="motion_card_min_w_medium" value="140"/>
-    <px name="motion_card_min_w_large" value="158"/>
-    <px name="motion_card_min_w_xlarge" value="182"/>
-    <px name="motion_card_min_w_xxlarge" value="234"/>
-    <px name="motion_card_min_h_micro" value="72"/>
-    <px name="motion_card_min_h_tiny" value="72"/>
-    <px name="motion_card_min_h_small" value="92"/>
-    <px name="motion_card_min_h_medium" value="112"/>
-    <px name="motion_card_min_h_large" value="124"/>
-    <px name="motion_card_min_h_xlarge" value="144"/>
-    <px name="motion_card_min_h_xxlarge" value="180"/>
-  </consts>
   <styles>
     <!-- Jog mode toggle button styles -->
     <style name="filter_btn_selected" bg_color="#primary" bg_opa="255"/>
     <style name="filter_btn_unselected" bg_color="#primary" bg_opa="40"/>
+    <!-- Coordinate readouts mute an axis that is not homed: its reported
+         position is not trustworthy, and "0.00" must not read as a real 0. -->
+    <style name="axis_letter_homed" text_color="#primary"/>
+    <style name="axis_value_homed" text_color="#text"/>
+    <style name="axis_unhomed" text_color="#text_muted"/>
   </styles>
   <view name="motion_panel"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_pad_all="0"
         style_border_width="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false" flex_flow="column">
     <!-- Header Bar with E-stop action button and settings cog -->
     <header_bar name="overlay_header"
-                title="Motion: XYZ" title_tag="Motion: XYZ" hide_action_button="false"
-                action_button_icon="alert_octagon" action_button_bg_color="#danger" action_button_radius="9999"
-                action_button_width="#button_height_sm" action_button_height="#button_height_sm" action_button_pad="0"
-                hide_action_button_text="true" action_button_callback="emergency_stop_clicked"
-                hide_action_button_2="false" action_button_2_icon="cog" action_button_2_icon_size="sm"
-                action_button_2_bg_color="#elevated_bg" action_button_2_radius="9999"
+                title="Motion" title_tag="Motion" hide_action_button="false" action_button_icon="alert_octagon"
+                action_button_bg_color="#danger" action_button_radius="9999" action_button_width="#button_height_sm"
+                action_button_height="#button_height_sm" action_button_pad="0" hide_action_button_text="true"
+                action_button_callback="emergency_stop_clicked" hide_action_button_2="false" action_button_2_icon="cog"
+                action_button_2_icon_size="sm" action_button_2_bg_color="#elevated_bg" action_button_2_radius="9999"
                 action_button_2_width="#button_height_sm" action_button_2_min_width="0"
                 action_button_2_hidden_cond="ui_breakpoint lt 2"
-                action_button_2_callback="on_motion_header_settings_clicked"/>
-    <!-- Content Area: tight padding to header, two columns fill height -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_sm" style_pad_hor="#space_lg" scrollable="false"
-            style_border_opa="0" flex_flow="row" style_pad_gap="#space_md">
-      <!-- Disable content when printer not connected or klippy not ready -->
-      <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
-      <!-- Left Column: Position readout beside jog pad, toggle below -->
-      <lv_obj name="left_column"
-              width="0" height="100%" flex_grow="3" style_pad_all="0" scrollable="false" style_border_opa="0"
+                action_button_2_callback="on_motion_header_settings_clicked">
+      <!-- Header coordinates: one line, bold tinted axis letter + tabular
+           mono value, no unit suffix. The value labels carry the stable
+           per-axis names (header_pos_x/_y/_z) so they can later gain tap
+           behaviour without a rename. Hidden in portrait, where the coord_row
+           under the header carries the same three bindings under row_pos_*
+           names (distinct on purpose: this group is outside any <if> branch,
+           so the duplicate-name gate would flag sharing them). -->
+      <header_bar-header_content>
+        <lv_obj name="header_coords"
+                width="content" height="100%" style_pad_all="0" style_pad_left="#space_sm" style_bg_opa="0"
+                style_border_width="0" scrollable="false" clickable="false" flex_flow="row" style_pad_gap="#space_sm"
+                style_flex_cross_place="center" style_flex_track_place="center">
+          <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="1"/>
+          <lv_label name="header_pos_x_letter" text="X" style_text_font="#font_body_bold">
+            <bind_style name="axis_letter_homed" subject="motion_x_homed" ref_value="1"/>
+            <bind_style name="axis_unhomed" subject="motion_x_homed" ref_value="0"/>
+          </lv_label>
+          <lv_label name="header_pos_x" bind_text="motion_pos_x" style_text_font="#font_mono">
+            <bind_style name="axis_value_homed" subject="motion_x_homed" ref_value="1"/>
+            <bind_style name="axis_unhomed" subject="motion_x_homed" ref_value="0"/>
+          </lv_label>
+          <lv_label name="header_pos_y_letter" text="Y" style_text_font="#font_body_bold">
+            <bind_style name="axis_letter_homed" subject="motion_y_homed" ref_value="1"/>
+            <bind_style name="axis_unhomed" subject="motion_y_homed" ref_value="0"/>
+          </lv_label>
+          <lv_label name="header_pos_y" bind_text="motion_pos_y" style_text_font="#font_mono">
+            <bind_style name="axis_value_homed" subject="motion_y_homed" ref_value="1"/>
+            <bind_style name="axis_unhomed" subject="motion_y_homed" ref_value="0"/>
+          </lv_label>
+          <lv_label name="header_pos_z_letter" text="Z" style_text_font="#font_body_bold">
+            <bind_style name="axis_letter_homed" subject="motion_z_homed" ref_value="1"/>
+            <bind_style name="axis_unhomed" subject="motion_z_homed" ref_value="0"/>
+          </lv_label>
+          <lv_label name="header_pos_z" bind_text="motion_pos_z" style_text_font="#font_mono">
+            <bind_style name="axis_value_homed" subject="motion_z_homed" ref_value="1"/>
+            <bind_style name="axis_unhomed" subject="motion_z_homed" ref_value="0"/>
+          </lv_label>
+        </lv_obj>
+      </header_bar-header_content>
+    </header_bar>
+    <if cond="ui_is_portrait eq 1">
+      <!-- PORTRAIT: header too narrow for coordinates, so a slim full-width
+           strip under the header carries them, spread evenly. Below it one
+           row pairs the jog pad (largest square the row allows) with a tall
+           Z column, then a single bottom row carries the jog modes plus the
+           capability-gated leveling buttons, icons above labels. -->
+      <lv_obj name="coord_row"
+              width="100%" height="content" style_pad_all="0" style_pad_hor="#space_lg" style_bg_opa="0"
+              style_border_width="0" scrollable="false" clickable="false" flex_flow="row"
+              style_flex_main_place="space_evenly" style_flex_cross_place="center" style_flex_track_place="center">
+        <lv_label name="row_pos_x_letter" text="X" style_text_font="#font_body_bold">
+          <bind_style name="axis_letter_homed" subject="motion_x_homed" ref_value="1"/>
+          <bind_style name="axis_unhomed" subject="motion_x_homed" ref_value="0"/>
+        </lv_label>
+        <lv_label name="row_pos_x" bind_text="motion_pos_x" style_text_font="#font_mono">
+          <bind_style name="axis_value_homed" subject="motion_x_homed" ref_value="1"/>
+          <bind_style name="axis_unhomed" subject="motion_x_homed" ref_value="0"/>
+        </lv_label>
+        <lv_label name="row_pos_y_letter" text="Y" style_text_font="#font_body_bold">
+          <bind_style name="axis_letter_homed" subject="motion_y_homed" ref_value="1"/>
+          <bind_style name="axis_unhomed" subject="motion_y_homed" ref_value="0"/>
+        </lv_label>
+        <lv_label name="row_pos_y" bind_text="motion_pos_y" style_text_font="#font_mono">
+          <bind_style name="axis_value_homed" subject="motion_y_homed" ref_value="1"/>
+          <bind_style name="axis_unhomed" subject="motion_y_homed" ref_value="0"/>
+        </lv_label>
+        <lv_label name="row_pos_z_letter" text="Z" style_text_font="#font_body_bold">
+          <bind_style name="axis_letter_homed" subject="motion_z_homed" ref_value="1"/>
+          <bind_style name="axis_unhomed" subject="motion_z_homed" ref_value="0"/>
+        </lv_label>
+        <lv_label name="row_pos_z" bind_text="motion_pos_z" style_text_font="#font_mono">
+          <bind_style name="axis_value_homed" subject="motion_z_homed" ref_value="1"/>
+          <bind_style name="axis_unhomed" subject="motion_z_homed" ref_value="0"/>
+        </lv_label>
+      </lv_obj>
+      <lv_obj name="overlay_content"
+              width="100%" flex_grow="1" style_pad_all="#space_sm" scrollable="false" style_border_opa="0"
               flex_flow="column" style_pad_gap="#space_sm">
-        <!-- Top row (landscape) / column (portrait): Position display + Jog pad.
-             Portrait stacks coordinates above the wheel instead of squeezing it
-             into the leftover width of a row (#1229-family). Only the container
-             flex direction, position_card's width/basis, and jog_pad_wrapper's
-             width/height/basis differ between branches. position_card's actual
-             content (X/Y/Z rows, homed-indicator bindings) is authored exactly
-             once in components/motion_position_card.xml and instantiated below
-             with only the differing attributes, rather than pasted into both
-             branches — pasting it would duplicate ~30 lines inside ONE file,
-             where neither check_variant_parity.py nor check_duplicate_xml_names.py
-             can see the two copies silently drift apart (bed_mesh_panel.xml /
-             components/bed_mesh_current_mesh_card.xml is the precedent for this). -->
-        <if cond="ui_is_portrait eq 1">
-          <lv_obj name="jog_row"
-                  width="100%" flex_grow="1" style_pad_all="0" style_border_opa="0" scrollable="false"
-                  flex_flow="column" style_pad_gap="#space_sm" style_flex_cross_place="center">
-            <!-- Position Display - full-width readout above the jog pad.
-                 Shared card content lives in components/motion_position_card.xml
-                 (see comment above); width/height are the only attributes that
-                 differ from the landscape instantiation below. -->
-            <motion_position_card name="position_card" width="100%" height="content"/>
-            <!-- Circular Jog Pad: Custom-Drawn Two-Zone Design (Bambu Lab Style).
-                 In a column, flex_grow drives HEIGHT, so height="0" is the basis
-                 here and width="100%" claims the full stacked width instead of
-                 collapsing to zero (see brief: the flex-axis trap). The card
-                 above holds a fixed height (see the motion_card_min_* consts),
-                 so the Act line toggling cannot move this wrapper. -->
-            <lv_obj name="jog_pad_wrapper"
-                    width="100%" height="0" flex_grow="1" style_pad_all="0" style_border_opa="0" scrollable="false">
-              <lv_obj name="jog_pad_container"
-                      width="content" height="content" style_pad_all="0" style_border_opa="0" scrollable="false"
-                      clickable="true" align="center"/>
-            </lv_obj>
+        <!-- Disable content when printer not connected or klippy not ready -->
+        <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+        <!-- Pad row: jog pad left, Z column right. The row is the only
+             flex-growing child, so the coordinate strip above and the bottom
+             row below take their height first and the pad row gets the rest;
+             the pad is the largest square its wrapper allows (clamped in
+             MotionPanel::setup_jog_pad), so a width-bound wrapper leaves no
+             dead band beside the circle. -->
+        <lv_obj name="pad_row"
+                width="100%" height="0" flex_grow="1" style_pad_all="0" style_border_opa="0" scrollable="false"
+                flex_flow="row" style_pad_gap="#space_sm">
+          <lv_obj name="jog_pad_wrapper"
+                  width="0" height="100%" flex_grow="1" style_pad_all="0" style_border_opa="0" scrollable="false">
+            <lv_obj name="jog_pad_container"
+                    width="content" height="content" style_pad_all="0" style_border_opa="0" scrollable="false"
+                    clickable="true" align="center"/>
           </lv_obj>
-          <else/>
+          <!-- The landscape Z column stood on its side: same bindings (arrow
+               icons, mm step labels, the kinematics-aware axis label),
+               buttons stacked tall to fill the row height. Fixed width keeps
+               the pad's claim on the row deterministic at every portrait
+               width. -->
+          <lv_obj name="z_column"
+                  width="54" height="100%" style_pad_all="0" style_border_opa="0" scrollable="false" flex_flow="column"
+                  style_pad_gap="#space_xs">
+            <ui_button name="z_up_large"
+                       width="100%" flex_grow="1" icon_position="top" icon="arrow_up" bind_icon="motion_z_up_icon"
+                       bind_text="motion_z_large_label">
+              <event_cb trigger="clicked" callback="on_motion_z_button" user_data="z_up_large"/>
+            </ui_button>
+            <ui_button name="z_up_small"
+                       width="100%" flex_grow="1" icon_position="top" icon="arrow_up" bind_icon="motion_z_up_icon"
+                       bind_text="motion_z_small_label">
+              <event_cb trigger="clicked" callback="on_motion_z_button" user_data="z_up_small"/>
+            </ui_button>
+            <!-- Same widget and binding as the landscape column between the
+                 up and down buttons: "Print Head" or "Bed" by kinematics. -->
+            <text_body name="z_axis_label" width="100%" bind_text="motion_z_axis_label" style_text_align="center"/>
+            <ui_button name="z_down_small"
+                       width="100%" flex_grow="1" icon_position="top" icon="arrow_down" bind_icon="motion_z_down_icon"
+                       bind_text="motion_z_small_label">
+              <event_cb trigger="clicked" callback="on_motion_z_button" user_data="z_down_small"/>
+            </ui_button>
+            <ui_button name="z_down_large"
+                       width="100%" flex_grow="1" icon_position="top" icon="arrow_down" bind_icon="motion_z_down_icon"
+                       bind_text="motion_z_large_label">
+              <event_cb trigger="clicked" callback="on_motion_z_button" user_data="z_down_large"/>
+            </ui_button>
+          </lv_obj>
+        </lv_obj>
+        <!-- Bottom row: jog modes plus leveling in one row, icon above the
+             word. The leveling buttons are capability-gated, so the row
+             carries three to five buttons depending on the printer. -->
+        <lv_obj name="bottom_row"
+                width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
+                scrollable="false">
+          <ui_button name="jog_mode_fine"
+                     text="Fine" translation_tag="Fine" icon="tortoise" icon_position="top" flex_grow="1">
+            <bind_style name="filter_btn_selected" subject="motion_jog_mode_fine_active" ref_value="1"/>
+            <bind_style name="filter_btn_unselected" subject="motion_jog_mode_fine_active" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_jog_mode_fine"/>
+          </ui_button>
+          <ui_button name="jog_mode_coarse"
+                     text="Coarse" translation_tag="Coarse" icon="rabbit" icon_position="top" flex_grow="1">
+            <bind_style name="filter_btn_selected" subject="motion_jog_mode_coarse_active" ref_value="1"/>
+            <bind_style name="filter_btn_unselected" subject="motion_jog_mode_coarse_active" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_jog_mode_coarse"/>
+          </ui_button>
+          <ui_button name="jog_mode_turbo"
+                     text="Turbo" translation_tag="Turbo" icon="flash" icon_position="top" flex_grow="1">
+            <bind_style name="filter_btn_selected" subject="motion_jog_mode_turbo_active" ref_value="1"/>
+            <bind_style name="filter_btn_unselected" subject="motion_jog_mode_turbo_active" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_jog_mode_turbo"/>
+          </ui_button>
+          <ui_button name="btn_qgl"
+                     flex_grow="1" icon="spirit_level" icon_position="top" text="QGL" variant="secondary" hidden="true"
+                     moves_machine="true">
+            <bind_flag_if_eq subject="printer_has_qgl" flag="hidden" ref_value="0"/>
+            <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_motion_qgl"/>
+          </ui_button>
+          <ui_button name="btn_z_tilt"
+                     flex_grow="1" icon="spirit_level" icon_position="top" text="Z-Tilt" variant="secondary"
+                     hidden="true" moves_machine="true">
+            <bind_flag_if_eq subject="printer_has_z_tilt" flag="hidden" ref_value="0"/>
+            <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_motion_z_tilt"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+      <else/>
+      <!-- LANDSCAPE: coordinates in the header slot, jog pad filling the left
+           column, Z column on the right. -->
+      <lv_obj name="overlay_content"
+              width="100%" flex_grow="1" style_pad_all="#space_sm" style_pad_hor="#space_lg" scrollable="false"
+              style_border_opa="0" flex_flow="row" style_pad_gap="#space_md">
+        <!-- Disable content when printer not connected or klippy not ready -->
+        <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+        <!-- Left Column: jog pad with mode toggle below -->
+        <lv_obj name="left_column"
+                width="0" height="100%" flex_grow="3" style_pad_all="0" scrollable="false" style_border_opa="0"
+                flex_flow="column" style_pad_gap="#space_sm">
+          <!-- jog_row is the pad's own container inside left_column: a strip
+               added as a left_column sibling above it shrinks jog_row (the
+               only flex-growing child), not the mode row below. -->
           <lv_obj name="jog_row"
                   width="100%" flex_grow="1" style_pad_all="0" style_border_opa="0" scrollable="false" flex_flow="row"
                   style_pad_gap="#space_sm" style_flex_cross_place="center">
-            <!-- Position Display - vertical stack left of jog pad.
-                 Shared card content lives in components/motion_position_card.xml;
-                 width/style_min_width are the only attributes that differ from
-                 the portrait instantiation above. The min-width token is sized
-                 for the card's WORST content (see the motion_card_min_* consts
-                 above), so the "Act:" sub-line appearing never widens the card
-                 and never shifts the pad. -->
-            <motion_position_card name="position_card" width="content" style_min_width="#motion_card_min_w"/>
-            <!-- Circular Jog Pad: Custom-Drawn Two-Zone Design (Bambu Lab Style) -->
+            <!-- Circular Jog Pad: Custom-Drawn Two-Zone Design (Bambu Lab Style).
+                 In a row, flex_grow drives WIDTH, so width="0" is the basis
+                 here and height="100%" claims the full row height. -->
             <lv_obj name="jog_pad_wrapper"
                     width="0" height="100%" flex_grow="1" style_pad_all="0" style_border_opa="0" scrollable="false">
               <lv_obj name="jog_pad_container"
@@ -114,80 +227,81 @@
                       clickable="true" align="center"/>
             </lv_obj>
           </lv_obj>
-        </if>
-        <!-- Fine/Coarse/Turbo jog mode toggle -->
-        <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs" scrollable="false"
-                style_flex_main_place="center">
-          <ui_button name="jog_mode_fine" text="Fine" translation_tag="Fine" icon="tortoise" flex_grow="1">
-            <bind_style name="filter_btn_selected" subject="motion_jog_mode_fine_active" ref_value="1"/>
-            <bind_style name="filter_btn_unselected" subject="motion_jog_mode_fine_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_jog_mode_fine"/>
-          </ui_button>
-          <ui_button name="jog_mode_coarse" text="Coarse" translation_tag="Coarse" icon="rabbit" flex_grow="1">
-            <bind_style name="filter_btn_selected" subject="motion_jog_mode_coarse_active" ref_value="1"/>
-            <bind_style name="filter_btn_unselected" subject="motion_jog_mode_coarse_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_jog_mode_coarse"/>
-          </ui_button>
-          <ui_button name="jog_mode_turbo" text="Turbo" translation_tag="Turbo" icon="flash" flex_grow="1">
-            <bind_style name="filter_btn_selected" subject="motion_jog_mode_turbo_active" ref_value="1"/>
-            <bind_style name="filter_btn_unselected" subject="motion_jog_mode_turbo_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_jog_mode_turbo"/>
-          </ui_button>
+          <!-- Fine/Coarse/Turbo jog mode toggle -->
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs" scrollable="false"
+                  style_flex_main_place="center">
+            <ui_button name="jog_mode_fine" text="Fine" translation_tag="Fine" icon="tortoise" flex_grow="1">
+              <bind_style name="filter_btn_selected" subject="motion_jog_mode_fine_active" ref_value="1"/>
+              <bind_style name="filter_btn_unselected" subject="motion_jog_mode_fine_active" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_jog_mode_fine"/>
+            </ui_button>
+            <ui_button name="jog_mode_coarse" text="Coarse" translation_tag="Coarse" icon="rabbit" flex_grow="1">
+              <bind_style name="filter_btn_selected" subject="motion_jog_mode_coarse_active" ref_value="1"/>
+              <bind_style name="filter_btn_unselected" subject="motion_jog_mode_coarse_active" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_jog_mode_coarse"/>
+            </ui_button>
+            <ui_button name="jog_mode_turbo" text="Turbo" translation_tag="Turbo" icon="flash" flex_grow="1">
+              <bind_style name="filter_btn_selected" subject="motion_jog_mode_turbo_active" ref_value="1"/>
+              <bind_style name="filter_btn_unselected" subject="motion_jog_mode_turbo_active" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_jog_mode_turbo"/>
+            </ui_button>
+          </lv_obj>
+        </lv_obj>
+        <!-- Right Column: Z-Axis Controls + Leveling (extends full height) -->
+        <lv_obj name="right_column"
+                width="0" height="100%" flex_grow="1" style_pad_all="0" scrollable="false" style_border_opa="0"
+                flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center"
+                style_pad_gap="#space_sm" style_max_width="160">
+          <!-- Z-Axis Button Group -->
+          <lv_obj name="z_controls"
+                  width="100%" flex_grow="1" style_pad_all="0" style_border_opa="0" scrollable="false"
+                  flex_flow="column" style_flex_main_place="space_evenly" style_flex_cross_place="center"
+                  style_pad_gap="#space_sm">
+            <ui_button name="z_up_large"
+                       width="100%" flex_grow="1" style_max_height="#button_height_lg" icon="arrow_up"
+                       bind_icon="motion_z_up_icon" bind_text="motion_z_large_label">
+              <event_cb trigger="clicked" callback="on_motion_z_button" user_data="z_up_large"/>
+            </ui_button>
+            <ui_button name="z_up_small"
+                       width="100%" flex_grow="1" style_max_height="#button_height_lg" icon="arrow_up"
+                       bind_icon="motion_z_up_icon" bind_text="motion_z_small_label">
+              <event_cb trigger="clicked" callback="on_motion_z_button" user_data="z_up_small"/>
+            </ui_button>
+            <!-- Z-Axis label - shows "Bed" or "Print Head" based on kinematics -->
+            <text_body name="z_axis_label" width="100%" bind_text="motion_z_axis_label" style_text_align="center"/>
+            <ui_button name="z_down_small"
+                       width="100%" flex_grow="1" style_max_height="#button_height_lg" icon="arrow_down"
+                       bind_icon="motion_z_down_icon" bind_text="motion_z_small_label">
+              <event_cb trigger="clicked" callback="on_motion_z_button" user_data="z_down_small"/>
+            </ui_button>
+            <ui_button name="z_down_large"
+                       width="100%" flex_grow="1" style_max_height="#button_height_lg" icon="arrow_down"
+                       bind_icon="motion_z_down_icon" bind_text="motion_z_large_label">
+              <event_cb trigger="clicked" callback="on_motion_z_button" user_data="z_down_large"/>
+            </ui_button>
+          </lv_obj>
+          <!-- Leveling Buttons: QGL and/or Z-Tilt (conditionally visible) -->
+          <lv_obj name="leveling_buttons"
+                  width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                  style_pad_gap="#space_xs">
+            <ui_button name="btn_qgl"
+                       width="0" height="#button_height" flex_grow="1" text="QGL" variant="secondary" hidden="true"
+                       moves_machine="true">
+              <bind_flag_if_eq subject="printer_has_qgl" flag="hidden" ref_value="0"/>
+              <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
+              <event_cb trigger="clicked" callback="on_motion_qgl"/>
+            </ui_button>
+            <ui_button name="btn_z_tilt"
+                       width="0" height="#button_height" flex_grow="1" text="Z-Tilt" variant="secondary" hidden="true"
+                       moves_machine="true">
+              <bind_flag_if_eq subject="printer_has_z_tilt" flag="hidden" ref_value="0"/>
+              <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
+              <event_cb trigger="clicked" callback="on_motion_z_tilt"/>
+            </ui_button>
+          </lv_obj>
         </lv_obj>
       </lv_obj>
-      <!-- Right Column: Z-Axis Controls + Leveling (extends full height) -->
-      <lv_obj name="right_column"
-              width="0" height="100%" flex_grow="1" style_pad_all="0" scrollable="false" style_border_opa="0"
-              flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm"
-              style_max_width="160">
-        <!-- Z-Axis Button Group -->
-        <lv_obj name="z_controls"
-                width="100%" flex_grow="1" style_pad_all="0" style_border_opa="0" scrollable="false" flex_flow="column"
-                style_flex_main_place="space_evenly" style_flex_cross_place="center" style_pad_gap="#space_sm">
-          <ui_button name="z_up_large"
-                     width="100%" flex_grow="1" style_max_height="#button_height_lg" icon="arrow_up"
-                     bind_icon="motion_z_up_icon" bind_text="motion_z_large_label">
-            <event_cb trigger="clicked" callback="on_motion_z_button" user_data="z_up_large"/>
-          </ui_button>
-          <ui_button name="z_up_small"
-                     width="100%" flex_grow="1" style_max_height="#button_height_lg" icon="arrow_up"
-                     bind_icon="motion_z_up_icon" bind_text="motion_z_small_label">
-            <event_cb trigger="clicked" callback="on_motion_z_button" user_data="z_up_small"/>
-          </ui_button>
-          <!-- Z-Axis label - shows "Bed" or "Print Head" based on kinematics -->
-          <text_body name="z_axis_label" width="100%" bind_text="motion_z_axis_label" style_text_align="center"/>
-          <ui_button name="z_down_small"
-                     width="100%" flex_grow="1" style_max_height="#button_height_lg" icon="arrow_down"
-                     bind_icon="motion_z_down_icon" bind_text="motion_z_small_label">
-            <event_cb trigger="clicked" callback="on_motion_z_button" user_data="z_down_small"/>
-          </ui_button>
-          <ui_button name="z_down_large"
-                     width="100%" flex_grow="1" style_max_height="#button_height_lg" icon="arrow_down"
-                     bind_icon="motion_z_down_icon" bind_text="motion_z_large_label">
-            <event_cb trigger="clicked" callback="on_motion_z_button" user_data="z_down_large"/>
-          </ui_button>
-        </lv_obj>
-        <!-- Leveling Buttons: QGL and/or Z-Tilt (conditionally visible) -->
-        <lv_obj name="leveling_buttons"
-                width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-                style_pad_gap="#space_xs">
-          <ui_button name="btn_qgl"
-                     width="0" height="#button_height" flex_grow="1" text="QGL" variant="secondary" hidden="true"
-                     moves_machine="true">
-            <bind_flag_if_eq subject="printer_has_qgl" flag="hidden" ref_value="0"/>
-            <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
-            <event_cb trigger="clicked" callback="on_motion_qgl"/>
-          </ui_button>
-          <ui_button name="btn_z_tilt"
-                     width="0" height="#button_height" flex_grow="1" text="Z-Tilt" variant="secondary" hidden="true"
-                     moves_machine="true">
-            <bind_flag_if_eq subject="printer_has_z_tilt" flag="hidden" ref_value="0"/>
-            <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
-            <event_cb trigger="clicked" callback="on_motion_z_tilt"/>
-          </ui_button>
-        </lv_obj>
-      </lv_obj>
-    </lv_obj>
+    </if>
   </view>
 </component>

@@ -519,6 +519,20 @@ class Linter:
         if extends_map and element.tag in extends_map:
             return True
 
+        # Slot injection, e.g. <my_button-icon>: the engine splits the tag at
+        # the first '-' and re-parents the children into the named widget
+        # inside the enclosing component instantiation. The prefix must be a
+        # component; the slot name itself resolves at runtime.
+        prefix, _, suffix = element.tag.partition("-")
+        if suffix and (
+            (extends_map and prefix in extends_map)
+            or (
+                self._project_registry is not None
+                and prefix in self._project_registry.component_view_names
+            )
+        ):
+            return True
+
         # Check if it's in special elements from schema
         if element.tag in self._schema.special_elements:
             return True

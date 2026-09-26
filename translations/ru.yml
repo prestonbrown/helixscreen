@@ -1840,7 +1840,6 @@ translations:
   'Moonraker: ': 'Moonraker: '
   More points = more accurate, but takes longer.: Больше точек — точнее, но дольше.
   Motion: Движение
-  'Motion: XYZ': 'Движение: XYZ'
   Motor controller error: Ошибка контроллера двигателя
   Motor parameter setup failed: Не удалась настройка параметров двигателя
   Motor speeds and acceleration: 'Скорости моторов и ускорение'

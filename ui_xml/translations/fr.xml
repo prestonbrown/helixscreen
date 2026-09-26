@@ -1684,7 +1684,6 @@
   <translation tag="Moonraker: " fr="Moonraker : "/>
   <translation tag="More points = more accurate, but takes longer." fr="Plus de points = plus précis, mais prend plus de temps."/>
   <translation tag="Motion" fr="Mouvement"/>
-  <translation tag="Motion: XYZ" fr="Mouvement : XYZ"/>
   <translation tag="Motor controller error" fr="Erreur du contrôleur de moteur"/>
   <translation tag="Motor parameter setup failed" fr="Échec de la configuration des paramètres moteur"/>
   <translation tag="Motor speeds and acceleration" fr="Vitesses moteur et accélération"/>

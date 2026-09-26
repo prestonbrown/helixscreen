@@ -1724,7 +1724,6 @@ translations:
   'Moonraker: ': 'Moonraker: '
   More points = more accurate, but takes longer.: 点数越多越精确，但耗时更长。
   Motion: 运动
-  'Motion: XYZ': 运动：XYZ
   Motor controller error: 电机控制器错误
   Motor parameter setup failed: 电机参数设置失败
   Motor speeds and acceleration: '电机速度与加速度'

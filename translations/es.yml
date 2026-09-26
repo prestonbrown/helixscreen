@@ -1860,7 +1860,6 @@ translations:
   More points = more accurate, but takes longer.: Más puntos = más preciso, pero tarda
     más.
   Motion: Movimiento
-  'Motion: XYZ': 'Movimiento: XYZ'
   Motor controller error: Error del controlador del motor
   Motor parameter setup failed: Falló la configuración de los parámetros del motor
   Motor speeds and acceleration: 'Velocidades del motor y aceleración'

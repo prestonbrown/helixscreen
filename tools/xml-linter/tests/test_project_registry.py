@@ -358,6 +358,48 @@ class TestCrossFileComponentResolution:
         ]
         assert len(widget_errors) == 0
 
+    def test_slot_injection_tag_not_flagged_as_unknown(
+        self, schema: Schema, tmp_path: Path
+    ) -> None:
+        """A <component-named_child> slot tag is not flagged as an unknown widget.
+
+        The engine splits such tags at the first '-' and re-parents the
+        children into the named widget of the enclosing instantiation, so the
+        prefix being a known component is what makes the tag valid. A dashed
+        tag whose prefix is NOT a component stays an error.
+        """
+        comp_xml = tmp_path / "my_card.xml"
+        comp_xml.write_text(
+            '<component>'
+            '<view name="my_card" extends="lv_obj" width="100%" height="content">'
+            '<lv_obj name="icon" width="20" height="20"/>'
+            '</view></component>',
+            encoding="utf-8",
+        )
+        user_xml = tmp_path / "user.xml"
+        user_xml.write_text(
+            '<component>'
+            '<view name="v" extends="lv_obj" width="100%" height="content">'
+            '<my_card width="100%" height="50">'
+            '<my_card-icon><lv_image src="check"/></my_card-icon>'
+            '</my_card>'
+            '<ghost_comp-icon><lv_image src="alert"/></ghost_comp-icon>'
+            '</view></component>',
+            encoding="utf-8",
+        )
+
+        registry = ProjectRegistry.from_files([comp_xml, user_xml])
+        for name, extends in registry.component_view_names.items():
+            schema.register_custom_widget(name, extends)
+
+        linter = Linter(schema, LinterConfig(enable_xref=False), project_registry=registry)
+        result = linter.lint_file(user_xml)
+        by_element = {
+            d.element for d in result.diagnostics if d.check == CheckType.UNKNOWN_WIDGET
+        }
+        assert "my_card-icon" not in by_element
+        assert "ghost_comp-icon" in by_element
+
     def test_custom_widget_inherits_base_attributes(
         self, schema: Schema, tmp_path: Path
     ) -> None:

@@ -93,3 +93,23 @@ void ui_jog_pad_set_enabled(lv_obj_t* obj, bool enabled);
  * @param homed true if all axes are homed, false otherwise
  */
 void ui_jog_pad_set_homed(lv_obj_t* obj, bool homed);
+
+/**
+ * Layout box for the home glyph inside its ring.
+ *
+ * lv_draw_label centres vertically by laying the font's full line height down
+ * from the box's top edge, so a box shorter than the line height spills the
+ * glyph past its bottom. The box is therefore exactly one line height tall,
+ * centred on the ring's centre, which puts the glyph's visual centre on the
+ * ring's centre at every pad size.
+ *
+ * @param center_x ring centre x (absolute screen coords, as the draw cb uses)
+ * @param center_y ring centre y
+ * @param home_radius radius of the home ring
+ * @param font the mdi icon font the glyph draws with
+ * @return the label box to pass to lv_draw_label
+ */
+namespace helix {
+lv_area_t jog_pad_home_icon_area(lv_coord_t center_x, lv_coord_t center_y, lv_coord_t home_radius,
+                                 const lv_font_t* font);
+} // namespace helix

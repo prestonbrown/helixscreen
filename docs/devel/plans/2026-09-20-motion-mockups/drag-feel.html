@@ -1,0 +1,116 @@
+<style>
+  .bed{position:relative;background:#22272f;border:1px solid #3a424e;border-radius:4px;
+       width:132px;height:132px;
+       background-image:linear-gradient(#2e3540 1px,transparent 1px),
+                        linear-gradient(90deg,#2e3540 1px,transparent 1px);
+       background-size:33px 33px;}
+  .head{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;
+        background:#4a9eff;box-shadow:0 0 0 3px rgba(74,158,255,.25);}
+  .tgt{position:absolute;width:15px;height:15px;margin:-7.5px 0 0 -7.5px;border-radius:50%;
+       border:2px dashed #f0a020;}
+  .tgt::after{content:"";position:absolute;inset:4.5px;border-radius:50%;background:#f0a020;}
+  .finger{position:absolute;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;
+       background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.32);}
+  .stem{position:absolute;width:2px;background:rgba(240,160,32,.5);margin-left:-1px;}
+  .trail{position:absolute;height:2px;background:linear-gradient(90deg,rgba(74,158,255,0),#4a9eff);
+       border-radius:2px;transform-origin:left center;}
+  .bedlbl{font-size:8px;color:#6b7482;position:absolute;left:3px;bottom:2px;}
+  .frames{display:flex;gap:14px;flex-wrap:wrap;}
+  .fr{background:#1b1f26;border:1px solid #333a45;border-radius:8px;padding:12px;}
+  .fr .n{font-size:10px;color:#f0a020;font-weight:700;letter-spacing:.05em;margin-bottom:8px;
+       text-transform:uppercase;}
+  .fr .d{font-size:11px;color:#8b93a0;margin-top:8px;line-height:1.5;max-width:132px;}
+  .fr .d b{color:#e8eaed;}
+  .rd{font-size:10px;color:#f0a020;font-weight:600;text-align:center;margin-top:6px;}
+  .cap{font-size:12px;color:#8b93a0;margin-top:10px;line-height:1.55;}
+  .keyline{font-size:11px;color:#f0a020;font-weight:600;letter-spacing:.04em;
+        text-transform:uppercase;margin-bottom:8px;}
+  .lay{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;}
+  .lay .option{display:block;}
+  .note{background:#242931;border-left:3px solid #4a9eff;padding:11px 13px;border-radius:0 6px 6px 0;
+        font-size:12.5px;color:#a8b0bd;line-height:1.6;margin:16px 0;}
+  .note b{color:#e8eaed;}
+</style>
+
+<h2>Fair point. Here's the fix</h2>
+<p class="subtitle">The weirdness comes from offsetting at the moment of contact. So don't. Offset only once the finger is already moving.</p>
+
+<div class="frames">
+  <div class="fr">
+    <div class="n">1 &middot; Touch down</div>
+    <div class="bed">
+      <div class="head" style="left:72%;top:26%;"></div>
+      <div class="finger" style="left:34%;top:64%;"></div>
+      <div class="tgt" style="left:34%;top:64%;"></div>
+      <span class="bedlbl">0,0</span>
+    </div>
+    <div class="d">Target appears <b>exactly under your finger</b>. No jump, nothing to notice.</div>
+  </div>
+
+  <div class="fr">
+    <div class="n">2 &middot; Start moving</div>
+    <div class="bed">
+      <div class="head" style="left:72%;top:26%;"></div>
+      <div class="finger" style="left:46%;top:70%;"></div>
+      <div class="stem" style="left:46%;top:44%;height:26px;"></div>
+      <div class="tgt" style="left:46%;top:44%;"></div>
+      <span class="bedlbl">0,0</span>
+    </div>
+    <div class="d">It lifts clear on a short stem <b>while you are already in motion</b>, so your eye is tracking it, not the gap.</div>
+  </div>
+
+  <div class="fr">
+    <div class="n">3 &middot; Lift</div>
+    <div class="bed">
+      <div class="trail" style="left:72%;top:26%;width:60px;transform:rotate(128deg);"></div>
+      <div class="head" style="left:46%;top:44%;"></div>
+      <span class="bedlbl">0,0</span>
+    </div>
+    <div class="d">One move fires to the target. The head arrives where the dot was.</div>
+    <div class="rd">X 70.4 &nbsp; Y 44.9</div>
+  </div>
+</div>
+
+<div class="note">
+  <b>Why this works:</b> the offset never appears as a discontinuity. At contact there is none, and it grows over the first few millimetres of travel, by which point your attention is on the moving target rather than your fingertip. It is the same trick a text cursor uses on a phone. The one place it is still visible is a very short drag, so below a few millimetres of finger travel we treat it as a tap and skip the offset entirely.
+</div>
+
+<h3 style="margin-top:24px;">Or skip the cleverness</h3>
+
+<div class="options lay">
+
+  <div class="option" data-choice="lift" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <div class="keyline">Lift-on-move offset</div>
+      <div class="fr" style="display:inline-block;">
+        <div class="bed">
+          <div class="head" style="left:72%;top:26%;"></div>
+          <div class="finger" style="left:46%;top:70%;"></div>
+          <div class="stem" style="left:46%;top:44%;height:26px;"></div>
+          <div class="tgt" style="left:46%;top:44%;"></div>
+          <span class="bedlbl">0,0</span>
+        </div>
+        <div class="rd">X 70.4 &nbsp; Y 44.9</div>
+      </div>
+      <p class="cap">What the three frames above show. <b>You can see the spot you are choosing</b>, which matters when you are aiming at something physically on the bed rather than at a number.<br>Costs one piece of interaction nuance to get right.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="readout" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <div class="keyline">No offset, trust the readout</div>
+      <div class="fr" style="display:inline-block;">
+        <div class="bed">
+          <div class="head" style="left:72%;top:26%;"></div>
+          <div class="finger" style="left:46%;top:56%;"></div>
+          <span class="bedlbl">0,0</span>
+        </div>
+        <div class="rd">X 70.4 &nbsp; Y 44.9</div>
+      </div>
+      <p class="cap">Target stays under your finger. You cannot see it, but the <b>live coordinate readout tells you exactly where it is</b> before you lift.<br>Zero weirdness, nothing clever to tune. Weaker when the thing you are aiming at is <b>on</b> the bed and you wanted to point at it.</p>
+    </div>
+  </div>
+
+</div>
