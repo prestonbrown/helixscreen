@@ -65,7 +65,7 @@ actually trips on.
 ### One Makefile, three build verbs
 
 `make -j` and `make test` build disjoint artifacts. `make -j` (the default `all`
-target, [`mk/rules.mk#"all: apply-patches generate-fonts $(TRANS_XML) splash watchdog $(TARGET) $(FBDEV_TARGET) verify-fbdev strip-both bluetooth-plugin"`](../../../mk/rules.mk#L123)) builds **only** `helix-screen`: patches, generated fonts, translations,
+target, [`mk/rules.mk#"all: apply-patches generate-fonts $(TRANS_XML) splash watchdog $(TARGET) $(FBDEV_TARGET) verify-fbdev strip-both $(EGL_RUNG_GOALS) bluetooth-plugin"`](../../../mk/rules.mk#L127)) builds **only** `helix-screen`: patches, generated fonts, translations,
 splash, watchdog, the binary, stripping, and the optional Bluetooth plugin. `make test`
 ([`mk/tests.mk#test`](../../../mk/tests.mk#L420)) builds **only** `helix-tests`; `make unit-sweep` builds it and
 runs it as Catch2 shards, one per core, with the `~[.] ~[slow]` filter, and `make full-test-run`
@@ -199,7 +199,7 @@ picture, so the hook reads the position before that bound and bounds it by the p
 
 90 and 270 never go to the plane, whatever its mask advertises: the plane is programmed at
 the panel's own width and height and LVGL keeps laying out unrotated
-([`include/drm_rotation_strategy.h#choose_drm_rotation_strategy`](../../../include/drm_rotation_strategy.h)).
+([`src/api/drm_rotation_strategy.cpp#choose_drm_rotation_strategy`](../../../src/api/drm_rotation_strategy.cpp)).
 A board whose plane cannot carry the angle falls to the fbdev backend.
 
 **A panel needing 90 or 270 belongs on the fbdev binary.** Pi targets ship two

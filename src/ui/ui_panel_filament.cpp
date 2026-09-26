@@ -2002,7 +2002,9 @@ void FilamentPanel::handle_extruder_changed() {
 
     ts.request_tool_change(
         selected, api_,
-        [selected]() { NOTIFY_SUCCESS(lv_tr("Switched to {}"), helix::ui::tool_label(selected)); },
+        [label = ts.tools()[selected].display_label]() {
+            NOTIFY_SUCCESS(lv_tr("Switched to {}"), label);
+        },
         [this](const std::string& error) {
             NOTIFY_ERROR(lv_tr("Tool change failed: {}"), error);
             // Revert dropdown to actual active tool on UI thread
