@@ -19,6 +19,7 @@
 #include "../catch_amalgamated.hpp"
 
 using helix::Ad5xIfsTestAccess;
+using helix::AmsAction;
 using helix::AmsBackendAd5xIfs;
 
 using json = nlohmann::json;
@@ -95,6 +96,12 @@ TEST_CASE("AD5X IFS subscribes to the zmod objects only where they exist",
     REQUIRE(patched.size() == 3);
     CHECK(std::find(patched.begin(), patched.end(), "zmod_ifs") != patched.end());
     CHECK(std::find(patched.begin(), patched.end(), "zmod_color") != patched.end());
+
+    // Z-Mod's change macro, only where its config defines it.
+    hw.set_printer_objects({"toolhead", "save_variables", "gcode_macro END_CHANGE_FILAMENT"});
+    auto with_macro = AmsBackendAd5xIfs::required_status_objects(hw);
+    CHECK(std::find(with_macro.begin(), with_macro.end(), "gcode_macro END_CHANGE_FILAMENT") !=
+          with_macro.end());
 }
 
 TEST_CASE("AD5X IFS applies a pushed zmod_ifs frame", "[ams][ad5x_ifs][zmod_status]") {
@@ -179,4 +186,53 @@ TEST_CASE("AD5X IFS survives malformed zmod frames", "[ams][ad5x_ifs][zmod_statu
 
     CHECK(Ad5xIfsTestAccess::port_presence(backend, 2));
     CHECK_FALSE(Ad5xIfsTestAccess::port_presence(backend, 0));
+}
+
+namespace {
+json change_macro_frame(int channel) {
+    return json{{"gcode_macro END_CHANGE_FILAMENT",
+                 {{"last_data",
+                   {{"restore_position", 0},
+                    {"restore_temp", 1},
+                    {"temp", 220},
+                    {"fan_speed", 0.0},
+                    {"channel", channel}}}}}};
+}
+} // namespace
+
+TEST_CASE("AD5X IFS reports a Z-Mod filament change it did not start",
+          "[ams][ad5x_ifs][zmod_status][1714]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    REQUIRE(backend.can_cancel_operation());
+
+    // The runout auto-swap starts: last_data carries the target tool.
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(2));
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    // Its macro holds the G-code queue; Abort would only land after it.
+    CHECK_FALSE(backend.can_cancel_operation());
+
+    // A diff frame that carries the macro without last_data changes nothing.
+    Ad5xIfsTestAccess::handle_status(backend,
+                                     json{{"gcode_macro END_CHANGE_FILAMENT", json::object()}});
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+
+    // END_CHANGE_FILAMENT resets it to 99: the change is over.
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.can_cancel_operation());
+}
+
+TEST_CASE("AD5X IFS leaves an action it did not set to its owner",
+          "[ams][ad5x_ifs][zmod_status][1714]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+
+    // Something else already holds the action: the macro does not overwrite
+    // it, and its return to 99 does not clear it.
+    Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(1));
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
 }

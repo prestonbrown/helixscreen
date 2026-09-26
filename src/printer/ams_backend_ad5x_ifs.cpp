@@ -194,6 +194,13 @@ bool AmsBackendAd5xIfs::owns_filament_sensor(const std::string& bare_name,
     return false;
 }
 
+namespace {
+/// Z-Mod's change macro; its last_data.channel is the change in flight.
+constexpr const char* ZMOD_CHANGE_MACRO = "gcode_macro END_CHANGE_FILAMENT";
+/// last_data.channel when no change is running.
+constexpr int ZMOD_CHANGE_IDLE_CHANNEL = 99;
+} // namespace
+
 std::vector<std::string>
 AmsBackendAd5xIfs::required_status_objects(const helix::PrinterDiscovery& hw) {
     // Colors, types and the tool mapping. Present on every AD5X.
@@ -207,7 +214,7 @@ AmsBackendAd5xIfs::required_status_objects(const helix::PrinterDiscovery& hw) {
     // Klipper's objects/list only carries objects that implement get_status(),
     // so listing them IS the capability check.
     const auto& available = hw.printer_objects();
-    for (const char* name : {"ifs", "ifs_materials", "zmod_ifs", "zmod_color"}) {
+    for (const char* name : {"ifs", "ifs_materials", "zmod_ifs", "zmod_color", ZMOD_CHANGE_MACRO}) {
         if (std::find(available.begin(), available.end(), name) != available.end()) {
             objects.emplace_back(name);
         }
@@ -304,6 +311,7 @@ void AmsBackendAd5xIfs::on_started() {
                    // gate closed, same as a printer without the module.
                    {"ifs", nullptr},
                    {"ifs_materials", nullptr},
+                   {ZMOD_CHANGE_MACRO, nullptr},
                    // The module's toolhead sensor registers under this stock
                    // name ([ifs_toolhead_sensor toolhead]); its frames are the
                    // head-presence authority on that firmware.
@@ -701,6 +709,7 @@ void AmsBackendAd5xIfs::handle_status_update(const json& notification) {
     // board's `activity` are applied, which is what lets both ZMOD polls stand
     // down (see apply_ifs_module_objects).
     apply_ifs_module_objects(*status);
+    apply_zmod_change_macro(*status);
 
     // No AD5X-specific plugin subjects to publish: the auto-switchover state is
     // now carried by the backend-neutral `ams_endless_state` / `ams_endless_text`
@@ -2484,6 +2493,57 @@ AmsError AmsBackendAd5xIfs::reset() {
     const char* reset_cmd = ifs_module_live_.load() ? "IFS_RESET_DRIVER" : "IFS_UNLOCK";
     spdlog::info("{} Reset: {}", backend_log_tag(), reset_cmd);
     return execute_gcode(reset_cmd);
+}
+
+bool AmsBackendAd5xIfs::can_cancel_operation() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return !zmod_change_owns_action_;
+}
+
+void AmsBackendAd5xIfs::apply_zmod_change_macro(const json& status) {
+    auto it = status.find(ZMOD_CHANGE_MACRO);
+    if (it == status.end() || !it->is_object()) {
+        return;
+    }
+    // A diff frame without last_data means it did not change.
+    auto data = it->find("last_data");
+    if (data == it->end() || !data->is_object()) {
+        return;
+    }
+    auto channel = data->find("channel");
+    if (channel == data->end() || !channel->is_number_integer()) {
+        return;
+    }
+    const bool changing = channel->get<int>() != ZMOD_CHANGE_IDLE_CHANNEL;
+
+    bool action_changed = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const AmsAction before = system_info_.action;
+        if (changing) {
+            // Our own ops drive the action through the phase tracker; this only
+            // speaks for a change nothing of ours started.
+            if (!phase_tracker_.active && system_info_.action == AmsAction::IDLE) {
+                system_info_.action = AmsAction::SELECTING;
+                action_start_time_ = std::chrono::steady_clock::now();
+                set_operation_detail_locked("Changing filament");
+                zmod_change_owns_action_ = true;
+            }
+        } else if (zmod_change_owns_action_) {
+            if (system_info_.action == AmsAction::SELECTING) {
+                system_info_.action = AmsAction::IDLE;
+                set_operation_detail_locked("");
+            }
+            zmod_change_owns_action_ = false;
+        }
+        if (phase_tracker_.active) {
+            zmod_change_owns_action_ = false;
+        }
+        action_changed = system_info_.action != before;
+    }
+    if (action_changed) {
+        emit_event(EVENT_STATE_CHANGED);
+    }
 }
 
 AmsError AmsBackendAd5xIfs::cancel() {
