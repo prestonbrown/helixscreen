@@ -11,6 +11,10 @@
 
 static const char* TAG = "font_registration";
 
+// Repopulates the alias faces (components/helixapp/font_aliases.cpp) from the
+// now-populated noto_sans_18 shim; they hold montserrat_14 from static init.
+extern void helix_font_aliases_refresh(void);
+
 // Font symbols come from LV_FONT_CUSTOM_DECLARE in lv_conf.h (extern
 // lv_font_t declarations), backed by the .c sources compiled into helixcore
 // (see components/helixcore/CMakeLists.txt HELIX_FONT_SRCS). Referencing
@@ -96,6 +100,12 @@ void helix_fonts_register(void) {
     // The lv_binfont_create() results are intentionally never destroyed: they
     // live for the process lifetime and their glyph/cmap tables back the shim
     // struct-copies above, so lv_binfont_destroy would free data still in use.
+
+    // noto_sans_18 (first entry above) is populated or has its fallback; hand
+    // its glyphs to the alias faces before the token registrations below give
+    // LVGL their pointers. Whole-struct copy, so this must also precede
+    // CjkFontManager's ->fallback writes on those symbols (post-boot).
+    helix_font_aliases_refresh();
 
     lv_xml_register_font(NULL, "noto_sans_26", &noto_sans_26);
     lv_xml_register_font(NULL, "noto_sans_bold_28", &noto_sans_bold_28);
