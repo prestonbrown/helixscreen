@@ -35,6 +35,7 @@ struct DiscoveryFixture {
     std::vector<std::string> sensors;
     std::vector<std::string> fans;
     std::vector<std::string> leds;
+    std::vector<std::string> load_cells;
     std::vector<std::string> afc_objects;
     std::vector<std::string> filament_sensors;
     std::vector<std::string> mcus;
@@ -54,6 +55,8 @@ struct DiscoveryFixture {
                 leds.push_back(name);
             else if (c == "afc")
                 afc_objects.push_back(name);
+            else if (c == "load_cell")
+                load_cells.push_back(name);
             else if (c == "filament_sensor")
                 filament_sensors.push_back(name);
             else if (c == "mcu")
@@ -70,7 +73,7 @@ struct DiscoveryFixture {
     /// For a snapshot a test finished itself, e.g. one with a status claim settled.
     json build(const PrinterDiscovery& hw) const {
         return MoonrakerDiscoverySequence::build_subscription_objects(
-            hw, heaters, sensors, fans, leds, afc_objects, filament_sensors, mcus);
+            hw, heaters, sensors, load_cells, fans, leds, afc_objects, filament_sensors, mcus);
     }
 };
 

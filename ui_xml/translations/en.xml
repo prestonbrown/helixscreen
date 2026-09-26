@@ -1195,6 +1195,7 @@
   <translation tag="Flying Toasters" en="Flying Toasters"/>
   <translation tag="Follow active tool" en="Follow active tool"/>
   <translation tag="Follow graph screen" en="Follow graph screen"/>
+  <translation tag="Force/weight sensors" en="Force/weight sensors"/>
   <translation tag="Forget" en="Forget"/>
   <translation tag="Forget Network?" en="Forget Network?"/>
   <translation tag="Forget network &apos;{}&apos;? You will need the password to reconnect." en="Forget network &apos;{}&apos;? You will need the password to reconnect."/>
@@ -1479,6 +1480,7 @@
   <translation tag="LED strip available for lighting control" en="LED strip available for lighting control"/>
   <translation tag="LEDs" en="LEDs"/>
   <translation tag="LEDs controlled by the light button" en="LEDs controlled by the light button"/>
+  <translation tag="LOAD CELLS" en="LOAD CELLS"/>
   <translation tag="LOADED" en="LOADED"/>
   <translation tag="LOCKED" en="LOCKED"/>
   <translation tag="LOT-2024-001" en="LOT-2024-001"/>
@@ -1522,6 +1524,8 @@
   <translation tag="Listening" en="Listening"/>
   <translation tag="Live view from your webcam" en="Live view from your webcam"/>
   <translation tag="Load" en="Load"/>
+  <translation tag="Load Cell" en="Load Cell"/>
+  <translation tag="Load Cells" en="Load Cells"/>
   <translation tag="Load Failed" en="Load Failed"/>
   <translation tag="Load Filament" en="Load Filament"/>
   <translation tag="Load a filament first before trying to unload" en="Load a filament first before trying to unload"/>
@@ -2642,6 +2646,7 @@
   <translation tag="Spool #{}" en="Spool #{}"/>
   <translation tag="Spool Info" en="Spool Info"/>
   <translation tag="Spool Not Found" en="Spool Not Found"/>
+  <translation tag="Spool Weight" en="Spool Weight"/>
   <translation tag="Spool Weight (g)" en="Spool Weight (g)"/>
   <translation tag="Spool archived" en="Spool archived"/>
   <translation tag="Spool created successfully" en="Spool created successfully"/>

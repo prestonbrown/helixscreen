@@ -1171,9 +1171,10 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
 
 json MoonrakerDiscoverySequence::build_subscription_objects(
     const PrinterDiscovery& hw, const std::vector<std::string>& heaters,
-    const std::vector<std::string>& sensors, const std::vector<std::string>& fans,
-    const std::vector<std::string>& leds, const std::vector<std::string>& afc_objects,
-    const std::vector<std::string>& filament_sensors, const std::vector<std::string>& mcus) {
+    const std::vector<std::string>& sensors, const std::vector<std::string>& load_cells,
+    const std::vector<std::string>& fans, const std::vector<std::string>& leds,
+    const std::vector<std::string>& afc_objects, const std::vector<std::string>& filament_sensors,
+    const std::vector<std::string>& mcus) {
     json subscription_objects;
 
     // Core non-optional objects — narrow each to the fields HelixScreen
@@ -1239,6 +1240,11 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
     static const json temp_sensor_fields = json::array({"temperature", "humidity"});
     for (const auto& sensor : sensors) {
         subscription_objects[sensor] = temp_sensor_fields;
+    }
+
+    static const json load_cell_fields = json::array({"force_g"});
+    for (const auto& load_cell : load_cells) {
+        subscription_objects[load_cell] = load_cell_fields;
     }
 
     // All discovered fans. Klipper publishes fan speed updates whenever PWM
@@ -1650,8 +1656,8 @@ void MoonrakerDiscoverySequence::complete_discovery_subscription(uint64_t seq) {
 
     // Step 5: Subscribe to all discovered objects + core objects. The pure
     // helper builds the full objects map; per-section logging stays here.
-    json subscription_objects = build_subscription_objects(hw, heaters_, sensors_, fans_, leds_,
-                                                           afc_objects_, filament_sensors_, mcus_);
+    json subscription_objects = build_subscription_objects(
+        hw, heaters_, sensors_, load_cells_, fans_, leds_, afc_objects_, filament_sensors_, mcus_);
 
     // A matched z-offset persistence provider (ZMOD, Forge-X, Helper-Script's
     // save-zoffset) owns offset storage. "Save Z Offset" must stand down or
@@ -1838,6 +1844,7 @@ void MoonrakerDiscoverySequence::parse_objects(const json& objects) {
 
     heaters_.clear();
     sensors_.clear();
+    load_cells_.clear();
     fans_.clear();
     leds_.clear();
     steppers_.clear();
@@ -1873,6 +1880,10 @@ void MoonrakerDiscoverySequence::parse_objects(const json& objects) {
         // Generic heaters (e.g., "heater_generic chamber")
         else if (name.rfind("heater_generic ", 0) == 0) {
             heaters_.push_back(name);
+        }
+        // Load cells
+        else if (name.rfind("load_cell ", 0) == 0 || name == "load_cell") {
+            load_cells_.push_back(name);
         }
         // Read-only temperature sensors
         else if (name.rfind("temperature_sensor ", 0) == 0) {
@@ -1958,14 +1969,18 @@ void MoonrakerDiscoverySequence::parse_objects(const json& objects) {
         }
     }
 
-    spdlog::debug("[Moonraker Client] Discovered: {} heaters, {} sensors, {} fans, {} LEDs, {} "
+    spdlog::debug("[Moonraker Client] Discovered: {} heaters, {} sensors, {} load cells, {} fans, "
+                  "{} LEDs, {} "
                   "steppers, {} AFC objects, {} filament sensors, {} MCUs",
-                  heaters_.size(), sensors_.size(), fans_.size(), leds_.size(), steppers_.size(),
-                  afc_objects_.size(), filament_sensors_.size(), mcus_.size());
+                  heaters_.size(), sensors_.size(), load_cells_.size(), fans_.size(), leds_.size(),
+                  steppers_.size(), afc_objects_.size(), filament_sensors_.size(), mcus_.size());
 
     // Debug output of discovered objects
     if (!heaters_.empty()) {
         spdlog::debug("[Moonraker Client] Heaters: {}", json(heaters_).dump());
+    }
+    if (!load_cells_.empty()) {
+        spdlog::debug("[Moonraker Client] Load cells: {}", json(load_cells_).dump());
     }
     if (!sensors_.empty()) {
         spdlog::debug("[Moonraker Client] Sensors: {}", json(sensors_).dump());

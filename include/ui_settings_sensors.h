@@ -248,6 +248,16 @@ class SensorSettingsOverlay : public OverlayBase {
     void populate_chamber_assignment();
 
     /**
+     * @brief Populate load cell list from LoadCellManager
+     */
+    void populate_load_cells();
+
+    /**
+     * @brief Update load cell count label
+     */
+    void update_load_cell_count();
+
+    /**
      * @brief Populate temperature sensor list from TemperatureSensorManager
      */
     void populate_temperature_sensors();

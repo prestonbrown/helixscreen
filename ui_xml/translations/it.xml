@@ -1195,6 +1195,7 @@
   <translation tag="Flying Toasters" it="Tostapane volanti"/>
   <translation tag="Follow active tool" it="Segui strumento attivo"/>
   <translation tag="Follow graph screen" it="Segui schermata grafico"/>
+  <translation tag="Force/weight sensors"/>
   <translation tag="Forget" it="Dimentica"/>
   <translation tag="Forget Network?" it="Dimenticare la rete?"/>
   <translation tag="Forget network &apos;{}&apos;? You will need the password to reconnect." it="Dimenticare la rete &apos;{}&apos;? Servirà la password per riconnetterti."/>
@@ -1479,6 +1480,7 @@
   <translation tag="LED strip available for lighting control" it="Striscia LED disponibile per il controllo dell&apos;illuminazione"/>
   <translation tag="LEDs" it="LEDs"/>
   <translation tag="LEDs controlled by the light button" it="LEDs controllati dal pulsante luce"/>
+  <translation tag="LOAD CELLS"/>
   <translation tag="LOADED" it="CARICATO"/>
   <translation tag="LOCKED" it="BLOCCATO"/>
   <translation tag="LOT-2024-001" it="LOT-2024-001"/>
@@ -1522,6 +1524,8 @@
   <translation tag="Listening" it="In ascolto"/>
   <translation tag="Live view from your webcam" it="Vista live dalla webcam"/>
   <translation tag="Load" it="Carica"/>
+  <translation tag="Load Cell"/>
+  <translation tag="Load Cells"/>
   <translation tag="Load Failed" it="Caricamento non riuscito"/>
   <translation tag="Load Filament" it="Carica filamento"/>
   <translation tag="Load a filament first before trying to unload" it="Prima carica il filamento, poi prova a scaricarlo"/>
@@ -2642,6 +2646,7 @@
   <translation tag="Spool #{}" it="Bobina #{}"/>
   <translation tag="Spool Info" it="Info bobina"/>
   <translation tag="Spool Not Found" it="Bobina non trovata"/>
+  <translation tag="Spool Weight" it="Peso bobina"/>
   <translation tag="Spool Weight (g)" it="Peso bobina (g)"/>
   <translation tag="Spool archived" it="Bobina archiviata"/>
   <translation tag="Spool created successfully" it="Bobina creata con successo"/>

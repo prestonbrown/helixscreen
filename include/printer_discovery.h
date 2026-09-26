@@ -201,6 +201,12 @@ class PrinterDiscovery {
                 try_set_chamber_heater(name, heater_name, CHAMBER_HEATER_GENERIC_WEIGHT);
             }
             // ================================================================
+            // Load cells: load_cell
+            // ================================================================
+            else if (name.rfind("load_cell ", 0) == 0 || name == "load_cell") {
+                load_cells_.push_back(name);
+            }
+            // ================================================================
             // Sensors: temperature_sensor, temperature_fan (dual-purpose)
             // ================================================================
             else if (name.rfind("temperature_sensor ", 0) == 0) {
@@ -1017,6 +1023,7 @@ class PrinterDiscovery {
         // Hardware lists
         heaters_.clear();
         fans_.clear();
+        load_cells_.clear();
         sensors_.clear();
         leds_.clear();
         steppers_.clear();
@@ -1114,6 +1121,10 @@ class PrinterDiscovery {
 
     [[nodiscard]] const std::vector<std::string>& fans() const {
         return fans_;
+    }
+
+    [[nodiscard]] const std::vector<std::string>& load_cells() const {
+        return load_cells_;
     }
 
     [[nodiscard]] const std::vector<std::string>& sensors() const {
@@ -1838,6 +1849,7 @@ class PrinterDiscovery {
     // Hardware lists
     std::vector<std::string> heaters_;
     std::vector<std::string> fans_;
+    std::vector<std::string> load_cells_;
     std::vector<std::string> sensors_;
     std::vector<std::string> leds_;
     std::vector<std::string> steppers_;

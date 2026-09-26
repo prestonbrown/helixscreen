@@ -20,6 +20,7 @@
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "humidity_sensor_manager.h"
+#include "load_cell_manager.h"
 #include "printer_hardware.h"
 #include "printer_state.h"
 #include "probe_sensor_manager.h"
@@ -711,6 +712,23 @@ void SensorSettingsOverlay::populate_color_sensors() {
 }
 
 // ============================================================================
+// LOAD CELLS
+// ============================================================================
+
+void SensorSettingsOverlay::update_load_cell_count() {
+    if (!overlay_root_)
+        return;
+
+    lv_obj_t* badge = lv_obj_find_by_name(overlay_root_, "load_cell_count_label");
+    if (badge) {
+        auto& mgr = helix::sensors::LoadCellManager::instance();
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%zu", mgr.sensor_count());
+        ui_status_pill_set_text(badge, buf);
+    }
+}
+
+// ============================================================================
 // TEMPERATURE SENSORS
 // ============================================================================
 
@@ -879,6 +897,56 @@ void SensorSettingsOverlay::populate_chamber_assignment() {
 }
 
 // ============================================================================
+// LOAD CELLS
+// ============================================================================
+
+void SensorSettingsOverlay::populate_load_cells() {
+    if (!overlay_root_)
+        return;
+
+    lv_obj_t* sensors_list = lv_obj_find_by_name(overlay_root_, "load_cell_list");
+    if (!sensors_list) {
+        spdlog::debug("[{}] Could not find load_cell_list container", get_name());
+        return;
+    }
+
+    // Clear existing rows
+    uint32_t child_count = lv_obj_get_child_count(sensors_list);
+    for (int i = static_cast<int>(child_count) - 1; i >= 0; i--) {
+        lv_obj_t* child = lv_obj_get_child(sensors_list, i);
+        helix::ui::safe_delete(child);
+    }
+
+    auto& mgr = helix::sensors::LoadCellManager::instance();
+    auto sensors = mgr.get_sensors_sorted();
+
+    spdlog::debug("[{}] Populating load cell list with {} load cells", get_name(), sensors.size());
+
+    // Create a row for each load cell using XML component
+    for (const auto& sensor : sensors) {
+        // Create sensor row from XML component
+        const char* attrs[] = {"sensor_name", sensor.display_name.c_str(), nullptr};
+        auto* row = static_cast<lv_obj_t*>(lv_xml_create(sensors_list, "load_cell_row", attrs));
+        if (!row) {
+            spdlog::error("[{}] Failed to create sensor row for {}", get_name(),
+                          sensor.sensor_name);
+            continue;
+        }
+
+        // Store klipper_name as user data for callbacks. The helper owns the
+        // copy and frees it on LV_EVENT_DELETE; the row is created here, so the
+        // user_data slot is ours (L069).
+        if (!helix::ui::set_owned_user_string(row, sensor.klipper_name)) {
+            spdlog::error("[{}] Failed to attach sensor name to row: {}", get_name(),
+                          sensor.klipper_name);
+            continue;
+        }
+
+        spdlog::debug("[{}]   Created row for load_cell: {}", get_name(), sensor.sensor_name);
+    }
+}
+
+// ============================================================================
 // TEMPERATURE SENSORS
 // ============================================================================
 
@@ -962,6 +1030,7 @@ void SensorSettingsOverlay::populate_all_sensors() {
     populate_color_sensors();
     populate_chamber_assignment();
     populate_temperature_sensors();
+    populate_load_cells();
 }
 
 void SensorSettingsOverlay::update_all_sensor_counts() {
@@ -972,6 +1041,7 @@ void SensorSettingsOverlay::update_all_sensor_counts() {
     update_accel_sensor_count();
     update_color_sensor_count();
     update_temperature_sensor_count();
+    update_load_cell_count();
 }
 
 // ============================================================================

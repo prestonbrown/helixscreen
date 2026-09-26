@@ -1296,6 +1296,7 @@ translations:
   Flying Toasters: Летающие тостеры
   Follow active tool: Следовать активному инструменту
   Follow graph screen: Следовать экрану графика
+  Force/weight sensors: ''
   Forget: Забыть
   Forget Network?: Забыть сеть?
   Forget network '{}'? You will need the password to reconnect.: Забыть сеть «{}»? Для повторного подключения потребуется пароль.
@@ -1624,6 +1625,7 @@ translations:
     освещением
   LEDs: LED
   LEDs controlled by the light button: LED, управляемые кнопкой света
+  LOAD CELLS: ''
   LOADED: ЗАГРУЖЕН
   LOCKED: ЗАБЛОКИРОВАНО
   LOT-2024-001: LOT-2024-001
@@ -1673,6 +1675,8 @@ translations:
   Listening: Прослушивание
   Live view from your webcam: Прямая трансляция с веб-камеры
   Load: Загрузить
+  Load Cell: ''
+  Load Cells: ''
   Load Failed: 'Не удалось загрузить'
   Load Filament: Загрузить филамент
   Load a filament first before trying to unload: Сначала загрузите филамент, прежде чем пытаться его выгрузить
@@ -2895,6 +2899,7 @@ translations:
   'Spool #{}': 'Катушка #{}'
   Spool Info: Информация о катушке
   Spool Not Found: 'Катушка не найдена'
+  Spool Weight: Вес катушки
   Spool Weight (g): Вес катушки (г)
   Spool archived: Катушка архивирована
   Spool created successfully: Катушка успешно создана

@@ -8,6 +8,7 @@
 #include "ams_types.h"
 #include "filament_database.h"
 #include "lane_source_store.h"
+#include "load_cell_manager.h"
 #include "lvgl/lvgl.h"
 
 #include <spdlog/spdlog.h>
@@ -54,6 +55,12 @@ uint32_t ExternalSpoolSink::persist_interval_ms() const {
 
 void ExternalSpoolSink::snapshot(float filament_used_mm) {
     active_ = false;
+
+    // If a spool weight load cell is available, use it as the source of truth instead.
+    if (sensors::LoadCellManager::instance().has_spool_weight_load_cell()) {
+        return;
+    }
+
     auto info_opt = AmsState::instance().raw_external_spool_info();
     if (!info_opt.has_value()) {
         spdlog::debug("[ConsumptionSink:external] No external spool; skipping");

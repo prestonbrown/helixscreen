@@ -30,6 +30,7 @@
 #include "i_moonraker_client.h" // for helix::CACHED_SNAPSHOT_MARKER
 #include "json_utils.h"
 #include "led/led_controller.h"
+#include "load_cell_manager.h"
 #include "lvgl.h"
 #include "lvgl/src/display/lv_display_private.h" // For rendering_in_progress check
 #include "lvgl_debug_invalidate.h"
@@ -656,6 +657,7 @@ void PrinterState::update_from_status(const json& state, double eventtime,
     helix::sensors::AccelSensorManager::instance().update_from_status(state);
     helix::sensors::ColorSensorManager::instance().update_from_status(state);
     helix::sensors::TemperatureSensorManager::instance().update_from_status(state);
+    helix::sensors::LoadCellManager::instance().update_from_status(state);
 }
 
 void PrinterState::reset_for_new_print() {

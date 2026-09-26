@@ -1310,6 +1310,7 @@ translations:
   Flying Toasters: Tostapane volanti
   Follow active tool: Segui strumento attivo
   Follow graph screen: Segui schermata grafico
+  Force/weight sensors: ''
   Forget: Dimentica
   Forget Network?: Dimenticare la rete?
   Forget network '{}'? You will need the password to reconnect.: Dimenticare la rete '{}'? Servirà la password per riconnetterti.
@@ -1641,6 +1642,7 @@ translations:
     dell'illuminazione
   LEDs: LEDs
   LEDs controlled by the light button: LEDs controllati dal pulsante luce
+  LOAD CELLS: ''
   LOADED: CARICATO
   LOCKED: BLOCCATO
   LOT-2024-001: LOT-2024-001
@@ -1691,6 +1693,8 @@ translations:
   Listening: In ascolto
   Live view from your webcam: Vista live dalla webcam
   Load: Carica
+  Load Cell: ''
+  Load Cells: ''
   Load Failed: 'Caricamento non riuscito'
   Load Filament: Carica filamento
   Load a filament first before trying to unload: Prima carica il filamento, poi prova a scaricarlo
@@ -2923,6 +2927,7 @@ translations:
   'Spool #{}': 'Bobina #{}'
   Spool Info: Info bobina
   Spool Not Found: 'Bobina non trovata'
+  Spool Weight: Peso bobina
   Spool Weight (g): Peso bobina (g)
   Spool archived: Bobina archiviata
   Spool created successfully: Bobina creata con successo
