@@ -151,6 +151,15 @@ static SoundDefinition make_multi_step(std::vector<std::pair<float, float>> freq
 
 // Wait for playback to finish with timeout.
 // First waits for playing to start, then waits for it to end.
+/// The sequencer scales every amplitude by AudioSettingsManager's volume, which
+/// reads a subject that only exists after init_subjects(). Setting the volume
+/// before then leaves it at 0, so every amplitude this file measures reads 0.
+static void set_full_volume() {
+    lv_init_safe();
+    SettingsManager::instance().init_subjects();
+    AudioSettingsManager::instance().set_volume(100);
+}
+
 static bool wait_until_done(SoundSequencer& seq, int timeout_ms = 5000) {
     auto start = std::chrono::steady_clock::now();
 
@@ -387,9 +396,7 @@ TEST_CASE("SoundSequencer: sub-floor steps are stretched to the min_tick_ms inte
 // ============================================================================
 
 TEST_CASE("SoundSequencer: ADSR attack ramps amplitude up", "[sound][sequencer][slow]") {
-    lv_init_safe();
-    SettingsManager::instance().init_subjects();
-    AudioSettingsManager::instance().set_volume(100);
+    set_full_volume();
     auto backend = std::make_shared<MockBackend>();
     SoundSequencer seq(backend);
     seq.start();
@@ -465,7 +472,7 @@ TEST_CASE("SoundSequencer: ADSR attack ramps amplitude up", "[sound][sequencer][
 // ============================================================================
 
 TEST_CASE("SoundSequencer: ADSR decay drops amplitude toward sustain", "[sound][sequencer][slow]") {
-    AudioSettingsManager::instance().set_volume(100);
+    set_full_volume();
     auto backend = std::make_shared<MockBackend>();
     SoundSequencer seq(backend);
     seq.start();
@@ -520,7 +527,7 @@ TEST_CASE("SoundSequencer: ADSR decay drops amplitude toward sustain", "[sound][
 // ============================================================================
 
 TEST_CASE("SoundSequencer: ADSR sustain holds amplitude", "[sound][sequencer][slow]") {
-    AudioSettingsManager::instance().set_volume(100);
+    set_full_volume();
     auto backend = std::make_shared<MockBackend>();
     SoundSequencer seq(backend);
     seq.start();
@@ -670,9 +677,7 @@ TEST_CASE("SoundSequencer: LFO modulates frequency", "[sound][sequencer][slow]")
 // ============================================================================
 
 TEST_CASE("SoundSequencer: LFO modulates amplitude", "[sound][sequencer][slow]") {
-    lv_init_safe();
-    SettingsManager::instance().init_subjects();
-    AudioSettingsManager::instance().set_volume(100);
+    set_full_volume();
     auto backend = std::make_shared<MockBackend>();
     SoundSequencer seq(backend);
     seq.start();

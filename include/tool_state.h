@@ -98,12 +98,16 @@ struct ToolInfo {
     }
 };
 
-/// Tool topology sourced from an AMS backend that multiplexes tools (e.g. AFC).
-/// When set, ToolState rebuilds its tool list from this and ignores extruder
-/// enumeration. tool_to_slot[i] is the backend slot index that tool i sources.
+/// Tool topology sourced from an AMS backend: multiplexing systems (e.g. AFC)
+/// and tool changers both push it. When set, ToolState rebuilds its tool list
+/// from this and ignores extruder enumeration. tool_to_slot[i] is the backend
+/// slot index that tool i sources.
 struct ToolTopology {
     int tool_count = 0;
     int active_tool = -1;
+    /// The carriage can hold no tool at all, so active_tool -1 is a real state
+    /// rather than "nothing loaded". True where selecting a slot mounts a tool.
+    bool allows_empty_carriage = false;
     std::vector<int> tool_to_slot;
     int backend_index = 0; ///< Source backend in AmsState::backends_
 };

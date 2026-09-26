@@ -43,6 +43,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -1925,6 +1926,12 @@ nlohmann::json TelemetryManager::build_hw_ams_section(const helix::PrinterDiscov
         break;
     case AmsType::CFS:
         ams["type"] = "cfs";
+        break;
+    case AmsType::QIDI_BOX:
+        ams["type"] = "qidi_box";
+        break;
+    case AmsType::OPENAMS:
+        ams["type"] = "openams";
         break;
     default:
         ams["type"] = "unknown";

@@ -482,7 +482,7 @@ void ThemeEditorOverlay::handle_back_clicked() {
 // Translation hints for border radius size names (dynamic lookup via BorderRadiusSizes::name()).
 // These are never called — they exist so the translation extractor can find the strings.
 // clang-format off
-static void border_radius_translation_hints_() {
+[[maybe_unused]] static void border_radius_translation_hints_() {
     (void)lv_tr("None"); (void)lv_tr("Minimal"); (void)lv_tr("Subtle"); (void)lv_tr("Soft");
     (void)lv_tr("Rounded"); (void)lv_tr("Bold"); (void)lv_tr("Pill"); (void)lv_tr("Full");
 }

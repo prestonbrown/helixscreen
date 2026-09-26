@@ -41,6 +41,7 @@ class PrinterDiscovery;
 typedef struct _lv_subject_t lv_subject_t;
 
 #include <any>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -1531,6 +1532,16 @@ class AmsBackend {
      */
     virtual AmsError cancel() = 0;
 
+    /**
+     * @brief Whether cancel() can reach what is running now
+     *
+     * False while the running operation holds something cancel() would queue
+     * behind, so the UI withholds Abort rather than offering one that fails.
+     */
+    [[nodiscard]] virtual bool can_cancel_operation() const {
+        return true;
+    }
+
     // ========================================================================
     // Resume Preparation
     // ========================================================================
@@ -1620,6 +1631,42 @@ class AmsBackend {
                                      const helix::ams::Observation& declared) = 0;
 
     /**
+     * @brief The stamp of the slot's current echo staging, 0 when it has none.
+     *
+     * commit_user_edit() captures this ahead of apply_user_edit() so a refusal
+     * can name the staging it must cancel instead of dropping whatever the
+     * slot holds. The default names nothing; AmsSubscriptionBackend answers
+     * from its own_write_echoes().
+     *
+     * @param slot_index Slot whose staging stamp to read (0-based, global)
+     */
+    virtual std::uint64_t own_write_echo_sequence(int slot_index) {
+        (void)slot_index;
+        return 0;
+    }
+
+    /**
+     * @brief Cancel the echo staging a refused dispatch left behind.
+     *
+     * commit_user_edit() calls this when apply_user_edit() refuses an edit
+     * outright: a write that never went out has no echo, and a guard left
+     * standing would withhold the next genuine firmware reading until its
+     * boundary moved. The matched @p staged_sequence drops only the staging
+     * this refusal created and restores the armed predecessor it suspended:
+     * an earlier edit's write did go out, and firmware is still repeating
+     * it. The default does nothing, for a backend that writes no identity
+     * back to firmware; AmsSubscriptionBackend cancels the staging its
+     * own_write_echoes() holds under that stamp.
+     *
+     * @param slot_index Slot whose staging to cancel (0-based, global)
+     * @param staged_sequence own_write_echo_sequence() of the staging to cancel
+     */
+    virtual void abandon_own_write_echoes(int slot_index, std::uint64_t staged_sequence) {
+        (void)slot_index;
+        (void)staged_sequence;
+    }
+
+    /**
      * @brief Put filament information that arrived from outside on a slot.
      *
      * For values nobody chose here, such as a tool changer's per-tool spool
@@ -1655,6 +1702,18 @@ class AmsBackend {
      */
     virtual void repaint_slot_from_lane(int slot_index) {
         (void)slot_index;
+    }
+
+    /**
+     * @brief Whether this slot's colour and material live in firmware the backend
+     *        writes through to.
+     *
+     * A user edit then declares neither: the firmware's echo is the only record,
+     * so a change made on the printer is never masked by an older edit here.
+     */
+    [[nodiscard]] virtual bool firmware_stores_color_and_material(int slot_index) const {
+        (void)slot_index;
+        return false;
     }
 
     /**
@@ -2263,18 +2322,20 @@ class AmsBackend {
      * Tx tool-change commands need to be rewritten before the print starts, or
      * whether the backend handles routing internally.
      *
-     *  None            — base / default; no multi-tool routing (single-extruder,
-     *                    no AMS attached)
-     *  Native          — backend owns the T0..Tn → slot mapping internally
-     *                    (Happy Hare, AFC, CFS, AD5X IFS, ToolChanger); helix
-     *                    does NOT rewrite gcode
-     *  GcodeRewrite    — helix must rewrite Tx commands in the gcode file because
-     *                    the firmware has no internal tool-routing table (ACE)
-     *  SnapmakerNative — backend emits firmware-native print_task_config gcode
-     *                    (SET_PRINT_USED_EXTRUDERS / SET_PRINT_EXTRUDER_MAP) before
-     *                    PRINT_START; no gcode-file rewrite (Snapmaker U1)
+     *  None        : base / default; no multi-tool routing (single-extruder,
+     *                 no AMS attached)
+     *  Native      : backend owns the T0..Tn → slot mapping internally
+     *                 (Happy Hare, AFC, CFS, AD5X IFS, ToolChanger); helix
+     *                 does NOT rewrite gcode
+     *  GcodeRewrite: helix must rewrite Tx commands in the gcode file because
+     *                 the firmware has no internal tool-routing table (a tool
+     *                 changer driving swaps with its own T<n> macros rather
+     *                 than klipper-toolchanger)
+     *  PrePrintSend: backend emits firmware-native print_task_config gcode
+     *                 (SET_PRINT_USED_EXTRUDERS / SET_PRINT_EXTRUDER_MAP) before
+     *                 PRINT_START; no gcode-file rewrite (Snapmaker U1)
      */
-    enum class RemapStrategy { None, Native, GcodeRewrite, SnapmakerNative };
+    enum class RemapStrategy { None, Native, GcodeRewrite, PrePrintSend };
 
     /**
      * @brief Get the tool-remapping strategy for this backend.
@@ -2361,15 +2422,34 @@ class AmsBackend {
     }
 
     /**
-     * @brief Whether this backend is an AFC (Armored Turtle) system.
+     * @brief Whether the reported bypass position is virtual rather than physical.
      *
-     * Identity gate for AFC-specific UI sections (e.g. the unload-after-print
-     * toggle in the device-operations overlay) that have no behavioral analogue
-     * on other backends. Only AFC overrides this.
+     * True on a backend whose firmware publishes a bypass sensor whether or not
+     * the user has anything wired to it, so `supports_bypass` alone cannot tell
+     * a real bypass position from a phantom one. The bypass node on the
+     * filament path is hidden while bypass is disengaged on such a backend,
+     * unless the user opts back in via the always-show setting; on a backend
+     * with a physical bypass the node stays visible whenever supported.
      *
-     * @return true if this is an AFC backend
+     * @return true if bypass support is reported even with no bypass hardware
      */
-    [[nodiscard]] virtual bool is_afc_system() const {
+    [[nodiscard]] virtual bool bypass_is_virtual() const {
+        return false;
+    }
+
+    /**
+     * @brief Whether the user decides, from this screen, whether the toolhead
+     *        unloads after a print.
+     *
+     * Drives the unload-after-print toggle row in the device-operations
+     * overlay. Backends whose firmware fixes the behavior one way (always
+     * unloads, or never does) have nothing for the toggle to decide, so the
+     * row stays hidden there; the setting the toggle writes is what the
+     * backend's end-of-print macros consult.
+     *
+     * @return true if the post-print toolhead unload is a user setting here
+     */
+    [[nodiscard]] virtual bool supports_configurable_unload_after_print() const {
         return false;
     }
 
@@ -2418,6 +2498,17 @@ class AmsBackend {
      * @return true if a physical tray should be drawn
      */
     [[nodiscard]] virtual bool has_physical_tray() const {
+        return true;
+    }
+
+    /**
+     * @brief Whether get_slot_info(i).status says anything about filament.
+     *
+     * A backend whose slot status tracks something else (a tool changer's dock
+     * state) answers false, and the pre-print check then takes a RUNOUT sensor
+     * mapped to that slot as the slot's filament reading.
+     */
+    [[nodiscard]] virtual bool slot_status_tracks_filament() const {
         return true;
     }
 
@@ -2918,6 +3009,20 @@ class AmsBackend {
      */
     virtual void set_tool_commands(helix::toolchanger_addon::ToolCommands commands) {
         (void)commands;
+    }
+
+    /**
+     * @brief Declare the firmware material store this machine keeps, if any
+     *
+     * Called before start(). Only tool changers use it: a changer whose
+     * firmware stores each slot's material and colour itself publishes them on
+     * its status object, so HelixScreen's own store stops being the only one.
+     * Absent - the default - means the firmware keeps no such record.
+     *
+     * @param source Resolved material source; absent when the printer has none
+     */
+    virtual void set_material_source(helix::toolchanger_addon::MaterialSource source) {
+        (void)source;
     }
 
     /**

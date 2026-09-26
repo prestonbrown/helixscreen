@@ -36,13 +36,15 @@ const char* const kDeviceOpsSubjects[] = {
     "ams_device_ops_hw_bypass_sensor",
     "ams_device_ops_supports_auto_heat",
     "ams_device_ops_has_backend",
-    "ams_device_ops_is_afc",
+    "ams_device_ops_unload_after_print_configurable",
+    "ams_device_ops_bypass_is_virtual",
     "ams_device_ops_reports_spool_ids",
     "ams_device_ops_printer_retains_spool_info",
     "ams_device_ops_is_qidi",
     "ams_device_ops_qidi_eject_distance_display",
     "ams_device_ops_qidi_eject_velocity_display",
     "ams_device_ops_can_reset_endless_spool",
+    "ams_device_ops_can_abort",
 };
 
 } // namespace

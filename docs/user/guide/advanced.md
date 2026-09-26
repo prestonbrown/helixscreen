@@ -91,6 +91,19 @@ Some macros accept parameters (variables or arguments defined in your Klipper co
 
 If HelixScreen can't determine the parameters (e.g., complex Jinja2 templates), a freeform text field lets you type raw parameters.
 
+**Saved default values:**
+
+If you type the same values every time, save them once:
+
+1. Open the editor: in the Macros panel, press-and-hold to enter edit mode and tap the **tune icon** on the macro's row — or, on a home panel Macro Button, open **Customize → Options → Default Parameters**
+2. Fill in the values you want remembered
+3. Leave **Ask for parameters** on, or switch it off
+4. Tap **Save**
+
+With **Ask for parameters** on (the default), tapping the macro still opens the form — but every field starts filled with your saved values, so you can adjust one and run. With it off, the macro runs immediately using the saved values, with no form at all.
+
+> **Note:** The dangerous-macro confirmation is never skipped by saved defaults, and a Macro Button with "Require Confirmation?" off runs with the saved values directly. Saved defaults are kept per printer, like your hidden-macro choices.
+
 **Dangerous macro protection:**
 
 These macros show a confirmation dialog before executing:

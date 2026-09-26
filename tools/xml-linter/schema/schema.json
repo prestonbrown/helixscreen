@@ -1889,6 +1889,23 @@
     },
     "ams_lane_bar": {
       "attributes": {
+        "bar_width": {
+          "type": "string"
+        },
+        "bar_height": {
+          "type": "string"
+        },
+        "slot_index": {
+          "type": "int"
+        }
+      },
+      "inherits": "lv_obj"
+    },
+    "ams_lane_spool": {
+      "attributes": {
+        "spool_size": {
+          "type": "string"
+        },
         "slot_index": {
           "type": "int"
         }
@@ -2850,6 +2867,7 @@
     "helix_sparkline",
     "setting_group",
     "ams_lane_bar",
+    "ams_lane_spool",
     "belt_trace",
     "pluck_animation"
   ],
@@ -2942,14 +2960,6 @@
     "badge_size",
     "badge_size_large",
     "badge_size_medium",
-    "badge_size_on_sm_icon",
-    "badge_size_on_sm_icon_large",
-    "badge_size_on_sm_icon_medium",
-    "badge_size_on_sm_icon_micro",
-    "badge_size_on_sm_icon_small",
-    "badge_size_on_sm_icon_tiny",
-    "badge_size_on_sm_icon_xlarge",
-    "badge_size_on_sm_icon_xxlarge",
     "badge_size_small",
     "badge_size_tiny",
     "badge_size_xlarge",
@@ -3161,14 +3171,6 @@
     "filament_idle_light",
     "filament_metal",
     "focus",
-    "font_badge_compact",
-    "font_badge_compact_large",
-    "font_badge_compact_medium",
-    "font_badge_compact_micro",
-    "font_badge_compact_small",
-    "font_badge_compact_tiny",
-    "font_badge_compact_xlarge",
-    "font_badge_compact_xxlarge",
     "font_body",
     "font_body_bold",
     "font_body_bold_large",
@@ -3185,6 +3187,14 @@
     "font_body_tiny",
     "font_body_xlarge",
     "font_body_xxlarge",
+    "font_display",
+    "font_display_large",
+    "font_display_medium",
+    "font_display_micro",
+    "font_display_small",
+    "font_display_tiny",
+    "font_display_xlarge",
+    "font_display_xxlarge",
     "font_heading",
     "font_heading_large",
     "font_heading_medium",

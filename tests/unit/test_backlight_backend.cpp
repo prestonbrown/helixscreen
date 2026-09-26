@@ -33,6 +33,8 @@ std::string brightness_cli_command(int percent, int floor_percent = 0);
 // Pure percent -> raw mapping shared by every backend (also defined in
 // backlight_backend.cpp).
 int raw_from_percent(int percent, int max_raw, int floor_percent);
+int build_floor_percent(bool dev_disp_backend, int build_floor);
+int backlight_floor_percent(int build_floor);
 } // namespace helix::backlight_internal
 
 TEST_CASE("brightness_cli_command: zero or negative powers the backlight off",
@@ -55,9 +57,11 @@ TEST_CASE("brightness_cli_command: positive powers on and scales 0-100 to 0-255"
 TEST_CASE("brightness_cli_command: floor lifts the lowest on-levels",
           "[api][backlight][cli][1709]") {
     REQUIRE(helix::backlight_internal::brightness_cli_command(0, 20) == "brightness -s 0");
-    // 51 + 204*1/100: dimmest CLI level lands at the floor, not near-black.
+    // Any on-level at or below the slider minimum lands exactly on the floor.
     REQUIRE(helix::backlight_internal::brightness_cli_command(1, 20) ==
-            "brightness -s 1; brightness -d 53");
+            "brightness -s 1; brightness -d 51");
+    REQUIRE(helix::backlight_internal::brightness_cli_command(10, 20) ==
+            "brightness -s 1; brightness -d 51");
     REQUIRE(helix::backlight_internal::brightness_cli_command(100, 20) ==
             "brightness -s 1; brightness -d 255");
 }
@@ -73,15 +77,24 @@ TEST_CASE("raw_from_percent: no floor keeps the plain linear map", "[api][backli
     REQUIRE(helix::backlight_internal::raw_from_percent(100, 255, 0) == 255);
 }
 
-TEST_CASE("raw_from_percent: floor scales nonzero levels across [floor, max]",
+TEST_CASE("raw_from_percent: with a floor, the slider range spans [floor, max]",
           "[api][backlight][1709]") {
     // 20% of 255 = 51, the boundary the K2 panel still renders visibly (#1709).
-    // Off stays a true 0 (sleep); every nonzero level lands at or above the floor.
+    // The slider's minimum (10) is the floor itself, so the dimmest setting a
+    // user can pick is the dimmest the panel shows. Off stays a true 0 (sleep).
     REQUIRE(helix::backlight_internal::raw_from_percent(0, 255, 20) == 0);
-    REQUIRE(helix::backlight_internal::raw_from_percent(1, 255, 20) == 53);
-    REQUIRE(helix::backlight_internal::raw_from_percent(10, 255, 20) == 71);
-    REQUIRE(helix::backlight_internal::raw_from_percent(50, 255, 20) == 153);
+    REQUIRE(helix::backlight_internal::raw_from_percent(1, 255, 20) == 51);
+    REQUIRE(helix::backlight_internal::raw_from_percent(10, 255, 20) == 51);
+    REQUIRE(helix::backlight_internal::raw_from_percent(55, 255, 20) == 153);
     REQUIRE(helix::backlight_internal::raw_from_percent(100, 255, 20) == 255);
+}
+
+TEST_CASE("build floor: the sysfs panel takes it, the /dev/disp panel does not",
+          "[api][backlight][1709]") {
+    // The floor is measured on community K2 firmware's sysfs backlight; stock
+    // firmware's Allwinner /dev/disp panel stays lit to raw 6 of 255.
+    REQUIRE(helix::backlight_internal::build_floor_percent(false, 20) == 20);
+    REQUIRE(helix::backlight_internal::build_floor_percent(true, 20) == 0);
 }
 
 TEST_CASE("raw_from_percent: a requested-on level never maps to off", "[api][backlight][1709]") {
@@ -207,6 +220,18 @@ TEST_CASE("Sysfs backend set_brightness writes brightness file", "[api][backligh
     REQUIRE(fake.read_file("brightness") == "127");
 }
 
+TEST_CASE("backlight_floor_percent: the settings override wins on every backend",
+          "[api][backlight][1709]") {
+    {
+        ScopedBacklightFloor floor(15);
+        REQUIRE(helix::backlight_internal::backlight_floor_percent(20) == 15);
+        REQUIRE(helix::backlight_internal::backlight_floor_percent(0) == 15);
+    }
+    helix::Config::get_instance()->get_json("/display").erase("backlight_floor_percent");
+    REQUIRE(helix::backlight_internal::backlight_floor_percent(20) == 20);
+    REQUIRE(helix::backlight_internal::backlight_floor_percent(0) == 0);
+}
+
 TEST_CASE("Sysfs backend honors /display/backlight_floor_percent",
           "[api][backlight][sysfs][1709]") {
     ScopedBacklightFloor floor(20);
@@ -216,7 +241,7 @@ TEST_CASE("Sysfs backend honors /display/backlight_floor_percent",
 
     // Lowest nonzero percent lands at the floor, not at a near-black level.
     REQUIRE(backend->set_brightness(1));
-    REQUIRE(fake.read_file("brightness") == "53"); // 51 + 204*1/100
+    REQUIRE(fake.read_file("brightness") == "51"); // the floor
 
     // Sleep's 0 still writes a true off.
     REQUIRE(backend->set_brightness(0));

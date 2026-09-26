@@ -293,7 +293,7 @@ the gear"; it is kept as detection infrastructure for a deferred follow-up
 is still published to `AmsState::set_active_tool_port_present()` on change (#991), which
 is what gates Resume in the runout dialog (`src/printer/ams_backend_snapmaker.cpp#handle_status_update`).
 
-### Pre-Print Remap (RemapStrategy::SnapmakerNative)
+### Pre-Print Remap (RemapStrategy::PrePrintSend)
 
 `SET_PRINT_EXTRUDER_MAP` / `SET_PRINT_USED_EXTRUDERS` error mid-print (firmware id 531),
 so the config must land before `PRINT_START`. `requires_preprint_send() = true` is
@@ -362,7 +362,7 @@ Extended Firmware endpoint that 404s on stock firmware; the override still persi
 | Feature | Supported | Notes |
 |---------|-----------|-------|
 | Endless Spool | `Unsupported` | No `get_endless_spool_capabilities()` override — base default |
-| Tool Mapping | Per-print only | Physical attachment fixed 1:1 and non-editable (`set_tool_mapping()` = `not_supported`); per-print ROUTING is set via `SnapmakerNative` pre-print gcode and read back from `extruder_map_table` by `get_tool_mapping()` |
+| Tool Mapping | Per-print only | Physical attachment fixed 1:1 and non-editable (`set_tool_mapping()` = `not_supported`); per-print ROUTING is set via `PrePrintSend` pre-print gcode and read back from `extruder_map_table` by `get_tool_mapping()` |
 | Bypass | No | `supports_bypass = false`; both entry points `not_supported` — no external spool on a toolchanger (`src/printer/ams_backend_snapmaker.cpp#AmsSubscriptionBackend`, `src/printer/ams_backend_snapmaker.cpp#enable_bypass`) |
 | Dryer | No | Not supported |
 | Recover / Reset / Cancel | No | All three return `not_supported` (`src/printer/ams_backend_snapmaker.cpp#recover`) |
@@ -410,7 +410,7 @@ Extended Firmware endpoint that 404s on stock firmware; the override still persi
    channel_state pair: `load_finish`
    (fed to nozzle) vs `preload_finish` (firmware assist stops short of the gear) -
    both already parsed into the channel-state machine
-   (`src/printer/ams_backend_snapmaker.cpp#classify_channel_state`, `:569-576`). What is missing is rig
+   (`src/printer/snapmaker_channel_state.cpp#classify_channel_state`). What is missing is rig
    confirmation that the state reliably means "filament at the gear" before the gate
    is revived.
 3. End-to-end timing of the pre-print `SET_PRINT_USED_EXTRUDERS` is unverified live.

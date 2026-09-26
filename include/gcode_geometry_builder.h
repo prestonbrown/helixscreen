@@ -11,6 +11,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <glm/glm.hpp>
 #include <memory>
 #include <optional>
@@ -505,9 +506,15 @@ class GeometryBuilder {
      *
      * @param gcode Parsed G-code file with toolpath segments
      * @param options Simplification configuration
+     * @param should_cancel Optional predicate polled between work chunks.
+     *        Returning true stops the build and returns empty geometry: the
+     *        viewer's build thread is joined on the UI thread when a preview
+     *        is torn down mid-build, so the pass must be stoppable rather
+     *        than costing a full build's wall clock.
      * @return Optimized ribbon geometry ready for 3D rendering
      */
-    RibbonGeometry build(const ParsedGCodeFile& gcode, const SimplificationOptions& options);
+    RibbonGeometry build(const ParsedGCodeFile& gcode, const SimplificationOptions& options,
+                         const std::function<bool()>& should_cancel = {});
 
     /**
      * @brief Get statistics about last build operation
@@ -616,7 +623,8 @@ class GeometryBuilder {
 
     // Simplification pipeline
     std::vector<ToolpathSegment> simplify_segments(const std::vector<ToolpathSegment>& segments,
-                                                   const SimplificationOptions& options);
+                                                   const SimplificationOptions& options,
+                                                   const std::function<bool()>& should_cancel);
 
     bool are_collinear(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3,
                        float tolerance) const;

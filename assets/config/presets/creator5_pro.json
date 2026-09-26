@@ -1,0 +1,91 @@
+{
+  "preset": "creator5_pro",
+  "wizard_completed": false,
+  "display": {
+    "rotate": 90,
+    "rotation_probed": true,
+    "animations_enabled": false
+  },
+  "printer": {
+    "heaters": {
+      "bed": "heater_bed",
+      "hotend": "extruder",
+      "hotend1": "extruder1",
+      "hotend2": "extruder2",
+      "hotend3": "extruder3",
+      "chamber": "heater_generic chamber_heater"
+    },
+    "temp_sensors": {
+      "bed": "heater_bed",
+      "hotend": "extruder",
+      "chamber": "heater_generic chamber_heater"
+    },
+    "fans": {
+      "hotend": "heater_fan heat_fan",
+      "part": "fan_generic fanM106",
+      "chamber": "fan_generic chamber_fan",
+      "aux": "fan_generic chamber_loop_fan"
+    },
+    "leds": {
+      "strip": "led chamber_led"
+    },
+    "filament_sensors": {
+      "master_enabled": true,
+      "sensors": [
+        {
+          "enabled": true,
+          "klipper_name": "filament_switch_sensor fd_ex0",
+          "lane": 0,
+          "role": "runout",
+          "type": "switch"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "filament_switch_sensor fd_ex1",
+          "lane": 1,
+          "role": "runout",
+          "type": "switch"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "filament_switch_sensor fd_ex2",
+          "lane": 2,
+          "role": "runout",
+          "type": "switch"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "filament_switch_sensor fd_ex3",
+          "lane": 3,
+          "role": "runout",
+          "type": "switch"
+        }
+      ]
+    },
+    "hardware": {
+      "expected": [
+        "heater_bed",
+        "extruder",
+        "extruder1",
+        "extruder2",
+        "extruder3",
+        "heater_generic chamber_heater",
+        "fan_generic fanM106",
+        "heater_fan heat_fan",
+        "fan_generic chamber_fan",
+        "led chamber_led"
+      ]
+    },
+    "default_macros": {
+      "cooldown": "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0\nSET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0\nSET_HEATER_TEMPERATURE HEATER=extruder2 TARGET=0\nSET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0\nSET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=0\nSET_HEATER_TEMPERATURE HEATER=chamber_heater TARGET=0",
+      "macro_1": {
+        "label": "Park Tool",
+        "gcode": "TOOLCHANGE_PARK"
+      },
+      "macro_2": {
+        "label": "Bed Mesh",
+        "gcode": "BED_MESH_CALIBRATE"
+      }
+    }
+  }
+}

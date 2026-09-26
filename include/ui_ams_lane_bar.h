@@ -37,4 +37,29 @@ void ui_ams_lane_bar_register(void);
 
 #ifdef __cplusplus
 }
+
+namespace helix::ui {
+/**
+ * @brief Create one ams_lane_bar per slot for slots
+ * [first_slot_index, first_slot_index + slot_count).
+ *
+ * For C++ consumers whose lane count and bar width are MEASURED (overview
+ * mini bars, mini-status bar mode): the loop stays in C++ (declarative rule
+ * 8's measured-layout exception), the per-lane rendering stays in the widget.
+ */
+void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_count,
+                               int32_t bar_width, int32_t bar_height);
+
+/**
+ * @brief Re-apply create-time sizing to an existing bar.
+ *
+ * Pooled consumers (mini-status bar mode) keep their bars across rebuilds and
+ * resize them as the measured layout moves. bar_width/bar_height have the
+ * same meaning as the create attrs.
+ */
+void ams_lane_bar_resize(lv_obj_t* bar, int32_t bar_width, int32_t bar_height);
+
+/// The slot @p obj is bound to, or -1 when @p obj is not a live ams_lane_bar.
+int ams_lane_bar_slot_index(lv_obj_t* obj);
+} // namespace helix::ui
 #endif

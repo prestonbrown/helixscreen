@@ -25,13 +25,14 @@ extern "C" {
  * - "+N" overflow indicator when more than max_visible slots exist
  * - Auto-hides when slot_count == 0
  *
+ * Bar mode renders through ams_lane_bar widgets driven by AmsState's per-slot
+ * subjects; the programmatic setters below feed the spool-mode cells and the
+ * slot-count-driven layout only.
+ *
  * Programmatic usage:
  * @code{.cpp}
  * lv_obj_t* indicator = ui_ams_mini_status_create(parent, 32);  // 32px height
  * ui_ams_mini_status_set_slot_count(indicator, 4);
- * ui_ams_mini_status_set_slot(indicator, 0, 0xFF5722, 75, true);  // Orange, 75% full, present
- * ui_ams_mini_status_set_slot(indicator, 1, 0x2196F3, 50, true);  // Blue, 50% full
- * ui_ams_mini_status_set_slot(indicator, 2, 0x000000, 0, false);  // Empty slot
  * @endcode
  */
 
@@ -67,34 +68,19 @@ void ui_ams_mini_status_set_slot_count(lv_obj_t* obj, int slot_count);
 void ui_ams_mini_status_set_max_visible(lv_obj_t* obj, int max_visible);
 
 /**
- * @brief Update a single slot's display
+ * @brief Update one lane's spool-mode label data (material, percent)
  *
- * @param obj The ams_mini_status widget
- * @param slot_index Slot index (0 to max_visible-1)
- * @param color_rgb Filament color as 0xRRGGBB
- * @param fill_pct Fill percentage (0-100, 0=empty, 100=full)
- * @param present True if filament is present/available in this slot
- */
-void ui_ams_mini_status_set_slot(lv_obj_t* obj, int slot_index, uint32_t color_rgb, int fill_pct,
-                                 bool present);
-
-/**
- * @brief Set a slot's full display data (color, fill, presence, material, percent).
- *
- * Single ingestion path used by both render modes (bar + spool). remaining_pct is
- * the actual percent remaining (0-100), or -1 if unknown (renders blank).
+ * The spool graphic, fill, ghosting and error dot are not part of this API:
+ * they render from AmsState's per-slot subjects inside each cell's embedded
+ * ams_lane_spool widget.
  *
  * @param obj The ams_mini_status widget
  * @param slot_index Slot index (0-based)
- * @param color_rgb Filament color as 0xRRGGBB
- * @param fill_pct Fill percentage (0-100)
- * @param present True if filament is present/available in this slot
- * @param material Material name (e.g. "PLA"); "" renders as "--"
+ * @param material Material name (e.g. "PLA"); "" renders as "Empty"
  * @param remaining_pct Actual percent remaining (0-100), or -1 if unknown
  */
-void ui_ams_mini_status_set_slot_full(lv_obj_t* obj, int slot_index, uint32_t color_rgb,
-                                      int fill_pct, bool present, const char* material,
-                                      int remaining_pct);
+void ui_ams_mini_status_set_slot_label(lv_obj_t* obj, int slot_index, const char* material,
+                                       int remaining_pct);
 
 /**
  * @brief Force refresh/redraw of all slots

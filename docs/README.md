@@ -77,8 +77,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Input Shaper & PID**](devel/INPUT_SHAPER.md) | Calibration, frequency response charts, CSV parser |
 | [**Preprint Prediction**](devel/PREPRINT_PREDICTION.md) | ETA prediction engine, phase timing, history |
 | [**Exclude Objects**](devel/EXCLUDE_OBJECTS.md) | Object exclusion, thumbnails, slicer setup |
-| [**Print Start Profiles**](devel/PRINT_START_PROFILES.md) | Print start phase detection, profiles |
-| [**Print Start Observers**](devel/PRINT_START_OBSERVERS.md) | Pre-print observer system: signal sources, threading, tests |
+| [**Print Start Profiles**](devel/PRINT_START_PROFILES.md) | Print start phase detection, developer guide: pipeline, signal sources, evidence kinds, profiles |
 | [**Print Start Integration**](devel/PRINT_START_INTEGRATION.md) | User-facing macro setup guide |
 | [**Update System**](devel/UPDATE_SYSTEM.md) | Channels, R2 CDN, downloads, Moonraker updater |
 | [**Sound System**](devel/SOUND_SYSTEM.md) | Audio architecture, JSON themes, backends |
@@ -99,6 +98,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Snapmaker U1 Support**](devel/printers/SNAPMAKER_U1_SUPPORT.md) | Snapmaker U1 toolchanger platform guide |
 | [**Creality K2 Support**](devel/printers/CREALITY_K2_SUPPORT.md) | Creality K2 series platform guide |
 | [**FlashForge AD5X Support**](devel/printers/FLASHFORGE_AD5X_SUPPORT.md) | FlashForge Adventurer 5X (MIPS, ZMOD) |
+| [**FlashForge Creator 5 Support**](devel/printers/FLASHFORGE_CREATOR5_PRO_SUPPORT.md) | FlashForge Creator 5 and Creator 5 Pro (Ingenic X2000 MIPS, unified `mips` target) |
 
 ---
 

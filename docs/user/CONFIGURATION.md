@@ -453,7 +453,7 @@ Framebuffer displays (AD5M, K1, K2, CC1, AD5X) rotate by any angle with no meani
 **Type:** integer
 **Default:** `-1` (automatic)
 **Values:** `-1` = automatic, `0` = never, `1` = always
-**Description:** Whether display sleep powers the screen panel down or just turns its backlight off. Automatic powers the panel down only when the screen has no brightness control; on every other screen, sleep turns the backlight off. Set `1` if your screen goes black at sleep but the backlight stays lit. Set `0` if at sleep your screen flashes colours, glows at the edges, or does not come back on when you wake it. Takes effect after a restart.
+**Description:** Whether display sleep powers the screen panel down or just turns its backlight off. Automatic powers the panel down only when the screen has no brightness control; on every other screen, sleep turns the backlight off. Set `1` if your screen goes black at sleep but the backlight stays lit. Set `0` if at sleep your screen flashes colours, glows at the edges, or does not come back on when you wake it. Takes effect after a restart. See [Troubleshooting](TROUBLESHOOTING.md#screen-goes-dark-at-sleep-but-the-backlight-stays-on).
 
 ### `screensaver_type`
 **Type:** integer
@@ -1532,6 +1532,7 @@ Located in the `filament_sensors` section:
 - `klipper_name` - Full Klipper object name (e.g., `"filament_switch_sensor fsensor"`)
 - `role` - Sensor role: `"none"`, `"runout"`, `"toolhead"`, `"entry"`
 - `enabled` - Boolean to enable/disable individual sensor
+- `lane` - Optional. The filament slot or toolhead (0-based) this sensor watches, for printers with one sensor per head. Each head can then have its own `runout` sensor, and the check before a print reads the sensors of the heads the file uses.
 
 **Example:**
 ```json
@@ -1898,8 +1899,10 @@ If your config is lost or corrupted:
 1. **Automatic:** HelixScreen restores from rolling backup on next launch
 2. **Manual:** Check for `settings.json.corrupt` in your config directory — this
    contains your previous (invalid) config that you can manually fix
-3. **Fresh start:** Copy `settings.json.template` to `settings.json` and re-run
-   the setup wizard
+3. **Fresh start:** delete `settings.json` **and** the backup copies (see
+   [Reset HelixScreen or re-run the setup wizard](TROUBLESHOOTING.md#reset-helixscreen-or-re-run-the-setup-wizard)),
+   or use **Settings > System > Factory Reset**. A template copy alone is replaced
+   from the rolling backup on the next start
 
 ### If you have a helixconfig.json
 HelixScreen renames it to `settings.json` on startup — no manual action needed.

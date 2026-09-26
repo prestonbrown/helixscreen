@@ -297,6 +297,12 @@ class PrinterState {
     lv_subject_t* get_extruder_power_subject() {
         return temperature_state_.get_extruder_power_subject();
     }
+    /// A specific extruder's duty with its lifetime token (use when creating
+    /// observers). Distinct from the nullary overload, which is the ACTIVE
+    /// extruder's mirror.
+    lv_subject_t* get_extruder_power_subject(const std::string& name, SubjectLifetime& lifetime) {
+        return temperature_state_.get_extruder_power_subject(name, lifetime);
+    }
     lv_subject_t* get_bed_power_subject() {
         return temperature_state_.get_bed_power_subject();
     }
@@ -334,15 +340,6 @@ class PrinterState {
 
     void set_active_extruder(const std::string& name) {
         temperature_state_.set_active_extruder(name);
-    }
-
-    // Viewer pin: see PrinterTemperatureState::pin_active_extruder.
-    void pin_active_extruder(const std::string& name) {
-        temperature_state_.pin_active_extruder(name);
-    }
-
-    void clear_active_extruder_pin() {
-        temperature_state_.clear_active_extruder_pin();
     }
 
     // Active extruder's latched last non-zero target (°C); 0 if unknown.

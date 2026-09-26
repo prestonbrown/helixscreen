@@ -47,6 +47,9 @@ class AfcTestAccess {
     template <class B> static auto& hub_sensors(B& b) {
         return b.hub_sensors_;
     }
+    template <class B> static auto& lane_sensors(B& b) {
+        return b.lane_sensors_;
+    }
     template <class B> static auto& hub_names(B& b) {
         return b.hub_names_;
     }

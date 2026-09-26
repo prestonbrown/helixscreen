@@ -8,6 +8,7 @@
 #include "async_lifetime_guard.h"
 #include "error_event.h"
 #include "filament_slot_override_store.h"
+#include "lane_echo.h"
 #include "lane_observation.h"
 #include "slot_registry.h"
 
@@ -46,6 +47,18 @@ class HappyHareTestAccess;
  * - MMU_HOME            - Home the selector
  * - MMU_RECOVER         - Attempt error recovery
  */
+/**
+ * @brief Pre-gate filament sensor readings for one gate, from printer.mmu.sensors
+ *
+ * Kept beside the registry slots rather than inside SlotEntry so the registry
+ * stays free of any one backend's sensor vocabulary. Keyed by global gate
+ * index like overrides_; initialize_slots() clears it with the registry.
+ */
+struct HappyHareGateSensor {
+    bool has_pre_gate_sensor = false; ///< Whether any frame ever reported this gate's sensor
+    bool pre_gate_triggered = false;  ///< Filament detected at the pre-gate position
+};
+
 class AmsBackendHappyHare : public AmsSubscriptionBackend {
   public:
     /**
@@ -240,6 +253,12 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// Delete this gate's user override ("Clear Spool").
     void clear_slot_override(int slot_index) override;
 
+    /// The resync files stored records through this backend's echo guard, the
+    /// same one its parses consult.
+    [[nodiscard]] helix::ams::OwnWriteEchoes* own_write_echoes() override {
+        return &own_write_echoes_;
+    }
+
     /// Publish the external spool as lane{N+1} in the SHARED lane_data
     /// namespace — Happy Hare's plugin never publishes its bypass/external
     /// spool (verified: push_lane_data iterates gates only), and its boot-time
@@ -322,6 +341,13 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     AmsError apply_endless_spool_backup(int slot_index, int backup_slot) override;
 
     // Allow test helper access to private members
+    /// Pre-gate sensor record for @p slot_index, or nullptr when the index is
+    /// out of range or no frame ever reported the gate's sensor.
+    const HappyHareGateSensor* gate_sensor(int slot_index) const;
+    /// Pre-gate sensor record for @p slot_index, creating it on first write;
+    /// nullptr only when the index is out of range.
+    HappyHareGateSensor* gate_sensor_mut(int slot_index);
+
     friend class HappyHareTestAccess;
 
     // --- AmsSubscriptionBackend hooks ---
@@ -529,6 +555,10 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// refresh_gate_statuses_locked() needs both to derive a status.
     std::vector<int> gate_status_raw_;
 
+    /// Pre-gate sensor state per gate, keyed by global gate index. Cleared by
+    /// initialize_slots() together with the registry it mirrors.
+    std::unordered_map<int, HappyHareGateSensor> gate_sensors_;
+
     /// What Happy Hare's gate map says about each gate's identity, keyed by
     /// global gate index and accumulated across frames. Moonraker names only
     /// the keys that changed, so one frame is never the whole map and a record
@@ -539,6 +569,13 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// reading it back would file a user's own choice as something the MMU
     /// remembers.
     std::map<int, helix::ams::Observation> gate_readings_;
+
+    /// What the user's own MMU_GATE_MAP write declared, so the gate map
+    /// echoing it back through printer.mmu is not filed as firmware's reading.
+    /// The gate map is user-maintained, so no tag names the spool a write was
+    /// made against: suppression ends on a differing value, a key published
+    /// empty, the re-bind verdict in the gate_spool_id parse, or a clear.
+    helix::ams::OwnWriteEchoes own_write_echoes_;
 
     // Path visualization state
     int filament_pos_{0};     ///< Happy Hare filament_pos value

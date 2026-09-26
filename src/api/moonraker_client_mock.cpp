@@ -11,6 +11,7 @@
 #include "chamber_heater_backend.h"
 #include "gcode_parser.h"
 #include "macro_param_cache.h"
+#include "mock_persona.h"
 #include "moonraker_client_mock_internal.h"
 #include "power_device_state.h"
 #include "printer_state.h"
@@ -909,6 +910,36 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("gcode_macro CLEAN_NOZZLE");
         mock_objects.push_back("gcode_macro PRINT_START");
         break;
+    case PrinterType::FLASHFORGE_CREATOR5:
+        // Creator 5 Pro fingerprint. The database entry keys off [ff_toolchange]
+        // (99%) and the head-dock grab sensor (95%); see the
+        // flashforge_creator_5_pro heuristics in printer_database.json. Without
+        // these in printer.objects.list the persona would be detected as a
+        // generic CoreXY.
+        mock_objects.push_back("ff_toolchange");
+        for (int i = 0; i < 4; ++i) {
+            mock_objects.push_back("gcode_button extruder_grab" + std::to_string(i));
+        }
+        // The chamber heater object separates the Pro from the heater-free
+        // Creator 5, so a persona modelling the Pro must publish it.
+        mock_objects.push_back("heater_generic chamber_heater");
+        mock_objects.push_back("gcode_macro TOOLCHANGE_PARK");
+        mock_objects.push_back("gcode_macro BED_MESH_CALIBRATE");
+        break;
+    case PrinterType::FLASHFORGE_CREATOR5_ZMOD:
+        // Z-Mod's own objects. Its carriage buttons are 1-based, unlike the
+        // Reforge persona's grab0..3 above; zmod_c5_detect in
+        // toolchanger_addon keys off exactly these names.
+        mock_objects.push_back("zmod");
+        mock_objects.push_back("zmod_color");
+        mock_objects.push_back("save_variables");
+        for (int i = 1; i <= 4; ++i) {
+            mock_objects.push_back("gcode_button extruder_pos" + std::to_string(i));
+            mock_objects.push_back("gcode_button extruder_grab" + std::to_string(i));
+        }
+        // Same Pro-separating chamber heater as the Reforge persona above.
+        mock_objects.push_back("heater_generic chamber_heater");
+        break;
     default:
         // Other printers may not have these features
         break;
@@ -961,10 +992,12 @@ void MoonrakerClientMock::populate_capabilities() {
     mock_objects.push_back("timelapse"); // Moonraker-Timelapse plugin
 
     // MMU/AMS system - Happy Hare uses "mmu" object name.
-    // Suppressed in the MedusaHC modes and the standalone IFS module mode: the
-    // default mock ships "mmu", which detects Happy Hare (priority over the
-    // IFS objects) and stands the wrong backend up.
-    if (mmu_enabled_ && !is_mock_medusahc() && !is_mock_ifs_module()) {
+    // Suppressed in the MedusaHC modes, the standalone IFS module mode and the
+    // creator5_zmod persona: the default mock ships "mmu", which detects Happy
+    // Hare (priority over every other filament system) and stands the wrong
+    // backend up.
+    if (mmu_enabled_ && !is_mock_medusahc() && !is_mock_ifs_module() &&
+        printer_type_ != PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
         mock_objects.push_back("mmu");
     }
 
@@ -1018,6 +1051,19 @@ void MoonrakerClientMock::populate_capabilities() {
             sensors_str.erase(0, pos + 1);
         }
         spdlog::debug("[MoonrakerClientMock] Custom filament sensors from env: {}", sensor_env);
+    } else if (printer_type_ == PrinterType::FLASHFORGE_CREATOR5 ||
+               printer_type_ == PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        // One runout switch per head, named as in assets/config/presets/creator5_pro.json.
+        for (int i = 0; i < 4; ++i) {
+            mock_objects.push_back("filament_switch_sensor fd_ex" + std::to_string(i));
+        }
+        // Z-Mod pairs each switch with a motion sensor.
+        if (printer_type_ == PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+            for (int i = 0; i < 4; ++i) {
+                mock_objects.push_back("filament_motion_sensor fm_ex" + std::to_string(i));
+            }
+        }
+        spdlog::debug("[MoonrakerClientMock] Creator 5 filament sensors: fd_ex0..fd_ex3");
     } else {
         // Default: one switch sensor (typical Voron setup)
         mock_objects.push_back("filament_switch_sensor runout_sensor");
@@ -1032,6 +1078,10 @@ void MoonrakerClientMock::populate_capabilities() {
     // uses "tool TN" to match the established test convention (test_hardware_validator).
     if (is_mock_toolchanger()) {
         mock_objects.push_back("toolchanger");
+        // The object that marks a firmware able to measure pressure advance
+        // (the U1's flow calibrator depends on it), so the PA calibration
+        // screen is reachable in --test. Stock Klipper has none.
+        mock_objects.push_back("filament_parameters");
         for (int i = 0; i < 4; ++i) {
             mock_objects.push_back("tool T" + std::to_string(i));
         }
@@ -1140,6 +1190,8 @@ void MoonrakerClientMock::populate_capabilities() {
         break;
     case PrinterType::CREALITY_K1:
     case PrinterType::CREALITY_K1_MAX:
+    case PrinterType::FLASHFORGE_CREATOR5:
+    case PrinterType::FLASHFORGE_CREATOR5_ZMOD:
         default_kinematics = "corexy";
         break;
     case PrinterType::DELTA:
@@ -1482,17 +1534,29 @@ void MoonrakerClientMock::discover_printer(
     });
 }
 
-bool MoonrakerClientMock::is_mock_toolchanger() const {
-    // Mirror the HELIX_MOCK_AMS parsing in ams_backend.cpp: toolchanger mode is
-    // selected by "toolchanger", "tool_changer", or "tc" (case-insensitive).
+bool MoonrakerClientMock::mock_toolchanger_selected() {
+    // Toolchanger mode is selected by "toolchanger", "tool_changer", or "tc"
+    // (case-insensitive), matching the HELIX_MOCK_AMS parsing in ams_backend.cpp.
     const char* ams_env = std::getenv("HELIX_MOCK_AMS");
-    if (!ams_env || !ams_env[0]) {
-        return false;
+    if (ams_env && ams_env[0]) {
+        std::string ams_type(ams_env);
+        std::transform(ams_type.begin(), ams_type.end(), ams_type.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        return ams_type == "toolchanger" || ams_type == "tool_changer" || ams_type == "tc";
     }
-    std::string ams_type(ams_env);
-    std::transform(ams_type.begin(), ams_type.end(), ams_type.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    return ams_type == "toolchanger" || ams_type == "tool_changer" || ams_type == "tc";
+    // No explicit topology: fall back to the persona. A Creator 5 Pro is a
+    // 4-head changer, so the generic Happy Hare default would misrepresent it.
+    const char* printer_env = std::getenv("HELIX_MOCK_PRINTER");
+    return printer_env && std::string(printer_env) == "creator5";
+}
+
+bool MoonrakerClientMock::mock_hardware_persona() {
+    const char* printer_env = std::getenv("HELIX_MOCK_PRINTER");
+    return printer_env && helix::mock::is_hardware_persona(printer_env);
+}
+
+bool MoonrakerClientMock::is_mock_toolchanger() const {
+    return mock_toolchanger_selected();
 }
 
 MoonrakerClientMock::MedusaVariant MoonrakerClientMock::mock_medusa_variant() {
@@ -1796,6 +1860,41 @@ bool MoonrakerClientMock::apply_ifs_module_gcode(const std::string& cmd, const s
     return false;
 }
 
+namespace {
+
+// Z-Mod's filament.json defaults: the 24 palette colours in index order (an
+// off-palette HEX snaps to index 0, white) and the material types
+// CHANGE_ZCOLOR accepts.
+constexpr std::array<const char*, 24> kZmodPalette = {
+    "FFFFFF", "FEF043", "DCF478", "0ACC38", "067749", "0C6283", "0DE2A0", "75D9F3",
+    "45A8F9", "2750E0", "46328E", "A03CF7", "F330F9", "D4B0DC", "F95D73", "F72224",
+    "7C4B00", "F98D33", "FDEBD5", "D3C4A3", "AF7836", "898989", "BCBCBC", "161616"};
+constexpr std::array<const char*, 17> kZmodValidTypes = {
+    "PLA",     "PETG",  "PLA-CF", "PETG-CF", "ABS",     "ASA",     "SILK",    "PET-CF", "S-PAHT",
+    "S-MULTI", "PA-CF", "HIPS",   "PVA",     "TPU-90A", "TPU-95A", "TPU-64D", "?"};
+
+} // namespace
+
+json MoonrakerClientMock::zmod_color_status() const {
+    std::lock_guard<std::mutex> lock(zmod_mutex_);
+    json slots = json::array();
+    for (std::size_t i = 0; i < zmod_slots_.size(); ++i) {
+        slots.push_back({{"ID", std::to_string(i + 1)},
+                         {"Material", zmod_slots_[i].first},
+                         {"HEX", zmod_slots_[i].second}});
+    }
+    return json{{"active_tool_id", zmod_active_tool_.load()},
+                {"total_tools", 4},
+                // The head count, as the firmware reports it; not the 24-entry
+                // palette size, which is what the field name suggests.
+                {"color_limit", 4},
+                {"display", false},
+                {"valid_types", kZmodValidTypes},
+                {"hidden_types", json::array()},
+                {"palette", kZmodPalette},
+                {"slots", std::move(slots)}};
+}
+
 nlohmann::json MoonrakerClientMock::medusa_status_json() const {
     const MedusaVariant variant = mock_medusa_variant();
     if (variant == MedusaVariant::NONE) {
@@ -2077,6 +2176,25 @@ void MoonrakerClientMock::populate_hardware() {
                                 "extruder", // Hotend thermistor (Klipper naming: bare heater name)
                                 "temperature_sensor chamber", "temperature_sensor mcu_temp"};
         discovery_.fans() = {"heater_fan hotend_fan", "fan", "fan_generic chamber_fan"};
+        discovery_.leds() = {"led chamber_led"};
+        break;
+
+    case PrinterType::FLASHFORGE_CREATOR5_ZMOD: // Z-Mod: same machine, same hardware
+    case PrinterType::FLASHFORGE_CREATOR5:
+        // FlashForge Creator 5 Pro: 4-head tool changer, enclosed, heated chamber.
+        // Object names mirror assets/config/presets/creator5_pro.json so the mock and
+        // the shipped preset describe the same machine.
+        discovery_.heaters() = {"heater_bed", "extruder",  "extruder1",
+                                "extruder2",  "extruder3", "heater_generic chamber_heater"};
+        discovery_.sensors() = {"heater_bed", // Bed thermistor (Klipper naming: bare heater name)
+                                "extruder",   // Hotend thermistors, one per head
+                                "extruder1",
+                                "extruder2",
+                                "extruder3",
+                                "heater_generic chamber_heater",
+                                "temperature_sensor mcu_temp"};
+        discovery_.fans() = {"heater_fan heat_fan", "fan_generic fanM106",
+                             "fan_generic chamber_fan", "fan_generic chamber_loop_fan"};
         discovery_.leds() = {"led chamber_led"};
         break;
 
@@ -2604,6 +2722,76 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
             std::all_of(cmd.begin() + 1, cmd.end(),
                         [](unsigned char c) { return std::isdigit(c) != 0; })) {
             start_medusa_swap(std::stoi(cmd.substr(1)));
+            return 0;
+        }
+    }
+
+    // Z-Mod commands (creator5_zmod persona): the zmod_color extra's macros.
+    // Token-exact like the blocks above, and armed only for this persona.
+    if (printer_type_ == PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        const size_t token_end = gcode.find_first_of(" \t");
+        const std::string cmd = gcode.substr(0, token_end);
+        auto param = [&gcode](const char* key) -> std::string {
+            const std::string needle = std::string(key) + "=";
+            const size_t at = gcode.find(needle);
+            if (at == std::string::npos) {
+                return {};
+            }
+            const size_t start = at + needle.size();
+            const size_t end = gcode.find_first_of(" \t", start);
+            return gcode.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        };
+        auto refuse = [this](const std::string& message) {
+            spdlog::warn("[MoonrakerClientMock] Z-Mod gcode rejected: {}", message);
+            std::lock_guard<std::mutex> lock(gcode_error_mutex_);
+            last_gcode_error_ = message;
+            return 1;
+        };
+
+        if (cmd == "_T_IN") {
+            int tool = -1;
+            try {
+                tool = std::stoi(param("T"));
+            } catch (...) {
+            }
+            if (tool < 0 || tool > 3) {
+                return refuse("T out of range: " + param("T"));
+            }
+            zmod_active_tool_.store(tool);
+            dispatch_status_update({{"zmod_color", {{"active_tool_id", tool}}}});
+            return 0;
+        }
+        if (cmd == "_T_OUT") {
+            zmod_active_tool_.store(-1);
+            dispatch_status_update({{"zmod_color", {{"active_tool_id", -1}}}});
+            return 0;
+        }
+        if (cmd == "CHANGE_ZCOLOR") {
+            const std::string type = param("TYPE");
+            if (std::find(kZmodValidTypes.begin(), kZmodValidTypes.end(), type) ==
+                kZmodValidTypes.end()) {
+                return refuse("Unknown material type: " + type);
+            }
+            int slot = 0;
+            try {
+                slot = std::stoi(param("SLOT"));
+            } catch (...) {
+            }
+            if (slot < 1 || slot > 4) {
+                return refuse("SLOT out of range: " + param("SLOT"));
+            }
+            std::string hex = param("HEX");
+            std::transform(hex.begin(), hex.end(), hex.begin(),
+                           [](unsigned char c) { return std::toupper(c); });
+            // The firmware stores only palette colours; anything else snaps to
+            // index 0, white.
+            const bool in_palette =
+                std::find(kZmodPalette.begin(), kZmodPalette.end(), hex) != kZmodPalette.end();
+            {
+                std::lock_guard<std::mutex> lock(zmod_mutex_);
+                zmod_slots_[slot - 1] = {type, in_palette ? hex : "FFFFFF"};
+            }
+            dispatch_status_update({{"zmod_color", {{"slots", zmod_color_status()["slots"]}}}});
             return 0;
         }
     }
@@ -5170,6 +5358,9 @@ void MoonrakerClientMock::temperature_simulation_loop() {
 
         uint32_t tick = tick_count_.fetch_add(1);
 
+        // Fire any due mock pressure-advance console lines
+        service_pending_pa_lines();
+
         // Simulated time step covered by one real tick
         double effective_dt = sim_speed().accelerate_progress(base_dt);
 
@@ -6202,6 +6393,94 @@ void MoonrakerClientMock::dispatch_manual_probe_update() {
 // G-code Response Simulation (for PRINT_START progress tracking)
 // ============================================================================
 
+bool MoonrakerClientMock::simulate_pa_calibration(
+    const std::string& script, std::function<void(const nlohmann::json&)> success_cb,
+    std::function<void(const MoonrakerError&)> error_cb) {
+    if (script.rfind("FLOW_CALIBRATE", 0) != 0) {
+        return false;
+    }
+    record_gcode_script(script);
+
+    const char* fail_env = std::getenv("HELIX_MOCK_PA_FAIL");
+    const bool should_fail = fail_env && *fail_env && std::string(fail_env) != "0";
+
+    // Roughly what the real thing costs once the nozzle is already hot: a
+    // handful of purge-and-measure cycles, not an instant answer.
+    constexpr int CANDIDATES = 5;
+    constexpr int STEP_MS = 1200;
+
+    std::lock_guard<std::mutex> lock(pa_cal_mutex_);
+    pending_pa_lines_.clear();
+    auto due = std::chrono::steady_clock::now();
+
+    if (should_fail) {
+        due += std::chrono::milliseconds(STEP_MS);
+        pending_pa_lines_.push_back({due, "!! [flow_calibrate] not edit filament info!", true,
+                                     std::move(success_cb), std::move(error_cb)});
+        spdlog::info("[MoonrakerClientMock] FLOW_CALIBRATE: simulating refusal"
+                     " (HELIX_MOCK_PA_FAIL)");
+        return true;
+    }
+
+    // Candidate probes, in the U1 flow calibrator's own format: each measured
+    // K, then the flow mismatch it read there. Shaped like a real root-find
+    // converging on 0.0412.
+    static constexpr double CANDIDATE_K[CANDIDATES] = {0.0200, 0.0600, 0.0400, 0.0420, 0.0412};
+    static constexpr double CANDIDATE_AREA[CANDIDATES] = {0.0181, -0.0142, 0.0011, -0.0004,
+                                                          0.00002};
+    for (int i = 0; i < CANDIDATES; ++i) {
+        due += std::chrono::milliseconds(STEP_MS);
+        pending_pa_lines_.push_back(
+            {due, fmt::format("// measure k: {:.5f}", CANDIDATE_K[i]), false, nullptr, nullptr});
+        pending_pa_lines_.push_back({due, fmt::format("// measure area: {:.5f}", CANDIDATE_AREA[i]),
+                                     false, nullptr, nullptr});
+    }
+
+    // The result line the firmware prints as it applies the value.
+    due += std::chrono::milliseconds(STEP_MS);
+    pending_pa_lines_.push_back(
+        {due, "// Got pressure advance: 0.0412", true, std::move(success_cb), std::move(error_cb)});
+
+    spdlog::info("[MoonrakerClientMock] FLOW_CALIBRATE: simulating {} candidates (~{}s)",
+                 CANDIDATES, ((CANDIDATES + 1) * STEP_MS) / 1000);
+    return true;
+}
+
+void MoonrakerClientMock::service_pending_pa_lines() {
+    std::vector<PendingPaLine> due;
+    {
+        std::lock_guard<std::mutex> lock(pa_cal_mutex_);
+        auto now = std::chrono::steady_clock::now();
+        for (auto it = pending_pa_lines_.begin(); it != pending_pa_lines_.end();) {
+            if (it->due <= now) {
+                due.push_back(std::move(*it));
+                it = pending_pa_lines_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    for (auto& item : due) {
+        dispatch_gcode_response(item.line);
+        if (!item.is_final) {
+            continue;
+        }
+        // A refusal answers the RPC as an error, the way Klipper does; a
+        // successful run answers plainly and lets the console line carry the
+        // result, which is the contract the collector relies on.
+        if (item.line.rfind("!! ", 0) == 0) {
+            if (item.error_cb) {
+                MoonrakerError err;
+                err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+                err.message = item.line.substr(3);
+                err.method = "printer.gcode.script";
+                item.error_cb(err);
+            }
+        } else if (item.success_cb) {
+            item.success_cb(nlohmann::json{{"result", "ok"}});
+        }
+    }
+}
 void MoonrakerClientMock::dispatch_gcode_response(const std::string& line) {
     // Build notify_gcode_response message format:
     // {"method": "notify_gcode_response", "params": ["<line>"]}

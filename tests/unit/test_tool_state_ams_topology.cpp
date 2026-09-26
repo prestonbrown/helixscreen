@@ -5,7 +5,9 @@
 #include "ui_update_queue.h"
 
 #include "ams_backend.h"
+#include "ams_backend_toolchanger.h"
 #include "ams_state.h"
+#include "ams_tool_topology.h"
 #include "display_numbering.h"
 #include "lvgl_test_fixture.h"
 #include "static_subject_registry.h"
@@ -741,4 +743,59 @@ TEST_CASE_METHOD(ToolStateFixture,
     CHECK(ts.tools()[1].backend_slot == -1);
 
     ts.clear_ams_topology();
+}
+
+// ============================================================================
+// Empty carriage — on a tool changer, "no tool on the carriage" is a real
+// state, not "nothing loaded". Lane-based topologies keep -1 -> T0: the one
+// hotend is still T0 regardless of which lane feeds it.
+// ============================================================================
+
+TEST_CASE_METHOD(ToolStateFixture, "An empty carriage stays empty on a tool changer topology",
+                 "[tool-state][ams-topology][empty-carriage]") {
+    ToolTopology topo;
+    topo.tool_count = 4;
+    topo.tool_to_slot = {0, 1, 2, 3};
+    topo.allows_empty_carriage = true;
+
+    topo.active_tool = 2;
+    ToolState::instance().set_ams_topology(topo);
+    UpdateQueue::instance().drain();
+    REQUIRE(ToolState::instance().active_tool_index() == 2);
+
+    // Unmounting parks the head: nothing is on the carriage.
+    topo.active_tool = -1;
+    ToolState::instance().set_ams_topology(topo);
+    UpdateQueue::instance().drain();
+    CHECK(ToolState::instance().active_tool_index() == -1);
+    CHECK(ToolState::instance().active_tool() == nullptr);
+
+    ToolState::instance().clear_ams_topology();
+    UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(ToolStateFixture, "A lane topology with nothing loaded still reports T0",
+                 "[tool-state][ams-topology][empty-carriage]") {
+    // Lanes feeding one extruder: -1 means no lane loaded, and the one hotend
+    // is still T0.
+    ToolTopology topo;
+    topo.tool_count = 4;
+    topo.tool_to_slot = {0, 1, 2, 3};
+    topo.active_tool = -1;
+    ToolState::instance().set_ams_topology(topo);
+    UpdateQueue::instance().drain();
+    CHECK(ToolState::instance().active_tool_index() == 0);
+
+    ToolState::instance().clear_ams_topology();
+    UpdateQueue::instance().drain();
+}
+
+TEST_CASE("A tool changer's topology allows an empty carriage",
+          "[tool-state][ams-topology][empty-carriage]") {
+    helix::AmsBackendToolChanger tc(nullptr, nullptr);
+    tc.set_discovered_tools({"T0", "T1"});
+    auto topo = helix::build_ams_topology(&tc, 0);
+    REQUIRE(topo.has_value());
+    CHECK(topo->allows_empty_carriage);
+    CHECK(topo->active_tool == -1);
 }

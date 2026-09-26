@@ -1862,7 +1862,7 @@ if [ -f "scripts/check_namespace_compliance.py" ]; then
   #
   # tests/shell/test_namespace_gate.bats carries this same number and fails if
   # the two disagree or if the tree drifts under it.
-  if python3 scripts/check_namespace_compliance.py --max-allowed 2228 --summary >/tmp/namespace_check.out 2>&1; then
+  if python3 scripts/check_namespace_compliance.py --max-allowed 2219 --summary >/tmp/namespace_check.out 2>&1; then
     section_time $SECTION_START
     echo ""
     tail -1 /tmp/namespace_check.out
@@ -2901,7 +2901,8 @@ echo ""
 }
 
 # ====================================================================
-# Translation catalog coverage (user-facing strings with no key)
+# Translation catalog coverage (user-facing strings with no key, or an empty
+# value in a locale)
 # ====================================================================
 qc_translation_coverage() {
   local EXIT_CODE=0
@@ -2912,6 +2913,13 @@ qc_translation_coverage() {
 # main because this gate lived only in tests/shell/test_code_lint.bats, which a
 # release runs after quality-checks and which nothing runs pre-commit.
 #
+# The dry run proves a KEY exists, nothing more: `make translation-sync` writes
+# a brand-new key as an EMPTY placeholder, and an empty value renders as empty
+# text in that locale (lv_translation_get() only falls back on a MISSING key).
+# So the second half runs the same pytest CI's Code Quality job runs,
+# tests/python/test_cpp_translation_coverage.py, which fails on empty values -
+# reusing that scan rather than restating the rule here.
+#
 # --dry-run is load-bearing: a bare `sync` REWRITES all nine catalogs, and a
 # check that edits the tree it is inspecting would stage catalog churn behind
 # the committer's back.
@@ -2921,9 +2929,22 @@ echo -n "🌐 Checking translation catalog coverage..."
 if [ -x "$VENV_PYTHON" ] && [ -f "scripts/translation_sync.py" ]; then
   if "$VENV_PYTHON" scripts/translation_sync.py sync --dry-run >/tmp/trans_cov.out 2>&1 \
      && grep -q "All XML strings already in YAML files" /tmp/trans_cov.out; then
-    section_time $SECTION_START
-    echo ""
-    echo "✅ Every user-facing string has a translation key"
+    if "$VENV_PYTHON" -m pytest -q tests/python/test_cpp_translation_coverage.py \
+       >/tmp/trans_empty.out 2>&1; then
+      section_time $SECTION_START
+      echo ""
+      echo "✅ Every user-facing string has a translated value in every locale"
+    else
+      section_time $SECTION_START
+      echo ""
+      grep -vE "^[[:space:]]*$" /tmp/trans_empty.out | tail -15
+      echo "   Fix: make translation-sync && make translations"
+      echo "   Then translate the empty keys listed above - consult"
+      echo "   translations/GLOSSARY.md and reuse the canonical term rather"
+      echo "   than coining a new one - and stage translations/*.yml alongside"
+      echo "   ui_xml/translations/*.xml."
+      EXIT_CODE=1
+    fi
   else
     section_time $SECTION_START
     echo ""

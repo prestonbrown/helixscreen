@@ -150,8 +150,7 @@
     <!-- ===================================================================== -->
     <!-- Small round badge for tool numbers, counts, etc. overlaid on icons.
          These only make sense on a roomy icon (size="lg"/"xl"); a call site using
-         a smaller icon must pass an explicit badge size, see
-         badge_size_on_sm_icon_* below.
+         a smaller icon must pass an explicit badge size.
 
          Hold each rung near a third of the icon it sits on. The xl icon rung is
          NOT constant across breakpoints - icon_font_xl runs 64 at large, 80 at
@@ -164,32 +163,6 @@
     <px name="badge_size_large" value="20"/>
     <px name="badge_size_xlarge" value="24"/>
     <px name="badge_size_xxlarge" value="32"/>
-
-    <!-- Badge sized to sit on a size="sm" (24px) icon. A badge disc can never be
-         smaller than the line height of the font inside it without clipping the
-         glyph, which is what pins badge_size_* above to font_xs (12px font -> LH
-         18 at medium). Pair these with font_badge_compact below, whose line
-         height is 15 through xlarge. -->
-    <px name="badge_size_on_sm_icon_micro" value="15"/>
-    <px name="badge_size_on_sm_icon_tiny" value="15"/>
-    <px name="badge_size_on_sm_icon_small" value="15"/>
-    <px name="badge_size_on_sm_icon_medium" value="15"/>
-    <px name="badge_size_on_sm_icon_large" value="15"/>
-    <px name="badge_size_on_sm_icon_xlarge" value="15"/>
-    <px name="badge_size_on_sm_icon_xxlarge" value="18"/>
-
-    <!-- Font for a badge overlaid on a small icon. font_xs grows to 20px at
-         xxlarge (line height 27), which alone is larger than a size="sm" icon, so
-         a badge on one cannot use it. These are capped at line height 15 (18 at
-         xxlarge). All three faces are in FONTS_CORE, so every platform tier has
-         them regardless of which font tiers it builds. -->
-    <string name="font_badge_compact_micro" value="noto_sans_light_10"/>
-    <string name="font_badge_compact_tiny" value="noto_sans_light_10"/>
-    <string name="font_badge_compact_small" value="noto_sans_light_10"/>
-    <string name="font_badge_compact_medium" value="noto_sans_light_10"/>
-    <string name="font_badge_compact_large" value="noto_sans_light_10"/>
-    <string name="font_badge_compact_xlarge" value="noto_sans_light_11"/>
-    <string name="font_badge_compact_xxlarge" value="noto_sans_light_12"/>
 
     <!-- ===================================================================== -->
     <!-- Responsive Spinner Sizes (spinner_*)                                  -->
@@ -503,6 +476,23 @@
     <string name="font_xl_xlarge" value="noto_sans_bold_32"/>
     <string name="font_xl_xxlarge" value="noto_sans_bold_40"/>
     <!-- NO BASE font_xl - registered at runtime -->
+    <!-- font_display variants: ONE number that is the whole point of a screen.
+         Reserved for a readout the user has to carry off the machine by eye -
+         the measured pressure advance, which is transcribed into a slicer with
+         no clipboard to help. Everywhere else font_xl is the display face; this
+         exists because 28px in the middle of an otherwise empty card does not
+         read as "this is the answer", and bitmap fonts cannot be scaled up.
+         40px is the largest bold face that exists, so this is the ceiling
+         rather than a preference. Below MEDIUM there is no room for it and the
+         token falls back to the font_xl ladder. -->
+    <string name="font_display_micro" value="noto_sans_bold_16"/>
+    <string name="font_display_tiny" value="noto_sans_bold_18"/>
+    <string name="font_display_small" value="noto_sans_bold_20"/>
+    <string name="font_display_medium" value="noto_sans_bold_40"/>
+    <string name="font_display_large" value="noto_sans_bold_40"/>
+    <string name="font_display_xlarge" value="noto_sans_bold_40"/>
+    <string name="font_display_xxlarge" value="noto_sans_bold_40"/>
+    <!-- NO BASE font_display - registered at runtime -->
     <!-- font_body_bold variants (bold weight at body size, e.g. markdown strong/section
          headers). Sizes track font_body but step up to the nearest available bold glyph
          (noto_sans_bold ships 14/16/18/20/24/28 always, 32 at xlarge tier, 40 at xxlarge). -->

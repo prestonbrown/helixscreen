@@ -444,12 +444,10 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::LogCapture log(64);
     PreheatWidgetTestAccess::set_temperatures_multi(widget, 200, 60);
 
-    // Pin on current output: tool_label(1) spells "T1", matching what the
-    // current literal call sites already render, so this does not prove the
-    // key takes a label rather than a number - it protects the rendered
-    // toast text.
-    CHECK(log.count_containing("Preheat: T1 + bed set") >= 1);
-    CHECK(log.count_containing("Preheat: Tool 1 + bed set") == 0);
+    // The toast names the tool the way its button does, never the 0-based
+    // G-code form.
+    CHECK(log.count_containing("Preheat: Tool 2 + bed set") >= 1);
+    CHECK(log.count_containing("Preheat: T1 + bed set") == 0);
 
     // Drop the registration so later tests' get_temperature_controller() sees none.
     helix::PanelWidgetManager::instance().register_shared_resource<helix::TemperatureController>(

@@ -692,6 +692,134 @@
           "pattern": "corexy",
           "confidence": 30,
           "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "gcode_button extruder_grab1",
+          "confidence": 0,
+          "reason": "Exclude FlashForge Creator 5 Pro (head-dock grab sensors on both its firmwares; separate entry)"
+        }
+      ]
+    },
+    {
+      "id": "flashforge_creator_5",
+      "name": "FlashForge Creator 5",
+      "manufacturer": "FlashForge",
+      "image": "flashforge-creator-5.png",
+      "preset": "creator5",
+      "z_offset_calibration_strategy": "firmware_managed",
+      "heuristics": [
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "ff_toolchange",
+          "confidence": 99,
+          "reason": "[ff_toolchange] tool-changer extra (Klipper4Creator5 port)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "gcode_button extruder_grab1",
+          "confidence": 95,
+          "reason": "Head-dock grab sensor; names Z-Mod C5 (grab1..4) and the stock changer alike (grab0..3)"
+        },
+        {
+          "type": "tool_count",
+          "field": "heaters",
+          "pattern": "tool_count_4",
+          "confidence": 70,
+          "reason": "4 extruders"
+        },
+        {
+          "type": "macro_exclude",
+          "field": "macros",
+          "pattern": "SET_EXTRUDER_SLOT",
+          "confidence": 0,
+          "reason": "Exclude AD5X (IFS, not a head changer)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "zmod_color",
+          "confidence": 60,
+          "corroborating": true,
+          "reason": "Z-Mod firmware lineage (also on AD5X Z-Mod - support, never establish)"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "zmod_ifs",
+          "confidence": 0,
+          "reason": "Exclude AD5X Z-Mod IFS (object form of the SET_EXTRUDER_SLOT macro exclude)"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "heater_generic chamber_heater",
+          "confidence": 0,
+          "reason": "The chamber heater is the Pro's hardware; a machine carrying one is a Creator 5 Pro, not a Creator 5"
+        }
+      ],
+      "toolhead_style": "default"
+    },
+    {
+      "id": "flashforge_creator_5_pro",
+      "name": "FlashForge Creator 5 Pro",
+      "manufacturer": "FlashForge",
+      "image": "flashforge-creator-5-pro.png",
+      "preset": "creator5_pro",
+      "z_offset_calibration_strategy": "firmware_managed",
+      "heuristics": [
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "ff_toolchange",
+          "confidence": 99,
+          "reason": "[ff_toolchange] tool-changer extra (Klipper4Creator5 port)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "gcode_button extruder_grab1",
+          "confidence": 95,
+          "reason": "Head-dock grab sensor; names Z-Mod C5 (grab1..4) and the stock changer alike (grab0..3)"
+        },
+        {
+          "type": "tool_count",
+          "field": "heaters",
+          "pattern": "tool_count_4",
+          "confidence": 70,
+          "reason": "4 extruders"
+        },
+        {
+          "type": "macro_exclude",
+          "field": "macros",
+          "pattern": "SET_EXTRUDER_SLOT",
+          "confidence": 0,
+          "reason": "Exclude AD5X (IFS, not a head changer)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "zmod_color",
+          "confidence": 60,
+          "corroborating": true,
+          "reason": "Z-Mod firmware lineage (also on AD5X Z-Mod - support, never establish)"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "zmod_ifs",
+          "confidence": 0,
+          "reason": "Exclude AD5X Z-Mod IFS (object form of the SET_EXTRUDER_SLOT macro exclude)"
+        },
+        {
+          "type": "object_required",
+          "field": "printer_objects",
+          "pattern": "heater_generic chamber_heater",
+          "confidence": 0,
+          "reason": "The chamber heater is the only hardware that separates a Creator 5 Pro from a Creator 5; a machine reporting none is a Creator 5, and the name itself is shared with other enclosed printers so it never scores on its own"
         }
       ],
       "toolhead_style": "default"

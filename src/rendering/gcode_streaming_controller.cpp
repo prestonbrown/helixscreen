@@ -178,6 +178,8 @@ GCodeStreamingController::GCodeStreamingController(size_t cache_budget_bytes)
     register_memory_responder();
 }
 
+std::function<void()> GCodeStreamingController::index_worker_gate;
+
 void GCodeStreamingController::register_memory_responder() {
     // Capture weak_ptr so the callback becomes a no-op after destruction.
     // MemoryMonitor copies the callback list before iterating, so
@@ -236,7 +238,8 @@ GCodeStreamingController::~GCodeStreamingController() {
 
     // Wait for any async indexing to complete
     if (index_future_.valid()) {
-        indexing_.store(false); // Signal cancellation
+        indexing_.store(false);
+        index_cancel_requested_.store(true, std::memory_order_relaxed);
         try {
             index_future_.wait();
         } catch (...) {
@@ -251,6 +254,7 @@ GCodeStreamingController::~GCodeStreamingController() {
 
 bool GCodeStreamingController::open_file(const std::string& filepath) {
     close();
+    index_cancel_requested_.store(false, std::memory_order_relaxed);
 
     spdlog::info("[StreamingController] Opening file: {}", filepath);
 
@@ -282,6 +286,7 @@ bool GCodeStreamingController::open_file(const std::string& filepath) {
 void GCodeStreamingController::open_file_async(const std::string& filepath,
                                                std::function<void(bool)> on_complete) {
     close();
+    index_cancel_requested_.store(false, std::memory_order_relaxed);
 
     spdlog::info("[StreamingController] Opening file async: {}", filepath);
 
@@ -312,6 +317,9 @@ void GCodeStreamingController::open_file_async(const std::string& filepath,
     index_future_ = std::async(std::launch::async, [this, filepath]() {
         bool success = false;
         try {
+            if (index_worker_gate) {
+                index_worker_gate();
+            }
             success = build_index();
         } catch (const std::exception& e) {
             spdlog::error("[StreamingController] Exception during build_index: {}", e.what());
@@ -362,6 +370,7 @@ void GCodeStreamingController::open_file_async(const std::string& filepath,
 
 bool GCodeStreamingController::open_source(std::unique_ptr<GCodeDataSource> source) {
     close();
+    index_cancel_requested_.store(false, std::memory_order_relaxed);
 
     if (!source || !source->is_valid()) {
         spdlog::error("[StreamingController] Invalid data source");
@@ -388,6 +397,7 @@ void GCodeStreamingController::close() {
     // Wait for async operations
     if (index_future_.valid()) {
         indexing_.store(false);
+        index_cancel_requested_.store(true, std::memory_order_relaxed);
         try {
             index_future_.wait();
         } catch (...) {
@@ -853,8 +863,10 @@ bool GCodeStreamingController::build_index() {
         // drive an indeterminate spinner — on a 133MB print that is 69 seconds
         // of a UI that looks hung. Storing an atomic from the scan thread is
         // the whole cost; the UI polls it on its own clock.
-        return index_.build_from_file(file_path,
-                                      [this](float fraction) { index_progress_.store(fraction); });
+        return index_.build_from_file(file_path, [this](float fraction) {
+            index_progress_.store(fraction);
+            return !index_cancel_requested_.load(std::memory_order_relaxed);
+        });
     }
 
     // Sources without file path (e.g., MemoryDataSource) cannot be indexed

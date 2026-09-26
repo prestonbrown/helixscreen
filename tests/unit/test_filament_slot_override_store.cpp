@@ -13,6 +13,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -4200,4 +4201,61 @@ TEST_CASE("bind_fingerprint_persistence seeds from records and persists observat
     // A slot with no record: observation classifies normally, nothing saved.
     CHECK(tracker.observe(2, "9,9,9,9") == helix::ams::FingerprintEvent::Baseline);
     CHECK(api.mock_get_db_value("lane_data", "lane3").is_null());
+}
+
+TEST_CASE("persist_staged_override saves the record the map holds under the lock",
+          "[filament_slot_override]") {
+    TmpCacheDir tmp("persist_staged");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    FilamentSlotOverrideStore store(&api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+
+    std::mutex mutex;
+    std::unordered_map<int, FilamentSlotOverride> overrides;
+    FilamentSlotOverride staged;
+    staged.brand = "Polymaker";
+    staged.material = "PLA";
+    staged.color_rgb = 0xFF5500;
+    staged.color_set = true;
+    overrides[0] = staged;
+
+    helix::ams::persist_staged_override(&store, mutex, overrides, 0, "[TestIfs]", "Override");
+
+    // MoonrakerAPIMock fires save callbacks synchronously in-call, so the
+    // record is on the mock before this line runs.
+    auto stored = api.mock_get_db_value("lane_data", "lane1");
+    REQUIRE(!stored.is_null());
+    CHECK(stored["vendor"] == "Polymaker");
+    CHECK(stored["material"] == "PLA");
+    CHECK(stored["color"] == "#FF5500");
+}
+
+TEST_CASE("persist_staged_override saves nothing for a slot with no staged record",
+          "[filament_slot_override]") {
+    TmpCacheDir tmp("persist_unstaged");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    FilamentSlotOverrideStore store(&api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+
+    std::mutex mutex;
+    std::unordered_map<int, FilamentSlotOverride> overrides;
+    FilamentSlotOverride staged;
+    staged.material = "PETG";
+    overrides[1] = staged;
+
+    // Positive control first: slot 1 has a record and its save lands.
+    helix::ams::persist_staged_override(&store, mutex, overrides, 1, "[TestIfs]", "Override");
+    REQUIRE(!api.mock_get_db_value("lane_data", "lane2").is_null());
+
+    // Slot 0 holds nothing staged, so no lane_data key may appear for it.
+    helix::ams::persist_staged_override(&store, mutex, overrides, 0, "[TestIfs]", "Override");
+    CHECK(api.mock_get_db_value("lane_data", "lane1").is_null());
 }

@@ -4,9 +4,11 @@
 #pragma once
 
 #include "filament_database.h"
+#include "macro_param_cache.h"
 #include "macro_param_modal.h"
 
 #include <functional>
+#include <map>
 #include <string>
 #include <unordered_set>
 
@@ -105,6 +107,67 @@ analyze_host_halting_macros(const nlohmann::json& config_settings);
 /// recorded on PrinterDiscovery during discovery. Prefer this overload wherever
 /// a confirmation is being decided; the name-only form cannot see a wrapper.
 [[nodiscard]] bool is_dangerous_macro(const std::string& name, const PrinterDiscovery& hw);
+
+/// How a macro click proceeds, decided by decide_macro_run().
+enum class MacroRunAction {
+    ConfirmDangerous, ///< The dangerous-macro dialog must be accepted first.
+    Run,              ///< Execute now with the returned params.
+    ConfirmRun,       ///< Ask "Run X?" first, then execute with the returned params.
+    Prompt,           ///< Show the parameter modal, prefilled with the returned params.
+    PromptUnknown,    ///< Show the free-form modal for a macro whose params are unknown.
+};
+
+/// What one caller knows about the click it is dispatching. A caller that never
+/// checks a flag leaves it false.
+struct MacroRunRequest {
+    bool dangerous = false;           ///< is_dangerous_macro() on this printer.
+    bool dangerous_confirmed = false; ///< the dangerous-macro dialog was already accepted.
+    bool prompt_for_params = true;    ///< false: never raise the param modal, run with no params.
+    bool confirm_plain_run = false;   ///< ask "Run X?" before a run that raises no param modal.
+    /// Candidate values for the macro's declared parameters, keyed by name.
+    std::map<std::string, std::string> known_values;
+    /// The macro's saved defaults (MacroParamDefaults record values), keyed by
+    /// name. They prefill the prompt and ride along on unattended runs — where
+    /// known_values name the same parameter, the known value wins — but they
+    /// never complete a run on their own: only known_values may.
+    std::map<std::string, std::string> saved_values;
+};
+
+/// The action to take plus the parameters it settled on: Run and ConfirmRun
+/// carry the params to send (empty unless a full known_values prefill or a
+/// saved record supplied them), Prompt carries the prefill for the modal.
+struct MacroRunDecision {
+    MacroRunAction action = MacroRunAction::Run;
+    std::map<std::string, std::string> params;
+};
+
+/// Decide how to run a macro: confirm it as dangerous, ask "Run X?", raise the
+/// parameter modal, or run it now. The one rule shared by the macro panel, the
+/// favorite-macro widget, the filament router and the quick buttons; each
+/// caller maps the returned action onto its own dialogs and lifetime handling.
+///
+/// An unconfirmed dangerous macro outranks everything. A click that will raise
+/// no param modal (prompt_for_params false, or the macro takes none) is a plain
+/// run, confirmed only when asked and never twice for a dangerous macro; a
+/// plain run carries the saved values overlaid by known_values (the caller's
+/// computed value wins on a shared name), both filtered to the macro's declared
+/// names. A macro with declared parameters runs without a prompt only when
+/// known_values covers every one of them, else prompts with the names it did
+/// cover plus the saved values for the rest - a full saved set still prompts,
+/// because a saved value is what the user last typed, not what they chose for
+/// this run. An UNKNOWN macro always prompts free-form. KNOWN_PARAMS always
+/// carries at least one parameter (MacroParamCache never stores an empty list
+/// as known).
+[[nodiscard]] MacroRunDecision decide_macro_run(const CachedMacroInfo& cached,
+                                                const MacroRunRequest& req);
+
+/// Split a KEY=VALUE map into a MacroParamResult following the macro's declared
+/// parameter shapes: declared-variable names go to result.variables (the
+/// SET_GCODE_VARIABLE path), everything else to result.params (inline
+/// KEY=VALUE). For callers that run with saved values instead of a modal.
+[[nodiscard]] MacroParamResult
+macro_param_result_from_values(const std::vector<MacroParam>& params,
+                               const std::map<std::string, std::string>& values);
 
 /// What a macro does to the Klipper host, which decides how to read a dropped rpc.
 enum class MacroHostEffect {

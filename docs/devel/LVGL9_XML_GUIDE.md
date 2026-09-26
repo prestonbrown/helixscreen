@@ -510,8 +510,8 @@ There is a third way out when the same condition is needed on several surfaces
 *and* an operand comes from a Phase 9a `init_subjects()`: publish the answer as a
 plain subject from C++ and let every site bind that one name — a `subject="..."`
 reference resolves at view-create time, so the phase trap does not apply. That is
-what `z_offset_save_available` (`include/z_offset_utils.h#save_available`) does
-for the Z-offset save affordance. Reach for it only when repeating the `cond=`
+what the Z-offset save affordance's `z_offset_save_available` subject does
+(`include/z_offset_utils.h#init_save_available_subject`). Reach for it only when repeating the `cond=`
 would put one rule in several files; a condition used once belongs inline.
 
 ##### HelixScreen examples
@@ -1353,7 +1353,7 @@ syntax:
 
 - **Put `transition` on the base style for symmetric motion.** LVGL scans every
   style on the object whose state bits are a *subset* of the state being entered
-  (`lib/lvgl/src/core/lv_obj.c#update_obj_state`), and `LV_STATE_DEFAULT` is `0` — a
+  (`update_obj_state`'s style compare, `lib/lvgl/src/core/lv_obj.c#"lv_obj_style_state_compare(obj, prev_state, new_state)"`), and `LV_STATE_DEFAULT` is `0` — a
   subset of every state — so a transition on the base style is scanned on every
   state change, in both directions. A transition declared only on a `<style
   selector="pressed">` still applies when *entering* pressed; leaving pressed snaps,
@@ -1362,7 +1362,7 @@ syntax:
   deliberately want asymmetric timing — that is what `lv_theme_default` does for a
   button: an instant press and a 70ms-delayed release, by putting one transition on
   the base style and a second, faster one on `LV_STATE_PRESSED`
-  (`lib/lvgl/src/themes/default/lv_theme_default.c#theme_apply`). `selector` itself
+  (the button branch of `theme_apply`, `lib/lvgl/src/themes/default/lv_theme_default.c#"lv_obj_check_type(obj, &lv_button_class)"`). `selector` itself
   is read only when a `<style>` child is *applied* to a widget
   (`lib/helix-xml/src/xml/parsers/lv_xml_obj_parser.c#lv_obj_xml_style_apply`) — a
   style's own `<styles>` definition has no `selector` handling, so the two roles
@@ -1427,7 +1427,7 @@ A few of LVGL's own constraints shape what the parser accepts — worth knowing 
 extending this feature rather than working around it:
 
 - **The transition interpolator is a blacklist, not a whitelist.**
-  `lib/lvgl/src/core/lv_obj_style.c#trans_anim_cb` switches on only the properties
+  `trans_anim_cb` (`lib/lvgl/src/core/lv_obj_style.c#"switch(tr->prop)"`) switches on only the properties
   that *cannot* interpolate; everything else falls through to a generic numeric
   lerp. A pointer property absent from that blacklist (`bg_image_src`, `bg_grad`,
   `bitmap_mask_src`, the grid `*_dsc_array` pair, `arc_image_src`) has its low 32
@@ -1439,7 +1439,7 @@ extending this feature rather than working around it:
 - **The style owns its transition descriptor and its property array.**
   `lv_xml_style_t` (`lib/helix-xml/src/xml/lv_xml_style.h`) frees the previous
   descriptor and array before installing a new one, and only in the style walk
-  inside `lib/helix-xml/src/xml/lv_xml_component.c#component_scope_free` — which is
+  inside `component_scope_free`, at `lib/helix-xml/src/xml/lv_xml_component.c#"lv_xml_style_transition_clear(style)"` — which is
   what keeps a `globals.xml` hot reload (re-registering the same style name re-runs
   every setter over the existing record) from orphaning one descriptor per save,
   without ever freeing a descriptor a running transition is still reading from

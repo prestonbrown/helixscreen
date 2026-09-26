@@ -288,6 +288,7 @@ class ControlsPanel : public PanelBase {
     lv_obj_t* bed_mesh_panel_ = nullptr;
     lv_obj_t* zoffset_panel_ = nullptr;
     lv_obj_t* tool_offset_panel_ = nullptr;
+    lv_obj_t* pa_cal_panel_ = nullptr;
     lv_obj_t* screws_panel_ = nullptr;
 
     /// LED quick-toggle for the Calibration & Tools grid cell. Reuses the same
@@ -557,8 +558,9 @@ class ControlsPanel : public PanelBase {
      * @brief Actually run a configured macro slot (bypasses confirmation)
      *
      * Called by execute_macro() directly or from the confirmation callback.
+     * @param params Saved parameter defaults to send with the macro (may be empty).
      */
-    void do_execute_macro(size_t index);
+    void do_execute_macro(size_t index, const std::map<std::string, std::string>& params = {});
 
     /**
      * @brief Update a single macro button's visibility and label
@@ -608,6 +610,7 @@ class ControlsPanel : public PanelBase {
     void handle_motors_cancel();
     void handle_calibration_bed_mesh();
     void handle_calibration_zoffset();
+    void handle_calibration_pa();
     void handle_calibration_screws();
     void handle_calibration_tool_offsets();
     void handle_calibration_motors();
@@ -632,6 +635,7 @@ class ControlsPanel : public PanelBase {
 
     static void on_calibration_bed_mesh(lv_event_t* e);
     static void on_calibration_zoffset(lv_event_t* e);
+    static void on_calibration_pa(lv_event_t* e);
     static void on_calibration_screws(lv_event_t* e);
     static void on_calibration_tool_offsets(lv_event_t* e);
     static void on_calibration_motors(lv_event_t* e);

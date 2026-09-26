@@ -11,6 +11,8 @@
 #include "favorite_macro_config.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
+#include "macro_param_cache.h"
+#include "macro_param_defaults.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "static_subject_registry.h"
@@ -27,6 +29,9 @@ namespace helix {
 namespace {
 lv_subject_t s_tab_subject;
 lv_subject_t s_require_confirm_subject;
+/// 1 while the configured macro declares a parameter list, so the Options tab
+/// can show the "Default Parameters" row only for macros that have one.
+lv_subject_t s_has_param_defaults_subject;
 bool s_subjects_registered = false;
 
 // Curated icon list for the picker grid (matches FavoriteMacroWidget).
@@ -93,11 +98,14 @@ void register_favorite_macro_config_subjects() {
     // Default 1 mirrors FavoriteMacroConfig::require_confirmation, so the toggle
     // reads correctly even before on_show() loads a widget's config.
     lv_subject_init_int(&s_require_confirm_subject, 1);
+    lv_subject_init_int(&s_has_param_defaults_subject, 0);
     lv_xml_register_subject(nullptr, "fav_macro_config_tab", &s_tab_subject);
     lv_xml_register_subject(nullptr, "fav_macro_require_confirm", &s_require_confirm_subject);
+    lv_xml_register_subject(nullptr, "fav_macro_has_param_defaults", &s_has_param_defaults_subject);
     StaticSubjectRegistry::instance().register_deinit("FavoriteMacroConfigSubjects", []() {
         lv_subject_deinit(&s_tab_subject);
         lv_subject_deinit(&s_require_confirm_subject);
+        lv_subject_deinit(&s_has_param_defaults_subject);
         s_subjects_registered = false;
     });
     s_subjects_registered = true;
@@ -139,6 +147,7 @@ void FavoriteMacroConfigModal::on_show() {
     color_grid_ = lv_obj_find_by_name(dialog(), "color_grid");
     lv_subject_set_int(&s_tab_subject, 0);
     lv_subject_set_int(&s_require_confirm_subject, require_confirmation_ ? 1 : 0);
+    refresh_param_defaults_visible();
     populate_macro_list();
     populate_icon_grid();
     populate_color_grid();
@@ -188,6 +197,46 @@ void FavoriteMacroConfigModal::require_confirm_cb(lv_event_t* e) {
 
 IMoonrakerAPI* FavoriteMacroConfigModal::get_api() const {
     return get_moonraker_api();
+}
+
+void FavoriteMacroConfigModal::refresh_param_defaults_visible() {
+    const bool has_params = macro_name_.empty()
+                                ? false
+                                : helix::MacroParamCache::instance().get(macro_name_).knowledge ==
+                                      helix::MacroParamKnowledge::KNOWN_PARAMS;
+    lv_subject_set_int(&s_has_param_defaults_subject, has_params ? 1 : 0);
+}
+
+void FavoriteMacroConfigModal::defaults_cb(lv_event_t* e) {
+    (void)e;
+    LVGL_SAFE_EVENT_CB_BEGIN("[FavoriteMacroConfigModal] defaults_cb");
+    if (s_active_)
+        s_active_->open_defaults_editor();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void FavoriteMacroConfigModal::open_defaults_editor() {
+    auto cached = helix::MacroParamCache::instance().get(macro_name_);
+    if (cached.knowledge != helix::MacroParamKnowledge::KNOWN_PARAMS) {
+        // The Options row is hidden for these macros; this guards a stale
+        // subject value after the configured macro changed.
+        spdlog::debug("[FavoriteMacroConfigModal] No defaults editor for '{}' (no known params)",
+                      macro_name_);
+        return;
+    }
+
+    lv_obj_t* screen = lv_screen_active();
+    if (!screen) {
+        spdlog::warn("[FavoriteMacroConfigModal] No active screen for the defaults editor");
+        return;
+    }
+
+    std::string name = macro_name_;
+    param_modal_.show_for_defaults(screen, name, cached.params,
+                                   helix::MacroParamDefaults::instance().get(name),
+                                   [name](const helix::MacroParamDefaultRecord& record) {
+                                       helix::MacroParamDefaults::instance().set(name, record);
+                                   });
 }
 
 void FavoriteMacroConfigModal::populate_macro_list() {
@@ -357,6 +406,9 @@ void FavoriteMacroConfigModal::select_macro(const std::string& name) {
     macro_name_ = name;
     persist();
     refresh_highlights();
+    // The Options tab's "Default Parameters" row follows the new macro's
+    // parameter knowledge.
+    refresh_param_defaults_visible();
     spdlog::info("[FavoriteMacroConfigModal] Selected macro: {}", name);
 }
 

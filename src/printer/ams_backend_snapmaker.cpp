@@ -3,6 +3,7 @@
 
 #include "ams_backend_snapmaker.h"
 
+#include "ui_insert_notice.h"
 #include "ui_toast_manager.h"
 
 #include "ams_error.h"
@@ -31,6 +32,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <lvgl.h>
 #include <string_view>
 #include <utility>
@@ -39,6 +41,12 @@
 namespace helix {
 
 namespace {
+
+/// Parses a pending insert verdict may hold while waiting for the tag
+/// reader's filament_detect.info entry. Status frames arrive about once a
+/// second, so eight parses is roughly eight seconds: long enough for a read to
+/// land, short enough that an unverified insert cannot sit silent forever.
+constexpr int kSnapPendingInsertPasses = 8;
 
 /// A digit run short enough to parse as an index without overflowing. Ten or
 /// more digits exceeds the narrowest supported target's parse range, and both
@@ -207,6 +215,10 @@ void AmsBackendSnapmaker::on_started() {
         override_store_ = std::move(loaded.store);
         overrides_ = std::move(loaded.overrides);
         helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_.get(), overrides_);
+        // A reconnect re-baselines the feed ports: an insert pending from
+        // before it is judged against nothing this session has seen.
+        pending_insert_passes_.fill(0);
+        feed_presence_seen_.fill(false);
     }
 }
 
@@ -909,27 +921,8 @@ AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& in
     }
 
     if (override_store_) {
-        // Re-read from overrides_ under the lock to get the staged copy.
-        helix::ams::FilamentSlotOverride ovr_to_save;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            auto it = overrides_.find(slot_index);
-            if (it != overrides_.end()) {
-                ovr_to_save = it->second;
-            }
-        }
-        // Capture backend_log_tag by value — save_async's MR callback may fire
-        // long after this returns (MR tracker ~60s timeout). Do NOT capture
-        // `this`: the backend may outlive its store, but the store will
-        // outlive the scheduled save by design.
-        const std::string tag = backend_log_tag();
-        override_store_->save_async(
-            slot_index, ovr_to_save, [tag, slot_index](bool success, const std::string& err) {
-                if (!success) {
-                    spdlog::warn("{} Override persist failed for slot {}: {}", tag, slot_index,
-                                 err);
-                }
-            });
+        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
+                                            backend_log_tag(), "Override");
     }
 
     // Push the user's edit back to firmware via the paxx12 Extended Firmware
@@ -1233,6 +1226,63 @@ SnapmakerRfidInfo AmsBackendSnapmaker::parse_rfid_info(const nlohmann::json& jso
 }
 
 // ============================================================================
+namespace {
+
+/// The tracker fingerprint for one RFID reading, built from exactly the fields
+/// the insert rule judges (prestonbrown/helixscreen#1710): the UID when the
+/// read produced one, else the tag's material and colour when the tag decoded
+/// but its UID did not, else "-" for a finished read that found no tag. A bare
+/// UID is the spelling records already persist as helix_fingerprint, so it
+/// cannot grow a prefix without every restart reading as a swap.
+std::string fingerprint_from_evidence(const helix::ams::SpoolEvidence& evidence) {
+    if (!evidence.tag_uid.empty()) {
+        return evidence.tag_uid;
+    }
+    if (!evidence.material.empty() || evidence.color_rgb.has_value()) {
+        return fmt::format("M|{}|{:06X}", evidence.material, evidence.color_rgb.value_or(0u));
+    }
+    if (evidence.tag_read_complete) {
+        return "-";
+    }
+    return "";
+}
+
+/// The reading a fingerprint names, for the comparison side of the insert
+/// rule. Inverse of fingerprint_from_evidence(); "" names no reading. A stored
+/// fingerprint is foreign input, so a colour that does not parse reads as none
+/// rather than throwing.
+std::optional<helix::ams::SpoolEvidence> evidence_from_fingerprint(const std::string& fingerprint) {
+    if (fingerprint.empty()) {
+        return std::nullopt;
+    }
+    helix::ams::SpoolEvidence evidence;
+    if (fingerprint == "-") {
+        evidence.tag_read_complete = true;
+        return evidence;
+    }
+    if (fingerprint.rfind("M|", 0) == 0) {
+        // A tag whose UID never decoded: material and colour stand, and the
+        // UID is the one part of the read still outstanding.
+        const size_t split = fingerprint.find('|', 2);
+        evidence.material = fingerprint.substr(2, split - 2);
+        if (split != std::string::npos) {
+            uint32_t color = 0;
+            const std::string_view hex(fingerprint.data() + split + 1,
+                                       fingerprint.size() - split - 1);
+            const auto [ptr, ec] = std::from_chars(hex.data(), hex.data() + hex.size(), color, 16);
+            if (ec == std::errc{} && ptr == hex.data() + hex.size()) {
+                evidence.color_rgb = color;
+            }
+        }
+        return evidence;
+    }
+    evidence.tag_uid = fingerprint;
+    evidence.tag_read_complete = true;
+    return evidence;
+}
+
+} // namespace
+
 // Status Update Handling
 // ============================================================================
 
@@ -1257,19 +1307,21 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
     // it is released, because reaching into AmsState while holding ours inverts
     // the order add_backend() acquires them in.
     std::vector<int> unloaded_lanes;
+    // Channels whose feed-port presence rose this parse with no tag evidence
+    // behind it. Same deferral rule as unloaded_lanes: the notice reaches
+    // through AmsState and the UI queue, which must not run under mutex_.
+    std::vector<int> unverified_insert_lanes;
     // The cursor head's *_fail state, when the active batch hit one this
     // parse. Same deferral rule as unloaded_lanes: end_firmware_batch() sends
     // gcode, which must not run under mutex_.
     int batch_failed_head = -1;
     std::string batch_failed_state;
 
-    // Per-slot UID observed THIS parse. Empty string means no RFID info in
-    // this notification (incremental update, or slot not included). Only
-    // populated when filament_detect.info is present and parse_rfid_info
-    // returns a non-empty UID. check_hardware_event_clear then sees the
-    // observed UID (or empty = no signal) and updates / clears accordingly.
-    std::array<std::string, NUM_TOOLS> observed_uids;
-    std::array<bool, NUM_TOOLS> saw_rfid_info{};
+    // What this parse physically read off each channel's spool. A default
+    // entry (no UID, read not finished) means the notification carried no
+    // filament_detect.info for that channel, which the insert rule reads as
+    // no signal.
+    std::array<helix::ams::SpoolEvidence, NUM_TOOLS> observed_evidence{};
 
     { // Scope lock — emit_event MUST be called outside mutex_ to avoid deadlock
       // with sync_from_backend() which acquires mutex_ via get_system_info()
@@ -1363,12 +1415,41 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         continue;
                     auto rfid = parse_rfid_info(info_arr[i]);
 
-                    // Capture the UID for hardware-swap detection before any early
-                    // exit. Even "NONE" tags can carry a CARD_UID in theory, and
-                    // we want the observed value visible to check_hardware_event_clear
-                    // regardless of whether we apply the rest of the RFID fields.
-                    observed_uids[i] = rfid.uid;
-                    saw_rfid_info[i] = true;
+                    // Capture what this reading physically got off the spool,
+                    // before any early exit, so the insert rule sees it
+                    // regardless of whether the rest of the RFID fields apply.
+                    // A read is finished only when it named a tag: a UID names
+                    // it, and a decoded MAIN_TYPE with no UID leaves the UID
+                    // the one part still outstanding (material and colour
+                    // stand as evidence without it). A NONE entry with no UID
+                    // is three indistinguishable states - reader disabled,
+                    // untagged spool, empty channel - so it files no evidence
+                    // at all and the fingerprint comes out empty (no signal).
+                    helix::ams::SpoolEvidence& evidence = observed_evidence[i];
+                    evidence.tag_uid = rfid.uid;
+                    if (!rfid.uid.empty()) {
+                        evidence.tag_read_complete = true;
+                    }
+                    // A pending insert is judged HERE: this entry is the
+                    // reader's answer for the spool that just went in, which
+                    // the port edge could not know. A UID or a decoded
+                    // MAIN_TYPE verifies it - the tail's
+                    // check_hardware_event_clear judges any swap from this
+                    // very reading - and an entry that files nothing is the
+                    // reader saying no tag is behind the insert, so the stored
+                    // record could describe a spool that left (#1710).
+                    if (pending_insert_passes_[i] > 0) {
+                        pending_insert_passes_[i] = 0;
+                        if (rfid.uid.empty() && rfid.main_type == "NONE") {
+                            unverified_insert_lanes.push_back(i);
+                        }
+                    }
+                    if (rfid.main_type != "NONE") {
+                        evidence.material = rfid.main_type;
+                        if (helix::ams::is_declarable_color(rfid.color_rgb)) {
+                            evidence.color_rgb = rfid.color_rgb;
+                        }
+                    }
 
                     // Skip entirely if RFID reader is disabled or no tag present
                     if (rfid.main_type == "NONE")
@@ -1443,8 +1524,12 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // through to a VendorCache record still holding the
                         // abandoned edit, and the lane could never get back to
                         // what the machine says. WEIGHT is nobody's
-                        // declaration and passes through.
-                        const int withheld = own_write_echoes_.withhold(i, rfid.uid, cache);
+                        // declaration and passes through. The boundary rides
+                        // the fingerprint spelling, the same one arm() takes
+                        // from the tracker baseline, so a reading whose UID
+                        // did not decode still names a spool boundary.
+                        const int withheld = own_write_echoes_.withhold(
+                            i, fingerprint_from_evidence(observed_evidence[i]), cache);
                         if (withheld > 0) {
                             spdlog::debug("{} Slot {} withheld {} field(s) echoing our own write",
                                           backend_log_tag(), i, withheld);
@@ -1516,6 +1601,32 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                             // to AVAILABLE/LOADED based on extruder pin state which
                             // is orthogonal to the port sensor reading.
                             if (i >= 0 && i < NUM_TOOLS) {
+                                // The port flag's false -> true edge is an
+                                // insert into the channel; the first sighting
+                                // is the baseline, not an edge. The tag
+                                // reader's answer lands a frame or two later,
+                                // so the edge holds a pending verdict for the
+                                // info loop to judge (#1710). A drop cancels
+                                // one: the spool left before any read.
+                                //
+                                // A feed the firmware itself drives - its own
+                                // tool-change unload/load, or one of our
+                                // batch ops - drops and raises this flag too,
+                                // and no spool changed hands, so it arms
+                                // nothing. The edge runs before this frame's
+                                // channel_state parse, so the gate reads the
+                                // channel's last reported state; the state
+                                // parse below cancels anything the ordering
+                                // missed.
+                                const bool firmware_driven =
+                                    batch_.active || helix::snapmaker::channel_state_in_progress(
+                                                         channel_snapshots_[i].state);
+                                if (detected && feed_presence_seen_[i] &&
+                                    !port_sensor_filament_present_[i] && !firmware_driven) {
+                                    pending_insert_passes_[i] = 1;
+                                } else if (!detected) {
+                                    pending_insert_passes_[i] = 0;
+                                }
                                 port_sensor_filament_present_[i] = detected;
                                 feed_presence_seen_[i] = true;
                             }
@@ -1579,6 +1690,16 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         channel_snapshots_[static_cast<size_t>(i)] = std::move(snap);
 
                         const ChannelStateInfo info = classify_channel_state(state);
+
+                        // A feed under way on this channel is the firmware
+                        // moving filament itself, so a presence edge that
+                        // armed a pending verdict this parse was not a user
+                        // insert; the spool never left.
+                        if (pending_insert_passes_[i] > 0 &&
+                            (info.action == AmsAction::LOADING ||
+                             info.action == AmsAction::UNLOADING)) {
+                            pending_insert_passes_[i] = 0;
+                        }
 
                         // A channel reporting any state at all makes the
                         // lane's presence inputs live for the
@@ -2150,17 +2271,20 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
             if (!slot)
                 continue;
 
-            // Only pass a UID to the hardware-event check when this parse
-            // actually carried filament_detect.info for the slot. Otherwise we'd
-            // feed an empty-string UID on every incremental notify (e.g. pure
-            // toolhead status updates) and defeat the "empty = no signal"
-            // contract the helper expects. saw_rfid_info[i] captures "we had an
-            // info blob"; observed_uids[i] may still be empty if the tag's
-            // CARD_UID field was missing or malformed, which the helper also
-            // treats as no signal.
-            if (saw_rfid_info[i]) {
-                check_hardware_event_clear(*slot, i, observed_uids[i]);
+            // A pending insert ages one pass per parse. A read that never
+            // lands (reader disabled, the channel's entry never came) must
+            // not hold its verdict forever: past the bound, ask (#1710).
+            if (pending_insert_passes_[i] > 0 &&
+                ++pending_insert_passes_[i] > kSnapPendingInsertPasses) {
+                pending_insert_passes_[i] = 0;
+                unverified_insert_lanes.push_back(i);
             }
+
+            // A channel this parse carried no filament_detect.info for keeps
+            // its default evidence, which the insert rule reads as no signal -
+            // so the call is unconditional rather than gated on which keys the
+            // notification happened to carry.
+            check_hardware_event_clear(*slot, i, observed_evidence[i]);
             // Mirror firmware-truth color/material into lane_data so OrcaSlicer's
             // MoonrakerPrinterAgent sees the spool. OverwriteAlways policy: user
             // edits via apply_user_edit round-trip through firmware via the
@@ -2234,6 +2358,14 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
         AmsState::instance().mark_slot_unloaded(lane);
     }
 
+    // An insert the RFID side vouches nothing for asks whether the stored
+    // record still describes the spool that went in (#1710). The notice
+    // re-checks its own guards (print-feeding lane, lane with nothing to
+    // clear) on the UI thread.
+    for (int lane : unverified_insert_lanes) {
+        helix::ui::queue_update([lane] { helix::ui::offer_clear_after_unverified_insert(lane); });
+    }
+
     if (batch_failed_head >= 0) {
         spdlog::warn("{} head {} reached '{}' — clearing the firmware batch interlock",
                      backend_log_tag(), batch_failed_head, batch_failed_state);
@@ -2250,41 +2382,52 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
 // ============================================================================
 
 void AmsBackendSnapmaker::check_hardware_event_clear(SlotInfo& slot, int slot_index,
-                                                     const std::string& observed_uid) {
-    // Semantics are unchanged from the hand-rolled baseline map this used to
-    // keep; the bookkeeping now lives in the shared tracker (CFS runs the same
-    // one). Snapmaker registers no expect() value, so OwnWriteEcho cannot occur
-    // here — nothing on this backend writes a CARD_UID back to firmware.
+                                                     const helix::ams::SpoolEvidence& observed) {
+    // The bookkeeping lives in the shared tracker (CFS runs the same one);
+    // the verdict on a change is the insert rule's. Snapmaker registers no
+    // expect() value, so OwnWriteEcho cannot occur here - nothing on this
+    // backend writes a CARD_UID back to firmware.
     //
-    //   NoSignal  = empty UID: no tag, unread, RFID reader disabled, malformed
-    //               CARD_UID. Baseline untouched, no clear — otherwise every
-    //               tag-less poll would overwrite a real prior UID and mask a
-    //               genuine hardware swap on the next good read.
-    //   Baseline  = first observation. Even when the override was saved against
-    //               a different UID, the first observation is NEVER a swap
+    //   NoSignal  = the frame answered no RFID info for the channel. Baseline
+    //               untouched, no clear.
+    //   Baseline  = first reading. Even when the override was saved against a
+    //               different spool, the first observation is NEVER a swap
     //               signal; apply_resolved_lane runs after us and a declared
     //               value outranks this reading.
-    //   Unchanged = same spool re-observed.
-    std::string old_uid;
-    const auto event = rfid_tracker_.observe(slot_index, observed_uid, &old_uid);
+    //   Unchanged = the same reading repeated.
+    std::string old_fingerprint;
+    const auto event =
+        rfid_tracker_.observe(slot_index, fingerprint_from_evidence(observed), &old_fingerprint);
     if (event != helix::ams::FingerprintEvent::Changed) {
         if (event == helix::ams::FingerprintEvent::Baseline) {
-            spdlog::debug("{} Slot {} baseline RFID UID: {}", backend_log_tag(), slot_index,
-                          observed_uid);
+            spdlog::debug("{} Slot {} baseline RFID fingerprint: {}", backend_log_tag(), slot_index,
+                          fingerprint_from_evidence(observed));
         }
+        return;
+    }
+
+    const auto verdict =
+        helix::ams::classify_insert(evidence_from_fingerprint(old_fingerprint), observed);
+    if (verdict != helix::ams::InsertVerdict::DifferentSpool) {
+        spdlog::debug(
+            "{} Slot {} RFID fingerprint changed {} -> {} ({}); record stands", backend_log_tag(),
+            slot_index, old_fingerprint, fingerprint_from_evidence(observed),
+            verdict == helix::ams::InsertVerdict::SameSpool ? "same spool" : "no evidence");
         return;
     }
 
     auto ovr_it = overrides_.find(slot_index);
     if (ovr_it == overrides_.end()) {
-        spdlog::debug("{} Slot {} RFID UID changed {} -> {} (no override to clear)",
-                      backend_log_tag(), slot_index, old_uid, observed_uid);
+        spdlog::debug("{} Slot {} RFID fingerprint changed {} -> {} (no override to clear)",
+                      backend_log_tag(), slot_index, old_fingerprint,
+                      fingerprint_from_evidence(observed));
         return;
     }
 
-    spdlog::info("{} Slot {} RFID UID changed {} -> {}, clearing override "
-                 "(physical spool swap detected)",
-                 backend_log_tag(), slot_index, old_uid, observed_uid);
+    spdlog::info("{} Slot {} RFID fingerprint changed {} -> {}, clearing override "
+                 "(different spool detected)",
+                 backend_log_tag(), slot_index, old_fingerprint,
+                 fingerprint_from_evidence(observed));
 
     // Delegate the erase + field reset + clear_async to the shared helper so
     // hardware-event clears and user-initiated clears share one field-reset

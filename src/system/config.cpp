@@ -1815,6 +1815,7 @@ json get_default_config(const std::string& moonraker_host, bool include_user_pre
 }
 
 using helix::config_backup::find_backup;
+using helix::config_backup::remove_backups;
 using helix::config_backup::restore_from_backup;
 using helix::config_backup::write_rolling_backup;
 
@@ -3174,6 +3175,15 @@ void Config::reset_to_defaults() {
     // does not exist and vivify it on the next set(). Callers that schedule a
     // restart never notice; the ones that stay live would.
     refresh_active_printer_id();
+
+    // The restore chain reads these tiers whenever settings.json goes missing,
+    // so a surviving backup would resurrect this pre-reset document on any
+    // later loss of the file. No settings backup is written afterwards: init()
+    // and save() both refuse to back up a wizard-incomplete document, which the
+    // defaults are. The env backup comes back on the next start from the
+    // unchanged helixscreen.env, which a factory reset does not touch.
+    remove_backups(config_backup_search_paths());
+    remove_backups(env_backup_search_paths());
 
     spdlog::info("[Config] Configuration reset to defaults. Wizard will run on next startup.");
 }

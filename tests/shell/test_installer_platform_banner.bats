@@ -143,3 +143,33 @@ setup() {
     [ "${#lines[@]}" -eq 1 ]
     [ "${lines[0]}" = "[INFO] Detected platform: x86" ]
 }
+
+# --- ad5x: one install package, three boards (AD5X / Creator 5 / Creator 5 Pro) ---
+#
+# Same shape as the QIDI case: the board name leads and the platform key is
+# reframed as the install package, because "Detected platform: ad5x" reads as
+# a mis-identification to a Creator 5 owner (prestonbrown/helixscreen#1714).
+# The name itself comes from ad5x_board_name (platform.sh), pinned in
+# test_platform_detection.bats; these tests stub it like describe_hardware.
+
+@test "print_platform_banner: ad5x on a Creator 5 Pro leads with the board name" {
+    ad5x_board_name() { echo "FlashForge Creator 5 Pro"; }
+
+    run print_platform_banner "ad5x"
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "[INFO] Detected hardware: FlashForge Creator 5 Pro" ]
+    [[ "${lines[1]}" == "[INFO] Install package: ad5x"* ]] || fail "line 2 does not frame the package: ${lines[1]}"
+    contains "unified MIPS FlashForge build" "${lines[1]}"
+    # The bare "Detected platform: ad5x" string MUST NOT appear - that is the
+    # phrase that reads as a mis-identification on a Creator 5.
+    [[ "${output}" != *"Detected platform: ad5x"* ]]
+}
+
+@test "print_platform_banner: ad5x on a plain AD5X keeps the two-line shape" {
+    ad5x_board_name() { echo "FlashForge AD5X"; }
+
+    run print_platform_banner "ad5x"
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "[INFO] Detected hardware: FlashForge AD5X" ]
+    [[ "${lines[1]}" == "[INFO] Install package: ad5x"* ]]
+}

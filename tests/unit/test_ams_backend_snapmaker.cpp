@@ -16,7 +16,7 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_translation.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl_ui_test_fixture.h" #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -1768,12 +1768,14 @@ TEST_CASE_METHOD(SnapmakerFixture,
     }
 }
 
-TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker empty RFID UID does not update baseline or clear",
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker an unreadable UID keeps the record through the glitch",
                  "[ams][snapmaker][filament_slot_override]") {
-    // Empty UID = no tag / reader disabled / unreadable. Must not update
-    // the baseline and must not clear. This is the contract that keeps
-    // transient tag-read failures from masking a genuine hardware swap
-    // on the next good read.
+    // A frame that decodes the tag but not its CARD_UID is still a reading:
+    // material and colour stand as evidence, and the baseline takes them. The
+    // protection the spool-swap check needs lives in the verdict instead: with
+    // no UID on the new side, nothing contradicts the spool the baseline
+    // names, so a transient read glitch clears nothing.
     SnapmakerTmpCacheDir tmp("task12_empty_uid_noop");
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
@@ -1800,21 +1802,218 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker empty RFID UID does not update bas
         make_filament_detect_status(0, "PLA", 0xFFFF5500u, "Polymaker", json::array({1, 2, 3, 4})));
     REQUIRE(SnapmakerTestAccess::last_rfid_uid(backend, 0) == "1,2,3,4");
 
-    // Second parse: EMPTY UID (no CARD_UID field). Must NOT update baseline
-    // and must NOT clear the override.
+    // Second parse: the tag decoded (PLA / FF5500) but its CARD_UID came back
+    // empty. The frame answered, so the baseline takes the material-and-colour
+    // reading - and the record stands, because with no UID on the new side
+    // there is nothing to call a different spool over.
     SnapmakerTestAccess::handle_status(
         backend, make_filament_detect_status(0, "PLA", 0xFFFF5500u, "Polymaker", json::array()));
-    CHECK(SnapmakerTestAccess::last_rfid_uid(backend, 0) == "1,2,3,4"); // unchanged
+    CHECK(SnapmakerTestAccess::last_rfid_uid(backend, 0) == "M|PLA|FF5500");
     CHECK(SnapmakerTestAccess::get_override(backend, 0).has_value());
     CHECK(!api.mock_get_db_value("lane_data", "T0").is_null());
 
-    // Third parse: same original UID "1,2,3,4" — still matches baseline,
-    // no clear. Proves the empty-UID pass didn't corrupt state.
+    // Third parse: the same spool's UID decodes again. The reading changed
+    // spelling, but material and colour match what the unreadable pass saw,
+    // so the verdict is same spool and the override survives the glitch.
     SnapmakerTestAccess::handle_status(
         backend,
         make_filament_detect_status(0, "PLA", 0xFFFF5500u, "Polymaker", json::array({1, 2, 3, 4})));
+    CHECK(SnapmakerTestAccess::last_rfid_uid(backend, 0) == "1,2,3,4");
     CHECK(SnapmakerTestAccess::get_override(backend, 0).has_value());
     CHECK(!api.mock_get_db_value("lane_data", "T0").is_null());
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker a NONE entry with no UID is no signal; the record stands",
+                 "[ams][snapmaker][filament_slot_override][1710]") {
+    // MAIN_TYPE NONE with no CARD_UID is three indistinguishable states: the
+    // RFID reader disabled (its default on Extended Firmware), an untagged
+    // spool, an empty channel. None of them is a reading of the channel, so
+    // the entry files no evidence at all: the fingerprint is empty, the
+    // tracker reports no signal, no baseline moves and nothing clears.
+    // Unloading a tagged spool therefore leaves the record describing it.
+    SnapmakerTmpCacheDir tmp("1710_untagged_clears");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    helix::test::RegisteredBackend<AmsBackendSnapmaker> backend_reg(&api, nullptr);
+    AmsBackendSnapmaker& backend = *backend_reg;
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+        &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    SnapmakerTestAccess::inject_override_store(backend, std::move(store));
+
+    api.mock_set_db_value("lane_data", "T0", json{{"vendor", "Polymaker"}, {"spool_id", 42}});
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.spoolman_id = 42;
+    SnapmakerTestAccess::seed_override(backend, 0, ovr);
+
+    SnapmakerTestAccess::handle_status(
+        backend,
+        make_filament_detect_status(0, "PLA", 0xFFFF5500u, "Polymaker", json::array({1, 2, 3, 4})));
+    REQUIRE(SnapmakerTestAccess::last_rfid_uid(backend, 0) == "1,2,3,4");
+
+    // The reader answers NONE with no UID: no evidence either way.
+    SnapmakerTestAccess::handle_status(
+        backend, make_filament_detect_status(0, "NONE", 0xFFFF5500u, "Polymaker", json::array()));
+
+    CHECK(SnapmakerTestAccess::get_override(backend, 0).has_value());
+    CHECK(!api.mock_get_db_value("lane_data", "T0").is_null());
+    CHECK(SnapmakerTestAccess::last_rfid_uid(backend, 0) == "1,2,3,4");
+
+    // A channel the reader cannot answer stays unanswered across reads: the
+    // baseline never moves, nothing clears, nothing crashes.
+    SnapmakerTestAccess::handle_status(
+        backend, make_filament_detect_status(0, "NONE", 0xFFFF5500u, "Polymaker", json::array()));
+    CHECK(SnapmakerTestAccess::last_rfid_uid(backend, 0) == "1,2,3,4");
+    CHECK(SnapmakerTestAccess::get_override(backend, 0).has_value());
+}
+
+// The insert rule needs a presence edge to fire on; for a channel whose RFID
+// side says nothing (reader disabled, untagged spool) that edge is the feed
+// port's false -> true. The edge holds a pending verdict and the reader's next
+// filament_detect.info entry judges it; a NONE entry is the rule's NoEvidence
+// verdict (#1710).
+TEST_CASE_METHOD(LVGLUITestFixture, "Snapmaker an untagged channel insert offers the notice",
+                 "[ams][snapmaker][1710]") {
+    helix::test::RegisteredBackend<AmsBackendSnapmaker> backend_reg(nullptr, nullptr);
+    AmsBackendSnapmaker& backend = *backend_reg;
+
+    // The stored record the notice asks about: user-entered details on lane 0.
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.material = "PETG";
+    ovr.color_rgb = 0x1188FF;
+    SnapmakerTestAccess::seed_override(backend, 0, ovr);
+    REQUIRE(SnapmakerTestAccess::get_override(backend, 0).has_value());
+
+    std::vector<std::pair<ToastSeverity, std::string>> toasts;
+    helix::ui::set_test_toast_hook([&](ToastSeverity severity, const std::string& msg, uint32_t) {
+        toasts.emplace_back(severity, msg);
+    });
+
+    // The port flag's first reading is the baseline, not an edge.
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "wait_insert", false));
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(toasts.empty());
+
+    // Filament goes in; the reader's next entry carries no tag behind it: the
+    // record stands and the notice asks.
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "load_finish", true));
+    SnapmakerTestAccess::handle_status(
+        backend, make_filament_detect_status(0, "NONE", 0u, "NONE", json::array()));
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts[0].first == ToastSeverity::INFO);
+    CHECK(SnapmakerTestAccess::get_override(backend, 0).has_value());
+
+    // A channel whose tag was read never asks: the reader's entry after the
+    // edge vouches for the insert, and the UID rule owns the swap verdict.
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(1, "wait_insert", false));
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(1, "load_finish", true));
+    SnapmakerTestAccess::handle_status(
+        backend,
+        make_filament_detect_status(1, "PLA", 0xFFFF5500u, "Polymaker", json::array({1, 2, 3, 4})));
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(toasts.size() == 1);
+
+    helix::ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE_METHOD(
+    SnapmakerFixture,
+    "Snapmaker a tag appearing after only NONE entries is a first baseline, not a swap",
+    "[ams][snapmaker][filament_slot_override][1710]") {
+    // NONE entries are no signal, so a channel that has only ever answered
+    // NONE holds no reading an arriving tag could differ from: the first UID
+    // the reader decodes is a baseline, and the record stands. A swap is only
+    // decidable when both sides read a tag (UID, or material and colour off a
+    // tag whose UID never decoded).
+    SnapmakerTmpCacheDir tmp("1710_tag_appears");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    helix::test::RegisteredBackend<AmsBackendSnapmaker> backend_reg(&api, nullptr);
+    AmsBackendSnapmaker& backend = *backend_reg;
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+        &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    SnapmakerTestAccess::inject_override_store(backend, std::move(store));
+
+    api.mock_set_db_value("lane_data", "T0", json{{"vendor", "Polymaker"}, {"spool_id", 42}});
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.spoolman_id = 42;
+    SnapmakerTestAccess::seed_override(backend, 0, ovr);
+
+    // Baseline attempt: NONE answers carry no reading, so none is taken.
+    SnapmakerTestAccess::handle_status(
+        backend, make_filament_detect_status(0, "NONE", 0xFFFF5500u, "Polymaker", json::array()));
+    REQUIRE_FALSE(SnapmakerTestAccess::last_rfid_uid(backend, 0).has_value());
+    REQUIRE(SnapmakerTestAccess::get_override(backend, 0).has_value());
+
+    SnapmakerTestAccess::handle_status(
+        backend,
+        make_filament_detect_status(0, "PLA", 0xFFFF5500u, "Polymaker", json::array({1, 2, 3, 4})));
+
+    CHECK(SnapmakerTestAccess::get_override(backend, 0).has_value());
+    CHECK(!api.mock_get_db_value("lane_data", "T0").is_null());
+    CHECK(SnapmakerTestAccess::last_rfid_uid(backend, 0) == "1,2,3,4");
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker two tags whose UIDs never decoded are judged by material and colour",
+                 "[ams][snapmaker][filament_slot_override][1710]") {
+    // With no UID on either side, material and colour are the only evidence,
+    // so they decide: a PETG tag following a PLA one is a different spool,
+    // and the same reading repeated is not an event at all.
+    SnapmakerTmpCacheDir tmp("1710_broken_uid_material");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    helix::test::RegisteredBackend<AmsBackendSnapmaker> backend_reg(&api, nullptr);
+    AmsBackendSnapmaker& backend = *backend_reg;
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+        &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    SnapmakerTestAccess::inject_override_store(backend, std::move(store));
+
+    api.mock_set_db_value("lane_data", "T0", json{{"vendor", "Polymaker"}, {"spool_id", 42}});
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.spoolman_id = 42;
+    SnapmakerTestAccess::seed_override(backend, 0, ovr);
+
+    SnapmakerTestAccess::handle_status(
+        backend, make_filament_detect_status(0, "PLA", 0xFFFF5500u, "Polymaker", json::array()));
+    REQUIRE(SnapmakerTestAccess::last_rfid_uid(backend, 0) == "M|PLA|FF5500");
+
+    SECTION("a different material is a different spool") {
+        SnapmakerTestAccess::handle_status(
+            backend, make_filament_detect_status(0, "PETG", 0x00FF00u, "Polymaker", json::array()));
+
+        CHECK_FALSE(SnapmakerTestAccess::get_override(backend, 0).has_value());
+        CHECK(api.mock_get_db_value("lane_data", "T0").is_null());
+        CHECK(SnapmakerTestAccess::last_rfid_uid(backend, 0) == "M|PETG|00FF00");
+    }
+
+    SECTION("the same reading repeated is not an event") {
+        SnapmakerTestAccess::handle_status(
+            backend,
+            make_filament_detect_status(0, "PLA", 0xFFFF5500u, "Polymaker", json::array()));
+
+        CHECK(SnapmakerTestAccess::get_override(backend, 0).has_value());
+        CHECK(!api.mock_get_db_value("lane_data", "T0").is_null());
+    }
 }
 
 // ============================================================================
@@ -2927,4 +3126,155 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker claims the not-edit-filament resum
             backend.classify_error("!! Probe triggered prior to movement", paused).has_value());
         REQUIRE_FALSE(backend.classify_error("// e2 not edit filament", paused).has_value());
     }
+}
+
+// ============================================================================
+// Task 13: the insert rule on the feed-port edge (#1710)
+// ============================================================================
+// The port flag's false -> true edge is the insert; the tag reader's answer
+// for the new spool lands a frame or two later in filament_detect.info. These
+// tests pin the pending-verdict contract: the edge holds its judgement until
+// the next info entry for the channel speaks, with a bounded fallback when no
+// entry ever comes.
+
+namespace {
+
+struct SnapmakerInsertFixture : public LVGLUITestFixture {
+    SnapmakerInsertFixture()
+        : client(MoonrakerClientMock::PrinterType::VORON_24), api(client, state) {
+        state.init_subjects(false);
+
+        auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+            &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
+        FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+        SnapmakerTestAccess::inject_override_store(backend, std::move(store));
+
+        helix::ams::FilamentSlotOverride ovr;
+        ovr.brand = "Polymaker";
+        ovr.spool_name = "PolyLite Orange";
+        ovr.material = "PLA";
+        ovr.color_rgb = 0xFF5500;
+        SnapmakerTestAccess::seed_override(backend, 0, ovr);
+
+        helix::ui::set_test_toast_hook([this](ToastSeverity severity, const std::string& msg,
+                                              uint32_t) { toasts.emplace_back(severity, msg); });
+    }
+
+    ~SnapmakerInsertFixture() override {
+        helix::ui::set_test_toast_hook(nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    void drain() {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    SnapmakerTmpCacheDir tmp{"task1710_pending_insert"};
+    MoonrakerClientMock client;
+    helix::PrinterState state;
+    MoonrakerAPIMock api;
+    helix::test::RegisteredBackend<AmsBackendSnapmaker> backend_reg{&api, nullptr};
+    AmsBackendSnapmaker& backend = *backend_reg;
+    std::vector<std::pair<ToastSeverity, std::string>> toasts;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(SnapmakerInsertFixture, "Snapmaker a tagged insert raises no notice",
+                 "[ams][snapmaker][1710]") {
+    // Baseline: the lane reports empty, so the presence flag has a sighting.
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "wait_insert", false));
+    drain();
+    REQUIRE(toasts.empty());
+
+    // The insert: presence rises before the reader has said anything.
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "wait_insert", true));
+    drain();
+    CHECK(toasts.empty());
+
+    // The read lands on the next filament_detect.info entry: a UID (and a
+    // decoded material) vouches for the spool, so no notice.
+    SnapmakerTestAccess::handle_status(
+        backend, make_filament_detect_status(0, "PLA", 0xFF00AA00u, "Polymaker",
+                                             json::array({144, 32, 196, 2})));
+    drain();
+    CHECK(toasts.empty());
+    CHECK(SnapmakerTestAccess::get_override(backend, 0).has_value());
+}
+
+TEST_CASE_METHOD(SnapmakerInsertFixture,
+                 "Snapmaker an untagged insert after a tagged one offers the notice",
+                 "[ams][snapmaker][1710]") {
+    // First spool: tagged, in and read.
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "wait_insert", false));
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "wait_insert", true));
+    SnapmakerTestAccess::handle_status(
+        backend, make_filament_detect_status(0, "PLA", 0xFF00AA00u, "Polymaker",
+                                             json::array({144, 32, 196, 2})));
+    drain();
+    REQUIRE(toasts.empty());
+
+    // It comes out (port drops) and the reader forgets it.
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "wait_insert", false));
+    SnapmakerTestAccess::handle_status(
+        backend, make_filament_detect_status(0, "NONE", 0u, "NONE", json::array()));
+    drain();
+
+    // An untagged spool goes in. Judging the edge on the previous spool's
+    // evidence would stay silent; the reader's own answer (no UID, NONE) is
+    // what asks.
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "wait_insert", true));
+    drain();
+    CHECK(toasts.empty());
+    SnapmakerTestAccess::handle_status(
+        backend, make_filament_detect_status(0, "NONE", 0u, "NONE", json::array()));
+    drain();
+
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts[0].first == ToastSeverity::INFO);
+    CHECK(SnapmakerTestAccess::get_override(backend, 0).has_value());
+}
+
+TEST_CASE_METHOD(SnapmakerInsertFixture,
+                 "Snapmaker a feed-port edge during a firmware feed raises no notice",
+                 "[ams][snapmaker][1710]") {
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "wait_insert", false));
+    drain();
+    REQUIRE(toasts.empty());
+
+    // A tool change: the channel drives its own unload (presence drops) and
+    // load (presence rises). Those edges are the firmware moving filament,
+    // not a spool change, so no verdict is held and nothing asks.
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "unload_doing", false));
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "load_feeding", true));
+    drain();
+    CHECK(toasts.empty());
+
+    // Long after: had the edge armed a pending verdict, the pass-count
+    // fallback would have asked by now.
+    for (int i = 0; i < 12; ++i) {
+        SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "load_finish", true));
+    }
+    drain();
+    CHECK(toasts.empty());
+}
+
+TEST_CASE_METHOD(SnapmakerInsertFixture,
+                 "Snapmaker an insert whose read never lands asks after a bounded wait",
+                 "[ams][snapmaker][1710]") {
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "wait_insert", false));
+    SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "wait_insert", true));
+    drain();
+    CHECK(toasts.empty());
+
+    // No filament_detect.info ever arrives (reader disabled or never read).
+    // The verdict cannot hold forever: after a bounded number of parses the
+    // stored record is offered for clearing.
+    for (int i = 0; i < 20; ++i) {
+        SnapmakerTestAccess::handle_status(backend, make_feed_status(0, "wait_insert", true));
+    }
+    drain();
+
+    REQUIRE(toasts.size() == 1);
+    CHECK(SnapmakerTestAccess::get_override(backend, 0).has_value());
 }

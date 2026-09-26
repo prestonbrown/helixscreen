@@ -72,6 +72,8 @@ class TempGraphOverlay : public OverlayBase {
     static void on_temp_graph_custom_clicked(lv_event_t* e);
 
   private:
+    friend class TempGraphOverlayTestAccess;
+
     /**
      * @brief Per-series display metadata for chips and UI
      *
@@ -110,9 +112,37 @@ class TempGraphOverlay : public OverlayBase {
     // Keypad callback
     static void keypad_value_cb(float value, void* user_data);
 
+    /// Context captured when the custom-entry keypad opens. A nozzle captures
+    /// the klipper name of the extruder the card was displaying, so the send
+    /// still reaches it after the keypad's stacked push deactivates this
+    /// overlay. A member (not function-static) so the overlay owns its life:
+    /// the overlay is a global singleton that outlives the keypad.
+    struct KeypadCtx {
+        TempGraphOverlay* overlay = nullptr;
+        helix::HeaterType type{};
+        std::string klipper_name; ///< Nozzle only; empty for bed/chamber
+    };
+    KeypadCtx keypad_ctx_;
+
     // Extruder selector
     void rebuild_extruder_selector();
     static void on_extruder_selected(lv_event_t* e);
+    /// Record a tool pick from the selector and repoint the card at it.
+    void select_extruder(const std::string& name);
+
+    /// The extruder the nozzle card is displaying: the picked tool while a
+    /// pick is held and still exists, the machine's active tool otherwise.
+    const std::string& displayed_extruder_name() const;
+    /// Point the card's mirror subjects at the displayed extruder and seed
+    /// them; call after any change to the pick, the extruder list, or
+    /// activation state.
+    void repoint_nozzle_card();
+    /// Recompute the card's status glyph + duty from the card temp/target
+    /// mirrors and the displayed extruder's cached heater power.
+    void update_nozzle_card_status();
+    /// Arm the one-per-activation extruder_version watch whose handler calls
+    /// repoint_nozzle_card().
+    void watch_extruder_version();
 
     // Preset helpers
     struct PresetData {
@@ -165,7 +195,7 @@ class TempGraphOverlay : public OverlayBase {
     TemperatureService* temp_control_panel_ = nullptr;
 
     // The tool number the nozzle subscript digit shows. Mirrors whichever extruder the
-    // card displays — the picked one while a pick is held (the pin), the
+    // card displays - the picked one while a pick is held, the
     // machine's active tool otherwise. Bound in on_activate() to ToolState's
     // active_tool/tools_version pair (the same two subjects ui_ams_tool_text
     // observes for the badge), unbound in on_deactivating().
@@ -174,6 +204,42 @@ class TempGraphOverlay : public OverlayBase {
     ObserverGuard nozzle_badge_tool_observer_;
     ObserverGuard nozzle_badge_version_observer_;
     void publish_nozzle_badge();
+
+    // The extruder the card is displaying, as a VIEW pick (Klipper name; empty
+    // = follow the machine's tool). Distinct from the machine's active
+    // extruder, which other surfaces keep tracking. Survives every
+    // deactivation (the custom-entry keypad stacks on top of this overlay and
+    // its confirm still targets the picked tool); open() drops it, because
+    // opening is the one thing that means a fresh view.
+    std::string picked_extruder_;
+
+    // Mirror of the displayed extruder's decidegree current/target. The card's
+    // temp_display binds these by name (temp_graph_nozzle_temp/target);
+    // repoint_nozzle_card() aims the observers at the picked extruder's own
+    // subjects or, with no pick, at the active-extruder subjects, which
+    // already re-target on every machine toolchange.
+    lv_subject_t nozzle_card_temp_subject_{};
+    lv_subject_t nozzle_card_target_subject_{};
+    // The card's status area (glyph + duty), classified from the mirrors
+    // above plus the displayed extruder's own power. TemperatureService's
+    // nozzle status tracks the MACHINE's tool on purpose, so a card showing a
+    // picked tool computes its own.
+    lv_subject_t nozzle_card_status_state_subject_{};
+    lv_subject_t nozzle_card_status_subject_{};
+    char nozzle_card_status_buffer_[16]{};
+    /// Last power reading (whole percent, -1 unknown) from the displayed
+    /// extruder's power subject.
+    int nozzle_card_power_ = -1;
+    ObserverGuard nozzle_card_temp_observer_;
+    ObserverGuard nozzle_card_target_observer_;
+    ObserverGuard nozzle_card_power_observer_;
+    // Rediscovery bumps extruder_version; the observer repoints so a pick
+    // whose extruder vanished falls back instead of freezing the card. Armed
+    // once per activation by watch_extruder_version(); repoint_nozzle_card()
+    // must not re-arm it, or every queued repoint re-fires itself and the
+    // queue never drains (lv_subject_add_observer notifies on attach, and
+    // observe_int_sync defers the handler through queue_update).
+    ObserverGuard extruder_version_observer_;
 
     // Subject management
     SubjectManager subjects_;

@@ -6,6 +6,7 @@
 #include "ui_ams_context_menu.h"
 #include "ui_ams_detail.h"
 #include "ui_ams_environment_overlay.h"
+#include "ui_ams_lane_bar.h"
 #include "ui_ams_sidebar.h"
 #include "ui_ams_slot.h"
 #include "ui_ams_slot_layout.h"
@@ -63,9 +64,6 @@ static constexpr int32_t MINI_BAR_MAX_WIDTH_PX = 14;
 /// Height of each mini slot bar (decorative, no need for responsive scaling)
 static constexpr int32_t MINI_BAR_HEIGHT_PX = 40;
 
-/// Border radius for bar corners
-static constexpr int32_t MINI_BAR_RADIUS_PX = 4;
-
 /// Zoom animation duration (ms) for detail view transitions
 static constexpr uint32_t DETAIL_ZOOM_DURATION_MS = 200;
 
@@ -78,33 +76,26 @@ static constexpr int32_t DETAIL_ZOOM_SCALE_MAX = 256;
 // Global instance pointer for XML callback access (used by back button and animation callbacks)
 static std::atomic<AmsOverviewPanel*> g_overview_panel_instance{nullptr};
 
-/**
- * @brief Is this lane the one firmware considers seated and loaded?
- *
- * SINGLE SOURCE OF TRUTH for the active-lane highlight: the per-slot
- * active-loaded subject (AmsBackend::slot_is_actively_loaded(i)) — the same read
- * apply_current_slot_highlight() makes in ui_ams_slot.cpp. The mini bars used to
- * ask `global_idx == current_slot`, which disagreed with the slot widgets on the
- * very same panel: an idle unload left the bar outlined after the detail view's
- * glow had cleared, and on AFC/CFS a current_slot that names a lane the per-slot
- * parse disagrees with (#1194) put the highlight on two different lanes.
- *
- * The bars are rebuilt wholesale on every refresh (see create_mini_bars), and
- * AmsState bumps slots_version on every slot_active_loaded delta, so the panel's
- * existing slots_version observer is what keeps this live — no per-slot observer,
- * which would race the rebuild (#705/#776).
- */
-static bool slot_is_active_loaded(int global_slot_index) {
-    lv_subject_t* subject = AmsState::instance().get_slot_active_loaded_subject(global_slot_index);
-    return subject && lv_subject_get_int(subject) != 0;
-}
-
 /// Set a label to "N slots" / "N lanes" text, with null-safety
 static void set_slot_count_label(lv_obj_t* label, helix::ui::LaneNoun noun, int slot_count) {
     if (!label) {
         return;
     }
     lv_label_set_text(label, helix::ui::lane_count_label(noun, slot_count).c_str());
+}
+
+/// The measured width one mini bar gets for this container and lane count.
+/// Both create_mini_bars() and the update-path rebuild check recompute it, so
+/// the two can never disagree about when a rebuild is due.
+static int32_t measured_bar_width(lv_obj_t* bars_container, int slot_count) {
+    lv_obj_update_layout(bars_container);
+    int32_t container_width = lv_obj_get_content_width(bars_container);
+    if (container_width <= 0) {
+        container_width = 80; // Fallback if layout not yet calculated
+    }
+    int32_t gap = theme_manager_get_spacing("space_xxs");
+    return ams_draw::calc_bar_width(container_width, slot_count, gap, MINI_BAR_MIN_WIDTH_PX,
+                                    MINI_BAR_MAX_WIDTH_PX);
 }
 
 // ============================================================================
@@ -487,7 +478,9 @@ void AmsOverviewPanel::update_unit_card(UnitCard& card, const AmsUnit& unit,
         lv_label_set_text(card.name_label, card.display_name.c_str());
     }
 
-    // Rebuild mini bars (slot colors/status may have changed).
+    // Rebuild the mini bars only when a geometry input changed (lane count or
+    // the measured width). Color, fill, active and error repaint in place
+    // through the per-slot subjects each ams_lane_bar observes.
     // Flush pending layout first — deferred callbacks can run between layout
     // passes, and cleaning children while LVGL still references them causes
     // use-after-free in layout_update_core (issue #711). Called from refresh_units
@@ -496,8 +489,13 @@ void AmsOverviewPanel::update_unit_card(UnitCard& card, const AmsUnit& unit,
     // event linked list (#776).
     if (card.bars_container) {
         lv_obj_update_layout(card.bars_container);
-        helix::ui::safe_clean_children(card.bars_container);
-        create_mini_bars(card, unit);
+        int slot_count = static_cast<int>(unit.slots.size());
+        if (helix::ui::lane_bars_stale(card.bars_built,
+                                       {unit.first_slot_global_index, slot_count,
+                                        measured_bar_width(card.bars_container, slot_count)})) {
+            helix::ui::safe_clean_children(card.bars_container);
+            create_mini_bars(card, unit);
+        }
     }
 
     // Update slot count
@@ -518,45 +516,20 @@ void AmsOverviewPanel::create_mini_bars(UnitCard& card, const AmsUnit& unit) {
 
     int slot_count = static_cast<int>(unit.slots.size());
     if (slot_count <= 0) {
+        card.bars_built = {unit.first_slot_global_index, 0, 0};
         return;
     }
 
-    // Calculate bar width to fit within bars_container
-    lv_obj_update_layout(card.bars_container);
-    int32_t container_width = lv_obj_get_content_width(card.bars_container);
-    if (container_width <= 0) {
-        container_width = 80; // Fallback if layout not yet calculated
-    }
-    int32_t gap = theme_manager_get_spacing("space_xxs");
-    int32_t bar_width = ams_draw::calc_bar_width(container_width, slot_count, gap,
-                                                 MINI_BAR_MIN_WIDTH_PX, MINI_BAR_MAX_WIDTH_PX);
+    // Bar width is measured to fit the container (rule 8's measured-layout
+    // exception keeps it in C++); everything else - state, fill, color, the
+    // active and error decorations - flows from AmsState's per-slot subjects
+    // inside ams_lane_bar, so the bars repaint in place instead of being
+    // rebuilt on every refresh.
+    int32_t bar_width = measured_bar_width(card.bars_container, slot_count);
+    card.bars_built = {unit.first_slot_global_index, slot_count, bar_width};
 
-    for (int s = 0; s < slot_count; ++s) {
-        const SlotInfo& slot = unit.slots[s];
-        int global_idx = unit.first_slot_global_index + s;
-        bool is_loaded = slot_is_active_loaded(global_idx);
-
-        auto col = ams_draw::create_slot_column(card.bars_container, bar_width, MINI_BAR_HEIGHT_PX,
-                                                MINI_BAR_RADIUS_PX);
-
-        ams_draw::BarStyleParams params;
-        params.color_rgb = slot.color_rgb;
-        // These mini bars are rebuilt wholesale (safe_clean_children) on every
-        // overview refresh, so fill is read from this snapshot rather than via a
-        // per-slot fill subject observer — an observer would race the rebuild
-        // (#705/#776). Semantics stay unified: fill_percent_from_slot uses
-        // SlotInfo::display_fill_pct. -1 = "no data" → render an empty bar (0)
-        // rather than a phantom fill; style_slot_bar hides the fill anyway for a
-        // non-present lane.
-        int fp = ams_draw::fill_percent_from_slot(slot);
-        params.fill_pct = fp < 0 ? 0 : fp;
-        params.is_present = slot.is_present();
-        params.is_loaded = is_loaded;
-        params.has_error = (slot.status == SlotStatus::BLOCKED || slot.error.has_value());
-        params.severity = slot.error.has_value() ? slot.error->severity : SlotError::INFO;
-
-        ams_draw::style_slot_bar(col, params, MINI_BAR_RADIUS_PX);
-    }
+    helix::ui::ams_lane_bar_create_range(card.bars_container, unit.first_slot_global_index,
+                                         slot_count, bar_width, MINI_BAR_HEIGHT_PX);
 }
 
 // ============================================================================
@@ -1214,6 +1187,7 @@ static void ensure_overview_registered() {
     // (safe to call multiple times — each register function has an internal guard)
     ui_spool_canvas_register();
     ui_ams_slot_register();
+    ui_ams_lane_bar_register();
 
     // Register the XML components (dependencies must be registered before overview panel)
     lv_xml_register_component_from_file(
@@ -1387,7 +1361,6 @@ void AmsOverviewPanel::show_detail_context_menu(int slot_index, lv_obj_t* near_w
             break;
 
         case helix::ui::AmsContextMenu::MenuAction::SCAN_QR: {
-#if HELIX_HAS_CAMERA
             spdlog::info("[AmsOverview] SCAN_QR action for slot {}", slot);
             auto& scanner = helix::ui::get_qr_scanner_overlay();
             scanner.show(parent_screen_, slot, [slot](const SpoolInfo& spool) {
@@ -1407,7 +1380,6 @@ void AmsOverviewPanel::show_detail_context_menu(int slot_index, lv_obj_t* near_w
                 }
                 spdlog::info("[AmsOverview] QR scan assigned spool #{} to slot {}", spool.id, slot);
             });
-#endif // HELIX_HAS_CAMERA
             break;
         }
 

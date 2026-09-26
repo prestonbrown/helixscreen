@@ -12,6 +12,7 @@
 #include "../test_helpers/scoped_runtime_config.h"
 #include "cli_args.h"
 #include "runtime_config.h"
+#include "test_helpers/scoped_env.h"
 
 #include <vector>
 
@@ -347,6 +348,41 @@ TEST_CASE("parse_cli_args: without --test the wizard gate is untouched", "[cli_a
     REQUIRE(parse({"helix-screen"}, args));
     REQUIRE_FALSE(args.skip_wizard);
     REQUIRE_FALSE(args.force_wizard);
+}
+
+// --- creator5_zmod implies the real AMS backend --------------------------
+//
+// The persona is mock HARDWARE, not a mock backend: MoonrakerClientMock
+// publishes Z-Mod's objects and the production AmsBackendToolChanger is meant
+// to drive them, which is what --real-ams selects. An explicit HELIX_MOCK_AMS
+// names its own topology, so it wins over the persona's implication.
+
+TEST_CASE("parse_cli_args: HELIX_MOCK_PRINTER=creator5_zmod implies --real-ams under --test",
+          "[cli_args][mock]") {
+    ScopedRuntimeConfig scoped_config;
+    ScopedEnv ams{"HELIX_MOCK_AMS", nullptr};
+    ScopedEnv printer{"HELIX_MOCK_PRINTER", "creator5_zmod"};
+    CliArgs args;
+    REQUIRE(parse({"helix-screen", "--test"}, args));
+    REQUIRE(get_runtime_config()->use_real_ams);
+}
+
+TEST_CASE("parse_cli_args: an explicit HELIX_MOCK_AMS wins over the persona", "[cli_args][mock]") {
+    ScopedRuntimeConfig scoped_config;
+    ScopedEnv ams{"HELIX_MOCK_AMS", "toolchanger"};
+    ScopedEnv printer{"HELIX_MOCK_PRINTER", "creator5_zmod"};
+    CliArgs args;
+    REQUIRE(parse({"helix-screen", "--test"}, args));
+    REQUIRE_FALSE(get_runtime_config()->use_real_ams);
+}
+
+TEST_CASE("parse_cli_args: other personas do not imply --real-ams", "[cli_args][mock]") {
+    ScopedRuntimeConfig scoped_config;
+    ScopedEnv ams{"HELIX_MOCK_AMS", nullptr};
+    ScopedEnv printer{"HELIX_MOCK_PRINTER", "creator5"};
+    CliArgs args;
+    REQUIRE(parse({"helix-screen", "--test"}, args));
+    REQUIRE_FALSE(get_runtime_config()->use_real_ams);
 }
 
 // ============================================================================

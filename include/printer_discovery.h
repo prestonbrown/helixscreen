@@ -18,6 +18,7 @@
 #include "display_numbering.h"       // helix::ui::tool_label — T<n> gcode tool naming
 #include "klipper_extruder_naming.h" // count_extruder_names: one hot end per numbered extruder
 #include "macro_patterns.h"          // Shared macro-name tables (nozzle clean, ...)
+#include "openams_api.h"             // OpenAMS claims only a manager speaking its API
 #include "printer_detector.h"        // For BuildVolume struct
 
 #include <spdlog/spdlog.h>
@@ -326,6 +327,13 @@ class PrinterDiscovery {
             } else if (name == "AFC") {
                 has_mmu_ = true;
                 mmu_type_ = AmsType::AFC;
+            }
+            // klipper_openams. The name alone cannot claim the printer: a
+            // manager that predates its versioned API publishes only
+            // current_group, and AFC drives OpenAMS hardware without this
+            // object. settle_status_claims() decides once the status is read.
+            else if (name == openams::kManagerObject) {
+                has_openams_manager_ = true;
             }
             // CFS detection (Creality Filament System).
             //
@@ -736,7 +744,50 @@ class PrinterDiscovery {
                          "the printer and its four toolheads.");
         }
 
-        // Collect all detected AMS systems
+        register_detected_ams_systems();
+    }
+
+    /**
+     * @brief Status fields that decide a claim the object list cannot
+     *
+     * Empty unless a filament system is present by name only and has to show
+     * a supported API before it may claim the printer. The discovery sequence
+     * queries these (a `printer.objects.query` "objects" map) before the
+     * hardware callback and hands the reply to settle_status_claims().
+     */
+    [[nodiscard]] nlohmann::json claim_status_query() const {
+        nlohmann::json query = nlohmann::json::object();
+        if (has_openams_manager_ && !has_mmu_) {
+            query[openams::kManagerObject] = nlohmann::json::array({"api_version", "schema"});
+        }
+        return query;
+    }
+
+    /**
+     * @brief Finish the claims claim_status_query() left open
+     *
+     * @param status The `status` object of the query's reply; empty when the
+     *               query failed, which settles every open claim as unclaimed.
+     */
+    void settle_status_claims(const nlohmann::json& status) {
+        if (!has_openams_manager_ || has_mmu_) {
+            return;
+        }
+        auto manager = status.is_object() ? status.find(openams::kManagerObject) : status.end();
+        if (manager == status.end() || !openams::api_supported(*manager)) {
+            spdlog::info("[PrinterDiscovery] oams_manager publishes no supported OpenAMS UI API; "
+                         "not claiming the printer for OpenAMS");
+            return;
+        }
+        has_mmu_ = true;
+        mmu_type_ = AmsType::OPENAMS;
+        register_detected_ams_systems();
+    }
+
+  private:
+    /// Fill detected_ams_systems_ from the flags the scan (and any settled
+    /// status claim) left behind.
+    void register_detected_ams_systems() {
         detected_ams_systems_.clear();
 
         // Register the filament management backend. When a real MMU (AFC, Happy
@@ -759,6 +810,9 @@ class PrinterDiscovery {
             } else if (mmu_type_ == AmsType::QIDI_BOX) {
                 // i18n: do not translate - product name
                 detected_ams_systems_.push_back({AmsType::QIDI_BOX, "QIDI Box"});
+            } else if (mmu_type_ == AmsType::OPENAMS) {
+                // i18n: do not translate - product name
+                detected_ams_systems_.push_back({AmsType::OPENAMS, "OpenAMS"});
             }
         } else if (has_snapmaker_) {
             // Native Snapmaker filament system (no aftermarket MMU)
@@ -777,6 +831,7 @@ class PrinterDiscovery {
         }
     }
 
+  public:
     /**
      * @brief Parse configfile keys to detect accelerometers
      *
@@ -983,6 +1038,7 @@ class PrinterDiscovery {
         macro_config_names_.clear();
         host_restarting_macros_.clear();
         host_halting_macros_.clear();
+        sensor_toggle_command_.clear();
         helix_macros_.clear();
         nozzle_clean_macro_.clear();
         purge_line_macro_.clear();
@@ -995,6 +1051,7 @@ class PrinterDiscovery {
         has_probe_ = false;
         has_heater_bed_ = false;
         has_mmu_ = false;
+        has_openams_manager_ = false;
         has_snapmaker_ = false;
         has_afc_lite_ = false;
         has_tool_changer_ = false;
@@ -1458,6 +1515,39 @@ class PrinterDiscovery {
         return host_restarting_macros_;
     }
 
+    /**
+     * @brief Resolve the command that toggles a filament sensor in firmware
+     *
+     * A [gcode_macro SET_FILAMENT_SENSOR] wrapper must rename the builtin
+     * (rename_existing), and a wrapper may treat every call as a user setting
+     * and persist it. HelixScreen's toggles are temporary firmware state, not
+     * user settings, so they go to the builtin under its renamed name and skip
+     * the wrapper's side effects on purpose.
+     *
+     * @param settings JSON object from a configfile.settings response
+     * @return true when a wrapper's rename_existing was found and stored
+     */
+    bool parse_sensor_toggle_command(const nlohmann::json& settings) {
+        const auto wrapper = settings.find("gcode_macro set_filament_sensor");
+        if (wrapper == settings.end() || !wrapper->is_object()) {
+            return false;
+        }
+        const auto renamed = wrapper->find("rename_existing");
+        if (renamed == wrapper->end() || !renamed->is_string() ||
+            renamed->get<std::string>().empty()) {
+            return false;
+        }
+        sensor_toggle_command_ = renamed->get<std::string>();
+        return true;
+    }
+
+    /// The firmware command for SENSOR=<name> ENABLE=<0|1>. See
+    /// parse_sensor_toggle_command().
+    [[nodiscard]] std::string sensor_toggle_command() const {
+        return sensor_toggle_command_.empty() ? std::string("SET_FILAMENT_SENSOR")
+                                              : sensor_toggle_command_;
+    }
+
     /// Macros reaching a command that leaves the host DOWN, from
     /// helix::analyze_host_halting_macros(); stored uppercased like macros_.
     void set_host_halting_macros(std::unordered_set<std::string> macros) {
@@ -1772,6 +1862,7 @@ class PrinterDiscovery {
     std::unordered_map<std::string, std::string> macro_config_names_;
     std::unordered_set<std::string> host_restarting_macros_; ///< Macros that reach a host restart
     std::unordered_set<std::string> host_halting_macros_;    ///< Macros that reach a host halt
+    std::string sensor_toggle_command_; ///< Empty = the SET_FILAMENT_SENSOR builtin
     std::unordered_set<std::string> helix_macros_;
     std::string nozzle_clean_macro_;
     std::string purge_line_macro_;
@@ -1784,6 +1875,7 @@ class PrinterDiscovery {
     bool has_probe_ = false;
     bool has_heater_bed_ = false;
     bool has_mmu_ = false;
+    bool has_openams_manager_ = false; ///< oams_manager listed; claim settled from its status
     bool has_snapmaker_ = false;
     bool has_afc_lite_ = false;
     bool has_tool_changer_ = false;

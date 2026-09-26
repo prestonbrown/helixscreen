@@ -32,19 +32,20 @@ namespace helix::ui {
  *
  * @param supports_bypass Backend reports a bypass position at all
  * @param bypass_active Bypass is currently engaged (firmware state, not a proxy)
- * @param is_afc Backend is AFC — the only one with a phantom virtual bypass
+ * @param bypass_is_virtual The reported bypass is virtual, not a physical
+ *        position (AmsBackend::bypass_is_virtual())
  * @param always_show User setting: keep it visible even when disengaged
  * @return true when the bypass node should be rendered
  */
 [[nodiscard]] constexpr bool bypass_node_visible(bool supports_bypass, bool bypass_active,
-                                                 bool is_afc, bool always_show) {
+                                                 bool bypass_is_virtual, bool always_show) {
     if (!supports_bypass) {
         return false;
     }
     if (bypass_active) {
         return true;
     }
-    if (!is_afc) {
+    if (!bypass_is_virtual) {
         return true;
     }
     return always_show;

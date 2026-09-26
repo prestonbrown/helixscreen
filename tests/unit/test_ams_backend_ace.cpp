@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_ams_detail.h"
+#include "ui_test_utils.h"
 #include "ui_update_queue.h"
 
 #include "ams_backend_ace.h"
@@ -10,7 +12,7 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_translation.h"
-#include "lvgl_test_fixture.h"
+#include "lvgl_ui_test_fixture.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_types.h"
@@ -73,9 +75,11 @@ struct AceTmpCacheDir {
 
 // Build a single-slot ace object payload. `status_str` is one of "empty",
 // "available", "loaded", "ready". `color_rgb` is packed as a [r,g,b] array
-// (ValgACE's native format). `material_str` goes into "type".
+// (ValgACE's native format). `material_str` goes into "type". `rfid` is the
+// bay's tag-reader flag: true means the colour and type came off the spool's
+// tag, false means the hub is stating its own memory of the bay.
 json make_ace_slot_payload(const std::string& status_str, uint32_t color_rgb,
-                           const std::string& material_str) {
+                           const std::string& material_str, const json& rfid = json(false)) {
     uint8_t r = (color_rgb >> 16) & 0xFF;
     uint8_t g = (color_rgb >> 8) & 0xFF;
     uint8_t b = color_rgb & 0xFF;
@@ -83,9 +87,10 @@ json make_ace_slot_payload(const std::string& status_str, uint32_t color_rgb,
         {"model", "ACE Pro"},
         {"firmware", "1.2.3"},
         {"status", "ready"},
-        {"slots",
-         json::array({json{
-             {"status", status_str}, {"color", json::array({r, g, b})}, {"type", material_str}}})},
+        {"slots", json::array({json{{"status", status_str},
+                                    {"color", json::array({r, g, b})},
+                                    {"type", material_str},
+                                    {"rfid", rfid}}})},
     };
 }
 
@@ -286,6 +291,11 @@ class AmsBackendAceTestHelper : public AmsBackendAce {
         running_ = state;
     }
 
+    void set_test_action(AmsAction action) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        system_info_.action = action;
+    }
+
     // Load and unload resolve through this seam, so a test can assert what was
     // sent and fire the driver's ack when it chooses. A driver that ignores a
     // toolchange still acks it, which is the case worth reproducing.
@@ -300,12 +310,22 @@ class AmsBackendAceTestHelper : public AmsBackendAce {
     }
 
     helix::AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                                  std::function<void(const MoonrakerError&)> /*on_error*/,
-                                  bool /*silent*/) override {
+                                  std::function<void(const MoonrakerError&)> on_error,
+                                  bool silent) override {
+        if (dispatch_via_base) {
+            return AmsSubscriptionBackend::execute_gcode(gcode, std::move(on_complete),
+                                                         std::move(on_error), silent);
+        }
         captured_gcodes.push_back(gcode);
         pending_ack = std::move(on_complete);
         return helix::AmsErrorHelper::success();
     }
+
+  public:
+    // Routes the completion-form dispatch to the REAL AmsSubscriptionBackend
+    // implementation (api_ is null here) instead of the capture seam, so a
+    // test can exercise the dispatch's own refusal legs.
+    bool dispatch_via_base = false;
 };
 
 // ============================================================================
@@ -907,6 +927,37 @@ TEST_CASE("ACE operations require API", "[ams][ace][preconditions]") {
     REQUIRE(!err.success());
 }
 
+// A dispatch that never goes out still has to unwind the optimistic action the
+// op set before it, or is_busy() refuses every later op (prestonbrown/helixscreen#1720).
+TEST_CASE("ACE unload refused at the send unwinds UNLOADING", "[ams][ace][1720]") {
+    AmsBackendAceTestHelper helper;
+    helper.set_running(true);
+    helper.dispatch_via_base = true;
+
+    auto err = helper.unload_filament(0);
+    REQUIRE_FALSE(err.success());
+
+    // The refusal came from the dispatch itself, not the capture seam.
+    REQUIRE(helper.captured_gcodes.empty());
+
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(helper.get_test_system_info().action == AmsAction::IDLE);
+}
+
+// With no on_error to hand the refusal to, the no-API leg touches no backend
+// state: callers may send while holding the backend's mutex.
+TEST_CASE("ACE send refused with no on_error leaves the action alone", "[ams][ace][1720]") {
+    AmsBackendAceTestHelper helper;
+    helper.dispatch_via_base = true;
+    helper.set_test_action(AmsAction::LOADING);
+
+    auto err = helper.execute_gcode("ACE_TEST", nullptr, nullptr, false);
+
+    CHECK_FALSE(err.success());
+    CHECK(helper.get_test_system_info().action == AmsAction::LOADING);
+}
+
 // ============================================================================
 // The G-code ack is not proof of a load (prestonbrown/helixscreen#1676)
 //
@@ -1208,8 +1259,8 @@ TEST_CASE_METHOD(HelixTestFixture, "ACE weight persist leaves the lane's declara
     CHECK(stored["remaining_weight_g"] == 730.0f);
 }
 
-TEST_CASE("ACE slot transition empty -> present clears override",
-          "[ams][ace][filament_slot_override]") {
+TEST_CASE("ACE inserting a different tagged spool clears the override",
+          "[ams][ace][filament_slot_override][1710]") {
     AceTmpCacheDir tmp("task13_empty_to_present_clears");
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
@@ -1236,16 +1287,22 @@ TEST_CASE("ACE slot transition empty -> present clears override",
     ovr.color_rgb = 0xFF5500;
     AceTestAccess::seed_override(backend, 0, ovr);
 
-    // First parse: slot is EMPTY. prev_slot_status_ is unset (baseline UNKNOWN);
-    // UNKNOWN -> EMPTY is NOT a swap (curr is not "present"), so no clear.
-    AceTestAccess::parse_ace(backend, make_ace_slot_payload("empty", 0x000000, ""));
+    // First parse: slot AVAILABLE with a TAGGED spool in it (rfid=true). First
+    // observation is a baseline and never fires; it records the occupant's tag
+    // reading as the comparison side for the next insert.
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0xFF5500, "PLA", true));
     REQUIRE(AceTestAccess::get_override(backend, 0).has_value());
     REQUIRE(!api.mock_get_db_value("lane_data", "lane1").is_null());
 
-    // Second parse: slot becomes AVAILABLE with a different color — EMPTY ->
-    // AVAILABLE is the swap signal. Override MUST be cleared (in-memory and
-    // in MR DB).
-    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0x0055FF, "PETG"));
+    // Second parse: EMPTY, the user pulled the spool. Not a swap signal.
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("empty", 0x000000, ""));
+    REQUIRE(AceTestAccess::get_override(backend, 0).has_value());
+
+    // Third parse: AVAILABLE with a DIFFERENT tagged spool. EMPTY -> present is
+    // the insert edge, both sides were read off tags, material and colour
+    // differ: the insert rule says DifferentSpool, override MUST be cleared
+    // (in-memory and in MR DB).
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0x0055FF, "PETG", true));
 
     CHECK_FALSE(AceTestAccess::get_override(backend, 0).has_value());
     CHECK(api.mock_get_db_value("lane_data", "lane1").is_null());
@@ -1260,11 +1317,12 @@ TEST_CASE("ACE slot transition empty -> present clears override",
     CHECK(info.material == "PETG");     // new firmware material
 }
 
-TEST_CASE("ACE slot transition loaded -> empty does NOT clear override",
-          "[ams][ace][filament_slot_override]") {
-    // User unloaded the current spool but hasn't swapped yet. The override
-    // must survive — they may reinsert the same spool. Only the inverse
-    // transition (empty -> present) is a swap signal.
+TEST_CASE("ACE reloading the same tagged spool keeps the override",
+          "[ams][ace][filament_slot_override][1710]") {
+    // User unloaded the current spool and put the same one back. The tag read
+    // the same material and colour on both sides of the empty interval, so the
+    // insert rule says SameSpool and the override stands. Only a spool whose
+    // tag reads differently is a swap.
     AceTmpCacheDir tmp("task13_loaded_to_empty_preserves");
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
@@ -1283,25 +1341,318 @@ TEST_CASE("ACE slot transition loaded -> empty does NOT clear override",
     ovr.color_rgb = 0xFF5500;
     AceTestAccess::seed_override(backend, 0, ovr);
 
-    // First parse: slot LOADED. First observation is a BASELINE and never
-    // fires a clear (caller skips the helper when prev_slot_status_ has no
-    // entry). Override survives intact.
-    AceTestAccess::parse_ace(backend, make_ace_slot_payload("loaded", 0xFF5500, "PLA"));
+    // First parse: slot LOADED with a tagged spool. Baseline, never fires.
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("loaded", 0xFF5500, "PLA", true));
     REQUIRE(AceTestAccess::get_override(backend, 0).has_value());
 
-    // Second parse: LOADED -> EMPTY (user unloaded). Must NOT clear — user
-    // may still reinsert the same spool.
+    // Second parse: LOADED -> EMPTY (user unloaded). Not an insert; no verdict.
     AceTestAccess::parse_ace(backend, make_ace_slot_payload("empty", 0x000000, ""));
     CHECK(AceTestAccess::get_override(backend, 0).has_value());
 
-    // Third parse: EMPTY -> LOADED (user reinserts SAME spool). This IS a
-    // "present" transition, so the override IS cleared — the status-based
-    // heuristic can't distinguish "reinsert same spool" from "insert new
-    // spool." Documented limitation: ACE users who unload and reload the
-    // same spool will lose their override. Acceptable tradeoff — far less
-    // common than the new-spool path the heuristic is built for.
-    AceTestAccess::parse_ace(backend, make_ace_slot_payload("loaded", 0xFF5500, "PLA"));
+    // Third parse: EMPTY -> LOADED with the SAME tag reading. SameSpool: the
+    // override the user set on that spool survives the unload/reload.
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("loaded", 0xFF5500, "PLA", true));
+    CHECK(AceTestAccess::get_override(backend, 0).has_value());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ACE insert of an untagged spool offers the same-spool notice, not a clear",
+                 "[ams][ace][filament_slot_override][1710]") {
+    // The hub states colour and type from its own memory when the bay has no
+    // tag read (rfid=false): the insert rule has nothing to compare, so the
+    // record stays and the user is asked. Tapping Clear is what clears it.
+    AceTmpCacheDir tmp("task1710_untagged_insert_notice");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
+    AmsBackendAce& backend = *backend_reg;
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    AceTestAccess::inject_override_store(backend, std::move(store));
+
+    api.mock_set_db_value(
+        "lane_data", "lane1",
+        json{{"vendor", "Polymaker"}, {"spool_id", 42}, {"material", "PLA"}, {"color", "#FF5500"}});
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.material = "PLA";
+    ovr.color_rgb = 0xFF5500;
+    ovr.spoolman_id = 42;
+    AceTestAccess::seed_override(backend, 0, ovr);
+
+    std::vector<std::pair<ToastSeverity, std::string>> toasts;
+    helix::ui::set_test_toast_hook([&](ToastSeverity severity, const std::string& msg, uint32_t) {
+        toasts.emplace_back(severity, msg);
+    });
+
+    // Tagged occupant leaves, an UNTAGGED spool arrives: the hub's PETG
+    // statement is memory, not a read. The insert frame carries no read, so
+    // the verdict holds for the read that never comes.
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0xFF5500, "PLA", true));
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("empty", 0x000000, ""));
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0x0055FF, "PETG"));
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(toasts.empty()); // holding the verdict, not asking yet
+
+    // Frames keep coming with no read (the REST poll restates the bay every
+    // pass) until the held insert expires to the no-evidence notice.
+    for (int i = 0; i < 8; ++i) {
+        AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0x0055FF, "PETG"));
+    }
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts[0].first == ToastSeverity::INFO);
+    CHECK(AceTestAccess::get_override(backend, 0).has_value());
+    CHECK(!api.mock_get_db_value("lane_data", "lane1").is_null());
+
+    // The expired insert is gone: later no-read frames never ask again.
+    for (int i = 0; i < 4; ++i) {
+        AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0x0055FF, "PETG"));
+    }
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(toasts.size() == 1);
+
+    // Tapping Clear is the user answering the question.
+    REQUIRE(helix::ui::fire_last_toast_action());
     CHECK_FALSE(AceTestAccess::get_override(backend, 0).has_value());
+    CHECK(api.mock_get_db_value("lane_data", "lane1").is_null());
+
+    helix::ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ACE a tag read landing after the insert frame is judged when it lands",
+                 "[ams][ace][filament_slot_override][1710]") {
+    // The frame that reports the spool can precede the one carrying its tag
+    // read. The insert holds its verdict until the read lands, the occupant
+    // that left stays the comparison side while it waits (a no-read frame
+    // states hub memory, not the reader), and the late read is judged: a
+    // different tag reading clears, and a judged swap never asks.
+    AceTmpCacheDir tmp("task1710_late_tag_swap");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
+    AmsBackendAce& backend = *backend_reg;
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    AceTestAccess::inject_override_store(backend, std::move(store));
+
+    api.mock_set_db_value(
+        "lane_data", "lane1",
+        json{{"vendor", "Polymaker"}, {"spool_id", 42}, {"material", "PLA"}, {"color", "#FF5500"}});
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.material = "PLA";
+    ovr.color_rgb = 0xFF5500;
+    ovr.spoolman_id = 42;
+    AceTestAccess::seed_override(backend, 0, ovr);
+
+    std::vector<std::pair<ToastSeverity, std::string>> toasts;
+    helix::ui::set_test_toast_hook([&](ToastSeverity severity, const std::string& msg, uint32_t) {
+        toasts.emplace_back(severity, msg);
+    });
+
+    // Tagged PLA occupant read, then the bay empties.
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0xFF5500, "PLA", true));
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("empty", 0x000000, ""));
+
+    // The PETG spool arrives before its tag read lands.
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0x0055FF, "PETG"));
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(toasts.empty());
+    CHECK(AceTestAccess::get_override(backend, 0).has_value());
+
+    // The read lands and names a different spool than the one that left.
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0x0055FF, "PETG", true));
+
+    CHECK_FALSE(AceTestAccess::get_override(backend, 0).has_value());
+    CHECK(api.mock_get_db_value("lane_data", "lane1").is_null());
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(toasts.empty());
+
+    helix::ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE("ACE an rfid state of 2 (identified) reads as a tag read",
+          "[ams][ace][filament_slot_override][1710]") {
+    // ACEResearch PROTOCOL.md spells the bay's tag-reader state as an
+    // integer: 0 information not found, 1 failed to identify, 2 identified,
+    // 3 identifying. ValgACE's bridge and the multiACE lineage send this
+    // form. Two is a read, so the material and colour it accompanies are tag
+    // evidence and a swap is a judged DifferentSpool, not a verdict held
+    // forever.
+    AceTmpCacheDir tmp("task1710_numeric_rfid");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
+    AmsBackendAce& backend = *backend_reg;
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    AceTestAccess::inject_override_store(backend, std::move(store));
+
+    api.mock_set_db_value(
+        "lane_data", "lane1",
+        json{{"vendor", "Polymaker"}, {"spool_id", 42}, {"material", "PLA"}, {"color", "#FF5500"}});
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.spool_name = "PolyLite Orange";
+    ovr.spoolman_id = 42;
+    ovr.material = "PLA";
+    ovr.color_rgb = 0xFF5500;
+    AceTestAccess::seed_override(backend, 0, ovr);
+
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0xFF5500, "PLA", true));
+    REQUIRE(AceTestAccess::get_override(backend, 0).has_value());
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("empty", 0x000000, ""));
+
+    // Numeric rfid 2 (identified) on the insert frame: judged immediately.
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0x0055FF, "PETG", 2));
+
+    CHECK_FALSE(AceTestAccess::get_override(backend, 0).has_value());
+    CHECK(api.mock_get_db_value("lane_data", "lane1").is_null());
+}
+
+namespace {
+/// The shared body of the rfid-state cases: an insert whose first frame
+/// says 3 (identifying) holds its verdict, and the follow-up frame decides
+/// it. @p closing_clears pairs with @p closing_state: 2 identified with a
+/// different tag clears the override; 1 (the reader finished without a
+/// tag) asks, whatever values the frame carries. @p edge_state is the
+/// insert frame's own state, 3 identifying or 0 not yet started.
+void assert_rfid_state_sequence(std::int64_t closing_state, bool closing_clears,
+                                std::int64_t edge_state = 3) {
+    AceTmpCacheDir tmp("task1710_rfid_states");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
+    AmsBackendAce& backend = *backend_reg;
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    AceTestAccess::inject_override_store(backend, std::move(store));
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.material = "PLA";
+    ovr.color_rgb = 0xFF5500;
+    AceTestAccess::seed_override(backend, 0, ovr);
+
+    std::vector<std::pair<ToastSeverity, std::string>> toasts;
+    helix::ui::set_test_toast_hook([&](ToastSeverity severity, const std::string& msg, uint32_t) {
+        toasts.emplace_back(severity, msg);
+    });
+
+    // Baseline: the bay holds the spool the override describes, and the
+    // reader identified it, so the remembered evidence is a real reading.
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0xFF5500, "PLA", 2));
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("empty", 0x000000, ""));
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(toasts.empty());
+
+    // Insert frame: rfid 3, identifying, while the hub still reports the
+    // OLD spool's material and colour. Judging on that stale memory would
+    // read SameSpool; the read has not landed, so the verdict must hold.
+    AceTestAccess::parse_ace(backend,
+                             make_ace_slot_payload("available", 0xFF5500, "PLA", edge_state));
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(toasts.empty());
+    CHECK(AceTestAccess::get_override(backend, 0).has_value());
+
+    // The deciding frame. A 2 carries the new spool's own reading; a 1
+    // carries only hub memory, and the values on it are deliberately the
+    // stale ones, so the state - not the values - decides.
+    if (closing_clears) {
+        AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0x0055FF, "PETG", 2));
+    } else {
+        AceTestAccess::parse_ace(
+            backend, make_ace_slot_payload("available", 0xFF5500, "PLA", closing_state));
+    }
+    helix::ui::UpdateQueue::instance().drain();
+
+    if (closing_clears) {
+        CHECK_FALSE(AceTestAccess::get_override(backend, 0).has_value());
+        CHECK(toasts.empty());
+    } else {
+        REQUIRE(toasts.size() == 1);
+        CHECK(toasts[0].first == ToastSeverity::INFO);
+        CHECK(AceTestAccess::get_override(backend, 0).has_value());
+    }
+
+    helix::ui::set_test_toast_hook(nullptr);
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ACE rfid 3 holds the insert, then 2 with a different tag clears",
+                 "[ams][ace][filament_slot_override][1710]") {
+    assert_rfid_state_sequence(2, /*closing_clears=*/true);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ACE rfid 3 holds the insert, then 1 asks instead",
+                 "[ams][ace][filament_slot_override][1710]") {
+    assert_rfid_state_sequence(1, /*closing_clears=*/false);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ACE rfid 0 on the insert frame holds the verdict too",
+                 "[ams][ace][filament_slot_override][1710]") {
+    // 0 is the reader not yet started. Read as a finished no-tag read it
+    // would judge a tagged spool's reinsert DifferentSpool on the spot.
+    assert_rfid_state_sequence(2, /*closing_clears=*/true, /*edge_state=*/0);
+    assert_rfid_state_sequence(1, /*closing_clears=*/false, /*edge_state=*/0);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ACE an insert with no prior reading offers the notice, never clears",
+                 "[ams][ace][filament_slot_override][1710]") {
+    // The bay was empty since boot, so no reading of the spool that was in it
+    // before the override was set can exist: the rule reads NoEvidence on
+    // principle and asks instead of clearing.
+    AceTmpCacheDir tmp("task1710_no_prior_reading");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
+    AmsBackendAce& backend = *backend_reg;
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    AceTestAccess::inject_override_store(backend, std::move(store));
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.material = "PLA";
+    ovr.color_rgb = 0xFF5500;
+    AceTestAccess::seed_override(backend, 0, ovr);
+
+    std::vector<std::pair<ToastSeverity, std::string>> toasts;
+    helix::ui::set_test_toast_hook([&](ToastSeverity severity, const std::string& msg, uint32_t) {
+        toasts.emplace_back(severity, msg);
+    });
+
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("empty", 0x000000, ""));
+    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0x0055FF, "PETG", true));
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(toasts.size() == 1);
+    CHECK(AceTestAccess::get_override(backend, 0).has_value());
+
+    helix::ui::set_test_toast_hook(nullptr);
 }
 
 TEST_CASE("ACE partial override only replaces specified fields",

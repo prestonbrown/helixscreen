@@ -4,16 +4,16 @@
 <component>
   <api>
     <!-- Int subject carrying HeaterStatusState: 0 none, 1 heating, 2 ready,
-         3 cooling. Empty default installs no binding, so the markup's
-         hidden="true" is what sticks. -->
+         3 cooling. The engine skips a binding whose subject resolves to "",
+         so with the default the markup's hidden="true" is what sticks. -->
     <prop name="state_subject" type="string" default=""/>
     <prop name="duty_subject" type="string" default=""/>
   </api>
   <!--
     Heater Status Area
 
-    The glyph + duty pair that replaced the status word ("Heating... · 100%")
-    whose length overflowed narrow heater rows. The state subject picks the
+    The status area is a state glyph plus duty text: a status word's length
+    overflows narrow heater rows. The state subject picks the
     glyph: flame while heating (warning amber), check at target (success),
     snowflake while cooling (info), nothing when off. The duty text renders
     amber while heating and muted otherwise, and is empty when there is no

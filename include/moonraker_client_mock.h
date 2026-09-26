@@ -61,15 +61,17 @@ using MethodHandler =
 class MoonrakerClientMock : public helix::MoonrakerClient {
   public:
     enum class PrinterType {
-        VORON_24,           // Voron 2.4 (CoreXY, chamber heating)
-        VORON_TRIDENT,      // Voron Trident (3Z, CoreXY)
-        CREALITY_K1,        // Creality K1/K1C (bed slinger style)
-        CREALITY_K1_MAX,    // Creality K1 Max (the #1282 CFS capture machine)
-        FLASHFORGE_AD5M,    // FlashForge Adventurer 5M (enclosed)
-        GENERIC_COREXY,     // Generic CoreXY printer
-        GENERIC_BEDSLINGER, // Generic i3-style printer
-        MULTI_EXTRUDER,     // Multi-extruder test case (2 extruders)
-        DELTA               // Generic linear delta (every axis homes together)
+        VORON_24,                 // Voron 2.4 (CoreXY, chamber heating)
+        VORON_TRIDENT,            // Voron Trident (3Z, CoreXY)
+        CREALITY_K1,              // Creality K1/K1C (bed slinger style)
+        CREALITY_K1_MAX,          // Creality K1 Max (the #1282 CFS capture machine)
+        FLASHFORGE_AD5M,          // FlashForge Adventurer 5M (enclosed)
+        FLASHFORGE_CREATOR5,      // FlashForge Creator 5 Pro (4-head tool changer)
+        FLASHFORGE_CREATOR5_ZMOD, // FlashForge Creator 5 Pro on Z-Mod (no klipper-toolchanger)
+        GENERIC_COREXY,           // Generic CoreXY printer
+        GENERIC_BEDSLINGER,       // Generic i3-style printer
+        MULTI_EXTRUDER,           // Multi-extruder test case (2 extruders)
+        DELTA                     // Generic linear delta (every axis homes together)
     };
 
     /**
@@ -429,6 +431,36 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     PrinterType get_printer_type() const {
         return printer_type_;
     }
+
+    /**
+     * @brief Whether the mock should present a tool changer.
+     *
+     * Single source of truth for the two places that need the answer: this
+     * client (which adds extruder1..3 and the toolchanger/tool objects) and
+     * AmsBackend's mock branch (which picks the backend type). One function
+     * stops the two env-var parses drifting apart.
+     *
+     * True when HELIX_MOCK_AMS selects a tool changer, or, when HELIX_MOCK_AMS
+     * is unset, when the persona is a tool changer by construction. The
+     * creator5 persona is: a Creator 5 Pro is a 4-head changer, so leaving it on
+     * the Happy Hare default misrepresents the machine. An explicit
+     * HELIX_MOCK_AMS always wins, so other topologies stay testable against the
+     * persona.
+     *
+     * Static because AmsBackend decides before any client instance exists.
+     */
+    static bool mock_toolchanger_selected();
+
+    /**
+     * @brief Whether the selected persona is mock HARDWARE, not a mock backend.
+     *
+     * True when HELIX_MOCK_PRINTER is creator5_zmod: the persona seeds the
+     * Klipper objects and zmod_color status Z-Mod's firmware publishes, and
+     * the production AmsBackendToolChanger + toolchanger_addon path must run
+     * against them, the same rule as the MedusaHC modes of HELIX_MOCK_AMS.
+     * Static because AmsBackend decides before any client instance exists.
+     */
+    static bool mock_hardware_persona();
 
     /**
      * @brief Start temperature simulation loop
@@ -1051,6 +1083,21 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
                                           std::function<void(const nlohmann::json&)> success_cb,
                                           std::function<void(const MoonrakerError&)> error_cb);
 
+    /**
+     * @brief Simulate an automatic pressure-advance run
+     *
+     * Mirrors what a measuring firmware does on the console: a few candidate
+     * probes a beat apart, then the applied value echoed the way Klipper's own
+     * SET_PRESSURE_ADVANCE echoes it. Asynchronous, so the panel's phase list,
+     * attempt counter and progress bar are all exercised in mock mode rather
+     * than jumping straight to a result.
+     *
+     * @return true if the script was handled here
+     */
+    bool simulate_pa_calibration(const std::string& script,
+                                 std::function<void(const nlohmann::json&)> success_cb,
+                                 std::function<void(const MoonrakerError&)> error_cb);
+
     /// The inverse: which axis a PARAMETER= names, or nullopt for any other
     /// tool parameter (the mock models only the three offsets).
     static std::optional<helix::Axis> tool_offset_axis(const std::string& param);
@@ -1094,6 +1141,17 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     nlohmann::json medusa_status_json() const;
 
     /**
+     * @brief The `zmod_color` object as Z-Mod's firmware reports it.
+     *
+     * Full frame: active_tool_id, total_tools, color_limit,
+     * display, valid_types, hidden_types, palette (the 24 firmware colours)
+     * and slots (the 4 heads' Material/HEX registry). Served by the
+     * objects.query/subscribe handlers and republished on _T_IN/_T_OUT/
+     * CHANGE_ZCOLOR.
+     */
+    json zmod_color_status() const;
+
+    /**
      * @brief `[pin_watch io]` status: `{"current_tool": int}`.
      *
      * Empty object for the FORK variant (no pin_watch) and for NONE.
@@ -1104,6 +1162,21 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // Test visibility into the chamber-key cache and the synchronous initial
     // state dispatch (see tests/test_helpers/moonraker_client_mock_test_access.h).
     friend class helix::MoonrakerClientMockTestAccess;
+
+    /// One console line the pressure-advance simulation still owes, and when.
+    struct PendingPaLine {
+        std::chrono::steady_clock::time_point due;
+        std::string line;
+        bool is_final;
+        std::function<void(const nlohmann::json&)> success_cb;
+        std::function<void(const MoonrakerError&)> error_cb;
+    };
+    /// HELIX_MOCK_PA_FAIL=1 makes the run refuse with a realistic runout
+    /// message. The refusal path is otherwise unreachable in mock mode, and it
+    /// is one of the states the panel handles most visibly.
+    std::vector<PendingPaLine> pending_pa_lines_;
+    mutable std::mutex pa_cal_mutex_;
+    void service_pending_pa_lines();
 
     /**
      * @brief Populate hardware lists based on configured printer type
@@ -1879,6 +1952,18 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::atomic<int> medusa_phase_ticks_{0};       ///< Sim ticks left in the current phase
     std::atomic<bool> medusa_feeder_open_{false};  ///< Servo gripper released
     std::atomic<bool> medusa_sensor_error_{false}; ///< Docks cannot say what is mounted
+
+    // --- Z-Mod (Creator 5 Pro) mock hardware ----------------------------------
+    // Same shape as the MedusaHC block above: gcode_script() writes on the
+    // caller's thread, the RPC object handlers read from any thread, so the
+    // tool id is atomic and the slot registry sits behind its own mutex.
+    /// zmod_color.active_tool_id: 0..3 mounted, -1 nothing on the carriage.
+    std::atomic<int> zmod_active_tool_{-1};
+    mutable std::mutex zmod_mutex_;
+    /// (Material, HEX) per head; slot N (1-based, as CHANGE_ZCOLOR names it)
+    /// lives at index N-1.
+    std::array<std::pair<std::string, std::string>, 4> zmod_slots_{
+        {{"PLA", "FFFFFF"}, {"PETG", "0ACC38"}, {"ABS", "161616"}, {"PLA", "F72224"}}};
 
     /// Arm a swap to `tool` (-1 unmounts whatever is on the head). Opens the
     /// feeder and enters the drop phase; advance_medusa_swap() does the rest.

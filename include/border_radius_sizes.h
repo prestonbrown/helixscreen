@@ -36,15 +36,23 @@ class BorderRadiusSizes {
     }
 
     /**
-     * @brief Get pixel value for a size index at a given breakpoint suffix.
+     * @brief Surface radius (cards, dialogs, inputs) for a size index at a breakpoint.
+     *
+     * "Full" is meant to make buttons pills. On a surface it would turn any
+     * near-square card or dialog into a circle and clip its content, so
+     * surfaces stop at "Pill". Buttons use button_pixels().
+     *
      * @param index Size index (0-7, clamped)
      * @param suffix Breakpoint suffix: "_micro", "_tiny", "_small", "_medium", "_large", "_xlarge",
      * "_xxlarge"
      */
     static int pixels(int index, const char* suffix) {
-        index = clamp_index(index);
-        int bp = breakpoint_index(suffix);
-        return table()[index].pixels[bp];
+        return button_pixels(std::min(clamp_index(index), SIZE_COUNT - 2), suffix);
+    }
+
+    /// Button radius: the table value, including "Full".
+    static int button_pixels(int index, const char* suffix) {
+        return table()[clamp_index(index)].pixels[breakpoint_index(suffix)];
     }
 
     /**

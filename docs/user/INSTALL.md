@@ -54,6 +54,7 @@ The one-liner above works on every supported platform, but each printer family h
 | Creality K2 / K2 Plus / K2 Pro | [K2 Series Install](guide/install-k2.md) - works on stock firmware, no custom firmware needed |
 | Flashforge Adventurer 5M / 5M Pro | [Adventurer 5M Install](guide/install-ad5m.md) - Forge-X or Klipper Mod, plus a ready-made firmware image |
 | FlashForge Adventurer 5X | [Adventurer 5X Install (ZMOD)](guide/install-ad5x.md) - the ZMOD firmware mod manages install and updates |
+| FlashForge Creator 5 / Creator 5 Pro | [Z-Mod wiki](https://wiki.zmod.link/C5PRO/) - Z-Mod installs and updates HelixScreen itself; on [Reforge](https://github.com/Klipper4FlashForge/firmware), HelixScreen ships with the firmware |
 | Elegoo Centauri Carbon | [Centauri Carbon Install](guide/install-cc1.md) - requires the OpenCentauri COSMOS firmware, 26.07.0 or newer |
 | Creality Sonic Pad | [Sonic Pad Install](guide/install-sonicpad.md) - requires the SonicPad-Debian firmware |
 | Snapmaker U1 | [Snapmaker U1 Install](guide/install-u1.md) - stock firmware 1.2+ with Root access, or PAXX Extended Firmware |

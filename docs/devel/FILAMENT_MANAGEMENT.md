@@ -55,6 +55,7 @@ HelixScreen uses a backend abstraction layer to support multiple multi-filament 
 | `src/printer/slot_registry.cpp` | SlotRegistry implementation (name/index mapping, reorganize, tool map) |
 | `include/ams_backend_happy_hare.h` | Happy Hare MMU implementation |
 | `include/ams_backend_afc.h` | AFC (Armored Turtle / Box Turtle) implementation |
+| `include/ams_backend_openams.h` | klipper_openams through its versioned `oams_manager` API; `include/openams_api.h` holds the contract's "supported" test |
 | `include/ams_backend_ace.h` | ACE (Anycubic ACE Pro) implementation |
 | `include/ams_backend_toolchanger.h` | Physical tool changer (viesturz/klipper-toolchanger) |
 | `include/ams_backend_ad5x_ifs.h` | FlashForge AD5X IFS (Intelligent Filament Switching) |
@@ -72,7 +73,7 @@ HelixScreen uses a backend abstraction layer to support multiple multi-filament 
 
 ### Data Flow
 
-1. **Discovery**: `PrinterDiscovery::parse_objects()` scans Klipper's `printer.objects.list` for `mmu`, `AFC`, `toolchanger`, `ace`, `AFC_stepper lane*`, `AFC_hub *`, `tool T*`, and `filament_switch_sensor _ifs_port_sensor_*` objects.
+1. **Discovery**: `PrinterDiscovery::parse_objects()` scans Klipper's `printer.objects.list` for `mmu`, `AFC`, `toolchanger`, `ace`, `AFC_stepper lane*`, `AFC_hub *`, `tool T*`, and `filament_switch_sensor _ifs_port_sensor_*` objects. A system whose name cannot decide the claim (`oams_manager`) is settled from its status by `claim_status_query()` / `settle_status_claims()` before the hardware callback fires ([FILAMENT_BACKEND_OPENAMS.md](FILAMENT_BACKEND_OPENAMS.md)).
 2. **Backend Creation**: `AmsState::init_backend_from_hardware()` calls `AmsBackend::create()` with the detected `AmsType` and Moonraker dependencies.
 3. **Slot State**: Each backend stores per-slot state in its `SlotRegistry` instance (`slots_`), which provides indexed access, name lookup, and multi-unit reorganization. Moonraker status updates write to the registry under the backend's mutex.
 4. **State Sync**: Backend emits events (`STATE_CHANGED`, `SLOT_CHANGED`, etc.) which `AmsState` translates to LVGL subject updates.
@@ -152,6 +153,7 @@ aggregate, and add a test that fails if it stops.
 | Backend | Authority | Basis |
 |---------|-----------|-------|
 | AFC | `true` | `AFC_stepper.<lane>.tool_loaded` (#1194) |
+| OpenAMS | `true` | `oams_manager.units[].slots[].loaded`, plus each lane's `current_slot` |
 | Snapmaker | overrides outright | returns `status == LOADED` verbatim |
 | AD5X IFS | `true` | firmware active-lane pointer + head sensor (#1199) |
 | QIDI Box | `true` | `save_variables slot<N> == 2` (#1199) |
@@ -424,6 +426,7 @@ Per backend:
 | Happy Hare | `MMU_GATE_MAP GATE={n} … MATERIAL={material}` | same pair |
 | CFS | `_BOX_SLOT_SET SLOT={n} MATERIAL=… BRAND=… NAME=…` | local `quote_gcode_param()` (`ams_backend_cfs.cpp`) - always quotes, escapes `\` and `"`, folds CR/LF to a space. It escapes rather than rejects because `BRAND`/`NAME` are free-form strings arriving from RFID, not values the user picked from a list |
 | AD5X IFS | `_IFS_VARS types="['PLA', …]"` | `build_type_list_value()` emits an already-quoted Python list literal. This is a mirror to the lessWaste/bambufy plugin, not the primary persistence path |
+| Tool changer (Z-Mod) | `CHANGE_ZCOLOR SLOT={n} HEX={RRGGBB} TYPE={material} SILENT=1` | `SLOT` is 1-based: the backend's 0-based slot index plus one. `HEX` and `TYPE` are both required for a prompt-free write, so the send always carries the slot's current colour too, snapped to the firmware palette first; `normalize_material()` maps into `zmod_color.valid_types` by compat group, then `is_safe_material_param()` + `gcode_param_value()` (`src/printer/ams_backend_toolchanger.cpp#apply_user_edit`). See [FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md#z-mod-on-the-creator-5-pro) |
 
 Backends that persist through `FilamentSlotOverrideStore` (IFS, Snapmaker, ACE)
 or through a numeric id (QIDI Box's `SAVE_VARIABLE VARIABLE=filament_slot{n}`)
@@ -450,7 +453,7 @@ for a write that never happened is what made this invisible for so long.
 
 Each line is transformed from its ORIGINAL text and no line needs to see any other, so a swap (`1<->2`) cannot chain and comment lines never match. That independence is what lets the rule run over a stream: `apply_to_stream(in, out, remap)` is the single implementation and holds one line at a time, so a 400MB job costs what a 4KB one does. `apply_to_string()` is a wrapper on it for callers that already have the content; a file being printed goes through the stream. Byte-for-byte contract either way — unmatched lines pass through untouched, CRLF survives, and a final line with no trailing newline keeps it that way.
 
-Backends are consumers, not implementers: `AmsBackend::get_remap_strategy()` routes (`include/ams_backend.h`). `Native` (Happy Hare, AFC, CFS, AD5X IFS, Tool Changer, QIDI Box) and `SnapmakerNative` (the U1 emits firmware-native `print_task_config` gcode — no file rewrite) never reach the remapper. `GcodeRewrite` is the generic fallback for firmware with no internal routing table. A tool changer driving swaps with its own `T<n>` macros rather than klipper-toolchanger takes it when beta features are on, because `ASSIGN_TOOL` does not exist there and Klipper answers an unknown command by logging it and carrying on — a remap sent to such a machine reads as applied and prints the firmware's own mapping (`include/ams_backend_toolchanger.h`). ACE will adopt it once its `ACE_CHANGE_TOOL` family is implemented and validated, and until then ACE stays `None` (`include/ams_backend_ace.h`).
+Backends are consumers, not implementers: `AmsBackend::get_remap_strategy()` routes (`include/ams_backend.h`). `Native` (Happy Hare, AFC, CFS, AD5X IFS, Tool Changer, QIDI Box) and `PrePrintSend` (the U1 emits firmware-native `print_task_config` gcode, no file rewrite) never reach the remapper. `GcodeRewrite` is the generic fallback for firmware with no internal routing table. A tool changer driving swaps with its own `T<n>` macros rather than klipper-toolchanger takes it when beta features are on, because `ASSIGN_TOOL` does not exist there and Klipper answers an unknown command by logging it and carrying on, so a remap sent to such a machine reads as applied and prints the firmware's own mapping (`include/ams_backend_toolchanger.h`). ACE will adopt it once its `ACE_CHANGE_TOOL` family is implemented and validated, and until then ACE stays `None` (`include/ams_backend_ace.h`).
 
 When it runs, the production path is `PrintSelectPanel::apply_remap()` -> `PrintPreparationManager::modify_and_print_with_remap()` (`src/ui/ui_print_preparation_manager.cpp`), streaming at every stage: download the original to a temp file, rewrite it to a second temp file through `apply_to_stream()`, upload that, and print it via the HelixPrint plugin under the ORIGINAL filename. No stage holds the job in memory. A remap that changes no line prints the original directly, no copy. The staged upload path is built by `helix::gcode::make_rewritten_gcode_path()` — the one spelling of that name, because the post-print cleanup, the startup sweep and `resolve_gcode_filename()` all recognise a staged copy by its prefix, and a path built any other way is invisible to all three at once.
 
@@ -551,6 +554,7 @@ additional configuration. **Verified against OrcaSlicer upstream/main
 | Snapmaker U1 | HelixScreen (`FilamentSlotOverrideStore`) | `T<n>` (0-based) — tool changer | `lane_data` namespace |
 | ACE (Anycubic ACE Pro) | HelixScreen (`FilamentSlotOverrideStore`) | `laneN` (1-based) | `lane_data` namespace |
 | CFS (Creality K2) | HelixScreen (`FilamentSlotOverrideStore`) | `laneN` (1-based) | `lane_data` namespace |
+| OpenAMS (klipper_openams) | HelixScreen (`FilamentSlotOverrideStore`) | `laneN` (1-based) | `lane_data` namespace |
 | AFC / Box Turtle | AFC's own Klipper plugin | `T(n)` per mapping (virtual-tools firmware, #832); `laneN` (1-based) before | `lane_data` namespace (AFC is the originator) |
 | Happy Hare | Happy Hare's own Klipper plugin (components/mmu_server.py `push_lane_data`) | `laneN` (1-based) | `lane_data` namespace — Orca prefers it over the live `mmu` object |
 | Tool Changer | (not applicable — no per-slot metadata) | — | N/A |
@@ -560,7 +564,7 @@ not hardcoded per backend: tool changers (Snapmaker U1, generic
 klipper-toolchanger) write `T<n>`, filament systems write `laneN`. See the
 interoperability subsection below.
 
-IFS, Snapmaker, ACE, and CFS share the `FilamentSlotOverrideStore`
+IFS, Snapmaker, ACE, CFS, and OpenAMS share the `FilamentSlotOverrideStore`
 infrastructure and publish to `lane_data`; AFC and Happy Hare each write
 `lane_data` via their own Klipper plugins. **HelixScreen never writes
 `lane_data` for the AFC or Happy Hare backends** — those plugins own their
@@ -1217,6 +1221,8 @@ A merely-`silent` request records **nothing** in the RPC ledger. `silent` means 
 
 Note that for AFC, Happy Hare, AD5X IFS and CFS the generic surface is *also* structurally blind: each claims its own sensors through `owns_filament_sensor()`, so `PrinterHardware::is_ams_sensor()` hides them from the wizard's sensor picker, they never get a `FilamentSensorRole`, and `FilamentSensorManager::has_real_runout()` skips them. The suppression above is belt-and-braces for the configs where an AMS lane sensor *does* carry a role (AFC's `...eN_filament` naming is the case `has_real_runout()`'s lane-mapping branch exists for).
 
+Every runout ALERT additionally requires the firmware to be *running* the sensor: Klipper's `filament_switch_sensor`/`filament_motion_sensor` status carries `enabled` (`SET_FILAMENT_SENSOR ENABLE=0/1`), and a stood-down sensor still reports `filament_detected` live but takes no runout action of its own, so `monitors_runout()` (config enabled + role + `state.enabled`) gates `has_any_runout()`/`has_real_runout()` and the edge toasts. Presence queries do NOT honour the firmware flag: `is_filament_detected()`/`is_sensor_available()` answer "is filament physically there" for the pre-print check (which runs between PRINT_END's `ENABLE=0` and PRINT_START's `ENABLE=1` and must still warn "No Filament Detected") and the toolhead load/unload buttons, so they read a stood-down sensor and only require config enabled; with several holders of a role they prefer the firmware-running one, then the first holder. The role subjects use the same pick, so the sensor tile keeps displaying what the hardware reports while the alert decisions ignore it. A sensor that has never reported the field counts as running, and a Moonraker delta omitting it does not reset it (#1714).
+
 ---
 
 ## Filament Op Dispatch: Which Surface Owns What
@@ -1533,6 +1539,7 @@ Each backend has its own leaf doc covering the protocol, data sources, G-code co
 |---------|----------|----------|
 | Happy Hare | ERCF / Tradrack and other selector-based MMUs (Klipper add-on) | [FILAMENT_BACKEND_HAPPY_HARE.md](FILAMENT_BACKEND_HAPPY_HARE.md) |
 | AFC | Box Turtle, OpenAMS, Toolchanger units (AFC-Klipper-Add-On) | [FILAMENT_BACKEND_AFC.md](FILAMENT_BACKEND_AFC.md) |
+| OpenAMS | klipper_openams on its own, through the `oams_manager` UI API (AFC, when present, keeps the printer) | [FILAMENT_BACKEND_OPENAMS.md](FILAMENT_BACKEND_OPENAMS.md) |
 | ACE | Anycubic ACE Pro 4-slot hub (native GoKlipper/Rinkhals; ValgACE REST fallback) | [FILAMENT_BACKEND_ACE.md](FILAMENT_BACKEND_ACE.md) |
 | Tool Changer | viesturz/klipper-toolchanger physical toolheads | [FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md) |
 | AD5X IFS | FlashForge Adventurer 5X Intelligent Filament Switching via ZMOD | [FILAMENT_BACKEND_AD5X_IFS.md](FILAMENT_BACKEND_AD5X_IFS.md) |
@@ -1552,7 +1559,8 @@ enum class AmsType {
     AD5X_IFS = 5,     // FlashForge AD5X IFS (Intelligent Filament Switching)
     CFS = 6,          // Creality Filament System (K2 series, RS-485)
     SNAPMAKER = 7,    // Snapmaker U1 SnapSwap toolchanger
-    QIDI_BOX = 8      // QIDI Box (PLUS4 / Q2 / MAX4, hub-style, 4 slots chainable to 16)
+    QIDI_BOX = 8,     // QIDI Box (PLUS4 / Q2 / MAX4, hub-style, 4 slots chainable to 16)
+    OPENAMS = 9       // klipper_openams through its versioned oams_manager API
 };
 ```
 
@@ -2022,7 +2030,7 @@ sites, where three of the four had already drifted apart, so neither may be re-d
 | Predicate | Header | Rule |
 |-----------|--------|------|
 | `bypass_available(supports_bypass, force_override)` | `ams_bypass_policy.h` | `supports_bypass \|\| force_override` - folds the user's override into the firmware's report |
-| `bypass_node_visible(supports_bypass, bypass_active, is_afc, always_show)` | `ui_bypass_spool_widget.h` | Additionally hides AFC's *virtual* bypass sensor while disengaged (#1229) unless `always_show` |
+| `bypass_node_visible(supports_bypass, bypass_active, bypass_is_virtual, always_show)` | `ui_bypass_spool_widget.h` | Additionally hides a *virtual* bypass sensor (`AmsBackend::bypass_is_virtual()`, AFC) while disengaged (#1229) unless `always_show` |
 
 `bypass_available_for(bool)` and `bypass_node_visible_for(const AmsBackend*)` gather the live
 inputs from `SettingsManager` and the backend; the render sites call the `_for` variants. The
@@ -2095,7 +2103,7 @@ Only the backends whose `is_bypass_active()` can return `true` reach any of this
 display-and-tracking rows below never suppress anything.
 
 On the bottom five rows the override is display-and-tracking only. Their `is_bypass_active()`
-returns a literal `false`, so `bypass_node_visible()` reaches the `!is_afc` branch and renders
+returns a literal `false`, so `bypass_node_visible()` reaches the `!bypass_is_virtual` branch and renders
 the node; tapping it opens `show_external_spool_menu()`, which writes HelixScreen-side slot
 metadata (`AmsState::set_external_spool_info()`) and sends nothing to the printer. The sidebar
 toggle, however, is gated on the same `ams_supports_bypass` subject, so it appears too and then
@@ -2175,11 +2183,13 @@ system (Creality's macros toggle it around every CFS operation; the K2 sits at
 `enabled: false` between sequences), a bypass print would run with no protection at all.
 Engaging bypass arms every RUNOUT-role sensor the firmware holds disabled
 (`SET_FILAMENT_SENSOR SENSOR=<name> ENABLE=1`, bare name, same form the vendor macros use);
-disengaging restores exactly what we armed. Firmware reports of a sensor being disabled
-behind our back (vendor macro ran mid-bypass) drop it from the armed set, so the restore
-never sends a command for state we no longer own. The user's monitoring switches (master
-enable, per-sensor enable) gate the arming — it is a temporary firmware-state change, not a
-settings change.
+disengaging restores exactly what we armed. That is the feature, not a conflict with the
+#1714 rule: on these firmwares the sensor is disabled *because* no filament-system sequence
+is running, and a bypass print is exactly the window where protection must come back.
+Firmware reports of a sensor being disabled behind our back (vendor macro ran mid-bypass)
+drop it from the armed set, so the restore never sends a command for state we no longer
+own. The user's monitoring switches (master enable, per-sensor enable) gate the arming,
+which is a temporary firmware-state change, not a settings change.
 
 **External lane publish** (`AmsBackend::publish_external_spool_lane` +
 `helix::ams::publish_external_lane`): the external spool is published as the lane one past
@@ -2427,7 +2437,7 @@ Create include/ams_backend_mysystem.h and src/printer/ams_backend_mysystem.cpp. 
 - `recover_lane_position()` -- Physical retract of a stranded lane (default: NOT_SUPPORTED)
 - `get_dryer_info()`, `start_drying()`, `stop_drying()`, `update_drying()` -- Dryer control
 - `get_endless_spool_capabilities()`, `get_endless_spool_config()` -- Endless spool state. `set_endless_spool_backup()` is **not** an override point: it is non-virtual and owns every rejection. Supply `apply_endless_spool_backup()` (protected, transport only), `endless_spool_slot_count()` (protected, only if `total_slots` is wrong for you), and `endless_spool_backup_eligibility()` (only to tighten the default polymer-plus-grade rule; return `Eligible`/`Incompatible` only, unless your firmware genuinely has a soft case). `reset_endless_spool()` already works for any editable backend by looping the setter with -1 - override it only if your firmware has a real reset primitive. See § [Endless Spool](#endless-spool-shared-model).
-- `get_remap_strategy()`, `remap_ready()`, `owns_tool_mapping_table()`, `get_tool_mapping()` -- Tool mapping. **Three questions, one spelling each.** `get_remap_strategy()` says HOW a user's tool->lane pick is carried out (`Native` writes your table, `GcodeRewrite` rewrites the job, `SnapmakerNative` is a firmware pre-print send, `None` means it cannot be). `remap_ready()` says whether that route is usable YET -- default true, override only where discovery gates it, as AD5X IFS does on `_IFS_VARS`. `owns_tool_mapping_table()` says whether you hold a tool->slot table for `ToolState` to adopt; the Snapmaker U1 answers **no** and still honors every pick, through its pre-print send, which is why this is not the same question as the first two. Ask them through `ams_remap.h` -- never by combining them at a call site, which is how one question came to have six answers that could disagree. Three named predicates there, and the difference between them is `GcodeRewrite`: `can_remap()` asks whether the user's pick will be honored at all (yes), `remap_is_persistent()` whether the answer outlives the send (yes, it is in the job file), `can_write_mapping_table()` whether a `set_tool_mapping()` write lands (no, there is no table).
+- `get_remap_strategy()`, `remap_ready()`, `owns_tool_mapping_table()`, `get_tool_mapping()` -- Tool mapping. **Three questions, one spelling each.** `get_remap_strategy()` says HOW a user's tool->lane pick is carried out (`Native` writes your table, `GcodeRewrite` rewrites the job, `PrePrintSend` is a firmware pre-print send, `None` means it cannot be). `remap_ready()` says whether that route is usable YET -- default true, override only where discovery gates it, as AD5X IFS does on `_IFS_VARS`. `owns_tool_mapping_table()` says whether you hold a tool->slot table for `ToolState` to adopt; the Snapmaker U1 answers **no** and still honors every pick, through its pre-print send, which is why this is not the same question as the first two. Ask them through `ams_remap.h` -- never by combining them at a call site, which is how one question came to have six answers that could disagree. Three named predicates there, and the difference between them is `GcodeRewrite`: `can_remap()` asks whether the user's pick will be honored at all (yes), `remap_is_persistent()` whether the answer outlives the send (yes, it is in the job file), `can_write_mapping_table()` whether a `set_tool_mapping()` write lands (no, there is no table).
 - `get_device_sections()`, `get_device_actions()`, `execute_device_action()` -- Device-specific actions
 - `set_discovered_lanes()`, `set_discovered_tools()` -- Discovery configuration
 - `supports_auto_heat_on_load()` -- Auto-heat capability. It is one of three reasons a surface skips its own preheat, and **no surface should read it directly**: ask `helix::ui::preheat_skip_reason()` (`include/filament_op_execute.h`), which also covers the "Allow cold load/unload" setting and a stock macro that heats in its own body (`helix::filament_macros::macro_heats_hotend()`, `include/filament_macro_profiles.h`). The AMS sidebar reading only this one is what left that setting ignored on the AMS panel (prestonbrown/helixscreen#1494).

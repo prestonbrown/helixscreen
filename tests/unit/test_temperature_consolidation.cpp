@@ -171,6 +171,15 @@ TEST_CASE("classify_heater_status: chamber Maintaining folds Neutral into Ready"
     REQUIRE(classify_heater_status(1500, 2000, 0).state == HeaterStatusState::Heating);
 }
 
+TEST_CASE("classify_heater_status: chamber Maintaining above the ceiling is Cooling",
+          "[temperature][heater_status][chamber_mode]") {
+    using helix::ChamberMode;
+    // The Maintaining target is a cooling ceiling, not a heat goal: above it
+    // the chamber is shedding heat, so the status shows the snowflake.
+    REQUIRE(classify_heater_status(2300, 2000, 0, ChamberMode::Maintaining).state ==
+            HeaterStatusState::Cooling);
+}
+
 // ============================================================================
 // heater_display() - Percentage clamping
 // ============================================================================

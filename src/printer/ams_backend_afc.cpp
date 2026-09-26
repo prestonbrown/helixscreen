@@ -4,6 +4,7 @@
 #include "ams_backend_afc.h"
 
 #include "ui_error_reporting.h"
+#include "ui_insert_notice.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
 #include "ui_update_queue.h"
@@ -671,7 +672,7 @@ PathSegment AmsBackendAfc::get_slot_filament_segment(int slot_index) const {
         return PathSegment::NONE;
     }
 
-    const auto& sensors = entry->sensors;
+    const auto& sensors = lane_sensors_for(entry->backend_name);
 
     // Check sensors from furthest to nearest. PathSegment::HUB is deliberately
     // unreachable here: AFC's per-lane loaded_to_hub is latched at prep and
@@ -1141,7 +1142,7 @@ PathSegment AmsBackendAfc::compute_filament_segment_unlocked() const {
     if (lane_to_check >= 0) {
         const auto* entry = slots_.get(lane_to_check);
         if (entry) {
-            const auto& sensors = entry->sensors;
+            const auto& sensors = lane_sensors_for(current_lane_name_);
 
             if (sensors.load) {
                 return PathSegment::LANE;
@@ -1158,7 +1159,7 @@ PathSegment AmsBackendAfc::compute_filament_segment_unlocked() const {
         const auto* entry = slots_.get(i);
         if (!entry)
             continue;
-        const auto& sensors = entry->sensors;
+        const auto& sensors = lane_sensors_for(slots_.name_of(i));
 
         if (sensors.load) {
             return PathSegment::LANE;
@@ -2402,7 +2403,7 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     }
 
     // Update sensor state for this lane
-    auto& sensors = entry->sensors;
+    auto& sensors = lane_sensors_for(lane_name);
     if (data.contains("prep") && data["prep"].is_boolean()) {
         sensors.prep = data["prep"].get<bool>();
     }
@@ -2738,6 +2739,22 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
                                          status_at_frame_start == SlotStatus::AVAILABLE;
     if (filament_present_now && !filament_present_before) {
         maybe_reassert_retained_spool_link(slot_index, lane_name);
+        // The same edge is also an insert, and the spool_id binding is AFC's
+        // only word on what went in: a lane the plugin names keeps its
+        // details silently (same spool, or the re-bind verdict swaps them),
+        // and a lane it leaves unnamed asks. The notice re-checks its own
+        // guards (print-feeding lane, lane with nothing to clear) on the UI
+        // thread (prestonbrown/helixscreen#1710). An insert is an edge out
+        // of an OBSERVED empty: initialize_slots() writes UNKNOWN, so a
+        // loaded lane's first frame at boot or reconnect is a baseline
+        // sighting, and asking "same spool?" per lane per boot would train
+        // the notice away.
+        auto fw_it = lane_firmware_spool_id_.find(lane_name);
+        const int firmware_id = fw_it != lane_firmware_spool_id_.end() ? fw_it->second : 0;
+        if (firmware_id <= 0 && status_at_frame_start == SlotStatus::EMPTY) {
+            helix::ui::queue_update(
+                [slot_index] { helix::ui::offer_clear_after_unverified_insert(slot_index); });
+        }
     }
 
     // Translate what AFC has reported into the lane source model. Every value
@@ -4612,11 +4629,22 @@ void AmsBackendAfc::apply_mount_state(bool extruder_set_active_slot, bool afc_st
     }
 }
 
+AfcLaneSensors& AmsBackendAfc::lane_sensors_for(const std::string& lane_name) {
+    return lane_sensors_[lane_name];
+}
+
+const AfcLaneSensors& AmsBackendAfc::lane_sensors_for(const std::string& lane_name) const {
+    static const AfcLaneSensors kUnobserved;
+    auto it = lane_sensors_.find(lane_name);
+    return it != lane_sensors_.end() ? it->second : kUnobserved;
+}
+
 void AmsBackendAfc::initialize_slots(const std::vector<std::string>& lane_names) {
     int lane_count = static_cast<int>(lane_names.size());
 
     // Initialize registry (sets is_initialized = true, creates SlotEntry per lane)
     slots_.initialize("AFC Box Turtle", lane_names);
+    lane_sensors_.clear();
 
     // Set up system_info_ for non-slot fields (unit-level metadata)
     AmsUnit unit;
@@ -5177,7 +5205,7 @@ bool AmsBackendAfc::can_recover_lane_position(int slot_index) const {
     // It also matches cmd_AFC_RESET's own picker, which builds its candidate
     // list from lanes with raw_load_state true. AFC publishes that as `load`.
     const helix::printer::SlotEntry* entry = slots_.get(slot_index);
-    if (!entry || !entry->sensors.load) {
+    if (!entry || !lane_sensors_for(entry->backend_name).load) {
         return false;
     }
 
@@ -5615,11 +5643,8 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info,
             // No boundary token: an AFC status frame names no spool the way
             // an RFID read names a tag, so suppression ends on a differing
             // value or on the re-bind verdict in invalidate_broken_binding(),
-            // which is this backend's auto-clear signal. A dispatch that
-            // failed outright leaves the guard armed to self-clean the same
-            // way: firmware still holds a value the declaration disagrees
-            // with.
-            own_write_echoes_.stage(slot_index, declared);
+            // which is this backend's auto-clear signal.
+            const std::uint64_t staged_sequence = own_write_echoes_.stage(slot_index, declared);
             if (auto* staged = own_write_echoes_.staged(slot_index)) {
                 // SET_COLOR is skipped for the no-colour sentinel and
                 // SET_MATERIAL for an unsafe name: a field the write omitted
@@ -5643,6 +5668,34 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info,
                 staged->product_name.reset();
             }
             own_write_echoes_.arm(slot_index, std::string{});
+
+            // A SET_COLOR or SET_MATERIAL Moonraker refused never reached
+            // firmware, so no echo of the REFUSED command is coming: its
+            // fields come off the guard, which would otherwise withhold the
+            // next genuine reading that happens to equal their declaration.
+            // The other command went out, so its fields keep the guard a
+            // whole abandon would drop. A TIMEOUT is "may still be running"
+            // - the write can still land and echo - so there every field
+            // stands. The release is matched to this staging and deferred
+            // off the callback's background thread: apply_user_edit holds
+            // mutex_ across the dispatches, and an inline lock here would
+            // deadlock a synchronous error callback.
+            const auto tok = lifetime_.token();
+            const auto release_refused_fields = [tok, this, slot_index,
+                                                 staged_sequence](ams::Observation refused) {
+                return
+                    [tok, this, slot_index, staged_sequence, refused](const MoonrakerError& err) {
+                        if (err.type == MoonrakerErrorType::TIMEOUT) {
+                            return;
+                        }
+                        tok.defer("AmsBackendAfc::apply_user_edit.abandon_echo",
+                                  [this, slot_index, staged_sequence, refused]() {
+                                      std::lock_guard<std::mutex> lock(mutex_);
+                                      own_write_echoes_.abandon_fields(slot_index, staged_sequence,
+                                                                       refused);
+                                  });
+                    };
+            };
 
             // Spoolman ID FIRST — both branches of AFC's set_spoolID() rewrite the
             // lane's material/color/weight/temps, so this must precede our own
@@ -5671,7 +5724,10 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info,
             if (ams::is_declarable_color(info.color_rgb)) {
                 char color_hex[8];
                 snprintf(color_hex, sizeof(color_hex), "%06X", info.color_rgb & 0xFFFFFF);
-                execute_gcode(fmt::format("SET_COLOR LANE={} COLOR={}", lane_name, color_hex));
+                ams::Observation color_fields{ams::ObservationSource::LocalUser};
+                color_fields.color_rgb = info.color_rgb;
+                execute_gcode(fmt::format("SET_COLOR LANE={} COLOR={}", lane_name, color_hex),
+                              nullptr, release_refused_fields(color_fields));
             }
 
             // Material (validate to prevent command injection). The material
@@ -5679,8 +5735,11 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info,
             // `PA6-CF` and `Silk PLA` are all in our own filament database, and
             // gating this on is_safe_gcode_param() dropped every one of them.
             if (!info.material.empty() && IMoonrakerAPI::is_safe_material_param(info.material)) {
+                ams::Observation material_fields{ams::ObservationSource::LocalUser};
+                material_fields.material = info.material;
                 execute_gcode(fmt::format("SET_MATERIAL LANE={} MATERIAL={}", lane_name,
-                                          IMoonrakerAPI::gcode_param_value(info.material)));
+                                          IMoonrakerAPI::gcode_param_value(info.material)),
+                              nullptr, release_refused_fields(material_fields));
             } else if (!info.material.empty()) {
                 spdlog::warn("[AMS AFC] Skipping SET_MATERIAL - unsafe characters in: {}",
                              info.material);
@@ -6286,7 +6345,7 @@ std::vector<helix::printer::DeviceAction> AmsBackendAfc::get_device_actions() co
         std::string lane_name = slots_.name_of(i);
         std::string id = "dist_hub_" + lane_name;
         std::string label = "Hub Distance (" + lane_name + ")";
-        float current = entry->sensors.dist_hub;
+        float current = lane_sensors_for(lane_name).dist_hub;
 
         actions.push_back(DeviceAction{id,
                                        label,

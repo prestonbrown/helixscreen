@@ -36,20 +36,19 @@ file(GLOB HELIX_XML_SRCS
 # LV_USE_FONT_COMPRESSED=1 (lv_conf.h). We do NOT reuse assets/fonts/*.c: those
 # stay plain (bitmap_format=0) because they're shared with desktop and weak ARM
 # devices where per-glyph decompression cost is untested. Kept in lockstep with
-# LV_FONT_CUSTOM_DECLARE in lv_conf.h (all moved faces non-const; only the
-# noto_sans_18 anchor stays compiled). CJK companions are Plan 5.
+# LV_FONT_CUSTOM_DECLARE in lv_conf.h (all faces non-const shims). CJK
+# companions are Plan 5.
 #
-# 10 faces (noto_sans_bold_28, noto_sans_light_16, noto_sans_light_12,
-# mdi_icons_48, mdi_icons_64, noto_sans_26, source_code_pro_14, mdi_icons_16,
-# mdi_icons_24, mdi_icons_32) are NO LONGER compiled in here: their glyph data
-# now lives in runtime .bin files in the frogfs storage partition (Stage B
-# fonts->frogfs enabler) and is loaded at boot by main/font_registration.c.
+# All 11 faces (noto_sans_18, noto_sans_bold_28, noto_sans_light_16,
+# noto_sans_light_12, mdi_icons_48, mdi_icons_64, noto_sans_26,
+# source_code_pro_14, mdi_icons_16, mdi_icons_24, mdi_icons_32) load at boot
+# from runtime .bin files in the frogfs storage partition (Stage B fonts->frogfs
+# enabler); none compiles glyph data into the app image.
 # moved_fonts_shim.c (component root, NOT under fonts/) provides their zero-init
 # writable lv_font_t symbols so every &symbol call site keeps linking; the boot
-# loader struct-copies the .bin-loaded font into each shim. Only noto_sans_18
-# remains compiled in — it is the boot-time fallback anchor for the shim loads.
+# loader struct-copies the .bin-loaded font into each shim and falls back to
+# LVGL's built-in lv_font_montserrat_14 (LV_FONT_DEFAULT) on load failure.
 set(HELIX_FONT_SRCS
-    ${CMAKE_CURRENT_LIST_DIR}/fonts/noto_sans_18.c
     ${CMAKE_CURRENT_LIST_DIR}/moved_fonts_shim.c)
 
 # ESP32-S3 PIE SIMD blend/fill assembly (vendored esp_lvgl_port, Apache-2.0 —

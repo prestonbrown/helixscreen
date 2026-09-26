@@ -34,6 +34,7 @@ FONTS_SMALL := assets/fonts/noto_sans_14.c assets/fonts/noto_sans_20.c \
 
 FONTS_MEDIUM := assets/fonts/noto_sans_18.c assets/fonts/noto_sans_26.c \
                 assets/fonts/noto_sans_bold_28.c \
+                assets/fonts/noto_sans_bold_40.c \
                 assets/fonts/noto_sans_light_16.c \
                 assets/fonts/source_code_pro_14.c \
                 assets/fonts/mdi_icons_16.c assets/fonts/mdi_icons_24.c \
@@ -42,6 +43,7 @@ FONTS_MEDIUM := assets/fonts/noto_sans_18.c assets/fonts/noto_sans_26.c \
 
 FONTS_LARGE := assets/fonts/noto_sans_20.c assets/fonts/noto_sans_28.c \
                assets/fonts/noto_sans_bold_28.c \
+               assets/fonts/noto_sans_bold_40.c \
                assets/fonts/noto_sans_light_14.c assets/fonts/noto_sans_light_18.c \
                assets/fonts/source_code_pro_16.c \
                assets/fonts/mdi_icons_16.c assets/fonts/mdi_icons_24.c \
@@ -50,6 +52,7 @@ FONTS_LARGE := assets/fonts/noto_sans_20.c assets/fonts/noto_sans_28.c \
 
 FONTS_XLARGE := assets/fonts/noto_sans_24.c assets/fonts/noto_sans_32.c \
                 assets/fonts/noto_sans_bold_32.c \
+                assets/fonts/noto_sans_bold_40.c \
                 assets/fonts/noto_sans_light_16.c assets/fonts/noto_sans_light_20.c \
                 assets/fonts/source_code_pro_18.c \
                 assets/fonts/mdi_icons_24.c assets/fonts/mdi_icons_32.c \

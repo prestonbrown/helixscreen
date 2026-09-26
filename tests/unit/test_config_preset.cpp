@@ -793,6 +793,94 @@ TEST_CASE_METHOD(PresetConfigFixture, "k1 preset claims no aux fan and no fixed 
     TearDown();
 }
 
+// The creator5 presets give each fd_ex head switch the runout role and name the
+// head it watches in "lane": the names encode no head, and without the lane a
+// switch cannot speak for its own head in the pre-print check
+// (prestonbrown/helixscreen#1714). mutate-diff does not mutate assets/*.json,
+// which leaves this the only guard over that data.
+static void check_fd_ex_runout_lanes(const nlohmann::json& sensors) {
+    int switches = 0;
+    for (const auto& sensor : sensors) {
+        const std::string klipper_name = sensor.at("klipper_name").get<std::string>();
+        const std::string prefix = "filament_switch_sensor fd_ex";
+        if (klipper_name.rfind(prefix, 0) != 0) {
+            continue;
+        }
+        ++switches;
+        INFO(klipper_name);
+        CHECK(sensor.at("role").get<std::string>() == "runout");
+        CHECK(sensor.value("lane", -1) == std::stoi(klipper_name.substr(prefix.size())));
+    }
+    // The loop must have seen the four head switches, not an empty array.
+    REQUIRE(switches == 4);
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "creator5 preset gives each fd_ex switch the runout role for its own head",
+                 "[config][preset][creator5]") {
+    SetUp();
+
+    copy_shipped_preset("creator5");
+    REQUIRE(config.apply_preset_file("creator5") == true);
+
+    auto& pd = printer_data();
+
+    REQUIRE(pd.contains("filament_sensors"));
+    check_fd_ex_runout_lanes(pd["filament_sensors"]["sensors"]);
+
+    TearDown();
+}
+
+// The Creator 5 has no chamber heater: the Pro's heated-chamber objects must
+// stay out of the non-Pro preset entirely, or a Creator 5 boots expecting
+// hardware it does not have and warns about it on every start.
+TEST_CASE_METHOD(PresetConfigFixture, "creator5 preset carries no chamber heater",
+                 "[config][preset][creator5]") {
+    SetUp();
+
+    copy_shipped_preset("creator5");
+    REQUIRE(config.apply_preset_file("creator5") == true);
+
+    auto& pd = printer_data();
+
+    CHECK(pd["heaters"].value("chamber", "") == "");
+    CHECK(pd["temp_sensors"].value("chamber", "") == "");
+    CHECK(pd["fans"].value("chamber", "") == "");
+    CHECK(pd["fans"].value("aux", "") == "");
+    // The chamber LED is shared hardware and stays; the heater and the fan
+    // suite are the Pro's.
+    for (const auto& expected : pd["hardware"]["expected"]) {
+        const std::string name = expected.get<std::string>();
+        INFO(name);
+        CHECK(name.find("chamber_heater") == std::string::npos);
+        CHECK(name.find("chamber_fan") == std::string::npos);
+        CHECK(name.find("chamber_loop_fan") == std::string::npos);
+    }
+    CHECK(pd["default_macros"].value("cooldown", "").find("chamber_heater") == std::string::npos);
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "creator5_pro preset gives each fd_ex switch the runout role for its own head",
+                 "[config][preset][creator5]") {
+    SetUp();
+
+    copy_shipped_preset("creator5_pro");
+    REQUIRE(config.apply_preset_file("creator5_pro") == true);
+
+    auto& pd = printer_data();
+
+    REQUIRE(pd.contains("filament_sensors"));
+    check_fd_ex_runout_lanes(pd["filament_sensors"]["sensors"]);
+
+    // The Pro's chamber heater is what separates it from the Creator 5; the
+    // preset must keep mapping it.
+    REQUIRE(pd["heaters"].value("chamber", "") == "heater_generic chamber_heater");
+
+    TearDown();
+}
+
 // ============================================================================
 // apply_preset_file post-wizard migration 2: default_macros
 // ============================================================================

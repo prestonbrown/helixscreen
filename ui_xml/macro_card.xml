@@ -8,6 +8,7 @@
     <prop name="visible_subject" type="string" default=""/>
     <prop name="desc_hidden_subject" type="string" default=""/>
     <prop name="chevron_hidden_subject" type="string" default=""/>
+    <prop name="defaults_hidden_subject" type="string" default=""/>
     <prop name="row_index" type="string" default=""/>
   </api>
   <view name="macro_card"
@@ -45,6 +46,15 @@
           <bind_flag_if_eq subject="$desc_hidden_subject" flag="hidden" ref_value="1"/>
         </text_small>
       </lv_obj>
+      <!-- Edit-mode "Default Parameters" editor entry: KNOWN_PARAMS rows only
+           (the panel hides it otherwise). event_bubble off so the tap edits
+           defaults instead of toggling the row's visibility checkbox. -->
+      <ui_button name="defaults_btn"
+                 width="#button_height_sm" height="#button_height_sm" icon="tune" variant="ghost" focusable="false"
+                 event_bubble="false">
+        <bind_flag_if_eq subject="$defaults_hidden_subject" flag="hidden" ref_value="1"/>
+        <event_cb trigger="clicked" callback="on_macro_defaults_clicked" user_data="$row_index"/>
+      </ui_button>
       <!-- Chevron indicating it's tappable -->
       <icon name="chevron_icon" src="chevron_right" size="sm" variant="secondary">
         <bind_flag_if_eq subject="$chevron_hidden_subject" flag="hidden" ref_value="1"/>

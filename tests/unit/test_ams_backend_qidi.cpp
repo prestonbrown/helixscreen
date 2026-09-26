@@ -1670,6 +1670,83 @@ TEST_CASE("QIDI Box apply_user_edit with no palette/vendor data still writes fil
     REQUIRE(backend.sent[0] == "SAVE_VARIABLE VARIABLE=filament_slot0 VALUE=1");
 }
 
+TEST_CASE("QIDI Box apply_user_edit carries an explicit zero for a cleared field",
+          "[ams][qidi_box][write_path][1633]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
+    // The Box states a full identity for slot 0, so the edit has an id to
+    // clear and the fingerprint baseline the echo is judged against.
+    QidiBoxTestAccess::parse_vars(
+        backend,
+        json{{"box_count", 1}, {"filament_slot0", 11}, {"color_slot0", 18}, {"vendor_slot0", 2}});
+
+    auto sent_fila = [&backend] {
+        for (const auto& g : backend.sent) {
+            if (g.rfind("SAVE_VARIABLE VARIABLE=filament_slot0", 0) == 0) {
+                return g;
+            }
+        }
+        return std::string{};
+    };
+    auto sent_color = [&backend] {
+        for (const auto& g : backend.sent) {
+            if (g.rfind("SAVE_VARIABLE VARIABLE=color_slot0", 0) == 0) {
+                return g;
+            }
+        }
+        return std::string{};
+    };
+
+    SECTION("material cleared alone writes fila zero") {
+        SlotInfo info = backend.get_slot_info(0);
+        info.material.clear();
+
+        REQUIRE(helix::test::apply_edit(backend, 0, info).success());
+        // The zero is the whole point: without it the Box keeps restating
+        // fila 11 forever and the user's clear never reaches the variables.
+        REQUIRE(sent_fila() == "SAVE_VARIABLE VARIABLE=filament_slot0 VALUE=0");
+        // The untouched colour still resolves to its row.
+        REQUIRE(sent_color() == "SAVE_VARIABLE VARIABLE=color_slot0 VALUE=18");
+
+        // The zero echoes back as a fingerprint change; the guard the same
+        // edit staged must read it as ours, not as a spool swap.
+        QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 1},
+                                                    {"filament_slot0", 0},
+                                                    {"color_slot0", 18},
+                                                    {"vendor_slot0", 2}});
+        CHECK(QidiBoxTestAccess::get_override(backend, 0).has_value());
+    }
+
+    SECTION("colour cleared alone writes color zero") {
+        SlotInfo info = backend.get_slot_info(0);
+        info.color_rgb = AMS_DEFAULT_SLOT_COLOR;
+
+        REQUIRE(helix::test::apply_edit(backend, 0, info).success());
+        REQUIRE(sent_color() == "SAVE_VARIABLE VARIABLE=color_slot0 VALUE=0");
+        // The untouched material still resolves to its row.
+        REQUIRE(sent_fila() == "SAVE_VARIABLE VARIABLE=filament_slot0 VALUE=11");
+
+        QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 1},
+                                                    {"filament_slot0", 11},
+                                                    {"color_slot0", 0},
+                                                    {"vendor_slot0", 2}});
+        CHECK(QidiBoxTestAccess::get_override(backend, 0).has_value());
+    }
+
+    SECTION("a cleared field the Box never held writes no zero") {
+        // No fila was ever stated for slot 1, so an empty material has
+        // nothing to clear and must not invent a write.
+        SlotInfo info;
+        info.material.clear();
+        info.color_rgb = 0xFF362D;
+
+        REQUIRE(helix::test::apply_edit(backend, 1, info).success());
+        for (const auto& g : backend.sent) {
+            CHECK(g.rfind("SAVE_VARIABLE VARIABLE=filament_slot1", 0) != 0);
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Error-center bridge: current_error()
 // ---------------------------------------------------------------------------
@@ -2015,7 +2092,7 @@ TEST_CASE("QIDI Box tag fingerprint change clears a prior user edit", "[ams][qid
     // First observation establishes the baseline whatever the override says.
     QidiBoxTestAccess::parse_vars(
         backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
-    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18|1");
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
     REQUIRE(QidiBoxTestAccess::get_override(backend, 0).has_value());
 
     // A different spool's tag: new ids on all three fields.
@@ -2053,7 +2130,7 @@ TEST_CASE("QIDI Box unchanged tag fingerprint keeps a user edit", "[ams][qidi_bo
 
     const json tag{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}};
     QidiBoxTestAccess::parse_vars(backend, tag);
-    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18|1");
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
 
     // The same spool re-observed on a later poll.
     QidiBoxTestAccess::parse_vars(backend, tag);
@@ -2082,7 +2159,7 @@ TEST_CASE("QIDI Box first tag observation is a baseline, not a clear", "[ams][qi
     QidiBoxTestAccess::parse_vars(
         backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
 
-    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18|1");
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
     CHECK(QidiBoxTestAccess::get_override(backend, 0).has_value());
 }
 
@@ -2095,7 +2172,7 @@ TEST_CASE("QIDI Box own identity push echo does not clear the edit", "[ams][qidi
     QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
     QidiBoxTestAccess::parse_vars(
         backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
-    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18|1");
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
 
     // The user's edit resolves to fila 11 (ABS), palette row 2 (the exact
     // 0x060606 entry), vendor 2 (eSUN).
@@ -2133,7 +2210,7 @@ TEST_CASE("QIDI Box colour and vendor writes keep the echo expectation alive", "
     QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
     QidiBoxTestAccess::parse_vars(
         backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
-    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18|1");
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
 
     auto info = backend.get_slot_info(0);
     info.material = "Woodfill"; // matches no profile by name or type
@@ -2168,7 +2245,7 @@ TEST_CASE("QIDI Box a write that never dispatched leaves no echo expectation", "
     QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
     QidiBoxTestAccess::parse_vars(
         backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
-    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18|1");
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
 
     auto info = backend.get_slot_info(0);
     info.material = "ABS";
@@ -2195,7 +2272,7 @@ TEST_CASE("QIDI Box a failed dispatch drops only its own echo expectations", "[a
     QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
     QidiBoxTestAccess::parse_vars(
         backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
-    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18|1");
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
 
     // Edit A: ABS / eSUN / 0x060606 -> fila 11, colour 2, vendor 2. It lands.
     auto info_a = backend.get_slot_info(0);
@@ -2331,7 +2408,7 @@ TEST_CASE("QIDI Box a poll between the edit and its echo keeps the edit on scree
     QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
     QidiBoxTestAccess::parse_vars(
         backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
-    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18|1");
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
 
     auto info = backend.get_slot_info(0);
     info.material = "ABS";
@@ -2412,7 +2489,7 @@ TEST_CASE("QIDI Box clearing a spool writes the three identity zeros", "[ams][qi
     QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
     QidiBoxTestAccess::parse_vars(
         backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
-    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18|1");
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
 
     backend.clear_slot_override(0);
 
@@ -2467,7 +2544,7 @@ TEST_CASE("QIDI Box an edit racing the clear's zero echoes survives them", "[ams
     QidiBoxTestAccess::apply_filas_list(backend, STOCK_FILAS_EXCERPT);
     QidiBoxTestAccess::parse_vars(
         backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
-    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18|1");
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
 
     backend.clear_slot_override(0);
 
@@ -2539,7 +2616,7 @@ TEST_CASE("QIDI Box a quoted SAVE_VARIABLE value paints the slot", "[ams][qidi_b
     QidiBoxTestAccess::parse_vars(
         backend, json{{"filament_slot0", "1"}, {"color_slot0", "18"}, {"vendor_slot0", "1"}});
 
-    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18|1");
+    REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
     REQUIRE(backend.get_slot_info(0).material == "PLA");
     REQUIRE(backend.get_slot_info(0).brand == "QIDI");
     REQUIRE(backend.get_slot_info(0).color_rgb == 0xFF362Du);
@@ -2593,7 +2670,7 @@ TEST_CASE("QIDI Box a restart compares against the fingerprint the record carrie
         const auto stored = api.mock_get_db_value("lane_data", "lane1");
         REQUIRE(!stored.is_null());
         REQUIRE(stored.contains("helix_fingerprint"));
-        CHECK(stored.at("helix_fingerprint") == "1|18|1");
+        CHECK(stored.at("helix_fingerprint") == "1|18");
     }
 
     SECTION("a swap made while the app was down clears the override") {

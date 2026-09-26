@@ -3,7 +3,11 @@
 
 #include "ams_backend_qidi.h"
 
+#include "ui_insert_notice.h"
+#include "ui_update_queue.h"
+
 #include "ams_error.h"
+#include "color_utils.h"
 #include "display_numbering.h"
 #include "lane_apply.h"
 #include "lane_legacy_migration.h"
@@ -283,6 +287,13 @@ void AmsBackendQidi::on_started() {
             std::lock_guard<std::mutex> lock(mutex_);
             override_store_ = std::move(loaded.store);
             overrides_ = std::move(loaded.overrides);
+            // A persisted fingerprint from a build whose composite counted the
+            // vendor id seeds a baseline the current composite never matches,
+            // which would read as a swap at the first poll and clear every
+            // override on upgrade: fold each onto the current shape first.
+            for (auto& entry : overrides_) {
+                entry.second.fingerprint = normalize_legacy_fingerprint(entry.second.fingerprint);
+            }
             // A swap the user made while HelixScreen was down still has to
             // clear the stale override: the record's persisted fingerprint is
             // the baseline the first post-restart poll compares against.
@@ -659,16 +670,37 @@ void AmsBackendQidi::rebuild_tool_map_locked() {
     system_info_.tool_to_slot_map = ledger.tool_map();
 }
 
-// The Box states no tag UID: the three save_variable table indices are the
-// most specific identity it reports, so their composite is the spool
-// fingerprint (the same surrogate CFS builds from material_type and
-// color_value). All-zero ids state nothing, which the tracker reads as no
-// signal rather than a fingerprint.
-static std::string qidi_slot_fingerprint(int filament_id, int color_id, int vendor_id) {
-    if (filament_id <= 0 && color_id <= 0 && vendor_id <= 0) {
+// The Box states no tag UID: the save_variable table indices for fila and
+// colour are the most specific identity it reports, so their composite is the
+// spool fingerprint (the same surrogate CFS builds from material_type and
+// color_value). The vendor id is not part of it: it names a row in the Box's
+// own vendor table, not something the spool carries, so a supplier change
+// alone is not a new spool. All-zero ids state nothing, which the tracker
+// reads as no signal rather than a fingerprint.
+static std::string qidi_slot_fingerprint(int filament_id, int color_id) {
+    if (filament_id <= 0 && color_id <= 0) {
         return "";
     }
-    return fmt::format("{}|{}|{}", filament_id, color_id, vendor_id);
+    return fmt::format("{}|{}", filament_id, color_id);
+}
+
+std::string AmsBackendQidi::normalize_legacy_fingerprint(const std::string& stored) {
+    // "fila|color|vendor" from a build whose composite counted the vendor id
+    // folds to the two-component shape. Anything with fewer components, or a
+    // non-numeric body, is already current or a value no build of ours wrote:
+    // left exactly as found.
+    const auto first = stored.find('|');
+    if (first == std::string::npos) {
+        return stored;
+    }
+    const auto second = stored.find('|', first + 1);
+    if (second == std::string::npos || stored.find('|', second + 1) != std::string::npos) {
+        return stored;
+    }
+    const std::string folded = stored.substr(0, second);
+    const bool numeric = std::all_of(folded.begin(), folded.end(),
+                                     [](char ch) { return ch == '|' || (ch >= '0' && ch <= '9'); });
+    return numeric ? folded : stored;
 }
 
 void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
@@ -730,6 +762,15 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
     rebuild_tool_map_locked();
 
     bool stated_slot[QIDI_MAX_BOXES * QIDI_SLOTS_PER_BOX] = {};
+    // Captured before the loop below rewrites them: a slot whose standing
+    // status was EMPTY and whose state word now reports filament just
+    // received a spool, which is the insert edge the notice below keys on.
+    bool was_empty[QIDI_MAX_BOXES * QIDI_SLOTS_PER_BOX] = {};
+    for (int i = 0; i < slot_count; ++i) {
+        if (const auto* standing = system_info_.get_slot_global(i)) {
+            was_empty[i] = standing->status == SlotStatus::EMPTY;
+        }
+    }
     for (int i = 0; i < slot_count; ++i) {
         auto* slot = system_info_.get_slot_global(i);
         if (!slot) {
@@ -839,14 +880,15 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
         }
 
         const auto& rfid = slot_rfid_[static_cast<size_t>(i)];
-        const std::string fingerprint =
-            qidi_slot_fingerprint(rfid.filament_id, rfid.color_id, rfid.vendor_id);
+        const std::string fingerprint = qidi_slot_fingerprint(rfid.filament_id, rfid.color_id);
 
-        // A fingerprint change the Box did not hear from us is a physical
-        // spool swap, which outranks edits made for the previous spool. Runs
-        // before the paint below so a cleared slot shows the new tag's
-        // identity in this same pass.
-        check_hardware_event_clear(*slot, i, fingerprint);
+        // A fingerprint change the Box did not hear from us is judged by the
+        // insert rule: ids decoding to a different spool outrank edits made
+        // for the previous one. Runs before the paint below so a cleared slot
+        // shows the new tag's identity in this same pass. The verdict feeds
+        // the insert notice below, so it is computed here and read there.
+        helix::ams::InsertVerdict verdict = helix::ams::InsertVerdict::NoEvidence;
+        check_hardware_event_clear(*slot, i, fingerprint, &verdict);
 
         // The saved ids name rows in the Box's own tables, which makes a row
         // that resolves the reading and an id that resolves against nothing no
@@ -900,7 +942,25 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
             // reports as untagged shows no brand, matching the clear.
             slot->brand.clear();
         }
+        // The echo guard: ids repeating the user's own SAVE_VARIABLE push are
+        // not a reading, and ingest files the record whole, so a withheld
+        // field goes absent rather than back to its pre-edit value. The cache
+        // is rebuilt from the saved ids every frame, so a frame that carries
+        // no id keys restates the write the same way and is judged the same
+        // way. A key carried with 0 never reaches here armed: it moves the
+        // fingerprint first, and the clear that follows drops the guard.
+        own_write_echoes_.withhold(i, std::string{}, cache);
         helix::ams::ingest(lane_id(i), cache);
+
+        // An insert the ids did not vouch for: the table rows are the Box's
+        // memory of the last spool, so a spool that goes in without moving
+        // them is one nothing was read of, and the details standing on the
+        // lane may describe it or not. The ask re-checks every guard on the
+        // main thread; this loop holds mutex_.
+        if (was_empty[i] && stated_slot[i] && slot_status_reports_filament(slot->status) &&
+            verdict == helix::ams::InsertVerdict::NoEvidence) {
+            helix::ui::queue_update([i] { helix::ui::offer_clear_after_unverified_insert(i); });
+        }
     }
 
     // Reconcile the LOADED stamp with the aggregate pair, after both writers.
@@ -1480,22 +1540,7 @@ int AmsBackendQidi::resolve_fila_id(const std::map<int, FilaProfile>& profiles,
 
 int AmsBackendQidi::resolve_color_id(const std::map<int, std::uint32_t>& palette,
                                      std::uint32_t rgb) {
-    int best_id = 0;
-    long best_dist = -1;
-    const long r = (rgb >> 16) & 0xFF;
-    const long g = (rgb >> 8) & 0xFF;
-    const long b = rgb & 0xFF;
-    for (const auto& [id, packed] : palette) {
-        const long pr = (packed >> 16) & 0xFF;
-        const long pg = (packed >> 8) & 0xFF;
-        const long pb = packed & 0xFF;
-        const long dist = (r - pr) * (r - pr) + (g - pg) * (g - pg) + (b - pb) * (b - pb);
-        if (best_dist < 0 || dist < best_dist) {
-            best_dist = dist;
-            best_id = id;
-        }
-    }
-    return best_id;
+    return helix::nearest_palette_key(palette, rgb, 0);
 }
 
 int AmsBackendQidi::resolve_vendor_id(const std::map<int, std::string>& vendors,
@@ -1525,6 +1570,9 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info,
     int fila_id = 0;
     int color_id = 0;
     int vendor_id = 0;
+    // The value to write per identity field: -1 means no write.
+    int fila_write = -1;
+    int color_write = -1;
     bool have_palette = false;
     bool have_vendors = false;
     std::vector<std::string> staged_echoes;
@@ -1543,11 +1591,33 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info,
         fila_id = resolve_fila_id(fila_profiles_, info.material, info.material);
         have_palette = !color_palette_.empty();
         have_vendors = !vendor_names_.empty();
-        if (have_palette) {
+        const bool color_cleared = !helix::ams::is_declarable_color(info.color_rgb);
+        if (have_palette && !color_cleared) {
             color_id = resolve_color_id(color_palette_, info.color_rgb);
         }
         if (have_vendors) {
             vendor_id = resolve_vendor_id(vendor_names_, info.brand);
+        }
+        const size_t idx = static_cast<size_t>(slot_index);
+        const int old_fila = idx < slot_rfid_.size() ? slot_rfid_[idx].filament_id : 0;
+        const int old_color = idx < slot_rfid_.size() ? slot_rfid_[idx].color_id : 0;
+
+        // The write per field: a resolved row id, an explicit zero when the
+        // user cleared a field the Box still holds an id for, or no write at
+        // all when the tables cannot name a row for a field the user set.
+        // Skipping the zero would leave the Box restating the old id forever,
+        // so the clear never reaches the variables the Box reads back.
+        if (fila_id > 0) {
+            fila_write = fila_id;
+        } else if (info.material.empty() && old_fila != 0) {
+            fila_write = 0;
+        }
+        if (have_palette) {
+            if (color_id > 0) {
+                color_write = color_id;
+            } else if (color_cleared && old_color != 0) {
+                color_write = 0;
+            }
         }
 
         // Self-wipe guard. The SAVE_VARIABLEs below echo back as fingerprint
@@ -1564,45 +1634,83 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info,
         // With no baseline yet there is nothing to guard: the first
         // observation is a baseline and never fires a clear.
         if (const auto base = rfid_tracker_.baseline(slot_index)) {
-            const size_t idx = static_cast<size_t>(slot_index);
-            const int old_fila = idx < slot_rfid_.size() ? slot_rfid_[idx].filament_id : 0;
-            const int old_color = idx < slot_rfid_.size() ? slot_rfid_[idx].color_id : 0;
-            const int old_vendor = idx < slot_rfid_.size() ? slot_rfid_[idx].vendor_id : 0;
-
             std::vector<int> fila_vals{old_fila};
             std::vector<int> color_vals{old_color};
-            std::vector<int> vendor_vals{old_vendor};
-            if (fila_id > 0 && fila_id != old_fila) {
-                fila_vals.push_back(fila_id);
+            if (fila_write >= 0 && fila_write != old_fila) {
+                fila_vals.push_back(fila_write);
             }
-            if (have_palette && color_id > 0 && color_id != old_color) {
-                color_vals.push_back(color_id);
+            if (color_write >= 0 && color_write != old_color) {
+                color_vals.push_back(color_write);
             }
-            if (have_vendors && vendor_id != old_vendor) {
-                vendor_vals.push_back(vendor_id);
-            }
-            staged_echoes = expect_own_write_echoes_locked(slot_index, *base, fila_vals, color_vals,
-                                                           vendor_vals);
+            staged_echoes =
+                expect_own_write_echoes_locked(slot_index, *base, fila_vals, color_vals);
         }
+
+        // Stage before the first dispatch, so an echo racing the writes is
+        // judged against this edit. The ids name table rows rather than
+        // spelling the values, so each carried field is relocated to what
+        // its row will state; a field whose write does not go out (no fila
+        // match, empty palette) is pruned, because the Box then keeps stating
+        // whatever it had. A zero write states no row, so its field is
+        // pruned too: the Box's restatement of id 0 is its own reading.
+        // No SAVE_VARIABLE carries a name.
+        own_write_echoes_.stage(slot_index, declared);
+        if (auto* staged_echo = own_write_echoes_.staged(slot_index)) {
+            if (fila_write > 0) {
+                const auto row = fila_profiles_.find(fila_write);
+                if (row != fila_profiles_.end() && !row->second.type.empty()) {
+                    staged_echo->material = row->second.type;
+                } else {
+                    staged_echo->material.reset();
+                }
+            } else {
+                staged_echo->material.reset();
+            }
+            if (color_write > 0) {
+                staged_echo->color_rgb = color_palette_.at(color_write);
+                if (!helix::ams::is_declarable_color(*staged_echo->color_rgb)) {
+                    staged_echo->color_rgb.reset();
+                }
+            } else {
+                staged_echo->color_rgb.reset();
+            }
+            if (vendor_id > 0) {
+                const auto row = vendor_names_.find(vendor_id);
+                if (row != vendor_names_.end() && !row->second.empty()) {
+                    staged_echo->brand = row->second;
+                } else {
+                    staged_echo->brand.reset();
+                }
+            } else {
+                staged_echo->brand.reset();
+            }
+            staged_echo->spool_name.reset();
+            staged_echo->color_name.reset();
+            staged_echo->product_name.reset();
+        }
+        // The fingerprint tracker above is what separates an echo from a
+        // swap; this lane has no boundary token of its own, so the guard
+        // stands until a value differs or the swap clear drops it.
+        own_write_echoes_.arm(slot_index, std::string{});
     }
 
     const std::string suffix = std::to_string(slot_index);
     bool wrote_any = false;
     bool dispatched_any = false;
 
-    if (fila_id > 0) {
+    if (fila_write >= 0) {
         dispatched_any |= execute_gcode("SAVE_VARIABLE VARIABLE=filament_slot" + suffix +
-                                        " VALUE=" + std::to_string(fila_id))
+                                        " VALUE=" + std::to_string(fila_write))
                               .success();
         wrote_any = true;
-    } else {
+    } else if (!info.material.empty()) {
         spdlog::warn("{} apply_user_edit: no fila match for material='{}' — "
                      "skipping filament_slot write",
                      backend_log_tag(), info.material);
     }
-    if (have_palette && color_id > 0) {
+    if (color_write >= 0) {
         dispatched_any |= execute_gcode("SAVE_VARIABLE VARIABLE=color_slot" + suffix +
-                                        " VALUE=" + std::to_string(color_id))
+                                        " VALUE=" + std::to_string(color_write))
                               .success();
         wrote_any = true;
     }
@@ -1632,25 +1740,8 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info,
     }
 
     if (override_store_) {
-        // Re-read from overrides_ under the lock to pick up the staged copy.
-        helix::ams::FilamentSlotOverride ovr_to_save;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            auto it = overrides_.find(slot_index);
-            if (it != overrides_.end()) {
-                ovr_to_save = it->second;
-            }
-        }
-        // Capture by value: save_async's Moonraker callback may fire long
-        // after this returns. Do NOT capture `this`.
-        const std::string tag = backend_log_tag();
-        override_store_->save_async(
-            slot_index, ovr_to_save, [tag, slot_index](bool success, const std::string& err) {
-                if (!success) {
-                    spdlog::warn("{} Override persist failed for slot {}: {}", tag, slot_index,
-                                 err);
-                }
-            });
+        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
+                                            backend_log_tag(), "Override");
     }
 
     return AmsErrorHelper::success();
@@ -1709,14 +1800,14 @@ void AmsBackendQidi::clear_slot_override(int slot_index) {
         // The zero writes below echo back as fingerprint changes; without an
         // expectation of our own they would read as a spool swap. Same shape
         // as apply_user_edit(): the old ids and the written zero per field,
-        // cross-producted.
+        // cross-producted. The vendor zero moves no fingerprint, so it needs
+        // no expectation of its own.
         if (const auto base = rfid_tracker_.baseline(slot_index)) {
             const size_t idx = static_cast<size_t>(slot_index);
             const int old_fila = idx < slot_rfid_.size() ? slot_rfid_[idx].filament_id : 0;
             const int old_color = idx < slot_rfid_.size() ? slot_rfid_[idx].color_id : 0;
-            const int old_vendor = idx < slot_rfid_.size() ? slot_rfid_[idx].vendor_id : 0;
-            staged_echoes = expect_own_write_echoes_locked(slot_index, *base, {old_fila, 0},
-                                                           {old_color, 0}, {old_vendor, 0});
+            staged_echoes =
+                expect_own_write_echoes_locked(slot_index, *base, {old_fila, 0}, {old_color, 0});
         }
     }
 
@@ -1746,7 +1837,8 @@ void AmsBackendQidi::clear_slot_override(int slot_index) {
 }
 
 bool AmsBackendQidi::check_hardware_event_clear(SlotInfo& slot, int slot_index,
-                                                const std::string& observed_uid) {
+                                                const std::string& observed_uid,
+                                                helix::ams::InsertVerdict* verdict) {
     std::string old_uid;
     const auto event = rfid_tracker_.observe(slot_index, observed_uid, &old_uid);
 
@@ -1774,8 +1866,29 @@ bool AmsBackendQidi::check_hardware_event_clear(SlotInfo& slot, int slot_index,
         break;
     }
 
+    // The ids a change carried are a reading of the spool now in the slot,
+    // and what both composites decode to decides the change: rows spelling
+    // the same material and colour are one spool whatever their number, and
+    // rows nothing decodes from state nothing. An empty old composite is no
+    // reading of the previous spool, so nothing can be compared against it.
+    const helix::ams::InsertVerdict insert_verdict = helix::ams::classify_insert(
+        old_uid.empty()
+            ? std::nullopt
+            : std::optional<helix::ams::SpoolEvidence>(fingerprint_evidence_locked(old_uid)),
+        fingerprint_evidence_locked(observed_uid));
+    if (verdict) {
+        *verdict = insert_verdict;
+    }
+
     if (overrides_.find(slot_index) == overrides_.end()) {
         spdlog::debug("{} Slot {} tag fingerprint changed {} -> {} (no override to clear)",
+                      backend_log_tag(), slot_index, old_uid, observed_uid);
+        return false;
+    }
+
+    if (insert_verdict != helix::ams::InsertVerdict::DifferentSpool) {
+        spdlog::debug("{} Slot {} tag fingerprint changed {} -> {} but the ids decode to the "
+                      "same spool; the override stays",
                       backend_log_tag(), slot_index, old_uid, observed_uid);
         return false;
     }
@@ -1791,12 +1904,57 @@ bool AmsBackendQidi::check_hardware_event_clear(SlotInfo& slot, int slot_index,
     return true;
 }
 
+helix::ams::SpoolEvidence
+AmsBackendQidi::fingerprint_evidence_locked(const std::string& fingerprint) const {
+    helix::ams::SpoolEvidence evidence;
+    const auto sep = fingerprint.find('|');
+    if (sep == std::string::npos) {
+        return evidence;
+    }
+    int fila_id = 0;
+    int color_id = 0;
+    try {
+        fila_id = std::stoi(fingerprint.substr(0, sep));
+        color_id = std::stoi(fingerprint.substr(sep + 1));
+    } catch (const std::exception&) {
+        return evidence;
+    }
+    // The composite is the Box's own read, so the spool carries no UID-capable
+    // tag rather than one not read yet, and the material/colour fields decide.
+    evidence.tag_read_complete = true;
+    const auto fila_row = fila_profiles_.find(fila_id);
+    const auto color_row = color_palette_.find(color_id);
+    const bool fila_decoded = fila_row != fila_profiles_.end() && !fila_row->second.type.empty();
+    const bool color_decoded =
+        color_row != color_palette_.end() && helix::ams::is_declarable_color(color_row->second);
+    // The tables come from an async officiall_filas_list.cfg fetch that can
+    // land late or fail. An id the tables cannot decode is still a stable
+    // identity the Box chose, so fall back to the raw ids: a differing
+    // composite stays a swap instead of decoding to empty on both sides and
+    // reading as no evidence, which would keep the override forever.
+    if ((fila_id > 0 && !fila_decoded) || (color_id > 0 && !color_decoded)) {
+        evidence.tag_uid = fmt::format("fila#{}|color#{}", fila_id, color_id);
+        return evidence;
+    }
+    if (fila_decoded) {
+        evidence.material = fila_row->second.type;
+    }
+    if (color_decoded) {
+        evidence.color_rgb = color_row->second;
+    }
+    return evidence;
+}
+
 void AmsBackendQidi::clear_override_locked(int slot_index, SlotInfo& slot) {
     // Caller must hold mutex_. Qidi field policy: the clear blanks everything
     // the slot showed so it reads as no identity the moment the request lands;
     // the parse's paint (or its else-arms, once the zero writes echo back)
     // restates whatever the Box still reports.
     overrides_.erase(slot_index);
+    // What the Box states from here on is its own word: both the user's clear
+    // and the fingerprint-change swap funnel land here before this frame's
+    // cache files, so a swap's identity is not withheld as a lingering echo.
+    own_write_echoes_.abandon(slot_index);
     // The lane's own records go with it: the erase above and this are one
     // clear in two stores, and a clear that reached only one would leave
     // resolve() still reporting the identity just removed.
@@ -1826,17 +1984,16 @@ void AmsBackendQidi::clear_override_locked(int slot_index, SlotInfo& slot) {
     }
 }
 
-std::vector<std::string> AmsBackendQidi::expect_own_write_echoes_locked(
-    int slot_index, const std::string& base, const std::vector<int>& fila_vals,
-    const std::vector<int>& color_vals, const std::vector<int>& vendor_vals) {
+std::vector<std::string>
+AmsBackendQidi::expect_own_write_echoes_locked(int slot_index, const std::string& base,
+                                               const std::vector<int>& fila_vals,
+                                               const std::vector<int>& color_vals) {
     std::vector<std::string> expected;
     for (const int f : fila_vals) {
         for (const int c : color_vals) {
-            for (const int v : vendor_vals) {
-                const std::string fp = qidi_slot_fingerprint(f, c, v);
-                if (!fp.empty() && fp != base) {
-                    expected.push_back(fp);
-                }
+            const std::string fp = qidi_slot_fingerprint(f, c);
+            if (!fp.empty() && fp != base) {
+                expected.push_back(fp);
             }
         }
     }

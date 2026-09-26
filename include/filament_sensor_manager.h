@@ -16,7 +16,6 @@
 // distinct phantom type.
 class IMoonrakerAPI;
 
-#include <atomic>
 #include <chrono>
 #include <functional>
 #include <map>
@@ -312,6 +311,11 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
     /**
      * @brief Check if filament is detected for a given role
      *
+     * Presence query, not a runout decision: a sensor the firmware stood down
+     * (SET_FILAMENT_SENSOR ENABLE=0) still reports and is still read. With
+     * several holders of the role the firmware-running one is preferred, then
+     * the first holder. Runout alerting is gated separately (monitors_runout).
+     *
      * Returns false if master disabled, sensor disabled, or no sensor assigned to role.
      *
      * @param role The sensor role to check
@@ -321,6 +325,9 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
 
     /**
      * @brief Check if a sensor is available (exists and enabled)
+     *
+     * Same presence split as is_filament_detected: a firmware stand-down does
+     * not make the sensor unavailable.
      *
      * @param role The sensor role to check
      * @return true if sensor exists, is enabled, and is available in Klipper
@@ -592,6 +599,30 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
      */
     const FilamentSensorConfig* find_config_by_role(FilamentSensorRole role) const;
 
+    /**
+     * @brief Whether this sensor's reading counts for runout/presence decisions
+     *
+     * One rule shared by every runout consumer: the user's config enables the
+     * sensor, it holds a role, and the firmware is running it. Klipper keeps
+     * reporting filament_detected for a sensor stood down with
+     * SET_FILAMENT_SENSOR ENABLE=0 but takes no runout action of its own, so
+     * neither do we. The state default is enabled=true, so a sensor that has
+     * never reported the field counts as running. A runout observed while the
+     * firmware ran the sensor keeps counting after a stand-down (see
+     * observed_runouts_). Caller MUST hold mutex_.
+     */
+    [[nodiscard]] bool monitors_runout(const FilamentSensorConfig& config) const;
+
+    /**
+     * @brief First holder of @p role the firmware is running
+     *
+     * When every holder of the role is stood down, the first holder is
+     * returned anyway, so a caller can still tell "configured but not
+     * running" from "no sensor holds this role". Caller MUST hold mutex_.
+     */
+    [[nodiscard]] const FilamentSensorConfig*
+    find_monitoring_config_by_role(FilamentSensorRole role) const;
+
     /// Result of one scoped lane scan — shared by find_empty_required_lanes()
     /// and compute_scoped_runout_value() (dedups config lookup + backend fetch +
     /// availability gate + per-lane scan).
@@ -606,8 +637,13 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
     };
 
     /// Shared scoped lane scan. Caller MUST hold mutex_ (recursive).
+    /// @p read_stood_down: whether a head sensor the firmware has stood down
+    /// still counts as that head's reading. The pre-print check needs it (the
+    /// firmware holds every head down between prints); the running-print badge
+    /// does not (a stood-down head is one the job is not feeding from).
     [[nodiscard]] ScopedRunoutScan scan_required_lanes(const std::set<int>& tools_used,
-                                                       const std::map<int, int>& remap) const;
+                                                       const std::map<int, int>& remap,
+                                                       bool read_stood_down) const;
 
     /**
      * @brief Update all LVGL subjects from current state
@@ -643,6 +679,13 @@ class FilamentSensorManager : public helix::sensors::ISensorManager {
     /// the moment the sensor went clear. Filament returning before the dwell
     /// expires drops the entry, so a tool change announces nothing at all.
     std::map<std::string, std::chrono::steady_clock::time_point> pending_removal_toast_;
+
+    /// Sensors that went empty while the firmware ran them, mid-job and outside
+    /// a filament operation, and have not refilled since. A pause macro that
+    /// stands every sensor down still leaves this runout for the modal to
+    /// report; a sensor the user keeps disabled never gets here. Cleared on
+    /// refill and when the job lets go of the machine. Keyed by klipper_name.
+    std::set<std::string> observed_runouts_;
 
     // State change callback
     StateChangeCallback state_change_callback_;

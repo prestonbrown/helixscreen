@@ -249,6 +249,11 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     // Register components used by the modal
     lv_xml_register_component_from_file("A:ui_xml/divider_horizontal.xml");
     lv_xml_register_component_from_file("A:ui_xml/setting_toggle_row.xml");
+    // Options-tab action row. An unregistered component does not merely vanish:
+    // the parser reparents its children onto the enclosing object, so its
+    // visibility bind would pin section_options hidden (same trap info_note
+    // documents above).
+    lv_xml_register_component_from_file("A:ui_xml/setting_action_row.xml");
     // modal_header is a dependency of favorite_macro_config_modal (shared modal header).
     lv_xml_register_component_from_file("A:ui_xml/modal_header.xml");
     // <info_note> sits inside the modal's Options section, and an unregistered
@@ -258,6 +263,12 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     // and pin that whole section hidden for as long as confirmation is on.
     lv_xml_register_component_from_file("A:ui_xml/info_note.xml");
     lv_xml_register_component_from_file("A:ui_xml/favorite_macro_config_modal.xml");
+    // The defaults editor the config modal's "Default Parameters" row opens. Its
+    // subjects and event callbacks register lazily from MacroParamModal itself;
+    // only the component files need listing here (form_field is the label +
+    // textarea row the editor builds its parameter inputs from).
+    lv_xml_register_component_from_file("A:ui_xml/macro_param_modal.xml");
+    lv_xml_register_component_from_file("A:ui_xml/form_field.xml");
 
     // Register components used by filament_catalog_picker (Modal subclass, no
     // pre-registered app-wide entry point yet — Task 5/7 wires that up).

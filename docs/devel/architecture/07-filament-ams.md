@@ -77,7 +77,7 @@ flowchart TB
 
 `AmsBackend` ([`include/ams_backend.h`](../../../include/ams_backend.h)) is the vendor-neutral surface: `start()`/`stop()` lifecycle, a string-event system (`EVENT_STATE_CHANGED`, `EVENT_SLOT_CHANGED`, `EVENT_LOAD_COMPLETE`, ... starting at `include/ams_backend.h#EVENT_STATE_CHANGED`), state queries, filament operations, and a set of default capability questions: `manages_active_spool()` (`include/ams_backend.h#manages_active_spool`), `has_firmware_spool_persistence()` (`include/ams_backend.h#has_firmware_spool_persistence`), `publish_external_spool_lane()` (`include/ams_backend.h#publish_external_spool_lane`), and the static `sensor_belongs_to_backend()` dispatcher (`src/printer/ams_backend.cpp#sensor_belongs_to_backend`) that keeps each backend's filament-sensor name patterns in its own file (#1054).
 
-No real backend implements the interface directly: all eight derive from `AmsSubscriptionBackend` ([`include/ams_subscription_backend.h#AmsSubscriptionBackend`](../../../include/ams_subscription_backend.h#L33)), a non-virtual-interface base that makes `start()`/`stop()` and the load/unload/select/change operations `final` and dispatches to `do_*` hooks. That base is where shared discipline lives — it owns the `SubscriptionGuard` for the backend's Moonraker subscription (`include/ams_subscription_backend.h#subscription_`) and runs the print-active gate *plus a test-and-set in-flight claim* in the public entry points, so a backend cannot ship without the gate (one did, `180a71c7d`) and two surfaces cannot start concurrent ops on the same backend.
+No real backend implements the interface directly: all nine derive from `AmsSubscriptionBackend` ([`include/ams_subscription_backend.h#AmsSubscriptionBackend`](../../../include/ams_subscription_backend.h#L33)), a non-virtual-interface base that makes `start()`/`stop()` and the load/unload/select/change operations `final` and dispatches to `do_*` hooks. That base is where shared discipline lives — it owns the `SubscriptionGuard` for the backend's Moonraker subscription (`include/ams_subscription_backend.h#subscription_`) and runs the print-active gate *plus a test-and-set in-flight claim* in the public entry points, so a backend cannot ship without the gate (one did, `180a71c7d`) and two surfaces cannot start concurrent ops on the same backend.
 
 The eight concrete classes, one file each:
 
@@ -128,7 +128,7 @@ Event coarsening is deliberate: `STATE_CHANGED`, op completions, errors, and att
 
 Subject storage is two-shaped:
 
-- **Backend 0** writes the flat arrays every single-backend XML binding already knows — `slot_colors_[i]`, `slot_statuses_[i]`, `slot_fills_[i]`, plus string and live-state families — inside `sync_from_backend()` ([`src/printer/ams_state.cpp#sync_from_backend`](../../../src/printer/ams_state.cpp#L1647)), per-slot loop at `src/printer/ams_state.cpp#"lv_subject_set_int(&slot_colors_[i], new_color)"`.
+- **Backend 0** writes the flat arrays every single-backend XML binding already knows — `slot_colors_[i]`, `slot_statuses_[i]`, `slot_fills_[i]`, plus string and live-state families — inside `sync_from_backend()` ([`src/printer/ams_state.cpp#sync_from_backend`](../../../src/printer/ams_state.cpp#L1778)), per-slot change-gated writes in `write_slot_subjects()` (`src/printer/ams_state.cpp#write_slot_subjects`).
 - **Backends at index 1+** get a `BackendSlotSubjects` struct ([`include/ams_state.h#AmsState`](../../../include/ams_state.h#L1688)) allocated at `add_backend()` time — dynamic `colors`/`statuses`/`fills` vectors sized to the backend's slot count. These subjects are destroyed on backend rediscovery, so the struct carries a `SubjectLifetime` token and the token-taking accessor overloads (`get_slot_color_subject(backend, slot, lifetime)`, `src/printer/ams_state.cpp#"AmsState::get_slot_color_subject(int backend_index, int slot_index,"`) hand it out; an observer that skips the token is chapter 03 bug #705 waiting.
 
 Both paths write change-gated — every value is compared before `lv_subject_set_*` fires, and a material-name delta additionally bumps `slots_version_` because the panel's material label has no direct binding (#1065). The fixed subject set (roughly 92 members in the header, capped at `MAX_SLOTS = 16` and `MAX_UNITS = 8`) splits into families the UI binds:
@@ -246,7 +246,7 @@ it came from. It carries no field for "this is the echo of a write HelixScreen i
 issued": that question is answered per backend family, by
 `AmsBackend::own_write_expectation` (`include/ams_backend.h#own_write_expectation`),
 `SlotFingerprintTracker::expect_any_of`
-(`include/filament_slot_override_store.h#SlotFingerprintTracker/expect_any_of`) and
+(`include/filament_slot_override_store.h#SlotFingerprintTracker/"expect_any_of(int slot_index,"`) and
 `helix::ams::OwnWriteEchoes` (`include/lane_echo.h#OwnWriteEchoes`).
 
 `ObservationSource` ([`include/lane_observation.h#ObservationSource`](../../../include/lane_observation.h))
@@ -296,7 +296,7 @@ Spoolman on any of them.
 ([`include/lane_source_store.h#ingest`](../../../include/lane_source_store.h)) is the one way a
 machine reading reaches the store; `commit_slot_edit()`
 (`include/lane_source_store.h#commit_slot_edit`) is the one way a human edit does, called from
-`AmsBackend::commit_user_edit` (`src/printer/ams_backend.cpp#AmsBackend::commit_user_edit`), which
+`AmsBackend::commit_user_edit` (`src/printer/ams_backend.cpp#commit_user_edit`), which
 `AmsState::commit_slot_edit` (`src/printer/ams_state.cpp#commit_slot_edit`) runs, once the backend
 has accepted the edit, so a slot the backend refused gets no declaration. Each refuses the other's
 source. They also differ in what a write *means*: `ingest()` replaces that source's record
@@ -345,6 +345,24 @@ from that one answer rather than guessed again from the record's values. On a la
 Spoolman spool, what the spool states about itself (material, brand, spool name, vendor id) is not
 the person's to move: an edit that keeps the spool claims none of it, and
 `keep_spool_owned_identity()` puts the spool's values in its place.
+
+**Firmware that keeps the values takes them out of the declaration.** `AmsBackend::commit_user_edit`
+([`src/printer/ams_backend.cpp#commit_user_edit`](../../../src/printer/ams_backend.cpp))
+strips `color_rgb`, `color_name` and `material` from the declaration when
+`firmware_stores_color_and_material()`
+([`include/ams_backend.h#firmware_stores_color_and_material`](../../../include/ams_backend.h))
+says the machine itself keeps them: today that is the tool changer backend with Z-Mod's
+material source ([`src/printer/toolchanger_addon.cpp#resolve_material_source`](../../../src/printer/toolchanger_addon.cpp)),
+whose `zmod_color` object both stores and echoes each head's type and colour. That true
+answer is earned per machine, not assumed: the question
+([`src/printer/ams_backend_toolchanger.cpp#firmware_stores_color_and_material`](../../../src/printer/ams_backend_toolchanger.cpp))
+turns true only after a status frame has carried both `slots` and `palette`, the two
+fields Z-Mod's pending status update adds - until such a frame arrives it stays false and
+an edit keeps declaring its values. The ladder is the
+reason: a `LocalUser` colour record outranks the firmware's `VendorCache`, so a declaration left
+standing would outrank every change later made at the printer. The edit still writes the values
+through to the firmware, whose echo files them as the vendor's own reading - the declaration is
+what is withheld, not the write.
 
 **Authorship accumulates.** One edit speaks only about the fields it moved, so `amend_authorship()`
 ([`src/printer/lane_translation.cpp#amend_authorship`](../../../src/printer/lane_translation.cpp))
@@ -477,10 +495,10 @@ For debugging, every class in this chapter logs under a stable tag: `[AMS State]
 
 Read in this order; about 30 minutes total.
 
-1. [`include/ams_types.h#AmsType`](../../../include/ams_types.h#L42) — the `AmsType` enum: nine values, the entire vendor taxonomy generic code may see.
+1. [`include/ams_types.h#AmsType`](../../../include/ams_types.h#L42) — the `AmsType` enum: ten values, the entire vendor taxonomy generic code may see.
 2. [`include/ams_backend.h`](../../../include/ams_backend.h), the interface: the event constants starting at `include/ams_backend.h#EVENT_STATE_CHANGED`, then the capability defaults `manages_active_spool()` at `include/ams_backend.h#manages_active_spool` and `has_firmware_spool_persistence()` at `include/ams_backend.h#has_firmware_spool_persistence`; finish with the factory declarations, from `create()` (`include/ams_backend.h#create`) through `create_mock()` (`include/ams_backend.h#create_mock`).
 3. [`include/ams_subscription_backend.h#AmsSubscriptionBackend`](../../../include/ams_subscription_backend.h#L33) — the NVI base: read the class doc's must-override/may-override contract, then the filament-op entry points, whose comment (`include/ams_subscription_backend.h#"The gate is a CLAIM, not a test:"`) explains the in-flight claim and the gate a backend once shipped without.
-4. [`include/ams_backend_afc.h#AmsBackendAfc`](../../../include/ams_backend_afc.h#L143) — one real backend: skim its section layout (SlotRegistry state, `do_*` overrides, capability answers) as the shape all eight share; note `manages_active_spool()` at `include/ams_backend_afc.h#manages_active_spool` and `has_firmware_spool_persistence()` at `include/ams_backend_afc.h#has_firmware_spool_persistence`.
+4. [`include/ams_backend_afc.h#AmsBackendAfc`](../../../include/ams_backend_afc.h#L143) — one real backend: skim its section layout (SlotRegistry state, `do_*` overrides, capability answers) as the shape all nine share; note `manages_active_spool()` at `include/ams_backend_afc.h#manages_active_spool` and `has_firmware_spool_persistence()` at `include/ams_backend_afc.h#has_firmware_spool_persistence`.
 5. [`include/printer_discovery.h#parse_objects`](../../../include/printer_discovery.h#L637) — the detection-priority ladder that fills `detected_ams_systems_`, then [`src/printer/printer_discovery.cpp#init_subsystems_from_hardware`](../../../src/printer/printer_discovery.cpp#L101) where parse_objects hands off to AmsState.
 6. [`src/printer/ams_state.cpp#init_backends_from_hardware`](../../../src/printer/ams_state.cpp#L909) — `init_backends_from_hardware()`: mock skip, double-init guard, the create-start loop, and the immediate sync.
 7. [`src/printer/ams_state.cpp#set_backend`](../../../src/printer/ams_state.cpp#L974) — `add_backend()`: the captured-index event lambda (`src/printer/ams_state.cpp#"[this, index](const std::string& event, const std::string& data) {"`), secondary-subject allocation (`src/printer/ams_state.cpp#"BackendSlotSubjects subs;"`), consumption-sink registration (`src/printer/ams_state.cpp#"auto& handles = consumption_sinks_[index];"`).

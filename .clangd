@@ -42,3 +42,13 @@ If:
   PathMatch: src/ui/ui_wizard.cpp
 Diagnostics:
   UnusedIncludes: None
+
+---
+# A header with no same-named .cpp gets its flags interpolated from the nearest
+# path in compile_commands.json, which can be a C font file. Every header under
+# include/ and tests/ is C++ (the one C consumer, lvgl_assert_handler.h, is extern "C").
+If:
+  PathMatch: (include|tests)/.*\.h
+CompileFlags:
+  Remove: [-x, -std=*]
+  Add: [-xc++-header, -std=c++17]

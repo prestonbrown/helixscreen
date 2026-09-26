@@ -32,6 +32,7 @@
 #   make cc1-docker            # Docker-based CC1 build
 #   make k1-docker             # Docker-based K1/MIPS build
 #   make ad5x-docker           # Docker-based AD5X/MIPS build
+#   make creator5-docker       # Docker-based Creator 5 Pro/MIPS build (unified mips image)
 #   make k2-docker             # Docker-based K2 build
 #   make snapmaker-u1-docker   # Docker-based Snapmaker U1 build
 #   make x86-docker            # Docker-based x86_64 build (DRM+GLES)
@@ -396,10 +397,12 @@ else ifeq ($(PLATFORM_TARGET),cc1)
 
 else ifneq ($(filter mips k1 ad5x,$(PLATFORM_TARGET)),)
     # -------------------------------------------------------------------------
-    # Unified MIPS32 build - ONE binary for the Creality K1 series and the
-    # FlashForge AD5X (all Ingenic XBurst2/X2600, 800x480-effective, fbdev,
-    # evdev touch). `mips`, `k1` and `ad5x` are three spellings of this one
-    # target; the board is told apart at runtime, never at compile time.
+    # Unified MIPS32 build - ONE binary for the Creality K1 series, the
+    # FlashForge AD5X and the FlashForge Creator 5 Pro (all Ingenic
+    # XBurst2/X2600, 800x480-effective, fbdev, evdev touch). `mips`, `k1`
+    # and `ad5x` are three spellings of this one target, and `make creator5`
+    # recurses into it; the board is told apart at runtime, never at compile
+    # time.
     #
     # The ABI that makes this possible: -mnan=2008 -mfp64 is an ELF-level
     # contract the kernel enforces at exec. The K1 kernels and the AD5X's
@@ -557,8 +560,10 @@ else ifeq ($(PLATFORM_TARGET),k2)
     HELIX_HAS_ACE := 0
     HELIX_HAS_QIDI := 0
     HELIX_HAS_SNAPMAKER := 0
-    # The panel renders anything under ~20% of the PWM range as off, so the
-    # brightness slider and dim level must never land there (#1709).
+    # The sysfs backlight on community K2 firmware renders anything under ~20%
+    # of its range as off, so the brightness slider and dim level must never
+    # land there (#1709). Stock firmware drives the panel through /dev/disp,
+    # which stays lit to raw 6 of 255; that backend ignores this floor.
     HELIX_BACKLIGHT_FLOOR_PERCENT := 20
     TARGET_LDFLAGS := -Wl,--gc-sections -Wl,-O2 -Wl,--as-needed -flto=auto -static
     # HTTPS is required for the update check, R2 self-update download, telemetry,
@@ -994,7 +999,7 @@ endif
 # Cross-Compilation Build Targets
 # =============================================================================
 
-.PHONY: pi pi-both pi32 pi32-both ad5m ad5m-br cc1 mips k1 ad5x k1-dynamic k2 snapmaker-u1 x86 x86-both pi-docker pi32-docker ad5m-docker cc1-docker mips-docker k1-docker ad5x-docker k1-dynamic-docker k2-docker ustreamer-k2 snapmaker-u1-docker x86-docker x86-fbdev-docker x86-all-docker docker-toolchains docker-toolchain-snapmaker-u1 docker-toolchain-x86 cross-info ensure-docker ensure-buildx maybe-stop-colima
+.PHONY: pi pi-both pi32 pi32-both ad5m ad5m-br cc1 mips k1 ad5x creator5 k1-dynamic k2 snapmaker-u1 x86 x86-both pi-docker pi32-docker ad5m-docker cc1-docker mips-docker k1-docker ad5x-docker creator5-docker k1-dynamic-docker k2-docker ustreamer-k2 snapmaker-u1-docker x86-docker x86-fbdev-docker x86-all-docker docker-toolchains docker-toolchain-snapmaker-u1 docker-toolchain-x86 cross-info ensure-docker ensure-buildx maybe-stop-colima
 
 # Persistent ccache for Docker builds — bind-mounts a host directory so the
 # cache survives across container runs (the container is --rm).  Per-platform
@@ -1094,6 +1099,8 @@ mips:
 	$(Q)$(MAKE) PLATFORM_TARGET=mips -j$(NPROC) all
 
 k1: mips
+creator5: mips
+
 k1-dynamic:
 	@echo "$(CYAN)$(BOLD)Cross-compiling for Creality K1 series (MIPS32, dynamic linking)...$(RESET)"
 	$(Q)$(MAKE) PLATFORM_TARGET=k1-dynamic -j$(NPROC) all
@@ -1347,6 +1354,7 @@ mips-docker: ensure-docker
 
 k1-docker: mips-docker
 
+creator5-docker: mips-docker
 
 k1-dynamic-docker: ensure-docker
 	@echo "$(CYAN)$(BOLD)Cross-compiling for Creality K1 series (dynamic) via Docker...$(RESET)"
@@ -1513,6 +1521,7 @@ help-cross:
 	echo "  $${G}ad5m-docker$${X}          - Build for Adventurer 5M (armv7-a) via Docker"; \
 	echo "  $${G}cc1-docker$${X}           - Build for Centauri Carbon 1 (armv7-a) via Docker"; \
 	echo "  $${G}k1-docker$${X}            - Build for Creality K1 series (MIPS32, static) via Docker"; \
+	echo "  $${G}creator5-docker$${X}      - Build for FlashForge Creator 5 Pro (MIPS32, static) via Docker"; \
 	echo "  $${G}k1-dynamic-docker$${X}    - Build for Creality K1 series (MIPS32, dynamic) via Docker"; \
 	echo "  $${G}k2-docker$${X}            - Build for Creality K2 series (ARM, static) via Docker"; \
 	echo "  $${G}snapmaker-u1-docker$${X}  - Build for Snapmaker U1 (aarch64, static) via Docker"; \
@@ -1534,6 +1543,7 @@ help-cross:
 	echo "  $${G}ad5m$${X}                 - Cross-compile for Adventurer 5M"; \
 	echo "  $${G}cc1$${X}                  - Cross-compile for Centauri Carbon 1"; \
 	echo "  $${G}k1$${X}                   - Cross-compile for Creality K1 series (static)"; \
+	echo "  $${G}creator5$${X}             - Cross-compile for FlashForge Creator 5 Pro (unified mips build)"; \
 	echo "  $${G}k1-dynamic$${X}           - Cross-compile for Creality K1 series (dynamic)"; \
 	echo "  $${G}k2$${X}                   - Cross-compile for Creality K2 series"; \
 	echo "  $${G}snapmaker-u1$${X}         - Cross-compile for Snapmaker U1 (aarch64)"; \

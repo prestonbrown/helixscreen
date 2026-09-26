@@ -4,6 +4,8 @@
 #include "filament_op_router.h"
 
 #include "filament_op_slot_resolver.h"
+#include "macro_executor.h"
+#include "macro_param_defaults.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -59,45 +61,53 @@ bool dispatch_filament_macro(const std::string& macro_name, ParamPolicy policy,
     }
 
     const helix::CachedMacroInfo cached = helix::MacroParamCache::instance().get(macro_name);
-    const bool takes_params = cached.knowledge == helix::MacroParamKnowledge::KNOWN_PARAMS ||
-                              cached.knowledge == helix::MacroParamKnowledge::UNKNOWN;
 
-    if (policy == ParamPolicy::Suppress || !takes_params) {
-        // KNOWN_NO_PARAMS, or a surface that must not stack a second modal —
-        // run straight through with an empty result.
-        spdlog::debug("[FilamentRouter] Executing '{}' with no parameters (policy={})", macro_name,
-                      policy == ParamPolicy::Suppress ? "suppress" : "no-params");
-        run({});
-        return false;
-    }
+    // Saved defaults: ask off runs with the saved values, ask on prefills the
+    // modal with them. Either way the surface's own policy still applies.
+    const helix::MacroParamDefaultRecord defaults =
+        helix::MacroParamDefaults::instance().get(macro_name);
 
-    // Only a macro whose parameters are known can be filled: an UNKNOWN macro may
-    // read none of these names, so it always asks.
-    std::map<std::string, std::string> prefill;
-    if (cached.knowledge == helix::MacroParamKnowledge::KNOWN_PARAMS) {
-        for (const auto& param : cached.params) {
-            if (auto it = known_values.find(param.name); it != known_values.end()) {
-                prefill.emplace(param.name, it->second);
-            }
-        }
-        if (prefill.size() == cached.params.size()) {
+    helix::MacroRunRequest req;
+    req.prompt_for_params = policy != ParamPolicy::Suppress && defaults.ask_for_params;
+    // Suppress must keep sending exactly what it did before saved defaults:
+    // the saved values only, and nothing without a record. Passing the
+    // computed values through would make it a sender it never was.
+    req.known_values =
+        policy == ParamPolicy::Suppress ? std::map<std::string, std::string>{} : known_values;
+    req.saved_values = defaults.values;
+
+    const helix::MacroRunDecision decision = helix::decide_macro_run(cached, req);
+
+    if (decision.action == helix::MacroRunAction::Run) {
+        if (decision.params.empty()) {
+            // KNOWN_NO_PARAMS, or a surface that must not stack a second modal —
+            // run straight through with an empty result.
+            spdlog::debug("[FilamentRouter] Executing '{}' with no parameters (policy={})",
+                          macro_name, policy == ParamPolicy::Suppress ? "suppress" : "no-params");
+            run({});
+        } else if (req.prompt_for_params) {
+            // A prompting surface lands here only when its computed values
+            // covered every declared parameter.
             spdlog::info("[FilamentRouter] Every parameter of '{}' is known — running without a "
                          "prompt",
                          macro_name);
-            helix::MacroParamResult result;
-            result.params = std::move(prefill);
-            run(result);
-            return false;
+            run(helix::macro_param_result_from_values(cached.params, decision.params));
+        } else {
+            spdlog::info("[FilamentRouter] '{}' runs with no param prompt (Ask off or suppressed) "
+                         "— {} value(s) from saved defaults and computed state",
+                         macro_name, decision.params.size());
+            run(helix::macro_param_result_from_values(cached.params, decision.params));
         }
+        return false;
     }
 
     spdlog::info("[FilamentRouter] Macro '{}' takes parameters — prompting ({} prefilled)",
-                 macro_name, prefill.size());
+                 macro_name, decision.params.size());
     const ParamPrompter& prompter = prompter_slot();
     if (prompter) {
-        prompter(macro_name, cached, prefill, std::move(run));
+        prompter(macro_name, cached, decision.params, std::move(run));
     } else {
-        show_shared_param_modal(macro_name, cached, prefill, std::move(run));
+        show_shared_param_modal(macro_name, cached, decision.params, std::move(run));
     }
     return true;
 }

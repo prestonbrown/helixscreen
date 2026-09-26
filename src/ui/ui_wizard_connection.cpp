@@ -145,10 +145,15 @@ void WizardConnectionStep::init_subjects() {
                       connection_ip_buffer_, connection_port_buffer_);
     }
 
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_ip_, connection_ip_buffer_,
-                                        connection_ip_buffer_, "connection_ip");
+    // The macro snprintf()s initial_value INTO buffer; passing the buffer as
+    // its own initial value aliases source and destination, and glibc yields
+    // an empty string, losing the seed. Seed from a copy.
+    const std::string ip_seed = connection_ip_buffer_;
+    const std::string port_seed = connection_port_buffer_;
+    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_ip_, connection_ip_buffer_, ip_seed.c_str(),
+                                        "connection_ip");
     UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_port_, connection_port_buffer_,
-                                        connection_port_buffer_, "connection_port");
+                                        port_seed.c_str(), "connection_port");
     UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_status_icon_, connection_status_icon_buffer_, "",
                                         "connection_status_icon");
     UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_status_text_, connection_status_text_buffer_, "",

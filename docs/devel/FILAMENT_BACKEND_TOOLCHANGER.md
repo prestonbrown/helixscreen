@@ -127,6 +127,92 @@ Tool names must be provided via `set_discovered_tools()` before calling `start()
 Hotend changers (MedusaHC) run on this backend with add-ons layered on top - see
 [FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md).
 
+## Z-Mod on the Creator 5 Pro
+
+A Creator 5 Pro on Z-Mod firmware ([ghzserg/z_c5pro](https://github.com/ghzserg/z_c5pro))
+is the same backend speaking a different dialect: FlashForge's own Klipper fork, no
+klipper-toolchanger, and Z-Mod's `zmod_color` extra driving the changer. From the UI it is
+a 4-tool changer like any other; the row in `src/printer/toolchanger_addon.cpp#providers`
+is what supplies everything below.
+
+### Detection
+
+`zmod_color` **and** `gcode_button extruder_grab1` in `printer.objects.list`
+(`src/printer/toolchanger_addon.cpp#zmod_c5_detect`). Both halves are required: the AD5X
+Z-Mod also publishes `zmod_color` but has no carriage grab buttons, so it cannot match,
+and `zmod_color` alone would not say which machine this is. Reforge, the other C5 Pro
+firmware, needs none of this: it matches no provider row and takes the plain
+klipper-toolchanger path described above.
+
+### Tool reading
+
+`zmod_color.active_tool_id` maps one-to-one onto `ToolReading::current_tool`
+(`include/toolchanger_addon.h#ToolReading`): 0..3 mounted, -1 nothing on the carriage, -2
+dock and carriage buttons disagree. A frame without the field is no news, never a clear
+(Moonraker republishes only what changed). The -2 rules are the shared ones: the last
+known tool is held, the unit shows a sensor error, and the fault is withdrawn by the next
+agreeing frame (`src/printer/ams_backend_toolchanger.cpp#apply_tool_sensor_locked`; a -2
+mid-swap is transitional, per `sensor_error_is_fault()`).
+
+Z-Mod only recomputes `active_tool_id` inside its own commands. On a release without
+[ghzserg/z_c5pro#1](https://github.com/ghzserg/z_c5pro/pull/1) the field reads a stale -2
+after every restart, so the unit boots showing a dock sensor error until the first
+`_T_IN` / `_T_OUT` / `GET_ZCOLOR` runs. Accepted as-is: the fix is upstream (the PR
+computes the field live from the dock and carriage buttons), not a second copy of Z-Mod's
+button rule here.
+
+### Commands
+
+| Action | G-code |
+|--------|--------|
+| Mount | `_T_IN T=<n>` (0-based tool number; the provider's `select_prefix`) |
+| Unmount | `_T_OUT` |
+
+Completion is the gcode ack plus the next `active_tool_id`, as for MedusaHC. A refused
+`_T_IN` / `_T_OUT` (Z-Mod raises `gcmd.error`) surfaces like a failed `SELECT_TOOL`; tool
+state does not move because `active_tool_id` does not.
+
+### Firmware material source
+
+Z-Mod stores each head's material and colour in firmwareRes/config/filament.json on the
+printer and exports them through `zmod_color.get_status()`. `read_materials()`
+(`src/printer/toolchanger_addon.cpp#read_materials`, parsing in
+`include/zmod_color_status.h`) turns a frame into per-slot material/hex readings plus
+`valid_types` and `palette`; `apply_material_reading_locked()` files each as an
+`ObservationSource::VendorCache` observation through `helix::ams::ingest()`. A Spoolman
+link still outranks it.
+
+Once a frame has carried both `slots` and `palette`, the firmware is the only store for
+colour and material (`src/printer/ams_backend_toolchanger.cpp#firmware_stores_color_and_material`).
+A user edit sends the writer's gcode and files **no** colour or material declaration;
+brand, spool name, Spoolman link and weights are declared as usual. The screen updates
+from the firmware's echo one status frame later, so a rejected write never shows. Before
+the first such frame (a Z-Mod build without ghzserg/z_c5pro#1) the hook answers "none" and
+edits stay local, as on any tool changer.
+
+- **Types:** `zmod_color.valid_types` becomes `get_supported_materials()`, so the edit
+  dropdown offers only those. `AmsBackend::normalize_material()` maps anything else by
+  compat group before sending, and a type the firmware lists but that is unsafe on a
+  gcode line (`IMoonrakerAPI::is_safe_material_param()`) is refused with an error and
+  never sent.
+- **Colours:** filament.json stores a colour as an index into Z-Mod's 24-entry
+  `COLOR_MAPPING`; a hex outside it is saved as index 0, white. The writer snaps the
+  picked colour to the nearest palette entry (squared RGB distance,
+  `include/color_utils.h#nearest_palette_key`, the same rule QIDI Box uses) before
+  sending.
+- **SILENT=1:** `CHANGE_ZCOLOR` with `HEX` and `TYPE` runs `GET_ZCOLOR` on the same
+  command, which opens a Mainsail/Fluidd prompt unless `SILENT=1` is set. The command
+  needs both `HEX` and `TYPE` to write without a prompt, so a colour-only edit sends the
+  slot's current type and a material-only edit sends its current (snapped) colour.
+
+### Mock
+
+`HELIX_MOCK_PRINTER=creator5_zmod` exercises this path against mock hardware: the persona
+publishes Z-Mod's objects and status and implies `--real-ams`, so real discovery builds
+this backend under `--test` (see `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md`). Hardware
+verification on a real Z-Mod C5 is tracked as prestonbrown/helixscreen#1714 follow-up
+work.
+
 Part of the filament system - see [FILAMENT_MANAGEMENT.md](FILAMENT_MANAGEMENT.md) for the shared architecture, slot metadata, and endless spool model.
 
 ## Automatic tool offset calibration

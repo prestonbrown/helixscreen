@@ -30,7 +30,7 @@
             <macro_card name_subject="macro_name_${i}"
                         desc_subject="macro_desc_${i}" visible_subject="macro_visible_${i}"
                         desc_hidden_subject="macro_desc_hidden_${i}" chevron_hidden_subject="macro_chevron_hidden_${i}"
-                        row_index="${i}"/>
+                        defaults_hidden_subject="macro_defaults_hidden_${i}" row_index="${i}"/>
           </repeat>
         </lv_obj>
       </lv_obj>

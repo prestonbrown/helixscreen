@@ -15,6 +15,7 @@
 #include "../lvgl_test_fixture.h"
 #include "config.h"
 #include "macro_edit_logic.h"
+#include "macro_param_cache.h"
 #include "settings_manager.h"
 
 #include <algorithm>
@@ -23,6 +24,7 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix::macros;
 
@@ -72,6 +74,9 @@ struct MacrosPanelTestAccess {
     }
     static int visible_int(MacrosPanel& p, size_t i) {
         return lv_subject_get_int(p.visible_pool_.at(i));
+    }
+    static int defaults_hidden_int(MacrosPanel& p, size_t i) {
+        return lv_subject_get_int(p.defaults_hidden_pool_.at(i));
     }
     static int row_count(MacrosPanel& p) {
         return lv_subject_get_int(&p.macro_row_count_);
@@ -155,6 +160,22 @@ TEST_CASE("per-row values: edit mode hides chevron but keeps desc, visible track
 
     auto hidden = compute_row_values(true, /*hidden=*/true, true, false);
     REQUIRE(hidden.visible == 0); // hidden -> unchecked
+}
+
+TEST_CASE("per-row values: the defaults button needs edit mode AND known params",
+          "[macros][editmode]") {
+    // Edit mode + KNOWN_PARAMS -> the tune button shows.
+    auto editable = compute_row_values(/*edit=*/true, /*hidden=*/false, /*has_desc=*/true,
+                                       /*no_params=*/false, /*has_params=*/true);
+    REQUIRE(editable.defaults_hidden == 0);
+
+    // Every other combination hides it: edit mode without a declared parameter
+    // list (nothing to save), and normal mode even with one (a run-mode row
+    // must stay a one-tap run).
+    auto no_list = compute_row_values(true, false, true, false, /*has_params=*/false);
+    REQUIRE(no_list.defaults_hidden == 1);
+    auto run_mode = compute_row_values(/*edit=*/false, false, true, false, /*has_params=*/true);
+    REQUIRE(run_mode.defaults_hidden == 1);
 }
 
 // ===========================================================================
@@ -276,4 +297,34 @@ TEST_CASE_METHOD(LVGLTestFixture, "normal mode after save excludes the hidden ma
     REQUIRE(std::find(shown.begin(), shown.end(), "_HOME_Z") == shown.end());
 
     MacrosPanelTestAccess::teardown(p);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "edit mode offers the defaults editor only on rows with known params",
+                 "[macros][editmode]") {
+    auto& cache = helix::MacroParamCache::instance();
+    cache.clear();
+    nlohmann::json config;
+    config["gcode_macro WITH_PARAMS"]["gcode"] = "G1 E{params.TEMP|default(10)}";
+    config["gcode_macro NO_PARAMS"]["gcode"] = "G28";
+    const std::string with_params = "WITH_PARAMS";
+    const std::string no_params = "NO_PARAMS";
+    cache.populate_from_configfile(config, {with_params, no_params});
+
+    auto& p = get_global_macros_panel();
+    MacrosPanelTestAccess::prepare(p, {"WITH_PARAMS", "NO_PARAMS"});
+
+    MacrosPanelTestAccess::enter(p);
+    const size_t i_params = index_of(p, "WITH_PARAMS");
+    const size_t i_plain = index_of(p, "NO_PARAMS");
+    REQUIRE(MacrosPanelTestAccess::defaults_hidden_int(p, i_params) == 0);
+    REQUIRE(MacrosPanelTestAccess::defaults_hidden_int(p, i_plain) == 1);
+
+    // Leaving edit mode hides the affordance on every row again.
+    MacrosPanelTestAccess::exit(p, /*save=*/false);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(MacrosPanelTestAccess::defaults_hidden_int(p, i_params) == 1);
+
+    MacrosPanelTestAccess::teardown(p);
+    cache.clear();
 }

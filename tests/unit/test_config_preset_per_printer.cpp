@@ -20,6 +20,7 @@
 #include "../helix_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
 #include "config.h"
+#include "test_helpers/unique_temp_dir.h"
 
 #include <cstdlib>
 #include <filesystem>
@@ -114,7 +115,7 @@ class RootPresetLiftFixture : public HelixTestFixture {
     bool had_config_dir_ = false;
 
     RootPresetLiftFixture() {
-        temp_dir = (fs::temp_directory_path() / "helix_root_preset_lift_test").string();
+        temp_dir = helix::test::unique_temp_dir("helix_root_preset_lift_test");
         fs::remove_all(temp_dir);
         fs::create_directories(temp_dir);
 

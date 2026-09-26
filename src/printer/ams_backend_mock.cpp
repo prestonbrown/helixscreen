@@ -3217,7 +3217,7 @@ void AmsBackendMock::set_torture_mode(bool enabled) {
     }
 
     // Disable conflicting modes. afc_mode_ stays ON: this profile IS an AFC rig,
-    // and is_afc_system() reads that flag (see the header note).
+    // and the AFC capability overrides read that flag (see the header note).
     afc_mode_ = true;
     tool_changer_mode_ = false;
     multi_unit_mode_ = false;
@@ -3736,7 +3736,7 @@ AmsError AmsBackendMock::apply_endless_spool_backup(int slot_index, int backup_s
 AmsBackendMock::RemapStrategy AmsBackendMock::get_remap_strategy() const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (snapmaker_mode_) {
-        return RemapStrategy::SnapmakerNative;
+        return RemapStrategy::PrePrintSend;
     }
     return remap_strategy_;
 }

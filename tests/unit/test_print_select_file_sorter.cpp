@@ -438,3 +438,32 @@ TEST_CASE("[FileSorter] Files with same values", "[FileSorter]") {
     // All have same size - order may vary, just verify all are present
     REQUIRE(files.size() == 3);
 }
+
+TEST_CASE("[FileSorter] Duplicate entries survive every column and direction", "[FileSorter]") {
+    // Duplicate sort keys are legal input (a padded mock listing, or a server
+    // that reports one file twice). A comparator that answers "a before b"
+    // AND "b before a" for equal entries corrupts std::sort - 200 entries is
+    // past the threshold where libstdc++ leaves quicksort partitioning for
+    // insertion sort and walks off the vector.
+    const auto columns = {SortColumn::FILENAME, SortColumn::SIZE, SortColumn::MODIFIED,
+                          SortColumn::PRINT_TIME, SortColumn::FILAMENT};
+    const auto directions = {SortDirection::ASCENDING, SortDirection::DESCENDING};
+
+    for (auto column : columns) {
+        for (auto direction : directions) {
+            std::vector<PrintFileData> files;
+            for (int i = 0; i < 200; i++) {
+                files.push_back(make_file("same.gcode", 1000, 100, 60, 10.0f));
+            }
+
+            PrintSelectFileSorter sorter;
+            sorter.set_sort(column, direction);
+            sorter.apply_sort(files);
+
+            REQUIRE(files.size() == 200);
+            for (const auto& f : files) {
+                REQUIRE(f.filename == "same.gcode");
+            }
+        }
+    }
+}

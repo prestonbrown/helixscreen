@@ -132,7 +132,7 @@ void configure_button(lv_style_t* s, const ThemePalette& p) {
     lv_style_set_bg_color(s, p.elevated_bg);
     lv_style_set_bg_opa(s, LV_OPA_COVER);
     apply_border(s, p, p.elevated_bg);
-    lv_style_set_radius(s, p.border_radius);
+    lv_style_set_radius(s, p.button_radius);
     apply_shadow(s, p);
     // Pivot must be in base style so it doesn't animate during pressed→released transition
     lv_style_set_transform_pivot_x(s, LV_PCT(50));

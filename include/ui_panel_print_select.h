@@ -591,7 +591,7 @@ class PrintSelectPanel : public PanelBase {
     // card tap (any non-None backend), and the embedded mapping card tap.
     void open_remap_modal();
     // Strategy-dispatched APPLY for the chosen mappings. The ONLY per-backend
-    // branch: GcodeRewrite rewrites + prints; Native / SnapmakerNative push to
+    // branch: GcodeRewrite rewrites + prints; Native / PrePrintSend push to
     // the shared card store (backend-specific send happens at print-start).
     void apply_remap(const std::vector<helix::ToolMapping>& updated);
 

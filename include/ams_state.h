@@ -1190,6 +1190,20 @@ class AmsState {
     [[nodiscard]] lv_subject_t* get_slot_error_severity_subject(int slot_index);
 
     /**
+     * @brief Per-backend lane_state / has_error / error_severity subjects.
+     *
+     * Same token rule as get_slot_fill_subject(int, int, SubjectLifetime&):
+     * backend 0 returns the static subject with an emptied token; a secondary
+     * backend's subject is dynamic and its observers MUST hold the token.
+     */
+    [[nodiscard]] lv_subject_t* get_slot_lane_state_subject(int backend_index, int slot_index,
+                                                            SubjectLifetime& lifetime);
+    [[nodiscard]] lv_subject_t* get_slot_has_error_subject(int backend_index, int slot_index,
+                                                           SubjectLifetime& lifetime);
+    [[nodiscard]] lv_subject_t* get_slot_error_severity_subject(int backend_index, int slot_index,
+                                                                SubjectLifetime& lifetime);
+
+    /**
      * @brief Get slot color subject for a specific backend and slot
      *
      * For backend_index 0, delegates to existing flat slot subjects.
@@ -1745,7 +1759,10 @@ class AmsState {
     struct BackendSlotSubjects {
         std::vector<lv_subject_t> colors;
         std::vector<lv_subject_t> statuses;
-        std::vector<lv_subject_t> fills; // int: fill percent 0-100, -1 = unknown
+        std::vector<lv_subject_t> fills;       // int: fill percent 0-100, -1 = unknown
+        std::vector<lv_subject_t> lane_states; // int: helix::ui::LaneState
+        std::vector<lv_subject_t> has_errors;
+        std::vector<lv_subject_t> severities; // int: SlotError::Severity
         int slot_count = 0;
         /// Lifetime token shared by every subject in this struct. These subjects
         /// are DYNAMIC (destroyed in deinit() on backend rediscovery), so any
@@ -1754,7 +1771,15 @@ class AmsState {
         SubjectLifetime lifetime;
         void init(int count);
         void deinit();
+        /// Write every per-slot subject for slot @p i from @p slot.
+        void write(int i, const SlotInfo& slot);
     };
+
+    /// Secondary-backend subject from @p member, or the static @p primary for
+    /// backend 0, with the lifetime token set accordingly.
+    lv_subject_t* backend_slot_subject(int backend_index, int slot_index, SubjectLifetime& lifetime,
+                                       std::vector<lv_subject_t> BackendSlotSubjects::*member,
+                                       lv_subject_t* primary);
 
     mutable std::recursive_mutex mutex_;
     std::vector<std::unique_ptr<AmsBackend>> backends_;

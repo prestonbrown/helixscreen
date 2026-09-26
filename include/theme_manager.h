@@ -91,6 +91,7 @@ struct ThemePalette {
     lv_color_t danger{};
     lv_color_t focus{};
     int border_radius = 8;
+    int button_radius = 8;
     int border_width = 1;
     int border_opacity = 40;
     int shadow_width = 0;

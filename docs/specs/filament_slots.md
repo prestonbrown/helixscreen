@@ -1,6 +1,6 @@
 # Filament Slot Metadata — `lane_data` Convention
 
-**Status**: Informational, v1.13 (2026-09). See [Changelog](#changelog).
+**Status**: Informational, v1.14 (2026-09). See [Changelog](#changelog).
 
 This document describes HelixScreen's use of the `lane_data` Moonraker database
 namespace to share per-slot filament metadata with OrcaSlicer and other tools.
@@ -324,6 +324,26 @@ HelixScreen drops its whole override record for that lane rather than shadowing
 the external write. An override survives only an absent/zero firmware id
 (ejection), which HelixScreen makes user-configurable per system (§6).
 
+**Amendment (v1.14):** when a lane's record disagrees with the statement
+standing on it, the newest edit wins whoever made it
+(prestonbrown/helixscreen#1632). A record carrying none of this application's
+authorship marks, whether a `helix_` extension key or the legacy `vendor` or
+`spool_name` spellings that no other lane_data writer emits, was written by
+another tool that replaced ours wholesale and files as the lane's statement
+rather than as a memory below it: unstamped it wins outright, because every
+HelixScreen write carries a `scan_time` and a record without one can only be
+a foreign replacement; stamped it wins only over a statement older than its
+`scan_time`, and an older or equal record still files as remembered. A
+statement stamped before 2020 is a device with no clock rather than a moment
+in the lane's history, and an order against it cannot be known, so the
+statement keeps the lane. Records HelixScreen wrote never promote, whatever
+their `scan_time` says, and while one of our writes is still awaiting
+firmware's echo the re-read strips what matches it before judging anything,
+so our own write coming back is never misread as a newer outside edit. This
+is why §3 asks a rewriter to carry the authorship keys through unchanged: a
+tool that drops them reassigns its own edit to nobody, and the next
+HelixScreen load reads the record as a foreign replacement.
+
 A tool reading these records does not need to replicate HelixScreen's merge
 rule — it is documented here so third parties understand why we emit only the
 fields we do, and why we omit defaulted fields rather than writing zeros.
@@ -374,22 +394,6 @@ exactly as a different-spool verdict, so the fingerprint must be built from
 the same evidence fields: a fingerprint that includes a field the rule
 ignores would call a same-spool insert a swap.
 
-### Current backend behaviour
-
-Until each backend is moved onto the insert rule, it keeps its own swap
-signal. This table is what ships today; each row is replaced by the one in the
-table after it as that backend moves.
-
-| Backend | Signal today |
-|---------|--------------|
-| AD5X IFS | A colour transition in `Adventurer5M.json` to a materially different RGB, treated as a swap |
-| Snapmaker U1 | A `CARD_UID` change on the RFID tag |
-| CFS | A change in the per-slot `material_type|color_value` composite |
-| QIDI Box | A change in the per-slot filament, colour and vendor table ids |
-| ACE | Any `EMPTY` to present transition, which clears the whole record |
-| AFC | A different positive per-lane `spool_id` (re-bind), or `0`/absent (eject, per the setting below) |
-| Happy Hare | The same split as AFC, on the per-gate `spool_id` |
-
 ### Per backend, under the insert rule
 
 | Backend | Tag UID | Material and colour read off the spool | Binding | Verdict for an untagged insert |
@@ -401,7 +405,14 @@ table after it as that backend moves.
 | AD5X IFS | - | None: the IFS colour and type are firmware memory, set on the printer's menu | - | No evidence |
 | AFC | - | None | Per-lane `spool_id` | No evidence, unless the plugin names a different spool |
 | Happy Hare | - | None: the gate map is user-maintained | Per-gate `spool_id` | No evidence, unless the MMU names a different spool |
+| OpenAMS | - | None: the manager reports only `ready` and `loaded` | - | No evidence |
 | Tool changer | - | - | - | No insert signal; the rule never runs |
+
+Two rows carry caveats the table cannot hold. Every AD5X IFS insert is No
+evidence; one its port sensor sees raises the notice, and one inferred only
+from `Adventurer5M.json` (no port sensor) raises none. Stock CFS waits up to 3
+frames for the RFID probe before judging an insert, and discounts values
+equal to a label HelixScreen itself pushed while its echo guard stands.
 
 Clearing is a `DELETE` on the slot's `lane_data` key. The first observation
 after startup establishes the baseline fingerprint and is NOT treated as a
@@ -623,6 +634,15 @@ reader can resolve.
 
 ## Changelog
 
+- **v1.14 (2026-09-25)**: §5 amendment: newest edit wins whoever made it
+  (prestonbrown/helixscreen#1632). A shared-namespace record carrying none of
+  our authorship marks (`helix_` keys, or the legacy `vendor` / `spool_name`
+  spellings) is another tool's replacement of ours and files as the lane's
+  statement, unstamped outright or stamped only over an older statement,
+  instead of as a memory below whatever a person said. A `scan_time` in the
+  JavaScript or Python spelling (fractional seconds, numeric offset) orders
+  the same as a `Z`-suffixed one. §6: Snapmaker U1, ACE and AFC moved onto
+  the insert rule (prestonbrown/helixscreen#1710).
 - **v1.13 (2026-09-24)**: §6 states one insert rule for every backend: a
   spool going into a slot is judged on what the hardware read off it (tag UID,
   or material and colour decoded from the tag, or a firmware-named spool id).

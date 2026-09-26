@@ -1,8 +1,8 @@
 # Print Start Phase Detection
 
-HelixScreen detects when your print's preparation phase (heating, homing, leveling, etc.) is complete and actual printing begins. This document explains how the detection works and how to optimize it for your setup.
+HelixScreen detects when your print's preparation phase (heating, homing, leveling, etc.) is complete and actual printing begins. This document is the user/modder side of that: making your setup legible to HelixScreen with macros and slicer options, controlling pre-print operations per print, and troubleshooting a preparation phase that misbehaves.
 
-**Developer guide**: For adding profiles for new printers, see [PRINT_START_PROFILES.md](PRINT_START_PROFILES.md).
+**Developer guide**: how detection works internally - the observer pipeline and its five signal sources, the evidence kinds, the JSON profile schema, and how to author a profile for a new printer - is [PRINT_START_PROFILES.md](PRINT_START_PROFILES.md); the ETA engine is [PREPRINT_PREDICTION.md](PREPRINT_PREDICTION.md).
 
 ## How It Works
 
@@ -43,7 +43,7 @@ Detection uses a multi-signal system with these fallbacks for completion:
 | 2 | **G-code Console** | Parses console output for `HELIX:READY`, `LAYER: 1`, `;LAYER:1`, `First layer`, or `SET_PRINT_STATS_INFO CURRENT_LAYER=` |
 | 3 | **Layer Count** | Monitors `print_stats.info.current_layer` becoming ≥1 |
 | 4 | **Progress + Temps** | Print progress ≥2% AND temps within 5°C of target |
-| 5 | **Timeout** | Adaptive; see "Completion Fallbacks". Never a flat 45s. |
+| 5 | **Timeout** | Adaptive; see Troubleshooting below. Never a flat 45s. |
 
 ## Making Your Setup HelixScreen-Friendly
 
@@ -90,7 +90,7 @@ gcode:
 
 ### Option 1b: With Phase Tracking
 
-Phase display works out of the box: with no instrumentation at all, HelixScreen infers the current phase from the console stream, probe lines, bed-mesh status, and toolhead position (see "Silent-phase signals" below). Adding explicit phase signals is a manual opt-in for exact, firmware-announced phases on a setup where the heuristics pick wrong:
+Phase display works out of the box: with no instrumentation at all, HelixScreen infers the current phase from the console stream, probe lines, bed-mesh status, and toolhead position (how that inference works is developer territory - see [PRINT_START_PROFILES.md](PRINT_START_PROFILES.md)). Adding explicit phase signals is a manual opt-in for exact, firmware-announced phases on a setup where the heuristics pick wrong:
 
 ```gcode
 [gcode_macro PRINT_START]
@@ -311,85 +311,10 @@ If detection falls all the way through to a timeout:
 3. **Verify macro object subscriptions**: HelixScreen subscribes to `gcode_macro _HELIX_STATE`, `gcode_macro _START_PRINT`, and `gcode_macro START_PRINT`
 4. **ForgeX users**: Detection should be instant via the Forge-X profile (`// State:` signals) and `START_PRINT.preparation_done` macro variable
 
-## Technical Details
-
-### Printer-Specific Profiles
-
-HelixScreen uses a modular profile system to match different printer firmware. Known printers (like the FlashForge AD5M with Forge-X firmware) have custom profiles that map firmware-specific output to preparation phases with accurate progress tracking. Unknown printers use generic regex patterns that work with standard G-code commands.
-
-Profiles are JSON files in `assets/config/print_start_profiles/`. Each profile can define:
-- **Signal formats**: Exact prefix + value matching for structured firmware output
-- **Response patterns**: Regex patterns for G-code console parsing
-- **Progress mode**: `sequential` (known firmware) or `weighted` (generic heuristics)
-- **`cfs_signals`**: Opt in to Creality's tag-stream matchers (purge `percent` lines, `[box]` CFS load events). The vocabulary is vendor-specific; without the flag, lines that merely contain `percent` plus `num:` never hijack the phase into PURGING.
-- **`adaptive_meshing`**: The bed-mesh sweep is trimmed to the object, so a configured `probe_count` overstates the sweep (see PRINT_START_PROFILES.md).
-- **`position_signals`**: Opt in to toolhead-position inference for the silent window (below).
-
-Profile `message` strings are English translation tags and resolve through the loaded language pack like the built-in labels.
-
-### Silent-phase signals
-
-Some firmwares run whole preparation steps without echoing anything to the gcode console (Creality K1: accurate Z homing, the bed-mesh corner check, and the mesh sweep are ~3 minutes of silence). Three non-console signals fill the gap:
-
-- **Bed-mesh status flap** - klippy reports the loaded mesh, then clears it, when probing begins. A mesh that disappears while the display shows "Cleaning Nozzle" moves it to "Bed Meshing..." (the probe denominator is fetched at that point).
-- **"probe at X,Y is z=Z" lines** - counted as mesh points once enough distinct points confirm a sweep is underway; they never fall through to the pattern matcher, so a profile's BED_MESH pattern cannot re-announce the phase and reset the counters mid-sweep.
-- **Toolhead position inference** (`position_signals`, K1 family today) - Klipper keeps pushing `toolhead.position` through the silence. The collector classifies the stream geometrically against the bed-mesh probe area (`PrintStartPositionClassifier`, `tests/unit/test_print_start_position_classifier.cpp` replays real captures): repeated Z descents near the mesh centre read as **"Probing Z..."**, touches at ≥3 distinct mesh corners as **"Checking Bed Mesh..."**, and a monotonic row march as the mesh sweep (BED_MESH entry, same edge as the flap). These refine the message without touching the phase or its progress weight - real console markers always outrank them.
-
-For developer details on creating profiles for new printers, see [PRINT_START_PROFILES.md](PRINT_START_PROFILES.md); for the whole observer system - sources, threading, tests - see [PRINT_START_OBSERVERS.md](PRINT_START_OBSERVERS.md).
-
-### Phase Detection
-
-During PRINT_START, HelixScreen detects these preparation phases:
-
-| Phase | Description |
-|-------|-------------|
-| Initializing | PRINT_START macro detected |
-| Homing | G28 / Home All Axes |
-| Heating Bed | M190 / M140 |
-| Heating Nozzle | M109 / M104 |
-| QGL | Quad Gantry Level |
-| Z Tilt | Z Tilt Adjust |
-| Bed Mesh | BED_MESH_CALIBRATE / mesh load |
-| Cleaning | Nozzle wipe / clean |
-| Purging | Purge line / priming |
-| Complete | Transition to printing |
-
-### Detection Priority
-
-G-code responses are checked in this order (first match wins):
-
-| Priority | Signal | How It Works |
-|----------|--------|--------------|
-| 1 | **HELIX:PHASE signals** | Universal `HELIX:PHASE:HOMING` etc. from HelixScreen macros |
-| 2 | **Profile signal formats** | Exact prefix matching (e.g., Forge-X `// State: HOMING...`) |
-| 3 | **PRINT_START marker** | Detects `PRINT_START`/`START_PRINT` once per session |
-| 4 | **Completion marker** | `SET_PRINT_STATS_INFO CURRENT_LAYER=`, `LAYER: 1`, `HELIX:READY` |
-| 5 | **Profile regex patterns** | G-code command matching (G28, M190, etc.) |
-
-### Completion Fallbacks
-
-For printers that don't emit G-code layer markers, HelixScreen has additional fallback signals:
-
-| Fallback | Condition |
-|----------|-----------|
-| **Macro Variables** | `_HELIX_STATE.print_started`, `_START_PRINT.print_started`, or `START_PRINT.preparation_done` becomes True |
-| **Layer Count** | `print_stats.info.current_layer` becomes ≥ 1 |
-| **Progress + Temps** | Print progress ≥ 2% AND temperatures within 5°C of target |
-| **Timeout (adaptive)** | Elapsed > 1.5x the predicted total, **and** both heaters at target (within 2°C), **and** 90s without pre-print activity (a matched line, a probe line, a status-signal rule firing, or a heater reading a degree above its highest yet under its current target) |
-| **Timeout (no history)** | Elapsed > 300s, with the same temp and quiet requirements |
-| **Ceiling** | Elapsed > 1800s, or 2.5x the predicted total when that is longer, **and** 90s without a matched line or probe line. Ignores temperatures, climbing heaters and status-signal rules. |
-| **Backstop** | Elapsed > twice the ceiling. Ignores temperatures and all activity. |
-
-A profile pattern can declare a hold (`hold_minutes_group`, see PRINT_START_PROFILES.md): the minutes a line such as `Heatsoak: 10.0m` announces count as the printer talking until they end, and the ceiling leaves the held time out of the elapsed time it measures. The backstop leaves out at most one ceiling of held time, so a macro that keeps announcing holds still leaves Preparing.
-
-### Files
+## Files
 
 | File | Purpose |
 |------|---------|
-| `src/print/print_start_collector.cpp` | Detection engine and fallback implementation |
-| `src/print/print_start_profile.cpp` | Profile loading and signal/pattern matching |
-| `assets/config/print_start_profiles/*.json` | Printer-specific profile definitions |
-| `assets/config/helix_macros.cfg` | Klipper macros for detection and phase signals |
-| `src/printer/macro_manager.cpp` | Macro installation management |
-| `src/api/moonraker_client.cpp` | Object subscription setup |
-| `docs/devel/PRINT_START_PROFILES.md` | Developer guide for creating new profiles |
+| `assets/config/helix_macros.cfg` | The Klipper macros this doc describes: install it or copy the calls into your own macros |
+| `moonraker-plugin/install.sh` | Installs and strips the phase-tracking marker blocks (the uninstall path above) |
+| `src/printer/macro_manager.cpp` | Macro installation management behind the UI button |

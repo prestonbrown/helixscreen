@@ -21,6 +21,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "observer_factory.h"
 #include "settings_manager.h"
 #include "static_panel_registry.h"
 
@@ -84,7 +85,10 @@ void AmsDeviceOperationsOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(supports_auto_heat_subject_, 0, "ams_device_ops_supports_auto_heat",
                                subjects_);
         UI_MANAGED_SUBJECT_INT(has_backend_subject_, 0, "ams_device_ops_has_backend", subjects_);
-        UI_MANAGED_SUBJECT_INT(is_afc_subject_, 0, "ams_device_ops_is_afc", subjects_);
+        UI_MANAGED_SUBJECT_INT(unload_after_print_configurable_subject_, 0,
+                               "ams_device_ops_unload_after_print_configurable", subjects_);
+        UI_MANAGED_SUBJECT_INT(bypass_is_virtual_subject_, 0, "ams_device_ops_bypass_is_virtual",
+                               subjects_);
 
         // Keep-spool-info-on-eject row visibility. Gates on
         // AmsBackend::printer_reports_spool_ids() in update_from_backend().
@@ -108,6 +112,7 @@ void AmsDeviceOperationsOverlay::init_subjects() {
         // EndlessSpoolCapabilities::editable() in update_from_backend().
         UI_MANAGED_SUBJECT_INT(can_reset_endless_spool_subject_, 0,
                                "ams_device_ops_can_reset_endless_spool", subjects_);
+        UI_MANAGED_SUBJECT_INT(can_abort_subject_, 0, "ams_device_ops_can_abort", subjects_);
     });
 }
 
@@ -159,6 +164,11 @@ lv_obj_t* AmsDeviceOperationsOverlay::create(lv_obj_t* parent) {
 
     lv_obj_add_flag(overlay_, LV_OBJ_FLAG_HIDDEN);
 
+    action_observer_ = observe_int_sync<AmsDeviceOperationsOverlay>(
+        AmsState::instance().get_ams_action_subject(), this,
+        [](AmsDeviceOperationsOverlay* self, int) { self->update_abort_available(); },
+        AmsState::instance().get_subjects_lifetime());
+
     spdlog::info("[{}] Overlay created", get_name());
     return overlay_;
 }
@@ -189,6 +199,7 @@ void AmsDeviceOperationsOverlay::show(lv_obj_t* parent_screen) {
 }
 
 void AmsDeviceOperationsOverlay::on_ui_destroyed() {
+    action_observer_.reset();
     bypass_toggle_.cancel_pending();
 }
 
@@ -205,6 +216,14 @@ void AmsDeviceOperationsOverlay::refresh() {
 // BACKEND QUERIES
 // ============================================================================
 
+void AmsDeviceOperationsOverlay::update_abort_available() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    AmsBackend* backend = AmsState::instance().get_backend();
+    lv_subject_set_int(&can_abort_subject_, backend && backend->can_cancel_operation() ? 1 : 0);
+}
+
 void AmsDeviceOperationsOverlay::update_from_backend() {
     AmsBackend* backend = AmsState::instance().get_backend();
 
@@ -215,11 +234,13 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         lv_subject_set_int(&fw_supports_bypass_subject_, 0);
         lv_subject_set_int(&hw_bypass_sensor_subject_, 0);
         lv_subject_set_int(&supports_auto_heat_subject_, 0);
-        lv_subject_set_int(&is_afc_subject_, 0);
+        lv_subject_set_int(&unload_after_print_configurable_subject_, 0);
+        lv_subject_set_int(&bypass_is_virtual_subject_, 0);
         lv_subject_set_int(&reports_spool_ids_subject_, 0);
         lv_subject_set_int(&printer_retains_spool_info_subject_, 0);
         lv_subject_set_int(&is_qidi_subject_, 0);
         lv_subject_set_int(&can_reset_endless_spool_subject_, 0);
+        lv_subject_set_int(&can_abort_subject_, 0);
         system_info_buf_[0] = '\0';
         lv_subject_copy_string(&system_info_subject_, system_info_buf_);
         snprintf(status_buf_, sizeof(status_buf_), "%s",
@@ -235,6 +256,7 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
 
     // Has backend
     lv_subject_set_int(&has_backend_subject_, 1);
+    update_abort_available();
 
     // Query capabilities
     auto info = backend->get_system_info();
@@ -265,8 +287,13 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
 
     lv_subject_set_int(&supports_auto_heat_subject_, backend->supports_auto_heat_on_load() ? 1 : 0);
 
-    // AFC-only: the unload-after-print toggle applies only to AFC systems
-    lv_subject_set_int(&is_afc_subject_, backend->is_afc_system() ? 1 : 0);
+    // The unload-after-print row is offered only where the behavior is the
+    // user's setting rather than fixed by firmware.
+    lv_subject_set_int(&unload_after_print_configurable_subject_,
+                       backend->supports_configurable_unload_after_print() ? 1 : 0);
+    // The always-show-bypass row is only meaningful where the bypass node
+    // hides when disengaged, i.e. where the reported bypass is virtual.
+    lv_subject_set_int(&bypass_is_virtual_subject_, backend->bypass_is_virtual() ? 1 : 0);
 
     // Keep-spool-info-on-eject is only meaningful where the firmware reports
     // spool ids per lane (AFC, Happy Hare); other systems clear on a detected

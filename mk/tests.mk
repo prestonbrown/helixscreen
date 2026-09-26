@@ -40,19 +40,32 @@ SHARD_ARTIFACT_ROOT ?= /tmp
 # into an observed rate. Raise it when chasing something rare.
 SHARD_RETRIES ?= 3
 
+# Shard count for the [slow] tier in test-all and test-slow. Deliberately far
+# below NPROCS: most [slow] cases wait on wall-clock deadlines, and a busy box
+# stretches those waits into failures. The tier runs after the fast shards
+# finish, so it competes only with itself. Tests that cannot tolerate even
+# this share of the box carry [serial] and run alone afterwards.
+SLOW_SHARDS ?= 16
+
+# Catch2 shards by position, so declaration order packs a file's slow cases into
+# one shard. A fixed-seed shuffle spreads them and stays reproducible; a failing
+# shard's diagnostics print the exact command, order flags included.
+SLOW_ORDER ?= --order rand --rng-seed 1
+
 # Run tests in parallel using Catch2 sharding
-# Args: $(1) = test filter (e.g., "~[.] ~[slow]")
+# Args: $(1) = test filter (e.g., "~[.] ~[slow]"), $(2) = shard count (default NPROCS),
+#       $(3) = Catch2 order flags (default: declaration order)
 # Collects PIDs and waits for all, failing if any shard fails
 # Each shard is wrapped in a timeout to prevent infinite hangs
 # Each shard log starts with a host/nproc/git/ts header so flakes (e.g. #1121)
 # are attributable to a shard/host instead of re-litigated each run.
 # Output is prefixed with [shard N] for clarity
 define run_tests_parallel
-	echo "$(CYAN)Running $(NPROCS) test shards in parallel (timeout=$(SHARD_TIMEOUT)s)...$(RESET)"; \
+	echo "$(CYAN)Running $(or $(2),$(NPROCS)) test shards in parallel (timeout=$(SHARD_TIMEOUT)s)...$(RESET)"; \
 	shard_dir=$$(mktemp -d "$(SHARD_ARTIFACT_ROOT)/helix-shards-XXXXXX"); \
 	pids=""; \
-	for i in $$(seq 0 $$(($(NPROCS)-1))); do \
-		(echo "=== shard $$i/$(NPROCS) host=$$(hostname) nproc=$$(nproc 2>/dev/null || echo '?') git=$$(git rev-parse --short HEAD 2>/dev/null || echo unknown) ts=$$(date -Iseconds) order=decl seed=0"; $(if $(TIMEOUT_CMD),$(TIMEOUT_CMD) $(SHARD_TIMEOUT)) $(TEST_BIN) $(1) --shard-count $(NPROCS) --shard-index $$i 2>&1; echo $$? > "$$shard_dir/$$i.exit") | \
+	for i in $$(seq 0 $$(($(or $(2),$(NPROCS))-1))); do \
+		(echo "=== shard $$i/$(or $(2),$(NPROCS)) host=$$(hostname) nproc=$$(nproc 2>/dev/null || echo '?') git=$$(git rev-parse --short HEAD 2>/dev/null || echo unknown) ts=$$(date -Iseconds) order=$(or $(3),decl seed=0)"; $(if $(TIMEOUT_CMD),$(TIMEOUT_CMD) $(SHARD_TIMEOUT)) $(TEST_BIN) $(1) $(3) --shard-count $(or $(2),$(NPROCS)) --shard-index $$i 2>&1; echo $$? > "$$shard_dir/$$i.exit") | \
 			tee "$$shard_dir/$$i.log" | sed "s/^/[shard $$i] /" & \
 		pids="$$pids $$!"; \
 	done; \
@@ -61,7 +74,7 @@ define run_tests_parallel
 	done; \
 	failed=0; \
 	suspect=""; \
-	for i in $$(seq 0 $$(($(NPROCS)-1))); do \
+	for i in $$(seq 0 $$(($(or $(2),$(NPROCS))-1))); do \
 		if [ ! -f "$$shard_dir/$$i.exit" ]; then \
 			echo "$(RED)$(BOLD)✗ Shard $$i timed out after $(SHARD_TIMEOUT)s!$(RESET)"; \
 			failed=1; suspect="$$suspect $$i"; \
@@ -83,7 +96,7 @@ define run_tests_parallel
 		fi; \
 	done; \
 	if [ -n "$$suspect" ]; then \
-		$(call diagnose_shards,$$shard_dir,$$suspect,$(1)); \
+		$(call diagnose_shards,$$shard_dir,$$suspect,$(1),$(or $(2),$(NPROCS)),$(3)); \
 	else \
 		rm -rf "$$shard_dir"; \
 	fi; \
@@ -106,7 +119,8 @@ endef
 # removing ANY test reshuffles Catch2's shard composition, so the shard number
 # moving between runs is not evidence either.
 #
-# Args: $(1) = shard dir, $(2) = space-separated shard indices, $(3) = filter
+# Args: $(1) = shard dir, $(2) = space-separated shard indices, $(3) = filter,
+#       $(4) = the shard count the run used, $(5) = its Catch2 order flags
 define diagnose_shards
 	echo ""; \
 	echo "$(CYAN)$(BOLD)── shard diagnostics ──$(RESET)"; \
@@ -114,7 +128,7 @@ define diagnose_shards
 	for s in $(2); do \
 		echo ""; \
 		echo "$(BOLD)shard $$s$(RESET)"; \
-		$(TEST_BIN) $(3) --shard-count $(NPROCS) --shard-index $$s --list-tests --reporter xml 2>/dev/null \
+		$(TEST_BIN) $(3) $(5) --shard-count $(4) --shard-index $$s --list-tests --reporter xml 2>/dev/null \
 			| python3 scripts/catch2_shard_tests.py > "$(1)/$$s.tests" 2>/dev/null || true; \
 		n=$$(wc -l < "$(1)/$$s.tests" 2>/dev/null | tr -d ' '); \
 		echo "  ran $${n:-?} test case(s) → $(1)/$$s.tests ($(TEST_BIN) --input-file replays it)"; \
@@ -125,13 +139,13 @@ define diagnose_shards
 		else \
 			echo "  no FAILED marker — died after its assertions passed (teardown/static dtor)"; \
 		fi; \
-		printf '  reproduce: %s %s --shard-count %s --shard-index %s\n' \
-			"$(TEST_BIN)" '$(3)' "$(NPROCS)" "$$s"; \
+		printf '  reproduce: %s %s %s--shard-count %s --shard-index %s\n' \
+			"$(TEST_BIN)" '$(3)' "$(if $(5),$(5) )" "$(4)" "$$s"; \
 		echo "  $(CYAN)re-running this shard sequentially x$(SHARD_RETRIES)…$(RESET)"; \
 		hits=0; last_rc=0; \
 		for attempt in $$(seq 1 $(SHARD_RETRIES)); do \
-			if $(if $(TIMEOUT_CMD),$(TIMEOUT_CMD) $(SHARD_TIMEOUT)) $(TEST_BIN) $(3) \
-					--shard-count $(NPROCS) --shard-index $$s > "$(1)/$$s.retry.log" 2>&1; then \
+			if $(if $(TIMEOUT_CMD),$(TIMEOUT_CMD) $(SHARD_TIMEOUT)) $(TEST_BIN) $(3) $(5) \
+					--shard-count $(4) --shard-index $$s > "$(1)/$$s.retry.log" 2>&1; then \
 				: ; \
 			else \
 				last_rc=$$?; hits=$$((hits+1)); \
@@ -539,14 +553,13 @@ test-serial: test-build
 	$(call report_test_result,Unit tests)
 
 # Run ALL tests including slow ones (for thorough validation)
-# Fast tests run in parallel shards; [slow] tests run sequentially to avoid
-# deadlocks from thread-based tests (hv::EventLoop, std::thread) under sharding.
+# Three tiers, in order: fast tests across NPROCS shards, [slow] across
+# SLOW_SHARDS, then [serial] alone in one process.
 test-all: test-build
 	$(ECHO) "$(CYAN)$(BOLD)Running fast tests in parallel...$(RESET)"
 	@START_TIME=$$(date +%s); \
 	$(call run_tests_parallel,"~[.] ~[slow]"); \
-	echo "$(CYAN)$(BOLD)Running [slow] tests sequentially...$(RESET)"; \
-	$(TEST_BIN) "[slow]" --durations yes; \
+	$(call run_slow_tiers); \
 	$(call report_test_result,All tests)
 
 # Run the HIDDEN test set — every test whose first tag character is '.'.
@@ -819,11 +832,20 @@ test-fast: test-build
 	DURATION=$$((END_TIME - START_TIME)); \
 	echo "$(GREEN)$(BOLD)✓ Fast tests passed in $${DURATION}s$(RESET)"
 
+# The [slow] tier sharded, then its [serial] members in one process.
+# Exits non-zero through the recipe when either tier fails.
+define run_slow_tiers
+	echo "$(CYAN)$(BOLD)Running [slow] tests in $(SLOW_SHARDS) shards...$(RESET)"; \
+	$(call run_tests_parallel,"[slow] ~[serial]",$(SLOW_SHARDS),$(SLOW_ORDER)); \
+	echo "$(CYAN)$(BOLD)Running [slow][serial] tests sequentially...$(RESET)"; \
+	$(TEST_BIN) "[slow][serial]" --allow-running-no-tests --durations yes
+endef
+
 # Run only slow tests - for thorough validation before commit
 test-slow: test-build
 	$(ECHO) "$(CYAN)$(BOLD)Running slow tests only...$(RESET)"
 	@START_TIME=$$(date +%s); \
-	$(TEST_BIN) "[slow]"; \
+	$(call run_slow_tiers); \
 	$(call report_test_result,Slow tests)
 
 # Run only eventloop tests - hv::EventLoop network tests (very slow, 5-10 min)

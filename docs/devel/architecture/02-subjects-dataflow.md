@@ -115,7 +115,7 @@ Why not `lv_async_call()`? It is not safe to call from another thread: it create
 The queue earns its keep in diagnostics and teardown:
 
 - Every callback carries a **tag**; the currently-running and last-four completed tags are registered with the crash handler (`include/ui_update_queue.h#UpdateQueue/init/"register_callback_tag_ptr"`), so a crash inside or shortly after `process_pending()` names the guilty subsystem in crash.txt.
-- **Exceptions are swallowed and logged** (`include/ui_update_queue.h#UpdateQueue/process_pending/"Exception in queued callback"`) — one bad callback cannot take down the batch — with a counter so tests can tell "ran" from "threw" (#1212).
+- **Exceptions are swallowed and logged** (`include/ui_update_queue.h#UpdateQueue/process_pending/"Exception in queued callback [{}]: {} code {}"`) — one bad callback cannot take down the batch — with a counter so tests can tell "ran" from "threw" (#1212).
 - `queue_update(widget, ...)` overloads wrap the callback in an `lv_obj_is_valid()` guard so async work that outlives its widget is dropped, not crashed (`include/ui_update_queue.h#"queue_update(lv_obj_t* widget, std::unique_ptr<T> data, F&& callback,"`).
 - `ScopedFreeze` (`include/ui_update_queue.h#UpdateQueue/"class ScopedFreeze"`) buffers enqueues during a drain-and-destroy window and splices them back on thaw, closing the race where a background thread queues work against a widget being deleted.
 - Explicit `shutdown()` drains; the destructor deliberately does **not** — at static-destruction time the objects those callbacks reference are already gone (`include/ui_update_queue.h#UpdateQueue/~UpdateQueue`).

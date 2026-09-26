@@ -255,7 +255,7 @@ TEST_CASE("Tool mapping capabilities vary by backend mode", "[ams][tool_mapping]
     }
 
     SECTION("Mock in Snapmaker mode remaps without writing a table") {
-        // The mode that genuinely differs: SnapmakerNative reaches the printer
+        // The mode that genuinely differs: PrePrintSend reaches the printer
         // through a pre-print send, so the pick is honored and nothing persists.
         AmsBackendMock mock(4);
         mock.set_operation_delay(0);

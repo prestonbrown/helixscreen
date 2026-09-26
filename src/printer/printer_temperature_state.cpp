@@ -82,7 +82,9 @@ void PrinterTemperatureState::init_subjects(bool register_xml) {
 
     // Heater duty cycle, whole percent, -1 = the heater reports none.
     INIT_SUBJECT_INT(bed_power, -1, subjects_, register_xml);
-    INIT_SUBJECT_INT(chamber_power, -1, subjects_, register_xml);
+    INIT_SUBJECT_INT(chamber_power, -1, subjects_,
+                     register_xml); // SUBJECT_OK: read by pointer via
+                                    // PrinterState::get_heater_power_subject(HeaterType::Chamber)
 
     // Bed and chamber temperature subjects
     INIT_SUBJECT_INT(bed_temp, 0, subjects_, register_xml);
@@ -206,6 +208,9 @@ void PrinterTemperatureState::deinit_subjects() {
         if (info.target_lifetime)
             *info.target_lifetime = false;
         info.target_lifetime.reset();
+        if (info.power_lifetime)
+            *info.power_lifetime = false;
+        info.power_lifetime.reset();
     }
 
     // Now safe to deinit dynamic per-extruder subjects
@@ -215,6 +220,9 @@ void PrinterTemperatureState::deinit_subjects() {
         }
         if (info.target_subject) {
             lv_subject_deinit(info.target_subject.get());
+        }
+        if (info.power_subject) {
+            lv_subject_deinit(info.power_subject.get());
         }
     }
     extruders_.clear();
@@ -238,6 +246,9 @@ void PrinterTemperatureState::init_extruders(const std::vector<std::string>& hea
         if (info.target_lifetime)
             *info.target_lifetime = false;
         info.target_lifetime.reset();
+        if (info.power_lifetime)
+            *info.power_lifetime = false;
+        info.power_lifetime.reset();
     }
 
     // Now safe to deinit existing per-extruder subjects
@@ -247,6 +258,9 @@ void PrinterTemperatureState::init_extruders(const std::vector<std::string>& hea
         }
         if (info.target_subject) {
             lv_subject_deinit(info.target_subject.get());
+        }
+        if (info.power_subject) {
+            lv_subject_deinit(info.power_subject.get());
         }
     }
     extruders_.clear();
@@ -291,6 +305,12 @@ void PrinterTemperatureState::init_extruders(const std::vector<std::string>& hea
         info.target_subject = std::make_unique<lv_subject_t>();
         lv_subject_init_int(info.target_subject.get(), 0);
         info.target_lifetime = std::make_shared<bool>(true);
+
+        // Duty in whole percent, -1 until the heater reports one - the same
+        // unknown-sentinel the active-extruder and bed power subjects use.
+        info.power_subject = std::make_unique<lv_subject_t>();
+        lv_subject_init_int(info.power_subject.get(), -1);
+        info.power_lifetime = std::make_shared<bool>(true);
 
         spdlog::trace("[PrinterTemperatureState] Registered extruder: {} -> \"{}\"", name,
                       info.display_name);
@@ -341,6 +361,17 @@ lv_subject_t* PrinterTemperatureState::get_extruder_target_subject(const std::st
     return nullptr;
 }
 
+lv_subject_t* PrinterTemperatureState::get_extruder_power_subject(const std::string& name,
+                                                                  SubjectLifetime& lifetime) {
+    auto it = extruders_.find(name);
+    if (it != extruders_.end() && it->second.power_subject) {
+        lifetime = it->second.power_lifetime;
+        return it->second.power_subject.get();
+    }
+    lifetime.reset();
+    return nullptr;
+}
+
 void PrinterTemperatureState::set_active_extruder(const std::string& name) {
     // Verify the extruder exists in our map
     auto it = extruders_.find(name);
@@ -350,47 +381,6 @@ void PrinterTemperatureState::set_active_extruder(const std::string& name) {
         return;
     }
 
-    printer_extruder_ = name;
-
-    // A held viewer pin owns what the active subjects mirror; the machine's
-    // toolhead name is only remembered above, for when the pin clears.
-    if (!extruder_pin_.empty()) {
-        return;
-    }
-
-    apply_active_extruder_(it->first, it->second);
-}
-
-void PrinterTemperatureState::pin_active_extruder(const std::string& name) {
-    auto it = extruders_.find(name);
-    if (it == extruders_.end()) {
-        spdlog::warn("[PrinterTemperatureState] Unknown extruder '{}', keeping '{}'", name,
-                     active_extruder_name_);
-        return;
-    }
-
-    extruder_pin_ = name;
-    spdlog::info("[PrinterTemperatureState] Active extruder pinned to '{}'", name);
-    apply_active_extruder_(it->first, it->second);
-}
-
-void PrinterTemperatureState::clear_active_extruder_pin() {
-    if (extruder_pin_.empty()) {
-        return;
-    }
-    spdlog::info("[PrinterTemperatureState] Active extruder pin cleared (was '{}')", extruder_pin_);
-    extruder_pin_.clear();
-
-    if (!printer_extruder_.empty()) {
-        auto it = extruders_.find(printer_extruder_);
-        if (it != extruders_.end()) {
-            apply_active_extruder_(it->first, it->second);
-        }
-    }
-}
-
-void PrinterTemperatureState::apply_active_extruder_(const std::string& name,
-                                                     const ExtruderInfo& info) {
     if (name == active_extruder_name_) {
         return; // No change needed
     }
@@ -400,6 +390,7 @@ void PrinterTemperatureState::apply_active_extruder_(const std::string& name,
     active_extruder_name_ = name;
 
     // Sync current values from per-extruder subjects to active subjects
+    const auto& info = it->second;
     if (info.temp_subject) {
         int new_temp = lv_subject_get_int(info.temp_subject.get());
         int old_temp = lv_subject_get_int(&active_extruder_temp_);
@@ -414,6 +405,15 @@ void PrinterTemperatureState::apply_active_extruder_(const std::string& name,
             lv_subject_set_int(&active_extruder_target_, new_target);
         }
     }
+    // Duty resyncs with them: Moonraker deltas omit unchanged fields, so the
+    // new tool may not carry a power frame for a long time, and without this
+    // the mirror keeps displaying the previous tool's duty.
+    if (info.power_subject) {
+        int new_power = lv_subject_get_int(info.power_subject.get());
+        if (lv_subject_get_int(&active_extruder_power_) != new_power) {
+            lv_subject_set_int(&active_extruder_power_, new_power);
+        }
+    }
 }
 
 const std::string& PrinterTemperatureState::active_extruder_name() const {
@@ -421,6 +421,24 @@ const std::string& PrinterTemperatureState::active_extruder_name() const {
 }
 
 void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
+    // Klipper reports duty as 0.0-1.0 on a heater object. Publish whole percent
+    // and leave the subject alone when the field is absent: a frame that omits
+    // it says nothing, and a temperature_fan never carries one at all.
+    auto publish_power = [&status](const std::string& object, lv_subject_t* subject) {
+        if (object.empty() || !status.contains(object)) {
+            return;
+        }
+        const auto& obj = status[object];
+        if (!obj.contains("power") || !obj["power"].is_number()) {
+            return;
+        }
+        int pct = static_cast<int>(std::lround(obj["power"].get<double>() * 100.0));
+        pct = std::clamp(pct, 0, 100);
+        if (lv_subject_get_int(subject) != pct) {
+            lv_subject_set_int(subject, pct);
+        }
+    };
+
     // Update dynamic per-extruder subjects
     for (auto& [name, info] : extruders_) {
         if (!status.contains(name)) {
@@ -461,6 +479,8 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
                 lv_subject_set_int(info.target_subject.get(), target_deci);
             }
         }
+
+        publish_power(name, info.power_subject.get());
     }
 
     // Update active extruder subjects from the currently active extruder's data
@@ -509,23 +529,6 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
         }
     }
 
-    // Klipper reports duty as 0.0-1.0 on a heater object. Publish whole percent
-    // and leave the subject alone when the field is absent: a frame that omits
-    // it says nothing, and a temperature_fan never carries one at all.
-    auto publish_power = [&status](const std::string& object, lv_subject_t* subject) {
-        if (object.empty() || !status.contains(object)) {
-            return;
-        }
-        const auto& obj = status[object];
-        if (!obj.contains("power") || !obj["power"].is_number()) {
-            return;
-        }
-        int pct = static_cast<int>(std::lround(obj["power"].get<double>() * 100.0));
-        pct = std::clamp(pct, 0, 100);
-        if (lv_subject_get_int(subject) != pct) {
-            lv_subject_set_int(subject, pct);
-        }
-    };
     publish_power(active_extruder_name_, &active_extruder_power_);
     publish_power("heater_bed", &bed_power_);
     publish_power(chamber_heater_name_, &chamber_power_);

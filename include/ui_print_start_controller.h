@@ -186,7 +186,7 @@ class PrintStartController {
     /**
      * @brief Send the Snapmaker U1 firmware-native print_task_config gcode, then continue.
      *
-     * When the active AMS backend's RemapStrategy is SnapmakerNative, the U1
+     * When the active AMS backend's RemapStrategy is PrePrintSend, the U1
      * firmware requires SET_PRINT_USED_EXTRUDERS / SET_PRINT_EXTRUDER_MAP to be
      * emitted BEFORE PRINT_START (they error mid-print). Builds that gcode from
      * @p tools_used and @p remap (supplied by the caller), sends it, and only invokes

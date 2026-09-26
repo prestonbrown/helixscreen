@@ -6,6 +6,7 @@
 #include "ams_subscription_backend.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "lane_binding.h"
 #include "lane_echo.h"
 #include "lane_observation.h"
 #include "snapmaker_print_preferences.h"
@@ -299,7 +300,7 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     // (SET_PRINT_USED_EXTRUDERS / SET_PRINT_EXTRUDER_MAP) emitted before
     // PRINT_START; no gcode-file rewrite is needed.
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
-        return RemapStrategy::SnapmakerNative;
+        return RemapStrategy::PrePrintSend;
     }
 
     // Configuration
@@ -614,6 +615,20 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// would empty a lane whose only signal so far is the toolhead pin state.
     std::array<bool, NUM_TOOLS> feed_presence_seen_{{false, false, false, false}};
 
+    /// Per-channel pending insert: parse passes held since the feed-port
+    /// presence rose, 0 = none pending. The port edge fires the moment
+    /// filament seats in the bay, but the tag reader's answer for that spool
+    /// lands a frame or two later in filament_detect.info, so the edge itself
+    /// cannot tell a tagged spool from an untagged one. The next info entry
+    /// for the channel decides: tag evidence verifies the insert, an entry
+    /// with none (no UID, MAIN_TYPE NONE) is the reader saying there is no tag
+    /// behind it and asks. No entry at all within kSnapPendingInsertPasses
+    /// parses (reader disabled, read never landed) asks too. Presence dropping
+    /// cancels it: the spool left before any read. A feed the firmware itself
+    /// drives (tool-change load/unload, one of our batch ops) never arms it.
+    /// Written only from handle_status_update (the single WS-thread writer).
+    std::array<int, NUM_TOOLS> pending_insert_passes_{{0, 0, 0, 0}};
+
     /// Last filament_feed frame's raw per-channel fields (channel_state,
     /// channel_error, filament_detected, module_exist, disable_auto), written
     /// by handle_status_update before classification. Each write replaces the
@@ -628,24 +643,27 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// AFTER firmware data has been populated and BEFORE event emission, so
     /// the very next get_slot_info() reflects the overridden values.
 
-    /// Hardware-event detection: if the RFID CARD_UID changes between parses,
-    /// the user physically swapped the spool. Clears the stored override so
-    /// stale brand / spool_name / spoolman_id from the previous user don't
-    /// bleed onto the new spool. Empty observed_uid (no tag / unread) is
-    /// treated as "no signal" — never updates the baseline and never clears.
+    /// Hardware-event detection under the insert rule
+    /// (prestonbrown/helixscreen#1710): each RFID reading becomes a tracker
+    /// fingerprint built from exactly the fields the rule judges - the UID
+    /// when the read produced one, else the tag's material and colour, else
+    /// "-" for a finished read that found no tag. A fingerprint change runs
+    /// classify_insert() against the reading the previous fingerprint named,
+    /// and only a different-spool verdict clears the stored override. Same
+    /// spool or too little read to say: the record stands (there is no insert
+    /// edge on this backend to hang the "same spool?" notice on).
+    ///
     /// First observation for a slot establishes the baseline and NEVER fires
     /// a clear. Must be called BEFORE apply_resolved_lane so the clear's field
     /// reset isn't masked by a stale declaration.
     ///
-    /// Unlike the AD5X IFS implementation (which uses color as the event
-    /// signal and needs a self-wipe guard in apply_user_edit), Snapmaker uses
-    /// the RFID UID — a hardware identifier the user cannot set via the UI.
-    /// So apply_user_edit registers no expected-echo value with rfid_tracker_;
-    /// the baseline stays at whatever firmware last reported and user edits
-    /// don't race. (CFS shares the tracker but DOES need that guard — it
-    /// writes color_value back to the box, which is half of its fingerprint.)
+    /// Snapmaker registers no expect() value with rfid_tracker_: CARD_UID is
+    /// a hardware identifier the user cannot set via the UI, so user edits
+    /// don't race the baseline. (CFS shares the tracker but DOES need that
+    /// guard - it writes color_value back to the box, which is half of its
+    /// fingerprint.)
     void check_hardware_event_clear(SlotInfo& slot, int slot_index,
-                                    const std::string& observed_uid);
+                                    const helix::ams::SpoolEvidence& observed);
 
     // Shared helper used by every override-clear path (hardware event and
     // explicit user request). Caller must hold mutex_. Erases

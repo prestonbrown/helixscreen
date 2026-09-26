@@ -41,6 +41,9 @@ class HappyHareTestAccess {
     template <class B> static auto& overrides(B& b) {
         return b.overrides_;
     }
+    template <class B> static auto& gate_sensors(B& b) {
+        return b.gate_sensors_;
+    }
     template <class B> static auto& selector_type(B& b) {
         return b.selector_type_;
     }

@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 
 #include "detection_manager.h"
+#include "subject_managed_panel.h"
 
 #include <functional>
 #include <string>
@@ -40,6 +41,10 @@ void present_detection(const DetectionEvent& e, DetectionPolicy p);
 class SpaghettiDetectionModal : public Modal {
   public:
     using Action = std::function<void()>;
+
+    SpaghettiDetectionModal() {
+        init_subjects();
+    }
 
     const char* get_name() const override {
         return "Spaghetti Detection";
@@ -113,6 +118,17 @@ class SpaghettiDetectionModal : public Modal {
     }
 
   private:
+    static void init_subjects();
+
+    // Shared across instances because the XML registry keeps the first
+    // registration for a name; a per-instance subject would dangle once its
+    // modal is freed. Torn down through StaticSubjectRegistry.
+    static lv_subject_t tune_available_subject_;
+    static char message_buf_[256];
+    static lv_subject_t message_subject_;
+    static SubjectManager subjects_;
+    static bool subjects_initialized_;
+
     std::string message_;
     lv_draw_buf_t* frame_ = nullptr;
     Action on_resume_, on_abort_, on_tune_, on_disable_;
