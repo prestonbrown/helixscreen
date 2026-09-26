@@ -48,10 +48,14 @@ canonicalize_path() {
 #
 # Repoints each shared module whose core.worktree resolves inside $2 at the same
 # path under the main tree $1. Private per-worktree modules live under
-# .git/worktrees/<n>/modules and are never visited. $3, when given, is a command
-# word to run the write through (teardown's dry-run `run`).
+# .git/worktrees/<n>/modules and are never visited. $3=1 reports what would be
+# restored and writes nothing.
+#
+# Only the pointer's parent is resolved physically. The last component is the
+# submodule directory, which --relink has already turned back into a symlink
+# into the main tree; following it would hide that the pointer names this tree.
 restore_shared_module_pointers() {
-    local main wt runner="${3:-}" cfg target resolved gitdir depth up restored=0
+    local main wt dry_run="${3:-0}" cfg target p resolved gitdir depth up new restored=0
     main="$(canonicalize_path "$1")"
     wt="$(canonicalize_path "$2")"
     for cfg in "$main"/.git/modules/*/config "$main"/.git/modules/lib/*/config; do
@@ -59,14 +63,20 @@ restore_shared_module_pointers() {
         target="$(git config --file "$cfg" --get core.worktree 2>/dev/null || true)"
         [[ -n "$target" ]] || continue
         gitdir="$(dirname -- "$cfg")"
-        resolved="$(canonicalize_path "$gitdir/$target")"
+        if [[ "$target" == /* ]]; then p="$target"; else p="$gitdir/$target"; fi
+        resolved="$(canonicalize_path "$(dirname -- "$p")")/$(basename -- "$p")"
         [[ "$resolved" == "$wt"/* ]] || continue
         # One ../ per component of .git/modules/<name> climbs back to the main
         # tree, whatever depth the worktree itself sits at.
         depth="${gitdir#"$main"/}"
         up="$(printf '%s' "$depth" | sed -E 's#[^/]+#..#g')/"
-        $runner git config --file "$cfg" core.worktree "${up}${resolved#"$wt"/}"
-        echo "  $(basename -- "$gitdir"): pointed into this worktree, restored to the main tree"
+        new="${up}${resolved#"$wt"/}"
+        if (( dry_run )); then
+            echo "  $(basename -- "$gitdir"): points into this worktree, would restore to $new"
+        else
+            git config --file "$cfg" core.worktree "$new"
+            echo "  $(basename -- "$gitdir"): pointed into this worktree, restored to the main tree"
+        fi
         restored=$((restored + 1))
     done
     if (( restored == 0 )); then

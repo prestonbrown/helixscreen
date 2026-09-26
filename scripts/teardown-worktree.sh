@@ -301,7 +301,7 @@ run git -C "$MAIN_ABS" worktree prune
 # --- shared submodule pointers -------------------------------------------------
 say ""
 say "${BOLD}Restoring shared submodule pointers${RESET}"
-restore_shared_module_pointers "$MAIN_ABS" "$WT_ABS" run
+restore_shared_module_pointers "$MAIN_ABS" "$WT_ABS" "$DRY_RUN"
 
 # The claim, if any, outlives the directory and would read LIVE forever.
 if [[ -x "$MAIN_ABS/scripts/helix-claim" ]]; then

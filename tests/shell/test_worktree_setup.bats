@@ -159,24 +159,54 @@ build_fixture_repo() {
 # here; --relink puts the symlink back and must aim the pointer back too, or
 # the main tree's `git status` depends on this worktree existing
 # (prestonbrown/helixscreen#1621).
+#
+# lib/ftxui is a real shared submodule, so --relink leaves the worktree's
+# lib/ftxui a symlink into the main tree by the time pointers are checked.
+add_shared_submodule() {
+    local root="$1"
+    git -C "$root/main" -c protocol.file.allow=always submodule add -q "$root/upstream" lib/ftxui
+    git -C "$root/main" commit -qm "shared submodule"
+}
+
 @test "--relink restores a shared submodule pointer aimed into the worktree" {
     tmp="$(mktemp -d)"
     export CCACHE_CONFIGPATH="$tmp/ccache.conf"
     build_fixture_repo "$tmp"
+    add_shared_submodule "$tmp"
     run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/relink
     [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
 
     modules="$tmp/main/.git/modules"
-    mkdir -p "$modules/lib/ftxui" "$modules/spdlog"
+    mkdir -p "$modules/spdlog"
     git config --file "$modules/lib/ftxui/config" core.worktree "../../../../.worktrees/relink/lib/ftxui"
     git config --file "$modules/spdlog/config" core.worktree "../../../lib/spdlog"
 
     cd "$tmp/main/.worktrees/relink" || return 1
     run bash scripts/setup-worktree.sh --relink
     [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+    [ -L lib/ftxui ] || { echo "lib/ftxui is not a symlink" >&2; return 1; }
 
     [ "$(git config --file "$modules/lib/ftxui/config" core.worktree)" = "../../../../lib/ftxui" ]
     [ "$(git config --file "$modules/spdlog/config" core.worktree)" = "../../../lib/spdlog" ]
+    cd / && rm -rf "$tmp"
+}
+
+@test "--relink restores an absolute pointer aimed into the worktree" {
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    build_fixture_repo "$tmp"
+    add_shared_submodule "$tmp"
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/absolute
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    modules="$tmp/main/.git/modules"
+    git config --file "$modules/lib/ftxui/config" core.worktree "$tmp/main/.worktrees/absolute/lib/ftxui"
+
+    cd "$tmp/main/.worktrees/absolute" || return 1
+    run bash scripts/setup-worktree.sh --relink
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    [ "$(git config --file "$modules/lib/ftxui/config" core.worktree)" = "../../../../lib/ftxui" ]
     cd / && rm -rf "$tmp"
 }
 
@@ -186,11 +216,11 @@ build_fixture_repo() {
     tmp="$(mktemp -d)"
     export CCACHE_CONFIGPATH="$tmp/ccache.conf"
     build_fixture_repo "$tmp"
+    add_shared_submodule "$tmp"
     run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/away "$tmp/away"
     [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
 
     modules="$tmp/main/.git/modules"
-    mkdir -p "$modules/lib/ftxui"
     git config --file "$modules/lib/ftxui/config" core.worktree "../../../../../away/lib/ftxui"
 
     cd "$tmp/away" || return 1

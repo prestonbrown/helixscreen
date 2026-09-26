@@ -201,6 +201,21 @@ module_pointer() {
     [ "$(module_pointer lib/ftxui)" = "../../../../lib/ftxui" ]
 }
 
+# The worktree's lib/ftxui is a symlink into the main tree, as setup leaves it,
+# and a dry run still sees the pointer through it.
+@test "a dry run names the pointer it would restore and writes nothing" {
+    make_worktree doomed
+    mkdir -p "$MAIN/lib/ftxui" "$MAIN/.worktrees/doomed/lib"
+    ln -s "$MAIN/lib/ftxui" "$MAIN/.worktrees/doomed/lib/ftxui"
+    fake_module_pointer lib/ftxui "../../../../.worktrees/doomed/lib/ftxui"
+    # --force only gets past the untracked symlink; -n still changes nothing.
+    run "$SCRIPT" doomed --into master --force -n
+    [ "$status" -eq 0 ]
+    contains "ftxui: points into this worktree, would restore to ../../../../lib/ftxui" "$output"
+    [ "$(module_pointer lib/ftxui)" = "../../../../.worktrees/doomed/lib/ftxui" ]
+    [ -d "$MAIN/.worktrees/doomed" ]
+}
+
 @test "a pointer aimed outside the removed worktree is left alone" {
     make_worktree doomed
     mkdir -p "$MAIN/lib/spdlog"
