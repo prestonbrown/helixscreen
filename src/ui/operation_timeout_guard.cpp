@@ -43,6 +43,11 @@ void OperationTimeoutGuard::end() {
     }
 }
 
+// lv_timer_delete() rather than lv_timer_cancel_safe(), so the timer is gone the
+// moment the guard is. Deleting a timer while lv_timer_handler() is dispatching it
+// is safe only because lv_timer_exec() re-checks state.timer_deleted after the
+// callback returns; the "LVGL tolerates a timer deleting itself in its callback"
+// canary in test_operation_timeout_guard.cpp pins that (#1576).
 void OperationTimeoutGuard::cancel_timer() {
     if (timer_ && lv_is_initialized()) {
         lv_timer_delete(timer_);

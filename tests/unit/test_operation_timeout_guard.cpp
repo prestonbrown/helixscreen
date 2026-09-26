@@ -11,6 +11,7 @@
 #include "subject_managed_panel.h"
 
 #include <memory>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -235,4 +236,45 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     process_lvgl(200);
     REQUIRE_FALSE(*fired);
+}
+
+// Canary for OperationTimeoutGuard::cancel_timer(), which deletes outright and so
+// depends on lv_timer_exec() re-checking state.timer_deleted after a callback.
+// The timer is one-shot like the guard's, so a lost re-check deletes it twice.
+//
+// process_lvgl() runs due one-shots itself and never enters LVGL's dispatch loop,
+// so this calls lv_timer_handler() directly, with every other timer paused so
+// the pass runs this one alone.
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "OperationTimeoutGuard: LVGL tolerates a timer deleting itself in its callback",
+                 "[operation_timeout_guard]") {
+    const int timers_before = count_lvgl_timers();
+    int runs = 0;
+
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t* t) {
+            ++*static_cast<int*>(lv_timer_get_user_data(t));
+            lv_timer_delete(t);
+        },
+        20, &runs);
+    lv_timer_set_repeat_count(timer, 1);
+    REQUIRE(count_lvgl_timers() == timers_before + 1);
+
+    std::vector<lv_timer_t*> paused_here;
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
+        if (t != timer && !lv_timer_get_paused(t)) {
+            lv_timer_pause(t);
+            paused_here.push_back(t);
+        }
+    }
+
+    lv_tick_inc(50);
+    lv_timer_handler();
+
+    for (lv_timer_t* t : paused_here) {
+        lv_timer_resume(t);
+    }
+
+    REQUIRE(runs == 1);
+    REQUIRE(count_lvgl_timers() == timers_before);
 }
