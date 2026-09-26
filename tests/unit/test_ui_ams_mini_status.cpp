@@ -62,6 +62,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: set_width applies its width argum
     REQUIRE(UITest::find_by_name(w, "ams_spools_container") == spools);
     REQUIRE(lv_obj_has_flag(spools, LV_OBJ_FLAG_HIDDEN));
 
+    // Bar mode renders ams_lane_bar widgets: each bar carries the widget's
+    // named children, so a regression back to hand-rolled slot columns shows
+    // up here as a missing bar_bg.
+    lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
+    REQUIRE(bars != nullptr);
+    lv_obj_t* bar0 = lv_obj_get_child(bars, 0);
+    REQUIRE(bar0 != nullptr);
+    REQUIRE(UITest::find_by_name(bar0, "bar_bg") != nullptr);
+
     // ...and coming back up shows it again.
     ui_ams_mini_status_set_width(w, 260);
     helix::ui::UpdateQueue::instance().drain();

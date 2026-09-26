@@ -49,5 +49,14 @@ namespace helix::ui {
  */
 void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_count,
                                int32_t bar_width, int32_t bar_height);
+
+/**
+ * @brief Re-apply create-time sizing to an existing bar.
+ *
+ * Pooled consumers (mini-status bar mode) keep their bars across rebuilds and
+ * resize them as the measured layout moves. bar_width/bar_height have the
+ * same meaning as the create attrs.
+ */
+void ams_lane_bar_resize(lv_obj_t* bar, int32_t bar_width, int32_t bar_height);
 } // namespace helix::ui
 #endif

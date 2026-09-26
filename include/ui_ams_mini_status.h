@@ -25,13 +25,14 @@ extern "C" {
  * - "+N" overflow indicator when more than max_visible slots exist
  * - Auto-hides when slot_count == 0
  *
+ * Bar mode renders through ams_lane_bar widgets driven by AmsState's per-slot
+ * subjects; the programmatic setters below feed the spool-mode cells and the
+ * slot-count-driven layout only.
+ *
  * Programmatic usage:
  * @code{.cpp}
  * lv_obj_t* indicator = ui_ams_mini_status_create(parent, 32);  // 32px height
  * ui_ams_mini_status_set_slot_count(indicator, 4);
- * ui_ams_mini_status_set_slot(indicator, 0, 0xFF5722, 75, true);  // Orange, 75% full, present
- * ui_ams_mini_status_set_slot(indicator, 1, 0x2196F3, 50, true);  // Blue, 50% full
- * ui_ams_mini_status_set_slot(indicator, 2, 0x000000, 0, false);  // Empty slot
  * @endcode
  */
 

@@ -506,6 +506,20 @@ void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_
         }
     }
 }
+
+void ams_lane_bar_resize(lv_obj_t* bar, int32_t bar_width, int32_t bar_height) {
+    if (!bar)
+        return;
+    lv_obj_set_width(bar, bar_width);
+    lv_obj_set_height(bar,
+                      bar_height + ams_draw::STATUS_LINE_HEIGHT_PX + ams_draw::STATUS_LINE_GAP_PX);
+    if (lv_obj_t* bg = lv_obj_find_by_name(bar, "bar_bg")) {
+        lv_obj_set_size(bg, bar_width, bar_height);
+    }
+    if (lv_obj_t* line = lv_obj_find_by_name(bar, "status_line")) {
+        lv_obj_set_width(line, bar_width);
+    }
+}
 } // namespace helix::ui
 
 void ui_ams_lane_bar_register(void) {

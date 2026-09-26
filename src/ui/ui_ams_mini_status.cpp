@@ -3,6 +3,7 @@
 
 #include "ui_ams_mini_status.h"
 
+#include "ui_ams_lane_bar.h"
 #include "ui_fonts.h"
 #include "ui_nav_manager.h"
 #include "ui_observer_guard.h"
@@ -43,7 +44,6 @@ static constexpr int32_t MIN_BAR_WIDTH_PX = 3;
 static constexpr int32_t MAX_BAR_WIDTH_PX = 16;
 
 /** Border radius for bar corners in pixels (very rounded appearance) */
-static constexpr int32_t BAR_BORDER_RADIUS_PX = 8;
 
 /**
  * Smallest spool graphic the wide view will draw (px).
@@ -173,19 +173,6 @@ static inline float fill_level_from_pct(int fill_pct) {
 }
 
 /**
- * @brief Per-slot data stored for each bar
- */
-struct SlotBarData {
-    ams_draw::SlotColumn col; // Shared slot column (container, bar_bg, bar_fill, status_line)
-    uint32_t color_rgb = 0x808080;
-    int fill_pct = 100;
-    bool present = false;                                         // Filament present in slot
-    bool loaded = false;                                          // Filament loaded to toolhead
-    bool has_error = false;                                       // Slot is in error/blocked state
-    helix::SlotError::Severity severity = helix::SlotError::INFO; // Error severity level
-};
-
-/**
  * @brief Per-unit row info for multi-unit stacked display
  */
 struct UnitRowInfo {
@@ -223,8 +210,10 @@ struct AmsMiniStatusData {
     lv_obj_t* spools_container = nullptr; // Container for wide spool cells
     lv_obj_t* overflow_label = nullptr;   // "+N" overflow indicator
 
-    // Per-slot data
-    SlotBarData slots[AMS_MINI_STATUS_MAX_VISIBLE];
+    // Bar-mode lane pool: one ams_lane_bar widget per visible slot, created
+    // lazily, reparented between unit rows and resized as the measured layout
+    // moves. Rendering inside each bar comes from the AmsState per-slot subjects.
+    lv_obj_t* lane_bars[AMS_MINI_STATUS_MAX_VISIBLE] = {};
 
     // Per-slot data for the spool render mode (sized to slot_count; uncapped for multi-unit)
     std::vector<SpoolCellData> spool_cells;
@@ -270,18 +259,6 @@ static void sync_from_ams_state(AmsMiniStatusData* data);
 // ============================================================================
 // Internal helpers
 // ============================================================================
-
-/** Helper to style a SlotBarData using shared drawing utils */
-static void apply_slot_style(SlotBarData* slot) {
-    ams_draw::BarStyleParams params;
-    params.color_rgb = slot->color_rgb;
-    params.fill_pct = slot->fill_pct;
-    params.is_present = slot->present;
-    params.is_loaded = slot->loaded;
-    params.has_error = slot->has_error;
-    params.severity = slot->severity;
-    ams_draw::style_slot_bar(slot->col, params, BAR_BORDER_RADIUS_PX);
-}
 
 /**
  * @brief Create or get a unit row container for multi-unit stacked layout
@@ -336,6 +313,20 @@ static int effective_max_visible(const AmsMiniStatusData* data) {
     // clamped to <= AMS_MINI_STATUS_MAX_VISIBLE (8) by the setter, so a
     // second min(max_visible, 8) here was always a no-op.
     return data->max_visible;
+}
+
+/** Create one pooled lane bar bound to its slot's subjects. */
+static lv_obj_t* create_lane_bar(lv_obj_t* parent, int slot_index, int32_t bar_width,
+                                 int32_t bar_height) {
+    const std::string idx = std::to_string(slot_index);
+    const std::string w = std::to_string(bar_width);
+    const std::string h = std::to_string(bar_height);
+    const char* attrs[] = {"slot_index", idx.c_str(), "bar_width", w.c_str(),
+                           "bar_height", h.c_str(),   nullptr};
+    lv_obj_t* bar = static_cast<lv_obj_t*>(lv_xml_create(parent, "ams_lane_bar", attrs));
+    if (!bar)
+        spdlog::error("[AmsMiniStatus] ams_lane_bar creation failed for slot {}", slot_index);
+    return bar;
 }
 
 /** Rebuild the bars based on slot_count, max_visible, and unit_count */
@@ -489,34 +480,27 @@ static void rebuild_bars(AmsMiniStatusData* data) {
                 if (global_idx >= AMS_MINI_STATUS_MAX_VISIBLE)
                     break;
 
-                SlotBarData* slot = &data->slots[global_idx];
+                lv_obj_t* bar = data->lane_bars[global_idx];
 
                 if (global_idx < visible_count) {
-                    if (!slot->col.container) {
-                        // Create new slot column in this row
-                        slot->col = ams_draw::create_slot_column(row, bar_width, bar_height,
-                                                                 BAR_BORDER_RADIUS_PX);
+                    if (!bar) {
+                        bar = create_lane_bar(row, global_idx, bar_width, bar_height);
+                        data->lane_bars[global_idx] = bar;
                     } else {
-                        if (lv_obj_get_parent(slot->col.container) != row) {
-                            // Reparent slot container into correct unit row
-                            lv_obj_set_parent(slot->col.container, row);
+                        if (lv_obj_get_parent(bar) != row) {
+                            // Reparent the pooled bar into its unit row
+                            lv_obj_set_parent(bar, row);
                         }
-                        // Update existing bar dimensions
-                        lv_obj_set_width(slot->col.container, bar_width);
-                        lv_obj_set_width(slot->col.bar_bg, bar_width);
-                        lv_obj_set_width(slot->col.status_line, bar_width);
+                        helix::ui::ams_lane_bar_resize(bar, bar_width, bar_height);
                     }
 
                     // Override to fill row height (multi-unit responsive mode)
-                    lv_obj_set_height(slot->col.container, LV_PCT(100));
-                    lv_obj_set_style_flex_grow(slot->col.bar_bg, 1, LV_PART_MAIN);
+                    lv_obj_set_height(bar, LV_PCT(100));
+                    lv_obj_set_style_flex_grow(lv_obj_find_by_name(bar, "bar_bg"), 1, LV_PART_MAIN);
 
-                    lv_obj_remove_flag(slot->col.container, LV_OBJ_FLAG_HIDDEN);
-                    apply_slot_style(slot);
-                } else {
-                    if (slot->col.container) {
-                        lv_obj_add_flag(slot->col.container, LV_OBJ_FLAG_HIDDEN);
-                    }
+                    lv_obj_remove_flag(bar, LV_OBJ_FLAG_HIDDEN);
+                } else if (bar) {
+                    lv_obj_add_flag(bar, LV_OBJ_FLAG_HIDDEN);
                 }
             }
 
@@ -539,10 +523,9 @@ static void rebuild_bars(AmsMiniStatusData* data) {
             if (data->unit_rows[u].row_container) {
                 // Move children back to bars_container before deleting the row
                 for (int i = 0; i < AMS_MINI_STATUS_MAX_VISIBLE; ++i) {
-                    SlotBarData* slot = &data->slots[i];
-                    if (slot->col.container && lv_obj_get_parent(slot->col.container) ==
-                                                   data->unit_rows[u].row_container) {
-                        lv_obj_set_parent(slot->col.container, data->bars_container);
+                    lv_obj_t* bar = data->lane_bars[i];
+                    if (bar && lv_obj_get_parent(bar) == data->unit_rows[u].row_container) {
+                        lv_obj_set_parent(bar, data->bars_container);
                     }
                 }
                 condemn_row(data->unit_rows[u].row_container);
@@ -567,29 +550,20 @@ static void rebuild_bars(AmsMiniStatusData* data) {
 
         // Create/update bars
         for (int i = 0; i < AMS_MINI_STATUS_MAX_VISIBLE; i++) {
-            SlotBarData* slot = &data->slots[i];
+            lv_obj_t* bar = data->lane_bars[i];
 
             if (i < visible_count) {
-                if (!slot->col.container) {
-                    slot->col = ams_draw::create_slot_column(data->bars_container, bar_width,
-                                                             bar_height, BAR_BORDER_RADIUS_PX);
+                if (!bar) {
+                    bar = create_lane_bar(data->bars_container, i, bar_width, bar_height);
+                    data->lane_bars[i] = bar;
                 } else {
                     // Update existing bar dimensions (size may have changed)
-                    lv_obj_set_width(slot->col.container, bar_width);
-                    lv_obj_set_height(slot->col.container, bar_height +
-                                                               ams_draw::STATUS_LINE_HEIGHT_PX +
-                                                               ams_draw::STATUS_LINE_GAP_PX);
-                    lv_obj_set_width(slot->col.bar_bg, bar_width);
-                    lv_obj_set_height(slot->col.bar_bg, bar_height);
-                    lv_obj_set_width(slot->col.status_line, bar_width);
+                    helix::ui::ams_lane_bar_resize(bar, bar_width, bar_height);
                 }
 
-                lv_obj_remove_flag(slot->col.container, LV_OBJ_FLAG_HIDDEN);
-                apply_slot_style(slot);
-            } else {
-                if (slot->col.container) {
-                    lv_obj_add_flag(slot->col.container, LV_OBJ_FLAG_HIDDEN);
-                }
+                lv_obj_remove_flag(bar, LV_OBJ_FLAG_HIDDEN);
+            } else if (bar) {
+                lv_obj_add_flag(bar, LV_OBJ_FLAG_HIDDEN);
             }
         }
     }
@@ -1275,16 +1249,6 @@ void ui_ams_mini_status_set_slot_full(lv_obj_t* obj, int slot_index, uint32_t co
     if (!data || slot_index < 0)
         return;
 
-    // Bar-mode cache (capped to the visible bar array). Preserve the existing
-    // immediate restyle so bar rendering is unchanged.
-    if (slot_index < AMS_MINI_STATUS_MAX_VISIBLE) {
-        SlotBarData* slot = &data->slots[slot_index];
-        slot->color_rgb = color_rgb;
-        slot->fill_pct = std::clamp(fill_pct, 0, 100);
-        slot->present = present;
-        apply_slot_style(slot);
-    }
-
     // Spool-mode cache (uncapped; multi-unit safe).
     if (static_cast<int>(data->spool_cells.size()) <= slot_index)
         data->spool_cells.resize(slot_index + 1);
@@ -1436,19 +1400,6 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
         // IFS-style backends with a user override but no Spoolman id.
         const bool assigned = slot.spoolman_id > 0 || !slot.material.empty() ||
                               !slot.brand.empty() || !slot.spool_name.empty();
-
-        // Bar-mode cache (capped at MAX_VISIBLE).
-        if (i < AMS_MINI_STATUS_MAX_VISIBLE) {
-            SlotBarData* slot_bar = &data->slots[i];
-            slot_bar->color_rgb = slot.color_rgb;
-            slot_bar->fill_pct = fill_pct;
-            slot_bar->present = slot.is_present();
-            slot_bar->loaded = active;
-            slot_bar->has_error =
-                (slot.status == helix::SlotStatus::BLOCKED || slot.error.has_value());
-            slot_bar->severity =
-                slot.error.has_value() ? slot.error->severity : helix::SlotError::INFO;
-        }
 
         // Spool-mode cache (uncapped).
         SpoolCellData& c = data->spool_cells[i];
@@ -1613,6 +1564,7 @@ static void ui_ams_mini_status_xml_apply(lv_xml_parser_state_t* state, const cha
 }
 
 void ui_ams_mini_status_init(void) {
+    ui_ams_lane_bar_register();
     lv_xml_register_widget("ams_mini_status", ui_ams_mini_status_xml_create,
                            ui_ams_mini_status_xml_apply);
     spdlog::trace("[AmsMiniStatus] Registered ams_mini_status XML widget");
