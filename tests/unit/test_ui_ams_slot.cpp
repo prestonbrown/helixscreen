@@ -993,3 +993,90 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot paints
     ams.set_active_backend(0);
     ams.clear_backends();
 }
+
+// The material label follows the slot's backend too: backend 0's lane 0 and a
+// secondary backend's lane 0 are different lanes. Driven through the backend
+// mocks and AmsState's sync so the label reads what write() copied from
+// SlotInfo::material, not a subject poked by hand.
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot shows its own material",
+                 "[ui][ams_slot][multi_backend]") {
+    ui_ams_slot_register();
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+
+    auto primary = AmsBackend::create_mock(4);
+    auto* primary_ptr = static_cast<AmsBackendMock*>(primary.get());
+    SlotInfo pri = primary_ptr->get_slot_info(0);
+    pri.material = "PLA";
+    helix::test::apply_edit(*primary_ptr, 0, pri);
+
+    auto secondary = AmsBackend::create_mock(4);
+    auto* secondary_ptr = static_cast<AmsBackendMock*>(secondary.get());
+    SlotInfo sec = secondary_ptr->get_slot_info(0);
+    sec.material = "PETG";
+    helix::test::apply_edit(*secondary_ptr, 0, sec);
+
+    ams.set_backend(std::move(primary));
+    const int second = ams.add_backend(std::move(secondary));
+    REQUIRE(second == 1);
+    ams.sync_from_backend();
+    ams.sync_backend(second);
+
+    ams.set_active_backend(second);
+    process_lvgl(50);
+    lv_obj_t* slot = create_ams_slot(test_screen(), 0);
+    REQUIRE(slot != nullptr);
+    process_lvgl(50);
+
+    lv_obj_t* material_label = UITest::find_by_name(slot, "material_label");
+    REQUIRE(material_label != nullptr);
+    CHECK(std::string(UITest::get_text(material_label)) == "PETG");
+
+    lv_obj_delete(slot);
+    ams.set_active_backend(0);
+    ams.clear_backends();
+}
+
+// The tool badge reads the slot's own backend's mapping, not backend 0's: the
+// secondary's lane 0 is remapped to T3 while backend 0's lane 0 keeps its
+// seeded T0.
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot shows its own tool badge",
+                 "[ui][ams_slot][multi_backend]") {
+    ui_ams_slot_register();
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+
+    auto primary = AmsBackend::create_mock(4);
+    auto secondary = AmsBackend::create_mock(4);
+    auto* secondary_ptr = static_cast<AmsBackendMock*>(secondary.get());
+    SlotInfo sec = secondary_ptr->get_slot_info(0);
+    sec.mapped_tool = 3;
+    helix::test::apply_edit(*secondary_ptr, 0, sec);
+
+    ams.set_backend(std::move(primary));
+    const int second = ams.add_backend(std::move(secondary));
+    REQUIRE(second == 1);
+    ams.sync_from_backend();
+    ams.sync_backend(second);
+
+    ams.set_active_backend(second);
+    process_lvgl(50);
+    lv_obj_t* slot = create_ams_slot(test_screen(), 0);
+    REQUIRE(slot != nullptr);
+    process_lvgl(50);
+
+    // The two backends really disagree on lane 0's tool.
+    REQUIRE(ams.get_backend(0)->get_slot_info(0).mapped_tool == 0);
+    REQUIRE(ams.get_backend(second)->get_slot_info(0).mapped_tool == 3);
+
+    lv_obj_t* badge_bg = UITest::find_by_name(slot, "tool_badge");
+    REQUIRE(badge_bg != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(badge_bg, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* badge_label = UITest::find_by_name(slot, "tool_badge_label");
+    REQUIRE(badge_label != nullptr);
+    CHECK(std::string(UITest::get_text(badge_label)) == "T3");
+
+    lv_obj_delete(slot);
+    ams.set_active_backend(0);
+    ams.clear_backends();
+}

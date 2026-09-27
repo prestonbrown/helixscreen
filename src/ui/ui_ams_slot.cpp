@@ -45,6 +45,9 @@ using namespace helix;
  */
 struct AmsSlotData {
     int slot_index = -1;
+    // Backend this slot's dynamic subjects were bound to (the active backend
+    // at setup time), matching what the embedded lane spool is pointed at.
+    int backend_index = 0;
     int total_count = 4; // Total slots being displayed (for stagger calculation)
 
     // Last lane classification seen from the per-slot lane_state subject. The
@@ -71,9 +74,11 @@ struct AmsSlotData {
     // recreated on backend rediscovery - so that observer needs a token
     // that expires when AmsState tears the subject down (L084). For backend 0
     // the accessor returns AmsState's subjects lifetime. MUST be reset BEFORE
-    // the matching observer (see cleanup paths, #705).
+    // the matching observer (see cleanup paths, #705). The lane_state and
+    // material tokens follow the same rule for their own per-backend subjects.
     SubjectLifetime status_lifetime;
     SubjectLifetime lane_state_lifetime;
+    SubjectLifetime material_lifetime;
 
     lv_obj_t* spool_container = nullptr; // Container for the lane spool + badges
 
@@ -138,8 +143,10 @@ static void unregister_slot_data(lv_obj_t* obj) {
             // are dynamic; wrong order = remove on a freed subject, #705).
             data->status_lifetime.reset();
             data->lane_state_lifetime.reset();
+            data->material_lifetime.reset();
             data->status_observer.reset();
             data->lane_state_observer.reset();
+            data->material_observer.reset();
             data->current_slot_observer.reset();
             data->filament_loaded_observer.reset();
             data->active_loaded_observer.reset();
@@ -166,8 +173,10 @@ static void cleanup_all_slot_data() {
         // dynamic-subject lifetime first (same #705 ordering as above).
         data->status_lifetime.reset();
         data->lane_state_lifetime.reset();
+        data->material_lifetime.reset();
         data->status_observer.release();
         data->lane_state_observer.release();
+        data->material_observer.release();
         data->current_slot_observer.release();
         data->filament_loaded_observer.release();
         data->active_loaded_observer.release();
@@ -217,8 +226,8 @@ static void apply_material_label(AmsSlotData* data, const char* material) {
 static void refresh_slot_material_label(AmsSlotData* data) {
     if (!data || !data->material_label)
         return;
-    lv_subject_t* material_subject =
-        AmsState::instance().get_slot_material_subject(data->slot_index);
+    lv_subject_t* material_subject = AmsState::instance().get_slot_material_subject(
+        data->backend_index, data->slot_index, data->material_lifetime);
     apply_material_label(data,
                          material_subject ? lv_subject_get_string(material_subject) : nullptr);
 }
@@ -411,15 +420,18 @@ static void evaluate_pulse_state(AmsSlotData* data) {
  * @brief Update tool badge based on slot's mapped_tool value
  *
  * Shows "T0", "T1", etc. when a tool is mapped to this slot.
- * Hidden when mapped_tool == -1 (no tool assigned).
+ * Hidden when mapped_tool == -1 (no tool assigned). The hide policy is the
+ * slot's own backend's: a mixed rig can pair a tool changer with a lane-based
+ * system, and only the changer's slots get the redundant badge.
  */
-static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_override) {
+static void apply_tool_badge(AmsSlotData* data, int backend_index, int mapped_tool,
+                             bool is_override) {
     if (!data || !data->tool_badge_bg) {
         return;
     }
 
     // Tool changers: badge is redundant with toolhead label below
-    auto* backend = AmsState::instance().get_backend(0);
+    auto* backend = AmsState::instance().get_backend(backend_index);
     if (backend && backend->should_hide_slot_tool_badge()) {
         lv_obj_add_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
         return;
@@ -497,9 +509,11 @@ static void setup_slot_observers(AmsSlotData* data) {
     // secondary backend the subject is dynamic (recreated on rediscovery), so
     // the paired SubjectLifetime member keeps the observer from firing on a
     // freed subject. Reset the lifetime BEFORE rebinding (the accessor
-    // overwrites it).
+    // overwrites it). Lane state and material follow the same rule.
     int backend_idx = state.active_backend_index();
+    data->backend_index = backend_idx;
     data->status_lifetime.reset();
+    data->material_lifetime.reset();
     lv_subject_t* status_subject =
         state.get_slot_status_subject(backend_idx, data->slot_index, data->status_lifetime);
     lv_subject_t* lane_state_subject =
@@ -536,7 +550,11 @@ static void setup_slot_observers(AmsSlotData* data) {
     // change (type edited while color is unchanged) repaints on EVERY consumer
     // — AmsPanel, AmsOverviewPanel, AmsDetail — with no container re-reading it
     // imperatively (#1065, native ZMOD AD5X "material stuck, color updates").
-    lv_subject_t* material_subject = state.get_slot_material_subject(data->slot_index);
+    // Resolved per backend like status/lane_state, so a slot on a secondary
+    // backend reads that backend's lane, not backend 0's lane of the same
+    // index.
+    lv_subject_t* material_subject =
+        state.get_slot_material_subject(backend_idx, data->slot_index, data->material_lifetime);
     if (material_subject) {
         data->material_observer = helix::ui::observe_string<lv_obj_t>(
             material_subject, obj,
@@ -550,7 +568,7 @@ static void setup_slot_observers(AmsSlotData* data) {
                 // lane_state subject fires and the embedded ams_lane_spool
                 // ghosts (or un-ghosts) itself.
             },
-            state.get_subjects_lifetime());
+            data->material_lifetime);
     }
 
     if (current_slot_subject) {
@@ -647,14 +665,14 @@ static void setup_slot_observers(AmsSlotData* data) {
         apply_material_label(data, lv_subject_get_string(material_subject));
     }
 
-    // Update tool badge from backend. Material and the error dot are NOT read
-    // here - material flows from the per-slot material subject via the observer
-    // above, and the error dot is the embedded ams_lane_spool's, driven by the
-    // has_error/severity subjects.
-    AmsBackend* backend = state.get_backend();
+    // Update tool badge from the slot's own backend. Material and the error
+    // dot are NOT read here - material flows from the per-slot material
+    // subject via the observer above, and the error dot is the embedded
+    // ams_lane_spool's, driven by the has_error/severity subjects.
+    AmsBackend* backend = state.get_backend(backend_idx);
     if (backend) {
         SlotInfo slot = backend->get_slot_info(data->slot_index);
-        apply_tool_badge(data, slot.mapped_tool, slot.tool_mapping_override);
+        apply_tool_badge(data, backend_idx, slot.mapped_tool, slot.tool_mapping_override);
     }
 
     spdlog::trace("[AmsSlot] Created observers for slot {}", data->slot_index);
@@ -760,6 +778,7 @@ static void ams_slot_xml_apply(lv_xml_parser_state_t* state, const char** attrs)
                 // Clear existing observers
                 data->status_lifetime.reset();
                 data->lane_state_lifetime.reset();
+                data->material_lifetime.reset();
                 data->status_observer.reset();
                 data->lane_state_observer.reset();
                 data->material_observer.reset();
@@ -842,6 +861,7 @@ void ui_ams_slot_set_index(lv_obj_t* obj, int slot_index) {
     // Clear existing observers, dynamic-subject tokens first (#705)
     data->status_lifetime.reset();
     data->lane_state_lifetime.reset();
+    data->material_lifetime.reset();
     data->status_observer.reset();
     data->lane_state_observer.reset();
     data->current_slot_observer.reset();
@@ -871,10 +891,10 @@ void ui_ams_slot_refresh(lv_obj_t* obj) {
     // Only update non-observer properties here. Color, fill, status, lane
     // state, current-slot highlight, material and the error dot are all driven
     // by observers (this widget's or the embedded ams_lane_spool's).
-    AmsBackend* backend = AmsState::instance().get_backend();
+    AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
     if (backend) {
         SlotInfo slot = backend->get_slot_info(data->slot_index);
-        apply_tool_badge(data, slot.mapped_tool, slot.tool_mapping_override);
+        apply_tool_badge(data, data->backend_index, slot.mapped_tool, slot.tool_mapping_override);
     }
 
     spdlog::trace("[AmsSlot] Refreshed slot {}", data->slot_index);

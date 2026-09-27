@@ -1658,6 +1658,13 @@ lv_subject_t* AmsState::get_slot_error_severity_subject(int backend_index, int s
         backend_index == 0 ? get_slot_error_severity_subject(slot_index) : nullptr);
 }
 
+lv_subject_t* AmsState::get_slot_material_subject(int backend_index, int slot_index,
+                                                  SubjectLifetime& lifetime) {
+    return backend_slot_subject(
+        backend_index, slot_index, lifetime, &BackendSlotSubjects::materials,
+        backend_index == 0 ? get_slot_material_subject(slot_index) : nullptr);
+}
+
 void AmsState::BackendSlotSubjects::init(int count) {
     slot_count = count;
     colors.resize(count);
@@ -1666,6 +1673,8 @@ void AmsState::BackendSlotSubjects::init(int count) {
     lane_states.resize(count);
     has_errors.resize(count);
     severities.resize(count);
+    materials.resize(count);
+    materials_bufs.resize(count);
     for (int i = 0; i < count; ++i) {
         lv_subject_init_int(&colors[i], static_cast<int>(AMS_DEFAULT_SLOT_COLOR));
         lv_subject_init_int(&statuses[i], static_cast<int>(SlotStatus::UNKNOWN));
@@ -1673,6 +1682,8 @@ void AmsState::BackendSlotSubjects::init(int count) {
         lv_subject_init_int(&lane_states[i], static_cast<int>(helix::ui::LaneState::Empty));
         lv_subject_init_int(&has_errors[i], 0);
         lv_subject_init_int(&severities[i], static_cast<int>(SlotError::Severity::INFO));
+        lv_subject_init_string(&materials[i], materials_bufs[i].data(), nullptr, MATERIAL_BUF_SIZE,
+                               "");
     }
     // Fresh lifetime token: observers bound via the token'd accessors expire
     // when deinit() invalidates it on backend rediscovery.
@@ -1690,7 +1701,7 @@ void AmsState::BackendSlotSubjects::deinit() {
         lv_subject_deinit(&c);
     for (auto& s : statuses)
         lv_subject_deinit(&s);
-    for (auto* group : {&fills, &lane_states, &has_errors, &severities})
+    for (auto* group : {&fills, &lane_states, &has_errors, &severities, &materials})
         for (auto& subj : *group)
             lv_subject_deinit(&subj);
     colors.clear();
@@ -1699,6 +1710,8 @@ void AmsState::BackendSlotSubjects::deinit() {
     lane_states.clear();
     has_errors.clear();
     severities.clear();
+    materials.clear();
+    materials_bufs.clear();
     slot_count = 0;
 }
 
@@ -1712,6 +1725,11 @@ void AmsState::BackendSlotSubjects::write(int i, const SlotInfo& slot) {
     slot_error_state(slot, has_error, severity);
     lv_subject_set_int(&has_errors[i], has_error ? 1 : 0);
     lv_subject_set_int(&severities[i], severity);
+    // A string subject with no prev_buf notifies on every copy, so gate on the
+    // value like write_slot_subjects() does for the primary backend.
+    if (strcmp(lv_subject_get_string(&materials[i]), slot.material.c_str()) != 0) {
+        lv_subject_copy_string(&materials[i], slot.material.c_str());
+    }
 }
 
 void AmsState::sync_backend(int backend_index) {
