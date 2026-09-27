@@ -170,11 +170,12 @@ gradle.taskGraph.whenReady { graph ->
 //     config/settings.json.template is documentation, not an input.
 //   crash*, .crash_restart_count           resurrect a dismissed crash dialog
 //   tool_spools.json, telemetry_*.json     per-device runtime state
+//   user_filaments.json                    the user's own filament products
 //   .helix-screen.lock, *.corrupt          runtime scratch
 def nonShippableConfig = [
     'settings.json', 'settings-test.json', 'helixconfig*',
     'crash*.txt', 'crash_history.json', '.crash_restart_count',
-    'tool_spools.json', 'telemetry_*.json',
+    'tool_spools.json', 'telemetry_*.json', 'user_filaments.json',
     '.helix-screen.lock', '*.corrupt'
 ]
 
