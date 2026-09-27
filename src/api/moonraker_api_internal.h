@@ -786,35 +786,44 @@ inline std::string json_string_list_or(const nlohmann::json& obj, const char* ke
  * (which use this to decide if a tool actually extrudes); unit mismatches
  * (mm vs grams) don't affect that decision.
  *
- * Non-numeric / unparseable entries are recorded as 0.0 so the index alignment
- * with tool_index is preserved.
+ * Numeric strings ("12.5") parse like numbers, since some Moonraker forks write
+ * metadata as JSON strings (prestonbrown/helixscreen#1713). Any entry that still
+ * does not parse empties the whole result: a 0.0 in its place would read as
+ * "tool unused" and skip that tool's checks.
  *
  * Returns an empty vector when the slicer emitted no per-tool data. Callers
  * MUST treat empty as "unknown — check every tool" rather than "all zero".
  */
 inline std::vector<double> parse_filament_weights(const nlohmann::json& obj) {
-    std::vector<double> weights;
-
-    auto push_number_or_zero = [&weights](const nlohmann::json& v) {
-        if (v.is_number()) {
-            weights.push_back(v.get<double>());
-        } else {
-            weights.push_back(0.0);
+    auto parse_text = [](const std::string& text, double& out) {
+        try {
+            out = std::stod(text);
+        } catch (...) {
+            return false;
         }
+        return std::isfinite(out);
+    };
+    auto parse_array = [&parse_text](const nlohmann::json& arr) {
+        std::vector<double> weights;
+        for (const auto& v : arr) {
+            double w = 0.0;
+            if (v.is_number()) {
+                w = v.get<double>();
+            } else if (!v.is_string() || !parse_text(v.get<std::string>(), w)) {
+                return std::vector<double>{};
+            }
+            weights.push_back(w);
+        }
+        return weights;
     };
 
     if (obj.contains("filament_weights") && obj["filament_weights"].is_array()) {
-        for (const auto& w : obj["filament_weights"]) {
-            push_number_or_zero(w);
-        }
-        return weights;
+        return parse_array(obj["filament_weights"]);
     }
     if (obj.contains("filament_used") && obj["filament_used"].is_array()) {
-        for (const auto& w : obj["filament_used"]) {
-            push_number_or_zero(w);
-        }
-        return weights;
+        return parse_array(obj["filament_used"]);
     }
+    std::vector<double> weights;
     if (obj.contains("filament_used") && obj["filament_used"].is_string()) {
         std::string used_str = obj["filament_used"].get<std::string>();
         const char* delims = ";,";
@@ -824,15 +833,13 @@ inline std::vector<double> parse_filament_weights(const nlohmann::json& obj) {
             if (end == std::string::npos) {
                 end = used_str.size();
             }
-            std::string token = used_str.substr(pos, end - pos);
-            try {
-                weights.push_back(std::stod(token));
-            } catch (...) {
-                weights.push_back(0.0);
+            double w = 0.0;
+            if (!parse_text(used_str.substr(pos, end - pos), w)) {
+                return {};
             }
+            weights.push_back(w);
             pos = end + 1;
         }
-        return weights;
     }
     return weights;
 }
