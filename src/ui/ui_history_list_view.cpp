@@ -242,7 +242,7 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
     lv_obj_t* filament_label = lv_obj_find_by_name(row, "row_filament");
     if (filament_label) {
         lv_label_set_text(filament_label,
-                          job.filament_type.empty() ? "Unknown" : job.filament_type.c_str());
+                          job.filament_type.empty() ? lv_tr("Unknown") : job.filament_type.c_str());
     }
 
     // Status text

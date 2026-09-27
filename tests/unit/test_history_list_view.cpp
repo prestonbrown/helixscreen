@@ -122,7 +122,8 @@ struct ScopedGerman {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "HistoryListView - a row's status reads in the UI language",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "HistoryListView - a row's status and filament read in the UI language",
                  "[history_list_view][history][translation]") {
     ScopedGerman german;
     REQUIRE(std::string(lv_tr("Completed")) != "Completed"); // the pack loaded
@@ -136,6 +137,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "HistoryListView - a row's status reads in t
     lv_obj_t* status = lv_obj_find_by_name(container, "row_status");
     REQUIRE(status != nullptr);
     REQUIRE(std::string(lv_label_get_text(status)) == lv_tr("Completed"));
+
+    // The test jobs carry no filament type.
+    lv_obj_t* filament = lv_obj_find_by_name(container, "row_filament");
+    REQUIRE(filament != nullptr);
+    REQUIRE(std::string(lv_label_get_text(filament)) == lv_tr("Unknown"));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "HistoryListPanel - the detail status reads in the UI language",

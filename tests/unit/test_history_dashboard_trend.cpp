@@ -1,8 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_panel_history_dashboard.h"
-
 #include "print_history_data.h"
 
 #include <vector>
@@ -58,4 +56,11 @@ TEST_CASE("count_trend_buckets: all time spans from the oldest job and keeps it"
     };
     const auto counts = count_trend_buckets(jobs, kNow, 12, kDay, true);
     REQUIRE(counts == std::vector<int>{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1});
+}
+
+TEST_CASE("count_trend_buckets: a fixed window drops a job older than its span",
+          "[history][dashboard][trend]") {
+    const auto counts =
+        count_trend_buckets({job_at(kNow - 8 * kDay, kNow - 7.5 * kDay)}, kNow, 7, kDay, false);
+    REQUIRE(counts == std::vector<int>(7, 0));
 }
