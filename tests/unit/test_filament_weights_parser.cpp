@@ -74,29 +74,38 @@ TEST_CASE("parse_filament_weights: filament_weights preferred over filament_used
     CHECK(w[1] == Catch::Approx(2.0));
 }
 
-TEST_CASE("parse_filament_weights: non-numeric array entries become 0.0",
-          "[moonraker][metadata][weights]") {
-    // Preserve index alignment with tool_index even if a value is junk.
-    json obj = {{"filament_weights", json::array({1.5, "garbage", nullptr, 4.0})}};
+TEST_CASE("parse_filament_weights: numeric strings parse like numbers",
+          "[moonraker][metadata][weights][json_coercion]") {
+    json obj = {{"filament_weights", json::array({"12.5", "0", 3.25})}};
     auto w = parse_filament_weights(obj);
 
-    REQUIRE(w.size() == 4);
-    CHECK(w[0] == Catch::Approx(1.5));
+    REQUIRE(w.size() == 3);
+    CHECK(w[0] == Catch::Approx(12.5));
     CHECK(w[1] == 0.0);
-    CHECK(w[2] == 0.0);
-    CHECK(w[3] == Catch::Approx(4.0));
+    CHECK(w[2] == Catch::Approx(3.25));
+
+    obj = {{"filament_used", json::array({"0", "4123.5"})}};
+    w = parse_filament_weights(obj);
+    REQUIRE(w.size() == 2);
+    CHECK(w[0] == 0.0);
+    CHECK(w[1] == Catch::Approx(4123.5));
 }
 
-TEST_CASE("parse_filament_weights: unparseable string tokens become 0.0",
-          "[moonraker][metadata][weights]") {
-    json obj = {{"filament_used", "1.5,xyz,,4.0"}};
-    auto w = parse_filament_weights(obj);
+// A 0.0 standing in for an entry that did not parse would read as "tool unused"
+// and skip that tool's material checks, so the whole vector becomes unknown.
+TEST_CASE("parse_filament_weights: any unparseable array entry makes the result unknown",
+          "[moonraker][metadata][weights][json_coercion]") {
+    CHECK(
+        parse_filament_weights({{"filament_weights", json::array({1.5, "garbage", 4.0})}}).empty());
+    CHECK(parse_filament_weights({{"filament_weights", json::array({1.5, nullptr, 4.0})}}).empty());
+    CHECK(parse_filament_weights({{"filament_used", json::array({"12.5", "abc"})}}).empty());
+    CHECK(parse_filament_weights({{"filament_used", json::array({"12.5", "inf"})}}).empty());
+}
 
-    REQUIRE(w.size() == 4);
-    CHECK(w[0] == Catch::Approx(1.5));
-    CHECK(w[1] == 0.0);
-    CHECK(w[2] == 0.0);
-    CHECK(w[3] == Catch::Approx(4.0));
+TEST_CASE("parse_filament_weights: any unparseable string token makes the result unknown",
+          "[moonraker][metadata][weights][json_coercion]") {
+    CHECK(parse_filament_weights({{"filament_used", "1.5,xyz,4.0"}}).empty());
+    CHECK(parse_filament_weights({{"filament_used", "1.5,,4.0"}}).empty());
 }
 
 TEST_CASE("parse_filament_weights: null filament_weights is treated as missing",

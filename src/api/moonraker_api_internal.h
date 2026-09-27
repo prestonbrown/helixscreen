@@ -14,6 +14,7 @@
 #if !defined(HELIX_PLATFORM_ESP32)
 #include "hv/HttpMessage.h" // HttpResponse — only the REST/HTTP sub-APIs use it
 #endif
+#include "json_utils.h"
 #include "moonraker_api.h"
 #include "spdlog/spdlog.h"
 #include "system/telemetry_manager.h"
@@ -706,31 +707,17 @@ inline bool handle_http_response(const std::shared_ptr<HttpResponse>& resp, std:
 // JSON EXTRACTION HELPERS
 // ============================================================================
 // Null-safe JSON field extraction. Unlike json::value(), handles fields that
-// exist but are null, returning the default value in both cases.
+// exist but are null, returning the default value in both cases. Plain numbers
+// go through helix::json_util (json_utils.h), which also coerces the JSON strings
+// some Moonraker forks send (prestonbrown/helixscreen#1713).
 
 /**
- * @brief Null-safe numeric value extraction from JSON
+ * @brief A count such as layer_count, as a uint32_t
  *
- * Unlike json::value(), this handles fields that exist but are null.
- * Returns default_val if key is missing OR if value is null/non-numeric.
- *
- * @tparam T Numeric type (double, int, uint64_t, size_t, etc.)
- * @param j JSON object to extract from
- * @param key Field name to extract
- * @param default_val Value to return if missing, null, or non-numeric
- * @return Extracted value or default
- *
- * Example usage:
- *   double temp = json_number_or(obj, "temperature", 0.0);
- *   int count = json_number_or(obj, "layer_count", 0);
- *   size_t size = json_number_or(obj, "size", static_cast<size_t>(0));
+ * A negative or out-of-range value reads as 0 rather than wrapping into a huge count.
  */
-template <typename T>
-inline T json_number_or(const nlohmann::json& j, const char* key, T default_val) {
-    if (j.contains(key) && j[key].is_number()) {
-        return j[key].get<T>();
-    }
-    return default_val;
+inline uint32_t json_count_or_zero(const nlohmann::json& j, const char* key) {
+    return static_cast<uint32_t>(std::max(0, helix::json_util::safe_int(j, key)));
 }
 
 /**
@@ -799,35 +786,44 @@ inline std::string json_string_list_or(const nlohmann::json& obj, const char* ke
  * (which use this to decide if a tool actually extrudes); unit mismatches
  * (mm vs grams) don't affect that decision.
  *
- * Non-numeric / unparseable entries are recorded as 0.0 so the index alignment
- * with tool_index is preserved.
+ * Numeric strings ("12.5") parse like numbers, since some Moonraker forks write
+ * metadata as JSON strings (prestonbrown/helixscreen#1713). Any entry that still
+ * does not parse empties the whole result: a 0.0 in its place would read as
+ * "tool unused" and skip that tool's checks.
  *
  * Returns an empty vector when the slicer emitted no per-tool data. Callers
  * MUST treat empty as "unknown — check every tool" rather than "all zero".
  */
 inline std::vector<double> parse_filament_weights(const nlohmann::json& obj) {
-    std::vector<double> weights;
-
-    auto push_number_or_zero = [&weights](const nlohmann::json& v) {
-        if (v.is_number()) {
-            weights.push_back(v.get<double>());
-        } else {
-            weights.push_back(0.0);
+    auto parse_text = [](const std::string& text, double& out) {
+        try {
+            out = std::stod(text);
+        } catch (...) {
+            return false;
         }
+        return std::isfinite(out);
+    };
+    auto parse_array = [&parse_text](const nlohmann::json& arr) {
+        std::vector<double> weights;
+        for (const auto& v : arr) {
+            double w = 0.0;
+            if (v.is_number()) {
+                w = v.get<double>();
+            } else if (!v.is_string() || !parse_text(v.get<std::string>(), w)) {
+                return std::vector<double>{};
+            }
+            weights.push_back(w);
+        }
+        return weights;
     };
 
     if (obj.contains("filament_weights") && obj["filament_weights"].is_array()) {
-        for (const auto& w : obj["filament_weights"]) {
-            push_number_or_zero(w);
-        }
-        return weights;
+        return parse_array(obj["filament_weights"]);
     }
     if (obj.contains("filament_used") && obj["filament_used"].is_array()) {
-        for (const auto& w : obj["filament_used"]) {
-            push_number_or_zero(w);
-        }
-        return weights;
+        return parse_array(obj["filament_used"]);
     }
+    std::vector<double> weights;
     if (obj.contains("filament_used") && obj["filament_used"].is_string()) {
         std::string used_str = obj["filament_used"].get<std::string>();
         const char* delims = ";,";
@@ -837,15 +833,13 @@ inline std::vector<double> parse_filament_weights(const nlohmann::json& obj) {
             if (end == std::string::npos) {
                 end = used_str.size();
             }
-            std::string token = used_str.substr(pos, end - pos);
-            try {
-                weights.push_back(std::stod(token));
-            } catch (...) {
-                weights.push_back(0.0);
+            double w = 0.0;
+            if (!parse_text(used_str.substr(pos, end - pos), w)) {
+                return {};
             }
+            weights.push_back(w);
             pos = end + 1;
         }
-        return weights;
     }
     return weights;
 }
