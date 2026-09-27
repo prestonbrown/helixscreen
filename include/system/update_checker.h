@@ -428,6 +428,16 @@ class UpdateChecker {
     static std::string extract_installer_from_tarball(const std::string& tarball_path,
                                                       const std::string& extract_dir);
 
+    /**
+     * @brief Write the self-restart sentinel into the fallback backup dir
+     *
+     * Tells helixscreen-update.service that the app is handling its own restart.
+     * Creates the dir first: a box updated only through Moonraker may never have
+     * had ~/.helixscreen created. Exposed as public static for unit testing.
+     * @return true when the sentinel was written
+     */
+    static bool write_self_restart_sentinel();
+
     /** @brief Check if a version is dismissed (user chose to ignore) */
     bool is_version_dismissed(const std::string& version) const;
 

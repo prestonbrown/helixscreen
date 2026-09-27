@@ -2209,15 +2209,8 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     //
     // Write to ~/.helixscreen/ (survives PrivateTmp, accessible from update.service).
     // Also write legacy /tmp sentinel for backward compat with old service files.
+    write_self_restart_sentinel();
     {
-        std::string sentinel =
-            AppConstants::Update::backup_fallback_dir() + "/self_restart_sentinel";
-        std::ofstream ofs(sentinel);
-        if (ofs) {
-            spdlog::info("[UpdateChecker] Wrote self-restart sentinel: {}", sentinel);
-        } else {
-            spdlog::warn("[UpdateChecker] Failed to write sentinel: {}", sentinel);
-        }
         // Legacy location (may not work with PrivateTmp=true)
         std::ofstream ofs_legacy("/tmp/helixscreen_self_restart");
     }
@@ -2325,17 +2318,8 @@ void UpdateChecker::handle_external_update_complete() {
 
     // Write sentinel so helixscreen-update.service (systemd path watcher) skips
     // its restart — we're handling it here.  Same sentinel as self-update path.
-    {
-        std::string sentinel =
-            AppConstants::Update::backup_fallback_dir() + "/self_restart_sentinel";
-        std::ofstream ofs(sentinel);
-        if (ofs) {
-            spdlog::info("[UpdateChecker] Wrote self-restart sentinel: {}", sentinel);
-        } else {
-            spdlog::warn("[UpdateChecker] Failed to write sentinel: {}", sentinel);
-        }
-        std::ofstream ofs_legacy("/tmp/helixscreen_self_restart");
-    }
+    write_self_restart_sentinel();
+    { std::ofstream ofs_legacy("/tmp/helixscreen_self_restart"); }
 
     // Write restart marker so watchdog knows this exit is expected
     {
@@ -2385,6 +2369,23 @@ void UpdateChecker::handle_external_update_complete() {
 // ============================================================================
 // Static helpers
 // ============================================================================
+
+bool UpdateChecker::write_self_restart_sentinel() {
+    const std::string dir = AppConstants::Update::backup_fallback_dir();
+    const std::string sentinel = dir + "/self_restart_sentinel";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    if (ec) {
+        spdlog::warn("[UpdateChecker] Failed to create {}: {}", dir, ec.message());
+    }
+    std::ofstream ofs(sentinel);
+    if (!ofs) {
+        spdlog::warn("[UpdateChecker] Failed to write sentinel: {}", sentinel);
+        return false;
+    }
+    spdlog::info("[UpdateChecker] Wrote self-restart sentinel: {}", sentinel);
+    return true;
+}
 
 std::string UpdateChecker::extract_installer_from_tarball(const std::string& tarball_path,
                                                           const std::string& extract_dir) {

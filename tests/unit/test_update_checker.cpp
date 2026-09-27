@@ -151,6 +151,22 @@ ParsedRelease parse_github_release(const std::string& json_str) {
 // The three-way update rule lives in compare_channel_version() and is pinned
 // against that shipped function at the bottom of this file. What remains here
 // is the parse_version behaviour the rule is built on.
+TEST_CASE("Self-restart sentinel creates a missing fallback dir", "[update_checker][sentinel]") {
+    namespace fs = std::filesystem;
+    const std::string prev = AppConstants::Update::detail::backup_fallback_dir_ref();
+    const fs::path root =
+        fs::temp_directory_path() / ("helix-sentinel-" + std::to_string(getpid()));
+    const fs::path dir = root / ".helixscreen";
+    fs::remove_all(root);
+    AppConstants::Update::detail::backup_fallback_dir_ref() = dir.string();
+
+    CHECK(UpdateChecker::write_self_restart_sentinel());
+    CHECK(fs::exists(dir / "self_restart_sentinel"));
+
+    AppConstants::Update::detail::backup_fallback_dir_ref() = prev;
+    fs::remove_all(root);
+}
+
 TEST_CASE("Version parsing semantics update detection rests on", "[update_checker][version]") {
     SECTION("handles v prefix in version strings") {
         // parse_version already handles v prefix

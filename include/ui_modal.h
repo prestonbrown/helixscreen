@@ -420,6 +420,9 @@ class ModalStack {
     // Get backdrop for a dialog
     lv_obj_t* backdrop_for(lv_obj_t* dialog) const;
 
+    /// Component name a dialog was shown from, or "" if it is untracked.
+    std::string component_name_for(lv_obj_t* dialog) const;
+
     // Check if a backdrop is still tracked in the stack
     bool backdrop_for_backdrop(lv_obj_t* backdrop) const;
 

@@ -279,6 +279,15 @@ lv_obj_t* ModalStack::backdrop_for(lv_obj_t* dialog) const {
     return nullptr;
 }
 
+std::string ModalStack::component_name_for(lv_obj_t* dialog) const {
+    for (const auto& entry : stack_) {
+        if (entry.dialog == dialog) {
+            return entry.component_name;
+        }
+    }
+    return "";
+}
+
 Modal* ModalStack::owner_for(lv_obj_t* dialog) const {
     for (const auto& entry : stack_) {
         if (entry.dialog == dialog) {
@@ -821,7 +830,8 @@ void Modal::hide(lv_obj_t* dialog, ModalCloseReason reason) {
         return;
     }
 
-    spdlog::info("[Modal] Hiding modal ({})", close_reason_name(reason));
+    spdlog::info("[Modal] Hiding modal '{}' ({})", stack.component_name_for(dialog),
+                 close_reason_name(reason));
 
     // An owner-less dialog (the confirmation/alert helpers, and the static
     // Modal::show factory) has no instance teardown to delegate to, but the

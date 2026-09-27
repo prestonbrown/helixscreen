@@ -20,6 +20,7 @@
 #include "ui_update_queue.h"
 
 #include "async_lifetime_guard.h"
+#include "logging_init.h"
 
 // LVGLUITestFixture registers ALL XML components, so print_cancel_confirm_modal
 // (a self-contained dialog with no subject bindings) builds its real widget
@@ -1074,4 +1075,33 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A hot-reload rebuild still reports a dismis
 
     CHECK(dismissed == 1);
     CHECK(ModalStack::instance().stack_empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "The stack names the component a dialog was shown from",
+                 "[modal][ui]") {
+    lv_obj_t* backdrop = lv_obj_create(test_screen());
+    lv_obj_t* dialog = lv_obj_create(backdrop);
+    lv_obj_t* stranger = lv_obj_create(test_screen());
+    ModalStack::instance().push(backdrop, dialog, "update_notify_modal");
+
+    CHECK(ModalStack::instance().component_name_for(dialog) == "update_notify_modal");
+    CHECK(ModalStack::instance().component_name_for(stranger).empty());
+
+    ModalStack::instance().remove(backdrop);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Hiding a static modal logs which dialog closed",
+                 "[modal][ui]") {
+    helix::logging::LogConfig cfg;
+    cfg.target = helix::logging::LogTarget::Console;
+    cfg.enable_console = false;
+    cfg.level = spdlog::level::info;
+    helix::logging::init(cfg);
+
+    lv_obj_t* dialog = Modal::show("print_cancel_confirm_modal");
+    REQUIRE(dialog != nullptr);
+    Modal::hide(dialog, ModalCloseReason::BackdropTap);
+
+    CHECK(helix::logging::tail_ring_buffer(20).find(
+              "Hiding modal 'print_cancel_confirm_modal' (backdrop tap)") != std::string::npos);
 }
