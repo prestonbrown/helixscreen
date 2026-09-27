@@ -23,6 +23,7 @@
 #include "../test_helpers/live_thread_count.h"
 #include "../test_helpers/update_checker_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "app_constants.h"
 #include "config.h"
 #include "lvgl.h"
 #include "version.h"
@@ -148,9 +149,6 @@ ParsedRelease parse_github_release(const std::string& json_str) {
 // Version Parsing Behind Update Detection
 // ============================================================================
 
-// The three-way update rule lives in compare_channel_version() and is pinned
-// against that shipped function at the bottom of this file. What remains here
-// is the parse_version behaviour the rule is built on.
 TEST_CASE("Self-restart sentinel creates a missing fallback dir", "[update_checker][sentinel]") {
     namespace fs = std::filesystem;
     const std::string prev = AppConstants::Update::detail::backup_fallback_dir_ref();
@@ -167,6 +165,9 @@ TEST_CASE("Self-restart sentinel creates a missing fallback dir", "[update_check
     fs::remove_all(root);
 }
 
+// The three-way update rule lives in compare_channel_version() and is pinned
+// against that shipped function at the bottom of this file. What remains here
+// is the parse_version behaviour the rule is built on.
 TEST_CASE("Version parsing semantics update detection rests on", "[update_checker][version]") {
     SECTION("handles v prefix in version strings") {
         // parse_version already handles v prefix
