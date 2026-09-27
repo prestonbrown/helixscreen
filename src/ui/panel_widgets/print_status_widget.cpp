@@ -845,11 +845,11 @@ std::string PrintStatusWidget::get_last_print_thumbnail_path() const {
         const auto* best = best_adequate ? best_adequate : largest;
         spdlog::debug("[PrintStatusWidget] Widget {}x{}, selected thumbnail {}x{} ({})", target_w,
                       target_h, best->width, best->height, best->relative_path);
-        return best->relative_path;
+        return helix::job_thumbnail_path(job, best->relative_path);
     }
 
     // Fallback: use pre-selected largest thumbnail
-    return job.thumbnail_path;
+    return helix::job_thumbnail_path(job, job.thumbnail_path);
 }
 
 time_t PrintStatusWidget::get_last_print_source_modified() const {

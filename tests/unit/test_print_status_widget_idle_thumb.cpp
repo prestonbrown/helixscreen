@@ -647,3 +647,41 @@ TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
 
     widget.detach();
 }
+
+TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
+                 "PrintStatusWidget: idle thumbnail path is relative to the gcodes root",
+                 "[print_status_widget][idle_thumb][subdir]") {
+    SECTION("pre-selected thumbnail, unattached") {
+        SECTION("root job") {
+            ScopedIdleThumbHistory history({thumb_job("Foo.gcode", true, ".thumbs/Foo.png", 1.0)});
+            PrintStatusWidget widget;
+            REQUIRE(PrintStatusWidgetTestAccess::last_print_thumbnail_path(widget) ==
+                    ".thumbs/Foo.png");
+        }
+        SECTION("job in a subdirectory") {
+            ScopedIdleThumbHistory history(
+                {thumb_job("sub/dir/Foo.gcode", true, ".thumbs/Foo.png", 1.0)});
+            PrintStatusWidget widget;
+            REQUIRE(PrintStatusWidgetTestAccess::last_print_thumbnail_path(widget) ==
+                    "sub/dir/.thumbs/Foo.png");
+        }
+    }
+    SECTION("size-matched thumbnail, attached") {
+        const bool in_subdir = GENERATE(false, true);
+        PrintHistoryJob job =
+            thumb_job(in_subdir ? "sub/dir/Foo.gcode" : "Foo.gcode", true, ".thumbs/Foo.png", 1.0);
+        ThumbnailInfo info;
+        info.relative_path = ".thumbs/Foo-300x300.png";
+        info.width = 300;
+        info.height = 300;
+        job.thumbnails = {info};
+        ScopedIdleThumbHistory history({job});
+
+        PrintStatusWidget widget;
+        lv_obj_t* container = create_mock_print_card(test_screen());
+        widget.attach(container, test_screen());
+        REQUIRE(PrintStatusWidgetTestAccess::last_print_thumbnail_path(widget) ==
+                (in_subdir ? "sub/dir/.thumbs/Foo-300x300.png" : ".thumbs/Foo-300x300.png"));
+        widget.detach();
+    }
+}

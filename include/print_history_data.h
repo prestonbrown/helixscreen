@@ -68,6 +68,8 @@ struct PrintHistoryJob {
     bool has_timelapse = false; ///< True if timelapse file was found for this job
 };
 
+namespace helix {
+
 /**
  * @brief When a job happened, for ageing and bucketing it
  *
@@ -75,10 +77,24 @@ struct PrintHistoryJob {
  * it marks interrupted at startup, so those fall back to start_time
  * (prestonbrown/helixscreen#1713). 0 when neither is known.
  */
-namespace helix {
 [[nodiscard]] inline double job_timestamp(const PrintHistoryJob& job) {
     return job.end_time > 0 ? job.end_time : job.start_time;
 }
+
+/**
+ * @brief A job thumbnail's path from the gcodes root, ready to download
+ *
+ * History metadata gives each thumbnail's relative_path relative to the G-code
+ * file's own directory, so "sub/dir/Foo.gcode" with ".thumbs/Foo.png" resolves
+ * to "sub/dir/.thumbs/Foo.png". A root-level job's path is unchanged.
+ */
+[[nodiscard]] inline std::string job_thumbnail_path(const PrintHistoryJob& job,
+                                                    const std::string& relative_path) {
+    const auto slash = job.filename.find_last_of('/');
+    return resolve_thumbnail_path(relative_path,
+                                  slash == std::string::npos ? "" : job.filename.substr(0, slash));
+}
+
 } // namespace helix
 
 /**

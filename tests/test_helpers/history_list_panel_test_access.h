@@ -27,6 +27,13 @@ struct HistoryListPanelTestAccess {
     static void update_detail_subjects(HistoryListPanel& p, const PrintHistoryJob& job) {
         p.update_detail_subjects(job);
     }
+
+    // Production opens the detail overlay from a row click on a created panel.
+    static void show_detail_overlay(HistoryListPanel& p, lv_obj_t* parent,
+                                    const PrintHistoryJob& job) {
+        p.parent_screen_ = parent;
+        p.show_detail_overlay(job);
+    }
 };
 
 } // namespace helix::ui

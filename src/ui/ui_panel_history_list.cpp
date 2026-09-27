@@ -1002,9 +1002,9 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
 
             // The detail overlay has always rendered the full-resolution PNG,
             // so it asks for FullPng and req.target goes unused. The cache key
-            // is the job's Moonraker relative path, unchanged.
+            // is the thumbnail's path from the gcodes root.
             ThumbnailRequest req;
-            req.key = job.thumbnail_path;
+            req.key = helix::job_thumbnail_path(job, job.thumbnail_path);
             req.api = api;
             req.format = ThumbnailRequest::ThumbnailFormat::FullPng;
 

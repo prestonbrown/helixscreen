@@ -2,14 +2,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_history_list_view.h"
+#include "ui_nav_manager.h"
 #include "ui_panel_history_list.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/history_list_panel_test_access.h"
+#include "data_root_resolver.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "thumbnail_cache.h"
 #include "translation_loader.h"
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -149,4 +154,47 @@ TEST_CASE_METHOD(LVGLUITestFixture, "HistoryListPanel - the detail status reads 
     REQUIRE(status != nullptr);
     REQUIRE(std::string(lv_subject_get_string(status)) == lv_tr("Failed"));
     REQUIRE(std::string(lv_tr("Failed")) != "Failed");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "HistoryListPanel - the detail thumbnail path is relative to the gcodes root",
+                 "[history][subdir]") {
+    const bool in_subdir = GENERATE(false, true);
+    PrintHistoryJob job;
+    job.filename = in_subdir ? "sub/dir/DetailThumbProbe.gcode" : "DetailThumbProbe.gcode";
+    job.status = PrintJobStatus::COMPLETED;
+    job.thumbnail_path = ".thumbs/DetailThumbProbe.png";
+    const std::string key =
+        in_subdir ? "sub/dir/.thumbs/DetailThumbProbe.png" : ".thumbs/DetailThumbProbe.png";
+
+    // A cached PNG under exactly one key: the overlay shows it only when it
+    // asks for that key.
+    auto& cache = get_thumbnail_cache();
+    std::filesystem::remove(cache.get_cache_path(".thumbs/DetailThumbProbe.png"));
+    std::filesystem::remove(cache.get_cache_path("sub/dir/.thumbs/DetailThumbProbe.png"));
+    const std::string planted = cache.get_cache_path(key);
+    std::filesystem::copy_file(helix::asset_path("assets/images/folder.png"), planted,
+                               std::filesystem::copy_options::overwrite_existing);
+    const std::string expected = cache.get_if_cached(key);
+    REQUIRE_FALSE(expected.empty());
+
+    {
+        HistoryListPanel panel;
+        panel.init_subjects();
+        helix::ui::HistoryListPanelTestAccess::show_detail_overlay(panel, test_screen(), job);
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(10);
+        helix::ui::UpdateQueue::instance().drain();
+
+        lv_obj_t* image = lv_obj_find_by_name(test_screen(), "thumbnail_image");
+        REQUIRE(image != nullptr);
+        const void* src = lv_image_get_src(image);
+        REQUIRE(src != nullptr);
+        REQUIRE(std::string(static_cast<const char*>(src)) == expected);
+
+        NavigationManager::instance().go_back();
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(10);
+    }
+    std::filesystem::remove(planted);
 }
