@@ -859,17 +859,18 @@ PrinterDetectionResult PrinterDetector::detect(const PrinterHardwareData& hardwa
             PrinterDetectionResult result = execute_printer_heuristics(printer, hardware);
 
             if (result.confidence > 0) {
-                spdlog::info("[PrinterDetector] Candidate: '{}' scored {}% ({} matches, best={}%) "
-                             "via: {}",
-                             result.type_name, result.confidence, result.match_count,
-                             result.best_single_confidence, result.reason);
+                spdlog::debug("[PrinterDetector] Candidate: '{}' scored {}% ({} matches, best={}%) "
+                              "via: {}",
+                              result.type_name, result.confidence, result.match_count,
+                              result.best_single_confidence, result.reason);
             }
 
             // Non-printer addons (show_in_list: false) can't win detection
             // They're scored and logged for diagnostics, but excluded from the winner
             if (!printer.value("show_in_list", true)) {
                 if (result.confidence > 0) {
-                    spdlog::info("[PrinterDetector]   [excluded from winner - not a real printer]");
+                    spdlog::debug(
+                        "[PrinterDetector]   [excluded from winner - not a real printer]");
                 }
                 continue;
             }

@@ -132,7 +132,7 @@ void PrintSelectFileProvider::refresh_files(const std::string& current_path,
                         continue;
                     }
                     // File was modified - invalidate cached thumbnails and refetch
-                    spdlog::info(
+                    spdlog::debug(
                         "[FileProvider] File modified, invalidating cache: {} (old: {}, new: {})",
                         file.filename, it->second.modified_timestamp, new_modified);
                     if (!it->second.original_thumbnail_url.empty()) {
