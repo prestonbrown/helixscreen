@@ -317,6 +317,7 @@ TEST_CASE("Runtime artifacts are never extracted from the package", "[android][a
     CHECK(is_non_shippable_config_file(".crash_restart_count"));
     CHECK(is_non_shippable_config_file("tool_spools.json"));
     CHECK(is_non_shippable_config_file("user_filaments.json"));
+    CHECK(is_non_shippable_config_file("filament_slot_overrides.json"));
     CHECK(is_non_shippable_config_file("telemetry_device.json"));
     CHECK(is_non_shippable_config_file("telemetry_queue.json"));
     CHECK(is_non_shippable_config_file(".helix-screen.lock"));

@@ -123,16 +123,16 @@ bool asset_extraction_succeeded(int dirs_requested, int dirs_extracted, int file
 /// when the file is absent, and shipping one would hand every install the
 /// packager's printer host and a pre-completed setup wizard. Crash dumps
 /// resurrect a dismissed crash dialog; telemetry, spool state, user-added
-/// filament products and the runtime lock belong to the device. The packaging
-/// step already keeps these out; this is the second line of defense for a
-/// package built from a dirty tree.
+/// filament products, the slot-override cache and the runtime lock belong to the device. The
+/// packaging step already keeps these out; this is the second line of defense for a package built
+/// from a dirty tree.
 bool is_non_shippable_config_file(const std::string& filename) {
     return filename.rfind("crash", 0) == 0 || filename == ".crash_restart_count" ||
            filename == "crash_history.json" || filename == "tool_spools.json" ||
-           filename == "user_filaments.json" || filename == "telemetry_device.json" ||
-           filename == "telemetry_queue.json" || filename == "settings.json" ||
-           filename == "settings-test.json" || filename.rfind("helixconfig", 0) == 0 ||
-           filename == ".helix-screen.lock";
+           filename == "user_filaments.json" || filename == "filament_slot_overrides.json" ||
+           filename == "telemetry_device.json" || filename == "telemetry_queue.json" ||
+           filename == "settings.json" || filename == "settings-test.json" ||
+           filename.rfind("helixconfig", 0) == 0 || filename == ".helix-screen.lock";
 }
 
 #ifdef __ANDROID__

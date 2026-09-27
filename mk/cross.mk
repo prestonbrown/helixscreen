@@ -1590,7 +1590,7 @@ DEPLOY_RSYNC_FLAGS := -avzz --delete --checksum
 # target's real state with dev-machine state — or worse, leaves a stale
 # crash_report.txt on a healthy device that triggers the "previously crashed"
 # modal on next boot. These are gitignored but gitignore doesn't affect rsync.
-DEPLOY_RUNTIME_EXCLUDES := --exclude='crash.txt' --exclude='crash_*.txt' --exclude='crash_report.txt' --exclude='.crash_restart_count' --exclude='telemetry_*.json' --exclude='tool_spools.json' --exclude='filament_slot_overrides.json'
+DEPLOY_RUNTIME_EXCLUDES := --exclude='crash.txt' --exclude='crash_*.txt' --exclude='crash_report.txt' --exclude='.crash_restart_count' --exclude='telemetry_*.json' --exclude='tool_spools.json' --exclude='filament_slot_overrides.json' --exclude='user_filaments.json' --exclude='crash_history.json' --exclude='.helix-screen.lock'
 DEPLOY_ASSET_EXCLUDES := --exclude='test_gcodes' --exclude='gcode' --exclude='.DS_Store' --exclude='*.pyc' --exclude='settings*.json' --exclude='helixconfig*.json' --exclude='helixscreen.env' --exclude='.claude-recall' --exclude='._*' \
 	--exclude='assets/fonts/*.c' --exclude='assets/fonts/*.ttf' --exclude='assets/fonts/*.otf' --exclude='assets/fonts/.clang-format' \
 	--exclude='*.icns' --exclude='mdi-icon-metadata.json.gz' --exclude='moonraker-plugin/tests' \
@@ -2747,15 +2747,17 @@ endef
 # Personal config (settings.json, helixconfig*.json) is handled per-target
 # because some targets ship a curated default. This list is for things that
 # get auto-generated at runtime and have no business in a public release.
-# Keep in sync with DEPLOY_RUNTIME_EXCLUDES (~ line 1388).
+# tests/shell/test_runtime_file_lists.bats checks this against DEPLOY_RUNTIME_EXCLUDES
+# and the other runtime-file lists.
 define release-strip-pii
 	@rm -f $(1)/config/telemetry_device.json \
 	       $(1)/config/telemetry_queue.json \
 	       $(1)/config/tool_spools.json \
 	       $(1)/config/filament_slot_overrides.json \
-	       $(1)/config/crash_report.txt \
+	       $(1)/config/user_filaments.json \
+	       $(1)/config/crash*.txt \
+	       $(1)/config/.crash_restart_count \
 	       $(1)/config/crash_history.json \
-	       $(1)/config/feedback_queue.json \
 	       $(1)/config/.helix-screen.lock \
 	       2>/dev/null || true
 endef
