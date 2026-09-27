@@ -64,23 +64,15 @@ std::string format_history_filament(double mm) {
     return std::string(buf);
 }
 
-/**
- * @brief Null-safe numeric value extraction from JSON
- *
- * Unlike json::value(), this handles fields that exist but are null.
- * Returns default_val if key is missing OR if value is null/non-numeric.
- */
-template <typename T> T json_number_or(const nlohmann::json& j, const char* key, T default_val) {
-    if (j.contains(key) && j[key].is_number()) {
-        return j[key].get<T>();
-    }
-    return default_val;
-}
+} // anonymous namespace
 
-/**
- * @brief Parse a single job from Moonraker history response
- */
-PrintHistoryJob parse_history_job(const json& job_json) {
+// ============================================================================
+// MoonrakerHistoryAPI Implementation
+// ============================================================================
+
+MoonrakerHistoryAPI::MoonrakerHistoryAPI(IMoonrakerClient& client) : client_(client) {}
+
+PrintHistoryJob MoonrakerHistoryAPI::parse_history_job(const json& job_json) {
     PrintHistoryJob job;
 
     // String fields. json::value() is safe for a MISSING key but NOT for a key
@@ -93,13 +85,13 @@ PrintHistoryJob parse_history_job(const json& job_json) {
     job.filename = helix::json_util::safe_string(job_json, "filename", "");
     job.status = parse_job_status(helix::json_util::safe_string(job_json, "status", "unknown"));
 
-    // Numeric fields - use json_number_or() for null-safety
-    // end_time is notably null for in-progress jobs
-    job.start_time = json_number_or(job_json, "start_time", 0.0);
-    job.end_time = json_number_or(job_json, "end_time", 0.0);
-    job.print_duration = json_number_or(job_json, "print_duration", 0.0);
-    job.total_duration = json_number_or(job_json, "total_duration", 0.0);
-    job.filament_used = json_number_or(job_json, "filament_used", 0.0);
+    // end_time is null for in-progress jobs. The safe_* readers also coerce the
+    // JSON strings some Moonraker forks write (prestonbrown/helixscreen#1713).
+    job.start_time = helix::json_util::safe_double(job_json, "start_time");
+    job.end_time = helix::json_util::safe_double(job_json, "end_time");
+    job.print_duration = helix::json_util::safe_double(job_json, "print_duration");
+    job.total_duration = helix::json_util::safe_double(job_json, "total_duration");
+    job.filament_used = helix::json_util::safe_double(job_json, "filament_used");
 
     // Boolean. There is no existence check here (the old comment claimed one),
     // and value() throws on a present-but-null "exists" just as it does above.
@@ -109,10 +101,10 @@ PrintHistoryJob parse_history_job(const json& job_json) {
     if (job_json.contains("metadata") && job_json["metadata"].is_object()) {
         const auto& meta = job_json["metadata"];
         job.filament_type = moonraker_internal::json_string_list_or(meta, "filament_type");
-        job.layer_count = json_number_or(meta, "layer_count", 0u);
-        job.layer_height = json_number_or(meta, "layer_height", 0.0);
-        job.nozzle_temp = json_number_or(meta, "first_layer_extr_temp", 0.0);
-        job.bed_temp = json_number_or(meta, "first_layer_bed_temp", 0.0);
+        job.layer_count = moonraker_internal::json_count_or_zero(meta, "layer_count");
+        job.layer_height = helix::json_util::safe_double(meta, "layer_height");
+        job.nozzle_temp = helix::json_util::safe_double(meta, "first_layer_extr_temp");
+        job.bed_temp = helix::json_util::safe_double(meta, "first_layer_bed_temp");
 
         // Parse all available thumbnails with dimensions
         if (meta.contains("thumbnails") && meta["thumbnails"].is_array()) {
@@ -136,13 +128,13 @@ PrintHistoryJob parse_history_job(const json& job_json) {
 
         // UUID and file size for precise history matching
         job.uuid = helix::json_util::safe_string(meta, "uuid", "");
-        job.size_bytes = json_number_or(meta, "size", static_cast<size_t>(0));
+        job.size_bytes = helix::json_util::safe_size_t(meta, "size");
 
         // Source gcode mtime. Same field server.files.metadata returns, carried
         // in the history snapshot; it is what tells a thumbnail consumer that a
         // re-slice under the same filename outdated the cached render. Absent
         // means 0, which every consumer reads as "skip freshness validation".
-        job.modified = json_number_or(meta, "modified", 0.0);
+        job.modified = helix::json_util::safe_double(meta, "modified");
     }
 
     // Pre-format display strings
@@ -152,14 +144,6 @@ PrintHistoryJob parse_history_job(const json& job_json) {
 
     return job;
 }
-
-} // anonymous namespace
-
-// ============================================================================
-// MoonrakerHistoryAPI Implementation
-// ============================================================================
-
-MoonrakerHistoryAPI::MoonrakerHistoryAPI(IMoonrakerClient& client) : client_(client) {}
 
 void MoonrakerHistoryAPI::get_history_list(int limit, int start, double since, double before,
                                            HistoryListCallback on_success, ErrorCallback on_error) {

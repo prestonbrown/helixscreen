@@ -97,4 +97,9 @@ class MoonrakerHistoryAPI : public IHistoryAPI {
 
   protected:
     helix::IMoonrakerClient& client_;
+
+    /**
+     * @brief Parse one job object from a server.history.list response
+     */
+    static PrintHistoryJob parse_history_job(const json& job_json);
 };

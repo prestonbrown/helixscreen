@@ -13,13 +13,11 @@
 
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
+#include "../../include/moonraker_history_api.h"
 #include "../../include/print_history_data.h"
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
-#include "../../src/api/moonraker_api_internal.h"
 #include "../ui_test_utils.h"
-
-using moonraker_internal::json_number_or;
 
 #include <spdlog/fmt/fmt.h>
 
@@ -430,46 +428,120 @@ TEST_CASE("json::value() handles null values", "[history][parsing]") {
 // PrintHistoryJob Parsing Tests
 // ============================================================================
 
-// Helper function to parse a job JSON into PrintHistoryJob (mirrors MoonrakerAPI logic)
+namespace {
+/// Exposes the protected history job parser.
+class HistoryParseProbe : public MoonrakerHistoryAPI {
+  public:
+    using MoonrakerHistoryAPI::parse_history_job;
+};
+} // namespace
+
 static PrintHistoryJob parse_history_job(const nlohmann::json& job_json) {
-    PrintHistoryJob job;
-    job.job_id = job_json.value("job_id", "");
-    job.filename = job_json.value("filename", "");
+    return HistoryParseProbe::parse_history_job(job_json);
+}
 
-    // Numeric fields use null-safe accessor (end_time can be null for in-progress jobs)
-    job.start_time = json_number_or(job_json, "start_time", 0.0);
-    job.end_time = json_number_or(job_json, "end_time", 0.0);
-    job.print_duration = json_number_or(job_json, "print_duration", 0.0);
-    job.total_duration = json_number_or(job_json, "total_duration", 0.0);
-    job.filament_used = json_number_or(job_json, "filament_used", 0.0);
-    job.exists = job_json.value("exists", false);
+// A QIDI Q2 Moonraker copies slicer settings into metadata as JSON strings
+// (prestonbrown/helixscreen#1713). This row is verbatim from a Q2.
+TEST_CASE("Parse Q2 history row with string metadata", "[history][parsing][json_coercion]") {
+    auto job_json = nlohmann::json::parse(R"({
+        "job_id": "000002",
+        "filename": "Foo (PETG).gcode.3mf",
+        "status": "interrupted",
+        "start_time": 1758000000.5,
+        "end_time": null,
+        "print_duration": 0.0,
+        "total_duration": 0.8278,
+        "filament_used": 0.0,
+        "metadata": {
+            "size": 51671,
+            "layer_height": "0.2",
+            "thumbnails": [
+                {"width": 300, "height": 300, "size": 0,
+                 "relative_path": ".thumbs/Foo-300x300.png"}
+            ]
+        },
+        "exists": true
+    })");
 
-    // Parse status string to enum
-    std::string status_str = job_json.value("status", "");
-    if (status_str == "completed") {
-        job.status = PrintJobStatus::COMPLETED;
-    } else if (status_str == "cancelled") {
-        job.status = PrintJobStatus::CANCELLED;
-    } else if (status_str == "error" || status_str == "klippy_shutdown" ||
-               status_str == "klippy_disconnect") {
-        job.status = PrintJobStatus::ERROR;
-    } else if (status_str == "in_progress" || status_str == "printing") {
-        job.status = PrintJobStatus::IN_PROGRESS;
-    } else {
-        job.status = PrintJobStatus::UNKNOWN;
+    PrintHistoryJob job = parse_history_job(job_json);
+
+    CHECK(job.status == PrintJobStatus::ERROR);
+    CHECK(job.end_time == 0.0);
+    CHECK(job.total_duration == Catch::Approx(0.8278));
+    CHECK(job.layer_height == Catch::Approx(0.2));
+    CHECK(job.size_bytes == 51671);
+    REQUIRE(job.thumbnails.size() == 1);
+    CHECK(job.thumbnail_path == ".thumbs/Foo-300x300.png");
+}
+
+TEST_CASE("History numeric fields accept JSON strings", "[history][parsing][json_coercion]") {
+    auto job_json = nlohmann::json::parse(R"({
+        "job_id": "000003",
+        "status": "completed",
+        "start_time": "1758000000.5",
+        "end_time": "1758003600.5",
+        "print_duration": "3500.25",
+        "total_duration": "3600.5",
+        "filament_used": "1234.5",
+        "metadata": {
+            "layer_count": "42",
+            "layer_height": "0.2",
+            "first_layer_extr_temp": "220",
+            "first_layer_bed_temp": "60",
+            "size": "711288",
+            "modified": "1757990000.25"
+        }
+    })");
+
+    PrintHistoryJob job = parse_history_job(job_json);
+
+    CHECK(job.start_time == Catch::Approx(1758000000.5));
+    CHECK(job.end_time == Catch::Approx(1758003600.5));
+    CHECK(job.print_duration == Catch::Approx(3500.25));
+    CHECK(job.total_duration == Catch::Approx(3600.5));
+    CHECK(job.filament_used == Catch::Approx(1234.5));
+    CHECK(job.layer_count == 42);
+    CHECK(job.layer_height == Catch::Approx(0.2));
+    CHECK(job.nozzle_temp == Catch::Approx(220.0));
+    CHECK(job.bed_temp == Catch::Approx(60.0));
+    CHECK(job.size_bytes == 711288);
+    CHECK(job.modified == Catch::Approx(1757990000.25));
+}
+
+TEST_CASE("History numeric fields default on null, missing, negative and garbage",
+          "[history][parsing][json_coercion]") {
+    auto job_json = nlohmann::json::parse(R"({
+        "job_id": "000004",
+        "status": "completed",
+        "start_time": null,
+        "print_duration": "garbage",
+        "metadata": {
+            "layer_count": "-1",
+            "layer_height": null,
+            "first_layer_extr_temp": "hot",
+            "size": "-1",
+            "modified": null
+        }
+    })");
+
+    PrintHistoryJob job = parse_history_job(job_json);
+
+    CHECK(job.start_time == 0.0);
+    CHECK(job.end_time == 0.0);
+    CHECK(job.print_duration == 0.0);
+    CHECK(job.layer_count == 0);
+    CHECK(job.layer_height == 0.0);
+    CHECK(job.nozzle_temp == 0.0);
+    CHECK(job.bed_temp == 0.0);
+    CHECK(job.size_bytes == 0);
+    CHECK(job.modified == 0.0);
+
+    SECTION("a negative or out-of-range layer count does not wrap") {
+        job_json["metadata"]["layer_count"] = -1;
+        CHECK(parse_history_job(job_json).layer_count == 0);
+        job_json["metadata"]["layer_count"] = 5000000000LL;
+        CHECK(parse_history_job(job_json).layer_count == 0);
     }
-
-    // Parse metadata if present (matches PrintHistoryJob struct fields)
-    if (job_json.contains("metadata") && job_json["metadata"].is_object()) {
-        const auto& meta = job_json["metadata"];
-        job.filament_type = meta.value("filament_type", "");
-        job.layer_count = json_number_or(meta, "layer_count", 0u);
-        job.layer_height = json_number_or(meta, "layer_height", 0.0);
-        job.nozzle_temp = json_number_or(meta, "first_layer_extr_temp", 0.0);
-        job.bed_temp = json_number_or(meta, "first_layer_bed_temp", 0.0);
-    }
-
-    return job;
 }
 
 TEST_CASE("Parse completed job correctly", "[history][parsing]") {

@@ -341,8 +341,9 @@ std::vector<FileInfo> MoonrakerFileAPI::parse_file_list(const json& response) {
 
     const json& result = response["result"];
 
-    // Helper lambdas to safely extract values, mirroring parse_file_metadata below
-    // (Moonraker returns null for missing metadata). Type-checking each field
+    // Every field is read type-safely, as in parse_file_metadata below (Moonraker
+    // returns null for missing metadata, and some forks send numbers as JSON
+    // strings, prestonbrown/helixscreen#1713). Type-checking each field
     // matters more here than there: this loop builds the whole file browser, so a
     // single wrong-typed entry from a Moonraker fork would otherwise throw and
     // abort the entire listing rather than degrading that one row.
@@ -351,20 +352,6 @@ std::vector<FileInfo> MoonrakerFileAPI::parse_file_list(const json& response) {
             return obj[key].get<std::string>();
         }
         return {};
-    };
-
-    auto get_double = [](const json& obj, const char* key) -> double {
-        if (obj.contains(key) && obj[key].is_number()) {
-            return obj[key].get<double>();
-        }
-        return 0.0;
-    };
-
-    auto get_uint64 = [](const json& obj, const char* key) -> uint64_t {
-        if (obj.contains(key) && obj[key].is_number()) {
-            return obj[key].get<uint64_t>();
-        }
-        return 0;
     };
 
     // Moonraker returns a flat array of file/directory objects in "result"
@@ -385,8 +372,8 @@ std::vector<FileInfo> MoonrakerFileAPI::parse_file_list(const json& response) {
             } else {
                 info.filename = get_string(item, "filename");
             }
-            info.size = get_uint64(item, "size");
-            info.modified = get_double(item, "modified");
+            info.size = helix::json_util::safe_uint64(item, "size");
+            info.modified = helix::json_util::safe_double(item, "modified");
             info.permissions = get_string(item, "permissions");
             info.is_dir = false; // server.files.list only returns files
             files.push_back(info);
@@ -411,7 +398,7 @@ std::vector<FileInfo> MoonrakerFileAPI::parse_file_list(const json& response) {
                 info.filename = moonraker_path_leaf(dirname);
                 info.is_dir = true;
             }
-            info.modified = get_double(dir, "modified");
+            info.modified = helix::json_util::safe_double(dir, "modified");
             info.permissions = get_string(dir, "permissions");
             files.push_back(info);
         }
@@ -428,8 +415,8 @@ std::vector<FileInfo> MoonrakerFileAPI::parse_file_list(const json& response) {
             // builds (current_path + "/" + filename) doesn't double.
             info.filename = moonraker_path_leaf(get_string(file, "filename"));
             info.path = get_string(file, "path");
-            info.size = get_uint64(file, "size");
-            info.modified = get_double(file, "modified");
+            info.size = helix::json_util::safe_uint64(file, "size");
+            info.modified = helix::json_util::safe_double(file, "modified");
             info.permissions = get_string(file, "permissions");
             info.is_dir = false;
             files.push_back(info);
@@ -463,17 +450,7 @@ FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
     };
 
     auto get_uint64 = [&result](const char* key) -> uint64_t {
-        if (result.contains(key) && result[key].is_number()) {
-            return result[key].get<uint64_t>();
-        }
-        return 0;
-    };
-
-    auto get_uint32 = [&result](const char* key) -> uint32_t {
-        if (result.contains(key) && result[key].is_number()) {
-            return result[key].get<uint32_t>();
-        }
-        return 0;
+        return helix::json_util::safe_uint64(result, key);
     };
 
     // Basic file info
@@ -488,7 +465,7 @@ FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
     // Print info
     metadata.print_start_time = get_double("print_start_time");
     metadata.job_id = get_string("job_id");
-    metadata.layer_count = get_uint32("layer_count");
+    metadata.layer_count = moonraker_internal::json_count_or_zero(result, "layer_count");
     metadata.object_height = get_double("object_height");
     metadata.estimated_time = get_double("estimated_time");
 
@@ -570,12 +547,8 @@ FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
             if (thumb.contains("relative_path") && thumb["relative_path"].is_string()) {
                 ThumbnailInfo info;
                 info.relative_path = thumb["relative_path"].get<std::string>();
-                if (thumb.contains("width") && thumb["width"].is_number()) {
-                    info.width = thumb["width"].get<int>();
-                }
-                if (thumb.contains("height") && thumb["height"].is_number()) {
-                    info.height = thumb["height"].get<int>();
-                }
+                info.width = helix::json_util::safe_int(thumb, "width");
+                info.height = helix::json_util::safe_int(thumb, "height");
                 metadata.thumbnails.push_back(info);
                 spdlog::trace("[FileAPI] Found thumbnail {}x{}: {}", info.width, info.height,
                               info.relative_path);

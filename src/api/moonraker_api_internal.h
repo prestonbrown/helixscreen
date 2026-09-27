@@ -14,6 +14,7 @@
 #if !defined(HELIX_PLATFORM_ESP32)
 #include "hv/HttpMessage.h" // HttpResponse — only the REST/HTTP sub-APIs use it
 #endif
+#include "json_utils.h"
 #include "moonraker_api.h"
 #include "spdlog/spdlog.h"
 #include "system/telemetry_manager.h"
@@ -706,31 +707,17 @@ inline bool handle_http_response(const std::shared_ptr<HttpResponse>& resp, std:
 // JSON EXTRACTION HELPERS
 // ============================================================================
 // Null-safe JSON field extraction. Unlike json::value(), handles fields that
-// exist but are null, returning the default value in both cases.
+// exist but are null, returning the default value in both cases. Plain numbers
+// go through helix::json_util (json_utils.h), which also coerces the JSON strings
+// some Moonraker forks send (prestonbrown/helixscreen#1713).
 
 /**
- * @brief Null-safe numeric value extraction from JSON
+ * @brief A count such as layer_count, as a uint32_t
  *
- * Unlike json::value(), this handles fields that exist but are null.
- * Returns default_val if key is missing OR if value is null/non-numeric.
- *
- * @tparam T Numeric type (double, int, uint64_t, size_t, etc.)
- * @param j JSON object to extract from
- * @param key Field name to extract
- * @param default_val Value to return if missing, null, or non-numeric
- * @return Extracted value or default
- *
- * Example usage:
- *   double temp = json_number_or(obj, "temperature", 0.0);
- *   int count = json_number_or(obj, "layer_count", 0);
- *   size_t size = json_number_or(obj, "size", static_cast<size_t>(0));
+ * A negative or out-of-range value reads as 0 rather than wrapping into a huge count.
  */
-template <typename T>
-inline T json_number_or(const nlohmann::json& j, const char* key, T default_val) {
-    if (j.contains(key) && j[key].is_number()) {
-        return j[key].get<T>();
-    }
-    return default_val;
+inline uint32_t json_count_or_zero(const nlohmann::json& j, const char* key) {
+    return static_cast<uint32_t>(std::max(0, helix::json_util::safe_int(j, key)));
 }
 
 /**

@@ -167,6 +167,7 @@ namespace {
 class MetadataParseProbe : public MoonrakerFileAPI {
   public:
     using MoonrakerFileAPI::MoonrakerFileAPI;
+    using MoonrakerFileAPI::parse_file_list;
     using MoonrakerFileAPI::parse_file_metadata;
 };
 } // namespace
@@ -186,6 +187,93 @@ TEST_CASE_METHOD(MetadataAPITestFixture, "Metadata sent as JSON strings still pa
     CHECK(m.first_layer_height == Catch::Approx(0.25));
     CHECK(m.object_height == Catch::Approx(12.5));
     CHECK(m.estimated_time == Catch::Approx(600.0));
+}
+
+TEST_CASE_METHOD(MetadataAPITestFixture, "Integer metadata sent as JSON strings still parses",
+                 "[metadata][api][json_coercion]") {
+    MetadataParseProbe probe(mock_client);
+    json response;
+    response["result"] = {
+        {"size", "711288"},
+        {"layer_count", "42"},
+        {"gcode_start_byte", "1024"},
+        {"gcode_end_byte", "700000"},
+        {"thumbnails",
+         json::array({{{"relative_path", ".thumbs/a.png"}, {"width", "300"}, {"height", "200"}}})}};
+    const FileMetadata m = probe.parse_file_metadata(response);
+    CHECK(m.size == 711288);
+    CHECK(m.layer_count == 42);
+    CHECK(m.gcode_start_byte == 1024);
+    CHECK(m.gcode_end_byte == 700000);
+    REQUIRE(m.thumbnails.size() == 1);
+    CHECK(m.thumbnails[0].width == 300);
+    CHECK(m.thumbnails[0].height == 200);
+}
+
+TEST_CASE_METHOD(MetadataAPITestFixture,
+                 "Integer metadata defaults on null, missing, negative and garbage",
+                 "[metadata][api][json_coercion]") {
+    MetadataParseProbe probe(mock_client);
+    json response;
+    response["result"] = {{"size", "-1"},
+                          {"layer_count", "-1"},
+                          {"gcode_start_byte", nullptr},
+                          {"gcode_end_byte", "garbage"},
+                          {"thumbnails", json::array({{{"relative_path", ".thumbs/a.png"},
+                                                       {"width", nullptr},
+                                                       {"height", "tall"}}})}};
+    FileMetadata m = probe.parse_file_metadata(response);
+    CHECK(m.size == 0);
+    CHECK(m.layer_count == 0);
+    CHECK(m.gcode_start_byte == 0);
+    CHECK(m.gcode_end_byte == 0);
+    REQUIRE(m.thumbnails.size() == 1);
+    CHECK(m.thumbnails[0].width == 0);
+    CHECK(m.thumbnails[0].height == 0);
+
+    response["result"] = {{"layer_count", -1}, {"size", -5}};
+    m = probe.parse_file_metadata(response);
+    CHECK(m.layer_count == 0);
+    CHECK(m.size == 0);
+
+    response["result"] = {{"layer_count", 5000000000LL}};
+    CHECK(probe.parse_file_metadata(response).layer_count == 0);
+
+    response["result"] = json::object();
+    m = probe.parse_file_metadata(response);
+    CHECK(m.size == 0);
+    CHECK(m.layer_count == 0);
+}
+
+TEST_CASE_METHOD(MetadataAPITestFixture, "File list sizes and times sent as JSON strings parse",
+                 "[metadata][api][json_coercion]") {
+    MetadataParseProbe probe(mock_client);
+    json response;
+
+    SECTION("flat server.files.list array") {
+        response["result"] =
+            json::array({{{"path", "a.gcode"}, {"size", "711288"}, {"modified", "1757990000.5"}},
+                         {{"path", "b.gcode"}, {"size", "-1"}, {"modified", nullptr}}});
+        const auto files = probe.parse_file_list(response);
+        REQUIRE(files.size() == 2);
+        CHECK(files[0].size == 711288);
+        CHECK(files[0].modified == Catch::Approx(1757990000.5));
+        CHECK(files[1].size == 0);
+        CHECK(files[1].modified == 0.0);
+    }
+
+    SECTION("dirs and files object") {
+        response["result"] = {
+            {"dirs", json::array({{{"dirname", "sub"}, {"modified", "1757990000.5"}}})},
+            {"files",
+             json::array(
+                 {{{"filename", "c.gcode"}, {"size", "42"}, {"modified", "1757990001.5"}}})}};
+        const auto files = probe.parse_file_list(response);
+        REQUIRE(files.size() == 2);
+        CHECK(files[0].modified == Catch::Approx(1757990000.5));
+        CHECK(files[1].size == 42);
+        CHECK(files[1].modified == Catch::Approx(1757990001.5));
+    }
 }
 
 // ============================================================================
