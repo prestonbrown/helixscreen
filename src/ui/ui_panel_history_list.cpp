@@ -1074,7 +1074,7 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
 void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     // Update string subjects using lv_subject_copy_string (LVGL 9.4 API)
     lv_subject_copy_string(&detail_filename_, job.filename.c_str());
-    lv_subject_copy_string(&detail_status_, status_to_label(job.status));
+    lv_subject_copy_string(&detail_status_, lv_tr(status_to_label(job.status)));
     lv_subject_copy_string(&detail_status_icon_, status_to_icon(job.status));
     lv_subject_copy_string(&detail_status_variant_, status_to_variant(job.status));
 

@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_history_list_view.h"
+#include "ui_panel_history_list.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/history_list_panel_test_access.h"
+#include "lvgl/src/others/translation/lv_translation.h"
+#include "translation_loader.h"
 
 #include <string>
 #include <vector>
@@ -93,4 +97,56 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(view.is_initialized() == true);
     REQUIRE(view.container() == container_b);
     REQUIRE(lv_obj_get_child_count(container_b) == children_b);
+}
+
+namespace {
+
+// LVGL has no pack-unregister API, so the language goes back to the identity
+// locale, whose lookups return the tag itself.
+struct ScopedGerman {
+    ScopedGerman() {
+        helix::ui::ensure_translation_loaded("de");
+        lv_translation_set_language("de");
+    }
+    ~ScopedGerman() {
+        lv_translation_set_language(helix::ui::kIdentityLocale);
+    }
+    ScopedGerman(const ScopedGerman&) = delete;
+    ScopedGerman& operator=(const ScopedGerman&) = delete;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "HistoryListView - a row's status reads in the UI language",
+                 "[history_list_view][history][translation]") {
+    ScopedGerman german;
+    REQUIRE(std::string(lv_tr("Completed")) != "Completed"); // the pack loaded
+
+    HistoryListView view;
+    lv_obj_t* container = make_scroll_container(test_screen());
+    view.setup(container, nullptr, [](size_t) {});
+    view.populate(make_test_jobs(3));
+    process_lvgl(50);
+
+    lv_obj_t* status = lv_obj_find_by_name(container, "row_status");
+    REQUIRE(status != nullptr);
+    REQUIRE(std::string(lv_label_get_text(status)) == lv_tr("Completed"));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "HistoryListPanel - the detail status reads in the UI language",
+                 "[history][translation]") {
+    ScopedGerman german;
+
+    HistoryListPanel panel;
+    panel.init_subjects();
+
+    PrintHistoryJob job;
+    job.filename = "benchy.gcode";
+    job.status = PrintJobStatus::ERROR;
+    helix::ui::HistoryListPanelTestAccess::update_detail_subjects(panel, job);
+
+    lv_subject_t* status = lv_xml_get_subject(nullptr, "history_detail_status");
+    REQUIRE(status != nullptr);
+    REQUIRE(std::string(lv_subject_get_string(status)) == lv_tr("Failed"));
+    REQUIRE(std::string(lv_tr("Failed")) != "Failed");
 }

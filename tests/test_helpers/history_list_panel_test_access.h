@@ -23,6 +23,10 @@ struct HistoryListPanelTestAccess {
     static void set_jobs(HistoryListPanel& p, std::vector<PrintHistoryJob> jobs) {
         p.jobs_ = std::move(jobs);
     }
+
+    static void update_detail_subjects(HistoryListPanel& p, const PrintHistoryJob& job) {
+        p.update_detail_subjects(job);
+    }
 };
 
 } // namespace helix::ui
