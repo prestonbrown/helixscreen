@@ -88,8 +88,7 @@ PrintHistoryJob helix::parse_history_job(const nlohmann::json& job_json) {
     job.total_duration = helix::json_util::safe_double(job_json, "total_duration");
     job.filament_used = helix::json_util::safe_double(job_json, "filament_used");
 
-    // Boolean. There is no existence check here (the old comment claimed one),
-    // and value() throws on a present-but-null "exists" just as it does above.
+    // Boolean. value() throws on a present-but-null "exists" just as it does above.
     job.exists = helix::json_util::safe_bool(job_json, "exists", false);
 
     // Metadata (may be nested or null)

@@ -443,35 +443,28 @@ FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
         return {};
     };
 
-    // Some Moonraker forks send numeric metadata as JSON strings ("0.2")
-    // (prestonbrown/helixscreen#1713).
-    auto get_double = [&result](const char* key) -> double {
-        return helix::json_util::safe_double(result, key);
-    };
-
-    auto get_uint64 = [&result](const char* key) -> uint64_t {
-        return helix::json_util::safe_uint64(result, key);
-    };
+    // Numbers go through json_util, which also coerces the JSON strings ("0.2")
+    // some Moonraker forks send (prestonbrown/helixscreen#1713).
 
     // Basic file info
     metadata.filename = get_string("filename");
-    metadata.size = get_uint64("size");
-    metadata.modified = get_double("modified");
+    metadata.size = helix::json_util::safe_uint64(result, "size");
+    metadata.modified = helix::json_util::safe_double(result, "modified");
 
     // Slicer info
     metadata.slicer = get_string("slicer");
     metadata.slicer_version = get_string("slicer_version");
 
     // Print info
-    metadata.print_start_time = get_double("print_start_time");
+    metadata.print_start_time = helix::json_util::safe_double(result, "print_start_time");
     metadata.job_id = get_string("job_id");
     metadata.layer_count = moonraker_internal::json_count_or_zero(result, "layer_count");
-    metadata.object_height = get_double("object_height");
-    metadata.estimated_time = get_double("estimated_time");
+    metadata.object_height = helix::json_util::safe_double(result, "object_height");
+    metadata.estimated_time = helix::json_util::safe_double(result, "estimated_time");
 
     // Filament info
-    metadata.filament_total = get_double("filament_total");
-    metadata.filament_weight_total = get_double("filament_weight_total");
+    metadata.filament_total = helix::json_util::safe_double(result, "filament_total");
+    metadata.filament_weight_total = helix::json_util::safe_double(result, "filament_weight_total");
 
     // Per-tool filament weights / usage. Multi-format parser handles slicer
     // variance. Empty result means "unknown" — caller must NOT treat as all-zero.
@@ -491,8 +484,8 @@ FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
             (semicolon != std::string::npos) ? all_names.substr(0, semicolon) : all_names;
     }
     // Layer height info
-    metadata.layer_height = get_double("layer_height");
-    metadata.first_layer_height = get_double("first_layer_height");
+    metadata.layer_height = helix::json_util::safe_double(result, "layer_height");
+    metadata.first_layer_height = helix::json_util::safe_double(result, "first_layer_height");
 
     // Filament colors (array of hex strings from slicer metadata)
     // Newer Moonraker versions return "filament_colors" as a JSON array.
@@ -531,12 +524,12 @@ FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
     }
 
     // Temperature info
-    metadata.first_layer_bed_temp = get_double("first_layer_bed_temp");
-    metadata.first_layer_extr_temp = get_double("first_layer_extr_temp");
+    metadata.first_layer_bed_temp = helix::json_util::safe_double(result, "first_layer_bed_temp");
+    metadata.first_layer_extr_temp = helix::json_util::safe_double(result, "first_layer_extr_temp");
 
     // G-code info
-    metadata.gcode_start_byte = get_uint64("gcode_start_byte");
-    metadata.gcode_end_byte = get_uint64("gcode_end_byte");
+    metadata.gcode_start_byte = helix::json_util::safe_uint64(result, "gcode_start_byte");
+    metadata.gcode_end_byte = helix::json_util::safe_uint64(result, "gcode_end_byte");
 
     // UUID for history matching (slicer-generated unique identifier)
     metadata.uuid = get_string("uuid");
