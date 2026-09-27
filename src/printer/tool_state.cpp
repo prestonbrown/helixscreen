@@ -22,6 +22,7 @@
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
 #include "static_subject_registry.h"
+#include "system/helix_paths.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -780,24 +781,8 @@ void ToolState::save_spool_json() const {
         // Ensure directory exists
         fs::create_directories(config_dir_);
 
-        // Resolve symlinks so the atomic rename below targets the real file rather
-        // than replacing the link. The installer symlinks this file out to
-        // printer_data (HELIX_USER_CONFIG_FILES), and that link is the only thing
-        // keeping it alive through Moonraker's update, which rmtree()s the install
-        // dir. rename(2) onto a symlink replaces the symlink itself, so without
-        // this the first save silently strands the file in the doomed directory.
-        // Mirrors Config::save().
-        {
-            std::error_code ec;
-            if (fs::is_symlink(path, ec)) {
-                auto real = fs::canonical(path, ec);
-                if (!ec) {
-                    spdlog::debug("[ToolState] Resolved symlink {} -> {}", path.string(),
-                                  real.string());
-                    path = real;
-                }
-            }
-        }
+        // The installer links this file out to printer_data; rename onto the target.
+        path = helix::paths::write_target(path.string());
 
         // Atomic save: write to temp file, then rename to avoid partial writes on crash/power loss
         auto tmp_path = path;

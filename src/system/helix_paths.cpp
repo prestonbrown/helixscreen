@@ -228,4 +228,12 @@ std::string strip_trailing_slash(const std::string& path) {
     return s;
 }
 
+std::string write_target(const std::string& path) {
+    std::error_code ec;
+    if (!std::filesystem::is_symlink(path, ec))
+        return path;
+    auto real = std::filesystem::canonical(path, ec);
+    return ec ? path : real.string();
+}
+
 } // namespace helix::paths

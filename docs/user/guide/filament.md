@@ -219,6 +219,8 @@ Tap **Spool Info** in the slot context menu to open the filament editor. This le
 
 Tap **Save** to apply your changes, or **Cancel** to discard them.
 
+> **Adding brands and products from a file.** The catalog can be extended or corrected by editing `user_filaments.json` instead of using the screen. See [Editing materials and brands by hand](settings/printing.md#editing-materials-and-brands-by-hand).
+
 > **Material names with punctuation or spaces.** On AFC and Happy Hare the material is stored
 > by the firmware itself, so the name has to be something Klipper accepts. Names like `PLA+`,
 > `PA6-CF`, `PETG-CF` and `Silk PLA` all save correctly. On older versions they were dropped

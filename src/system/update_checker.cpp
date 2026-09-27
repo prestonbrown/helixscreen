@@ -1127,17 +1127,7 @@ UpdateChecker::repair_release_info(const std::string& install_root) {
     // Resolve symlinks BEFORE renaming. The installer symlinks install-dir files
     // out to printer_data, and rename(2) onto a symlink replaces the symlink
     // itself rather than writing through it (prestonbrown/helixscreen#1176).
-    std::string target_path = path;
-    {
-        std::error_code ec;
-        if (std::filesystem::is_symlink(path, ec)) {
-            auto real = std::filesystem::canonical(path, ec);
-            if (!ec) {
-                spdlog::debug("[UpdateChecker] Resolved symlink {} -> {}", path, real.string());
-                target_path = real.string();
-            }
-        }
-    }
+    const std::string target_path = helix::paths::write_target(path);
 
     const std::string tmp_path = target_path + ".tmp";
     {

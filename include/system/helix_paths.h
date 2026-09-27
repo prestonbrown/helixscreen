@@ -168,4 +168,17 @@ std::string dirname(const std::string& path);
  */
 std::string strip_trailing_slash(const std::string& path);
 
+/**
+ * @brief The file a tmp-file-plus-rename save of @p path must replace.
+ *
+ * rename(2) onto a symlink replaces the link rather than writing through it.
+ * The installer symlinks user files out of the install dir into printer_data,
+ * and that link is all that keeps them alive when Moonraker's update rmtree()s
+ * the install dir. So a save resolves the link first and renames onto its target.
+ *
+ * Returns @p path unchanged when it is not a symlink or does not resolve (a
+ * dangling link), since there is no better target to write.
+ */
+std::string write_target(const std::string& path);
+
 } // namespace helix::paths

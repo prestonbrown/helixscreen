@@ -113,7 +113,7 @@ systemctl daemon-reload
 # Runs as root (inherited from the calling service unit), so no sudo needed.
 
 # Keep in sync with scripts/lib/installer/platform.sh.
-HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json crash_history.json"
+HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json crash_history.json user_filaments.json"
 HELIX_USER_CONFIG_DIRS="custom_images themes printer_database.d"
 
 # Discover printer_data/config/helixscreen/ from the service user's home.

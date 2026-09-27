@@ -396,6 +396,32 @@ extract_release_zip() {
     [ "$(cat "$PD_HELIX/crash_history.json")" = "[]" ]
 }
 
+# ===========================================================================
+# user_filaments.json - written only when the user adds a product, so seeded
+# ===========================================================================
+
+@test "migrates an existing user_filaments.json out of the install dir" {
+    mk_tree
+    echo '[{"id":"acme-pla"}]' > "$INSTALL_DIR/config/user_filaments.json"
+
+    run setup_config_symlink
+    [ "$status" -eq 0 ]
+
+    [ -L "$INSTALL_DIR/config/user_filaments.json" ]
+    grep -q 'acme-pla' "$PD_HELIX/user_filaments.json"
+}
+
+@test "seeds user_filaments.json so the first update cannot destroy it" {
+    mk_tree
+    echo '{}' > "$INSTALL_DIR/config/settings.json"
+
+    run setup_config_symlink
+    [ "$status" -eq 0 ]
+
+    [ -L "$INSTALL_DIR/config/user_filaments.json" ]
+    [ "$(cat "$PD_HELIX/user_filaments.json")" = "[]" ]
+}
+
 @test "seeding does not resurrect the dangling-symlink behaviour for other files" {
     mk_tree
     echo '{}' > "$INSTALL_DIR/config/settings.json"

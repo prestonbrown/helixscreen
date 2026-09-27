@@ -4,11 +4,13 @@
 #include "helix_test_fixture.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
 #include <string>
+#include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -339,18 +341,19 @@ TEST_CASE_METHOD(HelixTestFixture, "choose_overlay_write_path falls back to cano
     // Fresh install: neither candidate exists on disk. The write target must
     // still resolve to a creatable path (the first candidate), not "" —
     // otherwise the first save from the edit modal has nowhere to write.
-    const char* none[] = {"/tmp/helix_choose_path_a.json", "/tmp/helix_choose_path_b.json"};
-    std::remove(none[0]);
-    std::remove(none[1]);
-    CHECK(FilamentCatalog::choose_overlay_write_path(none, 2) == std::string(none[0]));
+    const std::vector<std::string> none = {"/tmp/helix_choose_path_a.json",
+                                           "/tmp/helix_choose_path_b.json"};
+    std::remove(none[0].c_str());
+    std::remove(none[1].c_str());
+    CHECK(FilamentCatalog::choose_overlay_write_path(none) == none[0]);
 
     // When a later candidate already exists, it is preferred over the fallback.
     {
         std::ofstream out(none[1]);
         out << "[]";
     }
-    CHECK(FilamentCatalog::choose_overlay_write_path(none, 2) == std::string(none[1]));
-    std::remove(none[1]);
+    CHECK(FilamentCatalog::choose_overlay_write_path(none) == none[1]);
+    std::remove(none[1].c_str());
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "save_user_products_to empty path returns false",
@@ -716,4 +719,80 @@ TEST_CASE_METHOD(HelixTestFixture, "a held snapshot outlives its retirement",
     }
 
     remove_save_tmp();
+}
+
+namespace {
+/// A fresh scratch directory per call, removed with its contents on scope exit.
+struct ScratchDir {
+    std::filesystem::path path;
+    ScratchDir() {
+        static int counter = 0;
+        path =
+            std::filesystem::temp_directory_path() /
+            ("helix_user_overlay_" + std::to_string(::getpid()) + "_" + std::to_string(counter++));
+        std::filesystem::create_directories(path);
+    }
+    ~ScratchDir() {
+        std::error_code ec;
+        std::filesystem::remove_all(path, ec);
+    }
+};
+
+/// Point HELIX_CONFIG_DIR at @p dir for one scope, restoring the previous value.
+struct ConfigDirGuard {
+    std::string prev;
+    bool had = false;
+    explicit ConfigDirGuard(const std::string& dir) {
+        if (const char* old = std::getenv("HELIX_CONFIG_DIR")) {
+            prev = old;
+            had = true;
+        }
+        setenv("HELIX_CONFIG_DIR", dir.c_str(), 1);
+    }
+    ~ConfigDirGuard() {
+        if (had)
+            setenv("HELIX_CONFIG_DIR", prev.c_str(), 1);
+        else
+            unsetenv("HELIX_CONFIG_DIR");
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(HelixTestFixture, "user overlay lives in the user config dir",
+                 "[filament_catalog][user_save]") {
+    // HELIX_CONFIG_DIR is where every other user-writable file goes. An overlay
+    // read from anywhere else is one the installer never moves out of the
+    // install dir, and a Moonraker update deletes it.
+    ScratchDir dir;
+    ConfigDirGuard guard(dir.path.string());
+    {
+        std::ofstream out(dir.path / "user_filaments.json");
+        out << R"([{"id": "cfgdir-probe-pla", "brand": "Probe", "name": "PLA", "type": "PLA"}])";
+    }
+
+    auto cat = FilamentCatalog::load_full();
+    CHECK(cat.resolve_id("cfgdir-probe-pla") != nullptr);
+    CHECK(FilamentCatalog::load_user_products().size() == 1);
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "saving through a symlinked overlay keeps the link",
+                 "[filament_catalog][user_save]") {
+    // The installer replaces the install-dir overlay with a symlink into
+    // printer_data. rename(2) onto a symlink replaces the link itself, which
+    // would strand the saved products in the directory an update deletes.
+    ScratchDir dir;
+    const auto real = dir.path / "printer_data_user_filaments.json";
+    const auto link = dir.path / "user_filaments.json";
+    {
+        std::ofstream out(real);
+        out << "[]\n";
+    }
+    std::filesystem::create_symlink(real, link);
+
+    std::vector<nlohmann::json> products = {
+        {{"id", "link-probe-pla"}, {"brand", "Probe"}, {"name", "PLA"}, {"type", "PLA"}}};
+    REQUIRE(FilamentCatalog::save_user_products_to(products, link.string()));
+
+    CHECK(std::filesystem::is_symlink(link));
+    CHECK(read_small_file(real.string()).find("link-probe-pla") != std::string::npos);
 }

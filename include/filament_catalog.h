@@ -103,7 +103,7 @@ class FilamentCatalog {
     /// install must still be able to create the file). Returns "" only for an
     /// empty list. Exposed for tests; `save_user_products` uses it with the
     /// built-in user-path list.
-    static std::string choose_overlay_write_path(const char* const* paths, std::size_t n);
+    static std::string choose_overlay_write_path(const std::vector<std::string>& paths);
 
     /// Read the user overlay's authored `filaments` entries as raw JSON objects
     /// (sparse — type inheritance is NOT applied), for read-modify-write by the

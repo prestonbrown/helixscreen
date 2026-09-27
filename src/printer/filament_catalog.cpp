@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "filament_catalog.h"
 
+#include "data_root_resolver.h"
 #include "filament_database.h"
 #include "json_utils.h"
+#include "system/helix_paths.h"
 
 #include <spdlog/spdlog.h>
 
@@ -13,6 +15,7 @@
 #include <memory>
 #include <mutex>
 #include <set>
+#include <string>
 #include <system_error>
 
 #include "hv/json.hpp"
@@ -22,9 +25,15 @@ namespace helix::printer {
 namespace {
 
 // Search paths for the built-in catalog (mirrors the old CFS loader).
-const char* BUILTIN_PATHS[] = {"assets/filaments.json", "../assets/filaments.json",
-                               "/opt/helixscreen/assets/filaments.json"};
-const char* USER_PATHS[] = {"config/user_filaments.json", "../config/user_filaments.json"};
+const std::vector<std::string> BUILTIN_PATHS = {"assets/filaments.json", "../assets/filaments.json",
+                                                "/opt/helixscreen/assets/filaments.json"};
+
+/// The user overlay sits in the user config dir with the app's other writable
+/// files, so the installer can link it out to printer_data. Resolved per call:
+/// HELIX_CONFIG_DIR is read at the time of use, like every writable_path().
+std::vector<std::string> user_paths() {
+    return {helix::writable_path("user_filaments.json"), "../config/user_filaments.json"};
+}
 
 int get_int(const nlohmann::json& j, const char* key, int def) {
     auto it = j.find(key);
@@ -91,19 +100,19 @@ std::vector<nlohmann::json> object_entries(const nlohmann::json& arr, const char
     return out;
 }
 
-std::vector<nlohmann::json> read_products(const char* const* paths, size_t n) {
-    for (size_t i = 0; i < n; ++i) {
-        std::ifstream f(paths[i]);
+std::vector<nlohmann::json> read_products(const std::vector<std::string>& paths) {
+    for (const auto& path : paths) {
+        std::ifstream f(path);
         if (!f.is_open())
             continue;
         try {
             auto doc = nlohmann::json::parse(f);
             if (doc.is_object() && doc.contains("filaments") && doc["filaments"].is_array())
-                return object_entries(doc["filaments"], paths[i]);
+                return object_entries(doc["filaments"], path.c_str());
             if (doc.is_array()) // user overlay is a bare array
-                return object_entries(doc, paths[i]);
+                return object_entries(doc, path.c_str());
         } catch (const std::exception& e) {
-            spdlog::warn("[filament] parse failed {}: {}", paths[i], e.what());
+            spdlog::warn("[filament] parse failed {}: {}", path, e.what());
         }
     }
     return {};
@@ -124,9 +133,8 @@ void FilamentCatalog::index() {
 
 FilamentCatalog FilamentCatalog::load_from_file(const std::string& path, bool codes_only,
                                                 const std::string& scheme) {
-    const char* paths[] = {path.c_str()};
     FilamentCatalog cat;
-    for (const auto& jp : read_products(paths, 1)) {
+    for (const auto& jp : read_products({path})) {
         auto e = to_effective(jp);
         if (codes_only && e.codes.find(scheme) == e.codes.end())
             continue;
@@ -138,19 +146,16 @@ FilamentCatalog FilamentCatalog::load_from_file(const std::string& path, bool co
 
 FilamentCatalog FilamentCatalog::load_with_overlay(const std::string& builtin_path,
                                                    const std::string& overlay_path) {
-    const char* bpaths[] = {builtin_path.c_str()};
-    const char* opaths[] = {overlay_path.c_str()};
-
     // Raw product JSON keyed by id, so overlay can override before resolution.
     std::unordered_map<std::string, nlohmann::json> merged;
     std::vector<std::string> order;
-    for (const auto& jp : read_products(bpaths, 1)) {
+    for (const auto& jp : read_products({builtin_path})) {
         std::string id = helix::json_util::safe_string(jp, "id");
         if (merged.find(id) == merged.end())
             order.push_back(id);
         merged[id] = jp;
     }
-    for (const auto& jp : read_products(opaths, 1)) {
+    for (const auto& jp : read_products({overlay_path})) {
         std::string id = helix::json_util::safe_string(jp, "id");
         if (merged.find(id) == merged.end()) {
             order.push_back(id);
@@ -209,13 +214,13 @@ FilamentCatalog::load_codes_cached(const std::string& scheme) {
 
 FilamentCatalog FilamentCatalog::load_codes(const std::string& scheme) {
     FilamentCatalog cat;
-    for (const auto& jp : read_products(BUILTIN_PATHS, std::size(BUILTIN_PATHS))) {
+    for (const auto& jp : read_products(BUILTIN_PATHS)) {
         auto e = to_effective(jp);
         if (e.codes.find(scheme) != e.codes.end())
             cat.products_.push_back(std::move(e));
     }
     // User overlay may add coded products too.
-    for (const auto& jp : read_products(USER_PATHS, std::size(USER_PATHS))) {
+    for (const auto& jp : read_products(user_paths())) {
         auto e = to_effective(jp);
         if (e.codes.find(scheme) != e.codes.end())
             cat.products_.push_back(std::move(e));
@@ -227,11 +232,11 @@ FilamentCatalog FilamentCatalog::load_codes(const std::string& scheme) {
 namespace {
 
 /// First path in the list that exists on disk, or "" if none do.
-std::string first_existing(const char* const* paths, size_t n) {
-    for (size_t i = 0; i < n; ++i) {
-        std::ifstream f(paths[i]);
+std::string first_existing(const std::vector<std::string>& paths) {
+    for (const auto& path : paths) {
+        std::ifstream f(path);
         if (f.is_open())
-            return paths[i];
+            return path;
     }
     return "";
 }
@@ -239,12 +244,11 @@ std::string first_existing(const char* const* paths, size_t n) {
 } // namespace
 
 FilamentCatalog FilamentCatalog::load_full() {
-    return load_with_overlay(first_existing(BUILTIN_PATHS, std::size(BUILTIN_PATHS)),
-                             first_existing(USER_PATHS, std::size(USER_PATHS)));
+    return load_with_overlay(first_existing(BUILTIN_PATHS), first_existing(user_paths()));
 }
 
 std::map<std::string, std::string> FilamentCatalog::load_user_orca_type_map() {
-    return load_user_orca_type_map_from(first_existing(USER_PATHS, std::size(USER_PATHS)));
+    return load_user_orca_type_map_from(first_existing(user_paths()));
 }
 
 std::map<std::string, std::string>
@@ -276,28 +280,26 @@ FilamentCatalog::load_user_orca_type_map_from(const std::string& path) {
     return out;
 }
 
-std::string FilamentCatalog::choose_overlay_write_path(const char* const* paths, std::size_t n) {
-    std::string path = first_existing(paths, n);
+std::string FilamentCatalog::choose_overlay_write_path(const std::vector<std::string>& paths) {
+    std::string path = first_existing(paths);
     // Fresh install: no overlay exists yet, so first_existing() is empty. Fall
     // back to the primary path so the file can be created — without this the
     // very first save (from the edit modal) has nowhere to write and fails.
-    if (path.empty() && n > 0)
-        path = paths[0];
+    if (path.empty() && !paths.empty())
+        path = paths.front();
     return path;
 }
 
 bool FilamentCatalog::save_user_products(const std::vector<nlohmann::json>& products) {
-    return save_user_products_to(products,
-                                 choose_overlay_write_path(USER_PATHS, std::size(USER_PATHS)));
+    return save_user_products_to(products, choose_overlay_write_path(user_paths()));
 }
 
 std::vector<nlohmann::json> FilamentCatalog::load_user_products() {
-    return read_products(USER_PATHS, std::size(USER_PATHS));
+    return read_products(user_paths());
 }
 
 std::vector<nlohmann::json> FilamentCatalog::load_user_products_from(const std::string& path) {
-    const char* paths[] = {path.c_str()};
-    return read_products(paths, 1);
+    return read_products({path});
 }
 
 bool FilamentCatalog::upsert_product(std::vector<nlohmann::json>& products,
@@ -373,7 +375,7 @@ bool FilamentCatalog::save_user_products_to(const std::vector<nlohmann::json>& p
     // Atomic write: tmp file + rename. POSIX rename is atomic within a single
     // filesystem. The tmp file lives next to the target so the rename never
     // crosses a mount boundary.
-    std::filesystem::path target(path);
+    std::filesystem::path target(helix::paths::write_target(path));
     std::filesystem::path tmp = target;
     tmp += ".tmp";
 
