@@ -687,15 +687,16 @@ void init(const LogConfig& config) {
     auto logger = std::make_shared<spdlog::logger>("helix", sinks.begin(), sinks.end());
     logger->set_level(std::min(config.level, ring_level));
 
-    // Flush warnings and worse immediately instead of waiting for spdlog's
+    // Flush info and worse immediately instead of waiting for spdlog's
     // buffer to fill. The UI is routinely SIGKILLed rather than shut down
     // cleanly — an init script escalating `kill` to `kill -9`, or a firmware
     // helper stopping the GUI to free RAM — and anything still buffered at that
     // moment is lost. The lost lines are exactly the ones describing why the
     // process was in trouble, which is what makes such a failure undiagnosable
-    // after the fact. Levels below warn stay buffered so ordinary logging on
-    // flash-backed boards keeps its write batching.
-    logger->flush_on(spdlog::level::warn);
+    // after the fact. INFO is the production level and runs at a few hundred
+    // lines an hour at most, so a write per line costs nothing and the page
+    // cache still batches the flash writes. Debug and trace stay buffered.
+    logger->flush_on(spdlog::level::info);
 
     // Set as default logger
     spdlog::set_default_logger(logger);
