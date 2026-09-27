@@ -2,10 +2,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_history_list_view.h"
+#include "ui_nav_manager.h"
+#include "ui_panel_history_list.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/history_list_panel_test_access.h"
+#include "data_root_resolver.h"
+#include "lvgl/src/others/translation/lv_translation.h"
+#include "thumbnail_cache.h"
+#include "translation_loader.h"
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -93,4 +102,105 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(view.is_initialized() == true);
     REQUIRE(view.container() == container_b);
     REQUIRE(lv_obj_get_child_count(container_b) == children_b);
+}
+
+namespace {
+
+// LVGL has no pack-unregister API, so the language goes back to the identity
+// locale, whose lookups return the tag itself.
+struct ScopedGerman {
+    ScopedGerman() {
+        helix::ui::ensure_translation_loaded("de");
+        lv_translation_set_language("de");
+    }
+    ~ScopedGerman() {
+        lv_translation_set_language(helix::ui::kIdentityLocale);
+    }
+    ScopedGerman(const ScopedGerman&) = delete;
+    ScopedGerman& operator=(const ScopedGerman&) = delete;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "HistoryListView - a row's status and filament read in the UI language",
+                 "[history_list_view][history][translation]") {
+    ScopedGerman german;
+    REQUIRE(std::string(lv_tr("Completed")) != "Completed"); // the pack loaded
+
+    HistoryListView view;
+    lv_obj_t* container = make_scroll_container(test_screen());
+    view.setup(container, nullptr, [](size_t) {});
+    view.populate(make_test_jobs(3));
+    process_lvgl(50);
+
+    lv_obj_t* status = lv_obj_find_by_name(container, "row_status");
+    REQUIRE(status != nullptr);
+    REQUIRE(std::string(lv_label_get_text(status)) == lv_tr("Completed"));
+
+    // The test jobs carry no filament type.
+    lv_obj_t* filament = lv_obj_find_by_name(container, "row_filament");
+    REQUIRE(filament != nullptr);
+    REQUIRE(std::string(lv_label_get_text(filament)) == lv_tr("Unknown"));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "HistoryListPanel - the detail status reads in the UI language",
+                 "[history][translation]") {
+    ScopedGerman german;
+
+    HistoryListPanel panel;
+    panel.init_subjects();
+
+    PrintHistoryJob job;
+    job.filename = "benchy.gcode";
+    job.status = PrintJobStatus::ERROR;
+    helix::ui::HistoryListPanelTestAccess::update_detail_subjects(panel, job);
+
+    lv_subject_t* status = lv_xml_get_subject(nullptr, "history_detail_status");
+    REQUIRE(status != nullptr);
+    REQUIRE(std::string(lv_subject_get_string(status)) == lv_tr("Failed"));
+    REQUIRE(std::string(lv_tr("Failed")) != "Failed");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "HistoryListPanel - the detail thumbnail path is relative to the gcodes root",
+                 "[history][subdir]") {
+    const bool in_subdir = GENERATE(false, true);
+    PrintHistoryJob job;
+    job.filename = in_subdir ? "sub/dir/DetailThumbProbe.gcode" : "DetailThumbProbe.gcode";
+    job.status = PrintJobStatus::COMPLETED;
+    job.thumbnail_path = ".thumbs/DetailThumbProbe.png";
+    const std::string key =
+        in_subdir ? "sub/dir/.thumbs/DetailThumbProbe.png" : ".thumbs/DetailThumbProbe.png";
+
+    // A cached PNG under exactly one key: the overlay shows it only when it
+    // asks for that key.
+    auto& cache = get_thumbnail_cache();
+    std::filesystem::remove(cache.get_cache_path(".thumbs/DetailThumbProbe.png"));
+    std::filesystem::remove(cache.get_cache_path("sub/dir/.thumbs/DetailThumbProbe.png"));
+    const std::string planted = cache.get_cache_path(key);
+    std::filesystem::copy_file(helix::asset_path("assets/images/folder.png"), planted,
+                               std::filesystem::copy_options::overwrite_existing);
+    const std::string expected = cache.get_if_cached(key);
+    REQUIRE_FALSE(expected.empty());
+
+    {
+        HistoryListPanel panel;
+        panel.init_subjects();
+        helix::ui::HistoryListPanelTestAccess::show_detail_overlay(panel, test_screen(), job);
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(10);
+        helix::ui::UpdateQueue::instance().drain();
+
+        lv_obj_t* image = lv_obj_find_by_name(test_screen(), "thumbnail_image");
+        REQUIRE(image != nullptr);
+        const void* src = lv_image_get_src(image);
+        REQUIRE(src != nullptr);
+        REQUIRE(std::string(static_cast<const char*>(src)) == expected);
+
+        NavigationManager::instance().go_back();
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(10);
+    }
+    std::filesystem::remove(planted);
 }

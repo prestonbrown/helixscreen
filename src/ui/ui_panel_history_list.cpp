@@ -799,32 +799,29 @@ HistoryListPanel::apply_status_filter(const std::vector<PrintHistoryJob>& source
     return result;
 }
 
+bool helix::history_sort_before(const PrintHistoryJob& a, const PrintHistoryJob& b,
+                                HistorySortColumn column, HistorySortDirection direction) {
+    // Descending swaps the operands rather than negating the result: negation
+    // answers true for equal keys.
+    const PrintHistoryJob& lhs = direction == HistorySortDirection::DESC ? b : a;
+    const PrintHistoryJob& rhs = direction == HistorySortDirection::DESC ? a : b;
+    switch (column) {
+    case HistorySortColumn::DATE:
+        return lhs.start_time < rhs.start_time;
+    case HistorySortColumn::DURATION:
+        return lhs.total_duration < rhs.total_duration;
+    case HistorySortColumn::FILENAME:
+        return lhs.filename < rhs.filename;
+    }
+    return false;
+}
+
 void HistoryListPanel::apply_sort(std::vector<PrintHistoryJob>& jobs) {
-    auto sort_col = sort_column_;
-    auto sort_dir = sort_direction_;
-
+    const auto column = sort_column_;
+    const auto direction = sort_direction_;
     std::sort(jobs.begin(), jobs.end(),
-              [sort_col, sort_dir](const PrintHistoryJob& a, const PrintHistoryJob& b) {
-                  bool result = false;
-
-                  switch (sort_col) {
-                  case HistorySortColumn::DATE:
-                      result = a.start_time < b.start_time;
-                      break;
-                  case HistorySortColumn::DURATION:
-                      result = a.total_duration < b.total_duration;
-                      break;
-                  case HistorySortColumn::FILENAME:
-                      result = a.filename < b.filename;
-                      break;
-                  }
-
-                  // For DESC, invert the result
-                  if (sort_dir == HistorySortDirection::DESC) {
-                      result = !result;
-                  }
-
-                  return result;
+              [column, direction](const PrintHistoryJob& a, const PrintHistoryJob& b) {
+                  return helix::history_sort_before(a, b, column, direction);
               });
 }
 
@@ -1002,9 +999,9 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
 
             // The detail overlay has always rendered the full-resolution PNG,
             // so it asks for FullPng and req.target goes unused. The cache key
-            // is the job's Moonraker relative path, unchanged.
+            // is the thumbnail's path from the gcodes root.
             ThumbnailRequest req;
-            req.key = job.thumbnail_path;
+            req.key = helix::job_thumbnail_path(job, job.thumbnail_path);
             req.api = api;
             req.format = ThumbnailRequest::ThumbnailFormat::FullPng;
 
@@ -1074,7 +1071,7 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
 void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     // Update string subjects using lv_subject_copy_string (LVGL 9.4 API)
     lv_subject_copy_string(&detail_filename_, job.filename.c_str());
-    lv_subject_copy_string(&detail_status_, status_to_label(job.status));
+    lv_subject_copy_string(&detail_status_, lv_tr(status_to_label(job.status)));
     lv_subject_copy_string(&detail_status_icon_, status_to_icon(job.status));
     lv_subject_copy_string(&detail_status_variant_, status_to_variant(job.status));
 

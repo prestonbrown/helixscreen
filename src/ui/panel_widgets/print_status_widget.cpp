@@ -845,11 +845,11 @@ std::string PrintStatusWidget::get_last_print_thumbnail_path() const {
         const auto* best = best_adequate ? best_adequate : largest;
         spdlog::debug("[PrintStatusWidget] Widget {}x{}, selected thumbnail {}x{} ({})", target_w,
                       target_h, best->width, best->height, best->relative_path);
-        return best->relative_path;
+        return helix::job_thumbnail_path(job, best->relative_path);
     }
 
     // Fallback: use pre-selected largest thumbnail
-    return job.thumbnail_path;
+    return helix::job_thumbnail_path(job, job.thumbnail_path);
 }
 
 time_t PrintStatusWidget::get_last_print_source_modified() const {
@@ -2046,9 +2046,7 @@ LastPrintText describe_last_print(const PrintHistoryJob& job, double now_s) {
     LastPrintText text;
     text.filename = helix::gcode::get_display_filename(job.filename);
 
-    // Moonraker leaves end_time null, parsed as 0, on in_progress rows and on
-    // rows it marks interrupted at startup (prestonbrown/helixscreen#1713).
-    const double when_s = job.end_time > 0 ? job.end_time : job.start_time;
+    const double when_s = job_timestamp(job);
     const long delta_s = static_cast<long>(now_s - when_s);
     if (job.status == PrintJobStatus::COMPLETED) {
         // Each branch is a whole sentence with the number as a placeholder. The
@@ -2078,8 +2076,10 @@ LastPrintText describe_last_print(const PrintHistoryJob& job, double now_s) {
         text.when = (*status && !age.empty()) ? fmt::format("{} • {}", status, age) : status + age;
     }
 
-    const std::string duration = job.print_duration > 0 ? job.duration_str
-                                 : job.total_duration > 0
+    // Durations format in whole seconds, so anything under one reads "0s": no
+    // time recorded, which the card hides like a zero.
+    const std::string duration = job.print_duration >= 1 ? job.duration_str
+                                 : job.total_duration >= 1
                                      ? helix::format::duration(static_cast<int>(job.total_duration))
                                      : "";
     const bool has_filament = job.filament_used > 0 && !job.filament_str.empty();
