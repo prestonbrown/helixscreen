@@ -33,7 +33,7 @@ Solutions to common problems with HelixScreen.
 1. **Settings → System → Log Level → Debug** (or Trace for the deepest detail)
 2. Reproduce the problem
 3. **Settings → Help & About → Upload Debug Bundle** — collects the verbose log + system info and gives you a short share code to paste into a bug report
-4. Set Log Level back to **Warn** when done — Debug and Trace add CPU and log volume
+4. Set Log Level back to **Info** when done. Debug and Trace add CPU and log volume
 
 That's the path for almost everyone. Use the alternatives below only if you can't reach Settings.
 
@@ -64,8 +64,8 @@ tail -f /data/helixscreen/logs/helix.log   # AD5M
 The app log's location varies by platform; see [Collecting Logs](#collecting-logs) for the path on yours.
 
 **Verbosity levels:**
-- `warn` — production default (errors and warnings only)
-- `info` — connection events, panel changes
+- `warn` - errors and warnings only
+- `info` - production default: connection events, panel changes
 - `debug` — detailed state changes, API calls
 - `trace` — everything including LVGL internals
 
@@ -2003,14 +2003,14 @@ When reporting issues, gather this information. **Most importantly, enable debug
 
 ### Enabling Debug Logging
 
-By default, HelixScreen only logs warnings and errors. To capture useful diagnostic information, you need to temporarily enable debug-level logging, reproduce the problem, then collect the logs.
+By default, HelixScreen logs warnings, errors and milestones (connections, panel changes, updates). To capture more diagnostic information, you need to temporarily enable debug-level logging, reproduce the problem, then collect the logs.
 
-**Quickest method:** Go to **Settings > System > Log Level** and select **Debug**. This takes effect immediately with no restart needed. Remember to set it back to **Warn** when done.
+**Quickest method:** Go to **Settings > System > Log Level** and select **Debug**. This takes effect immediately with no restart needed. Remember to set it back to **Info** when done.
 
 **Verbosity levels:**
 | Flag | Level | What it captures |
 |------|-------|-----------------|
-| *(none)* | WARN | Errors and warnings only (production default) |
+| *(none)* | INFO | Errors, warnings and milestones (production default) |
 | `-v` | INFO | Connection events, panel changes, milestones |
 | `-vv` | DEBUG | State changes, API calls, component init (**use this for bug reports**) |
 | `-vvv` | TRACE | Everything including LVGL internals (very verbose, rarely needed) |

@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "hv/hlog.h"
 #include "logging_init.h"
 
 #include <cstdlib>
@@ -125,6 +126,37 @@ TEST_CASE("to_hv_level: spdlog to libhv level mapping", "[logging][config]") {
     }
 }
 
+TEST_CASE("libhv_level_for: libhv never logs below WARN", "[logging][config]") {
+    // libhv writes its own fsync-per-line file, so the app level must not drag it down.
+    REQUIRE(libhv_level_for(spdlog::level::trace) == 3);
+    REQUIRE(libhv_level_for(spdlog::level::debug) == 3);
+    REQUIRE(libhv_level_for(spdlog::level::info) == 3);
+    REQUIRE(libhv_level_for(spdlog::level::warn) == 3);
+    REQUIRE(libhv_level_for(spdlog::level::err) == 4);
+    REQUIRE(libhv_level_for(spdlog::level::off) == 6);
+}
+
+namespace {
+int g_hv_lines = 0;
+void count_hv_line(int, const char*, int) {
+    ++g_hv_lines;
+}
+} // namespace
+
+TEST_CASE("set_runtime_level keeps libhv at WARN", "[logging][config]") {
+    g_hv_lines = 0;
+    hlog_set_handler(count_hv_line);
+    set_runtime_level(spdlog::level::debug);
+
+    hlogi("info from libhv");
+    CHECK(g_hv_lines == 0);
+    hlogw("warn from libhv");
+    CHECK(g_hv_lines == 1);
+
+    hlog_set_handler(nullptr);
+    set_runtime_level(spdlog::level::info);
+}
+
 // ============================================================================
 // resolve_log_level() tests
 // ============================================================================
@@ -146,9 +178,9 @@ TEST_CASE("resolve_log_level: precedence rules", "[logging][config]") {
         REQUIRE(level == spdlog::level::debug);
     }
 
-    SECTION("production defaults to warn when no CLI or config") {
+    SECTION("production defaults to info when no CLI or config") {
         auto level = resolve_log_level(0, "", false);
-        REQUIRE(level == spdlog::level::warn);
+        REQUIRE(level == spdlog::level::info);
     }
 
     SECTION("CLI verbosity beats test_mode default") {

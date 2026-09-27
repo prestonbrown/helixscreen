@@ -537,7 +537,7 @@ Open a GitHub issue with the "enhancement" label, or suggest it in the [Discord]
 
 ### How do I enable debug logging?
 
-**Easiest method:** Go to **Settings > System > Log Level** and select **Debug** from the dropdown. The change takes effect immediately — no restart needed. Set it back to **Warn** when you're done.
+**Easiest method:** Go to **Settings > System > Log Level** and select **Debug** from the dropdown. The change takes effect immediately, with no restart needed. Set it back to **Info** when you're done.
 
 **Alternative (via config file):** Add `HELIX_LOG_LEVEL=debug` to your `helixscreen.env` file and restart. On Klipper-based printers the canonical path is in your `printer_data` config dir (the same place where you edit `printer.cfg` from Mainsail/Fluidd):
 
@@ -551,7 +551,7 @@ echo 'HELIX_LOG_LEVEL=debug' >> /opt/helixscreen/config/helixscreen.env
 /etc/init.d/S90helixscreen restart
 ```
 
-Available levels: `warn` (default), `info`, `debug`, `trace`. **Set back to Warn after debugging** — verbose logging impacts performance.
+Available levels: `warn`, `info` (default), `debug`, `trace`. **Set back to Info after debugging**: debug and trace logging cost CPU and log space.
 
 ### Where are the logs?
 

@@ -646,11 +646,10 @@ void init(const LogConfig& config) {
     // init_early() when there is one to adopt (see below). This is the
     // authoritative source for the debug bundle's log_tail: always the live
     // process, always fresh, and (by default) always carrying DEBUG even when
-    // the persistent sinks run at WARN. On syslog-target devices (AD5X/AD5M)
-    // the file cascade otherwise falls back to a stale leftover file and only
-    // WARN-filtered /var/log/messages lines reach the bundle — the runtime
-    // debug context needed to diagnose an in-progress incident (e.g. a stuck
-    // IFS filament purge) was being lost entirely.
+    // the persistent sinks run at a coarser level. The persistent sinks keep
+    // only what their level lets through, so the debug context needed to
+    // diagnose an in-progress incident (e.g. a stuck IFS filament purge) lives
+    // only here.
     //
     // Perf tradeoff (MIPS/AD5X): debug-level emission costs a format pass per
     // line into the ring even when persistent sinks drop it. That cost is
@@ -926,6 +925,10 @@ int to_hv_level(spdlog::level::level_enum level) {
     }
 }
 
+int libhv_level_for(spdlog::level::level_enum level) {
+    return to_hv_level(std::max(level, spdlog::level::warn));
+}
+
 #ifndef HELIX_WATCHDOG
 void set_runtime_level(spdlog::level::level_enum level) {
     // Mirror init()'s split: the logger floor must stay at least as verbose as
@@ -961,7 +964,7 @@ void set_runtime_level(spdlog::level::level_enum level) {
         spdlog::set_level(std::min(level, ring_level));
     }
 
-    hlog_set_level(to_hv_level(level));
+    hlog_set_level(libhv_level_for(level));
     spdlog::info("[Logging] Runtime log level changed to {}",
                  spdlog::level::to_string_view(level).data());
 }
@@ -982,8 +985,8 @@ spdlog::level::level_enum resolve_log_level(int cli_verbosity, const std::string
         return parse_level(config_level_str, spdlog::level::warn);
     }
 
-    // Defaults: test mode = debug, production = warn
-    return test_mode ? spdlog::level::debug : spdlog::level::warn;
+    // Defaults: test mode = debug, production = info
+    return test_mode ? spdlog::level::debug : spdlog::level::info;
 }
 
 } // namespace logging

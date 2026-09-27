@@ -86,7 +86,7 @@ The configuration file is JSON format with several top-level sections:
   "telemetry_enabled": false,
   "log_dest": "auto",
   "log_path": "",
-  "log_level": "warn",
+  "log_level": "info",
 
   "panel_widgets": { ... },
   "theme": { ... },
@@ -310,11 +310,11 @@ Located in the `theme` section:
 
 ### `log_level`
 **Type:** string
-**Default:** `"warn"`
+**Default:** `"info"`
 **Values:** `"warn"`, `"info"`, `"debug"`, `"trace"`
 **Description:** Log verbosity level:
-- `warn` - Quiet, only warnings and errors (default)
-- `info` - General operational information
+- `warn` - Quiet, only warnings and errors
+- `info` - General operational information (default)
 - `debug` - Detailed debugging information
 - `trace` - Extremely verbose, all internal operations
 
@@ -1886,7 +1886,7 @@ Environment="HELIX_TOUCH_DEVICE=/dev/input/event0"
   "language": "en",
   "log_dest": "journal",
   "log_path": "",
-  "log_level": "warn",
+  "log_level": "info",
 
   "theme": {
     "preset": 0

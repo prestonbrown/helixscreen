@@ -1387,7 +1387,7 @@ bool Application::init_logging() {
 
     // Set libhv log level from config (CLI -v flags don't affect libhv)
     spdlog::level::level_enum hv_spdlog_level = parse_level(config_level, spdlog::level::warn);
-    hlog_set_level(to_hv_level(hv_spdlog_level));
+    hlog_set_level(libhv_level_for(hv_spdlog_level));
 
     return true;
 }

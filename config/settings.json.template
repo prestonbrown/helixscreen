@@ -30,8 +30,8 @@
   "_log_dest_comment": "Log destination: 'auto' (detect best), 'journal' (systemd), 'syslog', 'file', 'console' (disable system log)",
   "log_path": "",
   "_log_path_comment": "Log file path when using file destination. Empty = auto (/var/log or ~/.local/share)",
-  "log_level": "warn",
-  "_log_level_comment": "Log verbosity: warn (quiet), info, debug, trace. CLI -v flags override this.",
+  "log_level": "info",
+  "_log_level_comment": "Log verbosity: warn (quiet), info (default), debug, trace. CLI -v flags override this.",
   "network": {
     "connection_type": "None",
     "wifi_ssid": "",

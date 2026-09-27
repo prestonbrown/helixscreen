@@ -8,7 +8,7 @@ This document defines the logging standards for HelixScreen. All new code should
 |-------|----------|---------|----------|
 | **ERROR** | (always) | Unrecoverable failures | "Failed to connect", "NULL pointer" |
 | **WARN** | (always) | Recoverable issues, guards | "Double init detected", "Fallback used" |
-| **INFO** | `-v` | User-visible milestones | "Connected to Moonraker", "Setup complete" |
+| **INFO** | (production default), `-v` | User-visible milestones | "Connected to Moonraker", "Setup complete" |
 | **DEBUG** | `-vv` | Troubleshooting info | Component init summaries, state changes |
 | **TRACE** | `-vvv` | Wire-level details | Per-item loops, JSON-RPC protocol, observer plumbing |
 
@@ -404,12 +404,12 @@ Older installs wrote to `/tmp/helixscreen.log` on every SysV target. Debug bundl
 `helixscreen.env` (in `<install_dir>/config/`, but on Klipper platforms it's symlinked to `~/printer_data/config/helixscreen/helixscreen.env`):
 
 ```
-HELIX_LOG_LEVEL=warn   # trace, debug, info, warn, error, critical, off
+HELIX_LOG_LEVEL=info   # trace, debug, info, warn, error, critical, off
 HELIX_LOG_DEST=auto    # auto, journal, syslog, file, console
 HELIX_LOG_FILE=        # path; only used when HELIX_LOG_DEST=file
 ```
 
-Precedence: `--log-*` CLI flag > `HELIX_LOG_*` env > `/log_*` in `settings.json` > defaults (production: `warn`; test mode: `debug`).
+Precedence: `--log-*` CLI flag > `HELIX_LOG_*` env > `/log_*` in `settings.json` > defaults (production: `info`; test mode: `debug`). libhv's own logger stays at `warn` or quieter whatever the app level (`libhv_level_for()`), because it fsyncs every line into its own file in the working directory.
 
 The env tier is enforced in C++ (`Application::init_logging()` → `helix::logging::log_env_override()` / `resolve_log_setting()`), not just by the launcher's flag translation, so it holds however the binary was started. Validation is shared with the CLI parser (`is_valid_log_target()` / `is_valid_log_level()` in `logging_init.h`) so the accepted sets cannot drift, but the two disagree on what to do with a bad value on purpose: a bad **flag** is fatal (the user is at a prompt and can retry), a bad **env value** logs a warning and falls through to the next tier (a typo in `helixscreen.env` must not turn every boot of an appliance into a crash-loop).
 

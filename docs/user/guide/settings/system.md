@@ -87,12 +87,12 @@ Control how much detail HelixScreen writes to its logs. This is useful when trou
 
 | Level | What it captures |
 |-------|-----------------|
-| **Warn** | Errors and warnings only (default — quiet) |
-| **Info** | Connection events, panel changes, milestones |
+| **Warn** | Errors and warnings only (quiet) |
+| **Info** | Connection events, panel changes, milestones (default) |
 | **Debug** | State changes, API calls, component init (use this for bug reports) |
 | **Trace** | Everything including LVGL internals (very verbose, rarely needed) |
 
-Changes take effect immediately — no restart required. Set to **Debug** before reproducing a problem, then set back to **Warn** when done.
+Changes take effect immediately, with no restart required. Set to **Debug** before reproducing a problem, then set back to **Info** when done.
 
 > **Tip:** Debug and Trace levels increase CPU usage and log volume. Don't leave them enabled long-term.
 

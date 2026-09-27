@@ -439,6 +439,14 @@ spdlog::level::level_enum verbosity_to_level(int verbosity);
 int to_hv_level(spdlog::level::level_enum level);
 
 /**
+ * @brief libhv level for an app log level, never more verbose than WARN
+ *
+ * libhv writes its own file in the working directory and fsyncs every line,
+ * so it stays at WARN even when the app logs at INFO or below.
+ */
+int libhv_level_for(spdlog::level::level_enum level);
+
+/**
  * @brief Change log level at runtime (no restart needed)
  *
  * Updates both spdlog and libhv log levels immediately.
