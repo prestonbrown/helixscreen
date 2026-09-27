@@ -679,9 +679,9 @@ void FilamentPanel::update_safety_state() {
     // both enables the buttons and hides the "heat first" warning.
     bool allowed = is_extrusion_allowed();
 
-    // Hide the safety warning (and enable buttons) if we have a known spool material,
-    // since the load/unload handlers will auto-preheat to the correct temperature.
-    bool has_known_spool = has_active_spool_material();
+    // Hide the safety warning (and enable buttons) when the slot the op acts on
+    // names a material, since the handlers preheat for it.
+    bool has_known_spool = has_known_op_material();
     bool show_warning = !allowed && !has_known_spool;
 
     lv_subject_set_int(&extrusion_allowed_subject_, allowed ? 1 : 0);
@@ -1863,6 +1863,9 @@ void FilamentPanel::update_filament_op_buttons() {
         return;
     }
 
+    // The "heat first" warning follows the selected slot's material too.
+    update_safety_state();
+
     // Recompute Load/Unload/Purge gating from the SELECTED tool's LIVE load
     // state (Task 5). Without an AMS backend (single-extruder / external-spool
     // mode) we have no per-slot load signal, so leave both enabled — the only
@@ -2389,29 +2392,8 @@ bool FilamentPanel::is_extrusion_allowed() const {
     return helix::ui::temperature::is_extrusion_safe(nozzle_current_, min_extrude_temp_);
 }
 
-bool FilamentPanel::has_active_spool_material() const {
-    // Check if there's a known spool with valid material info (external spool or AMS active slot)
-    auto ext = AmsState::instance().get_external_spool_info();
-    if (ext.has_value()) {
-        auto active = helix::build_active_material(*ext);
-        if (active.material_info.nozzle_min > 0) {
-            return true;
-        }
-    }
-
-    AmsBackend* backend = AmsState::instance().get_backend();
-    if (backend) {
-        AmsSystemInfo sys_info = backend->get_system_info();
-        const SlotInfo* active_slot = sys_info.get_active_slot();
-        if (active_slot) {
-            auto active = helix::build_active_material(*active_slot);
-            if (active.material_info.nozzle_min > 0) {
-                return true;
-            }
-        }
-    }
-
-    return false;
+bool FilamentPanel::has_known_op_material() const {
+    return slot_preheat_material(selected_op_slot()).has_value();
 }
 
 int FilamentPanel::preheat_slot_for_op(PreheatOp op) const {
@@ -2436,15 +2418,7 @@ int FilamentPanel::preheat_slot_for_op(PreheatOp op) const {
 }
 
 std::optional<FilamentPanel::PreheatTempResult>
-FilamentPanel::resolve_material_preheat_temp(int target_slot) const {
-    // Priorities 1 and 2 (target slot, then the external spool as the fallback
-    // for a load with no lane of its own) are shared with
-    // AmsOperationSidebar::get_load_temp_for_slot() via
-    // resolve_load_preheat_material(). This used to consult the external spool
-    // FIRST and unconditionally, then the *loaded* slot rather than the selected
-    // one — so a PETG lane selected while PLA was loaded preheated to PLA, and
-    // any printer with an external spool assigned preheated every load to that
-    // spool. Both were silent and both cause jams.
+FilamentPanel::slot_preheat_material(int target_slot) const {
     AmsBackend* backend = AmsState::instance().get_backend();
     SlotInfo slot;
     const SlotInfo* slot_ptr = nullptr;
@@ -2452,11 +2426,22 @@ FilamentPanel::resolve_material_preheat_temp(int target_slot) const {
         slot = backend->get_slot_info(target_slot);
         slot_ptr = &slot;
     }
-
     auto ext = AmsState::instance().get_external_spool_info();
     if (auto resolved = helix::ui::resolve_load_preheat_material(
             target_slot, slot_ptr, ext.has_value() ? &ext.value() : nullptr)) {
         return PreheatTempResult{resolved->temp_c, resolved->material_name};
+    }
+    return std::nullopt;
+}
+
+std::optional<FilamentPanel::PreheatTempResult>
+FilamentPanel::resolve_material_preheat_temp(int target_slot) const {
+    // Priorities 1 and 2 (target slot, then the external spool as the fallback
+    // for a load with no lane of its own) are shared with
+    // AmsOperationSidebar::get_load_temp_for_slot() via
+    // resolve_load_preheat_material().
+    if (auto resolved = slot_preheat_material(target_slot)) {
+        return resolved;
     }
 
     // Priority 3: the panel's selected material preset. The sidebar has no

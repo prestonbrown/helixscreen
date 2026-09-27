@@ -38,7 +38,9 @@
 #include "tool_state.h"
 
 #include <lvgl.h>
+#include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -96,6 +98,7 @@ class RecordingBackend : public AmsBackendMock {
     [[nodiscard]] bool slot_has_filament_at_toolhead(int slot) const override {
         return slot == loaded_slot_;
     }
+    std::map<int, std::string> material_; ///< Per-slot material name (absent = none)
     // Deterministic per-lane presence for the button gating (the base mock owns
     // its own slot table, which this test does not populate).
     [[nodiscard]] SlotInfo get_slot_info(int slot) const override {
@@ -104,6 +107,9 @@ class RecordingBackend : public AmsBackendMock {
         info.global_index = slot;
         info.mapped_tool = slot;
         info.status = (slot == loaded_slot_) ? SlotStatus::LOADED : slot_status_;
+        if (auto it = material_.find(slot); it != material_.end()) {
+            info.material = it->second;
+        }
         return info;
     }
     [[nodiscard]] bool filament_ops_self_home() const override {
@@ -757,4 +763,58 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel greys Load/Unload while the 
                        static_cast<int>(AmsAction::IDLE));
     process_lvgl(10);
     CHECK(read("filament_unload_disabled") == 0);
+}
+
+// The cold-nozzle "heat first" warning is hidden when the op preheats for a
+// known material, and Load/Unload preheat for the dropdown-selected slot. So the
+// material that hides the warning has to be the selected slot's, not the loaded
+// lane's.
+//
+// Mutation check: make has_known_op_material() read the backend's current_slot
+// instead of selected_op_slot() and both sections fail; drop the
+// update_safety_state() call in update_filament_op_buttons() and the first fails.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Filament panel heat-first warning follows the selected slot's material",
+                 "[filament][op_slot][panel][op_gating]") {
+    auto warning = [] {
+        lv_subject_t* s = lv_xml_get_subject(nullptr, "filament_safety_warning_visible");
+        REQUIRE(s != nullptr);
+        return lv_subject_get_int(s);
+    };
+
+    // Lane 4 (slot 3) is loaded and active; the dropdown selects T0.
+    auto with_materials = [](std::string active_mat, std::string selected_mat) {
+        AmsSystemInfo sys = boxturtle_sys();
+        sys.units[0].slots[3].material = active_mat;
+        sys.units[0].slots[0].material = selected_mat;
+        return sys;
+    };
+
+    SECTION("selected slot names PETG, the active lane names nothing") {
+        OpSlotHarness h(*this, with_materials("", "PETG"), /*loaded_slot=*/3, identity_topo());
+        h.mock->material_ = {{0, "PETG"}};
+        REQUIRE_FALSE(AmsState::instance().get_external_spool_info().has_value());
+        // Cold nozzle with T3 (no material) selected, then only the dropdown moves:
+        // the selection change alone has to re-evaluate the warning.
+        h.select_tool(3);
+        TA::handle_extruder_changed(*h.panel);
+        h.panel->set_temp(20, 0);
+        process_lvgl(10);
+        REQUIRE(warning() == 1);
+        h.select_tool(0);
+        TA::handle_extruder_changed(*h.panel);
+        process_lvgl(10);
+        CHECK(warning() == 0);
+    }
+
+    SECTION("the active lane names PETG, the selected slot names nothing") {
+        OpSlotHarness h(*this, with_materials("PETG", ""), /*loaded_slot=*/3, identity_topo());
+        h.mock->material_ = {{3, "PETG"}};
+        REQUIRE_FALSE(AmsState::instance().get_external_spool_info().has_value());
+        h.select_tool(0);
+        TA::handle_extruder_changed(*h.panel);
+        h.panel->set_temp(20, 0);
+        process_lvgl(10);
+        CHECK(warning() == 1);
+    }
 }

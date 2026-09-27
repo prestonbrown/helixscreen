@@ -588,8 +588,12 @@ class FilamentPanel : public PanelBase {
     /// dropdown selection (selected_op_slot); Extrude/Retract/Purge follow the
     /// LOADED lane, since they push what is already in the melt zone.
     int preheat_slot_for_op(PreheatOp op) const;
-    bool
-    has_active_spool_material() const; ///< True if external spool or AMS slot has known material
+    /// The material @p target_slot names, else the external spool's
+    /// (helix::ui::resolve_load_preheat_material()). No panel preset tail.
+    std::optional<PreheatTempResult> slot_preheat_material(int target_slot) const;
+    /// Whether the slot Load/Unload act on names a material, so a cold-nozzle op
+    /// preheats for it instead of needing the "heat first" warning.
+    bool has_known_op_material() const;
     void start_preheat_for_op(PreheatOp op); ///< Resolve temp, heat, set pending state
     void restore_heater_after_preheat();     ///< Cool down if heater was off before preheat
 
