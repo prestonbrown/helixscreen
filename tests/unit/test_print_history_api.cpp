@@ -13,8 +13,8 @@
 
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
-#include "../../include/moonraker_history_api.h"
 #include "../../include/print_history_data.h"
+#include "../../include/print_history_parse.h"
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
 #include "../ui_test_utils.h"
@@ -427,18 +427,6 @@ TEST_CASE("json::value() handles null values", "[history][parsing]") {
 // ============================================================================
 // PrintHistoryJob Parsing Tests
 // ============================================================================
-
-namespace {
-/// Exposes the protected history job parser.
-class HistoryParseProbe : public MoonrakerHistoryAPI {
-  public:
-    using MoonrakerHistoryAPI::parse_history_job;
-};
-} // namespace
-
-static PrintHistoryJob parse_history_job(const nlohmann::json& job_json) {
-    return HistoryParseProbe::parse_history_job(job_json);
-}
 
 // A QIDI Q2 Moonraker copies slicer settings into metadata as JSON strings
 // (prestonbrown/helixscreen#1713). This row is verbatim from a Q2.

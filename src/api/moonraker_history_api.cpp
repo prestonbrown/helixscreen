@@ -11,6 +11,7 @@
 #include "locale_formats.h"
 #include "moonraker_api_internal.h"
 #include "moonraker_client.h"
+#include "print_history_parse.h"
 
 #include <spdlog/spdlog.h>
 
@@ -66,13 +67,7 @@ std::string format_history_filament(double mm) {
 
 } // anonymous namespace
 
-// ============================================================================
-// MoonrakerHistoryAPI Implementation
-// ============================================================================
-
-MoonrakerHistoryAPI::MoonrakerHistoryAPI(IMoonrakerClient& client) : client_(client) {}
-
-PrintHistoryJob MoonrakerHistoryAPI::parse_history_job(const json& job_json) {
+PrintHistoryJob helix::parse_history_job(const nlohmann::json& job_json) {
     PrintHistoryJob job;
 
     // String fields. json::value() is safe for a MISSING key but NOT for a key
@@ -144,6 +139,12 @@ PrintHistoryJob MoonrakerHistoryAPI::parse_history_job(const json& job_json) {
 
     return job;
 }
+
+// ============================================================================
+// MoonrakerHistoryAPI Implementation
+// ============================================================================
+
+MoonrakerHistoryAPI::MoonrakerHistoryAPI(IMoonrakerClient& client) : client_(client) {}
 
 void MoonrakerHistoryAPI::get_history_list(int limit, int start, double since, double before,
                                            HistoryListCallback on_success, ErrorCallback on_error) {
