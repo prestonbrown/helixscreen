@@ -2,9 +2,9 @@
 #include "ui_error_reporting.h"
 
 #include "config_storage.h"
+#include "system/helix_paths.h"
 
 #if !defined(HELIX_SPLASH_ONLY) && !defined(HELIX_WATCHDOG)
-#include "system/helix_paths.h"
 #include "system/telemetry_manager.h"
 #define CONFIG_RECORD_ERROR(...) TelemetryManager::instance().record_error(__VA_ARGS__)
 #else
