@@ -76,6 +76,19 @@ enum class HistorySortDirection {
     ASC   ///< Ascending (oldest first, shortest first, A-Z)
 };
 
+namespace helix {
+
+/**
+ * @brief Whether @p a sorts before @p b in the history list
+ *
+ * A strict weak ordering in both directions, as std::sort requires: equal keys
+ * never sort before each other.
+ */
+[[nodiscard]] bool history_sort_before(const PrintHistoryJob& a, const PrintHistoryJob& b,
+                                       HistorySortColumn column, HistorySortDirection direction);
+
+} // namespace helix
+
 /**
  * @brief Status filter options (maps to dropdown indices)
  */
