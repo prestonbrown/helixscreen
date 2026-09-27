@@ -179,7 +179,7 @@ struct FilamentUsageRecord {
  * @brief Filter spools by a multi-term search query
  *
  * Each space-separated term must match somewhere in the spool's combined
- * searchable text (ID, vendor, material, color_name, location). Case-insensitive.
+ * searchable text (ID, vendor, material, filament_name, location). Case-insensitive.
  * Empty query returns all spools.
  *
  * @param spools Input spool list

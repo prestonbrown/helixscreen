@@ -579,17 +579,10 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     lv_subject_t* bp_subj = theme_manager_get_breakpoint_subject();
     UiBreakpoint bp = bp_subj ? as_breakpoint(lv_subject_get_int(bp_subj)) : UiBreakpoint::Medium;
     const bool is_compact = bp <= UiBreakpoint::Medium;
-    const char* attrs_plain[] = {"compact",     is_compact ? "true" : "false",
-                                 "detail_flow", is_compact ? "row" : "column",
-                                 nullptr,       nullptr};
-    const char* attrs_current[] = {"compact",
-                                   is_compact ? "true" : "false",
-                                   "detail_flow",
-                                   is_compact ? "row" : "column",
-                                   "hide_edit_pencil",
-                                   "false",
-                                   nullptr,
-                                   nullptr};
+    const char* attrs_plain[] = {"detail_flow", is_compact ? "row" : "column", nullptr, nullptr};
+    const char* attrs_current[] = {
+        "detail_flow", is_compact ? "row" : "column", "hide_edit_pencil", "false", nullptr,
+        nullptr};
 
     // Pre-selection (spec §3.2, resolution §2.5): the current spool if linked,
     // otherwise the FIRST selectable row — so a single-candidate list is one
@@ -608,17 +601,12 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         lv_obj_set_user_data(item, reinterpret_cast<void*>(static_cast<intptr_t>(spool.id)));
 
         lv_obj_t* name_label = lv_obj_find_by_name(item, "spool_name");
+        // display_name() carries Spoolman's filament name, the only text that
+        // tells two spools of one vendor and material apart, and this is the
+        // only name label the row has.
         if (name_label) {
-            std::string name = "#" + std::to_string(spool.id) + " ";
-            name += spool.vendor.empty() ? spool.material : (spool.vendor + " " + spool.material);
+            const std::string name = "#" + std::to_string(spool.id) + " " + spool.display_name();
             lv_label_set_text(name_label, name.c_str());
-        }
-
-        // The XML widget kept its "spool_color" name; the string is Spoolman's
-        // filament.name, which is the only per-spool label Spoolman stores.
-        lv_obj_t* color_label = lv_obj_find_by_name(item, "spool_color");
-        if (color_label && !spool.filament_name.empty()) {
-            lv_label_set_text(color_label, spool.filament_name.c_str());
         }
 
         lv_obj_t* weight_label = lv_obj_find_by_name(item, "spool_weight");
