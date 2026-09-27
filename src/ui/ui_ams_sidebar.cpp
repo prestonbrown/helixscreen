@@ -100,7 +100,7 @@ AmsOperationSidebar::~AmsOperationSidebar() {
 // ============================================================================
 
 void AmsOperationSidebar::register_callbacks_static() {
-    // Must exist before ams_sidebar.xml is parsed — btn_unload binds it. Same
+    // Must exist before ams_sidebar.xml is parsed — the Unload buttons bind it. Same
     // "before the parser sees it" contract as the callbacks below, so it is
     // registered from the same hook.
     init_unload_gating_subject();

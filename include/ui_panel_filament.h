@@ -591,8 +591,8 @@ class FilamentPanel : public PanelBase {
     /// The material @p target_slot names, else the external spool's
     /// (helix::ui::resolve_load_preheat_material()). No panel preset tail.
     std::optional<PreheatTempResult> slot_preheat_material(int target_slot) const;
-    /// Whether the slot Load/Unload act on names a material, so a cold-nozzle op
-    /// preheats for it instead of needing the "heat first" warning.
+    /// Whether every slot a cold-nozzle op would preheat for names a material:
+    /// the selected slot (Load/Unload) and the loaded lane (Purge/Extrude/Retract).
     bool has_known_op_material() const;
     void start_preheat_for_op(PreheatOp op); ///< Resolve temp, heat, set pending state
     void restore_heater_after_preheat();     ///< Cool down if heater was off before preheat

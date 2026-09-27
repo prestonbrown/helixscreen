@@ -2393,7 +2393,12 @@ bool FilamentPanel::is_extrusion_allowed() const {
 }
 
 bool FilamentPanel::has_known_op_material() const {
-    return slot_preheat_material(selected_op_slot()).has_value();
+    // Load/Unload heat for the selected lane, Purge/Extrude/Retract for the
+    // loaded one, and all of them share the warning.
+    const int selected = selected_op_slot();
+    const int loaded = preheat_slot_for_op(PreheatOp::PURGE);
+    return slot_preheat_material(selected).has_value() &&
+           (loaded < 0 || loaded == selected || slot_preheat_material(loaded).has_value());
 }
 
 int FilamentPanel::preheat_slot_for_op(PreheatOp op) const {
