@@ -493,6 +493,36 @@ TEST_CASE("describe_last_print: filament and duration each show on their own",
     }
 }
 
+TEST_CASE("describe_last_print: under a second of time hides the meta line",
+          "[print_status][last_print]") {
+    // The QIDI Q2 row Moonraker marked interrupted at startup.
+    PrintHistoryJob job;
+    job.filename = "Центровка (PLA).gcode.3mf";
+    job.exists = true;
+    job.status = parse_job_status("interrupted");
+    job.start_time = 1790458504.47;
+    job.end_time = 0.0;
+    job.print_duration = 0.0;
+    job.total_duration = 0.8278;
+    job.duration_str = "0s";
+    job.filament_str = "0mm";
+
+    const double now = job.start_time + 600.0;
+    SECTION("wall-clock time under a second") {
+        const auto text = describe_last_print(job, now);
+        REQUIRE(text.meta.empty());
+        REQUIRE(text.when == std::string(lv_tr("Failed")) + " • " + relative(600.0));
+    }
+    SECTION("print time under a second") {
+        job.print_duration = 0.4;
+        REQUIRE(describe_last_print(job, now).meta.empty());
+    }
+    SECTION("one second shows") {
+        job.total_duration = 1.0;
+        REQUIRE(describe_last_print(job, now).meta == helix::format::duration(1));
+    }
+}
+
 TEST_CASE("describe_last_print: an end_time ahead of the clock reads as just now",
           "[print_status][last_print]") {
     auto job = job_with(PrintJobStatus::CANCELLED, kNow - 600.0, kNow + 120.0);

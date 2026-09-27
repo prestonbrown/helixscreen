@@ -69,6 +69,19 @@ struct PrintHistoryJob {
 };
 
 /**
+ * @brief When a job happened, for ageing and bucketing it
+ *
+ * Moonraker leaves end_time null, parsed as 0, on in_progress rows and on rows
+ * it marks interrupted at startup, so those fall back to start_time
+ * (prestonbrown/helixscreen#1713). 0 when neither is known.
+ */
+namespace helix {
+[[nodiscard]] inline double job_timestamp(const PrintHistoryJob& job) {
+    return job.end_time > 0 ? job.end_time : job.start_time;
+}
+} // namespace helix
+
+/**
  * @brief Aggregated history statistics
  *
  * Maps to server.history.totals response.

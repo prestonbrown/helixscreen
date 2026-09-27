@@ -327,6 +327,16 @@ class HistoryDashboardPanel : public OverlayBase {
 };
 
 /**
+ * @brief Count jobs into trend buckets, oldest first, the newest ending at @p now
+ * @param span_all Stretch the buckets from the oldest job to now instead of
+ *                 using @p period_seconds
+ */
+namespace helix {
+std::vector<int> count_trend_buckets(const std::vector<PrintHistoryJob>& jobs, double now,
+                                     int period_count, double period_seconds, bool span_all);
+} // namespace helix
+
+/**
  * @brief Global instance accessor
  *
  * Creates instance on first call. Used by static callbacks.

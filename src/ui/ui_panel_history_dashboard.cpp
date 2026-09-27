@@ -673,6 +673,44 @@ double HistoryDashboardPanel::get_trend_period_seconds() const {
     }
 }
 
+std::vector<int> helix::count_trend_buckets(const std::vector<PrintHistoryJob>& jobs, double now,
+                                            int period_count, double period_seconds,
+                                            bool span_all) {
+    std::vector<int> counts(static_cast<size_t>(period_count), 0);
+
+    if (span_all) {
+        double oldest_time = now;
+        for (const auto& job : jobs) {
+            const double t = job_timestamp(job);
+            if (t > 0 && t < oldest_time) {
+                oldest_time = t;
+            }
+        }
+        const double span = now - oldest_time;
+        if (span > 0) {
+            period_seconds = span / static_cast<double>(period_count);
+        }
+    }
+
+    for (const auto& job : jobs) {
+        const double t = job_timestamp(job);
+        if (t <= 0) {
+            continue;
+        }
+        int bucket = static_cast<int>(std::max(0.0, now - t) / period_seconds);
+        // The oldest job sits exactly one span back, on the far edge of the last bucket.
+        if (span_all) {
+            bucket = std::min(bucket, period_count - 1);
+        }
+        // Bucket 0 is the newest; the chart draws oldest on the left.
+        const int display_bucket = period_count - 1 - bucket;
+        if (display_bucket >= 0 && display_bucket < period_count) {
+            counts[static_cast<size_t>(display_bucket)]++;
+        }
+    }
+    return counts;
+}
+
 void HistoryDashboardPanel::update_trend_chart(const std::vector<PrintHistoryJob>& jobs) {
     if (!trend_chart_ || !trend_series_) {
         return;
@@ -681,22 +719,6 @@ void HistoryDashboardPanel::update_trend_chart(const std::vector<PrintHistoryJob
     int period_count = get_trend_period_count();
     double period_seconds = get_trend_period_seconds();
     double now = static_cast<double>(std::time(nullptr));
-
-    // For ALL_TIME, calculate period dynamically from oldest job
-    if (current_filter_ == HistoryTimeFilter::ALL_TIME && !jobs.empty()) {
-        // Find oldest job
-        double oldest_time = now;
-        for (const auto& job : jobs) {
-            if (job.end_time < oldest_time && job.end_time > 0) {
-                oldest_time = job.end_time;
-            }
-        }
-        // Calculate span and divide by bucket count
-        double span = now - oldest_time;
-        if (span > 0) {
-            period_seconds = span / static_cast<double>(period_count);
-        }
-    }
 
     // Update period label text via subject (binding will update UI automatically)
     const char* period_text = "Last 7 days";
@@ -719,23 +741,8 @@ void HistoryDashboardPanel::update_trend_chart(const std::vector<PrintHistoryJob
     }
     lv_subject_copy_string(&trend_period_subject_, period_text);
 
-    // Count prints per period bucket
-    std::vector<int> counts(static_cast<size_t>(period_count), 0);
-
-    for (const auto& job : jobs) {
-        // Calculate which period bucket this job falls into
-        double age = now - job.end_time;
-        if (age < 0)
-            age = 0;
-
-        int bucket = static_cast<int>(age / period_seconds);
-        // Bucket 0 is most recent, bucket (period_count-1) is oldest
-        // We want to display oldest on left, newest on right
-        int display_bucket = period_count - 1 - bucket;
-        if (display_bucket >= 0 && display_bucket < period_count) {
-            counts[static_cast<size_t>(display_bucket)]++;
-        }
-    }
+    const std::vector<int> counts = count_trend_buckets(
+        jobs, now, period_count, period_seconds, current_filter_ == HistoryTimeFilter::ALL_TIME);
 
     // Find max for Y-axis scaling
     int max_count = 1;
