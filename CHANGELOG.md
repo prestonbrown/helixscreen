@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Unload warn about, or preheat for, the material of the slot the operation acts on, not
   whichever spool happens to be loaded or on the external holder. Purge, Extrude and
   Retract use the loaded lane's material.
+- **Happy Hare: Recover sets the real gate and whether filament is loaded** - Recover opens
+  a dialog to pick the gate that is really selected and whether filament is loaded,
+  instead of a bare `MMU_RECOVER` that could leave the position Unknown.
 - **Bypass could stay unavailable after an unload** - the filament path now settles on the
   system's own state, so bypass becomes available once an unload finishes, including one
   that ends with a CFS cut ([#1512](https://github.com/prestonbrown/helixscreen/issues/1512)).
