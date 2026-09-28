@@ -69,7 +69,7 @@ Some capacitive controllers fire a phantom "clicked" event when you lift your fi
 
 FlashForge AD5M and AD5X enable this automatically via their hardware presets — leave it on. Most Raspberry Pi setups don't need it.
 
-Requires a restart to take effect.
+Requires a restart to take effect. Scroll Guard acts on the printer's own touchscreen; it has no effect in the desktop build or on Android.
 
 > Still seeing phantom clicks with the guard enabled? Some controllers need a longer cooldown. Tune `scroll_guard_cooldown_ms` in `settings.json` — see the [TROUBLESHOOTING guide § Accidental Button Presses After Scrolling](../../TROUBLESHOOTING.md#accidental-button-presses-after-scrolling).
 

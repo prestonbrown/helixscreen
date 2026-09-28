@@ -602,7 +602,7 @@ Matches LVGL's native default of 10.
 ### `scroll_guard`
 **Type:** boolean
 **Default:** `false` (overridden to `true` by AD5M/AD5X presets)
-**Description:** Suppresses the phantom "clicked" event some capacitive touch controllers generate when the finger lifts at the end of a scroll gesture. Common on FlashForge AD5M and AD5X displays — you scroll a list, lift your finger, and whatever button is now under where your finger was fires. When enabled, HelixScreen ignores taps for the cooldown window (default 80 ms — see `scroll_guard_cooldown_ms`) after a scroll ends. Can also be overridden with the `HELIX_SCROLL_GUARD` environment variable (`1` to enable).
+**Description:** Suppresses the phantom "clicked" event some capacitive touch controllers generate when the finger lifts at the end of a scroll gesture. Common on FlashForge AD5M and AD5X displays — you scroll a list, lift your finger, and whatever button is now under where your finger was fires. When enabled, HelixScreen ignores taps for the cooldown window (default 80 ms — see `scroll_guard_cooldown_ms`) after a scroll ends. Can also be overridden with the `HELIX_SCROLL_GUARD` environment variable (`1` to enable). Requires a restart. Applies to the touchscreen on DRM and framebuffer builds; it has no effect in the desktop (SDL) build or on Android.
 
 ### `scroll_guard_cooldown_ms`
 **Type:** integer

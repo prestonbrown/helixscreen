@@ -1049,7 +1049,7 @@ All three live under `input` in `settings.json` (path varies by platform — see
 
 > **Stop the service before editing `settings.json`** — the daemon rewrites the file periodically and your edits can be clobbered. Stop, edit, start.
 >
-> **Want to try a value before committing it?** All three are sliders under **Settings → System → Touch & Input** on the printer itself, so you can feel the change immediately and keep it only if it helps. `scroll_guard` and `scroll_limit` apply straight away; the panel prompts for a restart where one is needed.
+> **Want to try a value before committing it?** All three are under **Settings → System → Touch & Input** on the printer itself. Each takes effect after a restart, which the panel prompts for.
 
 FlashForge AD5M and AD5X presets ship with `scroll_guard: true` out of the box. Other platforms default to `false`.
 
