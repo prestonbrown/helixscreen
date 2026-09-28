@@ -3679,7 +3679,7 @@ TEST_CASE("Happy Hare classify_error: runout pause is CRITICAL with recovery",
     CHECK(ev->detail.find("Runout detected on gate 0") != std::string::npos);
 }
 
-TEST_CASE("Happy Hare classify_error: recover gcode reflects loaded state",
+TEST_CASE("Happy Hare classify_error: recover lets HH detect the position even when loaded",
           "[ams][happy_hare][error-center]") {
     AmsBackendHappyHareTestHelper hh;
     hh.initialize_test_gates(4);
@@ -3694,11 +3694,11 @@ TEST_CASE("Happy Hare classify_error: recover gcode reflects loaded state",
     ctx.is_paused = true;
     auto ev = hh.classify_error("!! Clog detected", ctx);
     REQUIRE(ev.has_value());
-    bool has_recover_loaded = false;
+    bool has_recover = false;
     for (const auto& a : ev->recovery_actions)
-        if (a.gcode == "MMU_RECOVER LOADED=1")
-            has_recover_loaded = true;
-    CHECK(has_recover_loaded);
+        if (a.gcode == "MMU_RECOVER")
+            has_recover = true;
+    CHECK(has_recover);
 }
 
 TEST_CASE("Happy Hare classify_error: non-!! line and non-paused defer to generic",

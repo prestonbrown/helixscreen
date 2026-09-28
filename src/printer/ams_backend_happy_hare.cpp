@@ -1186,12 +1186,12 @@ std::vector<helix::RecoveryAction> AmsBackendHappyHare::build_recovery_actions()
     actions.push_back({lv_tr("Resume"), "RESUME", "hh::resume", "primary",
                        /*needs_hot_nozzle=*/true});
 
-    // MMU_RECOVER re-syncs HH's filament state; the LOADED/UNLOADED arg must match
-    // reality (HH issue #729). Derive from the live loaded flag. State-only — it
-    // moves nothing, so it stays available on a cold nozzle.
+    // Bare MMU_RECOVER: HH detects the filament position with its own
+    // sensors. Our loaded flag reads false for every position HH reports as
+    // Unknown, so asserting it would tell HH "unloaded" about filament stuck
+    // mid-bowden. State-only, so it stays available on a cold nozzle.
     const bool loaded = system_info_.filament_loaded;
-    actions.push_back({lv_tr("Recover"), loaded ? "MMU_RECOVER LOADED=1" : "MMU_RECOVER UNLOADED=1",
-                       "hh::recover", ""});
+    actions.push_back({lv_tr("Recover"), "MMU_RECOVER", "hh::recover", ""});
 
     // If filament is at the toolhead, offer an explicit unload. Pulls filament
     // back out through the melt zone, so it needs heat.
