@@ -32,10 +32,10 @@
 
 #include "../catch_amalgamated.hpp"
 
-using helix::ui::UpdateQueue;
 using helix::test::PanelSubjectOwner;
 using helix::test::require_named;
 using helix::test::set_xml_subject;
+using helix::ui::UpdateQueue;
 
 namespace {
 
@@ -164,10 +164,12 @@ TEST_CASE_METHOD(XMLTestFixture, "filament buttons are live once no guard is ass
     lv_obj_t* panel = create_component("filament_panel");
     REQUIRE(panel != nullptr);
 
+    // The panel's queued button refresh recomputes the safety warning for a cold
+    // nozzle, so let it run before clearing: this case measures the binding.
+    UpdateQueue::instance().drain();
     // Without this the guard could be a constant rather than a binding, and
     // every assertion above would hold for the wrong reason.
     clear_all_guards();
-    UpdateQueue::instance().drain();
 
     for (const char* name : kAllButtons) {
         INFO("button: " << name);
