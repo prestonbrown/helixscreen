@@ -41,7 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Retract use the loaded lane's material.
 - **Happy Hare: Recover sets the real gate and whether filament is loaded** - Recover opens
   a dialog to pick the gate that is really selected and whether filament is loaded,
-  instead of a bare `MMU_RECOVER` that could leave the position Unknown.
+  instead of a bare `MMU_RECOVER` that could leave the position Unknown. The error popup's
+  own Recover sends a plain `MMU_RECOVER` and lets Happy Hare detect, where it used to send
+  an `UNLOADED=1` Happy Hare does not accept.
 - **Bypass could stay unavailable after an unload** - the filament path now settles on the
   system's own state, so bypass becomes available once an unload finishes, including one
   that ends with a CFS cut ([#1512](https://github.com/prestonbrown/helixscreen/issues/1512)).
