@@ -677,6 +677,7 @@ translations:
   Deploy: 部署
   Describe the issue (optional): 描述问题（可选）
   Detailed: 详细
+  Detect automatically: 自动检测
   Detecting plate...: 正在检测热床板...
   Detecting printer type...: 正在检测打印机类型...
   Detecting...: 正在检测...
@@ -2021,6 +2022,7 @@ translations:
   Recording Mode: 录制模式
   Recover: 恢复
   Recover MMU state?: 恢复 MMU 状态？
+  Recover State: 恢复状态
   Recovering AFC system...: AFC系统恢复中...
   Recovering...: 恢复中...
   Recovery failed: 恢复失败
@@ -2297,6 +2299,7 @@ translations:
   Set logging verbosity for troubleshooting: 设置日志详细级别以便故障排除
   Set up: 设置
   Set up your label printer in Settings: 在设置中配置标签打印机
+  Set what is really selected and loaded. Nothing moves.: 设置实际选择和加载的状态。不会移动任何部件。
   Settings: 设置
   Settings Snapshot: 设置快照
   Settings reset to defaults. Restarting...: 设置已重置为默认值。正在重启...
@@ -2727,6 +2730,7 @@ translations:
   Unload filament: '卸载耗材'
   Unload macro not configured: 卸载宏未配置
   Unload may still be running — response timed out: 卸载可能仍在运行 — 响应超时
+  Unloaded: 已卸载
   Unloading: 卸载中
   Unloading Start Speed: '卸载起始速度'
   Unloading before bypass...: 旁通前正在卸载...

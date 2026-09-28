@@ -616,6 +616,7 @@ void register_xml_components() {
     register_xml("ams_device_operations.xml");
     helix::ui::get_ams_device_section_detail_overlay().register_callbacks();
     register_xml("ams_device_section_detail.xml");
+    register_xml("ams_recover_state_modal.xml");
 
     // Spoolman Settings (accessed from Settings > Spoolman, future)
     register_xml("spoolman_settings.xml");

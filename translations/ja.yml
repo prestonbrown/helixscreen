@@ -681,6 +681,7 @@ translations:
   Deploy: 展開
   Describe the issue (optional): 問題の詳細（任意）
   Detailed: 詳細
+  Detect automatically: 自動検出
   Detecting plate...: プレートを検出中...
   Detecting printer type...: プリンタータイプを検出中...
   Detecting...: 検出中...
@@ -2031,6 +2032,7 @@ translations:
   Recording Mode: 録画モード
   Recover: 回復
   Recover MMU state?: MMU の状態を復旧しますか？
+  Recover State: 状態を回復
   Recovering AFC system...: AFCシステムを復旧中...
   Recovering...: 復旧中...
   Recovery failed: 復旧失敗
@@ -2307,6 +2309,7 @@ translations:
   Set logging verbosity for troubleshooting: トラブルシューティング用のログの詳細レベルを設定
   Set up: セットアップ
   Set up your label printer in Settings: 設定でラベルプリンターをセットアップしてください
+  Set what is really selected and loaded. Nothing moves.: 実際に選択・装填されている状態を設定します。何も動きません。
   Settings: 設定
   Settings Snapshot: 設定スナップショット
   Settings reset to defaults. Restarting...: 設定をデフォルトにリセットしました。再起動中...
@@ -2738,6 +2741,7 @@ translations:
   Unload filament: 'フィラメントをアンロード'
   Unload macro not configured: アンロードマクロが未設定です
   Unload may still be running — response timed out: 排出がまだ実行中の可能性があります — 応答タイムアウト
+  Unloaded: 排出済み
   Unloading: アンロード中
   Unloading Start Speed: 'アンロード開始速度'
   Unloading before bypass...: バイパス前にアンロード中...

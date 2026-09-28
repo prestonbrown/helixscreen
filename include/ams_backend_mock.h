@@ -141,6 +141,10 @@ class AmsBackendMock : public AmsBackend {
 
     // Recovery
     AmsError recover() override;
+    AmsError recover_with_state(const helix::RecoverStateRequest& request) override;
+    [[nodiscard]] bool supports_recover_with_state() const override {
+        return system_info_.type == AmsType::HAPPY_HARE;
+    }
     AmsError reset() override;
     AmsError cancel() override;
     AmsError clear_fault(int slot_index) override;

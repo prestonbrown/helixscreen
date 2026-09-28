@@ -7,6 +7,7 @@
 #include "ui_ams_detail.h"
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_environment_overlay.h"
+#include "ui_ams_recover_state_modal.h"
 #include "ui_ams_sidebar.h"
 #include "ui_ams_slot.h"
 #include "ui_ams_slot_layout.h"
@@ -1277,6 +1278,9 @@ void AmsPanel::dispatch_selector_action(helix::ui::AmsSelectorMenu::SelectorActi
         err = backend->execute_device_action("gear_sync", std::any(false));
         break;
     case SA::RECOVER:
+        if (helix::ui::AmsRecoverStateModal::show_owned()) {
+            return;
+        }
         // Re-fetch the backend inside the callback so it cannot dangle if the
         // panel/backend changed while the dialog was open. Feedback comes from
         // the backend action state.

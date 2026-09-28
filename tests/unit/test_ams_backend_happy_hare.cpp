@@ -15,6 +15,8 @@
 #include "test_helpers/happy_hare_test_access.h"
 
 #include <algorithm>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -228,6 +230,10 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
 
     void set_current_slot(int slot) {
         system_info_.current_slot = slot;
+    }
+
+    void set_supports_bypass(bool supported) {
+        system_info_.supports_bypass = supported;
     }
 
     void set_selector_type(const std::string& type) {
@@ -3673,7 +3679,7 @@ TEST_CASE("Happy Hare classify_error: runout pause is CRITICAL with recovery",
     CHECK(ev->detail.find("Runout detected on gate 0") != std::string::npos);
 }
 
-TEST_CASE("Happy Hare classify_error: recover gcode reflects loaded state",
+TEST_CASE("Happy Hare classify_error: recover lets HH detect the position even when loaded",
           "[ams][happy_hare][error-center]") {
     AmsBackendHappyHareTestHelper hh;
     hh.initialize_test_gates(4);
@@ -3688,11 +3694,11 @@ TEST_CASE("Happy Hare classify_error: recover gcode reflects loaded state",
     ctx.is_paused = true;
     auto ev = hh.classify_error("!! Clog detected", ctx);
     REQUIRE(ev.has_value());
-    bool has_recover_loaded = false;
+    bool has_recover = false;
     for (const auto& a : ev->recovery_actions)
-        if (a.gcode == "MMU_RECOVER LOADED=1")
-            has_recover_loaded = true;
-    CHECK(has_recover_loaded);
+        if (a.gcode == "MMU_RECOVER")
+            has_recover = true;
+    CHECK(has_recover);
 }
 
 TEST_CASE("Happy Hare classify_error: non-!! line and non-paused defer to generic",
@@ -4148,4 +4154,83 @@ TEST_CASE("Happy Hare v3 config still resolves when no live unit object exists",
     REQUIRE(info.units[0].environment.has_value());
     CHECK(info.units[0].environment->temperature_c == Catch::Approx(24.5f));
     CHECK(info.units[0].environment->humidity_pct == Catch::Approx(38.0f));
+}
+
+// ============================================================================
+// recover_with_state() Tests
+// ============================================================================
+
+namespace {
+helix::RecoverStateRequest recover_req(int slot, bool bypass, std::optional<bool> loaded) {
+    helix::RecoverStateRequest r;
+    r.slot = slot;
+    r.bypass = bypass;
+    r.loaded = loaded;
+    return r;
+}
+} // namespace
+
+TEST_CASE("Happy Hare recover command names only what the user asserted",
+          "[ams][happy_hare][recovery]") {
+    struct Row {
+        int slot;
+        bool bypass;
+        std::optional<bool> loaded;
+        const char* expected;
+    };
+    // clang-format off
+    const Row rows[] = {
+        {-1, false, std::nullopt, "MMU_RECOVER"},
+        {-1, false, false,        "MMU_RECOVER LOADED=0"},
+        {-1, false, true,         "MMU_RECOVER LOADED=1"},
+        { 1, false, std::nullopt, "MMU_RECOVER GATE=1"},
+        { 1, false, false,        "MMU_RECOVER GATE=1 LOADED=0"},
+        { 1, false, true,         "MMU_RECOVER GATE=1 LOADED=1"},
+        { 0, false, std::nullopt, "MMU_RECOVER GATE=0"},
+        // Bypass replaces the gate: HH forces tool and gate to bypass itself.
+        {-1, true,  std::nullopt, "MMU_RECOVER BYPASS=1"},
+        { 1, true,  false,        "MMU_RECOVER BYPASS=1 LOADED=0"},
+        { 1, true,  true,         "MMU_RECOVER BYPASS=1 LOADED=1"},
+    };
+    // clang-format on
+    for (const auto& row : rows) {
+        INFO("slot=" << row.slot << " bypass=" << row.bypass);
+        CHECK(AmsBackendHappyHare::build_recover_command(
+                  recover_req(row.slot, row.bypass, row.loaded)) == row.expected);
+    }
+}
+
+TEST_CASE("Happy Hare recover_with_state sends the built command", "[ams][happy_hare][recovery]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.set_running(true);
+    helper.set_supports_bypass(true);
+
+    CHECK(helper.supports_recover_with_state());
+
+    REQUIRE(helper.recover_with_state(recover_req(2, false, true)).success());
+    REQUIRE(helper.recover_with_state(recover_req(-1, true, std::nullopt)).success());
+    CHECK(helper.captured_gcodes ==
+          std::vector<std::string>{"MMU_RECOVER GATE=2 LOADED=1", "MMU_RECOVER BYPASS=1"});
+}
+
+TEST_CASE("Happy Hare recover_with_state refuses what the MMU cannot be in",
+          "[ams][happy_hare][recovery]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+
+    SECTION("not running") {
+        CHECK_FALSE(helper.recover_with_state(recover_req(0, false, true)).success());
+    }
+    SECTION("gate out of range") {
+        helper.set_running(true);
+        CHECK(helper.recover_with_state(recover_req(4, false, std::nullopt)).result ==
+              AmsResult::INVALID_SLOT);
+    }
+    SECTION("bypass on an MMU without one") {
+        helper.set_running(true);
+        helper.set_supports_bypass(false);
+        CHECK_FALSE(helper.recover_with_state(recover_req(-1, true, std::nullopt)).success());
+    }
+    CHECK(helper.captured_gcodes.empty());
 }

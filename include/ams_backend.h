@@ -1042,6 +1042,25 @@ class AmsBackend {
     virtual AmsError recover() = 0;
 
     /**
+     * @brief Re-sync the firmware's tracking to a state the user asserts
+     *
+     * State-only, like clear_fault(): tells the firmware which slot is
+     * selected and whether filament is loaded, without moving anything.
+     * Fields left unset in @p request are not asserted.
+     *
+     * Default implementation returns NOT_SUPPORTED.
+     */
+    virtual AmsError recover_with_state(const helix::RecoverStateRequest& request) {
+        (void)request;
+        return AmsErrorHelper::not_supported("Recover with state not supported");
+    }
+
+    /// @return true if recover_with_state() is implemented
+    [[nodiscard]] virtual bool supports_recover_with_state() const {
+        return false;
+    }
+
+    /**
      * @brief Reset the AMS system (async)
      *
      * Resets the system to a known good state.

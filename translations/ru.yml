@@ -744,6 +744,7 @@ translations:
   Deploy: Развернуть
   Describe the issue (optional): Опишите проблему (необязательно)
   Detailed: Подробно
+  Detect automatically: Определить автоматически
   Detecting plate...: Обнаружение пластины...
   Detecting printer type...: Определение типа принтера...
   Detecting...: Обнаружение...
@@ -2176,6 +2177,7 @@ translations:
   Recording Mode: Режим записи
   Recover: Восстановить
   Recover MMU state?: Восстановить состояние MMU?
+  Recover State: Восстановить состояние
   Recovering AFC system...: Восстановление системы AFC...
   Recovering...: Восстановление...
   Recovery failed: Восстановление не удалось
@@ -2477,6 +2479,7 @@ translations:
     для устранения неполадок
   Set up: Настроить
   Set up your label printer in Settings: Настройте принтер этикеток в Настройках
+  Set what is really selected and loaded. Nothing moves.: Укажите, что на самом деле выбрано и загружено. Ничего не двигается.
   Settings: Настройки
   Settings Snapshot: Снимок настроек
   Settings reset to defaults. Restarting...: Настройки сброшены к значениям по умолчанию.
@@ -2960,6 +2963,7 @@ translations:
   Unload macro not configured: Макрос выгрузки не настроен
   Unload may still be running — response timed out: Выгрузка может ещё выполняться
     — время ожидания истекло
+  Unloaded: Выгружен
   Unloading: Выгрузка
   Unloading Start Speed: 'Начальная скорость выгрузки'
   Unloading before bypass...: Выгрузка перед байпасом...
