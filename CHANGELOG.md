@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.3] - Unreleased
 
+### Changed
+
+- **Belt Tension is withdrawn from 1.0** - the sweep read its accelerometer data from a
+  folder Klipper never writes to, so it failed on every printer
+  ([#1721](https://github.com/prestonbrown/helixscreen/issues/1721)).
+- **The log records more by default** - production builds log at Info and write each line
+  to the log file as it happens, so a log taken right after a problem already holds what
+  happened.
+
 ### Fixed
 
 **Printing and filament systems**
@@ -26,6 +35,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (probing Z after homing the axes, bed mesh and plate detection after the bed inspection)
   kept showing the first step's name instead of its own. Each step now shows as it happens:
   homing, probing Z, bed mesh, plate detection.
+- **The heat-first warning checks the slot you selected** - with a cold nozzle, Load and
+  Unload warn about, or preheat for, the material of the slot the operation acts on, not
+  whichever spool happens to be loaded or on the external holder. Purge, Extrude and
+  Retract use the loaded lane's material.
+- **Bypass could stay unavailable after an unload** - the filament path now settles on the
+  system's own state, so bypass becomes available once an unload finishes, including one
+  that ends with a CFS cut ([#1512](https://github.com/prestonbrown/helixscreen/issues/1512)).
+- **Device operation messages said "AFC" on every filament system** - homing, recovering and
+  aborting now read the same on Happy Hare and every other system.
+- **The Change Filament spool picker tells two spools of one vendor apart** - each row now
+  carries Spoolman's filament name.
+- **Your Material Temperatures edits survive a Moonraker update** - `user_filaments.json`
+  now lives in your config directory, linked into printer_data, instead of the install
+  directory a Moonraker web update replaces.
+- **Scan QR opens the barcode scanner on printers built without a camera** - on the AD5X,
+  AD5M, K1, K2, CC1 and U1 the button did nothing ([#1726](https://github.com/prestonbrown/helixscreen/issues/1726)).
+
+**Files and history**
+
+- **.gcode.3mf files keep their thumbnail, layer height and pre-print checks** in the file
+  details, and their names show without either extension ([#1713](https://github.com/prestonbrown/helixscreen/issues/1713)).
+- **Print history reads more jobs correctly** - it translates the job status, finds
+  thumbnails for files in subfolders, ages a job with no end time by its start, and reads
+  number fields Moonraker sends as text ([#1713](https://github.com/prestonbrown/helixscreen/issues/1713)).
+- **The home screen's last-print tile** words an unfinished job by its status and hides
+  stats that are zero ([#1713](https://github.com/prestonbrown/helixscreen/issues/1713)).
+
+**Updates**
+
+- **Mainsail shows the new version after an update** - the first start after an update asks
+  Moonraker to refresh it ([#1727](https://github.com/prestonbrown/helixscreen/issues/1727)).
+- **An update restarts HelixScreen through systemd**, so the service picks up its updated
+  unit files ([#1713](https://github.com/prestonbrown/helixscreen/issues/1713)), and the restart no longer fails when `~/.helixscreen` is missing.
+
+**Screen and input**
+
+- **Scroll Guard works again** - with the post-scroll click guard turned on, a tap right
+  after a scroll no longer goes through on the printer's touchscreen. Changing the setting
+  needs a restart.
+- **The Full corner radius no longer turns dialogs into circles** - buttons still round into
+  pills, while cards, dialogs and inputs stop at a pill-shaped radius.
 
 ## [1.0.2] - 2026-09-25
 
