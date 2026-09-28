@@ -56,6 +56,35 @@ class DisplayManagerTestAccess {
         return dm.m_use_power_off;
     }
 
+    // Deletes the current m_pointer/m_keyboard and recreates them from the
+    // manager's backend through the same configure_pointer() init() calls.
+    static void rebuild_input_after_backend_swap(DisplayManager& dm) {
+        dm.rebuild_input_after_backend_swap();
+    }
+
+    // Publishes (or clears, with nullptr) the manager DisplayManager::instance()
+    // returns, for a test that never runs init().
+    static void set_active_instance(DisplayManager* dm) {
+        DisplayManager::set_active_instance(dm);
+    }
+
+    // Deletes the pointer device a test-driven input rebuild created.
+    static void delete_pointer_input(DisplayManager& dm) {
+        if (dm.m_pointer) {
+            lv_indev_delete(dm.m_pointer);
+            dm.m_pointer = nullptr;
+        }
+    }
+
+    static void set_display_sleeping(DisplayManager& dm, bool sleeping) {
+        dm.m_display_sleeping = sleeping;
+    }
+
+    // Set by sleep_aware_read_cb when a press arrives while asleep or dimmed.
+    static bool wake_requested(DisplayManager& dm) {
+        return dm.m_wake_requested;
+    }
+
     static void enter_sleep(DisplayManager& dm, int timeout_sec) {
         dm.enter_sleep(timeout_sec);
     }

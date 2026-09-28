@@ -449,20 +449,7 @@ bool DisplayManager::init(const Config& config) {
 
     // Configure scroll behavior and sleep-aware wrapper
     if (m_pointer) {
-        configure_scroll(config.scroll_throw, config.scroll_limit);
-        // Long-press threshold — user-configurable global setting (#1245), default
-        // AppConstants::Input::LONG_PRESS_MS. Applied here and on backend swap;
-        // InputSettingsManager::set_long_press_time live-applies changes.
-        const int long_press_ms = helix::Config::get_instance()->get<int>(
-            "/input/long_press_time", static_cast<int>(AppConstants::Input::LONG_PRESS_MS));
-        lv_indev_set_long_press_time(m_pointer, long_press_ms);
-#ifndef HELIX_DISPLAY_SDL
-        // Only install on embedded - SDL's event handler identifies the mouse device
-        // by checking if read_cb == sdl_mouse_read, which our wrapper breaks.
-        // Callback chain: sleep_aware_read_cb -> calibrated_read_cb -> evdev_read_cb
-        // (calibrated_read installed by backend, sleep wrapper installed here)
-        install_sleep_aware_input_wrapper();
-#endif
+        configure_pointer(config.scroll_throw, config.scroll_limit);
     }
 
     // Create keyboard input device (optional)
@@ -610,7 +597,7 @@ bool DisplayManager::init(const Config& config) {
 
     spdlog::trace("[DisplayManager] Initialized: {}x{}", m_width, m_height);
     m_initialized = true;
-    s_instance = this;
+    set_active_instance(this);
 
     // Install framebuffer color transform hook AFTER the backend's flush_cb
     // is set, so the splash-suspend path captures our wrapper (#803).
@@ -648,13 +635,17 @@ DisplayManager* DisplayManager::instance() {
     return s_instance;
 }
 
+void DisplayManager::set_active_instance(DisplayManager* dm) {
+    s_instance = dm;
+}
+
 void DisplayManager::shutdown() {
     if (!m_initialized) {
         return;
     }
 
     m_shutting_down = true;
-    s_instance = nullptr;
+    set_active_instance(nullptr);
     spdlog::debug("[DisplayManager] Shutting down");
 
     // Stop the remote-screen mirror FIRST so no sink write races a freed
@@ -746,6 +737,42 @@ void DisplayManager::configure_scroll(int scroll_throw, int scroll_limit) {
     spdlog::trace("[DisplayManager] Scroll config: throw={}, limit={}", scroll_throw, scroll_limit);
 }
 
+void DisplayManager::configure_pointer(int scroll_throw, int scroll_limit) {
+    configure_scroll(scroll_throw, scroll_limit);
+    // Long-press threshold — user-configurable global setting (#1245), default
+    // AppConstants::Input::LONG_PRESS_MS. InputSettingsManager::set_long_press_time
+    // live-applies changes.
+    auto* cfg = helix::Config::get_instance();
+    const int long_press_ms = cfg->get<int>("/input/long_press_time",
+                                            static_cast<int>(AppConstants::Input::LONG_PRESS_MS));
+    lv_indev_set_long_press_time(m_pointer, long_press_ms);
+
+    // Config rather than InputSettingsManager: this runs before its subjects exist.
+    // Both read the same key; the Settings toggle asks for a restart.
+    m_scroll_guard = helix::ScrollClickGuard::from_settings(
+        cfg->get<bool>("/input/scroll_guard", false),
+        cfg->get<int>("/input/scroll_guard_cooldown_ms",
+                      static_cast<int>(helix::ScrollClickGuard::DEFAULT_COOLDOWN_MS)),
+        std::getenv("HELIX_SCROLL_GUARD"), std::getenv("HELIX_SCROLL_GUARD_COOLDOWN_MS"),
+        scroll_limit);
+
+    // SDL's event handler identifies the mouse device by checking if
+    // read_cb == sdl_mouse_read, which a wrapper breaks.
+    // Callback chain: sleep_aware_read_cb (runs the scroll guard) -> calibrated_read_cb
+    // -> evdev_read_cb (calibrated_read installed by backend, sleep wrapper installed here)
+    if (m_backend->type() != DisplayBackendType::SDL) {
+        install_sleep_aware_input_wrapper();
+    }
+    if (m_scroll_guard.enabled && !m_original_pointer_read_cb) {
+        spdlog::info("[DisplayManager] Post-scroll click guard not applied: the {} pointer "
+                     "has no input wrapper",
+                     m_backend->name());
+    } else if (m_scroll_guard.enabled) {
+        spdlog::info("[DisplayManager] Post-scroll click guard: {} ms cooldown, {} px scroll limit",
+                     m_scroll_guard.cooldown_ms, m_scroll_guard.scroll_limit_px);
+    }
+}
+
 void DisplayManager::rebuild_input_after_backend_swap() {
     // A backend swap (DRM→fbdev rotation fallback) deleted the display and freed
     // the old backend. lv_display_delete() only detaches indevs (sets their
@@ -768,13 +795,7 @@ void DisplayManager::rebuild_input_after_backend_swap() {
 
     m_pointer = m_backend->create_input_pointer();
     if (m_pointer) {
-        configure_scroll(m_scroll_throw, m_scroll_limit);
-        const int long_press_ms = helix::Config::get_instance()->get<int>(
-            "/input/long_press_time", static_cast<int>(AppConstants::Input::LONG_PRESS_MS));
-        lv_indev_set_long_press_time(m_pointer, long_press_ms);
-#ifndef HELIX_DISPLAY_SDL
-        install_sleep_aware_input_wrapper();
-#endif
+        configure_pointer(m_scroll_throw, m_scroll_limit);
     }
 
     m_keyboard = m_backend->create_input_keyboard();
@@ -1534,6 +1555,9 @@ void DisplayManager::sleep_aware_read_cb(lv_indev_t* indev, lv_indev_data_t* dat
                          data->point.x, data->point.y);
         }
     }
+
+    // After the wake handling, so a suppressed press can never cost a wake request.
+    dm->m_scroll_guard.filter(data->state, data->point, lv_tick_get());
 }
 
 void DisplayManager::install_sleep_aware_input_wrapper() {
