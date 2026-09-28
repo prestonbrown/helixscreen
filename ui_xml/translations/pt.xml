@@ -120,6 +120,7 @@
   <translation tag="Abort already in progress" pt="Cancelamento já em andamento"/>
   <translation tag="Abort failed" pt="Falha ao abortar"/>
   <translation tag="Aborting AFC operation..." pt="Abortando operação AFC..."/>
+  <translation tag="Aborting..." pt="Abortando..."/>
   <translation tag="About" pt="Sobre"/>
   <translation tag="Accel to Decel" pt="Aceleração para Desaceleração"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" pt="Limite de aceleração para desaceleração (mm/s²)"/>
@@ -1980,6 +1981,7 @@
   <translation tag="Recover" pt="Recuperar"/>
   <translation tag="Recover MMU state?" pt="Recuperar estado do MMU?"/>
   <translation tag="Recovering AFC system..." pt="Recuperando sistema AFC..."/>
+  <translation tag="Recovering..." pt="Recuperando..."/>
   <translation tag="Recovery failed" pt="Recuperação falhou"/>
   <translation tag="Recovery failed: " pt="A recuperação falhou: "/>
   <translation tag="Recovery failed: {}" pt="A recuperação falhou: {}"/>

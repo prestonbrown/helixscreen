@@ -118,6 +118,7 @@ translations:
   Abort already in progress: 中止操作正在进行中
   Abort failed: 中止失败
   Aborting AFC operation...: 正在中止AFC操作...
+  Aborting...: 正在中止...
   About: 关于
   Accel to Decel: 加速到减速
   Acceleration to deceleration limit (mm/s²): 加速到减速限制 (mm/s²)
@@ -2021,6 +2022,7 @@ translations:
   Recover: 恢复
   Recover MMU state?: 恢复 MMU 状态？
   Recovering AFC system...: AFC系统恢复中...
+  Recovering...: 恢复中...
   Recovery failed: 恢复失败
   'Recovery failed: ': '恢复失败: '
   'Recovery failed: {}': '恢复失败: {}'

@@ -120,6 +120,7 @@
   <translation tag="Abort already in progress" ru="Прерывание уже выполняется"/>
   <translation tag="Abort failed" ru="Ошибка прерывания"/>
   <translation tag="Aborting AFC operation..." ru="Прерывание операции AFC..."/>
+  <translation tag="Aborting..." ru="Прерывание..."/>
   <translation tag="About" ru="О программе"/>
   <translation tag="Accel to Decel" ru="Ускорение к торможению"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" ru="Предел ускорения к торможению (мм/с²)"/>
@@ -1980,6 +1981,7 @@
   <translation tag="Recover" ru="Восстановить"/>
   <translation tag="Recover MMU state?" ru="Восстановить состояние MMU?"/>
   <translation tag="Recovering AFC system..." ru="Восстановление системы AFC..."/>
+  <translation tag="Recovering..." ru="Восстановление..."/>
   <translation tag="Recovery failed" ru="Восстановление не удалось"/>
   <translation tag="Recovery failed: " ru="Восстановление не удалось: "/>
   <translation tag="Recovery failed: {}" ru="Восстановление не удалось: {}"/>

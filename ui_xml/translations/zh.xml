@@ -120,6 +120,7 @@
   <translation tag="Abort already in progress" zh="中止操作正在进行中"/>
   <translation tag="Abort failed" zh="中止失败"/>
   <translation tag="Aborting AFC operation..." zh="正在中止AFC操作..."/>
+  <translation tag="Aborting..." zh="正在中止..."/>
   <translation tag="About" zh="关于"/>
   <translation tag="Accel to Decel" zh="加速到减速"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" zh="加速到减速限制 (mm/s²)"/>
@@ -1980,6 +1981,7 @@
   <translation tag="Recover" zh="恢复"/>
   <translation tag="Recover MMU state?" zh="恢复 MMU 状态？"/>
   <translation tag="Recovering AFC system..." zh="AFC系统恢复中..."/>
+  <translation tag="Recovering..." zh="恢复中..."/>
   <translation tag="Recovery failed" zh="恢复失败"/>
   <translation tag="Recovery failed: " zh="恢复失败: "/>
   <translation tag="Recovery failed: {}" zh="恢复失败: {}"/>
