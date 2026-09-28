@@ -671,6 +671,7 @@
   <translation tag="Deploy" de="Ausfahren"/>
   <translation tag="Describe the issue (optional)" de="Problem beschreiben (optional)"/>
   <translation tag="Detailed" de="Detailliert"/>
+  <translation tag="Detect automatically" de="Automatisch erkennen"/>
   <translation tag="Detecting plate..." de="Platte erkennen..."/>
   <translation tag="Detecting printer type..." de="Druckertyp wird erkannt..."/>
   <translation tag="Detecting..." de="Wird erkannt..."/>
@@ -1980,6 +1981,7 @@
   <translation tag="Recording Mode" de="Aufnahmemodus"/>
   <translation tag="Recover" de="Wiederherstellen"/>
   <translation tag="Recover MMU state?" de="MMU-Status wiederherstellen?"/>
+  <translation tag="Recover State" de="Status wiederherstellen"/>
   <translation tag="Recovering AFC system..." de="AFC-Wiederherstellung..."/>
   <translation tag="Recovering..." de="Wiederherstellung..."/>
   <translation tag="Recovery failed" de="Wiederherstellung fehlgeschlagen"/>
@@ -2246,6 +2248,7 @@
   <translation tag="Set logging verbosity for troubleshooting" de="Protokollierungsdetailgrad für Fehlerbehebung festlegen"/>
   <translation tag="Set up" de="Einrichten"/>
   <translation tag="Set up your label printer in Settings" de="Etikettendrucker in Einstellungen einrichten"/>
+  <translation tag="Set what is really selected and loaded. Nothing moves." de="Festlegen, was wirklich ausgewählt und geladen ist. Nichts bewegt sich."/>
   <translation tag="Settings" de="Einstellungen"/>
   <translation tag="Settings Snapshot" de="Einstellungen-Momentaufnahme"/>
   <translation tag="Settings reset to defaults. Restarting..." de="Einstellungen auf Standardwerte zurückgesetzt. Neustart..."/>
@@ -2640,6 +2643,7 @@
   <translation tag="Unload filament" de="Filament entladen"/>
   <translation tag="Unload macro not configured" de="Entlade-Makro nicht konfiguriert"/>
   <translation tag="Unload may still be running — response timed out" de="Entladen läuft möglicherweise noch — Zeitüberschreitung"/>
+  <translation tag="Unloaded" de="Entladen"/>
   <translation tag="Unloading" de="Entladen"/>
   <translation tag="Unloading Start Speed" de="Startgeschwindigkeit beim Entladen"/>
   <translation tag="Unloading before bypass..." de="Entladen vor Bypass..."/>

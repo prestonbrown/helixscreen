@@ -1217,6 +1217,21 @@ struct FlowguardInfo {
 };
 
 /**
+ * @brief The state a user tells the filament system it is really in
+ *
+ * AmsBackend::recover_with_state() re-syncs the firmware's tracking to this.
+ * Anything left unset is not asserted, so the firmware keeps (or detects)
+ * its own answer for it.
+ */
+namespace helix {
+struct RecoverStateRequest {
+    int slot = -1;              ///< 0-based slot, -1 = keep the firmware's current one
+    bool bypass = false;        ///< Bypass is selected; slot is then ignored
+    std::optional<bool> loaded; ///< Filament at the extruder; nullopt = let firmware detect
+};
+} // namespace helix
+
+/**
  * @brief Complete AMS system state
  *
  * This is the top-level structure containing all AMS information.

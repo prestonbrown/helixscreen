@@ -671,6 +671,7 @@
   <translation tag="Deploy" zh="部署"/>
   <translation tag="Describe the issue (optional)" zh="描述问题（可选）"/>
   <translation tag="Detailed" zh="详细"/>
+  <translation tag="Detect automatically" zh="自动检测"/>
   <translation tag="Detecting plate..." zh="正在检测热床板..."/>
   <translation tag="Detecting printer type..." zh="正在检测打印机类型..."/>
   <translation tag="Detecting..." zh="正在检测..."/>
@@ -1980,6 +1981,7 @@
   <translation tag="Recording Mode" zh="录制模式"/>
   <translation tag="Recover" zh="恢复"/>
   <translation tag="Recover MMU state?" zh="恢复 MMU 状态？"/>
+  <translation tag="Recover State" zh="恢复状态"/>
   <translation tag="Recovering AFC system..." zh="AFC系统恢复中..."/>
   <translation tag="Recovering..." zh="恢复中..."/>
   <translation tag="Recovery failed" zh="恢复失败"/>
@@ -2246,6 +2248,7 @@
   <translation tag="Set logging verbosity for troubleshooting" zh="设置日志详细级别以便故障排除"/>
   <translation tag="Set up" zh="设置"/>
   <translation tag="Set up your label printer in Settings" zh="在设置中配置标签打印机"/>
+  <translation tag="Set what is really selected and loaded. Nothing moves." zh="设置实际选择和加载的状态。不会移动任何部件。"/>
   <translation tag="Settings" zh="设置"/>
   <translation tag="Settings Snapshot" zh="设置快照"/>
   <translation tag="Settings reset to defaults. Restarting..." zh="设置已重置为默认值。正在重启..."/>
@@ -2640,6 +2643,7 @@
   <translation tag="Unload filament" zh="卸载耗材"/>
   <translation tag="Unload macro not configured" zh="卸载宏未配置"/>
   <translation tag="Unload may still be running — response timed out" zh="卸载可能仍在运行 — 响应超时"/>
+  <translation tag="Unloaded" zh="已卸载"/>
   <translation tag="Unloading" zh="卸载中"/>
   <translation tag="Unloading Start Speed" zh="卸载起始速度"/>
   <translation tag="Unloading before bypass..." zh="旁通前正在卸载..."/>

@@ -671,6 +671,7 @@
   <translation tag="Deploy" es="Desplegar"/>
   <translation tag="Describe the issue (optional)" es="Describa el problema (opcional)"/>
   <translation tag="Detailed" es="Detallado"/>
+  <translation tag="Detect automatically" es="Detectar automáticamente"/>
   <translation tag="Detecting plate..." es="Detectando placa..."/>
   <translation tag="Detecting printer type..." es="Detectando tipo de impresora..."/>
   <translation tag="Detecting..." es="Detectando..."/>
@@ -1980,6 +1981,7 @@
   <translation tag="Recording Mode" es="Modo de Grabación"/>
   <translation tag="Recover" es="Recuperar"/>
   <translation tag="Recover MMU state?" es="¿Recuperar el estado del MMU?"/>
+  <translation tag="Recover State" es="Recuperar estado"/>
   <translation tag="Recovering AFC system..." es="Recuperando sistema AFC..."/>
   <translation tag="Recovering..." es="Recuperando..."/>
   <translation tag="Recovery failed" es="Error en recuperación"/>
@@ -2246,6 +2248,7 @@
   <translation tag="Set logging verbosity for troubleshooting" es="Establecer el nivel de detalle del registro para solución de problemas"/>
   <translation tag="Set up" es="Configurar"/>
   <translation tag="Set up your label printer in Settings" es="Configure su impresora de etiquetas en Ajustes"/>
+  <translation tag="Set what is really selected and loaded. Nothing moves." es="Indica qué está realmente seleccionado y cargado. Nada se mueve."/>
   <translation tag="Settings" es="Ajustes"/>
   <translation tag="Settings Snapshot" es="Instantánea de ajustes"/>
   <translation tag="Settings reset to defaults. Restarting..." es="Ajustes restablecidos a valores predeterminados. Reiniciando..."/>
@@ -2640,6 +2643,7 @@
   <translation tag="Unload filament" es="Descargar filamento"/>
   <translation tag="Unload macro not configured" es="Macro de descarga no configurado"/>
   <translation tag="Unload may still be running — response timed out" es="La descarga puede seguir en curso — tiempo de espera agotado"/>
+  <translation tag="Unloaded" es="Descargado"/>
   <translation tag="Unloading" es="Descargando"/>
   <translation tag="Unloading Start Speed" es="Velocidad inicial de descarga"/>
   <translation tag="Unloading before bypass..." es="Descargando antes del bypass..."/>

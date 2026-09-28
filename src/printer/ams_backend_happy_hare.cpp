@@ -2354,6 +2354,45 @@ AmsError AmsBackendHappyHare::clear_fault(int slot_index) {
     return execute_gcode("MMU_RECOVER GATE=" + std::to_string(slot_index));
 }
 
+std::string AmsBackendHappyHare::build_recover_command(const helix::RecoverStateRequest& request) {
+    std::string cmd = "MMU_RECOVER";
+    if (request.bypass) {
+        cmd += " BYPASS=1";
+    } else if (request.slot >= 0) {
+        cmd += " GATE=" + std::to_string(request.slot);
+    }
+    if (request.loaded.has_value()) {
+        cmd += *request.loaded ? " LOADED=1" : " LOADED=0";
+    }
+    return cmd;
+}
+
+// State-only like clear_fault(): MMU_RECOVER moves nothing, so it is allowed
+// while busy or printing, which is when a confused MMU needs correcting.
+AmsError AmsBackendHappyHare::recover_with_state(const helix::RecoverStateRequest& request) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        if (!running_) {
+            return AmsErrorHelper::not_connected("Happy Hare backend not started");
+        }
+        if (request.bypass) {
+            if (!system_info_.supports_bypass) {
+                return AmsErrorHelper::not_supported("Bypass");
+            }
+        } else if (request.slot >= 0) {
+            AmsError slot_err = validate_slot_index(request.slot);
+            if (!slot_err) {
+                return slot_err;
+            }
+        }
+    }
+
+    const std::string cmd = build_recover_command(request);
+    spdlog::info("[AMS HappyHare] Recovering with asserted state: {}", cmd);
+    return execute_gcode(cmd);
+}
+
 AmsError AmsBackendHappyHare::eject_lane(int slot_index) {
     {
         std::lock_guard<std::mutex> lock(mutex_);

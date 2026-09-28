@@ -4,6 +4,7 @@
 #include "ams_backend_mock.h"
 
 #include "afc_defaults.h"
+#include "ams_backend_happy_hare.h"
 #if HELIX_HAS_SNAPMAKER
 #include "ams_backend_snapmaker.h"
 #endif
@@ -794,6 +795,12 @@ AmsError AmsBackendMock::recover() {
     schedule_recovery_sequence();
 
     return AmsErrorHelper::success();
+}
+
+AmsError AmsBackendMock::recover_with_state(const helix::RecoverStateRequest& request) {
+    spdlog::info("[AMS Mock] Executing G-code: {}",
+                 AmsBackendHappyHare::build_recover_command(request));
+    return recover();
 }
 
 AmsError AmsBackendMock::reset() {

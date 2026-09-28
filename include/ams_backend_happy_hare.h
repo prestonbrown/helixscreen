@@ -106,6 +106,19 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     AmsError recover() override;
     AmsError reset() override;
     AmsError clear_fault(int slot_index) override;
+    AmsError recover_with_state(const helix::RecoverStateRequest& request) override;
+    [[nodiscard]] bool supports_recover_with_state() const override {
+        return true;
+    }
+    /**
+     * @brief The MMU_RECOVER line asserting @p request.
+     *
+     * Names only what the request knows: an unknown gate is omitted, and an
+     * unset loaded flag leaves LOADED off so HH detects it with its sensors.
+     * BYPASS=1 replaces GATE, which HH then forces to bypass.
+     */
+    [[nodiscard]] static std::string
+    build_recover_command(const helix::RecoverStateRequest& request);
     AmsError eject_lane(int slot_index) override;
     [[nodiscard]] bool supports_lane_eject() const override {
         return true;

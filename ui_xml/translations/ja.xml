@@ -671,6 +671,7 @@
   <translation tag="Deploy" ja="展開"/>
   <translation tag="Describe the issue (optional)" ja="問題の詳細（任意）"/>
   <translation tag="Detailed" ja="詳細"/>
+  <translation tag="Detect automatically" ja="自動検出"/>
   <translation tag="Detecting plate..." ja="プレートを検出中..."/>
   <translation tag="Detecting printer type..." ja="プリンタータイプを検出中..."/>
   <translation tag="Detecting..." ja="検出中..."/>
@@ -1980,6 +1981,7 @@
   <translation tag="Recording Mode" ja="録画モード"/>
   <translation tag="Recover" ja="回復"/>
   <translation tag="Recover MMU state?" ja="MMU の状態を復旧しますか？"/>
+  <translation tag="Recover State" ja="状態を回復"/>
   <translation tag="Recovering AFC system..." ja="AFCシステムを復旧中..."/>
   <translation tag="Recovering..." ja="復旧中..."/>
   <translation tag="Recovery failed" ja="復旧失敗"/>
@@ -2246,6 +2248,7 @@
   <translation tag="Set logging verbosity for troubleshooting" ja="トラブルシューティング用のログの詳細レベルを設定"/>
   <translation tag="Set up" ja="セットアップ"/>
   <translation tag="Set up your label printer in Settings" ja="設定でラベルプリンターをセットアップしてください"/>
+  <translation tag="Set what is really selected and loaded. Nothing moves." ja="実際に選択・装填されている状態を設定します。何も動きません。"/>
   <translation tag="Settings" ja="設定"/>
   <translation tag="Settings Snapshot" ja="設定スナップショット"/>
   <translation tag="Settings reset to defaults. Restarting..." ja="設定をデフォルトにリセットしました。再起動中..."/>
@@ -2640,6 +2643,7 @@
   <translation tag="Unload filament" ja="フィラメントをアンロード"/>
   <translation tag="Unload macro not configured" ja="アンロードマクロが未設定です"/>
   <translation tag="Unload may still be running — response timed out" ja="排出がまだ実行中の可能性があります — 応答タイムアウト"/>
+  <translation tag="Unloaded" ja="排出済み"/>
   <translation tag="Unloading" ja="アンロード中"/>
   <translation tag="Unloading Start Speed" ja="アンロード開始速度"/>
   <translation tag="Unloading before bypass..." ja="バイパス前にアンロード中..."/>

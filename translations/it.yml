@@ -751,6 +751,7 @@ translations:
   Deploy: Rileva
   Describe the issue (optional): Descrivi il problema (facoltativo)
   Detailed: Dettagliato
+  Detect automatically: Rileva automaticamente
   Detecting plate...: Rilevamento piano...
   Detecting printer type...: Rilevamento tipo stampante...
   Detecting...: Rilevamento in corso...
@@ -2198,6 +2199,7 @@ translations:
   Recording Mode: Modalità registrazione
   Recover: Recupera
   Recover MMU state?: Ripristinare lo stato dell'MMU?
+  Recover State: Recupera stato
   Recovering AFC system...: Recupero sistema AFC...
   Recovering...: Recupero...
   Recovery failed: Recupero fallito
@@ -2503,6 +2505,7 @@ translations:
     per la risoluzione dei problemi
   Set up: Configura
   Set up your label printer in Settings: Configura la stampante etichette nelle Impostazioni
+  Set what is really selected and loaded. Nothing moves.: Imposta cosa è davvero selezionato e caricato. Nulla si muove.
   Settings: Impostazioni
   Settings Snapshot: Istantanea delle impostazioni
   Settings reset to defaults. Restarting...: Impostazioni ripristinate ai valori predefiniti.
@@ -2997,6 +3000,7 @@ translations:
   Unload macro not configured: Macro scaricamento non configurata
   Unload may still be running — response timed out: Lo scaricamento potrebbe essere
     ancora in corso — tempo scaduto
+  Unloaded: Scaricato
   Unloading: Scaricamento
   Unloading Start Speed: 'Velocità iniziale di scarico'
   Unloading before bypass...: Scaricamento prima del bypass...

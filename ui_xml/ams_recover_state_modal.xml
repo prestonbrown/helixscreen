@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Tell the filament system its true state: which slot is selected and
+       whether filament is at the extruder. Nothing moves; the
+       firmware only re-syncs its tracking. Options and pre-selection come from
+       AmsRecoverStateModal. Backdrop created by the Modal system. -->
+  <view name="ams_recover_state_modal"
+        extends="ui_dialog" width="70%" height="content" style_min_width="320" style_max_width="480"
+        style_max_height="85%" align="center" flex_flow="column" style_flex_main_place="start" style_pad_gap="0"
+        scrollable="false">
+    <lv_obj width="100%"
+            height="content" style_max_height="#dialog_content_max" style_pad_left="#space_lg"
+            style_pad_right="#space_lg" style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column"
+            style_flex_cross_place="center" style_pad_gap="#space_md" scrollable="true" scroll_snap_y="none">
+      <lv_obj width="100%"
+              height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
+              style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+        <icon src="refresh" size="md" variant="primary"/>
+        <text_heading text="Recover State" translation_tag="Recover State"/>
+      </lv_obj>
+      <text_small width="100%"
+                  long_mode="wrap" text="Set what is really selected and loaded. Nothing moves."
+                  translation_tag="Set what is really selected and loaded. Nothing moves."
+                  style_text_color="#text_muted" style_text_align="center"/>
+      <lv_obj width="100%"
+              height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
+              style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+        <text_body text="Slot" translation_tag="Slot" flex_grow="1"/>
+        <lv_dropdown name="slot_dropdown" width="55%" style_radius="#border_radius"/>
+      </lv_obj>
+      <lv_obj width="100%"
+              height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
+              style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+        <text_body text="Filament" translation_tag="Filament" flex_grow="1"/>
+        <lv_dropdown name="loaded_dropdown" width="55%" style_radius="#border_radius"/>
+      </lv_obj>
+    </lv_obj>
+    <modal_button_row primary_text="Recover" primary_tag="Recover" secondary_text="Cancel" secondary_tag="Cancel"/>
+  </view>
+</component>

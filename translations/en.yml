@@ -728,6 +728,7 @@ translations:
   Deploy: Deploy
   Describe the issue (optional): Describe the issue (optional)
   Detailed: Detailed
+  Detect automatically: Detect automatically
   'Detecting plate...': 'Detecting plate...'
   Detecting printer type...: Detecting printer type...
   Detecting...: Detecting...
@@ -2148,6 +2149,7 @@ translations:
   Recording Mode: Recording Mode
   Recover: Recover
   Recover MMU state?: Recover MMU state?
+  Recover State: Recover State
   Recovering AFC system...: Recovering AFC system...
   Recovering...: Recovering...
   Recovery failed: Recovery failed
@@ -2447,6 +2449,7 @@ translations:
   Set logging verbosity for troubleshooting: Set logging verbosity for troubleshooting
   Set up: Set up
   Set up your label printer in Settings: Set up your label printer in Settings
+  Set what is really selected and loaded. Nothing moves.: Set what is really selected and loaded. Nothing moves.
   Settings: Settings
   Settings Snapshot: Settings Snapshot
   Settings reset to defaults. Restarting...: Settings reset to defaults. Restarting...
@@ -2925,6 +2928,7 @@ translations:
   Unload macro not configured: Unload macro not configured
   Unload may still be running — response timed out: Unload may still be running —
     response timed out
+  Unloaded: Unloaded
   Unloading: Unloading
   Unloading Start Speed: Unloading Start Speed
   Unloading before bypass...: Unloading before bypass...

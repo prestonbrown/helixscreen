@@ -9,6 +9,7 @@
 #include "ui_ams_device_operations_overlay.h"
 
 #include "ui_ams_device_section_detail_overlay.h"
+#include "ui_ams_recover_state_modal.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_modal.h"
@@ -535,6 +536,8 @@ void AmsDeviceOperationsOverlay::on_recover_clicked(lv_event_t* e) {
     AmsBackend* backend = AmsState::instance().get_backend();
     if (!backend) {
         NOTIFY_WARNING("{}", lv_tr("No Multi-Filament System connected"));
+    } else if (AmsRecoverStateModal::show_owned()) {
+        // The modal sends the state the user asserts.
     } else {
         AmsError result = backend->recover();
         if (result.success()) {
