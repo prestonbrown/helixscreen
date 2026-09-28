@@ -120,6 +120,7 @@
   <translation tag="Abort already in progress" ja="中止がすでに進行中です"/>
   <translation tag="Abort failed" ja="中止に失敗"/>
   <translation tag="Aborting AFC operation..." ja="AFC操作を中止中..."/>
+  <translation tag="Aborting..." ja="中止中..."/>
   <translation tag="About" ja="バージョン情報"/>
   <translation tag="Accel to Decel" ja="加速から減速"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" ja="加速から減速の制限値 (mm/s²)"/>
@@ -1980,6 +1981,7 @@
   <translation tag="Recover" ja="回復"/>
   <translation tag="Recover MMU state?" ja="MMU の状態を復旧しますか？"/>
   <translation tag="Recovering AFC system..." ja="AFCシステムを復旧中..."/>
+  <translation tag="Recovering..." ja="復旧中..."/>
   <translation tag="Recovery failed" ja="復旧失敗"/>
   <translation tag="Recovery failed: " ja="復旧に失敗しました: "/>
   <translation tag="Recovery failed: {}" ja="復旧に失敗しました: {}"/>

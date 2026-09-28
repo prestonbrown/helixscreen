@@ -119,6 +119,7 @@ translations:
   Abort already in progress: 中止がすでに進行中です
   Abort failed: 中止に失敗
   Aborting AFC operation...: AFC操作を中止中...
+  Aborting...: 中止中...
   About: バージョン情報
   Accel to Decel: 加速から減速
   Acceleration to deceleration limit (mm/s²): 加速から減速の制限値 (mm/s²)
@@ -2031,6 +2032,7 @@ translations:
   Recover: 回復
   Recover MMU state?: MMU の状態を復旧しますか？
   Recovering AFC system...: AFCシステムを復旧中...
+  Recovering...: 復旧中...
   Recovery failed: 復旧失敗
   'Recovery failed: ': '復旧に失敗しました: '
   'Recovery failed: {}': '復旧に失敗しました: {}'

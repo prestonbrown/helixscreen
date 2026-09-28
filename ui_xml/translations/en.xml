@@ -120,6 +120,7 @@
   <translation tag="Abort already in progress" en="Abort already in progress"/>
   <translation tag="Abort failed" en="Abort failed"/>
   <translation tag="Aborting AFC operation..." en="Aborting AFC operation..."/>
+  <translation tag="Aborting..." en="Aborting..."/>
   <translation tag="About" en="About"/>
   <translation tag="Accel to Decel" en="Accel to Decel"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" en="Acceleration to deceleration limit (mm/s²)"/>
@@ -1980,6 +1981,7 @@
   <translation tag="Recover" en="Recover"/>
   <translation tag="Recover MMU state?" en="Recover MMU state?"/>
   <translation tag="Recovering AFC system..." en="Recovering AFC system..."/>
+  <translation tag="Recovering..." en="Recovering..."/>
   <translation tag="Recovery failed" en="Recovery failed"/>
   <translation tag="Recovery failed: " en="Recovery failed: "/>
   <translation tag="Recovery failed: {}" en="Recovery failed: {}"/>
