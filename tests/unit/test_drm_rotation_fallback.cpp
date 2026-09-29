@@ -44,10 +44,27 @@ TEST_CASE("0° rotation always returns NONE", "[display][drm][rotation]") {
 }
 
 TEST_CASE("Hardware rotation when plane supports requested angle", "[display][drm][rotation]") {
-    // Full rotation support (mask=0xF), request 270° → use hardware
-    REQUIRE(choose_drm_rotation_strategy(ROT_270, MASK_ALL) == DrmRotationStrategy::HARDWARE);
-    REQUIRE(choose_drm_rotation_strategy(ROT_90, MASK_ALL) == DrmRotationStrategy::HARDWARE);
+    // Full rotation support (mask=0xF), request 180° → use hardware
     REQUIRE(choose_drm_rotation_strategy(ROT_180, MASK_ALL) == DrmRotationStrategy::HARDWARE);
+}
+
+TEST_CASE("90° and 270° never go to the plane, whatever its mask advertises",
+          "[display][drm][rotation]") {
+    // The plane's SRC and CRTC rectangles stay at the panel's own width and
+    // height, and LVGL keeps laying out at that resolution, so a quarter turn
+    // has nowhere coherent to land. amdgpu reports 0xF; Pi 3B vc4 reports 0x35.
+    static constexpr uint64_t REFLECT_X = (1 << 4);
+    static constexpr uint64_t REFLECT_Y = (1 << 5);
+    static constexpr uint64_t MASK_PI3B = ROT_0 | ROT_180 | REFLECT_X | REFLECT_Y; // 0x35
+
+    REQUIRE(choose_drm_rotation_strategy(ROT_90, MASK_ALL) == DrmRotationStrategy::SOFTWARE);
+    REQUIRE(choose_drm_rotation_strategy(ROT_270, MASK_ALL) == DrmRotationStrategy::SOFTWARE);
+    REQUIRE(choose_drm_rotation_strategy(ROT_90, ROT_90) == DrmRotationStrategy::SOFTWARE);
+    REQUIRE(choose_drm_rotation_strategy(ROT_270, ROT_270) == DrmRotationStrategy::SOFTWARE);
+
+    // The half turn on the same masks is the control: it still reaches the plane.
+    REQUIRE(choose_drm_rotation_strategy(ROT_180, MASK_PI3B) == DrmRotationStrategy::HARDWARE);
+    REQUIRE(choose_drm_rotation_strategy(ROT_90, MASK_PI3B) == DrmRotationStrategy::SOFTWARE);
 }
 
 TEST_CASE("Software fallback when plane lacks 90/270", "[display][drm][rotation]") {
@@ -71,4 +88,37 @@ TEST_CASE("180° uses hardware when supported", "[display][drm][rotation]") {
 TEST_CASE("180° falls back to software when only 0° supported", "[display][drm][rotation]") {
     // Only 0° supported — 180° must use software
     REQUIRE(choose_drm_rotation_strategy(ROT_180, MASK_0_ONLY) == DrmRotationStrategy::SOFTWARE);
+}
+
+TEST_CASE("HARDWARE rotation clears LVGL rotation", "[display][drm][rotation]") {
+    // The plane rotates the scanout. LVGL rotating as well applies the
+    // transform twice, and two 180s cancel (prestonbrown/helixscreen#1275).
+    REQUIRE(lvgl_rotation_action_for(DrmRotationStrategy::HARDWARE) ==
+            LvglRotationAction::CLEAR_TO_ZERO);
+}
+
+TEST_CASE("SOFTWARE rotation applies the requested angle to LVGL", "[display][drm][rotation]") {
+    // The dumb-buffer flush callback reads lv_display_get_rotation() to decide
+    // whether to reverse the pixel array, so LVGL must carry the angle.
+    REQUIRE(lvgl_rotation_action_for(DrmRotationStrategy::SOFTWARE) ==
+            LvglRotationAction::APPLY_REQUESTED);
+}
+
+TEST_CASE("NONE clears LVGL rotation", "[display][drm][rotation]") {
+    REQUIRE(lvgl_rotation_action_for(DrmRotationStrategy::NONE) ==
+            LvglRotationAction::CLEAR_TO_ZERO);
+}
+
+TEST_CASE("Only SOFTWARE needs FULL render mode", "[display][drm][rotation]") {
+    // A partial-render buffer cannot be reversed in place.
+    REQUIRE(drm_rotation_needs_full_render(DrmRotationStrategy::SOFTWARE));
+    REQUIRE_FALSE(drm_rotation_needs_full_render(DrmRotationStrategy::HARDWARE));
+    REQUIRE_FALSE(drm_rotation_needs_full_render(DrmRotationStrategy::NONE));
+}
+
+TEST_CASE("Plane may not own rotation until touch follows it", "[display][drm][rotation]") {
+    // lv_display_rotate_point() is the only touch transform in the tree, and it
+    // derives solely from LVGL's own display rotation, which the HARDWARE path
+    // clears. Nothing rotates touch to match a plane-rotated picture yet.
+    REQUIRE_FALSE(plane_may_own_rotation());
 }
