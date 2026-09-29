@@ -1400,21 +1400,32 @@ echo ""
 }
 
 # ====================================================================
-# Code Style Check
+# Work markers: every one is a fix, an issue, or a justified annotation
 # ====================================================================
-qc_code_style() {
+qc_todo_markers() {
   local EXIT_CODE=0
-echo "🔍 Checking for TODO/FIXME markers..."
+echo -n "🔍 Checking work markers in comments..."
 
-# Check for TODO/FIXME/XXX comments (informational only)
-if [ -n "$FILES" ]; then
-  if echo "$FILES" | xargs grep -n "TODO\|FIXME\|XXX" 2>/dev/null | head -20; then
-    echo "ℹ️  Found TODO/FIXME markers (informational only)"
+if [ -f "scripts/check_todo_markers.py" ]; then
+  # Ratcheting baseline. Printed as informational output (and truncated at 20
+  # lines) the list was never read whole, and several entries were user-facing
+  # controls that did nothing (prestonbrown/helixscreen#1373). On release/1.0
+  # the baseline is the markers the branch already carries; none is new work.
+  # The number may go DOWN (fix one, then lower this baseline) but must never
+  # go up. Always whole-tree: a marker is a marker whichever commit adds it.
+  if python3 scripts/check_todo_markers.py --max-allowed 30 --summary >/tmp/todo_markers.out 2>&1; then
+    echo ""
+    tail -1 /tmp/todo_markers.out
   else
-    echo "✅ No TODO/FIXME markers found"
+    echo ""
+    cat /tmp/todo_markers.out
+    echo "   Run: python3 scripts/check_todo_markers.py --list"
+    echo "   Fix it, or file the issue and cite it: // MARKER(#NNNN): <the constraint>"
+    EXIT_CODE=1
   fi
 else
-  echo "ℹ️  No source files to check"
+  echo ""
+  echo "⚠️  check_todo_markers.py not found — skipping"
 fi
 
 echo ""
@@ -2975,7 +2986,7 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_icon_names qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_code_style qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules qc_bats_inert"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_icon_names qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_todo_markers qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules qc_bats_inert"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -3016,6 +3027,7 @@ qc_trigger_re() {
     # wakes on both trees rather than only on the catalogs they land in.
     qc_translation_coverage)
                         echo '^ui_xml/|^src/|^translations/|^scripts/translation_sync\.py$|^scripts/translations/' ;;
+    qc_todo_markers)    echo '\.(cpp|c|h|hpp|mm|sh)$|check_todo_markers\.py$' ;;
     qc_shellcheck)      echo '\.(sh|bats)$' ;;
     # The gate reads every .bats file, so any of them can change the count;
     # helpers.bash because contains/lacks are the fix it points at, and the
