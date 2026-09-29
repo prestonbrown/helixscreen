@@ -418,6 +418,10 @@ void MoonrakerAPIMock::set_phase_tracking_enabled(bool enabled,
 std::string MoonrakerFileTransferAPIMock::find_test_file(const std::string& filename) const {
     namespace fs = std::filesystem;
 
+    if (!planted_dir().empty() && fs::exists(planted_dir() + "/" + filename)) {
+        return planted_dir() + "/" + filename;
+    }
+
     for (const auto& prefix : PATH_PREFIXES) {
         std::string path = prefix + std::string(TEST_GCODE_DIR) + "/" + filename;
 

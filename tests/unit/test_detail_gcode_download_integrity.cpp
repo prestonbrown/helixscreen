@@ -740,23 +740,22 @@ TEST_CASE_METHOD(DetailDownloadFixture, "nothing outstanding issues no footer re
 
 namespace {
 
-/// A .gcode in the mock's asset directory for one test.
+/// A file the mock serves for one test, kept out of the gcodes directory that
+/// every test process shares and the mock's history scan reads.
 struct PlantedAsset {
+    std::string dir = std::filesystem::temp_directory_path().string() + "/helix_planted_" +
+                      std::to_string(::getpid());
     std::string path;
 
-    PlantedAsset(const std::string& name, const std::string& content) {
-        for (const auto* prefix : {"", "../", "../../"}) {
-            const std::string dir = std::string(prefix) + "assets/test_gcodes";
-            if (std::filesystem::is_directory(dir)) {
-                path = dir + "/" + name;
-                break;
-            }
-        }
-        REQUIRE_FALSE(path.empty());
+    PlantedAsset(const std::string& name, const std::string& content) : path(dir + "/" + name) {
+        std::filesystem::create_directories(dir);
+        MoonrakerFileTransferAPIMock::set_planted_dir(dir);
         std::ofstream(path, std::ios::trunc) << content;
     }
     ~PlantedAsset() {
-        std::remove(path.c_str());
+        std::error_code ec;
+        std::filesystem::remove(path, ec);
+        std::filesystem::remove(dir, ec); // only once the last planted file is gone
     }
     PlantedAsset(const PlantedAsset&) = delete;
     PlantedAsset& operator=(const PlantedAsset&) = delete;
