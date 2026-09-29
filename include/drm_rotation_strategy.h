@@ -24,6 +24,8 @@
  * replaced this backend with fbdev by that point, so
  * DisplayBackendDRM::set_display_rotation is never called for it either. Every
  * nonzero angle rotates through the fbdev backend instead.
+ * 90° and 270° are always SOFTWARE, whatever the mask advertises: they swap
+ * width and height, which the plane path accounts for nowhere.
  */
 enum class DrmRotationStrategy {
     NONE,     ///< No rotation needed (0°)
@@ -38,7 +40,9 @@ enum class DrmRotationStrategy {
  * Examines the requested rotation against the DRM plane's supported
  * rotation bitmask to choose the best strategy:
  * - 0° always returns NONE (no rotation needed)
- * - If the plane supports the requested angle, returns HARDWARE
+ * - 90° and 270° always return SOFTWARE: the plane keeps the panel's own width
+ *   and height, so it cannot carry an angle that swaps them
+ * - 180° returns HARDWARE if the plane supports it
  * - Otherwise returns SOFTWARE (LVGL matrix rotation fallback)
  *
  * @param requested_drm_rot  DRM_MODE_ROTATE_* constant for the desired angle
