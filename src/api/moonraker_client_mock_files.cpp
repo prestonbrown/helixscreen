@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "gcode_parser.h"
+#include "mock_planted_gcodes.h"
 #include "moonraker_client_mock_internal.h"
 #include "runtime_config.h"
 
@@ -19,17 +20,11 @@ static constexpr const char* THUMBNAIL_CACHE_DIR = "build/thumbnail_cache";
 // Alias for cleaner code - use shared constant from RuntimeConfig
 #define TEST_GCODE_DIR RuntimeConfig::TEST_GCODE_DIR
 
-/**
- * @brief Scan test directory for G-code files
- * @return Vector of filenames (not full paths)
- */
-static std::vector<std::string> scan_mock_gcode_files() {
-    std::vector<std::string> files;
-
-    DIR* dir = opendir(TEST_GCODE_DIR);
+/// Append the G-code filenames in @p dir_path to @p files; false if it cannot be opened.
+static bool scan_gcode_dir(const std::string& dir_path, std::vector<std::string>& files) {
+    DIR* dir = opendir(dir_path.c_str());
     if (!dir) {
-        spdlog::warn("[MoonrakerClientMock] Cannot open test G-code directory: {}", TEST_GCODE_DIR);
-        return files;
+        return false;
     }
 
     struct dirent* entry;
@@ -52,7 +47,24 @@ static std::vector<std::string> scan_mock_gcode_files() {
     }
 
     closedir(dir);
+    return true;
+}
+
+/**
+ * @brief Scan the test directory, and any planted overlay, for G-code files
+ * @return Vector of filenames (not full paths)
+ */
+static std::vector<std::string> scan_mock_gcode_files() {
+    std::vector<std::string> files;
+
+    const std::string& planted = helix::mock::planted_gcode_dir();
+    const bool planted_found = !planted.empty() && scan_gcode_dir(planted, files);
+    if (!scan_gcode_dir(TEST_GCODE_DIR, files) && !planted_found) {
+        spdlog::warn("[MoonrakerClientMock] Cannot open test G-code directory: {}", TEST_GCODE_DIR);
+        return files;
+    }
     std::sort(files.begin(), files.end());
+    files.erase(std::unique(files.begin(), files.end()), files.end());
 
     // HELIX_MOCK_FILE_COUNT=N - pad the listing to N entries by cycling the
     // real filenames. Duplicate entries still resolve to real files for
@@ -162,7 +174,7 @@ static json build_mock_file_list_response(const std::string& root, const std::st
         auto filenames = scan_mock_gcode_files();
 
         for (const auto& filename : filenames) {
-            std::string full_path = std::string(TEST_GCODE_DIR) + "/" + filename;
+            std::string full_path = helix::mock::gcode_disk_path(filename);
 
             struct stat file_stat;
             uint64_t size = 0;
@@ -178,7 +190,7 @@ static json build_mock_file_list_response(const std::string& root, const std::st
             result_array.push_back(file_entry);
         }
 
-        // Note: We only return real files from TEST_GCODE_DIR
+        // Note: We only return real files from TEST_GCODE_DIR and the planted overlay
         // Fake subdirectory entries were removed to prevent thumbnail extraction warnings
     }
     // Unknown paths return empty lists
@@ -203,7 +215,7 @@ static json build_mock_file_metadata_response(const std::string& filename) {
     if (filename.find(prefix) == 0) {
         clean_filename = filename.substr(prefix.length());
     }
-    std::string full_path = std::string(TEST_GCODE_DIR) + "/" + clean_filename;
+    std::string full_path = helix::mock::gcode_disk_path(clean_filename);
 
     // Get file info from filesystem
     struct stat file_stat;
@@ -524,7 +536,7 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
         if (relative.rfind(root_prefix, 0) == 0) {
             relative = relative.substr(root_prefix.length());
         }
-        const std::string disk_path = std::string(TEST_GCODE_DIR) + "/" + relative;
+        const std::string disk_path = helix::mock::gcode_disk_path(relative);
 
         spdlog::info("[MoonrakerClientMock] Mock delete_file: {}", path);
         if (std::remove(disk_path.c_str()) == 0) {

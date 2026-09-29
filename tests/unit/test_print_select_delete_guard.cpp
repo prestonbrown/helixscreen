@@ -26,6 +26,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/print_select_panel_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
@@ -49,44 +50,6 @@
 using namespace helix;
 
 namespace {
-
-/// A .gcode planted in the mock's virtual gcodes root for one test.
-/// MoonrakerClientMock backs the gcodes root with assets/test_gcodes on disk
-/// (scan_mock_gcode_files() is a real directory scan), so a delete that
-/// mutates the virtual FS removes a real file. Plant one nothing else depends
-/// on and take it back out however the test ends.
-class PlantedGcode {
-  public:
-    explicit PlantedGcode(const std::string& name) {
-        for (const auto* prefix : {"", "../", "../../"}) {
-            std::string dir = std::string(prefix) + "assets/test_gcodes";
-            if (std::filesystem::is_directory(dir)) {
-                path_ = dir + "/" + name;
-                break;
-            }
-        }
-        REQUIRE_FALSE(path_.empty());
-        std::ofstream out(path_, std::ios::trunc);
-        out << "; planted for the delete-guard tests\nG28\n";
-    }
-
-    ~PlantedGcode() {
-        std::remove(path_.c_str());
-    }
-
-    PlantedGcode(const PlantedGcode&) = delete;
-    PlantedGcode& operator=(const PlantedGcode&) = delete;
-
-    bool on_disk() const {
-        return std::filesystem::exists(path_);
-    }
-    std::string name() const {
-        return std::filesystem::path(path_).filename().string();
-    }
-
-  private:
-    std::string path_;
-};
 
 /// The real delete flow over the real panel and NavigationManager: mock client
 /// connected, MoonrakerAPI on top of it, print_select_panel XML built, and the
