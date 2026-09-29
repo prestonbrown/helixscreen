@@ -10,6 +10,7 @@
 #include "app_globals.h"
 #include "gcode_parser.h"
 #include "macro_param_cache.h"
+#include "mock_planted_gcodes.h"
 #include "moonraker_client_mock_internal.h"
 #include "power_device_state.h"
 #include "printer_state.h"
@@ -3319,7 +3320,7 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
         full_path = lookup_filename;
     } else {
         // Bare filename, prepend test directory
-        full_path = std::string(RuntimeConfig::TEST_GCODE_DIR) + "/" + lookup_filename;
+        full_path = helix::mock::gcode_disk_path(lookup_filename);
     }
 
     // Extract metadata from G-code file

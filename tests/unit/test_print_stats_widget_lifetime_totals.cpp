@@ -25,6 +25,7 @@
 #include "../../include/print_history_manager.h"
 #include "../../include/printer_state.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/planted_gcode.h"
 #include "src/ui/panel_widgets/print_stats_widget.h"
 
 #include <atomic>
@@ -106,6 +107,17 @@ class PrintStatsLifetimeFixture : public LVGLTestFixture {
 };
 
 } // namespace
+
+// The mock derives its totals from the shipped gcodes directory, and other
+// test processes plant files for their own cases while these run.
+TEST_CASE_METHOD(PrintStatsLifetimeFixture,
+                 "A planted G-code never reaches the mock's history totals",
+                 "[print_stats][history][1272]") {
+    const PrintHistoryTotals before = fetch_server_totals();
+    PlantedGcode planted("history_totals_planted.gcode");
+    REQUIRE(planted.on_disk());
+    CHECK(fetch_server_totals().total_jobs == before.total_jobs);
+}
 
 TEST_CASE_METHOD(PrintStatsLifetimeFixture,
                  "print_stats lifetime totals come from the server, not the capped job cache",

@@ -41,6 +41,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/planted_gcode.h"
 #include "gcode_ops_detector.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "macro_param_cache.h"
@@ -740,27 +741,6 @@ TEST_CASE_METHOD(DetailDownloadFixture, "nothing outstanding issues no footer re
 
 namespace {
 
-/// A file the mock serves for one test, kept out of the gcodes directory that
-/// every test process shares and the mock's history scan reads.
-struct PlantedAsset {
-    std::string dir = std::filesystem::temp_directory_path().string() + "/helix_planted_" +
-                      std::to_string(::getpid());
-    std::string path;
-
-    PlantedAsset(const std::string& name, const std::string& content) : path(dir + "/" + name) {
-        std::filesystem::create_directories(dir);
-        MoonrakerFileTransferAPIMock::set_planted_dir(dir);
-        std::ofstream(path, std::ios::trunc) << content;
-    }
-    ~PlantedAsset() {
-        std::error_code ec;
-        std::filesystem::remove(path, ec);
-        std::filesystem::remove(dir, ec); // only once the last planted file is gone
-    }
-    PlantedAsset(const PlantedAsset&) = delete;
-    PlantedAsset& operator=(const PlantedAsset&) = delete;
-};
-
 /// This printer's M729 is a macro that shuts it down.
 struct StopMacroCache {
     StopMacroCache() {
@@ -786,7 +766,7 @@ TEST_CASE_METHOD(DetailDownloadFixture,
     // Tools scan settles, the operations scan is held, the tap waits; releasing
     // the scan releases the tap. Returns what the scan answered.
     const auto tap_before_scan = [this](const std::string& name, const std::string& content) {
-        PlantedAsset file(name, content);
+        PlantedGcode file(name, "", content);
         transfers_.hold_partials = true;
         view_.show(name, "", "PLA", {"#FF0000"}, {}, content.size(), 42);
         REQUIRE(wait_until([this]() { return view_.is_preflight_ready(); }, 15000));
@@ -861,7 +841,7 @@ TEST_CASE_METHOD(DetailDownloadFixture, "A .3mf project reads none of its bytes"
     CacheDirGuard guard;
     const std::string name = "qidi_" + std::to_string(::getpid()) + " (PETG).gcode.3mf";
     const std::string zip = std::string("PK\x03\x04", 4) + "not gcode";
-    PlantedAsset file(name, zip);
+    PlantedGcode file(name, "", zip);
 
     view_.show(name, "", "PETG", {"#FF0000"}, {}, zip.size(), 42);
     drain_queue_chain();
@@ -890,7 +870,7 @@ TEST_CASE_METHOD(DetailDownloadFixture,
     const std::string pid = std::to_string(::getpid());
     const std::string gcode_name = "embedded_mesh_" + pid + ".gcode";
     const std::string gcode = "G28\nBED_MESH_CALIBRATE\nG1 X10 Y10 E1\n";
-    PlantedAsset gcode_file(gcode_name, gcode);
+    PlantedGcode gcode_file(gcode_name, "", gcode);
 
     view_.show(gcode_name, "", "PLA", {"#FF0000"}, {}, gcode.size(), 42);
     drain_queue_chain();
@@ -902,7 +882,7 @@ TEST_CASE_METHOD(DetailDownloadFixture,
 
     const std::string zip_name = "qidi_" + pid + ".gcode.3mf";
     const std::string zip = std::string("PK\x03\x04", 4) + "not gcode";
-    PlantedAsset zip_file(zip_name, zip);
+    PlantedGcode zip_file(zip_name, "", zip);
     view_.show(zip_name, "", "PETG", {"#FF0000"}, {}, zip.size(), 42);
     drain_queue_chain();
 
@@ -922,7 +902,7 @@ TEST_CASE_METHOD(DetailDownloadFixture, "A .3mf still fetches metadata for the p
     CacheDirGuard guard;
     const std::string name = "qidi_meta_" + std::to_string(::getpid()) + ".gcode.3mf";
     const std::string zip = std::string("PK\x03\x04", 4) + "not gcode";
-    PlantedAsset file(name, zip);
+    PlantedGcode file(name, "", zip);
 
     view_.show(name, "", "PETG", {"#FF0000"}, {}, zip.size(), 42);
     drain_queue_chain();
@@ -948,7 +928,7 @@ TEST_CASE_METHOD(DetailDownloadFixture, "A G-code file with no layers keeps the 
     CacheDirGuard guard;
     const std::string name = "no_layers_" + std::to_string(::getpid()) + ".gcode";
     const std::string content = "M117 nothing to print\nG28\n";
-    PlantedAsset file(name, content);
+    PlantedGcode file(name, "", content);
 
     view_.show(name, "", "PLA", {"#FF0000"}, {}, content.size(), 42);
     REQUIRE(wait_until([this]() { return view_.is_gcode_loaded(); }, 15000));
