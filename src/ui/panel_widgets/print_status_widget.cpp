@@ -515,6 +515,18 @@ void PrintStatusWidget::detach() {
 // Size-Dependent Layout
 // ============================================================================
 
+void PrintStatusWidget::on_activate() {
+    // Each return to the dashboard re-resolves the idle thumbnail. That is the
+    // retry for a refetch that failed while it was away (the fetch itself never
+    // retries), and the probe counts as a use, which keeps the render ahead of
+    // the file grid's in the cache's eviction order. Once per activation, so a
+    // printer that keeps failing costs one request per visit, not a loop.
+    if (widget_obj_ && print_card_thumb_ &&
+        !job_holds_machine(printer_state_.get_print_lifecycle())) {
+        defer_reset_print_card_to_idle();
+    }
+}
+
 void PrintStatusWidget::on_size_changed(int /*colspan*/, int /*rowspan*/, int width_px,
                                         int height_px) {
     last_width_px_ = width_px;

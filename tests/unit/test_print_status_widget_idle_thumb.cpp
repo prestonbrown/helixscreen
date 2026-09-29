@@ -625,6 +625,50 @@ TEST_CASE_METHOD(
     cache.invalidate(key);
 }
 
+// A failed refetch is not retried from inside the fetch. Returning to the
+// dashboard is the retry: it re-resolves, which refetches what is missing.
+TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
+                 "PrintStatusWidget: returning to the dashboard retries a failed idle refetch",
+                 "[print_status_widget][idle_thumb][thumbnail]") {
+    auto& cache = get_thumbnail_cache();
+    const std::string key = head_thumbnail_key();
+    cache.invalidate(key);
+
+    PrintStatusWidget widget;
+    lv_obj_t* container = create_mock_print_card(test_screen());
+    widget.attach(container, test_screen());
+    process_lvgl(200);
+
+    const helix::ThumbnailTarget target = size_thumb(container, 100, 100);
+    const auto planted = helix::ThumbnailProcessor::instance().process_sync(TINY_PNG, key, target);
+    REQUIRE(planted.success);
+    PrintStatusWidgetTestAccess::reset_to_idle(widget);
+    REQUIRE(subject_value() == planted.output_path);
+
+    // Evicted, and the refetch fails: no HTTP base URL on the fixture's API.
+    cache.invalidate(key);
+    set_moonraker_api(api_.get());
+    PrintStatusWidgetTestAccess::reset_to_idle(widget);
+    settle_thumb([]() { return false; });
+    REQUIRE(cached_bin(cache, key, target).empty());
+
+    // The source becomes reachable again (a cached PNG stands in for the
+    // printer answering), and nothing happens until the dashboard comes back.
+    plant_cached_png(cache, key);
+    settle_thumb([]() { return false; });
+    REQUIRE(cached_bin(cache, key, target).empty());
+
+    widget.on_activate();
+    process_lvgl(50); // the deferred re-resolve
+    settle_thumb([&]() { return !cached_bin(cache, key, target).empty(); });
+
+    CHECK(cached_bin(cache, key, target) == planted.output_path);
+    CHECK(subject_value() == planted.output_path);
+
+    widget.detach();
+    cache.invalidate(key);
+}
+
 // =============================================================================
 // The idle thumbnail must describe a file that still exists
 //
