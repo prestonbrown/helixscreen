@@ -33,9 +33,11 @@
 #include "../../include/thumbnail_cache.h"
 #include "../../include/thumbnail_processor.h"
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <string>
 #include <unistd.h>
 #include <vector>
@@ -411,4 +413,81 @@ TEST_CASE("A writer with no hook at all still converges within the reconcile bou
 
     REQUIRE(cache.get_cache_size() == true_dir_size(dir));
     REQUIRE(cache.get_cache_size() == FILE_BYTES * SEED_COUNT + 64 * 1024);
+}
+
+// ============================================================================
+// Recency — a hit counts as use
+// ============================================================================
+
+namespace {
+
+void set_age(const std::string& lvgl_or_fs_path, std::chrono::minutes age) {
+    const std::string fs_path =
+        ThumbnailCache::is_lvgl_path(lvgl_or_fs_path) ? lvgl_or_fs_path.substr(2) : lvgl_or_fs_path;
+    REQUIRE(std::filesystem::exists(fs_path));
+    std::filesystem::last_write_time(fs_path, std::filesystem::file_time_type::clock::now() - age);
+}
+
+} // namespace
+
+// The home card's render is written once and then only read, while the file
+// grid writes a render per card. Evicting by write time alone makes the render
+// on the dashboard the first thing a grid scroll throws away.
+TEST_CASE("A cache hit keeps the entry it served out of the next eviction",
+          "[assets][cache][thumbnail][recency]") {
+    ScopedCacheDir scoped("hit_recency");
+
+    ThumbnailCache cache(GENEROUS_LIMIT);
+    const std::string dir = cache.get_cache_dir();
+    auto& processor = helix::ThumbnailProcessor::instance();
+    REQUIRE(processor.get_cache_dir() == dir);
+
+    std::string card;
+    std::function<std::string()> read_card;
+    SECTION("pre-scaled render") {
+        const auto result = processor.process_sync(TINY_PNG, "card.png", target_120());
+        REQUIRE(result.success);
+        card = result.output_path;
+        read_card = [&cache]() {
+            ThumbnailRequest req;
+            req.key = "card.png";
+            req.target = target_120();
+            return cache.get_if_cached(req);
+        };
+    }
+    SECTION("raw PNG") {
+        card = cache.save_raw_png("card", TINY_PNG);
+        REQUIRE_FALSE(card.empty());
+        read_card = [&cache]() { return cache.get_if_cached("card"); };
+    }
+    set_age(card, std::chrono::minutes(180));
+
+    // The grid's renders: every one written after the card's.
+    constexpr int GRID = 4;
+    std::vector<std::string> grid;
+    for (int i = 0; i < GRID; ++i) {
+        const auto result =
+            processor.process_sync(TINY_PNG, "grid_" + std::to_string(i) + ".png", target_120());
+        REQUIRE(result.success);
+        set_age(result.output_path, std::chrono::minutes(120 - i));
+        grid.push_back(result.output_path.substr(2));
+    }
+    const size_t on_disk = true_dir_size(dir);
+    REQUIRE(cache.get_cache_size() == on_disk);
+
+    // The card reads its render, then enough other checks go by to force a
+    // full reconcile of the index.
+    REQUIRE(read_card() == card);
+    for (int i = 0; i < 512; ++i) {
+        cache.set_max_size(GENEROUS_LIMIT);
+    }
+
+    // One byte over: exactly one file has to go.
+    cache.set_max_size(on_disk - 1);
+
+    CHECK(std::filesystem::exists(card.substr(2)));
+    CHECK_FALSE(std::filesystem::exists(grid[0]));
+    for (int i = 1; i < GRID; ++i) {
+        CHECK(std::filesystem::exists(grid[static_cast<size_t>(i)]));
+    }
 }
