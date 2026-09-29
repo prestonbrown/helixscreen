@@ -4466,6 +4466,9 @@ install_klipper_include_for_printer() {
 #
 # R2 CDN configuration (overridable via environment)
 : "${R2_BASE_URL:=https://releases.helixscreen.org}"
+# Whether R2_CHANNEL arrived from the environment (as opposed to the default
+# below). resolve_update_channel() must not override the operator's choice.
+_R2_CHANNEL_FROM_ENV="${R2_CHANNEL:+yes}"
 : "${R2_CHANNEL:=stable}"
 
 # Plain HTTP endpoint for systems without SSL (K1, AD5M BusyBox wget)
@@ -4783,6 +4786,88 @@ parse_json_string_field() {
 # Extract "version" value from manifest JSON on stdin
 parse_manifest_version() {
     parse_json_string_field version
+}
+
+# Extract the value of a JSON integer field from stdin. Args: key
+#
+# Prints the number, or nothing when the key is absent or its value is not a
+# bare integer. Unquoted values ride in the same quote-split field as the colon
+# ("channel": 1, splits to `channel` + `: 1,`), so the digits are trimmed out
+# of that field rather than read from the next one. First match wins, and the
+# key/value pair always shares a line, so the line-wise walk of
+# parse_json_string_field is enough here too.
+parse_json_int_field() {
+    awk -v key="$1" '
+        {
+            n = split($0, p, "\"")
+            for (i = 1; i < n; i++) {
+                if (p[i] == key && p[i+1] ~ /^[ \t]*:[ \t]*-?[0-9]/) {
+                    v = p[i+1]
+                    sub(/^[^0-9-]*/, "", v)
+                    sub(/[^0-9].*$/, "", v)
+                    print v
+                    exit
+                }
+            }
+        }
+    '
+}
+
+# Newest release tag from GitHub's /releases payload on stdin, prereleases
+# included. GitHub lists the array newest-first and serializes every entry with
+# tag_name ahead of draft and prerelease, so one walk that carries the current
+# entry's tag and flags can take the first non-draft prerelease, falling back
+# to the first non-draft stable release (what /releases/latest answers) when
+# no prerelease exists. Whole-field comparison on quote-split input keeps a
+# "prerelease" mentioned inside release prose from counting, per
+# parse_json_string_field.
+parse_newest_release_tag() {
+    awk '
+        {
+            n = split($0, p, "\"")
+            for (i = 1; i < n; i++) {
+                if (p[i] == "tag_name" && p[i+1] ~ /^[ \t]*:[ \t]*$/) tag = p[i+2]
+                else if (p[i] == "draft") draft = (p[i+1] ~ /:[ \t]*true/)
+                else if (p[i] == "prerelease") {
+                    if (p[i+1] ~ /:[ \t]*true/) {
+                        if (!draft && tag != "") { print tag; done = 1; exit }
+                    } else if (!draft && tag != "" && stable == "") {
+                        stable = tag
+                    }
+                }
+            }
+        }
+        END { if (!done && stable != "") print stable }
+    '
+}
+
+# Set R2_CHANNEL from the installed app's settings, so an update follows the
+# channel the user picked in the UI instead of always pulling stable.
+#
+# The app persists its channel at /update/channel as an int (0=stable,
+# 1=beta, 2=dev). config/settings.json is a symlink into
+# printer_data/config/helixscreen/, so reading through it covers both the
+# symlink and a real file. An R2_CHANNEL from the environment wins; anything
+# unreadable, absent or out of range maps back to stable.
+resolve_update_channel() {
+    if [ "${_R2_CHANNEL_FROM_ENV:-}" = "yes" ]; then
+        log_info "Update channel: ${R2_CHANNEL} (R2_CHANNEL set in environment)"
+        return 0
+    fi
+
+    local settings num=""
+    settings="${INSTALL_DIR}/config/settings.json"
+
+    if [ -f "$settings" ]; then
+        num=$(parse_json_int_field channel < "$settings" 2>/dev/null) || num=""
+    fi
+
+    case "$num" in
+        1) R2_CHANNEL=beta ;;
+        2) R2_CHANNEL=dev ;;
+        *) R2_CHANNEL=stable ;;
+    esac
+    log_info "Update channel: ${R2_CHANNEL} (read from ${settings})"
 }
 
 # Extract one string field from a platform's block of the manifest's assets
@@ -5148,11 +5233,19 @@ get_latest_version() {
             log_warn "CDN unavailable, trying GitHub..."
         fi
 
-        # Fallback: GitHub API
-        local url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
-        log_info "Fetching latest version from GitHub..."
-
-        version=$(fetch_url "$url" | parse_json_string_field tag_name)
+        # Fallback: GitHub API. /releases/latest skips prereleases, so the
+        # beta and dev channels list /releases and take the newest non-draft
+        # release, prereleases included.
+        local url
+        if [ "$R2_CHANNEL" != "stable" ]; then
+            url="https://api.github.com/repos/${GITHUB_REPO}/releases"
+            log_info "Fetching newest ${R2_CHANNEL} version from GitHub..."
+            version=$(fetch_url "$url" | parse_newest_release_tag)
+        else
+            url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
+            log_info "Fetching latest version from GitHub..."
+            version=$(fetch_url "$url" | parse_json_string_field tag_name)
+        fi
 
         if [ -n "$version" ]; then
             echo "$version"
@@ -7596,8 +7689,20 @@ has_update_manager_section() {
     grep -q '^\[update_manager helixscreen\]' "$conf" 2>/dev/null
 }
 
+# The channel Moonraker's type:web updater should follow. Moonraker accepts
+# only stable and beta here; the dev channel has no Moonraker lane and rides
+# beta, the closest published feed.
+update_manager_web_channel() {
+    case "${R2_CHANNEL:-stable}" in
+        beta | dev) echo "beta" ;;
+        *) echo "stable" ;;
+    esac
+}
+
 # Generate update_manager configuration block
 generate_update_manager_config() {
+    local web_channel
+    web_channel=$(update_manager_web_channel)
     cat << EOF
 
 # HelixScreen Update Manager
@@ -7607,7 +7712,7 @@ generate_update_manager_config() {
 # A systemd path unit handles service restart after Moonraker extracts the update.
 [update_manager helixscreen]
 type: web
-channel: stable
+channel: ${web_channel}
 repo: prestonbrown/helixscreen
 path: ${INSTALL_DIR}
 EOF
@@ -7827,6 +7932,44 @@ disable_system_updates_on_buildroot() {
 # Options like persistent_files, managed_services, and install_script are
 # not supported and cause Moonraker to log "unparsed config option" warnings.
 # Args: $1 = moonraker.conf path
+# Point an existing stanza's `channel:` at the channel this install resolved.
+# The value is interpolated when the section is first added and nothing
+# revisits it, so a user who switches the app to beta keeps being offered
+# stable from Mainsail/Fluidd until the stanza is rewritten.
+# Args: $1 = moonraker.conf path
+sync_update_manager_channel() {
+    local conf="$1"
+    local current want
+
+    want=$(update_manager_web_channel)
+
+    current=$(awk '
+        /^\[update_manager helixscreen\]/ { found=1; next }
+        found && /^\[/ { exit }
+        found && /^channel:/ { sub(/^channel:[[:space:]]*/, ""); print; exit }
+    ' "$conf" 2>/dev/null)
+
+    # A stanza without a channel line (hand-written) is Moonraker's default
+    # stable; leave it to the operator rather than inserting one.
+    if [ -z "$current" ] || [ "$current" = "$want" ]; then
+        return 0
+    fi
+
+    log_info "Updating update_manager channel: ${current} -> ${want}"
+    local fs
+    fs=$(file_sudo "$conf")
+    $fs cp "$conf" "${conf}.bak.helixscreen" 2>/dev/null || true
+
+    $fs awk -v want="$want" '
+        /^\[update_manager helixscreen\]/ { in_section=1 }
+        in_section && /^\[/ && !/^\[update_manager helixscreen\]/ { in_section=0 }
+        in_section && /^channel:/ { print "channel: " want; next }
+        { print }
+    ' "$conf" > "${conf}.tmp" && $fs mv "${conf}.tmp" "$conf"
+
+    log_success "update_manager channel now ${want}"
+}
+
 cleanup_unsupported_options() {
     local conf="$1"
 
@@ -8110,6 +8253,9 @@ configure_moonraker_updates() {
 
     if has_update_manager_section "$conf"; then
         log_info "update_manager section already exists in $conf"
+        # channel: is only ever written when the section is first added, so
+        # rewrite it to whatever this update resolved to.
+        sync_update_manager_channel "$conf"
         # Remove options not supported by type: web (persistent_files,
         # managed_services, install_script) that cause Moonraker warnings.
         cleanup_unsupported_options "$conf"
@@ -10584,6 +10730,13 @@ main() {
     check_disk_space "$platform"
     detect_init_system
     check_klipper_ecosystem "$platform"
+
+    # An update or reinstall must follow the channel the installed app is on:
+    # a beta user updating through KIAUH or a re-run of the installer would
+    # otherwise be handed the stable build. No-op on a fresh install.
+    if [ "$update_mode" = true ] || [ -d "$INSTALL_DIR" ]; then
+        resolve_update_channel
+    fi
 
     # Get version (skip if using local archive)
     if [ -n "$local_tarball" ]; then

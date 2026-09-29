@@ -250,3 +250,172 @@ _stub_wget() {
     [ "$status" -ne 0 ]
     [ -z "$output" ]
 }
+
+# --- Update channel resolution ---
+#
+# The app persists the user's channel at /update/channel (0=stable, 1=beta,
+# 2=dev). An installer run that ignores it hands a beta user the stable
+# build, so --update reads it back before fetching anything.
+
+_settings_with_channel() {
+    INSTALL_DIR="$BATS_TEST_TMPDIR/install"
+    mkdir -p "$INSTALL_DIR/config"
+    printf '{"update":{"channel":%s},"language":"en"}\n' "$1" \
+        > "$INSTALL_DIR/config/settings.json"
+    export INSTALL_DIR
+}
+
+@test "resolve_update_channel maps settings channel 1 to beta" {
+    _settings_with_channel 1
+    resolve_update_channel
+    [ "$R2_CHANNEL" = "beta" ]
+}
+
+@test "resolve_update_channel maps settings channel 2 to dev" {
+    _settings_with_channel 2
+    resolve_update_channel
+    [ "$R2_CHANNEL" = "dev" ]
+}
+
+@test "resolve_update_channel reads through the printer_data symlink" {
+    # The real file lives in printer_data; the install dir only symlinks it.
+    INSTALL_DIR="$BATS_TEST_TMPDIR/install"
+    local pd="$BATS_TEST_TMPDIR/printer_data/config/helixscreen"
+    mkdir -p "$INSTALL_DIR/config" "$pd"
+    printf '{"update":{"channel":1}}\n' > "$pd/settings.json"
+    ln -s "$pd/settings.json" "$INSTALL_DIR/config/settings.json"
+    export INSTALL_DIR
+
+    resolve_update_channel
+
+    [ "$R2_CHANNEL" = "beta" ]
+}
+
+@test "resolve_update_channel falls back to stable without a settings file" {
+    INSTALL_DIR="$BATS_TEST_TMPDIR/install"
+    mkdir -p "$INSTALL_DIR/config"
+    export INSTALL_DIR
+
+    resolve_update_channel
+
+    [ "$R2_CHANNEL" = "stable" ]
+}
+
+@test "resolve_update_channel falls back to stable on garbage settings" {
+    # A string value is not the int the reader is after, and a "channel: 3"
+    # inside a string value must not read as the key.
+    INSTALL_DIR="$BATS_TEST_TMPDIR/install"
+    mkdir -p "$INSTALL_DIR/config"
+    printf '{"update":{"channel":"beta"},"note":"channel: 3"}\n' \
+        > "$INSTALL_DIR/config/settings.json"
+    export INSTALL_DIR
+    resolve_update_channel
+    [ "$R2_CHANNEL" = "stable" ]
+}
+
+@test "resolve_update_channel falls back to stable on an out-of-range channel" {
+    _settings_with_channel 9
+    resolve_update_channel
+    [ "$R2_CHANNEL" = "stable" ]
+}
+
+@test "resolve_update_channel keeps an env-provided R2_CHANNEL" {
+    export R2_CHANNEL="dev"
+    unset _HELIX_RELEASE_SOURCED
+    source "$RELEASE_SH"
+    _settings_with_channel 1
+
+    resolve_update_channel
+
+    [ "$R2_CHANNEL" = "dev" ]
+}
+
+@test "get_latest_version fetches the beta manifest for a beta-channel install" {
+    _settings_with_channel 1
+    resolve_update_channel
+    [ "$R2_CHANNEL" = "beta" ]
+
+    # get_latest_version runs fetch_url inside a command substitution, so the
+    # stub records URLs in a file rather than a shell variable.
+    local fetched="$BATS_TEST_TMPDIR/fetched_urls"
+    : > "$fetched"
+    check_https_capability() { return 0; }
+    fetch_url() {
+        printf '%s\n' "$1" >> "$fetched"
+        echo "$SAMPLE_MANIFEST"
+    }
+
+    result=$(get_latest_version "pi")
+
+    [ "$result" = "v0.9.5" ]
+    [ "$(cat "$fetched")" = "https://releases.helixscreen.org/beta/manifest.json" ]
+}
+
+# --- GitHub fallback for the beta/dev channels ---
+
+RELEASES_LIST='[
+  {
+    "url": "https://api.github.com/repos/prestonbrown/helixscreen/releases/3",
+    "tag_name": "v1.0.0",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "url": "https://api.github.com/repos/prestonbrown/helixscreen/releases/2",
+    "tag_name": "v1.1.0-beta.1",
+    "draft": false,
+    "prerelease": true
+  },
+  {
+    "url": "https://api.github.com/repos/prestonbrown/helixscreen/releases/1",
+    "tag_name": "v1.1.0-draft",
+    "draft": true,
+    "prerelease": true
+  }
+]'
+
+@test "parse_newest_release_tag picks the newest prerelease, skipping drafts" {
+    result=$(echo "$RELEASES_LIST" | parse_newest_release_tag)
+    [ "$result" = "v1.1.0-beta.1" ]
+}
+
+@test "parse_newest_release_tag falls back to the newest stable release" {
+    result=$(echo '[{"tag_name":"v1.0.0","draft":false,"prerelease":false},{"tag_name":"v0.9.0","draft":false,"prerelease":false}]' | parse_newest_release_tag)
+    [ "$result" = "v1.0.0" ]
+}
+
+@test "parse_newest_release_tag reads a single-line releases payload" {
+    result=$(echo '[{"tag_name":"v1.0.0","draft":false,"prerelease":false},{"tag_name":"v1.1.0-beta.1","draft":false,"prerelease":true}]' | parse_newest_release_tag)
+    [ "$result" = "v1.1.0-beta.1" ]
+}
+
+@test "parse_newest_release_tag ignores prose that mentions prerelease" {
+    result=$(echo '[{"tag_name":"v1.0.0","draft":false,"prerelease":false,"body":"fixed \"prerelease\": true handling"}]' | parse_newest_release_tag)
+    [ "$result" = "v1.0.0" ]
+}
+
+@test "parse_newest_release_tag returns nothing for an unparseable payload" {
+    result=$(echo 'not json at all' | parse_newest_release_tag)
+    [ -z "$result" ]
+}
+
+@test "get_latest_version asks GitHub for the release list on the beta channel" {
+    R2_CHANNEL=beta
+    local fetched="$BATS_TEST_TMPDIR/fetched_urls"
+    : > "$fetched"
+    check_https_capability() { return 0; }
+    fetch_url() {
+        printf '%s\n' "$1" >> "$fetched"
+        case "$1" in
+            *releases/latest) echo '{"tag_name":"v1.0.0"}' ;;
+            *) echo "$RELEASES_LIST" ;;
+        esac
+    }
+
+    result=$(get_latest_version "pi")
+
+    [ "$result" = "v1.1.0-beta.1" ]
+    grep -qx "https://api.github.com/repos/prestonbrown/helixscreen/releases" "$fetched"
+    # The beta channel must not ask /releases/latest, which skips prereleases.
+    refute_grep "releases/latest" "$fetched"
+}

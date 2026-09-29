@@ -393,6 +393,13 @@ main() {
     detect_init_system
     check_klipper_ecosystem "$platform"
 
+    # An update or reinstall must follow the channel the installed app is on:
+    # a beta user updating through KIAUH or a re-run of the installer would
+    # otherwise be handed the stable build. No-op on a fresh install.
+    if [ "$update_mode" = true ] || [ -d "$INSTALL_DIR" ]; then
+        resolve_update_channel
+    fi
+
     # Get version (skip if using local archive)
     if [ -n "$local_tarball" ]; then
         # Validate local file exists
