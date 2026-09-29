@@ -2674,6 +2674,43 @@ echo ""
 }
 
 # ====================================================================
+# CJK font bake: every manifest codepoint is in every runtime .bin
+# ====================================================================
+qc_cjk_fonts() {
+  local EXIT_CODE=0
+# A translated string whose glyph never got baked renders as tofu in zh/ja
+# with no build error and no runtime warning. check_cjk_font_coverage.py parses
+# the .bin cmap tables themselves so a stale bake cannot hide behind a freshly
+# written manifest. Its inputs are git-tracked files, so this runs in every
+# clone — no .otf source fonts required.
+SECTION_START=$(date +%s)
+echo -n "🌐 Checking CJK font bake..."
+
+if [ -f "scripts/check_cjk_font_coverage.py" ]; then
+  if python3 scripts/check_cjk_font_coverage.py >/tmp/cjk_cov.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ Every manifest CJK codepoint is baked into the runtime fonts"
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/cjk_cov.out
+    echo "   Fix: make regen-text-fonts, rebuild, commit assets/fonts/cjk/."
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_cjk_font_coverage.py not found — skipping"
+fi
+
+echo ""
+
+# ====================================================================
+  return $EXIT_CODE
+}
+
+# ====================================================================
 # Shell Script Linting (shellcheck)
 # ====================================================================
 qc_shellcheck() {
@@ -2986,7 +3023,7 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_icon_names qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_todo_markers qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules qc_bats_inert"
+QC_ALL="qc_phase1 qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_xml_subtests qc_hidden_tests qc_overlay_width qc_icon_names qc_design_pixels qc_phase2 qc_icon_font qc_mdi_codepoints qc_todo_markers qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_decl_ui qc_namespace qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_cjk_fonts qc_shellcheck qc_installer_reachability qc_patch_drift qc_workflow_submodules qc_bats_inert"
 
 QC_PARALLEL=""
 for fn in $QC_ALL; do
@@ -3028,6 +3065,8 @@ qc_trigger_re() {
     qc_translation_coverage)
                         echo '^ui_xml/|^src/|^translations/|^scripts/translation_sync\.py$|^scripts/translations/' ;;
     qc_todo_markers)    echo '\.(cpp|c|h|hpp|mm|sh)$|check_todo_markers\.py$' ;;
+    # The artifacts live under assets/fonts/cjk/.
+    qc_cjk_fonts)       echo '^assets/fonts/cjk/|^scripts/check_cjk_font_coverage\.py$' ;;
     qc_shellcheck)      echo '\.(sh|bats)$' ;;
     # The gate reads every .bats file, so any of them can change the count;
     # helpers.bash because contains/lacks are the fix it points at, and the
