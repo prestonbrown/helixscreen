@@ -952,6 +952,7 @@ void PrintStatusWidget::reset_print_card_to_idle() {
     // Try to show the last printed file's thumbnail instead of benchy
     std::string thumb_rel_path = get_last_print_thumbnail_path();
     if (thumb_rel_path.empty()) {
+        idle_thumb_key_.clear();
         set_thumb_on_widgets(benchy_thumb_path());
         spdlog::debug("[PrintStatusWidget] Idle thumbnail: benchy (no history)");
         return;
@@ -976,17 +977,25 @@ void PrintStatusWidget::reset_print_card_to_idle() {
     // Check if we already have a fresh pre-scaled BIN version
     auto cached = get_thumbnail_cache().get_if_cached(req);
     if (!cached.empty()) {
+        idle_thumb_key_ = req.key;
+        idle_thumb_source_modified_ = req.source_modified;
         set_thumb_on_widgets(cached.c_str());
         spdlog::debug("[PrintStatusWidget] Idle thumbnail from cache: {}", cached);
         return;
     }
 
-    // Set benchy as placeholder while we fetch
-    set_thumb_on_widgets(benchy_thumb_path());
+    // The placeholder stands in only for a render the card is not already
+    // showing. The cache evicts oldest-first, so the render on screen goes
+    // missing while it is still the right one, and the fetch below can fail:
+    // replacing it here would leave the placeholder up under the right name.
+    if (idle_thumb_key_ != req.key || idle_thumb_source_modified_ != req.source_modified) {
+        idle_thumb_key_.clear();
+        set_thumb_on_widgets(benchy_thumb_path());
+    }
 
     auto* api = get_moonraker_api();
     if (!api) {
-        spdlog::debug("[PrintStatusWidget] Idle thumbnail: benchy (no API)");
+        spdlog::debug("[PrintStatusWidget] Idle thumbnail: no API, fetch skipped");
         return;
     }
 
@@ -999,10 +1008,13 @@ void PrintStatusWidget::reset_print_card_to_idle() {
 
     get_thumbnail_cache().fetch(
         req, ctx,
-        [this, token](const std::string& lvgl_path, bool /*degraded*/) {
+        [this, token, key = req.key, stamp = req.source_modified](const std::string& lvgl_path,
+                                                                  bool /*degraded*/) {
             // Marshal first, then touch members — a bare expired() check
             // followed by a `this` dereference is L081 Mechanism C.
-            token.defer("PrintStatusWidget::apply_idle_thumb", [this, lvgl_path]() {
+            token.defer("PrintStatusWidget::apply_idle_thumb", [this, key, stamp, lvgl_path]() {
+                idle_thumb_key_ = key;
+                idle_thumb_source_modified_ = stamp;
                 set_thumb_on_widgets(lvgl_path.c_str());
                 spdlog::info("[PrintStatusWidget] Idle thumbnail loaded: {}", lvgl_path);
             });

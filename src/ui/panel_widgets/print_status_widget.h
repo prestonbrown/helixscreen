@@ -381,6 +381,13 @@ class PrintStatusWidget : public PanelWidget {
     // cancelling the other's fetch.
     std::atomic<uint32_t> idle_thumb_generation_{0};
 
+    // The last-print render this instance last published to the idle thumbs:
+    // its cache key and the source stamp it was validated against, key empty
+    // while the placeholder is up. A re-resolve of that same render that misses
+    // the cache refetches behind it instead of putting the placeholder back.
+    std::string idle_thumb_key_;
+    time_t idle_thumb_source_modified_ = 0;
+
     // Thermal tint for the detailed-active heater icons. Plain by-value members
     // of THIS instance — never on the shared/refcounted s_formatter_ below.
     // Dashboard widget instances are recycled by the panel manager: attach A ->

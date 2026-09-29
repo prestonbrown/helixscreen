@@ -294,20 +294,6 @@ std::string cached_bin(const ThumbnailCache& cache, const std::string& key,
     return cache.get_if_cached(req);
 }
 
-/// Push a cached artifact's mtime far into the past, so any positive
-/// source_modified is newer than it. Takes the LVGL path the cache and the
-/// processor hand back ("A:/abs/path") and strips the prefix, the same way
-/// ThumbnailCache does before stat'ing.
-void backdate(const std::string& lvgl_path) {
-    REQUIRE(ThumbnailCache::is_lvgl_path(lvgl_path));
-    const std::string fs_path = lvgl_path.substr(2);
-    REQUIRE(std::filesystem::exists(fs_path));
-    // Expressed in the filesystem clock's own terms — converting between it and
-    // system_clock is exactly the fiddly step this test does not need.
-    std::filesystem::last_write_time(fs_path, std::filesystem::file_time_type::clock::now() -
-                                                  std::chrono::hours(24 * 365 * 20));
-}
-
 } // namespace
 
 /// PrintStatusIdleThumbFixture with a loaded print history installed, so
@@ -522,8 +508,8 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
 // The two halves are a pair. The first plants a FRESH .bin and pins that the
 // resolve reaches the probe and publishes what it finds; without it, "benchy is
 // shown" in the second half would hold for the trivial reason that the resolve
-// bailed out early. The second backdates that same .bin behind the history
-// entry's source mtime and requires it to be refused.
+// bailed out early. The second moves the history entry's source mtime past
+// that same .bin and requires it to be refused.
 TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
                  "PrintStatusWidget: the idle probe refuses a cache entry older than its source",
                  "[print_status_widget][idle_thumb][thumbnail]") {
@@ -552,8 +538,14 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
     REQUIRE(subject_value() == planted.output_path);
     REQUIRE(get_idle_thumb_src(container) == planted.output_path);
 
-    // --- Stale: same entry, now older than the source it was rendered from. ---
-    backdate(planted.output_path);
+    // --- Stale: the same filename re-sliced and printed again, so the history
+    // head's source is now newer than the render on disk. ---
+    auto jobs = history_->get_jobs();
+    jobs.front().modified =
+        std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count() +
+        3600.0;
+    helix::PrintHistoryManagerTestAccess::set_loaded_jobs(*history_, std::move(jobs));
+    REQUIRE(head_job_modified() > source_modified);
 
     // Pinned with a freshness-blind lookup: the entry is still there and still
     // servable, so a refusal below is about the mtime and not an empty cache.
@@ -570,6 +562,64 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
     CHECK(get_idle_thumb_src(container) != planted.output_path);
     CHECK(subject_value() == BENCHY_PATH);
     CHECK(get_idle_thumb_src(container) == BENCHY_PATH);
+
+    widget.detach();
+    cache.invalidate(key);
+}
+
+// A history change, a print-state change and a re-attach all re-resolve the
+// SAME last print. The card is already showing that print's render, but the
+// pre-scaled .bin can be gone by then: the cache evicts oldest-first, and the
+// file grid fills it with every card it lays out. A miss must refetch behind
+// the image the card is showing, not replace it with the placeholder: the
+// fetch can fail, and nothing retries it.
+TEST_CASE_METHOD(
+    PrintStatusIdleThumbHistoryFixture,
+    "PrintStatusWidget: re-resolving the shown last print keeps its thumbnail on a miss",
+    "[print_status_widget][idle_thumb][thumbnail]") {
+    auto& cache = get_thumbnail_cache();
+    const std::string key = head_thumbnail_key();
+    cache.invalidate(key);
+
+    PrintStatusWidget widget;
+    lv_obj_t* container = create_mock_print_card(test_screen());
+    widget.attach(container, test_screen());
+    process_lvgl(200); // deferred reset #0 - no API installed, so inert
+    REQUIRE(get_idle_thumb_src(container) == BENCHY_PATH);
+
+    const helix::ThumbnailTarget target = size_thumb(container, 100, 100);
+    std::string shown;
+    SECTION("render published from the cache") {
+        const auto planted =
+            helix::ThumbnailProcessor::instance().process_sync(TINY_PNG, key, target);
+        REQUIRE(planted.success);
+        shown = planted.output_path;
+        PrintStatusWidgetTestAccess::reset_to_idle(widget);
+    }
+    SECTION("render published by the async fetch") {
+        plant_cached_png(cache, key);
+        set_moonraker_api(api_.get());
+        PrintStatusWidgetTestAccess::reset_to_idle(widget);
+        REQUIRE(subject_value() == BENCHY_PATH);
+        settle_thumb([this]() { return subject_value() != BENCHY_PATH; });
+        shown = cached_bin(cache, key, target);
+        REQUIRE_FALSE(shown.empty());
+    }
+    REQUIRE(subject_value() == shown);
+
+    // Evicted, PNG included, so the resolve has to go to the network.
+    cache.invalidate(key);
+    REQUIRE(cached_bin(cache, key, target).empty());
+
+    // The fixture's API has no HTTP base URL, so the refetch fails.
+    set_moonraker_api(api_.get());
+    PrintStatusWidgetTestAccess::reset_to_idle(widget);
+    CHECK(subject_value() == shown);
+    CHECK(get_idle_thumb_src(container) == shown);
+
+    settle_thumb([]() { return false; });
+    CHECK(subject_value() == shown);
+    CHECK(get_idle_thumb_src(container) == shown);
 
     widget.detach();
     cache.invalidate(key);
