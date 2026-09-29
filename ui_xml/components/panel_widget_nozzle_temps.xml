@@ -6,8 +6,8 @@
         scrollable="true" style_bg_color="#card_bg" style_bg_opa="255" style_radius="#border_radius"
         style_border_width="0">
     <text_small name="nozzle_temps_title"
-                width="100%" text="Nozzle Temps" style_text_align="left" style_text_color="#text_muted"
-                style_pad_left="#space_xxs" style_pad_bottom="0"/>
+                width="100%" text="Nozzle Temps" translation_tag="Nozzle Temps" style_text_align="left"
+                style_text_color="#text_muted" style_pad_left="#space_xxs" style_pad_bottom="0"/>
     <lv_obj name="nozzle_temps_container"
             width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_row="#space_xxs"
             style_pad_column="0" scrollable="false" style_bg_opa="0" style_border_width="0"/>

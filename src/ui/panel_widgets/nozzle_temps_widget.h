@@ -83,6 +83,7 @@ class NozzleTempsWidget : public PanelWidget {
     int cached_bed_target_ = 0;
 
     ObserverGuard version_observer_;
+    ObserverGuard language_observer_;
     int rebuild_gen_ = 0;     // Generation counter to break infinite rebuild cycles (L074)
     bool rebuilding_ = false; // Re-entrancy guard: drain() inside clear_rows() can fire
                               // version_observer_ which calls rebuild_rows() again (#723)

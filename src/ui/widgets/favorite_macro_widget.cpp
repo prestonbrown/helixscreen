@@ -237,7 +237,8 @@ void FavoriteMacroWidget::update_display() {
 
     if (name_label_) {
         if (unconfigured) {
-            lv_label_set_text(name_label_, lv_tr("Configure"));
+            // A tag, not lv_tr() text: the label then re-translates itself.
+            lv_label_set_translation_tag(name_label_, "Configure");
         } else {
             std::string display = helix::get_display_name(macro_name_, helix::DeviceType::MACRO);
             lv_label_set_text(name_label_, display.c_str());

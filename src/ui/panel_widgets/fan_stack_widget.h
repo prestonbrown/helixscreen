@@ -76,6 +76,7 @@ class FanStackWidget : public PanelWidget {
 
     // Animation settings observer
     ObserverGuard anim_settings_observer_;
+    ObserverGuard language_observer_;
 
     // Resolved fan object names and display names
     std::string part_fan_name_;

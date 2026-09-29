@@ -85,12 +85,27 @@ void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         },
         printer_state_.get_subjects_lifetime());
 
+    // "off" is formatted into the value labels, and the value width decides the
+    // layout, so a new language re-formats and re-measures.
+    language_observer_ = helix::ui::observe_language_change(this, [](NozzleTempsWidget* self) {
+        if (!self->widget_obj_)
+            return;
+        for (auto& row : self->extruder_rows_) {
+            self->update_row_display(row.temp_label, row.target_label, row.cached_temp,
+                                     row.cached_target, false);
+        }
+        self->update_row_display(self->bed_temp_label_, self->bed_target_label_,
+                                 self->cached_bed_temp_, self->cached_bed_target_, true);
+        self->relayout_for_granted_size();
+    });
+
     spdlog::debug("[NozzleTempsWidget] Attached with {} extruder rows", extruder_rows_.size());
 }
 
 void NozzleTempsWidget::detach() {
     lifetime_.invalidate();
     version_observer_.reset();
+    language_observer_.reset();
     clear_rows();
     uninstall_delete_hook();
     widget_obj_ = nullptr;

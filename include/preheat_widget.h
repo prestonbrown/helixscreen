@@ -70,6 +70,7 @@ class PreheatWidget : public PanelWidget {
     ObserverGuard extruder_target_obs_;
     SubjectLifetime bed_target_lifetime_;
     ObserverGuard bed_target_obs_;
+    ObserverGuard language_obs_;
     int cached_extruder_target_ = 0;
     int cached_bed_target_ = 0;
 

@@ -316,7 +316,8 @@ void PowerDeviceWidget::update_display(int status) {
     }
 
     if (name_label_ && status == -1) {
-        lv_label_set_text(name_label_, lv_tr("Configure"));
+        // A tag, not lv_tr() text: the label then re-translates itself.
+        lv_label_set_translation_tag(name_label_, "Configure");
     }
 }
 

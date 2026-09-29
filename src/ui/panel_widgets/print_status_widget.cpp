@@ -39,7 +39,6 @@
 #include "standard_macros.h"
 #include "static_subject_registry.h"
 #include "subject_managed_panel.h"
-#include "system_settings_manager.h"
 #include "theme_manager.h"
 #include "thumbnail_cache.h"
 #include "thumbnail_load_context.h"
@@ -2121,7 +2120,7 @@ void PrintStatusWidget::DetailedFormatter::update_idle_fields() {
     const PrintHistoryJob* newest = hm ? hm->get_newest_existing_job() : nullptr;
     if (!newest) {
         lv_subject_copy_string(&idle_filename_subject_, "");
-        lv_subject_copy_string(&idle_when_subject_, "Never printed");
+        lv_subject_copy_string(&idle_when_subject_, lv_tr("No prints yet"));
         lv_subject_copy_string(&idle_meta_subject_, "");
         lv_subject_set_int(&idle_has_last_subject_, 0);
         return;
@@ -2153,8 +2152,8 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
     UI_MANAGED_SUBJECT_INT(nozzle_target_subject_, 0, "print_status_nozzle_target", subjects_);
     UI_MANAGED_SUBJECT_STRING(idle_filename_subject_, idle_filename_buf_, "",
                               "print_status_idle_filename", subjects_);
-    UI_MANAGED_SUBJECT_STRING(idle_when_subject_, idle_when_buf_, "Never printed",
-                              "print_status_idle_when", subjects_);
+    UI_MANAGED_SUBJECT_STRING(idle_when_subject_, idle_when_buf_, "", "print_status_idle_when",
+                              subjects_);
     UI_MANAGED_SUBJECT_STRING(idle_meta_subject_, idle_meta_buf_, "", "print_status_idle_meta",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(idle_has_last_subject_, 0, "print_status_idle_has_last", subjects_);
@@ -2252,15 +2251,11 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
     }
     update_idle_fields();
 
-    // Every string above is translated here and handed to XML finished, so the
-    // XML re-translation on a language switch never reaches it.
-    language_observer_ =
-        observe_int_sync<DetailedFormatter>(SystemSettingsManager::instance().subject_language(),
-                                            this, [](DetailedFormatter* self, int) {
-                                                self->update_layer_text();
-                                                self->update_filament_text();
-                                                self->update_idle_fields();
-                                            });
+    language_observer_ = helix::ui::observe_language_change(this, [](DetailedFormatter* self) {
+        self->update_layer_text();
+        self->update_filament_text();
+        self->update_idle_fields();
+    });
 
     spdlog::debug("[DetailedFormatter] subjects initialized");
 }
