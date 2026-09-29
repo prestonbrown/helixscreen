@@ -383,11 +383,18 @@ class PrintStatusWidget : public PanelWidget {
     std::atomic<uint32_t> idle_thumb_generation_{0};
 
     // The last-print render this instance last published to the idle thumbs:
-    // its cache key and the source stamp it was validated against, key empty
-    // while the placeholder is up. A re-resolve of that same render that misses
-    // the cache refetches behind it instead of putting the placeholder back.
-    std::string idle_thumb_key_;
-    time_t idle_thumb_source_modified_ = 0;
+    // its cache key, the source stamp it was validated against and the image
+    // path. Empty key while the placeholder is up. A re-resolve of that same
+    // render that misses the cache refetches behind it instead of putting the
+    // placeholder back, as long as the image file is still there.
+    struct ShownIdleThumb {
+        std::string key;
+        time_t source_modified = 0;
+        std::string src;
+    };
+    ShownIdleThumb shown_idle_thumb_;
+    void publish_idle_render(const std::string& key, time_t source_modified,
+                             const std::string& src);
 
     // An idle resolve is queued and has not run yet. Every trigger in the same
     // tick (attach, the print-state observer's first notification, activation)
