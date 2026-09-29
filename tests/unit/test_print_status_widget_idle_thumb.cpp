@@ -233,6 +233,40 @@ TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
     widget.detach();
 }
 
+// attach() resolves the idle thumbnail, and so does the print-state observer's
+// first notification; on_activate() follows attach on a dashboard rebuild. On a
+// cache miss each resolve is its own HTTP request for the same file, so the
+// triggers queued before the next tick collapse into one resolve.
+TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
+                 "PrintStatusWidget: triggers queued together resolve the idle thumbnail once",
+                 "[print_status_widget][idle_thumb]") {
+    PrintStatusWidget widget;
+    lv_obj_t* container = create_mock_print_card(test_screen());
+    const uint32_t before = PrintStatusWidgetTestAccess::idle_thumb_generation(widget);
+
+    widget.attach(container, test_screen());
+    widget.on_activate();
+    process_lvgl(200);
+    CHECK(PrintStatusWidgetTestAccess::idle_thumb_generation(widget) - before == 1);
+
+    // Coalescing is per tick: a later trigger still gets its own resolve.
+    widget.on_activate();
+    process_lvgl(50);
+    CHECK(PrintStatusWidgetTestAccess::idle_thumb_generation(widget) - before == 2);
+
+    // A resolve still queued when the widget detaches must not swallow the
+    // next attach's.
+    widget.on_activate();
+    widget.detach();
+    process_lvgl(50);
+    const uint32_t after_detach = PrintStatusWidgetTestAccess::idle_thumb_generation(widget);
+    widget.attach(container, test_screen());
+    process_lvgl(200);
+    CHECK(PrintStatusWidgetTestAccess::idle_thumb_generation(widget) - after_detach == 1);
+
+    widget.detach();
+}
+
 // =============================================================================
 // The idle thumbnail fetch: staleness guard + the shared subject
 //

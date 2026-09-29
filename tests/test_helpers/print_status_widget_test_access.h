@@ -38,6 +38,12 @@ class PrintStatusWidgetTestAccess {
         widget.reset_print_card_to_idle();
     }
 
+    // Bumped once by every idle thumbnail resolve that gets past its guards,
+    // so it counts resolves without a fetch having to be observable.
+    static uint32_t idle_thumb_generation(const PrintStatusWidget& widget) {
+        return widget.idle_thumb_generation_.load();
+    }
+
     // The idle runout guard chain. Production runs it from a subject observer on
     // an attached widget with a live sensor reading; a test that cares about the
     // ORDER of its gates needs to call it straight.

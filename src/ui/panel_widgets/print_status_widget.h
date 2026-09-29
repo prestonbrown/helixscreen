@@ -389,6 +389,11 @@ class PrintStatusWidget : public PanelWidget {
     std::string idle_thumb_key_;
     time_t idle_thumb_source_modified_ = 0;
 
+    // An idle resolve is queued and has not run yet. Every trigger in the same
+    // tick (attach, the print-state observer's first notification, activation)
+    // joins it rather than issuing its own request for the same file.
+    bool idle_reset_pending_ = false;
+
     // Thermal tint for the detailed-active heater icons. Plain by-value members
     // of THIS instance — never on the shared/refcounted s_formatter_ below.
     // Dashboard widget instances are recycled by the panel manager: attach A ->

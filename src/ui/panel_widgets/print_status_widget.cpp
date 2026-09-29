@@ -446,6 +446,7 @@ void PrintStatusWidget::detach() {
     // Invalidate lifetime guard FIRST to abort in-flight async fetches
     lifetime_.invalidate();
     live_instances().erase(this);
+    idle_reset_pending_ = false;
 
     // Unregister history observer
     if (auto* hm = get_print_history_manager()) {
@@ -878,13 +879,19 @@ time_t PrintStatusWidget::get_last_print_source_modified() const {
 }
 
 void PrintStatusWidget::defer_reset_print_card_to_idle() {
+    if (idle_reset_pending_) {
+        return;
+    }
+    idle_reset_pending_ = true;
     // Raw lv_async_call escapes the UpdateQueue::process_pending() batch (see
     // CLAUDE.md "Safe escape routes"). live_instances() + widget_obj_ guard UAF
-    // if the widget is destroyed before the next tick.
+    // if the widget is destroyed before the next tick; detach() clears the
+    // pending flag for a callback that will find the widget gone.
     lv_async_call(
         [](void* ud) {
             auto* self = static_cast<PrintStatusWidget*>(ud);
             if (live_instances().count(self) != 0 && self->widget_obj_) {
+                self->idle_reset_pending_ = false;
                 self->reset_print_card_to_idle();
             }
         },
