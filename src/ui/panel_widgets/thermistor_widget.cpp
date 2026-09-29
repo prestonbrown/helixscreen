@@ -585,7 +585,8 @@ void ThermistorWidget::update_display() {
 
     if (name_label_) {
         if (selected_sensor_.empty()) {
-            lv_label_set_text(name_label_, lv_tr("Select sensor"));
+            // A tag, not lv_tr() text: the label then re-translates itself.
+            lv_label_set_translation_tag(name_label_, "Select sensor");
         } else {
             lv_label_set_text(name_label_, display_name_.c_str());
         }

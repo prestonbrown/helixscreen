@@ -3,6 +3,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/print_history_manager_test_access.h"
 #include "../test_helpers/print_status_widget_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
@@ -233,6 +234,49 @@ TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
     widget.detach();
 }
 
+// attach() resolves the idle thumbnail, and so does the print-state observer's
+// first notification; on_activate() follows attach on a dashboard rebuild. On a
+// cache miss each resolve is its own HTTP request for the same file, so the
+// triggers queued before the next tick collapse into one resolve.
+TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
+                 "PrintStatusWidget: triggers queued together resolve the idle thumbnail once",
+                 "[print_status_widget][idle_thumb]") {
+    PrintStatusWidget widget;
+    lv_obj_t* container = create_mock_print_card(test_screen());
+    const uint32_t before = PrintStatusWidgetTestAccess::idle_thumb_generation(widget);
+
+    widget.attach(container, test_screen());
+    widget.on_activate();
+    process_lvgl(200);
+    CHECK(PrintStatusWidgetTestAccess::idle_thumb_generation(widget) - before == 1);
+
+    // Coalescing is per tick: a later trigger still gets its own resolve.
+    widget.on_activate();
+    process_lvgl(50);
+    CHECK(PrintStatusWidgetTestAccess::idle_thumb_generation(widget) - before == 2);
+
+    // A resolve still queued when the widget detaches must not swallow the
+    // next attach's.
+    widget.on_activate();
+    widget.detach();
+    process_lvgl(50);
+    const uint32_t after_detach = PrintStatusWidgetTestAccess::idle_thumb_generation(widget);
+    widget.attach(container, test_screen());
+    process_lvgl(200);
+    CHECK(PrintStatusWidgetTestAccess::idle_thumb_generation(widget) - after_detach == 1);
+
+    // Detach and re-attach inside one tick: the callback queued before the
+    // detach and the one the attach queues serve the same request, once.
+    widget.on_activate();
+    widget.detach();
+    widget.attach(container, test_screen());
+    const uint32_t same_tick = PrintStatusWidgetTestAccess::idle_thumb_generation(widget);
+    process_lvgl(200);
+    CHECK(PrintStatusWidgetTestAccess::idle_thumb_generation(widget) - same_tick == 1);
+
+    widget.detach();
+}
+
 // =============================================================================
 // The idle thumbnail fetch: staleness guard + the shared subject
 //
@@ -292,20 +336,6 @@ std::string cached_bin(const ThumbnailCache& cache, const std::string& key,
     req.key = key;
     req.target = target;
     return cache.get_if_cached(req);
-}
-
-/// Push a cached artifact's mtime far into the past, so any positive
-/// source_modified is newer than it. Takes the LVGL path the cache and the
-/// processor hand back ("A:/abs/path") and strips the prefix, the same way
-/// ThumbnailCache does before stat'ing.
-void backdate(const std::string& lvgl_path) {
-    REQUIRE(ThumbnailCache::is_lvgl_path(lvgl_path));
-    const std::string fs_path = lvgl_path.substr(2);
-    REQUIRE(std::filesystem::exists(fs_path));
-    // Expressed in the filesystem clock's own terms — converting between it and
-    // system_clock is exactly the fiddly step this test does not need.
-    std::filesystem::last_write_time(fs_path, std::filesystem::file_time_type::clock::now() -
-                                                  std::chrono::hours(24 * 365 * 20));
 }
 
 } // namespace
@@ -512,6 +542,51 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
     cache.invalidate(key);
 }
 
+// The staleness check runs where the cache delivers, and applying the result
+// takes one more queue hop. A newer resolve landing in that hop must still win.
+TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
+                 "PrintStatusWidget: a load superseded during its apply hop cannot overwrite",
+                 "[print_status_widget][idle_thumb][thumbnail]") {
+    auto& cache = get_thumbnail_cache();
+    const std::string key = head_thumbnail_key();
+    cache.invalidate(key);
+
+    PrintStatusWidget widget;
+    lv_obj_t* container = create_mock_print_card(test_screen());
+    widget.attach(container, test_screen());
+    process_lvgl(200);
+
+    const helix::ThumbnailTarget target_a = size_thumb(container, 100, 100);
+    plant_cached_png(cache, key);
+    set_moonraker_api(api_.get());
+    auto& queue = helix::ui::UpdateQueue::instance();
+    queue.drain();
+
+    PrintStatusWidgetTestAccess::reset_to_idle(widget);
+    REQUIRE(park_pool_result());
+    const std::string path_a = cached_bin(cache, key, target_a);
+    REQUIRE_FALSE(path_a.empty());
+
+    // A's delivery passes the staleness check and queues its apply.
+    queue.drain();
+    REQUIRE_FALSE(helix::ui::UpdateQueueTestAccess::queue_empty(queue));
+
+    // B resolves synchronously from cache in between.
+    const helix::ThumbnailTarget target_b = size_thumb(container, 900, 900);
+    const auto planted_b =
+        helix::ThumbnailProcessor::instance().process_sync(TINY_PNG, key, target_b);
+    REQUIRE(planted_b.success);
+    PrintStatusWidgetTestAccess::reset_to_idle(widget);
+    REQUIRE(subject_value() == planted_b.output_path);
+
+    queue.drain();
+    CHECK(subject_value() == planted_b.output_path);
+    CHECK(get_idle_thumb_src(container) == planted_b.output_path);
+
+    widget.detach();
+    cache.invalidate(key);
+}
+
 // The SYNCHRONOUS probe at the top of the idle resolve asked the cache
 // get_if_optimized(key, target) with no source_modified, so mtime validation
 // never ran on it — the same defect the detail-view fetch had. Re-slice a model
@@ -522,8 +597,8 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
 // The two halves are a pair. The first plants a FRESH .bin and pins that the
 // resolve reaches the probe and publishes what it finds; without it, "benchy is
 // shown" in the second half would hold for the trivial reason that the resolve
-// bailed out early. The second backdates that same .bin behind the history
-// entry's source mtime and requires it to be refused.
+// bailed out early. The second moves the history entry's source mtime past
+// that same .bin and requires it to be refused.
 TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
                  "PrintStatusWidget: the idle probe refuses a cache entry older than its source",
                  "[print_status_widget][idle_thumb][thumbnail]") {
@@ -552,8 +627,14 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
     REQUIRE(subject_value() == planted.output_path);
     REQUIRE(get_idle_thumb_src(container) == planted.output_path);
 
-    // --- Stale: same entry, now older than the source it was rendered from. ---
-    backdate(planted.output_path);
+    // --- Stale: the same filename re-sliced and printed again, so the history
+    // head's source is now newer than the render on disk. ---
+    auto jobs = history_->get_jobs();
+    jobs.front().modified =
+        std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count() +
+        3600.0;
+    helix::PrintHistoryManagerTestAccess::set_loaded_jobs(*history_, std::move(jobs));
+    REQUIRE(head_job_modified() > source_modified);
 
     // Pinned with a freshness-blind lookup: the entry is still there and still
     // servable, so a refusal below is about the mtime and not an empty cache.
@@ -570,6 +651,160 @@ TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
     CHECK(get_idle_thumb_src(container) != planted.output_path);
     CHECK(subject_value() == BENCHY_PATH);
     CHECK(get_idle_thumb_src(container) == BENCHY_PATH);
+
+    widget.detach();
+    cache.invalidate(key);
+}
+
+// A history change, a print-state change and a re-attach all re-resolve the
+// SAME last print, and the pre-scaled .bin can be gone by then: the cache
+// evicts oldest-first. No image cache sits in front of a file path, so the
+// card must never be left naming a file that is not there: it shows the render
+// it has while that file exists, and the placeholder otherwise.
+TEST_CASE_METHOD(
+    PrintStatusIdleThumbHistoryFixture,
+    "PrintStatusWidget: a re-resolve that misses the cache never leaves a missing file on the card",
+    "[print_status_widget][idle_thumb][thumbnail]") {
+    const bool evicted = GENERATE(true, false);
+    auto& cache = get_thumbnail_cache();
+    const std::string key = head_thumbnail_key();
+    cache.invalidate(key);
+
+    PrintStatusWidget widget;
+    lv_obj_t* container = create_mock_print_card(test_screen());
+    widget.attach(container, test_screen());
+    process_lvgl(200); // deferred reset #0 - no API installed, so inert
+    REQUIRE(get_idle_thumb_src(container) == BENCHY_PATH);
+
+    const helix::ThumbnailTarget target = size_thumb(container, 100, 100);
+    std::string shown;
+    SECTION("render published from the cache") {
+        const auto planted =
+            helix::ThumbnailProcessor::instance().process_sync(TINY_PNG, key, target);
+        REQUIRE(planted.success);
+        shown = planted.output_path;
+        PrintStatusWidgetTestAccess::reset_to_idle(widget);
+    }
+    SECTION("render published by the async fetch") {
+        plant_cached_png(cache, key);
+        set_moonraker_api(api_.get());
+        PrintStatusWidgetTestAccess::reset_to_idle(widget);
+        REQUIRE(subject_value() == BENCHY_PATH);
+        settle_thumb([this]() { return subject_value() != BENCHY_PATH; });
+        shown = cached_bin(cache, key, target);
+        REQUIRE_FALSE(shown.empty());
+    }
+    REQUIRE(subject_value() == shown);
+
+    std::string expected;
+    if (evicted) {
+        // The file is gone, so the placeholder.
+        cache.invalidate(key);
+        REQUIRE_FALSE(std::filesystem::exists(shown.substr(2)));
+        expected = BENCHY_PATH;
+    } else {
+        // Resized: the render on disk stays while the new size is fetched.
+        const helix::ThumbnailTarget bigger = size_thumb(container, 900, 900);
+        REQUIRE(bigger.width != target.width);
+        // No source PNG either, so the fetch for the new size has to go out.
+        std::filesystem::remove(cache.get_cache_path(key));
+        REQUIRE(cached_bin(cache, key, bigger).empty());
+        REQUIRE(std::filesystem::exists(shown.substr(2)));
+        expected = shown;
+    }
+
+    // The fixture's API has no HTTP base URL, so the refetch fails; the log
+    // line is the witness that it ran and failed.
+    ExclusiveLogCapture log;
+    set_moonraker_api(api_.get());
+    PrintStatusWidgetTestAccess::reset_to_idle(widget);
+    settle_thumb([&log]() { return log.count_containing("Idle thumbnail fetch failed") > 0; });
+    REQUIRE(log.count_containing("Idle thumbnail fetch failed") > 0);
+
+    CHECK(subject_value() == expected);
+    CHECK(get_idle_thumb_src(container) == expected);
+    CHECK((expected == BENCHY_PATH || std::filesystem::exists(expected.substr(2))));
+
+    widget.detach();
+    cache.invalidate(key);
+}
+
+// Instances are recycled onto freshly built XML, whose thumbs start on the
+// placeholder. The recorded render belongs to the tree the widget left, so it
+// must not let a miss skip publishing to the new one.
+TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
+                 "PrintStatusWidget: a re-attach onto fresh thumbs forgets the render it showed",
+                 "[print_status_widget][idle_thumb][thumbnail]") {
+    auto& cache = get_thumbnail_cache();
+    const std::string key = head_thumbnail_key();
+    cache.invalidate(key);
+
+    PrintStatusWidget widget;
+    lv_obj_t* first = create_mock_print_card(test_screen());
+    widget.attach(first, test_screen());
+    process_lvgl(200);
+    const helix::ThumbnailTarget target = size_thumb(first, 100, 100);
+    const auto planted = helix::ThumbnailProcessor::instance().process_sync(TINY_PNG, key, target);
+    REQUIRE(planted.success);
+    PrintStatusWidgetTestAccess::reset_to_idle(widget);
+    REQUIRE(subject_value() == planted.output_path);
+    widget.detach();
+
+    // The new tree measures differently, so its resolve misses while the old
+    // render is still on disk.
+    lv_obj_t* second = create_mock_print_card(test_screen());
+    widget.attach(second, test_screen());
+    size_thumb(second, 900, 900);
+    REQUIRE(std::filesystem::exists(planted.output_path.substr(2)));
+    process_lvgl(200);
+
+    CHECK(get_idle_thumb_src(second) == subject_value());
+
+    widget.detach();
+    cache.invalidate(key);
+}
+
+// A failed refetch is not retried from inside the fetch. Returning to the
+// dashboard is the retry: it re-resolves, which refetches what is missing.
+TEST_CASE_METHOD(PrintStatusIdleThumbHistoryFixture,
+                 "PrintStatusWidget: returning to the dashboard retries a failed idle refetch",
+                 "[print_status_widget][idle_thumb][thumbnail]") {
+    auto& cache = get_thumbnail_cache();
+    const std::string key = head_thumbnail_key();
+    cache.invalidate(key);
+
+    PrintStatusWidget widget;
+    lv_obj_t* container = create_mock_print_card(test_screen());
+    widget.attach(container, test_screen());
+    process_lvgl(200);
+
+    const helix::ThumbnailTarget target = size_thumb(container, 100, 100);
+    const auto planted = helix::ThumbnailProcessor::instance().process_sync(TINY_PNG, key, target);
+    REQUIRE(planted.success);
+    PrintStatusWidgetTestAccess::reset_to_idle(widget);
+    REQUIRE(subject_value() == planted.output_path);
+
+    // Evicted, and the refetch fails: no HTTP base URL on the fixture's API.
+    cache.invalidate(key);
+    ExclusiveLogCapture log;
+    set_moonraker_api(api_.get());
+    PrintStatusWidgetTestAccess::reset_to_idle(widget);
+    settle_thumb([&log]() { return log.count_containing("Idle thumbnail fetch failed") > 0; });
+    REQUIRE(log.count_containing("Idle thumbnail fetch failed") > 0);
+    REQUIRE(cached_bin(cache, key, target).empty());
+
+    // The source becomes reachable again (a cached PNG stands in for the
+    // printer answering), and nothing happens until the dashboard comes back.
+    plant_cached_png(cache, key);
+    settle_thumb([]() { return false; });
+    REQUIRE(cached_bin(cache, key, target).empty());
+
+    widget.on_activate();
+    process_lvgl(50); // the deferred re-resolve
+    settle_thumb([&]() { return subject_value() == planted.output_path; });
+
+    CHECK(cached_bin(cache, key, target) == planted.output_path);
+    CHECK(subject_value() == planted.output_path);
 
     widget.detach();
     cache.invalidate(key);

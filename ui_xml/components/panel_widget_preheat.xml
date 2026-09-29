@@ -20,7 +20,7 @@
     <ui_button name="preheat_tool_target"
                width="content" height="#button_height" variant="ghost" style_pad_left="#space_sm"
                style_pad_right="#space_sm">
-      <text_small name="tool_target_label" text="All"/>
+      <text_small name="tool_target_label" text="All" translation_tag="All"/>
       <event_cb trigger="clicked" callback="preheat_tool_target_cb"/>
     </ui_button>
 

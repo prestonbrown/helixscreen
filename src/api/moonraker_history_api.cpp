@@ -102,7 +102,6 @@ PrintHistoryJob helix::parse_history_job(const nlohmann::json& job_json) {
 
         // Parse all available thumbnails with dimensions
         if (meta.contains("thumbnails") && meta["thumbnails"].is_array()) {
-            int best_pixels = 0;
             for (const auto& t : meta["thumbnails"]) {
                 ThumbnailInfo info;
                 info.relative_path = helix::json_util::safe_string(t, "relative_path", "");
@@ -112,11 +111,10 @@ PrintHistoryJob helix::parse_history_job(const nlohmann::json& job_json) {
                 info.height = helix::json_util::safe_int(t, "height", 0);
                 if (!info.relative_path.empty()) {
                     job.thumbnails.push_back(info);
-                    if (info.pixel_count() > best_pixels) {
-                        best_pixels = static_cast<int>(info.pixel_count());
-                        job.thumbnail_path = info.relative_path;
-                    }
                 }
+            }
+            if (const ThumbnailInfo* largest = select_thumbnail(job.thumbnails, 0, 0)) {
+                job.thumbnail_path = largest->relative_path;
             }
         }
 

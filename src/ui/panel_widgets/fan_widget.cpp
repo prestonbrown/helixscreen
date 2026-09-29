@@ -249,7 +249,8 @@ void FanWidget::update_display() {
 
     if (name_label_) {
         if (selected_fan_.empty()) {
-            lv_label_set_text(name_label_, lv_tr("Select fan"));
+            // A tag, not lv_tr() text: the label then re-translates itself.
+            lv_label_set_translation_tag(name_label_, "Select fan");
         } else {
             lv_label_set_text(name_label_, display_name_.c_str());
         }

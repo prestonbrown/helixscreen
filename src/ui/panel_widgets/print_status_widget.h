@@ -56,6 +56,7 @@ class PrintStatusWidget : public PanelWidget {
 
     void attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) override;
     void detach() override;
+    void on_activate() override;
     void on_size_changed(int colspan, int rowspan, int width_px, int height_px) override;
     /// Factory-registration key. Exposed so callers scanning a heterogeneous
     /// widget list can match on id() and static_cast, instead of dynamic_cast —
@@ -381,6 +382,25 @@ class PrintStatusWidget : public PanelWidget {
     // cancelling the other's fetch.
     std::atomic<uint32_t> idle_thumb_generation_{0};
 
+    // The last-print render this instance last published to the idle thumbs:
+    // its cache key, the source stamp it was validated against and the image
+    // path. Empty key while the placeholder is up. A re-resolve of that same
+    // render that misses the cache refetches behind it instead of putting the
+    // placeholder back, as long as the image file is still there.
+    struct ShownIdleThumb {
+        std::string key;
+        time_t source_modified = 0;
+        std::string src;
+    };
+    ShownIdleThumb shown_idle_thumb_;
+    void publish_idle_render(const std::string& key, time_t source_modified,
+                             const std::string& src);
+
+    // An idle resolve is queued and has not run yet. Every trigger in the same
+    // tick (attach, the print-state observer's first notification, activation)
+    // joins it rather than issuing its own request for the same file.
+    bool idle_reset_pending_ = false;
+
     // Thermal tint for the detailed-active heater icons. Plain by-value members
     // of THIS instance — never on the shared/refcounted s_formatter_ below.
     // Dashboard widget instances are recycled by the panel manager: attach A ->
@@ -486,6 +506,7 @@ class PrintStatusWidget : public PanelWidget {
         /// extruder mapping without moving the tool count.
         ObserverGuard tools_version_observer_;
         ObserverGuard active_tool_observer_;
+        ObserverGuard language_observer_;
 
         void update_layer_text();
         void update_time_text();

@@ -184,6 +184,9 @@ CPP_TRANSLATABLE_PATTERNS = [
     # lv_tr("text") - explicitly marked for translation (handles escaped quotes
     # and adjacent literal concatenation across multiple lines)
     r"lv_tr\s*\(\s*" + ADJACENT_LITERALS_GROUP,
+    # TR_NOOP("text") - marks a literal stored now and passed to lv_tr() later.
+    # See include/translation_loader.h.
+    r"TR_NOOP\s*\(\s*" + ADJACENT_LITERALS_GROUP,
     # lv_label_set_text(label, "text")
     r"lv_label_set_text\s*\([^,]+,\s*" + ADJACENT_LITERALS_GROUP,
     # lv_label_set_translation_tag(label, "text") - the tag IS the translation

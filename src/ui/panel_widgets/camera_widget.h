@@ -52,6 +52,8 @@ class CameraWidget : public PanelWidget {
     void apply_transform();   // Push rotation/flip config to stream
     void update_stream_fps(); // Re-evaluate and set max_fps based on current state
     void set_status_text(const char* text);
+    /// Show the translation of @p key, a string literal, and keep it translated.
+    void set_status_key(const char* key);
     void destroy_fullscreen(); // Synchronous cleanup of fullscreen overlay
 
     /// Null the tile-tree pointers (root, screen, image, overlay, status
@@ -84,6 +86,7 @@ class CameraWidget : public PanelWidget {
     ObserverGuard webcam_observer_;
     // Observer for home edit mode — throttles camera fps during editing
     ObserverGuard edit_mode_observer_;
+    ObserverGuard language_observer_;
 
     int target_fps_ = 15;                     // From Moonraker webcam config
     lv_timer_t* fps_recheck_timer_ = nullptr; // Periodic re-eval when paused

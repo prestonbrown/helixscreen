@@ -7,6 +7,7 @@
 
 #include "app_globals.h"
 #include "i_moonraker_api.h"
+#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "static_subject_registry.h"
@@ -29,7 +30,8 @@ static lv_subject_t s_success_rate;
 static lv_subject_t s_weekly;
 static lv_subject_t s_last_print;
 
-static char s_title_buf[32] = "Lifetime Print Stats";
+// Sized for UTF-8: the Russian title alone is 41 bytes.
+static char s_title_buf[64] = "Lifetime Print Stats";
 static char s_total_prints_buf[16] = "--";
 static char s_total_time_buf[24] = "--";
 static char s_total_time_short_buf[16] = "--";
@@ -149,6 +151,9 @@ void PrintStatsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         hm->add_observer(&history_observer_);
     }
 
+    language_observer_ = helix::ui::observe_language_change(
+        this, [](PrintStatsWidget* self) { self->update_stats(); });
+
     spdlog::debug("[PrintStatsWidget] Attached");
 }
 
@@ -195,6 +200,7 @@ void PrintStatsWidget::detach() {
         hm->remove_observer(&history_observer_);
     }
     history_observer_ = nullptr;
+    language_observer_.reset();
 
     if (widget_obj_) {
         lv_obj_set_user_data(widget_obj_, nullptr);
@@ -253,17 +259,17 @@ void PrintStatsWidget::fetch_lifetime_totals() {
 }
 
 void PrintStatsWidget::update_stats() {
+    // The title needs no history, only the view mode.
+    bool weekly_mode = (lv_subject_get_int(&s_view_mode) == 1);
+    const char* title = weekly_mode ? lv_tr("Weekly Print Stats") : lv_tr("Lifetime Print Stats");
+    std::snprintf(s_title_buf, sizeof(s_title_buf), "%s", title);
+    lv_subject_copy_string(&s_title, s_title_buf);
+
     auto* hm = get_print_history_manager();
     if (!hm)
         return;
 
     const auto& jobs = hm->get_jobs();
-    bool weekly_mode = (lv_subject_get_int(&s_view_mode) == 1);
-
-    // Update title
-    const char* title = weekly_mode ? lv_tr("Weekly Print Stats") : lv_tr("Lifetime Print Stats");
-    std::snprintf(s_title_buf, sizeof(s_title_buf), "%s", title);
-    lv_subject_copy_string(&s_title, s_title_buf);
 
     // Determine which jobs to aggregate
     std::vector<PrintHistoryJob> filtered_jobs;

@@ -18,6 +18,7 @@
 #include <cstring>
 #include <fstream>
 #include <functional>
+#include <iterator>
 #include <vector>
 
 using namespace helix;
@@ -243,6 +244,7 @@ std::string ThumbnailCache::get_if_cached(const std::string& relative_path,
     }
 
     spdlog::debug("[ThumbnailCache] Cache hit for {}", relative_path);
+    note_use(cache_path);
     return to_lvgl_path(cache_path);
 }
 
@@ -391,6 +393,12 @@ void ThumbnailCache::rescan_locked() const {
         // two different call sites would read as two files and double-count.
         index_.emplace(entry.path.lexically_normal(), IndexEntry{entry.mtime, entry.size});
     }
+    {
+        std::lock_guard<std::mutex> usage_lock(usage_mutex_);
+        for (auto it = last_used_.begin(); it != last_used_.end();) {
+            it = index_.count(it->first) ? std::next(it) : last_used_.erase(it);
+        }
+    }
     index_total_ = total;
     index_primed_ = true;
     checks_since_scan_ = 0;
@@ -442,12 +450,25 @@ void ThumbnailCache::index_file_locked(const std::filesystem::path& raw_path) co
 }
 
 void ThumbnailCache::forget_file_locked(const std::filesystem::path& path) const {
-    const auto it = index_.find(path.lexically_normal());
+    const std::filesystem::path normal = path.lexically_normal();
+    {
+        std::lock_guard<std::mutex> usage_lock(usage_mutex_);
+        last_used_.erase(normal);
+    }
+    const auto it = index_.find(normal);
     if (it == index_.end()) {
         return;
     }
     index_total_ -= it->second.size;
     index_.erase(it);
+}
+
+void ThumbnailCache::note_use(const std::string& path) const {
+    const auto now = std::filesystem::file_time_type::clock::now();
+    const std::filesystem::path normal =
+        std::filesystem::path(is_lvgl_path(path) ? path.substr(2) : path).lexically_normal();
+    std::lock_guard<std::mutex> lock(usage_mutex_);
+    last_used_[normal] = now;
 }
 
 void ThumbnailCache::refresh_index_locked() const {
@@ -535,9 +556,20 @@ void ThumbnailCache::evict_locked() {
     // Oldest first, off the index rather than off a fresh directory listing.
     // Sorting is the only O(n log n) left, and unlike the walk it is memory,
     // not syscalls — and it happens only when eviction actually fires.
+    // "Oldest" is least recently written or served, whichever is later: a
+    // render that is only ever read (the dashboard's last-print card) would
+    // otherwise be the first thing a busy file grid pushes out.
     std::vector<std::pair<std::filesystem::path, IndexEntry>> victims(index_.begin(), index_.end());
+    const auto last_used = [this]() {
+        std::lock_guard<std::mutex> usage_lock(usage_mutex_);
+        return last_used_;
+    }();
+    auto recency = [&last_used](const std::pair<std::filesystem::path, IndexEntry>& v) {
+        const auto used = last_used.find(v.first);
+        return used == last_used.end() ? v.second.mtime : std::max(v.second.mtime, used->second);
+    };
     std::sort(victims.begin(), victims.end(),
-              [](const auto& a, const auto& b) { return a.second.mtime < b.second.mtime; });
+              [&recency](const auto& a, const auto& b) { return recency(a) < recency(b); });
 
     // Remove oldest files until under limit
     size_t evicted_count = 0;
@@ -959,6 +991,7 @@ std::string ThumbnailCache::get_if_optimized(const std::string& relative_path,
         }
     }
 
+    note_use(bin_path);
     return bin_path;
 }
 

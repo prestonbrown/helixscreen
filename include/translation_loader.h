@@ -5,6 +5,15 @@
 
 #include <string>
 
+/**
+ * @brief Mark a string literal for extraction without translating it here
+ *
+ * For a key stored now and translated later: the call site keeps calling
+ * `lv_tr()` on the stored pointer, once a language is loaded. Expands to the
+ * literal unchanged; it exists so `scripts/translations/extractor.py` sees it.
+ */
+#define TR_NOOP(s) (s)
+
 namespace helix::ui {
 
 /**

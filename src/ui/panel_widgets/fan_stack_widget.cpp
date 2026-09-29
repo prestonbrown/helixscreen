@@ -132,6 +132,15 @@ void FanStackWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     } else {
         attach_stack(widget_obj);
     }
+
+    // Fan names are measured and chosen in C++, so a new language re-runs that.
+    language_observer_ = helix::ui::observe_language_change(this, [](FanStackWidget* self) {
+        if (self->is_carousel_mode()) {
+            self->bind_carousel_fans();
+        } else {
+            self->relayout_for_granted_size();
+        }
+    });
 }
 
 void FanStackWidget::attach_stack(lv_obj_t* /*widget_obj*/) {
@@ -195,6 +204,7 @@ void FanStackWidget::detach() {
         aux_observer_.reset();
         version_observer_.reset();
         anim_settings_observer_.reset();
+        language_observer_.reset();
         carousel_observers_.clear();
 
         // Cancel running animations — just delete the anim, don't touch
@@ -510,7 +520,7 @@ void FanStackWidget::bind_carousel_fans() {
     std::vector<FanEntry> entries;
     if (fans.empty()) {
         entries.push_back({lv_tr("Part"), "", 0, false});
-        entries.push_back({"Hotend", "", 0, false});
+        entries.push_back({lv_tr("Hotend"), "", 0, false});
         spdlog::debug("[FanStackWidget] Carousel: no fans discovered, using placeholders");
     } else {
         for (const auto& fan : fans) {

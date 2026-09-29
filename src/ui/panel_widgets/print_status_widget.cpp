@@ -50,6 +50,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -445,6 +446,9 @@ void PrintStatusWidget::detach() {
     // Invalidate lifetime guard FIRST to abort in-flight async fetches
     lifetime_.invalidate();
     live_instances().erase(this);
+    idle_reset_pending_ = false;
+    // The next attach may bring fresh XML thumbs that show nothing of this.
+    shown_idle_thumb_ = {};
 
     // Unregister history observer
     if (auto* hm = get_print_history_manager()) {
@@ -513,6 +517,18 @@ void PrintStatusWidget::detach() {
 // ============================================================================
 // Size-Dependent Layout
 // ============================================================================
+
+void PrintStatusWidget::on_activate() {
+    // Each return to the dashboard re-resolves the idle thumbnail. That is the
+    // retry for a refetch that failed while it was away (the fetch itself never
+    // retries), and the probe counts as a use, which keeps the render ahead of
+    // the file grid's in the cache's eviction order. Once per activation, so a
+    // printer that keeps failing costs one request per visit, not a loop.
+    if (widget_obj_ && print_card_thumb_ &&
+        !job_holds_machine(printer_state_.get_print_lifecycle())) {
+        defer_reset_print_card_to_idle();
+    }
+}
 
 void PrintStatusWidget::on_size_changed(int /*colspan*/, int /*rowspan*/, int width_px,
                                         int height_px) {
@@ -822,27 +838,11 @@ std::string PrintStatusWidget::get_last_print_thumbnail_path() const {
     }
     const auto& job = *newest;
 
-    // Select the best thumbnail for the widget's actual rendered size
-    if (!job.thumbnails.empty() && print_card_thumb_ && lv_obj_is_valid(print_card_thumb_)) {
-        int target_w = lv_obj_get_width(print_card_thumb_);
-        int target_h = lv_obj_get_height(print_card_thumb_);
-
-        // Find smallest thumbnail that meets or exceeds the widget dimensions
-        const ThumbnailInfo* best_adequate = nullptr;
-        const ThumbnailInfo* largest = &job.thumbnails[0];
-
-        for (const auto& t : job.thumbnails) {
-            if (t.pixel_count() > largest->pixel_count()) {
-                largest = &t;
-            }
-            if (t.width >= target_w && t.height >= target_h) {
-                if (!best_adequate || t.pixel_count() < best_adequate->pixel_count()) {
-                    best_adequate = &t;
-                }
-            }
-        }
-
-        const auto* best = best_adequate ? best_adequate : largest;
+    // Sized for the widget as rendered; unmeasured, that is the largest.
+    const bool measured = print_card_thumb_ && lv_obj_is_valid(print_card_thumb_);
+    const int target_w = measured ? lv_obj_get_width(print_card_thumb_) : 0;
+    const int target_h = measured ? lv_obj_get_height(print_card_thumb_) : 0;
+    if (const ThumbnailInfo* best = select_thumbnail(job.thumbnails, target_w, target_h)) {
         spdlog::debug("[PrintStatusWidget] Widget {}x{}, selected thumbnail {}x{} ({})", target_w,
                       target_h, best->width, best->height, best->relative_path);
         return helix::job_thumbnail_path(job, best->relative_path);
@@ -865,13 +865,22 @@ time_t PrintStatusWidget::get_last_print_source_modified() const {
 }
 
 void PrintStatusWidget::defer_reset_print_card_to_idle() {
+    if (idle_reset_pending_) {
+        return;
+    }
+    idle_reset_pending_ = true;
     // Raw lv_async_call escapes the UpdateQueue::process_pending() batch (see
     // CLAUDE.md "Safe escape routes"). live_instances() + widget_obj_ guard UAF
-    // if the widget is destroyed before the next tick.
+    // if the widget is destroyed before the next tick; detach() clears the
+    // pending flag for a callback that will find the widget gone.
     lv_async_call(
         [](void* ud) {
             auto* self = static_cast<PrintStatusWidget*>(ud);
-            if (live_instances().count(self) != 0 && self->widget_obj_) {
+            // A callback queued before a detach finds the flag cleared, or
+            // re-armed by the next attach's own request, which it then serves.
+            if (live_instances().count(self) != 0 && self->widget_obj_ &&
+                self->idle_reset_pending_) {
+                self->idle_reset_pending_ = false;
                 self->reset_print_card_to_idle();
             }
         },
@@ -952,6 +961,7 @@ void PrintStatusWidget::reset_print_card_to_idle() {
     // Try to show the last printed file's thumbnail instead of benchy
     std::string thumb_rel_path = get_last_print_thumbnail_path();
     if (thumb_rel_path.empty()) {
+        shown_idle_thumb_ = {};
         set_thumb_on_widgets(benchy_thumb_path());
         spdlog::debug("[PrintStatusWidget] Idle thumbnail: benchy (no history)");
         return;
@@ -976,17 +986,27 @@ void PrintStatusWidget::reset_print_card_to_idle() {
     // Check if we already have a fresh pre-scaled BIN version
     auto cached = get_thumbnail_cache().get_if_cached(req);
     if (!cached.empty()) {
-        set_thumb_on_widgets(cached.c_str());
+        publish_idle_render(req.key, req.source_modified, cached);
         spdlog::debug("[PrintStatusWidget] Idle thumbnail from cache: {}", cached);
         return;
     }
 
-    // Set benchy as placeholder while we fetch
-    set_thumb_on_widgets(benchy_thumb_path());
+    // The render on screen stays while the refetch runs only if it is this
+    // same render AND its file is still on disk. No image cache sits in front
+    // of a file path, so every redraw reopens it: a missing file draws nothing,
+    // which is worse than the placeholder.
+    const std::string& shown = shown_idle_thumb_.src;
+    const bool same_render = shown_idle_thumb_.key == req.key &&
+                             shown_idle_thumb_.source_modified == req.source_modified;
+    if (!same_render ||
+        !std::filesystem::exists(ThumbnailCache::is_lvgl_path(shown) ? shown.substr(2) : shown)) {
+        shown_idle_thumb_ = {};
+        set_thumb_on_widgets(benchy_thumb_path());
+    }
 
     auto* api = get_moonraker_api();
     if (!api) {
-        spdlog::debug("[PrintStatusWidget] Idle thumbnail: benchy (no API)");
+        spdlog::debug("[PrintStatusWidget] Idle thumbnail: no API, fetch skipped");
         return;
     }
 
@@ -999,17 +1019,28 @@ void PrintStatusWidget::reset_print_card_to_idle() {
 
     get_thumbnail_cache().fetch(
         req, ctx,
-        [this, token](const std::string& lvgl_path, bool /*degraded*/) {
+        [this, token, ctx, key = req.key, stamp = req.source_modified](const std::string& lvgl_path,
+                                                                       bool /*degraded*/) {
             // Marshal first, then touch members — a bare expired() check
             // followed by a `this` dereference is L081 Mechanism C.
-            token.defer("PrintStatusWidget::apply_idle_thumb", [this, lvgl_path]() {
-                set_thumb_on_widgets(lvgl_path.c_str());
-                spdlog::info("[PrintStatusWidget] Idle thumbnail loaded: {}", lvgl_path);
-            });
+            token.defer(
+                "PrintStatusWidget::apply_idle_thumb", [this, ctx, key, stamp, lvgl_path]() {
+                    // A later resolve can land in the hop this defer adds.
+                    if (!ctx.is_valid())
+                        return;
+                    publish_idle_render(key, stamp, lvgl_path);
+                    spdlog::info("[PrintStatusWidget] Idle thumbnail loaded: {}", lvgl_path);
+                });
         },
         [](const std::string& error) {
             spdlog::debug("[PrintStatusWidget] Idle thumbnail fetch failed: {}", error);
         });
+}
+
+void PrintStatusWidget::publish_idle_render(const std::string& key, time_t source_modified,
+                                            const std::string& src) {
+    shown_idle_thumb_ = {key, source_modified, src};
+    set_thumb_on_widgets(src.c_str());
 }
 
 void PrintStatusWidget::set_thumb_on_widgets(const char* src) {
@@ -2105,7 +2136,7 @@ void PrintStatusWidget::DetailedFormatter::update_idle_fields() {
     const PrintHistoryJob* newest = hm ? hm->get_newest_existing_job() : nullptr;
     if (!newest) {
         lv_subject_copy_string(&idle_filename_subject_, "");
-        lv_subject_copy_string(&idle_when_subject_, "Never printed");
+        lv_subject_copy_string(&idle_when_subject_, lv_tr("No prints yet"));
         lv_subject_copy_string(&idle_meta_subject_, "");
         lv_subject_set_int(&idle_has_last_subject_, 0);
         return;
@@ -2137,8 +2168,8 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
     UI_MANAGED_SUBJECT_INT(nozzle_target_subject_, 0, "print_status_nozzle_target", subjects_);
     UI_MANAGED_SUBJECT_STRING(idle_filename_subject_, idle_filename_buf_, "",
                               "print_status_idle_filename", subjects_);
-    UI_MANAGED_SUBJECT_STRING(idle_when_subject_, idle_when_buf_, "Never printed",
-                              "print_status_idle_when", subjects_);
+    UI_MANAGED_SUBJECT_STRING(idle_when_subject_, idle_when_buf_, "", "print_status_idle_when",
+                              subjects_);
     UI_MANAGED_SUBJECT_STRING(idle_meta_subject_, idle_meta_buf_, "", "print_status_idle_meta",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(idle_has_last_subject_, 0, "print_status_idle_has_last", subjects_);
@@ -2165,6 +2196,7 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
         s_formatter_->nozzle_target_observer_.reset();
         s_formatter_->tools_version_observer_.reset();
         s_formatter_->active_tool_observer_.reset();
+        s_formatter_->language_observer_.reset();
         s_formatter_->nozzle_temp_lifetime_.reset();
         s_formatter_->nozzle_target_lifetime_.reset();
         s_formatter_->subjects_.deinit_all();
@@ -2235,6 +2267,12 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
     }
     update_idle_fields();
 
+    language_observer_ = helix::ui::observe_language_change(this, [](DetailedFormatter* self) {
+        self->update_layer_text();
+        self->update_filament_text();
+        self->update_idle_fields();
+    });
+
     spdlog::debug("[DetailedFormatter] subjects initialized");
 }
 
@@ -2261,6 +2299,7 @@ PrintStatusWidget::DetailedFormatter::~DetailedFormatter() {
     nozzle_target_observer_.reset();
     tools_version_observer_.reset();
     active_tool_observer_.reset();
+    language_observer_.reset();
     nozzle_temp_lifetime_.reset();
     nozzle_target_lifetime_.reset();
     subjects_.deinit_all();

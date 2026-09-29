@@ -251,7 +251,12 @@ void ActiveSpoolWidget::update_spool_display() {
             lv_label_set_text(material_label_, active->material_name.c_str());
             lv_obj_set_style_text_align(material_label_, LV_TEXT_ALIGN_LEFT, 0);
         } else {
-            lv_label_set_text(material_label_, is_wide_ ? lv_tr("No Spool") : "");
+            // A tag, not lv_tr() text: the label then re-translates itself.
+            if (is_wide_) {
+                lv_label_set_translation_tag(material_label_, "No Spool");
+            } else {
+                lv_label_set_text(material_label_, "");
+            }
             lv_obj_set_style_text_align(material_label_, LV_TEXT_ALIGN_CENTER, 0);
         }
     }

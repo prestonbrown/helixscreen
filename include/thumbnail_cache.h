@@ -86,6 +86,8 @@ struct ThumbnailRequest {
 };
 
 class ThumbnailCache {
+    friend class ThumbnailCacheTestAccess;
+
   public:
     /// Default cache subdirectory name (appended to base cache dir)
     static constexpr const char* CACHE_SUBDIR = "helix_thumbs";
@@ -561,6 +563,10 @@ class ThumbnailCache {
     /// @pre mutex_ is held.
     void forget_file_locked(const std::filesystem::path& path) const;
 
+    /// Record that a lookup just served @p path (LVGL or filesystem form).
+    /// Eviction orders by the later of a file's write and its last use.
+    void note_use(const std::string& path) const;
+
     /// Record a file this cache just wrote, then run an eviction check. The
     /// shape every write site uses so no write can reach eviction unindexed.
     void note_write_and_evict(const std::string& path);
@@ -587,6 +593,14 @@ class ThumbnailCache {
     /// The index and its bookkeeping. All guarded by mutex_; mutable because
     /// get_cache_size() is const and still has to prime and reconcile.
     mutable std::map<std::filesystem::path, IndexEntry> index_;
+    /// When each indexed file was last served by a cache hit. Kept apart from
+    /// IndexEntry because a rescan rebuilds that from the directory, and a use
+    /// is nothing the directory records: mtime is the freshness stamp, so a hit
+    /// must never move it. Guarded by usage_mutex_, NOT mutex_: hits are
+    /// recorded on the UI thread, and mutex_ is held across whole directory
+    /// walks and unlinks on the workers. Lock order: mutex_, then usage_mutex_.
+    mutable std::map<std::filesystem::path, std::filesystem::file_time_type> last_used_;
+    mutable std::mutex usage_mutex_;
     mutable size_t index_total_ = 0;
     mutable bool index_primed_ = false;
     mutable size_t checks_since_scan_ = 0;

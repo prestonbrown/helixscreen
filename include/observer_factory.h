@@ -26,6 +26,7 @@
 #include "lvgl/lvgl.h"
 #include "print_lifecycle_state.h" // PrintState, for observe_print_lifecycle
 #include "printer_state.h"         // PrintJobState
+#include "system_settings_manager.h"
 
 #include <memory>
 #include <string>
@@ -640,6 +641,35 @@ ObserverGuard observe_connection_state(lv_subject_t* subject, Panel* panel,
             if (state == static_cast<int>(ConnectionState::CONNECTED)) {
                 on_connected(p);
             }
+        });
+}
+
+/**
+ * @brief Re-render C++-formatted text after every language switch
+ *
+ * XML re-translates what it bound through translation_tag. Text C++ produced
+ * with lv_tr() was translated once, when it was set, and stays in the old
+ * language until the owner formats it again: this is the trigger for that.
+ * The handler runs deferred, so the new translation pack is already active,
+ * and only on a real switch (not on registration).
+ *
+ * @tparam Panel Owner class type
+ * @tparam OnChange Callable: void(Panel*)
+ */
+template <typename Panel, typename OnChange>
+ObserverGuard observe_language_change(Panel* panel, OnChange&& on_change) {
+    auto& settings = SystemSettingsManager::instance();
+    lv_subject_t* language = settings.subject_language();
+    // Shared, because the factory copies the handler for each notification.
+    auto shown = std::make_shared<int>(lv_subject_get_int(language));
+    return observe_int_sync<Panel>(
+        language, panel,
+        [shown, on_change = std::forward<OnChange>(on_change)](Panel* p, int index) {
+            if (index == *shown) {
+                return;
+            }
+            *shown = index;
+            on_change(p);
         });
 }
 
