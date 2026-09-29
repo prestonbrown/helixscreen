@@ -32,13 +32,16 @@
 
 #include "../../include/thumbnail_cache.h"
 #include "../../include/thumbnail_processor.h"
+#include "../test_helpers/thumbnail_cache_test_access.h"
 
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <future>
 #include <string>
+#include <thread>
 #include <unistd.h>
 #include <vector>
 
@@ -490,4 +493,36 @@ TEST_CASE("A cache hit keeps the entry it served out of the next eviction",
     for (int i = 1; i < GRID; ++i) {
         CHECK(std::filesystem::exists(grid[static_cast<size_t>(i)]));
     }
+}
+
+// Hits are recorded on the UI thread; the index lock is held across whole
+// directory walks and unlinks on the workers. A hit must not queue behind one.
+TEST_CASE("A cache hit does not wait on an eviction holding the index lock",
+          "[assets][cache][thumbnail][recency]") {
+    ScopedCacheDir scoped("hit_no_wait");
+
+    ThumbnailCache cache(GENEROUS_LIMIT);
+    auto& processor = helix::ThumbnailProcessor::instance();
+    const auto result = processor.process_sync(TINY_PNG, "card.png", target_120());
+    REQUIRE(result.success);
+    ThumbnailRequest req;
+    req.key = "card.png";
+    req.target = target_120();
+
+    std::promise<void> locked;
+    std::promise<void> release;
+    std::thread evictor([&]() {
+        auto lock = ThumbnailCacheTestAccess::hold_index_lock(cache);
+        locked.set_value();
+        release.get_future().wait_for(std::chrono::seconds(5));
+    });
+    locked.get_future().wait();
+
+    auto hit = std::async(std::launch::async, [&]() { return cache.get_if_cached(req); });
+    const auto status = hit.wait_for(std::chrono::seconds(2));
+    release.set_value();
+    evictor.join();
+
+    CHECK(status == std::future_status::ready);
+    CHECK(hit.get() == result.output_path);
 }

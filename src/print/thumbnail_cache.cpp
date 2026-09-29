@@ -393,8 +393,11 @@ void ThumbnailCache::rescan_locked() const {
         // two different call sites would read as two files and double-count.
         index_.emplace(entry.path.lexically_normal(), IndexEntry{entry.mtime, entry.size});
     }
-    for (auto it = last_used_.begin(); it != last_used_.end();) {
-        it = index_.count(it->first) ? std::next(it) : last_used_.erase(it);
+    {
+        std::lock_guard<std::mutex> usage_lock(usage_mutex_);
+        for (auto it = last_used_.begin(); it != last_used_.end();) {
+            it = index_.count(it->first) ? std::next(it) : last_used_.erase(it);
+        }
     }
     index_total_ = total;
     index_primed_ = true;
@@ -448,7 +451,10 @@ void ThumbnailCache::index_file_locked(const std::filesystem::path& raw_path) co
 
 void ThumbnailCache::forget_file_locked(const std::filesystem::path& path) const {
     const std::filesystem::path normal = path.lexically_normal();
-    last_used_.erase(normal);
+    {
+        std::lock_guard<std::mutex> usage_lock(usage_mutex_);
+        last_used_.erase(normal);
+    }
     const auto it = index_.find(normal);
     if (it == index_.end()) {
         return;
@@ -459,9 +465,10 @@ void ThumbnailCache::forget_file_locked(const std::filesystem::path& path) const
 
 void ThumbnailCache::note_use(const std::string& path) const {
     const auto now = std::filesystem::file_time_type::clock::now();
-    std::lock_guard<std::mutex> lock(mutex_);
-    last_used_[std::filesystem::path(is_lvgl_path(path) ? path.substr(2) : path)
-                   .lexically_normal()] = now;
+    const std::filesystem::path normal =
+        std::filesystem::path(is_lvgl_path(path) ? path.substr(2) : path).lexically_normal();
+    std::lock_guard<std::mutex> lock(usage_mutex_);
+    last_used_[normal] = now;
 }
 
 void ThumbnailCache::refresh_index_locked() const {
@@ -553,9 +560,13 @@ void ThumbnailCache::evict_locked() {
     // render that is only ever read (the dashboard's last-print card) would
     // otherwise be the first thing a busy file grid pushes out.
     std::vector<std::pair<std::filesystem::path, IndexEntry>> victims(index_.begin(), index_.end());
-    auto recency = [this](const std::pair<std::filesystem::path, IndexEntry>& v) {
-        const auto used = last_used_.find(v.first);
-        return used == last_used_.end() ? v.second.mtime : std::max(v.second.mtime, used->second);
+    const auto last_used = [this]() {
+        std::lock_guard<std::mutex> usage_lock(usage_mutex_);
+        return last_used_;
+    }();
+    auto recency = [&last_used](const std::pair<std::filesystem::path, IndexEntry>& v) {
+        const auto used = last_used.find(v.first);
+        return used == last_used.end() ? v.second.mtime : std::max(v.second.mtime, used->second);
     };
     std::sort(victims.begin(), victims.end(),
               [&recency](const auto& a, const auto& b) { return recency(a) < recency(b); });
