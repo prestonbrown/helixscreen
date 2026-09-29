@@ -13,7 +13,10 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
+#include "system_settings_manager.h"
 #include "tool_state.h"
+
+#include <spdlog/fmt/fmt.h>
 
 #include <chrono>
 #include <string>
@@ -378,6 +381,47 @@ TEST_CASE_METHOD(HelixTestFixture,
         // disabled state to this being 0.
         REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "print_status_idle_has_last")) == 0);
     }
+}
+
+// The idle tile's text is formatted in C++ and handed to XML as finished strings,
+// so XML's own re-translation on a language switch never reaches it.
+TEST_CASE_METHOD(HelixTestFixture, "DetailedFormatter re-renders its text on a language switch",
+                 "[print_status][formatter][i18n]") {
+    PrintStatusWidget::destroy_formatter_for_test();
+
+    PrinterState& ps = get_printer_state();
+    PrinterStateTestAccess::reset(ps);
+    ps.init_subjects(false);
+    PrinterPrintStateTestAccess::set_has_real_layer_data(
+        PrinterStateTestAccess::get_print_state(ps), true);
+    lv_subject_set_int(ps.get_print_filament_used_subject(), 1500);
+    lv_subject_set_int(ps.get_print_layer_current_subject(), 7);
+
+    ScopedHistory history({make_history_job("slipper.gcode", true, 2 * 3600.0)});
+
+    FormatterScope fs;
+    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    REQUIRE(subject_text("print_status_layer_text") == "Layer 7");
+    REQUIRE(subject_text("print_status_idle_when") == "Completed 2h ago");
+    REQUIRE(subject_text("print_status_idle_meta") == "12.5m filament • 1h 00m");
+    REQUIRE(subject_text("print_status_filament_text") == "Filament: 1.5m");
+
+    auto& settings = SystemSettingsManager::instance();
+    settings.set_language("ru");
+    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    // With no pack loaded lv_tr() returns the English tag, and every check
+    // below would pass against English.
+    REQUIRE(std::string(lv_tr("Completed {}h ago")) != "Completed {}h ago");
+
+    CHECK(subject_text("print_status_layer_text") == std::string(lv_tr("Layer")) + " 7");
+    CHECK(subject_text("print_status_idle_when") == fmt::format(lv_tr("Completed {}h ago"), 2));
+    CHECK(subject_text("print_status_idle_meta") ==
+          fmt::format(lv_tr("{} filament • {}"), "12.5m", "1h 00m"));
+    CHECK(subject_text("print_status_filament_text") == std::string(lv_tr("Filament")) + ": 1.5m");
+
+    settings.set_language("en");
+    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    CHECK(subject_text("print_status_idle_when") == "Completed 2h ago");
 }
 
 // =============================================================================

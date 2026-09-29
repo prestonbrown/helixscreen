@@ -39,6 +39,7 @@
 #include "standard_macros.h"
 #include "static_subject_registry.h"
 #include "subject_managed_panel.h"
+#include "system_settings_manager.h"
 #include "theme_manager.h"
 #include "thumbnail_cache.h"
 #include "thumbnail_load_context.h"
@@ -2177,6 +2178,7 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
         s_formatter_->nozzle_target_observer_.reset();
         s_formatter_->tools_version_observer_.reset();
         s_formatter_->active_tool_observer_.reset();
+        s_formatter_->language_observer_.reset();
         s_formatter_->nozzle_temp_lifetime_.reset();
         s_formatter_->nozzle_target_lifetime_.reset();
         s_formatter_->subjects_.deinit_all();
@@ -2247,6 +2249,16 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
     }
     update_idle_fields();
 
+    // Every string above is translated here and handed to XML finished, so the
+    // XML re-translation on a language switch never reaches it.
+    language_observer_ =
+        observe_int_sync<DetailedFormatter>(SystemSettingsManager::instance().subject_language(),
+                                            this, [](DetailedFormatter* self, int) {
+                                                self->update_layer_text();
+                                                self->update_filament_text();
+                                                self->update_idle_fields();
+                                            });
+
     spdlog::debug("[DetailedFormatter] subjects initialized");
 }
 
@@ -2273,6 +2285,7 @@ PrintStatusWidget::DetailedFormatter::~DetailedFormatter() {
     nozzle_target_observer_.reset();
     tools_version_observer_.reset();
     active_tool_observer_.reset();
+    language_observer_.reset();
     nozzle_temp_lifetime_.reset();
     nozzle_target_lifetime_.reset();
     subjects_.deinit_all();

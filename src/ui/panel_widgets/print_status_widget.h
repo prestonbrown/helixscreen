@@ -493,6 +493,7 @@ class PrintStatusWidget : public PanelWidget {
         /// extruder mapping without moving the tool count.
         ObserverGuard tools_version_observer_;
         ObserverGuard active_tool_observer_;
+        ObserverGuard language_observer_;
 
         void update_layer_text();
         void update_time_text();
