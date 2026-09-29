@@ -9,6 +9,7 @@
 // new language once the switch has settled.
 
 #include "ui_breakpoint.h"
+#include "ui_carousel.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -22,6 +23,7 @@
 #include "preheat_widget.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "src/ui/panel_widgets/fan_stack_widget.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
 #include "system_settings_manager.h"
 #include "tool_state.h"
@@ -158,12 +160,14 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
                 }
                 ++checked;
                 // Containing the translation is enough: a label may carry it
-                // inside a longer string ("Все (2)").
+                // inside a longer string ("Все (2)"). A label that is no longer
+                // where it was counts as stale: a rebuild must not hide one.
                 const auto it = after.find(path);
-                if (it != after.end() && it->second.find(want) == std::string::npos) {
+                if (it == after.end() || it->second.find(want) == std::string::npos) {
+                    const std::string now =
+                        it == after.end() ? "(label gone from " + path + ")" : it->second;
                     stale.push_back(std::string(def.id) + " @" + std::to_string(c) + " cols: \"" +
-                                    en + "\" still reads \"" + it->second + "\", want \"" + want +
-                                    "\"");
+                                    en + "\" still reads \"" + now + "\", want \"" + want + "\"");
                 }
             }
         }
@@ -196,4 +200,42 @@ TEST_CASE_METHOD(LanguageSwitchFixture, "preheat's tool target re-translates on 
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     REQUIRE(std::string(lv_tr("All")) != "All");
     CHECK(std::string(lv_label_get_text(label)) == std::string(lv_tr("All")) + " (2)");
+}
+
+// The carousel rebuilds its pages to re-render their names, which would start
+// it over from the first page under the user's finger.
+TEST_CASE_METHOD(LanguageSwitchFixture,
+                 "the fan carousel re-translates its pages and keeps the page shown",
+                 "[panel_widget][i18n][fan_stack]") {
+    ScopedRuntimeConfig runtime_config;
+    get_runtime_config()->test_mode = true;
+    PanelWidgetManager::instance().init_widget_subjects();
+
+    PanelWidgetHarness<FanStackWidget> h(
+        test_screen(), HarnessConfig{nlohmann::json{{"display_mode", "carousel"}}}, "fan_stack",
+        state());
+    h.resize(2, 2, 300, 300);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    lv_obj_t* carousel = h.child("fan_carousel");
+    REQUIRE(carousel != nullptr);
+    REQUIRE(ui_carousel_get_page_count(carousel) >= 2);
+    ui_carousel_goto_page(carousel, 1, false);
+    REQUIRE(ui_carousel_get_current_page(carousel) == 1);
+
+    SystemSettingsManager::instance().set_language("ru");
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(std::string(lv_tr("Hotend")) != "Hotend");
+
+    CHECK(ui_carousel_get_current_page(carousel) == 1);
+    std::map<std::string, std::string> labels;
+    collect_labels(carousel, "", labels);
+    auto shows = [&labels](const std::string& text) {
+        for (const auto& [path, t] : labels) {
+            if (t == text)
+                return true;
+        }
+        return false;
+    };
+    CHECK(shows(lv_tr("Part")));
+    CHECK(shows(lv_tr("Hotend")));
 }

@@ -520,7 +520,7 @@ void FanStackWidget::bind_carousel_fans() {
     std::vector<FanEntry> entries;
     if (fans.empty()) {
         entries.push_back({lv_tr("Part"), "", 0, false});
-        entries.push_back({"Hotend", "", 0, false});
+        entries.push_back({lv_tr("Hotend"), "", 0, false});
         spdlog::debug("[FanStackWidget] Carousel: no fans discovered, using placeholders");
     } else {
         for (const auto& fan : fans) {
