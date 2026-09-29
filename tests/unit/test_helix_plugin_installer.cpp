@@ -222,17 +222,17 @@ TEST_CASE("HelixPluginInstaller script path", "[plugin_installer]") {
         helix::HelixPluginInstaller installer;
 
         // The resolver walks a candidate list and returns the first entry that
-        // exists, canonicalizes to a file still named install.sh, and is
-        // owner-executable. Every other outcome is "". So the invariant that
-        // holds regardless of whether this checkout has the script bundled is:
-        // empty, or a real executable file called install.sh.
+        // exists and canonicalizes to a file still named install.sh. Every
+        // other outcome is "". The exec bit is deliberately not required: the
+        // script runs via /bin/sh because Moonraker's zip extractor does not
+        // restore unix modes. The invariant that holds regardless of whether
+        // this checkout has the script bundled is: empty, or a real file
+        // called install.sh.
         const std::string path = installer.get_install_script_path();
 
         CHECK((path.empty() || std::filesystem::exists(path)));
         if (!path.empty()) {
             CHECK(std::filesystem::path(path).filename() == "install.sh");
-            const auto perms = std::filesystem::status(path).permissions();
-            CHECK((perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none);
         }
 
         // Path resolution is a pure query - it must not move the state machine.

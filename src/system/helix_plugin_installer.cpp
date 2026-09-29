@@ -194,7 +194,6 @@ HelixPluginInstaller::install_local_sync(bool enable_phase_tracking) {
 
     std::string script_path = get_install_script_path();
     if (script_path.empty()) {
-        spdlog::warn("[PluginInstaller] Install script not found");
         return {false, lv_tr("Install script not found. Use the remote install command instead.")};
     }
 
@@ -202,6 +201,11 @@ HelixPluginInstaller::install_local_sync(bool enable_phase_tracking) {
     spdlog::info("[PluginInstaller] Starting local installation: {} --auto (phase_tracking={})",
                  script_path, enable_phase_tracking);
 
+    // fork/exec instead of popen(): sh receives the script as a path argument,
+    // not a command string, so nothing inside script_path is interpreted.
+    // Running it through /bin/sh also works when the file has no exec bit:
+    // Moonraker's type:web self-update extracts the release zip with Python's
+    // zipfile, which does not restore unix modes.
     pid_t pid = fork();
 
     if (pid < 0) {
@@ -213,10 +217,9 @@ HelixPluginInstaller::install_local_sync(bool enable_phase_tracking) {
 
     if (pid == 0) {
         if (enable_phase_tracking) {
-            execl(script_path.c_str(), script_path.c_str(), "--auto", "--with-phase-tracking",
-                  nullptr);
+            execl("/bin/sh", "sh", script_path.c_str(), "--auto", "--with-phase-tracking", nullptr);
         } else {
-            execl(script_path.c_str(), script_path.c_str(), "--auto", nullptr);
+            execl("/bin/sh", "sh", script_path.c_str(), "--auto", nullptr);
         }
         _exit(127);
     }
@@ -259,7 +262,6 @@ void HelixPluginInstaller::install_local(InstallCallback callback, bool enable_p
 
     std::string script_path = get_install_script_path();
     if (script_path.empty()) {
-        spdlog::warn("[PluginInstaller] Install script not found");
         if (callback) {
             callback(false,
                      lv_tr("Install script not found. Use the remote install command instead."));
@@ -271,8 +273,11 @@ void HelixPluginInstaller::install_local(InstallCallback callback, bool enable_p
     spdlog::info("[PluginInstaller] Starting local installation: {} --auto (phase_tracking={})",
                  script_path, enable_phase_tracking);
 
-    // Use fork/exec instead of popen() to avoid shell command injection.
-    // The script path is passed directly to execl() without shell interpretation.
+    // fork/exec instead of popen(): sh receives the script as a path argument,
+    // not a command string, so nothing inside script_path is interpreted.
+    // Running it through /bin/sh also works when the file has no exec bit:
+    // Moonraker's type:web self-update extracts the release zip with Python's
+    // zipfile, which does not restore unix modes.
     // NOTE: This is a blocking call. For production UI, consider std::async.
 
     pid_t pid = fork();
@@ -290,12 +295,10 @@ void HelixPluginInstaller::install_local(InstallCallback callback, bool enable_p
 
     if (pid == 0) {
         // Child process - execute the script
-        // Note: execl() does NOT go through shell, preventing command injection
         if (enable_phase_tracking) {
-            execl(script_path.c_str(), script_path.c_str(), "--auto", "--with-phase-tracking",
-                  nullptr);
+            execl("/bin/sh", "sh", script_path.c_str(), "--auto", "--with-phase-tracking", nullptr);
         } else {
-            execl(script_path.c_str(), script_path.c_str(), "--auto", nullptr);
+            execl("/bin/sh", "sh", script_path.c_str(), "--auto", nullptr);
         }
 
         // If execl returns, it failed
@@ -348,7 +351,6 @@ void HelixPluginInstaller::uninstall_local(InstallCallback callback) {
 
     std::string script_path = get_install_script_path();
     if (script_path.empty()) {
-        spdlog::warn("[PluginInstaller] Install script not found for uninstall");
         if (callback) {
             callback(false, lv_tr("Uninstall script not found."));
         }
@@ -359,6 +361,11 @@ void HelixPluginInstaller::uninstall_local(InstallCallback callback) {
     spdlog::info("[PluginInstaller] Starting local uninstallation: {} --uninstall-auto",
                  script_path);
 
+    // fork/exec instead of popen(): sh receives the script as a path argument,
+    // not a command string, so nothing inside script_path is interpreted.
+    // Running it through /bin/sh also works when the file has no exec bit:
+    // Moonraker's type:web self-update extracts the release zip with Python's
+    // zipfile, which does not restore unix modes.
     pid_t pid = fork();
 
     if (pid < 0) {
@@ -372,7 +379,7 @@ void HelixPluginInstaller::uninstall_local(InstallCallback callback) {
     }
 
     if (pid == 0) {
-        execl(script_path.c_str(), script_path.c_str(), "--uninstall-auto", nullptr);
+        execl("/bin/sh", "sh", script_path.c_str(), "--uninstall-auto", nullptr);
         _exit(127);
     }
 
@@ -468,15 +475,8 @@ std::string HelixPluginInstaller::get_install_script_path() const {
                     continue;
                 }
 
-                // Check if script is executable
-                auto status = std::filesystem::status(canonical_path);
-                auto perms = status.permissions();
-                if ((perms & std::filesystem::perms::owner_exec) == std::filesystem::perms::none) {
-                    spdlog::warn("[PluginInstaller] Script not executable: {}",
-                                 canonical_path.string());
-                    continue;
-                }
-
+                // No exec-bit check: the script runs via /bin/sh, and a release
+                // unpacked by Moonraker's zip extractor carries no unix modes.
                 return canonical_path.string();
             }
         } catch (const std::filesystem::filesystem_error& e) {
@@ -485,6 +485,9 @@ std::string HelixPluginInstaller::get_install_script_path() const {
         }
     }
 
+    // No exec-bit requirement: the script runs via /bin/sh, and a release
+    // unpacked by Moonraker's zip extractor carries no unix modes.
+    spdlog::warn("[PluginInstaller] install.sh not found below exe dir {}", exe_dir);
     return "";
 }
 

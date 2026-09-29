@@ -2774,11 +2774,17 @@ endef
 # ambient $(ENABLE_DEV_PANELS) would therefore never fire.
 DEV_PANEL_XML := gcode_test_panel.xml glyphs_panel.xml step_test_panel.xml test_panel.xml
 
-# Stage ui_xml/ + config/ into a release tree, minus the dev-panel layouts.
+# Stage ui_xml/ + config/ + moonraker-plugin/ into a release tree, minus the
+# dev-panel layouts and the plugin's dev-only files. moonraker-plugin must ride
+# every release: HelixPluginInstaller (src/system/helix_plugin_installer.cpp)
+# resolves <install>/moonraker-plugin/install.sh next to bin/helix-screen, and
+# without it the in-UI plugin install/uninstall fails on every release install.
 # Args: $(1) = staged release root (e.g. $(RELEASE_DIR)/helixscreen)
 define release-copy-xml-config
-	@cp -r ui_xml config $(1)/
+	@cp -r ui_xml config moonraker-plugin $(1)/
 	@rm -f $(addprefix $(1)/ui_xml/,$(DEV_PANEL_XML))
+	@rm -rf $(1)/moonraker-plugin/tests $(1)/moonraker-plugin/TESTING_PLAN.md
+	@find $(1)/moonraker-plugin -type d -name __pycache__ -prune -exec rm -rf {} +
 	@# Minify the STAGED copy only -- never ui_xml/ in the source tree. The XML
 	@# engine keeps a verbatim copy of every component's <view> source text alive
 	@# for the whole session (lv_xml_component.c extract_view_content: it is

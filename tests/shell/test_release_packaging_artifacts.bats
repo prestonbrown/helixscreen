@@ -85,6 +85,40 @@ release_recipe() {
 }
 
 # ============================================================================
+# moonraker-plugin included in release packages
+# ============================================================================
+
+@test "release-copy-xml-config stages moonraker-plugin without tests or pyc" {
+    # HelixPluginInstaller resolves <install>/moonraker-plugin/install.sh next
+    # to bin/helix-screen, so a release tree without the plugin dir breaks the
+    # in-UI install/uninstall on every device. Run the real macro against a
+    # temp stage dir rather than grepping its text: this proves the copy lands
+    # AND that nothing later in the macro (dev-panel rm, minify) eats it.
+    cd "$BATS_TEST_DIRNAME/../.." || fail "cannot reach repo root"
+
+    local stage="$BATS_TEST_TMPDIR/helixscreen" mkfile="$BATS_TEST_TMPDIR/stage.mk"
+    mkdir -p "$stage"
+    # DEV_PANEL_XML must come along: undefined, the macro's rm -f would target
+    # $(1)/ui_xml/ itself (a directory rm -f cannot delete, so make fails).
+    {
+        grep -E '^DEV_PANEL_XML :=' "$CROSS_MK" || fail "DEV_PANEL_XML missing from $CROSS_MK"
+        sed -n '/^define release-copy-xml-config/,/^endef/p' "$CROSS_MK"
+        printf '\n.PHONY: stage\nstage:\n\t$(call release-copy-xml-config,%s)\n' "$stage"
+    } > "$mkfile"
+
+    run make -f "$mkfile" stage
+    [ "$status" -eq 0 ] || fail "release-copy-xml-config failed: $output"
+
+    [ -f "$stage/moonraker-plugin/install.sh" ] \
+        || fail "release tree ships no moonraker-plugin/install.sh"
+    [ -f "$stage/moonraker-plugin/helix_print.py" ] \
+        || fail "release tree ships no moonraker-plugin/helix_print.py"
+    [ ! -e "$stage/moonraker-plugin/tests" ] || fail "plugin tests shipped in release tree"
+    [ -z "$(find "$stage/moonraker-plugin" -name __pycache__ -print -quit)" ] \
+        || fail "bytecode cache shipped in release tree"
+}
+
+# ============================================================================
 # LZ4 compression enabled
 # ============================================================================
 
