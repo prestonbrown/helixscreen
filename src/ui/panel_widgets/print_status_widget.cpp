@@ -836,27 +836,11 @@ std::string PrintStatusWidget::get_last_print_thumbnail_path() const {
     }
     const auto& job = *newest;
 
-    // Select the best thumbnail for the widget's actual rendered size
-    if (!job.thumbnails.empty() && print_card_thumb_ && lv_obj_is_valid(print_card_thumb_)) {
-        int target_w = lv_obj_get_width(print_card_thumb_);
-        int target_h = lv_obj_get_height(print_card_thumb_);
-
-        // Find smallest thumbnail that meets or exceeds the widget dimensions
-        const ThumbnailInfo* best_adequate = nullptr;
-        const ThumbnailInfo* largest = &job.thumbnails[0];
-
-        for (const auto& t : job.thumbnails) {
-            if (t.pixel_count() > largest->pixel_count()) {
-                largest = &t;
-            }
-            if (t.width >= target_w && t.height >= target_h) {
-                if (!best_adequate || t.pixel_count() < best_adequate->pixel_count()) {
-                    best_adequate = &t;
-                }
-            }
-        }
-
-        const auto* best = best_adequate ? best_adequate : largest;
+    // Sized for the widget as rendered; unmeasured, that is the largest.
+    const bool measured = print_card_thumb_ && lv_obj_is_valid(print_card_thumb_);
+    const int target_w = measured ? lv_obj_get_width(print_card_thumb_) : 0;
+    const int target_h = measured ? lv_obj_get_height(print_card_thumb_) : 0;
+    if (const ThumbnailInfo* best = select_thumbnail(job.thumbnails, target_w, target_h)) {
         spdlog::debug("[PrintStatusWidget] Widget {}x{}, selected thumbnail {}x{} ({})", target_w,
                       target_h, best->width, best->height, best->relative_path);
         return helix::job_thumbnail_path(job, best->relative_path);

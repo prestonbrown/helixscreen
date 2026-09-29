@@ -266,6 +266,36 @@ struct ThumbnailInfo {
 };
 
 /**
+ * @brief The thumbnail to fetch for a box of @p target_w x @p target_h
+ *
+ * The smallest entry that covers the box (least to download and scale), else
+ * the largest. A box with no size (either side <= 0) is one nobody has measured
+ * yet, so it takes the largest rather than letting every entry "cover" it and
+ * picking the smallest icon. Ties keep the entry listed first.
+ *
+ * @return nullptr only when @p thumbnails is empty
+ */
+[[nodiscard]] inline const ThumbnailInfo*
+select_thumbnail(const std::vector<ThumbnailInfo>& thumbnails, int target_w, int target_h) {
+    if (thumbnails.empty()) {
+        return nullptr;
+    }
+    const bool sized = target_w > 0 && target_h > 0;
+    const ThumbnailInfo* smallest_cover = nullptr;
+    const ThumbnailInfo* largest = &thumbnails[0];
+    for (const auto& t : thumbnails) {
+        if (t.pixel_count() > largest->pixel_count()) {
+            largest = &t;
+        }
+        if (sized && t.width >= target_w && t.height >= target_h &&
+            (!smallest_cover || t.pixel_count() < smallest_cover->pixel_count())) {
+            smallest_cover = &t;
+        }
+    }
+    return smallest_cover ? smallest_cover : largest;
+}
+
+/**
  * @brief Resolve a Moonraker thumbnail relative_path to be relative to the gcodes root.
  *
  * Moonraker's metadata returns thumbnail relative_path values that are relative to the
@@ -326,66 +356,16 @@ struct FileMetadata {
      * @return Path to largest thumbnail, or empty string if none available
      */
     [[nodiscard]] std::string get_largest_thumbnail() const {
-        if (thumbnails.empty())
-            return "";
-        const ThumbnailInfo* best = &thumbnails[0];
-        for (const auto& t : thumbnails) {
-            if (t.pixel_count() > best->pixel_count()) {
-                best = &t;
-            }
-        }
-        return best->relative_path;
+        const ThumbnailInfo* best = select_thumbnail(thumbnails, 0, 0);
+        return best ? best->relative_path : "";
     }
 
     /**
-     * @brief Get the best thumbnail for a target display size
-     *
-     * Selects the smallest thumbnail that meets or exceeds the target dimensions.
-     * This minimizes download size while ensuring sufficient resolution for display.
-     *
-     * Selection priority:
-     * 1. Smallest thumbnail where width >= target_w AND height >= target_h
-     * 2. Fallback: largest available thumbnail (better to upscale slightly than use tiny)
-     *
-     * @param target_w Minimum acceptable width in pixels
-     * @param target_h Minimum acceptable height in pixels
+     * @brief Get the best thumbnail for a target display size (see select_thumbnail())
      * @return Pointer to best thumbnail, or nullptr if no thumbnails available
-     *
-     * Example usage:
-     * @code
-     *   // For a 160x160 display card
-     *   const ThumbnailInfo* best = metadata.get_best_thumbnail(160, 160);
-     *   if (best) {
-     *       // 300x300 slicer thumb chosen over 32x32 icon
-     *       download(best->relative_path);
-     *   }
-     * @endcode
      */
     [[nodiscard]] const ThumbnailInfo* get_best_thumbnail(int target_w, int target_h) const {
-        if (thumbnails.empty()) {
-            return nullptr;
-        }
-
-        const ThumbnailInfo* best_adequate = nullptr;  // Smallest that meets target
-        const ThumbnailInfo* largest = &thumbnails[0]; // Fallback
-
-        for (const auto& t : thumbnails) {
-            // Track largest for fallback
-            if (t.pixel_count() > largest->pixel_count()) {
-                largest = &t;
-            }
-
-            // Check if this thumbnail meets minimum requirements
-            if (t.width >= target_w && t.height >= target_h) {
-                // Prefer smaller adequate thumbnails (less to download/process)
-                if (!best_adequate || t.pixel_count() < best_adequate->pixel_count()) {
-                    best_adequate = &t;
-                }
-            }
-        }
-
-        // Return adequate thumbnail if found, otherwise largest available
-        return best_adequate ? best_adequate : largest;
+        return select_thumbnail(thumbnails, target_w, target_h);
     }
 };
 
