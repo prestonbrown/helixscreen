@@ -338,13 +338,12 @@ namespace mock_internal {
 
 /// HELIX_MOCK_METADATA_404=1 - server.files.metadata and .metascan fail with
 /// file-not-found for every file, the behaviour of vendor Moonraker forks that
-/// never populate their metadata DB (e.g. Qidi Q2).
+/// never populate their metadata DB (e.g. Qidi Q2). Read per call, not cached:
+/// unit tests toggle it around a single request, and a mock has no hot path
+/// worth an getenv() cache for.
 static bool metadata_404_enabled() {
-    static const bool enabled = [] {
-        const char* v = std::getenv("HELIX_MOCK_METADATA_404");
-        return v && v[0] && std::string(v) != "0";
-    }();
-    return enabled;
+    const char* v = std::getenv("HELIX_MOCK_METADATA_404");
+    return v && v[0] && std::string(v) != "0";
 }
 
 void register_file_handlers(std::unordered_map<std::string, MethodHandler>& registry) {
