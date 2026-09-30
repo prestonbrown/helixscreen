@@ -559,6 +559,7 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
             // Move data into panel (now safe - on main thread)
             panel->file_list_ = std::move(c->files);
+            panel->last_listing_applied_at_ = std::chrono::steady_clock::now();
 
             // Merge old metadata into new file list
             const bool retry_missing = panel->retry_missing_thumbnails_on_refresh_;
@@ -697,8 +698,26 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                     // The current directory no longer exists on the server (e.g. a
                     // FlashForge path-doubling artifact). Retrying it would wedge the
                     // panel, so fall back to root instead of looping (TJVQDCZ6).
-                    spdlog::warn("[{}] Current directory missing ('{}'); falling back to root",
-                                 self->get_name(), error);
+                    // Naming whether the failed entry came from the rendered listing
+                    // separates a server-side phantom (fresh listing offered it) from
+                    // navigation into a stale index (listing is old or lacks it).
+                    const std::string& failed_path = self->current_path_;
+                    const size_t slash = failed_path.find_last_of('/');
+                    const std::string leaf =
+                        slash == std::string::npos ? failed_path : failed_path.substr(slash + 1);
+                    const bool offered_by_listing = std::any_of(
+                        self->file_list_.begin(), self->file_list_.end(),
+                        [&leaf](const PrintFileData& f) { return f.is_dir && f.filename == leaf; });
+                    std::string listing_age = "no listing yet";
+                    if (self->last_listing_applied_at_.time_since_epoch().count() != 0) {
+                        const auto age_s = std::chrono::duration_cast<std::chrono::seconds>(
+                            std::chrono::steady_clock::now() - self->last_listing_applied_at_);
+                        listing_age = fmt::format("listing {}s old", age_s.count());
+                    }
+                    spdlog::warn("[{}] Current directory missing ('{}'); falling back to root "
+                                 "(entry '{}' {} by prior listing, {})",
+                                 self->get_name(), error, leaf,
+                                 offered_by_listing ? "offered" : "not offered", listing_age);
                     self->path_navigator_.reset();
                     self->current_path_.clear();
                     self->refresh_files(/*force=*/true);

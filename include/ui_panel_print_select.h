@@ -761,6 +761,12 @@ class PrintSelectPanel : public PanelBase {
     /// extraction failed transiently on Moonraker (e.g. JSON-RPC -32601 during upload).
     bool retry_missing_thumbnails_on_refresh_ = false;
 
+    /// When the last successful listing was applied. When a navigation target
+    /// turns out not to exist, the age of the listing that offered it separates
+    /// a stale index (old listing) from a server listing a phantom entry (fresh).
+    /// Epoch means no listing has been applied yet.
+    std::chrono::steady_clock::time_point last_listing_applied_at_{};
+
     // Debounce timer for view refresh (prevents rebuilding views for each metadata callback)
     lv_timer_t* refresh_timer_ = nullptr;
     static constexpr uint32_t REFRESH_DEBOUNCE_MS = 50; ///< Debounce delay for view refresh
