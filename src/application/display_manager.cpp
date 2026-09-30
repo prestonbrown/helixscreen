@@ -415,7 +415,7 @@ bool DisplayManager::init(const Config& config) {
             // If DRM backend can't do hardware rotation, fall back to fbdev
             // which handles software rotation flicker-free via LVGL's native path.
             if (!try_drm_to_fbdev_fallback(lv_rot, config.splash_active)) {
-                // Fallback failed (EGL/DSI display without fbdev).
+                // Fallback failed (a DSI display on a non-EGL build, with no fbdev).
                 // Continue without rotation rather than aborting — a
                 // working unrotated display is better than no display.
                 // lv_display_set_rotation() is deliberately NOT called, which
@@ -424,7 +424,7 @@ bool DisplayManager::init(const Config& config) {
                 // gate believing the key would throw away a perfectly good
                 // stored touch range on every boot of such a unit.
                 spdlog::warn("[DisplayManager] Continuing without rotation. "
-                             "For DSI/EGL displays, use panel_orientation in "
+                             "On a non-EGL build, use panel_orientation in "
                              "/boot/firmware/cmdline.txt instead.");
                 rotation_degrees = 0;
             } else {
@@ -1932,7 +1932,7 @@ bool DisplayManager::try_drm_to_fbdev_fallback(lv_display_rotation_t rot, bool s
     }
     if (!m_display) {
         spdlog::error("[DisplayManager] Fbdev fallback for rotation also failed. "
-                      "For DSI/EGL displays, use the kernel panel_orientation parameter "
+                      "On a non-EGL build, use the kernel panel_orientation parameter "
                       "instead: add panel_orientation=right_side_up (or left_side_up, "
                       "upside_down) to /boot/firmware/cmdline.txt and remove the "
                       "\"rotate\" key from settings.json.");

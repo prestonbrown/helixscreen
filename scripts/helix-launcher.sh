@@ -830,6 +830,37 @@ select_binary() {
     echo "$_sb_primary"
 }
 
+# The display backend to hand the app for the binary select_binary() chose;
+# prints nothing when the app should auto-detect. `egl` names a binary, not a
+# backend: the app knows sdl, drm and fbdev, and the EGL binary presents
+# through LVGL's DRM driver. Which of the two DRM drivers a binary carries is
+# compiled in, not selected here. Only dual-binary installs (Pi with DRM+fbdev)
+# get one set explicitly; single-binary platforms (AD5M, K1, etc.) auto-detect.
+app_display_backend() {
+    _ab_bin=$1
+    _ab_fallback=$2
+    case "${HELIX_DISPLAY_BACKEND:-}" in
+        "" | egl) ;;
+        *)
+            echo "$HELIX_DISPLAY_BACKEND"
+            return
+            ;;
+    esac
+    case "$(basename "$_ab_bin")" in
+        helix-screen-fbdev)
+            echo fbdev
+            ;;
+        helix-screen-egl)
+            echo drm
+            ;;
+        *)
+            if [ -x "$_ab_fallback" ]; then
+                echo drm
+            fi
+            ;;
+    esac
+}
+
 SPLASH_BIN="${BIN_DIR}/helix-splash"
 WATCHDOG_BIN="${BIN_DIR}/helix-watchdog"
 FALLBACK_BIN="${BIN_DIR}/helix-screen-fbdev"
@@ -945,28 +976,13 @@ fi
 # Select binary AFTER env file is sourced so HELIX_DISPLAY_BACKEND=fbdev in env file works
 MAIN_BIN=$(select_binary "${BIN_DIR}")
 
-# Default display backend based on which binary was selected.
-# Only set explicitly when dual binaries exist (Pi with DRM+fbdev).
-# Non-Pi platforms (AD5M, K1, etc.) have only one binary and the C++ code
-# auto-detects the backend, so we leave the env var unset.
-if [ -z "${HELIX_DISPLAY_BACKEND:-}" ]; then
-    case "$(basename "${MAIN_BIN}")" in
-        helix-screen-fbdev)
-            export HELIX_DISPLAY_BACKEND=fbdev
-            ;;
-        helix-screen-egl)
-            # The EGL binary also presents through LVGL's DRM driver. Which of
-            # the two DRM drivers it carries is compiled in, not selected here.
-            export HELIX_DISPLAY_BACKEND=drm
-            ;;
-        *)
-            if [ -x "${FALLBACK_BIN}" ]; then
-                # Dual-binary Pi: primary selected, use DRM
-                export HELIX_DISPLAY_BACKEND=drm
-            fi
-            ;;
-    esac
+_app_backend=$(app_display_backend "${MAIN_BIN}" "${FALLBACK_BIN}")
+if [ -n "$_app_backend" ]; then
+    export HELIX_DISPLAY_BACKEND="$_app_backend"
+else
+    unset HELIX_DISPLAY_BACKEND
 fi
+unset _app_backend
 
 # Verify main binary exists
 if [ ! -x "${MAIN_BIN}" ]; then

@@ -68,6 +68,18 @@ TEST_CASE("90° and 270° never go to the plane, whatever its mask advertises",
     REQUIRE(choose_drm_rotation_strategy(ROT_90, MASK_PI3B) == DrmRotationStrategy::SOFTWARE);
 }
 
+TEST_CASE("EGL presentation rotates every nonzero angle on the GPU",
+          "[display][drm][rotation][egl]") {
+    // The presentation shader consumes LVGL's display rotation, so the plane's
+    // rotation mask does not matter and scanout stays at the panel's native mode.
+    REQUIRE(choose_drm_rotation_strategy(ROT_90, MASK_NONE, true) == DrmRotationStrategy::GPU);
+    REQUIRE(choose_drm_rotation_strategy(ROT_180, MASK_0_ONLY, true) == DrmRotationStrategy::GPU);
+    REQUIRE(choose_drm_rotation_strategy(ROT_270, MASK_0_180, true) == DrmRotationStrategy::GPU);
+
+    // Identity still needs no presentation transform.
+    REQUIRE(choose_drm_rotation_strategy(ROT_0, MASK_NONE, true) == DrmRotationStrategy::NONE);
+}
+
 TEST_CASE("Software fallback when plane lacks 90/270", "[display][drm][rotation]") {
     // VC4 scenario: mask=0x5 (0°+180°), request 270° → must use software
     REQUIRE(choose_drm_rotation_strategy(ROT_270, MASK_0_180) == DrmRotationStrategy::SOFTWARE);
@@ -105,6 +117,12 @@ TEST_CASE("SOFTWARE rotation applies the requested angle to LVGL", "[display][dr
             LvglRotationAction::APPLY_REQUESTED);
 }
 
+TEST_CASE("GPU rotation exposes the requested angle to the presentation shader",
+          "[display][drm][rotation][egl]") {
+    REQUIRE(lvgl_rotation_action_for(DrmRotationStrategy::GPU) ==
+            LvglRotationAction::APPLY_REQUESTED);
+}
+
 TEST_CASE("NONE clears LVGL rotation", "[display][drm][rotation]") {
     REQUIRE(lvgl_rotation_action_for(DrmRotationStrategy::NONE) ==
             LvglRotationAction::CLEAR_TO_ZERO);
@@ -113,6 +131,7 @@ TEST_CASE("NONE clears LVGL rotation", "[display][drm][rotation]") {
 TEST_CASE("Only SOFTWARE needs FULL render mode", "[display][drm][rotation]") {
     // A partial-render buffer cannot be reversed in place.
     REQUIRE(drm_rotation_needs_full_render(DrmRotationStrategy::SOFTWARE));
+    REQUIRE_FALSE(drm_rotation_needs_full_render(DrmRotationStrategy::GPU));
     REQUIRE_FALSE(drm_rotation_needs_full_render(DrmRotationStrategy::HARDWARE));
     REQUIRE_FALSE(drm_rotation_needs_full_render(DrmRotationStrategy::NONE));
 }

@@ -153,7 +153,7 @@ diff --git a/src/drivers/display/drm/lv_linux_drm_egl.c b/src/drivers/display/dr
 +    bool last = lv_display_flush_is_last(disp);
 +
 +    bool in_place = lv_linux_drm_egl_upload_in_place(lv_display_get_render_mode(disp),
-+                                                     lv_display_get_rotation(disp));
++                                                     lv_display_get_matrix_rotation(disp));
 +    lv_area_t upload_area;
 +    lv_linux_drm_egl_upload_t upload = lv_linux_drm_egl_upload_plan(&ctx->upload, ctx->texture.texture_id,
 +                                                                     disp_width, disp_height, in_place, last,
@@ -264,17 +264,17 @@ new file mode 100644
 +
 +/**
 + * Whether the draw buffer holds every flushed area at its display coordinates, which is
-+ * what sending one area on its own needs. Direct render mode draws into the single
-+ * whole-frame buffer; any other render mode, or a rotated display, does not leave areas
-+ * where the texture expects them.
-+ * @param render_mode  the display's render mode
-+ * @param rotation     the display's rotation
-+ * @return             true when a flushed area can be sent on its own
++ * what sending one area on its own needs. Direct render mode draws the whole frame at the
++ * display's rotated resolution, the size the texture is reshaped to, and the presentation
++ * pass applies the rotation. Matrix rotation draws at the original resolution instead.
++ * @param render_mode      the display's render mode
++ * @param matrix_rotation  whether LVGL rotates the drawing with its transform matrix
++ * @return                 true when a flushed area can be sent on its own
 + */
 +static inline bool lv_linux_drm_egl_upload_in_place(lv_display_render_mode_t render_mode,
-+                                                    lv_display_rotation_t rotation)
++                                                    bool matrix_rotation)
 +{
-+    return render_mode == LV_DISPLAY_RENDER_MODE_DIRECT && rotation == LV_DISPLAY_ROTATION_0;
++    return render_mode == LV_DISPLAY_RENDER_MODE_DIRECT && !matrix_rotation;
 +}
 +
 +/**

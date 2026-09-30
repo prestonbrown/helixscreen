@@ -772,19 +772,17 @@ Edit your config file (typically `~/helixscreen/config/settings.json` or `/opt/h
 
 Valid values: `0`, `90`, `180`, `270`. Restart HelixScreen after changing this value. Touch coordinates are automatically adjusted to match — no separate touch configuration is needed.
 
-**All four values work on every printer.** On a Raspberry Pi or other DRM display, HelixScreen switches to the framebuffer path automatically for any rotation the display hardware cannot do itself - true of every panel HelixScreen ships to - so you do not need to set `HELIX_DISPLAY_BACKEND` or install anything. If the picture stays unrotated after a restart, that switch failed, which means the system has no usable `/dev/fb0`; the log will say `Continuing without rotation`. In that case rotate the panel in the kernel with `video=...,rotate=90` instead.
+**All four values work on every printer.** GPU-enabled DRM builds rotate the final image on the GPU. Other DRM builds switch to the framebuffer path automatically when the display hardware cannot rotate the image itself, so you do not need to set `HELIX_DISPLAY_BACKEND` or install anything. If the picture stays unrotated after a restart, the fallback failed and the log will say `Continuing without rotation`. In that case rotate the panel in the kernel with `video=...,rotate=90` instead.
 
 **How rotation works under the hood:**
 
-When you set a rotation value, HelixScreen checks whether your display hardware can rotate the image directly (hardware rotation). The panels HelixScreen ships to - including DSI screens on Raspberry Pi - cannot do this.
-
-Since hardware rotation isn't available on those panels, HelixScreen automatically switches from the DRM backend to the framebuffer (fbdev) backend for any nonzero rotation, which handles software rotation flicker-free. This happens transparently - you don't need to configure anything. You'll see this in the logs:
+When you set a rotation value, a GPU-enabled DRM build rotates the completed image efficiently and remains on DRM. Its log contains:
 
 ```
-DRM lacks hardware rotation for 90°, falling back to fbdev (flicker-free software rotation)
+GPU presentation rotation 90° (OpenGL ES)
 ```
 
-The fbdev backend with software rotation works well for normal UI usage. If you notice any issues, you can also force the fbdev backend manually:
+Without GPU acceleration, HelixScreen uses display hardware rotation when available and otherwise switches to fbdev for flicker-free software rotation. If you notice any issues, you can also force the fbdev backend manually:
 
 ```bash
 sudo systemctl edit helixscreen

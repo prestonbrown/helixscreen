@@ -1,0 +1,14 @@
+diff --git a/src/drivers/opengles/lv_opengles_driver.c b/src/drivers/opengles/lv_opengles_driver.c
+--- a/src/drivers/opengles/lv_opengles_driver.c
++++ b/src/drivers/opengles/lv_opengles_driver.c
+@@ -215,6 +215,10 @@
+     GL_CALL(glBindTexture(GL_TEXTURE_2D, texture));
+ 
+     lv_display_rotation_t rotation = lv_display_get_rotation(display);
++    /*LVGL turns a quarter turn counter-clockwise (lv_display_rotate_point() maps pointer input
++     *that way), and the vertex table turns the other way, so the two quarter turns trade places*/
++    if(rotation == LV_DISPLAY_ROTATION_90) rotation = LV_DISPLAY_ROTATION_270;
++    else if(rotation == LV_DISPLAY_ROTATION_270) rotation = LV_DISPLAY_ROTATION_90;
+     bool h_flip = params->h_flip;
+     bool v_flip = params->v_flip;
+ 

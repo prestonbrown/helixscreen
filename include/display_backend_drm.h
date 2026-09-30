@@ -72,7 +72,7 @@ class DisplayBackendDRM : public DisplayBackend {
     void set_display_rotation(lv_display_t* disp, lv_display_rotation_t rot, int phys_w,
                               int phys_h) override;
 
-    /// Check if DRM plane supports hardware rotation for the given angle
+    /// Check whether DRM can rotate efficiently using EGL or the KMS plane
     bool supports_hardware_rotation(lv_display_rotation_t rot) const override;
 
     /**

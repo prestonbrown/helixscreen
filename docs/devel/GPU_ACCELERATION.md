@@ -185,6 +185,7 @@ Measured per board, not inferred from the SoC.
 | Pi 5 | V3D | no (DSI panel reports mask `0x0`) | a `0x0` mask passes any rotation test vacuously — never verify rotation here |
 | Pi 3B | vc4 | **yes** (mask `0x35`) | the only board with a rotation-capable plane, a connected panel, and working EGL at once |
 | CB1 | Mali-G31 (Panfrost) | not measured | EGL rung verified rendering 2026-09-12 on Mesa 25.0.7; the vendor Mesa 21.3.9 in `/opt/panfrost` fails `gbm_create_device` for want of `kms_swrast`/`swrast`, so this needs Mesa 25.x |
+| Mi 4 (MSM8974, `pi32`) | Adreno 330 (freedreno) | not measured | EGL rung verified rendering 2026-09-29 on Ubuntu 24.04 armhf: every angle rotates on the GPU (`DrmRotationStrategy::GPU`) with touch matching. The only 32-bit board on the rung so far |
 
 The CB1's `gbm_create_device` failure was a stale userspace Mesa, not a hardware
 limit. On current Armbian it reports `GL_RENDERER = Mali-G31 (Panfrost)`.
@@ -231,21 +232,19 @@ mode. Whether a configured resolution should make the launcher decline the rung 
 a per-board policy question, not a probe question - the probe cannot see the
 config.
 
-**Rotation takes the board off this rung entirely.**
-`DisplayBackendDRM::supports_hardware_rotation()` returns false for every nonzero
-angle under EGL, because the plane rotation entry points live in the dumb-buffer
-driver. `DisplayManager` answers that by deleting the DRM display and rebuilding on
-fbdev in-process, input devices included. So a board configured to rotate selects
-`helix-screen-egl` at boot, brings EGL up, then presents through `/dev/fb0` anyway.
+**Rotation stays on this rung.**
+The EGL flush presents LVGL's completed display texture through
+`lv_opengles_render_display()`. Its vertex geometry handles 90, 180, and 270
+degrees, so rotation remains on DRM/EGL even when the KMS plane has no rotation
+property. Quarter turns swap the OpenGL viewport dimensions while scanout remains
+at the panel's native mode. There is no CPU transpose and no MDP/KMS rotator
+dependency. Partial upload still sends only the flushed areas on a rotated display:
+LVGL draws at the rotated resolution the texture is reshaped to, so each area is
+already where the texture expects it (`lv_linux_drm_egl_upload_in_place()`).
 
-Verified on the Pi 3B at 180 degrees: the picture does invert, touch is rebuilt on
-the fbdev backend, and the log records the whole handover. A USB mouse is rebuilt
-there as well. LVGL rotates every pointer sample on this path, so fbdev fronts the
-mouse with the same hook the DRM backend uses, and the cursor moves with the upright
-picture rather than the panel (`include/pointer_frame_hook.h#pointer_transform_for`).
-Rotation and GPU
-presentation are mutually exclusive today, so a board that needs rotation gains
-nothing from this rung.
+LVGL owns the display angle on this path, so absolute touch coordinates follow the
+rotated UI automatically. The relative-pointer hook prevents LVGL from rotating an
+already accumulated mouse cursor position (`include/pointer_frame_hook.h`).
 
 ---
 

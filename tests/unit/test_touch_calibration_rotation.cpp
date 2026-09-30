@@ -162,7 +162,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "rotation from CLI/env still gates the range s
 
 TEST_CASE_METHOD(LVGLTestFixture, "a rotation the display never applied leaves the range stage on",
                  "[touch-calibration][rotation][1394]") {
-    // The mirror case: a DSI/EGL unit whose DRM->fbdev rotation fallback
+    // The mirror case: a non-EGL DRM unit whose fbdev rotation fallback
     // failed. DisplayManager logs "Continuing without rotation" and never
     // calls lv_display_set_rotation(), so the key stays at 90 over a display
     // that is not rotated. A gate believing the key throws away a legitimate

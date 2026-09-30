@@ -139,8 +139,13 @@ run_env_setup() {
 }
 
 @test "helix-launcher.sh does not override existing HELIX_DISPLAY_BACKEND" {
-    # The conditional must check if already set
-    grep -q 'if \[ -z "\${HELIX_DISPLAY_BACKEND:-}"' "$LAUNCHER"
+    # A backend the user set reaches the app unchanged, whichever binary ran
+    fn=$(sed -n '/^app_display_backend()/,/^}/p' "$LAUNCHER")
+    [ -n "$fn" ]
+    run env HELIX_DISPLAY_BACKEND=fbdev sh -c "$fn
+app_display_backend /x/helix-screen-egl /x/helix-screen-fbdev"
+    [ "$status" -eq 0 ]
+    [ "$output" = "fbdev" ]
 }
 
 # =============================================================================

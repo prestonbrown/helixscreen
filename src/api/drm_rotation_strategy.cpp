@@ -9,10 +9,18 @@ static constexpr uint64_t DRM_ROT_0 = (1 << 0);
 static constexpr uint64_t DRM_ROT_QUARTER_TURNS = (1 << 1) | (1 << 3);
 
 DrmRotationStrategy choose_drm_rotation_strategy(uint64_t requested_drm_rot,
-                                                 uint64_t supported_mask) {
+                                                 uint64_t supported_mask, bool egl_presentation) {
     // No rotation needed
     if (requested_drm_rot == DRM_ROT_0) {
         return DrmRotationStrategy::NONE;
+    }
+
+    // The EGL backend presents LVGL's completed display texture with
+    // lv_opengles_render_display(), whose vertex buffer follows the display
+    // rotation. This keeps scanout at the panel's native mode and performs the
+    // quarter turn on the GPU without a CPU transpose or an MDP rotator.
+    if (egl_presentation) {
+        return DrmRotationStrategy::GPU;
     }
 
     // The plane is programmed with SRC and CRTC rectangles at the panel's own
@@ -34,7 +42,7 @@ DrmRotationStrategy choose_drm_rotation_strategy(uint64_t requested_drm_rot,
 
 // NAMESPACE_OK: matches choose_drm_rotation_strategy, this file's existing global-scope function
 LvglRotationAction lvgl_rotation_action_for(DrmRotationStrategy strategy) {
-    if (strategy == DrmRotationStrategy::SOFTWARE) {
+    if (strategy == DrmRotationStrategy::GPU || strategy == DrmRotationStrategy::SOFTWARE) {
         return LvglRotationAction::APPLY_REQUESTED;
     }
     return LvglRotationAction::CLEAR_TO_ZERO;

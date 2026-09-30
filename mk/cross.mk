@@ -177,6 +177,8 @@ else ifeq ($(PLATFORM_TARGET),pi32)
     BUILD_SUBDIR := pi32
     STRIP_BINARY := yes
     FONT_TIERS := all
+    # Also link helix-screen-egl, which the launcher probes for and prefers.
+    ENABLE_EGL_RUNG := yes
 
 else ifeq ($(PLATFORM_TARGET),pi32-fbdev)
     # -------------------------------------------------------------------------
@@ -226,6 +228,7 @@ else ifeq ($(PLATFORM_TARGET),pi32-both)
     STRIP_BINARY := yes
     FONT_TIERS := all
     PI_DUAL_LINK := yes
+    ENABLE_EGL_RUNG := yes
 
 else ifeq ($(PLATFORM_TARGET),ad5m)
     # -------------------------------------------------------------------------
@@ -3080,6 +3083,7 @@ release-pi32: | build/pi32/bin/helix-screen build/pi32/bin/helix-splash build/pi
 	@if [ -f build/pi32/bin/helix-watchdog ]; then cp build/pi32/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
 	@if [ -f build/pi32/lib/libhelix-bluetooth.so ]; then cp build/pi32/lib/libhelix-bluetooth.so $(RELEASE_DIR)/helixscreen/bin/; fi
 	@if [ -f build/pi32-fbdev/bin/helix-screen ]; then cp build/pi32-fbdev/bin/helix-screen $(RELEASE_DIR)/helixscreen/bin/helix-screen-fbdev; fi
+	@if [ -f build/pi32/bin/helix-screen-egl ]; then cp build/pi32/bin/helix-screen-egl $(RELEASE_DIR)/helixscreen/bin/; fi
 	@cp scripts/helix-launcher.sh $(RELEASE_DIR)/helixscreen/bin/
 	$(call release-copy-xml-config,$(RELEASE_DIR)/helixscreen)
 	@# Remove any personal config — release ships template only (installer copies it on first run)

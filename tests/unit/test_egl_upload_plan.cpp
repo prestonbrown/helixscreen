@@ -158,20 +158,16 @@ TEST_CASE("EGL upload: an area wholly outside the texture sends nothing", "[disp
     CHECK(plan(s, false, rect(0, -20, 10, -1)) == LV_LINUX_DRM_EGL_UPLOAD_NONE);
 }
 
-TEST_CASE("EGL upload: only an unrotated direct-mode buffer holds areas in place",
-          "[display][egl_upload]") {
-    CHECK(lv_linux_drm_egl_upload_in_place(LV_DISPLAY_RENDER_MODE_DIRECT, LV_DISPLAY_ROTATION_0));
+TEST_CASE(
+    "EGL upload: only a direct-mode buffer drawn without matrix rotation holds areas in place",
+    "[display][egl_upload]") {
+    // A display rotation alone keeps areas in place: LVGL draws at the rotated
+    // resolution the texture is reshaped to, and the presentation pass rotates.
+    CHECK(lv_linux_drm_egl_upload_in_place(LV_DISPLAY_RENDER_MODE_DIRECT, false));
 
-    CHECK_FALSE(
-        lv_linux_drm_egl_upload_in_place(LV_DISPLAY_RENDER_MODE_DIRECT, LV_DISPLAY_ROTATION_90));
-    CHECK_FALSE(
-        lv_linux_drm_egl_upload_in_place(LV_DISPLAY_RENDER_MODE_DIRECT, LV_DISPLAY_ROTATION_180));
-    CHECK_FALSE(
-        lv_linux_drm_egl_upload_in_place(LV_DISPLAY_RENDER_MODE_DIRECT, LV_DISPLAY_ROTATION_270));
-    CHECK_FALSE(
-        lv_linux_drm_egl_upload_in_place(LV_DISPLAY_RENDER_MODE_FULL, LV_DISPLAY_ROTATION_0));
-    CHECK_FALSE(
-        lv_linux_drm_egl_upload_in_place(LV_DISPLAY_RENDER_MODE_PARTIAL, LV_DISPLAY_ROTATION_0));
+    CHECK_FALSE(lv_linux_drm_egl_upload_in_place(LV_DISPLAY_RENDER_MODE_DIRECT, true));
+    CHECK_FALSE(lv_linux_drm_egl_upload_in_place(LV_DISPLAY_RENDER_MODE_FULL, false));
+    CHECK_FALSE(lv_linux_drm_egl_upload_in_place(LV_DISPLAY_RENDER_MODE_PARTIAL, false));
 }
 
 TEST_CASE("EGL upload: an area starts a stride per row and a pixel per column into the buffer",

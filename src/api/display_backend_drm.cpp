@@ -1177,16 +1177,16 @@ void DisplayBackendDRM::set_display_rotation(lv_display_t* disp, lv_display_rota
         break;
     }
 
-    // Query hardware capabilities and choose strategy.
-    // lv_linux_drm_get_plane_rotation_mask() and lv_linux_drm_set_rotation()
-    // only compile when LV_LINUX_DRM_USE_EGL is 0 (the dumb-buffer driver), so
-    // force SOFTWARE fallback when EGL is in use.
+    // Query plane capabilities and choose the cheapest available strategy.
+    // EGL rotates the completed display texture in its OpenGL ES presentation
+    // pass, so it does not need the plane's rotation property.
 #if LV_LINUX_DRM_USE_EGL
     uint64_t supported_mask = 0;
 #else
     uint64_t supported_mask = lv_linux_drm_get_plane_rotation_mask(disp);
 #endif
-    auto strategy = choose_drm_rotation_strategy(drm_rot, supported_mask);
+    auto strategy =
+        choose_drm_rotation_strategy(drm_rot, supported_mask, LV_LINUX_DRM_USE_EGL != 0);
 
     if (drm_rotation_needs_full_render(strategy)) {
         lv_display_set_render_mode(disp, LV_DISPLAY_RENDER_MODE_FULL);
@@ -1211,6 +1211,9 @@ void DisplayBackendDRM::set_display_rotation(lv_display_t* disp, lv_display_rota
         spdlog::info("[DRM Backend] Plane rotation {}° (LVGL left unrotated, touch follows)",
                      plane_rotation_degrees_);
 #endif
+    } else if (strategy == DrmRotationStrategy::GPU) {
+        spdlog::info("[DRM Backend] GPU presentation rotation {}° (OpenGL ES)",
+                     static_cast<int>(rot) * 90);
     } else if (strategy == DrmRotationStrategy::SOFTWARE) {
         spdlog::info("[DRM Backend] Software rotation {}° (plane supports 0x{:X})",
                      static_cast<int>(rot) * 90, supported_mask);
@@ -1232,14 +1235,6 @@ bool DisplayBackendDRM::supports_hardware_rotation(lv_display_rotation_t rot) co
         return true;
     }
 
-    if (!plane_may_own_rotation()) {
-        return false;
-    }
-
-    if (display_ == nullptr) {
-        return false;
-    }
-
     uint64_t drm_rot = DRM_MODE_ROTATE_0;
     switch (rot) {
     case LV_DISPLAY_ROTATION_90:
@@ -1256,15 +1251,13 @@ bool DisplayBackendDRM::supports_hardware_rotation(lv_display_rotation_t rot) co
     }
 
 #if LV_LINUX_DRM_USE_EGL
-    // The EGL driver compiles out lv_linux_drm_set_rotation(), so no plane can
-    // own rotation on this build whatever the hardware advertises. Saying so
-    // is what sends DisplayManager into try_drm_to_fbdev_fallback(), which
-    // rebuilds the display and the input devices on fbdev in-process: the panel
-    // does rotate, it just stops being a DRM display while it does. A false
-    // here is the mechanism that makes rotation work, not a gap in it
-    // (prestonbrown/helixscreen#1581).
-    return false;
+    // The OpenGL ES presentation pass rotates the completed display texture,
+    // including 90°/270°, without depending on a KMS plane rotation property.
+    return choose_drm_rotation_strategy(drm_rot, 0, true) == DrmRotationStrategy::GPU;
 #else
+    if (!plane_may_own_rotation() || display_ == nullptr) {
+        return false;
+    }
     uint64_t supported_mask =
         lv_linux_drm_get_plane_rotation_mask(const_cast<lv_display_t*>(display_));
     return choose_drm_rotation_strategy(drm_rot, supported_mask) == DrmRotationStrategy::HARDWARE;

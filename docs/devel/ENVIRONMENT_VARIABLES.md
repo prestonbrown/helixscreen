@@ -183,7 +183,7 @@ sudo systemctl restart helixscreen
 
 **Supported hardware for `drm`:** Raspberry Pi 3B+, Pi 4, Pi 5, BTT CB1 (and other Allwinner H616 boards). Requires a display connected via HDMI or DSI — SPI displays are not supported with `drm`. If the `drm` backend fails to initialize, HelixScreen falls back to `fbdev` automatically.
 
-**Automatic fbdev fallback for rotation:** When display rotation is configured (e.g., `"rotate": 180`) and the DRM plane does not support hardware rotation (common on Pi DSI displays where the plane rotation mask is `0x0`), HelixScreen automatically switches from `drm` to `fbdev` before applying rotation. The fbdev backend uses LVGL's native software rotation which is flicker-free — unlike the DRM path which must do CPU pixel reversal in the flush callback, risking visible tearing. This fallback is transparent and logged as:
+**Rotation paths:** A GPU-accelerated DRM/EGL build rotates the completed display texture in its OpenGL ES presentation pass, including 90° and 270°, and keeps the DRM backend active. A dumb-buffer DRM build uses the KMS plane when it supports the requested angle. If neither path is available, HelixScreen switches to `fbdev` and uses LVGL's software rotation. That fallback is logged as:
 ```
 DRM lacks hardware rotation for 180°, falling back to fbdev (flicker-free software rotation)
 ```
@@ -336,9 +336,9 @@ HELIX_DISPLAY_ROTATION=180 ./build/bin/helix-screen
 
 **Note:** Software rotation is only supported on embedded backends (fbdev/DRM). On SDL (desktop dev), rotation is logged as a warning and skipped due to LVGL's DIRECT render mode limitation.
 
-**Automatic backend switching:** When rotation is configured and the DRM backend cannot do hardware rotation, `DisplayManager` automatically switches to the fbdev backend before applying rotation. This means users get flicker-free rotation without needing to manually set `HELIX_DISPLAY_BACKEND=fbdev`. The DRM software rotation path (CPU pixel reversal in `drm_flush()`) still exists as a last resort if fbdev is unavailable.
+**Automatic backend switching:** DRM/EGL performs every supported rotation on the GPU and does not switch backends. A dumb-buffer DRM build switches to fbdev when its KMS plane cannot rotate to the requested angle. The DRM software rotation path remains a last resort for direct backend use.
 
-**Touch auto-rotation:** On fbdev, touch coordinates are automatically rotated to match the display rotation for non-USB-HID devices (e.g., Goodix, sun4i_ts). USB HID touchscreens (e.g., BTT HDMI) report logical coordinates natively and are not transformed. `HELIX_TOUCH_SWAP_AXES` is still available as a manual override for edge cases.
+**Touch auto-rotation:** On DRM/EGL and fbdev, LVGL rotates panel-attached absolute touch coordinates with the display. DRM plane rotation uses HelixScreen's pointer-frame hook because LVGL remains unrotated on that path. Relative mouse positions are protected from a second transform. `HELIX_TOUCH_SWAP_AXES` remains available as a manual override for edge cases.
 
 ### `HELIX_SHOW_ROTATION_SETTING`
 

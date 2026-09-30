@@ -530,7 +530,7 @@ class DisplayBackend {
      * to decide whether to fall back to a different backend.
      *
      * @param rot Requested rotation
-     * @return true if hardware rotation is supported, false if software needed
+     * @return true if a GPU or display-plane path is available, false if CPU rotation is needed
      */
     virtual bool supports_hardware_rotation(lv_display_rotation_t rot) const {
         (void)rot;
@@ -727,7 +727,7 @@ class DisplayBackend {
  *
  *  - `--rotate` / HELIX_DISPLAY_ROTATION with no `/display/rotate` key: the
  *    display is rotated and the key reads 0.
- *  - A DRM→fbdev rotation fallback that fails (DSI/EGL), or any rotation
+ *  - A DRM→fbdev rotation fallback that fails on a non-EGL build, or any rotation
  *    asked for on SDL: the key is non-zero and the display is NOT rotated -
  *    DisplayManager logs "Continuing without rotation" and leaves it at 0.
  *

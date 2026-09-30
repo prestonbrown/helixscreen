@@ -3,7 +3,7 @@
 
 /**
  * @file drm_rotation_strategy.h
- * @brief DRM plane rotation decision logic (hardware vs software fallback)
+ * @brief DRM rotation decision logic (GPU, display plane, or software fallback)
  *
  * Pure logic, no DRM dependencies — can be tested without hardware.
  * Used by DisplayBackendDRM::set_display_rotation() to decide whether the DRM
@@ -17,17 +17,15 @@
 /**
  * @brief Strategy for applying display rotation on DRM backend
  *
- * HARDWARE is reachable only for 180°, only on a plane whose rotation mask
- * advertises it, and only under the dumb-buffer driver: the EGL build compiles the
- * plane rotation entry points out, so it reports no hardware rotation at all. 90°
- * and 270° swap width and height, which the plane path accounts for nowhere, so
- * they are always SOFTWARE. SOFTWARE is chosen for a request the plane cannot
- * honour, which DisplayManager answers by swapping in fbdev before this backend is
- * asked to apply it - so on any board without a capable plane, every nonzero angle
- * still rotates through fbdev.
+ * GPU lets the DRM/EGL presentation shader rotate the completed display texture.
+ * HARDWARE is the DRM plane path and is reachable only for an angle whose plane
+ * rotation mask advertises it. 90° and 270° swap width and height, which the plane
+ * path accounts for nowhere, so without EGL they are SOFTWARE. DisplayManager
+ * answers SOFTWARE by swapping in fbdev before this backend is asked to apply it.
  */
 enum class DrmRotationStrategy {
     NONE,     ///< No rotation needed (0°)
+    GPU,      ///< Rotate the completed display texture in the DRM/EGL presentation pass
     HARDWARE, ///< Use DRM plane rotation property; LVGL's own rotation is cleared to 0
     SOFTWARE  ///< LVGL owns rotation via lv_display_set_rotation(); the DRM flush
               ///< callback reverses pixels in place (patches/lvgl-drm-flush-rotation.patch)
@@ -39,18 +37,21 @@ enum class DrmRotationStrategy {
  * Examines the requested rotation against the DRM plane's supported
  * rotation bitmask to choose the best strategy:
  * - 0° always returns NONE (no rotation needed)
- * - 90° and 270° always return SOFTWARE: the plane keeps the panel's own width
- *   and height, so it cannot carry an angle that swaps them
+ * - With EGL presentation, every nonzero angle returns GPU
+ * - Otherwise 90° and 270° return SOFTWARE: the plane keeps the panel's own
+ *   width and height, so it cannot carry an angle that swaps them
  * - 180° returns HARDWARE if the plane supports it
  * - Otherwise returns SOFTWARE (LVGL matrix rotation fallback)
  *
  * @param requested_drm_rot  DRM_MODE_ROTATE_* constant for the desired angle
  * @param supported_mask     Bitmask of supported rotations from the plane property
  *                           (0 = no rotation property exists)
+ * @param egl_presentation   Whether DRM presents through the OpenGL ES texture pass
  * @return Strategy to use for this rotation
  */
 DrmRotationStrategy choose_drm_rotation_strategy(uint64_t requested_drm_rot,
-                                                 uint64_t supported_mask);
+                                                 uint64_t supported_mask,
+                                                 bool egl_presentation = false);
 
 /**
  * @brief A pointer sample in the panel's own coordinate frame
@@ -123,7 +124,8 @@ LvglRotationAction lvgl_rotation_action_for(DrmRotationStrategy strategy);
  * @brief Whether the display must render whole frames for this strategy
  *
  * The software path reverses the pixel array in place in the flush callback,
- * which needs the entire buffer present.
+ * which needs the entire buffer present. GPU rotation changes only presentation
+ * geometry and keeps the existing render mode.
  *
  * @param strategy  Result of choose_drm_rotation_strategy()
  * @return true when LV_DISPLAY_RENDER_MODE_FULL is required

@@ -45,6 +45,8 @@ LVGL_PATCHED_FILES := \
 	src/drivers/opengles/lv_opengles_egl.h \
 	src/drivers/opengles/lv_opengles_driver.c \
 	src/drivers/opengles/lv_opengles_driver.h \
+	src/drivers/opengles/lv_opengles_texture.c \
+	src/drivers/opengles/lv_opengles_texture_private.h \
 	src/drivers/opengles/assets/lv_opengles_shader.c \
 	src/drivers/evdev/lv_evdev.c \
 	src/drivers/evdev/lv_evdev.h \
@@ -562,6 +564,8 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(APPLIED_STAMP_ID)
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-egl-vsync.patch "LVGL EGL vsync setter patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-egl-partial-upload.patch "LVGL EGL partial upload patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-egl-xrgb-shader.patch "LVGL EGL XRGB display shader patch"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-opengles-texture-align.patch "LVGL OpenGL ES texture buffer alignment patch"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-opengles-quarter-turn-direction.patch "LVGL OpenGL ES quarter-turn direction patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_texture_cache_null_guard.patch "LVGL texture cache NULL guard patch (upstream ec053a0)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_sdl_stride_fix.patch "LVGL draw_sdl aligned stride fix"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_display_sync_cb.patch "LVGL display sync callback patch (upstream 4170bcb)"

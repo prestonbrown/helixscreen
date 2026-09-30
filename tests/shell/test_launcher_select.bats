@@ -24,5 +24,5 @@
     # pass. Pin the count so a vanished test is a red, not a quieter green.
     run bash tests/test_launcher_select.sh
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Total tests: 11"* ]]
+    [[ "$output" == *"Total tests: 13"* ]]
 }

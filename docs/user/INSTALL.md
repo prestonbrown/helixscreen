@@ -391,7 +391,7 @@ The BTT Pad 7 and similar "Klipper Pad" devices are complete units, with the sin
 
 ### Screen Rotation
 
-**Prefer rotating the display itself when it can.** If your monitor has a rotation option (usually a button or an OSD menu), use it. On a Pi with a DSI panel, the kernel can rotate the panel in hardware: add `video=DSI-1:panel_orientation=upside_down` to /boot/firmware/cmdline.txt (HelixScreen detects this automatically on first boot; see [TROUBLESHOOTING: display upside down or rotated](TROUBLESHOOTING.md#display-upside-down-or-rotated)). Rotation done by the display is free. HelixScreen's `rotate` setting below is software rotation: it costs CPU on every frame, and on the Pi it also switches the display to the framebuffer backend (see the note on backends below). Use it when your display cannot rotate itself.
+**Prefer rotating the display itself when it can.** If your monitor has a rotation option (usually a button or an OSD menu), use it. On a Pi with a DSI panel, the kernel can rotate the panel in hardware: add `video=DSI-1:panel_orientation=upside_down` to /boot/firmware/cmdline.txt (HelixScreen detects this automatically on first boot; see [TROUBLESHOOTING: display upside down or rotated](TROUBLESHOOTING.md#display-upside-down-or-rotated)). Rotation done by the display is free. HelixScreen can otherwise rotate the image itself; GPU-enabled builds do this efficiently, while other builds may use the framebuffer backend.
 
 To rotate in software (e.g., a screen mounted upside-down that has no rotation of its own), add to your `settings.json` (typically at `~/helixscreen/config/settings.json`):
 
@@ -407,13 +407,13 @@ Valid values: `0`, `90`, `180`, `270`. Restart HelixScreen after changing.
 
 Touch coordinates are automatically adjusted to match the rotation: no separate touch configuration is needed.
 
-**Rotation and display backends:** When rotation is configured on Raspberry Pi, HelixScreen checks whether your display hardware supports rotating the image directly. Most DSI/HDMI displays on Pi do not support hardware rotation. In that case, HelixScreen automatically switches from the DRM (GPU) backend to the framebuffer backend, which handles software rotation without any screen flicker. This switch is transparent: no manual configuration needed.
+**Rotation and display backends:** GPU-enabled DRM builds rotate the final image on the GPU and stay on DRM, even when the display plane cannot rotate. Other DRM builds use display-plane rotation when available and transparently switch to the framebuffer backend otherwise.
 
 If you experience any display issues with rotation, you can also force the framebuffer backend manually by setting `HELIX_DISPLAY_BACKEND=fbdev` (see below).
 
 ### Display Backends: DRM vs Framebuffer
 
-By default, HelixScreen uses the DRM/KMS backend when available. DRM presents each frame with a vsynced page flip instead of a plain memory copy, which avoids tearing; rendering itself is CPU-based on both backends. On boards where DRM is not supported, it falls back to the framebuffer (`fbdev` backend), which copies each frame directly with no vsync.
+By default, HelixScreen uses the DRM/KMS backend when available. DRM presents each frame with a vsynced page flip instead of a plain memory copy, which avoids tearing. GPU-enabled builds also accelerate rendering and rotation. On boards where DRM is not supported, HelixScreen falls back to the framebuffer (`fbdev` backend), which copies each frame directly with no vsync.
 
 **When rotation is configured**, HelixScreen may automatically switch to the fbdev backend if the display hardware doesn't support hardware rotation. This is normal and provides flicker-free rotation.
 

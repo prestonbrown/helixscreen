@@ -1,0 +1,107 @@
+diff --git a/src/drivers/opengles/lv_opengles_texture.c b/src/drivers/opengles/lv_opengles_texture.c
+index 95fc2a2a9..3ddaa7794 100644
+--- a/src/drivers/opengles/lv_opengles_texture.c
++++ b/src/drivers/opengles/lv_opengles_texture.c
+@@ -18,6 +18,7 @@
+ #include "lv_opengles_private.h"
+ #include "lv_opengles_texture_private.h"
+ #include "../../display/lv_display_private.h"
++#include "../../draw/lv_draw_buf.h"
+ 
+ #include <stdlib.h>
+ 
+@@ -37,6 +38,9 @@ static lv_display_t * lv_opengles_texture_create_common(int32_t w, int32_t h);
+ static lv_result_t lv_opengles_texture_create_draw_buffers(lv_opengles_texture_t * texture, lv_display_t * display);
+ static void lv_opengles_texture_attach_to_display(lv_opengles_texture_t * texture, lv_display_t * disp);
+ static unsigned int create_texture(int32_t w, int32_t h);
++#if !LV_USE_DRAW_OPENGLES
++static uint8_t * alloc_draw_buffer(lv_color_format_t cf, uint32_t size, void ** alloc);
++#endif
+ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map);
+ static void release_disp_cb(lv_event_t * e);
+ 
+@@ -100,16 +104,20 @@ lv_result_t lv_opengles_texture_reshape(lv_opengles_texture_t * texture, lv_disp
+ #else
+     uint32_t stride = lv_draw_buf_width_to_stride(width, lv_display_get_color_format(display));
+     uint32_t buf_size = stride * height;
+-    uint8_t * buffer = lv_realloc(texture->fb1, buf_size);
++    /*A reshaped texture is uploaded whole before it is shown, so the old pixels need not survive*/
++    void * alloc;
++    uint8_t * buffer = alloc_draw_buffer(lv_display_get_color_format(display), buf_size, &alloc);
+     LV_ASSERT_MALLOC(buffer);
+     if(!buffer) {
+         GL_CALL(glDeleteTextures(1, &new_texture));
+         LV_LOG_ERROR("Failed to reshape texture. Couldn't resize buffer");
+         return LV_RESULT_INVALID;
+     }
+-    texture->fb1 = buffer;
+ 
+-    lv_display_set_buffers(display, texture->fb1, NULL, buf_size, lv_display_get_render_mode(display));
++    lv_display_set_buffers(display, buffer, NULL, buf_size, lv_display_get_render_mode(display));
++    lv_free(texture->fb1_alloc);
++    texture->fb1 = buffer;
++    texture->fb1_alloc = alloc;
+ #endif /*LV_USE_DRAW_OPENGLES*/
+ 
+     if(texture->is_texture_owner && texture->texture_id != 0) {
+@@ -141,7 +149,7 @@ static lv_result_t lv_opengles_texture_create_draw_buffers(lv_opengles_texture_t
+ #else
+     uint32_t stride = lv_draw_buf_width_to_stride(w, lv_display_get_color_format(display));
+     uint32_t buf_size = stride * h;
+-    texture->fb1 = lv_malloc(buf_size);
++    texture->fb1 = alloc_draw_buffer(lv_display_get_color_format(display), buf_size, &texture->fb1_alloc);
+     LV_ASSERT_MALLOC(texture->fb1);
+     if(!texture->fb1) {
+         return LV_RESULT_INVALID;
+@@ -154,7 +162,9 @@ static lv_result_t lv_opengles_texture_create_draw_buffers(lv_opengles_texture_t
+ void lv_opengles_texture_deinit(lv_opengles_texture_t * texture)
+ {
+ #if !LV_USE_DRAW_OPENGLES
+-    lv_free(texture->fb1);
++    lv_free(texture->fb1_alloc);
++    texture->fb1 = NULL;
++    texture->fb1_alloc = NULL;
+ #endif /*!LV_USE_DRAW_OPENGLES*/
+ 
+     if(texture->is_texture_owner && texture->texture_id != 0) {
+@@ -216,6 +226,26 @@ static lv_display_t * lv_opengles_texture_create_common(int32_t w, int32_t h)
+     return disp;
+ }
+ 
++#if !LV_USE_DRAW_OPENGLES
++/**
++ * Allocate a draw buffer aligned the way lv_display_set_buffers() requires. malloc aligns
++ * to 8 bytes on 32-bit targets, below LV_DRAW_BUF_ALIGN, so the block is over-allocated
++ * and the returned pointer placed inside it.
++ * @param cf     the display's color format
++ * @param size   bytes the buffer must hold
++ * @param alloc  receives the block to pass to lv_free()
++ * @return       the aligned buffer, or NULL when the allocation fails
++ */
++static uint8_t * alloc_draw_buffer(lv_color_format_t cf, uint32_t size, void ** alloc)
++{
++    *alloc = lv_malloc(size + LV_DRAW_BUF_ALIGN - 1);
++    if(!*alloc) {
++        return NULL;
++    }
++    return lv_draw_buf_align(*alloc, cf);
++}
++#endif /*!LV_USE_DRAW_OPENGLES*/
++
+ static unsigned int create_texture(int32_t w, int32_t h)
+ {
+     unsigned int texture;
+diff --git a/src/drivers/opengles/lv_opengles_texture_private.h b/src/drivers/opengles/lv_opengles_texture_private.h
+index 8a957a615..84d0bd5e9 100644
+--- a/src/drivers/opengles/lv_opengles_texture_private.h
++++ b/src/drivers/opengles/lv_opengles_texture_private.h
+@@ -31,7 +31,8 @@ extern "C" {
+ typedef struct {
+     unsigned int texture_id;
+ #if !LV_USE_DRAW_OPENGLES
+-    uint8_t * fb1;
++    uint8_t * fb1;          /**< draw buffer, aligned to LV_DRAW_BUF_ALIGN */
++    void * fb1_alloc;       /**< allocation fb1 points into; the pointer to free */
+ #endif /*!LV_USE_DRAW_OPENGLES*/
+     bool is_texture_owner;
+ } lv_opengles_texture_t;
