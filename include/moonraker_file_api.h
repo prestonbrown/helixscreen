@@ -19,14 +19,21 @@
 #include "moonraker_error.h"
 #include "moonraker_types.h"
 
+#include <chrono>
 #include <functional>
+#include <mutex>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace helix {
 
 // Forward declaration
 class IMoonrakerClient;
+
+// Test seam (tests/test_helpers/moonraker_file_api_test_access.h)
+class MoonrakerFileApiTestAccess;
 
 /**
  * @brief Parse a server.files.roots response into FileRoot entries
@@ -236,4 +243,23 @@ class MoonrakerFileAPI : public IFilesAPI {
      * @brief Parse metadata response from server.files.metadata
      */
     FileMetadata parse_file_metadata(const json& response);
+
+  private:
+    friend class helix::MoonrakerFileApiTestAccess;
+
+    /**
+     * @brief Single-flight gate for server.files.metascan
+     *
+     * The print-select panel re-triggers metascan on every metadata miss (list
+     * refresh, detail view, activation retry), and Moonraker queues each
+     * duplicate server-side; on a host that parses slowly the backlog starves
+     * the UI's own requests. One scan per file at a time: duplicates are
+     * dropped, and every completion - success, error or client timeout - arms
+     * a cooldown so a file the parser keeps failing is not rescanned on every
+     * panel visit. Guarded by a mutex because calls arrive on the UI thread
+     * while completion callbacks fire on the WebSocket thread.
+     */
+    mutable std::mutex metascan_gate_mutex_;
+    std::unordered_set<std::string> metascan_in_flight_;
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> metascan_cooldown_until_;
 };
