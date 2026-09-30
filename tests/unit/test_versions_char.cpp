@@ -240,7 +240,9 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
     PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
-    auto klipper = [&] { return std::string(lv_subject_get_string(state.get_klipper_version_subject())); };
+    auto klipper = [&] {
+        return std::string(lv_subject_get_string(state.get_klipper_version_subject()));
+    };
     auto moonraker = [&] {
         return std::string(lv_subject_get_string(state.get_moonraker_version_subject()));
     };
@@ -281,6 +283,22 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
         state.set_klipper_version("  v0.12.0  ");
         UpdateQueueTestAccess::drain(UpdateQueue::instance());
         REQUIRE(klipper() == "v0.12.0");
+    }
+
+    // The raw string is what the debug bundle ships: it must show the exact
+    // sentinel the host sent, not the localized label the subject collapses
+    // it to, so a "?" fork is distinguishable from a missing field.
+    SECTION("raw accessor retains what the host sent, sentinels included") {
+        REQUIRE(state.get_klipper_version_raw().empty()); // nothing set yet this section
+
+        state.set_klipper_version("?");
+        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        REQUIRE(klipper() == "Unknown");
+        REQUIRE(state.get_klipper_version_raw() == "?");
+
+        state.set_klipper_version("  v0.12.0  ");
+        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        REQUIRE(state.get_klipper_version_raw() == "  v0.12.0  ");
     }
 }
 

@@ -477,10 +477,12 @@ PrinterSnapshot DebugBundleCollector::snapshot_printer_state() {
         // that set_printer_type() reassigns without a mutex.
         snap.model = ps.get_printer_type();
 
-        if (auto* kv_subj = ps.get_klipper_version_subject()) {
-            const char* kv = lv_subject_get_string(kv_subj);
-            if (kv && kv[0] != '\0')
-                snap.klipper_version = kv;
+        // The raw string, not the display subject: the subject localizes
+        // placeholder versions ("?"/"unknown" from some vendor forks) into a
+        // translated label, which tells a bundle reader nothing about what
+        // the host actually reported.
+        if (!ps.get_klipper_version_raw().empty()) {
+            snap.klipper_version = ps.get_klipper_version_raw();
         }
         if (auto* conn_subj = ps.get_printer_connection_state_subject())
             snap.connection_state = lv_subject_get_int(conn_subj);

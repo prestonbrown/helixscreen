@@ -244,6 +244,7 @@ class PrinterStateTestAccess {
         PrinterCompositeVisibilityStateTestAccess::clear_data(ps.composite_visibility_state_);
         PrinterNetworkStateTestAccess::clear_data(ps.network_state_);
         PrinterPrintStateTestAccess::reset_extra(ps.print_domain_);
+        ps.versions_state_.clear_data();
 
         // --- PrinterState's own members ---------------------------------------
         ps.printer_type_.clear();
