@@ -89,6 +89,7 @@ void PrinterVersionsState::deinit_subjects() {
 }
 
 void PrinterVersionsState::set_klipper_version_internal(const std::string& version) {
+    klipper_version_raw_ = version;
     lv_subject_copy_string(&klipper_version_, display_version(version).c_str());
     spdlog::debug("[PrinterVersionsState] Klipper version set: {}", version);
 }

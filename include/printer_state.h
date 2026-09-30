@@ -1702,6 +1702,12 @@ class PrinterState {
         return versions_state_.get_klipper_version_subject();
     }
 
+    /// Raw klipper version as the host reported it, for data consumers
+    /// (debug bundle); the subject carries the localized display form.
+    const std::string& get_klipper_version_raw() const {
+        return versions_state_.get_klipper_version_raw();
+    }
+
     /**
      * @brief Get Moonraker version subject for XML binding
      */

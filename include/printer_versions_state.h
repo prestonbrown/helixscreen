@@ -105,6 +105,25 @@ class PrinterVersionsState {
         return &klipper_version_;
     }
 
+    /**
+     * @brief Raw klipper version exactly as the host reported it
+     *
+     * The subject carries the DISPLAY form, where placeholders collapse to a
+     * translated "Unknown" label. Data consumers (debug bundle) need the raw
+     * string: "?" vs empty vs a real version distinguishes a placeholder
+     * fork from a missing field from a real report.
+     */
+    const std::string& get_klipper_version_raw() const {
+        return klipper_version_raw_;
+    }
+
+    /// Clear plain (non-subject) data members. Called by
+    /// PrinterStateTestAccess::clear_data so one test's raw version string
+    /// does not leak into the next on the shared singleton.
+    void clear_data() {
+        klipper_version_raw_.clear();
+    }
+
     /// 1 when this Moonraker is below MIN_MOONRAKER_VERSION, 0 otherwise.
     /// Derived in set_moonraker_version_internal() from the RAW string, before
     /// the display form drops what a comparison needs.
@@ -140,6 +159,9 @@ class PrinterVersionsState {
     char klipper_version_buf_[64]{};
     char moonraker_version_buf_[64]{};
     char os_version_buf_[64]{};
+
+    // Raw form of the klipper version, as reported (see get_klipper_version_raw)
+    std::string klipper_version_raw_;
 };
 
 } // namespace helix
