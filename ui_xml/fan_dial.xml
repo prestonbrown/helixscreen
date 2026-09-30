@@ -15,7 +15,7 @@
         extends="ui_card" width="#fan_card_base_width" height="#fan_card_height" style_min_width="#fan_card_min_width"
         style_max_width="#fan_card_max_width" flex_flow="column" style_flex_main_place="start"
         style_flex_cross_place="center" style_pad_all="#space_sm" style_pad_bottom="#space_xs" style_pad_gap="0"
-        scrollable="false" style_clip_content="false">
+        scrollable="false">
     <!-- Fan name label at top (hidden via C++ when label_bottom=true) — non-clickable for event bubble -->
     <text_small name="name_label" text="$fan_name" clickable="false" event_bubble="true"/>
     <!-- Arc dial core - shared component with arc + icon + speed label -->
