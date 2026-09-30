@@ -20,6 +20,7 @@
 #include "../../include/ui_print_select_usb_source.h"
 #include "../../lvgl/lvgl.h"
 #include "../test_helpers/moonraker_file_api_test_access.h"
+#include "../test_helpers/scoped_env.h"
 #include "../ui_test_utils.h"
 
 #include <atomic>
@@ -184,11 +185,19 @@ TEST_CASE_METHOD(MetadataAPITestFixture, "metascan_file drops a duplicate while 
     prime_last_send(*this);
 
     bool success_called = false;
+    bool error_called = false;
     api->files().metascan_file(
         "dup.gcode", [&](const FileMetadata&) { success_called = true; },
-        [](const MoonrakerError&) {});
+        [&](const MoonrakerError& e) {
+            error_called = true;
+            CHECK(e.get_type_string() == "NOT_READY");
+        });
 
+    // Nothing sent, but the caller is still answered: the panel's error path
+    // runs its gcode-extraction fallback, so a suppressed call must not leave
+    // the card waiting on a callback that never comes.
     REQUIRE_FALSE(success_called);
+    REQUIRE(error_called);
     REQUIRE(mock_client.last_send_method() == "server.files.metadata"); // nothing sent
 }
 
@@ -206,11 +215,13 @@ TEST_CASE_METHOD(MetadataAPITestFixture,
 
     prime_last_send(*this);
     success_called = false;
+    bool suppressed_error = false;
     api->files().metascan_file(
         "cooldown.gcode", [&](const FileMetadata&) { success_called = true; },
-        [](const MoonrakerError&) {});
+        [&](const MoonrakerError&) { suppressed_error = true; });
 
     REQUIRE_FALSE(success_called);
+    REQUIRE(suppressed_error); // answered locally with the skip error
     REQUIRE(mock_client.last_send_method() == "server.files.metadata"); // nothing sent
 
     // Once the cooldown expires, the same file is scannable again.
@@ -223,13 +234,44 @@ TEST_CASE_METHOD(MetadataAPITestFixture,
     REQUIRE(mock_client.last_send_method() == "server.files.metascan");
 }
 
+TEST_CASE_METHOD(MetadataAPITestFixture,
+                 "metascan_file connection failure stays retryable - no cooldown",
+                 "[metadata][api][metascan]") {
+    // A metascan attempted while the link is down fails without reaching
+    // Moonraker (the client refuses the send and reports CONNECTION_LOST).
+    // Arming the cooldown here would suppress real scans for the whole TTL
+    // after the link returns, so the gate must clear in-flight only.
+    mock_client.disconnect();
+
+    bool error_called = false;
+    api->files().metascan_file(
+        "offline.gcode", [](const FileMetadata&) {},
+        [&](const MoonrakerError& e) {
+            error_called = true;
+            CHECK(e.get_type_string() == "CONNECTION_LOST");
+        });
+    REQUIRE(error_called);
+
+    REQUIRE_FALSE(MoonrakerFileApiTestAccess::metascan_in_flight(api->files(), "offline.gcode"));
+    REQUIRE_FALSE(MoonrakerFileApiTestAccess::metascan_in_cooldown(api->files(), "offline.gcode"));
+
+    // Link returns: the same file scans immediately.
+    mock_client.connect("ws://mock/websocket", []() {}, []() {});
+    bool success_called = false;
+    api->files().metascan_file(
+        "offline.gcode", [&](const FileMetadata&) { success_called = true; },
+        [](const MoonrakerError&) {});
+    REQUIRE(success_called);
+    REQUIRE(mock_client.last_send_method() == "server.files.metascan");
+}
+
 TEST_CASE_METHOD(MetadataAPITestFixture, "metascan_file error completion also arms the cooldown",
                  "[metadata][api][metascan]") {
     // HELIX_MOCK_METADATA_404 makes the mock fail every metascan with
-    // file-not-found — the shape of a vendor fork whose parser cannot read
-    // the file at all. Read per call by the mock, so the toggle is scoped to
-    // this request and invisible to the rest of the suite.
-    ::setenv("HELIX_MOCK_METADATA_404", "1", 1);
+    // file-not-found - the shape of a vendor fork whose parser cannot read
+    // the file at all. ScopedEnv restores the variable even when a REQUIRE
+    // between the set and the unset throws.
+    ScopedEnv mock_404("HELIX_MOCK_METADATA_404", "1");
     bool error_called = false;
     api->files().metascan_file(
         "unparsable.gcode", [](const FileMetadata&) {},
@@ -239,7 +281,7 @@ TEST_CASE_METHOD(MetadataAPITestFixture, "metascan_file error completion also ar
     // The toggle must be live per request: unset, the same file now scans
     // cleanly. A cached read would latch the first evaluation for the whole
     // process and this success would arrive as an error instead.
-    ::unsetenv("HELIX_MOCK_METADATA_404");
+    ScopedEnv mock_404_off("HELIX_MOCK_METADATA_404", nullptr);
     MoonrakerFileApiTestAccess::expire_metascan_cooldown(api->files(), "unparsable.gcode");
     bool recovered = false;
     api->files().metascan_file(

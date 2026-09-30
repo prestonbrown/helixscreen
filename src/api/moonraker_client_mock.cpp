@@ -1935,6 +1935,17 @@ RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const jso
     spdlog::trace("[MoonrakerClientMock] Mock send_jsonrpc: {} (with success/error callbacks)",
                   method);
 
+    // Mirror MoonrakerClient::send_jsonrpc: a request while disconnected is
+    // refused and reported to the error callback as CONNECTION_LOST, so code
+    // under test sees the same immediate failure production shows instead of
+    // a mock that keeps answering over a dead link.
+    if (!ready_to_send(method.c_str())) {
+        if (error_cb) {
+            error_cb(MoonrakerError::connection_lost(method));
+        }
+        return INVALID_REQUEST_ID;
+    }
+
     // Same fallback inference MoonrakerRequestTracker::send() applies, so a
     // handler asking rpc_error_policy::decide() gets the hardware answer.
     current_send_intent_ =
