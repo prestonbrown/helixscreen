@@ -28,12 +28,34 @@ and *none* of the 972 test TUs were in the JSON. ``tests/unit/test_json_utils.cp
 -- the TU that actually broke CI -- was one of the missing ones. A checker driven by
 ``compile_commands.json`` alone could not have caught the bug it exists to catch.
 
+Trusting a command
+------------------
+Several entries can describe one source file - one per object tree (``build/obj``,
+``build/obj-asan``, ``build/obj-tsan``), plus whatever ``compile_commands.json`` last
+recorded - and they need not agree. The freshest wins: the entry stamped with the
+tree's current ``-DHELIX_VERSION``, then the most recently written fragment. Entries
+whose source no longer exists are dropped; no command can describe a file that is gone.
+
+Even the freshest can be out of date. A fragment is rewritten only when its object is,
+and make rebuilds an object when a prerequisite is newer, not when the command line
+changes - so a version bump or a new ``-DHELIX_HAS_*`` leaves untouched trees frozen at
+older flags. Replaying one of those produces diagnostics about the *command*: a type
+behind a feature macro the entry never received reads as ``unknown type name``,
+indistinguishable in shape from a real clang finding. So an entry stamped with a
+version other than ``VERSION.txt``'s is skipped with a note, exactly as an entry that
+does not exist already is. Only a command that describes today's build gets to fail
+the gate, and then the failure is about the code.
+
 Argument handling: entries carry either an ``arguments`` array or a ``command``
-string. A command string is split with ``shlex.split`` and never handed to a shell.
-Re-parsing through a shell strips one layer of quoting and turns
-``-DHELIX_VERSION="0.99.118"`` into a bare ``0.99.118``, which clang then reports as
-``invalid suffix '.118' on floating constant`` -- phantom errors that look like real
-findings.
+string. A command string is never handed to a shell, and the database holds two
+legitimate spellings of a quoted define: this tree's writer records the
+post-expansion argv (``-DHELIX_VERSION="0.99.118"``), while fragments cloned from a
+newer tree's build (``scripts/setup-worktree.sh`` copies ``build/`` whole) carry the
+same define shell-quoted (``-DHELIX_VERSION='"1.1.0-beta.1"'``). Both must replay as
+``-DHELIX_VERSION="0.99.118"`` with the macro a string. Strip the quotes the wrong
+way for either shape and the version macro stops being a string - clang reports an
+``int`` where a ``const char*`` belongs, or an ``invalid suffix on a floating
+constant`` -- phantom errors that look like real findings.
 
 Which warnings fail
 -------------------
@@ -135,6 +157,17 @@ STANDALONE_DROPS = {"-c", "-MD", "-MMD", "-MP", "-M", "-MM", "--"}
 UNKNOWN_ARG_RE = re.compile(r"unknown argument:? '([^']+)'")
 DIAG_RE = re.compile(r"^(?P<file>[^:\n]+):(?P<line>\d+):(?P<col>\d+): (?P<kind>error|warning|fatal error): ")
 
+# A define whose value must reach the compiler carrying its own quotes,
+# shell-quoted on top: -DHELIX_VERSION='"1.1.0"' (the shape a newer tree's
+# emit-compile-command writes, present here whenever build/ was cloned from
+# one). The inner group keeps the double quotes the macro needs.
+DEFINE_SHELL_QUOTED_RE = re.compile(r"^(-D[A-Za-z_][A-Za-z0-9_]*=)'(.*)'$")
+
+# -DHELIX_VERSION=, not -DHELIX_VERSION_MAJOR=. The recorded value carries the
+# quote characters the compiler needs, shell-quoted on top, so the stamp
+# arrives as '"1.0.2"'; match any run of quotes.
+VERSION_DEFINE_RE = re.compile(r"-DHELIX_VERSION=[\"']*([0-9][^\"'\s]*)")
+
 
 # --------------------------------------------------------------------------------
 # Toolchain discovery
@@ -201,26 +234,23 @@ def find_clang() -> tuple[list[str], str] | tuple[None, str]:
 
 
 def entry_args(entry: dict) -> list[str]:
-    """Argument vector for a compile-command entry.
+    """Argument vector for a compile-command entry, in either recorded shape.
 
-    Never routed through a shell, and split with shlex rather than on whitespace.
-
-    The subtlety is which shlex mode. `emit-compile-command` (mk/rules.mk) builds
-    the string as CMD="$(CXX) $(CXXFLAGS) ..." -- make has already expanded
-    -DHELIX_VERSION=\\"0.99.118\\" and the shell assignment has already eaten the
-    backslashes, so what lands in the JSON is the *post-expansion argv*, joined by
-    spaces, in which the quote characters are literal parts of the argument. Posix
-    shlex would strip them a second time, leaving -DHELIX_VERSION=0.99.118, and
-    clang then reports `invalid suffix '.118' on floating constant` plus a cascade
-    of undeclared identifiers from -DINSTALLER_FILENAME=install.sh -- phantom
-    errors that read exactly like real clang findings. (Observed here before this
-    was fixed: 6+ bogus diagnostics in src/system/update_checker.cpp alone.)
+    Never routed through a shell. The database holds two spellings of a quoted
+    define: the post-expansion argv this tree's `emit-compile-command` writes
+    (-DHELIX_VERSION="0.99.118", the quote characters literal parts of the
+    argument) and the shell-quoted token a newer tree's writer produces
+    (-DHELIX_VERSION='"1.1.0-beta.1"'), present wherever build/ was cloned from
+    one. Both must hand the compiler -DHELIX_VERSION="0.99.118" or the macro
+    stops being a string and the replay manufactures diagnostics about the
+    recording, not the code.
 
     So: posix=False, which keeps quote characters inside tokens while still
     treating a quoted run of spaces as one token. A token that is quoted end to
     end is genuine shell quoting (a path with spaces, as a conventional
-    cmake/Bear-produced database would emit) and is unwrapped; a token with quotes
-    only in the interior is the -DFOO="bar" shape and is left exactly as is.
+    cmake/Bear-produced database would emit) and is unwrapped; shell-quoting
+    singles around a define's value are unwrapped too, leaving the double
+    quotes the compiler needs; every other quote character stays where it is.
     """
     args = entry.get("arguments")
     if args:
@@ -231,56 +261,131 @@ def entry_args(entry: dict) -> list[str]:
     for t in tokens:
         if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'" and t[0] not in t[1:-1]:
             t = t[1:-1]
+        m = DEFINE_SHELL_QUOTED_RE.match(t)
+        if m:
+            t = m.group(1) + m.group(2)
         out.append(t)
     return out
 
 
-def load_compile_db(root: str, frag_root: str | None = None) -> dict[str, dict]:
-    """file realpath -> entry, from .ccj fragments unioned over compile_commands.json."""
-    db: dict[str, dict] = {}
+def current_version(root: str) -> str | None:
+    """The version every command line the build issues right now carries."""
+    try:
+        with open(os.path.join(root, "VERSION.txt")) as fh:
+            return fh.read().strip() or None
+    except OSError:
+        return None
 
-    def absorb(entry: dict) -> None:
-        f = entry.get("file")
-        if not f:
-            return
-        directory = entry.get("directory", root)
-        path = f if os.path.isabs(f) else os.path.join(directory, f)
-        db[os.path.realpath(path)] = entry
+
+def recorded_version(entry: dict) -> str | None:
+    """The version stamped on this entry's command line, if it carries one."""
+    args = entry.get("arguments")
+    text = " ".join(str(a) for a in args) if args else str(entry.get("command", ""))
+    m = VERSION_DEFINE_RE.search(text)
+    return m.group(1) if m else None
+
+
+def is_stale(entry: dict, current: str | None) -> bool:
+    """True when this command was recorded by a build other than the current one.
+
+    Its flag set may therefore not describe how the file is compiled today, which
+    makes any diagnostic from replaying it a statement about the command rather
+    than about the code. An entry carrying no stamp at all is not stale:
+    submodule TUs (lib/lvgl, lib/libhv, generated font data) are built by their
+    own recipes and never see VERSION_DEFINES.
+    """
+    v = recorded_version(entry)
+    return v is not None and current is not None and v != current
+
+
+def freshness(entry: dict, current: str | None) -> tuple[int, float]:
+    """Sort key choosing between several entries for one source file.
+
+    The version stamp dominates: an entry matching the tree wins outright, however
+    long ago its fragment was written, because a fragment is rewritten only when
+    its object rebuilds. Recency only breaks ties the stamp cannot separate - the
+    parallel object trees, and unstamped submodule TUs. Unstamped outranks
+    stamped-with-another-version: an unstamped entry can still describe today's
+    build, a wrongly-stamped one provably does not.
+    """
+    v = recorded_version(entry)
+    if v is None:
+        rank = 1
+    elif current is None or v == current:
+        rank = 2
+    else:
+        rank = 0
+    return (rank, float(entry.get("_mtime", 0.0)))
+
+
+def load_compile_db(root: str, frag_root: str | None = None) -> dict[str, dict]:
+    """file realpath -> the entry describing how that file is built today.
+
+    Sources are read together and ranked rather than layered: an entry stamped
+    with the tree's current version beats one that is not, whichever file it
+    came from, which is what rescues a TU whose freshest fragment in the glob
+    order was recorded by an older build. ``_mtime`` breaks the remaining ties;
+    the JSON's entries carry none, so at equal version a fragment still wins,
+    being per-TU and written at compile time. Entries whose source no longer
+    exists are dropped: no command can describe a file that is gone.
+
+    frag_root redirects the fragment glob to a caller-supplied directory: the
+    meta-test builds a throwaway database there so its fixtures can never leak
+    into (or depend on) this tree's build/obj - a leftover fixture under
+    build/obj would be unioned into every real --all audit until something
+    cleaned it up.
+    """
+    entries: list[dict] = []
 
     cc_json = os.path.join(root, "compile_commands.json")
     if frag_root is None and os.path.exists(cc_json):
         try:
             with open(cc_json) as fh:
-                for entry in json.load(fh):
-                    absorb(entry)
+                entries.extend(e for e in json.load(fh) if isinstance(e, dict))
         except (OSError, ValueError):
             pass
 
-    # Fragments last: they are per-TU and written at compile time, so they are
-    # never staler than the aggregated JSON. frag_root redirects the fragment
-    # glob to a caller-supplied directory: the meta-test builds a throwaway
-    # database there so its fixtures can never leak into (or depend on) this
-    # tree's build/obj - a leftover fixture under build/obj would be unioned
-    # into every real --all audit until something cleaned it up.
     frag_dir = frag_root if frag_root else os.path.join(root, "build", "obj")
     for frag in glob.glob(os.path.join(frag_dir, "**", "*.ccj"), recursive=True):
         try:
             with open(frag) as fh:
-                absorb(json.load(fh))
+                entry = json.load(fh)
+            if not isinstance(entry, dict):
+                continue
+            entry["_mtime"] = os.path.getmtime(frag)
         except (OSError, ValueError):
             continue
+        entries.append(entry)
 
+    current = current_version(root)
+    db: dict[str, dict] = {}
+    for entry in entries:
+        f = entry.get("file")
+        if not f:
+            continue
+        directory = entry.get("directory", root)
+        path = f if os.path.isabs(f) else os.path.join(directory, f)
+        if not os.path.exists(path):
+            continue
+        key = os.path.realpath(path)
+        incumbent = db.get(key)
+        if incumbent is None or freshness(entry, current) > freshness(incumbent, current):
+            db[key] = entry
     return db
 
 
-def build_header_map(root: str) -> dict[str, set[str]]:
+def build_header_map(root: str, dep_root: str | None = None) -> dict[str, set[str]]:
     """header realpath -> set of TU realpaths, from the build's -MMD .d files.
 
     Exact and transitive: these list what the compiler actually opened. Note -MMD
     omits system headers, which is what we want -- we only resolve project headers.
+
+    dep_root redirects the glob the same way the fragment glob is redirected, so a
+    test can pin the header fan-out against its own dependency files.
     """
     mapping: dict[str, set[str]] = {}
-    for dep in glob.glob(os.path.join(root, "build", "obj", "**", "*.d"), recursive=True):
+    dep_dir = dep_root if dep_root else os.path.join(root, "build", "obj")
+    for dep in glob.glob(os.path.join(dep_dir, "**", "*.d"), recursive=True):
         try:
             with open(dep) as fh:
                 text = fh.read()
@@ -434,8 +539,27 @@ def changed_files(root: str) -> list[str]:
     return sorted(set(files))
 
 
-def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
-    """Returns (entries to check, notes to print)."""
+def describe_untrusted(untrusted: list[dict], root: str) -> list[str]:
+    """Notes naming what was skipped and why, at a length worth reading."""
+    if not untrusted:
+        return []
+    current = current_version(root) or "?"
+    versions = sorted({recorded_version(e) or "?" for e in untrusted})
+    notes = [
+        f"{len(untrusted)} TU(s) have a stale compile command "
+        f"(recorded at {', '.join(versions)}; tree is {current}) -- not checked. "
+        "Rebuild to refresh: make -j && make test"
+    ]
+    for entry in untrusted[:3]:
+        rel = os.path.relpath(os.path.realpath(entry.get("file", "?")), root)
+        notes.append(f"  stale compile command: {rel} (recorded at {recorded_version(entry)})")
+    if len(untrusted) > 3:
+        notes.append(f"  ... and {len(untrusted) - 3} more")
+    return notes
+
+
+def select_entries(args, db, root) -> tuple[list[dict], list[dict], list[str]]:
+    """Returns (entries to check, entries skipped as untrusted, notes to print)."""
     notes: list[str] = []
 
     if args.all:
@@ -443,13 +567,16 @@ def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
         # or every .c in the compile database (generated fonts, the expat
         # sources inside lib/helix-xml) gets its -std=c11 command line replayed
         # through clang++ - the exact misclassification the filter exists for.
-        return sorted((e for e in db.values()
-                       if str(e.get("file", "")).endswith(TU_EXTENSIONS)),
-                      key=lambda e: e.get("file", "")), notes
+        every = sorted((e for e in db.values()
+                        if str(e.get("file", "")).endswith(TU_EXTENSIONS)),
+                       key=lambda e: e.get("file", ""))
+        current = current_version(root)
+        trusted = [e for e in every if not is_stale(e, current)]
+        return trusted, [e for e in every if is_stale(e, current)], notes
 
     paths = args.files or changed_files(root)
     if not paths:
-        return [], notes
+        return [], [], notes
 
     tus: list[str] = []
     headers: list[str] = []
@@ -460,7 +587,9 @@ def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
         elif p.endswith(HEADER_EXTENSIONS):
             headers.append(full)
 
+    current = current_version(root)
     selected: dict[str, dict] = {}
+    skipped: dict[str, dict] = {}
     for t in tus:
         if t in db:
             selected[t] = db[t]
@@ -468,7 +597,7 @@ def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
             notes.append(f"no compile command for {os.path.relpath(t, root)} (never built?)")
 
     if headers:
-        hmap = build_header_map(root)
+        hmap = build_header_map(root, args.compile_db_dir)
         if not hmap:
             notes.append(
                 f"{len(headers)} header(s) changed but no .d files under build/obj -- "
@@ -479,7 +608,13 @@ def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
             if not dependents:
                 notes.append(f"no known dependents for {os.path.relpath(h, root)}")
                 continue
-            usable = [d for d in dependents if d in db]
+            # Trust decides membership before the fan-out cap does, or a widely
+            # included header spends its whole budget on TUs that get skipped and
+            # the ones it could have checked never make the list.
+            usable = [d for d in dependents if d in db and not is_stale(db[d], current)]
+            for d in dependents:
+                if d in db and is_stale(db[d], current):
+                    skipped.setdefault(d, db[d])
             if len(usable) > args.max_header_tus:
                 notes.append(
                     f"{os.path.relpath(h, root)}: {len(usable)} dependent TUs, "
@@ -489,7 +624,14 @@ def select_entries(args, db, root) -> tuple[list[dict], list[str]]:
             for d in usable:
                 selected.setdefault(d, db[d])
 
-    return sorted(selected.values(), key=lambda e: e.get("file", "")), notes
+    trusted, untrusted = [], []
+    for entry in sorted(selected.values(), key=lambda e: e.get("file", "")):
+        (untrusted if is_stale(entry, current) else trusted).append(entry)
+    for key, entry in skipped.items():
+        if key not in selected:
+            untrusted.append(entry)
+    untrusted.sort(key=lambda e: e.get("file", ""))
+    return trusted, untrusted, notes
 
 
 # --------------------------------------------------------------------------------
@@ -508,8 +650,9 @@ def main() -> int:
     ap.add_argument("--max-report", type=int, default=5, help="how many failing TUs to print in full")
     ap.add_argument("--warnings", action="store_true", help="also print clang warnings (never fatal)")
     ap.add_argument("--compile-db-dir", default=None, metavar="DIR",
-                    help="read *.ccj compile-command fragments from DIR instead of "
-                         "build/obj, and skip compile_commands.json (test isolation)")
+                    help="read *.ccj fragments and *.d dependency files from DIR "
+                         "instead of build/obj, and skip compile_commands.json "
+                         "(test isolation)")
     args = ap.parse_args()
 
     root = REPO_ROOT
@@ -524,12 +667,17 @@ def main() -> int:
         print("SKIP: clang syntax check -- no compile database (build the tree first)")
         return 0
 
-    entries, notes = select_entries(args, db, root)
-    for n in notes:
+    entries, untrusted, notes = select_entries(args, db, root)
+    for n in notes + describe_untrusted(untrusted, root):
         print(f"  note: {n}")
 
+    # quality-checks.sh prints only the summary line when the gate passes, so
+    # the skip count has to ride on it or a run that checked almost nothing
+    # reads as a clean bill of health.
+    skipped_note = f", {len(untrusted)} skipped (stale compile command)" if untrusted else ""
+
     if not entries:
-        print("clang syntax check: no translation units to check")
+        print(f"clang syntax check: no translation units to check{skipped_note}")
         return 0
 
     print(f"clang syntax check: {len(entries)} TU(s) via {desc} (-j{args.jobs})")
@@ -553,6 +701,7 @@ def main() -> int:
         f"\nchecked {len(results)} TU(s): "
         f"{len(results) - len(failed)} clean, {len(failed)} with errors, "
         f"{len(warned)} with warnings (not fatal)"
+        f"{skipped_note}"
     )
 
     if not failed:

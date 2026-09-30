@@ -19,6 +19,8 @@
 # compile_commands.json. A private database also means these tests need no
 # prior build, so CI's bare checkout runs them instead of skipping.
 
+load helpers
+
 GATE="scripts/check_clang_diagnostics.py"
 
 setup() {
@@ -26,6 +28,34 @@ setup() {
     FIXTURE_DIR="${BATS_TEST_TMPDIR:-$(mktemp -d)}/clang-gate-db"
     rm -rf "$FIXTURE_DIR"
     mkdir -p "$FIXTURE_DIR"
+    CURRENT_VERSION="$(cat VERSION.txt)"
+}
+
+# A TU whose only declaration sits behind a feature macro. Compiled with the
+# -D the build passes today it is clean; compiled without it every use is an
+# unknown type. That is the shape of a compile command recorded before the
+# flag existed.
+write_guarded_tu() {
+    cat > "$FIXTURE_DIR/guarded.cpp" <<'EOF'
+#ifdef HELIX_HAS_FIXTURE_FEATURE
+struct FixtureFeature {
+    int value;
+};
+#endif
+int main() {
+    FixtureFeature f{};
+    return f.value;
+}
+EOF
+}
+
+# $1 = fragment basename, $2 = recorded version, $3... = extra flags
+write_fragment() {
+    local name="$1" version="$2"
+    shift 2
+    cat > "$FIXTURE_DIR/$name.ccj" <<EOF
+{"directory": "$FIXTURE_DIR", "file": "guarded.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION='\"$version\"' -DHELIX_VERSION_PATCH=${version##*.} $* -c guarded.cpp -o $name.o"}
+EOF
 }
 
 teardown() {
@@ -71,4 +101,180 @@ EOF
         skip "clang unavailable"
     fi
     [ "$status" -ne 0 ]
+}
+
+# A .ccj is a byproduct of compiling, and nothing rewrites it when the command
+# changes without the source changing. setup-worktree.sh clones build/ whole
+# from the main tree, so fragments recorded by a newer tree's writer sit beside
+# this tree's own until each object rebuilds. That writer shell-quotes a define
+# whose value must reach the compiler with its own quotes: -DNAME='"value"'.
+# Replayed verbatim the single quotes survive into the macro body, it becomes a
+# multi-character literal, and clang types it as int - so every TU including
+# helix_version.h reports a const char* initialised from an int. Nothing about
+# the code is wrong, and the finding names the code.
+@test "gate keeps a shell-quoted define a string" {
+    cat > "$FIXTURE_DIR/version_user.cpp" <<'EOF'
+const char* version() {
+    return HELIX_VERSION;
+}
+EOF
+    cat > "$FIXTURE_DIR/version_user.ccj" <<EOF
+{"directory": "$FIXTURE_DIR", "file": "version_user.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION='\"$CURRENT_VERSION\"' -c version_user.cpp -o version_user.o"}
+EOF
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" "$FIXTURE_DIR/version_user.cpp"
+    if [[ "$output" == *"SKIP:"* ]]; then
+        skip "clang unavailable"
+    fi
+    lacks "rvalue of type 'int'" "$output"
+    [ "$status" -eq 0 ]
+}
+
+# The double-quoted shape is what this tree's own emit-compile-command records:
+# a quoted define with no shell-quoting layer around it, the quotes literal
+# parts of the argument. Strip those and the version macro becomes a bare
+# 1.0.2, which clang reports as "invalid suffix" and "undeclared identifier"
+# at every HELIX_VERSION use site - findings about the recording, not the code.
+@test "gate keeps a double-quoted define a string" {
+    cat > "$FIXTURE_DIR/version_user.cpp" <<'EOF'
+const char* version() {
+    return HELIX_VERSION;
+}
+EOF
+    cat > "$FIXTURE_DIR/version_user.ccj" <<EOF
+{"directory": "$FIXTURE_DIR", "file": "version_user.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION=\"$CURRENT_VERSION\" -c version_user.cpp -o version_user.o"}
+EOF
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" "$FIXTURE_DIR/version_user.cpp"
+    if [[ "$output" == *"SKIP:"* ]]; then
+        skip "clang unavailable"
+    fi
+    lacks "invalid suffix" "$output"
+    lacks "undeclared identifier" "$output"
+    [ "$status" -eq 0 ]
+    # Prove the TU was checked, not skipped: an absence assertion with the TU
+    # never compiled would pass with the bug present.
+    [[ "$output" == *"checked 1 TU(s): 1 clean"* ]]
+}
+
+# An entry recorded by an older build describes flags the tree no longer
+# passes, so replaying it produces diagnostics about the command rather than
+# about the code. The gate must not report those as findings: it cannot trust
+# the command, which is a different thing from the TU being broken.
+@test "gate skips a TU whose compile command predates the current version" {
+    write_guarded_tu
+    write_fragment stale 0.99.1
+
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" "$FIXTURE_DIR/guarded.cpp"
+    if [[ "$output" == *"SKIP:"* ]]; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -eq 0 ]
+    lacks "unknown type name" "$output"
+    contains "stale compile command" "$output"
+    # quality-checks.sh shows only the last line on a pass, so the count has to
+    # be on it: a run that checked nothing must not read as a clean bill.
+    contains "1 skipped (stale compile command)" "$output"
+}
+
+# The distinction the skip must not collapse: at the current version the
+# command describes today's build, so clang's verdict is about the code and a
+# failure is real.
+@test "gate still fails a broken TU whose compile command is current" {
+    cat > "$FIXTURE_DIR/guarded.cpp" <<'EOF'
+int main() { this is not c++ }
+EOF
+    write_fragment current "$CURRENT_VERSION" -DHELIX_HAS_FIXTURE_FEATURE=1
+
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" "$FIXTURE_DIR/guarded.cpp"
+    if [[ "$output" == *"SKIP:"* ]]; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -ne 0 ]
+    lacks "stale compile command" "$output"
+}
+
+# Every object tree emits its own fragment for the same source (build/obj,
+# build/obj-asan, build/obj-tsan), so several entries can describe one file and
+# only the one stamped with the current version carries today's flags. The gate
+# must pick that entry, not whichever the glob yielded last.
+@test "gate picks the current-version entry when several describe one file" {
+    write_guarded_tu
+    write_fragment aaa_current "$CURRENT_VERSION" -DHELIX_HAS_FIXTURE_FEATURE=1
+    write_fragment zzz_stale 0.99.1
+    # Recency only breaks ties the version stamp cannot, so the stale fragment
+    # is dated later than the current one: nothing but the stamp can pick the
+    # right entry here, and fragments written in one tick would otherwise leave
+    # the choice to glob order.
+    touch -t 200001010000 "$FIXTURE_DIR/aaa_current.ccj"
+
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" "$FIXTURE_DIR/guarded.cpp"
+    if [[ "$output" == *"SKIP:"* ]]; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -eq 0 ]
+    lacks "unknown type name" "$output"
+    lacks "stale compile command" "$output"
+    contains "1 TU(s)" "$output"
+}
+
+# Deleting a source leaves its fragment behind (setup-worktree.sh prunes the
+# ones it clones, but a branch switch can leave its own), and clang answers a
+# command naming a missing file with "no such file or directory" - an error
+# about the database, not about any code under review.
+@test "gate drops an entry whose source file no longer exists" {
+    # A surviving TU keeps the database non-empty: an empty one makes the gate
+    # print SKIP for want of any compile database, and this test would pass
+    # having checked nothing.
+    write_guarded_tu
+    write_fragment live "$CURRENT_VERSION" -DHELIX_HAS_FIXTURE_FEATURE=1
+    cat > "$FIXTURE_DIR/ghost.ccj" <<EOF
+{"directory": "$FIXTURE_DIR", "file": "deleted_source.cpp", "command": "g++ -std=c++17 -c deleted_source.cpp"}
+EOF
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" --all
+    if [[ "$output" == *"SKIP:"* ]]; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -eq 0 ]
+    lacks "no such file or directory" "$output"
+    contains "1 TU(s)" "$output"
+}
+
+# A changed header is resolved to its dependent TUs through the build's .d
+# files, and the fan-out is capped. Trust has to be settled before the cap
+# applies: a widely included header whose dependents are mostly stale would
+# otherwise spend the whole budget on TUs that get skipped, and the ones it
+# could have checked never make the list.
+@test "header fan-out spends its cap on TUs with a usable compile command" {
+    cat > "$FIXTURE_DIR/feature.h" <<'EOF'
+#pragma once
+EOF
+    # Dependents are taken in path order, so the stale one is named to sort
+    # first: with the cap at one, a gate that ranks before it filters spends
+    # the whole budget there and checks nothing.
+    for name in aaa_stale_dep zzz_good_dep; do
+        cat > "$FIXTURE_DIR/$name.cpp" <<EOF
+#include "feature.h"
+#ifdef HELIX_HAS_FIXTURE_FEATURE
+struct FixtureFeature { int value; };
+#endif
+int ${name}_entry() { FixtureFeature f{}; return f.value; }
+EOF
+        cat > "$FIXTURE_DIR/$name.d" <<EOF
+$FIXTURE_DIR/$name.o: $FIXTURE_DIR/$name.cpp $FIXTURE_DIR/feature.h
+EOF
+    done
+    cat > "$FIXTURE_DIR/aaa_stale_dep.ccj" <<EOF
+{"directory": "$FIXTURE_DIR", "file": "aaa_stale_dep.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION='\"0.99.1\"' -c aaa_stale_dep.cpp -o aaa_stale_dep.o"}
+EOF
+    cat > "$FIXTURE_DIR/zzz_good_dep.ccj" <<EOF
+{"directory": "$FIXTURE_DIR", "file": "zzz_good_dep.cpp", "command": "g++ -std=c++17 -DHELIX_VERSION='\"$CURRENT_VERSION\"' -DHELIX_HAS_FIXTURE_FEATURE=1 -c zzz_good_dep.cpp -o zzz_good_dep.o"}
+EOF
+
+    run python3 "$GATE" --compile-db-dir "$FIXTURE_DIR" --max-header-tus 1 "$FIXTURE_DIR/feature.h"
+    if [[ "$output" == *"SKIP:"* ]]; then
+        skip "clang unavailable"
+    fi
+    [ "$status" -eq 0 ]
+    lacks "unknown type name" "$output"
+    contains "checked 1 TU(s)" "$output"
+    contains "1 skipped (stale compile command)" "$output"
 }
