@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HelixScreen Post-1.0 Ideas</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1a1d24; --mute: #5d6373; --line: #dfe2e8;
+    --accent: #c2410c; --chip: #eef0f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1116; --card: #171a21; --ink: #e8eaf0; --mute: #9299ab; --line: #282c37;
+            --accent: #fb923c; --chip: #222633; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 32px 16px 80px; }
+  h1 { font-size: 2rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--mute); margin: 0 0 24px; }
+  h2 { font-size: 1.35rem; margin: 0; }
+  h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--mute); margin: 18px 0 6px; }
+  p { margin: 0 0 10px; }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  .note { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+          border-radius: 8px; padding: 12px 16px; margin: 0 0 24px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line);
+          border-radius: 8px; overflow: hidden; font-size: .92rem; margin-bottom: 40px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--chip); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--mute); }
+  tr:last-child td { border-bottom: 0; }
+  td a { color: var(--ink); font-weight: 600; text-decoration: none; }
+  td a:hover { text-decoration: underline; }
+  .idea { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 22px; margin: 0 0 28px; }
+  .idea header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .num { font-weight: 700; color: var(--accent); font-size: 1.1rem; }
+  .tag { font-size: .72rem; background: var(--chip); border-radius: 999px; padding: 2px 10px; color: var(--mute); }
+  .tagline { color: var(--mute); margin: 0 0 16px; font-style: italic; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  @media (max-width: 820px) { .cols { grid-template-columns: 1fr; } }
+  figure { margin: 0; }
+  figcaption { font-size: .78rem; color: var(--mute); margin-top: 6px; }
+  .bezel { background: #050608; border-radius: 14px; padding: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+  .bezel svg { display: block; width: 100%; height: auto; border-radius: 7px; }
+  code { background: var(--chip); padding: 1px 5px; border-radius: 4px; font-size: .85em; }
+  .wow { border-top: 1px dashed var(--line); margin-top: 14px; padding-top: 10px; }
+  .wow b { color: var(--accent); }
+  footer { color: var(--mute); font-size: .85rem; margin-top: 40px; }
+
+  /* shared screen palette (mockups are always dark, like the device) */
+  .bg { fill: #12141a; } .pn { fill: #1c1f27; stroke: #2a2e3a; } .dk { fill: #0b0c10; stroke: #2a2e3a; }
+  .ac { fill: #3fb6c4; } .acs { stroke: #3fb6c4; fill: none; } .or { fill: #f08a3c; } .ors { stroke: #f08a3c; fill: none; }
+  .gn { fill: #5bbf7a; } .rd { fill: #e5534b; } .yl { fill: #e3b341; }
+  .tx { fill: #e6e8ee; font: 600 11px system-ui, sans-serif; } .mu { fill: #8b90a0; font: 10px system-ui, sans-serif; }
+  .big { fill: #e6e8ee; font: 700 26px system-ui, sans-serif; } .md { fill: #e6e8ee; font: 700 15px system-ui, sans-serif; }
+  .ln { stroke: #2a2e3a; fill: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>HelixScreen after 1.0: ten ideas</h1>
+<p class="sub">Brainstorm, 2026-09-30. Sketches and rationale, not a plan. Nothing here is scoped, scheduled or committed to.</p>
+
+<div class="note">
+  <b>The filter.</b> HelixScreen's edge over a web UI is that the person is <i>standing at the machine</i>, with a
+  touchscreen, a camera and (often) an accelerometer. Each idea below is something that would be clumsy or pointless
+  in a browser, and each leans on a subsystem that already exists. <br><br>
+  <b>Already shipped, so not on this list:</b> the live g-code viewer with layer-synced progress and tap-to-exclude.
+  Tool-path-level granularity would be a refinement of that, not a new headliner.<br><br>
+  <b>About the mockups.</b> They show the <i>idea</i>, at roughly 480&times;288. They are not layout specs, token-accurate,
+  or aware of breakpoints. Names of existing subsystems come from a survey of the repo and should be re-verified
+  before anyone builds on them.
+</div>
+
+<table>
+  <thead><tr><th>#</th><th>Idea</th><th>One-liner</th><th>Mostly reuses</th><th>Gut size</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><a href="#i1">First-Layer Coach</a></td><td>Camera crop + squish gallery + live Z dial on one screen</td><td>camera stream, Z-offset calibration</td><td>S&ndash;M</td></tr>
+    <tr><td>2</td><td><a href="#i2">Color Studio</a></td><td>Assign AMS lanes by touching colors on the 3D model</td><td>g-code viewer, AMS, filament mapping</td><td>M&ndash;L</td></tr>
+    <tr><td>3</td><td><a href="#i3">Machine Health</a></td><td>Resonance fingerprint drift + component-life "Garage"</td><td>input shaper / belt tension DSP</td><td>L</td></tr>
+    <tr><td>4</td><td><a href="#i4">Tuning Dial</a></td><td>One radial gesture surface for speed/flow/PA/fan/Z</td><td>tune path, subjects</td><td>S&ndash;M</td></tr>
+    <tr><td>5</td><td><a href="#i5">Spool Station</a></td><td>Scan, create, label, scan-to-load</td><td>scanner, label printers, Spoolman</td><td>M</td></tr>
+    <tr><td>6</td><td><a href="#i6">Rescue Mode</a></td><td>Turn detection into guided recovery and resume</td><td>detection, recovery service, PLR</td><td>L</td></tr>
+    <tr><td>7</td><td><a href="#i7">Showpiece Mode</a></td><td>Screen, LEDs and sound perform together</td><td>sound synth, LED backends, screensavers</td><td>M</td></tr>
+    <tr><td>8</td><td><a href="#i8">Cost &amp; Energy</a></td><td>Per-print filament + power cost, monthly total</td><td>power devices, consumption tracker, history</td><td>M</td></tr>
+    <tr><td>9</td><td><a href="#i9">Automations</a></td><td>When-this-do-that rules, no config files</td><td>macro executor, subjects, notifications</td><td>L</td></tr>
+    <tr><td>10</td><td><a href="#i10">Material IQ</a></td><td>Material profile is authoritative: swap and everything follows</td><td>filament catalog, AMS, dryer control</td><td>L</td></tr>
+  </tbody>
+</table>
+
+<!-- ============ 1 ============ -->
+<section class="idea" id="i1">
+  <header><span class="num">1</span><h2>First-Layer Coach</h2><span class="tag">calibration</span><span class="tag">camera</span></header>
+  <p class="tagline">The highest-anxiety minutes of any print, with the tools in one place.</p>
+  <div class="cols">
+    <figure>
+      <div class="bezel">
+      <svg viewBox="0 0 480 288" role="img" aria-label="First-layer coach mockup: zoomed camera view, squish gallery, Z-offset control">
+        <rect class="bg" width="480" height="288"/>
+        <rect class="pn" width="480" height="28" stroke="none"/>
+        <text class="tx" x="12" y="18">First-Layer Coach</text><text class="mu" x="380" y="18">Layer 1 / 240</text>
+        <rect class="dk" x="12" y="38" width="270" height="206" rx="8"/>
+        <g stroke="#d98a3d" stroke-width="9" stroke-linecap="round" opacity=".85">
+          <line x1="30" y1="150" x2="250" y2="150"/><line x1="30" y1="162" x2="250" y2="162"/>
+          <line x1="30" y1="174" x2="250" y2="174"/><line x1="30" y1="186" x2="190" y2="186"/>
+        </g>
+        <polygon points="190,62 230,62 217,118 203,118" fill="#7d8494"/><rect x="200" y="118" width="18" height="10" fill="#b8bfce"/>
+        <circle cx="210" cy="152" r="44" class="acs" stroke-width="2"/>
+        <text class="mu" x="22" y="56">4&times; nozzle lock</text>
+        <text class="mu" x="22" y="236">Live MJPEG, cropped to nozzle</text>
+        <text class="tx" x="294" y="52">Squish</text>
+        <g>
+          <rect class="pn" x="294" y="60" width="56" height="74" rx="6"/>
+          <ellipse cx="308" cy="108" rx="6" ry="6" fill="#d98a3d"/><ellipse cx="322" cy="108" rx="6" ry="6" fill="#d98a3d"/><ellipse cx="336" cy="108" rx="6" ry="6" fill="#d98a3d"/>
+          <text class="mu" x="306" y="126">High</text>
+          <rect x="356" y="60" width="56" height="74" rx="6" fill="#1c1f27" stroke="#3fb6c4" stroke-width="2"/>
+          <rect x="362" y="100" width="44" height="10" rx="3" fill="#d98a3d"/>
+          <text class="tx" x="370" y="126">Good</text>
+          <rect class="pn" x="418" y="60" width="56" height="74" rx="6"/>
+          <rect x="422" y="104" width="48" height="6" rx="2" fill="#d98a3d"/><rect x="422" y="100" width="48" height="2" fill="#d98a3d" opacity=".6"/>
+          <text class="mu" x="432" y="126">Low</text>
+        </g>
+        <rect class="pn" x="294" y="146" width="180" height="98" rx="8"/>
+        <text class="mu" x="306" y="164">Z offset</text><text class="big" x="306" y="196">-0.12 mm</text>
+        <rect x="306" y="208" width="72" height="26" rx="6" fill="#2a2e3a"/><text class="md" x="336" y="227">&minus;</text>
+        <rect x="390" y="208" width="72" height="26" rx="6" fill="#2a2e3a"/><text class="md" x="420" y="227">+</text>
+        <text class="mu" x="12" y="270">Adjust while watching the extrusion widen. Saves when the layer completes.</text>
+      </svg></div>
+      <figcaption>Left: camera locked on the nozzle. Right: reference gallery and a live babystep control.</figcaption>
+    </figure>
+    <div>
+      <h3>What it is</h3>
+      <p>During layer 1 the print-status screen swaps to a coaching layout: a magnified camera crop that follows the nozzle, a three-card "too high / right / too low" reference, and the existing live Z adjustment. You nudge Z and watch the line width change on camera.</p>
+      <h3>Why it's good</h3>
+      <p>Nobody wants to kneel at the printer with a flashlight. The pieces (camera, babystep, Z-offset flow) all exist; the novelty is putting them in one frame.</p>
+      <h3>Builds on</h3>
+      <p><code>camera_stream</code>, <code>calibration_zoffset</code> live adjust, print-status panel.</p>
+      <h3>Open questions</h3>
+      <ul>
+        <li>How does the crop follow the nozzle? Fixed per-printer region the user sets once, vs. mapping toolhead XY to image coordinates.</li>
+        <li>Printers with no camera: degrade to the gallery + dial only, or skip the feature?</li>
+        <li>Is the "squish" gallery photos, drawings, or both? Photos age better than drawings.</li>
+        <li>Optional later: auto-judge squish from the frame. Probably out of scope at first.</li>
+      </ul>
+      <p class="wow"><b>Wow:</b> dial in a perfect first layer without squinting.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section class="idea" id="i2">
+  <header><span class="num">2</span><h2>Color Studio</h2><span class="tag">multi-material</span><span class="tag">3D viewer</span></header>
+  <p class="tagline">Cash in the AMS investment: assign lanes by touching the model.</p>
+  <div class="cols">
+    <figure>
+      <div class="bezel">
+      <svg viewBox="0 0 480 288" role="img" aria-label="Color Studio mockup: colored 3D model and lane assignment list">
+        <rect class="bg" width="480" height="288"/>
+        <rect class="pn" width="480" height="28" stroke="none"/>
+        <text class="tx" x="12" y="18">Assign colors</text><text class="mu" x="350" y="18">4 colors &middot; 4 lanes</text>
+        <rect class="dk" x="12" y="38" width="262" height="206" rx="8"/>
+        <polygon points="80,200 150,228 230,196 160,170" fill="#d8dce6"/>
+        <polygon points="80,200 80,160 150,188 150,228" fill="#b5bac8"/><polygon points="150,228 150,188 230,156 230,196" fill="#9aa0b0"/>
+        <polygon points="110,150 150,166 200,146 160,130" fill="#e5534b"/>
+        <polygon points="110,150 110,118 150,134 150,166" fill="#c0443d"/><polygon points="150,166 150,134 200,114 200,146" fill="#a83a34"/>
+        <polygon points="132,110 150,118 176,106 158,98" fill="#4a7fd6"/>
+        <polygon points="132,110 132,88 150,96 150,118" fill="#3c69b3"/><polygon points="150,118 150,96 176,84 176,106" fill="#335c9e"/>
+        <circle cx="156" cy="146" r="18" class="acs" stroke-width="2" stroke-dasharray="4 3"/>
+        <rect x="160" y="50" width="108" height="22" rx="6" fill="#1c1f27" stroke="#3fb6c4"/><text class="tx" x="170" y="65">Red &rarr; Lane 3</text>
+        <text class="mu" x="22" y="236">Tap a color on the model, then pick a lane</text>
+        <g>
+          <rect class="pn" x="288" y="38" width="180" height="36" rx="6"/><circle cx="308" cy="56" r="9" fill="#e8eaf0"/><text class="tx" x="326" y="52">Lane 1 &middot; PLA</text><text class="mu" x="326" y="66">White &middot; 620 g</text>
+          <rect class="pn" x="288" y="80" width="180" height="36" rx="6"/><circle cx="308" cy="98" r="9" fill="#4a7fd6"/><text class="tx" x="326" y="94">Lane 2 &middot; PLA</text><text class="mu" x="326" y="108">Blue &middot; 310 g</text>
+          <rect x="288" y="122" width="180" height="36" rx="6" fill="#1c1f27" stroke="#3fb6c4" stroke-width="2"/><circle cx="308" cy="140" r="9" fill="#e5534b"/><text class="tx" x="326" y="136">Lane 3 &middot; PLA</text><text class="mu" x="326" y="150">Red &middot; 880 g</text>
+          <rect class="pn" x="288" y="164" width="180" height="36" rx="6"/><circle cx="308" cy="182" r="9" fill="#2b2f3a"/><text class="tx" x="326" y="178">Lane 4 &middot; PETG</text><text class="mu" x="326" y="192">Black &middot; 450 g</text>
+        </g>
+        <rect x="288" y="206" width="180" height="38" rx="6" fill="#2a2415" stroke="#e3b341"/>
+        <text class="tx" x="298" y="222" style="fill:#e3b341">Lane 4 is PETG</text><text class="mu" x="298" y="236">Hotter purge. Unused by Red.</text>
+        <text class="mu" x="12" y="270">Est. purge 18 g &middot; 4 swaps &middot; 6 min added</text>
+      </svg></div>
+      <figcaption>The model is colored by tool; touching a color selects it for lane assignment.</figcaption>
+    </figure>
+    <div>
+      <h3>What it is</h3>
+      <p>When a multi-material job is chosen, the g-code viewer renders the model colored by tool. Tapping a part selects its color; tapping a lane assigns it. Mismatches (temperature gap, material family, too little filament) show inline, plus a rough purge and time cost.</p>
+      <h3>Why it's good</h3>
+      <p>Today the mapping step is a list. Touching the red part to say "this goes in lane 3" is how a person thinks about it, and the screen can warn before a bad print, not after.</p>
+      <h3>Builds on</h3>
+      <p>AMS lane state / <code>slot_registry</code>, the filament mapping modal, the g-code viewer, the filament catalog.</p>
+      <h3>Open questions</h3>
+      <ul>
+        <li>The g-code pipeline already keeps a tools-used cache (<code>docs/devel/architecture/16-gcode-pipeline.md</code>). Check whether it carries per-tool geometry, or only which tools appear. Coloring by tool needs the former.</li>
+        <li>Purge estimate is backend-specific (wipe tower vs. poop chute vs. toolchanger). Start with "unknown" on backends that can't say.</li>
+        <li>Stay vendor-neutral per the vendor-abstraction rule: ask capability questions, not AFC/HH/ACE questions.</li>
+      </ul>
+      <p class="wow"><b>Wow:</b> "this red goes in lane 3" by literally touching the red part.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3 ============ -->
+<section class="idea" id="i3">
+  <header><span class="num">3</span><h2>Machine Health</h2><span class="tag">accelerometer</span><span class="tag">maintenance</span></header>
+  <p class="tagline">The printer's acoustic fingerprint, and a garage for its wear parts.</p>
+  <div class="cols">
+    <figure>
+      <div class="bezel">
+      <svg viewBox="0 0 480 288" role="img" aria-label="Machine health mockup: resonance drift chart and component health bars">
+        <rect class="bg" width="480" height="288"/>
+        <rect class="pn" width="480" height="28" stroke="none"/>
+        <text class="tx" x="12" y="18">Machine Health</text><text class="mu" x="368" y="18">Last scan 3 days ago</text>
+        <rect class="pn" x="12" y="38" width="286" height="150" rx="8"/>
+        <text class="mu" x="22" y="54">X resonance, baseline vs now</text>
+        <line class="ln" x1="24" y1="170" x2="288" y2="170"/>
+        <polyline points="24,164 60,160 90,150 112,112 130,74 146,110 170,146 210,158 250,164 288,166" fill="none" stroke="#6b7284" stroke-width="2"/>
+        <polyline points="24,164 60,160 90,148 108,118 122,88 140,70 160,112 184,146 214,158 250,164 288,166" fill="none" stroke="#f08a3c" stroke-width="2.5"/>
+        <rect x="108" y="64" width="64" height="106" fill="#f08a3c" opacity=".08"/>
+        <text class="tx" x="176" y="68" style="fill:#f08a3c">Peak shifted</text><text class="mu" x="176" y="80">+6 Hz</text>
+        <rect class="pn" x="310" y="38" width="158" height="150" rx="8"/>
+        <text class="mu" x="320" y="54">Condition</text>
+        <text class="tx" x="320" y="76">Belt A</text><rect x="320" y="82" width="138" height="8" rx="4" fill="#2a2e3a"/><rect x="320" y="82" width="132" height="8" rx="4" class="gn"/>
+        <text class="tx" x="320" y="114">Belt B</text><rect x="320" y="120" width="138" height="8" rx="4" fill="#2a2e3a"/><rect x="320" y="120" width="98" height="8" rx="4" class="yl"/>
+        <text class="tx" x="320" y="152">X fan bearing</text><rect x="320" y="158" width="138" height="8" rx="4" fill="#2a2e3a"/><rect x="320" y="158" width="126" height="8" rx="4" class="gn"/>
+        <rect x="12" y="198" width="456" height="50" rx="8" fill="#2a2415" stroke="#e3b341"/>
+        <text class="tx" x="24" y="218" style="fill:#e3b341">Belt B looks looser than your baseline</text>
+        <text class="mu" x="24" y="234">Tension check takes about 4 minutes.</text>
+        <rect x="380" y="208" width="78" height="30" rx="6" class="ac"/><text class="tx" x="392" y="227" style="fill:#0b0c10">Walk me</text>
+        <text class="mu" x="12" y="270">Garage: nozzle 142 h &middot; hotend fan 1.1k h &middot; belts 620 h</text>
+      </svg></div>
+      <figcaption>Baseline (gray) vs. current (orange) resonance, with a nudge toward the existing tensioning flow.</figcaption>
+    </figure>
+    <div>
+      <h3>What it is</h3>
+      <p>Take a baseline resonance capture after a good tuning, then re-sample on a schedule (or opportunistically, e.g. after a print). Drift in frequency or amplitude flags loose belts, worn bearings, or a mounting problem before it shows up as ringing. Alongside, a "Garage" tracks wear-part hours and offers guided service steps when they're due.</p>
+      <h3>Why it's good</h3>
+      <p>It turns the accelerometer from a setup tool into an ongoing one. No web UI can do this at the machine, and the DSP and charts are already built.</p>
+      <h3>Builds on</h3>
+      <p>Input shaper and belt-tension panels (<code>docs/devel/INPUT_SHAPER.md</code>, <code>BELT_TENSION.md</code>), <code>detection_manager</code>, notifications, print history for hour counts.</p>
+      <h3>Open questions</h3>
+      <ul>
+        <li><b>The current foundation is unproven.</b> <code>BELT_TUNER.md</code> states that the tuner has never measured a real belt and its thresholds are circular. Drift detection needs real-hardware data first, so this likely starts as a data-collection spike.</li>
+        <li>Signal quality: can we separate "belt drifted" from "different temperature / different day" without false alarms? This needs real data before promising anything.</li>
+        <li>Who owns the scan? Klipper resonance tests move the toolhead, so they can only run idle. Schedule it, don't surprise people.</li>
+        <li>Garage is independent of the DSP half and could ship alone as a simple hour counter.</li>
+      </ul>
+      <p class="wow"><b>Wow:</b> "Belt B has drifted since last week. Tension it?"</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section class="idea" id="i4">
+  <header><span class="num">4</span><h2>Tuning Dial</h2><span class="tag">in-print UX</span></header>
+  <p class="tagline">One thumb, one control, everything you'd tweak mid-print.</p>
+  <div class="cols">
+    <figure>
+      <div class="bezel">
+      <svg viewBox="0 0 480 288" role="img" aria-label="Radial tuning dial mockup">
+        <rect class="bg" width="480" height="288"/>
+        <rect class="pn" width="480" height="28" stroke="none"/>
+        <text class="tx" x="12" y="18">Tune</text><text class="mu" x="380" y="18">Layer 88 / 240</text>
+        <g transform="translate(240 154) rotate(-90)" fill="none" stroke-width="16" stroke-linecap="butt">
+          <circle r="80" stroke="#2a2e3a" stroke-dasharray="86 416.65" stroke-dashoffset="0"/>
+          <circle r="80" stroke="#2a2e3a" stroke-dasharray="86 416.65" stroke-dashoffset="-100.53"/>
+          <circle r="80" stroke="#3fb6c4" stroke-dasharray="86 416.65" stroke-dashoffset="-201.06"/>
+          <circle r="80" stroke="#2a2e3a" stroke-dasharray="86 416.65" stroke-dashoffset="-301.59"/>
+          <circle r="80" stroke="#2a2e3a" stroke-dasharray="86 416.65" stroke-dashoffset="-402.12"/>
+        </g>
+        <text class="mu" x="240" y="124" text-anchor="middle">Selected: PA</text>
+        <text class="big" x="240" y="158" text-anchor="middle">0.042</text>
+        <text class="mu" x="240" y="178" text-anchor="middle">drag to adjust</text>
+        <g class="mu" text-anchor="middle">
+          <text x="308" y="60">Speed 105%</text>
+          <text x="358" y="192">Flow 98%</text>
+          <text x="240" y="268">Pressure advance</text>
+          <text x="122" y="192">Fan 70%</text>
+          <text x="172" y="60">Z &minus;0.05</text>
+        </g>
+        <rect class="pn" x="12" y="210" width="96" height="60" rx="8"/><text class="mu" x="22" y="228">Chamber</text><text class="md" x="22" y="252">42&deg;C</text>
+        <rect class="pn" x="372" y="210" width="96" height="60" rx="8"/><text class="mu" x="382" y="228">Flow actual</text><text class="tx" x="382" y="252">11.4 mm&sup3;/s</text>
+      </svg></div>
+      <figcaption>Five values around one ring; the selected one is adjusted by dragging. Live readouts stay visible.</figcaption>
+    </figure>
+    <div>
+      <h3>What it is</h3>
+      <p>A single radial surface in the print-status tune path. Each arc is a live parameter (speed, flow, pressure advance, fan, Z babystep). Tap an arc to select it, drag around the ring to change it, and see the printer's actual response beside it.</p>
+      <h3>Why it's good</h3>
+      <p>Touchscreens usually destroy the feel of a knob. A well-tuned radial control gets some of it back and replaces a stack of sliders and +/- buttons.</p>
+      <h3>Builds on</h3>
+      <p>The existing tune controls and subject bindings, <code>docs/devel/GESTURE_RECOGNITION.md</code> for the drag handling.</p>
+      <h3>Open questions</h3>
+      <ul>
+        <li>Is the ring better than sliders at all, or only more photogenic? Needs a hands-on prototype and a real thumb.</li>
+        <li>Undo / "revert to slicer values" must be one tap, because dragging is easy to overshoot.</li>
+        <li>Pressure advance has a different failure mode than flow. It may want a confirm step or a narrower range.</li>
+      </ul>
+      <p class="wow"><b>Wow:</b> nudging flow with your thumb like a mixing board.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5 ============ -->
+<section class="idea" id="i5">
+  <header><span class="num">5</span><h2>Spool Station</h2><span class="tag">inventory</span><span class="tag">labels</span></header>
+  <p class="tagline">Scanner + Spoolman + label printer, welded into one loop.</p>
+  <div class="cols">
+    <figure>
+      <div class="bezel">
+      <svg viewBox="0 0 480 288" role="img" aria-label="Spool Station flow: scan, create, label, load">
+        <rect class="bg" width="480" height="288"/>
+        <rect class="pn" width="480" height="28" stroke="none"/>
+        <text class="tx" x="12" y="18">New spool</text>
+        <g>
+          <rect class="pn" x="12" y="42" width="100" height="84" rx="8"/>
+          <g fill="#e6e8ee"><rect x="36" y="58" width="3" height="32"/><rect x="42" y="58" width="6" height="32"/><rect x="51" y="58" width="2" height="32"/><rect x="56" y="58" width="5" height="32"/><rect x="64" y="58" width="3" height="32"/><rect x="70" y="58" width="6" height="32"/><rect x="79" y="58" width="2" height="32"/><rect x="84" y="58" width="4" height="32"/></g>
+          <rect x="30" y="72" width="64" height="2" fill="#e5534b"/>
+          <text class="tx" x="24" y="112">1 &nbsp;Scan</text>
+          <rect class="pn" x="132" y="42" width="100" height="84" rx="8"/>
+          <circle cx="182" cy="76" r="18" fill="#9aa0b0"/><circle cx="182" cy="76" r="6" fill="#1c1f27"/>
+          <text class="tx" x="144" y="112">2 &nbsp;Spoolman</text>
+          <rect class="pn" x="252" y="42" width="100" height="84" rx="8"/>
+          <g fill="#e6e8ee"><rect x="284" y="56" width="36" height="36"/></g>
+          <g fill="#12141a"><rect x="288" y="60" width="10" height="10"/><rect x="306" y="60" width="10" height="10"/><rect x="288" y="78" width="10" height="10"/><rect x="302" y="74" width="6" height="6"/><rect x="310" y="82" width="6" height="6"/></g>
+          <text class="tx" x="264" y="112">3 &nbsp;Label</text>
+          <rect class="pn" x="372" y="42" width="96" height="84" rx="8"/>
+          <rect x="396" y="58" width="48" height="10" rx="3" class="ac"/><rect x="396" y="72" width="48" height="10" rx="3" fill="#2a2e3a"/><rect x="396" y="86" width="48" height="10" rx="3" fill="#2a2e3a"/>
+          <text class="tx" x="384" y="112">4 &nbsp;Load</text>
+        </g>
+        <g stroke="#6b7284" stroke-width="2" fill="none"><path d="M114 84h16m-5-5 5 5-5 5"/><path d="M234 84h16m-5-5 5 5-5 5"/><path d="M354 84h16m-5-5 5 5-5 5"/></g>
+        <rect class="pn" x="12" y="142" width="456" height="98" rx="8"/>
+        <circle cx="50" cy="178" r="22" fill="#9aa4b8"/><circle cx="50" cy="178" r="8" fill="#1c1f27"/>
+        <text class="md" x="86" y="166">Polymaker PolyTerra PLA</text>
+        <text class="mu" x="86" y="184">Cool Gray &middot; 1.75 mm &middot; 1000 g &middot; 190&ndash;230&deg;C</text>
+        <text class="mu" x="86" y="200">Filled from barcode 6 9… (manufacturer database). Edit any field.</text>
+        <rect x="86" y="208" width="140" height="24" rx="6" class="ac"/><text class="tx" x="100" y="224" style="fill:#0b0c10">Save + print label</text>
+        <rect x="234" y="208" width="104" height="24" rx="6" fill="#2a2e3a"/><text class="tx" x="252" y="224">Save only</text>
+        <text class="mu" x="12" y="270">Later: scan the label at any lane, and the spool's settings load with it.</text>
+      </svg></div>
+      <figcaption>The four-step loop, with the pre-filled Spoolman entry as the review step.</figcaption>
+    </figure>
+    <div>
+      <h3>What it is</h3>
+      <p>Scan a new spool's barcode, pre-fill a Spoolman entry, print a QR label, stick it on. Later, scanning that label at a lane (or at the printer) loads the spool into the right slot with the right settings. It is almost entirely existing parts: a scanner, four label-printer protocols, and Spoolman CRUD.</p>
+      <h3>Why it's good</h3>
+      <p>It makes the printer the natural place to manage filament. It is also very demoable: scan, beep, label prints, done.</p>
+      <h3>Builds on</h3>
+      <p><code>snapshot_qr_scanner</code> / barcode scanner settings, the label-printer system (<code>docs/devel/LABEL_PRINTER_SYSTEM.md</code>), <code>spoolman_manager</code>, <code>slot_registry</code>.</p>
+      <h3>Open questions</h3>
+      <ul>
+        <li>Barcode to product lookup needs a data source. Manufacturers' barcodes are not consistently public, so the fallback of "scan, then type three fields" must be good.</li>
+        <li>Offline first: a lookup service would be the only network dependency and should be optional.</li>
+        <li>Label content and size per printer model; probably a couple of good defaults.</li>
+      </ul>
+      <p class="wow"><b>Wow:</b> the printer becomes a filament inventory station.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6 ============ -->
+<section class="idea" id="i6">
+  <header><span class="num">6</span><h2>Rescue Mode</h2><span class="tag">recovery</span><span class="tag">detection</span></header>
+  <p class="tagline">Detection says "something is wrong." Rescue says "here's how to save it."</p>
+  <div class="cols">
+    <figure>
+      <div class="bezel">
+      <svg viewBox="0 0 480 288" role="img" aria-label="Rescue Mode mockup: step list and layer picker">
+        <rect class="bg" width="480" height="288"/>
+        <rect class="pn" width="480" height="28" stroke="none"/>
+        <text class="tx" x="12" y="18" style="fill:#e5534b">Clog detected at layer 147</text>
+        <g>
+          <circle cx="28" cy="60" r="9" class="gn"/><text class="tx" x="26" y="64" style="fill:#0b0c10">&#10003;</text><text class="tx" x="46" y="64">Paused, lifted, parked</text>
+          <line x1="28" y1="70" x2="28" y2="92" class="ln"/>
+          <circle cx="28" cy="102" r="9" class="ac"/><text class="tx" x="25" y="106" style="fill:#0b0c10">2</text><text class="tx" x="46" y="106">Clear the jam</text>
+          <text class="mu" x="46" y="120">Nozzle at 240&deg;C. Pull filament.</text>
+          <line x1="28" y1="112" x2="28" y2="156" class="ln"/>
+          <circle cx="28" cy="166" r="9" fill="#2a2e3a"/><text class="mu" x="25" y="170">3</text><text class="mu" x="46" y="170">Re-prime</text>
+          <line x1="28" y1="176" x2="28" y2="198" class="ln"/>
+          <circle cx="28" cy="208" r="9" fill="#2a2e3a"/><text class="mu" x="25" y="212">4</text><text class="mu" x="46" y="212">Choose where to resume</text>
+        </g>
+        <rect class="pn" x="262" y="42" width="206" height="200" rx="8"/>
+        <text class="mu" x="274" y="58">Resume point</text>
+        <g>
+          <rect x="300" y="68" width="110" height="5" fill="#5bbf7a"/><rect x="300" y="75" width="110" height="5" fill="#5bbf7a"/>
+          <rect x="300" y="82" width="110" height="5" fill="#5bbf7a"/><rect x="300" y="89" width="110" height="5" fill="#5bbf7a"/>
+          <rect x="300" y="96" width="110" height="5" fill="#5bbf7a"/><rect x="300" y="103" width="108" height="5" fill="#5bbf7a"/>
+          <rect x="300" y="110" width="104" height="5" fill="#5bbf7a"/><rect x="300" y="117" width="100" height="5" fill="#5bbf7a"/>
+          <rect x="300" y="124" width="98" height="5" fill="#e3b341"/><rect x="300" y="131" width="96" height="5" fill="#e5534b"/>
+          <rect x="300" y="138" width="92" height="5" fill="#e5534b" opacity=".5"/>
+        </g>
+        <line x1="288" y1="124" x2="424" y2="124" stroke="#3fb6c4" stroke-width="2"/>
+        <text class="tx" x="274" y="128" style="fill:#3fb6c4">&#9654;</text>
+        <text class="mu" x="430" y="128">142</text><text class="mu" x="430" y="138" style="fill:#e5534b">147</text>
+        <text class="md" x="274" y="172">Resume at layer 142</text>
+        <text class="mu" x="274" y="188">5 layers of margin before the failure</text>
+        <rect x="274" y="204" width="86" height="28" rx="6" fill="#2a2e3a"/><text class="tx" x="290" y="222">Cancel print</text>
+        <rect x="368" y="204" width="90" height="28" rx="6" class="ac"/><text class="tx" x="384" y="222" style="fill:#0b0c10">Resume</text>
+        <text class="mu" x="12" y="270">Camera snapshot at the failure is attached to the step for reference.</text>
+      </svg></div>
+      <figcaption>A stepper on the left, a layer picker on the right, anchored to the failure layer.</figcaption>
+    </figure>
+    <div>
+      <h3>What it is</h3>
+      <p>When spaghetti, clog or runout detection fires, offer a guided flow instead of a dismissible alert: park safely, walk through clearing the jam with clear steps, re-prime, then choose the layer to resume from. The layer picker sits on the viewer the app already has.</p>
+      <h3>Why it's good</h3>
+      <p>It's the difference between a notification and a rescued 12-hour print. Of the ten, this has the biggest emotional payoff.</p>
+      <h3>Builds on</h3>
+      <p><code>detection_manager</code>, <code>recovery_service</code>, the power-loss-recovery offer, camera snapshots, the live layer viewer.</p>
+      <h3>Open questions</h3>
+      <ul>
+        <li><b>Resume-from-layer is the hard part.</b> It needs rewritten g-code (restore temps, positions, extruder state, fan, and Z) and is easy to get subtly wrong. <code>POWER_LOSS_RECOVERY.md</code> documents a mandatory probe-before-resume safety invariant that any operator-triggered resume should inherit.</li>
+        <li>Resuming into a part that has cooled and shrunk is not always salvageable. The UI should be honest: "likely to show a seam."</li>
+        <li>Runout/clog steps are hardware-specific (AMS vs. direct drive); keep step content data-driven.</li>
+      </ul>
+      <p class="wow"><b>Wow:</b> salvage a long print instead of scraping it off the bed.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7 ============ -->
+<section class="idea" id="i7">
+  <header><span class="num">7</span><h2>Showpiece Mode</h2><span class="tag">delight</span><span class="tag">sound + LED</span></header>
+  <p class="tagline">Make the printer look, sound and feel like a product.</p>
+  <div class="cols">
+    <figure>
+      <div class="bezel">
+      <svg viewBox="0 0 480 288" role="img" aria-label="Showpiece mode mockup: poster-style print display">
+        <defs>
+          <linearGradient id="led" x1="0" x2="1"><stop offset="0" stop-color="#3fb6c4"/><stop offset=".55" stop-color="#7c5cf0"/><stop offset="1" stop-color="#2a2e3a"/></linearGradient>
+          <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#3fb6c4" stop-opacity=".25"/><stop offset="1" stop-color="#3fb6c4" stop-opacity="0"/></radialGradient>
+        </defs>
+        <rect width="480" height="288" fill="#07080b"/>
+        <circle cx="240" cy="132" r="130" fill="url(#glow)"/>
+        <g transform="translate(240 132)">
+          <circle r="96" fill="none" stroke="#1c1f27" stroke-width="6"/>
+          <circle r="96" fill="none" stroke="#3fb6c4" stroke-width="6" stroke-linecap="round" stroke-dasharray="370 603" transform="rotate(-90)"/>
+        </g>
+        <g transform="translate(240 150)">
+          <polygon points="-44,30 0,48 44,30 0,12" fill="#8f7cf0"/>
+          <polygon points="-44,30 -44,-6 0,12 0,48" fill="#6c59c4"/><polygon points="44,30 44,-6 0,12 0,48" fill="#5646a3"/>
+          <polygon points="-34,-6 0,8 34,-6 0,-20" fill="#b2a4f7" opacity=".8"/>
+          <polygon points="-34,-6 -34,-30 0,-14 0,8" fill="#8f7cf0" opacity=".5"/><polygon points="34,-6 34,-30 0,-14 0,8" fill="#6c59c4" opacity=".5"/>
+        </g>
+        <text x="240" y="98" text-anchor="middle" fill="#e6e8ee" style="font:700 30px system-ui,sans-serif">64%</text>
+        <text x="240" y="256" text-anchor="middle" fill="#8b90a0" style="font:12px system-ui,sans-serif">1 h 42 min left &middot; Layer 153 / 240</text>
+        <rect x="60" y="270" width="360" height="6" rx="3" fill="url(#led)"/>
+        <text x="60" y="264" fill="#8b90a0" style="font:10px system-ui,sans-serif">LED strip mirrors progress</text>
+        <text x="396" y="264" fill="#8b90a0" text-anchor="end" style="font:10px system-ui,sans-serif">&#9834; Dm &middot; layer 153</text>
+      </svg></div>
+      <figcaption>Ambient display mode: the model, progress and one line of status, nothing else.</figcaption>
+    </figure>
+    <div>
+      <h3>What it is</h3>
+      <p>A print-time ambient mode. The screen becomes a poster (model, progress ring, time left), the LEDs breathe with progress, and finishing a print plays a custom fanfare composed on the chiptune engine. An optional generated soundtrack could evolve with layer height.</p>
+      <h3>Why it's good</h3>
+      <p>The synthesizer, LED backends and screensaver framework exist and are uncoordinated. A small amount of choreography makes a printer on a shelf feel like an object of desire, and gives people a reason to show their screen off.</p>
+      <h3>Builds on</h3>
+      <p>Sound synthesizer/tracker modules (<code>docs/devel/SOUND_SYSTEM.md</code>), LED control, screensavers (<code>docs/devel/SCREENSAVERS.md</code>), print-lifecycle state.</p>
+      <h3>Open questions</h3>
+      <ul>
+        <li>Burn-in and power: an always-on poster is not a screensaver. Dimming policy matters on cheap panels.</li>
+        <li>Sound is polarizing in a shared room. Quiet hours and an easy mute are required, not optional.</li>
+        <li>Generative soundtrack is the speculative part; the fanfare and LED sync are cheap wins on their own.</li>
+        <li>Could share a theme pack format so people swap "looks" (screen + LED + sound) as one unit.</li>
+      </ul>
+      <p class="wow"><b>Wow:</b> finishing a print <i>feels</i> like a win.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8 ============ -->
+<section class="idea" id="i8">
+  <header><span class="num">8</span><h2>Cost &amp; Energy</h2><span class="tag">history</span><span class="tag">roadmap gap</span></header>
+  <p class="tagline">What did that print actually cost?</p>
+  <div class="cols">
+    <figure>
+      <div class="bezel">
+      <svg viewBox="0 0 480 288" role="img" aria-label="Cost dashboard mockup">
+        <rect class="bg" width="480" height="288"/>
+        <rect class="pn" width="480" height="28" stroke="none"/>
+        <text class="tx" x="12" y="18">Print cost</text><text class="mu" x="384" y="18">benchy.gcode</text>
+        <rect class="pn" x="12" y="38" width="200" height="126" rx="8"/>
+        <text class="mu" x="24" y="56">This print</text><text class="big" x="24" y="90">$2.45</text>
+        <rect x="24" y="104" width="176" height="10" rx="5" fill="#2a2e3a"/><rect x="24" y="104" width="154" height="10" rx="5" class="or"/>
+        <circle cx="30" cy="132" r="4" class="or"/><text class="mu" x="40" y="136">Filament $2.14 &middot; 38 g</text>
+        <circle cx="30" cy="150" r="4" fill="#3fb6c4"/><text class="mu" x="40" y="154">Power $0.31 &middot; 0.9 kWh</text>
+        <rect class="pn" x="224" y="38" width="244" height="126" rx="8"/>
+        <text class="mu" x="236" y="56">Last 12 prints</text>
+        <g class="or" opacity=".9">
+          <rect x="240" y="124" width="14" height="30"/><rect x="259" y="108" width="14" height="46"/><rect x="278" y="132" width="14" height="22"/>
+          <rect x="297" y="92" width="14" height="62"/><rect x="316" y="116" width="14" height="38"/><rect x="335" y="128" width="14" height="26"/>
+          <rect x="354" y="80" width="14" height="74"/><rect x="373" y="120" width="14" height="34"/><rect x="392" y="112" width="14" height="42"/>
+          <rect x="411" y="126" width="14" height="28"/><rect x="430" y="100" width="14" height="54"/>
+        </g>
+        <rect x="449" y="118" width="14" height="36" fill="#3fb6c4"/>
+        <line class="ln" x1="236" y1="154" x2="462" y2="154"/>
+        <rect class="pn" x="12" y="176" width="146" height="64" rx="8"/><text class="mu" x="24" y="194">Live draw</text><text class="md" x="24" y="222">212 W</text>
+        <rect class="pn" x="166" y="176" width="146" height="64" rx="8"/><text class="mu" x="178" y="194">This month</text><text class="md" x="178" y="222">$41.80</text>
+        <rect class="pn" x="320" y="176" width="148" height="64" rx="8"/><text class="mu" x="332" y="194">Avg per print</text><text class="md" x="332" y="222">$2.61</text>
+        <text class="mu" x="12" y="270">Rates and electricity price are set once in settings.</text>
+      </svg></div>
+      <figcaption>A per-print receipt, plus a rolling monthly picture on the existing history dashboard.</figcaption>
+    </figure>
+    <div>
+      <h3>What it is</h3>
+      <p>Combine filament used (already tracked) with energy from a metered smart plug and a couple of user-entered prices, and show a per-print cost on the completion screen and in history, plus monthly totals.</p>
+      <h3>Why it's good</h3>
+      <p>Power consumption display is an open roadmap backlog item, and people love knowing what a hobby costs. It makes the history dashboard something you check on purpose.</p>
+      <h3>Builds on</h3>
+      <p><code>power_device_state</code>, the filament consumption tracker, the history dashboard, Spoolman cost-per-kg if present.</p>
+      <h3>Open questions</h3>
+      <ul>
+        <li><b>Where does energy data come from?</b> Not every Moonraker power device reports watts or kWh. This is the main risk; check what Moonraker actually exposes per device type before designing around it.</li>
+        <li>Attribution: a plug powers the whole printer, including idle and preheat. Decide whether "cost of a print" includes warm-up.</li>
+        <li>Without a metered plug it can still ship as filament-only cost, and power becomes a bonus.</li>
+      </ul>
+      <p class="wow"><b>Wow:</b> a real per-print receipt, at the machine.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9 ============ -->
+<section class="idea" id="i9">
+  <header><span class="num">9</span><h2>Automations</h2><span class="tag">platform</span><span class="tag">plugins</span></header>
+  <p class="tagline">When this happens, do that. No config file required.</p>
+  <div class="cols">
+    <figure>
+      <div class="bezel">
+      <svg viewBox="0 0 480 288" role="img" aria-label="Automations rules list mockup">
+        <rect class="bg" width="480" height="288"/>
+        <rect class="pn" width="480" height="28" stroke="none"/>
+        <text class="tx" x="12" y="18">Automations</text><text class="mu" x="396" y="18">3 rules on</text>
+        <g>
+          <rect class="pn" x="12" y="40" width="456" height="58" rx="8"/>
+          <rect x="24" y="56" width="104" height="26" rx="13" fill="#1f3a44" stroke="#3fb6c4"/><text class="tx" x="36" y="73" style="fill:#7fd6e2">Print finishes</text>
+          <path d="M136 69h18m-5-5 5 5-5 5" stroke="#6b7284" stroke-width="2" fill="none"/>
+          <rect x="162" y="56" width="80" height="26" rx="13" fill="#2a2e3a"/><text class="tx" x="176" y="73">Run PARK</text>
+          <rect x="248" y="56" width="74" height="26" rx="13" fill="#2a2e3a"/><text class="tx" x="260" y="73">LEDs off</text>
+          <rect x="328" y="56" width="62" height="26" rx="13" fill="#2a2e3a"/><text class="tx" x="342" y="73">Chime</text>
+          <rect x="420" y="60" width="36" height="20" rx="10" class="gn"/><circle cx="446" cy="70" r="7" fill="#0b0c10"/>
+          <rect class="pn" x="12" y="106" width="456" height="58" rx="8"/>
+          <rect x="24" y="122" width="132" height="26" rx="13" fill="#1f3a44" stroke="#3fb6c4"/><text class="tx" x="36" y="139" style="fill:#7fd6e2">Chamber &ge; 45&deg;C</text>
+          <path d="M164 135h18m-5-5 5 5-5 5" stroke="#6b7284" stroke-width="2" fill="none"/>
+          <rect x="190" y="122" width="120" height="26" rx="13" fill="#2a2e3a"/><text class="tx" x="204" y="139">Exhaust fan on</text>
+          <rect x="420" y="126" width="36" height="20" rx="10" class="gn"/><circle cx="446" cy="136" r="7" fill="#0b0c10"/>
+          <rect class="pn" x="12" y="172" width="456" height="58" rx="8"/>
+          <rect x="24" y="188" width="116" height="26" rx="13" fill="#1f3a44" stroke="#3fb6c4"/><text class="tx" x="36" y="205" style="fill:#7fd6e2">Filament runout</text>
+          <path d="M148 201h18m-5-5 5 5-5 5" stroke="#6b7284" stroke-width="2" fill="none"/>
+          <rect x="174" y="188" width="64" height="26" rx="13" fill="#2a2e3a"/><text class="tx" x="188" y="205">Pause</text>
+          <rect x="244" y="188" width="86" height="26" rx="13" fill="#2a2e3a"/><text class="tx" x="258" y="205">Notify me</text>
+          <rect x="420" y="192" width="36" height="20" rx="10" fill="#3a3f4d"/><circle cx="430" cy="202" r="7" fill="#8b90a0"/>
+        </g>
+        <rect x="12" y="240" width="130" height="30" rx="8" class="ac"/><text class="tx" x="30" y="259" style="fill:#0b0c10">+ New rule</text>
+        <text class="mu" x="156" y="259">Triggers, conditions and actions can come from plugins.</text>
+      </svg></div>
+      <figcaption>Each rule reads left to right: trigger, then actions. The toggle on the right pauses a rule.</figcaption>
+    </figure>
+    <div>
+      <h3>What it is</h3>
+      <p>A small on-device rules engine. Triggers are printer events and state thresholds; actions are macros, power, LED, fan, sound and notifications. Rules are built by picking chips on the touchscreen, with no file editing.</p>
+      <h3>Why it's good</h3>
+      <p>Plugin ecosystem expansion is the stated roadmap priority. An automation layer gives plugins a natural surface (contribute a trigger or an action), and gives power users their own behaviors without touching config.</p>
+      <h3>Builds on</h3>
+      <p>The macro executor, the subject/event system, notifications, power/LED/fan state, the plugin system.</p>
+      <h3>Open questions</h3>
+      <ul>
+        <li><b>Safety.</b> Rules that move the machine or change heaters need guard rails: no motion while printing unless explicit, loop detection (A triggers B triggers A), and a visible "last fired" log.</li>
+        <li>Persistence and migration: rules are user data, so they belong in the versioned config with a schema from day one.</li>
+        <li>Keep the vocabulary small at launch: maybe 8 triggers and 8 actions, done well.</li>
+        <li>Klipper already has <code>delayed_gcode</code> and macros. Automations should complement, not reinvent, them.</li>
+      </ul>
+      <p class="wow"><b>Wow:</b> "when the print finishes, park and turn the lights off," built in ten seconds.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10 ============ -->
+<section class="idea" id="i10">
+  <header><span class="num">10</span><h2>Material IQ</h2><span class="tag">filament</span><span class="tag">dryer</span></header>
+  <p class="tagline">Change the filament and every setting follows it.</p>
+  <div class="cols">
+    <figure>
+      <div class="bezel">
+      <svg viewBox="0 0 480 288" role="img" aria-label="Material IQ mockup: settings diff on filament swap and dryer schedule">
+        <rect class="bg" width="480" height="288"/>
+        <rect class="pn" width="480" height="28" stroke="none"/>
+        <text class="tx" x="12" y="18">Switching to Lane 2</text><text class="mu" x="366" y="18">PETG &rarr; PLA</text>
+        <rect class="pn" x="12" y="38" width="272" height="168" rx="8"/>
+        <text class="mu" x="24" y="56">Settings that will change</text>
+        <g class="tx">
+          <text x="24" y="80">Nozzle</text><text x="138" y="80" style="fill:#8b90a0">240&deg;C</text><text x="186" y="80" style="fill:#8b90a0">&rarr;</text><text x="208" y="80">210&deg;C</text>
+          <text x="24" y="104">Bed</text><text x="138" y="104" style="fill:#8b90a0">80&deg;C</text><text x="186" y="104" style="fill:#8b90a0">&rarr;</text><text x="208" y="104">60&deg;C</text>
+          <text x="24" y="128">Pressure adv.</text><text x="138" y="128" style="fill:#8b90a0">0.060</text><text x="186" y="128" style="fill:#8b90a0">&rarr;</text><text x="208" y="128">0.040</text>
+          <text x="24" y="152">Retraction</text><text x="138" y="152" style="fill:#8b90a0">1.2 mm</text><text x="186" y="152" style="fill:#8b90a0">&rarr;</text><text x="208" y="152">0.8 mm</text>
+          <text x="24" y="176">Part fan</text><text x="138" y="176" style="fill:#8b90a0">30%</text><text x="186" y="176" style="fill:#8b90a0">&rarr;</text><text x="208" y="176">100%</text>
+        </g>
+        <line class="ln" x1="24" y1="64" x2="272" y2="64"/>
+        <rect x="292" y="38" width="176" height="76" rx="8" fill="#16281d" stroke="#5bbf7a"/>
+        <text class="tx" x="302" y="58" style="fill:#7fd69a">Compatible</text>
+        <text class="mu" x="302" y="76">PLA next to PETG on the same</text><text class="mu" x="302" y="90">path: purge at 240&deg;C is safe.</text>
+        <rect class="pn" x="292" y="122" width="176" height="84" rx="8"/>
+        <text class="mu" x="302" y="140">Dryer</text><text class="tx" x="302" y="158">Lane 4 &middot; PETG</text>
+        <rect x="302" y="168" width="156" height="8" rx="4" fill="#2a2e3a"/><rect x="302" y="168" width="104" height="8" rx="4" class="or"/>
+        <text class="mu" x="302" y="194">65&deg;C &middot; 1 h 20 min left</text>
+        <rect x="12" y="216" width="136" height="30" rx="8" class="ac"/><text class="tx" x="28" y="235" style="fill:#0b0c10">Apply and load</text>
+        <rect x="156" y="216" width="100" height="30" rx="8" fill="#2a2e3a"/><text class="tx" x="172" y="235">Keep mine</text>
+        <text class="mu" x="12" y="270">Overrides stick per spool, so your tuned PA survives the swap.</text>
+      </svg></div>
+      <figcaption>The swap shows exactly what changes and why, with one button to accept.</figcaption>
+    </figure>
+    <div>
+      <h3>What it is</h3>
+      <p>The active material becomes the source of truth. Loading a filament applies its temps, retraction and pressure advance; combinations that shouldn't share a path or purge temperature are flagged; and per-lane drying schedules are managed alongside.</p>
+      <h3>Why it's good</h3>
+      <p>Failed first layers from a stale profile are one of the most common, most avoidable failures. A visible diff keeps it trustworthy instead of magic.</p>
+      <h3>Builds on</h3>
+      <p>Filament catalog and variants, <code>active_material_provider</code>, slot overrides, the AMS backends, dryer control (<code>docs/devel/BED_DRYING.md</code>, <code>FILAMENT_ENVIRONMENT_ZONES.md</code>). Per-lane drying is an existing deferred item.</p>
+      <h3>Open questions</h3>
+      <ul>
+        <li><b>Conflict with the slicer.</b> Slicer g-code already sets temps. Decide what this owns: probably manual loads, pre-print checks and things the slicer can't know (PA, dry state), not overriding a sliced job.</li>
+        <li>Per-spool overrides stop the feature from fighting a user who tuned their own PA. They need a clear "reset to catalog" path.</li>
+        <li>Drying already has a model: <code>BED_DRYING.md</code> and <code>FILAMENT_ENVIRONMENT_ZONES.md</code> (drying-state folding, concurrency cap). Schedules should extend that, not sit beside it.</li>
+        <li>Per-lane drying is hardware-dependent; ACE is the one with dryer control today, so the scope should follow capabilities.</li>
+      </ul>
+      <p class="wow"><b>Wow:</b> swap PETG for PLA and every setting is already right.</p>
+    </div>
+  </div>
+</section>
+
+<h2 style="margin: 8px 0 12px">Cross-cutting notes</h2>
+<div class="note">
+  <ul style="margin:0">
+    <li><b>Stories they tell together:</b> see it and nail it (1, 4), feed it (2, 5, 10), keep it healthy (3, 6), show it off and account for it (7, 8), and make it yours (9).</li>
+    <li><b>Natural pairs:</b> 2 and 10 both want a richer "what filament is on which lane" model; 5 feeds 10; 9 is the hook that lets 6, 7 and 8 become user-configurable later.</li>
+    <li><b>Hardest to de-risk:</b> 6 (resume g-code), 3 (signal quality), 8 (energy data source). Each deserves a small spike before anyone promises a date.</li>
+    <li><b>Cheapest big smiles:</b> 1, 4 and the fanfare half of 7 reuse almost everything already shipped.</li>
+    <li><b>Conventions to respect:</b> declarative UI (data in C++, appearance in XML), vendor abstraction (capability questions, not vendor names), and the firmware build's no-exceptions/no-RTTI rules for anything shared with ESP32.</li>
+  </ul>
+</div>
+
+<footer>
+  Drafted as in-flight scaffolding under <code>docs/devel/plans/</code>. Per <code>docs/CLAUDE.md</code>, delete it in the change that ships the work it describes.
+</footer>
+
+</div>
+</body>
+</html>
