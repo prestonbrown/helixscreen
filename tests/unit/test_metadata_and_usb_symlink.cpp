@@ -234,8 +234,19 @@ TEST_CASE_METHOD(MetadataAPITestFixture, "metascan_file error completion also ar
     api->files().metascan_file(
         "unparsable.gcode", [](const FileMetadata&) {},
         [&](const MoonrakerError&) { error_called = true; });
-    ::unsetenv("HELIX_MOCK_METADATA_404");
     REQUIRE(error_called);
+
+    // The toggle must be live per request: unset, the same file now scans
+    // cleanly. A cached read would latch the first evaluation for the whole
+    // process and this success would arrive as an error instead.
+    ::unsetenv("HELIX_MOCK_METADATA_404");
+    MoonrakerFileApiTestAccess::expire_metascan_cooldown(api->files(), "unparsable.gcode");
+    bool recovered = false;
+    api->files().metascan_file(
+        "unparsable.gcode", [&](const FileMetadata&) { recovered = true; },
+        [](const MoonrakerError&) {});
+    REQUIRE(recovered);
+    REQUIRE(mock_client.last_send_method() == "server.files.metascan");
 
     REQUIRE(MoonrakerFileApiTestAccess::metascan_in_cooldown(api->files(), "unparsable.gcode"));
     REQUIRE_FALSE(MoonrakerFileApiTestAccess::metascan_in_flight(api->files(), "unparsable.gcode"));
