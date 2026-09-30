@@ -194,19 +194,83 @@ void MoonrakerFileAPI::get_file_metadata(const std::string& filename,
     );
 }
 
+/// How long after a metascan completes (any outcome that reached Moonraker)
+/// before the same file may be scanned again. Long enough that a file
+/// Moonraker's parser keeps failing is not rescanned on every panel visit,
+/// short enough that a Moonraker upgrade or re-slice recovers within a
+/// session.
+static constexpr auto kMetascanRescanCooldown = std::chrono::minutes(10);
+
+void MoonrakerFileAPI::prune_expired_metascan_cooldown_locked(
+    std::chrono::steady_clock::time_point now) {
+    for (auto it = metascan_cooldown_until_.begin(); it != metascan_cooldown_until_.end();) {
+        it = (it->second <= now) ? metascan_cooldown_until_.erase(it) : std::next(it);
+    }
+}
+
 void MoonrakerFileAPI::metascan_file(const std::string& filename, FileMetadataCallback on_success,
                                      ErrorCallback on_error, bool silent) {
     // Validate filename path
     if (reject_invalid_path(filename, "metascan_file", on_error, silent))
         return;
 
+    // One scan per file at a time; see metascan_gate_mutex_ in the header for
+    // why duplicates must not reach Moonraker.
+    const std::string& key = filename;
+    bool suppressed = false;
+    {
+        std::lock_guard<std::mutex> lock(metascan_gate_mutex_);
+        prune_expired_metascan_cooldown_locked(std::chrono::steady_clock::now());
+        if (metascan_in_flight_.count(key) != 0) {
+            spdlog::debug("[FileAPI] Metascan already in flight for {}, dropping duplicate",
+                          filename);
+            suppressed = true;
+        } else if (auto it = metascan_cooldown_until_.find(key);
+                   it != metascan_cooldown_until_.end() &&
+                   std::chrono::steady_clock::now() < it->second) {
+            spdlog::debug("[FileAPI] Metascan for {} inside completion cooldown, skipping",
+                          filename);
+            suppressed = true;
+        } else {
+            metascan_in_flight_.insert(key);
+        }
+    }
+    if (suppressed) {
+        // Answer locally so the caller's error path still runs (the panel's
+        // gcode-extraction fallback), rather than leaving its card waiting on
+        // a callback that will never come.
+        if (on_error) {
+            on_error(MoonrakerError::not_ready(
+                "server.files.metascan",
+                "scan for this file already in flight or inside rescan cooldown"));
+        }
+        return;
+    }
+
+    // In-flight release, shared by every terminal path. The cooldown arm is
+    // separate: a CONNECTION_LOST error means the request never reached
+    // Moonraker (link down, queue full, send refused), and rescanning when
+    // the link returns is exactly what should happen.
+    auto clear_in_flight = [this, key]() {
+        std::lock_guard<std::mutex> lock(metascan_gate_mutex_);
+        metascan_in_flight_.erase(key);
+    };
+    auto finish = [this, key]() {
+        std::lock_guard<std::mutex> lock(metascan_gate_mutex_);
+        metascan_in_flight_.erase(key);
+        metascan_cooldown_until_[key] = std::chrono::steady_clock::now() + kMetascanRescanCooldown;
+    };
+
     json params = {{"filename", filename}};
 
     spdlog::debug("[FileAPI] Triggering metascan for file: {}", filename);
 
-    client_.send_jsonrpc(
+    const helix::RequestId id = client_.send_jsonrpc(
         "server.files.metascan", params,
-        [this, on_success, on_error, filename](json response) {
+        [this, on_success, on_error, filename, finish](json response) {
+            // Release the gate before parsing: the parse-exception path below
+            // must not leave the request marked in flight.
+            finish();
             // Parse inside the try, deliver outside it — see list_files above.
             FileMetadata metadata;
             try {
@@ -219,10 +283,24 @@ void MoonrakerFileAPI::metascan_file(const std::string& filename, FileMetadataCa
             spdlog::debug("[FileAPI] Metascan successful for: {}", filename);
             on_success(metadata);
         },
-        on_error,
+        [on_error, finish, clear_in_flight](const MoonrakerError& error) {
+            if (error.type == MoonrakerErrorType::CONNECTION_LOST) {
+                clear_in_flight();
+            } else {
+                finish();
+            }
+            on_error(error);
+        },
         0,     // timeout_ms: use default
         silent // silent: suppress RPC_ERROR events (default true)
     );
+    if (id == helix::INVALID_REQUEST_ID) {
+        // The tracker's duplicate-id registration branch returns invalid
+        // without invoking any callback; every other invalid return has
+        // already delivered a CONNECTION_LOST error (and cleared above).
+        // Either way nothing reached the wire, so release without cooldown.
+        clear_in_flight();
+    }
 }
 
 void MoonrakerFileAPI::delete_file(const std::string& filename, SuccessCallback on_success,
