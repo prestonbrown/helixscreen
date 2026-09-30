@@ -22,6 +22,7 @@
 #include "system/log_collector.h"
 #include "system/moonraker_local_probe.h"
 #include "system/telemetry_manager.h"
+#include "system/tls_trust.h"
 #include "system/update_checker.h"
 #include "touch_calibration_wrapper.h"
 #ifdef __ANDROID__
@@ -2196,7 +2197,7 @@ void DebugBundleCollector::upload_async(const BundleOptions& options, ResultCall
             req->headers["X-API-Key"] = INGEST_API_KEY;
             req->body.assign(reinterpret_cast<const char*>(compressed.data()), compressed.size());
 
-            auto resp = requests::request(req);
+            auto resp = helix::tls::trusted_request(req);
             status = resp ? static_cast<int>(resp->status_code) : 0;
             response_body = resp ? resp->body : "";
 #endif

@@ -37,6 +37,7 @@
 #include "system/log_path_probe.h"
 #include "system/sha256_util.h"
 #include "system/telemetry_manager.h"
+#include "system/tls_trust.h"
 #ifdef __ANDROID__
 #include "system/http_android.h"
 #endif
@@ -90,7 +91,7 @@ constexpr int RESTART_MARSHAL_TIMEOUT_MS = 5000;
 ///
 /// On Android, libhv is compiled without SSL (no NDK OpenSSL) so we route
 /// through Android's Java HttpURLConnection via JNI. Everywhere else we use
-/// libhv's `requests::`.
+/// helix::tls::trusted_request(), which verifies our servers' certificates.
 ///
 /// Returns {status_code, body}. A status_code of 0 means transport failure
 /// (DNS, connection, TLS, JNI) and body carries a short error message.
@@ -109,7 +110,7 @@ static std::pair<int, std::string> do_http_get(const std::string& url,
     if (!accept.empty()) {
         req->headers["Accept"] = accept;
     }
-    auto resp = requests::request(req);
+    auto resp = helix::tls::trusted_request(req);
     if (!resp) {
         return {0, ""};
     }
@@ -1268,8 +1269,8 @@ void UpdateChecker::start_download() {
     lock.unlock();
 
     // NEVER join the previous worker here. This runs on the LVGL thread from a
-    // button's event callback, and the worker can be parked inside libhv's
-    // SYNCHRONOUS requests::downloadFile(), whose req->timeout is 3600 seconds
+    // button's event callback, and the worker can be parked inside the
+    // SYNCHRONOUS helix::tls::trusted_download(), whose req->timeout is 3600 seconds
     // and which offers no abort hook at all — its progress callback returns
     // void. A join therefore freezes the touchscreen for up to an hour with no
     // repaint, which is the reported "froze and needed a power cycle".
@@ -1326,7 +1327,7 @@ void UpdateChecker::start_download() {
 
 void UpdateChecker::cancel_download() {
     download_cancelled_ = true;
-    // Deferred, not immediate. libhv's requests::downloadFile() runs to
+    // Deferred, not immediate. helix::tls::trusted_download() runs to
     // completion or timeout with no way to abort it, so the worker only
     // observes this flag once the transfer ends or the socket drops.
     // download_in_flight() stays true until then and start_download() refuses
@@ -1345,8 +1346,8 @@ void UpdateChecker::reap_download_thread(std::chrono::milliseconds wait) {
     const auto deadline = std::chrono::steady_clock::now() + wait;
     while (download_worker_active_.load()) {
         if (std::chrono::steady_clock::now() >= deadline) {
-            // Give up and detach. The worker is inside libhv's synchronous
-            // requests::downloadFile() (req->timeout = 3600s, no abort hook),
+            // Give up and detach. The worker is inside the synchronous
+            // trusted_download() (req->timeout = 3600s, no abort hook),
             // so joining would hang shutdown — and on the destructor path,
             // process exit — for up to an hour. This is the same escape hatch
             // HttpExecutor::stop() takes, for the same reason.
@@ -1448,7 +1449,7 @@ void UpdateChecker::do_download() {
     };
 
     // Download the file using libhv
-    size_t result = requests::downloadFile(url.c_str(), download_path.c_str(), progress_cb);
+    size_t result = helix::tls::trusted_download(url, download_path, progress_cb);
 
     if (shutting_down_.load()) {
         // reap_download_thread() may have detached this thread and shutdown()

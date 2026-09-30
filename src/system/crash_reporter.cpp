@@ -9,6 +9,7 @@
 #include "system/crash_handler.h"
 #include "system/crash_history.h"
 #include "system/log_collector.h"
+#include "system/tls_trust.h"
 #include "system/update_checker.h"
 
 #include <spdlog/spdlog.h>
@@ -1021,7 +1022,7 @@ bool CrashReporter::try_auto_send(const CrashReport& report) {
         req->headers["X-API-Key"] = INGEST_API_KEY;
         req->body = std::move(body);
 
-        auto resp = requests::request(req);
+        auto resp = helix::tls::trusted_request(req);
         status = resp ? static_cast<int>(resp->status_code) : 0;
         resp_body = resp ? resp->body : "";
 #endif

@@ -194,6 +194,7 @@ src/system/snapshot_qr_scanner.cpp  # not in the v1 Core+AMS cut
 src/system/sound_synthesis.cpp  # not in the v1 Core+AMS cut
 src/system/streaming_policy.cpp  # not in the v1 Core+AMS cut
 src/system/telemetry_manager.cpp  # not in the v1 Core+AMS cut
+src/system/tls_trust.cpp  # the concrete libhv client; the firmware has no TLS
 src/system/tracker_module_med.cpp  # not in the v1 Core+AMS cut
 src/system/tracker_module_mod.cpp  # not in the v1 Core+AMS cut
 src/system/tracker_player.cpp  # not in the v1 Core+AMS cut
