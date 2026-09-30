@@ -475,6 +475,7 @@ int MoonrakerClientMock::connect(const char* url, std::function<void()> on_conne
     }
 
     set_connection_state(ConnectionState::CONNECTED);
+    sim_link_down_ = false;
 
     // Dispatch historical temperature data first (fills graph with 2-3 min of data)
     dispatch_historical_temperatures();
@@ -1905,6 +1906,7 @@ void MoonrakerClientMock::disconnect() {
     spdlog::info("[MoonrakerClientMock] Simulating disconnection");
     stop_temperature_simulation(false);
     set_connection_state(ConnectionState::DISCONNECTED);
+    sim_link_down_ = true;
 }
 
 int MoonrakerClientMock::send_jsonrpc(const std::string& method) {
@@ -1935,11 +1937,12 @@ RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const jso
     spdlog::trace("[MoonrakerClientMock] Mock send_jsonrpc: {} (with success/error callbacks)",
                   method);
 
-    // Mirror MoonrakerClient::send_jsonrpc: a request while disconnected is
-    // refused and reported to the error callback as CONNECTION_LOST, so code
-    // under test sees the same immediate failure production shows instead of
-    // a mock that keeps answering over a dead link.
-    if (!ready_to_send(method.c_str())) {
+    // Mirror MoonrakerClient::send_jsonrpc, but only between an explicit
+    // disconnect() and the next successful connect(): a request on a dropped
+    // link is refused and reported to the error callback as CONNECTION_LOST,
+    // so code under test sees the same immediate failure production shows.
+    // Fixtures that never simulate a link keep getting answers.
+    if (sim_link_down_) {
         if (error_cb) {
             error_cb(MoonrakerError::connection_lost(method));
         }

@@ -1400,6 +1400,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     uint32_t last_send_timeout_ms_{0};
     bool last_send_silent_{false};
 
+    /// True only between an explicit disconnect() and the next successful
+    /// connect(): during that window send_jsonrpc refuses with CONNECTION_LOST
+    /// like the real client. Construction leaves it false so fixtures that
+    /// never simulate a link keep getting answers (the mock's initial
+    /// ConnectionState is DISCONNECTED and must not gate sends by itself).
+    bool sim_link_down_{false};
+
     // Intent of the in-flight send_jsonrpc() dispatch, read by the method
     // handlers via current_send_intent().
     helix::rpc_error_policy::CallerIntent current_send_intent_{};
