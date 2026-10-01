@@ -29,6 +29,11 @@ bool readable(const char* path) {
     return path && *path && access(path, R_OK) == 0;
 }
 
+bool non_empty_file(const char* path) {
+    std::error_code ec;
+    return readable(path) && std::filesystem::file_size(path, ec) > 0 && !ec;
+}
+
 #ifdef WITH_OPENSSL
 /// The address the SSL's socket is connected to. libhv sends no SNI for an IP-literal
 /// host, so for those this is the only record of what the caller asked for.
@@ -91,11 +96,13 @@ CaStore find_ca_store(const std::vector<std::string>& system_files,
         env.dir = d;
     if (!env.empty())
         return env;
+    // The shipped bundle outranks the system store: stock printer stores are years
+    // old and lack current roots, while the bundle is refreshed every release.
+    if (non_empty_file(bundled_file.c_str()))
+        return {bundled_file, {}};
     for (const auto& f : system_files)
         if (readable(f.c_str()))
             return {f, {}};
-    if (readable(bundled_file.c_str()))
-        return {bundled_file, {}};
     return {};
 }
 

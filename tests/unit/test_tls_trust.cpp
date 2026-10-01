@@ -241,7 +241,7 @@ HttpRequestPtr get(const std::string& url) {
 
 } // namespace
 
-TEST_CASE("find_ca_store: env beats system beats bundled", "[tls]") {
+TEST_CASE("find_ca_store: env beats bundled beats system", "[tls]") {
     TempDir dir;
     const std::string env_file = dir.touch("env.pem");
     const std::string sys_file = dir.touch("sys.pem");
@@ -255,25 +255,31 @@ TEST_CASE("find_ca_store: env beats system beats bundled", "[tls]") {
         CHECK(s.file == env_file);
         CHECK(s.dir == dir.path.string());
     }
-    SECTION("an unreadable SSL_CERT_FILE falls through to the system bundle") {
+    SECTION("an unreadable SSL_CERT_FILE falls through to the bundled file") {
         ScopedEnv f("SSL_CERT_FILE", missing.c_str());
         ScopedEnv d("SSL_CERT_DIR", nullptr);
         const CaStore s = find_ca_store({missing, sys_file}, bundled);
-        CHECK(s.file == sys_file);
+        CHECK(s.file == bundled);
         CHECK(s.dir.empty());
     }
-    SECTION("an empty SSL_CERT_DIR falls through to the system bundle") {
+    SECTION("an empty SSL_CERT_DIR falls through to the bundled file") {
         TempDir empty;
         ScopedEnv f("SSL_CERT_FILE", nullptr);
         ScopedEnv d("SSL_CERT_DIR", empty.path.c_str());
         const CaStore s = find_ca_store({sys_file}, bundled);
-        CHECK(s.file == sys_file);
+        CHECK(s.file == bundled);
         CHECK(s.dir.empty());
     }
-    SECTION("the bundled file is the last resort") {
+    SECTION("the system bundle serves when there is no bundled file") {
         ScopedEnv f("SSL_CERT_FILE", nullptr);
         ScopedEnv d("SSL_CERT_DIR", nullptr);
-        CHECK(find_ca_store({missing}, bundled).file == bundled);
+        CHECK(find_ca_store({missing, sys_file}, missing).file == sys_file);
+    }
+    SECTION("an empty bundled file is skipped for the system bundle") {
+        ScopedEnv f("SSL_CERT_FILE", nullptr);
+        ScopedEnv d("SSL_CERT_DIR", nullptr);
+        std::ofstream(dir.path / "empty.pem").close();
+        CHECK(find_ca_store({sys_file}, (dir.path / "empty.pem").string()).file == sys_file);
     }
     SECTION("nothing readable reports no store") {
         ScopedEnv f("SSL_CERT_FILE", nullptr);

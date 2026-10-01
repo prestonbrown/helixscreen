@@ -218,21 +218,27 @@ FALLBACK_BIN="${BIN_DIR}/helix-screen-fbdev"
 # Derive the install root (parent of bin/)
 INSTALL_DIR="$(cd "${BIN_DIR}/.." && pwd)"
 
-# Ensure SSL certificate verification works for HTTPS requests (e.g., update checker).
-# Static glibc builds embed OpenSSL with compiled-in cert paths from the Docker build
-# container, which don't exist on the target device. Set SSL_CERT_FILE to a valid path.
+# Point OpenSSL (the app's own, libhv's default context, child processes) at a CA
+# bundle. The shipped bundle comes first, matching find_ca_store() in
+# src/system/tls_trust.cpp: stock printer stores are years old and the bundle is
+# refreshed every release. Static glibc builds embed compiled-in cert paths from
+# the Docker build container, which don't exist on the device. A user-set
+# SSL_CERT_FILE wins.
 if [ -z "${SSL_CERT_FILE:-}" ]; then
-    for _cert_path in \
-        /etc/ssl/certs/ca-certificates.crt \
-        /etc/pki/tls/certs/ca-bundle.crt \
-        /etc/ssl/cert.pem \
-        "${INSTALL_DIR}/certs/ca-certificates.crt"; do
-        if [ -f "$_cert_path" ]; then
-            export SSL_CERT_FILE="$_cert_path"
-            break
-        fi
-    done
-    unset _cert_path
+    if [ -s "${INSTALL_DIR}/certs/ca-certificates.crt" ]; then
+        export SSL_CERT_FILE="${INSTALL_DIR}/certs/ca-certificates.crt"
+    else
+        for _cert_path in \
+            /etc/ssl/certs/ca-certificates.crt \
+            /etc/pki/tls/certs/ca-bundle.crt \
+            /etc/ssl/cert.pem; do
+            if [ -f "$_cert_path" ]; then
+                export SSL_CERT_FILE="$_cert_path"
+                break
+            fi
+        done
+        unset _cert_path
+    fi
 fi
 
 # Source environment configuration file if present.

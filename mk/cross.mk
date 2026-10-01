@@ -2834,6 +2834,24 @@ endef
 
 .PHONY: release-pi release-pi32 release-ad5m release-k1 release-ad5x release-k1-dynamic release-k2 release-snapmaker-u1 release-x86 release-all release-clean pi-fbdev-docker pi32-fbdev-docker pi-all-docker pi32-all-docker x86-fbdev-docker x86-all-docker
 
+# Host CA bundle packaged when a platform has no toolchain-extracted one.
+CA_BUNDLE ?= /etc/ssl/certs/ca-certificates.crt
+
+# CA bundle for HTTPS verification, the fallback for devices without system
+# certs. The toolchain image's copy (extract-ca-certs) wins; CI never runs the
+# *-docker targets, so the build host's bundle stands in. An absent or empty
+# bundle fails the release rather than shipping none.
+define release-ca-bundle
+	@ca=build/$(1)/certs/ca-certificates.crt; [ -s "$$ca" ] || ca="$(CA_BUNDLE)"; \
+	if [ ! -s "$$ca" ]; then \
+		echo "$(RED)$(BOLD)✗ No CA bundle for $(1): build/$(1)/certs/ca-certificates.crt and CA_BUNDLE=$(CA_BUNDLE) are missing or empty.$(RESET)"; \
+		exit 1; \
+	fi; \
+	mkdir -p $(RELEASE_DIR)/helixscreen/certs; \
+	cp "$$ca" $(RELEASE_DIR)/helixscreen/certs/ca-certificates.crt; \
+	echo "  $(DIM)Included CA certificates for HTTPS ($$ca)$(RESET)"
+endef
+
 # Package Pi release
 release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash build/pi-fbdev/bin/helix-screen
 	@echo "$(CYAN)$(BOLD)Packaging Pi release v$(VERSION)...$(RESET)"
@@ -2870,6 +2888,7 @@ release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash build/pi-fbdev
 		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered; \
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
+	$(call release-ca-bundle,pi)
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
 	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
@@ -2916,6 +2935,7 @@ release-pi32: | build/pi32/bin/helix-screen build/pi32/bin/helix-splash build/pi
 		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered; \
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
+	$(call release-ca-bundle,pi32)
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
 	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
@@ -2964,12 +2984,7 @@ release-ad5m: | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
 		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered; \
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
-	@# Bundle CA certificates for HTTPS verification (fallback if device lacks system certs)
-	@if [ -f "build/ad5m/certs/ca-certificates.crt" ]; then \
-		mkdir -p $(RELEASE_DIR)/helixscreen/certs; \
-		cp build/ad5m/certs/ca-certificates.crt $(RELEASE_DIR)/helixscreen/certs/; \
-		echo "  $(DIM)Included CA certificates for HTTPS$(RESET)"; \
-	fi
+	$(call release-ca-bundle,ad5m)
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
 	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
@@ -3015,12 +3030,7 @@ release-ad5x: | build/ad5x/bin/helix-screen build/ad5x/bin/helix-splash
 		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered; \
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
-	@# Bundle CA certificates for HTTPS verification (fallback if device lacks system certs)
-	@if [ -f "build/ad5x/certs/ca-certificates.crt" ]; then \
-		mkdir -p $(RELEASE_DIR)/helixscreen/certs; \
-		cp build/ad5x/certs/ca-certificates.crt $(RELEASE_DIR)/helixscreen/certs/; \
-		echo "  $(DIM)Included CA certificates for HTTPS$(RESET)"; \
-	fi
+	$(call release-ca-bundle,ad5x)
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
 	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
@@ -3066,12 +3076,7 @@ release-cc1: | build/cc1/bin/helix-screen build/cc1/bin/helix-splash
 		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered; \
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
-	@# Bundle CA certificates for HTTPS verification (fallback if device lacks system certs)
-	@if [ -f "build/cc1/certs/ca-certificates.crt" ]; then \
-		mkdir -p $(RELEASE_DIR)/helixscreen/certs; \
-		cp build/cc1/certs/ca-certificates.crt $(RELEASE_DIR)/helixscreen/certs/; \
-		echo "  $(DIM)Included CA certificates for HTTPS$(RESET)"; \
-	fi
+	$(call release-ca-bundle,cc1)
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
 	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
@@ -3117,12 +3122,7 @@ release-k1: | build/mips/bin/helix-screen build/mips/bin/helix-splash
 		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered; \
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
-	@# Bundle CA certificates for HTTPS verification (fallback if device lacks system certs)
-	@if [ -f "build/mips/certs/ca-certificates.crt" ]; then \
-		mkdir -p $(RELEASE_DIR)/helixscreen/certs; \
-		cp build/mips/certs/ca-certificates.crt $(RELEASE_DIR)/helixscreen/certs/; \
-		echo "  $(DIM)Included CA certificates for HTTPS$(RESET)"; \
-	fi
+	$(call release-ca-bundle,mips)
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
 	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
@@ -3165,6 +3165,7 @@ release-k1-dynamic: | build/k1-dynamic/bin/helix-screen build/k1-dynamic/bin/hel
 		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered; \
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
+	$(call release-ca-bundle,k1-dynamic)
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
 	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
@@ -3218,6 +3219,7 @@ release-k2: | build/k2/bin/helix-screen build/k2/bin/helix-splash
 		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered; \
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
+	$(call release-ca-bundle,k2)
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
 	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
@@ -3256,11 +3258,7 @@ release-snapmaker-u1: | build/snapmaker-u1/bin/helix-screen
 	@for f in $(RELEASE_ASSET_FILES); do \
 		if [ -f "$$f" ]; then cp "$$f" $(RELEASE_DIR)/helixscreen/assets/; fi; \
 	done
-	@if [ -f "build/snapmaker-u1/certs/ca-certificates.crt" ]; then \
-		mkdir -p $(RELEASE_DIR)/helixscreen/certs; \
-		cp build/snapmaker-u1/certs/ca-certificates.crt $(RELEASE_DIR)/helixscreen/certs/; \
-		echo "  $(DIM)Included CA certificates for HTTPS$(RESET)"; \
-	fi
+	$(call release-ca-bundle,snapmaker-u1)
 	@if [ -d "build/assets/images/prerendered" ]; then \
 		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/prerendered; \
 		cp -r build/assets/images/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/prerendered/; \
@@ -3315,6 +3313,7 @@ release-x86: | build/x86/bin/helix-screen build/x86/bin/helix-splash build/x86-f
 		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered; \
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
+	$(call release-ca-bundle,x86)
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
 	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen)
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true

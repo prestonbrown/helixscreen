@@ -27,12 +27,12 @@ struct CaStore {
 };
 
 /// Resolves the CA store: a readable $SSL_CERT_FILE / $SSL_CERT_DIR first, then the
-/// first readable entry of `system_files`, then `bundled_file`.
+/// non-empty `bundled_file`, then the first readable entry of `system_files`.
 CaStore find_ca_store(const std::vector<std::string>& system_files,
                       const std::string& bundled_file);
 
-/// find_ca_store() over the system bundle paths the launcher also searches and the
-/// certs/ca-certificates.crt shipped next to the install.
+/// find_ca_store() over the certs/ca-certificates.crt shipped next to the install,
+/// then the usual system bundle paths.
 CaStore find_ca_store();
 
 /// A client SSL_CTX (as libhv's hssl_ctx_t) that verifies the server's chain against

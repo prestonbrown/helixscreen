@@ -133,3 +133,20 @@ release_recipe() {
 @test "3D splash generation uses LZ4 compression" {
     grep -q '"--compress".*"LZ4"' scripts/gen_splash_3d.py
 }
+
+# ============================================================================
+# CA bundle ships in every release package
+# ============================================================================
+
+@test "every release target packages a CA bundle and the macro fails without one" {
+    local body
+    body=$(awk '/^define release-ca-bundle/{f=1;next} /^endef/{f=0} f' "$CROSS_MK")
+    echo "$body" | grep -q 'certs/ca-certificates.crt' || fail "macro does not install the CA bundle"
+    echo "$body" | grep -q 'CA_BUNDLE' || fail "macro has no host-bundle fallback"
+    echo "$body" | grep -q 'exit 1' || fail "macro does not fail on a missing bundle"
+    local t missing=""
+    for t in $(release_targets); do
+        release_recipe "$t" | grep -q 'call release-ca-bundle' || missing="$missing $t"
+    done
+    [ -z "$missing" ] || fail "release targets without a CA bundle:$missing"
+}
