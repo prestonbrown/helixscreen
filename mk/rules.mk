@@ -340,7 +340,7 @@ endif
 # fires when a C++ exception unwinds through these C frames. Required for
 # lvgl_event_pop_unwind_safe.patch (L081 root cause fix). Code-size impact is
 # bounded — only functions with cleanups get extra unwind regions.
-LVGL_C_CFLAGS := $(SUBMODULE_CFLAGS) -fexceptions -fno-omit-frame-pointer
+LVGL_C_CFLAGS := $(SUBMODULE_CFLAGS) -fexceptions
 $(OBJ_DIR)/lvgl/%.o: $(LVGL_DIR)/%.c lv_conf.h $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
