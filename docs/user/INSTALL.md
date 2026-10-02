@@ -113,6 +113,7 @@ HelixScreen also runs on an Android phone or tablet. It is the same remote clien
 | File | Use it for |
 |------|-----------|
 | `helixscreen-android-arm64-v<VERSION>.apk` | Essentially every modern phone and tablet. **Start here** |
+| `helixscreen-android-armv7-v<VERSION>.apk` | 32-bit devices, where arm64 fails with `INSTALL_FAILED_NO_MATCHING_ABIS`: an Echo Show 5 (2nd gen) running LineageOS, Fire tablets, older phones |
 | `helixscreen-android-x86_64-v<VERSION>.apk` | Emulators and x86 Chromebooks |
 | `helixscreen-android-universal-v<VERSION>.apk` | Works everywhere, but a larger download. Use it if arm64 refuses to install |
 

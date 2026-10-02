@@ -24,6 +24,17 @@ if (vCodeProc.exitValue() != 0) {
 }
 def vCode = vCodeOut.toString().trim().toInteger()
 
+// Native ABIs to build and split into per-ABI APKs. armeabi-v7a covers 32-bit
+// ARM userspace: Amazon's MT8163 Echo Show 5 (2nd gen) running LineageOS 18.1,
+// Fire tablets and older phones. Their SoCs are 64-bit, but the ROMs ship no
+// 64-bit zygote, so an arm64-v8a-only APK fails with INSTALL_FAILED_NO_MATCHING_ABIS.
+//
+// -PhelixAbis=armeabi-v7a (comma-separated) narrows a local build to the ABI
+// on the device in hand; each ABI is a full native build of its own.
+def helixAbis = project.hasProperty('helixAbis')
+    ? project.property('helixAbis').split(',')*.trim().findAll { it }
+    : ['arm64-v8a', 'armeabi-v7a', 'x86_64']
+
 android {
     namespace "org.helixscreen.app"
     compileSdkVersion 35
@@ -46,7 +57,7 @@ android {
                     ]
                 }
                 arguments(*cmakeArgs)
-                abiFilters 'arm64-v8a', 'x86_64'
+                abiFilters(*helixAbis)
             }
         }
     }
@@ -80,7 +91,7 @@ android {
         abi {
             enable true
             reset()
-            include "arm64-v8a", "x86_64"
+            include(*helixAbis)
             universalApk true
         }
     }

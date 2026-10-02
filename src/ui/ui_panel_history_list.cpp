@@ -350,13 +350,13 @@ void HistoryListPanel::refresh_from_api() {
     has_more_data_ = true;
     load_more_guard_.release();
 
-    spdlog::debug("[{}] Fetching first page of history (limit={})", get_name(), PAGE_SIZE);
+    spdlog::debug("[{}] Fetching first page of history (limit={})", get_name(), JOBS_PER_PAGE);
 
     api->history().get_history_list(
-        PAGE_SIZE, // limit - use page size
-        0,         // start - first page
-        0.0,       // since (no filter)
-        0.0,       // before (no filter)
+        JOBS_PER_PAGE, // limit - use page size
+        0,             // start - first page
+        0.0,           // since (no filter)
+        0.0,           // before (no filter)
         lifetime_.bg_cb("HistoryListPanel::fetch_history",
                         [this](const std::vector<PrintHistoryJob>& jobs, uint64_t total) {
                             spdlog::info("[{}] Received {} jobs (total: {})", get_name(),
@@ -401,13 +401,13 @@ void HistoryListPanel::load_more() {
     int start_offset = static_cast<int>(jobs_.size());
 
     spdlog::debug("[{}] Loading more jobs (start={}, limit={})", get_name(), start_offset,
-                  PAGE_SIZE);
+                  JOBS_PER_PAGE);
 
     api->history().get_history_list(
-        PAGE_SIZE,    // limit
-        start_offset, // start - continue from where we left off
-        0.0,          // since (no filter)
-        0.0,          // before (no filter)
+        JOBS_PER_PAGE, // limit
+        start_offset,  // start - continue from where we left off
+        0.0,           // since (no filter)
+        0.0,           // before (no filter)
         lifetime_.bg_cb("HistoryListPanel::load_more",
                         [this](const std::vector<PrintHistoryJob>& new_jobs, uint64_t total) {
                             load_more_guard_.release();

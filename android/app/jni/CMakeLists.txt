@@ -305,6 +305,25 @@ target_precompile_headers(main PRIVATE
     "$<$<COMPILE_LANGUAGE:CXX>:${PROJECT_ROOT}/include/lvgl_pch.h>"
 )
 
+# Large-file support on 32-bit ABIs (armeabi-v7a), mirroring the per-object
+# -D_FILE_OFFSET_BITS=64 in mk/rules.mk: bionic's LP32 off_t is 32-bit, so the
+# G-code reader's fseeko/ftello and helix_fs's stat() fail on a file past 2 GB.
+# The define must precede every system header, and the precompiled header has
+# already latched off_t, so these sources skip the PCH and force-include it as
+# plain source instead, as the Makefile build does. 64-bit ABIs are unaffected.
+if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+    set(HELIX_LFS_SOURCES
+        "${PROJECT_ROOT}/src/rendering/gcode_data_source.cpp"
+        "${PROJECT_ROOT}/src/system/text_io.cpp"
+        "${PROJECT_ROOT}/src/system/helix_fs.cpp"
+    )
+    set_source_files_properties(${HELIX_LFS_SOURCES} PROPERTIES
+        SKIP_PRECOMPILE_HEADERS ON
+        COMPILE_DEFINITIONS _FILE_OFFSET_BITS=64
+        COMPILE_OPTIONS "-include;${PROJECT_ROOT}/include/lvgl_pch.h"
+    )
+endif()
+
 # Link everything
 find_library(log-lib log)
 find_library(z-lib z)

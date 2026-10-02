@@ -1,5 +1,5 @@
 sha256	patch	kind	dir	file	marker	label	note
-7e736127c8145450ff20010cde6b3af6075b96dbfb1f2a26d01137ec5e53595e	lvgl_sdl_window.patch	+	LVGL_DIR	src/drivers/sdl/lv_sdl_window.c	#include <android/log.h>	LVGL SDL window patch	
+3d0841afddf3917357703f377f8c1acad29c7093a42daee805880920169e1446	lvgl_sdl_window.patch	+	LVGL_DIR	src/drivers/sdl/lv_sdl_window.c	#include <android/log.h>	LVGL SDL window patch	
 c8791806e64a203ec99950b37bc6c3e1a6a3a7bad9284b3eebf2bec5b43635f2	lvgl_sdl_sw_android_debug.patch	+	LVGL_DIR	src/drivers/sdl/lv_sdl_sw.c	lv_display_set_buffers(display, ddata->buf1, ddata->buf2, buffer_size_bytes, sdl_render_mode());	LVGL SDL SW android debug + blendmode fix patch	
 19a336a288b1f6a03d4d1f3baec6d9d0e70bef7559f9ef903ff6280110606695	lvgl_theme_breakpoints.patch	+	LVGL_DIR	src/themes/default/lv_theme_default.c	#define PAD_DEF     LV_DPX_CALC(theme->disp_dpi, theme->disp_size == DISP_LARGE ? 20 : theme->disp_size == DISP_MEDIUM ? 16 : 12)	LVGL theme breakpoints patch	
 fdc6ce0f593aedde2aad55dc51e31c98ba3bb71c487ba6ab9fe0362476f53ce5	lvgl_fbdev_stride_bpp.patch	+	LVGL_DIR	src/drivers/display/fb/lv_linux_fbdev.c	/* AD5M and some other devices report incorrect bits_per_pixel via VSCREENINFO.	LVGL fbdev stride bpp detection patch	

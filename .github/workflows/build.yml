@@ -515,7 +515,9 @@ jobs:
     # cap is a coin flip: it timed out at exactly 30:02 on one commit and passed
     # in 26 on the next. The ceiling is for a hung Gradle or NDK fetch, not for
     # the build, so it sits well clear of the build's own spread.
-    timeout-minutes: 50
+    # That figure was for two ABIs. armeabi-v7a is a third full native build, so
+    # expect roughly half again on top, and the cap moves with it.
+    timeout-minutes: 70
 
     steps:
     - name: Checkout repository

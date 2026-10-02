@@ -1,5 +1,5 @@
 diff --git a/src/drivers/sdl/lv_sdl_window.c b/src/drivers/sdl/lv_sdl_window.c
-index 15a87ab12..5826c31bf 100644
+index 15a87ab12..fa7289751 100644
 --- a/src/drivers/sdl/lv_sdl_window.c
 +++ b/src/drivers/sdl/lv_sdl_window.c
 @@ -21,6 +21,10 @@
@@ -170,7 +170,7 @@ index 15a87ab12..5826c31bf 100644
                      break;
                  case SDL_WINDOWEVENT_CLOSE:
                      lv_display_delete(disp);
-@@ -271,15 +370,108 @@ static void sdl_event_handler(lv_timer_t * t)
+@@ -271,15 +370,122 @@ static void sdl_event_handler(lv_timer_t * t)
              }
          }
          if(event.type == SDL_QUIT) {
@@ -204,6 +204,13 @@ index 15a87ab12..5826c31bf 100644
 +#define HELIX_ANDROID_LOGICAL_W_MAX 1920
 +#define HELIX_ANDROID_MIN_SCALE     2
 +#define HELIX_ANDROID_MAX_SCALE     4
++/* A panel at or below this density (Android's densityDpi) renders 1:1 instead
++ * of starting at HELIX_ANDROID_MIN_SCALE. HelixScreen's layouts are sized for
++ * printer-class panels, which all sit at or below 225 DPI (kScaleDeadbandDpi in
++ * include/display_metrics.h), so halving one throws away resolution it needs:
++ * the Echo Show 5 (2nd gen) is 960x480 at 195, and 2x gave it a 480x240 canvas,
++ * below the smallest layout. Phones report 280 and up and keep the 2x floor. */
++#define HELIX_ANDROID_NATIVE_SCALE_MAX_DPI 225.0f
 +#define HELIX_ANDROID_LOG_TAG       "HelixSDL"
 +
 +#define HELIX_ANDROID_LOG(prio, fmt, ...) \
@@ -241,10 +248,17 @@ index 15a87ab12..5826c31bf 100644
 +        return;
 +    }
 +
++    int min_scale = HELIX_ANDROID_MIN_SCALE;
++    float ddpi = 0.0f;
++    if(SDL_GetDisplayDPI(0, &ddpi, NULL, NULL) == 0 && ddpi > 0.0f &&
++       ddpi <= HELIX_ANDROID_NATIVE_SCALE_MAX_DPI) {
++        min_scale = 1;
++    }
++
 +    /* Smallest integer scale whose logical width is < HELIX_ANDROID_LOGICAL_W_MAX.
 +     * Gives the highest usable resolution with pixel-perfect upscaling. */
 +    int scale = 1;
-+    for(int s = HELIX_ANDROID_MIN_SCALE; s <= HELIX_ANDROID_MAX_SCALE; s++) {
++    for(int s = min_scale; s <= HELIX_ANDROID_MAX_SCALE; s++) {
 +        if(native_w / s < HELIX_ANDROID_LOGICAL_W_MAX) {
 +            scale = s;
 +            break;
@@ -275,14 +289,14 @@ index 15a87ab12..5826c31bf 100644
 +    dsc->ignore_size_chg = 0;
 +
 +    HELIX_ANDROID_LOG(ANDROID_LOG_INFO,
-+        "logical %dx%d -> %dx%d (native %dx%d, %dx integer)",
-+        prev_w, prev_h, logical_w, logical_h, native_w, native_h, scale);
++        "logical %dx%d -> %dx%d (native %dx%d, %.0f dpi, %dx integer)",
++        prev_w, prev_h, logical_w, logical_h, native_w, native_h, (double)ddpi, scale);
  }
 +#endif
  
  static lv_result_t window_create(lv_display_t * disp)
  {
-@@ -294,24 +486,121 @@ static lv_result_t window_create(lv_display_t * disp)
+@@ -294,24 +500,121 @@ static lv_result_t window_create(lv_display_t * disp)
  #if LV_SDL_FULLSCREEN
      flag |= SDL_WINDOW_FULLSCREEN;
  #endif
@@ -406,7 +420,7 @@ index 15a87ab12..5826c31bf 100644
      return LV_RESULT_OK;
  }
  
-@@ -333,16 +622,22 @@ static void res_chg_event_cb(lv_event_t * e)
+@@ -333,16 +636,22 @@ static void res_chg_event_cb(lv_event_t * e)
  
  static void release_disp_cb(lv_event_t * e)
  {

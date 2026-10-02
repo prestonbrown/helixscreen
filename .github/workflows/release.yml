@@ -489,9 +489,10 @@ jobs:
         for apk in "$APK_DIR"/*.apk; do
           filename=$(basename "$apk")
           case "$filename" in
-            *arm64-v8a*) cp "$apk" "release-apks/helixscreen-android-arm64-v${VERSION}.apk" ;;
-            *x86_64*)    cp "$apk" "release-apks/helixscreen-android-x86_64-v${VERSION}.apk" ;;
-            *universal*) cp "$apk" "release-apks/helixscreen-android-universal-v${VERSION}.apk" ;;
+            *arm64-v8a*)   cp "$apk" "release-apks/helixscreen-android-arm64-v${VERSION}.apk" ;;
+            *armeabi-v7a*) cp "$apk" "release-apks/helixscreen-android-armv7-v${VERSION}.apk" ;;
+            *x86_64*)      cp "$apk" "release-apks/helixscreen-android-x86_64-v${VERSION}.apk" ;;
+            *universal*)   cp "$apk" "release-apks/helixscreen-android-universal-v${VERSION}.apk" ;;
           esac
         done
 
@@ -691,7 +692,7 @@ jobs:
     # softprops/action-gh-release runs with fail_on_unmatched_files: false —
     # deliberately, because several of its globs are optional — so a missing
     # Android artifact would publish a release with no Android downloads and
-    # still report success. Assert the four by name instead of flipping that
+    # still report success. Assert the five by name instead of flipping that
     # flag globally. The names must stay in step with the rename steps in
     # build-android and with the download instructions in the release notes.
     - name: Verify Android artifacts are present
@@ -700,6 +701,7 @@ jobs:
         VERSION="${RELEASE_TAG#v}"
         missing=""
         for f in "helixscreen-android-arm64-v${VERSION}.apk" \
+                 "helixscreen-android-armv7-v${VERSION}.apk" \
                  "helixscreen-android-x86_64-v${VERSION}.apk" \
                  "helixscreen-android-universal-v${VERSION}.apk" \
                  "helixscreen-android-v${VERSION}.aab"; do
@@ -914,6 +916,7 @@ jobs:
         ### Android (Experimental)
         Download the APK for your device architecture:
         - **arm64**: `helixscreen-android-arm64-${{ steps.version.outputs.version }}.apk` (most Android phones/tablets)
+        - **armv7**: `helixscreen-android-armv7-${{ steps.version.outputs.version }}.apk` (32-bit devices: Echo Show 5 2nd gen on LineageOS, Fire tablets, older phones)
         - **x86_64**: `helixscreen-android-x86_64-${{ steps.version.outputs.version }}.apk` (emulators, Chromebooks)
         - **universal**: `helixscreen-android-universal-${{ steps.version.outputs.version }}.apk` (all architectures)
         - **Play Store bundle**: `helixscreen-android-${{ steps.version.outputs.version }}.aab`

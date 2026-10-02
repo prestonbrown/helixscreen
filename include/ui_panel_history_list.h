@@ -247,8 +247,8 @@ class HistoryListPanel : public OverlayBase {
     helix::HistoryChangedCallback history_observer_;
 
     // Pagination state for infinite scroll
-    static constexpr int PAGE_SIZE = 50; ///< Jobs per API request
-    uint64_t total_job_count_ = 0;       ///< Total jobs on server (from API)
+    static constexpr int JOBS_PER_PAGE = 50; ///< Jobs per API request
+    uint64_t total_job_count_ = 0;           ///< Total jobs on server (from API)
     /// Single-flight guard for the "load next page" fetch, with a 30s self-heal
     /// so a silently-lost response can't permanently block infinite scroll.
     helix::InFlightGuard load_more_guard_{std::chrono::milliseconds(30000)};
