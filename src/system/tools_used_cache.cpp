@@ -3,6 +3,7 @@
 #include "tools_used_cache.h"
 
 #include "app_globals.h"
+#include "json_utils.h"
 
 #include <spdlog/spdlog.h>
 
@@ -90,7 +91,7 @@ void ToolsUsedCache::save_to_disk() {
             spdlog::warn("[ToolsUsedCache] Cannot write {}", path);
             return;
         }
-        const std::string out = j.dump();
+        const std::string out = helix::json_util::safe_dump(j);
         std::fwrite(out.data(), 1, out.size(), f);
         std::fclose(f);
     } catch (const std::exception& ex) {

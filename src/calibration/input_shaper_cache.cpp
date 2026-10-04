@@ -2,6 +2,7 @@
 
 #include "input_shaper_cache.h"
 
+#include "json_utils.h"
 #include "system/helix_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -231,7 +232,7 @@ bool InputShaperCache::save_results(const InputShaperCalibrator::CalibrationResu
             return false;
         }
 
-        file << json.dump(2); // Pretty print with 2-space indent
+        file << helix::json_util::safe_dump(json, 2);
         file.close();
 
         if (!file) {

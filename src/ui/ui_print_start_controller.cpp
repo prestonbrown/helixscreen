@@ -26,6 +26,7 @@
 #include "data_root_resolver.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "print_job_ref.h"
@@ -1040,7 +1041,7 @@ void PrintStartController::persist_remap_state() {
         fs::create_directories(path.parent_path());
         std::ofstream ofs(path);
         if (ofs.is_open()) {
-            ofs << j.dump(2);
+            ofs << helix::json_util::safe_dump(j, 2);
             spdlog::debug("[PrintStartController] Persisted remap state to {}", path.string());
         }
     } catch (const std::exception& e) {

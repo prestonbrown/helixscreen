@@ -19,6 +19,7 @@
 
 #include "http_executor.h"
 #include "hv/requests.h"
+#include "json_utils.h"
 #include "moonraker_error.h"
 #include "spdlog/spdlog.h"
 
@@ -210,8 +211,7 @@ void MoonrakerRestAPI::call_rest_post(const std::string& endpoint, const json& p
     }
     url += endpoint;
 
-    // Serialize params to JSON string
-    std::string body = params.dump();
+    std::string body = helix::json_util::safe_dump(params);
 
     // Log without body content to avoid exposing sensitive data
     spdlog::debug("[MoonrakerRestAPI] REST POST: {} ({} bytes)", url, body.size());

@@ -4,6 +4,7 @@
 #include "wifi_saved_config.h"
 
 #include "data_root_resolver.h"
+#include "json_utils.h"
 #include "log_redact.h"
 
 #include <spdlog/spdlog.h>
@@ -349,20 +350,13 @@ bool write_store(const std::vector<SavedNetwork>& nets) {
     id.mode = 0600; // forced — see write_store() doc comment above
 
     // escape_bytes() above already guarantees every field is pure ASCII, so
-    // dump() should never hit invalid UTF-8 here. error_handler_t::replace is
-    // kept as a last-resort safety net rather than the default ::strict
-    // anyway: dump() throws type_error on invalid UTF-8, and an uncaught
-    // throw here would unwind out of connect_network() past the point where
-    // connecting_in_progress_ gets reset, permanently hanging the connect UI.
-    // Before escape_bytes() existed, ::replace's U+FFFD substitution was the
-    // ONLY thing standing between a non-UTF-8 SSID and that hang — but it
-    // also meant the stored text could never string-equal the real SSID
-    // again, so save()'s dedup silently stopped matching and appended a fresh
-    // duplicate cleartext-PSK record on every connect to that network,
-    // forever. escape_bytes()/unescape_bytes() round-trip the exact bytes
-    // instead, so dedup keeps working and this is now purely defensive.
-    return write_mirrored(path, j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace),
-                          id);
+    // serialization should never meet invalid UTF-8 here. safe_dump() is the
+    // backstop: a throw out of this call would unwind out of connect_network()
+    // past the point where connecting_in_progress_ gets reset, permanently
+    // hanging the connect UI. The escaping is what keeps dedup working —
+    // U+FFFD substitution would leave the stored text unable to string-equal
+    // the real SSID, so every connect would append a fresh duplicate record.
+    return write_mirrored(path, helix::json_util::safe_dump(j, 2), id);
 }
 
 } // namespace

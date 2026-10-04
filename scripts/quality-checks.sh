@@ -1986,6 +1986,33 @@ else
 fi
 
 SECTION_START=$(date +%s)
+echo -n "🔤 Checking JSON save paths for bare dumps..."
+
+if [ -f "scripts/check_json_dump_utf8.py" ]; then
+  # nlohmann dumps with error_handler_t::strict, so a string holding bytes UTF-8
+  # cannot decode throws json::type_error.316. The text on a save path is the
+  # text nothing validates — SSIDs, printer and tool names, file names, macro
+  # text, gcode responses — so strict costs the whole document: the throw either
+  # unwinds through LVGL's C frames or, behind a catch, drops the user's change
+  # silently. Use helix::json_util::safe_dump(), which replaces the offending
+  # bytes; annotate a genuine need `// JSON_DUMP_OK: <reason>`.
+  if python3 scripts/check_json_dump_utf8.py >/tmp/json_dump_utf8.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    tail -1 /tmp/json_dump_utf8.out
+  else
+    section_time $SECTION_START
+    echo ""
+    cat /tmp/json_dump_utf8.out
+    EXIT_CODE=1
+  fi
+else
+  section_time $SECTION_START
+  echo ""
+  echo "⚠️  check_json_dump_utf8.py not found — skipping"
+fi
+
+SECTION_START=$(date +%s)
 echo -n "🧭 Checking raw print-state reads..."
 
 if [ -f "scripts/check_raw_print_job_state.py" ]; then

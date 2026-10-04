@@ -12,6 +12,7 @@
 #include "http_executor.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "log_redact.h"
 #include "logging_init.h"
 #include "platform_capabilities.h"
@@ -2159,7 +2160,7 @@ void DebugBundleCollector::upload_async(const BundleOptions& options, ResultCall
         try {
             spdlog::info("[DebugBundle] Collecting debug bundle...");
             json bundle = collect(opts);
-            std::string json_str = bundle.dump();
+            std::string json_str = helix::json_util::safe_dump(bundle);
 
             spdlog::info("[DebugBundle] Compressing {} bytes...", json_str.size());
             auto compressed = gzip_compress(json_str);

@@ -1140,7 +1140,7 @@ UpdateChecker::repair_release_info(const std::string& install_root) {
                          tmp_path, strerror(errno));
             return ReleaseInfoRepair::Failed;
         }
-        o << repaired.dump() << std::endl;
+        o << helix::json_util::safe_dump(repaired) << std::endl;
         o.flush();
         if (!o.good()) {
             spdlog::warn("[UpdateChecker] Cannot repair release_info.json — write {} failed: {}",

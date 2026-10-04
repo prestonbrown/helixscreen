@@ -3149,7 +3149,7 @@ AmsError AmsBackendAd5xIfs::write_adventurer_json(int slot_index) {
             doc["FFMInfo"]["ffmType" + std::to_string(port)] = type_field;
 
             // Serialize with indentation to match zmod's format
-            std::string updated = doc.dump(4);
+            std::string updated = helix::json_util::safe_dump(doc, 4);
 
             api_->transfers().upload_file(
                 "config", "Adventurer5M.json", updated,
@@ -3233,7 +3233,7 @@ AmsError AmsBackendAd5xIfs::write_adventurer_json_local(int slot_index) {
     doc["FFMInfo"]["ffmColor" + std::to_string(port)] = color_field;
     doc["FFMInfo"]["ffmType" + std::to_string(port)] = type_field;
 
-    const std::string updated = doc.dump(4);
+    const std::string updated = helix::json_util::safe_dump(doc, 4);
 
     // Atomic write: stage to <path>.tmp in the same directory, then rename().
     // POSIX rename() is atomic when src+dst are on the same filesystem — that's

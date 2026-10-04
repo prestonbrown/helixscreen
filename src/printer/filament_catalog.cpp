@@ -400,7 +400,7 @@ bool FilamentCatalog::save_user_products_to(const std::vector<nlohmann::json>& p
             spdlog::warn("[filament] save_user_products: cannot open {} for writing", tmp.string());
             return false;
         }
-        out << doc.dump(2);
+        out << helix::json_util::safe_dump(doc, 2);
         if (!out) {
             spdlog::warn("[filament] save_user_products: error writing to {}", tmp.string());
             std::error_code rm_ec;

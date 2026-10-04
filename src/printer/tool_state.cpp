@@ -795,7 +795,7 @@ void ToolState::save_spool_json() const {
                 std::remove(tmp_path.c_str());
                 return;
             }
-            ofs << json_data.dump(2);
+            ofs << helix::json_util::safe_dump(json_data, 2);
             ofs.flush();
             if (!ofs.good()) {
                 spdlog::error("[ToolState] Failed to write spool JSON to {}: {}", tmp_path.string(),
