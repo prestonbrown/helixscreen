@@ -14,6 +14,26 @@
 
 namespace helix::json_util {
 
+/// Serialize @p j with invalid UTF-8 replaced instead of thrown on.
+///
+/// nlohmann defaults to error_handler_t::strict, which raises
+/// json::type_error.316 for any string holding bytes UTF-8 cannot decode.
+/// The text that reaches a save path is the text nothing validates — SSIDs,
+/// printer and tool names, file names, macro text, gcode responses — so under
+/// strict a single stray byte costs the whole document: the write either
+/// terminates the process or, behind a catch, silently drops a change the user
+/// made. ::replace substitutes U+FFFD for the offending bytes and keeps
+/// everything else, so the save still lands.
+///
+/// This does not remove the need for a try/catch around a save: serialization
+/// can still throw bad_alloc on a RAM-constrained target. It removes the one
+/// failure free-form text makes routine.
+///
+/// @param indent  As json::dump(): -1 is compact, >= 0 pretty-prints.
+inline std::string safe_dump(const nlohmann::json& j, int indent = -1) {
+    return j.dump(indent, ' ', false, nlohmann::json::error_handler_t::replace);
+}
+
 /// Safely extract a string from a JSON field that may be null.
 /// nlohmann .value("key", "") throws type_error.302 when the field is JSON null.
 ///

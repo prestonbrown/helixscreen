@@ -434,3 +434,53 @@ TEST_CASE("safe_size_t rejects negatives rather than wrapping", "[json_utils]") 
     j["v"] = "-1";
     CHECK(ju::safe_size_t(j, "v", 5u) == static_cast<std::size_t>(5));
 }
+
+// ============================================================================
+// safe_dump
+// ============================================================================
+
+namespace {
+
+/// A string no UTF-8 decoder can accept: 0xFF is not a legal lead byte in any
+/// position. Free-form text reaching a save path — SSIDs, printer and tool
+/// names, file names, macro text, gcode responses — is not validated anywhere,
+/// so a byte like this can be sitting in any stored string.
+const std::string kInvalidUtf8 = std::string("Voron \xff\xfe 2.4");
+
+} // namespace
+
+TEST_CASE("safe_dump serializes invalid UTF-8 instead of throwing", "[json_utils][safe_dump]") {
+    json j = {{"name", kInvalidUtf8}, {"port", 7125}};
+
+    // The default handler is error_handler_t::strict, which is what makes an
+    // unguarded save path fatal.
+    CHECK_THROWS_AS(j.dump(), nlohmann::json::type_error);
+
+    std::string out;
+    REQUIRE_NOTHROW(out = ju::safe_dump(j));
+
+    // The rest of the document survives — that is the whole point of replacing
+    // rather than catching.
+    json round_trip = json::parse(out);
+    CHECK(round_trip["port"] == 7125);
+    CHECK(round_trip["name"].get<std::string>().rfind("Voron ", 0) == 0);
+    // The offending bytes become U+FFFD, so they are gone from the output.
+    CHECK(round_trip["name"].get<std::string>().find('\xff') == std::string::npos);
+}
+
+TEST_CASE("safe_dump matches dump() byte for byte on valid input", "[json_utils][safe_dump]") {
+    json j = {{"name", "Vorön ünicode ✓"}, {"nested", {{"a", 1}, {"b", json::array({1, 2})}}}};
+
+    CHECK(ju::safe_dump(j) == j.dump());
+    CHECK(ju::safe_dump(j, 2) == j.dump(2));
+    CHECK(ju::safe_dump(j, 4) == j.dump(4));
+}
+
+TEST_CASE("safe_dump honors the indent argument", "[json_utils][safe_dump]") {
+    json j = {{"name", kInvalidUtf8}};
+
+    // Compact by default, pretty-printed on request — a caller replacing
+    // `doc.dump(2)` must not silently lose its formatting.
+    CHECK(ju::safe_dump(j).find('\n') == std::string::npos);
+    CHECK(ju::safe_dump(j, 2).find("\n  ") != std::string::npos);
+}

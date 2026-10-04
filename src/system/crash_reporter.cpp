@@ -5,6 +5,7 @@
 
 #include "helix_version.h"
 #include "hv/requests.h"
+#include "json_utils.h"
 #include "platform_capabilities.h"
 #include "system/crash_handler.h"
 #include "system/crash_history.h"
@@ -1000,7 +1001,7 @@ bool CrashReporter::try_auto_send(const CrashReport& report) {
     // Best-effort POST to crash worker — failure falls through to QR/file
     try {
         json payload = report_to_json(report);
-        std::string body = payload.dump();
+        std::string body = helix::json_util::safe_dump(payload);
         std::string user_agent = std::string("HelixScreen/") + HELIX_VERSION;
 
         int status = 0;

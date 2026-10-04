@@ -2,6 +2,8 @@
 
 #include "system/crash_history.h"
 
+#include "json_utils.h"
+
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -153,7 +155,7 @@ void CrashHistory::save() const {
     try {
         std::ofstream file(path);
         if (file.good()) {
-            file << entries_to_json().dump(2);
+            file << helix::json_util::safe_dump(entries_to_json(), 2);
             spdlog::trace("[CrashHistory] Saved {} entries to {}", entries_.size(), path);
         } else {
             spdlog::warn("[CrashHistory] Failed to open {} for writing", path);

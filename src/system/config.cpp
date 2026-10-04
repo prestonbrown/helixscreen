@@ -28,7 +28,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
-#include <iomanip>
 #include <optional>
 #include <sstream>
 #include <sys/stat.h>
@@ -2394,14 +2393,15 @@ bool Config::save() {
 
     ensure_storage();
 
-    // Serialization is inside the handler: operator<< dumps with
-    // error_handler_t::strict, which throws json::type_error 316 on invalid
-    // UTF-8 in any stored string, and the stream buffer can throw bad_alloc on
-    // a RAM-constrained target. save() has 133 call sites, many inside LVGL
-    // event callbacks, where an escaping exception unwinds through a C frame.
+    // safe_dump() replaces invalid UTF-8 rather than throwing on it, so a stray
+    // byte in a printer name or SSID costs those bytes and not the user's whole
+    // save. The try stays for what serialization can still throw — bad_alloc on
+    // a RAM-constrained target — because save() has 133 call sites, many inside
+    // LVGL event callbacks, where an escaping exception unwinds through a C
+    // frame.
     try {
         std::ostringstream oss;
-        oss << std::setw(2) << data << std::endl;
+        oss << helix::json_util::safe_dump(data, 2) << std::endl;
         if (!storage_->store(oss.str())) {
             // FileConfigStorage (the default backend) already reports the specific
             // failure via NOTIFY_ERROR + CONFIG_RECORD_ERROR at the failing phase

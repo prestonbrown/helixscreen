@@ -4316,3 +4316,45 @@ TEST_CASE("Config::init() loads a read-only settings.json instead of condemning 
     REQUIRE_FALSE(fs::exists(cfg.string() + ".corrupt"));
     REQUIRE(fs::exists(cfg));
 }
+
+// ============================================================================
+// Invalid UTF-8 must not cost the user their settings (#1493).
+//
+// nlohmann's default error handler is error_handler_t::strict: dump() throws
+// json::type_error.316 on a string holding a byte no UTF-8 decoder accepts.
+// The strings that reach settings.json are the ones nothing validates — SSIDs,
+// printer and tool names, file names — so the document has to stay writable
+// with the offending bytes replaced, not be dropped whole.
+// ============================================================================
+
+TEST_CASE("Config::save() persists a document holding invalid UTF-8",
+          "[core][config][save][utf8]") {
+    BackupSandbox env("save_invalid_utf8");
+    ConfigDirEnvGuard config_dir_guard;
+    ConfigTestModeGuard test_mode(true);
+
+    const std::string cfg = env.config_path();
+
+    Config test_config;
+    test_config.init(cfg);
+    test_config.set<int>("/brightness", 42);
+    // 0xFF is not a legal UTF-8 lead byte in any position.
+    test_config.set<std::string>("/printers/default/printer_name",
+                                 std::string("Voron \xff\xfe 2.4"));
+
+    REQUIRE(test_config.save());
+
+    std::ifstream in(cfg);
+    REQUIRE(in.good());
+    json on_disk = json::parse(in);
+
+    // Every other setting the user changed is on disk.
+    CHECK(on_disk["brightness"] == 42);
+    // The offending string is stored with the bad bytes replaced, and nothing
+    // that could be preserved was thrown away.
+    REQUIRE(on_disk["printers"]["default"].contains("printer_name"));
+    const std::string name = on_disk["printers"]["default"]["printer_name"].get<std::string>();
+    CHECK(name.rfind("Voron ", 0) == 0);
+    CHECK(name.find(" 2.4") != std::string::npos);
+    CHECK(name.find('\xff') == std::string::npos);
+}

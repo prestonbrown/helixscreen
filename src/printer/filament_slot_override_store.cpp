@@ -254,7 +254,7 @@ void write_cache_slot(const std::filesystem::path& cache_path, const std::string
                          tmp.string());
             return;
         }
-        out << doc.dump(2);
+        out << helix::json_util::safe_dump(doc, 2);
         if (!out) {
             spdlog::warn("[FilamentSlotOverrideStore] cache write failed: "
                          "error writing to {}",

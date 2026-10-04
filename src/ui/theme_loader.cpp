@@ -401,7 +401,7 @@ bool save_theme_to_file(const ThemeData& theme, const std::string& filepath) {
         return false;
     }
 
-    file << json.dump(2);
+    file << helix::json_util::safe_dump(json, 2);
     return true;
 }
 
