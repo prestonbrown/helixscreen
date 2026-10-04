@@ -1354,7 +1354,7 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
         const int n = first / 4 + 1;
         AmsUnit box = unit;
         box.unit_index = n - 1;
-        box.name = n == 1 ? unit.name : unit.name + " " + std::to_string(n);
+        box.name = "T" + std::to_string(n);
         box.display_name = "CFS Unit " + std::to_string(n);
         box.first_slot_global_index = first;
         if (n > 1) {

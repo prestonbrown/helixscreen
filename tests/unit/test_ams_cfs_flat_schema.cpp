@@ -280,6 +280,7 @@ TEST_CASE("CFS flat schema: chained boxes become one unit per box", "[ams][cfs][
         const auto& unit = info.units[static_cast<size_t>(n)];
         CAPTURE(n);
         REQUIRE(unit.unit_index == n);
+        REQUIRE(unit.name == "T" + std::to_string(n + 1));
         REQUIRE(unit.display_name == "CFS Unit " + std::to_string(n + 1));
         REQUIRE(unit.first_slot_global_index == n * 4);
         REQUIRE(unit.slot_count == 4);
