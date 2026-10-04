@@ -503,6 +503,8 @@ TEST_CASE("CFS flat schema: malformed payloads degrade, never throw", "[ams][cfs
         REQUIRE_NOTHROW(AmsBackendCfs::parse_box_status(box));
         auto info = AmsBackendCfs::parse_box_status(box);
         REQUIRE(info.total_slots == 0);
+        // handle_status only adopts a frame that carries at least one unit.
+        REQUIRE(info.units.size() == 1);
     }
 
     SECTION("null scalars fall back to defaults") {
