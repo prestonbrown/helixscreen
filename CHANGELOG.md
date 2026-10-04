@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Printing and filament systems**
 
+- **Several CFS units on community CFS firmware show one card per unit** - with two or more
+  boxes chained, every lane was drawn in one long row with overlapping labels. Each box is
+  now its own unit, so the multi-filament overview opens with one card per CFS.
 - **The file detail view no longer freezes the screen on large G-code files** - backing out
   while the preview was still building waited out the whole build on the interface thread,
   which could take many seconds on a large print. Cancelling now stops the indexing,
