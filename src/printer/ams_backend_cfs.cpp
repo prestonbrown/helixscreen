@@ -1325,8 +1325,7 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
         }
     }
 
-    unit.slot_count = static_cast<int>(unit.slots.size());
-    info.total_slots = unit.slot_count;
+    info.total_slots = static_cast<int>(unit.slots.size());
 
     // loaded_slot is -1 when nothing is loaded. It indexes the same slots[]
     // array — including the external entry, which is not in our vector. A bay
@@ -1334,7 +1333,7 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
     // bypass sentinel (the same convention AFC and Happy Hare use, and what
     // AmsState's bypass subjects key off).
     int loaded_slot = helix::json_util::safe_int(box_json, "loaded_slot", -1);
-    if (loaded_slot >= 0 && loaded_slot < unit.slot_count) {
+    if (loaded_slot >= 0 && loaded_slot < info.total_slots) {
         info.current_slot = loaded_slot;
         info.current_tool = loaded_slot;
     } else if (loaded_slot >= 0 && loaded_slot == find_external_slot_index(box_json)) {
@@ -1342,7 +1341,34 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
         info.current_tool = -2;
     }
 
-    info.units.push_back(std::move(unit));
+    // slots[] lists every connected box's bays in one array, box by box, and a
+    // CFS box holds four, so bay i belongs to box i / 4 - the same numbering
+    // the stock parse gets from its per-box keys. One unit per box is what
+    // lets a chained setup reach the multi-unit overview. The payload carries a
+    // single temp/humidity reading with no box named, so it stays on the first
+    // unit rather than being presented as a per-box reading.
+    std::vector<SlotInfo> bays = std::move(unit.slots);
+    unit.slots.clear();
+    const int bay_count = static_cast<int>(bays.size());
+    for (int first = 0; first == 0 || first < bay_count; first += 4) {
+        const int n = first / 4 + 1;
+        AmsUnit box = unit;
+        box.unit_index = n - 1;
+        box.name = n == 1 ? unit.name : unit.name + " " + std::to_string(n);
+        box.display_name = "CFS Unit " + std::to_string(n);
+        box.first_slot_global_index = first;
+        if (n > 1) {
+            box.environment.reset();
+        }
+        for (int i = first; i < std::min(first + 4, bay_count); ++i) {
+            SlotInfo slot = std::move(bays[i]);
+            slot.slot_index = i - first;
+            slot.global_index = i;
+            box.slots.push_back(std::move(slot));
+        }
+        box.slot_count = static_cast<int>(box.slots.size());
+        info.units.push_back(std::move(box));
+    }
 
     // Same single-writer pass as the stock parse. The flat payload carries no
     // `map`, so tool_to_slot_map is empty here and identity_fallback supplies

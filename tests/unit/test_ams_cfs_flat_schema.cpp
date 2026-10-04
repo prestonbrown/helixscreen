@@ -241,8 +241,70 @@ TEST_CASE("CFS flat schema: loaded_slot vs the external entry", "[ams][cfs][flat
         slots[8]["external"] = true;
         two_units["loaded_slot"] = 8;
         auto info = AmsBackendCfs::parse_box_status(two_units);
-        REQUIRE(info.units[0].slot_count == 8);
+        REQUIRE(info.units.size() == 2);
+        REQUIRE(info.total_slots == 8);
         REQUIRE(info.current_slot == -2);
+    }
+}
+
+TEST_CASE("CFS flat schema: chained boxes become one unit per box", "[ams][cfs][flat]") {
+    // Shape of bundle L8MMBCCK: four chained boxes, 16 bays at indices 0..15
+    // in box order, the external holder at 16, filament only in the first box.
+    json box = make_flat_box_json();
+    json& slots = box["slots"];
+    const json external = slots[4];
+    slots.erase(slots.begin() + 4);
+    for (int i = 4; i < 16; ++i) {
+        slots.push_back(json{{"brand", ""},
+                             {"color", ""},
+                             {"external", false},
+                             {"index", i},
+                             {"loaded", false},
+                             {"material", ""},
+                             {"name", ""},
+                             {"present", false},
+                             {"rfid_percent", nullptr},
+                             {"rfid_reserve", ""},
+                             {"spoolman_id", nullptr}});
+    }
+    slots.push_back(external);
+    slots[16]["index"] = 16;
+    box["loaded_slot"] = 13;
+
+    auto info = AmsBackendCfs::parse_box_status(box);
+
+    REQUIRE(info.is_multi_unit());
+    REQUIRE(info.units.size() == 4);
+    REQUIRE(info.total_slots == 16);
+    for (int n = 0; n < 4; ++n) {
+        const auto& unit = info.units[static_cast<size_t>(n)];
+        CAPTURE(n);
+        REQUIRE(unit.unit_index == n);
+        REQUIRE(unit.display_name == "CFS Unit " + std::to_string(n + 1));
+        REQUIRE(unit.first_slot_global_index == n * 4);
+        REQUIRE(unit.slot_count == 4);
+        for (int i = 0; i < 4; ++i) {
+            const auto& slot = unit.slots[static_cast<size_t>(i)];
+            REQUIRE(slot.slot_index == i);
+            REQUIRE(slot.global_index == n * 4 + i);
+        }
+    }
+
+    SECTION("bays keep their own data in their own box") {
+        REQUIRE(info.units[0].slots[3].material == "PET-CF");
+        REQUIRE(info.units[1].slots[0].status == SlotStatus::EMPTY);
+        REQUIRE(info.get_slot_global(3)->material == "PET-CF");
+    }
+
+    SECTION("the one environment reading stays on the first box") {
+        REQUIRE(info.units[0].environment.has_value());
+        for (size_t n = 1; n < 4; ++n) {
+            REQUIRE_FALSE(info.units[n].environment.has_value());
+        }
+    }
+
+    SECTION("loaded_slot past the first box is a bay, not the external holder") {
+        REQUIRE(info.current_slot == 13);
     }
 }
 
@@ -441,6 +503,8 @@ TEST_CASE("CFS flat schema: malformed payloads degrade, never throw", "[ams][cfs
         REQUIRE_NOTHROW(AmsBackendCfs::parse_box_status(box));
         auto info = AmsBackendCfs::parse_box_status(box);
         REQUIRE(info.total_slots == 0);
+        // handle_status only adopts a frame that carries at least one unit.
+        REQUIRE(info.units.size() == 1);
     }
 
     SECTION("null scalars fall back to defaults") {
