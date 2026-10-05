@@ -132,3 +132,29 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_draw_buf_destroy on a null buffer does n
     const auto crumbs = capture_breadcrumb_lines();
     CHECK(count_lines_containing(crumbs, kNullTag) == 0);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "draw_buf_blit_area never claims more than the buffer holds",
+                 "[draw_buf_guard][gcode]") {
+    lv_draw_buf_t* buf = lv_draw_buf_create(338, 290, LV_COLOR_FORMAT_ARGB8888, 0);
+    REQUIRE(buf != nullptr);
+
+    SECTION("a widget that outgrew the cached frame gets the frame's size, not its own") {
+        const lv_area_t widget = {100, 40, 100 + 342 - 1, 40 + 294 - 1};
+        const lv_area_t area = helix::draw_buf_blit_area(*buf, widget);
+        CHECK(area.x1 == 100);
+        CHECK(area.y1 == 40);
+        CHECK(lv_area_get_width(&area) == 338);
+        CHECK(lv_area_get_height(&area) == 290);
+    }
+
+    SECTION("a widget smaller than the frame still gets the frame's size, for the clip to trim") {
+        const lv_area_t widget = {-5, 7, -5 + 200 - 1, 7 + 100 - 1};
+        const lv_area_t area = helix::draw_buf_blit_area(*buf, widget);
+        CHECK(area.x1 == -5);
+        CHECK(area.y1 == 7);
+        CHECK(lv_area_get_width(&area) == 338);
+        CHECK(lv_area_get_height(&area) == 290);
+    }
+
+    helix::safe_draw_buf_destroy(buf, "tstbufC");
+}
