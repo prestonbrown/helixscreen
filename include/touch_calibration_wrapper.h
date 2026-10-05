@@ -56,7 +56,29 @@ struct CalibrationContext {
     /// Latch so an out-of-range digitizer raises telemetry once, not once per
     /// touch. Same mutex.
     bool range_violation_reported = false;
+
+    /// Re-programs the evdev stage's ABS range (min_x, min_y, max_x, max_y), for
+    /// when samples disprove a DisplaySize range
+    /// (transposed_range_guess_disproved). Set by a backend that programs one; a
+    /// std::function for the same reason as raw_source. Runs on the LVGL main
+    /// thread from the read callback, after the chained read has returned.
+    std::function<void(int, int, int, int)> reprogram_range;
+
+    /// A touch-calibration UI is on screen. The range under it stays put: the
+    /// calibration solves over the range live when it began. Same mutex.
+    bool capture_active = false;
+
+    /// Changed pressed samples in the current press that each disproved a
+    /// DisplaySize range on their own, counted toward
+    /// kTransposedGuessCorroboration. Cleared on release. Same mutex.
+    int transposed_guess_votes = 0;
 };
+
+/// Samples within one press that must each disprove a DisplaySize range before
+/// it is replaced: isolated glitch readings, even across a long uptime, must not
+/// persist a wrong range, and a real touch near the edge yields several changed
+/// samples within one press.
+inline constexpr int kTransposedGuessCorroboration = 3;
 
 /// Read callback wrapper that applies affine touch calibration.
 /// Chains to original_read_cb first, then transforms coordinates.
@@ -86,6 +108,10 @@ void set_touch_pipeline_info(const TouchPipelineInfo& info);
 /// of a range no longer in effect. No-op when no wrapper is installed.
 void set_touch_configured_range(bool swap_axes, int min_x, int min_y, int max_x, int max_y,
                                 TouchRangeSource source);
+
+/// Mark that a touch-calibration UI is on screen (see
+/// CalibrationContext::capture_active). No-op when no wrapper is installed.
+void set_touch_capture_active(bool active);
 
 /// Snapshot everything a debug bundle needs about the touch pipeline.
 ///
