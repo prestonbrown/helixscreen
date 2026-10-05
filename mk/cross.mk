@@ -722,6 +722,18 @@ else
     $(error Unknown PLATFORM_TARGET: $(PLATFORM_TARGET). Valid options: native, pi, pi32, x86, ad5m, ad5m-br, cc1, mips, k1, ad5x, k1-dynamic, k2, snapmaker-u1, yocto)
 endif
 
+# pi32 compiles against Debian armhf (armv7) headers, whose shared_ptr uses the
+# atomic lock policy. Raspberry Pi OS 32-bit is Raspbian, built for armv6, whose
+# libstdc++.so.6 uses the mutex policy: a control block 24 bytes larger, with the
+# refcount at a different offset. Every refcount the app inlines on an object the
+# shared library owns (a std::filesystem::directory_iterator, for one) then lands
+# on the wrong word, and on freed memory once the library drops it - glibc's
+# "malloc(): unsorted double linked list corrupted" (#1732). Carrying our own
+# libstdc++ makes the inlined code and the library one build.
+ifneq ($(filter pi32 pi32-fbdev pi32-both,$(PLATFORM_TARGET)),)
+    TARGET_LDFLAGS += -static-libstdc++ -static-libgcc
+endif
+
 # =============================================================================
 # Cross-Compiler Configuration
 # =============================================================================
