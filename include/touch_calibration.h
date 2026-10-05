@@ -451,7 +451,25 @@ struct TouchRangeSettings {
     int max_x = 0;
     int min_y = 0;
     int max_y = 0;
+    /// Display rotation the range was solved at; -1 when the record does not say.
+    int capture_rotation = -1;
 };
+
+/**
+ * @brief Does a stored range get programmed on a display at this rotation?
+ *
+ * lv_evdev scales into the display's native resolution and the rotation runs
+ * after it, so a range solved on an unrotated display is native digitizer space
+ * and holds at any rotation. One solved on a rotated display folds the rotation
+ * into (min,max,swap) and would double-apply it, so a range whose capture
+ * rotation is unknown is programmed only while the display is unrotated
+ * (prestonbrown/helixscreen#1394). The backends' programming, their recorded
+ * pipeline, and the calibration commit all ask this, so they agree on which
+ * range is live. An environment override outranks it and is checked first.
+ */
+inline bool stored_touch_range_applies(const TouchRangeSettings& stored, int applied_rotation) {
+    return stored.valid && (applied_rotation == 0 || stored.capture_rotation == 0);
+}
 
 /**
  * @brief Which stage supplied the ABS range lv_evdev is actually scaling against

@@ -731,39 +731,35 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
             const bool env_swap_override = swap_axes != nullptr;
             const helix::TouchRangeSettings stored_range =
                 pointer_is_evdev_ ? helix::load_touch_range() : helix::TouchRangeSettings{};
+            // Asked of the display, not of `/display/rotate`: the key is only the
+            // request, and it differs from the applied rotation both ways (CLI/env
+            // rotation with no key; a failed DRM->fbdev rotation fallback leaving
+            // the key set on an unrotated display). This runs from
+            // create_input_pointer(), which DisplayManager calls after it applies
+            // rotation, so the display is already at its final rotation.
+            const int applied_rotation = display_rotation_degrees();
+            const bool stored_applies =
+                helix::stored_touch_range_applies(stored_range, applied_rotation);
             if (env_range_override) {
                 spdlog::info("[DRM Backend] Touch range source: environment override{}",
                              stored_range.valid ? " (stored calibration range ignored)" : "");
-            } else if (stored_range.valid) {
-                // A stored range solved on a rotated panel folds the rotation
-                // into (min,max,swap) and double-applies it at runtime
-                // (prestonbrown/helixscreen#1394). Asked of the display, not
-                // of `/display/rotate`, and via the same helper the
-                // calibration solver gates on - the key is only the request,
-                // and it differs from the applied rotation both ways (CLI/env
-                // rotation with no key; a failed DRM->fbdev rotation fallback
-                // leaving the key set on an unrotated display). This runs from
-                // create_input_pointer(), which DisplayManager calls after it
-                // applies rotation, so the display is already at its final
-                // rotation.
-                const int applied_rotation = display_rotation_degrees();
-                if (applied_rotation != 0) {
-                    spdlog::warn("[DRM Backend] Ignoring stored touch range on a"
-                                 " {}°-rotated display - solved through the rotation,"
-                                 " affine-only path applies",
-                                 applied_rotation);
-                } else {
-                    if (!env_swap_override) {
-                        lv_evdev_set_swap_axes(pointer_, stored_range.swap_axes);
-                    }
-                    lv_evdev_set_calibration(pointer_, stored_range.min_x, stored_range.min_y,
-                                             stored_range.max_x, stored_range.max_y);
-                    spdlog::info("[DRM Backend] Touch range source: stored calibration "
-                                 "X({}..{}) Y({}..{}) swap={}{}",
-                                 stored_range.min_x, stored_range.max_x, stored_range.min_y,
-                                 stored_range.max_y, stored_range.swap_axes,
-                                 env_swap_override ? " (swap held by environment override)" : "");
+            } else if (stored_applies) {
+                if (!env_swap_override) {
+                    lv_evdev_set_swap_axes(pointer_, stored_range.swap_axes);
                 }
+                lv_evdev_set_calibration(pointer_, stored_range.min_x, stored_range.min_y,
+                                         stored_range.max_x, stored_range.max_y);
+                spdlog::info("[DRM Backend] Touch range source: stored calibration "
+                             "X({}..{}) Y({}..{}) swap={} rotation={}{}",
+                             stored_range.min_x, stored_range.max_x, stored_range.min_y,
+                             stored_range.max_y, stored_range.swap_axes,
+                             stored_range.capture_rotation,
+                             env_swap_override ? " (swap held by environment override)" : "");
+            } else if (stored_range.valid) {
+                spdlog::warn("[DRM Backend] Ignoring stored touch range on a"
+                             " {}°-rotated display - not stamped as solved unrotated"
+                             " (rotation={}), affine-only path applies",
+                             applied_rotation, stored_range.capture_rotation);
             } else {
                 spdlog::info("[DRM Backend] Touch range source: kernel/MT-declared ABS range");
             }
@@ -850,9 +846,8 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
                 pipeline.declared_min_y = abs_y.minimum;
                 pipeline.declared_max_y = abs_y.maximum;
                 pipeline.stored = stored_range;
-                pipeline.swap_axes = env_swap_override
-                                         ? (strcmp(swap_axes, "1") == 0)
-                                         : (stored_range.valid && stored_range.swap_axes);
+                pipeline.swap_axes = env_swap_override ? (strcmp(swap_axes, "1") == 0)
+                                                       : (stored_applies && stored_range.swap_axes);
                 if (!pointer_is_evdev_) {
                     // A libinput pointer has no evdev range stage at all, so
                     // neither a range nor a swap describes what happens to a
@@ -867,7 +862,7 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
                     pipeline.max_x = std::atoi(env_max_x);
                     pipeline.min_y = std::atoi(env_min_y);
                     pipeline.max_y = std::atoi(env_max_y);
-                } else if (stored_range.valid) {
+                } else if (stored_applies) {
                     pipeline.source = helix::TouchRangeSource::Stored;
                     pipeline.configured_valid = true;
                     pipeline.min_x = stored_range.min_x;
