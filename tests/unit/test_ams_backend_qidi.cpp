@@ -11,6 +11,7 @@
 #include "settings_manager.h"
 #include "test_helpers/qidi_box_test_access.h"
 #include "test_helpers/update_queue_test_access.h"
+#include "ui/ams_drawing_utils.h"
 
 #include <cstdint>
 #include <map>
@@ -136,6 +137,23 @@ TEST_CASE("QIDI Box parse_save_variables: box_count=4 expands to sixteen slots",
     for (int unit = 0; unit < 4; ++unit) {
         REQUIRE(info.units[static_cast<size_t>(unit)].slot_count == 4);
         REQUIRE(info.units[static_cast<size_t>(unit)].first_slot_global_index == unit * 4);
+    }
+}
+
+// Every QIDI Box feeds the printer's one extruder, so the overview draws one
+// toolhead with each box routed into it.
+TEST_CASE("QIDI Box: four boxes converge on one toolhead in the system path layout",
+          "[ams][qidi_box][tool_layout][ams_draw]") {
+    AmsBackendQidi backend(nullptr, nullptr);
+    QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 4}});
+
+    const auto layout = ams_draw::compute_system_tool_layout(backend.get_system_info(), &backend);
+
+    CHECK(layout.total_physical_tools == 1);
+    REQUIRE(layout.units.size() == 4);
+    for (const auto& unit : layout.units) {
+        CHECK(unit.tool_count == 1);
+        CHECK(unit.first_physical_tool == 0);
     }
 }
 
