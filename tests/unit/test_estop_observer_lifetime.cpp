@@ -55,7 +55,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[recovery][threading][lifetime]") {
     auto& estop = EmergencyStopOverlay::instance();
 
-    // Exactly how Application::init_panel_subjects() wires it (application.cpp).
+    // Exactly how PrinterSession::init_panel_subjects() wires it (application.cpp).
     // The fixture already ran init_subjects().
     estop.init(state(), api());
     estop.create();

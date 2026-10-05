@@ -16,9 +16,11 @@
 
 #include "ui_update_queue.h"
 
+#include "../test_helpers/scoped_language.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
+#include "log_redact.h"
 #include "runtime_config.h"
 #include "wifi_manager.h"
 #include "wifi_ui_utils.h"
@@ -317,4 +319,32 @@ TEST_CASE("The association grace is not armed before any association change",
     OsLinkBehaviorFixture fx;
     auto wm = fx.make_manager();
     REQUIRE_FALSE(helix::WiFiManagerTestAccess::in_association_grace(*wm));
+}
+
+TEST_CASE("WiFi failure toasts render in the active language",
+          "[wifi][unit][api-error-i18n][i18n]") {
+    OsLinkBehaviorFixture fx;
+    auto wm = fx.make_manager();
+    helix::WiFiManagerTestAccess::stop_backend(*wm);
+    helix::WiFiManagerTestAccess::set_os_link_probe([]() { return false; });
+
+    ScopedLanguage de("de");
+
+    std::string warning;
+    std::string error;
+    helix::ui::set_test_notification_warning_hook([&](const std::string& m) { warning = m; });
+    helix::ui::set_test_notification_error_hook([&](const std::string& m) { error = m; });
+
+    wm->start_scan([](const std::vector<WiFiNetwork>&) {});
+    CHECK(warning == "WiFi-Suche fehlgeschlagen. Versuche es erneut.");
+
+    // The SSID is a format argument, so the translated template still carries it.
+    wm->connect("HomeNet", "", nullptr);
+    CHECK(error.rfind("Verbindung mit WiFi-Netzwerk '", 0) == 0);
+    CHECK(error.find(helix::redact::ssid("HomeNet")) != std::string::npos);
+
+    helix::ui::set_test_notification_warning_hook(nullptr);
+    helix::ui::set_test_notification_error_hook(nullptr);
+    wm->stop_scan();
+    helix::ui::UpdateQueue::instance().drain();
 }

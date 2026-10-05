@@ -1,0 +1,4 @@
+teardown_printer_scope(
+HttpExecutor::stop_all()
+m_display.reset()
+theme_manager_deinit()

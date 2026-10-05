@@ -13,6 +13,7 @@
 
 #include <array>
 #include <functional>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -687,10 +688,13 @@ class NavigationManager {
     void ensure_delete_hook(lv_obj_t* widget);
     static void overlay_delete_event_cb(lv_event_t* e);
     // Create the darkened backdrop over `screen` and adopt it as
-    // overlay_backdrop_, wiring its click handlers. The backdrop is a child of
-    // `screen`, so any path that deletes the screen frees it without going
+    // overlay_backdrop_, wiring its click handlers. `arriving` (the overlay
+    // being pushed) and the rail E-stop are hidden for the snapshot: both sit
+    // above the backdrop, and a dimmed copy baked into the image would trail
+    // the live overlay wherever it does not cover it. The backdrop is a child
+    // of `screen`, so any path that deletes the screen frees it without going
     // through go_back(); overlay_backdrop_ clears itself when that happens.
-    void adopt_overlay_backdrop(lv_obj_t* screen);
+    void adopt_overlay_backdrop(lv_obj_t* screen, lv_obj_t* arriving);
     /**
      * @brief Re-take the overlay backdrop snapshot from the live widget tree
      *
@@ -788,6 +792,8 @@ class NavigationManager {
 
     // Shared overlay backdrop widget (for first overlay)
     helix::ui::WidgetRef overlay_backdrop_;
+    // The theme palette the backdrop's snapshot was taken under.
+    std::string backdrop_palette_key_;
 
     // Latched at the dismiss-backdrop's LV_EVENT_PRESSED with the on-screen
     // keyboard's visibility. LVGL's click-focus DEFOCUS (which hides the

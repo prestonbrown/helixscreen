@@ -162,7 +162,7 @@ class PanelWidgetManager {
 
     /// Invalidate EVERY cached panel config and clear all per-page derived
     /// widget-list caches. Call when the active printer changes
-    /// (Application::switch_printer) — per-printer layouts live at
+    /// (PrinterSession::switch_printer) — per-printer layouts live at
     /// /printers/<active>/panel_widgets/<panel>, so a switch repoints
     /// Config::df() and every cached PanelWidgetConfig must reload from the
     /// now-current path. Marks each cached config dirty (next load() re-reads

@@ -318,6 +318,23 @@ inline void safe_clean_children(lv_obj_t* container) {
 }
 
 /**
+ * @brief Recursively invalidate all widgets in the tree
+ *
+ * With LV_DISPLAY_RENDER_MODE_PARTIAL, lv_obj_invalidate() on a parent may not
+ * propagate to all descendants. This ensures every widget's area is explicitly
+ * marked dirty for a full framebuffer repaint.
+ */
+inline void invalidate_all_recursive(lv_obj_t* obj) {
+    if (!obj)
+        return;
+    lv_obj_invalidate(obj);
+    uint32_t child_cnt = lv_obj_get_child_count(obj);
+    for (uint32_t i = 0; i < child_cnt; i++) {
+        invalidate_all_recursive(lv_obj_get_child(obj, i));
+    }
+}
+
+/**
  * @brief Comprehensively safe deletion of a whole widget subtree
  *
  * Makes an LVGL layout pass (grid_update / flex_update) on a being-deleted

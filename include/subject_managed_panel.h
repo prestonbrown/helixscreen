@@ -205,6 +205,17 @@ class SubjectManager {
         subject_names_.emplace_back(xml_name ? xml_name : "");
     }
 
+    /// Publish an initialized subject under `xml_name` in the current XML scope and
+    /// register it, so deinit_all() withdraws the name before freeing the subject.
+    /// A null `xml_name` registers without publishing. Argument order follows
+    /// register_subject_in_current_scope(), which the subject lint gates parse.
+    void publish(const char* xml_name, lv_subject_t* subject) {
+        if (xml_name) {
+            helix::xml::register_subject_in_current_scope(xml_name, subject);
+        }
+        register_subject(subject, xml_name);
+    }
+
     /**
      * @brief Deinitialize all registered subjects
      *
@@ -268,7 +279,10 @@ class SubjectManager {
                                               ? subject_names_[i].c_str()
                                               : nullptr;
             if (registered_name) {
-                helix::xml::unregister_subject_in_current_scope(registered_name);
+                // Only while the name is still ours: a successor owner (a modal
+                // reopened before the old instance is freed) may have re-published
+                // it, and dropping its record would strand its bindings.
+                helix::xml::unregister_subject_in_current_scope(registered_name, subject);
             } else if (const SubjectDebugInfo* info =
                            SubjectDebugRegistry::instance().lookup(subject)) {
                 // Registered without a name while the subject IS published

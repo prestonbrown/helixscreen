@@ -448,10 +448,9 @@ void PrintExcludeObjectManager::on_exclude_rpc_error(const std::string& object_n
     // we were called on — lifetime_.defer is safe from the main thread and tok.defer
     // would have handled the background case via the dispatch path.
     auto defer_tok = lifetime_.token();
-    defer_tok.defer("PrintExcludeObjectManager::exclude_error", [this, object_name,
-                                                                 user_msg = err.user_message()]() {
+    defer_tok.defer("PrintExcludeObjectManager::exclude_error", [this, object_name, err]() {
         awaiting_confirmation_.erase(object_name);
-        NOTIFY_ERROR(lv_tr("Failed to exclude '{}': {}"), object_name, user_msg);
+        NOTIFY_ERROR(lv_tr("Failed to exclude '{}': {}"), object_name, err.localized_message());
 
         if (gcode_viewer_) {
             ui_gcode_viewer_set_excluded_objects(gcode_viewer_, excluded_objects_);

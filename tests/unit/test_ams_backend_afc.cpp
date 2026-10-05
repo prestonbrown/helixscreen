@@ -8249,3 +8249,51 @@ TEST_CASE("AFC marks a persisted edit as the user's own", "[ams][afc][filament_s
     CHECK(helix::ams::declares_color(overrides.at(0)));
     CHECK(helix::ams::declares_material(overrides.at(0)));
 }
+
+TEST_CASE("AFC configfile topology parses to a small result", "[ams][afc][configfile]") {
+    using Topo = AmsBackendAfc::ConfigfileTopology;
+
+    SECTION("extruder names and toolchanger presence are read, case-insensitively") {
+        nlohmann::json response = {{"result",
+                                    {{"status",
+                                      {{"configfile",
+                                        {{"settings",
+                                          {{"AFC_extruder T0", {{"extruder_name", "extruder"}}},
+                                           {"afc_extruder t1", {{"extruder_name", "extruder1"}}},
+                                           {"afc_extruder t2", {{"pin_tool_start", "PA1"}}},
+                                           {"afc_toolchanger tc", {{"x", 1}}},
+                                           {"stepper_x", {{"step_pin", "PB1"}}}}}}}}}}}};
+        const Topo topo = AmsBackendAfc::parse_configfile_topology(response);
+        REQUIRE(topo.answered);
+        CHECK(topo.saw_toolchanger);
+        REQUIRE(topo.extruder_names.size() == 2);
+        CHECK(topo.extruder_names.at("t0") == "extruder");
+        CHECK(topo.extruder_names.at("t1") == "extruder1");
+    }
+
+    SECTION("no toolchanger section leaves the flag clear") {
+        nlohmann::json response = {
+            {"result", {{"status", {{"configfile", {{"settings", nlohmann::json::object()}}}}}}}};
+        const Topo topo = AmsBackendAfc::parse_configfile_topology(response);
+        CHECK(topo.answered);
+        CHECK_FALSE(topo.saw_toolchanger);
+        CHECK(topo.extruder_names.empty());
+    }
+
+    SECTION("a response without settings is not an answer") {
+        CHECK_FALSE(AmsBackendAfc::parse_configfile_topology(nlohmann::json::object()).answered);
+        nlohmann::json no_settings = {{"result", {{"status", {{"configfile", {{"config", 1}}}}}}}};
+        CHECK_FALSE(AmsBackendAfc::parse_configfile_topology(no_settings).answered);
+        nlohmann::json not_object = {
+            {"result", {{"status", {{"configfile", {{"settings", "oops"}}}}}}}};
+        CHECK_FALSE(AmsBackendAfc::parse_configfile_topology(not_object).answered);
+    }
+
+    SECTION("a non-string extruder_name is skipped") {
+        nlohmann::json response = {
+            {"result",
+             {{"status",
+               {{"configfile", {{"settings", {{"afc_extruder t0", {{"extruder_name", 5}}}}}}}}}}}};
+        CHECK(AmsBackendAfc::parse_configfile_topology(response).extruder_names.empty());
+    }
+}

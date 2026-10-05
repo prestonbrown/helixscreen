@@ -142,9 +142,9 @@ void CrashReportModal::init_subjects() {
     lv_subject_init_string(&status_subject_, status_buf_, nullptr, sizeof(status_buf_), "");
     lv_subject_init_int(&show_qr_subject_, 0);
 
-    lv_xml_register_subject(nullptr, "crash_report_details", &details_subject_);
-    lv_xml_register_subject(nullptr, "crash_report_status", &status_subject_);
-    lv_xml_register_subject(nullptr, "crash_report_show_qr", &show_qr_subject_);
+    subjects_.publish("crash_report_details", &details_subject_);
+    subjects_.publish("crash_report_status", &status_subject_);
+    subjects_.publish("crash_report_show_qr", &show_qr_subject_);
 
     subjects_initialized_ = true;
 }
@@ -154,9 +154,7 @@ void CrashReportModal::deinit_subjects() {
         return;
     }
 
-    lv_subject_deinit(&details_subject_);
-    lv_subject_deinit(&status_subject_);
-    lv_subject_deinit(&show_qr_subject_);
+    subjects_.deinit_all();
 
     subjects_initialized_ = false;
 }

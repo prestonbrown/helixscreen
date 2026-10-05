@@ -154,6 +154,21 @@ void defer_close_callback(OverlayCloseCallback callback) {
         }
     });
 }
+
+/// The colors the navbar is painted in right now.
+std::string active_palette_key() {
+    const helix::ThemeData& theme = theme_manager_get_active_theme();
+    const helix::ModePalette& palette = theme_manager_is_dark_mode() ? theme.dark : theme.light;
+    std::string key;
+    for (size_t i = 0; i < helix::ModePalette::color_names().size(); i++)
+        key += palette.at(i);
+    return key;
+}
+
+/// A snapshot backdrop is an image; a dim layer is a translucent plain object.
+bool is_snapshot_backdrop(lv_obj_t* backdrop) {
+    return backdrop && lv_obj_check_type(backdrop, &lv_image_class);
+}
 } // namespace
 
 void NavigationManager::set_overlay_registration_strict(bool enabled) noexcept {
@@ -1014,9 +1029,14 @@ void NavigationManager::wire_events(lv_obj_t* navbar) {
     // A live theme or mode switch from inside an overlay (Settings > Appearance)
     // repaints the navbar widget the snapshot hides, so re-take it too. The
     // change subject fires after the repaint, so the new shot shows the new mode.
+    // It also fires on subscription and on re-applies of the same palette, which
+    // change no pixel.
     theme_observer_ = observe<int>(
         theme_manager_get_changed_subject(), this,
-        [](NavigationManager* mgr, int /* generation */) { mgr->refresh_overlay_backdrop(); },
+        [](NavigationManager* mgr, int /* generation */) {
+            if (active_palette_key() != mgr->backdrop_palette_key_)
+                mgr->refresh_overlay_backdrop();
+        },
         subject_never_freed());
 
     create_rail_estop(navbar);
@@ -1446,15 +1466,24 @@ void NavigationManager::overlay_delete_event_cb(lv_event_t* e) {
     NavigationManager::instance().scrub_deleted_widget(target);
 }
 
-void NavigationManager::adopt_overlay_backdrop(lv_obj_t* screen) {
-    // Keep the live E-stop out of the snapshot: it stays above the backdrop,
-    // and a dimmed copy baked into the image would show wherever the page
-    // shifts (the keyboard lifts the layout, backdrop included).
+void NavigationManager::adopt_overlay_backdrop(lv_obj_t* screen, lv_obj_t* arriving) {
+    // Keep the live E-stop and the arriving overlay out of the snapshot: both
+    // stay above the backdrop, and a dimmed copy baked into the image would
+    // show wherever the page shifts (the keyboard lifts the layout, backdrop
+    // included) or wherever the live overlay has not covered it yet.
     const bool estop_shown = rail_estop_ && !lv_obj_has_flag(rail_estop_, LV_OBJ_FLAG_HIDDEN);
     if (estop_shown) {
         lv_obj_add_flag(rail_estop_, LV_OBJ_FLAG_HIDDEN);
     }
+    const bool arriving_shown = arriving && !lv_obj_has_flag(arriving, LV_OBJ_FLAG_HIDDEN);
+    if (arriving_shown) {
+        lv_obj_add_flag(arriving, LV_OBJ_FLAG_HIDDEN);
+    }
     overlay_backdrop_ = helix::ui::create_darkened_backdrop(screen, 40);
+    backdrop_palette_key_ = active_palette_key();
+    if (arriving_shown) {
+        lv_obj_remove_flag(arriving, LV_OBJ_FLAG_HIDDEN);
+    }
     if (estop_shown) {
         lv_obj_remove_flag(rail_estop_, LV_OBJ_FLAG_HIDDEN);
     }
@@ -1555,15 +1584,16 @@ void NavigationManager::set_rail_estop_keyboard_top(int32_t top) {
 void NavigationManager::refresh_overlay_backdrop() {
     if (shutting_down_ || !overlay_backdrop_ || !lv_obj_is_valid(overlay_backdrop_))
         return;
+    // A dim layer is translucent over the live navbar, so it is never stale.
+    if (!is_snapshot_backdrop(overlay_backdrop_))
+        return;
 
     lv_obj_t* screen = lv_obj_get_screen(overlay_backdrop_);
     if (!screen || screen != lv_screen_active())
         return;
 
-    lv_obj_t* outgoing = overlay_backdrop_;
-
     // Everything the snapshot must not contain: the overlays it sits under, the
-    // outgoing backdrop itself, the printer-switch menu, anything else parked on
+    // backdrop itself, the printer-switch menu, anything else parked on
     // the screen. Hide them all and restore the exact flags afterwards — the
     // snapshot has to reproduce what the screen looked like at push time, not
     // what it looks like now.
@@ -1590,7 +1620,9 @@ void NavigationManager::refresh_overlay_backdrop() {
         base_panel = nullptr;
     }
 
-    lv_obj_t* fresh = helix::ui::create_darkened_backdrop(screen, 40);
+    // Into the buffer the backdrop already owns: a second full frame is 768KB
+    // on an 800x480 RGB565 panel.
+    const bool retaken = helix::ui::retake_darkened_backdrop(overlay_backdrop_, 40);
 
     if (base_panel && base_was_hidden)
         lv_obj_add_flag(base_panel, LV_OBJ_FLAG_HIDDEN);
@@ -1601,22 +1633,11 @@ void NavigationManager::refresh_overlay_backdrop() {
             lv_obj_remove_flag(child, LV_OBJ_FLAG_HIDDEN);
     }
 
-    if (!fresh) {
+    if (!retaken) {
         spdlog::warn("[NavigationManager] Backdrop refresh failed — keeping stale snapshot");
         return;
     }
-
-    // Slot the replacement directly above the outgoing backdrop so every overlay
-    // stays above both. The outgoing one is opaque and identical everywhere the
-    // navbar did not change, so it covering `fresh` for the frame or two before
-    // the deferred delete lands is not visible.
-    lv_obj_move_to_index(fresh, static_cast<int32_t>(lv_obj_get_index(outgoing)) + 1);
-
-    lv_obj_add_event_cb(fresh, backdrop_click_event_cb, LV_EVENT_PRESSED, nullptr);
-    lv_obj_add_event_cb(fresh, backdrop_click_event_cb, LV_EVENT_CLICKED, nullptr);
-
-    overlay_backdrop_ = fresh;
-    helix::ui::safe_delete_deferred(outgoing);
+    backdrop_palette_key_ = active_palette_key();
 
     spdlog::debug("[NavigationManager] Overlay backdrop re-snapshotted");
 }
@@ -1874,18 +1895,24 @@ void NavigationManager::push_overlay(lv_obj_t* overlay_panel, bool hide_previous
         // the visible content, not a blank screen.
         lv_obj_t* screen = lv_obj_get_screen(overlay_panel);
         if (screen && is_first_overlay) {
-            mgr.adopt_overlay_backdrop(screen);
-        }
-
-        // Optionally hide current top panel (after snapshot)
-        if (hide_previous && !mgr.panel_stack_.empty()) {
-            lv_obj_t* current_top = mgr.panel_stack_.back();
-            lv_obj_add_flag(current_top, LV_OBJ_FLAG_HIDDEN);
+            mgr.adopt_overlay_backdrop(screen, overlay_panel);
         }
 
         // Resolve and apply the width class before the overlay becomes visible,
         // while panel_stack_.back() is still the widget beneath it. #1178
-        mgr.apply_overlay_width(overlay_panel, is_first_overlay);
+        const bool is_destination = mgr.apply_overlay_width(overlay_panel, is_first_overlay);
+
+        // Optionally hide current top panel (after snapshot). A dim layer is
+        // translucent, so beside a transient overlay the base panel stays drawn
+        // through it; a destination overlay covers it, and drawing it there
+        // would cost frames for nothing.
+        const bool base_shows_through = is_first_overlay && !is_destination &&
+                                        mgr.overlay_backdrop_ &&
+                                        !is_snapshot_backdrop(mgr.overlay_backdrop_);
+        if (hide_previous && !mgr.panel_stack_.empty() && !base_shows_through) {
+            lv_obj_t* current_top = mgr.panel_stack_.back();
+            lv_obj_add_flag(current_top, LV_OBJ_FLAG_HIDDEN);
+        }
 
         // Show overlay
         lv_obj_remove_flag(overlay_panel, LV_OBJ_FLAG_HIDDEN);

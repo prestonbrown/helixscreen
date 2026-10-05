@@ -327,7 +327,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         // Same kinematics the config payload reports, so a
                         // settings reader (belt hardware detect) and a config
                         // reader (bed moves detection) see the same machine.
-                        {"kinematics", mock_kinematics(self->get_printer_type())}}},
+                        {"kinematics", self->kinematics()}}},
                       {"stepper_x",
                        {{"position_min", MOCK_BED_X_MIN}, {"position_max", MOCK_BED_X_MAX}}},
                       {"stepper_y",
@@ -846,7 +846,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         // Same kinematics the config payload reports, so a
                         // settings reader (belt hardware detect) and a config
                         // reader (bed moves detection) see the same machine.
-                        {"kinematics", mock_kinematics(self->get_printer_type())}}},
+                        {"kinematics", self->kinematics()}}},
                       {"stepper_x",
                        {{"position_min", MOCK_BED_X_MIN}, {"position_max", MOCK_BED_X_MAX}}},
                       {"stepper_y",

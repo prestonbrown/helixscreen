@@ -123,6 +123,7 @@
   <translation tag="A · 1,-1" ja="A · 1,-1"/>
   <translation tag="ABS" ja="ABS"/>
   <translation tag="ACCELEROMETERS" ja="加速度センサー"/>
+  <translation tag="ACCEPT failed: {}" ja="ACCEPT に失敗しました: {}"/>
   <translation tag="ACE Moonraker bridge not found. Install ace_status.py for full support." ja="ACE Moonraker ブリッジが見つかりません。完全なサポートには ace_status.py をインストールしてください。"/>
   <translation tag="ACTIONS" ja="アクション"/>
   <translation tag="ADXL" ja="ADXL"/>
@@ -220,6 +221,7 @@
   <translation tag="An error occurred." ja="エラーが発生しました。"/>
   <translation tag="An internal error occurred. The app continues running. Please send a debug bundle from Settings &gt; Help &amp; About if it repeats." ja="内部エラーが発生しました。アプリは引き続き動作します。問題が繰り返される場合は、設定 &gt; ヘルプと情報 からデバッグバンドルを送信してください。"/>
   <translation tag="An unexpected printer error occurred." ja="予期しないプリンターエラーが発生しました。"/>
+  <translation tag="An unknown error occurred." ja="不明なエラーが発生しました。"/>
   <translation tag="An update is available" ja="更新があります"/>
   <translation tag="Analyzing data..." ja="データを解析中..."/>
   <translation tag="Analyzing data... {}s" ja="データを解析中... {}s"/>
@@ -664,9 +666,12 @@
   <translation tag="Connection failed: %s" ja="接続に失敗しました: %s"/>
   <translation tag="Connection lost — probe accuracy result unavailable" ja="接続が切断されました — プローブ精度テストの結果が利用できません"/>
   <translation tag="Connection must be tested successfully to continue" ja="続行するには接続テストに成功する必要があります"/>
+  <translation tag="Connection restored" ja="接続が回復しました"/>
   <translation tag="Connection successful!" ja="接続成功！"/>
   <translation tag="Connection timeout" ja="接続タイムアウト"/>
+  <translation tag="Connection to printer lost - attempting to reconnect..." ja="プリンターとの接続が切断されました - 再接続しています..."/>
   <translation tag="Connection to printer lost — operation may still be running" ja="プリンターとの接続が切断されました — 操作がまだ実行中の可能性があります"/>
+  <translation tag="Connection to printer lost." ja="プリンターとの接続が切断されました。"/>
   <translation tag="Connects" ja="接続回数"/>
   <translation tag="Console" ja="コンソール"/>
   <translation tag="Console Settings" ja="コンソール設定"/>
@@ -700,7 +705,9 @@
   <translation tag="Could not check webcam status.&#10;Check printer connection." ja="ウェブカメラの状態を確認できませんでした。&#10;プリンター接続を確認してください。"/>
   <translation tag="Could not confirm cancel" ja="キャンセルを確認できませんでした"/>
   <translation tag="Could not copy {} from USB: {}" ja="{} を USB からコピーできませんでした: {}"/>
+  <translation tag="Could not disconnect from WiFi" ja="WiFi から切断できませんでした"/>
   <translation tag="Could not forget device" ja="デバイスの登録を解除できませんでした"/>
+  <translation tag="Could not initialize WiFi hardware. Check system configuration." ja="WiFi ハードウェアを初期化できませんでした。システム設定を確認してください。"/>
   <translation tag="Could not load printer database" ja="プリンターデータベースを読み込めませんでした"/>
   <translation tag="Could not move the plate" ja="ベッドを動かせませんでした"/>
   <translation tag="Could not parse tips database" ja="ヒントデータベースを解析できませんでした"/>
@@ -900,6 +907,7 @@
   <translation tag="Emergency Stop?" ja="緊急停止しますか？"/>
   <translation tag="Emergency stop activated" ja="緊急停止が作動しました"/>
   <translation tag="Emergency stop failed: not connected" ja="緊急停止に失敗: 未接続"/>
+  <translation tag="Emergency stop failed: {}" ja="緊急停止に失敗しました: {}"/>
   <translation tag="Empty" ja="空"/>
   <translation tag="Empty slots disable the associated functionality" ja="空のスロットは関連機能を無効にします"/>
   <translation tag="Enable" ja="有効化"/>
@@ -1030,7 +1038,10 @@
   <translation tag="Failed to build raster data" ja="ラスターデータの構築に失敗しました"/>
   <translation tag="Failed to cancel: {}" ja="キャンセルに失敗しました: {}"/>
   <translation tag="Failed to clear print state: {}" ja="印刷状態をクリアできませんでした: {}"/>
+  <translation tag="Failed to connect to &apos;{}&apos;" ja="&apos;{}&apos; に接続できませんでした"/>
+  <translation tag="Failed to connect to &apos;{}&apos;. Check password." ja="&apos;{}&apos; に接続できませんでした。パスワードを確認してください。"/>
   <translation tag="Failed to connect to &apos;{}&apos;: {}" ja="&apos;{}&apos; への接続に失敗しました: {}"/>
+  <translation tag="Failed to connect to WiFi network &apos;{}&apos;: {}" ja="WiFi ネットワーク &apos;{}&apos; に接続できませんでした: {}"/>
   <translation tag="Failed to connect: %s" ja="接続に失敗: %s"/>
   <translation tag="Failed to cool down: {}" ja="冷却に失敗しました: {}"/>
   <translation tag="Failed to create filament:" ja="フィラメントの作成に失敗:"/>
@@ -1039,14 +1050,17 @@
   <translation tag="Failed to delete file" ja="ファイルの削除に失敗しました"/>
   <translation tag="Failed to delete profile" ja="プロファイルの削除に失敗しました"/>
   <translation tag="Failed to delete spool" ja="スプールの削除に失敗しました"/>
+  <translation tag="Failed to disable WiFi: {}" ja="WiFi を無効にできませんでした: {}"/>
   <translation tag="Failed to discard recovery data: {}" ja="復旧データの破棄に失敗しました: {}"/>
   <translation tag="Failed to download G-code for modification: {}" ja="G-code の変更用ダウンロードに失敗しました: {}"/>
   <translation tag="Failed to download G-code for remap: {}" ja="リマップ用のG-codeのダウンロードに失敗しました: {}"/>
   <translation tag="Failed to download helixscreen.conf.&#10;Check printer connection." ja="helixscreen.confのダウンロードに失敗しました。&#10;プリンター接続を確認してください。"/>
   <translation tag="Failed to download moonraker.conf.&#10;Check printer connection." ja="moonraker.confのダウンロードに失敗しました。&#10;プリンター接続を確認してください。"/>
   <translation tag="Failed to duplicate spool" ja="スプールの複製に失敗しました"/>
+  <translation tag="Failed to enable WiFi: {}" ja="WiFi を有効にできませんでした: {}"/>
   <translation tag="Failed to enable tuning tower" ja="チューニングタワーの有効化に失敗しました"/>
   <translation tag="Failed to exclude &apos;{}&apos;: {}" ja="&apos;{}&apos; の除外に失敗しました: {}"/>
+  <translation tag="Failed to forget WiFi network &apos;{}&apos;" ja="WiFi ネットワーク &apos;{}&apos; を削除できませんでした"/>
   <translation tag="Failed to get limits" ja="制限の取得に失敗しました"/>
   <translation tag="Failed to initialize Bluetooth" ja="Bluetooth の初期化に失敗しました"/>
   <translation tag="Failed to initialize Bluetooth context" ja="Bluetooth コンテキストの初期化に失敗しました"/>
@@ -1084,6 +1098,7 @@
   <translation tag="Failed to restart: {}" ja="再起動に失敗しました: {}"/>
   <translation tag="Failed to resume: {}" ja="再開に失敗しました: {}"/>
   <translation tag="Failed to save LED configuration" ja="LED設定の保存に失敗しました"/>
+  <translation tag="Failed to save WiFi network" ja="WiFi ネットワークを保存できませんでした"/>
   <translation tag="Failed to save config." ja="設定の保存に失敗しました。"/>
   <translation tag="Failed to save configuration" ja="設定の保存に失敗しました"/>
   <translation tag="Failed to save fan configuration" ja="ファン設定の保存に失敗しました"/>
@@ -1104,6 +1119,7 @@
   <translation tag="Failed to start installer: " ja="インストーラーの起動に失敗しました: "/>
   <translation tag="Failed to start print: {}" ja="印刷の開始に失敗しました: {}"/>
   <translation tag="Failed to start uninstaller: " ja="アンインストーラーの起動に失敗しました: "/>
+  <translation tag="Failed to subscribe to printer updates: {}" ja="プリンターの更新を受信できませんでした: {}"/>
   <translation tag="Failed to toggle %s" ja="%s の切り替えに失敗しました"/>
   <translation tag="Failed to toggle timelapse: {}" ja="タイムラプスの切替に失敗しました: {}"/>
   <translation tag="Failed to turn off heaters: {}" ja="ヒーターのオフに失敗しました: {}"/>
@@ -1185,6 +1201,7 @@
   <translation tag="Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume." ja="フィラメントが切れました。自動補充がオフのため、CFSは自動でスプールを切り替えません。フィラメントを装填してから再開してください。"/>
   <translation tag="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume." ja="フィラメントが切れました。CFSは適合するスプールを認識していますが、該当するスロットは空です。いずれかを装填してから再開してください。"/>
   <translation tag="Filament reload failed" ja="フィラメントの再装填に失敗しました"/>
+  <translation tag="Filament remap not supported on this printer — print will use the firmware&apos;s current tool mapping" ja="このプリンターはフィラメントの再割り当てに対応していません — 印刷はファームウェアの現在のツール割り当てを使用します"/>
   <translation tag="Filament remapping is unavailable" ja="フィラメントのリマップは利用できません"/>
   <translation tag="Filament runout" ja="フィラメント切れ"/>
   <translation tag="Filament runout and motion detection sensors" ja="フィラメント切れとモーション検出センサー"/>
@@ -1202,6 +1219,7 @@
   <translation tag="File" ja="ファイル"/>
   <translation tag="File Size" ja="ファイルサイズ"/>
   <translation tag="File Will Stop the Printer" ja="ファイルがプリンターを停止します"/>
+  <translation tag="File not found on printer." ja="プリンター上にファイルが見つかりません。"/>
   <translation tag="File not found: {}" ja="ファイルが見つかりません: {}"/>
   <translation tag="Filename" ja="ファイル名"/>
   <translation tag="Fine" ja="微動"/>
@@ -1214,6 +1232,7 @@
   <translation tag="Fireworks" ja="花火"/>
   <translation tag="Firmware Restart" ja="ファームウェア再起動"/>
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" ja="ファームウェアはバイパスがないと報告しています。フィラメントをエクストルーダーに直接送っている場合は有効にしてください"/>
+  <translation tag="Firmware restart failed: {}" ja="ファームウェア再起動に失敗しました: {}"/>
   <translation tag="Firmware restarting..." ja="ファームウェア再起動中..."/>
   <translation tag="Firmware saved X = Y&apos;s value; the measured X result was discarded" ja="ファームウェアは X の値として Y の値を保存しました。測定された X の結果は破棄されました。"/>
   <translation tag="Fix: chmod 644 {}, then restart" ja="修正：chmod 644 {} を実行して再起動してください"/>
@@ -1373,6 +1392,7 @@
   <translation tag="Homing failed: " ja="ホーミングに失敗: "/>
   <translation tag="Homing failed: {}" ja="ホーミングに失敗しました: {}"/>
   <translation tag="Homing first..." ja="ホーミング中..."/>
+  <translation tag="Homing is disabled while a print is in progress" ja="印刷中はホーミングできません"/>
   <translation tag="Homing may still be running — response timed out" ja="ホーミングがまだ実行中の可能性があります — 応答タイムアウト"/>
   <translation tag="Homing selector" ja="セレクターをホーミングしています"/>
   <translation tag="Homing timed out" ja="ホーミングがタイムアウトしました"/>
@@ -1511,8 +1531,11 @@
   <translation tag="Klipper" ja="Klipper"/>
   <translation tag="Klipper Error" ja="Klipper エラー"/>
   <translation tag="Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart." ja="Klipper ファームウェアがホストから切断されました。Klipper を再起動するか、ファームウェア再起動を実行してみてください。"/>
+  <translation tag="Klipper has disconnected from Moonraker. Check for errors in your printer interface." ja="Klipper が Moonraker から切断されました。プリンターのインターフェースでエラーを確認してください。"/>
   <translation tag="Klipper has entered an error state. This is typically caused by an MCU connection failure or configuration error. Try a firmware restart." ja="Klipper がエラー状態になりました。これは通常、MCU 接続の失敗または設定エラーが原因です。ファームウェア再起動を試してください。"/>
+  <translation tag="Klipper has entered shutdown state." ja="Klipper がシャットダウン状態になりました。"/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." ja="Klipper がシャットダウン状態になりました。緊急停止、熱暴走、または設定エラーが原因の可能性があります。"/>
+  <translation tag="Klipper is halted — restart firmware to continue" ja="Klipper が停止しています — 続行するにはファームウェアを再起動してください"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." ja="Klipper は &apos;default&apos; を新しいキャリブレーション用に予約しています。別の名前を選んでください。"/>
   <translation tag="Klipper restarting - macros activating" ja="Klipper を再起動しています - マクロを有効化中"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." ja="Klipperが進捗の報告を停止しました。小型のプリンターでは解析でメモリが不足し、Klipperが停止したままになることがあり、その場合はファームウェア再起動では復旧できません。プリンターの電源を入れ直して（またはSSHでKlipperを再起動して）から再試行してください。"/>
@@ -1741,6 +1764,7 @@
   <translation tag="Monitoring" ja="モニタリング"/>
   <translation tag="Month" ja="月"/>
   <translation tag="Moonraker" ja="Moonraker"/>
+  <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." ja="{} の Moonraker が応答しません。Moonraker はこのプリンター上で動作しているため、Klipper と Moonraker のサービスが起動しているか確認してください。"/>
   <translation tag="Moonraker restarted but Spoolman not connected. Check server." ja="Moonraker は再起動しましたが Spoolman に未接続です。サーバーを確認してください。"/>
   <translation tag="Moonraker restarting...&#10;Waiting for reconnection..." ja="Moonraker再起動中...&#10;再接続を待機中..."/>
   <translation tag="Moonraker: " ja="Moonraker: "/>
@@ -2061,6 +2085,7 @@
   <translation tag="Peak:" ja="ピーク:"/>
   <translation tag="Peaks {} Hz" ja="ピーク {} Hz"/>
   <translation tag="Performance" ja="パフォーマンス"/>
+  <translation tag="Permission denied. Check printer configuration." ja="権限がありません。プリンターの設定を確認してください。"/>
   <translation tag="Phomemo (Bluetooth)" ja="Phomemo (Bluetooth)"/>
   <translation tag="Phomemo M110" ja="Phomemo M110"/>
   <translation tag="Pick" ja="選択"/>
@@ -2200,6 +2225,8 @@
   <translation tag="Printer Shutdown" ja="プリンターシャットダウン"/>
   <translation tag="Printer Type" ja="プリンタータイプ"/>
   <translation tag="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})" ja="プリンターはジョブを受け付けましたが印刷していません — カバー、用紙、ラベルの種類を確認してください (firmware status=0x{:02X} error=0x{:02X})"/>
+  <translation tag="Printer command &apos;{}&apos; failed: {}" ja="プリンターコマンド &apos;{}&apos; が失敗しました: {}"/>
+  <translation tag="Printer command &apos;{}&apos; timed out after {}ms" ja="プリンターコマンド &apos;{}&apos; が {} ms でタイムアウトしました"/>
   <translation tag="Printer connection unavailable" ja="プリンターとの接続が利用できません"/>
   <translation tag="Printer database format error" ja="プリンターデータベースの形式エラー"/>
   <translation tag="Printer database is corrupt" ja="プリンターデータベースが破損しています"/>
@@ -2209,7 +2236,10 @@
   <translation tag="Printer hardware detected" ja="プリンターのハードウェアを検出"/>
   <translation tag="Printer image set to auto-detect" ja="プリンター画像を自動検出に設定しました"/>
   <translation tag="Printer is busy - {} stays in the queue" ja="プリンターは使用中です – {} はキューに残ります"/>
+  <translation tag="Printer is busy — try again in a moment" ja="プリンターがビジー状態です — しばらくしてからもう一度お試しください"/>
   <translation tag="Printer is not paired — pair it first" ja="プリンターがペアリングされていません — 先にペアリングしてください"/>
+  <translation tag="Printer is not ready" ja="プリンターの準備ができていません"/>
+  <translation tag="Printer is not ready. Please wait for initialization." ja="プリンターの準備ができていません。初期化が終わるまでお待ちください。"/>
   <translation tag="Printer message: {}" ja="プリンターのメッセージ: {}"/>
   <translation tag="Printer name" ja="プリンター名"/>
   <translation tag="Printer not connected" ja="プリンターが接続されていません"/>
@@ -2330,6 +2360,7 @@
   <translation tag="Reboot failed" ja="再起動に失敗しました"/>
   <translation tag="Reboot failed — host is still reachable" ja="再起動に失敗しました — ホストに依然として到達可能です"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." ja="設定からいつでも再キャリブレーションや詳細結果の確認ができます。"/>
+  <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." ja="プリンターからサイズ超過のデータを受信しました ({} バイト)。通信エラーの可能性があります。"/>
   <translation tag="Recent Prints" ja="最近の印刷"/>
   <translation tag="Recently Printed" ja="最近印刷されたもの"/>
   <translation tag="Reconnect" ja="再接続"/>
@@ -2343,7 +2374,6 @@
   <translation tag="Recovering AFC system..." ja="AFCシステムを復旧中..."/>
   <translation tag="Recovering..." ja="復旧中..."/>
   <translation tag="Recovery failed" ja="復旧失敗"/>
-  <translation tag="Recovery failed: " ja="復旧に失敗しました: "/>
   <translation tag="Recovery failed: {}" ja="復旧に失敗しました: {}"/>
   <translation tag="Reduce Sensitivity" ja="感度を下げる"/>
   <translation tag="Reduce ringing and ghosting artifacts" ja="リンギングとゴーストのアーティファクトを軽減"/>
@@ -2395,6 +2425,7 @@
   <translation tag="Reprint" ja="再印刷"/>
   <translation tag="Reprint Last" ja="前回を再印刷"/>
   <translation tag="Request Failed" ja="要求に失敗しました"/>
+  <translation tag="Request timed out. The printer may be busy." ja="要求がタイムアウトしました。プリンターがビジー状態の可能性があります。"/>
   <translation tag="Require Confirmation?" ja="確認が必要ですか？"/>
   <translation tag="Require confirmation before emergency stop" ja="緊急停止前に確認を求める"/>
   <translation tag="Requires Moonraker power device" ja="Moonraker電源デバイスが必要です"/>
@@ -2436,6 +2467,7 @@
   <translation tag="Restart Now" ja="今すぐ再起動"/>
   <translation tag="Restart Required" ja="再起動が必要です"/>
   <translation tag="Restart failed: not connected" ja="再起動に失敗: 未接続"/>
+  <translation tag="Restart failed: {}" ja="再起動に失敗しました: {}"/>
   <translation tag="Restart from the beginning to recover" ja="復旧するには最初からやり直してください"/>
   <translation tag="Restart pending" ja="再起動保留中"/>
   <translation tag="Restart the display application" ja="ディスプレイアプリケーションを再起動"/>
@@ -2768,6 +2800,7 @@
   <translation tag="Spoolman was not configured." ja="Spoolman は設定されていませんでした。"/>
   <translation tag="Spoolman: %zu Spool%s" ja="Spoolman: %zu 個のスプール%s"/>
   <translation tag="Spoolman: %zu/%zu Spool%s" ja="Spoolman: %zu/%zu 個のスプール%s"/>
+  <translation tag="Spools are on the bed: remove them and confirm before moving the printer" ja="ベッドにスプールがあります: 取り除いて確認してからプリンターを動かしてください"/>
   <translation tag="Spools are on the bed: tap the drying banner to confirm they are off, then restart." ja="ベッドにスプールがあります: 乾燥のバナーをタップして取り出したことを確認してから、再起動してください。"/>
   <translation tag="Spools on the bed: start drying, or confirm none were placed" ja="ベッドにスプールがあります: 乾燥を開始するか、置いていないことを確認してください"/>
   <translation tag="Spools removed" ja="スプールを取り出しました"/>
@@ -2953,6 +2986,7 @@
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." ja="プリンターが原点復帰してカッターを走査します（約1分）。フィラメントの経路を空けてください。"/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." ja="プリンターはホームに戻ってから、ベッドをノズルからできるだけ離します。耐熱性が足りずに変形するスプールもあります。スプールをベッドから取り出したことを確認するまで、この画面からは何も動きません。Mainsail、マクロ、スライサーから送られた印刷はブロックされません。"/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." ja="プリンターがホーミングされていません。続行すると全軸がホーミングされ、ツールヘッドが移動します。ベッドに物がないことを確認してください。"/>
+  <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" ja="プリンターは現在フィラメントが装填されていることを検出していません。どうしますか？"/>
   <translation tag="The printer lost power during a print. It can resume where it left off." ja="印刷中にプリンターの電源が失われました。中断した箇所から再開できます。"/>
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." ja="印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ja="{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？"/>
@@ -3016,6 +3050,8 @@
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." ja="このプリンターのゲートは Spoolman から設定されます。HelixScreen 側のコピーはクリアしました。Spoolman でスプールを削除してください。"/>
   <translation tag="This printer fills its gates from Spoolman. Make colour, material and spool changes in Spoolman." ja="このプリンターのゲートは Spoolman から設定されます。色・素材・スプールの変更は Spoolman で行ってください。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ja="このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。"/>
+  <translation tag="This printer&apos;s network service controls the WiFi radio" ja="このプリンターのネットワークサービスが WiFi 無線を制御しています"/>
+  <translation tag="This printer&apos;s network service manages saved WiFi networks" ja="このプリンターのネットワークサービスが保存済みの WiFi ネットワークを管理しています"/>
   <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." ja="プラグインの Moonraker コンポーネントを削除し、Moonraker を再起動します。プリンターは一時的に切断されます。PRINT_START に古いフェーズトラッキングの行が残っている場合、それらも削除されますが、バックアップは保持されます。Klipper を再起動すると、その変更が適用されます。"/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." ja="プリンターのヘルパーマクロを現在のバージョンに置き換え、Klipper を再起動します。"/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." ja="プリンターのヘルパーマクロを現在のバージョンに置き換えます。印刷中のため、Klipper は印刷完了後に再起動されます。"/>
@@ -3138,6 +3174,8 @@
   <translation tag="USB drive connected" ja="USB ドライブが接続されました"/>
   <translation tag="USB drive removed" ja="USB ドライブが取り外されました"/>
   <translation tag="USB printer access denied — check permissions" ja="USB プリンターへのアクセスが拒否されました — 権限を確認してください"/>
+  <translation tag="Unable to reach printer at {}. Check that the printer is powered on and that this address is correct." ja="{} のプリンターに接続できません。プリンターの電源が入っていて、このアドレスが正しいか確認してください。"/>
+  <translation tag="Unable to reach printer. Check power and network connection." ja="プリンターに接続できません。電源とネットワーク接続を確認してください。"/>
   <translation tag="Unavailable" ja="利用不可"/>
   <translation tag="Unavailable on this printer" ja="このプリンターでは利用できません"/>
   <translation tag="Undo" ja="元に戻す"/>
@@ -3293,12 +3331,19 @@
   <translation tag="WiFi Disabled" ja="WiFi 無効"/>
   <translation tag="WiFi Enabled" ja="WiFi 有効"/>
   <translation tag="WiFi Network" ja="WiFi ネットワーク"/>
+  <translation tag="WiFi Permission Denied" ja="WiFi の権限がありません"/>
+  <translation tag="WiFi Service Not Running" ja="WiFi サービスが動作していません"/>
   <translation tag="WiFi Unavailable" ja="WiFi を利用できません"/>
   <translation tag="WiFi and Ethernet configuration" ja="WiFi とイーサネットの設定"/>
   <translation tag="WiFi control unavailable" ja="WiFi 制御は利用できません"/>
   <translation tag="WiFi hardware unavailable" ja="WiFi ハードウェアが利用できません"/>
+  <translation tag="WiFi initialization failed: {}" ja="WiFi の初期化に失敗しました: {}"/>
   <translation tag="WiFi radio did not change state" ja="WiFiの状態が変わりませんでした"/>
+  <translation tag="WiFi scan failed. Try again." ja="WiFi のスキャンに失敗しました。もう一度お試しください。"/>
   <translation tag="WiFi unavailable" ja="WiFi が利用できません"/>
+  <translation tag="WiFi unavailable. Cannot connect to network." ja="WiFi を利用できません。ネットワークに接続できません。"/>
+  <translation tag="WiFi unavailable. Cannot forget network." ja="WiFi を利用できません。ネットワークを削除できません。"/>
+  <translation tag="WiFi unavailable. Cannot scan for networks." ja="WiFi を利用できません。ネットワークをスキャンできません。"/>
   <translation tag="WiFi was configured but hardware is not available. Check system configuration." ja="WiFi は設定されていますが、ハードウェアが利用できません。システム設定を確認してください。"/>
   <translation tag="Widget Labels" ja="ウィジェットラベル"/>
   <translation tag="Width" ja="幅"/>
@@ -3444,6 +3489,7 @@
   <translation tag="v%s available" ja="v%s が利用可能です"/>
   <translation tag="v{} installed! Restarting..." ja="v{} をインストールしました！再起動中..."/>
   <translation tag="v{} is available. Tap to update." ja="v{} が利用可能です。タップして更新してください。"/>
+  <translation tag="wpa_supplicant is not running. WiFi features unavailable." ja="wpa_supplicant が動作していません。WiFi 機能は利用できません。"/>
   <translation tag="you have" ja="現在は"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ja="{:.0f}-{:.0f} Hz · 約{}分"/>
   <translation tag="{} Hardware Issues" ja="ハードウェアの問題 {} 件"/>

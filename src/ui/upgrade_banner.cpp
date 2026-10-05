@@ -46,7 +46,7 @@ void UpgradeBanner::init() {
     // the `bind_text="upgrade_banner_text"` binding resolves to our buffer.
     if (!message_subject_initialized_) {
         lv_subject_init_string(&message_subject_, g_message_buf, nullptr, MESSAGE_BUF_SIZE, "");
-        lv_xml_register_subject(nullptr, "upgrade_banner_text", &message_subject_);
+        subjects_.publish("upgrade_banner_text", &message_subject_);
         message_subject_initialized_ = true;
     }
 
@@ -108,9 +108,7 @@ void UpgradeBanner::shutdown() {
     }
     banner_ = nullptr;
 
-    if (message_subject_initialized_ && lv_is_initialized()) {
-        lv_subject_deinit(&message_subject_);
-    }
+    subjects_.deinit_all();
     message_subject_initialized_ = false;
 }
 

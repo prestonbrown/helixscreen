@@ -155,8 +155,6 @@ void TimelapseSettingsOverlay::fetch_settings() {
     auto tok = lifetime_.token();
     api_->timelapse().get_timelapse_settings(
         [this, tok](const TimelapseSettings& settings) {
-            if (tok.expired())
-                return;
             tok.defer([this, settings]() {
                 spdlog::info("[{}] Got timelapse settings: enabled={} mode={} fps={} autorender={}",
                              get_name(), settings.enabled, settings.mode, settings.output_framerate,
@@ -194,8 +192,6 @@ void TimelapseSettingsOverlay::fetch_settings() {
             });
         },
         [this, tok](const MoonrakerError& error) {
-            if (tok.expired())
-                return;
             tok.defer([this, error]() {
                 spdlog::error("[{}] Failed to fetch timelapse settings: {}", get_name(),
                               error.message);

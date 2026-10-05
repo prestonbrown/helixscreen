@@ -70,16 +70,16 @@ void ClogDetectionConfigModal::init_subjects() {
     lv_subject_init_int(&mode_manual_active_, 0);
 
     // Register globally so XML bindings find them
-    lv_xml_register_subject(nullptr, "clog_cfg_mode", &mode_subject_);
-    lv_xml_register_subject(nullptr, "clog_cfg_threshold_text", &threshold_text_subject_);
-    lv_xml_register_subject(nullptr, "clog_cfg_det_length_text", &det_length_text_subject_);
-    lv_xml_register_subject(nullptr, "clog_cfg_mode_supported", &mode_supported_subject_);
-    lv_xml_register_subject(nullptr, "clog_src_auto_active", &src_auto_active_);
-    lv_xml_register_subject(nullptr, "clog_src_encoder_active", &src_encoder_active_);
-    lv_xml_register_subject(nullptr, "clog_src_flowguard_active", &src_flowguard_active_);
-    lv_xml_register_subject(nullptr, "clog_src_afc_active", &src_afc_active_);
-    lv_xml_register_subject(nullptr, "clog_mode_auto_active", &mode_auto_active_);
-    lv_xml_register_subject(nullptr, "clog_mode_manual_active", &mode_manual_active_);
+    subjects_.publish("clog_cfg_mode", &mode_subject_);
+    subjects_.publish("clog_cfg_threshold_text", &threshold_text_subject_);
+    subjects_.publish("clog_cfg_det_length_text", &det_length_text_subject_);
+    subjects_.publish("clog_cfg_mode_supported", &mode_supported_subject_);
+    subjects_.publish("clog_src_auto_active", &src_auto_active_);
+    subjects_.publish("clog_src_encoder_active", &src_encoder_active_);
+    subjects_.publish("clog_src_flowguard_active", &src_flowguard_active_);
+    subjects_.publish("clog_src_afc_active", &src_afc_active_);
+    subjects_.publish("clog_mode_auto_active", &mode_auto_active_);
+    subjects_.publish("clog_mode_manual_active", &mode_manual_active_);
 
     subjects_initialized_ = true;
 }
@@ -87,16 +87,7 @@ void ClogDetectionConfigModal::init_subjects() {
 void ClogDetectionConfigModal::deinit_subjects() {
     if (!subjects_initialized_)
         return;
-    lv_subject_deinit(&mode_subject_);
-    lv_subject_deinit(&threshold_text_subject_);
-    lv_subject_deinit(&det_length_text_subject_);
-    lv_subject_deinit(&mode_supported_subject_);
-    lv_subject_deinit(&src_auto_active_);
-    lv_subject_deinit(&src_encoder_active_);
-    lv_subject_deinit(&src_flowguard_active_);
-    lv_subject_deinit(&src_afc_active_);
-    lv_subject_deinit(&mode_auto_active_);
-    lv_subject_deinit(&mode_manual_active_);
+    subjects_.deinit_all();
     subjects_initialized_ = false;
 }
 

@@ -151,6 +151,12 @@ bool ActionPromptModal::show_prompt(lv_obj_t* parent, const PromptData& data) {
     return true;
 }
 
+bool ActionPromptModal::show_owned_prompt(lv_obj_t* parent, const PromptData& data) {
+    auto modal = std::make_unique<ActionPromptModal>();
+    modal->prompt_data_ = data;
+    return Modal::show_owned(std::move(modal), parent);
+}
+
 // ============================================================================
 // Modal Hooks
 // ============================================================================
@@ -471,8 +477,7 @@ void ActionPromptModal::on_button_cb(lv_event_t* e) {
 
 void report_action_prompt_gcode_failure(const std::string& error_message) {
     // Same presentation as every other failed macro in the UI (ui_panel_controls,
-    // ui_panel_filament). NOTIFY_ERROR marshals to the main thread itself, which
-    // matters here: the RPC error callback fires on the WebSocket thread.
+    // ui_panel_filament). Main thread only: it shows a toast.
     //
     // Klipper's own wording is the useful part ("Extruder not hot enough"); the
     // generic string only stands in when the transport gave us nothing.

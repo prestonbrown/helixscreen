@@ -81,6 +81,7 @@ class SpoolEditModal : public Modal {
     ColorPicker color_picker_;
 
     bool subjects_initialized_ = false;
+    SubjectManager subjects_;
     bool populating_ = false;
     void init_subjects();
     void deinit_subjects();

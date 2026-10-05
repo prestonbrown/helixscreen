@@ -40,6 +40,13 @@ lv_result_t unregister_subject_in_current_scope(const char* name) {
     return lv_xml_unregister_subject(g_active_scope, name);
 }
 
+lv_result_t unregister_subject_in_current_scope(const char* name, const lv_subject_t* subject) {
+    if (name == nullptr || lv_xml_find_subject(g_active_scope, name) != subject) {
+        return LV_RESULT_INVALID;
+    }
+    return lv_xml_unregister_subject(g_active_scope, name);
+}
+
 lv_xml_component_scope_t* current_scope() {
     return g_active_scope;
 }

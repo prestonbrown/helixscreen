@@ -130,6 +130,7 @@ translations:
   A · 1,-1: "A · 1,-1"
   ABS: ABS
   ACCELEROMETERS: ACELERÓMETROS
+  'ACCEPT failed: {}': 'ACCEPT falló: {}'
   ACE Moonraker bridge not found. Install ace_status.py for full support.: Puente
     ACE Moonraker no encontrado. Instala ace_status.py para compatibilidad completa.
   ACTIONS: ACCIONES
@@ -239,6 +240,7 @@ translations:
   ? An internal error occurred. The app continues running. Please send a debug bundle from Settings > Help & About if it repeats.
   : Ocurrió un error interno. La aplicación sigue funcionando. Envíe un paquete de depuración desde Ajustes > Ayuda y acerca de si se repite.
   An unexpected printer error occurred.: Ocurrió un error inesperado en la impresora.
+  An unknown error occurred.: Se produjo un error desconocido.
   An update is available: Hay una actualización disponible
   Analyzing data...: Analizando datos...
   Analyzing data... {}s: Analizando datos... {}s
@@ -747,9 +749,12 @@ translations:
   Connection lost — probe accuracy result unavailable: 'Conexión perdida — resultado de la prueba de precisión de sonda no disponible'
   Connection must be tested successfully to continue: La conexión debe probarse exitosamente
     para continuar
+  Connection restored: Conexión restablecida
   Connection successful!: ¡Conexión exitosa!
   Connection timeout: Tiempo de conexión agotado
+  Connection to printer lost - attempting to reconnect...: Conexión con la impresora perdida - intentando reconectar...
   Connection to printer lost — operation may still be running: 'Conexión con la impresora perdida — la operación puede seguir en curso'
+  Connection to printer lost.: Conexión con la impresora perdida.
   Connects: Conexiones
   Console: Consola
   Console Settings: Ajustes de Consola
@@ -787,7 +792,9 @@ translations:
   : "No se pudo verificar la webcam.\nCompruebe la conexión."
   Could not confirm cancel: No se pudo confirmar la cancelación
   'Could not copy {} from USB: {}': 'No se pudo copiar {} desde USB: {}'
+  Could not disconnect from WiFi: No se pudo desconectar del WiFi
   Could not forget device: No se pudo olvidar el dispositivo
+  Could not initialize WiFi hardware. Check system configuration.: No se pudo inicializar el hardware WiFi. Comprueba la configuración del sistema.
   Could not load printer database: No se pudo cargar la base de datos de impresoras
   Could not move the plate: No se pudo mover la cama
 
@@ -1003,6 +1010,7 @@ translations:
   Emergency Stop?: ¿Parada de Emergencia?
   Emergency stop activated: Parada de emergencia activada
   'Emergency stop failed: not connected': 'Parada de emergencia fallida: no conectado'
+  'Emergency stop failed: {}': 'Parada de emergencia fallida: {}'
   Empty: Vacío
   Empty slots disable the associated functionality: Las ranuras vacías desactivan
     la funcionalidad asociada
@@ -1144,7 +1152,10 @@ translations:
   Failed to build raster data: Error al construir los datos de trama
   'Failed to cancel: {}': 'Error al cancelar: {}'
   'Failed to clear print state: {}': 'No se pudo borrar el estado de impresión: {}'
+  Failed to connect to '{}': No se pudo conectar a '{}'
+  Failed to connect to '{}'. Check password.: No se pudo conectar a '{}'. Comprueba la contraseña.
   'Failed to connect to ''{}'': {}': 'Error al conectar a ''{}'': {}'
+  'Failed to connect to WiFi network ''{}'': {}': 'No se pudo conectar a la red WiFi ''{}'': {}'
   'Failed to connect: %s': 'Error al conectar: %s'
   'Failed to cool down: {}': 'Error al enfriar: {}'
   'Failed to create filament:': 'No se pudo crear el filamento:'
@@ -1153,6 +1164,7 @@ translations:
   Failed to delete file: Error al eliminar archivo
   Failed to delete profile: Error al eliminar perfil
   Failed to delete spool: Error al eliminar bobina
+  'Failed to disable WiFi: {}': 'No se pudo desactivar el WiFi: {}'
   'Failed to discard recovery data: {}': 'No se pudieron descartar los datos de recuperación: {}'
   'Failed to download G-code for modification: {}': 'Error al descargar G-code para
     modificación: {}'
@@ -1163,8 +1175,10 @@ translations:
   ? "Failed to download moonraker.conf.\nCheck printer connection."
   : "Error al descargar moonraker.conf.\nCompruebe la conexión."
   Failed to duplicate spool: Error al duplicar el carrete
+  'Failed to enable WiFi: {}': 'No se pudo activar el WiFi: {}'
   Failed to enable tuning tower: Error al activar torre de ajuste
   'Failed to exclude ''{}'': {}': 'Error al excluir ''{}'': {}'
+  Failed to forget WiFi network '{}': No se pudo olvidar la red WiFi '{}'
   Failed to get limits: Error al obtener límites
   Failed to initialize Bluetooth: Error al inicializar Bluetooth
   Failed to initialize Bluetooth context: Error al inicializar el contexto Bluetooth
@@ -1206,6 +1220,7 @@ translations:
   'Failed to restart: {}': 'Error al reiniciar: {}'
   'Failed to resume: {}': 'Error al reanudar: {}'
   Failed to save LED configuration: Error al guardar configuración de LED
+  Failed to save WiFi network: No se pudo guardar la red WiFi
   Failed to save config.: Error al guardar la configuración.
   Failed to save configuration: Error al guardar configuración
   Failed to save fan configuration: Error al guardar configuración de ventilador
@@ -1226,6 +1241,7 @@ translations:
   'Failed to start installer: ': 'Error al iniciar el instalador: '
   'Failed to start print: {}': 'Error al iniciar impresión: {}'
   'Failed to start uninstaller: ': 'Error al iniciar el desinstalador: '
+  'Failed to subscribe to printer updates: {}': 'No se pudo suscribir a las actualizaciones de la impresora: {}'
   Failed to toggle %s: No se pudo conmutar %s
   'Failed to toggle timelapse: {}': 'Error al alternar timelapse: {}'
   'Failed to turn off heaters: {}': 'Error al apagar calentadores: {}'
@@ -1314,6 +1330,7 @@ translations:
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: 'El filamento se agotó. El rellenado automático está desactivado, así que el CFS no cambiará de bobina por sí solo. Carga filamento y reanuda.'
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: El filamento se agotó. El CFS sabe qué bobinas coinciden, pero esas ranuras están vacías. Cargue una de ellas y reanude.
   Filament reload failed: Error al recargar el filamento
+  Filament remap not supported on this printer — print will use the firmware's current tool mapping: Esta impresora no admite reasignar el filamento — la impresión usará la asignación de herramientas actual del firmware
   Filament remapping is unavailable: La reasignación de filamento no está disponible
   Filament runout: Filamento agotado
   Filament runout and motion detection sensors: Sensores de detección de agotamiento
@@ -1333,6 +1350,7 @@ translations:
   File: Archivo
   File Size: Tamaño del archivo
   File Will Stop the Printer: 'El archivo detendrá la impresora'
+  File not found on printer.: Archivo no encontrado en la impresora.
   'File not found: {}': 'Archivo no encontrado: {}'
   Filename: Nombre de Archivo
   Fine: Fino
@@ -1346,6 +1364,7 @@ translations:
   Firmware Restart: Reinicio de Firmware
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: El
     firmware no reporta bypass. Actívelo si alimenta el filamento directamente al extrusor.
+  'Firmware restart failed: {}': 'Reinicio de firmware fallido: {}'
   Firmware restarting...: Reiniciando firmware...
   Firmware saved X = Y's value; the measured X result was discarded: El firmware guardó el valor de Y para X; el resultado medido de X se descartó
   'Fix: chmod 644 {}, then restart': 'Solución: chmod 644 {}, luego reinicie'
@@ -1519,6 +1538,7 @@ translations:
   'Homing failed: ': 'Falló el homing: '
   'Homing failed: {}': 'Error en posicionamiento: {}'
   Homing first...: Posicionando primero...
+  Homing is disabled while a print is in progress: El posicionamiento está desactivado mientras hay una impresión en curso
   Homing may still be running — response timed out: El posicionamiento puede seguir
     en curso — tiempo de espera agotado
   Homing selector: 'Homing del selector'
@@ -1683,14 +1703,17 @@ translations:
   Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart.: El
     firmware de Klipper se ha desconectado del host. Intente reiniciar Klipper o realizar
     un reinicio de firmware.
+  Klipper has disconnected from Moonraker. Check for errors in your printer interface.: Klipper se ha desconectado de Moonraker. Busca errores en la interfaz de tu impresora.
   ? Klipper has entered an error state. This is typically caused by an MCU connection
     failure or configuration error. Try a firmware restart.
   : Klipper ha entrado en un estado de error. Esto generalmente es causado por un
     fallo de conexión del MCU o un error de configuración. Intente un reinicio de
     firmware.
+  Klipper has entered shutdown state.: Klipper ha entrado en estado de apagado.
   Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error.: Klipper
     ha entrado en estado de apagado. Esto puede ser debido a una parada de emergencia,
     descontrol térmico o error de configuración.
+  Klipper is halted — restart firmware to continue: Klipper está detenido — reinicia el firmware para continuar
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper reserva 'default' para nuevas calibraciones. Elija otro nombre."
   Klipper restarting - macros activating: 'Reiniciando Klipper - activando macros'
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
@@ -1932,6 +1955,7 @@ translations:
   Monitoring: Monitorizando
   Month: Mes
   Moonraker: Moonraker
+  Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started.: Moonraker no responde en {}. Se ejecuta en esta impresora, así que comprueba que los servicios de Klipper y Moonraker se hayan iniciado.
   Moonraker restarted but Spoolman not connected. Check server.: Moonraker reiniciado
     pero Spoolman no conectado. Verifique el servidor.
   ? "Moonraker restarting...\nWaiting for reconnection..."
@@ -2282,6 +2306,7 @@ translations:
   'Peak:': 'Pico:'
   Peaks {} Hz: "Picos {} Hz"
   Performance: Rendimiento
+  Permission denied. Check printer configuration.: Permiso denegado. Comprueba la configuración de la impresora.
   Phomemo (Bluetooth): Phomemo (Bluetooth)
   Phomemo M110: Phomemo M110
   Pick: Elegir
@@ -2437,6 +2462,8 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): La
     impresora aceptó el trabajo pero no está imprimiendo — revise la cubierta, el
     papel y el tipo de etiqueta (status del firmware=0x{:02X} error=0x{:02X})
+  'Printer command ''{}'' failed: {}': 'El comando de impresora ''{}'' falló: {}'
+  Printer command '{}' timed out after {}ms: El comando de impresora '{}' agotó el tiempo tras {} ms
   Printer connection unavailable: Conexión con la impresora no disponible
   Printer database format error: Error de formato de la base de datos de impresoras
   Printer database is corrupt: La base de datos de impresoras está corrupta
@@ -2448,8 +2475,11 @@ translations:
   Printer hardware detected: Hardware de impresora detectado
   Printer image set to auto-detect: Imagen de impresora configurada en auto-detectar
   Printer is busy - {} stays in the queue: 'La impresora está ocupada: {} permanece en la cola'
+  Printer is busy — try again in a moment: La impresora está ocupada — inténtalo de nuevo en un momento
   Printer is not paired — pair it first: La impresora no está emparejada — empareja
     primero
+  Printer is not ready: La impresora no está lista
+  Printer is not ready. Please wait for initialization.: La impresora no está lista. Espera a que se inicialice.
   'Printer message: {}': 'Mensaje de la impresora: {}'
   Printer name: Nombre de impresora
   Printer not connected: Impresora no conectada
@@ -2580,6 +2610,7 @@ translations:
   Reboot failed — host is still reachable: Error al reiniciar — el host sigue accesible
   Recalibrate or view detailed results anytime in Settings.: Recalibre o vea resultados
     detallados en cualquier momento en Ajustes.
+  Received oversized data from printer ({} bytes). This may indicate a communication error.: Se recibieron datos demasiado grandes de la impresora ({} bytes). Puede indicar un error de comunicación.
   Recent Prints: Impresiones recientes
   Recently Printed: Impresas recientemente
   Reconnect: Reconectar
@@ -2593,7 +2624,6 @@ translations:
   Recovering AFC system...: Recuperando sistema AFC...
   Recovering...: Recuperando...
   Recovery failed: Error en recuperación
-  'Recovery failed: ': 'Recuperación fallida: '
   'Recovery failed: {}': 'Recuperación fallida: {}'
   Reduce Sensitivity: Reducir sensibilidad
   Reduce ringing and ghosting artifacts: Reducir artefactos de resonancia y fantasma
@@ -2653,6 +2683,7 @@ translations:
   Reprint: Reimprimir
   Reprint Last: Reimprimir última
   Request Failed: Solicitud Fallida
+  Request timed out. The printer may be busy.: La solicitud agotó el tiempo de espera. La impresora puede estar ocupada.
   Require Confirmation?: ¿Requerir confirmación?
   Require confirmation before emergency stop: Requerir confirmación antes de parada
     de emergencia
@@ -2697,6 +2728,7 @@ translations:
   Restart Now: Reiniciar Ahora
   Restart Required: Reinicio Requerido
   'Restart failed: not connected': 'Reinicio fallido: no conectado'
+  'Restart failed: {}': 'Reinicio fallido: {}'
   Restart from the beginning to recover: Reinicie desde el principio para recuperar la impresión
   Restart pending: 'Reinicio pendiente'
   Restart the display application: Reiniciar la aplicación de pantalla
@@ -3078,6 +3110,7 @@ translations:
   Spoolman was not configured.: Spoolman no estaba configurado.
   'Spoolman: %zu Spool%s': 'Spoolman: %zu bobina%s'
   'Spoolman: %zu/%zu Spool%s': 'Spoolman: %zu/%zu bobina%s'
+  'Spools are on the bed: remove them and confirm before moving the printer': 'Hay bobinas sobre la cama: retíralas y confirma antes de mover la impresora'
   'Spools are on the bed: tap the drying banner to confirm they are off, then restart.': 'Hay bobinas en la cama: toca el aviso de secado para confirmar que las has quitado y luego reinicia.'
 
   'Spools on the bed: start drying, or confirm none were placed': 'Bobinas en la cama: inicia el secado o confirma que no colocaste ninguna'
@@ -3304,6 +3337,7 @@ translations:
   : La impresora hace home y luego aleja la cama de la boquilla todo lo posible. Algunas bobinas no resisten suficiente calor y pueden deformarse. Nada se mueve desde esta pantalla hasta que confirmes que las bobinas no están en la cama; Mainsail, las macros y las impresiones enviadas desde un slicer no se bloquean.
 
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: La impresora no está referenciada. Si continúa, se referenciarán todos los ejes y el cabezal se moverá. Asegúrese de que la cama esté despejada.
+  The printer isn't detecting that any filament is currently loaded. What would you like to do?: La impresora no detecta ningún filamento cargado. ¿Qué desea hacer?
   The printer lost power during a print. It can resume where it left off.: La impresora
     perdió corriente durante una impresión. Puede reanudar donde se quedó.
   The printer lost power during a print. The resumed layer may not line up exactly.: La impresora perdió corriente durante una impresión. La capa reanudada puede no alinearse con exactitud.
@@ -3392,6 +3426,8 @@ translations:
   This printer fills its gates from Spoolman. Make colour, material and spool changes in Spoolman.: Esta impresora llena sus gates desde Spoolman. Haz los cambios de color, material y bobina en Spoolman.
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Esta impresora parece una {} ({}% de confianza), pero está configurada como {}. Un tipo erróneo aplica opciones y preajustes de preimpresión incorrectos.
+  This printer's network service controls the WiFi radio: El servicio de red de esta impresora controla la radio WiFi
+  This printer's network service manages saved WiFi networks: El servicio de red de esta impresora gestiona las redes WiFi guardadas
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : Esto elimina el componente de Moonraker del plugin y reinicia Moonraker. La impresora se desconectará brevemente. Si aún hay líneas de seguimiento de fases antiguas en PRINT_START, también se eliminan, conservando copias de seguridad. Un reinicio de Klipper aplica eso.
   This replaces the printer's helper macros with the current version and restarts Klipper.: 'Esto reemplaza las macros de ayuda de la impresora por la versión actual y reinicia Klipper.'
@@ -3538,6 +3574,8 @@ translations:
   USB drive removed: Unidad USB retirada
   USB printer access denied — check permissions: Acceso a la impresora USB denegado
     — revisa los permisos
+  Unable to reach printer at {}. Check that the printer is powered on and that this address is correct.: No se puede conectar con la impresora en {}. Comprueba que esté encendida y que la dirección sea correcta.
+  Unable to reach printer. Check power and network connection.: No se puede conectar con la impresora. Comprueba la alimentación y la conexión de red.
   Unavailable: No disponible
   Unavailable on this printer: No disponible en esta impresora
   Undo: Deshacer
@@ -3705,12 +3743,19 @@ translations:
   WiFi Disabled: WiFi Desactivado
   WiFi Enabled: WiFi Activado
   WiFi Network: Red WiFi
+  WiFi Permission Denied: Permiso WiFi denegado
+  WiFi Service Not Running: El servicio WiFi no se está ejecutando
   WiFi Unavailable: WiFi no disponible
   WiFi and Ethernet configuration: Configuración de WiFi y Ethernet
   WiFi control unavailable: Control de WiFi no disponible
   WiFi hardware unavailable: Hardware WiFi no disponible
+  'WiFi initialization failed: {}': 'Error al inicializar el WiFi: {}'
   WiFi radio did not change state: La radio WiFi no cambió de estado
+  WiFi scan failed. Try again.: La búsqueda WiFi falló. Inténtalo de nuevo.
   WiFi unavailable: WiFi no disponible
+  WiFi unavailable. Cannot connect to network.: WiFi no disponible. No se puede conectar a la red.
+  WiFi unavailable. Cannot forget network.: WiFi no disponible. No se puede olvidar la red.
+  WiFi unavailable. Cannot scan for networks.: WiFi no disponible. No se pueden buscar redes.
   WiFi was configured but hardware is not available. Check system configuration.: WiFi
     fue configurado pero el hardware no está disponible. Revise la configuración del
     sistema.
@@ -3871,6 +3916,7 @@ translations:
   v%s available: v%s disponible
   v{} installed! Restarting...: ¡v{} instalado! Reiniciando...
   v{} is available. Tap to update.: v{} disponible. Toque para actualizar.
+  wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant no se está ejecutando. Las funciones WiFi no están disponibles.
   you have: tienes
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · unos {} min'
   '{} Hardware Issues': '{} problemas de hardware'

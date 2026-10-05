@@ -34,7 +34,7 @@ void set_speed_percent(IMoonrakerAPI* api, int pct) {
         [value]() { spdlog::debug("[TuneController] Speed set to {}%", value); },
         [](const MoonrakerError& err) {
             spdlog::error("[TuneController] Failed to set speed: {}", err.message);
-            NOTIFY_ERROR(lv_tr("Failed to set print speed: {}"), err.user_message());
+            helix::ui::notify_error_tr(TR_NOOP("Failed to set print speed: {}"), err);
         });
 }
 
@@ -48,7 +48,7 @@ void set_flow_percent(IMoonrakerAPI* api, int pct) {
         [value]() { spdlog::debug("[TuneController] Flow set to {}%", value); },
         [](const MoonrakerError& err) {
             spdlog::error("[TuneController] Failed to set flow: {}", err.message);
-            NOTIFY_ERROR(lv_tr("Failed to set flow rate: {}"), err.user_message());
+            helix::ui::notify_error_tr(TR_NOOP("Failed to set flow rate: {}"), err);
         });
 }
 

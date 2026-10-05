@@ -1,109 +1,27 @@
 <?xml version="1.0"?>
 <component>
-  <!-- Home tile: current temperature above a 30-bar sparkline. The bars are
-       written out one per subject because <repeat> is not on the plugin
-       element allowlist, so the XML cannot loop over the 30 subjects. -->
+  <!-- Home tile: heater glyph and label, current value with the target muted
+       beside it, and a canvas sparkline that fills the rest. The canvas is a
+       retained drawing the plugin rebuilds and commits on every sample. -->
   <view extends="lv_obj"
         width="100%" height="100%" clickable="true" style_pad_all="#space_sm" style_pad_gap="#space_xs"
         flex_flow="column" scrollable="false">
     <event_cb trigger="clicked" callback="plugin_event" user_data="temp-spark__open"/>
-    <lv_label name="temp-spark__heater"
-              bind_text="temp-spark__heater_label" style_text_font="#font_heading_micro" style_text_color="#text_muted"/>
-    <lv_label name="temp-spark__value"
-              bind_text="temp-spark__value" style_text_font="#font_heading_medium" style_text_color="#text"/>
-    <lv_obj name="temp-spark__bars"
-            width="100%" flex_grow="1" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false" style_bg_opa="0"
-            style_border_width="0">
-      <lv_bar name="temp-spark__bar1"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar1"/>
-      <lv_bar name="temp-spark__bar2"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar2"/>
-      <lv_bar name="temp-spark__bar3"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar3"/>
-      <lv_bar name="temp-spark__bar4"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar4"/>
-      <lv_bar name="temp-spark__bar5"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar5"/>
-      <lv_bar name="temp-spark__bar6"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar6"/>
-      <lv_bar name="temp-spark__bar7"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar7"/>
-      <lv_bar name="temp-spark__bar8"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar8"/>
-      <lv_bar name="temp-spark__bar9"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar9"/>
-      <lv_bar name="temp-spark__bar10"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar10"/>
-      <lv_bar name="temp-spark__bar11"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar11"/>
-      <lv_bar name="temp-spark__bar12"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar12"/>
-      <lv_bar name="temp-spark__bar13"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar13"/>
-      <lv_bar name="temp-spark__bar14"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar14"/>
-      <lv_bar name="temp-spark__bar15"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar15"/>
-      <lv_bar name="temp-spark__bar16"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar16"/>
-      <lv_bar name="temp-spark__bar17"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar17"/>
-      <lv_bar name="temp-spark__bar18"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar18"/>
-      <lv_bar name="temp-spark__bar19"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar19"/>
-      <lv_bar name="temp-spark__bar20"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar20"/>
-      <lv_bar name="temp-spark__bar21"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar21"/>
-      <lv_bar name="temp-spark__bar22"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar22"/>
-      <lv_bar name="temp-spark__bar23"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar23"/>
-      <lv_bar name="temp-spark__bar24"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar24"/>
-      <lv_bar name="temp-spark__bar25"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar25"/>
-      <lv_bar name="temp-spark__bar26"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar26"/>
-      <lv_bar name="temp-spark__bar27"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar27"/>
-      <lv_bar name="temp-spark__bar28"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar28"/>
-      <lv_bar name="temp-spark__bar29"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar29"/>
-      <lv_bar name="temp-spark__bar30"
-              height="100%" orientation="vertical" flex_grow="1" min_value="0" max_value="100"
-              bind_value="temp-spark__bar30"/>
+    <lv_obj width="100%"
+            height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xxs"
+            style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+      <icon name="temp-spark__glyph" src="thermometer_lines" size="sm" variant="secondary"/>
+      <text_small name="temp-spark__heater" bind_text="temp-spark__heater_label"/>
     </lv_obj>
+    <lv_obj width="100%"
+            height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xxs"
+            style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+      <lv_label name="temp-spark__value"
+                bind_text="temp-spark__value" style_text_font="#font_heading" style_text_color="#text"/>
+      <lv_label name="temp-spark__target_beside"
+                bind_text="temp-spark__target_beside" style_text_font="#font_body" style_text_color="#text_muted"/>
+      <lv_label name="temp-spark__unit" text="°C" style_text_font="#font_body" style_text_color="#text_muted"/>
+    </lv_obj>
+    <plugin_canvas name="temp-spark__spark" width="100%" flex_grow="1"/>
   </view>
 </component>

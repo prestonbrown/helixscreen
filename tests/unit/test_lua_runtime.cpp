@@ -145,6 +145,29 @@ TEST_CASE("out of memory caught by the plugin does not fault it", "[plugin][lua_
     CHECK(t.rt->memory_used() < limits.memory_bytes);
 }
 
+TEST_CASE("external reservations share the memory cap", "[plugin][lua_runtime]") {
+    LuaRuntime::Limits limits;
+    limits.memory_bytes = 256 * 1024;
+    TestRuntime t(limits);
+    const size_t base = t.rt->memory_used();
+
+    CHECK(t.rt->reserve_external(100 * 1024));
+    CHECK(t.rt->memory_used() == base + 100 * 1024);
+
+    // The headroom Lua itself needs counts too: the full remaining cap fails.
+    CHECK_FALSE(t.rt->reserve_external(256 * 1024));
+    CHECK(t.rt->memory_used() == base + 100 * 1024);
+
+    // Exactly the remaining cap fits; a byte more does not.
+    CHECK(t.rt->reserve_external(256 * 1024 - 100 * 1024 - base));
+    CHECK_FALSE(t.rt->reserve_external(1));
+
+    t.rt->release_external(100 * 1024);
+    CHECK(t.rt->memory_used() == 156 * 1024);
+    t.rt->release_external(256 * 1024); // over-release clamps
+    CHECK(t.rt->memory_used() == 0);
+}
+
 TEST_CASE("closers run in reverse before the state closes", "[plugin][lua_runtime]") {
     std::vector<int> order;
     {

@@ -56,6 +56,10 @@
 #include <ucontext.h>
 #endif
 
+#ifdef __linux__
+#include <sys/uio.h> // process_vm_readv() for fault-free stack reads
+#endif
+
 // backtrace() is available on glibc Linux and macOS. Missing on Android NDK
 // (bionic) and musl libc (Creality K1/K2 MIPS).
 #if defined(__APPLE__) || (defined(__linux__) && defined(__GLIBC__) && !defined(__ANDROID__))
@@ -98,6 +102,15 @@ static char s_crash_path[MAX_PATH_LEN] = {};
 
 /// Whether the crash handler is installed
 static volatile sig_atomic_t s_installed = 0;
+
+#ifdef __linux__
+/// Non-blocking pipe for probing whether an address is readable when
+/// process_vm_readv() is refused (seccomp filters, as Docker's default profile
+/// and Android app sandboxes apply, answer EPERM). write() from an unmapped
+/// address fails with EFAULT instead of faulting. Created once at install;
+/// every probe drains what it wrote, so the pipe never fills.
+static int s_probe_pipe[2] = {-1, -1};
+#endif
 
 /// One-shot guard: whichever path (write_exception_record OR the signal
 /// handler) reaches the crash file first wins. The other skips. Without this,
@@ -525,14 +538,46 @@ static void write_kv_long(int fd, const char* key, long value, char* num_buf, si
 /// attribute from being lost when the helper is folded into an instrumented
 /// caller.
 ///
-/// Bounds are the caller's job and the two callers differ: fp_walk_backtrace
-/// validates every address against [sp, sp + MAX_STACK_SIZE) before walking,
-/// while the linear scan below simply reads a fixed 256 words up from SP and
-/// can run off the end of the mapping. That is pre-existing behaviour and is
-/// survivable where it runs — we are already inside a fatal signal handler —
-/// but it is a real limit of the scan, not something this accessor fixes.
+/// The address may be unmapped. After a stack overflow SP points into the guard
+/// region, and a direct load there faults again inside this handler, where
+/// SIGSEGV is blocked, so the kernel kills the process with the record half
+/// written. On Linux the word is copied with process_vm_readv(), which reports
+/// an unreadable address as an error instead; an unreadable word reads as 0,
+/// which is never inside .text. When the syscall is missing or refused, a
+/// write() of the word into s_probe_pipe decides whether the direct load is
+/// safe. Without either check (non-Linux, or no pipe) the load is direct.
 HELIX_NO_SANITIZE_ADDRESS static uintptr_t read_stack_word(uintptr_t base, size_t index,
                                                            uintptr_t word_size) {
+#ifdef __linux__
+    const uintptr_t addr = base + index * word_size;
+    uint64_t word64 = 0;
+    uint32_t word32 = 0;
+    void* dst = word_size == 8 ? static_cast<void*>(&word64) : static_cast<void*>(&word32);
+    struct iovec local = {dst, word_size};
+    struct iovec remote = {reinterpret_cast<void*>(addr), word_size};
+    const int saved_errno = errno;
+    const ssize_t n = process_vm_readv(getpid(), &local, 1, &remote, 1, 0);
+    const int readv_errno = errno;
+    bool readable = true;
+    if (n == static_cast<ssize_t>(word_size)) {
+        errno = saved_errno;
+        return word_size == 8 ? static_cast<uintptr_t>(word64) : static_cast<uintptr_t>(word32);
+    }
+    if (n >= 0 || readv_errno == EFAULT) {
+        readable = false;
+    } else if (s_probe_pipe[1] >= 0) {
+        const ssize_t w = write(s_probe_pipe[1], reinterpret_cast<const void*>(addr), word_size);
+        if (w > 0) {
+            char sink[8];
+            (void)!read(s_probe_pipe[0], sink, static_cast<size_t>(w));
+        }
+        readable = w == static_cast<ssize_t>(word_size);
+    }
+    errno = saved_errno;
+    if (!readable) {
+        return 0;
+    }
+#endif
     if (word_size == 8) {
         return static_cast<uintptr_t>(*(reinterpret_cast<const volatile uint64_t*>(base) + index));
     }
@@ -1696,6 +1741,12 @@ void crash_handler::install(const std::string& crash_file_path) {
     // so it runs on its own. sigaltstack is per thread: this covers the
     // installing (main) thread only, and an overflow on any other thread still
     // dies without a crash file.
+#ifdef __linux__
+    if (s_probe_pipe[0] < 0 && pipe2(s_probe_pipe, O_NONBLOCK | O_CLOEXEC) != 0) {
+        s_probe_pipe[0] = s_probe_pipe[1] = -1;
+    }
+#endif
+
     static char s_alt_stack[64 * 1024];
     stack_t ss{};
     ss.ss_sp = s_alt_stack;

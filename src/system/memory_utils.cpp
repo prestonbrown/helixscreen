@@ -18,6 +18,10 @@
 #include <cstdlib>
 #include <string>
 
+#if defined(HELIX_PLATFORM_ESP32)
+#include <esp_heap_caps.h>
+#endif
+
 #ifdef __APPLE__
 #include <mach/mach.h>
 #include <mach/mach_host.h>
@@ -153,6 +157,16 @@ MemoryInfo get_system_memory_info() {
     if (info.available_kb == 0 && info.free_kb > 0) {
         info.available_kb = info.free_kb; // Conservative estimate
     }
+
+#elif defined(HELIX_PLATFORM_ESP32)
+    // General allocations (LVGL draw buffers and image decodes included) come
+    // from PSRAM, so PSRAM is the memory "available" heuristics are about.
+    // The largest-block walk takes a heap-wide critical section; callers sample
+    // it at discrete moments, never per frame.
+    info.total_kb = heap_caps_get_total_size(MALLOC_CAP_SPIRAM) / 1024;
+    info.free_kb = heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024;
+    info.available_kb = info.free_kb;
+    info.largest_free_kb = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024;
 
 #elif defined(__APPLE__)
     // macOS: Get total physical memory via sysctl-style approach

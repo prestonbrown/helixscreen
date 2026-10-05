@@ -7,10 +7,11 @@
 
 #include "async_lifetime_guard.h"
 #include "cli_args.h"
-#include "hardware_setup_prompter.h"
+#include "gcode_response_routing.h"
 #include "invalidation_suppression.h"
 #include "lvgl/lvgl.h"
 #include "main_loop_handler.h"
+#include "printer_session.h"
 #include "splash_screen_manager.h"
 #include "wizard_step.h" // helix::wizard::StepId
 #include "xml_hot_reloader.h"
@@ -34,17 +35,8 @@ struct SyncResult;
 } // namespace helix::plugin
 #endif
 namespace helix {
-class ActionPromptManager;
-class AmsErrorBridge;
-class GcodeErrorRouter;
-class GcodeNarrationRouter;
-class LanClientAuthRouter;
 class PrinterDiscovery;
 } // namespace helix
-namespace helix::ui {
-class ActionPromptModal;
-class RecoveryModalPresenter;
-} // namespace helix::ui
 class DisplayManager;
 class SubjectInitializer;
 class MoonrakerManager;
@@ -107,23 +99,8 @@ class Application {
     bool register_widgets();
     bool register_xml_components();
     bool init_translations();
-    bool init_core_subjects();
-    bool init_panel_subjects();
-    bool init_ui();
-    bool init_moonraker();
-    bool connect_moonraker();
     void apply_startup_cli_actions();
     bool run_wizard();
-#if HELIX_HAS_PLUGINS
-    void init_plugins();
-    /// Toasts plugin ids a sync found that no earlier load or sync had shown,
-    /// then refreshes the Settings > Plugins row. Runs on the main thread from
-    /// the sync driver's completion.
-    void on_plugin_sync(const helix::plugin::SyncResult& result);
-    /// settings_plugins_available follows "the host exists and holds at least
-    /// one plugin", so the row appears only once there is something to show.
-    void update_plugins_row_visibility();
-#endif
 
     // Main loop
     int main_loop();
@@ -134,36 +111,11 @@ class Application {
     // Shutdown
     void shutdown();
 
-    // Soft restart (printer switching)
-    void switch_printer(const std::string& printer_id);
-    void add_printer_via_wizard();
-    void cancel_add_printer_wizard();
-    void tear_down_printer_state();
-
-    /// What survives the teardown: a printer switch keeps the process and LVGL alive,
-    /// ProcessExit ends both.
-    enum class TeardownScope { PrinterSwitch, ProcessExit };
-    void teardown_printer_scope(TeardownScope scope);
-
-    /// Records a discovery's hardware fingerprint; true when the hardware shape differs from
-    /// the previous discovery of this printer session (always true for the first one).
-    bool note_hardware_fingerprint(size_t fingerprint);
-
-    /// Re-arms the per-printer discovery state: the fingerprint comparison and the
-    /// once-per-connection prompt guards. Runs when a printer scope is torn down for a
-    /// switch or soft restart, so the next printer's first discovery runs the full pipeline.
-    void reset_discovery_session();
-    void init_printer_state();
-
     // Helper functions
     void ensure_project_root_cwd();
 #ifdef HELIX_ENABLE_SCREENSAVER
     void show_screensaver_migration_notice_if_pending();
 #endif
-    void setup_discovery_callbacks();
-    lv_obj_t* create_overlay_panel(lv_obj_t* screen, const char* component_name,
-                                   const char* display_name);
-    void init_action_prompt();
     void check_wifi_availability();
     void restore_flush_callback();
 
@@ -181,59 +133,7 @@ class Application {
     helix::AsyncLifetimeGuard m_async_lifetime;
 
     std::unique_ptr<DisplayManager> m_display;
-    std::unique_ptr<SubjectInitializer> m_subjects;
-    std::unique_ptr<MoonrakerManager> m_moonraker;
-    std::unique_ptr<JobQueueState> m_job_queue_state;
-    std::unique_ptr<PrintHistoryManager> m_history_manager;
-    std::unique_ptr<TemperatureHistoryManager> m_temp_history_manager;
-    std::unique_ptr<helix::PanelFactory> m_panels;
     std::unique_ptr<helix::XmlHotReloader> m_hot_reloader;
-#if HELIX_HAS_PLUGINS
-    std::unique_ptr<helix::plugin::PluginHost> m_plugin_host;
-    /// Hot-reloads plugins from HELIX_PLUGIN_DIR while it is the source (no
-    /// sync driver runs then). Holds a reference to m_plugin_host, so it must
-    /// be reset before the host at every teardown.
-    std::unique_ptr<helix::plugin::PluginDirWatcher> m_plugin_watcher;
-    /// Syncs the Moonraker plugin folder into the host's cache dir. Holds a
-    /// reference to m_plugin_host, so it must be reset before the host at
-    /// every teardown, and rebuilt with it on a printer switch.
-    std::unique_ptr<helix::plugin::PluginSyncDriver> m_plugin_sync;
-    /// Plugin ids an earlier load or sync already showed; a sync finding an
-    /// id outside this set toasts "new plugin available".
-    std::set<std::string> m_known_plugin_ids;
-#endif
-
-    // Action prompt system (Klipper action:prompt protocol)
-    std::unique_ptr<helix::ActionPromptManager> m_action_prompt_manager;
-    std::unique_ptr<helix::ui::ActionPromptModal> m_action_prompt_modal;
-
-    // Source-agnostic modal presenter for CRITICAL recovery errors. Owned here
-    // so Application controls its lifetime independently of GcodeErrorRouter.
-    // Declared BEFORE m_gcode_error_router so it destructs AFTER the router
-    // (Application teardown resets the router first, then the presenter).
-    std::unique_ptr<helix::ui::RecoveryModalPresenter> m_recovery_presenter;
-
-    // Surfaces Klipper `!!` / `Error:` lines as modals/toasts and replays
-    // the most recent error from gcode_store on (re)connect. Owns the
-    // notify_gcode_response and connected-observer registrations.
-    std::unique_ptr<helix::GcodeErrorRouter> m_gcode_error_router;
-
-    // Routes `//` toolchange narration lines to the active AMS backend's step
-    // model, updating the toolchange_step subject. Sibling of the error router;
-    // owns a SEPARATE notify_gcode_response handler key. Does NOT surface errors.
-    std::unique_ptr<helix::GcodeNarrationRouter> m_gcode_narration_router;
-
-    // Answers the firmware's LAN pairing prompt with the touchscreen, on
-    // printers whose firmware brokers pairing that way (Snapmaker U1 and
-    // siblings). Owns the authorization-notification registrations, so like
-    // its sibling routers it must be reset before the MoonrakerClient.
-    std::unique_ptr<helix::LanClientAuthRouter> m_lan_client_auth_router;
-
-    // Observes AmsState's action subject and routes AmsAction::ERROR edges to
-    // m_recovery_presenter. Holds a reference INTO the presenter, so the
-    // presenter must outlive it — declared after m_recovery_presenter (destructs
-    // first) and reset before it at both teardown sites.
-    std::unique_ptr<helix::AmsErrorBridge> m_ams_error_bridge;
 
     // Configuration
     helix::Config* m_config = nullptr; // Singleton, not owned
@@ -248,19 +148,8 @@ class Application {
     bool m_rotation_probe_wanted = false;
     int m_kernel_orientation = -1;
 
-    // UI objects (not owned, managed by LVGL)
+    // Screen (not owned, managed by LVGL); the session reads it through a reference
     lv_obj_t* m_screen = nullptr;
-    lv_obj_t* m_app_layout = nullptr;
-
-    // Overlay panels (for lifecycle management)
-    struct OverlayPanels {
-        lv_obj_t* motion = nullptr;
-        lv_obj_t* nozzle_temp = nullptr;
-        lv_obj_t* bed_temp = nullptr;
-        lv_obj_t* print_status = nullptr;
-        lv_obj_t* ams = nullptr;
-        lv_obj_t* bed_mesh = nullptr;
-    } m_overlay_panels;
 
     // NOTE: Print start collector and observers are kept in main.cpp
     // until the observer pattern is refactored to support capturing lambdas.
@@ -291,21 +180,11 @@ class Application {
     // State
     bool m_running = false;
     bool m_wizard_active = false;
-    // The hardware prompts a discovery pass can raise, and their once-per-session guards.
-    helix::HardwareSetupPrompter m_prompter;
-    // Hardware-shape fingerprint from the most recent on_discovery_complete.
-    // When a reconnect's fingerprint matches (hardware unchanged), expensive
-    // user-facing side-effects (LED chip population, hardware validation
-    // toasts, targeted reconfig wizard, telemetry snapshots) are skipped —
-    // only the subject-restoring work that the UI needs to rebind runs.
-    // See on_discovery_complete in application.cpp.
-    size_t m_last_hardware_fingerprint = 0;
-    bool m_first_discovery_complete = true;
     bool m_shutdown_complete = false;
-    bool m_soft_restart_in_progress = false;
 
-    // Tracks previous printer when adding a new one via wizard (for cancel recovery)
-    std::string m_wizard_previous_printer_id;
+    /// Everything a printer switch destroys and rebuilds: the printer connection, its panels
+    /// and subjects, and the state machine that switches between printers.
+    helix::PrinterSession m_session;
 
     // Splash screen lifecycle manager
     helix::application::SplashScreenManager m_splash_manager;

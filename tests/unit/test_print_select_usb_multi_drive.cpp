@@ -24,6 +24,7 @@
 
 #include <filesystem>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -70,7 +71,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(usb_present() == 1);
 
     usb_source.select_usb_source();
-    helix::test::wait_for_usb_scan();
+    helix::test::wait_for_usb_scan([&] { return usb_source.is_scanning(); });
     REQUIRE(listed.size() == 3);
     CHECK(listed[0] == "a.gcode");
     CHECK(listed[1] == "b.gcode");
@@ -79,7 +80,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // Pulling the first stick leaves the second one's files on the USB tab.
     backend->simulate_drive_remove("/media/usb0");
     usb_source.on_drive_removed();
-    helix::test::wait_for_usb_scan();
+    helix::test::wait_for_usb_scan([&] { return usb_source.is_scanning(); });
     CHECK(usb_source.get_current_source() == FileSource::USB);
     CHECK(usb_present() == 1);
     REQUIRE(listed.size() == 2);
@@ -101,7 +102,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "USB thumbnails are cached per file path, not 
     // Two sticks (or two folders on one) routinely hold a same-named file
     // with different models in it; each card must keep its own thumbnail.
     namespace fs = std::filesystem;
-    const fs::path root = fs::temp_directory_path() / "helix_usb_thumb_key";
+    const fs::path root =
+        fs::temp_directory_path() / ("helix_usb_thumb_key_" + std::to_string(::getpid()));
     fs::remove_all(root);
     fs::create_directories(root / "a");
     fs::create_directories(root / "b");
@@ -129,7 +131,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "USB thumbnails are cached per file path, not 
     });
     usb_source.set_usb_manager(&manager);
     usb_source.select_usb_source();
-    helix::test::wait_for_usb_scan();
+    helix::test::wait_for_usb_scan([&] { return usb_source.is_scanning(); });
 
     REQUIRE(thumbs.size() == 2);
     CHECK_FALSE(thumbs[0].empty());
@@ -159,21 +161,21 @@ TEST_CASE_METHOD(LVGLTestFixture, "PrintSelectUsbSource walks the stick off the 
     SECTION("the list arrives through the UI queue, not inside the call") {
         usb_source.select_usb_source();
         CHECK(deliveries == 0);
-        helix::test::wait_for_usb_scan();
+        helix::test::wait_for_usb_scan([&] { return usb_source.is_scanning(); });
         CHECK(deliveries == 1);
     }
 
     SECTION("a scan that lands after a switch back to Printer is dropped") {
         usb_source.select_usb_source();
         usb_source.select_printer_source();
-        helix::test::wait_for_usb_scan();
+        helix::test::wait_for_usb_scan([&] { return usb_source.is_scanning(); });
         CHECK(deliveries == 0);
     }
 
     SECTION("only the newest of two overlapping refreshes delivers") {
         usb_source.select_usb_source();
         usb_source.refresh_files();
-        helix::test::wait_for_usb_scan();
+        helix::test::wait_for_usb_scan([&] { return usb_source.is_scanning(); });
         CHECK(deliveries == 1);
     }
 
@@ -182,7 +184,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "PrintSelectUsbSource walks the stick off the 
         usb_source.refresh_files();
         usb_source.refresh_files();
         usb_source.refresh_files();
-        helix::test::wait_for_usb_scan();
+        helix::test::wait_for_usb_scan([&] { return usb_source.is_scanning(); });
         // The walk in flight, then one more for everything that came during it.
         CHECK(backend->scan_count() <= 2);
         CHECK(deliveries == 1);

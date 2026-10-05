@@ -607,9 +607,7 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * Typically called every 1-5 seconds.
      */
     void process_timeouts() override {
-        tracker_.check_timeouts(
-            [this](MoonrakerEventType type, const std::string& msg, bool is_error,
-                   const std::string& details) { emit_event(type, msg, is_error, details); });
+        tracker_.check_timeouts([this](const MoonrakerEvent& evt) { emit_event(evt); });
     }
 
     // ========== Simulation Methods (for testing) ==========
@@ -658,6 +656,7 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      */
     void emit_event(MoonrakerEventType type, const std::string& message, bool is_error = false,
                     const std::string& details = "");
+    void emit_event(const MoonrakerEvent& evt);
 
     /**
      * @brief Dispatch printer status to all registered notify callbacks

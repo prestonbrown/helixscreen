@@ -19,6 +19,7 @@
 #include "action_prompt_manager.h"
 
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -1302,6 +1303,37 @@ TEST_CASE("ActionPromptManager: Static current_prompt_name() accessor", "[action
         ActionPromptManager::set_instance(nullptr);
         REQUIRE(ActionPromptManager::current_prompt_name().empty());
     }
+}
+
+TEST_CASE("ActionPromptManager: accessors read nothing once the registered manager is gone",
+          "[action_prompt][static]") {
+    // A reader on the WebSocket thread can call the accessors while the main
+    // thread tears the manager down, so they must never reach into it.
+    auto manager = std::make_unique<ActionPromptManager>();
+    ActionPromptManager::set_instance(manager.get());
+    manager->process_line("// action:prompt_begin AFC Lane Error");
+    manager->process_line("// action:prompt_show");
+    REQUIRE(ActionPromptManager::is_showing());
+
+    manager.reset();
+
+    CHECK_FALSE(ActionPromptManager::is_showing());
+    CHECK(ActionPromptManager::current_prompt_name().empty());
+    ActionPromptManager::set_instance(nullptr);
+}
+
+TEST_CASE("ActionPromptManager: registering a manager publishes the prompt it is showing",
+          "[action_prompt][static]") {
+    ActionPromptManager manager;
+    manager.process_line("// action:prompt_begin AFC Lane Error");
+    manager.process_line("// action:prompt_show");
+    REQUIRE_FALSE(ActionPromptManager::is_showing()); // not registered yet
+
+    ActionPromptManager::set_instance(&manager);
+    CHECK(ActionPromptManager::current_prompt_name() == "AFC Lane Error");
+
+    ActionPromptManager::set_instance(nullptr);
+    CHECK_FALSE(ActionPromptManager::is_showing());
 }
 
 // ============================================================================

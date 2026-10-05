@@ -155,6 +155,17 @@ LuaRuntime& LuaRuntime::from(lua_State* L) {
     return **static_cast<LuaRuntime**>(lua_getextraspace(L));
 }
 
+bool LuaRuntime::reserve_external(size_t bytes) {
+    if (bytes > limits_.memory_bytes || used_ > limits_.memory_bytes - bytes)
+        return false;
+    used_ += bytes;
+    return true;
+}
+
+void LuaRuntime::release_external(size_t bytes) {
+    used_ = used_ >= bytes ? used_ - bytes : 0;
+}
+
 void* LuaRuntime::alloc(void* ud, void* ptr, size_t osize, size_t nsize) {
     auto* rt = static_cast<LuaRuntime*>(ud);
     size_t old = ptr ? osize : 0;

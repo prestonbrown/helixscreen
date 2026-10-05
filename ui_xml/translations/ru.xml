@@ -123,6 +123,7 @@
   <translation tag="A · 1,-1" ru="A · 1,-1"/>
   <translation tag="ABS" ru="ABS"/>
   <translation tag="ACCELEROMETERS" ru="АКСЕЛЕРОМЕТРЫ"/>
+  <translation tag="ACCEPT failed: {}" ru="Ошибка ACCEPT: {}"/>
   <translation tag="ACE Moonraker bridge not found. Install ace_status.py for full support." ru="Мост ACE Moonraker не найден. Установите ace_status.py для полной поддержки."/>
   <translation tag="ACTIONS" ru="ДЕЙСТВИЯ"/>
   <translation tag="ADXL" ru="ADXL"/>
@@ -220,6 +221,7 @@
   <translation tag="An error occurred." ru="Произошла ошибка."/>
   <translation tag="An internal error occurred. The app continues running. Please send a debug bundle from Settings &gt; Help &amp; About if it repeats." ru="Произошла внутренняя ошибка. Приложение продолжает работать. Отправьте отладочный пакет из «Настройки &gt; Помощь и о программе», если она повторится."/>
   <translation tag="An unexpected printer error occurred." ru="Произошла непредвиденная ошибка принтера."/>
+  <translation tag="An unknown error occurred." ru="Произошла неизвестная ошибка."/>
   <translation tag="An update is available" ru="Доступно обновление"/>
   <translation tag="Analyzing data..." ru="Анализ данных..."/>
   <translation tag="Analyzing data... {}s" ru="Анализ данных... {} с"/>
@@ -664,9 +666,12 @@
   <translation tag="Connection failed: %s" ru="Ошибка подключения: %s"/>
   <translation tag="Connection lost — probe accuracy result unavailable" ru="Соединение потеряно — результат теста точности датчика недоступен"/>
   <translation tag="Connection must be tested successfully to continue" ru="Для продолжения соединение должно быть успешно проверено"/>
+  <translation tag="Connection restored" ru="Соединение восстановлено"/>
   <translation tag="Connection successful!" ru="Соединение успешно!"/>
   <translation tag="Connection timeout" ru="Тайм-аут соединения"/>
+  <translation tag="Connection to printer lost - attempting to reconnect..." ru="Соединение с принтером потеряно - переподключение..."/>
   <translation tag="Connection to printer lost — operation may still be running" ru="Связь с принтером потеряна — операция может ещё выполняться"/>
+  <translation tag="Connection to printer lost." ru="Соединение с принтером потеряно."/>
   <translation tag="Connects" ru="Подключения"/>
   <translation tag="Console" ru="Консоль"/>
   <translation tag="Console Settings" ru="Настройки консоли"/>
@@ -700,7 +705,9 @@
   <translation tag="Could not check webcam status.&#10;Check printer connection." ru="Не удалось проверить статус веб-камеры.&#10;Проверьте подключение принтера."/>
   <translation tag="Could not confirm cancel" ru="Не удалось подтвердить отмену"/>
   <translation tag="Could not copy {} from USB: {}" ru="Не удалось скопировать {} с USB: {}"/>
+  <translation tag="Could not disconnect from WiFi" ru="Не удалось отключиться от WiFi"/>
   <translation tag="Could not forget device" ru="Не удалось забыть устройство"/>
+  <translation tag="Could not initialize WiFi hardware. Check system configuration." ru="Не удалось инициализировать оборудование WiFi. Проверьте конфигурацию системы."/>
   <translation tag="Could not load printer database" ru="Не удалось загрузить базу данных принтеров"/>
   <translation tag="Could not move the plate" ru="Не удалось переместить стол"/>
   <translation tag="Could not parse tips database" ru="Не удалось разобрать базу данных советов"/>
@@ -900,6 +907,7 @@
   <translation tag="Emergency Stop?" ru="Аварийная остановка?"/>
   <translation tag="Emergency stop activated" ru="Аварийная остановка активирована"/>
   <translation tag="Emergency stop failed: not connected" ru="Аварийная остановка не удалась: нет подключения"/>
+  <translation tag="Emergency stop failed: {}" ru="Ошибка аварийной остановки: {}"/>
   <translation tag="Empty" ru="Пусто"/>
   <translation tag="Empty slots disable the associated functionality" ru="Пустые слоты отключают связанный функционал"/>
   <translation tag="Enable" ru="Включить"/>
@@ -1030,7 +1038,10 @@
   <translation tag="Failed to build raster data" ru="Не удалось построить растровые данные"/>
   <translation tag="Failed to cancel: {}" ru="Не удалось отменить: {}"/>
   <translation tag="Failed to clear print state: {}" ru="Не удалось очистить состояние печати: {}"/>
+  <translation tag="Failed to connect to &apos;{}&apos;" ru="Не удалось подключиться к &apos;{}&apos;"/>
+  <translation tag="Failed to connect to &apos;{}&apos;. Check password." ru="Не удалось подключиться к &apos;{}&apos;. Проверьте пароль."/>
   <translation tag="Failed to connect to &apos;{}&apos;: {}" ru="Не удалось подключиться к &apos;{}&apos;: {}"/>
+  <translation tag="Failed to connect to WiFi network &apos;{}&apos;: {}" ru="Не удалось подключиться к сети WiFi &apos;{}&apos;: {}"/>
   <translation tag="Failed to connect: %s" ru="Не удалось подключиться: %s"/>
   <translation tag="Failed to cool down: {}" ru="Не удалось охладить: {}"/>
   <translation tag="Failed to create filament:" ru="Не удалось создать филамент:"/>
@@ -1039,14 +1050,17 @@
   <translation tag="Failed to delete file" ru="Не удалось удалить файл"/>
   <translation tag="Failed to delete profile" ru="Не удалось удалить профиль"/>
   <translation tag="Failed to delete spool" ru="Не удалось удалить катушку"/>
+  <translation tag="Failed to disable WiFi: {}" ru="Не удалось выключить WiFi: {}"/>
   <translation tag="Failed to discard recovery data: {}" ru="Не удалось удалить данные восстановления: {}"/>
   <translation tag="Failed to download G-code for modification: {}" ru="Не удалось скачать G-code для изменения: {}"/>
   <translation tag="Failed to download G-code for remap: {}" ru="Не удалось скачать G-code для переназначения: {}"/>
   <translation tag="Failed to download helixscreen.conf.&#10;Check printer connection." ru="Не удалось скачать helixscreen.conf.&#10;Проверьте подключение принтера."/>
   <translation tag="Failed to download moonraker.conf.&#10;Check printer connection." ru="Не удалось скачать moonraker.conf.&#10;Проверьте подключение принтера."/>
   <translation tag="Failed to duplicate spool" ru="Не удалось дублировать катушку"/>
+  <translation tag="Failed to enable WiFi: {}" ru="Не удалось включить WiFi: {}"/>
   <translation tag="Failed to enable tuning tower" ru="Не удалось включить башню настройки"/>
   <translation tag="Failed to exclude &apos;{}&apos;: {}" ru="Не удалось исключить &apos;{}&apos;: {}"/>
+  <translation tag="Failed to forget WiFi network &apos;{}&apos;" ru="Не удалось забыть сеть WiFi &apos;{}&apos;"/>
   <translation tag="Failed to get limits" ru="Не удалось получить ограничения"/>
   <translation tag="Failed to initialize Bluetooth" ru="Не удалось инициализировать Bluetooth"/>
   <translation tag="Failed to initialize Bluetooth context" ru="Не удалось инициализировать контекст Bluetooth"/>
@@ -1084,6 +1098,7 @@
   <translation tag="Failed to restart: {}" ru="Не удалось перезапустить: {}"/>
   <translation tag="Failed to resume: {}" ru="Не удалось возобновить: {}"/>
   <translation tag="Failed to save LED configuration" ru="Не удалось сохранить настройки LED"/>
+  <translation tag="Failed to save WiFi network" ru="Не удалось сохранить сеть WiFi"/>
   <translation tag="Failed to save config." ru="Не удалось сохранить конфигурацию."/>
   <translation tag="Failed to save configuration" ru="Не удалось сохранить конфигурацию"/>
   <translation tag="Failed to save fan configuration" ru="Не удалось сохранить настройки вентилятора"/>
@@ -1104,6 +1119,7 @@
   <translation tag="Failed to start installer: " ru="Не удалось запустить установщик: "/>
   <translation tag="Failed to start print: {}" ru="Не удалось начать печать: {}"/>
   <translation tag="Failed to start uninstaller: " ru="Не удалось запустить деинсталлятор: "/>
+  <translation tag="Failed to subscribe to printer updates: {}" ru="Не удалось подписаться на обновления принтера: {}"/>
   <translation tag="Failed to toggle %s" ru="Не удалось переключить %s"/>
   <translation tag="Failed to toggle timelapse: {}" ru="Не удалось переключить таймлапс: {}"/>
   <translation tag="Failed to turn off heaters: {}" ru="Не удалось выключить нагреватели: {}"/>
@@ -1185,6 +1201,7 @@
   <translation tag="Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume." ru="Филамент закончился. Автопополнение выключено, поэтому CFS не сменит катушку сам. Загрузите филамент и продолжите печать."/>
   <translation tag="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume." ru="Филамент закончился. CFS знает, какие катушки подходят, но эти слоты пусты. Загрузите одну из них, затем продолжите печать."/>
   <translation tag="Filament reload failed" ru="Не удалось повторно подать филамент"/>
+  <translation tag="Filament remap not supported on this printer — print will use the firmware&apos;s current tool mapping" ru="Этот принтер не поддерживает переназначение филамента — печать будет использовать текущее назначение инструментов в прошивке"/>
   <translation tag="Filament remapping is unavailable" ru="Переназначение филамента недоступно"/>
   <translation tag="Filament runout" ru="Окончание филамента"/>
   <translation tag="Filament runout and motion detection sensors" ru="Датчики окончания и движения филамента"/>
@@ -1202,6 +1219,7 @@
   <translation tag="File" ru="Файл"/>
   <translation tag="File Size" ru="Размер файла"/>
   <translation tag="File Will Stop the Printer" ru="Файл остановит принтер"/>
+  <translation tag="File not found on printer." ru="Файл не найден на принтере."/>
   <translation tag="File not found: {}" ru="Файл не найден: {}"/>
   <translation tag="Filename" ru="Имя файла"/>
   <translation tag="Fine" ru="Точно"/>
@@ -1214,6 +1232,7 @@
   <translation tag="Fireworks" ru="Фейерверк"/>
   <translation tag="Firmware Restart" ru="Перезапуск прошивки"/>
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" ru="Прошивка не сообщает о байпасе. Включите, если филамент подаётся прямо в экструдер."/>
+  <translation tag="Firmware restart failed: {}" ru="Ошибка перезапуска прошивки: {}"/>
   <translation tag="Firmware restarting..." ru="Перезапуск прошивки..."/>
   <translation tag="Firmware saved X = Y&apos;s value; the measured X result was discarded" ru="Прошивка сохранила для X значение Y; результат измерения X был отброшен"/>
   <translation tag="Fix: chmod 644 {}, then restart" ru="Исправление: chmod 644 {}, затем перезапустите"/>
@@ -1373,6 +1392,7 @@
   <translation tag="Homing failed: " ru="Парковка не удалась: "/>
   <translation tag="Homing failed: {}" ru="Ошибка парковки: {}"/>
   <translation tag="Homing first..." ru="Парковка..."/>
+  <translation tag="Homing is disabled while a print is in progress" ru="Парковка недоступна во время печати"/>
   <translation tag="Homing may still be running — response timed out" ru="Парковка может ещё выполняться — время ожидания истекло"/>
   <translation tag="Homing selector" ru="Парковка селектора"/>
   <translation tag="Homing timed out" ru="Парковка — время ожидания истекло"/>
@@ -1511,8 +1531,11 @@
   <translation tag="Klipper" ru="Klipper"/>
   <translation tag="Klipper Error" ru="Ошибка Klipper"/>
   <translation tag="Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart." ru="Прошивка Klipper отключилась от хоста. Попробуйте перезапустить Klipper или выполнить перезапуск прошивки."/>
+  <translation tag="Klipper has disconnected from Moonraker. Check for errors in your printer interface." ru="Klipper отключился от Moonraker. Проверьте ошибки в интерфейсе принтера."/>
   <translation tag="Klipper has entered an error state. This is typically caused by an MCU connection failure or configuration error. Try a firmware restart." ru="Klipper перешёл в состояние ошибки. Обычно это вызвано сбоем соединения MCU или ошибкой конфигурации. Попробуйте перезапустить прошивку."/>
+  <translation tag="Klipper has entered shutdown state." ru="Klipper перешёл в состояние остановки."/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." ru="Klipper перешёл в состояние остановки. Это может быть вызвано аварийной остановкой, тепловым разгоном или ошибкой конфигурации."/>
+  <translation tag="Klipper is halted — restart firmware to continue" ru="Klipper остановлен — перезапустите прошивку, чтобы продолжить"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." ru="Klipper резервирует &apos;default&apos; для новых калибровок. Выберите другое имя."/>
   <translation tag="Klipper restarting - macros activating" ru="Перезапуск Klipper - активация макросов"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." ru="Klipper перестал сообщать о ходе. На небольших принтерах его анализу может не хватить памяти, и Klipper зависнет так, что перезапуск прошивки до него не дойдёт. Выключите и снова включите принтер (или перезапустите Klipper по SSH), затем повторите попытку."/>
@@ -1741,6 +1764,7 @@
   <translation tag="Monitoring" ru="Мониторинг"/>
   <translation tag="Month" ru="Месяц"/>
   <translation tag="Moonraker" ru="Moonraker"/>
+  <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." ru="Moonraker не отвечает по адресу {}. Он работает на этом принтере, поэтому проверьте, запущены ли службы Klipper и Moonraker."/>
   <translation tag="Moonraker restarted but Spoolman not connected. Check server." ru="Moonraker перезапущен, но Spoolman не подключен. Проверьте сервер."/>
   <translation tag="Moonraker restarting...&#10;Waiting for reconnection..." ru="Moonraker перезапускается...&#10;Ожидание переподключения..."/>
   <translation tag="Moonraker: " ru="Moonraker: "/>
@@ -2061,6 +2085,7 @@
   <translation tag="Peak:" ru="Пик:"/>
   <translation tag="Peaks {} Hz" ru="Пики {} Гц"/>
   <translation tag="Performance" ru="Производительность"/>
+  <translation tag="Permission denied. Check printer configuration." ru="Доступ запрещён. Проверьте конфигурацию принтера."/>
   <translation tag="Phomemo (Bluetooth)" ru="Phomemo (Bluetooth)"/>
   <translation tag="Phomemo M110" ru="Phomemo M110"/>
   <translation tag="Pick" ru="Выбрать"/>
@@ -2200,6 +2225,8 @@
   <translation tag="Printer Shutdown" ru="Остановка принтера"/>
   <translation tag="Printer Type" ru="Тип принтера"/>
   <translation tag="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})" ru="Принтер принял задание, но не печатает — проверьте крышку, бумагу и тип этикеток (статус прошивки=0x{:02X} ошибка=0x{:02X})"/>
+  <translation tag="Printer command &apos;{}&apos; failed: {}" ru="Команда принтера &apos;{}&apos; не выполнена: {}"/>
+  <translation tag="Printer command &apos;{}&apos; timed out after {}ms" ru="Время ожидания команды принтера &apos;{}&apos; истекло через {} мс"/>
   <translation tag="Printer connection unavailable" ru="Подключение к принтеру недоступно"/>
   <translation tag="Printer database format error" ru="Ошибка формата базы данных принтеров"/>
   <translation tag="Printer database is corrupt" ru="База данных принтеров повреждена"/>
@@ -2209,7 +2236,10 @@
   <translation tag="Printer hardware detected" ru="Обнаружено оборудование принтера"/>
   <translation tag="Printer image set to auto-detect" ru="Изображение принтера — автоопределение"/>
   <translation tag="Printer is busy - {} stays in the queue" ru="Принтер занят – {} остаётся в очереди"/>
+  <translation tag="Printer is busy — try again in a moment" ru="Принтер занят — повторите попытку чуть позже"/>
   <translation tag="Printer is not paired — pair it first" ru="Принтер не сопряжён — сначала выполните сопряжение"/>
+  <translation tag="Printer is not ready" ru="Принтер не готов"/>
+  <translation tag="Printer is not ready. Please wait for initialization." ru="Принтер не готов. Дождитесь инициализации."/>
   <translation tag="Printer message: {}" ru="Сообщение принтера: {}"/>
   <translation tag="Printer name" ru="Название принтера"/>
   <translation tag="Printer not connected" ru="Принтер не подключен"/>
@@ -2330,6 +2360,7 @@
   <translation tag="Reboot failed" ru="Ошибка перезагрузки"/>
   <translation tag="Reboot failed — host is still reachable" ru="Ошибка перезагрузки — хост всё ещё доступен"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." ru="Перекалибруйте или просмотрите подробные результаты в любое время в Настройках."/>
+  <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." ru="От принтера получены слишком большие данные ({} байт). Возможна ошибка связи."/>
   <translation tag="Recent Prints" ru="Недавние печати"/>
   <translation tag="Recently Printed" ru="Недавно напечатано"/>
   <translation tag="Reconnect" ru="Переподключиться"/>
@@ -2343,7 +2374,6 @@
   <translation tag="Recovering AFC system..." ru="Восстановление системы AFC..."/>
   <translation tag="Recovering..." ru="Восстановление..."/>
   <translation tag="Recovery failed" ru="Восстановление не удалось"/>
-  <translation tag="Recovery failed: " ru="Восстановление не удалось: "/>
   <translation tag="Recovery failed: {}" ru="Восстановление не удалось: {}"/>
   <translation tag="Reduce Sensitivity" ru="Снизить чувствительность"/>
   <translation tag="Reduce ringing and ghosting artifacts" ru="Уменьшить артефакты звона и двоения"/>
@@ -2395,6 +2425,7 @@
   <translation tag="Reprint" ru="Повторить печать"/>
   <translation tag="Reprint Last" ru="Перепечатать последнюю"/>
   <translation tag="Request Failed" ru="Запрос не выполнен"/>
+  <translation tag="Request timed out. The printer may be busy." ru="Время ожидания запроса истекло. Возможно, принтер занят."/>
   <translation tag="Require Confirmation?" ru="Запрашивать подтверждение?"/>
   <translation tag="Require confirmation before emergency stop" ru="Требовать подтверждение перед аварийной остановкой"/>
   <translation tag="Requires Moonraker power device" ru="Требуется устройство питания Moonraker"/>
@@ -2436,6 +2467,7 @@
   <translation tag="Restart Now" ru="Перезапустить сейчас"/>
   <translation tag="Restart Required" ru="Требуется перезапуск"/>
   <translation tag="Restart failed: not connected" ru="Перезапуск не удался: нет подключения"/>
+  <translation tag="Restart failed: {}" ru="Ошибка перезапуска: {}"/>
   <translation tag="Restart from the beginning to recover" ru="Чтобы восстановить печать, запустите её с начала"/>
   <translation tag="Restart pending" ru="Ожидается перезапуск"/>
   <translation tag="Restart the display application" ru="Перезапустить приложение дисплея"/>
@@ -2768,6 +2800,7 @@
   <translation tag="Spoolman was not configured." ru="Spoolman не был настроен."/>
   <translation tag="Spoolman: %zu Spool%s" ru="Spoolman: %zu катушк%s"/>
   <translation tag="Spoolman: %zu/%zu Spool%s" ru="Spoolman: %zu/%zu катушк%s"/>
+  <translation tag="Spools are on the bed: remove them and confirm before moving the printer" ru="На столе лежат катушки: уберите их и подтвердите, прежде чем двигать принтер"/>
   <translation tag="Spools are on the bed: tap the drying banner to confirm they are off, then restart." ru="На столе катушки: нажмите на баннер сушки, чтобы подтвердить, что они сняты, затем перезапустите."/>
   <translation tag="Spools on the bed: start drying, or confirm none were placed" ru="Катушки на столе: начните сушку или подтвердите, что ничего не положено"/>
   <translation tag="Spools removed" ru="Катушки сняты"/>
@@ -2953,6 +2986,7 @@
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." ru="Принтер ищет ноль и прощупывает резак (около 1 минуты). Держите путь филамента свободным."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." ru="Принтер выполнит парковку, затем отведёт стол как можно дальше от сопла. Некоторые катушки недостаточно термостойкие и могут деформироваться. С этого экрана ничего не будет двигаться, пока вы не подтвердите, что катушки сняты со стола; Mainsail, макросы и печать, отправленная из слайсера, не блокируются."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." ru="Принтер не запаркован. Продолжение выполнит парковку всех осей, печатающая головка переместится. Убедитесь, что стол свободен."/>
+  <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" ru="Принтер не обнаруживает загруженный филамент. Что вы хотите сделать?"/>
   <translation tag="The printer lost power during a print. It can resume where it left off." ru="Принтер потерял питание во время печати. Он может продолжить с места остановки."/>
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." ru="Принтер потерял питание во время печати. Возобновлённый слой может не совпасть точно."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ru="Принтер потерял питание при печати {}. Продолжить с места остановки?"/>
@@ -3016,6 +3050,8 @@
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." ru="Этот принтер берёт данные шлюзов из Spoolman. HelixScreen очистил свою копию; удалите катушку в Spoolman."/>
   <translation tag="This printer fills its gates from Spoolman. Make colour, material and spool changes in Spoolman." ru="Этот принтер берёт данные шлюзов из Spoolman. Меняйте цвет, материал и катушку в Spoolman."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ru="Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты."/>
+  <translation tag="This printer&apos;s network service controls the WiFi radio" ru="WiFi-модулем управляет сетевая служба этого принтера"/>
+  <translation tag="This printer&apos;s network service manages saved WiFi networks" ru="Сохранёнными сетями WiFi управляет сетевая служба этого принтера"/>
   <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." ru="Это удаляет компонент Moonraker плагина и перезапускает Moonraker. Принтер ненадолго отключится. Если в PRINT_START всё ещё остались старые строки отслеживания фаз, они также удаляются, при этом резервные копии сохраняются. Перезапуск Klipper применяет эти изменения."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." ru="Это заменит вспомогательные макросы принтера текущей версией и перезапустит Klipper."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." ru="Это заменит вспомогательные макросы принтера текущей версией. Идёт печать, поэтому Klipper перезапустится после её завершения."/>
@@ -3138,6 +3174,8 @@
   <translation tag="USB drive connected" ru="USB-накопитель подключён"/>
   <translation tag="USB drive removed" ru="USB-накопитель извлечён"/>
   <translation tag="USB printer access denied — check permissions" ru="Доступ к USB-принтеру запрещён — проверьте разрешения"/>
+  <translation tag="Unable to reach printer at {}. Check that the printer is powered on and that this address is correct." ru="Не удаётся связаться с принтером по адресу {}. Убедитесь, что принтер включён и адрес указан верно."/>
+  <translation tag="Unable to reach printer. Check power and network connection." ru="Не удаётся связаться с принтером. Проверьте питание и сетевое подключение."/>
   <translation tag="Unavailable" ru="Недоступно"/>
   <translation tag="Unavailable on this printer" ru="Недоступно на этом принтере"/>
   <translation tag="Undo" ru="Шаг назад"/>
@@ -3293,12 +3331,19 @@
   <translation tag="WiFi Disabled" ru="WiFi отключён"/>
   <translation tag="WiFi Enabled" ru="WiFi включён"/>
   <translation tag="WiFi Network" ru="Сеть WiFi"/>
+  <translation tag="WiFi Permission Denied" ru="Нет доступа к WiFi"/>
+  <translation tag="WiFi Service Not Running" ru="Служба WiFi не запущена"/>
   <translation tag="WiFi Unavailable" ru="WiFi недоступен"/>
   <translation tag="WiFi and Ethernet configuration" ru="Настройка WiFi и Ethernet"/>
   <translation tag="WiFi control unavailable" ru="Управление WiFi недоступно"/>
   <translation tag="WiFi hardware unavailable" ru="Оборудование WiFi недоступно"/>
+  <translation tag="WiFi initialization failed: {}" ru="Ошибка инициализации WiFi: {}"/>
   <translation tag="WiFi radio did not change state" ru="Состояние модуля WiFi не изменилось"/>
+  <translation tag="WiFi scan failed. Try again." ru="Поиск сетей WiFi не удался. Повторите попытку."/>
   <translation tag="WiFi unavailable" ru="WiFi недоступен"/>
+  <translation tag="WiFi unavailable. Cannot connect to network." ru="WiFi недоступен. Невозможно подключиться к сети."/>
+  <translation tag="WiFi unavailable. Cannot forget network." ru="WiFi недоступен. Невозможно забыть сеть."/>
+  <translation tag="WiFi unavailable. Cannot scan for networks." ru="WiFi недоступен. Невозможно выполнить поиск сетей."/>
   <translation tag="WiFi was configured but hardware is not available. Check system configuration." ru="WiFi был настроен, но оборудование недоступно. Проверьте конфигурацию системы."/>
   <translation tag="Widget Labels" ru="Подписи виджетов"/>
   <translation tag="Width" ru="Ширина"/>
@@ -3444,6 +3489,7 @@
   <translation tag="v%s available" ru="Доступна v%s"/>
   <translation tag="v{} installed! Restarting..." ru="v{} установлена! Перезапуск..."/>
   <translation tag="v{} is available. Tap to update." ru="v{} доступна. Нажмите для обновления."/>
+  <translation tag="wpa_supplicant is not running. WiFi features unavailable." ru="wpa_supplicant не запущен. Функции WiFi недоступны."/>
   <translation tag="you have" ru="у вас"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ru="{:.0f}-{:.0f} Гц · примерно {} мин"/>
   <translation tag="{} Hardware Issues" ru="Проблем с оборудованием: {}"/>

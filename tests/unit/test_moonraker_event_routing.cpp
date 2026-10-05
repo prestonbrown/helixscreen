@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Routing decisions for Moonraker events (#1219). The decision is pure — no
-// LVGL, no clock, no globals — which is the whole point: it used to live inline
-// in a lambda that ran on the libhv event-loop thread and called lv_tr() there.
-// Pulling it out is what lets the caller apply lv_tr() on the main thread.
+// LVGL, no clock, no globals — so it is testable without the event-loop thread
+// that raises the event, and the caller translates and presents on the main
+// thread.
 //
 // These cases pin the routing table, including the two orderings that matter:
 // recovery events must NOT be suppressible by the wizard, and

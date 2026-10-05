@@ -219,6 +219,26 @@ void theme_manager_register_responsive_fonts(lv_display_t* display) {
     ui_split_button_invalidate_icon_font_cache();
 }
 
+// A base font token (font_body) carries no size suffix after the font_
+// prefix; theme_manager_register_responsive_fonts re-points it at the tier's
+// variant, so it renders at a real size on every display. The plugin XML
+// policy and the canvas font resolver both ask this one question.
+// NAMESPACE_OK: joins this header's global theme_manager_* free-function API
+bool theme_manager_font_token_is_base(const char* token) {
+    // The suffix test runs on the name after font_: font_small is the base
+    // token "small", not the _small variant of a token named "font".
+    if (!token || strncmp(token, "font_", 5) != 0 || token[5] == '\0')
+        return false;
+    const char* name = token + 5;
+    const size_t len = strlen(name);
+    for (const char* suffix : helix::theme_detail::kSizeSuffixes) {
+        const size_t slen = strlen(suffix);
+        if (len > slen && strcmp(name + len - slen, suffix) == 0)
+            return false;
+    }
+    return true;
+}
+
 namespace helix::ui {
 
 bool is_icon_font(const lv_font_t* font) {

@@ -1104,7 +1104,10 @@ DOCKER_MOCKS = $(if $(filter-out default file undefined,$(origin ENABLE_MOCKS)),
 
 # SKIP_COMPILE_COMMANDS: the container's fragments name /src, so a merge there
 # writes a tree-root compile_commands.json the host's syntax check cannot use.
-DOCKER_HOST_CONTEXT = $(DOCKER_WORKTREE_MOUNT) $(DOCKER_GIT_HASH_ENV) -e SKIP_COMPILE_COMMANDS=1
+# --init: without it the container's make is PID 1, which no make is written to
+# be. Every orphan in the build reparents to it and stays a zombie whenever it is
+# not sitting in wait() (prestonbrown/helixscreen#1583).
+DOCKER_HOST_CONTEXT = --init $(DOCKER_WORKTREE_MOUNT) $(DOCKER_GIT_HASH_ENV) -e SKIP_COMPILE_COMMANDS=1
 
 # Direct cross-compilation (requires toolchain installed)
 pi:

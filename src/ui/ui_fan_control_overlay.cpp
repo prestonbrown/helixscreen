@@ -473,7 +473,7 @@ void FanControlOverlay::send_fan_speed(const std::string& object_name, int speed
             // Silent success
         },
         [object_name](const MoonrakerError& err) {
-            NOTIFY_ERROR(lv_tr("Fan control failed: {}"), err.user_message());
+            helix::ui::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
         });
 }
 

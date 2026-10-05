@@ -6,6 +6,7 @@
 #include "ui_error_reporting.h"
 
 #include "app_globals.h"
+#include "lodepng_encode.h"
 
 #include <spdlog/spdlog.h>
 
@@ -19,16 +20,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-
-// lodepng.h declares its C++ convenience overloads inside its own extern "C"
-// block, so including it from C++ fails to compile. We need exactly one entry
-// point out of it — declare that directly. (Built in via LV_USE_LODEPNG.)
-//
-// Encode to memory, not lodepng_encode32_file(): LVGL routes lodepng's disk I/O
-// through lv_fs, which rejects a plain filesystem path for want of a driver
-// letter. We write the encoded buffer ourselves.
-extern "C" unsigned lodepng_encode32(unsigned char** out, size_t* outsize,
-                                     const unsigned char* image, unsigned w, unsigned h);
 
 namespace helix {
 

@@ -38,8 +38,8 @@ struct EventCapture {
     std::vector<Record> records;
 
     auto as_lambda() {
-        return [this](MoonrakerEventType t, const std::string& m, bool e, const std::string& d) {
-            records.push_back({t, m, e, d});
+        return [this](const MoonrakerEvent& evt) {
+            records.push_back({evt.type, evt.message, evt.is_error, evt.details});
         };
     }
 };

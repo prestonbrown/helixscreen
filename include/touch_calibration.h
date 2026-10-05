@@ -470,6 +470,19 @@ enum class TouchRangeSource {
 /// Stable lowercase name for a range source, for logs and the debug bundle.
 const char* touch_range_source_name(TouchRangeSource source);
 
+/// Which ABS range an evdev touch device runs, loudest first: an environment
+/// override, then a stored calibration range, then the declared one.
+///
+/// A stored range is never programmed on a rotated display: one solved there
+/// folds the rotation into (min,max,swap) and double-applies it at runtime
+/// (prestonbrown/helixscreen#1394). Both the programming and the recorded
+/// pipeline go through this, so what the diagnostics (and a calibration
+/// session's range snapshot) report is the range actually live.
+///
+/// @param applied_rotation Rotation the display is at now, from display_rotation_degrees()
+TouchRangeSource resolve_touch_range_source(bool env_range_override,
+                                            const TouchRangeSettings& stored, int applied_rotation);
+
 /**
  * @brief The touch pipeline exactly as the display backend programmed it
  *

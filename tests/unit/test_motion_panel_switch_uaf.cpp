@@ -7,7 +7,7 @@
  *
  * Run with: ./build/bin/helix-tests "[1707]"
  *
- * A printer switch (Application::switch_printer -> tear_down_printer_state)
+ * A printer switch (PrinterSession::switch_printer -> tear_down_printer_state)
  * destroys the panel objects registered with StaticPanelRegistry while their
  * overlay widgets are still on the screen; the widgets are freed a tick later.
  * Re-pushing that orphan fires its jog pad callbacks on the freed MotionPanel

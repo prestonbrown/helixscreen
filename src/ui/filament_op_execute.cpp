@@ -255,9 +255,9 @@ void report_op_error(const MoonrakerError& error, const char* what) {
         return;
     }
     if (std::string(what) == "load") {
-        NOTIFY_ERROR(lv_tr("Failed to load filament: {}"), error.user_message());
+        helix::ui::notify_error_tr(TR_NOOP("Failed to load filament: {}"), error);
     } else {
-        NOTIFY_ERROR(lv_tr("Failed to unload: {}"), error.user_message());
+        helix::ui::notify_error_tr(TR_NOOP("Failed to unload: {}"), error);
     }
 }
 
@@ -563,7 +563,7 @@ void execute_filament_purge(const char* log_tag) {
                     [log_tag]() { spdlog::info("{} Purge started", log_tag); },
                     [log_tag](const MoonrakerError& err) {
                         spdlog::error("{} Failed to purge: {}", log_tag, err.message);
-                        NOTIFY_ERROR(lv_tr("Failed to purge: {}"), err.user_message());
+                        helix::ui::notify_error_tr(TR_NOOP("Failed to purge: {}"), err);
                     });
             });
         return;
@@ -575,7 +575,7 @@ void execute_filament_purge(const char* log_tag) {
         [log_tag]() { spdlog::info("{} Purge fallback gcode sent", log_tag); },
         [log_tag](const MoonrakerError& err) {
             spdlog::error("{} Purge fallback failed: {}", log_tag, err.message);
-            NOTIFY_ERROR(lv_tr("Failed to purge: {}"), err.user_message());
+            helix::ui::notify_error_tr(TR_NOOP("Failed to purge: {}"), err);
         },
         IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
 }

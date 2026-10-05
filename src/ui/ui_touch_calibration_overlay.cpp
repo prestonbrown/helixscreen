@@ -122,13 +122,17 @@ TouchCalibrationOverlay::TouchCalibrationOverlay() {
         helix::ICalibrationSink* sink = controller_.sink();
         const TouchCalibration* fresh =
             controller_.panel() ? controller_.panel()->get_calibration() : nullptr;
-        if (sink && fresh && fresh->valid && sink->apply_calibration(*fresh)) {
+        if (sink && fresh && fresh->valid &&
+            helix::apply_calibration_result(sink, *fresh, controller_.panel()->get_range_fit())) {
             spdlog::info("[{}] Entered VERIFY under the newly captured calibration "
                          "(a={:.4f} e={:.4f}); reverts unless accepted",
                          get_name(), fresh->a, fresh->e);
         } else if (sink) {
-            // No usable new matrix to test — fall back to whatever was stored so
-            // the screen is at least as usable as it was on entry.
+            // No usable new matrix to test. The install may have re-programmed the
+            // range before its affine was refused, so put the whole pre-session
+            // mapping back (range and matrix, backup kept armed) and re-enable it,
+            // leaving the screen at least as usable as it was on entry.
+            controller_.revert_candidate();
             sink->enable_affine();
             spdlog::warn("[{}] Entered VERIFY without a usable new calibration; "
                          "kept the pre-session one",

@@ -69,25 +69,22 @@ void restart_from_beginning(IMoonrakerAPI* api, const std::string& filename,
                     [log_prefix, on_failure](const MoonrakerError& err) {
                         spdlog::error("{} start_print after restart failed: {}", log_prefix,
                                       err.message);
-                        auto user_msg = err.user_message();
-                        queue_update("ui_resume_dispatch::restart_start_error",
-                                     [user_msg = std::move(user_msg), on_failure]() {
-                                         NOTIFY_ERROR(lv_tr("Failed to restart: {}"), user_msg);
-                                         if (on_failure)
-                                             on_failure();
-                                     });
+                        queue_update("ui_resume_dispatch::restart_start_error", [err,
+                                                                                 on_failure]() {
+                            NOTIFY_ERROR(lv_tr("Failed to restart: {}"), err.localized_message());
+                            if (on_failure)
+                                on_failure();
+                        });
                     });
             });
         },
         [log_prefix, on_failure](const MoonrakerError& err) {
             spdlog::error("{} restart prep gcode failed: {}", log_prefix, err.message);
-            auto user_msg = err.user_message();
-            queue_update("ui_resume_dispatch::restart_prep_error",
-                         [user_msg = std::move(user_msg), on_failure]() {
-                             NOTIFY_ERROR(lv_tr("Failed to clear print state: {}"), user_msg);
-                             if (on_failure)
-                                 on_failure();
-                         });
+            queue_update("ui_resume_dispatch::restart_prep_error", [err, on_failure]() {
+                NOTIFY_ERROR(lv_tr("Failed to clear print state: {}"), err.localized_message());
+                if (on_failure)
+                    on_failure();
+            });
         });
 }
 
@@ -100,11 +97,10 @@ void send_cancel_macro(IMoonrakerAPI* api, const std::string& log_prefix) {
         [log_prefix]() { spdlog::info("{} Print cancelled", log_prefix); },
         [log_prefix](const MoonrakerError& err) {
             spdlog::error("{} Failed to cancel print: {}", log_prefix, err.message);
-            auto user_msg = err.user_message();
             // StandardMacros::execute may deliver this from the libhv WebSocket
-            // thread; the toast and its lv_tr() lookup are main-thread only.
-            queue_update("dispatch_cancel_print::on_error", [user_msg = std::move(user_msg)]() {
-                NOTIFY_ERROR(lv_tr("Failed to cancel: {}"), user_msg);
+            // thread; the toast is main-thread only.
+            queue_update("dispatch_cancel_print::on_error", [err]() {
+                NOTIFY_ERROR(lv_tr("Failed to cancel: {}"), err.localized_message());
             });
         });
 }
@@ -169,8 +165,8 @@ void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
 
     // The macro-dispatch closure. The success path stays on whichever
     // thread the API delivers it — we only spdlog::info() there (thread
-    // safe). The error path bounces through queue_update so the toast,
-    // lv_tr() lookup, and `on_failure` body all run on the main thread
+    // safe). The error path bounces through queue_update so the toast
+    // and `on_failure` body run on the main thread
     // even though StandardMacros::execute may invoke this callback from
     // the libhv WebSocket event-loop thread on JSON-RPC failure.
     auto dispatch = [api, log_prefix, on_failure]() {
@@ -179,13 +175,12 @@ void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
             [log_prefix]() { spdlog::info("{} Resume command sent successfully", log_prefix); },
             [log_prefix, on_failure](const MoonrakerError& err) {
                 spdlog::error("{} Failed to resume: {}", log_prefix, err.message);
-                auto user_msg = err.user_message();
-                helix::ui::queue_update("dispatch_prepared_resume::on_macro_error",
-                                        [user_msg = std::move(user_msg), on_failure]() {
-                                            NOTIFY_ERROR(lv_tr("Failed to resume: {}"), user_msg);
-                                            if (on_failure)
-                                                on_failure();
-                                        });
+                helix::ui::queue_update(
+                    "dispatch_prepared_resume::on_macro_error", [err, on_failure]() {
+                        NOTIFY_ERROR(lv_tr("Failed to resume: {}"), err.localized_message());
+                        if (on_failure)
+                            on_failure();
+                    });
             },
             /*timeout_ms=*/0, /*suppress_auto_toast=*/true);
     };

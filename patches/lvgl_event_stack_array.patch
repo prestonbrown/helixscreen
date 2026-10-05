@@ -186,7 +186,7 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
      if(event_head != NULL && event_dispatch_depth == 0) {
          if(helix_lvgl_anomaly) {
              char ctx[96];
-@@ -381,88 +420,56 @@
+@@ -381,88 +420,54 @@
              helix_lvgl_anomaly("event_head_stale_leak", ctx);
          }
          event_head = NULL;
@@ -235,8 +235,8 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
 +     * outside this range are stale or corrupt; skip them and surface
 +     * telemetry. */
      void * sp_now = __builtin_frame_address(0);
-     const uintptr_t sp_low = (uintptr_t)sp_now;
-     const uintptr_t sp_high = sp_low + (16U << 20);
+-    const uintptr_t sp_low = (uintptr_t)sp_now;
+-    const uintptr_t sp_high = sp_low + (16U << 20);
  
 -    lv_event_t * e = event_head;
 -    unsigned depth = 0;
@@ -279,7 +279,8 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
 -            return;
 +            continue;
          }
-         if((uintptr_t)e < sp_low || (uintptr_t)e >= sp_high) {
+-        if((uintptr_t)e < sp_low || (uintptr_t)e >= sp_high) {
++        if(!lv_event_addr_on_stack((uintptr_t)e, (uintptr_t)sp_now)) {
              if(helix_lvgl_anomaly) {
                  char ctx[96];
 -                snprintf(ctx, sizeof(ctx), "e=%p sp=%p depth=%u (oob)",
@@ -308,3 +309,25 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
      }
  }
  
+diff --git a/src/misc/lv_event_private.h b/src/misc/lv_event_private.h
+--- a/src/misc/lv_event_private.h
++++ b/src/misc/lv_event_private.h
+@@ -83,6 +83,18 @@
+  */
+ void lv_event_mark_deleted(void * target);
+ 
++/**
++ * HelixScreen: true when `addr` can be a live lv_event_t in a caller's frame on
++ * the stack whose current frame is `sp`. Stacks grow downward, so a live event
++ * sits at or above `sp` and within 16 MB of it (Linux thread default is 8 MB).
++ * Measured as a distance from `sp` so a stack near the top of a 32-bit address
++ * space cannot wrap the upper bound below `sp`.
++ */
++static inline bool lv_event_addr_on_stack(uintptr_t addr, uintptr_t sp)
++{
++    return addr >= sp && addr - sp < ((uintptr_t)16U << 20);
++}
++
+ /**********************
+  *      MACROS
+  **********************/

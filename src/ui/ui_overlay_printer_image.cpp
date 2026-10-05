@@ -361,6 +361,7 @@ void PrinterImageOverlay::scan_usb_drives() {
 
     auto drives = usb_manager_->get_drives();
     if (drives.empty()) {
+        usb_walk_.cancel();
         lv_subject_set_int(&usb_visible_subject_, 0);
         return;
     }
@@ -368,10 +369,14 @@ void PrinterImageOverlay::scan_usb_drives() {
     lv_subject_set_int(&usb_visible_subject_, 1);
     spdlog::debug("[{}] Found {} USB drive(s), scanning first: {}", get_name(), drives.size(),
                   drives[0].mount_path);
-    populate_usb_images(drives[0].mount_path);
+    usb_walk_.run([this, mount = drives[0].mount_path](
+                      const helix::SingleFlightWalk::Cancelled&) -> std::function<void()> {
+        auto paths = helix::PrinterImageManager::instance().scan_for_images(mount);
+        return [this, paths = std::move(paths)]() { populate_usb_images(paths); };
+    });
 }
 
-void PrinterImageOverlay::populate_usb_images(const std::string& mount_path) {
+void PrinterImageOverlay::populate_usb_images(const std::vector<std::string>& image_paths) {
     lv_obj_t* list = find_required(overlay_root_, "usb_images_list", get_name());
     if (!list) {
         return;
@@ -379,7 +384,6 @@ void PrinterImageOverlay::populate_usb_images(const std::string& mount_path) {
 
     lv_obj_clean(list);
 
-    auto image_paths = helix::PrinterImageManager::instance().scan_for_images(mount_path);
     spdlog::debug("[{}] Found {} importable images on USB", get_name(), image_paths.size());
 
     if (image_paths.empty()) {

@@ -243,7 +243,7 @@ int MoonrakerManager::connect(const std::string& websocket_url, const std::strin
                 helix::cleanup_stale_helix_temp_files(api);
 
                 // Safety limits + build volume now fetched in
-                // Application::setup_discovery_callbacks() on_discovery_complete,
+                // PrinterSession::setup_discovery_callbacks() on_discovery_complete,
                 // so all discovery paths (startup + post-wizard) share one call.
             });
         },
@@ -543,6 +543,7 @@ void MoonrakerManager::present_event(const MoonrakerEvent& evt) {
     // Every lv_tr() below depends on that.
     const auto decision = helix::decide_moonraker_event(evt.type, evt.is_error, is_wizard_active(),
                                                         !ModalStack::instance().empty());
+    const std::string text = evt.message_tag ? evt.render(lv_tr(evt.message_tag)) : evt.message;
 
     switch (decision.route) {
     case helix::MoonrakerEventRoute::Ignore:
@@ -578,18 +579,18 @@ void MoonrakerManager::present_event(const MoonrakerEvent& evt) {
         // prompt carries a "Change Address" action straight to the host setting.
         const char* title = lv_tr(decision.title_tag);
         spdlog::error("[CRITICAL] {}: {}", title, evt.message);
-        helix::ui::show_connection_failed_modal(title, evt.message);
+        helix::ui::show_connection_failed_modal(title, text);
         return;
     }
 
     case helix::MoonrakerEventRoute::ErrorToast: {
         const char* title = lv_tr(decision.title_tag);
-        NOTIFY_ERROR_T(title, "{}", evt.message);
+        NOTIFY_ERROR_T(title, "{}", text);
         return;
     }
 
     case helix::MoonrakerEventRoute::WarningToast:
-        NOTIFY_WARNING("{}", evt.message);
+        NOTIFY_WARNING("{}", text);
         return;
     }
 }
@@ -607,16 +608,11 @@ void MoonrakerManager::register_callbacks() {
     // This fires on whatever thread raised the event: MoonrakerClient::emit_event()
     // invokes it synchronously from on_ws_close, the health-check timer, and
     // set_connection_state — i.e. the libhv event-loop thread. Everything the
-    // handler goes on to do is LVGL-facing (translation lookup, toasts, modals),
-    // so the entire body is marshalled to the main thread in ONE hop here rather
-    // than each sink marshalling itself. Doing it per-sink is what left lv_tr()
-    // running off-thread: lv_translation_get() reads the file-scope selected_lang
-    // that lv_translation_set_language() frees and replaces, so a language change
-    // overlapping an error event was a read of freed memory (#1219).
-    // bg_cb() defers the WHOLE call to the main thread behind a generation guard,
-    // which is what makes present_event()'s lv_tr() safe. It also decays the
-    // MoonrakerEvent& into a value, so the body never sees a reference that died
-    // with the raising thread's stack frame.
+    // handler goes on to do is LVGL-facing (toasts, modals), so the entire body
+    // is marshalled to the main thread in ONE hop here rather than each sink
+    // marshalling itself. bg_cb() defers the WHOLE call to the main thread behind
+    // a generation guard. It also decays the MoonrakerEvent& into a value, so the
+    // body never sees a reference that died with the raising thread's stack frame.
     m_client->register_event_handler(lifetime_.bg_cb(
         "MoonrakerManager::event", [this](const MoonrakerEvent& evt) { present_event(evt); }));
 

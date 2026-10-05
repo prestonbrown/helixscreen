@@ -126,6 +126,7 @@ translations:
   A · 1,-1: "A · 1,-1"
   ABS: ABS
   ACCELEROMETERS: 加速度センサー
+  'ACCEPT failed: {}': 'ACCEPT に失敗しました: {}'
   ACE Moonraker bridge not found. Install ace_status.py for full support.: ACE Moonraker ブリッジが見つかりません。完全なサポートには ace_status.py をインストールしてください。
   ACTIONS: アクション
   ADXL: ADXL
@@ -223,6 +224,7 @@ translations:
   ? An internal error occurred. The app continues running. Please send a debug bundle from Settings > Help & About if it repeats.
   : 内部エラーが発生しました。アプリは引き続き動作します。問題が繰り返される場合は、設定 > ヘルプと情報 からデバッグバンドルを送信してください。
   An unexpected printer error occurred.: 予期しないプリンターエラーが発生しました。
+  An unknown error occurred.: 不明なエラーが発生しました。
   An update is available: 更新があります
   Analyzing data...: データを解析中...
   Analyzing data... {}s: データを解析中... {}s
@@ -681,9 +683,12 @@ translations:
   'Connection failed: %s': '接続に失敗しました: %s'
   Connection lost — probe accuracy result unavailable: '接続が切断されました — プローブ精度テストの結果が利用できません'
   Connection must be tested successfully to continue: 続行するには接続テストに成功する必要があります
+  Connection restored: 接続が回復しました
   Connection successful!: 接続成功！
   Connection timeout: 接続タイムアウト
+  Connection to printer lost - attempting to reconnect...: プリンターとの接続が切断されました - 再接続しています...
   Connection to printer lost — operation may still be running: 'プリンターとの接続が切断されました — 操作がまだ実行中の可能性があります'
+  Connection to printer lost.: プリンターとの接続が切断されました。
   Connects: 接続回数
   Console: コンソール
   Console Settings: コンソール設定
@@ -719,7 +724,9 @@ translations:
   : "ウェブカメラの状態を確認できませんでした。\nプリンター接続を確認してください。"
   Could not confirm cancel: キャンセルを確認できませんでした
   'Could not copy {} from USB: {}': '{} を USB からコピーできませんでした: {}'
+  Could not disconnect from WiFi: WiFi から切断できませんでした
   Could not forget device: デバイスの登録を解除できませんでした
+  Could not initialize WiFi hardware. Check system configuration.: WiFi ハードウェアを初期化できませんでした。システム設定を確認してください。
   Could not load printer database: プリンターデータベースを読み込めませんでした
   Could not move the plate: ベッドを動かせませんでした
 
@@ -932,6 +939,7 @@ translations:
   Emergency Stop?: 緊急停止しますか？
   Emergency stop activated: 緊急停止が作動しました
   'Emergency stop failed: not connected': '緊急停止に失敗: 未接続'
+  'Emergency stop failed: {}': '緊急停止に失敗しました: {}'
   Empty: 空
   Empty slots disable the associated functionality: 空のスロットは関連機能を無効にします
   Enable: 有効化
@@ -1064,7 +1072,10 @@ translations:
   Failed to build raster data: ラスターデータの構築に失敗しました
   'Failed to cancel: {}': 'キャンセルに失敗しました: {}'
   'Failed to clear print state: {}': '印刷状態をクリアできませんでした: {}'
+  Failed to connect to '{}': '''{}'' に接続できませんでした'
+  Failed to connect to '{}'. Check password.: '''{}'' に接続できませんでした。パスワードを確認してください。'
   'Failed to connect to ''{}'': {}': '''{}'' への接続に失敗しました: {}'
+  'Failed to connect to WiFi network ''{}'': {}': 'WiFi ネットワーク ''{}'' に接続できませんでした: {}'
   'Failed to connect: %s': '接続に失敗: %s'
   'Failed to cool down: {}': '冷却に失敗しました: {}'
   'Failed to create filament:': 'フィラメントの作成に失敗:'
@@ -1073,6 +1084,7 @@ translations:
   Failed to delete file: ファイルの削除に失敗しました
   Failed to delete profile: プロファイルの削除に失敗しました
   Failed to delete spool: スプールの削除に失敗しました
+  'Failed to disable WiFi: {}': 'WiFi を無効にできませんでした: {}'
   'Failed to discard recovery data: {}': '復旧データの破棄に失敗しました: {}'
   'Failed to download G-code for modification: {}': 'G-code の変更用ダウンロードに失敗しました: {}'
   'Failed to download G-code for remap: {}': 'リマップ用のG-codeのダウンロードに失敗しました: {}'
@@ -1081,8 +1093,10 @@ translations:
   ? "Failed to download moonraker.conf.\nCheck printer connection."
   : "moonraker.confのダウンロードに失敗しました。\nプリンター接続を確認してください。"
   Failed to duplicate spool: スプールの複製に失敗しました
+  'Failed to enable WiFi: {}': 'WiFi を有効にできませんでした: {}'
   Failed to enable tuning tower: チューニングタワーの有効化に失敗しました
   'Failed to exclude ''{}'': {}': '''{}'' の除外に失敗しました: {}'
+  Failed to forget WiFi network '{}': WiFi ネットワーク '{}' を削除できませんでした
   Failed to get limits: 制限の取得に失敗しました
   Failed to initialize Bluetooth: Bluetooth の初期化に失敗しました
   Failed to initialize Bluetooth context: Bluetooth コンテキストの初期化に失敗しました
@@ -1120,6 +1134,7 @@ translations:
   'Failed to restart: {}': '再起動に失敗しました: {}'
   'Failed to resume: {}': '再開に失敗しました: {}'
   Failed to save LED configuration: LED設定の保存に失敗しました
+  Failed to save WiFi network: WiFi ネットワークを保存できませんでした
   Failed to save config.: 設定の保存に失敗しました。
   Failed to save configuration: 設定の保存に失敗しました
   Failed to save fan configuration: ファン設定の保存に失敗しました
@@ -1140,6 +1155,7 @@ translations:
   'Failed to start installer: ': 'インストーラーの起動に失敗しました: '
   'Failed to start print: {}': '印刷の開始に失敗しました: {}'
   'Failed to start uninstaller: ': 'アンインストーラーの起動に失敗しました: '
+  'Failed to subscribe to printer updates: {}': 'プリンターの更新を受信できませんでした: {}'
   Failed to toggle %s: '%s の切り替えに失敗しました'
   'Failed to toggle timelapse: {}': 'タイムラプスの切替に失敗しました: {}'
   'Failed to turn off heaters: {}': 'ヒーターのオフに失敗しました: {}'
@@ -1227,6 +1243,7 @@ translations:
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: 'フィラメントが切れました。自動補充がオフのため、CFSは自動でスプールを切り替えません。フィラメントを装填してから再開してください。'
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: フィラメントが切れました。CFSは適合するスプールを認識していますが、該当するスロットは空です。いずれかを装填してから再開してください。
   Filament reload failed: フィラメントの再装填に失敗しました
+  Filament remap not supported on this printer — print will use the firmware's current tool mapping: このプリンターはフィラメントの再割り当てに対応していません — 印刷はファームウェアの現在のツール割り当てを使用します
   Filament remapping is unavailable: フィラメントのリマップは利用できません
   Filament runout: フィラメント切れ
   Filament runout and motion detection sensors: フィラメント切れとモーション検出センサー
@@ -1244,6 +1261,7 @@ translations:
   File: ファイル
   File Size: ファイルサイズ
   File Will Stop the Printer: 'ファイルがプリンターを停止します'
+  File not found on printer.: プリンター上にファイルが見つかりません。
   'File not found: {}': 'ファイルが見つかりません: {}'
   Filename: ファイル名
   Fine: 微動
@@ -1256,6 +1274,7 @@ translations:
   Fireworks: 花火
   Firmware Restart: ファームウェア再起動
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: ファームウェアはバイパスがないと報告しています。フィラメントをエクストルーダーに直接送っている場合は有効にしてください
+  'Firmware restart failed: {}': 'ファームウェア再起動に失敗しました: {}'
   Firmware restarting...: ファームウェア再起動中...
   Firmware saved X = Y's value; the measured X result was discarded: ファームウェアは X の値として Y の値を保存しました。測定された X の結果は破棄されました。
   'Fix: chmod 644 {}, then restart': '修正：chmod 644 {} を実行して再起動してください'
@@ -1422,6 +1441,7 @@ translations:
   'Homing failed: ': 'ホーミングに失敗: '
   'Homing failed: {}': 'ホーミングに失敗しました: {}'
   Homing first...: ホーミング中...
+  Homing is disabled while a print is in progress: 印刷中はホーミングできません
   Homing may still be running — response timed out: ホーミングがまだ実行中の可能性があります — 応答タイムアウト
   Homing selector: 'セレクターをホーミングしています'
   Homing timed out: ホーミングがタイムアウトしました
@@ -1570,11 +1590,14 @@ translations:
   Klipper Error: Klipper エラー
   Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart.: Klipper
     ファームウェアがホストから切断されました。Klipper を再起動するか、ファームウェア再起動を実行してみてください。
+  Klipper has disconnected from Moonraker. Check for errors in your printer interface.: Klipper が Moonraker から切断されました。プリンターのインターフェースでエラーを確認してください。
   ? Klipper has entered an error state. This is typically caused by an MCU connection
     failure or configuration error. Try a firmware restart.
   : Klipper がエラー状態になりました。これは通常、MCU 接続の失敗または設定エラーが原因です。ファームウェア再起動を試してください。
+  Klipper has entered shutdown state.: Klipper がシャットダウン状態になりました。
   Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error.: Klipper
     がシャットダウン状態になりました。緊急停止、熱暴走、または設定エラーが原因の可能性があります。
+  Klipper is halted — restart firmware to continue: Klipper が停止しています — 続行するにはファームウェアを再起動してください
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper は 'default' を新しいキャリブレーション用に予約しています。別の名前を選んでください。"
   Klipper restarting - macros activating: 'Klipper を再起動しています - マクロを有効化中'
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
@@ -1806,6 +1829,7 @@ translations:
   Monitoring: モニタリング
   Month: 月
   Moonraker: Moonraker
+  Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started.: '{} の Moonraker が応答しません。Moonraker はこのプリンター上で動作しているため、Klipper と Moonraker のサービスが起動しているか確認してください。'
   Moonraker restarted but Spoolman not connected. Check server.: Moonraker は再起動しましたが
     Spoolman に未接続です。サーバーを確認してください。
   ? "Moonraker restarting...\nWaiting for reconnection..."
@@ -2142,6 +2166,7 @@ translations:
   'Peak:': 'ピーク:'
   Peaks {} Hz: "ピーク {} Hz"
   Performance: パフォーマンス
+  Permission denied. Check printer configuration.: 権限がありません。プリンターの設定を確認してください。
   Phomemo (Bluetooth): Phomemo (Bluetooth)
   Phomemo M110: Phomemo M110
   Pick: 選択
@@ -2288,6 +2313,8 @@ translations:
   Printer Type: プリンタータイプ
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): プリンターはジョブを受け付けましたが印刷していません
     — カバー、用紙、ラベルの種類を確認してください (firmware status=0x{:02X} error=0x{:02X})
+  'Printer command ''{}'' failed: {}': 'プリンターコマンド ''{}'' が失敗しました: {}'
+  Printer command '{}' timed out after {}ms: プリンターコマンド '{}' が {} ms でタイムアウトしました
   Printer connection unavailable: プリンターとの接続が利用できません
   Printer database format error: プリンターデータベースの形式エラー
   Printer database is corrupt: プリンターデータベースが破損しています
@@ -2298,7 +2325,10 @@ translations:
   Printer hardware detected: プリンターのハードウェアを検出
   Printer image set to auto-detect: プリンター画像を自動検出に設定しました
   Printer is busy - {} stays in the queue: 'プリンターは使用中です – {} はキューに残ります'
+  Printer is busy — try again in a moment: プリンターがビジー状態です — しばらくしてからもう一度お試しください
   Printer is not paired — pair it first: プリンターがペアリングされていません — 先にペアリングしてください
+  Printer is not ready: プリンターの準備ができていません
+  Printer is not ready. Please wait for initialization.: プリンターの準備ができていません。初期化が終わるまでお待ちください。
   'Printer message: {}': 'プリンターのメッセージ: {}'
   Printer name: プリンター名
   Printer not connected: プリンターが接続されていません
@@ -2423,6 +2453,7 @@ translations:
   Reboot failed: 再起動に失敗しました
   Reboot failed — host is still reachable: 再起動に失敗しました — ホストに依然として到達可能です
   Recalibrate or view detailed results anytime in Settings.: 設定からいつでも再キャリブレーションや詳細結果の確認ができます。
+  Received oversized data from printer ({} bytes). This may indicate a communication error.: プリンターからサイズ超過のデータを受信しました ({} バイト)。通信エラーの可能性があります。
   Recent Prints: 最近の印刷
   Recently Printed: 最近印刷されたもの
   Reconnect: 再接続
@@ -2436,7 +2467,6 @@ translations:
   Recovering AFC system...: AFCシステムを復旧中...
   Recovering...: 復旧中...
   Recovery failed: 復旧失敗
-  'Recovery failed: ': '復旧に失敗しました: '
   'Recovery failed: {}': '復旧に失敗しました: {}'
   Reduce Sensitivity: 感度を下げる
   Reduce ringing and ghosting artifacts: リンギングとゴーストのアーティファクトを軽減
@@ -2493,6 +2523,7 @@ translations:
   Reprint: 再印刷
   Reprint Last: 前回を再印刷
   Request Failed: 要求に失敗しました
+  Request timed out. The printer may be busy.: 要求がタイムアウトしました。プリンターがビジー状態の可能性があります。
   Require Confirmation?: 確認が必要ですか？
   Require confirmation before emergency stop: 緊急停止前に確認を求める
   Requires Moonraker power device: 'Moonraker電源デバイスが必要です'
@@ -2534,6 +2565,7 @@ translations:
   Restart Now: 今すぐ再起動
   Restart Required: 再起動が必要です
   'Restart failed: not connected': '再起動に失敗: 未接続'
+  'Restart failed: {}': '再起動に失敗しました: {}'
   Restart from the beginning to recover: 復旧するには最初からやり直してください
   Restart pending: '再起動保留中'
   Restart the display application: ディスプレイアプリケーションを再起動
@@ -2880,6 +2912,7 @@ translations:
   Spoolman was not configured.: Spoolman は設定されていませんでした。
   'Spoolman: %zu Spool%s': 'Spoolman: %zu 個のスプール%s'
   'Spoolman: %zu/%zu Spool%s': 'Spoolman: %zu/%zu 個のスプール%s'
+  'Spools are on the bed: remove them and confirm before moving the printer': 'ベッドにスプールがあります: 取り除いて確認してからプリンターを動かしてください'
   'Spools are on the bed: tap the drying banner to confirm they are off, then restart.': 'ベッドにスプールがあります: 乾燥のバナーをタップして取り出したことを確認してから、再起動してください。'
 
   'Spools on the bed: start drying, or confirm none were placed': 'ベッドにスプールがあります: 乾燥を開始するか、置いていないことを確認してください'
@@ -3091,6 +3124,7 @@ translations:
   : プリンターはホームに戻ってから、ベッドをノズルからできるだけ離します。耐熱性が足りずに変形するスプールもあります。スプールをベッドから取り出したことを確認するまで、この画面からは何も動きません。Mainsail、マクロ、スライサーから送られた印刷はブロックされません。
 
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: プリンターがホーミングされていません。続行すると全軸がホーミングされ、ツールヘッドが移動します。ベッドに物がないことを確認してください。
+  The printer isn't detecting that any filament is currently loaded. What would you like to do?: プリンターは現在フィラメントが装填されていることを検出していません。どうしますか？
   The printer lost power during a print. It can resume where it left off.: 印刷中にプリンターの電源が失われました。中断した箇所から再開できます。
   The printer lost power during a print. The resumed layer may not line up exactly.: 印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。
   The printer lost power while printing {}. Resume where it left off?: '{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？'
@@ -3163,6 +3197,8 @@ translations:
   This printer fills its gates from Spoolman. Make colour, material and spool changes in Spoolman.: このプリンターのゲートは Spoolman から設定されます。色・素材・スプールの変更は Spoolman で行ってください。
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。
+  This printer's network service controls the WiFi radio: このプリンターのネットワークサービスが WiFi 無線を制御しています
+  This printer's network service manages saved WiFi networks: このプリンターのネットワークサービスが保存済みの WiFi ネットワークを管理しています
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : プラグインの Moonraker コンポーネントを削除し、Moonraker を再起動します。プリンターは一時的に切断されます。PRINT_START に古いフェーズトラッキングの行が残っている場合、それらも削除されますが、バックアップは保持されます。Klipper を再起動すると、その変更が適用されます。
   This replaces the printer's helper macros with the current version and restarts Klipper.: 'プリンターのヘルパーマクロを現在のバージョンに置き換え、Klipper を再起動します。'
@@ -3296,6 +3332,8 @@ translations:
   USB drive connected: USB ドライブが接続されました
   USB drive removed: USB ドライブが取り外されました
   USB printer access denied — check permissions: USB プリンターへのアクセスが拒否されました — 権限を確認してください
+  Unable to reach printer at {}. Check that the printer is powered on and that this address is correct.: '{} のプリンターに接続できません。プリンターの電源が入っていて、このアドレスが正しいか確認してください。'
+  Unable to reach printer. Check power and network connection.: プリンターに接続できません。電源とネットワーク接続を確認してください。
   Unavailable: 利用不可
   Unavailable on this printer: このプリンターでは利用できません
   Undo: 元に戻す
@@ -3454,12 +3492,19 @@ translations:
   WiFi Disabled: WiFi 無効
   WiFi Enabled: WiFi 有効
   WiFi Network: WiFi ネットワーク
+  WiFi Permission Denied: WiFi の権限がありません
+  WiFi Service Not Running: WiFi サービスが動作していません
   WiFi Unavailable: WiFi を利用できません
   WiFi and Ethernet configuration: WiFi とイーサネットの設定
   WiFi control unavailable: WiFi 制御は利用できません
   WiFi hardware unavailable: WiFi ハードウェアが利用できません
+  'WiFi initialization failed: {}': 'WiFi の初期化に失敗しました: {}'
   WiFi radio did not change state: WiFiの状態が変わりませんでした
+  WiFi scan failed. Try again.: WiFi のスキャンに失敗しました。もう一度お試しください。
   WiFi unavailable: WiFi が利用できません
+  WiFi unavailable. Cannot connect to network.: WiFi を利用できません。ネットワークに接続できません。
+  WiFi unavailable. Cannot forget network.: WiFi を利用できません。ネットワークを削除できません。
+  WiFi unavailable. Cannot scan for networks.: WiFi を利用できません。ネットワークをスキャンできません。
   WiFi was configured but hardware is not available. Check system configuration.: WiFi
     は設定されていますが、ハードウェアが利用できません。システム設定を確認してください。
   Widget Labels: ウィジェットラベル
@@ -3614,6 +3659,7 @@ translations:
   v%s available: v%s が利用可能です
   v{} installed! Restarting...: v{} をインストールしました！再起動中...
   v{} is available. Tap to update.: v{} が利用可能です。タップして更新してください。
+  wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant が動作していません。WiFi 機能は利用できません。
   you have: 現在は
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 約{}分'
   '{} Hardware Issues': 'ハードウェアの問題 {} 件'

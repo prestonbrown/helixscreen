@@ -1019,11 +1019,6 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         if (profile_->try_match_signal(line, match)) {
             real_signal_seen_.store(true, std::memory_order_relaxed);
             // Profile messages are English tags — resolve through the pack.
-            // Runs on the WebSocket thread like the ~15 pre-existing lv_tr
-            // sites in this collector (update_phase's built-in labels); the
-            // selected_lang swap race this shares with them is the documented
-            // #1219 family and needs a collector-wide marshal, not a
-            // per-call-site fix.
             match.message = lv_tr(match.message.c_str());
             if (profile_->progress_mode() == PrintStartProfile::ProgressMode::SEQUENTIAL) {
                 update_phase(match.phase, match.message, match.progress);

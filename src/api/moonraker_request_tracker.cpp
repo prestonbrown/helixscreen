@@ -146,11 +146,9 @@ int MoonrakerRequestTracker::send_fire_and_forget(hv::WebSocketClient& ws,
     return result < 0 ? result : 0;
 }
 
-bool MoonrakerRequestTracker::route_response(
-    const json& msg,
-    std::function<void(MoonrakerEventType, const std::string&, bool, const std::string&)>
-        emit_event,
-    std::function<bool()> suppress_error_toast) {
+bool MoonrakerRequestTracker::route_response(const json& msg,
+                                             helix::MoonrakerEventCallback emit_event,
+                                             std::function<bool()> suppress_error_toast) {
     // Check if this is a response message (has "id" field)
     if (!msg.contains("id")) {
         return false;
@@ -232,9 +230,7 @@ bool MoonrakerRequestTracker::route_response(
             spdlog::error("[Request Tracker] Request {} failed: {}", method_name, error.message);
 
             // Emit RPC error event only when no caller will surface it
-            emit_event(MoonrakerEventType::RPC_ERROR,
-                       fmt::format("Printer command '{}' failed: {}", method_name, error.message),
-                       true, method_name);
+            emit_event(moonraker_event::rpc_failed(method_name, error.message));
         } else if (suppress_toast) {
             spdlog::debug("[Request Tracker] Request {} failed during shutdown (suppressed): {}",
                           method_name, error.message);
@@ -301,9 +297,7 @@ bool MoonrakerRequestTracker::cancel(RequestId id) {
     return false;
 }
 
-void MoonrakerRequestTracker::check_timeouts(
-    std::function<void(MoonrakerEventType, const std::string&, bool, const std::string&)>
-        emit_event) {
+void MoonrakerRequestTracker::check_timeouts(helix::MoonrakerEventCallback emit_event) {
     // Two-phase pattern: collect events and callbacks under lock, invoke outside lock
     // This prevents deadlock if event handler or callback tries to send new request
     struct TimeoutInfo {
@@ -443,10 +437,7 @@ void MoonrakerRequestTracker::check_timeouts(
         // into silent mode (e.g. EXCLUDE_OBJECT, which can legitimately sit queued for
         // minutes during pre-print heating) handle their own error UX via the error callback.
         if (!info.silent) {
-            emit_event(MoonrakerEventType::REQUEST_TIMEOUT,
-                       fmt::format("Printer command '{}' timed out after {}ms", info.method_name,
-                                   info.timeout_ms),
-                       false, info.method_name);
+            emit_event(moonraker_event::request_timed_out(info.method_name, info.timeout_ms));
         }
 
         if (info.error_callback) {

@@ -71,6 +71,12 @@ class ActionPromptModal : public Modal {
     bool show_prompt(lv_obj_t* parent, const PromptData& data);
 
     /**
+     * @brief Show a one-shot prompt whose instance the modal stack owns and frees on close
+     * @return true if shown; on failure the instance is freed
+     */
+    static bool show_owned_prompt(lv_obj_t* parent, const PromptData& data);
+
+    /**
      * @brief Set callback for when a button is clicked
      *
      * The callback receives the gcode string associated with the button.
@@ -167,12 +173,11 @@ class ActionPromptModal : public Modal {
  * this toast would leave the failure with no surface at all. See
  * include/rpc_error_policy.h.
  *
- * Safe to call from the WebSocket background thread - the notification layer
- * marshals to the main thread itself.
+ * Main thread only: it shows a toast.
  *
  * @param error_message Klipper's message from the failed RPC (MoonrakerError::
- *                      user_message()). Empty falls back to a generic string so
- *                      the toast is never blank.
+ *                      localized_message()). Empty falls back to a generic string
+ *                      so the toast is never blank.
  */
 void report_action_prompt_gcode_failure(const std::string& error_message);
 

@@ -189,7 +189,7 @@ void LedController::deinit() {
     pending_query_ids_.clear();
     configfile_config_ = nlohmann::json();
     // Re-arm the startup preference. deinit() only runs from
-    // Application::tear_down_printer_state() (printer switch, add-printer wizard)
+    // PrinterSession::tear_down_printer_state() (printer switch, add-printer wizard)
     // and shutdown — a rediscovery re-runs init() alone and must NOT re-arm it.
     startup_preference_applied_ = false;
     wled_discovery_pending_ = false;
@@ -595,7 +595,7 @@ void LedController::update_led_pin_config(const nlohmann::json& configfile_confi
 namespace {
 
 /// False, after logging and telling on_error, when a backend has no API yet.
-/// Application::init_core_subjects() runs init(nullptr, nullptr), so this is reachable.
+/// PrinterSession::init_core_subjects() runs init(nullptr, nullptr), so this is reachable.
 bool require_api(const IMoonrakerAPI* api, const char* call, const std::string& target,
                  const NativeBackend::ErrorCallback& on_error) {
     if (api != nullptr) {

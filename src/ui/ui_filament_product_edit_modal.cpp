@@ -95,10 +95,8 @@ FilamentProductEditModal::FilamentProductEditModal() = default;
 FilamentProductEditModal::~FilamentProductEditModal() {
     if (active_instance_ == this)
         active_instance_ = nullptr;
-    if (subjects_initialized_ && lv_is_initialized()) {
-        lv_subject_deinit(&secondary_text_subject_);
-        subjects_initialized_ = false;
-    }
+    subjects_.deinit_all();
+    subjects_initialized_ = false;
 }
 
 void FilamentProductEditModal::set_on_saved(SavedCallback cb) {
@@ -161,7 +159,7 @@ void FilamentProductEditModal::init_subjects() {
         return;
     lv_subject_init_string(&secondary_text_subject_, secondary_text_buf_, nullptr,
                            sizeof(secondary_text_buf_), lv_tr("Delete"));
-    lv_xml_register_subject(nullptr, "filament_product_secondary_text", &secondary_text_subject_);
+    subjects_.publish("filament_product_secondary_text", &secondary_text_subject_);
     subjects_initialized_ = true;
 }
 

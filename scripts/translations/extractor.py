@@ -543,6 +543,33 @@ def _iter_inline_texts(content: str):
             continue
         yield text, match.start(3)
 
+# <prop name="message" default="..."/> in a component's <api>. The default is
+# what a $message reference renders when the caller passes nothing, so where
+# the component forwards that prop into a translation key the default IS a key.
+_PROP_DEFAULT_RE = re.compile(r"<prop\b([^>]*)>")
+_PROP_ATTR_RE = re.compile(r'(?<![\w])(name|default)="([^"]*)"')
+
+
+def _iter_tag_prop_defaults(content: str):
+    """Yield (text, match_start) for prop defaults forwarded into an explicit tag.
+
+    A prop forwarded only as ``text="$x"`` stays out: that renders the default
+    verbatim and never retranslates, so it is not a key."""
+    scanned = _blank_xml_comments(content)
+    for match in _PROP_DEFAULT_RE.finditer(scanned):
+        attrs = dict(_PROP_ATTR_RE.findall(match.group(1)))
+        name, default = attrs.get("name"), attrs.get("default")
+        if not name or not default or default.startswith(("$", "#")):
+            continue
+        if not any(
+            re.search(rf'(?<![\w]){attr}="\${re.escape(name)}"', scanned)
+            for attr in EXPLICIT_TAG_ATTRIBUTES
+        ):
+            continue
+        text = _decode_xml_entities(default)
+        if not should_skip_text(text):
+            yield text, match.start()
+
 
 def should_skip_cpp_text(text: str) -> bool:
     """Determine if C++ text should be skipped (not user-facing)."""
@@ -797,6 +824,9 @@ def extract_strings_from_xml(xml_path: Path) -> Set[str]:
     for text, _pos in _iter_inline_texts(content):
         result.add(text)
 
+    for text, _pos in _iter_tag_prop_defaults(content):
+        result.add(text)
+
     return result
 
 
@@ -882,7 +912,7 @@ def extract_strings_with_locations(xml_path: Path) -> Dict[str, List[Tuple[str, 
                 result[decoded] = []
             result[decoded].append((filename, line_num))
 
-    for text, pos in _iter_inline_texts(content):
+    for text, pos in [*_iter_inline_texts(content), *_iter_tag_prop_defaults(content)]:
         line_num = content[:pos].count("\n") + 1
         result.setdefault(text, []).append((filename, line_num))
 

@@ -24,6 +24,9 @@ struct PluginUi {
                       const Attrs& attrs)>
         open;
     std::function<void(int handle)> close;
+    /// Overlays `plugin_id` has open, so the binding can tell a no-op open
+    /// (the component is already showing) from one that created an overlay.
+    std::function<size_t(const std::string& plugin_id)> open_count;
 };
 
 /// Plugin overlays on the navigation stack. Main thread.
@@ -43,8 +46,9 @@ class PluginOverlayHost {
     void push(lv_obj_t* root, IPanelLifecycle* lifecycle, std::function<void()> on_nav_closed);
 
     /// Creates `component` on the active screen and pushes it. 0 when it cannot be
-    /// created. `on_closed` runs when the overlay is closed for any reason but an
-    /// unload of its plugin.
+    /// created. A component the plugin already has open is a no-op returning the
+    /// existing handle. `on_closed` runs when the overlay is closed for any reason
+    /// but an unload of its plugin.
     int open(const std::string& plugin_id, const std::string& component,
              std::function<void()> on_closed, const PluginUi::Attrs& attrs = {});
     void close(int handle);
@@ -70,6 +74,7 @@ class PluginOverlayHost {
     struct Record {
         int handle = 0;
         std::string plugin_id;
+        std::string component;
         lv_obj_t* root = nullptr;
         std::function<void()> on_closed;
     };

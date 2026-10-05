@@ -629,13 +629,23 @@ void ConsolePanel::subscribe_to_gcode_responses() {
     static std::atomic<uint64_t> s_handler_id{0};
     gcode_handler_name_ = "console_panel_" + std::to_string(++s_handler_id);
 
-    // Register for notify_gcode_response notifications
-    // Guard with lifetime token in case panel is destroyed before unsubscribe
+    // Register for notify_gcode_response notifications. The callback runs on the
+    // WebSocket thread: it parses from captured values only and touches no member
+    // until token.defer() has moved it to the main thread. Filtering happens there
+    // too, so the engine's pattern vector is read on the thread that mutates it.
     api->register_method_callback("notify_gcode_response", gcode_handler_name_,
                                   [this, token = lifetime_.token()](const nlohmann::json& msg) {
-                                      if (token.expired())
+                                      auto entry = entry_from_gcode_response(msg);
+                                      if (!entry) {
                                           return;
-                                      on_gcode_response(msg);
+                                      }
+                                      token.defer("ConsolePanel::gcode_entry",
+                                                  [this, e = std::move(*entry)]() {
+                                                      if (!accepts(e, firmware_filter_)) {
+                                                          return;
+                                                      }
+                                                      add_entry(e);
+                                                  });
                                   });
 
     is_subscribed_ = true;
@@ -656,27 +666,6 @@ void ConsolePanel::unsubscribe_from_gcode_responses() {
 
     is_subscribed_ = false;
     gcode_handler_name_.clear();
-}
-
-void ConsolePanel::on_gcode_response(const nlohmann::json& msg) {
-    auto parsed = entry_from_gcode_response(msg);
-    if (!parsed) {
-        return;
-    }
-    GcodeEntry entry = std::move(*parsed);
-
-    // CRITICAL: Defer LVGL operations to main thread via token.defer
-    // WebSocket callbacks run on libhv thread - direct LVGL calls cause crashes.
-    // Use token.defer() (not lifetime_.defer()) to avoid TOCTOU race (#707).
-    // Filtering decisions also happen on the main thread so the engine's pattern
-    // vector is mutated and read on the same thread (no lock required).
-    auto tok = lifetime_.token();
-    tok.defer("ConsolePanel::gcode_entry", [this, entry = std::move(entry)]() {
-        if (!accepts(entry, firmware_filter_)) {
-            return;
-        }
-        add_entry(entry);
-    });
 }
 
 void ConsolePanel::add_entry(const GcodeEntry& entry) {
@@ -749,9 +738,9 @@ void ConsolePanel::send_gcode_command() {
     if (api) {
         api->execute_gcode(command, nullptr, // success: no-op, response comes via WS subscription
                            [token = lifetime_.token()](const MoonrakerError& err) {
-                               if (token.expired())
-                                   return;
-                               NOTIFY_ERROR(lv_tr("Failed to send command: {}"), err.message);
+                               token.defer("ConsolePanel::send_error", [msg = err.message]() {
+                                   NOTIFY_ERROR(lv_tr("Failed to send command: {}"), msg);
+                               });
                            });
     } else {
         spdlog::warn("[{}] No IMoonrakerAPI available", get_name());

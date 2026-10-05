@@ -114,6 +114,12 @@ class LuaRuntime {
         return true;
     }
 
+    /// Charges non-Lua memory (a canvas display list) against the same cap alloc()
+    /// enforces; false when it does not fit. Pair every reserve with a release.
+    bool reserve_external(size_t bytes);
+    /// Hands reserved bytes back. Over-release clamps to zero rather than underflowing.
+    void release_external(size_t bytes);
+
     /// Loads text and runs it as a new entry. False if it failed to load or raised.
     bool run_string(const std::string& code, const std::string& chunk_name);
     /// `run_string` on `<plugin_dir>/<relative_path>`.

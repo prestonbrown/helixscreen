@@ -94,16 +94,13 @@ class MoonrakerRequestTracker {
      * invokes outside lock. Handles both success and JSON-RPC error responses.
      *
      * @param msg Parsed JSON message containing "id" field
-     * @param emit_event Function to emit transport events (type, message, is_error, details)
+     * @param emit_event Function to emit transport events
      * @param suppress_error_toast Optional predicate — when it returns true, RPC error
      *        events are logged at debug level instead of error (e.g., during shutdown)
      * @return true if message was a tracked response, false if not a response or unknown ID
      */
-    bool route_response(
-        const json& msg,
-        std::function<void(MoonrakerEventType, const std::string&, bool, const std::string&)>
-            emit_event,
-        std::function<bool()> suppress_error_toast = nullptr);
+    bool route_response(const json& msg, helix::MoonrakerEventCallback emit_event,
+                        std::function<bool()> suppress_error_toast = nullptr);
 
     /**
      * @brief Cancel a pending request (no callbacks invoked)
@@ -120,9 +117,7 @@ class MoonrakerRequestTracker {
      *
      * @param emit_event Function to emit transport events
      */
-    void check_timeouts(
-        std::function<void(MoonrakerEventType, const std::string&, bool, const std::string&)>
-            emit_event);
+    void check_timeouts(helix::MoonrakerEventCallback emit_event);
 
     /**
      * @brief Cancel all pending requests, invoking error callbacks with connection_lost

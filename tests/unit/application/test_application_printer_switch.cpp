@@ -31,14 +31,14 @@
  * hardcoded PanelWidgetManager::clear_all_panel_configs() call to the registry; both
  * spellings must leave these assertions true.
  *
- * The success path of switch_printer() (df() moved, then every per-printer cache
- * dropped, then teardown) is not reachable here. It stays covered by the lint gate
- * "switch_printer invalidates cached panel widget configs before teardown" in
- * tests/shell/test_code_lint.bats.
+ * The teardown and rebuild themselves are not reachable here, but the state machine that
+ * calls them is: PrinterSession::Restart carries them as hooks, so the success paths run
+ * against recorders that log their order and snapshot what had been arranged by then.
  */
 
 #include "ui_update_queue.h"
 
+#include "app_globals.h"
 #include "application_test_fixture.h"
 #include "config.h"
 #include "printer_cache_registry.h"
@@ -48,6 +48,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -80,6 +81,10 @@ class PrinterSwitchFixture : public ApplicationTestFixture {
         helix::ConfigTestAccess::active_printer_id(*cfg_) = "alpha";
         helix::ConfigTestAccess::read_only_mode(*cfg_) = false;
 
+        // The restart paths fire the real registry. Registrations other tests left behind
+        // can capture objects that no longer exist, so start from an empty one.
+        helix::PrinterCacheRegistry::instance().clear();
+
         // Count per-printer cache invalidations without caring who triggers them.
         helix::PrinterCacheRegistry::instance().register_invalidator(
             PROBE_NAME, [this]() { ++invalidations_; });
@@ -89,11 +94,13 @@ class PrinterSwitchFixture : public ApplicationTestFixture {
         // UpdateQueue. This Application was never run(), so there is nothing to release.
         ApplicationTestAccess::neutralize_destructor(app_);
         ApplicationTestAccess::set_config(app_, cfg_);
+        record_restart_hooks();
     }
 
     ~PrinterSwitchFixture() override {
         // The registry outlives the fixture; the invalidator closes over `this`.
-        helix::PrinterCacheRegistry::instance().unregister(PROBE_NAME);
+        helix::PrinterCacheRegistry::instance().clear();
+        set_wizard_cancel_callback(nullptr);
         // cancel_add_printer_wizard() defers its teardown through AsyncLifetimeGuard;
         // that callback closes over app_, so drop it rather than run it.
         helix::ui::UpdateQueueTestAccess::discard_pending(helix::ui::UpdateQueue::instance());
@@ -119,9 +126,42 @@ class PrinterSwitchFixture : public ApplicationTestFixture {
         return std::find(ids.begin(), ids.end(), id) != ids.end();
     }
 
+    /// Replaces the teardown / rebuild / land-home work with recorders: the real ones
+    /// rebuild the whole application. Each hook logs its name, and teardown and rebuild also
+    /// snapshot what the state machine had arranged by then.
+    void record_restart_hooks() {
+        helix::PrinterSession::Restart hooks;
+        hooks.teardown = [this]() {
+            events_.push_back("teardown");
+            active_at_teardown_ = cfg_->get_active_printer_id();
+            invalidations_at_teardown_ = invalidations_;
+            latch_in_teardown_ = ApplicationTestAccess::soft_restart_in_progress(app_);
+            // The real teardown clears the cancel callback.
+            set_wizard_cancel_callback(nullptr);
+        };
+        hooks.rebuild = [this]() {
+            events_.push_back("rebuild");
+            cancel_callback_at_rebuild_ = get_wizard_cancel_callback() != nullptr;
+            latch_in_rebuild_ = ApplicationTestAccess::soft_restart_in_progress(app_);
+            if (rebuild_throws_) {
+                throw std::runtime_error("rebuild failed");
+            }
+        };
+        hooks.land_home = [this]() { events_.push_back("home"); };
+        ApplicationTestAccess::set_restart_hooks(app_, std::move(hooks));
+    }
+
     helix::Config* cfg_ = nullptr;
     Application app_;
     int invalidations_ = 0;
+
+    std::vector<std::string> events_;
+    std::string active_at_teardown_;
+    int invalidations_at_teardown_ = -1;
+    bool latch_in_teardown_ = false;
+    bool latch_in_rebuild_ = false;
+    bool cancel_callback_at_rebuild_ = false;
+    bool rebuild_throws_ = false;
 };
 
 } // namespace
@@ -131,7 +171,7 @@ class PrinterSwitchFixture : public ApplicationTestFixture {
 // ============================================================================
 
 TEST_CASE_METHOD(PrinterSwitchFixture,
-                 "Application::switch_printer is ignored while a soft restart is running",
+                 "PrinterSession::switch_printer is ignored while a soft restart is running",
                  "[application][switch_printer]") {
     ApplicationTestAccess::soft_restart_in_progress(app_) = true;
     forget_persisted_settings();
@@ -156,7 +196,7 @@ TEST_CASE_METHOD(PrinterSwitchFixture,
 // ============================================================================
 
 TEST_CASE_METHOD(PrinterSwitchFixture,
-                 "Application::switch_printer rejects an unknown printer without mutating state",
+                 "PrinterSession::switch_printer rejects an unknown printer without mutating state",
                  "[application][switch_printer]") {
     forget_persisted_settings();
 
@@ -186,10 +226,11 @@ TEST_CASE_METHOD(PrinterSwitchFixture,
 // cancel_add_printer_wizard() — recovery surgery
 // ============================================================================
 
-TEST_CASE_METHOD(PrinterSwitchFixture,
-                 "Application::cancel_add_printer_wizard removes the failed printer and restores "
-                 "the previous one",
-                 "[application][switch_printer]") {
+TEST_CASE_METHOD(
+    PrinterSwitchFixture,
+    "PrinterSession::cancel_add_printer_wizard removes the failed printer and restores "
+    "the previous one",
+    "[application][switch_printer]") {
     // TEST_MIRROR_OK: describes the PRECONDITION add_printer_via_wizard() leaves
     // behind, not logic reimplemented here — the assertions below all run against
     // the real ApplicationTestAccess::cancel_add_printer_wizard(). The wizard entry
@@ -227,7 +268,7 @@ TEST_CASE_METHOD(PrinterSwitchFixture,
 }
 
 TEST_CASE_METHOD(PrinterSwitchFixture,
-                 "Application::cancel_add_printer_wizard is inert without recovery state",
+                 "PrinterSession::cancel_add_printer_wizard is inert without recovery state",
                  "[application][switch_printer]") {
     cfg_->add_printer("printer-3", nlohmann::json{{"wizard_completed", false}});
     REQUIRE(cfg_->set_active_printer("printer-3"));
@@ -246,7 +287,7 @@ TEST_CASE_METHOD(PrinterSwitchFixture,
 
 TEST_CASE_METHOD(
     PrinterSwitchFixture,
-    "Application::cancel_add_printer_wizard is ignored while a soft restart is running",
+    "PrinterSession::cancel_add_printer_wizard is ignored while a soft restart is running",
     "[application][switch_printer]") {
     cfg_->add_printer("printer-3", nlohmann::json{{"wizard_completed", false}});
     REQUIRE(cfg_->set_active_printer("printer-3"));
@@ -289,4 +330,81 @@ TEST_CASE_METHOD(PrinterSwitchFixture,
     CHECK_FALSE(ApplicationTestAccess::type_mismatch_shown(app_));
     CHECK_FALSE(ApplicationTestAccess::hardware_setup_prompt_shown(app_));
     CHECK_FALSE(ApplicationTestAccess::targeted_reconfig_shown(app_));
+}
+
+// ============================================================================
+// Success paths: the order the soft restart runs its steps in
+// ============================================================================
+
+TEST_CASE_METHOD(
+    PrinterSwitchFixture,
+    "PrinterSession::switch_printer drops caches, tears down, rebuilds, then lands home",
+    "[application][switch_printer]") {
+    ApplicationTestAccess::switch_printer(app_, "beta");
+
+    CHECK(events_ == std::vector<std::string>{"teardown", "rebuild", "home"});
+    // df() has already moved to the new printer and every per-printer cache has been
+    // dropped by the time the teardown runs.
+    CHECK(active_at_teardown_ == "beta");
+    CHECK(invalidations_at_teardown_ == 1);
+    CHECK(settings_persisted());
+    // The latch covers the whole restart and is released after it.
+    CHECK(latch_in_teardown_);
+    CHECK(latch_in_rebuild_);
+    CHECK_FALSE(ApplicationTestAccess::soft_restart_in_progress(app_));
+}
+
+TEST_CASE_METHOD(PrinterSwitchFixture,
+                 "PrinterSession::switch_printer releases the latch when the rebuild throws",
+                 "[application][switch_printer]") {
+    rebuild_throws_ = true;
+
+    CHECK_THROWS_AS(ApplicationTestAccess::switch_printer(app_, "beta"), std::runtime_error);
+    CHECK_FALSE(ApplicationTestAccess::soft_restart_in_progress(app_));
+    // A stuck latch would make this a silent no-op.
+    rebuild_throws_ = false;
+    events_.clear();
+    ApplicationTestAccess::switch_printer(app_, "alpha");
+    CHECK(events_ == std::vector<std::string>{"teardown", "rebuild", "home"});
+}
+
+TEST_CASE_METHOD(PrinterSwitchFixture,
+                 "PrinterSession::add_printer_via_wizard arms the cancel callback between teardown "
+                 "and rebuild",
+                 "[application][switch_printer]") {
+    ApplicationTestAccess::add_printer_via_wizard(app_);
+
+    CHECK(events_ == std::vector<std::string>{"teardown", "rebuild"});
+    // Registered after the teardown (which clears it) and before the rebuild (whose wizard
+    // is what the callback belongs to).
+    CHECK(cancel_callback_at_rebuild_);
+    CHECK(invalidations_at_teardown_ == 1);
+    CHECK(ApplicationTestAccess::wizard_previous_printer_id(app_) == "alpha");
+    CHECK(active_at_teardown_ == cfg_->get_active_printer_id());
+    CHECK(active_at_teardown_ != "alpha");
+    CHECK(has_printer(active_at_teardown_));
+    CHECK_FALSE(ApplicationTestAccess::soft_restart_in_progress(app_));
+}
+
+TEST_CASE_METHOD(PrinterSwitchFixture,
+                 "PrinterSession::cancel_add_printer_wizard restarts onto the restored printer "
+                 "after the click handler returns",
+                 "[application][switch_printer]") {
+    cfg_->add_printer("printer-3", nlohmann::json{{"wizard_completed", false}});
+    REQUIRE(cfg_->set_active_printer("printer-3"));
+    ApplicationTestAccess::wizard_previous_printer_id(app_) = "alpha";
+
+    ApplicationTestAccess::cancel_add_printer_wizard(app_);
+    CHECK(events_.empty());
+
+    const auto exceptions_before = helix::ui::UpdateQueueTestAccess::callback_exception_count();
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    CHECK(helix::ui::UpdateQueueTestAccess::callback_exception_count() == exceptions_before);
+    CHECK(events_ == std::vector<std::string>{"teardown", "rebuild", "home"});
+    CHECK(active_at_teardown_ == "alpha");
+    // Dropped once, by the deferred restart, after the surgery already moved df().
+    CHECK(invalidations_at_teardown_ == 1);
+    CHECK(latch_in_teardown_);
+    CHECK_FALSE(ApplicationTestAccess::soft_restart_in_progress(app_));
 }

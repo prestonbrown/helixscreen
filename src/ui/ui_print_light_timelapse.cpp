@@ -168,7 +168,7 @@ void PrintLightTimelapseControls::handle_timelapse_button() {
             [](const MoonrakerError& err) {
                 spdlog::error("[PrintLightTimelapseControls] Failed to toggle timelapse: {}",
                               err.message);
-                NOTIFY_ERROR(lv_tr("Failed to toggle timelapse: {}"), err.user_message());
+                helix::ui::notify_error_tr(TR_NOOP("Failed to toggle timelapse: {}"), err);
             });
     } else {
         spdlog::warn("[PrintLightTimelapseControls] API not available - cannot control timelapse");

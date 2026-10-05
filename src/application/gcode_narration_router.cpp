@@ -7,6 +7,7 @@
 
 #include "ams_backend.h"
 #include "ams_state.h"
+#include "gcode_response_lines.h"
 #include "i_moonraker_client.h"
 
 #include <spdlog/spdlog.h>
@@ -126,24 +127,7 @@ void GcodeNarrationRouter::process_line(const std::string& line) {
 }
 
 void GcodeNarrationRouter::on_notify_gcode_response(const nlohmann::json& msg) {
-    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty()) {
-        return;
-    }
-
-    const auto& params = msg["params"];
-    if (params[0].is_array()) {
-        for (const auto& line : params[0]) {
-            if (line.is_string()) {
-                process_line(line.get<std::string>());
-            }
-        }
-    } else if (params[0].is_string()) {
-        for (const auto& line : params) {
-            if (line.is_string()) {
-                process_line(line.get<std::string>());
-            }
-        }
-    }
+    for_each_gcode_response_line(msg, [this](const std::string& line) { process_line(line); });
 }
 
 } // namespace helix

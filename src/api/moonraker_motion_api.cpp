@@ -470,7 +470,8 @@ void MoonrakerMotionAPI::execute_gcode(const std::string& gcode, SuccessCallback
                              klippy, gcode.substr(0, 60));
             }
             if (on_error) {
-                on_error(MoonrakerError::not_ready("printer.gcode.script", "Printer is not ready"));
+                on_error(MoonrakerError::refusal("printer.gcode.script",
+                                                 TR_NOOP("Printer is not ready")));
             }
             return;
         }
@@ -506,8 +507,8 @@ void MoonrakerMotionAPI::execute_gcode(const std::string& gcode, SuccessCallback
                          gcode.substr(0, 60));
         }
         if (on_error) {
-            on_error(MoonrakerError::not_ready("printer.gcode.script",
-                                               "Printer is busy — try again in a moment"));
+            on_error(MoonrakerError::refusal("printer.gcode.script",
+                                             TR_NOOP("Printer is busy — try again in a moment")));
         }
         return;
     }

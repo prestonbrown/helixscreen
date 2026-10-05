@@ -1045,7 +1045,14 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
         log_tree_destroyed(PrintStatusTreeDestroyCause::ReplacedByRebuild,
                            printer_state_.get_print_lifecycle());
     }
-    log_tree_created(printer_state_.get_print_lifecycle(), memory_info_source_().available_mb());
+    const helix::MemoryInfo tree_mem = memory_info_source_();
+    log_tree_created(printer_state_.get_print_lifecycle(), tree_mem.available_mb());
+#if defined(HELIX_PLATFORM_ESP32)
+    // Same [heap:<stage>] shape as the firmware's boot milestones, so a boot log
+    // shows what building this tree on top of home cost.
+    spdlog::info("[heap:print-status-up] psram free={}KB largest={}KB", tree_mem.available_kb,
+                 tree_mem.largest_free_kb);
+#endif
 
     // Find G-code viewer, thumbnail, and gradient background widgets
     gcode_viewer_ = lv_obj_find_by_name(thumbnail_section, "print_gcode_viewer");
@@ -2173,7 +2180,7 @@ void PrintStatusPanel::handle_reprint_button() {
                 // Runs on libhv WS event loop — marshal LVGL work to main.
                 token.defer("PrintStatusPanel::reprint_err", [this, err]() {
                     spdlog::error("[{}] Failed to reprint: {}", get_name(), err.message);
-                    NOTIFY_ERROR(lv_tr("Failed to reprint: {}"), err.user_message());
+                    helix::ui::notify_error_tr(TR_NOOP("Failed to reprint: {}"), err);
                     ui_set_button_enabled(btn_cancel_, true);
                 });
             });

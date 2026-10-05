@@ -168,6 +168,9 @@ class ShutdownModal : public Modal {
         StaticSubjectRegistry::instance().register_deinit("ShutdownModal", []() {
             if (!subjects_initialized_)
                 return;
+            if (auto* scope = lv_xml_component_get_scope("shutdown_modal")) {
+                lv_xml_unregister_subject(scope, "shutdown_view_state");
+            }
             lv_subject_deinit(&view_state_subject_);
             subjects_initialized_ = false;
         });

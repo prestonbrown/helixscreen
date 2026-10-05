@@ -201,7 +201,9 @@ void execute_both_shutdown(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
             spdlog::error(
                 "[ShutdownDialog] Printer shutdown failed: {} — proceeding with screen anyway",
                 err.message);
-            ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Shutdown failed"), 6000);
+            helix::ui::run_on_main("ShutdownDialog::shutdown_failed", []() {
+                ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Shutdown failed"), 6000);
+            });
             if (tok.expired())
                 return;
             tok.defer([]() { execute_screen_shutdown(); });
@@ -225,7 +227,9 @@ void execute_both_reboot(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
             spdlog::error(
                 "[ShutdownDialog] Printer reboot failed: {} — proceeding with screen anyway",
                 err.message);
-            ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Reboot failed"), 6000);
+            helix::ui::run_on_main("ShutdownDialog::reboot_failed", []() {
+                ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Reboot failed"), 6000);
+            });
             if (tok.expired())
                 return;
             tok.defer([]() { execute_screen_reboot(); });

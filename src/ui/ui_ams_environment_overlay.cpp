@@ -175,6 +175,9 @@ void AmsEnvironmentOverlay::register_callbacks() {
 // ============================================================================
 
 lv_obj_t* AmsEnvironmentOverlay::create(lv_obj_t* parent) {
+    // The tab <repeat> starts empty: on_ui_destroyed() released the pools a stale
+    // count would bind new tabs to. before_show() publishes the real count.
+    lv_subject_set_int(&zone_count_subject_, 0);
     if (!OverlayBase::create(parent)) {
         return nullptr;
     }
@@ -429,6 +432,10 @@ void AmsEnvironmentOverlay::on_deactivating(DeactivateReason) {
 }
 
 void AmsEnvironmentOverlay::on_ui_destroyed() {
+    // select_zone() and a confirmed keypad still write the dryer inputs while closed.
+    preset_dropdown_ = nullptr;
+    temp_input_ = nullptr;
+    duration_input_ = nullptr;
     tab_label_pool_.reclaim();
     tab_state_pool_.reclaim();
     tab_active_pool_.reclaim();

@@ -343,7 +343,9 @@ int ui_overlay(lua_State* L) {
     }
 
     LuaRuntime* rtp = &rt;
-    int handle = context(L).ui->open(
+    auto& ui = *context(L).ui;
+    size_t opens_before = ui.open_count ? ui.open_count(rt.plugin_id()) : 0;
+    int handle = ui.open(
         component,
         [rtp, on_close_ref, token = rt.token()] {
             if (on_close_ref != LUA_NOREF && !token.expired()) {
@@ -352,9 +354,13 @@ int ui_overlay(lua_State* L) {
             }
         },
         attrs);
+    // A failed or no-op open (the component is already showing) never runs this
+    // call's on_close, so its ref is released here; the showing overlay keeps
+    // the callback it was opened with.
+    if (on_close_ref != LUA_NOREF &&
+        (handle == 0 || (ui.open_count && ui.open_count(rt.plugin_id()) == opens_before)))
+        rt.unref(on_close_ref);
     if (handle == 0) {
-        if (on_close_ref != LUA_NOREF)
-            rt.unref(on_close_ref);
         return luaL_error(L, "helix.ui.overlay: cannot open '%s'", component.c_str());
     }
 

@@ -26,9 +26,11 @@ namespace helix::text_io {
 // Whole files
 // ---------------------------------------------------------------------------
 
-/// The whole file, byte for byte (embedded NULs and CRLF kept). nullopt when
-/// the file cannot be opened or a read fails; an empty file is "".
-std::optional<std::string> read_file(const std::string& path);
+/// The whole file, byte for byte (embedded NULs and CRLF kept), or its first
+/// @p max_bytes when it is longer. nullopt when the file cannot be opened or a
+/// read fails; an empty file is "".
+std::optional<std::string>
+read_file(const std::string& path, std::size_t max_bytes = std::numeric_limits<std::size_t>::max());
 
 /// The first line, as one std::getline would read it: the '\n' is removed, a
 /// '\r' before it is kept. "" for an empty file; nullopt only when the file

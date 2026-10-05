@@ -14,6 +14,7 @@
 #include "panel_widget_registry.h"
 #include "static_subject_registry.h"
 #include "subject_debug_registry.h"
+#include "subject_managed_panel.h"
 #include "wifi_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -24,6 +25,7 @@ static constexpr uint32_t SIGNAL_POLL_INTERVAL_MS = 5000;
 // Subjects owned by NetworkWidget module — created before XML bindings resolve
 static lv_subject_t s_network_icon_state;
 static bool s_subjects_initialized = false;
+static SubjectManager s_subjects;
 
 static void network_widget_init_subjects() {
     if (s_subjects_initialized) {
@@ -32,7 +34,7 @@ static void network_widget_init_subjects() {
 
     // Integer subject: 0=disconnected, 1-4=wifi strength, 5=ethernet
     lv_subject_init_int(&s_network_icon_state, 0);
-    lv_xml_register_subject(nullptr, "home_network_icon_state", &s_network_icon_state);
+    s_subjects.publish("home_network_icon_state", &s_network_icon_state);
     SubjectDebugRegistry::instance().register_subject(
         &s_network_icon_state, "home_network_icon_state", LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
 
@@ -42,7 +44,7 @@ static void network_widget_init_subjects() {
     // Subjects must be deinitialized AFTER panels remove their observers (Phase 2)
     StaticSubjectRegistry::instance().register_deinit("NetworkWidgetSubjects", []() {
         if (s_subjects_initialized && lv_is_initialized()) {
-            lv_subject_deinit(&s_network_icon_state);
+            s_subjects.deinit_all();
             s_subjects_initialized = false;
             spdlog::trace("[NetworkWidget] Subjects deinitialized");
         }

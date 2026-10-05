@@ -595,6 +595,18 @@ const char* touch_range_source_name(TouchRangeSource source) {
     return "none";
 }
 
+TouchRangeSource resolve_touch_range_source(bool env_range_override,
+                                            const TouchRangeSettings& stored,
+                                            int applied_rotation) {
+    if (env_range_override) {
+        return TouchRangeSource::Environment;
+    }
+    if (stored.valid && applied_rotation == 0) {
+        return TouchRangeSource::Stored;
+    }
+    return TouchRangeSource::Declared;
+}
+
 void TouchObservedExtremes::observe(int x, int y) {
     if (distinct_samples == 0) {
         min_x = max_x = x;

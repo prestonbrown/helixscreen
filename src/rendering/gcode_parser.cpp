@@ -21,6 +21,14 @@
 #include <system_error>
 #include <utility>
 
+#if !defined(HELIX_PLATFORM_ESP32)
+#include "lodepng_encode.h"
+#include "stb_image.h"
+
+#include <lvgl.h>
+#include <memory>
+#endif
+
 namespace {
 
 /// Parse a G-code parameter value the way Klipper reads it: klippy's gcode.py
@@ -1362,15 +1370,63 @@ std::vector<uint8_t> base64_decode(const std::string& encoded) {
     return result;
 }
 
+/// Re-encode a JPEG thumbnail as PNG, since every GCodeThumbnail consumer
+/// expects PNG. Empty when it does not decode or exceeds 512px a side, which
+/// still covers the largest card thumbnails slicers write (512x512).
+std::vector<uint8_t> jpeg_to_png(const std::vector<uint8_t>& jpeg) {
+#if defined(HELIX_PLATFORM_ESP32)
+    (void)jpeg;
+    return {};
+#else
+    constexpr int kMaxSide = 512;
+    const int len = static_cast<int>(jpeg.size());
+    int w = 0, h = 0, channels = 0;
+    if (!stbi_info_from_memory(jpeg.data(), len, &w, &h, &channels) || w <= 0 || h <= 0 ||
+        w > kMaxSide || h > kMaxSide) {
+        return {};
+    }
+    std::unique_ptr<unsigned char, void (*)(void*)> rgba(
+        stbi_load_from_memory(jpeg.data(), len, &w, &h, &channels, 4), stbi_image_free);
+    if (!rgba) {
+        return {};
+    }
+    unsigned char* encoded = nullptr;
+    size_t encoded_size = 0;
+    const unsigned err = lodepng_encode32(&encoded, &encoded_size, rgba.get(),
+                                          static_cast<unsigned>(w), static_cast<unsigned>(h));
+    // lodepng allocates through lv_malloc, so the buffer goes back through lv_free.
+    std::unique_ptr<unsigned char, void (*)(void*)> owned(encoded, lv_free);
+    if (err != 0 || !encoded) {
+        return {};
+    }
+    return {encoded, encoded + encoded_size};
+#endif
+}
+
+bool is_jpeg(const std::vector<uint8_t>& data) {
+    return data.size() >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF;
+}
+
 /// Scan header comments for embedded thumbnails ("; thumbnail begin WxH SIZE",
-/// or Creality's "; png begin W*H SIZE") and decode only the largest.
+/// Cura's "; thumbnail_JPG begin WxH SIZE", or Creality's "; png begin W*H
+/// SIZE") and decode the largest. A JPEG block that wins but cannot be
+/// re-encoded yields to the largest PNG block.
 template <typename NextLine>
 GCodeThumbnail scan_best_thumbnail(NextLine next_line, std::string_view source) {
-    GCodeThumbnail best;
-    std::string best_base64;
+    struct Candidate {
+        int width = 0;
+        int height = 0;
+        std::string base64;
+        int pixels() const {
+            return width * height;
+        }
+    };
+    Candidate best_png;
+    Candidate best_jpg;
     int width = 0, height = 0;
     std::string base64;
     bool in_block = false;
+    bool block_is_jpg = false;
     std::string line;
     int lines_read = 0;
     constexpr int max_header_lines = 2000; // Thumbnails should be in first ~2000 lines
@@ -1379,10 +1435,18 @@ GCodeThumbnail scan_best_thumbnail(NextLine next_line, std::string_view source) 
         lines_read++;
 
         size_t begin_pos = line.find("; thumbnail begin ");
+        size_t begin_len = 18;
+        bool jpg_header = false;
+        if (begin_pos == std::string::npos) {
+            begin_pos = line.find("; thumbnail_JPG begin ");
+            begin_len = 22;
+            jpg_header = begin_pos != std::string::npos;
+        }
         size_t png_begin_pos = line.find("; png begin ");
         if (begin_pos != std::string::npos || png_begin_pos != std::string::npos) {
             const bool creality = begin_pos == std::string::npos;
-            const char* dims = line.c_str() + (creality ? png_begin_pos + 12 : begin_pos + 18);
+            const char* dims =
+                line.c_str() + (creality ? png_begin_pos + 12 : begin_pos + begin_len);
             int w = 0, h = 0, size = 0;
             if (sscanf(dims, creality ? "%d*%d %d" : "%dx%d %d", &w, &h, &size) >= 2 &&
                 (!creality || (w > 0 && h > 0))) {
@@ -1390,6 +1454,7 @@ GCodeThumbnail scan_best_thumbnail(NextLine next_line, std::string_view source) 
                 height = h;
                 base64.clear();
                 in_block = true;
+                block_is_jpg = jpg_header;
                 spdlog::debug("[GCode Parser] Found {}thumbnail {}x{} in {}",
                               creality ? "Creality " : "", w, h, source);
             }
@@ -1397,11 +1462,13 @@ GCodeThumbnail scan_best_thumbnail(NextLine next_line, std::string_view source) 
         }
 
         if (in_block && (line.find("; thumbnail end") != std::string::npos ||
+                         line.find("; thumbnail_JPG end") != std::string::npos ||
                          line.find("; png end") != std::string::npos)) {
-            if (!base64.empty() && width * height > best.pixel_count()) {
-                best.width = width;
-                best.height = height;
-                best_base64.swap(base64);
+            Candidate& slot = block_is_jpg ? best_jpg : best_png;
+            if (!base64.empty() && width * height > slot.pixels()) {
+                slot.width = width;
+                slot.height = height;
+                slot.base64.swap(base64);
             }
             in_block = false;
             continue;
@@ -1420,11 +1487,32 @@ GCodeThumbnail scan_best_thumbnail(NextLine next_line, std::string_view source) 
         }
     }
 
-    if (!best_base64.empty()) {
-        best.png_data = base64_decode(best_base64);
+    // Largest first; only the winner is decoded unless it fails.
+    std::vector<const Candidate*> order;
+#if !defined(HELIX_PLATFORM_ESP32)
+    if (!best_jpg.base64.empty()) {
+        order.push_back(&best_jpg);
     }
-    if (best.png_data.empty()) {
-        best = GCodeThumbnail();
+#endif
+    if (!best_png.base64.empty()) {
+        order.push_back(&best_png);
+    }
+    std::stable_sort(order.begin(), order.end(), [](const Candidate* a, const Candidate* b) {
+        return a->pixels() > b->pixels();
+    });
+
+    GCodeThumbnail best;
+    for (const Candidate* c : order) {
+        std::vector<uint8_t> data = base64_decode(c->base64);
+        if (is_jpeg(data)) {
+            data = jpeg_to_png(data);
+        }
+        if (!data.empty()) {
+            best.width = c->width;
+            best.height = c->height;
+            best.png_data = std::move(data);
+            break;
+        }
     }
     spdlog::debug("[GCode Parser] Best thumbnail {}x{} ({} bytes) from {}", best.width, best.height,
                   best.png_data.size(), source);

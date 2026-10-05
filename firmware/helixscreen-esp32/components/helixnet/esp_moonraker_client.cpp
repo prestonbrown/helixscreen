@@ -151,6 +151,7 @@ int EspMoonrakerClient::connect(const char* url, std::function<void()> on_connec
     auto_reconnect_.store(true);
     next_reconnect_delay_ms_ = reconnect_min_delay_ms_;
     was_connected_ = false;
+    lost_notified_ = false;
 
     esp_websocket_client_config_t cfg = {};
     cfg.uri = url_.c_str();
@@ -326,6 +327,10 @@ ConnectionState EspMoonrakerClient::get_connection_state() const {
 
 void EspMoonrakerClient::emit_event(MoonrakerEventType type, const std::string& message,
                                     bool is_error, const std::string& details) {
+    emit_event(MoonrakerEvent{type, message, details, is_error});
+}
+
+void EspMoonrakerClient::emit_event(const MoonrakerEvent& ev) {
     MoonrakerEventCallback handler;
     {
         std::lock_guard<std::mutex> lock(event_mutex_);
@@ -334,7 +339,6 @@ void EspMoonrakerClient::emit_event(MoonrakerEventType type, const std::string& 
     if (!handler) {
         return;
     }
-    MoonrakerEvent ev{type, message, details, is_error};
     handler(ev);
 }
 
@@ -384,9 +388,10 @@ void EspMoonrakerClient::on_ws_connected() {
     // Only a genuine reconnection emits RECONNECTED; the first-ever connect is
     // silent (desktop was_connected_ guard, moonraker_client.cpp:483-485).
     if (was_connected_) {
-        emit_event(MoonrakerEventType::RECONNECTED, "Connected to Moonraker", false);
+        emit_event(moonraker_event::reconnected());
     }
     was_connected_ = true;
+    lost_notified_ = false;
 
     if (on_connected_) {
         on_connected_();
@@ -433,13 +438,21 @@ void EspMoonrakerClient::on_ws_disconnected() {
         // esp_timer + main-thread app_boot_tick pump — never this task).
         arm_reconnect_intent();
         set_state(ConnectionState::RECONNECTING);
+        // A suppressed outage stays silent to its end, even if a failed
+        // reconnect attempt lands after the suppression window closes.
+        if (was_connected_ && !lost_notified_) {
+            lost_notified_ = true;
+            if (!is_disconnect_modal_suppressed()) {
+                emit_event(moonraker_event::connection_lost_reconnecting());
+            }
+        }
     } else {
-        // Reconnection suspended (probe flow): report a terminal DISCONNECTED
-        // and leave no reconnect intent behind.
+        // Reconnection suspended (probe flow or an intentional disconnect):
+        // report a terminal DISCONNECTED, leave no reconnect intent behind, and
+        // raise no toast for a close the app asked for.
         reconnect_pending_.store(false);
         set_state(ConnectionState::DISCONNECTED);
     }
-    emit_event(MoonrakerEventType::CONNECTION_LOST, "Connection to Moonraker lost", true);
 
     // Fail every in-flight request with connection_lost (two-phase).
     std::vector<std::function<void()>> cleanup;
@@ -509,6 +522,11 @@ void EspMoonrakerClient::on_ws_data(const esp_websocket_event_data_t* d) {
             }
         }
         rx_buf_.clear();
+        // A one-off large reply (configfile.settings is ~150KB) must not pin
+        // its peak capacity in PSRAM for the rest of the session.
+        if (rx_buf_.capacity() > RX_BUF_KEEP_BYTES) {
+            rx_buf_.shrink_to_fit();
+        }
         rx_skip_ = false;
     }
 }
@@ -548,9 +566,7 @@ void EspMoonrakerClient::dispatch_message(const char* buf, size_t len) {
             if (has_error) {
                 MoonrakerError err = MoonrakerError::from_json_rpc(msg["error"], method);
                 if (!silent && !error_cb) {
-                    emit_event(MoonrakerEventType::RPC_ERROR,
-                               "Printer command '" + method + "' failed: " + err.message, true,
-                               method);
+                    emit_event(moonraker_event::rpc_failed(method, err.message));
                 }
                 if (error_cb) {
                     error_cb(err);
@@ -645,8 +661,7 @@ void EspMoonrakerClient::housekeeping_trampoline(void* arg) {
     }
     if (to_failed) {
         self->set_state(ConnectionState::FAILED);
-        self->emit_event(MoonrakerEventType::CONNECTION_FAILED, "Reconnection has not succeeded",
-                         true);
+        self->emit_event(moonraker_event::reconnect_stalled());
     }
 
     self->timer_in_flight_.store(false);
@@ -655,6 +670,7 @@ void EspMoonrakerClient::housekeeping_trampoline(void* arg) {
 void EspMoonrakerClient::process_timeouts() {
     struct TimedOut {
         std::string method;
+        uint32_t timeout_ms;
         bool silent;
         std::function<void(const MoonrakerError&)> cb;
         MoonrakerError err;
@@ -681,6 +697,7 @@ void EspMoonrakerClient::process_timeouts() {
             if (age_us > static_cast<int64_t>(it->second.timeout_ms) * 1000) {
                 TimedOut t;
                 t.method = it->second.method;
+                t.timeout_ms = it->second.timeout_ms;
                 t.silent = it->second.silent;
                 t.cb = it->second.error_cb;
                 t.err = MoonrakerError::timeout(it->second.method, it->second.timeout_ms);
@@ -708,8 +725,7 @@ void EspMoonrakerClient::process_timeouts() {
     }
     for (auto& t : timed_out) {
         if (!t.silent) {
-            emit_event(MoonrakerEventType::REQUEST_TIMEOUT,
-                       "Printer command '" + t.method + "' timed out", false, t.method);
+            emit_event(moonraker_event::request_timed_out(t.method, t.timeout_ms));
         }
         if (t.cb) {
             t.cb(t.err);
@@ -1394,8 +1410,8 @@ void EspMoonrakerClient::discovery_subscribe(DiscoveryDone done, DiscoveryFail f
                 // completes so the UI can come up.
                 spdlog::error("[helixnet] subscribe returned error: {}",
                               helix::json_util::safe_dump(resp["error"]));
-                emit_event(MoonrakerEventType::DISCOVERY_FAILED,
-                           "Failed to subscribe to printer updates", false);
+                emit_event(
+                    moonraker_event::subscribe_failed(helix::json_util::safe_dump(resp["error"])));
             }
 
             json initial_status;

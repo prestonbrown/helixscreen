@@ -259,12 +259,15 @@ class PrintSelectDetailView : public OverlayBase {
      * @param modified_timestamp File mtime (tools-used cache validation)
      * @param gcode_end_byte Offset where the G-code body ends (Moonraker
      *        metadata); 0 when unknown. Sizes the footer read.
+     * @param local_path The file on this host when Moonraker has no copy (a
+     *        USB stick); every read then comes from it and none from Moonraker.
      */
     void show(const std::string& filename, const std::string& current_path,
               const std::string& filament_type,
               const std::vector<std::string>& filament_colors = {},
               const std::vector<std::string>& filament_materials = {}, size_t file_size_bytes = 0,
-              time_t modified_timestamp = 0, uint64_t gcode_end_byte = 0);
+              time_t modified_timestamp = 0, uint64_t gcode_end_byte = 0,
+              const std::string& local_path = {});
 
     /**
      * @brief Hide the detail view overlay
@@ -839,6 +842,7 @@ class PrintSelectDetailView : public OverlayBase {
     // === Cached show() parameters (used by on_activate) ===
     std::string current_filename_;
     std::string current_path_;
+    std::string current_local_path_; ///< USB file's path on this host; empty for Moonraker files
     std::string current_filament_type_;
     std::vector<std::string> current_filament_colors_;
     std::vector<std::string> current_filament_materials_;
@@ -908,10 +912,10 @@ class PrintSelectDetailView : public OverlayBase {
     /**
      * @brief Absolute path of this file on local disk, or "" if unreachable.
      *
-     * Non-empty only when Moonraker runs on this machine AND the file is there
-     * at the size the metadata promised. The returned path is Moonraker's own
-     * print file — it is deliberately never adopted into temp_gcode_path_, and
-     * reclaim_download() refuses it on top of that.
+     * The USB file's own path, or Moonraker's copy when Moonraker runs on this
+     * machine; either way only while the file is there at the expected size.
+     * The returned path is the user's print file: it is deliberately never
+     * adopted into temp_gcode_path_, and reclaim_download() refuses it too.
      */
     [[nodiscard]] std::string local_gcode_source() const;
 

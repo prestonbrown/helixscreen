@@ -1,0 +1,16 @@
+diff --git a/src/libs/lodepng/lodepng.c b/src/libs/lodepng/lodepng.c
+--- a/src/libs/lodepng/lodepng.c
++++ b/src/libs/lodepng/lodepng.c
+@@ -2353,8 +2353,10 @@
+     else {
+         ucvector v = ucvector_init(*out, *outsize);
+         if(expected_size) {
+-            /*reserve the memory to avoid intermediate reallocations*/
+-            ucvector_resize(&v, *outsize + expected_size);
++            /*reserve the memory to avoid intermediate reallocations. inflateHuffmanBlock
++            keeps 260 bytes of slack ahead of its write position, so an exact reservation
++            is grown by half again (a fresh 1.5x block) during the last 260 bytes.*/
++            ucvector_resize(&v, *outsize + expected_size + 260);
+             v.size = *outsize;
+         }
+         error = lodepng_zlib_decompressv(&v, in, insize, settings);

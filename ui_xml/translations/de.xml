@@ -123,6 +123,7 @@
   <translation tag="A · 1,-1" de="A · 1,-1"/>
   <translation tag="ABS" de="ABS"/>
   <translation tag="ACCELEROMETERS" de="BESCHLEUNIGUNGSSENSOREN"/>
+  <translation tag="ACCEPT failed: {}" de="ACCEPT fehlgeschlagen: {}"/>
   <translation tag="ACE Moonraker bridge not found. Install ace_status.py for full support." de="ACE Moonraker-Bridge nicht gefunden. Installieren Sie ace_status.py für volle Unterstützung."/>
   <translation tag="ACTIONS" de="AKTIONEN"/>
   <translation tag="ADXL" de="ADXL"/>
@@ -220,6 +221,7 @@
   <translation tag="An error occurred." de="Ein Fehler ist aufgetreten."/>
   <translation tag="An internal error occurred. The app continues running. Please send a debug bundle from Settings &gt; Help &amp; About if it repeats." de="Ein interner Fehler ist aufgetreten. Die App läuft weiter. Bitte senden Sie ein Debug-Paket über Einstellungen &gt; Hilfe &amp; Über, falls er erneut auftritt."/>
   <translation tag="An unexpected printer error occurred." de="Ein unerwarteter Druckerfehler ist aufgetreten."/>
+  <translation tag="An unknown error occurred." de="Ein unbekannter Fehler ist aufgetreten."/>
   <translation tag="An update is available" de="Eine Aktualisierung ist verfügbar"/>
   <translation tag="Analyzing data..." de="Analysiere Daten..."/>
   <translation tag="Analyzing data... {}s" de="Analysiere Daten... {}s"/>
@@ -664,9 +666,12 @@
   <translation tag="Connection failed: %s" de="Verbindung fehlgeschlagen: %s"/>
   <translation tag="Connection lost — probe accuracy result unavailable" de="Verbindung verloren — Ergebnis des Taster-Genauigkeitstests nicht verfügbar"/>
   <translation tag="Connection must be tested successfully to continue" de="Verbindung muss erfolgreich getestet werden, um fortzufahren"/>
+  <translation tag="Connection restored" de="Verbindung wiederhergestellt"/>
   <translation tag="Connection successful!" de="Verbindung erfolgreich!"/>
   <translation tag="Connection timeout" de="Verbindungs-Zeitüberschreitung"/>
+  <translation tag="Connection to printer lost - attempting to reconnect..." de="Verbindung zum Drucker verloren - Verbindung wird wiederhergestellt..."/>
   <translation tag="Connection to printer lost — operation may still be running" de="Verbindung zum Drucker verloren — Vorgang läuft möglicherweise noch"/>
+  <translation tag="Connection to printer lost." de="Verbindung zum Drucker verloren."/>
   <translation tag="Connects" de="Verbindungen"/>
   <translation tag="Console" de="Konsole"/>
   <translation tag="Console Settings" de="Konsoleneinstellungen"/>
@@ -700,7 +705,9 @@
   <translation tag="Could not check webcam status.&#10;Check printer connection." de="Webcam-Status konnte nicht geprüft werden.&#10;Druckerverbindung prüfen."/>
   <translation tag="Could not confirm cancel" de="Abbruch konnte nicht bestätigt werden"/>
   <translation tag="Could not copy {} from USB: {}" de="{} konnte nicht von USB kopiert werden: {}"/>
+  <translation tag="Could not disconnect from WiFi" de="WiFi-Verbindung konnte nicht getrennt werden"/>
   <translation tag="Could not forget device" de="Gerät konnte nicht vergessen werden"/>
+  <translation tag="Could not initialize WiFi hardware. Check system configuration." de="WiFi-Hardware konnte nicht initialisiert werden. Prüfe die Systemkonfiguration."/>
   <translation tag="Could not load printer database" de="Druckerdatenbank konnte nicht geladen werden"/>
   <translation tag="Could not move the plate" de="Heizbett konnte nicht bewegt werden"/>
   <translation tag="Could not parse tips database" de="Tipps-Datenbank konnte nicht ausgelesen werden"/>
@@ -900,6 +907,7 @@
   <translation tag="Emergency Stop?" de="Notaus?"/>
   <translation tag="Emergency stop activated" de="Notaus aktiviert"/>
   <translation tag="Emergency stop failed: not connected" de="Notaus fehlgeschlagen: nicht verbunden"/>
+  <translation tag="Emergency stop failed: {}" de="Notaus fehlgeschlagen: {}"/>
   <translation tag="Empty" de="Leer"/>
   <translation tag="Empty slots disable the associated functionality" de="Leere Slots deaktivieren die zugehörige Funktionalität"/>
   <translation tag="Enable" de="Aktivieren"/>
@@ -1030,7 +1038,10 @@
   <translation tag="Failed to build raster data" de="Rasterdaten konnten nicht erstellt werden"/>
   <translation tag="Failed to cancel: {}" de="Abbrechen fehlgeschlagen: {}"/>
   <translation tag="Failed to clear print state: {}" de="Druckstatus konnte nicht zurückgesetzt werden: {}"/>
+  <translation tag="Failed to connect to &apos;{}&apos;" de="Verbindung mit &apos;{}&apos; fehlgeschlagen"/>
+  <translation tag="Failed to connect to &apos;{}&apos;. Check password." de="Verbindung mit &apos;{}&apos; fehlgeschlagen. Prüfe das Passwort."/>
   <translation tag="Failed to connect to &apos;{}&apos;: {}" de="Verbindung zu &apos;&apos;{}&apos;&apos; fehlgeschlagen: {}"/>
+  <translation tag="Failed to connect to WiFi network &apos;{}&apos;: {}" de="Verbindung mit WiFi-Netzwerk &apos;{}&apos; fehlgeschlagen: {}"/>
   <translation tag="Failed to connect: %s" de="Verbindung fehlgeschlagen: %s"/>
   <translation tag="Failed to cool down: {}" de="Abkühlung fehlgeschlagen: {}"/>
   <translation tag="Failed to create filament:" de="Filament konnte nicht erstellt werden:"/>
@@ -1039,14 +1050,17 @@
   <translation tag="Failed to delete file" de="Datei löschen fehlgeschlagen"/>
   <translation tag="Failed to delete profile" de="Profil löschen fehlgeschlagen"/>
   <translation tag="Failed to delete spool" de="Spule konnte nicht gelöscht werden"/>
+  <translation tag="Failed to disable WiFi: {}" de="WiFi konnte nicht deaktiviert werden: {}"/>
   <translation tag="Failed to discard recovery data: {}" de="Wiederherstellungsdaten konnten nicht verworfen werden: {}"/>
   <translation tag="Failed to download G-code for modification: {}" de="G-Code-Download zur Änderung fehlgeschlagen: {}"/>
   <translation tag="Failed to download G-code for remap: {}" de="G-code für Neuzuordnung konnte nicht heruntergeladen werden: {}"/>
   <translation tag="Failed to download helixscreen.conf.&#10;Check printer connection." de="helixscreen.conf konnte nicht heruntergeladen werden.&#10;Druckerverbindung prüfen."/>
   <translation tag="Failed to download moonraker.conf.&#10;Check printer connection." de="moonraker.conf konnte nicht heruntergeladen werden.&#10;Druckerverbindung prüfen."/>
   <translation tag="Failed to duplicate spool" de="Spule konnte nicht dupliziert werden"/>
+  <translation tag="Failed to enable WiFi: {}" de="WiFi konnte nicht aktiviert werden: {}"/>
   <translation tag="Failed to enable tuning tower" de="Tuning-Tower konnte nicht aktiviert werden"/>
   <translation tag="Failed to exclude &apos;{}&apos;: {}" de="Ausschluss von &apos;&apos;{}&apos;&apos; fehlgeschlagen: {}"/>
+  <translation tag="Failed to forget WiFi network &apos;{}&apos;" de="WiFi-Netzwerk &apos;{}&apos; konnte nicht entfernt werden"/>
   <translation tag="Failed to get limits" de="Limits konnten nicht abgerufen werden"/>
   <translation tag="Failed to initialize Bluetooth" de="Bluetooth konnte nicht initialisiert werden"/>
   <translation tag="Failed to initialize Bluetooth context" de="Bluetooth-Kontext konnte nicht initialisiert werden"/>
@@ -1084,6 +1098,7 @@
   <translation tag="Failed to restart: {}" de="Neustart fehlgeschlagen: {}"/>
   <translation tag="Failed to resume: {}" de="Fortsetzen fehlgeschlagen: {}"/>
   <translation tag="Failed to save LED configuration" de="LED-Konfiguration speichern fehlgeschlagen"/>
+  <translation tag="Failed to save WiFi network" de="WiFi-Netzwerk konnte nicht gespeichert werden"/>
   <translation tag="Failed to save config." de="Konfiguration konnte nicht gespeichert werden."/>
   <translation tag="Failed to save configuration" de="Konfiguration konnte nicht gespeichert werden"/>
   <translation tag="Failed to save fan configuration" de="Lüfterkonfiguration speichern fehlgeschlagen"/>
@@ -1104,6 +1119,7 @@
   <translation tag="Failed to start installer: " de="Installationsprogramm konnte nicht gestartet werden: "/>
   <translation tag="Failed to start print: {}" de="Druck starten fehlgeschlagen: {}"/>
   <translation tag="Failed to start uninstaller: " de="Deinstallationsprogramm konnte nicht gestartet werden: "/>
+  <translation tag="Failed to subscribe to printer updates: {}" de="Abonnieren der Druckeraktualisierungen fehlgeschlagen: {}"/>
   <translation tag="Failed to toggle %s" de="%s konnte nicht umgeschaltet werden"/>
   <translation tag="Failed to toggle timelapse: {}" de="Timelapse umschalten fehlgeschlagen: {}"/>
   <translation tag="Failed to turn off heaters: {}" de="Heizungen ausschalten fehlgeschlagen: {}"/>
@@ -1185,6 +1201,7 @@
   <translation tag="Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume." de="Filament zu Ende. Automatisches Nachfüllen ist aus, daher wechselt das CFS die Spule nicht von selbst. Filament laden und dann fortsetzen."/>
   <translation tag="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume." de="Das Filament ist zu Ende. Das CFS weiß, welche Spulen passen, aber diese Slots sind leer. Laden Sie eine davon und setzen Sie dann fort."/>
   <translation tag="Filament reload failed" de="Erneutes Laden des Filaments fehlgeschlagen"/>
+  <translation tag="Filament remap not supported on this printer — print will use the firmware&apos;s current tool mapping" de="Filament-Neuzuordnung wird von diesem Drucker nicht unterstützt — der Druck verwendet die aktuelle Werkzeugzuordnung der Firmware"/>
   <translation tag="Filament remapping is unavailable" de="Filament-Neuzuordnung ist nicht verfügbar"/>
   <translation tag="Filament runout" de="Filament aufgebraucht"/>
   <translation tag="Filament runout and motion detection sensors" de="Filament-Auslauf- und Bewegungserkennungssensoren"/>
@@ -1202,6 +1219,7 @@
   <translation tag="File" de="Datei"/>
   <translation tag="File Size" de="Dateigröße"/>
   <translation tag="File Will Stop the Printer" de="Datei stoppt den Drucker"/>
+  <translation tag="File not found on printer." de="Datei auf dem Drucker nicht gefunden."/>
   <translation tag="File not found: {}" de="Datei nicht gefunden: {}"/>
   <translation tag="Filename" de="Dateiname"/>
   <translation tag="Fine" de="Fein"/>
@@ -1214,6 +1232,7 @@
   <translation tag="Fireworks" de="Feuerwerk"/>
   <translation tag="Firmware Restart" de="Firmware-Neustart"/>
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" de="Firmware meldet keinen Bypass. Aktivieren Sie dies, wenn Sie das Filament direkt zum Extruder führen"/>
+  <translation tag="Firmware restart failed: {}" de="Firmware-Neustart fehlgeschlagen: {}"/>
   <translation tag="Firmware restarting..." de="Firmware wird neu gestartet..."/>
   <translation tag="Firmware saved X = Y&apos;s value; the measured X result was discarded" de="Die Firmware hat X mit dem Wert von Y gespeichert; das gemessene X-Ergebnis wurde verworfen"/>
   <translation tag="Fix: chmod 644 {}, then restart" de="Beheben: chmod 644 {}, dann neu starten"/>
@@ -1373,6 +1392,7 @@
   <translation tag="Homing failed: " de="Referenzfahrt fehlgeschlagen: "/>
   <translation tag="Homing failed: {}" de="Referenzfahrt fehlgeschlagen: {}"/>
   <translation tag="Homing first..." de="Referenzfahrt zuerst..."/>
+  <translation tag="Homing is disabled while a print is in progress" de="Referenzfahrt ist während eines laufenden Drucks deaktiviert"/>
   <translation tag="Homing may still be running — response timed out" de="Referenzfahrt läuft möglicherweise noch — Zeitüberschreitung"/>
   <translation tag="Homing selector" de="Referenzfahrt des Selektors"/>
   <translation tag="Homing timed out" de="Referenzfahrt Zeitüberschreitung"/>
@@ -1511,8 +1531,11 @@
   <translation tag="Klipper" de="Klipper"/>
   <translation tag="Klipper Error" de="Klipper-Fehler"/>
   <translation tag="Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart." de="Klipper-Firmware hat die Verbindung zum Host getrennt. Versuchen Sie, Klipper neu zu starten oder einen Firmware-Neustart durchzuführen."/>
+  <translation tag="Klipper has disconnected from Moonraker. Check for errors in your printer interface." de="Klipper hat die Verbindung zu Moonraker getrennt. Prüfe die Druckeroberfläche auf Fehler."/>
   <translation tag="Klipper has entered an error state. This is typically caused by an MCU connection failure or configuration error. Try a firmware restart." de="Klipper ist in einen Fehlerzustand eingetreten. Dies wird typischerweise durch einen MCU-Verbindungsfehler oder einen Konfigurationsfehler verursacht. Versuchen Sie einen Firmware-Neustart."/>
+  <translation tag="Klipper has entered shutdown state." de="Klipper ist in den Shutdown-Zustand gewechselt."/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." de="Klipper ist in den Shutdown-Zustand gewechselt. Dies kann auf einen Notaus, thermisches Durchgehen oder einen Konfigurationsfehler zurückzuführen sein."/>
+  <translation tag="Klipper is halted — restart firmware to continue" de="Klipper ist angehalten — Firmware neu starten, um fortzufahren"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." de="Klipper reserviert &apos;default&apos; für neue Kalibrierungen. Wählen Sie einen anderen Namen."/>
   <translation tag="Klipper restarting - macros activating" de="Klipper startet neu - Makros werden aktiviert"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." de="Klipper meldet keinen Fortschritt mehr. Seine Auswertung kann auf kleinen Druckern den Speicher erschöpfen und Klipper blockieren, sodass ein Firmware-Neustart es nicht erreicht. Schalten Sie den Drucker aus und wieder ein (oder starten Sie Klipper per SSH neu) und versuchen Sie es dann erneut."/>
@@ -1741,6 +1764,7 @@
   <translation tag="Monitoring" de="Überwachung"/>
   <translation tag="Month" de="Monat"/>
   <translation tag="Moonraker" de="Moonraker"/>
+  <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." de="Moonraker antwortet nicht unter {}. Es läuft auf diesem Drucker, prüfe also, ob die Dienste Klipper und Moonraker gestartet sind."/>
   <translation tag="Moonraker restarted but Spoolman not connected. Check server." de="Moonraker neu gestartet, aber Spoolman nicht verbunden. Server prüfen."/>
   <translation tag="Moonraker restarting...&#10;Waiting for reconnection..." de="Moonraker wird neu gestartet...&#10;Warte auf Wiederverbindung..."/>
   <translation tag="Moonraker: " de="Moonraker: "/>
@@ -2061,6 +2085,7 @@
   <translation tag="Peak:" de="Spitze:"/>
   <translation tag="Peaks {} Hz" de="Spitzen {} Hz"/>
   <translation tag="Performance" de="Leistung"/>
+  <translation tag="Permission denied. Check printer configuration." de="Zugriff verweigert. Prüfe die Druckerkonfiguration."/>
   <translation tag="Phomemo (Bluetooth)" de="Phomemo (Bluetooth)"/>
   <translation tag="Phomemo M110" de="Phomemo M110"/>
   <translation tag="Pick" de="Auswählen"/>
@@ -2200,6 +2225,8 @@
   <translation tag="Printer Shutdown" de="Drucker-Abschaltung"/>
   <translation tag="Printer Type" de="Druckertyp"/>
   <translation tag="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})" de="Drucker hat Auftrag angenommen, druckt aber nicht – prüfen Sie Abdeckung, Papier und Etikettentyp (firmware status=0x{:02X} error=0x{:02X})"/>
+  <translation tag="Printer command &apos;{}&apos; failed: {}" de="Druckerbefehl &apos;{}&apos; fehlgeschlagen: {}"/>
+  <translation tag="Printer command &apos;{}&apos; timed out after {}ms" de="Druckerbefehl &apos;{}&apos; nach {} ms abgelaufen"/>
   <translation tag="Printer connection unavailable" de="Druckerverbindung nicht verfügbar"/>
   <translation tag="Printer database format error" de="Formatfehler der Druckerdatenbank"/>
   <translation tag="Printer database is corrupt" de="Druckerdatenbank ist beschädigt"/>
@@ -2209,7 +2236,10 @@
   <translation tag="Printer hardware detected" de="Druckerhardware erkannt"/>
   <translation tag="Printer image set to auto-detect" de="Druckerbild auf Auto-Erkennung gesetzt"/>
   <translation tag="Printer is busy - {} stays in the queue" de="Drucker ist beschäftigt – {} bleibt in der Warteschlange"/>
+  <translation tag="Printer is busy — try again in a moment" de="Drucker ist beschäftigt — versuche es gleich noch einmal"/>
   <translation tag="Printer is not paired — pair it first" de="Drucker ist nicht gekoppelt — zuerst koppeln"/>
+  <translation tag="Printer is not ready" de="Drucker ist nicht bereit"/>
+  <translation tag="Printer is not ready. Please wait for initialization." de="Drucker ist nicht bereit. Bitte warte auf die Initialisierung."/>
   <translation tag="Printer message: {}" de="Druckermeldung: {}"/>
   <translation tag="Printer name" de="Druckername"/>
   <translation tag="Printer not connected" de="Drucker nicht verbunden"/>
@@ -2330,6 +2360,7 @@
   <translation tag="Reboot failed" de="Neustart fehlgeschlagen"/>
   <translation tag="Reboot failed — host is still reachable" de="Neustart fehlgeschlagen — Host ist weiterhin erreichbar"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." de="Jederzeit in den Einstellungen neu kalibrieren oder detaillierte Ergebnisse anzeigen."/>
+  <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." de="Zu große Daten vom Drucker empfangen ({} Bytes). Das kann auf einen Kommunikationsfehler hinweisen."/>
   <translation tag="Recent Prints" de="Letzte Drucke"/>
   <translation tag="Recently Printed" de="Zuletzt gedruckt"/>
   <translation tag="Reconnect" de="Erneut verbinden"/>
@@ -2343,7 +2374,6 @@
   <translation tag="Recovering AFC system..." de="AFC-Wiederherstellung..."/>
   <translation tag="Recovering..." de="Wiederherstellung..."/>
   <translation tag="Recovery failed" de="Wiederherstellung fehlgeschlagen"/>
-  <translation tag="Recovery failed: " de="Wiederherstellung fehlgeschlagen: "/>
   <translation tag="Recovery failed: {}" de="Wiederherstellung fehlgeschlagen: {}"/>
   <translation tag="Reduce Sensitivity" de="Empfindlichkeit verringern"/>
   <translation tag="Reduce ringing and ghosting artifacts" de="Klingel- und Geisterartefakte reduzieren"/>
@@ -2395,6 +2425,7 @@
   <translation tag="Reprint" de="Erneut drucken"/>
   <translation tag="Reprint Last" de="Letzten nachdrucken"/>
   <translation tag="Request Failed" de="Anfrage fehlgeschlagen"/>
+  <translation tag="Request timed out. The printer may be busy." de="Zeitüberschreitung der Anfrage. Der Drucker ist möglicherweise beschäftigt."/>
   <translation tag="Require Confirmation?" de="Bestätigung erforderlich?"/>
   <translation tag="Require confirmation before emergency stop" de="Bestätigung vor Notaus erforderlich"/>
   <translation tag="Requires Moonraker power device" de="Erfordert ein Moonraker-Stromgerät"/>
@@ -2436,6 +2467,7 @@
   <translation tag="Restart Now" de="Jetzt neu starten"/>
   <translation tag="Restart Required" de="Neustart erforderlich"/>
   <translation tag="Restart failed: not connected" de="Neustart fehlgeschlagen: nicht verbunden"/>
+  <translation tag="Restart failed: {}" de="Neustart fehlgeschlagen: {}"/>
   <translation tag="Restart from the beginning to recover" de="Starten Sie zum Wiederherstellen von vorne neu"/>
   <translation tag="Restart pending" de="Neustart ausstehend"/>
   <translation tag="Restart the display application" de="Anzeigeanwendung neu starten"/>
@@ -2768,6 +2800,7 @@
   <translation tag="Spoolman was not configured." de="Spoolman war nicht konfiguriert."/>
   <translation tag="Spoolman: %zu Spool%s" de="Spoolman: %zu Spule%s"/>
   <translation tag="Spoolman: %zu/%zu Spool%s" de="Spoolman: %zu/%zu Spule%s"/>
+  <translation tag="Spools are on the bed: remove them and confirm before moving the printer" de="Spulen liegen auf dem Heizbett: entferne sie und bestätige, bevor der Drucker bewegt wird"/>
   <translation tag="Spools are on the bed: tap the drying banner to confirm they are off, then restart." de="Spulen liegen auf dem Heizbett: Tippe auf das Trocknungsbanner, um zu bestätigen, dass sie entnommen sind, und starte dann neu."/>
   <translation tag="Spools on the bed: start drying, or confirm none were placed" de="Spulen auf dem Heizbett: Trocknung starten oder bestätigen, dass keine eingelegt wurden"/>
   <translation tag="Spools removed" de="Spulen entnommen"/>
@@ -2953,6 +2986,7 @@
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." de="Der Drucker referenziert und vermisst den Schneider (ca. 1 Minute). Halten Sie den Filamentweg frei."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." de="Der Drucker referenziert und fährt das Heizbett dann so weit wie möglich von der Düse weg. Manche Spulen sind nicht hitzebeständig genug und können sich verformen. Von diesem Bildschirm aus bewegt sich nichts, bis du bestätigst, dass die Spulen vom Heizbett sind; Mainsail, Makros und von einem Slicer gesendete Drucke werden nicht blockiert."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." de="Der Drucker ist nicht referenziert. Wenn Sie fortfahren, werden alle Achsen referenziert und der Werkzeugkopf bewegt sich. Stellen Sie sicher, dass das Heizbett frei ist."/>
+  <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" de="Der Drucker erkennt derzeit kein geladenes Filament. Was möchten Sie tun?"/>
   <translation tag="The printer lost power during a print. It can resume where it left off." de="Der Drucker hatte während eines Drucks einen Stromausfall. Er kann dort fortsetzen, wo er aufgehört hat."/>
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." de="Der Drucker hatte während eines Drucks einen Stromausfall. Die fortgesetzte Schicht passt möglicherweise nicht exakt."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" de="Der Drucker hatte einen Stromausfall während des Drucks von {}. Dort fortsetzen, wo er aufgehört hat?"/>
@@ -3016,6 +3050,8 @@
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." de="Dieser Drucker füllt seine Gates aus Spoolman. HelixScreen hat seine eigene Kopie gelöscht; entferne die Spule in Spoolman."/>
   <translation tag="This printer fills its gates from Spoolman. Make colour, material and spool changes in Spoolman." de="Dieser Drucker füllt seine Gates aus Spoolman. Ändere Farbe, Material und Spule in Spoolman."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." de="Dieser Drucker sieht aus wie ein {} ({}% Konfidenz), ist aber als {} eingerichtet. Ein falscher Typ wendet falsche Optionen und Voreinstellungen für die Druckvorbereitung an."/>
+  <translation tag="This printer&apos;s network service controls the WiFi radio" de="Der Netzwerkdienst dieses Druckers steuert das WiFi-Funkmodul"/>
+  <translation tag="This printer&apos;s network service manages saved WiFi networks" de="Der Netzwerkdienst dieses Druckers verwaltet gespeicherte WiFi-Netzwerke"/>
   <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." de="Dies entfernt die Moonraker-Komponente des Plugins und startet Moonraker neu. Der Drucker wird kurz getrennt. Falls in PRINT_START noch alte Zeilen zur Phasenverfolgung vorhanden sind, werden sie ebenfalls entfernt, wobei Backups aufbewahrt werden. Ein Klipper-Neustart wendet das an."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." de="Dies ersetzt die Hilfsmakros des Druckers durch die aktuelle Version und startet Klipper neu."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." de="Dies ersetzt die Hilfsmakros des Druckers durch die aktuelle Version. Ein Druck läuft, daher wird Klipper nach dessen Abschluss neu gestartet."/>
@@ -3138,6 +3174,8 @@
   <translation tag="USB drive connected" de="USB-Laufwerk verbunden"/>
   <translation tag="USB drive removed" de="USB-Laufwerk entfernt"/>
   <translation tag="USB printer access denied — check permissions" de="USB-Drucker-Zugriff verweigert — Berechtigungen prüfen"/>
+  <translation tag="Unable to reach printer at {}. Check that the printer is powered on and that this address is correct." de="Drucker unter {} nicht erreichbar. Prüfe, ob der Drucker eingeschaltet und diese Adresse korrekt ist."/>
+  <translation tag="Unable to reach printer. Check power and network connection." de="Drucker nicht erreichbar. Prüfe Stromversorgung und Netzwerkverbindung."/>
   <translation tag="Unavailable" de="Nicht verfügbar"/>
   <translation tag="Unavailable on this printer" de="Auf diesem Drucker nicht verfügbar"/>
   <translation tag="Undo" de="Rückgängig"/>
@@ -3293,12 +3331,19 @@
   <translation tag="WiFi Disabled" de="WiFi deaktiviert"/>
   <translation tag="WiFi Enabled" de="WiFi aktiviert"/>
   <translation tag="WiFi Network" de="WiFi-Netzwerk"/>
+  <translation tag="WiFi Permission Denied" de="WiFi-Zugriff verweigert"/>
+  <translation tag="WiFi Service Not Running" de="WiFi-Dienst läuft nicht"/>
   <translation tag="WiFi Unavailable" de="WiFi nicht verfügbar"/>
   <translation tag="WiFi and Ethernet configuration" de="WiFi- und Ethernet-Konfiguration"/>
   <translation tag="WiFi control unavailable" de="WiFi-Steuerung nicht verfügbar"/>
   <translation tag="WiFi hardware unavailable" de="WiFi-Hardware nicht verfügbar"/>
+  <translation tag="WiFi initialization failed: {}" de="WiFi-Initialisierung fehlgeschlagen: {}"/>
   <translation tag="WiFi radio did not change state" de="WiFi-Funkmodul hat den Status nicht geändert"/>
+  <translation tag="WiFi scan failed. Try again." de="WiFi-Suche fehlgeschlagen. Versuche es erneut."/>
   <translation tag="WiFi unavailable" de="WiFi nicht verfügbar"/>
+  <translation tag="WiFi unavailable. Cannot connect to network." de="WiFi nicht verfügbar. Verbindung zum Netzwerk nicht möglich."/>
+  <translation tag="WiFi unavailable. Cannot forget network." de="WiFi nicht verfügbar. Netzwerk kann nicht entfernt werden."/>
+  <translation tag="WiFi unavailable. Cannot scan for networks." de="WiFi nicht verfügbar. Netzwerksuche nicht möglich."/>
   <translation tag="WiFi was configured but hardware is not available. Check system configuration." de="WiFi wurde konfiguriert, aber die Hardware ist nicht verfügbar. Prüfen Sie die Systemkonfiguration."/>
   <translation tag="Widget Labels" de="Widget-Beschriftungen"/>
   <translation tag="Width" de="Breite"/>
@@ -3444,6 +3489,7 @@
   <translation tag="v%s available" de="v%s verfügbar"/>
   <translation tag="v{} installed! Restarting..." de="v{} installiert! Neustart..."/>
   <translation tag="v{} is available. Tap to update." de="v{} ist verfügbar. Tippen zum Aktualisieren."/>
+  <translation tag="wpa_supplicant is not running. WiFi features unavailable." de="wpa_supplicant läuft nicht. WiFi-Funktionen sind nicht verfügbar."/>
   <translation tag="you have" de="Sie haben"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" de="{:.0f}-{:.0f} Hz · ca. {} Min."/>
   <translation tag="{} Hardware Issues" de="{} Hardware-Probleme"/>

@@ -127,10 +127,10 @@ void ChangeHostModal::init_subjects() {
     lv_subject_init_int(&validated_subject_, 0);
 
     // Register subjects for XML binding
-    lv_xml_register_subject(nullptr, "change_host_ip", &host_ip_subject_);
-    lv_xml_register_subject(nullptr, "change_host_port", &host_port_subject_);
-    lv_xml_register_subject(nullptr, "change_host_testing", &testing_subject_);
-    lv_xml_register_subject(nullptr, "change_host_validated", &validated_subject_);
+    subjects_.publish("change_host_ip", &host_ip_subject_);
+    subjects_.publish("change_host_port", &host_port_subject_);
+    subjects_.publish("change_host_testing", &testing_subject_);
+    subjects_.publish("change_host_validated", &validated_subject_);
 
     subjects_initialized_ = true;
     spdlog::trace("[ChangeHostModal] Subjects initialized");
@@ -145,10 +145,7 @@ void ChangeHostModal::deinit_subjects() {
     host_ip_observer_.release();
     host_port_observer_.release();
 
-    lv_subject_deinit(&host_ip_subject_);
-    lv_subject_deinit(&host_port_subject_);
-    lv_subject_deinit(&testing_subject_);
-    lv_subject_deinit(&validated_subject_);
+    subjects_.deinit_all();
 
     subjects_initialized_ = false;
     spdlog::trace("[ChangeHostModal] Subjects deinitialized");

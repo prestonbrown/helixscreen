@@ -177,7 +177,7 @@ TEST_CASE_METHOD(ClockWidgetFixture, "ClockWidget: timer fires during LVGL proce
 // Locale-aware date formatting tests
 // ---------------------------------------------------------------------------
 
-TEST_CASE("Locale date formatting", "[clock_widget][i18n]") {
+TEST_CASE_METHOD(HelixTestFixture, "Locale date formatting", "[clock_widget][i18n]") {
     // Fixed time: Friday, February 28, 2026 14:30:00
     struct tm test_tm = {};
     test_tm.tm_year = 126; // 2026 - 1900
@@ -244,7 +244,8 @@ TEST_CASE("Locale date formatting", "[clock_widget][i18n]") {
     helix::ui::locale_set_language("en");
 }
 
-TEST_CASE("Locale date formatting: all months cycle", "[clock_widget][i18n]") {
+TEST_CASE_METHOD(HelixTestFixture, "Locale date formatting: all months cycle",
+                 "[clock_widget][i18n]") {
     helix::SystemSettingsManager::instance().set_language("en");
     helix::ui::locale_set_language("en");
 
@@ -263,7 +264,8 @@ TEST_CASE("Locale date formatting: all months cycle", "[clock_widget][i18n]") {
     }
 }
 
-TEST_CASE("Locale date formatting: all days of week", "[clock_widget][i18n]") {
+TEST_CASE_METHOD(HelixTestFixture, "Locale date formatting: all days of week",
+                 "[clock_widget][i18n]") {
     helix::SystemSettingsManager::instance().set_language("en");
     helix::ui::locale_set_language("en");
 
@@ -280,7 +282,8 @@ TEST_CASE("Locale date formatting: all days of week", "[clock_widget][i18n]") {
     }
 }
 
-TEST_CASE("Locale date formatting: Spanish and Portuguese", "[clock_widget][i18n]") {
+TEST_CASE_METHOD(HelixTestFixture, "Locale date formatting: Spanish and Portuguese",
+                 "[clock_widget][i18n]") {
     struct tm test_tm = {};
     test_tm.tm_year = 126;
     test_tm.tm_mon = 1;
@@ -314,7 +317,7 @@ TEST_CASE("Locale date formatting: Spanish and Portuguese", "[clock_widget][i18n
     helix::ui::locale_set_language("en");
 }
 
-TEST_CASE("Locale modified date formatting", "[clock_widget][i18n]") {
+TEST_CASE_METHOD(HelixTestFixture, "Locale modified date formatting", "[clock_widget][i18n]") {
     struct tm test_tm = {};
     test_tm.tm_year = 126;
     test_tm.tm_mon = 1; // February
@@ -354,7 +357,8 @@ TEST_CASE("Locale modified date formatting", "[clock_widget][i18n]") {
     helix::ui::locale_set_language("en");
 }
 
-TEST_CASE("Locale date formatting: boundary day values", "[clock_widget][i18n]") {
+TEST_CASE_METHOD(HelixTestFixture, "Locale date formatting: boundary day values",
+                 "[clock_widget][i18n]") {
     helix::SystemSettingsManager::instance().set_language("en");
     helix::ui::locale_set_language("en");
 
@@ -379,7 +383,8 @@ TEST_CASE("Locale date formatting: boundary day values", "[clock_widget][i18n]")
     }
 }
 
-TEST_CASE("Locale date formatting: CJK single-digit month", "[clock_widget][i18n]") {
+TEST_CASE_METHOD(HelixTestFixture, "Locale date formatting: CJK single-digit month",
+                 "[clock_widget][i18n]") {
     helix::SystemSettingsManager::instance().set_language("ja");
     helix::ui::locale_set_language("ja");
 
@@ -407,7 +412,7 @@ TEST_CASE("Locale date formatting: CJK single-digit month", "[clock_widget][i18n
     helix::ui::locale_set_language("en");
 }
 
-TEST_CASE("format_modified_date integration", "[clock_widget][i18n]") {
+TEST_CASE_METHOD(HelixTestFixture, "format_modified_date integration", "[clock_widget][i18n]") {
     // Verify the public API format_modified_date() uses locale formatting
     helix::SystemSettingsManager::instance().set_language("en");
     helix::ui::locale_set_language("en");
@@ -433,7 +438,7 @@ TEST_CASE("Locale default 24h", "[clock_widget][i18n]") {
     REQUIRE_FALSE(helix::ui::locale_default_24h(""));   // empty = en default
 }
 
-TEST_CASE("Locale set language caching", "[clock_widget][i18n]") {
+TEST_CASE_METHOD(HelixTestFixture, "Locale set language caching", "[clock_widget][i18n]") {
     // Setting the same language twice shouldn't break anything
     helix::ui::locale_set_language("fr");
     helix::ui::locale_set_language("fr");

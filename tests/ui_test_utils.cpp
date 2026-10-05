@@ -823,7 +823,7 @@ void helix::ui::notification_update_count(size_t /* count */) {
     // No-op in tests
 }
 
-// Application::tear_down_printer_state() calls both of these; ui_notification.o and
+// PrinterSession::tear_down_printer_state() calls both of these; ui_notification.o and
 // ui_notification_manager.o stay out of the test link (see mk/tests.mk Group 2).
 void ui_notification_deinit() {
     spdlog::debug("[Test Stub] ui_notification_deinit: no-op in tests");
@@ -1003,7 +1003,7 @@ bool update_checks_suppressed() {
 
 // Stubs for the manager accessors in app_globals.h. Each getter reads a file-static
 // that its matching setter writes, so a test (or production code linked into the test
-// binary, e.g. Application::tear_down_printer_state()) sees the value it installed.
+// binary, e.g. PrinterSession::tear_down_printer_state()) sees the value it installed.
 // Nothing installs one by default, so the default remains nullptr.
 #include "moonraker_manager.h"
 

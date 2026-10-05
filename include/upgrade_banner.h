@@ -7,6 +7,7 @@
 
 #include "async_lifetime_guard.h"
 #include "lvgl.h"
+#include "subject_managed_panel.h"
 
 #include <string>
 
@@ -60,6 +61,7 @@ class UpgradeBanner {
     static void on_dismiss_clicked(lv_event_t* e);
 
     lv_obj_t* banner_ = nullptr;
+    SubjectManager subjects_;
     lv_subject_t message_subject_{};
     bool message_subject_initialized_ = false;
 

@@ -5,6 +5,7 @@
 // backend through the base's name proves none of them shadows it with a copy of
 // its own, and driving the edit entry points proves none of them skips it.
 
+#include "../helix_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_ace.h"
 #include "ams_backend_ad5x_ifs.h"
@@ -57,6 +58,7 @@ TEMPLATE_TEST_CASE("Every subscription backend bounds slot indices through the b
                    "[ams][slot_index]", AmsBackendAce, AmsBackendAd5xIfs, AmsBackendAfc,
                    AmsBackendHappyHare, AmsBackendQidi, AmsBackendSnapmaker, AmsBackendToolChanger,
                    printer::AmsBackendCfs) {
+    HelixTestFixture fixture;
     SlotIndexProbe<TestType> backend;
     // 3 matches no backend's hardware constant, so a copy bounded by NUM_TOOLS
     // or NUM_PORTS answers differently from the base.

@@ -143,7 +143,7 @@ void PrinterRecoveryService::recover(SuccessCallback on_success, ErrorCallback o
     if (get_printer_state().spool_latch_active()) {
         spdlog::warn("[Recovery] Refusing firmware restart while spools are on the bed");
         on_error(
-            MoonrakerError::not_ready("printer.firmware_restart", spool_latch_restart_message()));
+            MoonrakerError::refusal("printer.firmware_restart", spool_latch_restart_message()));
         return;
     }
 

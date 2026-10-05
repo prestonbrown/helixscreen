@@ -45,28 +45,28 @@ void CameraConfigModal::init_subjects() {
     lv_subject_init_int(&flip_h_active_, 0);
     lv_subject_init_int(&flip_v_active_, 0);
 
-    lv_xml_register_subject(nullptr, "cam_rot_0_active", &rot_0_active_);
-    lv_xml_register_subject(nullptr, "cam_rot_90_active", &rot_90_active_);
-    lv_xml_register_subject(nullptr, "cam_rot_180_active", &rot_180_active_);
-    lv_xml_register_subject(nullptr, "cam_rot_270_active", &rot_270_active_);
-    lv_xml_register_subject(nullptr, "cam_flip_h_active", &flip_h_active_);
-    lv_xml_register_subject(nullptr, "cam_flip_v_active", &flip_v_active_);
+    subjects_.publish("cam_rot_0_active", &rot_0_active_);
+    subjects_.publish("cam_rot_90_active", &rot_90_active_);
+    subjects_.publish("cam_rot_180_active", &rot_180_active_);
+    subjects_.publish("cam_rot_270_active", &rot_270_active_);
+    subjects_.publish("cam_flip_h_active", &flip_h_active_);
+    subjects_.publish("cam_flip_v_active", &flip_v_active_);
 
     lv_subject_init_int(&source_count_, 0);
-    lv_xml_register_subject(nullptr, "cam_source_count", &source_count_);
+    subjects_.publish("cam_source_count", &source_count_);
     for (size_t i = 0; i < MAX_ROWS; ++i) {
         char key[40];
         lv_subject_init_int(&source_active_[i], 0);
         std::snprintf(key, sizeof(key), "cam_source_%zu_active", i);
-        lv_xml_register_subject(nullptr, key, &source_active_[i]);
+        subjects_.publish(key, &source_active_[i]);
         lv_subject_init_string(&source_name_[i], source_name_buf_[i].data(), nullptr,
                                SOURCE_TEXT_LEN, "");
         std::snprintf(key, sizeof(key), "cam_source_%zu_name", i);
-        lv_xml_register_subject(nullptr, key, &source_name_[i]);
+        subjects_.publish(key, &source_name_[i]);
         lv_subject_init_string(&source_note_[i], source_note_buf_[i].data(), nullptr,
                                SOURCE_TEXT_LEN, "");
         std::snprintf(key, sizeof(key), "cam_source_%zu_note", i);
-        lv_xml_register_subject(nullptr, key, &source_note_[i]);
+        subjects_.publish(key, &source_note_[i]);
     }
 
     subjects_initialized_ = true;
@@ -75,18 +75,7 @@ void CameraConfigModal::init_subjects() {
 void CameraConfigModal::deinit_subjects() {
     if (!subjects_initialized_)
         return;
-    lv_subject_deinit(&rot_0_active_);
-    lv_subject_deinit(&rot_90_active_);
-    lv_subject_deinit(&rot_180_active_);
-    lv_subject_deinit(&rot_270_active_);
-    lv_subject_deinit(&flip_h_active_);
-    lv_subject_deinit(&flip_v_active_);
-    lv_subject_deinit(&source_count_);
-    for (size_t i = 0; i < MAX_ROWS; ++i) {
-        lv_subject_deinit(&source_active_[i]);
-        lv_subject_deinit(&source_name_[i]);
-        lv_subject_deinit(&source_note_[i]);
-    }
+    subjects_.deinit_all();
     subjects_initialized_ = false;
 }
 

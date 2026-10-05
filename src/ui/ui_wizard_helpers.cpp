@@ -158,9 +158,10 @@ bool save_dropdown_selection(lv_subject_t* subject, const std::vector<std::strin
     return true;
 }
 
-void init_int_subject(lv_subject_t* subject, int32_t initial_value, const char* subject_name) {
+void init_int_subject(SubjectManager& subjects, lv_subject_t* subject, int32_t initial_value,
+                      const char* subject_name) {
     lv_subject_init_int(subject, initial_value);
-    lv_xml_register_subject(nullptr, subject_name, subject);
+    subjects.publish(subject_name, subject);
 }
 
 } // namespace wizard

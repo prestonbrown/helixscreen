@@ -78,6 +78,10 @@ class GCodeLayerRendererTestAccess {
     /// Private for that reason; a test asking "which color is tool N wearing
     /// now" - after a slicer palette, after AMS overrides, after a retraction -
     /// has no other way to see the answer.
+    static const SelectionState& selection(const GCodeLayerRenderer& renderer) {
+        return renderer.selection_;
+    }
+
     static const GCodeColorPalette& tool_palette(const GCodeLayerRenderer& renderer) {
         return renderer.tool_palette_;
     }

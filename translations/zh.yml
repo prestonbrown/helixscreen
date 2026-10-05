@@ -125,6 +125,7 @@ translations:
   A · 1,-1: "A · 1,-1"
   ABS: ABS
   ACCELEROMETERS: 加速度计
+  'ACCEPT failed: {}': 'ACCEPT 失败: {}'
   ACE Moonraker bridge not found. Install ace_status.py for full support.: 未找到 ACE Moonraker 桥接。请安装 ace_status.py 以获得完整支持。
   ACTIONS: 操作
   ADXL: ADXL
@@ -222,6 +223,7 @@ translations:
   ? An internal error occurred. The app continues running. Please send a debug bundle from Settings > Help & About if it repeats.
   : 发生了内部错误。应用程序继续运行。如果反复出现，请从设置 > 帮助与关于发送调试捆绑包。
   An unexpected printer error occurred.: 发生了意外的打印机错误。
+  An unknown error occurred.: 发生未知错误。
   An update is available: 有可用更新
   Analyzing data...: 正在分析数据...
   Analyzing data... {}s: 正在分析数据... {} 秒
@@ -679,9 +681,12 @@ translations:
   'Connection failed: %s': 连接失败：%s
   Connection lost — probe accuracy result unavailable: '连接已丢失 — 探针精度测试结果不可用'
   Connection must be tested successfully to continue: 必须成功测试连接才能继续
+  Connection restored: 连接已恢复
   Connection successful!: 连接成功！
   Connection timeout: 连接超时
+  Connection to printer lost - attempting to reconnect...: 与打印机的连接已断开 - 正在尝试重新连接...
   Connection to printer lost — operation may still be running: '与打印机的连接已丢失 — 操作可能仍在运行'
+  Connection to printer lost.: 与打印机的连接已断开。
   Connects: 连接次数
   Console: 控制台
   Console Settings: 控制台设置
@@ -717,7 +722,9 @@ translations:
   : "无法检查摄像头状态。\n请检查打印机连接。"
   Could not confirm cancel: 无法确认取消
   'Could not copy {} from USB: {}': '无法从 USB 复制 {}：{}'
+  Could not disconnect from WiFi: 无法断开 WiFi 连接
   Could not forget device: 无法忘记设备
+  Could not initialize WiFi hardware. Check system configuration.: 无法初始化 WiFi 硬件。请检查系统配置。
   Could not load printer database: 无法加载打印机数据库
   Could not move the plate: 无法移动热床
 
@@ -928,6 +935,7 @@ translations:
   Emergency Stop?: 紧急停止？
   Emergency stop activated: 紧急停止已激活
   'Emergency stop failed: not connected': '紧急停止失败: 未连接'
+  'Emergency stop failed: {}': '紧急停止失败: {}'
   Empty: 空
   Empty slots disable the associated functionality: 空槽位将禁用相关功能
   Enable: 启用
@@ -1060,7 +1068,10 @@ translations:
   Failed to build raster data: 构建栅格数据失败
   'Failed to cancel: {}': '取消失败: {}'
   'Failed to clear print state: {}': 无法清除打印状态：{}
+  Failed to connect to '{}': 无法连接到 '{}'
+  Failed to connect to '{}'. Check password.: 无法连接到 '{}'。请检查密码。
   'Failed to connect to ''{}'': {}': '无法连接到 ''{}'': {}'
+  'Failed to connect to WiFi network ''{}'': {}': '无法连接到 WiFi 网络 ''{}'': {}'
   'Failed to connect: %s': 连接失败：%s
   'Failed to cool down: {}': '冷却失败: {}'
   'Failed to create filament:': '创建耗材失败:'
@@ -1069,6 +1080,7 @@ translations:
   Failed to delete file: 删除文件失败
   Failed to delete profile: 删除配置文件失败
   Failed to delete spool: 删除料盘失败
+  'Failed to disable WiFi: {}': '无法关闭 WiFi: {}'
   'Failed to discard recovery data: {}': '放弃恢复数据失败: {}'
   'Failed to download G-code for modification: {}': '下载 G-code 进行修改失败: {}'
   'Failed to download G-code for remap: {}': 下载用于重新映射的 G-code 失败：{}
@@ -1077,8 +1089,10 @@ translations:
   ? "Failed to download moonraker.conf.\nCheck printer connection."
   : "下载 moonraker.conf 失败。\n请检查打印机连接。"
   Failed to duplicate spool: 复制线轴失败
+  'Failed to enable WiFi: {}': '无法开启 WiFi: {}'
   Failed to enable tuning tower: 启用调优塔失败
   'Failed to exclude ''{}'': {}': '排除 ''{}'' 失败: {}'
+  Failed to forget WiFi network '{}': 无法忘记 WiFi 网络 '{}'
   Failed to get limits: 获取限制失败
   Failed to initialize Bluetooth: 初始化蓝牙失败
   Failed to initialize Bluetooth context: 初始化蓝牙上下文失败
@@ -1116,6 +1130,7 @@ translations:
   'Failed to restart: {}': 重启失败：{}
   'Failed to resume: {}': '恢复失败: {}'
   Failed to save LED configuration: 保存 LED 配置失败
+  Failed to save WiFi network: 无法保存 WiFi 网络
   Failed to save config.: 保存配置失败。
   Failed to save configuration: 保存配置失败
   Failed to save fan configuration: 保存风扇配置失败
@@ -1136,6 +1151,7 @@ translations:
   'Failed to start installer: ': '启动安装程序失败: '
   'Failed to start print: {}': '开始打印失败: {}'
   'Failed to start uninstaller: ': '启动卸载程序失败: '
+  'Failed to subscribe to printer updates: {}': '无法接收打印机更新: {}'
   Failed to toggle %s: 切换 %s 失败
   'Failed to toggle timelapse: {}': '切换延时摄影失败: {}'
   'Failed to turn off heaters: {}': '关闭加热器失败: {}'
@@ -1223,6 +1239,7 @@ translations:
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: '耗材已用尽。自动续料已关闭，CFS 不会自行更换料盘。请装入耗材后恢复打印。'
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: 耗材已用尽。CFS 知道哪些料盘匹配，但这些槽位都是空的。请装载其中一个，然后恢复打印。
   Filament reload failed: 耗材重新装载失败
+  Filament remap not supported on this printer — print will use the firmware's current tool mapping: 此打印机不支持重新映射耗材 — 打印将使用固件当前的工具映射
   Filament remapping is unavailable: 耗材重新映射不可用
   Filament runout: 耗材用尽
   Filament runout and motion detection sensors: 耗材用尽和运动检测传感器
@@ -1240,6 +1257,7 @@ translations:
   File: 文件
   File Size: 文件大小
   File Will Stop the Printer: '文件会使打印机停止'
+  File not found on printer.: 打印机上未找到文件。
   'File not found: {}': '未找到文件: {}'
   Filename: 文件名
   Fine: 细调
@@ -1252,6 +1270,7 @@ translations:
   Fireworks: 烟花
   Firmware Restart: 固件重启
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: 固件报告未配置旁路。如果您将耗材直接送入挤出机，请启用此选项
+  'Firmware restart failed: {}': '固件重启失败: {}'
   Firmware restarting...: 固件重启中...
   Firmware saved X = Y's value; the measured X result was discarded: 固件将 X 轴保存为 Y 轴的值；实测的 X 轴结果已被丢弃
   'Fix: chmod 644 {}, then restart': '修复：chmod 644 {}，然后重启'
@@ -1418,6 +1437,7 @@ translations:
   'Homing failed: ': '回零失败: '
   'Homing failed: {}': '归位失败: {}'
   Homing first...: 正在先归位...
+  Homing is disabled while a print is in progress: 打印进行中，无法归位
   Homing may still be running — response timed out: 归位可能仍在运行 — 响应超时
   Homing selector: '选择器回零'
   Homing timed out: 归位超时
@@ -1565,11 +1585,14 @@ translations:
   Klipper Error: Klipper 错误
   Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart.: Klipper
     固件已与主机断开连接。请尝试重启 Klipper 或执行固件重启。
+  Klipper has disconnected from Moonraker. Check for errors in your printer interface.: Klipper 已与 Moonraker 断开连接。请在打印机界面中检查错误。
   ? Klipper has entered an error state. This is typically caused by an MCU connection
     failure or configuration error. Try a firmware restart.
   : Klipper 已进入错误状态。这通常是由 MCU 连接失败或配置错误引起的。请尝试固件重启。
+  Klipper has entered shutdown state.: Klipper 已进入关闭状态。
   Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error.: Klipper
     已进入关机状态。这可能是由于紧急停止、热失控或配置错误引起的。
+  Klipper is halted — restart firmware to continue: Klipper 已停止 — 请重启固件以继续
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper 将 'default' 保留用于新的校准。请选择其他名称。"
   Klipper restarting - macros activating: '正在重启 Klipper - 正在启用宏'
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
@@ -1800,6 +1823,7 @@ translations:
   Monitoring: 监控中
   Month: 月
   Moonraker: Moonraker
+  Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started.: Moonraker 在 {} 无响应。它运行在这台打印机上，请检查 Klipper 和 Moonraker 服务是否已启动。
   Moonraker restarted but Spoolman not connected. Check server.: Moonraker 已重启但 Spoolman
     未连接。请检查服务器。
   ? "Moonraker restarting...\nWaiting for reconnection..."
@@ -2135,6 +2159,7 @@ translations:
   'Peak:': 峰值：
   Peaks {} Hz: "峰值 {} Hz"
   Performance: 性能
+  Permission denied. Check printer configuration.: 权限被拒绝。请检查打印机配置。
   Phomemo (Bluetooth): Phomemo（蓝牙）
   Phomemo M110: Phomemo M110
   Pick: 选取
@@ -2280,6 +2305,8 @@ translations:
   Printer Type: 打印机类型
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): 打印机已接受作业但未开始打印
     — 请检查盖板、纸张和标签类型 (firmware status=0x{:02X} error=0x{:02X})
+  'Printer command ''{}'' failed: {}': '打印机命令 ''{}'' 失败: {}'
+  Printer command '{}' timed out after {}ms: 打印机命令 '{}' 在 {} 毫秒后超时
   Printer connection unavailable: 打印机连接不可用
   Printer database format error: 打印机数据库格式错误
   Printer database is corrupt: 打印机数据库已损坏
@@ -2289,7 +2316,10 @@ translations:
   Printer hardware detected: 检测到打印机硬件
   Printer image set to auto-detect: 打印机图片已设为自动检测
   Printer is busy - {} stays in the queue: '打印机忙碌中 – {} 保留在队列中'
+  Printer is busy — try again in a moment: 打印机忙 — 请稍后重试
   Printer is not paired — pair it first: 打印机未配对 — 请先进行配对
+  Printer is not ready: 打印机未就绪
+  Printer is not ready. Please wait for initialization.: 打印机未就绪。请等待初始化完成。
   'Printer message: {}': '打印机消息：{}'
   Printer name: 打印机名称
   Printer not connected: 打印机未连接
@@ -2414,6 +2444,7 @@ translations:
   Reboot failed: 重启失败
   Reboot failed — host is still reachable: 重启失败 — 主机仍可访问
   Recalibrate or view detailed results anytime in Settings.: 可随时在设置中重新校准或查看详细结果。
+  Received oversized data from printer ({} bytes). This may indicate a communication error.: 从打印机收到的数据过大（{} 字节）。这可能表示通信错误。
   Recent Prints: 最近打印
   Recently Printed: 最近打印过的
   Reconnect: 重新连接
@@ -2427,7 +2458,6 @@ translations:
   Recovering AFC system...: AFC系统恢复中...
   Recovering...: 恢复中...
   Recovery failed: 恢复失败
-  'Recovery failed: ': '恢复失败: '
   'Recovery failed: {}': '恢复失败: {}'
   Reduce Sensitivity: 降低灵敏度
   Reduce ringing and ghosting artifacts: 减少振纹和残影
@@ -2484,6 +2514,7 @@ translations:
   Reprint: 重新打印
   Reprint Last: 重印上次
   Request Failed: 请求失败
+  Request timed out. The printer may be busy.: 请求超时。打印机可能正忙。
   Require Confirmation?: 需要确认？
   Require confirmation before emergency stop: 紧急停止前需要确认
   Requires Moonraker power device: '需要 Moonraker 电源设备'
@@ -2525,6 +2556,7 @@ translations:
   Restart Now: 立即重启
   Restart Required: 需要重启
   'Restart failed: not connected': '重启失败: 未连接'
+  'Restart failed: {}': '重启失败: {}'
   Restart from the beginning to recover: 请从头重新开始以恢复打印
   Restart pending: '重启待执行'
   Restart the display application: 重启显示应用程序
@@ -2871,6 +2903,7 @@ translations:
   Spoolman was not configured.: Spoolman 未配置。
   'Spoolman: %zu Spool%s': 'Spoolman: %zu 个线轴%s'
   'Spoolman: %zu/%zu Spool%s': 'Spoolman: %zu/%zu 个线轴%s'
+  'Spools are on the bed: remove them and confirm before moving the printer': 热床上有料盘：请先移除并确认，再移动打印机
   'Spools are on the bed: tap the drying banner to confirm they are off, then restart.': 热床上有料盘:点击烘干横幅确认已取下,然后再重启。
 
   'Spools on the bed: start drying, or confirm none were placed': 料盘在热床上:开始烘干,或确认未放置料盘
@@ -3082,6 +3115,7 @@ translations:
   : 打印机会先归位,然后让热床尽量远离喷嘴。有些料盘耐热性不足,可能会变形。在你确认料盘已从热床上取下之前,此屏幕不会移动任何部件;Mainsail、宏以及切片软件发送的打印不会被阻止。
 
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: 打印机尚未归位。继续将对所有轴执行归位操作，移动工具头。请确保热床上没有障碍物。
+  The printer isn't detecting that any filament is currently loaded. What would you like to do?: 打印机未检测到已加载的耗材。请选择下一步操作。
   The printer lost power during a print. It can resume where it left off.: 打印机在打印过程中断电。可以从中断处继续。
   The printer lost power during a print. The resumed layer may not line up exactly.: 打印机在打印过程中断电。恢复后的层可能无法完全对准。
   The printer lost power while printing {}. Resume where it left off?: 打印机在打印 {} 时断电。是否从中断处继续？
@@ -3154,6 +3188,8 @@ translations:
   This printer fills its gates from Spoolman. Make colour, material and spool changes in Spoolman.: 此打印机的通道信息来自 Spoolman。请在 Spoolman 中更改颜色、材料和线轴。
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : 此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。
+  This printer's network service controls the WiFi radio: 此打印机的网络服务控制 WiFi 无线模块
+  This printer's network service manages saved WiFi networks: 此打印机的网络服务管理已保存的 WiFi 网络
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : 这会移除插件的 Moonraker 组件并重启 Moonraker。打印机将短暂断开连接。如果 PRINT_START 中仍有旧的阶段跟踪行，它们也会被移除，但会保留备份。重启 Klipper 后生效。
   This replaces the printer's helper macros with the current version and restarts Klipper.: '这会将打印机的帮助宏替换为当前版本并重启 Klipper。'
@@ -3287,6 +3323,8 @@ translations:
   USB drive connected: U 盘已连接
   USB drive removed: U 盘已移除
   USB printer access denied — check permissions: USB 打印机访问被拒绝 — 请检查权限
+  Unable to reach printer at {}. Check that the printer is powered on and that this address is correct.: 无法连接到位于 {} 的打印机。请检查打印机是否已开机以及此地址是否正确。
+  Unable to reach printer. Check power and network connection.: 无法连接到打印机。请检查电源和网络连接。
   Unavailable: 不可用
   Unavailable on this printer: 此打印机上不可用
   Undo: 撤销
@@ -3445,12 +3483,19 @@ translations:
   WiFi Disabled: WiFi 已禁用
   WiFi Enabled: WiFi 已启用
   WiFi Network: WiFi 网络
+  WiFi Permission Denied: WiFi 权限被拒绝
+  WiFi Service Not Running: WiFi 服务未运行
   WiFi Unavailable: WiFi 不可用
   WiFi and Ethernet configuration: WiFi 和以太网配置
   WiFi control unavailable: WiFi 控制不可用
   WiFi hardware unavailable: WiFi 硬件不可用
+  'WiFi initialization failed: {}': 'WiFi 初始化失败: {}'
   WiFi radio did not change state: WiFi 状态未改变
+  WiFi scan failed. Try again.: WiFi 扫描失败。请重试。
   WiFi unavailable: WiFi 不可用
+  WiFi unavailable. Cannot connect to network.: WiFi 不可用。无法连接到网络。
+  WiFi unavailable. Cannot forget network.: WiFi 不可用。无法忘记网络。
+  WiFi unavailable. Cannot scan for networks.: WiFi 不可用。无法扫描网络。
   WiFi was configured but hardware is not available. Check system configuration.: 已配置
     WiFi 但硬件不可用。请检查系统配置。
   Widget Labels: 小组件标签
@@ -3604,6 +3649,7 @@ translations:
   v%s available: v%s 可用
   v{} installed! Restarting...: 已安装 v{}！正在重启...
   v{} is available. Tap to update.: v{} 可用。点击以更新。
+  wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant 未运行。WiFi 功能不可用。
   you have: 您有
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 约 {} 分钟'
   '{} Hardware Issues': '{} 个硬件问题'

@@ -35,10 +35,7 @@ enum class MoonrakerEventSuppression {
  * @brief Routing decision for one Moonraker event
  *
  * `title_tag` is the UNTRANSLATED source string. Translating it is the caller's
- * job and must happen on the main thread — lv_translation_get() reads the
- * file-scope selected_lang with no synchronisation, and
- * lv_translation_set_language() frees and replaces it from the main thread, so
- * an off-thread lv_tr() is a read of freed memory, not just a torn read (#1219).
+ * job, done where the title is shown.
  */
 struct MoonrakerEventDecision {
     MoonrakerEventRoute route;

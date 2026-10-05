@@ -176,3 +176,76 @@ TEST_CASE_METHOD(LVGLTestFixture, "GCode viewer: clear drops a queued load resul
     lv_obj_delete(viewer);
     process_lvgl(50);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "GCode viewer: a viewer never accepts a result queued for a deleted one",
+                 "[gcode][viewer][gcode_viewer][slow]") {
+    const std::string path = find_test_asset("pause_markers_demo.gcode");
+    REQUIRE_FALSE(path.empty()); // run helix-tests from the repo root
+
+    helix::ScopedEnv restore_streaming("HELIX_GCODE_STREAMING");
+    ::setenv("HELIX_GCODE_STREAMING", "off", 1);
+
+    // The queued result is only dangerous when its successor lives at the same
+    // address, which LVGL's heap allows but does not promise. Each round builds a
+    // result for a viewer, deletes the viewer and creates the next one; a round
+    // whose successor landed elsewhere is thrown away and tried again.
+    auto& queue = helix::ui::UpdateQueue::instance();
+    lv_obj_t* second = nullptr;
+    for (int round = 0; round < 8 && second == nullptr; ++round) {
+        helix::ui::UpdateQueueTestAccess::drain_all(queue);
+        lv_obj_t* first = ui_gcode_viewer_create(test_screen());
+        REQUIRE(first != nullptr);
+
+        ui_gcode_viewer_load_file(first, path.c_str());
+        REQUIRE(wait_for_queued_result(std::chrono::seconds(30)));
+        helix::test_access::gcode_viewer_wait_for_build(first);
+
+        // The finished result stays queued, addressed to the widget that is
+        // about to go away.
+        lv_obj_delete(first);
+        lv_obj_t* candidate = ui_gcode_viewer_create(test_screen());
+        REQUIRE(candidate != nullptr);
+        if (candidate == first) {
+            second = candidate;
+        } else {
+            lv_obj_delete(candidate);
+        }
+    }
+    if (second == nullptr) {
+        SKIP("LVGL's heap did not reuse the deleted viewer's address");
+    }
+
+    // The successor's first generation bump: a viewer that counts from zero
+    // again lands on the number the queued result carries.
+    ui_gcode_viewer_clear(second);
+    helix::ui::UpdateQueueTestAccess::drain_all(queue);
+
+    CHECK_FALSE(ui_gcode_viewer_has_content(second));
+    CHECK(ui_gcode_viewer_get_parsed_file(second) == nullptr);
+
+    lv_obj_delete(second);
+    process_lvgl(50);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "GCode viewer: no two viewers ever share a load generation",
+                 "[gcode][viewer][gcode_viewer]") {
+    lv_obj_t* first = ui_gcode_viewer_create(test_screen());
+    ui_gcode_viewer_clear(first);
+    const uint64_t first_gen = helix::test_access::gcode_viewer_load_generation(first);
+
+    // A live neighbour and a successor of a deleted viewer both start elsewhere.
+    lv_obj_t* neighbour = ui_gcode_viewer_create(test_screen());
+    ui_gcode_viewer_clear(neighbour);
+    lv_obj_delete(first);
+    lv_obj_t* successor = ui_gcode_viewer_create(test_screen());
+    ui_gcode_viewer_clear(successor);
+
+    CHECK(helix::test_access::gcode_viewer_load_generation(neighbour) != first_gen);
+    CHECK(helix::test_access::gcode_viewer_load_generation(successor) != first_gen);
+    CHECK(helix::test_access::gcode_viewer_load_generation(successor) !=
+          helix::test_access::gcode_viewer_load_generation(neighbour));
+
+    lv_obj_delete(neighbour);
+    lv_obj_delete(successor);
+}

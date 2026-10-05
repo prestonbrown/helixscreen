@@ -267,10 +267,10 @@ moonraker_concrete_pattern() {
 # switch_printer() actually makes the call, and makes it BEFORE teardown, while
 # Config::df() has already moved to the new printer.
 
-# Print the body of Application::switch_printer() from the file given in $1.
+# Print the body of PrinterSession::switch_printer() from the file given in $1.
 switch_printer_body() {
     awk '
-        /^void Application::switch_printer\(/ { inside = 1 }
+        /^void PrinterSession::switch_printer\(/ { inside = 1 }
         inside { print }
         inside && /^\}/ { exit }
     ' "$1"
@@ -281,7 +281,7 @@ check_switch_printer_clears_caches() {
     local body clear_line teardown_line
     body=$(switch_printer_body "$1")
     if [ -z "$body" ]; then
-        echo "could not locate Application::switch_printer() in $1"
+        echo "could not locate PrinterSession::switch_printer() in $1"
         return 1
     fi
 
@@ -291,21 +291,21 @@ check_switch_printer_clears_caches() {
         return 1
     fi
 
-    teardown_line=$(printf '%s\n' "$body" | grep -n 'tear_down_printer_state()' | head -1 | cut -d: -f1)
+    teardown_line=$(printf '%s\n' "$body" | grep -n 'm_restart.teardown()' | head -1 | cut -d: -f1)
     if [ -z "$teardown_line" ]; then
-        echo "switch_printer() does not call tear_down_printer_state()"
+        echo "switch_printer() does not call m_restart.teardown()"
         return 1
     fi
 
     if [ "$clear_line" -ge "$teardown_line" ]; then
-        echo "PrinterCacheRegistry::invalidate_all() must precede tear_down_printer_state()"
+        echo "PrinterCacheRegistry::invalidate_all() must precede m_restart.teardown()"
         return 1
     fi
     return 0
 }
 
 @test "switch_printer invalidates every registered per-printer cache before teardown" {
-    run check_switch_printer_clears_caches src/application/application.cpp
+    run check_switch_printer_clears_caches src/application/printer_session.cpp
     [ "$status" -eq 0 ]
 }
 
@@ -313,7 +313,7 @@ check_switch_printer_clears_caches() {
     # Meta-test: a gate that cannot fail is not a gate. Strip the call from a
     # copy and confirm the check reports the #804 regression.
     local mutated="${BATS_TEST_TMPDIR}/application_no_clear.cpp"
-    grep -v 'PrinterCacheRegistry::instance().invalidate_all()' src/application/application.cpp > "$mutated"
+    grep -v 'PrinterCacheRegistry::instance().invalidate_all()' src/application/printer_session.cpp > "$mutated"
 
     run check_switch_printer_clears_caches "$mutated"
     [ "$status" -eq 1 ]
@@ -324,9 +324,9 @@ check_switch_printer_clears_caches() {
     # The ordering half: invalidating after teardown re-reads the OLD printer's
     # values on the way down, so position matters as much as presence.
     local mutated="${BATS_TEST_TMPDIR}/application_late_clear.cpp"
-    sed -e 's@^    helix::PrinterCacheRegistry::instance().invalidate_all();@@' \
-        -e 's@^    tear_down_printer_state();@    tear_down_printer_state();\n    helix::PrinterCacheRegistry::instance().invalidate_all();@' \
-        src/application/application.cpp > "$mutated"
+    sed -e 's@^    PrinterCacheRegistry::instance().invalidate_all();@@' \
+        -e 's@^    m_restart.teardown();@    m_restart.teardown();\n    PrinterCacheRegistry::instance().invalidate_all();@' \
+        src/application/printer_session.cpp > "$mutated"
 
     run check_switch_printer_clears_caches "$mutated"
     [ "$status" -eq 1 ]
@@ -337,8 +337,8 @@ check_switch_printer_clears_caches() {
     # Fail-closed: a rename or signature change must break the gate loudly rather
     # than silently pass on an empty body.
     local mutated="${BATS_TEST_TMPDIR}/application_no_fn.cpp"
-    sed -e 's@^void Application::switch_printer(@void Application::switch_printer_renamed(@' \
-        src/application/application.cpp > "$mutated"
+    sed -e 's@^void PrinterSession::switch_printer(@void PrinterSession::switch_printer_renamed(@' \
+        src/application/printer_session.cpp > "$mutated"
 
     run check_switch_printer_clears_caches "$mutated"
     [ "$status" -eq 1 ]
@@ -347,11 +347,11 @@ check_switch_printer_clears_caches() {
 
 @test "the switch_printer cache-invalidation gate fails when teardown is missing" {
     local mutated="${BATS_TEST_TMPDIR}/application_no_teardown.cpp"
-    grep -v '^    tear_down_printer_state();' src/application/application.cpp > "$mutated"
+    grep -v '^    m_restart.teardown();' src/application/printer_session.cpp > "$mutated"
 
     run check_switch_printer_clears_caches "$mutated"
     [ "$status" -eq 1 ]
-    [[ "$output" == *"tear_down_printer_state"* ]]
+    [[ "$output" == *"m_restart.teardown"* ]]
 }
 
 # --- No RTTI code shapes (the firmware builds -fno-rtti) ---
@@ -3209,6 +3209,6 @@ own_endpoint_http_offenders() {
     # take the XML name as a string-literal argument and publish through it. The name
     # can sit on the call's next line, so -A 1; these macros also carry non-name
     # literals (initial values), where a __ fails closed rather than slipping through.
-    run bash -c "grep -rn -A 1 --include='*.cpp' --include='*.h' --exclude-dir=plugin --exclude='plugin_*' --exclude='lua_*' -E 'register_subject_in_current_scope\(|UI_MANAGED_SUBJECT_[A-Z_]+\(|UI_SUBJECT_INIT_AND_REGISTER_[A-Z_]+\(' src/ include/ | grep -E '\"[^\"]*__'"
+    run bash -c "grep -rn -A 1 --include='*.cpp' --include='*.h' --exclude-dir=plugin --exclude='plugin_*' --exclude='lua_*' -E 'register_subject_in_current_scope\(|\.publish\(|UI_MANAGED_SUBJECT_[A-Z_]+\(|UI_SUBJECT_INIT_AND_REGISTER_[A-Z_]+\(' src/ include/ | grep -E '\"[^\"]*__'"
     [ "$status" -eq 1 ]
 }

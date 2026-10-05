@@ -101,6 +101,7 @@ class CameraConfigModal : public Modal {
 
     // C++-owned subjects for XML bindings
     bool subjects_initialized_ = false;
+    SubjectManager subjects_;
     lv_subject_t rot_0_active_{};
     lv_subject_t rot_90_active_{};
     lv_subject_t rot_180_active_{};

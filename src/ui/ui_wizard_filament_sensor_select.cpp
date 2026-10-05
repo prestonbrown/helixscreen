@@ -98,14 +98,12 @@ void WizardFilamentSensorSelectStep::filter_standalone_sensors() {
 // ============================================================================
 
 void WizardFilamentSensorSelectStep::init_subjects() {
-    if (subjects_initialized_) {
-        spdlog::debug("[{}] Subjects already initialized, resetting value", get_name());
-        lv_subject_set_int(&runout_sensor_selected_, 0);
-        return;
-    }
-
     spdlog::debug("[{}] Initializing subjects", get_name());
-    helix::ui::wizard::init_int_subject(&runout_sensor_selected_, 0, "runout_sensor_selected");
+
+    // Each visit re-initializes; drop the previous visit's subjects and names first.
+    subjects_.deinit_all();
+    helix::ui::wizard::init_int_subject(subjects_, &runout_sensor_selected_, 0,
+                                        "runout_sensor_selected");
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());

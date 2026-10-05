@@ -268,25 +268,13 @@ TEST_CASE_METHOD(IdentityCacheFixture, "SpoolmanManager identity: invalidate dro
 TEST_CASE_METHOD(IdentityCacheFixture,
                  "SpoolmanManager identity: cleared when printer_has_spoolman goes 0",
                  "[spoolman][identity]") {
-    // SpoolmanManager binds its availability observer to the XML-scope subject
-    // named "printer_has_spoolman". PrinterState only publishes that name under
-    // init_subjects(register_xml=true), which most of the suite does not do, so
-    // publish a subject under the name here — static, because XML scope outlives
-    // the test — and re-init the manager so it observes this one deterministically
-    // rather than whatever an earlier test file left behind.
-    static lv_subject_t availability;
-    static bool availability_ready = false;
-    if (!availability_ready) {
-        lv_subject_init_int(&availability, 1);
-        lv_xml_register_subject(nullptr, "printer_has_spoolman", &availability);
-        availability_ready = true;
-    }
-    lv_subject_set_int(&availability, 1);
-    REQUIRE(lv_xml_get_subject(nullptr, "printer_has_spoolman") == &availability);
-
-    SpoolmanManager::instance().deinit_subjects();
-    SpoolmanManager::instance().init_subjects();
+    // Start from a Spoolman that is available, whatever an earlier case left
+    // behind: the observer fires on attach, and a 0 delivered there would clear
+    // the cache before the transition under test ever happens.
+    set_spoolman_available(true);
+    IdTA::rewire_subjects(SpoolmanManager::instance());
     REQUIRE(IdTA::observes_availability(SpoolmanManager::instance()));
+    drain();
 
     SpoolmanManager::cache_identity(make_spool(1, "Polymaker", "Ambrosia Pink", "PLA"));
     SpoolmanManager::note_identity_unresolvable(2);
@@ -296,15 +284,12 @@ TEST_CASE_METHOD(IdentityCacheFixture,
     // Spoolman disappeared — the same force-stop path that kills the poll timer
     // must drop the cache, or a printer switch would keep serving names from the
     // previous Spoolman.
-    lv_subject_set_int(&availability, 0);
-    drain(); // observe<int>() defers its handler through the UpdateQueue
+    set_spoolman_available(false);
+    drain(); // the setter defers the subject write, and observe<int>() defers the handler
 
     CHECK_FALSE(SpoolmanManager::find_identity(1).has_value());
     CHECK_FALSE(SpoolmanManager::is_identity_unresolvable(2));
     CHECK(IdTA::cache_size(SpoolmanManager::instance()) == 0);
-
-    // Leave the shared XML-scope name reading "available" for whatever runs next.
-    lv_subject_set_int(&availability, 1);
 }
 
 TEST_CASE_METHOD(IdentityCacheFixture,

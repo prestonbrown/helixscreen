@@ -659,7 +659,7 @@ TEST_CASE_METHOD(HelixTestFixture,
         REQUIRE_FALSE(wc.is_enabled("shutdown"));
     }
 
-    // Simulate Application::switch_printer(): change the active printer, then
+    // Simulate PrinterSession::switch_printer(): change the active printer, then
     // invalidate every cached panel config so the next access re-reads df().
     REQUIRE(cfg->set_active_printer("printer-B"));
     mgr.clear_all_panel_configs();

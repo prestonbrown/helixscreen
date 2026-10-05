@@ -4,16 +4,20 @@
 #include "moonraker_gcode_guards.h"
 
 #include "gcode_homing.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
 #include "spool_latch_gate.h"
+#include "translation_loader.h"
 
 namespace helix {
 
+const char* spool_latch_message() {
+    return TR_NOOP("Spools are on the bed: remove them and confirm before moving the printer");
+}
+
 const char* spool_latch_restart_message() {
-    return lv_tr("Spools are on the bed: tap the drying banner to confirm they are off, then "
-                 "restart.");
+    return TR_NOOP("Spools are on the bed: tap the drying banner to confirm they are off, then "
+                   "restart.");
 }
 
 } // namespace helix
@@ -51,8 +55,8 @@ bool reject_homing_during_active_print(const std::string& gcode, helix::PrinterS
                      static_cast<int>(pstate), gcode.substr(0, 60));
     }
     if (on_error) {
-        on_error(MoonrakerError::not_ready("printer.gcode.script",
-                                           "Homing is disabled while a print is in progress"));
+        on_error(MoonrakerError::refusal(
+            "printer.gcode.script", TR_NOOP("Homing is disabled while a print is in progress")));
     }
     return true;
 }
@@ -70,7 +74,7 @@ bool reject_motion_while_spools_on_bed(const std::string& gcode, helix::PrinterS
                      gcode.substr(0, 60));
     }
     if (on_error) {
-        on_error(MoonrakerError::not_ready("printer.gcode.script", helix::kSpoolLatchMessage));
+        on_error(MoonrakerError::refusal("printer.gcode.script", helix::spool_latch_message()));
     }
     return true;
 }
@@ -82,7 +86,7 @@ bool reject_job_while_spools_on_bed(const helix::PrinterState* state, const char
     }
     spdlog::warn("[Moonraker API] Refusing {} while spools are on the bed", method);
     if (on_error) {
-        on_error(MoonrakerError::not_ready(method, helix::kSpoolLatchMessage));
+        on_error(MoonrakerError::refusal(method, helix::spool_latch_message()));
     }
     return true;
 }
@@ -95,7 +99,7 @@ bool reject_restart_while_spools_on_bed(
     }
     spdlog::warn("[Moonraker API] Refusing {} while spools are on the bed", method);
     if (on_error) {
-        on_error(MoonrakerError::not_ready(method, helix::spool_latch_restart_message()));
+        on_error(MoonrakerError::refusal(method, helix::spool_latch_restart_message()));
     }
     return true;
 }

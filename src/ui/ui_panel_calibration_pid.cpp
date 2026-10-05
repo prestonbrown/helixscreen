@@ -630,8 +630,6 @@ void PIDCalibrationPanel::send_pid_calibrate() {
     api_->advanced().start_pid_calibrate(
         heater_name, target_temp_,
         [this, token](float kp, float ki, float kd) {
-            if (token.expired())
-                return;
             // Callback from background thread - marshal to UI thread
             token.defer([this, kp, ki, kd]() {
                 // Ignore results if user already aborted
@@ -645,8 +643,6 @@ void PIDCalibrationPanel::send_pid_calibrate() {
             });
         },
         [this, token](const MoonrakerError& err) {
-            if (token.expired())
-                return;
             std::string msg = err.message;
             token.defer([this, msg]() {
                 if (state_ != State::CALIBRATING) {
@@ -659,8 +655,6 @@ void PIDCalibrationPanel::send_pid_calibrate() {
             });
         },
         [this, token](int sample, float tolerance) {
-            if (token.expired())
-                return;
             token.defer([this, sample, tolerance]() { on_pid_progress(sample, tolerance); });
         });
 }
@@ -710,8 +704,6 @@ void PIDCalibrationPanel::fetch_old_pid_values() {
     api_->advanced().get_heater_pid_values(
         heater_name,
         [this, token](float kp, float ki, float kd) {
-            if (token.expired())
-                return;
             token.defer([this, kp, ki, kd]() {
                 old_kp_ = kp;
                 old_ki_ = ki;
@@ -1305,8 +1297,6 @@ void PIDCalibrationPanel::detect_heater_control_type(bool preselect_mpc) {
     api_->advanced().get_heater_control_type(
         heater,
         [this, token, preselect_mpc](const std::string& type) {
-            if (token.expired())
-                return;
             token.defer([this, type, preselect_mpc]() {
                 // Query succeeded, firmware supports control type query (Kalico)
                 is_kalico_ = true;
@@ -1325,8 +1315,6 @@ void PIDCalibrationPanel::detect_heater_control_type(bool preselect_mpc) {
             });
         },
         [this, token](const MoonrakerError&) {
-            if (token.expired())
-                return;
             // Can't determine control type, not Kalico — default to PID
             token.defer([this]() {
                 is_kalico_ = false;
@@ -1360,8 +1348,6 @@ void PIDCalibrationPanel::start_migration(CalibMethod target) {
     config_editor_.safe_multi_edit(
         *api_, section, edits,
         [this, token, target]() {
-            if (token.expired())
-                return;
             token.defer([this, target]() {
                 current_control_ =
                     (target == CalibMethod::MPC) ? ControlType::MPC : ControlType::PID;
@@ -1371,8 +1357,6 @@ void PIDCalibrationPanel::start_migration(CalibMethod target) {
             });
         },
         [this, token](const std::string& err) {
-            if (token.expired())
-                return;
             token.defer([this, err]() {
                 spdlog::error("[PIDCal] Migration failed: {}", err);
                 lv_subject_copy_string(&subj_error_message_, err.c_str());
@@ -1403,8 +1387,6 @@ void PIDCalibrationPanel::send_mpc_calibrate() {
     api_->advanced().start_mpc_calibrate(
         heater, target_temp_, fan_breakpoints_,
         [this, token](const MoonrakerAdvancedAPI::MPCResult& result) {
-            if (token.expired())
-                return;
             token.defer([this, result]() {
                 if (state_ != State::CALIBRATING)
                     return;
@@ -1412,8 +1394,6 @@ void PIDCalibrationPanel::send_mpc_calibrate() {
             });
         },
         [this, token](const MoonrakerError& err) {
-            if (token.expired())
-                return;
             std::string msg = err.message;
             token.defer([this, msg]() {
                 if (state_ != State::CALIBRATING)
@@ -1424,8 +1404,6 @@ void PIDCalibrationPanel::send_mpc_calibrate() {
             });
         },
         [this, token](int phase, int total, const std::string& desc) {
-            if (token.expired())
-                return;
             token.defer([this, phase, total, desc]() { on_mpc_progress(phase, total, desc); });
         });
 }

@@ -437,9 +437,12 @@ class DisplayManager : public helix::ICalibrationSink {
             m_backend->clear_calibration();
         }
     }
-    bool apply_touch_range(bool swap_axes, int min_x, int min_y, int max_x, int max_y) override {
-        return m_backend && m_backend->apply_touch_range(swap_axes, min_x, min_y, max_x, max_y);
+    bool apply_touch_range(bool swap_axes, int min_x, int min_y, int max_x, int max_y,
+                           helix::TouchRangeSource source) override {
+        return m_backend &&
+               m_backend->apply_touch_range(swap_axes, min_x, min_y, max_x, max_y, source);
     }
+    helix::LiveTouchRange current_touch_range() const override;
 
     /**
      * @brief Mark whether a touch-calibration UI (overlay or wizard) is on screen

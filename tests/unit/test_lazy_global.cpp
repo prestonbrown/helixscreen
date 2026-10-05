@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../helix_test_fixture.h"
 #include "static_panel_registry.h"
 #include "static_subject_registry.h"
 
@@ -31,7 +32,8 @@ struct Probe {
 
 } // namespace
 
-TEST_CASE("lazy_global builds one instance per type on first use", "[lazy_global]") {
+TEST_CASE_METHOD(HelixTestFixture, "lazy_global builds one instance per type on first use",
+                 "[lazy_global]") {
     StaticPanelRegistry::instance().destroy_all();
     g_events.clear();
     REQUIRE(lazy_global_if_exists<Probe>() == nullptr);
@@ -47,7 +49,9 @@ TEST_CASE("lazy_global builds one instance per type on first use", "[lazy_global
     StaticPanelRegistry::instance().destroy_all();
 }
 
-TEST_CASE("destroy_all frees a lazy_global and the next use builds a fresh one", "[lazy_global]") {
+TEST_CASE_METHOD(HelixTestFixture,
+                 "destroy_all frees a lazy_global and the next use builds a fresh one",
+                 "[lazy_global]") {
     StaticPanelRegistry::instance().destroy_all();
     g_events.clear();
 
@@ -64,7 +68,9 @@ TEST_CASE("destroy_all frees a lazy_global and the next use builds a fresh one",
     CHECK(g_events == std::vector<std::string>{"construct", "destroy", "construct", "destroy"});
 }
 
-TEST_CASE("a subject deinit after destroy_all sees no instance and builds none", "[lazy_global]") {
+TEST_CASE_METHOD(HelixTestFixture,
+                 "a subject deinit after destroy_all sees no instance and builds none",
+                 "[lazy_global]") {
     StaticPanelRegistry::instance().destroy_all();
     g_events.clear();
 

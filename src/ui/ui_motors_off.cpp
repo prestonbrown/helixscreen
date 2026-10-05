@@ -43,9 +43,9 @@ void show_motors_off_confirm(IMoonrakerAPI* api, ModalGuard& stored,
             NOTIFY_INFO(lv_tr("Disabling motors..."));
             api->execute_gcode(
                 "M84", // Klipper command to disable steppers
-                []() { NOTIFY_SUCCESS(lv_tr("Motors disabled")); },
+                []() { helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Motors disabled")); },
                 [](const MoonrakerError& err) {
-                    NOTIFY_ERROR(lv_tr("Motors disable failed: {}"), err.message);
+                    helix::ui::notify_error_tr(TR_NOOP("Motors disable failed: {}"), err);
                 });
         },
         opts);

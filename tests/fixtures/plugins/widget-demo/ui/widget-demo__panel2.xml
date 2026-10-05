@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<component>
+  <view extends="overlay_panel" title="Demo 2" bg_color="#screen_bg">
+    <lv_label name="widget-demo__panel2_status" bind_text="widget-demo__status"/>
+  </view>
+</component>

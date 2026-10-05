@@ -40,7 +40,7 @@ class DetectionManager {
 
     /// Wire up Moonraker/PrinterState deps and register a post-connect hook that
     /// (re)probes detector capabilities once the WebSocket is up. The probe is NOT
-    /// run here — at init() time (Application::init_panel_subjects) the WebSocket has
+    /// run here — at init() time (PrinterSession::init_panel_subjects) the WebSocket has
     /// not connected yet, so printer.objects.list would fail and capable_ would stay
     /// false forever. Hooking add_connected_observer() runs it after every connect.
     void init(helix::IMoonrakerClient* client, helix::PrinterState* state);

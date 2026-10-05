@@ -636,6 +636,11 @@ class PrintSelectPanel : public PanelBase {
     //
 
     lv_obj_t* card_view_container_ = nullptr;
+    /// Card container content size the current cards were sized for.
+    lv_coord_t sized_for_w_ = -1;
+    lv_coord_t sized_for_h_ = -1;
+    /// A deferred re-populate for a card container resize is queued.
+    bool card_resize_pending_ = false;
     lv_obj_t* list_view_container_ = nullptr;
     lv_obj_t* list_rows_container_ = nullptr;
     lv_obj_t* empty_state_container_ = nullptr;
@@ -1071,6 +1076,7 @@ class PrintSelectPanel : public PanelBase {
 
     static void on_resize_static(void* user_data);
     static void on_scroll_static(lv_event_t* e);
+    static void on_card_container_resized_static(lv_event_t* e);
     static void on_file_clicked_static(lv_event_t* e);
 };
 

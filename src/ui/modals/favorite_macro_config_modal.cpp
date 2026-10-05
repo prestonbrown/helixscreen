@@ -18,6 +18,7 @@
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "static_subject_registry.h"
+#include "subject_managed_panel.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -35,6 +36,7 @@ lv_subject_t s_require_confirm_subject{};
 /// can show the "Default Parameters" row only for macros that have one.
 lv_subject_t s_has_param_defaults_subject{};
 bool s_subjects_registered = false;
+SubjectManager s_subjects;
 
 // Curated icon list for the picker grid (matches FavoriteMacroWidget).
 static const char* const CURATED_ICONS[] = {
@@ -88,13 +90,11 @@ void register_favorite_macro_config_subjects() {
     // reads correctly even before on_show() loads a widget's config.
     lv_subject_init_int(&s_require_confirm_subject, 1);
     lv_subject_init_int(&s_has_param_defaults_subject, 0);
-    lv_xml_register_subject(nullptr, "fav_macro_config_tab", &s_tab_subject);
-    lv_xml_register_subject(nullptr, "fav_macro_require_confirm", &s_require_confirm_subject);
-    lv_xml_register_subject(nullptr, "fav_macro_has_param_defaults", &s_has_param_defaults_subject);
+    s_subjects.publish("fav_macro_config_tab", &s_tab_subject);
+    s_subjects.publish("fav_macro_require_confirm", &s_require_confirm_subject);
+    s_subjects.publish("fav_macro_has_param_defaults", &s_has_param_defaults_subject);
     StaticSubjectRegistry::instance().register_deinit("FavoriteMacroConfigSubjects", []() {
-        lv_subject_deinit(&s_tab_subject);
-        lv_subject_deinit(&s_require_confirm_subject);
-        lv_subject_deinit(&s_has_param_defaults_subject);
+        s_subjects.deinit_all();
         s_subjects_registered = false;
     });
     s_subjects_registered = true;

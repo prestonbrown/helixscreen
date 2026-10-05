@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_update_queue.h"
+
 #include "../helix_test_fixture.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "ams_state.h"
@@ -645,6 +647,8 @@ class AmsSubjectGuard {
     ~AmsSubjectGuard() {
         // Reset to 0 so subsequent tests see "no AMS" by default
         lv_subject_set_int(subject_, 0);
+        // Observers of the subject defer their applies; run them while it is alive.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     AmsSubjectGuard(const AmsSubjectGuard&) = delete;

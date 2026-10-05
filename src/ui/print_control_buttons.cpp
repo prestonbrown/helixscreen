@@ -149,7 +149,7 @@ void PrintControlButtons::handle_primary_button() {
             StandardMacroSlot::Pause, api_, []() { spdlog::info("[PrintControl] Pause sent"); },
             [](const MoonrakerError& err) {
                 spdlog::error("[PrintControl] Pause failed: {}", err.message);
-                NOTIFY_ERROR(lv_tr("Failed to pause print: {}"), err.user_message());
+                helix::ui::notify_error_tr(TR_NOOP("Failed to pause print: {}"), err);
                 PrintControlButtons::instance().clear_pending_action();
             },
             /*timeout_ms=*/0, /*suppress_auto_toast=*/true);

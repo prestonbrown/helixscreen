@@ -149,26 +149,24 @@ bool handoff_satisfied(const RenderProbe& probe, std::chrono::steady_clock::time
     return std::chrono::steady_clock::now() - t0 >= std::chrono::milliseconds(80);
 }
 
-/// Wait for the render thread to actually stop calling the render source.
+/// Wait for the render thread to reach the idle park after suspend().
 ///
-/// suspend() only sets a flag; the render thread drops the device when it next
-/// observes it, so parking is asynchronous and no fixed sleep is ever correct.
-/// A 50ms nap was close enough to right that it passed in isolation and failed
-/// intermittently under 96-shard parallelism, where the thread could still land
-/// one pass after the snapshot (the assertion read `4 == 3`).
+/// suspend() only sets a flag; the render thread drains and parks when it next
+/// observes it, so parking is asynchronous. Inferring it from a quiet window of
+/// the render source is unsound: a starved thread is quiet without having
+/// parked, and its in-flight pass then acks a later resume() without rendering
+/// for it. The backend's own parked signal has no such gap.
 ///
-/// Returns the settled pass count, or std::nullopt if the thread never went
-/// quiet inside the timeout — which is the real regression this guards.
+/// Returns the settled pass count, or std::nullopt if the thread never parked
+/// inside the timeout, which is the real regression this guards.
 std::optional<uint32_t>
-wait_until_parked(const RenderProbe& probe,
-                  std::chrono::milliseconds quiet_window = std::chrono::milliseconds(50),
-                  std::chrono::milliseconds timeout = std::chrono::seconds(5)) {
+wait_until_parked(const ALSASoundBackend& backend, const RenderProbe& probe,
+                  std::chrono::milliseconds timeout = std::chrono::seconds(10)) {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     while (std::chrono::steady_clock::now() < deadline) {
-        const uint32_t before = probe.passes();
-        std::this_thread::sleep_for(quiet_window);
-        if (probe.passes() == before)
-            return before;
+        if (backend.is_parked())
+            return probe.passes();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
     return std::nullopt;
 }
@@ -189,7 +187,7 @@ TEST_CASE("ALSASoundBackend::resume() blocks until a render pass completed", "[s
     // Must be genuinely parked before probe.reset(), or a still-in-flight pass
     // sets rendered_ after the reset and the assertion below passes for the
     // wrong reason.
-    REQUIRE(wait_until_parked(probe).has_value());
+    REQUIRE(wait_until_parked(backend, probe).has_value());
 
     probe.reset();
     const auto handoff_t0 = std::chrono::steady_clock::now();
@@ -215,7 +213,7 @@ TEST_CASE("ALSASoundBackend::suspend() parks the render thread", "[sound][alsa]"
 
     backend.suspend();
 
-    const auto after_park = wait_until_parked(probe);
+    const auto after_park = wait_until_parked(backend, probe);
     REQUIRE(after_park.has_value()); // suspend() never quiesced the render thread
 
     // And it must STAY parked, not merely pause between periods.
@@ -243,7 +241,7 @@ TEST_CASE("ALSASoundBackend::resume() handoff survives repeated suspend/resume c
 
     for (int i = 0; i < 50; ++i) {
         backend.suspend();
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        REQUIRE(wait_until_parked(backend, probe).has_value());
         probe.reset();
         const auto handoff_t0 = std::chrono::steady_clock::now();
         backend.resume();

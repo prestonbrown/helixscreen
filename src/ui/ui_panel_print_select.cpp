@@ -174,6 +174,7 @@ PrintSelectPanel::~PrintSelectPanel() {
         // Remove scroll event callbacks to prevent use-after-free
         if (card_view_container_) {
             lv_obj_remove_event_cb(card_view_container_, on_scroll_static);
+            lv_obj_remove_event_cb(card_view_container_, on_card_container_resized_static);
         }
         if (list_rows_container_) {
             lv_obj_remove_event_cb(list_rows_container_, on_scroll_static);
@@ -384,6 +385,8 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // Register scroll event handlers for progressive loading
     lv_obj_add_event_cb(card_view_container_, on_scroll_static, LV_EVENT_SCROLL, this);
     lv_obj_add_event_cb(list_rows_container_, on_scroll_static, LV_EVENT_SCROLL, this);
+    lv_obj_add_event_cb(card_view_container_, on_card_container_resized_static,
+                        LV_EVENT_SIZE_CHANGED, this);
 
     // Create and setup virtualized view modules
     auto* self = this;
@@ -2148,7 +2151,7 @@ void PrintSelectPanel::show_detail_view() {
         detail_view_->show(filename, current_path_, selected_filament_type_,
                            selected_filament_colors_, selected_filament_materials_,
                            selected_file_size_bytes_, selected_modified_timestamp_,
-                           selected_gcode_end_byte_);
+                           selected_gcode_end_byte_, selected_local_path_);
         // Update history status display in detail view
         detail_view_->update_history_status(selected_history_status_, selected_success_count_);
     }
@@ -2199,6 +2202,11 @@ void PrintSelectPanel::show_delete_confirmation() {
                      get_name());
         return;
     }
+    // A USB file has no Moonraker path to delete.
+    if (!selected_local_path_.empty()) {
+        spdlog::debug("[{}] Delete refused for USB file {}", get_name(), selected_local_path_);
+        return;
+    }
     std::string filename(selected_filename_buffer_);
     detail_view_->show_delete_confirmation(filename);
 }
@@ -2226,35 +2234,18 @@ CardDimensions PrintSelectPanel::calculate_card_dimensions() {
         return publish({4, 2, CARD_MIN_WIDTH, CARD_DEFAULT_HEIGHT});
     }
 
-    lv_coord_t container_width = lv_obj_get_content_width(card_view_container_);
     // Read gap from container's XML-defined style (respects design tokens)
     // Note: style_pad_gap in XML sets both pad_row and pad_column; we read pad_column for width
     // calc
     int card_gap = lv_obj_get_style_pad_column(card_view_container_, LV_PART_MAIN);
-    spdlog::trace("[{}] Container content width: {}px (MIN={}, MAX={}, GAP={})", get_name(),
-                  container_width, CARD_MIN_WIDTH, CARD_MAX_WIDTH, card_gap);
-
-    // Calculate available height from parent panel dimensions
-    lv_obj_t* panel_root = lv_obj_get_parent(card_view_container_);
-    if (!panel_root) {
-        spdlog::error("[{}] Cannot find panel root", get_name());
-        return publish({4, 2, CARD_MIN_WIDTH, CARD_DEFAULT_HEIGHT});
-    }
-
-    lv_coord_t panel_height = lv_obj_get_height(panel_root);
-    lv_obj_t* top_bar = lv_obj_get_child(panel_root, 0);
-    lv_coord_t top_bar_height = top_bar ? lv_obj_get_height(top_bar) : 60;
-    lv_coord_t panel_gap = lv_obj_get_style_pad_row(panel_root, LV_PART_MAIN);
-    lv_coord_t container_pad_top = lv_obj_get_style_pad_top(card_view_container_, LV_PART_MAIN);
-    lv_coord_t container_pad_bottom =
-        lv_obj_get_style_pad_bottom(card_view_container_, LV_PART_MAIN);
-    lv_coord_t container_padding = container_pad_top + container_pad_bottom;
-    lv_coord_t available_height = panel_height - top_bar_height - container_padding - panel_gap;
-
-    spdlog::trace("[{}] Height calc: panel={} - top_bar={} - container_pad({}+{})={} - "
-                  "panel_gap={} = available={}",
-                  get_name(), panel_height, top_bar_height, container_pad_top, container_pad_bottom,
-                  container_padding, panel_gap, available_height);
+    // The container's own content box already excludes the header, the context
+    // banner and its padding, whichever of them is showing.
+    lv_obj_update_layout(card_view_container_);
+    lv_coord_t container_width = lv_obj_get_content_width(card_view_container_);
+    lv_coord_t available_height = lv_obj_get_content_height(card_view_container_);
+    sized_for_w_ = container_width;
+    sized_for_h_ = available_height;
+    spdlog::trace("[{}] Card container content height: {}px", get_name(), available_height);
 
     CardDimensions dims;
 
@@ -2832,6 +2823,11 @@ void PrintSelectPanel::on_file_long_pressed(size_t file_index) {
         spdlog::trace("[{}] long-press on directory ignored: {}", get_name(), file.filename);
         return;
     }
+    if (!file.local_path.empty()) {
+        // No delete for a USB file, the same as its hidden detail-view button.
+        spdlog::trace("[{}] long-press on USB file ignored: {}", get_name(), file.filename);
+        return;
+    }
 
     spdlog::info("[{}] Long-press delete requested: {}", get_name(), file.filename);
 
@@ -2989,8 +2985,8 @@ void PrintSelectPanel::copy_usb_file_to_printer(std::function<void(const std::st
                               return;
                           }
                           end_usb_copy();
-                          NOTIFY_ERROR(lv_tr("Could not copy {} from USB: {}"), req.filename,
-                                       err.user_message());
+                          helix::ui::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"),
+                                                     req.filename, err);
                       });
         });
 }
@@ -3024,8 +3020,8 @@ void PrintSelectPanel::upload_usb_copy(UsbCopyRequest req,
             tok.defer("PrintSelectPanel::usb_copy_failed", [this, generation, filename, err]() {
                 if (usb_copy_current(generation)) {
                     end_usb_copy();
-                    NOTIFY_ERROR(lv_tr("Could not copy {} from USB: {}"), filename,
-                                 err.user_message());
+                    helix::ui::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"), filename,
+                                               err);
                 }
             });
         },
@@ -3485,6 +3481,10 @@ void PrintSelectPanel::apply_remap(const std::vector<helix::ToolMapping>& update
 }
 
 void PrintSelectPanel::delete_file() {
+    if (!selected_local_path_.empty()) {
+        hide_delete_confirmation();
+        return;
+    }
     std::string filename_to_delete(selected_filename_buffer_);
     auto* self = this;
     auto token = object_lifetime_.token();
@@ -3565,6 +3565,31 @@ void PrintSelectPanel::on_scroll_static(lv_event_t* e) {
     if (self && target) {
         self->handle_scroll(target);
     }
+}
+
+void PrintSelectPanel::on_card_container_resized_static(lv_event_t* e) {
+    auto* self = static_cast<PrintSelectPanel*>(lv_event_get_user_data(e));
+    if (!self || self->card_resize_pending_) {
+        return;
+    }
+    // SIZE_CHANGED arrives inside a layout pass; re-populating there would
+    // re-enter the layout and reconfigure pooled cards mid-pass.
+    self->card_resize_pending_ = true;
+    self->object_lifetime_.defer("PrintSelectPanel::card_container_resized", [self]() {
+        self->card_resize_pending_ = false;
+        lv_obj_t* c = self->card_view_container_;
+        if (!c || !lv_obj_is_valid(c) || self->current_view_mode_ != PrintSelectViewMode::CARD) {
+            return;
+        }
+        // Only a content box the cards were not sized for re-populates, so a
+        // re-populate cannot feed its own resize back into another one.
+        lv_obj_update_layout(c);
+        if (lv_obj_get_content_width(c) == self->sized_for_w_ &&
+            lv_obj_get_content_height(c) == self->sized_for_h_) {
+            return;
+        }
+        self->populate_card_view(true);
+    });
 }
 
 void PrintSelectPanel::on_file_clicked_static(lv_event_t* e) {

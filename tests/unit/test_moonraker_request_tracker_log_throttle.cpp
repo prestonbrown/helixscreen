@@ -49,7 +49,7 @@ PendingRequest make_pending_request(const std::string& method, std::chrono::mill
 
 /// check_timeouts() takes an emit_event sink; these tests assert on logs, not events.
 auto ignore_events() {
-    return [](MoonrakerEventType, const std::string&, bool, const std::string&) {};
+    return [](const MoonrakerEvent&) {};
 }
 
 /// Matches only the periodic pending-count line, not the tracker's other

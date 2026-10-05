@@ -140,7 +140,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "the budget 2D fallback keeps the AMS tool col
     // to survive: the viewer holds the lane colours and hands them to whatever
     // renderer it creates next.
     ui_gcode_viewer_set_tool_colors(viewer, {kLaneT0, kLaneT1});
-    REQUIRE(ui_gcode_viewer_get_tool_colors(viewer) == std::vector<uint32_t>{kLaneT0, kLaneT1});
+    REQUIRE(helix::test_access::gcode_viewer_tool_colors(viewer) ==
+            std::vector<uint32_t>{kLaneT0, kLaneT1});
 
     const GCodeLayerRenderer* renderer = gcode_viewer_budget_force_2d(viewer, make_two_tool_file());
     REQUIRE(renderer != nullptr);

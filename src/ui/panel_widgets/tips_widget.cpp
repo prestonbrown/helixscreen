@@ -14,6 +14,7 @@
 #include "panel_widget_size.h"
 #include "static_subject_registry.h"
 #include "subject_debug_registry.h"
+#include "subject_managed_panel.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -28,6 +29,7 @@ static constexpr uint32_t TIP_FADE_DURATION_MS = 300;
 static lv_subject_t s_status_subject;
 static char s_status_buffer[512];
 static bool s_subjects_initialized = false;
+static SubjectManager s_subjects;
 
 static void tips_widget_init_subjects() {
     if (s_subjects_initialized) {
@@ -36,7 +38,7 @@ static void tips_widget_init_subjects() {
 
     lv_subject_init_string(&s_status_subject, s_status_buffer, nullptr, sizeof(s_status_buffer),
                            "Welcome to HelixScreen");
-    lv_xml_register_subject(nullptr, "status_text", &s_status_subject);
+    s_subjects.publish("status_text", &s_status_subject);
     SubjectDebugRegistry::instance().register_subject(&s_status_subject, "status_text",
                                                       LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
 
@@ -45,7 +47,7 @@ static void tips_widget_init_subjects() {
     // Self-register cleanup with StaticSubjectRegistry (co-located with init)
     StaticSubjectRegistry::instance().register_deinit("TipsWidgetSubjects", []() {
         if (s_subjects_initialized && lv_is_initialized()) {
-            lv_subject_deinit(&s_status_subject);
+            s_subjects.deinit_all();
             s_subjects_initialized = false;
             spdlog::trace("[TipsWidget] Subjects deinitialized");
         }

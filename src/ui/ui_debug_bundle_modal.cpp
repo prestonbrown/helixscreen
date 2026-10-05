@@ -111,11 +111,11 @@ void DebugBundleModal::init_subjects() {
     lv_subject_init_string(&error_subject_, error_buf_, nullptr, sizeof(error_buf_), "");
     lv_subject_init_int(&include_logs_subject_, 0);
 
-    lv_xml_register_subject(nullptr, "debug_bundle_state", &state_subject_);
-    lv_xml_register_subject(nullptr, "debug_bundle_status", &status_subject_);
-    lv_xml_register_subject(nullptr, "debug_bundle_share_code", &share_code_subject_);
-    lv_xml_register_subject(nullptr, "debug_bundle_error", &error_subject_);
-    lv_xml_register_subject(nullptr, "debug_bundle_include_logs", &include_logs_subject_);
+    subjects_.publish("debug_bundle_state", &state_subject_);
+    subjects_.publish("debug_bundle_status", &status_subject_);
+    subjects_.publish("debug_bundle_share_code", &share_code_subject_);
+    subjects_.publish("debug_bundle_error", &error_subject_);
+    subjects_.publish("debug_bundle_include_logs", &include_logs_subject_);
 
     subjects_initialized_ = true;
 }
@@ -125,11 +125,7 @@ void DebugBundleModal::deinit_subjects() {
         return;
     }
 
-    lv_subject_deinit(&state_subject_);
-    lv_subject_deinit(&status_subject_);
-    lv_subject_deinit(&share_code_subject_);
-    lv_subject_deinit(&error_subject_);
-    lv_subject_deinit(&include_logs_subject_);
+    subjects_.deinit_all();
 
     subjects_initialized_ = false;
 }

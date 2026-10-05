@@ -23,6 +23,19 @@ PluginOverlayHost::OverlayLifecycle& PluginOverlayHost::overlay_lifecycle() {
 
 int PluginOverlayHost::open(const std::string& plugin_id, const std::string& component,
                             std::function<void()> on_closed, const PluginUi::Attrs& attrs) {
+    // One live overlay per component: a re-fired open handler gets the overlay
+    // it already opened rather than a buried twin with a second same-named
+    // canvas. The showing overlay keeps the attributes and on_closed it was
+    // opened with. A record whose root left the nav stack is mid-close (its
+    // callback runs after the slide-out), so a re-open in that window builds a
+    // fresh overlay instead of the dying handle.
+    auto& nav = NavigationManager::instance();
+    for (const auto& rec : records_) {
+        if (rec.plugin_id == plugin_id && rec.component == component &&
+            nav.is_panel_in_stack(rec.root))
+            return rec.handle;
+    }
+
     std::vector<const char*> pairs;
     pairs.reserve(attrs.size() * 2 + 1);
     for (const auto& [name, value] : attrs) {
@@ -36,10 +49,15 @@ int PluginOverlayHost::open(const std::string& plugin_id, const std::string& com
         spdlog::warn("[PluginOverlayHost] {}: cannot create component '{}'", plugin_id, component);
         return 0;
     }
+    // Hidden until the queued push shows it: a visible root would render a
+    // frame on the bare screen and land in the backdrop snapshot as a dimmed
+    // ghost of itself.
+    lv_obj_add_flag(root, LV_OBJ_FLAG_HIDDEN);
 
     auto& rec = records_.emplace_back();
     rec.handle = next_handle_++;
     rec.plugin_id = plugin_id;
+    rec.component = component;
     rec.root = root;
     rec.on_closed = std::move(on_closed);
 

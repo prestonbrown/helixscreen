@@ -116,6 +116,7 @@ src/print/print_history_manager.cpp
 src/print/print_start_analyzer.cpp
 src/print/print_start_navigation.cpp
 src/print/thumbnail_cache.cpp
+src/print/thumbnail_downscale.cpp
 src/printer/active_material_provider.cpp
 src/printer/afc_config_manager.cpp
 src/printer/afc_defaults.cpp
@@ -616,6 +617,7 @@ src/api/moonraker_api_led.cpp
 src/api/moonraker_api_print.cpp
 src/api/moonraker_gcode_guards.cpp
 src/api/moonraker_api_validation.cpp
+src/api/moonraker_error.cpp
 src/api/screws_tilt_parser.cpp
 src/api/moonraker_advanced_api.cpp
 src/api/moonraker_file_api.cpp

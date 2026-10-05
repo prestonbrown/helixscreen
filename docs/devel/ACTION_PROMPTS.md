@@ -275,7 +275,10 @@ same race.
 ### Other code that reads prompt state
 
 The static accessors let other translation units ask about the firmware prompt without owning the
-manager. `Application` registers the instance with `set_instance()` and clears it in `teardown_printer_scope`.
+manager. `Application` registers the instance with `set_instance()` and clears it in `teardown_printer_scope`;
+a registered manager that is destroyed clears it itself. `is_showing()` and `current_prompt_name()` read
+only a title published by the registered manager, never the manager, so a reader on another thread
+cannot race its destruction.
 
 | Accessor | Used by | For |
 |----------|---------|-----|

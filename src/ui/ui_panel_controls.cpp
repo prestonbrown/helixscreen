@@ -1338,7 +1338,8 @@ void ControlsPanel::run_quick_action(uint32_t timeout_ms, const QuickActionText&
                      if (err.type == MoonrakerErrorType::TIMEOUT) {
                          NOTIFY_WARNING(fmt::runtime(text.rpc_timed_out.c_str()));
                      } else {
-                         NOTIFY_ERROR(fmt::runtime(text.failed_fmt.c_str()), err.user_message());
+                         NOTIFY_ERROR(fmt::runtime(text.failed_fmt.c_str()),
+                                      err.localized_message());
                      }
                  }));
 }
@@ -1488,7 +1489,7 @@ void ControlsPanel::do_execute_macro(size_t index,
                 NOTIFY_SUCCESS(lv_tr("{} complete"), name);
             },
             [](const MoonrakerError& err) {
-                NOTIFY_ERROR(lv_tr("Macro failed: {}"), err.user_message());
+                helix::ui::notify_error_tr(TR_NOOP("Macro failed: {}"), err);
             })) {
         NOTIFY_WARNING(lv_tr("{} macro not configured"), info.translated_name());
     }
@@ -1530,7 +1531,7 @@ void ControlsPanel::handle_fan_slider_changed(int value) {
         api_->set_fan_speed(
             "fan", static_cast<double>(value), []() { /* Silent success */ },
             [](const MoonrakerError& err) {
-                NOTIFY_ERROR(lv_tr("Fan control failed: {}"), err.user_message());
+                helix::ui::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
             });
     }
 }

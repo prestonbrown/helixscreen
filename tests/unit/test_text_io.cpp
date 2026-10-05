@@ -73,6 +73,17 @@ TEST_CASE("read_file returns bytes exactly, nullopt only when unopenable", "[tex
     CHECK(tio::read_file(dir.file("big")) == big);
 }
 
+TEST_CASE("read_file with a cap returns at most that many leading bytes", "[text_io]") {
+    ScratchDir dir;
+    std::string big(100000, 'x');
+    big[0] = 'a';
+    big[4999] = 'b';
+    REQUIRE(tio::write_file(dir.file("big"), big));
+    CHECK(tio::read_file(dir.file("big"), 5000) == big.substr(0, 5000));
+    CHECK(tio::read_file(dir.file("big"), 0) == std::string());
+    CHECK(tio::read_file(dir.file("big"), 200000) == big);
+}
+
 TEST_CASE("read_file reads /proc files whose stat size is 0", "[text_io]") {
     if (!fs::exists("/proc/self/status")) {
         SKIP("no /proc on this host");

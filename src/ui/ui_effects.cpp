@@ -217,18 +217,7 @@ lv_obj_t* create_fullscreen_backdrop(lv_obj_t* parent, lv_opa_t opacity) {
         return blurred;
     }
 
-    // Fallback: plain dark rectangle
-    lv_obj_t* backdrop = lv_obj_create(parent);
-    lv_obj_set_size(backdrop, LV_PCT(100), LV_PCT(100));
-    lv_obj_align(backdrop, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_color(backdrop, lv_color_black(), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(backdrop, opacity, LV_PART_MAIN);
-    lv_obj_set_style_border_width(backdrop, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(backdrop, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(backdrop, 0, LV_PART_MAIN);
-    lv_obj_add_flag(backdrop, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(backdrop, LV_OBJ_FLAG_SCROLLABLE);
-
+    lv_obj_t* backdrop = create_dim_layer(parent, opacity);
     spdlog::trace("[UI Effects] Created plain backdrop with opacity {}", opacity);
     return backdrop;
 }

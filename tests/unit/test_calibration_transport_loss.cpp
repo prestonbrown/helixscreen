@@ -513,7 +513,7 @@ TEST_CASE_METHOD(TransportLossFixture,
     lv_timer_t* backstop_timer = nullptr;
 
     // A client scoped to this block stands in for the one
-    // Application::tear_down_printer_state() step 18 releases on a printer
+    // PrinterSession::tear_down_printer_state() step 18 releases on a printer
     // switch, an add-printer, or a cancelled add-printer wizard. The fixture
     // cannot run the whole 20-step teardown, so this exercises the step that
     // frees the object the armed backstop calls back into.

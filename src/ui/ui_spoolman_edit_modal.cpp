@@ -69,10 +69,8 @@ SpoolEditModal::~SpoolEditModal() {
     if (active_instance_ == this) {
         active_instance_ = nullptr;
     }
-    if (subjects_initialized_ && lv_is_initialized()) {
-        lv_subject_deinit(&save_button_text_subject_);
-        subjects_initialized_ = false;
-    }
+    subjects_.deinit_all();
+    subjects_initialized_ = false;
     spdlog::trace("[SpoolEditModal] Destroyed");
 }
 
@@ -141,7 +139,7 @@ void SpoolEditModal::init_subjects() {
 
     lv_subject_init_string(&save_button_text_subject_, save_button_text_buf_, nullptr,
                            sizeof(save_button_text_buf_), lv_tr("Close"));
-    lv_xml_register_subject(nullptr, "spoolman_edit_save_text", &save_button_text_subject_);
+    subjects_.publish("spoolman_edit_save_text", &save_button_text_subject_);
 
 #if HELIX_HAS_LABEL_PRINTER
     // Ensure label printer subjects are initialized before we reference them

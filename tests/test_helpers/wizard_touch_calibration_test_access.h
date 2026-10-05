@@ -37,6 +37,15 @@ class WizardTouchCalibrationTestAccess {
         step.controller_.set_sink_override(sink);
     }
 
+    // Drive the completion handler the panel's callback reaches once create() has
+    // built the screen; `root` stands in for that screen.
+    static void invoke_calibration_complete(WizardTouchCalibrationStep& step,
+                                            const helix::TouchCalibration* cal, lv_obj_t* root) {
+        step.screen_root_ = root;
+        step.on_calibration_complete(cal);
+        step.screen_root_ = nullptr;
+    }
+
     // Drive the real Retry handler (private in production).
     static void invoke_retry(WizardTouchCalibrationStep& step) {
         step.handle_retry_clicked();

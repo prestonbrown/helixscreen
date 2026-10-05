@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<component>
+  <view name="canvas-demo__panel" extends="lv_obj" width="200" height="120" style_pad_all="0">
+    <plugin_canvas name="canvas-demo__c" width="160" height="80"/>
+  </view>
+</component>

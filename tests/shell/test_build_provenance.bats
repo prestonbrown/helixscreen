@@ -101,6 +101,12 @@ setup() {
     [[ "$output" == *'DOCKER_GIT_HASH_ENV'* ]]
 }
 
+@test "DOCKER_HOST_CONTEXT runs an init so make is not the container's PID 1" {
+    run grep -E '^DOCKER_HOST_CONTEXT *=' mk/cross.mk
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'--init'* ]]
+}
+
 @test "an inherited HELIX_GIT_HASH wins over the local git lookup" {
     # remote-sync excludes .git, so on the build host there is nothing to look
     # up; the value has to come from the machine that has the checkout.

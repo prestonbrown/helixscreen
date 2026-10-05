@@ -1625,7 +1625,7 @@ void FilamentPanel::execute_extrude() {
                 if (error.type == MoonrakerErrorType::TIMEOUT) {
                     NOTIFY_WARNING(lv_tr("Extrude may still be running — response timed out"));
                 } else {
-                    NOTIFY_ERROR(lv_tr("Extrude failed: {}"), error.user_message());
+                    helix::ui::notify_error_tr(TR_NOOP("Extrude failed: {}"), error);
                 }
             }),
         IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
@@ -1695,7 +1695,7 @@ void FilamentPanel::execute_purge() {
                                     NOTIFY_WARNING(
                                         lv_tr("Purge may still be running — response timed out"));
                                 } else {
-                                    NOTIFY_ERROR(lv_tr("Purge failed: {}"), error.user_message());
+                                    helix::ui::notify_error_tr(TR_NOOP("Purge failed: {}"), error);
                                 }
                             }),
                         IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
@@ -1736,25 +1736,25 @@ void FilamentPanel::execute_retract() {
     std::string gcode = fmt::format("M83\nG1 E-{} F{}", extrude_length_, speed_mm_min);
     op_started(FilamentOp::Retract); // on-button spinner replaces the start toast
 
-    api_->execute_gcode(gcode,
-                        object_lifetime_.bg_cb("FilamentPanel::retract_ok",
-                                               [this]() {
-                                                   operation_guard_.end();
-                                                   op_succeeded(FilamentOp::Retract);
-                                               }),
-                        object_lifetime_.bg_cb(
-                            "FilamentPanel::retract_err",
-                            [this](const MoonrakerError& error) {
-                                operation_guard_.end();
-                                op_failed(FilamentOp::Retract);
-                                if (error.type == MoonrakerErrorType::TIMEOUT) {
-                                    NOTIFY_WARNING(
-                                        lv_tr("Retract may still be running — response timed out"));
-                                } else {
-                                    NOTIFY_ERROR(lv_tr("Retract failed: {}"), error.user_message());
-                                }
-                            }),
-                        IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
+    api_->execute_gcode(
+        gcode,
+        object_lifetime_.bg_cb("FilamentPanel::retract_ok",
+                               [this]() {
+                                   operation_guard_.end();
+                                   op_succeeded(FilamentOp::Retract);
+                               }),
+        object_lifetime_.bg_cb(
+            "FilamentPanel::retract_err",
+            [this](const MoonrakerError& error) {
+                operation_guard_.end();
+                op_failed(FilamentOp::Retract);
+                if (error.type == MoonrakerErrorType::TIMEOUT) {
+                    NOTIFY_WARNING(lv_tr("Retract may still be running — response timed out"));
+                } else {
+                    helix::ui::notify_error_tr(TR_NOOP("Retract failed: {}"), error);
+                }
+            }),
+        IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
 }
 
 // ============================================================================
@@ -2477,9 +2477,10 @@ void FilamentPanel::handle_cooldown() {
         }
 
         api_->execute_gcode(
-            cooldown.gcode, []() { NOTIFY_SUCCESS(lv_tr("Heaters off")); },
+            cooldown.gcode,
+            []() { helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Heaters off")); },
             [](const MoonrakerError& error) {
-                NOTIFY_ERROR(lv_tr("Failed to turn off heaters: {}"), error.user_message());
+                helix::ui::notify_error_tr(TR_NOOP("Failed to turn off heaters: {}"), error);
             });
     }
 
@@ -3151,7 +3152,7 @@ void FilamentPanel::run_filament_macro(const std::string& macro_name, const std:
                                     NOTIFY_WARNING(
                                         lv_tr("Macro may still be running — response timed out"));
                                 } else {
-                                    NOTIFY_ERROR(lv_tr("Macro failed: {}"), error.user_message());
+                                    helix::ui::notify_error_tr(TR_NOOP("Macro failed: {}"), error);
                                 }
                             }),
                         IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);

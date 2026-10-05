@@ -24,6 +24,7 @@
 #include "printer_state.h"
 #include "sound_manager.h"
 #include "static_subject_registry.h"
+#include "subject_managed_panel.h"
 #include "temperature_controller.h"
 
 #include <spdlog/spdlog.h>
@@ -37,6 +38,7 @@ namespace helix {
 
 // --- Subjects for declarative XML bindings in print_completion_modal.xml ---
 static bool s_subjects_initialized = false;
+static SubjectManager s_subjects;
 
 // String subjects with backing buffers
 static char s_title_buf[64];
@@ -78,28 +80,21 @@ static void init_completion_subjects() {
     lv_subject_init_int(&s_has_estimate_subject, 1);
     lv_subject_init_int(&s_has_filament_subject, 1);
 
-    lv_xml_register_subject(nullptr, "print_completion_title", &s_title_subject);
-    lv_xml_register_subject(nullptr, "print_completion_filename", &s_filename_subject);
-    lv_xml_register_subject(nullptr, "print_completion_duration", &s_duration_subject);
-    lv_xml_register_subject(nullptr, "print_completion_estimate", &s_estimate_subject);
-    lv_xml_register_subject(nullptr, "print_completion_layers", &s_layers_subject);
-    lv_xml_register_subject(nullptr, "print_completion_filament", &s_filament_subject);
-    lv_xml_register_subject(nullptr, "print_completion_has_estimate", &s_has_estimate_subject);
-    lv_xml_register_subject(nullptr, "print_completion_has_filament", &s_has_filament_subject);
+    s_subjects.publish("print_completion_title", &s_title_subject);
+    s_subjects.publish("print_completion_filename", &s_filename_subject);
+    s_subjects.publish("print_completion_duration", &s_duration_subject);
+    s_subjects.publish("print_completion_estimate", &s_estimate_subject);
+    s_subjects.publish("print_completion_layers", &s_layers_subject);
+    s_subjects.publish("print_completion_filament", &s_filament_subject);
+    s_subjects.publish("print_completion_has_estimate", &s_has_estimate_subject);
+    s_subjects.publish("print_completion_has_filament", &s_has_filament_subject);
 
     s_subjects_initialized = true;
 
     StaticSubjectRegistry::instance().register_deinit("PrintCompletion", []() {
         if (!s_subjects_initialized)
             return;
-        lv_subject_deinit(&s_title_subject);
-        lv_subject_deinit(&s_filename_subject);
-        lv_subject_deinit(&s_duration_subject);
-        lv_subject_deinit(&s_estimate_subject);
-        lv_subject_deinit(&s_layers_subject);
-        lv_subject_deinit(&s_filament_subject);
-        lv_subject_deinit(&s_has_estimate_subject);
-        lv_subject_deinit(&s_has_filament_subject);
+        s_subjects.deinit_all();
         s_subjects_initialized = false;
     });
 }

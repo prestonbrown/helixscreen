@@ -102,9 +102,9 @@ TEST_CASE("plugin XML may use only its own components and the app allowlist",
     CHECK(check_plugin_xml("ab", {}, view_with(R"(<overlay_panel title="Demo"/>)")).empty());
 }
 
-TEST_CASE("plugin XML may use the app's icon and text widgets", "[plugin][xml_policy]") {
-    for (const char* el : {"icon", "text_heading", "text_body", "text_muted", "text_small",
-                           "text_xs", "text_tiny"}) {
+TEST_CASE("plugin XML may use the app's icon, text and card widgets", "[plugin][xml_policy]") {
+    for (const char* el : {"icon", "ui_card", "text_heading", "text_body", "text_muted",
+                           "text_small", "text_xs", "text_tiny"}) {
         std::string xml = view_with(std::string("<") + el + " name=\"demo__x\"/>");
         CHECK(check_plugin_xml("demo", {"demo__w"}, xml) == std::string());
     }
@@ -122,6 +122,30 @@ TEST_CASE("app widgets keep the name rules", "[plugin][xml_policy]") {
     for (const char* inner : bad) {
         CHECK(check_plugin_xml("demo", {"demo__w"}, view_with(inner)) != std::string());
     }
+}
+
+TEST_CASE("plugin_canvas is available and keeps the name rule", "[plugin][xml_policy]") {
+    CHECK(check_plugin_xml("p", {}, view_with(R"(<plugin_canvas name="p__c"/>)")).empty());
+    std::string why = check_plugin_xml("p", {}, view_with(R"(<plugin_canvas name="c"/>)"));
+    CHECK_FALSE(why.empty());
+    CHECK(why.find("object names must be p__<name>") != std::string::npos);
+}
+
+TEST_CASE("plugin XML fonts are responsive base tokens", "[plugin][xml_policy]") {
+    CHECK(
+        check_plugin_xml("p", {}, view_with(R"(<lv_label text="v" style_text_font="#font_body"/>)"))
+            .empty());
+    // font_small is the base token named "small", not a suffixed variant.
+    CHECK(check_plugin_xml("p", {},
+                           view_with(R"(<lv_label text="v" style_text_font="#font_small"/>)"))
+              .empty());
+    std::string why = check_plugin_xml(
+        "p", {}, view_with(R"(<lv_label text="v" style_text_font="#font_heading_large"/>)"));
+    CHECK_FALSE(why.empty());
+    CHECK(why.find("base font tokens") != std::string::npos);
+    // Values outside the #font_ vocabulary are the XML engine's business.
+    CHECK(check_plugin_xml("p", {}, view_with(R"(<lv_label text="v" style_text_font="inches"/>)"))
+              .empty());
 }
 
 TEST_CASE("a plugin id that prefixes an app name owns nothing of it", "[plugin][xml_policy]") {

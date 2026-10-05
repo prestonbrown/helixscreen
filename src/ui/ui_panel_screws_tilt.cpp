@@ -344,8 +344,6 @@ void ScrewsTiltPanel::start_screws_tilt_command() {
     auto token = lifetime_.token();
     api_->advanced().calculate_screws_tilt(
         [this, token](const std::vector<ScrewTiltResult>& results) {
-            if (token.expired())
-                return;
             token.defer("ScrewsTilt::results", [this, results]() {
                 if (cleanup_called())
                     return;
@@ -355,8 +353,6 @@ void ScrewsTiltPanel::start_screws_tilt_command() {
             });
         },
         [this, token](const MoonrakerError& err) {
-            if (token.expired())
-                return;
             auto msg = err.message;
             token.defer("ScrewsTilt::error", [this, msg]() {
                 if (cleanup_called())

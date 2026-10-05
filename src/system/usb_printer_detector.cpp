@@ -3,6 +3,8 @@
 
 #include "usb_printer_detector.h"
 
+#include "ui_update_queue.h"
+
 #include "http_executor.h"
 
 #include <spdlog/spdlog.h>
@@ -142,22 +144,31 @@ void UsbPrinterDetector::poll_timer_cb(_lv_timer_t* timer) {
     }
 }
 
+void UsbPrinterDetector::scan_async(ScanCallback on_done) {
+    auto& executor = helix::http::HttpExecutor::fast();
+    if (!executor.running()) {
+        on_done(scan());
+        return;
+    }
+    executor.submit([on_done = std::move(on_done)]() {
+        auto detected = scan();
+        helix::ui::queue_update(
+            "UsbPrinterDetector::scan",
+            [on_done, detected = std::move(detected)]() mutable { on_done(std::move(detected)); });
+    });
+}
+
 void UsbPrinterDetector::request_scan() {
     if (scan_in_flight_) {
         return;
     }
-    auto& executor = helix::http::HttpExecutor::fast();
-    if (!executor.running()) {
-        apply_scan(scan());
-        return;
-    }
     scan_in_flight_ = true;
-    executor.submit([this, tok = poll_lifetime_.token()]() {
-        auto detected = scan();
-        tok.defer("UsbPrinterDetector::scan", [this, detected = std::move(detected)]() mutable {
-            scan_in_flight_ = false;
-            apply_scan(std::move(detected));
-        });
+    scan_async([this, tok = poll_lifetime_.token()](std::vector<UsbPrinterInfo> detected) {
+        if (tok.expired()) {
+            return;
+        }
+        scan_in_flight_ = false;
+        apply_scan(std::move(detected));
     });
 }
 

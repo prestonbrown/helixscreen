@@ -510,8 +510,6 @@ void SpoolmanOverlay::probe_spoolman_server(const std::string& host, const std::
         auto resp = requests::request(req);
         bool success = (resp && resp->status_code == 200);
 
-        if (token.expired())
-            return;
         token.defer("SpoolmanOverlay::probe_result", [this, success, host_copy, port_copy]() {
             if (success) {
                 spdlog::info("[{}] Spoolman probe succeeded", get_name());
@@ -1227,14 +1225,10 @@ void SpoolmanOverlay::configure_spoolman(const std::string& host, const std::str
     api_->transfers().download_file(
         "config", spoolman_config_path_,
         [this, token, entries](const std::string& content) {
-            if (token.expired())
-                return;
             // Defer to main thread — finish_configure() accesses lifetime_
             token.defer([this, content, entries]() { finish_configure(content, entries); });
         },
         [this, token, entries](const MoonrakerError& err) {
-            if (token.expired())
-                return;
             if (err.type == MoonrakerErrorType::FILE_NOT_FOUND) {
                 token.defer([this, entries]() { finish_configure("", entries); });
             } else {
@@ -1258,14 +1252,10 @@ void SpoolmanOverlay::finish_configure(
     api_->transfers().upload_file(
         "config", spoolman_config_path_, modified,
         [this, token]() {
-            if (token.expired())
-                return;
             // Defer to main thread — ensure_moonraker_include() accesses lifetime_
             token.defer([this]() { ensure_moonraker_include(); });
         },
         [this, token](const MoonrakerError& err) {
-            if (token.expired())
-                return;
             auto msg = err.message;
             token.defer("SpoolmanOverlay::upload_error", [this, msg]() {
                 spdlog::error("[{}] Failed to upload helixscreen.conf: {}", get_name(), msg);
@@ -1293,8 +1283,6 @@ void SpoolmanOverlay::ensure_moonraker_include() {
     api_->transfers().download_file(
         "config", moonraker_path,
         [this, token, moonraker_path](const std::string& content) {
-            if (token.expired())
-                return;
             // Defer to main thread — helper methods access lifetime_
             token.defer([this, content, moonraker_path]() {
                 if (helix::MoonrakerConfigManager::has_include_line(content)) {
@@ -1305,11 +1293,7 @@ void SpoolmanOverlay::ensure_moonraker_include() {
                 std::string modified = helix::MoonrakerConfigManager::add_include_line(content);
                 api_->transfers().upload_file(
                     "config", moonraker_path, modified,
-                    [this, token2]() {
-                        if (token2.expired())
-                            return;
-                        token2.defer([this]() { restart_and_verify(); });
-                    },
+                    [this, token2]() { token2.defer([this]() { restart_and_verify(); }); },
                     [this, token2, moonraker_path](const MoonrakerError& err) {
                         auto msg = err.message;
                         token2.defer(
@@ -1323,8 +1307,6 @@ void SpoolmanOverlay::ensure_moonraker_include() {
             });
         },
         [this, token, moonraker_path](const MoonrakerError& err) {
-            if (token.expired())
-                return;
             if (err.type == MoonrakerErrorType::FILE_NOT_FOUND) {
                 // Defer to main thread — upload chain accesses lifetime_
                 token.defer([this, moonraker_path]() {
@@ -1332,11 +1314,7 @@ void SpoolmanOverlay::ensure_moonraker_include() {
                     std::string fresh = helix::MoonrakerConfigManager::add_include_line("");
                     api_->transfers().upload_file(
                         "config", moonraker_path, fresh,
-                        [this, token2]() {
-                            if (token2.expired())
-                                return;
-                            token2.defer([this]() { restart_and_verify(); });
-                        },
+                        [this, token2]() { token2.defer([this]() { restart_and_verify(); }); },
                         [this, token2, moonraker_path](const MoonrakerError& err2) {
                             auto msg = err2.message;
                             token2.defer("SpoolmanOverlay::include_create_error",
@@ -1369,10 +1347,8 @@ void SpoolmanOverlay::restart_and_verify() {
     auto token = lifetime_.token();
     api_->restart_moonraker(
         [this, token]() {
-            if (token.expired())
-                return;
-            spdlog::info("[{}] Moonraker restart initiated", get_name());
             token.defer("SpoolmanOverlay::restart_wait", [this]() {
+                spdlog::info("[{}] Moonraker restart initiated", get_name());
                 set_setup_status(lv_tr("Waiting for Moonraker..."));
                 lv_timer_create(
                     [](lv_timer_t* timer) {
@@ -1384,8 +1360,6 @@ void SpoolmanOverlay::restart_and_verify() {
             });
         },
         [this, token](const MoonrakerError&) {
-            if (token.expired())
-                return;
             token.defer("SpoolmanOverlay::restart_error", [this]() {
                 set_setup_status(lv_tr("Failed to restart Moonraker."), true);
                 set_connecting(false);
@@ -1399,8 +1373,6 @@ void SpoolmanOverlay::verify_spoolman_connected() {
     auto token = lifetime_.token();
     api_->spoolman().get_spoolman_status(
         [this, token](bool connected, int /*spool_id*/) {
-            if (token.expired())
-                return;
             token.defer("SpoolmanOverlay::verify_status", [this, connected]() {
                 if (connected) {
                     spdlog::info("[{}] Spoolman verified connected!", get_name());
@@ -1417,8 +1389,6 @@ void SpoolmanOverlay::verify_spoolman_connected() {
             });
         },
         [this, token](const MoonrakerError&) {
-            if (token.expired())
-                return;
             token.defer("SpoolmanOverlay::verify_error", [this]() {
                 set_setup_status(
                     lv_tr("Could not verify Spoolman status. Moonraker may still be restarting."),

@@ -188,7 +188,7 @@ struct MoonrakerEvent {
 };
 ```
 
-**Emitting an event is not deciding how to show it.** `helix::decide_moonraker_event()` (`moonraker_event_routing.cpp`) owns that, as a pure function so the caller can apply `lv_tr()` on the main thread (#1219). `CONNECTION_FAILED` is the one with real routing rules, because it is latched and fires ~60 s after startup — reliably landing on whatever the user is doing about it:
+**Emitting an event is not deciding how to show it.** `helix::decide_moonraker_event()` (`moonraker_event_routing.cpp`) owns that, as a pure function so the caller can apply `lv_tr()` on the main thread (#1219). The event's own text follows the same split: an emitter builds it with `MoonrakerEvent::translatable()`, which keeps the untranslated template in `message_tag` and its arguments in `message_args` beside the English `message` the logs use, and `MoonrakerManager::present_event()` renders `lv_tr(message_tag)` on the main thread. Text from Klipper or Moonraker stays untagged and is shown as it arrived. `CONNECTION_FAILED` is the one with real routing rules, because it is latched and fires ~60 s after startup — reliably landing on whatever the user is doing about it:
 
 | Context | Route | Why |
 |---|---|---|

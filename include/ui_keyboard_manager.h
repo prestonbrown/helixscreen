@@ -141,7 +141,7 @@ class KeyboardManager {
      * Deletes keyboard_ and overlay_ widgets (children of m_screen that survive
      * app_layout teardown), then resets all state so init() can be called again.
      *
-     * Call from Application::tear_down_printer_state() before rebuilding UI.
+     * Call from PrinterSession::tear_down_printer_state() before rebuilding UI.
      */
     void reset();
 

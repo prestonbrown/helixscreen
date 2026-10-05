@@ -25,6 +25,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -70,7 +71,8 @@ class UsbPrintFixture : private helix::PrintSelectGlobalStateReset,
 
         panel_->set_usb_manager(&usb_);
         panel_->on_source_usb_clicked();
-        helix::test::wait_for_usb_scan();
+        helix::test::wait_for_usb_scan(
+            [&] { return PrintSelectPanelTestAccess::usb_scanning(*panel_); });
         drain();
         REQUIRE(PrintSelectPanelTestAccess::list_contains(*panel_, "part.gcode"));
         REQUIRE(panel_->select_file_by_name("part.gcode"));
@@ -126,7 +128,8 @@ class UsbPrintFixture : private helix::PrintSelectGlobalStateReset,
         return static_cast<MoonrakerAPIMock&>(*api_).transfers_mock();
     }
 
-    fs::path root_ = fs::temp_directory_path() / "helix_usb_print_stick";
+    fs::path root_ =
+        fs::temp_directory_path() / ("helix_usb_print_stick_" + std::to_string(::getpid()));
     UsbManager usb_;
 };
 
@@ -323,4 +326,21 @@ TEST_CASE_METHOD(UsbPrintFixture, "a double tap on Add to Queue copies the USB f
     set_job_queue_state(previous);
     jqs.reset();
     drain();
+}
+
+TEST_CASE_METHOD(UsbPrintFixture,
+                 "a USB file offers no delete and asks Moonraker to delete nothing",
+                 "[usb][usb_delete]") {
+    lv_obj_t* del = lv_obj_find_by_name(lv_screen_active(), "delete_button");
+    REQUIRE(del != nullptr);
+    CHECK(lv_obj_has_flag(del, LV_OBJ_FLAG_HIDDEN));
+
+    // The long-press path reaches these without the button. Delete addresses
+    // Moonraker storage by name, where a same-named printer file may live.
+    panel_->show_delete_confirmation();
+    panel_->delete_file();
+    drain();
+
+    CHECK(static_cast<MoonrakerAPIMock&>(*api_).files_mock().deleted_files().empty());
+    CHECK(fs::exists(local_path()));
 }

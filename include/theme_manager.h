@@ -502,6 +502,18 @@ void theme_manager_refresh_orientation(lv_display_t* display = nullptr);
 void theme_manager_register_responsive_fonts(lv_display_t* display);
 
 /**
+ * @brief Whether a font token is a responsive base token
+ *
+ * True for tokens like font_body that theme_manager_register_responsive_fonts
+ * re-points per breakpoint, false for size-suffixed variants (font_body_large)
+ * and non-font names. A suffixed variant names one tier's face, which
+ * AssetManager registers only at that tier and above, so below it the XML
+ * engine silently substitutes the default font.
+ */
+// NAMESPACE_OK: joins this header's global theme_manager_* free-function API
+bool theme_manager_font_token_is_base(const char* token);
+
+/**
  * @brief Toggle between light and dark themes
  *
  * Switches theme mode, re-registers XML color constants, updates theme
@@ -844,6 +856,19 @@ void theme_apply_current_palette_to_tree(lv_obj_t* root);
  * @return Themed color for current mode
  */
 lv_color_t theme_manager_get_color(const char* base_name);
+
+/**
+ * @brief Whether a color token resolves
+ *
+ * True when theme_manager_get_color would find the token: both _light and _dark
+ * variants, or a plain constant. Plugin canvas code uses this to reject an
+ * unknown token before committing a display list.
+ *
+ * @param base_name Color constant base name (e.g., "screen_bg", "warning")
+ * @return True when the token exists in the loaded theme
+ */
+// NAMESPACE_OK: joins this header's global theme_manager_* free-function API
+bool theme_manager_has_color(const char* base_name);
 
 /**
  * @brief Look up the Nth color from the rotating `object_color_1..8` palette.

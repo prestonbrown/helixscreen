@@ -371,9 +371,10 @@ void PreheatWidget::handle_cooldown() {
 
     spdlog::info("[PreheatWidget] Cooldown requested - executing: {}", cooldown.gcode);
     api->execute_gcode(
-        cooldown.gcode, []() { NOTIFY_SUCCESS(lv_tr("Heaters off")); },
+        cooldown.gcode,
+        []() { helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Heaters off")); },
         [](const MoonrakerError& error) {
-            NOTIFY_ERROR(lv_tr("Failed to cool down: {}"), error.user_message());
+            helix::ui::notify_error_tr(TR_NOOP("Failed to cool down: {}"), error);
         });
 }
 
@@ -430,17 +431,18 @@ void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
 
     for (const auto& heater : heaters) {
         spdlog::debug("[PreheatWidget] Setting {} to {}°C", heater, nozzle);
-        c->set_target(
-            heater, static_cast<double>(nozzle),
-            {.toast = false,
-             .on_success =
-                 [heater, nozzle]() {
-                     spdlog::info("[PreheatWidget] {} target set to {}°C", heater, nozzle);
-                 },
-             .on_error =
-                 [heater](const MoonrakerError& error) {
-                     NOTIFY_ERROR(lv_tr("Failed to set {} temp: {}"), heater, error.user_message());
-                 }});
+        c->set_target(heater, static_cast<double>(nozzle),
+                      {.toast = false,
+                       .on_success =
+                           [heater, nozzle]() {
+                               spdlog::info("[PreheatWidget] {} target set to {}°C", heater,
+                                            nozzle);
+                           },
+                       .on_error =
+                           [heater](const MoonrakerError& error) {
+                               helix::ui::notify_error_tr(TR_NOOP("Failed to set {} temp: {}"),
+                                                          heater, error);
+                           }});
     }
 
     c->set_target(helix::HeaterType::Bed, static_cast<double>(bed),

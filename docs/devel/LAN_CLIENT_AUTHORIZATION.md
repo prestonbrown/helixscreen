@@ -24,7 +24,7 @@ Snapmaker App on a U1.
 | `include/lan_client_auth_router.h` / `src/application/lan_client_auth_router.cpp` | Generic: subscribes, prompts, sends the answer. Names no firmware |
 | `tests/unit/test_lan_client_authorization.cpp` | `[lanauth]` |
 
-Owned by `Application` as `m_lan_client_auth_router`, alongside
+Owned by `GcodeResponseRouting` (`include/gcode_response_routing.h`), alongside
 `GcodeErrorRouter` and `GcodeNarrationRouter`, and torn down with them **before**
 `MoonrakerClient` — its destructor unregisters callbacks that touch the client.
 

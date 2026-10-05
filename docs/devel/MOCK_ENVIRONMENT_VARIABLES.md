@@ -875,6 +875,8 @@ HELIX_MOCK_KINEMATICS=cartesian ./build/bin/helix-screen --test -vv
 
 The value is passed through verbatim — no validation. A nonsense string simply produces a printer whose kinematics match nothing.
 
+Read once, when the mock is constructed: the simulation thread reports kinematics every tick, and reading the environment there would race a `setenv()` on another thread. Set it before the mock exists.
+
 ### `HELIX_MOCK_OBJECTS`
 
 Append additional Klipper objects to the mock's advertised object list, so capability detection paths that depend on an object being present can be exercised without a matching mock printer type.

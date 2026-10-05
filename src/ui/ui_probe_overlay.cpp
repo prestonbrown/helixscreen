@@ -105,6 +105,13 @@ namespace {
 void send_probe_gcode(const char* gcode, const char* label) {
     helix::ui::probe_send_gcode(gcode, label);
 }
+
+// Callable from any thread: the title's lv_tr() runs on the main thread.
+void notify_config_edit_failed(const std::string& field, const std::string& err) {
+    helix::ui::run_on_main("ProbeOverlay::config_edit_failed", [field, err]() {
+        NOTIFY_ERROR_T(lv_tr("Config Edit Failed"), "{}: {}", field, err);
+    });
+}
 } // namespace
 
 void ui_probe_overlay_register_callbacks() {
@@ -694,11 +701,10 @@ void ProbeOverlay::handle_probe_accuracy() {
                     });
                 return;
             }
-            spdlog::error("[Probe] PROBE_ACCURACY failed: {}", err.user_message());
+            spdlog::error("[Probe] PROBE_ACCURACY failed: {}", err.message);
             api->unregister_method_callback("notify_gcode_response", handler_name);
-            std::string msg = err.user_message();
-            helix::ui::queue_update("ProbeOverlay::handle_probe_accuracy", [msg]() {
-                get_global_probe_overlay().set_accuracy_error(msg);
+            helix::ui::queue_update("ProbeOverlay::handle_probe_accuracy", [err]() {
+                get_global_probe_overlay().set_accuracy_error(err.localized_message());
             });
         },
         IAdvancedAPI::PROBING_TIMEOUT_MS + prep_timeout_ms);
@@ -980,31 +986,30 @@ void ProbeOverlay::handle_config_save() {
     }
 
     // Use the safe edit flow: backup -> edit -> firmware restart -> monitor -> revert on failure
+    // Both editor calls answer on a background thread.
     config_editor_.load_config_files(
         *api_,
-        [this, section, field,
-         new_value](std::map<std::string, helix::system::SectionLocation> /*section_map*/) {
-            auto token = lifetime_.token();
-            config_editor_.safe_edit_value(
-                *api_, section, field, new_value,
-                [this, token]() {
-                    spdlog::info("[Probe] Config edit saved successfully");
-                    if (token.expired())
-                        return;
-                    token.defer([this]() {
-                        // Reload config values to reflect the change
-                        load_config_values();
-                    });
-                },
-                [field](const std::string& err) {
-                    // Runs on the network thread; the toast queues itself to the
-                    // UI thread. The safe-edit flow has already reverted the file.
-                    NOTIFY_ERROR_T(lv_tr("Config Edit Failed"), "{}: {}", field, err);
-                });
-        },
-        [field](const std::string& err) {
-            NOTIFY_ERROR_T(lv_tr("Config Edit Failed"), "{}: {}", field, err);
-        });
+        lifetime_.bg_cb("ProbeOverlay::config_loaded",
+                        [this, section, field, new_value](
+                            std::map<std::string, helix::system::SectionLocation> /*section_map*/) {
+                            auto token = lifetime_.token();
+                            config_editor_.safe_edit_value(
+                                *api_, section, field, new_value,
+                                [this, token]() {
+                                    spdlog::info("[Probe] Config edit saved successfully");
+                                    if (token.expired())
+                                        return;
+                                    token.defer([this]() {
+                                        // Reload config values to reflect the change
+                                        load_config_values();
+                                    });
+                                },
+                                // The safe-edit flow has already reverted the file.
+                                [field](const std::string& err) {
+                                    notify_config_edit_failed(field, err);
+                                });
+                        }),
+        [field](const std::string& err) { notify_config_edit_failed(field, err); });
 }
 
 void ProbeOverlay::handle_config_cancel() {

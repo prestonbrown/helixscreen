@@ -1413,4 +1413,100 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: a stack overflow still writes the cra
     auto result = crash_handler::read_crash_file(crash_path());
     REQUIRE_FALSE(result.is_null());
     REQUIRE(result["signal"] == SIGSEGV);
+    // SP sits in the guard region below the stack. The stack dump starts
+    // there, so a handler that reads it unchecked faults again and the record
+    // stops before the dump and the memory map that follow it.
+    REQUIRE(result.contains("stack_dump"));
+    REQUIRE(result.contains("memory_map"));
 }
+
+#if defined(__linux__)
+#include <cstddef>
+#include <linux/filter.h>
+#include <linux/seccomp.h>
+#include <sys/prctl.h>
+#include <sys/syscall.h>
+
+namespace {
+// Makes process_vm_readv() fail with EPERM in this process, as Docker's default
+// seccomp profile does, so the handler has to fall back to its pipe probe.
+bool deny_process_vm_readv() {
+    struct sock_filter filter[] = {
+        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)),
+        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_process_vm_readv, 0, 1),
+        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | EPERM),
+        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
+    };
+    struct sock_fprog prog = {static_cast<unsigned short>(sizeof(filter) / sizeof(filter[0])),
+                              filter};
+    return prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == 0 &&
+           prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog) == 0;
+}
+
+bool has_nonzero_stack_word(const json& result) {
+    if (!result.contains("stack_dump")) {
+        return false;
+    }
+    for (const auto& word : result["stack_dump"]) {
+        if (std::stoull(word.get<std::string>(), nullptr, 16) != 0) {
+            return true;
+        }
+    }
+    return false;
+}
+} // namespace
+
+TEST_CASE_METHOD(CrashTestFixture, "Crash: the stack dump holds the real stack words",
+                 "[telemetry][crash][subprocess]") {
+    const bool deny = GENERATE(false, true);
+    CAPTURE(deny);
+    pid_t pid = fork();
+    REQUIRE(pid >= 0);
+
+    if (pid == 0) {
+        if (deny && !deny_process_vm_readv()) {
+            _exit(98);
+        }
+        crash_handler::install(crash_path());
+        raise(SIGABRT);
+        _exit(99);
+    }
+
+    int status = 0;
+    REQUIRE(waitpid(pid, &status, 0) == pid);
+    REQUIRE(WIFEXITED(status));
+    REQUIRE(WEXITSTATUS(status) == 128 + SIGABRT);
+    auto result = crash_handler::read_crash_file(crash_path());
+    REQUIRE_FALSE(result.is_null());
+    // The live stack under the handler is mapped, so a dump of all zeros means
+    // the reads were refused rather than performed.
+    REQUIRE(has_nonzero_stack_word(result));
+}
+
+TEST_CASE_METHOD(CrashTestFixture,
+                 "Crash: a stack overflow completes the record when process_vm_readv is refused",
+                 "[telemetry][crash][subprocess]") {
+    pid_t pid = fork();
+    REQUIRE(pid >= 0);
+
+    if (pid == 0) {
+        if (!deny_process_vm_readv()) {
+            _exit(98);
+        }
+        struct rlimit rl {};
+        rl.rlim_cur = 256 * 1024;
+        rl.rlim_max = RLIM_INFINITY;
+        setrlimit(RLIMIT_STACK, &rl);
+        crash_handler::install(crash_path());
+        _exit(overflow_stack(0) == 0 ? 97 : 99);
+    }
+
+    int status = 0;
+    REQUIRE(waitpid(pid, &status, 0) == pid);
+    REQUIRE_FALSE((WIFEXITED(status) && WEXITSTATUS(status) == 98));
+    auto result = crash_handler::read_crash_file(crash_path());
+    REQUIRE_FALSE(result.is_null());
+    REQUIRE(result["signal"] == SIGSEGV);
+    REQUIRE(result.contains("memory_map"));
+}
+#endif // __linux__

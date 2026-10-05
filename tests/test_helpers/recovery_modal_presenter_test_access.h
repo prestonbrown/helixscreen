@@ -24,12 +24,12 @@ struct RecoveryModalPresenterTestAccess {
     }
     /// The user closing the modal with a dismiss-only button. That is exactly
     /// what ActionPromptModal::handle_button_click does for an action whose
-    /// gcode is empty (#1172): hide, run no callback — which is why the
-    /// presenter cannot see it through set_gcode_callback and has to learn it
-    /// from the modal's own on_hide(). Backdrop taps and ESC take the same path.
+    /// gcode is empty (#1172): a ButtonPress hide that runs no gcode callback,
+    /// which is why the presenter learns it from the modal's dismiss callback.
+    /// Backdrop taps and ESC reach the same callback.
     static void user_dismiss(helix::ui::RecoveryModalPresenter& p) {
         if (p.modal_) {
-            p.modal_->hide();
+            p.modal_->hide(ModalCloseReason::ButtonPress);
         }
     }
     /// The fault the user has already answered, which present() refuses to put

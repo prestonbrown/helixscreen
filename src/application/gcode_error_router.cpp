@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 #include "ui_notification.h"
 #include "ui_toast_manager.h"
+#include "ui_update_queue.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
@@ -14,6 +15,7 @@
 #include "error_modal_view.h"
 #include "fault_surface_correlation.h"
 #include "firmware_fault_codes.h"
+#include "gcode_response_lines.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "moonraker_error.h"
@@ -342,15 +344,21 @@ bool GcodeErrorRouter::present_recover_toast(const ErrorEvent& e) {
                     return;
                 spdlog::info("[GcodeError] User tapped Recover for key298");
                 PrinterRecoveryService recovery(a);
-                recovery.recover(
-                    []() { spdlog::info("[Recovery] Auto-recovery initiated"); },
-                    [](const MoonrakerError& err) {
-                        spdlog::error("[Recovery] Auto-recovery failed: {}", err.message);
-                        ToastManager::instance().show(
-                            ToastSeverity::ERROR,
-                            (std::string(lv_tr("Recovery failed: ")) + err.user_message()).c_str(),
-                            6000);
-                    });
+                recovery.recover([]() { spdlog::info("[Recovery] Auto-recovery initiated"); },
+                                 [](const MoonrakerError& err) {
+                                     spdlog::error("[Recovery] Auto-recovery failed: {}",
+                                                   err.message);
+                                     // The callback can run on the WebSocket thread; lv_tr is
+                                     // main-thread only.
+                                     helix::ui::run_on_main("error_toast", [err]() {
+                                         ToastManager::instance().show(
+                                             ToastSeverity::ERROR,
+                                             fmt::format(fmt::runtime(lv_tr("Recovery failed: {}")),
+                                                         err.localized_message())
+                                                 .c_str(),
+                                             6000);
+                                     });
+                                 });
             },
             api, /*duration_ms=*/RECOVER_TOAST_MS);
         return true;
@@ -374,10 +382,15 @@ bool GcodeErrorRouter::present_recover_toast(const ErrorEvent& e) {
                 c->gcode, [tag]() { spdlog::info("[Recovery] {} completed", tag); },
                 [tag](const MoonrakerError& err) {
                     spdlog::error("[Recovery] {} failed: {}", tag, err.message);
-                    ToastManager::instance().show(
-                        ToastSeverity::ERROR,
-                        (std::string(lv_tr("Recovery failed: ")) + err.user_message()).c_str(),
-                        6000);
+                    // The callback can run on the WebSocket thread; the toast is main-thread only.
+                    helix::ui::run_on_main("error_toast", [err]() {
+                        ToastManager::instance().show(
+                            ToastSeverity::ERROR,
+                            fmt::format(fmt::runtime(lv_tr("Recovery failed: {}")),
+                                        err.localized_message())
+                                .c_str(),
+                            6000);
+                    });
                 },
                 IMoonrakerAPI::AMS_OPERATION_TIMEOUT_MS);
         },
@@ -612,23 +625,7 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
 }
 
 void GcodeErrorRouter::on_notify_gcode_response(const nlohmann::json& msg) {
-    if (first_notify_param(msg) == nullptr) {
-        return;
-    }
-    const auto& params = msg["params"];
-    if (params[0].is_array()) {
-        for (const auto& line : params[0]) {
-            if (line.is_string()) {
-                process_line(line.get<std::string>());
-            }
-        }
-    } else if (params[0].is_string()) {
-        for (const auto& line : params) {
-            if (line.is_string()) {
-                process_line(line.get<std::string>());
-            }
-        }
-    }
+    for_each_gcode_response_line(msg, [this](const std::string& line) { process_line(line); });
 }
 
 void GcodeErrorRouter::on_notify_status_update(const nlohmann::json& msg) {

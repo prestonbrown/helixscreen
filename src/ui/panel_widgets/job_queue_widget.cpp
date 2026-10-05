@@ -13,6 +13,7 @@
 #include "panel_widget_size.h"
 #include "static_subject_registry.h"
 #include "subject_debug_registry.h"
+#include "subject_managed_panel.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -22,6 +23,7 @@
 // Module-level subject for size mode — static like all panel widget subjects
 static lv_subject_t s_size_mode_subject;
 static bool s_subjects_initialized = false;
+static SubjectManager s_subjects;
 
 static void job_queue_widget_init_subjects() {
     if (s_subjects_initialized) {
@@ -30,7 +32,7 @@ static void job_queue_widget_init_subjects() {
 
     // Size mode (0=compact, 1=normal/2x2, 2=expanded/3x2+)
     lv_subject_init_int(&s_size_mode_subject, 1);
-    lv_xml_register_subject(nullptr, "jq_size_mode", &s_size_mode_subject);
+    s_subjects.publish("jq_size_mode", &s_size_mode_subject);
     SubjectDebugRegistry::instance().register_subject(&s_size_mode_subject, "jq_size_mode",
                                                       LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
 
@@ -39,7 +41,7 @@ static void job_queue_widget_init_subjects() {
     // Self-register cleanup with StaticSubjectRegistry (co-located with init)
     StaticSubjectRegistry::instance().register_deinit("JobQueueWidgetSubjects", []() {
         if (s_subjects_initialized && lv_is_initialized()) {
-            lv_subject_deinit(&s_size_mode_subject);
+            s_subjects.deinit_all();
             s_subjects_initialized = false;
             spdlog::trace("[JobQueueWidget] Subjects deinitialized");
         }

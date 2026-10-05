@@ -48,6 +48,8 @@ void install_moonraker_bindings(PluginContext& ctx);
 void install_io_bindings(PluginContext& ctx);
 /// helix.widget. BoundRuntime users may pass it in `installers`.
 void install_widget_bindings(PluginContext& ctx);
+/// helix.canvas. BoundRuntime users may pass it in `installers`.
+void install_canvas_bindings(PluginContext& ctx);
 
 PluginContext& context(lua_State* L);
 

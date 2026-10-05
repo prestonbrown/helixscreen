@@ -821,8 +821,11 @@ void ToolState::request_tool_change(int tool_index, IMoonrakerAPI* api,
                 on_success();
         },
         [on_error](const MoonrakerError& error) {
-            if (on_error)
-                on_error(error.user_message());
+            if (!on_error)
+                return;
+            // on_error is UI-facing; Klipper's reply arrives on the WebSocket thread.
+            helix::ui::run_on_main("ToolState::tool_change_error",
+                                   [on_error, error]() { on_error(error.localized_message()); });
         });
 }
 
@@ -1064,7 +1067,7 @@ void ToolState::save_spool_assignments(IMoonrakerAPI* api) {
             MOONRAKER_DB_NAMESPACE, MOONRAKER_DB_KEY, json_data,
             []() { spdlog::debug("[ToolState] Spool assignments saved to Moonraker DB"); },
             [](const MoonrakerError& err) {
-                spdlog::warn("[ToolState] Failed to save to Moonraker DB: {}", err.user_message());
+                spdlog::warn("[ToolState] Failed to save to Moonraker DB: {}", err.message);
             });
     }
 }
@@ -1103,7 +1106,7 @@ void ToolState::load_spool_assignments(IMoonrakerAPI* api) {
         async_lifetime_.bg_cb(
             "ToolState::load_spool_assignments_error", [this, api](const MoonrakerError& err) {
                 spdlog::debug("[ToolState] Moonraker DB load failed ({}), trying local JSON",
-                              err.user_message());
+                              err.message);
                 load_spool_json();
                 spool_assignments_loaded_ = true;
                 // Seed Moonraker DB so subsequent connections don't hit 404

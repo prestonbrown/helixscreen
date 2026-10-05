@@ -73,7 +73,7 @@ void DetectionManager::init(helix::IMoonrakerClient* client, helix::PrinterState
     client_ = client;
     state_ = state;
     ensure_availability_subject();
-    // Do NOT probe here: init() runs during Application::init_panel_subjects, before
+    // Do NOT probe here: init() runs during PrinterSession::init_panel_subjects, before
     // the WebSocket connects. printer.objects.list would fail (not connected) and the
     // capability would latch false forever. Instead, run the probe on every connect.
     if (client_ && !connect_observer_registered_) {

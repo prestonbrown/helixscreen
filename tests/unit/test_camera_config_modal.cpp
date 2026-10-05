@@ -16,6 +16,8 @@
 #include "../test_helpers/camera_config_modal_test_access.h"
 #include "camera_config_modal.h"
 
+#include <memory>
+
 #include "../catch_amalgamated.hpp"
 
 using helix::CameraConfigModal;
@@ -125,6 +127,31 @@ TEST_CASE_METHOD(LVGLTestFixture, "CameraConfigModal: rows mirror the named webc
     Access::load_config(modal, {{"source", "Gone"}});
     CHECK(Access::row_active(modal, 0) == 1);
     CHECK(Access::source(modal) == "Gone");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "CameraConfigModal: destroying the modal withdraws its XML names",
+                 "[camera][modal][xml_name]") {
+    {
+        CameraConfigModal modal("camera", TEST_PANEL, [](const nlohmann::json&) {});
+        REQUIRE(lv_xml_get_subject(nullptr, "cam_rot_0_active") != nullptr);
+        REQUIRE(lv_xml_get_subject(nullptr, "cam_source_0_name") != nullptr);
+    }
+    CHECK(lv_xml_get_subject(nullptr, "cam_rot_0_active") == nullptr);
+    CHECK(lv_xml_get_subject(nullptr, "cam_source_0_name") == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "CameraConfigModal: reopening before the old modal is freed keeps the new names",
+                 "[camera][modal][xml_name]") {
+    auto first =
+        std::make_unique<CameraConfigModal>("camera", TEST_PANEL, [](const nlohmann::json&) {});
+    CameraConfigModal second("camera", TEST_PANEL, [](const nlohmann::json&) {});
+    lv_subject_t* rot = lv_xml_get_subject(nullptr, "cam_rot_0_active");
+    REQUIRE(rot != nullptr);
+
+    first.reset();
+    CHECK(lv_xml_get_subject(nullptr, "cam_rot_0_active") == rot);
+    CHECK(lv_xml_get_subject(nullptr, "cam_source_0_name") != nullptr);
 }
 
 #endif // HELIX_HAS_CAMERA

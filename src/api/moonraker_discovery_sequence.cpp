@@ -1789,10 +1789,7 @@ void MoonrakerDiscoverySequence::finish_discovery_subscription(const PrinterDisc
         spdlog::error("[Moonraker Client] Subscription failed: {}", sub_response["error"].dump());
 
         // Emit discovery failed event (subscription is part of discovery)
-        std::string error_msg = sub_response["error"].dump();
-        client_.emit_event(MoonrakerEventType::DISCOVERY_FAILED,
-                           fmt::format("Failed to subscribe to printer updates: {}", error_msg),
-                           false); // Warning, not error - discovery still completes
+        client_.emit_event(moonraker_event::subscribe_failed(sub_response["error"].dump()));
     }
 
     // Discovery complete - pass initial status to the callback so the caller

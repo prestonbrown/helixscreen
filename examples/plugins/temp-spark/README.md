@@ -19,6 +19,10 @@ The author guide is [docs/devel/PLUGIN_DEVELOPMENT.md](../../docs/devel/PLUGIN_D
   show_target, declared in the manifest's settings schema.
 - `helix.ui.on` + `helix.ui.overlay`: the tile's `plugin_event` opens the
   detail overlay; unload closes it automatically.
+- `helix.canvas`: `polyline`, `line`, `rect`, `circle`, `text`, `size`,
+  `commit`, `on_size`: one shared draw function renders the sparkline on the
+  tile and, with the detail flag set, the gridlines, area fill, newest-sample
+  dot and dashed target trace in the overlay. The fill uses the `opa` option.
 - `helix.log.warn`: failures degrade to an empty window instead of faulting.
 
 ## Run it
@@ -35,8 +39,12 @@ The 2x1 tile needs room: remove or shrink a stock widget first, then add it from
 
 - `manifest.json` id, one 2x1 widget, empty permissions, three settings.
 - `main.lua` subjects, backfill, sampling timer, heater switching.
-- `ui/temp-spark__tile.xml` value label plus 30 bound `lv_bar`s.
-- `ui/temp-spark__detail.xml` overlay with the same bars, min/max and target.
+- `ui/temp-spark__tile.xml` heater glyph and label, current value with the
+  target muted beside it, above a canvas sparkline.
+- `ui/temp-spark__detail.xml` overlay with a larger canvas carrying labelled
+  gridlines and the dashed target line, plus min/max/avg/target stats.
 
-Bar heights are percent of `max(50, window peak, target) * 1.1`, so a reading
-keeps its height while the window slides and an idle printer stays quiet.
+The plot autoscales to the window's own span, widened to at least 10 degrees
+and padded 20%, so idle jitter stays a wiggle and a heating curve fills the
+height. The overlay's plot also folds a nonzero target into the range, keeping
+its dashed line inside; the tile's does not, so its span is the data's own.

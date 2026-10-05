@@ -1244,7 +1244,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
 TEST_CASE_METHOD(LedMockApiFixture,
                  "LedController: switching printers re-arms the startup preference",
                  "[led][controller][regression]") {
-    // A printer switch runs Application::tear_down_printer_state() (which calls
+    // A printer switch runs PrinterSession::tear_down_printer_state() (which calls
     // LedController::deinit()) followed by a fresh init — that is a genuine
     // startup for the new printer, so the preference must apply again.
     setup_controller_with_strip();

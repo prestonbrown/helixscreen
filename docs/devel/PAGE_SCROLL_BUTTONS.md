@@ -28,7 +28,7 @@ on top of somebody's content.
 
 Both the component registration and the `PageScrollAutoInject::init()` call happen
 in `src/xml_registration.cpp#register_xml_components`. Teardown is
-`src/application/application.cpp#cancel_add_printer_wizard`.
+`src/application/printer_session.cpp#teardown_printer_scope`.
 
 ---
 

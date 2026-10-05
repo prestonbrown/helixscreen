@@ -108,8 +108,9 @@ struct BoundRuntime {
     TestRuntime t; // last member: destroyed first, while ctx and fake still exist
 
     explicit BoundRuntime(std::vector<Installer> installers = {}, PermissionSet perms = {},
-                          std::vector<SettingDecl> decls = {}, std::string storage = {})
-        : storage_path(std::move(storage)) {
+                          std::vector<SettingDecl> decls = {}, std::string storage = {},
+                          LuaRuntime::Limits limits = {})
+        : storage_path(std::move(storage)), t(std::move(limits)) {
         manifest.id = "test-plugin";
         manifest.name = "Test Plugin";
         manifest.version = "1.0.0";

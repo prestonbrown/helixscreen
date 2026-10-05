@@ -45,6 +45,10 @@ lv_result_t register_subject_in_current_scope(const char* name, lv_subject_t* su
 /// process must unregister or leave the name pointing at dead memory.
 lv_result_t unregister_subject_in_current_scope(const char* name);
 
+/// As above, but only while `name` still resolves to `subject`. A newer owner that
+/// re-published the name keeps its record when the previous owner tears down.
+lv_result_t unregister_subject_in_current_scope(const char* name, const lv_subject_t* subject);
+
 // Access the active scope (nullptr if none). For debug assertions only.
 lv_xml_component_scope_t* current_scope();
 

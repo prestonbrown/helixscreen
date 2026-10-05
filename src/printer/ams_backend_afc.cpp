@@ -3868,6 +3868,51 @@ bool AmsBackendAfc::has_toolchanger() const {
     });
 }
 
+AmsBackendAfc::ConfigfileTopology
+AmsBackendAfc::parse_configfile_topology(const nlohmann::json& response) {
+    ConfigfileTopology topo;
+    const auto result = response.find("result");
+    if (result == response.end() || !result->is_object()) {
+        return topo;
+    }
+    const auto status = result->find("status");
+    if (status == result->end() || !status->is_object()) {
+        return topo;
+    }
+    const auto configfile = status->find("configfile");
+    if (configfile == status->end() || !configfile->is_object()) {
+        return topo;
+    }
+    const auto settings = configfile->find("settings");
+    if (settings == configfile->end() || !settings->is_object()) {
+        return topo;
+    }
+    topo.answered = true;
+
+    // Klipper lowercases both section headers and option keys in
+    // configfile.settings, so `[AFC_extruder T1]` arrives as
+    // "afc_extruder t1". The section suffix is matched
+    // case-insensitively against the names AFC.extruders publishes.
+    static constexpr const char* EXTRUDER_PREFIX = "afc_extruder ";
+    static constexpr const char* TOOLCHANGER_PREFIX = "afc_toolchanger ";
+    for (auto it = settings->begin(); it != settings->end(); ++it) {
+        const std::string key = helix::text_io::to_lower(it.key());
+        if (key.rfind(TOOLCHANGER_PREFIX, 0) == 0) {
+            topo.saw_toolchanger = true;
+            continue;
+        }
+        if (key.rfind(EXTRUDER_PREFIX, 0) != 0 || !it.value().is_object()) {
+            continue;
+        }
+        const auto name = it.value().find("extruder_name");
+        if (name == it.value().end() || !name->is_string()) {
+            continue;
+        }
+        topo.extruder_names[key.substr(std::strlen(EXTRUDER_PREFIX))] = name->get<std::string>();
+    }
+    return topo;
+}
+
 void AmsBackendAfc::query_afc_configfile_topology() {
     if (!client_) {
         return;
@@ -3883,76 +3928,46 @@ void AmsBackendAfc::query_afc_configfile_topology() {
     client_->send_jsonrpc(
         "printer.objects.query", params,
         [this, token](const nlohmann::json& response) {
+            // WS thread: reduce the whole resolved config to a few names here so
+            // the deferred body carries only those, not a copy of the DOM.
             // L081 Mechanism C: the body mutates members under mutex_.
-            token.defer("AmsBackendAfc::query_afc_configfile_topology_success", [this, response]() {
-                if (!response.contains("result") || !response["result"].contains("status") ||
-                    !response["result"]["status"].is_object()) {
-                    return;
-                }
-                const auto& status = response["result"]["status"];
-                if (!status.contains("configfile") || !status["configfile"].is_object() ||
-                    !status["configfile"].contains("settings") ||
-                    !status["configfile"]["settings"].is_object()) {
-                    spdlog::debug("[AMS AFC] configfile.settings absent — AFC_extruder tool "
-                                  "indices stay derived from section names");
-                    return;
-                }
-                const auto& settings = status["configfile"]["settings"];
+            token.defer("AmsBackendAfc::query_afc_configfile_topology_success",
+                        [this, topo = parse_configfile_topology(response)]() mutable {
+                            if (!topo.answered) {
+                                spdlog::debug(
+                                    "[AMS AFC] configfile.settings absent — AFC_extruder tool "
+                                    "indices stay derived from section names");
+                                return;
+                            }
+                            std::lock_guard<std::mutex> lock(mutex_);
+                            extruder_klipper_names_ = std::move(topo.extruder_names);
+                            // Settings were read. Only now does an absent extruder_name
+                            // mean the config lacks one rather than that we have not asked.
+                            configfile_answered_ = true;
+                            // A newly-arrived mapping can resolve a name that already
+                            // warned; let it warn again if it still cannot be resolved.
+                            extruder_tool_index_warned_.clear();
+                            // Latch only on presence. A config we could not read, or one
+                            // read before a section was added, must not be taken as proof
+                            // that no toolchanger exists.
+                            if (topo.saw_toolchanger) {
+                                configfile_has_toolchanger_ = true;
+                            }
+                            spdlog::debug(
+                                "[AMS AFC] configfile: {} AFC_extruder -> Klipper extruder names, "
+                                "toolchanger section {}",
+                                extruder_klipper_names_.size(),
+                                topo.saw_toolchanger ? "present" : "absent");
 
-                // Klipper lowercases both section headers and option keys in
-                // configfile.settings, so `[AFC_extruder T1]` arrives as
-                // "afc_extruder t1". The section suffix is matched
-                // case-insensitively against the names AFC.extruders publishes.
-                static constexpr const char* EXTRUDER_PREFIX = "afc_extruder ";
-                static constexpr const char* TOOLCHANGER_PREFIX = "afc_toolchanger ";
-                std::unordered_map<std::string, std::string> found;
-                bool saw_toolchanger = false;
-                for (auto it = settings.begin(); it != settings.end(); ++it) {
-                    const std::string key = helix::text_io::to_lower(it.key());
-                    if (key.rfind(TOOLCHANGER_PREFIX, 0) == 0) {
-                        saw_toolchanger = true;
-                        continue;
-                    }
-                    if (key.rfind(EXTRUDER_PREFIX, 0) != 0 || !it.value().is_object()) {
-                        continue;
-                    }
-                    const auto& section = it.value();
-                    if (!section.contains("extruder_name") ||
-                        !section["extruder_name"].is_string()) {
-                        continue;
-                    }
-                    found[key.substr(std::strlen(EXTRUDER_PREFIX))] =
-                        section["extruder_name"].get<std::string>();
-                }
-
-                std::lock_guard<std::mutex> lock(mutex_);
-                extruder_klipper_names_ = std::move(found);
-                // Settings were read. Only now does an absent extruder_name
-                // mean the config lacks one rather than that we have not asked.
-                configfile_answered_ = true;
-                // A newly-arrived mapping can resolve a name that already
-                // warned; let it warn again if it still cannot be resolved.
-                extruder_tool_index_warned_.clear();
-                // Latch only on presence. A config we could not read, or one
-                // read before a section was added, must not be taken as proof
-                // that no toolchanger exists.
-                if (saw_toolchanger) {
-                    configfile_has_toolchanger_ = true;
-                }
-                spdlog::debug("[AMS AFC] configfile: {} AFC_extruder -> Klipper extruder names, "
-                              "toolchanger section {}",
-                              extruder_klipper_names_.size(),
-                              saw_toolchanger ? "present" : "absent");
-
-                // This query races the first status frames — on the reporter's
-                // machine it landed 17ms after the units were first mapped, so
-                // every toolhead label was derived from names it could not yet
-                // resolve. Redo that derivation now rather than carrying wrong
-                // labels until AFC happens to push another unit frame.
-                if (!extruder_klipper_names_.empty() && !unit_infos_.empty()) {
-                    rebuild_unit_map_from_klipper();
-                }
-            });
+                            // This query races the first status frames — on the reporter's
+                            // machine it landed 17ms after the units were first mapped, so
+                            // every toolhead label was derived from names it could not yet
+                            // resolve. Redo that derivation now rather than carrying wrong
+                            // labels until AFC happens to push another unit frame.
+                            if (!extruder_klipper_names_.empty() && !unit_infos_.empty()) {
+                                rebuild_unit_map_from_klipper();
+                            }
+                        });
         },
         [](const MoonrakerError& err) {
             spdlog::debug("[AMS AFC] Failed to query configfile: {} — tool indices stay derived "
@@ -4799,7 +4814,7 @@ AmsError AmsBackendAfc::execute_gcode_notify(const std::string& gcode,
 
     spdlog::info("[AMS AFC] Executing G-code: {}", gcode);
 
-    // Capture messages by value for async callbacks (thread-safe via ui_queue_update())
+    // Both callbacks run on the WebSocket thread; the toasts queue themselves to main.
     api_->execute_gcode(
         gcode,
         [success_msg]() {
@@ -4812,7 +4827,8 @@ AmsError AmsBackendAfc::execute_gcode_notify(const std::string& gcode,
                 spdlog::warn("[AMS AFC] G-code response timed out (may still be running): {}",
                              gcode);
                 if (!error_prefix.empty()) {
-                    NOTIFY_WARNING(lv_tr("{} — response timed out"), error_prefix);
+                    helix::ui::notify_tr(ToastSeverity::WARNING, TR_NOOP("{} — response timed out"),
+                                         error_prefix);
                 }
             } else if (!error_prefix.empty()) {
                 NOTIFY_ERROR("{}: {}", error_prefix, err.message);

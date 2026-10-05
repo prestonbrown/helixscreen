@@ -28,7 +28,7 @@
 //   * Cached readers — everything subject-backed, plus the chamber/scanner
 //     strings, is loaded once in init_subjects(). Those only follow the active
 //     printer across the deinit/init cycle that a real switch performs:
-//     Application::switch_printer() -> tear_down_printer_state() (step 16,
+//     PrinterSession::switch_printer() -> tear_down_printer_state() (step 16,
 //     StaticSubjectRegistry::deinit_all(), which runs the deinit_subjects()
 //     SettingsManager self-registers at settings_manager.cpp:225) ->
 //     init_printer_state() -> init_subjects() against the new df().

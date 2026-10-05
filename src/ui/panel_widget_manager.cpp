@@ -176,13 +176,12 @@ void PanelWidgetManager::clear_shared_resources() {
 }
 
 void PanelWidgetManager::init_widget_subjects() {
-    if (widget_subjects_initialized_) {
-        return;
-    }
-
     // Register all widget factories explicitly (avoids SIOF from file-scope statics)
     init_widget_registrations();
 
+    // Every call, not once: a printer switch deinits these subjects through
+    // StaticSubjectRegistry and withdraws their XML names, and the rebuilt panels
+    // bind those names again. Each hook is a no-op while its subjects are live.
     for (const auto& def : get_all_widget_defs()) {
         if (def.init_subjects) {
             spdlog::debug("[PanelWidgetManager] Initializing subjects for widget '{}'", def.id);
@@ -190,6 +189,9 @@ void PanelWidgetManager::init_widget_subjects() {
         }
     }
 
+    if (widget_subjects_initialized_) {
+        return;
+    }
     widget_subjects_initialized_ = true;
 
     // Self-register per-printer cache invalidation. panel_configs_ / active_configs_

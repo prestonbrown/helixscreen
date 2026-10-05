@@ -43,6 +43,35 @@ EOF
     contains "1 of 1 registered" "$output"
 }
 
+@test "a subject published through SubjectManager::publish is counted" {
+    cat > "$ROOT/src/demo.cpp" <<'EOF'
+void init_subjects() {
+    subjects_.publish("totally_dead_subject", &dead_member_);
+    subjects_.publish("live_subject", &live_member_);
+}
+void bind() {
+    observe<int>(&live_member_, cb);
+}
+EOF
+    run_gate
+    contains "totally_dead_subject" "$output"
+    contains "1 of 2 registered" "$output"
+}
+
+@test "a registration whose pointer wraps onto the next line is matched to its member" {
+    cat > "$ROOT/src/demo.cpp" <<'EOF'
+void init_subjects() {
+    helix::xml::register_subject_in_current_scope("wrapped_live_subject",
+                                                  &wrapped_member_);
+}
+void bind() {
+    observe<int>(&wrapped_member_, cb);
+}
+EOF
+    run_gate
+    contains "0 of 1 registered" "$output"
+}
+
 @test "a dead subject registered just above an unrelated observer is still reported" {
     # The fail-open shape: init_subjects() registers everything together and the
     # observer calls follow a few lines down, so a window that reaches backwards

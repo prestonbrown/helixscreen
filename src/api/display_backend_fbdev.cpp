@@ -410,39 +410,33 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     const bool env_range_override = env_min_x && env_max_x && env_min_y && env_max_y;
     const bool env_swap_override = swap_axes != nullptr;
     const helix::TouchRangeSettings stored_range = helix::load_touch_range();
+    // Asked of the display, not of `/display/rotate`, and via the same helper the
+    // calibration solver gates on - the key is only the request, and it differs
+    // from the applied rotation both ways (CLI/env rotation with no key; a failed
+    // DRM->fbdev rotation fallback leaving the key set on an unrotated display).
+    // This runs from create_input_pointer(), which DisplayManager calls after it
+    // applies rotation, so the display is already at its final rotation.
+    const int applied_rotation = display_rotation_degrees();
+    const helix::TouchRangeSource range_source =
+        helix::resolve_touch_range_source(env_range_override, stored_range, applied_rotation);
     if (env_range_override) {
         spdlog::info("[Fbdev Backend] Touch range source: environment override{}",
                      stored_range.valid ? " (stored calibration range ignored)" : "");
-    } else if (stored_range.valid) {
-        // A stored range solved on a rotated panel folds the rotation into
-        // (min,max,swap) and double-applies it at runtime
-        // (prestonbrown/helixscreen#1394). The range stage post-dates the
-        // rotation-blind solver by days, so any stored range on a rotated
-        // display is from the broken window: ignore it and ride the
-        // affine-only path. Asked of the display, not of `/display/rotate`,
-        // and via the same helper the calibration solver gates on - the key
-        // is only the request, and it differs from the applied rotation both
-        // ways (CLI/env rotation with no key; a failed DRM->fbdev rotation
-        // fallback leaving the key set on an unrotated display). This runs
-        // from create_input_pointer(), which DisplayManager calls after it
-        // applies rotation, so the display is already at its final rotation.
-        const int applied_rotation = display_rotation_degrees();
-        if (applied_rotation != 0) {
-            spdlog::warn("[Fbdev Backend] Ignoring stored touch range on a {}°-rotated display"
-                         " - solved through the rotation, affine-only path applies",
-                         applied_rotation);
-        } else {
-            if (!env_swap_override) {
-                lv_evdev_set_swap_axes(touch_, stored_range.swap_axes);
-            }
-            lv_evdev_set_calibration(touch_, stored_range.min_x, stored_range.min_y,
-                                     stored_range.max_x, stored_range.max_y);
-            spdlog::info("[Fbdev Backend] Touch range source: stored calibration "
-                         "X({}..{}) Y({}..{}) swap={}{}",
-                         stored_range.min_x, stored_range.max_x, stored_range.min_y,
-                         stored_range.max_y, stored_range.swap_axes,
-                         env_swap_override ? " (swap held by environment override)" : "");
+    } else if (range_source == helix::TouchRangeSource::Stored) {
+        if (!env_swap_override) {
+            lv_evdev_set_swap_axes(touch_, stored_range.swap_axes);
         }
+        lv_evdev_set_calibration(touch_, stored_range.min_x, stored_range.min_y, stored_range.max_x,
+                                 stored_range.max_y);
+        spdlog::info("[Fbdev Backend] Touch range source: stored calibration "
+                     "X({}..{}) Y({}..{}) swap={}{}",
+                     stored_range.min_x, stored_range.max_x, stored_range.min_y, stored_range.max_y,
+                     stored_range.swap_axes,
+                     env_swap_override ? " (swap held by environment override)" : "");
+    } else if (stored_range.valid) {
+        spdlog::warn("[Fbdev Backend] Ignoring stored touch range on a {}°-rotated display"
+                     " - solved through the rotation, affine-only path applies",
+                     applied_rotation);
     } else {
         spdlog::info("[Fbdev Backend] Touch range source: kernel/MT-declared ABS range");
     }
@@ -523,7 +517,8 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
         // Mirrors the swap decision above: an environment variable that is present
         // at all holds the swap, even when it says 0.
         pipeline.swap_axes = env_swap_override ? helix::env_truthy(swap_axes)
-                                               : (stored_range.valid && stored_range.swap_axes);
+                                               : (range_source == helix::TouchRangeSource::Stored &&
+                                                  stored_range.swap_axes);
         if (env_range_override) {
             pipeline.source = helix::TouchRangeSource::Environment;
             pipeline.configured_valid = true;
@@ -531,7 +526,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
             pipeline.max_x = std::atoi(env_max_x);
             pipeline.min_y = std::atoi(env_min_y);
             pipeline.max_y = std::atoi(env_max_y);
-        } else if (stored_range.valid) {
+        } else if (range_source == helix::TouchRangeSource::Stored) {
             pipeline.source = helix::TouchRangeSource::Stored;
             pipeline.configured_valid = true;
             pipeline.min_x = stored_range.min_x;
@@ -970,7 +965,7 @@ void DisplayBackendFbdev::enable_affine_calibration() {
 }
 
 bool DisplayBackendFbdev::apply_touch_range(bool swap_axes, int min_x, int min_y, int max_x,
-                                            int max_y) {
+                                            int max_y, helix::TouchRangeSource source) {
     if (!touch_) {
         return false;
     }
@@ -983,8 +978,7 @@ bool DisplayBackendFbdev::apply_touch_range(bool swap_axes, int min_x, int min_y
     }
     lv_evdev_set_swap_axes(touch_, swap_axes);
     lv_evdev_set_calibration(touch_, min_x, min_y, max_x, max_y);
-    helix::set_touch_configured_range(swap_axes, min_x, min_y, max_x, max_y,
-                                      helix::TouchRangeSource::Stored);
+    helix::set_touch_configured_range(swap_axes, min_x, min_y, max_x, max_y, source);
     spdlog::info("[Fbdev Backend] Touch range re-programmed: swap={} X({}..{}) Y({}..{})",
                  swap_axes, min_x, max_x, min_y, max_y);
     return true;

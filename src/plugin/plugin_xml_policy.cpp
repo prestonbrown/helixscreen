@@ -7,6 +7,7 @@
 
 #include "helix-xml/src/libs/expat/expat.h"
 #include "plugin_manifest.h"
+#include "theme_manager.h"
 
 #include <algorithm>
 #include <string>
@@ -43,11 +44,13 @@ bool ends_with(std::string_view s, std::string_view tail) {
 
 // App widgets a plugin's own components may build on: chrome and presentational
 // widgets whose only name-taking attributes are the generic bind_* and name= ones
-// checked below.
+// checked below. plugin_canvas is the plugin drawing surface; its name= is the
+// registry key its committed display list publishes under.
 bool is_allowlisted_app_component(std::string_view name) {
-    return name == "overlay_panel" || name == "icon" || name == "text_heading" ||
-           name == "text_body" || name == "text_muted" || name == "text_small" ||
-           name == "text_xs" || name == "text_tiny";
+    return name == "overlay_panel" || name == "ui_card" || name == "icon" ||
+           name == "text_heading" || name == "text_body" || name == "text_muted" ||
+           name == "text_small" || name == "text_xs" || name == "text_tiny" ||
+           name == "plugin_canvas";
 }
 
 bool is_allowed_element(const Walk& w, std::string_view el) {
@@ -153,6 +156,14 @@ void on_end(void*, const XML_Char*) {}
 
 std::optional<std::string> check_plugin_attr(std::string_view id, std::string_view name,
                                              std::string_view value) {
+    // Base font tokens only: a size-suffixed variant names a face AssetManager
+    // registers from its tier up, so on a smaller display the XML engine
+    // silently substitutes the default font.
+    if (name == "style_text_font" && starts_with(value, "#font_") &&
+        !theme_manager_font_token_is_base(value.data() + 1))
+        return "style_text_font=\"" + std::string(value) +
+               "\": plugins may use only base font tokens; a size-suffixed variant renders as "
+               "the default font below its tier";
     bool is_callback = name == "callback" || name == "event_cb" || ends_with(name, "_callback") ||
                        ends_with(name, "_cb");
     bool is_subject =

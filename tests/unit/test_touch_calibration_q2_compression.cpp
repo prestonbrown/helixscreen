@@ -37,6 +37,7 @@
 #include "touch_calibration_session.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -60,13 +61,17 @@ constexpr double COMPRESSION = 0.6;
 struct FakeSink : helix::ICalibrationSink {
     helix::TouchCalibration stored{};
     bool affine_enabled = true;
+    bool reject_apply = false;
     std::vector<std::string> ops;
+    // The evdev stage. Unknown by default, so tests that do not model it never
+    // see a solved range installed.
+    helix::LiveTouchRange live{};
 
     helix::TouchCalibration current_calibration() const override {
         return stored;
     }
     bool apply_calibration(const helix::TouchCalibration& cal) override {
-        if (!cal.valid) {
+        if (!cal.valid || reject_apply) {
             ops.emplace_back("apply:rejected");
             return false;
         }
@@ -86,6 +91,16 @@ struct FakeSink : helix::ICalibrationSink {
     void clear_calibration() override {
         stored = helix::TouchCalibration{};
         ops.emplace_back("clear");
+    }
+    helix::LiveTouchRange current_touch_range() const override {
+        return live;
+    }
+    bool apply_touch_range(bool swap, int min_x, int min_y, int max_x, int max_y,
+                           helix::TouchRangeSource source) override {
+        live.range = helix::TouchRangeSettings{true, swap, min_x, max_x, min_y, max_y};
+        live.source = source;
+        ops.emplace_back("range");
+        return true;
     }
 };
 
@@ -822,4 +837,70 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     INFO("dot centre (" << centre.x << "," << centre.y << ")");
     CHECK(centre.x == 0);
     CHECK(centre.y == 0);
+}
+
+// ============================================================================
+// VERIFY previews the solved evdev range (prestonbrown/helixscreen#1714)
+// ============================================================================
+
+namespace {
+
+// The kernel declares Y as 0..230 on a 272-row panel: lv_evdev scales Y up and
+// clamps the bottom rows, where Accept/Retry sit.
+constexpr int DECLARED_MAX_Y = 230;
+
+int evdev_scale(int v, int in_max, int out_max) {
+    return std::max(0, std::min(v * out_max / in_max, out_max));
+}
+
+/// Capture the three targets with raw digitizer readings, `shear` px of raw x
+/// per raw y, under the declared range. Reaching VERIFY fires the overlay's
+/// verify-entry install.
+void capture_with_raw(helix::TouchCalibrationPanel& panel, double shear) {
+    panel.start();
+    for (int step = 0; step < 3; ++step) {
+        const helix::Point target = panel.get_target_position(step);
+        const helix::Point raw{target.x + static_cast<int>(target.y * shear), target.y};
+        const helix::Point touch{evdev_scale(raw.x, MICRO_W - 1, MICRO_W - 1),
+                                 evdev_scale(raw.y, DECLARED_MAX_Y, MICRO_H - 1)};
+        for (int i = 0; i < helix::TouchCalibrationPanelTestAccess::samples_required(); ++i) {
+            panel.add_sample(touch, &raw);
+        }
+    }
+}
+
+} // namespace
+
+TEST_CASE_METHOD(Q2CompressionFixture, "Overlay VERIFY installs the solved evdev range",
+                 "[touch][calibration][range-fit][1714]") {
+    sink_.live = helix::LiveTouchRange{{true, false, 0, MICRO_W - 1, 0, DECLARED_MAX_Y},
+                                       helix::TouchRangeSource::Declared};
+    helix::ui::TouchCalibrationOverlayTestAccess::begin_session(*overlay_);
+
+    capture_with_raw(*panel_, 0.0);
+    REQUIRE(panel_->get_state() == helix::TouchCalibrationPanel::State::VERIFY);
+    REQUIRE(panel_->get_range_fit().valid);
+
+    INFO("range Y(" << sink_.live.range.min_y << ".." << sink_.live.range.max_y << ")");
+    CHECK(std::abs(sink_.live.range.max_y - (MICRO_H - 1)) <= 3);
+    CHECK(sink_.live.source == helix::TouchRangeSource::Stored);
+}
+
+TEST_CASE_METHOD(Q2CompressionFixture,
+                 "Overlay VERIFY that cannot install its affine reverts the range too",
+                 "[touch][calibration][range-fit][1714]") {
+    sink_.live = helix::LiveTouchRange{{true, false, 0, MICRO_W - 1, 0, DECLARED_MAX_Y},
+                                       helix::TouchRangeSource::Declared};
+    helix::ui::TouchCalibrationOverlayTestAccess::begin_session(*overlay_);
+    sink_.reject_apply = true;
+
+    // A crooked panel leaves a residual affine for the device to refuse.
+    capture_with_raw(*panel_, 0.05);
+    REQUIRE(panel_->get_state() == helix::TouchCalibrationPanel::State::VERIFY);
+    REQUIRE(panel_->get_range_fit().valid);
+    REQUIRE(panel_->get_range_fit().residual.valid);
+
+    CHECK(sink_.live.range.max_y == DECLARED_MAX_Y);
+    CHECK(sink_.live.source == helix::TouchRangeSource::Declared);
+    CHECK(sink_.affine_enabled);
 }

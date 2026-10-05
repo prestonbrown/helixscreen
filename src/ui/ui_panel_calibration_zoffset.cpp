@@ -739,9 +739,12 @@ void ZOffsetCalibrationPanel::send_accept() {
             },
             [this, token = lifetime_.token()](const MoonrakerError& err) {
                 // No bg-thread token.expired() — token.defer() gates on the main thread (L081).
-                std::string msg = "ACCEPT failed: " + err.user_message();
                 token.defer("ZOffsetCalibrationPanel::on_calibration_result(accept_fail)",
-                            [this, msg = std::move(msg)]() { on_calibration_result(false, msg); });
+                            [this, err]() {
+                                on_calibration_result(
+                                    false, fmt::format(fmt::runtime(lv_tr("ACCEPT failed: {}")),
+                                                       err.localized_message()));
+                            });
             });
     }
 }

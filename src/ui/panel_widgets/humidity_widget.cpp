@@ -6,6 +6,7 @@
 #include "panel_widget_registry.h"
 #include "static_subject_registry.h"
 #include "subject_debug_registry.h"
+#include "subject_managed_panel.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -14,6 +15,7 @@
 static lv_subject_t s_chamber_humidity_text;
 static char s_chamber_humidity_text_buf[8]; // "45%" or "--"
 static bool s_subjects_initialized = false;
+static SubjectManager s_subjects;
 static ObserverGuard s_humidity_observer;
 
 static void humidity_widget_init_subjects() {
@@ -23,7 +25,7 @@ static void humidity_widget_init_subjects() {
 
     lv_subject_init_string(&s_chamber_humidity_text, s_chamber_humidity_text_buf, nullptr,
                            sizeof(s_chamber_humidity_text_buf), "--");
-    lv_xml_register_subject(nullptr, "chamber_humidity_text", &s_chamber_humidity_text);
+    s_subjects.publish("chamber_humidity_text", &s_chamber_humidity_text);
     SubjectDebugRegistry::instance().register_subject(&s_chamber_humidity_text,
                                                       "chamber_humidity_text",
                                                       LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
@@ -55,7 +57,7 @@ static void humidity_widget_init_subjects() {
             // Release observer — raw subject from HumiditySensorManager may already
             // be destroyed during reverse-order deinit [L073]
             s_humidity_observer.release();
-            lv_subject_deinit(&s_chamber_humidity_text);
+            s_subjects.deinit_all();
             s_subjects_initialized = false;
             spdlog::trace("[HumidityWidget] Subjects deinitialized");
         }

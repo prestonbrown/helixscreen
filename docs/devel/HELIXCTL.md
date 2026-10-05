@@ -881,7 +881,7 @@ large and grows. Known gaps:
 | Source | Where | Note |
 |---|---|---|
 | LVGL async list (`run_next_tick`, raw `lv_async_call`) | `panel_widget_manager.cpp` (home-panel widget-gate rebuild), `ui_nav_manager.cpp` (overlay-close), every `run_next_tick` caller | LVGL exposes only call/cancel — no count API |
-| GCode geometry build | `ui_gcode_viewer.cpp` (`build_thread_`) | Same |
+| GCode geometry build | `gcode_viewer_state.h` (`build_thread_`) | Same |
 | GCode layer/streaming | `gcode_layer_renderer.h`, `gcode_streaming_controller.h` | Same |
 | Mock backends | `moonraker_client_mock.cpp` (`simulation_thread_` + 3 timers), `moonraker_client_mock_print.cpp` (2 timers), `ams_backend_mock.cpp` (6 threads), `wifi_backend_mock.cpp` (2) | Mock mode **adds** nondeterminism |
 | Deferred deletion | `safe_delete_deferred` / `lv_obj_delete_async` / `safe_clean_children` sites | Escapes the queue by design — `pending == 0` does not mean the old subtree is gone |

@@ -393,6 +393,51 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_indev_delete(indev);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "touch diagnostics: a released reading is not a sample",
+                 "[touch][touch-diagnostics][wrapper]") {
+    lv_indev_t* indev = lv_indev_create();
+    REQUIRE(indev != nullptr);
+    lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+
+    TouchCalibration cal;
+    CalibrationContext ctx;
+    install_calibration_wrapper(indev, ctx, cal, 480, 272);
+    // A resistive panel whose declared range excludes 0 on both axes.
+    set_touch_pipeline_info(make_pipeline(200, 3900, 200, 3900));
+
+    // lv_evdev's first poll, before any EV_ABS: root (0,0), not pressed.
+    int raw_x = 0;
+    int raw_y = 0;
+    ctx.raw_source = [&raw_x, &raw_y](int& x, int& y) {
+        x = raw_x;
+        y = raw_y;
+        return true;
+    };
+    lv_indev_data_t idle{};
+    idle.state = LV_INDEV_STATE_RELEASED;
+    calibrated_read_cb(indev, &idle);
+
+    TouchRangeDiagnostics diag;
+    REQUIRE(get_touch_range_diagnostics(diag));
+    CHECK(diag.observed.distinct_samples == 0);
+    CHECK_FALSE(ctx.range_violation_reported);
+
+    // A real press inside the range is counted.
+    raw_x = 1500;
+    raw_y = 2500;
+    lv_indev_data_t press{};
+    press.state = LV_INDEV_STATE_PRESSED;
+    calibrated_read_cb(indev, &press);
+
+    REQUIRE(get_touch_range_diagnostics(diag));
+    CHECK(diag.observed.distinct_samples == 1);
+    CHECK(diag.observed.min_x == 1500);
+    CHECK_FALSE(ctx.range_violation_reported);
+
+    uninstall_calibration_wrapper(indev, ctx);
+    lv_indev_delete(indev);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "touch diagnostics: a torn-down wrapper reports nothing",
                  "[touch][touch-diagnostics][wrapper]") {
     lv_indev_t* indev = lv_indev_create();

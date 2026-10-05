@@ -217,7 +217,7 @@ void EmergencyStopOverlay::deinit_subjects() {
     // Same reasoning as the dialog pointers above, one level up: init() stored
     // borrowed pointers, and neither object survives what this runs ahead of.
     // Production always re-inits before the next create() (a soft restart re-runs
-    // Application::init_panel_subjects()), but tests own a PrinterState per
+    // PrinterSession::init_panel_subjects()), but tests own a PrinterState per
     // fixture and never re-init, so leaving these set hands the next test a
     // singleton pointing at freed objects. Every consumer is null-guarded.
     printer_state_ = nullptr;
@@ -413,8 +413,11 @@ void EmergencyStopOverlay::execute_emergency_stop() {
     api_->emergency_stop(
         []() {
             spdlog::info("[EmergencyStop] Emergency stop command sent successfully");
-            ToastManager::instance().show(ToastSeverity::WARNING, lv_tr("Emergency stop activated"),
-                                          5000);
+            // The callback can run on the WebSocket thread; the toast is main-thread only.
+            helix::ui::run_on_main("EmergencyStop::activated", []() {
+                ToastManager::instance().show(ToastSeverity::WARNING,
+                                              lv_tr("Emergency stop activated"), 5000);
+            });
 
             // Proactively show recovery dialog after E-stop
             // We know Klipper will be in SHUTDOWN state - don't wait for notification
@@ -423,9 +426,15 @@ void EmergencyStopOverlay::execute_emergency_stop() {
         },
         [](const MoonrakerError& err) {
             spdlog::error("[EmergencyStop] Emergency stop failed: {}", err.message);
-            ToastManager::instance().show(ToastSeverity::ERROR,
-                                          ("Emergency stop failed: " + err.user_message()).c_str(),
-                                          5000);
+            // The callback can run on the WebSocket thread; the toast is main-thread only.
+            helix::ui::run_on_main("error_toast", [err]() {
+                ToastManager::instance().show(
+                    ToastSeverity::ERROR,
+                    fmt::format(fmt::runtime(lv_tr("Emergency stop failed: {}")),
+                                err.localized_message())
+                        .c_str(),
+                    5000);
+            });
         });
 }
 
@@ -807,8 +816,14 @@ void EmergencyStopOverlay::restart_klipper() {
         },
         [](const MoonrakerError& err) {
             spdlog::error("[KlipperRecovery] Klipper restart failed: {}", err.message);
-            ToastManager::instance().show(ToastSeverity::ERROR,
-                                          ("Restart failed: " + err.user_message()).c_str(), 5000);
+            // The callback can run on the WebSocket thread; the toast is main-thread only.
+            helix::ui::run_on_main("error_toast", [err]() {
+                ToastManager::instance().show(
+                    ToastSeverity::ERROR,
+                    fmt::format(fmt::runtime(lv_tr("Restart failed: {}")), err.localized_message())
+                        .c_str(),
+                    5000);
+            });
         });
 }
 
@@ -839,9 +854,15 @@ void EmergencyStopOverlay::firmware_restart() {
         },
         [](const MoonrakerError& err) {
             spdlog::error("[KlipperRecovery] Recovery failed: {}", err.message);
-            ToastManager::instance().show(
-                ToastSeverity::ERROR, ("Firmware restart failed: " + err.user_message()).c_str(),
-                5000);
+            // The callback can run on the WebSocket thread; the toast is main-thread only.
+            helix::ui::run_on_main("error_toast", [err]() {
+                ToastManager::instance().show(
+                    ToastSeverity::ERROR,
+                    fmt::format(fmt::runtime(lv_tr("Firmware restart failed: {}")),
+                                err.localized_message())
+                        .c_str(),
+                    5000);
+            });
         });
 }
 

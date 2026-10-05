@@ -4,6 +4,7 @@
 #pragma once
 
 #include "lvgl/lvgl.h"
+#include "subject_managed_panel.h"
 #include "wizard_step.h"
 
 #include <memory>
@@ -120,6 +121,7 @@ class WizardHeaterSelectStep : public helix::wizard::Step {
     lv_obj_t* screen_root_ = nullptr;
 
     // Subjects
+    SubjectManager subjects_;
     lv_subject_t bed_heater_selected_{};
     lv_subject_t hotend_heater_selected_{};
 

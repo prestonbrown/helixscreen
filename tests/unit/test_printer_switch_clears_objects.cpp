@@ -73,7 +73,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "switching printers clears every exclude_obj
     REQUIRE(eo->has_objects());
     REQUIRE(eo->get_object_geometry("benchy").has_value());
 
-    // The real path Application::switch_printer() takes.
+    // The real path PrinterSession::switch_printer() takes.
     helix::PrinterCacheRegistry::instance().invalidate_all();
 
     CHECK(eo->get_defined_objects().empty());

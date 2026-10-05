@@ -3,6 +3,8 @@
 
 #include "standard_macros.h"
 
+#include "ui_update_queue.h"
+
 #include "config.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -390,6 +392,19 @@ bool StandardMacros::execute(StandardMacroSlot slot, IMoonrakerAPI* api,
     }
 
     spdlog::info("[StandardMacros] Executing {} via {}", info.slot_name, macro_name);
+    // Callers toast, which is main-thread only, while the printer's answer
+    // arrives on the WebSocket thread. A null callback stays
+    // null: whether one exists is what tells the API who reports the error.
+    if (on_success) {
+        on_success = [cb = std::move(on_success)]() {
+            helix::ui::run_on_main("StandardMacros::on_success", cb);
+        };
+    }
+    if (on_error) {
+        on_error = [cb = std::move(on_error)](const MoonrakerError& err) {
+            helix::ui::run_on_main("StandardMacros::on_error", [cb, err]() { cb(err); });
+        };
+    }
     // suppress_auto_toast is CallerIntent::silent — see rpc_error_policy.h.
     api->advanced().execute_macro(macro_name, params, std::move(on_success), std::move(on_error),
                                   timeout_ms, suppress_auto_toast);

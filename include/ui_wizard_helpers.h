@@ -5,6 +5,7 @@
 
 #include "device_display_name.h"
 #include "lvgl/lvgl.h"
+#include "subject_managed_panel.h"
 
 #include <functional>
 #include <optional>
@@ -104,8 +105,11 @@ bool save_dropdown_selection(lv_subject_t* subject, const std::vector<std::strin
  * @param subject Subject to initialize
  * @param initial_value Initial value
  * @param subject_name XML registration name (e.g., "bed_heater_selected")
+ *
+ * Registers with @p subjects, whose deinit_all() withdraws the XML name.
  */
-void init_int_subject(lv_subject_t* subject, int32_t initial_value, const char* subject_name);
+void init_int_subject(SubjectManager& subjects, lv_subject_t* subject, int32_t initial_value,
+                      const char* subject_name);
 } // namespace wizard
 } // namespace ui
 } // namespace helix

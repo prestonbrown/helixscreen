@@ -7,6 +7,7 @@
 #include "data_root_resolver.h"
 #include "helix_fs.h"
 #include "lv_draw_buf_guard.h"
+#include "lvgl/src/misc/cache/instance/lv_image_cache.h" // not exported by lvgl.h
 #include "text_io.h"
 
 #include <spdlog/spdlog.h>
@@ -40,6 +41,15 @@ namespace hfs = fs;
 
 static bool s_blur_disabled = false;
 
+// The ESP32 has 8MB of PSRAM for everything, and a full-frame RGB565 snapshot is
+// 768KB at 800x480: enough to starve the print thumbnail decode, all to show a
+// dimmed copy of the navbar. A dim layer shows the same thing for free.
+#ifdef ESP_PLATFORM
+static bool s_snapshot_backdrops = false;
+#else
+static bool s_snapshot_backdrops = true;
+#endif
+
 namespace detail {
 
 void reset_circuit_breaker() {
@@ -48,6 +58,14 @@ void reset_circuit_breaker() {
 
 bool is_blur_disabled() {
     return s_blur_disabled;
+}
+
+bool snapshot_backdrops_enabled() {
+    return s_snapshot_backdrops;
+}
+
+void set_snapshot_backdrops_enabled(bool enabled) {
+    s_snapshot_backdrops = enabled;
 }
 
 } // namespace detail
@@ -799,6 +817,31 @@ lv_obj_t* create_blurred_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity) {
     return img;
 }
 
+lv_obj_t* create_dim_layer(lv_obj_t* parent, lv_opa_t dim_opacity) {
+    lv_obj_t* layer = lv_obj_create(parent);
+    lv_obj_set_size(layer, LV_PCT(100), LV_PCT(100));
+    lv_obj_align(layer, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(layer, lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(layer, dim_opacity, LV_PART_MAIN);
+    lv_obj_set_style_border_width(layer, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(layer, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(layer, 0, LV_PART_MAIN);
+    lv_obj_add_flag(layer, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(layer, LV_OBJ_FLAG_SCROLLABLE);
+    return layer;
+}
+
+static void darken_inplace(lv_draw_buf_t* buf, lv_opa_t dim_opacity) {
+    const int w = static_cast<int>(buf->header.w);
+    const int h = static_cast<int>(buf->header.h);
+    const int stride = static_cast<int>(buf->header.stride);
+    if (buf->header.cf == LV_COLOR_FORMAT_RGB565) {
+        detail::darken_rgb565_inplace(buf->data, w, h, stride, dim_opacity);
+    } else {
+        detail::darken_argb8888_inplace(buf->data, w, h, stride, dim_opacity);
+    }
+}
+
 lv_obj_t* create_darkened_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity) {
     if (!parent) {
         spdlog::warn("[Backdrop Darken] Null parent");
@@ -812,6 +855,10 @@ lv_obj_t* create_darkened_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity) {
         return nullptr;
     }
 
+    if (!s_snapshot_backdrops) {
+        return create_dim_layer(parent, dim_opacity);
+    }
+
     // A 16-bit display snapshots in its own format: half the memory of ARGB8888
     // (768KB rather than 1.5MB at 800x480) and a plain copy to draw. The
     // snapshot buffer itself becomes the image source.
@@ -820,41 +867,55 @@ lv_obj_t* create_darkened_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity) {
     lv_draw_buf_t* snapshot =
         lv_snapshot_take(screen, rgb565 ? LV_COLOR_FORMAT_RGB565 : LV_COLOR_FORMAT_ARGB8888);
     if (!snapshot) {
-        spdlog::warn("[Backdrop Darken] Snapshot failed");
-        return nullptr;
+        // A full frame that did not fit once will not fit on the next overlay
+        // either, and every attempt fragments the heap a little more.
+        spdlog::warn("[Backdrop Darken] Snapshot failed: every later backdrop is a plain dim "
+                     "layer until restart");
+        s_snapshot_backdrops = false;
+        return create_dim_layer(parent, dim_opacity);
     }
 
-    int snap_w = static_cast<int>(snapshot->header.w);
-    int snap_h = static_cast<int>(snapshot->header.h);
-    auto* snap_data = static_cast<uint8_t*>(snapshot->data);
-    int snap_stride = static_cast<int>(snapshot->header.stride);
-
-    spdlog::debug("[Backdrop Darken] Snapshot {}x{} (stride={}, {})", snap_w, snap_h, snap_stride,
-                  rgb565 ? "RGB565" : "ARGB8888");
+    spdlog::debug("[Backdrop Darken] Snapshot {}x{} (stride={}, {})",
+                  static_cast<uint32_t>(snapshot->header.w),
+                  static_cast<uint32_t>(snapshot->header.h),
+                  static_cast<uint32_t>(snapshot->header.stride), rgb565 ? "RGB565" : "ARGB8888");
 
     // Step 2: Darken the snapshot pixels in-place
-    if (rgb565) {
-        detail::darken_rgb565_inplace(snap_data, snap_w, snap_h, snap_stride, dim_opacity);
-    } else {
-        detail::darken_argb8888_inplace(snap_data, snap_w, snap_h, snap_stride, dim_opacity);
-    }
-    lv_draw_buf_t* result_buf = snapshot;
+    darken_inplace(snapshot, dim_opacity);
 
     // Step 3: Create image widget
     lv_obj_t* img = lv_image_create(parent);
     lv_obj_set_size(img, LV_PCT(100), LV_PCT(100));
     lv_obj_align(img, LV_ALIGN_CENTER, 0, 0);
-    lv_image_set_src(img, result_buf);
+    lv_image_set_src(img, snapshot);
     lv_image_set_inner_align(img, LV_IMAGE_ALIGN_STRETCH);
     lv_obj_add_flag(img, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(img, LV_OBJ_FLAG_SCROLLABLE);
 
     // Free draw buffer when image is deleted
-    lv_obj_add_event_cb(img, on_backdrop_image_deleted, LV_EVENT_DELETE, result_buf);
+    lv_obj_add_event_cb(img, on_backdrop_image_deleted, LV_EVENT_DELETE, snapshot);
 
-    spdlog::debug("[Backdrop Darken] Created darkened backdrop ({}x{}, dim_opacity={})", snap_w,
-                  snap_h, dim_opacity);
+    spdlog::debug("[Backdrop Darken] Created darkened backdrop (dim_opacity={})", dim_opacity);
     return img;
+}
+
+bool retake_darkened_backdrop(lv_obj_t* backdrop, lv_opa_t dim_opacity) {
+    if (!backdrop || !lv_obj_check_type(backdrop, &lv_image_class))
+        return false;
+    auto* buf = static_cast<lv_draw_buf_t*>(const_cast<void*>(lv_image_get_src(backdrop)));
+    lv_obj_t* screen = lv_screen_active();
+    if (!buf || !screen)
+        return false;
+
+    // A draw unit may still be blending the old pixels on the render thread.
+    lv_draw_wait_for_finish();
+    if (lv_snapshot_take_to_draw_buf(screen, static_cast<lv_color_format_t>(buf->header.cf), buf) !=
+        LV_RESULT_OK)
+        return false;
+    darken_inplace(buf, dim_opacity);
+    lv_image_cache_drop(buf);
+    lv_obj_invalidate(backdrop);
+    return true;
 }
 
 void backdrop_blur_cleanup() {

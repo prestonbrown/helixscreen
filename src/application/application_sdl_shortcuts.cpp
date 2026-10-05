@@ -70,14 +70,14 @@ void Application::handle_keyboard_shortcuts() {
             theme_manager_toggle_dark_mode();
         });
 
-        // F key - toggle filament runout simulation (needs m_moonraker)
+        // F key - toggle filament runout simulation (needs m_session.moonraker())
         shortcuts.register_key_if(
             SDL_SCANCODE_F,
             [this]() {
                 spdlog::info("[Application] F key - toggling filament runout simulation");
-                m_moonraker->client()->toggle_filament_runout_simulation();
+                m_session.moonraker()->client()->toggle_filament_runout_simulation();
             },
-            [this]() { return m_moonraker && m_moonraker->client(); });
+            [this]() { return m_session.moonraker() && m_session.moonraker()->client(); });
 
         // P key - cycle through configured printers (test mode only)
         shortcuts.register_key_if(
@@ -90,7 +90,7 @@ void Application::handle_keyboard_shortcuts() {
                     auto next = (it != ids.end() && std::next(it) != ids.end()) ? *std::next(it)
                                                                                 : ids.front();
                     spdlog::info("[Application] P key - switching to printer '{}'", next);
-                    switch_printer(next);
+                    m_session.switch_printer(next);
                 } else {
                     // Create a second test printer so we can test switching
                     spdlog::info(
@@ -111,18 +111,24 @@ void Application::handle_keyboard_shortcuts() {
             SDL_SCANCODE_A,
             [this]() {
                 spdlog::info("[Application] A key - triggering test action prompt");
-                m_action_prompt_manager->trigger_test_prompt();
+                m_session.routing().action_prompt_manager()->trigger_test_prompt();
             },
-            [this]() { return get_runtime_config()->is_test_mode() && m_action_prompt_manager; });
+            [this]() {
+                return get_runtime_config()->is_test_mode() &&
+                       m_session.routing().action_prompt_manager();
+            });
 
         // N key - test action notification (test mode only)
         shortcuts.register_key_if(
             SDL_SCANCODE_N,
             [this]() {
                 spdlog::info("[Application] N key - triggering test action notification");
-                m_action_prompt_manager->trigger_test_notify();
+                m_session.routing().action_prompt_manager()->trigger_test_notify();
             },
-            [this]() { return get_runtime_config()->is_test_mode() && m_action_prompt_manager; });
+            [this]() {
+                return get_runtime_config()->is_test_mode() &&
+                       m_session.routing().action_prompt_manager();
+            });
 
         // Android back button — pop navigation stack (overlay/modal/panel)
         // At root panel, do nothing (Android convention: don't exit on back)

@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/scoped_env.h"
+#include "hv/hconfig.h"
 #include "system/tls_trust.h"
+
+// The helpers build certificates and run handshakes with OpenSSL directly. A build whose
+// libhv has no OpenSSL (the macOS dev build) compiles the trust layer to no-ops, so
+// there is nothing here for it to test.
+#ifdef WITH_OPENSSL
 
 #include <arpa/inet.h>
 #include <atomic>
@@ -457,3 +463,5 @@ TEST_CASE("trusted_request keeps credentials on its own origin only", "[tls]") {
           std::string::npos);
     SSL_CTX_free(static_cast<SSL_CTX*>(ctx));
 }
+
+#endif // WITH_OPENSSL

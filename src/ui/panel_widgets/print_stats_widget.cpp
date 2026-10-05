@@ -14,6 +14,7 @@
 #include "panel_widget_size.h"
 #include "static_subject_registry.h"
 #include "subject_debug_registry.h"
+#include "subject_managed_panel.h"
 
 #include <spdlog/spdlog.h>
 
@@ -42,6 +43,7 @@ static char s_weekly_buf[16] = "--";
 static char s_last_print_buf[64] = "";
 
 static bool s_subjects_initialized = false;
+static SubjectManager s_subjects;
 
 /// Start of the weekly window. One spelling, because the cache is asked to
 /// cover this window and the numbers are then aggregated over it - a
@@ -72,15 +74,15 @@ static void print_stats_init_subjects() {
     lv_subject_init_string(&s_weekly, s_weekly_buf, nullptr, sizeof(s_weekly_buf), "--");
     lv_subject_init_string(&s_last_print, s_last_print_buf, nullptr, sizeof(s_last_print_buf), "");
 
-    lv_xml_register_subject(nullptr, "print_stats_size_mode", &s_size_mode);
-    lv_xml_register_subject(nullptr, "print_stats_view_mode", &s_view_mode);
-    lv_xml_register_subject(nullptr, "print_stats_title", &s_title);
-    lv_xml_register_subject(nullptr, "print_stats_total_prints", &s_total_prints);
-    lv_xml_register_subject(nullptr, "print_stats_total_time", &s_total_time);
-    lv_xml_register_subject(nullptr, "print_stats_total_time_short", &s_total_time_short);
-    lv_xml_register_subject(nullptr, "print_stats_success_rate", &s_success_rate);
-    lv_xml_register_subject(nullptr, "print_stats_weekly", &s_weekly);
-    lv_xml_register_subject(nullptr, "print_stats_last_print", &s_last_print);
+    s_subjects.publish("print_stats_size_mode", &s_size_mode);
+    s_subjects.publish("print_stats_view_mode", &s_view_mode);
+    s_subjects.publish("print_stats_title", &s_title);
+    s_subjects.publish("print_stats_total_prints", &s_total_prints);
+    s_subjects.publish("print_stats_total_time", &s_total_time);
+    s_subjects.publish("print_stats_total_time_short", &s_total_time_short);
+    s_subjects.publish("print_stats_success_rate", &s_success_rate);
+    s_subjects.publish("print_stats_weekly", &s_weekly);
+    s_subjects.publish("print_stats_last_print", &s_last_print);
 
     SubjectDebugRegistry::instance().register_subject(&s_size_mode, "print_stats_size_mode",
                                                       LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
@@ -106,15 +108,7 @@ static void print_stats_init_subjects() {
 
     StaticSubjectRegistry::instance().register_deinit("PrintStatsWidgetSubjects", []() {
         if (s_subjects_initialized && lv_is_initialized()) {
-            lv_subject_deinit(&s_last_print);
-            lv_subject_deinit(&s_weekly);
-            lv_subject_deinit(&s_success_rate);
-            lv_subject_deinit(&s_total_time_short);
-            lv_subject_deinit(&s_total_time);
-            lv_subject_deinit(&s_total_prints);
-            lv_subject_deinit(&s_title);
-            lv_subject_deinit(&s_view_mode);
-            lv_subject_deinit(&s_size_mode);
+            s_subjects.deinit_all();
             s_subjects_initialized = false;
         }
     });

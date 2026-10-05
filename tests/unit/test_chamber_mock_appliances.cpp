@@ -242,8 +242,8 @@ TEST_CASE_METHOD(HelixTestFixture, "mock dragonbreath fault hook", "[chamber][mo
 }
 
 // HELIX_MOCK_DRAGONBREATH_OFFLINE=1 drops the appliance off its radio link:
-// every synthesized frame reports connected: false instead of true. The hook
-// is read per frame, so one client crosses the transition.
+// every synthesized frame reports connected: false instead of true. One client
+// crosses the transition through the test-access setter.
 TEST_CASE_METHOD(HelixTestFixture, "mock dragonbreath offline hook", "[chamber][mock]") {
     ScopedEnv objects_env("HELIX_MOCK_OBJECTS", TRIO_ENV);
     MoonrakerClientMock client;
@@ -256,7 +256,7 @@ TEST_CASE_METHOD(HelixTestFixture, "mock dragonbreath offline hook", "[chamber][
     REQUIRE(frame.contains("dragonbreath"));
     CHECK(frame["dragonbreath"]["connected"].get<bool>() == true);
 
-    ScopedEnv offline_env("HELIX_MOCK_DRAGONBREATH_OFFLINE", "1");
+    MoonrakerClientMockTestAccess::set_dragonbreath_offline(client, true);
     frame = json{};
     MoonrakerClientMockTestAccess::dispatch_initial_state(client);
 

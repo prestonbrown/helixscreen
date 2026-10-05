@@ -55,10 +55,11 @@ bool read_smaps_rollup(SmapsRollup& rollup);
  * @brief System memory information
  */
 struct MemoryInfo {
-    size_t total_kb = 0;     ///< Total system memory in KB
-    size_t available_kb = 0; ///< Available memory in KB (free + buffers/cache)
-    size_t free_kb = 0;      ///< Strictly free memory in KB
-    size_t swap_free_kb = 0; ///< Unused swap in KB
+    size_t total_kb = 0;        ///< Total system memory in KB
+    size_t available_kb = 0;    ///< Available memory in KB (free + buffers/cache)
+    size_t free_kb = 0;         ///< Strictly free memory in KB
+    size_t swap_free_kb = 0;    ///< Unused swap in KB
+    size_t largest_free_kb = 0; ///< Largest contiguous free block in KB (0 = not known)
 
     // RAM tier thresholds (total system RAM).
     //

@@ -360,6 +360,11 @@ class RunoutGuidanceModal : public Modal {
         StaticSubjectRegistry::instance().register_deinit("RunoutGuidanceModal", []() {
             if (!subjects_initialized_)
                 return;
+            if (auto* scope = lv_xml_component_get_scope("runout_guidance_modal")) {
+                lv_xml_unregister_subject(scope, "runout_autofeed_capable");
+                lv_xml_unregister_subject(scope, "runout_resume_blocked");
+                lv_xml_unregister_subject(scope, "runout_is_advisory");
+            }
             lv_subject_deinit(&autofeed_capable_subject_);
             lv_subject_deinit(&resume_blocked_subject_);
             lv_subject_deinit(&advisory_subject_);

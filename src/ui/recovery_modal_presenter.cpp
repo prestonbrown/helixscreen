@@ -89,28 +89,6 @@ bool same_actions(const std::vector<helix::RecoveryAction>& a,
     return true;
 }
 
-/// The prompt modal, plus a report of every hide that runs its on_hide() hook.
-/// ActionPromptModal's dismiss affordance (an action with empty gcode) closes
-/// the dialog without calling the gcode callback, so this hook is the presenter's
-/// only sight of the user saying "I've read it" — and it covers the backdrop tap
-/// and ESC the same way.
-class HideReportingPromptModal : public helix::ui::ActionPromptModal {
-  public:
-    void set_hidden_callback(std::function<void()> cb) {
-        on_hidden_ = std::move(cb);
-    }
-
-  protected:
-    void on_hide() override {
-        helix::ui::ActionPromptModal::on_hide();
-        if (on_hidden_) {
-            on_hidden_();
-        }
-    }
-
-  private:
-    std::function<void()> on_hidden_;
-};
 } // namespace
 
 void RecoveryModalPresenter::mark_handled() {
@@ -126,19 +104,9 @@ void RecoveryModalPresenter::forget_handled_fault() {
     handled_actions_.clear();
 }
 
-void RecoveryModalPresenter::on_modal_hidden() {
-    if (suppress_hide_notice_) {
-        return;
-    }
-    // Nobody in this class asked for that hide, so the user closed it.
-    mark_handled();
-}
-
 void RecoveryModalPresenter::dismiss() {
     if (modal_ && modal_->is_visible()) {
-        suppress_hide_notice_ = true;
         modal_->hide();
-        suppress_hide_notice_ = false;
     }
     shown_detail_.clear();
     // The episode is over (the AMS action left ERROR, or a caller explicitly
@@ -186,10 +154,12 @@ void RecoveryModalPresenter::present(const helix::ErrorEvent& e) {
     }
 
     if (!modal_) {
-        auto modal = std::make_unique<HideReportingPromptModal>();
-        modal->set_gcode_callback([this](const std::string& gcode) { on_recovery_tapped(gcode); });
-        modal->set_hidden_callback([this]() { on_modal_hidden(); });
-        modal_ = std::move(modal);
+        modal_ = std::make_unique<helix::ui::ActionPromptModal>();
+        modal_->set_gcode_callback([this](const std::string& gcode) { on_recovery_tapped(gcode); });
+        // Every close but this class's own hide(): a button (including the
+        // empty-gcode dismiss), backdrop, ESC, or a sweep. The user has
+        // answered this fault.
+        modal_->set_dismiss_callback([this](helix::PromptCloseKind) { mark_handled(); });
     }
 
     // Anything we are about to put on screen is new to the user, so the previous
@@ -224,11 +194,9 @@ void RecoveryModalPresenter::present(const helix::ErrorEvent& e) {
     prompt.severity = "error";
 
     lv_obj_t* screen = lv_screen_active();
-    // Replacing visible content makes Modal::show() hide the old dialog first.
-    // That hide is ours, not the user's, so keep it out of on_modal_hidden().
-    suppress_hide_notice_ = true;
+    // Replacing visible content makes Modal::show() hide the old dialog first,
+    // as a programmatic close, which the dismiss callback does not report.
     const bool shown = screen && modal_->show_prompt(screen, prompt);
-    suppress_hide_notice_ = false;
     if (!shown) {
         spdlog::warn("[RecoveryModal] show_prompt failed; falling back to alert");
         shown_detail_.clear();
@@ -296,8 +264,14 @@ void RecoveryModalPresenter::dispatch_recovery(const std::string& gcode, const s
         gcode, [tag]() { spdlog::info("[Recovery] {} completed", tag); },
         [tag](const MoonrakerError& err) {
             spdlog::error("[Recovery] {} failed: {}", tag, err.message);
-            ToastManager::instance().show(ToastSeverity::ERROR,
-                                          ("Recovery failed: " + err.user_message()).c_str(), 6000);
+            // The callback can run on the WebSocket thread; the toast is main-thread only.
+            helix::ui::run_on_main("error_toast", [err]() {
+                ToastManager::instance().show(
+                    ToastSeverity::ERROR,
+                    fmt::format(fmt::runtime(lv_tr("Recovery failed: {}")), err.localized_message())
+                        .c_str(),
+                    6000);
+            });
         },
         IMoonrakerAPI::AMS_OPERATION_TIMEOUT_MS);
 }

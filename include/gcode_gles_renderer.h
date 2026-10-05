@@ -509,6 +509,9 @@ class GCodeGLESRenderer {
     size_t upload_next_layer_ = 0;   ///< Next layer to upload (incremental)
     size_t upload_total_layers_ = 0; ///< Total layers needing upload
 
+    /// Reads the upload flag and selection sets without a GL context.
+    friend class GCodeGLESRendererTestAccess;
+
     // ====== Configuration ======
 
     GCodeColorPalette palette_; ///< Tool color palette for per-vertex coloring

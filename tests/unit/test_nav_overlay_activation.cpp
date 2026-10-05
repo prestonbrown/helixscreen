@@ -30,6 +30,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/snapshot_backdrops_mode.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "connection_state.h"
@@ -95,7 +96,11 @@ class RecordingOverlay : public IPanelLifecycle {
     const char* get_name() const override {
         return "RecordingOverlay";
     }
+    bool is_destination() const override {
+        return destination;
+    }
 
+    bool destination = false;
     int activates = 0;
     int deactivates = 0;
 };
@@ -488,4 +493,37 @@ TEST_CASE_METHOD(OverlayActivationFixture,
     drain();
 
     REQUIRE(overlay_lifecycle_.deactivates == 2);
+}
+
+TEST_CASE_METHOD(OverlayActivationFixture,
+                 "Over a dim-layer backdrop only a transient overlay leaves the panel drawn",
+                 "[navigation][backdrop][overlay]") {
+    auto& nav = NavigationManager::instance();
+    SnapshotBackdropsMode snapshots(false);
+
+    SECTION("a transient overlay shows the panel through the dim layer") {
+        open_overlay();
+        lv_obj_t* backdrop = NavigationManagerTestAccess::overlay_backdrop(nav);
+        REQUIRE(backdrop != nullptr);
+        REQUIRE_FALSE(lv_obj_check_type(backdrop, &lv_image_class));
+        REQUIRE(lv_obj_get_width(overlay_) < lv_obj_get_width(test_screen()));
+        // Hidden, it would leave dimmed emptiness beside the narrow overlay.
+        CHECK_FALSE(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_get_index(backdrop) > lv_obj_get_index(home_widget_));
+        CHECK(lv_obj_get_index(backdrop) < lv_obj_get_index(overlay_));
+    }
+
+    SECTION("a destination overlay (print status) hides the panel it covers") {
+        overlay_lifecycle_.destination = true;
+        open_overlay();
+        REQUIRE_FALSE(
+            lv_obj_check_type(NavigationManagerTestAccess::overlay_backdrop(nav), &lv_image_class));
+        // Drawn under a full-width overlay, it would redraw for hours unseen.
+        CHECK(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
+    }
+
+    nav.go_back();
+    drain();
+    CHECK_FALSE(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(nav.has_open_overlays());
 }

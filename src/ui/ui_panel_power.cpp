@@ -138,8 +138,6 @@ void PowerPanel::fetch_devices() {
     auto token = object_lifetime_.token();
     api_->get_power_devices(
         [this, token](const std::vector<PowerDevice>& devices) {
-            if (token.expired())
-                return;
             // Marshal onto UI thread — API callbacks fire on a background thread.
             auto devices_copy = std::make_shared<std::vector<PowerDevice>>(devices);
             token.defer("PowerPanel::list_power_devices", [this, devices_copy]() {
@@ -148,8 +146,6 @@ void PowerPanel::fetch_devices() {
             });
         },
         [this, token](const MoonrakerError& err) {
-            if (token.expired())
-                return;
             auto msg = err.message;
             token.defer("PowerPanel::fetch_error", [this, msg]() {
                 spdlog::error("[{}] Failed to fetch power devices: {}", get_name(), msg);
@@ -313,8 +309,6 @@ void PowerPanel::handle_device_toggle(const std::string& device, bool power_on) 
                           power_on ? "on" : "off");
         },
         [this, token, device](const MoonrakerError& err) {
-            if (token.expired())
-                return;
             auto msg = err.message;
             token.defer("PowerPanel::toggle_error", [this, device, msg]() {
                 spdlog::error("[{}] Failed to toggle device '{}': {}", get_name(), device, msg);

@@ -129,6 +129,7 @@ translations:
   A · 1,-1: "A · 1,-1"
   ABS: ABS
   ACCELEROMETERS: АКСЕЛЕРОМЕТРЫ
+  'ACCEPT failed: {}': 'Ошибка ACCEPT: {}'
   ACE Moonraker bridge not found. Install ace_status.py for full support.: Мост ACE Moonraker не найден. Установите ace_status.py для полной поддержки.
   ACTIONS: ДЕЙСТВИЯ
   ADXL: ADXL
@@ -235,6 +236,7 @@ translations:
   ? An internal error occurred. The app continues running. Please send a debug bundle from Settings > Help & About if it repeats.
   : Произошла внутренняя ошибка. Приложение продолжает работать. Отправьте отладочный пакет из «Настройки > Помощь и о программе», если она повторится.
   An unexpected printer error occurred.: Произошла непредвиденная ошибка принтера.
+  An unknown error occurred.: Произошла неизвестная ошибка.
   An update is available: Доступно обновление
   Analyzing data...: Анализ данных...
   Analyzing data... {}s: Анализ данных... {} с
@@ -735,9 +737,12 @@ translations:
   Connection lost — probe accuracy result unavailable: 'Соединение потеряно — результат теста точности датчика недоступен'
   Connection must be tested successfully to continue: Для продолжения соединение должно
     быть успешно проверено
+  Connection restored: Соединение восстановлено
   Connection successful!: Соединение успешно!
   Connection timeout: Тайм-аут соединения
+  Connection to printer lost - attempting to reconnect...: Соединение с принтером потеряно - переподключение...
   Connection to printer lost — operation may still be running: 'Связь с принтером потеряна — операция может ещё выполняться'
+  Connection to printer lost.: Соединение с принтером потеряно.
   Connects: Подключения
   Console: Консоль
   Console Settings: Настройки консоли
@@ -775,7 +780,9 @@ translations:
   : "Не удалось проверить статус веб-камеры.\nПроверьте подключение принтера."
   Could not confirm cancel: Не удалось подтвердить отмену
   'Could not copy {} from USB: {}': 'Не удалось скопировать {} с USB: {}'
+  Could not disconnect from WiFi: Не удалось отключиться от WiFi
   Could not forget device: Не удалось забыть устройство
+  Could not initialize WiFi hardware. Check system configuration.: Не удалось инициализировать оборудование WiFi. Проверьте конфигурацию системы.
   Could not load printer database: Не удалось загрузить базу данных принтеров
   Could not move the plate: Не удалось переместить стол
 
@@ -990,6 +997,7 @@ translations:
   Emergency Stop?: Аварийная остановка?
   Emergency stop activated: Аварийная остановка активирована
   'Emergency stop failed: not connected': 'Аварийная остановка не удалась: нет подключения'
+  'Emergency stop failed: {}': 'Ошибка аварийной остановки: {}'
   Empty: Пусто
   Empty slots disable the associated functionality: Пустые слоты отключают связанный
     функционал
@@ -1129,7 +1137,10 @@ translations:
   Failed to build raster data: Не удалось построить растровые данные
   'Failed to cancel: {}': 'Не удалось отменить: {}'
   'Failed to clear print state: {}': 'Не удалось очистить состояние печати: {}'
+  Failed to connect to '{}': Не удалось подключиться к '{}'
+  Failed to connect to '{}'. Check password.: Не удалось подключиться к '{}'. Проверьте пароль.
   'Failed to connect to ''{}'': {}': 'Не удалось подключиться к ''{}'': {}'
+  'Failed to connect to WiFi network ''{}'': {}': 'Не удалось подключиться к сети WiFi ''{}'': {}'
   'Failed to connect: %s': 'Не удалось подключиться: %s'
   'Failed to cool down: {}': 'Не удалось охладить: {}'
   'Failed to create filament:': 'Не удалось создать филамент:'
@@ -1138,6 +1149,7 @@ translations:
   Failed to delete file: Не удалось удалить файл
   Failed to delete profile: Не удалось удалить профиль
   Failed to delete spool: Не удалось удалить катушку
+  'Failed to disable WiFi: {}': 'Не удалось выключить WiFi: {}'
   'Failed to discard recovery data: {}': 'Не удалось удалить данные восстановления: {}'
   'Failed to download G-code for modification: {}': 'Не удалось скачать G-code для
     изменения: {}'
@@ -1148,8 +1160,10 @@ translations:
   ? "Failed to download moonraker.conf.\nCheck printer connection."
   : "Не удалось скачать moonraker.conf.\nПроверьте подключение принтера."
   Failed to duplicate spool: Не удалось дублировать катушку
+  'Failed to enable WiFi: {}': 'Не удалось включить WiFi: {}'
   Failed to enable tuning tower: Не удалось включить башню настройки
   'Failed to exclude ''{}'': {}': 'Не удалось исключить ''{}'': {}'
+  Failed to forget WiFi network '{}': Не удалось забыть сеть WiFi '{}'
   Failed to get limits: Не удалось получить ограничения
   Failed to initialize Bluetooth: Не удалось инициализировать Bluetooth
   Failed to initialize Bluetooth context: Не удалось инициализировать контекст Bluetooth
@@ -1189,6 +1203,7 @@ translations:
   'Failed to restart: {}': 'Не удалось перезапустить: {}'
   'Failed to resume: {}': 'Не удалось возобновить: {}'
   Failed to save LED configuration: Не удалось сохранить настройки LED
+  Failed to save WiFi network: Не удалось сохранить сеть WiFi
   Failed to save config.: Не удалось сохранить конфигурацию.
   Failed to save configuration: Не удалось сохранить конфигурацию
   Failed to save fan configuration: Не удалось сохранить настройки вентилятора
@@ -1209,6 +1224,7 @@ translations:
   'Failed to start installer: ': 'Не удалось запустить установщик: '
   'Failed to start print: {}': 'Не удалось начать печать: {}'
   'Failed to start uninstaller: ': 'Не удалось запустить деинсталлятор: '
+  'Failed to subscribe to printer updates: {}': 'Не удалось подписаться на обновления принтера: {}'
   Failed to toggle %s: Не удалось переключить %s
   'Failed to toggle timelapse: {}': 'Не удалось переключить таймлапс: {}'
   'Failed to turn off heaters: {}': 'Не удалось выключить нагреватели: {}'
@@ -1299,6 +1315,7 @@ translations:
   Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: 'Филамент закончился. Автопополнение выключено, поэтому CFS не сменит катушку сам. Загрузите филамент и продолжите печать.'
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: Филамент закончился. CFS знает, какие катушки подходят, но эти слоты пусты. Загрузите одну из них, затем продолжите печать.
   Filament reload failed: Не удалось повторно подать филамент
+  Filament remap not supported on this printer — print will use the firmware's current tool mapping: Этот принтер не поддерживает переназначение филамента — печать будет использовать текущее назначение инструментов в прошивке
   Filament remapping is unavailable: Переназначение филамента недоступно
   Filament runout: Окончание филамента
   Filament runout and motion detection sensors: Датчики окончания и движения филамента
@@ -1317,6 +1334,7 @@ translations:
   File: Файл
   File Size: Размер файла
   File Will Stop the Printer: 'Файл остановит принтер'
+  File not found on printer.: Файл не найден на принтере.
   'File not found: {}': 'Файл не найден: {}'
   Filename: Имя файла
   Fine: Точно
@@ -1329,6 +1347,7 @@ translations:
   Fireworks: Фейерверк
   Firmware Restart: Перезапуск прошивки
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: Прошивка не сообщает о байпасе. Включите, если филамент подаётся прямо в экструдер.
+  'Firmware restart failed: {}': 'Ошибка перезапуска прошивки: {}'
   Firmware restarting...: Перезапуск прошивки...
   Firmware saved X = Y's value; the measured X result was discarded: Прошивка сохранила для X значение Y; результат измерения X был отброшен
   'Fix: chmod 644 {}, then restart': 'Исправление: chmod 644 {}, затем перезапустите'
@@ -1500,6 +1519,7 @@ translations:
   'Homing failed: ': 'Парковка не удалась: '
   'Homing failed: {}': 'Ошибка парковки: {}'
   Homing first...: Парковка...
+  Homing is disabled while a print is in progress: Парковка недоступна во время печати
   Homing may still be running — response timed out: Парковка может ещё выполняться
     — время ожидания истекло
   Homing selector: 'Парковка селектора'
@@ -1665,13 +1685,16 @@ translations:
   Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart.: Прошивка
     Klipper отключилась от хоста. Попробуйте перезапустить Klipper или выполнить перезапуск
     прошивки.
+  Klipper has disconnected from Moonraker. Check for errors in your printer interface.: Klipper отключился от Moonraker. Проверьте ошибки в интерфейсе принтера.
   ? Klipper has entered an error state. This is typically caused by an MCU connection
     failure or configuration error. Try a firmware restart.
   : Klipper перешёл в состояние ошибки. Обычно это вызвано сбоем соединения MCU или
     ошибкой конфигурации. Попробуйте перезапустить прошивку.
+  Klipper has entered shutdown state.: Klipper перешёл в состояние остановки.
   Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error.: Klipper
     перешёл в состояние остановки. Это может быть вызвано аварийной остановкой, тепловым
     разгоном или ошибкой конфигурации.
+  Klipper is halted — restart firmware to continue: Klipper остановлен — перезапустите прошивку, чтобы продолжить
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper резервирует 'default' для новых калибровок. Выберите другое имя."
   Klipper restarting - macros activating: 'Перезапуск Klipper - активация макросов'
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
@@ -1914,6 +1937,7 @@ translations:
   Monitoring: Мониторинг
   Month: Месяц
   Moonraker: Moonraker
+  Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started.: Moonraker не отвечает по адресу {}. Он работает на этом принтере, поэтому проверьте, запущены ли службы Klipper и Moonraker.
   Moonraker restarted but Spoolman not connected. Check server.: Moonraker перезапущен,
     но Spoolman не подключен. Проверьте сервер.
   ? "Moonraker restarting...\nWaiting for reconnection..."
@@ -2260,6 +2284,7 @@ translations:
   'Peak:': 'Пик:'
   Peaks {} Hz: "Пики {} Гц"
   Performance: Производительность
+  Permission denied. Check printer configuration.: Доступ запрещён. Проверьте конфигурацию принтера.
   Phomemo (Bluetooth): Phomemo (Bluetooth)
   Phomemo M110: Phomemo M110
   Pick: Выбрать
@@ -2413,6 +2438,8 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): Принтер
     принял задание, но не печатает — проверьте крышку, бумагу и тип этикеток (статус
     прошивки=0x{:02X} ошибка=0x{:02X})
+  'Printer command ''{}'' failed: {}': 'Команда принтера ''{}'' не выполнена: {}'
+  Printer command '{}' timed out after {}ms: Время ожидания команды принтера '{}' истекло через {} мс
   Printer connection unavailable: Подключение к принтеру недоступно
   Printer database format error: Ошибка формата базы данных принтеров
   Printer database is corrupt: База данных принтеров повреждена
@@ -2424,7 +2451,10 @@ translations:
   Printer hardware detected: Обнаружено оборудование принтера
   Printer image set to auto-detect: Изображение принтера — автоопределение
   Printer is busy - {} stays in the queue: 'Принтер занят – {} остаётся в очереди'
+  Printer is busy — try again in a moment: Принтер занят — повторите попытку чуть позже
   Printer is not paired — pair it first: Принтер не сопряжён — сначала выполните сопряжение
+  Printer is not ready: Принтер не готов
+  Printer is not ready. Please wait for initialization.: Принтер не готов. Дождитесь инициализации.
   'Printer message: {}': 'Сообщение принтера: {}'
   Printer name: Название принтера
   Printer not connected: Принтер не подключен
@@ -2556,6 +2586,7 @@ translations:
   Reboot failed — host is still reachable: Ошибка перезагрузки — хост всё ещё доступен
   Recalibrate or view detailed results anytime in Settings.: Перекалибруйте или просмотрите
     подробные результаты в любое время в Настройках.
+  Received oversized data from printer ({} bytes). This may indicate a communication error.: От принтера получены слишком большие данные ({} байт). Возможна ошибка связи.
   Recent Prints: Недавние печати
   Recently Printed: Недавно напечатано
   Reconnect: Переподключиться
@@ -2569,7 +2600,6 @@ translations:
   Recovering AFC system...: Восстановление системы AFC...
   Recovering...: Восстановление...
   Recovery failed: Восстановление не удалось
-  'Recovery failed: ': 'Восстановление не удалось: '
   'Recovery failed: {}': 'Восстановление не удалось: {}'
   Reduce Sensitivity: Снизить чувствительность
   Reduce ringing and ghosting artifacts: Уменьшить артефакты звона и двоения
@@ -2629,6 +2659,7 @@ translations:
   Reprint: Повторить печать
   Reprint Last: Перепечатать последнюю
   Request Failed: Запрос не выполнен
+  Request timed out. The printer may be busy.: Время ожидания запроса истекло. Возможно, принтер занят.
   Require Confirmation?: Запрашивать подтверждение?
   Require confirmation before emergency stop: Требовать подтверждение перед аварийной
     остановкой
@@ -2671,6 +2702,7 @@ translations:
   Restart Now: Перезапустить сейчас
   Restart Required: Требуется перезапуск
   'Restart failed: not connected': 'Перезапуск не удался: нет подключения'
+  'Restart failed: {}': 'Ошибка перезапуска: {}'
   Restart from the beginning to recover: Чтобы восстановить печать, запустите её с начала
   Restart pending: 'Ожидается перезапуск'
   Restart the display application: Перезапустить приложение дисплея
@@ -3050,6 +3082,7 @@ translations:
   Spoolman was not configured.: Spoolman не был настроен.
   'Spoolman: %zu Spool%s': 'Spoolman: %zu катушк%s'
   'Spoolman: %zu/%zu Spool%s': 'Spoolman: %zu/%zu катушк%s'
+  'Spools are on the bed: remove them and confirm before moving the printer': 'На столе лежат катушки: уберите их и подтвердите, прежде чем двигать принтер'
   'Spools are on the bed: tap the drying banner to confirm they are off, then restart.': 'На столе катушки: нажмите на баннер сушки, чтобы подтвердить, что они сняты, затем перезапустите.'
 
   'Spools on the bed: start drying, or confirm none were placed': 'Катушки на столе: начните сушку или подтвердите, что ничего не положено'
@@ -3273,6 +3306,7 @@ translations:
   : Принтер выполнит парковку, затем отведёт стол как можно дальше от сопла. Некоторые катушки недостаточно термостойкие и могут деформироваться. С этого экрана ничего не будет двигаться, пока вы не подтвердите, что катушки сняты со стола; Mainsail, макросы и печать, отправленная из слайсера, не блокируются.
 
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: Принтер не запаркован. Продолжение выполнит парковку всех осей, печатающая головка переместится. Убедитесь, что стол свободен.
+  The printer isn't detecting that any filament is currently loaded. What would you like to do?: Принтер не обнаруживает загруженный филамент. Что вы хотите сделать?
   The printer lost power during a print. It can resume where it left off.: Принтер потерял питание во время печати. Он может продолжить с места остановки.
   The printer lost power during a print. The resumed layer may not line up exactly.: Принтер потерял питание во время печати. Возобновлённый слой может не совпасть точно.
   The printer lost power while printing {}. Resume where it left off?: Принтер потерял питание при печати {}. Продолжить с места остановки?
@@ -3355,6 +3389,8 @@ translations:
   This printer fills its gates from Spoolman. Make colour, material and spool changes in Spoolman.: Этот принтер берёт данные шлюзов из Spoolman. Меняйте цвет, материал и катушку в Spoolman.
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.
+  This printer's network service controls the WiFi radio: WiFi-модулем управляет сетевая служба этого принтера
+  This printer's network service manages saved WiFi networks: Сохранёнными сетями WiFi управляет сетевая служба этого принтера
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : Это удаляет компонент Moonraker плагина и перезапускает Moonraker. Принтер ненадолго отключится. Если в PRINT_START всё ещё остались старые строки отслеживания фаз, они также удаляются, при этом резервные копии сохраняются. Перезапуск Klipper применяет эти изменения.
   This replaces the printer's helper macros with the current version and restarts Klipper.: 'Это заменит вспомогательные макросы принтера текущей версией и перезапустит Klipper.'
@@ -3499,6 +3535,8 @@ translations:
   USB drive removed: USB-накопитель извлечён
   USB printer access denied — check permissions: Доступ к USB-принтеру запрещён —
     проверьте разрешения
+  Unable to reach printer at {}. Check that the printer is powered on and that this address is correct.: Не удаётся связаться с принтером по адресу {}. Убедитесь, что принтер включён и адрес указан верно.
+  Unable to reach printer. Check power and network connection.: Не удаётся связаться с принтером. Проверьте питание и сетевое подключение.
   Unavailable: Недоступно
   Unavailable on this printer: Недоступно на этом принтере
   Undo: Шаг назад
@@ -3664,12 +3702,19 @@ translations:
   WiFi Disabled: WiFi отключён
   WiFi Enabled: WiFi включён
   WiFi Network: Сеть WiFi
+  WiFi Permission Denied: Нет доступа к WiFi
+  WiFi Service Not Running: Служба WiFi не запущена
   WiFi Unavailable: WiFi недоступен
   WiFi and Ethernet configuration: Настройка WiFi и Ethernet
   WiFi control unavailable: Управление WiFi недоступно
   WiFi hardware unavailable: Оборудование WiFi недоступно
+  'WiFi initialization failed: {}': 'Ошибка инициализации WiFi: {}'
   WiFi radio did not change state: Состояние модуля WiFi не изменилось
+  WiFi scan failed. Try again.: Поиск сетей WiFi не удался. Повторите попытку.
   WiFi unavailable: WiFi недоступен
+  WiFi unavailable. Cannot connect to network.: WiFi недоступен. Невозможно подключиться к сети.
+  WiFi unavailable. Cannot forget network.: WiFi недоступен. Невозможно забыть сеть.
+  WiFi unavailable. Cannot scan for networks.: WiFi недоступен. Невозможно выполнить поиск сетей.
   WiFi was configured but hardware is not available. Check system configuration.: WiFi
     был настроен, но оборудование недоступно. Проверьте конфигурацию системы.
   Widget Labels: Подписи виджетов
@@ -3829,6 +3874,7 @@ translations:
   v%s available: Доступна v%s
   v{} installed! Restarting...: v{} установлена! Перезапуск...
   v{} is available. Tap to update.: v{} доступна. Нажмите для обновления.
+  wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant не запущен. Функции WiFi недоступны.
   you have: у вас
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Гц · примерно {} мин'
   '{} Hardware Issues': 'Проблем с оборудованием: {}'

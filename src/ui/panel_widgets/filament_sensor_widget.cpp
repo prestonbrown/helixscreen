@@ -18,6 +18,7 @@
 #include "panel_widget_registry.h"
 #include "print_control_buttons.h"
 #include "printer_state.h"
+#include "subject_managed_panel.h"
 
 #include <spdlog/spdlog.h>
 
@@ -25,8 +26,14 @@
 
 namespace helix {
 
+namespace {
+/// Owns the XML-published static subjects shared by every FilamentSensorWidget.
+SubjectManager s_static_subjects;
+} // namespace
+
 void register_filament_sensor_widget() {
     FilamentSensorWidget::init_static_subjects();
+    register_widget_subjects("filament", FilamentSensorWidget::init_static_subjects);
 
     register_widget_factory(
         "filament", [](const std::string&) { return std::make_unique<FilamentSensorWidget>(); });
@@ -68,7 +75,7 @@ void FilamentSensorWidget::init_static_subjects() {
     // resolving it fine, since those short-circuit against the local scope
     // before ever needing the fallback. lv_xml_register_subject(nullptr, ...)
     // routes to "globals" (lib/helix-xml/src/xml/lv_xml.c:689).
-    lv_xml_register_subject(nullptr, "filament_tile_state", &tile_state_subject_);
+    s_static_subjects.publish("filament_tile_state", &tile_state_subject_);
 
     // Same reasoning, same fallback trap: the check icons that bind this live in
     // filament_source_row, a different component from filament_source_picker, and
@@ -76,14 +83,13 @@ void FilamentSensorWidget::init_static_subjects() {
     // never into another component's private scope
     // (lib/helix-xml/src/xml/lv_xml.c:689,757-778). Register globally or the
     // check icons silently never resolve it.
-    lv_xml_register_subject(nullptr, "filament_tile_source", &source_subject_);
+    s_static_subjects.publish("filament_tile_source", &source_subject_);
 
     StaticSubjectRegistry::instance().register_deinit("FilamentSensorWidget", []() {
         if (!subjects_initialized_) {
             return;
         }
-        lv_subject_deinit(&tile_state_subject_);
-        lv_subject_deinit(&source_subject_);
+        s_static_subjects.deinit_all();
         subjects_initialized_ = false;
     });
 }

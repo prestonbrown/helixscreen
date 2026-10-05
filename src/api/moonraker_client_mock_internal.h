@@ -39,10 +39,8 @@ constexpr double MOCK_PROBE_MARGIN = 15.0;
 // the mock's SCREWS_TILT_CALCULATE output agrees with the config it reports.
 constexpr const char* MOCK_SCREW_THREAD = "CW-M3";
 
-// Kinematics the mock reports for a printer type, in both configfile payloads
-// (config and settings) so every consumer that asks sees the same machine.
-// HELIX_MOCK_KINEMATICS overrides, so a test can flip the persona without a
-// new printer type.
+// Default kinematics for a printer type. MoonrakerClientMock::kinematics()
+// applies the HELIX_MOCK_KINEMATICS override on top.
 // NAMESPACE_OK: mock_internal sits at global scope with the mock's other helpers
 std::string mock_kinematics(MoonrakerClientMock::PrinterType type);
 

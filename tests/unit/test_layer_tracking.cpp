@@ -13,6 +13,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "gcode_response_lines.h"
 #include "moonraker_manager.h"
 #include "printer_state.h"
 
@@ -25,10 +26,6 @@ using namespace helix;
 using namespace helix::ui;
 using json = nlohmann::json;
 
-// ============================================================================
-// Helper: parse a gcode response line for layer info (mirrors application.cpp logic)
-// ============================================================================
-
 namespace {
 
 struct LayerParseResult {
@@ -37,27 +34,8 @@ struct LayerParseResult {
 };
 
 LayerParseResult parse_layer_from_gcode(const std::string& line) {
-    LayerParseResult result;
-
-    // Pattern 1: SET_PRINT_STATS_INFO CURRENT_LAYER=N [TOTAL_LAYER=N]
-    if (line.find("SET_PRINT_STATS_INFO") != std::string::npos) {
-        auto pos = line.find("CURRENT_LAYER=");
-        if (pos != std::string::npos) {
-            result.layer = std::atoi(line.c_str() + pos + 14);
-        }
-        pos = line.find("TOTAL_LAYER=");
-        if (pos != std::string::npos) {
-            result.total = std::atoi(line.c_str() + pos + 12);
-        }
-    }
-
-    // Pattern 2: ;LAYER:N
-    if (result.layer < 0 && line.size() >= 8 && line[0] == ';' && line[1] == 'L' &&
-        line[2] == 'A' && line[3] == 'Y' && line[4] == 'E' && line[5] == 'R' && line[6] == ':') {
-        result.layer = std::atoi(line.c_str() + 7);
-    }
-
-    return result;
+    const auto parsed = parse_layer_line(line);
+    return {parsed.current, parsed.total};
 }
 
 } // namespace

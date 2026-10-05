@@ -57,6 +57,22 @@ size_t glued_command_length(std::string_view token) {
 
 // Static instance pointer for cross-TU access (atomic for reads from other threads)
 std::atomic<ActionPromptManager*> ActionPromptManager::s_instance{nullptr};
+std::shared_ptr<const std::string> ActionPromptManager::s_showing_title;
+
+ActionPromptManager::~ActionPromptManager() {
+    if (s_instance.load(std::memory_order_acquire) == this) {
+        set_instance(nullptr);
+    }
+}
+
+void ActionPromptManager::set_instance(ActionPromptManager* instance) {
+    s_instance.store(instance, std::memory_order_release);
+    if (instance != nullptr) {
+        instance->publish_title();
+    } else {
+        std::atomic_store(&s_showing_title, std::shared_ptr<const std::string>{});
+    }
+}
 
 // ============================================================================
 // Static Parsing Functions
@@ -182,12 +198,19 @@ const PromptData* ActionPromptManager::get_current_prompt() const {
 }
 
 void ActionPromptManager::set_state(State state) {
+    m_state = state;
+    publish_title();
+}
+
+void ActionPromptManager::publish_title() const {
+    if (s_instance.load(std::memory_order_acquire) != this) {
+        return; // Only the registered manager speaks for the screen
+    }
     std::shared_ptr<const std::string> title;
-    if (state == State::SHOWING && m_current_prompt) {
+    if (m_state == State::SHOWING && m_current_prompt) {
         title = std::make_shared<const std::string>(m_current_prompt->title);
     }
-    std::atomic_store(&m_showing_title, std::move(title));
-    m_state = state;
+    std::atomic_store(&s_showing_title, std::move(title));
 }
 
 std::function<void(const std::string&)> ActionPromptManager::make_line_sink() {

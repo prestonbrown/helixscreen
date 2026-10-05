@@ -121,6 +121,13 @@ class ALSASoundBackend : public SoundBackend {
     void suspend() override;
     void resume() override;
 
+    /// True while the render thread is blocked in the idle park. suspend()
+    /// only requests the park, so this is the one signal that it has taken
+    /// effect.
+    bool is_parked() const {
+        return parked_.load(std::memory_order_acquire);
+    }
+
   private:
     void render_loop();
     snd_pcm_sframes_t recover_xrun(snd_pcm_sframes_t err);
@@ -129,6 +136,7 @@ class ALSASoundBackend : public SoundBackend {
     std::thread render_thread_;
     std::atomic<bool> running_{false};
     std::atomic<bool> suspended_{false};
+    std::atomic<bool> parked_{false};
     std::mutex suspend_mutex_;
     std::condition_variable suspend_cv_;
 

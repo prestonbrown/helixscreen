@@ -123,6 +123,7 @@
   <translation tag="A · 1,-1" en="A · 1,-1"/>
   <translation tag="ABS" en="ABS"/>
   <translation tag="ACCELEROMETERS" en="ACCELEROMETERS"/>
+  <translation tag="ACCEPT failed: {}" en="ACCEPT failed: {}"/>
   <translation tag="ACE Moonraker bridge not found. Install ace_status.py for full support." en="ACE Moonraker bridge not found. Install ace_status.py for full support."/>
   <translation tag="ACTIONS" en="ACTIONS"/>
   <translation tag="ADXL" en="ADXL"/>
@@ -220,6 +221,7 @@
   <translation tag="An error occurred." en="An error occurred."/>
   <translation tag="An internal error occurred. The app continues running. Please send a debug bundle from Settings &gt; Help &amp; About if it repeats." en="An internal error occurred. The app continues running. Please send a debug bundle from Settings &gt; Help &amp; About if it repeats."/>
   <translation tag="An unexpected printer error occurred." en="An unexpected printer error occurred."/>
+  <translation tag="An unknown error occurred." en="An unknown error occurred."/>
   <translation tag="An update is available" en="An update is available"/>
   <translation tag="Analyzing data..." en="Analyzing data..."/>
   <translation tag="Analyzing data... {}s" en="Analyzing data... {}s"/>
@@ -664,9 +666,12 @@
   <translation tag="Connection failed: %s" en="Connection failed: %s"/>
   <translation tag="Connection lost — probe accuracy result unavailable" en="Connection lost — probe accuracy result unavailable"/>
   <translation tag="Connection must be tested successfully to continue" en="Connection must be tested successfully to continue"/>
+  <translation tag="Connection restored" en="Connection restored"/>
   <translation tag="Connection successful!" en="Connection successful!"/>
   <translation tag="Connection timeout" en="Connection timeout"/>
+  <translation tag="Connection to printer lost - attempting to reconnect..." en="Connection to printer lost - attempting to reconnect..."/>
   <translation tag="Connection to printer lost — operation may still be running" en="Connection to printer lost — operation may still be running"/>
+  <translation tag="Connection to printer lost." en="Connection to printer lost."/>
   <translation tag="Connects" en="Connects"/>
   <translation tag="Console" en="Console"/>
   <translation tag="Console Settings" en="Console Settings"/>
@@ -700,7 +705,9 @@
   <translation tag="Could not check webcam status.&#10;Check printer connection." en="Could not check webcam status.&#10;Check printer connection."/>
   <translation tag="Could not confirm cancel" en="Could not confirm cancel"/>
   <translation tag="Could not copy {} from USB: {}" en="Could not copy {} from USB: {}"/>
+  <translation tag="Could not disconnect from WiFi" en="Could not disconnect from WiFi"/>
   <translation tag="Could not forget device" en="Could not forget device"/>
+  <translation tag="Could not initialize WiFi hardware. Check system configuration." en="Could not initialize WiFi hardware. Check system configuration."/>
   <translation tag="Could not load printer database" en="Could not load printer database"/>
   <translation tag="Could not move the plate" en="Could not move the plate"/>
   <translation tag="Could not parse tips database" en="Could not parse tips database"/>
@@ -900,6 +907,7 @@
   <translation tag="Emergency Stop?" en="Emergency Stop?"/>
   <translation tag="Emergency stop activated" en="Emergency stop activated"/>
   <translation tag="Emergency stop failed: not connected" en="Emergency stop failed: not connected"/>
+  <translation tag="Emergency stop failed: {}" en="Emergency stop failed: {}"/>
   <translation tag="Empty" en="Empty"/>
   <translation tag="Empty slots disable the associated functionality" en="Empty slots disable the associated functionality"/>
   <translation tag="Enable" en="Enable"/>
@@ -1030,7 +1038,10 @@
   <translation tag="Failed to build raster data" en="Failed to build raster data"/>
   <translation tag="Failed to cancel: {}" en="Failed to cancel: {}"/>
   <translation tag="Failed to clear print state: {}" en="Failed to clear print state: {}"/>
+  <translation tag="Failed to connect to &apos;{}&apos;" en="Failed to connect to &apos;{}&apos;"/>
+  <translation tag="Failed to connect to &apos;{}&apos;. Check password." en="Failed to connect to &apos;{}&apos;. Check password."/>
   <translation tag="Failed to connect to &apos;{}&apos;: {}" en="Failed to connect to &apos;{}&apos;: {}"/>
+  <translation tag="Failed to connect to WiFi network &apos;{}&apos;: {}" en="Failed to connect to WiFi network &apos;{}&apos;: {}"/>
   <translation tag="Failed to connect: %s" en="Failed to connect: %s"/>
   <translation tag="Failed to cool down: {}" en="Failed to cool down: {}"/>
   <translation tag="Failed to create filament:" en="Failed to create filament:"/>
@@ -1039,14 +1050,17 @@
   <translation tag="Failed to delete file" en="Failed to delete file"/>
   <translation tag="Failed to delete profile" en="Failed to delete profile"/>
   <translation tag="Failed to delete spool" en="Failed to delete spool"/>
+  <translation tag="Failed to disable WiFi: {}" en="Failed to disable WiFi: {}"/>
   <translation tag="Failed to discard recovery data: {}" en="Failed to discard recovery data: {}"/>
   <translation tag="Failed to download G-code for modification: {}" en="Failed to download G-code for modification: {}"/>
   <translation tag="Failed to download G-code for remap: {}" en="Failed to download G-code for remap: {}"/>
   <translation tag="Failed to download helixscreen.conf.&#10;Check printer connection." en="Failed to download helixscreen.conf.&#10;Check printer connection."/>
   <translation tag="Failed to download moonraker.conf.&#10;Check printer connection." en="Failed to download moonraker.conf.&#10;Check printer connection."/>
   <translation tag="Failed to duplicate spool" en="Failed to duplicate spool"/>
+  <translation tag="Failed to enable WiFi: {}" en="Failed to enable WiFi: {}"/>
   <translation tag="Failed to enable tuning tower" en="Failed to enable tuning tower"/>
   <translation tag="Failed to exclude &apos;{}&apos;: {}" en="Failed to exclude &apos;{}&apos;: {}"/>
+  <translation tag="Failed to forget WiFi network &apos;{}&apos;" en="Failed to forget WiFi network &apos;{}&apos;"/>
   <translation tag="Failed to get limits" en="Failed to get limits"/>
   <translation tag="Failed to initialize Bluetooth" en="Failed to initialize Bluetooth"/>
   <translation tag="Failed to initialize Bluetooth context" en="Failed to initialize Bluetooth context"/>
@@ -1084,6 +1098,7 @@
   <translation tag="Failed to restart: {}" en="Failed to restart: {}"/>
   <translation tag="Failed to resume: {}" en="Failed to resume: {}"/>
   <translation tag="Failed to save LED configuration" en="Failed to save LED configuration"/>
+  <translation tag="Failed to save WiFi network" en="Failed to save WiFi network"/>
   <translation tag="Failed to save config." en="Failed to save config."/>
   <translation tag="Failed to save configuration" en="Failed to save configuration"/>
   <translation tag="Failed to save fan configuration" en="Failed to save fan configuration"/>
@@ -1104,6 +1119,7 @@
   <translation tag="Failed to start installer: " en="Failed to start installer: "/>
   <translation tag="Failed to start print: {}" en="Failed to start print: {}"/>
   <translation tag="Failed to start uninstaller: " en="Failed to start uninstaller: "/>
+  <translation tag="Failed to subscribe to printer updates: {}" en="Failed to subscribe to printer updates: {}"/>
   <translation tag="Failed to toggle %s" en="Failed to toggle %s"/>
   <translation tag="Failed to toggle timelapse: {}" en="Failed to toggle timelapse: {}"/>
   <translation tag="Failed to turn off heaters: {}" en="Failed to turn off heaters: {}"/>
@@ -1185,6 +1201,7 @@
   <translation tag="Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume." en="Filament ran out. Auto-refill is off, so the CFS will not switch spools on its own. Load filament, then resume."/>
   <translation tag="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume." en="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume."/>
   <translation tag="Filament reload failed" en="Filament reload failed"/>
+  <translation tag="Filament remap not supported on this printer — print will use the firmware&apos;s current tool mapping" en="Filament remap not supported on this printer — print will use the firmware&apos;s current tool mapping"/>
   <translation tag="Filament remapping is unavailable" en="Filament remapping is unavailable"/>
   <translation tag="Filament runout" en="Filament runout"/>
   <translation tag="Filament runout and motion detection sensors" en="Filament runout and motion detection sensors"/>
@@ -1202,6 +1219,7 @@
   <translation tag="File" en="File"/>
   <translation tag="File Size" en="File Size"/>
   <translation tag="File Will Stop the Printer" en="File Will Stop the Printer"/>
+  <translation tag="File not found on printer." en="File not found on printer."/>
   <translation tag="File not found: {}" en="File not found: {}"/>
   <translation tag="Filename" en="Filename"/>
   <translation tag="Fine" en="Fine"/>
@@ -1214,6 +1232,7 @@
   <translation tag="Fireworks" en="Fireworks"/>
   <translation tag="Firmware Restart" en="Firmware Restart"/>
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" en="Firmware reports no bypass. Enable if you feed filament straight to the extruder"/>
+  <translation tag="Firmware restart failed: {}" en="Firmware restart failed: {}"/>
   <translation tag="Firmware restarting..." en="Firmware restarting..."/>
   <translation tag="Firmware saved X = Y&apos;s value; the measured X result was discarded" en="Firmware saved X = Y&apos;s value; the measured X result was discarded"/>
   <translation tag="Fix: chmod 644 {}, then restart" en="Fix: chmod 644 {}, then restart"/>
@@ -1373,6 +1392,7 @@
   <translation tag="Homing failed: " en="Homing failed: "/>
   <translation tag="Homing failed: {}" en="Homing failed: {}"/>
   <translation tag="Homing first..." en="Homing first..."/>
+  <translation tag="Homing is disabled while a print is in progress" en="Homing is disabled while a print is in progress"/>
   <translation tag="Homing may still be running — response timed out" en="Homing may still be running — response timed out"/>
   <translation tag="Homing selector" en="Homing selector"/>
   <translation tag="Homing timed out" en="Homing timed out"/>
@@ -1511,8 +1531,11 @@
   <translation tag="Klipper" en="Klipper"/>
   <translation tag="Klipper Error" en="Klipper Error"/>
   <translation tag="Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart." en="Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart."/>
+  <translation tag="Klipper has disconnected from Moonraker. Check for errors in your printer interface." en="Klipper has disconnected from Moonraker. Check for errors in your printer interface."/>
   <translation tag="Klipper has entered an error state. This is typically caused by an MCU connection failure or configuration error. Try a firmware restart." en="Klipper has entered an error state. This is typically caused by an MCU connection failure or configuration error. Try a firmware restart."/>
+  <translation tag="Klipper has entered shutdown state." en="Klipper has entered shutdown state."/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." en="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error."/>
+  <translation tag="Klipper is halted — restart firmware to continue" en="Klipper is halted — restart firmware to continue"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." en="Klipper reserves &apos;default&apos; for new calibrations. Choose another name."/>
   <translation tag="Klipper restarting - macros activating" en="Klipper restarting - macros activating"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." en="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again."/>
@@ -1741,6 +1764,7 @@
   <translation tag="Monitoring" en="Monitoring"/>
   <translation tag="Month" en="Month"/>
   <translation tag="Moonraker" en="Moonraker"/>
+  <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." en="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started."/>
   <translation tag="Moonraker restarted but Spoolman not connected. Check server." en="Moonraker restarted but Spoolman not connected. Check server."/>
   <translation tag="Moonraker restarting...&#10;Waiting for reconnection..." en="Moonraker restarting...&#10;Waiting for reconnection..."/>
   <translation tag="Moonraker: " en="Moonraker: "/>
@@ -2061,6 +2085,7 @@
   <translation tag="Peak:" en="Peak:"/>
   <translation tag="Peaks {} Hz" en="Peaks {} Hz"/>
   <translation tag="Performance" en="Performance"/>
+  <translation tag="Permission denied. Check printer configuration." en="Permission denied. Check printer configuration."/>
   <translation tag="Phomemo (Bluetooth)" en="Phomemo (Bluetooth)"/>
   <translation tag="Phomemo M110" en="Phomemo M110"/>
   <translation tag="Pick" en="Pick"/>
@@ -2200,6 +2225,8 @@
   <translation tag="Printer Shutdown" en="Printer Shutdown"/>
   <translation tag="Printer Type" en="Printer Type"/>
   <translation tag="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})" en="Printer accepted job but isn&apos;t printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X})"/>
+  <translation tag="Printer command &apos;{}&apos; failed: {}" en="Printer command &apos;{}&apos; failed: {}"/>
+  <translation tag="Printer command &apos;{}&apos; timed out after {}ms" en="Printer command &apos;{}&apos; timed out after {}ms"/>
   <translation tag="Printer connection unavailable" en="Printer connection unavailable"/>
   <translation tag="Printer database format error" en="Printer database format error"/>
   <translation tag="Printer database is corrupt" en="Printer database is corrupt"/>
@@ -2209,7 +2236,10 @@
   <translation tag="Printer hardware detected" en="Printer hardware detected"/>
   <translation tag="Printer image set to auto-detect" en="Printer image set to auto-detect"/>
   <translation tag="Printer is busy - {} stays in the queue" en="Printer is busy - {} stays in the queue"/>
+  <translation tag="Printer is busy — try again in a moment" en="Printer is busy — try again in a moment"/>
   <translation tag="Printer is not paired — pair it first" en="Printer is not paired — pair it first"/>
+  <translation tag="Printer is not ready" en="Printer is not ready"/>
+  <translation tag="Printer is not ready. Please wait for initialization." en="Printer is not ready. Please wait for initialization."/>
   <translation tag="Printer message: {}" en="Printer message: {}"/>
   <translation tag="Printer name" en="Printer name"/>
   <translation tag="Printer not connected" en="Printer not connected"/>
@@ -2330,6 +2360,7 @@
   <translation tag="Reboot failed" en="Reboot failed"/>
   <translation tag="Reboot failed — host is still reachable" en="Reboot failed — host is still reachable"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." en="Recalibrate or view detailed results anytime in Settings."/>
+  <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." en="Received oversized data from printer ({} bytes). This may indicate a communication error."/>
   <translation tag="Recent Prints" en="Recent Prints"/>
   <translation tag="Recently Printed" en="Recently Printed"/>
   <translation tag="Reconnect" en="Reconnect"/>
@@ -2343,7 +2374,6 @@
   <translation tag="Recovering AFC system..." en="Recovering AFC system..."/>
   <translation tag="Recovering..." en="Recovering..."/>
   <translation tag="Recovery failed" en="Recovery failed"/>
-  <translation tag="Recovery failed: " en="Recovery failed: "/>
   <translation tag="Recovery failed: {}" en="Recovery failed: {}"/>
   <translation tag="Reduce Sensitivity" en="Reduce Sensitivity"/>
   <translation tag="Reduce ringing and ghosting artifacts" en="Reduce ringing and ghosting artifacts"/>
@@ -2395,6 +2425,7 @@
   <translation tag="Reprint" en="Reprint"/>
   <translation tag="Reprint Last" en="Reprint Last"/>
   <translation tag="Request Failed" en="Request Failed"/>
+  <translation tag="Request timed out. The printer may be busy." en="Request timed out. The printer may be busy."/>
   <translation tag="Require Confirmation?" en="Require Confirmation?"/>
   <translation tag="Require confirmation before emergency stop" en="Require confirmation before emergency stop"/>
   <translation tag="Requires Moonraker power device" en="Requires Moonraker power device"/>
@@ -2436,6 +2467,7 @@
   <translation tag="Restart Now" en="Restart Now"/>
   <translation tag="Restart Required" en="Restart Required"/>
   <translation tag="Restart failed: not connected" en="Restart failed: not connected"/>
+  <translation tag="Restart failed: {}" en="Restart failed: {}"/>
   <translation tag="Restart from the beginning to recover" en="Restart from the beginning to recover"/>
   <translation tag="Restart pending" en="Restart pending"/>
   <translation tag="Restart the display application" en="Restart the display application"/>
@@ -2768,6 +2800,7 @@
   <translation tag="Spoolman was not configured." en="Spoolman was not configured."/>
   <translation tag="Spoolman: %zu Spool%s" en="Spoolman: %zu Spool%s"/>
   <translation tag="Spoolman: %zu/%zu Spool%s" en="Spoolman: %zu/%zu Spool%s"/>
+  <translation tag="Spools are on the bed: remove them and confirm before moving the printer" en="Spools are on the bed: remove them and confirm before moving the printer"/>
   <translation tag="Spools are on the bed: tap the drying banner to confirm they are off, then restart." en="Spools are on the bed: tap the drying banner to confirm they are off, then restart."/>
   <translation tag="Spools on the bed: start drying, or confirm none were placed" en="Spools on the bed: start drying, or confirm none were placed"/>
   <translation tag="Spools removed" en="Spools removed"/>
@@ -2953,6 +2986,7 @@
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." en="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." en="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." en="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear."/>
+  <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" en="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?"/>
   <translation tag="The printer lost power during a print. It can resume where it left off." en="The printer lost power during a print. It can resume where it left off."/>
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." en="The printer lost power during a print. The resumed layer may not line up exactly."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" en="The printer lost power while printing {}. Resume where it left off?"/>
@@ -3016,6 +3050,8 @@
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." en="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman."/>
   <translation tag="This printer fills its gates from Spoolman. Make colour, material and spool changes in Spoolman." en="This printer fills its gates from Spoolman. Make colour, material and spool changes in Spoolman."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." en="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets."/>
+  <translation tag="This printer&apos;s network service controls the WiFi radio" en="This printer&apos;s network service controls the WiFi radio"/>
+  <translation tag="This printer&apos;s network service manages saved WiFi networks" en="This printer&apos;s network service manages saved WiFi networks"/>
   <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." en="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." en="This replaces the printer&apos;s helper macros with the current version and restarts Klipper."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." en="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes."/>
@@ -3138,6 +3174,8 @@
   <translation tag="USB drive connected" en="USB drive connected"/>
   <translation tag="USB drive removed" en="USB drive removed"/>
   <translation tag="USB printer access denied — check permissions" en="USB printer access denied — check permissions"/>
+  <translation tag="Unable to reach printer at {}. Check that the printer is powered on and that this address is correct." en="Unable to reach printer at {}. Check that the printer is powered on and that this address is correct."/>
+  <translation tag="Unable to reach printer. Check power and network connection." en="Unable to reach printer. Check power and network connection."/>
   <translation tag="Unavailable" en="Unavailable"/>
   <translation tag="Unavailable on this printer" en="Unavailable on this printer"/>
   <translation tag="Undo" en="Undo"/>
@@ -3293,12 +3331,19 @@
   <translation tag="WiFi Disabled" en="WiFi Disabled"/>
   <translation tag="WiFi Enabled" en="WiFi Enabled"/>
   <translation tag="WiFi Network" en="WiFi Network"/>
+  <translation tag="WiFi Permission Denied" en="WiFi Permission Denied"/>
+  <translation tag="WiFi Service Not Running" en="WiFi Service Not Running"/>
   <translation tag="WiFi Unavailable" en="WiFi Unavailable"/>
   <translation tag="WiFi and Ethernet configuration" en="WiFi and Ethernet configuration"/>
   <translation tag="WiFi control unavailable" en="WiFi control unavailable"/>
   <translation tag="WiFi hardware unavailable" en="WiFi hardware unavailable"/>
+  <translation tag="WiFi initialization failed: {}" en="WiFi initialization failed: {}"/>
   <translation tag="WiFi radio did not change state" en="WiFi radio did not change state"/>
+  <translation tag="WiFi scan failed. Try again." en="WiFi scan failed. Try again."/>
   <translation tag="WiFi unavailable" en="WiFi unavailable"/>
+  <translation tag="WiFi unavailable. Cannot connect to network." en="WiFi unavailable. Cannot connect to network."/>
+  <translation tag="WiFi unavailable. Cannot forget network." en="WiFi unavailable. Cannot forget network."/>
+  <translation tag="WiFi unavailable. Cannot scan for networks." en="WiFi unavailable. Cannot scan for networks."/>
   <translation tag="WiFi was configured but hardware is not available. Check system configuration." en="WiFi was configured but hardware is not available. Check system configuration."/>
   <translation tag="Widget Labels" en="Widget Labels"/>
   <translation tag="Width" en="Width"/>
@@ -3444,6 +3489,7 @@
   <translation tag="v%s available" en="v%s available"/>
   <translation tag="v{} installed! Restarting..." en="v{} installed! Restarting..."/>
   <translation tag="v{} is available. Tap to update." en="v{} is available. Tap to update."/>
+  <translation tag="wpa_supplicant is not running. WiFi features unavailable." en="wpa_supplicant is not running. WiFi features unavailable."/>
   <translation tag="you have" en="you have"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" en="{:.0f}-{:.0f} Hz · about {} min"/>
   <translation tag="{} Hardware Issues" en="{} Hardware Issues"/>

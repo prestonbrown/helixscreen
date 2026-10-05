@@ -4,8 +4,10 @@
 #include "wifi_backend_wpa_supplicant.h"
 
 #include "ui_error_reporting.h"
+#include "ui_update_queue.h"
 
 #include "log_redact.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
 #include "wifi_5ghz_detection.h"
@@ -440,12 +442,19 @@ WiFiError WifiBackendWpaSupplicant::start() {
             spdlog::debug("[WifiBackend] Pre-flight failed (silent mode): {}",
                           preflight_result.technical_msg);
         } else if (preflight_result.result == WiFiResult::SERVICE_NOT_RUNNING) {
-            NOTIFY_ERROR_MODAL("WiFi Service Not Running",
-                               "wpa_supplicant is not running. WiFi features unavailable.");
+            // start() runs on the async init worker; the modal is main-thread only.
+            helix::ui::queue_update("WifiBackend::service_not_running", []() {
+                NOTIFY_ERROR_MODAL(
+                    lv_tr("WiFi Service Not Running"), "{}",
+                    lv_tr("wpa_supplicant is not running. WiFi features unavailable."));
+            });
         } else if (preflight_result.result == WiFiResult::PERMISSION_DENIED) {
-            NOTIFY_ERROR_MODAL("WiFi Permission Denied", "{}",
-                               preflight_result.user_msg.empty() ? preflight_result.technical_msg
-                                                                 : preflight_result.user_msg);
+            helix::ui::queue_update(
+                "WifiBackend::permission_denied",
+                [detail = preflight_result.user_msg.empty() ? preflight_result.technical_msg
+                                                            : preflight_result.user_msg]() {
+                    NOTIFY_ERROR_MODAL(lv_tr("WiFi Permission Denied"), "{}", detail);
+                });
         } else {
             LOG_ERROR_INTERNAL("Pre-flight check failed: {}", preflight_result.technical_msg);
         }
@@ -1588,7 +1597,7 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
     } else {
         std::string add_result = send_command("ADD_NETWORK");
         if (add_result.empty() || add_result == "FAIL\n") {
-            NOTIFY_ERROR("Failed to save WiFi network");
+            NOTIFY_ERROR("{}", lv_tr("Failed to save WiFi network"));
             return WiFiErrorHelper::connection_failed("Failed to add network to wpa_supplicant");
         }
 
@@ -1621,7 +1630,7 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
         if (!reused_existing) {
             send_command("REMOVE_NETWORK " + network_id);
         }
-        NOTIFY_ERROR("Failed to save WiFi network");
+        NOTIFY_ERROR("{}", lv_tr("Failed to save WiFi network"));
         return WiFiErrorHelper::connection_failed("Failed to configure network SSID");
     }
 
@@ -1637,7 +1646,7 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
             if (!reused_existing) {
                 send_command("REMOVE_NETWORK " + network_id);
             }
-            NOTIFY_ERROR("Failed to save WiFi network");
+            NOTIFY_ERROR("{}", lv_tr("Failed to save WiFi network"));
             return WiFiErrorHelper::connection_failed("Failed to configure hidden network scan");
         }
     }
@@ -1653,7 +1662,7 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
             if (!reused_existing) {
                 send_command("REMOVE_NETWORK " + network_id);
             }
-            NOTIFY_ERROR("Failed to save WiFi network");
+            NOTIFY_ERROR("{}", lv_tr("Failed to save WiFi network"));
             return WiFiErrorHelper::connection_failed("Failed to configure open network security");
         }
         spdlog::debug("[WifiBackend] Configured as open network");
@@ -1668,7 +1677,7 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
             if (!reused_existing) {
                 send_command("REMOVE_NETWORK " + network_id);
             }
-            NOTIFY_ERROR("Failed to connect to '{}'. Check password.",
+            NOTIFY_ERROR(lv_tr("Failed to connect to '{}'. Check password."),
                          helix::redact::ssid(clean_ssid));
             return WiFiErrorHelper::authentication_failed(ssid);
         }
@@ -1684,7 +1693,7 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
         if (!reused_existing) {
             send_command("REMOVE_NETWORK " + network_id);
         }
-        NOTIFY_ERROR("Failed to save WiFi network");
+        NOTIFY_ERROR("{}", lv_tr("Failed to save WiFi network"));
         return WiFiErrorHelper::connection_failed("Failed to enable network configuration");
     }
     spdlog::debug("[WifiBackend] Network {} enabled, selecting for connection", network_id);
@@ -1698,7 +1707,7 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
         if (!reused_existing) {
             send_command("REMOVE_NETWORK " + network_id);
         }
-        NOTIFY_ERROR("Failed to connect to '{}'", helix::redact::ssid(clean_ssid));
+        NOTIFY_ERROR(lv_tr("Failed to connect to '{}'"), helix::redact::ssid(clean_ssid));
         return WiFiErrorHelper::connection_failed("Failed to select network for connection");
     }
 

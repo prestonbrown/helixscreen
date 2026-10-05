@@ -75,6 +75,11 @@ struct PrintSelectPanelTestAccess {
         return panel.detail_view_built_;
     }
 
+    /// Whether the panel's USB source has a walk in flight.
+    static bool usb_scanning(const PrintSelectPanel& panel) {
+        return panel.usb_source_ && panel.usb_source_->is_scanning();
+    }
+
     /// Whether the detail-view overlay is currently pushed (OverlayBase's
     /// is_visible, driven by NavigationManager activate/deactivate).
     static bool detail_view_visible(const PrintSelectPanel& panel) {

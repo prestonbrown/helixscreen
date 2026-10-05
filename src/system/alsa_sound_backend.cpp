@@ -387,10 +387,12 @@ void ALSASoundBackend::render_loop() {
             }
             {
                 std::unique_lock<std::mutex> lock(suspend_mutex_);
+                parked_.store(true, std::memory_order_release);
                 suspend_cv_.wait(lock, [this] {
                     return !suspended_.load(std::memory_order_relaxed) ||
                            !running_.load(std::memory_order_relaxed);
                 });
+                parked_.store(false, std::memory_order_release);
             }
             if (!running_.load(std::memory_order_relaxed))
                 break;

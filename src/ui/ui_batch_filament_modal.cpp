@@ -11,6 +11,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "static_subject_registry.h"
+#include "subject_managed_panel.h"
 #include "text_io.h"
 
 #include <spdlog/spdlog.h>
@@ -33,6 +34,7 @@ lv_subject_t s_action_text{};
 std::string s_title_owned;
 std::string s_action_owned;
 bool s_direction_subjects_initialized = false;
+SubjectManager s_subjects;
 
 void init_direction_subjects() {
     if (s_direction_subjects_initialized) {
@@ -40,14 +42,13 @@ void init_direction_subjects() {
     }
     lv_subject_init_pointer(&s_title_text, nullptr);
     lv_subject_init_pointer(&s_action_text, nullptr);
-    lv_xml_register_subject(nullptr, "batch_filament_title_text", &s_title_text);
-    lv_xml_register_subject(nullptr, "batch_filament_action_text", &s_action_text);
+    s_subjects.publish("batch_filament_title_text", &s_title_text);
+    s_subjects.publish("batch_filament_action_text", &s_action_text);
     s_direction_subjects_initialized = true;
 
     StaticSubjectRegistry::instance().register_deinit("BatchFilamentModalDirection", []() {
         if (s_direction_subjects_initialized && lv_is_initialized()) {
-            lv_subject_deinit(&s_title_text);
-            lv_subject_deinit(&s_action_text);
+            s_subjects.deinit_all();
             s_direction_subjects_initialized = false;
         }
     });

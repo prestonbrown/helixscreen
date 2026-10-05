@@ -105,7 +105,7 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 <div class="wrap">
 <header>
 <h1>HelixScreen architecture and bloat audit</h1>
-<p>Generated 2026-09-30 against <code>main</code> @ <code>5009a40e9</code>. Nine read-only slice audits, deduplicated; detail in <code>docs/superpowers/architecture-audit/</code>. Statuses updated against <code>origin/main</code> @ <code>b518b9824</code>.</p>
+<p>Generated 2026-09-30 against <code>main</code> @ <code>5009a40e9</code>. Nine read-only slice audits, deduplicated; detail in <code>docs/superpowers/architecture-audit/</code>. Statuses updated against <code>origin/main</code> @ <code>d30f7bb2a</code>.</p>
 <p>Per <code>docs/CLAUDE.md</code>, this plan file is deleted when the work ships. Finding-level line and size figures are the auditors' estimates; the tiles below are measured on main where they say so. "CONFIRMED" means the orchestrator read the code, not just the agent's claim.</p>
 <p class="tiles-label"><strong>Shipped so far</strong>: measured on main. A minus sign is a reduction.</p>
 <div class="tiles">
@@ -113,7 +113,7 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 <div class="tile"><div class="v">-23% / -8% / -9%</div><div class="k">release binary size on Pi / MIPS / K2 (mocks out of release builds, -fno-rtti, dead code). Plus settings table -60 KB and observer core -371 KB and the observer rename -35 KB native, measured after</div></div>
 <div class="tile"><div class="v">-28.5 MB</div><div class="k">clone size from dead submodules</div></div>
 <div class="tile"><div class="v">20 of 22</div><div class="k">BUG/SEC findings shipped or moot; 3 new from reviews</div></div>
-<div class="tile"><div class="v">138</div><div class="k">findings: 107 done, 10 in progress, 19 open, 2 wontfix</div></div>
+<div class="tile"><div class="v">138</div><div class="k">findings: 110 done, 12 in progress, 14 open, 2 wontfix</div></div>
 </div>
 <p class="tiles-label"><strong>Still on the table</strong>: auditors' estimates, not measurements. Sizes are what could be reclaimed, not growth.</p>
 <div class="tiles">
@@ -1299,8 +1299,8 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 </dl>
 </div>
 </details>
-<details class="f" id="AMS-11" data-tag="god-class" data-size="later" data-status="open">
-<summary><span class="fid">AMS-11</span><span class="chip t-god-class">god-class</span><span class="chip sz">later</span><span class="pill st-open">open</span><span class="ftitle">God functions: Snapmaker handle_status 1,112 lines, HH parse 897</span><span class="fimpact">Reviewability and test seams, not line count</span></summary>
+<details class="f" id="AMS-11" data-tag="god-class" data-size="later" data-status="progress">
+<summary><span class="fid">AMS-11</span><span class="chip t-god-class">god-class</span><span class="chip sz">later</span><span class="pill st-progress">in progress</span><code class="br">refactor/ams11-status-parsers</code><span class="ftitle">God functions: Snapmaker handle_status 1,112 lines, HH parse 897</span><span class="fimpact">Reviewability and test seams, not line count</span></summary>
 <div class="fbody">
 <dl>
 <dt>Locations</dt><dd><code>src/printer/ams_backend_snapmaker.cpp#AmsBackendSnapmaker::handle_status_update</code>, <code>src/printer/ams_backend_happy_hare.cpp#AmsBackendHappyHare::parse_mmu_state</code>, <code>src/printer/ams_backend_cfs.cpp#AmsBackendCfs::handle_status_update</code>, <code>src/printer/ams_state.cpp#AmsState::sync_from_backend</code></dd>
@@ -1825,10 +1825,10 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 </section>
 <section id="sec-f"><h2>F. RAM</h2>
 <p class="lede"><strong>Field data (telemetry to 2026-09-26)</strong>: RAM stepped up at 0.99.108 on ad5x, k2 and k1 (+1-2.5 MB), most likely <code>10e336c15</code> sizing the debug ring from total RAM. That is deliberate; ad5m and cc1 stay on the 2000-line floor. ad5m startup RSS is about +13% against early 0.99, with private-dirty back to baseline by 1.0.1. cc1 is flat across 14 devices. 1.0.x is flat or down everywhere.</p>
-<details class="f" id="RAM-1" data-tag="footprint" data-size="1.1" data-status="progress">
-<summary><span class="fid">RAM-1</span><span class="chip t-footprint">footprint</span><span class="chip sz">1.1</span><span class="pill st-progress">in progress</span><code class="br">refactor/overlay-destroy-led-ams</code><span class="ftitle">Overlays are never freed after first open (~70 classes, 5 free on close)</span><span class="fimpact">0.4-1.5MB typical, up to 5.5MB retained</span></summary>
+<details class="f" id="RAM-1" data-tag="footprint" data-size="1.1" data-status="done">
+<summary><span class="fid">RAM-1</span><span class="chip t-footprint">footprint</span><span class="chip sz">1.1</span><span class="pill st-done">done</span><code class="br">398092d51</code><span class="ftitle">Overlays are never freed after first open (~70 classes, 5 free on close)</span><span class="fimpact">0.4-1.5MB typical, up to 5.5MB retained</span></summary>
 <div class="fbody">
-<p class="branch">Three tranches shipped (<code>4d4057937</code>, <code>a7f96c8ba</code>, <code>5a4541b17</code>). Remaining LED control and AMS environment on <code>refactor/overlay-destroy-led-ams</code> (another session; #1246/#1329).</p>
+<p class="branch">Shipped in four tranches: <code>refactor/fw-infra</code> (<code>4d4057937</code>: Bed Mesh, Console, Macros, Input Shaper, QrScanner, Plugins), <code>a7f96c8ba</code> (Motion, Macro Buttons, Motion Settings, Theme Editor, Temp Graph, CFS Chute, Tool Offset, PA), <code>5a4541b17</code> (PID, Z Offset, Touch Calibration, Printer Manager) and <code>refactor/overlay-destroy-led-ams</code> at <code>398092d51</code> (LED control, AMS environment; nulling AMS environment's cached widgets also closed a write-while-closed crash in <code>select_zone</code>). Color Picker is a modal, not an overlay.</p>
 <dl>
 <dt>Locations</dt><dd><code>include/overlay_base.h#OverlayBase</code>, the ~70 <code>OverlayBase</code> subclasses under <code>src/ui/</code>, lazy-create sites using <code>destroy_on_close</code></dd>
 <dt>Evidence</dt><dd>Only 5 destroy their tree on close (QrScanner, SpoolmanOverlay, PrintSelectDetailView, PrintStatus in low-memory mode, AmsEdit); <code>destroy_on_close</code> used at 1 of 23 lazy sites. 90 overlay-ish components hold ~6,100 static objects (color_picker 280, input_shaper_panel 277, ams_edit_overlay 217, motion_panel 196, temp_graph_overlay 189). At a measured ~0.4-0.9 kB/object: typical session (15-25 overlays) 0.4-1.5 MB, every overlay opened 2.5-5.5 MB, against the AD5M 14-20 MB budget.</dd>
@@ -1901,10 +1901,10 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 </details>
 </section>
 <section id="sec-g"><h2>G. God classes</h2><p class="lede">Later; stage behind test decoupling (TB-1).</p>
-<details class="f" id="GOD-1" data-tag="god-class" data-size="1.1" data-status="progress">
-<summary><span class="fid">GOD-1</span><span class="chip t-god-class">god-class</span><span class="chip sz">1.1</span><span class="pill st-progress">in progress</span><code class="br">refactor/god1-printer-session</code><span class="ftitle">Application is 5,371 lines; discovery reactions are a 748-line lambda</span><span class="fimpact">214 commits in 4 months land in one file</span></summary>
+<details class="f" id="GOD-1" data-tag="god-class" data-size="1.1" data-status="done">
+<summary><span class="fid">GOD-1</span><span class="chip t-god-class">god-class</span><span class="chip sz">1.1</span><span class="pill st-done">done</span><code class="br">b2007809a</code><span class="ftitle">Application is 5,371 lines; discovery reactions are a 748-line lambda</span><span class="fimpact">214 commits in 4 months land in one file</span></summary>
 <div class="fbody">
-<p class="branch">First tranche shipped: <code>refactor/god1-application-split</code>, merged at <code>709ec4e11</code>. Discovery reactions are an ordered 24-step table (<code>discovery_steps.cpp</code>); attach/detach pairs for timelapse, update response, print hours and Spoolman active-spool sync; <code>HardwareSetupPrompter</code> with a pure <code>choose_prompt</code>; process guards, demo overlays and SDL shortcuts moved out. application.cpp 5,289 -&gt; 3,855 lines. Left: <code>PrinterSession</code> (switch, teardown, <code>init_printer_state</code>) and <code>init_action_prompt</code>. Plan: <code>docs/devel/plans/2026-10-04-god1-application-split.md</code>.</p>
+<p class="branch">Shipped in two tranches. <code>refactor/god1-application-split</code> (<code>709ec4e11</code>): discovery reactions as an ordered 24-step table, attach/detach pairs, <code>HardwareSetupPrompter</code>, process guards/demo overlays/SDL shortcuts out. <code>refactor/god1-printer-session</code> (<code>7ee9d94c1</code>, tip <code>b2007809a</code>): <code>PrinterSession</code> owns everything a printer switch tears down and rebuilds, <code>GcodeResponseRouting</code> takes the action-prompt wiring, the teardown order is pinned by a golden-list gate. application.cpp 5,371 -&gt; ~2,500 lines. The audit's ~1,300 would also need the boot ladder and init phases moved; not planned.</p>
 <dl>
 <dt>Locations</dt><dd><code>src/application/application.cpp#Application::setup_discovery_callbacks</code>, <code>#Application::run</code>, <code>#Application::init_action_prompt</code>, <code>include/application.h#Application</code></dd>
 <dt>Evidence</dt><dd>5,371 lines (4.3x the 1,249 #1325 was filed against), 219 includes, 41 members, 554 commits (214 since June; next file 66). Growth is event reactions: discovery 873, hardware prompts 357, action prompt 277, printer session 402. <code>on_discovery_complete</code> runs ~22 jobs in sequence (fingerprint, LED, fans, Spoolman sync ~190 lines, autodetect, HardwareValidator, telemetry...), 19 gated on <code>hw_changed</code>.</dd>
@@ -1944,8 +1944,8 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 </dl>
 </div>
 </details>
-<details class="f" id="GOD-4" data-tag="god-class" data-size="later" data-status="open">
-<summary><span class="fid">GOD-4</span><span class="chip t-god-class">god-class</span><span class="chip sz">later</span><span class="pill st-open">open</span><span class="ftitle">PrintStatusPanel is six jobs in 5.1K lines; preview pipeline is the seam</span><span class="fimpact">295 commits, highest churn in the UI slice</span></summary>
+<details class="f" id="GOD-4" data-tag="god-class" data-size="later" data-status="progress">
+<summary><span class="fid">GOD-4</span><span class="chip t-god-class">god-class</span><span class="chip sz">later</span><span class="pill st-progress">in progress</span><code class="br">refactor/god4-print-status</code><span class="ftitle">PrintStatusPanel is six jobs in 5.1K lines; preview pipeline is the seam</span><span class="fimpact">295 commits, highest churn in the UI slice</span></summary>
 <div class="fbody">
 <dl>
 <dt>Locations</dt><dd><code>src/ui/ui_panel_print_status.cpp#PrintStatusPanel::load_gcode_for_viewing</code>, <code>#PrintStatusPanel::show_gcode_viewer</code>, <code>#PrintStatusPanel::recompute_scoped_runout</code>, <code>include/ui_panel_print_status.h</code></dd>
@@ -1958,9 +1958,10 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 </dl>
 </div>
 </details>
-<details class="f" id="GOD-5" data-tag="god-class" data-size="later" data-status="open">
-<summary><span class="fid">GOD-5</span><span class="chip t-god-class">god-class</span><span class="chip sz">later</span><span class="pill st-open">open</span><span class="ftitle">ui_gcode_viewer.cpp: widget, input, loader and 55-entry C API in 3.5K lines</span><span class="fimpact">setters store each option three times</span></summary>
+<details class="f" id="GOD-5" data-tag="god-class" data-size="later" data-status="done">
+<summary><span class="fid">GOD-5</span><span class="chip t-god-class">god-class</span><span class="chip sz">later</span><span class="pill st-done">done</span><code class="br">41ab665c3</code><span class="ftitle">ui_gcode_viewer.cpp: widget, input, loader and 55-entry C API in 3.5K lines</span><span class="fimpact">setters store each option three times</span></summary>
 <div class="fbody">
+<p class="branch">Shipped: <code>refactor/god5-gcode-viewer</code>, merged to main at <code>41ab665c3</code>. Shell, loader (766), input (439) and state header (483); ui_gcode_viewer.cpp 3,580 -&gt; 1,810. 11 dead API entries and 22 orphan ESP32 stubs deleted. <code>ViewOptions</code> reach every renderer, which fixed a lazily created 2D renderer missing highlight/excluded state; load generations are process-unique. Left: nine GLES renderer setters that lost their last caller (need a device to verify), and a Pi GLES on-device check.</p>
 <dl>
 <dt>Locations</dt><dd><code>src/ui/ui_gcode_viewer.cpp#ui_gcode_viewer_load_file_async</code>, <code>#gcode_viewer_draw_cb</code>, <code>#GCodeViewerState</code>, <code>include/ui_gcode_viewer.h</code></dd>
 <dt>Evidence</dt><dd>3,488 lines, 126 commits (hottest file in rendering); header 792 lines. Seams: state ~390; 3D geometry budget ~170; draw cb ~280; input ~350; async load ~540 (two parallel streaming/full paths); ~55-60 public forwarders ~940, each <code>get_state(obj); if (!st) return</code> (79 checks); stubs ~260-350; 30+ <code>#ifdef ENABLE_3D_RENDERER</code>. 22 <code>layer_renderer_2d_-&gt;set_*</code> and 18 <code>renderer_-&gt;set_*</code>: most setters write state, 3D and 2D renderer.</dd>
@@ -1987,8 +1988,8 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 </dl>
 </div>
 </details>
-<details class="f" id="GOD-7" data-tag="god-class" data-size="later" data-status="open">
-<summary><span class="fid">GOD-7</span><span class="chip t-god-class">god-class</span><span class="chip sz">later</span><span class="pill st-open">open</span><span class="ftitle">NavigationManager: 166 includers, but 69% of calls use 4 methods</span><span class="fimpact">883-line header in 150+ panel TUs</span></summary>
+<details class="f" id="GOD-7" data-tag="god-class" data-size="later" data-status="progress">
+<summary><span class="fid">GOD-7</span><span class="chip t-god-class">god-class</span><span class="chip sz">later</span><span class="pill st-progress">in progress</span><code class="br">refactor/god7-nav-header</code><span class="ftitle">NavigationManager: 166 includers, but 69% of calls use 4 methods</span><span class="fimpact">883-line header in 150+ panel TUs</span></summary>
 <div class="fbody">
 <dl>
 <dt>Locations</dt><dd><code>include/ui_nav_manager.h#NavigationManager</code>, <code>src/ui/ui_nav_manager.cpp</code></dd>
@@ -2001,8 +2002,8 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 </dl>
 </div>
 </details>
-<details class="f" id="GOD-8" data-tag="god-class" data-size="later" data-status="open">
-<summary><span class="fid">GOD-8</span><span class="chip t-god-class">god-class</span><span class="chip sz">later</span><span class="pill st-open">open</span><span class="ftitle">ControlsPanel and SettingsPanel carry passengers and dead duplicates</span><span class="fimpact">167 and 180 commits in 2026</span></summary>
+<details class="f" id="GOD-8" data-tag="god-class" data-size="later" data-status="progress">
+<summary><span class="fid">GOD-8</span><span class="chip t-god-class">god-class</span><span class="chip sz">later</span><span class="pill st-progress">in progress</span><code class="br">refactor/god8-controls-settings</code><span class="ftitle">ControlsPanel and SettingsPanel carry passengers and dead duplicates</span><span class="fimpact">167 and 180 commits in 2026</span></summary>
 <div class="fbody">
 <dl>
 <dt>Locations</dt><dd><code>src/ui/ui_panel_controls.cpp#ControlsPanel::refresh_macro_buttons</code>, <code>#ControlsPanel::populate_secondary_fans</code>, <code>src/ui/ui_panel_settings.cpp#SettingsPanel::init_subjects</code>, <code>#SettingsPanel::refresh_status_lines</code></dd>

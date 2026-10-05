@@ -618,11 +618,7 @@ TEST_CASE("MoonrakerClient RPC_ERROR suppression follows AbortManager shutdown s
     };
 
     std::vector<MoonrakerEvent> events;
-    // Field order is {type, message, details, is_error} — see include/moonraker_events.h.
-    auto emit = [&events](MoonrakerEventType type, const std::string& message, bool is_error,
-                          const std::string& details) {
-        events.push_back(MoonrakerEvent{type, message, details, is_error});
-    };
+    auto emit = [&events](const MoonrakerEvent& evt) { events.push_back(evt); };
     auto suppress = []() { return helix::AbortManager::instance().is_handling_shutdown(); };
 
     SECTION("RPC_ERROR is emitted when AbortManager is NOT handling shutdown") {

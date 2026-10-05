@@ -128,6 +128,8 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     // Moonraker does not chunk at the protocol level, so an oversized response's
     // RPC will simply time out (see brief). 256 KiB.
     static constexpr size_t MAX_MESSAGE_BYTES = 262144;
+    /// Reassembly capacity kept between messages; anything larger is released.
+    static constexpr size_t RX_BUF_KEEP_BYTES = 32768;
     // Own request-tracker cap — far below desktop's 500 (RAM-bound). On overflow
     // the error callback fires synchronously with a CONNECTION_LOST error.
     static constexpr size_t MAX_PENDING_REQUESTS = 64;
@@ -247,6 +249,7 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     void set_state(ConnectionState next);
     void emit_event(MoonrakerEventType type, const std::string& message, bool is_error,
                     const std::string& details = "");
+    void emit_event(const MoonrakerEvent& ev);
 
     // Serialize + send a JSON-RPC envelope over the socket. Returns bytes sent
     // (>=0) or negative on failure. Safe to call from any task.
@@ -342,9 +345,16 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     // Fragment reassembly (grows to cap, shrinks on disconnect). WS-task only.
     std::string rx_buf_;
     bool rx_skip_ = false;
-    // WS-task only. Gates the RECONNECTED event so the first-ever connect is
-    // silent and only genuine reconnections emit (desktop was_connected_).
+    // was_connected_ and lost_notified_ are reset by connect() after it has
+    // destroyed any prior client, so no websocket task is running then; every
+    // other access is on the WS task.
+    //
+    // Gates RECONNECTED and CONNECTION_LOST: a connection that never came up
+    // has nothing to lose or restore.
     bool was_connected_ = false;
+    // One CONNECTION_LOST per outage: DISCONNECTED and CLOSED both land in
+    // on_ws_disconnected(), and so does every failed reconnect attempt.
+    bool lost_notified_ = false;
 
     // Bounded request tracker.
     std::mutex requests_mutex_;

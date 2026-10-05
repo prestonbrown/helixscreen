@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../helix_test_fixture.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_types.h"
@@ -333,7 +334,8 @@ TEST_CASE("AFC lane error: severity from system message type", "[ams][afc][error
     REQUIRE(slot->error->severity == SlotError::WARNING);
 }
 
-TEST_CASE("AFC lane error: cleared when status leaves Error", "[ams][afc][error_state]") {
+TEST_CASE_METHOD(HelixTestFixture, "AFC lane error: cleared when status leaves Error",
+                 "[ams][afc][error_state]") {
     helix::AfcErrorStateHelper helper;
     helper.initialize_test_lanes_with_slots(4);
 

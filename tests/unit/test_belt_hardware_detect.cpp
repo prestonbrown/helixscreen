@@ -35,6 +35,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_kinematics_env.h"
 
+#include <memory>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -88,7 +89,7 @@ helix::calibration::BeltTensionHardware detect_with_kinematics(const char* kinem
 
 // Step 2 (printer.objects.query for kinematics) reads the mock's
 // configfile.settings.printer.kinematics, which follows HELIX_MOCK_KINEMATICS
-// (mock_internal::mock_kinematics), so every kinematics can be exercised here.
+// (MoonrakerClientMock::kinematics), so every kinematics can be exercised here.
 
 // A malformed envelope must not throw out of the callback or skip on_complete.
 // The kinematics parse sits behind a try/catch that reports through
@@ -238,6 +239,31 @@ TEST_CASE("detect_belt_hardware classifies only belt-path kinematics as COREXY",
 
     detected = detect_with_kinematics("delta");
     CHECK(detected.kinematics == helix::calibration::KinematicsType::UNKNOWN);
+}
+
+TEST_CASE("the mock's kinematics persona is fixed when the mock is constructed",
+          "[belt][detect][mock]") {
+    // The simulation thread reports kinematics every tick; a getenv() there
+    // races a setenv() on the main thread and can fault inside libc. Changing
+    // the variable after construction must therefore change nothing.
+    PrinterState state;
+    state.init_subjects(false);
+    auto client = [] {
+        MockKinematicsGuard env("corexz");
+        return std::make_unique<MoonrakerClientMock>(
+            MoonrakerClientMock::PrinterType::GENERIC_COREXY);
+    }();
+    MockKinematicsGuard flipped("cartesian");
+    CHECK(client->kinematics() == "corexz");
+
+    MoonrakerAPI api(*client, state);
+    MoonrakerAdvancedAPI advanced(*client, api);
+    helix::calibration::BeltTensionHardware detected;
+    advanced.detect_belt_hardware(
+        [&](const helix::calibration::BeltTensionHardware& hw) { detected = hw; },
+        [&](const MoonrakerError&) {});
+    CHECK(detected.kinematics_name == "corexz");
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 TEST_CASE("detect_belt_hardware classifies cartesian family as CARTESIAN", "[belt][detect]") {

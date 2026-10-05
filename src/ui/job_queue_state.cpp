@@ -75,34 +75,25 @@ void JobQueueState::init_subjects() {
 
     lv_subject_init_string(&job_queue_state_subject_, state_buffer_, nullptr, sizeof(state_buffer_),
                            "Ready");
-    lv_xml_register_subject(nullptr, "job_queue_state_text", &job_queue_state_subject_);
-    subjects_.register_subject(&job_queue_state_subject_, "job_queue_state_text");
+    subjects_.publish("job_queue_state_text", &job_queue_state_subject_);
 
     lv_subject_init_string(&job_queue_summary_subject_, summary_buffer_, nullptr,
                            sizeof(summary_buffer_), "Queue empty");
-    lv_xml_register_subject(nullptr, "job_queue_summary_text", &job_queue_summary_subject_);
-    subjects_.register_subject(&job_queue_summary_subject_, "job_queue_summary_text");
+    subjects_.publish("job_queue_summary_text", &job_queue_summary_subject_);
 
     lv_subject_init_int(&job_queue_count_subject_, 0);
-    lv_xml_register_subject(nullptr, "job_queue_count", &job_queue_count_subject_);
-    subjects_.register_subject(&job_queue_count_subject_, "job_queue_count");
+    subjects_.publish("job_queue_count", &job_queue_count_subject_);
 
     lv_subject_init_string(&job_queue_up_next_text_subject_, up_next_text_buffer_, nullptr,
                            sizeof(up_next_text_buffer_), "");
-    lv_xml_register_subject(nullptr, "job_queue_up_next_text", &job_queue_up_next_text_subject_);
-    subjects_.register_subject(&job_queue_up_next_text_subject_, "job_queue_up_next_text");
+    subjects_.publish("job_queue_up_next_text", &job_queue_up_next_text_subject_);
 
     lv_subject_init_string(&job_queue_start_next_text_subject_, start_next_text_buffer_, nullptr,
                            sizeof(start_next_text_buffer_), "");
-    lv_xml_register_subject(nullptr, "job_queue_start_next_text",
-                            &job_queue_start_next_text_subject_);
-    subjects_.register_subject(&job_queue_start_next_text_subject_, "job_queue_start_next_text");
+    subjects_.publish("job_queue_start_next_text", &job_queue_start_next_text_subject_);
 
     lv_subject_init_int(&job_queue_automatic_transition_subject_, automatic_transition_ ? 1 : 0);
-    lv_xml_register_subject(nullptr, "job_queue_automatic_transition",
-                            &job_queue_automatic_transition_subject_);
-    subjects_.register_subject(&job_queue_automatic_transition_subject_,
-                               "job_queue_automatic_transition");
+    subjects_.publish("job_queue_automatic_transition", &job_queue_automatic_transition_subject_);
 
     SubjectDebugRegistry::instance().register_subject(&job_queue_state_subject_,
                                                       "job_queue_state_text",
@@ -202,15 +193,17 @@ void JobQueueState::fetch_automatic_transition() {
     client_->send_jsonrpc(
         "server.config", json::object(),
         [this, token](const json& response) {
-            token.defer("JobQueueState::on_server_config", [this, response]() {
-                automatic_transition_ = helix::parse_automatic_transition(response);
-                if (subjects_initialized_) {
-                    lv_subject_set_int(&job_queue_automatic_transition_subject_,
-                                       automatic_transition_ ? 1 : 0);
-                }
-                spdlog::debug("[JobQueueState] job_queue automatic_transition={}",
-                              automatic_transition_);
-            });
+            // Parsed here so the deferred body carries a bool, not the config DOM.
+            token.defer("JobQueueState::on_server_config",
+                        [this, automatic = helix::parse_automatic_transition(response)]() {
+                            automatic_transition_ = automatic;
+                            if (subjects_initialized_) {
+                                lv_subject_set_int(&job_queue_automatic_transition_subject_,
+                                                   automatic_transition_ ? 1 : 0);
+                            }
+                            spdlog::debug("[JobQueueState] job_queue automatic_transition={}",
+                                          automatic_transition_);
+                        });
         },
         [token](const MoonrakerError& err) {
             spdlog::debug("[JobQueueState] server.config read failed: {}", err.message);

@@ -2526,7 +2526,8 @@ TEST_CASE("Happy Hare v3 data with no v4 fields works normally", "[ams][happy_ha
 // for mmu_vendor "Other" (which is what a Qidi Box under HH reports) and on
 // type-A selectors ANDs it with the calibrated bypass offset, so it is both
 // legitimately false on real hardware and able to turn true later.
-TEST_CASE("Happy Hare has_bypass drives supports_bypass", "[ams][happy_hare][bypass]") {
+TEST_CASE_METHOD(HelixTestFixture, "Happy Hare has_bypass drives supports_bypass",
+                 "[ams][happy_hare][bypass]") {
     auto base_mmu = []() {
         return nlohmann::json{{"gate", 0},
                               {"tool", 0},

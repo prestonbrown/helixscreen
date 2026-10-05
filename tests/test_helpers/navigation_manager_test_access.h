@@ -22,8 +22,11 @@ class NavigationManagerTestAccess {
     }
 
     /// Create the darkened snapshot backdrop, as the first push_overlay() does.
-    static void adopt_overlay_backdrop(NavigationManager& nav, lv_obj_t* screen) {
-        nav.adopt_overlay_backdrop(screen);
+    /// `arriving` is the overlay being pushed; null when the test drives the
+    /// snapshot with nothing arriving.
+    static void adopt_overlay_backdrop(NavigationManager& nav, lv_obj_t* screen,
+                                       lv_obj_t* arriving = nullptr) {
+        nav.adopt_overlay_backdrop(screen, arriving);
     }
 
     /// Re-take the backdrop snapshot from the live tree.

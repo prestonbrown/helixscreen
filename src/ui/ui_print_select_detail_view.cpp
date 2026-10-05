@@ -430,7 +430,7 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
                                  const std::vector<std::string>& filament_colors,
                                  const std::vector<std::string>& filament_materials,
                                  size_t file_size_bytes, time_t modified_timestamp,
-                                 uint64_t gcode_end_byte) {
+                                 uint64_t gcode_end_byte, const std::string& local_path) {
     // Lazy re-create widget tree if it was destroyed by destroy-on-close
     if (!overlay_root_ && parent_screen_) {
         spdlog::info("[DetailView] Re-creating widget tree (destroy-on-close recovery)");
@@ -455,6 +455,7 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
     // Cache parameters for on_activate() to use
     current_filename_ = filename;
     current_path_ = current_path;
+    current_local_path_ = local_path;
     current_filament_type_ = filament_type;
     current_filament_colors_ = filament_colors;
     current_filament_materials_ = filament_materials;
@@ -652,16 +653,19 @@ void PrintSelectDetailView::resolve_local_gcodes_root() {
 }
 
 std::string PrintSelectDetailView::local_gcode_source() const {
-    if (local_gcodes_root_.empty()) {
-        return {};
+    std::string candidate = current_local_path_;
+    if (candidate.empty()) {
+        if (local_gcodes_root_.empty()) {
+            return {};
+        }
+        candidate = local_gcodes_root_ + "/" + current_file_key();
     }
-    const std::string candidate = local_gcodes_root_ + "/" + current_file_key();
 
     // Size is the same staleness check the cached-copy path uses. It also
-    // doubles as the existence and readability probe: a file we cannot open is
-    // one we must fetch over HTTP instead.
+    // doubles as the existence and readability probe: a Moonraker file we
+    // cannot open here comes over HTTP instead, and a USB file is unreadable.
     if (!tio::open_file(candidate, "rb")) {
-        spdlog::debug("[DetailView] No local G-code at '{}' — falling back to HTTP", candidate);
+        spdlog::debug("[DetailView] No readable local G-code at '{}'", candidate);
         return {};
     }
     const auto on_disk_bytes = static_cast<size_t>(tio::file_size(candidate).value_or(0));
@@ -692,6 +696,11 @@ void PrintSelectDetailView::reclaim_download(const std::string& path) {
 }
 
 std::string PrintSelectDetailView::current_file_key() const {
+    // A stick file has no Moonraker path; its own path keeps same-named files
+    // in different folders apart.
+    if (!current_local_path_.empty()) {
+        return current_local_path_;
+    }
     return current_path_.empty() ? current_filename_ : current_path_ + "/" + current_filename_;
 }
 
@@ -702,8 +711,9 @@ void PrintSelectDetailView::ensure_gcode_downloaded(
         cb(false, {});
         return;
     }
-    // 0. Moonraker runs here, so its copy IS the file — no transfer, no second
-    //    copy on the same flash. This only CONSULTS the answer; the resolve is
+    // 0. The file is on this machine (a USB stick, or Moonraker's copy when
+    //    Moonraker runs here): no transfer, no second copy on the same
+    //    flash. For Moonraker's copy this only CONSULTS the answer; the resolve is
     //    kicked once from set_dependencies() and never awaited here. Awaiting it
     //    would hang this load outright on any Moonraker that does not answer
     //    server.files.roots — which includes older forks and our own mock
@@ -711,8 +721,14 @@ void PrintSelectDetailView::ensure_gcode_downloaded(
     //    never becomes temp_gcode_path_: it is the user's print file, not
     //    something we may delete (reclaim_download() refuses it too).
     if (const std::string local = local_gcode_source(); !local.empty()) {
-        spdlog::info("[DetailView] Using Moonraker's own G-code in place: {}", local);
+        spdlog::info("[DetailView] Using local G-code in place: {}", local);
         cb(true, local);
+        return;
+    }
+    if (!current_local_path_.empty()) {
+        // Moonraker has no copy of a USB file until it is printed.
+        spdlog::warn("[DetailView] USB file unreadable: {}", current_local_path_);
+        cb(false, {});
         return;
     }
 
@@ -834,7 +850,8 @@ void PrintSelectDetailView::on_activate() {
     // The scan happens NOW after registration, so if user navigates away,
     // on_deactivate() will be called and we can check cleanup_called()
     if (!current_filename_.empty() && prep_manager_) {
-        prep_manager_->scan_file_for_operations(current_filename_, current_path_);
+        prep_manager_->scan_file_for_operations(current_filename_, current_path_,
+                                                current_local_path_);
     }
 
     // Headless tools_used scan — runs on ALL platforms (including 2D-only, where
@@ -2077,13 +2094,13 @@ void PrintSelectDetailView::start_tail_summary_scan(LifetimeToken tok, std::set<
         });
     };
 
-    // Moonraker runs on this machine, so its copy IS the file: read the tail
-    // straight off disk instead of asking for those same bytes back over a
-    // loopback HTTP range request. Same window, same parse — local_gcode_source()
-    // already owns the "is it really there, and is it the right version" checks
-    // (it size-matches against the metadata), and returns empty when it is not.
+    // The file is on this machine (a USB stick, or Moonraker's own copy): read
+    // the tail straight off disk instead of asking Moonraker for those bytes.
+    // Same window, same parse; local_gcode_source() already owns the "is it
+    // really there, and is it the right version" checks (it size-matches
+    // against the metadata), and returns empty when it is not.
     if (const std::string local = local_gcode_source(); !local.empty()) {
-        spdlog::debug("[DetailView] Footer read from Moonraker's own copy: {}", local);
+        spdlog::debug("[DetailView] Footer read from the local copy: {}", local);
         helix::http::HttpExecutor::slow().submit([local, window, on_tail, fall_back]() mutable {
             std::string tail = helix::gcode::read_file_tail(local, window);
             if (tail.empty()) {
@@ -2092,6 +2109,10 @@ void PrintSelectDetailView::start_tail_summary_scan(LifetimeToken tok, std::set<
             }
             on_tail(tail);
         });
+        return;
+    }
+    if (!current_local_path_.empty()) {
+        fall_back("USB file unreadable");
         return;
     }
 
@@ -2240,44 +2261,49 @@ void PrintSelectDetailView::load_gcode_for_preview() {
     // writer of cached_file_metadata_, which PrintStartController's pre-print
     // checks (filament weight, per-tool weights) read. It also re-checks the
     // streaming-safety gate against the authoritative size; in thumbnail mode
-    // its show_gcode_viewer(false) calls leave the thumbnail as it is.
+    // its show_gcode_viewer(false) calls leave the thumbnail as it is. A USB
+    // file has no Moonraker metadata to fetch until it is printed.
     const std::string file_path =
         current_path_.empty() ? current_filename_ : current_path_ + "/" + current_filename_;
 
-    api_->files().get_file_metadata(
-        file_path,
-        [this, tok](const FileMetadata& metadata) {
-            // L081 Mechanism C: marshal member writes + LVGL/show_gcode_viewer
-            // to main thread before touching `this`.
-            tok.defer("DetailView::metadata_apply", [this, metadata]() {
-                // Cache for PrintStartController's pre-print checks (e.g., filament weight)
-                cached_file_metadata_ = metadata;
+    if (current_local_path_.empty()) {
+        api_->files().get_file_metadata(
+            file_path,
+            [this, tok](const FileMetadata& metadata) {
+                // L081 Mechanism C: marshal member writes + LVGL/show_gcode_viewer
+                // to main thread before touching `this`.
+                tok.defer("DetailView::metadata_apply", [this, metadata]() {
+                    // Cache for PrintStartController's pre-print checks (e.g., filament weight)
+                    cached_file_metadata_ = metadata;
 
-                // Check if file is safe to render given available RAM. When
-                // the shared file already loaded this same size passed the
-                // download's local gate below, so this only bites on the paths
-                // where the ensure-callback hadn't resolved yet.
-                if (!helix::is_gcode_2d_streaming_safe(metadata.size)) {
-                    auto mem = helix::get_system_memory_info();
-                    spdlog::warn("[DetailView] G-code too large for streaming: file={} bytes, "
-                                 "available RAM={}MB - using thumbnail",
-                                 metadata.size, mem.available_mb());
+                    // Check if file is safe to render given available RAM. When
+                    // the shared file already loaded this same size passed the
+                    // download's local gate below, so this only bites on the paths
+                    // where the ensure-callback hadn't resolved yet.
+                    if (!helix::is_gcode_2d_streaming_safe(metadata.size)) {
+                        auto mem = helix::get_system_memory_info();
+                        spdlog::warn("[DetailView] G-code too large for streaming: file={} bytes, "
+                                     "available RAM={}MB - using thumbnail",
+                                     metadata.size, mem.available_mb());
+                        show_gcode_viewer(false);
+                        return;
+                    }
+                    spdlog::debug("[DetailView] G-code size {} bytes - metadata cached",
+                                  metadata.size);
+                });
+            },
+            [this, tok](const MoonrakerError& err) {
+                // L081 Mechanism C: marshal LVGL show_gcode_viewer to main thread.
+                tok.defer("DetailView::metadata_error", [this, err]() {
+                    spdlog::debug(
+                        "[DetailView] Failed to get G-code metadata: {} - skipping preview",
+                        err.message);
                     show_gcode_viewer(false);
-                    return;
-                }
-                spdlog::debug("[DetailView] G-code size {} bytes - metadata cached", metadata.size);
-            });
-        },
-        [this, tok](const MoonrakerError& err) {
-            // L081 Mechanism C: marshal LVGL show_gcode_viewer to main thread.
-            tok.defer("DetailView::metadata_error", [this, err]() {
-                spdlog::debug("[DetailView] Failed to get G-code metadata: {} - skipping preview",
-                              err.message);
-                show_gcode_viewer(false);
-            });
-        },
-        true // silent
-    );
+                });
+            },
+            true // silent
+        );
+    }
 
     // Check "Thumbnail Only" render mode - skip all gcode downloading/parsing.
     // This is the ONLY user-forced skip: past here we render whatever mode the

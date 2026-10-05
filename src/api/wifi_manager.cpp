@@ -83,8 +83,9 @@ WiFiManager::WiFiManager(bool silent) : scan_timer_(nullptr), scan_pending_(fals
     backend_ = WifiBackend::create(silent);
     if (!backend_) {
         if (!silent) {
-            NOTIFY_ERROR_MODAL("WiFi Unavailable",
-                               "Could not initialize WiFi hardware. Check system configuration.");
+            NOTIFY_ERROR_MODAL(
+                lv_tr("WiFi Unavailable"), "{}",
+                lv_tr("Could not initialize WiFi hardware. Check system configuration."));
         } else {
             spdlog::debug("[WiFiManager] WiFi unavailable (silent mode - no modal)");
         }
@@ -107,8 +108,9 @@ WiFiManager::WiFiManager(std::unique_ptr<WifiBackend> backend, bool silent)
     backend_ = std::move(backend);
     if (!backend_) {
         if (!silent) {
-            NOTIFY_ERROR_MODAL("WiFi Unavailable",
-                               "Could not initialize WiFi hardware. Check system configuration.");
+            NOTIFY_ERROR_MODAL(
+                lv_tr("WiFi Unavailable"), "{}",
+                lv_tr("Could not initialize WiFi hardware. Check system configuration."));
         } else {
             spdlog::debug("[WiFiManager] WiFi unavailable (silent mode - no modal)");
         }
@@ -296,7 +298,10 @@ void WiFiManager::handle_init_failed(bool silent, const std::string& msg) {
 #endif
     // Backend initialization failed asynchronously - notify user (unless silent)
     if (!silent) {
-        NOTIFY_ERROR("WiFi initialization failed: {}", msg);
+        // INIT_FAILED fires on the backend's init worker; the toast is main-thread only.
+        helix::ui::queue_update("WiFiManager::init_failed_toast", [msg]() {
+            NOTIFY_ERROR(lv_tr("WiFi initialization failed: {}"), msg);
+        });
     } else {
         spdlog::debug("[WiFiManager] WiFi init failed (silent): {}", msg);
     }
@@ -385,7 +390,7 @@ std::vector<WiFiNetwork> WiFiManager::scan_once() {
 void WiFiManager::start_scan(
     std::function<void(const std::vector<WiFiNetwork>&)> on_networks_updated) {
     if (!backend_) {
-        NOTIFY_ERROR("WiFi unavailable. Cannot scan for networks.");
+        NOTIFY_ERROR("{}", lv_tr("WiFi unavailable. Cannot scan for networks."));
         return;
     }
 
@@ -459,7 +464,7 @@ void WiFiManager::start_scan(
                           "we initiated — suppressing user warning",
                           ASSOCIATION_GRACE.count());
         } else {
-            NOTIFY_WARNING("WiFi scan failed. Try again.");
+            NOTIFY_WARNING("{}", lv_tr("WiFi scan failed. Try again."));
         }
     } else {
         spdlog::debug("[WiFiManager] Initial scan triggered successfully");
@@ -550,7 +555,7 @@ std::string connect_failure_message(WiFiResult result, const std::string& reason
 void WiFiManager::connect(const std::string& ssid, const std::string& password,
                           ConnectCallback on_complete, bool is_hidden) {
     if (!backend_) {
-        NOTIFY_ERROR("WiFi unavailable. Cannot connect to network.");
+        NOTIFY_ERROR("{}", lv_tr("WiFi unavailable. Cannot connect to network."));
         if (on_complete) {
             on_complete(false, "No WiFi backend available", WiFiResult::NOT_INITIALIZED);
         }
@@ -593,7 +598,7 @@ void WiFiManager::connect(const std::string& ssid, const std::string& password,
         const std::string reason = result.user_msg.empty() ? result.technical_msg : result.user_msg;
         // The reason belongs in the toast too: "Failed to connect" alone
         // leaves the user with nothing to act on.
-        NOTIFY_ERROR("Failed to connect to WiFi network '{}': {}", helix::redact::ssid(ssid),
+        NOTIFY_ERROR(lv_tr("Failed to connect to WiFi network '{}': {}"), helix::redact::ssid(ssid),
                      reason);
         // Clear in-progress + take the callback under the lock, then invoke the
         // local copy OUTSIDE the lock (the callback may re-enter WiFiManager).
@@ -640,14 +645,14 @@ void WiFiManager::disconnect() {
 
     WiFiError result = backend_->disconnect_network();
     if (!result.success()) {
-        NOTIFY_WARNING("Could not disconnect from WiFi");
+        NOTIFY_WARNING("{}", lv_tr("Could not disconnect from WiFi"));
     }
 }
 
 void WiFiManager::forget(const std::string& ssid,
                          std::function<void(bool success, const std::string& error)> on_complete) {
     if (!backend_) {
-        NOTIFY_ERROR("WiFi unavailable. Cannot forget network.");
+        NOTIFY_ERROR("{}", lv_tr("WiFi unavailable. Cannot forget network."));
         if (on_complete) {
             on_complete(false, "No WiFi backend available");
         }
@@ -672,12 +677,12 @@ void WiFiManager::forget(const std::string& ssid,
         //   owed an answer, so this one speaks — but as "not here", not as a
         //   failure. Saying nothing would leave a silent dead control.
         if (result.result == WiFiResult::NOT_SUPPORTED) {
-            NOTIFY_INFO("This printer's network service manages saved WiFi networks");
+            NOTIFY_INFO("{}", lv_tr("This printer's network service manages saved WiFi networks"));
         } else if (result.result != WiFiResult::NETWORK_NOT_FOUND) {
             // NOTIFY_ERROR ultimately reaches spdlog::error, which is persisted
             // and swept into debug bundles — redact the SSID the same as every
             // other log line in this file.
-            NOTIFY_ERROR("Failed to forget WiFi network '{}'", helix::redact::ssid(ssid));
+            NOTIFY_ERROR(lv_tr("Failed to forget WiFi network '{}'"), helix::redact::ssid(ssid));
         }
         if (on_complete) {
             on_complete(false, result.user_msg.empty() ? result.technical_msg : result.user_msg);
@@ -794,7 +799,7 @@ void WiFiManager::report_radio_result(bool enabled, const WiFiError& result,
         // move for no stated reason. A working network path is the normal
         // condition here (the daemon owns a radio that is up), which is
         // exactly what os_link_up() would suppress on.
-        NOTIFY_INFO("This printer's network service controls the WiFi radio");
+        NOTIFY_INFO("{}", lv_tr("This printer's network service controls the WiFi radio"));
         return;
     }
 
@@ -812,7 +817,8 @@ void WiFiManager::report_radio_result(bool enabled, const WiFiError& result,
                       enabled ? "enable" : "disable", os_link_up() ? "wireless" : "wired",
                       result.user_msg.empty() ? result.technical_msg : result.user_msg);
     } else {
-        NOTIFY_ERROR("Failed to {} WiFi: {}", enabled ? "enable" : "disable",
+        NOTIFY_ERROR(enabled ? lv_tr("Failed to enable WiFi: {}")
+                             : lv_tr("Failed to disable WiFi: {}"),
                      result.user_msg.empty() ? result.technical_msg : result.user_msg);
     }
 }

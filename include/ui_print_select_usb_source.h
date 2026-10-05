@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "async_lifetime_guard.h"
+#include "single_flight_walk.h"
 #include "usb_backend.h"
 
 #include <atomic>
@@ -94,7 +94,7 @@ using SourceChangedCallback = std::function<void(FileSource source)>;
 class PrintSelectUsbSource {
   public:
     PrintSelectUsbSource() = default;
-    ~PrintSelectUsbSource();
+    ~PrintSelectUsbSource() = default;
 
     // Non-copyable, non-movable: in-flight scans hold a token keyed to this object
     PrintSelectUsbSource(const PrintSelectUsbSource&) = delete;
@@ -155,6 +155,11 @@ class PrintSelectUsbSource {
      */
     [[nodiscard]] FileSource get_current_source() const {
         return current_source_;
+    }
+
+    /// A walk is running or its result has not been delivered yet (UI thread).
+    [[nodiscard]] bool is_scanning() const {
+        return walk_.in_flight();
     }
 
     /**
@@ -251,20 +256,9 @@ class PrintSelectUsbSource {
     UsbFilesReadyCallback on_files_ready_;
     SourceChangedCallback on_source_changed_;
 
-    /// Expires queued scan results when this object is destroyed.
-    helix::AsyncLifetimeGuard scan_lifetime_;
-
-    /// Bumped by every refresh, by a switch to Printer and by destruction.
-    /// A walk started under an older value stops early and delivers nothing.
-    std::shared_ptr<std::atomic<uint64_t>> scan_generation_ =
-        std::make_shared<std::atomic<uint64_t>>(0);
-    bool scan_in_flight_ = false;
-
-    /// Submit a walk of the current drives (UI thread, none in flight).
-    void start_scan();
-
-    /// A walk started under @p generation finished (UI thread).
-    void on_scan_done(uint64_t generation, UsbScan scan);
+    /// Every refresh supersedes the walk before it; a switch to Printer
+    /// cancels it.
+    helix::SingleFlightWalk walk_;
 
     /// Hand on_files_ready an empty list.
     void deliver_empty();

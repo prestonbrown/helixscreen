@@ -121,11 +121,15 @@ void calibrated_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
             // a CHANGED reading is a sample: counting calls would report hundreds
             // of them for one press and make the count worthless as the
             // confidence signal a bundle reader needs.
+            //
+            // Only a PRESSED reading is a sample. lv_evdev reports root (0,0) with
+            // has_last_raw set on its first poll, before any EV_ABS arrives, and a
+            // declared range that does not include 0 flags that as out-of-range.
             const bool changed =
                 !ctx->last_raw_valid || rx != ctx->last_raw.x || ry != ctx->last_raw.y;
             ctx->last_raw = helix::Point{rx, ry};
             ctx->last_raw_valid = true;
-            if (changed) {
+            if (changed && data->state == LV_INDEV_STATE_PRESSED) {
                 note_raw_sample(*ctx, rx, ry);
             }
         }

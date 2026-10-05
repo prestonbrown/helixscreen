@@ -572,6 +572,40 @@ void theme_apply_current_palette_to_tree(lv_obj_t* root) {
     theme_apply_palette_to_tree(root, palette);
 }
 
+// One lookup for every color-token question: which hex string does the base
+// name resolve to in the current mode? Callers own logging and the fallback
+// color, so an existence probe stays silent. *partial is set when only one of
+// the _light/_dark variants exists.
+static const char* lookup_color_token(const char* base_name, bool* partial) {
+    *partial = false;
+    // Construct variant names: {base_name}_light and {base_name}_dark
+    char light_name[128];
+    char dark_name[128];
+    snprintf(light_name, sizeof(light_name), "%s_light", base_name);
+    snprintf(dark_name, sizeof(dark_name), "%s_dark", base_name);
+
+    // Use silent lookups to avoid LVGL warnings when probing for variants
+    // Pattern 1: Theme-aware color with _light/_dark variants
+    const char* light_str = lv_xml_get_const_silent(nullptr, light_name);
+    const char* dark_str = lv_xml_get_const_silent(nullptr, dark_name);
+
+    if (light_str && dark_str) {
+        // Both variants exist - use theme-appropriate one
+        return runtime().dark ? dark_str : light_str;
+    }
+
+    // Pattern 2: Static color with just base name (no variants)
+    const char* base_str = lv_xml_get_const_silent(nullptr, base_name);
+    if (base_str) {
+        return base_str;
+    }
+
+    // Pattern 3: Partial variants (error case)
+    if (light_str || dark_str)
+        *partial = true;
+    return nullptr;
+}
+
 /**
  * Get theme-appropriate color variant with fallback for static colors
  *
@@ -596,30 +630,11 @@ lv_color_t theme_manager_get_color(const char* base_name) {
         return lv_color_hex(0x000000);
     }
 
-    // Construct variant names: {base_name}_light and {base_name}_dark
-    char light_name[128];
-    char dark_name[128];
-    snprintf(light_name, sizeof(light_name), "%s_light", base_name);
-    snprintf(dark_name, sizeof(dark_name), "%s_dark", base_name);
-
-    // Use silent lookups to avoid LVGL warnings when probing for variants
-    // Pattern 1: Theme-aware color with _light/_dark variants
-    const char* light_str = lv_xml_get_const_silent(nullptr, light_name);
-    const char* dark_str = lv_xml_get_const_silent(nullptr, dark_name);
-
-    if (light_str && dark_str) {
-        // Both variants exist - use theme-appropriate one
-        return theme_manager_parse_hex_color(runtime().dark ? dark_str : light_str);
-    }
-
-    // Pattern 2: Static color with just base name (no variants)
-    const char* base_str = lv_xml_get_const_silent(nullptr, base_name);
-    if (base_str) {
-        return theme_manager_parse_hex_color(base_str);
-    }
-
-    // Pattern 3: Partial variants (error case)
-    if (light_str || dark_str) {
+    bool partial = false;
+    const char* hex = lookup_color_token(base_name, &partial);
+    if (hex)
+        return theme_manager_parse_hex_color(hex);
+    if (partial) {
         spdlog::error("[Theme] Color {} has only one variant (_light or _dark), need both",
                       base_name);
         return lv_color_hex(0x000000);
@@ -633,6 +648,14 @@ lv_color_t theme_manager_get_color(const char* base_name) {
         spdlog::trace("[Theme] Color not found (theme not initialized): {}", base_name);
     }
     return lv_color_hex(0x000000);
+}
+
+// NAMESPACE_OK: joins this header's global theme_manager_* free-function API
+bool theme_manager_has_color(const char* base_name) {
+    if (!base_name)
+        return false;
+    bool partial = false;
+    return lookup_color_token(base_name, &partial) != nullptr;
 }
 
 lv_color_t theme_manager_get_object_palette_color(int index) {

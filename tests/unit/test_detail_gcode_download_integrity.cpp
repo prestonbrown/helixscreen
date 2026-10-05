@@ -44,6 +44,7 @@
 #include "../test_helpers/planted_gcode.h"
 #include "gcode_ops_detector.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "http_executor.h"
 #include "macro_param_cache.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -57,6 +58,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <future>
 #include <memory>
 #include <set>
 #include <string>
@@ -937,5 +939,128 @@ TEST_CASE_METHOD(DetailDownloadFixture, "A G-code file with no layers keeps the 
     CHECK(subject_int("detail_gcode_viewer_mode") == helix::ui::PREVIEW_MODE_THUMBNAIL);
     CHECK(subject_int("detail_viewer_first_frame") == 0);
 
+    pop_and_drain();
+}
+
+// ============================================================================
+// USB files: Moonraker has no copy until one is printed
+// ============================================================================
+
+namespace {
+
+/// A file on a "stick" this process owns, outside the mock's gcodes root.
+struct StickFile {
+    std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / ("detail_usb_stick_" + std::to_string(::getpid()));
+    std::filesystem::path path;
+    StickFile(const std::string& name, const std::string& content) : path(dir / name) {
+        std::filesystem::create_directories(dir);
+        std::ofstream(path, std::ios::binary) << content;
+    }
+    ~StickFile() {
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(DetailDownloadFixture, "A USB file is read from the stick, never from Moonraker",
+                 "[print_select][detail_view][usb]") {
+    CacheDirGuard guard;
+    const std::string name = "stick_part.gcode";
+    const std::string content =
+        "G28\nBED_MESH_CALIBRATE\n;LAYER:0\nG1 Z0.2 F600\nG1 X10 Y10 E1\nG1 X20 Y10 E2\n"
+        ";LAYER:1\nG1 Z0.4\nG1 X10 Y20 E3\n";
+    StickFile stick(name, content);
+
+    view_.show(name, "", "PLA", {"#FF0000"}, {}, content.size(), 42, 0, stick.path.string());
+    auto* prep = view_.get_prep_manager();
+    REQUIRE(prep != nullptr);
+    REQUIRE(wait_until(
+        [&]() { return view_.is_gcode_loaded() && ready() && prep->has_scan_result_for(name); },
+        15000));
+    drain_queue_chain();
+
+    CHECK(prep->get_scan_result()->has_operation(helix::gcode::OperationType::BED_MESH));
+    CHECK(transfers_.download_count == 0);
+    CHECK(transfers_.tail_read_count == 0);
+    CHECK(transfers_.partial_read_count == 0);
+
+    pop_and_drain();
+}
+
+TEST_CASE_METHOD(DetailDownloadFixture, "An unreadable USB file asks Moonraker for nothing",
+                 "[print_select][detail_view][usb]") {
+    CacheDirGuard guard;
+    const std::string name = "gone_from_stick.gcode";
+    const std::string missing =
+        (std::filesystem::temp_directory_path() / ("no_stick_" + std::to_string(::getpid())) / name)
+            .string();
+
+    view_.show(name, "", "PLA", {"#FF0000"}, {}, 1234, 42, 0, missing);
+    auto* prep = view_.get_prep_manager();
+    REQUIRE(prep != nullptr);
+    REQUIRE(
+        wait_until([&]() { return ready() && prep->has_printer_stop_answer_for(name); }, 15000));
+    drain_queue_chain();
+
+    CHECK(transfers_.download_count == 0);
+    CHECK(transfers_.tail_read_count == 0);
+    CHECK(transfers_.partial_read_count == 0);
+    CHECK(prep->printer_stop_check_for(name).state == helix::PrinterStopCheck::State::NotRun);
+
+    pop_and_drain();
+}
+
+TEST_CASE_METHOD(DetailDownloadFixture,
+                 "A USB file named like a printer file gets its own operations scan",
+                 "[print_select][detail_view][usb]") {
+    CacheDirGuard guard;
+    EnvGuard mem_fail("HELIX_FORCE_GCODE_MEMORY_FAIL", "1");
+    const std::string name = "same_name_" + std::to_string(::getpid()) + ".gcode";
+    const std::string printer_gcode = "G28\nBED_MESH_CALIBRATE\nG1 X10 Y10 E1\n";
+    PlantedGcode printer_file(name, "", printer_gcode);
+
+    view_.show(name, "", "PLA", {"#FF0000"}, {}, printer_gcode.size(), 42);
+    auto* prep = view_.get_prep_manager();
+    REQUIRE(prep != nullptr);
+    REQUIRE(wait_until([&]() { return prep->has_scan_result_for(name); }, 15000));
+    REQUIRE(prep->get_scan_result()->has_operation(helix::gcode::OperationType::BED_MESH));
+    pop_and_drain();
+
+    const std::string stick_gcode = "G28\nG1 X10 Y10 E1\n";
+    StickFile stick(name, stick_gcode);
+    view_.show(name, "", "PLA", {"#FF0000"}, {}, stick_gcode.size(), 42, 0, stick.path.string());
+    prep = view_.get_prep_manager();
+    REQUIRE(wait_until([&]() { return prep->has_scan_result_for(name); }, 15000));
+    drain_queue_chain();
+
+    CHECK_FALSE(prep->get_scan_result()->has_operation(helix::gcode::OperationType::BED_MESH));
+
+    pop_and_drain();
+}
+
+TEST_CASE_METHOD(DetailDownloadFixture,
+                 "A USB file's operations scan does not wait on the slow lane",
+                 "[print_select][detail_view][usb]") {
+    CacheDirGuard guard;
+    EnvGuard mem_fail("HELIX_FORCE_GCODE_MEMORY_FAIL", "1");
+    const std::string name = "busy_lane_" + std::to_string(::getpid()) + ".gcode";
+    const std::string content = "G28\nBED_MESH_CALIBRATE\nG1 X10 Y10 E1\n";
+    StickFile stick(name, content);
+
+    // A long upload holding the slow lane's single worker.
+    std::promise<void> release;
+    std::shared_future<void> upload_done = release.get_future().share();
+    helix::http::HttpExecutor::slow().submit([upload_done] { upload_done.wait(); });
+
+    view_.show(name, "", "PLA", {"#FF0000"}, {}, content.size(), 42, 0, stick.path.string());
+    auto* prep = view_.get_prep_manager();
+    REQUIRE(prep != nullptr);
+    CHECK(wait_until([&]() { return prep->has_printer_stop_answer_for(name); }, 5000));
+
+    release.set_value();
+    REQUIRE(wait_until([this]() { return ready(); }, 15000));
     pop_and_drain();
 }

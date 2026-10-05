@@ -453,10 +453,9 @@ void PrintStartController::initiate_reprint(const std::string& filename, const s
                 });
             },
             [tok, on_error, ps = &printer_state_](const MoonrakerError& err) mutable {
-                std::string msg = err.user_message();
-                tok.defer("PrintStartController::reprint.err", [msg, on_error, ps]() {
+                tok.defer("PrintStartController::reprint.err", [err, on_error, ps]() {
                     ps->retire_preparing(helix::PreparingExit::Failed);
-                    NOTIFY_ERROR(lv_tr("Failed to reprint: {}"), msg);
+                    NOTIFY_ERROR(lv_tr("Failed to reprint: {}"), err.localized_message());
                     if (on_error) {
                         on_error();
                     }
@@ -749,8 +748,9 @@ bool PrintStartController::apply_filament_remaps() {
             spdlog::warn("[PrintStartController] Backend (idx={}) does not support editable tool "
                          "mapping — {} explicit remap(s) will be ignored",
                          backend_idx, mappings.size());
-            NOTIFY_WARNING("Filament remap not supported on this printer — print will use "
-                           "the firmware's current tool mapping");
+            NOTIFY_WARNING("{}",
+                           lv_tr("Filament remap not supported on this printer — print will use "
+                                 "the firmware's current tool mapping"));
         } else {
             spdlog::debug("[PrintStartController] Backend (idx={}) applies remap via its "
                           "pre-print path — skipping generic remap send (no warning)",

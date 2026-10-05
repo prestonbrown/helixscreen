@@ -54,14 +54,14 @@ EOF
 
 @test "a loop entry dropped from the mirror is caught" {
     # 8-space indent is the mirror's loop; init_subjects() nests it one deeper.
-    sed -i '/^        lv_xml_register_subject(nullptr, name_buf, &slot_error_severity_\[i\]);$/d' "$SRC"
+    sed -i '/^        helix::xml::register_subject_in_current_scope(name_buf, &slot_error_severity_\[i\]);$/d' "$SRC"
     run python3 "$SCRIPT" --file "$SRC"
     [ "$status" -eq 1 ]
     contains "ams_slot_%d_error_severity[MAX_SLOTS]" "$output"
 }
 
 @test "a mirror entry commented out is caught" {
-    sed -i 's#^    lv_xml_register_subject(nullptr, "ams_bypass_active", &bypass_active_);$#    // &#' "$SRC"
+    sed -i 's#^    helix::xml::register_subject_in_current_scope("ams_bypass_active", &bypass_active_);$#    // &#' "$SRC"
     run python3 "$SCRIPT" --file "$SRC"
     [ "$status" -eq 1 ]
     contains "ams_bypass_active (&bypass_active_)" "$output"

@@ -48,6 +48,12 @@ class MoonrakerClientMockTestAccess {
     // Replace one registered method handler — the seam for refusal
     // injection, answering error_cb where the stock handler succeeds. The
     // registry is per-instance, so the override dies with the mock.
+    // HELIX_MOCK_DRAGONBREATH_OFFLINE for a live client: the environment is
+    // read once at construction, so a test crossing the transition flips it here.
+    static void set_dragonbreath_offline(MoonrakerClientMock& c, bool offline) {
+        c.dragonbreath_offline_ = offline;
+    }
+
     static void set_method_handler(MoonrakerClientMock& c, const std::string& method,
                                    mock_internal::MethodHandler handler) {
         c.method_handlers_[method] = std::move(handler);

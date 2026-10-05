@@ -82,6 +82,11 @@ void LedControlOverlay::init_subjects() {
 }
 
 lv_obj_t* LedControlOverlay::create(lv_obj_t* parent) {
+    // Every <repeat> starts empty: on_ui_destroyed() released the pools a stale
+    // count would bind new rows to. on_activate() publishes the real counts.
+    lv_subject_set_int(&tab_count_, 0);
+    lv_subject_set_int(&swatch_count_, 0);
+    lv_subject_set_int(&chip_count_, 0);
     if (!OverlayBase::create(parent)) {
         return nullptr;
     }
@@ -193,13 +198,19 @@ void LedControlOverlay::cleanup() {
     state_observer_.reset();
     theme_observer_.reset();
     deinit_subjects_base(subjects_);
+    on_ui_destroyed();
+    OverlayBase::cleanup();
+}
+
+void LedControlOverlay::on_ui_destroyed() {
+    // The observers and the effect timeout went with on_deactivating() and
+    // lifetime_; what is left bound to the freed tree is the row pools.
     tab_name_pool_.reclaim();
     tab_dot_pool_.reclaim();
     tab_dot_color_pool_.reclaim();
     swatch_color_pool_.reclaim();
     swatch_edge_pool_.reclaim();
     chip_label_pool_.reclaim();
-    OverlayBase::cleanup();
 }
 
 void LedControlOverlay::on_root_deleted(lv_event_t* e) {

@@ -164,9 +164,6 @@ class ConsolePanel : public OverlayBase {
     /// Append a single entry, create its widget, and auto-scroll if appropriate
     void add_entry(const GcodeEntry& entry);
 
-    /// Handle incoming notify_gcode_response WebSocket notification
-    void on_gcode_response(const nlohmann::json& msg);
-
     /// Subscribe to real-time G-code responses (called from on_activate)
     void subscribe_to_gcode_responses();
 

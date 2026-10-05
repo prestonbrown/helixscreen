@@ -211,13 +211,11 @@ void app_globals_init_subjects() {
     Config* config = Config::get_instance();
     bool beta_enabled = config->is_beta_features_enabled();
     lv_subject_init_int(&g_show_beta_features_subject, beta_enabled ? 1 : 0);
-    g_subjects.register_subject(&g_show_beta_features_subject, "show_beta_features");
-    lv_xml_register_subject(nullptr, "show_beta_features", &g_show_beta_features_subject);
+    g_subjects.publish("show_beta_features", &g_show_beta_features_subject);
 
     // Initialize home edit mode subject (controls navbar done button visibility)
     lv_subject_init_int(&g_home_edit_mode_subject, 0);
-    g_subjects.register_subject(&g_home_edit_mode_subject, "home_edit_mode");
-    lv_xml_register_subject(nullptr, "home_edit_mode", &g_home_edit_mode_subject);
+    g_subjects.publish("home_edit_mode", &g_home_edit_mode_subject);
 
     // Platform-availability gate for excluded v1 (ESP32 / K-Touch) hardware
     // features whose affordances are XML-declarative and cannot be hidden from a
@@ -234,8 +232,7 @@ void app_globals_init_subjects() {
 #else
     lv_subject_init_int(&g_platform_extras_subject, 1);
 #endif
-    g_subjects.register_subject(&g_platform_extras_subject, "platform_extras_available");
-    lv_xml_register_subject(nullptr, "platform_extras_available", &g_platform_extras_subject);
+    g_subjects.publish("platform_extras_available", &g_platform_extras_subject);
 
     // Host power availability. Screen reboot/shutdown has no meaning on Android
     // (an app cannot call logind/systemctl/busybox), and the host-power RPCs
@@ -246,9 +243,7 @@ void app_globals_init_subjects() {
     // and the shutdown home widget's hardware gate reads it by name.
     lv_subject_init_int(&g_host_power_supported_subject,
                         helix::platform_host_power_supported() ? 1 : 0);
-    g_subjects.register_subject(&g_host_power_supported_subject, "platform_host_power_supported");
-    lv_xml_register_subject(nullptr, "platform_host_power_supported",
-                            &g_host_power_supported_subject);
+    g_subjects.publish("platform_host_power_supported", &g_host_power_supported_subject);
 
     // Initialize wizard-active subject (observable mirror of is_wizard_active()).
     // Seed from the current flag so it is correct even when set_wizard_active()

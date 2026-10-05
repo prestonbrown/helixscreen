@@ -5,6 +5,7 @@
 
 #include "filament_sensor_types.h"
 #include "lvgl/lvgl.h"
+#include "subject_managed_panel.h"
 #include "wizard_step.h"
 
 #include <memory>
@@ -192,6 +193,7 @@ class WizardFilamentSensorSelectStep : public helix::wizard::Step {
     lv_timer_t* refresh_timer_ = nullptr;
 
     // Subject (dropdown selection index)
+    SubjectManager subjects_;
     lv_subject_t runout_sensor_selected_{};
 
     // Dynamic options storage

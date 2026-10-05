@@ -10,6 +10,7 @@
 #include "panel_widget_size.h"
 #include "static_subject_registry.h"
 #include "subject_debug_registry.h"
+#include "subject_managed_panel.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -33,6 +34,7 @@ static char s_uptime_buffer[32];
 static lv_subject_t s_size_mode_subject;
 
 static bool s_subjects_initialized = false;
+static SubjectManager s_subjects;
 
 /// Read system uptime from /proc/uptime and format as human-readable string
 static void format_uptime(char* buf, size_t buf_size) {
@@ -71,26 +73,26 @@ static void clock_widget_init_subjects() {
 
     // Time text (e.g. "2:30 PM" or "14:30")
     lv_subject_init_string(&s_time_subject, s_time_buffer, nullptr, sizeof(s_time_buffer), "--:--");
-    lv_xml_register_subject(nullptr, "clock_time_text", &s_time_subject);
+    s_subjects.publish("clock_time_text", &s_time_subject);
     SubjectDebugRegistry::instance().register_subject(&s_time_subject, "clock_time_text",
                                                       LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
 
     // Date text (e.g. "Fri, Feb 28")
     lv_subject_init_string(&s_date_subject, s_date_buffer, nullptr, sizeof(s_date_buffer), "");
-    lv_xml_register_subject(nullptr, "clock_date_text", &s_date_subject);
+    s_subjects.publish("clock_date_text", &s_date_subject);
     SubjectDebugRegistry::instance().register_subject(&s_date_subject, "clock_date_text",
                                                       LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
 
     // Uptime text (e.g. "Up: 3d 14h")
     lv_subject_init_string(&s_uptime_subject, s_uptime_buffer, nullptr, sizeof(s_uptime_buffer),
                            "");
-    lv_xml_register_subject(nullptr, "clock_uptime_text", &s_uptime_subject);
+    s_subjects.publish("clock_uptime_text", &s_uptime_subject);
     SubjectDebugRegistry::instance().register_subject(&s_uptime_subject, "clock_uptime_text",
                                                       LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
 
     // Size mode (0=compact/1x1, 1=normal/2x1, 2=expanded/2x2+)
     lv_subject_init_int(&s_size_mode_subject, 1);
-    lv_xml_register_subject(nullptr, "clock_size_mode", &s_size_mode_subject);
+    s_subjects.publish("clock_size_mode", &s_size_mode_subject);
     SubjectDebugRegistry::instance().register_subject(&s_size_mode_subject, "clock_size_mode",
                                                       LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
 
@@ -99,10 +101,7 @@ static void clock_widget_init_subjects() {
     // Self-register cleanup with StaticSubjectRegistry (co-located with init)
     StaticSubjectRegistry::instance().register_deinit("ClockWidgetSubjects", []() {
         if (s_subjects_initialized && lv_is_initialized()) {
-            lv_subject_deinit(&s_time_subject);
-            lv_subject_deinit(&s_date_subject);
-            lv_subject_deinit(&s_uptime_subject);
-            lv_subject_deinit(&s_size_mode_subject);
+            s_subjects.deinit_all();
             s_subjects_initialized = false;
             spdlog::trace("[ClockWidget] Subjects deinitialized");
         }

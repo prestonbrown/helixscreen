@@ -194,6 +194,21 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     static bool owns_filament_sensor(const std::string& bare_name,
                                      const helix::PrinterDiscovery& discovery);
 
+    /// What query_afc_configfile_topology() keeps from configfile.settings.
+    struct ConfigfileTopology {
+        /// settings was present and an object; only then does a missing
+        /// extruder_name mean the config lacks one.
+        bool answered = false;
+        bool saw_toolchanger = false;
+        /// Lowercased AFC_extruder suffix -> Klipper extruder name.
+        std::unordered_map<std::string, std::string> extruder_names;
+    };
+
+    /// Reduces a printer.objects.query(configfile=settings) response to the
+    /// few names AFC needs. Runs on the WebSocket thread so only this small
+    /// result crosses to the UI thread, never the whole resolved config.
+    static ConfigfileTopology parse_configfile_topology(const nlohmann::json& response);
+
     /// The `printer.objects.subscribe` objects map for the discovered AFC
     /// objects: each object type narrowed to the fields the parse_afc_*
     /// functions read. The subscription is a strict allowlist, so a field a

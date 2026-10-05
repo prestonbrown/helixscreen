@@ -98,6 +98,7 @@ class ClogDetectionConfigModal : public Modal {
 
     // C++-owned subjects for XML bindings (lifetime = modal lifetime)
     bool subjects_initialized_ = false;
+    SubjectManager subjects_;
     lv_subject_t mode_subject_{};           // int: detection mode (1=manual, 2=auto)
     lv_subject_t threshold_text_subject_{}; // string: "Default" or "75%"
     // "Default" renders translated; ru "По умолчанию" is 23 bytes.

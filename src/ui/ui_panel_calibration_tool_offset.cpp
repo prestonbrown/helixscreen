@@ -281,7 +281,7 @@ void ToolOffsetCalibrationPanel::on_run_rpc_error(const MoonrakerError& err) {
         begin_idle_wait();
         return;
     }
-    on_run_finished(false, err.user_message());
+    on_run_finished(false, err.localized_message());
 }
 
 void ToolOffsetCalibrationPanel::begin_idle_wait() {

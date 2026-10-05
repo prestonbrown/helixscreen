@@ -7,6 +7,7 @@
 
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "static_subject_registry.h"
+#include "subject_managed_panel.h"
 #include "text_io.h"
 
 #include <spdlog/spdlog.h>
@@ -36,6 +37,7 @@ lv_subject_t s_save_mode_subject{};
 /// 0 = run with them without asking.
 lv_subject_t s_ask_subject{};
 bool s_modal_subjects_registered = false;
+SubjectManager s_subjects;
 
 /// XML subjects for the modal's save mode. Idempotent; deinit is self-registered
 /// with StaticSubjectRegistry so a rebuilt component scope never outlives them.
@@ -44,11 +46,10 @@ void register_modal_subjects() {
         return;
     lv_subject_init_int(&s_save_mode_subject, 0);
     lv_subject_init_int(&s_ask_subject, 1);
-    lv_xml_register_subject(nullptr, "macro_param_modal_save_mode", &s_save_mode_subject);
-    lv_xml_register_subject(nullptr, "macro_param_modal_ask", &s_ask_subject);
+    s_subjects.publish("macro_param_modal_save_mode", &s_save_mode_subject);
+    s_subjects.publish("macro_param_modal_ask", &s_ask_subject);
     StaticSubjectRegistry::instance().register_deinit("MacroParamModalSubjects", []() {
-        lv_subject_deinit(&s_save_mode_subject);
-        lv_subject_deinit(&s_ask_subject);
+        s_subjects.deinit_all();
         s_modal_subjects_registered = false;
     });
     s_modal_subjects_registered = true;

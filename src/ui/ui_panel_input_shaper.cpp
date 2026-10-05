@@ -898,11 +898,11 @@ void InputShaperPanel::apply_recommendation() {
                 });
             },
             [tok](const std::string& err) {
-                if (tok.expired())
-                    return;
                 spdlog::error("[InputShaper] Failed to apply X settings: {}", err);
-                ToastManager::instance().show(ToastSeverity::ERROR,
-                                              lv_tr("Failed to apply settings"), 3000);
+                tok.defer("InputShaperPanel::apply_x_error", []() {
+                    ToastManager::instance().show(ToastSeverity::ERROR,
+                                                  lv_tr("Failed to apply settings"), 3000);
+                });
             });
     } else if (!recommended_type_.empty() && recommended_freq_ > 0) {
         // Single axis apply
@@ -924,18 +924,18 @@ void InputShaperPanel::apply_recommendation() {
         calibrator_->apply_settings(
             config,
             [tok]() {
-                if (tok.expired())
-                    return;
                 spdlog::info("[InputShaper] Settings applied successfully");
-                ToastManager::instance().show(ToastSeverity::SUCCESS,
-                                              lv_tr("Input shaper settings applied!"), 2500);
+                tok.defer("InputShaperPanel::apply_success", []() {
+                    ToastManager::instance().show(ToastSeverity::SUCCESS,
+                                                  lv_tr("Input shaper settings applied!"), 2500);
+                });
             },
             [tok](const std::string& err) {
-                if (tok.expired())
-                    return;
                 spdlog::error("[InputShaper] Failed to apply settings: {}", err);
-                ToastManager::instance().show(ToastSeverity::ERROR,
-                                              lv_tr("Failed to apply settings"), 3000);
+                tok.defer("InputShaperPanel::apply_error", []() {
+                    ToastManager::instance().show(ToastSeverity::ERROR,
+                                                  lv_tr("Failed to apply settings"), 3000);
+                });
             });
     } else {
         spdlog::error("[InputShaper] Cannot apply - no valid recommendation");
@@ -973,11 +973,11 @@ void InputShaperPanel::apply_y_after_x(const std::string& shaper_type, float fre
             });
         },
         [tok](const std::string& err) {
-            if (tok.expired())
-                return;
             spdlog::error("[InputShaper] Failed to apply Y settings: {}", err);
-            ToastManager::instance().show(ToastSeverity::WARNING,
-                                          lv_tr("X axis applied, but Y axis failed"), 4000);
+            tok.defer("InputShaperPanel::apply_y_error", []() {
+                ToastManager::instance().show(ToastSeverity::WARNING,
+                                              lv_tr("X axis applied, but Y axis failed"), 4000);
+            });
         });
 }
 
@@ -2107,18 +2107,19 @@ void InputShaperPanel::handle_print_test_pattern_clicked() {
     api_->execute_gcode(
         tuning_tower_cmd,
         [tok]() {
-            if (tok.expired())
-                return;
             spdlog::info("[InputShaper] Tuning tower enabled - start a print to test calibration");
-            ToastManager::instance().show(
-                ToastSeverity::INFO, lv_tr("Tuning tower enabled - start a print to test"), 3000);
+            tok.defer("InputShaperPanel::tuning_tower_enabled", []() {
+                ToastManager::instance().show(ToastSeverity::INFO,
+                                              lv_tr("Tuning tower enabled - start a print to test"),
+                                              3000);
+            });
         },
         [tok](const MoonrakerError& err) {
-            if (tok.expired())
-                return;
             spdlog::error("[InputShaper] Failed to enable tuning tower: {}", err.message);
-            ToastManager::instance().show(ToastSeverity::ERROR,
-                                          lv_tr("Failed to enable tuning tower"), 3000);
+            tok.defer("InputShaperPanel::tuning_tower_error", []() {
+                ToastManager::instance().show(ToastSeverity::ERROR,
+                                              lv_tr("Failed to enable tuning tower"), 3000);
+            });
         });
 }
 

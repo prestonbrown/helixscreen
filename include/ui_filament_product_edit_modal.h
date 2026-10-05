@@ -76,6 +76,7 @@ class FilamentProductEditModal : public Modal {
     SavedCallback on_saved_;
 
     bool subjects_initialized_ = false;
+    SubjectManager subjects_;
 
     // Secondary (destructive) button label: "Delete" (user entry) or
     // "Restore Defaults" (built-in with an override). Hidden in Add mode.

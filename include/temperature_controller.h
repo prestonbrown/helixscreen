@@ -45,7 +45,7 @@ HeaterPresets compute_heater_presets(HeaterType type);
 
 /// Options for a heater set-target call.
 /// - toast: show the standard error toast on failure (default true).
-/// - on_success / on_error: optional caller hooks fired after the RPC completes.
+/// - on_success / on_error: optional caller hooks fired on the main thread after the RPC completes.
 struct SendOptions {
     bool toast = true;
     /// Swap-preheat guard (nozzle only). When true, the requested target is floored

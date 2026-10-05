@@ -33,6 +33,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <memory>
+
 #if HELIX_HAS_CAMERA
 // Defined in src/ui/panel_widgets/camera_widget.cpp; that directory is not on
 // application.cpp's include path, so forward-declare rather than including the
@@ -115,14 +117,14 @@ bool show_demo_overlay(const std::string& name) {
     }
 
     if (name == "runout-modal") {
-        auto* modal = new RunoutGuidanceModal();
+        auto modal = std::make_unique<RunoutGuidanceModal>();
         modal->set_autofeed_capable(false);
         modal->set_resume_blocked(false);
         // A runout is a warning, and this token screenshots the runout dialog —
         // state it rather than inheriting whatever ran last, same rule every
         // other show site follows (RunoutGuidanceModal::set_advisory()).
         modal->set_advisory(false);
-        modal->show(screen);
+        Modal::show_owned(std::move(modal), screen);
         return true;
     }
 
@@ -145,17 +147,23 @@ bool show_demo_overlay(const std::string& name) {
         if (seg != nullptr) {
             lv_subject_set_int(seg, static_cast<int>(PathSegment::HUB));
         }
-        auto* modal = new helix::ui::AmsLoadingErrorModal();
-        modal->show(screen,
-                    "Filament did not reach the toolhead sensor after the "
-                    "configured load length. The lane may be jammed at the hub, "
-                    "the spool may have run out mid-load, or the bowden length "
-                    "configured for this lane may not match the physical tube "
-                    "run between the hub and the toolhead.",
-                    "Check the filament path and try again. If the lane is clear, "
-                    "verify the configured bowden length for this lane and confirm "
-                    "the hub sensor triggers when filament passes it.",
-                    []() {});
+        auto modal = std::make_unique<helix::ui::AmsLoadingErrorModal>();
+        const bool shown =
+            modal->show(screen,
+                        "Filament did not reach the toolhead sensor after the "
+                        "configured load length. The lane may be jammed at the hub, "
+                        "the spool may have run out mid-load, or the bowden length "
+                        "configured for this lane may not match the physical tube "
+                        "run between the hub and the toolhead.",
+                        "Check the filament path and try again. If the lane is clear, "
+                        "verify the configured bowden length for this lane and confirm "
+                        "the hub sensor triggers when filament passes it.",
+                        []() {});
+        // The stack frees the demo instance when the dialog closes.
+        if (shown) {
+            lv_obj_t* backdrop = modal->backdrop();
+            ModalStack::instance().assume_ownership(backdrop, std::move(modal));
+        }
         return true;
     }
 
@@ -185,8 +193,7 @@ bool show_demo_overlay(const std::string& name) {
             {"Change Lane", "AFC_CHANGE_LANE", "secondary", "", false, -1},
             {"Cancel Print", "CANCEL_PRINT", "error", "", true, -1},
         };
-        auto* modal = new helix::ui::ActionPromptModal();
-        modal->show_prompt(screen, data);
+        helix::ui::ActionPromptModal::show_owned_prompt(screen, data);
         return true;
     }
 
@@ -210,8 +217,7 @@ bool show_demo_overlay(const std::string& name) {
             {"Nylon 260/80", "SET_MATERIAL M=NYLON", "primary", "", false, -1},
             {"Cancel", "", "error", "", true, -1},
         };
-        auto* modal = new helix::ui::ActionPromptModal();
-        modal->show_prompt(screen, data);
+        helix::ui::ActionPromptModal::show_owned_prompt(screen, data);
         return true;
     }
 

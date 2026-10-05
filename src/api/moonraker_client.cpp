@@ -24,6 +24,7 @@
 #include "host_identity.h"
 #include "printer_state.h"
 #include "system/telemetry_manager.h"
+#include "translation_loader.h"
 
 using namespace helix;
 
@@ -122,8 +123,7 @@ void MoonrakerClient::start_health_timer() {
                 spdlog::error("[Moonraker Client] Reconnection stalled for {}ms, giving up",
                               elapsed);
                 set_connection_state(ConnectionState::FAILED);
-                emit_event(MoonrakerEventType::CONNECTION_FAILED,
-                           "Unable to reach printer. Check power and network connection.", true);
+                emit_event(moonraker_event::reconnect_stalled());
             }
         }
     });
@@ -522,7 +522,7 @@ void MoonrakerClient::on_ws_open() {
     // Check if this is a reconnection (was_connected_ is true from previous session)
     // Emit RECONNECTED event BEFORE updating was_connected_
     if (was_connected_.load()) {
-        emit_event(MoonrakerEventType::RECONNECTED, "Connection restored", false);
+        emit_event(moonraker_event::reconnected());
     }
 
     was_connected_ = true;
@@ -565,11 +565,11 @@ void MoonrakerClient::on_ws_message(const std::string& msg) {
                           MAX_MESSAGE_SIZE);
 
             // Emit event - this indicates a protocol problem
-            emit_event(MoonrakerEventType::MESSAGE_OVERSIZED,
-                       fmt::format("Received oversized data from printer ({} bytes). "
-                                   "This may indicate a communication error.",
-                                   msg.size()),
-                       true);
+            emit_event(MoonrakerEvent::translatable(
+                MoonrakerEventType::MESSAGE_OVERSIZED,
+                TR_NOOP("Received oversized data from printer ({} bytes). "
+                        "This may indicate a communication error."),
+                {std::to_string(msg.size())}, true));
 
             // Deferred, not inline. disconnect() takes callback_lifecycle_mutex_
             // exclusively, and the onmessage trampoline that called us still holds
@@ -618,11 +618,7 @@ void MoonrakerClient::on_ws_message(const std::string& msg) {
         // Route responses with request IDs through the tracker
         if (j.contains("id")) {
             tracker_.route_response(
-                j,
-                [this](MoonrakerEventType type, const std::string& msg_str, bool is_error,
-                       const std::string& details) {
-                    emit_event(type, msg_str, is_error, details);
-                },
+                j, [this](const MoonrakerEvent& evt) { emit_event(evt); },
                 []() { return AbortManager::instance().is_handling_shutdown(); });
         }
 
@@ -698,10 +694,11 @@ void MoonrakerClient::on_ws_message(const std::string& msg) {
                 tracker_.cleanup_all();
 
                 // Emit event for UI layer to handle
-                emit_event(MoonrakerEventType::KLIPPY_DISCONNECTED,
-                           "Klipper has disconnected from Moonraker. Check for errors in your "
-                           "printer interface.",
-                           true);
+                emit_event(MoonrakerEvent::translatable(
+                    MoonrakerEventType::KLIPPY_DISCONNECTED,
+                    TR_NOOP("Klipper has disconnected from Moonraker. Check for errors in your "
+                            "printer interface."),
+                    {}, true));
 
                 // Invoke user callback with exception safety
                 if (on_disconnected) {
@@ -727,8 +724,9 @@ void MoonrakerClient::on_ws_message(const std::string& msg) {
                 });
 
                 // Emit event for UI layer — recovery dialog will show
-                emit_event(MoonrakerEventType::KLIPPY_SHUTDOWN,
-                           "Klipper has entered shutdown state.", true);
+                emit_event(MoonrakerEvent::translatable(
+                    MoonrakerEventType::KLIPPY_SHUTDOWN,
+                    TR_NOOP("Klipper has entered shutdown state."), {}, true));
 
                 // Shutdown is a valid gate state for discovery. If we never
                 // completed one on this connection (Klippy was unreachable
@@ -812,8 +810,7 @@ void MoonrakerClient::on_ws_close() {
             if (!suppressed) {
                 // Emit event with rate limiting to prevent spam during reconnect loop
                 if (!g_already_notified_disconnect.load()) {
-                    emit_event(MoonrakerEventType::CONNECTION_LOST,
-                               "Connection to printer lost - attempting to reconnect...", false);
+                    emit_event(moonraker_event::connection_lost_reconnecting());
                     g_already_notified_disconnect.store(true);
                 }
 
@@ -883,17 +880,15 @@ void MoonrakerClient::on_ws_close() {
                     // refusals on 127.0.0.1:7125 for two boots running, and a
                     // dialog telling the user to check the address and offering
                     // to change it.
-                    emit_event(
+                    emit_event(MoonrakerEvent::translatable(
                         MoonrakerEventType::CONNECTION_FAILED,
                         helix::is_moonraker_on_same_host(host_of_endpoint(endpoint))
-                            ? fmt::format("Moonraker is not responding at {}. It runs on this "
-                                          "printer, so check that the Klipper and Moonraker "
-                                          "services started.",
-                                          endpoint)
-                            : fmt::format("Unable to reach printer at {}. Check that the printer "
-                                          "is powered on and that this address is correct.",
-                                          endpoint),
-                        true);
+                            ? TR_NOOP("Moonraker is not responding at {}. It runs on this "
+                                      "printer, so check that the Klipper and Moonraker "
+                                      "services started.")
+                            : TR_NOOP("Unable to reach printer at {}. Check that the printer "
+                                      "is powered on and that this address is correct."),
+                        {endpoint}, true));
                 }
             }
 
@@ -972,6 +967,10 @@ bool MoonrakerClient::is_disconnect_modal_suppressed() const {
 
 void MoonrakerClient::emit_event(MoonrakerEventType type, const std::string& message, bool is_error,
                                  const std::string& details) {
+    emit_event(MoonrakerEvent{type, message, details, is_error});
+}
+
+void MoonrakerClient::emit_event(const MoonrakerEvent& evt) {
     MoonrakerEventCallback handler;
     {
         std::lock_guard<std::mutex> lock(event_handler_mutex_);
@@ -979,7 +978,6 @@ void MoonrakerClient::emit_event(MoonrakerEventType type, const std::string& mes
     }
 
     if (handler) {
-        MoonrakerEvent evt{type, message, details, is_error};
         try {
             handler(evt);
         } catch (const std::exception& e) {
@@ -987,10 +985,10 @@ void MoonrakerClient::emit_event(MoonrakerEventType type, const std::string& mes
         }
     } else {
         // No handler registered - just log the event
-        if (is_error) {
-            spdlog::error("[Moonraker Event] {}: {}", static_cast<int>(type), message);
+        if (evt.is_error) {
+            spdlog::error("[Moonraker Event] {}: {}", static_cast<int>(evt.type), evt.message);
         } else {
-            spdlog::warn("[Moonraker Event] {}: {}", static_cast<int>(type), message);
+            spdlog::warn("[Moonraker Event] {}: {}", static_cast<int>(evt.type), evt.message);
         }
     }
 }

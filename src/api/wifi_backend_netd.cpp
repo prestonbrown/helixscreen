@@ -660,12 +660,11 @@ void WifiBackendNetd::finish_scan(helix::netd::Ack::Kind completing) {
         scan_watchdog_timer_ = kNoTimer;
     }
     if (!scan_pending_.exchange(false)) {
-        // No scan was outstanding, so there is nothing to publish — but rows
-        // may still be sitting in the staging cache (cleanup_netd() clears
+        // No scan was outstanding, so there is nothing to publish, but rows
+        // may still be sitting in the staging cache: cleanup_netd() clears
         // scan_pending_ without completing, and open_connection() calls this
-        // to retire an orphaned scan). Returning above the clear kept them
-        // alive to be swapped into a LATER scan's results, so they grew for
-        // the life of the process and contaminated the next published list.
+        // to retire that orphaned scan. Rows left staged would be swapped
+        // into the next scan's published list as networks it never reported.
         std::lock_guard<std::mutex> lock(scan_mutex_);
         incoming_rows_.clear();
         return;

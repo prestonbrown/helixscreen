@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include "static_subject_registry.h"
+#include "subject_managed_panel.h"
 #include "system/sha256_util.h"
 
 #include <spdlog/spdlog.h>
@@ -15,6 +16,7 @@
 // compiles cleanly in test contexts where LVGL is not fully available.
 static lv_subject_t s_pin_set_subject;
 static bool s_subjects_initialized = false;
+static SubjectManager s_subjects;
 
 namespace helix {
 
@@ -116,7 +118,7 @@ void LockManager::init_subjects() {
         return;
 
     lv_subject_init_int(&s_pin_set_subject, has_pin() ? 1 : 0);
-    lv_xml_register_subject(nullptr, "lock_pin_set", &s_pin_set_subject);
+    s_subjects.publish("lock_pin_set", &s_pin_set_subject);
 
     s_subjects_initialized = true;
     subjects_initialized_ = true;
@@ -125,7 +127,7 @@ void LockManager::init_subjects() {
     // Runs before lv_deinit() in StaticSubjectRegistry::deinit_all().
     StaticSubjectRegistry::instance().register_deinit("LockManager", []() {
         if (s_subjects_initialized && lv_is_initialized()) {
-            lv_subject_deinit(&s_pin_set_subject);
+            s_subjects.deinit_all();
             s_subjects_initialized = false;
             spdlog::trace("[LockManager] Subjects deinitialized");
         }

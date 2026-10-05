@@ -43,7 +43,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A klippy READY drops the shutdown the windo
     // pass whether or not the latch was cleared.
     Access::set_restart_in_progress(estop, false);
 
-    // Wired exactly as Application::init_panel_subjects() does it.
+    // Wired exactly as PrinterSession::init_panel_subjects() does it.
     estop.init(state(), api());
     estop.create();
 

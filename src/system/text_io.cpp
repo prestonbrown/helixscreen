@@ -3,6 +3,7 @@
 
 #include "text_io.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cerrno>
 #include <cmath>
@@ -34,7 +35,7 @@ std::optional<std::int64_t> tell(std::FILE* f) {
     return static_cast<std::int64_t>(pos);
 }
 
-std::optional<std::string> read_file(const std::string& path) {
+std::optional<std::string> read_file(const std::string& path, size_t max_bytes) {
     File f = open_file(path, "rb");
     if (!f) {
         return std::nullopt;
@@ -44,11 +45,12 @@ std::optional<std::string> read_file(const std::string& path) {
     // and the loop reads to EOF regardless.
     struct stat st;
     if (::fstat(::fileno(f.get()), &st) == 0 && st.st_size > 0) {
-        out.reserve(static_cast<size_t>(st.st_size));
+        out.reserve(std::min(static_cast<size_t>(st.st_size), max_bytes));
     }
     char buf[4096];
     size_t n;
-    while ((n = std::fread(buf, 1, sizeof(buf), f.get())) > 0) {
+    while (out.size() < max_bytes &&
+           (n = std::fread(buf, 1, std::min(sizeof(buf), max_bytes - out.size()), f.get())) > 0) {
         out.append(buf, n);
     }
     if (std::ferror(f.get())) {

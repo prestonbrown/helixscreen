@@ -65,6 +65,12 @@ class LedControlOverlay : public OverlayBase {
     void on_deactivating(DeactivateReason reason) override;
     void cleanup() override;
 
+    /// Freed on close; the next open rebuilds it. Focus and the current look live
+    /// in members, the page in subjects, so nothing is lost with the widgets.
+    bool destroy_on_close() const override {
+        return true;
+    }
+
     /// The device the next activation opens on, when it still exists. Empty
     /// opens on the last focused device.
     void request_focus(const std::string& device_id);
@@ -74,6 +80,9 @@ class LedControlOverlay : public OverlayBase {
     }
 
   private:
+    /// Releases the tab, swatch and chip pools the tree was bound to.
+    void on_ui_destroyed() override;
+
     /// LV_EVENT_DELETE on the root: a tree deleted by anyone else leaves no
     /// pointer into it, and the next open recreates it.
     static void on_root_deleted(lv_event_t* e);

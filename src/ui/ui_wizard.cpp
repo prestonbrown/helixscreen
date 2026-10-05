@@ -1093,7 +1093,7 @@ void ui_wizard_complete() {
 
     // 7. Trigger re-discovery through Application's pre-registered callbacks.
     // Discovery callbacks (set_hardware, init_fans, hardware validation, plugin detection,
-    // etc.) were registered in Application::init_moonraker() via setup_discovery_callbacks().
+    // etc.) were registered in PrinterSession::init_moonraker() via setup_discovery_callbacks().
     IMoonrakerClient* client = get_moonraker_client();
     if (client && client->get_connection_state() == ConnectionState::CONNECTED) {
         client->discover_printer([]() { spdlog::info("[Wizard] Post-wizard discovery complete"); });

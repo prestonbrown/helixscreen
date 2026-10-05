@@ -116,8 +116,7 @@ class CorrelationFixture : public LVGLTestFixture {
             MoonrakerRequestTrackerTestAccess::inject_request(
                 tracker, /*id=*/700, make_caller_handled_request(err_fired));
             tracker.route_response(
-                make_error_response(700, klipper_message),
-                [](MoonrakerEventType, const std::string&, bool, const std::string&) {}, nullptr);
+                make_error_response(700, klipper_message), [](const MoonrakerEvent&) {}, nullptr);
             out.caller_cb_fired = err_fired->load();
 
             // ---- Channel (b): the REAL router handles the `!!` broadcast ----
@@ -173,8 +172,8 @@ class CorrelationFixture : public LVGLTestFixture {
             int generic = 0;
             tracker.route_response(
                 make_error_response(701, klipper_message),
-                [&generic](MoonrakerEventType t, const std::string&, bool, const std::string&) {
-                    if (t == MoonrakerEventType::RPC_ERROR) {
+                [&generic](const MoonrakerEvent& evt) {
+                    if (evt.type == MoonrakerEventType::RPC_ERROR) {
                         ++generic;
                     }
                 },

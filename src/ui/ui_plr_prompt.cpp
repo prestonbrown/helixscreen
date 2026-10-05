@@ -60,12 +60,10 @@ void run_recovery_gcode(IMoonrakerAPI* api, const std::string& gcode, const char
         gcode, [log_tag]() { spdlog::info("[PLR] {} accepted by firmware", log_tag); },
         [fail_fmt_tr, log_tag](const MoonrakerError& err) {
             spdlog::error("[PLR] {} failed: {}", log_tag, err.message);
-            std::string detail =
-                helix::snapmaker_extract_coded_msg(err.message, err.user_message());
-            helix::ui::queue_update("ui_plr_prompt::recovery_error",
-                                    [fail_fmt_tr, detail = std::move(detail)]() {
-                                        NOTIFY_ERROR(fmt::runtime(fail_fmt_tr), detail);
-                                    });
+            helix::ui::queue_update("ui_plr_prompt::recovery_error", [fail_fmt_tr, err]() {
+                NOTIFY_ERROR(fmt::runtime(fail_fmt_tr), helix::snapmaker_extract_coded_msg(
+                                                            err.message, err.localized_message()));
+            });
         },
         timeout_ms);
 }
@@ -74,11 +72,9 @@ void run_recovery_gcode(IMoonrakerAPI* api, const std::string& gcode, const char
 /// path. Same thread discipline as run_recovery_gcode's error leg.
 void report_action_error(const MoonrakerError& err, const char* fail_fmt_tr, const char* log_tag) {
     spdlog::error("[PLR] {} failed: {}", log_tag, err.message);
-    std::string detail = err.user_message();
-    helix::ui::queue_update("ui_plr_prompt::recovery_error",
-                            [fail_fmt_tr, detail = std::move(detail)]() {
-                                NOTIFY_ERROR(fmt::runtime(fail_fmt_tr), detail);
-                            });
+    helix::ui::queue_update("ui_plr_prompt::recovery_error", [fail_fmt_tr, err]() {
+        NOTIFY_ERROR(fmt::runtime(fail_fmt_tr), err.localized_message());
+    });
 }
 
 void run_plr_resume(IMoonrakerAPI* api) {

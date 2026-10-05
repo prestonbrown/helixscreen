@@ -179,6 +179,14 @@ class NetdBackendFixture {
         return dir_ + "/netd.sock";
     }
 
+    /// Replace the backend with one whose scan watchdog cannot fire inside a
+    /// case. For cases whose outcome depends on the daemon's reply being the
+    /// scan's completion: a 300 ms timer outrun by a loaded host completes the
+    /// scan as abandoned first and the reply is then ignored.
+    void use_long_watchdog() {
+        backend_ = std::make_unique<WifiBackendNetd>(kReconnectMs, 10000);
+    }
+
     helix_test::EnvVarGuard sock_env_{"HELIX_NETD_SOCKET"};
     helix_test::EnvVarGuard bin_env_{"HELIX_NETD_BIN"};
     std::unique_ptr<helix_test::NetdFakeServer> server_;
@@ -390,6 +398,7 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd drop via RETRYING still fires DISCONN
 // ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd late scan error does not fail a parked join",
                  "[netd][wifi]") {
+    use_long_watchdog();
     register_standard_events();
     REQUIRE(start_and_settle());
 
@@ -498,6 +507,7 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd rejected join maps to AUTH_FAILED onc
 //    into one SSID row with the union of bands and the stronger signal.
 // ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd scan rows merge and complete once", "[netd][wifi]") {
+    use_long_watchdog();
     register_standard_events();
     REQUIRE(start_and_settle());
 
@@ -505,7 +515,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd scan rows merge and complete once", "
     std::thread caller([&] { result = backend_->trigger_scan(); });
     helix::test::JoinOnExit caller_join(caller);
     REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
-    const auto scan_sent_at = std::chrono::steady_clock::now();
 
     server_->push_line("FREQUENCY=2437 SIGNAL=-52 SECURITY=WPA2-PSK NETWORK=" + b64("Studio 5G"));
     server_->push_line("FREQUENCY=5180 SIGNAL=-61 SECURITY=WPA2-PSK NETWORK=" + b64("Studio 5G"));
@@ -515,13 +524,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd scan rows merge and complete once", "
     REQUIRE(result.success());
     REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
 
-    // The watchdog is the only other thing that could complete this scan, and
-    // its deadline runs from the SCAN going out — so wait to THAT instant plus
-    // a margin, which a loaded host has usually passed already, rather than a
-    // fixed span after the completion. The barrier then gives the loop thread a
-    // full pass, so a completion merely starved past the deadline is counted
-    // here too.
-    std::this_thread::sleep_until(scan_sent_at + std::chrono::milliseconds(2 * kWatchdogMs));
     REQUIRE(drain_wire());
     REQUIRE(event_count("SCAN_COMPLETE") == 1);
 
@@ -540,12 +542,12 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd scan rows merge and complete once", "
 }
 
 // ============================================================================
-// 8. A refused scan: fire-and-forget means the ERR arrives as a daemon line
-//    and completes the scan through the outstanding-scan attribution — one
-//    SCAN_COMPLETE, an empty cache (nothing was found), and the caller's
-//    return is success (the obligation is discharged by the event).
+// A completed scan yields exactly one SCAN_COMPLETE even after the watchdog
+// deadline passes. Short watchdog on purpose: it does not matter which path
+// completed the scan, only that no second completion follows.
 // ============================================================================
-TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan completes empty", "[netd][wifi]") {
+TEST_CASE_METHOD(NetdBackendFixture, "netd completed scan is not completed again by the watchdog",
+                 "[netd][wifi]") {
     register_standard_events();
     REQUIRE(start_and_settle());
 
@@ -553,16 +555,36 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan completes empty", "[netd
     std::thread caller([&] { result = backend_->trigger_scan(); });
     helix::test::JoinOnExit caller_join(caller);
     REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
-    const auto scan_sent_at = std::chrono::steady_clock::now();
+    server_->push_line("OK");
+    caller.join();
+
+    REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2 * kWatchdogMs));
+    REQUIRE(drain_wire());
+    REQUIRE(event_count("SCAN_COMPLETE") == 1);
+}
+
+// ============================================================================
+// 8. A refused scan: fire-and-forget means the ERR arrives as a daemon line
+//    and completes the scan through the outstanding-scan attribution — one
+//    SCAN_COMPLETE, an empty cache (nothing was found), and the caller's
+//    return is success (the obligation is discharged by the event).
+// ============================================================================
+TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan completes empty", "[netd][wifi]") {
+    use_long_watchdog();
+    register_standard_events();
+    REQUIRE(start_and_settle());
+
+    WiFiError result{WiFiResult::UNKNOWN_ERROR};
+    std::thread caller([&] { result = backend_->trigger_scan(); });
+    helix::test::JoinOnExit caller_join(caller);
+    REQUIRE(wait_until([&] { return line_recorded("SCAN"); }));
     caller.join();
     REQUIRE(result.success()); // never parked: the send itself succeeded
 
     server_->push_line("ERR SCAN_FAILED");
     REQUIRE(wait_for_event("SCAN_COMPLETE", 1));
 
-    // Same reasoning as the merge case: the watchdog deadline is anchored on
-    // the SCAN, and the barrier gives the loop thread a pass at that point.
-    std::this_thread::sleep_until(scan_sent_at + std::chrono::milliseconds(2 * kWatchdogMs));
     REQUIRE(drain_wire());
     REQUIRE(event_count("SCAN_COMPLETE") == 1);
 
@@ -1051,6 +1073,7 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd joining the current network resolves 
 // ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan keeps the previous rows",
                  "[netd][wifi][1398]") {
+    use_long_watchdog();
     register_standard_events();
     REQUIRE(start_and_settle());
 
@@ -1101,6 +1124,7 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd refused scan keeps the previous rows"
 // ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd stop with a pending scan stays silent and reusable",
                  "[netd][wifi][1398][1405]") {
+    use_long_watchdog();
     register_standard_events();
     REQUIRE(start_and_settle());
 
@@ -1120,17 +1144,13 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd stop with a pending scan stays silent
     std::thread caller([&] { scan = backend_->trigger_scan(); });
     helix::test::JoinOnExit caller_join(caller);
     REQUIRE(wait_until([&] { return line_count("SCAN") == 2; }));
-    const auto scan_sent_at = std::chrono::steady_clock::now();
     caller.join();
     REQUIRE(scan.success());
 
     backend_->stop();
     // No completion for the abandoned scan — the owner resolves the scheduler
     // when IT stops the backend. A dispatch out of stop() itself is already
-    // counted right here; its watchdog is the only other candidate, so the wait
-    // runs to that deadline, measured from the SCAN that armed it.
-    REQUIRE(event_count("SCAN_COMPLETE") == 1);
-    std::this_thread::sleep_until(scan_sent_at + std::chrono::milliseconds(2 * kWatchdogMs));
+    // counted right here, and the loop thread is joined, so nothing can follow.
     REQUIRE(event_count("SCAN_COMPLETE") == 1); // only the seed's
 
     // The rows survive the stop: a consumer fetching after the swap answers
@@ -1161,6 +1181,7 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd stop with a pending scan stays silent
 // ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd completed-empty scan clears ghost rows",
                  "[netd][wifi][1398]") {
+    use_long_watchdog();
     register_standard_events();
     REQUIRE(start_and_settle());
 
@@ -1229,6 +1250,7 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd unknown ERR completes the pending sca
 // ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd drop-edge join end reopens scanning",
                  "[netd][wifi][1398]") {
+    use_long_watchdog();
     register_standard_events();
     REQUIRE(start_and_settle());
 
@@ -1329,6 +1351,7 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd dead socket refuses to fabricate a co
 // ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd rows with no scan outstanding are dropped",
                  "[netd][wifi]") {
+    use_long_watchdog();
     register_standard_events();
     REQUIRE(start_and_settle());
 
@@ -1381,6 +1404,7 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd unowned 5GHz row still proves band su
 // ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd abandoned scan rows do not reach the next scan",
                  "[netd][wifi]") {
+    use_long_watchdog();
     register_standard_events();
     REQUIRE(start_and_settle());
 

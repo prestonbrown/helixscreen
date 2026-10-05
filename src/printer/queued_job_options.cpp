@@ -133,7 +133,7 @@ void prune_stored_queued_job_options(AsyncLifetimeGuard& lifetime, IMoonrakerAPI
                                     [job_id](const MoonrakerError& err) {
                                         spdlog::warn(
                                             "[queue] Pruning stored options for job {} failed: {}",
-                                            job_id, err.user_message());
+                                            job_id, err.message);
                                     });
                             }
                         }),
@@ -172,8 +172,7 @@ void save_queued_job_options(IMoonrakerAPI* api, const std::string& job_id,
         kOptionsDbNamespace, queued_job_option_key(job_id), encode_queued_job_entry(options),
         [job_id]() { spdlog::debug("[queue] Stored options for job {} written", job_id); },
         [job_id](const MoonrakerError& err) {
-            spdlog::warn("[queue] Storing options for job {} failed: {}", job_id,
-                         err.user_message());
+            spdlog::warn("[queue] Storing options for job {} failed: {}", job_id, err.message);
         });
 }
 
@@ -209,7 +208,7 @@ void delete_queued_job_options(IMoonrakerAPI* api, const std::string& job_id) {
         [job_id]() { spdlog::debug("[queue] Stored options for job {} deleted", job_id); },
         [job_id](const MoonrakerError& err) {
             spdlog::warn("[queue] Deleting stored options for job {} failed: {}", job_id,
-                         err.user_message());
+                         err.message);
         });
 }
 

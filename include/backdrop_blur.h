@@ -21,11 +21,25 @@ lv_obj_t* create_blurred_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity);
 
 /// Returns a fully opaque lv_image widget containing a darkened snapshot of the
 /// current screen.  The snapshot is taken once and darkened in-place — no
-/// per-frame opacity blending cost.  Returns nullptr on failure.
+/// per-frame opacity blending cost.
+///
+/// Where snapshots are off (ESP32, whose 8MB PSRAM cannot spare a full-frame
+/// copy for a dimmed navbar) or once one has failed to allocate, returns
+/// create_dim_layer() instead. Returns nullptr only without a parent or screen.
 ///
 /// @param parent  Parent object for the image widget
 /// @param dim_opacity  Dimming amount (same scale as bg_opa: 0=no dim, 255=black)
 lv_obj_t* create_darkened_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity);
+
+/// Re-take the snapshot of a create_darkened_backdrop() image into the buffer it
+/// already owns, so a refresh never holds a second full frame. Returns false,
+/// leaving the old pixels, when @p backdrop is not a snapshot image or the
+/// screen no longer fits its buffer.
+bool retake_darkened_backdrop(lv_obj_t* backdrop, lv_opa_t dim_opacity);
+
+/// Full-size, clickable, translucent black rectangle. Costs no pixel buffer, but
+/// LVGL blends whatever redraws beneath it every frame.
+lv_obj_t* create_dim_layer(lv_obj_t* parent, lv_opa_t dim_opacity);
 
 /// Free cached GPU resources (shaders, FBOs, textures).
 /// Also resets the circuit breaker, allowing blur to be retried.
@@ -67,6 +81,10 @@ void reset_circuit_breaker();
 
 /// Check if blur is permanently disabled.
 bool is_blur_disabled();
+
+/// Whether create_darkened_backdrop() takes snapshots (set it for testing only).
+bool snapshot_backdrops_enabled();
+void set_snapshot_backdrops_enabled(bool enabled);
 
 } // namespace detail
 } // namespace helix::ui

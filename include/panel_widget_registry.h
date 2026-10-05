@@ -105,7 +105,7 @@ struct PanelWidgetDef {
     bool merges_into_card = true;
 
     WidgetFactory factory = nullptr;       // nullptr = pure XML or externally managed
-    SubjectInitFn init_subjects = nullptr; // Called once before XML creation
+    SubjectInitFn init_subjects = nullptr; // Called before XML creation; must be idempotent
 
     // Resolved accessors (0 = "use default colspan/rowspan")
     int effective_min_colspan() const {

@@ -129,7 +129,8 @@ class ActionPromptManager {
     using NotifyCallback = std::function<void(const std::string&)>;
 
     ActionPromptManager() = default;
-    ~ActionPromptManager() = default;
+    /// Unregisters itself if it is the instance, so the accessors stop reporting its prompt.
+    ~ActionPromptManager();
 
     /// Echoed back by Klipper as `// action:prompt_end`, which closes the prompt
     /// on every connected client. Sent when the user closes it here.
@@ -145,12 +146,11 @@ class ActionPromptManager {
      *
      * Called by Application when the ActionPromptManager is created/destroyed.
      * Enables other translation units (e.g., AmsBackendAfc) to query prompt state.
+     * Main thread only; publishes the instance's current prompt for the accessors.
      *
      * @param instance Pointer to the active manager, or nullptr to clear
      */
-    static void set_instance(ActionPromptManager* instance) {
-        s_instance.store(instance, std::memory_order_release);
-    }
+    static void set_instance(ActionPromptManager* instance);
 
     /**
      * @brief Check if an action prompt is currently being displayed
@@ -162,8 +162,7 @@ class ActionPromptManager {
      * @return true if a prompt is currently visible
      */
     [[nodiscard]] static bool is_showing() {
-        auto* inst = s_instance.load(std::memory_order_acquire);
-        return inst != nullptr && std::atomic_load(&inst->m_showing_title) != nullptr;
+        return std::atomic_load(&s_showing_title) != nullptr;
     }
 
     /**
@@ -176,11 +175,7 @@ class ActionPromptManager {
      * @return Current prompt title, or empty string
      */
     [[nodiscard]] static std::string current_prompt_name() {
-        auto* inst = s_instance.load(std::memory_order_acquire);
-        if (inst == nullptr) {
-            return {};
-        }
-        auto title = std::atomic_load(&inst->m_showing_title);
+        auto title = std::atomic_load(&s_showing_title);
         return title ? *title : std::string{};
     }
 
@@ -350,12 +345,14 @@ class ActionPromptManager {
     // Static instance for cross-TU access
     static std::atomic<ActionPromptManager*> s_instance;
 
-    // State machine. Change it through set_state(), which publishes m_showing_title.
-    State m_state = State::IDLE;
+    // The registered instance's showing prompt title, for readers on any thread;
+    // null unless it is SHOWING. Readers never touch the instance itself, which
+    // the main thread may be destroying. Accessed only through
+    // std::atomic_load/std::atomic_store.
+    static std::shared_ptr<const std::string> s_showing_title;
 
-    // The showing prompt's title for readers on other threads; null unless
-    // SHOWING. Accessed only through std::atomic_load/std::atomic_store.
-    std::shared_ptr<const std::string> m_showing_title;
+    // State machine. Change it through set_state(), which publishes s_showing_title.
+    State m_state = State::IDLE;
 
     // Counts prompt_show transitions, so a deferred re-show can tell its prompt
     // is still the one on screen.
@@ -381,6 +378,7 @@ class ActionPromptManager {
     // ========================================================================
 
     void set_state(State state);
+    void publish_title() const;
     void end_showing();
     void handle_prompt_begin(const std::string& payload);
     void handle_prompt_text(const std::string& payload);

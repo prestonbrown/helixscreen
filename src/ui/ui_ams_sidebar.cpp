@@ -31,6 +31,7 @@
 #include "printer_state.h"
 #include "standard_macros.h"
 #include "static_subject_registry.h"
+#include "subject_managed_panel.h"
 #include "temperature_controller.h"
 #include "toolhead_homing.h"
 #include "ui/ui_cleanup_helpers.h"
@@ -60,6 +61,7 @@ lv_subject_t s_reset_disabled{};
 lv_subject_t s_check_gates_disabled{};
 lv_subject_t s_supports_batch{};
 bool s_gating_subjects_initialized = false;
+SubjectManager s_subjects;
 
 void init_button_gating_subjects() {
     if (s_gating_subjects_initialized) {
@@ -74,20 +76,16 @@ void init_button_gating_subjects() {
     // Start hidden: the batch button exists only on backends that implement
     // batch ops, and no backend is known until the first refresh.
     lv_subject_init_int(&s_supports_batch, 0);
-    lv_xml_register_subject(nullptr, "ams_sidebar_unload_disabled", &s_unload_disabled);
-    lv_xml_register_subject(nullptr, "ams_sidebar_load_disabled", &s_load_disabled);
-    lv_xml_register_subject(nullptr, "ams_sidebar_reset_disabled", &s_reset_disabled);
-    lv_xml_register_subject(nullptr, "ams_sidebar_check_gates_disabled", &s_check_gates_disabled);
-    lv_xml_register_subject(nullptr, "ams_sidebar_supports_batch", &s_supports_batch);
+    s_subjects.publish("ams_sidebar_unload_disabled", &s_unload_disabled);
+    s_subjects.publish("ams_sidebar_load_disabled", &s_load_disabled);
+    s_subjects.publish("ams_sidebar_reset_disabled", &s_reset_disabled);
+    s_subjects.publish("ams_sidebar_check_gates_disabled", &s_check_gates_disabled);
+    s_subjects.publish("ams_sidebar_supports_batch", &s_supports_batch);
     s_gating_subjects_initialized = true;
 
     StaticSubjectRegistry::instance().register_deinit("AmsSidebarButtonGating", []() {
         if (s_gating_subjects_initialized && lv_is_initialized()) {
-            lv_subject_deinit(&s_unload_disabled);
-            lv_subject_deinit(&s_load_disabled);
-            lv_subject_deinit(&s_reset_disabled);
-            lv_subject_deinit(&s_check_gates_disabled);
-            lv_subject_deinit(&s_supports_batch);
+            s_subjects.deinit_all();
             s_gating_subjects_initialized = false;
             spdlog::trace("[AmsSidebar] Button gating subjects deinitialized");
         }
@@ -1733,9 +1731,9 @@ void AmsOperationSidebar::send_standard_filament_macro(
         [is_load](const MoonrakerError& err) {
             spdlog::error("[AmsSidebar] Filament macro failed: {}", err.message);
             if (is_load) {
-                NOTIFY_ERROR(lv_tr("Failed to load filament: {}"), err.user_message());
+                helix::ui::notify_error_tr(TR_NOOP("Failed to load filament: {}"), err);
             } else {
-                NOTIFY_ERROR(lv_tr("Failed to unload: {}"), err.user_message());
+                helix::ui::notify_error_tr(TR_NOOP("Failed to unload: {}"), err);
             }
         });
 }
@@ -1754,9 +1752,9 @@ void AmsOperationSidebar::send_filament_fallback_gcode(bool is_load) {
         [is_load](const MoonrakerError& err) {
             spdlog::error("[AmsSidebar] Fallback gcode failed: {}", err.message);
             if (is_load) {
-                NOTIFY_ERROR(lv_tr("Failed to load filament: {}"), err.user_message());
+                helix::ui::notify_error_tr(TR_NOOP("Failed to load filament: {}"), err);
             } else {
-                NOTIFY_ERROR(lv_tr("Failed to unload: {}"), err.user_message());
+                helix::ui::notify_error_tr(TR_NOOP("Failed to unload: {}"), err);
             }
         },
         IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);

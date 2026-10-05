@@ -105,6 +105,20 @@ void Thing::go() {
     quiet
 }
 
+@test "silent about a callback that toasts through notify_error_tr" {
+    run_gate notify_error_tr '
+void Thing::go() {
+    api_->execute_gcode(
+        "M220 S100", []() {},
+        [](const MoonrakerError& err) {
+            spdlog::error("[Thing] speed failed: {}", err.message);
+            helix::ui::notify_error_tr(TR_NOOP("Failed to set print speed: {}"), err);
+        },
+        5000);
+}'
+    quiet
+}
+
 @test "silent about a callback that shows a modal" {
     run_gate modal '
 void Thing::go() {

@@ -69,6 +69,7 @@ void ensure_palette_subject() {
     // Self-register cleanup so the subject is torn down before lv_deinit().
     StaticSubjectRegistry::instance().register_deinit("ColorPickerPalette", []() {
         if (s_palette_subject_ready) {
+            lv_xml_unregister_subject(nullptr, "color_picker_palette");
             lv_subject_deinit(&s_palette_subject);
             s_palette_subject_ready = false;
         }

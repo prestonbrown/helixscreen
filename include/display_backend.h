@@ -711,10 +711,15 @@ class DisplayBackend {
      *
      * min > max on an axis inverts it, which is deliberate and supported.
      *
+     * @param source What the diagnostics record as supplying the range: Stored
+     *               for a solved one, or the original source when a calibration
+     *               session puts the pre-session range back.
      * @return true if the backend re-programmed the device; false on backends
      *         with no evdev stage, where the caller must keep the affine-only path
      */
-    virtual bool apply_touch_range(bool swap_axes, int min_x, int min_y, int max_x, int max_y) {
+    virtual bool apply_touch_range(bool swap_axes, int min_x, int min_y, int max_x, int max_y,
+                                   helix::TouchRangeSource source) {
+        (void)source;
         (void)swap_axes;
         (void)min_x;
         (void)min_y;

@@ -456,6 +456,7 @@ class StandardMacros {
      *
      * Resolves the macro using priority chain, then executes via API.
      * If slot is empty, returns false immediately without calling callbacks.
+     * Callbacks run on the main thread, whichever thread the printer answers on.
      *
      * @param slot The slot to execute
      * @param api IMoonrakerAPI instance for execution

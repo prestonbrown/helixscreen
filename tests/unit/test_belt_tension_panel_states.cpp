@@ -403,7 +403,7 @@ TEST_CASE("Start stays disabled while klippy is not ready", "[belt][panel][gatin
 
 TEST_CASE("a CoreXZ reports a closed gate naming its kinematics", "[belt][panel][gating]") {
     // The persona must be in place before the fixture's on_activate fires the
-    // hardware detect, and the mock reads the env at query time.
+    // hardware detect, and the mock reads the env when it is constructed.
     helix_test::MockKinematicsEnv corexz("corexz");
     BeltPanelFixture fx;
 

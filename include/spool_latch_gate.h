@@ -12,13 +12,13 @@
 
 namespace helix {
 
-/// What every refusal says while spools lie on the bed.
-inline constexpr const char* kSpoolLatchMessage =
-    "Spools are on the bed: remove them and confirm before moving the printer";
+/// What every refusal says while spools lie on the bed. Untranslated key;
+/// defined beside the send-layer guards.
+const char* spool_latch_message();
 
 /// A restart's refusal says where to go: restarting releases the steppers, so
-/// it waits for the spools to be confirmed off. Translated; defined beside the
-/// send-layer guards.
+/// it waits for the spools to be confirmed off. Untranslated key; defined
+/// beside the send-layer guards.
 const char* spool_latch_restart_message();
 
 /// First whitespace-delimited token of each non-blank, non-comment line, upper-cased.

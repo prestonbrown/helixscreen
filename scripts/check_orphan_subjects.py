@@ -68,12 +68,13 @@ SRC_DIRS = ("src", "include")
 SKIP_FILES = ("include/state/subject_macros.h",)
 XML_DIR = "ui_xml"
 
-# register_subject("name", ...), register_subject_in_current_scope("name", ...) and
-# lv_xml_register_subject(scope, "name", ...). The scoped spelling is what the
-# subject macros expand to, and callers also use it directly.
+# register_subject("name", ...), register_subject_in_current_scope("name", ...),
+# SubjectManager::publish("name", ...) and lv_xml_register_subject(scope, "name", ...).
+# The scoped spelling is what the subject macros expand to, and callers also use
+# it directly.
 REGISTER_RE = re.compile(
     r'(?:lv_xml_register_subject\s*\([^,]+,\s*'
-    r'|(?<![a-z_])register_subject(?:_in_current_scope)?\s*\(\s*)"([a-z_0-9]+)"')
+    r'|(?<![a-z_])(?:register_subject(?:_in_current_scope)?|publish)\s*\(\s*)"([a-z_0-9]+)"')
 # INIT_SUBJECT_*(name, ...) registers under #name and hands over &name##_, so the
 # name is never a quoted literal at the call site and the member is always the
 # name with a trailing underscore. Matching only the quoted form leaves every
@@ -250,16 +251,16 @@ def collect_registrations(root: pathlib.Path):
                     name = m.group(1)
                     found.setdefault(name, []).append(f"{rel}:{n}")
                     tail = line[m.end():]
-                    mem = MEMBER_RE.search(tail)
-                    if mem:
-                        members.setdefault(name, set()).add(mem.group(1))
-                        owned.setdefault(name, set()).add((path.stem, mem.group(1)))
-                        continue
                     # The pointer argument wraps onto the next line only while
                     # the call's paren is still open.
                     if (line.count("(", m.start()) > line.count(")", m.start())
                             and n < len(lines)):
                         tail += " " + lines[n]
+                    mem = MEMBER_RE.search(tail)
+                    if mem:
+                        members.setdefault(name, set()).add(mem.group(1))
+                        owned.setdefault(name, set()).add((path.stem, mem.group(1)))
+                        continue
                     # Re-published through the owner's accessor: the alias
                     # shares the member, so binding either name reads it.
                     call = ACCESSOR_CALL_RE.search(tail)

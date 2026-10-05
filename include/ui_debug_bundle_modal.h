@@ -45,6 +45,7 @@ class DebugBundleModal : public Modal {
 
   private:
     // Subject state machine: 0=consent, 1=uploading, 2=success, 3=error
+    SubjectManager subjects_;
     lv_subject_t state_subject_{};
     lv_subject_t status_subject_{};
     lv_subject_t share_code_subject_{};

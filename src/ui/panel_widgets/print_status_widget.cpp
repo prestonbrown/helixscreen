@@ -61,6 +61,9 @@
 #include <unordered_set>
 
 namespace {
+/// Owns the XML-published static subjects shared by every PrintStatusWidget.
+SubjectManager s_static_subjects;
+
 // The idle hero thumbnail is the same benchy image the print-thumbnail subject
 // publishes when a file has no thumbnail of its own, so both come from one
 // resolution point. The returned pointer outlives the widget, which
@@ -111,42 +114,42 @@ void PrintStatusWidget::init_static_subjects() {
         return;
 
     lv_subject_init_int(&column_mode_subject_, 0);
-    lv_xml_register_subject(nullptr, "print_status_column_mode", &column_mode_subject_);
+    s_static_subjects.publish("print_status_column_mode", &column_mode_subject_);
     column_mode_subject_initialized_ = true;
     lv_subject_init_int(&width_band_subject_, 1); // 1 = normal, matches the old colspan=2 default
-    lv_xml_register_subject(nullptr, "print_status_width_band", &width_band_subject_);
+    s_static_subjects.publish("print_status_width_band", &width_band_subject_);
     width_band_subject_initialized_ = true;
 
     lv_subject_init_int(&title_hidden_subject_, 0);
-    lv_xml_register_subject(nullptr, "print_status_title_hidden", &title_hidden_subject_);
+    s_static_subjects.publish("print_status_title_hidden", &title_hidden_subject_);
     lv_subject_init_int(&files_hidden_subject_, 0);
-    lv_xml_register_subject(nullptr, "print_status_files_hidden", &files_hidden_subject_);
+    s_static_subjects.publish("print_status_files_hidden", &files_hidden_subject_);
     lv_subject_init_int(&last_hidden_subject_, 0);
-    lv_xml_register_subject(nullptr, "print_status_last_hidden", &last_hidden_subject_);
+    s_static_subjects.publish("print_status_last_hidden", &last_hidden_subject_);
     lv_subject_init_int(&recent_hidden_subject_, 0);
-    lv_xml_register_subject(nullptr, "print_status_recent_hidden", &recent_hidden_subject_);
+    s_static_subjects.publish("print_status_recent_hidden", &recent_hidden_subject_);
     lv_subject_init_int(&queue_hidden_subject_, 1); // queue starts hidden until jobs arrive
-    lv_xml_register_subject(nullptr, "print_status_queue_hidden", &queue_hidden_subject_);
+    s_static_subjects.publish("print_status_queue_hidden", &queue_hidden_subject_);
     lv_subject_init_int(&actions_hidden_subject_, 0);
-    lv_xml_register_subject(nullptr, "print_status_actions_hidden", &actions_hidden_subject_);
+    s_static_subjects.publish("print_status_actions_hidden", &actions_hidden_subject_);
     visibility_subjects_initialized_ = true;
 
     // Detailed-layout subjects
     lv_subject_init_int(&layout_effective_subject_, 0);
     // Observed through layout_effective_subject_for_test() by
     // tests/unit/test_print_status_widget_layout_gate.cpp, the width-gating guard.
-    lv_xml_register_subject(nullptr, "print_status_layout_effective",
-                            &layout_effective_subject_); // SUBJECT_OK: read by the layout-gate test
+    s_static_subjects.publish(
+        "print_status_layout_effective",
+        &layout_effective_subject_); // SUBJECT_OK: read by the layout-gate test
     lv_subject_init_int(&show_filament_active_subject_, 0);
-    lv_xml_register_subject(nullptr, "print_status_show_filament_active",
-                            &show_filament_active_subject_);
+    s_static_subjects.publish("print_status_show_filament_active", &show_filament_active_subject_);
     lv_subject_init_int(&multi_tool_subject_, 0);
-    lv_xml_register_subject(nullptr, "print_status_multi_tool", &multi_tool_subject_);
+    s_static_subjects.publish("print_status_multi_tool", &multi_tool_subject_);
     // Initial value 0 = idle_library_full — matches the default ref_value=0
     // on print_card_idle's bind_flag_if_not_eq so it shows by default
     // before any state events fire.
     lv_subject_init_int(&view_subject_, 0);
-    lv_xml_register_subject(nullptr, "print_status_view", &view_subject_);
+    s_static_subjects.publish("print_status_view", &view_subject_);
     // Default to benchy; reset_print_card_to_idle replaces with last-print
     // thumbnail when history loads.
     // Resolve the benchy default to its bundle-absolute path before the subject
@@ -155,42 +158,21 @@ void PrintStatusWidget::init_static_subjects() {
     snprintf(idle_thumb_path_buf_, sizeof(idle_thumb_path_buf_), "%s", benchy_thumb_path());
     lv_subject_init_string(&idle_thumb_path_subject_, idle_thumb_path_buf_, nullptr,
                            sizeof(idle_thumb_path_buf_), idle_thumb_path_buf_);
-    lv_xml_register_subject(nullptr, "print_status_idle_thumb_path", &idle_thumb_path_subject_);
+    s_static_subjects.publish("print_status_idle_thumb_path", &idle_thumb_path_subject_);
     // Default to tier 2 (8px) — matches the previous hardcoded medium thickness
     // until the arc lays out and C++ publishes the diameter-derived tier.
     lv_subject_init_int(&arc_thickness_tier_subject_, 2);
-    lv_xml_register_subject( // SUBJECT_OK: attach_progress_arc() publishes into this by
-                             // pointer and helix_progress_arc.xml bind_styles read it
-        nullptr, "print_status_arc_thickness_tier", &arc_thickness_tier_subject_);
+    s_static_subjects.publish( // SUBJECT_OK: attach_progress_arc() publishes into this by
+                               // pointer and helix_progress_arc.xml bind_styles read it
+        "print_status_arc_thickness_tier", &arc_thickness_tier_subject_);
     detailed_subjects_initialized_ = true;
 
     StaticSubjectRegistry::instance().register_deinit("PrintStatusWidgetSubjects", []() {
-        if (detailed_subjects_initialized_ && lv_is_initialized()) {
-            lv_subject_deinit(&layout_effective_subject_);
-            lv_subject_deinit(&show_filament_active_subject_);
-            lv_subject_deinit(&multi_tool_subject_);
-            lv_subject_deinit(&view_subject_);
-            lv_subject_deinit(&idle_thumb_path_subject_);
-            lv_subject_deinit(&arc_thickness_tier_subject_);
-            detailed_subjects_initialized_ = false;
-        }
-        if (visibility_subjects_initialized_ && lv_is_initialized()) {
-            lv_subject_deinit(&title_hidden_subject_);
-            lv_subject_deinit(&files_hidden_subject_);
-            lv_subject_deinit(&last_hidden_subject_);
-            lv_subject_deinit(&recent_hidden_subject_);
-            lv_subject_deinit(&queue_hidden_subject_);
-            lv_subject_deinit(&actions_hidden_subject_);
-            visibility_subjects_initialized_ = false;
-        }
-        if (width_band_subject_initialized_ && lv_is_initialized()) {
-            lv_subject_deinit(&width_band_subject_);
-            width_band_subject_initialized_ = false;
-        }
-        if (column_mode_subject_initialized_ && lv_is_initialized()) {
-            lv_subject_deinit(&column_mode_subject_);
-            column_mode_subject_initialized_ = false;
-        }
+        s_static_subjects.deinit_all();
+        detailed_subjects_initialized_ = false;
+        visibility_subjects_initialized_ = false;
+        width_band_subject_initialized_ = false;
+        column_mode_subject_initialized_ = false;
     });
 }
 

@@ -104,11 +104,6 @@ class RecoveryModalPresenter {
     /// Cancel the timer and forget the deferred action.
     void clear_preheat();
 
-    /// Called by the modal itself whenever it hides for a reason we did not
-    /// initiate — the dismiss button, a backdrop tap, ESC. Records the fault on
-    /// screen as answered.
-    void on_modal_hidden();
-
     /// Remember the fault currently on screen as one the user has answered, so
     /// present() will not put it back up unchanged. No-op when nothing is shown.
     void mark_handled();
@@ -125,17 +120,13 @@ class RecoveryModalPresenter {
     // A dismiss-only event carries one {"OK", ""} action; ActionPromptModal
     // treats an empty gcode as "close and send nothing", so the tap never
     // reaches our gcode callback. Nothing else in this class can see that the
-    // user said "I've read it", which is why the modal reports its own hides
-    // here rather than the dedup below inferring it from is_visible():
-    // visibility is false for a hide we performed, a hide the modal stack
-    // performed, and a hide the user performed, and only the last of those means
-    // the fault must stay down.
+    // user said "I've read it", which is why the modal's dismiss callback
+    // reports every close this class did not make, rather than the dedup below
+    // inferring it from is_visible(): visibility is false for a hide we
+    // performed and a hide the user performed, and only the latter means the
+    // fault must stay down.
     std::string handled_detail_;
     std::vector<helix::RecoveryAction> handled_actions_;
-    /// True while this class is the one hiding the modal (dismiss(), or the
-    /// implicit hide Modal::show() does when replacing visible content). Keeps
-    /// those out of on_modal_hidden().
-    bool suppress_hide_notice_ = false;
 
     // Deferred (preheating) recovery. preheat_timer_ != nullptr is the "a tap is
     // waiting on the nozzle" state.

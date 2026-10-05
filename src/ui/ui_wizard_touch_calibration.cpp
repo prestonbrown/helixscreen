@@ -298,8 +298,7 @@ bool WizardTouchCalibrationStep::commit_calibration() {
         return false;
     }
 
-    // This is where the evdev range is first re-programmed: everything up to
-    // 'Next' is revertible through the session, which only handles the affine.
+    // Re-installs the previewed mapping (idempotent) and persists it.
     const helix::ui::CommitOutcome outcome = controller_.commit();
     if (outcome == helix::ui::CommitOutcome::NoCalibration) {
         return false;
@@ -515,21 +514,19 @@ void WizardTouchCalibrationStep::on_calibration_complete(const helix::TouchCalib
         spdlog::info("[{}] Calibration complete and valid", get_name());
 
         // Store calibration for later commit (saved only when user clicks 'Next')
-        controller_.stash_pending(*cal, controller_.panel()->get_range_fit());
+        const helix::TouchRangeFit& fit = controller_.panel()->get_range_fit();
+        controller_.stash_pending(*cal, fit);
         spdlog::debug("[{}] Calibration stored (will save when 'Next' is clicked)", get_name());
 
-        // The pre-session calibration was already snapshotted in create() via
-        // controller_.session().begin_capture(); apply the new one immediately (no restart
-        // required). controller_.session().restore() reverts it if the user backs out before
-        // committing on 'Next'.
-        DisplayManager* dm = DisplayManager::instance();
-        if (dm) {
-            if (dm->apply_touch_calibration(*cal)) {
-                spdlog::info("[{}] Calibration applied to touch input", get_name());
-            } else {
-                spdlog::debug("[{}] Could not apply calibration immediately (may require restart)",
-                              get_name());
-            }
+        // Install the same two-stage mapping 'Next' will persist, so the preview is
+        // what the user keeps and 'Next' is reachable under it. The session
+        // snapshotted the pre-session range and affine in create(); end() reverts
+        // both if the user backs out before committing.
+        if (helix::apply_calibration_result(controller_.sink(), *cal, fit)) {
+            spdlog::info("[{}] Calibration applied to touch input", get_name());
+        } else {
+            spdlog::debug("[{}] Could not apply calibration immediately (may require restart)",
+                          get_name());
         }
 
         lv_subject_set_int(&calibration_valid_, 1);

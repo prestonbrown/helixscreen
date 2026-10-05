@@ -17,7 +17,7 @@
  *   singleton guards — whose subjects were just freed by
  *   StaticSubjectRegistry::deinit_all() — skip lv_observer_remove() on the
  *   already-freed observer. But new widgets are also created WHILE the flag is
- *   false (Application::init_printer_state() builds the home panel via
+ *   false (PrinterSession::rebuild() builds the home panel via
  *   finalize_setup()). An observer created in that
  *   window is attached to a LIVE subject; if it is reset() in the same window
  *   the boolean wrongly suppressed lv_observer_remove(), orphaning a live

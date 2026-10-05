@@ -69,11 +69,17 @@ class AmsEnvironmentOverlay : public OverlayBase {
   protected:
     void before_show() override;
 
-    /// Reclaim the three zone-tab pools so a torn-down overlay does not leave
-    /// their subjects registered. Mirrors MacrosPanel::on_ui_destroyed().
+    /// Drop the cached widgets and reclaim the three zone-tab pools. Zones,
+    /// selection and dryer readouts live in members and subjects; the dryer inputs
+    /// are re-derived from config on every open.
     void on_ui_destroyed() override;
 
   public:
+    /// Freed on close; the next open rebuilds it.
+    bool destroy_on_close() const override {
+        return true;
+    }
+
     const char* get_name() const override {
         return "AMS Environment";
     }

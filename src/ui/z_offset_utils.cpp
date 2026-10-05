@@ -175,9 +175,14 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                 });
         },
         [apply_cmd, on_error](const MoonrakerError& err) {
-            spdlog::error("[ZOffsetUtils] {} failed: {}", apply_cmd, err.user_message());
-            if (on_error)
-                on_error(fmt::format(lv_tr("{} failed: {}"), apply_cmd, err.user_message()));
+            spdlog::error("[ZOffsetUtils] {} failed: {}", apply_cmd, err.message);
+            if (!on_error)
+                return;
+            // Klipper's reply arrives on the WebSocket thread; on_error is UI-facing.
+            helix::ui::run_on_main("ZOffsetUtils::apply_error", [on_error, apply_cmd, err]() {
+                on_error(fmt::format(fmt::runtime(lv_tr("{} failed: {}")), apply_cmd,
+                                     err.localized_message()));
+            });
         });
 }
 
@@ -286,7 +291,7 @@ AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm
         gcode, [sent_delta]() { spdlog::debug("[zoffset] adjusted {:+.3f}mm", sent_delta); },
         [](const MoonrakerError& err) {
             spdlog::error("[zoffset] adjust failed: {}", err.message);
-            NOTIFY_ERROR(lv_tr("Z-offset failed: {}"), err.user_message());
+            helix::ui::notify_error_tr(TR_NOOP("Z-offset failed: {}"), err);
         });
 
     return AdjustResult{delta_mm, new_offset, true, false};

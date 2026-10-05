@@ -75,7 +75,7 @@ class MockProbeDiscoveryFixture : public LVGLTestFixture {
     }
 
   protected:
-    /// What Application::setup_discovery_callbacks() does for probes: on
+    /// What PrinterSession::setup_discovery_callbacks() does for probes: on
     /// hardware discovery, queue ProbeSensorManager::discover() onto the main
     /// thread. Registering it makes the ordering under test real — the seeding
     /// callback must land AFTER this one or there are no sensors to seed.

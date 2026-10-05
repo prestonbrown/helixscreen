@@ -713,6 +713,7 @@ namespace {
 
 struct RangeFakeSink : ICalibrationSink {
     TouchCalibration stored{};
+    bool range_known = true; ///< the device reports the range it runs now
     bool range_accepted = true;
     bool range_called = false;
     bool cleared = false;
@@ -737,7 +738,16 @@ struct RangeFakeSink : ICalibrationSink {
         stored = TouchCalibration{};
         cleared = true;
     }
-    bool apply_touch_range(bool swap, int min_x, int min_y, int max_x, int max_y) override {
+    LiveTouchRange current_touch_range() const override {
+        LiveTouchRange live;
+        live.range.valid = range_known;
+        live.range.max_x = 479;
+        live.range.max_y = 799;
+        live.source = TouchRangeSource::Declared;
+        return live;
+    }
+    bool apply_touch_range(bool swap, int min_x, int min_y, int max_x, int max_y,
+                           TouchRangeSource) override {
         range_called = true;
         last_swap = swap;
         last_min_x = min_x;
@@ -936,6 +946,47 @@ TEST_CASE("commit_calibration_result: the persisted affine carries the solve's r
     CHECK(cfg->get<int>("/input/calibration/rotation", -1) == 90);
 
     reset_stored_calibration_keys();
+}
+
+TEST_CASE("commit_calibration_result: a device that cannot report its range keeps it",
+          "[touch][touch-calibration][range-fit][commit][1714]") {
+    // A session can only undo a range it could read first, so a preview on such a
+    // device must not install one, and commit has to agree with the preview.
+    RangeFakeSink sink;
+    sink.range_known = false;
+    TouchRangeFit fit{};
+    fit.valid = true;
+    fit.min_x = 0;
+    fit.max_x = 479;
+    fit.min_y = 0;
+    fit.max_y = 799;
+
+    CHECK(apply_calibration_result(&sink, some_affine(), fit));
+    CHECK_FALSE(sink.range_called);
+    CHECK(sink.stored.a == Approx(1.7f));
+
+    CHECK(commit_calibration_result(&sink, some_affine(), fit));
+    CHECK_FALSE(sink.range_called);
+    CHECK_FALSE(Config::get_instance()->get<bool>("/input/touch_range/valid", true));
+
+    reset_stored_calibration_keys();
+}
+
+TEST_CASE("resolve_touch_range_source: a stored range is not live on a rotated display",
+          "[touch][touch-calibration][range-fit][1394][1714]") {
+    TouchRangeSettings stored{};
+    stored.valid = true;
+    stored.max_x = 479;
+    stored.max_y = 799;
+
+    CHECK(resolve_touch_range_source(false, stored, 0) == TouchRangeSource::Stored);
+    // The backends skip programming it here, so the recorded pipeline (and a
+    // calibration session's snapshot of it) must say Declared.
+    CHECK(resolve_touch_range_source(false, stored, 90) == TouchRangeSource::Declared);
+    CHECK(resolve_touch_range_source(false, stored, 270) == TouchRangeSource::Declared);
+    CHECK(resolve_touch_range_source(true, stored, 0) == TouchRangeSource::Environment);
+    CHECK(resolve_touch_range_source(true, stored, 90) == TouchRangeSource::Environment);
+    CHECK(resolve_touch_range_source(false, TouchRangeSettings{}, 0) == TouchRangeSource::Declared);
 }
 
 // ============================================================================
