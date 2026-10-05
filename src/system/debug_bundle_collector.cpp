@@ -321,6 +321,7 @@ json DebugBundleCollector::build_touch_info(const TouchRangeDiagnostics& diag) {
         stored["max_x"] = pipe.stored.max_x;
         stored["min_y"] = pipe.stored.min_y;
         stored["max_y"] = pipe.stored.max_y;
+        stored["capture_rotation"] = pipe.stored.capture_rotation;
     }
     touch["stored_range"] = stored;
     touch["affine_valid"] = diag.affine_valid;

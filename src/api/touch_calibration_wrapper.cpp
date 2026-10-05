@@ -224,6 +224,11 @@ TouchRangeSettings load_touch_range() {
     range.max_x = cfg->get<int>("/input/touch_range/max_x", 0);
     range.min_y = cfg->get<int>("/input/touch_range/min_y", 0);
     range.max_y = cfg->get<int>("/input/touch_range/max_y", 0);
+    // A range saved without its own stamp was saved by the same commit that
+    // stamped the calibration record.
+    range.capture_rotation =
+        cfg->get<int>("/input/touch_range/rotation",
+                      cfg->get<int>("/input/calibration/rotation", range.capture_rotation));
 
     // min == max is not a passthrough in lv_evdev: the scale is skipped but the
     // clamp is not, so every coordinate would collapse onto one pixel. Refuse it.
@@ -258,8 +263,10 @@ void save_touch_range(const TouchRangeSettings& range) {
     cfg->set<int>("/input/touch_range/max_x", range.max_x);
     cfg->set<int>("/input/touch_range/min_y", range.min_y);
     cfg->set<int>("/input/touch_range/max_y", range.max_y);
-    spdlog::info("[TouchCal] Touch range saved: swap={} X({}..{}) Y({}..{})", range.swap_axes,
-                 range.min_x, range.max_x, range.min_y, range.max_y);
+    cfg->set<int>("/input/touch_range/rotation", range.capture_rotation);
+    spdlog::info("[TouchCal] Touch range saved: swap={} X({}..{}) Y({}..{}) rotation={}",
+                 range.swap_axes, range.min_x, range.max_x, range.min_y, range.max_y,
+                 range.capture_rotation);
 }
 
 TouchCalibration load_touch_calibration() {
