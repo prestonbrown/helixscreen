@@ -66,4 +66,18 @@ inline void safe_draw_buf_destroy(lv_draw_buf_t*& buf, const char* tag) {
     buf = nullptr;
 }
 
+/**
+ * @brief The area to hand lv_draw_image() for a cached frame: @p origin's top-left
+ *        corner, at the buffer's own size.
+ *
+ * LVGL reads exactly the area it is given out of the source buffer, so an area
+ * larger than the buffer reads past its end. A cached frame keeps the size of the
+ * render that produced it, and the widget can outgrow it before the next render.
+ * A widget smaller than the buffer is fine: the draw task's clip area trims it.
+ */
+inline lv_area_t draw_buf_blit_area(const lv_draw_buf_t& buf, const lv_area_t& origin) {
+    return {origin.x1, origin.y1, origin.x1 + static_cast<int32_t>(buf.header.w) - 1,
+            origin.y1 + static_cast<int32_t>(buf.header.h) - 1};
+}
+
 } // namespace helix

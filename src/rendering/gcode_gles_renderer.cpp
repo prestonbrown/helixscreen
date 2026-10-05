@@ -1474,7 +1474,7 @@ void GCodeGLESRenderer::draw_cached_to_lvgl(lv_layer_t* layer, const lv_area_t* 
     lv_draw_image_dsc_init(&img_dsc);
     img_dsc.src = draw_buf_;
 
-    lv_area_t area = *widget_coords;
+    lv_area_t area = helix::draw_buf_blit_area(*draw_buf_, *widget_coords);
     lv_draw_image(layer, &img_dsc, &area);
 }
 
