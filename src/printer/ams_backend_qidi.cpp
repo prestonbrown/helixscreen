@@ -64,6 +64,7 @@ AmsUnit make_qidi_unit(int unit_index) {
     unit.first_slot_global_index = unit_index * QIDI_SLOTS_PER_BOX;
     unit.connected = false;
     unit.topology = PathTopology::HUB;
+    unit.hub_tool_label = 0; // every box feeds the one extruder
 
     for (int local = 0; local < QIDI_SLOTS_PER_BOX; ++local) {
         const int global = unit.first_slot_global_index + local;

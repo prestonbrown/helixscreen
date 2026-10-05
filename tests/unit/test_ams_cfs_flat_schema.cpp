@@ -15,6 +15,7 @@
 
 #include "ams_backend_cfs.h"
 #include "ams_types.h"
+#include "ui/ams_drawing_utils.h"
 
 #include <string>
 
@@ -306,6 +307,17 @@ TEST_CASE("CFS flat schema: chained boxes become one unit per box", "[ams][cfs][
 
     SECTION("loaded_slot past the first box is a bay, not the external holder") {
         REQUIRE(info.current_slot == 13);
+    }
+
+    SECTION("every box routes into the one toolhead") {
+        const auto layout = ams_draw::compute_system_tool_layout(info, nullptr);
+        CHECK(layout.display_order == std::vector<int>{0, 1, 2, 3});
+        CHECK(layout.total_physical_tools == 1);
+        REQUIRE(layout.units.size() == 4);
+        for (const auto& u : layout.units) {
+            CHECK(u.tool_count == 1);
+            CHECK(u.first_physical_tool == 0);
+        }
     }
 }
 
