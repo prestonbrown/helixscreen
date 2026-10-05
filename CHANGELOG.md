@@ -5,7 +5,7 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.3] - Unreleased
+## [1.0.3] - 2026-10-04
 
 ### Changed
 
@@ -17,6 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   happened.
 
 ### Fixed
+
+**Stability**
+
+- **Raspberry Pi OS 32-bit no longer crashes with heap corruption** - the pi32 build used the
+  system's C++ runtime, which is built for an older CPU generation and keeps its bookkeeping
+  differently from what the app expected, so ordinary file listing wrote into freed memory
+  (`malloc(): unsorted double linked list corrupted`). pi32 builds now carry their own
+  runtime, which adds about 1 MB to the package
+  ([#1732](https://github.com/prestonbrown/helixscreen/issues/1732)).
+- **An unusual character in a name no longer loses a save** - a Wi-Fi network, printer or
+  file name containing bytes that are not valid text could crash the app or silently drop
+  the settings save. Those bytes are now replaced and the save goes through.
+- **The file list no longer floods slow printers with rescans** - the print list asked
+  Moonraker to rescan a file's metadata on every miss, and on a slow host the queue starved
+  the screen's own requests. One scan runs at a time, and a file that keeps failing waits 10
+  minutes before it is tried again.
 
 **Printing and filament systems**
 
@@ -72,6 +88,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Updates**
 
+- **Updates, crash reports and debug-bundle uploads verify the server's certificate** - every
+  release package ships its own certificate bundle, so printers whose system certificates
+  are years out of date still connect.
+- **Updates follow your update channel** - the installer and Moonraker's update manager use
+  the beta or dev channel you picked instead of always pulling stable.
+- **Installing the Moonraker plugin from the screen works on installed releases** - the
+  release package now includes the plugin.
 - **Mainsail shows the new version after an update** - the first start after an update asks
   Moonraker to refresh it ([#1727](https://github.com/prestonbrown/helixscreen/issues/1727)).
 - **An update restarts HelixScreen through systemd**, so the service picks up its updated
@@ -79,6 +102,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Screen and input**
 
+- **Screen rotation at 90 or 270 degrees on DRM displays draws correctly** - the picture is
+  rotated once, in software, instead of being handed to a display plane that could not lay
+  it out ([#1275](https://github.com/prestonbrown/helixscreen/issues/1275)).
+- **Home screen text follows a language change** - fan, nozzle, spool, camera, preheat and
+  print-stats labels switch language with the rest of the screen instead of staying in the
+  old one.
+- **The last-print card keeps its thumbnail** - it retries when you return to the home
+  screen and keeps its picture when the print's details are re-read.
 - **Scroll Guard works again** - with the post-scroll click guard turned on, a tap right
   after a scroll no longer goes through on the printer's touchscreen. Changing the setting
   needs a restart.
@@ -6749,6 +6780,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.0.3]: https://github.com/prestonbrown/helixscreen/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/prestonbrown/helixscreen/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/prestonbrown/helixscreen/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/prestonbrown/helixscreen/compare/v0.99.118...v1.0.0
