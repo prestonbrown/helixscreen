@@ -10,6 +10,7 @@
 #include "scroll_click_guard.h"
 #include "touch_calibration.h"
 #include "touch_calibration_session.h"
+#include "touch_calibration_wrapper.h"
 
 #include <functional>
 #include <lvgl.h>
@@ -545,9 +546,12 @@ class DisplayManager : public helix::ICalibrationSink {
      * The debug-touches ripple is suppressed while this is true: the calibration
      * draws its own ripple, and during point capture affine is disabled so the
      * global debug ripple would render raw (Y-inverted) coordinates (#943).
+     * Also holds the evdev range still for the capture
+     * (helix::set_touch_capture_active).
      */
     void set_touch_calibration_active(bool active) {
         m_touch_calibration_active = active;
+        helix::set_touch_capture_active(active);
     }
     bool is_touch_calibration_active() const {
         return m_touch_calibration_active;

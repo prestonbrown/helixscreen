@@ -582,6 +582,8 @@ const char* touch_range_source_name(TouchRangeSource source) {
         return "stored";
     case TouchRangeSource::Environment:
         return "environment";
+    case TouchRangeSource::DisplaySize:
+        return "display-size";
     case TouchRangeSource::None:
         break;
     }
@@ -623,9 +625,53 @@ TouchRangeViolation touch_range_violation(const TouchObservedExtremes& observed,
 
     const TouchObservedExtremes seen =
         touch_observed_in_configured_axes(observed, configured.swap_axes);
+    if (configured.source == TouchRangeSource::DisplaySize) {
+        // The programmed range is a guess about the declared one, so a reading
+        // is impossible only when neither of them could produce it.
+        violation.x = axis_escapes(seen.min_x, seen.max_x, configured.min_x, configured.max_x) &&
+                      axis_escapes(seen.min_x, seen.max_x, configured.declared_min_x,
+                                   configured.declared_max_x);
+        violation.y = axis_escapes(seen.min_y, seen.max_y, configured.min_y, configured.max_y) &&
+                      axis_escapes(seen.min_y, seen.max_y, configured.declared_min_y,
+                                   configured.declared_max_y);
+        return violation;
+    }
     violation.x = axis_escapes(seen.min_x, seen.max_x, configured.min_x, configured.max_x);
     violation.y = axis_escapes(seen.min_y, seen.max_y, configured.min_y, configured.max_y);
     return violation;
+}
+
+namespace {
+
+/// One axis of transposed_range_guess_disproved().
+bool axis_disproves_guess(int observed_max, int programmed_min, int programmed_max,
+                          int declared_min, int declared_max) {
+    order_range(programmed_min, programmed_max);
+    order_range(declared_min, declared_max);
+    if (programmed_max <= 0 || declared_max <= 0) {
+        return false;
+    }
+    const auto overshoot = [observed_max](int max) {
+        return static_cast<float>(observed_max - max) / static_cast<float>(max);
+    };
+    return overshoot(programmed_max) > kAbsRangeTolerance &&
+           overshoot(declared_max) <= kAbsRangeTolerance;
+}
+
+} // namespace
+
+bool transposed_range_guess_disproved(const TouchObservedExtremes& observed,
+                                      const TouchPipelineInfo& pipeline) {
+    if (pipeline.source != TouchRangeSource::DisplaySize || !pipeline.declared_valid ||
+        observed.distinct_samples == 0) {
+        return false;
+    }
+    const TouchObservedExtremes seen =
+        touch_observed_in_configured_axes(observed, pipeline.swap_axes);
+    return axis_disproves_guess(seen.max_x, pipeline.min_x, pipeline.max_x, pipeline.declared_min_x,
+                                pipeline.declared_max_x) ||
+           axis_disproves_guess(seen.max_y, pipeline.min_y, pipeline.max_y, pipeline.declared_min_y,
+                                pipeline.declared_max_y);
 }
 
 double touch_axis_span_ratio(int observed_min, int observed_max, int configured_min,

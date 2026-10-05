@@ -24,6 +24,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
+#include "config.h"
 #include "system/debug_bundle_collector.h"
 #include "touch_calibration.h"
 #include "touch_calibration_wrapper.h"
@@ -60,6 +61,17 @@ TouchPipelineInfo make_pipeline(int min_x, int max_x, int min_y, int max_y,
     p.max_x = max_x;
     p.min_y = min_y;
     p.max_y = max_y;
+    return p;
+}
+
+/// The transposed-range guess as fbdev programs it: the display's own size,
+/// with the declaration kept beside it.
+TouchPipelineInfo make_display_size_pipeline(int declared_max_x, int declared_max_y, int width,
+                                             int height) {
+    TouchPipelineInfo p = make_pipeline(0, declared_max_x, 0, declared_max_y);
+    p.source = TouchRangeSource::DisplaySize;
+    p.max_x = width;
+    p.max_y = height;
     return p;
 }
 
@@ -297,6 +309,71 @@ TEST_CASE("TouchObservedExtremes: negative readings widen the low bound",
 }
 
 // ============================================================================
+// The transposed-range guess, tested against what the digitizer emits
+// ============================================================================
+
+// Waveshare 2.8in DSI: declares X 0..639, Y 0..479 on a 480x640 framebuffer and
+// emits exactly that, so X runs past the 480-px axis the guess programmed.
+TEST_CASE("transposed_range_guess_disproved: an honest panel reaching past the display",
+          "[touch][touch-diagnostics][transposed-guess]") {
+    const TouchPipelineInfo cfg = make_display_size_pipeline(639, 479, 480, 640);
+    CHECK(transposed_range_guess_disproved(observe_all({{20, 30}, {574, 300}}), cfg));
+    CHECK_FALSE(transposed_range_guess_disproved(observe_all({{20, 30}, {470, 300}}), cfg));
+}
+
+// FlashForge Creator 5 Pro Goodix: declares 799x479 on a 480x800 framebuffer and
+// emits X 0..479, Y 0..799. Y runs past the declared Y, but never past the display.
+TEST_CASE("transposed_range_guess_disproved: a lying declaration never disproves it",
+          "[touch][touch-diagnostics][transposed-guess]") {
+    const TouchPipelineInfo cfg = make_display_size_pipeline(799, 479, 480, 800);
+    CHECK_FALSE(transposed_range_guess_disproved(observe_all({{0, 0}, {479, 799}}), cfg));
+}
+
+TEST_CASE("transposed_range_guess_disproved: noise just past the display edge is not proof",
+          "[touch][touch-diagnostics][transposed-guess]") {
+    const TouchPipelineInfo cfg = make_display_size_pipeline(639, 479, 480, 640);
+    // 480 * 1.05 = 504
+    CHECK_FALSE(transposed_range_guess_disproved(observe_all({{10, 10}, {504, 300}}), cfg));
+    CHECK(transposed_range_guess_disproved(observe_all({{10, 10}, {505, 300}}), cfg));
+}
+
+TEST_CASE("transposed_range_guess_disproved: a reading past the declared max fits neither",
+          "[touch][touch-diagnostics][transposed-guess]") {
+    const TouchPipelineInfo cfg = make_display_size_pipeline(639, 479, 480, 640);
+    // 639 * 1.05 = 670.95
+    CHECK(transposed_range_guess_disproved(observe_all({{10, 10}, {670, 300}}), cfg));
+    CHECK_FALSE(transposed_range_guess_disproved(observe_all({{10, 10}, {700, 300}}), cfg));
+    // ...and touch_range_violation reports it.
+    CHECK(touch_range_violation(observe_all({{10, 10}, {700, 300}}), cfg).x);
+}
+
+TEST_CASE("transposed_range_guess_disproved: only a DisplaySize range is a guess",
+          "[touch][touch-diagnostics][transposed-guess]") {
+    TouchPipelineInfo cfg = make_display_size_pipeline(639, 479, 480, 640);
+    const TouchObservedExtremes obs = observe_all({{10, 10}, {574, 300}});
+    for (TouchRangeSource source : {TouchRangeSource::None, TouchRangeSource::Declared,
+                                    TouchRangeSource::Stored, TouchRangeSource::Environment}) {
+        cfg.source = source;
+        CHECK_FALSE(transposed_range_guess_disproved(obs, cfg));
+    }
+    CHECK_FALSE(transposed_range_guess_disproved(TouchObservedExtremes{},
+                                                 make_display_size_pipeline(639, 479, 480, 640)));
+}
+
+TEST_CASE("touch_range_violation: under the DisplaySize guess either reading of the panel is in "
+          "range",
+          "[touch][touch-diagnostics][transposed-guess]") {
+    // C5: Y up to 799 is past the declared 479 but inside the programmed 800.
+    CHECK_FALSE(touch_range_violation(observe_all({{0, 0}, {479, 799}}),
+                                      make_display_size_pipeline(799, 479, 480, 800))
+                    .any());
+    // Waveshare: X up to 574 is past the programmed 480 but inside the declared 639.
+    CHECK_FALSE(touch_range_violation(observe_all({{0, 0}, {574, 470}}),
+                                      make_display_size_pipeline(639, 479, 480, 640))
+                    .any());
+}
+
+// ============================================================================
 // The read-callback seam that feeds it
 // ============================================================================
 
@@ -391,6 +468,199 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     uninstall_calibration_wrapper(indev, ctx);
     lv_indev_delete(indev);
+}
+
+namespace {
+
+/// A wrapper on a Waveshare-shaped panel under the transposed-range guess, with a
+/// stub where fbdev reprograms lv_evdev.
+struct TransposedGuessRig {
+    lv_indev_t* indev = nullptr;
+    CalibrationContext ctx;
+    int raw_x = 0;
+    int raw_y = 0;
+    int reprograms = 0;
+    int last_min_x = -1, last_min_y = -1, last_max_x = -1, last_max_y = -1;
+
+    TransposedGuessRig(const TouchPipelineInfo& pipeline, int width, int height) {
+        indev = lv_indev_create();
+        lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+        install_calibration_wrapper(indev, ctx, TouchCalibration{}, width, height);
+        set_touch_pipeline_info(pipeline);
+        ctx.raw_source = [this](int& x, int& y) {
+            x = raw_x;
+            y = raw_y;
+            return true;
+        };
+        ctx.reprogram_range = [this](int min_x, int min_y, int max_x, int max_y) {
+            reprograms++;
+            last_min_x = min_x;
+            last_min_y = min_y;
+            last_max_x = max_x;
+            last_max_y = max_y;
+        };
+        Config::get_instance()->set<bool>("/input/touch_range/valid", false);
+    }
+    ~TransposedGuessRig() {
+        uninstall_calibration_wrapper(indev, ctx);
+        lv_indev_delete(indev);
+        Config::get_instance()->set<bool>("/input/touch_range/valid", false);
+    }
+
+    void release() {
+        lv_indev_data_t data{};
+        data.state = LV_INDEV_STATE_RELEASED;
+        calibrated_read_cb(indev, &data);
+    }
+
+    void press(int rx, int ry) {
+        raw_x = rx;
+        raw_y = ry;
+        lv_indev_data_t data{};
+        data.state = LV_INDEV_STATE_PRESSED;
+        calibrated_read_cb(indev, &data);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "touch diagnostics: a touch past the display edge corrects the transposed guess",
+                 "[touch][touch-diagnostics][wrapper][transposed-guess]") {
+    TransposedGuessRig rig(make_display_size_pipeline(639, 479, 480, 640), 480, 640);
+
+    rig.press(100, 100);
+    rig.press(470, 300);
+    CHECK(rig.reprograms == 0);
+
+    rig.press(574, 300);
+    rig.press(600, 310);
+    CHECK(rig.reprograms == 0);
+    rig.press(630, 470);
+    rig.press(620, 460);
+
+    CHECK(rig.reprograms == 1);
+    CHECK(rig.last_min_x == 0);
+    CHECK(rig.last_max_x == 639);
+    CHECK(rig.last_min_y == 0);
+    CHECK(rig.last_max_y == 479);
+
+    TouchRangeDiagnostics diag;
+    REQUIRE(get_touch_range_diagnostics(diag));
+    CHECK(diag.pipeline.source == TouchRangeSource::Stored);
+    CHECK(diag.pipeline.max_x == 639);
+    CHECK(diag.pipeline.max_y == 479);
+    CHECK(diag.pipeline.stored.valid);
+    CHECK(diag.pipeline.stored.capture_rotation == 0);
+    // Self-corrected, so the too-narrow telemetry stays quiet.
+    CHECK_FALSE(rig.ctx.range_violation_reported);
+
+    const TouchRangeSettings persisted = load_touch_range();
+    CHECK(persisted.valid);
+    CHECK_FALSE(persisted.swap_axes);
+    CHECK(persisted.min_x == 0);
+    CHECK(persisted.max_x == 639);
+    CHECK(persisted.min_y == 0);
+    CHECK(persisted.max_y == 479);
+    CHECK(persisted.capture_rotation == 0);
+    CHECK(stored_touch_range_applies(persisted, 90));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "touch diagnostics: a lying declaration keeps the transposed guess",
+                 "[touch][touch-diagnostics][wrapper][transposed-guess]") {
+    TransposedGuessRig rig(make_display_size_pipeline(799, 479, 480, 800), 480, 800);
+
+    rig.press(0, 0);
+    rig.press(240, 400);
+    rig.press(479, 799);
+    rig.press(470, 790);
+
+    CHECK(rig.reprograms == 0);
+    CHECK_FALSE(rig.ctx.range_violation_reported);
+    TouchRangeDiagnostics diag;
+    REQUIRE(get_touch_range_diagnostics(diag));
+    CHECK(diag.pipeline.source == TouchRangeSource::DisplaySize);
+    CHECK_FALSE(load_touch_range().valid);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "touch diagnostics: only the transposed guess is ever reprogrammed",
+                 "[touch][touch-diagnostics][wrapper][transposed-guess]") {
+    TouchPipelineInfo declared = make_pipeline(0, 639, 0, 479);
+    TransposedGuessRig rig(declared, 480, 640);
+
+    rig.press(574, 300);
+    rig.press(700, 300);
+
+    CHECK(rig.reprograms == 0);
+    // Past the declared range, so the existing telemetry still fires.
+    CHECK(rig.ctx.range_violation_reported);
+    CHECK_FALSE(load_touch_range().valid);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "touch diagnostics: the transposed guess holds while a calibration captures",
+                 "[touch][touch-diagnostics][wrapper][transposed-guess]") {
+    TransposedGuessRig rig(make_display_size_pipeline(639, 479, 480, 640), 480, 640);
+
+    set_touch_capture_active(true);
+    rig.press(574, 300);
+    CHECK(rig.reprograms == 0);
+
+    set_touch_capture_active(false);
+    rig.press(560, 300);
+    rig.press(561, 300);
+    CHECK(rig.reprograms == 0);
+    rig.press(562, 301);
+    CHECK(rig.reprograms == 1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "touch diagnostics: glitches past the edge in separate presses do not add up",
+                 "[touch][touch-diagnostics][wrapper][transposed-guess]") {
+    // A C5 Pro left up for weeks: one stray reading per press, never three in one.
+    TransposedGuessRig rig(make_display_size_pipeline(799, 479, 480, 800), 480, 800);
+
+    for (int i = 0; i < 5; i++) {
+        rig.press(600 + i, 300);
+        rig.press(100 + i, 400);
+        rig.release();
+    }
+    CHECK(rig.reprograms == 0);
+    CHECK_FALSE(load_touch_range().valid);
+
+    // Three in one press is a touch.
+    rig.press(610, 300);
+    rig.press(611, 301);
+    rig.press(612, 302);
+    CHECK(rig.reprograms == 1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "touch diagnostics: one glitch past the display edge does not correct the "
+                 "transposed guess",
+                 "[touch][touch-diagnostics][wrapper][transposed-guess]") {
+    // C5 Pro shape: a lying declaration, where a stray reading on X between the
+    // display edge and the declared max would otherwise persist the wrong range.
+    TransposedGuessRig rig(make_display_size_pipeline(799, 479, 480, 800), 480, 800);
+
+    rig.press(600, 300);
+    for (int i = 0; i < 20; i++) {
+        rig.press(100 + i, 400 + i);
+    }
+
+    CHECK(rig.reprograms == 0);
+    CHECK_FALSE(load_touch_range().valid);
+    TouchRangeDiagnostics diag;
+    REQUIRE(get_touch_range_diagnostics(diag));
+    CHECK(diag.pipeline.source == TouchRangeSource::DisplaySize);
+
+    // Two more readings past the edge make three, which is a touch, not a glitch.
+    rig.press(601, 300);
+    CHECK(rig.reprograms == 0);
+    rig.press(602, 301);
+    CHECK(rig.reprograms == 1);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "touch diagnostics: a torn-down wrapper reports nothing",
@@ -590,7 +860,8 @@ TEST_CASE("DebugBundleCollector: build_touch_info names every range source",
     const Case cases[] = {{TouchRangeSource::None, "none"},
                           {TouchRangeSource::Declared, "declared"},
                           {TouchRangeSource::Stored, "stored"},
-                          {TouchRangeSource::Environment, "environment"}};
+                          {TouchRangeSource::Environment, "environment"},
+                          {TouchRangeSource::DisplaySize, "display-size"}};
 
     for (const Case& c : cases) {
         diag.pipeline = make_pipeline(0, 480, 0, 272);

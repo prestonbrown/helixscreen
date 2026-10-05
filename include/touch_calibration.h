@@ -484,6 +484,10 @@ enum class TouchRangeSource {
     Declared,    ///< the kernel's EVIOCGABS answer, or the MT-axis fallback
     Stored,      ///< the range a three-point calibration solved and persisted
     Environment, ///< HELIX_TOUCH_MIN_X / MAX_X / MIN_Y / MAX_Y
+    /// The display's own dimensions, programmed because the declared range is the
+    /// display transposed (has_transposed_abs_range). A guess that the
+    /// declaration lies; transposed_range_guess_disproved() tests it per sample.
+    DisplaySize,
 };
 
 /// Stable lowercase name for a range source, for logs and the debug bundle.
@@ -580,9 +584,31 @@ TouchObservedExtremes touch_observed_in_configured_axes(const TouchObservedExtre
  * denominator), so the pair is ordered before comparison. A zero-span configured
  * range is not a range - lv_evdev skips the scale but still clamps, collapsing
  * the panel onto one pixel - so nothing can be said to fall outside it.
+ *
+ * Under a DisplaySize range a reading escapes only when it is outside both the
+ * programmed and the declared range: either one may be the panel's truth.
  */
 TouchRangeViolation touch_range_violation(const TouchObservedExtremes& observed,
                                           const TouchPipelineInfo& configured);
+
+/**
+ * @brief Whether raw readings prove a DisplaySize range guessed wrong
+ *
+ * The transposed-range guess assumes the digitizer emits in framebuffer
+ * orientation despite declaring the display transposed (the FlashForge Creator 5
+ * Pro Goodix, #1450). A panel that really emits what it declares (Waveshare 2.8in
+ * DSI: ABS 640x480 on a 480x640 framebuffer) reaches past the display dimension
+ * on the axis whose declared maximum exceeds it, and stays within that declared
+ * maximum. A lying declaration never reaches past the display on any axis.
+ *
+ * True when, on some configured axis, the observed maximum exceeds the
+ * programmed maximum by more than kAbsRangeTolerance and does not exceed the
+ * declared maximum by more than it. A reading past the declared maximum fits
+ * neither reading of the panel, and is left to touch_range_violation().
+ * Always false unless `pipeline.source` is DisplaySize.
+ */
+bool transposed_range_guess_disproved(const TouchObservedExtremes& observed,
+                                      const TouchPipelineInfo& pipeline);
 
 /**
  * @brief Observed span as a fraction of the configured span, for reporting only
@@ -861,6 +887,10 @@ inline bool is_generic_hid_abs_range(int value) {
  * @param display_height Display height in pixels
  * @return true if ABS range mismatches display resolution beyond tolerance
  */
+/// Slack allowed between an ABS range and the display it is compared to, as a
+/// fraction of the display dimension, for rounding in driver-declared ranges.
+inline constexpr float kAbsRangeTolerance = 0.05f;
+
 inline bool has_abs_display_mismatch(int abs_max_x, int abs_max_y, int display_width,
                                      int display_height) {
     // Can't determine mismatch with invalid ranges
@@ -874,15 +904,12 @@ inline bool has_abs_display_mismatch(int abs_max_x, int abs_max_y, int display_w
         return false;
     }
 
-    // Allow ~5% tolerance for rounding differences in ABS ranges
-    constexpr float TOLERANCE = 0.05f;
-
     float x_ratio =
         static_cast<float>(std::abs(abs_max_x - display_width)) / static_cast<float>(display_width);
     float y_ratio = static_cast<float>(std::abs(abs_max_y - display_height)) /
                     static_cast<float>(display_height);
 
-    return (x_ratio > TOLERANCE) || (y_ratio > TOLERANCE);
+    return (x_ratio > kAbsRangeTolerance) || (y_ratio > kAbsRangeTolerance);
 }
 
 /**

@@ -45,40 +45,92 @@ CalibrationContext* s_active_ctx = nullptr;
 // call, so this is a few dozen uncontended locks a second at most.
 std::mutex s_diag_mutex;
 
-/// Fold one CHANGED raw digitizer reading into the observed extremes, and raise
-/// telemetry the first time one of them proves the configured range wrong.
+/// Replace a disproved DisplaySize range with the declared one, live and stored.
+///
+/// The declared range is native digitizer space (lv_evdev scales into the
+/// display's native resolution and rotation runs after it), so it is stored
+/// stamped with capture rotation 0 and the next boot programs it at any rotation.
+void correct_transposed_guess(CalibrationContext& ctx, const TouchRangeSettings& range,
+                              const std::string& evidence) {
+    ctx.reprogram_range(range.min_x, range.min_y, range.max_x, range.max_y);
+    save_touch_range(range);
+    Config::get_instance()->save();
+    spdlog::warn("[TouchCal] Digitizer reached past the display on a transposed-looking ABS "
+                 "range, so the range is the panel's own - re-programmed and stored X({}..{}) "
+                 "Y({}..{}) ({})",
+                 range.min_x, range.max_x, range.min_y, range.max_y, evidence);
+}
+
+/// Fold one CHANGED raw digitizer reading into the observed extremes, correct a
+/// DisplaySize range enough samples disprove, and otherwise raise telemetry the
+/// first time one of them proves the configured range wrong.
 ///
 /// Out-of-range is the only signal that fires telemetry. A compressed span is
 /// reported in the debug bundle and never judged here: a user who simply never
 /// touched the edges of the panel produces exactly that on healthy hardware.
 void note_raw_sample(CalibrationContext& ctx, int raw_x, int raw_y) {
     std::string detail;
+    TouchRangeSettings corrected;
     {
         std::lock_guard<std::mutex> lock(s_diag_mutex);
         ctx.observed.observe(raw_x, raw_y);
+        TouchPipelineInfo& pipe = ctx.pipeline;
 
-        if (ctx.range_violation_reported) {
+        // Judged per sample, not on the extremes, which would keep one outlier
+        // voting forever.
+        TouchObservedExtremes sample;
+        sample.observe(raw_x, raw_y);
+        if (ctx.reprogram_range && !ctx.capture_active &&
+            transposed_range_guess_disproved(sample, pipe) &&
+            ++ctx.transposed_guess_votes >= kTransposedGuessCorroboration) {
+            detail = fmt::format("cfg_x={}..{} cfg_y={}..{} obs_x={}..{} obs_y={}..{} samples={}",
+                                 pipe.min_x, pipe.max_x, pipe.min_y, pipe.max_y, ctx.observed.min_x,
+                                 ctx.observed.max_x, ctx.observed.min_y, ctx.observed.max_y,
+                                 ctx.observed.distinct_samples);
+            corrected.valid = true;
+            corrected.swap_axes = pipe.swap_axes;
+            corrected.min_x = pipe.declared_min_x;
+            corrected.max_x = pipe.declared_max_x;
+            corrected.min_y = pipe.declared_min_y;
+            corrected.max_y = pipe.declared_max_y;
+            corrected.capture_rotation = 0;
+            // Recorded as Stored because it now is: a recalibration that installs
+            // no range of its own keeps a stored range live at its rotation, and
+            // drops anything else.
+            pipe.source = TouchRangeSource::Stored;
+            pipe.configured_valid = true;
+            pipe.min_x = corrected.min_x;
+            pipe.max_x = corrected.max_x;
+            pipe.min_y = corrected.min_y;
+            pipe.max_y = corrected.max_y;
+            pipe.stored = corrected;
+        } else if (!ctx.range_violation_reported) {
+            const TouchRangeViolation violation = touch_range_violation(ctx.observed, pipe);
+            if (!violation.any()) {
+                return;
+            }
+            ctx.range_violation_reported = true;
+
+            const TouchObservedExtremes seen =
+                touch_observed_in_configured_axes(ctx.observed, pipe.swap_axes);
+            detail =
+                fmt::format("axis={} src={} swap={} cfg_x={}..{} obs_x={}..{} "
+                            "cfg_y={}..{} obs_y={}..{} samples={} dev={}",
+                            violation.x && violation.y ? "xy" : (violation.x ? "x" : "y"),
+                            touch_range_source_name(pipe.source), pipe.swap_axes, pipe.min_x,
+                            pipe.max_x, seen.min_x, seen.max_x, pipe.min_y, pipe.max_y, seen.min_y,
+                            seen.max_y, ctx.observed.distinct_samples, pipe.device_name);
+        } else {
             return;
         }
-        const TouchRangeViolation violation = touch_range_violation(ctx.observed, ctx.pipeline);
-        if (!violation.any()) {
-            return;
-        }
-        ctx.range_violation_reported = true;
-
-        const TouchObservedExtremes seen =
-            touch_observed_in_configured_axes(ctx.observed, ctx.pipeline.swap_axes);
-        detail = fmt::format("axis={} src={} swap={} cfg_x={}..{} obs_x={}..{} "
-                             "cfg_y={}..{} obs_y={}..{} samples={} dev={}",
-                             violation.x && violation.y ? "xy" : (violation.x ? "x" : "y"),
-                             touch_range_source_name(ctx.pipeline.source), ctx.pipeline.swap_axes,
-                             ctx.pipeline.min_x, ctx.pipeline.max_x, seen.min_x, seen.max_x,
-                             ctx.pipeline.min_y, ctx.pipeline.max_y, seen.min_y, seen.max_y,
-                             ctx.observed.distinct_samples, ctx.pipeline.device_name);
     }
 
-    // Outside the lock: the telemetry bridge takes TelemetryManager's own mutex,
-    // and nothing there needs a consistent view of the diagnostics.
+    // Outside the lock: nothing below needs a consistent view of the
+    // diagnostics, and the telemetry bridge takes TelemetryManager's own mutex.
+    if (corrected.valid) {
+        correct_transposed_guess(ctx, corrected, detail);
+        return;
+    }
     spdlog::warn("[TouchCal] Digitizer emitted a reading outside the configured evdev range - "
                  "the declared range cannot be what this panel produces ({})",
                  detail);
@@ -96,6 +148,13 @@ void calibrated_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
     // Call the original evdev read callback first
     if (ctx->original_read_cb) {
         ctx->original_read_cb(indev, data);
+    }
+
+    // Corroboration against a DisplaySize range counts within one press. Only
+    // this thread writes the count, so the unlocked read cannot miss a vote.
+    if (data->state == LV_INDEV_STATE_RELEASED && ctx->transposed_guess_votes != 0) {
+        std::lock_guard<std::mutex> lock(s_diag_mutex);
+        ctx->transposed_guess_votes = 0;
     }
 
     // Stash the pre-swap, pre-scale digitizer reading behind the coordinate we
@@ -173,6 +232,13 @@ void set_touch_configured_range(bool swap_axes, int min_x, int min_y, int max_x,
     // programmed.
     s_active_ctx->observed = TouchObservedExtremes{};
     s_active_ctx->range_violation_reported = false;
+}
+
+void set_touch_capture_active(bool active) {
+    std::lock_guard<std::mutex> lock(s_diag_mutex);
+    if (s_active_ctx) {
+        s_active_ctx->capture_active = active;
+    }
 }
 
 bool get_touch_range_diagnostics(TouchRangeDiagnostics& out) {
