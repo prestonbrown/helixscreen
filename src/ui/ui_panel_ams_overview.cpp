@@ -43,7 +43,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <numeric>
 #include <vector>
 
 using namespace helix;
@@ -357,31 +356,10 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info) {
                      get_name(), unit_count, AmsState::MAX_UNITS, AmsState::MAX_UNITS + 1);
     }
 
-    // Lay the cards out in nozzle order, not backend order.
-    //
-    // Which unit a backend lists first has nothing to do with which toolhead it
-    // feeds: a Claymore wired to e0 can be last in the list while e0's nozzle is
-    // the leftmost of four. Left in backend order, its connector ran diagonally
-    // across every other unit's. Sorting by the unit's first physical nozzle
-    // makes the card row monotonic with the toolhead row, so the lanes below only
-    // cross where the plumbing genuinely does - and it parks units that share a
-    // nozzle (a Box Turtle and a Claymore both on e0) side by side.
-    //
-    // stable_sort, so a system whose order is already monotonic (every one-unit
-    // rig, and most multi-unit ones) is left exactly as it was.
-    std::vector<int> order(unit_count);
-    std::iota(order.begin(), order.end(), 0);
-    {
-        auto layout =
-            ams_draw::compute_system_tool_layout(info, AmsState::instance().get_backend());
-        auto first_nozzle = [&layout](int unit) {
-            return (unit < static_cast<int>(layout.units.size()))
-                       ? layout.units[unit].first_physical_tool
-                       : unit;
-        };
-        std::stable_sort(order.begin(), order.end(),
-                         [&](int a, int b) { return first_nozzle(a) < first_nozzle(b); });
-    }
+    // Cards run in nozzle order (SystemToolLayout::display_order).
+    const std::vector<int> order =
+        ams_draw::compute_system_tool_layout(info, AmsState::instance().get_backend())
+            .display_order;
 
     for (int slot = 0; slot < unit_count; ++slot) {
         const int i = order[slot];

@@ -311,6 +311,7 @@ TEST_CASE("CFS flat schema: chained boxes become one unit per box", "[ams][cfs][
 
     SECTION("every box routes into the one toolhead") {
         const auto layout = ams_draw::compute_system_tool_layout(info, nullptr);
+        CHECK(layout.display_order == std::vector<int>{0, 1, 2, 3});
         CHECK(layout.total_physical_tools == 1);
         REQUIRE(layout.units.size() == 4);
         for (const auto& u : layout.units) {

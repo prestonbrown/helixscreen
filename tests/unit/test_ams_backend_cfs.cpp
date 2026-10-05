@@ -956,6 +956,30 @@ TEST_CASE("CFS boxes converge on one toolhead in the system path layout",
     }
 }
 
+// Cards run in box-address order around a box that is off the bus.
+TEST_CASE("CFS overview cards stay in address order with a box off the bus",
+          "[ams][cfs][tool_layout][ams_draw]") {
+    json box = json{{"state", "connect"}, {"filament", 0},       {"auto_refill", 1},
+                    {"enable", 1},        {"filament_useup", 1}, {"map", json::object()}};
+    for (int u = 1; u <= 4; ++u) {
+        box["T" + std::to_string(u)] =
+            json{{"state", u == 2 ? "None" : "connect"},
+                 {"filament", "None"},
+                 {"vender", json::array({"none", "none", "none", "none"})},
+                 {"remain_len", json::array({"-1", "-1", "-1", "-1"})},
+                 {"color_value", json::array({"-1", "-1", "-1", "-1"})},
+                 {"material_type", json::array({"-1", "-1", "-1", "-1"})}};
+    }
+    const auto info = AmsBackendCfs::parse_box_status(box);
+    const auto order = ams_draw::compute_system_tool_layout(info, nullptr).display_order;
+
+    std::vector<std::string> names;
+    for (int i : order) {
+        names.push_back(info.units[static_cast<size_t>(i)].name);
+    }
+    CHECK(names == std::vector<std::string>{"T1", "T3", "T4"});
+}
+
 TEST_CASE("CFS GCode helpers", "[ams][cfs]") {
     // The CR_BOX_* primitives don't park the toolhead — without wrapping,
     // CR_BOX_FLUSH extrudes onto the build plate instead of into the K2's

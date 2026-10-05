@@ -254,6 +254,13 @@ struct SystemToolLayout {
     std::vector<UnitToolLayout> units;
     int total_physical_tools = 0;
 
+    /// Unit indices in the overview's left-to-right card order: by first nozzle,
+    /// so the card row is monotonic with the toolhead row and lanes only cross
+    /// where the plumbing does. Stable, so an already-monotonic system keeps its
+    /// backend order. A unit feeding no nozzle sorts with the unit listed before
+    /// it, keeping its physical address slot.
+    std::vector<int> display_order;
+
     /// Map AFC virtual tool number -> physical nozzle index (for active tool highlighting)
     std::unordered_map<int, int> virtual_to_physical;
 
