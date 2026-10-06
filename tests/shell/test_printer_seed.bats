@@ -261,6 +261,18 @@ print(d)' "$1" "$2"
         || fail "temp file left behind: $(ls -A "$INSTALL_DIR/config")"
 }
 
+@test "merge_settings_defaults: leaves an unparseable settings.json alone" {
+    # Config::init preserves a corrupt file as .corrupt and recovers from the
+    # rolling backup; replacing it with the fragment would skip that recovery.
+    printf '{"config_version": 9, "language": "de",\n' > "$SETTINGS_FILE"
+    cp "$SETTINGS_FILE" "$BATS_TEST_TMPDIR/before"
+
+    run merge_settings_defaults '{"update": {"channel": 1}}'
+
+    [ "$status" -ne 0 ]
+    cmp -s "$SETTINGS_FILE" "$BATS_TEST_TMPDIR/before" || fail "corrupt settings.json was rewritten"
+}
+
 @test "seed_update_channel: no-op when the channel did not come from the version" {
     unset _R2_CHANNEL_FROM_VERSION
     seed_update_channel

@@ -175,7 +175,8 @@ PY
 
 # Deep-merge a JSON object into the install's settings.json, filling only keys
 # it lacks: a value already there always wins. Creates settings.json when it is
-# absent or empty, and treats an unparseable one as empty.
+# absent or empty. An unparseable one is left alone for Config::init, which
+# keeps it as .corrupt and recovers from the rolling backup.
 #
 # The write renames a synced temp file into place, as ConfigStorageFile::store
 # does, so power loss leaves the old file or the new one, never a truncated
@@ -183,7 +184,8 @@ PY
 # rename target are both the link's resolved file: the rename stays inside one
 # directory and the link survives.
 # Args: $1 = JSON object text
-# Returns 1 when python3 is missing or the merge or write failed.
+# Returns 1 when python3 is missing, settings.json is unparseable, or the merge
+# or write failed.
 merge_settings_defaults() {
     command -v python3 >/dev/null 2>&1 || return 1
 
@@ -213,10 +215,10 @@ def load(path):
             return {}
         obj = json.loads(data)
     except (ValueError, OSError):
-        # Malformed existing settings: treat as empty base rather than crash
-        # the install. The fragment becomes the new content.
-        return {}
-    return obj if isinstance(obj, dict) else {}
+        sys.exit(3)
+    if not isinstance(obj, dict):
+        sys.exit(3)
+    return obj
 
 def deep_merge(base, frag, top_level=False):
     """Return base with frag's keys filled in where base lacks them.
