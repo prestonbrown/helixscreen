@@ -418,6 +418,11 @@ main() {
     else
         if [ -z "$version" ]; then
             version=$(get_latest_version "$download_platform")
+        else
+            # After resolve_update_channel: a channel read from the installed
+            # config outranks the one a prerelease --version implies. A --local
+            # archive never moves the channel; it picks a build, not a feed.
+            match_channel_to_version "$version"
         fi
     fi
     log_info "Target version: ${BOLD}${version}${NC}"
@@ -534,6 +539,7 @@ main() {
     else
         seed_from_moonraker_detection || true
     fi
+    seed_update_channel
 
     # Configure ALSA "default" when the board has no card 0 (e.g. Pi + HDMI-audio
     # screens like the BTT HDMI5, whose only outputs are vc4hdmi0/vc4hdmi1 at

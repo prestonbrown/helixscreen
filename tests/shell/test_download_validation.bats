@@ -1013,6 +1013,48 @@ MANIFEST_WITH_HASHES='{
     [[ "$output" == *"HELIX_ALLOW_UNVERIFIED_HTTP=1"* ]]
 }
 
+# Each channel's manifest describes only that channel's latest release, so a
+# --version pinned from another channel is verified against the one listing it.
+_channel_manifests() {
+    STABLE_M='{"version": "1.0.3", "assets": {"pi": {"zip_sha256": "aaaa"}}}'
+    BETA_M='{"version": "1.1.0-beta.4", "assets": {"pi": {"zip_sha256": "bbbb"}}}'
+    R2_CHANNEL=stable
+    _R2_MANIFEST=""
+    serve_manifest() {
+        case "$1" in
+            */stable/manifest.json) echo "$STABLE_M" ;;
+            */beta/manifest.json) echo "$BETA_M" ;;
+            *) return 1 ;;
+        esac
+    }
+    _try_download_candidate() { echo "CANDIDATE $1 sha=$4"; : > "$2"; return 0; }
+}
+
+@test "download_release: an explicit --version is verified against the channel that lists it" {
+    _channel_manifests
+    check_https_capability() { return 0; }
+    fetch_url() { serve_manifest "$1"; }
+    fetch_url_http() { return 1; }
+
+    run download_release "v1.1.0-beta.4" "pi"
+    [ "$status" -eq 0 ]
+    lacks "No release manifest" "$output"
+    lacks "plain-HTTP mirror" "$output"
+    contains "sha=bbbb" "$output"
+}
+
+@test "download_release: the cross-channel manifest lookup keeps the plain-HTTP fallback" {
+    _channel_manifests
+    check_https_capability() { return 1; }
+    fetch_url() { return 1; }
+    fetch_url_http() { serve_manifest "$1"; }
+
+    run download_release "v1.1.0-beta.4" "pi"
+    [ "$status" -eq 0 ]
+    contains "sha=bbbb" "$output"
+    contains "plain-HTTP mirror" "$output"
+}
+
 @test "download_release: a plain 404 cascade does NOT mention the override" {
     # Keep the security advice off unrelated failures — it would read as
     # "set this env var to fix your install" for a simple typo'd --version.

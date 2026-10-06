@@ -18,57 +18,61 @@ Description=Restart HelixScreen after update
 [Service]
 Type=oneshot
 
-# Skip restart if system booted less than 5 minutes ago.  NTP clock sync
-# during early boot can cause PathChanged to fire spuriously (#536).
-# A real Moonraker update can't land that soon after power-on.
-# Uses /proc/uptime (monotonic, immune to clock jumps).
-# Previous 60s-since-helixscreen-start grace was insufficient on systems
-# with many MCUs where NTP sync arrives 60-120s+ after boot.
-ExecStartPre=/bin/sh -c '\
-  UPTIME_S=$$(cut -d. -f1 /proc/uptime); \
-  [ "$$UPTIME_S" -lt 300 ] && { echo "Skipping: system booted $${UPTIME_S}s ago (< 300s grace)"; exit 1; } || true'
-
-ExecStartPre=/bin/sleep 10
-
-# Skip restart if helix-screen is handling the update itself (self-update).
-# The app writes a sentinel before _exit(0); helix-watchdog then exits too
-# (HELIX_SERVICE_RESTARTS), and helixscreen.service's Restart=always restarts
-# it, running ExecStartPre's unit refresh.  The sentinel is NOT deleted — the
-# path watcher can fire multiple times after an atomic directory swap (inotify
-# invalidation + delayed systemd rescan), so the sentinel must persist to block
-# all spurious triggers.  Cleaned up by the app on next successful startup.
+# One ExecStart script, so a guard that skips exits 0 and the unit reads as
+# succeeded instead of failed. ExecCondition= would say the same thing, but
+# systemd before 243 (Debian Buster) ignores the key and the guards with it.
 #
-# Check two locations:
-#   1. @@INSTALL_PARENT@@/.helixscreen/ — preferred, works with PrivateTmp
-#   2. /tmp/helixscreen_self_restart — legacy fallback (broken with PrivateTmp)
-ExecStartPre=/bin/sh -c '\
+# The guards, in order:
+#
+# 1. Boot grace.  NTP clock sync during early boot can make PathChanged fire
+#    spuriously (#536), and a real Moonraker update can't land within 5 minutes
+#    of power-on.  /proc/uptime is monotonic, immune to clock jumps; 300s
+#    covers systems with many MCUs, where NTP sync arrives 60-120s+ after boot.
+#
+# 2. Wait 10 seconds for Moonraker to finish extracting all files.  It runs
+#    before the self-update check so the app has time to write its sentinel.
+#
+# 3. Self-update.  helix-screen writes a sentinel before _exit(0); the
+#    watchdog then exits too (HELIX_SERVICE_RESTARTS), and helixscreen.service's
+#    Restart=always restarts it, running its ExecStartPre unit refresh.  The
+#    sentinel is NOT deleted here: the path watcher can fire several times
+#    after an atomic directory swap (inotify invalidation + delayed systemd
+#    rescan), so it must persist to block every spurious trigger.  The app
+#    removes it on its next successful startup.  Two locations:
+#      @@INSTALL_PARENT@@/.helixscreen/ - preferred, works with PrivateTmp
+#      /tmp/helixscreen_self_restart - legacy fallback (broken with PrivateTmp)
+#
+# 4. Uninstall in progress.  The uninstaller drops this sentinel before any
+#    destructive work and clean_helix_state_dirs sweeps it at the end; while
+#    it exists helixscreen must not be respawned out from under it.
+#
+# Then refresh the systemd units from the newly extracted install dir.  The
+# template logic lives in a script so Moonraker's extraction updates it, and
+# the installer's sed pass never touches @@placeholder@@ patterns inside it.
+# Runs as root (no User= set).  Finally restart helixscreen and re-arm the path
+# unit's inotify watch: Moonraker's shutil.rmtree() invalidates watches on the
+# old inode, and restarting the path unit picks up the new file.
+ExecStart=/bin/sh -c '\
+  UPTIME_S=$$(cut -d. -f1 /proc/uptime); \
+  if [ "$$UPTIME_S" -lt 300 ]; then \
+    echo "Skipping: system booted $${UPTIME_S}s ago (< 300s grace)"; \
+    exit 0; \
+  fi; \
+  sleep 10; \
   for f in "@@INSTALL_PARENT@@/.helixscreen/self_restart_sentinel" \
            /tmp/helixscreen_self_restart; do \
     if [ -f "$$f" ]; then \
       echo "Skipping: self-update restart handled by watchdog ($$f)"; \
-      exit 1; \
+      exit 0; \
     fi; \
-  done'
-
-# Skip restart if an uninstall is in progress.  The uninstaller drops this
-# sentinel before any destructive work and clean_helix_state_dirs sweeps it
-# at the end; while it exists we must not respawn helixscreen out from under
-# the uninstall flow.
-ExecStartPre=/bin/sh -c '\
+  done; \
   for f in /var/lib/helixscreen/.uninstalling \
            "@@INSTALL_PARENT@@/.helixscreen/.uninstalling"; do \
     if [ -f "$$f" ]; then \
       echo "Skipping: uninstall in progress ($$f)"; \
-      exit 1; \
+      exit 0; \
     fi; \
-  done'
-
-# Refresh systemd units from the newly extracted install dir.
-# The template logic lives in a script so Moonraker's extraction
-# updates it — avoids the chicken-and-egg where the installer's
-# sed pass corrupts @@placeholder@@ patterns embedded in this unit.
-# Runs as root (no User= set).
-ExecStartPre=@@INSTALL_DIR@@/config/refresh-service-units.sh
-
-ExecStart=/bin/systemctl restart helixscreen
-ExecStartPost=/bin/systemctl restart helixscreen-update.path
+  done; \
+  @@INSTALL_DIR@@/config/refresh-service-units.sh || exit $$?; \
+  systemctl restart helixscreen || exit $$?; \
+  systemctl restart helixscreen-update.path'

@@ -41,6 +41,11 @@ setup() {
     SUDO=""
     export SUDO
 
+    # The rolling-backup tiers seed_update_channel also writes; never the host's.
+    export HELIX_STATE_VAR_LIB="$BATS_TEST_TMPDIR/var/lib/helixscreen"
+    export HELIX_STATE_ROOT_HOME="$BATS_TEST_TMPDIR/root/.helixscreen"
+    export KLIPPER_HOME="$BATS_TEST_TMPDIR/home/pi"
+
     unset _HELIX_PRINTER_SEED_SOURCED
     # printer_seed.sh uses file_sudo() from common.sh
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
@@ -188,6 +193,133 @@ write_preset() {
     [ "$status" -eq 0 ]
     # settings.json must not have been created by the skipped merge.
     [ ! -f "$SETTINGS_FILE" ]
+}
+
+# --- seed_update_channel() ---
+#
+# A channel the installer derived from a prerelease version has to reach the
+# app as /update/channel, or its updater offers stable while Moonraker follows
+# beta. A channel already in settings.json is the user's and is never replaced.
+
+json_get() {
+    python3 -c 'import json,sys; d=json.load(open(sys.argv[1]))
+for k in sys.argv[2].split("/"): d=d[k]
+print(d)' "$1" "$2"
+}
+
+@test "seed_update_channel: a version-derived beta channel lands in an absent settings.json" {
+    _R2_CHANNEL_FROM_VERSION=yes
+    seed_update_channel
+    [ "$(json_get "$SETTINGS_FILE" update/channel)" = "1" ]
+}
+
+@test "seed_update_channel: fills the channel without touching the rest of the user's settings" {
+    printf '{"config_version": 9, "update": {"auto": true}, "language": "de"}\n' > "$SETTINGS_FILE"
+    _R2_CHANNEL_FROM_VERSION=yes
+    seed_update_channel
+    [ "$(json_get "$SETTINGS_FILE" update/channel)" = "1" ]
+    [ "$(json_get "$SETTINGS_FILE" update/auto)" = "True" ]
+    [ "$(json_get "$SETTINGS_FILE" language)" = "de" ]
+    [ "$(json_get "$SETTINGS_FILE" config_version)" = "9" ]
+}
+
+@test "seed_update_channel: never replaces a channel the user already chose" {
+    printf '{"update": {"channel": 2}}\n' > "$SETTINGS_FILE"
+    _R2_CHANNEL_FROM_VERSION=yes
+    seed_update_channel
+    [ "$(json_get "$SETTINGS_FILE" update/channel)" = "2" ]
+}
+
+@test "seed_update_channel: a surviving rolling backup gets the channel too" {
+    # The settings.json seeded here is versionless, so Config::init replaces it
+    # with this backup, and the channel has to be in what the app ends up reading.
+    mkdir -p "$HELIX_STATE_VAR_LIB" "$KLIPPER_HOME/.helixscreen"
+    printf '{"config_version": 27, "language": "de"}\n' > "$HELIX_STATE_VAR_LIB/settings.json.backup"
+    printf '{"config_version": 27}\n' > "$KLIPPER_HOME/.helixscreen/settings.json.backup"
+    _R2_CHANNEL_FROM_VERSION=yes
+
+    seed_update_channel
+
+    [ "$(json_get "$HELIX_STATE_VAR_LIB/settings.json.backup" update/channel)" = "1" ]
+    [ "$(json_get "$HELIX_STATE_VAR_LIB/settings.json.backup" language)" = "de" ]
+    [ "$(json_get "$KLIPPER_HOME/.helixscreen/settings.json.backup" update/channel)" = "1" ]
+    [ ! -e "$HELIX_STATE_ROOT_HOME/settings.json.backup" ]
+}
+
+@test "seed_update_channel: a channel the backup already names stays" {
+    mkdir -p "$HELIX_STATE_VAR_LIB"
+    printf '{"config_version": 27, "update": {"channel": 0}}\n' > "$HELIX_STATE_VAR_LIB/settings.json.backup"
+    _R2_CHANNEL_FROM_VERSION=yes
+
+    seed_update_channel
+
+    [ "$(json_get "$HELIX_STATE_VAR_LIB/settings.json.backup" update/channel)" = "0" ]
+}
+
+@test "seed_update_channel: writes through the printer_data symlink and keeps it" {
+    local pd="$BATS_TEST_TMPDIR/printer_data/config/helixscreen"
+    mkdir -p "$pd"
+    printf '{"config_version": 9}\n' > "$pd/settings.json"
+    ln -s "$pd/settings.json" "$SETTINGS_FILE"
+    _R2_CHANNEL_FROM_VERSION=yes
+
+    seed_update_channel
+
+    [ -L "$SETTINGS_FILE" ] || fail "settings.json symlink was replaced by a file"
+    [ "$(json_get "$pd/settings.json" update/channel)" = "1" ]
+}
+
+@test "merge_settings_defaults: renames into place from beside the resolved target" {
+    # A rename is atomic only within one filesystem, so the temp file has to sit
+    # next to the file it replaces, which through the symlink is printer_data's.
+    local pd="$BATS_TEST_TMPDIR/printer_data/config/helixscreen"
+    mkdir -p "$pd"
+    printf '{"config_version": 9}\n' > "$pd/settings.json"
+    ln -s "$pd/settings.json" "$SETTINGS_FILE"
+    local log="$BATS_TEST_TMPDIR/mv.log"
+    mv() { printf '%s|%s\n' "$1" "$2" >> "$log"; command mv "$@"; }
+
+    merge_settings_defaults '{"update": {"channel": 1}}'
+
+    [ -f "$log" ] || fail "settings.json was not renamed into place"
+    local src dst
+    src=$(cut -d'|' -f1 "$log")
+    dst=$(cut -d'|' -f2 "$log")
+    [ "$dst" = "$pd/settings.json" ] || fail "renamed onto $dst"
+    [ "$(dirname "$src")" = "$pd" ] || fail "temp file was at $src"
+    [ -L "$SETTINGS_FILE" ] || fail "symlink replaced"
+    [ -z "$(ls -A "$INSTALL_DIR/config" | grep -v '^settings.json$')" ] \
+        || fail "temp file left behind: $(ls -A "$INSTALL_DIR/config")"
+}
+
+@test "merge_settings_defaults: the rewritten settings.json keeps the original's mode" {
+    # The rename puts a new inode in place; a root-run install with umask 027
+    # would otherwise leave a file the app's user cannot read.
+    printf '{"config_version": 9}\n' > "$SETTINGS_FILE"
+    chmod 0604 "$SETTINGS_FILE"
+
+    merge_settings_defaults '{"update": {"channel": 1}}'
+
+    [ "$(stat -c %a "$SETTINGS_FILE")" = "604" ] || fail "mode is now $(stat -c %a "$SETTINGS_FILE")"
+    grep -q '"channel": 1' "$SETTINGS_FILE"
+}
+
+@test "merge_settings_defaults: leaves an unparseable settings.json alone" {
+    # Config::init preserves a corrupt file as .corrupt and recovers from the
+    # rolling backup; replacing it with the fragment would skip that recovery.
+    printf '{"config_version": 9, "language": "de",\n' > "$SETTINGS_FILE"
+    cp "$SETTINGS_FILE" "$BATS_TEST_TMPDIR/before"
+
+    run merge_settings_defaults '{"update": {"channel": 1}}'
+
+    [ "$status" -ne 0 ]
+    cmp -s "$SETTINGS_FILE" "$BATS_TEST_TMPDIR/before" || fail "corrupt settings.json was rewritten"
+}
+
+@test "seed_update_channel: no-op when the channel did not come from the version" {
+    unset _R2_CHANNEL_FROM_VERSION
+    seed_update_channel
+    [ ! -e "$SETTINGS_FILE" ]
 }
 
 # --- detect_printer_model() conservatism (stubbed detection, no false positives) ---

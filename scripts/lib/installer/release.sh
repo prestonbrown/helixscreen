@@ -413,7 +413,28 @@ resolve_update_channel() {
         2) R2_CHANNEL=dev ;;
         *) R2_CHANNEL=stable ;;
     esac
+    case "$num" in
+        0 | 1 | 2) _R2_CHANNEL_FROM_SETTINGS=yes ;;
+    esac
     log_info "Update channel: ${R2_CHANNEL} (read from ${settings})"
+}
+
+# An explicit --version decides the channel when nothing else has: a
+# prerelease (any '-' suffix, the same test scripts/release-channel.sh applies
+# to tags) pinned on a fresh install or one with no settings.json is a beta
+# install, and the channel written into moonraker.conf must follow it.
+# _R2_CHANNEL_FROM_VERSION tells seed_update_channel to persist it for the app.
+# Args: the requested version tag
+match_channel_to_version() {
+    [ "${_R2_CHANNEL_FROM_ENV:-}" = "yes" ] && return 0
+    [ "${_R2_CHANNEL_FROM_SETTINGS:-}" = "yes" ] && return 0
+    case "$1" in
+        *-*)
+            R2_CHANNEL=beta
+            _R2_CHANNEL_FROM_VERSION=yes
+            log_info "Update channel: beta (${1} is a prerelease)"
+            ;;
+    esac
 }
 
 # Extract one string field from a platform's block of the manifest's assets
@@ -540,19 +561,47 @@ _verify_archive_hash() {
 # second (matching get_latest_version's own source order), so an HTTPS-capable
 # box gets an authenticated set of hashes even when it later has to fall back
 # to the HTTP mirror for the much larger archive.
-# Returns 0 when a manifest is in hand.
+#
+# Each channel's manifest describes only that channel's latest release, so
+# given a version the install channel's manifest does not cover, the other
+# channels' manifests are tried: a beta pinned with --version on a stable
+# install is listed in beta's.
+# Args: [version tag the manifest must cover]
+# Returns 0 when a manifest (covering that version, if given) is in hand.
 _ensure_manifest() {
-    [ -n "$_R2_MANIFEST" ] && return 0
+    local want=${1:-} ch
+    if [ -n "$_R2_MANIFEST" ]; then
+        if [ -z "$want" ] || _manifest_covers_version "$want"; then
+            return 0
+        fi
+    fi
 
+    if _fetch_channel_manifest "$R2_CHANNEL" &&
+        { [ -z "$want" ] || _manifest_covers_version "$want"; }; then
+        return 0
+    fi
+    [ -n "$want" ] || return 1
+    for ch in stable beta dev; do
+        [ "$ch" = "$R2_CHANNEL" ] && continue
+        if _fetch_channel_manifest "$ch" && _manifest_covers_version "$want"; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Fetch one channel's manifest into _R2_MANIFEST / _R2_MANIFEST_TRANSPORT.
+# Args: channel
+_fetch_channel_manifest() {
     if check_https_capability; then
-        _R2_MANIFEST=$(fetch_url "${R2_BASE_URL}/${R2_CHANNEL}/manifest.json") || true
+        _R2_MANIFEST=$(fetch_url "${R2_BASE_URL}/${1}/manifest.json") || true
         if [ -n "$_R2_MANIFEST" ]; then
             _R2_MANIFEST_TRANSPORT="https"
             return 0
         fi
     fi
 
-    _R2_MANIFEST=$(fetch_url_http "${HTTP_BASE_URL}/${R2_CHANNEL}/manifest.json") || true
+    _R2_MANIFEST=$(fetch_url_http "${HTTP_BASE_URL}/${1}/manifest.json") || true
     if [ -n "$_R2_MANIFEST" ]; then
         _R2_MANIFEST_TRANSPORT="http"
         return 0
@@ -916,7 +965,7 @@ download_release() {
     # invoked as `version=$(get_latest_version ...)`, so the _R2_MANIFEST it
     # caches lives and dies in that command substitution's subshell and never
     # reaches here — without this refetch every download is unverifiable.
-    _ensure_manifest || true
+    _ensure_manifest "$version" || true
 
     # The channel manifest only ever describes the LATEST release. Anything it
     # says (asset URLs *and* hashes) is off-limits when the caller pinned an

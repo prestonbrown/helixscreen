@@ -131,3 +131,58 @@ assert d['printers']['default']['wizard_completed'] is False, d
 assert d['preset'] == 'qidi_q2', d
 "
 }
+
+
+# --- Every settings.json writer: symlink, corruption ------------------------
+# These writers run after setup_config_symlink, so settings.json can be a link
+# into printer_data, and an unparseable file is Config::init's to recover.
+
+_link_settings_into_printer_data() {
+    PD="$BATS_TEST_TMPDIR/printer_data/config/helixscreen"
+    mkdir -p "$PD"
+    printf '{"config_version": 9, "active_printer_id": "default", "printers": {"default": {}}}\n' \
+        > "$PD/settings.json"
+    rm -f "$SETTINGS_FILE"
+    ln -s "$PD/settings.json" "$SETTINGS_FILE"
+}
+
+@test "full preset seed writes through the printer_data symlink" {
+    _link_settings_into_printer_data
+    seed_full_preset_for_printer qidi_q2
+    [ -L "$SETTINGS_FILE" ] || fail "symlink replaced"
+    python3 -c "import json;d=json.load(open('$PD/settings.json'));assert d.get('preset')=='qidi_q2',d"
+}
+
+@test "full preset seed leaves an unparseable settings.json alone" {
+    printf '{"config_version": 9,\n' > "$SETTINGS_FILE"
+    cp "$SETTINGS_FILE" "$BATS_TEST_TMPDIR/before"
+    seed_full_preset_for_printer qidi_q2
+    cmp -s "$SETTINGS_FILE" "$BATS_TEST_TMPDIR/before" || fail "rewritten: $(cat "$SETTINGS_FILE")"
+}
+
+@test "moonraker host pre-fill writes through the printer_data symlink" {
+    _link_settings_into_printer_data
+    _seed_moonraker_host_localhost
+    [ -L "$SETTINGS_FILE" ] || fail "symlink replaced"
+    python3 -c "import json;d=json.load(open('$PD/settings.json'));assert d['printers']['default']['moonraker_host']=='127.0.0.1',d"
+}
+
+@test "moonraker host pre-fill leaves an unparseable settings.json alone" {
+    printf '{"config_version": 9,\n' > "$SETTINGS_FILE"
+    cp "$SETTINGS_FILE" "$BATS_TEST_TMPDIR/before"
+    _seed_moonraker_host_localhost
+    cmp -s "$SETTINGS_FILE" "$BATS_TEST_TMPDIR/before" || fail "rewritten: $(cat "$SETTINGS_FILE")"
+}
+
+@test "full preset seed keeps the preset's display block" {
+    # k1 ships display.rotate=270: the first boot frame depends on it.
+    rm -f "$SETTINGS_FILE"
+    seed_full_preset_for_printer k1
+    python3 -c "import json;d=json.load(open('$SETTINGS_FILE'));assert isinstance(d.get('display'),dict),d;assert d['display']['rotate']==270,d"
+}
+
+@test "full preset seed fills the display block without overriding the user's keys" {
+    printf '{"config_version": 9, "display": {"rotate": 180, "sleep_sec": 60}}\n' > "$SETTINGS_FILE"
+    seed_full_preset_for_printer k1
+    python3 -c "import json;d=json.load(open('$SETTINGS_FILE'))['display'];assert d['rotate']==180 and d['sleep_sec']==60 and d['rotation_probed'] is True,d"
+}

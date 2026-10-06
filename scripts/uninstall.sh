@@ -565,12 +565,8 @@ kill_process_by_name() {
 #
 # Reads: KLIPPER_HOME, SUDO, HELIX_STATE_VAR_LIB, HELIX_STATE_ROOT_HOME
 retire_legacy_config_backups() {
-    local state_var_lib="${HELIX_STATE_VAR_LIB:-/var/lib/helixscreen}"
-    local state_root_home="${HELIX_STATE_ROOT_HOME:-/root/.helixscreen}"
-
     local tier
-    for tier in "$state_var_lib" "$state_root_home" "${KLIPPER_HOME:+${KLIPPER_HOME}/.helixscreen}"; do
-        [ -n "$tier" ] || continue
+    config_backup_tiers | while IFS= read -r tier; do
         [ -f "${tier}/helixconfig.json.backup" ] || continue
         # The gate: no current backup means the legacy file is still load-bearing.
         [ -f "${tier}/settings.json.backup" ] || continue
@@ -579,6 +575,17 @@ retire_legacy_config_backups() {
             log_info "Removed superseded config backup: ${tier}/helixconfig.json.backup"
         fi
     done
+}
+
+# The directories Config::init searches for a rolling settings backup, one per
+# line: the StateDirectory, then each HOME/.helixscreen the service may run with
+# (config_backup_primary/fallback, include/app_constants.h).
+# Reads: KLIPPER_HOME, HELIX_STATE_VAR_LIB, HELIX_STATE_ROOT_HOME
+config_backup_tiers() {
+    echo "${HELIX_STATE_VAR_LIB:-/var/lib/helixscreen}"
+    echo "${HELIX_STATE_ROOT_HOME:-/root/.helixscreen}"
+    [ -n "${KLIPPER_HOME:-}" ] && echo "${KLIPPER_HOME}/.helixscreen"
+    return 0
 }
 
 clean_helix_state_dirs() {
@@ -3678,7 +3685,7 @@ install_service_systemd() {
 # The watcher units have no platform customizations, only install-path placeholders.
 # Under NoNewPrivileges we can't write to /etc/systemd/system/ or run
 # systemctl daemon-reload, so we rely on helixscreen-update.service's
-# ExecStartPre to refresh the main service file on next Moonraker update.
+# ExecStart script to refresh the main service file on next Moonraker update.
 # However, the PATH unit itself won't get refreshed that way, so we attempt
 # a direct fix here and fall back to a warning if permissions block it.
 update_watcher_if_stale() {
@@ -4533,6 +4540,7 @@ sync_update_manager_channel() {
     ' "$conf" > "${conf}.tmp" && $fs mv "${conf}.tmp" "$conf"
 
     log_success "update_manager channel now ${want}"
+    _UPDATE_MANAGER_SYNCED=yes
 }
 
 cleanup_unsupported_options() {
@@ -4818,6 +4826,9 @@ configure_moonraker_updates() {
 
     if has_update_manager_section "$conf"; then
         log_info "update_manager section already exists in $conf"
+        # Set by sync_update_manager_channel; Moonraker reads its config only at
+        # startup, so a rewritten stanza needs a restart before Mainsail sees it.
+        _UPDATE_MANAGER_SYNCED=""
         # channel: is only ever written when the section is first added, so
         # rewrite it to whatever this update resolved to.
         sync_update_manager_channel "$conf"
@@ -4828,6 +4839,9 @@ configure_moonraker_updates() {
         disable_system_updates_on_buildroot "$conf"
         # Still ensure asvc is correct even if section already exists
         ensure_moonraker_asvc "$conf"
+        if [ "$_UPDATE_MANAGER_SYNCED" = "yes" ]; then
+            restart_moonraker
+        fi
         return 0
     fi
 

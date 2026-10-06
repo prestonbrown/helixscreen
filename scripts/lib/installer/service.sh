@@ -432,7 +432,7 @@ install_service_systemd() {
 # The watcher units have no platform customizations, only install-path placeholders.
 # Under NoNewPrivileges we can't write to /etc/systemd/system/ or run
 # systemctl daemon-reload, so we rely on helixscreen-update.service's
-# ExecStartPre to refresh the main service file on next Moonraker update.
+# ExecStart script to refresh the main service file on next Moonraker update.
 # However, the PATH unit itself won't get refreshed that way, so we attempt
 # a direct fix here and fall back to a warning if permissions block it.
 update_watcher_if_stale() {

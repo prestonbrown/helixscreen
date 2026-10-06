@@ -452,6 +452,7 @@ sync_update_manager_channel() {
     ' "$conf" > "${conf}.tmp" && $fs mv "${conf}.tmp" "$conf"
 
     log_success "update_manager channel now ${want}"
+    _UPDATE_MANAGER_SYNCED=yes
 }
 
 cleanup_unsupported_options() {
@@ -737,6 +738,9 @@ configure_moonraker_updates() {
 
     if has_update_manager_section "$conf"; then
         log_info "update_manager section already exists in $conf"
+        # Set by sync_update_manager_channel; Moonraker reads its config only at
+        # startup, so a rewritten stanza needs a restart before Mainsail sees it.
+        _UPDATE_MANAGER_SYNCED=""
         # channel: is only ever written when the section is first added, so
         # rewrite it to whatever this update resolved to.
         sync_update_manager_channel "$conf"
@@ -747,6 +751,9 @@ configure_moonraker_updates() {
         disable_system_updates_on_buildroot "$conf"
         # Still ensure asvc is correct even if section already exists
         ensure_moonraker_asvc "$conf"
+        if [ "$_UPDATE_MANAGER_SYNCED" = "yes" ]; then
+            restart_moonraker
+        fi
         return 0
     fi
 
