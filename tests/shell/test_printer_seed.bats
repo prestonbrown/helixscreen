@@ -246,6 +246,33 @@ print(d)' "$1" "$2"
     [ ! -e "$HELIX_STATE_ROOT_HOME/settings.json.backup" ]
 }
 
+@test "seed_update_channel: a box with only the legacy backup gets the channel" {
+    mkdir -p "$HELIX_STATE_VAR_LIB" "$KLIPPER_HOME/.helixscreen"
+    printf '{"config_version": 27, "language": "de"}\n' > "$HELIX_STATE_VAR_LIB/helixconfig.json.backup"
+    printf '{"config_version": 27, "update": {"channel": 0}}\n' > "$KLIPPER_HOME/.helixscreen/helixconfig.json.backup"
+    _R2_CHANNEL_FROM_VERSION=yes
+
+    seed_update_channel
+
+    [ "$(json_get "$HELIX_STATE_VAR_LIB/helixconfig.json.backup" update/channel)" = "1" ]
+    [ "$(json_get "$HELIX_STATE_VAR_LIB/helixconfig.json.backup" language)" = "de" ]
+    [ "$(json_get "$KLIPPER_HOME/.helixscreen/helixconfig.json.backup" update/channel)" = "0" ]
+    [ ! -e "$HELIX_STATE_VAR_LIB/settings.json.backup" ]
+}
+
+@test "config_backup_names: matches every backup file Config::init restores from" {
+    # Each accessor config_backup_search_paths lists, resolved to the file name
+    # app_constants.h gives it.
+    local fn app_names=""
+    for fn in $(sed -n '/config_backup_search_paths() {/,/^}/p' "$WORKTREE_ROOT/src/system/config.cpp" |
+                grep -oE '[a-z_]+_backup_[a-z]+\(\)' | tr -d '()'); do
+        app_names="$app_names $(grep -A1 "std::string ${fn}()" "$WORKTREE_ROOT/include/app_constants.h" |
+                                 grep -oE '"/[^"]+"' | tr -d '"/')"
+    done
+    [ -n "$app_names" ]
+    [ "$(printf '%s\n' $app_names | sort -u)" = "$(config_backup_names | sort -u)" ]
+}
+
 @test "seed_update_channel: a channel the backup already names stays" {
     mkdir -p "$HELIX_STATE_VAR_LIB"
     printf '{"config_version": 27, "update": {"channel": 0}}\n' > "$HELIX_STATE_VAR_LIB/settings.json.backup"
