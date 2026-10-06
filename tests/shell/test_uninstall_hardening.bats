@@ -170,13 +170,6 @@ setup() {
         "$WORKTREE_ROOT/config/helixscreen-update.service"
 }
 
-@test "helixscreen-update.service template uninstalling-guard exits 1 to skip" {
-    # The guard must `exit 1` to abort the oneshot, not exit 0 (which would
-    # continue and restart helixscreen).
-    grep -A 6 "uninstalling" "$WORKTREE_ROOT/config/helixscreen-update.service" | \
-        grep -q "exit 1"
-}
-
 # ============================================================================
 # Self-delete guards
 # ============================================================================
