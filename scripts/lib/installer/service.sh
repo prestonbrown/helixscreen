@@ -18,6 +18,18 @@ _sed_inplace() {
     $SUDO sed -i '' "$pattern" "$file" 2>/dev/null || true
 }
 
+# Fill the install-path placeholders (@@INSTALL_DIR@@, @@INSTALL_PARENT@@) in
+# installed unit files. config/refresh-service-units.sh does the same on the
+# device, where this library is not shipped.
+# Args: UNIT_FILE...   Reads: INSTALL_DIR, SUDO
+_template_install_paths() {
+    local install_dir="${INSTALL_DIR:-/opt/helixscreen}" install_parent f
+    install_parent="$(dirname "$install_dir")"
+    for f in "$@"; do
+        _sed_inplace "s|@@INSTALL_DIR@@|${install_dir}|g; s|@@INSTALL_PARENT@@|${install_parent}|g" "$f"
+    done
+}
+
 # Returns true if this process is running under the NoNewPrivileges systemd constraint.
 # When helix-screen self-updates, it spawns install.sh as a child process.  The
 # helixscreen.service unit has NoNewPrivileges=true, so ALL sudo calls in install.sh
@@ -398,15 +410,10 @@ install_service_systemd() {
     # `mks` user has no `mks` group and systemd refuses to spawn the unit.
     local helix_user="${KLIPPER_USER:-root}"
     local helix_group="${KLIPPER_GROUP:-${KLIPPER_USER:-root}}"
-    local install_dir="${INSTALL_DIR:-/opt/helixscreen}"
-
-    local install_parent
-    install_parent="$(dirname "${install_dir}")"
 
     _sed_inplace "s|@@HELIX_USER@@|${helix_user}|g" "$service_dest"
     _sed_inplace "s|@@HELIX_GROUP@@|${helix_group}|g" "$service_dest"
-    _sed_inplace "s|@@INSTALL_DIR@@|${install_dir}|g" "$service_dest"
-    _sed_inplace "s|@@INSTALL_PARENT@@|${install_parent}|g" "$service_dest"
+    _template_install_paths "$service_dest"
 
     if ! $SUDO systemctl daemon-reload; then
         log_error "Failed to reload systemd daemon."
@@ -422,7 +429,7 @@ install_service_systemd() {
 
 # During self-update, check if the deployed update-watcher path unit has the
 # old PathExists directive (which causes infinite restart loops) and fix it.
-# The watcher units have no platform customizations — only @@INSTALL_DIR@@.
+# The watcher units have no platform customizations, only install-path placeholders.
 # Under NoNewPrivileges we can't write to /etc/systemd/system/ or run
 # systemctl daemon-reload, so we rely on helixscreen-update.service's
 # ExecStartPre to refresh the main service file on next Moonraker update.
@@ -457,8 +464,6 @@ update_watcher_if_stale() {
     local path_src="${INSTALL_DIR}/config/helixscreen-update.path"
     local svc_src="${INSTALL_DIR}/config/helixscreen-update.service"
     local install_dir="${INSTALL_DIR:-/opt/helixscreen}"
-    local install_parent
-    install_parent="$(dirname "$install_dir")"
 
     if _has_no_new_privs; then
         # Can't write to /etc/systemd/system/ under NoNewPrivileges.
@@ -469,9 +474,8 @@ update_watcher_if_stale() {
         fi
         if [ -f "$svc_src" ] && [ -f "$svc_dest" ]; then
             if cp "$svc_src" "$svc_dest" 2>/dev/null; then
-                sed -i -e "s|@@INSTALL_DIR@@|${install_dir}|g" \
-                       -e "s|@@INSTALL_PARENT@@|${install_parent}|g" \
-                    "$svc_dest" 2>/dev/null
+                # sudo is blocked under NoNewPrivileges, so write directly.
+                ( SUDO=""; _template_install_paths "$svc_dest" )
                 fixed=true
             fi
         fi
@@ -488,10 +492,7 @@ update_watcher_if_stale() {
     if [ -f "$path_src" ] && [ -f "$svc_src" ]; then
         $SUDO cp "$path_src" "$path_dest"
         $SUDO cp "$svc_src" "$svc_dest"
-        _sed_inplace "s|@@INSTALL_DIR@@|${install_dir}|g" "$path_dest"
-        _sed_inplace "s|@@INSTALL_DIR@@|${install_dir}|g" "$svc_dest"
-        _sed_inplace "s|@@INSTALL_PARENT@@|${install_parent}|g" "$path_dest"
-        _sed_inplace "s|@@INSTALL_PARENT@@|${install_parent}|g" "$svc_dest"
+        _template_install_paths "$path_dest" "$svc_dest"
         $SUDO systemctl daemon-reload 2>/dev/null || true
         $SUDO systemctl restart helixscreen-update.path 2>/dev/null || true
         log_success "Updated watcher units ($reason)"
@@ -510,14 +511,9 @@ install_update_watcher_systemd() {
         return 0
     fi
 
-    local install_dir="${INSTALL_DIR:-/opt/helixscreen}"
-
     $SUDO cp "$path_src" "$path_dest"
     $SUDO cp "$svc_src" "$svc_dest"
-
-    # Template the install directory path in both units
-    _sed_inplace "s|@@INSTALL_DIR@@|${install_dir}|g" "$path_dest"
-    _sed_inplace "s|@@INSTALL_DIR@@|${install_dir}|g" "$svc_dest"
+    _template_install_paths "$path_dest" "$svc_dest"
 
     $SUDO systemctl daemon-reload
     $SUDO systemctl enable helixscreen-update.path 2>/dev/null || true

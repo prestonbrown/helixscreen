@@ -137,6 +137,22 @@ INITEOF
     grep -q "ExecStart=$INSTALL_DIR/bin/helix-screen" "$dest"
 }
 
+@test "install_update_watcher_systemd: installed units carry no @@ placeholder" {
+    cp "$WORKTREE_ROOT/config/helixscreen-update.service" \
+       "$WORKTREE_ROOT/config/helixscreen-update.path" "$INSTALL_DIR/config/"
+    mock_command_script "systemctl" 'exit 0'
+    setup_sudo_redirect
+
+    install_update_watcher_systemd
+
+    local svc="$FAKE_SYSTEMD_DIR/helixscreen-update.service"
+    [ -f "$svc" ]
+    [ -f "$FAKE_SYSTEMD_DIR/helixscreen-update.path" ]
+    run grep -nE '@@[A-Z_]+@@' "$svc" "$FAKE_SYSTEMD_DIR/helixscreen-update.path"
+    [ "$status" -eq 1 ]
+    grep -qF "$(dirname "$INSTALL_DIR")/.helixscreen/self_restart_sentinel" "$svc"
+}
+
 @test "install_service_systemd: KLIPPER_USER sets the service user" {
     create_service_template
     mock_command_script "systemctl" 'exit 0'
