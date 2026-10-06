@@ -418,12 +418,13 @@ main() {
     else
         if [ -z "$version" ]; then
             version=$(get_latest_version "$download_platform")
+        else
+            # After resolve_update_channel: a channel read from the installed
+            # config outranks the one a prerelease --version implies. A --local
+            # archive never moves the channel; it picks a build, not a feed.
+            match_channel_to_version "$version"
         fi
     fi
-    # After resolve_update_channel: a channel read from the installed config
-    # outranks the one a prerelease version implies. A version get_latest_version
-    # picked is the channel's own, so this only ever moves a pinned or local one.
-    match_channel_to_version "$version"
     log_info "Target version: ${BOLD}${version}${NC}"
 
     # Download/stage the release archive BEFORE any step that modifies the
