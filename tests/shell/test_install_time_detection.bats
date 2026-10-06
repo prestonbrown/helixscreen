@@ -175,14 +175,14 @@ _link_settings_into_printer_data() {
 }
 
 @test "full preset seed keeps the preset's display block" {
-    # creator5 ships display.rotate=90: the first boot frame depends on it.
+    # k1 ships display.rotate=270: the first boot frame depends on it.
     rm -f "$SETTINGS_FILE"
-    seed_full_preset_for_printer creator5
-    python3 -c "import json;d=json.load(open('$SETTINGS_FILE'));assert isinstance(d.get('display'),dict),d;assert d['display']['rotate']==90,d"
+    seed_full_preset_for_printer k1
+    python3 -c "import json;d=json.load(open('$SETTINGS_FILE'));assert isinstance(d.get('display'),dict),d;assert d['display']['rotate']==270,d"
 }
 
 @test "full preset seed fills the display block without overriding the user's keys" {
     printf '{"config_version": 9, "display": {"rotate": 180, "sleep_sec": 60}}\n' > "$SETTINGS_FILE"
-    seed_full_preset_for_printer creator5
+    seed_full_preset_for_printer k1
     python3 -c "import json;d=json.load(open('$SETTINGS_FILE'))['display'];assert d['rotate']==180 and d['sleep_sec']==60 and d['rotation_probed'] is True,d"
 }
