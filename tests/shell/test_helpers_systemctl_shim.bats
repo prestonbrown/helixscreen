@@ -10,15 +10,15 @@
 
 @test "loading helpers shadows systemctl on PATH" {
     load helpers
-    [ "$(command -v systemctl)" = "$BATS_TEST_TMPDIR/bin/systemctl" ] \
-        || fail "systemctl resolves to $(command -v systemctl), not the shim"
+    [ "$(type -P systemctl)" = "$BATS_TEST_TMPDIR/bin/systemctl" ] \
+        || fail "systemctl resolves to $(type -P systemctl), not the shim"
 }
 
 @test "the default shim is inert: systemctl calls succeed without effect" {
     load helpers
     # Guard BEFORE invoking: if the shadow is broken, running systemctl here
     # would be the one place a test interrogates the host's polkit.
-    [ "$(command -v systemctl)" = "$BATS_TEST_TMPDIR/bin/systemctl" ] \
+    [ "$(type -P systemctl)" = "$BATS_TEST_TMPDIR/bin/systemctl" ] \
         || fail "shim not on PATH; refusing to invoke the real systemctl"
     run systemctl stop helixscreen-update.path
     [ "$status" -eq 0 ]

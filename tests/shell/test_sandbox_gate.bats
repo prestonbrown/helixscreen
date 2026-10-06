@@ -8,7 +8,7 @@
 # file. A blocked call recorded in the suite ledger fails the run, and these
 # tests must not do that.
 
-SANDBOX_COMMANDS_DOC="killall pkill pidof reboot shutdown halt poweroff telinit launchctl crontab mount umount diskutil mkfs addr2line"
+SANDBOX_COMMANDS_DOC="killall pkill pidof reboot shutdown halt poweroff telinit launchctl crontab mount umount diskutil mkfs addr2line systemctl"
 
 setup() {
     load helpers
@@ -121,4 +121,15 @@ ESC
     ' "$BATS_TEST_DIRNAME"/*.bats "$BATS_TEST_DIRNAME/helpers.bash")
     [ -z "$offenders" ] || fail "PATH replaced for a callee that also loses the function layer:
 $offenders"
+}
+
+@test "sandbox: systemctl daemon-reload is blocked without helpers, so polkit is never asked" {
+    # Both PATHs leave out helpers.bash's per-test systemctl shim, which is
+    # what a test that never loads helpers runs with.
+    run escape env PATH="/usr/bin:/bin" bash -c 'systemctl daemon-reload'
+    [ "$status" -ne 0 ]
+    grep -q 'systemctl daemon-reload' "$PRIVATE_LEDGER"
+    run escape env PATH="$HELIX_TEST_SANDBOX_BIN:/usr/bin:/bin" sh -c 'systemctl daemon-reload'
+    [ "$status" -ne 0 ]
+    [ "$(grep -c 'systemctl daemon-reload' "$PRIVATE_LEDGER")" -eq 2 ]
 }
