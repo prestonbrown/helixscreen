@@ -303,9 +303,10 @@ std::string UsbBackendLinux::get_volume_label(const std::string& device,
             char resolved[PATH_MAX];
             if (realpath(link_path.c_str(), resolved) != nullptr) {
                 if (device == resolved) {
+                    // entry points into dir's buffer, so copy the name before closedir
+                    std::string label = entry->d_name;
                     closedir(dir);
                     // Unescape label (spaces encoded as \x20)
-                    std::string label = entry->d_name;
                     size_t pos;
                     while ((pos = label.find("\\x20")) != std::string::npos) {
                         label.replace(pos, 4, " ");
