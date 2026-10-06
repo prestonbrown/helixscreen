@@ -351,6 +351,53 @@ _settings_with_channel() {
     [ "$(cat "$fetched")" = "https://releases.helixscreen.org/beta/manifest.json" ]
 }
 
+# --- Channel of an explicit --version ---
+#
+# A prerelease pinned on an install with no channel of its own is a beta
+# install; the channel the installer reports and writes into moonraker.conf
+# has to say so.
+
+@test "match_channel_to_version: a prerelease on the default channel resolves to beta" {
+    match_channel_to_version "v1.1.0-beta.4"
+    [ "$R2_CHANNEL" = "beta" ]
+}
+
+@test "match_channel_to_version: a stable version on the default channel stays stable" {
+    match_channel_to_version "v1.0.3"
+    [ "$R2_CHANNEL" = "stable" ]
+}
+
+@test "match_channel_to_version: a prerelease with no settings file still resolves to beta" {
+    INSTALL_DIR="$BATS_TEST_TMPDIR/install"
+    unset MIGRATE_FROM_DIR
+    mkdir -p "$INSTALL_DIR/config"
+    export INSTALL_DIR
+    resolve_update_channel
+
+    match_channel_to_version "v1.1.0-rc.1"
+
+    [ "$R2_CHANNEL" = "beta" ]
+}
+
+@test "match_channel_to_version: a channel the app persisted wins" {
+    _settings_with_channel 0
+    resolve_update_channel
+
+    match_channel_to_version "v1.1.0-beta.4"
+
+    [ "$R2_CHANNEL" = "stable" ]
+}
+
+@test "match_channel_to_version: an env-provided R2_CHANNEL wins" {
+    export R2_CHANNEL="stable"
+    unset _HELIX_RELEASE_SOURCED
+    source "$RELEASE_SH"
+
+    match_channel_to_version "v1.1.0-beta.4"
+
+    [ "$R2_CHANNEL" = "stable" ]
+}
+
 # --- GitHub fallback for the beta/dev channels ---
 
 RELEASES_LIST='[
