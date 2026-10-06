@@ -10,15 +10,15 @@
 
 @test "loading helpers shadows systemctl on PATH" {
     load helpers
-    [ "$(command -v systemctl)" = "$BATS_TEST_TMPDIR/bin/systemctl" ] \
-        || fail "systemctl resolves to $(command -v systemctl), not the shim"
+    [ "$(type -P systemctl)" = "$BATS_TEST_TMPDIR/bin/systemctl" ] \
+        || fail "systemctl resolves to $(type -P systemctl), not the shim"
 }
 
 @test "the default shim is inert: systemctl calls succeed without effect" {
     load helpers
     # Guard BEFORE invoking: if the shadow is broken, running systemctl here
     # would be the one place a test interrogates the host's polkit.
-    [ "$(command -v systemctl)" = "$BATS_TEST_TMPDIR/bin/systemctl" ] \
+    [ "$(type -P systemctl)" = "$BATS_TEST_TMPDIR/bin/systemctl" ] \
         || fail "shim not on PATH; refusing to invoke the real systemctl"
     run systemctl stop helixscreen-update.path
     [ "$status" -eq 0 ]
@@ -42,6 +42,10 @@
     load helpers
     # This shell already carries the shim on PATH from setup, so the opt-out
     # is proven from a hermetic shell with a controlled PATH.
+    #
+    # sandbox-gap-reviewed: the probes below ask where systemctl RESOLVES and
+    # never run it, and a hermetic environment is the thing being tested, so
+    # they are outside the suite sandbox on purpose.
     local probe='command -v systemctl'
     local source_and_probe='. "$1" >/dev/null 2>&1; command -v systemctl'
     local real resolved
