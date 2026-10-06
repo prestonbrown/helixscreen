@@ -575,6 +575,39 @@ NET_DEPLOY_NO_ASSET='class NetDeploy(AppDeploy):
         "$conf" | grep -qx 'channel: beta'
 }
 
+@test "configure_moonraker_updates restarts Moonraker when it rewrites the stanza's channel" {
+    local conf restarted="$BATS_TEST_TMPDIR/restarted"
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf_with_helix "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    awk -v d="$INSTALL_DIR" '/^path:/ { print "path: " d; next } { print }' "$conf" > "$conf.new"
+    mv "$conf.new" "$conf"
+    restart_moonraker() { touch "$restarted"; }
+    R2_CHANNEL=beta
+
+    configure_moonraker_updates "pi"
+
+    [ -f "$restarted" ]
+}
+
+@test "configure_moonraker_updates leaves Moonraker running when the stanza already matches" {
+    local conf restarted="$BATS_TEST_TMPDIR/restarted"
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf_with_helix "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    awk -v d="$INSTALL_DIR" '/^path:/ { print "path: " d; next } { print }' "$conf" > "$conf.new"
+    mv "$conf.new" "$conf"
+    restart_moonraker() { touch "$restarted"; }
+    R2_CHANNEL=stable
+
+    configure_moonraker_updates "pi"
+
+    grep -qx 'channel: stable' "$conf"
+    [ ! -e "$restarted" ]
+}
+
 # =============================================================================
 # migrate_to_web_type
 # =============================================================================
