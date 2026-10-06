@@ -261,6 +261,18 @@ print(d)' "$1" "$2"
         || fail "temp file left behind: $(ls -A "$INSTALL_DIR/config")"
 }
 
+@test "merge_settings_defaults: the rewritten settings.json keeps the original's mode" {
+    # The rename puts a new inode in place; a root-run install with umask 027
+    # would otherwise leave a file the app's user cannot read.
+    printf '{"config_version": 9}\n' > "$SETTINGS_FILE"
+    chmod 0604 "$SETTINGS_FILE"
+
+    merge_settings_defaults '{"update": {"channel": 1}}'
+
+    [ "$(stat -c %a "$SETTINGS_FILE")" = "604" ] || fail "mode is now $(stat -c %a "$SETTINGS_FILE")"
+    grep -q '"channel": 1' "$SETTINGS_FILE"
+}
+
 @test "merge_settings_defaults: leaves an unparseable settings.json alone" {
     # Config::init preserves a corrupt file as .corrupt and recovers from the
     # rolling backup; replacing it with the fragment would skip that recovery.
