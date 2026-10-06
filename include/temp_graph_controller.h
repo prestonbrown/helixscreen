@@ -251,10 +251,11 @@ class TempGraphController {
     bool attach_series_observers(size_t i);
 
     /**
-     * @brief Retry the series that had no subject when the graph was built
+     * @brief Rebind the series whose subject is missing, provisional, or dead
      *
-     * Fired by the discovery version subjects. Attaches only what is still
-     * unresolved, then re-backfills so the newly reachable history appears at
+     * Fired by the discovery version subjects. Attaches only series with no
+     * live binding (never discovered, riding a stand-in, or bound to a subject
+     * discovery has since recreated), then re-backfills so the newly reachable history appears at
      * once instead of redrawing one live sample at a time. Deliberately NOT a
      * rebuild(): tearing the graph down here would destroy widgets from inside
      * a queued observer callback.
@@ -267,7 +268,8 @@ class TempGraphController {
 
     std::vector<SeriesState> series_;
     ObserverGuard connection_observer_;
-    /// Installed only while some series is unresolved; retries on discovery.
+    /// Installed whenever an extruder (or, below, a sensor) series exists;
+    /// rebinds series whose subject is missing or was recreated by discovery.
     ObserverGuard discovery_observer_;
     ObserverGuard sensor_discovery_observer_;
 

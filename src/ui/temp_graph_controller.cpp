@@ -410,8 +410,9 @@ void TempGraphController::setup_observers() {
     // TemperatureSensorManager::instance() constructs that singleton (and
     // registers its subjects) on first touch, which shows up as a subject leak
     // to any test measuring the registry around an unrelated graph.
-    int unresolved_extruder = 0;
-    int unresolved_sensor = 0;
+    int extruder_series = 0;
+    int sensor_series = 0;
+    int unresolved = 0;
 
     // Auxiliary sensors are whatever does not route to the bed, chamber, or
     // extruder subjects in attach_series_observers().
@@ -421,30 +422,30 @@ void TempGraphController::setup_observers() {
     };
 
     for (size_t i = 0; i < series_.size(); ++i) {
+        const std::string& name = series_[i].klipper_name;
+        if (is_sensor_series(name)) {
+            ++sensor_series;
+        } else if (name.rfind("extruder", 0) == 0) {
+            ++extruder_series;
+        }
         // A provisional binding counts as unresolved: it is producing data, but
         // from a stand-in subject that discovery will replace.
         if (!attach_series_observers(i) || series_[i].provisional) {
-            if (is_sensor_series(series_[i].klipper_name)) {
-                ++unresolved_sensor;
-            } else {
-                ++unresolved_extruder;
-            }
+            ++unresolved;
         }
     }
-    const int unresolved = unresolved_extruder + unresolved_sensor;
 
-    // A series whose subject did not exist yet has no observer and would sit
-    // frozen on backfilled history for the whole session — the home temp_graph
-    // widget is built at app startup, before discovery creates the per-extruder
-    // and per-sensor subjects. Watch the discovery version subjects so those
-    // series can attach late. Only when something is actually unresolved: a
-    // fully-wired graph must not re-resolve on every discovery bump.
-    if (unresolved > 0) {
+    // Extruder and sensor subjects are created by discovery, which runs after
+    // the home temp_graph widget is built and again on every klippy ready.
+    // Each run may create, or recreate, the subjects a series is bound to, so
+    // any graph with such a series watches the discovery subjects for as long
+    // as it lives; resolve_pending_series() rebinds only what is missing or dead.
+    if (extruder_series > 0 || sensor_series > 0) {
         auto& ps = get_printer_state();
         spdlog::debug("[TempGraphController] {} of {} series unresolved — watching discovery",
                       unresolved, series_.size());
 
-        if (unresolved_extruder > 0) {
+        if (extruder_series > 0) {
             if (auto* extruder_version = ps.get_extruder_version_subject()) {
                 discovery_observer_ = observe_int_sync<TempGraphController>(
                     extruder_version, this,
@@ -456,7 +457,7 @@ void TempGraphController::setup_observers() {
             }
         }
 
-        if (unresolved_sensor > 0) {
+        if (sensor_series > 0) {
             auto& sensor_mgr = sensors::TemperatureSensorManager::instance();
             if (auto* sensor_count = sensor_mgr.get_sensor_count_subject()) {
                 sensor_discovery_observer_ = observe_int_sync<TempGraphController>(
@@ -480,11 +481,15 @@ void TempGraphController::resolve_pending_series() {
     int resolved = 0;
     for (size_t i = 0; i < series_.size(); ++i) {
         auto& s = series_[i];
-        if (s.temp_obs && !s.provisional)
-            continue; // already bound to its real subject
-        if (s.provisional) {
+        // A dead lifetime means discovery freed the subject this series was
+        // bound to (init_extruders() recreates them on every klippy ready).
+        const bool dead = s.lifetime && !*s.lifetime;
+        if (s.temp_obs && !s.provisional && !dead)
+            continue; // already bound to its real, live subject
+        if (s.provisional || dead) {
             // Drop the stand-in before re-resolving, or the series ends up with
-            // two observers pushing into the same chart slot.
+            // two observers pushing into the same chart slot. A dead guard's
+            // reset() skips lv_observer_remove(): the subject freed it already.
             s.temp_obs.reset();
             s.target_obs.reset();
         }

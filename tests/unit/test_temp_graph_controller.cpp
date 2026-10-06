@@ -492,3 +492,34 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
     // Then: the live sample reaches the chart instead of being dropped
     REQUIRE(count_series_points_eq(controller->graph(), 2295) > 0);
 }
+
+// Discovery re-runs on every klippy ready (FIRMWARE_RESTART keeps the WebSocket
+// up), and init_extruders() recreates every per-extruder subject even when the
+// names are unchanged. A series bound before that must follow the new subject.
+TEST_CASE_METHOD(TempGraphControllerFixture,
+                 "Extruder series rebinds when discovery recreates its subjects",
+                 "[controller][temp_graph_controller][klippy_restart]") {
+    auto& ps = get_printer_state();
+    auto& queue = helix::ui::UpdateQueue::instance();
+
+    ps.init_extruders({"extruder"});
+    queue.drain();
+
+    TempGraphControllerConfig cfg;
+    cfg.series = {
+        {"extruder", lv_color_hex(0xFF4444), true},
+    };
+    auto controller = std::make_unique<TempGraphController>(screen, cfg);
+    REQUIRE(controller->is_valid());
+
+    // Klipper restarts: same extruder names, fresh subjects.
+    ps.init_extruders({"extruder"});
+    queue.drain();
+    lv_timer_handler_safe();
+
+    lv_subject_set_int(ps.get_extruder_temp_subject("extruder"), 2295);
+    queue.drain();
+    lv_timer_handler_safe();
+
+    REQUIRE(count_series_points_eq(controller->graph(), 2295) > 0);
+}
