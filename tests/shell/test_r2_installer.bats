@@ -390,6 +390,12 @@ _settings_with_channel() {
     match_channel_to_version "v1.1.0-beta.4"
 
     [ "$R2_CHANNEL" = "beta" ]
+    [ "${_R2_CHANNEL_FROM_VERSION:-}" = "yes" ]
+}
+
+@test "match_channel_to_version: only a channel it switched is marked as version-derived" {
+    match_channel_to_version "v1.0.3"
+    [ -z "${_R2_CHANNEL_FROM_VERSION:-}" ]
 }
 
 @test "match_channel_to_version: a channel the app persisted wins" {

@@ -113,28 +113,12 @@ seed_settings_for_printer() {
         return 0
     fi
 
-    local settings="${INSTALL_DIR}/config/settings.json"
-
-    if [ -n "${INSTALL_DIR:-}" ] && [ ! -d "${INSTALL_DIR}/config" ]; then
-        $(file_sudo "${INSTALL_DIR}") mkdir -p "${INSTALL_DIR}/config"
-    fi
-
-    log_info "Seeding settings defaults for ${printer_id}..."
-
-    # Merge into a temp file we own, then move into place via file_sudo so we
-    # respect the same privilege model as the rest of the installer.
-    local tmp_out="${settings}.seed.$$"
-
-    # Extract the install-critical device-level blocks from the preset, strip
-    # any "_"-prefixed provenance keys, then deep-merge that subset into the base
-    # settings: existing settings (base) take precedence; the subset fills only
-    # keys the base does not already define. Recurses into nested objects.
-    if SETTINGS_PATH="$settings" FRAGMENT_PATH="$fragment" TMP_OUT="$tmp_out" python3 - <<'PY'
-import json, os, sys
-
-settings_path = os.environ["SETTINGS_PATH"]
-fragment_path = os.environ["FRAGMENT_PATH"]
-tmp_out = os.environ["TMP_OUT"]
+    # Extract the install-critical device-level blocks from the preset and
+    # strip any "_"-prefixed provenance keys; merge_settings_defaults then fills
+    # only keys the existing settings do not already define.
+    local subset
+    subset=$(FRAGMENT_PATH="$fragment" python3 - <<'PY'
+import json, os
 
 # The ONLY preset blocks baked into the user's settings.json BEFORE first launch.
 # These are the install-critical, pre-Moonraker device-level blocks:
@@ -150,6 +134,64 @@ tmp_out = os.environ["TMP_OUT"]
 # reads it before its runtime preset loader runs.
 SEED_BLOCKS = ["input", "display"]
 
+def strip_underscore(obj):
+    """Recursively drop any "_"-prefixed keys (provenance/metadata) so the
+    preset's nested documentation (e.g. input.calibration._comment) never leaks
+    into the user's settings.json."""
+    if isinstance(obj, dict):
+        return {k: strip_underscore(v) for k, v in obj.items()
+                if not k.startswith("_")}
+    if isinstance(obj, list):
+        return [strip_underscore(v) for v in obj]
+    return obj
+
+try:
+    with open(os.environ["FRAGMENT_PATH"]) as f:
+        preset = json.load(f)
+except (ValueError, OSError):
+    preset = {}
+out = {}
+for key in SEED_BLOCKS:
+    if isinstance(preset, dict) and isinstance(preset.get(key), dict):
+        out[key] = strip_underscore(preset[key])
+print(json.dumps(out))
+PY
+    ) || subset=""
+    if [ -z "$subset" ]; then
+        log_warn "Failed to merge settings seed for ${printer_id}; leaving settings.json unchanged"
+        return 0
+    fi
+
+    log_info "Seeding settings defaults for ${printer_id}..."
+    if merge_settings_defaults "$subset"; then
+        _record_seeded_settings "$printer_id"
+        log_success "Seeded settings defaults for ${printer_id}"
+    else
+        log_warn "Could not write seeded settings.json for ${printer_id}"
+    fi
+
+    return 0
+}
+
+# Deep-merge a JSON object into the install's settings.json, filling only keys
+# it lacks: a value already there always wins. Creates settings.json when it is
+# absent or empty, and treats an unparseable one as empty. Writes through a
+# settings.json symlink into printer_data instead of replacing the link.
+# Args: $1 = JSON object text
+# Returns 1 when python3 is missing or the merge or write failed.
+merge_settings_defaults() {
+    command -v python3 >/dev/null 2>&1 || return 1
+
+    local settings="${INSTALL_DIR}/config/settings.json"
+    local tmp_out="${INSTALL_DIR}/config/.settings.json.seed.$$"
+
+    if [ -n "${INSTALL_DIR:-}" ] && [ ! -d "${INSTALL_DIR}/config" ]; then
+        $(file_sudo "${INSTALL_DIR}") mkdir -p "${INSTALL_DIR}/config"
+    fi
+
+    if ! SETTINGS_PATH="$settings" FRAGMENT_JSON="$1" TMP_OUT="$tmp_out" python3 - <<'PY'
+import json, os
+
 def load(path):
     if not os.path.exists(path):
         return {}
@@ -162,36 +204,15 @@ def load(path):
         return obj if isinstance(obj, dict) else {}
     except (ValueError, OSError):
         # Malformed existing settings: treat as empty base rather than crash
-        # the install. The seeded subset becomes the new content.
+        # the install. The fragment becomes the new content.
         return {}
-
-def strip_underscore(obj):
-    """Recursively drop any "_"-prefixed keys (provenance/metadata) so the
-    preset's nested documentation (e.g. input.calibration._comment) never leaks
-    into the user's settings.json."""
-    if isinstance(obj, dict):
-        return {k: strip_underscore(v) for k, v in obj.items()
-                if not k.startswith("_")}
-    if isinstance(obj, list):
-        return [strip_underscore(v) for v in obj]
-    return obj
-
-def extract_subset(preset, blocks):
-    """Build a fragment dict containing only the named top-level blocks present
-    in the preset, with provenance keys stripped. A block absent from the preset
-    is simply omitted from the fragment."""
-    out = {}
-    for key in blocks:
-        if isinstance(preset, dict) and isinstance(preset.get(key), dict):
-            out[key] = strip_underscore(preset[key])
-    return out
 
 def deep_merge(base, frag, top_level=False):
     """Return base with frag's keys filled in where base lacks them.
     Existing base values always win (fragment is lower priority)."""
     for k, v in frag.items():
-        # Defense-in-depth: never copy a top-level "_"-prefixed provenance key
-        # into the user's settings.json (the subset is already stripped above).
+        # Never copy a top-level "_"-prefixed provenance key into the user's
+        # settings.json.
         if top_level and k.startswith("_"):
             continue
         if k in base and isinstance(base[k], dict) and isinstance(v, dict):
@@ -201,30 +222,38 @@ def deep_merge(base, frag, top_level=False):
         # else: base already has a non-dict value → keep it (user wins)
     return base
 
-base = load(settings_path)
-preset = load(fragment_path)
-frag = extract_subset(preset, SEED_BLOCKS)
-merged = deep_merge(base, frag, top_level=True)
-
-with open(tmp_out, "w") as f:
+merged = deep_merge(load(os.environ["SETTINGS_PATH"]),
+                    json.loads(os.environ["FRAGMENT_JSON"]), top_level=True)
+with open(os.environ["TMP_OUT"], "w") as f:
     json.dump(merged, f, indent=2)
     f.write("\n")
 PY
     then
-        if [ -f "$tmp_out" ]; then
-            if $(file_sudo "${INSTALL_DIR}/config") mv "$tmp_out" "$settings" 2>/dev/null; then
-                _record_seeded_settings "$printer_id"
-                log_success "Seeded settings defaults for ${printer_id}"
-            else
-                log_warn "Could not write seeded settings.json for ${printer_id}"
-                rm -f "$tmp_out" 2>/dev/null || true
-            fi
-        fi
-    else
-        log_warn "Failed to merge settings seed for ${printer_id}; leaving settings.json unchanged"
         rm -f "$tmp_out" 2>/dev/null || true
+        return 1
     fi
 
+    # cp, not mv: cp writes through a symlink to its target, mv would replace it.
+    if ! $(file_sudo "${INSTALL_DIR}/config") cp "$tmp_out" "$settings" 2>/dev/null; then
+        rm -f "$tmp_out" 2>/dev/null || true
+        return 1
+    fi
+    rm -f "$tmp_out" 2>/dev/null || true
+    return 0
+}
+
+# Persist a channel match_channel_to_version derived from a prerelease version
+# as the app's /update/channel, or its updater offers stable while Moonraker's
+# update_manager follows beta. A channel already in settings.json is the user's
+# and stays. Runs after setup_config_symlink so the write reaches printer_data.
+seed_update_channel() {
+    [ "${_R2_CHANNEL_FROM_VERSION:-}" = "yes" ] || return 0
+    if merge_settings_defaults '{"update": {"channel": 1}}'; then
+        log_info "App update channel: beta, unless settings.json already named one"
+    else
+        log_warn "Could not record the beta update channel in settings.json;"
+        log_warn "choose Beta in the app's update settings to keep receiving beta builds."
+    fi
     return 0
 }
 

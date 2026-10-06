@@ -538,6 +538,7 @@ main() {
     else
         seed_from_moonraker_detection || true
     fi
+    seed_update_channel
 
     # Configure ALSA "default" when the board has no card 0 (e.g. Pi + HDMI-audio
     # screens like the BTT HDMI5, whose only outputs are vc4hdmi0/vc4hdmi1 at

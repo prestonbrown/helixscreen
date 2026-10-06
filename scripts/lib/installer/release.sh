@@ -423,6 +423,7 @@ resolve_update_channel() {
 # prerelease (any '-' suffix, the same test scripts/release-channel.sh applies
 # to tags) pinned on a fresh install or one with no settings.json is a beta
 # install, and the channel written into moonraker.conf must follow it.
+# _R2_CHANNEL_FROM_VERSION tells seed_update_channel to persist it for the app.
 # Args: the requested version tag
 match_channel_to_version() {
     [ "${_R2_CHANNEL_FROM_ENV:-}" = "yes" ] && return 0
@@ -430,6 +431,7 @@ match_channel_to_version() {
     case "$1" in
         *-*)
             R2_CHANNEL=beta
+            _R2_CHANNEL_FROM_VERSION=yes
             log_info "Update channel: beta (${1} is a prerelease)"
             ;;
     esac
