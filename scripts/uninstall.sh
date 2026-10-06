@@ -588,6 +588,13 @@ config_backup_tiers() {
     return 0
 }
 
+# The rolling settings backup file names Config::init restores from, in its
+# priority order (config_backup_search_paths, src/system/config.cpp).
+config_backup_names() {
+    echo "settings.json.backup"
+    echo "helixconfig.json.backup"
+}
+
 clean_helix_state_dirs() {
     local install_parent
     # The two hardcoded paths are env-overrideable so the BATS suite can

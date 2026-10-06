@@ -601,6 +601,13 @@ config_backup_tiers() {
     return 0
 }
 
+# The rolling settings backup file names Config::init restores from, in its
+# priority order (config_backup_search_paths, src/system/config.cpp).
+config_backup_names() {
+    echo "settings.json.backup"
+    echo "helixconfig.json.backup"
+}
+
 clean_helix_state_dirs() {
     local install_parent
     # The two hardcoded paths are env-overrideable so the BATS suite can
@@ -4144,7 +4151,7 @@ def transform(settings):
 # backup that survived an uninstall, which would take the channel with it.
 seed_update_channel() {
     [ "${_R2_CHANNEL_FROM_VERSION:-}" = "yes" ] || return 0
-    local fragment='{"update": {"channel": 1}}' tier
+    local fragment='{"update": {"channel": 1}}' tier name
     if merge_settings_defaults "$fragment"; then
         log_info "App update channel: beta, unless settings.json already named one"
     else
@@ -4152,9 +4159,11 @@ seed_update_channel() {
         log_warn "choose Beta in the app's update settings to keep receiving beta builds."
     fi
     config_backup_tiers | while IFS= read -r tier; do
-        [ -s "${tier}/settings.json.backup" ] || continue
-        merge_settings_defaults "$fragment" "${tier}/settings.json.backup" ||
-            log_warn "Could not record the beta update channel in ${tier}/settings.json.backup"
+        for name in $(config_backup_names); do
+            [ -s "${tier}/${name}" ] || continue
+            merge_settings_defaults "$fragment" "${tier}/${name}" ||
+                log_warn "Could not record the beta update channel in ${tier}/${name}"
+        done
     done
     return 0
 }
