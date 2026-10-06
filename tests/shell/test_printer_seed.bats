@@ -238,6 +238,29 @@ print(d)' "$1" "$2"
     [ "$(json_get "$pd/settings.json" update/channel)" = "1" ]
 }
 
+@test "merge_settings_defaults: renames into place from beside the resolved target" {
+    # A rename is atomic only within one filesystem, so the temp file has to sit
+    # next to the file it replaces, which through the symlink is printer_data's.
+    local pd="$BATS_TEST_TMPDIR/printer_data/config/helixscreen"
+    mkdir -p "$pd"
+    printf '{"config_version": 9}\n' > "$pd/settings.json"
+    ln -s "$pd/settings.json" "$SETTINGS_FILE"
+    local log="$BATS_TEST_TMPDIR/mv.log"
+    mv() { printf '%s|%s\n' "$1" "$2" >> "$log"; command mv "$@"; }
+
+    merge_settings_defaults '{"update": {"channel": 1}}'
+
+    [ -f "$log" ] || fail "settings.json was not renamed into place"
+    local src dst
+    src=$(cut -d'|' -f1 "$log")
+    dst=$(cut -d'|' -f2 "$log")
+    [ "$dst" = "$pd/settings.json" ] || fail "renamed onto $dst"
+    [ "$(dirname "$src")" = "$pd" ] || fail "temp file was at $src"
+    [ -L "$SETTINGS_FILE" ] || fail "symlink replaced"
+    [ -z "$(ls -A "$INSTALL_DIR/config" | grep -v '^settings.json$')" ] \
+        || fail "temp file left behind: $(ls -A "$INSTALL_DIR/config")"
+}
+
 @test "seed_update_channel: no-op when the channel did not come from the version" {
     unset _R2_CHANNEL_FROM_VERSION
     seed_update_channel

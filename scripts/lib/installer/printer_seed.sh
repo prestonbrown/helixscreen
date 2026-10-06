@@ -175,22 +175,33 @@ PY
 
 # Deep-merge a JSON object into the install's settings.json, filling only keys
 # it lacks: a value already there always wins. Creates settings.json when it is
-# absent or empty, and treats an unparseable one as empty. Writes through a
-# settings.json symlink into printer_data instead of replacing the link.
+# absent or empty, and treats an unparseable one as empty.
+#
+# The write renames a synced temp file into place, as ConfigStorageFile::store
+# does, so power loss leaves the old file or the new one, never a truncated
+# one. Through a settings.json symlink into printer_data, the temp file and the
+# rename target are both the link's resolved file: the rename stays inside one
+# directory and the link survives.
 # Args: $1 = JSON object text
 # Returns 1 when python3 is missing or the merge or write failed.
 merge_settings_defaults() {
     command -v python3 >/dev/null 2>&1 || return 1
 
-    local settings="${INSTALL_DIR}/config/settings.json"
-    local tmp_out="${INSTALL_DIR}/config/.settings.json.seed.$$"
-
     if [ -n "${INSTALL_DIR:-}" ] && [ ! -d "${INSTALL_DIR}/config" ]; then
         $(file_sudo "${INSTALL_DIR}") mkdir -p "${INSTALL_DIR}/config"
     fi
 
+    local settings="${INSTALL_DIR}/config/settings.json"
+    if [ -L "$settings" ]; then
+        settings=$(readlink -f "$settings" 2>/dev/null) || settings=""
+        [ -n "$settings" ] || return 1
+    fi
+    local target_dir
+    target_dir=$(dirname "$settings")
+    local tmp_out="${target_dir}/.settings.json.seed.$$"
+
     if ! SETTINGS_PATH="$settings" FRAGMENT_JSON="$1" TMP_OUT="$tmp_out" python3 - <<'PY'
-import json, os
+import json, os, sys
 
 def load(path):
     if not os.path.exists(path):
@@ -201,11 +212,11 @@ def load(path):
         if not data:
             return {}
         obj = json.loads(data)
-        return obj if isinstance(obj, dict) else {}
     except (ValueError, OSError):
         # Malformed existing settings: treat as empty base rather than crash
         # the install. The fragment becomes the new content.
         return {}
+    return obj if isinstance(obj, dict) else {}
 
 def deep_merge(base, frag, top_level=False):
     """Return base with frag's keys filled in where base lacks them.
@@ -227,18 +238,18 @@ merged = deep_merge(load(os.environ["SETTINGS_PATH"]),
 with open(os.environ["TMP_OUT"], "w") as f:
     json.dump(merged, f, indent=2)
     f.write("\n")
+    f.flush()
+    os.fsync(f.fileno())
 PY
     then
         rm -f "$tmp_out" 2>/dev/null || true
         return 1
     fi
 
-    # cp, not mv: cp writes through a symlink to its target, mv would replace it.
-    if ! $(file_sudo "${INSTALL_DIR}/config") cp "$tmp_out" "$settings" 2>/dev/null; then
+    if ! $(file_sudo "$target_dir") mv "$tmp_out" "$settings" 2>/dev/null; then
         rm -f "$tmp_out" 2>/dev/null || true
         return 1
     fi
-    rm -f "$tmp_out" 2>/dev/null || true
     return 0
 }
 
