@@ -379,6 +379,19 @@ _settings_with_channel() {
     [ "$R2_CHANNEL" = "beta" ]
 }
 
+@test "match_channel_to_version: a settings.json with no channel key leaves the version to decide" {
+    INSTALL_DIR="$BATS_TEST_TMPDIR/install"
+    unset MIGRATE_FROM_DIR
+    mkdir -p "$INSTALL_DIR/config"
+    printf '{"config_version": 9, "update": {"auto": true}}\n' > "$INSTALL_DIR/config/settings.json"
+    export INSTALL_DIR
+    resolve_update_channel
+
+    match_channel_to_version "v1.1.0-beta.4"
+
+    [ "$R2_CHANNEL" = "beta" ]
+}
+
 @test "match_channel_to_version: a channel the app persisted wins" {
     _settings_with_channel 0
     resolve_update_channel
