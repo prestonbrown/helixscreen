@@ -88,11 +88,13 @@ void SpoolmanSlotSaver::build_spool_patches(const SpoolInfo& original, const Spo
     if (edited.location != original.location) {
         spool_patch["location"] = edited.location;
     }
+    // The spool's own tare weight, which Spoolman copies from the filament
+    // when the spool is created and reads from the spool from then on.
+    if (std::abs(edited.spool_weight_g - original.spool_weight_g) > 0.1) {
+        spool_patch["spool_weight"] = edited.spool_weight_g;
+    }
 
     // Filament-level fields (affect all spools of this filament definition)
-    if (std::abs(edited.spool_weight_g - original.spool_weight_g) > 0.1) {
-        filament_patch["spool_weight"] = edited.spool_weight_g;
-    }
     if (edited.color_hex != original.color_hex) {
         filament_patch["color_hex"] = edited.color_hex;
     }

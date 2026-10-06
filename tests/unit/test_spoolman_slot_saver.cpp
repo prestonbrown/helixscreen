@@ -6,6 +6,9 @@
 #include "spoolman_slot_saver.h"
 #include "spoolman_types.h"
 
+#include <algorithm>
+#include <optional>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
@@ -1284,4 +1287,38 @@ TEST_CASE("SpoolmanSlotSaver UpdateLinked still patches the linked spool",
 
     REQUIRE(done);
     CHECK_FALSE(api.spoolman_mock().weight_updates.empty());
+}
+
+TEST_CASE("build_spool_patches: a spool weight edit reaches the spool the display reads",
+          "[spoolman][slot_saver]") {
+    // Spoolman copies the filament's spool_weight onto a spool when it is
+    // created and serves the spool's own value from then on, which is what
+    // the edit modal shows.
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+
+    std::optional<SpoolInfo> original;
+    api.spoolman().get_spoolman_spool(
+        1, [&](const std::optional<SpoolInfo>& s) { original = s; }, nullptr);
+    REQUIRE(original.has_value());
+    SpoolInfo edited = *original;
+    edited.spool_weight_g = original->spool_weight_g + 55.0;
+
+    nlohmann::json spool_patch;
+    nlohmann::json filament_patch;
+    SpoolmanSlotSaver::build_spool_patches(*original, edited, spool_patch, filament_patch);
+    if (!spool_patch.empty()) {
+        api.spoolman().update_spoolman_spool(edited.id, spool_patch, nullptr, nullptr);
+    }
+    if (!filament_patch.empty()) {
+        api.spoolman().update_spoolman_filament(edited.filament_id, filament_patch, nullptr,
+                                                nullptr);
+    }
+
+    std::optional<SpoolInfo> reread;
+    api.spoolman().get_spoolman_spool(
+        1, [&](const std::optional<SpoolInfo>& s) { reread = s; }, nullptr);
+    REQUIRE(reread.has_value());
+    CHECK(reread->spool_weight_g == Catch::Approx(edited.spool_weight_g));
 }

@@ -2326,9 +2326,9 @@ TEST_CASE("build_spool_patches splits spool-level vs filament-level fields",
     CHECK(spool_patch["lot_nr"] == "LOT-B");
     CHECK(spool_patch["location"] == "Shelf B");
     CHECK(spool_patch["comment"] == "dried 4h");
-    CHECK(spool_patch.count("spool_weight") == 0);
+    CHECK(spool_patch["spool_weight"] == Catch::Approx(200.0));
 
-    CHECK(filament_patch["spool_weight"] == Catch::Approx(200.0));
+    CHECK(filament_patch.count("spool_weight") == 0);
     CHECK(filament_patch["color_hex"] == "#00FF00");
     CHECK(filament_patch.count("remaining_weight") == 0);
 
