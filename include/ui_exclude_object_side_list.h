@@ -63,9 +63,22 @@ class ExcludeObjectSideList {
     }
 
   private:
-    void populate_rows();
-    void create_row(lv_obj_t* parent, int index, const std::string& name, bool is_excluded,
-                    bool is_current);
+    enum class RowState { Unset, Idle, Printing, Excluded };
+
+    /// The parts of a row that change with its state.
+    struct Row {
+        lv_obj_t* row;
+        lv_obj_t* name_label;
+        lv_obj_t* status_label;
+        RowState state;
+    };
+
+    /// Recreate the rows when the defined object names differ from the ones shown.
+    void rebuild_rows();
+    /// Restyle the existing rows in place, so the list keeps its scroll position.
+    void update_row_states();
+    Row create_row(lv_obj_t* parent, int index, const std::string& name);
+    static void apply_row_state(const Row& row);
     static lv_color_t color_for_index(int index);
     static void on_row_clicked(lv_event_t* e);
     static void on_close_clicked(lv_event_t* e);
@@ -77,6 +90,10 @@ class ExcludeObjectSideList {
 
     PrinterState* printer_state_{nullptr};
     PrintExcludeObjectManager* manager_{nullptr};
+
+    /// Names the rows were built from, in row order; rows_[i] shows row_names_[i].
+    std::vector<std::string> row_names_;
+    std::vector<Row> rows_;
 
     ObserverGuard excluded_version_obs_;
     ObserverGuard defined_version_obs_;

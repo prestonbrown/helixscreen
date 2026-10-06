@@ -113,17 +113,22 @@ void ExcludeObjectSideList::create(lv_obj_t* parent, PrinterState* printer_state
         lv_obj_set_x(root_, slide_distance);
     }
 
-    populate_rows();
+    rebuild_rows();
 
-    auto repopulate = [](ExcludeObjectSideList* self, int) {
-        if (self->root_) {
-            self->populate_rows();
-        }
-    };
     excluded_version_obs_ = observe_int_sync<ExcludeObjectSideList>(
-        printer_state_->get_excluded_objects_version_subject(), this, repopulate);
+        printer_state_->get_excluded_objects_version_subject(), this,
+        [](ExcludeObjectSideList* self, int) {
+            if (self->root_) {
+                self->update_row_states();
+            }
+        });
     defined_version_obs_ = observe_int_sync<ExcludeObjectSideList>(
-        printer_state_->get_defined_objects_version_subject(), this, repopulate);
+        printer_state_->get_defined_objects_version_subject(), this,
+        [](ExcludeObjectSideList* self, int) {
+            if (self->root_) {
+                self->rebuild_rows();
+            }
+        });
 
     lv_anim_t a;
     lv_anim_init(&a);
@@ -169,6 +174,8 @@ void ExcludeObjectSideList::destroy() {
     // on row taps during the out-anim window).
     lv_anim_delete(root_, nullptr);
     lv_obj_delete_async(root_);
+    rows_.clear();
+    row_names_.clear();
 
     root_ = nullptr;
     rows_container_ = nullptr;
@@ -186,19 +193,12 @@ void ExcludeObjectSideList::on_close_clicked(lv_event_t* /*e*/) {
     }
 }
 
-void ExcludeObjectSideList::populate_rows() {
+void ExcludeObjectSideList::rebuild_rows() {
     if (!rows_container_ || !printer_state_) {
         return;
     }
 
-    // Observers above are observe_int_sync (deferred via UpdateQueue), so child
-    // teardown must go through the async-clean helper to stay outside the batch
-    // (CLAUDE.md § "No sync widget deletion in queued callbacks").
-    helix::ui::safe_clean_children(rows_container_);
-
     const auto& defined = printer_state_->get_defined_objects();
-    const auto& excluded = printer_state_->get_excluded_objects();
-    const auto& current = printer_state_->get_current_object();
 
     if (empty_state_) {
         if (defined.empty()) {
@@ -208,17 +208,46 @@ void ExcludeObjectSideList::populate_rows() {
         }
     }
 
-    int index = 0;
-    for (const auto& name : defined) {
-        bool is_excluded = excluded.count(name) > 0;
-        bool is_current = (name == current);
-        create_row(rows_container_, index, name, is_excluded, is_current);
-        ++index;
+    if (defined == row_names_) {
+        update_row_states();
+        return;
+    }
+
+    // Observers above are observe_int_sync (deferred via UpdateQueue), so child
+    // teardown must go through the async-clean helper to stay outside the batch
+    // (CLAUDE.md § "No sync widget deletion in queued callbacks").
+    helix::ui::safe_clean_children(rows_container_);
+
+    row_names_ = defined;
+    rows_.clear();
+    rows_.reserve(row_names_.size());
+    for (size_t i = 0; i < row_names_.size(); ++i) {
+        rows_.push_back(create_row(rows_container_, static_cast<int>(i), row_names_[i]));
+    }
+    update_row_states();
+}
+
+void ExcludeObjectSideList::update_row_states() {
+    if (!printer_state_) {
+        return;
+    }
+    const auto& excluded = printer_state_->get_excluded_objects();
+    const auto& current = printer_state_->get_current_object();
+
+    for (size_t i = 0; i < rows_.size(); ++i) {
+        const std::string& name = row_names_[i];
+        const RowState state = excluded.count(name) > 0 ? RowState::Excluded
+                               : name == current        ? RowState::Printing
+                                                        : RowState::Idle;
+        if (rows_[i].state != state) {
+            rows_[i].state = state;
+            apply_row_state(rows_[i]);
+        }
     }
 }
 
-void ExcludeObjectSideList::create_row(lv_obj_t* parent, int index, const std::string& name,
-                                       bool is_excluded, bool is_current) {
+ExcludeObjectSideList::Row ExcludeObjectSideList::create_row(lv_obj_t* parent, int index,
+                                                             const std::string& name) {
     lv_obj_t* row = lv_obj_create(parent);
     lv_obj_set_width(row, lv_pct(100));
     lv_obj_set_height(row, LV_SIZE_CONTENT);
@@ -263,30 +292,42 @@ void ExcludeObjectSideList::create_row(lv_obj_t* parent, int index, const std::s
     lv_obj_t* status = lv_label_create(row);
     lv_obj_set_style_text_font(status, theme_manager_get_font("font_small"), 0);
     lv_obj_add_flag(status, LV_OBJ_FLAG_EVENT_BUBBLE);
-    if (is_excluded) {
-        lv_label_set_text(status, lv_tr("Excluded"));
-        lv_obj_set_style_text_color(status, theme_manager_get_color("text_muted"), 0);
-        lv_obj_set_style_text_color(label, theme_manager_get_color("text_muted"), 0);
-        lv_obj_set_style_opa(row, 150, 0);
-    } else if (is_current) {
-        lv_label_set_text(status, lv_tr("Printing"));
-        lv_obj_set_style_text_color(status, theme_manager_get_color("success"), 0);
+
+    // L069: row was created via lv_obj_create (not lv_xml_create) so the
+    // user_data slot is ours to use. The helper owns the copy and frees it
+    // on LV_EVENT_DELETE. An excluded row drops its clickable flag in
+    // apply_row_state(), so it never sees a click.
+    if (helix::ui::set_owned_user_string(row, name)) {
+        lv_obj_add_event_cb(row, on_row_clicked, LV_EVENT_CLICKED, this);
+    }
+    lv_obj_set_style_bg_color(row, theme_manager_get_color("primary"), LV_STATE_PRESSED);
+    lv_obj_set_style_bg_opa(row, 80, LV_STATE_PRESSED);
+
+    return Row{row, label, status, RowState::Unset};
+}
+
+void ExcludeObjectSideList::apply_row_state(const Row& r) {
+    const bool excluded = r.state == RowState::Excluded;
+    lv_obj_set_style_opa(r.row, excluded ? 150 : LV_OPA_COVER, 0);
+    lv_obj_set_flag(r.row, LV_OBJ_FLAG_CLICKABLE, !excluded);
+    if (excluded) {
+        lv_obj_set_style_text_color(r.name_label, theme_manager_get_color("text_muted"), 0);
     } else {
-        lv_label_set_text(status, "");
+        lv_obj_remove_local_style_prop(r.name_label, LV_STYLE_TEXT_COLOR, 0);
     }
 
-    if (!is_excluded && manager_) {
-        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
-
-        // L069: row was created via lv_obj_create (not lv_xml_create) so the
-        // user_data slot is ours to use. The helper owns the copy and frees it
-        // on LV_EVENT_DELETE.
-        if (helix::ui::set_owned_user_string(row, name)) {
-            lv_obj_add_event_cb(row, on_row_clicked, LV_EVENT_CLICKED, this);
-        }
-
-        lv_obj_set_style_bg_color(row, theme_manager_get_color("primary"), LV_STATE_PRESSED);
-        lv_obj_set_style_bg_opa(row, 80, LV_STATE_PRESSED);
+    switch (r.state) {
+    case RowState::Excluded:
+        lv_label_set_text(r.status_label, lv_tr("Excluded"));
+        lv_obj_set_style_text_color(r.status_label, theme_manager_get_color("text_muted"), 0);
+        break;
+    case RowState::Printing:
+        lv_label_set_text(r.status_label, lv_tr("Printing"));
+        lv_obj_set_style_text_color(r.status_label, theme_manager_get_color("success"), 0);
+        break;
+    default:
+        lv_label_set_text(r.status_label, "");
+        break;
     }
 }
 

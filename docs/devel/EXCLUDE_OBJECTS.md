@@ -215,7 +215,7 @@ Objects excluded by other clients (Mainsail, Fluidd, KlipperScreen) are automati
 
 ### XML Layout
 
-The side list is built from `ui_xml/components/exclude_object_side_list.xml`, the map from `ui_xml/components/exclude_object_map.xml`. Rows are populated dynamically in C++ because the object list is not known at compile time (this is an allowed exception to the "no `lv_obj_add_event_cb()`" rule noted in the code).
+The side list is built from `ui_xml/components/exclude_object_side_list.xml`, the map from `ui_xml/components/exclude_object_map.xml`. Rows are populated dynamically in C++ because the object list is not known at compile time (this is an allowed exception to the "no `lv_obj_add_event_cb()`" rule noted in the code). Rows are rebuilt only when the defined object names change. Exclusions and the printing object restyle the existing rows in place (`ExcludeObjectSideList::apply_row_state`), so the list keeps its scroll position while the printing object changes.
 
 ---
 
