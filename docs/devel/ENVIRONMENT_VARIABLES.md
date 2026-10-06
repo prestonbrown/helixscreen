@@ -354,7 +354,7 @@ HELIX_SCREEN_SIZE=medium
 
 ### `HELIX_DPI`
 
-Override the display DPI (dots per inch). Useful for screens where spacing looks too large or too small at the auto-detected DPI.
+Override the display DPI (dots per inch) passed to `lv_display_set_dpi()`. Layout tokens are fixed pixel values chosen by resolution breakpoint and fonts ignore DPI, so this only reaches LVGL's built-in padding and a few `lv_dpx()` call sites: it has almost no visible effect. To change the size of the interface, change the resolution (`HELIX_SCREEN_SIZE`). DPI-driven UI scaling arrives in 1.1.
 
 | Property | Value |
 |----------|-------|

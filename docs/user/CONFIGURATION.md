@@ -1841,7 +1841,7 @@ These can be set in the systemd service file or before running the binary:
 | `HELIX_DISPLAY_ROTATION` | Override display rotation in degrees (`0`, `90`, `180`, `270`) |
 | `HELIX_COLOR_SWAP_RB` | Swap red/blue channels (`1` to enable) — fixes inverted colors on some displays |
 | `HELIX_BACKLIGHT_DEVICE` | Force the backlight control method: `sysfs`, `allwinner`, `brightness` (Creality Sonic Pad), or `none` to disable. Fixes a brightness slider that does nothing |
-| `HELIX_DPI` | Override display DPI / UI scale (`50`–`500`, default `160`) — lower for oversized UI, higher for cramped UI |
+| `HELIX_DPI` | Override display DPI (`50`-`500`, default `160`). Only adjusts a few LVGL paddings; it does not scale the UI. Resolution (`HELIX_SCREEN_SIZE`) sets the size of the interface |
 | `HELIX_SCREEN_SIZE` | Force screen size / layout (`micro`, `tiny`, `small`, `medium`, `large`, `xlarge`, or `WxH`) — persistent equivalent of `-s` |
 | `HELIX_TOUCH_DEVICE` | Override touch input device (e.g., `/dev/input/event1`) |
 | `HELIX_TOUCH_SWAP_AXES` | Swap X/Y touch axes (`1` to enable) |

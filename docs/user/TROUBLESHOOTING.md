@@ -609,25 +609,11 @@ This lists the resolutions the DRM driver will accept for the `-s` flag.
 - The resolution is correct (the whole screen is used), but the *scale* of the interface looks wrong
 
 **Cause:**
-HelixScreen sizes spacing and padding from the display's DPI (dots per inch). On unusual or high-density panels the auto-detected DPI can be off, so the layout is scaled too large or too small.
+In 1.0 the interface is sized by the screen's resolution alone. Each resolution falls into a layout size, and that size sets the dimensions of buttons, text and spacing. There is no scale setting in 1.0; a UI Scale setting arrives in 1.1.
 
-**Fix:** Override the DPI in your `helixscreen.env` file (typically `~/helixscreen/config/helixscreen.env`), then restart HelixScreen. The default is `160`; valid range is `50` to `500`.
+`HELIX_DPI` does not fix this. It changes a few of LVGL's built-in paddings and nothing else, so its effect is barely visible.
 
-- **Everything too large / cramped / overflowing** — set a **lower** DPI:
-  ```
-  HELIX_DPI=100
-  ```
-- **Everything too small / lots of empty space** — set a **higher** DPI:
-  ```
-  HELIX_DPI=200
-  ```
-
-Restart after editing:
-```bash
-sudo systemctl restart helixscreen
-```
-
-Adjust in steps (e.g. 110, 100, 90 or 160, 200, 240) until the interface looks right. Lower DPI = tighter/smaller; higher DPI = larger/roomier.
+**Fix:** The resolution is the lever. If it is mis-detected, set it with `HELIX_SCREEN_SIZE` (below). On a monitor that offers several modes, a higher resolution gives the same controls proportionally less of the screen, and a lower one makes them bigger.
 
 > **Tip:** If instead the *whole layout tier* is wrong — for example a compact phone-style layout on a big screen, or vice versa — the resolution rather than the DPI is being mis-detected. Force a layout size with `HELIX_SCREEN_SIZE` (named preset `micro`/`tiny`/`small`/`medium`/`large`/`xlarge`, or `WxH` like `1024x600`), which is the persistent equivalent of the `-s` flag covered in [Wrong screen size or resolution](#wrong-screen-size-or-resolution).
 
@@ -648,7 +634,7 @@ HelixScreen detects both orientations and adjusts the navigation bar and grid si
 **What you can do:**
 
 - **On a portrait panel, rotate it to landscape.** This is the well-tested path and what the Creality K2 does out of the box. Set `"rotate": 90` (or `270`) in the `display` section of your config — see [Display upside down or rotated](#display-upside-down-or-rotated).
-- **On an ultrawide screen,** there is no better fallback today. Reducing DPI (`HELIX_DPI`) can claw back some usable density, but the layout will still be a landscape layout stretched wide.
+- **On an ultrawide screen,** there is no better fallback today. The layout will be a landscape layout stretched wide.
 - **Force the standard layout** if the alpha layout is worse than the fallback: `--layout standard`, or `"layout": "standard"` in the `display` section.
 
 Contributions are very welcome here and only need XML, not C++ — see the [UI Contributor Guide](../devel/UI_CONTRIBUTOR_GUIDE.md).
