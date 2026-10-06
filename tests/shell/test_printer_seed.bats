@@ -41,6 +41,11 @@ setup() {
     SUDO=""
     export SUDO
 
+    # The rolling-backup tiers seed_update_channel also writes; never the host's.
+    export HELIX_STATE_VAR_LIB="$BATS_TEST_TMPDIR/var/lib/helixscreen"
+    export HELIX_STATE_ROOT_HOME="$BATS_TEST_TMPDIR/root/.helixscreen"
+    export KLIPPER_HOME="$BATS_TEST_TMPDIR/home/pi"
+
     unset _HELIX_PRINTER_SEED_SOURCED
     # printer_seed.sh uses file_sudo() from common.sh
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
@@ -223,6 +228,32 @@ print(d)' "$1" "$2"
     _R2_CHANNEL_FROM_VERSION=yes
     seed_update_channel
     [ "$(json_get "$SETTINGS_FILE" update/channel)" = "2" ]
+}
+
+@test "seed_update_channel: a surviving rolling backup gets the channel too" {
+    # The settings.json seeded here is versionless, so Config::init replaces it
+    # with this backup, and the channel has to be in what the app ends up reading.
+    mkdir -p "$HELIX_STATE_VAR_LIB" "$KLIPPER_HOME/.helixscreen"
+    printf '{"config_version": 27, "language": "de"}\n' > "$HELIX_STATE_VAR_LIB/settings.json.backup"
+    printf '{"config_version": 27}\n' > "$KLIPPER_HOME/.helixscreen/settings.json.backup"
+    _R2_CHANNEL_FROM_VERSION=yes
+
+    seed_update_channel
+
+    [ "$(json_get "$HELIX_STATE_VAR_LIB/settings.json.backup" update/channel)" = "1" ]
+    [ "$(json_get "$HELIX_STATE_VAR_LIB/settings.json.backup" language)" = "de" ]
+    [ "$(json_get "$KLIPPER_HOME/.helixscreen/settings.json.backup" update/channel)" = "1" ]
+    [ ! -e "$HELIX_STATE_ROOT_HOME/settings.json.backup" ]
+}
+
+@test "seed_update_channel: a channel the backup already names stays" {
+    mkdir -p "$HELIX_STATE_VAR_LIB"
+    printf '{"config_version": 27, "update": {"channel": 0}}\n' > "$HELIX_STATE_VAR_LIB/settings.json.backup"
+    _R2_CHANNEL_FROM_VERSION=yes
+
+    seed_update_channel
+
+    [ "$(json_get "$HELIX_STATE_VAR_LIB/settings.json.backup" update/channel)" = "0" ]
 }
 
 @test "seed_update_channel: writes through the printer_data symlink and keeps it" {

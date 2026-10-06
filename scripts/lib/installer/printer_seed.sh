@@ -188,16 +188,17 @@ PY
 # Args: $1 = Python source defining transform(settings) -> settings. It runs with
 #       json, os and deep_merge in scope, and reads its inputs from the
 #       environment, which this function passes through.
+#       $2 = the file to rewrite (default: the install's settings.json)
 # Returns 1 when python3 is missing, settings.json is unparseable, or the
 # transform or write failed.
 _rewrite_settings_json() {
     command -v python3 >/dev/null 2>&1 || return 1
 
-    if [ -n "${INSTALL_DIR:-}" ] && [ ! -d "${INSTALL_DIR}/config" ]; then
+    local settings="${2:-${INSTALL_DIR}/config/settings.json}"
+    if [ -z "${2:-}" ] && [ -n "${INSTALL_DIR:-}" ] && [ ! -d "${INSTALL_DIR}/config" ]; then
         $(file_sudo "${INSTALL_DIR}") mkdir -p "${INSTALL_DIR}/config"
     fi
 
-    local settings="${INSTALL_DIR}/config/settings.json"
     if [ -L "$settings" ]; then
         settings=$(readlink -f "$settings" 2>/dev/null) || settings=""
         [ -n "$settings" ] || return 1
@@ -276,27 +277,37 @@ PY
 # Deep-merge a JSON object into the install's settings.json, filling only keys
 # it lacks: a value already there always wins. Creates settings.json when it is
 # absent or empty.
-# Args: $1 = JSON object text
+# Args: $1 = JSON object text, $2 = another file to merge into instead
 # Returns 1 as _rewrite_settings_json does.
 merge_settings_defaults() {
     FRAGMENT_JSON="$1" _rewrite_settings_json '
 def transform(settings):
     return deep_merge(settings, json.loads(os.environ["FRAGMENT_JSON"]), top_level=True)
-'
+' "${2:-}"
 }
 
 # Persist a channel match_channel_to_version derived from a prerelease version
 # as the app's /update/channel, or its updater offers stable while Moonraker's
 # update_manager follows beta. A channel already in settings.json is the user's
 # and stays. Runs after setup_config_symlink so the write reaches printer_data.
+#
+# The rolling backups get the same default. A settings.json this creates has no
+# config_version, and Config::init replaces such a document wholesale with a
+# backup that survived an uninstall, which would take the channel with it.
 seed_update_channel() {
     [ "${_R2_CHANNEL_FROM_VERSION:-}" = "yes" ] || return 0
-    if merge_settings_defaults '{"update": {"channel": 1}}'; then
+    local fragment='{"update": {"channel": 1}}' tier
+    if merge_settings_defaults "$fragment"; then
         log_info "App update channel: beta, unless settings.json already named one"
     else
         log_warn "Could not record the beta update channel in settings.json;"
         log_warn "choose Beta in the app's update settings to keep receiving beta builds."
     fi
+    config_backup_tiers | while IFS= read -r tier; do
+        [ -s "${tier}/settings.json.backup" ] || continue
+        merge_settings_defaults "$fragment" "${tier}/settings.json.backup" ||
+            log_warn "Could not record the beta update channel in ${tier}/settings.json.backup"
+    done
     return 0
 }
 
