@@ -14,14 +14,16 @@
  * ACE, CFS, QIDI Box and the tool changers had the same exposure.
  *
  * Two halves are covered here:
- *   1. build_detection_mode_gcode() refuses to produce a command for any
- *      backend but Happy Hare — the belt-and-braces guard on the send path.
+ *   1. build_detection_mode_gcode() produces a command only where the backend
+ *      names one — the belt-and-braces guard on the send path.
  *   2. The XML mode/length sections bind their hidden flag to
  *      clog_cfg_mode_supported, the subject the modal drives from the same
  *      decision — the UI half.
  */
 
 #include "../test_fixtures.h"
+#include "ams_backend_afc.h"
+#include "ams_backend_happy_hare.h"
 #include "clog_detection_config_modal.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
@@ -33,55 +35,54 @@
 // 1. The gcode decision itself
 // ============================================================================
 
-TEST_CASE("Detection-mode gcode is emitted for Happy Hare", "[clog][gate]") {
+TEST_CASE("Detection-mode gcode is emitted for Happy Hare of unknown version", "[clog][gate]") {
+    // Before the connect-time query names a version, the pre-3.42 names.
+    AmsBackendHappyHare hh(nullptr, nullptr);
+    using M = ClogDetectionConfigModal;
+
     SECTION("auto mode carries no detection length") {
-        auto cmd =
-            ClogDetectionConfigModal::build_detection_mode_gcode(AmsType::HAPPY_HARE, 2, 12.0f);
-        REQUIRE(cmd.has_value());
-        REQUIRE(*cmd == "MMU_TEST_CONFIG clog_detection=2");
+        REQUIRE(M::build_detection_mode_gcode(&hh, 2, 12.0f) ==
+                std::optional<std::string>("MMU_TEST_CONFIG enable_clog_detection=2"));
     }
-
     SECTION("manual mode carries the detection length") {
-        auto cmd =
-            ClogDetectionConfigModal::build_detection_mode_gcode(AmsType::HAPPY_HARE, 1, 12.0f);
-        REQUIRE(cmd.has_value());
-        REQUIRE(*cmd == "MMU_TEST_CONFIG clog_detection=1 detection_length=12.0");
+        REQUIRE(M::build_detection_mode_gcode(&hh, 1, 12.0f) ==
+                std::optional<std::string>(
+                    "MMU_TEST_CONFIG enable_clog_detection=1 mmu_calibration_clog_length=12.0"));
     }
-
     SECTION("manual mode with no length falls back to the bare form") {
-        auto cmd =
-            ClogDetectionConfigModal::build_detection_mode_gcode(AmsType::HAPPY_HARE, 1, 0.0f);
-        REQUIRE(cmd.has_value());
-        REQUIRE(*cmd == "MMU_TEST_CONFIG clog_detection=1");
+        REQUIRE(M::build_detection_mode_gcode(&hh, 1, 0.0f) ==
+                std::optional<std::string>("MMU_TEST_CONFIG enable_clog_detection=1"));
     }
-
     SECTION("off is still a Happy Hare write") {
-        auto cmd =
-            ClogDetectionConfigModal::build_detection_mode_gcode(AmsType::HAPPY_HARE, 0, 0.0f);
-        REQUIRE(cmd.has_value());
-        REQUIRE(*cmd == "MMU_TEST_CONFIG clog_detection=0");
+        REQUIRE(M::build_detection_mode_gcode(&hh, 0, 0.0f) ==
+                std::optional<std::string>("MMU_TEST_CONFIG enable_clog_detection=0"));
     }
 }
 
-TEST_CASE("Detection-mode gcode is never emitted for non-Happy-Hare backends", "[clog][gate]") {
-    // THE FIX. AFC is the reported case (#1155): its nearest analogue is the
-    // buffer's error_sensitivity, which is not a detection length, so there is
-    // no drop-in mapping — sending nothing is correct. The others reach the
-    // modal through the same clog_meter_mode > 0 gate.
-    const AmsType others[] = {AmsType::NONE,         AmsType::AFC,      AmsType::ACE,
-                              AmsType::TOOL_CHANGER, AmsType::AD5X_IFS, AmsType::CFS,
-                              AmsType::SNAPMAKER,    AmsType::QIDI_BOX};
-
-    for (AmsType type : others) {
-        CAPTURE(ams_type_to_string(type));
-        for (int mode : {0, 1, 2}) {
-            CAPTURE(mode);
-            REQUIRE_FALSE(ClogDetectionConfigModal::build_detection_mode_gcode(type, mode, 12.0f)
-                              .has_value());
-            REQUIRE_FALSE(
-                ClogDetectionConfigModal::build_detection_mode_gcode(type, mode, 0.0f).has_value());
-        }
+TEST_CASE("Detection-mode gcode is never emitted for backends without the setting",
+          "[clog][gate]") {
+    // AFC is the reported case (#1155): its nearest analogue is the buffer's
+    // error_sensitivity, which is not a detection length, so there is no
+    // drop-in mapping and sending nothing is correct.
+    AmsBackendAfc afc(nullptr, nullptr);
+    for (int mode : {0, 1, 2}) {
+        CAPTURE(mode);
+        REQUIRE_FALSE(ClogDetectionConfigModal::build_detection_mode_gcode(&afc, mode, 12.0f));
+        REQUIRE_FALSE(ClogDetectionConfigModal::build_detection_mode_gcode(nullptr, mode, 0.0f));
     }
+}
+
+TEST_CASE("Save sends the detection length only when the user moved it", "[clog][gate]") {
+    AmsBackendHappyHare hh(nullptr, nullptr);
+    using M = ClogDetectionConfigModal;
+    CHECK_FALSE(M::detection_save_gcode(&hh, 1, 1, 20.0f, 20.0f));
+    CHECK(M::detection_save_gcode(&hh, 1, 1, 15.0f, 20.0f) ==
+          std::optional<std::string>(
+              "MMU_TEST_CONFIG enable_clog_detection=1 mmu_calibration_clog_length=15.0"));
+    CHECK(M::detection_save_gcode(&hh, 1, 2, 20.0f, 20.0f) ==
+          std::optional<std::string>("MMU_TEST_CONFIG enable_clog_detection=1"));
+    CHECK(M::detection_save_gcode(&hh, 0, 1, 15.0f, 20.0f) ==
+          std::optional<std::string>("MMU_TEST_CONFIG enable_clog_detection=0"));
 }
 
 // ============================================================================

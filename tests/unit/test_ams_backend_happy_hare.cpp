@@ -280,6 +280,18 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
         now_fn_ = std::move(fn);
     }
 
+    auto& overrides_for_test() {
+        return user_overrides_;
+    }
+
+    /// Answer the connect-time config-defaults query with @p settings and the
+    /// live @p live_mmu_machine.
+    void
+    test_apply_config_defaults(const nlohmann::json& settings,
+                               const nlohmann::json& live_mmu_machine = nlohmann::json::object()) {
+        apply_config_defaults(settings, live_mmu_machine);
+    }
+
     /// Expose apply_heater_config for testing (simulates the async configfile query result)
     void test_apply_heater_config(const nlohmann::json& settings) {
         apply_heater_config(settings);
@@ -1312,12 +1324,12 @@ TEST_CASE("Happy Hare clog_detection action sends MMU_TEST_CONFIG", "[ams][happy
 
     auto result = helper.execute_device_action("clog_detection", std::string("Auto"));
     REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("MMU_TEST_CONFIG CLOG_DETECTION=2"));
+    REQUIRE(helper.has_gcode("MMU_TEST_CONFIG ENABLE_CLOG_DETECTION=2"));
 
     helper.clear_captured_gcodes();
     result = helper.execute_device_action("clog_detection", std::string("Off"));
     REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("MMU_TEST_CONFIG CLOG_DETECTION=0"));
+    REQUIRE(helper.has_gcode("MMU_TEST_CONFIG ENABLE_CLOG_DETECTION=0"));
 }
 
 // --- Phase 6: Dryer support ---
@@ -1933,7 +1945,7 @@ TEST_CASE("Happy Hare clog_detection Manual maps to 1", "[ams][happy_hare][v4][e
 
     auto result = helper.execute_device_action("clog_detection", std::string("Manual"));
     REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("MMU_TEST_CONFIG CLOG_DETECTION=1"));
+    REQUIRE(helper.has_gcode("MMU_TEST_CONFIG ENABLE_CLOG_DETECTION=1"));
 }
 
 // --- Backwards compatibility: v3 sends nothing new ---
@@ -3338,7 +3350,7 @@ TEST_CASE("execute_device_action clog_detection saves override",
 
     auto result = helper.execute_device_action("clog_detection", std::any(std::string("Auto")));
     REQUIRE(result.success());
-    REQUIRE(helper.has_gcode_containing("CLOG_DETECTION=2"));
+    REQUIRE(helper.has_gcode_containing("ENABLE_CLOG_DETECTION=2"));
 }
 
 // ============================================================================
@@ -4233,4 +4245,164 @@ TEST_CASE("Happy Hare recover_with_state refuses what the MMU cannot be in",
         CHECK_FALSE(helper.recover_with_state(recover_req(-1, true, std::nullopt)).success());
     }
     CHECK(helper.captured_gcodes.empty());
+}
+
+// ============================================================================
+// Parameter names by Happy Hare release (#1479)
+// ============================================================================
+
+namespace {
+
+nlohmann::json v3_settings(double version) {
+    return {{"mmu",
+             {{"happy_hare_version", version},
+              {"enable_clog_detection", 1},
+              {"flowguard_encoder_mode", 1},
+              {"flowguard_encoder_max_motion", 18.0}}}};
+}
+
+/// Happy Hare 4.0.0, one QIDI box: mmu_machine and configfile excerpts from a
+/// QIDI Q2 capture (prestonbrown/helixscreen#1479).
+const nlohmann::json kV4MmuMachine = {{"happy_hare_version", "4.0.0"},
+                                      {"unit_0",
+                                       {{"name", "unit0"},
+                                        {"display_name", "QIDI-0"},
+                                        {"num_gates", 4},
+                                        {"first_gate", 0},
+                                        {"selector_type", "VirtualSelector"},
+                                        {"filament_always_gripped", true},
+                                        {"has_bypass", false},
+                                        {"filament_buffer", false},
+                                        {"environment_sensor", "temperature_sensor unit0_Env"},
+                                        {"filament_heater", "heater_generic box1_heater"}}},
+                                      {"num_units", 1},
+                                      {"num_gates", 4}};
+const nlohmann::json kV4Settings = {
+    {"mmu_machine", {{"happy_hare_version", "4.0.0"}, {"units", {"unit0"}}}},
+    {"mmu_parameters",
+     {{"form_tip_macro", "_MMU_CUT_TIP_NOSKEW"},
+      {"extruder_load_speed", 12.0},
+      {"extruder_unload_speed", 12.0}}},
+    {"mmu_unit unit0", {{"selector_type", "VirtualSelector"}, {"toolhead", "default"}}},
+    {"mmu_unit_parameters unit0",
+     {{"gear_load_speed", 80.0},
+      {"gear_from_filament_buffer_speed", 150.0},
+      {"gear_unload_speed", 120.0},
+      {"sync_to_extruder", 1},
+      {"heater_max_temp", 65.0},
+      {"flowguard_encoder_mode", 2}}},
+    {"mmu_toolhead default",
+     {{"toolhead_extruder_to_nozzle", 87.0},
+      {"toolhead_sensor_to_nozzle", 1.0},
+      {"toolhead_entry_to_extruder", 6.0},
+      {"toolhead_ooze_reduction", 0.0}}}};
+
+} // namespace
+
+TEST_CASE("Happy Hare parameter names by release", "[ams][happy_hare][hh_v4]") {
+    using L = AmsBackendHappyHare::MachineLayout;
+    auto layout = [](double version) {
+        L l;
+        l.version_number = version;
+        l.v4 = version >= 4;
+        return l;
+    };
+    for (const double v : {2.73, 3.01, 3.40}) {
+        CAPTURE(v);
+        CHECK(AmsBackendHappyHare::param_name("clog_detection", layout(v)) ==
+              "enable_clog_detection");
+        CHECK(AmsBackendHappyHare::param_name("detection_length", layout(v)) ==
+              "mmu_calibration_clog_length");
+    }
+    CHECK(AmsBackendHappyHare::param_name("gear_unload_speed", layout(3.01)).empty());
+    CHECK(AmsBackendHappyHare::param_name("gear_unload_speed", layout(3.10)) ==
+          "gear_unload_speed");
+    CHECK(AmsBackendHappyHare::param_name("clog_detection", layout(3.42)) ==
+          "flowguard_encoder_mode");
+    CHECK(AmsBackendHappyHare::param_name("detection_length", layout(3.42)) ==
+          "flowguard_encoder_max_motion");
+    CHECK(AmsBackendHappyHare::param_name("clog_detection", layout(4.0)) ==
+          "flowguard_encoder_mode");
+    CHECK(AmsBackendHappyHare::param_name("gear_unload_speed", layout(0)) == "gear_unload_speed");
+    CHECK(AmsBackendHappyHare::param_name("clog_detection", layout(0)) == "enable_clog_detection");
+
+    CHECK(AmsBackendHappyHare::read_machine_layout(v3_settings(3.42), nlohmann::json::object())
+              .version == "3.42");
+    const auto v4 = AmsBackendHappyHare::read_machine_layout(kV4Settings, kV4MmuMachine);
+    CHECK(v4.v4);
+    CHECK(v4.unit_params_section == "mmu_unit_parameters unit0");
+    CHECK(v4.toolhead_section == "mmu_toolhead default");
+}
+
+TEST_CASE("Happy Hare clog detection is named the way each release takes it",
+          "[ams][happy_hare][hh_v4][clog]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.set_config_defaults_for_test();
+
+    SECTION("before 3.42: ENABLE_CLOG_DETECTION and the calibrated clog length") {
+        helper.test_apply_config_defaults(v3_settings(3.40));
+        helper.captured_gcodes.clear();
+        CHECK(helper.clog_detection_mode_gcode(1, 12.0f) ==
+              std::optional<std::string>(
+                  "MMU_TEST_CONFIG enable_clog_detection=1 mmu_calibration_clog_length=12.0"));
+        helper.execute_device_action("clog_detection", std::string("Auto"));
+        CHECK(helper.captured_gcodes ==
+              std::vector<std::string>{"MMU_TEST_CONFIG ENABLE_CLOG_DETECTION=2"});
+        CHECK_FALSE(helper.clog_detection_length_setting());
+        CHECK(helper.get_system_info().version == "3.4");
+    }
+    SECTION("3.42: the FlowGuard encoder parameters") {
+        helper.test_apply_config_defaults(v3_settings(3.42));
+        helper.captured_gcodes.clear();
+        CHECK(helper.clog_detection_mode_gcode(1, 12.0f) ==
+              std::optional<std::string>(
+                  "MMU_TEST_CONFIG flowguard_encoder_mode=1 flowguard_encoder_max_motion=12.0"));
+        helper.execute_device_action("clog_detection", std::string("Off"));
+        CHECK(helper.captured_gcodes ==
+              std::vector<std::string>{"MMU_TEST_CONFIG FLOWGUARD_ENCODER_MODE=0"});
+        CHECK(helper.clog_detection_length_setting() == std::optional<float>(18.0f));
+    }
+    SECTION("v4") {
+        helper.test_apply_config_defaults(kV4Settings, kV4MmuMachine);
+        CHECK(helper.clog_detection_mode_gcode(2, 0.0f) ==
+              std::optional<std::string>("MMU_TEST_CONFIG flowguard_encoder_mode=2"));
+        CHECK(helper.get_system_info().version == "4.0.0");
+    }
+}
+
+TEST_CASE("Happy Hare reapply leaves out a parameter the release has none for",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.set_config_defaults_for_test();
+    helper.test_apply_config_defaults(v3_settings(3.01));
+    auto& o = helper.overrides_for_test();
+    o = {};
+    o.gear_unload_speed = 90.0f;
+    o.gear_from_spool_speed = 70.0f;
+    o.clog_detection = 2;
+    helper.captured_gcodes.clear();
+    helper.test_reapply_overrides();
+    REQUIRE(helper.captured_gcodes.size() == 1);
+    CHECK(helper.captured_gcodes[0].find("GEAR_UNLOAD_SPEED") == std::string::npos);
+    CHECK(helper.captured_gcodes[0].find(" ENABLE_CLOG_DETECTION=2") != std::string::npos);
+}
+
+TEST_CASE("Happy Hare v4 reads clog detection mode from the encoder mode only",
+          "[ams][happy_hare][hh_v4][clog]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(2);
+    helper.test_parse_mmu_state(
+        {{"clog_detection_enabled", false},
+         {"flowguard", {{"active", false}, {"enabled", 1}, {"encoder_mode", 2}}},
+         {"encoder", {{"detection_mode", 1}}}});
+    auto info = helper.get_system_info();
+    CHECK(info.clog_detection == 2);
+    CHECK(info.encoder_info.detection_mode == 2);
+    CHECK(info.encoder_info.enabled);
+    // v3's integer wins whenever it is published.
+    helper.test_parse_mmu_state(
+        {{"clog_detection_enabled", 1}, {"flowguard", {{"encoder_mode", 2}}}});
+    CHECK(helper.get_system_info().encoder_info.detection_mode == 1);
 }

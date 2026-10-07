@@ -480,6 +480,51 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
 
     std::string selector_type_; ///< Selector type from config (e.g., "VirtualSelector" for Type B)
 
+  public:
+    /// What the connect-time `mmu_machine` / `configfile.settings` pair says
+    /// about the install. Happy Hare 3 keeps every tunable on `[mmu]` and its
+    /// version as a number there (3.42); Happy Hare 4 has no `[mmu]`, splits
+    /// the tunables across `[mmu_parameters]`, `[mmu_unit_parameters <unit>]`
+    /// and `[mmu_toolhead <name>]`, and publishes `happy_hare_version` on
+    /// `mmu_machine`.
+    struct MachineLayout {
+        std::string version;             ///< happy_hare_version; empty when unknown
+        double version_number = 0;       ///< 3.42, 4.0; 0 when unknown
+        bool v4 = false;                 ///< the one v4 predicate
+        int num_units = 1;               ///< mmu_machine.num_units, v4 only
+        std::string unit_params_section; ///< "mmu_unit_parameters <unit 0>", v4 only
+        std::string toolhead_section;    ///< "mmu_toolhead <name>", v4 only
+        std::optional<bool> has_bypass;  ///< any unit's has_bypass, v4 only
+    };
+    /// @p settings configfile.settings, @p live_mmu_machine the live object
+    /// (either may be empty).
+    [[nodiscard]] static MachineLayout read_machine_layout(const nlohmann::json& settings,
+                                                           const nlohmann::json& live_mmu_machine);
+    /// The name the install @p layout describes takes for tunable @p key,
+    /// which callers spell the way HelixScreen does; empty when that version
+    /// has none. Clog detection is ENABLE_CLOG_DETECTION /
+    /// MMU_CALIBRATION_CLOG_LENGTH before 3.42 and FLOWGUARD_ENCODER_MODE /
+    /// FLOWGUARD_ENCODER_MAX_MOTION from 3.42 on.
+    [[nodiscard]] static std::string param_name(const std::string& key,
+                                                const MachineLayout& layout);
+
+    /// MMU_TEST_CONFIG with the clog mode and, in manual mode, the length,
+    /// named as the installed version takes them.
+    [[nodiscard]] std::optional<std::string>
+    clog_detection_mode_gcode(int mode, float det_length) const override;
+    /// flowguard_encoder_max_motion from 3.42 on; nullopt before, where the
+    /// length is the calibrated one the encoder reports live.
+    [[nodiscard]] std::optional<float> clog_detection_length_setting() const override;
+
+  private:
+    /// Version and config layout. Caller holds mutex_.
+    MachineLayout machine_layout_;
+    /// MMU_TEST_CONFIG's parameter for @p key, uppercased; empty when the
+    /// installed version has none. Caller holds mutex_.
+    [[nodiscard]] std::string test_config_param_locked(const std::string& key) const;
+    /// Store @p layout and the version it names. Caller holds mutex_.
+    void set_machine_layout_locked(const MachineLayout& layout);
+
     // Async callback safety guard
     helix::AsyncLifetimeGuard lifetime_;
 
@@ -545,6 +590,8 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         float toolhead_ooze_reduction = 2.0f;
         int sync_to_extruder = 0;
         int clog_detection = 0;
+        /// Manual-mode clog detection length, when the config names one
+        std::optional<float> detection_length;
         bool loaded = false;
     };
     ConfigDefaults config_defaults_;
@@ -572,6 +619,10 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     int flowguard_encoder_mode_ = -1; ///< -1 = not yet received from Moonraker
 
     void query_config_defaults();
+    /// Read the layout and the speed/distance defaults from the connect-time
+    /// configfile and live mmu_machine, then re-apply persisted overrides.
+    void apply_config_defaults(const nlohmann::json& settings,
+                               const nlohmann::json& live_mmu_machine);
     void load_persisted_overrides();
     void save_override(const std::string& key, float value);
     void save_override(const std::string& key, int value);
