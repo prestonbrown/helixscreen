@@ -3832,15 +3832,10 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end) {
             [](void* p) { heap_caps_free(p); });
     }
 
-    // A card the plan drops fetches again when it comes back. A card widget
-    // still bound to it off screen lets go too: its slot is what a fetch below
-    // decodes into.
+    // A card the plan drops fetches again when it comes back.
     for (size_t i : plan.drop) {
         file_list_[i].esp_thumbnail.reset();
         file_list_[i].esp_thumbnail_tried = false;
-        if (card_view_) {
-            card_view_->update_thumbnail(i, file_list_[i]);
-        }
     }
     for (size_t i : plan.fetch) {
         PrintFileData& f = file_list_[i];
