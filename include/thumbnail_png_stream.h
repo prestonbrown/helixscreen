@@ -14,6 +14,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <new>
 
@@ -119,8 +120,9 @@ inline bool card_thumbnail_fits_budget(size_t held, size_t kept,
 
 /// What decode_png_thumbnail() produced.
 struct DecodedThumbnail {
-    uint8_t* pixels = nullptr; ///< RGB565A8, allocated with the Inflate's alloc()
+    uint8_t* pixels = nullptr; ///< RGB565A8, or RGB565 when opaque; from the Inflate's alloc()
     ThumbnailDims dims;
+    bool opaque = false; ///< decoded onto a backdrop: RGB565, no alpha plane
     ThumbnailDecodeFailure failure = ThumbnailDecodeFailure::BadImage;
 };
 
@@ -130,6 +132,10 @@ struct DecodedThumbnail {
  * With @p into, the image is written there (it must hold @p into_capacity >=
  * the fitted image) and the decode allocates only its working memory;
  * result.pixels is then @p into, which the caller still owns.
+ *
+ * With @p backdrop, @p max_w x @p max_h RGB565 pixels, the result is instead an
+ * opaque RGB565 image of the whole box: the backdrop with the fitted image
+ * centred on it and blended as LVGL would draw it there.
  *
  * @p Inflate wraps a miniz tinfl-compatible streaming inflater (the ESP32 ROM's
  * on the firmware) and the allocator the decode uses:
@@ -144,7 +150,8 @@ struct DecodedThumbnail {
  */
 template <class Inflate>
 DecodedThumbnail decode_png_thumbnail(const uint8_t* png, size_t size, int max_w, int max_h,
-                                      uint8_t* into = nullptr, size_t into_capacity = 0) {
+                                      uint8_t* into = nullptr, size_t into_capacity = 0,
+                                      const uint16_t* backdrop = nullptr) {
     DecodedThumbnail result;
     PngHeader header;
     if (!read_png_header(png, size, header)) {
@@ -154,13 +161,16 @@ DecodedThumbnail decode_png_thumbnail(const uint8_t* png, size_t size, int max_w
         result.failure = ThumbnailDecodeFailure::Unsupported;
         return result;
     }
-    result.dims = fit_thumbnail(header.width, header.height, max_w, max_h);
-    if (into && into_capacity < rgb565a8_size(result.dims)) {
+    const ThumbnailDims fit = fit_thumbnail(header.width, header.height, max_w, max_h);
+    result.opaque = backdrop != nullptr;
+    result.dims = result.opaque ? ThumbnailDims{max_w, max_h} : fit;
+    const size_t kept = result.opaque ? rgb565_size(result.dims) : rgb565a8_size(result.dims);
+    if (into && into_capacity < kept) {
         result.failure = ThumbnailDecodeFailure::Unsupported; // the slot is smaller than the box
         return result;
     }
-    if (!thumbnail_decode_fits(Inflate::largest_free(), into ? 0 : rgb565a8_size(result.dims),
-                               thumbnail_decode_working_bytes(header.width, result.dims))) {
+    if (!thumbnail_decode_fits(Inflate::largest_free(), into ? 0 : kept,
+                               thumbnail_decode_working_bytes(header.width, fit))) {
         result.failure = ThumbnailDecodeFailure::OutOfMemory;
         return result;
     }
@@ -171,12 +181,20 @@ DecodedThumbnail decode_png_thumbnail(const uint8_t* png, size_t size, int max_w
             Inflate::free(p);
         }
     } out, inflater, window;
-    out.p = into ? nullptr : Inflate::alloc(rgb565a8_size(result.dims));
+    out.p = into ? nullptr : Inflate::alloc(kept);
     uint8_t* const pixels = into ? into : static_cast<uint8_t*>(out.p);
     inflater.p = Inflate::alloc(sizeof(typename Inflate::Decompressor));
     window.p = Inflate::alloc(Inflate::WINDOW);
-    auto* scaler =
-        new (std::nothrow) RowDownscaler(header.width, header.height, result.dims, pixels);
+    RowDownscaler* scaler = nullptr;
+    if (pixels && result.opaque) {
+        std::memcpy(pixels, backdrop, kept);
+        // Centred the way LVGL aligns an image inside a larger widget.
+        auto* origin = reinterpret_cast<uint16_t*>(pixels) +
+                       static_cast<size_t>(max_h / 2 - fit.h / 2) * max_w + (max_w / 2 - fit.w / 2);
+        scaler = new (std::nothrow) RowDownscaler(header.width, header.height, fit, origin, max_w);
+    } else if (pixels) {
+        scaler = new (std::nothrow) RowDownscaler(header.width, header.height, fit, pixels);
+    }
     std::unique_ptr<RowDownscaler> scaler_owner(scaler);
     if (!pixels || !inflater.p || !window.p || !scaler || !scaler->ok()) {
         result.failure = ThumbnailDecodeFailure::OutOfMemory;

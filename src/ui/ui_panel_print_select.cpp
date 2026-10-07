@@ -3717,10 +3717,12 @@ PrintSelectPanel::fetch_esp_thumbnail(size_t index, const std::string& filename,
 
     api_->transfers().download_file_partial(
         "gcodes", thumb_path, ESP32_THUMBNAIL_MAX_BYTES,
-        [this, tok, index, filename, target, slots = esp_slots_](const std::string& png_bytes) {
+        [this, tok, index, filename, target, slots = esp_slots_,
+         backdrop = esp_backdrop_](const std::string& png_bytes) {
             helix::ThumbnailDecodeFailure failure{};
             auto thumb = helix::ui::EspPsramThumbnail::create_decoded(
-                png_bytes, target.width, target.height, slots, failure);
+                png_bytes, target.width, target.height, slots, failure,
+                backdrop ? backdrop->data() : nullptr);
             if (!thumb) {
                 spdlog::warn("[PrintSelectPanel] Could not decode thumbnail {}: {}", filename,
                              failure == helix::ThumbnailDecodeFailure::OutOfMemory
@@ -3784,18 +3786,26 @@ void PrintSelectPanel::release_esp_card_thumbnails() {
         card_view_->release_esp_thumbnails();
     }
     esp_slots_.reset();
+    esp_backdrop_.reset();
     esp_lane_refused_ = false;
     esp_lane_retry_timer_.reset();
 }
 
 void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end) {
     const helix::ThumbnailTarget target = helix::ThumbnailProcessor::get_target_for_display();
-    const size_t estimate = helix::rgb565a8_size({target.width, target.height});
-    if (esp_slots_ && esp_slots_->slot_bytes() != estimate) {
+    // Opaque over the card gradient where the cards allow it: a third smaller,
+    // and drawn as a copy instead of a blend.
+    auto backdrop =
+        card_view_ ? card_view_->esp_thumbnail_backdrop(target.width, target.height) : nullptr;
+    const helix::ThumbnailDims box{target.width, target.height};
+    const size_t estimate = backdrop ? helix::rgb565_size(box) : helix::rgb565a8_size(box);
+    if (esp_slots_ && (esp_slots_->slot_bytes() != estimate || backdrop != esp_backdrop_)) {
         // Thumbnails at the old card size hold the old pool's slots. Kept beside
-        // a new pool, the card budget would be spent twice over.
+        // a new pool, the card budget would be spent twice over. Ones baked
+        // onto another backdrop would show the old gradient.
         release_esp_card_thumbnails();
     }
+    esp_backdrop_ = std::move(backdrop);
     esp_window_first_ = first;
     esp_window_end_ = end;
     ++esp_show_tick_;

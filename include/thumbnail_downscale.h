@@ -32,6 +32,11 @@ inline size_t rgb565a8_size(ThumbnailDims dims) {
     return static_cast<size_t>(dims.w) * static_cast<size_t>(dims.h) * 3;
 }
 
+/// Bytes an opaque RGB565 image of @p dims needs.
+inline size_t rgb565_size(ThumbnailDims dims) {
+    return static_cast<size_t>(dims.w) * static_cast<size_t>(dims.h) * 2;
+}
+
 /// Box-filters RGBA8888 rows (bytes R,G,B,A per pixel), fed top to bottom, down
 /// to @p dst, writing LVGL's RGB565A8 layout into @p out: dst.w * dst.h
 /// native-endian RGB565 pixels, then dst.w * dst.h alpha bytes. Colour is
@@ -41,6 +46,10 @@ inline size_t rgb565a8_size(ThumbnailDims dims) {
 class RowDownscaler {
   public:
     RowDownscaler(int src_w, int src_h, ThumbnailDims dst, uint8_t* out);
+    /// The same filter blended onto the RGB565 pixels already at @p onto, rows
+    /// @p onto_stride pixels apart, exactly as LVGL draws an RGB565A8 image over
+    /// them, so the result is opaque and draws as a plain copy.
+    RowDownscaler(int src_w, int src_h, ThumbnailDims dst, uint16_t* onto, int onto_stride);
     /// False when the per-column state could not be allocated.
     bool ok() const {
         return x0_ && x1_ && sums_;
@@ -56,6 +65,7 @@ class RowDownscaler {
     int src_w_, src_h_;
     ThumbnailDims dst_;
     uint8_t* out_;
+    int onto_stride_ = 0; ///< 0 writes RGB565A8 planes; otherwise blends onto RGB565 rows
     int src_y_ = 0;
     int dst_y_ = 0;
     std::unique_ptr<int[]> x0_;        ///< first source column of each output column

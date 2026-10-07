@@ -1,9 +1,11 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "lvgl.h"
 #include "thumbnail_downscale.h"
 
 #include <cstring>
+#include <random>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -116,4 +118,42 @@ TEST_CASE("downscale averages each box, weighting colour by alpha", "[thumbnail]
     helix::downscale_rgba_to_rgb565a8(halves.data(), 4, 2, {2, 1}, h_out.data());
     CHECK(colour_at(h_out, {2, 1}, 0, 0) == 0x0000);
     CHECK(colour_at(h_out, {2, 1}, 1, 0) == 0xFFFF);
+}
+
+TEST_CASE("an opaque downscale is what LVGL draws of the RGB565A8 image over the backdrop",
+          "[thumbnail][downscale]") {
+    // A 7x5 source of mixed alpha, scaled to 3x2 and placed at (1,2) in a 6x5 backdrop.
+    std::mt19937 rng(7);
+    std::vector<uint8_t> src(7 * 5 * 4);
+    for (size_t i = 0; i < src.size(); ++i) {
+        src[i] = static_cast<uint8_t>(rng());
+    }
+    for (size_t i = 3; i < 4 * 4; i += 4) {
+        src[i] = 0; // some fully transparent pixels
+    }
+    std::vector<uint16_t> back(6 * 5);
+    for (auto& c : back) {
+        c = static_cast<uint16_t>(rng());
+    }
+    const ThumbnailDims d{3, 2};
+    const int ox = 1, oy = 2, stride = 6;
+
+    std::vector<uint8_t> a8(helix::rgb565a8_size(d));
+    helix::downscale_rgba_to_rgb565a8(src.data(), 7, 5, d, a8.data());
+    std::vector<uint16_t> want = back;
+    for (int y = 0; y < d.h; ++y) {
+        for (int x = 0; x < d.w; ++x) {
+            uint16_t& px = want[static_cast<size_t>(oy + y) * stride + ox + x];
+            px = lv_color_16_16_mix(colour_at(a8, d, x, y), px, alpha_at(a8, d, x, y));
+        }
+    }
+
+    std::vector<uint16_t> got = back;
+    helix::RowDownscaler scaler(7, 5, d, got.data() + oy * stride + ox, stride);
+    REQUIRE(scaler.ok());
+    for (int y = 0; y < 5; ++y) {
+        scaler.add_row(src.data() + static_cast<size_t>(y) * 7 * 4);
+    }
+    CHECK(scaler.complete());
+    CHECK(got == want); // pixels outside the image keep the backdrop
 }

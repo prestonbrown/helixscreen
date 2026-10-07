@@ -13,6 +13,7 @@
 #include "sound_manager.h"
 #include "theme_manager.h"
 #include "thumbnail_processor.h"
+#include "try_reserve.h"
 
 #include <spdlog/spdlog.h>
 
@@ -112,6 +113,9 @@ void PrintSelectCardView::clear_cached_state() {
     helix::safe_draw_buf_destroy(cached_gradient_, "ps_grad");
     cached_gradient_w_ = 0;
     cached_gradient_h_ = 0;
+#if defined(HELIX_PLATFORM_ESP32)
+    esp_backdrop_.reset();
+#endif
 
     // Clear data structures
     card_data_pool_.clear();
@@ -194,6 +198,9 @@ void PrintSelectCardView::ensure_gradient_cache(int32_t card_width, int32_t card
     cached_gradient_w_ = card_width;
     cached_gradient_h_ = card_height;
     cached_gradient_dark_ = dark;
+#if defined(HELIX_PLATFORM_ESP32)
+    esp_backdrop_.reset(); // thumbnails baked onto the old gradient no longer match
+#endif
 
     // Update ALL pool cards to reference the new buffer immediately
     for (auto* card : card_pool_) {
@@ -412,6 +419,55 @@ void PrintSelectCardView::release_esp_thumbnails() {
     // what fetches the thumbnails back.
     visible_start_row_ = -1;
     visible_end_row_ = -1;
+}
+
+std::shared_ptr<const std::vector<uint16_t>> PrintSelectCardView::esp_thumbnail_backdrop(int w,
+                                                                                         int h) {
+    if (esp_backdrop_ && esp_backdrop_w_ == w && esp_backdrop_h_ == h) {
+        return esp_backdrop_;
+    }
+    esp_backdrop_.reset();
+    if (!cached_gradient_ || cached_gradient_->header.cf != LV_COLOR_FORMAT_RGB565 ||
+        card_pool_.empty() || w <= 0 || h <= 0) {
+        return nullptr;
+    }
+    lv_obj_t* card = card_pool_[0];
+    lv_obj_t* thumb = lv_obj_find_by_name(card, "thumbnail");
+    lv_obj_t* gradient = lv_obj_find_by_name(card, "gradient_bg");
+    if (!thumb || !gradient) {
+        return nullptr;
+    }
+    // Where the card puts a thumbnail of this size, as apply_thumbnail sizes it.
+    lv_obj_set_size(thumb, w, h);
+    lv_obj_update_layout(card);
+    lv_area_t t, g;
+    lv_obj_get_coords(thumb, &t);
+    lv_obj_get_coords(gradient, &g);
+    const int32_t gw = static_cast<int32_t>(cached_gradient_->header.w);
+    const int32_t gh = static_cast<int32_t>(cached_gradient_->header.h);
+    const int32_t x = t.x1 - g.x1, y = t.y1 - g.y1;
+    // The gradient draws 1:1 only when its widget is the buffer's size.
+    if (lv_area_get_width(&g) != gw || lv_area_get_height(&g) != gh || x < 0 || y < 0 ||
+        x + w > gw || y + h > gh) {
+        spdlog::debug("[CardView] No thumbnail backdrop: box {}x{} at {},{} in gradient {}x{}", w,
+                      h, x, y, gw, gh);
+        return nullptr;
+    }
+    auto px = std::make_shared<std::vector<uint16_t>>();
+    if (!helix::try_reserve(*px, static_cast<size_t>(w) * h)) {
+        return nullptr;
+    }
+    const uint32_t stride = cached_gradient_->header.stride;
+    for (int32_t row = 0; row < h; ++row) {
+        const auto* src = reinterpret_cast<const uint16_t*>(
+                              cached_gradient_->data + static_cast<uint32_t>(y + row) * stride) +
+                          x;
+        px->insert(px->end(), src, src + w);
+    }
+    esp_backdrop_ = std::move(px);
+    esp_backdrop_w_ = w;
+    esp_backdrop_h_ = h;
+    return esp_backdrop_;
 }
 
 void PrintSelectCardView::release_esp_thumbnail(lv_obj_t* card, CardWidgetData& data) {

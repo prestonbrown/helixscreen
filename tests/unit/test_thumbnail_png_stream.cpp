@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../../lib/tinfl/tinfl_copy.h"
+#include "lvgl.h"
 #include "stb_image.h"
 #include "thumbnail_downscale.h"
 #include "thumbnail_png_stream.h"
@@ -357,5 +358,57 @@ TEST_CASE("decoding into a caller's buffer allocates only the working memory",
     CHECK(helix::decode_png_thumbnail<TestInflate>(png.data(), png.size(), 166, 166, slot.data(),
                                                    slot.size() - 1)
               .failure == ThumbnailDecodeFailure::Unsupported);
+    CHECK(TestInflate::live == 0);
+}
+
+TEST_CASE("a decode onto a backdrop fills the whole box, the image centred and blended",
+          "[thumbnail][png_stream][slots]") {
+    TestInflate::live = 0;
+    const auto png = fixture("thumbnail_300_rgba.png");
+    const int box_w = 200, box_h = 166; // wider than the square image: margins left and right
+    ThumbnailDims dims;
+    const auto a8 = expected(png, box_w, box_h, dims);
+    REQUIRE(dims.w < box_w);
+
+    std::vector<uint16_t> back(static_cast<size_t>(box_w) * box_h);
+    for (size_t i = 0; i < back.size(); ++i) {
+        back[i] = static_cast<uint16_t>(i * 2654435761u >> 7);
+    }
+    // LVGL centres an image in a larger widget the same way.
+    const int ox = box_w / 2 - dims.w / 2, oy = box_h / 2 - dims.h / 2;
+    std::vector<uint16_t> want = back;
+    for (int y = 0; y < dims.h; ++y) {
+        for (int x = 0; x < dims.w; ++x) {
+            const size_t i = static_cast<size_t>(y) * dims.w + x;
+            uint16_t c;
+            std::memcpy(&c, a8.data() + i * 2, 2);
+            uint16_t& px = want[static_cast<size_t>(oy + y) * box_w + ox + x];
+            px = lv_color_16_16_mix(c, px, a8[static_cast<size_t>(dims.w) * dims.h * 2 + i]);
+        }
+    }
+
+    std::vector<uint16_t> slot(back.size(), 0xAAAA);
+    const DecodedThumbnail got = helix::decode_png_thumbnail<TestInflate>(
+        png.data(), png.size(), box_w, box_h, reinterpret_cast<uint8_t*>(slot.data()),
+        slot.size() * 2, back.data());
+    REQUIRE(got.failure == ThumbnailDecodeFailure::None);
+    CHECK(got.opaque);
+    CHECK(got.dims.w == box_w);
+    CHECK(got.dims.h == box_h);
+    CHECK(slot == want);
+    CHECK(TestInflate::live == 0);
+
+    // The opaque image is the box at two bytes a pixel; a smaller slot is refused.
+    CHECK(helix::decode_png_thumbnail<TestInflate>(png.data(), png.size(), box_w, box_h,
+                                                   reinterpret_cast<uint8_t*>(slot.data()),
+                                                   slot.size() * 2 - 1, back.data())
+              .failure == ThumbnailDecodeFailure::Unsupported);
+
+    // Without a slot the decode allocates the box itself.
+    const DecodedThumbnail owned = helix::decode_png_thumbnail<TestInflate>(
+        png.data(), png.size(), box_w, box_h, nullptr, 0, back.data());
+    REQUIRE(owned.pixels);
+    CHECK(std::memcmp(owned.pixels, want.data(), want.size() * 2) == 0);
+    TestInflate::free(owned.pixels);
     CHECK(TestInflate::live == 0);
 }

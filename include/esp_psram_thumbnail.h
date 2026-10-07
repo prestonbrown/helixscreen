@@ -95,8 +95,7 @@ class EspPsramThumbnail {
         if (!decoded.pixels) {
             return nullptr;
         }
-        auto* thumb = new (std::nothrow)
-            EspPsramThumbnail(decoded.pixels, helix::rgb565a8_size(decoded.dims), decoded.dims);
+        auto* thumb = new (std::nothrow) EspPsramThumbnail(decoded.pixels, decoded);
         if (!thumb) {
             RomInflate::free(decoded.pixels);
             failure = helix::ThumbnailDecodeFailure::OutOfMemory;
@@ -108,11 +107,13 @@ class EspPsramThumbnail {
     /// The same decode, written into a slot of @p slots, so a card that scrolls
     /// away and another that scrolls in reuse one buffer rather than freeing and
     /// allocating one. The slot goes back to @p slots when the thumbnail goes.
+    /// With @p backdrop (max_w x max_h RGB565, what the image is drawn over),
+    /// the image is opaque RGB565 of the whole box and draws as a plain copy.
     /// Safe on the HTTP lane worker: the pool locks.
     static std::shared_ptr<EspPsramThumbnail>
     create_decoded(const std::string& png_bytes, int max_w, int max_h,
                    const std::shared_ptr<helix::ThumbnailSlotPool>& slots,
-                   helix::ThumbnailDecodeFailure& failure) {
+                   helix::ThumbnailDecodeFailure& failure, const uint16_t* backdrop = nullptr) {
         uint8_t* slot = slots ? slots->acquire() : nullptr;
         if (!slot) {
             failure = helix::ThumbnailDecodeFailure::OutOfMemory;
@@ -120,11 +121,10 @@ class EspPsramThumbnail {
         }
         const helix::DecodedThumbnail decoded = helix::decode_png_thumbnail<RomInflate>(
             reinterpret_cast<const uint8_t*>(png_bytes.data()), png_bytes.size(), max_w, max_h,
-            slot, slots->slot_bytes());
+            slot, slots->slot_bytes(), backdrop);
         failure = decoded.failure;
-        auto* thumb = decoded.pixels ? new (std::nothrow) EspPsramThumbnail(
-                                           slot, helix::rgb565a8_size(decoded.dims), decoded.dims)
-                                     : nullptr;
+        auto* thumb =
+            decoded.pixels ? new (std::nothrow) EspPsramThumbnail(slot, decoded) : nullptr;
         if (!thumb) {
             slots->release(slot);
             if (decoded.pixels) {
@@ -171,13 +171,15 @@ class EspPsramThumbnail {
         }
     };
 
-    EspPsramThumbnail(uint8_t* data, size_t size, helix::ThumbnailDims dims) : data_(data) {
+    EspPsramThumbnail(uint8_t* data, const helix::DecodedThumbnail& decoded) : data_(data) {
+        const helix::ThumbnailDims dims = decoded.dims;
         dsc_.header.magic = LV_IMAGE_HEADER_MAGIC;
-        dsc_.header.cf = LV_COLOR_FORMAT_RGB565A8;
+        dsc_.header.cf = decoded.opaque ? LV_COLOR_FORMAT_RGB565 : LV_COLOR_FORMAT_RGB565A8;
         dsc_.header.w = static_cast<uint32_t>(dims.w);
         dsc_.header.h = static_cast<uint32_t>(dims.h);
         dsc_.header.stride = static_cast<uint32_t>(dims.w * 2); // the RGB565 plane's
-        dsc_.data_size = static_cast<uint32_t>(size);
+        dsc_.data_size = static_cast<uint32_t>(decoded.opaque ? helix::rgb565_size(dims)
+                                                              : helix::rgb565a8_size(dims));
         dsc_.data = data_;
     }
 

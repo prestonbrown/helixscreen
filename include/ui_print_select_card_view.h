@@ -348,7 +348,17 @@ class PrintSelectCardView : public ContainerDeleteNet {
     /// Drops every card's thumbnail; cards show the placeholder until rebound.
     void release_esp_thumbnails();
 
+    /// The card gradient's RGB565 pixels under a @p w x @p h thumbnail, where
+    /// the cards place it, for decoding thumbnails opaque. nullptr when the
+    /// gradient is not an opaque RGB565 image covering that box: thumbnails
+    /// then keep their alpha. A new gradient (theme, size, background) or a
+    /// rebuilt card pool makes a new one.
+    std::shared_ptr<const std::vector<uint16_t>> esp_thumbnail_backdrop(int w, int h);
+
   private:
+    std::shared_ptr<const std::vector<uint16_t>> esp_backdrop_;
+    int esp_backdrop_w_ = 0;
+    int esp_backdrop_h_ = 0;
 #endif
 
     /**

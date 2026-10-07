@@ -3,6 +3,8 @@
 
 #include "thumbnail_downscale.h"
 
+#include "lvgl.h"
+
 #include <algorithm>
 #include <new>
 
@@ -46,6 +48,12 @@ RowDownscaler::RowDownscaler(int src_w, int src_h, ThumbnailDims dst, uint8_t* o
     }
 }
 
+RowDownscaler::RowDownscaler(int src_w, int src_h, ThumbnailDims dst, uint16_t* onto,
+                             int onto_stride)
+    : RowDownscaler(src_w, src_h, dst, reinterpret_cast<uint8_t*>(onto)) {
+    onto_stride_ = onto_stride;
+}
+
 void RowDownscaler::add_row(const uint8_t* rgba) {
     if (!ok() || src_y_ >= src_h_ || dst_y_ >= dst_.h) {
         return;
@@ -73,14 +81,20 @@ void RowDownscaler::add_row(const uint8_t* rgba) {
         uint32_t* s = &sums_[static_cast<size_t>(dx) * 4];
         const uint32_t n = static_cast<uint32_t>(
             (y1 - y0) * (x1_[static_cast<size_t>(dx)] - x0_[static_cast<size_t>(dx)]));
-        const size_t i = static_cast<size_t>(dst_y_) * dst_.w + dx;
-        if (s[3] == 0) {
-            colour[i] = 0;
-            alpha[i] = 0;
-        } else {
+        uint16_t c = 0;
+        uint8_t a = 0;
+        if (s[3] != 0) {
             const uint32_t r8 = s[0] / s[3], g8 = s[1] / s[3], b8 = s[2] / s[3];
-            colour[i] = static_cast<uint16_t>(((r8 >> 3) << 11) | ((g8 >> 2) << 5) | (b8 >> 3));
-            alpha[i] = static_cast<uint8_t>(s[3] / n);
+            c = static_cast<uint16_t>(((r8 >> 3) << 11) | ((g8 >> 2) << 5) | (b8 >> 3));
+            a = static_cast<uint8_t>(s[3] / n);
+        }
+        if (onto_stride_) {
+            uint16_t& px = colour[static_cast<size_t>(dst_y_) * onto_stride_ + dx];
+            px = lv_color_16_16_mix(c, px, a);
+        } else {
+            const size_t i = static_cast<size_t>(dst_y_) * dst_.w + dx;
+            colour[i] = c;
+            alpha[i] = a;
         }
         s[0] = s[1] = s[2] = s[3] = 0;
     }
