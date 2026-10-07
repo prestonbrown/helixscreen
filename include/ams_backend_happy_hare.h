@@ -579,6 +579,13 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// printer.mmu.sensors; nullopt until a frame carries the dict. v4 refuses
     /// the toolhead distance tuned against a sensor that is not.
     std::optional<bool> toolhead_sensor_fitted_;
+    /// A per-gate `filament_switch_sensor mmu_entry_<N>` object (v4) has
+    /// reported; printer.mmu.sensors' aggregate `mmu_pre_gate` then adds
+    /// nothing and must not overwrite the other gates.
+    bool entry_sensor_objects_seen_{false};
+    /// Each entry sensor object's filament_detected / enabled, which arrive in
+    /// independent deltas; the gate reads triggered while both hold.
+    std::map<int, std::pair<bool, bool>> entry_sensor_objects_;
     std::optional<bool> extruder_sensor_fitted_;
     /// Store @p layout and the version it names. Caller holds mutex_.
     void set_machine_layout_locked(const MachineLayout& layout);

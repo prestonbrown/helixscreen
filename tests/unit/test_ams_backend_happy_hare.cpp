@@ -213,6 +213,10 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
         return AmsErrorHelper::success();
     }
 
+    void feed_notification(const nlohmann::json& notification) {
+        handle_status_update(notification);
+    }
+
     /// A command execute_gcode() answers with an error.
     std::string fail_gcode;
 
@@ -4757,4 +4761,58 @@ TEST_CASE("Happy Hare single-unit commands carry no UNIT", "[ams][happy_hare][hh
                                                                  "MMU_CALIBRATE_GATE ALL=1",
                                                                  "MMU_HEATER STOP=1"});
     }
+}
+
+// ============================================================================
+// v4 per-gate entry sensors (#1479)
+// ============================================================================
+
+TEST_CASE("Happy Hare v4 reads per-gate entry sensors from their Klipper objects",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    auto feed = [&](const nlohmann::json& params) {
+        nlohmann::json notification;
+        notification["params"] = nlohmann::json::array({params, 0.0});
+        helper.feed_notification(notification);
+    };
+    // The first frame: printer.mmu with gate 1 selected (generic sensor names
+    // plus the mmu_pre_gate alias) beside the entry sensor objects.
+    feed({{"mmu",
+           {{"gate_status", {1, 1, 0, 1}},
+            {"gate", 1},
+            {"sensors", {{"mmu_entry", true}, {"mmu_pre_gate", true}, {"extruder", true}}}}},
+          {"filament_switch_sensor mmu_entry_0", {{"filament_detected", true}, {"enabled", true}}},
+          {"filament_switch_sensor mmu_entry_1", {{"filament_detected", true}, {"enabled", true}}},
+          {"filament_switch_sensor mmu_entry_2", {{"filament_detected", false}, {"enabled", true}}},
+          {"filament_switch_sensor mmu_entry_3",
+           {{"filament_detected", true}, {"enabled", false}}}});
+
+    auto triggered = [&](int g) { return helper.get_slot_entry(g)->sensors.pre_gate_triggered; };
+    CHECK(helper.slot_has_prep_sensor(0));
+    CHECK(triggered(0));
+    CHECK_FALSE(triggered(2));
+    CHECK_FALSE(triggered(3)); // detected, but disabled
+
+    // A later sensors dict naming only the selected gate leaves the rest alone.
+    helper.test_parse_mmu_state({{"sensors", {{"mmu_entry", false}, {"mmu_pre_gate", false}}}});
+    CHECK(triggered(0));
+
+    // Deltas, one field at a time.
+    feed({{"filament_switch_sensor mmu_entry_3", {{"enabled", true}}}});
+    CHECK(triggered(3));
+    feed({{"filament_switch_sensor mmu_entry_0", {{"filament_detected", false}}}});
+    CHECK_FALSE(triggered(0));
+}
+
+TEST_CASE("Happy Hare v4 sensors dict with no gate selected names gates mmu_entry_N",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.test_parse_mmu_state(
+        {{"gate_status", {1, 1, 0, 1}},
+         {"gate", -1},
+         {"sensors", {{"mmu_entry_0", true}, {"mmu_entry_1", false}, {"mmu_shared_exit", false}}}});
+    CHECK(helper.get_slot_entry(0)->sensors.pre_gate_triggered);
+    CHECK(helper.slot_has_prep_sensor(1));
+    CHECK_FALSE(helper.get_slot_entry(1)->sensors.pre_gate_triggered);
+    CHECK_FALSE(helper.slot_has_prep_sensor(3));
 }

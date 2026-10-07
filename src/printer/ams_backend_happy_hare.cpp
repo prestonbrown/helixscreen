@@ -816,11 +816,71 @@ void AmsBackendHappyHare::handle_status_update(const nlohmann::json& notificatio
 
     spdlog::trace("[AMS HappyHare] Received status update");
 
+    // Per-gate entry sensor objects (v4) are sibling keys. Their presence is
+    // known before printer.mmu is applied, so its sensors dict never treats its
+    // selected-gate reading as the only one; their readings are applied after
+    // it, once a first frame's gate_status has sized the slots.
+    struct EntryReading {
+        int gate;
+        std::optional<bool> detected;
+        std::optional<bool> enabled;
+    };
+    std::vector<EntryReading> entry_readings;
+    static const std::string kEntryPrefix = "filament_switch_sensor mmu_entry_";
+    for (auto it = params.begin(); it != params.end(); ++it) {
+        if (it.key().rfind(kEntryPrefix, 0) != 0 || !it.value().is_object()) {
+            continue;
+        }
+        const std::string index = it.key().substr(kEntryPrefix.size());
+        char* end = nullptr;
+        const long gate = std::strtol(index.c_str(), &end, 10);
+        if (index.empty() || *end != '\0' || gate < 0) {
+            continue;
+        }
+        EntryReading r{static_cast<int>(gate), std::nullopt, std::nullopt};
+        if (const auto d = it.value().find("filament_detected");
+            d != it.value().end() && d->is_boolean()) {
+            r.detected = d->get<bool>();
+        }
+        if (const auto e = it.value().find("enabled"); e != it.value().end() && e->is_boolean()) {
+            r.enabled = e->get<bool>();
+        }
+        if (r.detected || r.enabled) {
+            entry_readings.push_back(r);
+        }
+    }
+    if (!entry_readings.empty()) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        entry_sensor_objects_seen_ = true;
+    }
+
     // Parse MMU core state if present.
     const bool mmu_present = params.contains("mmu") && params["mmu"].is_object();
     if (mmu_present) {
         std::lock_guard<std::mutex> lock(mutex_);
         parse_mmu_state(params["mmu"]);
+    }
+
+    if (!entry_readings.empty()) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (const auto& r : entry_readings) {
+            auto* entry = slots_.get_mut(r.gate);
+            if (!entry) {
+                continue;
+            }
+            auto& raw = entry_sensor_objects_.try_emplace(r.gate, false, true).first->second;
+            if (r.detected) {
+                raw.first = *r.detected;
+            }
+            if (r.enabled) {
+                raw.second = *r.enabled;
+            }
+            entry->sensors.has_pre_gate_sensor = true;
+            entry->sensors.pre_gate_triggered = raw.first && raw.second;
+        }
+        for (auto& unit : system_info_.units) {
+            unit.has_slot_sensors = true;
+        }
     }
 
     // Parse live heater_generic temp/target even when mmu key is absent —
@@ -833,7 +893,7 @@ void AmsBackendHappyHare::handle_status_update(const nlohmann::json& notificatio
     // Only re-pump downstream sync when this frame actually carried AMS-relevant
     // data; notify_status_update fires for every Klipper object (toolhead, temps,
     // ...), so an unconditional emit here would be a per-frame event storm.
-    if (mmu_present || heater_updated || humidity_updated) {
+    if (mmu_present || !entry_readings.empty() || heater_updated || humidity_updated) {
         emit_event(EVENT_STATE_CHANGED);
     }
 }
@@ -1427,12 +1487,17 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
 
         for (auto it = sensors.begin(); it != sensors.end(); ++it) {
             const std::string& key = it.key();
-            if (key.rfind(prefix, 0) != 0) {
+            // v3 names per-gate sensors mmu_pre_gate_N; v4 names them
+            // mmu_entry_N, and lists them only while no gate is selected.
+            std::string index_str;
+            if (key.rfind(prefix, 0) == 0) {
+                index_str = key.substr(prefix.size());
+            } else if (key.rfind("mmu_entry_", 0) == 0) {
+                index_str = key.substr(std::string("mmu_entry_").size());
+            } else {
                 continue; // Not a pre-gate sensor key
             }
 
-            // Extract gate index from key suffix
-            std::string index_str = key.substr(prefix.size());
             int gate_idx = -1;
             try {
                 gate_idx = std::stoi(index_str);
@@ -1459,7 +1524,7 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
 
         // If no per-gate sensors found, check for aggregate format (EMU)
         // EMU reports "mmu_pre_gate" (bool) and "mmu_gear" (bool) for the active gate
-        if (!any_sensor && sensors.contains("mmu_pre_gate")) {
+        if (!any_sensor && !entry_sensor_objects_seen_ && sensors.contains("mmu_pre_gate")) {
             bool pre_gate_val =
                 sensors["mmu_pre_gate"].is_boolean() && sensors["mmu_pre_gate"].get<bool>();
             // Note: mmu_gear sensor reading is available but not stored — UI only
@@ -1489,7 +1554,7 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
 
         // Update has_slot_sensors flag on units based on actual sensor data
         for (auto& unit : system_info_.units) {
-            unit.has_slot_sensors = any_sensor;
+            unit.has_slot_sensors = any_sensor || entry_sensor_objects_seen_;
         }
     }
 
