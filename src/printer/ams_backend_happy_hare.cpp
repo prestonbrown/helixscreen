@@ -899,6 +899,11 @@ void AmsBackendHappyHare::handle_status_update(const nlohmann::json& notificatio
 }
 
 void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
+    // Only v4 publishes tangle_prevention: the frame names the layout before
+    // the connect-time query answers.
+    if (mmu_data.contains("tangle_prevention")) {
+        machine_layout_.v4 = true;
+    }
     // Parse current gate: printer.mmu.gate
     // -1 = no gate selected, -2 = bypass
     if (mmu_data.contains("gate") && mmu_data["gate"].is_number_integer()) {

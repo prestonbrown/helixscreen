@@ -4886,3 +4886,21 @@ TEST_CASE("Happy Hare eSpooler list is read per gate only when it lines up",
         CHECK(helper.get_system_info().espooler_state.empty());
     }
 }
+
+TEST_CASE("Happy Hare v4 status frame names v4 before the config query answers",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.set_config_defaults_for_test();
+    // The first v4 frame says has_bypass: true for every install.
+    helper.test_parse_mmu_state({{"has_bypass", true}, {"tangle_prevention", nullptr}});
+    CHECK_FALSE(helper.get_system_info().supports_bypass);
+    helper.captured_gcodes.clear();
+    helper.execute_device_action("gear_from_spool_speed", std::any(70.0));
+    CHECK(helper.captured_gcodes == std::vector<std::string>{"MMU_TEST_CONFIG GEAR_LOAD_SPEED=70"});
+    // The query then names the units.
+    auto mm = kV4MmuMachine;
+    mm["unit_0"]["has_bypass"] = true;
+    helper.test_apply_config_defaults(kV4Settings, mm);
+    CHECK(helper.get_system_info().supports_bypass);
+}
