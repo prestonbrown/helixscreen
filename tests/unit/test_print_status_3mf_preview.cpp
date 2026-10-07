@@ -193,10 +193,41 @@ TEST_CASE_METHOD(PrintStatus3mfFixture, "A .3mf streams its extracted G-code fro
         files = {temp_file("Benchy.gcode")};
         expected = ".temp/Benchy.gcode";
     }
+    SECTION("the extracted name in a different case") {
+        files = {temp_file("benchy.GCODE")};
+        expected = ".temp/benchy.GCODE";
+    }
 
     load("Benchy.gcode.3mf");
     api_.files_.deliver(files);
     drain();
 
     CHECK(api_.transfers_.downloads == std::vector<std::string>{expected});
+}
+
+// The .temp reply can land after the print moved on; it describes the earlier
+// file and must not touch the current print's preview.
+TEST_CASE_METHOD(PrintStatus3mfFixture, "A .temp reply for an earlier print changes nothing",
+                 "[print_status][qidi]") {
+    load("Benchy.gcode.3mf");
+    get_printer_state().update_from_status(json{{"print_stats", {{"filename", "Other.gcode"}}}});
+    drain();
+    lv_subject_t* mode = PrintStatusPanelTestAccess::viewer_mode(panel());
+    lv_subject_set_int(mode, 1);
+
+    SECTION("a miss keeps the viewer shown") {
+        api_.files_.deliver({temp_file("unrelated.gcode")});
+        drain();
+        CHECK(lv_subject_get_int(mode) == 1);
+    }
+    SECTION("a list error keeps the viewer shown") {
+        api_.files_.fail();
+        drain();
+        CHECK(lv_subject_get_int(mode) == 1);
+    }
+    SECTION("a hit downloads nothing") {
+        api_.files_.deliver({temp_file("shadow_native_plate_1.gcode")});
+        drain();
+        CHECK(api_.transfers_.downloads.empty());
+    }
 }

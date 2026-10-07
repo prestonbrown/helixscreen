@@ -139,6 +139,14 @@ std::string qidi_3mf_extract_name(const std::string& print_filename) {
     return name;
 }
 
+bool is_qidi_3mf_extract(const std::string& entry, const std::string& print_filename) {
+    const std::string name = qidi_3mf_extract_name(print_filename);
+    return entry.size() == name.size() && std::equal(entry.begin(), entry.end(), name.begin(),
+                                                     [](unsigned char a, unsigned char b) {
+                                                         return std::tolower(a) == std::tolower(b);
+                                                     });
+}
+
 bool ends_with_ci(const std::string& s, const std::string& suffix) {
     if (s.size() < suffix.size()) {
         return false;

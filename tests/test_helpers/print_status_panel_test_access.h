@@ -59,6 +59,11 @@ class PrintStatusPanelTestAccess {
         panel.load_gcode_for_viewing(filename);
     }
 
+    /// 0 = thumbnail, 1 = 3D viewer, 2 = 2D viewer.
+    static lv_subject_t* viewer_mode(PrintStatusPanel& panel) {
+        return &panel.gcode_viewer_mode_subject_;
+    }
+
     static IMoonrakerAPI* api(const PrintStatusPanel& panel) {
         return panel.api_;
     }

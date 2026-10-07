@@ -131,6 +131,10 @@ bool is_native_3mf_shadow(const std::string& name);
  */
 std::string qidi_3mf_extract_name(const std::string& print_filename);
 
+/// Is the `.temp` entry @p entry the extract of @p print_filename? Compared
+/// case-insensitively.
+bool is_qidi_3mf_extract(const std::string& entry, const std::string& print_filename);
+
 /**
  * @brief Does @p s end with @p suffix, ignoring ASCII case?
  */

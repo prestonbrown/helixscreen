@@ -29,6 +29,9 @@ TEST_CASE("qidi_3mf_extract_name() names the plate G-code QIDI extracts into .te
     CHECK(qidi_3mf_extract_name("Benchy.gcode.3mf") == "Benchy.gcode");
     CHECK(qidi_3mf_extract_name("sub/dir/Benchy.gcode.3mf") == "Benchy.gcode");
     CHECK(qidi_3mf_extract_name("Benchy.3mf") == "Benchy.gcode");
+    // QIDI tests the inner ".gcode" case-sensitively and so appends one to
+    // an upper-case name.
+    CHECK(qidi_3mf_extract_name("X.GCODE.3MF") == "X.GCODE.gcode");
 }
 
 TEST_CASE("is_native_3mf_shadow() requires a non-empty plate id", "[filename_utils][qidi]") {
