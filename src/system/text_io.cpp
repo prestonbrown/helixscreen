@@ -134,7 +134,9 @@ bool fail_and_remove(const std::string& tmp) {
 bool write_file_atomic(const std::string& path, std::string_view data, Durability durability) {
     // One staging file per call: writers of the same path that shared one
     // would write into each other's file and rename it out from under each other.
-    static std::atomic<uint64_t> seq{0};
+    // 32 bits: MIPS32 has no native 8-byte atomics, and helix-splash and
+    // helix-watchdog link this file without libatomic.
+    static std::atomic<uint32_t> seq{0};
     const std::string tmp = path + "." + std::to_string(::getpid()) + "." +
                             std::to_string(seq.fetch_add(1, std::memory_order_relaxed)) + ".tmp";
     File f = open_file(tmp, "wb");
