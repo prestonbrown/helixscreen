@@ -537,6 +537,10 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// Whether printer.mmu.has_bypass has been observed at least once, so the
     /// resolved value gets logged even when it matches our optimistic default.
     bool bypass_support_seen_{false};
+    /// Last printer.mmu.has_bypass; the bypass source on v3 only.
+    std::optional<bool> status_has_bypass_;
+    /// supports_bypass from whichever source the layout trusts. Caller holds mutex_.
+    void apply_bypass_support_locked();
 
     /// Last printer.mmu.gate_status array, raw Happy Hare values (-1 unknown,
     /// 0 empty, 1 available, 2 from_buffer). Kept because the array and the

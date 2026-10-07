@@ -272,6 +272,23 @@ void AmsBackendHappyHare::set_machine_layout_locked(const MachineLayout& layout)
     machine_layout_ = layout;
     machine_layout_.v4 = layout.v4 || was_v4;
     system_info_.version = layout.version;
+    apply_bypass_support_locked();
+}
+
+void AmsBackendHappyHare::apply_bypass_support_locked() {
+    // v4 publishes printer.mmu.has_bypass as a constant true and puts each
+    // unit's answer on mmu_machine; until those units are known, a v4 frame
+    // asserts nothing.
+    const std::optional<bool> has_bypass =
+        machine_layout_.v4 ? machine_layout_.has_bypass : status_has_bypass_;
+    if (!has_bypass) {
+        return;
+    }
+    if (!bypass_support_seen_ || *has_bypass != system_info_.supports_bypass) {
+        spdlog::info("[AMS HappyHare] Bypass supported: {}", *has_bypass);
+        bypass_support_seen_ = true;
+    }
+    system_info_.supports_bypass = *has_bypass;
 }
 
 std::string AmsBackendHappyHare::test_config_param_locked(const std::string& key) const {
@@ -754,13 +771,9 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
     // owner with a physical bypass can legitimately see false and have no way to
     // tell that from a bug in us.
     if (mmu_data.contains("has_bypass") && mmu_data["has_bypass"].is_boolean()) {
-        const bool has_bypass = mmu_data["has_bypass"].get<bool>();
-        if (!bypass_support_seen_ || has_bypass != system_info_.supports_bypass) {
-            spdlog::info("[AMS HappyHare] Bypass supported: {}", has_bypass);
-            bypass_support_seen_ = true;
-        }
-        system_info_.supports_bypass = has_bypass;
-    } else if (!bypass_support_seen_) {
+        status_has_bypass_ = mmu_data["has_bypass"].get<bool>();
+        apply_bypass_support_locked();
+    } else if (!bypass_support_seen_ && !machine_layout_.v4) {
         // Field absent entirely. Every Happy Hare we know of publishes it, so this
         // is a fork or a version we have not seen; assume supported rather than
         // silently removing a control the machine may well have. Deliberately not

@@ -4406,3 +4406,31 @@ TEST_CASE("Happy Hare v4 reads clog detection mode from the encoder mode only",
         {{"clog_detection_enabled", 1}, {"flowguard", {{"encoder_mode", 2}}}});
     CHECK(helper.get_system_info().encoder_info.detection_mode == 1);
 }
+
+TEST_CASE("Happy Hare v4 takes bypass support from the units, not printer.mmu",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    SECTION("status first, then config") {
+        helper.test_parse_mmu_state({{"has_bypass", true}});
+        helper.test_apply_config_defaults(kV4Settings, kV4MmuMachine);
+        CHECK_FALSE(helper.get_system_info().supports_bypass);
+        // printer.mmu.has_bypass stays a constant true on later frames.
+        helper.test_parse_mmu_state({{"has_bypass", true}});
+        CHECK_FALSE(helper.get_system_info().supports_bypass);
+    }
+    SECTION("a unit with a bypass") {
+        auto mm = kV4MmuMachine;
+        mm["unit_0"]["has_bypass"] = true;
+        helper.test_apply_config_defaults(kV4Settings, mm);
+        helper.test_parse_mmu_state({{"has_bypass", true}});
+        CHECK(helper.get_system_info().supports_bypass);
+    }
+    SECTION("v3 still follows printer.mmu.has_bypass") {
+        helper.test_apply_config_defaults(v3_settings(3.42));
+        helper.test_parse_mmu_state({{"has_bypass", true}});
+        CHECK(helper.get_system_info().supports_bypass);
+        helper.test_parse_mmu_state({{"has_bypass", false}});
+        CHECK_FALSE(helper.get_system_info().supports_bypass);
+    }
+}
