@@ -348,12 +348,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     void apply_overrides(SlotInfo& slot, int slot_index);
     void persist_override(int slot_index, const SlotInfo& info);
 
-    // Build a " GATES=g0,g1,..." suffix targeting a specific unit's gates for
-    // MMU_HEATER on multi-unit (EMU) rigs. Returns "" for a single-unit MMU or
-    // unit<0 so the command omits GATES and HH defaults to all non-empty gates.
-    // Locks mutex_ internally — call with no lock held.
-    [[nodiscard]] std::string gates_suffix_for_unit(int unit) const;
-
     // Build context-aware recovery actions from live MMU state. Caller holds mutex_
     // (the base declares that contract; mutex_ is non-recursive, so this must not
     // lock).
@@ -565,6 +559,22 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     test_config_command_locked(const std::string& key, const std::string& value) const;
     /// The selected unit (printer.mmu.unit). Caller holds mutex_.
     [[nodiscard]] int active_unit_locked() const;
+    /// UNIT value naming every unit; v4 takes UNIT=ALL on its per-unit commands.
+    static constexpr int kAllUnits = -1;
+    /// " UNIT=<n>" (" UNIT=ALL" for kAllUnits) when a command has to name its
+    /// unit: a v4 install with more than one unit refuses a per-unit command
+    /// without it. Empty otherwise, and always on v3, whose MMU_TEST_CONFIG
+    /// rejects an unknown parameter. Caller holds mutex_.
+    [[nodiscard]] std::string unit_suffix_locked(int unit) const;
+    /// The MMU_HEATER target for @p unit: UNIT= and the unit's gates on a
+    /// multi-unit v4, else GATES= on a multi-unit rig. Caller holds mutex_.
+    [[nodiscard]] std::string heater_suffix_locked(int unit) const;
+    /// One heater target per command: @p unit's, or for the whole machine on a
+    /// multi-unit v4, one per unit that has a heater. Locks mutex_.
+    [[nodiscard]] std::vector<std::string> heater_targets_for_unit(int unit) const;
+    /// @p command once per heater target; a failed drying start stops the
+    /// units already started.
+    AmsError send_heater_command(const std::string& command, int unit);
     /// Toolhead / extruder-entry sensor fitted and enabled, from
     /// printer.mmu.sensors; nullopt until a frame carries the dict. v4 refuses
     /// the toolhead distance tuned against a sensor that is not.

@@ -149,7 +149,7 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
     /**
      * @brief Populate system_info_.units AND the slot registry for multiple units.
      * Unlike initialize_test_units (registry only), this fills system_info_.units so
-     * per-unit logic (e.g. gates_suffix_for_unit) sees the multi-unit topology.
+     * per-unit logic (e.g. heater_suffix_locked) sees the multi-unit topology.
      * @param gates_per_unit Gate count for each unit; total gates = sum.
      */
     void initialize_test_gates_multi(const std::vector<int>& gates_per_unit) {
@@ -207,7 +207,17 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
      */
     AmsError execute_gcode(const std::string& gcode) override {
         captured_gcodes.push_back(gcode);
+        if (!fail_gcode.empty() && gcode == fail_gcode) {
+            return AmsError(AmsResult::COMMAND_FAILED, "refused", "refused", "");
+        }
         return AmsErrorHelper::success();
+    }
+
+    /// A command execute_gcode() answers with an error.
+    std::string fail_gcode;
+
+    void set_dryer_supported() {
+        dryer_info_.supported = true;
     }
 
     /**
@@ -4370,11 +4380,19 @@ TEST_CASE("Happy Hare clog detection is named the way each release takes it",
               std::vector<std::string>{"MMU_TEST_CONFIG FLOWGUARD_ENCODER_MODE=0"});
         CHECK(helper.clog_detection_length_setting() == std::optional<float>(18.0f));
     }
-    SECTION("v4") {
-        helper.test_apply_config_defaults(kV4Settings, kV4MmuMachine);
+    SECTION("v4 unit with an encoder") {
+        auto mm = kV4MmuMachine;
+        mm["unit_0"]["selector_type"] = "LinearSelector";
+        auto settings = kV4Settings;
+        settings["mmu_unit unit0"]["encoder"] = "unit0_encoder";
+        helper.test_apply_config_defaults(settings, mm);
         CHECK(helper.clog_detection_mode_gcode(2, 0.0f) ==
               std::optional<std::string>("MMU_TEST_CONFIG flowguard_encoder_mode=2"));
         CHECK(helper.get_system_info().version == "4.0.0");
+    }
+    SECTION("v4 unit with no encoder") {
+        helper.test_apply_config_defaults(kV4Settings, kV4MmuMachine);
+        CHECK_FALSE(helper.clog_detection_mode_gcode(2, 0.0f));
     }
 }
 
@@ -4613,4 +4631,130 @@ TEST_CASE("Happy Hare v3 sends selector_move_speed only to a moving selector",
     helper.test_reapply_overrides();
     CHECK(helper.captured_gcodes ==
           std::vector<std::string>{"MMU_TEST_CONFIG GEAR_UNLOAD_SPEED=90"});
+}
+
+// ============================================================================
+// Multi-unit v4: UNIT= targeting (#1479)
+// ============================================================================
+
+namespace {
+
+/// A 6-gate ERCF (servo selector, encoder, buffer) then a 4-gate Box Turtle
+/// (hub, always gripped, per-gate heaters), as v4's MmuUnit.get_status()
+/// publishes them; not a capture.
+const nlohmann::json kV4TwoUnitMachine = {
+    {"happy_hare_version", "4.0.0"},
+    {"unit_0",
+     {{"name", "ercf"},
+      {"num_gates", 6},
+      {"first_gate", 0},
+      {"selector_type", "LinearServoSelector"},
+      {"filament_always_gripped", false},
+      {"has_bypass", true},
+      {"filament_buffer", true}}},
+    {"unit_1",
+     {{"name", "bt"},
+      {"num_gates", 4},
+      {"first_gate", 6},
+      {"selector_type", "VirtualSelector"},
+      {"filament_always_gripped", true},
+      {"has_bypass", false},
+      {"filament_buffer", false},
+      {"filament_heaters",
+       {"heater_generic bt_heat0", "heater_generic bt_heat0", "heater_generic bt_heat1",
+        "heater_generic bt_heat1"}}}},
+    {"num_units", 2},
+    {"num_gates", 10}};
+const nlohmann::json kV4TwoUnitSettings = {
+    {"mmu_machine", {{"happy_hare_version", "4.0.0"}, {"units", {"ercf", "bt"}}}},
+    {"mmu_parameters", {{"form_tip_macro", "_MMU_FORM_TIP"}}},
+    {"mmu_unit ercf", {{"encoder", "ercf_encoder"}, {"toolhead", "default"}}},
+    {"mmu_unit bt", {{"toolhead", "default"}}},
+    {"mmu_unit_parameters ercf", {{"gear_load_speed", 90.0}}},
+    {"mmu_unit_parameters bt", {{"gear_load_speed", 70.0}}}};
+
+} // namespace
+
+TEST_CASE("Happy Hare names the unit only where v4 multi-unit requires it",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(10);
+    helper.set_running(true);
+    helper.set_config_defaults_for_test();
+    helper.test_apply_config_defaults(kV4TwoUnitSettings, kV4TwoUnitMachine);
+    helper.set_dryer_supported();
+    // The Box Turtle is selected.
+    helper.test_parse_mmu_state({{"unit", 1}, {"gate", 7}});
+    helper.captured_gcodes.clear();
+
+    CHECK(helper.reset().success());
+    helper.execute_device_action("motors_toggle", std::any(false));
+    CHECK(helper.stop_drying(-1).success());
+    helper.execute_device_action("servo_up", {});
+    helper.execute_device_action("calibrate_gates", {});
+    helper.execute_device_action("calibrate_bowden", {});
+    helper.execute_device_action("test_grip", {});
+    helper.execute_device_action("gear_from_spool_speed", std::any(70.0));
+    helper.execute_device_action("extruder_load_speed", std::any(20.0));
+    helper.execute_device_action("sync_to_extruder", std::any(true));
+    CHECK(helper.captured_gcodes ==
+          std::vector<std::string>{"MMU_HOME UNIT=ALL", "MMU_MOTORS_OFF UNIT=ALL",
+                                   // Only the Box Turtle has heaters.
+                                   "MMU_HEATER STOP=1 UNIT=1 GATES=6,7,8,9",
+                                   // The selected Box Turtle has no servo, encoder or ungripped
+                                   // drive, so those go to the ERCF.
+                                   "MMU_SERVO POS=up UNIT=0", "MMU_CALIBRATE_GATE ALL=1 UNIT=0",
+                                   "MMU_CALIBRATE_BOWDEN", "MMU_TEST_GRIP UNIT=1",
+                                   "MMU_TEST_CONFIG GEAR_LOAD_SPEED=70 UNIT=1",
+                                   "MMU_TEST_CONFIG EXTRUDER_LOAD_SPEED=20",
+                                   "MMU_TEST_CONFIG SYNC_TO_EXTRUDER=1 UNIT=0"});
+}
+
+TEST_CASE("Happy Hare v4 whole-machine drying stops the units it started when one refuses",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(10);
+    auto mm = kV4TwoUnitMachine;
+    mm["unit_0"]["filament_heater"] = "heater_generic ercf_heater";
+    helper.test_apply_config_defaults(kV4TwoUnitSettings, mm);
+    helper.set_dryer_supported();
+    helper.fail_gcode = "MMU_HEATER DRY=1 TEMP=50 TIMER=60 UNIT=1 GATES=6,7,8,9";
+    helper.captured_gcodes.clear();
+
+    CHECK_FALSE(helper.start_drying(50.0f, 60, -1, -1));
+    CHECK(helper.captured_gcodes ==
+          std::vector<std::string>{"MMU_HEATER DRY=1 TEMP=50 TIMER=60 UNIT=0 GATES=0,1,2,3,4,5",
+                                   "MMU_HEATER DRY=1 TEMP=50 TIMER=60 UNIT=1 GATES=6,7,8,9",
+                                   "MMU_HEATER STOP=1 UNIT=0 GATES=0,1,2,3,4,5"});
+}
+
+TEST_CASE("Happy Hare single-unit commands carry no UNIT", "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.set_running(true);
+    helper.set_config_defaults_for_test();
+    helper.set_dryer_supported();
+    SECTION("v3") {
+        helper.test_apply_config_defaults(v3_settings(3.42));
+        helper.captured_gcodes.clear();
+        CHECK(helper.reset().success());
+        helper.execute_device_action("calibrate_gates", {});
+        CHECK(helper.stop_drying(0).success());
+        CHECK(helper.captured_gcodes ==
+              std::vector<std::string>{"MMU_HOME", "MMU_CALIBRATE_GATES", "MMU_HEATER STOP=1"});
+    }
+    SECTION("v4") {
+        auto mm = kV4MmuMachine;
+        mm["unit_0"]["selector_type"] = "LinearSelector";
+        auto settings = kV4Settings;
+        settings["mmu_unit unit0"]["encoder"] = "unit0_encoder";
+        helper.test_apply_config_defaults(settings, mm);
+        helper.captured_gcodes.clear();
+        CHECK(helper.reset().success());
+        helper.execute_device_action("calibrate_gates", {});
+        CHECK(helper.stop_drying(0).success());
+        CHECK(helper.captured_gcodes == std::vector<std::string>{"MMU_HOME",
+                                                                 "MMU_CALIBRATE_GATE ALL=1",
+                                                                 "MMU_HEATER STOP=1"});
+    }
 }
