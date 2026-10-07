@@ -106,7 +106,7 @@ The remaining sections list sensors for information only — there's nothing to 
 | **Humidity Sensors** | Chamber and dryer humidity monitoring | BME280, HTU21D, SHT3X, AHT10, AHT20, AHT20-F |
 | **Accelerometers** | Input shaper calibration sensors | ADXL345, LIS2DW, LIS3DH, MPU9250, ICM20948 |
 | **Color Sensors** | TD-1 filament color detection | TD-1 |
-| **Temperature Sensors** | MCU, host, and auxiliary temperature monitoring | MCU, Host, Aux |
+| **Temperature Sensors** | MCU, host, and auxiliary temperature monitoring, including generic heaters such as a filament dryer | MCU, Host, Aux |
 
 > Probes, humidity, accelerometer, color, and temperature sensors are display-only — HelixScreen shows their readings but there's nothing to set on this screen.
 

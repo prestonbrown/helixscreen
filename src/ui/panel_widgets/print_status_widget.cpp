@@ -3,6 +3,7 @@
 
 #include "print_status_widget.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_filename_utils.h"
@@ -71,6 +72,8 @@ SubjectManager s_static_subjects;
 const char* benchy_thumb_path() {
     return helix::PrinterPrintState::no_thumbnail_placeholder();
 }
+
+void open_temp_graph_for(lv_event_t* e, TempGraphOverlay::Mode mode);
 } // namespace
 
 namespace helix {
@@ -79,24 +82,22 @@ void register_print_status_widget() {
         "print_status", [](const std::string&) { return std::make_unique<PrintStatusWidget>(); });
 
     // Register XML event callbacks at startup (before any XML is parsed)
-    lv_xml_register_event_cb(nullptr, "print_card_clicked_cb",
-                             PrintStatusWidget::print_card_clicked_cb);
-    lv_xml_register_event_cb(nullptr, "library_files_cb", PrintStatusWidget::library_files_cb);
-    lv_xml_register_event_cb(nullptr, "library_last_cb", PrintStatusWidget::library_last_cb);
-    lv_xml_register_event_cb(nullptr, "library_recent_cb", PrintStatusWidget::library_recent_cb);
-    lv_xml_register_event_cb(nullptr, "library_queue_cb", PrintStatusWidget::library_queue_cb);
-    lv_xml_register_event_cb(nullptr, "print_status_nozzle_chevron_cb",
-                             PrintStatusWidget::print_status_nozzle_chevron_cb);
-    lv_xml_register_event_cb(nullptr, "print_status_layout_library_cb",
-                             PrintStatusWidget::print_status_layout_library_cb);
-    lv_xml_register_event_cb(nullptr, "print_status_layout_detailed_cb",
-                             PrintStatusWidget::print_status_layout_detailed_cb);
-    lv_xml_register_event_cb(nullptr, "on_print_status_nozzle_temp_clicked",
-                             PrintStatusWidget::on_print_status_nozzle_temp_clicked);
-    lv_xml_register_event_cb(nullptr, "on_print_status_bed_temp_clicked",
-                             PrintStatusWidget::on_print_status_bed_temp_clicked);
-    lv_xml_register_event_cb(nullptr, "on_print_status_chamber_temp_clicked",
-                             PrintStatusWidget::on_print_status_chamber_temp_clicked);
+    register_xml_callbacks({
+        {"print_card_clicked_cb", PrintStatusWidget::print_card_clicked_cb},
+        {"library_files_cb", PrintStatusWidget::library_files_cb},
+        {"library_last_cb", PrintStatusWidget::library_last_cb},
+        {"library_recent_cb", PrintStatusWidget::library_recent_cb},
+        {"library_queue_cb", PrintStatusWidget::library_queue_cb},
+        {"print_status_nozzle_chevron_cb", PrintStatusWidget::print_status_nozzle_chevron_cb},
+        {"print_status_layout_library_cb", PrintStatusWidget::print_status_layout_library_cb},
+        {"print_status_layout_detailed_cb", PrintStatusWidget::print_status_layout_detailed_cb},
+        {"on_print_status_nozzle_temp_clicked",
+         [](lv_event_t* e) { open_temp_graph_for(e, TempGraphOverlay::Mode::Nozzle); }},
+        {"on_print_status_bed_temp_clicked",
+         [](lv_event_t* e) { open_temp_graph_for(e, TempGraphOverlay::Mode::Bed); }},
+        {"on_print_status_chamber_temp_clicked",
+         [](lv_event_t* e) { open_temp_graph_for(e, TempGraphOverlay::Mode::Chamber); }},
+    });
 }
 } // namespace helix
 
@@ -2378,21 +2379,3 @@ void open_temp_graph_for(lv_event_t* e, TempGraphOverlay::Mode mode) {
     get_global_temp_graph_overlay().open(mode, parent_screen);
 }
 } // namespace
-
-void PrintStatusWidget::on_print_status_nozzle_temp_clicked(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("on_print_status_nozzle_temp_clicked");
-    open_temp_graph_for(e, TempGraphOverlay::Mode::Nozzle);
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void PrintStatusWidget::on_print_status_bed_temp_clicked(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("on_print_status_bed_temp_clicked");
-    open_temp_graph_for(e, TempGraphOverlay::Mode::Bed);
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void PrintStatusWidget::on_print_status_chamber_temp_clicked(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("on_print_status_chamber_temp_clicked");
-    open_temp_graph_for(e, TempGraphOverlay::Mode::Chamber);
-    LVGL_SAFE_EVENT_CB_END();
-}

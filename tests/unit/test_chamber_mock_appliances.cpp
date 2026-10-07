@@ -398,3 +398,24 @@ TEST_CASE_METHOD(HelixTestFixture, "mock runs the stock drying cycle",
     CHECK(diag.at("filament_drying_active").get<bool>() == false);
     CHECK(diag.at("remaining_seconds").get<int>() == 0);
 }
+
+TEST_CASE_METHOD(HelixTestFixture, "mock simulates a non-chamber heater_generic",
+                 "[mock][heater_generic]") {
+    ScopedEnv objects_env("HELIX_MOCK_OBJECTS", "heater_generic filament_dryer");
+    MoonrakerClientMock client;
+
+    // A dryer is not the chamber: the persona's own chamber heater keeps the slot.
+    CHECK(client.hardware().chamber_heater_name() != "heater_generic filament_dryer");
+
+    json frame;
+    client.register_notify_update(
+        [&frame](const json& notification) { frame = first_status_param(notification); });
+    MoonrakerClientMockTestAccess::dispatch_initial_state(client);
+    REQUIRE(frame.contains("heater_generic filament_dryer"));
+    CHECK(frame["heater_generic filament_dryer"].at("target").get<double>() == 0.0);
+
+    frame = json{};
+    REQUIRE(client.gcode_script("SET_HEATER_TEMPERATURE HEATER=filament_dryer TARGET=55") == 0);
+    REQUIRE(frame.contains("heater_generic filament_dryer"));
+    CHECK(frame["heater_generic filament_dryer"].at("target").get<double>() == 55.0);
+}

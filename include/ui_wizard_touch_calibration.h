@@ -157,12 +157,6 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     // touch_calibration_layout.h).
     helix::ui::RaisedControl raised_skip_;
 
-    // Event handlers (static trampolines)
-    static void on_retry_clicked_static(lv_event_t* e);
-    static void on_screen_touched_static(lv_event_t* e);
-    static void on_screen_released_static(lv_event_t* e);
-    static void on_test_area_touched_static(lv_event_t* e);
-
     // helix::ui::ITouchCalibrationView - what the controller asks this step to draw
     void on_progress() override;
     void on_capture_feedback(helix::Point landed) override;

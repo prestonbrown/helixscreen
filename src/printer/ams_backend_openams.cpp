@@ -311,9 +311,10 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
         if (!lane_json.is_object()) {
             continue;
         }
-        // The lane's filament pressure sensor: compression from 0 (none) to 1
-        // (full). A manager that publishes no pressure leaves the lane with no
-        // buffer rather than a made-up reading.
+        // The lane's filament pressure sensor, 0 to 1. Below set_point the
+        // extruder pulls harder than the hub feeds; above it the hub overfeeds.
+        // A manager that publishes no pressure leaves the lane with no buffer
+        // rather than a made-up reading.
         auto pressure = lane_json.find("pressure");
         if (pressure != lane_json.end() && pressure->is_number()) {
             BufferHealth fps;

@@ -347,7 +347,7 @@ void FanControlOverlay::populate_fans() {
 
             if (card) {
                 // Find speed label and format with % suffix, including RPM when available
-                lv_obj_t* speed_label = lv_obj_find_by_name(card, "speed_label");
+                lv_obj_t* speed_label = helix::ui::find_required(card, "speed_label", get_name());
                 if (speed_label) {
                     if (fan.rpm.has_value() && fan.rpm.value() > 0) {
                         char speed_str[32];
@@ -364,7 +364,7 @@ void FanControlOverlay::populate_fans() {
 
                 // Find arc and make read-only (fan_arc_core is interactive by default)
                 // Also bubble events so long-press reaches the card
-                lv_obj_t* arc = lv_obj_find_by_name(card, "dial_arc");
+                lv_obj_t* arc = helix::ui::find_required(card, "dial_arc", get_name());
                 if (arc) {
                     lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
                     lv_obj_add_flag(arc, LV_OBJ_FLAG_EVENT_BUBBLE);
@@ -374,7 +374,7 @@ void FanControlOverlay::populate_fans() {
                 }
 
                 // Find fan icon for spin animation
-                lv_obj_t* fan_icon = lv_obj_find_by_name(card, "fan_icon");
+                lv_obj_t* fan_icon = helix::ui::find_required(card, "fan_icon", get_name());
                 if (fan_icon) {
                     lv_obj_set_style_transform_pivot_x(fan_icon, LV_PCT(50), 0);
                     lv_obj_set_style_transform_pivot_y(fan_icon, LV_PCT(50), 0);

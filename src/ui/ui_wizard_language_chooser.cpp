@@ -11,6 +11,7 @@
 #include "static_panel_registry.h"
 #include "system_settings_manager.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -274,7 +275,7 @@ void WizardLanguageChooserStep::animate_crossfade(const char* new_text) {
         return;
     }
 
-    lv_obj_t* welcome_header = lv_obj_find_by_name(screen_root_, "welcome_header");
+    lv_obj_t* welcome_header = helix::ui::find_required(screen_root_, "welcome_header", get_name());
     if (!welcome_header) {
         // Fallback: just update the subject directly
         lv_subject_copy_string(&welcome_text_, new_text);
@@ -362,7 +363,7 @@ lv_obj_t* WizardLanguageChooserStep::create(lv_obj_t* parent) {
 
     // Display-size face, a size class above the text_heading default
     // (prestonbrown/helixscreen#1599).
-    if (lv_obj_t* header = lv_obj_find_by_name(screen_root_, "welcome_header")) {
+    if (lv_obj_t* header = helix::ui::find_required(screen_root_, "welcome_header", get_name())) {
         // The observer below fires on registration, superseding this set when
         // the breakpoint subject is live; this is the null-subject fallback.
         lv_obj_set_style_text_font(
@@ -401,7 +402,8 @@ void WizardLanguageChooserStep::cleanup() {
     // Without this, a mid-animation cleanup would leave the animation timer
     // referencing a deleted widget, causing a crash in lv_obj_refresh_style
     if (screen_root_) {
-        lv_obj_t* welcome_header = lv_obj_find_by_name(screen_root_, "welcome_header");
+        lv_obj_t* welcome_header =
+            helix::ui::find_required(screen_root_, "welcome_header", get_name());
         if (welcome_header) {
             // Delete all animations on this widget (NULL = any exec_cb)
             lv_anim_delete(welcome_header, nullptr);

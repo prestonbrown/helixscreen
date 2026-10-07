@@ -16,6 +16,7 @@
 #include "printer_hardware.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -155,7 +156,8 @@ void WizardFilamentSensorSelectStep::populate_dropdowns() {
     }
 
     // Find and populate the runout dropdown
-    lv_obj_t* runout_dropdown = lv_obj_find_by_name(screen_root_, "runout_sensor_dropdown");
+    lv_obj_t* runout_dropdown =
+        helix::ui::find_required(screen_root_, "runout_sensor_dropdown", get_name());
 
     if (runout_dropdown) {
         lv_dropdown_set_options(runout_dropdown, options.c_str());

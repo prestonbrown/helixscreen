@@ -78,6 +78,12 @@ struct MacrosPanelTestAccess {
     static int defaults_hidden_int(MacrosPanel& p, size_t i) {
         return lv_subject_get_int(p.defaults_hidden_pool_.at(i));
     }
+    static void set_macros(MacrosPanel& p, std::vector<std::string> macros) {
+        p.all_macros_ = std::move(macros);
+    }
+    static void rebuild(MacrosPanel& p) {
+        p.rebuild_rows();
+    }
     static int row_count(MacrosPanel& p) {
         return lv_subject_get_int(&p.macro_row_count_);
     }
@@ -327,4 +333,22 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     MacrosPanelTestAccess::teardown(p);
     cache.clear();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "opening the panel builds its rows once", "[macros][editmode]") {
+    // destroy_on_close: create() builds the rows for every open, so activation rebuilds
+    // only when the discovered macros have changed since.
+    MacrosPanel p;
+    MacrosPanelTestAccess::prepare(p, {"CLEAN_NOZZLE"});
+    MacrosPanelTestAccess::rebuild(p);
+    REQUIRE(MacrosPanelTestAccess::displayed(p).size() == 1);
+
+    // A list that differs from what was built but did not come from discovery: a rebuild
+    // here would pick it up.
+    MacrosPanelTestAccess::set_macros(p, {"CLEAN_NOZZLE", "PRINT_START"});
+    p.on_activate();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(MacrosPanelTestAccess::displayed(p).size() == 1);
+    MacrosPanelTestAccess::teardown(p);
 }

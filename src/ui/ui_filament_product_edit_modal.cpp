@@ -10,6 +10,7 @@
 #include "json_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "text_io.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -242,7 +243,7 @@ FilamentFormValues FilamentProductEditModal::read_form() const {
     v.brand = get_input_text(dialog_, "field_brand");
     v.name = get_input_text(dialog_, "field_name");
 
-    if (lv_obj_t* dd = lv_obj_find_by_name(dialog_, "type_dropdown")) {
+    if (lv_obj_t* dd = helix::ui::find_required(dialog_, "type_dropdown", get_name())) {
         char buf[64] = {};
         lv_dropdown_get_selected_str(dd, buf, sizeof(buf));
         v.type = buf;

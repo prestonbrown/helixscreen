@@ -4,7 +4,7 @@
         extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
         style_pad_gap="0">
 
-    <!-- Header row: icon + title + close button -->
+    <!-- Header row: icon + title + close button. The close X is the only way out: the modal is read-only. -->
     <lv_obj width="100%"
             height="content" style_pad_left="#space_lg" style_pad_right="#space_sm" style_pad_top="#space_lg"
             style_pad_bottom="#space_sm" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
@@ -15,53 +15,67 @@
       </ui_button>
     </lv_obj>
 
-    <!-- The clog reading, full width above the columns.
-
-         This modal opens off the FlowGuard tile, and used to show strictly
-         less than the tile that opened it: a "Clog detection" row naming the
-         mode, with no value, no threshold and no peak. The bar carries all
-         three. It wants width rather than height, so it spans both columns
-         instead of sharing meter_col with the plunger — which measures a
-         different sensor entirely.
-
-         Gated on clog_meter_mode by clog_bar_body's own binding, not on the
-         modal: this is the buffer modal, and it is reachable on a printer with
-         no clog detection at all. -->
+    <!-- The clog reading, full width. Gated on clog_meter_mode by clog_bar_body's own
+         binding: this modal opens on printers with no clog detection. -->
     <lv_obj width="100%"
             height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_xs"
             style_pad_bottom="0" scrollable="false">
       <clog_bar_body/>
     </lv_obj>
 
-    <!-- Content area: info column (left) + meter column (right) -->
+    <!-- Content: the tall slider on the left; beside it the reading, its last
+         minute in its own panel, and the backend's own rows. -->
     <lv_obj width="100%"
             height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
-            style_pad_bottom="#space_lg" flex_flow="row" style_pad_gap="#space_md" style_flex_cross_place="center">
+            style_pad_bottom="#space_lg" flex_flow="row" style_pad_gap="#space_lg">
 
-      <!-- Info column -->
-      <lv_obj name="info_col" width="1" height="content" flex_grow="1" flex_flow="column" style_pad_gap="#space_xs">
+      <!-- Drawn by UiBufferSlider; hidden for a reading with no set point to centre on. -->
+      <lv_obj name="buf_slider"
+              width="#buffer_slider_tall_w" height="#buffer_graph_h" style_pad_all="0" scrollable="false">
+        <bind_flag_if_eq subject="buf_show_meter" flag="hidden" ref_value="0"/>
+      </lv_obj>
+
+      <lv_obj name="info_col" height="content" flex_grow="1" flex_flow="column" style_pad_gap="#space_xs">
+
+        <!-- The reading, its target and its lean: "FPS 32%  target 50%  Running tight" -->
+        <lv_obj name="reading_row"
+                width="100%" height="content" flex_flow="row" style_pad_gap="#space_md" style_flex_cross_place="end">
+          <bind_flag_if_eq subject="buf_show_reading" flag="hidden" ref_value="0"/>
+          <text_body name="buf_value_label" bind_text="buf_value" style_text_font="#font_xl">
+            <bind_style_if_eq name="styles.buffer_ok" subject="buf_status" ref_value="0"/>
+            <bind_style_if_eq name="styles.buffer_warning" subject="buf_status" ref_value="1"/>
+            <bind_style_if_eq name="styles.buffer_danger" subject="buf_status" ref_value="2"/>
+          </text_body>
+          <text_small name="buf_target_label" bind_text="buf_target" style_text_color="#text_muted"/>
+          <text_body name="bias_description"
+                     bind_text="buf_description" flex_grow="1" style_text_align="right" long_mode="wrap">
+            <bind_flag_if_eq subject="buf_show_meter" flag="hidden" ref_value="0"/>
+            <bind_style_if_eq name="styles.buffer_ok" subject="buf_status" ref_value="0"/>
+            <bind_style_if_eq name="styles.buffer_warning" subject="buf_status" ref_value="1"/>
+            <bind_style_if_eq name="styles.buffer_danger" subject="buf_status" ref_value="2"/>
+          </text_body>
+        </lv_obj>
+
+        <!-- The last minute, drawn by UiBufferSlider. -->
+        <lv_obj name="buf_trace" width="100%" height="#buffer_trace_h" scrollable="false">
+          <style name="styles.buffer_trace_area"/>
+          <bind_flag_if_eq subject="buf_show_meter" flag="hidden" ref_value="0"/>
+        </lv_obj>
+        <text_tiny name="buf_trace_caption" text="last 60 s · LOOSE up, TIGHT down" style_text_color="#text_muted">
+          <bind_flag_if_eq subject="buf_show_meter" flag="hidden" ref_value="0"/>
+        </text_tiny>
 
         <!-- ============ Unsupported system ============ -->
-        <!-- buf_type 0 = no Happy Hare, AFC or pressure-sensor data. Without this the dialog is
-             a header and a button row over an empty box. -->
+        <!-- buf_type 0 = no Happy Hare, AFC or pressure-sensor data. This section is the dialog's
+             whole body there. -->
         <lv_obj name="unsupported_section" width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs">
           <bind_flag_if_not_eq subject="buf_type" flag="hidden" ref_value="0"/>
           <text_small name="unsupported_text" width="100%" bind_text="buf_unsupported" long_mode="wrap"/>
         </lv_obj>
 
-        <!-- ============ Filament pressure sensor ============ -->
-        <!-- buf_type 3 = a pressure sensor reporting compression only. -->
-        <lv_obj name="pressure_section" width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs">
-          <bind_flag_if_not_eq subject="buf_type" flag="hidden" ref_value="3"/>
-          <text_small name="pressure_description" width="100%" bind_text="buf_description" long_mode="wrap"/>
-        </lv_obj>
-
         <!-- ============ Happy Hare section ============ -->
         <lv_obj name="hh_section" width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs">
           <bind_flag_if_not_eq subject="buf_type" flag="hidden" ref_value="1"/>
-
-          <!-- Description -->
-          <text_small name="hh_description" width="100%" bind_text="buf_description" long_mode="wrap"/>
 
           <!-- Spool motor row -->
           <lv_obj name="espooler_row" width="100%" height="content" flex_flow="row" style_pad_gap="#space_sm">
@@ -99,18 +113,6 @@
         </lv_obj>
 
       </lv_obj>
-
-      <!-- Meter column (programmatically populated with UiBufferMeter) -->
-      <lv_obj name="meter_col" width="100" height="150" style_min_width="100">
-        <bind_flag_if_eq subject="buf_show_meter" flag="hidden" ref_value="0"/>
-      </lv_obj>
-
     </lv_obj>
-
-    <divider_horizontal/>
-
-    <modal_button_row secondary_text="Cancel"
-                      secondary_callback="on_modal_cancel_clicked" primary_text="OK"
-                      primary_callback="on_modal_ok_clicked"/>
   </view>
 </component>

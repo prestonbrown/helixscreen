@@ -41,6 +41,7 @@
 #include "system/crash_handler.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -207,16 +208,15 @@ void AmsOverviewPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     ui_overlay_panel_setup_standard(panel_, parent_screen_, "overlay_header", "overview_content");
 
     // Find the unit cards row container from XML
-    cards_row_ = lv_obj_find_by_name(panel_, "unit_cards_row");
+    cards_row_ = helix::ui::find_required(panel_, "unit_cards_row", get_name());
     if (!cards_row_) {
-        spdlog::error("[{}] Could not find 'unit_cards_row' in XML", get_name());
         return;
     }
     lv_obj_add_event_cb(cards_row_, &AmsOverviewPanel::on_cards_row_scrolled, LV_EVENT_SCROLL,
                         this);
 
     // Find system path area and create path canvas widget
-    system_path_area_ = lv_obj_find_by_name(panel_, "system_path_area");
+    system_path_area_ = helix::ui::find_required(panel_, "system_path_area", get_name());
     if (system_path_area_) {
         system_path_ = ui_system_path_canvas_create(system_path_area_);
         if (system_path_) {
@@ -240,10 +240,10 @@ void AmsOverviewPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     }
 
     // Find detail view containers
-    detail_container_ = lv_obj_find_by_name(panel_, "unit_detail_container");
-    lv_obj_t* detail_unit = lv_obj_find_by_name(panel_, "detail_unit_detail");
+    detail_container_ = helix::ui::find_required(panel_, "unit_detail_container", get_name());
+    lv_obj_t* detail_unit = helix::ui::find_required(panel_, "detail_unit_detail", get_name());
     detail_widgets_ = ams_detail_find_widgets(detail_unit);
-    detail_path_canvas_ = lv_obj_find_by_name(panel_, "detail_path_canvas");
+    detail_path_canvas_ = helix::ui::find_required(panel_, "detail_path_canvas", get_name());
 
     // Store global instance for callback access (back button + animation callbacks)
     g_overview_panel_instance.store(this);
@@ -402,14 +402,14 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         lv_obj_add_event_cb(uc.card, on_unit_card_clicked, LV_EVENT_CLICKED, this);
 
         // Find child widgets declared in XML
-        uc.logo_image = lv_obj_find_by_name(uc.card, "unit_logo");
-        uc.name_label = lv_obj_find_by_name(uc.card, "unit_name");
-        uc.bars_container = lv_obj_find_by_name(uc.card, "bars_container");
-        uc.slot_count_label = lv_obj_find_by_name(uc.card, "slot_count");
+        uc.logo_image = helix::ui::find_required(uc.card, "unit_logo", get_name());
+        uc.name_label = helix::ui::find_required(uc.card, "unit_name", get_name());
+        uc.bars_container = helix::ui::find_required(uc.card, "bars_container", get_name());
+        uc.slot_count_label = helix::ui::find_required(uc.card, "slot_count", get_name());
 
         // Stamp the unit index on the environment indicator so its click handler
         // knows which unit's overlay to open.
-        if (lv_obj_t* ind = lv_obj_find_by_name(uc.card, "env_indicator")) {
+        if (lv_obj_t* ind = helix::ui::find_required(uc.card, "env_indicator", get_name())) {
             lv_obj_set_user_data(ind, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
         }
 
@@ -926,13 +926,13 @@ void AmsOverviewPanel::show_overview() {
     detail_unit_index_ = -1;
 
     // Restore header to overview mode: show title, hide detail elements
-    lv_obj_t* title = lv_obj_find_by_name(panel_, "header_title");
+    lv_obj_t* title = helix::ui::find_required(panel_, "header_title", get_name());
     if (title)
         lv_obj_remove_flag(title, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_t* logo = lv_obj_find_by_name(panel_, "detail_logo");
+    lv_obj_t* logo = helix::ui::find_required(panel_, "detail_logo", get_name());
     if (logo)
         lv_obj_add_flag(logo, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_t* name_label = lv_obj_find_by_name(panel_, "detail_unit_name");
+    lv_obj_t* name_label = helix::ui::find_required(panel_, "detail_unit_name", get_name());
     if (name_label)
         lv_obj_add_flag(name_label, LV_OBJ_FLAG_HIDDEN);
 
@@ -993,19 +993,19 @@ void AmsOverviewPanel::show_overview() {
 
 void AmsOverviewPanel::update_detail_header(const AmsUnit& unit, const AmsSystemInfo& info) {
     // Hide overview title, show detail elements in main header
-    lv_obj_t* title = lv_obj_find_by_name(panel_, "header_title");
+    lv_obj_t* title = helix::ui::find_required(panel_, "header_title", get_name());
     if (title)
         lv_obj_add_flag(title, LV_OBJ_FLAG_HIDDEN);
 
     // Update and show logo
-    lv_obj_t* logo = lv_obj_find_by_name(panel_, "detail_logo");
+    lv_obj_t* logo = helix::ui::find_required(panel_, "detail_logo", get_name());
     if (logo) {
         ams_draw::apply_logo(logo, unit, info);
         lv_obj_remove_flag(logo, LV_OBJ_FLAG_HIDDEN);
     }
 
     // Update and show name
-    lv_obj_t* name = lv_obj_find_by_name(panel_, "detail_unit_name");
+    lv_obj_t* name = helix::ui::find_required(panel_, "detail_unit_name", get_name());
     if (name) {
         lv_label_set_text(name, ams_draw::get_unit_display_name(unit, detail_unit_index_).c_str());
         lv_obj_remove_flag(name, LV_OBJ_FLAG_HIDDEN);

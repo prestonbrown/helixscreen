@@ -376,12 +376,10 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     widget->attach(make_tile(page, "panel_widget_thermistor"), test_screen());
     UpdateQueue::instance().drain();
 
-    REQUIRE(ThermistorTestAccess::temp_label(*widget) != nullptr);
     REQUIRE(ThermistorTestAccess::name_label(*widget) != nullptr);
 
     lv_obj_delete(page);
 
-    CHECK(ThermistorTestAccess::temp_label(*widget) == nullptr);
     CHECK(ThermistorTestAccess::name_label(*widget) == nullptr);
 }
 
@@ -395,21 +393,21 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     lv_obj_t* page = make_page();
     widget->attach(make_tile(page, "panel_widget_thermistor"), test_screen());
     UpdateQueue::instance().drain();
-    REQUIRE(ThermistorTestAccess::temp_label(*widget) != nullptr);
+    REQUIRE(ThermistorTestAccess::name_label(*widget) != nullptr);
 
     // The sensor's temp subject fires temp_observer_ synchronously; the handler
-    // (on_temp_changed -> lv_label_set_text(temp_label_)) is queued.
+    // (on_temp_changed) is queued.
     lv_subject_t* subject =
         helix::sensors::TemperatureSensorManager::instance().get_temp_subject(THERMISTOR_SENSOR_A);
     REQUIRE(subject != nullptr);
     lv_subject_set_int(subject, 425);
 
-    // Tree dies while the handler is still queued. Pre-fix temp_label_ still
-    // pointed into the freed tree, so on_temp_changed() wrote to freed memory.
+    // Tree dies while the handler is still queued: the drained handler must
+    // touch nothing in the freed tree.
     lv_obj_delete(page);
     UpdateQueue::instance().drain();
 
-    CHECK(ThermistorTestAccess::temp_label(*widget) == nullptr);
+    CHECK(ThermistorTestAccess::name_label(*widget) == nullptr);
 }
 
 TEST_CASE_METHOD(HomeWidgetTeardownFixture,

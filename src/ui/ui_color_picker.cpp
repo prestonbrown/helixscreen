@@ -524,14 +524,49 @@ void ColorPicker::register_callbacks() {
     }
 
     register_xml_callbacks({
-        {"color_picker_close_cb", on_close_cb},
+        {"color_picker_close_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->hide();
+             }
+         }},
         {"color_swatch_clicked_cb", on_swatch_cb},
-        {"color_picker_cancel_cb", on_cancel_cb},
-        {"color_picker_select_cb", on_select_cb},
-        {"hex_input_changed_cb", on_hex_input_changed_cb},
-        {"hex_input_defocused_cb", on_hex_input_defocused_cb},
-        {"color_picker_tab_presets_cb", on_tab_presets_cb},
-        {"color_picker_tab_custom_cb", on_tab_custom_cb},
+        {"color_picker_cancel_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->on_cancel();
+             }
+         }},
+        {"color_picker_select_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_select();
+             }
+         }},
+        {"hex_input_changed_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_hex_input_changed();
+             }
+         }},
+        {"hex_input_defocused_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_hex_input_defocused();
+             }
+         }},
+        {"color_picker_tab_presets_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->switch_tab(false);
+             }
+         }},
+        {"color_picker_tab_custom_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->switch_tab(true);
+             }
+         }},
     });
 
     callbacks_registered_ = true;
@@ -592,59 +627,12 @@ ColorPicker* ColorPicker::get_instance_from_event(lv_event_t* e) {
     return active_instance_;
 }
 
-void ColorPicker::on_close_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->hide();
-    }
-}
-
 void ColorPicker::on_swatch_cb(lv_event_t* e) {
     auto* self = get_instance_from_event(e);
     if (self) {
         auto* swatch = static_cast<lv_obj_t*>(lv_event_get_target(e));
         self->handle_swatch_clicked(swatch);
     }
-}
-
-void ColorPicker::on_cancel_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->on_cancel();
-    }
-}
-
-void ColorPicker::on_select_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_select();
-    }
-}
-
-void ColorPicker::on_hex_input_changed_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_hex_input_changed();
-    }
-}
-
-void ColorPicker::on_hex_input_defocused_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_hex_input_defocused();
-    }
-}
-
-void ColorPicker::on_tab_presets_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self)
-        self->switch_tab(false);
-}
-
-void ColorPicker::on_tab_custom_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self)
-        self->switch_tab(true);
 }
 
 } // namespace helix::ui

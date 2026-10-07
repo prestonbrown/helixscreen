@@ -220,15 +220,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     // State queries
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
 
-    // An AFC_buffer configured `type: FPS_PSF` reads an analog filament
-    // pressure sensor, which get_system_info() maps onto sync_feedback_bias.
-    // The docs used to say AFC had no proportional data at all; that was only
-    // ever true of the switched TurtleNeck buffer, which still returns false
-    // here via the -1.5 sentinel.
-    [[nodiscard]] bool
-    supports_sync_feedback_visualization(const AmsSystemInfo& info) const override {
-        return info.sync_feedback_bias > -1.5f;
-    }
     [[nodiscard]] AmsType get_type() const override;
     /// Constant capability answers; see BackendTraits.
     static constexpr BackendTraits kTraits = [] {

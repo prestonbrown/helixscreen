@@ -12,6 +12,7 @@
 #include <atomic>
 #include <cerrno>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
@@ -89,6 +90,38 @@ namespace {
 std::atomic<int> s_signal_enable_fd{-1};
 } // namespace
 
+namespace {
+bool parse_channel(const char* spec, int& chip, int& channel) {
+    int c = -1;
+    int ch = -1;
+    char extra = 0;
+    if (std::sscanf(spec, "%d:%d%c", &c, &ch, &extra) != 2 || c < 0 || ch < 0) {
+        return false;
+    }
+    chip = c;
+    channel = ch;
+    return true;
+}
+} // namespace
+
+bool PWMSoundBackend::resolve_channel(const std::string& setting, const char* env, int& chip,
+                                      int& channel) {
+    if (env && env[0] != '\0') {
+        if (parse_channel(env, chip, channel)) {
+            return true;
+        }
+        spdlog::warn("[PWMSoundBackend] HELIX_PWM_SOUND={} is not <chip>:<channel>, ignored", env);
+    }
+    if (!setting.empty()) {
+        if (parse_channel(setting.c_str(), chip, channel)) {
+            return true;
+        }
+        spdlog::warn("[PWMSoundBackend] sound.pwm_channel '{}' is not <chip>:<channel>, ignored",
+                     setting);
+    }
+    return false;
+}
+
 void PWMSoundBackend::silence_signal_safe() {
     const int fd = s_signal_enable_fd.load(std::memory_order_relaxed);
     if (fd >= 0) {
@@ -99,11 +132,7 @@ void PWMSoundBackend::silence_signal_safe() {
 }
 
 PWMSoundBackend::PWMSoundBackend(const std::string& base_path, int chip, int channel)
-    : base_path_(base_path), chip_(chip), channel_(channel) {
-#ifdef HELIX_PWM_AUTO_EXPORT
-    auto_export_ = true;
-#endif
-}
+    : base_path_(base_path), chip_(chip), channel_(channel) {}
 
 PWMSoundBackend::~PWMSoundBackend() {
     shutdown();
@@ -248,8 +277,8 @@ bool PWMSoundBackend::initialize() {
 
     // Rig-tunable audible floor (see DEFAULT_MIN_NOTE_MS): env_float falls
     // back to the default on unset/empty/non-positive/unparseable values.
-    min_note_ms_ = helix::env_float("HELIX_PWM_MIN_NOTE_MS", min_note_ms_, MIN_NOTE_MS_CLAMP_LOW,
-                                    MIN_NOTE_MS_CLAMP_HIGH);
+    min_note_ms_ = helix::env_float("HELIX_PWM_MIN_NOTE_MS", DEFAULT_MIN_NOTE_MS,
+                                    MIN_NOTE_MS_CLAMP_LOW, MIN_NOTE_MS_CLAMP_HIGH);
     spdlog::debug("[PWMSoundBackend] min note floor: {} ms", min_note_ms_);
 
     initialized_ = true;

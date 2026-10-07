@@ -12,6 +12,18 @@
 
 namespace helix::ui {
 
+lv_color_t connection_dot_color(int connection_state) {
+    switch (connection_state) {
+    case 2: // connected
+        return theme_manager_get_color("success");
+    case 1: // connecting
+    case 3: // reconnecting
+        return theme_manager_get_color("warning");
+    default: // disconnected, failed
+        return theme_manager_get_color("danger");
+    }
+}
+
 void PrinterBadgeMenu::wire(lv_obj_t* navbar) {
     navbar_ = navbar;
 
@@ -28,20 +40,7 @@ void PrinterBadgeMenu::wire(lv_obj_t* navbar) {
             [](PrinterBadgeMenu* self, int state) {
                 if (!self->dot_)
                     return;
-                lv_color_t color;
-                switch (state) {
-                case 2: // connected
-                    color = theme_manager_get_color("success");
-                    break;
-                case 1: // connecting
-                case 3: // reconnecting
-                    color = theme_manager_get_color("warning");
-                    break;
-                default: // disconnected, failed
-                    color = theme_manager_get_color("danger");
-                    break;
-                }
-                lv_obj_set_style_bg_color(self->dot_, color, 0);
+                lv_obj_set_style_bg_color(self->dot_, connection_dot_color(state), 0);
             },
             get_printer_state().get_subjects_lifetime());
     }

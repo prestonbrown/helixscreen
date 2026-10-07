@@ -354,7 +354,7 @@ void ui_filament_path_canvas_set_heat_active(lv_obj_t* obj, bool active);
  *   2 = fault detected (red tint)
  *
  * @param obj The filament_path_canvas widget
- * @param state Buffer fault state (0=healthy, 1=warning, 2=fault)
+ * @param state Buffer fault state (-1=untinted, 0=healthy, 1=warning, 2=fault)
  */
 void ui_filament_path_canvas_set_buffer_fault_state(lv_obj_t* obj, int state);
 
@@ -376,8 +376,8 @@ void ui_filament_path_canvas_set_buffer_info(lv_obj_t* obj, bool present, int st
 /**
  * @brief Set proportional buffer bias for smooth color interpolation
  *
- * When set to a valid value (> -1.5), the buffer coil color interpolates
- * smoothly from green (neutral) through orange to red based on abs(bias).
+ * When set to a valid value (> -1.5), the buffer box border takes the buffer
+ * bands' token for its fault state: text_muted on target, warning, danger.
  * When unavailable (-2.0), falls back to discrete 3-state color logic.
  *
  * @param obj The filament_path_canvas widget
@@ -485,6 +485,10 @@ void ui_filament_path_canvas_set_hub_callback(lv_obj_t* obj, hub_callback_t cb, 
 
 #ifdef __cplusplus
 namespace helix::ui {
+/// The state last given to ui_filament_path_canvas_set_buffer_fault_state()
+/// (-1 untinted, 0 healthy, 1 warning, 2 fault); 0 for a non-canvas object.
+int filament_path_canvas_buffer_fault_state(lv_obj_t* obj);
+
 /**
  * @brief Pure coordinate hit-test for an axis-aligned box.
  *

@@ -84,4 +84,11 @@ inline CardThumbnailOutcome card_thumbnail_outcome(const CardThumbnailResult& r)
                : CardThumbnailOutcome::Discard;
 }
 
+/// Whether a card whose fetch failed (a stalled or timed-out download, an HTTP
+/// error) is fetched again: once per showing, and only while it is shown and
+/// was not cancelled for leaving the screen.
+inline bool card_thumbnail_refetch_after_error(bool shown, bool cancelled, bool retried) {
+    return shown && !cancelled && !retried;
+}
+
 } // namespace helix

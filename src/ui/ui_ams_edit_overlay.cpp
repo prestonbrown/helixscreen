@@ -584,7 +584,7 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
 
         lv_obj_set_user_data(item, reinterpret_cast<void*>(static_cast<intptr_t>(spool.id)));
 
-        lv_obj_t* name_label = lv_obj_find_by_name(item, "spool_name");
+        lv_obj_t* name_label = helix::ui::find_required(item, "spool_name", get_name());
         // display_name() carries Spoolman's filament name, the only text that
         // tells two spools of one vendor and material apart, and this is the
         // only name label the row has.
@@ -593,14 +593,14 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
             lv_label_set_text(name_label, name.c_str());
         }
 
-        lv_obj_t* weight_label = lv_obj_find_by_name(item, "spool_weight");
+        lv_obj_t* weight_label = helix::ui::find_required(item, "spool_weight", get_name());
         if (weight_label && spool.remaining_weight_g > 0) {
             char buf[32];
             snprintf(buf, sizeof(buf), "%.0fg", spool.remaining_weight_g);
             lv_label_set_text(weight_label, buf);
         }
 
-        lv_obj_t* swatch = lv_obj_find_by_name(item, "spool_swatch");
+        lv_obj_t* swatch = helix::ui::find_required(item, "spool_swatch", get_name());
         if (swatch) {
             uint32_t rgb = helix::parse_hex_color(spool.color_hex).value_or(0x808080);
             helix::ui::apply_swatch_color(swatch, rgb, spool.multi_color_hexes);
@@ -623,7 +623,7 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         if (is_selected) {
             have_preselection = true;
             lv_obj_set_state(item, LV_STATE_CHECKED, true);
-            lv_obj_t* check_icon = lv_obj_find_by_name(item, "selected_icon");
+            lv_obj_t* check_icon = helix::ui::find_required(item, "selected_icon", get_name());
             if (check_icon) {
                 lv_obj_remove_flag(check_icon, LV_OBJ_FLAG_HIDDEN);
             }
@@ -2082,7 +2082,6 @@ bool AmsEditOverlay::setup_details_selector() {
     lv_obj_t* fragment =
         helix::ui::find_required(overlay_root_, "details_catalog_selector", get_name());
     if (!fragment) {
-        spdlog::warn("[AmsEditOverlay] details_catalog_selector fragment missing");
         return false;
     }
     auto* backend = AmsState::instance().get_backend();

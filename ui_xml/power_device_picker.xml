@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Full-screen backdrop overlay - tap to dismiss -->
+  <view name="power_device_picker" extends="context_menu_backdrop">
+    <!-- Card positioned and height-capped by ContextMenu. A device row or sensor
+         chip applies and closes; an icon applies live and leaves the card up, so
+         the header offers Done rather than an X. -->
+    <context_menu_card title="Configure" close_icon="check" close_text="Done">
+      <lv_obj width="100%"
+              height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" scrollable="false"
+              clickable="false" event_bubble="true">
+        <lv_obj width="1"
+                height="content" flex_grow="2" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs"
+                scrollable="false" clickable="false" event_bubble="true">
+          <text_small text="Device" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
+          <!-- Device rows populated by C++; max_height set by C++ to a share of the screen -->
+          <lv_obj name="device_list"
+                  width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
+                  scrollable="true" clickable="false"/>
+        </lv_obj>
+        <divider_vertical color="#text_muted" opacity="38" clickable="false" event_bubble="true"/>
+        <lv_obj width="1"
+                height="content" flex_grow="4" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs"
+                scrollable="false" clickable="false" event_bubble="true">
+          <text_small text="Icon" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
+          <!-- Icon cells populated by C++ -->
+          <lv_obj name="icon_grid"
+                  width="100%" height="content" flex_flow="row_wrap" style_pad_all="0" style_pad_gap="#space_xxs"
+                  scrollable="false" clickable="false"/>
+          <!-- Deleted by C++ when the printer reports no energy sensors -->
+          <lv_obj name="sensor_section"
+                  width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs"
+                  scrollable="false" clickable="false" event_bubble="true">
+            <text_small text="Sensor" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
+            <!-- Sensor chips populated by C++ -->
+            <lv_obj name="sensor_grid"
+                    width="100%" height="content" flex_flow="row_wrap" style_flex_cross_place="center" style_pad_all="0"
+                    style_pad_gap="#space_xs" scrollable="false" clickable="false"/>
+          </lv_obj>
+        </lv_obj>
+      </lv_obj>
+    </context_menu_card>
+  </view>
+</component>

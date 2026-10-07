@@ -10,6 +10,7 @@
 #include "ams_backend_openams.h"
 #include "ams_error.h"
 #include "ams_types.h"
+#include "buffer_reading.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lvgl_ui_test_fixture.h"
@@ -277,14 +278,70 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS reports each lane's FPS as its units
         CHECK(fps.fps_value == Catch::Approx(0.62f));
         CHECK(fps.fps_set_point == Catch::Approx(0.5f));
         CHECK_FALSE(fps.fault_detection_enabled);
-
-        // Compression only: nothing is presented as a tension/compression bias.
-        CHECK_FALSE(backend.supports_sync_feedback_visualization(info));
     }
 
     SECTION("a manager that publishes no pressure") {
         backend.feed(manager());
         CHECK_FALSE(backend.get_system_info().units[0].buffer_health.has_value());
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS publishes its FPS as a sync-feedback bias",
+                 "[ams][openams]") {
+    OpenAmsHarness backend;
+    auto feed_pressure = [&](float pressure, json set_point) {
+        json m = manager(json::array({lane("loaded", "T1", 2)}));
+        m["lanes"][0]["pressure"] = pressure;
+        m["lanes"][0]["set_point"] = set_point;
+        backend.feed(m);
+        return backend.get_system_info();
+    };
+
+    SECTION("above set_point the hub is overfeeding: compression") {
+        const auto info = feed_pressure(0.62f, 0.5);
+        CHECK(helix::buffer_reading(info, -1).bias == Catch::Approx(0.24f));
+        CHECK(helix::buffer_reading(info, 0).bias == Catch::Approx(0.24f));
+        CHECK(helix::buffer_reading(info, -1).has_slider);
+    }
+
+    SECTION("below set_point the extruder is pulling: tension") {
+        const auto info = feed_pressure(0.3f, 0.5);
+        CHECK(helix::buffer_reading(info, -1).bias == Catch::Approx(-0.4f));
+        CHECK(helix::buffer_reading(info, -1).has_slider);
+    }
+
+    SECTION("no set_point leaves the reading unplaceable: no bias") {
+        const auto info = feed_pressure(0.62f, nullptr);
+        CHECK(info.units[0].buffer_health->fps_reported);
+        CHECK(info.pressure_sensor_bias() <= -1.5f);
+        CHECK_FALSE(helix::buffer_reading(info, 0).has_slider);
+        CHECK_FALSE(helix::buffer_reading(info, -1).has_slider);
+    }
+
+    SECTION("several lanes: the one feeding the current slot wins") {
+        json m = manager(json::array({lane("unloaded"), lane("loaded", "T3", 9)}));
+        m["lanes"][0]["pressure"] = 0.9;
+        m["lanes"][0]["set_point"] = 0.5;
+        m["lanes"][1]["id"] = "fps2";
+        m["lanes"][1]["pressure"] = 0.3;
+        m["lanes"][1]["set_point"] = 0.5;
+        m["units"].push_back(json{{"id", "2"},
+                                  {"name", "unit2"},
+                                  {"kind", "oams"},
+                                  {"topology", "hub"},
+                                  {"lane", "fps2"},
+                                  {"connected", true},
+                                  {"slots", json::array({slot(9, 0, true, true)})}});
+        m["groups"].push_back(json{{"name", "T3"}, {"lane", "fps2"}, {"slots", {9}}});
+        backend.feed(m);
+
+        const auto info = backend.get_system_info();
+        REQUIRE(info.units.size() == 2);
+        REQUIRE(info.current_slot == 4);
+        CHECK(helix::buffer_reading(info, -1).bias == Catch::Approx(-0.4f));
+        // Each unit's own view draws its own lane.
+        CHECK(helix::buffer_reading(info, 0).bias == Catch::Approx(0.8f));
+        CHECK(helix::buffer_reading(info, 1).bias == Catch::Approx(-0.4f));
     }
 }
 

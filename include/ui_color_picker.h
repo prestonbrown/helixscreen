@@ -175,14 +175,7 @@ class ColorPicker : public Modal {
     static ColorPicker* active_instance_;
 
     // === Static Callbacks (traverse widget tree to find modal instance) ===
-    static void on_close_cb(lv_event_t* e);
     static void on_swatch_cb(lv_event_t* e);
-    static void on_cancel_cb(lv_event_t* e);
-    static void on_select_cb(lv_event_t* e);
-    static void on_hex_input_changed_cb(lv_event_t* e);
-    static void on_hex_input_defocused_cb(lv_event_t* e);
-    static void on_tab_presets_cb(lv_event_t* e);
-    static void on_tab_custom_cb(lv_event_t* e);
 
     /**
      * @brief Get the currently active ColorPicker instance

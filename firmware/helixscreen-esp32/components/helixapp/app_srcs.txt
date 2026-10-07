@@ -94,6 +94,8 @@ src/application/gcode_error_text.cpp
 src/application/moonraker_event_routing.cpp
 src/application/panel_factory.cpp
 src/application/printer_cache_registry.cpp
+src/application/printer_retarget.cpp
+src/application/printer_switch_flow.cpp
 src/application/static_panel_registry.cpp
 src/application/static_subject_registry.cpp
 src/application/subject_initializer.cpp
@@ -140,11 +142,13 @@ src/printer/ams_endless_spool.cpp
 src/printer/ams_environment_zone.cpp
 src/printer/ams_runout_grace.cpp
 src/printer/ams_state.cpp
+src/printer/ams_state_buffer.cpp
 src/printer/ams_state_clog.cpp
 src/printer/ams_state_dryer.cpp
 src/printer/ams_state_external_spool.cpp
 src/printer/ams_state_subjects.cpp
 src/printer/ams_state_tool_mapping.cpp
+src/printer/buffer_reading.cpp
 src/printer/ams_subscription_backend.cpp
 src/printer/batch_feed_reconcile.cpp
 src/printer/cfs_status_parse.cpp
@@ -327,6 +331,7 @@ src/ui/overlay_base.cpp
 src/ui/page_scroll_auto_inject.cpp
 src/ui/page_scroll_controller.cpp
 src/ui/panel_widget_manager.cpp
+src/ui/buffer_slider_geometry.cpp
 src/ui/clog_meter_geometry.cpp
 src/ui/clog_meter_model.cpp
 src/ui/panel_widget_registry.cpp
@@ -338,6 +343,7 @@ src/ui/panel_widgets/clog_detection_widget.cpp
 src/ui/panel_widgets/control_buttons_widget.cpp
 src/ui/panel_widgets/fan_stack_widget.cpp
 src/ui/panel_widgets/fan_widget.cpp
+src/ui/panel_widgets/filament_buffer_widget.cpp
 src/ui/panel_widgets/filament_sensor_widget.cpp
 src/ui/panel_widgets/gcode_console_widget.cpp
 src/ui/panel_widgets/heater_temp_widget.cpp
@@ -366,6 +372,7 @@ src/ui/panel_widgets/width_sensor_widget.cpp
 src/ui/print_control_buttons.cpp
 src/ui/print_control_view.cpp
 src/ui/save_config_restart.cpp
+src/ui/scroll_blit.cpp
 src/ui/setting_group.cpp
 src/ui/settings_root_status.cpp
 src/ui/shared_font_style.cpp
@@ -408,7 +415,7 @@ src/ui/ui_multiselect.cpp
 src/ui/ui_batch_filament_modal.cpp
 src/ui/ui_ams_sidebar.cpp
 src/ui/ui_ams_slot.cpp
-src/ui/ui_buffer_meter.cpp
+src/ui/ui_buffer_slider.cpp
 src/ui/ui_busy_overlay.cpp
 src/ui/ui_button.cpp
 src/ui/ui_bypass_spool_widget.cpp

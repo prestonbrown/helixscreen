@@ -11,6 +11,7 @@
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
+#include "buffer_reading.h"
 #include "filament_consumption_tracker.h"
 #include "filament_mapper.h"
 #include "lvgl/lvgl.h"
@@ -21,6 +22,7 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -528,6 +530,12 @@ class AmsState {
         return &ams_data_revision_;
     }
 
+    /// Tick ams_data_revision. Main thread only; call it AFTER the sync it
+    /// announces, so an observer that re-reads the backend sees synced values.
+    void bump_data_revision() {
+        lv_subject_set_int(&ams_data_revision_, lv_subject_get_int(&ams_data_revision_) + 1);
+    }
+
     /**
      * @brief Get active backend subject
      * @return Subject holding index of the currently selected backend
@@ -1020,12 +1028,70 @@ class AmsState {
     lv_subject_t* get_clog_meter_label_right_subject() {
         return &clog_meter_label_right_;
     }
+
+    /**
+     * @brief The last minute of one buffer reading, for the trace beside a slider
+     * @param unit Unit position, or -1 for the system-level reading (buffer_reading(info, -1))
+     *
+     * A unit with no reading of its own still has a trace: a sensorless unit
+     * mirrors the system reading, or records a gap (one invalid point) when
+     * there is none. Main thread only.
+     */
+    [[nodiscard]] const BufferTrace& buffer_trace(int unit) const;
+
+    /// The system-level buffer reading (buffer_reading(info, -1)), as the home
+    /// widget and the loaded card bind it. Observe with get_subjects_lifetime().
+    lv_subject_t* get_buffer_present_subject() {
+        return &buffer_present_;
+    }
+    lv_subject_t* get_buffer_slider_subject() {
+        return &buffer_slider_;
+    }
+    lv_subject_t* get_buffer_bias_pct_subject() {
+        return &buffer_bias_pct_;
+    }
+    lv_subject_t* get_buffer_status_subject() {
+        return &buffer_status_;
+    }
+    lv_subject_t* get_buffer_label_subject() {
+        return &buffer_label_;
+    }
+    lv_subject_t* get_buffer_value_text_subject() {
+        return &buffer_value_text_;
+    }
+    lv_subject_t* get_buffer_short_text_subject() {
+        return &buffer_short_text_;
+    }
+    lv_subject_t* get_buffer_target_text_subject() {
+        return &buffer_target_text_;
+    }
     lv_subject_t* get_clog_meter_mode_text_subject() {
         return &clog_meter_mode_text_;
     }
 
+    /// One clog-meter sample's subjects, as ClogMeterModel reads them.
+    struct ClogMeterSubjects {
+        lv_subject_t* mode;
+        lv_subject_t* value;
+        lv_subject_t* warning;
+        lv_subject_t* status;
+        lv_subject_t* mode_text;
+        lv_subject_t* danger_pct;
+        lv_subject_t* peak_pct;
+        lv_subject_t* center_text;
+        lv_subject_t* label_left;
+        lv_subject_t* label_right;
+    };
+
     /**
-     * @brief Set source override for clog meter display
+     * @brief The subjects the clog meter is published on, as ClogMeterModel reads them
+     *
+     * Observe with get_subjects_lifetime().
+     */
+    [[nodiscard]] ClogMeterSubjects clog_meter_subjects();
+
+    /**
+     * @brief Set source override for the clog meter
      * @param source 0=auto (priority logic), 1=encoder, 2=flowguard, 3=afc
      */
     void set_source_override(int source);
@@ -1720,6 +1786,12 @@ class AmsState {
     /** @brief Sync clog detection meter subjects from system info */
     void sync_clog_meter_from_info(const AmsSystemInfo& info);
 
+    /** @brief Publish the system-level buffer reading and note every reading in its trace */
+    void sync_buffer_from_info(const AmsSystemInfo& info, int64_t now_ms);
+
+    /** @brief Write one reading onto the buffer_* subjects */
+    void publish_buffer_reading(const BufferReading& r);
+
     /**
      * @brief Sync the endless-spool status subjects from a backend's capabilities.
      *
@@ -1748,6 +1820,8 @@ class AmsState {
     /// only; @p backend is the primary backend and never null.
     /// @{
     /// Type, action, operation phase, system name and logo, current slot/tool.
+    /// Every backend-derived subject back to its init_subjects() value.
+    void reset_backend_subjects();
     void sync_system_subjects(const AmsSystemInfo& info);
     /// Push or drop the AMS tool topology in ToolState.
     void sync_tool_topology(AmsBackend* backend);
@@ -2060,8 +2134,26 @@ class AmsState {
     int danger_threshold_override_ = 0; // 0=use computed default
 
     // Clog detection meter subjects
-    lv_subject_t clog_meter_mode_{};    // 0=none, 1=encoder, 2=flowguard, 3=afc_buffer
-    lv_subject_t clog_meter_value_{};   // 0-100 (encoder/afc) or -100..+100 (flowguard)
+    /// Buffer reading traces, keyed by unit position, -1 for the system-level reading.
+    std::map<int, BufferTrace> buffer_traces_;
+
+    lv_subject_t buffer_present_{};  // 0/1: a proportional reading exists (widget gate)
+    lv_subject_t buffer_slider_{};   // 0/1: it has a set point, so the slider draws
+    lv_subject_t buffer_bias_pct_{}; // -100 tight .. +100 loose
+    lv_subject_t buffer_status_{};   // ClogMeterStatus of the bias
+    lv_subject_t buffer_label_{};    // "FPS" / "Sync"
+    char buffer_label_buf_[16]{};
+    lv_subject_t buffer_value_text_{}; // "32%", "-45%", "Pressure: 32%"
+    char buffer_value_text_buf_[48]{};
+    lv_subject_t buffer_short_text_{}; // "32%", "-45%": the number alone, for narrow surfaces
+    char buffer_short_text_buf_[16]{};
+    lv_subject_t buffer_lean_text_{}; // "Running tight" / "Running loose" / "Balanced"
+    char buffer_lean_text_buf_[48]{};
+    lv_subject_t buffer_target_text_{}; // "target 50%" where a set point is known
+    char buffer_target_text_buf_[48]{};
+
+    lv_subject_t clog_meter_mode_{};  // ClogMeterMode: 0=none, 1=encoder, 2=flowguard, 3=afc_buffer
+    lv_subject_t clog_meter_value_{}; // 0-100 (encoder/afc) or -100..+100 (flowguard)
     lv_subject_t clog_meter_warning_{}; // 0=ok, 1=warning
     lv_subject_t clog_meter_status_{};  // ClogMeterStatus: 0=ok, 1=warning, 2=fault
     lv_subject_t clog_meter_mode_text_{};

@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/happy_hare_fixture.h"
 #include "happy_hare_status_parse.h"
 
 #include "../catch_amalgamated.hpp"
@@ -192,4 +193,260 @@ TEST_CASE("Happy Hare status parse sensors, drying and the endless-spool bit",
     CHECK_FALSE(emu.drying->object->current_temp_c);
     // The newer key is null, so the older spelling answers.
     CHECK(emu.endless_spool_enabled == false);
+}
+
+// ============================================================================
+// Happy Hare v4 layout
+// ============================================================================
+
+TEST_CASE("Happy Hare layout: a v4 install is recognised from mmu_machine",
+          "[happy_hare][status_parse][hh_v4]") {
+    const json fx = test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+    const auto layout =
+        happy_hare::read_machine_layout(fx["configfile_settings"], fx["mmu_machine"]);
+    CHECK(layout.version == "4.0.0");
+    CHECK(layout.v4);
+    CHECK(layout.unit_params_section == "mmu_unit_parameters unit0");
+    CHECK(layout.toolhead_section == "mmu_toolhead default");
+
+    SECTION("configfile alone still names the version and the first unit") {
+        const auto from_config =
+            happy_hare::read_machine_layout(fx["configfile_settings"], json::object());
+        CHECK(from_config.v4);
+        CHECK(from_config.unit_params_section == "mmu_unit_parameters unit0");
+    }
+    SECTION("unit and toolhead names are lowercased the way configfile keys are") {
+        json settings = fx["configfile_settings"];
+        settings["mmu_unit unit0"]["toolhead"] = "Main";
+        json live = fx["mmu_machine"];
+        live["unit_0"]["name"] = "Unit0";
+        const auto mixed = happy_hare::read_machine_layout(settings, live);
+        CHECK(mixed.unit_params_section == "mmu_unit_parameters unit0");
+        CHECK(mixed.toolhead_section == "mmu_toolhead main");
+    }
+}
+
+TEST_CASE("Happy Hare layout: v3 publishes per-unit fields but no version",
+          "[happy_hare][status_parse][hh_v4]") {
+    // v3.4 mmu_machine.get_status(): unit_N objects and num_units, no version.
+    const json live = {{"unit_0", {{"name", "ERCF"}, {"selector_type", "LinearSelector"}}},
+                       {"num_units", 1}};
+    const json settings = {{"mmu", {{"happy_hare_version", 3.42}}}};
+    const auto layout = happy_hare::read_machine_layout(settings, live);
+    CHECK_FALSE(layout.v4);
+    CHECK(layout.version == "3.42"); // v3's own [mmu] happy_hare_version
+    CHECK(layout.unit_params_section.empty());
+}
+
+TEST_CASE("Happy Hare layout: each tunable is read from its v4 section",
+          "[happy_hare][status_parse][hh_v4]") {
+    const json fx = test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+    const json& settings = fx["configfile_settings"];
+    const auto layout = happy_hare::read_machine_layout(settings, fx["mmu_machine"]);
+    const auto number = [&](const char* key) {
+        return happy_hare::read_config_number(happy_hare::find_config_param(settings, layout, key));
+    };
+
+    const json* macro = happy_hare::find_config_param(settings, layout, "form_tip_macro");
+    REQUIRE(macro);
+    CHECK(*macro == "_MMU_CUT_TIP_NOSKEW");
+    CHECK(number("extruder_load_speed") == 12.0f);
+    CHECK(number("extruder_unload_speed") == 12.0f);
+    CHECK(number("gear_from_spool_speed") == 80.0f);
+    CHECK(number("gear_from_buffer_speed") == 150.0f);
+    CHECK(number("gear_unload_speed") == 120.0f);
+    CHECK(number("sync_to_extruder") == 1.0f);
+    CHECK(number("heater_max_temp") == 65.0f);
+    CHECK(number("toolhead_extruder_to_nozzle") == 87.0f);
+    CHECK(number("toolhead_sensor_to_nozzle") == 1.0f);
+    CHECK(number("toolhead_entry_to_extruder") == 6.0f);
+    CHECK(number("toolhead_ooze_reduction") == 0.0f);
+    // A VirtualSelector has no selector speed. The clog mode is the encoder mode.
+    CHECK_FALSE(number("selector_move_speed"));
+    CHECK(number("clog_detection") == 2.0f);
+}
+
+TEST_CASE("Happy Hare layout: v3 reads every tunable from [mmu]",
+          "[happy_hare][status_parse][hh_v4]") {
+    const json settings = {{"mmu",
+                            {{"form_tip_macro", "_MMU_FORM_TIP"},
+                             {"gear_from_spool_speed", "60"},
+                             {"toolhead_ooze_reduction", 2.5},
+                             {"enable_clog_detection", 2}}},
+                           {"mmu_parameters", {{"gear_from_spool_speed", 99}}}};
+    const auto layout = happy_hare::read_machine_layout(settings, json::object());
+    REQUIRE_FALSE(layout.v4);
+    CHECK(*happy_hare::find_config_param(settings, layout, "form_tip_macro") == "_MMU_FORM_TIP");
+    CHECK(happy_hare::read_config_number(
+              happy_hare::find_config_param(settings, layout, "gear_from_spool_speed")) == 60.0f);
+    CHECK(happy_hare::read_config_number(
+              happy_hare::find_config_param(settings, layout, "toolhead_ooze_reduction")) == 2.5f);
+    CHECK(happy_hare::read_config_number(
+              happy_hare::find_config_param(settings, layout, "clog_detection")) == 2.0f);
+}
+
+TEST_CASE("Happy Hare layout: each version's parameter names",
+          "[happy_hare][status_parse][hh_v4]") {
+    using happy_hare::param_name;
+    auto layout = [](double version) {
+        happy_hare::MachineLayout l;
+        l.version_number = version;
+        l.v4 = version >= 4;
+        return l;
+    };
+
+    SECTION("v2.7.3 to v3.4.1: encoder clog detection, no gear unload speed before 3.10") {
+        for (const double v : {2.73, 3.01, 3.40}) {
+            CAPTURE(v);
+            CHECK(param_name("clog_detection", layout(v)) == "enable_clog_detection");
+            CHECK(param_name("detection_length", layout(v)) == "mmu_calibration_clog_length");
+            CHECK(param_name("gear_from_spool_speed", layout(v)) == "gear_from_spool_speed");
+        }
+        CHECK(param_name("gear_unload_speed", layout(3.01)).empty());
+        CHECK(param_name("gear_unload_speed", layout(3.10)) == "gear_unload_speed");
+    }
+    SECTION("v3.4.2: FlowGuard encoder mode") {
+        CHECK(param_name("clog_detection", layout(3.42)) == "flowguard_encoder_mode");
+        CHECK(param_name("detection_length", layout(3.42)) == "flowguard_encoder_max_motion");
+        CHECK(param_name("gear_from_buffer_speed", layout(3.42)) == "gear_from_buffer_speed");
+    }
+    SECTION("v4") {
+        CHECK(param_name("gear_from_spool_speed", layout(4.0)) == "gear_load_speed");
+        CHECK(param_name("gear_from_buffer_speed", layout(4.0)) ==
+              "gear_from_filament_buffer_speed");
+        CHECK(param_name("gear_unload_speed", layout(4.0)) == "gear_unload_speed");
+        CHECK(param_name("clog_detection", layout(4.0)) == "flowguard_encoder_mode");
+        CHECK(param_name("detection_length", layout(4.0)) == "flowguard_encoder_max_motion");
+    }
+    SECTION("an unknown version is refused nothing") {
+        CHECK(param_name("gear_unload_speed", layout(0)) == "gear_unload_speed");
+        CHECK(param_name("clog_detection", layout(0)) == "enable_clog_detection");
+    }
+}
+
+TEST_CASE("Happy Hare layout: the version number comes from either source",
+          "[happy_hare][status_parse][hh_v4]") {
+    CHECK(happy_hare::read_machine_layout({{"mmu", {{"happy_hare_version", 3.42}}}}, json::object())
+              .version_number == 3.42);
+    CHECK(happy_hare::read_machine_layout(json::object(), {{"happy_hare_version", "4.0.0"}})
+              .version_number == 4.0);
+}
+
+TEST_CASE("Happy Hare entry sensor objects are read from sibling keys",
+          "[happy_hare][status_parse][hh_v4]") {
+    const json params = {
+        {"mmu", {{"gate", 1}}},
+        {"filament_switch_sensor mmu_entry_6", {{"filament_detected", true}, {"enabled", true}}},
+        {"filament_switch_sensor mmu_entry_7", {{"enabled", false}}},
+        {"filament_switch_sensor mmu_entry_8", {{"filament_detected", nullptr}}},
+        {"filament_switch_sensor mmu_entry_x", {{"filament_detected", true}}},
+        {"filament_switch_sensor mmu_entry_9", nullptr},
+        {"filament_switch_sensor runout", {{"filament_detected", true}}}};
+    const auto r = happy_hare::parse_entry_sensor_objects(params);
+    REQUIRE(r.size() == 2);
+    CHECK(r[0].gate == 6);
+    CHECK(r[0].detected == true);
+    CHECK(r[0].enabled == true);
+    CHECK(r[1].gate == 7);
+    CHECK_FALSE(r[1].detected);
+    CHECK(r[1].enabled == false);
+    CHECK(happy_hare::parse_entry_sensor_objects(json::array()).empty());
+}
+
+TEST_CASE("Happy Hare sensors dict reads both per-gate spellings",
+          "[happy_hare][status_parse][hh_v4]") {
+    const auto d = happy_hare::parse_mmu_status(
+        json{{"sensors", {{"mmu_pre_gate_0", true}, {"mmu_entry_2", true}, {"mmu_entry", false}}}});
+    REQUIRE(d.sensors);
+    REQUIRE(d.sensors->pre_gate.size() == 2);
+    CHECK_FALSE(d.sensors->aggregate_pre_gate);
+}
+
+TEST_CASE("Happy Hare v4 null telemetry reads as no data", "[happy_hare][status_parse][hh_v4]") {
+    const json fx = test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+    const auto d = happy_hare::parse_mmu_status(fx["mmu_status"]);
+    CHECK_FALSE(d.telemetry.sync_feedback_state);
+    CHECK_FALSE(d.telemetry.sync_feedback_bias);
+    CHECK_FALSE(d.telemetry.sync_feedback_bias_raw);
+    CHECK_FALSE(d.telemetry.sync_feedback_flow_rate);
+    CHECK_FALSE(d.telemetry.encoder);
+    CHECK_FALSE(d.telemetry.flowguard);
+    CHECK(d.telemetry.clog_detection_enabled == std::nullopt); // false is not an integer
+    CHECK(d.core.has_bypass == true);
+    REQUIRE(d.telemetry.espooler);
+    CHECK(d.telemetry.espooler->size() == 4);
+
+    // Nulls inside the objects and lists v4 sends once a unit has them.
+    const auto inner = happy_hare::parse_telemetry(json{
+        {"encoder", {{"flow_rate", nullptr}, {"headroom", 12.5}, {"detection_length", nullptr}}},
+        {"flowguard",
+         {{"enabled", nullptr},
+          {"active", true},
+          {"trigger", nullptr},
+          {"level", nullptr},
+          {"encoder_mode", nullptr}}},
+        {"espooler", json::array({"assist", nullptr, 3, "rewind"})},
+        {"espooler_active", nullptr}});
+    REQUIRE(inner.encoder);
+    CHECK_FALSE(inner.encoder->flow_rate);
+    CHECK(inner.encoder->headroom == 12.5f);
+    CHECK_FALSE(inner.encoder->detection_length);
+    REQUIRE(inner.flowguard);
+    CHECK_FALSE(inner.flowguard->enabled);
+    CHECK(inner.flowguard->active == true);
+    CHECK_FALSE(inner.flowguard->trigger);
+    CHECK_FALSE(inner.flowguard->level);
+    CHECK_FALSE(inner.flowguard->encoder_mode);
+    CHECK(*inner.espooler == std::vector<std::string>{"assist", "", "", "rewind"});
+    CHECK_FALSE(inner.espooler_active);
+    CHECK_FALSE(happy_hare::parse_telemetry(json{{"espooler", nullptr}}).espooler);
+}
+
+TEST_CASE("Happy Hare units: one entry per mmu_machine unit, configfile as a fallback",
+          "[happy_hare][status_parse][hh_multi_unit]") {
+    const json fx = test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
+    const auto units = happy_hare::read_machine_units(fx["configfile_settings"], fx["mmu_machine"]);
+    REQUIRE(units.size() == 2);
+    CHECK(units[0].selector_type == "LinearServoSelector");
+    CHECK(units[0].first_gate == 0);
+    CHECK(units[0].num_gates == 6);
+    CHECK(units[1].display_name == "Box Turtle");
+    CHECK(units[1].first_gate == 6);
+    CHECK(units[1].filament_heaters.size() == 4);
+
+    const json v3_settings = {
+        {"mmu_machine", {{"selector_type", "VirtualSelector"}, {"filament_heaters", "a, b ,c"}}}};
+    const auto v3 = happy_hare::read_machine_units(v3_settings, json::object());
+    REQUIRE(v3.size() == 1);
+    CHECK(v3[0].selector_type == "VirtualSelector");
+    CHECK(v3[0].filament_heaters == std::vector<std::string>{"a", "b", "c"});
+    CHECK(v3[0].first_gate == -1);
+}
+
+TEST_CASE("Happy Hare units: heaters collapse to one name only when every unit shares it",
+          "[happy_hare][status_parse][hh_multi_unit]") {
+    using happy_hare::collect_unit_objects;
+    using happy_hare::MachineUnit;
+    using happy_hare::UnitObjectKind;
+    MachineUnit a;
+    a.num_gates = 2;
+    a.filament_heater = "h";
+    MachineUnit b = a;
+    b.num_gates = 3;
+
+    auto same = collect_unit_objects({a, b}, UnitObjectKind::Heater);
+    CHECK(same.shared == "h");
+    CHECK(same.per_gate.empty());
+
+    b.filament_heater = "g";
+    auto differ = collect_unit_objects({a, b}, UnitObjectKind::Heater);
+    CHECK(differ.shared.empty());
+    CHECK(differ.per_gate == std::vector<std::string>{"h", "h", "g", "g", "g"});
+
+    b.filament_heater.clear();
+    b.environment_sensors = {"s0", "s1", "s2"};
+    auto none = collect_unit_objects({a, b}, UnitObjectKind::EnvironmentSensor);
+    CHECK(none.per_gate == std::vector<std::string>{"", "", "s0", "s1", "s2"});
+    a.filament_heater.clear();
+    CHECK(collect_unit_objects({a, b}, UnitObjectKind::Heater).per_gate.empty());
 }

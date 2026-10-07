@@ -63,9 +63,9 @@
                               label="Preview Sounds" icon="play" description="Listen to all theme sounds"
                               callback="on_preview_sounds"/>
         </lv_obj>
-        <!-- Test Tracker (hidden when master sounds off) -->
+        <!-- Test Tracker (hidden when sounds are off or the backend plays tones only) -->
         <lv_obj name="container_test_tracker" width="100%" style_pad_all="0" scrollable="false">
-          <bind_flag_if_eq subject="settings_sounds_enabled" flag="hidden" ref_value="0"/>
+          <bind_flag_if cond="settings_sounds_enabled eq 0 or settings_music_available eq 0" flag="hidden"/>
           <setting_action_row name="row_test_tracker"
                               label="Test Tracker" icon="tune" description="Play / stop Crockett's Theme"
                               callback="on_test_tracker"/>

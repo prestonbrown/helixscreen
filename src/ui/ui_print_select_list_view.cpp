@@ -8,6 +8,7 @@
 #include "ui_virtual_list.h"
 
 #include "display_settings_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -148,34 +149,42 @@ void PrintSelectListView::init_pool() {
                                    sizeof(data->time_buf), "--");
 
             // Bind labels to subjects
-            lv_obj_t* filename_label = lv_obj_find_by_name(row, "row_filename");
+            lv_obj_t* filename_label =
+                helix::ui::find_required(row, "row_filename", "PrintSelectListView");
             if (filename_label) {
                 data->filename_observer =
                     lv_label_bind_text(filename_label, &data->filename_subject, "%s");
             }
 
-            lv_obj_t* size_label = lv_obj_find_by_name(row, "row_size");
+            lv_obj_t* size_label = helix::ui::find_required(row, "row_size", "PrintSelectListView");
             if (size_label) {
                 data->size_observer = lv_label_bind_text(size_label, &data->size_subject, "%s");
             }
 
-            lv_obj_t* modified_label = lv_obj_find_by_name(row, "row_modified");
+            lv_obj_t* modified_label =
+                helix::ui::find_required(row, "row_modified", "PrintSelectListView");
             if (modified_label) {
                 data->modified_observer =
                     lv_label_bind_text(modified_label, &data->modified_subject, "%s");
             }
 
-            lv_obj_t* time_label = lv_obj_find_by_name(row, "row_print_time");
+            lv_obj_t* time_label =
+                helix::ui::find_required(row, "row_print_time", "PrintSelectListView");
             if (time_label) {
                 data->time_observer = lv_label_bind_text(time_label, &data->time_subject, "%s");
             }
 
             // Find status display widgets (controlled programmatically, no subject binding)
-            data->status_printing_icon = lv_obj_find_by_name(row, "status_printing");
-            data->status_success_container = lv_obj_find_by_name(row, "status_success_container");
-            data->status_success_count = lv_obj_find_by_name(row, "status_success_count");
-            data->status_failed_icon = lv_obj_find_by_name(row, "status_failed");
-            data->status_cancelled_icon = lv_obj_find_by_name(row, "status_cancelled");
+            data->status_printing_icon =
+                helix::ui::find_required(row, "status_printing", "PrintSelectListView");
+            data->status_success_container =
+                helix::ui::find_required(row, "status_success_container", "PrintSelectListView");
+            data->status_success_count =
+                helix::ui::find_required(row, "status_success_count", "PrintSelectListView");
+            data->status_failed_icon =
+                helix::ui::find_required(row, "status_failed", "PrintSelectListView");
+            data->status_cancelled_icon =
+                helix::ui::find_required(row, "status_cancelled", "PrintSelectListView");
 
             list_pool_.push_back(row);
             list_data_pool_.push_back(std::move(data));
@@ -402,29 +411,14 @@ void PrintSelectListView::update_visible(const std::vector<PrintFileData>& file_
     sync_list_spacers(container_, leading_spacer_, trailing_spacer_, win, last_leading_height_,
                       last_trailing_height_);
 
-    // Assign pool rows to visible indices, skipping rows that already show correct file
-    size_t pool_idx = 0;
-    for (int file_idx = first_visible; file_idx < last_visible && pool_idx < list_pool_.size();
-         file_idx++, pool_idx++) {
-        lv_obj_t* row = list_pool_[pool_idx];
-
-        if (data_changed || list_pool_indices_[pool_idx] != file_idx) {
-            configure_row(row, pool_idx, static_cast<size_t>(file_idx), file_list[file_idx]);
-            list_pool_indices_[pool_idx] = file_idx;
-        }
-
-        // Ensure row is in correct position (guard to avoid redundant relayout)
-        int target_index = static_cast<int>(pool_idx) + 1;
-        if (lv_obj_get_index(row) != target_index) {
-            lv_obj_move_to_index(row, target_index);
-        }
-    }
-
-    // Hide unused pool rows
-    for (; pool_idx < list_pool_.size(); pool_idx++) {
-        lv_obj_add_flag(list_pool_[pool_idx], LV_OBJ_FLAG_HIDDEN);
-        list_pool_indices_[pool_idx] = -1;
-    }
+    show_window(
+        container_, list_pool_indices_, first_visible, last_visible, data_changed,
+        [this](size_t slot) { return list_pool_[slot]; },
+        [&](size_t slot, ssize_t file_idx) {
+            configure_row(list_pool_[slot], slot, static_cast<size_t>(file_idx),
+                          file_list[static_cast<size_t>(file_idx)]);
+        },
+        [this](size_t slot) { lv_obj_add_flag(list_pool_[slot], LV_OBJ_FLAG_HIDDEN); });
 
     visible_start_ = first_visible;
     visible_end_ = last_visible;

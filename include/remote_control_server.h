@@ -11,9 +11,10 @@
  * thread via ui_queue_update() + std::promise for thread-safe execution.
  *
  * Usage:
- *   RemoteControlServer::instance().start("/tmp/helixscreen-control.sock");
+ *   RemoteControlServer server;
+ *   server.start(config);
  *   // ... app runs ...
- *   RemoteControlServer::instance().stop();
+ *   server.stop();
  */
 
 #include "remote_transport.h"
@@ -97,7 +98,8 @@ bool http_token_matches(const std::string& expected, const std::string& authoriz
  */
 class RemoteControlServer {
   public:
-    static RemoteControlServer& instance();
+    RemoteControlServer() = default;
+    ~RemoteControlServer();
 
     // Non-copyable
     RemoteControlServer(const RemoteControlServer&) = delete;
@@ -140,9 +142,6 @@ class RemoteControlServer {
     void register_handler(const std::string& method, CommandHandler handler);
 
   private:
-    RemoteControlServer() = default;
-    ~RemoteControlServer();
-
     // Process a single JSON-RPC request and return the response string.
     // Passed to the transport as its RequestHandler.
     std::string process_request(const std::string& request_line);

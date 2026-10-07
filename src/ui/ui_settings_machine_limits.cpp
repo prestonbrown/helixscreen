@@ -216,47 +216,49 @@ void MachineLimitsOverlay::query_and_show(lv_obj_t* /*parent_screen*/) {
         // overlay has since been deactivated or torn down, so the body below can
         // touch members and LVGL freely (#1165).
         api_->advanced().get_machine_limits(
-            lifetime_.bg_cb("MachineLimitsOverlay::query_and_show",
-                            [this](const MachineLimits& limits) {
-                                spdlog::info(
-                                    "[{}] Got machine limits: vel={}, accel={}, a2d={}, scv={}",
-                                    get_name(), limits.max_velocity, limits.max_accel,
-                                    limits.max_accel_to_decel, limits.square_corner_velocity);
+            lifetime_.bg_cb(
+                "MachineLimitsOverlay::query_and_show",
+                [this](const MachineLimits& limits) {
+                    spdlog::info("[{}] Got machine limits: vel={}, accel={}, a2d={}, scv={}",
+                                 get_name(), limits.max_velocity, limits.max_accel,
+                                 limits.max_accel_to_decel, limits.square_corner_velocity);
 
-                                // Store both current and original for reset
-                                current_limits_ = limits;
-                                original_limits_ = limits;
+                    // Store both current and original for reset
+                    current_limits_ = limits;
+                    original_limits_ = limits;
 
-                                // Update display and sliders
-                                update_display();
-                                update_sliders();
+                    // Update display and sliders
+                    update_display();
+                    update_sliders();
 
-                                // Update read-only Z values
-                                if (overlay_root_) {
-                                    lv_obj_t* z_vel_row =
-                                        lv_obj_find_by_name(overlay_root_, "row_max_z_velocity");
-                                    if (z_vel_row) {
-                                        lv_obj_t* value = lv_obj_find_by_name(z_vel_row, "value");
-                                        if (value) {
-                                            char buf[32];
-                                            helix::format::format_speed_mm_s(limits.max_z_velocity,
-                                                                             buf, sizeof(buf));
-                                            lv_label_set_text(value, buf);
-                                        }
-                                    }
-                                    lv_obj_t* z_accel_row =
-                                        lv_obj_find_by_name(overlay_root_, "row_max_z_accel");
-                                    if (z_accel_row) {
-                                        lv_obj_t* value = lv_obj_find_by_name(z_accel_row, "value");
-                                        if (value) {
-                                            char buf[32];
-                                            helix::format::format_accel_mm_s2(limits.max_z_accel,
-                                                                              buf, sizeof(buf));
-                                            lv_label_set_text(value, buf);
-                                        }
-                                    }
-                                }
-                            }),
+                    // Update read-only Z values
+                    if (overlay_root_) {
+                        lv_obj_t* z_vel_row = helix::ui::find_required(
+                            overlay_root_, "row_max_z_velocity", get_name());
+                        if (z_vel_row) {
+                            lv_obj_t* value =
+                                helix::ui::find_required(z_vel_row, "value", get_name());
+                            if (value) {
+                                char buf[32];
+                                helix::format::format_speed_mm_s(limits.max_z_velocity, buf,
+                                                                 sizeof(buf));
+                                lv_label_set_text(value, buf);
+                            }
+                        }
+                        lv_obj_t* z_accel_row =
+                            helix::ui::find_required(overlay_root_, "row_max_z_accel", get_name());
+                        if (z_accel_row) {
+                            lv_obj_t* value =
+                                helix::ui::find_required(z_accel_row, "value", get_name());
+                            if (value) {
+                                char buf[32];
+                                helix::format::format_accel_mm_s2(limits.max_z_accel, buf,
+                                                                  sizeof(buf));
+                                lv_label_set_text(value, buf);
+                            }
+                        }
+                    }
+                }),
             lifetime_.bg_cb(
                 "MachineLimitsOverlay::query_and_show_error", [this](const MoonrakerError& err) {
                     spdlog::error("[{}] Failed to get machine limits: {}", get_name(), err.message);

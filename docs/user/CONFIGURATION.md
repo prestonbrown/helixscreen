@@ -11,6 +11,7 @@ Complete reference for HelixScreen configuration options.
 - [Multi-Printer Configuration](#multi-printer-configuration)
 - [General Settings](#general-settings)
 - [Sound Settings](#sound-settings)
+- [Sound Output](#sound-output)
 - [Theme Settings](#theme-settings)
 - [Logging Settings](#logging-settings)
 - [Display Settings](#display-settings)
@@ -242,6 +243,31 @@ Located in the `sounds` section:
 **Default:** `80`
 **Range:** `0` - `100`
 **Description:** Master playback volume as a percentage. `0` is silent, `100` is full volume. Adjustable via **Settings > Sound**. This scales the level of all sounds; the `sounds_enabled` and `ui_sounds_enabled` toggles decide *whether* sounds play at all.
+
+---
+
+## Sound Output
+
+Located in the `sound` section. Both keys pick *where* sound goes; leave them out to let HelixScreen choose.
+
+```json
+{
+  "sound": {
+    "output_device": "plughw:CARD=vc4hdmi0,DEV=0",
+    "pwm_channel": "0:0"
+  }
+}
+```
+
+### `sound.output_device`
+**Type:** string
+**Default:** `""` (the system's default sound card)
+**Description:** Which Linux sound card plays HelixScreen's sounds, for example an HDMI screen's built-in speaker. Set it from **Settings > Sound > Output Device**; editing it by hand is only needed when that row isn't shown. List the cards with `aplay -l`.
+
+### `sound.pwm_channel`
+**Type:** string, `"<chip>:<channel>"`
+**Default:** `""` (off)
+**Description:** Plays sounds on a small buzzer wired to one of the board's PWM pins, instead of a sound card. `"0:0"` means `/sys/class/pwm/pwmchip0/pwm0`. When set, it takes priority over every sound card, since a headphone jack (a Raspberry Pi's, for example) always looks available even with nothing plugged in. There is no menu for it, because choosing the wrong channel could drive something else on the same chip, such as a screen backlight. Works on any Linux board whose pin can output hardware PWM. Setup steps are in [Sound: buzzer on a PWM pin](guide/settings/sound.md#buzzer-on-a-pwm-pin). Restart HelixScreen after changing it.
 
 ---
 
@@ -588,6 +614,7 @@ Located in the `input` section:
     "long_press_time": 500,
     "scroll_guard": false,
     "home_edit_mode_enabled": true,
+    "keypad_layout": 0,
     "touch_device": "",
     "device_blacklist": [],
     "force_calibration": false,
@@ -635,6 +662,11 @@ Matches LVGL's native default of 10.
 **Type:** boolean
 **Default:** `true`
 **Description:** Whether a long-press on the home grid enters Edit Mode (the drag-and-drop layout editor). When `false`, the long-press is suppressed entirely. Turn off if Edit Mode triggers by accident and you don't need to rearrange widgets, or pair with a higher `long_press_time` to make accidental entry harder while keeping the feature available. Applied live — no restart needed.
+
+### `keypad_layout`
+**Type:** integer
+**Default:** `0`
+**Description:** Digit order of the number pad. `0` = phone (1 2 3 on top, backspace bottom left, and a confirm key bottom right on whole-number fields); `1` = calculator (7 8 9 on top). Set it from [Touch & Input Settings](guide/settings/touch-input.md#number-pad-layout). Applied live — no restart needed.
 
 ### `touch_device`
 **Type:** string

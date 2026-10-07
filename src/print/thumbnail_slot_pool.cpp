@@ -80,6 +80,11 @@ void ThumbnailSlotPool::trim() {
     free_list_.clear();
 }
 
+size_t ThumbnailSlotPool::in_use() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return all_.size() - free_list_.size();
+}
+
 size_t ThumbnailSlotPool::allocated() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return all_.size();

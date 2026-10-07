@@ -6,7 +6,7 @@ How the crash reporter works end-to-end: crash detection, report collection, del
 
 | File | Purpose |
 |------|---------|
-| `include/system/crash_reporter.h` | CrashReporter singleton API |
+| `include/system/crash_reporter.h` | CrashReporter API |
 | `src/system/crash_reporter.cpp` | Core logic: parsing, formatting, sending |
 | `include/ui_crash_report_modal.h` | Modal dialog class |
 | `src/ui/ui_crash_report_modal.cpp` | Modal UI logic and delivery flow |
@@ -111,15 +111,13 @@ In `application.cpp`, the crash reporter runs after XML components are registere
 if (get_runtime_config()->mock_crash) {
     crash_handler::write_mock_crash_file("config/crash.txt");
 }
-CrashReporter::instance().init("config");
+m_crash_reporter.init("config");  // an Application member
 
 // ... later, after init_ui() ...
 
-if (CrashReporter::instance().has_crash_report()) {
-    auto report = CrashReporter::instance().collect_report();
-    auto* modal = new CrashReportModal();
-    modal->set_report(report);
-    modal->show_modal(lv_screen_active());
+if (m_crash_reporter.has_crash_report()) {
+    auto report = m_crash_reporter.collect_report();
+    CrashReportModal::show_owned(m_crash_reporter, report);
 }
 ```
 

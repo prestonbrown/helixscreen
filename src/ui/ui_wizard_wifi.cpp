@@ -3,6 +3,7 @@
 
 #include "ui_wizard_wifi.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_icon.h"
 #include "ui_keyboard_manager.h"
@@ -20,6 +21,7 @@
 #include "static_panel_registry.h"
 #include "system/crash_handler.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 #include "wifi_manager.h"
 #include "wifi_radio_toggle.h"
 #include "wifi_ui_utils.h"
@@ -365,20 +367,20 @@ void WizardWifiStep::populate_network_list(const std::vector<WiFiNetwork>& netwo
             new WifiWizardNetworkItemData(network, this, band_label_text);
 
         // Bind SSID label to subject (LVGL auto-cleans observers when widget is deleted)
-        lv_obj_t* ssid_label = lv_obj_find_by_name(item, "ssid_label");
+        lv_obj_t* ssid_label = helix::ui::find_required(item, "ssid_label", get_name());
         if (ssid_label) {
             lv_label_bind_text(ssid_label, &item_data->ssid, nullptr);
         }
 
         // Bind the band badge to this row's own subjects
-        lv_obj_t* band_label = lv_obj_find_by_name(item, "band_label");
+        lv_obj_t* band_label = helix::ui::find_required(item, "band_label", get_name());
         if (band_label) {
             lv_label_bind_text(band_label, &item_data->band_text, nullptr);
             lv_obj_bind_flag_if_eq(band_label, &item_data->band_visible, LV_OBJ_FLAG_HIDDEN, 0);
         }
 
         // Set security type text
-        lv_obj_t* security_label = lv_obj_find_by_name(item, "security_label");
+        lv_obj_t* security_label = helix::ui::find_required(item, "security_label", get_name());
         if (security_label) {
             if (network.is_secured) {
                 lv_label_set_text(security_label, network.security_type.c_str());
@@ -389,7 +391,7 @@ void WizardWifiStep::populate_network_list(const std::vector<WiFiNetwork>& netwo
 
         // Bind signal icons - 8 icons in container, show only the one matching state
         // LVGL automatically removes observers when child widgets are deleted
-        lv_obj_t* signal_icons = lv_obj_find_by_name(item, "signal_icons");
+        lv_obj_t* signal_icons = helix::ui::find_required(item, "signal_icons", get_name());
         if (signal_icons) {
             static const struct {
                 const char* name;
@@ -521,14 +523,6 @@ void WizardWifiStep::network_item_delete_cb(lv_event_t* e) {
     // data automatically freed via ~unique_ptr()
 }
 
-void WizardWifiStep::on_wifi_toggle_changed_static(lv_event_t* e) {
-    // Use global accessor pattern (XML event_cb doesn't provide user_data)
-    WizardWifiStep* self = get_wizard_wifi_step();
-    if (self) {
-        self->handle_wifi_toggle_changed(e);
-    }
-}
-
 void WizardWifiStep::on_network_item_clicked_static(lv_event_t* e) {
     // Network items use item user_data (WifiWizardNetworkItemData with parent pointer)
     // instead of event user_data, since XML event_cb can't pass instance context
@@ -540,20 +534,6 @@ void WizardWifiStep::on_network_item_clicked_static(lv_event_t* e) {
         static_cast<WifiWizardNetworkItemData*>(lv_obj_get_user_data(item));
     if (item_data && item_data->parent) {
         item_data->parent->handle_network_item_clicked(e);
-    }
-}
-
-void WizardWifiStep::on_modal_cancel_clicked_static(lv_event_t*) {
-    WizardWifiStep* self = get_wizard_wifi_step();
-    if (self) {
-        self->handle_modal_cancel_clicked();
-    }
-}
-
-void WizardWifiStep::on_modal_connect_clicked_static(lv_event_t*) {
-    WizardWifiStep* self = get_wizard_wifi_step();
-    if (self) {
-        self->handle_modal_connect_clicked();
     }
 }
 
@@ -863,13 +843,27 @@ void WizardWifiStep::init_subjects() {
 void WizardWifiStep::register_callbacks() {
     spdlog::debug("[{}] Registering event callbacks", get_name());
 
-    lv_xml_register_event_cb(nullptr, "on_wifi_toggle_changed", on_wifi_toggle_changed_static);
-    lv_xml_register_event_cb(nullptr, "on_wizard_wifi_network_clicked",
-                             on_network_item_clicked_static);
-    lv_xml_register_event_cb(nullptr, "on_wizard_wifi_password_cancel",
-                             on_modal_cancel_clicked_static);
-    lv_xml_register_event_cb(nullptr, "on_wizard_wifi_password_connect",
-                             on_modal_connect_clicked_static);
+    register_xml_callbacks({
+        {"on_wifi_toggle_changed",
+         [](lv_event_t* e) {
+             if (auto* self = get_wizard_wifi_step()) {
+                 self->handle_wifi_toggle_changed(e);
+             }
+         }},
+        {"on_wizard_wifi_network_clicked", on_network_item_clicked_static},
+        {"on_wizard_wifi_password_cancel",
+         [](lv_event_t*) {
+             if (auto* self = get_wizard_wifi_step()) {
+                 self->handle_modal_cancel_clicked();
+             }
+         }},
+        {"on_wizard_wifi_password_connect",
+         [](lv_event_t*) {
+             if (auto* self = get_wizard_wifi_step()) {
+                 self->handle_modal_connect_clicked();
+             }
+         }},
+    });
 
     spdlog::debug("[{}] Event callbacks registered", get_name());
 }
@@ -909,7 +903,8 @@ lv_obj_t* WizardWifiStep::create(lv_obj_t* parent) {
     }
     crash_handler::breadcrumb::note("wifi", "xml_create_ok");
 
-    network_list_container_ = lv_obj_find_by_name(screen_root_, "network_list_container");
+    network_list_container_ =
+        helix::ui::find_required(screen_root_, "network_list_container", get_name());
     if (!network_list_container_) {
         LOG_ERROR_INTERNAL("Network list container not found in XML");
         return nullptr;
@@ -1011,7 +1006,7 @@ void WizardWifiStep::apply_wifi_backend_state() {
     lv_subject_set_int(&wifi_enabled_, enabled ? 1 : 0);
 
     // Reflect the backend state in the toggle's visual checked state.
-    lv_obj_t* wifi_toggle = lv_obj_find_by_name(screen_root_, "wifi_toggle");
+    lv_obj_t* wifi_toggle = helix::ui::find_required(screen_root_, "wifi_toggle", get_name());
     if (wifi_toggle) {
         if (enabled) {
             lv_obj_add_state(wifi_toggle, LV_STATE_CHECKED);

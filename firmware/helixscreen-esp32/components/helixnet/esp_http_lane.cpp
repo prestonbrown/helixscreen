@@ -8,10 +8,12 @@
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
-#include "esp_pthread.h"
+#include "esp_timer.h"
+#include "psram_thread_stack.h"
 
 #include <algorithm>
 #include <atomic>
+#include <cstdio>
 #include <pthread.h>
 #include <strings.h>
 #include <utility>
@@ -23,7 +25,15 @@ constexpr char TAG[] = "esp_http_lane";
 // Lazily claimed on first submit_get(), from PSRAM (see
 // ensure_worker_started_locked).
 constexpr size_t WORKER_STACK_BYTES = 16 * 1024;
+// Connecting and reading the headers: a busy Moonraker on a weak link can take
+// seconds to answer, and one timeout here fails the request.
 constexpr int HTTP_TIMEOUT_MS = 15000;
+// Each socket read of the body: short, so a stalled read comes back to
+// read_capped_body() to be timed against BODY_DEADLINES rather than blocking.
+constexpr int BODY_READ_TIMEOUT_MS = 5000;
+// A thumbnail is a few KB: a body still arriving after 30 s, or silent for
+// 10 s, is a link that has stopped, and the lane has other cards waiting.
+constexpr LaneDeadlines BODY_DEADLINES{30000, 10000};
 // esp_http_client's own internal read-chunk buffer (config.buffer_size) —
 // small and fine in internal RAM. Only the accumulation buffer built up in
 // run_one() below needs to be PSRAM; that's the buffer the R3 "PSRAM buffer,
@@ -57,7 +67,7 @@ EspHttpLane& EspHttpLane::instance() {
 }
 
 bool EspHttpLane::submit_get(std::string url, size_t range_max_bytes, FetchSuccessCb on_success,
-                             FetchErrorCb on_error) {
+                             FetchErrorCb on_error, FetchCancelFlag cancelled) {
     const size_t cap = clamp_fetch_cap(range_max_bytes);
 
     {
@@ -67,7 +77,8 @@ bool EspHttpLane::submit_get(std::string url, size_t range_max_bytes, FetchSucce
                      (unsigned)slots_.max_depth(), url.c_str());
             return false;
         }
-        queue_.push_back(Job{std::move(url), cap, std::move(on_success), std::move(on_error)});
+        queue_.push_back(Job{std::move(url), cap, std::move(on_success), std::move(on_error),
+                             std::move(cancelled)});
 
         // The worker is the only thing that drains the queue and releases
         // slots. Without it the job sits forever and its slot is never
@@ -96,30 +107,15 @@ bool EspHttpLane::ensure_worker_started_locked() {
 
     // The stack goes in PSRAM: after WiFi is up the internal heap's largest
     // block can be smaller than the stack, and what it has is WiFi/lwIP headroom.
-    // Safe only while the worker never starts a flash operation: any flash
-    // access, a LittleFS read included, disables the cache this stack lives
-    // behind and trips the flash driver's assert. The worker-start hook bars
-    // the thread from storage so a stray call fails loudly instead.
-    // esp_pthread's cfg is thread-local and sticky, so the caller's is restored.
-    esp_pthread_cfg_t saved_cfg{};
-    const bool had_cfg = esp_pthread_get_cfg(&saved_cfg) == ESP_OK;
-    esp_pthread_cfg_t worker_cfg = had_cfg ? saved_cfg : esp_pthread_get_default_config();
-    worker_cfg.stack_size = WORKER_STACK_BYTES;
-    worker_cfg.stack_alloc_caps = MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT;
-    worker_cfg.inherit_cfg = false;
-    worker_cfg.thread_name = "http_lane";
-    esp_pthread_set_cfg(&worker_cfg);
-
+    // The worker-start hook bars the thread from storage (psram_thread_stack.h).
     pthread_t thread;
-    int rc = pthread_create(&thread, &attr, &EspHttpLane::worker_main, this);
+    int rc;
+    {
+        helix::PsramThreadStackScope psram_stack("http_lane", WORKER_STACK_BYTES);
+        rc = pthread_create(&thread, &attr, &EspHttpLane::worker_main, this);
+    }
     pthread_attr_destroy(&attr);
 
-    if (had_cfg) {
-        esp_pthread_set_cfg(&saved_cfg);
-    } else {
-        const esp_pthread_cfg_t default_cfg = esp_pthread_get_default_config();
-        esp_pthread_set_cfg(&default_cfg);
-    }
     if (rc != 0) {
         ESP_LOGE(TAG, "pthread_create failed: %d — rejecting this submission", rc);
         return false; // worker_started_ stays false: a later submit_get() retries the spawn.
@@ -151,7 +147,13 @@ void EspHttpLane::worker_loop() {
             queue_.pop_front();
         }
 
-        run_one(job);
+        if (job.cancelled && job.cancelled->load()) {
+            if (job.on_error) {
+                job.on_error("cancelled");
+            }
+        } else {
+            run_one(job);
+        }
 
         std::lock_guard<std::mutex> lock(mutex_);
         slots_.release();
@@ -204,56 +206,48 @@ void EspHttpLane::run_one(const Job& job) {
         return;
     }
 
-    // Accumulation buffer. Large enough to land in PSRAM; this is the buffer
-    // the RAM budget cares about, not esp_http_client's own small read-chunk
-    // buffer (config.buffer_size above, CLIENT_BUFFER_BYTES).
+    // Accumulation buffer, in PSRAM: this is the buffer the RAM budget cares
+    // about, not esp_http_client's own small read-chunk buffer
+    // (config.buffer_size above, CLIENT_BUFFER_BYTES).
+    esp_http_client_set_timeout_ms(client, BODY_READ_TIMEOUT_MS);
+    struct Transport {
+        esp_http_client_handle_t client;
+        int read(char* buf, int len) {
+            const int n = esp_http_client_read(client, buf, len);
+            return n == -ESP_ERR_HTTP_EAGAIN ? TRANSPORT_AGAIN : n;
+        }
+        bool complete() const {
+            return esp_http_client_is_complete_data_received(client);
+        }
+    } transport{client};
     std::string body;
-    size_t total = 0;
-    bool alloc_failed = !try_reserve(body, initial_buffer_bytes(job.cap, content_length));
-    bool read_failed = false;
-    // reserve() can hand back more than asked for, so the cap bounds the bytes
-    // read, never the capacity.
-    auto room = [&body, &job]() { return std::min(body.capacity(), job.cap); };
-    while (!alloc_failed && total < job.cap) {
-        if (total == room()) {
-            if (esp_http_client_is_complete_data_received(client)) {
-                break;
-            }
-            if (!try_reserve(body, next_buffer_bytes(body.capacity(), job.cap))) {
-                alloc_failed = true;
-                break;
-            }
-        }
-        body.resize(room()); // within capacity: no allocation
-        int n = esp_http_client_read(client, &body[total], static_cast<int>(body.size() - total));
-        if (n < 0) {
-            read_failed = true;
-            break;
-        }
-        if (n == 0) {
-            break; // response complete
-        }
-        total += static_cast<size_t>(n);
-    }
-    body.resize(total);
-
-    // Over-cap: the buffer filled and the server says there's more. Abort and
-    // report an error — R3 hard constraint: never truncate-and-return.
-    const bool over_cap = !alloc_failed && !read_failed && (total >= job.cap) &&
-                          !esp_http_client_is_complete_data_received(client);
+    const BodyRead read = read_capped_body(
+        transport, job.cap, content_length, body, [] { return esp_timer_get_time() / 1000; },
+        BODY_DEADLINES, job.cancelled.get());
 
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
 
-    if (alloc_failed || read_failed || over_cap) {
-        if (over_cap) {
-            ESP_LOGW(TAG, "response exceeds %u byte cap — aborting: %s", (unsigned)job.cap,
-                     job.url.c_str());
+    if (read != BodyRead::Ok) {
+        char why[64];
+        if (read == BodyRead::Stalled) {
+            snprintf(why, sizeof(why), "stalled: no data for %lld ms",
+                     static_cast<long long>(BODY_DEADLINES.stall_ms));
+        } else if (read == BodyRead::TimedOut) {
+            snprintf(why, sizeof(why), "timed out after %lld ms",
+                     static_cast<long long>(BODY_DEADLINES.total_ms));
+        } else {
+            snprintf(why, sizeof(why), "%s",
+                     read == BodyRead::AllocFailed  ? "PSRAM allocation failed"
+                     : read == BodyRead::ReadFailed ? "esp_http_client_read failed"
+                     : read == BodyRead::OverCap    ? "response exceeds size cap"
+                                                    : "cancelled");
+        }
+        if (read != BodyRead::Cancelled) {
+            ESP_LOGW(TAG, "%s: %s", why, job.url.c_str());
         }
         if (job.on_error) {
-            job.on_error(alloc_failed  ? "PSRAM allocation failed"
-                         : read_failed ? "esp_http_client_read failed"
-                                       : "response exceeds size cap");
+            job.on_error(why);
         }
         return;
     }

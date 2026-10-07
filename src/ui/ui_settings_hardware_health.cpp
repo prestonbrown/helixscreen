@@ -19,6 +19,7 @@
 #include "hardware_validator.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -99,13 +100,13 @@ void HardwareHealthOverlay::populate_hardware_issues() {
             ui_severity_card_finalize(row);
 
             // Set hardware name
-            lv_obj_t* name_label = lv_obj_find_by_name(row, "hardware_name");
+            lv_obj_t* name_label = helix::ui::find_required(row, "hardware_name", get_name());
             if (name_label) {
                 lv_label_set_text(name_label, issue.hardware_name.c_str());
             }
 
             // Set issue message
-            lv_obj_t* message_label = lv_obj_find_by_name(row, "issue_message");
+            lv_obj_t* message_label = helix::ui::find_required(row, "issue_message", get_name());
             if (message_label) {
                 // Messages are TR_NOOP keys; a tag keeps the row re-translatable.
                 lv_label_set_translation_tag(message_label, issue.message.c_str());
@@ -113,9 +114,10 @@ void HardwareHealthOverlay::populate_hardware_issues() {
 
             // Configure action buttons for non-critical issues
             if (issue.severity != HardwareIssueSeverity::CRITICAL) {
-                lv_obj_t* action_buttons = lv_obj_find_by_name(row, "action_buttons");
-                lv_obj_t* ignore_btn = lv_obj_find_by_name(row, "ignore_btn");
-                lv_obj_t* save_btn = lv_obj_find_by_name(row, "save_btn");
+                lv_obj_t* action_buttons =
+                    helix::ui::find_required(row, "action_buttons", get_name());
+                lv_obj_t* ignore_btn = helix::ui::find_required(row, "ignore_btn", get_name());
+                lv_obj_t* save_btn = helix::ui::find_required(row, "save_btn", get_name());
 
                 if (action_buttons && ignore_btn) {
                     // Show button container

@@ -25,6 +25,7 @@
 #include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "spoolman_types.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -246,7 +247,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         lv_subject_set_int(&slot_unload_hint_visible_subject_, 0);
 
         lv_subject_set_int(&slot_can_purge_subject_, ext_gating.purge_disabled ? 0 : 1);
-        if (lv_obj_t* btn_purge = lv_obj_find_by_name(menu_obj, "btn_purge")) {
+        if (lv_obj_t* btn_purge =
+                helix::ui::find_required(menu_obj, "btn_purge", "AmsContextMenu")) {
             lv_obj_remove_flag(btn_purge, LV_OBJ_FLAG_HIDDEN);
         }
 
@@ -254,7 +256,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         // question asked of it in one place. bypass_toggle_offered() is the same
         // answer BypassToggleController refuses on, asked before the button is
         // drawn rather than after the user taps it.
-        if (lv_obj_t* btn_bypass = lv_obj_find_by_name(menu_obj, "btn_bypass_toggle")) {
+        if (lv_obj_t* btn_bypass =
+                helix::ui::find_required(menu_obj, "btn_bypass_toggle", "AmsContextMenu")) {
             const bool bypass_offered =
                 backend &&
                 helix::bypass_toggle_offered(helix::bypass_available_for(ext_sys.supports_bypass),
@@ -280,7 +283,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         bool has_assignment =
             ext_info.has_value() && (ext_info->spoolman_id > 0 || !ext_info->material.empty());
 
-        lv_obj_t* btn_clear = lv_obj_find_by_name(menu_obj, "btn_clear_spool");
+        lv_obj_t* btn_clear =
+            helix::ui::find_required(menu_obj, "btn_clear_spool", "AmsContextMenu");
         if (btn_clear && has_assignment) {
             lv_obj_clear_flag(btn_clear, LV_OBJ_FLAG_HIDDEN);
         }
@@ -297,12 +301,13 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
         bool has_spoolman = spoolman_subj && lv_subject_get_int(spoolman_subj) == 1;
 
-        lv_obj_t* btn_spoolman = lv_obj_find_by_name(menu_obj, "btn_spoolman");
+        lv_obj_t* btn_spoolman =
+            helix::ui::find_required(menu_obj, "btn_spoolman", "AmsContextMenu");
         if (btn_spoolman && has_spoolman) {
             lv_obj_clear_flag(btn_spoolman, LV_OBJ_FLAG_HIDDEN);
         }
 
-        lv_obj_t* btn_scan_qr = lv_obj_find_by_name(menu_obj, "btn_scan_qr");
+        lv_obj_t* btn_scan_qr = helix::ui::find_required(menu_obj, "btn_scan_qr", "AmsContextMenu");
         if (btn_scan_qr && has_spoolman) {
 #if !defined(HELIX_PLATFORM_ESP32)
             // No camera on the v1 Core+AMS cut — keep Scan QR hidden (default).
@@ -344,7 +349,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     unload_mode_ = ops.unload_mode;
     lv_subject_set_int(&slot_is_loaded_subject_, ops.unload_enabled ? 1 : 0);
 
-    lv_obj_t* btn_unload = lv_obj_find_by_name(menu_obj, "btn_unload");
+    lv_obj_t* btn_unload = helix::ui::find_required(menu_obj, "btn_unload", "AmsContextMenu");
     if (btn_unload) {
         switch (unload_mode_) {
         case UnloadMode::RecoverPosition:
@@ -374,7 +379,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     const bool mounts_tool = backend_ && backend_->load_mounts_tool();
     lv_subject_set_int(&slot_mounts_tool_subject_, mounts_tool ? 1 : 0);
     if (mounts_tool) {
-        if (lv_obj_t* btn_load = lv_obj_find_by_name(menu_obj, "btn_load")) {
+        if (lv_obj_t* btn_load = helix::ui::find_required(menu_obj, "btn_load", "AmsContextMenu")) {
             ui_button_set_text(btn_load, lv_tr("Mount"));
         }
     }
@@ -396,7 +401,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     // (the box always supports eject otherwise). See #1041.
     if (backend_ && backend_->get_type() == AmsType::QIDI_BOX && !backend_->supports_lane_eject() &&
         !pending_is_loaded_ && ops.presence.value_or(false)) {
-        lv_obj_t* hint = lv_obj_find_by_name(menu_obj, "eject_force_move_hint");
+        lv_obj_t* hint =
+            helix::ui::find_required(menu_obj, "eject_force_move_hint", "AmsContextMenu");
         if (hint) {
             lv_obj_remove_flag(hint, LV_OBJ_FLAG_HIDDEN);
         }
@@ -412,7 +418,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
 
     // Show Select Gate button if backend supports it (e.g. Happy Hare)
     if (backend_ && backend_->supports_gate_select()) {
-        lv_obj_t* btn_gate_select = lv_obj_find_by_name(menu_obj, "btn_gate_select");
+        lv_obj_t* btn_gate_select =
+            helix::ui::find_required(menu_obj, "btn_gate_select", "AmsContextMenu");
         if (btn_gate_select) {
             lv_obj_remove_flag(btn_gate_select, LV_OBJ_FLAG_HIDDEN);
             if (system_busy) {
@@ -423,7 +430,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
 
     // Show Check Gate button if backend supports it (e.g. Happy Hare)
     if (backend_ && backend_->supports_gate_check()) {
-        lv_obj_t* btn_gate_check = lv_obj_find_by_name(menu_obj, "btn_gate_check");
+        lv_obj_t* btn_gate_check =
+            helix::ui::find_required(menu_obj, "btn_gate_check", "AmsContextMenu");
         if (btn_gate_check) {
             lv_obj_remove_flag(btn_gate_check, LV_OBJ_FLAG_HIDDEN);
             if (system_busy) {
@@ -448,7 +456,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     // Spoolman write at the previous spool.
     if (backend_) {
         SlotInfo slot_info = backend_->get_slot_info(slot_index);
-        lv_obj_t* btn_clear = lv_obj_find_by_name(menu_obj, "btn_clear_spool");
+        lv_obj_t* btn_clear =
+            helix::ui::find_required(menu_obj, "btn_clear_spool", "AmsContextMenu");
         if (btn_clear && should_show_clear_spool(slot_info)) {
             lv_obj_clear_flag(btn_clear, LV_OBJ_FLAG_HIDDEN);
         }
@@ -480,11 +489,11 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     // Show "Select Spool" and "Scan QR Code" buttons if Spoolman is available
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     bool has_spoolman = spoolman_subj && lv_subject_get_int(spoolman_subj) == 1;
-    lv_obj_t* btn_spoolman = lv_obj_find_by_name(menu_obj, "btn_spoolman");
+    lv_obj_t* btn_spoolman = helix::ui::find_required(menu_obj, "btn_spoolman", "AmsContextMenu");
     if (btn_spoolman && has_spoolman) {
         lv_obj_clear_flag(btn_spoolman, LV_OBJ_FLAG_HIDDEN);
     }
-    lv_obj_t* btn_scan_qr = lv_obj_find_by_name(menu_obj, "btn_scan_qr");
+    lv_obj_t* btn_scan_qr = helix::ui::find_required(menu_obj, "btn_scan_qr", "AmsContextMenu");
     if (btn_scan_qr && has_spoolman) {
 #if !defined(HELIX_PLATFORM_ESP32)
         // No camera on the v1 Core+AMS cut — keep Scan QR hidden (default).
@@ -966,13 +975,14 @@ void AmsContextMenu::configure_dropdowns() {
     }
 
     // Find dropdown widgets
-    tool_dropdown_ = lv_obj_find_by_name(menu(), "tool_dropdown");
-    backup_dropdown_ = lv_obj_find_by_name(menu(), "backup_dropdown");
+    tool_dropdown_ = helix::ui::find_required(menu(), "tool_dropdown", "AmsContextMenu");
+    backup_dropdown_ = helix::ui::find_required(menu(), "backup_dropdown", "AmsContextMenu");
 
     // Find row containers and divider
-    lv_obj_t* tool_row = lv_obj_find_by_name(menu(), "tool_dropdown_row");
-    lv_obj_t* backup_row = lv_obj_find_by_name(menu(), "backup_dropdown_row");
-    lv_obj_t* divider = lv_obj_find_by_name(menu(), "dropdown_divider");
+    lv_obj_t* tool_row = helix::ui::find_required(menu(), "tool_dropdown_row", "AmsContextMenu");
+    lv_obj_t* backup_row =
+        helix::ui::find_required(menu(), "backup_dropdown_row", "AmsContextMenu");
+    lv_obj_t* divider = helix::ui::find_required(menu(), "dropdown_divider", "AmsContextMenu");
 
     bool show_any_dropdown = false;
 

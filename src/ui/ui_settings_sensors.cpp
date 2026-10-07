@@ -162,7 +162,7 @@ void SensorSettingsOverlay::populate_switch_sensors() {
         char* klipper_name = const_cast<char*>(helix::ui::get_owned_user_string(row));
 
         // Wire up enable toggle
-        lv_obj_t* enable_toggle = lv_obj_find_by_name(row, "enable_toggle");
+        lv_obj_t* enable_toggle = helix::ui::find_required(row, "enable_toggle", get_name());
         lv_obj_t* enable_container = enable_toggle ? lv_obj_get_parent(enable_toggle) : nullptr;
 
         if (enable_toggle) {
@@ -198,7 +198,7 @@ void SensorSettingsOverlay::populate_switch_sensors() {
         }
 
         // Wire up role dropdown
-        lv_obj_t* role_dropdown = lv_obj_find_by_name(row, "role_dropdown");
+        lv_obj_t* role_dropdown = helix::ui::find_required(row, "role_dropdown", get_name());
         if (role_dropdown) {
             lv_dropdown_set_selected(role_dropdown, static_cast<uint32_t>(sensor.role));
 
@@ -223,7 +223,8 @@ void SensorSettingsOverlay::populate_switch_sensors() {
 
                     // Show/hide enable toggle based on role
                     lv_obj_t* row_obj = lv_obj_get_parent(lv_obj_get_parent(dropdown));
-                    lv_obj_t* toggle = lv_obj_find_by_name(row_obj, "enable_toggle");
+                    lv_obj_t* toggle =
+                        helix::ui::find_required(row_obj, "enable_toggle", "Sensors");
                     if (toggle) {
                         lv_obj_t* container = lv_obj_get_parent(toggle);
                         if (role == helix::FilamentSensorRole::NONE) {
@@ -388,7 +389,7 @@ void SensorSettingsOverlay::populate_width_sensors() {
         char* klipper_name = const_cast<char*>(helix::ui::get_owned_user_string(row));
 
         // Wire up enable toggle
-        lv_obj_t* enable_toggle = lv_obj_find_by_name(row, "enable_toggle");
+        lv_obj_t* enable_toggle = helix::ui::find_required(row, "enable_toggle", get_name());
 
         if (enable_toggle) {
             if (sensor.enabled) {
@@ -418,7 +419,7 @@ void SensorSettingsOverlay::populate_width_sensors() {
         }
 
         // Wire up role dropdown
-        lv_obj_t* role_dropdown = lv_obj_find_by_name(row, "role_dropdown");
+        lv_obj_t* role_dropdown = helix::ui::find_required(row, "role_dropdown", get_name());
         if (role_dropdown) {
             lv_dropdown_set_selected(role_dropdown, static_cast<uint32_t>(sensor.role));
 

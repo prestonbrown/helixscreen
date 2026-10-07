@@ -4,12 +4,14 @@
 #include "ui_printer_switch_menu.h"
 
 #include "ui_callback_helpers.h"
+#include "ui_change_host_modal.h"
 #include "ui_event_safety.h"
 #include "ui_icon_codepoints.h"
 #include "ui_row_text.h"
 #include "ui_update_queue.h"
 
 #include "config.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -60,9 +62,8 @@ void PrinterSwitchMenu::populate_printer_list() {
     auto printer_ids = cfg->get_printer_ids();
     auto active_id = cfg->get_active_printer_id();
 
-    lv_obj_t* printer_list = lv_obj_find_by_name(menu(), "printer_list");
+    lv_obj_t* printer_list = helix::ui::find_required(menu(), "printer_list", "PrinterSwitchMenu");
     if (!printer_list) {
-        spdlog::error("[PrinterSwitchMenu] printer_list not found in XML");
         return;
     }
 
@@ -115,6 +116,10 @@ void PrinterSwitchMenu::handle_add_printer() {
 }
 
 void PrinterSwitchMenu::dispatch_switch_action(MenuAction action, const std::string& printer_id) {
+    // The switch below is queued, so it has not run when the menu closes.
+    if (action != MenuAction::CANCELLED) {
+        drop_held_connection_failed();
+    }
     auto callback = switch_callback_;
     hide(); // Safe: uses lv_obj_delete_async internally
 

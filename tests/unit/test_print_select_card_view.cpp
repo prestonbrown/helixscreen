@@ -243,3 +243,43 @@ TEST_CASE_METHOD(LVGLUITestFixture, "CardView: an arrived thumbnail updates only
     view.cleanup();
     lv_obj_delete(container);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "CardView: every shown card names its own file, in order, as the window moves",
+                 "[ui][card_view][print_select]") {
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 700, 400);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_style_pad_row(container, 10, LV_PART_MAIN);
+
+    PrintSelectCardView view;
+    REQUIRE(view.setup(container, [](size_t) {}, nullptr));
+    const CardDimensions dims{4, 2, 160, 200};
+    const auto files = make_files(60);
+    view.populate(files, dims);
+
+    const int stride = dims.card_height + 10;
+    for (int y : {stride, 3 * stride, 2 * stride + 40, 7 * stride, 0, 5 * stride}) {
+        CAPTURE(y);
+        lv_obj_scroll_to_y(container, y, LV_ANIM_OFF);
+        view.update_visible(files, dims);
+        lv_obj_update_layout(container);
+
+        const auto w =
+            helix::ui::compute_window(lv_obj_get_scroll_y(container), lv_obj_get_height(container),
+                                      stride, 15, PrintSelectCardView::BUFFER_ROWS);
+        int expect = w.first * dims.num_columns;
+        for (uint32_t i = 0; i < lv_obj_get_child_count(container); ++i) {
+            lv_obj_t* card = lv_obj_get_child(container, static_cast<int32_t>(i));
+            lv_obj_t* label = lv_obj_find_by_name(card, "filename_label");
+            if (!label || lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN))
+                continue;
+            CHECK(std::string(lv_label_get_text(label)) == "file_" + std::to_string(expect));
+            ++expect;
+        }
+        CHECK(expect == std::min(60, w.last * dims.num_columns));
+    }
+
+    view.cleanup();
+    lv_obj_delete(container);
+}

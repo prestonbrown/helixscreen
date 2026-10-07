@@ -14,6 +14,7 @@
 #include "settings_manager.h"
 #include "theme_manager.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -171,8 +172,8 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
     return gear_overflow;
 }
 
-// Draw buffer box element — simple labeled box like HUB/SELECTOR
-// Color reflects buffer state: green (OK), orange (warning), red (fault)
+// Draw buffer box element: a labeled box like HUB/SELECTOR, its border in the
+// buffer bands' token (neutral on target, warning, danger)
 void draw_buffer_coil(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t hub_h,
                       bool has_filament, lv_color_t filament_color) {
     const ThemeCache& theme = ctx.data->theme;
@@ -192,40 +193,24 @@ void draw_buffer_coil(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t hub_
     lv_color_t border_color;
     lv_color_t buf_bg = bg_color;
 
-    if (buffer_fault_state >= 2) {
-        border_color = lv_color_hex(0xEF4444);
-        buf_bg = lv_color_hex(0x3F1111);
+    if (buffer_fault_state < 0) {
+        border_color = theme.color_hub_border;
+        buf_bg = theme.color_hub_bg;
+    } else if (buffer_fault_state >= 2) {
+        border_color = theme.color_buffer[2];
+        buf_bg = lv_color_mix(theme.color_buffer[2], bg_color, LV_OPA_20);
     } else if (buffer_bias > -1.5f) {
-        // Proportional mode: green -> orange -> red based on abs(bias)
-        float abs_bias = std::fabs(buffer_bias);
-        abs_bias = std::clamp(abs_bias, 0.0f, 1.0f);
-        if (buffer_fault_state >= 1) {
-            // Fault active — use pure orange minimum to match selector
-            if (abs_bias < 0.7f) {
-                border_color = lv_color_hex(0xF59E0B);
-            } else {
-                float t = (abs_bias - 0.7f) / 0.3f;
-                border_color = ph_blend(lv_color_hex(0xF59E0B), lv_color_hex(0xEF4444), t);
-            }
-        } else if (abs_bias < 0.3f) {
-            border_color = lv_color_hex(0x22C55E);
-        } else if (abs_bias < 0.7f) {
-            float t = (abs_bias - 0.3f) / 0.4f;
-            border_color = ph_blend(lv_color_hex(0x22C55E), lv_color_hex(0xF59E0B), t);
-        } else {
-            float t = (abs_bias - 0.7f) / 0.3f;
-            border_color = ph_blend(lv_color_hex(0xF59E0B), lv_color_hex(0xEF4444), t);
-        }
+        border_color = theme.color_buffer[std::clamp(buffer_fault_state, 0, 2)];
         if (has_filament) {
             buf_bg = ph_blend(bg_color, filament_color, 0.33f);
         }
     } else if (buffer_fault_state == 1) {
-        border_color = lv_color_hex(0xF59E0B);
+        border_color = theme.color_buffer[1];
         if (has_filament) {
             buf_bg = ph_blend(bg_color, filament_color, 0.33f);
         }
     } else {
-        border_color = lv_color_hex(0x22C55E);
+        border_color = theme.color_success;
         if (has_filament) {
             buf_bg = ph_blend(bg_color, filament_color, 0.33f);
         }

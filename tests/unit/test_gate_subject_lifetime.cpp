@@ -46,7 +46,8 @@ const std::vector<std::pair<std::string, Owner>>& owners() {
         std::vector<std::pair<std::string, Owner>> t;
         const Owner ams{[] { AmsState::instance().init_subjects(true); },
                         [] { AmsState::instance().deinit_subjects(); }};
-        for (const char* n : {"ams_slot_count", "ams_supports_bypass", "clog_meter_mode"})
+        for (const char* n :
+             {"ams_slot_count", "ams_supports_bypass", "clog_meter_mode", "buffer_present"})
             t.emplace_back(n, ams);
         t.emplace_back("filament_sensor_count",
                        Owner{[] { FilamentSensorManager::instance().init_subjects(); },

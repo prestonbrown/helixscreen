@@ -25,6 +25,12 @@
 #include "../test_helpers/scoped_try_reserve_failure.h"
 #include "firmware/helixscreen-esp32/components/helixnet/http_lane_queue.h"
 
+#include <algorithm>
+#include <atomic>
+#include <cstring>
+#include <string>
+#include <vector>
+
 #include "../catch_amalgamated.hpp"
 
 using helix::http::BoundedSlotCounter;
@@ -185,4 +191,175 @@ TEST_CASE("try_reserve on a vector fails cleanly and leaves it untouched",
 
     REQUIRE(helix::try_reserve(v, 1000));
     CHECK(v.capacity() >= 1000);
+}
+
+// ============================================================================
+// read_capped_body: the lane's body read, against a scripted transport
+// ============================================================================
+
+namespace {
+
+using helix::http::BodyRead;
+using helix::http::LaneDeadlines;
+using helix::http::read_capped_body;
+
+/// What the network does next: a segment of bytes arriving, a quiet gap, the
+/// end of the body, or a failure, each taking @p ms.
+struct Step {
+    int result;     ///< > 0 bytes arrive, AGAIN a gap with nothing, 0 the end, < 0 failure
+    int64_t ms = 1; ///< how long it takes
+};
+
+/// esp_http_client_read() as it behaves: it keeps reading until @p len is
+/// filled, and returns early only on the end of the body, a failure, or a
+/// socket read that waited SOCKET_TIMEOUT_MS with nothing to show.
+struct FakeTransport {
+    static constexpr int AGAIN = helix::http::TRANSPORT_AGAIN;
+    static constexpr int64_t SOCKET_TIMEOUT_MS = 5000;
+    std::vector<Step> steps;
+    size_t at = 0;
+    int64_t* clock;
+    bool complete_at_end = true;
+    int reads = 0;
+
+    int read(char* buf, int len) {
+        ++reads;
+        int got = 0;
+        int64_t quiet = 0;
+        for (;;) {
+            if (at >= steps.size()) {
+                // Past the script the server has gone silent: the socket read
+                // waits out its timeout.
+                *clock += SOCKET_TIMEOUT_MS - quiet;
+                return got ? got : AGAIN;
+            }
+            Step& s = steps[at];
+            if (s.result > 0) {
+                *clock += s.ms;
+                s.ms = 0;
+                quiet = 0;
+                const int n = std::min(s.result, len - got);
+                std::memset(buf + got, 'x', static_cast<size_t>(n));
+                got += n;
+                s.result -= n;
+                if (s.result == 0) {
+                    ++at;
+                }
+                if (got == len) {
+                    return got;
+                }
+            } else if (s.result == AGAIN) {
+                ++at;
+                if (quiet + s.ms >= SOCKET_TIMEOUT_MS) {
+                    *clock += SOCKET_TIMEOUT_MS - quiet;
+                    return got ? got : AGAIN;
+                }
+                *clock += s.ms; // a gap the socket read waits through
+                quiet += s.ms;
+            } else {
+                if (got) {
+                    return got; // the end or the failure is seen on the next read
+                }
+                ++at;
+                *clock += s.ms;
+                return s.result;
+            }
+        }
+    }
+    bool complete() const {
+        return complete_at_end && at >= steps.size();
+    }
+};
+
+constexpr LaneDeadlines DEADLINES{30000, 10000};
+
+} // namespace
+
+TEST_CASE("a body read ends when the body does", "[esp32][http][lane_timeout]") {
+    int64_t now = 0;
+    FakeTransport t{{{4000}, {4000}, {2000}, {0}}, 0, &now};
+    std::string body;
+    CHECK(read_capped_body(
+              t, 64 * 1024, 10000, body, [&] { return now; }, DEADLINES, nullptr) == BodyRead::Ok);
+    CHECK(body.size() == 10000);
+}
+
+TEST_CASE("a body that stops arriving mid-transfer fails after the no-progress limit",
+          "[esp32][http][lane_timeout]") {
+    int64_t now = 0;
+    // 3 KB, then silence.
+    FakeTransport t{{{3000}}, 0, &now};
+    std::string body;
+    const BodyRead r =
+        read_capped_body(t, 64 * 1024, 9000, body, [&] { return now; }, DEADLINES, nullptr);
+    CHECK(r == BodyRead::Stalled);
+    // Ten seconds of silence, seen at the end of a socket timeout.
+    CHECK(now >= 10000);
+    CHECK(now <= 10000 + 2 * FakeTransport::SOCKET_TIMEOUT_MS);
+}
+
+TEST_CASE("a body that trickles in past the overall deadline fails near it",
+          "[esp32][http][lane_timeout]") {
+    int64_t now = 0;
+    // A 500-byte segment every 4 s: never quiet long enough for a socket
+    // timeout, and the 50 KB body would take over six minutes.
+    std::vector<Step> trickle;
+    for (int i = 0; i < 100; ++i) {
+        trickle.push_back({FakeTransport::AGAIN, 4000});
+        trickle.push_back({500, 1});
+    }
+    FakeTransport t{trickle, 0, &now};
+    std::string body;
+    CHECK(read_capped_body(
+              t, 64 * 1024, 50000, body, [&] { return now; }, DEADLINES, nullptr) ==
+          BodyRead::TimedOut);
+    // One bounded read past the deadline at most, not the rest of the body.
+    CHECK(now <= 40000);
+}
+
+TEST_CASE("a cancel lands within one bounded read of a trickling body",
+          "[esp32][http][lane_timeout]") {
+    int64_t now = 0;
+    std::vector<Step> trickle;
+    for (int i = 0; i < 100; ++i) {
+        trickle.push_back({FakeTransport::AGAIN, 4000});
+        trickle.push_back({500, 1});
+    }
+    FakeTransport t{trickle, 0, &now};
+    std::atomic<bool> cancelled{false};
+    std::string body;
+    // The panel cancels 6 s in.
+    const auto clock = [&] {
+        if (now >= 6000) {
+            cancelled = true;
+        }
+        return now;
+    };
+    CHECK(read_capped_body(t, 64 * 1024, 50000, body, clock, DEADLINES, &cancelled) ==
+          BodyRead::Cancelled);
+    CHECK(now <= 6000 + 10000);
+}
+
+TEST_CASE("a transport failure, an over-cap body and a cancel each end the read",
+          "[esp32][http][lane_timeout]") {
+    int64_t now = 0;
+    std::string body;
+
+    FakeTransport failing{{{1000}, {-1}}, 0, &now};
+    CHECK(read_capped_body(
+              failing, 64 * 1024, 9000, body, [&] { return now; }, DEADLINES, nullptr) ==
+          BodyRead::ReadFailed);
+
+    // A server ignoring Range: the cap fills and more is coming.
+    FakeTransport big{std::vector<Step>(10, Step{4096}), 0, &now};
+    big.complete_at_end = false;
+    CHECK(read_capped_body(
+              big, 8192, -1, body, [&] { return now; }, DEADLINES, nullptr) == BodyRead::OverCap);
+
+    std::atomic<bool> cancelled{true};
+    FakeTransport cancel{{{1000}, {1000}, {0}}, 0, &now};
+    CHECK(read_capped_body(
+              cancel, 64 * 1024, 2000, body, [&] { return now; }, DEADLINES, &cancelled) ==
+          BodyRead::Cancelled);
+    CHECK(cancel.reads == 0); // not one byte more once it is unwanted
 }

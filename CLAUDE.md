@@ -205,6 +205,12 @@ What is shared here:
   `take worktree:main`, merge or fast-forward, push, verify `origin/main == main`, release.
   Never leave main ahead of origin: no other session will push work that is not theirs, so
   an unpushed main stalls every merge behind it until its owner is found.
+- **Land in batches and gate once.** Before taking main, message whoever holds it or is
+  queued and fold your ready branch into one landing: one session merges every ready branch
+  and runs ONE `make full-test-run` on the combined result. A full gate per branch turns N
+  landings into N serial 10-minute gates, and parallel gates leave thelio's CPU spinning on
+  the same suite. Run the full gate once per branch, at the end: a review fix gets its tags
+  (`make t F=...`), and the batch gate covers the rest.
 - **`MM` does not mean a peer is mid-commit.** It is ambiguous, and one command settles it:
   `git diff HEAD -- <path>`. Empty means the committed content is what is on disk, only the
   INDEX holds an older copy, and nothing is in flight. A `git commit -- <paths>` whose

@@ -27,6 +27,7 @@
 #include "printer_state.h"
 #include "sensor_state.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -44,12 +45,6 @@ void register_power_device_widget() {
 } // namespace helix
 
 namespace {
-
-/// Resolve a responsive spacing token to pixels, with a fallback.
-int resolve_space_token(const char* name, int fallback) {
-    const char* s = lv_xml_get_const(nullptr, name);
-    return s ? std::atoi(s) : fallback;
-}
 
 // Power-related icons for the picker grid
 static const char* const POWER_ICONS[] = {
@@ -74,8 +69,6 @@ static constexpr const char* DEFAULT_ICON = "power_cycle";
 } // namespace
 
 using namespace helix;
-
-PowerDeviceWidget* PowerDeviceWidget::s_active_picker_ = nullptr;
 
 // The state is the reading ("LOCKED" is the widest), the device name the label,
 // drawn whatever show_widget_labels says, and the glyph sits in a disc that
@@ -196,7 +189,7 @@ void PowerDeviceWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 void PowerDeviceWidget::detach() {
     teardown_carousel();
     lifetime_.invalidate();
-    dismiss_device_picker();
+    picker_.hide();
 
     status_observer_.reset();
     power_count_observer_.reset();
@@ -368,354 +361,141 @@ IMoonrakerAPI* PowerDeviceWidget::get_api() const {
 }
 
 void PowerDeviceWidget::show_device_picker() {
-    if (picker_backdrop_ || !parent_screen_) {
+    if (picker_.is_visible() || !parent_screen_ || !widget_obj_) {
         return;
     }
 
-    // Dismiss any other widget's picker
-    if (s_active_picker_ && s_active_picker_ != this) {
-        s_active_picker_->dismiss_device_picker();
-    }
-
-    auto device_names = PowerDeviceState::instance().device_names();
-    if (device_names.empty()) {
+    if (PowerDeviceState::instance().device_names().empty()) {
         spdlog::warn("[PowerDeviceWidget] No power devices available");
         return;
     }
-    std::sort(device_names.begin(), device_names.end());
 
-    int space_xs = resolve_space_token("space_xs", 4);
-    int space_sm = resolve_space_token("space_sm", 6);
-    int space_md = resolve_space_token("space_md", 10);
+    // The card hangs under the widget tile, centred on it, flipping above when the
+    // tile sits low on the screen.
+    picker_.show_below_widget(parent_screen_, widget_obj_,
+                              helix::ui::ContextMenu::AnchorAlign::Center);
+}
 
-    int screen_w = lv_obj_get_width(parent_screen_);
-    int screen_h = lv_obj_get_height(parent_screen_);
+void PowerDeviceWidget::DevicePicker::add_row(lv_obj_t* parent, const char* component,
+                                              const char* label_name, const std::string& label,
+                                              const std::string& value, bool selected,
+                                              PickFn on_pick) {
+    const char* attrs[] = {
+        "selected",
+        selected ? "true" : "false",
+        nullptr,
+    };
+    lv_obj_t* row = static_cast<lv_obj_t*>(lv_xml_create(parent, component, attrs));
+    if (!row) {
+        return;
+    }
+    helix::ui::set_row_label_text(row, label_name, label.c_str());
 
-    // Backdrop (full screen, transparent, catches clicks to dismiss)
-    picker_backdrop_ = lv_obj_create(parent_screen_);
-    lv_obj_set_size(picker_backdrop_, screen_w, screen_h);
-    lv_obj_set_pos(picker_backdrop_, 0, 0);
-    lv_obj_set_style_bg_color(picker_backdrop_, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(picker_backdrop_, LV_OPA_50, 0);
-    lv_obj_set_style_border_width(picker_backdrop_, 0, 0);
-    lv_obj_set_style_radius(picker_backdrop_, 0, 0);
-    lv_obj_remove_flag(picker_backdrop_, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(picker_backdrop_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_user_data(row, new RowPayload{this, value, on_pick});
 
-    // Backdrop click dismisses picker
     lv_obj_add_event_cb(
-        picker_backdrop_,
-        [](lv_event_t* /*e*/) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[PowerDeviceWidget] backdrop_cb");
-            if (s_active_picker_) {
-                s_active_picker_->dismiss_device_picker();
-            }
+        row,
+        [](lv_event_t* e) {
+            LVGL_SAFE_EVENT_CB_BEGIN("[PowerDeviceWidget] picker_row_cb");
+            auto* target = lv_event_get_current_target_obj(e);
+            auto* payload = static_cast<RowPayload*>(lv_obj_get_user_data(target));
+            if (!payload)
+                return;
+
+            // Copy out: hide() takes the row - and this payload - with it.
+            RowPayload pick = *payload;
+            pick.picker->hide();
+            pick.on_pick(pick.picker->owner_, pick.value);
             LVGL_SAFE_EVENT_CB_END();
         },
         LV_EVENT_CLICKED, nullptr);
 
-    // Card container — two-column layout
-    lv_obj_t* card = lv_obj_create(picker_backdrop_);
-    int card_w = std::clamp(screen_w * 60 / 100, 260, 420);
-    int card_h = std::clamp(screen_h * 65 / 100, 200, 380);
-    lv_obj_set_size(card, card_w, card_h);
-    lv_obj_set_style_bg_color(card, theme_manager_get_color("card_bg"), 0);
-    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(card, 12, 0);
-    lv_obj_set_style_border_width(card, 1, 0);
-    lv_obj_set_style_border_color(card, theme_manager_get_color("border"), 0);
-    lv_obj_set_style_pad_all(card, space_md, 0);
-    lv_obj_set_style_pad_gap(card, space_sm, 0);
-    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
-    lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(
+        row,
+        [](lv_event_t* e) {
+            LVGL_SAFE_EVENT_CB_BEGIN("[PowerDeviceWidget] picker_row_delete_cb");
+            auto* target = lv_event_get_current_target_obj(e);
+            delete static_cast<RowPayload*>(lv_obj_get_user_data(target));
+            lv_obj_set_user_data(target, nullptr);
+            LVGL_SAFE_EVENT_CB_END();
+        },
+        LV_EVENT_DELETE, nullptr);
+}
 
-    // === Left column: Device list (scrollable) ===
-    lv_obj_t* left_col = lv_obj_create(card);
-    lv_obj_set_width(left_col, 1);
-    lv_obj_set_flex_grow(left_col, 2);
-    lv_obj_set_height(left_col, LV_PCT(100));
-    lv_obj_set_flex_flow(left_col, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(left_col, 0, 0);
-    lv_obj_set_style_pad_gap(left_col, space_xs, 0);
-    lv_obj_set_style_bg_opa(left_col, 0, 0);
-    lv_obj_set_style_border_width(left_col, 0, 0);
-
-    // "Device" header
-    lv_obj_t* dev_title = lv_label_create(left_col);
-    lv_label_set_text(dev_title, lv_tr("Device"));
-    lv_obj_set_style_text_font(dev_title, theme_manager_get_font("xs"), 0);
-    lv_obj_set_style_text_color(dev_title, theme_manager_get_color("text_muted"), 0);
-    lv_obj_set_width(dev_title, LV_PCT(100));
-
-    // Scrollable device list
-    lv_obj_t* list = lv_obj_create(left_col);
-    lv_obj_set_width(list, LV_PCT(100));
-    lv_obj_set_flex_grow(list, 1);
-    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(list, 0, 0);
-    lv_obj_set_style_pad_gap(list, theme_manager_get_spacing("space_xxs"), 0);
-    lv_obj_set_style_bg_opa(list, 0, 0);
-    lv_obj_set_style_border_width(list, 0, 0);
-
-    // Helper lambda to create a device row in the picker
-    auto create_device_row = [&](const std::string& device_id, const std::string& display,
-                                 bool is_selected) {
-        const char* attrs[] = {
-            "selected",
-            is_selected ? "true" : "false",
-            nullptr,
-        };
-        lv_obj_t* row = static_cast<lv_obj_t*>(lv_xml_create(list, "picker_option_row", attrs));
-        if (!row) {
-            return;
-        }
-        helix::ui::set_row_label_text(row, "option_label", display.c_str());
-
-        // Store device name for click handler
-        auto* name_copy = new std::string(device_id);
-        lv_obj_set_user_data(row, name_copy);
-
-        // Free heap string when row is deleted
-        lv_obj_add_event_cb(
-            row,
-            [](lv_event_t* ev) { delete static_cast<std::string*>(lv_event_get_user_data(ev)); },
-            LV_EVENT_DELETE, name_copy);
-
-        // Click selects device and dismisses picker
-        lv_obj_add_event_cb(
-            row,
-            [](lv_event_t* ev) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[PowerDeviceWidget] device_row_cb");
-                auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(ev));
-                auto* name_ptr = static_cast<std::string*>(lv_obj_get_user_data(target));
-                if (!name_ptr)
-                    return;
-
-                if (PowerDeviceWidget::s_active_picker_) {
-                    std::string selected = *name_ptr;
-                    PowerDeviceWidget::s_active_picker_->select_device(selected);
-                }
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_CLICKED, nullptr);
-    };
-
-    // "All Devices" option at top of list
-    create_device_row("__all__", lv_tr("All Devices"), device_name_ == "__all__");
-
-    // Individual device entries
-    for (const auto& name : device_names) {
-        std::string display = helix::get_display_name(name, helix::DeviceType::POWER_DEVICE);
-        create_device_row(name, display, name == device_name_);
+void PowerDeviceWidget::DevicePicker::on_created(lv_obj_t* backdrop) {
+    lv_obj_t* device_list = helix::ui::find_required(backdrop, "device_list", "PowerDeviceWidget");
+    lv_obj_t* icon_grid = helix::ui::find_required(backdrop, "icon_grid", "PowerDeviceWidget");
+    if (!device_list || !icon_grid) {
+        return;
     }
 
-    // Vertical divider between columns
-    lv_obj_t* v_divider = lv_obj_create(card);
-    lv_obj_set_width(v_divider, 1);
-    lv_obj_set_height(v_divider, LV_PCT(100));
-    lv_obj_set_style_bg_color(v_divider, theme_manager_get_color("text_muted"), 0);
-    lv_obj_set_style_bg_opa(v_divider, 38, 0);
-    lv_obj_set_style_pad_all(v_divider, 0, 0);
-    lv_obj_set_style_border_width(v_divider, 0, 0);
-    lv_obj_remove_flag(v_divider, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(v_divider, LV_OBJ_FLAG_CLICKABLE);
+    // Cap the list at a share of the screen so a printer with many devices
+    // scrolls the list instead of growing the card past the panel.
+    lv_obj_set_style_max_height(device_list, screen_height_pct(50), 0);
 
-    // === Right column: Icon grid + Sensor ===
-    lv_obj_t* right_col = lv_obj_create(card);
-    lv_obj_set_width(right_col, 1);
-    lv_obj_set_flex_grow(right_col, 4);
-    lv_obj_set_height(right_col, LV_PCT(100));
-    lv_obj_set_flex_flow(right_col, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(right_col, 0, 0);
-    lv_obj_set_style_pad_gap(right_col, space_xs, 0);
-    lv_obj_set_style_bg_opa(right_col, 0, 0);
-    lv_obj_set_style_border_width(right_col, 0, 0);
+    auto pick_device = [](PowerDeviceWidget& w, const std::string& v) { w.select_device(v); };
+    add_row(device_list, "picker_option_row", "option_label", lv_tr("All Devices"), "__all__",
+            owner_.is_all_devices(), pick_device);
 
-    // "Icon" header
-    lv_obj_t* icon_title = lv_label_create(right_col);
-    lv_label_set_text(icon_title, lv_tr("Icon"));
-    lv_obj_set_style_text_font(icon_title, theme_manager_get_font("xs"), 0);
-    lv_obj_set_style_text_color(icon_title, theme_manager_get_color("text_muted"), 0);
-    lv_obj_set_width(icon_title, LV_PCT(100));
+    auto device_names = PowerDeviceState::instance().device_names();
+    std::sort(device_names.begin(), device_names.end());
+    for (const auto& name : device_names) {
+        add_row(device_list, "picker_option_row", "option_label",
+                helix::get_display_name(name, helix::DeviceType::POWER_DEVICE), name,
+                name == owner_.device_name_, pick_device);
+    }
 
-    // Icon grid (wrap flow)
-    lv_obj_t* icon_grid = lv_obj_create(right_col);
-    lv_obj_set_name(icon_grid, "picker_icon_grid");
-    lv_obj_set_width(icon_grid, LV_PCT(100));
-    lv_obj_set_height(icon_grid, LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(icon_grid, LV_FLEX_FLOW_ROW_WRAP);
-    lv_obj_set_flex_align(icon_grid, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_set_style_pad_all(icon_grid, 0, 0);
-    lv_obj_set_style_pad_gap(icon_grid, theme_manager_get_spacing("space_xxs"), 0);
-    lv_obj_set_style_bg_opa(icon_grid, 0, 0);
-    lv_obj_set_style_border_width(icon_grid, 0, 0);
-    lv_obj_remove_flag(icon_grid, LV_OBJ_FLAG_SCROLLABLE);
-
-    std::string effective_icon = icon_name_.empty() ? DEFAULT_ICON : icon_name_;
-
+    std::string effective_icon = owner_.icon_name_.empty() ? DEFAULT_ICON : owner_.icon_name_;
     helix::ui::populate_icon_grid(icon_grid, POWER_ICONS, POWER_ICON_COUNT, effective_icon,
-                                  [](const char* name) {
-                                      if (PowerDeviceWidget::s_active_picker_)
-                                          PowerDeviceWidget::s_active_picker_->select_icon(name);
-                                  });
+                                  [this](const char* name) { owner_.select_icon(name); });
 
-    // === Sensor section (in right column, below icon grid) ===
+    lv_obj_t* sensor_section =
+        helix::ui::find_required(backdrop, "sensor_section", "PowerDeviceWidget");
+    lv_obj_t* sensor_grid = helix::ui::find_required(backdrop, "sensor_grid", "PowerDeviceWidget");
     auto energy_ids = SensorState::instance().energy_sensor_ids();
-    if (!energy_ids.empty()) {
+    if (energy_ids.empty() || !sensor_grid) {
+        // Nothing to choose between, so the section is not built at all.
+        if (sensor_section) {
+            lv_obj_delete(sensor_section);
+        }
+    } else {
         std::sort(energy_ids.begin(), energy_ids.end());
-
-        // "Sensor" header
-        lv_obj_t* sensor_title = lv_label_create(right_col);
-        lv_label_set_text(sensor_title, lv_tr("Sensor"));
-        lv_obj_set_style_text_font(sensor_title, theme_manager_get_font("xs"), 0);
-        lv_obj_set_style_text_color(sensor_title, theme_manager_get_color("text_muted"), 0);
-        lv_obj_set_width(sensor_title, LV_PCT(100));
-
-        // Sensor chip container (wrap flow)
-        lv_obj_t* sensor_grid = lv_obj_create(right_col);
-        lv_obj_set_width(sensor_grid, LV_PCT(100));
-        lv_obj_set_height(sensor_grid, LV_SIZE_CONTENT);
-        lv_obj_set_flex_flow(sensor_grid, LV_FLEX_FLOW_ROW_WRAP);
-        lv_obj_set_flex_align(sensor_grid, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
-                              LV_FLEX_ALIGN_START);
-        lv_obj_set_style_pad_all(sensor_grid, 0, 0);
-        lv_obj_set_style_pad_gap(sensor_grid, space_xs, 0);
-        lv_obj_set_style_bg_opa(sensor_grid, 0, 0);
-        lv_obj_set_style_border_width(sensor_grid, 0, 0);
-        lv_obj_remove_flag(sensor_grid, LV_OBJ_FLAG_SCROLLABLE);
-
-        // Helper to create a sensor chip
-        auto make_chip = [&](const char* label_text, const std::string& sensor_id, bool selected) {
-            const char* attrs[] = {
-                "selected",
-                selected ? "true" : "false",
-                nullptr,
-            };
-            lv_obj_t* chip =
-                static_cast<lv_obj_t*>(lv_xml_create(sensor_grid, "picker_chip", attrs));
-            if (!chip) {
-                return;
-            }
-            helix::ui::set_row_label_text(chip, "chip_label", label_text);
-
-            // Store sensor ID as user_data (heap-allocated string)
-            auto* id_copy = new std::string(sensor_id);
-            lv_obj_set_user_data(chip, id_copy);
-
-            // Free heap string on deletion (L069 pattern)
-            lv_obj_add_event_cb(
-                chip,
-                [](lv_event_t* ev) {
-                    delete static_cast<std::string*>(lv_event_get_user_data(ev));
-                },
-                LV_EVENT_DELETE, id_copy);
-
-            // Click handler
-            lv_obj_add_event_cb(
-                chip,
-                [](lv_event_t* ev) {
-                    LVGL_SAFE_EVENT_CB_BEGIN("[PowerDeviceWidget] sensor_chip_cb");
-                    auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(ev));
-                    auto* id_ptr = static_cast<std::string*>(lv_obj_get_user_data(target));
-                    if (!id_ptr || !PowerDeviceWidget::s_active_picker_)
-                        return;
-
-                    auto* self = PowerDeviceWidget::s_active_picker_;
-                    std::string new_sensor = *id_ptr;
-
-                    // Teardown old carousel, update sensor, setup new one
-                    self->teardown_carousel();
-                    self->sensor_id_ = new_sensor;
-                    self->save_config();
-                    self->setup_carousel();
-                    self->dismiss_device_picker();
-                    LVGL_SAFE_EVENT_CB_END();
-                },
-                LV_EVENT_CLICKED, nullptr);
-        };
-
-        // "None" chip
-        make_chip(lv_tr("None"), "", sensor_id_.empty());
-
-        // One chip per energy sensor
+        auto pick_sensor = [](PowerDeviceWidget& w, const std::string& v) { w.select_sensor(v); };
+        add_row(sensor_grid, "picker_chip", "chip_label", lv_tr("None"), "",
+                owner_.sensor_id_.empty(), pick_sensor);
         for (const auto& sid : energy_ids) {
             auto* info = SensorState::instance().get_sensor_info(sid);
-            std::string label = info ? info->friendly_name : sid;
-            make_chip(label.c_str(), sid, sid == sensor_id_);
+            add_row(sensor_grid, "picker_chip", "chip_label", info ? info->friendly_name : sid, sid,
+                    sid == owner_.sensor_id_, pick_sensor);
         }
-    }
-
-    s_active_picker_ = this;
-
-    // Self-clearing delete callback for parent deletion safety
-    lv_obj_add_event_cb(picker_backdrop_, on_picker_backdrop_deleted, LV_EVENT_DELETE, this);
-
-    // Position card near the widget
-    if (card && widget_obj_) {
-        lv_area_t widget_area;
-        lv_obj_get_coords(widget_obj_, &widget_area);
-
-        int card_x = (widget_area.x1 + widget_area.x2) / 2 - card_w / 2;
-        int card_y = widget_area.y2 + space_xs;
-
-        // Clamp to screen bounds
-        if (card_x < space_md)
-            card_x = space_md;
-        if (card_x + card_w > screen_w - space_md)
-            card_x = screen_w - card_w - space_md;
-
-        int card_max_h = screen_h * 70 / 100;
-        if (card_y + card_max_h > screen_h - space_md) {
-            card_y = widget_area.y1 - card_max_h - space_xs;
-            if (card_y < space_md)
-                card_y = space_md;
-        }
-
-        lv_obj_set_pos(card, card_x, card_y);
     }
 
     spdlog::debug("[PowerDeviceWidget] Picker shown with {} devices", device_names.size());
 }
 
-void PowerDeviceWidget::on_picker_backdrop_deleted(lv_event_t* ev) {
-    auto* self = static_cast<PowerDeviceWidget*>(lv_event_get_user_data(ev));
-    if (!self)
+// DECLARATIVE_OK: the grid cells are created in C++, so their selection border has
+// no XML layer to bind to.
+void PowerDeviceWidget::DevicePicker::refresh_icon_highlights() {
+    lv_obj_t* icon_grid =
+        menu() ? helix::ui::find_required(menu(), "icon_grid", "PowerDeviceWidget") : nullptr;
+    if (!icon_grid) {
         return;
-    self->picker_backdrop_ = nullptr;
-    if (s_active_picker_ == self) {
-        s_active_picker_ = nullptr;
     }
+    helix::ui::refresh_icon_grid(icon_grid,
+                                 owner_.icon_name_.empty() ? DEFAULT_ICON : owner_.icon_name_);
 }
 
-void PowerDeviceWidget::dismiss_device_picker() {
-    if (!picker_backdrop_) {
-        return;
-    }
-
-    lv_obj_t* backdrop = picker_backdrop_;
-    picker_backdrop_ = nullptr;
-    s_active_picker_ = nullptr;
-
-    if (lv_is_initialized() && lv_obj_is_valid(backdrop)) {
-        // safe_delete_deferred() destroys the backdrop after this returns, and
-        // ~PowerDeviceWidget() -> detach() reaches here, so the hook would fire
-        // on a freed `this`. Everything it does - nulling picker_backdrop_ and
-        // s_active_picker_ - has already happened above. It stays installed on
-        // the paths that do NOT come through here: a backdrop killed with its
-        // parent screen still needs to clear both.
-        lv_obj_remove_event_cb_with_user_data(backdrop, on_picker_backdrop_deleted, this);
-        helix::ui::safe_delete_deferred(backdrop);
-    }
-
-    spdlog::debug("[PowerDeviceWidget] Picker dismissed");
+void PowerDeviceWidget::select_sensor(const std::string& sensor_id) {
+    teardown_carousel();
+    sensor_id_ = sensor_id;
+    save_config();
+    setup_carousel();
 }
 
 void PowerDeviceWidget::select_device(const std::string& name) {
     device_name_ = name;
     apply_status_presence();
     save_config();
-    dismiss_device_picker();
 
     // Re-attach to start observing the new device
     if (widget_obj_ && parent_screen_) {
@@ -780,14 +560,7 @@ void PowerDeviceWidget::select_icon(const std::string& name) {
         helix::ui::icon::set_source(icon_obj_, effective);
     }
 
-    // Update icon grid highlights if picker is still open
-    if (picker_backdrop_) {
-        lv_obj_t* icon_grid = lv_obj_find_by_name(picker_backdrop_, "picker_icon_grid");
-        if (icon_grid) {
-            std::string effective_icon = icon_name_.empty() ? DEFAULT_ICON : icon_name_;
-            helix::ui::refresh_icon_grid(icon_grid, effective_icon);
-        }
-    }
+    picker_.refresh_icon_highlights();
 
     spdlog::info("[PowerDeviceWidget] {} selected icon: {}", instance_id_,
                  icon_name_.empty() ? "power_cycle (default)" : icon_name_);
@@ -1018,10 +791,14 @@ void PowerDeviceWidget::setup_carousel() {
     ui_carousel_add_item(carousel_, energy_container);
 
     // Cache label pointers from the energy page XML
-    energy_power_label_ = lv_obj_find_by_name(energy_page_, "energy_power_label");
-    energy_voltage_label_ = lv_obj_find_by_name(energy_page_, "energy_voltage_label");
-    energy_current_label_ = lv_obj_find_by_name(energy_page_, "energy_current_label");
-    energy_energy_label_ = lv_obj_find_by_name(energy_page_, "energy_energy_label");
+    energy_power_label_ =
+        helix::ui::find_required(energy_page_, "energy_power_label", "PowerDeviceWidget");
+    energy_voltage_label_ =
+        helix::ui::find_required(energy_page_, "energy_voltage_label", "PowerDeviceWidget");
+    energy_current_label_ =
+        helix::ui::find_required(energy_page_, "energy_current_label", "PowerDeviceWidget");
+    energy_energy_label_ =
+        helix::ui::find_required(energy_page_, "energy_energy_label", "PowerDeviceWidget");
 
     // Rebuild indicators to show 2 dots
     ui_carousel_rebuild_indicators(carousel_);

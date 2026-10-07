@@ -48,6 +48,8 @@ class ThumbnailSlotPool {
     }
     /// Slots allocated so far, in use or free.
     size_t allocated() const;
+    /// Slots handed out and not yet handed back.
+    size_t in_use() const;
 
   private:
     const size_t slot_bytes_;

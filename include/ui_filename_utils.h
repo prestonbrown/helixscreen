@@ -197,6 +197,18 @@ bool thumbnail_source_describes(const std::string& raw, const std::string& sourc
 bool is_native_3mf_shadow(const std::string& name);
 
 /**
+ * @brief Name of the plate G-code QIDI's Moonraker extracts into `.temp` when a
+ *        `.3mf` print starts: the basename without `.3mf`, with `.gcode` added
+ *        when that leaves no `.gcode` suffix ("Benchy.gcode.3mf" and
+ *        "Benchy.3mf" both give "Benchy.gcode").
+ */
+std::string qidi_3mf_extract_name(const std::string& print_filename);
+
+/// Is the `.temp` entry @p entry the extract of @p print_filename? Compared
+/// case-insensitively.
+bool is_qidi_3mf_extract(const std::string& entry, const std::string& print_filename);
+
+/**
  * @brief Test whether a filename names a `.3mf` project file (case-insensitive).
  *
  * A `.3mf` is a zip archive, not G-code: there are no layers to parse and no

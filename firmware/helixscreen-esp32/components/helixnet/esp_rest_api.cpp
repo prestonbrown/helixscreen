@@ -66,6 +66,7 @@
 
 #include "esp_http_lane.h"
 #include "esp_log.h"
+#include "http_request_epoch.h"
 #include "moonraker_file_transfer_api.h"
 #include "moonraker_rest_api.h"
 #include "moonraker_validation.h"
@@ -154,7 +155,8 @@ MoonrakerFileTransferAPI::~MoonrakerFileTransferAPI() = default;
 void MoonrakerFileTransferAPI::download_file_partial(const std::string& root,
                                                      const std::string& path, size_t max_bytes,
                                                      StringCallback on_success,
-                                                     ErrorCallback on_error) {
+                                                     ErrorCallback on_error, CancelFlag cancelled) {
+    on_success = helix::http_epoch::guard_reply(on_success, on_error, "download_file_partial");
     if (moonraker_internal::reject_invalid_path(path, "download_file_partial", on_error))
         return;
     if (moonraker_internal::reject_invalid_file_root(root, "download_file_partial", on_error))
@@ -179,7 +181,8 @@ void MoonrakerFileTransferAPI::download_file_partial(const std::string& root,
         [on_error](const std::string& message) {
             moonraker_internal::report_error(on_error, MoonrakerErrorType::UNKNOWN,
                                              "download_file_partial", message);
-        });
+        },
+        std::move(cancelled));
 
     if (!queued) {
         moonraker_internal::report_error(on_error, MoonrakerErrorType::QUEUE_FULL,
@@ -198,6 +201,7 @@ void MoonrakerFileTransferAPI::download_file_partial(const std::string& root,
 // a truncated file handed back as the whole thing.
 void MoonrakerFileTransferAPI::download_file(const std::string& root, const std::string& path,
                                              StringCallback on_success, ErrorCallback on_error) {
+    on_success = helix::http_epoch::guard_reply(on_success, on_error, "download_file");
     if (moonraker_internal::reject_invalid_path(path, "download_file", on_error))
         return;
     if (moonraker_internal::reject_invalid_file_root(root, "download_file", on_error))

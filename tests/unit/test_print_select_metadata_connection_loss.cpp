@@ -79,7 +79,7 @@ class CountingTransferAPI : public MoonrakerFileTransferAPI {
         : MoonrakerFileTransferAPI(client, "") {}
 
     void download_file_partial(const std::string&, const std::string&, size_t, StringCallback,
-                               ErrorCallback on_error) override {
+                               ErrorCallback on_error, CancelFlag = nullptr) override {
         ++partial_calls;
         on_error(MoonrakerError::connection_lost("download_file_partial"));
     }

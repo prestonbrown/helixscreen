@@ -905,6 +905,8 @@ class PrintSelectPanel : public PanelBase {
     /// Drops every card thumbnail and the slot pool, and empties the window so
     /// nothing fetches until the cards report one again.
     void release_esp_card_thumbnails();
+    /// Cancels @p f's fetch, if one is queued or downloading.
+    static void cancel_esp_fetch(PrintFileData& f);
 #endif
 
     /// Navigation generation counter: incremented on each directory change.

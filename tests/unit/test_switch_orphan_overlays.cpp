@@ -99,7 +99,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a printer switch frees the orphaned motion 
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_t* reopened = get_global_motion_panel().get_root();
     REQUIRE(reopened != nullptr);
-    CHECK(reopened != orphan);
+    // The orphan was freed exactly once and the reopen did not resurrect it. (Pointer
+    // inequality would be allocator-dependent: a freed address can be reused.)
+    CHECK(deletes == 1);
     REQUIRE(lv_obj_find_by_name(reopened, "jog_pad") != nullptr);
 
     // Leave the process clean for the next test: free the reopened panel and

@@ -14,6 +14,7 @@
 #include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -196,11 +197,11 @@ lv_obj_t* FilamentMappingModal::create_tool_row(int tool_index) {
     }
 
     lv_color_t gcode_color = lv_color_hex(tool.color_rgb);
-    if (auto* expected_swatch = lv_obj_find_by_name(row, "expected_swatch")) {
+    if (auto* expected_swatch = helix::ui::find_required(row, "expected_swatch", get_name())) {
         lv_obj_set_style_bg_color(expected_swatch, gcode_color, 0);
     }
 
-    if (auto* tool_label = lv_obj_find_by_name(row, "tool_label")) {
+    if (auto* tool_label = helix::ui::find_required(row, "tool_label", get_name())) {
         if (tool_info_.size() > 1) {
             lv_label_set_text(tool_label, helix::ui::tool_label(tool.tool_index).c_str());
             lv_obj_set_style_text_color(tool_label,
@@ -211,7 +212,7 @@ lv_obj_t* FilamentMappingModal::create_tool_row(int tool_index) {
         }
     }
 
-    if (auto* mat_label = lv_obj_find_by_name(row, "material_label")) {
+    if (auto* mat_label = helix::ui::find_required(row, "material_label", get_name())) {
         if (!tool.material.empty()) {
             lv_label_set_text(mat_label, tool.material.c_str());
             lv_obj_remove_flag(mat_label, LV_OBJ_FLAG_HIDDEN);
@@ -219,10 +220,10 @@ lv_obj_t* FilamentMappingModal::create_tool_row(int tool_index) {
     }
 
     const auto* mapped = find_mapped_slot(mapping);
-    auto* trigger = lv_obj_find_by_name(row, "trigger");
+    auto* trigger = helix::ui::find_required(row, "trigger", get_name());
     trigger_widgets_[static_cast<size_t>(tool_index)] = trigger;
 
-    if (auto* chosen_swatch = lv_obj_find_by_name(row, "chosen_swatch")) {
+    if (auto* chosen_swatch = helix::ui::find_required(row, "chosen_swatch", get_name())) {
         if (mapped && !mapped->is_empty) {
             helix::ui::apply_swatch_color(chosen_swatch, mapped->color_rgb,
                                           mapped->multi_color_hexes);
@@ -237,19 +238,19 @@ lv_obj_t* FilamentMappingModal::create_tool_row(int tool_index) {
         // Auto/Unmapped (mapped == nullptr) leaves the swatch hidden.
     }
 
-    if (auto* slot_text = lv_obj_find_by_name(row, "slot_text")) {
+    if (auto* slot_text = helix::ui::find_required(row, "slot_text", get_name())) {
         lv_label_set_text(slot_text, get_slot_display_text(mapping).c_str());
     }
 
     bool mapped_to_empty = mapped && mapped->is_empty;
     if (mapping.material_mismatch || mapped_to_empty) {
-        if (auto* warn = lv_obj_find_by_name(row, "trigger_warn")) {
+        if (auto* warn = helix::ui::find_required(row, "trigger_warn", get_name())) {
             lv_obj_remove_flag(warn, LV_OBJ_FLAG_HIDDEN);
         }
     }
 
     if (!auto_color_map_) {
-        if (auto* chevron = lv_obj_find_by_name(row, "trigger_chevron")) {
+        if (auto* chevron = helix::ui::find_required(row, "trigger_chevron", get_name())) {
             lv_obj_remove_flag(chevron, LV_OBJ_FLAG_HIDDEN);
         }
     }

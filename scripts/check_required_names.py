@@ -10,8 +10,9 @@ statically. For each C++ unit (a src/ .cpp plus the header of the same stem
 under include/) it collects:
 
   - the components the unit creates: the component literal passed to
-    lv_xml_create(), create_overlay_from_xml() or create_xml_hidden(), and the literal an
-    xml_component() override returns;
+    lv_xml_create(), create_overlay_from_xml() or create_xml_hidden(), and the literal a
+    component-name override returns (xml_component(), xml_component_name(),
+    get_xml_component_name(), or a modal's component_name());
   - the literal names it passes to find_required() (a non-literal name is left
     to the runtime check).
 
@@ -70,7 +71,9 @@ DECLARATION_TAGS = {"style", "px", "percentage", "const", "color", "string", "pr
                     "image", "images", "fonts", "enumdef", "enum", "gradients", "gradient"}
 
 ANNOTATION_RE = re.compile(r"//\s*required-names:\s*([\w\s]+)")
-XML_COMPONENT_RE = re.compile(r'xml_component\(\)[^{;]*\{\s*return\s+"([\w]+)"\s*;')
+XML_COMPONENT_RE = re.compile(
+    r'\b(?:xml_component|xml_component_name|get_xml_component_name|component_name)\(\)'
+    r'[^{;]*\{\s*return\s+"([\w]+)"\s*;')
 
 
 def call_args(text: str, open_paren: int) -> tuple[list[str], int]:

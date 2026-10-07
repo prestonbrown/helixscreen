@@ -95,6 +95,11 @@ class TemperatureController {
     /// itself, so no two input surfaces can disagree about the ceiling.
     float effective_keypad_max(HeaterType type, float fallback_deg);
 
+    /// Keypad ceiling for a heater named by its Klipper object (e.g. "heater_generic
+    /// filament_dryer"): its configfile max_temp when the printer reported one,
+    /// otherwise @p fallback_deg.
+    float keypad_max_for(const std::string& klipper_name, float fallback_deg) const;
+
     /// Fetch the Klipper configfile max_temp for this heater if not yet known.
     /// No-op if api_ is null or the value is already populated.
     void ensure_limits(HeaterType type);

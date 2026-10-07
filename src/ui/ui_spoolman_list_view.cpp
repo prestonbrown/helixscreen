@@ -8,6 +8,7 @@
 
 #include "format_utils.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -105,14 +106,14 @@ void SpoolmanListView::cleanup() {
 static SpoolmanListView::RowWidgets cache_row_widgets(lv_obj_t* row) {
     SpoolmanListView::RowWidgets rw;
     rw.root = row;
-    rw.canvas = lv_obj_find_by_name(row, "spool_canvas");
-    rw.id_label = lv_obj_find_by_name(row, "spool_id_label");
-    rw.name_label = lv_obj_find_by_name(row, "spool_name");
-    rw.vendor_label = lv_obj_find_by_name(row, "spool_vendor");
-    rw.weight_label = lv_obj_find_by_name(row, "weight_text");
-    rw.percent_label = lv_obj_find_by_name(row, "percent_text");
-    rw.low_stock_icon = lv_obj_find_by_name(row, "low_stock_indicator");
-    rw.active_indicator = lv_obj_find_by_name(row, "active_indicator");
+    rw.canvas = helix::ui::find_required(row, "spool_canvas", "SpoolmanListView");
+    rw.id_label = helix::ui::find_required(row, "spool_id_label", "SpoolmanListView");
+    rw.name_label = helix::ui::find_required(row, "spool_name", "SpoolmanListView");
+    rw.vendor_label = helix::ui::find_required(row, "spool_vendor", "SpoolmanListView");
+    rw.weight_label = helix::ui::find_required(row, "weight_text", "SpoolmanListView");
+    rw.percent_label = helix::ui::find_required(row, "percent_text", "SpoolmanListView");
+    rw.low_stock_icon = helix::ui::find_required(row, "low_stock_indicator", "SpoolmanListView");
+    rw.active_indicator = helix::ui::find_required(row, "active_indicator", "SpoolmanListView");
     return rw;
 }
 
@@ -360,29 +361,13 @@ void SpoolmanListView::update_visible(const std::vector<SpoolInfo>& spools, int 
     sync_list_spacers(container_, leading_spacer_, trailing_spacer_, win, last_leading_height_,
                       last_trailing_height_);
 
-    // Assign pool rows to visible indices, skipping rows that already show correct data
-    size_t pool_idx = 0;
-    for (int spool_idx = first_visible; spool_idx < last_visible && pool_idx < pool_.size();
-         spool_idx++, pool_idx++) {
-        auto& rw = pool_[pool_idx];
-
-        if (data_changed || pool_indices_[pool_idx] != spool_idx) {
-            configure_row(rw, spools[spool_idx], active_spool_id);
-            pool_indices_[pool_idx] = spool_idx;
-        }
-
-        // Ensure row is in correct position (guard to avoid redundant relayout)
-        int target_index = static_cast<int>(pool_idx) + 1;
-        if (lv_obj_get_index(rw.root) != target_index) {
-            lv_obj_move_to_index(rw.root, target_index);
-        }
-    }
-
-    // Hide unused pool rows
-    for (; pool_idx < pool_.size(); pool_idx++) {
-        lv_obj_add_flag(pool_[pool_idx].root, LV_OBJ_FLAG_HIDDEN);
-        pool_indices_[pool_idx] = -1;
-    }
+    show_window(
+        container_, pool_indices_, first_visible, last_visible, data_changed,
+        [this](size_t slot) { return pool_[slot].root; },
+        [&](size_t slot, ssize_t spool_idx) {
+            configure_row(pool_[slot], spools[static_cast<size_t>(spool_idx)], active_spool_id);
+        },
+        [this](size_t slot) { lv_obj_add_flag(pool_[slot].root, LV_OBJ_FLAG_HIDDEN); });
 
     spdlog::debug("[SpoolmanListView] Spacers: leading={}px trailing={}px, visible rows={}, "
                   "container content_h={} child_count={}",

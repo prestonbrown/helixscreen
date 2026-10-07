@@ -65,6 +65,17 @@ class AmsStateTestAccess {
         ams.sync_clog_meter_from_info(info);
     }
 
+    /// Drive the buffer reading sync with a hand-built AmsSystemInfo at a
+    /// chosen time, so trace tests need neither a backend nor a clock.
+    static void sync_buffer(AmsState& ams, const AmsSystemInfo& info, int64_t now_ms) {
+        ams.sync_buffer_from_info(info, now_ms);
+    }
+
+    /// Drop every buffer trace, which outlive a test on the singleton.
+    static void clear_buffer_traces(AmsState& ams) {
+        ams.buffer_traces_.clear();
+    }
+
     /// Return the action subject to IDLE. A test that ends mid-operation leaves
     /// LOADING/UNLOADING/SELECTING standing, which reads as "filament is moving"
     /// to every later test that asks is_filament_operation_active().

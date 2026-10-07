@@ -43,6 +43,19 @@ namespace helix::ui {
 void show_change_host_modal(std::function<void(bool changed)> extra_on_complete = nullptr);
 
 /**
+ * @brief Show the same modal for adding a printer
+ *
+ * Starts from an empty host and writes nothing to the active printer's config: Save hands
+ * the tested host and port to `on_add`, deferred past the modal's exit. Leaving any other way
+ * reconnects the saved printer if Test Connection moved the client.
+ */
+void show_add_printer_modal(std::function<void(const std::string& host, int port)> on_add);
+
+/// A printer chooser closed on a selection: the prompt it was holding belongs to the
+/// connection the user just moved away from, so it is dropped rather than shown.
+void drop_held_connection_failed();
+
+/**
  * @brief Prompt that the printer is unreachable, offering to fix the address
  *
  * Replaces an OK-only error modal for CONNECTION_FAILED: on a stale address,
@@ -62,6 +75,7 @@ void show_connection_failed_modal(const std::string& title, const std::string& m
 class ChangeHostModal : public Modal {
   public:
     using CompletionCallback = std::function<void(bool changed)>;
+    using AddCallback = std::function<void(const std::string& host, int port)>;
 
     ChangeHostModal();
     ~ChangeHostModal() override;
@@ -75,7 +89,8 @@ class ChangeHostModal : public Modal {
      * @param parent Parent screen for the modal
      * @return true if modal was created successfully
      */
-    bool show_modal(lv_obj_t* parent);
+    /// With `on_add` set the modal adds a printer instead of changing the active one's host.
+    bool show_modal(lv_obj_t* parent, AddCallback on_add = nullptr);
 
     /**
      * @brief Set callback for when modal closes
@@ -102,13 +117,20 @@ class ChangeHostModal : public Modal {
     lv_subject_t host_port_subject_{};
     lv_subject_t testing_subject_{};
     lv_subject_t validated_subject_{};
+    lv_subject_t adding_subject_{};
+    /// Save is held disabled: changing a host needs a passed test, adding one does not.
+    lv_subject_t save_locked_subject_{};
 
     char host_ip_buf_[256] = {0};
     char host_port_buf_[8] = {0};
     bool subjects_initialized_ = false;
 
+    /// Test Connection moved the live client to the typed host.
+    bool client_borrowed_ = false;
+
     // === Completion callback ===
     CompletionCallback completion_callback_;
+    AddCallback add_callback_;
 
     // === Input change observers (reset validation on edit) ===
     ObserverGuard host_ip_observer_;
@@ -119,8 +141,12 @@ class ChangeHostModal : public Modal {
     void deinit_subjects();
     void handle_test_connection();
     void handle_save();
+    void update_save_lock();
+    void commit_add(const std::string& host, int port);
     void handle_cancel();
     void set_status(const char* icon_name, const char* color_token, const char* text);
+    /// Shows the reason and returns false when the host or port cannot be used.
+    bool input_valid(const char* ip, const std::string& port_clean);
     void on_test_success();
     void on_test_failure();
     static void on_input_changed_cb(lv_observer_t* observer, lv_subject_t* subject);

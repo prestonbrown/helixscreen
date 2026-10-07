@@ -17,6 +17,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/abort_manager_test_access.h"
 #include "../test_helpers/afc_test_access.h"
+#include "../test_helpers/moonraker_manager_test_access.h"
 #include "../test_helpers/moonraker_request_tracker_test_access.h"
 #include "../test_helpers/scoped_language.h"
 #include "../ui_test_utils.h"
@@ -216,15 +217,6 @@ TEST_CASE("MoonrakerEvent::render tolerates a translation's placeholder count",
     CHECK(evt.render("{} {} {}") == "G28 5000 {}");
     CHECK(evt.render("{ not a placeholder }") == "{ not a placeholder }");
 }
-
-namespace helix {
-class MoonrakerManagerTestAccess {
-  public:
-    static void present_event(MoonrakerManager& mgr, const MoonrakerEvent& evt) {
-        mgr.present_event(evt);
-    }
-};
-} // namespace helix
 
 TEST_CASE_METHOD(LVGLTestFixture, "MoonrakerManager presents an event in the active language",
                  "[api-error-i18n][i18n]") {

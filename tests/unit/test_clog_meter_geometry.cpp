@@ -14,6 +14,9 @@
 
 #include "clog_meter_geometry.h"
 
+#include <cmath>
+#include <string>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::ui;
@@ -301,4 +304,47 @@ TEST_CASE("clog_bar_geometry: out-of-range values are clamped, not wrapped", "[c
 
     auto silly_danger = clog_bar_geometry(kMode_Encoder, 50, /*danger=*/900, 0, kTrack);
     CHECK(silly_danger.danger_hi_w == 0); // shading collapses, it does not invert
+}
+
+// ===========================================================================
+// Buffer reading bands
+// ===========================================================================
+
+TEST_CASE("pressure_status: the bands, by magnitude", "[clog][status][pressure]") {
+    CHECK(pressure_status(0) == ClogMeterStatus::Ok);
+    CHECK(pressure_status(kPressureWarningPct - 1) == ClogMeterStatus::Ok);
+    CHECK(pressure_status(kPressureWarningPct) == ClogMeterStatus::Warning);
+    CHECK(pressure_status(-kPressureWarningPct) == ClogMeterStatus::Warning);
+    CHECK(pressure_status(kPressureFaultPct - 1) == ClogMeterStatus::Warning);
+    CHECK(pressure_status(kPressureFaultPct) == ClogMeterStatus::Fault);
+    CHECK(pressure_status(-100) == ClogMeterStatus::Fault);
+}
+
+TEST_CASE("pressure_status_of_bias: the bands at their edges", "[clog][status][pressure]") {
+    CHECK(pressure_status_of_bias(-0.71f) == ClogMeterStatus::Fault);
+    CHECK(pressure_status_of_bias(-0.70f) == ClogMeterStatus::Fault);
+    CHECK(pressure_status_of_bias(-0.30f) == ClogMeterStatus::Warning);
+    CHECK(pressure_status_of_bias(-0.29f) == ClogMeterStatus::Ok);
+    CHECK(pressure_status_of_bias(0.0f) == ClogMeterStatus::Ok);
+    CHECK(pressure_status_of_bias(0.29f) == ClogMeterStatus::Ok);
+    CHECK(pressure_status_of_bias(0.30f) == ClogMeterStatus::Warning);
+    CHECK(pressure_status_of_bias(0.70f) == ClogMeterStatus::Fault);
+    CHECK(pressure_status_of_bias(5.0f) == ClogMeterStatus::Fault);
+    CHECK(pressure_status_of_bias(std::nanf("")) == ClogMeterStatus::Ok);
+}
+
+TEST_CASE("buffer_lean: tension is tight, compression loose, a deadband between",
+          "[clog][pressure]") {
+    CHECK(buffer_lean(0.0f) == BufferLean::Balanced);
+    CHECK(buffer_lean(-0.019f) == BufferLean::Balanced);
+    CHECK(buffer_lean(0.019f) == BufferLean::Balanced);
+    CHECK(buffer_lean(-0.3f) == BufferLean::Tight);
+    CHECK(buffer_lean(0.15f) == BufferLean::Loose);
+}
+
+TEST_CASE("buffer_status_token: neutral on target, warning off it, danger at an end stop",
+          "[clog][status][buffer]") {
+    CHECK(std::string(buffer_status_token(ClogMeterStatus::Ok)) == "text_muted");
+    CHECK(std::string(buffer_status_token(ClogMeterStatus::Warning)) == "warning");
+    CHECK(std::string(buffer_status_token(ClogMeterStatus::Fault)) == "danger");
 }

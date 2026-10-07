@@ -584,6 +584,39 @@ double mock_heater_duty(double temperature, double target) {
 }
 } // namespace
 
+void MoonrakerClientMock::append_aux_heater_status(json& status_obj, double dt) {
+    constexpr double AMBIENT = 25.0;
+    constexpr double RATE_C_PER_S = 1.0;
+    // The parsed hardware, not the persona's heater list: HELIX_MOCK_OBJECTS
+    // heaters reach only the former.
+    const std::vector<std::string> heaters = discovery_.hardware().heaters();
+    const std::string chamber_key = chamber_heater_status_key();
+    std::lock_guard<std::mutex> lock(aux_heaters_mutex_);
+    for (const auto& name : heaters) {
+        if (name.rfind("heater_generic ", 0) != 0 || name == chamber_key)
+            continue;
+        auto& [temp, target] = aux_heaters_.try_emplace(name, AMBIENT, 0.0).first->second;
+        const double goal = target > 0.0 ? target : AMBIENT;
+        const double step = RATE_C_PER_S * dt;
+        temp = temp < goal ? std::min(goal, temp + step) : std::max(goal, temp - step);
+        status_obj[name] = {
+            {"temperature", temp}, {"target", target}, {"power", mock_heater_duty(temp, target)}};
+    }
+}
+
+bool MoonrakerClientMock::set_aux_heater_target(const std::string& bare_name, double target) {
+    const std::string name = "heater_generic " + bare_name;
+    // The parsed hardware, not the persona's heater list: HELIX_MOCK_OBJECTS
+    // heaters reach only the former.
+    const std::vector<std::string> heaters = discovery_.hardware().heaters();
+    if (name == chamber_heater_status_key() ||
+        std::find(heaters.begin(), heaters.end(), name) == heaters.end())
+        return false;
+    std::lock_guard<std::mutex> lock(aux_heaters_mutex_);
+    aux_heaters_.try_emplace(name, 25.0, 0.0).first->second.second = target;
+    return true;
+}
+
 void MoonrakerClientMock::append_chamber_backend_status(json& status_obj, double sim_time,
                                                         const json* requested) const {
     const auto hw = discovery_.hardware();
@@ -3582,6 +3615,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
     // merge above (the LED loop only walks profile LEDs in discovery_.leds(),
     // which never contains env-materialized pins).
     append_chamber_backend_status(initial_status, 0.0);
+    append_aux_heater_status(initial_status, 0.0);
 
     spdlog::debug("[MoonrakerClientMock] Dispatching initial state: extruder={}/{}°C, bed={}/{}°C, "
                   "homed_axes='{}', leds={}, filament_sensors={}",
@@ -4574,6 +4608,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
         // Chamber backend diagnostics + filter pin (e.g. dragonbreath trio via
         // HELIX_MOCK_OBJECTS) — drifts with the chamber sim like the sensors above.
         append_chamber_backend_status(status_obj, sim_time);
+        append_aux_heater_status(status_obj, effective_dt);
 
         json notification = {{"method", "notify_status_update"},
                              {"params", json::array({status_obj, tick * base_dt})}};

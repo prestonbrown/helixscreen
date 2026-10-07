@@ -479,8 +479,9 @@ else
     ENABLE_MOCKS ?= yes
 endif
 
-# PWM sysfs buzzer backend — ad5m/ad5m-br probe it, Pi builds carry it for
-# HELIX_PWM_SOUND=<chip>:<channel> (a buzzer the user wired to a PWM pin).
+# PWM sysfs buzzer backend — ad5m/ad5m-br probe it; the generic SBC builds
+# (pi, pi32, x86, yocto, native) carry it for a sound.pwm_channel setting, a
+# buzzer the user wired to any board's hardware PWM pin.
 #
 # The backend's own runtime probe is just "does /sys/class/pwm/pwmchip0 exist",
 # which is true on boards whose PWM controller drives something else entirely: a
@@ -493,7 +494,7 @@ endif
 # Decided HERE, above APP_OBJS, and not down in the sound-flags section: APP_OBJS
 # is computed from APP_SRCS a few lines below, so a filter-out placed after it is
 # a silent no-op that still compiles and still links the backend.
-ifneq (,$(filter ad5m ad5m-br pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both,$(PLATFORM_TARGET)))
+ifneq (,$(filter ad5m ad5m-br pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both yocto native,$(PLATFORM_TARGET)))
     PWM_SOUND_CXXFLAGS := -DHELIX_HAS_PWM_SOUND
     # Auto-export: the stock AD5M kernel ships the beeper channel unexported
     # and nothing materializes pwm6, so initialize() writes the channel to

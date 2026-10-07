@@ -14,9 +14,10 @@
 
 #pragma once
 
+#include "ui_event_safety.h"
+
 #include "lvgl/lvgl.h"
 #include "text_io.h"
-#include "ui/ui_event_trampoline.h"
 
 #include <spdlog/spdlog.h>
 
@@ -74,10 +75,7 @@ struct XmlCallbackEntry {
         static std::optional<F> s_fn;
         s_name = n;
         s_fn.emplace(f);
-        return [](lv_event_t* e) {
-            HELIX_TRAMPOLINE_GUARD_BEGIN (*s_fn)(e);
-            HELIX_TRAMPOLINE_GUARD_END_NAMED(s_name)
-        };
+        return [](lv_event_t* e) { helix::ui::event_safe_call(s_name, [e] { (*s_fn)(e); }); };
     }
 };
 

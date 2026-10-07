@@ -201,13 +201,10 @@ static uint64_t s_cyc_px;
 static int64_t s_cyc_t0_us;
 #define CYCLE_LOG_MS 100
 
-static void flush_cb(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
-    // Stage this chunk into the PSRAM shadow at its screen offset (internal
-    // partial buffer -> PSRAM, row by row: the chunk is w*h tightly packed, the
-    // shadow is full-width). Then extend the cycle's dirty union and return —
-    // LVGL is free to reuse px_map immediately.
-    int32_t w = area->x2 - area->x1 + 1;
-    int32_t h = area->y2 - area->y1 + 1;
+// Adds shadow rows [y1, y2] to the refresh cycle in progress, which is
+// presented as one band once its last chunk lands. The cycle's first rows take
+// the shadow from the presenter until then.
+static void cycle_add_rows(int32_t y1, int32_t y2) {
     if (!s_cur_valid) {
         int64_t w0 = esp_timer_get_time();
         if (xSemaphoreTake(s_shadow_lock, 0) == pdTRUE) {
@@ -220,7 +217,32 @@ static void flush_cb(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map)
             if (!s_writer_holds)
                 s_tears++;
         }
+        s_cur_y1 = y1;
+        s_cur_y2 = y2;
+        s_cur_valid = true;
+    } else {
+        if (y1 < s_cur_y1)
+            s_cur_y1 = y1;
+        if (y2 > s_cur_y2)
+            s_cur_y2 = y2;
     }
+}
+
+// A scroll blit moves pixels inside the shadow as LVGL starts drawing the
+// strip it exposed, so the move joins that cycle and is presented with it.
+static bool scroll_claim_rows(int32_t y1, int32_t y2) {
+    cycle_add_rows(y1, y2);
+    return s_writer_holds;
+}
+
+static void flush_cb(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
+    // Stage this chunk into the PSRAM shadow at its screen offset (internal
+    // partial buffer -> PSRAM, row by row: the chunk is w*h tightly packed, the
+    // shadow is full-width). Then extend the cycle's dirty union and return —
+    // LVGL is free to reuse px_map immediately.
+    int32_t w = area->x2 - area->x1 + 1;
+    int32_t h = area->y2 - area->y1 + 1;
+    cycle_add_rows(area->y1, area->y2);
     if (s_cyc_chunks == 0) {
         s_cyc_t0_us = esp_timer_get_time();
     }
@@ -231,17 +253,6 @@ static void flush_cb(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map)
         uint8_t* dst = s_shadow + (size_t)(area->y1 + r) * FB_STRIDE + (size_t)area->x1 * FB_BPP;
         const uint8_t* src = px_map + (size_t)r * row_bytes;
         memcpy(dst, src, row_bytes);
-    }
-
-    if (!s_cur_valid) {
-        s_cur_y1 = area->y1;
-        s_cur_y2 = area->y2;
-        s_cur_valid = true;
-    } else {
-        if (area->y1 < s_cur_y1)
-            s_cur_y1 = area->y1;
-        if (area->y2 > s_cur_y2)
-            s_cur_y2 = area->y2;
     }
 
     if (lv_display_flush_is_last(disp)) {
@@ -518,6 +529,11 @@ static void* ui_thread_main(void* arg) {
     // layer here, which runs before s_ui_build() below, so app_boot_ui() can
     // enqueue the user-visible warning before it drains the warning queue.
     app_boot_set_touch_available(touch_input_init());
+
+    // Scrolls move the shadow's pixels and render only what scrolled in. The
+    // copy runs row to row: the band is the presenter's, whose fallback copy
+    // can run while a timed-out writer still holds rows.
+    app_boot_set_retained_frame(s_shadow, FB_STRIDE, NULL, 0, scroll_claim_rows);
 
     // Presenter task — the only writer of the panel FB.
     if (xTaskCreate(present_task, "present", PRESENT_STACK_BYTES, NULL, PRESENT_TASK_PRIO, NULL) !=

@@ -151,12 +151,6 @@ void on_chip_bed_mesh_clicked(lv_event_t*) {
     get_global_bed_mesh_panel().show(lv_display_get_screen_active(nullptr));
 }
 
-void on_chip_leds_clicked(lv_event_t*) {
-    spdlog::debug("[Printer Manager] LEDs chip clicked");
-    auto& overlay = helix::settings::get_led_settings_overlay();
-    overlay.show(lv_display_get_screen_active(nullptr));
-}
-
 void on_chip_adxl_clicked(lv_event_t*) {
     spdlog::debug("[Printer Manager] ADXL chip clicked");
 #if defined(HELIX_PLATFORM_ESP32)
@@ -164,21 +158,6 @@ void on_chip_adxl_clicked(lv_event_t*) {
     return;
 #endif
     get_global_input_shaper_panel().show(lv_display_get_screen_active(nullptr));
-}
-
-void on_chip_retraction_clicked(lv_event_t*) {
-    spdlog::debug("[Printer Manager] Retraction chip clicked");
-    get_global_retraction_settings().show(lv_display_get_screen_active(nullptr));
-}
-
-void on_chip_spoolman_clicked(lv_event_t*) {
-    spdlog::debug("[Printer Manager] Spoolman chip clicked");
-    get_global_spoolman_panel().show(lv_display_get_screen_active(nullptr));
-}
-
-void on_chip_timelapse_clicked(lv_event_t*) {
-    spdlog::debug("[Printer Manager] Timelapse chip clicked");
-    get_global_timelapse_settings().show(lv_display_get_screen_active(nullptr));
 }
 
 void on_chip_screws_tilt_clicked(lv_event_t*) {
@@ -210,12 +189,6 @@ void on_chip_ams_clicked(lv_event_t*) {
     }
 }
 
-void on_chip_fans_clicked(lv_event_t*) {
-    spdlog::debug("[Printer Manager] Fans chip clicked");
-
-    helix::open_fan_control_overlay(lv_display_get_screen_active(nullptr));
-}
-
 void on_chip_power_clicked(lv_event_t*) {
     spdlog::debug("[Printer Manager] Power Devices chip clicked");
     auto& panel = get_global_power_panel();
@@ -223,12 +196,6 @@ void on_chip_power_clicked(lv_event_t*) {
     if (overlay) {
         helix::nav::push_overlay(overlay);
     }
-}
-
-void on_chip_speaker_clicked(lv_event_t*) {
-    spdlog::debug("[Printer Manager] Speaker chip clicked");
-    auto& overlay = helix::settings::get_sound_settings_overlay();
-    overlay.show(lv_display_get_screen_active(nullptr));
 }
 
 } // namespace
@@ -240,16 +207,42 @@ void on_chip_speaker_clicked(lv_event_t*) {
 void PrinterManagerOverlay::register_callbacks() {
     register_xml_callbacks({
         {"pm_chip_bed_mesh_clicked", on_chip_bed_mesh_clicked},
-        {"pm_chip_leds_clicked", on_chip_leds_clicked},
+        {"pm_chip_leds_clicked",
+         [](lv_event_t*) {
+             spdlog::debug("[Printer Manager] LEDs chip clicked");
+             auto& overlay = helix::settings::get_led_settings_overlay();
+             overlay.show(lv_display_get_screen_active(nullptr));
+         }},
         {"pm_chip_adxl_clicked", on_chip_adxl_clicked},
-        {"pm_chip_retraction_clicked", on_chip_retraction_clicked},
-        {"pm_chip_spoolman_clicked", on_chip_spoolman_clicked},
-        {"pm_chip_timelapse_clicked", on_chip_timelapse_clicked},
+        {"pm_chip_retraction_clicked",
+         [](lv_event_t*) {
+             spdlog::debug("[Printer Manager] Retraction chip clicked");
+             get_global_retraction_settings().show(lv_display_get_screen_active(nullptr));
+         }},
+        {"pm_chip_spoolman_clicked",
+         [](lv_event_t*) {
+             spdlog::debug("[Printer Manager] Spoolman chip clicked");
+             get_global_spoolman_panel().show(lv_display_get_screen_active(nullptr));
+         }},
+        {"pm_chip_timelapse_clicked",
+         [](lv_event_t*) {
+             spdlog::debug("[Printer Manager] Timelapse chip clicked");
+             get_global_timelapse_settings().show(lv_display_get_screen_active(nullptr));
+         }},
         {"pm_chip_screws_tilt_clicked", on_chip_screws_tilt_clicked},
         {"pm_chip_ams_clicked", on_chip_ams_clicked},
-        {"pm_chip_fans_clicked", on_chip_fans_clicked},
+        {"pm_chip_fans_clicked",
+         [](lv_event_t*) {
+             spdlog::debug("[Printer Manager] Fans chip clicked");
+             helix::open_fan_control_overlay(lv_display_get_screen_active(nullptr));
+         }},
         {"pm_chip_power_clicked", on_chip_power_clicked},
-        {"pm_chip_speaker_clicked", on_chip_speaker_clicked},
+        {"pm_chip_speaker_clicked",
+         [](lv_event_t*) {
+             spdlog::debug("[Printer Manager] Speaker chip clicked");
+             auto& overlay = helix::settings::get_sound_settings_overlay();
+             overlay.show(lv_display_get_screen_active(nullptr));
+         }},
         {"pm_printer_name_clicked",
          [](lv_event_t*) { get_printer_manager_overlay().start_name_edit(); }},
         {"on_change_printer_image_clicked",

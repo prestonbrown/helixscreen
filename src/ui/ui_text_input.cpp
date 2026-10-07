@@ -9,7 +9,8 @@
  * similar to how lv_label has lv_label_bind_text(). LVGL's native textarea
  * doesn't support XML binding, so we implement it here using the observer pattern.
  *
- * Also supports keyboard_hint attribute and optional Android-style clear button.
+ * Also supports keyboard_hint attribute, optional Android-style clear button, and
+ * an optional muted suffix (a unit such as "°C") shown inside the field's right end.
  */
 
 #include "ui_text_input.h"
@@ -43,6 +44,8 @@ static constexpr uintptr_t TEXT_INPUT_HINT_MASK = 0x0000000F;
 
 // Size of the clear button icon (matches mdi_icons_24 font)
 static constexpr int32_t CLEAR_BTN_SIZE = 24;
+// Right padding the clear button adds to the textarea for itself.
+static constexpr int32_t CLEAR_BTN_EXTRA_PAD = CLEAR_BTN_SIZE + 4;
 
 // ============================================================================
 // Observer / Binding Callbacks
@@ -193,7 +196,7 @@ static lv_obj_t* create_clear_button(lv_obj_t* textarea) {
 
     // Add right padding to textarea so text doesn't overlap the button
     int32_t original_pad = lv_obj_get_style_pad_right(textarea, LV_PART_MAIN);
-    int32_t extra_pad = CLEAR_BTN_SIZE + 4;
+    int32_t extra_pad = CLEAR_BTN_EXTRA_PAD;
     lv_obj_set_style_pad_right(textarea, original_pad + extra_pad, 0);
 
     // Alignment is relative to the content area (inside padding).
@@ -205,6 +208,64 @@ static lv_obj_t* create_clear_button(lv_obj_t* textarea) {
 
     spdlog::trace("[text_input] Created clear button");
     return btn;
+}
+
+// ============================================================================
+// Suffix Support
+// ============================================================================
+
+/**
+ * Lay out the suffix inside the textarea's right padding, between the text and
+ * the clear button when there is one. Suffixes differ in width ("°C", "mm/s"),
+ * so the padding follows the label's measured width; an empty suffix reserves
+ * nothing.
+ *
+ * The suffix label's user_data holds the textarea's right padding as it was
+ * before the suffix existed (clear-button reserve included).
+ */
+static void layout_suffix(lv_obj_t* suffix) {
+    lv_obj_t* textarea = lv_obj_get_parent(suffix);
+    if (!textarea) {
+        return;
+    }
+    const auto base_pad =
+        static_cast<int32_t>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(suffix)));
+    const char* text = lv_label_get_text(suffix);
+    const bool has_suffix = text && text[0] != '\0';
+    const int32_t reserve =
+        has_suffix ? lv_obj_get_width(suffix) + theme_manager_get_spacing("space_xs") : 0;
+
+    if (lv_obj_get_style_pad_right(textarea, LV_PART_MAIN) != base_pad + reserve) {
+        lv_obj_set_style_pad_right(textarea, base_pad + reserve, LV_PART_MAIN);
+    }
+    // Alignment is relative to the content area, so both float back out into the padding.
+    lv_obj_align(suffix, LV_ALIGN_RIGHT_MID, reserve, 0);
+    if (lv_obj_t* clear_btn = find_clear_btn(textarea)) {
+        lv_obj_align(clear_btn, LV_ALIGN_RIGHT_MID, CLEAR_BTN_EXTRA_PAD + reserve, 0);
+    }
+}
+
+/// The label's width is only known after a layout pass, which is also when it changes.
+static void suffix_size_changed_cb(lv_event_t* e) {
+    layout_suffix(lv_event_get_target_obj(e));
+}
+
+/**
+ * Create the suffix label as a floating, muted child of the textarea.
+ */
+static lv_obj_t* create_suffix(lv_obj_t* textarea) {
+    lv_obj_t* suffix = lv_label_create(textarea);
+    lv_obj_set_name(suffix, "text_input_suffix");
+    lv_label_set_text(suffix, "");
+    lv_obj_set_style_text_font(suffix, theme_manager_get_font("font_body"), LV_PART_MAIN);
+    lv_obj_add_style(suffix, ThemeManager::instance().get_style(StyleRole::TextMuted),
+                     LV_PART_MAIN);
+    lv_obj_add_flag(suffix, LV_OBJ_FLAG_FLOATING);
+    lv_obj_remove_flag(suffix, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_user_data(suffix, reinterpret_cast<void*>(static_cast<intptr_t>(
+                                     lv_obj_get_style_pad_right(textarea, LV_PART_MAIN))));
+    lv_obj_add_event_cb(suffix, suffix_size_changed_cb, LV_EVENT_SIZE_CHANGED, nullptr);
+    return suffix;
 }
 
 // ============================================================================
@@ -285,9 +346,11 @@ static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs
     // Apply standard textarea properties (handles height, width, etc.)
     lv_xml_textarea_apply(state, attrs);
 
-    // Track clear button settings from attrs
+    // Track clear button and suffix settings from attrs
     bool show_clear = false;
     const char* clear_callback_name = nullptr;
+    const char* suffix_text = nullptr;
+    lv_subject_t* suffix_subject = nullptr;
 
     // Then handle our custom attributes
     for (int i = 0; attrs[i]; i += 2) {
@@ -336,6 +399,13 @@ static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs
             show_clear = lv_streq("true", value);
         } else if (lv_streq("clear_callback", name)) {
             clear_callback_name = value;
+        } else if (lv_streq("suffix", name)) {
+            suffix_text = value;
+        } else if (lv_streq("bind_suffix", name)) {
+            suffix_subject = lv_xml_get_subject(&state->scope, value);
+            if (suffix_subject == nullptr) {
+                spdlog::warn("[text_input] Subject '{}' not found for bind_suffix", value);
+            }
         }
     }
 
@@ -355,6 +425,16 @@ static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs
 
         // Add value_changed handler to toggle clear button visibility
         lv_obj_add_event_cb(textarea, clear_btn_value_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+    }
+
+    // After the clear button, so the suffix's base padding includes its reserve.
+    if (suffix_text || suffix_subject) {
+        lv_obj_t* suffix = create_suffix(textarea);
+        if (suffix_subject) {
+            lv_label_bind_text(suffix, suffix_subject, nullptr);
+        } else {
+            lv_label_set_text(suffix, suffix_text);
+        }
     }
 }
 

@@ -265,8 +265,6 @@ class HomePanel : public PanelBase {
     static void on_home_grid_released(lv_event_t* e);
     /// PRESS_LOST and INDEV_RESET: LVGL took a press away without a RELEASED.
     static void on_home_grid_press_cancelled(lv_event_t* e);
-    /// The + on the next-page slot, from the slot component's XML event_cb.
-    static void on_add_page_clicked(lv_event_t* e);
 
     /// Guards the carousel rebuilds this panel runs on the next tick. Declared
     /// last, so it expires before any other member is destroyed.

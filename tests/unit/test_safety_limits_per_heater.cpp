@@ -429,3 +429,18 @@ TEST_CASE_METHOD(KeypadCeilingFixture,
     // Still un-initialized, still intact: the update never ran.
     REQUIRE_FALSE(panel->are_subjects_initialized());
 }
+
+TEST_CASE("The parse records a temperature_fan's own max_temp", "[safety_limits][heater_generic]") {
+    // A temperature_fan target is settable from the thermistor tile, whose keypad
+    // ceiling is this per-object max_temp.
+    ParseFixture f;
+    f.mock_client_.set_config_settings_section("temperature_fan exhaust", {{"max_temp", 70.0}});
+    f.mock_client_.set_config_settings_section("heater_generic filament_dryer",
+                                               {{"max_temp", 90.0}});
+    REQUIRE(f.run_update());
+
+    const SafetyLimits& limits = f.api_->get_safety_limits();
+    REQUIRE(limits.has_max_temp_for("temperature_fan exhaust"));
+    REQUIRE(limits.max_temp_for("temperature_fan exhaust") == 70.0);
+    REQUIRE(limits.max_temp_for("heater_generic filament_dryer") == 90.0);
+}

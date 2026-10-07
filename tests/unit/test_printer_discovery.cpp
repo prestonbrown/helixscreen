@@ -1409,6 +1409,29 @@ TEST_CASE("PrinterDiscovery chamber-keyword scoring prefers 'chamber' over 'box'
         // chamber (conf 100) > enclosure (conf 90)
         REQUIRE(hw.chamber_sensor_name() == "temperature_sensor chamber");
     }
+
+    SECTION("QIDI Box dryer heaters are never the chamber heater") {
+        json objects = {"box_stepper slot0",
+                        "box_stepper slot1",
+                        "heater_generic heater_box1",
+                        "aht20_f heater_box1",
+                        "heater_generic heater_box2",
+                        "aht20_f heater_box2",
+                        "heater_bed",
+                        "extruder"};
+        hw.parse_objects(objects);
+
+        REQUIRE_FALSE(hw.has_chamber_heater());
+        REQUIRE(hw.chamber_heater_name().empty());
+    }
+
+    SECTION("a real chamber heater alongside QIDI Box heaters is still picked") {
+        json objects = {"heater_generic heater_box1", "heater_generic chamber",
+                        "heater_generic heater_box2", "box_stepper slot0"};
+        hw.parse_objects(objects);
+
+        REQUIRE(hw.chamber_heater_name() == "heater_generic chamber");
+    }
 }
 
 // ============================================================================
@@ -2049,4 +2072,21 @@ TEST_CASE("PrinterDiscovery: build volume rejects unusable payloads",
         REQUIRE(discovery.build_volume().x_max == 180.0f);
         REQUIRE(discovery.build_volume().y_max == 0.0f);
     }
+}
+
+TEST_CASE("temperature_sensor_objects adds every heater_generic to the sensors",
+          "[printer_discovery][heater_generic]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json{"extruder", "heater_bed", "heater_generic chamber",
+                          "heater_generic filament_dryer", "temperature_sensor mcu_temp"});
+
+    const auto objects = helix::temperature_sensor_objects(hw);
+    auto has = [&](const char* name) {
+        return std::find(objects.begin(), objects.end(), name) != objects.end();
+    };
+    CHECK(has("temperature_sensor mcu_temp"));
+    CHECK(has("heater_generic chamber"));
+    CHECK(has("heater_generic filament_dryer"));
+    CHECK_FALSE(has("extruder"));
+    CHECK_FALSE(has("heater_bed"));
 }

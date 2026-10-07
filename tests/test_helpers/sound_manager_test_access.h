@@ -22,6 +22,12 @@ class SoundManagerTestAccess {
         sm.backend_ = std::move(backend);
     }
 
+    /// Start the sequencer for an installed backend, as initialize() does
+    /// after its probe.
+    static void finalize(SoundManager& sm) {
+        sm.finalize_backend_setup();
+    }
+
     /// The active backend, to assert which one won a gate decision.
     static std::shared_ptr<SoundBackend> backend(SoundManager& sm) {
         return sm.backend_;

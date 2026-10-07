@@ -70,10 +70,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_card: pressed state follows the theme's 
     lv_obj_report_style_change(pressed);
 }
 
-TEST_CASE("pressed_scale_allowed: capable tier only", "[ui_card][platform_tier]") {
-    CHECK(helix::pressed_scale_allowed(PlatformTier::STANDARD));
-    CHECK_FALSE(helix::pressed_scale_allowed(PlatformTier::BASIC));
-    CHECK_FALSE(helix::pressed_scale_allowed(PlatformTier::EMBEDDED));
+TEST_CASE("full_style_effects_allowed: capable tier only", "[ui_card][platform_tier]") {
+    CHECK(helix::full_style_effects_allowed(PlatformTier::STANDARD));
+    CHECK_FALSE(helix::full_style_effects_allowed(PlatformTier::BASIC));
+    CHECK_FALSE(helix::full_style_effects_allowed(PlatformTier::EMBEDDED));
 }
 
 // Buttons keep the LVGL theme's pressed recolor on every tier, so the limited

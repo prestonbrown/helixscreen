@@ -102,11 +102,6 @@ static void wake_display() {
     lv_display_trigger_activity(nullptr);
 }
 
-RemoteControlServer& RemoteControlServer::instance() {
-    static RemoteControlServer instance;
-    return instance;
-}
-
 RemoteControlServer::~RemoteControlServer() {
     stop();
 }

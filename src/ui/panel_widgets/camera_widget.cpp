@@ -6,6 +6,7 @@
 
 #include "lvgl.h"
 #include "observe_language.h"
+#include "ui/ui_widget_helpers.h"
 
 #if HELIX_HAS_CAMERA
 
@@ -658,8 +659,9 @@ void CameraWidget::show_fullscreen_overlay() {
     }
 
     fullscreen_overlay_ = overlay;
-    fullscreen_image_ = lv_obj_find_by_name(overlay, "fullscreen_camera_image");
-    fullscreen_spinner_ = lv_obj_find_by_name(overlay, "fullscreen_spinner");
+    fullscreen_image_ =
+        helix::ui::find_required(overlay, "fullscreen_camera_image", "CameraWidget");
+    fullscreen_spinner_ = helix::ui::find_required(overlay, "fullscreen_spinner", "CameraWidget");
     s_fullscreen_owner = this;
     lv_obj_add_event_cb(overlay, on_fullscreen_overlay_deleted, LV_EVENT_DELETE, nullptr);
 
@@ -880,8 +882,8 @@ void open_standalone_camera_fullscreen(lv_obj_t* parent_screen) {
     }
 
     state->overlay = overlay;
-    state->image = lv_obj_find_by_name(overlay, "fullscreen_camera_image");
-    state->spinner = lv_obj_find_by_name(overlay, "fullscreen_spinner");
+    state->image = helix::ui::find_required(overlay, "fullscreen_camera_image", "CameraWidget");
+    state->spinner = helix::ui::find_required(overlay, "fullscreen_spinner", "CameraWidget");
     if (state->image) {
         lv_image_set_inner_align(state->image, LV_IMAGE_ALIGN_COVER);
     }

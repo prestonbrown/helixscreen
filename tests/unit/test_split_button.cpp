@@ -163,9 +163,9 @@ class SplitButtonXmlFixture : public XMLTestFixture {
 /**
  * @brief Redirects the default spdlog logger into a string for its scope.
  *
- * Same shape as the helper in test_widget_helpers.cpp. Both halves of the #980
- * assertion below are log lines, because that is the only place the widget-safe
- * guard and the label-width body surface anything observable.
+ * Both halves of the #980 assertion below are log lines, because that is the
+ * only place the widget-safe guard and the label-width body surface anything
+ * observable.
  */
 namespace {
 class SplitButtonLogCapture {

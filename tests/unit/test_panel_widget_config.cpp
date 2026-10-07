@@ -2867,3 +2867,19 @@ TEST_CASE_METHOD(PanelWidgetConfigFixture, "a preset seed keeps unknown ids",
         kept = kept || item == unknown;
     CHECK(kept);
 }
+
+TEST_CASE_METHOD(PanelWidgetConfigFixture,
+                 "PanelWidgetConfig: a new printer's saved defaults read back without a rebuild",
+                 "[panel_widget_config][unnamed_units][multi-printer]") {
+    // A printer added at run time gets the defaults saved on its first load, before any
+    // grid has been measured; the next load (a live switch reloads Home) must read them.
+    setup_empty_config();
+    get_data()["config_version"] = 30;
+    PanelWidgetConfig first("home", config);
+    first.load();
+    const json saved = get_printer_data()["panel_widgets"]["home"];
+    REQUIRE(saved.value("anchors", "") == "pending");
+    REQUIRE_FALSE(saved.contains("grid"));
+
+    CHECK_FALSE(PanelWidgetConfig::has_uninterpretable_coordinates(saved, 30));
+}

@@ -487,18 +487,8 @@ class ControlsPanel : public PanelBase {
     void handle_calibration_tool_offsets();
     void handle_calibration_motors();
 
-    //
-    // === XML event_cb trampolines ===
-    //
-
-    /// Entry for a no-argument handler: runs @p Handler on the global panel.
-    /// init_subjects() pairs each with its XML callback name.
-    template <void (ControlsPanel::*Handler)()> static void dispatch(lv_event_t* e);
-
-    // The two that read the event: the macro slot index rides in user_data,
-    // the fan slider's value comes off the target widget.
+    /// XML on_controls_macro: the macro slot index rides in user_data.
     static void on_macro(lv_event_t* e);
-    static void on_fan_slider_changed(lv_event_t* e);
 
     void subscribe_to_secondary_fan_speeds();
     void update_secondary_fan_speed(const std::string& object_name, int speed_pct);

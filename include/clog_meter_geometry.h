@@ -19,6 +19,10 @@ enum class ClogMeterMode : int {
     Buffer = 3,    ///< 0..100 AFC buffer fault proximity
 };
 
+/// Whether a mode's reading runs out from a centre rather than up from nothing,
+/// so its two ends mean opposite faults.
+bool clog_meter_is_symmetrical(int mode);
+
 /// Indicator colour as two design-token names plus a mix fraction, rather than
 /// a resolved `lv_color_t`.
 ///
@@ -62,6 +66,27 @@ enum class ClogMeterStatus : int {
 /// `value` is compared by magnitude so Flowguard's tangle side counts.
 ClogMeterStatus clog_meter_status(int mode, int value, int warning, int danger_pct);
 
+/// Bands a filament buffer reading (`|bias| * 100`) is judged against: from
+/// kPressureWarningPct it has drifted off its target, from kPressureFaultPct
+/// the buffer is close to an end stop.
+constexpr int kPressureWarningPct = 30;
+constexpr int kPressureFaultPct = 70;
+
+/// Severity of a buffer reading, `bias * 100` (-100..+100), by magnitude.
+ClogMeterStatus pressure_status(int pct);
+
+/// pressure_status() of a buffer bias (-1..+1, clamped; NaN reads as 0).
+ClogMeterStatus pressure_status_of_bias(float bias);
+
+/// The design token a buffer reading of this severity is drawn in: neutral on
+/// target, warning off it, danger near an end stop.
+const char* buffer_status_token(ClogMeterStatus s);
+
+/// Which way a buffer bias (-1..+1) leans. Negative is tension (the extruder
+/// pulling harder than the feeder pushes), positive is compression.
+enum class BufferLean : int { Balanced, Tight, Loose };
+BufferLean buffer_lean(float bias);
+
 /// Whether the reading means "nothing to report" rather than "zero danger".
 ///
 /// AFC reports a buffer distance it is not currently tracking as zero, and a
@@ -104,7 +129,7 @@ struct ClogMeterSample {
     /// symmetrical range and the bar as centre-out geometry; the *decision* is
     /// this one.
     [[nodiscard]] bool is_symmetrical() const {
-        return kind() == ClogMeterMode::Flowguard;
+        return clog_meter_is_symmetrical(mode);
     }
 
     [[nodiscard]] ClogMeterStatus status() const {
@@ -115,7 +140,7 @@ struct ClogMeterSample {
 /// Width of the value marker and the peak tick, in px. Both are deliberately
 /// thin: the fill carries the reading, and these two only say "here" and
 /// "worst so far". clog_bar_geometry() keeps both inside the track by this
-/// width, and clog_bar_page.xml authors the same figure.
+/// width, and clog_bar_body.xml authors the same figure.
 constexpr int kClogBarTickW = 2;
 
 /// Pixel geometry of the horizontal FlowGuard bar, in track-local coordinates.
@@ -139,7 +164,7 @@ struct ClogBarGeometry {
 
 /// Lay the bar out for one sample.
 ///
-/// `value` is the raw `clog_meter_value` — signed for Flowguard, 0..100
+/// `value` is the raw `clog_meter_value` — signed for symmetrical modes, 0..100
 /// otherwise. `danger_pct` is the magnitude at which the reading is
 /// dangerous, and `peak_pct` the worst magnitude seen this print. Both are
 /// magnitudes even in the symmetrical mode, where the peak is drawn on the

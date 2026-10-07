@@ -267,10 +267,10 @@ moonraker_concrete_pattern() {
 # switch_printer() actually makes the call, and makes it BEFORE teardown, while
 # Config::df() has already moved to the new printer.
 
-# Print the body of PrinterSession::switch_printer() from the file given in $1.
+# Print the body of PrinterSwitchFlow::switch_printer() from the file given in $1.
 switch_printer_body() {
     awk '
-        /^void PrinterSession::switch_printer\(/ { inside = 1 }
+        /^void PrinterSwitchFlow::switch_printer\(/ { inside = 1 }
         inside { print }
         inside && /^\}/ { exit }
     ' "$1"
@@ -281,7 +281,7 @@ check_switch_printer_clears_caches() {
     local body clear_line teardown_line
     body=$(switch_printer_body "$1")
     if [ -z "$body" ]; then
-        echo "could not locate PrinterSession::switch_printer() in $1"
+        echo "could not locate PrinterSwitchFlow::switch_printer() in $1"
         return 1
     fi
 
@@ -305,7 +305,7 @@ check_switch_printer_clears_caches() {
 }
 
 @test "switch_printer invalidates every registered per-printer cache before teardown" {
-    run check_switch_printer_clears_caches src/application/printer_session.cpp
+    run check_switch_printer_clears_caches src/application/printer_switch_flow.cpp
     [ "$status" -eq 0 ]
 }
 
@@ -313,7 +313,7 @@ check_switch_printer_clears_caches() {
     # Meta-test: a gate that cannot fail is not a gate. Strip the call from a
     # copy and confirm the check reports the #804 regression.
     local mutated="${BATS_TEST_TMPDIR}/application_no_clear.cpp"
-    grep -v 'PrinterCacheRegistry::instance().invalidate_all()' src/application/printer_session.cpp > "$mutated"
+    grep -v 'PrinterCacheRegistry::instance().invalidate_all()' src/application/printer_switch_flow.cpp > "$mutated"
 
     run check_switch_printer_clears_caches "$mutated"
     [ "$status" -eq 1 ]
@@ -326,7 +326,7 @@ check_switch_printer_clears_caches() {
     local mutated="${BATS_TEST_TMPDIR}/application_late_clear.cpp"
     sed -e 's@^    PrinterCacheRegistry::instance().invalidate_all();@@' \
         -e 's@^    m_restart.teardown();@    m_restart.teardown();\n    PrinterCacheRegistry::instance().invalidate_all();@' \
-        src/application/printer_session.cpp > "$mutated"
+        src/application/printer_switch_flow.cpp > "$mutated"
 
     run check_switch_printer_clears_caches "$mutated"
     [ "$status" -eq 1 ]
@@ -337,8 +337,8 @@ check_switch_printer_clears_caches() {
     # Fail-closed: a rename or signature change must break the gate loudly rather
     # than silently pass on an empty body.
     local mutated="${BATS_TEST_TMPDIR}/application_no_fn.cpp"
-    sed -e 's@^void PrinterSession::switch_printer(@void PrinterSession::switch_printer_renamed(@' \
-        src/application/printer_session.cpp > "$mutated"
+    sed -e 's@^void PrinterSwitchFlow::switch_printer(@void PrinterSwitchFlow::switch_printer_renamed(@' \
+        src/application/printer_switch_flow.cpp > "$mutated"
 
     run check_switch_printer_clears_caches "$mutated"
     [ "$status" -eq 1 ]
@@ -347,7 +347,7 @@ check_switch_printer_clears_caches() {
 
 @test "the switch_printer cache-invalidation gate fails when teardown is missing" {
     local mutated="${BATS_TEST_TMPDIR}/application_no_teardown.cpp"
-    grep -v '^    m_restart.teardown();' src/application/printer_session.cpp > "$mutated"
+    grep -v '^    m_restart.teardown();' src/application/printer_switch_flow.cpp > "$mutated"
 
     run check_switch_printer_clears_caches "$mutated"
     [ "$status" -eq 1 ]
@@ -628,6 +628,29 @@ SHAPES
     lacks "Plain string" "$output"
     lacks "STD_REGEX_OK" "$output"
     lacks "helix::Regex" "$output"
+}
+
+# Only <spdlog/fmt/fmt.h> is on every build's include path; the standalone
+# <fmt/...> headers are absent on hosts that build against spdlog's bundled fmt.
+bare_fmt_include_files() {
+    git ls-files --cached --others --exclude-standard src include tests firmware |
+        grep -E '\.(cpp|h)$'
+}
+
+check_no_bare_fmt_include() {
+    local offenders
+    # shellcheck disable=SC2046  # paths have no spaces; word splitting is intended
+    offenders=$(code_offenders '#[[:space:]]*include[[:space:]]*<fmt/' FMT_INCLUDE_OK $(bare_fmt_include_files))
+    [ -z "$offenders" ] && return 0
+    echo "bare <fmt/...> include (not on every host's include path):"
+    printf '%s\n' "$offenders"
+    echo "Use <spdlog/fmt/fmt.h>."
+    return 1
+}
+
+@test "no bare <fmt/...> include in src, include, tests or firmware" {
+    run check_no_bare_fmt_include
+    [ "$status" -eq 0 ]
 }
 
 # sigaltstack is per thread, so a thread that never installs its own signal

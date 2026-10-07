@@ -9,6 +9,7 @@
 #include "config.h"
 #include "gcode_parser.h"
 #include "helix_fs.h"
+#include "http_request_epoch.h"
 #include "system/crash_handler.h"
 #include "system/helix_paths.h"
 #include "text_io.h"
@@ -174,8 +175,8 @@ void ThumbnailCache::load_config() {
 }
 
 std::string ThumbnailCache::compute_hash(const std::string& path) {
-    std::hash<std::string> hasher;
-    return std::to_string(hasher(path));
+    const std::string scoped = std::to_string(helix::http_epoch::printer_key()) + '\n' + path;
+    return std::to_string(std::hash<std::string>{}(scoped));
 }
 
 std::string ThumbnailCache::get_cache_path(const std::string& relative_path) const {

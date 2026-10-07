@@ -183,6 +183,7 @@ translations:
   Add: Добавить
   Add Filament: Добавить филамент
   Add Hidden Network: Добавить скрытую сеть
+  Add Printer: Добавить принтер
   Add Vendor: Добавить производителя
   Add Widget: Добавить виджет
   Add custom filament: Добавить свой филамент
@@ -314,6 +315,7 @@ translations:
   'Backtrace: {} frames': 'Трассировка: {} кадров'
   Backup lane name contains invalid characters: 'Имя резервного канала содержит недопустимые символы'
   Backup spool switching state unknown: 'Резервная катушка: состояние неизвестно'
+  Balanced: Сбалансирован
   Barcode Scanner: Сканер штрих-кодов
   Base: Опорный
   Based on the newest {} prints: 'По последним печатям ({})'
@@ -431,6 +433,7 @@ translations:
   CURRENT SELECTION: ТЕКУЩИЙ ВЫБОР
   CUSTOM IMAGES: СВОИ ИЗОБРАЖЕНИЯ
   Cache Dir: Директория кэша
+  Calculator: Калькулятор
   Calibrate: Калибровать
   Calibrate All: Калибровать всё
   Calibrate Bowden: 'Калибровать боуден'
@@ -486,6 +489,7 @@ translations:
     — забудьте принтер и выполните сопряжение заново
   Can't move filament while the print is paused: Невозможно перемещать филамент, пока печать на паузе
   Can't read filament RFID tag: Не удаётся прочитать RFID-метку филамента
+  Can't reach this printer. Save anyway?: Принтер недоступен. Всё равно сохранить?
   Cancel: Отмена
   Cancel Escalation: Отменить эскалацию
   Cancel Print: Отменить печать
@@ -1270,6 +1274,7 @@ translations:
   Feeders: Фидеры
   Feeding filament forward: Подача филамента вперёд
   Filament: Филамент
+  Filament Buffer: 'Буфер филамента'
   Filament Control: Управление филаментом
   Filament Detected: Филамент обнаружен
   Filament Grade Mismatch: Несоответствие марки филамента
@@ -1283,6 +1288,7 @@ translations:
   Filament Used: Использовано филамента
   Filament already exists: Такой филамент уже существует
   Filament buffer failure during feed: Сбой буфера филамента при подаче
+  Filament buffer position against its target: 'Положение буфера филамента относительно цели'
   Filament buffer stopped moving: Буфер филамента перестал двигаться
   Filament by Type: Филамент по типу
   ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
@@ -1301,8 +1307,6 @@ translations:
   Filament is loaded at the toolhead. Unload it before enabling bypass.: 'Филамент загружен в печатающую головку. Выгрузите его перед включением обхода.'
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: В печатающей головке загружен филамент. Сначала выгрузите его, чтобы он не размягчился в экструдере, пока греется стол.
 
-  Filament is loose: Филамент ослаблен
-  Filament is pulling tight: Филамент натянут
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : После выгрузки филамент всё ещё находится у сопла. Отрезание или втягивание могло не завершиться. Очистите печатающую головку перед загрузкой другой катушки.
   Filament is still loaded. Unload it before enabling bypass.: 'Филамент всё ещё загружен. Выгрузите его перед включением обхода.'
@@ -1334,7 +1338,6 @@ translations:
   Filament stalled between CFS hub and extruder sensor: Филамент остановился между хабом CFS и датчиком экструдера
   Filament stuck in connector during unload: Филамент застрял в разъёме при выгрузке
   Filament stuck inside the CFS hub: Филамент застрял внутри хаба CFS
-  Filament tension is balanced: Натяжение филамента сбалансировано
   Filament tracking & label printing: Учёт филамента и печать этикеток
   Filament tracking and inventory: Отслеживание и учёт филамента
   FilamentSensor: Датчик филамента
@@ -2180,6 +2183,7 @@ translations:
   Nozzle temp must be 100-%d°C: Температура сопла должна быть 100-%d°C
   Nozzle, bed, and chamber in one widget: Сопло, стол и камера в одном виджете
   'Nozzle:': 'Сопло:'
+  Number Pad Layout: Раскладка цифровой клавиатуры
   OD: OD
   'OFF': ВЫКЛ
   OK: OK
@@ -2300,6 +2304,8 @@ translations:
   Permission denied. Check printer configuration.: Доступ запрещён. Проверьте конфигурацию принтера.
   Phomemo (Bluetooth): Phomemo (Bluetooth)
   Phomemo M110: Phomemo M110
+  Phone: Телефон
+  Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there: 'Телефон: 1 2 3 в верхнем ряду, калькулятор: 7 8 9'
   Pick: Выбрать
   Pick Color: Выбрать цвет
   Pick up tool: Забрать инструмент
@@ -2679,6 +2685,7 @@ translations:
   Requires Moonraker-Timelapse plugin: Требуется плагин Moonraker-Timelapse
   Requires Multi-Filament System or MMU hardware: 'Требуется мультифиламентная система или оборудование MMU'
   Requires a filament system with bypass: Требуется система филамента с байпасом
+  Requires a filament pressure sensor or sync feedback: 'Требуется датчик давления филамента или обратная связь синхронизации'
   Requires clog detection hardware: 'Требуется оборудование для обнаружения засора'
   Resend write failed at chunk {}: Не удалось повторно отправить запись в блоке {}
   Reset: Сброс
@@ -2789,6 +2796,8 @@ translations:
   Run the chamber dryer too: Включить и сушилку камеры
 
   Run {}?: Запустить {}?
+  Running loose: 'Ослаблен'
+  Running tight: 'Натянут'
   Running {}...: Выполнение {}...
   Runout: 'Окончание'
   Runout Sensor: Датчик окончания
@@ -3186,6 +3195,8 @@ translations:
   Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature.: Переход на MPC меняет способ управления этим нагревателем, а затем калибрует его. Это занимает несколько минут при рабочей температуре.
   Switching to MPC requires a config change and Klipper restart.: Переход на MPC требует
     изменения конфига и перезапуска Klipper.
+  Sync: 'Синхр.'
+  Switching to {}: Переключение на {}
   Sync during printing: Синхронизация во время печати
   Sync with Spoolman: Синхронизация со Spoolman
   Sysfs: Sysfs
@@ -3848,6 +3859,7 @@ translations:
   incompatible: несовместим
   invalid: недопустим
   just now: только что
+  last 60 s · LOOSE up, TIGHT down: 'последние 60 с · вверху ОСЛАБЛЕН, внизу НАТЯНУТ'
   layers: слои
   left: осталось
   loaded: 'загружен'
@@ -3883,6 +3895,7 @@ translations:
   steppers: шаговые двигатели
   sweeping: идёт измерение
   tall: высотой
+  target {}%: 'цель {}%'
   target {}°: 'цель {}°'
   tool(s): инструмент(ы)
   used: использ.
@@ -3918,6 +3931,7 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{}: подаёт филамент для текущей печати. Удалите катушку после завершения печати.'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} установлен, но переключение на резервную катушку выключено, поэтому автоматической замены не будет.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} установлен, но прочитать его настройку резервной катушки не удалось - не рассчитывайте на автоматическую замену.'
+  '{} is still printing. The print keeps running after you switch.': '{} ещё печатает. Печать продолжится после переключения.'
   '{} is not set up on this printer': '{} не настроен на этом принтере'
   '{} lines in helixscreen.env were ignored': 'В helixscreen.env проигнорировано строк: {}'
   '{} macro not configured': Макрос {} не настроен

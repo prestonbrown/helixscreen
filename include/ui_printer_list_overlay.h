@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
+
 #include "overlay_base.h"
 #include "static_panel_registry.h"
 
@@ -28,6 +31,10 @@ class PrinterListOverlay : public OverlayBase {
 
   private:
     void populate_printer_list();
+
+    /// The active row's connection dot, colored by printer_connection_state.
+    WidgetRef active_dot_;
+    ObserverGuard active_dot_observer_;
 };
 
 inline PrinterListOverlay& get_printer_list_overlay() {

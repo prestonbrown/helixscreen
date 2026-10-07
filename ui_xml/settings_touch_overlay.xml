@@ -38,6 +38,11 @@
                             label="Allow Home Screen Editing" icon="pencil"
                             description="Long-press the home grid to rearrange widgets (turn off if it triggers by accident)"
                             subject="settings_home_edit_mode_enabled" callback="on_home_edit_mode_changed"/>
+        <setting_dropdown_row name="row_keypad_layout"
+                              label="Number Pad Layout" icon="grid_large"
+                              description="Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there"
+                              options="Phone&#10;Calculator" options_tag="Phone&#10;Calculator"
+                              bind_selected="settings_keypad_layout" callback="on_keypad_layout_changed"/>
         <setting_toggle_row name="row_scroll_guard"
                             label="Scroll Guard" icon="block_helper"
                             description="Ignore the click that fires when you lift after scrolling"

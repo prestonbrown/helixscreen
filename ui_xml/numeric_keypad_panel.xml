@@ -11,6 +11,16 @@
     <px name="keypad_width_large" value="400"/>
 
   </consts>
+  <styles>
+    <!-- Phone layout (settings_keypad_layout == 0): 1-2-3 on top, backspace bottom-left.
+         The containers these flip must not carry flex_flow inline: an inline flex_flow
+         is a local style and outranks every added style, so the flip would silently
+         never happen. They set style_layout="flex" inline and take the flow from here. -->
+    <style name="keypad_digits_phone" flex_flow="column_reverse"/>
+    <style name="keypad_digits_calculator" flex_flow="column"/>
+    <style name="keypad_row_4_phone" flex_flow="row_reverse"/>
+    <style name="keypad_row_4_calculator" flex_flow="row"/>
+  </styles>
   <view name="keypad_panel"
         extends="lv_obj" width="#keypad_width" height="100%" style_max_width="100%" align="right_mid" style_pad_all="0"
         style_border_width="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false" flex_flow="column"
@@ -24,65 +34,79 @@
             width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="false" flex_flow="column" style_pad_gap="0"
             style_pad_row="0">
 
-      <!-- Display: Textarea styled input (read-only) with unit label -->
-      <lv_obj name="display_container"
-              width="100%" height="content" style_pad_all="0" style_pad_left="#space_xs" scrollable="false"
-              flex_flow="row" style_flex_cross_place="center" style_pad_bottom="#space_md">
-        <text_input name="input_display"
-                    height="content" flex_grow="1" text="" bind_text="keypad_display" style_text_font="#font_heading"
-                    style_text_align="right" style_radius="#border_radius" one_line="true" clickable="false"
-                    scrollable="false"/>
-        <lv_label name="input_unit"
-                  text="" style_text_font="#font_body" style_text_color="#text_muted" style_pad_left="#space_sm"/>
-      </lv_obj>
+      <!-- Display: read-only field spanning the key block, unit inside it at the end -->
+      <text_input name="input_display"
+                  width="100%" height="content" text="" bind_text="keypad_display" bind_suffix="keypad_unit"
+                  style_text_font="#font_heading" style_text_align="right" style_radius="#border_radius" one_line="true"
+                  clickable="false" scrollable="false" style_margin_bottom="#space_md"/>
 
       <!-- Button Grid: four rows share the height left under the display, so the
-           keys grow with the screen instead of leaving it empty. -->
+           keys grow with the screen instead of leaving it empty. Each row carries its
+           gap as bottom padding rather than the containers using pad_row: flex_grow
+           splits what is left AFTER gaps, so a gap in the outer column and two more
+           inside keypad_digits would make the digit rows shorter than row 4. -->
       <lv_obj name="keypad_grid"
               width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
-              flex_flow="column" style_pad_row="#space_sm">
-        <lv_obj name="keypad_row_1"
-                width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
-                clickable="false" flex_flow="row" style_pad_column="#space_xs" style_flex_main_place="space_evenly">
-          <ui_button name="btn_7" width="30%" height="100%" text="7" variant="secondary"/>
-          <ui_button name="btn_8" width="30%" height="100%" text="8" variant="secondary"/>
-          <ui_button name="btn_9" width="30%" height="100%" text="9" variant="secondary"/>
+              flex_flow="column" style_pad_row="0">
+        <!-- Rows are written calculator-order (7-8-9 on top); the phone layout reverses them. -->
+        <lv_obj name="keypad_digits"
+                width="100%" flex_grow="3" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                clickable="false" style_layout="flex" style_pad_row="0">
+          <bind_style_if_eq name="keypad_digits_phone" subject="settings_keypad_layout" ref_value="0"/>
+          <bind_style_if_not_eq name="keypad_digits_calculator" subject="settings_keypad_layout" ref_value="0"/>
+          <lv_obj name="keypad_row_1"
+                  width="100%" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
+                  style_border_width="0" scrollable="false" clickable="false" flex_flow="row" style_pad_column="0"
+                  style_flex_main_place="space_between">
+            <ui_button name="btn_7" width="32%" height="100%" text="7" variant="secondary"/>
+            <ui_button name="btn_8" width="32%" height="100%" text="8" variant="secondary"/>
+            <ui_button name="btn_9" width="32%" height="100%" text="9" variant="secondary"/>
+          </lv_obj>
+          <lv_obj name="keypad_row_2"
+                  width="100%" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
+                  style_border_width="0" scrollable="false" clickable="false" flex_flow="row" style_pad_column="0"
+                  style_flex_main_place="space_between">
+            <ui_button name="btn_4" width="32%" height="100%" text="4" variant="secondary"/>
+            <ui_button name="btn_5" width="32%" height="100%" text="5" variant="secondary"/>
+            <ui_button name="btn_6" width="32%" height="100%" text="6" variant="secondary"/>
+          </lv_obj>
+          <lv_obj name="keypad_row_3"
+                  width="100%" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
+                  style_border_width="0" scrollable="false" clickable="false" flex_flow="row" style_pad_column="0"
+                  style_flex_main_place="space_between">
+            <ui_button name="btn_1" width="32%" height="100%" text="1" variant="secondary"/>
+            <ui_button name="btn_2" width="32%" height="100%" text="2" variant="secondary"/>
+            <ui_button name="btn_3" width="32%" height="100%" text="3" variant="secondary"/>
+          </lv_obj>
         </lv_obj>
-        <lv_obj name="keypad_row_2"
-                width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
-                clickable="false" flex_flow="row" style_pad_column="#space_xs" style_flex_main_place="space_evenly">
-          <ui_button name="btn_4" width="30%" height="100%" text="4" variant="secondary"/>
-          <ui_button name="btn_5" width="30%" height="100%" text="5" variant="secondary"/>
-          <ui_button name="btn_6" width="30%" height="100%" text="6" variant="secondary"/>
-        </lv_obj>
-        <lv_obj name="keypad_row_3"
-                width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
-                clickable="false" flex_flow="row" style_pad_column="#space_xs" style_flex_main_place="space_evenly">
-          <ui_button name="btn_1" width="30%" height="100%" text="1" variant="secondary"/>
-          <ui_button name="btn_2" width="30%" height="100%" text="2" variant="secondary"/>
-          <ui_button name="btn_3" width="30%" height="100%" text="3" variant="secondary"/>
-        </lv_obj>
-        <!-- Row 4: dot, 0, backspace -->
+        <!-- Row 4: dot, 0, backspace (calculator); backspace, 0, dot (phone) -->
         <!-- An integer-only field has no decimal key at all. The empty cell around it is
-             what holds the column: the row spaces its children evenly, so hiding a 30%
+             what holds the column: the row spreads its children edge to edge, so hiding a 32%
              child directly would re-space the row and slide 0 and backspace out from
              under 2 and 3. The cell keeps its width whatever the key does, and it is the
-             key rather than the cell that goes, so the blank lands on the left and the
-             remaining two stay right-justified under their columns.
+             key rather than the cell that goes, so the other two stay under their columns.
+             In the phone layout that free cell holds a confirm key instead of a blank.
              Dimming the key instead cannot work: ui_button stamps a local opa on itself
              on every apply, and a local style beats a bound one. -->
         <lv_obj name="keypad_row_4"
-                width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
-                clickable="false" flex_flow="row" style_pad_column="#space_xs" style_flex_main_place="space_evenly">
+                width="100%" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
+                style_border_width="0" scrollable="false" clickable="false" style_layout="flex" style_pad_column="0"
+                style_flex_main_place="space_between">
+          <bind_style_if_eq name="keypad_row_4_phone" subject="settings_keypad_layout" ref_value="0"/>
+          <bind_style_if_not_eq name="keypad_row_4_calculator" subject="settings_keypad_layout" ref_value="0"/>
           <lv_obj name="btn_dot_cell"
-                  width="30%" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                  width="32%" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
                   clickable="false">
             <ui_button name="btn_dot" width="100%" height="100%" text="." variant="secondary">
               <bind_flag_if_eq subject="keypad_allow_decimal" flag="hidden" ref_value="0"/>
             </ui_button>
+            <ui_button name="btn_confirm" width="100%" height="100%" icon="check" text="" variant="success">
+              <bind_flag_if cond="keypad_allow_decimal ne 0 or settings_keypad_layout ne 0" flag="hidden"/>
+              <event_cb trigger="clicked" callback="on_keypad_confirm"/>
+            </ui_button>
           </lv_obj>
-          <ui_button name="btn_0" width="30%" height="100%" text="0" variant="secondary"/>
-          <ui_button name="btn_backspace" width="30%" height="100%" icon="backspace" text=""/>
+          <ui_button name="btn_0" width="32%" height="100%" text="0" variant="secondary"/>
+          <ui_button name="btn_backspace" width="32%" height="100%" icon="backspace" text=""/>
         </lv_obj>
       </lv_obj>
     </lv_obj>

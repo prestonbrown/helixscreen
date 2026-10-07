@@ -190,9 +190,9 @@ lv_obj_t* SpoolmanPanel::create(lv_obj_t* parent) {
     lv_obj_add_event_cb(spool_list_, on_scroll, LV_EVENT_SCROLL, this);
 
     // Bind header title to subject for dynamic "Spoolman: XX Spools" text
-    lv_obj_t* header = lv_obj_find_by_name(overlay_root_, "overlay_header");
+    lv_obj_t* header = helix::ui::find_required(overlay_root_, "overlay_header", get_name());
     if (header) {
-        lv_obj_t* title = lv_obj_find_by_name(header, "header_title");
+        lv_obj_t* title = helix::ui::find_required(header, "header_title", get_name());
         if (title) {
             lv_label_bind_text(title, &header_title_subject_, nullptr);
         }

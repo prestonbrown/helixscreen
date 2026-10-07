@@ -290,7 +290,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl ls: an unnamed active screen scopes witho
     ::unlink(sock_path.c_str());
     helix::RemoteConfig config;
     config.socket_path = sock_path;
-    helix::RemoteControlServer& server = helix::RemoteControlServer::instance();
+    helix::RemoteControlServer server;
     REQUIRE(server.start(config));
 
     sockaddr_un addr{};
@@ -634,11 +634,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl click: a checkable button toggles and sti
     ::unlink(sock.c_str());
     helix::RemoteConfig config;
     config.socket_path = sock;
-    auto& server = helix::RemoteControlServer::instance();
-    // A sibling case in the same process may already run the singleton server;
-    // only stop what we started.
-    const bool started = server.start(config);
-    REQUIRE((started || server.is_running()));
+    helix::RemoteControlServer server;
+    REQUIRE(server.start(config));
 
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
@@ -691,10 +688,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl click: a checkable button toggles and sti
     CHECK(clicked == 2);
 
     ::close(fd);
-    if (started) {
-        server.stop();
-        ::unlink(sock.c_str());
-    }
+    server.stop();
+    ::unlink(sock.c_str());
 }
 
 // --- ctl overflow ------------------------------------------------------------

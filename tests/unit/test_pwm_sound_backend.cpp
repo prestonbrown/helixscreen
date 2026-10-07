@@ -372,6 +372,7 @@ TEST_CASE("initialize writes channel number to export when channel missing", "[s
     auto base = create_mock_sysfs_unexported(0);
 
     PWMSoundBackend backend(base, 0, 6);
+    backend.set_auto_export(true);
     // The mock never materializes pwm6, so the outcome stays failure — but the
     // export write must have happened.
     REQUIRE_FALSE(backend.initialize());
@@ -392,17 +393,6 @@ TEST_CASE("set_auto_export(false) leaves a missing channel unexported", "[sound]
     cleanup_mock_sysfs(base);
 }
 
-TEST_CASE("set_auto_export(true) exports the named channel", "[sound][pwm]") {
-    auto base = create_mock_sysfs_unexported(0);
-
-    PWMSoundBackend backend(base, 0, 0);
-    backend.set_auto_export(true);
-    REQUIRE_FALSE(backend.initialize());
-    REQUIRE(read_sysfs_file(base + "/pwmchip0/export") == "0");
-
-    cleanup_mock_sysfs(base);
-}
-
 TEST_CASE("initialize does not touch export when channel exists", "[sound][pwm]") {
     auto base = create_mock_sysfs(0, 6);
 
@@ -410,6 +400,7 @@ TEST_CASE("initialize does not touch export when channel exists", "[sound][pwm]"
     std::ofstream(base + "/pwmchip0/export") << "42";
 
     PWMSoundBackend backend(base, 0, 6);
+    backend.set_auto_export(true);
     REQUIRE(backend.initialize());
     REQUIRE(read_sysfs_file(base + "/pwmchip0/export") == "42");
 
@@ -425,6 +416,7 @@ TEST_CASE("initialize tolerates unwritable export when channel already present",
     REQUIRE(system(mkdir_cmd.c_str()) == 0);
 
     PWMSoundBackend backend(base, 0, 6);
+    backend.set_auto_export(true);
     REQUIRE(backend.initialize());
 
     cleanup_mock_sysfs(base);
@@ -437,6 +429,7 @@ TEST_CASE("initialize returns false when no pwmchip exists", "[sound][pwm]") {
     std::string base(dir);
 
     PWMSoundBackend backend(base, 0, 6);
+    backend.set_auto_export(true);
     REQUIRE_FALSE(backend.initialize());
 
     cleanup_mock_sysfs(base);
@@ -1311,4 +1304,46 @@ TEST_CASE("silence_signal_safe disables the live channel until shutdown", "[soun
     REQUIRE(read_sysfs_file(pwm_dir + "/enable") == "1");
 
     cleanup_mock_sysfs(base);
+}
+
+// ============================================================================
+// Named buzzer channel: setting, with the env var as an override
+// ============================================================================
+
+TEST_CASE("resolve_channel reads the setting when no override is set", "[sound][pwm]") {
+    int chip = -1;
+    int channel = -1;
+    REQUIRE(PWMSoundBackend::resolve_channel("0:1", nullptr, chip, channel));
+    CHECK(chip == 0);
+    CHECK(channel == 1);
+
+    chip = channel = -1;
+    REQUIRE(PWMSoundBackend::resolve_channel("2:3", "", chip, channel));
+    CHECK(chip == 2);
+    CHECK(channel == 3);
+}
+
+TEST_CASE("resolve_channel lets the env override win over the setting", "[sound][pwm]") {
+    int chip = -1;
+    int channel = -1;
+    REQUIRE(PWMSoundBackend::resolve_channel("0:1", "1:0", chip, channel));
+    CHECK(chip == 1);
+    CHECK(channel == 0);
+}
+
+TEST_CASE("resolve_channel skips a malformed value", "[sound][pwm]") {
+    int chip = -1;
+    int channel = -1;
+    // Bad override falls through to a good setting
+    REQUIRE(PWMSoundBackend::resolve_channel("0:0", "0:0x", chip, channel));
+    CHECK(chip == 0);
+    CHECK(channel == 0);
+
+    chip = channel = -1;
+    for (const char* bad : {"0", "0:", ":0", "a:b", "-1:0", "0:0:1"}) {
+        CAPTURE(bad);
+        CHECK_FALSE(PWMSoundBackend::resolve_channel(bad, nullptr, chip, channel));
+    }
+    CHECK(chip == -1); // a rejected value never half-writes the outputs
+    CHECK_FALSE(PWMSoundBackend::resolve_channel("", nullptr, chip, channel));
 }

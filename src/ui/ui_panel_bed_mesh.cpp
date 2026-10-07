@@ -312,9 +312,8 @@ bool BedMeshPanel::wire_canvas_and_content(lv_obj_t* overlay_content) {
         return false;
     }
 
-    canvas_ = lv_obj_find_by_name(overlay_content, "bed_mesh_canvas");
+    canvas_ = helix::ui::find_required(overlay_content, "bed_mesh_canvas", get_name());
     if (!canvas_) {
-        spdlog::error("[{}] Canvas widget 'bed_mesh_canvas' not found in XML", get_name());
         return false;
     }
 

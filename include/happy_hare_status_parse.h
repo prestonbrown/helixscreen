@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -80,11 +81,18 @@ struct FlowguardDelta {
     std::optional<float> max_clog;
     std::optional<float> max_tangle;
     std::optional<int> encoder_mode;
+    /// The object carries buffer FlowGuard's own readings (level, trigger,
+    /// max_clog). An encoder-only v4 unit publishes just {active, enabled,
+    /// encoder_mode}: the encoder's clog detection, not buffer FlowGuard.
+    bool buffer_data = false;
 };
 
 /// The v4 extended status: eSpooler, sync feedback, clog detection, counters.
 struct MmuTelemetryDelta {
-    std::optional<std::string> espooler_active;
+    std::optional<std::string> espooler_active; ///< v3; v4 keeps it as a deprecated alias
+    /// v4 `espooler`: one operation per gate ('', off, rewind, assist, print).
+    /// A non-string entry reads as ''.
+    std::optional<std::vector<std::string>> espooler;
     std::optional<std::string> sync_feedback_state;
     std::optional<float> sync_feedback_bias; ///< sync_feedback_bias_modelled
     std::optional<float> sync_feedback_bias_raw;
@@ -102,16 +110,30 @@ struct MmuTelemetryDelta {
     std::optional<int> number_of_toolchanges;
     std::optional<SpoolmanMode> spoolman_mode;
     std::optional<int> pending_spool_id;
+    /// Fields published as JSON null. v4 sends these for a selected unit that
+    /// has no buffer (sync feedback, flowguard) or no encoder; v3 never does.
+    bool sync_feedback_bias_null = false;
+    bool sync_feedback_bias_raw_null = false;
+    bool flowguard_null = false;
+    bool encoder_null = false;
+    /// `tangle_prevention` was in the frame (null or not): only v4 publishes it.
+    bool v4_marker = false;
 };
 
 /// `sensors`: the pre-gate sensor readings.
 struct MmuSensorsDelta {
-    /// `mmu_pre_gate_N` entries in object order: gate index and whether the
-    /// sensor is triggered (null and non-booleans read as not triggered).
+    /// Per-gate entries in object order: gate index and whether the sensor is
+    /// triggered (null and non-booleans read as not triggered). v3 names them
+    /// `mmu_pre_gate_N`; v4 names them `mmu_entry_N`, and lists them only while
+    /// no gate is selected.
     std::vector<std::pair<int, bool>> pre_gate;
     /// The aggregate `mmu_pre_gate` of EMU boxes, which only knows the active
     /// gate.
     std::optional<bool> aggregate_pre_gate;
+    /// Whether the toolhead / extruder-entry sensors are fitted and enabled:
+    /// the dict carries their key whenever they are fitted, null when disabled.
+    bool has_toolhead_sensor = false;
+    bool has_extruder_sensor = false;
 };
 
 struct DryingObjectDelta {
@@ -140,6 +162,115 @@ struct MmuStatusDelta {
     /// spelling `endless_spool`.
     std::optional<bool> endless_spool_enabled;
 };
+
+/// What the connect-time `mmu_machine` / `configfile.settings` pair says about
+/// how an install is laid out.
+///
+/// Happy Hare 3 keeps every tunable on `[mmu]`. Happy Hare 4 has no `[mmu]`: it
+/// splits the tunables across `[mmu_parameters]` (machine-wide), one
+/// `[mmu_unit_parameters <unit>]` per unit and `[mmu_toolhead <name>]`, and
+/// publishes `happy_hare_version` on `mmu_machine`, which v3 never does.
+struct MachineLayout {
+    std::string version;             ///< happy_hare_version; empty when neither source names one
+    double version_number = 0;       ///< the version as a number (3.42, 4.0); 0 when unknown
+    bool v4 = false;                 ///< version 4 or later: the split layout
+    int num_units = 1;               ///< mmu_machine.num_units, v4 only
+    std::string unit_params_section; ///< "mmu_unit_parameters <unit 0>", v4 only
+    std::string toolhead_section;    ///< "mmu_toolhead <name>" unit 0 uses, v4 only
+    /// Whether any unit has a bypass, from mmu_machine.unit_N.has_bypass. v4
+    /// only: v4 publishes printer.mmu.has_bypass as a constant true.
+    std::optional<bool> has_bypass;
+};
+
+/// One unit's machine fields. v3 and v4 both publish them on the live
+/// `mmu_machine` object as `unit_0`, `unit_1`, ...; an older v3 has them only on
+/// configfile's `[mmu_machine]`, read as a single unit.
+struct MachineUnit {
+    std::string display_name;                     ///< v4 `display_name`; empty when not published
+    std::string selector_type;                    ///< e.g. "VirtualSelector" (Type B)
+    int first_gate = -1;                          ///< -1 when not published
+    int num_gates = 0;                            ///< 0 when not published
+    std::string filament_heater;                  ///< shared enclosure heater
+    std::string environment_sensor;               ///< shared enclosure sensor
+    std::vector<std::string> filament_heaters;    ///< one per gate of THIS unit
+    std::vector<std::string> environment_sensors; ///< one per gate of THIS unit
+    std::optional<bool> has_bypass;
+    bool filament_always_gripped = false;
+    std::optional<bool> filament_buffer;
+    /// From the unit's configfile `[mmu_unit <name>] encoder`; nullopt when the
+    /// install does not say (v3)
+    std::optional<bool> has_encoder;
+};
+
+/// A per-unit capability v4 checks before it accepts a command or a
+/// MMU_TEST_CONFIG parameter.
+enum class UnitFeature {
+    Servo,          ///< MMU_SERVO
+    SelectorSpeed,  ///< selector_move_speed
+    Encoder,        ///< encoder calibration, gate calibration, encoder clog mode
+    SyncToExtruder, ///< sync_to_extruder (v4: not on an always-gripped unit)
+    FilamentBuffer, ///< gear_from_filament_buffer_speed (v4)
+};
+
+/// Whether @p unit has @p feature. v3 knows only Type A from Type B, so there
+/// every selector feature means "not a VirtualSelector" and the v4-only guards
+/// always pass. An unknown selector type passes.
+[[nodiscard]] bool unit_supports(const MachineUnit& unit, UnitFeature feature, bool v4);
+
+/// Every unit in order. Lists come as a JSON array or a comma-separated string.
+[[nodiscard]] std::vector<MachineUnit> read_machine_units(const nlohmann::json& settings,
+                                                          const nlohmann::json& live_mmu_machine);
+
+/// Enclosure heaters or environment sensors across every unit: one shared name
+/// when every unit uses the same one, else one entry per gate in global gate
+/// order ("" for a gate with none). A single unit keeps its own form.
+struct UnitObjects {
+    std::string shared;
+    std::vector<std::string> per_gate;
+};
+enum class UnitObjectKind { Heater, EnvironmentSensor };
+[[nodiscard]] UnitObjects collect_unit_objects(const std::vector<MachineUnit>& units,
+                                               UnitObjectKind kind);
+
+/// @param settings         configfile.settings (may be empty)
+/// @param live_mmu_machine the live `mmu_machine` status object (may be empty)
+[[nodiscard]] MachineLayout read_machine_layout(const nlohmann::json& settings,
+                                                const nlohmann::json& live_mmu_machine);
+
+/// The name the install @p layout describes accepts for the tunable @p key,
+/// which callers spell the way HelixScreen does. Clog detection is named three
+/// ways: ENABLE_CLOG_DETECTION / MMU_CALIBRATION_CLOG_LENGTH before 3.42,
+/// FLOWGUARD_ENCODER_MODE / FLOWGUARD_ENCODER_MAX_MOTION from 3.42 on. Empty
+/// when that version has no such parameter.
+[[nodiscard]] std::string_view param_name(std::string_view key, const MachineLayout& layout);
+
+/// Whether v4 keeps tunable @p key (v3 spelling) per unit, so a multi-unit
+/// MMU_TEST_CONFIG setting it needs UNIT=.
+[[nodiscard]] bool param_is_per_unit(std::string_view key);
+
+/// The configfile value of the tunable @p key (v3 spelling) from whichever
+/// section @p layout keeps it in, or nullptr.
+[[nodiscard]] const nlohmann::json* find_config_param(const nlohmann::json& settings,
+                                                      const MachineLayout& layout,
+                                                      std::string_view key);
+
+/// A configfile number: Klipper reports parsed settings as numbers, and
+/// hand-written settings carry numeric strings.
+[[nodiscard]] std::optional<float> read_config_number(const nlohmann::json* v);
+
+/// One gate's `filament_switch_sensor mmu_entry_<gate>` object. v4's
+/// printer.mmu.sensors covers only the selected gate, so these Klipper objects
+/// are the per-gate source there. Fields are nullopt when the frame omits them.
+struct EntrySensorReading {
+    int gate = -1; ///< global gate index
+    std::optional<bool> detected;
+    std::optional<bool> enabled;
+};
+
+/// Every `filament_switch_sensor mmu_entry_<N>` object in a status notification's
+/// params, in object order.
+[[nodiscard]] std::vector<EntrySensorReading>
+parse_entry_sensor_objects(const nlohmann::json& params);
 
 [[nodiscard]] MmuCoreDelta parse_core(const nlohmann::json& mmu);
 [[nodiscard]] MmuTopologyDelta parse_topology(const nlohmann::json& mmu);

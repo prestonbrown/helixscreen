@@ -21,11 +21,13 @@
 #include "printer_state.h"
 #include "subject_debug_registry.h"
 #include "temperature_controller.h"
+#include "temperature_sensor_manager.h"
 #include "temperature_service.h"
 
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <optional>
 
 #include "../catch_amalgamated.hpp"
 
@@ -276,6 +278,17 @@ class TempGraphOverlayTestAccess {
     /// The keypad's confirm, delivered the way ui_component_keypad does.
     static void keypad_confirm(TempGraphOverlay& o, float value) {
         TempGraphOverlay::keypad_value_cb(value, &o.keypad_ctx_);
+    }
+    static void discover(TempGraphOverlay& o) {
+        o.discover_series();
+    }
+    /// {has_target} of the series named @p klipper_name, or nullopt if absent.
+    static std::optional<bool> series_has_target(TempGraphOverlay& o,
+                                                 const std::string& klipper_name) {
+        for (const auto& s : o.series_)
+            if (s.klipper_name == klipper_name)
+                return s.has_target;
+        return std::nullopt;
     }
 };
 
@@ -624,4 +637,24 @@ TEST_CASE("TempGraphOverlay: Y-axis no change in dead zone between thresholds",
     // Temp right at 85% boundary (170): not strictly greater than, no expand
     result = compute_y_axis_max(200.0f, 170.0f);
     REQUIRE(result == 200.0f);
+}
+
+TEST_CASE_METHOD(TempGraphOverlayPickFixture,
+                 "TempGraphOverlay: a non-chamber heater_generic is a series with a target",
+                 "[temp_graph_overlay][heater_generic]") {
+    auto& tsm = helix::sensors::TemperatureSensorManager::instance();
+    tsm.init_subjects();
+    tsm.discover({"heater_generic filament_dryer", "temperature_sensor mcu_temp"});
+
+    auto& overlay = get_global_temp_graph_overlay();
+    TempGraphOverlayTestAccess::set_deps(overlay, &state, nullptr);
+    TempGraphOverlayTestAccess::discover(overlay);
+
+    auto dryer =
+        TempGraphOverlayTestAccess::series_has_target(overlay, "heater_generic filament_dryer");
+    REQUIRE(dryer.has_value());
+    REQUIRE(*dryer);
+
+    TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
+    tsm.discover({});
 }

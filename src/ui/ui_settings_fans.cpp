@@ -140,7 +140,7 @@ void FanSettingsOverlay::populate_fan_list(lv_obj_t* list, bool controllable) {
         }
 
         // Update the speed label (not bound to a subject here — refreshed on populate)
-        lv_obj_t* speed_label = lv_obj_find_by_name(row, "speed_label");
+        lv_obj_t* speed_label = helix::ui::find_required(row, "speed_label", get_name());
         if (speed_label) {
             lv_label_set_text(speed_label, speed_buf);
         }
@@ -158,7 +158,7 @@ void FanSettingsOverlay::populate_fan_list(lv_obj_t* list, bool controllable) {
                     auto* name = static_cast<std::string*>(lv_event_get_user_data(e));
                     if (name) {
                         lv_obj_t* r = lv_event_get_current_target_obj(e);
-                        lv_obj_t* label = lv_obj_find_by_name(r, "name_label");
+                        lv_obj_t* label = helix::ui::find_required(r, "name_label", "Fans");
                         const char* current = label ? lv_label_get_text(label) : "";
                         get_fan_settings_overlay().handle_fan_rename(*name, current ? current : "");
                     }

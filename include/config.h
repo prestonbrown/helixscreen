@@ -579,6 +579,21 @@ class Config {
     std::vector<std::string> get_printer_ids() const;
 
     /**
+     * @brief An unused "printer-N" id for a new printer entry
+     *
+     * N starts one past the printer count and climbs past any id still in use, so ids left
+     * behind by a delete never collide.
+     */
+    std::string next_printer_id() const;
+
+    /// The id of the printer whose Moonraker is at @p host : @p port (7125 when unset); empty
+    /// when no printer is.
+    std::string find_printer_by_host(const std::string& host, int port) const;
+
+    /// The active printer's display name; its id when no name has been set.
+    std::string get_active_printer_name() const;
+
+    /**
      * @brief Add a new printer configuration
      *
      * @param printer_id Slug ID for the new printer

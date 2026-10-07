@@ -32,6 +32,7 @@
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "ui/fan_spin_animation.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -681,9 +682,9 @@ void FanStackWidget::bind_carousel_fans() {
 
         // Cache arc, label, and icon pointers for observer updates
         CarouselPage cp;
-        cp.arc = lv_obj_find_by_name(arc_core, "dial_arc");
-        cp.speed_label = lv_obj_find_by_name(arc_core, "speed_label");
-        cp.fan_icon = lv_obj_find_by_name(arc_core, "fan_icon");
+        cp.arc = helix::ui::find_required(arc_core, "dial_arc", "FanStackWidget");
+        cp.speed_label = helix::ui::find_required(arc_core, "speed_label", "FanStackWidget");
+        cp.fan_icon = helix::ui::find_required(arc_core, "fan_icon", "FanStackWidget");
         cp.object_name = entry.object_name;
         cp.is_controllable = entry.is_controllable;
 

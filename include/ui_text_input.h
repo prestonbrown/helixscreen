@@ -25,6 +25,7 @@ enum class KeyboardHint : uint8_t {
  * - Reactive data binding via bind_text attribute
  * - Keyboard hint for initial keyboard mode (keyboard_hint attribute)
  * - Optional clear button (Android-style, shown when text is present)
+ * - Optional suffix: muted text such as a unit, inside the field's right end
  * - Responsive sizing with automatic vertical padding
  * - One-line mode by default for form inputs
  *
@@ -34,6 +35,8 @@ enum class KeyboardHint : uint8_t {
  * <text_input name="port_input" bind_text="connection_port" keyboard_hint="numeric" width="100%"/>
  * <text_input name="search" show_clear_button="true" clear_callback="on_my_clear"
  * placeholder_text="Search..."/>
+ * <text_input name="temp" bind_text="my_value" suffix="°C" style_text_align="right"/>
+ * <text_input name="speed" bind_text="my_value" bind_suffix="my_unit_subject"/>
  * @endcode
  *
  * The bind_text attribute creates a reactive observer - when the subject
@@ -47,6 +50,12 @@ enum class KeyboardHint : uint8_t {
  * the right side of the input. It auto-shows when text is present and auto-hides
  * when empty. The optional clear_callback fires a registered XML event callback
  * after clearing the text.
+ *
+ * The suffix attribute (static text) or bind_suffix attribute (string subject)
+ * shows muted text inside the right end of the field, after the typed text and
+ * before the clear button. The field's right padding follows the suffix's
+ * rendered width, so right-aligned text ends right beside it; an empty suffix
+ * takes no space.
  *
  * @note All standard lv_textarea attributes are supported (placeholder_text, password_mode, etc.)
  */

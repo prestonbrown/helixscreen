@@ -8,6 +8,7 @@
 #include "observer_factory.h"
 #include "performance_state.h" // helix::perf::PerformanceState::subjects_lifetime()
 #include "text_io.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -33,7 +34,7 @@ lv_obj_t* UiOverlayPerformance::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    mcu_card_ = lv_obj_find_by_name(root_, "mcu_card");
+    mcu_card_ = helix::ui::find_required(root_, "mcu_card", "UiOverlayPerformance");
 
     lv_subject_t* names_subj = lv_xml_get_subject(nullptr, "perf_mcu_names");
     if (names_subj) {

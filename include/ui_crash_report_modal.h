@@ -21,7 +21,7 @@
 
 class CrashReportModal : public Modal {
   public:
-    CrashReportModal();
+    explicit CrashReportModal(CrashReporter& reporter);
     ~CrashReportModal() override;
 
     // Non-copyable
@@ -36,7 +36,7 @@ class CrashReportModal : public Modal {
 
     /// One-shot form: show on the active screen and hand the instance to
     /// ModalStack, which frees it when its entry goes (#1382).
-    static bool show_owned(const CrashReporter::CrashReport& report);
+    static bool show_owned(CrashReporter& reporter, const CrashReporter::CrashReport& report);
 
     const char* get_name() const override {
         return "Crash Report";
@@ -62,6 +62,7 @@ class CrashReportModal : public Modal {
     char status_buf_[256] = {};
 
     // Crash report data
+    CrashReporter& reporter_;
     CrashReporter::CrashReport report_;
 
     // Flipped on first Send click so double-taps don't kick off a second

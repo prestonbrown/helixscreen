@@ -19,11 +19,13 @@
 
 #include "http_lane_queue.h"
 
+#include <atomic>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -34,6 +36,8 @@ namespace helix::http {
 // large body from needing a second allocation of the same size.
 using FetchSuccessCb = std::function<void(std::string& body)>;
 using FetchErrorCb = std::function<void(const std::string& message)>;
+/// Set by the submitter when it no longer wants the result.
+using FetchCancelFlag = std::shared_ptr<const std::atomic<bool>>;
 
 class EspHttpLane {
   public:
@@ -45,8 +49,10 @@ class EspHttpLane {
     // QUEUE_DEPTH or the worker pthread failed to start. Callers MUST NOT
     // block or retry-loop on a false return; a full queue means "try again
     // later" (e.g. next scroll tick), never a caller-side spin.
+    // A job whose @p cancelled flag is set by the time the worker takes it is
+    // not sent: on_error gets "cancelled" and the queue slot frees at once.
     bool submit_get(std::string url, size_t range_max_bytes, FetchSuccessCb on_success,
-                    FetchErrorCb on_error);
+                    FetchErrorCb on_error, FetchCancelFlag cancelled = nullptr);
 
     static constexpr size_t QUEUE_DEPTH = 8;
 
@@ -72,6 +78,7 @@ class EspHttpLane {
         size_t cap = 0;
         FetchSuccessCb on_success;
         FetchErrorCb on_error;
+        FetchCancelFlag cancelled;
     };
 
     // Caller must already hold mutex_ — mutex_ is a plain std::mutex, so this

@@ -61,8 +61,11 @@ void TemperatureSensorManager::discover(const std::vector<std::string>& klipper_
             continue;
         }
 
-        // Generate display name
-        std::string display_name = helix::get_display_name(sensor_name, DeviceType::TEMP_SENSOR);
+        // Generate display name. A heater is named as one ("Chamber Heater"), so
+        // it never reads the same as a thermistor of the same name.
+        std::string display_name = helix::get_display_name(
+            sensor_name, type == TemperatureSensorType::HEATER_GENERIC ? DeviceType::HEATER
+                                                                       : DeviceType::TEMP_SENSOR);
 
         TemperatureSensorConfig config(klipper_name, sensor_name, display_name, type);
 
@@ -156,7 +159,7 @@ void TemperatureSensorManager::update_from_status(const nlohmann::json& status) 
                 it != sensor_data.end() && it->is_number()) {
                 state.temperature = it->get<float>();
             }
-            // target / speed are temperature_fan-only.
+            // target is temperature_fan / heater_generic only; speed is temperature_fan only.
             if (auto it = sensor_data.find("target"); it != sensor_data.end() && it->is_number()) {
                 state.target = it->get<float>();
             }
@@ -322,27 +325,49 @@ void TemperatureSensorManager::set_sensor_role(const std::string& klipper_name,
     }
 }
 
-void TemperatureSensorManager::apply_chamber_sensor_override(const std::string& klipper_name) {
+void TemperatureSensorManager::apply_chamber_sensor_override(const std::string& klipper_name,
+                                                             const std::string& heater_name) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-    // A name this printer does not report would demote the incumbent CHAMBER
-    // below and promote nothing in its place, vacating the chamber role. Keep
-    // the auto-categorizer's classification standing instead.
+    // The chamber's heater_generic joins the chamber role so it is not listed
+    // again as an auxiliary heater. A temperature_fan in the heater slot keeps
+    // its own role: it is a fan with its own reading, listed as one.
+    auto* chamber_heater =
+        heater_name.rfind("heater_generic ", 0) == 0 ? sensors_.find(heater_name) : nullptr;
+
+    // A sensor name this printer does not report would demote the incumbent
+    // CHAMBER below and promote nothing in its place, vacating the chamber role.
+    // Keep the auto-categorizer's classification standing instead, apart from
+    // the heater, which is the chamber's whatever the sensor resolves to.
     if (!klipper_name.empty() && !sensors_.find(klipper_name)) {
         spdlog::debug("[TemperatureSensorManager] Chamber override '{}' not found in discovered "
                       "sensors; keeping auto-categorized roles",
                       klipper_name);
+        if (chamber_heater && chamber_heater->role != TemperatureSensorRole::CHAMBER) {
+            chamber_heater->role = TemperatureSensorRole::CHAMBER;
+            chamber_heater->priority = 0;
+            update_subjects();
+        }
         return;
     }
 
-    // Early-out when the named sensor is already the sole CHAMBER — avoids
-    // demoting + repromoting the same sensor and the accompanying log line on
-    // every reconnect for printers whose chamber sensor matches the
+    std::vector<std::string> chamber_names;
+    if (!klipper_name.empty())
+        chamber_names.push_back(klipper_name);
+    if (chamber_heater)
+        chamber_names.push_back(heater_name);
+    auto is_chamber_name = [&](const std::string& name) {
+        return std::find(chamber_names.begin(), chamber_names.end(), name) != chamber_names.end();
+    };
+
+    // Early-out when the named objects already are exactly the CHAMBER set:
+    // avoids demoting + repromoting them and the accompanying log line on
+    // every reconnect for printers whose chamber objects match the
     // auto-categorizer (e.g. literally named "chamber").
-    if (!klipper_name.empty()) {
+    if (!chamber_names.empty()) {
         bool needs_change = false;
         for (const auto& config : sensors_) {
-            bool is_target = (config.klipper_name == klipper_name);
+            bool is_target = is_chamber_name(config.klipper_name);
             bool is_chamber = (config.role == TemperatureSensorRole::CHAMBER);
             if (is_target != is_chamber) {
                 needs_change = true;
@@ -372,11 +397,13 @@ void TemperatureSensorManager::apply_chamber_sensor_override(const std::string& 
         }
     }
 
-    // Promote the specified sensor to CHAMBER role.
-    if (auto* sensor = sensors_.find(klipper_name)) {
-        sensor->role = TemperatureSensorRole::CHAMBER;
-        sensor->priority = 0;
-        spdlog::info("[TemperatureSensorManager] Manual chamber sensor override: {}", klipper_name);
+    // Promote the chamber's sensor and heater to CHAMBER role.
+    for (const auto& name : chamber_names) {
+        if (auto* sensor = sensors_.find(name)) {
+            sensor->role = TemperatureSensorRole::CHAMBER;
+            sensor->priority = 0;
+            spdlog::info("[TemperatureSensorManager] Chamber override: {}", name);
+        }
     }
 
     update_subjects();
@@ -434,6 +461,20 @@ lv_subject_t* TemperatureSensorManager::get_temp_subject(const std::string& klip
     return &it->second->subject;
 }
 
+lv_subject_t* TemperatureSensorManager::get_target_subject(const std::string& klipper_name,
+                                                           SubjectLifetime& lifetime) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    auto it = temp_subjects_.find(klipper_name);
+    if (it == temp_subjects_.end()) {
+        lifetime.reset();
+        return nullptr;
+    }
+
+    lifetime = it->second->lifetime;
+    return &it->second->target_subject;
+}
+
 lv_subject_t* TemperatureSensorManager::get_sensor_count_subject() {
     return &sensor_count_;
 }
@@ -473,6 +514,13 @@ bool TemperatureSensorManager::parse_klipper_name(const std::string& klipper_nam
         return true;
     }
 
+    const std::string heater_generic_prefix = "heater_generic ";
+    if (klipper_name.rfind(heater_generic_prefix, 0) == 0) {
+        sensor_name = klipper_name.substr(heater_generic_prefix.length());
+        type = TemperatureSensorType::HEATER_GENERIC;
+        return true;
+    }
+
     // TMC stepper drivers with built-in temperature sensing
     static const std::string tmc_prefixes[] = {"tmc2240 ", "tmc5160 "};
     for (const auto& prefix : tmc_prefixes) {
@@ -493,6 +541,7 @@ void TemperatureSensorManager::ensure_sensor_subject(const std::string& klipper_
 
     auto subj = std::make_unique<DynamicIntSubject>();
     lv_subject_init_int(&subj->subject, 0);
+    lv_subject_init_int(&subj->target_subject, 0);
     subj->initialized = true;
     subj->lifetime = std::make_shared<bool>(true);
 
@@ -520,6 +569,9 @@ void TemperatureSensorManager::update_subjects() {
         // Convert temperature to decidegrees (×10 for 0.1°C resolution)
         int decidegrees = helix::units::to_decidegrees(state->temperature);
         lv_subject_set_int(&subj_it->second->subject, decidegrees);
+        int target_deci = helix::units::to_decidegrees(state->target);
+        if (lv_subject_get_int(&subj_it->second->target_subject) != target_deci)
+            lv_subject_set_int(&subj_it->second->target_subject, target_deci);
     }
 
     spdlog::trace("[TemperatureSensorManager] Subjects updated: {} sensors", sensors_.size());

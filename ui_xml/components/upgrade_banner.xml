@@ -5,7 +5,7 @@
   <!--
     Persistent top-banner that prompts the user to upgrade when
     UpgradeNudge::should_show_banner() is true. Ships invisible: the C++
-    side (UpgradeBanner singleton) attaches an instance to lv_layer_top
+    side (Application's UpgradeBanner) attaches an instance to lv_layer_top
     during app init, then observes UpgradeNudge + UpdateChecker state and
     toggles visibility. Dismiss button persists per-version via
     UpgradeNudge::dismiss_current_version(); Update button navigates to

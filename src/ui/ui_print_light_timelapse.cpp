@@ -3,6 +3,7 @@
 
 #include "ui_print_light_timelapse.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_toast_manager.h"
@@ -43,20 +44,6 @@ void set_global_light_timelapse_controls(PrintLightTimelapseControls* instance) 
 // ============================================================================
 // XML EVENT CALLBACKS (free functions using global accessor)
 // ============================================================================
-
-static void on_print_status_light_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[PrintLightTimelapseControls] on_print_status_light_cb");
-    (void)e;
-    get_global_light_timelapse_controls().handle_light_button();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-static void on_print_status_timelapse_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[PrintLightTimelapseControls] on_print_status_timelapse_cb");
-    (void)e;
-    get_global_light_timelapse_controls().handle_timelapse_button();
-    LVGL_SAFE_EVENT_CB_END();
-}
 
 // ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
@@ -99,8 +86,12 @@ void PrintLightTimelapseControls::init_subjects() {
         this, [](PrintLightTimelapseControls* self) { self->refresh_timelapse_display(); });
 
     // Register XML event callbacks
-    lv_xml_register_event_cb(nullptr, "on_print_status_light", on_print_status_light_cb);
-    lv_xml_register_event_cb(nullptr, "on_print_status_timelapse", on_print_status_timelapse_cb);
+    register_xml_callbacks({
+        {"on_print_status_light",
+         [](lv_event_t*) { get_global_light_timelapse_controls().handle_light_button(); }},
+        {"on_print_status_timelapse",
+         [](lv_event_t*) { get_global_light_timelapse_controls().handle_timelapse_button(); }},
+    });
 
     subjects_initialized_ = true;
     spdlog::debug("[PrintLightTimelapseControls] Subjects initialized");

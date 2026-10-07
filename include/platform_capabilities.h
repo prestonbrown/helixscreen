@@ -177,12 +177,14 @@ uint64_t parse_meminfo_kb(const std::string& content, const std::string& key);
 CpuInfo parse_cpuinfo(const std::string& content);
 
 /**
- * @brief Whether pressed widgets may scale down for touch feedback on this tier
+ * @brief Whether this tier can afford style effects that cost a redraw per use
  *
- * A scaled widget renders through a TRANSFORM layer, which the limited tiers
- * cannot afford on every press. The one rule for every pressed-scale style.
+ * The one rule for each such effect: a pressed widget's scale-down renders
+ * through a TRANSFORM layer on every press, and a scrollbar restyled while
+ * scrolling redraws the whole scroller when a drag starts and stops. The
+ * limited tiers go without both.
  */
-bool pressed_scale_allowed(PlatformTier tier);
+bool full_style_effects_allowed(PlatformTier tier);
 
 /**
  * @brief Convert PlatformTier to string representation

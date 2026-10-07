@@ -21,13 +21,17 @@
 #include "i_moonraker_client.h"
 #include "reconnect_backoff.h"
 #include "rpc_error_policy.h"
+#include "transport_lifecycle.h"
 
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <pthread.h>
 #include <string>
 
 namespace helix {
@@ -133,7 +137,41 @@ class EspMoonrakerClient final : public IMoonrakerClient {
         return connection_generation_.load();
     }
 
+    /// Runs on the transport worker before each new websocket task starts, after the old
+    /// one is gone; false skips the start and reports a stall.
+    /// Process-wide: set once at boot, before the first connect.
+    static void set_before_transport_start(std::function<bool()> check);
+
+    /// Called once, from the transport worker or the housekeeping task, when a transport
+    /// job could not finish: its websocket task would not stop, or a start was refused.
+    /// Process-wide: set once at boot, before the first connect.
+    static void set_transport_stall_handler(std::function<void()> handler);
+
   private:
+    // --- Transport worker ---
+    // Every websocket stop, destroy, init and start runs on this one thread, in order, so
+    // neither the UI thread nor the housekeeping timer ever waits on a websocket task.
+    static constexpr uint32_t TRANSPORT_WORKER_STACK_BYTES = 6 * 1024;
+    static constexpr int64_t TRANSPORT_STALL_US = 10LL * 1000 * 1000;
+    static constexpr int64_t TRANSPORT_STALL_UNCONNECTED_US = 30LL * 1000 * 1000;
+    void post_transport_job(const char* what, std::function<void()> job);
+    static void* transport_worker_main(void* self);
+    void transport_worker_loop();
+    esp_websocket_client_handle_t create_transport(const std::string& url);
+    static void log_internal_heap(const char* when);
+    void report_transport_stall();
+    void fail_pending_requests();
+
+    std::mutex transport_mutex_;
+    std::condition_variable transport_cv_;
+    std::deque<std::pair<const char*, std::function<void()>>> transport_jobs_;
+    pthread_t transport_worker_{};
+    bool transport_worker_started_ = false;
+    bool transport_quit_ = false;
+    std::atomic<int64_t> transport_job_started_us_{0};
+    std::atomic<const char*> transport_job_name_{nullptr};
+    std::atomic<bool> transport_stall_reported_{false};
+
     // Reassembly cap: a single WS message larger than this is dropped whole.
     // Moonraker does not chunk at the protocol level, so an oversized response's
     // RPC will simply time out (see brief). 256 KiB.
@@ -204,12 +242,25 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     static constexpr int64_t SLOW_DISPATCH_LOG_MS = 500;
     // Websocket-task only: reported when a connection drops.
     unsigned pongs_this_connection_ = 0;
-    int64_t last_pong_us_ = 0;
+    /// Last PONG for one of our PINGs (the connect time until the first), read by the
+    /// timer-side dead-link check.
+    std::atomic<int64_t> last_pong_us_{0};
+    std::atomic<bool> dead_link_reported_{false};
+    /// A connection with no PONG and no other frame for this long is dead, whatever the
+    /// websocket task believes; the client reconnects. Above Moonraker's 25 s pong
+    /// timeout, so a link Moonraker gives up on closes before this fires.
+    static constexpr int64_t LINK_DEAD_US = 40LL * 1000 * 1000;
     int64_t connected_us_ = 0;
     // Any frame received (websocket task writes, timer task reads) and the last
     // stall report, for the rx-stall tripwire in process_timeouts().
     std::atomic<int64_t> last_rx_us_{0};
     int64_t last_stall_log_us_ = 0;
+    /// Frames dropped because they came from a transport no longer current; reported with
+    /// the rx-stall and discovery-recovery lines.
+    std::atomic<uint32_t> stale_frames_dropped_{0};
+    /// connection_lost callbacks for requests a disconnect failed, delivered by
+    /// process_timeouts(); guarded by requests_mutex_.
+    std::vector<std::function<void()>> failed_callbacks_;
     static constexpr int64_t RX_STALL_LOG_US = 5 * 1000 * 1000;
     static_assert(PING_PONG_TIMEOUT_SEC * 1000u < DEFAULT_REQUEST_TIMEOUT_MS,
                   "ping/pong must detect a dead link before the per-request timeout fires — "
@@ -285,6 +336,10 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     void discovery_subscribe(DiscoveryDone done, DiscoveryFail fail, uint64_t generation);
     // Emit `ev`, clear discovery_in_flight_, and invoke the error callback once
     // — but only if `generation` still matches (see above).
+    /// A discovery request failed: fails the chain, and reconnects when it timed out on a
+    /// connection still marked up.
+    void discovery_request_failed(const DiscoveryFail& fail, const MoonrakerError& err,
+                                  uint64_t generation);
     void discovery_fail(const DiscoveryFail& fail, MoonrakerEventType ev, const std::string& reason,
                         uint64_t generation);
 
@@ -294,7 +349,8 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     // connect() closes the reachable race window, but the esp_timer dispatch
     // handoff (list-unlock before callback entry) leaves a residual sliver
     // where a stale pass can start; it must observe the fresh nullptr.
-    std::atomic<esp_websocket_client_handle_t> ws_{nullptr};
+    /// The running transport and the order its jobs run in (transport_lifecycle.h).
+    net::TransportLifecycle<esp_websocket_client_handle_t> transport_;
     esp_timer_handle_t housekeeping_timer_ = nullptr;
     std::string url_;
 

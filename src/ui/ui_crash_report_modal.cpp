@@ -33,7 +33,7 @@ CrashReportModal* CrashReportModal::active_instance_ = nullptr;
 // Constructor / Destructor
 // =============================================================================
 
-CrashReportModal::CrashReportModal() {
+CrashReportModal::CrashReportModal(CrashReporter& reporter) : reporter_(reporter) {
     spdlog::debug("[CrashReportModal] Constructed");
 }
 
@@ -82,8 +82,9 @@ bool CrashReportModal::show_modal(lv_obj_t* parent) {
     return result;
 }
 
-bool CrashReportModal::show_owned(const CrashReporter::CrashReport& report) {
-    auto modal = std::make_unique<CrashReportModal>();
+bool CrashReportModal::show_owned(CrashReporter& reporter,
+                                  const CrashReporter::CrashReport& report) {
+    auto modal = std::make_unique<CrashReportModal>(reporter);
     modal->set_report(report);
     if (!modal->show_modal(lv_screen_active())) {
         // show_modal() already registered the XML-named subjects; the global
@@ -203,7 +204,7 @@ void CrashReportModal::handle_dismiss() {
     spdlog::info("[CrashReportModal] User dismissed crash report");
 
     // Always consume the crash file so we don't nag on every launch
-    CrashReporter::instance().consume_crash_file();
+    reporter_.consume_crash_file();
 
     hide();
 }
@@ -266,7 +267,7 @@ void CrashReportModal::attempt_delivery() {
 }
 
 void CrashReportModal::send_with_bundle(const std::string& share_code) {
-    auto& cr = CrashReporter::instance();
+    auto& cr = reporter_;
 
     lv_subject_copy_string(&status_subject_, lv_tr("Sending..."));
 
@@ -298,7 +299,7 @@ void CrashReportModal::send_with_bundle(const std::string& share_code) {
 
 void CrashReportModal::show_local_fallback(const CrashReporter::CrashReport& report,
                                            const char* status) {
-    auto& cr = CrashReporter::instance();
+    auto& cr = reporter_;
 
     const std::string url = cr.generate_github_url(report);
     if (!url.empty()) {

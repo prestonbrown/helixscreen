@@ -99,6 +99,9 @@ class AudioSettingsManager {
     /** @brief Set ALSA output device PCM (persists to config) */
     void set_output_device(const std::string& pcm);
 
+    /** @brief Persisted PWM buzzer channel as "<chip>:<channel>" ("" if unset) */
+    std::string get_pwm_channel() const;
+
     CompletionAlertMode get_completion_alert_mode() const {
         return static_cast<CompletionAlertMode>(
             std::clamp(settings_.get(Key::CompletionAlert), 0, 2));
@@ -108,15 +111,17 @@ class AudioSettingsManager {
     }
 
     /**
-     * @brief Refresh the audio-device-available subject from the live backend
+     * @brief Refresh the subjects that describe the live sound backend
      *
-     * `settings_audio_device_available` cannot be seeded in init_subjects()
-     * because subjects are initialized before SoundManager picks its backend.
-     * Called once after SoundManager::initialize() so the value is correct
-     * before any overlay binds to it. The backend is static after init, so a
-     * single refresh is sufficient.
+     * `settings_audio_device_available` (an ALSA device picker applies) and
+     * `settings_music_available` (the backend plays music) cannot be seeded in
+     * init_subjects() because subjects are initialized before SoundManager
+     * picks its backend. Called once after SoundManager::initialize() so the
+     * values are correct before any overlay binds to them. A later M300
+     * takeover only swaps one tones-only backend for another, so a single
+     * refresh is sufficient.
      */
-    void refresh_audio_device_available();
+    void refresh_backend_subjects();
 
     // =========================================================================
     // SUBJECT ACCESSORS (for XML binding)
@@ -151,6 +156,7 @@ class AudioSettingsManager {
     SubjectManager subjects_;
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
     lv_subject_t audio_device_available_subject_{};
+    lv_subject_t music_available_subject_{};
 
     bool subjects_initialized_ = false;
 };

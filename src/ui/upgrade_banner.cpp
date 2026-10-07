@@ -31,12 +31,17 @@ namespace {
 constexpr size_t MESSAGE_BUF_SIZE = 128;
 char g_message_buf[MESSAGE_BUF_SIZE] = "";
 
-} // namespace
-
-UpgradeBanner& UpgradeBanner::instance() {
-    static UpgradeBanner singleton;
-    return singleton;
+// The banner root sits directly on lv_layer_top and carries its owner as user data.
+UpgradeBanner* owner_of(lv_event_t* e) {
+    auto* obj = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    lv_obj_t* top = lv_layer_top();
+    while (obj && lv_obj_get_parent(obj) != top) {
+        obj = lv_obj_get_parent(obj);
+    }
+    return obj ? static_cast<UpgradeBanner*>(lv_obj_get_user_data(obj)) : nullptr;
 }
+
+} // namespace
 
 void UpgradeBanner::init() {
     if (banner_) {
@@ -68,6 +73,7 @@ void UpgradeBanner::init() {
     // Align to the top edge of the screen; layer_top already covers the
     // full display, so the banner just sits at y=0.
     lv_obj_align(banner_, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_user_data(banner_, this);
 
     // Observe UpdateChecker status so the banner reappears/reevaluates when
     // a new version is detected. lifetime token keeps deferred callbacks
@@ -162,10 +168,12 @@ void UpgradeBanner::on_update_clicked(lv_event_t* /*e*/) {
     helix::settings::get_updates_settings_overlay().show(lv_display_get_screen_active(nullptr));
 }
 
-void UpgradeBanner::on_dismiss_clicked(lv_event_t* /*e*/) {
+void UpgradeBanner::on_dismiss_clicked(lv_event_t* e) {
     spdlog::info("[UpgradeBanner] Dismissed for current version");
     UpgradeNudge::instance().dismiss_current_version();
-    UpgradeBanner::instance().evaluate_visibility();
+    if (auto* self = owner_of(e)) {
+        self->evaluate_visibility();
+    }
 }
 
 } // namespace helix

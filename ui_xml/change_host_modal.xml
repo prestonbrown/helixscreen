@@ -15,7 +15,12 @@
             style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
             style_pad_gap="#space_md">
       <!-- Title -->
-      <text_heading width="100%" text="Change Printer Host" style_text_align="center"/>
+      <text_heading name="title_change_host" width="100%" text="Change Printer Host" style_text_align="center">
+        <bind_flag_if_eq subject="change_host_adding" flag="hidden" ref_value="1"/>
+      </text_heading>
+      <text_heading name="title_add_printer" width="100%" text="Add Printer" style_text_align="center">
+        <bind_flag_if_eq subject="change_host_adding" flag="hidden" ref_value="0"/>
+      </text_heading>
       <!-- Input row: Host (75%) + Port (25%) -->
       <lv_obj width="100%"
               height="content" scrollable="false" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="row">
@@ -57,6 +62,6 @@
     <modal_button_row secondary_name="modal_cancel_btn"
                       secondary_text="Cancel" secondary_callback="on_change_host_cancel" primary_name="modal_save_btn"
                       primary_text="Save" primary_callback="on_change_host_save"
-                      primary_enable_subject="change_host_validated"/>
+                      primary_disable_subject="change_host_save_locked"/>
   </view>
 </component>

@@ -61,22 +61,34 @@ units, no action and no error.
 
 Each lane may carry `pressure` and `set_point` (klipper_openams
 [UI_API.md](https://github.com/OpenAMSOrg/klipper_openams/blob/master/docs/UI_API.md)).
-`pressure` is the lane's FPS reading: compression from 0.0 (none) to 1.0 (full).
-The FPS measures compression only, never tension. `set_point` is the compression
-the feeding unit's hub motor regulates to.
+`pressure` is the lane's FPS reading, 0.0 to 1.0. `set_point` is the reading the
+feeding unit's hub motor regulates to: below it the extruder is pulling harder
+than the hub feeds (filament pulling tight), above it the hub is overfeeding
+(filament loose).
 
 The backend puts the reading on every unit of that lane as its `BufferHealth`
-(`fps_value`, `fps_set_point`, `fps_reported`), so:
+(`fps_value`, `fps_set_point`, `fps_reported`). It writes no `sync_feedback_bias`:
+that field is Happy Hare's. Everything draws through `helix::buffer_reading()`
+(`include/buffer_reading.h`), so:
 
-- the path canvas draws the buffer box, labelled **FPS** because the buffer
-  reports pressure (`ui_ams_detail.cpp`); any buffer that reports pressure gets
+- `BufferHealth::fps_to_bias()` maps the pressure onto the -1..+1 bias around the
+  set point, and the one colour rule (grey below 0.3, amber, red from 0.7) applies;
+- the Filament Buffer widget, the loaded-spool card and the Buffer Status modal read
+  the lane feeding the current slot, else the first unit with a sensor (with several
+  lanes loaded there is no current slot); the path canvas draws the unit's own lane;
+- the path canvas draws the buffer box labelled **FPS** because the buffer reports
+  pressure (`ui_ams_detail.cpp`), tinted live; any buffer that reports pressure gets
   the same label;
-- tapping it opens the buffer modal's pressure view, "Pressure: 62%".
+- tapping it opens the Buffer Status modal: the slider, "FPS 62%" and "target 50%",
+  the lean in words and the last minute as a trace line.
 
-It is deliberately not published as `sync_feedback_bias`. That signal is
-bipolar (tension below zero, compression above), so an under-target reading
-would be shown as tension the sensor cannot measure. A manager that publishes
-no `pressure` gets no buffer box.
+OpenAMS has a buffer reading and no clog detection: klipper_openams publishes none, so
+the Clog Detection widget has nothing to show. See
+[Filament buffer reading](FILAMENT_MANAGEMENT.md#filament-buffer-reading).
+
+A lane with no `set_point` cannot be placed either side of its target, so it
+gets the pressure reading as text alone ("Pressure: N%"), with no slider, trace or tint. A manager that
+publishes no `pressure` gets no buffer box.
 
 ## Operations
 
@@ -144,7 +156,7 @@ OpenAMS reports no colour, material or spool identity, so identity is HelixScree
 | Endless spool | Not exposed |
 | Runout surface | No error hook, so the generic runout modal and toast remain (`runtime_config.cpp`) |
 | Environment sensors | No |
-| Filament pressure | Per lane, from `lanes[].pressure`; drawn as the FPS box, no bias tint |
+| Filament pressure | Per lane, from `lanes[].pressure` and `set_point`; drawn as the FPS box with bias tint and the buffer slider |
 
 ## Tests
 

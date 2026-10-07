@@ -6,6 +6,7 @@
 #include "theme_manager.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 namespace helix::ui {
@@ -63,6 +64,45 @@ ClogMeterStatus clog_meter_status(int mode, int value, int warning, int danger_p
     return ClogMeterStatus::Ok;
 }
 
+ClogMeterStatus pressure_status_of_bias(float bias) {
+    const float clamped = std::isnan(bias) ? 0.0f : std::clamp(bias, -1.0f, 1.0f);
+    return pressure_status(static_cast<int>(std::lround(clamped * 100.0f)));
+}
+
+bool clog_meter_is_symmetrical(int mode) {
+    return static_cast<ClogMeterMode>(mode) == ClogMeterMode::Flowguard;
+}
+
+ClogMeterStatus pressure_status(int pct) {
+    const int magnitude = std::abs(pct);
+    if (magnitude >= kPressureFaultPct) {
+        return ClogMeterStatus::Fault;
+    }
+    if (magnitude >= kPressureWarningPct) {
+        return ClogMeterStatus::Warning;
+    }
+    return ClogMeterStatus::Ok;
+}
+
+const char* buffer_status_token(ClogMeterStatus s) {
+    switch (s) {
+    case ClogMeterStatus::Warning:
+        return "warning";
+    case ClogMeterStatus::Fault:
+        return "danger";
+    case ClogMeterStatus::Ok:
+        break;
+    }
+    return "text_muted";
+}
+
+BufferLean buffer_lean(float bias) {
+    if (std::fabs(bias) < 0.02f) {
+        return BufferLean::Balanced;
+    }
+    return bias < 0 ? BufferLean::Tight : BufferLean::Loose;
+}
+
 bool clog_meter_is_safe(int mode, int value) {
     return static_cast<ClogMeterMode>(mode) == ClogMeterMode::Buffer && value == 0;
 }
@@ -73,7 +113,7 @@ ClogBarGeometry clog_bar_geometry(int mode, int value, int danger_pct, int peak_
         return g;
     }
 
-    const bool symmetrical = static_cast<ClogMeterMode>(mode) == ClogMeterMode::Flowguard;
+    const bool symmetrical = clog_meter_is_symmetrical(mode);
     danger_pct = std::clamp(danger_pct, 0, 100);
     peak_pct = std::clamp(std::abs(peak_pct), 0, 100);
 

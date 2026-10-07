@@ -18,6 +18,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_hardware.h"
 #include "static_panel_registry.h"
+#include "ui/ui_widget_helpers.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -124,7 +125,8 @@ lv_obj_t* WizardLedSelectStep::create(lv_obj_t* parent) {
         spdlog::debug("[{}] Dropdown populated, attaching callback", get_name());
 
         // Attach LED dropdown callback programmatically
-        lv_obj_t* led_dropdown = lv_obj_find_by_name(screen_root_, "led_main_dropdown");
+        lv_obj_t* led_dropdown =
+            helix::ui::find_required(screen_root_, "led_main_dropdown", get_name());
         if (led_dropdown) {
             lv_obj_add_event_cb(led_dropdown, wizard_hardware_dropdown_changed_cb,
                                 LV_EVENT_VALUE_CHANGED, &led_strip_selected_);

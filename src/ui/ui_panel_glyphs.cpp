@@ -10,6 +10,7 @@
 #include "printer_state.h"
 #include "static_panel_registry.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <lvgl/lvgl.h>
 #include <spdlog/spdlog.h>
@@ -109,7 +110,7 @@ void GlyphsPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
 void GlyphsPanel::populate_glyphs() {
     // Update icon count in header
-    lv_obj_t* count_label = lv_obj_find_by_name(panel_, "glyph_count_label");
+    lv_obj_t* count_label = helix::ui::find_required(panel_, "glyph_count_label", get_name());
     if (count_label) {
         char count_text[32];
         snprintf(count_text, sizeof(count_text), "%zu icons", helix::ui::icon::ICON_MAP_SIZE);

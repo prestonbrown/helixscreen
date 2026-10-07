@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_context_menu.h"
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
@@ -62,9 +63,49 @@ class PowerDeviceWidget : public TiledPanelWidget {
     ObserverGuard status_observer_;
     helix::AsyncLifetimeGuard lifetime_;
 
-    // Picker state
-    lv_obj_t* picker_backdrop_ = nullptr;
-    static PowerDeviceWidget* s_active_picker_;
+    /// Device list, icon grid and energy-sensor chips, raised by a tap on an
+    /// unconfigured tile or the edit-mode gear. A device row or a sensor chip
+    /// applies and closes; an icon applies live and leaves the card up.
+    class DevicePicker : public helix::ui::ContextMenu {
+        HELIX_CONTEXT_MENU_KIND(DevicePicker)
+
+      public:
+        explicit DevicePicker(PowerDeviceWidget& owner) : owner_(owner) {}
+
+        /// Repaint the grid's selection ring after a live icon change.
+        void refresh_icon_highlights();
+
+      protected:
+        const char* xml_component_name() const override {
+            return "power_device_picker";
+        }
+        /// Two columns side by side need more room than the single-list pickers.
+        CardWidth card_width() const override {
+            return {60, 260, 420};
+        }
+        void on_created(lv_obj_t* backdrop) override;
+
+      private:
+        using PickFn = void (*)(PowerDeviceWidget&, const std::string&);
+
+        /// What a generated row needs to act on a tap: the device or sensor id it
+        /// stands for, what picking it does, and the picker that owns it.
+        /// Heap-allocated per row, hung off its user_data and freed by that row's
+        /// own LV_EVENT_DELETE handler.
+        struct RowPayload {
+            DevicePicker* picker;
+            std::string value;
+            PickFn on_pick;
+        };
+
+        /// Create one row from @p component under @p parent, labelled @p label,
+        /// that hides the card and calls @p on_pick with its value when tapped.
+        void add_row(lv_obj_t* parent, const char* component, const char* label_name,
+                     const std::string& label, const std::string& value, bool selected,
+                     PickFn on_pick);
+
+        PowerDeviceWidget& owner_;
+    };
 
     // Sensor/energy page members
     std::string sensor_id_;
@@ -98,12 +139,9 @@ class PowerDeviceWidget : public TiledPanelWidget {
     IMoonrakerAPI* get_api() const;
     void update_display(int status);
     void show_device_picker();
-    void dismiss_device_picker();
-    /// LV_EVENT_DELETE hook on picker_backdrop_. Named rather than a lambda so
-    /// dismiss_device_picker() can uninstall it by function pointer.
-    static void on_picker_backdrop_deleted(lv_event_t* e);
     void select_device(const std::string& name);
     void select_icon(const std::string& name);
+    void select_sensor(const std::string& sensor_id);
     void save_config();
     void setup_carousel();
     void teardown_carousel();
@@ -128,6 +166,10 @@ class PowerDeviceWidget : public TiledPanelWidget {
             has_status ? "LOCKED" : "",  has_status ? "LOCKED" : "", "Power", has_status, "",
             /*label_always_drawn=*/true, TileSizing::IconBox::Disc};
     }
+
+    // Declared after every member the picker's callbacks touch, so it is torn
+    // down (hiding the card) before any of them.
+    DevicePicker picker_{*this};
 };
 
 } // namespace helix

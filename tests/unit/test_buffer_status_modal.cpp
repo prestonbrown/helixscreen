@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/buffer_infos.h"
 #include "buffer_status_modal.h"
 
 #include <cstring>
@@ -38,6 +39,15 @@ class TestableBufferStatusModal : public BufferStatusModal {
     }
     const char* description_value() {
         return lv_subject_get_string(&description_subject_);
+    }
+    const char* value_value() {
+        return lv_subject_get_string(&value_subject_);
+    }
+    const char* target_value() {
+        return lv_subject_get_string(&target_subject_);
+    }
+    int show_reading_value() {
+        return lv_subject_get_int(&show_reading_subject_);
     }
     const char* espooler_value() {
         return lv_subject_get_string(&espooler_value_subject_);
@@ -123,28 +133,29 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate HH with bias",
 
         REQUIRE(modal.type_value() == 1);
         REQUIRE(modal.show_meter_value() == 1);
-        REQUIRE(std::string(modal.description_value()) == "Filament is loose");
+        REQUIRE(std::string(modal.description_value()) == "Running loose");
+        REQUIRE(std::string(modal.value_value()) == "Sync +15%");
     }
 
     SECTION("negative bias shows pulling tight") {
         info.sync_feedback_bias = -0.3f;
         modal.populate(info, 0);
 
-        REQUIRE(std::string(modal.description_value()) == "Filament is pulling tight");
+        REQUIRE(std::string(modal.description_value()) == "Running tight");
     }
 
     SECTION("near-zero bias shows balanced") {
         info.sync_feedback_bias = 0.01f;
         modal.populate(info, 0);
 
-        REQUIRE(std::string(modal.description_value()) == "Filament tension is balanced");
+        REQUIRE(std::string(modal.description_value()) == "Balanced");
     }
 
     SECTION("exactly -0.02 is still balanced (abs < 0.02)") {
         info.sync_feedback_bias = -0.019f;
         modal.populate(info, 0);
 
-        REQUIRE(std::string(modal.description_value()) == "Filament tension is balanced");
+        REQUIRE(std::string(modal.description_value()) == "Balanced");
     }
 }
 
@@ -337,9 +348,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate AFC out-of-range u
         REQUIRE(std::string(modal.afc_state_value()) == "No buffer data available");
     }
 
-    SECTION("negative unit index") {
+    SECTION("no unit reads the first unit's rows") {
         modal.populate(info, -1);
-        REQUIRE(std::string(modal.afc_state_value()) == "No buffer data available");
+        REQUIRE(std::string(modal.afc_state_value()) == "Feeding filament forward");
     }
 }
 
@@ -418,13 +429,97 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal shows a pressure sensor's r
     modal.populate(info, 0);
 
     CHECK(modal.type_value() == 3);
-    CHECK(modal.show_meter_value() == 0);
-    CHECK(std::string(modal.description_value()).find("62%") != std::string::npos);
     CHECK(std::string(modal.unsupported_value()).empty());
+
+    SECTION("with a set_point: meter, description and target") {
+        CHECK(modal.show_meter_value() == 1);
+        CHECK(std::string(modal.description_value()) == "Running loose");
+        CHECK(std::string(modal.value_value()) == "FPS 62%");
+        CHECK(std::string(modal.target_value()) == "target 50%");
+    }
+
+    SECTION("under set_point the filament is pulling tight") {
+        info.units[0].buffer_health->smoothed_fps = 0.3f;
+        modal.populate(info, 0);
+        CHECK(std::string(modal.description_value()) == "Running tight");
+    }
+
+    SECTION("without a set_point: the reading alone, no meter") {
+        info.units[0].buffer_health->fps_set_point = -1.0f;
+        modal.populate(info, 0);
+        CHECK(modal.type_value() == 3);
+        CHECK(modal.show_meter_value() == 0);
+        CHECK(std::string(modal.description_value()).empty());
+        CHECK(std::string(modal.value_value()) == "Pressure: 62%");
+        CHECK(std::string(modal.target_value()).empty());
+    }
 
     SECTION("a buffer with no pressure reading stays unsupported") {
         info.units[0].buffer_health->fps_reported = false;
         modal.populate(info, 0);
         CHECK(modal.type_value() == 0);
     }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal draws the meter for an AFC FPS_PSF buffer",
+                 "[modals][buffer_status]") {
+    TestableBufferStatusModal modal;
+    auto info = make_afc_info();
+    auto& bh = *info.units[0].buffer_health;
+
+    SECTION("switched TurtleNeck: state rows only") {
+        modal.populate(info, 0);
+        CHECK(modal.type_value() == 2);
+        CHECK(modal.show_meter_value() == 0);
+        CHECK(std::string(modal.description_value()).empty());
+    }
+
+    SECTION("FPS_PSF: meter and the same description Happy Hare gets") {
+        bh.fps_value = bh.smoothed_fps = 0.505f;
+        bh.fps_set_point = 0.5f;
+        bh.fps_reported = true;
+        modal.populate(info, 0);
+        CHECK(modal.type_value() == 2);
+        CHECK(modal.show_meter_value() == 1);
+        CHECK(std::string(modal.description_value()) == "Balanced");
+        // AFC's own rows stay.
+        CHECK(std::string(modal.afc_state_value()) == "Feeding filament forward");
+        CHECK(modal.show_distance_value() == 1);
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "BufferStatusModal with no unit reads the lane feeding the toolhead",
+                 "[modals][buffer_status]") {
+    TestableBufferStatusModal modal;
+
+    SECTION("OpenAMS, two lanes") {
+        helix::AmsSystemInfo info = helix::test::fps_units({0.9f, 0.3f}, 0.5f, 5);
+        info.type = helix::AmsType::OPENAMS;
+        modal.populate(info, -1);
+        CHECK(modal.type_value() == 3);
+        CHECK(std::string(modal.value_value()) == "FPS 30%");
+        CHECK(std::string(modal.description_value()) == "Running tight");
+    }
+
+    SECTION("AFC switched buffer: its rows still read") {
+        auto info = make_afc_info();
+        modal.populate(info, -1);
+        CHECK(modal.type_value() == 2);
+        CHECK(std::string(modal.afc_state_value()) == "Feeding filament forward");
+        CHECK(modal.show_reading_value() == 0);
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal all-units view describes the sensor's unit",
+                 "[modals][buffer_status]") {
+    TestableBufferStatusModal modal;
+    auto info = helix::test::fps_units({0.5f, 0.5f}, 0.5f, /*current_slot=*/5);
+    info.type = helix::AmsType::AFC;
+    info.units[0].buffer_health.reset();
+    info.units[1].buffer_health->state = "Trailing";
+
+    modal.populate(info, -1);
+
+    REQUIRE(std::string(modal.afc_state_value()) == "Pulling filament back");
 }

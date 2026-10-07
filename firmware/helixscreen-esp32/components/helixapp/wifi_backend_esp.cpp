@@ -331,6 +331,14 @@ class WifiBackendEsp : public WifiBackend {
                              std::string("esp_wifi_start: ") + esp_err_to_name(start_rc),
                              "WiFi hardware start failed");
         }
+        // Modem sleep (the driver default) holds traffic until the AP's next DTIM wake-up,
+        // which on a weak link adds seconds of latency and loss, enough to stall a large
+        // Moonraker reply. The panel is mains powered, so it saves nothing that matters.
+        const esp_err_t ps_rc = esp_wifi_set_ps(WIFI_PS_NONE);
+        if (ps_rc != ESP_OK) {
+            spdlog::warn("[WifiBackend] esp32: esp_wifi_set_ps(NONE) failed: {}",
+                         esp_err_to_name(ps_rc));
+        }
 
         running_ = true;
         spdlog::info("[WifiBackend] esp32: station started (ssid configured: {})",

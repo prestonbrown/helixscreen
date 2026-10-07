@@ -450,7 +450,8 @@ void MoonrakerFileTransferAPIMock::download_file(const std::string& root, const 
 void MoonrakerFileTransferAPIMock::download_file_partial(const std::string& root,
                                                          const std::string& path, size_t max_bytes,
                                                          StringCallback on_success,
-                                                         ErrorCallback on_error) {
+                                                         ErrorCallback on_error,
+                                                         CancelFlag /*cancelled*/) {
     spdlog::debug("[MoonrakerAPIMock] download_file_partial: root='{}', path='{}', max_bytes={}",
                   root, path, max_bytes);
 

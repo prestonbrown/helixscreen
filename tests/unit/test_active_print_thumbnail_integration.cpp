@@ -108,7 +108,8 @@ class CountingTransferAPIMock : public MoonrakerFileTransferAPIMock {
     using MoonrakerFileTransferAPIMock::MoonrakerFileTransferAPIMock;
 
     void download_file_partial(const std::string& root, const std::string& path, size_t max_bytes,
-                               StringCallback on_success, ErrorCallback on_error) override {
+                               StringCallback on_success, ErrorCallback on_error,
+                               CancelFlag = nullptr) override {
         ++partial_downloads_;
         if (fail_next_) {
             fail_next_ = false;

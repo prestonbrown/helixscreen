@@ -3,6 +3,7 @@
 
 #include "job_queue_start.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_job_queue_modal.h"
 #include "ui_modal.h"
 #include "ui_panel_print_select.h"
@@ -32,13 +33,6 @@ JobQueueModal& queue_modal() {
 
 void open_job_queue_modal() {
     queue_modal().show(lv_screen_active());
-}
-
-void on_up_next_tap_cb(lv_event_t* e) {
-    // Claim the tap so it does not fall through to the enclosing card's or
-    // panel's own click handler (status navigation / file browser).
-    lv_event_stop_bubbling(e);
-    handle_up_next_tap();
 }
 
 void on_completion_start_next_cb(lv_event_t*) {
@@ -87,8 +81,16 @@ void register_job_queue_start_callbacks() {
         return;
     }
     registered = true;
-    lv_xml_register_event_cb(nullptr, "on_up_next_tap", on_up_next_tap_cb);
-    lv_xml_register_event_cb(nullptr, "on_print_complete_start_next", on_completion_start_next_cb);
+    register_xml_callbacks({
+        {"on_up_next_tap",
+         [](lv_event_t* e) {
+             // Claim the tap so it does not fall through to the enclosing card's or
+             // panel's own click handler (status navigation / file browser).
+             lv_event_stop_bubbling(e);
+             handle_up_next_tap();
+         }},
+        {"on_print_complete_start_next", on_completion_start_next_cb},
+    });
     spdlog::debug("[JobQueueStart] XML callbacks registered");
 }
 

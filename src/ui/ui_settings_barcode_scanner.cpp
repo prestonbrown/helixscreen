@@ -180,7 +180,7 @@ void BarcodeScannerSettingsOverlay::on_activate() {
     usb_list_ = find_required(overlay_root_, "usb_device_list", get_name());
 
     if (auto* row = find_required(overlay_root_, "row_bt_scanners", get_name()))
-        bt_dropdown_ = lv_obj_find_by_name(row, "dropdown");
+        bt_dropdown_ = helix::ui::find_required(row, "dropdown", get_name());
     btn_bt_pair_ = find_required(overlay_root_, "btn_bt_pair", get_name());
     btn_bt_forget_ = find_required(overlay_root_, "btn_bt_forget", get_name());
 

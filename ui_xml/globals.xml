@@ -317,7 +317,7 @@
     <px name="spinner_xs_xxlarge" value="20"/>
 
     <!-- meter_track_h: the bar a horizontal meter is drawn in — the FlowGuard
-         scale (clog_bar_page.xml). Thin enough to read as a scale rather than a
+         scale (clog_bar_body.xml). Thin enough to read as a scale rather than a
          panel, and it climbs with the type ladder so the value marker and peak
          tick stay visible next to the labels either side of it. -->
     <px name="meter_track_h_micro" value="8"/>
@@ -327,6 +327,72 @@
     <px name="meter_track_h_large" value="14"/>
     <px name="meter_track_h_xlarge" value="16"/>
     <px name="meter_track_h_xxlarge" value="20"/>
+
+    <!-- loaded_swatch_narrow_w: the loaded-spool card's colour bar below the medium
+         breakpoint, where the material name needs the width more than the bar. -->
+    <px name="loaded_swatch_narrow_w_micro" value="14"/>
+    <px name="loaded_swatch_narrow_w_tiny" value="14"/>
+    <px name="loaded_swatch_narrow_w_small" value="14"/>
+    <px name="loaded_swatch_narrow_w_medium" value="14"/>
+    <px name="loaded_swatch_narrow_w_large" value="14"/>
+
+    <!-- buffer_tile_pad: the Filament Buffer tile's padding. space_sm, but held at
+         the medium value at tiny and small, where space_sm leaves the 2x1 trace
+         and caption on the tile's edges; micro keeps space_sm, which the 1x1
+         tile needs to fit at 272x480. -->
+    <px name="buffer_tile_pad_micro" value="4"/>
+    <px name="buffer_tile_pad_tiny" value="7"/>
+    <px name="buffer_tile_pad_small" value="7"/>
+    <px name="buffer_tile_pad_medium" value="7"/>
+    <px name="buffer_tile_pad_large" value="8"/>
+    <px name="buffer_tile_pad_xlarge" value="10"/>
+    <px name="buffer_tile_pad_xxlarge" value="12"/>
+
+    <!-- buffer_slider_w: the width of the upright filament buffer slider's housing
+         (UiBufferSlider) on the home widget and in the Buffer Status modal. -->
+    <px name="buffer_slider_w_micro" value="14"/>
+    <px name="buffer_slider_w_tiny" value="16"/>
+    <px name="buffer_slider_w_small" value="18"/>
+    <px name="buffer_slider_w_medium" value="20"/>
+    <px name="buffer_slider_w_large" value="24"/>
+    <px name="buffer_slider_w_xlarge" value="28"/>
+    <px name="buffer_slider_w_xxlarge" value="32"/>
+    <!-- buffer_mini_h: the loaded-spool card's small buffer slider, about the
+         height of the clog arc beside it. -->
+    <px name="buffer_mini_h_micro" value="38"/>
+    <px name="buffer_mini_h_tiny" value="42"/>
+    <px name="buffer_mini_h_small" value="46"/>
+    <px name="buffer_mini_h_medium" value="54"/>
+    <px name="buffer_mini_h_large" value="58"/>
+    <px name="buffer_mini_h_xlarge" value="66"/>
+    <px name="buffer_mini_h_xxlarge" value="78"/>
+    <!-- buffer_graph_h: the Buffer Status modal's slider and trace, as tall as the
+         dialog can spare at each size. -->
+    <px name="buffer_graph_h_micro" value="88"/>
+    <px name="buffer_graph_h_tiny" value="104"/>
+    <px name="buffer_graph_h_small" value="124"/>
+    <px name="buffer_graph_h_medium" value="148"/>
+    <px name="buffer_graph_h_large" value="176"/>
+    <px name="buffer_graph_h_xlarge" value="196"/>
+    <px name="buffer_graph_h_xxlarge" value="216"/>
+    <!-- buffer_slider_tall_w: the Buffer Status modal's slider housing, wide
+         enough to stay chunky at buffer_graph_h. -->
+    <px name="buffer_slider_tall_w_micro" value="22"/>
+    <px name="buffer_slider_tall_w_tiny" value="26"/>
+    <px name="buffer_slider_tall_w_small" value="28"/>
+    <px name="buffer_slider_tall_w_medium" value="34"/>
+    <px name="buffer_slider_tall_w_large" value="38"/>
+    <px name="buffer_slider_tall_w_xlarge" value="42"/>
+    <px name="buffer_slider_tall_w_xxlarge" value="48"/>
+    <!-- buffer_trace_h: the Buffer Status modal's trace panel, beside the
+         slider under the reading. -->
+    <px name="buffer_trace_h_micro" value="46"/>
+    <px name="buffer_trace_h_tiny" value="54"/>
+    <px name="buffer_trace_h_small" value="66"/>
+    <px name="buffer_trace_h_medium" value="82"/>
+    <px name="buffer_trace_h_large" value="98"/>
+    <px name="buffer_trace_h_xlarge" value="112"/>
+    <px name="buffer_trace_h_xxlarge" value="122"/>
 
     <!-- Spinner arc widths - proportional to size -->
     <px name="spinner_arc_lg_small" value="3"/>

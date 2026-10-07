@@ -5,6 +5,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cctype>
 #include <ctime>
 #include <optional>
@@ -259,6 +260,27 @@ bool is_native_3mf_shadow(const std::string& name) {
         return false;
     }
     return name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+std::string qidi_3mf_extract_name(const std::string& print_filename) {
+    std::string name = basename_of(print_filename);
+    if (is_3mf(name)) {
+        name.resize(name.size() - 4);
+    }
+    static const std::string gcode = ".gcode";
+    if (name.size() < gcode.size() ||
+        name.compare(name.size() - gcode.size(), gcode.size(), gcode) != 0) {
+        name += gcode;
+    }
+    return name;
+}
+
+bool is_qidi_3mf_extract(const std::string& entry, const std::string& print_filename) {
+    const std::string name = qidi_3mf_extract_name(print_filename);
+    return entry.size() == name.size() && std::equal(entry.begin(), entry.end(), name.begin(),
+                                                     [](unsigned char a, unsigned char b) {
+                                                         return std::tolower(a) == std::tolower(b);
+                                                     });
 }
 
 std::string make_rewritten_gcode_path(const std::string& original_path) {

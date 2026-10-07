@@ -81,6 +81,9 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
     /// can present a client that is up or down.
     helix::ConnectionState connection_state = helix::ConnectionState::CONNECTED;
 
+    /// What connect() returns; nonzero is a transport that could not start.
+    int connect_result = 0;
+
     /// Deliver @p msg to every handler registered for @p method.
     /// @return false when nothing is subscribed — which is itself the
     ///         assertion for "the consumer never registered".
@@ -213,7 +216,7 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
 
     int connect(const char* url, std::function<void()>, std::function<void()>) override {
         last_url_ = url ? url : "";
-        return 0;
+        return connect_result;
     }
     void disconnect() override {}
     const std::string& get_last_url() const override {

@@ -386,8 +386,8 @@ void Application::release_instance_lock() {
 
 Application::Application()
     : m_session(m_config, m_async_lifetime, m_screen,
-                {m_args, m_shutdown_complete, m_wizard_active, [this] { return run_wizard(); },
-                 [this] { apply_startup_cli_actions(); },
+                {m_args, m_shutdown_complete, m_wizard_active, m_upgrade_banner,
+                 [this] { return run_wizard(); }, [this] { apply_startup_cli_actions(); },
                  [this] { m_splash_manager.on_discovery_complete(); }}) {}
 
 Application::~Application() {
@@ -597,13 +597,7 @@ int Application::run(int argc, char** argv) {
         return 1;
     }
 
-    // Seed the active printer's display name from config
-    {
-        auto active_id = m_config->get_active_printer_id();
-        std::string printer_name =
-            m_config->get<std::string>(m_config->df() + "printer_name", active_id);
-        get_printer_state().set_active_printer_name(printer_name);
-    }
+    get_printer_state().set_active_printer_name(m_config->get_active_printer_name());
 
     // Phase 9b: Initialize Moonraker (creates client + API)
     // Now works because PrinterState exists from phase 9a.
@@ -625,7 +619,7 @@ int Application::run(int argc, char** argv) {
     // lv_layer_top and observes UpdateChecker state. Ships hidden because the
     // /upgrade_nudge/intensity setting defaults to 'off'; flipped to
     // 'aggressive' for the 1.0 rollout (no code change needed).
-    UpgradeBanner::instance().init();
+    m_upgrade_banner.init();
 
     // Initialize CrashReporter (independent of telemetry)
     // Write mock crash file first if --mock-crash flag is set (requires --test)
@@ -635,7 +629,7 @@ int Application::run(int argc, char** argv) {
         spdlog::info("[Application] Wrote mock crash file for testing");
     }
     helix::CrashHistory::instance().init(user_config_dir);
-    CrashReporter::instance().init(user_config_dir);
+    m_crash_reporter.init(user_config_dir);
     // Cross-session seed for AFC's latched message dedup (uninitialized
     // before this point, which reads as "every message is new").
     AfcMessageDedup::instance().init(user_config_dir);
@@ -690,10 +684,10 @@ int Application::run(int argc, char** argv) {
     SoundManager::instance().initialize();
     SoundManager::instance().play("startup", SoundPriority::EVENT);
 
-    // Backend is now picked: seed the audio-device-available subject so the
-    // Display/Sound overlay's device-row binding resolves correctly. Subjects
-    // init before SoundManager, so the value is stale until this refresh.
-    AudioSettingsManager::instance().refresh_audio_device_available();
+    // Backend is now picked: seed the backend subjects so the Sound overlay's
+    // device-row and Test Tracker bindings resolve correctly. Subjects init
+    // before SoundManager, so the values are stale until this refresh.
+    AudioSettingsManager::instance().refresh_backend_subjects();
 
     // Show sound settings immediately if a local backend exists,
     // without waiting for hardware discovery / Klipper connection.
@@ -743,13 +737,13 @@ int Application::run(int argc, char** argv) {
         // Exception: --mock-crash explicitly requests the dialog for testing
         bool show_crash_dialog =
             !get_runtime_config()->is_test_mode() || get_runtime_config()->mock_crash;
-        if (show_crash_dialog && CrashReporter::instance().has_crash_report()) {
+        if (show_crash_dialog && m_crash_reporter.has_crash_report()) {
             if (TelemetryManager::instance().had_update_restart()) {
                 spdlog::info(
                     "[Application] Crash from post-update restart, suppressing crash dialog");
-                CrashReporter::instance().consume_crash_file();
+                m_crash_reporter.consume_crash_file();
             } else {
-                auto report = CrashReporter::instance().collect_report();
+                auto report = m_crash_reporter.collect_report();
                 if (report.signal_name.empty()) {
                     // Empty signal_name means read_crash_file() returned null because
                     // the file lacked the required signal/name fields — typically a
@@ -758,15 +752,15 @@ int Application::run(int argc, char** argv) {
                     // useless bundle (see CHUQCNAE 2026-05-05).
                     spdlog::warn(
                         "[Application] Crash file unparseable — consuming and skipping dialog");
-                    CrashReporter::instance().consume_crash_file();
-                } else if (CrashReporter::instance().is_duplicate(report)) {
+                    m_crash_reporter.consume_crash_file();
+                } else if (m_crash_reporter.is_duplicate(report)) {
                     spdlog::info("[Application] Duplicate crash ({}), suppressing dialog",
                                  CrashReporter::fingerprint(report));
-                    CrashReporter::instance().consume_crash_file();
+                    m_crash_reporter.consume_crash_file();
                 } else {
                     spdlog::info(
                         "[Application] Previous crash detected — showing crash report dialog");
-                    CrashReportModal::show_owned(report);
+                    CrashReportModal::show_owned(m_crash_reporter, report);
                 }
             }
         }
@@ -877,7 +871,7 @@ int Application::run(int argc, char** argv) {
                 rc.transport = helix::RemoteConfig::Transport::UnixSocket;
                 rc.socket_path = helix::resolve_socket_path(m_args.remote_socket);
             }
-            if (!helix::RemoteControlServer::instance().start(rc)) {
+            if (!m_remote_control.start(rc)) {
                 // Name the target and say what the user will see instead. A bare
                 // "failed to start" sends people back to the flag they already
                 // set, because `ctl` reports only that it found no instance.
@@ -2476,7 +2470,7 @@ void Application::shutdown() {
 
     // Stop remote control server first (before tearing down UI state)
 #ifdef HELIX_ENABLE_REMOTE_CONTROL
-    helix::RemoteControlServer::instance().stop();
+    m_remote_control.stop();
 #endif
 
     // Stop memory monitor

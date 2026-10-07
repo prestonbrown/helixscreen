@@ -6,6 +6,7 @@
 #include "audio_settings_manager.h"
 #include "helix_thread.h"
 #include "note_event.h"
+#include "psram_thread_stack.h"
 #include "spdlog/spdlog.h"
 
 #include <algorithm>
@@ -51,6 +52,9 @@ void SoundSequencer::start() {
     if (running_.load())
         return;
     running_.store(true);
+    // It only computes tones and hands them to the backend (an M300 is a WebSocket send),
+    // so it can run on a PSRAM stack and leave internal RAM to the WebSocket task.
+    PsramThreadStackScope psram_stack("sound_seq", SEQUENCER_STACK_BYTES);
     sequencer_thread_ = helix::make_thread(&SoundSequencer::sequencer_loop, this);
     spdlog::debug("[SoundSequencer] started sequencer thread");
 }
@@ -67,6 +71,7 @@ void SoundSequencer::shutdown() {
 }
 
 void SoundSequencer::sequencer_loop() {
+    psram_thread_entered("sound_seq");
     spdlog::debug("[SoundSequencer] sequencer loop started");
 
     // Park the device before the first tick. The backend opened it during

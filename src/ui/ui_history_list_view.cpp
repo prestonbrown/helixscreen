@@ -7,6 +7,7 @@
 
 #include "format_utils.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -225,26 +226,26 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
     }
 
     // Filename label
-    lv_obj_t* filename_label = lv_obj_find_by_name(row, "row_filename");
+    lv_obj_t* filename_label = helix::ui::find_required(row, "row_filename", "HistoryListView");
     if (filename_label) {
         lv_label_set_text(filename_label, job.filename.c_str());
     }
 
     // Date label
-    lv_obj_t* date_label = lv_obj_find_by_name(row, "row_date");
+    lv_obj_t* date_label = helix::ui::find_required(row, "row_date", "HistoryListView");
     if (date_label) {
         lv_label_set_text(date_label, job.date_str.c_str());
     }
 
     // Duration label
-    lv_obj_t* duration_label = lv_obj_find_by_name(row, "row_duration");
+    lv_obj_t* duration_label = helix::ui::find_required(row, "row_duration", "HistoryListView");
     if (duration_label) {
         lv_label_set_text(duration_label,
                           helix::format::duration(static_cast<int>(job.print_duration)).c_str());
     }
 
     // Filament type label
-    lv_obj_t* filament_label = lv_obj_find_by_name(row, "row_filament");
+    lv_obj_t* filament_label = helix::ui::find_required(row, "row_filament", "HistoryListView");
     if (filament_label) {
         lv_label_set_text(filament_label,
                           job.filament_type.empty() ? lv_tr("Unknown") : job.filament_type.c_str());
@@ -254,7 +255,7 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
     const char* status_text = lv_tr(status_to_label(job.status));
     const char* status_color = get_status_color(job.status);
 
-    lv_obj_t* status_label = lv_obj_find_by_name(row, "row_status");
+    lv_obj_t* status_label = helix::ui::find_required(row, "row_status", "HistoryListView");
     if (status_label) {
         lv_label_set_text(status_label, status_text);
         lv_color_t color = parse_hex_color(status_color, theme_manager_get_color("text_muted"));
@@ -262,7 +263,7 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
     }
 
     // Status bar color (left edge indicator)
-    lv_obj_t* status_bar = lv_obj_find_by_name(row, "status_bar");
+    lv_obj_t* status_bar = helix::ui::find_required(row, "status_bar", "HistoryListView");
     if (status_bar) {
         lv_color_t color = parse_hex_color(status_color, theme_manager_get_color("text_muted"));
         lv_obj_set_style_bg_color(status_bar, color, LV_PART_MAIN);
@@ -369,29 +370,14 @@ void HistoryListView::update_visible(const std::vector<PrintHistoryJob>& jobs) {
     sync_list_spacers(container_, leading_spacer_, trailing_spacer_, win, last_leading_height_,
                       last_trailing_height_);
 
-    // Assign pool rows to visible indices, skipping rows that already show correct data
-    size_t pool_idx = 0;
-    for (int job_idx = first_visible; job_idx < last_visible && pool_idx < pool_.size();
-         job_idx++, pool_idx++) {
-        lv_obj_t* row = pool_[pool_idx];
-
-        if (data_changed || pool_indices_[pool_idx] != job_idx) {
-            configure_row(row, static_cast<size_t>(job_idx), jobs[job_idx]);
-            pool_indices_[pool_idx] = job_idx;
-        }
-
-        // Ensure row is in correct position (guard to avoid redundant relayout)
-        int target_index = static_cast<int>(pool_idx) + 1;
-        if (lv_obj_get_index(row) != target_index) {
-            lv_obj_move_to_index(row, target_index);
-        }
-    }
-
-    // Hide unused pool rows
-    for (; pool_idx < pool_.size(); pool_idx++) {
-        lv_obj_add_flag(pool_[pool_idx], LV_OBJ_FLAG_HIDDEN);
-        pool_indices_[pool_idx] = -1;
-    }
+    show_window(
+        container_, pool_indices_, first_visible, last_visible, data_changed,
+        [this](size_t slot) { return pool_[slot]; },
+        [&](size_t slot, ssize_t job_idx) {
+            configure_row(pool_[slot], static_cast<size_t>(job_idx),
+                          jobs[static_cast<size_t>(job_idx)]);
+        },
+        [this](size_t slot) { lv_obj_add_flag(pool_[slot], LV_OBJ_FLAG_HIDDEN); });
 
     spdlog::debug("[HistoryListView] Spacers: leading={}px trailing={}px, visible rows={}, "
                   "container content_h={} child_count={}",

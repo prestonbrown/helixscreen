@@ -37,6 +37,7 @@ constexpr const char* MENUS[] = {
     "fan_picker",
     "led_picker",
     "fan_stack_picker",
+    "power_device_picker",
     "tool_switcher_picker",
     "printer_switch_menu",
     "ams_selector_menu",

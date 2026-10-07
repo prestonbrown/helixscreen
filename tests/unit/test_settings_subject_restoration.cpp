@@ -45,8 +45,8 @@ namespace {
 
 // Every name AudioSettingsManager::init_subjects() publishes.
 const std::vector<const char*> AUDIO_SUBJECTS{
-    "settings_sounds_enabled", "settings_ui_sounds_enabled", "settings_volume",
-    "settings_completion_alert", "settings_audio_device_available"};
+    "settings_sounds_enabled",   "settings_ui_sounds_enabled",      "settings_volume",
+    "settings_completion_alert", "settings_audio_device_available", "settings_music_available"};
 
 // Every name SafetySettingsManager::init_subjects() publishes.
 const std::vector<const char*> SAFETY_SUBJECTS{"settings_estop_confirm",

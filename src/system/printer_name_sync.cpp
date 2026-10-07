@@ -20,22 +20,34 @@ static constexpr const char* MAINSAIL_KEY = "general.printername";
 static constexpr const char* FLUIDD_NAMESPACE = "fluidd";
 static constexpr const char* FLUIDD_KEY = "general.instanceName";
 
-/// Seed local config and update PrinterState subject with the resolved name.
+/// Seed the config section @p printer_base (a Config::df() taken when the name was asked for)
+/// with the resolved name, and show it if that printer is still the active one: a name can
+/// land after a switch to another printer.
 /// Must be called on the UI thread (via queue_update), or on main thread during init.
-static void seed_name(const std::string& name, const char* source) {
+static void seed_name(const std::string& name, const char* source,
+                      const std::string& printer_base) {
     Config* cfg = Config::get_instance();
-    cfg->set<std::string>(cfg->df() + wizard::PRINTER_NAME, name);
+    // Config::set() creates missing objects, so writing to a printer deleted meanwhile would
+    // bring it back with no host.
+    if (!cfg->exists(printer_base.substr(0, printer_base.size() - 1))) {
+        spdlog::debug("[PrinterNameSync] {} was removed; dropping its name", printer_base);
+        return;
+    }
+    cfg->set<std::string>(printer_base + wizard::PRINTER_NAME, name);
     cfg->save();
 
-    get_printer_state().set_active_printer_name(name);
-    spdlog::info("[PrinterNameSync] Seeded name from {}: '{}'", source, name);
+    if (cfg->df() == printer_base) {
+        get_printer_state().set_active_printer_name(name);
+    }
+    spdlog::info("[PrinterNameSync] Seeded name at {} from {}: '{}'", printer_base, source, name);
 }
 
 /// Try Fluidd DB, then hostname, then give up. Called when Mainsail is unavailable or empty.
-static void try_fluidd_then_hostname(IMoonrakerAPI* api, const std::string& hostname) {
+static void try_fluidd_then_hostname(IMoonrakerAPI* api, const std::string& hostname,
+                                     const std::string& printer_base) {
     api->database_get_item(
         FLUIDD_NAMESPACE, FLUIDD_KEY,
-        [hostname](const nlohmann::json& fluidd_value) {
+        [hostname, printer_base](const nlohmann::json& fluidd_value) {
             std::string name;
             if (fluidd_value.is_string()) {
                 name = fluidd_value.get<std::string>();
@@ -49,20 +61,28 @@ static void try_fluidd_then_hostname(IMoonrakerAPI* api, const std::string& host
                 return;
 
             const char* source = (name == hostname) ? "hostname" : "Fluidd";
-            helix::ui::queue_update("PrinterNameSync::fluidd",
-                                    [name, source]() { seed_name(name, source); });
+            helix::ui::queue_update("PrinterNameSync::fluidd", [name, source, printer_base]() {
+                seed_name(name, source, printer_base);
+            });
         },
-        [hostname](const MoonrakerError&) {
+        [hostname, printer_base](const MoonrakerError& err) {
+            // A lost connection says nothing about the name; only a real "no Fluidd name"
+            // falls back to the hostname.
+            if (err.is_transport_loss()) {
+                return;
+            }
             if (hostname.empty() || hostname == "unknown")
                 return;
 
-            helix::ui::queue_update("PrinterNameSync::hostname",
-                                    [hostname]() { seed_name(hostname, "hostname"); });
+            helix::ui::queue_update("PrinterNameSync::hostname", [hostname, printer_base]() {
+                seed_name(hostname, "hostname", printer_base);
+            });
         });
 }
 
 void PrinterNameSync::resolve(IMoonrakerAPI* api, const std::string& hostname) {
     Config* config = Config::get_instance();
+    const std::string printer_base = config->df();
 
     // Check local config first — if set, we're done (local wins)
     std::string local_name = config->get<std::string>(config->df() + wizard::PRINTER_NAME, "");
@@ -74,7 +94,7 @@ void PrinterNameSync::resolve(IMoonrakerAPI* api, const std::string& hostname) {
     if (!api) {
         spdlog::debug("[PrinterNameSync] No API, falling back to hostname");
         if (!hostname.empty() && hostname != "unknown") {
-            seed_name(hostname, "hostname");
+            seed_name(hostname, "hostname", printer_base);
         }
         return;
     }
@@ -82,24 +102,28 @@ void PrinterNameSync::resolve(IMoonrakerAPI* api, const std::string& hostname) {
     // Try Mainsail first, then Fluidd, then hostname
     api->database_get_item(
         MAINSAIL_NAMESPACE, MAINSAIL_KEY,
-        [api, hostname](const nlohmann::json& value) {
+        [api, hostname, printer_base](const nlohmann::json& value) {
             std::string name;
             if (value.is_string()) {
                 name = value.get<std::string>();
             }
 
             if (!name.empty()) {
-                helix::ui::queue_update("PrinterNameSync::mainsail",
-                                        [name]() { seed_name(name, "Mainsail"); });
+                helix::ui::queue_update("PrinterNameSync::mainsail", [name, printer_base]() {
+                    seed_name(name, "Mainsail", printer_base);
+                });
                 return;
             }
 
             // Mainsail key exists but empty — fall through to Fluidd
-            try_fluidd_then_hostname(api, hostname);
+            try_fluidd_then_hostname(api, hostname, printer_base);
         },
-        [api, hostname](const MoonrakerError&) {
+        [api, hostname, printer_base](const MoonrakerError& err) {
+            if (err.is_transport_loss()) {
+                return;
+            }
             // Mainsail namespace doesn't exist — try Fluidd
-            try_fluidd_then_hostname(api, hostname);
+            try_fluidd_then_hostname(api, hostname, printer_base);
         });
 }
 

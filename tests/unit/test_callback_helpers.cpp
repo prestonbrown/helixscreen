@@ -133,6 +133,32 @@ TEST_CASE_METHOD(LVGLTestFixture, "a lambda table entry resolves and fires like 
     CHECK(lambda_hits == 2);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "two lambda entries in one table each run their own body",
+                 "[callback_helpers]") {
+    static int first_hits = 0;
+    static int second_hits = 0;
+    first_hits = 0;
+    second_hits = 0;
+    register_xml_callbacks({
+        {"test_cb_lambda_first", [](lv_event_t*) { ++first_hits; }},
+        {"test_cb_lambda_second", [](lv_event_t*) { ++second_hits; }},
+    });
+
+    lv_obj_t* btn = lv_obj_create(test_screen());
+    lv_obj_add_event_cb(btn, lv_xml_get_event_cb(nullptr, "test_cb_lambda_first"), LV_EVENT_CLICKED,
+                        nullptr);
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+    CHECK(first_hits == 1);
+    CHECK(second_hits == 0);
+
+    lv_obj_t* other = lv_obj_create(test_screen());
+    lv_obj_add_event_cb(other, lv_xml_get_event_cb(nullptr, "test_cb_lambda_second"),
+                        LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(other, LV_EVENT_CLICKED, nullptr);
+    CHECK(first_hits == 1);
+    CHECK(second_hits == 1);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "a throwing lambda entry logs its callback name and returns",
                  "[callback_helpers]") {
     register_xml_callbacks({

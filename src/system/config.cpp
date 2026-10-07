@@ -1232,6 +1232,31 @@ std::vector<std::string> Config::get_printer_ids() const {
     return ids;
 }
 
+std::string Config::next_printer_id() const {
+    const auto existing = get_printer_ids();
+    int counter = static_cast<int>(existing.size()) + 1;
+    std::string id;
+    do {
+        id = "printer-" + std::to_string(counter++);
+    } while (std::find(existing.begin(), existing.end(), id) != existing.end());
+    return id;
+}
+
+std::string Config::find_printer_by_host(const std::string& host, int port) const {
+    for (const auto& id : get_printer_ids()) {
+        const std::string base = "/printers/" + id + "/";
+        if (get<std::string>(base + "moonraker_host", "") == host &&
+            get<int>(base + "moonraker_port", 7125) == port) {
+            return id;
+        }
+    }
+    return {};
+}
+
+std::string Config::get_active_printer_name() const {
+    return get<std::string>(df() + "printer_name", active_printer_id_);
+}
+
 void Config::add_printer(const std::string& printer_id, const json& printer_data) {
     if (!data.contains("printers")) {
         data["printers"] = json::object();

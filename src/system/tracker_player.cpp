@@ -9,7 +9,6 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
-#include <array>
 #include <atomic>
 #include <cmath>
 #include <cstring>
@@ -28,8 +27,6 @@ void TrackerPlayer::load(TrackerModule module) {
     row_ = 0;
     tick_ = 0;
     tick_accum_ = 0;
-    arp_step_ = 0;
-    arp_accum_ = 0;
     next_order_ = -1;
     next_row_ = -1;
     channels_ = {};
@@ -95,19 +92,6 @@ void TrackerPlayer::tick(float dt_ms) {
         }
 
         process_tick_effects();
-        apply_to_backend();
-    }
-
-    if (!playing_.load(std::memory_order_relaxed))
-        return;
-    arp_accum_ += dt_ms;
-    bool arp_stepped = false;
-    while (arp_accum_ >= kArpFrameMs) {
-        arp_accum_ -= kArpFrameMs;
-        ++arp_step_;
-        arp_stepped = true;
-    }
-    if (arp_stepped) {
         apply_to_backend();
     }
 }
@@ -203,8 +187,6 @@ void TrackerPlayer::process_row() {
                     cs.base_period = note_period;
                 }
                 cs.active = true;
-                arp_step_ = 0; // a note trigger restarts the arpeggio cycle
-                arp_accum_ = 0;
                 cs.vibrato_phase = 0;
                 cs.tremolo_phase = 0;
                 cs.sample_pos = 0;
@@ -579,53 +561,16 @@ void TrackerPlayer::apply_to_backend() {
         return freq;
     };
 
-    if (backend_->voice_count() == 1) {
-        // Mono backend. One that can retune at frame rate cycles through the
-        // active channels Game Boy style, one per 59.73 Hz frame (tick()
-        // advances arp_step_), so chords and bass come through as an
-        // arpeggio. A slower one (the AD5M piezo's 20 ms floor, M300's 50 ms)
-        // would smear that into noise, so it emits the lead line:
-        // the highest active voice, earlier channel on ties (crocketts_theme
-        // parks the bass on channel 0).
-        std::array<int, 4> active{};
-        int n_active = 0;
-        int best = -1;
-        float best_freq = 0.0f;
-        for (int ch = 0; ch < 4; ++ch) {
-            const auto& cs = channels_[static_cast<size_t>(ch)];
-            const float freq = emit_freq(cs);
-            if (cs.active && freq > 0.0f && cs.volume >= kMonoMinVolume) {
-                active[static_cast<size_t>(n_active++)] = ch;
-                if (freq > best_freq) {
-                    best = ch;
-                    best_freq = freq;
-                }
-            }
-        }
-        if (n_active > 1 && backend_->min_tick_ms() <= kArpFrameMs) {
-            best = active[static_cast<size_t>(arp_step_ % static_cast<uint32_t>(n_active))];
-        }
-        if (best >= 0) {
-            const auto& cs = channels_[static_cast<size_t>(best)];
-            backend_->set_voice(0, emit_freq(cs), cs.volume * master_vol, cs.duty);
+    for (int ch = 0; ch < 4; ++ch) {
+        const auto& cs = channels_[static_cast<size_t>(ch)];
+        const float freq = emit_freq(cs);
+        if (cs.active && freq > 0 && cs.volume > 0) {
+            backend_->set_voice(ch, freq, cs.volume * master_vol, cs.duty);
             if (backend_->supports_waveforms()) {
-                backend_->set_voice_waveform(0, cs.waveform);
+                backend_->set_voice_waveform(ch, cs.waveform);
             }
         } else {
-            backend_->silence_voice(0);
-        }
-    } else {
-        for (int ch = 0; ch < 4; ++ch) {
-            const auto& cs = channels_[static_cast<size_t>(ch)];
-            const float freq = emit_freq(cs);
-            if (cs.active && freq > 0 && cs.volume > 0) {
-                backend_->set_voice(ch, freq, cs.volume * master_vol, cs.duty);
-                if (backend_->supports_waveforms()) {
-                    backend_->set_voice_waveform(ch, cs.waveform);
-                }
-            } else {
-                backend_->silence_voice(ch);
-            }
+            backend_->silence_voice(ch);
         }
     }
 

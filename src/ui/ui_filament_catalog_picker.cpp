@@ -2,6 +2,7 @@
 #include "ui_filament_catalog_picker.h"
 
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -55,7 +56,7 @@ void FilamentCatalogPickerModal::show(lv_obj_t* parent, std::optional<std::strin
 void FilamentCatalogPickerModal::on_show() {
     active_instance_ = this;
 
-    lv_obj_t* fragment = lv_obj_find_by_name(dialog(), "catalog_selector");
+    lv_obj_t* fragment = helix::ui::find_required(dialog(), "catalog_selector", get_name());
     selector_.attach(fragment);
     selector_.configure(seed_type_, allowed_types_);
     selector_.set_show_edit_affordances(true); // standalone picker allows catalog editing

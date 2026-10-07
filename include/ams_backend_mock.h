@@ -397,12 +397,19 @@ class AmsBackendMock : public AmsBackend {
     /**
      * @brief Set the Flowguard clog/tangle state.
      *
-     * Never seeded before, so mode 2 — the only symmetrical one, and the only
-     * one whose two ends mean different faults — was unreachable under --test.
-     * Flowguard outranks the encoder and AFC when enabled, so setting this is
-     * enough to select it.
+     * Not seeded at startup, so this is how --test reaches the Flowguard meter
+     * mode. Flowguard outranks the encoder and AFC when enabled, so setting
+     * this is enough to select it.
      */
     void set_flowguard_info(FlowguardInfo info);
+
+    /**
+     * @brief Set the Happy Hare sync-feedback bias (-1..+1; -2 = none).
+     *
+     * Only the Happy Hare simulation publishes it; every other type publishes
+     * its units' pressure sensors instead (see set_unit_buffer_health()).
+     */
+    void set_sync_feedback_bias(float bias);
 
     /**
      * @brief Inject error states for visual testing (HELIX_MOCK_AMS_STATE=error)

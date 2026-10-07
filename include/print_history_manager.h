@@ -334,6 +334,14 @@ class PrintHistoryManager {
      */
     void invalidate();
 
+    /**
+     * @brief Drop every cached job and tell observers
+     *
+     * For a switch to another printer: unlike invalidate(), nothing of the previous
+     * printer's history may show while the new one is fetched or unreachable.
+     */
+    void forget_printer();
+
     // ========================================================================
     // Observer Pattern
     // ========================================================================

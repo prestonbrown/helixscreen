@@ -176,6 +176,13 @@ MoonrakerClientMock::gcode_heater_temperature(const std::string& gcode) {
             auto key = chamber_heater_status_key();
             if (!key.empty())
                 dispatch_status_update({{key, {{"target", target}}}});
+        } else if (size_t pos = gcode.find("HEATER="); pos != std::string::npos) {
+            const size_t start = pos + 7;
+            const std::string heater = gcode.substr(start, gcode.find(' ', start) - start);
+            if (set_aux_heater_target(heater, target)) {
+                spdlog::info("[MoonrakerClientMock] Heater {} target set to {}°C", heater, target);
+                dispatch_status_update({{"heater_generic " + heater, {{"target", target}}}});
+            }
         }
     }
     return std::nullopt;

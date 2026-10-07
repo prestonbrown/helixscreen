@@ -17,6 +17,7 @@
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <lvgl/lvgl.h>
 #include <spdlog/fmt/fmt.h>
@@ -421,7 +422,8 @@ void WidgetCatalogOverlay::build_search_rows(lv_obj_t* results) {
 }
 
 void WidgetCatalogOverlay::apply_search(const std::string& query) {
-    lv_obj_t* results = lv_obj_find_by_name(g_catalog_state.overlay_root, "search_results");
+    lv_obj_t* results =
+        helix::ui::find_required(g_catalog_state.overlay_root, "search_results", "WidgetCatalog");
     if (!results) {
         return;
     }
@@ -760,9 +762,8 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
         LV_EVENT_DELETE, nullptr);
 
     // Find the category list container and populate
-    lv_obj_t* group = lv_obj_find_by_name(overlay, "category_group");
+    lv_obj_t* group = helix::ui::find_required(overlay, "category_group", "WidgetCatalog");
     if (!group) {
-        spdlog::error("[WidgetCatalog] category_group not found in XML");
         // The delete re-enters the LV_EVENT_DELETE handler, which releases the
         // state and fires on_close while overlay_root still matches. Calling
         // release again is deliberate belt-and-braces: it is idempotent for
@@ -777,8 +778,7 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     populate_category_rows(group);
 
     // Search results are built on the first query (apply_search).
-    if (!lv_obj_find_by_name(overlay, "search_results")) {
-        spdlog::error("[WidgetCatalog] search_results not found in XML");
+    if (!helix::ui::find_required(overlay, "search_results", "WidgetCatalog")) {
         lv_obj_delete(overlay);
         release_catalog_state();
         return;
@@ -887,9 +887,8 @@ void WidgetCatalogOverlay::show_widget_page(const char* title, const char* title
     // inherit the parent's destination class and go full width (#1178).
     helix::nav::set_overlay_width_unmanaged(page);
 
-    lv_obj_t* scroll = lv_obj_find_by_name(page, "catalog_scroll");
+    lv_obj_t* scroll = helix::ui::find_required(page, "catalog_scroll", "WidgetCatalog");
     if (!scroll) {
-        spdlog::error("[WidgetCatalog] catalog_scroll not found in category overlay XML");
         lv_obj_delete(page);
         return;
     }
@@ -935,7 +934,7 @@ void WidgetCatalogOverlay::refresh_gated_rows() {
 
     // Each container empties at once and refills in place; the old rows go
     // through LVGL's async delete.
-    if (lv_obj_t* group = lv_obj_find_by_name(root, "category_group")) {
+    if (lv_obj_t* group = helix::ui::find_required(root, "category_group", "WidgetCatalog")) {
         helix::ui::safe_clean_children(group);
         populate_category_rows(group);
     }
@@ -945,17 +944,17 @@ void WidgetCatalogOverlay::refresh_gated_rows() {
     // Entries are index-parallel to these rows: rebuilding one without the other
     // leaves the query filtering rows by the wrong def's name. Rows no query has
     // asked for yet are built by the first one.
-    lv_obj_t* results = lv_obj_find_by_name(root, "search_results");
+    lv_obj_t* results = helix::ui::find_required(root, "search_results", "WidgetCatalog");
     if (results && g_catalog_state.search_rows_built) {
         helix::ui::safe_clean_children(results);
         build_search_rows(results);
-        lv_obj_t* input = lv_obj_find_by_name(root, "catalog_search_input");
+        lv_obj_t* input = helix::ui::find_required(root, "catalog_search_input", "WidgetCatalog");
         const char* query = input ? lv_textarea_get_text(input) : nullptr;
         apply_search(query ? query : "");
     }
 
     if (lv_obj_t* page = g_catalog_state.category_root) {
-        if (lv_obj_t* scroll = lv_obj_find_by_name(page, "catalog_scroll")) {
+        if (lv_obj_t* scroll = helix::ui::find_required(page, "catalog_scroll", "WidgetCatalog")) {
             helix::ui::safe_clean_children(scroll);
             populate_rows(scroll, config, page_defs(g_catalog_state.page_category));
         }

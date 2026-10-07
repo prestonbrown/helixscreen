@@ -103,6 +103,18 @@ uint32_t temp_graph_series_hex(int index) {
 // ============================================================================
 
 namespace {
+// A series plots the chamber's subjects only when it names the chamber: the
+// "chamber" alias, its heater, or the object its reading comes from. Every
+// other heater_generic / temperature_fan is its own object and reads through
+// TemperatureSensorManager.
+bool is_chamber_series(const std::string& name) {
+    if (name == "chamber")
+        return true;
+    const auto& temps = get_printer_state().temperature_state();
+    return !name.empty() &&
+           (name == temps.chamber_heater_name() || name == temps.chamber_temperature_source());
+}
+
 // Registry of live controllers so refresh_all_from_history() can re-backfill
 // every persistent graph after the history manager is (re)seeded. Main-thread
 // only: controllers are created, destroyed, and refreshed on the UI thread, so
@@ -469,8 +481,7 @@ void TempGraphController::setup_observers() {
     // Auxiliary sensors are whatever does not route to the bed, chamber, or
     // extruder subjects in attach_series_observers().
     auto is_sensor_series = [](const std::string& n) {
-        return n != "heater_bed" && n.rfind("heater_generic", 0) != 0 &&
-               n.rfind("temperature_fan", 0) != 0 && n.rfind("extruder", 0) != 0;
+        return n != "heater_bed" && !is_chamber_series(n) && n.rfind("extruder", 0) != 0;
     };
 
     for (size_t i = 0; i < series_.size(); ++i) {
@@ -580,9 +591,7 @@ bool TempGraphController::attach_series_observers(size_t i) {
         if (s.klipper_name == "heater_bed") {
             temp_subj = ps.temperature_state().get_bed_temp_subject(s.lifetime);
             target_subj = ps.temperature_state().get_bed_target_subject(s.lifetime);
-        } else if (s.klipper_name.find("heater_generic") == 0 ||
-                   s.klipper_name.find("temperature_fan") == 0) {
-            // Chamber (or other heater/fan-based heaters)
+        } else if (is_chamber_series(s.klipper_name)) {
             temp_subj = ps.temperature_state().get_chamber_temp_subject(s.lifetime);
             target_subj = ps.temperature_state().get_chamber_target_subject(s.lifetime);
         } else if (s.klipper_name.find("extruder") == 0) {
@@ -608,9 +617,12 @@ bool TempGraphController::attach_series_observers(size_t i) {
                 s.provisional = (temp_subj != nullptr);
             }
         } else {
-            // Auxiliary sensor from TemperatureSensorManager
+            // Auxiliary sensor or heater from TemperatureSensorManager. Temp and
+            // target share one lifetime token, so s.lifetime covers both.
             auto& sensor_mgr = sensors::TemperatureSensorManager::instance();
             temp_subj = sensor_mgr.get_temp_subject(s.klipper_name, s.lifetime);
+            if (temp_subj && sensors::klipper_object_has_target(s.klipper_name))
+                target_subj = sensor_mgr.get_target_subject(s.klipper_name, s.lifetime);
         }
 
         resolved = (temp_subj != nullptr);

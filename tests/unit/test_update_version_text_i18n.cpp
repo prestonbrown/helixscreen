@@ -13,7 +13,8 @@
 #include "system_settings_manager.h"
 #include "version.h"
 
-#include <fmt/format.h>
+#include <spdlog/fmt/fmt.h>
+
 #include <optional>
 #include <string>
 

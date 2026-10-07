@@ -483,3 +483,88 @@ TEST_CASE_METHOD(LVGLUITestFixture, "text_input keyboard_hint guards foreign use
         CHECK(ui_text_input_get_keyboard_hint(plain) == KeyboardHint::TEXT);
     }
 }
+
+// ============================================================================
+// Suffix
+// ============================================================================
+
+namespace {
+
+lv_area_t coords_of(lv_obj_t* obj) {
+    lv_area_t a;
+    lv_obj_get_coords(obj, &a);
+    return a;
+}
+
+/// Right edge of the area the textarea's own text may occupy.
+int32_t text_right_edge(lv_obj_t* ta) {
+    return coords_of(ta).x2 - lv_obj_get_style_pad_right(ta, LV_PART_MAIN);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(TextInputBindingFixture, "text_input suffix sits inside the field after the text",
+                 "[text_input][xml][suffix]") {
+    SECTION("no suffix label unless asked for") {
+        const char* attrs[] = {nullptr};
+        lv_obj_t* ta = create_text_input(test_screen(), attrs);
+        REQUIRE(ta != nullptr);
+        CHECK(lv_obj_find_by_name(ta, "text_input_suffix") == nullptr);
+    }
+
+    SECTION("static suffix: between the text area and the field's right edge") {
+        const char* attrs[] = {"width", "300", "suffix", "mm/s", nullptr};
+        lv_obj_t* ta = create_text_input(test_screen(), attrs);
+        REQUIRE(ta != nullptr);
+        lv_obj_t* suffix = lv_obj_find_by_name(ta, "text_input_suffix");
+        REQUIRE(suffix != nullptr);
+        lv_obj_update_layout(ta);
+
+        REQUIRE(std::string(lv_label_get_text(suffix)) == "mm/s");
+        REQUIRE(lv_obj_get_width(suffix) > 0);
+        const lv_area_t field = coords_of(ta);
+        const lv_area_t label = coords_of(suffix);
+        CHECK(label.x1 > text_right_edge(ta));
+        CHECK(label.x2 <= field.x2);
+    }
+
+    SECTION("with a clear button: text, then suffix, then the button") {
+        const char* attrs[] = {"width", "300",  "suffix", "mm", "show_clear_button",
+                               "true",  nullptr};
+        lv_obj_t* ta = create_text_input(test_screen(), attrs);
+        REQUIRE(ta != nullptr);
+        lv_textarea_set_text(ta, "12");
+        lv_obj_send_event(ta, LV_EVENT_VALUE_CHANGED, nullptr);
+        lv_obj_update_layout(ta);
+
+        const lv_area_t label = coords_of(lv_obj_find_by_name(ta, "text_input_suffix"));
+        const lv_area_t clear = coords_of(lv_obj_find_by_name(ta, "text_input_clear_btn"));
+        CHECK(label.x1 > text_right_edge(ta));
+        CHECK(label.x2 <= clear.x1);
+        CHECK(clear.x2 <= coords_of(ta).x2);
+    }
+}
+
+TEST_CASE_METHOD(TextInputBindingFixture, "text_input bind_suffix resizes the reserve to the unit",
+                 "[text_input][xml][suffix]") {
+    const char* plain_attrs[] = {"width", "300", nullptr};
+    lv_obj_t* plain = create_text_input(test_screen(), plain_attrs);
+    lv_obj_update_layout(plain);
+    const int32_t base_pad = lv_obj_get_style_pad_right(plain, LV_PART_MAIN);
+
+    lv_subject_copy_string(text_subject(), "C");
+    const char* attrs[] = {"width", "300", "bind_suffix", "ti_text_subject", nullptr};
+    lv_obj_t* ta = create_text_input(test_screen(), attrs);
+    REQUIRE(ta != nullptr);
+    lv_obj_update_layout(ta);
+    const int32_t narrow_pad = lv_obj_get_style_pad_right(ta, LV_PART_MAIN);
+    CHECK(narrow_pad > base_pad);
+
+    lv_subject_copy_string(text_subject(), "mm/s mm/s");
+    lv_obj_update_layout(ta);
+    CHECK(lv_obj_get_style_pad_right(ta, LV_PART_MAIN) > narrow_pad);
+
+    lv_subject_copy_string(text_subject(), "");
+    lv_obj_update_layout(ta);
+    CHECK(lv_obj_get_style_pad_right(ta, LV_PART_MAIN) == base_pad);
+}

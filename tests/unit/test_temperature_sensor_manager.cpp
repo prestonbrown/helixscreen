@@ -23,6 +23,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <map>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -572,4 +573,99 @@ TEST_CASE_METHOD(
     auto levels = log.levels_for("Chamber override");
     REQUIRE(levels.size() == 1);
     REQUIRE(levels[0] == spdlog::level::debug);
+}
+
+// ============================================================================
+// heater_generic objects
+// ============================================================================
+
+TEST_CASE_METHOD(TemperatureSensorTestFixture,
+                 "TemperatureSensorManager - heater_generic is a sensor with a target",
+                 "[temperature][heater_generic]") {
+    mgr().discover({"heater_generic filament_dryer", "temperature_sensor mcu_temp"});
+
+    auto state_of = [&](const std::string& name) {
+        for (const auto& c : mgr().get_sensors())
+            if (c.klipper_name == name)
+                return std::optional<TemperatureSensorConfig>(c);
+        return std::optional<TemperatureSensorConfig>();
+    };
+    auto dryer = state_of("heater_generic filament_dryer");
+    REQUIRE(dryer.has_value());
+    REQUIRE(dryer->type == TemperatureSensorType::HEATER_GENERIC);
+    REQUIRE(dryer->sensor_name == "filament_dryer");
+    REQUIRE(dryer->role == TemperatureSensorRole::AUXILIARY);
+    REQUIRE(klipper_object_has_target("heater_generic filament_dryer"));
+    REQUIRE(klipper_object_has_target("temperature_fan exhaust"));
+    REQUIRE_FALSE(klipper_object_has_target("temperature_sensor mcu_temp"));
+
+    update_sensor_temp("heater_generic filament_dryer", 48.5f, 55.0f);
+
+    SubjectLifetime temp_lt;
+    SubjectLifetime target_lt;
+    lv_subject_t* temp = mgr().get_temp_subject("heater_generic filament_dryer", temp_lt);
+    lv_subject_t* target = mgr().get_target_subject("heater_generic filament_dryer", target_lt);
+    REQUIRE(temp != nullptr);
+    REQUIRE(target != nullptr);
+    REQUIRE(target_lt);
+    REQUIRE(lv_subject_get_int(temp) == 485);
+    REQUIRE(lv_subject_get_int(target) == 550);
+    REQUIRE(mgr().get_target_subject("heater_generic nope", target_lt) == nullptr);
+}
+
+TEST_CASE_METHOD(TemperatureSensorTestFixture,
+                 "TemperatureSensorManager - chamber override gives the chamber heater CHAMBER",
+                 "[temperature][heater_generic][chamber]") {
+    // The heater has no "chamber" in its name, so only the override can tell
+    // the manager it is the chamber's heater rather than an auxiliary one.
+    mgr().discover({"heater_generic enclosure_heat", "temperature_sensor chamber",
+                    "heater_generic filament_dryer"});
+
+    mgr().apply_chamber_sensor_override("temperature_sensor chamber",
+                                        "heater_generic enclosure_heat");
+
+    for (const auto& c : mgr().get_sensors()) {
+        INFO(c.klipper_name);
+        if (c.klipper_name == "heater_generic filament_dryer") {
+            REQUIRE(c.role == TemperatureSensorRole::AUXILIARY);
+        } else {
+            REQUIRE(c.role == TemperatureSensorRole::CHAMBER);
+        }
+    }
+}
+
+TEST_CASE_METHOD(TemperatureSensorTestFixture,
+                 "TemperatureSensorManager - an unknown chamber sensor still promotes the heater",
+                 "[temperature][heater_generic][chamber]") {
+    // The saved sensor name is stale, so the incumbent roles stand; the
+    // chamber heater must still leave the auxiliary list or it is graphed twice.
+    mgr().discover({"heater_generic enclosure_heat", "temperature_sensor mcu_temp"});
+
+    mgr().apply_chamber_sensor_override("temperature_sensor gone", "heater_generic enclosure_heat");
+
+    for (const auto& c : mgr().get_sensors()) {
+        INFO(c.klipper_name);
+        if (c.klipper_name == "heater_generic enclosure_heat") {
+            REQUIRE(c.role == TemperatureSensorRole::CHAMBER);
+        } else {
+            REQUIRE(c.role == TemperatureSensorRole::MCU);
+        }
+    }
+}
+
+TEST_CASE_METHOD(TemperatureSensorTestFixture,
+                 "TemperatureSensorManager - a heater is named apart from a same-named sensor",
+                 "[temperature][heater_generic]") {
+    // Pickers and the settings list show display names only, so a chamber
+    // heater and a chamber thermistor must not both read "Chamber ...".
+    mgr().discover(
+        {"heater_generic chamber", "temperature_sensor chamber", "heater_generic filament_dryer"});
+
+    std::map<std::string, std::string> names;
+    for (const auto& c : mgr().get_sensors())
+        names[c.klipper_name] = c.display_name;
+
+    CHECK(names["heater_generic chamber"] == "Chamber Heater");
+    CHECK(names["heater_generic filament_dryer"] == "Filament Dryer Heater");
+    CHECK(names["heater_generic chamber"] != names["temperature_sensor chamber"]);
 }

@@ -160,6 +160,7 @@ Above the graph, a row of **sensor chips** lets you toggle which traces are visi
 - Tap a chip to show or hide that sensor's trace
 - When you open the overlay from a specific card, only the relevant sensor is shown by default — tap other chips to add more traces
 - Chips wrap across multiple lines if you have many sensors
+- Every generic heater (`[heater_generic]`) other than your chamber heater gets its own chip with a target line, for example a filament dryer's heater
 
 ### Graph Features
 

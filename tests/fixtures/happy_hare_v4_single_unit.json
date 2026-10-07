@@ -1,0 +1,272 @@
+{
+ "_comment": "Happy Hare 4.0.0, one QIDI box (4 gates, VirtualSelector). mmu_machine and the configfile sections are a capture from a QIDI Q2 (prestonbrown/helixscreen#1479), trimmed to the keys read; mmu_status and entry_sensors follow mmu_controller.get_status() and MmuRunoutHelper.get_status() at moggieuk/Happy-Hare c66216b7.",
+ "mmu_machine": {
+  "happy_hare_version": "4.0.0",
+  "unit_0": {
+   "name": "unit0",
+   "display_name": "QIDI-0",
+   "vendor": "QIDI",
+   "version": "1.0",
+   "num_gates": 4,
+   "first_gate": 0,
+   "selector_type": "VirtualSelector",
+   "is_homed": true,
+   "variable_rotation_distances": true,
+   "variable_bowden_lengths": false,
+   "require_bowden_move": true,
+   "filament_always_gripped": true,
+   "has_bypass": false,
+   "can_crossload": true,
+   "multi_gear": true,
+   "filament_buffer": false,
+   "environment_sensor": "temperature_sensor unit0_Env",
+   "filament_heater": "heater_generic box1_heater",
+   "nfc_readers": [
+    "unit0_nfc_a",
+    "unit0_nfc_a",
+    "unit0_nfc_b",
+    "unit0_nfc_b"
+   ]
+  },
+  "num_units": 1,
+  "num_gates": 4
+ },
+ "configfile_settings": {
+  "mmu_machine": {
+   "happy_hare_version": "4.0.0",
+   "units": [
+    "unit0"
+   ]
+  },
+  "mmu_parameters": {
+   "form_tip_macro": "_MMU_CUT_TIP_NOSKEW",
+   "extruder_load_speed": 12.0,
+   "extruder_unload_speed": 12.0
+  },
+  "mmu_unit unit0": {
+   "num_gates": 4,
+   "vendor": "QIDI",
+   "display_name": "QIDI-0",
+   "selector_type": "VirtualSelector",
+   "show_bypass": 0,
+   "filament_buffer": false,
+   "environment_sensor": "unit0_Env",
+   "filament_heater": "box1_heater",
+   "toolhead": "default"
+  },
+  "mmu_unit_parameters unit0": {
+   "gear_load_speed": 80.0,
+   "gear_from_filament_buffer_speed": 150.0,
+   "gear_unload_speed": 120.0,
+   "sync_to_extruder": 1,
+   "heater_max_temp": 65.0,
+   "flowguard_encoder_mode": 2
+  },
+  "mmu_toolhead default": {
+   "toolhead_extruder_to_nozzle": 87.0,
+   "toolhead_sensor_to_nozzle": 1.0,
+   "toolhead_entry_to_extruder": 6.0,
+   "toolhead_residual_filament": 2.0,
+   "toolhead_ooze_reduction": 0.0
+  }
+ },
+ "printer_objects": [
+  "mmu",
+  "mmu_machine",
+  "filament_switch_sensor mmu_entry_0",
+  "filament_switch_sensor mmu_entry_1",
+  "filament_switch_sensor mmu_entry_2",
+  "filament_switch_sensor mmu_entry_3",
+  "heater_generic box1_heater",
+  "temperature_sensor unit0_Env"
+ ],
+ "mmu_status": {
+  "enabled": true,
+  "kalico": 1,
+  "num_gates": 4,
+  "is_homed": true,
+  "print_state": "idle",
+  "unit": 0,
+  "tool": 1,
+  "gate": 1,
+  "active_filament": {},
+  "num_toolchanges": 0,
+  "last_tool": -1,
+  "next_tool": -1,
+  "slicer_purge": null,
+  "toolchange_purge_volume": 0.0,
+  "last_toolchange": "",
+  "operation": "",
+  "filament": "Loaded",
+  "filament_position": 0.0,
+  "filament_pos": 10,
+  "filament_direction": 1,
+  "pending_spool_id": -1,
+  "action": "Idle",
+  "sync_drive": false,
+  "reason_for_pause": "",
+  "spoolman_support": "off",
+  "bowden_progress": -1,
+  "print_start_detection": true,
+  "encoder": null,
+  "espooler_active": "",
+  "runout": false,
+  "is_paused": false,
+  "is_locked": false,
+  "is_in_print": false,
+  "has_bypass": true,
+  "clog_detection": false,
+  "clog_detection_enabled": false,
+  "sync_feedback_state": null,
+  "sync_feedback_enabled": null,
+  "sync_feedback_bias_raw": null,
+  "sync_feedback_bias_modelled": null,
+  "sync_feedback_flow_rate": null,
+  "flowguard": null,
+  "tangle_prevention": null,
+  "ttg_map": [
+   0,
+   1,
+   2,
+   3
+  ],
+  "endless_spool_groups": [
+   0,
+   1,
+   2,
+   3
+  ],
+  "endless_spool_enabled": false,
+  "endless_spool": false,
+  "gate_status": [
+   1,
+   1,
+   0,
+   -1
+  ],
+  "gate_filament_name": [
+   "",
+   "PLA Basic",
+   "",
+   ""
+  ],
+  "gate_material": [
+   "PLA",
+   "PLA",
+   "",
+   ""
+  ],
+  "gate_vendor": [
+   "",
+   "QIDI",
+   "",
+   ""
+  ],
+  "gate_color": [
+   "FF0000",
+   "00FF00",
+   "",
+   ""
+  ],
+  "gate_temperature": [
+   210,
+   215,
+   200,
+   200
+  ],
+  "gate_spool_id": [
+   -1,
+   -1,
+   -1,
+   -1
+  ],
+  "gate_speed_override": [
+   100,
+   100,
+   100,
+   100
+  ],
+  "gate_spool_rfid": [
+   "",
+   "",
+   "",
+   ""
+  ],
+  "gate_color_rgb": [
+   [
+    1.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    1.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0
+   ]
+  ],
+  "slicer_tool_map": {
+   "tools": {},
+   "referenced_tools": [],
+   "initial_tool": null,
+   "purge_volumes": [],
+   "total_toolchanges": null
+  },
+  "slicer_color_rgb": [],
+  "extruder_filament_remaining": 0.0,
+  "filament_remaining": 0.0,
+  "filament_remaining_color": "",
+  "selector": {},
+  "sensors": {
+   "mmu_entry": true,
+   "mmu_shared_exit": true,
+   "extruder": true,
+   "mmu_pre_gate": true,
+   "mmu_gate": true
+  },
+  "espooler": [
+   "",
+   "",
+   "",
+   ""
+  ],
+  "drying_state": [
+   "",
+   "",
+   "",
+   ""
+  ],
+  "nfc": []
+ },
+ "entry_sensors": {
+  "filament_switch_sensor mmu_entry_0": {
+   "filament_detected": true,
+   "enabled": true,
+   "runout_suspended": false
+  },
+  "filament_switch_sensor mmu_entry_1": {
+   "filament_detected": true,
+   "enabled": true,
+   "runout_suspended": false
+  },
+  "filament_switch_sensor mmu_entry_2": {
+   "filament_detected": false,
+   "enabled": true,
+   "runout_suspended": false
+  },
+  "filament_switch_sensor mmu_entry_3": {
+   "filament_detected": true,
+   "enabled": false,
+   "runout_suspended": false
+  }
+ }
+}

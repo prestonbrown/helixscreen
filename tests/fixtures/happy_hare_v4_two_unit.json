@@ -1,0 +1,358 @@
+{
+ "_comment": "Happy Hare 4.0.0, a mixed two-unit rig: a 6-gate ERCF (LinearServoSelector, bypass, encoder) then a 4-gate BoxTurtle (VirtualSelector). Built from MmuUnit.get_status(), MmuMachine.machine_status and mmu_controller.get_status() at moggieuk/Happy-Hare c66216b7; not a capture.",
+ "mmu_machine": {
+  "happy_hare_version": "4.0.0",
+  "unit_0": {
+   "name": "ercf",
+   "display_name": "ERCF",
+   "vendor": "ERCF",
+   "version": "2.0",
+   "num_gates": 6,
+   "first_gate": 0,
+   "selector_type": "LinearServoSelector",
+   "is_homed": false,
+   "variable_rotation_distances": true,
+   "variable_bowden_lengths": false,
+   "require_bowden_move": true,
+   "filament_always_gripped": false,
+   "has_bypass": true,
+   "can_crossload": false,
+   "multi_gear": false,
+   "filament_buffer": true
+  },
+  "unit_1": {
+   "name": "bt",
+   "display_name": "Box Turtle",
+   "vendor": "BoxTurtle",
+   "version": "1.0",
+   "num_gates": 4,
+   "first_gate": 6,
+   "selector_type": "VirtualSelector",
+   "is_homed": true,
+   "variable_rotation_distances": true,
+   "variable_bowden_lengths": false,
+   "require_bowden_move": true,
+   "filament_always_gripped": true,
+   "has_bypass": false,
+   "can_crossload": true,
+   "multi_gear": true,
+   "filament_buffer": false,
+   "environment_sensors": [
+    "temperature_sensor bt_env0",
+    "temperature_sensor bt_env0",
+    "temperature_sensor bt_env1",
+    "temperature_sensor bt_env1"
+   ],
+   "filament_heaters": [
+    "heater_generic bt_heat0",
+    "heater_generic bt_heat0",
+    "heater_generic bt_heat1",
+    "heater_generic bt_heat1"
+   ]
+  },
+  "num_units": 2,
+  "num_gates": 10
+ },
+ "configfile_settings": {
+  "mmu_machine": {
+   "happy_hare_version": "4.0.0",
+   "units": [
+    "ercf",
+    "bt"
+   ]
+  },
+  "mmu_parameters": {
+   "form_tip_macro": "_MMU_FORM_TIP",
+   "extruder_load_speed": 15.0,
+   "extruder_unload_speed": 20.0
+  },
+  "mmu_unit ercf": {
+   "num_gates": 6,
+   "vendor": "ERCF",
+   "selector_type": "LinearServoSelector",
+   "toolhead": "default",
+   "encoder": "ercf_encoder",
+   "filament_always_gripped": false
+  },
+  "mmu_unit bt": {
+   "num_gates": 4,
+   "vendor": "BoxTurtle",
+   "selector_type": "VirtualSelector",
+   "toolhead": "default"
+  },
+  "mmu_unit_parameters ercf": {
+   "gear_load_speed": 90.0,
+   "gear_from_filament_buffer_speed": 160.0,
+   "gear_unload_speed": 110.0,
+   "selector_move_speed": 220.0,
+   "sync_to_extruder": 0,
+   "heater_max_temp": 65.0,
+   "flowguard_encoder_max_motion": 25.0,
+   "flowguard_encoder_mode": 2
+  },
+  "mmu_unit_parameters bt": {
+   "gear_load_speed": 70.0,
+   "gear_from_filament_buffer_speed": 150.0,
+   "gear_unload_speed": 70.0,
+   "sync_to_extruder": 1,
+   "heater_max_temp": 70.0
+  },
+  "mmu_toolhead default": {
+   "toolhead_extruder_to_nozzle": 72.0,
+   "toolhead_sensor_to_nozzle": 62.0,
+   "toolhead_entry_to_extruder": 8.0,
+   "toolhead_ooze_reduction": 1.5
+  }
+ },
+ "printer_objects": [
+  "mmu",
+  "mmu_machine",
+  "filament_switch_sensor mmu_entry_6",
+  "filament_switch_sensor mmu_entry_7",
+  "filament_switch_sensor mmu_entry_8",
+  "filament_switch_sensor mmu_entry_9"
+ ],
+ "mmu_status": {
+  "enabled": true,
+  "num_gates": 10,
+  "is_homed": false,
+  "print_state": "idle",
+  "unit": 1,
+  "tool": 7,
+  "gate": 7,
+  "num_toolchanges": 0,
+  "toolchange_purge_volume": 0.0,
+  "filament": "Unloaded",
+  "filament_pos": 0,
+  "pending_spool_id": -1,
+  "action": "Idle",
+  "sync_drive": false,
+  "reason_for_pause": "",
+  "spoolman_support": "off",
+  "bowden_progress": -1,
+  "encoder": null,
+  "espooler_active": "",
+  "has_bypass": true,
+  "clog_detection": false,
+  "clog_detection_enabled": false,
+  "sync_feedback_state": null,
+  "sync_feedback_enabled": null,
+  "sync_feedback_bias_raw": null,
+  "sync_feedback_bias_modelled": null,
+  "sync_feedback_flow_rate": null,
+  "flowguard": null,
+  "tangle_prevention": null,
+  "ttg_map": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9
+  ],
+  "endless_spool_groups": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9
+  ],
+  "endless_spool_enabled": true,
+  "endless_spool": true,
+  "gate_status": [
+   1,
+   1,
+   1,
+   0,
+   0,
+   1,
+   1,
+   1,
+   0,
+   1
+  ],
+  "gate_filament_name": [
+   "",
+   "",
+   "",
+   "",
+   "",
+   "",
+   "",
+   "",
+   "",
+   ""
+  ],
+  "gate_material": [
+   "PLA",
+   "PLA",
+   "PLA",
+   "PLA",
+   "PLA",
+   "PLA",
+   "PLA",
+   "PLA",
+   "PLA",
+   "PLA"
+  ],
+  "gate_color": [
+   "FFFFFF",
+   "FFFFFF",
+   "FFFFFF",
+   "FFFFFF",
+   "FFFFFF",
+   "FFFFFF",
+   "FFFFFF",
+   "FFFFFF",
+   "FFFFFF",
+   "FFFFFF"
+  ],
+  "gate_temperature": [
+   210,
+   210,
+   210,
+   210,
+   210,
+   210,
+   210,
+   210,
+   210,
+   210
+  ],
+  "gate_spool_id": [
+   -1,
+   -1,
+   -1,
+   -1,
+   -1,
+   -1,
+   -1,
+   -1,
+   -1,
+   -1
+  ],
+  "gate_color_rgb": [
+   [
+    1.0,
+    1.0,
+    1.0
+   ],
+   [
+    1.0,
+    1.0,
+    1.0
+   ],
+   [
+    1.0,
+    1.0,
+    1.0
+   ],
+   [
+    1.0,
+    1.0,
+    1.0
+   ],
+   [
+    1.0,
+    1.0,
+    1.0
+   ],
+   [
+    1.0,
+    1.0,
+    1.0
+   ],
+   [
+    1.0,
+    1.0,
+    1.0
+   ],
+   [
+    1.0,
+    1.0,
+    1.0
+   ],
+   [
+    1.0,
+    1.0,
+    1.0
+   ],
+   [
+    1.0,
+    1.0,
+    1.0
+   ]
+  ],
+  "slicer_tool_map": {
+   "tools": {},
+   "referenced_tools": [],
+   "initial_tool": null,
+   "purge_volumes": [],
+   "total_toolchanges": null
+  },
+  "sensors": {
+   "mmu_entry": true,
+   "mmu_shared_exit": false,
+   "extruder": false,
+   "toolhead": false,
+   "mmu_pre_gate": true,
+   "mmu_gate": false
+  },
+  "espooler": [
+   "",
+   "",
+   "",
+   "",
+   "",
+   "",
+   "off",
+   "assist",
+   "off",
+   "rewind"
+  ],
+  "drying_state": [
+   "",
+   "",
+   "",
+   "",
+   "",
+   "",
+   "",
+   "",
+   "",
+   ""
+  ],
+  "nfc": []
+ },
+ "entry_sensors": {
+  "filament_switch_sensor mmu_entry_6": {
+   "filament_detected": true,
+   "enabled": true,
+   "runout_suspended": false
+  },
+  "filament_switch_sensor mmu_entry_7": {
+   "filament_detected": true,
+   "enabled": true,
+   "runout_suspended": false
+  },
+  "filament_switch_sensor mmu_entry_8": {
+   "filament_detected": false,
+   "enabled": true,
+   "runout_suspended": false
+  },
+  "filament_switch_sensor mmu_entry_9": {
+   "filament_detected": true,
+   "enabled": true,
+   "runout_suspended": false
+  }
+ }
+}

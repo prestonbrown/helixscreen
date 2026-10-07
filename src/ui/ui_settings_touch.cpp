@@ -14,6 +14,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "page_scroll_auto_inject.h"
 #include "runtime_config.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -27,7 +28,7 @@ void sync_slider_value_label(lv_obj_t* slider, int value) {
     lv_obj_t* row = lv_obj_get_parent(lv_obj_get_parent(slider));
     if (!row)
         return;
-    if (lv_obj_t* value_label = lv_obj_find_by_name(row, "value_label")) {
+    if (lv_obj_t* value_label = helix::ui::find_required(row, "value_label", "ui_settings_touch")) {
         lv_label_set_text_fmt(value_label, "%d", value);
     }
 }
@@ -67,6 +68,7 @@ void TouchSettingsOverlay::init_subjects() {
 
 void TouchSettingsOverlay::register_callbacks() {
     using helix::ui::event_checked;
+    using helix::ui::event_selected;
     register_xml_callbacks({
         {"on_touch_calibration_clicked",
          [](lv_event_t*) { get_touch_settings_overlay().handle_touch_calibration_clicked(); }},
@@ -94,6 +96,12 @@ void TouchSettingsOverlay::register_callbacks() {
          [](lv_event_t* e) {
              // should_suppress_edit_mode checks this live, so no restart prompt.
              InputSettingsManager::instance().set_home_edit_mode_enabled(event_checked(e));
+         }},
+        {"on_keypad_layout_changed",
+         [](lv_event_t* e) {
+             // The keypad XML binds settings_keypad_layout, so no restart prompt.
+             InputSettingsManager::instance().set_keypad_layout(
+                 static_cast<KeypadLayout>(event_selected(e)));
          }},
         {"on_scroll_guard_changed",
          [](lv_event_t* e) {
@@ -175,7 +183,7 @@ void TouchSettingsOverlay::init_input_sliders() {
         if (!row) {
             return;
         }
-        if (lv_obj_t* slider = lv_obj_find_by_name(row, "slider")) {
+        if (lv_obj_t* slider = helix::ui::find_required(row, "slider", get_name())) {
             lv_slider_set_value(slider, value, LV_ANIM_OFF);
             sync_slider_value_label(slider, value);
         }

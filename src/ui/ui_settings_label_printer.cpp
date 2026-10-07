@@ -254,7 +254,7 @@ void LabelPrinterSettingsOverlay::init_address_input() {
     if (!row)
         return;
 
-    lv_obj_t* input = lv_obj_find_by_name(row, "input_address");
+    lv_obj_t* input = helix::ui::find_required(row, "input_address", get_name());
     if (input) {
         lv_textarea_set_text(input, settings.get_printer_address().c_str());
         if (!inputs_initialized_) {
@@ -280,7 +280,7 @@ void LabelPrinterSettingsOverlay::init_port_input() {
     if (!row)
         return;
 
-    lv_obj_t* input = lv_obj_find_by_name(row, "input_port");
+    lv_obj_t* input = helix::ui::find_required(row, "input_port", get_name());
     if (input) {
         auto port_str = fmt::format("{}", settings.get_printer_port());
         lv_textarea_set_text(input, port_str.c_str());
@@ -306,7 +306,7 @@ void LabelPrinterSettingsOverlay::init_label_size_dropdown() {
     if (!size_row)
         return;
 
-    lv_obj_t* dropdown = lv_obj_find_by_name(size_row, "dropdown");
+    lv_obj_t* dropdown = helix::ui::find_required(size_row, "dropdown", get_name());
     if (dropdown) {
         // PT printers auto-detect tape — disable size selection
         if (current_printer_auto_detects_size()) {
@@ -350,7 +350,7 @@ void LabelPrinterSettingsOverlay::init_preset_dropdown() {
     if (!preset_row)
         return;
 
-    lv_obj_t* dropdown = lv_obj_find_by_name(preset_row, "dropdown");
+    lv_obj_t* dropdown = helix::ui::find_required(preset_row, "dropdown", get_name());
     if (dropdown) {
         auto& settings = LabelPrinterSettingsManager::instance();
         // Build translated preset options
@@ -389,12 +389,12 @@ void LabelPrinterSettingsOverlay::init_discovery_dropdown() {
         return;
 
     // Hide the empty description text to vertically center the label
-    lv_obj_t* desc = lv_obj_find_by_name(row, "description");
+    lv_obj_t* desc = helix::ui::find_required(row, "description", get_name());
     if (desc) {
         lv_obj_add_flag(desc, LV_OBJ_FLAG_HIDDEN);
     }
 
-    lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+    lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
     if (dropdown) {
         lv_dropdown_set_options(dropdown, lv_tr("Searching..."));
     }
@@ -483,7 +483,7 @@ void LabelPrinterSettingsOverlay::merge_and_update_discovery() {
     if (!row)
         return;
 
-    lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+    lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
     if (!dropdown)
         return;
 
@@ -563,12 +563,12 @@ void LabelPrinterSettingsOverlay::handle_printer_selected(int index) {
     if (overlay_root_) {
         lv_obj_t* addr_row = find_required(overlay_root_, "row_address_port", get_name());
         if (addr_row) {
-            lv_obj_t* addr_input = lv_obj_find_by_name(addr_row, "input_address");
+            lv_obj_t* addr_input = helix::ui::find_required(addr_row, "input_address", get_name());
             if (addr_input) {
                 lv_textarea_set_text(addr_input, printer.ip_address.c_str());
             }
 
-            lv_obj_t* port_input = lv_obj_find_by_name(addr_row, "input_port");
+            lv_obj_t* port_input = helix::ui::find_required(addr_row, "input_port", get_name());
             if (port_input) {
                 auto port_str = fmt::format("{}", port);
                 lv_textarea_set_text(port_input, port_str.c_str());
@@ -599,7 +599,7 @@ void LabelPrinterSettingsOverlay::init_printer_type_dropdown() {
     if (!row)
         return;
 
-    lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+    lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
     if (dropdown) {
         const bool bt_available = helix::bluetooth::BluetoothLoader::instance().is_available();
         std::string options;
@@ -702,7 +702,7 @@ void LabelPrinterSettingsOverlay::init_label_count_dropdown() {
     if (!row)
         return;
 
-    lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+    lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
     if (!dropdown)
         return;
 
@@ -745,7 +745,7 @@ void LabelPrinterSettingsOverlay::init_usb_printer_dropdown() {
     if (!row)
         return;
 
-    lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+    lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
     if (dropdown) {
         lv_dropdown_set_options(dropdown, lv_tr("Searching..."));
     }
@@ -784,7 +784,7 @@ void LabelPrinterSettingsOverlay::on_usb_printers_detected(
     lv_obj_t* row = find_required(overlay_root_, "row_usb_printers", get_name());
     if (!row)
         return;
-    lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+    lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
     if (!dropdown)
         return;
 
@@ -840,7 +840,7 @@ void LabelPrinterSettingsOverlay::handle_address_changed() {
     if (!row)
         return;
 
-    lv_obj_t* input = lv_obj_find_by_name(row, "input_address");
+    lv_obj_t* input = helix::ui::find_required(row, "input_address", get_name());
     if (input) {
         const char* text = lv_textarea_get_text(input);
         std::string addr = text ? text : "";
@@ -854,7 +854,7 @@ void LabelPrinterSettingsOverlay::handle_port_changed() {
     if (!row)
         return;
 
-    lv_obj_t* input = lv_obj_find_by_name(row, "input_port");
+    lv_obj_t* input = helix::ui::find_required(row, "input_port", get_name());
     if (input) {
         const char* text = lv_textarea_get_text(input);
         if (text && text[0] != '\0') {
@@ -883,7 +883,7 @@ void LabelPrinterSettingsOverlay::handle_label_size_changed(int index) {
         bool force_qr = (sz.width_px <= 250 && sz.height_px > 0 && sz.height_px <= 250);
         lv_obj_t* preset_row = find_required(overlay_root_, "row_preset", get_name());
         if (preset_row) {
-            lv_obj_t* dd = lv_obj_find_by_name(preset_row, "dropdown");
+            lv_obj_t* dd = helix::ui::find_required(preset_row, "dropdown", get_name());
             if (dd) {
                 if (force_qr) {
                     lv_dropdown_set_options(dd, lv_tr("QR Only"));
@@ -988,7 +988,7 @@ void LabelPrinterSettingsOverlay::init_bt_printer_dropdown() {
     if (!row)
         return;
 
-    lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+    lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
     if (!dropdown)
         return;
 
@@ -1071,10 +1071,11 @@ void LabelPrinterSettingsOverlay::init_bt_printer_dropdown() {
                             }
                             // Refresh dropdown with actual state
                             if (ov.overlay_root_) {
-                                lv_obj_t* row =
-                                    lv_obj_find_by_name(ov.overlay_root_, "row_bt_printers");
+                                lv_obj_t* row = helix::ui::find_required(
+                                    ov.overlay_root_, "row_bt_printers", "Label Printer");
                                 if (row) {
-                                    lv_obj_t* dd = lv_obj_find_by_name(row, "dropdown");
+                                    lv_obj_t* dd =
+                                        helix::ui::find_required(row, "dropdown", "Label Printer");
                                     if (dd) {
                                         std::string options;
                                         for (const auto& d : ov.bt_devices_) {
@@ -1087,8 +1088,8 @@ void LabelPrinterSettingsOverlay::init_bt_printer_dropdown() {
                                     }
                                 }
                                 // Update connect button
-                                lv_obj_t* b =
-                                    lv_obj_find_by_name(ov.overlay_root_, "btn_bt_connect");
+                                lv_obj_t* b = helix::ui::find_required(
+                                    ov.overlay_root_, "btn_bt_connect", "Label Printer");
                                 if (b) {
                                     if (connected)
                                         lv_obj_add_state(b, LV_STATE_DISABLED);
@@ -1136,7 +1137,7 @@ void LabelPrinterSettingsOverlay::start_bt_discovery() {
     if (overlay_root_) {
         lv_obj_t* row = find_required(overlay_root_, "row_bt_printers", get_name());
         if (row) {
-            lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+            lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
             if (dropdown) {
                 lv_dropdown_set_options(dropdown, lv_tr("Scanning..."));
             }
@@ -1232,9 +1233,9 @@ void LabelPrinterSettingsOverlay::start_bt_discovery() {
 
         // Update dropdown
         if (overlay_root_) {
-            lv_obj_t* row = lv_obj_find_by_name(overlay_root_, "row_bt_printers");
+            lv_obj_t* row = helix::ui::find_required(overlay_root_, "row_bt_printers", get_name());
             if (row) {
-                lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+                lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
                 if (dropdown) {
                     std::string options;
                     for (const auto& d : bt_devices_) {
@@ -1256,9 +1257,9 @@ void LabelPrinterSettingsOverlay::start_bt_discovery() {
         lv_subject_set_int(&bt_scanning_subject_, 0);
 
         if (overlay_root_) {
-            lv_obj_t* row = lv_obj_find_by_name(overlay_root_, "row_bt_printers");
+            lv_obj_t* row = helix::ui::find_required(overlay_root_, "row_bt_printers", get_name());
             if (row) {
-                lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+                lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
                 if (dropdown) {
                     lv_dropdown_close(dropdown);
                     if (bt_devices_.empty()) {
@@ -1398,11 +1399,11 @@ void LabelPrinterSettingsOverlay::handle_bt_printer_selected(int index) {
 
                                     // Refresh dropdown to show paired checkmark
                                     if (ov.overlay_root_) {
-                                        lv_obj_t* row = lv_obj_find_by_name(ov.overlay_root_,
-                                                                            "row_bt_printers");
+                                        lv_obj_t* row = helix::ui::find_required(
+                                            ov.overlay_root_, "row_bt_printers", "Label Printer");
                                         if (row) {
-                                            lv_obj_t* dropdown =
-                                                lv_obj_find_by_name(row, "dropdown");
+                                            lv_obj_t* dropdown = helix::ui::find_required(
+                                                row, "dropdown", "Label Printer");
                                             if (dropdown) {
                                                 lv_dropdown_close(dropdown);
                                                 std::string options;
@@ -1562,9 +1563,11 @@ void LabelPrinterSettingsOverlay::handle_bt_connect() {
 
                 // Refresh dropdown labels
                 if (ov.overlay_root_) {
-                    lv_obj_t* row = lv_obj_find_by_name(ov.overlay_root_, "row_bt_printers");
+                    lv_obj_t* row = helix::ui::find_required(ov.overlay_root_, "row_bt_printers",
+                                                             "Label Printer");
                     if (row) {
-                        lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+                        lv_obj_t* dropdown =
+                            helix::ui::find_required(row, "dropdown", "Label Printer");
                         if (dropdown) {
                             std::string options;
                             for (const auto& d : ov.bt_devices_) {
@@ -1581,7 +1584,8 @@ void LabelPrinterSettingsOverlay::handle_bt_connect() {
                     }
 
                     // Update connect button state
-                    lv_obj_t* btn = lv_obj_find_by_name(ov.overlay_root_, "btn_bt_connect");
+                    lv_obj_t* btn = helix::ui::find_required(ov.overlay_root_, "btn_bt_connect",
+                                                             "Label Printer");
                     if (btn) {
                         if (paired_ok) {
                             lv_obj_add_state(btn, LV_STATE_DISABLED);

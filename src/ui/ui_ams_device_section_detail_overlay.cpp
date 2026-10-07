@@ -111,7 +111,8 @@ void AmsDeviceSectionDetailOverlay::show(lv_obj_t* parent_screen, const std::str
 void AmsDeviceSectionDetailOverlay::before_show() {
     // The overlay_panel title is static at XML creation, so it is set here. The name
     // comes from the extended overlay_panel, not this component's own XML.
-    if (lv_obj_t* header_title = lv_obj_find_by_name(overlay_root_, "header_title")) {
+    if (lv_obj_t* header_title =
+            helix::ui::find_required(overlay_root_, "header_title", get_name())) {
         std::string title = std::string(lv_tr("Multi-Filament System Management")) + ": " +
                             lv_tr(section_label_.c_str());
         lv_label_set_text(header_title, title.c_str());

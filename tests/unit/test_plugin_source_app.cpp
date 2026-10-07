@@ -69,7 +69,8 @@ class RecordingTransfers : public MoonrakerFileTransferAPIMock {
     bool fail_next = false;
 
     void download_file_partial(const std::string& root, const std::string& path, size_t max_bytes,
-                               StringCallback on_success, ErrorCallback on_error) override {
+                               StringCallback on_success, ErrorCallback on_error,
+                               CancelFlag = nullptr) override {
         partials.push_back({root, path, max_bytes});
         if (fail_next) {
             if (on_error)

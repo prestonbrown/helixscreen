@@ -468,27 +468,28 @@ TEST_CASE("PanelWidgetDef: half-cell capability is classified per widget",
     // that costs real precision at a 34px track.
     const std::map<std::string, std::pair<bool, bool>> expected = {
         // id                      half_col  half_row
-        {"printer_image", {true, true}},  // aspect-fit render
-        {"print_status", {true, true}},   // filename/times/progress reflow
-        {"camera", {true, true}},         // aspect-fit frame
-        {"temp_graph", {true, true}},     // chart
-        {"tips", {true, true}},           // wrapping body text
-        {"job_queue", {true, true}},      // list rows
-        {"print_stats", {true, true}},    // stat rows
-        {"ams", {true, true}},            // lane slots side by side
-        {"active_spool", {true, true}},   // measured compact/wide switch
-        {"nozzle_temps", {true, true}},   // decide_nozzle_layout() is measured
-        {"temp_stack", {true, true}},     // 2-3 stacked readout rows
-        {"fan_stack", {true, true}},      // 2-3 stacked readout rows
-        {"tool_switcher", {true, true}},  // horizontal chip strip
-        {"clog_detection", {true, true}}, // carousel arc scales with the box
-        {"preheat", {true, false}},       // flex row; row span is fixed
-        {"fan", {true, true}},            // user fan name, long_mode=dots
-        {"thermistor", {true, true}},     // user sensor name, long_mode=dots
-        {"bypass", {true, true}},         // material name, long_mode=dots
-        {"favorite_macro", {true, true}}, // badge scales with the box
-        {"shutdown", {true, true}},       // fixed 1x1: placement only
-        {"lock", {true, true}},           // fixed 1x1: placement only
+        {"printer_image", {true, true}},     // aspect-fit render
+        {"print_status", {true, true}},      // filename/times/progress reflow
+        {"camera", {true, true}},            // aspect-fit frame
+        {"temp_graph", {true, true}},        // chart
+        {"tips", {true, true}},              // wrapping body text
+        {"job_queue", {true, true}},         // list rows
+        {"print_stats", {true, true}},       // stat rows
+        {"ams", {true, true}},               // lane slots side by side
+        {"active_spool", {true, true}},      // measured compact/wide switch
+        {"nozzle_temps", {true, true}},      // decide_nozzle_layout() is measured
+        {"temp_stack", {true, true}},        // 2-3 stacked readout rows
+        {"fan_stack", {true, true}},         // 2-3 stacked readout rows
+        {"tool_switcher", {true, true}},     // horizontal chip strip
+        {"clog_detection", {true, true}},    // horizontal bar scales with the box
+        {"filament_buffer", {false, false}}, // slider tile; the trace needs a whole second cell
+        {"preheat", {true, false}},          // flex row; row span is fixed
+        {"fan", {true, true}},               // user fan name, long_mode=dots
+        {"thermistor", {true, true}},        // user sensor name, long_mode=dots
+        {"bypass", {true, true}},            // material name, long_mode=dots
+        {"favorite_macro", {true, true}},    // badge scales with the box
+        {"shutdown", {true, true}},          // fixed 1x1: placement only
+        {"lock", {true, true}},              // fixed 1x1: placement only
         {"firmware_restart", {true, true}},
         {"led_controls", {true, true}},
         {"clock", {true, true}}, // digits and date reflow on both axes

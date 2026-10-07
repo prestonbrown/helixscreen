@@ -299,14 +299,15 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   and toolhead sensors, so a strand parked short of the hub is drawn there rather than back
   at the spool. An ACE Pro with a fifth spool on its bypass switch gets a working bypass
   control.
-- **AFC buffers with a pressure sensor drive sync feedback** - an `AFC_buffer` of type
-  `FPS_PSF` measures what Happy Hare's sync feedback measures, so it is published the same
-  way and the buffer meter, path tint and filament page all work on AFC unchanged. Not yet
-  verified on hardware: the only AFC rig on hand is a switched TurtleNeck, which sends none
-  of these keys and is unaffected.
-- **The OpenAMS filament pressure sensor is on the filament path** (#1724) - OpenAMS running
-  without AFC shows each unit's FPS as a box labelled FPS; tap it for the current pressure,
-  0% to 100%.
+- **A new Filament Buffer widget shows where your filament buffer sits** (#1724) - an upright
+  slider with loose filament up and tight down, beside a big reading that is grey on target,
+  amber as it drifts and red near an end. At 2x1 it adds the target, the last minute as a
+  trace and "Running tight", "Running loose" or "Balanced"; tap it for Buffer Status, which
+  updates live. It works with OpenAMS filament pressure sensors, AFC buffers with a pressure
+  sensor (`FPS_PSF`, not yet verified on hardware: the only AFC rig on hand is a switched
+  TurtleNeck, which is unaffected) and Happy Hare sync feedback. The loaded-spool card gets
+  the same small slider, and OpenAMS shows each unit's FPS as a live-tinted box on the
+  filament path. A sensor with no target shows the pressure as text only.
 - **AD5X tool remapping uses the IFS's own commands** - the screen reads and writes the
   printer's tool map through `IFS_MAP_TOOL`, so a remap matches what the printer reports.
 - **Spool labels lead with the spool number** (#1491) - on every label layout the spool number
@@ -955,6 +956,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **The number keypad was cramped on 480x320 and 480x272 screens** - it is wider there, its keys
   fill the height, heater keypads are titled with the short heater name, and header titles
   shorten with dots instead of wrapping.
+- **The number pad puts 1 2 3 on top, like a phone** - backspace moves to the bottom left, and
+  on whole-number fields such as temperatures a confirm key sits bottom right, where the
+  decimal point would be. The unit (°C, mm) now sits inside the value field, which spans the
+  keys. Prefer 7 8 9 on top? Settings > Touch & Input > Number Pad Layout > Calculator.
 
 **Printer identification**
 

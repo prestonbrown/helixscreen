@@ -140,7 +140,7 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: speaker chip path opens Sound
     }
     NavigationManager::instance().set_panels(panels.data());
 
-    // PrinterManagerOverlay::on_chip_speaker_clicked opens the page this way.
+    // The printer manager's speaker chip opens the page this way.
     auto& sound = helix::settings::get_sound_settings_overlay();
     sound.show(test_screen());
     helix::ui::UpdateQueue::instance().drain();

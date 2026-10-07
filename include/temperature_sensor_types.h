@@ -23,6 +23,7 @@ enum class TemperatureSensorRole {
 enum class TemperatureSensorType {
     TEMPERATURE_SENSOR = 1, ///< temperature_sensor (read-only)
     TEMPERATURE_FAN = 2,    ///< temperature_fan (has target and speed)
+    HEATER_GENERIC = 3,     ///< heater_generic (has target and power)
 };
 
 /// @brief Configuration for a temperature sensor
@@ -46,7 +47,7 @@ struct TemperatureSensorConfig {
 /// @brief Runtime state for a temperature sensor
 struct TemperatureSensorState {
     float temperature = 0.0f; ///< Temperature in degrees C
-    float target = 0.0f;      ///< Target temp (temperature_fan only)
+    float target = 0.0f;      ///< Target temp (temperature_fan / heater_generic)
     float speed = 0.0f;       ///< Fan speed 0-1 (temperature_fan only)
     bool available = false;   ///< Sensor available in current config
 };
@@ -63,7 +64,14 @@ inline constexpr EnumName<TemperatureSensorRole> kTemperatureSensorRoles[] = {
 inline constexpr EnumName<TemperatureSensorType> kTemperatureSensorTypes[] = {
     {TemperatureSensorType::TEMPERATURE_SENSOR, "temperature_sensor", "Temperature Sensor"},
     {TemperatureSensorType::TEMPERATURE_FAN, "temperature_fan", "Temperature Fan"},
+    {TemperatureSensorType::HEATER_GENERIC, "heater_generic", "Generic Heater"},
 };
+
+/// Whether a Klipper temperature object carries a settable target.
+[[nodiscard]] inline bool klipper_object_has_target(const std::string& klipper_name) {
+    return klipper_name.rfind("heater_generic ", 0) == 0 ||
+           klipper_name.rfind("temperature_fan ", 0) == 0;
+}
 
 [[nodiscard]] inline std::string temp_role_to_string(TemperatureSensorRole role) {
     return enum_id(kTemperatureSensorRoles, role);

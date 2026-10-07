@@ -813,7 +813,8 @@ class StubTransferAPI : public MoonrakerFileTransferAPI {
     /// Holds every gcode header request open instead of sending it, so no
     /// real HTTP request outlives the test and a test can fire its error late.
     void download_file_partial(const std::string& root, const std::string& path, size_t max_bytes,
-                               StringCallback on_success, ErrorCallback on_error) override {
+                               StringCallback on_success, ErrorCallback on_error,
+                               CancelFlag = nullptr) override {
         (void)root;
         (void)path;
         (void)max_bytes;

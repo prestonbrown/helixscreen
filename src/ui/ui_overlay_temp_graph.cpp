@@ -483,7 +483,7 @@ void TempGraphOverlay::discover_series() {
         s.heater_name = sensor.klipper_name; // May not have history
         s.klipper_name = sensor.klipper_name;
         s.color = helix::TEMP_GRAPH_SERIES_COLORS[color_idx++ % helix::TEMP_GRAPH_PALETTE_SIZE];
-        s.has_target = (sensor.type == helix::sensors::TemperatureSensorType::TEMPERATURE_FAN);
+        s.has_target = helix::sensors::klipper_object_has_target(sensor.klipper_name);
         s.is_dynamic = true;
         series_.push_back(std::move(s));
     }

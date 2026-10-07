@@ -45,6 +45,7 @@
 #include "subject_managed_panel.h"
 #include "system/crash_handler.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 #include "wizard_config_paths.h"
 #include "wizard_step.h"
 #include "wizard_step_logic.h"
@@ -676,7 +677,7 @@ void ui_wizard_navigate_to_step(helix::wizard::StepId step) {
 
     // Show "Cancel" instead of "Back" on the first step when add-printer cancel is available
     if (wizard_container) {
-        lv_obj_t* btn_back = lv_obj_find_by_name(wizard_container, "btn_back");
+        lv_obj_t* btn_back = helix::ui::find_required(wizard_container, "btn_back", "Wizard");
         if (btn_back) {
             bool is_first_step = at_first_visible;
             const char* btn_label_text = (is_first_step && has_cancel) ? "Cancel" : "Back";
@@ -812,9 +813,8 @@ static void ui_wizard_load_screen(helix::wizard::StepId step) {
     }
 
     // Find wizard_content container
-    lv_obj_t* content = lv_obj_find_by_name(wizard_container, "wizard_content");
+    lv_obj_t* content = helix::ui::find_required(wizard_container, "wizard_content", "Wizard");
     if (!content) {
-        spdlog::error("[Wizard] wizard_content container not found");
         return;
     }
 

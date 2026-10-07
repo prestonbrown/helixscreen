@@ -35,8 +35,9 @@ class HeldFileListing : public MoonrakerFileAPIMock {
     using MoonrakerFileAPIMock::MoonrakerFileAPIMock;
 
     void list_files(const std::string&, const std::string&, bool, FileListCallback on_success,
-                    ErrorCallback) override {
+                    ErrorCallback on_error) override {
         pending_ = std::move(on_success);
+        pending_error_ = std::move(on_error);
     }
 
     bool pending() const {
@@ -49,8 +50,17 @@ class HeldFileListing : public MoonrakerFileAPIMock {
         done(files);
     }
 
+    void fail() {
+        auto failed = std::move(pending_error_);
+        pending_ = nullptr;
+        MoonrakerError err;
+        err.message = "root .temp not registered";
+        failed(err);
+    }
+
   private:
     FileListCallback pending_;
+    ErrorCallback pending_error_;
 };
 
 class HeldListingAPIMock : public HeldTransfersAPIMock {
@@ -265,4 +275,101 @@ TEST_CASE_METHOD(FetcherFixture, "Fetcher: a .temp listing landing after cancel 
     CHECK(unavailable == 0);
     CHECK(transfers_.held_count() == 0);
     CHECK_FALSE(fetcher_.owns_file());
+}
+
+namespace {
+
+/// A .3mf fetch against a .temp listing the test answers.
+struct ThreeMfFetch {
+    std::vector<std::string> ready;
+    std::vector<GcodePreviewFetcher::Unavailable> unavailable;
+
+    void start(GcodePreviewFetcher& fetcher, const std::string& filename) {
+        fetcher.fetch(
+            filename, [this](const std::string& path) { ready.push_back(path); },
+            [this](GcodePreviewFetcher::Unavailable why) { unavailable.push_back(why); });
+    }
+};
+
+FileInfo temp_file(const std::string& path, double modified = 0) {
+    FileInfo f;
+    f.path = path;
+    f.size = 10;
+    f.modified = modified;
+    return f;
+}
+
+} // namespace
+
+// A .3mf is a zip archive: streamed into the viewer it fails to index and
+// raises an error toast over the thumbnail. With no extracted G-code to show,
+// the owner keeps the thumbnail.
+TEST_CASE_METHOD(FetcherFixture, "Fetcher: a .3mf with no G-code in .temp downloads nothing",
+                 "[gcode_preview_fetcher][qidi]") {
+    HeldFileListing listing{client_};
+    HeldListingAPIMock api{client_, state_, transfers_, listing};
+    fetcher_.set_api(&api);
+
+    ThreeMfFetch fetch;
+    fetch.start(fetcher_, "Benchy.gcode.3mf");
+    REQUIRE(listing.pending());
+    listing.deliver({temp_file("unrelated.gcode")});
+    drain();
+
+    CHECK(transfers_.held_count() == 0);
+    CHECK(fetch.ready.empty());
+    CHECK(fetch.unavailable ==
+          std::vector<GcodePreviewFetcher::Unavailable>{GcodePreviewFetcher::Unavailable::NoGcode});
+}
+
+TEST_CASE_METHOD(FetcherFixture, "Fetcher: a .3mf whose .temp listing fails downloads nothing",
+                 "[gcode_preview_fetcher][qidi]") {
+    HeldFileListing listing{client_};
+    HeldListingAPIMock api{client_, state_, transfers_, listing};
+    fetcher_.set_api(&api);
+
+    ThreeMfFetch fetch;
+    fetch.start(fetcher_, "Benchy.gcode.3mf");
+    REQUIRE(listing.pending());
+    listing.fail();
+    drain();
+
+    CHECK(transfers_.held_count() == 0);
+    CHECK(fetch.ready.empty());
+    CHECK(fetch.unavailable ==
+          std::vector<GcodePreviewFetcher::Unavailable>{GcodePreviewFetcher::Unavailable::NoGcode});
+}
+
+TEST_CASE_METHOD(FetcherFixture, "Fetcher: a .3mf streams its extracted G-code from .temp",
+                 "[gcode_preview_fetcher][qidi]") {
+    HeldFileListing listing{client_};
+    HeldListingAPIMock api{client_, state_, transfers_, listing};
+    fetcher_.set_api(&api);
+
+    std::string expected;
+    std::vector<FileInfo> files;
+    SECTION("a shadow_native_plate file, newest of several") {
+        files = {temp_file("shadow_native_plate_1.gcode", 100),
+                 temp_file("shadow_native_plate_2.gcode", 200)};
+        expected = "shadow_native_plate_2.gcode";
+    }
+    SECTION("the plate extracted under the print's own name") {
+        files = {temp_file("Benchy.gcode")};
+        expected = "Benchy.gcode";
+    }
+    SECTION("the extracted name in a different case") {
+        files = {temp_file("benchy.GCODE")};
+        expected = "benchy.GCODE";
+    }
+
+    ThreeMfFetch fetch;
+    fetch.start(fetcher_, "Benchy.gcode.3mf");
+    REQUIRE(listing.pending());
+    listing.deliver(files);
+    drain();
+
+    CHECK(fetch.unavailable.empty());
+    REQUIRE(transfers_.held_count() == 1);
+    CHECK(transfers_.release(expected));
+    drain();
 }

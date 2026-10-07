@@ -153,6 +153,11 @@ class SoundManager {
     /// Check if backend supports concurrent tracker + SFX mixing
     [[nodiscard]] bool can_mix() const;
 
+    /// Whether the backend can play music (tracker files): one that renders
+    /// audio, or one with several voices. A single-voice buzzer (PWM, M300)
+    /// plays UI tones only: a song's drums and harmony land on it as noise.
+    [[nodiscard]] bool can_play_music() const;
+
   private:
     friend class SoundManagerTestAccess;
 

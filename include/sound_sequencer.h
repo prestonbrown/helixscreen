@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -91,6 +92,8 @@ class SoundSequencer {
     void apply_step_voices(const SoundStep& step, float freq, float amplitude, float duty);
 
     std::shared_ptr<SoundBackend> backend_;
+    /// The sequencer thread's stack on the ESP32, where it is allocated in PSRAM.
+    static constexpr std::size_t SEQUENCER_STACK_BYTES = 8 * 1024;
     std::thread sequencer_thread_;
     std::atomic<bool> running_{false};
     std::atomic<bool> playing_{false};

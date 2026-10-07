@@ -39,9 +39,6 @@ using namespace helix;
 // State subject (0=START, 1=RUNNING, 2=RESULTS, 3=ERROR)
 static lv_subject_t s_belt_tension_state;
 
-// Forward declarations
-static void on_belt_tension_row_clicked(lv_event_t* e);
-
 BeltTensionPanel::~BeltTensionPanel() {
     // lifetime_'s destructor auto-invalidates all outstanding tokens.
 
@@ -65,20 +62,16 @@ BeltTensionPanel::~BeltTensionPanel() {
 }
 
 void init_belt_tension_row_handler() {
-    lv_xml_register_event_cb(nullptr, "on_belt_tension_row_clicked", on_belt_tension_row_clicked);
+    register_xml_callbacks({
+        {"on_belt_tension_row_clicked",
+         [](lv_event_t*) {
+             spdlog::debug("[BeltTension] Belt Tension row clicked");
+             auto& panel = get_global_belt_tension_panel();
+             panel.set_api(get_moonraker_client(), get_moonraker_api());
+             panel.show(lv_display_get_screen_active(nullptr));
+         }},
+    });
     spdlog::trace("[BeltTension] Row click callback registered");
-}
-
-/**
- * @brief Row click handler for opening belt tension from Advanced panel
- */
-static void on_belt_tension_row_clicked(lv_event_t* e) {
-    (void)e;
-    spdlog::debug("[BeltTension] Belt Tension row clicked");
-
-    auto& panel = get_global_belt_tension_panel();
-    panel.set_api(get_moonraker_client(), get_moonraker_api());
-    panel.show(lv_display_get_screen_active(nullptr));
 }
 
 // ============================================================================

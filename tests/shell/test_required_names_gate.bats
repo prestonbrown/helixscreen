@@ -75,6 +75,25 @@ H
     contains "'row_missing'" "$output"
 }
 
+@test "a modal's component_name() override counts as created" {
+    cat > "$ROOT/src/demo.cpp" <<'CPP'
+void Demo::on_show() { find_required(dialog(), "row_volume", get_name()); }
+CPP
+    cat > "$ROOT/include/demo.h" <<'H'
+class Demo : public Modal {
+    const char* component_name() const override {
+        return "demo_overlay";
+    }
+};
+H
+    run python3 "$GATE" --repo-root "$ROOT"
+    [ "$status" -eq 0 ]
+    sed -i 's/row_volume/row_missing/' "$ROOT/src/demo.cpp"
+    run python3 "$GATE" --repo-root "$ROOT"
+    [ "$status" -eq 1 ]
+    contains "'row_missing'" "$output"
+}
+
 @test "an annotated family is checked in every member" {
     cat > "$ROOT/src/demo.cpp" <<'CPP'
 void fill(lv_obj_t* row) {

@@ -24,6 +24,8 @@ static constexpr settings::PersistedSetting INPUT_SETTINGS[] = {
     {"settings_debug_touches", "/input/debug_touches", Scope::Global, true, 0, 0, 1, nullptr},
     {"settings_home_edit_mode_enabled", "/input/home_edit_mode_enabled", Scope::Global, true, 1, 0,
      1, nullptr},
+    {"settings_keypad_layout", "/input/keypad_layout", Scope::Global, false,
+     static_cast<int>(KeypadLayout::PHONE), 0, 1, nullptr},
 };
 
 InputSettingsManager& InputSettingsManager::instance() {

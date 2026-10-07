@@ -402,7 +402,7 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
 
         // Apply shared gradient buffer to card
         ensure_gradient_cache(dims.card_width, dims.card_height);
-        lv_obj_t* gradient_bg = lv_obj_find_by_name(card, "gradient_bg");
+        lv_obj_t* gradient_bg = helix::ui::find_required(card, "gradient_bg", get_name());
         if (gradient_bg && cached_gradient_) {
             lv_image_set_src(gradient_bg, cached_gradient_);
         }
@@ -423,7 +423,7 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
         lv_obj_add_event_cb(card, on_card_long_pressed, LV_EVENT_LONG_PRESSED, this);
 
         // Show/hide play overlay based on playback capability
-        lv_obj_t* play_overlay = lv_obj_find_by_name(card, "play_overlay");
+        lv_obj_t* play_overlay = helix::ui::find_required(card, "play_overlay", get_name());
         if (play_overlay) {
             if (can_play_) {
                 lv_obj_remove_flag(play_overlay, LV_OBJ_FLAG_HIDDEN);
@@ -439,8 +439,8 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
 
 void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::string& filename,
                                                      const std::set<std::string>& available_files) {
-    lv_obj_t* thumbnail = lv_obj_find_by_name(card, "thumbnail");
-    lv_obj_t* no_thumb_icon = lv_obj_find_by_name(card, "no_thumbnail_icon");
+    lv_obj_t* thumbnail = helix::ui::find_required(card, "thumbnail", get_name());
+    lv_obj_t* no_thumb_icon = helix::ui::find_required(card, "no_thumbnail_icon", get_name());
 
     // Use the companion filename (e.g., "video.thumb.jpg") as the Moonraker path
     // within the "timelapse" root for ThumbnailCache
@@ -568,8 +568,10 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
                                 lv_obj_get_child(video_grid_container_, static_cast<int32_t>(i));
                             const char* stored_name = helix::ui::get_owned_user_string(child);
                             if (stored_name && filename_copy == stored_name) {
-                                lv_obj_t* thumb = lv_obj_find_by_name(child, "thumbnail");
-                                lv_obj_t* icon = lv_obj_find_by_name(child, "no_thumbnail_icon");
+                                lv_obj_t* thumb =
+                                    helix::ui::find_required(child, "thumbnail", get_name());
+                                lv_obj_t* icon = helix::ui::find_required(
+                                    child, "no_thumbnail_icon", get_name());
                                 if (thumb) {
                                     lv_image_set_src(thumb, lvbin_path.c_str());
                                     lv_obj_remove_flag(thumb, LV_OBJ_FLAG_HIDDEN);

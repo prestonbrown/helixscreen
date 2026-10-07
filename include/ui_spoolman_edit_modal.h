@@ -117,14 +117,6 @@ class SpoolEditModal : public Modal {
 
     // === Static Callbacks ===
     static SpoolEditModal* get_instance_from_event(lv_event_t* e);
-    static void on_close_cb(lv_event_t* e);
-    static void on_field_changed_cb(lv_event_t* e);
-    static void on_reset_cb(lv_event_t* e);
-    static void on_save_cb(lv_event_t* e);
-    static void on_color_clicked_cb(lv_event_t* e);
-#if HELIX_HAS_LABEL_PRINTER
-    static void on_print_label_cb(lv_event_t* e);
-#endif
 };
 
 } // namespace helix::ui

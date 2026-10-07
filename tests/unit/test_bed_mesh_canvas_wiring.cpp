@@ -26,6 +26,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/bed_mesh_panel_test_access.h"
+#include "ui/ui_widget_helpers.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -65,10 +66,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "wire_canvas_and_content fails gracefully with
     BedMeshPanel panel;
     lv_obj_t* content = make_named(test_screen(), "overlay_content");
     // No child named "bed_mesh_canvas" - simulates the XML not matching (or
-    // not yet having built) the expected structure.
+    // not yet having built) the expected structure. A missing required widget
+    // aborts under strict checks, so this exercises the release-build path.
+    helix::ui::set_strict_ui_checks(false);
 
     CHECK_FALSE(BedMeshPanelTestAccess::wire(panel, content));
     CHECK(BedMeshPanelTestAccess::canvas(panel) == nullptr);
+    helix::ui::set_strict_ui_checks(true);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

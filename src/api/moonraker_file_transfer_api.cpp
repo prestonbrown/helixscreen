@@ -7,6 +7,7 @@
 #include "ui_notification.h"
 
 #include "http_executor.h"
+#include "http_request_epoch.h"
 #include "hv/hfile.h"
 #include "hv/hurl.h"
 #include "hv/requests.h"
@@ -37,6 +38,7 @@ MoonrakerFileTransferAPI::~MoonrakerFileTransferAPI() = default;
 
 void MoonrakerFileTransferAPI::download_file(const std::string& root, const std::string& path,
                                              StringCallback on_success, ErrorCallback on_error) {
+    on_success = helix::http_epoch::guard_reply(on_success, on_error, "download_file");
     // Validate inputs
     if (reject_invalid_path(path, "download_file", on_error))
         return;
@@ -80,7 +82,8 @@ void MoonrakerFileTransferAPI::download_file(const std::string& root, const std:
 void MoonrakerFileTransferAPI::download_file_partial(const std::string& root,
                                                      const std::string& path, size_t max_bytes,
                                                      StringCallback on_success,
-                                                     ErrorCallback on_error) {
+                                                     ErrorCallback on_error, CancelFlag cancelled) {
+    on_success = helix::http_epoch::guard_reply(on_success, on_error, "download_file_partial");
     // Validate inputs
     if (reject_invalid_path(path, "download_file_partial", on_error))
         return;
@@ -99,70 +102,77 @@ void MoonrakerFileTransferAPI::download_file_partial(const std::string& root,
     spdlog::debug("[Moonraker API] Partial download (first {} bytes): {}", max_bytes, url);
 
     // Run HTTP request in a tracked thread
-    helix::http::HttpExecutor::slow().submit([url, path, max_bytes, on_success, on_error]() {
-        // Create request with Range header for partial content
-        auto req = std::make_shared<HttpRequest>();
-        req->method = HTTP_GET;
-        req->url = url;
-        req->timeout = 30; // 30 second timeout
-
-        // HTTP Range header: bytes=0-{max_bytes-1}
-        // Note: Range is inclusive, so bytes=0-99 returns 100 bytes
-        std::string range_header = "bytes=0-" + std::to_string(max_bytes - 1);
-        req->SetHeader("Range", range_header);
-
-        // Stream the body through a per-chunk callback, the same pattern
-        // requests::downloadFile uses. With http_cb set, libhv hands each body
-        // chunk to us instead of accumulating resp->body, which is what lets
-        // the transfer be stopped mid-body: the client's recv loop checks
-        // req->cancel after every chunk, so cancelling the moment max_bytes
-        // have arrived closes the connection instead of letting a
-        // Range-ignoring 200 push the whole file over the wire and occupy
-        // this slow-lane worker for the full transfer.
-        std::string body;
-        req->http_cb = [&req, &body, max_bytes](HttpMessage* /*resp*/, http_parser_state state,
-                                                const char* data, size_t size) {
-            if (state != HP_BODY || data == nullptr || size == 0) {
+    helix::http::HttpExecutor::slow().submit(
+        [url, path, max_bytes, on_success, on_error, cancelled]() {
+            if (cancelled && cancelled->load()) {
+                report_error(on_error, MoonrakerErrorType::UNKNOWN, "download_file_partial",
+                             "cancelled before it was sent");
                 return;
             }
-            // Keep only what fits. A Range-honouring 206 sends exactly
-            // max_bytes, so this caps nothing and Cancel() lands on a
-            // transfer that is finishing anyway; a Range-ignoring 200 is cut
-            // off at max_bytes.
-            size_t take = std::min(size, max_bytes - body.size());
-            body.append(data, take);
-            if (body.size() >= max_bytes) {
-                req->Cancel();
+            // Create request with Range header for partial content
+            auto req = std::make_shared<HttpRequest>();
+            req->method = HTTP_GET;
+            req->url = url;
+            req->timeout = 30; // 30 second timeout
+
+            // HTTP Range header: bytes=0-{max_bytes-1}
+            // Note: Range is inclusive, so bytes=0-99 returns 100 bytes
+            std::string range_header = "bytes=0-" + std::to_string(max_bytes - 1);
+            req->SetHeader("Range", range_header);
+
+            // Stream the body through a per-chunk callback, the same pattern
+            // requests::downloadFile uses. With http_cb set, libhv hands each body
+            // chunk to us instead of accumulating resp->body, which is what lets
+            // the transfer be stopped mid-body: the client's recv loop checks
+            // req->cancel after every chunk, so cancelling the moment max_bytes
+            // have arrived closes the connection instead of letting a
+            // Range-ignoring 200 push the whole file over the wire and occupy
+            // this slow-lane worker for the full transfer.
+            std::string body;
+            req->http_cb = [&req, &body, max_bytes](HttpMessage* /*resp*/, http_parser_state state,
+                                                    const char* data, size_t size) {
+                if (state != HP_BODY || data == nullptr || size == 0) {
+                    return;
+                }
+                // Keep only what fits. A Range-honouring 206 sends exactly
+                // max_bytes, so this caps nothing and Cancel() lands on a
+                // transfer that is finishing anyway; a Range-ignoring 200 is cut
+                // off at max_bytes.
+                size_t take = std::min(size, max_bytes - body.size());
+                body.append(data, take);
+                if (body.size() >= max_bytes) {
+                    req->Cancel();
+                }
+            };
+
+            auto resp = requests::request(req);
+
+            // Accept both 200 (full file) and 206 (partial content)
+            if (!handle_http_response(resp, "download_file_partial", on_error, {200, 206})) {
+                return;
             }
-        };
 
-        auto resp = requests::request(req);
+            spdlog::debug("[Moonraker API] Partial download: {} bytes from {} (status {})",
+                          body.size(), path, static_cast<int>(resp->status_code));
 
-        // Accept both 200 (full file) and 206 (partial content)
-        if (!handle_http_response(resp, "download_file_partial", on_error, {200, 206})) {
-            return;
-        }
+            // body never exceeds max_bytes by construction; a full 200 that hit
+            // the cap is a server that ignored Range.
+            if (resp->status_code == 200 && body.size() == max_bytes) {
+                spdlog::warn("[Moonraker API] Partial download: server ignored Range for {} "
+                             "(aborted the transfer at {} bytes)",
+                             path, max_bytes);
+            }
 
-        spdlog::debug("[Moonraker API] Partial download: {} bytes from {} (status {})", body.size(),
-                      path, static_cast<int>(resp->status_code));
-
-        // body never exceeds max_bytes by construction; a full 200 that hit
-        // the cap is a server that ignored Range.
-        if (resp->status_code == 200 && body.size() == max_bytes) {
-            spdlog::warn("[Moonraker API] Partial download: server ignored Range for {} "
-                         "(aborted the transfer at {} bytes)",
-                         path, max_bytes);
-        }
-
-        if (on_success) {
-            on_success(body);
-        }
-    });
+            if (on_success) {
+                on_success(body);
+            }
+        });
 }
 
 void MoonrakerFileTransferAPI::download_file_tail(const std::string& root, const std::string& path,
                                                   size_t max_bytes, StringCallback on_success,
                                                   ErrorCallback on_error) {
+    on_success = helix::http_epoch::guard_reply(on_success, on_error, "download_file_tail");
     if (reject_invalid_path(path, "download_file_tail", on_error))
         return;
 
@@ -225,6 +235,7 @@ void MoonrakerFileTransferAPI::download_file_tail(const std::string& root, const
 void MoonrakerFileTransferAPI::download_file_to_path(
     const std::string& root, const std::string& path, const std::string& dest_path,
     StringCallback on_success, ErrorCallback on_error, ProgressCallback on_progress) {
+    on_success = helix::http_epoch::guard_reply(on_success, on_error, "download_file_to_path");
     if (http_base_url_.empty()) {
         spdlog::error("[Moonraker API] HTTP base URL not set - cannot download file");
         report_connection_error(on_error, "download_file_to_path", "HTTP base URL not configured");
@@ -264,6 +275,7 @@ void MoonrakerFileTransferAPI::download_thumbnail(const std::string& thumbnail_p
                                                   const std::string& cache_path,
                                                   StringCallback on_success,
                                                   ErrorCallback on_error) {
+    on_success = helix::http_epoch::guard_reply(on_success, on_error, "download_thumbnail");
     // Validate inputs
     if (thumbnail_path.empty()) {
         spdlog::warn("[Moonraker API] Empty thumbnail path");

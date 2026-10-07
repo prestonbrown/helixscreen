@@ -251,7 +251,6 @@ class FilamentPanel : public PanelBase {
     /// Opens the full temperature graph overlay. The graph card's click
     /// handler and the strip's btn_temp_graph share this one entry point.
     void open_temp_graph_overlay();
-    static void on_temp_graph_clicked(lv_event_t* e);
 
     const char* get_name() const override {
         return "Filament Panel";
@@ -589,7 +588,6 @@ class FilamentPanel : public PanelBase {
     void update_multi_filament_card_visibility();
     void apply_left_column_sizing(bool external_spool_mode);
     void handle_extruder_changed();
-    static void on_extruder_dropdown_changed(lv_event_t* e);
 
     // External spool display (no-AMS mode)
     lv_obj_t* external_spool_row_ = nullptr;
@@ -607,7 +605,6 @@ class FilamentPanel : public PanelBase {
     void setup_external_spool_display();
     void update_external_spool_from_state();
     void show_external_spool_edit_modal();
-    static void on_external_spool_edit_clicked(lv_event_t* e);
 
     // Temperature observer bundle (nozzle + bed current/target)
     helix::ui::TemperatureObserverBundle<FilamentPanel> temp_observers_;
@@ -763,44 +760,6 @@ class FilamentPanel : public PanelBase {
 
     int current_extruder_target() const;
     void snapshot_prior_heater_target();
-
-    //
-    // === Static Trampolines ===
-    //
-
-    // XML event_cb callbacks (global accessor pattern)
-    static void on_manage_slots_clicked(lv_event_t* e);
-    static void on_load_clicked(lv_event_t* e);
-    static void on_unload_clicked(lv_event_t* e);
-    static void on_extrude_clicked(lv_event_t* e);
-    static void on_purge_clicked(lv_event_t* e);
-    static void on_retract_clicked(lv_event_t* e);
-
-    // Material preset callbacks (XML event_cb)
-    static void on_preset_pla_clicked(lv_event_t* e);
-    static void on_preset_petg_clicked(lv_event_t* e);
-    static void on_preset_abs_clicked(lv_event_t* e);
-    static void on_preset_tpu_clicked(lv_event_t* e);
-    static void on_preset_spool_clicked(lv_event_t* e);
-
-    // Material preset long-press callbacks (XML event_cb) — opens the material picker
-    static void on_preset_pla_hold(lv_event_t* e);
-    static void on_preset_petg_hold(lv_event_t* e);
-    static void on_preset_abs_hold(lv_event_t* e);
-    static void on_preset_tpu_hold(lv_event_t* e);
-
-    // Temperature tap callbacks (XML event_cb)
-    static void on_nozzle_target_tap_clicked(lv_event_t* e);
-    static void on_bed_target_tap_clicked(lv_event_t* e);
-    static void on_filament_chamber_target_tap(lv_event_t* e);
-
-    // Extrude length callbacks (XML event_cb)
-    static void on_extrude_length_5mm_clicked(lv_event_t* e);
-    static void on_extrude_length_10mm_clicked(lv_event_t* e);
-    static void on_extrude_length_25mm_clicked(lv_event_t* e);
-
-    // Cooldown callback (XML event_cb)
-    static void on_cooldown_clicked(lv_event_t* e);
 
     // Keypad callback bridges (different signature - not LVGL events)
     static void custom_nozzle_keypad_cb(float value, void* user_data);

@@ -559,8 +559,9 @@ void HelixTestFixture::reset_all() {
     // volume of 100, min_toast_severity 2 and its notifications cache) returns
     // to the compiled-in default rather than following the manager forward.
     // Neither init_subjects() reaches SoundManager — AudioSettingsManager seeds
-    // settings_audio_device_available to 0 and leaves the real value to
-    // refresh_audio_device_available(), which only Application calls.
+    // settings_audio_device_available and settings_music_available to 0 and
+    // leaves the real values to refresh_backend_subjects(), which only
+    // Application calls.
     helix::AudioSettingsManager::instance().init_subjects();
     // init_subjects() is a no-op while the subjects are alive, so a value a test
     // set without tearing the manager down (sounds_enabled) is reloaded here.

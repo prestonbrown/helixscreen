@@ -2,17 +2,28 @@
 
 #pragma once
 
+#include "ui_buffer_slider.h"
 #include "ui_modal.h"
+#include "ui_observer_guard.h"
 
 #include "ams_types.h"
+#include "buffer_reading.h"
+
+#include <memory>
 
 namespace helix::ui {
-class UiBufferMeter;
 class UiClogBar;
 } // namespace helix::ui
 
 /**
- * @brief Read-only modal showing buffer/sync status for Happy Hare or AFC
+ * @brief Read-only modal for one filament buffer: an upright slider with its
+ *        last minute scrolling out to the right, the reading and target, the
+ *        lean in words, and the backend's own rows (Happy Hare spool motor, gear
+ *        sync, flow; AFC state and distance to fault). Closed by its X; nothing
+ *        to confirm.
+ *
+ * Live while open: every row is re-read from the backend on each AmsState data
+ * revision or backend-count change.
  *
  * Subjects are static (shared across instances) because lv_xml_register_subject
  * rejects duplicate names — the first registration wins and the pointer persists.
@@ -30,21 +41,28 @@ class BufferStatusModal : public Modal {
         return "buffer_status_modal";
     }
 
-    /// Convenience: create modal, populate from info, and show. One-shot and
-    /// stack-owned - ModalStack frees the instance when its entry goes (#1382).
-    static void show_for(const helix::AmsSystemInfo& info, int effective_unit);
+    /// Convenience: create the modal for one unit's buffer and show it; -1 is
+    /// the buffer feeding the toolhead. One-shot and stack-owned - ModalStack
+    /// frees the instance when its entry goes (#1382).
+    static void show_for(int effective_unit);
 
   protected:
     void on_show() override;
 
   private:
     friend class TestableBufferStatusModal;
+    friend class BufferStatusModalProbe;
 
     static void init_subjects();
-    void populate(const helix::AmsSystemInfo& info, int effective_unit);
+    /// Write the modal's subjects for one unit's buffer, and return the
+    /// reading the slider draws.
+    helix::BufferReading populate(const helix::AmsSystemInfo& info, int effective_unit);
+    /// populate() from the active backend's current snapshot, and put the
+    /// slider on the same reading.
+    void refresh();
 
     static bool subjects_initialized_;
-    helix::ui::UiBufferMeter* meter_ = nullptr;
+    std::unique_ptr<helix::ui::UiBufferSlider> slider_;
     /// The clog reading above the columns. Owned here so it is torn down
     /// before Modal::~Modal() frees the dialog tree it points into.
     helix::ui::UiClogBar* clog_bar_ = nullptr;
@@ -58,6 +76,12 @@ class BufferStatusModal : public Modal {
 
     static lv_subject_t description_subject_;
     static char description_buf_[128];
+    static lv_subject_t show_reading_subject_;
+    static lv_subject_t status_subject_; ///< ClogMeterStatus of the reading, for its colour
+    static lv_subject_t value_subject_;
+    static char value_buf_[64];
+    static lv_subject_t target_subject_;
+    static char target_buf_[48];
     /// Shown when the filament system reports no buffer/flow data at all, so
     /// the dialog says why instead of rendering an empty box.
     static lv_subject_t unsupported_subject_;
@@ -73,7 +97,7 @@ class BufferStatusModal : public Modal {
     static lv_subject_t afc_distance_subject_;
     static char afc_distance_buf_[128];
 
-    // Stored info for post-show meter creation
-    helix::AmsSystemInfo info_;
     int effective_unit_ = 0;
+    ObserverGuard revision_observer_;
+    ObserverGuard backend_observer_;
 };

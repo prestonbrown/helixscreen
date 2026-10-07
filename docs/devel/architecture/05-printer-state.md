@@ -1,6 +1,6 @@
 # 05 — Printer State & the Singleton Map
 
-Every fact the UI shows about the printer lives in one object graph rooted at `PrinterState`, a Meyers singleton reached through `get_printer_state()`. It is not a god class: it holds thirteen domain components (temperature, motion, print, capabilities, ...) by value, each owning the LVGL subjects for exactly one concern, and callers reach a domain through its accessor (`temperature_state()`, `print_state()`, ...). Around it orbit two satellites with different jobs and different access patterns — `ToolState` (a classic `::instance()` singleton for multi-tool tracking) and `TemperatureController` (owned by `SubjectInitializer`, and the only code allowed to send a heater target). This chapter covers the decomposition, the two satellites, and the regenerated map of every global in the tree: 76 `::instance()` singletons plus four other access shapes, and which of them register with the two shutdown registries.
+Every fact the UI shows about the printer lives in one object graph rooted at `PrinterState`, a Meyers singleton reached through `get_printer_state()`. It is not a god class: it holds thirteen domain components (temperature, motion, print, capabilities, ...) by value, each owning the LVGL subjects for exactly one concern, and callers reach a domain through its accessor (`temperature_state()`, `print_state()`, ...). Around it orbit two satellites with different jobs and different access patterns — `ToolState` (a classic `::instance()` singleton for multi-tool tracking) and `TemperatureController` (owned by `SubjectInitializer`, and the only code allowed to send a heater target). This chapter covers the decomposition, the two satellites, and the regenerated map of every global in the tree: 73 `::instance()` singletons plus four other access shapes, and which of them register with the two shutdown registries.
 
 Chapter 02 covered the subject machinery itself — init macros, observer factories, the `SubjectInitializer` phase ordering — so this chapter stays on the map: which class owns which data, and how you are allowed to reach it.
 
@@ -88,15 +88,15 @@ Like `PrinterState`, `ToolState` is fed `update_from_status()` on the main threa
 
 `TemperatureController` ([`include/temperature_controller.h#TemperatureController`](../../../include/temperature_controller.h#L65)) is deliberately **not** a singleton. `SubjectInitializer` constructs it in `init_panel_subjects()` ([`src/application/subject_initializer.cpp#init_panel_subjects`](../../../src/application/subject_initializer.cpp#L354)), holds the `unique_ptr`, and publishes the raw pointer as a shared resource on `PanelWidgetManager`; `get_temperature_controller()` ([`include/app_globals.h#get_temperature_controller`](../../../include/app_globals.h#L79)) looks it up and returns `nullptr` before init. It resolves Klipper heater names (`Nozzle` → active extruder, `Bed` → `heater_bed`, `Chamber` → discovered name), applies `configfile` `max_temp` limits to the keypad range and preset visibility, owns the preset model, and provides the standard failure toast. It holds no widgets or subjects — toasts go through `NOTIFY_*`, which keeps it unit-testable. The rule is absolute: any UI that sets a temperature calls `set_target()` ([`include/temperature_controller.h#TemperatureController`](../../../include/temperature_controller.h#L99)) — raw `MoonrakerAPI::set_temperature()` from view code fails the build via the lint gate in [`tests/shell/test_code_lint.bats`](../../../tests/shell/test_code_lint.bats). Chamber specifics (M141 routing, decidegree precision) are in [`../MULTI_EXTRUDER_TEMPERATURE.md`](../MULTI_EXTRUDER_TEMPERATURE.md) § "Chamber Heating (M141)"; error-ownership of a failed send is in [`../RPC_ERROR_OWNERSHIP.md`](../RPC_ERROR_OWNERSHIP.md).
 
-### The singleton census: five access shapes, 76 `::instance()` classes
+### The singleton census: five access shapes, 73 `::instance()` classes
 
-"HelixScreen has 40+ singletons" (the old map) is now half the story. The tree has **76 classes with a `static X& instance()` (or pointer) declaration** in `include/`, plus four other shapes worth knowing before you grep:
+"HelixScreen has 40+ singletons" (the old map) is now half the story. The tree has **73 classes with a `static X& instance()` (or pointer) declaration** in `include/`, plus four other shapes worth knowing before you grep:
 
-1. **Meyers `::instance()` singletons** — the 76 in the table below.
+1. **Meyers `::instance()` singletons** — the 73 in the table below.
 2. **`get_printer_state()`** ([`include/app_globals.h#get_printer_state`](../../../include/app_globals.h#L149)) — same Meyers technique, free-function spelling; there is no `PrinterState::instance()`.
 3. **Published pointers** — get/set pairs in [`app_globals.h`](../../../include/app_globals.h) for objects owned elsewhere and published as globals (nullable!): `MoonrakerManager` (Application-owned, `set_moonraker_manager()` in [`src/application/printer_session.cpp#init_moonraker`](../../../src/application/application.cpp#L2145)), `IMoonrakerClient` / `IMoonrakerAPI` (owned by MoonrakerManager behind interfaces), `JobQueueState`, `PrintHistoryManager`, `TemperatureHistoryManager`.
 4. **`Config::get_instance()`** ([`include/config.h#get_instance`](../../../include/config.h#L562)) — static-member-pointer spelling of the same idea.
-5. **Not singletons at all** — `PrinterDetector` is a static utility class (`PrinterDetector::auto_detect()` etc.; no `instance()` exists), and panels/overlays are global **instances** behind `get_global_*_panel()` accessors built on `helix::lazy_global<T>()` (`include/static_panel_registry.h#"T& lazy_global(const char* name"`) — each registering its destruction with `StaticPanelRegistry`.
+5. **Not singletons at all** — `CrashReporter`, `UpgradeBanner` and `RemoteControlServer` are plain `Application` members, handed by reference to the code that needs them (`PrinterSession::Host`, `CrashReportModal`). `PrinterDetector` is a static utility class (`PrinterDetector::auto_detect()` etc.; no `instance()` exists), and panels/overlays are global **instances** behind `get_global_*_panel()` accessors built on `helix::lazy_global<T>()` (`include/static_panel_registry.h#"T& lazy_global(const char* name"`) — each registering its destruction with `StaticPanelRegistry`.
 
 | Singleton | Header | Role |
 |-----------|--------|------|
@@ -163,17 +163,14 @@ Like `PrinterState`, `ToolState` is fed `update_from_status()` on the main threa
 | `SubjectDebugRegistry` | [`subject_debug_registry.h`](../../../include/subject_debug_registry.h) | Subject registry for debugging |
 | `PrinterCacheRegistry` | [`printer_cache_registry.h`](../../../include/printer_cache_registry.h) | Per-printer cache invalidation on switch |
 | **Network & remote** | | |
-| `RemoteControlServer` | [`remote_control_server.h`](../../../include/remote_control_server.h) | `helix-screen ctl` Unix-socket JSON-RPC server |
 | `RemotePointer` | [`remote_pointer.h`](../../../include/remote_pointer.h) | `ctl`-driven pointer input device |
 | `BluetoothLoader` | [`bluetooth_loader.h`](../../../include/bluetooth_loader.h) | Bluetooth subsystem loader |
 | **System, update & crash** | | |
 | `UpdateChecker` | [`system/update_checker.h`](../../../include/system/update_checker.h) | Async release checks |
-| `CrashReporter` | [`system/crash_reporter.h`](../../../include/system/crash_reporter.h) | Crash detection + delivery |
 | `CrashHistory` | [`system/crash_history.h`](../../../include/system/crash_history.h) | Persistent crash-submission history |
 | `CrashErrorLogSink` | [`system/crash_error_log_sink.h`](../../../include/system/crash_error_log_sink.h) | spdlog sink capturing errors into crashes |
 | `TelemetryManager` | [`system/telemetry_manager.h`](../../../include/system/telemetry_manager.h) | Opt-in anonymous telemetry |
 | `PendingStartupWarnings` | [`pending_startup_warnings.h`](../../../include/pending_startup_warnings.h) | Warnings queued pre-UI, shown later |
-| `UpgradeBanner` | [`upgrade_banner.h`](../../../include/upgrade_banner.h) | Dismissible 1.0 upgrade banner |
 | `UpgradeNudge` | [`upgrade_nudge.h`](../../../include/upgrade_nudge.h) | Upgrade nudge coordination |
 | `TipsManager` | [`tips_manager.h`](../../../include/tips_manager.h) | Printing tips |
 | **LED** | | |
@@ -186,7 +183,7 @@ Like `PrinterState`, `ToolState` is fed `update_from_status()` on the main threa
 
 † different spelling, same idea. ‡ `DisplayManager::instance()` returns a **pointer** (null before `Application` creates the display), unlike the reference-returning rest.
 
-The eight singletons the old map missed entirely: `PostOpCooldownManager`, `RemoteControlServer`, `AudioSettingsManager`, `PrinterCacheRegistry`, `FilamentConsumptionTracker`, `CrashHistory`, `UpgradeBanner` — all verified `::instance()` — and `MoonrakerManager`, which is **not** `::instance()` at all (Application-owned, published pointer). The old map also listed `PrinterDetector` under capabilities; it is a static class, no instance exists.
+The singletons the old map missed entirely: `PostOpCooldownManager`, `AudioSettingsManager`, `PrinterCacheRegistry`, `FilamentConsumptionTracker`, `CrashHistory` — all verified `::instance()` — and `MoonrakerManager`, which is **not** `::instance()` at all (Application-owned, published pointer). The old map also listed `PrinterDetector` under capabilities; it is a static class, no instance exists.
 
 ### Registries: who cleans up what, and when
 
@@ -196,7 +193,7 @@ Which registry a global joins is decided by what it owns, and the registration i
 
 - **Subject-owning singletons** (`PrinterState`, `AmsState`, `ToolState`, `SettingsManager`, `TimelapseState`, `LedController`, `PrintControlButtons`, the sensor managers, ...) self-register `deinit_subjects()` in the last lines of their own `init_subjects()`. The registry header makes this mandatory: registration lives next to initialization so the pair cannot drift, and external registration (e.g. from `SubjectInitializer`) is called out as the fragile pattern that causes shutdown crashes.
 - **Global panels and overlays** register a destroy callback (which resets their `unique_ptr`) at creation, inside the `get_global_*_panel()` accessor — that is exactly what `helix::lazy_global<T>()` does. Reverse creation order destroys them while spdlog and LVGL are still alive; `clear()` wipes stale entries during soft restart (printer switch).
-- **Everything else** — singletons with no LVGL subjects (`TemperatureController`, `CrashHistory`, `RemoteControlServer`, ...) — registers with neither and relies on plain destruction ordering.
+- **Everything else** — singletons with no LVGL subjects (`TemperatureController`, `CrashHistory`, ...) — registers with neither and relies on plain destruction ordering.
 
 Registration order is load-bearing: `SubjectInitializer` initializes `NavigationManager` **after** `PrinterState` precisely so reverse-order deinit clears NavigationManager's observers on PrinterState subjects before those subjects die (the comment at [`src/application/subject_initializer.cpp#init_core_and_state`](../../../src/application/subject_initializer.cpp#L252)-254).
 
@@ -212,7 +209,7 @@ Registration order is load-bearing: `SubjectInitializer` initializes `Navigation
 - **`Preparing` is not a sub-state of Moonraker's PRINTING.** `PrinterPrintState` owns the window between the user committing to a job and the printer reporting it (`begin_preparing()` / `retire_preparing()`), because a host-side pre-start block runs *before* the printer is handed the job and `print_stats` describes the PREVIOUS job for its whole duration. Two guards deliberately yield to a live preparing job: the phase-update stale guard and the `print_active -> 0` safety reset. Do not re-tighten either to "only while printing" — see [`../PRINT_STATE_MACHINE.md`](../PRINT_STATE_MACHINE.md) § "The preparing job".
 - **`begin_preparing()` is synchronous, unlike its neighbours.** `set_print_start_state()` defers because WebSocket callbacks call it; a button press is already on the main thread, and the previous job's outcome must be cleared before any observer can paint a `Preparing` state next to the finished job's numbers.
 - **A new session-scoped member on `PrinterPrintState` must also be cleared in `PrinterPrintStateTestAccess::reset_extra()`** ([`tests/test_helpers/printer_state_test_access.h`](../../../tests/test_helpers/printer_state_test_access.h)). Members that survive `reset_for_new_print()` by design — `printer_reports_layers_`, `preparing_job_` — leak across tests sharing the singleton, and the failure surfaces in whatever unrelated test runs next in that shard, not in yours. Adding `preparing_job_` without this turned three *AMS* shards red while every AMS test passed in isolation.
-- **Counting rule for the census:** `rg 'static\s+\w+(&|\*)\s+instance\s*\(' include/ --glob '*.h'` → 76 at audit time. If you add singleton number 77, this chapter's count is stale — update it.
+- **Counting rule for the census:** `rg 'static\s+\w+(&|\*)\s+instance\s*\(' include/ --glob '*.h'` → 73 at audit time. If you add singleton number 74, this chapter's count is stale — update it.
 
 ## Going deeper
 

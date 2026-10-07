@@ -21,6 +21,7 @@
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -104,16 +105,18 @@ void PowerPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     ui_overlay_panel_setup_standard(panel_, parent_screen_, "overlay_header", "overlay_content");
 
     // Find widget references
-    lv_obj_t* overlay_content = lv_obj_find_by_name(panel_, "overlay_content");
+    lv_obj_t* overlay_content = helix::ui::find_required(panel_, "overlay_content", get_name());
     if (overlay_content) {
-        device_list_container_ = lv_obj_find_by_name(overlay_content, "device_list");
-        empty_state_container_ = lv_obj_find_by_name(overlay_content, "empty_state");
-        status_label_ = lv_obj_find_by_name(overlay_content, "status_message");
-        chip_container_ = lv_obj_find_by_name(overlay_content, "power_chip_container");
+        device_list_container_ =
+            helix::ui::find_required(overlay_content, "device_list", get_name());
+        empty_state_container_ =
+            helix::ui::find_required(overlay_content, "empty_state", get_name());
+        status_label_ = helix::ui::find_required(overlay_content, "status_message", get_name());
+        chip_container_ =
+            helix::ui::find_required(overlay_content, "power_chip_container", get_name());
     }
 
     if (!device_list_container_) {
-        spdlog::error("[{}] device_list container not found!", get_name());
         return;
     }
 
@@ -231,9 +234,8 @@ void PowerPanel::create_device_row(const PowerDevice& device) {
     }
 
     // Find the toggle within the component
-    lv_obj_t* toggle = lv_obj_find_by_name(row, "device_toggle");
+    lv_obj_t* toggle = helix::ui::find_required(row, "device_toggle", get_name());
     if (!toggle) {
-        spdlog::error("[{}] device_toggle not found in row", get_name());
         helix::ui::safe_delete(row);
         return;
     }
@@ -257,13 +259,13 @@ void PowerPanel::create_device_row(const PowerDevice& device) {
         lv_obj_add_state(toggle, LV_STATE_DISABLED);
 
         // Show lock icon
-        lv_obj_t* lock_icon = lv_obj_find_by_name(row, "lock_icon");
+        lv_obj_t* lock_icon = helix::ui::find_required(row, "lock_icon", get_name());
         if (lock_icon) {
             lv_obj_remove_flag(lock_icon, LV_OBJ_FLAG_HIDDEN);
         }
 
         // Show status text explaining why it's locked
-        lv_obj_t* status_label = lv_obj_find_by_name(row, "device_status");
+        lv_obj_t* status_label = helix::ui::find_required(row, "device_status", get_name());
         if (status_label) {
             lv_label_set_text(status_label, lv_tr("Locked during print"));
             lv_obj_remove_flag(status_label, LV_OBJ_FLAG_HIDDEN);

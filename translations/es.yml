@@ -186,6 +186,7 @@ translations:
   Add: Agregar
   Add Filament: Agregar Filamento
   Add Hidden Network: Agregar Red Oculta
+  Add Printer: Agregar Impresora
   Add Vendor: Agregar Proveedor
   Add Widget: Agregar widget
   Add custom filament: Añadir filamento personalizado
@@ -319,6 +320,7 @@ translations:
   'Backtrace: {} frames': 'Traza inversa: {} marcos'
   Backup lane name contains invalid characters: 'El nombre del carril de reserva contiene caracteres no válidos'
   Backup spool switching state unknown: Estado del cambio a bobina de respaldo desconocido
+  Balanced: Equilibrado
   Barcode Scanner: Escáner de Código de Barras
   Base: Referencia
   Based on the newest {} prints: 'Basado en las {} impresiones más recientes'
@@ -437,6 +439,7 @@ translations:
   CURRENT SELECTION: SELECCIÓN ACTUAL
   CUSTOM IMAGES: IMÁGENES PERSONALIZADAS
   Cache Dir: Directorio de Caché
+  Calculator: Calculadora
   Calibrate: Calibrar
   Calibrate All: Calibrar Todo
   Calibrate Bowden: 'Calibrar el bowden'
@@ -493,6 +496,7 @@ translations:
     — prueba a olvidar y volver a emparejar la impresora
   Can't move filament while the print is paused: No se puede mover el filamento con la impresión en pausa
   Can't read filament RFID tag: No se puede leer la etiqueta RFID del filamento
+  Can't reach this printer. Save anyway?: No se puede conectar con esta impresora. ¿Guardar de todos modos?
   Cancel: Cancelar
   Cancel Escalation: Cancelar Escalado
   Cancel Print: Cancelar Impresión
@@ -1285,6 +1289,7 @@ translations:
   Feeders: Alimentadores
   Feeding filament forward: Avanzando filamento
   Filament: Filamento
+  Filament Buffer: 'Búfer de filamento'
   Filament Control: Control de filamento
   Filament Detected: Filamento Detectado
   Filament Grade Mismatch: El grado del filamento no coincide
@@ -1298,6 +1303,7 @@ translations:
   Filament Used: Filamento Usado
   Filament already exists: El filamento ya existe
   Filament buffer failure during feed: Fallo del búfer de filamento durante la alimentación
+  Filament buffer position against its target: 'Posición del búfer de filamento respecto al objetivo'
   Filament buffer stopped moving: El búfer de filamento dejó de moverse
   Filament by Type: Filamento por Tipo
   ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
@@ -1316,8 +1322,6 @@ translations:
   Filament is loaded at the toolhead. Unload it before enabling bypass.: 'Hay filamento cargado en el cabezal. Descárguelo antes de activar el bypass.'
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: Hay filamento cargado en el cabezal. Descárgalo primero para que no se ablande en el extrusor mientras la cama se calienta.
 
-  Filament is loose: El filamento está suelto
-  Filament is pulling tight: El filamento está tirando tenso
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : El filamento sigue en la boquilla tras la descarga. Es posible que el corte o la retracción no se hayan completado. Limpie el cabezal antes de cargar otra bobina.
   Filament is still loaded. Unload it before enabling bypass.: 'Todavía hay filamento cargado. Descárguelo antes de activar el bypass.'
@@ -1350,7 +1354,6 @@ translations:
   Filament stalled between CFS hub and extruder sensor: El filamento se detuvo entre el concentrador del CFS y el sensor del extrusor
   Filament stuck in connector during unload: Filamento atascado en el conector durante la descarga
   Filament stuck inside the CFS hub: Filamento atascado dentro del concentrador del CFS
-  Filament tension is balanced: La tensión del filamento está equilibrada
   Filament tracking & label printing: Seguimiento de filamento e impresión de etiquetas
   Filament tracking and inventory: Seguimiento e inventario de filamento
   FilamentSensor: Sensor de filamento
@@ -2200,6 +2203,7 @@ translations:
   Nozzle temp must be 100-%d°C: La temperatura de la boquilla debe ser 100-%d°C
   Nozzle, bed, and chamber in one widget: Boquilla, cama y cámara en un widget
   'Nozzle:': 'Boquilla:'
+  Number Pad Layout: Diseño del teclado numérico
   OD: OD
   'OFF': 'OFF'
   OK: OK
@@ -2322,6 +2326,8 @@ translations:
   Permission denied. Check printer configuration.: Permiso denegado. Comprueba la configuración de la impresora.
   Phomemo (Bluetooth): Phomemo (Bluetooth)
   Phomemo M110: Phomemo M110
+  Phone: Teléfono
+  Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there: Teléfono pone 1 2 3 en la fila superior; calculadora, 7 8 9
   Pick: Elegir
   Pick Color: Elegir Color
   Pick up tool: Recoger herramienta
@@ -2703,6 +2709,7 @@ translations:
   Requires Moonraker-Timelapse plugin: Requiere plugin Moonraker-Timelapse
   Requires Multi-Filament System or MMU hardware: 'Requiere sistema multi-filamento o hardware MMU'
   Requires a filament system with bypass: Requiere un sistema de filamento con bypass
+  Requires a filament pressure sensor or sync feedback: 'Requiere un sensor de presión de filamento o retroalimentación de sincronización'
   Requires clog detection hardware: 'Requiere hardware de detección de atascos'
   Resend write failed at chunk {}: Error al reenviar la escritura en el fragmento
     {}
@@ -2815,6 +2822,8 @@ translations:
   Run the chamber dryer too: Usar también el secador de la cámara
 
   Run {}?: ¿Ejecutar {}?
+  Running loose: 'Va suelto'
+  Running tight: 'Va tenso'
   Running {}...: Ejecutando {}...
   Runout: 'Agotamiento'
   Runout Sensor: Sensor de Agotamiento
@@ -3216,6 +3225,8 @@ translations:
   Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature.: Cambiar a MPC cambia cómo se controla este calentador y luego lo calibra. Eso tarda varios minutos a temperatura.
   Switching to MPC requires a config change and Klipper restart.: Cambiar a MPC requiere
     modificar la configuración y reiniciar Klipper.
+  Sync: 'Sinc.'
+  Switching to {}: Cambiando a {}
   Sync during printing: Sincronizar durante la impresión
   Sync with Spoolman: Sincronizar con Spoolman
   Sysfs: Sysfs
@@ -3889,6 +3900,7 @@ translations:
   incompatible: incompatible
   invalid: no válido
   just now: justo ahora
+  last 60 s · LOOSE up, TIGHT down: 'últimos 60 s · SUELTO arriba, TENSO abajo'
   layers: capas
   left: restante
   loaded: 'cargado'
@@ -3925,6 +3937,7 @@ translations:
   steppers: motores paso a paso
   sweeping: midiendo
   tall: de alto
+  target {}%: 'objetivo {}%'
   target {}°: 'objetivo {}°'
   tool(s): herramienta(s)
   used: usado
@@ -3960,6 +3973,7 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{}: alimenta la impresión actual. Elimina la bobina cuando termine la impresión.'
   '{} is installed but its backup-spool switching is turned off, so no automatic swap will happen.': '{} está instalado pero su cambio a bobina de reserva está desactivado, así que no habrá ningún cambio automático.'
   '{} is installed, but its backup-spool setting could not be read - do not count on an automatic swap.': '{} está instalado, pero no se pudo leer su ajuste de bobina de reserva - no cuentes con un cambio automático.'
+  '{} is still printing. The print keeps running after you switch.': '{} sigue imprimiendo. La impresión continúa después de cambiar.'
   '{} is not set up on this printer': '{} no está configurado en esta impresora'
   '{} lines in helixscreen.env were ignored': '{} líneas de helixscreen.env fueron ignoradas'
   '{} macro not configured': Macro {} no configurado

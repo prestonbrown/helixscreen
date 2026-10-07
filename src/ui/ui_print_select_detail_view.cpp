@@ -306,7 +306,8 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
         // Here the strip IS an overlay over the preview's bottom, so this is a
         // real occlusion (~a third of the card) and the render shifts to clear it.
         helix::ui::set_preview_bottom_occluder(
-            gcode_viewer_, lv_obj_find_by_name(overlay_root_, "detail_metadata_clip"));
+            gcode_viewer_,
+            helix::ui::find_required(overlay_root_, "detail_metadata_clip", get_name()));
 
         // Frame the render the way the thumbnail beside it is framed (lifted
         // square, model centre at 55%), so swapping thumbnail for render is
@@ -1158,7 +1159,8 @@ void PrintSelectDetailView::handle_resize(lv_obj_t* parent_screen) {
         return;
     }
 
-    lv_obj_t* content_container = lv_obj_find_by_name(overlay_root_, "content_container");
+    lv_obj_t* content_container =
+        helix::ui::find_required(overlay_root_, "content_container", get_name());
     if (content_container) {
         lv_coord_t padding = ui_get_header_content_padding();
         lv_obj_set_style_pad_all(content_container, padding, 0);
@@ -1343,7 +1345,8 @@ void PrintSelectDetailView::show_gcode_viewer(bool show) {
     // viewer is inactive the print-select panel's has-thumbnail logic owns
     // whether the placeholder shows.)
     if (mode > 0 && overlay_root_) {
-        lv_obj_t* no_thumb = lv_obj_find_by_name(overlay_root_, "detail_no_thumbnail_icon");
+        lv_obj_t* no_thumb =
+            helix::ui::find_required(overlay_root_, "detail_no_thumbnail_icon", get_name());
         if (no_thumb) {
             lv_obj_add_flag(no_thumb, LV_OBJ_FLAG_HIDDEN);
         }
@@ -1975,7 +1978,7 @@ void PrintSelectDetailView::toggle_exclude_mode() {
     }
     helix::ui::ExcludeModeTargets targets;
     targets.card = detail_card_;
-    targets.columns = lv_obj_find_by_name(overlay_root_, "content_container");
+    targets.columns = helix::ui::find_required(overlay_root_, "content_container", get_name());
     targets.controls_name = "options_section";
     targets.gcode_viewer = gcode_viewer_;
     targets.thumbnail_mode = lv_subject_get_int(&detail_viewer_hidden_) == 1;

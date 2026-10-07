@@ -16,10 +16,6 @@ namespace helix {
 // Follows the tests/test_helpers/ TestAccess pattern ([L088]).
 class ThermistorTestAccess {
   public:
-    static lv_obj_t* temp_label(const ThermistorWidget& widget) {
-        return widget.temp_label_;
-    }
-
     static lv_obj_t* name_label(const ThermistorWidget& widget) {
         return widget.name_label_;
     }
@@ -36,6 +32,16 @@ class ThermistorTestAccess {
     static lv_obj_t* carousel_name_label(const ThermistorWidget& widget, size_t index) {
         return index < widget.carousel_pages_.size() ? widget.carousel_pages_[index].name_label
                                                      : nullptr;
+    }
+
+    /// A tap on the tile, as the XML click callback delivers it.
+    static void click(ThermistorWidget& widget) {
+        widget.handle_clicked();
+    }
+
+    /// The target keypad's confirm, as ui_component_keypad delivers it.
+    static void keypad_confirm(float value) {
+        ThermistorWidget::target_keypad_cb(value, nullptr);
     }
 };
 

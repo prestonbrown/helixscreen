@@ -8,6 +8,7 @@
 
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -150,7 +151,7 @@ void FilamentSlotPicker::create_slot_row(lv_obj_t* list, int index,
         lv_obj_set_style_border_color(row, theme_manager_get_color("primary"), 0);
     }
 
-    if (auto* swatch = lv_obj_find_by_name(row, "swatch")) {
+    if (auto* swatch = helix::ui::find_required(row, "swatch", "FilamentSlotPicker")) {
         if (slot.is_empty) {
             lv_obj_set_style_bg_opa(swatch, LV_OPA_TRANSP, 0);
             lv_obj_set_style_border_width(swatch, 2, 0);
@@ -161,13 +162,13 @@ void FilamentSlotPicker::create_slot_row(lv_obj_t* list, int index,
         }
     }
 
-    if (auto* label = lv_obj_find_by_name(row, "slot_label")) {
+    if (auto* label = helix::ui::find_required(row, "slot_label", "FilamentSlotPicker")) {
         lv_label_set_text(label, helix::FilamentMapper::format_slot_label(slot).c_str());
     }
 
     if (!slot.is_empty && !expected_material_.empty() && !slot.material.empty() &&
         !helix::FilamentMapper::materials_match(expected_material_, slot.material)) {
-        if (auto* warn = lv_obj_find_by_name(row, "warn_icon")) {
+        if (auto* warn = helix::ui::find_required(row, "warn_icon", "FilamentSlotPicker")) {
             lv_obj_remove_flag(warn, LV_OBJ_FLAG_HIDDEN);
         }
     }

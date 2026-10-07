@@ -904,11 +904,16 @@ void ZOffsetCalibrationPanel::on_calibration_result(bool success, const std::str
 // GLOBAL INSTANCE AND ROW CLICK HANDLER
 // ============================================================================
 
-// Forward declarations
-static void on_zoffset_row_clicked(lv_event_t* e);
-
 void init_zoffset_row_handler() {
-    lv_xml_register_event_cb(nullptr, "on_zoffset_row_clicked", on_zoffset_row_clicked);
+    register_xml_callbacks({
+        {"on_zoffset_row_clicked",
+         [](lv_event_t*) {
+             spdlog::debug("[ZOffsetCal] Z-Offset row clicked");
+             auto& overlay = get_global_zoffset_cal_panel();
+             overlay.set_api(get_moonraker_api());
+             overlay.show(lv_display_get_screen_active(nullptr));
+         }},
+    });
     spdlog::trace("[ZOffsetCal] Row click callback registered");
 }
 
@@ -921,21 +926,6 @@ void init_zoffset_event_callbacks() {
         overlay.init_subjects();
     }
     spdlog::debug("[ZOffsetCal] Event callbacks registration verified");
-}
-
-/**
- * @brief Row click handler for opening Z-Offset calibration from Advanced panel
- *
- * Registered via init_zoffset_row_handler().
- * Uses OverlayBase pattern with lazy creation.
- */
-static void on_zoffset_row_clicked(lv_event_t* e) {
-    (void)e;
-    spdlog::debug("[ZOffsetCal] Z-Offset row clicked");
-
-    auto& overlay = get_global_zoffset_cal_panel();
-    overlay.set_api(get_moonraker_api());
-    overlay.show(lv_display_get_screen_active(nullptr));
 }
 
 ZOffsetCalibrationPanel& get_global_zoffset_cal_panel() {

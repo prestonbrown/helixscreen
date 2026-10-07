@@ -105,7 +105,7 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 <div class="wrap">
 <header>
 <h1>HelixScreen architecture and bloat audit</h1>
-<p>Generated 2026-09-30 against <code>main</code> @ <code>5009a40e9</code>. Nine read-only slice audits, deduplicated; detail in <code>docs/superpowers/architecture-audit/</code>. Statuses updated against <code>origin/main</code> @ <code>4398c983e</code>.</p>
+<p>Generated 2026-09-30 against <code>main</code> @ <code>5009a40e9</code>. Nine read-only slice audits, deduplicated; detail in <code>docs/superpowers/architecture-audit/</code>. Statuses updated against <code>origin/main</code> @ <code>a902f2274</code>.</p>
 <p>Per <code>docs/CLAUDE.md</code>, this plan file is deleted when the work ships. Finding-level line and size figures are the auditors' estimates; the tiles below are measured on main where they say so. "CONFIRMED" means the orchestrator read the code, not just the agent's claim.</p>
 <p class="tiles-label"><strong>Shipped so far</strong>: measured on main. A minus sign is a reduction.</p>
 <div class="tiles">
@@ -113,7 +113,7 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 <div class="tile"><div class="v">-23% / -8% / -9%</div><div class="k">release binary size on Pi / MIPS / K2 (mocks out of release builds, -fno-rtti, dead code). Plus settings table -60 KB and observer core -371 KB and the observer rename -35 KB native, measured after</div></div>
 <div class="tile"><div class="v">-28.5 MB</div><div class="k">clone size from dead submodules</div></div>
 <div class="tile"><div class="v">20 of 22</div><div class="k">BUG/SEC findings shipped or moot; 3 new from reviews</div></div>
-<div class="tile"><div class="v">138</div><div class="k">findings: 126 done, 4 in progress, 6 open, 2 wontfix</div></div>
+<div class="tile"><div class="v">138</div><div class="k">findings: 131 done, 0 in progress, 5 open, 2 wontfix</div></div>
 </div>
 <p class="tiles-label"><strong>Still on the table</strong>: auditors' estimates, not measurements. Sizes are what could be reclaimed, not growth.</p>
 <div class="tiles">
@@ -502,10 +502,10 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 </dl>
 </div>
 </details>
-<details class="f" id="BUG-18" data-tag="bug" data-size="1.1" data-status="progress">
-<summary><span class="fid">BUG-18</span><span class="chip t-bug">bug</span><span class="chip sz">1.1</span><span class="pill st-progress">in progress</span><code class="br">feature/ktouch-multi-printer</code><span class="ftitle">ESP32: api-&gt;hardware() is never populated, so discovery consumers see empty data</span><span class="fimpact">bed_dimensions and friends read an empty discovery</span></summary>
+<details class="f" id="BUG-18" data-tag="bug" data-size="1.1" data-status="done">
+<summary><span class="fid">BUG-18</span><span class="chip t-bug">bug</span><span class="chip sz">1.1</span><span class="pill st-done">done</span><code class="br">a9735a778</code><span class="ftitle">ESP32: api-&gt;hardware() is never populated, so discovery consumers see empty data</span><span class="fimpact">bed_dimensions and friends read an empty discovery</span></summary>
 <div class="fbody">
-<p class="branch">Fix on <code>feature/ktouch-multi-printer</code> (<code>3092dff31</code>): firmware discovery assigns <code>api-&gt;hardware()</code> like Linux does. Awaiting the K-Touch device pass. The wider drift (11 subsystems the firmware compiles but never starts) is the shared session-core plan.</p>
+<p class="branch">Shipped with <code>feature/ktouch-multi-printer</code> (<code>a9735a778</code>): firmware discovery assigns <code>api-&gt;hardware()</code> like Linux does. The wider drift (subsystems the firmware compiles but never starts) is the shared session-core plan.</p>
 <p><span class="badge unv">unverified</span></p>
 <dl>
 <dt>Locations</dt><dd><code>include/moonraker_api.h#MoonrakerAPI::hardware</code>, <code>src/printer/bed_dimensions.cpp</code>, <code>firmware/</code></dd>
@@ -952,10 +952,10 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 </dl>
 </div>
 </details>
-<details class="f" id="FW-2" data-tag="dup" data-size="1.1" data-status="progress">
-<summary><span class="fid">FW-2</span><span class="chip t-dup">dup</span><span class="chip sz">1.1</span><span class="pill st-progress">in progress</span><code class="br">743eed883</code><span class="ftitle">261 hand-written event trampolines become lambdas in the register table</span><span class="fimpact">~-2,500 lines (.cpp + headers)</span></summary>
+<details class="f" id="FW-2" data-tag="dup" data-size="1.1" data-status="done">
+<summary><span class="fid">FW-2</span><span class="chip t-dup">dup</span><span class="chip sz">1.1</span><span class="pill st-done">done</span><code class="br">a7802c03b</code><span class="ftitle">261 hand-written event trampolines become lambdas in the register table</span><span class="fimpact">~-2,500 lines (.cpp + headers)</span></summary>
 <div class="fbody">
-<p class="branch">Partly shipped: <code>refactor/fw-infra</code> (<code>4d4057937</code>) gave <code>XmlCallbackEntry</code> a lambda constructor plus <code>event_checked</code>/<code>event_selected</code>, and gates orphan and doubly-registered callbacks. Three overlay sweeps merged to main (print-misc <code>a1f2c83aa</code>, settings <code>b663be0e8</code>, ams-cal <code>94c107fe5</code>) and the final sweep at <code>743eed883</code> converted the settings root to one callback table (19 orphan-callback baseline entries dropped). Remaining: about 50 <code>static void on_*(lv_event_t*)</code> handlers in <code>src/ui</code> and the two users of <code>ui_event_trampoline.h</code>.</p>
+<p class="branch">Shipped: <code>refactor/fw-infra</code> (<code>4d4057937</code>), three overlay sweeps, the settings root (<code>743eed883</code>) and <code>refactor/fw2-trampolines-final</code> (<code>a7802c03b</code>): 73 more forwarders became table lambdas and <code>ui_event_trampoline.h</code> is deleted. About 220 named handlers remain where they carry logic or are attached in code.</p>
 <dl>
 <dt>Locations</dt><dd><code>src/ui/ui_settings_macro_buttons.cpp</code> (15), <code>src/ui/ui_panel_calibration_pid.cpp</code> (15), <code>src/ui/ui_panel_motion.cpp</code> (13), <code>src/ui/ui_settings_safety.cpp#on_estop_confirm_changed</code>, <code>include/ui/ui_event_trampoline.h</code>, pattern in <code>src/ui/ui_probe_overlay.cpp#register_callbacks</code></dd>
 <dt>Evidence</dt><dd>261 of 574 <code>lv_event_t*</code> handlers are pure forwarders (1,880 lines), each with a <code>static void on_y(lv_event_t*)</code> header declaration (536 in slice headers) plus a <code>handle_y</code> declaration. A typical toggle trampoline is 7 lines to read one bool. <code>ui_event_trampoline.h</code> (158 lines) has 2 users; ~120 trampolines start with the same checked-state/selected-index read.</dd>
@@ -967,10 +967,10 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 </dl>
 </div>
 </details>
-<details class="f" id="FW-3" data-tag="belt-suspenders" data-size="1.1" data-status="progress">
-<summary><span class="fid">FW-3</span><span class="chip t-belt-suspenders">belt-suspenders</span><span class="chip sz">1.1</span><span class="pill st-progress">in progress</span><code class="br">743eed883</code><span class="ftitle">find_required(root, name, tag) replaces 440-539 hand-written null checks</span><span class="fimpact">~-800 lines; missing names fail in tests</span></summary>
+<details class="f" id="FW-3" data-tag="belt-suspenders" data-size="1.1" data-status="done">
+<summary><span class="fid">FW-3</span><span class="chip t-belt-suspenders">belt-suspenders</span><span class="chip sz">1.1</span><span class="pill st-done">done</span><code class="br">a902f2274</code><span class="ftitle">find_required(root, name, tag) replaces 440-539 hand-written null checks</span><span class="fimpact">~-800 lines; missing names fail in tests</span></summary>
 <div class="fbody">
-<p class="branch">Partly shipped: <code>refactor/fw-infra</code> (<code>4d4057937</code>) added <code>find_required</code> (fails loudly under --test and unit tests) and the blocking every-variant name gate. Three overlay sweeps merged to main (print-misc <code>a1f2c83aa</code>, settings <code>b663be0e8</code>, ams-cal <code>94c107fe5</code>) and the final sweep at <code>743eed883</code> moved the plugin and settings rows onto <code>find_required</code>. Remaining: bare <code>lv_obj_find_by_name</code> lookups outside the swept overlays (about 760 in src against about 320 <code>find_required</code> calls).</p>
+<p class="branch">Shipped: <code>refactor/fw-infra</code>, the overlay sweeps and <code>refactor/fw3-find-required-sweep</code> (<code>a902f2274</code>): 397 more literal lookups use <code>find_required</code>, the FIND_WIDGET macros are gone. About 374 bare lookups remain where the name is variant-only, runtime-built, or in a unit the names gate cannot yet see.</p>
 <dl>
 <dt>Locations</dt><dd><code>lv_obj_find_by_name</code> call sites tree-wide; existing <code>FIND_WIDGET</code>/<code>_REQUIRED</code>/<code>_OPTIONAL</code> macros; <code>scripts/check_variant_content_drift.py</code></dd>
 <dt>Evidence</dt><dd>1,122 lookups in src/; 539 followed by a null check within 3 lines, 134 with a bespoke "not found" log. In the UI slice 440 of 749 are guarded, 382 of those for a literal name that exists in ui_xml. The macros (30 uses) are a fourth spelling. No project helper for the shape.</dd>
@@ -1102,10 +1102,10 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 </dl>
 </div>
 </details>
-<details class="f" id="FW-12" data-tag="extensibility" data-size="later" data-status="open">
-<summary><span class="fid">FW-12</span><span class="chip t-extensibility">extensibility</span><span class="chip sz">later</span><span class="pill st-open">open</span><span class="ftitle">Singleton cascade: 77 instance(), 53 app_globals, ~80 lazy panel globals (#1326)</span><span class="fimpact">-350 lines; 14 singletons become members</span></summary>
+<details class="f" id="FW-12" data-tag="extensibility" data-size="later" data-status="done">
+<summary><span class="fid">FW-12</span><span class="chip t-extensibility">extensibility</span><span class="chip sz">later</span><span class="pill st-done">done</span><code class="br">a902f2274</code><span class="ftitle">Singleton cascade: 77 instance(), 53 app_globals, ~80 lazy panel globals (#1326)</span><span class="fimpact">-350 lines; 14 singletons become members</span></summary>
 <div class="fbody">
-<p class="branch">Step 2 re-measured: only CrashReporter, RemoteControlServer and UpgradeBanner are private to Application (TelemetryManager, KeyboardManager and UpdateChecker have 10-24 callers). Narrowed to those 3.</p>
+<p class="branch">Shipped: <code>lazy_global&lt;T&gt;</code> replaced the panel macros, and <code>refactor/fw12-app-members</code> (<code>a902f2274</code>) made CrashReporter, RemoteControlServer and UpgradeBanner Application members.</p>
 <dl>
 <dt>Locations</dt><dd><code>include/app_globals.h</code>, <code>include/ui_panel_singleton_macros.h</code>, <code>include/ui_global_panel_helper.h</code>, <code>include/static_panel_registry.h</code>, <code>src/application/application.cpp</code></dd>
 <dt>Evidence</dt><dd>77 <code>static X&amp; instance()</code> classes, 53 app_globals free functions (601-line header), 40 <code>get_global_*_panel()</code> accessors, 80 hand-rolled <code>static std::unique_ptr&lt;X&gt; g_*</code>, 487 call sites. 14 singletons are effectively private to Application (<code>CrashReporter</code>, <code>ScreensaverManager</code>, <code>RemoteControlServer</code>, ...); ~12 are truly cross-cutting (<code>NavigationManager</code> 98 files, <code>AmsState</code> 78) and stay. Two headers define <code>DEFINE_GLOBAL_PANEL</code> with different arity (1 and 6 users); ~70 sites hand-write the 7-line body.</dd>
@@ -1117,10 +1117,10 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 </dl>
 </div>
 </details>
-<details class="f" id="FW-13" data-tag="dup" data-size="1.1" data-status="progress">
-<summary><span class="fid">FW-13</span><span class="chip t-dup">dup</span><span class="chip sz">1.1</span><span class="pill st-progress">in progress</span><code class="br">refactor/home-widgets</code><span class="ftitle">Home widgets: user_data x31, tile sizing x18, icon grid x4, PowerDevice picker</span><span class="fimpact">~-900 lines</span></summary>
+<details class="f" id="FW-13" data-tag="dup" data-size="1.1" data-status="done">
+<summary><span class="fid">FW-13</span><span class="chip t-dup">dup</span><span class="chip sz">1.1</span><span class="pill st-done">done</span><code class="br">e6176a0e1</code><span class="ftitle">Home widgets: user_data x31, tile sizing x18, icon grid x4, PowerDevice picker</span><span class="fimpact">~-900 lines</span></summary>
 <div class="fbody">
-<p class="branch">Partly shipped: <code>refactor/home-widgets</code>, merged to main at <code>5bc270856</code>. <code>PanelWidget</code> owns the tile root binding, <code>TiledPanelWidget</code> owns sizing for 17 tiles, humidity and width_sensor are pure-XML tile rows, and one icon-grid helper replaces the 4 copies. The PowerDevice picker as a <code>ContextMenu</code> subclass is still open.</p>
+<p class="branch">Shipped: <code>refactor/home-widgets</code> (<code>5bc270856</code>) and <code>refactor/fw13-device-picker</code> (<code>e6176a0e1</code>): PanelWidget owns the tile root binding, TiledPanelWidget owns sizing for 17 tiles, one icon-grid helper, and the power device picker is a ContextMenu subclass.</p>
 <dl>
 <dt>Locations</dt><dd><code>include/panel_widget.h#PanelWidget</code>, <code>src/ui/panel_widgets/thermistor_widget.cpp#ConfigurePicker::on_created</code>, <code>src/ui/panel_widgets/fan_stack_widget.cpp#ConfigurePicker::on_created</code>, <code>src/ui/modals/favorite_macro_config_modal.cpp#populate_icon_grid</code>, <code>src/ui/widgets/power_device_widget.cpp#PowerDeviceWidget::show_device_picker</code></dd>
 <dt>Evidence</dt><dd>31 widgets hand-set and clear root user_data; 18 repeat the same four TileSizing overrides; HumidityWidget and WidthSensorWidget diff to nouns only and duplicate <code>TileWidget</code>; 10 sites hand-roll what <code>panel_widget_from_event&lt;T&gt;</code> does. Icon picker: 4 copies of <code>ICON_CELL_SIZE = 36</code>, a local highlight fn and a ~45-line cell loop. PowerDevice: a 393-line hand-built picker with 34 style calls and a static routing global, while 9 pickers subclass <code>ContextMenu</code>; 101 commits.</dd>
@@ -1877,6 +1877,7 @@ footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
 <details class="f" id="RAM-4" data-tag="footprint" data-size="later" data-status="open">
 <summary><span class="fid">RAM-4</span><span class="chip t-footprint">footprint</span><span class="chip sz">later</span><span class="pill st-open">open</span><span class="ftitle">342 XML components parsed at boot and held on heap; *_tag attrs duplicate text</span><span class="fimpact">~0.5-1MB heap and boot parse time</span></summary>
 <div class="fbody">
+<p class="branch">RAM-4a shipped at <code>f3d0e5b72</code>: a literal text attribute implies its own translation tag and 1,661 redundant <code>*_tag</code> attributes are gone. RAM-4b (register-on-first-use, needs an on-device heap measure) is open.</p>
 <dl>
 <dt>Locations</dt><dd><code>src/xml_registration.cpp#register_xml_components</code>, <code>lib/helix-xml/src/xml/lv_xml_component.c#lv_xml_register_component_from_data</code>, <code>lib/helix-xml/src/xml/lv_xml.c#apply_pending_inline_text</code></dd>
 <dt>Evidence</dt><dd><code>register_xml_components</code> is 832 lines with 342 <code>register_xml</code> calls (329 commits in 2026); each keeps its <code>view_def</code> text on the heap. Base-layout XML minifies to ~1.2 MB (estimate), all parsed with expat at boot and retained, including one-shot wizard screens and dead dev panels. 1,722 of 1,774 <code>*_tag</code> attributes repeat their text exactly (62 KB source, also resident in <code>view_def</code>). The hand list is how <code>width_sensor_row.xml</code> broke.</dd>

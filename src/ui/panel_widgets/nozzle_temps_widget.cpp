@@ -22,6 +22,7 @@
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "tool_state.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -582,11 +583,11 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
     }
 
     row.row_obj = row_obj;
-    row.label_long = lv_obj_find_by_name(row_obj, "tool_label_long");
-    row.label_short = lv_obj_find_by_name(row_obj, "tool_label_short");
-    row.label_number = lv_obj_find_by_name(row_obj, "tool_label_number");
-    row.temp_label = lv_obj_find_by_name(row_obj, "temp_label");
-    row.target_label = lv_obj_find_by_name(row_obj, "target_label");
+    row.label_long = helix::ui::find_required(row_obj, "tool_label_long", "NozzleTempsWidget");
+    row.label_short = helix::ui::find_required(row_obj, "tool_label_short", "NozzleTempsWidget");
+    row.label_number = helix::ui::find_required(row_obj, "tool_label_number", "NozzleTempsWidget");
+    row.temp_label = helix::ui::find_required(row_obj, "temp_label", "NozzleTempsWidget");
+    row.target_label = helix::ui::find_required(row_obj, "target_label", "NozzleTempsWidget");
 
     // Belt-and-suspenders: clip (never wrap) the value labels so even a
     // pathologically narrow tile keeps "220° / 230°" on one line. The XML
@@ -621,9 +622,9 @@ void NozzleTempsWidget::create_bed_row(lv_obj_t* container) {
     }
 
     bed_row_ = row_obj;
-    bed_icon_ = lv_obj_find_by_name(row_obj, "bed_icon");
-    bed_temp_label_ = lv_obj_find_by_name(row_obj, "bed_temp_label");
-    bed_target_label_ = lv_obj_find_by_name(row_obj, "bed_target_label");
+    bed_icon_ = helix::ui::find_required(row_obj, "bed_icon", "NozzleTempsWidget");
+    bed_temp_label_ = helix::ui::find_required(row_obj, "bed_temp_label", "NozzleTempsWidget");
+    bed_target_label_ = helix::ui::find_required(row_obj, "bed_target_label", "NozzleTempsWidget");
 
     // Clip rather than wrap the bed value labels (see create_extruder_row).
     if (bed_temp_label_)

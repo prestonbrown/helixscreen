@@ -28,6 +28,7 @@
 #include "ams_backend.h"
 #include "data_root_resolver.h"
 #include "overlay_base.h"
+#include "ui/ui_widget_helpers.h"
 #if HELIX_HAS_CFS
 #include "ams_backend_cfs.h"
 #endif
@@ -356,6 +357,15 @@ void AmsPanel::init_subjects() {
         observe<int>(AmsState::instance().get_path_topology_subject(), this, path_handler,
                      AmsState::instance().get_subjects_lifetime());
 
+    // The path canvas's buffer box follows the buffer reading while the panel is open.
+    auto& ams_state = AmsState::instance();
+    buffer_present_observer_ = observe<int>(ams_state.get_buffer_present_subject(), this,
+                                            path_handler, ams_state.get_subjects_lifetime());
+    buffer_slider_observer_ = observe<int>(ams_state.get_buffer_slider_subject(), this,
+                                           path_handler, ams_state.get_subjects_lifetime());
+    buffer_bias_observer_ = observe<int>(ams_state.get_buffer_bias_pct_subject(), this,
+                                         path_handler, ams_state.get_subjects_lifetime());
+
     // Backend count observer for multi-backend selector
     backend_count_observer_ = observe<int>(
         AmsState::instance().get_backend_count_subject(), this,
@@ -466,7 +476,7 @@ void AmsPanel::on_activate() {
 
     // path_container is shown unconditionally; bypass_row visibility is managed
     // by bind_flag_if_eq on the ams_supports_bypass subject.
-    lv_obj_t* path_container = lv_obj_find_by_name(panel_, "path_container");
+    lv_obj_t* path_container = helix::ui::find_required(panel_, "path_container", get_name());
     if (path_container)
         lv_obj_remove_flag(path_container, LV_OBJ_FLAG_HIDDEN);
 
@@ -577,6 +587,9 @@ void AmsPanel::clear_panel_reference() {
     slot_count_observer_.reset();
     path_segment_observer_.reset();
     path_topology_observer_.reset();
+    buffer_present_observer_.reset();
+    buffer_slider_observer_.reset();
+    buffer_bias_observer_.reset();
     slot_path_observers_.clear();
     print_state_observer_.reset();
     backend_count_observer_.reset();
@@ -598,7 +611,7 @@ void AmsPanel::rebuild_backend_selector() {
         return;
     }
 
-    lv_obj_t* row = lv_obj_find_by_name(panel_, "backend_selector_row");
+    lv_obj_t* row = helix::ui::find_required(panel_, "backend_selector_row", get_name());
     if (!row) {
         return;
     }
@@ -694,9 +707,8 @@ void AmsPanel::on_backend_segment_selected(int index) {
 }
 
 void AmsPanel::setup_slots() {
-    lv_obj_t* unit_detail = lv_obj_find_by_name(panel_, "unit_detail");
+    lv_obj_t* unit_detail = helix::ui::find_required(panel_, "unit_detail", get_name());
     if (!unit_detail) {
-        spdlog::warn("[{}] unit_detail not found in XML", get_name());
         return;
     }
 
@@ -791,9 +803,8 @@ void AmsPanel::setup_slot_path_observers(int slot_count) {
 // on_slot_count_changed migrated to lambda in init_subjects()
 
 void AmsPanel::setup_path_canvas() {
-    path_canvas_ = lv_obj_find_by_name(panel_, "path_canvas");
+    path_canvas_ = helix::ui::find_required(panel_, "path_canvas", get_name());
     if (!path_canvas_) {
-        spdlog::warn("[{}] path_canvas not found in XML", get_name());
         return;
     }
 
@@ -918,9 +929,8 @@ void AmsPanel::update_bypass_spool_from_state() {
 }
 
 void AmsPanel::setup_endless_arrows() {
-    endless_arrows_ = lv_obj_find_by_name(panel_, "endless_arrows");
+    endless_arrows_ = helix::ui::find_required(panel_, "endless_arrows", get_name());
     if (!endless_arrows_) {
-        spdlog::warn("[{}] endless_arrows not found in XML - skipping", get_name());
         return;
     }
 
@@ -1177,12 +1187,9 @@ void AmsPanel::on_buffer_clicked(void* user_data) {
 }
 
 void AmsPanel::handle_buffer_click() {
-    auto* backend = AmsState::instance().get_backend();
-    if (!backend)
+    if (!AmsState::instance().get_backend())
         return;
-
-    auto info = backend->get_system_info();
-    BufferStatusModal::show_for(info, 0);
+    BufferStatusModal::show_for(-1);
 }
 
 void AmsPanel::on_path_slot_clicked(int slot_index, void* user_data) {

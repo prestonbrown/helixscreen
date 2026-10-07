@@ -1490,8 +1490,8 @@ void MotionPanel::layout_bed_map() {
     if (!overlay_root_ || motion_tab_ != 2) {
         return;
     }
-    lv_obj_t* area = lv_obj_find_by_name(overlay_root_, "bed_map_area");
-    lv_obj_t* plate_obj = area ? lv_obj_find_by_name(area, "bed_map_plate") : nullptr;
+    lv_obj_t* area = helix::ui::find_required(overlay_root_, "bed_map_area", get_name());
+    lv_obj_t* plate_obj = helix::ui::find_required(area, "bed_map_plate", get_name());
     const auto plate = bed_plate();
     if (!plate_obj || !plate) {
         return;
@@ -1510,9 +1510,9 @@ void MotionPanel::update_bed_marker() {
     if (!overlay_root_ || motion_tab_ != 2) {
         return;
     }
-    lv_obj_t* area = lv_obj_find_by_name(overlay_root_, "bed_map_area");
-    lv_obj_t* marker = area ? lv_obj_find_by_name(area, "bed_map_marker") : nullptr;
-    lv_obj_t* plate_obj = area ? lv_obj_find_by_name(area, "bed_map_plate") : nullptr;
+    lv_obj_t* area = helix::ui::find_required(overlay_root_, "bed_map_area", get_name());
+    lv_obj_t* marker = helix::ui::find_required(area, "bed_map_marker", get_name());
+    lv_obj_t* plate_obj = helix::ui::find_required(area, "bed_map_plate", get_name());
     const auto plate = bed_plate();
     if (!marker || !plate_obj || !plate) {
         return;
@@ -1525,8 +1525,8 @@ void MotionPanel::update_bed_marker() {
 
     // The guides live in the plate's content box, which clips them to its
     // rectangle; on a round plate their length is the chord through the marker.
-    lv_obj_t* guide_x = lv_obj_find_by_name(plate_obj, "bed_map_guide_x");
-    lv_obj_t* guide_y = lv_obj_find_by_name(plate_obj, "bed_map_guide_y");
+    lv_obj_t* guide_x = helix::ui::find_required(plate_obj, "bed_map_guide_x", get_name());
+    lv_obj_t* guide_y = helix::ui::find_required(plate_obj, "bed_map_guide_y", get_name());
     if (!guide_x || !guide_y) {
         return;
     }

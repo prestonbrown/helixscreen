@@ -9,6 +9,7 @@
 #include "lvgl/lvgl.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
+#include "temperature_sensor_manager.h"
 
 #include <algorithm>
 
@@ -25,6 +26,10 @@ class helix::TempGraphWidgetTestAccess {
     }
     static std::vector<TempGraphSeriesSpec> build_series(TempGraphWidget& w) {
         return w.build_series_from_config();
+    }
+    static const nlohmann::json& build_default_config(TempGraphWidget& w) {
+        w.build_default_config();
+        return w.config_;
     }
     static bool merge_discovered_extruders(nlohmann::json& config, bool enabled) {
         return TempGraphWidget::merge_discovered_extruders(config, enabled);
@@ -1016,4 +1021,26 @@ TEST_CASE_METHOD(TempGraphFeatureFixture,
 
     w.detach();
     lv_obj_delete(container);
+}
+
+TEST_CASE("TempGraphWidget: default config lists aux heaters but not the chamber's own objects",
+          "[temp_graph][panel_widget][heater_generic]") {
+    // The chamber is the "chamber" row; its own sensor listed again would plot
+    // the chamber twice.
+    auto& tsm = sensors::TemperatureSensorManager::instance();
+    tsm.discover({"temperature_sensor chamber", "heater_generic filament_dryer"});
+
+    TempGraphWidget widget("test_default_chamber_skip");
+    const auto& config = TempGraphWidgetTestAccess::build_default_config(widget);
+    std::vector<std::string> names;
+    for (const auto& entry : config["sensors"])
+        names.push_back(entry["name"].get<std::string>());
+
+    auto has = [&](const char* n) {
+        return std::find(names.begin(), names.end(), n) != names.end();
+    };
+    CHECK(has("heater_generic filament_dryer"));
+    CHECK_FALSE(has("temperature_sensor chamber"));
+
+    tsm.discover({});
 }

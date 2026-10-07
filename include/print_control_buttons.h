@@ -117,9 +117,6 @@ class PrintControlButtons {
     /// nodes deinit_all() just freed.
     void teardown_subjects();
 
-    static void on_primary_clicked(lv_event_t* e);
-    static void on_stop_clicked(lv_event_t* e);
-
     IMoonrakerAPI* api_ = nullptr;
     bool subjects_initialized_ = false;
     PendingAction pending_action_ = PendingAction::None;

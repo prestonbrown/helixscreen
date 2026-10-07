@@ -14,6 +14,7 @@
 #include "ui_filament_path_internal.h"
 #include "ui_fonts.h"
 
+#include "clog_meter_geometry.h"
 #include "display_numbering.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
@@ -62,6 +63,10 @@ static void load_theme_colors(FilamentPathData* data) {
     theme.color_text = theme_manager_get_color("text");
     theme.color_bg = theme_manager_get_color("card_bg");
     theme.color_success = theme_manager_get_color("success");
+    for (int s = 0; s < 3; ++s) {
+        theme.color_buffer[s] = theme_manager_get_color(
+            helix::ui::buffer_status_token(static_cast<helix::ui::ClogMeterStatus>(s)));
+    }
 
     // Get responsive sizing from theme
     int32_t space_xs = theme_manager_get_spacing("space_xs");
@@ -872,6 +877,11 @@ void ui_filament_path_canvas_set_buffer_fault_state(lv_obj_t* obj, int state) {
         spdlog::debug("[FilamentPath] Buffer fault state: {}", state);
         layered_mark_dirty(obj);
     }
+}
+
+int helix::ui::filament_path_canvas_buffer_fault_state(lv_obj_t* obj) {
+    auto* data = get_data(obj);
+    return data ? data->buffer_fault_state : 0;
 }
 
 void ui_filament_path_canvas_set_buffer_info(lv_obj_t* obj, bool present, int state,

@@ -10,6 +10,10 @@
 #include <optional>
 #include <string>
 
+namespace helix {
+class AmsBackend;
+}
+
 /**
  * @brief Configuration modal for the clog detection panel widget
  *
@@ -26,11 +30,11 @@
  * - clog_cfg_mode_supported (int): 1 when the active AMS backend understands the
  *   detection-mode gcode, 0 otherwise — drives hidden on the mode/length controls
  *
- * Detection mode and detection length are Happy Hare concepts: they are written
- * with MMU_TEST_CONFIG, which no other backend implements. The widget itself is
- * offered whenever clog_meter_mode > 0, which includes AFC buffer fault
- * detection (mode 3), so the modal is reachable on backends that would answer
- * MMU_TEST_CONFIG with "Unknown command".
+ * Detection mode and detection length are written with whatever command the
+ * active backend names (AmsBackend::clog_detection_mode_gcode). The widget
+ * itself is offered whenever clog_meter_mode > 0, which includes AFC buffer
+ * fault detection (mode 3), so the modal is reachable on backends with no such
+ * setting; they name none and the controls hide.
  *
  * Opened from grid edit mode via the gear icon on the clog detection widget.
  */
@@ -42,18 +46,24 @@ class ClogDetectionConfigModal : public Modal {
     /**
      * @brief Build the detection-mode gcode for a backend, if it has one.
      *
-     * Happy Hare is the only backend with a clog detection-mode command
-     * (MMU_TEST_CONFIG). Every other backend returns nullopt so the caller
-     * sends nothing — AFC's nearest analogue is the buffer's error_sensitivity,
-     * which is not a detection length and has no drop-in mapping.
+     * The backend answers (AmsBackend::clog_detection_mode_gcode); one with no
+     * detection-mode setting returns nullopt so the caller sends nothing.
      *
-     * @param type       Active AMS backend type
+     * @param backend    Active AMS backend, or nullptr
      * @param mode       0=off, 1=manual, 2=auto
      * @param det_length Detection length in mm (only used in manual mode)
      * @return The gcode to send, or nullopt when the backend has no equivalent
      */
     [[nodiscard]] static std::optional<std::string>
-    build_detection_mode_gcode(helix::AmsType type, int mode, float det_length);
+    build_detection_mode_gcode(const helix::AmsBackend* backend, int mode, float det_length);
+
+    /**
+     * @brief What Save sends: nothing unless the mode changed or, in manual
+     *        mode, the length moved; the length only when it moved.
+     */
+    [[nodiscard]] static std::optional<std::string>
+    detection_save_gcode(const helix::AmsBackend* backend, int mode, int original_mode,
+                         float det_length, float original_det_length);
 
     const char* get_name() const override {
         return "Clog Detection Config";
@@ -73,7 +83,7 @@ class ClogDetectionConfigModal : public Modal {
     void sync_mode_subjects();
     void sync_threshold_text();
     void sync_det_length_text();
-    void send_detection_mode_gcode(int mode, float det_length);
+    void send_detection_mode_gcode(const std::string& cmd, int mode);
     void update_source_visibility();
 
     static void on_source_auto(lv_event_t* e);
@@ -92,6 +102,7 @@ class ClogDetectionConfigModal : public Modal {
     int danger_threshold_ = 0;   // 0=use computed default
     float detection_length_ = 0; // mm, from firmware (used for manual mode)
     int original_detection_mode_ = 2;
+    float original_detection_length_ = 0; // mm, as on_show() filled it
     bool has_encoder_ = false;
     bool has_flowguard_ = false;
     bool has_afc_ = false;

@@ -117,12 +117,6 @@ class PrintStatusWidget : public PanelWidget {
     /// XML event callback — chevron tap on nozzle temp opens tool picker
     static void print_status_nozzle_chevron_cb(lv_event_t* e);
 
-    /// XML event callbacks — temp slot taps in the detailed-active footer
-    /// open the global temp graph overlay with the matching heater mode.
-    static void on_print_status_nozzle_temp_clicked(lv_event_t* e);
-    static void on_print_status_bed_temp_clicked(lv_event_t* e);
-    static void on_print_status_chamber_temp_clicked(lv_event_t* e);
-
     /// Registry of live (attached) widget instances for use-after-free prevention
     static std::unordered_set<PrintStatusWidget*>& live_instances();
 

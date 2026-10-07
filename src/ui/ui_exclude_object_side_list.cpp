@@ -11,6 +11,7 @@
 #include "observer_factory.h"
 #include "printer_excluded_objects_state.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -95,12 +96,8 @@ void ExcludeObjectSideList::create(lv_obj_t* parent, PrinterExcludedObjectsState
     // sit on top of sibling columns rather than displacing them.
     lv_obj_add_flag(root_, LV_OBJ_FLAG_FLOATING);
 
-    rows_container_ = lv_obj_find_by_name(root_, "rows_container");
-    empty_state_ = lv_obj_find_by_name(root_, "empty_state");
-
-    if (!rows_container_) {
-        spdlog::error("[ExcludeObjectSideList] rows_container not found");
-    }
+    rows_container_ = helix::ui::find_required(root_, "rows_container", "ExcludeObjectSideList");
+    empty_state_ = helix::ui::find_required(root_, "empty_state", "ExcludeObjectSideList");
 
     // Force layout so we know the pixel extent to travel for the slide.
     lv_obj_update_layout(parent);

@@ -98,9 +98,10 @@ class ProbeServer {
 
         server_.registerHttpService(&service_);
         server_.setPort(port_);
-        // Each stalled handler occupies a worker for SLOW_RESPONSE_MS; give the
-        // server enough threads that one slow request cannot starve the others.
-        server_.setThreadNum(4);
+        // One loop thread: every case sends one request at a time, and libhv's
+        // HttpMessage caches its Date header in a process-wide buffer that two loop
+        // threads write without a lock.
+        server_.setThreadNum(1);
         started_ = port_ != 0 && server_.start() == 0;
         // start() is asynchronous: probe until the listener accepts.
         for (int i = 0; started_ && i < 500 && !accepts_connections(port_); ++i) {

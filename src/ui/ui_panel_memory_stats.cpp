@@ -8,6 +8,7 @@
 #include "memory_utils.h"
 #include "static_panel_registry.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -61,15 +62,11 @@ void MemoryStatsOverlay::init(lv_obj_t* /*parent*/, bool initially_visible) {
     }
 
     // Find label widgets
-    rss_label_ = lv_obj_find_by_name(overlay_, "rss_value");
-    hwm_label_ = lv_obj_find_by_name(overlay_, "hwm_value");
-    private_label_ = lv_obj_find_by_name(overlay_, "private_value");
-    delta_label_ = lv_obj_find_by_name(overlay_, "delta_value");
-    pressure_label_ = lv_obj_find_by_name(overlay_, "pressure_value");
-
-    if (!rss_label_ || !hwm_label_ || !private_label_ || !delta_label_ || !pressure_label_) {
-        spdlog::warn("[MemoryStats] Some labels not found in XML");
-    }
+    rss_label_ = helix::ui::find_required(overlay_, "rss_value", "MemoryStats");
+    hwm_label_ = helix::ui::find_required(overlay_, "hwm_value", "MemoryStats");
+    private_label_ = helix::ui::find_required(overlay_, "private_value", "MemoryStats");
+    delta_label_ = helix::ui::find_required(overlay_, "delta_value", "MemoryStats");
+    pressure_label_ = helix::ui::find_required(overlay_, "pressure_value", "MemoryStats");
 
     // Capture baseline RSS
     int64_t rss_kb = 0, hwm_kb = 0;

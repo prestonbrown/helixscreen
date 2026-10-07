@@ -18,6 +18,7 @@
 // Include the real implementation header
 #include "../../include/printer_state.h"
 #include "../../include/temperature_history_manager.h"
+#include "../../include/temperature_sensor_manager.h"
 #include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
 #include "../test_helpers/temperature_history_manager_test_access.h"
@@ -733,4 +734,28 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
     TemperatureHistoryManagerTestAccess::add_sample(*manager_, "extruder", 2151, 0,
                                                     base + 31 * 1000);
     CHECK(policy.log_events() == during_run + 1);
+}
+
+TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
+                 "TemperatureHistoryManager records a heater_generic's target",
+                 "[temperature_history][heater_generic]") {
+    auto& tsm = helix::sensors::TemperatureSensorManager::instance();
+    tsm.init_subjects();
+    tsm.set_sync_mode(true);
+    tsm.discover({"heater_generic filament_dryer"});
+    // A manager built after discovery subscribes to what discovery found. (The
+    // fixture's was built before the sensor manager's subjects existed here.)
+    manager_ = std::make_unique<TemperatureHistoryManager>(printer_state_);
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    tsm.update_from_status({{"heater_generic filament_dryer", {{"target", 55.0}}}});
+    tsm.update_from_status({{"heater_generic filament_dryer", {{"temperature", 48.5}}}});
+
+    REQUIRE(wait_for_sample_count("heater_generic filament_dryer", 1, 200));
+    auto samples = manager_->get_samples("heater_generic filament_dryer");
+    CHECK(samples.back().temp_deci == 485);
+    CHECK(samples.back().target_deci == 550);
+
+    tsm.discover({});
+    tsm.set_sync_mode(false);
 }

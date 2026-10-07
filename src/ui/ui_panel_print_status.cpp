@@ -1031,7 +1031,8 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
         // overlap and the render stays centred. Wired anyway so a layout change
         // is picked up without touching this file.
         helix::ui::set_preview_bottom_occluder(
-            gcode_viewer_, lv_obj_find_by_name(thumbnail_section, "metadata_clip"));
+            gcode_viewer_,
+            helix::ui::find_required(thumbnail_section, "metadata_clip", get_name()));
 
         // Memory-pressure responder calls ui_gcode_viewer_clear_all_active().
         // Flip our mode subject back to thumbnail (0) so the user sees the
@@ -1079,24 +1080,24 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
     resize_registered_ = true;
 
     // Store button references for potential state queries (not event wiring - that's in XML)
-    btn_timelapse_ = lv_obj_find_by_name(overlay_content, "btn_timelapse");
-    btn_tune_ = lv_obj_find_by_name(overlay_content, "btn_tune");
-    btn_cancel_ = lv_obj_find_by_name(overlay_content, "btn_cancel");
+    btn_timelapse_ = helix::ui::find_required(overlay_content, "btn_timelapse", get_name());
+    btn_tune_ = helix::ui::find_required(overlay_content, "btn_tune", get_name());
+    btn_cancel_ = helix::ui::find_required(overlay_content, "btn_cancel", get_name());
 
     // Print complete celebration badge (for animation)
-    success_badge_ = lv_obj_find_by_name(overlay_content, "success_badge");
+    success_badge_ = helix::ui::find_required(overlay_content, "success_badge", get_name());
     if (success_badge_) {
         spdlog::debug("[{}]   ✓ Success badge", get_name());
     }
 
     // Print cancelled badge (for animation)
-    cancel_badge_ = lv_obj_find_by_name(overlay_content, "cancel_badge");
+    cancel_badge_ = helix::ui::find_required(overlay_content, "cancel_badge", get_name());
     if (cancel_badge_) {
         spdlog::debug("[{}]   ✓ Cancel badge", get_name());
     }
 
     // Print error badge (for animation)
-    error_badge_ = lv_obj_find_by_name(overlay_content, "error_badge");
+    error_badge_ = helix::ui::find_required(overlay_content, "error_badge", get_name());
     if (error_badge_) {
         spdlog::debug("[{}]   ✓ Error badge", get_name());
     }
@@ -1117,7 +1118,8 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
     }
 
     // Preparing progress bar (shown during pre-print operations)
-    preparing_progress_bar_ = lv_obj_find_by_name(overlay_content, "preparing_progress_bar");
+    preparing_progress_bar_ =
+        helix::ui::find_required(overlay_content, "preparing_progress_bar", get_name());
     if (preparing_progress_bar_) {
         lv_bar_set_range(preparing_progress_bar_, 0, 100);
         lv_bar_set_value(preparing_progress_bar_, 0, LV_ANIM_OFF);
@@ -1125,7 +1127,8 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
     }
 
     // AMS current tool indicator (auto-hides when no AMS or no tool active)
-    lv_obj_t* ams_indicator = lv_obj_find_by_name(overlay_content, "ams_current_tool_indicator");
+    lv_obj_t* ams_indicator =
+        helix::ui::find_required(overlay_content, "ams_current_tool_indicator", get_name());
     if (ams_indicator) {
         ui_ams_current_tool_setup(ams_indicator);
         spdlog::debug("[{}]   ✓ AMS current tool indicator", get_name());
@@ -1171,8 +1174,8 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
 
     // Wire LV_EVENT_SIZE_CHANGED on controls_section so any column-width change
     // triggers a density + fit recompute. Direct lv_obj_add_event_cb is correct
-    // here — SIZE_CHANGED has no XML binding equivalent (pattern from
-    // ui_buffer_meter.cpp:52 and ui_ams_mini_status.cpp:540).
+    // here: SIZE_CHANGED has no XML binding equivalent (pattern from
+    // ui_ams_mini_status.cpp).
     if (lv_obj_t* controls_section = find_required(overlay_root_, "controls_section", get_name())) {
         lv_obj_add_event_cb(controls_section, on_controls_size_changed, LV_EVENT_SIZE_CHANGED,
                             this);
@@ -1629,13 +1632,13 @@ void PrintStatusPanel::show_exclude_map_view() {
     if (!exclude_manager_) {
         return;
     }
-    lv_obj_t* overlay_content = lv_obj_find_by_name(overlay_root_, "overlay_content");
+    lv_obj_t* overlay_content =
+        helix::ui::find_required(overlay_root_, "overlay_content", get_name());
     if (!overlay_content) {
-        spdlog::warn("[{}] Cannot show exclude panel: overlay_content not found", get_name());
         return;
     }
     helix::ui::ExcludeModeTargets targets;
-    targets.card = lv_obj_find_by_name(overlay_content, "thumbnail_section");
+    targets.card = helix::ui::find_required(overlay_content, "thumbnail_section", get_name());
     targets.columns = overlay_content;
     targets.controls_name = "controls_section";
     targets.gcode_viewer = gcode_viewer_;
@@ -2712,16 +2715,16 @@ void PrintStatusPanel::update_view_toggle_position(bool objects_visible) {
     // Resolve the card by name, not by walking up from the viewer: the previews
     // live one level down inside preview_clear_area, while both corner buttons
     // are direct children of thumbnail_section.
-    lv_obj_t* card = lv_obj_find_by_name(overlay_root_, "thumbnail_section");
+    lv_obj_t* card = helix::ui::find_required(overlay_root_, "thumbnail_section", get_name());
     if (!card)
         return;
-    lv_obj_t* btn = lv_obj_find_by_name(card, "btn_view_toggle");
+    lv_obj_t* btn = helix::ui::find_required(card, "btn_view_toggle", get_name());
     if (!btn)
         return;
 
     int32_t space_md = theme_manager_get_spacing("space_md");
     if (objects_visible) {
-        lv_obj_t* btn_objects = lv_obj_find_by_name(card, "btn_objects");
+        lv_obj_t* btn_objects = helix::ui::find_required(card, "btn_objects", get_name());
         int32_t obj_w = btn_objects ? lv_obj_get_width(btn_objects) : 36;
         lv_obj_set_style_translate_x(btn, space_md + obj_w + space_md, LV_PART_MAIN);
     } else {

@@ -4,7 +4,10 @@
 #pragma once
 
 #include <algorithm>
+#include <cstddef>
 #include <lvgl.h>
+#include <sys/types.h>
+#include <vector>
 
 namespace helix::ui {
 
@@ -63,6 +66,71 @@ inline void sync_list_spacers(lv_obj_t* container, lv_obj_t* leading, lv_obj_t* 
         if (lv_obj_get_index(trailing) != last_index) {
             lv_obj_move_to_index(trailing, last_index);
         }
+    }
+}
+
+/// Which pool slot shows each item of [first, last), at most one per slot. A slot already
+/// showing one of them keeps it, so scrolling a row out and another in touches two slots,
+/// not all of them. `slot_items[s]` is the item slot `s` shows (-1 for none) and is updated;
+/// slots left without an item read -1. Returns the slot for each window position in order.
+inline std::vector<size_t> assign_pool_slots(std::vector<ssize_t>& slot_items, int first,
+                                             int last) {
+    const size_t n = std::min(slot_items.size(), static_cast<size_t>(std::max(0, last - first)));
+    constexpr size_t kNone = static_cast<size_t>(-1);
+    std::vector<size_t> order(n, kNone);
+    std::vector<bool> taken(slot_items.size(), false);
+    for (size_t s = 0; s < slot_items.size(); s++) {
+        const ssize_t item = slot_items[s];
+        if (item >= first && item < first + static_cast<ssize_t>(n) &&
+            order[static_cast<size_t>(item - first)] == kNone) {
+            order[static_cast<size_t>(item - first)] = s;
+            taken[s] = true;
+        }
+    }
+    size_t free_slot = 0;
+    for (size_t k = 0; k < n; k++) {
+        if (order[k] != kNone)
+            continue;
+        while (taken[free_slot])
+            free_slot++;
+        order[k] = free_slot;
+        taken[free_slot] = true;
+    }
+    for (size_t s = 0; s < slot_items.size(); s++)
+        slot_items[s] = taken[s] ? slot_items[s] : -1;
+    for (size_t k = 0; k < n; k++)
+        slot_items[order[k]] = first + static_cast<ssize_t>(k);
+    return order;
+}
+
+/// Shows items [first, last) of a virtual list through its pool of slots, placed after
+/// the leading spacer in item order. `slot_obj(s)` is a slot's widget, `configure(s, item)`
+/// fills a slot whose item changed (every shown slot when `refill_all`), and `park(s)` hides
+/// a slot left with nothing to show.
+template <typename SlotObj, typename Configure, typename Park>
+void show_window(lv_obj_t* container, std::vector<ssize_t>& slot_items, int first, int last,
+                 bool refill_all, SlotObj slot_obj, Configure configure, Park park) {
+    const std::vector<ssize_t> before = slot_items;
+    const std::vector<size_t> order = assign_pool_slots(slot_items, first, last);
+    for (size_t k = 0; k < order.size(); k++) {
+        const size_t s = order[k];
+        if (refill_all || before[s] != slot_items[s])
+            configure(s, slot_items[s]);
+    }
+    // Reordering moves no pixel by itself: the next layout invalidates each slot that
+    // lands somewhere new. Left on, every move would redraw the whole list.
+    lv_display_t* disp = lv_obj_get_display(container);
+    lv_display_enable_invalidation(disp, false);
+    for (size_t k = 0; k < order.size(); k++) {
+        lv_obj_t* obj = slot_obj(order[k]);
+        const int32_t index = static_cast<int32_t>(k) + 1;
+        if (lv_obj_get_index(obj) != index)
+            lv_obj_move_to_index(obj, index);
+    }
+    lv_display_enable_invalidation(disp, true);
+    for (size_t s = 0; s < slot_items.size(); s++) {
+        if (slot_items[s] < 0)
+            park(s);
     }
 }
 

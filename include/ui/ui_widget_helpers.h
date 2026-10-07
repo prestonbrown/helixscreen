@@ -3,25 +3,7 @@
 
 /**
  * @file ui_widget_helpers.h
- * @brief Helper macros for LVGL widget lookup with automatic error logging
- *
- * Reduces boilerplate for the common pattern of looking up a widget by name
- * and logging a warning if it's not found. This pattern is repeated 74+ times
- * across the codebase.
- *
- * Pattern replaced:
- * @code
- * auto* btn = lv_obj_find_by_name(root_, "my_button");
- * if (!btn) {
- *     spdlog::warn("[MyPanel] Widget 'my_button' not found");
- * }
- * @endcode
- *
- * New usage:
- * @code
- * lv_obj_t* btn;
- * FIND_WIDGET(btn, root_, "my_button", get_name());
- * @endcode
+ * @brief Named-widget lookups that report a breached XML contract, and small widget helpers
  */
 
 #pragma once
@@ -31,84 +13,6 @@
 // Include LVGL for lv_obj_t and lv_obj_find_by_name
 // This ensures we get the correct type declarations
 #include "lvgl/lvgl.h"
-
-/**
- * @brief Look up a widget by name and log a warning if not found
- *
- * Assigns the result to @p var after looking up @p name in @p parent.
- * If the widget is not found, logs a warning with the panel name and widget name.
- *
- * @param var     The lv_obj_t* variable to assign to (must be declared)
- * @param parent  The parent object to search in
- * @param name    The widget name to find (string literal)
- * @param panel   The panel/component name for logging (typically get_name())
- *
- * Example:
- * @code
- * lv_obj_t* btn;
- * FIND_WIDGET(btn, panel_, "my_button", get_name());
- * if (btn) {
- *     // Use the button
- * }
- * @endcode
- *
- * @note The variable must be declared before the macro. This allows
- *       the caller to control the variable's scope and type qualifiers.
- */
-#define FIND_WIDGET(var, parent, name, panel)                                                      \
-    do {                                                                                           \
-        (var) = lv_obj_find_by_name((parent), (name));                                             \
-        if (!(var)) {                                                                              \
-            spdlog::warn("[{}] Widget '{}' not found", (panel), (name));                           \
-        }                                                                                          \
-    } while (0)
-
-/**
- * @brief Look up a widget by name and log an error if not found
- *
- * Same as FIND_WIDGET but uses error-level logging for critical widgets.
- * Use this for widgets that are required for the panel to function.
- *
- * @param var     The lv_obj_t* variable to assign to (must be declared)
- * @param parent  The parent object to search in
- * @param name    The widget name to find (string literal)
- * @param panel   The panel/component name for logging (typically get_name())
- *
- * Example:
- * @code
- * lv_obj_t* required_content;
- * FIND_WIDGET_REQUIRED(required_content, overlay_root_, "overlay_content", get_name());
- * if (!required_content) {
- *     return;  // Cannot proceed without this widget
- * }
- * @endcode
- */
-#define FIND_WIDGET_REQUIRED(var, parent, name, panel)                                             \
-    do {                                                                                           \
-        (var) = lv_obj_find_by_name((parent), (name));                                             \
-        if (!(var)) {                                                                              \
-            spdlog::error("[{}] Widget '{}' not found!", (panel), (name));                         \
-        }                                                                                          \
-    } while (0)
-
-/**
- * @brief Look up a widget silently (no logging on failure)
- *
- * Use this for optional widgets where absence is expected and not an error.
- * The caller can check the result and handle accordingly.
- *
- * @param var     The lv_obj_t* variable to assign to (must be declared)
- * @param parent  The parent object to search in
- * @param name    The widget name to find (string literal)
- *
- * Example:
- * @code
- * lv_obj_t* optional_header;
- * FIND_WIDGET_OPTIONAL(optional_header, root_, "optional_header");
- * // No warning if not found - this widget may not exist in all layouts
- * @endcode
- */
-#define FIND_WIDGET_OPTIONAL(var, parent, name) (var) = lv_obj_find_by_name((parent), (name))
 
 namespace helix::ui {
 

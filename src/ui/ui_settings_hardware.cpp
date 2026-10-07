@@ -17,6 +17,7 @@
 #include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #if HELIX_HAS_CAMERA
 // Defined in src/ui/panel_widgets/camera_widget.cpp; that directory is not on
@@ -89,14 +90,12 @@ lv_obj_t* HardwareSettingsOverlay::create(lv_obj_t* parent) {
 
 void bind_hardware_health_row(lv_obj_t* overlay_root) {
     lv_obj_t* row =
-        overlay_root ? lv_obj_find_by_name(overlay_root, "row_hardware_health") : nullptr;
+        helix::ui::find_required(overlay_root, "row_hardware_health", "HardwareSettingsOverlay");
     if (!row) {
-        spdlog::warn("[HardwareSettingsOverlay] row_hardware_health missing - health summary "
-                     "will not update");
         return;
     }
 
-    lv_obj_t* label = lv_obj_find_by_name(row, "label");
+    lv_obj_t* label = helix::ui::find_required(row, "label", "HardwareSettingsOverlay");
     if (label) {
         lv_label_bind_text(
             label,
@@ -107,7 +106,7 @@ void bind_hardware_health_row(lv_obj_t* overlay_root) {
     // Tint the icon so criticality is legible without opening the overlay.
     // Neither style matches at OK, leaving the icon on the variant="secondary"
     // colour the XML gives it.
-    lv_obj_t* row_icon = lv_obj_find_by_name(row, "row_icon");
+    lv_obj_t* row_icon = helix::ui::find_required(row, "row_icon", "HardwareSettingsOverlay");
     if (row_icon) {
         lv_subject_t* level =
             get_printer_state().hardware_validation_state().get_hardware_status_level_subject();

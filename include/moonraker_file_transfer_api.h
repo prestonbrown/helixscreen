@@ -122,7 +122,8 @@ class MoonrakerFileTransferAPI : public ITransfersAPI {
                             StringCallback on_success, ErrorCallback on_error) override;
 
     void download_file_partial(const std::string& root, const std::string& path, size_t max_bytes,
-                               StringCallback on_success, ErrorCallback on_error) override;
+                               StringCallback on_success, ErrorCallback on_error,
+                               CancelFlag cancelled = nullptr) override;
 
     /**
      * @brief Download a file directly to disk (streaming, low memory)

@@ -3,6 +3,7 @@
 
 #include "shutdown_widget.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_event_safety.h"
 #include "ui_shutdown_modal.h"
 #include "ui_split_button.h"
@@ -236,22 +237,6 @@ void execute_both_reboot(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
         });
 }
 
-// Single-scope mode uses these directly (XML modal_button_row callbacks
-// in the ref_value=0 button row). Dual-scope dispatches via the split-button
-// callbacks below.
-void on_shutdown_printer_clicked(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[ShutdownModal] shutdown_printer");
-    if (auto* m = find_shutdown_modal(e))
-        m->fire_printer_shutdown();
-    LVGL_SAFE_EVENT_CB_END();
-}
-void on_reboot_printer_clicked(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[ShutdownModal] reboot_printer");
-    if (auto* m = find_shutdown_modal(e))
-        m->fire_printer_reboot();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
 // Split-button dispatchers (dual-scope mode). The split button's selected
 // dropdown index encodes the scope (SCOPE_BOTH/SCOPE_PRINTER/SCOPE_SCREEN).
 void on_restart_split_clicked(lv_event_t* e) {
@@ -302,11 +287,24 @@ void register_shutdown_widget() {
     });
 
     // Register XML event callback at startup (before any XML is parsed)
-    lv_xml_register_event_cb(nullptr, "shutdown_clicked_cb", ShutdownWidget::shutdown_clicked_cb);
-    lv_xml_register_event_cb(nullptr, "on_shutdown_printer_clicked", on_shutdown_printer_clicked);
-    lv_xml_register_event_cb(nullptr, "on_reboot_printer_clicked", on_reboot_printer_clicked);
-    lv_xml_register_event_cb(nullptr, "on_restart_split_clicked", on_restart_split_clicked);
-    lv_xml_register_event_cb(nullptr, "on_shutdown_split_clicked", on_shutdown_split_clicked);
+    register_xml_callbacks({
+        {"shutdown_clicked_cb", ShutdownWidget::shutdown_clicked_cb},
+        // Single-scope mode uses these two directly (XML modal_button_row callbacks
+        // in the ref_value=0 button row). Dual-scope dispatches via the split-button
+        // callbacks below.
+        {"on_shutdown_printer_clicked",
+         [](lv_event_t* e) {
+             if (auto* m = find_shutdown_modal(e))
+                 m->fire_printer_shutdown();
+         }},
+        {"on_reboot_printer_clicked",
+         [](lv_event_t* e) {
+             if (auto* m = find_shutdown_modal(e))
+                 m->fire_printer_reboot();
+         }},
+        {"on_restart_split_clicked", on_restart_split_clicked},
+        {"on_shutdown_split_clicked", on_shutdown_split_clicked},
+    });
 }
 
 ShutdownWidget::ShutdownWidget(IMoonrakerAPI* api)

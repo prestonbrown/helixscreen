@@ -50,6 +50,9 @@ class HappyHareTestAccess {
     template <class B> static auto& config_defaults(B& b) {
         return b.config_defaults_;
     }
+    template <class B> static auto& user_overrides(B& b) {
+        return b.user_overrides_;
+    }
     template <class B> static auto& now_fn(B& b) {
         return b.now_fn_;
     }

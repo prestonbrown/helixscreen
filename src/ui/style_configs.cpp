@@ -7,7 +7,7 @@
 namespace helix {
 
 void configure_pressed_for_tier(lv_style_t* s, PlatformTier tier, const ThemePalette* ring) {
-    if (!pressed_scale_allowed(tier)) {
+    if (!full_style_effects_allowed(tier)) {
         // A scale renders through a TRANSFORM layer. An outline draws in place
         // and moves no layout. It sits outside the widget because it is drawn
         // before the children, which cover a full-bleed card's inside edge.

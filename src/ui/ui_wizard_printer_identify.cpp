@@ -20,6 +20,7 @@
 #include "static_panel_registry.h"
 #include "system/crash_handler.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 #include "wizard_config_paths.h"
 #include "wizard_step_logic.h"
 
@@ -415,7 +416,7 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
     }
 
     // Find the printer type list container from XML
-    lv_obj_t* xml_list = lv_obj_find_by_name(screen_root_, "printer_type_list");
+    lv_obj_t* xml_list = helix::ui::find_required(screen_root_, "printer_type_list", get_name());
     if (xml_list) {
         if (list_cache_container_ && lv_obj_get_child_count(list_cache_container_) > 0) {
             // Cached list exists from a previous visit — reparent children back
@@ -443,7 +444,7 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
 
     // Vendor tile grid: same build-once/cache-across-visits treatment as the
     // rows, for the same reason.
-    vendor_tiles_ = lv_obj_find_by_name(screen_root_, "vendor_tiles");
+    vendor_tiles_ = helix::ui::find_required(screen_root_, "vendor_tiles", get_name());
     if (vendor_tiles_) {
         if (tile_cache_container_ && lv_obj_get_child_count(tile_cache_container_) > 0) {
             while (lv_obj_get_child_count(tile_cache_container_) > 0) {
@@ -462,7 +463,7 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
     enter_initial_view();
 
     // Find and set up the name textarea
-    lv_obj_t* name_ta = lv_obj_find_by_name(screen_root_, "printer_name_input");
+    lv_obj_t* name_ta = helix::ui::find_required(screen_root_, "printer_name_input", get_name());
     if (name_ta) {
         lv_textarea_set_text(name_ta, printer_name_buffer_);
         lv_obj_add_event_cb(name_ta, on_printer_name_changed_static, LV_EVENT_VALUE_CHANGED, this);
@@ -471,7 +472,8 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
     }
 
     // Find and set up the printer preview image (with fallback to generic CoreXY if missing)
-    printer_preview_image_ = lv_obj_find_by_name(screen_root_, "printer_preview_image");
+    printer_preview_image_ =
+        helix::ui::find_required(screen_root_, "printer_preview_image", get_name());
     if (printer_preview_image_) {
         int selected = lv_subject_get_int(&printer_type_selected_);
         // Resolve name from filtered list, then look up image by name

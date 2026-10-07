@@ -13,7 +13,11 @@
 
 #include "try_reserve.h"
 
+#include <algorithm>
+#include <atomic>
 #include <cstddef>
+#include <cstdint>
+#include <string>
 
 namespace helix::http {
 
@@ -58,6 +62,90 @@ inline constexpr size_t next_buffer_bytes(size_t current, size_t cap) {
 // The lane's buffers reserve through these (try_reserve.h).
 using helix::reserve_allocation_bytes;
 using helix::try_reserve;
+
+// A transport read that returned for lack of data within its own timeout, as
+// distinct from the end of the body (0) and a failure (any other negative).
+inline constexpr int TRANSPORT_AGAIN = -0x7FFF;
+
+// How long one fetch may take, and how long its body may go without a byte.
+// A link that stops delivering mid-body must not hold the lane forever.
+struct LaneDeadlines {
+    int64_t total_ms;
+    int64_t stall_ms;
+};
+
+// Most one transport read asks for. A read keeps going until it fills what it
+// was asked for, so on a trickling link an unbounded one would hold off the
+// deadlines and the cancel check for the whole remaining body.
+inline constexpr int BODY_READ_CHUNK = 1024;
+
+enum class BodyRead { Ok, AllocFailed, ReadFailed, OverCap, Stalled, TimedOut, Cancelled };
+
+// Reads a response body into @p body, at most @p cap bytes: a known
+// Content-Length sizes the first buffer, growing up to the cap otherwise. A
+// full cap with more still coming is OverCap, never a truncated success.
+// @p t provides `int read(char*, int)` (bytes, 0 at the end of the body,
+// TRANSPORT_AGAIN for no data yet, other negatives for failure) and `bool
+// complete()`; @p now returns milliseconds. A set @p cancelled stops the read
+// before the next byte.
+template <class Transport, class Now>
+BodyRead read_capped_body(Transport& t, size_t cap, long long content_length, std::string& body,
+                          Now now, LaneDeadlines deadlines, const std::atomic<bool>* cancelled) {
+    body.clear();
+    if (!try_reserve(body, initial_buffer_bytes(cap, content_length))) {
+        return BodyRead::AllocFailed;
+    }
+    const int64_t start = now();
+    int64_t last_progress = start;
+    size_t total = 0;
+    // reserve() can hand back more than asked for, so the cap bounds the bytes
+    // read, never the capacity.
+    auto room = [&body, cap]() { return std::min(body.capacity(), cap); };
+    BodyRead result = BodyRead::Ok;
+    for (;;) {
+        if (cancelled && cancelled->load()) {
+            result = BodyRead::Cancelled;
+            break;
+        }
+        if (total >= cap) {
+            result = t.complete() ? BodyRead::Ok : BodyRead::OverCap;
+            break;
+        }
+        if (total == room()) {
+            if (t.complete()) {
+                break;
+            }
+            if (!try_reserve(body, next_buffer_bytes(body.capacity(), cap))) {
+                result = BodyRead::AllocFailed;
+                break;
+            }
+        }
+        body.resize(room()); // within capacity: no allocation
+        const int want =
+            static_cast<int>(std::min(body.size() - total, static_cast<size_t>(BODY_READ_CHUNK)));
+        const int n = t.read(&body[total], want);
+        const int64_t at = now();
+        if (n > 0) {
+            total += static_cast<size_t>(n);
+            last_progress = at;
+        } else if (n == 0) {
+            break; // the body is complete
+        } else if (n != TRANSPORT_AGAIN) {
+            result = BodyRead::ReadFailed;
+            break;
+        }
+        if (at - start >= deadlines.total_ms) {
+            result = BodyRead::TimedOut;
+            break;
+        }
+        if (at - last_progress >= deadlines.stall_ms) {
+            result = BodyRead::Stalled;
+            break;
+        }
+    }
+    body.resize(total);
+    return result;
+}
 
 // Bounded-queue depth accounting. The lane owns one instance guarded by its
 // own mutex; submit_get() calls try_acquire() before queuing a job and

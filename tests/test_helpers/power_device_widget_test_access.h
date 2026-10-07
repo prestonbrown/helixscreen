@@ -5,31 +5,35 @@
 
 namespace helix {
 
-// Test-only access to PowerDeviceWidget's device-picker state.
-//
-// The picker backdrop carries an LV_EVENT_DELETE hook holding the widget, and
-// dismiss_device_picker() hands the backdrop to safe_delete_deferred(), so the
-// backdrop outlives the widget by at least one lv_timer_handler tick. A test
-// needs the raw pointer and the two picker entry points to stand inside that
-// window.
+// Test-only access to PowerDeviceWidget's device picker.
 struct PowerDeviceWidgetTestAccess {
-    /// parent_screen_ is the only thing show_device_picker() requires.
-    /// attach() would also build sensor observers and a carousel, none of which
-    /// the picker's lifetime depends on.
-    static void set_parent_screen(PowerDeviceWidget& w, lv_obj_t* screen) {
+    /// The two pointers show_device_picker() needs: the screen the backdrop goes
+    /// on and the tile the card hangs off. attach() would also build sensor
+    /// observers and a carousel, none of which the picker depends on.
+    static void set_screen(PowerDeviceWidget& w, lv_obj_t* screen, lv_obj_t* tile) {
         w.parent_screen_ = screen;
+        w.widget_obj_ = tile;
     }
     static void show_picker(PowerDeviceWidget& w) {
         w.show_device_picker();
     }
-    static void dismiss_picker(PowerDeviceWidget& w) {
-        w.dismiss_device_picker();
+    static void hide_picker(PowerDeviceWidget& w) {
+        w.picker_.hide();
     }
-    static lv_obj_t* picker_backdrop(PowerDeviceWidget& w) {
-        return w.picker_backdrop_;
+    static bool picker_visible(const PowerDeviceWidget& w) {
+        return w.picker_.is_visible();
     }
-    static PowerDeviceWidget* active_picker() {
-        return PowerDeviceWidget::s_active_picker_;
+    static const helix::ui::ContextMenu* picker(const PowerDeviceWidget& w) {
+        return &w.picker_;
+    }
+    /// The open picker's backdrop on @p screen, found through the card the
+    /// shared context_menu_card component names, or nullptr.
+    static lv_obj_t* backdrop(lv_obj_t* screen) {
+        lv_obj_t* card = lv_obj_find_by_name(screen, "context_menu");
+        return card ? lv_obj_get_parent(card) : nullptr;
+    }
+    static const std::string& device_name(const PowerDeviceWidget& w) {
+        return w.device_name_;
     }
 };
 

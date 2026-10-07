@@ -68,15 +68,13 @@ void GcodePreviewFetcher::fetch(const std::string& filename, ReadyCb on_ready,
         return;
     }
 
-    // Metadata gives the size, which decides whether to download at all. This
-    // prevents OOM on memory-constrained devices like AD5M.
-    const std::string metadata_filename = resolve_gcode_filename(filename);
-
     if (helix::gcode::is_3mf(filename)) {
-        list_qidi_shadow(req, metadata_filename);
+        list_qidi_shadow(req);
         return;
     }
-    lookup_metadata(req, metadata_filename, "gcodes", filename);
+    // Metadata gives the size, which decides whether to download at all. This
+    // prevents OOM on memory-constrained devices like AD5M.
+    lookup_metadata(req, resolve_gcode_filename(filename), "gcodes", filename);
 }
 
 std::string GcodePreviewFetcher::cache_file_name(const char* prefix, const std::string& file_key) {
@@ -105,17 +103,16 @@ void GcodePreviewFetcher::discard_file() {
 // HttpExecutor::slow()). Each marshals to the main thread through the token
 // before touching the fetcher or calling the owner.
 
-void GcodePreviewFetcher::list_qidi_shadow(const RequestPtr& req,
-                                           const std::string& metadata_filename) {
+// A .3mf is a zip archive the viewer cannot read; its G-code is only on show
+// when the firmware extracted the printing plate into the `.temp` root. Without
+// that copy there is nothing to render, and the archive itself is never
+// downloaded.
+void GcodePreviewFetcher::list_qidi_shadow(const RequestPtr& req) {
     auto token = lifetime_.token();
-    auto fall_back = [this, req, metadata_filename]() {
-        lookup_metadata(req, metadata_filename, "gcodes", req->filename);
-    };
     api_->files().list_files(
         ".temp", "", false,
-        [this, token, req, fall_back](const std::vector<FileInfo>& files) {
-            token.defer("GcodePreviewFetcher::qidi_3mf_shadow_list_ok", [this, req, files,
-                                                                         fall_back]() {
+        [this, token, req](const std::vector<FileInfo>& files) {
+            token.defer("GcodePreviewFetcher::qidi_3mf_shadow_list_ok", [this, req, files]() {
                 if (stale(req)) {
                     return;
                 }
@@ -129,7 +126,8 @@ void GcodePreviewFetcher::list_qidi_shadow(const RequestPtr& req,
                 // plate currently printing".
                 const FileInfo* best = nullptr;
                 for (const auto& file : files) {
-                    if (!helix::gcode::is_native_3mf_shadow(file.path)) {
+                    if (!helix::gcode::is_native_3mf_shadow(file.path) &&
+                        !helix::gcode::is_qidi_3mf_extract(file.path, req->filename)) {
                         continue;
                     }
                     if (best == nullptr || file.modified > best->modified) {
@@ -138,30 +136,27 @@ void GcodePreviewFetcher::list_qidi_shadow(const RequestPtr& req,
                 }
 
                 if (best != nullptr) {
-                    spdlog::debug("[{}] Selected QIDI native 3MF shadow G-code (newest of "
-                                  "matches): .temp/{} ({} bytes, modified {})",
+                    spdlog::debug("[{}] Selected QIDI native 3MF G-code (newest of matches): "
+                                  ".temp/{} ({} bytes, modified {})",
                                   log_tag_, best->path, best->size, best->modified);
                     stream_if_safe(req, ".temp", best->path, best->size);
                     return;
                 }
 
-                spdlog::debug("[{}] No QIDI native 3MF shadow G-code found; falling back to "
-                              "active filename",
-                              log_tag_);
-                fall_back();
+                spdlog::info("[{}] No extracted G-code for '{}' in .temp - keeping the thumbnail",
+                             log_tag_, req->filename);
+                give_up(req, Unavailable::NoGcode);
             });
         },
-        [this, token, req, fall_back](const MoonrakerError& err) {
-            token.defer(
-                "GcodePreviewFetcher::qidi_3mf_shadow_list_err", [this, req, err, fall_back]() {
-                    if (stale(req)) {
-                        return;
-                    }
-                    spdlog::debug("[{}] Failed to list .temp for QIDI native 3MF preview: {}; "
-                                  "falling back to active filename",
-                                  log_tag_, err.message);
-                    fall_back();
-                });
+        [this, token, req](const MoonrakerError& err) {
+            token.defer("GcodePreviewFetcher::qidi_3mf_shadow_list_err", [this, req, err]() {
+                if (stale(req)) {
+                    return;
+                }
+                spdlog::info("[{}] Cannot list .temp for '{}': {} - keeping the thumbnail",
+                             log_tag_, req->filename, err.message);
+                give_up(req, Unavailable::NoGcode);
+            });
         });
 }
 

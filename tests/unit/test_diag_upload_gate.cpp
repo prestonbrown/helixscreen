@@ -162,8 +162,7 @@ struct DiagUploadGateFixture : public HelixTestFixture {
                      std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         fs::create_directories(temp_dir_);
 
-        CrashReporter::instance().shutdown();
-        CrashReporter::instance().init(temp_dir_.string());
+        crash_reporter_.init(temp_dir_.string());
         helix::CrashHistory::instance().shutdown();
         helix::CrashHistory::instance().init(temp_dir_.string());
 
@@ -179,12 +178,12 @@ struct DiagUploadGateFixture : public HelixTestFixture {
 
     ~DiagUploadGateFixture() {
         helix::DebugBundleCollector::set_collect_override_for_test(nullptr);
-        CrashReporter::instance().shutdown();
         helix::CrashHistory::instance().shutdown();
         std::error_code ec;
         fs::remove_all(temp_dir_, ec);
     }
 
+    CrashReporter crash_reporter_;
     CountingWorkerStub bundle_stub_{"{\"share_code\":\"TESTCODE\"}"};
     CountingWorkerStub crash_stub_{"{\"issue_number\":42,\"issue_url\":\"https://x\"}"};
     helix_test::EnvVarGuard bundle_url_{"HELIX_BUNDLE_WORKER_URL"};
@@ -308,7 +307,7 @@ TEST_CASE_METHOD(DiagUploadGateFixture, "try_auto_send: unmarked build refuses a
     report.signal_name = "SIGSEGV";
     report.app_version = "test";
 
-    CHECK_FALSE(CrashReporter::instance().try_auto_send(report));
+    CHECK_FALSE(crash_reporter_.try_auto_send(report));
     CHECK(crash_stub_.request_count() == 0);
 }
 
@@ -321,7 +320,7 @@ TEST_CASE_METHOD(DiagUploadGateFixture, "try_auto_send: opted-in build sends to 
     report.signal_name = "SIGSEGV";
     report.app_version = "test";
 
-    REQUIRE(CrashReporter::instance().try_auto_send(report));
+    REQUIRE(crash_reporter_.try_auto_send(report));
     CHECK(crash_stub_.request_count() == 1);
 }
 
@@ -339,7 +338,7 @@ TEST_CASE("payload marker: bundle and crash report both carry diag_upload_marked
     CHECK(bundle["diag_upload_marked"] == json(helix::diag::marked_build()));
 
     CrashReporter::CrashReport report;
-    const json report_json = CrashReporter::instance().report_to_json(report);
+    const json report_json = fx.crash_reporter_.report_to_json(report);
     REQUIRE(report_json.contains("diag_upload_marked"));
     CHECK(report_json["diag_upload_marked"] == json(helix::diag::marked_build()));
 }
@@ -393,7 +392,7 @@ TEST_CASE_METHOD(DiagUploadGateFixture,
 
     helix::RemoteConfig config;
     config.socket_path = sock_path;
-    auto& server = helix::RemoteControlServer::instance();
+    helix::RemoteControlServer server;
     REQUIRE(server.start(config));
 
     sockaddr_un addr{};

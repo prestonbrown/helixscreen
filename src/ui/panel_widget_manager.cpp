@@ -1704,7 +1704,7 @@ std::vector<std::string> PanelWidgetManager::compute_visible_widget_ids(const st
 // when adding a gated widget.
 SubjectLifetime gate_subject_lifetime(const char* name) {
     if (std::strcmp(name, "ams_slot_count") == 0 || std::strcmp(name, "ams_supports_bypass") == 0 ||
-        std::strcmp(name, "clog_meter_mode") == 0) {
+        std::strcmp(name, "clog_meter_mode") == 0 || std::strcmp(name, "buffer_present") == 0) {
         return AmsState::instance().get_subjects_lifetime();
     }
     if (std::strcmp(name, "filament_sensor_count") == 0) {

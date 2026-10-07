@@ -366,6 +366,11 @@ void AmsState::clear_backends() {
     runout_grace_.reset();
     // A hold describes an operation on the departing backend.
     optimistic_action_until_.reset();
+    // Every trace describes the departing backend's buffers.
+    buffer_traces_.clear();
+    if (initialized_) {
+        publish_buffer_reading(BufferReading{});
+    }
 
     // Drop AMS-derived tool topology so the UI doesn't show stale tool pills
     // between backend disappearance and the next reconnect's init_tools().
@@ -377,12 +382,67 @@ void AmsState::clear_backends() {
     }
     secondary_slot_subjects_.clear();
 
-    // Reset backend selector subjects
-    // A stale 1 here keeps the filament controls hidden on whatever connects next.
-    lv_subject_set_int(&ams_is_tool_changer_, 0);
-    lv_subject_set_int(&ams_is_filament_system_, 0);
+    reset_backend_subjects();
+}
+
+void AmsState::reset_backend_subjects() {
+    // Every subject a backend sync writes goes back to its init_subjects() value. A live
+    // printer switch keeps every panel, so one value left behind shows the departed
+    // printer's filament system on the next one.
     lv_subject_set_int(&backend_count_, 0);
     lv_subject_set_int(&active_backend_, 0);
+
+    // System, action and current-tool state: the sync path with an empty system.
+    sync_system_subjects(AmsSystemInfo{});
+    // The action edge above belongs to no operation on the next printer.
+    runout_grace_.reset();
+    lv_subject_copy_string(&ams_system_name_, "");
+    system_logo_buf_[0] = '\0';
+    lv_subject_set_pointer(&ams_system_logo_, nullptr);
+    lv_subject_copy_string(&ams_action_detail_, "");
+    last_operation_detail_.clear();
+    lv_subject_set_int(&toolchange_step_, -1);
+    lv_subject_copy_string(&ams_current_tool_text_, "---");
+
+    lv_subject_set_int(&filament_loaded_, 0);
+    lv_subject_set_int(&filament_runout_, 0);
+    lv_subject_set_int(&bypass_active_, 0);
+    lv_subject_set_int(&supports_bypass_, 0);
+    lv_subject_set_int(&ams_slot_count_, 0);
+    lv_subject_set_int(&active_tool_port_present_, 1);
+
+    lv_subject_set_int(&toolchange_visible_, 0);
+    lv_subject_set_int(&ams_current_toolchange_, -1);
+    lv_subject_set_int(&ams_number_of_toolchanges_, 0);
+    lv_subject_copy_string(&toolchange_text_, "");
+
+    lv_subject_set_int(&path_topology_, static_cast<int>(PathTopology::HUB));
+    lv_subject_set_int(&path_filament_segment_, static_cast<int>(PathSegment::NONE));
+
+    // Per-unit environment and its indicator.
+    for (int i = 0; i < MAX_UNITS; ++i) {
+        lv_subject_set_int(&unit_temp_[i], 0);
+        lv_subject_set_int(&unit_humidity_[i], 0);
+        lv_subject_set_int(&unit_absent_[i], 0);
+        lv_subject_copy_string(&env_ind_temp_text_[i], "");
+        lv_subject_copy_string(&env_ind_humidity_text_[i], "");
+        lv_subject_set_int(&env_ind_humidity_status_[i], 0);
+        lv_subject_set_int(&env_ind_humidity_visible_[i], 0);
+        lv_subject_set_int(&env_ind_visible_[i], 0);
+        lv_subject_set_int(&env_ind_drying_active_[i], 0);
+        lv_subject_copy_string(&env_ind_drying_text_[i], "");
+    }
+    mirror_detail_env_subjects();
+
+    // Lanes, the loaded card, dryer, clog meter and endless spool, through the same
+    // empty-state paths the sync uses.
+    clear_unused_slot_subjects(0);
+    bump_slots_version();
+    lv_subject_set_int(&tool_map_version_, lv_subject_get_int(&tool_map_version_) + 1);
+    set_current_loaded_defaults(true);
+    sync_dryer_from_backend();
+    sync_clog_meter_from_info(AmsSystemInfo{});
+    sync_endless_spool_from_backend(nullptr);
 }
 
 bool AmsState::any_bypass_active() const {
@@ -571,6 +631,9 @@ void AmsState::sync_from_backend() {
 
     // Sync clog detection meter subjects
     sync_clog_meter_from_info(info);
+
+    // Sync the filament buffer reading and its traces
+    sync_buffer_from_info(info, buffer_clock_ms());
 
     // Sync "Currently Loaded" display subjects (pass info to avoid re-fetching)
     sync_current_loaded_from_backend(info);
@@ -1244,8 +1307,7 @@ void AmsState::on_backend_event(int backend_index, const std::string& event,
                 // the sync so an observer that re-reads backend state sees the
                 // synced values, not the previous ones. Main thread already (we
                 // are inside the queue_update body), so the subject write is safe.
-                auto* rev = AmsState::instance().get_ams_data_revision_subject();
-                lv_subject_set_int(rev, lv_subject_get_int(rev) + 1);
+                AmsState::instance().bump_data_revision();
             });
     };
 

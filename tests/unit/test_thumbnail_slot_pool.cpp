@@ -59,9 +59,11 @@ TEST_CASE("slots are allocated as needed, capped, and reused once handed back",
         CHECK(std::set<uint8_t*>{a, b, c}.size() == 3);
         CHECK(pool.acquire() == nullptr); // the cap
         CHECK(g_allocs == 3);
+        CHECK(pool.in_use() == 3);
 
         // Scrolling: one card leaves, another arrives, and gets the same buffer.
         pool.release(b);
+        CHECK(pool.in_use() == 2);
         CHECK(pool.acquire() == b);
         CHECK(g_allocs == 3);
         pool.release(nullptr); // harmless

@@ -90,6 +90,11 @@ struct SafetyLimits {
         return it != heater_max_temp_celsius.end() ? it->second : max_temperature_celsius;
     }
 
+    /// Whether the printer's configfile gave this heater its own max_temp.
+    bool has_max_temp_for(const std::string& heater) const {
+        return heater_max_temp_celsius.count(normalize_heater_key(heater)) > 0;
+    }
+
     /// Record one heater's ceiling, normalizing the key the same way
     /// max_temp_for() normalizes its lookup.
     void set_max_temp_for(const std::string& heater, double max_temp) {

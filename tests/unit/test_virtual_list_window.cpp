@@ -59,3 +59,38 @@ TEST_CASE("compute_window: any non-empty list yields a non-empty window",
         }
     }
 }
+
+TEST_CASE("assign_pool_slots keeps slots whose item stays in the window", "[virtual_list][pool]") {
+    using helix::ui::assign_pool_slots;
+
+    SECTION("one row scrolls out, one in: only one slot changes") {
+        std::vector<ssize_t> items = {10, 11, 12, 13, 14};
+        const auto order = assign_pool_slots(items, 11, 16);
+        CHECK(order == std::vector<size_t>{1, 2, 3, 4, 0});
+        CHECK(items == std::vector<ssize_t>{15, 11, 12, 13, 14});
+    }
+    SECTION("scrolling back reuses the slot that left") {
+        std::vector<ssize_t> items = {15, 11, 12, 13, 14};
+        const auto order = assign_pool_slots(items, 10, 15);
+        CHECK(order == std::vector<size_t>{0, 1, 2, 3, 4});
+        CHECK(items == std::vector<ssize_t>{10, 11, 12, 13, 14});
+    }
+    SECTION("a window smaller than the pool frees the rest") {
+        std::vector<ssize_t> items = {-1, 4, 5, 6};
+        const auto order = assign_pool_slots(items, 5, 7);
+        CHECK(order == std::vector<size_t>{2, 3});
+        CHECK(items == std::vector<ssize_t>{-1, -1, 5, 6});
+    }
+    SECTION("a window larger than the pool shows what fits") {
+        std::vector<ssize_t> items = {-1, -1};
+        const auto order = assign_pool_slots(items, 0, 9);
+        CHECK(order == std::vector<size_t>{0, 1});
+        CHECK(items == std::vector<ssize_t>{0, 1});
+    }
+    SECTION("two slots claiming one item: the second is reassigned") {
+        std::vector<ssize_t> items = {3, 3, 4};
+        const auto order = assign_pool_slots(items, 3, 6);
+        CHECK(order == std::vector<size_t>{0, 2, 1});
+        CHECK(items == std::vector<ssize_t>{3, 5, 4});
+    }
+}

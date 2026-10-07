@@ -9,7 +9,8 @@
 # lv_obj_find_by_name() is then mutated with an imperative setter instead of being
 # driven by a subject binding.
 #
-# Flagged (on a widget that came from lv_obj_find_by_name):
+# Flagged (on a widget that came from lv_obj_find_by_name, find_required or
+# find_optional):
 #   lv_label_set_text/_fmt(w, ...)          → bind_text="subject"
 #   lv_obj_add_flag(w, LV_OBJ_FLAG_HIDDEN)  → <bind_flag_if_eq> / <if cond=...>
 #   lv_obj_set_style_*(w, ...)              → XML style attr or bind_style
@@ -84,7 +85,7 @@ STRUCTURAL_EVENTS = {
 
 # Widgets fetched out of an XML tree.
 XML_LOOKUP_RE = re.compile(
-    r'(?:^|[^\w.>])(\w+)\s*=\s*(?:lv_obj_find_by_name|helix::ui::find_by_name)\s*\(')
+    r'(?:^|[^\w.>])(\w+)\s*=\s*(?:lv_obj_find_by_name|(?:helix::ui::)?find_(?:by_name|required|optional))\s*\(')
 
 # Widgets built in C++ — procedural, not XML-owned.
 CPP_CREATE_RE = re.compile(r'(?:^|[^\w.>])(\w+)\s*=\s*lv_\w+_create\s*\(')

@@ -12,6 +12,7 @@
 
 #include "ui_component_keypad.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_effects.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
@@ -23,6 +24,7 @@
 #include "lvgl/lvgl.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "static_panel_registry.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -39,6 +41,9 @@ static char keypad_display_buf[16] = "";
 // say which one is being edited. Machine Limits alone opens it from five rows.
 static lv_subject_t keypad_title_subject;
 static char keypad_title_buf[48] = "";
+// Unit shown inside the display's right end ("°C", "mm/s").
+static lv_subject_t keypad_unit_subject;
+static char keypad_unit_buf[16] = "";
 // Drives the dot key's disabled state. An integer-only field used to show a
 // live "." that silently did nothing to the buffer.
 static lv_subject_t keypad_allow_decimal_subject;
@@ -90,6 +95,7 @@ void ui_keypad_init_subjects() {
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(keypad_title_subject, keypad_title_buf, "", "keypad_title",
                               subjects_);
+    UI_MANAGED_SUBJECT_STRING(keypad_unit_subject, keypad_unit_buf, "", "keypad_unit", subjects_);
     UI_MANAGED_SUBJECT_INT(keypad_allow_decimal_subject, 1, "keypad_allow_decimal", subjects_);
 
     subjects_initialized = true;
@@ -140,6 +146,13 @@ void ui_keypad_init(lv_obj_t* parent) {
     ui_keypad_init_subjects();
 
     keypad_parent = parent;
+    // The in-pad confirm key (phone layout, integer fields) does what the header's Set does.
+    register_xml_callbacks({
+        {"on_keypad_confirm",
+         [](lv_event_t*) {
+             helix::ui::event_safe_call("keypad_confirm", []() { handle_confirm(); });
+         }},
+    });
     spdlog::debug("[Keypad] Numeric keypad registered (tree deferred to first show)");
 }
 
@@ -163,7 +176,7 @@ static bool ensure_keypad_built() {
     // header_bar takes its title as a creation-time string and documents that
     // a runtime-varying title is bound by the owning screen rather than by a
     // bind_text inside the shared component. Follow that here.
-    if (lv_obj_t* title = lv_obj_find_by_name(keypad_widget, "header_title")) {
+    if (lv_obj_t* title = helix::ui::find_required(keypad_widget, "header_title", "Keypad")) {
         lv_label_bind_text(title, &keypad_title_subject, nullptr);
     }
 
@@ -203,11 +216,7 @@ void ui_keypad_show(const ui_keypad_config_t* config) {
     // Update display via subject (reactive binding updates XML automatically)
     update_display();
 
-    // Update unit label (set dynamically since XML prop is only evaluated at creation)
-    lv_obj_t* unit_label = lv_obj_find_by_name(keypad_widget, "input_unit");
-    if (unit_label) {
-        lv_label_set_text(unit_label, config->unit_label ? config->unit_label : "");
-    }
+    lv_subject_copy_string(&keypad_unit_subject, config->unit_label ? config->unit_label : "");
 
     // Register with nullptr lifecycle — keypad is function-based, not class-based
     // The panel authors its own width (#keypad_width, 320-400px by breakpoint): a pad of
@@ -311,7 +320,7 @@ static void wire_button_events() {
     }
 
     // Dot button
-    lv_obj_t* btn_dot = lv_obj_find_by_name(keypad_widget, "btn_dot");
+    lv_obj_t* btn_dot = helix::ui::find_required(keypad_widget, "btn_dot", "Keypad");
     if (btn_dot) {
         lv_obj_add_event_cb(
             btn_dot,
@@ -325,7 +334,7 @@ static void wire_button_events() {
     }
 
     // Backspace button
-    lv_obj_t* btn_back = lv_obj_find_by_name(keypad_widget, "btn_backspace");
+    lv_obj_t* btn_back = helix::ui::find_required(keypad_widget, "btn_backspace", "Keypad");
     if (btn_back) {
         lv_obj_add_event_cb(
             btn_back,
@@ -342,7 +351,7 @@ static void wire_button_events() {
     // Do NOT add a second handler here - it would cause double navigation!
 
     // Action button (OK in header_bar) → confirm
-    lv_obj_t* ok_btn = lv_obj_find_by_name(keypad_widget, "action_button");
+    lv_obj_t* ok_btn = helix::ui::find_required(keypad_widget, "action_button", "Keypad");
     if (ok_btn) {
         lv_obj_add_event_cb(
             ok_btn,

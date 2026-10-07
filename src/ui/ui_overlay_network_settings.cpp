@@ -643,13 +643,13 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
         lv_obj_set_name(item, item_name);
 
         // Set SSID
-        lv_obj_t* ssid_label = lv_obj_find_by_name(item, "ssid_label");
+        lv_obj_t* ssid_label = helix::ui::find_required(item, "ssid_label", get_name());
         if (ssid_label) {
             lv_label_set_text(ssid_label, network.ssid.c_str());
         }
 
         // Set security label
-        lv_obj_t* security_label = lv_obj_find_by_name(item, "security_label");
+        lv_obj_t* security_label = helix::ui::find_required(item, "security_label", get_name());
         if (security_label) {
             if (network.is_secured) {
                 lv_label_set_text(security_label, network.security_type.c_str());
@@ -678,7 +678,7 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
         lv_obj_set_user_data(item, data);
 
         // Bind the band badge to this row's own subjects
-        lv_obj_t* band_label = lv_obj_find_by_name(item, "band_label");
+        lv_obj_t* band_label = helix::ui::find_required(item, "band_label", get_name());
         if (band_label) {
             lv_label_bind_text(band_label, &data->band_text, nullptr);
             lv_obj_bind_flag_if_eq(band_label, &data->band_visible, LV_OBJ_FLAG_HIDDEN, 0);
@@ -764,7 +764,7 @@ void NetworkSettingsOverlay::update_signal_icons(lv_obj_t* item, int icon_state)
         return;
     }
 
-    lv_obj_t* signal_icons = lv_obj_find_by_name(item, "signal_icons");
+    lv_obj_t* signal_icons = helix::ui::find_required(item, "signal_icons", get_name());
     if (!signal_icons) {
         return;
     }

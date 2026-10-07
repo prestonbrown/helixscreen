@@ -103,8 +103,8 @@ Above the slot view, a **mini temperature graph** shows live nozzle, bed, and ch
 When a slot runs into trouble, HelixScreen shows it visually so you don't have to dig through logs:
 
 - **Error dot** — A small colored dot appears at the corner of a slot's spool when that slot reports a problem. **Red** means an error (jam, runout, hardware fault); **amber** means a warning. With animations enabled, the dot gently pulses to draw your eye.
-- **Buffer-health tint**: On systems with a buffer between the slots and the toolhead (an AFC buffer - a TurtleNeck, or a pressure-sensor buffer such as an `FPS_PSF` - or Happy Hare with sync feedback), the hub on the filament path diagram changes color as the buffer drifts toward a fault: green when healthy, yellow when approaching the fault threshold, and red when at or past it.
-- **Filament pressure (OpenAMS)**: On OpenAMS running without AFC, each unit's filament pressure sensor appears on the filament path as a box labelled **FPS**. Tap it to see the current reading, from 0% (no pressure on the filament) to 100% (fully compressed).
+- **Buffer-health tint**: On systems with a buffer between the slots and the toolhead (an AFC buffer - a TurtleNeck, or a pressure-sensor buffer such as an `FPS_PSF` - an OpenAMS filament pressure sensor, or Happy Hare with sync feedback), the hub on the filament path diagram changes color as the buffer drifts toward a fault: grey on target, amber as it drifts, red near an end stop.
+- **Filament pressure (OpenAMS)**: On OpenAMS running without AFC, each unit's filament pressure sensor appears on the filament path as a box labelled **FPS**, tinted live like any other buffer as the reading drifts from its target (grey on target, amber, red near an end). A sensor with no target stays untinted. Tap the box to open Buffer Status: the slider, the reading against its target (for example "FPS 53%" and "target 50%"), whether the filament is running tight, loose or balanced, and the last minute as a line that is coloured by how far off target it was. Below the target the extruder is pulling harder than the unit feeds; above it the unit is overfeeding. OpenAMS has no clog detection, so only the buffer reading is shown.
 
 **To recover:**
 
@@ -129,6 +129,7 @@ The right sidebar shows the status of the currently loaded filament and provides
 - **Color swatch** — Large color indicator matching the loaded filament
 - **Material name** — e.g., "Red PLA", "Prusament PETG"
 - **Remaining weight** — Estimated filament remaining (e.g., "750g"), if available
+- **Buffer slider**: When your system has a filament buffer with a proportional reading (a filament pressure sensor, or Happy Hare sync feedback), a small upright slider sits at the right of the card, with the short reading and, on wider screens, its **FPS** or **Sync** label under it. Loose is up and tight is down; the block is grey on target, amber off target and red near an end. It is the same reading the [Filament Buffer widget](home-panel.md#filament-buffer-widget) shows. Without a target the reading shows as a number only.
 - **Clog detection meter** — When your system has flow monitoring (encoder, FlowGuard, or AFC buffer), an arc meter shows the current reading, with the sensor named underneath. It is the same reading the [Clog Detection widget](home-panel.md#clog-detection-widget) draws as a bar on the dashboard. When the sensor is armed but has nothing to report, the arc is replaced by a check mark
 
 **During load/unload operations**, the sidebar switches to a **step progress display** showing each stage of the operation. The exact steps come from your filament system, so they match what it actually does rather than a generic list.

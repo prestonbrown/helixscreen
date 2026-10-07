@@ -7,6 +7,7 @@
 
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "system/debug_bundle_collector.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -80,7 +81,7 @@ bool DebugBundleModal::show_owned() {
 void DebugBundleModal::on_show() {
     spdlog::debug("[DebugBundleModal] on_show");
     if (dialog()) {
-        lv_obj_t* note_ta = lv_obj_find_by_name(dialog(), "user_note_textarea");
+        lv_obj_t* note_ta = helix::ui::find_required(dialog(), "user_note_textarea", get_name());
         if (note_ta) {
             lv_textarea_set_max_length(note_ta, 500);
             KeyboardManager::instance().register_textarea(note_ta);
@@ -188,7 +189,7 @@ void DebugBundleModal::handle_upload() {
     options.include_moonraker_logs = options.include_klipper_logs;
 
     if (dialog()) {
-        lv_obj_t* note_ta = lv_obj_find_by_name(dialog(), "user_note_textarea");
+        lv_obj_t* note_ta = helix::ui::find_required(dialog(), "user_note_textarea", get_name());
         if (note_ta) {
             const char* text = lv_textarea_get_text(note_ta);
             if (text && text[0] != '\0') {

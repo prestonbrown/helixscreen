@@ -15,7 +15,7 @@
  * @file upgrade_banner.h
  * @brief Persistent dismissible top-banner for the 1.0 upgrade rollout
  *
- * Singleton presentation layer that consumes UpgradeNudge decisions and
+ * Presentation layer (one instance, owned by Application) that consumes UpgradeNudge decisions and
  * renders the banner on `lv_layer_top` so it floats above panel navigation.
  * Ships dormant: UpgradeNudge::should_show_banner() returns false in OFF/
  * NORMAL intensity, so the widget is created but stays hidden until the
@@ -32,7 +32,8 @@ namespace helix {
 
 class UpgradeBanner {
   public:
-    static UpgradeBanner& instance();
+    UpgradeBanner() = default;
+    ~UpgradeBanner() = default;
 
     /// Create the banner widget on `lv_layer_top` and start observing.
     /// Must be called from the LVGL thread after XML components are
@@ -50,9 +51,6 @@ class UpgradeBanner {
     UpgradeBanner& operator=(const UpgradeBanner&) = delete;
 
   private:
-    UpgradeBanner() = default;
-    ~UpgradeBanner() = default;
-
     void evaluate_visibility();
     void update_message_text();
 

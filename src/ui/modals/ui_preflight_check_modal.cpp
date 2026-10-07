@@ -16,6 +16,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -181,19 +182,19 @@ lv_obj_t* PreflightCheckModal::create_tool_row(lv_obj_t* list, const helix::Tool
     }
 
     // Tool label "Tx".
-    if (auto* tool_label = lv_obj_find_by_name(row, "tool_label")) {
+    if (auto* tool_label = helix::ui::find_required(row, "tool_label", get_name())) {
         lv_label_set_text(tool_label, helix::ui::tool_label(check.tool_index).c_str());
     }
 
     // Intended (slicer) color swatch.
-    if (auto* intended = lv_obj_find_by_name(row, "intended_swatch")) {
+    if (auto* intended = helix::ui::find_required(row, "intended_swatch", get_name())) {
         lv_obj_set_style_bg_color(intended, lv_color_hex(check.intended_color), 0);
     }
 
     // Seated swatch / EMPTY label. Look up the live slot by mapped_slot.
     const auto* seated = find_seated_slot(slots, check);
-    auto* seated_swatch = lv_obj_find_by_name(row, "seated_swatch");
-    auto* empty_label = lv_obj_find_by_name(row, "empty_label");
+    auto* seated_swatch = helix::ui::find_required(row, "seated_swatch", get_name());
+    auto* empty_label = helix::ui::find_required(row, "empty_label", get_name());
 
     if (check.slot_present && seated && !seated->is_empty) {
         if (seated_swatch) {
@@ -209,7 +210,7 @@ lv_obj_t* PreflightCheckModal::create_tool_row(lv_obj_t* list, const helix::Tool
     }
 
     // Severity glyph + color.
-    if (auto* sev_icon = lv_obj_find_by_name(row, "severity_icon")) {
+    if (auto* sev_icon = helix::ui::find_required(row, "severity_icon", get_name())) {
         const auto vis = severity_visual(check.severity);
         helix::ui::icon::set_source(sev_icon, vis.icon_src);
         helix::ui::icon::set_variant(sev_icon, vis.variant);

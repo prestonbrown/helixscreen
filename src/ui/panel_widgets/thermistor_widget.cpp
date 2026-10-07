@@ -4,6 +4,7 @@
 #include "thermistor_widget.h"
 
 #include "ui_carousel.h"
+#include "ui_component_keypad.h"
 #include "ui_event_safety.h"
 #include "ui_fonts.h"
 #include "ui_icon.h"
@@ -20,6 +21,7 @@
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
+#include "temperature_controller.h"
 #include "temperature_sensor_manager.h"
 #include "theme_manager.h"
 
@@ -152,12 +154,26 @@ lv_obj_t* create_sensor_row(lv_obj_t* list, const std::string& display_name,
 
 ThermistorWidget::ThermistorWidget(const std::string& instance_id)
     : TiledPanelWidget(instance_id,
-                       TileSizing::Content{"110.0\u00B0C", "110.0\u00B0C", "Sensor", true, "",
+                       TileSizing::Content{"110.0 / 888\u00B0C", "110.0\u00B0C", "Sensor", true, "",
                                            /*label_always_drawn=*/true, TileSizing::IconBox::Glyph,
                                            /*icon_animates=*/false, /*label_is_identity=*/true}),
-      instance_id_(instance_id) {
-    std::strcpy(temp_buffer_, "--\xC2\xB0"
-                              "C"); // "--°C"
+      instance_id_(instance_id), temp_subject_name_(instance_id + "_thermistor_temp"),
+      target_subject_name_(instance_id + "_thermistor_target"),
+      available_subject_name_(instance_id + "_thermistor_available") {
+    UI_MANAGED_SUBJECT_INT(temp_subject_, 0, temp_subject_name_.c_str(), subjects_);
+    UI_MANAGED_SUBJECT_INT(target_subject_, 0, target_subject_name_.c_str(), subjects_);
+    UI_MANAGED_SUBJECT_INT(available_subject_, 0, available_subject_name_.c_str(), subjects_);
+
+    for (const char** a = sizing_.subject_attrs(); *a != nullptr; ++a) {
+        attr_storage_.emplace_back(*a);
+    }
+    attr_storage_.insert(attr_storage_.end(),
+                         {"temp_subject", temp_subject_name_, "target_subject",
+                          target_subject_name_, "available_subject", available_subject_name_});
+    for (const auto& s : attr_storage_) {
+        attrs_.push_back(s.c_str());
+    }
+    attrs_.push_back(nullptr);
 }
 
 ThermistorWidget::~ThermistorWidget() {
@@ -178,7 +194,6 @@ void ThermistorWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 
 void ThermistorWidget::attach_single() {
     // Cache label pointers
-    temp_label_ = lv_obj_find_by_name(widget_obj_, "thermistor_temp");
     name_label_ = lv_obj_find_by_name(widget_obj_, "thermistor_name");
 
     // Apply custom icon
@@ -196,22 +211,7 @@ void ThermistorWidget::attach_single() {
             select_sensor(sensors.front().klipper_name);
         }
     } else {
-        // Re-bind observer to saved sensor
-        auto& tsm = helix::sensors::TemperatureSensorManager::instance();
-        temp_lifetime_.reset();
-        temp_observer_.reset();
-        lv_subject_t* subject = tsm.get_temp_subject(selected_sensor_, temp_lifetime_);
-        if (subject) {
-            auto token = lifetime_.token();
-            temp_observer_ = helix::ui::observe<int>(
-                subject, this,
-                [token](ThermistorWidget* self, int temp) {
-                    if (token.expired())
-                        return;
-                    self->on_temp_changed(temp);
-                },
-                temp_lifetime_);
-        }
+        bind_selected_sensor();
         update_display();
     }
 
@@ -425,6 +425,7 @@ void ThermistorWidget::detach() {
         carousel_pages_.clear();
         temp_lifetime_.reset();
         temp_observer_.reset();
+        target_observer_.reset();
     }
     uninstall_delete_hook();
 
@@ -452,7 +453,6 @@ void ThermistorWidget::forget_tile_widgets() {
         page.temp_label = nullptr;
         page.name_label = nullptr;
     }
-    temp_label_ = nullptr;
     name_label_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
@@ -462,6 +462,10 @@ void ThermistorWidget::handle_clicked() {
     if (is_carousel_mode()) {
         spdlog::info("[ThermistorWidget] Clicked carousel - showing configure picker");
         show_configure_picker();
+    } else if (helix::sensors::klipper_object_has_target(selected_sensor_)) {
+        spdlog::info("[ThermistorWidget] Clicked heater {} - showing target keypad",
+                     selected_sensor_);
+        open_target_keypad();
     } else {
         spdlog::info("[ThermistorWidget] Clicked - showing sensor picker");
         show_sensor_picker();
@@ -485,37 +489,90 @@ void ThermistorWidget::select_sensor(const std::string& klipper_name) {
         return;
     }
 
-    // Reset existing observer + lifetime (lifetime first per #705 ordering rule)
-    temp_lifetime_.reset();
-    temp_observer_.reset();
-
     selected_sensor_ = klipper_name;
     if (!is_carousel_mode()) {
         sensors_ = {klipper_name};
     }
     resolve_display_name();
-
-    // Subscribe to this sensor's temperature subject
-    auto& tsm = helix::sensors::TemperatureSensorManager::instance();
-    lv_subject_t* subject = tsm.get_temp_subject(klipper_name, temp_lifetime_);
-    if (subject) {
-        auto token = lifetime_.token();
-        temp_observer_ = helix::ui::observe<int>(
-            subject, this,
-            [token](ThermistorWidget* self, int temp) {
-                if (token.expired())
-                    return;
-                self->on_temp_changed(temp);
-            },
-            temp_lifetime_);
-    } else {
-        spdlog::warn("[ThermistorWidget] No subject for sensor: {}", klipper_name);
-    }
-
+    bind_selected_sensor();
     update_display();
     save_config();
 
     spdlog::info("[ThermistorWidget] Selected sensor: {} ({})", display_name_, klipper_name);
+}
+
+void ThermistorWidget::bind_selected_sensor() {
+    // Lifetime first per #705 ordering rule
+    temp_lifetime_.reset();
+    temp_observer_.reset();
+    target_observer_.reset();
+
+    auto& tsm = helix::sensors::TemperatureSensorManager::instance();
+    lv_subject_t* temp = tsm.get_temp_subject(selected_sensor_, temp_lifetime_);
+    if (!temp) {
+        spdlog::warn("[ThermistorWidget] No subject for sensor: {}", selected_sensor_);
+        return;
+    }
+    auto token = lifetime_.token();
+    temp_observer_ = helix::ui::observe<int>(
+        temp, this,
+        [token](ThermistorWidget* self, int deci) {
+            if (token.expired())
+                return;
+            self->on_temp_changed(deci);
+        },
+        temp_lifetime_);
+    lv_subject_t* target = tsm.get_target_subject(selected_sensor_, temp_lifetime_);
+    if (target) {
+        target_observer_ = helix::ui::observe<int>(
+            target, this,
+            [token](ThermistorWidget* self, int deci) {
+                if (token.expired())
+                    return;
+                lv_subject_set_int(&self->target_subject_, deci);
+            },
+            temp_lifetime_);
+    }
+}
+
+namespace {
+/// The heater the open target keypad sends to. One keypad shows at a time.
+std::string g_target_keypad_heater;
+/// Keypad ceiling when the heater's configured max_temp is not known.
+constexpr float TARGET_KEYPAD_FALLBACK_MAX = 120.0f;
+} // namespace
+
+void ThermistorWidget::open_target_keypad() {
+    auto& tsm = helix::sensors::TemperatureSensorManager::instance();
+    SubjectLifetime unused;
+    lv_subject_t* target = tsm.get_target_subject(selected_sensor_, unused);
+    auto* controller = get_temperature_controller();
+    g_target_keypad_heater = selected_sensor_;
+
+    const float max_value =
+        controller ? controller->keypad_max_for(selected_sensor_, TARGET_KEYPAD_FALLBACK_MAX)
+                   : TARGET_KEYPAD_FALLBACK_MAX;
+    ui_keypad_config_t config = {
+        .initial_value = target ? deci_to_degrees_f(lv_subject_get_int(target)) : 0.0f,
+        .min_value = 0.0f,
+        .max_value = max_value,
+        .title_label = display_name_.c_str(),
+        .unit_label = "\u00B0C",
+        .allow_decimal = false,
+        .allow_negative = false,
+        .callback = target_keypad_cb,
+        .user_data = nullptr,
+    };
+    ui_keypad_show(&config);
+}
+
+void ThermistorWidget::target_keypad_cb(float value, void* /*user_data*/) {
+    auto* controller = get_temperature_controller();
+    if (!controller || g_target_keypad_heater.empty())
+        return;
+    spdlog::info("[ThermistorWidget] Setting {} target to {:.0f}°C", g_target_keypad_heater, value);
+    controller->set_target(g_target_keypad_heater, static_cast<double>(static_cast<int>(value)),
+                           {.toast = true});
 }
 
 void ThermistorWidget::select_icon(const std::string& name) {
@@ -540,35 +597,21 @@ void ThermistorWidget::select_icon(const std::string& name) {
 }
 
 void ThermistorWidget::on_temp_changed(int decidegrees) {
-    float deg = deci_to_degrees_f(decidegrees);
-    format_temperature_f(deg, temp_buffer_, sizeof(temp_buffer_));
-
-    if (temp_label_) {
-        lv_label_set_text(temp_label_, temp_buffer_);
-    }
-
-    spdlog::trace("[ThermistorWidget] {} = {:.1f}°C", display_name_, deg);
+    lv_subject_set_int(&temp_subject_, decidegrees);
+    spdlog::trace("[ThermistorWidget] {} = {:.1f}°C", display_name_,
+                  deci_to_degrees_f(decidegrees));
 }
 
 void ThermistorWidget::update_display() {
-    if (temp_label_) {
-        if (selected_sensor_.empty()) {
-            lv_label_set_text(temp_label_, "--\xC2\xB0"
-                                           "C");
-        } else {
-            // Read current value from subject (no observer — use no-lifetime overload)
-            auto& tsm = helix::sensors::TemperatureSensorManager::instance();
-            lv_subject_t* subject = tsm.get_temp_subject(selected_sensor_);
-            if (subject) {
-                float deg = deci_to_degrees_f(lv_subject_get_int(subject));
-                format_temperature_f(deg, temp_buffer_, sizeof(temp_buffer_));
-                lv_label_set_text(temp_label_, temp_buffer_);
-            } else {
-                lv_label_set_text(temp_label_, "--\xC2\xB0"
-                                               "C");
-            }
-        }
-    }
+    // Seed the mirrored subjects from the sensor's current values; the
+    // observers keep them current from here on.
+    auto& tsm = helix::sensors::TemperatureSensorManager::instance();
+    SubjectLifetime unused;
+    lv_subject_t* temp = tsm.get_temp_subject(selected_sensor_);
+    lv_subject_t* target = tsm.get_target_subject(selected_sensor_, unused);
+    lv_subject_set_int(&available_subject_, temp ? 1 : 0);
+    lv_subject_set_int(&temp_subject_, temp ? lv_subject_get_int(temp) : 0);
+    lv_subject_set_int(&target_subject_, target ? lv_subject_get_int(target) : 0);
 
     if (name_label_) {
         if (selected_sensor_.empty()) {

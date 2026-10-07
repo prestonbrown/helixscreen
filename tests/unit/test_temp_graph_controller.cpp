@@ -12,6 +12,7 @@
 #include "moonraker_types.h"
 #include "printer_state.h"
 #include "temperature_history_manager.h"
+#include "temperature_sensor_manager.h"
 
 #include <chrono>
 
@@ -181,6 +182,7 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
                  "[controller][temp_graph_controller][chamber]") {
     auto& ps = get_printer_state();
 
+    ps.temperature_state().set_chamber_heater_name("heater_generic chamber");
     // Set chamber temp/target subjects to known values
     lv_subject_set_int(ps.temperature_state().get_chamber_temp_subject(), 423);   // 42.3°C
     lv_subject_set_int(ps.temperature_state().get_chamber_target_subject(), 500); // 50.0°C
@@ -219,6 +221,8 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
     REQUIRE(y_points != nullptr);
     // On first value, the series is backfilled with the initial temp → 423 (deci-degrees)
     REQUIRE(y_points[0] == 423);
+    controller.reset();
+    ps.temperature_state().set_chamber_heater_name("");
 }
 
 TEST_CASE_METHOD(TempGraphControllerFixture,
@@ -226,6 +230,7 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
                  "[controller][temp_graph_controller][chamber]") {
     auto& ps = get_printer_state();
 
+    ps.temperature_state().set_chamber_heater_name("temperature_fan chamber");
     // Set chamber temp/target to known values
     lv_subject_set_int(ps.temperature_state().get_chamber_temp_subject(), 385);   // 38.5°C
     lv_subject_set_int(ps.temperature_state().get_chamber_target_subject(), 450); // 45.0°C
@@ -257,6 +262,62 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
     REQUIRE(y_points != nullptr);
     // 38.5°C → 385 in chart storage (deci-degrees)
     REQUIRE(y_points[0] == 385);
+    controller.reset();
+    ps.temperature_state().set_chamber_heater_name("");
+}
+
+// Only the chamber's own objects plot chamber data. Any other heater_generic or
+// temperature_fan is a separate object (a filament dryer, an exhaust fan) and
+// must plot its own reading and target under its own label.
+TEST_CASE_METHOD(TempGraphControllerFixture,
+                 "Non-chamber heater_generic and temperature_fan bind to their own subjects",
+                 "[controller][temp_graph_controller][heater_generic]") {
+    auto& ps = get_printer_state();
+    ps.temperature_state().set_chamber_heater_name("heater_generic chamber");
+    lv_subject_set_int(ps.temperature_state().get_chamber_temp_subject(), 423);
+    lv_subject_set_int(ps.temperature_state().get_chamber_target_subject(), 500);
+
+    auto& tsm = sensors::TemperatureSensorManager::instance();
+    tsm.init_subjects();
+    tsm.set_sync_mode(true);
+    tsm.discover({"heater_generic filament_dryer", "temperature_fan exhaust"});
+    tsm.update_from_status(
+        {{"heater_generic filament_dryer", {{"temperature", 48.5}, {"target", 55.0}}},
+         {"temperature_fan exhaust", {{"temperature", 31.0}, {"target", 40.0}}}});
+
+    TempGraphControllerConfig cfg;
+    cfg.series = {
+        {"heater_generic filament_dryer", lv_color_hex(0xA3BE8C), true},
+        {"temperature_fan exhaust", lv_color_hex(0x88C0D0), true},
+        {"chamber", lv_color_hex(0xBF616A), true},
+    };
+    auto controller = std::make_unique<TempGraphController>(screen, cfg);
+    REQUIRE(controller->is_valid());
+    helix::ui::UpdateQueue::instance().drain();
+    lv_timer_handler_safe();
+
+    auto* graph = controller->graph();
+    lv_obj_t* chart = ui_temp_graph_get_chart(graph);
+    auto first_point = [&](const char* name) {
+        int id = controller->series_id_for(name);
+        REQUIRE(id >= 0);
+        return lv_chart_get_series_y_array(chart, graph->series_meta[id].chart_series)[0];
+    };
+    auto target_of = [&](const char* name) {
+        return graph->series_meta[controller->series_id_for(name)].target_temp;
+    };
+
+    CHECK(first_point("heater_generic filament_dryer") == 485);
+    CHECK(target_of("heater_generic filament_dryer") == Catch::Approx(55.0f));
+    CHECK(first_point("temperature_fan exhaust") == 310);
+    CHECK(target_of("temperature_fan exhaust") == Catch::Approx(40.0f));
+    CHECK(first_point("chamber") == 423);
+    CHECK(target_of("chamber") == Catch::Approx(50.0f));
+
+    controller.reset();
+    tsm.discover({});
+    tsm.set_sync_mode(false);
+    ps.temperature_state().set_chamber_heater_name("");
 }
 
 // ============================================================================

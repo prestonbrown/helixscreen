@@ -20,6 +20,7 @@
 #include "static_subject_registry.h"
 #include "subject_managed_panel.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -131,9 +132,9 @@ void FavoriteMacroConfigModal::persist() {
 
 void FavoriteMacroConfigModal::on_show() {
     load_config();
-    macro_list_ = lv_obj_find_by_name(dialog(), "macro_list");
-    icon_grid_ = lv_obj_find_by_name(dialog(), "icon_grid");
-    color_grid_ = lv_obj_find_by_name(dialog(), "color_grid");
+    macro_list_ = helix::ui::find_required(dialog(), "macro_list", get_name());
+    icon_grid_ = helix::ui::find_required(dialog(), "icon_grid", get_name());
+    color_grid_ = helix::ui::find_required(dialog(), "color_grid", get_name());
     lv_subject_set_int(&s_tab_subject, 0);
     lv_subject_set_int(&s_require_confirm_subject, require_confirmation_ ? 1 : 0);
     refresh_param_defaults_visible();

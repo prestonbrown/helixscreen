@@ -14,6 +14,7 @@
 #include "sound_manager.h"
 #include "static_subject_registry.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -469,7 +470,7 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
     it->message = message;
 
     if (with_action) {
-        lv_obj_t* action_btn = lv_obj_find_by_name(widget, "toast_action_btn");
+        lv_obj_t* action_btn = helix::ui::find_required(widget, "toast_action_btn", "ToastManager");
         if (action_btn) {
             // No user_data: a ToastInstance* would dangle once deinit_subjects()
             // clears active_ while the widget is still on screen (printer
@@ -520,7 +521,8 @@ void ToastManager::detach_from_input(lv_obj_t* widget) {
 
     // A dying toast's action button must not latch a fresh press once teardown
     // has begun (CLICKABLE gates indev hit-testing).
-    if (lv_obj_t* action_btn = lv_obj_find_by_name(widget, "toast_action_btn")) {
+    if (lv_obj_t* action_btn =
+            helix::ui::find_required(widget, "toast_action_btn", "ToastManager")) {
         lv_obj_remove_flag(action_btn, LV_OBJ_FLAG_CLICKABLE);
     }
 }

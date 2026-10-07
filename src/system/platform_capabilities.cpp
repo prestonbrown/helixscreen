@@ -268,7 +268,7 @@ PlatformCapabilities PlatformCapabilities::from_metrics(size_t ram_mb, int cores
 // Utility functions
 // ============================================================================
 
-bool pressed_scale_allowed(PlatformTier tier) {
+bool full_style_effects_allowed(PlatformTier tier) {
     return tier == PlatformTier::STANDARD;
 }
 

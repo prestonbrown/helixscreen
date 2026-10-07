@@ -22,6 +22,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <utility>
 
 namespace helix {
 using ams_state_detail::assert_main_thread;
@@ -243,14 +244,34 @@ void AmsState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(clog_meter_mode, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(clog_meter_value, 0, subjects_,
                      register_xml); // SUBJECT_OK: ClogMeterModel observes it via a lambda
-    INIT_SUBJECT_INT(clog_meter_warning, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(
+        clog_meter_warning, 0, subjects_,
+        register_xml); // SUBJECT_OK: ClogMeterModel observes it via clog_meter_subjects()
     INIT_SUBJECT_INT(clog_meter_status, 0, subjects_, register_xml);
     INIT_SUBJECT_STRING(clog_meter_mode_text, "", subjects_, register_xml);
-    INIT_SUBJECT_INT(clog_meter_danger_pct, 0, subjects_, register_xml);
-    INIT_SUBJECT_INT(clog_meter_peak_pct, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(
+        clog_meter_danger_pct, 0, subjects_,
+        register_xml); // SUBJECT_OK: ClogMeterModel observes it via clog_meter_subjects()
+    INIT_SUBJECT_INT(
+        clog_meter_peak_pct, 0, subjects_,
+        register_xml); // SUBJECT_OK: ClogMeterModel observes it via clog_meter_subjects()
     INIT_SUBJECT_STRING(clog_meter_center_text, "", subjects_, register_xml);
     INIT_SUBJECT_STRING(clog_meter_label_left, "", subjects_, register_xml);
     INIT_SUBJECT_STRING(clog_meter_label_right, "", subjects_, register_xml);
+
+    // Filament buffer reading, system level
+    INIT_SUBJECT_INT(buffer_present, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(buffer_slider, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(buffer_bias_pct, 0, subjects_,
+                     register_xml); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
+    INIT_SUBJECT_INT(buffer_status, 0, subjects_,
+                     register_xml); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
+    INIT_SUBJECT_STRING(buffer_label, "", subjects_, register_xml);
+    INIT_SUBJECT_STRING(buffer_value_text, "", subjects_,
+                        register_xml); // SUBJECT_OK: the 2x1 widget binds it
+    INIT_SUBJECT_STRING(buffer_short_text, "", subjects_, register_xml);
+    INIT_SUBJECT_STRING(buffer_lean_text, "", subjects_, register_xml);
+    INIT_SUBJECT_STRING(buffer_target_text, "", subjects_, register_xml);
 
     // Per-slot subjects (dynamic names require manual init)
     char name_buf[32];
@@ -623,16 +644,40 @@ void AmsState::register_xml_subject_names() {
     helix::xml::register_subject_in_current_scope(
         "clog_meter_value",
         &clog_meter_value_); // SUBJECT_OK: ClogMeterModel observes it via a lambda
-    helix::xml::register_subject_in_current_scope("clog_meter_warning", &clog_meter_warning_);
+    helix::xml::register_subject_in_current_scope(
+        "clog_meter_warning",
+        &clog_meter_warning_); // SUBJECT_OK: ClogMeterModel observes it via clog_meter_subjects()
     helix::xml::register_subject_in_current_scope("clog_meter_status", &clog_meter_status_);
     helix::xml::register_subject_in_current_scope("clog_meter_mode_text", &clog_meter_mode_text_);
-    helix::xml::register_subject_in_current_scope("clog_meter_danger_pct", &clog_meter_danger_pct_);
-    helix::xml::register_subject_in_current_scope("clog_meter_peak_pct", &clog_meter_peak_pct_);
+    helix::xml::register_subject_in_current_scope(
+        "clog_meter_danger_pct",
+        &clog_meter_danger_pct_); // SUBJECT_OK: ClogMeterModel observes it via
+                                  // clog_meter_subjects()
+    helix::xml::register_subject_in_current_scope(
+        "clog_meter_peak_pct",
+        &clog_meter_peak_pct_); // SUBJECT_OK: ClogMeterModel observes it via clog_meter_subjects()
     helix::xml::register_subject_in_current_scope("clog_meter_center_text",
                                                   &clog_meter_center_text_);
     helix::xml::register_subject_in_current_scope("clog_meter_label_left", &clog_meter_label_left_);
     helix::xml::register_subject_in_current_scope("clog_meter_label_right",
                                                   &clog_meter_label_right_);
+
+    // Filament buffer reading
+    helix::xml::register_subject_in_current_scope("buffer_present", &buffer_present_);
+    helix::xml::register_subject_in_current_scope("buffer_slider", &buffer_slider_);
+    helix::xml::register_subject_in_current_scope(
+        "buffer_bias_pct",
+        &buffer_bias_pct_); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
+    helix::xml::register_subject_in_current_scope(
+        "buffer_status",
+        &buffer_status_); // SUBJECT_OK: UiBufferSlider::follow_system_reading observes it
+    helix::xml::register_subject_in_current_scope("buffer_label", &buffer_label_);
+    helix::xml::register_subject_in_current_scope(
+        "buffer_value_text",
+        &buffer_value_text_); // SUBJECT_OK: the 2x1 widget binds it
+    helix::xml::register_subject_in_current_scope("buffer_short_text", &buffer_short_text_);
+    helix::xml::register_subject_in_current_scope("buffer_lean_text", &buffer_lean_text_);
+    helix::xml::register_subject_in_current_scope("buffer_target_text", &buffer_target_text_);
 
     // Per-slot subjects (snprintf'd names)
     char name_buf[48];

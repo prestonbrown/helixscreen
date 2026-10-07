@@ -23,7 +23,7 @@
 namespace helix::sensors {
 
 /**
- * @brief Manager for temperature sensors (temperature_sensor and temperature_fan)
+ * @brief Manager for temperature sensors (temperature_sensor, temperature_fan, heater_generic)
  *
  * Provides:
  * - Auto-discovery of temperature sensors from Klipper objects list
@@ -36,6 +36,8 @@ namespace helix::sensors {
  * Klipper object names:
  * - temperature_sensor <name>  - Read-only temperature sensor
  * - temperature_fan <name>     - Temperature-controlled fan (has target and speed)
+ * - heater_generic <name>      - Generic heater (has target); the chamber's own heater
+ *                                takes the CHAMBER role via apply_chamber_sensor_override()
  *
  * Excludes: extruder, extruder1, heater_bed (managed by PrinterState)
  *
@@ -64,6 +66,7 @@ class TemperatureSensorManager {
      */
     struct DynamicIntSubject {
         lv_subject_t subject{};
+        lv_subject_t target_subject{}; ///< Target in decidegrees (0 for read-only sensors)
         bool initialized = false;
         SubjectLifetime lifetime; ///< Alive token for ObserverGuard safety
 
@@ -74,6 +77,7 @@ class TemperatureSensorManager {
             lifetime.reset();
             if (initialized && lv_is_initialized()) {
                 lv_subject_deinit(&subject);
+                lv_subject_deinit(&target_subject);
             }
             initialized = false;
         }
@@ -175,9 +179,13 @@ class TemperatureSensorManager {
      *
      * @param klipper_name Full Klipper object name for the new chamber sensor,
      *                     or empty string to clear chamber assignment entirely.
+     * @param heater_name  The resolved chamber heater. A heater_generic also takes the
+     *                     CHAMBER role so it is not listed a second time as an auxiliary
+     *                     heater; a temperature_fan keeps its own role. Empty when none.
      * @note MUST be called from main LVGL thread (updates subjects directly)
      */
-    void apply_chamber_sensor_override(const std::string& klipper_name);
+    void apply_chamber_sensor_override(const std::string& klipper_name,
+                                       const std::string& heater_name = "");
 
     /**
      * @brief Enable or disable a sensor
@@ -217,6 +225,15 @@ class TemperatureSensorManager {
      */
     [[nodiscard]] lv_subject_t* get_temp_subject(const std::string& klipper_name,
                                                  SubjectLifetime& lifetime);
+
+    /**
+     * @brief Get a sensor's target subject (int: decidegrees)
+     *
+     * Shares the temperature subject's lifetime token. Reads 0 for objects
+     * without a target (temperature_sensor, tmc*).
+     */
+    [[nodiscard]] lv_subject_t* get_target_subject(const std::string& klipper_name,
+                                                   SubjectLifetime& lifetime);
 
     /// @brief Get dynamic subject without lifetime token (only for non-observer uses)
     [[nodiscard]] lv_subject_t* get_temp_subject(const std::string& klipper_name);

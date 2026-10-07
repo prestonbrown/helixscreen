@@ -7,6 +7,7 @@
 #include "ams_types.h"
 #include "lvgl/lvgl.h"
 #include "static_panel_registry.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -126,7 +127,7 @@ void WizardAmsIdentifyStep::update_display() {
     spdlog::debug("[{}] Set details subject: {}", get_name(), details);
 
     // Set logo image (imperative - images don't support bind_src)
-    lv_obj_t* logo = lv_obj_find_by_name(screen_root_, "ams_logo");
+    lv_obj_t* logo = helix::ui::find_required(screen_root_, "ams_logo", get_name());
     if (logo && backend) {
         const char* logo_path =
             helix::AmsState::get_logo_path(backend->get_system_info().type_name);

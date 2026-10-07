@@ -10,6 +10,9 @@
 
 namespace helix {
 
+/// Numeric keypad digit order. Phone puts 1-2-3 on top, calculator 7-8-9.
+enum class KeypadLayout { PHONE = 0, CALCULATOR = 1 };
+
 /**
  * @brief Domain-specific manager for input/scroll settings
  *
@@ -18,6 +21,7 @@ namespace helix {
  * - scroll_limit (pixels before scrolling starts, 1-20) — live-applied
  * - scroll_guard (suppress phantom click after scroll)  — restart required
  * - debug_touches (draw ripple at each touch point)     — live-applied
+ * - keypad_layout (numeric keypad digit order)          — live-applied
  *
  * Thread safety: Single-threaded, main LVGL thread only.
  */
@@ -87,6 +91,14 @@ class InputSettingsManager {
         settings_.set(Key::HomeEditMode, enabled);
     }
 
+    /** @brief Numeric keypad digit order; the keypad XML binds it live. */
+    KeypadLayout get_keypad_layout() const {
+        return static_cast<KeypadLayout>(settings_.get(Key::KeypadLayout));
+    }
+    void set_keypad_layout(KeypadLayout layout) {
+        settings_.set(Key::KeypadLayout, static_cast<int>(layout));
+    }
+
     /**
      * @brief Check if restart is pending due to settings changes
      * @return true if settings changed that require restart
@@ -136,6 +148,11 @@ class InputSettingsManager {
         return settings_.subject(Key::HomeEditMode);
     }
 
+    /** @brief Keypad layout subject (integer: KeypadLayout) */
+    lv_subject_t* subject_keypad_layout() {
+        return settings_.subject(Key::KeypadLayout);
+    }
+
   private:
     InputSettingsManager();
     ~InputSettingsManager() = default;
@@ -149,6 +166,7 @@ class InputSettingsManager {
         ScrollGuard,
         DebugTouches,
         HomeEditMode,
+        KeypadLayout,
         COUNT
     };
 

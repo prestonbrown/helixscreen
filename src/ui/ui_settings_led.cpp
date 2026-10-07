@@ -98,11 +98,11 @@ void LedSettingsOverlay::init_led_on_at_start_toggle() {
 
     lv_obj_t* brightness_row = find_required(overlay_root_, "row_startup_brightness", get_name());
     if (brightness_row) {
-        lv_obj_t* slider = lv_obj_find_by_name(brightness_row, "slider");
+        lv_obj_t* slider = helix::ui::find_required(brightness_row, "slider", get_name());
         if (slider) {
             lv_slider_set_value(slider, ctrl.get_startup_brightness(), LV_ANIM_OFF);
         }
-        lv_obj_t* value_label = lv_obj_find_by_name(brightness_row, "value_label");
+        lv_obj_t* value_label = helix::ui::find_required(brightness_row, "value_label", get_name());
         if (value_label) {
             lv_label_set_text_fmt(value_label, "%d%%", ctrl.get_startup_brightness());
         }
@@ -347,11 +347,8 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
                                 nullptr};
     auto* name_row =
         static_cast<lv_obj_t*>(lv_xml_create(container, "setting_form_input", name_attrs));
-    // Guard the parent: lv_obj_find_by_name(nullptr, ...) falls back to searching
-    // the active screen and would return an unrelated same-named widget.
-    auto* name_ta = name_row ? lv_obj_find_by_name(name_row, "input") : nullptr;
+    auto* name_ta = helix::ui::find_required(name_row, "input", get_name());
     if (!name_ta) {
-        spdlog::error("[{}] Failed to build name input row from XML", get_name());
         return;
     }
     lv_obj_set_name(name_ta, "macro_name_input");
@@ -361,9 +358,8 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
     const char* type_attrs[] = {"label", lv_tr("Type:"), nullptr};
     auto* type_row =
         static_cast<lv_obj_t*>(lv_xml_create(container, "setting_form_dropdown", type_attrs));
-    auto* type_dd = type_row ? lv_obj_find_by_name(type_row, "dropdown") : nullptr;
+    auto* type_dd = helix::ui::find_required(type_row, "dropdown", get_name());
     if (!type_dd) {
-        spdlog::error("[{}] Failed to build type dropdown row from XML", get_name());
         return;
     }
     std::string type_options = std::string(lv_tr("On/Off (state-aware)")) + "\n" +
@@ -467,11 +463,9 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
                                nullptr};
         auto* row =
             static_cast<lv_obj_t*>(lv_xml_create(container, "setting_form_macro_field", attrs));
-        auto* dd = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
-        auto* ta = row ? lv_obj_find_by_name(row, "input") : nullptr;
+        auto* dd = helix::ui::find_required(row, "dropdown", get_name());
+        auto* ta = helix::ui::find_required(row, "input", get_name());
         if (!dd || !ta) {
-            spdlog::error("[{}] Failed to build macro field row '{}' from XML", get_name(),
-                          dd_name);
             return false;
         }
         const auto view = helix::led::macro_field_view(stored, discovered);
@@ -945,7 +939,7 @@ void LedSettingsOverlay::populate_led_chips_impl() {
     if (!row)
         return;
 
-    lv_obj_t* chip_container = lv_obj_find_by_name(row, "chip_container");
+    lv_obj_t* chip_container = helix::ui::find_required(row, "chip_container", get_name());
     if (!chip_container || !lv_obj_is_valid(chip_container)) {
         spdlog::warn("[{}] Applies-to chip row found but chip_container invalid/missing",
                      get_name());
@@ -1013,7 +1007,8 @@ void LedSettingsOverlay::handle_startup_brightness_changed(int value) {
 
     // Update the value label
     lv_obj_t* brightness_row = find_required(overlay_root_, "row_startup_brightness", get_name());
-    if (lv_obj_t* value_label = lv_obj_find_by_name(brightness_row, "value_label")) {
+    if (lv_obj_t* value_label =
+            helix::ui::find_required(brightness_row, "value_label", get_name())) {
         lv_label_set_text_fmt(value_label, "%d%%", value);
     }
 }
@@ -1126,9 +1121,8 @@ void LedSettingsOverlay::populate_auto_state_rows() {
         const char* row_attrs[] = {"label", lv_tr(state.display_name), "icon", state.icon, nullptr};
         auto* row =
             static_cast<lv_obj_t*>(lv_xml_create(container, "setting_state_row", row_attrs));
-        auto* dropdown = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
+        auto* dropdown = helix::ui::find_required(row, "dropdown", get_name());
         if (!dropdown) {
-            spdlog::error("[{}] Failed to build state row '{}' from XML", get_name(), key);
             continue;
         }
         lv_dropdown_set_options(dropdown, options_str.c_str());
@@ -1173,10 +1167,8 @@ void LedSettingsOverlay::populate_auto_state_rows() {
 
         auto* detail =
             static_cast<lv_obj_t*>(lv_xml_create(container, "setting_detail_panel", nullptr));
-        auto* ctx_container = detail ? lv_obj_find_by_name(detail, "controls") : nullptr;
+        auto* ctx_container = helix::ui::find_required(detail, "controls", get_name());
         if (!ctx_container) {
-            spdlog::error("[{}] Failed to build detail panel for state '{}' from XML", get_name(),
-                          key);
             continue;
         }
         lv_obj_set_name(detail, fmt::format("detail_{}", key).c_str());

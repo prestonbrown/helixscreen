@@ -45,8 +45,11 @@ bool PanelWidgetConfig::has_uninterpretable_coordinates(const nlohmann::json& pa
     if (pages == panel_node.end() || !pages->is_array()) {
         return false;
     }
+    // "anchors": "pending" names the defaults builder's own placement, saved before a grid
+    // was measured and re-anchored once one is.
     if (!helix::json_util::safe_string(panel_node, "grid").empty() ||
-        !helix::json_util::safe_string(panel_node, "layout_units").empty()) {
+        !helix::json_util::safe_string(panel_node, "layout_units").empty() ||
+        helix::json_util::safe_string(panel_node, "anchors") == "pending") {
         return false;
     }
 

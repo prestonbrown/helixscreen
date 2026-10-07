@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_filament_catalog_selector.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_icon_codepoints.h"
 #include "ui_utils.h"
 
@@ -9,6 +10,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "text_io.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -63,10 +65,16 @@ void FilamentCatalogSelector::register_callbacks() {
             self->handle_type_changed();
     });
     // Row callbacks fired by the catalog_row / catalog_add_row XML components.
-    lv_xml_register_event_cb(nullptr, "catalog_row_clicked_cb", on_row_clicked_cb);
-    lv_xml_register_event_cb(nullptr, "catalog_row_edit_cb", on_row_edit_cb);
-    lv_xml_register_event_cb(nullptr, "catalog_row_star_cb", on_row_star_cb);
-    lv_xml_register_event_cb(nullptr, "catalog_add_custom_cb", on_add_custom_cb);
+    register_xml_callbacks({
+        {"catalog_row_clicked_cb", on_row_clicked_cb},
+        {"catalog_row_edit_cb", on_row_edit_cb},
+        {"catalog_row_star_cb", on_row_star_cb},
+        {"catalog_add_custom_cb",
+         [](lv_event_t* e) {
+             if (auto* self = from_event(e))
+                 self->handle_add_custom();
+         }},
+    });
     callbacks_registered_ = true;
 }
 
@@ -99,11 +107,6 @@ void FilamentCatalogSelector::on_row_star_cb(lv_event_t* e) {
     FilamentCatalogSelector* self = from_event(e);
     if (self && id)
         self->handle_star_toggled(id);
-}
-
-void FilamentCatalogSelector::on_add_custom_cb(lv_event_t* e) {
-    if (auto* self = from_event(e))
-        self->handle_add_custom();
 }
 
 FilamentCatalogSelector::~FilamentCatalogSelector() {
@@ -642,11 +645,12 @@ void FilamentCatalogSelector::rebuild_product_list() {
             continue;
         lv_obj_set_name(row, p->id.c_str()); // identity for click handlers (L069)
 
-        if (auto* ind = lv_obj_find_by_name(row, "check_indicator")) {
+        if (auto* ind =
+                helix::ui::find_required(row, "check_indicator", "FilamentCatalogSelector")) {
             lv_label_set_text(ind, (is_current && check) ? check : "");
             lv_obj_set_style_text_color(ind, accent, 0);
         }
-        if (auto* nm = lv_obj_find_by_name(row, "name_label")) {
+        if (auto* nm = helix::ui::find_required(row, "name_label", "FilamentCatalogSelector")) {
             lv_label_set_text(nm, p->name.c_str());
             lv_obj_set_style_text_color(nm, is_current ? accent : text_color, 0);
         }
@@ -657,7 +661,7 @@ void FilamentCatalogSelector::rebuild_product_list() {
         // (L070). In the favorites view the chip carries the BRAND instead —
         // the one disambiguator a cross-brand flat list has (the type is
         // usually already part of the product name).
-        if (auto* chip = lv_obj_find_by_name(row, "variant_chip")) {
+        if (auto* chip = helix::ui::find_required(row, "variant_chip", "FilamentCatalogSelector")) {
             const std::string chip_text = favorites_view ? p->brand : p->type;
             if (!chip_text.empty() && (favorites_view || chip_text != family)) {
                 lv_label_set_text(chip, chip_text.c_str());
@@ -665,7 +669,7 @@ void FilamentCatalogSelector::rebuild_product_list() {
                 lv_obj_remove_flag(chip, LV_OBJ_FLAG_HIDDEN);
             }
         }
-        if (auto* temp = lv_obj_find_by_name(row, "temp_label")) {
+        if (auto* temp = helix::ui::find_required(row, "temp_label", "FilamentCatalogSelector")) {
             char buf[32];
             snprintf(buf, sizeof(buf), "%d\xC2\xB0 / %d\xC2\xB0", p->nozzle_recommended,
                      p->bed_temp);
@@ -675,7 +679,7 @@ void FilamentCatalogSelector::rebuild_product_list() {
         // not the AMS slot-assignment selector. The icon intercepts its own tap
         // declaratively (clickable, no event_bubble in the XML), so editing
         // never triggers row-select.
-        if (auto* edit = lv_obj_find_by_name(row, "edit_icon")) {
+        if (auto* edit = helix::ui::find_required(row, "edit_icon", "FilamentCatalogSelector")) {
             if (show_edit_affordances_) {
                 if (pencil)
                     lv_label_set_text(edit, pencil); // XML already sets #icon_pencil
@@ -686,7 +690,7 @@ void FilamentCatalogSelector::rebuild_product_list() {
         // built. Accent when starred, muted when not; the glyph is the XML
         // #icon_star token. Like the edit icon it intercepts its own tap, so
         // starring never triggers row-select.
-        if (auto* star = lv_obj_find_by_name(row, "star_icon")) {
+        if (auto* star = helix::ui::find_required(row, "star_icon", "FilamentCatalogSelector")) {
             // DECLARATIVE_OK: per-row star state is Config data, not a subject
             lv_obj_set_style_text_color(star, starred.count(p->id) ? accent : muted, 0);
         }

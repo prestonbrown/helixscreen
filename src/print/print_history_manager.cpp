@@ -319,6 +319,13 @@ void PrintHistoryManager::invalidate() {
     ++originals_generation_;
 }
 
+void PrintHistoryManager::forget_printer() {
+    spdlog::debug("[HistoryManager] Forgetting the previous printer's history");
+    invalidate();
+    cached_jobs_.clear();
+    notify_observers();
+}
+
 // ============================================================================
 // Observer Pattern
 // ============================================================================

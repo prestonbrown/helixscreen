@@ -14,6 +14,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -274,7 +275,7 @@ void LedControlOverlay::focus_device(const std::string& id) {
 }
 
 void LedControlOverlay::scroll_tab_into_view(int index) {
-    lv_obj_t* row = overlay_root_ ? lv_obj_find_by_name(overlay_root_, "led_tab_row") : nullptr;
+    lv_obj_t* row = helix::ui::find_required(overlay_root_, "led_tab_row", get_name());
     lv_obj_t* tab =
         row ? lv_obj_find_by_name(row, fmt::format("led_tab_{}", index).c_str()) : nullptr;
     if (tab == nullptr) {

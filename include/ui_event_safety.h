@@ -43,7 +43,7 @@ namespace helix::ui {
  * @param callback_name Name for logging (e.g., "home_button_clicked")
  * @param handler Function to execute safely
  */
-inline void event_safe_call(const char* callback_name, std::function<void()> handler) {
+template <class F> void event_safe_call(const char* callback_name, F&& handler) {
 #if defined(__cpp_exceptions)
     try {
         handler();

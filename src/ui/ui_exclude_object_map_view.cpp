@@ -10,6 +10,7 @@
 #include "observer_factory.h"
 #include "printer_excluded_objects_state.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -91,7 +92,7 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
     lv_obj_update_layout(root_);
 
     // Find named children
-    plate_area_ = lv_obj_find_by_name(root_, "plate_area");
+    plate_area_ = helix::ui::find_required(root_, "plate_area", "ExcludeObjectMapView");
 
     // Disable scrolling on plate area
     if (plate_area_) {
@@ -158,7 +159,8 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
     }
 
     // Update plate dimensions label
-    lv_obj_t* dims_label = lv_obj_find_by_name(root_, "plate_dims_label");
+    lv_obj_t* dims_label =
+        helix::ui::find_required(root_, "plate_dims_label", "ExcludeObjectMapView");
     if (dims_label) {
         char buf[32];
         snprintf(buf, sizeof(buf), "%.0f×%.0f mm", bed_w_mm_, bed_h_mm_);
@@ -353,7 +355,7 @@ void ExcludeObjectMapView::build_object_rects() {
     // Show or hide the empty message imperatively. The XML component scope
     // persists across create/destroy cycles, so we cannot use lv_xml_register_subject
     // here — the scope would hold a dangling pointer after destroy() deinits it.
-    lv_obj_t* empty_msg = lv_obj_find_by_name(root_, "empty_message");
+    lv_obj_t* empty_msg = helix::ui::find_required(root_, "empty_message", "ExcludeObjectMapView");
     if (empty_msg) {
         if (rects_created > 0) {
             lv_obj_add_flag(empty_msg, LV_OBJ_FLAG_HIDDEN);

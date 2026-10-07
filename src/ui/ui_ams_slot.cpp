@@ -23,6 +23,7 @@
 #include "static_subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -703,17 +704,16 @@ static void* ams_slot_xml_create(lv_xml_parser_state_t* state, const char** attr
     data->container = obj;
 
     // Find XML-created children by name
-    data->material_label = lv_obj_find_by_name(obj, "material_label");
-    data->spool_container = lv_obj_find_by_name(obj, "spool_container");
-    data->lane_spool = lv_obj_find_by_name(obj, "lane_spool");
-    data->status_badge_bg = lv_obj_find_by_name(obj, "status_badge");
-    data->slot_badge = lv_obj_find_by_name(obj, "slot_badge_label");
-    data->tool_badge_bg = lv_obj_find_by_name(obj, "tool_badge");
-    data->tool_badge = lv_obj_find_by_name(obj, "tool_badge_label");
+    data->material_label = helix::ui::find_required(obj, "material_label", "AmsSlot");
+    data->spool_container = helix::ui::find_required(obj, "spool_container", "AmsSlot");
+    data->lane_spool = helix::ui::find_required(obj, "lane_spool", "AmsSlot");
+    data->status_badge_bg = helix::ui::find_required(obj, "status_badge", "AmsSlot");
+    data->slot_badge = helix::ui::find_required(obj, "slot_badge_label", "AmsSlot");
+    data->tool_badge_bg = helix::ui::find_required(obj, "tool_badge", "AmsSlot");
+    data->tool_badge = helix::ui::find_required(obj, "tool_badge_label", "AmsSlot");
 
     // Validate required children were found
     if (!data->spool_container || !data->lane_spool) {
-        spdlog::error("[AmsSlot] Failed to find spool_container/lane_spool in XML");
         return obj; // Return obj anyway so it gets cleaned up properly
     }
 

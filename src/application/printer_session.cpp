@@ -80,6 +80,7 @@
 #include "temperature_history_manager.h"
 #include "timelapse_state.h"
 #include "u1_stock_detection_source.h"
+#include "ui/ui_widget_helpers.h"
 #include "upgrade_banner.h"
 #if HELIX_HAS_PLUGINS
 #include "plugin_dir_watcher.h"
@@ -97,38 +98,12 @@
 
 namespace helix {
 
-namespace {
-
-/// RAII latch for PrinterSession::m_soft_restart_in_progress.
-///
-/// Clearing the re-entrancy flag by hand on each exit path leaves it stuck true whenever an
-/// exit is not the one that was hand-coded, and a stuck flag makes every later printer
-/// switch or add a silent no-op until the process restarts.
-class SoftRestartLatch {
-  public:
-    explicit SoftRestartLatch(bool& flag) : m_flag(flag) {
-        m_flag = true;
-    }
-    ~SoftRestartLatch() {
-        m_flag = false;
-    }
-
-    SoftRestartLatch(const SoftRestartLatch&) = delete;
-    SoftRestartLatch& operator=(const SoftRestartLatch&) = delete;
-    SoftRestartLatch(SoftRestartLatch&&) = delete;
-    SoftRestartLatch& operator=(SoftRestartLatch&&) = delete;
-
-  private:
-    bool& m_flag;
-};
-
-} // namespace
-
 PrinterSession::PrinterSession(Config*& config, AsyncLifetimeGuard& async, lv_obj_t*& screen,
                                Host host)
     : m_config(config), m_async(async), m_host(std::move(host)),
-      m_restart{[this] { tear_down_printer_state(); }, [this] { rebuild(); },
-                [] { helix::nav::set_active(PanelId::Home); }},
+      m_flow(config, async,
+             {[this] { tear_down_printer_state(); }, [this] { rebuild(); },
+              [] { helix::nav::set_active(PanelId::Home); }}),
       m_screen(screen), m_prompter(
                             async, [this] { return m_screen; },
                             [this] { return m_moonraker ? m_moonraker->api() : nullptr; }) {}
@@ -149,125 +124,19 @@ void PrinterSession::reset_discovery_session() {
 }
 
 void PrinterSession::switch_printer(const std::string& printer_id) {
-    if (m_soft_restart_in_progress) {
-        spdlog::warn("[PrinterSession] Ignoring switch_printer during active soft restart");
-        return;
-    }
-    SoftRestartLatch soft_restart(m_soft_restart_in_progress);
+    m_flow.switch_printer(printer_id);
+}
 
-    spdlog::info("[PrinterSession] Switching to printer '{}'...", printer_id);
-
-    // Validate printer exists in config
-    if (!m_config->set_active_printer(printer_id)) {
-        spdlog::error("[PrinterSession] Failed to switch — unknown printer '{}'", printer_id);
-        return;
-    }
-    m_config->save();
-
-    // Per-printer state lives at /printers/<active>/… and is reached via Config::df().
-    // The active printer just changed, so df() now points at the new printer — fire every
-    // registered per-printer cache invalidator BEFORE teardown, while df() is already
-    // correct, so nothing keeps serving the previous printer's values. PanelWidgetManager's
-    // cached layouts (#804) were the first instance of this; the registry is what stops the
-    // next one from being a latent bug nobody remembers to wire up.
-    PrinterCacheRegistry::instance().invalidate_all();
-
-    m_restart.teardown();
-    m_restart.rebuild();
-
-    m_restart.land_home();
-
-    // Show toast with the new printer name
-    std::string printer_name =
-        m_config->get<std::string>(m_config->df() + "printer_name", printer_id);
-    std::string toast_msg = fmt::format(fmt::runtime(lv_tr("Connected to {}")), printer_name);
-    ToastManager::instance().show(ToastSeverity::INFO, toast_msg.c_str());
-
-    spdlog::info("[PrinterSession] Switched to printer '{}'", printer_id);
+void PrinterSession::request_switch(const std::string& printer_id) {
+    m_flow.request_switch(printer_id);
 }
 
 void PrinterSession::add_printer_via_wizard() {
-    if (m_soft_restart_in_progress) {
-        spdlog::warn("[PrinterSession] Ignoring add_printer_via_wizard during active soft restart");
-        return;
-    }
-    SoftRestartLatch soft_restart(m_soft_restart_in_progress);
-
-    // Generate a unique ID for the new printer entry (loop to avoid collisions after deletes)
-    auto existing_ids = m_config->get_printer_ids();
-    int counter = static_cast<int>(existing_ids.size()) + 1;
-    std::string new_id;
-    do {
-        new_id = "printer-" + std::to_string(counter++);
-    } while (std::find(existing_ids.begin(), existing_ids.end(), new_id) != existing_ids.end());
-    std::string previous_id = m_config->get_active_printer_id();
-
-    // Create empty printer entry with wizard_completed=false so is_wizard_required()
-    // returns true (without this, root-level wizard_completed fallback blocks the wizard)
-    nlohmann::json printer_data = {{"wizard_completed", false}};
-    m_config->add_printer(new_id, printer_data);
-    m_config->set_active_printer(new_id);
-    m_config->save();
-
-    // Store previous ID so wizard cancellation can recover
-    m_wizard_previous_printer_id = previous_id;
-
-    spdlog::info("[PrinterSession] Adding new printer '{}' via wizard (previous: '{}')", new_id,
-                 previous_id);
-
-    // Same active-printer change as switch_printer(): Config::df() has moved to the new
-    // entry, so every per-printer cache must be dropped before teardown.
-    PrinterCacheRegistry::instance().invalidate_all();
-
-    // The rebuild runs the wizard itself when is_wizard_required() returns true (it does for
-    // the new empty entry), so the wizard must not be launched again here.
-    m_restart.teardown();
-
-    // Registered after the teardown (which clears it) and before the rebuild (which runs the
-    // wizard).
-    set_wizard_cancel_callback([this]() { cancel_add_printer_wizard(); });
-
-    m_restart.rebuild();
+    m_flow.add_printer_via_wizard();
 }
 
 void PrinterSession::cancel_add_printer_wizard() {
-    if (m_soft_restart_in_progress) {
-        spdlog::warn(
-            "[PrinterSession] Ignoring cancel_add_printer_wizard during active soft restart");
-        return;
-    }
-
-    if (m_wizard_previous_printer_id.empty()) {
-        spdlog::debug("[PrinterSession] No add-printer recovery state — ignoring cancel");
-        return;
-    }
-
-    std::string failed_id = m_config->get_active_printer_id();
-    std::string restore_id = m_wizard_previous_printer_id;
-    spdlog::info("[PrinterSession] Cancelling add-printer wizard — removing '{}', restoring '{}'",
-                 failed_id, restore_id);
-
-    m_config->remove_printer(failed_id);
-    m_config->set_active_printer(restore_id);
-    m_config->save();
-    m_wizard_previous_printer_id.clear();
-
-    // Defer wizard teardown + soft restart — we're called from a wizard button click handler,
-    // so the wizard_container must survive until the event callback returns.
-    m_async.defer("PrinterSession::cancel_add_printer_wizard", [this]() {
-        SoftRestartLatch soft_restart(m_soft_restart_in_progress);
-
-        set_wizard_active(false);
-        ui_wizard_deinit_subjects();
-
-        // set_active_printer() above restored the previous printer, so Config::df() moved
-        // again — drop every per-printer cache before teardown.
-        PrinterCacheRegistry::instance().invalidate_all();
-
-        m_restart.teardown();
-        m_restart.rebuild();
-        m_restart.land_home();
-    });
+    m_flow.cancel_add_printer_wizard();
 }
 
 bool PrinterSession::init_core_subjects() {
@@ -443,11 +312,10 @@ bool PrinterSession::init_ui() {
     NavigationManager::instance().init_overlay_backdrop(m_screen);
 
     // Find navbar and content area
-    lv_obj_t* navbar = lv_obj_find_by_name(m_app_layout, "navbar");
-    lv_obj_t* content_area = lv_obj_find_by_name(m_app_layout, "content_area");
+    lv_obj_t* navbar = helix::ui::find_required(m_app_layout, "navbar", "Application");
+    lv_obj_t* content_area = helix::ui::find_required(m_app_layout, "content_area", "Application");
 
     if (!navbar || !content_area) {
-        spdlog::error("[Application] Failed to find navbar/content_area");
         return false;
     }
 
@@ -456,13 +324,13 @@ bool PrinterSession::init_ui() {
 
     // Register printer switch/add callbacks so navbar badge menu can trigger actions
     NavigationManager::instance().set_printer_callbacks(
-        [this](const std::string& printer_id) { switch_printer(printer_id); },
+        [this](const std::string& printer_id) { request_switch(printer_id); },
         [this]() { add_printer_via_wizard(); });
 
     // Find panel container
-    lv_obj_t* panel_container = lv_obj_find_by_name(content_area, "panel_container");
+    lv_obj_t* panel_container =
+        helix::ui::find_required(content_area, "panel_container", "Application");
     if (!panel_container) {
-        spdlog::error("[Application] Failed to find panel_container");
         return false;
     }
 
@@ -791,6 +659,9 @@ void PrinterSession::setup_discovery_callbacks() {
 }
 
 bool PrinterSession::connect_moonraker() {
+    // Boot and every rebuild connect through here, to the active printer.
+    m_flow.set_connected_printer_id(m_config->get_active_printer_id());
+
     // Determine if we should connect
     std::string saved_host = m_config->get<std::string>(m_config->df() + "moonraker_host", "");
     bool has_cli_url = !m_host.args.moonraker_url.empty();
@@ -902,12 +773,7 @@ void PrinterSession::rebuild() {
     }
 
     // 2b. Seed the active printer's display name from config
-    {
-        auto active_id = m_config->get_active_printer_id();
-        std::string printer_name =
-            m_config->get<std::string>(m_config->df() + "printer_name", active_id);
-        get_printer_state().set_active_printer_name(printer_name);
-    }
+    get_printer_state().set_active_printer_name(m_config->get_active_printer_name());
 
     // 3. Initialize Moonraker (creates client + API + history managers)
     if (!init_moonraker()) {
@@ -1030,9 +896,9 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
     UpdateChecker::instance().stop_auto_check();
 
     if (exiting) {
-        // Process-level singletons: they persist across a printer switch.
+        // Process-scoped services: they persist across a printer switch.
         // The banner goes before UpdateChecker so its observers release cleanly (#705).
-        UpgradeBanner::instance().shutdown();
+        m_host.upgrade_banner.shutdown();
         UpdateChecker::instance().shutdown();    // cancels pending checks
         TelemetryManager::instance().shutdown(); // persists queue, joins send thread
         helix::CrashHistory::instance().shutdown();

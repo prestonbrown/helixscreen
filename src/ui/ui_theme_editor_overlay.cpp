@@ -81,7 +81,8 @@ lv_obj_t* ThemeEditorOverlay::create(lv_obj_t* parent) {
     }
 
     // Find swatch widgets (swatch_0 through swatch_15)
-    lv_obj_t* swatch_list = lv_obj_find_by_name(overlay_root_, "theme_swatch_list");
+    lv_obj_t* swatch_list =
+        helix::ui::find_required(overlay_root_, "theme_swatch_list", get_name());
     lv_obj_t* search_root = swatch_list ? swatch_list : overlay_root_;
     for (size_t i = 0; i < swatch_objects_.size(); ++i) {
         char swatch_name[16];
@@ -315,7 +316,7 @@ void ThemeEditorOverlay::update_slider_value_label(const char* row_name, int val
     }
 
     lv_obj_t* row = lv_obj_find_by_name(overlay_root_, row_name);
-    lv_obj_t* label = row ? lv_obj_find_by_name(row, "value_label") : nullptr;
+    lv_obj_t* label = helix::ui::find_required(row, "value_label", get_name());
     if (label) {
         char buf[16];
         std::snprintf(buf, sizeof(buf), "%d", value);
@@ -327,7 +328,7 @@ void ThemeEditorOverlay::update_slider_value_label(const char* row_name, const c
     if (!overlay_root_)
         return;
     lv_obj_t* row = lv_obj_find_by_name(overlay_root_, row_name);
-    lv_obj_t* label = row ? lv_obj_find_by_name(row, "value_label") : nullptr;
+    lv_obj_t* label = helix::ui::find_required(row, "value_label", get_name());
     if (label) {
         lv_label_set_text(label, text);
     }
@@ -716,7 +717,6 @@ void ThemeEditorOverlay::handle_save_as_confirm() {
     // required-names: theme_save_as_modal
     lv_obj_t* input = helix::ui::find_required(save_as_dialog_, "theme_name_input", get_name());
     if (!input) {
-        spdlog::error("[{}] Could not find theme_name_input", get_name());
         return;
     }
 

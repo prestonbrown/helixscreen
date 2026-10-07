@@ -924,8 +924,10 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
     }
 
     // Update thumbnail display
-    lv_obj_t* thumbnail_image = lv_obj_find_by_name(detail_overlay_, "thumbnail_image");
-    lv_obj_t* thumbnail_fallback = lv_obj_find_by_name(detail_overlay_, "thumbnail_fallback");
+    lv_obj_t* thumbnail_image =
+        helix::ui::find_required(detail_overlay_, "thumbnail_image", get_name());
+    lv_obj_t* thumbnail_fallback =
+        helix::ui::find_required(detail_overlay_, "thumbnail_fallback", get_name());
 
     // One staleness context per overlay open. Creating it bumps
     // detail_overlay_generation_, exactly as the bare `++` did, so a thumbnail
@@ -980,10 +982,10 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
                             }
 
                             // Look up widgets by name (safe - fresh lookup each time)
-                            lv_obj_t* image =
-                                lv_obj_find_by_name(t->panel->detail_overlay_, "thumbnail_image");
-                            lv_obj_t* fallback = lv_obj_find_by_name(t->panel->detail_overlay_,
-                                                                     "thumbnail_fallback");
+                            lv_obj_t* image = helix::ui::find_required(
+                                t->panel->detail_overlay_, "thumbnail_image", "History List");
+                            lv_obj_t* fallback = helix::ui::find_required(
+                                t->panel->detail_overlay_, "thumbnail_fallback", "History List");
 
                             if (image && fallback) {
                                 lv_image_set_src(image, t->path.c_str());

@@ -591,12 +591,17 @@ void TemperatureHistoryManager::resubscribe() {
     }
 
     // Every auxiliary sensor: chamber thermistors, beacon coil, the per-tool
-    // T0_temp..TN_temp probes on a changer. No targets on these.
+    // T0_temp..TN_temp probes on a changer, filament dryer heaters. Only
+    // heater_generic / temperature_fan objects carry a target.
     auto& sensor_mgr = helix::sensors::TemperatureSensorManager::instance();
     for (const auto& sensor : sensor_mgr.get_sensors()) {
         SubjectLifetime sensor_lt;
         lv_subject_t* temp = sensor_mgr.get_temp_subject(sensor.klipper_name, sensor_lt);
-        subscribe_one(sensor.klipper_name, temp, sensor_lt, nullptr, {});
+        SubjectLifetime target_lt;
+        lv_subject_t* target = helix::sensors::klipper_object_has_target(sensor.klipper_name)
+                                   ? sensor_mgr.get_target_subject(sensor.klipper_name, target_lt)
+                                   : nullptr;
+        subscribe_one(sensor.klipper_name, temp, sensor_lt, target, target_lt);
     }
 
     spdlog::debug("[TempHistory] recording {} sensors ({} extruders discovered)",

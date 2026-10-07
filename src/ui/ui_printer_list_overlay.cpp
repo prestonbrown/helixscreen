@@ -4,14 +4,17 @@
 #include "ui_printer_list_overlay.h"
 
 #include "ui_callback_helpers.h"
+#include "ui_change_host_modal.h"
 #include "ui_event_safety.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_nav_printer_badge.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "observer_factory.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "static_panel_registry.h"
@@ -108,6 +111,9 @@ void PrinterListOverlay::populate_printer_list() {
         return;
     }
 
+    active_dot_observer_.reset();
+    active_dot_.reset();
+
     // Clean existing children before repopulating (freeze queue to prevent
     // background thread from enqueuing callbacks between drain and destroy)
     {
@@ -144,6 +150,21 @@ void PrinterListOverlay::populate_printer_list() {
             if (check_icon) {
                 lv_obj_set_style_text_opa(check_icon, LV_OPA_COVER, LV_PART_MAIN);
             }
+            lv_obj_t* dot = find_required(row, "connection_dot", get_name());
+            if (dot) {
+                lv_obj_remove_flag(dot, LV_OBJ_FLAG_HIDDEN);
+                active_dot_ = dot;
+                active_dot_observer_ = observe<int>(
+                    get_printer_state().network_state().get_printer_connection_state_subject(),
+                    this,
+                    [](PrinterListOverlay* self, int state) {
+                        if (self->active_dot_) {
+                            lv_obj_set_style_bg_color(self->active_dot_,
+                                                      connection_dot_color(state), 0);
+                        }
+                    },
+                    get_printer_state().get_subjects_lifetime());
+            }
         }
 
         // Show delete button when more than 1 printer
@@ -169,6 +190,7 @@ void PrinterListOverlay::handle_switch_printer(const std::string& printer_id) {
         return; // Already active
     }
     spdlog::info("[{}] Switching to printer '{}'", get_name(), printer_id);
+    helix::ui::drop_held_connection_failed();
 
     // Defer dismiss + switch — we're inside a click event on a child widget
     helix::ui::queue_update("PrinterListOverlay::handle_switch_printer", [printer_id]() {
@@ -217,11 +239,15 @@ void PrinterListOverlay::handle_delete_printer(const std::string& printer_id) {
 
 void PrinterListOverlay::handle_add_printer() {
     spdlog::info("[{}] Add printer requested", get_name());
+    helix::ui::drop_held_connection_failed();
 
     // Defer dismiss + wizard launch — we're inside a click event on a child widget
     helix::ui::queue_update("PrinterListOverlay::handle_add_printer", []() {
         helix::nav::go_back();
-        NavigationManager::instance().trigger_add_printer();
+        // go_back() queues the pop, and the pop hides every stray screen child.
+        // Queued behind it, the add-printer modal opens after that sweep.
+        helix::ui::queue_update("PrinterListOverlay::trigger_add_printer",
+                                []() { NavigationManager::instance().trigger_add_printer(); });
     });
 }
 

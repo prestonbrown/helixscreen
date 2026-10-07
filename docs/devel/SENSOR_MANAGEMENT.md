@@ -22,7 +22,7 @@ Two things share the word "sensor" and are unrelated. The managers below consume
 | Manager | Header / source | Klipper objects it claims | Namespace |
 |---------|-----------------|---------------------------|-----------|
 | `FilamentSensorManager` | `include/filament_sensor_manager.h`, `src/print/filament_sensor_manager.cpp` | `filament_switch_sensor <name>`, `filament_motion_sensor <name>` | `helix` |
-| `TemperatureSensorManager` | `include/temperature_sensor_manager.h`, `src/sensors/temperature_sensor_manager.cpp` | `temperature_sensor <name>`, `temperature_fan <name>`, `tmc2240 <name>`, `tmc5160 <name>` | `helix::sensors` |
+| `TemperatureSensorManager` | `include/temperature_sensor_manager.h`, `src/sensors/temperature_sensor_manager.cpp` | `temperature_sensor <name>`, `temperature_fan <name>`, `heater_generic <name>`, `tmc2240 <name>`, `tmc5160 <name>` | `helix::sensors` |
 | `HumiditySensorManager` | `include/humidity_sensor_manager.h`, `src/sensors/humidity_sensor_manager.cpp` | the chip table in `include/humidity_sensor_types.h` (`bme280`, `htu21d`, `sht3x`, `aht10`, `aht20`, `aht20_f`) | `helix::sensors` |
 | `ProbeSensorManager` | `include/probe_sensor_manager.h`, `src/sensors/probe_sensor_manager.cpp` | `probe`, `bltouch`, `smart_effector`, `cartographer`, `beacon`, `probe_eddy_current <name>` | `helix::sensors` |
 | `AccelSensorManager` | `include/accel_sensor_manager.h`, `src/sensors/accel_sensor_manager.cpp` | config sections for ADXL345, LIS2DW, LIS3DH, MPU9250, ICM20948, plus Beacon's onboard accelerometer | `helix::sensors` |
@@ -119,6 +119,7 @@ A manager only sees fields that `MoonrakerDiscoverySequence::build_subscription_
 | Objects | Fields |
 |---------|--------|
 | temperature sensors, `temperature_fan`, TMC drivers, humidity chips | `temperature`, `humidity` (`temperature_fan` gets `temperature`, `target`, `speed` from the fans loop) |
+| `heater_generic *` | `temperature`, `target`, `power` (from the heaters loop) |
 | `load_cell *` | `force_g` |
 | filament switch/motion sensors | `filament_detected`, `enabled`, `detection_count` |
 | width sensors | `Diameter`, `Raw` |
@@ -254,9 +255,9 @@ Filament fed through an AMS bypass reaches the toolhead through no lane, so the 
 
 ## Temperature Sensors
 
-`TemperatureSensorManager` covers `temperature_sensor`, `temperature_fan` and TMC2240/TMC5160 drivers. `discover()` skips anything named `extruder*` or `heater_bed` and assigns a role and sort priority from the name: CHAMBER (contains `chamber`, priority 0), MCU (contains `mcu`, 10), HOST (`raspberry_pi`, `host_temp`, `host`, `rpi`, or contains `raspberry`, 20), STEPPER_DRIVER (TMC objects, 30), AUXILIARY (everything else, 100). `get_sensors_sorted()` orders by that priority.
+`TemperatureSensorManager` covers `temperature_sensor`, `temperature_fan`, `heater_generic` and TMC2240/TMC5160 drivers. `heater_generic` objects come from `hardware.heaters()` rather than `hardware.sensors()`: `init_subsystems_from_hardware()` (`src/printer/printer_discovery.cpp#init_subsystems_from_hardware`) appends them, which is how filament dryer heaters (Happy Hare `MMU_heater`, QIDI Box `heater_boxN`) reach the temp graph without any filament-backend code. `discover()` skips anything named `extruder*` or `heater_bed` and assigns a role and sort priority from the name: CHAMBER (contains `chamber`, priority 0), MCU (contains `mcu`, 10), HOST (`raspberry_pi`, `host_temp`, `host`, `rpi`, or contains `raspberry`, 20), STEPPER_DRIVER (TMC objects, 30), AUXILIARY (everything else, 100). `get_sensors_sorted()` orders by that priority.
 
-Each sensor gets a heap-allocated `DynamicIntSubject` holding decidegrees, with its own `SubjectLifetime`. Rediscovery removes subjects for vanished sensors in two phases: first expire every orphan's lifetime token, then erase the map entries (whose destructor calls `lv_subject_deinit()`). Consumers fetch a subject and its token together:
+Each sensor gets a heap-allocated `DynamicIntSubject` holding decidegrees for its temperature and its target (`get_temp_subject()` / `get_target_subject()`), both covered by one `SubjectLifetime`. The target reads 0 for objects without one; `klipper_object_has_target()` (`include/temperature_sensor_types.h#klipper_object_has_target`) answers which objects have one (`heater_generic`, `temperature_fan`). Rediscovery removes subjects for vanished sensors in two phases: first expire every orphan's lifetime token, then erase the map entries (whose destructor calls `lv_subject_deinit()`). Consumers fetch a subject and its token together:
 
 ```cpp
 // src/ui/panel_widgets/thermistor_widget.cpp#bind_carousel_sensors
@@ -264,9 +265,9 @@ SubjectLifetime& lifetime = carousel_lifetimes_.emplace_back();
 lv_subject_t* subject = tsm.get_temp_subject(klipper_name, lifetime);
 ```
 
-The thermistor widget observes `temp_sensor_count` to rebind when the sensor set changes.
+The thermistor widget observes `temp_sensor_count` to rebind when the sensor set changes. In single mode it mirrors the selected sensor's temperature and target into per-instance subjects its `temp_display` binds to, and a tap on a sensor with a target opens the keypad and sends through `TemperatureController::set_target(klipper_name, ...)` (`src/ui/panel_widgets/thermistor_widget.cpp#open_target_keypad`). The keypad ceiling is `TemperatureController::keypad_max_for()`: the heater's configfile `max_temp` when the printer reported one, else 120°C.
 
-Chamber sensors whose names lack `chamber` (Snapmaker `cavity`, Elegoo `enclosure`) are promoted by `PrinterState` once discovery resolves the chamber sensor: it calls `apply_chamber_sensor_override(chamber_sensor)` (`src/sensors/temperature_sensor_manager.cpp#apply_chamber_sensor_override`), which demotes the incumbent CHAMBER sensor to an inferred role and promotes the named one. A name the printer does not report is ignored. Without the promotion the temp graph would list the chamber twice. [CHAMBER_HEATER.md](CHAMBER_HEATER.md) owns the chamber heater/sensor assignment rules; the user-facing pick lives in the Settings > Sensors chamber dropdowns.
+Chamber sensors whose names lack `chamber` (Snapmaker `cavity`, Elegoo `enclosure`) are promoted by `PrinterState` once discovery resolves the chamber sensor: it calls `apply_chamber_sensor_override(chamber_sensor, chamber_heater)` (`src/sensors/temperature_sensor_manager.cpp#apply_chamber_sensor_override`), which demotes the incumbent CHAMBER sensor to an inferred role and promotes the named one. A `heater_generic` chamber heater is promoted alongside it, so it is graphed once as "Chamber" and not again as an auxiliary heater; a `temperature_fan` in the heater slot keeps its own role. A sensor name the printer does not report is ignored. Without the promotion the temp graph would list the chamber twice. [CHAMBER_HEATER.md](CHAMBER_HEATER.md) owns the chamber heater/sensor assignment rules; the user-facing pick lives in the Settings > Sensors chamber dropdowns.
 
 ## Humidity Sensors
 

@@ -6,10 +6,7 @@
     The FlowGuard bar itself, at content height, with no opinion about how it
     is placed (#1017).
 
-    Split out of clog_bar_page.xml so the Buffer Status modal can embed the
-    same bar: the page is height="100%" for the carousel cell it fills, and a
-    height="content" dialog cannot host that. Everything below is the bar; the
-    page is now just a centring shell around this.
+    The Clog Detection widget and the Buffer Status modal both embed this bar.
 
     One job per slot, and no slot repeats another: the source on the top left,
     its severity as a glyph on the top right, the reading underneath, and end

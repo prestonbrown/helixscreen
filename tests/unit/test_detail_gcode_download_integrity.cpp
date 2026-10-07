@@ -183,7 +183,8 @@ class DelayedFileTransfers : public MoonrakerFileTransferAPIMock {
     /// Holds the preamble read the operations scan makes, the way hold_transfers
     /// holds the whole-file download.
     void download_file_partial(const std::string& root, const std::string& path, size_t max_bytes,
-                               StringCallback on_success, ErrorCallback on_error) override {
+                               StringCallback on_success, ErrorCallback on_error,
+                               CancelFlag = nullptr) override {
         ++partial_read_count;
         if (!hold_partials) {
             MoonrakerFileTransferAPIMock::download_file_partial(

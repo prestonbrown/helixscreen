@@ -12,6 +12,7 @@ namespace helix::ui {
 
 ClogMeterModel::ClogMeterModel(Callback on_change) : on_change_(std::move(on_change)) {
     auto& ams = AmsState::instance();
+    const auto subjects = ams.clog_meter_subjects();
 
     // Immediate observers: the callbacks below only move geometry and set
     // styles in the renderers, never observer lifecycle (#82).
@@ -32,11 +33,11 @@ ClogMeterModel::ClogMeterModel(Callback on_change) : on_change_(std::move(on_cha
             lifetime, Dispatch::Immediate);
     };
 
-    mode_obs_ = field(&ClogMeterSample::mode, ams.get_clog_meter_mode_subject());
-    value_obs_ = field(&ClogMeterSample::value, ams.get_clog_meter_value_subject());
-    warning_obs_ = field(&ClogMeterSample::warning, ams.get_clog_meter_warning_subject());
-    danger_obs_ = field(&ClogMeterSample::danger_pct, ams.get_clog_meter_danger_pct_subject());
-    peak_obs_ = field(&ClogMeterSample::peak_pct, ams.get_clog_meter_peak_pct_subject());
+    mode_obs_ = field(&ClogMeterSample::mode, subjects.mode);
+    value_obs_ = field(&ClogMeterSample::value, subjects.value);
+    warning_obs_ = field(&ClogMeterSample::warning, subjects.warning);
+    danger_obs_ = field(&ClogMeterSample::danger_pct, subjects.danger_pct);
+    peak_obs_ = field(&ClogMeterSample::peak_pct, subjects.peak_pct);
 
     ready_ = true;
 }

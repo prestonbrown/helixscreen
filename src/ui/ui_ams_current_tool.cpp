@@ -11,6 +11,7 @@
  * - Cleanup on widget deletion
  */
 
+#include "ui_callback_helpers.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
@@ -47,13 +48,6 @@ static void on_delete(lv_event_t* e) {
         s_registry.erase(it);
         spdlog::trace("[AmsCurrentTool] Widget cleaned up");
     }
-}
-
-// Click callback - opens AMS panel (overview for multi-unit, detail for single)
-static void on_clicked(lv_event_t* e) {
-    (void)e;
-    spdlog::debug("[AmsCurrentTool] Clicked - opening AMS panel");
-    navigate_to_ams_panel();
 }
 
 // Post-create hook called after XML creates the widget
@@ -113,7 +107,13 @@ static void on_widget_created(lv_obj_t* widget) {
 // Module initialization - call once during app startup
 void ui_ams_current_tool_init() {
     // Register click callback for XML event_cb [L007]
-    lv_xml_register_event_cb(nullptr, "on_ams_current_tool_clicked", on_clicked);
+    register_xml_callbacks({
+        {"on_ams_current_tool_clicked",
+         [](lv_event_t*) {
+             spdlog::debug("[AmsCurrentTool] Clicked - opening AMS panel");
+             navigate_to_ams_panel();
+         }},
+    });
 
     spdlog::debug("[AmsCurrentTool] Callbacks registered");
 }

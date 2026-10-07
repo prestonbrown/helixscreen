@@ -58,8 +58,10 @@ if [ "$STAGED_ONLY" = true ]; then
   # The firmware/ exclusions mirror the ones above it, which exist because a
   # generated or vendored file is not ours to license. Under firmware/ the same
   # three categories just sit at a different prefix: LVGL font-converter output
-  # (as in assets/fonts/), vendored lv_conf.h, and files vendored from
-  # espressif/esp-bsp that carry their own Apache-2.0 SPDX line. Stamping
+  # (as in assets/fonts/), vendored lv_conf.h, files vendored from
+  # espressif/esp-bsp that carry their own Apache-2.0 SPDX line, and the
+  # vendored esp_websocket_client component (Apache-2.0, upstream's formatting,
+  # see its VENDORED.md). Stamping
   # GPL-3.0 on any of those would be a false licence claim on third-party code.
   # firmware/native-audit is the Phase 0 feasibility audit, self-described
   # throwaway scaffolding committed only for reproducibility.
@@ -71,6 +73,7 @@ if [ "$STAGED_ONLY" = true ]; then
     grep -v '^lv_conf\.h$' | \
     grep -v '/lv_conf\.h$' | \
     grep -v '/simd/esp_lvgl_port_' | \
+    grep -v '^firmware/helixscreen-esp32/components/esp_websocket_client/' | \
     grep -v '^firmware/native-audit/' | \
     grep -v '^node_modules/' | \
     grep -v '^build/' | \
@@ -1850,12 +1853,13 @@ qc_decl_ui() {
 SECTION_START=$(date +%s)
 echo -n "🎨 Checking declarative UI (imperative XML-widget mutation)..."
 
-# Ratcheting baseline. These are XML widgets fetched with lv_obj_find_by_name()
-# and then mutated from C++ instead of bound to a subject. Some predate the gate
+# Ratcheting baseline. These are XML widgets fetched by name (lv_obj_find_by_name(),
+# find_required(), find_optional()) and then mutated from C++ instead of bound
+# to a subject. Some predate the gate
 # as deliberate pragmatism (the XML engine couldn't express it at the time), some
 # are plain mistakes — both are debt. The number may go DOWN (port a site, then
 # lower this baseline) but must never go up.
-if python3 scripts/check_imperative_ui.py --max-allowed 364 --summary >/tmp/imperative_ui.out 2>&1; then
+if python3 scripts/check_imperative_ui.py --max-allowed 323 --summary >/tmp/imperative_ui.out 2>&1; then
   section_time $SECTION_START
   echo ""
   tail -1 /tmp/imperative_ui.out

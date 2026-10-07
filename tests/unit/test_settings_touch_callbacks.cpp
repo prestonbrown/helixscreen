@@ -123,6 +123,21 @@ TEST_CASE_METHOD(TouchCallbacksFixture, "Touch page: the home-edit toggle drives
     CHECK(helix::InputSettingsManager::instance().get_home_edit_mode_enabled());
 }
 
+TEST_CASE_METHOD(TouchCallbacksFixture, "Touch page: the number pad dropdown drives the setting",
+                 "[settings][touch_callbacks][keypad_layout]") {
+    lv_obj_t* dropdown = part("row_keypad_layout", "dropdown");
+    REQUIRE(lv_dropdown_get_selected(dropdown) ==
+            static_cast<uint32_t>(helix::KeypadLayout::PHONE));
+
+    lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(helix::KeypadLayout::CALCULATOR));
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(helix::InputSettingsManager::instance().get_keypad_layout() ==
+          helix::KeypadLayout::CALCULATOR);
+    CHECK_FALSE(restart_prompt_up());
+}
+
 TEST_CASE_METHOD(TouchCallbacksFixture, "Touch page: the scroll guard toggle asks for a restart",
                  "[settings][touch_callbacks]") {
     const bool before = helix::InputSettingsManager::instance().get_scroll_guard();

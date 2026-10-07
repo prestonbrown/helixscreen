@@ -131,11 +131,6 @@ bool heap_snapshot_age_is_plausible(long age_ms, int uptime_sec) {
     return age_ms <= static_cast<long>(uptime_sec) * 1000 + SLACK_MS;
 }
 
-CrashReporter& CrashReporter::instance() {
-    static CrashReporter instance;
-    return instance;
-}
-
 // =============================================================================
 // Lifecycle
 // =============================================================================

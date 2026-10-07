@@ -2,13 +2,19 @@
 
 #include "buffer_status_modal.h"
 
-#include "ui_buffer_meter.h"
 #include "ui_clog_bar.h"
 
+#include "ams_backend.h"
+#include "ams_state.h"
+#include "buffer_reading.h"
+#include "clog_meter_geometry.h"
+#include "observer_factory.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 
@@ -23,6 +29,12 @@ lv_subject_t BufferStatusModal::description_subject_;
 lv_subject_t BufferStatusModal::unsupported_subject_;
 char BufferStatusModal::unsupported_buf_[128];
 char BufferStatusModal::description_buf_[128]{};
+lv_subject_t BufferStatusModal::show_reading_subject_;
+lv_subject_t BufferStatusModal::status_subject_;
+lv_subject_t BufferStatusModal::value_subject_;
+char BufferStatusModal::value_buf_[64]{};
+lv_subject_t BufferStatusModal::target_subject_;
+char BufferStatusModal::target_buf_[48]{};
 lv_subject_t BufferStatusModal::espooler_value_subject_;
 char BufferStatusModal::espooler_buf_[128]{};
 lv_subject_t BufferStatusModal::gear_sync_value_subject_;
@@ -39,9 +51,9 @@ BufferStatusModal::BufferStatusModal() {
 }
 
 BufferStatusModal::~BufferStatusModal() {
-    // Delete both before Modal::~Modal() destroys the dialog tree, so each
-    // can remove its event callbacks from widgets that still exist.
-    delete meter_;
+    // Both go before Modal::~Modal() destroys the dialog tree, so each can
+    // remove its callbacks from widgets that still exist.
+    slider_.reset();
     delete clog_bar_;
     // Subjects are static — never deinited (persist for the process lifetime)
 }
@@ -55,9 +67,13 @@ void BufferStatusModal::init_subjects() {
     lv_subject_init_int(&show_espooler_subject_, 0);
     lv_subject_init_int(&show_flow_subject_, 0);
     lv_subject_init_int(&show_distance_subject_, 0);
+    lv_subject_init_int(&status_subject_, 0);
 
     lv_subject_init_string(&description_subject_, description_buf_, nullptr,
                            sizeof(description_buf_), "");
+    lv_subject_init_int(&show_reading_subject_, 0);
+    lv_subject_init_string(&value_subject_, value_buf_, nullptr, sizeof(value_buf_), "");
+    lv_subject_init_string(&target_subject_, target_buf_, nullptr, sizeof(target_buf_), "");
     lv_subject_init_string(&unsupported_subject_, unsupported_buf_, nullptr,
                            sizeof(unsupported_buf_), "");
     lv_subject_init_string(&espooler_value_subject_, espooler_buf_, nullptr, sizeof(espooler_buf_),
@@ -76,6 +92,10 @@ void BufferStatusModal::init_subjects() {
     lv_xml_register_subject(nullptr, "buf_show_flow", &show_flow_subject_);
     lv_xml_register_subject(nullptr, "buf_show_distance", &show_distance_subject_);
     lv_xml_register_subject(nullptr, "buf_description", &description_subject_);
+    lv_xml_register_subject(nullptr, "buf_show_reading", &show_reading_subject_);
+    lv_xml_register_subject(nullptr, "buf_status", &status_subject_);
+    lv_xml_register_subject(nullptr, "buf_value", &value_subject_);
+    lv_xml_register_subject(nullptr, "buf_target", &target_subject_);
     lv_xml_register_subject(nullptr, "buf_unsupported", &unsupported_subject_);
     lv_xml_register_subject(nullptr, "buf_espooler_value", &espooler_value_subject_);
     lv_xml_register_subject(nullptr, "buf_gear_sync_value", &gear_sync_value_subject_);
@@ -86,45 +106,27 @@ void BufferStatusModal::init_subjects() {
     subjects_initialized_ = true;
 }
 
-namespace helix {
-namespace {
-
-/// The unit's filament pressure sensor, or nullptr when its buffer reports no
-/// pressure (or it has no buffer).
-const BufferHealth* pressure_sensor(const AmsSystemInfo& info, int unit) {
-    if (unit < 0 || unit >= static_cast<int>(info.units.size())) {
-        return nullptr;
-    }
-    const auto& health = info.units[static_cast<std::size_t>(unit)].buffer_health;
-    return health.has_value() && health->fps_reported ? &*health : nullptr;
-}
-
-} // namespace
-} // namespace helix
-
-void BufferStatusModal::populate(const helix::AmsSystemInfo& info, int effective_unit) {
+helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& info,
+                                                 int effective_unit) {
     // Cleared up front: the modal's subjects are static, so a message left from
     // a previous open would otherwise sit under a supported backend's body.
     lv_subject_copy_string(&unsupported_subject_, "");
 
+    // The slider and its words follow this unit's buffer, or with -1 the one
+    // feeding the toolhead.
+    const helix::BufferReading r = helix::buffer_reading(info, effective_unit);
+    lv_subject_set_int(&show_meter_subject_, r.has_slider ? 1 : 0);
+    lv_subject_set_int(&show_reading_subject_, r.present() ? 1 : 0);
+    lv_subject_set_int(&status_subject_, static_cast<int>(r.status));
+    lv_subject_copy_string(&description_subject_, helix::buffer_lean_text(r));
+    const std::string value =
+        r.has_slider ? fmt::format("{} {}", helix::buffer_label(r), helix::buffer_value_text(r))
+                     : helix::buffer_value_text(r);
+    lv_subject_copy_string(&value_subject_, value.c_str());
+    lv_subject_copy_string(&target_subject_, helix::buffer_target_text(r).c_str());
+
     if (info.type == helix::AmsType::HAPPY_HARE) {
         lv_subject_set_int(&type_subject_, 1);
-
-        // Description based on bias
-        bool has_bias = info.sync_feedback_bias > -1.5f;
-        if (has_bias) {
-            float abs_bias = std::fabs(info.sync_feedback_bias);
-            if (abs_bias < 0.02f) {
-                lv_subject_copy_string(&description_subject_,
-                                       lv_tr("Filament tension is balanced"));
-            } else if (info.sync_feedback_bias < 0) {
-                lv_subject_copy_string(&description_subject_, lv_tr("Filament is pulling tight"));
-            } else {
-                lv_subject_copy_string(&description_subject_, lv_tr("Filament is loose"));
-            }
-        } else {
-            lv_subject_copy_string(&description_subject_, "");
-        }
 
         // eSpooler
         if (!info.espooler_state.empty()) {
@@ -157,16 +159,15 @@ void BufferStatusModal::populate(const helix::AmsSystemInfo& info, int effective
             lv_subject_set_int(&show_flow_subject_, 0);
         }
 
-        // Meter visibility
-        lv_subject_set_int(&show_meter_subject_, has_bias ? 1 : 0);
-
     } else if (info.type == helix::AmsType::AFC) {
         lv_subject_set_int(&type_subject_, 2);
-        lv_subject_set_int(&show_meter_subject_, 0);
 
+        // AFC's rows describe one unit's buffer: the one asked for, else the
+        // one the reading came from.
+        const int unit_index = helix::buffer_view_unit(info, effective_unit);
         bool found_health = false;
-        if (effective_unit >= 0 && effective_unit < static_cast<int>(info.units.size())) {
-            const auto& unit = info.units[effective_unit];
+        if (unit_index < static_cast<int>(info.units.size())) {
+            const auto& unit = info.units[static_cast<std::size_t>(unit_index)];
             if (unit.buffer_health.has_value()) {
                 const auto& bh = unit.buffer_health.value();
                 found_health = true;
@@ -201,35 +202,31 @@ void BufferStatusModal::populate(const helix::AmsSystemInfo& info, int effective
             lv_subject_copy_string(&afc_state_subject_, lv_tr("No buffer data available"));
             lv_subject_set_int(&show_distance_subject_, 0);
         }
-    } else if (const helix::BufferHealth* fps = helix::pressure_sensor(info, effective_unit)) {
-        // A filament pressure sensor measures compression only, 0 to 1, so its
-        // reading is the whole story: no tension side, no spool motor.
+    } else if (r.source == helix::BufferSource::Fps) {
+        // A pressure sensor outside AFC (OpenAMS): the reading is all there is.
         lv_subject_set_int(&type_subject_, 3);
-        lv_subject_set_int(&show_meter_subject_, 0);
-        auto text = fmt::format("{} {:.0f}%", lv_tr("Pressure:"), fps->fps_value * 100.0f);
-        lv_subject_copy_string(&description_subject_, text.c_str());
     } else {
         // Neither buffer backend. Stock CFS, AD5X IFS, tool changers, ACE,
-        // Snapmaker and QIDI report none of this - see AmsBackendCfs's own note
-        // that "Stock CFS reports none of these". Every body section binds
-        // hidden unless buf_type is 1 or 2, so without a message here the dialog
-        // renders as a title and two buttons over an empty box, which is what a
-        // K2 Plus owner actually saw. The modal is reachable from the AMS panel
-        // as well as the tile, so this has to answer rather than rely on the
-        // tile's gate.
+        // Snapmaker and QIDI report none of this. Every body section binds
+        // hidden unless buf_type is 1, 2 or 3, so this message is the dialog's
+        // whole body. The modal is reachable from the AMS panel as well as the
+        // tile, so it has to answer rather than rely on the tile's gate.
         lv_subject_set_int(&type_subject_, 0);
-        lv_subject_set_int(&show_meter_subject_, 0);
         lv_subject_copy_string(&unsupported_subject_,
                                lv_tr("This filament system does not report buffer or flow data."));
     }
+    return r;
 }
 
 void BufferStatusModal::on_show() {
-    wire_ok_button("btn_primary");
     wire_cancel_button("btn_close");
-    wire_cancel_button("btn_secondary");
 
-    populate(info_, effective_unit_);
+    if (dialog()) {
+        slider_ = std::make_unique<helix::ui::UiBufferSlider>(
+            helix::ui::find_required(dialog(), "buf_slider", get_name()),
+            helix::ui::find_required(dialog(), "buf_trace", get_name()), effective_unit_);
+    }
+    refresh();
 
     // Apply label/value color distinction AFTER theme_apply_current_palette_to_tree
     // (which runs in Modal::show and forces all labels white on dark backgrounds)
@@ -244,15 +241,16 @@ void BufferStatusModal::on_show() {
         }
     }
 
-    // Create UiBufferMeter programmatically in the meter column
-    bool has_bias = info_.type == helix::AmsType::HAPPY_HARE && info_.sync_feedback_bias > -1.5f;
-    if (has_bias && dialog()) {
-        lv_obj_t* meter_col = lv_obj_find_by_name(dialog(), "meter_col");
-        if (meter_col) {
-            meter_ = new helix::ui::UiBufferMeter(meter_col);
-            meter_->set_bias(info_.sync_feedback_bias);
-        }
-    }
+    // Every row is re-read whenever a backend sync lands or a backend appears
+    // or vanishes, so the modal stays live while it is open. The handler
+    // re-reads the backend rather than trusting the tick.
+    auto& ams = helix::AmsState::instance();
+    revision_observer_ = helix::ui::observe<int>(
+        ams.get_ams_data_revision_subject(), this,
+        [](BufferStatusModal* self, int) { self->refresh(); }, ams.get_subjects_lifetime());
+    backend_observer_ = helix::ui::observe<int>(
+        ams.get_backend_count_subject(), this,
+        [](BufferStatusModal* self, int) { self->refresh(); }, ams.get_subjects_lifetime());
 
     // Drive the clog bar the dialog authored. Unconditional: it reads the same
     // AmsState subjects the home tile does, and clog_bar_body hides itself when
@@ -262,9 +260,19 @@ void BufferStatusModal::on_show() {
     }
 }
 
-void BufferStatusModal::show_for(const helix::AmsSystemInfo& info, int effective_unit) {
+void BufferStatusModal::refresh() {
+    // A vanished backend reads as an empty snapshot, which is the unsupported
+    // message rather than whatever the last backend said.
+    auto* backend = helix::AmsState::instance().get_backend();
+    const auto info = backend ? backend->get_system_info() : helix::AmsSystemInfo{};
+    const helix::BufferReading r = populate(info, effective_unit_);
+    if (slider_) {
+        slider_->set_reading(r.bias, r.status);
+    }
+}
+
+void BufferStatusModal::show_for(int effective_unit) {
     auto modal = std::make_unique<BufferStatusModal>();
-    modal->info_ = info;
     modal->effective_unit_ = effective_unit;
     // Stack-owned one-shot: ModalStack frees the instance when its entry goes
     // (#1382); a failed show leaves the unique_ptr to free it.

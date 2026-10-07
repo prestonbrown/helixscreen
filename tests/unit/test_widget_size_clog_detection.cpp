@@ -6,10 +6,8 @@
  * @brief clog_detection ships as a 2x1 FlowGuard bar, and the bar's pieces land
  *        where clog_bar_geometry() says (prestonbrown/helixscreen#1017).
  *
- * The widget used to default to one cell with an arc, its value and its mode
- * text stacked inside it, which was reported as showing nothing useful. It is
- * now authored two cells wide and one tall, and draws the horizontal scale from
- * clog_bar_page.xml.
+ * The widget is authored two cells wide and one tall, and draws the horizontal
+ * scale from clog_bar_body.xml.
  *
  * Two things are worth pinning. The registry half — the default and minimum
  * really are 2x1 in tracks, so a fresh placement cannot come up cramped and a
@@ -19,10 +17,11 @@
  * leave everything stacked at x=0 rather than erroring.
  */
 
-#include "ui_buffer_meter.h"
 #include "ui_clog_bar.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/buffer_infos.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "ams_state.h"
 #include "clog_detection_config_modal.h"
@@ -31,6 +30,8 @@
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "src/ui/panel_widgets/clog_detection_widget.h"
+
+#include <string_view>
 
 #include "../catch_amalgamated.hpp"
 
@@ -94,7 +95,7 @@ TEST_CASE("clog_detection is authored two cells wide and one tall",
 TEST_CASE_METHOD(LVGLUITestFixture, "clog_detection lays the bar out from the measured track",
                  "[widget_size][clog_detection][1017]") {
     PanelWidgetManager::instance().init_widget_subjects();
-    // The bar reads AmsState's clog_meter_* subjects, and clog_bar_page.xml
+    // The bar reads AmsState's clog_meter_* subjects, and clog_bar_body.xml
     // binds its labels to them, so they must exist before the page is built.
     AmsState::instance().init_subjects(true);
 
@@ -302,4 +303,35 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clog_detection draws the threshold over the
 
     // Drawn after the fill, which is what keeps it visible through one.
     CHECK(lv_obj_get_index(rule) > lv_obj_get_index(fill));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "clog_detection is the bar alone",
+                 "[widget_size][clog_detection]") {
+    PanelWidgetManager::instance().init_widget_subjects();
+    AmsState::instance().init_subjects(true);
+
+    PanelWidgetHarness<ClogDetectionWidget> h(test_screen());
+    REQUIRE(h.root() != nullptr);
+    CHECK(h.child("filament_health_carousel") == nullptr);
+    CHECK(h.child("clog_bar_track") != nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "clog_detection: a pressure sensor alone is not a clog detector",
+                 "[widget_size][clog_detection]") {
+    PanelWidgetManager::instance().init_widget_subjects();
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+
+    // The gate hides the widget when its subject reads 0 (gate_hint_if_gated),
+    // so the decision is the subject plus the def's gate name.
+    const auto* def = find_widget_def("clog_detection");
+    REQUIRE(def != nullptr);
+    REQUIRE(def->hardware_gate_subject != nullptr);
+    lv_subject_t* gate = lv_xml_get_subject(nullptr, def->hardware_gate_subject);
+    REQUIRE(gate != nullptr);
+    CHECK(std::string_view(def->hardware_gate_subject) == "clog_meter_mode");
+
+    AmsStateTestAccess::sync_clog_meter(ams, test::fps_units({0.71f}));
+    CHECK(lv_subject_get_int(gate) == 0);
 }

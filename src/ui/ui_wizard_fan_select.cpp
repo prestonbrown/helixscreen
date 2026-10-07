@@ -17,6 +17,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_hardware.h"
 #include "static_panel_registry.h"
+#include "ui/ui_widget_helpers.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -96,7 +97,8 @@ static void update_next_button_state() {
     // Update status text visibility and content
     lv_obj_t* screen = step->get_screen_root();
     if (screen) {
-        lv_obj_t* status_text = lv_obj_find_by_name(screen, "fan_status_text");
+        lv_obj_t* status_text =
+            helix::ui::find_required(screen, "fan_status_text", "WizardFanSelectStep");
         if (status_text) {
             if (valid) {
                 lv_obj_add_flag(status_text, LV_OBJ_FLAG_HIDDEN);
@@ -246,7 +248,8 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
 
     // Find and configure hotend fan dropdown
     // Event handler is wired via XML <event_cb>
-    lv_obj_t* hotend_dropdown = lv_obj_find_by_name(screen_root_, "hotend_fan_dropdown");
+    lv_obj_t* hotend_dropdown =
+        helix::ui::find_required(screen_root_, "hotend_fan_dropdown", get_name());
     if (hotend_dropdown) {
         lv_dropdown_set_options(hotend_dropdown, hotend_options_str.c_str());
         helix::ui::wizard::restore_dropdown_selection(
@@ -257,7 +260,8 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
 
     // Find and configure part fan dropdown
     // Event handler is wired via XML <event_cb>
-    lv_obj_t* part_dropdown = lv_obj_find_by_name(screen_root_, "part_cooling_fan_dropdown");
+    lv_obj_t* part_dropdown =
+        helix::ui::find_required(screen_root_, "part_cooling_fan_dropdown", get_name());
     if (part_dropdown) {
         lv_dropdown_set_options(part_dropdown, part_options_str.c_str());
         helix::ui::wizard::restore_dropdown_selection(
@@ -269,7 +273,8 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
     size_t fan_count = api ? api->hardware().fans().size() : 0;
     bool show_optional_fans = fan_count > 2;
 
-    lv_obj_t* optional_row = lv_obj_find_by_name(screen_root_, "optional_fans_row");
+    lv_obj_t* optional_row =
+        helix::ui::find_required(screen_root_, "optional_fans_row", get_name());
     if (!show_optional_fans) {
         if (optional_row) {
             lv_obj_add_flag(optional_row, LV_OBJ_FLAG_HIDDEN);
@@ -311,7 +316,8 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
         exhaust_fan_items_.insert(exhaust_fan_items_.begin(), "None");
 
         // Find and configure chamber fan dropdown
-        lv_obj_t* chamber_dropdown = lv_obj_find_by_name(screen_root_, "chamber_fan_dropdown");
+        lv_obj_t* chamber_dropdown =
+            helix::ui::find_required(screen_root_, "chamber_fan_dropdown", get_name());
         if (chamber_dropdown) {
             lv_dropdown_set_options(chamber_dropdown, chamber_options_str.c_str());
             helix::ui::wizard::restore_dropdown_selection(
@@ -321,7 +327,8 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
         }
 
         // Find and configure exhaust fan dropdown
-        lv_obj_t* exhaust_dropdown = lv_obj_find_by_name(screen_root_, "exhaust_fan_dropdown");
+        lv_obj_t* exhaust_dropdown =
+            helix::ui::find_required(screen_root_, "exhaust_fan_dropdown", get_name());
         if (exhaust_dropdown) {
             lv_dropdown_set_options(exhaust_dropdown, exhaust_options_str.c_str());
             helix::ui::wizard::restore_dropdown_selection(

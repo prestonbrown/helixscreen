@@ -94,8 +94,9 @@ class MacrosPanel : public OverlayBase {
      * @brief Refresh all_macros_ from the discovered hardware (sorted, incl.
      * `_`-prefixed). No-op when no IMoonrakerAPI is available (leaves the
      * current list intact — used for both mock and reconnect timing).
+     * @return true when the list changed
      */
-    void refresh_macros();
+    bool refresh_macros();
 
     /**
      * @brief Recompute displayed_ from all_macros_, size + populate the five

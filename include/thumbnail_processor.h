@@ -340,10 +340,13 @@ class ThumbnailProcessor {
     /**
      * @brief Generate cache filename for a source/target combination
      *
-     * Format: {hash}_{w}x{h}_{format}.bin
+     * Format: {cache_key}_{w}x{h}_{format}.bin
      * Example: a1b2c3d4_160x160_ARGB8888.bin
+     *
+     * @param cache_key ThumbnailCache::compute_hash() of the source, taken when the work is
+     *        requested: it names the printer, which can change before a queued job runs.
      */
-    std::string generate_cache_filename(const std::string& source_path,
+    std::string generate_cache_filename(const std::string& cache_key,
                                         const ThumbnailTarget& target) const;
 
     /**
@@ -355,6 +358,7 @@ class ThumbnailProcessor {
      * 4. Convert to ARGB8888 if needed
      * 5. Write LVGL binary header + pixel data
      *
+     * @param cache_key The source's cache key, taken when the work was requested
      * @param cache_dir Cache directory path (passed explicitly for thread safety)
      * @param journal Write listener, or nullptr. Snapshotted by the caller
      *        alongside @p cache_dir for the same reason: the pair must describe
@@ -364,7 +368,8 @@ class ThumbnailProcessor {
      *        task can never contend with a shutdown() that is waiting on it.
      */
     ProcessResult do_process(const std::vector<uint8_t>& png_data, const std::string& source_path,
-                             const ThumbnailTarget& target, const std::string& cache_dir,
+                             const std::string& cache_key, const ThumbnailTarget& target,
+                             const std::string& cache_dir,
                              const std::shared_ptr<ThumbnailWriteJournal>& journal);
 
     /// Marshal a finished ProcessResult back to the main thread and fire the

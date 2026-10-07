@@ -1,0 +1,12 @@
+# Debug-only overlay for hunting heap corruption; never part of the release defaults.
+# Built by scripts/esp32_build_debug_heap.sh, which layers it on sdkconfig.defaults in its
+# own build directory.
+#
+# Comprehensive poisoning checks each block's head and tail canaries on every heap
+# operation and fills freed memory, so an overwrite or a use-after-free faults at the
+# next allocator call on that block instead of surfacing later as a garbage value.
+# Task tracking records which task allocated each block, named in the heap dump.
+# Per block this adds the same 12 bytes as light poisoning, plus 4 for the task; the
+# difference from light is CPU time on every malloc and free.
+CONFIG_HEAP_POISONING_COMPREHENSIVE=y
+CONFIG_HEAP_TASK_TRACKING=y

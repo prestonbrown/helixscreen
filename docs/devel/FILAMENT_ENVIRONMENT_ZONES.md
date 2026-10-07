@@ -65,7 +65,7 @@ heater is shared or per-lane.
 | `src/ui/ui_zone_presentation.cpp` | Their implementations. LVGL-free and translation-free: callers pass translated words in |
 | `include/ams_backend.h` | `get_environment_zones()` - the sixth dryer-family virtual - and the five it sits beside |
 | `src/printer/ams_backend.cpp` | `AmsBackend::get_environment_zones` - the default walk every backend gets for free |
-| `src/printer/ams_backend_happy_hare.cpp` | The one hardware override, plus `gates_suffix_for_unit()` and the `MMU_HEATER` command shapes |
+| `src/printer/ams_backend_happy_hare.cpp` | The one hardware override, plus `heater_suffix_locked()` and the `MMU_HEATER` command shapes |
 | `src/printer/ams_backend_mock.cpp` | Zone-shape rigs for the six `HELIX_MOCK_AMS_ENV` modes; the only caller of `queue_zones_waiting_for_the_cap()` |
 | `include/ui_ams_environment_overlay.h`, `src/ui/ui_ams_environment_overlay.cpp` | Detail overlay + tab selector, `open_environment_for_unit()`, the dryer control call sites |
 | `include/ui_ams_zone_overview_overlay.h`, `src/ui/ui_ams_zone_overview_overlay.cpp` | The zone list, its status text and unit grouping |
@@ -404,12 +404,14 @@ that heater's own live reading, the second from the zone's folded state. The tem
 **ceiling** is likewise one global `heater_max_temp`, so a Happy Hare rig's zones share a
 ceiling even though `env_temp_range` is published per zone.
 
-**`gates_suffix_for_unit(unit)`** builds the `GATES=` selector appended to every `MMU_HEATER`
-command:
+**`heater_suffix_locked(unit)`** builds the target appended to every `MMU_HEATER` command:
 
-- `unit < 0`, or a single-unit MMU, returns the empty string, so Happy Hare targets all non-empty
+- On a Happy Hare 4 install with more than one unit it starts with `" UNIT=<unit>"`: v4
+  refuses `MMU_HEATER` without one there. `unit < 0` there becomes one command per unit with a
+  heater (`heater_targets_for_unit()`), since `UNIT=ALL` stops at the first unit without one.
+- `unit < 0`, or a single-unit MMU, adds no `GATES=`, so Happy Hare targets all non-empty
   gates - the whole-MMU behavior.
-- Otherwise it returns `" GATES=g,g,g"` listing **every** gate on that unit, empty gates
+- Otherwise it adds `" GATES=g,g,g"` listing **every** gate on that unit, empty gates
   included. Per-gate occupancy filtering is a refinement we cannot verify: nobody here owns an
   EMU rig.
 
@@ -495,7 +497,7 @@ target rather than following a bad guess. No other `AmsState` wiring is needed.
   per-lane for display while a Start on any one of them commands the whole unit. Independently
   drying a subset of gates, per-gate countdowns, and the `HUMIDITY=` termination target are open
   in **#1026**.
-- **Per-gate occupancy filtering is unwritten and unverifiable here.** `gates_suffix_for_unit()`
+- **Per-gate occupancy filtering is unwritten and unverifiable here.** `heater_suffix_locked()`
   lists empty gates along with loaded ones. We own no EMU rig; the per-gate paths are unit-tested
   against synthetic status frames only.
 - **Nothing infers a concurrency cap.** `Queued` is only ever a firmware report folded by

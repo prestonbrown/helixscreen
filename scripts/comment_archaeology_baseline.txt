@@ -80,7 +80,6 @@
 1 tests/unit/test_panel_widget_config.cpp
 1 tests/unit/test_panel_widget_manager.cpp
 1 tests/unit/test_panel_widget_temp_graph.cpp
-1 tests/unit/test_power_device_widget_teardown_uaf.cpp
 1 tests/unit/test_power_panel_print_lock.cpp
 2 tests/unit/test_preflight_check_modal.cpp
 1 tests/unit/test_print_history_manager.cpp

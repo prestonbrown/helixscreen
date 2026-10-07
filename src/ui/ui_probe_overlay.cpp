@@ -42,7 +42,6 @@ using helix::sensors::ProbeSensorType;
 // ============================================================================
 
 // Forward declarations
-static void on_probe_row_clicked(lv_event_t* e);
 IMoonrakerAPI* get_moonraker_api();
 IMoonrakerClient* get_moonraker_client();
 
@@ -56,17 +55,16 @@ ProbeOverlay::~ProbeOverlay() {
 }
 
 void init_probe_row_handler() {
-    lv_xml_register_event_cb(nullptr, "on_probe_row_clicked", on_probe_row_clicked);
+    register_xml_callbacks({
+        {"on_probe_row_clicked",
+         [](lv_event_t*) {
+             spdlog::debug("[Probe] Probe row clicked");
+             auto& overlay = get_global_probe_overlay();
+             overlay.set_api(get_moonraker_api());
+             overlay.show(lv_display_get_screen_active(nullptr));
+         }},
+    });
     spdlog::trace("[Probe] Row click callback registered");
-}
-
-static void on_probe_row_clicked(lv_event_t* e) {
-    (void)e;
-    spdlog::debug("[Probe] Probe row clicked");
-
-    auto& overlay = get_global_probe_overlay();
-    overlay.set_api(get_moonraker_api());
-    overlay.show(lv_display_get_screen_active(nullptr));
 }
 
 // ============================================================================

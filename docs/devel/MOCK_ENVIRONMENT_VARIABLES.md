@@ -925,6 +925,11 @@ Append additional Klipper objects to the mock's advertised object list, so capab
 HELIX_MOCK_OBJECTS="temperature_fan chamber heater_generic chamber_heater" \
   ./build/bin/helix-screen --test -vv
 
+# A filament dryer heater that is not the chamber: graphed as its own
+# series, heats toward a target set with SET_HEATER_TEMPERATURE HEATER=filament_dryer
+HELIX_MOCK_OBJECTS="heater_generic filament_dryer" \
+  ./build/bin/helix-screen --test -vv
+
 # Materialize the dragonbreath chamber-heater trio: heater, diagnostics
 # object, and filter-fan output pin (drives status frames, SET_PIN
 # round-trip, and a configfile max_temp of 75)
@@ -932,7 +937,7 @@ HELIX_MOCK_OBJECTS="heater_generic dragonbreath dragonbreath output_pin dragonbr
   ./build/bin/helix-screen --test -vv
 ```
 
-**Two-word object names are reassembled by prefix.** The parser splits on whitespace, then treats a token starting with `heater_generic`, `temperature_fan`, `temperature_sensor`, or `output_pin` as the start of a *new* object and glues any following tokens onto the current one. So `temperature_fan chamber` becomes the single object `temperature_fan chamber`. A token that is not a prefix glues onto the current object — with one exception: a token that exactly names a chamber-heater backend's diagnostics object (e.g. the bare `dragonbreath` after a completed `heater_generic dragonbreath`) starts a new standalone object instead of appending. A chamber heater accepted from this list also replaces the mock profile's built-in chamber heater. Each accepted object is logged as `[MoonrakerClientMock] Added mock object: <name>`.
+**Two-word object names are reassembled by prefix.** The parser splits on whitespace, then treats a token starting with `heater_generic`, `temperature_fan`, `temperature_sensor`, or `output_pin` as the start of a *new* object and glues any following tokens onto the current one. So `temperature_fan chamber` becomes the single object `temperature_fan chamber`. A token that is not a prefix glues onto the current object — with one exception: a token that exactly names a chamber-heater backend's diagnostics object (e.g. the bare `dragonbreath` after a completed `heater_generic dragonbreath`) starts a new standalone object instead of appending. A chamber heater accepted from this list also replaces the mock profile's built-in chamber heater. Any other `heater_generic` is simulated on its own (`src/api/moonraker_client_mock.cpp#append_aux_heater_status`): it starts at 25°C with no target, steps 1°C per simulated second toward the target `SET_HEATER_TEMPERATURE HEATER=<bare name>` gives it, and reports `temperature`, `target` and `power`. Each accepted object is logged as `[MoonrakerClientMock] Added mock object: <name>`.
 
 ### `HELIX_MOCK_DETECTION_CAPABLE`
 
@@ -1133,6 +1138,22 @@ HELIX_MOCK_AMS=afc HELIX_MOCK_BUFFER_STATE=fault ./build/bin/helix-screen --test
 ```
 
 Note that `fault` does not report a distinct state string — it reports `Trailing` with a distance deep inside the threshold, which is what a real imminent fault looks like.
+
+### Buffer reading scenarios
+
+Mock scenarios that put a filament buffer reading on the Filament Buffer widget, the loaded-spool card, the path box and the Buffer Status modal. Apply one with `helix-screen ctl scenario <name>` (they drive the mock AMS backend, so the whole reading chain runs). `buffer_fps*` set the pressure sensor on the mock AMS units, so they work with any `HELIX_MOCK_AMS` type but Happy Hare; `sync_feedback_tight` is Happy Hare's. The set point is 50% unless noted.
+
+| Scenario | Reading |
+|----------|---------|
+| `buffer_fps` | Pressure 32%, below the set point: running tight, amber |
+| `buffer_fps_loose` | Pressure 71%, above the set point: running loose, red |
+| `buffer_fps_on_target` | Pressure 52%: balanced, neutral grey |
+| `buffer_fps_danger` | Pressure 8%, pinned near the tight end: red |
+| `buffer_fps_no_target` | Pressure 32% with no set point: "Pressure: 32%" as text, no slider |
+| `buffer_fps_with_clog` | Pressure 32% plus AFC fault detection reporting, so the buffer reading and the clog arc show together |
+| `sync_feedback_tight` | Happy Hare sync feedback at -45%, leaning to tension; labelled "Sync" |
+
+The trace holds each reading as a step, so a scenario change shows as a step in the last minute.
 
 ### `HELIX_MOCK_THROTTLE`
 

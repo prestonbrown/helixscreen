@@ -6,6 +6,7 @@
 #include "ui_button.h"
 
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -100,8 +101,8 @@ void TourOverlay::build_tree() {
     // Find the skip/next buttons and attach static callbacks.
     // Exception: per-instance closure — XML event_cb can't pass `this` captures.
     // These buttons live and die with the overlay, so no static pointer hazards.
-    lv_obj_t* skip_btn = lv_obj_find_by_name(tooltip_, "tour_skip_btn");
-    lv_obj_t* next_btn = lv_obj_find_by_name(tooltip_, "tour_next_btn");
+    lv_obj_t* skip_btn = helix::ui::find_required(tooltip_, "tour_skip_btn", "TourOverlay");
+    lv_obj_t* next_btn = helix::ui::find_required(tooltip_, "tour_next_btn", "TourOverlay");
     if (skip_btn) {
         lv_obj_add_event_cb(skip_btn, on_skip_cb, LV_EVENT_CLICKED, this);
     }
@@ -229,9 +230,9 @@ void TourOverlay::place_tooltip(const lv_area_t& target_rect, bool has_target, T
 void TourOverlay::update_tooltip_text(const TourStep& step, size_t index, size_t total) {
     if (!tooltip_)
         return;
-    lv_obj_t* title = lv_obj_find_by_name(tooltip_, "tour_title");
-    lv_obj_t* body = lv_obj_find_by_name(tooltip_, "tour_body");
-    lv_obj_t* next_btn = lv_obj_find_by_name(tooltip_, "tour_next_btn");
+    lv_obj_t* title = helix::ui::find_required(tooltip_, "tour_title", "TourOverlay");
+    lv_obj_t* body = helix::ui::find_required(tooltip_, "tour_body", "TourOverlay");
+    lv_obj_t* next_btn = helix::ui::find_required(tooltip_, "tour_next_btn", "TourOverlay");
 
     if (title)
         lv_label_set_text(title, lv_tr(step.title_key.c_str()));
@@ -248,7 +249,7 @@ void TourOverlay::update_tooltip_text(const TourStep& step, size_t index, size_t
 }
 
 void TourOverlay::update_counter(size_t index, size_t total) {
-    lv_obj_t* counter = lv_obj_find_by_name(tooltip_, "tour_counter");
+    lv_obj_t* counter = helix::ui::find_required(tooltip_, "tour_counter", "TourOverlay");
     if (!counter)
         return;
     char buf[16];

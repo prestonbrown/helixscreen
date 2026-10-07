@@ -563,7 +563,7 @@ void SpoolWizardOverlay::update_step_label() {
 
     // Update header title directly
     if (overlay_root_) {
-        lv_obj_t* title = lv_obj_find_by_name(overlay_root_, "header_title");
+        lv_obj_t* title = helix::ui::find_required(overlay_root_, "header_title", get_name());
         if (title) {
             lv_label_set_text(title, step_label_buf_);
         }
@@ -980,7 +980,6 @@ void SpoolWizardOverlay::populate_vendor_list() {
 
     lv_obj_t* vendor_list = helix::ui::find_required(overlay_root_, "vendor_list", get_name());
     if (!vendor_list) {
-        spdlog::error("[{}] vendor_list widget not found", get_name());
         return;
     }
 
@@ -1002,13 +1001,13 @@ void SpoolWizardOverlay::populate_vendor_list() {
         lv_obj_set_user_data(row, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
 
         // Set vendor name
-        lv_obj_t* name_label = lv_obj_find_by_name(row, "vendor_name");
+        lv_obj_t* name_label = helix::ui::find_required(row, "vendor_name", get_name());
         if (name_label) {
             lv_label_set_text(name_label, vendor.name.c_str());
         }
 
         // Set source badge
-        lv_obj_t* source_label = lv_obj_find_by_name(row, "vendor_source");
+        lv_obj_t* source_label = helix::ui::find_required(row, "vendor_source", get_name());
         if (source_label) {
             // A vendor not yet on the server is one the user is creating.
             lv_label_set_text(source_label, vendor.from_server
@@ -1366,7 +1365,6 @@ void SpoolWizardOverlay::populate_filament_list() {
 
     lv_obj_t* filament_list = helix::ui::find_required(overlay_root_, "filament_list", get_name());
     if (!filament_list) {
-        spdlog::error("[{}] filament_list widget not found", get_name());
         return;
     }
 
@@ -1388,14 +1386,14 @@ void SpoolWizardOverlay::populate_filament_list() {
         lv_obj_set_user_data(row, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
 
         // Set color swatch
-        lv_obj_t* swatch = lv_obj_find_by_name(row, "color_swatch");
+        lv_obj_t* swatch = helix::ui::find_required(row, "color_swatch", get_name());
         if (swatch && !fil.color_hex.empty()) {
             uint32_t color_val = std::strtoul(fil.color_hex.c_str(), nullptr, 16);
             helix::ui::apply_swatch_color(swatch, color_val, "");
         }
 
         // Set combined material - name label
-        lv_obj_t* material_label = lv_obj_find_by_name(row, "filament_material");
+        lv_obj_t* material_label = helix::ui::find_required(row, "filament_material", get_name());
         if (material_label) {
             std::string display = fil.material;
             if (!fil.name.empty()) {
@@ -1405,7 +1403,7 @@ void SpoolWizardOverlay::populate_filament_list() {
         }
 
         // Set temps label
-        lv_obj_t* temps_label = lv_obj_find_by_name(row, "filament_temps");
+        lv_obj_t* temps_label = helix::ui::find_required(row, "filament_temps", get_name());
         if (temps_label) {
             char temp_buf[32] = {};
             if (fil.nozzle_temp_max > 0) {
@@ -1794,7 +1792,7 @@ void SpoolWizardOverlay::cancel_search_timer() {
 }
 
 void SpoolWizardOverlay::apply_search_text() {
-    lv_obj_t* input = overlay_root_ ? lv_obj_find_by_name(overlay_root_, "vendor_search") : nullptr;
+    lv_obj_t* input = helix::ui::find_required(overlay_root_, "vendor_search", get_name());
     const char* text = input ? lv_textarea_get_text(input) : nullptr;
     const std::string query = text ? text : "";
     spdlog::debug("[SpoolWizard] search settled on '{}'", query);

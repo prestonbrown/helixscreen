@@ -354,7 +354,8 @@ std::vector<TempGraphSeriesSpec> TempGraphWidget::build_series_from_config() con
         // Heaters have targets, sensors generally don't
         spec.show_target =
             (spec.klipper_name == "extruder" || spec.klipper_name.find("extruder") == 0 ||
-             spec.klipper_name == "heater_bed" || spec.klipper_name == "chamber");
+             spec.klipper_name == "heater_bed" || spec.klipper_name == "chamber" ||
+             sensors::klipper_object_has_target(spec.klipper_name));
         specs.push_back(std::move(spec));
     }
     return specs;
@@ -429,7 +430,8 @@ void TempGraphWidget::build_default_config() {
     auto& sensor_mgr = sensors::TemperatureSensorManager::instance();
     auto discovered = sensor_mgr.get_sensors_sorted();
     for (const auto& sensor : discovered) {
-        if (!sensor.enabled)
+        // The chamber's own objects are the "chamber" row above.
+        if (!sensor.enabled || sensor.role == sensors::TemperatureSensorRole::CHAMBER)
             continue;
         sensors.push_back({
             {"name", sensor.klipper_name},
@@ -552,7 +554,7 @@ TempGraphWidget::TempGraphConfigModal::sensor_display_name(const std::string& kl
 
     // Strip common prefixes for auxiliary sensors
     std::string display = klipper_name;
-    const char* prefixes[] = {"temperature_sensor ", "temperature_fan "};
+    const char* prefixes[] = {"temperature_sensor ", "temperature_fan ", "heater_generic "};
     for (const char* prefix : prefixes) {
         if (display.find(prefix) == 0) {
             display = display.substr(strlen(prefix));

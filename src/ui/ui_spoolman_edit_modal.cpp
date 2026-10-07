@@ -3,6 +3,7 @@
 
 #include "ui_spoolman_edit_modal.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_keyboard_manager.h"
 #include "ui_spool_canvas.h"
 #include "ui_toast_manager.h"
@@ -609,14 +610,46 @@ void SpoolEditModal::register_callbacks() {
         return;
     }
 
-    lv_xml_register_event_cb(nullptr, "spoolman_edit_close_cb", on_close_cb);
-    lv_xml_register_event_cb(nullptr, "spoolman_edit_field_changed_cb", on_field_changed_cb);
-    lv_xml_register_event_cb(nullptr, "spoolman_edit_reset_cb", on_reset_cb);
-    lv_xml_register_event_cb(nullptr, "spoolman_edit_save_cb", on_save_cb);
-    lv_xml_register_event_cb(nullptr, "spoolman_edit_color_clicked_cb", on_color_clicked_cb);
+    register_xml_callbacks({
+        {"spoolman_edit_close_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_close();
+             }
+         }},
+        {"spoolman_edit_field_changed_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_field_changed();
+             }
+         }},
+        {"spoolman_edit_reset_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_reset();
+             }
+         }},
+        {"spoolman_edit_save_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_save();
+             }
+         }},
+        {"spoolman_edit_color_clicked_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_color_clicked();
+             }
+         }},
 #if HELIX_HAS_LABEL_PRINTER
-    lv_xml_register_event_cb(nullptr, "spoolman_edit_print_label_cb", on_print_label_cb);
+        {"spoolman_edit_print_label_cb",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_print_label();
+             }
+         }},
 #endif
+    });
 
     callbacks_registered_ = true;
     spdlog::debug("[SpoolEditModal] Callbacks registered");
@@ -636,49 +669,5 @@ SpoolEditModal* SpoolEditModal::get_instance_from_event(lv_event_t* e) {
     }
     return active_instance_;
 }
-
-void SpoolEditModal::on_close_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_close();
-    }
-}
-
-void SpoolEditModal::on_field_changed_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_field_changed();
-    }
-}
-
-void SpoolEditModal::on_reset_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_reset();
-    }
-}
-
-void SpoolEditModal::on_save_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_save();
-    }
-}
-
-void SpoolEditModal::on_color_clicked_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_color_clicked();
-    }
-}
-
-#if HELIX_HAS_LABEL_PRINTER
-void SpoolEditModal::on_print_label_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_print_label();
-    }
-}
-#endif
 
 } // namespace helix::ui

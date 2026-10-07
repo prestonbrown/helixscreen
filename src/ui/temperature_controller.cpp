@@ -125,6 +125,16 @@ float TemperatureController::effective_keypad_max(HeaterType type, float fallbac
     return cap > 0.0f ? cap : fallback_deg;
 }
 
+float TemperatureController::keypad_max_for(const std::string& klipper_name,
+                                            float fallback_deg) const {
+    if (api_) {
+        const auto& limits = api_->get_safety_limits();
+        if (limits.has_max_temp_for(klipper_name))
+            return static_cast<float>(limits.max_temp_for(klipper_name));
+    }
+    return fallback_deg;
+}
+
 void TemperatureController::ensure_limits(HeaterType type) {
     if (!api_ || model_[idx(type)].configured_max > 0) {
         return;

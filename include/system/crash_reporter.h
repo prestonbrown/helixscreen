@@ -47,7 +47,11 @@ bool heap_snapshot_age_is_plausible(long age_ms, int uptime_sec);
 
 class CrashReporter {
   public:
-    static CrashReporter& instance();
+    CrashReporter() = default;
+    ~CrashReporter() = default;
+
+    CrashReporter(const CrashReporter&) = delete;
+    CrashReporter& operator=(const CrashReporter&) = delete;
 
     /**
      * @brief Initialize crash reporter with config directory
@@ -272,12 +276,6 @@ class CrashReporter {
     static constexpr const char* GITHUB_REPO = "prestonbrown/helixscreen";
 
   private:
-    CrashReporter() = default;
-    ~CrashReporter() = default;
-
-    CrashReporter(const CrashReporter&) = delete;
-    CrashReporter& operator=(const CrashReporter&) = delete;
-
     std::string config_dir_;
     bool initialized_ = false;
     bool isolated_log_paths_ = false; ///< Test-only: skip system log search

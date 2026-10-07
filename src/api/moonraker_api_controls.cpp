@@ -713,8 +713,10 @@ void MoonrakerAPI::update_safety_limits_from_printer(SuccessCallback on_success,
 
             // Extract temperature limits from heater configurations
             for (const auto& [key, value] : settings.items()) {
+                // temperature_fan targets are settable too (the thermistor tile).
                 if ((key.find("extruder") != std::string::npos ||
-                     key.find("heater_") != std::string::npos) &&
+                     key.find("heater_") != std::string::npos ||
+                     key.rfind("temperature_fan ", 0) == 0) &&
                     value.is_object()) {
                     if (value.contains("max_temp") && value["max_temp"].is_number()) {
                         double max_temp = value["max_temp"].get<double>();

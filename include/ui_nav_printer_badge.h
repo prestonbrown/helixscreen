@@ -12,6 +12,10 @@
 
 namespace helix::ui {
 
+/// The color of a connection dot for a printer_connection_state value: connected,
+/// connecting or reconnecting, and anything else.
+lv_color_t connection_dot_color(int connection_state);
+
 /**
  * @brief The navbar's printer badge: its connection dot and the switch menu it opens
  *

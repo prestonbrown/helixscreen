@@ -35,6 +35,7 @@
 #include "ui_ams_mini_status.h"
 #include "ui_bed_mesh.h"
 #include "ui_card.h"
+#include "ui_change_host_modal.h"
 #include "ui_component_header_bar.h"
 #include "ui_dialog.h"
 #include "ui_emergency_stop.h"
@@ -58,6 +59,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "asset_manager.h"
+#include "async_lifetime_guard.h"
 #include "config.h"
 #include "config_storage.h"
 #include "connection_state.h"
@@ -65,26 +67,35 @@
 #include "esp_heap_caps.h"
 #include "esp_http_lane.h"
 #include "esp_log.h"
+#include "esp_moonraker_client.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "filament_sensor_manager.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "helix_fs.h"
 #include "helix_sparkline.h"
+#include "http_request_epoch.h"
 #include "i_moonraker_client.h"
 #include "job_queue_state.h"
+#include "lap_log.h"
 #include "led/led_controller.h"
 #include "moonraker_api.h" // complete MoonrakerAPI : IMoonrakerAPI for the init_panels upcast
 #include "moonraker_manager.h"
 #include "moonraker_types.h" // FileInfo/FileMetadata/ThumbnailInfo/resolve_thumbnail_path — HTTP HIL probe
 #include "panel_factory.h"
+#include "panel_widget_manager.h"
 #include "pending_startup_warnings.h"
 #include "print_history_manager.h"
 #include "printer_discovery.h" // helix::PrinterDiscovery + init_subsystems (discovery callback args)
 #include "printer_fan_state.h" // helix::FanRoleConfig for the non-mock fan-role resolve
+#include "printer_name_sync.h"
+#include "printer_retarget.h"
 #include "printer_state.h"
+#include "printer_switch_flow.h"
 #include "runtime_config.h"
 #include "safety_settings_manager.h"
+#include "scroll_blit.h"
 #include "sdkconfig.h"
 #include "setting_group.h"
 #include "src/xml/lv_xml.h"
@@ -104,12 +115,12 @@
 
 #include <spdlog/spdlog.h>
 
+#include <atomic>
 #include <string>
 
 #if !CONFIG_HELIX_MOCK_PRINTER
 // Non-mock (real connect) path only — WiFi bring-up (Task 13, over the shared
 // WifiBackend) + Moonraker connect thread.
-#include "async_lifetime_guard.h"
 #include "provisioning_esp.h"
 #include "wall_clock_esp.h"
 #include "wifi_backend_esp.h"
@@ -143,6 +154,9 @@ namespace {
 // file scope so app_boot_tick() can pump its notification/timeout queues from
 // the render loop. Set once app_boot_ui() completes; null before then.
 MoonrakerManager* g_manager = nullptr;
+
+// When the current live switch started, for the tap-to-connected log; 0 when none is running.
+int64_t g_switch_started_us = 0;
 
 // One-shot boot heap milestone. heap_caps_get_largest_free_block() walks the
 // heap in a critical section, so this is called only at discrete boot
@@ -213,6 +227,135 @@ void register_widgets() {
     ui_component_header_bar_init();
 }
 
+// The restart fallback of a live switch: boot connects to the active printer, with every
+// heap back at its boot state. The label is the only feedback, drawn synchronously because
+// nothing runs after it.
+// Fallback restarts since the panel last stayed connected for HEALTHY_UPTIME_US. Past the
+// cap the panel stays up and keeps reconnecting instead, so neither an unreachable printer
+// nor a weak link that connects briefly between failures becomes a boot loop.
+constexpr int MAX_FALLBACK_RESTARTS = 2;
+constexpr int64_t HEALTHY_UPTIME_US = 10LL * 60 * 1000 * 1000;
+
+void restart_into_active_printer() {
+    helix::Config* config = helix::Config::get_instance();
+    const int streak = config->get<int>("/switch_restart_streak", 0);
+    if (streak >= MAX_FALLBACK_RESTARTS) {
+        ESP_LOGE(TAG, "app_boot: %d fallback restarts without a connection; staying up", streak);
+        return;
+    }
+    lv_obj_t* label = lv_label_create(lv_layer_top());
+    const std::string text =
+        fmt::format(fmt::runtime(lv_tr("Switching to {}")), config->get_active_printer_name());
+    lv_label_set_text(label, text.c_str());
+    lv_obj_center(label);
+    lv_refr_now(nullptr);
+
+    // Counted across restarts: how often a switch fell back, and how many in a row.
+    const int fallbacks = config->get<int>("/switch_restart_fallbacks", 0) + 1;
+    config->set<int>("/switch_restart_fallbacks", fallbacks);
+    config->set<int>("/switch_restart_streak", streak + 1);
+    config->save();
+    ESP_LOGW(TAG, "app_boot: restarting into printer '%s' (switch fallback #%d, %d in a row)",
+             config->get_active_printer_id().c_str(), fallbacks, streak + 1);
+    esp_restart();
+}
+
+// The WebSocket task's 8 KB internal stack plus headroom. The stopped task deleted itself and
+// the idle task frees its stack, which this thread outranks, so wait one beat before looking.
+constexpr size_t WS_STACK_RESERVE_BYTES = 10 * 1024;
+
+bool ws_stack_available() {
+    vTaskDelay(pdMS_TO_TICKS(20));
+    const size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+    ESP_LOGI(TAG, "[switch] internal free=%u largest=%u (need %u)",
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL), (unsigned)largest,
+             (unsigned)WS_STACK_RESERVE_BYTES);
+    return largest >= WS_STACK_RESERVE_BYTES;
+}
+
+// Discovery right after a connect allocates internal RAM in a burst (at boot the largest
+// block briefly drops below 8 KB). A switch whose discovery never lands on a live connection
+// would leave the panel half-switched, so it restarts into the printer instead. An unreachable
+// printer is left to the normal reconnect loop.
+constexpr uint32_t SWITCH_DISCOVERY_TIMEOUT_MS = 30000;
+
+void arm_switch_watchdog() {
+    static lv_timer_t* timer = nullptr;
+    if (timer) {
+        lv_timer_delete(timer);
+    }
+    timer = lv_timer_create(
+        [](lv_timer_t*) {
+            timer = nullptr; // one-shot: LVGL deletes it after this run
+            if (g_switch_started_us == 0) {
+                return;
+            }
+            helix::IMoonrakerClient* client = g_manager ? g_manager->client() : nullptr;
+            // Change Host's Test borrows the client for another host, connected with no
+            // discovery by design; only a connection to the switched-to printer counts.
+            if (client && client->get_last_url() != helix::active_printer_ws_url()) {
+                ESP_LOGI(TAG, "[switch] client lent to another host; watchdog stands down");
+                return;
+            }
+            if (client && client->get_connection_state() == helix::ConnectionState::CONNECTED) {
+                ESP_LOGW(TAG, "[switch] connected but no discovery after %u ms",
+                         (unsigned)SWITCH_DISCOVERY_TIMEOUT_MS);
+                restart_into_active_printer();
+                return;
+            }
+            ESP_LOGW(TAG, "[switch] printer not reachable yet; reconnecting continues");
+        },
+        SWITCH_DISCOVERY_TIMEOUT_MS, nullptr);
+    lv_timer_set_repeat_count(timer, 1);
+}
+
+// The K-Touch's hooks for the shared switch flow: one connection is retargeted in place, and
+// the shell stays built. A printer whose home layout differs gets its home grid rebuilt.
+helix::PrinterSwitchFlow& switch_flow() {
+    static helix::Config* config = helix::Config::get_instance();
+    static helix::AsyncLifetimeGuard lifetime;
+    static helix::PrinterSwitchFlow flow(
+        config, lifetime,
+        {[] { g_switch_started_us = esp_timer_get_time(); },
+         [] {
+             helix::LapLog laps("switch rebuild");
+             if (!helix::retarget_printer_connection()) {
+                 restart_into_active_printer();
+             }
+             laps.lap("retarget");
+             arm_switch_watchdog();
+             // The flow still names the previous printer until the switch completes.
+             const std::string& previous_id = switch_flow().connected_printer_id();
+             if (config->get<nlohmann::json>("/printers/" + previous_id + "/panel_widgets", {}) !=
+                 config->get<nlohmann::json>(config->df() + "panel_widgets", {})) {
+                 helix::PanelWidgetManager::instance().notify_config_changed("home");
+                 laps.lap("home grid");
+             }
+         },
+         [] {
+             NavigationManager::instance().request_panel(helix::PanelId::Home,
+                                                         NavigationManager::SwitchDispatch::Queued);
+         }});
+    return flow;
+}
+
+void wire_printer_callbacks() {
+    // The transport worker starts each new WebSocket task only once the stopped one's
+    // stack is back; when it is not, or a task will not stop, the panel restarts onto the
+    // saved printer rather than run without a connection.
+    helix::EspMoonrakerClient::set_before_transport_start(ws_stack_available);
+    helix::EspMoonrakerClient::set_transport_stall_handler([] {
+        helix::ui::queue_update("app_boot::transport_stall", [] { restart_into_active_printer(); });
+    });
+    switch_flow().set_connected_printer_id(helix::Config::get_instance()->get_active_printer_id());
+    NavigationManager::instance().set_printer_callbacks(
+        [](const std::string& printer_id) { switch_flow().request_switch(printer_id); },
+        [] {
+            helix::ui::show_add_printer_modal(
+                [](const std::string& host, int port) { switch_flow().add_printer(host, port); });
+        });
+}
+
 // Build the app shell: app_layout.xml instantiates the navbar and all six
 // panels resident-and-hidden (the desktop memory model), then PanelFactory
 // finds + wires them. Mirrors Application::init_ui() (application.cpp:1721).
@@ -236,6 +379,7 @@ bool build_shell() {
         return false;
     }
     NavigationManager::instance().wire_events(navbar);
+    wire_printer_callbacks();
 
     lv_obj_t* panel_container = lv_obj_find_by_name(content_area, "panel_container");
     if (!panel_container) {
@@ -429,7 +573,14 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
         // Copy on the BG thread so the queued main-thread callback owns a stable,
         // non-aliased snapshot (desktop #761/#789 lesson).
         auto snapshot = std::make_shared<helix::PrinterDiscovery>(hardware);
-        helix::ui::queue_update("app_boot::on_hardware_discovered", [snapshot]() {
+        // Read on the WebSocket task. A switch stops the previous printer's task before
+        // connect() moves the epoch, so the previous printer's work carries the old value
+        // and is dropped when it reaches the UI thread.
+        const uint64_t epoch = helix::http_epoch::current();
+        helix::ui::queue_update("app_boot::on_hardware_discovered", [snapshot, epoch]() {
+            if (epoch != helix::http_epoch::current()) {
+                return;
+            }
             helix::sensors::TemperatureSensorManager::instance().discover(snapshot->sensors());
         });
     });
@@ -441,14 +592,26 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
                           initial_status.is_object() ? initial_status.size() : 0);
             auto snapshot = std::make_shared<helix::PrinterDiscovery>(hardware);
             auto status_snapshot = std::make_shared<const nlohmann::json>(initial_status);
+            const uint64_t epoch = helix::http_epoch::current();
             helix::ui::queue_update("app_boot::on_discovery_complete", [mgr, snapshot,
-                                                                        status_snapshot]() {
+                                                                        status_snapshot, epoch]() {
+                if (epoch != helix::http_epoch::current()) {
+                    spdlog::info("[app_boot] dropping discovery queued for the previous printer");
+                    return;
+                }
                 helix::PrinterState& ps = get_printer_state();
+                helix::LapLog laps("app_boot discovery");
 
                 // Hardware into PrinterState first — init_fans / init_extruders
                 // build their subjects from it, and set_hardware seeds the
                 // capability flags the home/motion panels read.
+                // Macros, the probe's bed centre and delta detection read the API's copy.
+                // A copy: the lines below still read *snapshot.
+                if (IMoonrakerAPI* a = mgr->api()) {
+                    a->hardware() = *snapshot;
+                }
                 ps.set_hardware(*snapshot);
+                laps.lap("set hardware");
 
                 const auto& fans = snapshot->fans();
                 ps.fan_state().init_fans(
@@ -458,6 +621,7 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
 
                 ps.set_klipper_version(snapshot->software_version());
                 ps.set_moonraker_version(snapshot->moonraker_version());
+                laps.lap("fans, extruders, versions");
 
                 IMoonrakerAPI* api = mgr->api();
                 helix::IMoonrakerClient* c = mgr->client();
@@ -475,6 +639,7 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
                 // macros, probe/humidity/width sensors, and camera-adjacent
                 // subsystems stay deferred (Task 8 review's enumeration).
                 helix::AmsState::instance().init_backend_from_hardware(*snapshot, api, c);
+                laps.lap("filament backends");
                 if (snapshot->has_filament_sensors()) {
                     auto& fsm = helix::FilamentSensorManager::instance();
                     fsm.discover_sensors(snapshot->filament_sensor_names());
@@ -482,10 +647,14 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
                 }
                 helix::ToolState::instance().init_tools(*snapshot);
                 helix::ToolState::instance().load_spool_assignments(api);
+                laps.lap("sensors, tools, spools");
+                // Names a printer added from the K-Touch after its Mainsail/Fluidd name.
+                helix::PrinterNameSync::resolve(api, snapshot->hostname());
                 if (c) {
                     // Graphs start from Moonraker's cached history, as on desktop.
                     helix::TempGraphController::seed_from_moonraker(*c);
                 }
+                laps.lap("name sync, graph seed");
 
                 // Dispatch the initial subscription status LAST, after the
                 // fan/sensor/extruder/AMS subjects exist. dispatch_status_update
@@ -501,7 +670,13 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
                 if (c && status_snapshot->is_object() && !status_snapshot->empty()) {
                     c->dispatch_status_update(*status_snapshot, /*from_cached_snapshot=*/true);
                 }
+                laps.lap("initial status");
 
+                if (g_switch_started_us != 0) {
+                    spdlog::info("[app_boot] printer switch connected in {} ms",
+                                 (esp_timer_get_time() - g_switch_started_us) / 1000);
+                    g_switch_started_us = 0;
+                }
                 spdlog::info("[app_boot] discovery applied: {} heaters, {} fans, {} sensors, "
                              "{} initial-status keys",
                              snapshot->heaters().size(), snapshot->fans().size(),
@@ -713,6 +888,18 @@ extern "C" void app_boot_set_touch_available(bool available) {
     s_touch_available = available;
 }
 
+extern "C" void app_boot_set_retained_frame(uint8_t* buf, size_t stride, uint8_t* scratch,
+                                            size_t scratch_bytes,
+                                            bool (*claim_rows)(int32_t, int32_t)) {
+    if (!buf) {
+        helix::scroll_blit_uninstall();
+        return;
+    }
+    helix::scroll_blit_install(
+        lv_display_get_default(),
+        helix::RetainedFrame{buf, stride, scratch, scratch_bytes, claim_rows});
+}
+
 extern "C" void app_boot_print_notifications(void) {
     static const char* const kSeverity[] = {"INFO", "SUCCESS", "WARNING", "ERROR"};
     const auto entries = NotificationHistory::instance().get_all();
@@ -824,6 +1011,7 @@ extern "C" void app_boot_ui(void) {
     // Phase 8: core subjects (PrinterState / AmsState).
     static SubjectInitializer subjects;
     subjects.init_core_and_state();
+    get_printer_state().set_active_printer_name(config->get_active_printer_name());
 
     // Bring LedController up with no API yet so its `led_controllable` and
     // `led_command_in_flight` subjects are registered for XML before the
@@ -1010,6 +1198,19 @@ extern "C" void app_boot_tick(void) {
     // discovery, and live status streaming are all up, so this reads budgets
     // under real load. It runs once, so it can afford the largest-block walk
     // log_heap_milestone takes; the per-frame loop never may.
+    // Ten minutes up and connected: a later fallback restart is not part of a loop.
+    static bool restart_streak_cleared = false;
+    if (!restart_streak_cleared && esp_timer_get_time() > HEALTHY_UPTIME_US && g_manager &&
+        g_manager->client() &&
+        g_manager->client()->get_connection_state() == helix::ConnectionState::CONNECTED) {
+        restart_streak_cleared = true;
+        helix::Config* cfg = helix::Config::get_instance();
+        if (cfg->get<int>("/switch_restart_streak", 0) != 0) {
+            cfg->set<int>("/switch_restart_streak", 0);
+            cfg->save();
+        }
+    }
+
     static bool steady_logged = false;
     if (!steady_logged && esp_timer_get_time() > 60000000LL) {
         steady_logged = true;

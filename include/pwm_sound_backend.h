@@ -56,7 +56,7 @@ class PWMSoundBackend : public SoundBackend {
     void clear_render_source() override;
 
     /// Write the channel to pwmchipN/export when initialize() finds it missing.
-    /// Defaults on for HELIX_PWM_AUTO_EXPORT builds; call before initialize().
+    /// Off by default; call before initialize().
     void set_auto_export(bool on) {
         auto_export_ = on;
     }
@@ -68,11 +68,11 @@ class PWMSoundBackend : public SoundBackend {
         klippy_shares_channel_ = shared;
     }
 
-    /// Default audible floor, before HELIX_PWM_MIN_NOTE_MS overrides it.
-    /// Call before initialize().
-    void set_min_note_ms(float ms) {
-        min_note_ms_ = ms;
-    }
+    /// A user-named buzzer channel: the HELIX_PWM_SOUND override when it is
+    /// set, else the saved setting, each as "<chip>:<channel>". A malformed
+    /// value is skipped with a warning. Returns false when neither names one.
+    static bool resolve_channel(const std::string& setting, const char* env, int& chip,
+                                int& channel);
 
     /// Disable the initialized channel. Async-signal-safe (lseek + write on a
     /// cached fd), for the SIGTERM fast exit.

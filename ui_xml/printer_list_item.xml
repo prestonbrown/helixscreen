@@ -20,9 +20,10 @@
           width="16" src="check" size="xs" variant="secondary" clickable="false" event_bubble="true" style_text_opa="0"/>
     <!-- Printer name -->
     <text_body name="printer_name" clickable="false" event_bubble="true" flex_grow="1" style_text_opa="255"/>
-    <!-- Connection status dot -->
+    <!-- Connection status dot: only the connected printer's state is known, so the list shows
+         it on that row alone -->
     <lv_obj name="connection_dot"
-            width="8" height="8" style_radius="32767" style_bg_color="#success" style_bg_opa="255"
+            width="8" height="8" hidden="true" style_radius="32767" style_bg_color="#success" style_bg_opa="255"
             style_border_width="0" style_pad_all="0" clickable="false" event_bubble="true" scrollable="false"/>
     <!-- Delete button (hidden when only 1 printer) -->
     <icon name="delete_btn" src="delete" size="sm" variant="danger" clickable="true" hidden="true">

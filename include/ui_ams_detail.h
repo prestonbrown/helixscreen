@@ -7,6 +7,7 @@
 #include "ui_ams_slot_layout.h"
 #include "ui_insert_notice.h"
 
+#include "ams_types.h"
 #include "lvgl/lvgl.h"
 
 /**
@@ -129,6 +130,21 @@ void ams_detail_pre_show_env_indicator(AmsDetailWidgets& w, int unit_index);
 
 namespace helix {
 namespace ui {
+/// What the path canvas's buffer box draws for one view.
+struct BufferBoxState {
+    bool present = false;
+    int state = 0;             ///< Coil shape: 0 neutral, 1 compressed, 2 tension
+    const char* label = "BUF"; ///< "FPS" for a filament pressure sensor
+    /// ClogMeterStatus: the AFC fault distance or the buffer bands, worse wins;
+    /// -1 for a pressure reading with no set point, which draws untinted.
+    int fault = 0;
+    float bias = -2.0f; ///< The reading's bias, or -2 with no proportional reading
+};
+
+/// The buffer box for @p unit_index; -1 is the whole-backend view, which shows
+/// the system-level reading (buffer_reading(info, -1)).
+BufferBoxState ams_detail_buffer_box(const AmsSystemInfo& info, int unit_index);
+
 /**
  * @brief Disable the slot widgets of bays in an absent unit, enable the rest
  *

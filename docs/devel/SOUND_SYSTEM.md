@@ -77,11 +77,11 @@ The sequencer thread sleeps on a condition variable when idle (no sound playing,
 
 | Order | Backend | Condition | Target Hardware |
 |-------|---------|-----------|-----------------|
-| 0 | PWM | `HELIX_PWM_SOUND=<chip>:<channel>` set (Pi, ad5m builds) and the channel exports | A buzzer the user wired to a PWM pin |
+| 0 | PWM | `/sound/pwm_channel` setting (or the `HELIX_PWM_SOUND` override) names `<chip>:<channel>` (pi, pi32, x86, yocto, native and ad5m builds) and the channel exports | A buzzer the user wired to a PWM pin |
 | 1 | SDL | `#ifdef HELIX_DISPLAY_SDL` + `SDL_OpenAudioDevice` succeeds | Desktop/simulator |
 | 2 | ALSA | `#ifdef HELIX_HAS_ALSA` + ALSA PCM device opens (saved/env device, then `default`) | Linux SBCs with audio hardware |
 | 3 | JzPwm | `#ifdef HELIX_HAS_JZ_PWM` (ad5x builds) + `/dev/jz_pwm` exists and fx-pwm is executable | AD5X piezo (on-rig install) |
-| 4 | PWM | ad5m/ad5m-br builds only: `pwmchip0/pwm6`, auto-exported by `initialize()` | AD5M hardware buzzer |
+| 4 | PWM | ad5m/ad5m-br builds only, unnamed: `pwmchip0/pwm6`, auto-exported by `initialize()` | AD5M hardware buzzer |
 | 5 | M300 | Printer answers M300 gcode: a beeper `output_pin` or an M300 macro in objects/list, or the `speaker` capability override forced on — plus a `MoonrakerClient` set via `set_moonraker_client()` | Klipper printers with a gcode beeper (no local audio) |
 | 6 | None | All above failed | Sounds silently disabled |
 
@@ -128,7 +128,7 @@ The sequencer adapts to what the backend can do. Features not supported by the b
 |---------|-----------|-----------|--------|-----------|-------------|-------|
 | SDL     | yes       | yes       | yes    | yes       | 1.0         | Full synthesis: 4 waveforms, biquad filter, 64-sample buffer (~1.5ms) |
 | ALSA    | yes       | yes       | yes    | yes       | 1.0         | Same synthesis as SDL, hardware-negotiated buffer size |
-| PWM     | no*       | yes       | no     | no        | 20.0        | Tone mode: waveform approximation via duty cycle ratios, sequencer per-tick. 20 ms is the audible floor (HELIX_PWM_MIN_NOTE_MS, clamped 10-100) — every theme step sounds at least that long. If a PWM build ever enables tracker, its note fallback is the PC-speaker mode below |
+| PWM     | no*       | yes       | no     | no        | 20.0        | Tone mode: waveform approximation via duty cycle ratios, sequencer per-tick. 20 ms is the audible floor (HELIX_PWM_MIN_NOTE_MS, clamped 10-100) — every theme step sounds at least that long. Tones only: [buzzers play no music](#buzzers-play-no-music-pwm-m300) |
 | M300    | no        | no        | no     | no        | 50.0        | Frequency only, 100-10000 Hz, deduplicates commands; sequencer drives per-tick |
 | JzPwm   | yes       | yes       | no     | yes       | 20.0        | AD5X piezo: full per-sample synthesis (ADSR/sweep/LFO/waveforms via VoiceSlot), 4-voice chords, one duty-encoded buffer per theme step; tracker PC-speaker mode drives it through set_voice (mods on the piezo) |
 
@@ -218,17 +218,15 @@ The piezo demodulates duty encoding (verified by ear and tuner: chords
 rendered this way are recognizable), with its ~5 kHz mechanical resonance
 coloring the timbre bright.
 
-### PWM tracker playback: PC-speaker mode (PWM backends)
+### Buzzers play no music (PWM, M300)
 
-`supports_render_source()` returns **false** on PWM, so tracker playback (MOD music) on a PWM backend routes through the note fallback: `TrackerPlayer::apply_to_backend()` computes each channel's note frequency (`3546895 / period`) and calls `set_voice()`, whose base implementation forwards slot 0 to `set_tone()` -- the channel-0 lead line as note-frequency square waves, PC-speaker style. Channels 1-3 are dropped (single sysfs channel), and instrument samples are not reproduced (their note pitches are).
+`SoundManager::can_play_music()` is true only for a backend that renders audio (`supports_render_source()`: SDL, ALSA) or has several voices (`voice_count() > 1`: the AD5X's JzPwm). Everywhere else `play_file()` refuses music and the Test Tracker row hides (`settings_music_available`, set by `AudioSettingsManager::refresh_backend_subjects()`), so a buzzer plays theme tones and alerts only.
+
+A single voice carries one note at a time, and a MOD gives it nothing to choose by. No field says which channel holds the melody, and drums are samples triggered at pitches: Crockett's Theme fires its ride cymbal and snare at periods 160-320, above the tune, so "highest note" picks cymbals. A per-instrument pitch count does not separate drums from synths either (Space Debris plays a snare at 7 pitches and a synth at 2). A single voice renders these songs unrecognizably, whether it plays the highest voice or a Game Boy-style arpeggio (ear-tested on an AD5M).
 
 This is a hardware verdict, not a preference: verified on an AD5M Pro 2026-08-30, the buzzer is a resonant piezo with no reconstruction filter, so a duty-modulated carrier demodulates as static -- an audible beat, not music. Note-frequency square waves are what the transducer is built for.
 
-**Known limitation**: while a tracker melody plays, tone SFX are dropped (the sound manager only layers SFX under a tracker on render-source backends); ALARM-priority sounds still stop the tracker and reclaim the channel.
-
-Tone efficiency: the fallback re-sends the same note every tracker tick, so `set_tone()` deduplicates held tones (keyed on the written period/duty values, mirroring `M300SoundBackend::last_freq_`), and `silence()` guards against the per-tick rest spam (the fallback calls `silence_voice(0)` every sequencer tick — 20 ms at the PWM floor — through rests).
-
-The Makefile withholds `HELIX_HAS_TRACKER` from ad5m/ad5m-br: the note fallback runs on the sequencer thread (SCHED_OTHER, a 2 ms tick, no print-state gating), which is the shape that starves a single-core CPU during a print, so tracker stays off there until the fallback is measured against a running print. Tracker builds are the Pi family, x86, native, and unified MIPS (`mips k1 ad5x`, where the JzPwm backend drives the same PC-speaker path with per-note buffers). `HELIX_PWM_AUTO_EXPORT` still applies to ad5m/ad5m-br for tone SFX.
+Tracker builds are the Pi family, x86, native and unified MIPS (`mips k1 ad5x`, where the JzPwm backend drives a PC-speaker path with per-note buffers). ad5m/ad5m-br build no tracker: their buzzer could not play it anyway, and the note path runs on the sound thread of a single core. `HELIX_PWM_AUTO_EXPORT` still applies to ad5m/ad5m-br for tone SFX.
 
 ### PWM PCM machinery (dormant)
 
@@ -273,7 +271,7 @@ different silicon, not a config difference. Note-rate tones via sysfs (or M300
 through klippy) are the permanent ceiling on the AD5M. A kernel module could
 only be an hrtimer-driven MMIO writer, which is still per-sample CPU — and PCM
 is acoustically dead on this piezo anyway (the transducer verdict in
-[PC-speaker mode](#pwm-tracker-playback-pc-speaker-mode-ad5m) above).
+[Buzzers play no music](#buzzers-play-no-music-pwm-m300) above).
 
 ---
 

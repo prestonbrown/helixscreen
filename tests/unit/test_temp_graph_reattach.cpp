@@ -206,7 +206,7 @@ TEST_CASE_METHOD(TempGraphReattachFixture,
 
     TempGraphControllerConfig cfg;
     cfg.series = {{"heater_bed", lv_color_hex(0x88C0D0), false, "Bed"},
-                  {"heater_generic chamber", lv_color_hex(0xA3BE8C), false, "Chamber"}};
+                  {"chamber", lv_color_hex(0xA3BE8C), false, "Chamber"}};
     auto controller = std::make_unique<TempGraphController>(test_screen(), cfg);
     REQUIRE(controller->is_valid());
     constexpr int64_t slot = UI_TEMP_GRAPH_SAMPLE_INTERVAL_SEC * 1000;

@@ -31,29 +31,12 @@
 using namespace helix;
 using helix::test::has_clicked_handler;
 using helix::test::paints_press_wash;
+using helix::test::row_with_label;
 
 namespace {
 
 lv_obj_t* create_row(lv_obj_t* parent, const char* component, const char** attrs = nullptr) {
     return static_cast<lv_obj_t*>(lv_xml_create(parent, component, attrs));
-}
-
-/// The clickable ancestor of the label under @p root whose text is @p text.
-lv_obj_t* row_with_label(lv_obj_t* root, const char* text) {
-    const uint32_t n = lv_obj_get_child_count(root);
-    for (uint32_t i = 0; i < n; ++i) {
-        lv_obj_t* child = lv_obj_get_child(root, static_cast<int32_t>(i));
-        if (lv_obj_check_type(child, &lv_label_class)) {
-            const char* t = lv_label_get_text(child);
-            if (t && std::strcmp(t, text) == 0) {
-                return lv_obj_has_flag(root, LV_OBJ_FLAG_CLICKABLE) ? root : nullptr;
-            }
-        }
-        if (lv_obj_t* found = row_with_label(child, text)) {
-            return found;
-        }
-    }
-    return nullptr;
 }
 
 } // namespace
@@ -141,10 +124,10 @@ TEST_CASE_METHOD(PowerPickerRowsFixture,
                  "[press_wash][power_device_widget][1297]") {
     using Access = PowerDeviceWidgetTestAccess;
     auto widget = std::make_unique<PowerDeviceWidget>("power_device:1");
-    Access::set_parent_screen(*widget, test_screen());
+    Access::set_screen(*widget, test_screen(), lv_obj_create(test_screen()));
     Access::show_picker(*widget);
 
-    lv_obj_t* backdrop = Access::picker_backdrop(*widget);
+    lv_obj_t* backdrop = Access::backdrop(test_screen());
     REQUIRE(backdrop != nullptr);
     lv_obj_t* row = row_with_label(backdrop, "All Devices");
     REQUIRE(row != nullptr);
@@ -157,7 +140,7 @@ TEST_CASE_METHOD(PowerPickerRowsFixture,
     CHECK(row_with_label(backdrop, hashed.c_str()) != nullptr);
 
     lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
-    CHECK(Access::picker_backdrop(*widget) == nullptr);
-    CHECK(Access::active_picker() == nullptr);
+    CHECK_FALSE(Access::picker_visible(*widget));
+    CHECK(Access::device_name(*widget) == "__all__");
     process_lvgl(50);
 }

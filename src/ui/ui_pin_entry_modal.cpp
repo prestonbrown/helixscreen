@@ -16,6 +16,7 @@
 #include "ui_utils.h"
 
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -106,7 +107,7 @@ void PinEntryModal::create() {
     }
 
     // Set heading text
-    lv_obj_t* heading_lbl = lv_obj_find_by_name(dialog_, "pin_heading");
+    lv_obj_t* heading_lbl = helix::ui::find_required(dialog_, "pin_heading", "PinEntryModal");
     if (heading_lbl) {
         lv_label_set_text(heading_lbl, heading_.c_str());
     }

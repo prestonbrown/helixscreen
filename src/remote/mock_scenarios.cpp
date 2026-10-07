@@ -64,6 +64,9 @@ static void apply_clog_state(const std::function<void(AmsBackendMock&)>& mutate)
     // chain (source precedence, thresholds, label text) runs exactly as it does
     // when a printer pushes an update.
     AmsState::instance().sync_from_backend();
+    // What a backend event does after its sync, so surfaces that re-read the
+    // backend on a revision tick (the Buffer Status modal) see it too.
+    AmsState::instance().bump_data_revision();
 }
 
 /// Encoder state at a given headroom, in the shape Happy Hare reports it.
@@ -91,9 +94,22 @@ static EncoderClogInfo encoder_at(float headroom, float min_headroom) {
 static void clear_clog_sources(AmsBackendMock& mock) {
     mock.set_encoder_clog_info(EncoderClogInfo{}, /*detection_mode_flag=*/0);
     mock.set_flowguard_info(FlowguardInfo{});
+    mock.set_sync_feedback_bias(-2.0f);
     for (int u = 0; u < 4; ++u) {
         mock.set_unit_buffer_health(u, std::nullopt);
     }
+}
+
+/// A filament pressure sensor on unit 0 reading `pressure` against
+/// `set_point` (-1: none published), and nothing else measuring. Read as such
+/// by every simulated type but Happy Hare, whose buffer is system-level.
+static void set_fps(AmsBackendMock& mock, float pressure, float set_point = 0.5f) {
+    clear_clog_sources(mock);
+    BufferHealth h;
+    h.fps_value = h.smoothed_fps = pressure;
+    h.fps_set_point = set_point;
+    h.fps_reported = true;
+    mock.set_unit_buffer_health(0, h);
 }
 
 static std::vector<MockScenario> clog_scenarios() {
@@ -187,6 +203,44 @@ static std::vector<MockScenario> clog_scenarios() {
                          h.state = "Trailing";
                          h.distance_to_fault = 1.5f; // close to the threshold
                          m.set_unit_buffer_health(0, h);
+                     });
+                 }});
+
+    s.push_back({"buffer_fps", "Filament pressure sensor below its set point (pulling tight)",
+                 []() { apply_clog_state([](AmsBackendMock& m) { set_fps(m, 0.32f); }); }});
+
+    s.push_back({"buffer_fps_loose", "Filament pressure sensor above its set point (loose)",
+                 []() { apply_clog_state([](AmsBackendMock& m) { set_fps(m, 0.71f); }); }});
+
+    s.push_back({"buffer_fps_on_target", "Filament pressure sensor on its set point",
+                 []() { apply_clog_state([](AmsBackendMock& m) { set_fps(m, 0.52f); }); }});
+
+    s.push_back({"buffer_fps_danger", "Filament pressure sensor pinned near the tight end",
+                 []() { apply_clog_state([](AmsBackendMock& m) { set_fps(m, 0.08f); }); }});
+
+    s.push_back({"buffer_fps_no_target", "Filament pressure sensor with no set point",
+                 []() { apply_clog_state([](AmsBackendMock& m) { set_fps(m, 0.32f, -1.0f); }); }});
+
+    s.push_back({"buffer_fps_with_clog",
+                 "Filament pressure sensor and AFC fault detection both reporting", []() {
+                     apply_clog_state([](AmsBackendMock& m) {
+                         set_fps(m, 0.32f);
+                         BufferHealth h;
+                         h.fps_value = h.smoothed_fps = 0.32f;
+                         h.fps_set_point = 0.5f;
+                         h.fps_reported = true;
+                         h.fault_detection_enabled = true;
+                         h.error_sensitivity = 7.0f;
+                         h.state = "Trailing";
+                         h.distance_to_fault = 1.5f;
+                         m.set_unit_buffer_health(0, h);
+                     });
+                 }});
+
+    s.push_back({"sync_feedback_tight", "Happy Hare sync feedback leaning to tension", []() {
+                     apply_clog_state([](AmsBackendMock& m) {
+                         clear_clog_sources(m);
+                         m.set_sync_feedback_bias(-0.45f);
                      });
                  }});
 

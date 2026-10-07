@@ -27,7 +27,7 @@ namespace helix::ui {
  * UiClogBar (ui_clog_bar.h). This class had a second "fill mode" presentation
  * built for that widget, with a danger-zone arc, a peak-hold marker and
  * endpoint labels; the bar replaced it (#1017) and it went with it. The
- * readouts it drew are not lost — clog_bar_page.xml binds the labels directly,
+ * readouts it drew are not lost — clog_bar_body.xml binds the labels directly,
  * and clog_bar_geometry() places the danger band and peak tick.
  */
 class UiClogMeter {

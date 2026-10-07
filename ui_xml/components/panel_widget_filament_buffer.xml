@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!--
+    Filament Buffer home widget: where the buffer between the feeder and the
+    extruder sits against its target.
+
+    The upright slider (UiBufferSlider draws into buffer_slider_box) stands
+    alone on the left; the reading sits beside it, coloured as the block is.
+    1x1: the number over its label. 2x1 (filament_buffer_wide): the number and
+    its target, the last minute as a line (buffer_trace), then the label
+    and the lean in words. A reading with no set point (buffer_slider 0) has no
+    slider and no trace: 1x1 keeps the number over the label, 2x1 says
+    "Pressure: n%" in one value.
+  -->
+  <styles>
+    <!-- 1x1: the number centred over its label. 2x1: the reading column takes
+         the width the slider leaves, left aligned. -->
+    <style name="buffer_info_narrow" flex_cross_place="center"/>
+    <style name="buffer_info_wide" flex_grow="1" flex_cross_place="start"/>
+  </styles>
+  <view name="panel_widget_filament_buffer"
+        extends="lv_obj" width="100%" height="100%" style_pad_all="#buffer_tile_pad" style_pad_gap="#space_sm"
+        flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" scrollable="false">
+    <event_cb trigger="clicked" callback="on_filament_buffer_widget_clicked"/>
+    <lv_obj name="buffer_slider_box"
+            width="#buffer_slider_w" height="100%" style_pad_all="0" scrollable="false" clickable="false"
+            event_bubble="true">
+      <bind_flag_if_eq subject="buffer_slider" flag="hidden" ref_value="0"/>
+    </lv_obj>
+    <lv_obj name="buffer_info"
+            width="content" height="100%" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
+            style_flex_main_place="center" scrollable="false" clickable="false" event_bubble="true">
+      <bind_style_if_eq name="buffer_info_narrow" subject="filament_buffer_wide" ref_value="0"/>
+      <bind_style_if_eq name="buffer_info_wide" subject="filament_buffer_wide" ref_value="1"/>
+      <lv_obj name="buffer_reading"
+              width="content" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
+              style_flex_cross_place="end" scrollable="false" clickable="false" event_bubble="true">
+        <text_body name="buffer_value_short"
+                   bind_text="buffer_short_text" style_text_font="#font_body_bold" clickable="false" event_bubble="true">
+          <bind_flag_if_eq subject="filament_buffer_wide" flag="hidden" ref_value="1"/>
+          <bind_style_if_eq name="styles.buffer_ok" subject="buffer_status" ref_value="0"/>
+          <bind_style_if_eq name="styles.buffer_warning" subject="buffer_status" ref_value="1"/>
+          <bind_style_if_eq name="styles.buffer_danger" subject="buffer_status" ref_value="2"/>
+        </text_body>
+        <text_body name="buffer_value"
+                   bind_text="buffer_value_text" style_text_font="#font_body_bold" clickable="false" event_bubble="true">
+          <bind_flag_if_eq subject="filament_buffer_wide" flag="hidden" ref_value="0"/>
+          <bind_style_if_eq name="styles.buffer_ok" subject="buffer_status" ref_value="0"/>
+          <bind_style_if_eq name="styles.buffer_warning" subject="buffer_status" ref_value="1"/>
+          <bind_style_if_eq name="styles.buffer_danger" subject="buffer_status" ref_value="2"/>
+        </text_body>
+        <text_tiny name="buffer_target"
+                   bind_text="buffer_target_text" style_text_color="#text_muted" clickable="false" event_bubble="true">
+          <bind_flag_if cond="filament_buffer_wide eq 0 or buffer_slider eq 0" flag="hidden"/>
+        </text_tiny>
+      </lv_obj>
+      <lv_obj name="buffer_trace"
+              width="100%" height="1" flex_grow="1" scrollable="false" clickable="false" event_bubble="true">
+        <style name="styles.buffer_trace_area"/>
+        <bind_flag_if cond="filament_buffer_wide eq 0 or buffer_slider eq 0" flag="hidden"/>
+      </lv_obj>
+      <lv_obj name="buffer_caption"
+              width="content" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
+              scrollable="false" clickable="false" event_bubble="true">
+        <text_tiny name="buffer_label"
+                   bind_text="buffer_label" style_text_color="#text_muted" clickable="false" event_bubble="true">
+          <bind_flag_if cond="filament_buffer_wide eq 1 and buffer_slider eq 0" flag="hidden"/>
+        </text_tiny>
+        <text_tiny name="buffer_lean"
+                   bind_text="buffer_lean_text" style_text_color="#text_muted" clickable="false" event_bubble="true">
+          <bind_flag_if cond="filament_buffer_wide eq 0 or buffer_slider eq 0" flag="hidden"/>
+        </text_tiny>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

@@ -230,3 +230,13 @@ TEST_CASE("with off-screen keeping off, only the window's thumbnails stay",
     CHECK(plan.drop == Indices{0, 1, 2, 3, 8, 9});
     CHECK(plan.fetch.empty());
 }
+
+TEST_CASE("a fetch that failed is fetched again once while its card stays shown",
+          "[card_thumbnail_plan][lane_timeout]") {
+    using helix::card_thumbnail_refetch_after_error;
+    CHECK(card_thumbnail_refetch_after_error(/*shown=*/true, /*cancelled=*/false,
+                                             /*retried=*/false));
+    CHECK_FALSE(card_thumbnail_refetch_after_error(true, false, /*retried=*/true));   // once
+    CHECK_FALSE(card_thumbnail_refetch_after_error(/*shown=*/false, false, false));   // gone
+    CHECK_FALSE(card_thumbnail_refetch_after_error(true, /*cancelled=*/true, false)); // dropped
+}

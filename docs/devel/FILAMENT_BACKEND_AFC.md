@@ -675,20 +675,24 @@ an unconditional line there is per-buffer-per-unit spam that pushes the incident
 of the debug-bundle ring - and this is precisely the line that has to survive in a bundle,
 since a buffer landing on the wrong unit is what it exists to show.
 
-**An `FPS_PSF` buffer drives the buffer meter like Happy Hare's sync feedback does.** An
+**An `FPS_PSF` buffer is a buffer reading; a switched one is clog detection only.** An
 `AFC_buffer` configured `type: FPS_PSF` (AFC v1.2.0+) carries an analog filament-pressure
 sensor where the stock TurtleNeck carries a mechanical switch: `get_status()` publishes
 `fps_value`, `smoothed_fps` and `set_point`, and `BufferHealth::has_fps()` /
-`afc_fps_to_bias()` (`include/ams_types.h`) normalize `smoothed_fps` - the value AFC's own
-advance/trailing triggers compare - onto the `-1..+1` bias Happy Hare publishes directly.
-`get_system_info()` copies the first unit's reading into `sync_feedback_bias`, so the
-buffer meter, the path-canvas hub tint and the widget's second carousel page work on AFC
-without any of them knowing which backend fed them. A switched TurtleNeck reports no
-pressure and keeps the "no data" sentinel, unchanged. The pressure rail is 0..1 by
-declaration but a voltage divider in real hardware, so `has_fps()` keys on
+`fps_to_bias()` (`include/ams_types.h`) normalize `smoothed_fps` - the value AFC's own
+advance/trailing triggers compare - onto the `-1..+1` bias around the set point. The
+sensor stays on the unit's `AmsUnit::buffer_health`; the backend writes no
+`sync_feedback_bias` (that is Happy Hare's field). `helix::buffer_reading()` reads the
+unit's own sensor, or for the system level the unit feeding the current slot, else the
+first unit with a sensor, so the Filament Buffer widget, the loaded-spool card, the
+Buffer Status modal and the path-canvas buffer box all draw it. The fault distance
+(`fault_detection_enabled`) is the separate clog-detection source and feeds the
+`clog_meter_*` subjects. A switched TurtleNeck reports no pressure, so it has no reading.
+The pressure rail is 0..1 by declaration but a voltage divider in real hardware, so `has_fps()` keys on
 `fps_reported && fps_set_point > 0` rather than on the value: a reading slightly below zero
 is max tension, the one reading a value-based sentinel would blank exactly. Not yet
-verified on hardware.
+verified on hardware. See
+[Filament buffer reading](FILAMENT_MANAGEMENT.md#filament-buffer-reading).
 
 #### Global State
 

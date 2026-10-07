@@ -68,8 +68,10 @@ uint32_t temp_graph_series_hex(int index);
  * The klipper_name determines how the controller resolves subjects:
  * - "extruder" / "extruder1" etc  -> extruder temp/target subjects
  * - "heater_bed"                  -> bed temp/target subjects
- * - "chamber"                     -> chamber temp/target subjects
- * - anything else                 -> TemperatureSensorManager lookup
+ * - "chamber", or the chamber's own heater / temperature-source object name
+ *                                 -> chamber temp/target subjects
+ * - anything else                 -> TemperatureSensorManager lookup (temp, plus target
+ *                                    for heater_generic / temperature_fan)
  */
 struct TempGraphSeriesSpec {
     std::string klipper_name; ///< Klipper object key (e.g., "extruder", "heater_bed")

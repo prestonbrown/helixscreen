@@ -29,7 +29,7 @@
         <lv_obj name="action_buttons_row"
                 width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
                 scrollable="false">
-          <!-- Home Button -->
+          <!-- Home Button. SIZE_OK: 44 is this row's button height; no button_height ladder has 44 at medium. -->
           <ui_button name="btn_home" height="44" icon="home" text="Home" flex_grow="1">
             <event_cb trigger="clicked" callback="on_ams_device_ops_home"/>
           </ui_button>
@@ -37,7 +37,7 @@
           <ui_button name="btn_recover" height="44" icon="refresh" text="Recover" flex_grow="1">
             <event_cb trigger="clicked" callback="on_ams_device_ops_recover"/>
           </ui_button>
-          <!-- Abort Button -->
+          <!-- Abort Button. SIZE_OK: same 44px action-row height. -->
           <ui_button name="btn_abort" height="44" icon="stop" text="Abort" flex_grow="1">
             <bind_state_if_eq subject="ams_device_ops_can_abort" state="disabled" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_ams_device_ops_abort"/>

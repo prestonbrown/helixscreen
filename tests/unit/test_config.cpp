@@ -2505,6 +2505,69 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: add_printer creates new printer ent
     REQUIRE(config.get<std::string>("/printers/bambu-x1/moonraker_host") == "10.0.0.1");
 }
 
+TEST_CASE_METHOD(ConfigTestFixture, "Config: get_active_printer_name falls back to the id",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test({{"active_printer_id", "voron"},
+                              {"printers",
+                               {{"voron", {{"printer_name", "Voron 2.4"}}},
+                                {"printer-2", {{"moonraker_host", "10.0.0.2"}}}}}});
+    REQUIRE(config.set_active_printer("voron"));
+    REQUIRE(config.get_active_printer_name() == "Voron 2.4");
+
+    REQUIRE(config.set_active_printer("printer-2"));
+    REQUIRE(config.get_active_printer_name() == "printer-2");
+}
+
+TEST_CASE_METHOD(ConfigTestFixture, "Config: find_printer_by_host matches host and port",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test(
+        {{"active_printer_id", "voron"},
+         {"printers",
+          {{"show_printer_switcher", true},
+           {"voron", {{"moonraker_host", "192.168.1.10"}}},
+           {"ender3", {{"moonraker_host", "192.168.1.20"}, {"moonraker_port", 7126}}}}}});
+
+    CHECK(config.find_printer_by_host("192.168.1.10", 7125) == "voron"); // port defaults to 7125
+    CHECK(config.find_printer_by_host("192.168.1.20", 7126) == "ender3");
+    CHECK(config.find_printer_by_host("192.168.1.20", 7125).empty());
+    CHECK(config.find_printer_by_host("192.168.1.30", 7125).empty());
+}
+
+TEST_CASE_METHOD(ConfigTestFixture, "Config: next_printer_id picks an id no printer uses",
+                 "[core][config][multi-printer]") {
+    SECTION("numbers from the printer count") {
+        set_data_for_plural_test({{"active_printer_id", "voron"},
+                                  {"printers", {{"voron", {{"moonraker_host", "192.168.1.10"}}}}}});
+        REQUIRE(config.next_printer_id() == "printer-2");
+    }
+
+    SECTION("skips an id left in use after a delete") {
+        // Two printers, so the count suggests printer-3, which is taken.
+        set_data_for_plural_test({{"active_printer_id", "printer-3"},
+                                  {"printers",
+                                   {{"printer-3", {{"moonraker_host", "10.0.0.3"}}},
+                                    {"printer-4", {{"moonraker_host", "10.0.0.4"}}}}}});
+        REQUIRE(config.next_printer_id() == "printer-5");
+    }
+
+    SECTION("plain settings under /printers do not count as printers") {
+        set_data_for_plural_test(
+            {{"active_printer_id", "voron"},
+             {"printers",
+              {{"show_printer_switcher", true}, {"voron", {{"moonraker_host", "192.168.1.10"}}}}}});
+        REQUIRE(config.next_printer_id() == "printer-2");
+    }
+
+    SECTION("the returned id is free to add") {
+        set_data_for_plural_test({{"active_printer_id", "printer-2"},
+                                  {"printers", {{"printer-2", {{"moonraker_host", "10.0.0.2"}}}}}});
+        const std::string id = config.next_printer_id();
+        REQUIRE(id != "printer-2");
+        config.add_printer(id, {{"moonraker_host", "10.0.0.9"}});
+        REQUIRE(config.get_printer_ids().size() == 2);
+    }
+}
+
 TEST_CASE_METHOD(ConfigTestFixture,
                  "Config: remove_printer deletes entry and auto-selects remaining printer",
                  "[core][config][multi-printer]") {

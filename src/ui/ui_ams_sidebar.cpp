@@ -118,10 +118,30 @@ void AmsOperationSidebar::register_callbacks_static() {
     init_button_gating_subjects();
 
     register_xml_callbacks({
-        {"ams_sidebar_bypass_toggled", on_bypass_toggled_cb},
-        {"ams_sidebar_unload_clicked", on_unload_clicked_cb},
-        {"ams_sidebar_reset_clicked", on_reset_clicked_cb},
-        {"ams_sidebar_check_gates_clicked", on_check_gates_clicked_cb},
+        {"ams_sidebar_bypass_toggled",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_bypass_toggle();
+             }
+         }},
+        {"ams_sidebar_unload_clicked",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_unload();
+             }
+         }},
+        {"ams_sidebar_reset_clicked",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_reset();
+             }
+         }},
+        {"ams_sidebar_check_gates_clicked",
+         [](lv_event_t* e) {
+             if (auto* self = get_instance_from_event(e)) {
+                 self->handle_check_gates();
+             }
+         }},
         {"ams_sidebar_settings_clicked", on_settings_clicked_cb},
         {"ams_sidebar_batch_load_clicked", on_batch_load_clicked_cb},
     });
@@ -156,34 +176,6 @@ AmsOperationSidebar* AmsOperationSidebar::get_instance_from_event(lv_event_t* e)
 // ============================================================================
 // Static XML Callbacks
 // ============================================================================
-
-void AmsOperationSidebar::on_bypass_toggled_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_bypass_toggle();
-    }
-}
-
-void AmsOperationSidebar::on_unload_clicked_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_unload();
-    }
-}
-
-void AmsOperationSidebar::on_reset_clicked_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_reset();
-    }
-}
-
-void AmsOperationSidebar::on_check_gates_clicked_cb(lv_event_t* e) {
-    auto* self = get_instance_from_event(e);
-    if (self) {
-        self->handle_check_gates();
-    }
-}
 
 void AmsOperationSidebar::on_settings_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[AmsSidebar] on_settings_clicked");
@@ -243,6 +235,11 @@ bool AmsOperationSidebar::setup(lv_obj_t* panel) {
 
     // Setup clog detection meter
     clog_meter_ = std::make_unique<UiClogMeter>(sidebar_root_);
+
+    // The loaded card's buffer slider follows the system-level reading
+    buffer_slider_ =
+        std::make_unique<UiBufferSlider>(lv_obj_find_by_name(sidebar_root_, "buffer_mini_slider"));
+    buffer_slider_->follow_system_reading();
 
     // Hide settings button if no device sections
     update_settings_visibility();
@@ -505,6 +502,7 @@ void AmsOperationSidebar::cleanup() {
     // that reference widget pointers; resetting before our observers could
     // trigger callbacks on already-null widget pointers.
     clog_meter_.reset();
+    buffer_slider_.reset();
 
     // Clear all pending state. A preheat still waiting here never dispatches.
     bypass_toggle_.cancel_pending();

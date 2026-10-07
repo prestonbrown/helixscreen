@@ -11,6 +11,7 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -85,7 +86,7 @@ void AmsSelectorMenu::on_created(lv_obj_t* menu_obj) {
     // Only LINEAR (selector) systems have a physical servo to position.
     bool has_servo = backend_ && backend_->get_topology() == PathTopology::LINEAR;
     if (!has_servo) {
-        lv_obj_t* servo_row = lv_obj_find_by_name(menu_obj, "servo_row");
+        lv_obj_t* servo_row = helix::ui::find_required(menu_obj, "servo_row", "AmsSelectorMenu");
         if (servo_row) {
             lv_obj_add_flag(servo_row, LV_OBJ_FLAG_HIDDEN);
         }
@@ -97,7 +98,8 @@ void AmsSelectorMenu::on_created(lv_obj_t* menu_obj) {
     // device action via MMU_SYNC_GEAR_MOTOR, with no read-back of the runtime
     // state). Default the switch OFF and treat each toggle as send-on-tap: tapping
     // it ON dispatches GEAR_SYNC_ON, tapping it OFF dispatches GEAR_SYNC_OFF.
-    lv_obj_t* gear_switch = lv_obj_find_by_name(menu_obj, "gear_sync_switch");
+    lv_obj_t* gear_switch =
+        helix::ui::find_required(menu_obj, "gear_sync_switch", "AmsSelectorMenu");
     if (gear_switch) {
         lv_obj_remove_state(gear_switch, LV_STATE_CHECKED);
     }
@@ -161,7 +163,7 @@ void AmsSelectorMenu::handle_gear_sync() {
     if (!menu()) {
         return;
     }
-    lv_obj_t* gear_switch = lv_obj_find_by_name(menu(), "gear_sync_switch");
+    lv_obj_t* gear_switch = helix::ui::find_required(menu(), "gear_sync_switch", "AmsSelectorMenu");
     bool checked = gear_switch && lv_obj_has_state(gear_switch, LV_STATE_CHECKED);
     spdlog::info("[AmsSelectorMenu] Gear sync toggled: {}", checked ? "on" : "off");
     dispatch_selector_action(checked ? SelectorAction::GEAR_SYNC_ON

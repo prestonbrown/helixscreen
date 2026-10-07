@@ -482,6 +482,12 @@ AmsSystemInfo AmsBackendMock::get_system_info() const {
     // slots_.set_tool_mapping() instead, which keeps the two directions in step.
     auto info = slots_.build_system_info(system_info_);
 
+    // The sync feedback set up in the constructor is Happy Hare's. Every other
+    // simulated type publishes its units' pressure sensors, as AFC and OpenAMS do.
+    if (info.type != AmsType::HAPPY_HARE) {
+        info.sync_feedback_bias = info.pressure_sensor_bias();
+    }
+
     // Populate environment sensor data based on configured mode
     populate_environment_data(info);
 
@@ -1483,6 +1489,12 @@ void AmsBackendMock::set_flowguard_info(FlowguardInfo info) {
                   "max_clog={:.2f} max_tangle={:.2f}",
                   info.enabled, info.active, info.level, info.trigger, info.max_clog,
                   info.max_tangle);
+}
+
+void AmsBackendMock::set_sync_feedback_bias(float bias) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    system_info_.sync_feedback_bias = bias;
+    spdlog::debug("[AmsBackendMock] Sync feedback bias: {:.2f}", bias);
 }
 
 void AmsBackendMock::inject_mock_errors() {

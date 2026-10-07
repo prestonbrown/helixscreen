@@ -112,10 +112,49 @@ The full file format is in the [Sound System developer docs](../../../devel/SOUN
 | **FlashForge AD5X** | The printer's speaker. Chords, full themes and music (including the startup jingle) played as tone sequences |
 | **FlashForge AD5M / AD5M Pro** | The printer's buzzer. Tones only: no startup music and no music themes |
 | **Other Klipper printers** | Beeps sent through Moonraker. Needs `[output_pin beeper]` in your Klipper config. Simple beeps only |
+| **Buzzer on a board's PWM pin** | A buzzer wired to a Raspberry Pi, BTT CB1 or other board. UI sounds and alerts on the buzzer, or on a Pi 4 or earlier, full sound including music through its audio. See [Buzzer on a PWM Pin](#buzzer-on-a-pwm-pin) |
 
 If no sound hardware is found, the Sound row and page are hidden.
 
 **Turning sound off completely.** On some hardware (for example the Artillery M1 Pro) the sound drivers work but use too much processor time. If the printer slows down with sound on, add `"disable_sound": true` to `settings.json`, or start HelixScreen with `--no-sound`. That stops the sound system from starting at all. The Sounds switch only mutes it.
+
+---
+
+## Buzzer on a PWM Pin
+
+A small buzzer wired straight to your board's header can play HelixScreen's sounds. This works on any Linux board, not just a Raspberry Pi, as long as the buzzer sits on a pin that can output **hardware PWM** and the board exposes that PWM under `/sys/class/pwm`. An ordinary GPIO pin can't do it.
+
+**First, free the pin from Klipper.** If your Klipper config has an `[output_pin beeper]` (or similar) on that pin, comment it out and restart Klipper. Klipper and HelixScreen can't both drive the same pin. Any `M300` or song macros that used it will then fail, so turn them into empty macros as well.
+
+### Drive the buzzer directly (any board)
+
+HelixScreen drives the pin itself. It's louder than the Pi audio option, but a buzzer plays one note at a time, so you get HelixScreen's button sounds and alerts, not music.
+
+1. **Turn the pin into a PWM output.** How depends on the board: a device-tree overlay on a Raspberry Pi or Armbian, or your vendor's pin-mux setting. On a Raspberry Pi 4 or earlier, add one line to `/boot/config.txt` (or `/boot/firmware/config.txt` on newer systems) and reboot:
+   ```ini
+   # GPIO 18 (header pin 12). For GPIO 12 use: dtoverlay=pwm,pin=12,func=4
+   dtoverlay=pwm,pin=18,func=2
+   ```
+   On a Pi 4 or earlier, the pins that can do PWM are GPIO 12, 13, 18 and 19 (header pins 32, 33, 12 and 35). A Raspberry Pi 5 uses different PWM hardware with its own overlay settings and channel numbers: check the Pi 5 documentation for your pin.
+2. **Find the channel.** It's the chip and channel number under `/sys/class/pwm`: `pwmchip0` channel `0` is `"0:0"`. Run `ls /sys/class/pwm` after the reboot to see which chips exist. On a Pi 4 or earlier, use `"0:0"` for GPIO 12 or 18, and `"0:1"` for GPIO 13 or 19. On other boards, including the Pi 5, the board's pinout or its overlay documentation lists which `pwmchip` and channel a pin uses.
+3. **Tell HelixScreen.** In `settings.json`, add the line below. If the file already has a `"sound"` section, put `"pwm_channel"` inside it instead of adding a second one:
+   ```json
+   "sound": { "pwm_channel": "0:0" }
+   ```
+4. Restart HelixScreen, and turn on **Settings > Sound > Sounds**.
+
+The user HelixScreen runs as needs write access to `/sys/class/pwm`. On Raspberry Pi OS, being in the `gpio` group gives it. Other systems may need a udev rule that grants that access, or HelixScreen running as root.
+
+### Full sound through the Pi's audio (Raspberry Pi 4 and earlier)
+
+A Raspberry Pi 4 or earlier can instead send its own audio output to the buzzer pins. The Pi 5 has no analog audio, so this option doesn't exist there. HelixScreen then plays everything through its normal sound path: chords, music and every theme. On a small buzzer it is quieter than driving it directly. Leave `pwm_channel` unset, add one line to `/boot/config.txt` and reboot:
+
+```ini
+# Pi audio on GPIO 18 and 19 (use pins_12_13 for GPIO 12 and 13)
+dtoverlay=audremap,pins_18_19
+```
+
+HelixScreen finds the sound card by itself. Turn the volume up all the way with `amixer sset PCM 100%`, and run `sudo alsactl store` to keep that level after a reboot.
 
 ---
 
@@ -132,6 +171,9 @@ Check that the master Sounds switch is on. The UI Sounds switch doesn't affect i
 
 **Button clicks get on my nerves.**
 Turn off UI Sounds. Buttons, switches and screen changes go quiet, and important sounds still play.
+
+**I wired a buzzer to the board, and nothing plays.**
+Check which pin it is really on. On a Pi, Klipper's `gpio12` means GPIO 12 (header pin 32), not header pin 12, which is GPIO 18. Make sure Klipper no longer uses the pin, and follow [Buzzer on a PWM Pin](#buzzer-on-a-pwm-pin).
 
 **Sounds work on my computer but not on the printer.**
 Check that the printer has sound hardware. On a Klipper printer, check that `[output_pin beeper]` is set up, and test it by sending `M300` from the Klipper console.

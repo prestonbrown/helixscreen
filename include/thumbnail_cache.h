@@ -390,6 +390,11 @@ class ThumbnailCache {
         return stat_calls_.load(std::memory_order_relaxed);
     }
 
+    /// The cache key for a thumbnail at @p path on the connected printer. The printer is part
+    /// of the key because a same-named file on another printer is a different file. The
+    /// pre-scaled .bin variants are named from the same key.
+    [[nodiscard]] static std::string compute_hash(const std::string& path);
+
   private:
     /**
      * @brief Fetch thumbnail with pre-scaling optimization
@@ -649,14 +654,6 @@ class ThumbnailCache {
      * @brief Ensure cache directory exists
      */
     void ensure_cache_dir() const;
-
-    /**
-     * @brief Compute hash for a path string
-     *
-     * @param path Path to hash
-     * @return Hash value as string
-     */
-    [[nodiscard]] static std::string compute_hash(const std::string& path);
 
     /**
      * @brief Evict oldest files if cache exceeds max size

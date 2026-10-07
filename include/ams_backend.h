@@ -2493,6 +2493,31 @@ class AmsBackend {
     }
 
     /**
+     * @brief G-code that sets clog detection mode, if this backend has the setting.
+     *
+     * @param mode       0 off, 1 manual (fixed detection length), 2 automatic
+     * @param det_length Detection length in mm, sent in manual mode when positive
+     * @return The command, or nullopt when the backend has no such setting
+     */
+    [[nodiscard]] virtual std::optional<std::string>
+    clog_detection_mode_gcode(int mode, float det_length) const {
+        (void)mode;
+        (void)det_length;
+        return std::nullopt;
+    }
+
+    /**
+     * @brief The detection length (mm) a manual clog mode write sets, as the
+     *        printer is configured.
+     *
+     * @return nullopt when the backend reports none; callers then show the
+     *         live encoder length
+     */
+    [[nodiscard]] virtual std::optional<float> clog_detection_length_setting() const {
+        return std::nullopt;
+    }
+
+    /**
      * @brief Execute a device action
      *
      * @param action_id The action ID from get_device_actions()
@@ -2770,24 +2795,6 @@ class AmsBackend {
      */
     [[nodiscard]] virtual bool supports_per_tool_spool_assignment() const {
         return is_tool_changer(get_type());
-    }
-
-    /**
-     * @brief Whether the backend reports a continuous sync-feedback bias the UI can
-     *        visualize (proportional buffer bias + fault tinting).
-     *
-     * Happy Hare reports printer.mmu.sync_feedback_bias; the value is meaningful
-     * only when > -1.5 (the sentinel for "no bias data"). The buffer meter, path
-     * canvas tinting, and clog-detection buffer page all gate on this. Backends
-     * without a continuous bias signal return false (discrete mode).
-     *
-     * @param info Current system snapshot (carries sync_feedback_bias)
-     * @return true if a proportional sync-feedback bias is available
-     */
-    [[nodiscard]] virtual bool
-    supports_sync_feedback_visualization(const AmsSystemInfo& info) const {
-        (void)info;
-        return false;
     }
 
     /**

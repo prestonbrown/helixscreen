@@ -98,6 +98,10 @@ TEST_CASE("backend-managed sensor: Happy Hare named sensors", "[ams][sensor-owne
     CHECK(is_ams("toolhead", hh));
     CHECK(is_ams("filament_tension", hh));
     CHECK(is_ams("filament_compression", hh));
+    // v3 and v4 per-gate names.
+    CHECK(is_ams("mmu_pre_gate_0", hh));
+    CHECK(is_ams("mmu_entry_0", hh));
+    CHECK(is_ams("mmu_exit_3", hh));
 
     // Names HH does NOT own (and that carry no AMS keyword) stay visible.
     CHECK_FALSE(is_ams("my_runout", hh));

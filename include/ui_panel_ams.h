@@ -171,6 +171,9 @@ class AmsPanel : public PanelBase {
     ObserverGuard slot_count_observer_;
     ObserverGuard path_segment_observer_;
     ObserverGuard path_topology_observer_;
+    ObserverGuard buffer_present_observer_;
+    ObserverGuard buffer_slider_observer_;
+    ObserverGuard buffer_bias_observer_;
     /// Per-slot LIVE path observers: each lane's filament path-segment and
     /// toolhead-present subjects. When a slot's sensor flips (push/pull filament),
     /// these fire and redraw that lane's path in real time. Static-array subjects

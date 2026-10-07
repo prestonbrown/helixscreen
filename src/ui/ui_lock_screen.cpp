@@ -9,6 +9,7 @@
 #include "ui_utils.h"
 
 #include "lock_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -90,7 +91,7 @@ void LockScreenOverlay::create_overlay() {
 void LockScreenOverlay::destroy_overlay() {
     if (overlay_) {
         // Cancel pending shake animations to prevent dangling pointer callbacks
-        lv_obj_t* dots = lv_obj_find_by_name(overlay_, "lock_dots_container");
+        lv_obj_t* dots = helix::ui::find_required(overlay_, "lock_dots_container", "LockScreen");
         if (dots) {
             lv_anim_delete(dots, nullptr);
         }
@@ -206,9 +207,8 @@ void LockScreenOverlay::shake_dots() {
         return;
     }
 
-    lv_obj_t* dots = lv_obj_find_by_name(overlay_, "lock_dots_container");
+    lv_obj_t* dots = helix::ui::find_required(overlay_, "lock_dots_container", "LockScreen");
     if (!dots) {
-        spdlog::warn("[LockScreen] lock_dots_container not found for shake animation");
         // Still clear digits after a delay
         helix::ui::run_next_tick([]() { LockScreenOverlay::instance().clear_digits(); });
         return;

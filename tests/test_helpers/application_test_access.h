@@ -54,16 +54,16 @@ class ApplicationTestAccess {
     }
 
     static bool& soft_restart_in_progress(Application& app) {
-        return app.m_session.m_soft_restart_in_progress;
+        return app.m_session.m_flow.m_soft_restart_in_progress;
     }
 
     static std::string& wizard_previous_printer_id(Application& app) {
-        return app.m_session.m_wizard_previous_printer_id;
+        return app.m_session.m_flow.m_wizard_previous_printer_id;
     }
 
     /// Swaps the session's teardown / rebuild / land-home work for test doubles.
     static void set_restart_hooks(Application& app, helix::PrinterSession::Restart hooks) {
-        app.m_session.m_restart = std::move(hooks);
+        app.m_session.m_flow.m_restart = std::move(hooks);
     }
 
     static void add_printer_via_wizard(Application& app) {

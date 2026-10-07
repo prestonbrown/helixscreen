@@ -717,34 +717,19 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
     // of ms on slow hardware, and a window reached by scrolling grows it.
     grow_pool(static_cast<size_t>(std::max(0, last_visible_idx - first_visible_idx)), dims);
 
-    // Assign pool cards to visible indices, skipping cards that already show correct file
-    size_t pool_idx = 0;
-    for (int file_idx = first_visible_idx;
-         file_idx < last_visible_idx && pool_idx < card_pool_.size(); file_idx++, pool_idx++) {
-        lv_obj_t* card = card_pool_[pool_idx];
-
-        // Skip reconfiguration if this card already shows this file
-        if (data_changed || card_pool_indices_[pool_idx] != file_idx) {
-            configure_card(card, pool_idx, static_cast<size_t>(file_idx), file_list[file_idx],
-                           dims);
-            card_pool_indices_[pool_idx] = file_idx;
-        }
-
-        // Ensure card is in correct position (guard to avoid redundant relayout)
-        int target_index = static_cast<int>(pool_idx) + 1;
-        if (lv_obj_get_index(card) != target_index) {
-            lv_obj_move_to_index(card, target_index);
-        }
-    }
-
-    // Hide unused pool cards
-    for (; pool_idx < card_pool_.size(); pool_idx++) {
-        lv_obj_add_flag(card_pool_[pool_idx], LV_OBJ_FLAG_HIDDEN);
+    show_window(
+        container_, card_pool_indices_, first_visible_idx, last_visible_idx, data_changed,
+        [this](size_t slot) { return card_pool_[slot]; },
+        [&](size_t slot, ssize_t file_idx) {
+            configure_card(card_pool_[slot], slot, static_cast<size_t>(file_idx),
+                           file_list[static_cast<size_t>(file_idx)], dims);
+        },
+        [this](size_t slot) {
+            lv_obj_add_flag(card_pool_[slot], LV_OBJ_FLAG_HIDDEN);
 #if defined(HELIX_PLATFORM_ESP32)
-        release_esp_thumbnail(card_pool_[pool_idx], *card_data_pool_[pool_idx]);
+            release_esp_thumbnail(card_pool_[slot], *card_data_pool_[slot]);
 #endif
-        card_pool_indices_[pool_idx] = -1;
-    }
+        });
 
     visible_start_row_ = first_visible_row;
     visible_end_row_ = last_visible_row;

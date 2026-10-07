@@ -10,6 +10,9 @@
     <prop name="tile_label_subject" type="string" default=""/>
     <prop name="tile_dir_subject" type="string" default=""/>
     <prop name="tile_target_subject" type="string" default=""/>
+    <prop name="temp_subject" type="string" default=""/>
+    <prop name="target_subject" type="string" default=""/>
+    <prop name="available_subject" type="string" default=""/>
   </api>
   <view name="panel_widget_thermistor"
         extends="lv_obj" height="100%" flex_grow="1" style_pad_ver="0" style_pad_gap="#space_xxs" scrollable="false"
@@ -31,8 +34,19 @@
             clickable="false" event_bubble="true">
       <style name="styles.tile_column"/>
       <bind_style_if_eq name="styles.tile_fill" subject="$tile_dir_subject" ref_value="1"/>
-      <text_body name="thermistor_temp" text="--°C" clickable="false" event_bubble="true">
+      <!-- A read-only sensor's target stays 0, so hide_target_when_off leaves
+           it the bare reading; a heater with a target reads "current / target". -->
+      <temp_display name="thermistor_temp"
+                    size_target_subject="$tile_target_subject" rung_subject="$tile_icon_subject" size="sm"
+                    show_target="true" hide_target_when_off="true" hide_target_below_bp="small"
+                    bind_current="$temp_subject" bind_target="$target_subject" align="center" clickable="false"
+                    event_bubble="true">
+        <bind_flag_if_eq subject="$available_subject" flag="hidden" ref_value="0"/>
+      </temp_display>
+      <!-- No sensor selected, or the saved one is not reported (yet). -->
+      <text_body name="thermistor_unavailable" text="--°C" clickable="false" event_bubble="true">
         <bind_tile_rung ladder="value" subject="$tile_icon_subject"/>
+        <bind_flag_if_eq subject="$available_subject" flag="hidden" ref_value="1"/>
       </text_body>
       <text_tiny name="thermistor_name"
                  width="100%" text="Select sensor" style_text_align="center" long_mode="dots" clickable="false"

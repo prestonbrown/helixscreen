@@ -23,6 +23,7 @@
 #include "panel_widgets/shutdown_widget.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -109,7 +110,8 @@ void AdvancedPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // printer_has_timelapse binding and this helix-xml build has no
     // compound-condition (subject_expr/cond) support. Compiled out on desktop →
     // zero desktop impact.
-    if (auto* timelapse_row = lv_obj_find_by_name(panel_, "row_timelapse_videos")) {
+    if (auto* timelapse_row =
+            helix::ui::find_required(panel_, "row_timelapse_videos", get_name())) {
         // DECLARATIVE_OK: compile-time capability (#if), no runtime subject exists
         lv_obj_add_flag(timelapse_row, LV_OBJ_FLAG_HIDDEN);
     }

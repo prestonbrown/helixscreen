@@ -9,3 +9,4 @@ dependencies.lock
 # main/Kconfig.projbuild (HELIX_NET_HIL) and CMakeLists.txt.
 sdkconfig.local
 build_mock/
+build-debug-heap/

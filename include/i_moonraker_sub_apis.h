@@ -34,9 +34,11 @@
 #include "print_history_data.h"
 #include "spoolman_types.h"
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -471,6 +473,9 @@ class ITransfersAPI {
     using ErrorCallback = std::function<void(const MoonrakerError&)>;
     using StringCallback = std::function<void(const std::string&)>;
     using ProgressCallback = std::function<void(size_t current, size_t total)>;
+    /// Set by the requester when it no longer wants the result: a request still
+    /// queued is dropped unsent and reports an error instead.
+    using CancelFlag = std::shared_ptr<const std::atomic<bool>>;
 
     virtual ~ITransfersAPI() = default;
 
@@ -479,7 +484,7 @@ class ITransfersAPI {
 
     virtual void download_file_partial(const std::string& root, const std::string& path,
                                        size_t max_bytes, StringCallback on_success,
-                                       ErrorCallback on_error) = 0;
+                                       ErrorCallback on_error, CancelFlag cancelled = nullptr) = 0;
 
     /// Download only the LAST @p max_bytes of a file (HTTP suffix range).
     ///

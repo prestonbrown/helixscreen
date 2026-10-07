@@ -18,6 +18,7 @@
 #include "printer_state.h"
 #include "static_panel_registry.h"
 #include "system/update_checker.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -127,9 +128,8 @@ void NotificationHistoryPanel::refresh() {
     auto entries = history_.get_all();
 
     // Find content container
-    lv_obj_t* overlay_content = lv_obj_find_by_name(panel_, "overlay_content");
+    lv_obj_t* overlay_content = helix::ui::find_required(panel_, "overlay_content", get_name());
     if (!overlay_content) {
-        spdlog::error("[{}] Could not find overlay_content", get_name());
         return;
     }
 

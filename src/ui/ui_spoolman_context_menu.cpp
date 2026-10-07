@@ -5,6 +5,8 @@
 
 #include "ui_callback_helpers.h"
 
+#include "ui/ui_widget_helpers.h"
+
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
@@ -91,7 +93,8 @@ void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
     // "spool_color_label" for compatibility; the string it has always shown is
     // Spoolman's filament.name, which is the useful subtitle under a header
     // that already carries vendor + material.
-    lv_obj_t* color_label = lv_obj_find_by_name(menu_obj, "spool_color_label");
+    lv_obj_t* color_label =
+        helix::ui::find_required(menu_obj, "spool_color_label", "SpoolmanContextMenu");
     if (color_label) {
         if (pending_spool_.filament_name.empty()) {
             lv_obj_add_flag(color_label, LV_OBJ_FLAG_HIDDEN);
@@ -101,13 +104,15 @@ void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
     }
 
     // Vendor subtitle is unused (vendor already in header); hide the XML element
-    lv_obj_t* vendor_label = lv_obj_find_by_name(menu_obj, "spool_vendor_label");
+    lv_obj_t* vendor_label =
+        helix::ui::find_required(menu_obj, "spool_vendor_label", "SpoolmanContextMenu");
     if (vendor_label) {
         lv_obj_add_flag(vendor_label, LV_OBJ_FLAG_HIDDEN);
     }
 
     if (!archive_allowed_) {
-        lv_obj_t* btn_archive = lv_obj_find_by_name(menu_obj, "btn_archive");
+        lv_obj_t* btn_archive =
+            helix::ui::find_required(menu_obj, "btn_archive", "SpoolmanContextMenu");
         if (btn_archive) {
             // Per-instance decision at menu-creation time, next to the imperative
             // header fill above. No subject models the Spoolman active-spool id,
@@ -121,7 +126,7 @@ void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
 
     // Prevent context menu buttons from triggering scroll on the underlying list
     lv_obj_remove_flag(menu_obj, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
-    lv_obj_t* card = lv_obj_find_by_name(menu_obj, "context_menu");
+    lv_obj_t* card = helix::ui::find_required(menu_obj, "context_menu", "SpoolmanContextMenu");
     if (card) {
         lv_obj_remove_flag(card, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
         uint32_t card_children = lv_obj_get_child_count(card);

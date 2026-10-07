@@ -36,27 +36,20 @@ using namespace helix;
 static lv_subject_t s_screws_tilt_state;
 
 // Forward declarations
-static void on_screws_tilt_row_clicked(lv_event_t* e);
 IMoonrakerClient* get_moonraker_client();
 IMoonrakerAPI* get_moonraker_api();
 
 void init_screws_tilt_row_handler() {
-    lv_xml_register_event_cb(nullptr, "on_screws_tilt_row_clicked", on_screws_tilt_row_clicked);
+    register_xml_callbacks({
+        {"on_screws_tilt_row_clicked",
+         [](lv_event_t*) {
+             spdlog::debug("[ScrewsTilt] Bed leveling row clicked");
+             auto& panel = get_global_screws_tilt_panel();
+             panel.set_client(get_moonraker_client(), get_moonraker_api());
+             panel.show(lv_display_get_screen_active(nullptr));
+         }},
+    });
     spdlog::trace("[ScrewsTilt] Row click callback registered");
-}
-
-/**
- * @brief Row click handler for opening screws tilt from Advanced panel
- *
- * Registered via init_screws_tilt_row_handler().
- */
-static void on_screws_tilt_row_clicked(lv_event_t* e) {
-    (void)e;
-    spdlog::debug("[ScrewsTilt] Bed leveling row clicked");
-
-    auto& panel = get_global_screws_tilt_panel();
-    panel.set_client(get_moonraker_client(), get_moonraker_api());
-    panel.show(lv_display_get_screen_active(nullptr));
 }
 
 // ============================================================================

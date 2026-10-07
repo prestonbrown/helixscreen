@@ -7,6 +7,9 @@
 #pragma once
 
 #include "ams_types.h"
+#include "lvgl/lvgl.h"
+
+#include <cstring>
 
 namespace helix::ams_state_detail {
 
@@ -23,6 +26,14 @@ void report_off_main(const char* caller);
 /// True once the singleton is being destroyed. Work queued to the main thread
 /// checks it before touching AmsState.
 bool shutting_down();
+
+/// Write @p text into a string subject only when it differs, so observers are
+/// not notified of a value they already have.
+inline void copy_string_if_changed(lv_subject_t* subject, const char* text) {
+    if (std::strcmp(lv_subject_get_string(subject), text) != 0) {
+        lv_subject_copy_string(subject, text);
+    }
+}
 
 /// The error state a lane bar's status line draws from: the same derivation
 /// both current consumers (AMS overview mini bars, mini status) compute from

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "print_control_buttons.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_error_reporting.h" // NOTIFY_WARNING / NOTIFY_ERROR
 #include "ui_event_safety.h"    // LVGL_SAFE_EVENT_CB_BEGIN / END
 #include "ui_resume_dispatch.h"
@@ -41,8 +42,10 @@ void PrintControlButtons::init_subjects() {
     UI_MANAGED_SUBJECT_INT(stop_enabled_subject_, 0, "print_control_stop_enabled", subjects_);
     UI_MANAGED_SUBJECT_INT(pending_action_subject_, 0, "print_pending_action", subjects_);
 
-    lv_xml_register_event_cb(nullptr, "on_print_control_primary", on_primary_clicked);
-    lv_xml_register_event_cb(nullptr, "on_print_control_stop", on_stop_clicked);
+    register_xml_callbacks({
+        {"on_print_control_primary", [](lv_event_t*) { instance().handle_primary_button(); }},
+        {"on_print_control_stop", [](lv_event_t*) { instance().handle_stop_button(); }},
+    });
 
     // print_state_enum is a static global subject — no SubjectLifetime needed.
     // RAW_PRINT_STATE_OK: TWO observers on purpose. This one clears the
@@ -286,20 +289,6 @@ void PrintControlButtons::notify_printer_error(const std::string& detail) {
     spdlog::warn("[PrintControl] Klipper error while {} pending — releasing the button: {}", verb,
                  detail);
     clear_pending_action();
-}
-
-void PrintControlButtons::on_primary_clicked(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[PrintControl] on_primary_clicked");
-    (void)e;
-    instance().handle_primary_button();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void PrintControlButtons::on_stop_clicked(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[PrintControl] on_stop_clicked");
-    (void)e;
-    instance().handle_stop_button();
-    LVGL_SAFE_EVENT_CB_END();
 }
 
 } // namespace helix::ui

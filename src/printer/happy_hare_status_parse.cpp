@@ -10,6 +10,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <string_view>
 
 namespace helix::happy_hare {
@@ -100,23 +101,32 @@ FlowguardDelta read_flowguard(const nlohmann::json& fg) {
     d.max_clog = ams::read_field<float>(fg, "max_clog");
     d.max_tangle = ams::read_field<float>(fg, "max_tangle");
     d.encoder_mode = ams::read_field<int>(fg, "encoder_mode");
+    d.buffer_data = fg.contains("level") || fg.contains("trigger") || fg.contains("max_clog");
     return d;
 }
 
 MmuSensorsDelta read_sensors(const nlohmann::json& sensors) {
     MmuSensorsDelta d;
-    constexpr std::string_view prefix = "mmu_pre_gate_";
     for (auto it = sensors.begin(); it != sensors.end(); ++it) {
         const std::string& key = it.key();
-        if (key.rfind(prefix, 0) != 0) {
-            continue;
+        for (const std::string_view prefix : {"mmu_pre_gate_", "mmu_entry_"}) {
+            if (key.rfind(prefix, 0) != 0) {
+                continue;
+            }
+            const auto gate = tio::parse_leading<int>(key.substr(prefix.size()));
+            if (gate && *gate >= 0) {
+                d.pre_gate.emplace_back(*gate, it.value().is_boolean() && it.value().get<bool>());
+            }
         }
-        const auto gate = tio::parse_leading<int>(key.substr(prefix.size()));
-        if (!gate || *gate < 0) {
-            continue;
-        }
-        d.pre_gate.emplace_back(*gate, it.value().is_boolean() && it.value().get<bool>());
     }
+    // v4 publishes a disabled sensor as null, and its parameter guards treat
+    // a disabled sensor as not fitted.
+    auto fitted = [&sensors](const char* key) {
+        const auto it = sensors.find(key);
+        return it != sensors.end() && !it->is_null();
+    };
+    d.has_toolhead_sensor = fitted("toolhead");
+    d.has_extruder_sensor = fitted("extruder");
     if (sensors.contains("mmu_pre_gate")) {
         d.aggregate_pre_gate =
             sensors["mmu_pre_gate"].is_boolean() && sensors["mmu_pre_gate"].get<bool>();
@@ -135,7 +145,386 @@ DryingObjectDelta read_drying_object(const nlohmann::json& drying) {
     return d;
 }
 
+/// Which v4 section holds a tunable.
+enum class ParamScope { Machine, Unit, Toolhead };
+
+struct ParamRow {
+    std::string_view key;  ///< HelixScreen's name
+    std::string_view v3;   ///< before 3.42
+    std::string_view v342; ///< 3.42 to 3.x
+    std::string_view v4;
+    ParamScope scope;
+    double since = 0; ///< the first v3 version accepting it, 0 for all
+};
+
+// Every tunable the backend reads from configfile or sends through
+// MMU_TEST_CONFIG, checked against each release's MMU_TEST_CONFIG and config
+// readers. v3 refuses a parameter that is not one of its own attributes
+// (cmd_MMU_TEST_CONFIG illegal_params). v4 sources: mmu_machine_parameters.py
+// (Machine), unit/mmu_unit_parameters.py and the selector parameter classes,
+// which read [mmu_unit_parameters] too (Unit), unit/mmu_toolhead_wrapper.py
+// (Toolhead).
+constexpr ParamRow kParams[] = {
+    {"form_tip_macro", "form_tip_macro", "form_tip_macro", "form_tip_macro", ParamScope::Machine},
+    {"extruder_load_speed", "extruder_load_speed", "extruder_load_speed", "extruder_load_speed",
+     ParamScope::Machine},
+    {"extruder_unload_speed", "extruder_unload_speed", "extruder_unload_speed",
+     "extruder_unload_speed", ParamScope::Machine},
+    {"gear_from_spool_speed", "gear_from_spool_speed", "gear_from_spool_speed", "gear_load_speed",
+     ParamScope::Unit},
+    {"gear_from_buffer_speed", "gear_from_buffer_speed", "gear_from_buffer_speed",
+     "gear_from_filament_buffer_speed", ParamScope::Unit},
+    {"gear_unload_speed", "gear_unload_speed", "gear_unload_speed", "gear_unload_speed",
+     ParamScope::Unit, 3.10},
+    {"selector_move_speed", "selector_move_speed", "selector_move_speed", "selector_move_speed",
+     ParamScope::Unit},
+    {"sync_to_extruder", "sync_to_extruder", "sync_to_extruder", "sync_to_extruder",
+     ParamScope::Unit},
+    {"heater_max_temp", "heater_max_temp", "heater_max_temp", "heater_max_temp", ParamScope::Unit},
+    // Clog detection mode, 0 off, 1 static (manual), 2 automatic, in every
+    // version. In static mode the length is the calibrated clog length before
+    // 3.42 and the encoder's maximum motion from 3.42 on.
+    {"clog_detection", "enable_clog_detection", "flowguard_encoder_mode", "flowguard_encoder_mode",
+     ParamScope::Unit},
+    {"detection_length", "mmu_calibration_clog_length", "flowguard_encoder_max_motion",
+     "flowguard_encoder_max_motion", ParamScope::Unit},
+    {"toolhead_sensor_to_nozzle", "toolhead_sensor_to_nozzle", "toolhead_sensor_to_nozzle",
+     "toolhead_sensor_to_nozzle", ParamScope::Toolhead},
+    {"toolhead_extruder_to_nozzle", "toolhead_extruder_to_nozzle", "toolhead_extruder_to_nozzle",
+     "toolhead_extruder_to_nozzle", ParamScope::Toolhead},
+    {"toolhead_entry_to_extruder", "toolhead_entry_to_extruder", "toolhead_entry_to_extruder",
+     "toolhead_entry_to_extruder", ParamScope::Toolhead},
+    {"toolhead_ooze_reduction", "toolhead_ooze_reduction", "toolhead_ooze_reduction",
+     "toolhead_ooze_reduction", ParamScope::Toolhead},
+};
+
+const ParamRow* find_param_row(std::string_view key) {
+    for (const auto& row : kParams) {
+        if (row.key == key) {
+            return &row;
+        }
+    }
+    return nullptr;
+}
+
+const nlohmann::json* find_member(const nlohmann::json& obj, const std::string& key) {
+    if (!obj.is_object()) {
+        return nullptr;
+    }
+    const auto it = obj.find(key);
+    return it == obj.end() ? nullptr : &*it;
+}
+
+std::string read_string_member(const nlohmann::json& obj, const std::string& key) {
+    const auto* v = find_member(obj, key);
+    return v && v->is_string() ? v->get<std::string>() : std::string{};
+}
+
+/// A Happy Hare config list (e.g. environment_sensors) as trimmed names.
+/// Moonraker may return it as a JSON array or as a comma-separated string.
+std::vector<std::string> read_config_list(const nlohmann::json* v) {
+    std::vector<std::string> out;
+    if (!v) {
+        return out;
+    }
+    auto push = [&](std::string_view item) {
+        const auto trimmed = tio::trim(item);
+        if (!trimmed.empty()) {
+            out.emplace_back(trimmed);
+        }
+    };
+    if (v->is_array()) {
+        for (const auto& e : *v) {
+            if (e.is_string()) {
+                push(e.get<std::string>());
+            }
+        }
+    } else if (v->is_string()) {
+        const std::string text = v->get<std::string>();
+        for (std::string_view item : tio::lines(text, ',')) {
+            push(item);
+        }
+    }
+    return out;
+}
+
+MachineUnit read_machine_unit(const nlohmann::json& settings, const nlohmann::json& fields) {
+    MachineUnit u;
+    u.display_name = read_string_member(fields, "display_name");
+    u.selector_type = read_string_member(fields, "selector_type");
+    if (const auto* first = find_member(fields, "first_gate")) {
+        u.first_gate = ams::read_integer(*first).value_or(-1);
+    }
+    if (const auto* count = find_member(fields, "num_gates")) {
+        u.num_gates = std::max(ams::read_integer(*count).value_or(0), 0);
+    }
+    u.filament_heater = read_string_member(fields, "filament_heater");
+    u.environment_sensor = read_string_member(fields, "environment_sensor");
+    u.filament_heaters = read_config_list(find_member(fields, "filament_heaters"));
+    u.environment_sensors = read_config_list(find_member(fields, "environment_sensors"));
+    if (const auto* v = find_member(fields, "has_bypass"); v && v->is_boolean()) {
+        u.has_bypass = v->get<bool>();
+    }
+    if (const auto* v = find_member(fields, "filament_always_gripped"); v && v->is_boolean()) {
+        u.filament_always_gripped = v->get<bool>();
+    }
+    if (const auto* v = find_member(fields, "filament_buffer"); v && v->is_boolean()) {
+        u.filament_buffer = v->get<bool>();
+    }
+    // v4 names the unit's encoder on its own [mmu_unit <name>] section; Klipper
+    // lowercases section names in configfile.settings.
+    const std::string name = tio::to_lower(read_string_member(fields, "name"));
+    if (const auto* cfg = name.empty() ? nullptr : find_member(settings, "mmu_unit " + name)) {
+        u.has_encoder = !read_string_member(*cfg, "encoder").empty();
+    }
+    return u;
+}
+
 } // namespace
+
+std::vector<MachineUnit> read_machine_units(const nlohmann::json& settings,
+                                            const nlohmann::json& live_mmu_machine) {
+    std::vector<MachineUnit> units;
+    for (int u = 0;; ++u) {
+        const auto* fields = find_member(live_mmu_machine, "unit_" + std::to_string(u));
+        if (!fields || !fields->is_object()) {
+            break;
+        }
+        units.push_back(read_machine_unit(settings, *fields));
+    }
+    if (units.empty()) {
+        if (const auto* config = find_member(settings, "mmu_machine");
+            config && config->is_object() && !config->empty()) {
+            units.push_back(read_machine_unit(settings, *config));
+        }
+    }
+    return units;
+}
+
+bool unit_supports(const MachineUnit& unit, UnitFeature feature, bool v4) {
+    const std::string& sel = unit.selector_type;
+    const bool type_b = sel == "VirtualSelector";
+    if (!v4) {
+        switch (feature) {
+        case UnitFeature::Servo:
+        case UnitFeature::SelectorSpeed:
+        case UnitFeature::Encoder:
+            return !type_b;
+        case UnitFeature::SyncToExtruder:
+        case UnitFeature::FilamentBuffer:
+            return true;
+        }
+        return true;
+    }
+    switch (feature) {
+    case UnitFeature::Servo:
+        // MMU_SERVO is registered by LinearServoSelector and its multi-gear subclass.
+        return sel.empty() || sel == "LinearServoSelector" || sel == "LinearMultiGearServoSelector";
+    case UnitFeature::SelectorSpeed:
+        // selector_move_speed is a parameter of the linear, rotary and indexed selectors.
+        return sel.empty() || sel.rfind("Linear", 0) == 0 || sel == "RotarySelector" ||
+               sel == "IndexedSelector";
+    case UnitFeature::Encoder:
+        return unit.has_encoder.value_or(!type_b);
+    case UnitFeature::SyncToExtruder:
+        return !unit.filament_always_gripped;
+    case UnitFeature::FilamentBuffer:
+        return unit.filament_buffer.value_or(true);
+    }
+    return true;
+}
+
+UnitObjects collect_unit_objects(const std::vector<MachineUnit>& units, UnitObjectKind kind) {
+    const bool heater = kind == UnitObjectKind::Heater;
+    auto scalar = [heater](const MachineUnit& u) -> const std::string& {
+        return heater ? u.filament_heater : u.environment_sensor;
+    };
+    auto list = [heater](const MachineUnit& u) -> const std::vector<std::string>& {
+        return heater ? u.filament_heaters : u.environment_sensors;
+    };
+
+    UnitObjects out;
+    if (units.size() == 1) {
+        out.shared = scalar(units[0]);
+        out.per_gate = list(units[0]);
+        return out;
+    }
+    const bool one_shared =
+        !units.empty() && std::all_of(units.begin(), units.end(), [&](const MachineUnit& u) {
+            return list(u).empty() && scalar(u) == scalar(units[0]);
+        });
+    if (one_shared) {
+        out.shared = scalar(units[0]);
+        return out;
+    }
+    bool any = false;
+    for (const auto& u : units) {
+        if (!list(u).empty()) {
+            out.per_gate.insert(out.per_gate.end(), list(u).begin(), list(u).end());
+        } else {
+            out.per_gate.insert(out.per_gate.end(), static_cast<size_t>(u.num_gates), scalar(u));
+        }
+        any = any || !scalar(u).empty() || !list(u).empty();
+    }
+    if (!any) {
+        out.per_gate.clear();
+    }
+    return out;
+}
+
+MachineLayout read_machine_layout(const nlohmann::json& settings,
+                                  const nlohmann::json& live_mmu_machine) {
+    MachineLayout layout;
+    static const nlohmann::json empty = nlohmann::json::object();
+    const auto* config_machine = find_member(settings, "mmu_machine");
+    const nlohmann::json& config_mm = config_machine ? *config_machine : empty;
+
+    layout.version = read_string_member(live_mmu_machine, "happy_hare_version");
+    if (layout.version.empty()) {
+        layout.version = read_string_member(config_mm, "happy_hare_version");
+    }
+    if (layout.version.empty()) {
+        // v3 keeps its version on [mmu], as a number such as 3.42.
+        if (const auto* mmu = find_member(settings, "mmu")) {
+            if (const auto* v = find_member(*mmu, "happy_hare_version"); v && v->is_number()) {
+                char text[32];
+                std::snprintf(text, sizeof(text), "%g", v->get<double>());
+                layout.version = text;
+            } else if (v && v->is_string()) {
+                layout.version = v->get<std::string>();
+            }
+        }
+    }
+    layout.version_number = tio::parse_leading<double>(layout.version).value_or(0.0);
+    layout.v4 = layout.version_number >= 4;
+    if (!layout.v4) {
+        return layout;
+    }
+
+    if (const auto* units = find_member(live_mmu_machine, "num_units")) {
+        if (const auto n = ams::read_integer(*units)) {
+            layout.num_units = std::max(*n, 1);
+        }
+    }
+    for (const auto& unit : read_machine_units(settings, live_mmu_machine)) {
+        if (unit.has_bypass) {
+            layout.has_bypass = layout.has_bypass.value_or(false) || *unit.has_bypass;
+        }
+    }
+
+    // Klipper lowercases section names in configfile.settings; unit and
+    // toolhead names keep the case they were configured with.
+    std::string unit;
+    if (const auto* unit0 = find_member(live_mmu_machine, "unit_0")) {
+        unit = read_string_member(*unit0, "name");
+    }
+    if (unit.empty()) {
+        if (const auto* units = find_member(config_mm, "units");
+            units && units->is_array() && !units->empty() && (*units)[0].is_string()) {
+            unit = (*units)[0].get<std::string>();
+        }
+    }
+    unit = tio::to_lower(unit);
+    if (!unit.empty()) {
+        layout.unit_params_section = "mmu_unit_parameters " + unit;
+        std::string toolhead;
+        if (const auto* unit_cfg = find_member(settings, "mmu_unit " + unit)) {
+            toolhead = read_string_member(*unit_cfg, "toolhead");
+        }
+        layout.toolhead_section =
+            "mmu_toolhead " + tio::to_lower(toolhead.empty() ? "default" : toolhead);
+    }
+    return layout;
+}
+
+std::string_view param_name(std::string_view key, const MachineLayout& layout) {
+    const ParamRow* row = find_param_row(key);
+    if (!row) {
+        return key;
+    }
+    if (layout.v4) {
+        return row->v4;
+    }
+    // An unknown version is not refused anything.
+    if (layout.version_number > 0 && layout.version_number < row->since) {
+        return {};
+    }
+    return layout.version_number >= 3.42 ? row->v342 : row->v3;
+}
+
+bool param_is_per_unit(std::string_view key) {
+    const ParamRow* row = find_param_row(key);
+    return row && row->scope != ParamScope::Machine;
+}
+
+const nlohmann::json* find_config_param(const nlohmann::json& settings, const MachineLayout& layout,
+                                        std::string_view key) {
+    const std::string name(param_name(key, layout));
+    if (name.empty()) {
+        return nullptr;
+    }
+    if (!layout.v4) {
+        const auto* mmu = find_member(settings, "mmu");
+        return mmu ? find_member(*mmu, name) : nullptr;
+    }
+    const ParamRow* row = find_param_row(key);
+    if (!row) {
+        return nullptr;
+    }
+    std::string section;
+    switch (row->scope) {
+    case ParamScope::Machine:
+        section = "mmu_parameters";
+        break;
+    case ParamScope::Unit:
+        section = layout.unit_params_section;
+        break;
+    case ParamScope::Toolhead:
+        section = layout.toolhead_section;
+        break;
+    }
+    const auto* params = find_member(settings, section);
+    return params ? find_member(*params, name) : nullptr;
+}
+
+std::optional<float> read_config_number(const nlohmann::json* v) {
+    if (!v) {
+        return std::nullopt;
+    }
+    if (v->is_number()) {
+        return v->get<float>();
+    }
+    if (v->is_string()) {
+        return tio::parse_leading<float>(v->get<std::string>());
+    }
+    return std::nullopt;
+}
+
+std::vector<EntrySensorReading> parse_entry_sensor_objects(const nlohmann::json& params) {
+    std::vector<EntrySensorReading> readings;
+    if (!params.is_object()) {
+        return readings;
+    }
+    constexpr std::string_view prefix = "filament_switch_sensor mmu_entry_";
+    for (auto it = params.begin(); it != params.end(); ++it) {
+        const std::string& key = it.key();
+        if (key.rfind(prefix, 0) != 0 || !it.value().is_object()) {
+            continue;
+        }
+        const auto gate = tio::parse_leading<int>(key.substr(prefix.size()));
+        if (!gate || *gate < 0) {
+            continue;
+        }
+        EntrySensorReading r;
+        r.gate = *gate;
+        r.detected = ams::read_field<bool>(it.value(), "filament_detected");
+        r.enabled = ams::read_field<bool>(it.value(), "enabled");
+        if (r.detected || r.enabled) {
+            readings.push_back(r);
+        }
+    }
+    return readings;
+}
 
 MmuCoreDelta parse_core(const nlohmann::json& mmu) {
     MmuCoreDelta d;
@@ -212,6 +601,14 @@ GateIdentityDelta parse_gate_identity(const nlohmann::json& mmu) {
 MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
     MmuTelemetryDelta d;
     d.espooler_active = ams::read_field<std::string>(mmu, "espooler_active");
+    if (const auto it = mmu.find("espooler"); it != mmu.end() && it->is_array()) {
+        std::vector<std::string> ops;
+        ops.reserve(it->size());
+        for (const auto& op : *it) {
+            ops.push_back(op.is_string() ? op.get<std::string>() : std::string{});
+        }
+        d.espooler = std::move(ops);
+    }
     d.sync_feedback_state = ams::read_field<std::string>(mmu, "sync_feedback_state");
     d.sync_feedback_bias = ams::read_field<float>(mmu, "sync_feedback_bias_modelled");
     d.sync_feedback_bias_raw = ams::read_field<float>(mmu, "sync_feedback_bias_raw");
@@ -248,6 +645,16 @@ MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
         d.spoolman_mode = spoolman_mode_from_string(*mode);
     }
     d.pending_spool_id = ams::read_integer_field(mmu, "pending_spool_id");
+
+    auto is_null = [&mmu](const char* key) {
+        const auto it = mmu.find(key);
+        return it != mmu.end() && it->is_null();
+    };
+    d.sync_feedback_bias_null = is_null("sync_feedback_bias_modelled");
+    d.sync_feedback_bias_raw_null = is_null("sync_feedback_bias_raw");
+    d.flowguard_null = is_null("flowguard");
+    d.encoder_null = is_null("encoder");
+    d.v4_marker = mmu.contains("tangle_prevention");
     return d;
 }
 

@@ -18,6 +18,7 @@
 #include "printer_state.h"
 #include "theme_manager.h"
 #include "tool_state.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -490,7 +491,7 @@ void ToolSwitcherWidget::ToolPicker::on_created(lv_obj_t* backdrop) {
         }
 
         // Find the actual ui_button — context menu buttons are full width
-        lv_obj_t* btn = lv_obj_find_by_name(picker_btn, "tool_btn");
+        lv_obj_t* btn = helix::ui::find_required(picker_btn, "tool_btn", "ToolSwitcher");
         if (!btn) {
             continue;
         }
@@ -503,7 +504,8 @@ void ToolSwitcherWidget::ToolPicker::on_created(lv_obj_t* backdrop) {
             // ui_button "ghost" doesn't have a bg — set primary bg directly
             lv_obj_set_style_bg_color(btn, theme_manager_get_color("primary"), 0);
             lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
-            lv_obj_t* label = lv_obj_find_by_name(picker_btn, "tool_btn_label");
+            lv_obj_t* label =
+                helix::ui::find_required(picker_btn, "tool_btn_label", "ToolSwitcher");
             if (label) {
                 lv_obj_set_style_text_color(label, theme_manager_get_color("screen_bg"), 0);
             }

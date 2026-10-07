@@ -3,6 +3,7 @@
 
 #include "display_settings_manager.h"
 #include "page_scroll_math.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -38,10 +39,9 @@ bool PageScrollController::attach(lv_obj_t* container) {
         container_ = nullptr;
         return false;
     }
-    up_btn_ = lv_obj_find_by_name(gutter_, "up");
-    down_btn_ = lv_obj_find_by_name(gutter_, "down");
+    up_btn_ = helix::ui::find_required(gutter_, "up", "PageScroll");
+    down_btn_ = helix::ui::find_required(gutter_, "down", "PageScroll");
     if (up_btn_ == nullptr || down_btn_ == nullptr) {
-        spdlog::error("[PageScroll] page_scroll_gutter is missing its up/down buttons");
         lv_obj_delete_async(gutter_);
         gutter_ = nullptr;
         up_btn_ = nullptr;

@@ -216,7 +216,6 @@ class FilamentCatalogSelector {
     static void on_row_clicked_cb(lv_event_t* e);
     static void on_row_edit_cb(lv_event_t* e);
     static void on_row_star_cb(lv_event_t* e);
-    static void on_add_custom_cb(lv_event_t* e);
 
     lv_obj_t* root_ = nullptr;
     helix::printer::FilamentCatalog catalog_;

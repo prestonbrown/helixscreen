@@ -1,6 +1,6 @@
 # Settings: Touch & Input
 
-**Settings > Touch & Input** is about how the screen reads your finger. Come here when taps land in the wrong place, when scrolling sets off buttons by accident, when long-presses trigger too easily, or when you'd like buttons for scrolling long lists. On Android it also holds the keyboard and navigation bar options.
+**Settings > Touch & Input** is about how the screen reads your finger. Come here when taps land in the wrong place, when scrolling sets off buttons by accident, when long-presses trigger too easily, when you'd rather the number pad had 7 8 9 on top, or when you'd like buttons for scrolling long lists. On Android it also holds the keyboard and navigation bar options.
 
 ![Touch & Input settings, top of the page](../../../images/user/settings-touch-input.png)
 
@@ -56,6 +56,19 @@ Long-press opens home screen edit mode, deletes a file card, edits macros and mo
 Whether a long-press on the home screen opens edit mode, where you move, resize, add and remove widgets. **On** by default.
 
 Turn it off if edit mode keeps opening by accident. Turn it back on when you want to rearrange. If you'd rather keep editing available, raising [Long Press Time](#long-press-time) makes accidental edits rarer instead. Takes effect right away.
+
+---
+
+## Number Pad Layout
+
+Which way up the number pad is, wherever you type a number (temperatures, speeds, distances).
+
+| Option | Layout |
+|---|---|
+| **Phone** (default) | 1 2 3 on the top row, like a phone. Backspace is bottom left. On whole-number fields, such as temperatures, the bottom-right key is a green ✓ that sets the value, so you never reach up to **Set**. Fields that take decimals keep the decimal point there instead. |
+| **Calculator** | 7 8 9 on the top row, like a calculator or a keyboard's number pad. Decimal point bottom left, backspace bottom right. Set the value with **Set** at the top. |
+
+**Set** stays at the top in both layouts. Takes effect right away.
 
 ---
 

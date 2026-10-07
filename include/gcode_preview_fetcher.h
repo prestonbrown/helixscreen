@@ -37,6 +37,7 @@ class GcodePreviewFetcher {
         NoCacheDir,     ///< nowhere writable to put the copy
         TooLarge,       ///< the file would not fit the device's memory to render
         MetadataFailed, ///< the size lookup failed and no cached copy could stand in
+        NoGcode,        ///< a .3mf whose extracted G-code the printer does not expose
         DownloadFailed
     };
 
@@ -121,7 +122,7 @@ class GcodePreviewFetcher {
         return req->generation != generation_;
     }
 
-    void list_qidi_shadow(const RequestPtr& req, const std::string& metadata_filename);
+    void list_qidi_shadow(const RequestPtr& req);
     void lookup_metadata(const RequestPtr& req, const std::string& metadata_target,
                          const std::string& root, const std::string& download_target);
     void stream_if_safe(const RequestPtr& req, const std::string& root,

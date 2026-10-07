@@ -33,6 +33,8 @@
 #include "runtime_config.h"
 #include "version.h"
 
+#include <spdlog/fmt/fmt.h>
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -41,7 +43,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
-#include <fmt/format.h>
 #include <fstream>
 #include <iterator>
 #include <mutex>

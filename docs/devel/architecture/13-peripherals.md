@@ -97,7 +97,7 @@ The roster, verified against the tree — one facade per subsystem, and note how
 | USB/HID scanners | `UsbScannerMonitor` (overlay-owned) | monitor thread | always | none |
 | Camera QR scanning | `SnapshotQrScanner` (overlay-owned) | poll thread | always | none |
 | mDNS discovery | `MdnsDiscovery` (PIMPL, `IMdnsDiscovery`) | query thread | always | none |
-| Remote control | `RemoteControlServer` (`::instance()`) | accept thread | `ENABLE_REMOTE_CONTROL=yes` builds; server runs in `--test`/`--remote` | [`../HELIXCTL.md`](../HELIXCTL.md) |
+| Remote control | `RemoteControlServer` (`Application` member) | accept thread | `ENABLE_REMOTE_CONTROL=yes` builds; server runs in `--test`/`--remote` | [`../HELIXCTL.md`](../HELIXCTL.md) |
 
 ### Bluetooth: a runtime-loaded plugin on one bus thread
 

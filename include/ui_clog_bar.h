@@ -15,7 +15,7 @@ namespace helix::ui {
 /**
  * @brief Horizontal FlowGuard scale — the wide counterpart to UiClogMeter.
  *
- * Drives the measured half of clog_bar_page.xml from the same AmsState
+ * Drives the measured half of clog_bar_body.xml from the same AmsState
  * `clog_meter_*` subjects the arc uses: the fill, the value marker, the
  * peak-hold tick and the danger shading, all laid out inside clog_bar_track by
  * clog_bar_geometry() (clog_meter_geometry.h). Every label on the page is bound

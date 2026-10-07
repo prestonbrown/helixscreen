@@ -8,6 +8,7 @@
 
 #include "async_lifetime_guard.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
+#include "subject_managed_panel.h"
 
 #include <memory>
 #include <string>
@@ -18,8 +19,10 @@ namespace helix {
 class ThermistorTestAccess;
 
 /// Home widget displaying a user-selected temperature sensor reading.
-/// Click opens a context menu to choose which sensor to monitor.
-/// Selection persists via PanelWidgetConfig per-widget config.
+/// A tap on a sensor with a settable target (heater_generic, temperature_fan)
+/// opens the temperature keypad for it; a tap on a read-only sensor opens a
+/// context menu to choose which sensor to monitor. Edit mode chooses sensors
+/// for either. Selection persists via PanelWidgetConfig per-widget config.
 class ThermistorWidget : public TiledPanelWidget {
   public:
     explicit ThermistorWidget(const std::string& instance_id);
@@ -29,6 +32,9 @@ class ThermistorWidget : public TiledPanelWidget {
     void attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) override;
     void detach() override;
     std::string get_component_name() const override;
+    const char** xml_attrs() const override {
+        return const_cast<const char**>(attrs_.data());
+    }
     const char* id() const override {
         return instance_id_.c_str();
     }
@@ -50,6 +56,10 @@ class ThermistorWidget : public TiledPanelWidget {
     static void thermistor_clicked_cb(lv_event_t* e);
 
   private:
+    /// Keypad confirm: sends the value to the heater the keypad was opened for.
+    /// That name is held outside the widget, so a tile rebuilt while the keypad
+    /// is up cannot leave the callback holding a dead widget.
+    static void target_keypad_cb(float value, void* user_data);
     friend class ThermistorTestAccess;
 
     /// Single-select list of the printer's temperature sensors, raised by a tap on
@@ -136,7 +146,6 @@ class ThermistorWidget : public TiledPanelWidget {
 
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
-    lv_obj_t* temp_label_ = nullptr;
     lv_obj_t* name_label_ = nullptr;
 
     nlohmann::json config_;
@@ -145,8 +154,21 @@ class ThermistorWidget : public TiledPanelWidget {
     std::string selected_sensor_; // klipper_name (e.g., "temperature_sensor mcu_temp")
     std::string display_name_;    // Pretty name for label
     ObserverGuard temp_observer_;
+    ObserverGuard target_observer_; // shares temp_lifetime_: one token covers both
     SubjectLifetime temp_lifetime_;
-    char temp_buffer_[16] = {};
+
+    // The selected sensor's reading and target (decidegrees), mirrored into
+    // per-instance subjects the tile's temp_display binds to. The manager's
+    // own per-sensor subjects are not XML-registered.
+    SubjectManager subjects_;
+    lv_subject_t temp_subject_{};
+    lv_subject_t target_subject_{};
+    lv_subject_t available_subject_{}; ///< 1 while the selected sensor is reported
+    std::string temp_subject_name_;
+    std::string target_subject_name_;
+    std::string available_subject_name_;
+    std::vector<std::string> attr_storage_;
+    std::vector<const char*> attrs_;
 
     // Carousel mode
     struct CarouselPage {
@@ -193,6 +215,9 @@ class ThermistorWidget : public TiledPanelWidget {
     void update_display();
     void save_config();
     void show_sensor_picker();
+    /// Observe the selected sensor's temperature and target subjects.
+    void bind_selected_sensor();
+    void open_target_keypad();
 };
 
 } // namespace helix

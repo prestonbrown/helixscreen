@@ -142,8 +142,9 @@ struct ThemeCache {
     lv_color_t color_hub_bg;
     lv_color_t color_hub_border;
     lv_color_t color_text;
-    lv_color_t color_bg;      // Canvas background (for hollow tube bore)
-    lv_color_t color_success; // Success color (cached for draw callbacks)
+    lv_color_t color_bg;        // Canvas background (for hollow tube bore)
+    lv_color_t color_success;   // Success color (cached for draw callbacks)
+    lv_color_t color_buffer[3]; // Buffer box by ClogMeterStatus: text_muted, warning, danger
 
     int32_t line_width_idle = LINE_WIDTH_IDLE_BASE;
     int32_t line_width_active = LINE_WIDTH_ACTIVE_BASE;
@@ -283,7 +284,7 @@ struct FilamentPathData {
     bool eject_mode = false; // true = allow segment to drop below LANE (past slot sensor)
 
     // Buffer element (TurtleNeck / eSpooler visualization)
-    int buffer_fault_state = 0;  // 0=healthy, 1=warning/approaching, 2=fault
+    int buffer_fault_state = 0;  // -1=untinted, 0=healthy, 1=warning/approaching, 2=fault
     bool buffer_present = false; // true = draw buffer box between hub and toolhead
     int buffer_state = 0;        // 0=neutral, 1=compressed, 2=tension (coil icon spacing)
     float buffer_bias = -2.0f;   ///< Proportional bias [-1.0,1.0], -2=unavailable (use discrete)

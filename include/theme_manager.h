@@ -106,7 +106,7 @@ enum class PlatformTier;
 /// Style configure function type - applies palette colors to a style.
 using StyleConfigureFn = void (*)(lv_style_t* style, const ThemePalette& palette);
 
-/// Pressed state: a scale-down where pressed_scale_allowed(tier). Elsewhere a
+/// Pressed state: a scale-down where full_style_effects_allowed(tier). Elsewhere a
 /// non-null `ring` palette adds a primary outline, which renders without
 /// a layer; null adds nothing (buttons keep the LVGL theme's recolor).
 void configure_pressed_for_tier(lv_style_t* style, PlatformTier tier,

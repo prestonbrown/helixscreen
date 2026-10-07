@@ -357,24 +357,6 @@ TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/pwm_sound_backend.o)
 # treatment as the sysfs PWM backend above.
 TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/jz_pwm_sound_backend.o)
 
-# The channel auto-export step inside initialize() is ifdef'd
-# (HELIX_PWM_AUTO_EXPORT) so production platform builds opt in deliberately.
-# Host test builds DO opt in: the export tests in test_pwm_sound_backend.cpp
-# exercise the real call site. Guarded by "backend not in APP_SRCS" because a
-# bare target-specific flag would also reach the ad5m/ad5x app build, where the
-# same object file IS the production one — silently switching auto-export on
-# for shipping devices.
-#
-# `override` is load-bearing: test-asan/test-tsan re-invoke make with CXXFLAGS
-# on the command line, and a command-line variable silently discards every
-# makefile assignment to it — including plain target-specific ones. Without
-# `override`, sanitizer builds compile this object without the define, the
-# ifdef drops try_export_channel(), and the export tests fail on the mock's
-# seeded sentinel.
-ifeq (,$(filter $(SRC_DIR)/system/pwm_sound_backend.cpp,$(APP_SRCS)))
-$(OBJ_DIR)/system/pwm_sound_backend.o: override CXXFLAGS += -DHELIX_PWM_AUTO_EXPORT
-endif
-
 # ============================================================================
 # Test Targets
 # ============================================================================
