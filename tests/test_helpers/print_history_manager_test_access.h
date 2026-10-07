@@ -48,6 +48,10 @@ class PrintHistoryManagerTestAccess {
     }
 
     /// Shrink the cached-job budget so a test can reach it with a few jobs.
+    static void set_wire_page_jobs(PrintHistoryManager& m, int jobs) {
+        m.wire_page_jobs_ = jobs;
+    }
+
     static void set_job_budget(PrintHistoryManager& m, size_t budget) {
         m.job_budget_ = budget;
     }

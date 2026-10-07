@@ -252,8 +252,21 @@ class PrintHistoryManager {
     static constexpr int kCompleteJobLimit = 500;
 #endif
 
+    /// Jobs one server.history.list request asks for; 0 sends each load as one request.
+    /// At ~1.6 KB a job, ten keep a reply near 16 KB: the ESP32's 5.7 KB TCP window on a
+    /// weak link stalls on larger frames, and its client cannot answer pings mid-frame.
+#if defined(HELIX_PLATFORM_ESP32)
+    static constexpr int kWirePageJobs = 10;
+#else
+    static constexpr int kWirePageJobs = 0;
+#endif
+
     /// Jobs one load_older() page asks for.
+#if defined(HELIX_PLATFORM_ESP32)
+    static constexpr int kOlderPageJobs = kWirePageJobs;
+#else
     static constexpr int kOlderPageJobs = 50;
+#endif
 
     /// Jobs the cache may hold before load_older() stops paging. Each cached job
     /// lives in RAM (PSRAM on the ESP32); past this the stats say they cover
@@ -288,6 +301,10 @@ class PrintHistoryManager {
      */
     void fetch(helix::HistoryScope scope);
 
+    /// Asks for the next wire page of a load of @p limit jobs, @p acc holding the pages
+    /// already received; the last page completes the load.
+    void request_page(helix::HistoryScope scope, int limit, std::vector<PrintHistoryJob> acc);
+
     /**
      * @brief Populate the cache to @p scope if it is not already there
      *
@@ -303,6 +320,14 @@ class PrintHistoryManager {
      * @param scope How much history the caller needs
      */
     void ensure_loaded(helix::HistoryScope scope);
+
+    /// From now on, each connection fetches history only after on_discovery_complete():
+    /// a history reply then never competes with discovery, and a reconnect does not ask
+    /// for it before anything else. A fetch asked for earlier waits and runs then.
+    void hold_until_discovery();
+
+    /// Discovery and the status subscription finished on this connection. Main thread.
+    void on_discovery_complete();
 
     /**
      * @brief Load whatever it takes to have every job started since @p since
@@ -581,6 +606,14 @@ class PrintHistoryManager {
 
     /// Watches printer connection state so a dropped socket stales the cache.
     ObserverGuard connection_observer_;
+
+    // Discovery gate (hold_until_discovery()). Main thread only.
+    bool hold_until_discovery_ = false;
+    bool discovered_ = false;
+    int held_scope_ = kNoFetch; ///< Widest fetch asked for while held
+    ObserverGuard discovery_gate_observer_;
+
+    int wire_page_jobs_ = kWirePageJobs;
 
     friend class helix::PrintHistoryManagerTestAccess;
 };

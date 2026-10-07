@@ -161,12 +161,12 @@ MemoryInfo get_system_memory_info() {
 #elif defined(HELIX_PLATFORM_ESP32)
     // General allocations (LVGL draw buffers and image decodes included) come
     // from PSRAM, so PSRAM is the memory "available" heuristics are about.
-    // The largest-block walk takes a heap-wide critical section; callers sample
-    // it at discrete moments, never per frame.
+    // Only O(1) counters: the largest free block is not reported, because
+    // finding it walks every PSRAM block with interrupts masked for 20-30ms,
+    // and the RGB panel's bounce-buffer refill misses for the whole walk.
     info.total_kb = heap_caps_get_total_size(MALLOC_CAP_SPIRAM) / 1024;
     info.free_kb = heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024;
     info.available_kb = info.free_kb;
-    info.largest_free_kb = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024;
 
 #elif defined(__APPLE__)
     // macOS: Get total physical memory via sysctl-style approach

@@ -293,3 +293,72 @@ TEST_CASE_METHOD(PagingFixture, "a rewritten job on an older page shows as the o
     CHECK(job.modified == 42.0);
     CHECK(api_->metadata_table().calls == 1);
 }
+
+// A whole load larger than one wire page goes out as successive pages, so no single reply
+// outgrows what a weak link and a small receive window carry in one frame.
+TEST_CASE_METHOD(PagingFixture, "a load larger than a wire page arrives as successive pages",
+                 "[history_manager][paging][wire_page]") {
+    PrintHistoryManagerTestAccess::set_wire_page_jobs(*manager_, 10);
+    manager_->ensure_loaded(HistoryScope::RECENT);
+    REQUIRE(history().requests.size() == 1);
+    CHECK(history().requests[0].limit == 10);
+    CHECK(history().requests[0].start == 0);
+
+    history().answer(jobs_from(0, 10, 0.0));
+    pump();
+    CHECK_FALSE(manager_->is_loaded(HistoryScope::RECENT));
+    REQUIRE(history().requests.size() == 1);
+    CHECK(history().requests[0].start == 10);
+
+    // A short page is the end of the printer's history.
+    history().answer(jobs_from(10, 4, 10.0));
+    pump();
+    CHECK(history().requests.empty());
+    CHECK(manager_->is_loaded(HistoryScope::RECENT));
+    CHECK(manager_->get_jobs().size() == 14);
+    CHECK(manager_->holds_every_job());
+}
+
+TEST_CASE_METHOD(PagingFixture, "paged loading stops at the load's own limit",
+                 "[history_manager][paging][wire_page]") {
+    PrintHistoryManagerTestAccess::set_wire_page_jobs(*manager_, 20);
+    manager_->ensure_loaded(HistoryScope::RECENT);
+    int pages = 0;
+    while (!history().requests.empty() && pages < 10) {
+        const auto& r = history().requests[0];
+        CHECK(r.limit <= 20);
+        history().answer(jobs_from(r.start, r.limit, r.start));
+        pump();
+        ++pages;
+    }
+    CHECK(pages == 3); // 20 + 20 + 10
+    CHECK(manager_->get_jobs().size() == PrintHistoryManager::kRecentJobLimit);
+    CHECK_FALSE(manager_->holds_every_job());
+}
+
+// History waits for discovery: a stalled history reply on a new connection must not hold
+// up discovery, and every reconnect would otherwise ask for it again first.
+TEST_CASE_METHOD(PagingFixture, "history waits for discovery on each connection",
+                 "[history_manager][paging][discovery_gate]") {
+    manager_->hold_until_discovery();
+    manager_->ensure_loaded(HistoryScope::RECENT);
+    CHECK(history().requests.empty());
+
+    manager_->on_discovery_complete();
+    REQUIRE(history().requests.size() == 1);
+    history().answer(jobs_from(0, 3, 0.0));
+    pump();
+    REQUIRE(manager_->is_loaded(HistoryScope::RECENT));
+
+    // The connection drops and comes back: nothing goes out before discovery again.
+    lv_subject_set_int(printer_state_.network_state().get_printer_connection_state_subject(),
+                       static_cast<int>(ConnectionState::DISCONNECTED));
+    pump();
+    lv_subject_set_int(printer_state_.network_state().get_printer_connection_state_subject(),
+                       static_cast<int>(ConnectionState::CONNECTED));
+    pump();
+    manager_->ensure_loaded(HistoryScope::RECENT);
+    CHECK(history().requests.empty());
+    manager_->on_discovery_complete();
+    CHECK(history().requests.size() == 1);
+}

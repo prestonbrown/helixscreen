@@ -42,8 +42,10 @@ static const char *TAG = "websocket_client";
 /* A frame in progress that receives no payload bytes for this long aborts the connection.
  * Until a frame completes the task neither reads nor answers PINGs nor checks its own PONG
  * timeout, and stop() cannot end it, so a payload that stops arriving would hold the client
- * for good. Kept below Moonraker's 25 s pong timeout. */
-#define WEBSOCKET_MIDFRAME_TIMEOUT_MS   (10*1000)
+ * for good. On a weak link a large reply (an 80 KB history page) arrives with gaps of
+ * over 10 s between segments and still completes, so the deadline sits just below
+ * Moonraker's 25 s pong timeout, which ends a connection that really is dead. */
+#define WEBSOCKET_MIDFRAME_TIMEOUT_MS   (20*1000)
 
 #ifdef CONFIG_ESP_WS_CLIENT_SEPARATE_TX_LOCK
 #define WEBSOCKET_TX_LOCK_TIMEOUT_MS    (CONFIG_ESP_WS_CLIENT_TX_LOCK_TIMEOUT_MS)

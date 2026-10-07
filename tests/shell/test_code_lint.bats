@@ -3310,13 +3310,15 @@ own_endpoint_http_offenders() {
     [ "$count" -le "$limit" ]
 }
 
-# --- The thumbnail decode gate must not walk the PSRAM heap ---
+# --- Per-event ESP32 paths must not walk the PSRAM heap ---
 # heap_caps_get_largest_free_block() walks every block with interrupts masked
 # for 20-30ms on the K-Touch, and the RGB panel's bounce-buffer refill misses
-# for the whole walk: the screen glitches once per thumbnail decoded.
+# for the whole walk: the screen glitches once per call. These files run it per
+# thumbnail decode, per file-detail open and per print-status build.
 
-@test "the ESP32 thumbnail decode gate reads free PSRAM, not the largest block" {
-    run bash -c "grep -v '^ *//' include/esp_psram_thumbnail.h | grep -n 'heap_caps_get_largest_free_block\|heap_caps_get_info'"
+@test "per-event ESP32 paths read free PSRAM, never walk the heap" {
+    local files="include/esp_psram_thumbnail.h src/system/memory_utils.cpp src/ui/ui_panel_print_select.cpp src/print/active_print_media_manager.cpp src/ui/ui_panel_print_status.cpp"
+    run bash -c "grep -n 'heap_caps_get_largest_free_block\|heap_caps_get_info' $files | grep -v ':[0-9]*: *//'"
     [ "$status" -eq 1 ]  # grep returns 1 when no matches found
 
     run grep -n 'heap_caps_get_free_size(MALLOC_CAP_SPIRAM)' include/esp_psram_thumbnail.h

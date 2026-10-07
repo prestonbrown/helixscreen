@@ -613,26 +613,26 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                             // worth a later attempt; a corrupt, unsupported or
                             // truncated PNG fails the same way every time, so the
                             // placeholder stays.
-                            tok.defer(
-                                "ActivePrintMediaManager::on_thumbnail_decode_failed",
-                                [this, ctx, filename, resolved_thumb_path, failure]() {
-                                    if (!ctx.is_valid()) {
-                                        return;
-                                    }
-                                    if (failure != helix::ThumbnailDecodeFailure::OutOfMemory) {
-                                        spdlog::warn("[ActivePrintMediaManager] Thumbnail {} "
-                                                     "is corrupt or too large to decode; "
-                                                     "keeping the placeholder",
-                                                     resolved_thumb_path);
-                                        return;
-                                    }
-                                    spdlog::warn("[ActivePrintMediaManager] Could not decode "
-                                                 "thumbnail {}: out of memory (largest free "
-                                                 "PSRAM block {}KB)",
-                                                 resolved_thumb_path,
-                                                 helix::get_system_memory_info().largest_free_kb);
-                                    schedule_thumbnail_retry(filename, MAX_DECODE_RETRIES);
-                                });
+                            tok.defer("ActivePrintMediaManager::on_thumbnail_decode_failed",
+                                      [this, ctx, filename, resolved_thumb_path, failure]() {
+                                          if (!ctx.is_valid()) {
+                                              return;
+                                          }
+                                          if (failure !=
+                                              helix::ThumbnailDecodeFailure::OutOfMemory) {
+                                              spdlog::warn("[ActivePrintMediaManager] Thumbnail {} "
+                                                           "is corrupt or too large to decode; "
+                                                           "keeping the placeholder",
+                                                           resolved_thumb_path);
+                                              return;
+                                          }
+                                          spdlog::warn("[ActivePrintMediaManager] Could not decode "
+                                                       "thumbnail {}: out of memory (PSRAM free "
+                                                       "{}KB)",
+                                                       resolved_thumb_path,
+                                                       helix::get_system_memory_info().free_kb);
+                                          schedule_thumbnail_retry(filename, MAX_DECODE_RETRIES);
+                                      });
                             return;
                         }
                         // The last shared_ptr release must happen on the UI

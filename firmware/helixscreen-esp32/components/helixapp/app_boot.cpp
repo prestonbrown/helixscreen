@@ -682,6 +682,9 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
                              snapshot->heaters().size(), snapshot->fans().size(),
                              snapshot->sensors().size(),
                              status_snapshot->is_object() ? status_snapshot->size() : 0);
+                if (auto* hm = get_print_history_manager()) {
+                    hm->on_discovery_complete();
+                }
 
 #if CONFIG_HELIX_HTTP_HIL
                 run_http_hil_probe(mgr);
@@ -1078,6 +1081,7 @@ extern "C" void app_boot_ui(void) {
     // file list's success marks all read it through get_print_history_manager()
     // and render as "no history" while that returns null.
     static PrintHistoryManager print_history(manager.api(), manager.client());
+    print_history.hold_until_discovery();
     set_print_history_manager(&print_history);
     log_heap_milestone("subjects-up");
 

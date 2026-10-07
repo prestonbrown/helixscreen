@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <utility>
 
 using namespace helix;
 
@@ -68,6 +69,12 @@ void PrintHistoryManager::fetch(HistoryScope scope) {
         return;
     }
 
+    if (hold_until_discovery_ && !discovered_) {
+        held_scope_ = std::max(held_scope_, static_cast<int>(scope));
+        spdlog::debug("[HistoryManager] Holding history fetch until discovery completes");
+        return;
+    }
+
     // Atomic check-and-set prevents concurrent fetches. Pairs with the reset
     // in the BG-thread callbacks below.
     bool expected = false;
@@ -96,12 +103,35 @@ void PrintHistoryManager::fetch(HistoryScope scope) {
     delivery_pending_.store(false);
 
     spdlog::debug("[HistoryManager] Fetching history (limit={})", limit);
+    request_page(scope, limit, {});
+}
 
+void PrintHistoryManager::request_page(HistoryScope scope, int limit,
+                                       std::vector<PrintHistoryJob> acc) {
+    const int start = static_cast<int>(acc.size());
+    const int page = wire_page_jobs_ > 0 ? std::min(wire_page_jobs_, limit - start) : limit;
     auto token = lifetime_.token();
 
     api_->history().get_history_list(
-        limit, 0, 0.0, 0.0, // limit, start, since, before
-        [this, token, scope, limit](const std::vector<PrintHistoryJob>& jobs, uint64_t /*total*/) {
+        page, start, 0.0, 0.0, // limit, start, since, before
+        [this, token, scope, limit, page, acc = std::move(acc)](
+            const std::vector<PrintHistoryJob>& jobs, uint64_t /*total*/) mutable {
+            const bool short_page = static_cast<int>(jobs.size()) < page;
+            // A job started between two pages shifts the offsets by one, repeating a job.
+            for (const auto& job : jobs) {
+                auto same_id = [&job](const PrintHistoryJob& j) { return j.job_id == job.job_id; };
+                if (std::none_of(acc.begin(), acc.end(), same_id)) {
+                    acc.push_back(job);
+                }
+            }
+            if (!short_page && static_cast<int>(acc.size()) < limit) {
+                // is_fetching_ stays set: the load is still in flight.
+                token.defer("PrintHistoryManager::next_page",
+                            [this, scope, limit, acc = std::move(acc)]() mutable {
+                                request_page(scope, limit, std::move(acc));
+                            });
+                return;
+            }
             // Hand the join over BEFORE releasing is_fetching_: across these two
             // stores ensure_loaded() must still see a load it can ride on, or
             // the whole list goes out a second time while this one sits in the
@@ -109,22 +139,18 @@ void PrintHistoryManager::fetch(HistoryScope scope) {
             delivery_pending_.store(true);
             // Clear guard BEFORE posting defer so a freeze-drop doesn't strand us.
             is_fetching_.store(false);
-            // No bare expired() check — token.defer's own guard suffices, and
-            // dropping the bare check silences the bg_tok_expired_check
-            // detector for this site (3XNZQB2R audit). The std::vector copy
-            // below is harmless if defer skips.
-            std::vector<PrintHistoryJob> jobs_copy = jobs;
+            // A short last page means every job is here; requested keeps that reading.
+            const int requested = short_page ? static_cast<int>(acc.size()) + 1 : limit;
             token.defer("PrintHistoryManager::fetch_success",
-                        [this, scope, limit, jobs = std::move(jobs_copy)]() mutable {
-                            on_history_fetched(std::move(jobs), scope, limit);
+                        [this, scope, requested, jobs = std::move(acc)]() mutable {
+                            on_history_fetched(std::move(jobs), scope, requested);
                         });
         },
         [this, token](const MoonrakerError& error) {
             in_flight_scope_.store(kNoFetch);
             is_fetching_.store(false);
             // spdlog is thread-safe; logging the warn even on a destroyed
-            // manager is harmless (informational). Dropping the bare
-            // expired() check silences the detector here.
+            // manager is harmless (informational).
             (void)token;
             spdlog::warn("[HistoryManager] Failed to fetch history: {}", error.message);
         });
@@ -308,6 +334,30 @@ void PrintHistoryManager::watch_connection_state() {
     // honest under test.
     connection_observer_ =
         helix::observe_connection_staleness(api_->printer_state(), this, "HistoryManager");
+}
+
+void PrintHistoryManager::hold_until_discovery() {
+    hold_until_discovery_ = true;
+    discovered_ = false;
+    if (!api_) {
+        return;
+    }
+    discovery_gate_observer_ = helix::ui::observe<int>(
+        api_->printer_state().network_state().get_printer_connection_state_subject(), this,
+        [](PrintHistoryManager* self, int conn_state) {
+            if (conn_state != static_cast<int>(ConnectionState::CONNECTED)) {
+                self->discovered_ = false;
+            }
+        },
+        api_->printer_state().get_subjects_lifetime());
+}
+
+void PrintHistoryManager::on_discovery_complete() {
+    discovered_ = true;
+    const int held = std::exchange(held_scope_, kNoFetch);
+    if (held != kNoFetch) {
+        ensure_loaded(static_cast<HistoryScope>(held));
+    }
 }
 
 void PrintHistoryManager::invalidate() {

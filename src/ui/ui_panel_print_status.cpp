@@ -1005,8 +1005,7 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
 #if defined(HELIX_PLATFORM_ESP32)
     // Same [heap:<stage>] shape as the firmware's boot milestones, so a boot log
     // shows what building this tree on top of home cost.
-    spdlog::info("[heap:print-status-up] psram free={}KB largest={}KB", tree_mem.available_kb,
-                 tree_mem.largest_free_kb);
+    spdlog::info("[heap:print-status-up] psram free={}KB", tree_mem.available_kb);
 #endif
 
     // Find G-code viewer, thumbnail, and gradient background widgets

@@ -376,6 +376,7 @@ bool PrinterSession::init_moonraker() {
     // Create print history manager (shared cache for history panels and file status indicators)
     m_history_manager =
         std::make_unique<PrintHistoryManager>(m_moonraker->api(), get_moonraker_client());
+    m_history_manager->hold_until_discovery();
     set_print_history_manager(m_history_manager.get());
     spdlog::debug("[Application] PrintHistoryManager created");
 
@@ -654,6 +655,9 @@ void PrinterSession::setup_discovery_callbacks() {
                         get_printer_state().print_state().get_print_active_subject()) != 0,
                     *status_snapshot)};
             helix::run_discovery_steps(ctx);
+            if (auto* hm = get_print_history_manager()) {
+                hm->on_discovery_complete();
+            }
         });
     });
 }
