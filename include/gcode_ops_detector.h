@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "gcode_parser.h"
 #include "operation_patterns.h"
 
 #include <chrono>
@@ -102,6 +103,8 @@ struct ScanResult {
     size_t bytes_scanned = 0;
     bool reached_limit = false;     ///< True if scan stopped due to limits
     PrintStartCallInfo print_start; ///< Info about PRINT_START call (if found)
+    /// EXCLUDE_OBJECT_DEFINE objects in the scanned head, in file order.
+    std::vector<GCodeObject> objects;
 
     /**
      * @brief Check if a specific operation type was detected

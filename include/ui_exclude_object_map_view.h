@@ -3,6 +3,7 @@
 
 #include "ui_exclude_object_badges.h"
 #include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "bed_coord_mapper.h"
 #include "gcode_parser.h"
@@ -13,8 +14,12 @@
 #include <lvgl.h>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
+
+class ExcludeObjectMapViewTestAccess; // NAMESPACE_OK: test seam befriended below, defined in the
+                                      // unit test
 
 // Forward declarations
 namespace helix {
@@ -22,8 +27,6 @@ class PrinterExcludedObjectsState;
 }
 
 namespace helix::ui {
-
-class PrintExcludeObjectManager;
 
 class ExcludeObjectMapView {
   public:
@@ -34,9 +37,6 @@ class ExcludeObjectMapView {
     using PixelRect = helix::PixelRect;
     using CoordMapper = helix::BedCoordMapper;
 
-    enum class KeyBarMode { FullNames, Abbreviated, Summary };
-    static KeyBarMode key_bar_mode(int object_count);
-
     ExcludeObjectMapView();
     ~ExcludeObjectMapView();
 
@@ -45,8 +45,8 @@ class ExcludeObjectMapView {
     ExcludeObjectMapView& operator=(const ExcludeObjectMapView&) = delete;
 
     void create(lv_obj_t* parent, helix::PrinterExcludedObjectsState* state, float bed_w_mm,
-                float bed_h_mm, PrintExcludeObjectManager* exclude_manager,
-                std::shared_ptr<helix::gcode::ParsedGCodeFile> parsed_file = nullptr);
+                float bed_h_mm, ObjectTapFn on_object_tapped, ExcludeTapMode tap_mode,
+                const helix::gcode::ParsedGCodeFile* parsed_file = nullptr);
     void destroy();
 
     [[nodiscard]] lv_obj_t* root() const {
@@ -61,25 +61,33 @@ class ExcludeObjectMapView {
     }
 
   private:
+    friend class ::ExcludeObjectMapViewTestAccess;
+
     void build_object_rects();
     void update_visual_states();
-    void build_key_bar();
     void draw_first_layer_outlines();
+    void copy_parsed_geometry(const helix::gcode::ParsedGCodeFile* parsed);
     lv_obj_t* create_object_rect(lv_obj_t* parent, const ObjectBadge& badge, const PixelRect& rect);
 
     static void on_close_clicked(lv_event_t* e);
     static void on_object_clicked(lv_event_t* e);
 
-    lv_obj_t* root_{nullptr};
-    lv_obj_t* plate_area_{nullptr};
-    lv_obj_t* key_bar_{nullptr};
-    lv_obj_t* object_container_{nullptr};
-    lv_obj_t* canvas_{nullptr};
+    // Null once LVGL deletes the widget, so a tree deleted under the view is
+    // never touched again.
+    WidgetRef root_;
+    WidgetRef plate_area_;
+    WidgetRef object_container_;
+    WidgetRef canvas_;
     lv_draw_buf_t* canvas_buf_{nullptr};
 
     helix::PrinterExcludedObjectsState* state_{nullptr};
-    PrintExcludeObjectManager* exclude_manager_{nullptr};
-    std::shared_ptr<helix::gcode::ParsedGCodeFile> parsed_file_;
+    ObjectTapFn on_object_tapped_;
+    ExcludeTapMode tap_mode_{ExcludeTapMode::ExcludeOnly};
+    // Copied from the parse at create(): its owner can free it while the map is
+    // open. parsed_objects_ holds only the objects, and is null with no parse;
+    // parsed_outlines_ holds each object's first-layer hull.
+    std::unique_ptr<helix::gcode::ParsedGCodeFile> parsed_objects_;
+    std::unordered_map<std::string, std::vector<glm::vec2>> parsed_outlines_;
 
     float bed_w_mm_{235.0f};
     float bed_h_mm_{235.0f};

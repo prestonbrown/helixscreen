@@ -22,7 +22,6 @@ dryer_supported  # src/printer/ams_state_subjects.cpp:194; src/printer/ams_state
 dryer_target_temp  # src/printer/ams_state.cpp:413; src/printer/ams_state.cpp:813
 dryer_target_temp_text  # src/printer/ams_state.cpp:417; src/printer/ams_state.cpp:818
 dryer_time_text  # src/printer/ams_state.cpp:418; src/printer/ams_state.cpp:820
-exclude_map_active  # src/ui/ui_panel_print_status.cpp:653
 filament_extrusion_allowed  # src/ui/ui_panel_filament.cpp:287
 filament_material_bed_temp  # src/ui/ui_panel_filament.cpp:301
 filament_material_nozzle_temp  # src/ui/ui_panel_filament.cpp:299

@@ -9,6 +9,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
@@ -82,8 +83,27 @@ static void default_wait_until(int64_t deadline_ns, const std::function<int64_t(
     }
 }
 
+namespace {
+// enable fd of the initialized backend, for the SIGTERM handler: the kernel
+// keeps a PWM channel running after its writer dies.
+std::atomic<int> s_signal_enable_fd{-1};
+} // namespace
+
+void PWMSoundBackend::silence_signal_safe() {
+    const int fd = s_signal_enable_fd.load(std::memory_order_relaxed);
+    if (fd >= 0) {
+        ::lseek(fd, 0, SEEK_SET);
+        ssize_t n = ::write(fd, "0", 1);
+        (void)n;
+    }
+}
+
 PWMSoundBackend::PWMSoundBackend(const std::string& base_path, int chip, int channel)
-    : base_path_(base_path), chip_(chip), channel_(channel) {}
+    : base_path_(base_path), chip_(chip), channel_(channel) {
+#ifdef HELIX_PWM_AUTO_EXPORT
+    auto_export_ = true;
+#endif
+}
 
 PWMSoundBackend::~PWMSoundBackend() {
     shutdown();
@@ -158,7 +178,7 @@ float PWMSoundBackend::min_tick_ms() const {
 }
 
 bool PWMSoundBackend::owns_sysfs_pwm_channel() const {
-    return true;
+    return klippy_shares_channel_;
 }
 
 bool PWMSoundBackend::is_enabled() const {
@@ -196,11 +216,12 @@ bool PWMSoundBackend::try_export_channel() {
 bool PWMSoundBackend::initialize() {
     std::string path = channel_path();
     if (!std::filesystem::exists(path)) {
-#ifdef HELIX_PWM_AUTO_EXPORT
-        // The stock AD5M kernel ships the beeper channel unexported: nothing
-        // materializes pwm6 until its number is written to pwmchip0/export.
-        try_export_channel();
-#endif
+        // The stock AD5M kernel ships the beeper channel unexported, and a Pi's
+        // pwm-2chan overlay channels stay unexported until something asks:
+        // nothing materializes pwmN until its number is written to export.
+        if (auto_export_) {
+            try_export_channel();
+        }
         if (!std::filesystem::exists(path)) {
             return false;
         }
@@ -227,11 +248,17 @@ bool PWMSoundBackend::initialize() {
 
     // Rig-tunable audible floor (see DEFAULT_MIN_NOTE_MS): env_float falls
     // back to the default on unset/empty/non-positive/unparseable values.
-    min_note_ms_ = helix::env_float("HELIX_PWM_MIN_NOTE_MS", DEFAULT_MIN_NOTE_MS,
-                                    MIN_NOTE_MS_CLAMP_LOW, MIN_NOTE_MS_CLAMP_HIGH);
+    min_note_ms_ = helix::env_float("HELIX_PWM_MIN_NOTE_MS", min_note_ms_, MIN_NOTE_MS_CLAMP_LOW,
+                                    MIN_NOTE_MS_CLAMP_HIGH);
     spdlog::debug("[PWMSoundBackend] min note floor: {} ms", min_note_ms_);
 
     initialized_ = true;
+    // The channel may still be sounding from a writer that died mid-note.
+    enabled_ = true;
+    silence();
+    if (fd_enable_ >= 0) {
+        s_signal_enable_fd.store(fd_enable_, std::memory_order_relaxed);
+    }
     return true;
 }
 
@@ -242,6 +269,8 @@ void PWMSoundBackend::shutdown() {
 
     stop_render_thread();
     silence();
+    int expected = fd_enable_;
+    s_signal_enable_fd.compare_exchange_strong(expected, -1, std::memory_order_relaxed);
 
     if (fd_duty_ >= 0)
         ::close(fd_duty_);

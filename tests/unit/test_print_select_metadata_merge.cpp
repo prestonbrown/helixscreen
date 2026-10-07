@@ -173,3 +173,61 @@ TEST_CASE("Cap on an all-directory list changes nothing", "[print_select][cap]")
     REQUIRE(cap_print_file_list_to_newest(files, 0) == false);
     REQUIRE(files.size() == 3);
 }
+
+// ============================================================================
+// Listing merge
+// ============================================================================
+
+namespace {
+std::vector<PrintFileData> listing(const std::vector<std::string>& names) {
+    std::vector<PrintFileData> files;
+    for (const auto& n : names) {
+        PrintFileData f;
+        f.filename = n;
+        f.file_size_bytes = 1024;
+        f.modified_timestamp = 1000;
+        files.push_back(f);
+    }
+    return files;
+}
+
+std::vector<std::pair<std::string, time_t>> snapshot(const std::vector<PrintFileData>& files) {
+    std::vector<std::pair<std::string, time_t>> s;
+    for (const auto& f : files)
+        s.emplace_back(f.filename, f.modified_timestamp);
+    return s;
+}
+} // namespace
+
+TEST_CASE("A name listed twice never yields a blank entry, poll after poll",
+          "[print_select][merge]") {
+    const std::vector<std::string> names = {"a.gcode", "b.gcode", "a.gcode", "a.gcode"};
+    std::vector<PrintFileData> current = listing(names);
+    for (auto& f : current) {
+        f.metadata_fetched = true;
+        f.thumbnail_path = "/thumbs/" + f.filename + ".bin";
+    }
+
+    for (int poll = 0; poll < 3; poll++) {
+        CAPTURE(poll);
+        const auto before = snapshot(current);
+        std::vector<PrintFileData> fresh = listing(names);
+        helix::carry_forward_print_file_metadata(fresh, current, false);
+        current = std::move(fresh);
+
+        for (size_t i = 0; i < names.size(); i++) {
+            CAPTURE(i);
+            CHECK(current[i].filename == names[i]);
+        }
+        // The panel's change check compares exactly this, so a repeat poll of an
+        // unchanged listing must not look changed.
+        CHECK(snapshot(current) == before);
+        // The first of each name keeps its cache; a repeat fetches fresh.
+        CHECK(current[0].thumbnail_path == "/thumbs/a.gcode.bin");
+        CHECK(current[1].thumbnail_path == "/thumbs/b.gcode.bin");
+        for (auto& f : current) {
+            f.metadata_fetched = true;
+            f.thumbnail_path = "/thumbs/" + f.filename + ".bin";
+        }
+    }
+}

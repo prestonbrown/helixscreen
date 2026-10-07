@@ -19,6 +19,8 @@
 #include "app_globals.h"
 #include "job_queue_state.h"
 #include "moonraker_api_mock.h"
+#include "printer_discovery.h"
+#include "printer_state.h"
 #include "usb_backend_mock.h"
 #include "usb_manager.h"
 
@@ -50,24 +52,32 @@ struct ErrorLog {
 };
 
 /// The real panel over MoonrakerAPIMock, with a mock USB drive holding one
-/// real file in a subfolder, listed on the USB tab.
+/// real file (@p content) in a subfolder, listed on the USB tab, and
+/// optionally a second file beside it.
 class UsbPrintFixture : private helix::PrintSelectGlobalStateReset,
                         public helix::PrintSelectPanelFixture {
   public:
-    UsbPrintFixture()
+    explicit UsbPrintFixture(const std::string& content = "G28\nG1 X10 Y10\n",
+                             bool other_file = false)
         : helix::PrintSelectPanelFixture(helix::PrintSelectFilelistHandler::Unregistered,
                                          helix::PrintSelectVisit::Immediate,
                                          helix::PrintSelectApi::Mock),
           usb_(true) {
         fs::remove_all(root_);
         fs::create_directories(root_ / "projects");
-        std::ofstream(local_path()) << "G28\nG1 X10 Y10\n";
+        std::ofstream(local_path()) << content;
+        std::vector<UsbGcodeFile> files{{local_path(), "part.gcode", content.size(), 1000}};
+        if (other_file) {
+            const std::string other = (root_ / "projects" / "other.gcode").string();
+            std::ofstream(other) << content;
+            files.push_back({other, "other.gcode", content.size(), 1000});
+        }
 
         REQUIRE(usb_.start());
         auto* backend = static_cast<UsbBackendMock*>(usb_.get_backend());
         REQUIRE(backend != nullptr);
         backend->simulate_drive_insert(UsbDrive(root_.string(), "/dev/sda1", "STICK"));
-        backend->set_mock_files(root_.string(), {{local_path(), "part.gcode", 15, 1000}});
+        backend->set_mock_files(root_.string(), files);
 
         panel_->set_usb_manager(&usb_);
         panel_->on_source_usb_clicked();
@@ -343,4 +353,61 @@ TEST_CASE_METHOD(UsbPrintFixture,
 
     CHECK(static_cast<MoonrakerAPIMock&>(*api_).files_mock().deleted_files().empty());
     CHECK(fs::exists(local_path()));
+}
+
+namespace {
+
+/// part.gcode and other.gcode, each defining three objects.
+class UsbPickFixture : public UsbPrintFixture {
+  public:
+    UsbPickFixture()
+        : UsbPrintFixture("; HEADER\n"
+                          "EXCLUDE_OBJECT_DEFINE NAME=Cone_id_0 CENTER=25,-4\n"
+                          "EXCLUDE_OBJECT_DEFINE NAME=Cube_id_1 CENTER=-36,6\n"
+                          "EXCLUDE_OBJECT_DEFINE NAME=Cylinder_id_2 CENTER=-22,30\n"
+                          "G28\n",
+                          /*other_file=*/true) {
+        // Picks are offered, and sent, only on a printer with [exclude_object].
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json{"exclude_object", "extruder"});
+        get_printer_state().set_hardware(hw);
+        REQUIRE(panel_->select_file_by_name("part.gcode"));
+        drain();
+    }
+    ~UsbPickFixture() override {
+        get_printer_state().set_hardware(helix::PrinterDiscovery{});
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(UsbPickFixture,
+                 "a USB copy that lands after another file opened keeps the tap's picks",
+                 "[usb][usb_print][pre_start_exclude]") {
+    auto* detail = PrintSelectPanelTestAccess::detail_view(*panel_);
+    REQUIRE(detail != nullptr);
+    // The local scan answers from a worker thread.
+    REQUIRE(wait_until([&] {
+        drain();
+        return detail->exclude_objects().get_defined_objects().size() == 3;
+    }));
+    detail->toggle_exclude_pick("Cube_id_1");
+    REQUIRE(detail->exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+
+    transfers().mock_hold_path_uploads();
+    panel_->start_print(/*force=*/true);
+    drain();
+
+    REQUIRE(panel_->select_file_by_name("other.gcode"));
+    drain();
+    REQUIRE(PrintSelectPanelTestAccess::controller_file(*panel_).first.empty()); // copy still held
+    transfers().release_held_path_uploads();
+    drain();
+
+    REQUIRE(PrintSelectPanelTestAccess::controller_file(*panel_).first == "part.gcode");
+    auto* controller = PrintSelectPanelTestAccess::print_controller(*panel_);
+    REQUIRE(controller != nullptr);
+    CHECK(PrintStartControllerTestAccess::exclude_picks(*controller) ==
+          std::vector<std::string>{"Cube_id_1"});
+    CHECK(detail->exclude_picks().empty());
 }

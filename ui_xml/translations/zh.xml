@@ -725,6 +725,7 @@
   <translation tag="Could not save the drying state: nothing was heated" zh="无法保存烘干状态:未进行任何加热"/>
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" zh="无法将网格保存为 &apos;{}&apos;：{}"/>
   <translation tag="Could not save the printer image tags" zh="保存打印机图片标记失败"/>
+  <translation tag="Could not skip {}" zh="无法跳过 {}"/>
   <translation tag="Could not start Bluetooth discovery" zh="无法启动蓝牙发现"/>
   <translation tag="Could not update filaments" zh="无法更新耗材"/>
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." zh="无法验证 Spoolman 状态。Moonraker 可能仍在重启中。"/>
@@ -990,6 +991,7 @@
   <translation tag="Ethernet" zh="以太网"/>
   <translation tag="Events appear here after sessions and prints" zh="会话和打印后事件将显示在此处"/>
   <translation tag="Every extruder&apos;s temperature at once" zh="同时查看所有挤出机温度"/>
+  <translation tag="Every object is set to skip, so there is nothing to print" zh="所有对象都已设为跳过，没有可打印的内容"/>
   <translation tag="Every tool&apos;s offsets are measured again and replace the current ones. Save afterwards to keep the result." zh="所有工具的偏移将重新测量并替换当前值。之后请保存以保留结果。"/>
   <translation tag="Everything else was saved. Change them in Spoolman." zh="其他内容均已保存。请在 Spoolman 中修改。"/>
   <translation tag="Everything else was saved. Rename the material using letters, digits, spaces, and + - _ . ( ) /" zh="其他内容均已保存。请使用字母、数字、空格以及 + - _ . ( ) / 重命名材料"/>
@@ -1993,6 +1995,7 @@
   <translation tag="ON: {} | OFF: {}" zh="开: {} | 关: {}"/>
   <translation tag="OS" zh="OS"/>
   <translation tag="OS: " zh="操作系统: "/>
+  <translation tag="Object picks apply only to prints started now" zh="对象选择仅适用于现在开始的打印"/>
   <translation tag="Object positions unavailable" zh="对象位置不可用"/>
   <translation tag="Objects" zh="对象"/>
   <translation tag="Off" zh="关"/>
@@ -2913,7 +2916,6 @@
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" zh="点按“重启固件”以恢复。在 K2 上这也会重启 rpi MCU 桥接"/>
   <translation tag="Tap again to confirm this orientation" zh="再次点击确认此方向"/>
   <translation tag="Tap an empty spot inside the enclosure" zh="点击机箱内的空白处"/>
-  <translation tag="Tap an object to exclude it | {} objects ({} excluded)" zh="点按对象以排除 | {} 个对象（已排除 {} 个）"/>
   <translation tag="Tap any tile to open its full controls or toggle its state." zh="点击任意磁贴以打开其完整控制项或切换其状态。"/>
   <translation tag="Tap anywhere if this text is right-side up" zh="如果文字方向正确请点击任意位置"/>
   <translation tag="Tap anywhere to begin" zh="点击任意位置开始"/>
@@ -3511,6 +3513,7 @@
   <translation tag="{} and {} are both mapped here" zh="{} 和 {} 都映射到这里"/>
   <translation tag="{} available" zh="{} 可用"/>
   <translation tag="{} axis homed" zh="{} 轴已归位"/>
+  <translation tag="{} cannot be skipped: its name has characters the printer cannot be sent" zh="无法排除 {}：名称包含无法发送到打印机的字符"/>
   <translation tag="{} changed" zh="{} 个已更改"/>
   <translation tag="{} command timed out" zh="{} 命令超时"/>
   <translation tag="{} complete" zh="{} 完成"/>

@@ -747,6 +747,7 @@ translations:
 
   "Could not save the mesh as '{}': {}": "メッシュを '{}' として保存できませんでした: {}"
   Could not save the printer image tags: プリンター画像のタグの保存に失敗しました
+  Could not skip {}: '{} をスキップできませんでした'
   Could not start Bluetooth discovery: Bluetooth の検出を開始できませんでした
   Could not update filaments: フィラメントを更新できませんでした
   Could not verify Spoolman status. Moonraker may still be restarting.: Spoolman のステータスを確認できませんでした。Moonraker
@@ -1026,6 +1027,7 @@ translations:
   Every extruder's temperature at once: 全エクストルーダーの温度を一覧表示
   Everything else was saved. Change them in Spoolman.: その他はすべて保存されました。変更は Spoolman で行ってください。
   Everything else was saved. Rename the material using letters, digits, spaces, and + - _ . ( ) /: 'その他はすべて保存されました。材料名は英字・数字・スペース・+ - _ . ( ) / で構成される名前に変更してください'
+  Every object is set to skip, so there is nothing to print: 'すべてのオブジェクトがスキップ対象のため、印刷するものがありません'
   Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.: すべてのツールのオフセットを再測定し、現在の値を置き換えます。結果を保持するには、その後保存してください。
   Excellent Accuracy: 非常に高精度
   'Exception: {}': '例外: {}'
@@ -2069,6 +2071,7 @@ translations:
   'ON: {} | OFF: {}': 'オン: {} | オフ: {}'
   OS: OS
   'OS: ': 'OS: '
+  Object picks apply only to prints started now: 'オブジェクトの選択は今すぐ開始する印刷にのみ適用されます'
   Object positions unavailable: オブジェクト位置が利用できません
   Objects: オブジェクト
   'Off': オフ
@@ -3032,7 +3035,6 @@ translations:
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: 「ファームウェア再起動」をタップして復旧してください。K2 では rpi MCU ブリッジも再起動されます
   Tap again to confirm this orientation: もう一度タップしてこの向きを確定
   Tap an empty spot inside the enclosure: 筐体内の空いている場所をタップ
-  Tap an object to exclude it | {} objects ({} excluded): 'オブジェクトをタップして除外 | {} 個 ({} 個除外済み)'
   Tap any tile to open its full controls or toggle its state.: タイルをタップすると、全機能のコントロールを開いたり、状態を切り替えたりできます。
   Tap anywhere if this text is right-side up: この文字が正しい向きならどこかをタップ
   Tap anywhere to begin: どこかをタップして開始
@@ -3681,6 +3683,7 @@ translations:
   '{} and {} are both mapped here': '{} と {} の両方がここに割り当てられています'
   '{} available': '{} が利用可能'
   '{} axis homed': '{} 軸がホーミング済み'
+  '{} cannot be skipped: its name has characters the printer cannot be sent': '{} は除外できません: 名前にプリンターへ送信できない文字が含まれています'
   '{} changed': '変更 {} 件'
   '{} command timed out': '{} コマンドがタイムアウトしました'
   '{} complete': '{} 完了'

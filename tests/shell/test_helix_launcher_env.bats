@@ -817,6 +817,17 @@ print_env_from_file() {
     [ "$(print_env_from_file HELIX_ALSA_DEVICE 'HELIX_ALSA_DEVICE=hw:0|x')" = "" ]
 }
 
+@test "HELIX_PWM_SOUND takes only <chip>:<channel>" {
+    [ "$(print_env_from_file HELIX_PWM_SOUND 'HELIX_PWM_SOUND=0:0')" = "0:0" ]
+    [ "$(print_env_from_file HELIX_PWM_SOUND 'HELIX_PWM_SOUND=2:13')" = "2:13" ]
+    [ "$(print_env_from_file HELIX_PWM_SOUND 'HELIX_PWM_SOUND=0')" = "" ]
+    grep -q "HELIX_PWM_SOUND must be <chip>:<channel>" "$BATS_TEST_TMPDIR/parse.log"
+    [ "$(print_env_from_file HELIX_PWM_SOUND 'HELIX_PWM_SOUND=0:0:1')" = "" ]
+    [ "$(print_env_from_file HELIX_PWM_SOUND 'HELIX_PWM_SOUND=:0')" = "" ]
+    [ "$(print_env_from_file HELIX_PWM_SOUND 'HELIX_PWM_SOUND=0:')" = "" ]
+    [ "$(print_env_from_file HELIX_PWM_SOUND 'HELIX_PWM_SOUND=0:a')" = "" ]
+}
+
 @test "HELIX_NICE takes 0-19 and HELIX_REMOTE_SOCKET a /tmp or /run path" {
     [ "$(print_env_from_file HELIX_NICE 'HELIX_NICE=5')" = "5" ]
     [ "$(print_env_from_file HELIX_NICE 'HELIX_NICE=19')" = "19" ]

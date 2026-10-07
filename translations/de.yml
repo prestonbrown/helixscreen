@@ -819,6 +819,7 @@ translations:
 
   "Could not save the mesh as '{}': {}": "Netz konnte nicht als '{}' gespeichert werden: {}"
   Could not save the printer image tags: Bildmarkierungen konnten nicht gespeichert werden
+  Could not skip {}: '{} konnte nicht übersprungen werden'
   Could not start Bluetooth discovery: Bluetooth-Erkennung konnte nicht gestartet
     werden
   Could not update filaments: Filamente konnten nicht aktualisiert werden
@@ -1108,6 +1109,7 @@ translations:
   Every extruder's temperature at once: Alle Extrudertemperaturen auf einmal
   Everything else was saved. Change them in Spoolman.: Alles Übrige wurde gespeichert. Ändern Sie diese in Spoolman.
   Everything else was saved. Rename the material using letters, digits, spaces, and + - _ . ( ) /: 'Alles Übrige wurde gespeichert. Benennen Sie das Material mit Buchstaben, Ziffern, Leerzeichen sowie + - _ . ( ) / um'
+  Every object is set to skip, so there is nothing to print: 'Jedes Objekt ist zum Überspringen markiert, es gibt nichts zu drucken'
   Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.: Die Offsets aller Werkzeuge werden neu gemessen und ersetzen die aktuellen. Danach speichern, um das Ergebnis zu behalten.
   Excellent Accuracy: Ausgezeichnete Genauigkeit
   'Exception: {}': 'Ausnahme: {}'
@@ -2214,6 +2216,7 @@ translations:
   'ON: {} | OFF: {}': 'EIN: {} | AUS: {}'
   OS: OS
   'OS: ': 'OS: '
+  Object picks apply only to prints started now: 'Objektauswahl gilt nur für jetzt gestartete Drucke'
   Object positions unavailable: Objektpositionen nicht verfügbar
   Objects: Objekte
   'Off': Aus
@@ -3245,7 +3248,6 @@ translations:
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Zum Wiederherstellen auf Firmware-Neustart tippen. Beim K2 wird dabei auch die rpi-MCU-Bridge neu gestartet
   Tap again to confirm this orientation: Erneut tippen, um diese Ausrichtung zu bestätigen
   Tap an empty spot inside the enclosure: Auf eine freie Stelle im Gehäuse tippen
-  Tap an object to exclude it | {} objects ({} excluded): 'Objekt antippen, um es auszuschließen | {} Objekte ({} ausgeschlossen)'
   Tap any tile to open its full controls or toggle its state.: 'Tippen Sie auf eine Kachel, um die vollständige Steuerung zu öffnen oder ihren Zustand umzuschalten.'
   Tap anywhere if this text is right-side up: Tippen Sie irgendwo, wenn dieser Text
     richtig herum ist
@@ -3948,6 +3950,7 @@ translations:
   '{} and {} are both mapped here': '{} und {} sind beide hier zugewiesen'
   '{} available': '{} verfügbar'
   '{} axis homed': '{}-Achse referenziert'
+  '{} cannot be skipped: its name has characters the printer cannot be sent': '{} kann nicht ausgeschlossen werden: Der Name enthält Zeichen, die nicht an den Drucker gesendet werden können'
   '{} changed': '{} geändert'
   '{} command timed out': Befehl {} – Zeitüberschreitung
   '{} complete': '{} abgeschlossen'

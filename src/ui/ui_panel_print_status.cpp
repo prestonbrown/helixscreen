@@ -9,7 +9,6 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_exclude_object_badges.h"
-#include "ui_exclude_object_map_view.h"
 #include "ui_fan_control_overlay.h"
 #include "ui_filament_mapping_card.h"
 #include "ui_filename_utils.h"
@@ -52,6 +51,7 @@
 #include "memory_monitor.h"
 #include "memory_utils.h"
 #include "observer_factory.h"
+#include "pre_start_exclude.h"
 #include "preprint_predictor.h"
 #include "print_start_checks.h"
 #include "print_status_layout_decision.h"
@@ -212,7 +212,7 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
                {[this](bool show) { show_gcode_viewer(show); },
                 [this]() {
                     recompute_scoped_runout();
-                    refresh_render_badges();
+                    exclude_mode_.refresh_render_badges();
                 },
                 [this]() { return is_active_; }}),
       progress_text_(printer_state, lifecycle_),
@@ -362,28 +362,22 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
         [](PrintStatusPanel* self, int seconds) { self->on_preprint_elapsed_changed(seconds); },
         ps_subjects);
 
-    // Subscribe to defined objects changes (for objects list button visibility + count)
-    exclude_objects_observer_ = observe<int>(
-        printer_state_.excluded_objects_state().get_defined_objects_version_subject(), this,
-        [](PrintStatusPanel* self, int) {
-            int available =
-                self->printer_state_.excluded_objects_state().get_defined_objects().size() >= 2 ? 1
-                                                                                                : 0;
-            lv_subject_set_int(&self->exclude_objects_available_subject_, available);
-            self->update_objects_text();
-            self->update_view_toggle_position(available != 0);
-            self->refresh_render_badges();
-        },
-        ps_subjects);
+    // The objects button needs [exclude_object] and a multi-object print;
+    // either can arrive first.
+    const auto refresh_available = [](PrintStatusPanel* self, int) {
+        self->refresh_exclude_objects_available();
+    };
+    exclude_objects_observer_ =
+        observe<int>(printer_state_.excluded_objects_state().get_defined_objects_version_subject(),
+                     this, refresh_available, ps_subjects);
+    exclude_object_capability_observer_ = observe<int>(
+        printer_state_.capabilities_state().subject(helix::Capability::HasExcludeObject), this,
+        refresh_available, ps_subjects);
 
     // Subscribe to excluded objects changes (for "X of Y obj" count updates)
     excluded_objects_version_observer_ = observe<int>(
         printer_state_.excluded_objects_state().get_excluded_objects_version_subject(), this,
-        [](PrintStatusPanel* self, int) {
-            self->update_objects_text();
-            self->refresh_render_badges();
-        },
-        ps_subjects);
+        [](PrintStatusPanel* self, int) { self->update_objects_text(); }, ps_subjects);
 
     // Subscribe to AMS current filament color for gcode viewer color override
     // When a known filament color is available (from Spoolman spool or AMS lane),
@@ -1354,12 +1348,7 @@ void PrintStatusPanel::on_ui_destroyed() {
     // Note: LVGL animations are already cancelled by lv_obj_delete() in the base
     // class destroy_overlay_ui() call, so no need to cancel them here.
 
-    // Clean up map view + side list before the widget tree is gone
-    side_list_.reset();
-    if (map_view_) {
-        map_view_->destroy();
-        map_view_.reset();
-    }
+    exclude_mode_.hide();
 
     // Deinit exclude manager (holds gcode_viewer_ reference)
     if (exclude_manager_) {
@@ -1637,143 +1626,34 @@ void PrintStatusPanel::show_gcode_viewer(bool show) {
 }
 
 void PrintStatusPanel::show_exclude_map_view() {
-    if (!exclude_manager_)
+    if (!exclude_manager_) {
         return;
-
-    // Map (when in thumbnail mode) parents into thumbnail_section as before;
-    // the side list parents into overlay_content (the two-column row) as a
-    // FLOATING child so it can slide in from the screen's right edge over the
-    // controls column without disturbing flex layout. Map and gcode viewer
-    // keep their full size — the list lands on top of the controls.
+    }
     lv_obj_t* overlay_content = lv_obj_find_by_name(overlay_root_, "overlay_content");
     if (!overlay_content) {
         spdlog::warn("[{}] Cannot show exclude panel: overlay_content not found", get_name());
         return;
     }
-    lv_obj_t* thumbnail_section = lv_obj_find_by_name(overlay_content, "thumbnail_section");
-
-    int viewer_mode = lv_subject_get_int(&gcode_viewer_mode_subject_);
-    bool thumbnail_mode = (viewer_mode == 0);
-
-    if (thumbnail_mode && thumbnail_section) {
-        // Bed dimensions for the overhead map view (thumbnail mode only).
-        const auto bed = helix::bed_dimensions(api_, &printer_state_);
-        float bed_w = bed.w_mm, bed_h = bed.h_mm;
-
-        // XML bindings on print_thumbnail/gradient_background hide them when
-        // exclude_map_active == 1 — set before creating the map to avoid one
-        // frame with the overlay atop still-visible thumbnail/gradient.
-        lv_subject_set_int(&exclude_map_active_subject_, 1);
-
-        map_view_ = std::make_unique<helix::ui::ExcludeObjectMapView>();
-        map_view_->set_close_callback([this]() { hide_exclude_map_view(); });
-
-        std::shared_ptr<helix::gcode::ParsedGCodeFile> parsed;
-        if (gcode_viewer_) {
-            const auto* raw = ui_gcode_viewer_get_parsed_file(gcode_viewer_);
-            if (raw) {
-                parsed = std::shared_ptr<helix::gcode::ParsedGCodeFile>(
-                    const_cast<helix::gcode::ParsedGCodeFile*>(raw),
-                    [](helix::gcode::ParsedGCodeFile*) {});
-            }
-        }
-
-        map_view_->create(thumbnail_section, &printer_state_.excluded_objects_state(), bed_w, bed_h,
-                          exclude_manager_.get(), parsed);
-
-        // The side list's X already closes the whole panel — hide the map's
-        // duplicate close button so users have one obvious dismiss control.
-        if (auto* map_root = map_view_->root()) {
-            if (lv_obj_t* map_close = lv_obj_find_by_name(map_root, "close_btn")) {
-                lv_obj_add_flag(map_close, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-    }
-
-    // Which edge the list covers depends on where the controls are: the right
-    // column in landscape, the bottom of the stack in portrait. Landscape is
-    // exact from the flex_grow ratio and needs no measurement; portrait sizes
-    // the list to the control stack it has to cover, so measure it here — the
-    // panel is already laid out by the time the map view opens. See
-    // helix::ui::exclude_side_list_geometry().
-    const bool portrait = helix::is_portrait_layout(helix::LayoutManager::instance().type());
-    int32_t controls_h = 0;
-    int32_t content_h = 0;
-    int32_t list_gap = 0;
-    if (portrait) {
-        lv_obj_update_layout(overlay_content);
-        if (lv_obj_t* controls = lv_obj_find_by_name(overlay_content, "controls_section")) {
-            controls_h = lv_obj_get_height(controls);
-        }
-        content_h = lv_obj_get_content_height(overlay_content);
-        list_gap = lv_obj_get_style_pad_row(overlay_content, LV_PART_MAIN);
-    }
-    const auto list_geom =
-        helix::ui::exclude_side_list_geometry(portrait, controls_h, content_h, list_gap);
-
-    side_list_ = std::make_unique<helix::ui::ExcludeObjectSideList>();
-    side_list_->set_close_callback([this]() { hide_exclude_map_view(); });
-    side_list_->set_gcode_viewer(gcode_viewer_);
-    side_list_->create(overlay_content, &printer_state_, exclude_manager_.get(), list_geom);
-
-    // Tapping an object in the viewer should request exclude, mirroring the
-    // side list's row taps. Installed regardless of current view mode so that
-    // switching from thumbnail → 2D/3D while the side list is open still wires
-    // up taps. Uninstalled in hide_exclude_map_view().
-    if (gcode_viewer_) {
-        ui_gcode_viewer_set_object_tap_callback(
-            gcode_viewer_,
-            [](lv_obj_t* /*viewer*/, const char* name, void* /*user_data*/) {
-                if (!name || name[0] == '\0') {
-                    return;
-                }
-                auto& panel = get_global_print_status_panel();
-                if (panel.exclude_manager_) {
-                    spdlog::info("[PrintStatusPanel] Viewer tap on object: '{}'", name);
-                    panel.exclude_manager_->request_exclude(std::string(name));
-                }
-            },
-            nullptr);
-    }
-    refresh_render_badges();
-
-    spdlog::debug("[{}] Showed exclude panel (mode={})", get_name(), viewer_mode);
-}
-
-void PrintStatusPanel::refresh_render_badges() {
-    if (!gcode_viewer_) {
-        return;
-    }
-    // The side list is what "exclude mode open" means; the badges label its chips.
-    if (!side_list_ || !side_list_->is_active()) {
-        ui_gcode_viewer_set_object_badges(gcode_viewer_, {});
-        return;
-    }
-    ui_gcode_viewer_set_object_badges(
-        gcode_viewer_,
-        helix::ui::compute_object_badges(printer_state_.excluded_objects_state(),
-                                         ui_gcode_viewer_get_parsed_file(gcode_viewer_)));
+    helix::ui::ExcludeModeTargets targets;
+    targets.card = lv_obj_find_by_name(overlay_content, "thumbnail_section");
+    targets.columns = overlay_content;
+    targets.controls_name = "controls_section";
+    targets.gcode_viewer = gcode_viewer_;
+    targets.map_active = &exclude_map_active_subject_;
+    targets.thumbnail_mode = lv_subject_get_int(&gcode_viewer_mode_subject_) == 0;
+    const auto bed = helix::bed_dimensions(api_, &printer_state_);
+    targets.bed_w_mm = bed.w_mm;
+    targets.bed_h_mm = bed.h_mm;
+    exclude_mode_.show(targets, &printer_state_.excluded_objects_state(),
+                       helix::ui::ExcludeTapMode::ExcludeOnly, [this](const std::string& name) {
+                           if (exclude_manager_) {
+                               exclude_manager_->request_exclude(name);
+                           }
+                       });
 }
 
 void PrintStatusPanel::hide_exclude_map_view() {
-    // Detach the viewer tap-to-exclude wire-up and clear any lingering
-    // highlight from row-tap symmetry.
-    if (gcode_viewer_) {
-        ui_gcode_viewer_set_object_tap_callback(gcode_viewer_, nullptr, nullptr);
-        ui_gcode_viewer_set_highlighted_objects(gcode_viewer_, {});
-        ui_gcode_viewer_set_object_badges(gcode_viewer_, {});
-    }
-
-    if (side_list_) {
-        side_list_->destroy();
-        side_list_.reset();
-    }
-    if (map_view_) {
-        map_view_->destroy();
-        map_view_.reset();
-    }
-    // Un-hides thumbnail/gradient via the XML bindings on exclude_map_active.
-    lv_subject_set_int(&exclude_map_active_subject_, 0);
+    exclude_mode_.hide();
 }
 
 void PrintStatusPanel::update_heater_status_rows() {
@@ -2039,7 +1919,7 @@ void PrintStatusPanel::handle_fans_click() {
 // Toggle the unified exclude panel (map+side-list in thumbnail mode,
 // shrunk-viewer + side-list in 3D/2D mode).
 void PrintStatusPanel::handle_objects_toggle() {
-    if (side_list_ && side_list_->is_active()) {
+    if (exclude_mode_.is_open()) {
         hide_exclude_map_view();
     } else {
         show_exclude_map_view();
@@ -2847,6 +2727,19 @@ void PrintStatusPanel::update_view_toggle_position(bool objects_visible) {
     } else {
         lv_obj_set_style_translate_x(btn, space_md, LV_PART_MAIN);
     }
+}
+
+void PrintStatusPanel::refresh_exclude_objects_available() {
+    // Klipper reports defined objects only from the G-code file it is
+    // printing, so a print is never a 3MF.
+    const int available = helix::ui::pre_start_exclude_available(
+                              helix::ui::printer_has_exclude_object(&printer_state_), false,
+                              printer_state_.excluded_objects_state().get_defined_objects().size())
+                              ? 1
+                              : 0;
+    lv_subject_set_int(&exclude_objects_available_subject_, available);
+    update_objects_text();
+    update_view_toggle_position(available != 0);
 }
 
 void PrintStatusPanel::update_objects_text() {

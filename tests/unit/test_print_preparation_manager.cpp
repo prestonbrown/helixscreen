@@ -7,11 +7,14 @@
 #include "ui_print_preparation_manager.h"
 
 #include "../helix_test_fixture.h"
+#include "../lvgl_test_fixture.h"
 #include "../mocks/mock_websocket_server.h"
 #include "../test_helpers/mock_printer.h"
+#include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/preprint_config_scope.h"
 #include "../test_helpers/print_preparation_manager_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "capability_matrix.h"
@@ -25,8 +28,10 @@
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
 #include "operation_registry.h"
+#include "pre_start_exclude.h"
 #include "preprint_predictor.h"
 #include "print_start_analyzer.h"
+#include "print_start_checks.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -4046,4 +4051,91 @@ TEST_CASE_METHOD(HelixTestFixture,
 
         REQUIRE(manager.displayed_options().options.empty());
     }
+}
+
+namespace {
+/// The details scan over the mock, whose partial download serves planted files.
+struct ObjectScanFixture : public LVGLTestFixture {
+    MockPrinter mock_printer;
+    helix::ui::PrintPreparationManager manager;
+
+    ObjectScanFixture() {
+        manager.set_dependencies(&mock_printer.api, &mock_printer.state);
+    }
+    void settle() {
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(ObjectScanFixture,
+                 "The file scan collects EXCLUDE_OBJECT_DEFINE objects in file order",
+                 "[print_preparation][pre_start_exclude]") {
+    helix::PlantedGcode file("scan_objects.gcode", "",
+                             "; HEADER\n"
+                             "EXCLUDE_OBJECT_DEFINE NAME=Cone_id_0 CENTER=25.5,-4.1 "
+                             "POLYGON=[[20,-9],[31,-9],[31,1],[20,1]]\n"
+                             "EXCLUDE_OBJECT_DEFINE NAME=Cube_id_1 CENTER=-36,6\n"
+                             "START_PRINT\n"
+                             "G1 X10 Y10 E1\n");
+    manager.scan_file_for_operations(file.name(), "");
+    settle();
+
+    REQUIRE(manager.has_scan_result_for(file.name()));
+    const auto& objects = manager.get_scan_result()->objects;
+    REQUIRE(objects.size() == 2);
+    CHECK(objects[0].name == "Cone_id_0");
+    CHECK(objects[0].polygon.size() == 4);
+    CHECK(objects[1].name == "Cube_id_1");
+}
+
+TEST_CASE_METHOD(ObjectScanFixture, "Definitions past the scan window are not in the scan",
+                 "[print_preparation][pre_start_exclude]") {
+    std::string content = "; HEADER\n";
+    content += std::string(helix::PRINTER_STOP_SCAN_BYTES, ';') + "\n";
+    content += "EXCLUDE_OBJECT_DEFINE NAME=Late_A CENTER=1,1\n";
+    content += "EXCLUDE_OBJECT_DEFINE NAME=Late_B CENTER=9,9\n";
+    helix::PlantedGcode file("late_defines.gcode", "", content);
+    manager.scan_file_for_operations(file.name(), "");
+    settle();
+
+    REQUIRE(manager.has_scan_result_for(file.name()));
+    CHECK(manager.get_scan_result()->objects.empty());
+}
+
+// The plugin-modified start confirms through the same navigate callback the
+// direct start uses, so object picks wrapped around it follow the print.
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: a plugin-modified start sends the picks it was handed",
+                 "[print_preparation][pre_start_exclude]") {
+    lv_init_safe();
+    PrinterStateTestAccess::reset(get_printer_state());
+    get_printer_state().init_subjects(false);
+
+    MockPrinter mock_printer;
+    mock_printer.client.connect("ws://mock/websocket", []() {}, []() {});
+    mock_printer.state.set_klippy_state_sync(helix::KlippyState::READY);
+    set_moonraker_api(&mock_printer.api);
+    PrintPreparationManager manager;
+    manager.set_dependencies(&mock_printer.api, &mock_printer.state);
+    manager.set_cached_scan_result(gcode::ScanResult{}, kRemapFixture);
+    mock_printer.client.clear_gcode_script_history();
+
+    int navigated = 0;
+    PrintPreparationManagerTestAccess::modify_and_print(
+        manager, kRemapFixture,
+        helix::ui::with_pre_start_exclusions([&navigated]() { ++navigated; }, {"Cube_id_1"}));
+    drain_until_quiet();
+
+    CHECK(mock_printer.api.transfers_mock().path_uploads().size() == 1); // the modified copy
+    CHECK(navigated == 1);
+    std::vector<std::string> exclusions;
+    for (const auto& line : mock_printer.client.gcode_script_history()) {
+        if (line.rfind("EXCLUDE_OBJECT NAME=", 0) == 0) {
+            exclusions.push_back(line);
+        }
+    }
+    CHECK(exclusions == std::vector<std::string>{"EXCLUDE_OBJECT NAME=Cube_id_1"});
+    set_moonraker_api(nullptr);
+    mock_printer.client.disconnect();
 }

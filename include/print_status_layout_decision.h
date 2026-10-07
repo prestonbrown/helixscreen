@@ -254,7 +254,8 @@ struct SideListGeometry {
 inline constexpr int32_t MIN_SIDE_LIST_HEIGHT_PX = 160;
 
 /**
- * @brief Most of the stacked column the list may ever cover, in %.
+ * @brief Most of the stacked column the list may ever cover, in %, when the
+ * room below the preview card is not measured.
  *
  * The list accompanies the object map; it must never become the reason the map
  * cannot be tapped. This is a backstop on pathological control stacks, not the
@@ -287,15 +288,19 @@ inline constexpr int32_t PORTRAIT_SIDE_LIST_FALLBACK_PCT = 50;
  *                   percentage would have resolved against. <= 0 means unmeasured.
  * @param gap        The column's `pad_gap`, so the list clears the control stack
  *                   by the same rhythm the rest of the column uses.
+ * @param room_h     Measured room between the preview card and the column's
+ *                   bottom, less one gap. When > 0 it is the ceiling, so the list
+ *                   covers every control below the card and never the card;
+ *                   <= 0 falls back to MAX_SIDE_LIST_COVERAGE_PCT.
  * @return Height in px, clamped to [floor, ceiling]; 0 when unmeasurable, which
  *         callers must treat as "fall back to height_pct", never as "collapse".
  */
 inline constexpr int32_t portrait_side_list_height(int32_t controls_h, int32_t content_h,
-                                                   int32_t gap) {
+                                                   int32_t gap, int32_t room_h = 0) {
     if (controls_h <= 0 || content_h <= 0) {
         return 0;
     }
-    const int32_t ceiling = content_h * MAX_SIDE_LIST_COVERAGE_PCT / 100;
+    const int32_t ceiling = room_h > 0 ? room_h : content_h * MAX_SIDE_LIST_COVERAGE_PCT / 100;
     // A column too short to honour the floor gets the ceiling: covering the map
     // is still better than a list with nothing in it.
     const int32_t floor_h = MIN_SIDE_LIST_HEIGHT_PX < ceiling ? MIN_SIDE_LIST_HEIGHT_PX : ceiling;
@@ -312,10 +317,11 @@ inline constexpr int32_t portrait_side_list_height(int32_t controls_h, int32_t c
  *                   in landscape, where the 44%/100% rule is already exact.
  * @param content_h  Measured `overlay_content` content height. Portrait only.
  * @param gap        The column's `pad_gap`. Portrait only.
+ * @param room_h     Room below the preview card, less one gap. Portrait only.
  */
 inline constexpr SideListGeometry exclude_side_list_geometry(bool portrait, int32_t controls_h = 0,
-                                                             int32_t content_h = 0,
-                                                             int32_t gap = 0) {
+                                                             int32_t content_h = 0, int32_t gap = 0,
+                                                             int32_t room_h = 0) {
     if (!portrait) {
         // 44% ~= 4/9, the controls column's share of the landscape row — it is
         // flex_grow="4" against thumbnail_section's flex_grow="5", so this is
@@ -323,7 +329,7 @@ inline constexpr SideListGeometry exclude_side_list_geometry(bool portrait, int3
         return SideListGeometry{44, 100, 0, false};
     }
     return SideListGeometry{100, PORTRAIT_SIDE_LIST_FALLBACK_PCT,
-                            portrait_side_list_height(controls_h, content_h, gap), true};
+                            portrait_side_list_height(controls_h, content_h, gap, room_h), true};
 }
 
 } // namespace helix::ui

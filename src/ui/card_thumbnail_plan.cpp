@@ -9,7 +9,7 @@ namespace helix {
 
 CardThumbnailPlan plan_card_thumbnails(const std::vector<CardThumbnailState>& files, size_t first,
                                        size_t end, size_t in_flight, size_t estimate, size_t budget,
-                                       bool lane_refused) {
+                                       bool lane_refused, bool keep_off_screen) {
     CardThumbnailPlan plan;
     end = std::min(end, files.size());
     first = std::min(first, end);
@@ -49,7 +49,7 @@ CardThumbnailPlan plan_card_thumbnails(const std::vector<CardThumbnailState>& fi
         return files[a].last_shown > files[b].last_shown;
     });
     for (size_t i : kept) {
-        if (committed <= budget && budget - committed >= slot(files[i])) {
+        if (keep_off_screen && committed <= budget && budget - committed >= slot(files[i])) {
             committed += slot(files[i]);
         } else {
             plan.drop.push_back(i);

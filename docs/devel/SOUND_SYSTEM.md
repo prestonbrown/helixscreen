@@ -77,10 +77,11 @@ The sequencer thread sleeps on a condition variable when idle (no sound playing,
 
 | Order | Backend | Condition | Target Hardware |
 |-------|---------|-----------|-----------------|
+| 0 | PWM | `HELIX_PWM_SOUND=<chip>:<channel>` set (Pi, ad5m builds) and the channel exports | A buzzer the user wired to a PWM pin |
 | 1 | SDL | `#ifdef HELIX_DISPLAY_SDL` + `SDL_OpenAudioDevice` succeeds | Desktop/simulator |
 | 2 | ALSA | `#ifdef HELIX_HAS_ALSA` + ALSA PCM device opens (saved/env device, then `default`) | Linux SBCs with audio hardware |
 | 3 | JzPwm | `#ifdef HELIX_HAS_JZ_PWM` (ad5x builds) + `/dev/jz_pwm` exists and fx-pwm is executable | AD5X piezo (on-rig install) |
-| 4 | PWM | `/sys/class/pwm/pwmchip0` exists (channel auto-exported by `initialize()` on ad5m/ad5m-br) | AD5M hardware buzzer |
+| 4 | PWM | ad5m/ad5m-br builds only: `pwmchip0/pwm6`, auto-exported by `initialize()` | AD5M hardware buzzer |
 | 5 | M300 | Printer answers M300 gcode: a beeper `output_pin` or an M300 macro in objects/list, or the `speaker` capability override forced on — plus a `MoonrakerClient` set via `set_moonraker_client()` | Klipper printers with a gcode beeper (no local audio) |
 | 6 | None | All above failed | Sounds silently disabled |
 

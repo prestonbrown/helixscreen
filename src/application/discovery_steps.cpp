@@ -285,6 +285,12 @@ void auto_update_check_step(DiscoveryContext&) {
     UpdateChecker::instance().start_auto_check();
 }
 
+// Bring moonraker.conf's update channel back in line with the app's. Every connect
+// runs it, so an install whose stanza drifted heals without a channel change.
+void moonraker_update_channel_step(DiscoveryContext&) {
+    UpdateChecker::instance().sync_moonraker_channel();
+}
+
 // Auto-navigate to Z-Offset Calibration if manual probe is already active (e.g.,
 // PROBE_CALIBRATE started from Mainsail or console before HelixScreen launched). Deferred
 // one tick: status updates from the subscription response are queued via ui_queue_update
@@ -330,6 +336,7 @@ constexpr DiscoveryStep kSteps[] = {
     {"job_queue_fetch", false, job_queue_fetch_step, nullptr},
     {"settle_light_buttons", false, settle_light_buttons_step, nullptr},
     {"auto_update_check", false, auto_update_check_step, nullptr},
+    {"moonraker_update_channel", false, moonraker_update_channel_step, nullptr},
     {"manual_probe_autoopen", false, manual_probe_autoopen_step, nullptr},
 };
 

@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_exclude_object_map_view.h"
 
-#include "ui_print_exclude_object_manager.h"
+#include "ui_open_instances.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "bed_dimensions.h"
 #include "lv_draw_buf_guard.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "printer_excluded_objects_state.h"
 #include "theme_manager.h"
 
-#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -21,20 +19,13 @@
 
 namespace helix::ui {
 
-// File-scope pointer so static callbacks can reach the active view.
-static ExcludeObjectMapView* g_active_map_view = nullptr;
-
-// ============================================================================
-// KeyBarMode
-// ============================================================================
-
-ExcludeObjectMapView::KeyBarMode ExcludeObjectMapView::key_bar_mode(int object_count) {
-    if (object_count <= 4)
-        return KeyBarMode::FullNames;
-    if (object_count <= 7)
-        return KeyBarMode::Abbreviated;
-    return KeyBarMode::Summary;
+namespace {
+// Print status keeps its map alive while the details view opens its own.
+OpenInstances<ExcludeObjectMapView>& open_map_views() {
+    static OpenInstances<ExcludeObjectMapView> views;
+    return views;
 }
+} // namespace
 
 // ============================================================================
 // Constructor / Destructor
@@ -45,7 +36,8 @@ ExcludeObjectMapView::ExcludeObjectMapView() {
 }
 
 ExcludeObjectMapView::~ExcludeObjectMapView() {
-    if (root_) {
+    open_map_views().remove(this);
+    if (root_ || canvas_buf_) {
         destroy();
     }
 }
@@ -55,9 +47,9 @@ ExcludeObjectMapView::~ExcludeObjectMapView() {
 // ============================================================================
 
 void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObjectsState* state,
-                                  float bed_w_mm, float bed_h_mm,
-                                  PrintExcludeObjectManager* exclude_manager,
-                                  std::shared_ptr<helix::gcode::ParsedGCodeFile> parsed_file) {
+                                  float bed_w_mm, float bed_h_mm, ObjectTapFn on_object_tapped,
+                                  ExcludeTapMode tap_mode,
+                                  const helix::gcode::ParsedGCodeFile* parsed_file) {
     if (root_) {
         spdlog::warn("[ExcludeObjectMapView] create() called but already active");
         return;
@@ -66,8 +58,9 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
     spdlog::debug("[ExcludeObjectMapView] create() bed={}x{}", bed_w_mm, bed_h_mm);
 
     state_ = state;
-    exclude_manager_ = exclude_manager;
-    parsed_file_ = std::move(parsed_file);
+    on_object_tapped_ = std::move(on_object_tapped);
+    tap_mode_ = tap_mode;
+    copy_parsed_geometry(parsed_file);
     const auto bed = helix::bed_dimensions_from_volume(0.0f, bed_w_mm, 0.0f, bed_h_mm);
     bed_w_mm_ = bed.w_mm;
     bed_h_mm_ = bed.h_mm;
@@ -80,14 +73,13 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
         s_callbacks_registered = true;
     }
 
-    // Expose this instance to static callbacks
-    g_active_map_view = this;
+    open_map_views().add(this);
 
     // Instantiate the XML component
     root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "exclude_object_map", nullptr));
     if (!root_) {
         spdlog::error("[ExcludeObjectMapView] lv_xml_create failed");
-        g_active_map_view = nullptr;
+        open_map_views().remove(this);
         return;
     }
 
@@ -100,23 +92,15 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
 
     // Find named children
     plate_area_ = lv_obj_find_by_name(root_, "plate_area");
-    key_bar_ = lv_obj_find_by_name(root_, "key_bar");
 
-    // Disable scrolling on plate area and key bar
+    // Disable scrolling on plate area
     if (plate_area_) {
         lv_obj_remove_flag(plate_area_, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_set_scrollbar_mode(plate_area_, LV_SCROLLBAR_MODE_OFF);
     }
-    if (key_bar_) {
-        lv_obj_remove_flag(key_bar_, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_scrollbar_mode(key_bar_, LV_SCROLLBAR_MODE_OFF);
-    }
 
     if (!plate_area_) {
         spdlog::error("[ExcludeObjectMapView] Could not find plate_area");
-    }
-    if (!key_bar_) {
-        spdlog::error("[ExcludeObjectMapView] Could not find key_bar");
     }
 
     // Create transparent overlay container for object rects.
@@ -205,9 +189,7 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
         }
     }
 
-    // Build object rects and key bar
     build_object_rects();
-    build_key_bar();
 
     // Set up observers to react to state changes
     if (state_) {
@@ -226,7 +208,6 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
                 if (!self->root_)
                     return;
                 self->build_object_rects();
-                self->build_key_bar();
             },
             state_->get_subjects_lifetime());
     }
@@ -239,7 +220,9 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
 // ============================================================================
 
 void ExcludeObjectMapView::destroy() {
-    if (!root_)
+    // A tree deleted under the view leaves root_ null but the buffer and the
+    // observers still held.
+    if (!root_ && !canvas_buf_ && !excluded_version_obs_ && !defined_version_obs_)
         return;
 
     spdlog::debug("[ExcludeObjectMapView] destroy()");
@@ -248,11 +231,9 @@ void ExcludeObjectMapView::destroy() {
     excluded_version_obs_.reset();
     defined_version_obs_.reset();
 
-    // Null the global pointer BEFORE deleting widgets, so any queued close
-    // events that fire during the delete cascade cannot reach a stale pointer.
-    if (g_active_map_view == this) {
-        g_active_map_view = nullptr;
-    }
+    // Leave the open set BEFORE deleting widgets, so a close event fired
+    // during the delete cascade cannot reach this view.
+    open_map_views().remove(this);
 
     // Freeze queue, drain pending callbacks, then delete widgets
     {
@@ -273,7 +254,7 @@ void ExcludeObjectMapView::destroy() {
         // async delete tick runs. canvas->draw_buf is only dereferenced by
         // explicit canvas API calls (set_px / fill_bg / init_layer), none of
         // which fire during a passive redraw.
-        if (canvas_ && lv_obj_is_valid(canvas_)) {
+        if (canvas_) {
             lv_image_set_src(canvas_, nullptr);
         }
         canvas_ = nullptr;
@@ -290,16 +271,19 @@ void ExcludeObjectMapView::destroy() {
         // batch corrupt LVGL's global event linked list (#776/#190/#80).
         // safe_delete_deferred escapes the batch via lv_obj_delete_async, and
         // is equally correct on the standalone hide_exclude_map_view() path.
-        helix::ui::safe_delete_deferred(root_);
+        lv_obj_t* root = root_;
         root_ = nullptr;
+        if (root) {
+            helix::ui::safe_delete_deferred(root);
+        }
         plate_area_ = nullptr;
-        key_bar_ = nullptr;
         object_container_ = nullptr;
     }
 
     state_ = nullptr;
-    exclude_manager_ = nullptr;
-    parsed_file_.reset();
+    on_object_tapped_ = nullptr;
+    parsed_objects_.reset();
+    parsed_outlines_.clear();
 
     spdlog::debug("[ExcludeObjectMapView] Destroyed");
 }
@@ -319,7 +303,7 @@ void ExcludeObjectMapView::build_object_rects() {
     helix::ui::safe_clean_children(object_container_);
     object_rects_.clear();
 
-    const auto badges = compute_object_badges(*state_, parsed_file_.get());
+    const auto badges = compute_object_badges(*state_, parsed_objects_.get());
     int rects_created = 0;
 
     for (const auto& badge : badges) {
@@ -329,9 +313,9 @@ void ExcludeObjectMapView::build_object_rects() {
         bool have_bbox = false;
 
         // Priority 1: GCode parser bounding box (more accurate than Moonraker geometry)
-        if (parsed_file_) {
-            auto it = parsed_file_->objects.find(name);
-            if (it != parsed_file_->objects.end() && !it->second.bounding_box.is_empty()) {
+        if (parsed_objects_) {
+            auto it = parsed_objects_->objects.find(name);
+            if (it != parsed_objects_->objects.end() && !it->second.bounding_box.is_empty()) {
                 bbox_min = {it->second.bounding_box.min.x, it->second.bounding_box.min.y};
                 bbox_max = {it->second.bounding_box.max.x, it->second.bounding_box.max.y};
                 have_bbox = true;
@@ -436,6 +420,40 @@ static std::vector<glm::vec2> convex_hull(std::vector<glm::vec2>& pts) {
     return hull;
 }
 
+void ExcludeObjectMapView::copy_parsed_geometry(const helix::gcode::ParsedGCodeFile* parsed) {
+    parsed_objects_.reset();
+    parsed_outlines_.clear();
+    if (!parsed) {
+        return;
+    }
+    parsed_objects_ = std::make_unique<helix::gcode::ParsedGCodeFile>();
+    parsed_objects_->objects = parsed->objects;
+
+    const auto* first_layer = parsed->get_layer(0);
+    if (!first_layer) {
+        return;
+    }
+    std::unordered_map<std::string, std::vector<glm::vec2>> object_points;
+    for (const auto& seg : first_layer->segments) {
+        if (!seg.is_extrusion) {
+            continue;
+        }
+        const auto& obj_name = parsed->get_object_name(seg.object_name_index);
+        if (obj_name.empty()) {
+            continue;
+        }
+        auto& pts = object_points[obj_name];
+        pts.push_back({seg.start.x, seg.start.y});
+        pts.push_back({seg.end.x, seg.end.y});
+    }
+    for (auto& [name, pts] : object_points) {
+        auto hull = convex_hull(pts);
+        if (hull.size() >= 3) {
+            parsed_outlines_[name] = std::move(hull);
+        }
+    }
+}
+
 void ExcludeObjectMapView::draw_first_layer_outlines() {
     if (!canvas_ || !mapper_ || !state_)
         return;
@@ -443,36 +461,10 @@ void ExcludeObjectMapView::draw_first_layer_outlines() {
     // Clear canvas to transparent
     lv_canvas_fill_bg(canvas_, lv_color_black(), LV_OPA_TRANSP);
 
-    // Collect polygon data per object. Priority:
-    // 1. Convex hull from ParsedGCodeFile layer 0 segments
-    // 2. Polygon from Moonraker ObjectInfo (slicer-provided outline)
-    std::unordered_map<std::string, std::vector<glm::vec2>> object_polygons;
+    // Outline per object: the parsed first-layer hull, else Klipper's polygon.
+    std::unordered_map<std::string, std::vector<glm::vec2>> object_polygons = parsed_outlines_;
 
-    if (parsed_file_) {
-        // Source 1: compute convex hulls from first layer extrusion segments
-        const auto* first_layer = parsed_file_->get_layer(0);
-        if (first_layer && !first_layer->segments.empty()) {
-            std::unordered_map<std::string, std::vector<glm::vec2>> object_points;
-            for (const auto& seg : first_layer->segments) {
-                if (!seg.is_extrusion)
-                    continue;
-                const auto& obj_name = parsed_file_->get_object_name(seg.object_name_index);
-                if (obj_name.empty())
-                    continue;
-                auto& pts = object_points[obj_name];
-                pts.push_back({seg.start.x, seg.start.y});
-                pts.push_back({seg.end.x, seg.end.y});
-            }
-            for (auto& [name, pts] : object_points) {
-                auto hull = convex_hull(pts);
-                if (hull.size() >= 3) {
-                    object_polygons[name] = std::move(hull);
-                }
-            }
-        }
-    }
-
-    // Source 2: use Moonraker polygon data for any objects not covered by source 1
+    // Klipper's polygon for objects the parse did not outline.
     const auto& defined = state_->get_defined_objects();
     for (const auto& name : defined) {
         if (object_polygons.count(name) > 0)
@@ -495,6 +487,8 @@ void ExcludeObjectMapView::draw_first_layer_outlines() {
     for (int i = 0; i < static_cast<int>(defined.size()); ++i) {
         name_to_index[defined[i]] = i;
     }
+
+    const auto& excluded = state_->get_excluded_objects();
 
     // Draw polygon outlines on canvas
     lv_layer_t layer;
@@ -523,7 +517,7 @@ void ExcludeObjectMapView::draw_first_layer_outlines() {
             dsc.p1.y = static_cast<lv_value_precise_t>(py1);
             dsc.p2.x = static_cast<lv_value_precise_t>(px2);
             dsc.p2.y = static_cast<lv_value_precise_t>(py2);
-            dsc.opa = LV_OPA_COVER;
+            dsc.opa = object_badge_opa(excluded.count(obj_name) > 0);
             dsc.round_start = 1;
             dsc.round_end = 1;
 
@@ -618,7 +612,7 @@ void ExcludeObjectMapView::update_visual_states() {
             lv_obj_set_style_border_width(rect, 0, 0);
             lv_obj_set_style_bg_opa(rect, LV_OPA_TRANSP, 0);
             lv_obj_set_style_opa(rect, object_badge_opa(is_excluded), 0);
-            if (is_excluded) {
+            if (is_excluded && tap_mode_ == ExcludeTapMode::ExcludeOnly) {
                 lv_obj_remove_flag(rect, LV_OBJ_FLAG_CLICKABLE);
             } else {
                 lv_obj_add_flag(rect, LV_OBJ_FLAG_CLICKABLE);
@@ -627,7 +621,11 @@ void ExcludeObjectMapView::update_visual_states() {
             lv_obj_set_style_border_color(rect, danger_color, 0);
             lv_obj_set_style_bg_opa(rect, LV_OPA_TRANSP, 0);
             lv_obj_set_style_opa(rect, object_badge_opa(true), 0);
-            lv_obj_remove_flag(rect, LV_OBJ_FLAG_CLICKABLE);
+            if (tap_mode_ == ExcludeTapMode::ExcludeOnly) {
+                lv_obj_remove_flag(rect, LV_OBJ_FLAG_CLICKABLE);
+            } else {
+                lv_obj_add_flag(rect, LV_OBJ_FLAG_CLICKABLE);
+            }
         } else if (is_current) {
             lv_obj_set_style_border_color(rect, primary_color, 0);
             lv_obj_set_style_bg_color(rect, primary_color, 0);
@@ -650,124 +648,32 @@ void ExcludeObjectMapView::update_visual_states() {
 }
 
 // ============================================================================
-// build_key_bar (stub — full implementation in Task 6)
-// ============================================================================
-
-void ExcludeObjectMapView::build_key_bar() {
-    if (!key_bar_)
-        return;
-
-    lv_obj_update_layout(key_bar_);
-    helix::ui::safe_clean_children(key_bar_); // [L081] same observer path as build_object_rects
-
-    if (!state_)
-        return;
-
-    const auto& defined = state_->get_defined_objects();
-    int count = static_cast<int>(defined.size());
-    if (count == 0)
-        return;
-
-    KeyBarMode mode = key_bar_mode(count);
-
-    if (mode == KeyBarMode::Summary) {
-        // Summary label
-        const auto& excluded = state_->get_excluded_objects();
-        int excluded_count = static_cast<int>(excluded.size());
-        const std::string summary = fmt::format(
-            lv_tr("Tap an object to exclude it | {} objects ({} excluded)"), count, excluded_count);
-        lv_obj_t* label = lv_label_create(key_bar_);
-        lv_label_set_text(label, summary.c_str());
-        lv_obj_set_style_text_font(label, theme_manager_get_font("font_small"), 0);
-        lv_obj_set_style_text_color(label, theme_manager_get_color("text_muted"), 0);
-        lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
-        return;
-    }
-
-    // FullNames or Abbreviated: colored dot + number + name per object
-    for (const auto& badge : compute_object_badges(*state_, parsed_file_.get())) {
-        const bool is_excluded = badge.excluded;
-
-        // Key entry container — dim excluded objects to signal they are skipped
-        lv_obj_t* entry_row = lv_obj_create(key_bar_);
-        lv_obj_set_size(entry_row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-        lv_obj_set_style_bg_opa(entry_row, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(entry_row, 0, 0);
-        lv_obj_set_style_pad_all(entry_row, theme_manager_get_spacing("space_xxs"), 0);
-        lv_obj_set_flex_flow(entry_row, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(entry_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
-                              LV_FLEX_ALIGN_CENTER);
-        lv_obj_remove_flag(entry_row, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_remove_flag(entry_row, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(entry_row, LV_OBJ_FLAG_EVENT_BUBBLE);
-        if (is_excluded) {
-            lv_obj_set_style_opa(entry_row, LV_OPA_40, 0);
-        }
-
-        // Colored dot
-        lv_color_t color = object_badge_color(badge.defined_index);
-        lv_obj_t* dot = lv_obj_create(entry_row);
-        lv_obj_set_size(dot, 8, 8);
-        lv_obj_set_style_radius(dot, 4, 0);
-        lv_obj_set_style_bg_color(dot, color, 0);
-        lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
-        lv_obj_set_style_border_width(dot, 0, 0);
-        lv_obj_remove_flag(dot, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(dot, LV_OBJ_FLAG_EVENT_BUBBLE);
-
-        // Number + name label; strikethrough on excluded entries
-        lv_obj_t* name_label = lv_label_create(entry_row);
-        lv_obj_set_style_text_font(name_label, theme_manager_get_font("font_small"), 0);
-        lv_obj_set_style_text_color(name_label, theme_manager_get_color("text_muted"), 0);
-        lv_obj_set_style_pad_left(name_label, theme_manager_get_spacing("space_xxs"), 0);
-        lv_obj_remove_flag(name_label, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(name_label, LV_OBJ_FLAG_EVENT_BUBBLE);
-        if (is_excluded) {
-            lv_obj_set_style_text_decor(name_label, LV_TEXT_DECOR_STRIKETHROUGH, 0);
-        }
-
-        if (mode == KeyBarMode::FullNames) {
-            // Show number + name, auto-truncate with LVGL dot mode
-            char buf[64];
-            snprintf(buf, sizeof(buf), "%s %s", badge.number.c_str(), badge.name.c_str());
-            lv_label_set_text(name_label, buf);
-            lv_label_set_long_mode(name_label, LV_LABEL_LONG_DOT);
-            // Limit width to share space among entries
-            int max_label_w = lv_obj_get_width(key_bar_) / std::max(count, 1) - 20;
-            if (max_label_w > 30) {
-                lv_obj_set_width(name_label, max_label_w);
-            }
-        } else {
-            // Abbreviated: just the number
-            lv_label_set_text(name_label, badge.number.c_str());
-        }
-    }
-}
-
-// ============================================================================
 // Static event callbacks
 // ============================================================================
 
-void ExcludeObjectMapView::on_close_clicked(lv_event_t* /*e*/) {
+void ExcludeObjectMapView::on_close_clicked(lv_event_t* e) {
+    ExcludeObjectMapView* view = open_map_views().owner_of(lv_event_get_current_target_obj(e));
+    if (!view) {
+        return;
+    }
     spdlog::debug("[ExcludeObjectMapView] Close button clicked");
-    if (g_active_map_view && g_active_map_view->close_cb_) {
-        g_active_map_view->close_cb_();
+    // A copy: the callback usually destroys this view, and its own
+    // std::function with it.
+    auto close = view->close_cb_;
+    if (close) {
+        close();
     }
 }
 
 void ExcludeObjectMapView::on_object_clicked(lv_event_t* e) {
     auto* self = static_cast<ExcludeObjectMapView*>(lv_event_get_user_data(e));
-    if (!self || !self->exclude_manager_)
+    if (!self || !self->on_object_tapped_)
         return;
-
     lv_obj_t* target = lv_event_get_target_obj(e);
-
-    // Find the name by matching the pointer against our recorded rects
     for (const auto& entry : self->object_rects_) {
         if (entry.rect == target) {
             spdlog::info("[ExcludeObjectMapView] Object rect clicked: '{}'", entry.name);
-            self->exclude_manager_->request_exclude(entry.name);
+            self->on_object_tapped_(entry.name);
             return;
         }
     }

@@ -150,6 +150,18 @@ EOF
     contains "0 of 1 registered" "$output"
 }
 
+@test "a subject named in a component's *_when condition prop is not an orphan" {
+    cat > "$ROOT/src/demo.cpp" <<'EOF'
+void init_subjects() {
+    lv_xml_register_subject(nullptr, "skip_available", &skip_available_);
+}
+EOF
+    printf '<view><skip_button hidden_when="skip_available eq 0"/></view>\n' \
+        > "$ROOT/ui_xml/panel.xml"
+    run_gate
+    contains "0 of 1 registered" "$output"
+}
+
 @test "a SUBJECT_OK opt-out on the call is honoured" {
     # The annotation rides the call or its continuation lines, not the line
     # above it: clang-format wraps these calls, and honouring the preceding

@@ -816,6 +816,7 @@ translations:
 
   "Could not save the mesh as '{}': {}": "No se pudo guardar la malla como '{}': {}"
   Could not save the printer image tags: Error al guardar las marcas de la imagen
+  Could not skip {}: 'No se pudo omitir {}'
   Could not start Bluetooth discovery: No se pudo iniciar el descubrimiento Bluetooth
   Could not update filaments: No se pudieron actualizar los filamentos
   Could not verify Spoolman status. Moonraker may still be restarting.: No se pudo
@@ -1103,6 +1104,7 @@ translations:
   Every extruder's temperature at once: La temperatura de todos los extrusores
   Everything else was saved. Change them in Spoolman.: Todo lo demás se guardó. Cámbielos en Spoolman.
   Everything else was saved. Rename the material using letters, digits, spaces, and + - _ . ( ) /: 'Todo lo demás se guardó. Renombre el material usando letras, dígitos, espacios y + - _ . ( ) /'
+  Every object is set to skip, so there is nothing to print: 'Todos los objetos están marcados para omitir, no hay nada que imprimir'
   Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.: Los offsets de todas las herramientas se miden de nuevo y reemplazan a los actuales. Guarda después para conservar el resultado.
   Excellent Accuracy: Precisión Excelente
   'Exception: {}': 'Excepción: {}'
@@ -2205,6 +2207,7 @@ translations:
   'ON: {} | OFF: {}': 'ON: {} | OFF: {}'
   OS: OS
   'OS: ': 'SO: '
+  Object picks apply only to prints started now: 'La selección de objetos solo se aplica a impresiones iniciadas ahora'
   Object positions unavailable: Posiciones de objetos no disponibles
   Objects: Objetos
   'Off': Apagado
@@ -3238,7 +3241,6 @@ translations:
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Toque Reiniciar firmware para recuperar. En la K2 esto también reinicia el puente MCU rpi
   Tap again to confirm this orientation: Toque de nuevo para confirmar esta orientación
   Tap an empty spot inside the enclosure: Toque un punto vacío dentro del cerramiento
-  Tap an object to exclude it | {} objects ({} excluded): 'Toca un objeto para excluirlo | {} objetos ({} excluidos)'
   Tap any tile to open its full controls or toggle its state.: Toca cualquier casilla para abrir sus controles completos o alternar su estado.
   Tap anywhere if this text is right-side up: Toque en cualquier lugar si este texto
     está derecho
@@ -3938,6 +3940,7 @@ translations:
   '{} and {} are both mapped here': '{} y {} están asignados aquí'
   '{} available': '{} disponible'
   '{} axis homed': Eje {} en origen
+  '{} cannot be skipped: its name has characters the printer cannot be sent': '{} no se puede excluir: su nombre tiene caracteres que no se pueden enviar a la impresora'
   '{} changed': '{} cambiado(s)'
   '{} command timed out': Tiempo agotado del comando {}
   '{} complete': '{} completado'

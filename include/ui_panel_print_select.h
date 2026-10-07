@@ -439,6 +439,9 @@ class PrintSelectPanel : public PanelBase {
     /// Forward the "Show sliced colors" toggle to the detail view.
     void forward_sliced_colors_toggle(bool checked);
 
+    /// Open or close exclude mode in the detail view.
+    void toggle_detail_exclude_mode();
+
     /**
      * @brief Programmatically select a file by name and show detail view
      *
@@ -896,7 +899,9 @@ class PrintSelectPanel : public PanelBase {
     /// Applies plan_card_thumbnails() to the card window [first, end): fetches
     /// within CARD_THUMBNAIL_BUDGET, and keeps thumbnails outside it, most
     /// recently shown first, in what the budget leaves.
-    void sync_esp_thumbnails(size_t first, size_t end);
+    /// With @p keep_off_screen false, thumbnails outside the window are dropped
+    /// and their slots freed.
+    void sync_esp_thumbnails(size_t first, size_t end, bool keep_off_screen = true);
     /// Drops every card thumbnail and the slot pool, and empties the window so
     /// nothing fetches until the cards report one again.
     void release_esp_card_thumbnails();
@@ -1046,13 +1051,18 @@ class PrintSelectPanel : public PanelBase {
     void upload_usb_copy(UsbCopyRequest req, const std::map<std::string, uint64_t>& existing);
 
     /// Hand the controller @p filename in Moonraker directory @p dir, with the
-    /// tool colors and thumbnail read when Print was tapped, and start.
+    /// tool colors, thumbnail and object picks read when Print was tapped, and start.
     void dispatch_print(const std::string& filename, const std::string& dir,
                         const std::vector<std::string>& filament_colors,
-                        const std::string& thumbnail);
+                        const std::string& thumbnail, std::vector<std::string> exclude_picks);
+
+    /// True, after a toast, when every object is picked and nothing would print.
+    bool refuse_start_with_every_object_picked();
 
     /// post_job @p filename (Moonraker-relative) with the detail view's options.
-    void queue_file(const std::string& filename);
+    /// Picks are dropped once the add succeeds, if @p tapped (the composed
+    /// name at the tap) is still the selected file.
+    void queue_file(const std::string& filename, const std::string& tapped);
 
     /**
      * @brief Update sort indicator icons on column headers

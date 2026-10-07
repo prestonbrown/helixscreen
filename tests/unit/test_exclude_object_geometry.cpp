@@ -110,3 +110,33 @@ TEST_CASE("exclude_object status parse", "[exclude_object][geometry]") {
 
     state.deinit_subjects();
 }
+
+TEST_CASE("make_object_info derives the bbox from the polygon",
+          "[exclude_object][geometry][pre_start_exclude]") {
+    using S = PrinterExcludedObjectsState;
+    const auto info = S::make_object_info("A", glm::vec2(5.0f, 6.0f), {{1, 2}, {9, 3}, {4, 8}});
+    CHECK(info.name == "A");
+    CHECK(info.has_center);
+    CHECK(info.center == glm::vec2(5.0f, 6.0f));
+    CHECK(info.has_bbox);
+    CHECK(info.bbox_min == glm::vec2(1.0f, 2.0f));
+    CHECK(info.bbox_max == glm::vec2(9.0f, 8.0f));
+    CHECK(info.polygon.size() == 3);
+
+    const auto bare = S::make_object_info("B", std::nullopt, {});
+    CHECK_FALSE(bare.has_center);
+    CHECK_FALSE(bare.has_bbox);
+}
+
+TEST_CASE("A status polygon with no usable point gives no bbox",
+          "[exclude_object][geometry][pre_start_exclude]") {
+    PrinterExcludedObjectsState state;
+    state.init_subjects(false);
+    state.update_from_status(nlohmann::json::parse(R"({"exclude_object": {
+        "objects": [{"name": "A", "center": [1, 1], "polygon": [["x", "y"]]}]}})"));
+    const auto geom = state.get_object_geometry("A");
+    REQUIRE(geom.has_value());
+    CHECK(geom->has_center);
+    CHECK_FALSE(geom->has_bbox);
+    state.deinit_subjects();
+}

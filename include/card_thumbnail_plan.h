@@ -38,7 +38,11 @@ struct CardThumbnailPlan {
  * holding a thumbnail keep it, most recently shown first, in whatever budget
  * the window and its fetches leave; the rest are dropped. A file on screen is
  * never dropped. Each counts at least @p estimate, the size of the slot it
- * decodes into, so the plan never holds more than budget / estimate slots.
+ * decodes into, so held thumbnails, fetches in flight and planned fetches
+ * together never take more than budget / estimate slots.
+ *
+ * With @p keep_off_screen false every file outside the window holding a
+ * thumbnail is dropped, so only the window's slots stay held.
  *
  * @p lane_refused says the HTTP lane turned a fetch away and no slot has freed
  * since: nothing is fetched until one does, however often the window is
@@ -46,7 +50,7 @@ struct CardThumbnailPlan {
  */
 CardThumbnailPlan plan_card_thumbnails(const std::vector<CardThumbnailState>& files, size_t first,
                                        size_t end, size_t in_flight, size_t estimate, size_t budget,
-                                       bool lane_refused = false);
+                                       bool lane_refused = false, bool keep_off_screen = true);
 
 /// Whether a card whose decode failed with @p failure is fetched again while it
 /// stays on screen. Memory frees up as other cards go; a bad image stays bad, so

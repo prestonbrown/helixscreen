@@ -1653,6 +1653,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// Test inspection: sends of @p method so far, failed and deferred included.
     [[nodiscard]] int call_count(const std::string& method) const;
 
+    /// What machine.update.status reports as `busy` (an update_manager job running).
+    void set_update_manager_busy(bool busy) {
+        update_manager_busy_ = busy;
+    }
+    [[nodiscard]] bool update_manager_busy() const {
+        return update_manager_busy_;
+    }
+
     /// Test helper: the Moonraker database the server.database.* handlers serve.
     /// Keys are dotted the way Moonraker's are ("a.b" is member b of record a).
     void mock_db_set(const std::string& ns, const std::string& key, const json& value);
@@ -1808,6 +1816,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// never simulate a link keep getting answers (the mock's initial
     /// ConnectionState is DISCONNECTED and must not gate sends by itself).
     bool sim_link_down_{false};
+    bool update_manager_busy_{false};
 
     // Intent of the in-flight send_jsonrpc() dispatch, read by the method
     // handlers via current_send_intent().

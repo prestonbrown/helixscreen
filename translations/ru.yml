@@ -803,6 +803,7 @@ translations:
 
   "Could not save the mesh as '{}': {}": "Не удалось сохранить сетку как '{}': {}"
   Could not save the printer image tags: Не удалось сохранить отметки изображения
+  Could not skip {}: 'Не удалось пропустить {}'
   Could not start Bluetooth discovery: Не удалось запустить поиск Bluetooth
   Could not update filaments: Не удалось обновить филаменты
   Could not verify Spoolman status. Moonraker may still be restarting.: Не удалось
@@ -1088,6 +1089,7 @@ translations:
   Every extruder's temperature at once: Температура всех экструдеров
   Everything else was saved. Change them in Spoolman.: Всё остальное сохранено. Измените их в Spoolman.
   Everything else was saved. Rename the material using letters, digits, spaces, and + - _ . ( ) /: 'Всё остальное сохранено. Переименуйте материал, используя буквы, цифры, пробелы и + - _ . ( ) /'
+  Every object is set to skip, so there is nothing to print: 'Все объекты отмечены для пропуска, печатать нечего'
   Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.: Смещения всех инструментов измеряются заново и заменяют текущие. После этого сохраните, чтобы оставить результат.
   Excellent Accuracy: Отличная точность
   'Exception: {}': 'Исключение: {}'
@@ -2185,6 +2187,7 @@ translations:
   'ON: {} | OFF: {}': 'ВКЛ: {} | ВЫКЛ: {}'
   OS: OS
   'OS: ': 'ОС: '
+  Object picks apply only to prints started now: 'Выбор объектов применяется только к печати, запущенной сейчас'
   Object positions unavailable: Позиции объектов недоступны
   Objects: Объекты
   'Off': Выкл
@@ -3208,7 +3211,6 @@ translations:
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Нажмите «Перезапуск прошивки» для восстановления. На K2 это также перезапускает мост MCU rpi
   Tap again to confirm this orientation: Нажмите ещё раз для подтверждения ориентации
   Tap an empty spot inside the enclosure: Нажмите на пустое место внутри корпуса
-  Tap an object to exclude it | {} objects ({} excluded): 'Коснитесь объекта, чтобы исключить его | {} объектов ({} исключено)'
   Tap any tile to open its full controls or toggle its state.: 'Нажмите на любую плитку, чтобы открыть её полные элементы управления или переключить состояние.'
   Tap anywhere if this text is right-side up: Нажмите в любом месте, если текст расположен
     правильно
@@ -3896,6 +3898,7 @@ translations:
   '{} and {} are both mapped here': '{} и {} оба назначены сюда'
   '{} available': Доступна версия {}
   '{} axis homed': Ось {} запаркована
+  '{} cannot be skipped: its name has characters the printer cannot be sent': '{} нельзя исключить: имя содержит символы, которые нельзя отправить на принтер'
   '{} changed': 'изменено: {}'
   '{} command timed out': Время команды {} истекло
   '{} complete': '{} завершено'

@@ -592,6 +592,23 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
         return true;
     };
 
+    // machine.update.status - update_manager state; only `busy` is modelled
+    // https://moonraker.readthedocs.io/en/latest/web_api/#get-update-status
+    registry["machine.update.status"] =
+        [](MoonrakerClientMock* self, const json& /*params*/,
+           std::function<void(const json&)> success_cb,
+           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+        json response = {{"jsonrpc", "2.0"},
+                         {"result",
+                          {{"busy", self->update_manager_busy()},
+                           {"github_rate_limit", 60},
+                           {"version_info", json::object()}}}};
+        if (success_cb) {
+            success_cb(response);
+        }
+        return true;
+    };
+
     // server.restart - Restart Moonraker service
     // https://moonraker.readthedocs.io/en/latest/web_api/#restart-server
     registry["server.restart"] =

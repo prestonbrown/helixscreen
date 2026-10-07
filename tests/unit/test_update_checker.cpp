@@ -2743,3 +2743,254 @@ TEST_CASE_METHOD(HelixTestFixture,
     helix::ui::UpdateQueue::instance().drain();
     checker.shutdown();
 }
+
+// ============================================================================
+// moonraker.conf channel sync
+// ============================================================================
+
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
+
+namespace {
+
+/// Counts config writes; the mock's injected config root records their content.
+class CountingTransfers : public MoonrakerFileTransferAPIMock {
+  public:
+    using MoonrakerFileTransferAPIMock::MoonrakerFileTransferAPIMock;
+    int uploads = 0;
+    void upload_file(const std::string& root, const std::string& path, const std::string& content,
+                     SuccessCallback on_success, ErrorCallback on_error) override {
+        ++uploads;
+        MoonrakerFileTransferAPIMock::upload_file(root, path, content, std::move(on_success),
+                                                  std::move(on_error));
+    }
+};
+
+class ChannelSyncApi : public MoonrakerAPIMock {
+  public:
+    ChannelSyncApi(helix::MoonrakerClient& client, helix::PrinterState& state)
+        : MoonrakerAPIMock(client, state), xfers_(client, "http://127.0.0.1:1") {}
+    MoonrakerFileTransferAPI& transfers() override {
+        return xfers_;
+    }
+    void restart_moonraker(SuccessCallback on_success, ErrorCallback) override {
+        ++restarts;
+        if (on_success)
+            on_success();
+    }
+    CountingTransfers xfers_;
+    int restarts = 0;
+};
+
+const char* const kConf = "[server]\nhost: 0.0.0.0\n\n"
+                          "[update_manager helixscreen]\ntype: web\nchannel: {}\n"
+                          "repo: prestonbrown/helixscreen\npath: {}\n";
+
+constexpr const char* kInstallRoot = "/opt/helixscreen";
+
+struct ChannelSyncFixture : public GlobalPrintStateFixture {
+    MoonrakerClientMock client;
+    helix::PrinterState state;
+    ChannelSyncApi api{client, state};
+
+    ChannelSyncFixture() {
+        get_printer_state().init_subjects(false);
+        api.set_http_base_url("http://127.0.0.1:7125");
+        set_moonraker_api(&api);
+    }
+
+    std::string install_root = kInstallRoot;
+    ~ChannelSyncFixture() override {
+        set_moonraker_api(nullptr);
+    }
+
+    void seed(const std::string& conf) {
+        api.xfers_.set_config_files({{"moonraker.conf", conf}});
+    }
+    void set_app_channel(int channel, bool beta_features) {
+        auto* config = Config::get_instance();
+        config->set<bool>("/beta_features", beta_features);
+        config->set<int>("/update/channel", channel);
+    }
+    void start_sync() {
+        UpdateCheckerTestAccess::sync_moonraker_channel_for(UpdateChecker::instance(),
+                                                            install_root);
+    }
+    std::string sync() {
+        start_sync();
+        return drain();
+    }
+    std::string drain() {
+        for (int i = 0; i < 8; ++i)
+            helix::ui::UpdateQueue::instance().drain();
+        return api.xfers_.get_uploaded_config("moonraker.conf").value_or("");
+    }
+    static std::string conf(const char* channel, const char* path = kInstallRoot) {
+        return fmt::format(kConf, channel, path);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ChannelSyncFixture,
+                 "Channel sync rewrites a drifted stanza and restarts Moonraker",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("stable"));
+    set_app_channel(1, true); // Beta
+
+    CHECK(sync() == conf("beta"));
+    CHECK(api.xfers_.uploads == 1);
+    CHECK(api.restarts == 1);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync leaves a matching stanza alone",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("beta"));
+    set_app_channel(1, true);
+
+    CHECK(sync() == conf("beta"));
+    CHECK(api.xfers_.uploads == 0);
+    CHECK(api.restarts == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync maps Dev to beta, and clamped Dev to stable",
+                 "[update_checker][moonraker_channel]") {
+    SECTION("Dev with beta features rides beta") {
+        seed(conf("stable"));
+        set_app_channel(2, true);
+        CHECK(sync() == conf("beta"));
+    }
+    SECTION("Dev without beta features is effectively Stable") {
+        seed(conf("beta"));
+        set_app_channel(2, false);
+        CHECK(sync() == conf("stable"));
+    }
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync never writes without a stanza",
+                 "[update_checker][moonraker_channel]") {
+    const std::string bare = "[server]\nhost: 0.0.0.0\n";
+    seed(bare);
+    set_app_channel(1, true);
+
+    CHECK(sync() == bare);
+    CHECK(api.xfers_.uploads == 0);
+    CHECK(api.restarts == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync never restarts Moonraker under a job",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("stable"));
+    set_app_channel(1, true);
+    drive_lifecycle(get_printer_state(), "paused", PrintStartPhase::IDLE);
+    REQUIRE(job_holds_machine(get_printer_state().print_state().get_print_lifecycle()));
+
+    // The file is still corrected, so Moonraker's next start reads the right channel.
+    CHECK(sync() == conf("beta"));
+    CHECK(api.restarts == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync matches the stanza path after canonicalizing",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("stable", "/opt/./helixscreen/"));
+    set_app_channel(1, true);
+
+    CHECK(sync() == conf("beta", "/opt/./helixscreen/"));
+    CHECK(api.restarts == 1);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync never touches another install's stanza",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("stable", "/home/pi/helixscreen"));
+    set_app_channel(1, true);
+
+    SECTION("stanza names a different directory") {}
+    SECTION("this install's directory is unknown") {
+        install_root.clear();
+    }
+    CHECK(sync() == conf("stable", "/home/pi/helixscreen"));
+    CHECK(api.xfers_.uploads == 0);
+    CHECK(api.restarts == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync never writes to a remote Moonraker",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("stable"));
+    set_app_channel(1, true);
+    api.set_http_base_url("http://203.0.113.7:7125"); // TEST-NET-3, never this host
+
+    CHECK(sync() == conf("stable"));
+    CHECK(api.xfers_.uploads == 0);
+    CHECK(api.restarts == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync abandons a printer it was detached from",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("stable"));
+    set_app_channel(1, true);
+
+    start_sync(); // the download answers inline; the upload waits on the queue
+    UpdateChecker::instance().detach(client);
+
+    CHECK(drain() == conf("stable"));
+    CHECK(api.xfers_.uploads == 0);
+    CHECK(api.restarts == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync restarts no printer it was detached from",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("stable"));
+    set_app_channel(1, true);
+    client.defer_next("machine.update.status");
+
+    CHECK(sync() == conf("beta"));
+    UpdateChecker::instance().detach(client);
+    client.fire_deferred("machine.update.status");
+    drain();
+
+    CHECK(api.restarts == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync never restarts a busy update_manager",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("stable"));
+    set_app_channel(1, true);
+
+    SECTION("update_manager reports busy") {
+        client.set_update_manager_busy(true);
+    }
+    SECTION("update_manager status unavailable") {
+        client.fail_next("machine.update.status");
+    }
+    CHECK(sync() == conf("beta"));
+    CHECK(api.restarts == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "The newest channel sync wins over one still in flight",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("stable"));
+    set_app_channel(1, true);
+    start_sync(); // downloads inline; its beta upload waits on the queue
+
+    set_app_channel(0, true);
+    start_sync(); // the file already says stable: nothing to write
+
+    CHECK(drain() == conf("stable"));
+    CHECK(api.xfers_.uploads == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture,
+                 "A job starting during the update status check blocks the restart",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("stable"));
+    set_app_channel(1, true);
+    client.defer_next("machine.update.status");
+
+    CHECK(sync() == conf("beta"));
+    drive_lifecycle(get_printer_state(), "printing", PrintStartPhase::IDLE);
+    REQUIRE(job_holds_machine(get_printer_state().print_state().get_print_lifecycle()));
+    client.fire_deferred("machine.update.status");
+    drain();
+
+    CHECK(api.restarts == 0);
+}

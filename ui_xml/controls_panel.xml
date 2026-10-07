@@ -133,7 +133,7 @@
               <bind_style_if_le name="motion_inline" subject="ui_breakpoint" ref_value="1"/>
               <icon name="btn_motion_icon"
                     src="cursor_move" size="#controls_toggle_icon_size" clickable="false" event_bubble="true"/>
-              <text_tiny text="Motion" style_text_color="#text" clickable="false" event_bubble="true">
+              <text_tiny text="Motion" clickable="false" event_bubble="true">
                 <bind_style_if_le name="motion_label_inline" subject="ui_breakpoint" ref_value="1"/>
               </text_tiny>
             </lv_obj>

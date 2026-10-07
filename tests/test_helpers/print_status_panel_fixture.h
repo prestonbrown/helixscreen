@@ -14,6 +14,7 @@
 #include "printer_state.h"
 #include "test_helpers/print_status_panel_test_access.h"
 
+#include <functional>
 #include <lvgl.h>
 #include <memory>
 
@@ -32,8 +33,15 @@ using helix::ui::UpdateQueue;
 /// stable storage, healing the entries this fixture's teardown dangles.
 class PrintStatusPanelFixture : public LVGLUITestFixture {
   public:
-    PrintStatusPanelFixture() {
+    PrintStatusPanelFixture() : PrintStatusPanelFixture(nullptr) {}
+
+    /// @p before_create runs before the panel is built; what it returns lives
+    /// until the panel is gone (e.g. a layout scope the panel was built under).
+    explicit PrintStatusPanelFixture(const std::function<std::shared_ptr<void>()>& before_create) {
         heal_global_print_status_panel_subjects();
+        if (before_create) {
+            setup_ = before_create();
+        }
         panel_ = std::make_unique<PrintStatusPanel>(state(), nullptr);
         panel_->init_subjects();
         root_ = panel_->create(test_screen());
@@ -72,6 +80,7 @@ class PrintStatusPanelFixture : public LVGLUITestFixture {
 
   protected:
     lv_obj_t* root_ = nullptr;
+    std::shared_ptr<void> setup_; ///< Released after the panel, in member order
 
   private:
     void heal_global_print_status_panel_subjects() {

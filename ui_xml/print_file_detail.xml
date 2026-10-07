@@ -92,21 +92,32 @@
                          hint_name="detail_rotate_hint" thumbnail_src="selected_detail_thumbnail"
                          thumbnail_offset_y="#preview_offset_y" viewer_hidden="detail_viewer_hidden eq 1"
                          thumbnail_hidden="detail_viewer_first_frame eq 1" hint_hidden="detail_gcode_viewer_mode ne 1"/>
-          <!-- Loading pill - shown while G-code is downloading/indexing. It sits in
-               the preview's top-left corner so the thumbnail stays readable, toasts
+          <!-- Top-left of the preview: the skip-objects button (same component and
+               corner as print status) and, beside it, the loading pill, shown while
+               G-code downloads/indexes. The corner keeps the thumbnail readable, toasts
                (top-right) never cover it, and the metadata strip stays clear; the
                strip's own background keeps the text legible in either theme. The
-               label carries the percentage whenever the streaming indexer can
-               report one (a 133MB print spends over a minute in the index scan,
-               and a bare spinner for that long reads as a hung app). -->
-          <lv_obj name="detail_loading_overlay"
-                  width="content" height="content" align="top_left" x="#space_sm" y="#space_sm" flex_flow="row"
-                  style_flex_cross_place="center" style_pad_top="#space_xs" style_pad_bottom="#space_xs"
-                  style_border_width="0" scrollable="false">
-            <style name="styles.metadata_strip"/>
-            <bind_flag_if_eq subject="detail_gcode_loading" flag="hidden" ref_value="0"/>
-            <spinner size="xs"/>
-            <text_small name="detail_loading_label" bind_text="detail_gcode_progress_text"/>
+               label carries the percentage whenever the streaming indexer can report
+               one (a 133MB print spends over a minute in the index scan, and a bare
+               spinner for that long reads as a hung app). The row itself takes no
+               taps, so the gap between button and pill reaches the preview. -->
+          <lv_obj name="detail_top_left_row"
+                  width="content" height="content" align="top_left" x="#space_md" y="#space_md" flex_flow="row"
+                  style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+                  style_border_width="0" scrollable="false" clickable="false">
+            <exclude_objects_button name="btn_detail_objects"
+                                    callback="on_print_select_detail_objects"
+                                    hidden_when="detail_exclude_available eq 0"
+                                    count_text_subject="detail_exclude_pick_count_text"
+                                    count_hidden_when="detail_exclude_pick_count eq 0"/>
+            <lv_obj name="detail_loading_overlay"
+                    width="content" height="content" flex_flow="row" style_flex_cross_place="center"
+                    style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_border_width="0" scrollable="false">
+              <style name="styles.metadata_strip"/>
+              <bind_flag_if_eq subject="detail_gcode_loading" flag="hidden" ref_value="0"/>
+              <spinner size="xs"/>
+              <text_small name="detail_loading_label" bind_text="detail_gcode_progress_text"/>
+            </lv_obj>
           </lv_obj>
           <!-- No-thumbnail placeholder - responsive hero-size glyph shown when file has no real thumbnail.
              Uses icon_font_hero so the cube scales with the breakpoint (96px micro → 128px large+). -->

@@ -7,6 +7,7 @@
 #include "lvgl.h"
 
 #include <chrono>
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -38,8 +39,9 @@ class PrintPreparationManagerTestAccess {
     /// outside the manager should dispatch it, but it is the cheapest reachable
     /// failure exit and every other one retires the job the same way.
     static void modify_and_print(helix::ui::PrintPreparationManager& m,
-                                 const std::string& file_path) {
-        m.modify_and_print(file_path, {}, {}, nullptr);
+                                 const std::string& file_path,
+                                 std::function<void()> on_navigate_to_status = nullptr) {
+        m.modify_and_print(file_path, {}, {}, std::move(on_navigate_to_status));
     }
     /// Age the pre-start send timestamp. Production stamps it when the
     /// pre-start gcode RPC leaves; a test models a backed-up ack by winding

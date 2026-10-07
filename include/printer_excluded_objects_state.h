@@ -47,6 +47,11 @@ class PrinterExcludedObjectsState {
         bool has_bbox{true};
     };
 
+    /// One object as the map and badges read it: the bbox spans the polygon's
+    /// points, and an empty polygon means no bbox.
+    static ObjectInfo make_object_info(std::string name, std::optional<glm::vec2> center,
+                                       std::vector<glm::vec2> polygon);
+
     PrinterExcludedObjectsState() = default;
     ~PrinterExcludedObjectsState() = default;
 

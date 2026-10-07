@@ -273,6 +273,9 @@ class GCodeViewerState {
 
     /// Exclude-mode badges drawn over the render; empty when exclude mode is off.
     std::vector<helix::ui::ObjectBadge> object_badges;
+    /// When true an excluded badge still picks its object (pre-start picks can
+    /// be undone); otherwise a tap on it falls through to the geometry.
+    bool excluded_badges_pickable = false;
     /// Their colours and styling, resolved when the badges are set.
     helix::ui::BadgeLook badge_look;
     /// The badges the last frame drew, in paint order: index into object_badges

@@ -108,4 +108,15 @@ class PrintStartControllerTestAccess {
     static void observe_for_restore(helix::ui::PrintStartController& c) {
         c.observe_lifecycle_for_restore();
     }
+
+    // --- pre-start object picks (test_print_select_pre_start_exclude.cpp) ---
+
+    /// Run the start pipeline past initiate()'s grace period and gates.
+    static void execute(helix::ui::PrintStartController& c) {
+        c.execute_print_start();
+    }
+
+    static const std::vector<std::string>& exclude_picks(const helix::ui::PrintStartController& c) {
+        return c.exclude_picks_;
+    }
 };

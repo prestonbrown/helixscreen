@@ -9,14 +9,17 @@
  */
 
 #include "ui_button.h"
+#include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 #include "ui_update_queue.h"
+#include "ui_variant.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_theme_mode.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
+#include "theme_manager.h"
 
 #include <cstring>
 
@@ -789,6 +792,40 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button: the next frame draws the contr
     CAPTURE(before & 0xFFFFFF, drawn & 0xFFFFFF, settled & 0xFFFFFF);
     REQUIRE(settled != before); // the new fill does change the text colour
     CHECK(drawn == settled);
+    lv_obj_remove_style(btn, &white_fill, LV_PART_MAIN);
+}
+
+// A shell button that lays its content out through a wrapper still gives that
+// content contrast; an icon with an accent variant of its own keeps it.
+TEST_CASE_METHOD(UiButtonTestFixture, "ui_button: contrast reaches content inside a layout wrapper",
+                 "[ui_button][contrast]") {
+    const char* attrs[] = {"variant", "primary", nullptr};
+    lv_obj_t* btn = create_button(attrs);
+    REQUIRE(btn != nullptr);
+    lv_obj_t* wrap = lv_obj_create(btn);
+    lv_obj_t* label = lv_label_create(wrap);
+    lv_obj_t* text_icon = lv_label_create(wrap);
+    lv_obj_set_style_text_font(text_icon, &mdi_icons_24, LV_PART_MAIN);
+    helix::ui::apply_variant_text_style(text_icon, helix::ui::Variant::NONE);
+    lv_obj_t* accent_icon = lv_label_create(wrap);
+    lv_obj_set_style_text_font(accent_icon, &mdi_icons_24, LV_PART_MAIN);
+    helix::ui::apply_variant_text_style(accent_icon, helix::ui::Variant::SUCCESS);
+    const uint32_t accent_before =
+        lv_color_to_u32(lv_obj_get_style_text_color(accent_icon, LV_PART_MAIN));
+
+    static lv_style_t white_fill;
+    lv_style_init(&white_fill);
+    lv_style_set_bg_color(&white_fill, lv_color_white());
+    lv_style_set_bg_opa(&white_fill, LV_OPA_COVER);
+    lv_obj_add_style(btn, &white_fill, LV_PART_MAIN);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    const uint32_t expected = lv_color_to_u32(theme_manager_get_contrast_adjusted_text(
+        theme_manager_get_color("text"), lv_color_white()));
+    CHECK(lv_obj_has_style_prop(label, LV_PART_MAIN, LV_STYLE_TEXT_COLOR));
+    CHECK(lv_color_to_u32(lv_obj_get_style_text_color(label, LV_PART_MAIN)) == expected);
+    CHECK(lv_color_to_u32(lv_obj_get_style_text_color(text_icon, LV_PART_MAIN)) == expected);
+    CHECK(lv_color_to_u32(lv_obj_get_style_text_color(accent_icon, LV_PART_MAIN)) == accent_before);
     lv_obj_remove_style(btn, &white_fill, LV_PART_MAIN);
 }
 

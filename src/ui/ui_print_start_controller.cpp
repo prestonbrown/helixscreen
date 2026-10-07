@@ -31,6 +31,7 @@
 #include "json_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
+#include "pre_start_exclude.h"
 #include "print_job_ref.h"
 #include "printer_state.h"
 #include "text_io.h"
@@ -215,6 +216,8 @@ void PrintStartController::execute_print_start() {
 
     // Capture thumbnail path for lambda
     std::string thumbnail_path = thumbnail_path_;
+    std::vector<std::string> exclude_picks = std::move(exclude_picks_);
+    exclude_picks_.clear();
 
     // The actual "start the print" step: navigate to the status panel, then
     // delegate to PrintPreparationManager. Hoisted into a continuation so the
@@ -225,7 +228,7 @@ void PrintStartController::execute_print_start() {
     PrinterState* ps = &printer_state_;
 
     auto start_now = [this, ps, prep_manager, filename_to_print, path = path_, thumbnail_path,
-                      on_started, update_button, show_detail]() {
+                      on_started, update_button, show_detail, exclude_picks]() {
         // Navigate to print status panel IMMEDIATELY (optimistic navigation)
         // The busy overlay will show on top during download/upload operations.
         // On failure, we'll navigate back to the detail overlay.
@@ -250,39 +253,45 @@ void PrintStartController::execute_print_start() {
             // Navigation callback - called when Moonraker confirms print start
             // Sets thumbnail source so PrintStatusPanel loads the correct thumbnail
             // NOTE: Called from background HTTP thread - must defer LVGL calls to main thread
-            [filename_to_print, path, thumbnail_path, on_started]() {
-                // Construct full path for metadata lookup (e.g., usb/flowrate_0.gcode)
-                std::string full_path =
-                    path.empty() ? filename_to_print : path + "/" + filename_to_print;
-                helix::ui::queue_update(
-                    "PrintStartController::execute_print_start",
-                    [full_path, thumbnail_path, on_started]() {
-                        // begin_preparing() already recorded this job's identity, but a
-                        // start that never opened a preparing window still needs it, and
-                        // re-stating it is idempotent.
-                        get_printer_state().print_state().set_print_identity_override(full_path);
+            // The object picks follow it: Klipper resets exclude_object as a print starts.
+            helix::ui::with_pre_start_exclusions(
+                [filename_to_print, path, thumbnail_path, on_started]() {
+                    // Construct full path for metadata lookup (e.g., usb/flowrate_0.gcode)
+                    std::string full_path =
+                        path.empty() ? filename_to_print : path + "/" + filename_to_print;
+                    helix::ui::queue_update(
+                        "PrintStartController::execute_print_start",
+                        [full_path, thumbnail_path, on_started]() {
+                            // begin_preparing() already recorded this job's identity, but a
+                            // start that never opened a preparing window still needs it, and
+                            // re-stating it is idempotent.
+                            get_printer_state().print_state().set_print_identity_override(
+                                full_path);
 
-                        // If we have a pre-extracted thumbnail (USB/embedded), set it directly
-                        // This bypasses Moonraker metadata lookup which doesn't have USB file info
-                        if (!thumbnail_path.empty()) {
-                            // Tag it with the same identity handed to
-                            // set_thumbnail_source() above: the manager cannot infer
-                            // it here, since Moonraker may not have reported the
-                            // print filename yet.
-                            helix::get_active_print_media_manager().set_thumbnail_path(
-                                full_path, thumbnail_path);
-                            spdlog::debug("[PrintStartController] Set extracted thumbnail path: {}",
-                                          thumbnail_path);
-                        }
+                            // If we have a pre-extracted thumbnail (USB/embedded), set it directly
+                            // This bypasses Moonraker metadata lookup which doesn't have USB file
+                            // info
+                            if (!thumbnail_path.empty()) {
+                                // Tag it with the same identity handed to
+                                // set_thumbnail_source() above: the manager cannot infer
+                                // it here, since Moonraker may not have reported the
+                                // print filename yet.
+                                helix::get_active_print_media_manager().set_thumbnail_path(
+                                    full_path, thumbnail_path);
+                                spdlog::debug(
+                                    "[PrintStartController] Set extracted thumbnail path: {}",
+                                    thumbnail_path);
+                            }
 
-                        spdlog::debug("[PrintStartController] Print start confirmed, thumbnail "
-                                      "source set: {}",
-                                      full_path);
-                        if (on_started) {
-                            on_started();
-                        }
-                    });
-            },
+                            spdlog::debug("[PrintStartController] Print start confirmed, thumbnail "
+                                          "source set: {}",
+                                          full_path);
+                            if (on_started) {
+                                on_started();
+                            }
+                        });
+                },
+                exclude_picks),
             // Completion callback
             // NOTE: Called from background HTTP thread - must defer LVGL calls to main thread
             [update_button, show_detail, ps](bool success, const std::string& error) {

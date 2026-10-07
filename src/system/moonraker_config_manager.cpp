@@ -4,6 +4,7 @@
 #include "text_io.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <string>
 #include <string_view>
@@ -598,6 +599,60 @@ std::string MoonrakerConfigManager::get_section_value(const std::string& content
         return std::string(helix::text_io::trim(t.substr(colon + 1)));
     }
     return "";
+}
+
+std::string MoonrakerConfigManager::set_existing_value(const std::string& content,
+                                                       const std::string& section_name,
+                                                       const std::string& key,
+                                                       const std::string& value) {
+    const std::string header = "[" + section_name + "]";
+    int headers = 0;
+    bool in_section = false;
+    // Byte span of the first matching value, excluding any inline comment and the
+    // whitespace before it, so a rewrite keeps the comment and the line ending.
+    size_t value_begin = std::string::npos;
+    size_t value_end = 0;
+
+    size_t pos = 0;
+    while (pos < content.size()) {
+        size_t eol = content.find('\n', pos);
+        if (eol == std::string::npos)
+            eol = content.size();
+        const std::string_view line(content.data() + pos, eol - pos);
+        const std::string_view t = tio::trim(line);
+
+        if (!t.empty() && t[0] == '[') {
+            in_section = (t == header);
+            if (in_section)
+                ++headers;
+        } else if (in_section && value_begin == std::string::npos && !line.empty() &&
+                   line[0] != ' ' && line[0] != '\t' && line[0] != '#' && line[0] != ';') {
+            // Column 0 only: an indented line continues the previous value.
+            const size_t colon = line.find(':');
+            if (colon != std::string_view::npos && tio::trim(line.substr(0, colon)) == key) {
+                size_t b = colon + 1;
+                size_t e = line.find_first_of("#;", b);
+                if (e == std::string_view::npos)
+                    e = line.size();
+                while (b < e && (line[b] == ' ' || line[b] == '\t'))
+                    ++b;
+                while (e > b && std::isspace(static_cast<unsigned char>(line[e - 1])))
+                    --e;
+                value_begin = pos + b;
+                value_end = pos + e;
+            }
+        }
+        pos = eol + 1;
+    }
+
+    // Duplicate stanzas are the operator's to untangle: editing one of them guesses.
+    if (headers != 1 || value_begin == std::string::npos || value_begin == value_end)
+        return content;
+    if (content.compare(value_begin, value_end - value_begin, value) == 0)
+        return content;
+    std::string out = content;
+    out.replace(value_begin, value_end - value_begin, value);
+    return out;
 }
 
 } // namespace helix

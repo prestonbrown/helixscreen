@@ -43,4 +43,8 @@ void apply_variant_text_style(lv_obj_t* obj, Variant v);
 /// Remove all variant-related styles from obj (cleanup before re-applying).
 void remove_variant_styles(lv_obj_t* obj);
 
+/// True when obj carries the default text variant (IconText), i.e. it wants the
+/// ambient text colour rather than an accent of its own.
+bool has_text_variant(const lv_obj_t* obj);
+
 } // namespace helix::ui

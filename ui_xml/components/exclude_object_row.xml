@@ -13,11 +13,13 @@
        and the portrait slot is as wide as the longer string in the active
        language.
        The disc carries the same number and color the map gives the object.
-       state_subject names the row's int state: 0 idle, 1 printing now, 2 excluded.
-       An excluded object is dimmed, muted and not clickable. The row restyles in
-       place, so the list keeps its scroll position while the printing object moves.
-       C++ sets the object name, which comes from the slicer and so cannot travel as
-       a prop: a leading '#' would read as a const. -->
+       state_subject names the row's int state: 0 idle, 1 printing now, 2 excluded,
+       3 picked before the print starts. Excluded and picked rows are dimmed and
+       muted; an excluded row is not clickable, a picked row is, so the pick can be
+       undone. The row restyles in place, so the list keeps its scroll position
+       while the printing object moves.
+       C++ sets the object name, which comes from the slicer and so cannot travel
+       as a prop: a leading '#' would read as a const. -->
   <styles>
     <style name="row_excluded" opa="150"/>
     <style name="name_idle" text_color="#text"/>
@@ -41,7 +43,7 @@
         style_flex_track_place="center" style_pad_all="#space_sm" style_pad_gap="#space_sm" style_radius="6"
         style_bg_color="#card_bg" style_bg_opa="255" style_border_width="0" scrollable="false" clickable="true">
     <style name="styles.press_wash" selector="pressed"/>
-    <bind_style_if_eq name="row_excluded" subject="$state_subject" ref_value="2"/>
+    <bind_style_if_ge name="row_excluded" subject="$state_subject" ref_value="2"/>
     <bind_flag_if_not_eq subject="$state_subject" flag="clickable" ref_value="2"/>
     <!-- SIZE_OK: the index disc is a fixed 24px circle at every breakpoint -->
     <lv_obj width="24"
@@ -59,8 +61,8 @@
       <lv_label name="object_name" text="" long_mode="wrap" style_text_font="#font_body" event_bubble="true">
         <bind_style_if_not_eq name="name_stacked" subject="ui_is_portrait" ref_value="1"/>
         <bind_style_if_eq name="name_beside_status" subject="ui_is_portrait" ref_value="1"/>
-        <bind_style_if_not_eq name="name_idle" subject="$state_subject" ref_value="2"/>
-        <bind_style_if_eq name="name_excluded" subject="$state_subject" ref_value="2"/>
+        <bind_style_if_lt name="name_idle" subject="$state_subject" ref_value="2"/>
+        <bind_style_if_ge name="name_excluded" subject="$state_subject" ref_value="2"/>
       </lv_label>
       <lv_obj name="status_line"
               height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
@@ -77,7 +79,7 @@
         </text_small>
         <text_small name="status_excluded"
                     text="Excluded" style_text_color="#text_muted" hidden="true" event_bubble="true">
-          <bind_flag_if_not_eq subject="$state_subject" flag="hidden" ref_value="2"/>
+          <bind_flag_if_lt subject="$state_subject" flag="hidden" ref_value="2"/>
           <bind_style_if_eq name="status_in_slot" subject="ui_is_portrait" ref_value="1"/>
         </text_small>
       </lv_obj>

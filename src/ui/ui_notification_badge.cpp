@@ -144,6 +144,15 @@ void badge_delete_cb(lv_event_t* e) {
     }
 }
 
+/// The text a bound subject carries: a string subject, or a pointer subject
+/// holding a C string.
+const char* badge_subject_text(lv_subject_t* subject) {
+    if (subject->type == LV_SUBJECT_TYPE_STRING) {
+        return lv_subject_get_string(subject);
+    }
+    return static_cast<const char*>(lv_subject_get_pointer(subject));
+}
+
 /**
  * @brief Observer callback to update label text when subject changes
  */
@@ -152,7 +161,7 @@ void badge_text_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     if (!label)
         return;
 
-    const char* text = static_cast<const char*>(lv_subject_get_pointer(subject));
+    const char* text = badge_subject_text(subject);
     if (text) {
         lv_label_set_text(label, text);
         // Re-center after text change
@@ -219,7 +228,7 @@ void* notification_badge_create(lv_xml_parser_state_t* state, const char** attrs
         lv_subject_t* subject = lv_xml_get_subject(&state->scope, bind_text);
         if (subject) {
             // Set initial value
-            const char* initial = static_cast<const char*>(lv_subject_get_pointer(subject));
+            const char* initial = badge_subject_text(subject);
             if (initial) {
                 lv_label_set_text(label, initial);
             }

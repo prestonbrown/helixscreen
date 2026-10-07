@@ -1720,3 +1720,127 @@ TEST_CASE("add_include_line still defaults to the relative helixscreen.conf",
     std::string out = MoonrakerConfigManager::add_include_line("[server]\n");
     CHECK(out.find("[include helixscreen.conf]") != std::string::npos);
 }
+
+// ============================================================================
+// set_existing_value: the update_manager channel sync
+// ============================================================================
+
+namespace {
+
+std::string set_channel(const std::string& content, const std::string& want) {
+    return MoonrakerConfigManager::set_existing_value(content, "update_manager helixscreen",
+                                                      "channel", want);
+}
+
+const char* const kStanza = "[server]\n"
+                            "host: 0.0.0.0\n"
+                            "\n"
+                            "# HelixScreen Update Manager\n"
+                            "[update_manager helixscreen]\n"
+                            "type: web\n"
+                            "channel: stable\n"
+                            "repo: prestonbrown/helixscreen\n"
+                            "path: /opt/helixscreen\n"
+                            "\n"
+                            "[update_manager timelapse]\n"
+                            "type: git_repo\n"
+                            "channel: dev\n";
+
+} // namespace
+
+TEST_CASE("set_existing_value rewrites only the stanza's channel line",
+          "[config_manager][update_channel]") {
+    const std::string out = set_channel(kStanza, "beta");
+
+    CHECK(MoonrakerConfigManager::get_section_value(out, "update_manager helixscreen", "channel") ==
+          "beta");
+    // Another section's channel line is not ours to touch.
+    CHECK(MoonrakerConfigManager::get_section_value(out, "update_manager timelapse", "channel") ==
+          "dev");
+    CHECK(out.find("# HelixScreen Update Manager\n") != std::string::npos);
+    CHECK(out.find("repo: prestonbrown/helixscreen\npath: /opt/helixscreen\n") !=
+          std::string::npos);
+    CHECK(out.find("channel: stable") == std::string::npos);
+}
+
+TEST_CASE("set_existing_value leaves a matching stanza byte-identical",
+          "[config_manager][update_channel]") {
+    CHECK(set_channel(kStanza, "stable") == kStanza);
+    // Whitespace after the colon is formatting, not a different value.
+    const std::string spaced = "[update_manager helixscreen]\nchannel:   beta  \n";
+    CHECK(set_channel(spaced, "beta") == spaced);
+}
+
+TEST_CASE("set_existing_value ignores a channel line outside the stanza",
+          "[config_manager][update_channel]") {
+    // The helixscreen stanza has no channel line; the one after it belongs to timelapse.
+    const std::string content = "[update_manager helixscreen]\n"
+                                "type: web\n"
+                                "[update_manager timelapse]\n"
+                                "channel: stable\n";
+    CHECK(set_channel(content, "beta") == content);
+}
+
+TEST_CASE("set_existing_value never adds a missing stanza or channel line",
+          "[config_manager][update_channel]") {
+    const std::string no_stanza = "[server]\nhost: 0.0.0.0\n[update_manager mainsail]\n"
+                                  "channel: stable\n";
+    CHECK(set_channel(no_stanza, "beta") == no_stanza);
+    CHECK(set_channel("", "beta").empty());
+
+    // Hand-written stanza with no channel: Moonraker's default, the operator's call.
+    const std::string hand_written = "[update_manager helixscreen]\ntype: web\n";
+    CHECK(set_channel(hand_written, "beta") == hand_written);
+
+    // A commented-out channel is not a channel line.
+    const std::string commented = "[update_manager helixscreen]\n#channel: stable\ntype: web\n";
+    CHECK(set_channel(commented, "beta") == commented);
+}
+
+TEST_CASE("set_existing_value handles a stanza at end of file",
+          "[config_manager][update_channel]") {
+    const std::string content = "[server]\nhost: 0.0.0.0\n\n[update_manager helixscreen]\n"
+                                "type: web\nchannel: beta";
+    const std::string out = set_channel(content, "stable");
+    CHECK(MoonrakerConfigManager::get_section_value(out, "update_manager helixscreen", "channel") ==
+          "stable");
+    CHECK(MoonrakerConfigManager::get_section_value(out, "server", "host") == "0.0.0.0");
+}
+
+TEST_CASE("set_existing_value reads and rewrites a CRLF file", "[config_manager][update_channel]") {
+    const std::string crlf = "[server]\r\nhost: 0.0.0.0\r\n[update_manager helixscreen]\r\n"
+                             "type: web\r\nchannel: stable\r\n";
+    // A CR is line ending, not part of the value: a match is no change.
+    CHECK(set_channel(crlf, "stable") == crlf);
+
+    const std::string out = set_channel(crlf, "beta");
+    CHECK(MoonrakerConfigManager::get_section_value(out, "update_manager helixscreen", "channel") ==
+          "beta");
+    CHECK(out == "[server]\r\nhost: 0.0.0.0\r\n[update_manager helixscreen]\r\n"
+                 "type: web\r\nchannel: beta\r\n");
+}
+
+TEST_CASE("set_existing_value adds no newline the file did not end with",
+          "[config_manager][update_channel]") {
+    CHECK(set_channel("[update_manager helixscreen]\nchannel: beta", "stable") ==
+          "[update_manager helixscreen]\nchannel: stable");
+}
+
+TEST_CASE("set_existing_value compares past an inline comment and keeps it",
+          "[config_manager][update_channel]") {
+    const std::string hash = "[update_manager helixscreen]\nchannel: beta  # pinned\n";
+    CHECK(set_channel(hash, "beta") == hash);
+    CHECK(set_channel(hash, "stable") ==
+          "[update_manager helixscreen]\nchannel: stable  # pinned\n");
+
+    const std::string semi = "[update_manager helixscreen]\nchannel: stable ; note\n";
+    CHECK(set_channel(semi, "stable") == semi);
+    CHECK(set_channel(semi, "beta") == "[update_manager helixscreen]\nchannel: beta ; note\n");
+}
+
+TEST_CASE("set_existing_value leaves duplicate stanzas alone", "[config_manager][update_channel]") {
+    const std::string dup = "[update_manager helixscreen]\nchannel: stable\n"
+                            "[server]\nhost: 0.0.0.0\n"
+                            "[update_manager helixscreen]\ntype: web\n";
+    CHECK(set_channel(dup, "beta") == dup);
+}

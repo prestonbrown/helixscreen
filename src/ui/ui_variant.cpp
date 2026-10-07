@@ -3,6 +3,8 @@
 
 #include "ui_variant.h"
 
+#include "lvgl/src/core/lv_obj_private.h"       // obj->styles: LVGL has no style iterator
+#include "lvgl/src/core/lv_obj_style_private.h" // lv_obj_style_t fields
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -73,6 +75,15 @@ lv_color_t variant_color(Variant v) {
 
 lv_opa_t variant_opa(Variant v) {
     return (v == Variant::DISABLED) ? LV_OPA_50 : LV_OPA_COVER;
+}
+
+bool has_text_variant(const lv_obj_t* obj) {
+    const lv_style_t* text_style = ThemeManager::instance().get_style(StyleRole::IconText);
+    for (uint32_t i = 0; i < obj->style_cnt; i++) {
+        if (obj->styles[i].style == text_style)
+            return true;
+    }
+    return false;
 }
 
 void remove_variant_styles(lv_obj_t* obj) {

@@ -57,6 +57,9 @@
 #include "printer_recovery_service.h"
 #include "printer_session.h"
 #include "process_guards.h"
+#ifdef HELIX_HAS_PWM_SOUND
+#include "pwm_sound_backend.h"
+#endif
 #include "recovery_modal_presenter.h"
 #include "refresh_period_hold.h"
 #ifdef HELIX_ENABLE_REMOTE_CONTROL
@@ -315,6 +318,9 @@ void graceful_quit_signal_handler(int sig) {
         // and HelixScreen refused to boot. unlink(2) is async-signal-safe;
         // the path was cached at startup so nothing is constructed here.
         helix::clear_crash_marker_signal_safe();
+#ifdef HELIX_HAS_PWM_SOUND
+        PWMSoundBackend::silence_signal_safe();
+#endif
         static const char msg[] = "[Application] SIGTERM — fast exit\n";
         ssize_t n = write(STDERR_FILENO, msg, sizeof(msg) - 1);
         (void)n; // suppress unused-result warning

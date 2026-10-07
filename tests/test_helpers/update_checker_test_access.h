@@ -46,6 +46,12 @@ class UpdateCheckerTestAccess {
         c.clear_cache();
     }
 
+    /// sync_moonraker_channel() against @p install_root: the test link has no
+    /// resolvable install directory, so the public entry point always skips.
+    static void sync_moonraker_channel_for(UpdateChecker& c, const std::string& install_root) {
+        c.sync_moonraker_channel_for(install_root);
+    }
+
     // ------------------------------------------------------------------
     // Post-install restart sequence
     //

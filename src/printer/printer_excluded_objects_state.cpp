@@ -16,7 +16,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
-#include <limits>
+#include <glm/common.hpp>
 
 namespace helix {
 
@@ -36,6 +36,30 @@ void PrinterExcludedObjectsState::init_subjects(bool register_xml) {
 
     subjects_initialized_ = true;
     spdlog::trace("[PrinterExcludedObjectsState] Subjects initialized successfully");
+}
+
+PrinterExcludedObjectsState::ObjectInfo
+PrinterExcludedObjectsState::make_object_info(std::string name, std::optional<glm::vec2> center,
+                                              std::vector<glm::vec2> polygon) {
+    ObjectInfo info;
+    info.name = std::move(name);
+    info.has_center = center.has_value();
+    if (center) {
+        info.center = *center;
+    }
+    info.has_bbox = !polygon.empty();
+    if (info.has_bbox) {
+        glm::vec2 lo = polygon.front();
+        glm::vec2 hi = polygon.front();
+        for (const auto& p : polygon) {
+            lo = glm::min(lo, p);
+            hi = glm::max(hi, p);
+        }
+        info.bbox_min = lo;
+        info.bbox_max = hi;
+    }
+    info.polygon = std::move(polygon);
+    return info;
 }
 
 void PrinterExcludedObjectsState::update_from_status(const nlohmann::json& status) {
@@ -65,41 +89,23 @@ void PrinterExcludedObjectsState::update_from_status(const nlohmann::json& statu
             if (!obj.is_object() || !obj.contains("name") || !obj["name"].is_string())
                 continue;
 
-            ObjectInfo info;
-            info.name = obj["name"].get<std::string>();
-
+            std::optional<glm::vec2> center;
             if (obj.contains("center") && obj["center"].is_array() && obj["center"].size() >= 2 &&
                 obj["center"][0].is_number() && obj["center"][1].is_number()) {
-                info.center.x = obj["center"][0].get<float>();
-                info.center.y = obj["center"][1].get<float>();
-                info.has_center = true;
-            } else {
-                info.has_center = false;
+                center = glm::vec2(obj["center"][0].get<float>(), obj["center"][1].get<float>());
             }
 
-            if (obj.contains("polygon") && obj["polygon"].is_array() && !obj["polygon"].empty()) {
-                float min_x = std::numeric_limits<float>::max();
-                float min_y = min_x;
-                float max_x = std::numeric_limits<float>::lowest();
-                float max_y = max_x;
+            std::vector<glm::vec2> polygon;
+            if (obj.contains("polygon") && obj["polygon"].is_array()) {
                 for (const auto& pt : obj["polygon"]) {
                     if (pt.is_array() && pt.size() >= 2 && pt[0].is_number() && pt[1].is_number()) {
-                        float x = pt[0].get<float>(), y = pt[1].get<float>();
-                        info.polygon.push_back({x, y});
-                        min_x = std::min(min_x, x);
-                        min_y = std::min(min_y, y);
-                        max_x = std::max(max_x, x);
-                        max_y = std::max(max_y, y);
+                        polygon.push_back({pt[0].get<float>(), pt[1].get<float>()});
                     }
                 }
-                info.bbox_min = {min_x, min_y};
-                info.bbox_max = {max_x, max_y};
-                info.has_bbox = true;
-            } else {
-                info.has_bbox = false;
             }
 
-            objects.push_back(std::move(info));
+            objects.push_back(
+                make_object_info(obj["name"].get<std::string>(), center, std::move(polygon)));
         }
         set_defined_objects_with_geometry(objects);
     }

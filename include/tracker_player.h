@@ -35,6 +35,15 @@ class TrackerPlayer {
     /// Whether the player is currently playing
     bool is_playing() const;
 
+    /// Mono-buzzer arpeggio step: one Game Boy frame (59.73 Hz), fixed
+    /// whatever the module's tempo or speed.
+    static constexpr float kArpFrameMs = 1000.0f / 59.73f;
+
+    /// A mono buzzer drops a channel below this volume (before master volume):
+    /// a narrow pulse still rings the transducer, so a fade's tail would
+    /// otherwise sound like a held buzz that stops abruptly.
+    static constexpr float kMonoMinVolume = 0.08f;
+
     /// Advance the player by dt_ms milliseconds.
     /// Called from the sequencer thread at ~1ms rate.
     void tick(float dt_ms);
@@ -115,6 +124,8 @@ class TrackerPlayer {
     int speed_ = 6;
     int tempo_ = 125;
     float tick_accum_ = 0;
+    uint32_t arp_step_ = 0; ///< Mono arpeggio position, one per kArpFrameMs
+    float arp_accum_ = 0;
     int next_order_ = -1;
     int next_row_ = -1;
     int volume_override_ = -1; // -1 = use AudioSettingsManager

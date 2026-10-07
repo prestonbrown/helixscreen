@@ -345,3 +345,26 @@ TEST_CASE_METHOD(MoonrakerTestFixture, "M300 drop without host recovery leaves n
     // where create_backend() would succeed.
     REQUIRE(SoundManagerTestAccess::backend(sm) == nullptr);
 }
+
+TEST_CASE_METHOD(MoonrakerTestFixture, "a user-named PWM channel survives a detected beeper",
+                 "[sound][m300][capabilities]") {
+    SoundManagerClean clean;
+    auto& sm = SoundManager::instance();
+
+    PrinterStateTestAccess::reset(state());
+    state().init_subjects(true);
+
+    sm.set_moonraker_client(&client());
+    auto pwm = make_pwm_backend();
+    pwm->set_klippy_shares_channel(false);
+    SoundManagerTestAccess::install_backend(sm, pwm);
+
+    PrinterDiscovery hw;
+    nlohmann::json objects = {"output_pin beeper", "gcode_macro M300"};
+    hw.parse_objects(objects);
+    REQUIRE(hw.has_speaker());
+
+    state().set_hardware(hw);
+    UpdateQueue::instance().drain();
+    REQUIRE(SoundManagerTestAccess::backend(sm) == pwm);
+}

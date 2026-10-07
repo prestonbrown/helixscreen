@@ -444,6 +444,15 @@ void ui_gcode_viewer_set_excluded_objects(lv_obj_t* obj,
 void ui_gcode_viewer_set_object_badges(lv_obj_t* obj, std::vector<helix::ui::ObjectBadge> badges);
 
 /**
+ * @brief Whether a tap on an excluded badge picks its object
+ *
+ * Print details sets this while exclude mode is open, so a pick can be undone
+ * from the render. Off by default.
+ */
+// NAMESPACE_OK: joins this file's global ui_gcode_viewer_* API
+void ui_gcode_viewer_set_excluded_badges_pickable(lv_obj_t* obj, bool pickable);
+
+/**
  * @brief Callback type for object tap events
  * @param viewer The viewer widget
  * @param object_name Name of the tapped object (empty if no object hit)
@@ -675,6 +684,9 @@ gcode_viewer_show_2d(lv_obj_t* viewer, std::unique_ptr<helix::gcode::ParsedGCode
 
 /// The exclude badges the viewer holds and the fill colour it resolved for each.
 std::vector<helix::ui::ObjectBadge> gcode_viewer_object_badges(lv_obj_t* viewer);
+/// Invoke the registered object tap callback as a tap on @p name would.
+void gcode_viewer_fire_object_tap(lv_obj_t* viewer, const char* name);
+bool gcode_viewer_excluded_badges_pickable(lv_obj_t* viewer);
 std::vector<lv_color_t> gcode_viewer_badge_fills(lv_obj_t* viewer);
 std::vector<lv_color_t> gcode_viewer_badge_texts(lv_obj_t* viewer);
 

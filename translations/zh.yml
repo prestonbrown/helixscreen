@@ -745,6 +745,7 @@ translations:
 
   "Could not save the mesh as '{}': {}": "无法将网格保存为 '{}'：{}"
   Could not save the printer image tags: 保存打印机图片标记失败
+  Could not skip {}: '无法跳过 {}'
   Could not start Bluetooth discovery: 无法启动蓝牙发现
   Could not update filaments: 无法更新耗材
   Could not verify Spoolman status. Moonraker may still be restarting.: 无法验证 Spoolman
@@ -1022,6 +1023,7 @@ translations:
   Every extruder's temperature at once: 同时查看所有挤出机温度
   Everything else was saved. Change them in Spoolman.: 其他内容均已保存。请在 Spoolman 中修改。
   Everything else was saved. Rename the material using letters, digits, spaces, and + - _ . ( ) /: '其他内容均已保存。请使用字母、数字、空格以及 + - _ . ( ) / 重命名材料'
+  Every object is set to skip, so there is nothing to print: '所有对象都已设为跳过，没有可打印的内容'
   Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.: 所有工具的偏移将重新测量并替换当前值。之后请保存以保留结果。
   Excellent Accuracy: 精度极佳
   'Exception: {}': '异常: {}'
@@ -2062,6 +2064,7 @@ translations:
   'ON: {} | OFF: {}': '开: {} | 关: {}'
   OS: OS
   'OS: ': '操作系统: '
+  Object picks apply only to prints started now: '对象选择仅适用于现在开始的打印'
   Object positions unavailable: 对象位置不可用
   Objects: 对象
   'Off': 关
@@ -3024,7 +3027,6 @@ translations:
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: 点按“重启固件”以恢复。在 K2 上这也会重启 rpi MCU 桥接
   Tap again to confirm this orientation: 再次点击确认此方向
   Tap an empty spot inside the enclosure: 点击机箱内的空白处
-  Tap an object to exclude it | {} objects ({} excluded): '点按对象以排除 | {} 个对象（已排除 {} 个）'
   Tap any tile to open its full controls or toggle its state.: 点击任意磁贴以打开其完整控制项或切换其状态。
   Tap anywhere if this text is right-side up: 如果文字方向正确请点击任意位置
   Tap anywhere to begin: 点击任意位置开始
@@ -3671,6 +3673,7 @@ translations:
   '{} and {} are both mapped here': '{} 和 {} 都映射到这里'
   '{} available': '{} 可用'
   '{} axis homed': '{} 轴已归位'
+  '{} cannot be skipped: its name has characters the printer cannot be sent': '无法排除 {}：名称包含无法发送到打印机的字符'
   '{} changed': '{} 个已更改'
   '{} command timed out': '{} 命令超时'
   '{} complete': '{} 完成'

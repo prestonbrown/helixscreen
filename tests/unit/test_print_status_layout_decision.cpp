@@ -136,6 +136,19 @@ TEST_CASE("portrait_side_list_height: a tall control stack never buries the map"
     CHECK(ceiling < content_h); // something is always left for the map
 }
 
+TEST_CASE("portrait_side_list_height: measured room below the card is the ceiling",
+          "[print-status][portrait][layout-decision]") {
+    // Controls past 55% of the column: the list still covers all of them, up to
+    // the card and no further.
+    CHECK(portrait_side_list_height(/*controls_h=*/600, /*content_h=*/1000, /*gap=*/12,
+                                    /*room_h=*/590) == 590);
+    // Short controls are still sized from the controls, not stretched to the card.
+    CHECK(portrait_side_list_height(/*controls_h=*/300, /*content_h=*/1000, /*gap=*/12,
+                                    /*room_h=*/590) == 312);
+    const auto g = exclude_side_list_geometry(/*portrait=*/true, 600, 1000, 12, /*room_h=*/590);
+    CHECK(g.height_px == 590);
+}
+
 TEST_CASE("portrait_side_list_height: an extremely short column prefers a list over a sliver",
           "[print-status][portrait][layout-decision]") {
     // When the ceiling is below the floor the two clamps disagree. The ceiling

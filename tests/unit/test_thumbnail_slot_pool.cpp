@@ -124,3 +124,42 @@ TEST_CASE("an arena that cannot be allocated leaves a pool that hands out nothin
     }
     CHECK(g_live == 0);
 }
+
+TEST_CASE("trim frees the slots handed back and keeps those in use", "[thumbnail][slots]") {
+    reset_counts();
+    {
+        ThumbnailSlotPool pool(1000, 4, counting_alloc, counting_free);
+        uint8_t* a = pool.acquire();
+        uint8_t* b = pool.acquire();
+        uint8_t* c = pool.acquire();
+        REQUIRE(c);
+        pool.release(b);
+        pool.release(c);
+        pool.trim();
+        CHECK(pool.allocated() == 1);
+        CHECK(g_live == 1); // only a is still allocated
+
+        // The pool grows again to its cap afterwards.
+        CHECK(pool.acquire() != nullptr);
+        CHECK(pool.acquire() != nullptr);
+        CHECK(pool.acquire() != nullptr);
+        CHECK(pool.acquire() == nullptr);
+        pool.release(a);
+    }
+    CHECK(g_live == 0);
+}
+
+TEST_CASE("trim leaves an arena whole", "[thumbnail][slots]") {
+    // Its slots are slices of one block: none can be freed alone.
+    reset_counts();
+    {
+        ThumbnailSlotPool pool(1000, 3, counting_alloc, counting_free, /*arena=*/true);
+        uint8_t* a = pool.acquire();
+        pool.release(a);
+        pool.trim();
+        CHECK(pool.allocated() == 3);
+        CHECK(g_live == 1);
+        CHECK(pool.acquire() == a);
+    }
+    CHECK(g_live == 0);
+}

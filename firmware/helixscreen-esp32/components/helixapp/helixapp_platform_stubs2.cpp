@@ -687,6 +687,8 @@ UpdateChecker::UpdateChannel UpdateChecker::get_channel() const {
     return UpdateChannel::Stable;
 }
 void UpdateChecker::on_channel_changed() {}
+// No Moonraker update_manager stanza names this firmware, so there is nothing to sync.
+void UpdateChecker::sync_moonraker_channel() {}
 // The notification history panel's "show update" action. Nothing posts an
 // update notification in this slice, so the action is never dispatched.
 void UpdateChecker::show_update_notification() {}

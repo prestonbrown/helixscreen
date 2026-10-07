@@ -180,4 +180,17 @@ struct PrintSelectPanelTestAccess {
     static helix::ui::PrintPreparationManager* prep_manager(const PrintSelectPanel& panel) {
         return panel.detail_view_ ? panel.detail_view_->get_prep_manager() : nullptr;
     }
+
+    static helix::ui::PrintSelectDetailView* detail_view(PrintSelectPanel& panel) {
+        return panel.detail_view_.get();
+    }
+
+    static helix::ui::PrintStartController* print_controller(PrintSelectPanel& panel) {
+        return panel.print_controller_.get();
+    }
+
+    /// Apply a remap the way the remap modal's confirm does.
+    static void apply_remap(PrintSelectPanel& panel, const std::vector<helix::ToolMapping>& m) {
+        panel.apply_remap(m);
+    }
 };

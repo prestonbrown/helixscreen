@@ -428,7 +428,7 @@ void PrintExcludeObjectManager::on_print_state_changed(helix::PrintJobState stat
 
 void PrintExcludeObjectManager::on_exclude_rpc_error(const std::string& object_name,
                                                      const MoonrakerError& err) {
-    if (err.type == MoonrakerErrorType::TIMEOUT) {
+    if (err.command_may_still_run()) {
         // Advisory path. printer.gcode.script blocks until Klipper executes the queued
         // gcode; during pre-print this can legitimately take >15 minutes (our ceiling).
         // Past that ceiling the optimistic visual stays: a toast here would be a

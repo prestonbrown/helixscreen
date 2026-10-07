@@ -443,86 +443,129 @@ void GCodeParser::parse_arc_command(const std::string& line, bool clockwise) {
     }
 }
 
+std::optional<std::string> gcode_param_value(std::string_view line, std::string_view key) {
+    std::string needle(key);
+    needle += '=';
+    const size_t pos = line.find(needle);
+    if (pos == std::string_view::npos) {
+        return std::nullopt;
+    }
+    const size_t start = pos + needle.size();
+    if (start >= line.size()) {
+        return std::nullopt;
+    }
+    const char quote = line[start];
+    if (quote == '"' || quote == '\'') {
+        const size_t close = line.find(quote, start + 1);
+        if (close == std::string_view::npos || close == start + 1) {
+            return std::nullopt;
+        }
+        return std::string(line.substr(start + 1, close - start - 1));
+    }
+    const size_t end = line.find_first_of(" \t", start);
+    return std::string(
+        line.substr(start, end == std::string_view::npos ? std::string_view::npos : end - start));
+}
+
+std::optional<GCodeObject> parse_exclude_object_define(std::string_view line) {
+    line = helix::text_io::trim(line.substr(0, line.find(';')));
+    constexpr std::string_view kDefine = "EXCLUDE_OBJECT_DEFINE";
+    if (line.substr(0, kDefine.size()) != kDefine) {
+        return std::nullopt;
+    }
+    auto name = gcode_param_value(line, "NAME");
+    if (!name) {
+        return std::nullopt;
+    }
+
+    GCodeObject obj;
+    obj.name = std::move(*name);
+
+    // CENTER=X,Y
+    if (auto center_str = gcode_param_value(line, "CENTER")) {
+        const size_t comma = center_str->find(',');
+        if (comma != std::string::npos) {
+            auto [px, ecx] =
+                parse_gcode_decimal(center_str->data(), center_str->data() + comma, obj.center.x);
+            auto [py, ecy] =
+                parse_gcode_decimal(center_str->data() + comma + 1,
+                                    center_str->data() + center_str->size(), obj.center.y);
+            if (ecx != std::errc{} || ecy != std::errc{}) {
+                spdlog::debug("[GCode Parser] Failed to parse CENTER for object: {}", obj.name);
+            }
+        }
+    }
+
+    // POLYGON=[[x1,y1],[x2,y2],...]
+    if (auto polygon = gcode_param_value(line, "POLYGON")) {
+        std::string polygon_str = std::move(*polygon);
+        polygon_str.erase(std::remove_if(polygon_str.begin(), polygon_str.end(), ::isspace),
+                          polygon_str.end());
+        size_t pos = (!polygon_str.empty() && polygon_str[0] == '[') ? 1 : 0;
+        while (pos < polygon_str.length()) {
+            if (polygon_str[pos] != '[') {
+                pos++;
+                continue;
+            }
+            pos++;
+            const size_t comma = polygon_str.find(',', pos);
+            if (comma == std::string::npos) {
+                break;
+            }
+            float x = 0, y = 0;
+            auto [px, ecx] =
+                parse_gcode_decimal(polygon_str.data() + pos, polygon_str.data() + comma, x);
+            if (ecx != std::errc{}) {
+                break;
+            }
+            pos = comma + 1;
+            const size_t close = polygon_str.find(']', pos);
+            if (close == std::string::npos) {
+                break;
+            }
+            auto [py, ecy] =
+                parse_gcode_decimal(polygon_str.data() + pos, polygon_str.data() + close, y);
+            if (ecy != std::errc{}) {
+                break;
+            }
+            obj.polygon.push_back(glm::vec2(x, y));
+            pos = close + 1;
+        }
+    }
+    return obj;
+}
+
+std::vector<GCodeObject> collect_exclude_object_defines(std::string_view content) {
+    const size_t last_newline = content.rfind('\n');
+    content = last_newline == std::string_view::npos ? std::string_view{}
+                                                     : content.substr(0, last_newline + 1);
+    std::vector<GCodeObject> out;
+    for (std::string_view line : helix::text_io::lines(content)) {
+        auto obj = parse_exclude_object_define(line);
+        if (!obj) {
+            continue;
+        }
+        auto same = std::find_if(out.begin(), out.end(),
+                                 [&](const GCodeObject& o) { return o.name == obj->name; });
+        if (same != out.end()) {
+            *same = std::move(*obj);
+        } else {
+            out.push_back(std::move(*obj));
+        }
+    }
+    return out;
+}
+
 bool GCodeParser::parse_exclude_object_command(const std::string& line) {
     // EXCLUDE_OBJECT_DEFINE NAME=... CENTER=... POLYGON=...
     if (line.find("EXCLUDE_OBJECT_DEFINE") == 0) {
-        std::string name;
-        if (!extract_string_param(line, "NAME", name)) {
+        auto obj = parse_exclude_object_define(line);
+        if (!obj) {
             return false;
         }
-
-        GCodeObject obj;
-        obj.name = name;
-
-        // Extract CENTER (format: "X,Y")
-        std::string center_str;
-        if (extract_string_param(line, "CENTER", center_str)) {
-            size_t comma = center_str.find(',');
-            if (comma != std::string::npos) {
-                auto [px, ecx] =
-                    parse_gcode_decimal(center_str.data(), center_str.data() + comma, obj.center.x);
-                auto [py, ecy] =
-                    parse_gcode_decimal(center_str.data() + comma + 1,
-                                        center_str.data() + center_str.size(), obj.center.y);
-                if (ecx != std::errc{} || ecy != std::errc{}) {
-                    spdlog::debug("[GCode Parser] Failed to parse CENTER for object: {}", name);
-                }
-            }
-        }
-
-        // Extract POLYGON (format: "[[x1,y1],[x2,y2],...]")
-        // For now, we'll do basic parsing - full JSON parsing would be better
-        std::string polygon_str;
-        if (extract_string_param(line, "POLYGON", polygon_str)) {
-            // Simple extraction of number pairs
-            // Remove all whitespace first for easier parsing
-            polygon_str.erase(std::remove_if(polygon_str.begin(), polygon_str.end(), ::isspace),
-                              polygon_str.end());
-
-            // Skip outer opening bracket if present
-            size_t pos = 0;
-            if (!polygon_str.empty() && polygon_str[0] == '[') {
-                pos = 1;
-            }
-
-            while (pos < polygon_str.length()) {
-                // Find opening bracket for this point
-                if (polygon_str[pos] == '[') {
-                    pos++;
-                    // Extract x coordinate (everything until comma)
-                    size_t comma = polygon_str.find(',', pos);
-                    if (comma != std::string::npos) {
-                        float x = 0, y = 0;
-                        auto [px, ecx] = parse_gcode_decimal(polygon_str.data() + pos,
-                                                             polygon_str.data() + comma, x);
-                        if (ecx != std::errc{})
-                            break;
-                        pos = comma + 1;
-
-                        size_t close = polygon_str.find(']', pos);
-                        if (close != std::string::npos) {
-                            auto [py, ecy] = parse_gcode_decimal(polygon_str.data() + pos,
-                                                                 polygon_str.data() + close, y);
-                            if (ecy != std::errc{})
-                                break;
-                            obj.polygon.push_back(glm::vec2(x, y));
-                            pos = close + 1;
-                            spdlog::trace("[GCode Parser] Parsed polygon point: ({}, {})", x, y);
-                        } else {
-                            break;
-                        }
-                    } else {
-                        break;
-                    }
-                } else {
-                    pos++;
-                }
-            }
-        }
-
-        objects_[name] = obj;
-        spdlog::trace("[GCode Parser] Defined object: {} at ({}, {})", name, obj.center.x,
-                      obj.center.y);
+        spdlog::trace("[GCode Parser] Defined object: {} at ({}, {})", obj->name, obj->center.x,
+                      obj->center.y);
+        objects_[obj->name] = std::move(*obj);
         return true;
     }
     // EXCLUDE_OBJECT_START NAME=...
@@ -953,23 +996,11 @@ bool GCodeParser::extract_param(const std::string& line, char param, float& out_
 
 bool GCodeParser::extract_string_param(const std::string& line, const std::string& param,
                                        std::string& out_value) {
-    size_t pos = line.find(param + "=");
-    if (pos == std::string::npos) {
+    auto value = gcode_param_value(line, param);
+    if (!value) {
         return false;
     }
-
-    size_t start = pos + param.length() + 1; // Skip "PARAM="
-    if (start >= line.length()) {
-        return false;
-    }
-
-    // Find end of value (space or end of line)
-    size_t end = line.find(' ', start);
-    if (end == std::string::npos) {
-        end = line.length();
-    }
-
-    out_value = line.substr(start, end - start);
+    out_value = std::move(*value);
     return true;
 }
 

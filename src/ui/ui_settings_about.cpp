@@ -182,6 +182,8 @@ void AboutSettingsOverlay::register_callbacks() {
                  UpdatesSettingsOverlay::sync_update_channel_rows(
                      get_updates_settings_overlay().get_root(),
                      static_cast<int>(UpdateChecker::instance().get_channel()));
+                 // With Dev stored, beta decides whether Moonraker should offer beta.
+                 UpdateChecker::instance().sync_moonraker_channel();
 
                  ToastManager::instance().show(
                      ToastSeverity::SUCCESS,

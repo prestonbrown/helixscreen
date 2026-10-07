@@ -10,17 +10,22 @@
  */
 
 #include "ui_exclude_object_side_list.h"
-#include "ui_print_exclude_object_manager.h"
+#include "ui_gcode_viewer.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/gcode_layer_renderer_test_access.h"
+#include "gcode_layer_renderer.h"
+#include "gcode_parser.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 #include "theme_manager.h"
 
 #include <algorithm>
 #include <cstring>
+#include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -72,18 +77,26 @@ bool shows_text(lv_obj_t* row, const char* text) {
 
 class SideListFixture : public LVGLUITestFixture {
   public:
-    SideListFixture() : manager(nullptr, state(), nullptr) {
+    SideListFixture() {
         objects().set_defined_objects(object_names(20));
         objects().set_current_object("obj_0");
-        list.create(test_screen(), &state(), &manager, exclude_side_list_geometry(false));
-        settle();
-        container = lv_obj_find_by_name(list.root(), "rows_container");
+        open(ExcludeTapMode::ExcludeOnly, exclude_side_list_geometry(false));
     }
 
     ~SideListFixture() override {
         list.destroy();
         objects().clear_objects();
         settle();
+    }
+
+    void open(ExcludeTapMode mode, SideListGeometry geom) {
+        list.destroy();
+        settle();
+        list.create(
+            test_screen(), &objects(), [this](const std::string& name) { taps.push_back(name); },
+            mode, geom);
+        settle();
+        container = lv_obj_find_by_name(list.root(), "rows_container");
     }
 
     PrinterExcludedObjectsState& objects() {
@@ -95,9 +108,9 @@ class SideListFixture : public LVGLUITestFixture {
         process_lvgl(400);
     }
 
-    PrintExcludeObjectManager manager;
     ExcludeObjectSideList list;
     lv_obj_t* container = nullptr;
+    std::vector<std::string> taps;
 };
 
 } // namespace
@@ -199,11 +212,7 @@ TEST_CASE_METHOD(SideListFixture,
     REQUIRE(portrait != nullptr);
     const int was = lv_subject_get_int(portrait);
     lv_subject_set_int(portrait, 1);
-    list.destroy();
-    settle();
-    list.create(test_screen(), &state(), &manager, exclude_side_list_geometry(true));
-    settle();
-    container = lv_obj_find_by_name(list.root(), "rows_container");
+    open(ExcludeTapMode::ExcludeOnly, exclude_side_list_geometry(true));
     REQUIRE(container != nullptr);
 
     check_row_heights_hold(*this);
@@ -315,4 +324,139 @@ TEST_CASE_METHOD(SideListFixture, "Side list chips follow a theme switch and kee
     settle();
     // The theme moved at least one chip's number colour, or this proves nothing.
     REQUIRE(any_changed);
+}
+
+TEST_CASE_METHOD(SideListFixture, "A row tap hands the object's name to the tap callback",
+                 "[exclude_side_list][pre_start_exclude]") {
+    REQUIRE(container != nullptr);
+    lv_obj_send_event(rows_of(container)[4], LV_EVENT_CLICKED, nullptr);
+    REQUIRE(taps.size() == 1);
+    CHECK(taps[0] == "obj_4");
+}
+
+TEST_CASE_METHOD(SideListFixture, "In toggle mode a picked row reads Excluded and stays tappable",
+                 "[exclude_side_list][pre_start_exclude]") {
+    objects().set_current_object("");
+    open(ExcludeTapMode::Toggle, exclude_side_list_geometry(false));
+    REQUIRE(container != nullptr);
+
+    objects().set_excluded_objects({"obj_3"});
+    settle();
+
+    const auto rows = rows_of(container);
+    CHECK(lv_obj_has_flag(rows[3], LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_get_style_opa(rows[3], LV_PART_MAIN) == 150);
+    CHECK(shows_text(rows[3], "Excluded"));
+    CHECK_FALSE(shows_text(rows[4], "Excluded"));
+
+    lv_obj_send_event(rows[3], LV_EVENT_CLICKED, nullptr);
+    REQUIRE(taps.size() == 1);
+    CHECK(taps[0] == "obj_3");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Each open side list's close button closes only that list",
+                 "[exclude_side_list][pre_start_exclude]") {
+    PrinterExcludedObjectsState first_state;
+    PrinterExcludedObjectsState second_state;
+    first_state.init_subjects(false);
+    second_state.init_subjects(false);
+    first_state.set_defined_objects({"a0", "a1"});
+    second_state.set_defined_objects({"b0", "b1"});
+
+    int first_closed = 0;
+    int second_closed = 0;
+    {
+        ExcludeObjectSideList first;
+        ExcludeObjectSideList second;
+        first.set_close_callback([&] { ++first_closed; });
+        second.set_close_callback([&] { ++second_closed; });
+        first.create(test_screen(), &first_state, {}, ExcludeTapMode::ExcludeOnly,
+                     exclude_side_list_geometry(false));
+        second.create(test_screen(), &second_state, {}, ExcludeTapMode::ExcludeOnly,
+                      exclude_side_list_geometry(false));
+        UpdateQueue::instance().drain();
+
+        lv_obj_send_event(lv_obj_find_by_name(first.root(), "close_btn"), LV_EVENT_CLICKED,
+                          nullptr);
+        CHECK(first_closed == 1);
+        CHECK(second_closed == 0);
+
+        lv_obj_send_event(lv_obj_find_by_name(second.root(), "close_btn"), LV_EVENT_CLICKED,
+                          nullptr);
+        CHECK(second_closed == 1);
+
+        first.destroy();
+        second.destroy();
+        UpdateQueue::instance().drain();
+        process_lvgl(50);
+    }
+    first_state.deinit_subjects();
+    second_state.deinit_subjects();
+}
+
+namespace {
+/// A 2D viewer drawing one segment for "obj_4", so a highlight has an object to land on.
+lv_obj_t* make_viewer_with_obj_4(helix::gcode::GCodeLayerRenderer*& renderer) {
+    auto file = std::make_unique<helix::gcode::ParsedGCodeFile>();
+    helix::gcode::Layer layer;
+    layer.z_height = 0.2f;
+    helix::gcode::ToolpathSegment seg;
+    seg.start = {10.0f, 10.0f, 0.2f};
+    seg.end = {50.0f, 10.0f, 0.2f};
+    seg.is_extrusion = true;
+    seg.object_name_index = file->intern_object_name("obj_4");
+    layer.segments.push_back(seg);
+    layer.bounding_box.expand(seg.start);
+    layer.bounding_box.expand(seg.end);
+    file->global_bounding_box = layer.bounding_box;
+    layer.segment_count_extrusion = 1;
+    file->layers.push_back(std::move(layer));
+    file->total_segments = 1;
+
+    lv_obj_t* viewer = ui_gcode_viewer_create(lv_screen_active());
+    lv_obj_set_size(viewer, 200, 200);
+    lv_obj_update_layout(viewer);
+    ui_gcode_viewer_set_render_mode(viewer, helix::GcodeViewerRenderMode::Layer2D);
+    renderer = helix::test_access::gcode_viewer_show_2d(viewer, std::move(file));
+    return viewer;
+}
+} // namespace
+
+TEST_CASE_METHOD(SideListFixture, "Only exclude-only mode highlights a tapped row in the viewer",
+                 "[exclude_side_list][pre_start_exclude]") {
+    const bool toggle = GENERATE(false, true);
+    INFO((toggle ? "toggle" : "exclude-only"));
+    open(toggle ? ExcludeTapMode::Toggle : ExcludeTapMode::ExcludeOnly,
+         exclude_side_list_geometry(false));
+    REQUIRE(container != nullptr);
+
+    helix::gcode::GCodeLayerRenderer* renderer = nullptr;
+    lv_obj_t* viewer = make_viewer_with_obj_4(renderer);
+    REQUIRE(renderer != nullptr);
+    list.set_gcode_viewer(viewer);
+
+    lv_obj_send_event(rows_of(container)[4], LV_EVENT_CLICKED, nullptr);
+    REQUIRE(taps.size() == 1);
+
+    const auto& highlighted =
+        helix::gcode::GCodeLayerRendererTestAccess::selection(*renderer).highlighted();
+    if (toggle) {
+        CHECK(highlighted.empty());
+    } else {
+        CHECK(highlighted == std::unordered_set<std::string>{"obj_4"});
+    }
+
+    list.set_gcode_viewer(nullptr);
+    lv_obj_delete(viewer);
+}
+
+TEST_CASE_METHOD(SideListFixture, "A destroyed list's rows deliver no taps before they are deleted",
+                 "[exclude_side_list][pre_start_exclude]") {
+    REQUIRE(container != nullptr);
+    lv_obj_t* row = rows_of(container)[2];
+    list.destroy();
+    // The rows are deleted asynchronously, so this one is still alive here.
+    lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
+    CHECK(taps.empty());
+    settle();
 }

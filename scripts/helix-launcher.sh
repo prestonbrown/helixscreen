@@ -217,7 +217,7 @@ helix_env_key_allowed() {
             HELIX_FB_DEVICE | HELIX_GCODE_MODE | \
             HELIX_GCODE_STREAMING | HELIX_KEYBOARD_DEVICE | HELIX_LOG_DEST | \
             HELIX_LOG_FILE | HELIX_LOG_LEVEL | HELIX_MOUSE_DEVICE | \
-            HELIX_NICE | HELIX_NO_SPLASH | HELIX_REMOTE_CONTROL | \
+            HELIX_NICE | HELIX_NO_SPLASH | HELIX_PWM_SOUND | HELIX_REMOTE_CONTROL | \
             HELIX_REMOTE_HTTP_TOKEN | HELIX_REMOTE_SOCKET | \
             HELIX_REQUIRE_POINTER | HELIX_SCREEN_SIZE | HELIX_SCROLL_GUARD | \
             HELIX_SCROLL_GUARD_COOLDOWN_MS | HELIX_SKIP_SPLASH | HELIX_SSAO | \
@@ -275,6 +275,14 @@ helix_env_value_refusal() {
                 [0-9] | 1[0-9]) return 1 ;;
             esac
             echo "must be 0-19 (a negative nice would let the UI starve Klipper)"
+            return 0
+            ;;
+        HELIX_PWM_SOUND)
+            case "$2" in
+                *[!0-9:]* | *:*:* | :* | *:) ;;
+                *:*) return 1 ;;
+            esac
+            echo "must be <chip>:<channel>, e.g. 0:0"
             return 0
             ;;
         HELIX_ALSA_DEVICE)

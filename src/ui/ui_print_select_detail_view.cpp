@@ -20,6 +20,7 @@
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "bed_dimensions.h"
 #include "color_utils.h"
 #include "config.h"
 #include "display_settings_manager.h"
@@ -34,7 +35,9 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "memory_utils.h"
 #include "moonraker_types.h"
+#include "moonraker_validation.h"
 #include "observer_factory.h"
+#include "pre_start_exclude.h"
 #include "print_detail_layout.h"
 #include "print_status_preview_decision.h"
 #include "runtime_config.h"
@@ -47,6 +50,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstdio>
 
 namespace helix::ui {
 
@@ -108,6 +112,8 @@ PrintSelectDetailView::~PrintSelectDetailView() {
     // runs BEFORE lv_deinit(), so a timer cancelled only in the deactivate path
     // stays armed on a freed `this` when teardown skips it (#1173).
     cancel_progress_timer();
+
+    disarm_viewer_callbacks();
 
     // Unregister from NavigationManager (fallback if cleanup() wasn't called)
     if (overlay_root_) {
@@ -238,6 +244,22 @@ void PrintSelectDetailView::init_subjects() {
         [](PrintSelectDetailView* self, int /*degraded*/) { self->publish_card_visibility(); },
         get_printer_state().get_subjects_lifetime());
 
+    // Pre-start object picks: a private model and the skip button's subjects.
+    exclude_objects_.init_subjects(false);
+    UI_MANAGED_SUBJECT_INT(detail_exclude_available_, 0, "detail_exclude_available", subjects_);
+    UI_MANAGED_SUBJECT_INT(detail_exclude_pick_count_, 0, "detail_exclude_pick_count", subjects_);
+    UI_MANAGED_SUBJECT_STRING(detail_exclude_pick_count_text_, detail_exclude_pick_count_text_buf_,
+                              "", "detail_exclude_pick_count_text", subjects_);
+    exclude_picks_observer_ = observe<int>(
+        exclude_objects_.get_excluded_objects_version_subject(), this,
+        [](PrintSelectDetailView* self, int) { self->publish_exclude_picks(); },
+        exclude_objects_.get_subjects_lifetime());
+    // A printer switch can add or drop [exclude_object] while a file is open.
+    exclude_capability_observer_ = observe<int>(
+        get_printer_state().capabilities_state().subject(helix::Capability::HasExcludeObject), this,
+        [](PrintSelectDetailView* self, int) { self->refresh_exclude_objects(); },
+        get_printer_state().get_subjects_lifetime());
+
     subjects_initialized_ = true;
     spdlog::debug("[DetailView] Initialized pre-print option subjects");
 }
@@ -303,6 +325,8 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
             gcode_viewer_,
             [](lv_obj_t*, void* ud) {
                 auto* self = static_cast<PrintSelectDetailView*>(ud);
+                // Its map and badges belong to the parse just freed; picks stay.
+                self->exclude_mode_.hide();
                 self->show_gcode_viewer(false);
                 self->gcode_loaded_ = false;
                 // gcode_loaded_ flipping false can drop readiness (when the
@@ -414,7 +438,10 @@ void PrintSelectDetailView::set_analysis_dependencies(IMoonrakerAPI* api,
     if (!prep_manager_) {
         prep_manager_ = std::make_unique<PrintPreparationManager>();
         // A scan answer can be what a deferred Print tap is waiting on.
-        prep_manager_->set_on_scan_answered([this]() { fire_on_preflight_ready(); });
+        prep_manager_->set_on_scan_answered([this]() {
+            refresh_exclude_objects();
+            fire_on_preflight_ready();
+        });
         // Macro rows come and go with the analysis, so an open view rebuilds
         // them now; a hidden one rebuilds in on_activate().
         prep_manager_->set_macro_analysis_callback(
@@ -462,6 +489,16 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
 
     // No-op once resolved; retries an attempt that met a connection still coming up.
     resolve_local_gcodes_root();
+
+    // Picks belong to one file; a hold for a print start keeps them for that file only.
+    const bool same_file = filename == current_filename_ && current_path == current_path_;
+    if (!same_file) {
+        exclude_mode_.hide();
+    }
+    if (!(picks_held_for_start_ && same_file)) {
+        exclude_objects_.clear_objects();
+    }
+    picks_held_for_start_ = false;
 
     // Cache parameters for on_activate() to use
     current_filename_ = filename;
@@ -582,6 +619,10 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
     // 0 on a miss (skeleton until the scan/parse flips it). Still within this
     // show() call, so the first frame never sees a stale value.
     publish_mapping_ready();
+
+    // The objects were cleared above; a view that is already open gets no
+    // on_activate() to list them again.
+    refresh_exclude_objects();
 
     spdlog::debug("[DetailView] Showing detail view for: {} ({} colors)", filename,
                   filament_colors.size());
@@ -818,6 +859,8 @@ void PrintSelectDetailView::on_activate() {
         prep_manager_->scan_file_for_operations(current_filename_, current_path_,
                                                 current_local_path_);
     }
+    // A cached scan answers without calling back, so read it here too.
+    refresh_exclude_objects();
 
     // Headless tools_used scan — runs on ALL platforms (including 2D-only, where
     // the visual viewer below skips parsing). Provides tools_used + the pre-flight
@@ -837,8 +880,17 @@ void PrintSelectDetailView::on_activate() {
     load_gcode_for_preview();
 }
 
-void PrintSelectDetailView::on_deactivating(DeactivateReason) {
-    spdlog::debug("[DetailView] on_deactivating()");
+void PrintSelectDetailView::on_deactivating(DeactivateReason reason) {
+    spdlog::debug("[DetailView] on_deactivating({})", deactivate_reason_name(reason));
+
+    // Exclude mode closes on every reason: the viewer is cleared below. Picks
+    // live in exclude_objects_; a blanked screen keeps them, leaving the file
+    // drops them, unless they are held for the print start that hid this view.
+    exclude_mode_.hide();
+    if ((reason == DeactivateReason::NavigateAway && !picks_held_for_start_) ||
+        reason == DeactivateReason::Shutdown) {
+        exclude_objects_.clear_objects();
+    }
 
     // The owning panel's close bookkeeping runs for every dismissal path —
     // this hook is the only one ESC/go_back() and a navbar switch reach.
@@ -895,17 +947,33 @@ void PrintSelectDetailView::on_deactivating(DeactivateReason) {
     // will check cleanup_called() if needed.
 }
 
+void PrintSelectDetailView::disarm_viewer_callbacks() {
+    // Every viewer callback carries `this` and touches subjects this view
+    // deinitialises. The viewer outlives the view on teardown (its tree is
+    // deleted on a later tick), and a parse finishing in that window would
+    // otherwise call into a cleaned-up or freed view.
+    if (!gcode_viewer_) {
+        return;
+    }
+    ui_gcode_viewer_set_first_frame_callback(gcode_viewer_, nullptr, nullptr);
+    ui_gcode_viewer_set_load_callback(gcode_viewer_, nullptr, nullptr);
+    ui_gcode_viewer_set_clear_callback(gcode_viewer_, nullptr, nullptr);
+}
+
 void PrintSelectDetailView::cleanup() {
     spdlog::debug("[DetailView] cleanup()");
 
     // Pause viewer before subject cleanup to avoid rendering with freed subjects.
-    // Drop the first-frame callback too: it captures `this` and writes
-    // detail_viewer_first_frame_, which subjects_.deinit_all() below destroys.
-    // The viewer outlives this object on some teardown paths, and paused
-    // rendering is not a guarantee — unpausing anywhere else would resurrect it.
     if (gcode_viewer_) {
         ui_gcode_viewer_set_paused(gcode_viewer_, true);
-        ui_gcode_viewer_set_first_frame_callback(gcode_viewer_, nullptr, nullptr);
+    }
+    disarm_viewer_callbacks();
+    // The prep manager outlives cleanup() and keeps scanning; its callbacks
+    // reach subjects deinitialised below.
+    if (prep_manager_) {
+        prep_manager_->set_on_scan_answered(nullptr);
+        prep_manager_->set_macro_analysis_callback(nullptr);
+        prep_manager_->set_option_state_provider(nullptr);
     }
 
     // Expire all outstanding async tokens
@@ -923,6 +991,11 @@ void PrintSelectDetailView::cleanup() {
         helix::nav::unregister_overlay(overlay_root_);
     }
 
+    exclude_mode_.hide();
+    exclude_picks_observer_.reset();
+    exclude_capability_observer_.reset();
+    exclude_objects_.deinit_subjects();
+
     // Deinitialize subjects to disconnect observers
     if (subjects_initialized_) {
         subjects_.deinit_all();
@@ -939,6 +1012,9 @@ void PrintSelectDetailView::cleanup() {
 
 void PrintSelectDetailView::on_ui_destroyed() {
     spdlog::debug("[DetailView] on_ui_destroyed() - nulling widget pointers");
+
+    // Its widgets live in the tree being torn down.
+    exclude_mode_.hide();
 
     // Invalidate outstanding tokens so in-flight async callbacks (gcode download,
     // metadata fetch, load callbacks) bail out — they captured pointers to
@@ -1818,6 +1894,111 @@ void PrintSelectDetailView::fire_on_preflight_ready() {
     }
 }
 
+void PrintSelectDetailView::refresh_exclude_objects() {
+    std::vector<helix::gcode::GCodeObject> scanned;
+    if (prep_manager_ && prep_manager_->has_scan_result_for(current_filename_)) {
+        scanned = prep_manager_->get_scan_result()->objects;
+    }
+    // An open view shown for another file still holds the previous file's parse.
+    const auto* parsed = gcode_viewer_ && viewer_file_ == current_filename_
+                             ? ui_gcode_viewer_get_parsed_file(gcode_viewer_)
+                             : nullptr;
+    exclude_objects_.set_defined_objects_with_geometry(
+        helix::ui::object_infos_from(helix::ui::merge_defined_objects(scanned, parsed)));
+
+    const bool available = helix::ui::pre_start_exclude_available(
+        helix::ui::printer_has_exclude_object(printer_state_),
+        helix::gcode::is_3mf(current_filename_), exclude_objects_.get_defined_objects().size());
+    lv_subject_set_int(&detail_exclude_available_, available ? 1 : 0);
+    publish_exclude_picks();
+    exclude_mode_.refresh_render_badges();
+}
+
+void PrintSelectDetailView::toggle_exclude_pick(const std::string& name) {
+    const std::string defined =
+        helix::ui::canonical_object_name(exclude_objects_.get_defined_objects(), name);
+    if (defined.empty()) {
+        return;
+    }
+    auto picks = exclude_objects_.get_excluded_objects();
+    if (picks.erase(defined) == 0) {
+        if (!moonraker_internal::is_safe_object_name(defined)) {
+            NOTIFY_WARNING(lv_tr("{} cannot be skipped: its name has characters the printer "
+                                 "cannot be sent"),
+                           defined);
+            return;
+        }
+        picks.insert(defined);
+    }
+    spdlog::info("[DetailView] Object picks for {}: {}", current_filename_, picks.size());
+    exclude_objects_.set_excluded_objects(picks);
+}
+
+std::vector<std::string> PrintSelectDetailView::exclude_picks() const {
+    // Picks the skip option no longer offers (the printer lost [exclude_object])
+    // are neither shown nor sent.
+    std::vector<std::string> out;
+    if (lv_subject_get_int(const_cast<lv_subject_t*>(&detail_exclude_available_)) == 0) {
+        return out;
+    }
+    const auto& picks = exclude_objects_.get_excluded_objects();
+    for (const auto& name : exclude_objects_.get_defined_objects()) {
+        if (picks.count(name) > 0) {
+            out.push_back(name);
+        }
+    }
+    return out;
+}
+
+bool PrintSelectDetailView::drop_exclude_picks() {
+    if (exclude_objects_.get_excluded_objects().empty()) {
+        return false;
+    }
+    const bool had_offered_picks = !exclude_picks().empty();
+    exclude_objects_.set_excluded_objects({});
+    return had_offered_picks;
+}
+
+bool PrintSelectDetailView::all_objects_picked() const {
+    return !exclude_picks().empty() &&
+           helix::ui::every_object_picked(exclude_objects_.get_defined_objects(),
+                                          exclude_objects_.get_excluded_objects());
+}
+
+void PrintSelectDetailView::toggle_exclude_mode() {
+    if (exclude_mode_.is_open()) {
+        exclude_mode_.hide();
+        return;
+    }
+    if (!overlay_root_) {
+        return;
+    }
+    helix::ui::ExcludeModeTargets targets;
+    targets.card = detail_card_;
+    targets.columns = lv_obj_find_by_name(overlay_root_, "content_container");
+    targets.controls_name = "options_section";
+    targets.gcode_viewer = gcode_viewer_;
+    targets.thumbnail_mode = lv_subject_get_int(&detail_viewer_hidden_) == 1;
+    const auto bed = helix::bed_dimensions(api_, printer_state_);
+    targets.bed_w_mm = bed.w_mm;
+    targets.bed_h_mm = bed.h_mm;
+    exclude_mode_.show(targets, &exclude_objects_, helix::ui::ExcludeTapMode::Toggle,
+                       [this](const std::string& name) { toggle_exclude_pick(name); });
+}
+
+void PrintSelectDetailView::publish_exclude_picks() {
+    // What Print will send: the badge, the list and the render all show this.
+    const auto picks = exclude_picks();
+    const int count = static_cast<int>(picks.size());
+    lv_subject_set_int(&detail_exclude_pick_count_, count);
+    std::snprintf(detail_exclude_pick_count_text_buf_, sizeof(detail_exclude_pick_count_text_buf_),
+                  "%d", count);
+    lv_subject_copy_string(&detail_exclude_pick_count_text_, detail_exclude_pick_count_text_buf_);
+    if (gcode_viewer_) {
+        ui_gcode_viewer_set_excluded_objects(gcode_viewer_, {picks.begin(), picks.end()});
+    }
+}
+
 void PrintSelectDetailView::publish_mapping_ready() {
     // Two independent questions have to be answered before a chip is honest,
     // and they come from different places. is_preflight_ready() covers WHICH
@@ -2344,6 +2525,7 @@ void PrintSelectDetailView::load_gcode_for_preview() {
 }
 
 void PrintSelectDetailView::begin_viewer_load(const std::string& path) {
+    viewer_file_ = current_filename_;
     // Set up the (single) load callback, then load the file. The body was
     // identical in the former cached-file and post-download paths.
     ui_gcode_viewer_set_load_callback(
@@ -2373,6 +2555,9 @@ void PrintSelectDetailView::begin_viewer_load(const std::string& path) {
             // fire_on_loaded() so any deferred print-attempt sees fresh checks.
             self->try_extract_gcode_colors(viewer);
 
+            // The whole file is parsed: definitions past the scan window now
+            // appear, before a deferred Print reads the picks.
+            self->refresh_exclude_objects();
             // Parse + pre-flight are now complete: release any deferred
             // run_when_loaded() callback (e.g. a print tapped pre-parse).
             self->fire_on_loaded();

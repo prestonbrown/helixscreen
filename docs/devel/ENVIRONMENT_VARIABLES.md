@@ -34,7 +34,7 @@ Only these keys are read; any other key is ignored with one logged warning per k
 `HELIX_DISABLE_AUTO_UPDATES`, `HELIX_DISPLAY_BACKEND`, `HELIX_DISPLAY_ROTATION`, `HELIX_DPI`,
 `HELIX_DRM_DEVICE`, `HELIX_FB_DEVICE`, `HELIX_GCODE_MODE`,
 `HELIX_GCODE_STREAMING`, `HELIX_KEYBOARD_DEVICE`, `HELIX_LOG_DEST`, `HELIX_LOG_FILE`,
-`HELIX_LOG_LEVEL`, `HELIX_MOUSE_DEVICE`, `HELIX_NICE`, `HELIX_NO_SPLASH`,
+`HELIX_LOG_LEVEL`, `HELIX_MOUSE_DEVICE`, `HELIX_NICE`, `HELIX_NO_SPLASH`, `HELIX_PWM_SOUND`,
 `HELIX_REMOTE_CONTROL`, `HELIX_REMOTE_HTTP_TOKEN`, `HELIX_REMOTE_SOCKET`, `HELIX_REQUIRE_POINTER`, `HELIX_SCREEN_SIZE`, `HELIX_SCROLL_GUARD`,
 `HELIX_SCROLL_GUARD_COOLDOWN_MS`, `HELIX_SKIP_SPLASH`, `HELIX_SSAO`, `HELIX_THEME`,
 `HELIX_TOUCH_CALIBRATE`, `HELIX_TOUCH_DEVICE`, `HELIX_TOUCH_SWAP_AXES`, `HELIX_USB_AUTOMOUNT`,
@@ -1098,9 +1098,24 @@ HELIX_BED_MESH_2D=1 ./build/bin/helix-screen
 
 ## Audio
 
+### `HELIX_PWM_SOUND`
+
+Drives UI sounds and tracker music through a passive buzzer on a sysfs PWM channel (Pi builds, ad5m/ad5m-br). Takes priority over ALSA, because a Pi's headphone jack opens fine and plays to nothing. The channel is exported if missing, so the user needs write access to `pwmchipN/export` (Raspberry Pi OS: the `gpio` group). The pin must be muxed to PWM (`dtoverlay=pwm` / `pwm-2chan`) and not claimed by anything else, Klipper's `[output_pin]` included.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `<chip>:<channel>`, e.g. `0:0` for `/sys/class/pwm/pwmchip0/pwm0` |
+| **Default** | unset: no PWM backend except the AD5M's own buzzer |
+| **File** | `src/system/sound_manager.cpp` (`SoundManager::create_backend`) |
+
+```bash
+# Pi with a buzzer on GPIO12 (dtoverlay=pwm-2chan,pin=12,func=4,...)
+HELIX_PWM_SOUND=0:0
+```
+
 ### `HELIX_PWM_MIN_NOTE_MS`
 
-Audible floor for one theme note on the PWM sysfs buzzer backend (ad5m/ad5m-br/ad5x platform builds). The piezo needs ~20 ms of drive to register a tone; the sequencer quantizes every theme step up to this value, so a sub-floor tone+rest pair plays as one floor-length tone instead of a click. Read once at backend `initialize()` — relaunch to change it.
+Audible floor for one theme note on the PWM sysfs buzzer backend (ad5m/ad5m-br, or `HELIX_PWM_SOUND` on Pi builds). The piezo needs ~20 ms of drive to register a tone; the sequencer quantizes every theme step up to this value, so a sub-floor tone+rest pair plays as one floor-length tone instead of a click. Read once at backend `initialize()` — relaunch to change it.
 
 | Property | Value |
 |----------|-------|

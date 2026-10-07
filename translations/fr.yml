@@ -821,6 +821,7 @@ translations:
 
   "Could not save the mesh as '{}': {}": "Impossible d'enregistrer le maillage sous '{}' : {}"
   Could not save the printer image tags: 'Échec de l''enregistrement des repères de l''image'
+  Could not skip {}: 'Impossible d''ignorer {}'
   Could not start Bluetooth discovery: Impossible de démarrer la découverte Bluetooth
   Could not update filaments: Impossible de mettre à jour les filaments
   Could not verify Spoolman status. Moonraker may still be restarting.: Impossible
@@ -1111,6 +1112,7 @@ translations:
   Every extruder's temperature at once: Température de chaque extrudeur
   Everything else was saved. Change them in Spoolman.: Tout le reste a été enregistré. Modifiez-les dans Spoolman.
   Everything else was saved. Rename the material using letters, digits, spaces, and + - _ . ( ) /: 'Tout le reste a été enregistré. Renommez le matériau en utilisant des lettres, des chiffres, des espaces et + - _ . ( ) /'
+  Every object is set to skip, so there is nothing to print: 'Tous les objets sont à ignorer, il n''y a rien à imprimer'
   Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.: Les offsets de tous les outils sont mesurés à nouveau et remplacent les actuels. Enregistrez ensuite pour conserver le résultat.
   Excellent Accuracy: Excellente précision
   'Exception: {}': 'Exception : {}'
@@ -2220,6 +2222,7 @@ translations:
   'ON: {} | OFF: {}': 'MARCHE : {} | ARRÊT : {}'
   OS: OS
   'OS: ': 'OS : '
+  Object picks apply only to prints started now: 'La sélection d''objets ne s''applique qu''aux impressions lancées maintenant'
   Object positions unavailable: Positions des objets indisponibles
   Objects: Objets
   'Off': Éteint
@@ -3262,7 +3265,6 @@ translations:
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Appuyez sur Redémarrer le firmware pour récupérer. Sur la K2, cela redémarre aussi le pont MCU rpi
   Tap again to confirm this orientation: Appuyez à nouveau pour confirmer cette orientation
   Tap an empty spot inside the enclosure: Touchez un endroit vide dans le caisson
-  Tap an object to exclude it | {} objects ({} excluded): 'Touchez un objet pour l''exclure | {} objets ({} exclus)'
   Tap any tile to open its full controls or toggle its state.: Appuyez sur n'importe quelle tuile pour ouvrir ses commandes complètes ou basculer son état.
   Tap anywhere if this text is right-side up: Appuyez n'importe où si ce texte est
     à l'endroit
@@ -3973,6 +3975,7 @@ translations:
   '{} and {} are both mapped here': '{} et {} sont tous deux affectés ici'
   '{} available': '{} disponible'
   '{} axis homed': Axe {} référencé
+  '{} cannot be skipped: its name has characters the printer cannot be sent': '{} ne peut pas être exclu : son nom contient des caractères impossibles à envoyer à l''imprimante'
   '{} changed': '{} modifié(s)'
   '{} command timed out': Délai d'attente dépassé pour la commande {}
   '{} complete': '{} terminé'

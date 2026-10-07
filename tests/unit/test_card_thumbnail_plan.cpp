@@ -186,3 +186,18 @@ TEST_CASE("only a decode that ran out of memory is tried again while its card st
     CHECK_FALSE(helix::card_thumbnail_retry_while_shown(ThumbnailDecodeFailure::Unsupported));
     CHECK_FALSE(helix::card_thumbnail_retry_while_shown(ThumbnailDecodeFailure::None));
 }
+
+TEST_CASE("with off-screen keeping off, only the window's thumbnails stay",
+          "[card_thumbnail_plan]") {
+    // The detail view needs the memory kept cards hold; the window's stay for the way back.
+    auto f = files(10);
+    for (auto& x : f) {
+        x.held = EST;
+        x.tried = true;
+    }
+    f[9].held = 0; // off screen, a fetch failed: dropped either way
+    const CardThumbnailPlan plan =
+        plan_card_thumbnails(f, 4, 8, 0, EST, 12 * EST, false, /*keep_off_screen=*/false);
+    CHECK(plan.drop == Indices{0, 1, 2, 3, 8, 9});
+    CHECK(plan.fetch.empty());
+}

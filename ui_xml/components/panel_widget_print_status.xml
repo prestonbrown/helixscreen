@@ -46,7 +46,9 @@
                 style_pad_bottom="#space_xxs" style_pad_gap="#space_xs" style_flex_main_place="space_evenly"
                 scrollable="false" clickable="false" event_bubble="true">
           <bind_flag_if_eq subject="print_status_actions_hidden" flag="hidden" ref_value="1"/>
-          <ui_button name="library_row_files" width="100%" height="#button_height_sm" variant="outline" layout="row">
+          <ui_button name="library_row_files"
+                     width="100%" height="#button_height_sm" flex_grow="1" style_max_height="#button_height_sm"
+                     variant="outline" layout="row">
             <bind_flag_if_eq subject="print_status_files_hidden" flag="hidden" ref_value="1"/>
             <icon src="folder" size="sm" clickable="false" event_bubble="true">
               <bind_flag_if_eq subject="print_status_column_mode" flag="hidden" ref_value="1"/>
@@ -54,7 +56,9 @@
             <text_small text="Print Files" clickable="false" event_bubble="true"/>
             <event_cb trigger="clicked" callback="library_files_cb"/>
           </ui_button>
-          <ui_button name="library_row_last" width="100%" height="#button_height_sm" variant="outline" layout="row">
+          <ui_button name="library_row_last"
+                     width="100%" height="#button_height_sm" flex_grow="1" style_max_height="#button_height_sm"
+                     variant="outline" layout="row">
             <bind_flag_if_eq subject="print_status_last_hidden" flag="hidden" ref_value="1"/>
             <icon src="clock" size="sm" clickable="false" event_bubble="true">
               <bind_flag_if_eq subject="print_status_column_mode" flag="hidden" ref_value="1"/>
@@ -62,7 +66,9 @@
             <text_small name="library_last_label" text="Reprint Last" clickable="false" event_bubble="true"/>
             <event_cb trigger="clicked" callback="library_last_cb"/>
           </ui_button>
-          <ui_button name="library_row_recent" width="100%" height="#button_height_sm" variant="outline" layout="row">
+          <ui_button name="library_row_recent"
+                     width="100%" height="#button_height_sm" flex_grow="1" style_max_height="#button_height_sm"
+                     variant="outline" layout="row">
             <bind_flag_if_eq subject="print_status_recent_hidden" flag="hidden" ref_value="1"/>
             <icon src="star" size="sm" clickable="false" event_bubble="true">
               <bind_flag_if_eq subject="print_status_column_mode" flag="hidden" ref_value="1"/>
@@ -70,7 +76,9 @@
             <text_small text="Recent Prints" clickable="false" event_bubble="true"/>
             <event_cb trigger="clicked" callback="library_recent_cb"/>
           </ui_button>
-          <ui_button name="library_row_queue" width="100%" height="#button_height_sm" variant="outline" layout="row">
+          <ui_button name="library_row_queue"
+                     width="100%" height="#button_height_sm" flex_grow="1" style_max_height="#button_height_sm"
+                     variant="outline" layout="row">
             <bind_flag_if_eq subject="print_status_queue_hidden" flag="hidden" ref_value="1"/>
             <icon src="progress_clock" size="sm" clickable="false" event_bubble="true">
               <bind_flag_if_eq subject="print_status_column_mode" flag="hidden" ref_value="1"/>

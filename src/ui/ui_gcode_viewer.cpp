@@ -1180,6 +1180,15 @@ void ui_gcode_viewer_set_object_badges(lv_obj_t* obj, std::vector<helix::ui::Obj
     lv_obj_invalidate(obj);
 }
 
+// NAMESPACE_OK: joins this file's global ui_gcode_viewer_* API
+void ui_gcode_viewer_set_excluded_badges_pickable(lv_obj_t* obj, bool pickable) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st) {
+        return;
+    }
+    st->excluded_badges_pickable = pickable;
+}
+
 void ui_gcode_viewer_set_object_tap_callback(lv_obj_t* obj,
                                              gcode_viewer_object_tap_callback_t callback,
                                              void* user_data) {
@@ -1801,6 +1810,18 @@ std::vector<GcodeViewerDrawnBadge> gcode_viewer_drawn_badges(lv_obj_t* viewer) {
     return out;
 }
 
+void gcode_viewer_fire_object_tap(lv_obj_t* viewer, const char* name) {
+    gcode_viewer_state_t* st = viewer ? get_state(viewer) : nullptr;
+    if (st && st->object_tap_callback) {
+        st->object_tap_callback(viewer, name, st->object_tap_user_data);
+    }
+}
+
+bool gcode_viewer_excluded_badges_pickable(lv_obj_t* viewer) {
+    gcode_viewer_state_t* st = viewer ? get_state(viewer) : nullptr;
+    return st && st->excluded_badges_pickable;
+}
+
 } // namespace helix::test_access
 
 #else // !HELIX_HAS_GCODE_VIEWER
@@ -1905,6 +1926,9 @@ void ui_gcode_viewer_set_object_tap_callback(lv_obj_t*, gcode_viewer_object_tap_
 
 // NAMESPACE_OK: joins this file's global ui_gcode_viewer_* API
 void ui_gcode_viewer_set_object_badges(lv_obj_t*, std::vector<helix::ui::ObjectBadge>) {}
+
+// NAMESPACE_OK: joins this file's global ui_gcode_viewer_* API
+void ui_gcode_viewer_set_excluded_badges_pickable(lv_obj_t*, bool) {}
 
 void ui_gcode_viewer_set_object_long_press_callback(lv_obj_t*,
                                                     gcode_viewer_object_long_press_callback_t,

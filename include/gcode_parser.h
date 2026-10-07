@@ -24,6 +24,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -443,6 +444,20 @@ struct ParsedGCodeFile {
         return freed;
     }
 };
+
+/// Value of KEY=value in one G-code command line. A quoted value ('a b' or
+/// "a b") comes back without its quotes, the way Klipper's parameter parser
+/// reads it. nullopt when the key is absent or has no value.
+std::optional<std::string> gcode_param_value(std::string_view line, std::string_view key);
+
+/// One EXCLUDE_OBJECT_DEFINE line as Klipper reads it (comment ignored);
+/// nullopt for any other line or a DEFINE without NAME.
+std::optional<GCodeObject> parse_exclude_object_define(std::string_view line);
+
+/// Every complete EXCLUDE_OBJECT_DEFINE in @p content, in file order. A line
+/// with no terminating newline is ignored: a partial read can stop mid-name.
+/// A name defined twice keeps its first position and its last geometry.
+std::vector<GCodeObject> collect_exclude_object_defines(std::string_view content);
 
 /**
  * @brief Streaming G-code parser

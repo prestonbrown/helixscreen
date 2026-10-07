@@ -94,6 +94,12 @@ class PrintStartController {
                   const std::vector<std::string>& filament_colors,
                   const std::string& thumbnail_path = "");
 
+    /// Objects to skip in the next start, captured at the Print tap. Consumed
+    /// by that start; a reprint never reads them.
+    void set_exclude_picks(std::vector<std::string> picks) {
+        exclude_picks_ = std::move(picks);
+    }
+
     /**
      * @brief Initiate print workflow
      *
@@ -241,6 +247,7 @@ class PrintStartController {
     std::string filename_;
     std::string path_;
     std::vector<std::string> filament_colors_;
+    std::vector<std::string> exclude_picks_;
     std::string thumbnail_path_; ///< Pre-extracted thumbnail for USB/embedded files
 
     // === Gate Pipeline State ===

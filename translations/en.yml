@@ -783,6 +783,7 @@ translations:
   'Could not save the drying state: nothing was heated': 'Could not save the drying state: nothing was heated'
   "Could not save the mesh as '{}': {}": "Could not save the mesh as '{}': {}"
   Could not save the printer image tags: Could not save the printer image tags
+  Could not skip {}: Could not skip {}
   Could not start Bluetooth discovery: Could not start Bluetooth discovery
   Could not update filaments: Could not update filaments
   Could not verify Spoolman status. Moonraker may still be restarting.: Could not
@@ -1060,6 +1061,7 @@ translations:
   Every extruder's temperature at once: Every extruder's temperature at once
   Everything else was saved. Change them in Spoolman.: Everything else was saved. Change them in Spoolman.
   Everything else was saved. Rename the material using letters, digits, spaces, and + - _ . ( ) /: Everything else was saved. Rename the material using letters, digits, spaces, and + - _ . ( ) /
+  Every object is set to skip, so there is nothing to print: Every object is set to skip, so there is nothing to print
   Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.: Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.
   Excellent Accuracy: Excellent Accuracy
   'Exception: {}': 'Exception: {}'
@@ -2139,6 +2141,7 @@ translations:
   'ON: {} | OFF: {}': 'ON: {} | OFF: {}'
   OS: OS
   'OS: ': 'OS: '
+  Object picks apply only to prints started now: Object picks apply only to prints started now
   Object positions unavailable: Object positions unavailable
   Objects: Objects
   'Off': 'Off'
@@ -3142,7 +3145,6 @@ translations:
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge
   Tap again to confirm this orientation: Tap again to confirm this orientation
   Tap an empty spot inside the enclosure: Tap an empty spot inside the enclosure
-  Tap an object to exclude it | {} objects ({} excluded): Tap an object to exclude it | {} objects ({} excluded)
   Tap any tile to open its full controls or toggle its state.: Tap any tile to open its full controls or toggle its state.
   Tap anywhere if this text is right-side up: Tap anywhere if this text is right-side
     up
@@ -3819,6 +3821,7 @@ translations:
   '{} and {} are both mapped here': '{} and {} are both mapped here'
   '{} available': '{} available'
   '{} axis homed': '{} axis homed'
+  '{} cannot be skipped: its name has characters the printer cannot be sent': '{} cannot be skipped: its name has characters the printer cannot be sent'
   '{} changed': '{} changed'
   '{} command timed out': '{} command timed out'
   '{} complete': '{} complete'

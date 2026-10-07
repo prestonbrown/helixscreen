@@ -60,6 +60,7 @@ void register_detail_noops() {
         {"on_print_select_delete_button", detail_noop_cb},
         {"on_print_detail_back_clicked", detail_noop_cb},
         {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
     });
 }
 

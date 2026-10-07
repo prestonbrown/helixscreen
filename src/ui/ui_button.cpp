@@ -6,6 +6,7 @@
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 #include "ui_update_queue.h"
+#include "ui_variant.h"
 
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
@@ -304,24 +305,29 @@ void update_button_text_contrast(lv_obj_t* btn) {
     set_contrast(data->label);
     set_contrast(data->icon);
 
-    // Walk XML child labels for "shell" buttons (no text= attr) that use
-    // layout="column" with XML children (e.g., filament preset buttons).
-    // Skip icon-font children - they manage their own color via the variant
-    // system (e.g., nav bar icons with variant="primary"/"secondary")
-    // and should not be overridden by button contrast logic.
+    // Walk XML child labels for "shell" buttons (no text= attr) built from XML
+    // children, descending through layout wrappers. Icon-font children keep an
+    // accent variant of their own (e.g. nav bar icons with variant="primary");
+    // only those on the default text variant follow the button's contrast.
+    // A nested button manages its own contrast.
     if (!data->label && !data->icon) {
-        uint32_t count = lv_obj_get_child_count(btn);
-        for (uint32_t i = 0; i < count; i++) {
-            lv_obj_t* child = lv_obj_get_child(btn, i);
-            if (!child)
-                continue;
-            if (!lv_obj_check_type(child, &lv_label_class))
-                continue;
-            const lv_font_t* font = lv_obj_get_style_text_font(child, LV_PART_MAIN);
-            if (helix::ui::is_icon_font(font))
-                continue;
-            set_contrast(child);
-        }
+        auto walk = [&](auto& self, lv_obj_t* parent) -> void {
+            uint32_t count = lv_obj_get_child_count(parent);
+            for (uint32_t i = 0; i < count; i++) {
+                lv_obj_t* child = lv_obj_get_child(parent, i);
+                if (!child || lv_obj_check_type(child, &lv_button_class))
+                    continue;
+                if (!lv_obj_check_type(child, &lv_label_class)) {
+                    self(self, child);
+                    continue;
+                }
+                const lv_font_t* font = lv_obj_get_style_text_font(child, LV_PART_MAIN);
+                if (helix::ui::is_icon_font(font) && !helix::ui::has_text_variant(child))
+                    continue;
+                set_contrast(child);
+            }
+        };
+        walk(walk, btn);
     }
 }
 

@@ -725,6 +725,7 @@
   <translation tag="Could not save the drying state: nothing was heated" ja="乾燥の状態を保存できませんでした: 何も加熱していません"/>
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" ja="メッシュを &apos;{}&apos; として保存できませんでした: {}"/>
   <translation tag="Could not save the printer image tags" ja="プリンター画像のタグの保存に失敗しました"/>
+  <translation tag="Could not skip {}" ja="{} をスキップできませんでした"/>
   <translation tag="Could not start Bluetooth discovery" ja="Bluetooth の検出を開始できませんでした"/>
   <translation tag="Could not update filaments" ja="フィラメントを更新できませんでした"/>
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." ja="Spoolman のステータスを確認できませんでした。Moonraker がまだ再起動中の可能性があります。"/>
@@ -990,6 +991,7 @@
   <translation tag="Ethernet" ja="イーサネット"/>
   <translation tag="Events appear here after sessions and prints" ja="セッションと印刷の後にイベントがここに表示されます"/>
   <translation tag="Every extruder&apos;s temperature at once" ja="全エクストルーダーの温度を一覧表示"/>
+  <translation tag="Every object is set to skip, so there is nothing to print" ja="すべてのオブジェクトがスキップ対象のため、印刷するものがありません"/>
   <translation tag="Every tool&apos;s offsets are measured again and replace the current ones. Save afterwards to keep the result." ja="すべてのツールのオフセットを再測定し、現在の値を置き換えます。結果を保持するには、その後保存してください。"/>
   <translation tag="Everything else was saved. Change them in Spoolman." ja="その他はすべて保存されました。変更は Spoolman で行ってください。"/>
   <translation tag="Everything else was saved. Rename the material using letters, digits, spaces, and + - _ . ( ) /" ja="その他はすべて保存されました。材料名は英字・数字・スペース・+ - _ . ( ) / で構成される名前に変更してください"/>
@@ -1993,6 +1995,7 @@
   <translation tag="ON: {} | OFF: {}" ja="オン: {} | オフ: {}"/>
   <translation tag="OS" ja="OS"/>
   <translation tag="OS: " ja="OS: "/>
+  <translation tag="Object picks apply only to prints started now" ja="オブジェクトの選択は今すぐ開始する印刷にのみ適用されます"/>
   <translation tag="Object positions unavailable" ja="オブジェクト位置が利用できません"/>
   <translation tag="Objects" ja="オブジェクト"/>
   <translation tag="Off" ja="オフ"/>
@@ -2913,7 +2916,6 @@
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" ja="「ファームウェア再起動」をタップして復旧してください。K2 では rpi MCU ブリッジも再起動されます"/>
   <translation tag="Tap again to confirm this orientation" ja="もう一度タップしてこの向きを確定"/>
   <translation tag="Tap an empty spot inside the enclosure" ja="筐体内の空いている場所をタップ"/>
-  <translation tag="Tap an object to exclude it | {} objects ({} excluded)" ja="オブジェクトをタップして除外 | {} 個 ({} 個除外済み)"/>
   <translation tag="Tap any tile to open its full controls or toggle its state." ja="タイルをタップすると、全機能のコントロールを開いたり、状態を切り替えたりできます。"/>
   <translation tag="Tap anywhere if this text is right-side up" ja="この文字が正しい向きならどこかをタップ"/>
   <translation tag="Tap anywhere to begin" ja="どこかをタップして開始"/>
@@ -3511,6 +3513,7 @@
   <translation tag="{} and {} are both mapped here" ja="{} と {} の両方がここに割り当てられています"/>
   <translation tag="{} available" ja="{} が利用可能"/>
   <translation tag="{} axis homed" ja="{} 軸がホーミング済み"/>
+  <translation tag="{} cannot be skipped: its name has characters the printer cannot be sent" ja="{} は除外できません: 名前にプリンターへ送信できない文字が含まれています"/>
   <translation tag="{} changed" ja="変更 {} 件"/>
   <translation tag="{} command timed out" ja="{} コマンドがタイムアウトしました"/>
   <translation tag="{} complete" ja="{} 完了"/>

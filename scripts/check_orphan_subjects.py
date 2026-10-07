@@ -115,7 +115,8 @@ ACCESSOR_CALL_RE = re.compile(r'(?:\.|->)\s*([A-Za-z_][A-Za-z_0-9]*)\s*\(\s*\)')
 # Any XML attribute that names a subject: bind_text=, bind_value=, subject=, ...
 XML_REF_RE = re.compile(r'(?:bind_[a-z_]+|subject)="([^"]+)"')
 # Expression attributes name subjects as bare identifiers: cond="a or b gt c".
-XML_EXPR_RE = re.compile(r'(?:cond|expr)="([^"]+)"')
+# A component prop that forwards a condition is named *_when (hidden_when=).
+XML_EXPR_RE = re.compile(r'(?:cond|expr|[a-z_]*_when)="([^"]+)"')
 IDENT_RE = re.compile(r'[a-z_][a-z_0-9]*')
 # A C++ observer on the same literal name.
 # Any site that observes or reads a subject value. lv_label_bind_text() and the

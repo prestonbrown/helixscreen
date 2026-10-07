@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_exclude_object_map_view.h"
-#include "ui_exclude_object_side_list.h"
+#include "ui_exclude_mode_controller.h"
 #include "ui_filament_runout_handler.h"
 #include "ui_heater_icon_binder.h"
 #include "ui_modal.h"
@@ -547,6 +546,8 @@ class PrintStatusPanel : public OverlayBase {
     /// the job-state handler derives no transition and returns early.
     void apply_new_print_resets(bool reset_progress_bar, bool clear_excluded_objects);
     void update_objects_text(); ///< Update "X of Y obj" display from exclude state
+    /// Publish whether the objects button shows: [exclude_object] and 2+ defined objects.
+    void refresh_exclude_objects_available();
     void
     update_view_toggle_position(bool objects_visible); ///< Shift view toggle when objects btn shown
     void animate_badge_pop_in(lv_obj_t* badge, const char* label); ///< Pop-in animation for badges
@@ -555,8 +556,6 @@ class PrintStatusPanel : public OverlayBase {
     void animate_print_error();     ///< Error animation when print fails
     void show_exclude_map_view();   ///< Show overhead map view of print objects
     void hide_exclude_map_view();   ///< Destroy map view and restore thumbnail/gradient
-    void
-    refresh_render_badges(); ///< Push numbered object badges to the viewer while exclude is open
 
     //
     // === Instance Handlers ===
@@ -640,6 +639,7 @@ class PrintStatusPanel : public OverlayBase {
     ObserverGuard preprint_remaining_observer_;
     ObserverGuard preprint_elapsed_observer_;
     ObserverGuard exclude_objects_observer_;
+    ObserverGuard exclude_object_capability_observer_;
     ObserverGuard excluded_objects_version_observer_;
     ObserverGuard ams_color_observer_; ///< Tracks AMS/Spoolman filament color for gcode viewer
     ObserverGuard tool_map_version_observer_; ///< Refreshes gcode viewer colors on tool remap
@@ -696,11 +696,8 @@ class PrintStatusPanel : public OverlayBase {
     /// Manages exclude object feature (extracted from PrintStatusPanel)
     std::unique_ptr<helix::ui::PrintExcludeObjectManager> exclude_manager_;
 
-    /// Overhead map view for exclude objects (shown in thumbnail-only mode)
-    std::unique_ptr<helix::ui::ExcludeObjectMapView> map_view_;
-
-    /// Side-panel companion list (shown alongside map_view_).
-    std::unique_ptr<helix::ui::ExcludeObjectSideList> side_list_;
+    /// Exclude mode over the preview card (list + map or render badges).
+    helix::ui::ExcludeModeController exclude_mode_;
 
     //
     // === Filament Runout Handler ===

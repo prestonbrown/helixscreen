@@ -23,6 +23,7 @@
  */
 
 #include "ui_callback_helpers.h"
+#include "ui_gcode_viewer.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_subject_registry.h"
@@ -31,24 +32,35 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/mock_bypass.h"
 #include "../test_helpers/printer_state_test_access.h"
+#include "../test_helpers/scoped_portrait_layout.h"
+#include "../test_helpers/update_queue_test_access.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "gcode_ops_detector.h"
+#include "gcode_parser.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "pre_print_option.h"
 #include "preflight_validator.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "test_helpers/pre_print_option_sets.h"
+#include "theme_manager.h"
 #include "tools_used_cache.h"
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -162,6 +174,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         {"on_print_select_delete_button", detail_noop_cb},
         {"on_print_detail_back_clicked", detail_noop_cb},
         {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
     });
 
     PrinterStateTestAccess::set_option_set(get_printer_state(), make_skip_and_addon_set());
@@ -218,6 +231,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "rows come from the macro analysis when the 
         {"on_print_select_delete_button", detail_noop_cb},
         {"on_print_detail_back_clicked", detail_noop_cb},
         {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
     });
 
     PrinterStateTestAccess::set_option_set(get_printer_state(), PrePrintOptionSet{});
@@ -267,6 +281,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "an open detail view rebuilds its rows when 
         {"on_print_select_delete_button", detail_noop_cb},
         {"on_print_detail_back_clicked", detail_noop_cb},
         {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
     });
 
     PrinterStateTestAccess::set_option_set(get_printer_state(), PrePrintOptionSet{});
@@ -328,6 +343,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "detail_mapping_ready tracks cache seed and 
         {"on_print_select_delete_button", detail_noop_cb},
         {"on_print_detail_back_clicked", detail_noop_cb},
         {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
     });
 
     helix::ui::PrintSelectDetailView view;
@@ -489,6 +505,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         {"on_print_select_delete_button", detail_noop_cb},
         {"on_print_detail_back_clicked", detail_noop_cb},
         {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
     });
 
     helix::ui::PrintSelectDetailView view;
@@ -549,6 +566,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "prep time estimate line appears on the firs
         {"on_print_select_delete_button", detail_noop_cb},
         {"on_print_detail_back_clicked", detail_noop_cb},
         {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
     });
 
     helix::ui::PrintSelectDetailView view;
@@ -682,6 +700,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         {"on_print_select_delete_button", detail_noop_cb},
         {"on_print_detail_back_clicked", detail_noop_cb},
         {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
     });
 
     helix::ui::PrintSelectDetailView view;
@@ -852,6 +871,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no fil
         {"on_print_select_delete_button", detail_noop_cb},
         {"on_print_detail_back_clicked", detail_noop_cb},
         {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
     });
 
     helix::ui::PrintSelectDetailView view;
@@ -945,6 +965,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
         {"on_print_select_delete_button", detail_noop_cb},
         {"on_print_detail_back_clicked", detail_noop_cb},
         {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
     });
 
     helix::ui::PrintSelectDetailView view;
@@ -1125,6 +1146,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A tap on the filament card opens the remap 
         {"on_print_select_delete_button", detail_noop_cb},
         {"on_print_detail_back_clicked", detail_noop_cb},
         {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
     });
 
     helix::ui::PrintSelectDetailView view;
@@ -1232,6 +1254,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "More-below subject tracks the options scrol
         {"on_print_select_delete_button", detail_noop_cb},
         {"on_print_detail_back_clicked", detail_noop_cb},
         {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
     });
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -1270,4 +1293,583 @@ TEST_CASE_METHOD(LVGLUITestFixture, "More-below subject tracks the options scrol
     lv_obj_send_event(scroll, LV_EVENT_SIZE_CHANGED, nullptr);
     process_lvgl(20);
     CHECK(lv_subject_get_int(more) == 0);
+}
+
+// ============================================================================
+// Pre-start object picks
+// ============================================================================
+
+class PrintSelectDetailViewTestAccess {
+  public:
+    static void begin_viewer_load(helix::ui::PrintSelectDetailView& view, const std::string& path) {
+        view.begin_viewer_load(path);
+    }
+};
+
+namespace {
+
+const char* kThreeParts =
+    "EXCLUDE_OBJECT_DEFINE NAME=Cone_id_0 CENTER=25,-4 POLYGON=[[20,-9],[31,-9],[31,1],[20,1]]\n"
+    "EXCLUDE_OBJECT_DEFINE NAME=Cube_id_1 CENTER=-36,6\n"
+    "EXCLUDE_OBJECT_DEFINE NAME=Cylinder_id_2 CENTER=-22,30\n";
+
+/// A printer with or without [exclude_object] configured.
+struct ExcludeObjectHardware {
+    explicit ExcludeObjectHardware(bool configured) {
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(configured ? nlohmann::json{"exclude_object", "extruder"}
+                                    : nlohmann::json{"extruder"});
+        get_printer_state().set_hardware(hw);
+    }
+    ~ExcludeObjectHardware() {
+        get_printer_state().set_hardware(helix::PrinterDiscovery{});
+    }
+};
+
+/// A shown detail view whose scan of @p file found @p defines.
+struct OpenDetail {
+    CacheDirGuard cache;
+    helix::ui::PrintSelectDetailView view;
+
+    OpenDetail(lv_obj_t* screen, const std::string& file, const char* defines) {
+        register_xml_callbacks({
+            {"on_print_select_detail_backdrop", detail_noop_cb},
+            {"on_print_select_print_button", detail_noop_cb},
+            {"on_print_select_delete_button", detail_noop_cb},
+            {"on_print_detail_back_clicked", detail_noop_cb},
+            {"on_toggle_sliced_colors", detail_noop_cb},
+            {"on_print_select_detail_objects", detail_noop_cb},
+        });
+        view.set_dependencies(nullptr, &get_printer_state());
+        view.init_subjects();
+        REQUIRE(view.create(screen) != nullptr);
+        helix::gcode::ScanResult scan;
+        scan.objects = helix::gcode::collect_exclude_object_defines(defines);
+        view.get_prep_manager()->set_cached_scan_result(scan, file);
+        view.show(file, "", "PLA");
+        settle();
+    }
+    ~OpenDetail() {
+        close();
+    }
+    void close() {
+        view.hide();
+        settle();
+        lv_timer_handler(); // the close callback runs on the next tick
+    }
+    static void settle() {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    static int subject_int(const char* name) {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, name));
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Details lists the scanned objects in file order",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+
+    const auto& defined = d.view.exclude_objects().get_defined_objects();
+    REQUIRE(defined == std::vector<std::string>{"Cone_id_0", "Cube_id_1", "Cylinder_id_2"});
+    const auto cone = d.view.exclude_objects().get_object_geometry("Cone_id_0");
+    REQUIRE(cone.has_value());
+    CHECK(cone->has_bbox);
+    CHECK(OpenDetail::subject_int("detail_exclude_available") == 1);
+    // The printer's live state is untouched.
+    CHECK(get_printer_state().excluded_objects_state().get_defined_objects().empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "The skip option needs [exclude_object], two objects and G-code",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    SECTION("no [exclude_object]") {
+        ExcludeObjectHardware hw(false);
+        OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+        CHECK(OpenDetail::subject_int("detail_exclude_available") == 0);
+    }
+    SECTION("one object") {
+        ExcludeObjectHardware hw(true);
+        OpenDetail d(test_screen(), "solo.gcode", "EXCLUDE_OBJECT_DEFINE NAME=Solo CENTER=1,1\n");
+        CHECK(OpenDetail::subject_int("detail_exclude_available") == 0);
+    }
+    // A 3MF is pinned by the pure rule's test: the scan replaces a .3mf's cached
+    // result with an empty one, so a view-level case would pass on the count alone.
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A pick toggles in the private state, matched upper-case",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+
+    d.view.toggle_exclude_pick("CUBE_ID_1");
+    OpenDetail::settle();
+    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+    CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 1);
+    CHECK(std::string(lv_subject_get_string(
+              lv_xml_get_subject(nullptr, "detail_exclude_pick_count_text"))) == "1");
+    CHECK(get_printer_state().excluded_objects_state().get_excluded_objects().empty());
+
+    d.view.toggle_exclude_pick("cube_id_1");
+    OpenDetail::settle();
+    CHECK(d.view.exclude_picks().empty());
+    CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 0);
+
+    d.view.toggle_exclude_pick("Not_an_object");
+    CHECK(d.view.exclude_picks().empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A name the printer cannot be sent is refused with a toast",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    std::vector<std::string> warnings;
+    helix::ui::set_test_notification_warning_hook(
+        [&](const std::string& msg) { warnings.push_back(msg); });
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "names.gcode",
+                 "EXCLUDE_OBJECT_DEFINE NAME='Part 1' CENTER=1,1\n"
+                 "EXCLUDE_OBJECT_DEFINE NAME=Pi\xc3\xa8"
+                 "ce CENTER=5,5\n"
+                 "EXCLUDE_OBJECT_DEFINE NAME=Plain CENTER=9,9\n");
+
+    d.view.toggle_exclude_pick("Part 1");
+    d.view.toggle_exclude_pick("Pi\xc3\xa8"
+                               "ce");
+    d.view.toggle_exclude_pick("Plain");
+    helix::ui::set_test_notification_warning_hook(nullptr);
+
+    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Plain"});
+    REQUIRE(warnings.size() == 2);
+    CHECK(warnings[0].find("Part 1") != std::string::npos);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Picks clear when the user leaves the file, not on a suspend",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    d.view.toggle_exclude_pick("Cube_id_1");
+
+    d.view.on_deactivating(DeactivateReason::Suspended);
+    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+
+    d.close();
+    CHECK(d.view.exclude_picks().empty());
+
+    // Re-opening the same file lists its objects again, with no picks.
+    d.view.show("parts.gcode", "", "PLA");
+    OpenDetail::settle();
+    CHECK(d.view.exclude_objects().get_defined_objects().size() == 3);
+    CHECK(d.view.exclude_picks().empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Picks held for a start survive the hide and a same-file re-show",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    d.view.toggle_exclude_pick("Cube_id_1");
+
+    d.view.hold_picks_for_start(true);
+    CHECK(d.view.picks_held_for_start());
+    d.close();
+    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+
+    // The start failed: details comes back for the same file with the pick intact.
+    d.view.show("parts.gcode", "", "PLA");
+    OpenDetail::settle();
+    CHECK(d.view.exclude_objects().get_defined_objects().size() == 3);
+    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+    CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 1);
+    // The hold is spent by that show; leaving the file now clears.
+    CHECK_FALSE(d.view.picks_held_for_start());
+    d.close();
+    CHECK(d.view.exclude_picks().empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A held pick does not carry over to another file",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    d.view.toggle_exclude_pick("Cube_id_1");
+
+    d.view.hold_picks_for_start(true);
+    d.close();
+    d.view.show("other.gcode", "", "PLA");
+    OpenDetail::settle();
+    CHECK(d.view.exclude_objects().get_excluded_objects().empty());
+    CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 0);
+    CHECK_FALSE(d.view.picks_held_for_start());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Every object picked is reported, and dropping picks says so",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    CHECK_FALSE(d.view.drop_exclude_picks());
+
+    d.view.toggle_exclude_pick("Cone_id_0");
+    d.view.toggle_exclude_pick("Cube_id_1");
+    CHECK_FALSE(d.view.all_objects_picked());
+    d.view.toggle_exclude_pick("Cylinder_id_2");
+    CHECK(d.view.all_objects_picked());
+
+    CHECK(d.view.drop_exclude_picks());
+    CHECK(d.view.exclude_picks().empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Leaving details for shutdown clears picks even while held",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    d.view.toggle_exclude_pick("Cube_id_1");
+    d.view.hold_picks_for_start(true);
+
+    d.view.on_deactivating(DeactivateReason::Shutdown);
+    CHECK(d.view.exclude_picks().empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "The details skip button sits in the preview's top-left corner with a pick count",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    lv_obj_t* root = d.view.get_widget();
+    lv_obj_t* btn = lv_obj_find_by_name(root, "btn_detail_objects");
+    lv_obj_t* card = lv_obj_find_by_name(root, "detail_card");
+    REQUIRE(btn != nullptr);
+    REQUIRE(card != nullptr);
+    process_lvgl(20);
+    CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    // The row around the button leaves taps in its gaps to the preview.
+    CHECK_FALSE(
+        lv_obj_has_flag(lv_obj_find_by_name(root, "detail_top_left_row"), LV_OBJ_FLAG_CLICKABLE));
+
+    lv_obj_update_layout(root);
+    lv_area_t b, c;
+    lv_obj_get_coords(btn, &b);
+    lv_obj_get_coords(card, &c);
+    // Aligned children sit inside the card's border.
+    const int32_t inset =
+        theme_manager_get_spacing("space_md") + lv_obj_get_style_border_width(card, LV_PART_MAIN);
+    CHECK(b.x1 - c.x1 == inset);
+    CHECK(b.y1 - c.y1 == inset);
+
+    lv_obj_t* count = lv_obj_find_by_name(btn, "objects_pick_count");
+    REQUIRE(count != nullptr);
+    CHECK(lv_obj_has_flag(count, LV_OBJ_FLAG_HIDDEN));
+
+    d.view.toggle_exclude_pick("Cube_id_1");
+    d.view.toggle_exclude_pick("Cone_id_0");
+    OpenDetail::settle();
+    process_lvgl(20);
+    CHECK_FALSE(lv_obj_has_flag(count, LV_OBJ_FLAG_HIDDEN));
+    CHECK(std::string(lv_label_get_text(lv_obj_get_child(count, 0))) == "2");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "The details skip button hides for a single-object file",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "solo.gcode", "EXCLUDE_OBJECT_DEFINE NAME=Solo CENTER=1,1\n");
+    process_lvgl(20);
+    lv_obj_t* btn = lv_obj_find_by_name(d.view.get_widget(), "btn_detail_objects");
+    REQUIRE(btn != nullptr);
+    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Exclude mode in details toggles a pick on a row tap, with no confirmation",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+
+    d.view.toggle_exclude_mode();
+    OpenDetail::settle();
+    process_lvgl(50);
+    REQUIRE(d.view.is_exclude_mode_open());
+    lv_obj_t* rows = lv_obj_find_by_name(d.view.get_widget(), "rows_container");
+    REQUIRE(rows != nullptr);
+    REQUIRE(lv_obj_get_child_count(rows) == 3);
+
+    lv_obj_send_event(lv_obj_get_child(rows, 1), LV_EVENT_CLICKED, nullptr);
+    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+    OpenDetail::settle();
+    process_lvgl(20);
+    CHECK(lv_obj_has_flag(lv_obj_get_child(rows, 1), LV_OBJ_FLAG_CLICKABLE));
+
+    lv_obj_send_event(lv_obj_get_child(rows, 1), LV_EVENT_CLICKED, nullptr);
+    CHECK(d.view.exclude_picks().empty());
+
+    d.view.toggle_exclude_mode();
+    OpenDetail::settle();
+    CHECK_FALSE(d.view.is_exclude_mode_open());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Opening exclude mode in details keeps the picks and stays inside details",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    d.view.toggle_exclude_pick("Cube_id_1");
+    OpenDetail::settle();
+
+    d.view.toggle_exclude_mode();
+    OpenDetail::settle();
+    process_lvgl(50);
+    REQUIRE(d.view.is_exclude_mode_open());
+    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+    // The list is part of details' own tree, not an overlay stacked over it.
+    CHECK(lv_obj_find_by_name(d.view.get_widget(), "rows_container") != nullptr);
+    CHECK(d.view.is_visible());
+
+    d.view.toggle_exclude_mode();
+    OpenDetail::settle();
+    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Leaving details closes exclude mode",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    d.view.toggle_exclude_mode();
+    OpenDetail::settle();
+    REQUIRE(d.view.is_exclude_mode_open());
+
+    d.close();
+    process_lvgl(50);
+    CHECK_FALSE(d.view.is_exclude_mode_open());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A suspend closes exclude mode and keeps the picks",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    d.view.toggle_exclude_pick("Cube_id_1");
+    d.view.toggle_exclude_mode();
+    OpenDetail::settle();
+    REQUIRE(d.view.is_exclude_mode_open());
+
+    d.view.on_deactivating(DeactivateReason::Suspended);
+    OpenDetail::settle();
+    CHECK_FALSE(d.view.is_exclude_mode_open());
+    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Clearing the details viewer closes exclude mode",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    lv_obj_t* viewer = lv_obj_find_by_name(d.view.get_widget(), "detail_gcode_viewer");
+    REQUIRE(viewer != nullptr);
+    d.view.toggle_exclude_pick("Cube_id_1");
+    d.view.toggle_exclude_mode();
+    OpenDetail::settle();
+    REQUIRE(d.view.is_exclude_mode_open());
+
+    // What the memory-pressure responder does to every live viewer.
+    ui_gcode_viewer_clear_all_active();
+    OpenDetail::settle();
+    CHECK_FALSE(d.view.is_exclude_mode_open());
+    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Showing the open view for another file closes exclude mode",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    d.view.toggle_exclude_mode();
+    OpenDetail::settle();
+    REQUIRE(d.view.is_exclude_mode_open());
+
+    d.view.show("other.gcode", "", "PLA");
+    OpenDetail::settle();
+    CHECK_FALSE(d.view.is_exclude_mode_open());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Picks the skip option no longer offers are never sent",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    std::optional<ExcludeObjectHardware> hw(std::in_place, true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    d.view.toggle_exclude_pick("Cone_id_0");
+    d.view.toggle_exclude_pick("Cube_id_1");
+    d.view.toggle_exclude_pick("Cylinder_id_2");
+    d.view.hold_picks_for_start(true);
+    d.close();
+
+    // The start failed, then the user switched to a printer without [exclude_object].
+    hw.reset();
+    ExcludeObjectHardware none(false);
+    d.view.show("parts.gcode", "", "PLA");
+    OpenDetail::settle();
+    REQUIRE(OpenDetail::subject_int("detail_exclude_available") == 0);
+    CHECK(d.view.exclude_picks().empty());
+    CHECK_FALSE(d.view.all_objects_picked());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "In portrait the details object list covers the options and not the card",
+                 "[print_select][detail_view][pre_start_exclude][portrait]") {
+    // Tall enough that the options fill more than half the column.
+    ScopedPortraitLayout portrait(480, 1000);
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    lv_obj_t* root = d.view.get_widget();
+    process_lvgl(100); // the view settles before the user can tap
+    d.view.toggle_exclude_mode();
+    OpenDetail::settle();
+    process_lvgl(600); // the slide-in
+    REQUIRE(d.view.is_exclude_mode_open());
+    lv_obj_update_layout(root);
+
+    lv_obj_t* rows = lv_obj_find_by_name(root, "rows_container");
+    REQUIRE(rows != nullptr);
+    lv_area_t list, options, card;
+    lv_obj_get_coords(lv_obj_get_parent(rows), &list);
+    lv_obj_get_coords(lv_obj_find_by_name(root, "options_section"), &options);
+    lv_obj_get_coords(lv_obj_find_by_name(root, "detail_card"), &card);
+    INFO("list y1=" << list.y1 << " options y1=" << options.y1 << " card y2=" << card.y2);
+    CHECK(list.y1 <= options.y1);
+    CHECK(list.y1 > card.y2);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "An open details view follows the printer's [exclude_object] as it changes",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    d.view.toggle_exclude_pick("Cube_id_1");
+    OpenDetail::settle();
+    REQUIRE(OpenDetail::subject_int("detail_exclude_available") == 1);
+
+    // A printer switch to a machine without [exclude_object], details left open.
+    get_printer_state().set_hardware(helix::PrinterDiscovery{});
+    OpenDetail::settle();
+    CHECK(OpenDetail::subject_int("detail_exclude_available") == 0);
+    CHECK(d.view.exclude_picks().empty());
+
+    // Back on a printer that has it: the same picks are offered again.
+    helix::PrinterDiscovery with;
+    with.parse_objects(nlohmann::json{"exclude_object", "extruder"});
+    get_printer_state().set_hardware(with);
+    OpenDetail::settle();
+    CHECK(OpenDetail::subject_int("detail_exclude_available") == 1);
+    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "The pick count counts only picks the file still defines",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    d.view.toggle_exclude_pick("Cube_id_1");
+    d.view.toggle_exclude_pick("Cone_id_0");
+    d.view.hold_picks_for_start(true);
+    d.close();
+
+    // The same file comes back, now defining only two of its three objects.
+    helix::gcode::ScanResult scan;
+    scan.objects = helix::gcode::collect_exclude_object_defines(
+        "EXCLUDE_OBJECT_DEFINE NAME=Cone_id_0 CENTER=25,-4\n"
+        "EXCLUDE_OBJECT_DEFINE NAME=Cylinder_id_2 CENTER=-22,30\n");
+    d.view.get_prep_manager()->set_cached_scan_result(scan, "parts.gcode");
+    d.view.show("parts.gcode", "", "PLA");
+    OpenDetail::settle();
+
+    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cone_id_0"});
+    CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 1);
+    CHECK(std::string(lv_subject_get_string(
+              lv_xml_get_subject(nullptr, "detail_exclude_pick_count_text"))) == "1");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Re-showing the open view for its file lists the objects again",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+
+    d.view.show("parts.gcode", "", "PLA");
+    OpenDetail::settle();
+
+    CHECK(d.view.exclude_objects().get_defined_objects().size() == 3);
+    CHECK(OpenDetail::subject_int("detail_exclude_available") == 1);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "An open view shown for another file does not list the previous file's parse",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    ExcludeObjectHardware hw(true);
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+
+    // The viewer parses parts.gcode and finds an object past the scan window.
+    const auto path = std::filesystem::path(d.cache.dir) / "parts_full.gcode";
+    {
+        std::ofstream out(path);
+        out << kThreeParts << "EXCLUDE_OBJECT_DEFINE NAME=Late_part CENTER=10,10\n"
+            << "G1 Z0.2 F600\nEXCLUDE_OBJECT_START NAME=Late_part\n"
+            << "G1 X10 Y10 E1 F1200\nG1 X20 Y10 E2\nEXCLUDE_OBJECT_END NAME=Late_part\n";
+    }
+    PrintSelectDetailViewTestAccess::begin_viewer_load(d.view, path.string());
+    REQUIRE(wait_until(
+        [&] {
+            OpenDetail::settle();
+            return d.view.exclude_objects().get_defined_objects().size() == 4;
+        },
+        60000));
+
+    helix::gcode::ScanResult scan;
+    scan.objects = helix::gcode::collect_exclude_object_defines(
+        "EXCLUDE_OBJECT_DEFINE NAME=Left CENTER=1,1\n"
+        "EXCLUDE_OBJECT_DEFINE NAME=Right CENTER=9,9\n");
+    d.view.get_prep_manager()->set_cached_scan_result(scan, "other.gcode");
+    d.view.show("other.gcode", "", "PLA");
+    OpenDetail::settle();
+
+    CHECK(d.view.exclude_objects().get_defined_objects() ==
+          std::vector<std::string>{"Left", "Right"});
+}
+
+// The viewer outlives the view on teardown (its tree is deleted on a later
+// tick), so a parse finishing after cleanup() must not reach the view.
+TEST_CASE_METHOD(LVGLUITestFixture, "A parse finishing after cleanup never reaches the view",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    OpenDetail d(test_screen(), "exclude_object_test.gcode", kThreeParts);
+    REQUIRE(d.view.get_widget() != nullptr);
+    lv_obj_t* viewer = lv_obj_find_by_name(d.view.get_widget(), "detail_gcode_viewer");
+    REQUIRE(viewer != nullptr);
+    auto& queue = helix::ui::UpdateQueue::instance();
+    helix::ui::UpdateQueueTestAccess::drain_all(queue);
+
+    int loaded = 0;
+    PrintSelectDetailViewTestAccess::begin_viewer_load(
+        d.view, "assets/test_gcodes/exclude_object_test.gcode");
+    d.view.run_when_loaded([&loaded]() { ++loaded; });
+
+    // The parse's result is built and waiting in the queue, not yet delivered.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    while (helix::ui::UpdateQueueTestAccess::queue_empty(queue) &&
+           std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    REQUIRE_FALSE(helix::ui::UpdateQueueTestAccess::queue_empty(queue));
+    REQUIRE(loaded == 0);
+
+    d.view.cleanup();
+    helix::ui::UpdateQueueTestAccess::drain_all(queue);
+    // What was queued was the parse result: the viewer installed it.
+    REQUIRE(ui_gcode_viewer_has_content(viewer));
+    CHECK(loaded == 0);
+    CHECK_FALSE(d.view.is_gcode_loaded());
+}
+
+// The prep manager outlives cleanup(), and a scan it is still running can
+// answer after it.
+TEST_CASE_METHOD(LVGLUITestFixture, "A scan answering after cleanup never reaches the view",
+                 "[print_select][detail_view][pre_start_exclude]") {
+    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
+    REQUIRE(d.view.exclude_objects().get_defined_objects().size() == 3);
+    d.view.cleanup();
+    REQUIRE(d.view.exclude_objects().get_defined_objects().size() == 3);
+
+    // With no printer connection the scan answers at once, with no result.
+    d.view.get_prep_manager()->scan_file_for_operations("other.gcode", "", "");
+    OpenDetail::settle();
+    CHECK(d.view.exclude_objects().get_defined_objects().size() == 3);
 }

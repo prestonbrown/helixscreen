@@ -3,13 +3,13 @@
 #include "ui_exclude_object_side_list.h"
 
 #include "ui_gcode_viewer.h"
-#include "ui_print_exclude_object_manager.h"
+#include "ui_open_instances.h"
 #include "ui_row_text.h"
 #include "ui_utils.h"
 
 #include "color_utils.h"
 #include "observer_factory.h"
-#include "printer_state.h"
+#include "printer_excluded_objects_state.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -23,36 +23,38 @@ namespace helix::ui {
 namespace {
 constexpr uint32_t SLIDE_IN_DURATION_MS = 220;
 
-// Singleton handle so the static XML close callback can find the live instance.
-// Only one side list exists at a time (owned by PrintStatusPanel).
-ExcludeObjectSideList* g_active_side_list = nullptr;
+// Print status keeps its overlay alive while the details view opens its own.
+OpenInstances<ExcludeObjectSideList>& open_lists() {
+    static OpenInstances<ExcludeObjectSideList> lists;
+    return lists;
+}
 } // namespace
 
 ExcludeObjectSideList::ExcludeObjectSideList() = default;
 
 ExcludeObjectSideList::~ExcludeObjectSideList() {
-    if (g_active_side_list == this) {
-        g_active_side_list = nullptr;
-    }
+    open_lists().remove(this);
     if (root_) {
         lv_obj_delete_async(root_);
         root_ = nullptr;
     }
 }
 
-void ExcludeObjectSideList::create(lv_obj_t* parent, PrinterState* printer_state,
-                                   PrintExcludeObjectManager* manager, SideListGeometry geom) {
+void ExcludeObjectSideList::create(lv_obj_t* parent, PrinterExcludedObjectsState* state,
+                                   ObjectTapFn on_object_tapped, ExcludeTapMode tap_mode,
+                                   SideListGeometry geom) {
     if (root_) {
         spdlog::warn("[ExcludeObjectSideList] create() called but already active");
         return;
     }
-    if (!parent || !printer_state || !manager) {
+    if (!parent || !state) {
         spdlog::error("[ExcludeObjectSideList] create() missing required pointers");
         return;
     }
 
-    printer_state_ = printer_state;
-    manager_ = manager;
+    state_ = state;
+    on_object_tapped_ = std::move(on_object_tapped);
+    tap_mode_ = tap_mode;
 
     // Register the close-button XML callback once. Idempotent on repeat calls.
     static bool s_callbacks_registered = false;
@@ -61,12 +63,12 @@ void ExcludeObjectSideList::create(lv_obj_t* parent, PrinterState* printer_state
         s_callbacks_registered = true;
     }
 
-    g_active_side_list = this;
+    open_lists().add(this);
 
     root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "exclude_object_side_list", nullptr));
     if (!root_) {
         spdlog::error("[ExcludeObjectSideList] lv_xml_create failed");
-        g_active_side_list = nullptr;
+        open_lists().remove(this);
         return;
     }
 
@@ -118,21 +120,21 @@ void ExcludeObjectSideList::create(lv_obj_t* parent, PrinterState* printer_state
     rebuild_rows();
 
     excluded_version_obs_ = observe<int>(
-        printer_state_->excluded_objects_state().get_excluded_objects_version_subject(), this,
+        state_->get_excluded_objects_version_subject(), this,
         [](ExcludeObjectSideList* self, int) {
             if (self->root_) {
                 self->update_row_states();
             }
         },
-        printer_state_->get_subjects_lifetime());
+        state_->get_subjects_lifetime());
     defined_version_obs_ = observe<int>(
-        printer_state_->excluded_objects_state().get_defined_objects_version_subject(), this,
+        state_->get_defined_objects_version_subject(), this,
         [](ExcludeObjectSideList* self, int) {
             if (self->root_) {
                 self->rebuild_rows();
             }
         },
-        printer_state_->get_subjects_lifetime());
+        state_->get_subjects_lifetime());
     const auto restyle = [](ExcludeObjectSideList* self, int) {
         if (self->root_) {
             self->restyle_rows_if_stale();
@@ -170,10 +172,6 @@ void ExcludeObjectSideList::create(lv_obj_t* parent, PrinterState* printer_state
 }
 
 void ExcludeObjectSideList::destroy() {
-    if (!root_) {
-        return;
-    }
-
     // Drop observers first — they capture `this` and the caller is about to
     // free us. Row click handlers also capture `this`; we delete the widget
     // tree asynchronously below, but the rows are children and will be torn
@@ -187,8 +185,10 @@ void ExcludeObjectSideList::destroy() {
     // Cancel the slide-in animation (no slide-out — the lv_obj_delete_async
     // handles teardown immediately; animating with stale handlers risks UAF
     // on row taps during the out-anim window).
-    lv_anim_delete(root_, nullptr);
-    lv_obj_delete_async(root_);
+    if (root_) {
+        lv_anim_delete(root_, nullptr);
+        lv_obj_delete_async(root_);
+    }
     // Deinit detaches the rows still bound to these subjects, so the widgets
     // may outlive them until the async delete runs.
     row_states_.reclaim();
@@ -197,25 +197,31 @@ void ExcludeObjectSideList::destroy() {
     root_ = nullptr;
     rows_container_ = nullptr;
     empty_state_ = nullptr;
+    on_object_tapped_ = nullptr;
 
-    if (g_active_side_list == this) {
-        g_active_side_list = nullptr;
-    }
+    open_lists().remove(this);
 }
 
-void ExcludeObjectSideList::on_close_clicked(lv_event_t* /*e*/) {
+void ExcludeObjectSideList::on_close_clicked(lv_event_t* e) {
+    ExcludeObjectSideList* list = open_lists().owner_of(lv_event_get_current_target_obj(e));
+    if (!list) {
+        return;
+    }
     spdlog::debug("[ExcludeObjectSideList] Close button clicked");
-    if (g_active_side_list && g_active_side_list->close_cb_) {
-        g_active_side_list->close_cb_();
+    // A copy: the callback usually destroys this list, and its own
+    // std::function with it.
+    auto close = list->close_cb_;
+    if (close) {
+        close();
     }
 }
 
 void ExcludeObjectSideList::rebuild_rows() {
-    if (!rows_container_ || !printer_state_) {
+    if (!rows_container_ || !state_) {
         return;
     }
 
-    const auto& defined = printer_state_->excluded_objects_state().get_defined_objects();
+    const auto& defined = state_->get_defined_objects();
 
     if (empty_state_) {
         if (defined.empty()) {
@@ -241,8 +247,7 @@ void ExcludeObjectSideList::rebuild_rows() {
     update_row_states();
 
     rows_look_ = resolve_badge_look({});
-    for (const auto& badge :
-         compute_object_badges(printer_state_->excluded_objects_state(), nullptr)) {
+    for (const auto& badge : compute_object_badges(*state_, nullptr)) {
         create_row(rows_container_, badge);
     }
 }
@@ -257,18 +262,19 @@ void ExcludeObjectSideList::restyle_rows_if_stale() {
 }
 
 void ExcludeObjectSideList::update_row_states() {
-    if (!printer_state_) {
+    if (!state_) {
         return;
     }
     // Rows are matched to objects by position, which only holds while they
     // show the current list. A rebuild for the new list is already queued and
     // publishes the states itself.
-    if (printer_state_->excluded_objects_state().get_defined_objects() != row_names_) {
+    if (state_->get_defined_objects() != row_names_) {
         return;
     }
-    const auto badges = compute_object_badges(printer_state_->excluded_objects_state(), nullptr);
+    const auto badges = compute_object_badges(*state_, nullptr);
     for (size_t i = 0; i < badges.size(); ++i) {
-        const int state = badges[i].excluded ? 2 : (badges[i].current ? 1 : 0);
+        const int state = badges[i].excluded ? (tap_mode_ == ExcludeTapMode::Toggle ? 3 : 2)
+                                             : (badges[i].current ? 1 : 0);
         if (lv_subject_get_int(row_states_.at(i)) != state) {
             row_states_.set_int(i, state);
         }
@@ -305,7 +311,7 @@ void ExcludeObjectSideList::create_row(lv_obj_t* parent, const ObjectBadge& badg
 void ExcludeObjectSideList::on_row_clicked(lv_event_t* e) {
     auto* self = static_cast<ExcludeObjectSideList*>(lv_event_get_user_data(e));
     lv_obj_t* target = lv_event_get_target_obj(e);
-    if (!self || !self->manager_ || !target) {
+    if (!self || !self->on_object_tapped_ || !target) {
         return;
     }
     const char* name = helix::ui::get_owned_user_string(target);
@@ -315,13 +321,14 @@ void ExcludeObjectSideList::on_row_clicked(lv_event_t* e) {
     spdlog::info("[ExcludeObjectSideList] Row clicked: '{}'", name);
 
     // Highlight the matching object in the gcode viewer so the user gets
-    // spatial feedback before the confirmation modal appears.
-    if (self->gcode_viewer_) {
+    // spatial feedback before the confirmation modal appears. A toggle tap
+    // has no modal to follow, so it leaves the viewer alone.
+    if (self->gcode_viewer_ && self->tap_mode_ == ExcludeTapMode::ExcludeOnly) {
         std::unordered_set<std::string> highlight = {std::string(name)};
         ui_gcode_viewer_set_highlighted_objects(self->gcode_viewer_, highlight);
     }
 
-    self->manager_->request_exclude(std::string(name));
+    self->on_object_tapped_(std::string(name));
 }
 
 } // namespace helix::ui

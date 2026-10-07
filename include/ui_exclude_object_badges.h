@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <functional>
 #include <glm/vec2.hpp>
 #include <lvgl.h>
 #include <optional>
@@ -16,6 +17,14 @@ struct ParsedGCodeFile;
 } // namespace helix
 
 namespace helix::ui {
+
+/// Hands the name of an object the user tapped (a list row, a map rect, a badge).
+using ObjectTapFn = std::function<void(const std::string& name)>;
+
+/// What a tap on an already-excluded object does. Print status excludes for
+/// good, so the object stops taking taps; print details holds picks the user
+/// can undo before Print, so it keeps taking them.
+enum class ExcludeTapMode { ExcludeOnly, Toggle };
 
 /**
  * @brief What one object's numbered badge says, and where it belongs.

@@ -407,13 +407,15 @@ static const char* ui_gcode_viewer_pick_object(lv_obj_t* obj, int x, int y) {
 
     // A badge can sit over empty space (the hole of a ring), so it picks first.
     // Reverse paint order: where badges overlap, the one drawn on top wins.
-    // An excluded badge is drawn faded and is not a pick target.
+    // An excluded badge is drawn faded and is not a pick target unless the host
+    // made excluded badges pickable.
     int badge = -1;
     const float radius = static_cast<float>(st->badge_look.diameter) / 2.0f;
     const glm::vec2 tap(static_cast<float>(local_x), static_cast<float>(local_y));
     for (size_t i = st->drawn_badge_index.size(); i-- > 0;) {
         const int idx = st->drawn_badge_index[i];
-        if (!st->object_badges[static_cast<size_t>(idx)].excluded &&
+        if ((st->excluded_badges_pickable ||
+             !st->object_badges[static_cast<size_t>(idx)].excluded) &&
             glm::distance(st->drawn_badge_centers[i], tap) <= radius) {
             badge = idx;
             break;

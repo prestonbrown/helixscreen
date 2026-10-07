@@ -2071,3 +2071,78 @@ TEST_CASE("GCodeParser - Real Cura file FeatureType distribution",
                         counts[FeatureType::SolidInfill];
     REQUIRE(recognized > counts[FeatureType::Unknown]);
 }
+
+TEST_CASE("parse_exclude_object_define reads a slicer DEFINE line",
+          "[gcode][parser][pre_start_exclude]") {
+    using helix::gcode::parse_exclude_object_define;
+    auto obj = parse_exclude_object_define(
+        "EXCLUDE_OBJECT_DEFINE NAME=Cube_id_1_copy_0 CENTER=-36.362,6.5 "
+        "POLYGON=[[-40,2],[-32,2],[-32,11],[-40,11]]");
+    REQUIRE(obj.has_value());
+    CHECK(obj->name == "Cube_id_1_copy_0");
+    CHECK(obj->center.x == Catch::Approx(-36.362f));
+    CHECK(obj->center.y == Catch::Approx(6.5f));
+    REQUIRE(obj->polygon.size() == 4);
+    CHECK(obj->polygon[2] == glm::vec2(-32.0f, 11.0f));
+
+    CHECK_FALSE(parse_exclude_object_define("EXCLUDE_OBJECT_START NAME=Cube").has_value());
+    CHECK_FALSE(parse_exclude_object_define("EXCLUDE_OBJECT_DEFINE CENTER=1,2").has_value());
+    CHECK_FALSE(parse_exclude_object_define("G1 X10 Y10").has_value());
+}
+
+TEST_CASE("parse_exclude_object_define keeps a quoted name whole",
+          "[gcode][parser][pre_start_exclude]") {
+    using helix::gcode::parse_exclude_object_define;
+    auto dq = parse_exclude_object_define("EXCLUDE_OBJECT_DEFINE NAME=\"Part 1\" CENTER=5,6");
+    REQUIRE(dq.has_value());
+    CHECK(dq->name == "Part 1");
+    CHECK(dq->center == glm::vec2(5.0f, 6.0f));
+
+    auto sq = parse_exclude_object_define("EXCLUDE_OBJECT_DEFINE NAME='Part 2' CENTER=7,8");
+    REQUIRE(sq.has_value());
+    CHECK(sq->name == "Part 2");
+    CHECK(sq->center == glm::vec2(7.0f, 8.0f));
+}
+
+TEST_CASE("collect_exclude_object_defines keeps file order and ignores a cut final line",
+          "[gcode][parser][pre_start_exclude]") {
+    const std::string content = "; header\n"
+                                "EXCLUDE_OBJECT_DEFINE NAME=Zed CENTER=30,30\n"
+                                "EXCLUDE_OBJECT_DEFINE NAME=Alpha CENTER=90,30 ; slicer note\n"
+                                "G28\n"
+                                "EXCLUDE_OBJECT_DEFINE NAME=Mid CENTER=150,30\n"
+                                "EXCLUDE_OBJECT_DEFINE NAME=Cut_of"; // the read stopped here
+    const auto objs = helix::gcode::collect_exclude_object_defines(content);
+    REQUIRE(objs.size() == 3);
+    CHECK(objs[0].name == "Zed");
+    CHECK(objs[1].name == "Alpha");
+    CHECK(objs[2].name == "Mid");
+    CHECK(helix::gcode::collect_exclude_object_defines("G28\nG1 X1\n").empty());
+}
+
+TEST_CASE("collect_exclude_object_defines: a redefinition replaces the object in place",
+          "[gcode][parser][pre_start_exclude]") {
+    const auto objs =
+        helix::gcode::collect_exclude_object_defines("EXCLUDE_OBJECT_DEFINE NAME=Zed CENTER=1,1\n"
+                                                     "EXCLUDE_OBJECT_DEFINE NAME=Alpha CENTER=5,5\n"
+                                                     "EXCLUDE_OBJECT_DEFINE NAME=Zed CENTER=2,2\n");
+    REQUIRE(objs.size() == 2);
+    CHECK(objs[0].name == "Zed");
+    CHECK(objs[0].center == glm::vec2(2.0f, 2.0f));
+    CHECK(objs[1].name == "Alpha");
+}
+
+TEST_CASE("GCodeParser keeps a quoted object name whole across DEFINE and START",
+          "[gcode][parser][pre_start_exclude]") {
+    helix::gcode::GCodeParser parser;
+    parser.parse_line("EXCLUDE_OBJECT_DEFINE NAME='Part 1' CENTER=10,10");
+    parser.parse_line("EXCLUDE_OBJECT_START NAME='Part 1'");
+    parser.parse_line("G1 X10 Y10 Z0.2 E1");
+    parser.parse_line("G1 X20 Y10 E2");
+    parser.parse_line("EXCLUDE_OBJECT_END NAME='Part 1'");
+    auto file = parser.finalize();
+    REQUIRE(file.objects.count("Part 1") == 1);
+    REQUIRE_FALSE(file.layers.empty());
+    REQUIRE_FALSE(file.layers[0].segments.empty());
+    CHECK(file.get_object_name(file.layers[0].segments[0].object_name_index) == "Part 1");
+}

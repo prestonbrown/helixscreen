@@ -725,6 +725,7 @@
   <translation tag="Could not save the drying state: nothing was heated" it="Impossibile salvare lo stato dell&apos;essiccazione: non è stato riscaldato nulla"/>
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" it="Impossibile salvare la mesh come &apos;{}&apos;: {}"/>
   <translation tag="Could not save the printer image tags" it="Impossibile salvare i contrassegni dell&apos;immagine"/>
+  <translation tag="Could not skip {}" it="Impossibile saltare {}"/>
   <translation tag="Could not start Bluetooth discovery" it="Impossibile avviare la ricerca Bluetooth"/>
   <translation tag="Could not update filaments" it="Impossibile aggiornare i filamenti"/>
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." it="Impossibile verificare lo stato di Spoolman. Moonraker potrebbe essere ancora in riavvio."/>
@@ -990,6 +991,7 @@
   <translation tag="Ethernet" it="Ethernet"/>
   <translation tag="Events appear here after sessions and prints" it="Gli eventi appaiono qui dopo sessioni e stampe"/>
   <translation tag="Every extruder&apos;s temperature at once" it="Temperatura di ogni estrusore"/>
+  <translation tag="Every object is set to skip, so there is nothing to print" it="Tutti gli oggetti sono da saltare, non c&apos;è niente da stampare"/>
   <translation tag="Every tool&apos;s offsets are measured again and replace the current ones. Save afterwards to keep the result." it="Gli offset di tutti gli strumenti vengono misurati di nuovo e sostituiscono quelli attuali. Salva in seguito per conservare il risultato."/>
   <translation tag="Everything else was saved. Change them in Spoolman." it="Tutto il resto è stato salvato. Modificali in Spoolman."/>
   <translation tag="Everything else was saved. Rename the material using letters, digits, spaces, and + - _ . ( ) /" it="Tutto il resto è stato salvato. Rinomina il materiale usando lettere, cifre, spazi e + - _ . ( ) /"/>
@@ -1993,6 +1995,7 @@
   <translation tag="ON: {} | OFF: {}" it="ON: {} | OFF: {}"/>
   <translation tag="OS" it="OS"/>
   <translation tag="OS: " it="OS: "/>
+  <translation tag="Object picks apply only to prints started now" it="La selezione degli oggetti vale solo per le stampe avviate ora"/>
   <translation tag="Object positions unavailable" it="Posizioni oggetti non disponibili"/>
   <translation tag="Objects" it="Oggetti"/>
   <translation tag="Off" it="Off"/>
@@ -2913,7 +2916,6 @@
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" it="Toccare Riavvia firmware per ripristinare. Sulla K2 questo riavvia anche il bridge MCU rpi"/>
   <translation tag="Tap again to confirm this orientation" it="Tocca di nuovo per confermare questo orientamento"/>
   <translation tag="Tap an empty spot inside the enclosure" it="Tocca un punto vuoto dentro la chiusura"/>
-  <translation tag="Tap an object to exclude it | {} objects ({} excluded)" it="Tocca un oggetto per escluderlo | {} oggetti ({} esclusi)"/>
   <translation tag="Tap any tile to open its full controls or toggle its state." it="Tocca un riquadro per aprirne i controlli completi o per cambiarne lo stato."/>
   <translation tag="Tap anywhere if this text is right-side up" it="Tocca ovunque se questo testo è dritto"/>
   <translation tag="Tap anywhere to begin" it="Tocca ovunque per iniziare"/>
@@ -3511,6 +3513,7 @@
   <translation tag="{} and {} are both mapped here" it="{} e {} sono entrambi assegnati qui"/>
   <translation tag="{} available" it="{} disponibile"/>
   <translation tag="{} axis homed" it="Asse {} in posizione"/>
+  <translation tag="{} cannot be skipped: its name has characters the printer cannot be sent" it="{} non può essere escluso: il nome contiene caratteri che non possono essere inviati alla stampante"/>
   <translation tag="{} changed" it="{} modificati"/>
   <translation tag="{} command timed out" it="Comando {} scaduto"/>
   <translation tag="{} complete" it="{} completato"/>

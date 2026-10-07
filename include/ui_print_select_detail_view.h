@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_exclude_mode_controller.h"
 #include "ui_filament_mapping_card.h"
 #include "ui_observer_guard.h"
 #include "ui_pre_print_options_renderer.h"
@@ -15,6 +16,7 @@
 #include "overlay_base.h"
 #include "preflight_validator.h"
 #include "print_file_data.h" // For FileHistoryStatus
+#include "printer_excluded_objects_state.h"
 #include "subject_managed_panel.h"
 #include "tools_used_cache.h"
 
@@ -28,6 +30,8 @@
 
 // Forward declarations
 class IMoonrakerAPI;
+class PrintSelectDetailViewTestAccess; // NAMESPACE_OK: test seam befriended below, defined in the
+                                       // unit test
 namespace helix {
 class PrinterState;
 }
@@ -348,6 +352,47 @@ class PrintSelectDetailView : public OverlayBase {
      */
     void run_when_preflight_ready(std::function<void()> cb);
 
+    // === Pre-start object picks ===
+
+    /// Re-read the file's objects: the scan's list, extended by the full parse
+    /// once the viewer has it. Publishes whether the skip button shows.
+    void refresh_exclude_objects();
+
+    /// Pick or un-pick a defined object (matched upper-case). A name the
+    /// printer cannot be sent is refused with a toast.
+    void toggle_exclude_pick(const std::string& name);
+
+    /// Picked objects, in defined order; none while the skip option is not offered.
+    [[nodiscard]] std::vector<std::string> exclude_picks() const;
+
+    /// Clear every pick; true when any of them was offered.
+    bool drop_exclude_picks();
+
+    /// Whether the picks cover every object, which would print nothing.
+    [[nodiscard]] bool all_objects_picked() const;
+
+    [[nodiscard]] const helix::PrinterExcludedObjectsState& exclude_objects() const {
+        return exclude_objects_;
+    }
+
+    /// Keep the picks while the view is hidden for a print start, so a start
+    /// that fails comes back to the same file with them intact. The next
+    /// show() spends the hold: the same file keeps its picks, another file
+    /// clears them.
+    void hold_picks_for_start(bool hold) {
+        picks_held_for_start_ = hold;
+    }
+    [[nodiscard]] bool picks_held_for_start() const {
+        return picks_held_for_start_;
+    }
+
+    /// Open or close exclude mode over the preview: map + list in thumbnail
+    /// mode, render badges + list in 2D/3D. Taps toggle picks.
+    void toggle_exclude_mode();
+    [[nodiscard]] bool is_exclude_mode_open() const {
+        return exclude_mode_.is_open();
+    }
+
     // Note: is_visible() inherited from OverlayBase
 
     // === Delete Confirmation ===
@@ -626,6 +671,8 @@ class PrintSelectDetailView : public OverlayBase {
     void on_ui_destroyed() override;
 
   private:
+    friend class ::PrintSelectDetailViewTestAccess;
+
     // === Dependencies ===
     IMoonrakerAPI* api_ = nullptr;
     PrinterState* printer_state_ = nullptr;
@@ -701,8 +748,26 @@ class PrintSelectDetailView : public OverlayBase {
     // parse completes; back to 0 in on_deactivate(). Published ONLY via
     // publish_mapping_ready().
     lv_subject_t detail_mapping_ready_{};
+    /// The file's objects with the pending picks as its excluded set. Private
+    /// to this view: init_subjects(false) keeps it off the XML registry.
+    helix::PrinterExcludedObjectsState exclude_objects_;
+    /// Exclude mode over this view's preview.
+    helix::ui::ExcludeModeController exclude_mode_;
+    ObserverGuard exclude_picks_observer_;
+    ObserverGuard exclude_capability_observer_;
+    /// See hold_picks_for_start().
+    bool picks_held_for_start_ = false;
+    /// 1 when the skip button shows (pre_start_exclude_available()).
+    lv_subject_t detail_exclude_available_{};
+    lv_subject_t detail_exclude_pick_count_{};
+    lv_subject_t detail_exclude_pick_count_text_{};
+    char detail_exclude_pick_count_text_buf_[8]{};
+    /// Push the pick count and the viewer's faded set from the picks.
+    void publish_exclude_picks();
     std::string temp_gcode_path_; // Cached downloaded gcode file path
     bool gcode_loaded_ = false;   // Whether gcode file has been loaded into viewer
+    /// The file whose G-code the viewer was last given; its parse belongs to it.
+    std::string viewer_file_;
     // Pending print-attempt (or other) callback registered via run_when_loaded()
     // while a parse was still in flight. Fired once from the load callback after
     // preflight_result_ is fresh, then cleared. Reset on show().
@@ -962,6 +1027,8 @@ class PrintSelectDetailView : public OverlayBase {
      * and post-download paths; it lives here once now.
      */
     void begin_viewer_load(const std::string& path);
+    /// Clear every viewer callback that carries `this`.
+    void disarm_viewer_callbacks();
 
     /**
      * @brief Apply a finished headless tools-scan result (callable from any thread)

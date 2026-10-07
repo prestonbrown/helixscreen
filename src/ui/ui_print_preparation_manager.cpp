@@ -556,6 +556,9 @@ void PrintPreparationManager::scan_file_for_operations(const std::string& filena
     auto on_content = [this, token, filename, key](const std::string& content) {
         gcode::GCodeOpsDetector detector;
         auto scan_result = detector.scan_content(content);
+        // The whole downloaded head, not the detector's shorter op window:
+        // a large thumbnail block can push the definitions past that.
+        scan_result.objects = gcode::collect_exclude_object_defines(content);
 
         if (scan_result.operations.empty()) {
             spdlog::debug("[PrintPreparationManager] No embedded operations found in {}", filename);

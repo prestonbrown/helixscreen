@@ -112,6 +112,7 @@ TEST_CASE("the discovery steps run in this order", "[discovery_steps]") {
         "job_queue_fetch",
         "settle_light_buttons",
         "auto_update_check",
+        "moonraker_update_channel",
         "manual_probe_autoopen",
     };
     CHECK(step_names() == expected);

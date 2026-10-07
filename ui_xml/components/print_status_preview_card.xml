@@ -33,17 +33,11 @@
                    thumbnail_hidden="gcode_viewer_mode gt 0 or exclude_map_active eq 1"
                    hint_hidden="gcode_viewer_mode ne 1"/>
 
-    <!-- Objects list button: top-left corner, visible only when multi-object print -->
-    <lv_obj name="btn_objects"
-            width="#icon_button_size_lg" height="#icon_button_size_lg" ignore_layout="true" align="top_left"
-            style_translate_x="#space_md" style_translate_y="#space_md" style_bg_color="#card_bg" style_bg_opa="180"
-            style_radius="#icon_button_radius_lg" clickable="true" style_pad_all="0" scrollable="false">
-      <style name="styles.press_wash" selector="pressed"/>
-      <bind_flag_if_eq subject="exclude_objects_available" flag="hidden" ref_value="0"/>
-      <lv_label text="#icon_debug_step_over"
-                style_text_font="mdi_icons_24" style_text_color="#text_muted" align="center"/>
-      <event_cb trigger="clicked" callback="on_print_status_objects"/>
-    </lv_obj>
+    <!-- Skip-objects button: top-left corner, visible only for a multi-object print -->
+    <exclude_objects_button name="btn_objects"
+                            ignore_layout="true" align="top_left" style_translate_x="#space_md"
+                            style_translate_y="#space_md" callback="on_print_status_objects"
+                            hidden_when="exclude_objects_available eq 0"/>
 
     <!-- View mode toggle: switches between progress (ghost layers) and complete view -->
     <!-- Position shifts right when objects button is visible (managed in C++) -->

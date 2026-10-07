@@ -18,12 +18,14 @@
 #include "ui_update_queue.h"
 
 #include "../test_helpers/print_preparation_manager_test_access.h"
+#include "app_globals.h"
 #include "lvgl_test_fixture.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
 #include "moonraker_job_api.h"
 #include "moonraker_request_tracker.h"
+#include "pre_start_exclude.h"
 #include "print_job_ref.h"
 #include "printer_state.h"
 #include "test_helpers/printer_state_test_access.h"
@@ -324,4 +326,32 @@ TEST_CASE_METHOD(PreStartGateFixture,
     CHECK(completion_success);
     CHECK(jobs.start_print_calls == 1);
     CHECK(jobs.last_filename == "part.gcode");
+}
+
+// The pre-start wait confirms through the navigate callback it was handed, so
+// object picks wrapped around it are sent once the print starts, not before.
+TEST_CASE_METHOD(PreStartGateFixture, "A start behind the pre-start block sends the picks after it",
+                 "[print_preparation][pre_start][pre_start_exclude]") {
+    set_busy(false);
+    set_moonraker_api(api.get());
+    int navigated = 0;
+    manager.start_print(
+        "part.gcode", "",
+        helix::ui::with_pre_start_exclusions([&navigated]() { ++navigated; }, {"Cube_id_1"}),
+        completion());
+    drain();
+    REQUIRE(api->captured_success);
+    CHECK(navigated == 0);
+    CHECK(jobs.start_print_calls == 0);
+
+    auto pre_start_done = std::move(api->captured_success);
+    api->captured_gcode.clear();
+    pre_start_done();
+    drain();
+
+    CHECK(jobs.start_print_calls == 1);
+    CHECK(navigated == 1);
+    // execute_gcode is captured here: the last block sent is the exclusion.
+    CHECK(api->captured_gcode == "EXCLUDE_OBJECT NAME=Cube_id_1");
+    set_moonraker_api(nullptr);
 }

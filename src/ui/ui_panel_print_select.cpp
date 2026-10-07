@@ -50,6 +50,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observe_language.h"
 #include "observer_factory.h"
+#include "pre_start_exclude.h"
 #include "preprint_predictor.h"
 #include "print_history_manager.h"
 #include "print_lifecycle_state.h" // job_holds_machine()
@@ -331,6 +332,8 @@ void PrintSelectPanel::init_subjects() {
              get_global_print_select_panel().forward_sliced_colors_toggle(
                  helix::ui::event_checked(e));
          }},
+        {"on_print_select_detail_objects",
+         [](lv_event_t*) { get_global_print_select_panel().toggle_detail_exclude_mode(); }},
         {"on_color_card_remap_help",
          [](lv_event_t*) { get_global_print_select_panel().show_remap_help(); }},
     });
@@ -514,57 +517,14 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
             // Preserve cached metadata from previous file list before replacing.
             // Without this, all metadata resets on every refresh, causing expensive
             // metadata re-fetches and metascans on every scroll cycle (8-15s per
-            // file on AD5M). We carry forward the entire old entry for files that
-            // already had metadata fetched, updating only the file listing fields
-            // (size, modified time) from the fresh data.
-            std::unordered_map<std::string, PrintFileData> old_state;
-            for (auto& f : panel->file_list_) {
-                if (f.metadata_fetched) {
-                    old_state.emplace(f.filename, std::move(f));
-                }
-            }
-
-            // Move data into panel (now safe - on main thread)
+            // file on AD5M).
+            std::vector<PrintFileData> previous = std::move(panel->file_list_);
             panel->file_list_ = std::move(c->files);
             panel->last_listing_applied_at_ = std::chrono::steady_clock::now();
 
-            // Merge old metadata into new file list
             const bool retry_missing = panel->retry_missing_thumbnails_on_refresh_;
             panel->retry_missing_thumbnails_on_refresh_ = false;
-            for (auto& f : panel->file_list_) {
-                auto it = old_state.find(f.filename);
-                if (it != old_state.end()) {
-                    auto& old = it->second;
-                    // Keep fresh listing data (size, modified time may have changed)
-                    time_t new_modified = f.modified_timestamp;
-                    size_t new_size = f.file_size_bytes;
-
-                    if (should_carry_forward_print_file_metadata(old, new_size, retry_missing)) {
-                        // File unchanged — carry forward all cached metadata
-#if defined(HELIX_PLATFORM_ESP32)
-                        // A re-upload of the same size is a different picture.
-                        if (old.modified_timestamp != new_modified) {
-                            old.esp_thumbnail.reset();
-                            old.esp_thumbnail_tried = false;
-                        }
-#endif
-                        f = std::move(old);
-                        f.modified_timestamp = new_modified;
-                        f.file_size_bytes = new_size;
-                    } else {
-                        // Carry-forward declined (size changed OR retry-missing-
-                        // thumbnail kicked in). The provider already preserved this
-                        // entry's metadata_fetched=true / thumbnail_path before our
-                        // decision ran, so without an explicit reset here the next
-                        // fetch_metadata_range would short-circuit on the stale
-                        // metadata_fetched flag and the placeholder would persist
-                        // (the bug the retry-on-activate flag was meant to fix —
-                        // 8dc2f8fde). Force a fresh fetch.
-                        f.metadata_fetched = false;
-                        f.thumbnail_path.clear();
-                    }
-                }
-            }
+            helix::carry_forward_print_file_metadata(panel->file_list_, previous, retry_missing);
 
             panel->apply_sort();
 
@@ -1956,7 +1916,7 @@ void PrintSelectPanel::on_activate() {
 void PrintSelectPanel::on_deactivating(DeactivateReason) {
 #if defined(HELIX_PLATFORM_ESP32)
     // Leaving the panel frees the card thumbnails and their slots. The detail
-    // view being pushed over it keeps them for the way back. A second
+    // view being pushed over it keeps the window's for the way back. A second
     // deactivate with no activate between is a navbar switch away from that
     // detail view, and frees them.
     const bool detail_opening =
@@ -2152,6 +2112,11 @@ void PrintSelectPanel::set_selected_file(const char* filename, const char* thumb
 }
 
 void PrintSelectPanel::show_detail_view() {
+#if defined(HELIX_PLATFORM_ESP32)
+    // The detail view builds its buffers as it opens, from the PSRAM kept
+    // off-screen card thumbnails hold; the window's stay for the way back.
+    sync_esp_thumbnails(esp_window_first_, esp_window_end_, /*keep_off_screen=*/false);
+#endif
     create_detail_view();
     // Track that detail view is open (for smart refresh skip on return)
     detail_view_open_ = true;
@@ -2185,6 +2150,12 @@ void PrintSelectPanel::show_detail_view() {
 void PrintSelectPanel::forward_sliced_colors_toggle(bool checked) {
     if (detail_view_) {
         detail_view_->set_prefer_sliced_colors(checked);
+    }
+}
+
+void PrintSelectPanel::toggle_detail_exclude_mode() {
+    if (detail_view_) {
+        detail_view_->toggle_exclude_mode();
     }
 }
 
@@ -2667,14 +2638,28 @@ void PrintSelectPanel::create_print_controller() {
     print_controller_ = std::make_unique<helix::ui::PrintStartController>(printer_state_, api_);
     print_controller_->set_can_print_subject(&can_print_subject_);
     print_controller_->set_update_print_button([this]() { update_print_button_state(); });
-    print_controller_->set_hide_detail_view([this]() { hide_detail_view(); });
+    // A start hides details with its picks held, so a failed start comes back to them.
+    print_controller_->set_hide_detail_view([this]() {
+        if (detail_view_) {
+            detail_view_->hold_picks_for_start(true);
+        }
+        hide_detail_view();
+    });
     print_controller_->set_show_detail_view([this]() { show_detail_view(); });
     print_controller_->set_navigate_to_print_status(
         [this]() { PrintStatusPanel::push_overlay(parent_screen_); });
     // The queued-job start consumes its entry here, on Moonraker's
     // confirmation that the print actually started — the tap alone proves
     // nothing (the start can still fail or be backed out).
-    print_controller_->set_on_print_started([this]() { finish_pending_queued_job(); });
+    print_controller_->set_on_print_started([this]() {
+        finish_pending_queued_job();
+        // The picks went with the start. A hold already spent means details
+        // has since shown a file, whose picks are not this start's.
+        if (detail_view_ && detail_view_->picks_held_for_start()) {
+            detail_view_->drop_exclude_picks();
+            detail_view_->hold_picks_for_start(false);
+        }
+    });
 
     // Crash recovery: restore firmware mapping if app restarted mid-print
     print_controller_->recover_pending_remap();
@@ -2873,6 +2858,10 @@ void PrintSelectPanel::start_print(bool force) {
         return;
     }
 
+    if (refuse_start_with_every_object_picked()) {
+        return;
+    }
+
     if (!print_controller_) {
         spdlog::error("[{}] Cannot start print - controller not initialized", get_name());
         NOTIFY_ERROR(lv_tr("Cannot start print: internal error"));
@@ -2916,22 +2905,37 @@ void PrintSelectPanel::start_print(bool force) {
     const std::string filename = selected_filename_buffer_;
     std::vector<std::string> colors = selected_filament_colors_;
     std::string thumbnail = selected_detail_thumbnail_buffer_;
+    std::vector<std::string> exclude_picks =
+        detail_view_ ? detail_view_->exclude_picks() : std::vector<std::string>{};
     if (!selected_local_path_.empty()) {
         copy_usb_file_to_printer([this, colors = std::move(colors),
-                                  thumbnail = std::move(thumbnail)](const std::string& dest) {
+                                  thumbnail = std::move(thumbnail),
+                                  exclude_picks](const std::string& dest) {
             const size_t slash = dest.rfind('/');
-            dispatch_print(dest.substr(slash + 1), dest.substr(0, slash), colors, thumbnail);
+            dispatch_print(dest.substr(slash + 1), dest.substr(0, slash), colors, thumbnail,
+                           exclude_picks);
         });
         return;
     }
-    dispatch_print(filename, current_path_, colors, thumbnail);
+    dispatch_print(filename, current_path_, colors, thumbnail, std::move(exclude_picks));
+}
+
+bool PrintSelectPanel::refuse_start_with_every_object_picked() {
+    if (!detail_view_ || !detail_view_->all_objects_picked()) {
+        return false;
+    }
+    NOTIFY_WARNING(lv_tr("Every object is set to skip, so there is nothing to print"));
+    return true;
 }
 
 void PrintSelectPanel::dispatch_print(const std::string& filename, const std::string& dir,
                                       const std::vector<std::string>& filament_colors,
-                                      const std::string& thumbnail) {
+                                      const std::string& thumbnail,
+                                      std::vector<std::string> exclude_picks) {
     // Pass extracted thumbnail path so USB/embedded thumbnails propagate to print status
     print_controller_->set_file(filename, dir, filament_colors, thumbnail);
+    // The picks seen at the tap: a USB copy can land after another file opened.
+    print_controller_->set_exclude_picks(std::move(exclude_picks));
 
     // A Print tap for the pending queued file puts the removal bookkeeping
     // past the reach of hide_detail_view(): from here only a confirmed start
@@ -3100,13 +3104,14 @@ void PrintSelectPanel::add_to_queue() {
     // Moonraker addresses queued files the same way started ones: relative to
     // the gcodes root, with any subdirectory prefixed.
     if (!selected_local_path_.empty()) {
-        copy_usb_file_to_printer([this](const std::string& dest) { queue_file(dest); });
+        copy_usb_file_to_printer([this, tapped = composed_selected_filename()](
+                                     const std::string& dest) { queue_file(dest, tapped); });
         return;
     }
-    queue_file(composed_selected_filename());
+    queue_file(composed_selected_filename(), composed_selected_filename());
 }
 
-void PrintSelectPanel::queue_file(const std::string& filename) {
+void PrintSelectPanel::queue_file(const std::string& filename, const std::string& tapped) {
     auto* jqs = get_job_queue_state();
     if (!api_ || !jqs) {
         NOTIFY_ERROR(lv_tr("Cannot add to queue: internal error"));
@@ -3134,10 +3139,17 @@ void PrintSelectPanel::queue_file(const std::string& filename) {
         filename,
         object_lifetime_.bg_cb(
             "PrintSelectPanel::add_to_queue",
-            [this, before_ids = std::move(before_ids),
-             options = std::move(options)](const JobQueueStatus& status) {
+            [this, before_ids = std::move(before_ids), options = std::move(options),
+             tapped](const JobQueueStatus& status) {
                 queue_add_in_flight_ = false;
                 update_print_button_state();
+
+                // A queued job carries no picks. Another file opened since the
+                // tap keeps its own.
+                if (detail_view_ && composed_selected_filename() == tapped &&
+                    detail_view_->drop_exclude_picks()) {
+                    NOTIFY_INFO(lv_tr("Object picks apply only to prints started now"));
+                }
 
                 const auto new_id = helix::queue::find_new_job_id(before_ids, status.queued_jobs);
                 if (new_id) {
@@ -3294,16 +3306,15 @@ void PrintSelectPanel::finish_pending_queued_job() {
                                        jqs->fetch();
                                    }
                                }),
-        object_lifetime_.bg_cb("PrintSelectPanel::queued_job_removal_failed",
-                               [this, job_id](const MoonrakerError& err) {
-                                   spdlog::warn(
-                                       "[PrintSelectPanel] Removing queued job {} failed: {}",
-                                       job_id, err.message);
-                                   NOTIFY_WARNING(lv_tr("Could not remove the job from the queue"));
-                                   if (auto* jqs = get_job_queue_state()) {
-                                       jqs->fetch();
-                                   }
-                               }));
+        object_lifetime_.bg_cb(
+            "PrintSelectPanel::queued_job_removal_failed", [job_id](const MoonrakerError& err) {
+                spdlog::warn("[PrintSelectPanel] Removing queued job {} failed: {}", job_id,
+                             err.message);
+                NOTIFY_WARNING(lv_tr("Could not remove the job from the queue"));
+                if (auto* jqs = get_job_queue_state()) {
+                    jqs->fetch();
+                }
+            }));
 }
 
 void PrintSelectPanel::show_preflight_modal(const helix::PreflightResult& pf) {
@@ -3457,10 +3468,21 @@ void PrintSelectPanel::apply_remap(const std::vector<helix::ToolMapping>& update
 
         spdlog::info("[{}] Applying gcode remap: {} tool(s) for {}", get_name(), remap.size(),
                      file_path);
+        if (refuse_start_with_every_object_picked()) {
+            return;
+        }
         // The pipeline guards identity remaps internally (prints the original
-        // unmodified when nothing changed).
+        // unmodified when nothing changed). The callback runs once Moonraker
+        // confirms the start, from whichever thread answered.
         prep->modify_and_print_with_remap(
-            file_path, remap, [this]() { PrintStatusPanel::push_overlay(parent_screen_); });
+            file_path, remap,
+            helix::ui::with_pre_start_exclusions(
+                // Print status opening over details is leaving the file, which
+                // clears its picks.
+                object_lifetime_.bg_cb(
+                    "PrintSelectPanel::remap_print_started",
+                    [this]() { PrintStatusPanel::push_overlay(parent_screen_); }),
+                detail_view_ ? detail_view_->exclude_picks() : std::vector<std::string>{}));
         break;
     }
 
@@ -3798,7 +3820,7 @@ void PrintSelectPanel::release_esp_card_thumbnails() {
     esp_lane_retry_timer_.reset();
 }
 
-void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end) {
+void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end, bool keep_off_screen) {
     const helix::ThumbnailTarget target = helix::ThumbnailProcessor::get_target_for_display();
     // Opaque over the card gradient where the cards allow it: a third smaller,
     // and drawn as a copy instead of a blend.
@@ -3831,7 +3853,7 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end) {
     }
     const helix::CardThumbnailPlan plan = helix::plan_card_thumbnails(
         states, first, end, static_cast<size_t>(std::max(esp_thumbnails_in_flight_, 0)), estimate,
-        helix::CARD_THUMBNAIL_BUDGET, esp_lane_refused_);
+        helix::CARD_THUMBNAIL_BUDGET, esp_lane_refused_, keep_off_screen);
     if (!plan.fetch.empty() && !esp_slots_) {
         // One slot per card the budget allows. Opaque slots come as one arena:
         // with more of them kept, slots allocated one at a time scatter across
@@ -3848,7 +3870,7 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end) {
             esp_slots_.reset();
             esp_backdrop_.reset();
             esp_arena_failed_ = true;
-            sync_esp_thumbnails(first, end);
+            sync_esp_thumbnails(first, end, keep_off_screen);
             return;
         }
     }
@@ -3857,6 +3879,9 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end) {
     for (size_t i : plan.drop) {
         file_list_[i].esp_thumbnail.reset();
         file_list_[i].esp_thumbnail_tried = false;
+    }
+    if (!keep_off_screen && esp_slots_) {
+        esp_slots_->trim(); // the memory, not just the thumbnails, goes back
     }
     for (size_t i : plan.fetch) {
         PrintFileData& f = file_list_[i];

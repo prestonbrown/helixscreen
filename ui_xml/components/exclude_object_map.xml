@@ -32,13 +32,5 @@
         <icon src="close" size="sm" style_text_color="#text_muted" align="center" clickable="false" event_bubble="true"/>
       </lv_obj>
     </lv_obj>
-
-    <!-- Key bar area -->
-    <lv_obj name="key_bar"
-            style_width="100%" style_height="content" style_max_height="48" style_bg_opa="0" style_pad_all="#space_xs"
-            style_pad_top="#space_sm" flex_flow="row_wrap" style_flex_main_place="center"
-            style_flex_cross_place="center" style_pad_row="2" style_pad_column="#space_sm" style_border_width="0"
-            scrollbar_mode="off" scrollable="false" clickable="false"/>
-
   </view>
 </component>

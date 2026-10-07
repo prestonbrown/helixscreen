@@ -401,6 +401,7 @@ void register_xml_components() {
     // file detail view, and the whole print-status preview card shared by the
     // landscape and portrait status layouts. Registered here, ahead of both
     // consumers, because a component must exist before the file that nests it.
+    register_xml("components/exclude_objects_button.xml");
     register_xml("components/preview_stack.xml");
     register_xml("components/print_status_preview_card.xml");
     register_xml("header_bar.xml");
