@@ -675,11 +675,6 @@ class PrinterDiscovery {
         return macros_.size();
     }
 
-    /**
-     * @brief Get summary string for logging
-     */
-    [[nodiscard]] std::string summary() const;
-
     // ========================================================================
     // Printer Info (populated from server.info / printer.info)
     // ========================================================================

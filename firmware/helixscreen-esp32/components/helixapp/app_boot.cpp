@@ -70,7 +70,6 @@
 #include "esp_moonraker_client.h"
 #include "esp_system.h"
 #include "esp_timer.h"
-#include "filament_sensor_manager.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "helix_fs.h"
@@ -87,9 +86,8 @@
 #include "panel_widget_manager.h"
 #include "pending_startup_warnings.h"
 #include "print_history_manager.h"
-#include "printer_discovery.h" // helix::PrinterDiscovery + init_subsystems (discovery callback args)
+#include "printer_discovery.h"
 #include "printer_fan_state.h" // helix::FanRoleConfig for the non-mock fan-role resolve
-#include "printer_name_sync.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
@@ -103,12 +101,10 @@
 #include "subject_initializer.h"
 #include "system/afc_message_dedup.h"
 #include "temp_graph_controller.h"
-#include "temperature_sensor_manager.h"
 #include "text_io.h"
 #include "theme_manager.h"
 #include "thumbnail_cache.h"
 #include "tips_manager.h"
-#include "tool_state.h"
 #include "translation_loader.h"
 #include "wizard_config_paths.h"
 #include "xml_registration.h"
@@ -544,17 +540,14 @@ void run_http_hil_probe(MoonrakerManager* mgr) {
 }
 #endif // CONFIG_HELIX_HTTP_HIL
 
-// Mirror Application::setup_discovery_callbacks() (src/application/application.cpp:2478),
-// TRIMMED to the v1 Core+AMS cut. Both callbacks fire on the WebSocket task, so
-// every subject write is marshalled to the UI thread via ui_queue_update().
+// Mirror PrinterSession::setup_discovery_callbacks(), TRIMMED to the v1 Core+AMS
+// cut. The callback fires on the WebSocket task, so every subject write is
+// marshalled to the UI thread via ui_queue_update().
 //
 // Trimmed vs the desktop handler:
-//   * on_hardware_discovered does NOT call init_subsystems_from_hardware()
-//     (src/printer/printer_discovery.cpp is excluded from the ESP image — see
-//     app_srcs.txt), which on desktop wires AMS backends, LED/probe/width/tool-
-//     changer state, Spoolman, printer-name sync and standard macros. None of
-//     that is in the Task 8 cut. We init only the temperature-sensor subjects so
-//     sensor cards populate.
+//   * init_subsystems_from_hardware() runs in on_discovery_complete rather than
+//     on_hardware_discovered, so one epoch check covers it and it still precedes
+//     the initial-status dispatch.
 //   * on_discovery_complete drops: splash exit, self-restart sentinel cleanup,
 //     temperature-store history seed, LED-chip population, print-hours /
 //     timelapse / external-update method callbacks, PrinterDetector auto-detect,
@@ -569,29 +562,18 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
         return;
     }
 
-    client->set_on_hardware_discovered([](const helix::PrinterDiscovery& hardware) {
-        // Copy on the BG thread so the queued main-thread callback owns a stable,
-        // non-aliased snapshot (desktop #761/#789 lesson).
-        auto snapshot = std::make_shared<helix::PrinterDiscovery>(hardware);
-        // Read on the WebSocket task. A switch stops the previous printer's task before
-        // connect() moves the epoch, so the previous printer's work carries the old value
-        // and is dropped when it reaches the UI thread.
-        const uint64_t epoch = helix::http_epoch::current();
-        helix::ui::queue_update("app_boot::on_hardware_discovered", [snapshot, epoch]() {
-            if (epoch != helix::http_epoch::current()) {
-                return;
-            }
-            helix::sensors::TemperatureSensorManager::instance().discover(snapshot->sensors());
-        });
-    });
-
     MoonrakerManager* mgr = &manager;
     client->set_on_discovery_complete(
         [mgr](const helix::PrinterDiscovery& hardware, const nlohmann::json& initial_status) {
             spdlog::debug("[app_boot] on_discovery_complete BG entry (status keys: {})",
                           initial_status.is_object() ? initial_status.size() : 0);
+            // Copy on the BG thread so the queued main-thread callback owns a stable,
+            // non-aliased snapshot (#761, #789).
             auto snapshot = std::make_shared<helix::PrinterDiscovery>(hardware);
             auto status_snapshot = std::make_shared<const nlohmann::json>(initial_status);
+            // Read on the WebSocket task. A switch stops the previous printer's task before
+            // connect() moves the epoch, so the previous printer's work carries the old value
+            // and is dropped when it reaches the UI thread.
             const uint64_t epoch = helix::http_epoch::current();
             helix::ui::queue_update("app_boot::on_discovery_complete", [mgr, snapshot,
                                                                         status_snapshot, epoch]() {
@@ -602,8 +584,8 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
                 helix::PrinterState& ps = get_printer_state();
                 helix::LapLog laps("app_boot discovery");
 
-                // Hardware into PrinterState first — init_fans / init_extruders
-                // build their subjects from it, and set_hardware seeds the
+                // Hardware into PrinterState first — init_fans builds its
+                // subjects from it, and set_hardware seeds the
                 // capability flags the home/motion panels read.
                 // Macros, the probe's bed centre and delta detection read the API's copy.
                 // A copy: the lines below still read *snapshot.
@@ -617,11 +599,10 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
                 ps.fan_state().init_fans(
                     fans, helix::FanRoleConfig::from_config(helix::Config::get_instance(), fans),
                     snapshot->fan_max_power());
-                ps.temperature_state().init_extruders(snapshot->heaters());
 
                 ps.set_klipper_version(snapshot->software_version());
                 ps.set_moonraker_version(snapshot->moonraker_version());
-                laps.lap("fans, extruders, versions");
+                laps.lap("fans, versions");
 
                 IMoonrakerAPI* api = mgr->api();
                 helix::IMoonrakerClient* c = mgr->client();
@@ -630,31 +611,16 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
                     helix::wall_clock_esp::request_date(api->get_http_base_url());
                 }
 
-                // Task 15 R1: AMS-relevant subset of desktop's
-                // init_subsystems_from_hardware() (src/printer/printer_discovery.cpp,
-                // excluded from the ESP image) — backend construction, filament
-                // sensors, tool state. Runs here (after the fan/extruder subjects
-                // above, before the dispatch below) to keep the same "subjects
-                // before dispatch" invariant Task 8 established. LED, standard
-                // macros, probe/humidity/width sensors, and camera-adjacent
-                // subsystems stay deferred (Task 8 review's enumeration).
-                helix::AmsState::instance().init_backend_from_hardware(*snapshot, api, c);
-                laps.lap("filament backends");
-                if (snapshot->has_filament_sensors()) {
-                    auto& fsm = helix::FilamentSensorManager::instance();
-                    fsm.discover_sensors(snapshot->filament_sensor_names());
-                    fsm.load_config_from_file();
-                }
-                helix::ToolState::instance().init_tools(*snapshot);
-                helix::ToolState::instance().load_spool_assignments(api);
-                laps.lap("sensors, tools, spools");
-                // Names a printer added from the K-Touch after its Mainsail/Fluidd name.
-                helix::PrinterNameSync::resolve(api, snapshot->hostname());
+                // Filament backends, sensors, extruders, tools, standard macros and
+                // LEDs: the same set desktop initialises. Before the dispatch below,
+                // so every subject the initial status writes already exists.
+                helix::init_subsystems_from_hardware(*snapshot, api, c);
+                laps.lap("subsystems");
                 if (c) {
                     // Graphs start from Moonraker's cached history, as on desktop.
                     helix::TempGraphController::seed_from_moonraker(*c);
                 }
-                laps.lap("name sync, graph seed");
+                laps.lap("graph seed");
 
                 // Dispatch the initial subscription status LAST, after the
                 // fan/sensor/extruder/AMS subjects exist. dispatch_status_update
@@ -1021,11 +987,8 @@ extern "C" void app_boot_ui(void) {
     // home/print-status panels instantiate in build_shell() — print_status_panel
     // and panel_widget_led bind both. Registration is scope-sensitive, so this
     // has to sit exactly here, matching desktop (application.cpp, same call and
-    // same phase). This is the only LedController::init() the ESP image ever
-    // makes: the re-init that binds a real API lives in printer_discovery.cpp,
-    // which is excluded from the image, and setup_discovery_callbacks_esp()
-    // below does not wire LED. api_/client_ therefore stay null for the life of
-    // the process — the call registers subjects, it does not enable LED control.
+    // same phase). Discovery re-runs init() with the real API and client
+    // (init_subsystems_from_hardware); this call only registers subjects.
     helix::led::LedController::instance().init(nullptr, nullptr);
 
     // Phase 9: MoonrakerManager — ESP factory arm builds EspMoonrakerClient +

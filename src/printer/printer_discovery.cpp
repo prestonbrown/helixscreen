@@ -24,76 +24,9 @@
 #include "width_sensor_types.h"
 #include "wizard_config_paths.h"
 
-#include <sstream>
 #include <vector>
 
 namespace helix {
-
-std::string PrinterDiscovery::summary() const {
-    std::ostringstream ss;
-    ss << "Capabilities: ";
-
-    std::vector<std::string> caps;
-
-    if (has_qgl_)
-        caps.push_back("QGL");
-    if (has_z_tilt_)
-        caps.push_back("Z-tilt");
-    if (has_bed_mesh_)
-        caps.push_back("bed_mesh");
-    if (has_chamber_heater_)
-        caps.push_back("chamber_heater");
-    if (has_chamber_sensor_)
-        caps.push_back("chamber_sensor");
-    if (has_exclude_object_)
-        caps.push_back("exclude_object");
-    if (has_probe_)
-        caps.push_back("probe");
-    if (has_heater_bed_)
-        caps.push_back("heater_bed");
-    if (has_led_)
-        caps.push_back("LED");
-    if (has_accelerometer_)
-        caps.push_back("accelerometer");
-    if (has_screws_tilt_)
-        caps.push_back("screws_tilt");
-    if (has_klippain_shaketune_)
-        caps.push_back("Klippain");
-    if (has_speaker_)
-        caps.push_back("speaker");
-    if (has_firmware_retraction_)
-        caps.push_back("firmware_retraction");
-    if (has_mmu_)
-        caps.push_back(ams_type_to_string(mmu_type_));
-    if (has_tool_changer_) {
-        std::string tc_str = "Tool Changer";
-        if (!tool_names_.empty()) {
-            tc_str += " (" + std::to_string(tool_names_.size()) + " tools)";
-        }
-        caps.push_back(tc_str);
-    }
-    if (has_timelapse_)
-        caps.push_back("timelapse");
-    if (!filament_sensor_names_.empty())
-        caps.push_back("filament_sensors(" + std::to_string(filament_sensor_names_.size()) + ")");
-
-    if (caps.empty()) {
-        ss << "none";
-    } else {
-        for (size_t i = 0; i < caps.size(); ++i) {
-            if (i > 0)
-                ss << ", ";
-            ss << caps[i];
-        }
-    }
-
-    ss << " | " << macros_.size() << " macros";
-    if (!helix_macros_.empty()) {
-        ss << " (" << helix_macros_.size() << " HELIX_*)";
-    }
-
-    return ss.str();
-}
 
 std::vector<std::string> temperature_sensor_objects(const PrinterDiscovery& hardware) {
     std::vector<std::string> objects = hardware.sensors();
@@ -111,14 +44,11 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     // Initialize AMS backend (AFC, Happy Hare, ACE, Tool Changer)
     AmsState::instance().init_backend_from_hardware(hardware, api, client);
 
-    // Initialize filament sensor manager
-    if (hardware.has_filament_sensors()) {
-        auto& fsm = FilamentSensorManager::instance();
-        fsm.discover_sensors(hardware.filament_sensor_names());
-        fsm.load_config_from_file();
-        spdlog::debug("[PrinterDiscovery] Discovered {} filament sensors",
-                      hardware.filament_sensor_names().size());
-    }
+    // Sensor discovery is unconditional: an empty list is what clears the
+    // previous printer's sensors on a switch.
+    auto& fsm = FilamentSensorManager::instance();
+    fsm.discover_sensors(hardware.filament_sensor_names());
+    fsm.load_config_from_file();
 
     auto& tsm = helix::sensors::TemperatureSensorManager::instance();
     tsm.discover(temperature_sensor_objects(hardware));
@@ -141,13 +71,9 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
 
     // Initialize width sensor manager
     // Width sensors (hall/tsl1401cl filament width) are discovered from Klipper objects
-    if (hardware.has_width_sensors()) {
-        auto& wsm = helix::sensors::WidthSensorManager::instance();
-        wsm.discover(hardware.width_sensor_objects());
-        wsm.load_config_from_file();
-        spdlog::debug("[PrinterDiscovery] Discovered {} width sensors",
-                      hardware.width_sensor_objects().size());
-    }
+    auto& wsm = helix::sensors::WidthSensorManager::instance();
+    wsm.discover(hardware.width_sensor_objects());
+    wsm.load_config_from_file();
 
     // Initialize multi-extruder temperature tracking
     auto& printer_state = get_printer_state();
