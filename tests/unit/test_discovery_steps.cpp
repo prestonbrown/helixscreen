@@ -2,12 +2,13 @@
 
 /**
  * @file test_discovery_steps.cpp
- * @brief The discovery-complete step table: its order, its hw_changed gating and the
+ * @brief The discovery-complete step tables: their order, their hw_changed gating and the
  *        print_active decision every wizard and gcode gate in the pass shares.
  *
  * Later steps read what earlier ones stored (hardware before status dispatch, auto-detect
- * before validation, validation before the prompts), so the table is pinned by name. The
- * walker is exercised against a recording table: running the real steps needs a live
+ * before validation, validation before the prompts), so the tables are pinned by name. The
+ * core table runs on every build, the firmware included; desktop runs it and then the tail.
+ * The walker is exercised against a recording table: running the real steps needs a live
  * printer.
  */
 
@@ -16,10 +17,12 @@
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "discovery_steps.h"
+#include "hardware_setup_prompter.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -69,59 +72,89 @@ struct StepFixture : LVGLTestFixture {
 
     DiscoveryContext context(bool hw_changed, long n = 7) {
         return DiscoveryContext{api,    client,     api.hardware(), snapshot,
-                                status, prompter,   nullptr,        nullptr,
+                                status, &prompter,  nullptr,        nullptr,
                                 n,      hw_changed, false};
     }
 };
 
-std::vector<std::string> step_names() {
+/// Every step desktop runs, in its order: the core table, then the tail.
+std::vector<DiscoveryStep> all_steps() {
+    std::vector<DiscoveryStep> steps;
+    for (const DiscoveryStepRange range :
+         {helix::discovery_core_steps(), helix::discovery_tail_steps()}) {
+        steps.insert(steps.end(), range.begin(), range.end());
+    }
+    return steps;
+}
+
+std::vector<std::string> names_of(const std::vector<DiscoveryStep>& steps) {
     std::vector<std::string> names;
-    for (const DiscoveryStep& step : helix::discovery_steps()) {
+    for (const DiscoveryStep& step : steps) {
         names.emplace_back(step.name);
     }
     return names;
 }
 
+size_t position_of(const std::vector<std::string>& names, const std::string& name) {
+    const auto it = std::find(names.begin(), names.end(), name);
+    REQUIRE(it != names.end());
+    return static_cast<size_t>(it - names.begin());
+}
+
 } // namespace
 
-TEST_CASE("the discovery steps run in this order", "[discovery_steps]") {
+TEST_CASE("the core discovery steps run in this order", "[discovery_steps]") {
     // Hardware lands in PrinterState before the status replay and the fan roles it
-    // reads; auto-detect and the heater heal precede validation so the validator sees
-    // post-preset roles; the prompts come after validation and before its snapshot is
-    // saved.
+    // reads; the heater heal reads the printer type auto-detect stored.
+    std::vector<std::string> core;
+    for (const DiscoveryStep& step : helix::discovery_core_steps()) {
+        core.emplace_back(step.name);
+    }
+    const std::vector<std::string> expected = {
+        "set_hardware",       "zoffset_persistence", "temp_graph_seed",      "status_dispatch",
+        "software_versions",  "auto_detect_printer", "heal_heater_roles",    "safety_limits",
+        "helix_plugin_check", "job_queue_fetch",     "settle_light_buttons",
+    };
+    CHECK(core == expected);
+}
+
+TEST_CASE("the tail discovery steps run in this order", "[discovery_steps]") {
+    // The prompts come after validation and before its snapshot is saved.
+    std::vector<std::string> tail;
+    for (const DiscoveryStep& step : helix::discovery_tail_steps()) {
+        tail.emplace_back(step.name);
+    }
     const std::vector<std::string> expected = {
         "update_checker_connected",
-        "set_hardware",
-        "zoffset_persistence",
-        "temp_graph_seed",
-        "status_dispatch",
-        "software_versions",
         "about_print_hours",
         "timelapse_events",
         "power_sensor_subscribe",
-        "auto_detect_printer",
-        "heal_heater_roles",
         "acknowledge_deferred_hardware",
         "validate_hardware",
         "hardware_prompts",
         "save_validation_snapshot",
         "telemetry",
-        "safety_limits",
-        "helix_plugin_check",
         "spoolman_sync",
-        "job_queue_fetch",
-        "settle_light_buttons",
         "auto_update_check",
         "moonraker_update_channel",
         "manual_probe_autoopen",
     };
-    CHECK(step_names() == expected);
+    CHECK(tail == expected);
+}
+
+TEST_CASE("desktop's combined order keeps the cross-table dependencies", "[discovery_steps]") {
+    const auto names = names_of(all_steps());
+    // The status replay writes subjects set_hardware builds.
+    CHECK(position_of(names, "set_hardware") < position_of(names, "status_dispatch"));
+    // The validator must see the post-preset roles auto-detect and the heal write.
+    CHECK(position_of(names, "auto_detect_printer") < position_of(names, "validate_hardware"));
+    CHECK(position_of(names, "heal_heater_roles") < position_of(names, "validate_hardware"));
 }
 
 TEST_CASE("only the steps that are pure functions of the hardware shape are gated",
           "[discovery_steps]") {
     std::vector<std::string> gated;
-    for (const DiscoveryStep& step : helix::discovery_steps()) {
+    for (const DiscoveryStep& step : all_steps()) {
         CHECK(step.run != nullptr);
         if (step.only_when_hw_changed) {
             gated.emplace_back(step.name);
@@ -132,7 +165,7 @@ TEST_CASE("only the steps that are pure functions of the hardware shape are gate
 
 TEST_CASE("the discovery breadcrumbs keep their keys", "[discovery_steps]") {
     std::vector<std::string> crumbs;
-    for (const DiscoveryStep& step : helix::discovery_steps()) {
+    for (const DiscoveryStep& step : all_steps()) {
         if (step.breadcrumb) {
             crumbs.emplace_back(step.breadcrumb);
         }

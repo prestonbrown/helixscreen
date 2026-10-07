@@ -73,6 +73,7 @@ void note(const char*, const char*, long) noexcept {}
 void TelemetryManager::record_error(const std::string&, const std::string&, const std::string&) {}
 void TelemetryManager::notify_overlay_opened(const std::string&) {}
 void TelemetryManager::notify_connection_state_changed(int) {}
+void TelemetryManager::record_hardware_profile() {}
 
 // --- UsbManager readers (udev/sysfs USB storage; no USB host on the slice) --
 // ctor/dtor/start/stop/set_drive_callback live in audit_stubs.cpp.

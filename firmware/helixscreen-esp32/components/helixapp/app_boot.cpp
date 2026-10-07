@@ -64,6 +64,7 @@
 #include "config_storage.h"
 #include "connection_state.h"
 #include "data_root_resolver.h"
+#include "discovery_steps.h"
 #include "esp_heap_caps.h"
 #include "esp_http_lane.h"
 #include "esp_log.h"
@@ -79,6 +80,7 @@
 #include "job_queue_state.h"
 #include "lap_log.h"
 #include "led/led_controller.h"
+#include "light_button_config.h"
 #include "moonraker_api.h" // complete MoonrakerAPI : IMoonrakerAPI for the init_panels upcast
 #include "moonraker_manager.h"
 #include "moonraker_types.h" // FileInfo/FileMetadata/ThumbnailInfo/resolve_thumbnail_path — HTTP HIL probe
@@ -87,7 +89,6 @@
 #include "pending_startup_warnings.h"
 #include "print_history_manager.h"
 #include "printer_discovery.h"
-#include "printer_fan_state.h" // helix::FanRoleConfig for the non-mock fan-role resolve
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
@@ -100,7 +101,6 @@
 #include "status_dispatch.h"
 #include "subject_initializer.h"
 #include "system/afc_message_dedup.h"
-#include "temp_graph_controller.h"
 #include "text_io.h"
 #include "theme_manager.h"
 #include "thumbnail_cache.h"
@@ -548,19 +548,21 @@ void run_http_hil_probe(MoonrakerManager* mgr) {
 //   * init_subsystems_from_hardware() runs in on_discovery_complete rather than
 //     on_hardware_discovered, so one epoch check covers it and it still precedes
 //     the initial-status dispatch.
-//   * on_discovery_complete drops: splash exit, self-restart sentinel cleanup,
-//     temperature-store history seed, LED-chip population, print-hours /
-//     timelapse / external-update method callbacks, PrinterDetector auto-detect,
-//     heater-role autoheal, HardwareValidator, power/sensor REST subscribe.
-//     Kept: hardware into PrinterState, fan + extruder subject init, klipper /
-//     moonraker version, and the initial-status dispatch — the load-bearing
-//     "live temps on the home panel" path.
+//   * on_discovery_complete runs only the core discovery steps
+//     (discovery_steps_core.cpp), not desktop's tail: no splash, update checker,
+//     timelapse, power/sensor subscribe, hardware validation, setup prompts,
+//     telemetry or Spoolman. There is no hardware fingerprint yet, so every pass
+//     counts as changed hardware.
 void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
     helix::IMoonrakerClient* client = manager.client();
     if (!client) {
         spdlog::error("app_boot: no Moonraker client — discovery callbacks not registered");
         return;
     }
+
+    // On a WLED-only printer discovery-complete finds nothing to light; WLED's
+    // answer is LED on at Start's next chance, and the latch keeps it to one.
+    helix::led::LedController::instance().set_on_wled_settled(helix::settle_light_buttons);
 
     MoonrakerManager* mgr = &manager;
     client->set_on_discovery_complete(
@@ -581,62 +583,41 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
                     spdlog::info("[app_boot] dropping discovery queued for the previous printer");
                     return;
                 }
-                helix::PrinterState& ps = get_printer_state();
-                helix::LapLog laps("app_boot discovery");
-
-                // Hardware into PrinterState first — init_fans builds its
-                // subjects from it, and set_hardware seeds the
-                // capability flags the home/motion panels read.
-                // Macros, the probe's bed centre and delta detection read the API's copy.
-                // A copy: the lines below still read *snapshot.
-                if (IMoonrakerAPI* a = mgr->api()) {
-                    a->hardware() = *snapshot;
-                }
-                ps.set_hardware(*snapshot);
-                laps.lap("set hardware");
-
-                const auto& fans = snapshot->fans();
-                ps.fan_state().init_fans(
-                    fans, helix::FanRoleConfig::from_config(helix::Config::get_instance(), fans),
-                    snapshot->fan_max_power());
-
-                ps.set_klipper_version(snapshot->software_version());
-                ps.set_moonraker_version(snapshot->moonraker_version());
-                laps.lap("fans, versions");
-
                 IMoonrakerAPI* api = mgr->api();
                 helix::IMoonrakerClient* c = mgr->client();
-
-                if (api) {
-                    helix::wall_clock_esp::request_date(api->get_http_base_url());
+                if (!api || !c) {
+                    spdlog::error("[app_boot] discovery completed with no API or client");
+                    return;
                 }
+                helix::LapLog laps("app_boot discovery");
+
+                // Macros, the probe's bed centre and delta detection read the API's copy.
+                api->hardware() = *snapshot;
+                helix::wall_clock_esp::request_date(api->get_http_base_url());
 
                 // Filament backends, sensors, extruders, tools, standard macros and
-                // LEDs: the same set desktop initialises. Before the dispatch below,
-                // so every subject the initial status writes already exists.
-                helix::init_subsystems_from_hardware(*snapshot, api, c);
+                // LEDs: the same set desktop initialises, and as there, before the
+                // core steps dispatch the initial status into their subjects.
+                helix::init_subsystems_from_hardware(api->hardware(), api, c);
                 laps.lap("subsystems");
-                if (c) {
-                    // Graphs start from Moonraker's cached history, as on desktop.
-                    helix::TempGraphController::seed_from_moonraker(*c);
-                }
-                laps.lap("graph seed");
 
-                // Dispatch the initial subscription status LAST, after the
-                // fan/sensor/extruder/AMS subjects exist. dispatch_status_update
-                // wraps it in a notify_status_update envelope and fans out to
-                // MoonrakerManager's notify handler → notification queue →
-                // process_notifications() (pumped from app_boot_tick) →
-                // update_from_status() + ToolState — exactly the path an
-                // inbound live notification takes. Same call the desktop
-                // handler makes (application.cpp:2593).
-                // Flagged as a cached snapshot: it was captured when the subscribe
-                // response landed, and live WebSocket frames have been flowing ever
-                // since, so it must not regress a liveness signal it predates.
-                if (c && status_snapshot->is_object() && !status_snapshot->empty()) {
-                    c->dispatch_status_update(*status_snapshot, /*from_cached_snapshot=*/true);
-                }
-                laps.lap("initial status");
+                helix::DiscoveryContext ctx{
+                    *api,
+                    *c,
+                    api->hardware(),
+                    *snapshot,
+                    *status_snapshot,
+                    /*prompter=*/nullptr,
+                    get_job_queue_state(),
+                    /*screen=*/nullptr,
+                    /*n=*/0,
+                    /*hw_changed=*/true,
+                    helix::discovery_print_active(
+                        lv_subject_get_int(
+                            get_printer_state().print_state().get_print_active_subject()) != 0,
+                        *status_snapshot)};
+                helix::run_discovery_steps(helix::discovery_core_steps(), ctx);
+                laps.lap("core steps");
 
                 if (g_switch_started_us != 0) {
                     spdlog::info("[app_boot] printer switch connected in {} ms",
@@ -645,8 +626,8 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
                 }
                 spdlog::info("[app_boot] discovery applied: {} heaters, {} fans, {} sensors, "
                              "{} initial-status keys",
-                             snapshot->heaters().size(), snapshot->fans().size(),
-                             snapshot->sensors().size(),
+                             api->hardware().heaters().size(), api->hardware().fans().size(),
+                             api->hardware().sensors().size(),
                              status_snapshot->is_object() ? status_snapshot->size() : 0);
                 if (auto* hm = get_print_history_manager()) {
                     hm->on_discovery_complete();

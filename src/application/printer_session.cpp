@@ -645,7 +645,7 @@ void PrinterSession::setup_discovery_callbacks() {
                 api->hardware(),
                 *snapshot,
                 *status_snapshot,
-                app->m_prompter,
+                &app->m_prompter,
                 app->m_job_queue_state.get(),
                 app->m_screen,
                 n,

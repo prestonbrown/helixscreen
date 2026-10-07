@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "hardware_setup_prompter.h"
 #include "hardware_validator.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
@@ -17,14 +16,18 @@
 
 namespace helix {
 
+class HardwareSetupPrompter;
+
 /**
  * @file discovery_steps.h
- * @brief What the app does each time Moonraker discovery completes, as an ordered table.
+ * @brief What the app does each time Moonraker discovery completes, as ordered tables.
  *
- * Application keeps the parts that need its own state (the shutdown guard, the hardware
- * fingerprint, the splash exit) and then walks discovery_steps() on the main thread. The
- * order is the contract: later steps read what earlier ones stored, so the table is
- * spelled out rather than self-registered.
+ * The session keeps the parts that need its own state (the shutdown guard, the hardware
+ * fingerprint, the splash exit) and then walks the steps on the main thread. The core
+ * table (discovery_steps_core.cpp) is what every build runs, the ESP32 firmware included;
+ * desktop runs the tail (discovery_steps.cpp) after it. No tail step has to precede a core
+ * step. The order is the contract: later steps read what earlier ones stored, so the
+ * tables are spelled out rather than self-registered.
  */
 
 /// What a step may read. Built once per discovery pass, after the hardware has been
@@ -41,7 +44,8 @@ struct DiscoveryContext {
     /// Subscription status that arrived with this discovery, replayed once as a cached
     /// snapshot.
     const nlohmann::json& status;
-    HardwareSetupPrompter& prompter;
+    /// Null where the session has no setup wizard (the firmware); only the tail reads it.
+    HardwareSetupPrompter* prompter;
     JobQueueState* job_queue_state;
     lv_obj_t* screen;
     /// Invocation number of this pass; every "disc" breadcrumb carries it.
@@ -85,14 +89,17 @@ struct DiscoveryStepRange {
     }
 };
 
-/// The steps of a discovery pass, in the order they run.
-DiscoveryStepRange discovery_steps();
+/// The steps every build runs, in order.
+DiscoveryStepRange discovery_core_steps();
+
+/// The desktop-only steps, run after the core ones.
+DiscoveryStepRange discovery_tail_steps();
 
 /// Run @p steps in order against @p ctx. A step marked only_when_hw_changed is skipped
 /// when ctx.hw_changed is false; its breadcrumb is recorded either way.
 void run_discovery_steps(DiscoveryStepRange steps, DiscoveryContext& ctx);
 
-/// run_discovery_steps() over discovery_steps().
+/// The core steps, then the tail.
 void run_discovery_steps(DiscoveryContext& ctx);
 
 /// Whether a print is running during this discovery pass. The status that arrived with
