@@ -5,6 +5,8 @@
 #   scripts/zeus-run.sh mutate --tests '[1543]'     # the mutation gate
 #   scripts/zeus-run.sh asan '[1543]'               # AddressSanitizer, one tag
 #   scripts/zeus-run.sh asan                        # AddressSanitizer, full suite, sharded as CI runs it
+#   scripts/zeus-run.sh tsan '[ams]'                # ThreadSanitizer, one tag
+#   scripts/zeus-run.sh tsan                        # ThreadSanitizer, full suite, sharded
 #   scripts/zeus-run.sh test '[netd]'               # plain suite, one tag
 #   scripts/zeus-run.sh sweep                       # make unit-sweep, sharded
 #   scripts/zeus-run.sh asan-app help-qr --repeat 50  # the APP under ASAN
@@ -85,6 +87,13 @@ case "$WHAT" in
                 CMD='make test-asan-one TEST="'"$_tag"'" -j$HELIX_J '"$*"
             fi
             GB_PER_JOB=1.5 ;;
+    tsan)   _tag="${1:-}"; [ $# -gt 0 ] && shift
+            if [ -z "$_tag" ]; then
+                CMD='make test-tsan -j$HELIX_J '"$*"
+            else
+                CMD='make test-tsan-one TEST="'"$_tag"'" -j$HELIX_J '"$*"
+            fi
+            GB_PER_JOB=1.5 ;;
     test)   CMD='make test -j$HELIX_J && ./build/bin/helix-tests "'"${1:-}"'"' ;;
     # Trailing args become make overrides, e.g. SHARD_CONCURRENCY=24.
     # NPROCS pins the shard count to thelio's 96. The count decides which tests
@@ -118,7 +127,7 @@ case "$WHAT" in
         CMD="make $WHAT $_vars"' -j$HELIX_J'
         EXPECTED_REPEAT="${_repeat:-25}"
         GB_PER_JOB=1.5 ;;
-    *)      echo "✗ unknown job '$WHAT' (mutate | asan | test | sweep | asan-app | tsan-app)" >&2; exit 2 ;;
+    *)      echo "✗ unknown job '$WHAT' (mutate | asan | tsan | test | sweep | asan-app | tsan-app)" >&2; exit 2 ;;
 esac
 
 LOG="${TMPDIR:-/tmp}/zeus-$WHAT-$SHORT.log"
@@ -253,9 +262,9 @@ REMOTE
 
 # A sanitizer run that produced no Catch2 summary ran nothing, whatever its exit
 # code said. Refusing to call that a pass is the whole point of checking.
-if [ "$WHAT" = asan ] && ! grep -qE 'All tests passed|test cases:|assertions:' "$LOG"; then
+if { [ "$WHAT" = asan ] || [ "$WHAT" = tsan ]; } && ! grep -qE 'All tests passed|test cases:|assertions:' "$LOG"; then
     echo ""
-    echo "✗ no Catch2 summary in $LOG — the suite did not run, so this is not a clean ASAN result" >&2
+    echo "✗ no Catch2 summary in $LOG — the suite did not run, so this is not a clean ${WHAT^^} result" >&2
     exit 1
 fi
 

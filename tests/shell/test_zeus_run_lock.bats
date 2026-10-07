@@ -185,3 +185,20 @@ wait_for_line() { # <substring> <file>
     [ -n "$reapply_line" ]
     [ "$reset_line" -lt "$reapply_line" ]
 }
+
+@test "tsan with a tag runs the single-test target" {
+    run "$SCRIPT" tsan '[ams]'
+    grep -qF 'make test-tsan-one TEST="[ams]"' "$MOCK_DOCKER_LOG"
+}
+
+@test "tsan with no tag runs the full target" {
+    run "$SCRIPT" tsan
+    grep -qE 'make test-tsan -j' "$MOCK_DOCKER_LOG"
+    ! grep -q 'test-tsan-one' "$MOCK_DOCKER_LOG"
+}
+
+@test "a tsan run with no Catch2 summary is not a pass" {
+    run "$SCRIPT" tsan '[ams]'
+    [ "$status" -eq 1 ]
+    has "not a clean TSAN result" "$output"
+}
