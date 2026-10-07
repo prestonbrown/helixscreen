@@ -684,7 +684,10 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
 
     // Status-backed values (from printer.mmu.* subscriptions)
     std::string led_exit_effect_;
-    std::string espooler_active_;
+    std::string espooler_active_; ///< eSpooler operation shown for the selected gate
+    /// The per-gate `espooler` list. Once a frame carries one that lines up
+    /// with the gates, the shown operation comes from here.
+    std::vector<std::string> espooler_per_gate_;
     int flowguard_encoder_mode_ = -1; ///< -1 = not yet received from Moonraker
 
     void query_config_defaults();

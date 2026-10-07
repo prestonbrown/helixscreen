@@ -1203,8 +1203,27 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
 
     // === Happy Hare v4 extended status fields ===
 
-    // Parse espooler_active: printer.mmu.espooler_active (v4)
-    if (mmu_data.contains("espooler_active") && mmu_data["espooler_active"].is_string()) {
+    // eSpooler: v4's per-gate espooler list wins over the deprecated single
+    // espooler_active; the selected gate may move without it. v3's list holds
+    // only the gates fitted with an eSpooler, so there it lines up with gate
+    // numbers only when every gate is.
+    if (mmu_data.contains("espooler") && mmu_data["espooler"].is_array()) {
+        espooler_per_gate_.clear();
+        for (const auto& op : mmu_data["espooler"]) {
+            espooler_per_gate_.push_back(op.is_string() ? op.get<std::string>() : std::string{});
+        }
+    }
+    const bool list_is_per_gate =
+        !espooler_per_gate_.empty() &&
+        (machine_layout_.v4 || static_cast<int>(espooler_per_gate_.size()) == slots_.slot_count());
+    if (list_is_per_gate) {
+        const int gate = system_info_.current_slot;
+        system_info_.espooler_state =
+            (gate >= 0 && gate < static_cast<int>(espooler_per_gate_.size()))
+                ? espooler_per_gate_[gate]
+                : std::string{};
+        espooler_active_ = system_info_.espooler_state;
+    } else if (mmu_data.contains("espooler_active") && mmu_data["espooler_active"].is_string()) {
         system_info_.espooler_state = mmu_data["espooler_active"].get<std::string>();
         espooler_active_ = system_info_.espooler_state;
         spdlog::trace("[AMS HappyHare] eSpooler state: {}", system_info_.espooler_state);
@@ -1230,6 +1249,18 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
         system_info_.sync_feedback_bias_raw = mmu_data["sync_feedback_bias_raw"].get<float>();
         spdlog::trace("[AMS HappyHare] Sync feedback bias (raw): {:.3f}",
                       system_info_.sync_feedback_bias_raw);
+    }
+
+    // v4 publishes null for the selected unit's missing buffer: no reading, so
+    // the "unavailable" sentinel rather than the last unit's value.
+    constexpr float kBiasUnavailable = -2.0f;
+    if (mmu_data.contains("sync_feedback_bias_modelled") &&
+        mmu_data["sync_feedback_bias_modelled"].is_null()) {
+        system_info_.sync_feedback_bias = kBiasUnavailable;
+    }
+    if (mmu_data.contains("sync_feedback_bias_raw") &&
+        mmu_data["sync_feedback_bias_raw"].is_null()) {
+        system_info_.sync_feedback_bias_raw = kBiasUnavailable;
     }
 
     // Parse sync_drive: printer.mmu.sync_drive (v4)
@@ -1290,7 +1321,15 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
     // Parse flowguard: printer.mmu.flowguard (v4, nested)
     if (mmu_data.contains("flowguard") && mmu_data["flowguard"].is_object()) {
         const auto& fg = mmu_data["flowguard"];
-        if (fg.contains("enabled") && fg["enabled"].is_boolean()) {
+        // An encoder-only v4 unit publishes flowguard as {active, enabled,
+        // encoder_mode}: the encoder's clog detection, not buffer FlowGuard, so
+        // buffer FlowGuard's enable bit follows only an object carrying its
+        // readings.
+        const bool buffer_data =
+            fg.contains("level") || fg.contains("trigger") || fg.contains("max_clog");
+        if (!buffer_data) {
+            system_info_.flowguard_info.enabled = false;
+        } else if (fg.contains("enabled") && fg["enabled"].is_boolean()) {
             system_info_.flowguard_info.enabled = fg["enabled"].get<bool>();
         }
         if (fg.contains("active") && fg["active"].is_boolean()) {
@@ -1314,6 +1353,15 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
         spdlog::trace("[AMS HappyHare] Flowguard: enabled={} active={} trigger={} level={:.2f}",
                       system_info_.flowguard_info.enabled, system_info_.flowguard_info.active,
                       system_info_.flowguard_info.trigger, system_info_.flowguard_info.level);
+    }
+
+    // A null flowguard or encoder is a selected unit without that hardware; the
+    // clog meter picks its source on these flags.
+    if (mmu_data.contains("flowguard") && mmu_data["flowguard"].is_null()) {
+        system_info_.flowguard_info.enabled = false;
+    }
+    if (mmu_data.contains("encoder") && mmu_data["encoder"].is_null()) {
+        system_info_.encoder_info.enabled = false;
     }
 
     // Parse LED state: printer.mmu.leds.unit0.exit_effect (v4)

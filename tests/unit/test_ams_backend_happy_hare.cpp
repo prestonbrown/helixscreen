@@ -4816,3 +4816,73 @@ TEST_CASE("Happy Hare v4 sensors dict with no gate selected names gates mmu_entr
     CHECK_FALSE(helper.get_slot_entry(1)->sensors.pre_gate_triggered);
     CHECK_FALSE(helper.slot_has_prep_sensor(3));
 }
+
+// ============================================================================
+// v4 null telemetry and the eSpooler list (#1479)
+// ============================================================================
+
+TEST_CASE("Happy Hare v4 null telemetry clears the selected unit's readings",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    // A unit with a buffer and an encoder is selected...
+    helper.test_parse_mmu_state(
+        {{"sync_feedback_bias_modelled", 0.25},
+         {"sync_feedback_bias_raw", 0.5},
+         {"encoder", {{"flow_rate", 95}}},
+         {"flowguard", {{"enabled", true}, {"level", 0.4}, {"encoder_mode", 2}}}});
+    auto info = helper.get_system_info();
+    REQUIRE(info.sync_feedback_bias == Catch::Approx(0.25f));
+    REQUIRE(info.encoder_info.enabled);
+    REQUIRE(info.flowguard_info.enabled);
+
+    // ...then one with neither: its nulls are "no reading", not the last unit's.
+    helper.test_parse_mmu_state({{"sync_feedback_bias_modelled", nullptr},
+                                 {"sync_feedback_bias_raw", nullptr},
+                                 {"encoder", nullptr},
+                                 {"flowguard", nullptr}});
+    info = helper.get_system_info();
+    CHECK(info.sync_feedback_bias == Catch::Approx(-2.0f));
+    CHECK(info.sync_feedback_bias_raw == Catch::Approx(-2.0f));
+    CHECK_FALSE(info.encoder_info.enabled);
+    CHECK_FALSE(info.flowguard_info.enabled);
+    CHECK(info.encoder_info.flow_rate == 95);
+    CHECK(info.flowguard_info.level == Catch::Approx(0.4f));
+}
+
+TEST_CASE("Happy Hare encoder-only flowguard is not buffer FlowGuard", "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.test_parse_mmu_state({{"flowguard", {{"enabled", true}, {"level", 0.1}}}});
+    REQUIRE(helper.get_system_info().flowguard_info.enabled);
+    helper.test_parse_mmu_state(
+        {{"flowguard", {{"active", false}, {"enabled", true}, {"encoder_mode", 2}}}});
+    CHECK_FALSE(helper.get_system_info().flowguard_info.enabled);
+    CHECK(helper.get_system_info().encoder_info.enabled); // mode 2
+}
+
+TEST_CASE("Happy Hare eSpooler list is read per gate only when it lines up",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    SECTION("v3 list covering two of four gates") {
+        helper.test_parse_mmu_state({{"gate_status", {1, 1, 1, 1}},
+                                     {"gate", 1},
+                                     {"espooler", {"rewind", "assist"}},
+                                     {"espooler_active", "print"}});
+        CHECK(helper.get_system_info().espooler_state == "print");
+        helper.test_parse_mmu_state({{"espooler", {"off", "rewind", "off", "off"}}});
+        CHECK(helper.get_system_info().espooler_state == "rewind");
+    }
+    SECTION("v4: the selected gate's entry, as the gate moves") {
+        helper.test_apply_config_defaults(kV4Settings, kV4MmuMachine);
+        helper.test_parse_mmu_state({{"gate_status", {1, 1, 1, 1}},
+                                     {"gate", 1},
+                                     {"espooler", {"", "assist", "off", "rewind"}},
+                                     {"espooler_active", ""}});
+        CHECK(helper.get_system_info().espooler_state == "assist");
+        helper.test_parse_mmu_state({{"gate", 3}});
+        CHECK(helper.get_system_info().espooler_state == "rewind");
+        helper.test_parse_mmu_state({{"gate", -1}});
+        CHECK(helper.get_system_info().espooler_state.empty());
+    }
+}
