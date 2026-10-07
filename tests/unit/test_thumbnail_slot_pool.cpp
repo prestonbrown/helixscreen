@@ -83,3 +83,44 @@ TEST_CASE("a slot allocation that fails yields no slot and is tried again later"
     }
     CHECK(g_live == 0);
 }
+
+TEST_CASE("an arena pool takes every slot in one allocation up front", "[thumbnail][slots]") {
+    reset_counts();
+    {
+        ThumbnailSlotPool pool(1000, 3, counting_alloc, counting_free, /*arena=*/true);
+        REQUIRE(pool.ok());
+        CHECK(g_allocs == 1); // one block, so later decodes cannot fail on fragmentation
+        CHECK(pool.allocated() == 3);
+
+        uint8_t* a = pool.acquire();
+        uint8_t* b = pool.acquire();
+        uint8_t* c = pool.acquire();
+        REQUIRE(a);
+        REQUIRE(b);
+        REQUIRE(c);
+        CHECK(pool.acquire() == nullptr);
+        // Disjoint slices of the one block.
+        std::set<uint8_t*> slots{a, b, c};
+        CHECK(slots.size() == 3);
+        CHECK(*slots.rbegin() - *slots.begin() == 2000);
+
+        pool.release(c);
+        CHECK(pool.acquire() == c);
+        CHECK(g_allocs == 1);
+    }
+    CHECK(g_live == 0);
+}
+
+TEST_CASE("an arena that cannot be allocated leaves a pool that hands out nothing",
+          "[thumbnail][slots]") {
+    reset_counts();
+    {
+        g_fail_after = 0;
+        ThumbnailSlotPool pool(1000, 3, counting_alloc, counting_free, /*arena=*/true);
+        CHECK_FALSE(pool.ok());
+        g_fail_after = -1;
+        CHECK(pool.acquire() == nullptr); // no quiet fallback to one slot at a time
+        CHECK(g_allocs == 0);
+    }
+    CHECK(g_live == 0);
+}

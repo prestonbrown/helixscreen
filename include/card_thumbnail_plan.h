@@ -7,6 +7,8 @@
 // least-recently-shown order while room is left, and everything held or in
 // flight stays within a byte budget. The panel applies the plan.
 
+#include "thumbnail_downscale.h" // ThumbnailDecodeFailure
+
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -45,5 +47,12 @@ struct CardThumbnailPlan {
 CardThumbnailPlan plan_card_thumbnails(const std::vector<CardThumbnailState>& files, size_t first,
                                        size_t end, size_t in_flight, size_t estimate, size_t budget,
                                        bool lane_refused = false);
+
+/// Whether a card whose decode failed with @p failure is fetched again while it
+/// stays on screen. Memory frees up as other cards go; a bad image stays bad, so
+/// those keep the placeholder until the card is next shown.
+inline bool card_thumbnail_retry_while_shown(ThumbnailDecodeFailure failure) {
+    return failure == ThumbnailDecodeFailure::OutOfMemory;
+}
 
 } // namespace helix

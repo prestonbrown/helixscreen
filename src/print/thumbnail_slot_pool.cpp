@@ -6,10 +6,30 @@
 namespace helix {
 
 ThumbnailSlotPool::ThumbnailSlotPool(size_t slot_bytes, size_t max_slots, AllocFn alloc,
-                                     FreeFn free)
-    : slot_bytes_(slot_bytes), max_slots_(max_slots), alloc_(alloc), free_(free) {}
+                                     FreeFn free, bool arena)
+    : slot_bytes_(slot_bytes), max_slots_(max_slots), alloc_(alloc), free_(free) {
+    if (!arena) {
+        return;
+    }
+    arena_ = static_cast<uint8_t*>(alloc_(slot_bytes * max_slots));
+    ok_ = arena_ != nullptr;
+    if (!ok_) {
+        return;
+    }
+    all_.reserve(max_slots);
+    free_list_.reserve(max_slots);
+    // Handed out lowest address first.
+    for (size_t i = max_slots; i-- > 0;) {
+        all_.push_back(arena_ + i * slot_bytes);
+        free_list_.push_back(arena_ + i * slot_bytes);
+    }
+}
 
 ThumbnailSlotPool::~ThumbnailSlotPool() {
+    if (arena_) {
+        free_(arena_);
+        return;
+    }
     for (uint8_t* slot : all_) {
         free_(slot);
     }
@@ -22,7 +42,7 @@ uint8_t* ThumbnailSlotPool::acquire() {
         free_list_.pop_back();
         return slot;
     }
-    if (all_.size() >= max_slots_) {
+    if (all_.size() >= max_slots_ || !ok_) {
         return nullptr;
     }
     // Reserve the bookkeeping first so recording the slot cannot fail after it

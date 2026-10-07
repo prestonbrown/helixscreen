@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-// Fixed-size buffers for card thumbnails, allocated the first time each is
-// needed and then reused until the pool goes. Freeing and reallocating an 80KB
-// thumbnail for every card that scrolls past fragments a small heap until no
-// block that size is left; a slot handed back is handed out again instead.
+// Fixed-size buffers for card thumbnails, reused until the pool goes. Freeing
+// and reallocating an 80KB thumbnail for every card that scrolls past fragments
+// a small heap until no block that size is left; a slot handed back is handed
+// out again instead. Slots are allocated the first time each is needed, or all
+// at once as one arena, which also keeps them from scattering across the heap.
 
 #include <cstddef>
 #include <cstdint>
@@ -20,8 +21,11 @@ class ThumbnailSlotPool {
     using AllocFn = void* (*)(size_t);
     using FreeFn = void (*)(void*);
 
-    /// Up to @p max_slots buffers of @p slot_bytes each, from @p alloc.
-    ThumbnailSlotPool(size_t slot_bytes, size_t max_slots, AllocFn alloc, FreeFn free);
+    /// Up to @p max_slots buffers of @p slot_bytes each, from @p alloc: one
+    /// allocation each as needed, or with @p arena one allocation for them all
+    /// now (ok() says whether it was had).
+    ThumbnailSlotPool(size_t slot_bytes, size_t max_slots, AllocFn alloc, FreeFn free,
+                      bool arena = false);
     ~ThumbnailSlotPool();
     ThumbnailSlotPool(const ThumbnailSlotPool&) = delete;
     ThumbnailSlotPool& operator=(const ThumbnailSlotPool&) = delete;
@@ -32,6 +36,10 @@ class ThumbnailSlotPool {
     /// Hands @p slot back for reuse. Safe from any thread.
     void release(uint8_t* slot);
 
+    /// False when the arena could not be allocated: the pool hands out nothing.
+    bool ok() const {
+        return ok_;
+    }
     size_t slot_bytes() const {
         return slot_bytes_;
     }
@@ -43,6 +51,8 @@ class ThumbnailSlotPool {
     const size_t max_slots_;
     const AllocFn alloc_;
     const FreeFn free_;
+    uint8_t* arena_ = nullptr; ///< every slot, when allocated as one block
+    bool ok_ = true;
     mutable std::mutex mutex_;
     std::vector<uint8_t*> all_;
     std::vector<uint8_t*> free_list_;

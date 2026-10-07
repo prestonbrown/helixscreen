@@ -177,3 +177,12 @@ TEST_CASE("a window past the list end is clamped", "[card_thumbnail_plan]") {
     CHECK(plan_card_thumbnails(f, 40, 50, 0, EST, 960 * KB).fetch.empty());
     CHECK(plan_card_thumbnails({}, 0, 10, 0, EST, 960 * KB).fetch.empty());
 }
+
+TEST_CASE("only a decode that ran out of memory is tried again while its card stays shown",
+          "[card_thumbnail_plan]") {
+    using helix::ThumbnailDecodeFailure;
+    CHECK(helix::card_thumbnail_retry_while_shown(ThumbnailDecodeFailure::OutOfMemory));
+    CHECK_FALSE(helix::card_thumbnail_retry_while_shown(ThumbnailDecodeFailure::BadImage));
+    CHECK_FALSE(helix::card_thumbnail_retry_while_shown(ThumbnailDecodeFailure::Unsupported));
+    CHECK_FALSE(helix::card_thumbnail_retry_while_shown(ThumbnailDecodeFailure::None));
+}

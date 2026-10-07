@@ -874,6 +874,9 @@ class PrintSelectPanel : public PanelBase {
     /// What card thumbnails decode onto (PrintSelectCardView::esp_thumbnail_backdrop),
     /// or nullptr when they keep their alpha. Every held thumbnail was made with it.
     std::shared_ptr<const std::vector<uint16_t>> esp_backdrop_;
+    /// The opaque slots' arena could not be allocated: thumbnails keep alpha
+    /// until the panel is next opened.
+    bool esp_arena_failed_ = false;
     /// The last deactivate kept the thumbnails for a detail view push.
     bool esp_kept_for_detail_ = false;
     /// The HTTP lane refused a card fetch and none of ours has completed since.
@@ -881,6 +884,9 @@ class PrintSelectPanel : public PanelBase {
     /// Clears a refusal when no fetch of ours is in flight to free a lane slot.
     helix::ui::LvglTimerGuard esp_lane_retry_timer_;
     static constexpr uint32_t ESP_LANE_RETRY_MS = 500;
+    /// Holds card fetches until one of ours completes, or ESP_LANE_RETRY_MS
+    /// passes when none is in flight.
+    void hold_esp_fetches();
 
     /// The card window [first, end) the last sync saw.
     size_t esp_window_first_ = 0;

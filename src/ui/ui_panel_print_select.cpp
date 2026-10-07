@@ -3730,17 +3730,23 @@ PrintSelectPanel::fetch_esp_thumbnail(size_t index, const std::string& filename,
                                  : "corrupt or too large");
             }
             tok.defer("PrintSelectPanel::on_psram_thumbnail_fetched",
-                      [this, index, filename, thumb = std::move(thumb)]() mutable {
+                      [this, index, filename, failure, thumb = std::move(thumb)]() mutable {
                           --esp_thumbnails_in_flight_;
                           esp_lane_refused_ = false; // this fetch's lane slot is free
                           // Kept only while its card is still on screen.
-                          if (thumb && index < file_list_.size() &&
-                              file_list_[index].filename == filename &&
-                              file_list_[index].esp_thumbnail_tried) {
+                          const bool shown = index < file_list_.size() &&
+                                             file_list_[index].filename == filename &&
+                                             file_list_[index].esp_thumbnail_tried;
+                          if (thumb && shown) {
                               file_list_[index].esp_thumbnail = std::move(thumb);
                               if (card_view_) {
                                   card_view_->update_thumbnail(index, file_list_[index]);
                               }
+                          } else if (!thumb && shown &&
+                                     helix::card_thumbnail_retry_while_shown(failure)) {
+                              // Fetched again after a pause, not left a placeholder.
+                              file_list_[index].esp_thumbnail_tried = false;
+                              hold_esp_fetches();
                           }
                           sync_esp_thumbnails(esp_window_first_, esp_window_end_);
                       });
@@ -3787,6 +3793,7 @@ void PrintSelectPanel::release_esp_card_thumbnails() {
     }
     esp_slots_.reset();
     esp_backdrop_.reset();
+    esp_arena_failed_ = false;
     esp_lane_refused_ = false;
     esp_lane_retry_timer_.reset();
 }
@@ -3795,8 +3802,9 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end) {
     const helix::ThumbnailTarget target = helix::ThumbnailProcessor::get_target_for_display();
     // Opaque over the card gradient where the cards allow it: a third smaller,
     // and drawn as a copy instead of a blend.
-    auto backdrop =
-        card_view_ ? card_view_->esp_thumbnail_backdrop(target.width, target.height) : nullptr;
+    auto backdrop = card_view_ && !esp_arena_failed_
+                        ? card_view_->esp_thumbnail_backdrop(target.width, target.height)
+                        : nullptr;
     const helix::ThumbnailDims box{target.width, target.height};
     const size_t estimate = backdrop ? helix::rgb565_size(box) : helix::rgb565a8_size(box);
     if (esp_slots_ && (esp_slots_->slot_bytes() != estimate || backdrop != esp_backdrop_)) {
@@ -3825,11 +3833,24 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end) {
         states, first, end, static_cast<size_t>(std::max(esp_thumbnails_in_flight_, 0)), estimate,
         helix::CARD_THUMBNAIL_BUDGET, esp_lane_refused_);
     if (!plan.fetch.empty() && !esp_slots_) {
-        // One slot per card the budget allows.
+        // One slot per card the budget allows. Opaque slots come as one arena:
+        // with more of them kept, slots allocated one at a time scatter across
+        // PSRAM until a decode's working memory no longer fits beside them.
         esp_slots_ = std::make_shared<helix::ThumbnailSlotPool>(
             estimate, helix::CARD_THUMBNAIL_BUDGET / estimate,
             [](size_t n) { return heap_caps_malloc(n, MALLOC_CAP_SPIRAM); },
-            [](void* p) { heap_caps_free(p); });
+            [](void* p) { heap_caps_free(p); }, /*arena=*/esp_backdrop_ != nullptr);
+        if (!esp_slots_->ok()) {
+            // No room for the arena: thumbnails keep their alpha, one slot at a
+            // time, until the panel is next opened.
+            spdlog::warn("[{}] No PSRAM for {} card thumbnail slots; keeping alpha", get_name(),
+                         helix::CARD_THUMBNAIL_BUDGET / estimate);
+            esp_slots_.reset();
+            esp_backdrop_.reset();
+            esp_arena_failed_ = true;
+            sync_esp_thumbnails(first, end);
+            return;
+        }
     }
 
     // A card the plan drops fetches again when it comes back.
@@ -3845,20 +3866,24 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end) {
             // The lane is full: fetch again once one of ours completes, or
             // after a pause when none is in flight to free a slot.
             f.esp_thumbnail_tried = false;
-            esp_lane_refused_ = true;
-            if (esp_thumbnails_in_flight_ <= 0 && !esp_lane_retry_timer_) {
-                esp_lane_retry_timer_.reset(lv_timer_create(
-                    [](lv_timer_t* timer) {
-                        auto* self = static_cast<PrintSelectPanel*>(lv_timer_get_user_data(timer));
-                        self->esp_lane_retry_timer_.release(); // one-shot: LVGL deletes it
-                        self->esp_lane_refused_ = false;
-                        self->sync_esp_thumbnails(self->esp_window_first_, self->esp_window_end_);
-                    },
-                    ESP_LANE_RETRY_MS, this));
-                lv_timer_set_repeat_count(esp_lane_retry_timer_.get(), 1);
-            }
+            hold_esp_fetches();
             break;
         }
+    }
+}
+
+void PrintSelectPanel::hold_esp_fetches() {
+    esp_lane_refused_ = true;
+    if (esp_thumbnails_in_flight_ <= 0 && !esp_lane_retry_timer_) {
+        esp_lane_retry_timer_.reset(lv_timer_create(
+            [](lv_timer_t* timer) {
+                auto* self = static_cast<PrintSelectPanel*>(lv_timer_get_user_data(timer));
+                self->esp_lane_retry_timer_.release(); // one-shot: LVGL deletes it
+                self->esp_lane_refused_ = false;
+                self->sync_esp_thumbnails(self->esp_window_first_, self->esp_window_end_);
+            },
+            ESP_LANE_RETRY_MS, this));
+        lv_timer_set_repeat_count(esp_lane_retry_timer_.get(), 1);
     }
 }
 #endif
