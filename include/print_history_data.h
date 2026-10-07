@@ -90,9 +90,7 @@ namespace helix {
  */
 [[nodiscard]] inline std::string job_thumbnail_path(const PrintHistoryJob& job,
                                                     const std::string& relative_path) {
-    const auto slash = job.filename.find_last_of('/');
-    return resolve_thumbnail_path(relative_path,
-                                  slash == std::string::npos ? "" : job.filename.substr(0, slash));
+    return resolve_gcode_thumbnail_path(relative_path, job.filename);
 }
 
 /**
