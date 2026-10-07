@@ -3752,23 +3752,38 @@ PrintSelectPanel::fetch_esp_thumbnail(size_t index, const std::string& filename,
                                  : "corrupt or too large");
             }
             tok.defer("PrintSelectPanel::on_psram_thumbnail_fetched",
-                      [this, index, filename, failure, thumb = std::move(thumb)]() mutable {
+                      [this, index, filename, failure, slots = std::move(slots),
+                       backdrop = std::move(backdrop), thumb = std::move(thumb)]() mutable {
                           --esp_thumbnails_in_flight_;
                           esp_lane_refused_ = false; // this fetch's lane slot is free
-                          // Kept only while its card is still on screen.
                           const bool shown = index < file_list_.size() &&
                                              file_list_[index].filename == filename &&
                                              file_list_[index].esp_thumbnail_tried;
-                          if (thumb && shown) {
+                          helix::CardThumbnailResult result;
+                          result.decoded = thumb != nullptr;
+                          result.failure = failure;
+                          result.shown = shown;
+                          result.current = slots == esp_slots_ && backdrop == esp_backdrop_;
+                          result.retried = shown && file_list_[index].esp_thumbnail_oom_retried;
+                          switch (helix::card_thumbnail_outcome(result)) {
+                          case helix::CardThumbnailOutcome::Keep:
                               file_list_[index].esp_thumbnail = std::move(thumb);
                               if (card_view_) {
                                   card_view_->update_thumbnail(index, file_list_[index]);
                               }
-                          } else if (!thumb && shown &&
-                                     helix::card_thumbnail_retry_while_shown(failure)) {
-                              // Fetched again after a pause, not left a placeholder.
+                              break;
+                          case helix::CardThumbnailOutcome::Retry:
                               file_list_[index].esp_thumbnail_tried = false;
+                              file_list_[index].esp_thumbnail_oom_retried = true;
                               hold_esp_fetches();
+                              break;
+                          case helix::CardThumbnailOutcome::Discard:
+                              if (shown && !result.current) {
+                                  // Made for a replaced pool or backdrop: fetched
+                                  // again into the current one.
+                                  file_list_[index].esp_thumbnail_tried = false;
+                              }
+                              break;
                           }
                           sync_esp_thumbnails(esp_window_first_, esp_window_end_);
                       });
@@ -3809,6 +3824,7 @@ void PrintSelectPanel::release_esp_card_thumbnails() {
     for (PrintFileData& f : file_list_) {
         f.esp_thumbnail.reset();
         f.esp_thumbnail_tried = false;
+        f.esp_thumbnail_oom_retried = false;
     }
     if (card_view_) {
         card_view_->release_esp_thumbnails();
@@ -3879,6 +3895,7 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end, bool keep_o
     for (size_t i : plan.drop) {
         file_list_[i].esp_thumbnail.reset();
         file_list_[i].esp_thumbnail_tried = false;
+        file_list_[i].esp_thumbnail_oom_retried = false;
     }
     if (!keep_off_screen && esp_slots_) {
         esp_slots_->trim(); // the memory, not just the thumbnails, goes back

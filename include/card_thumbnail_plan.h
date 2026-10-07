@@ -52,11 +52,36 @@ CardThumbnailPlan plan_card_thumbnails(const std::vector<CardThumbnailState>& fi
                                        size_t end, size_t in_flight, size_t estimate, size_t budget,
                                        bool lane_refused = false, bool keep_off_screen = true);
 
-/// Whether a card whose decode failed with @p failure is fetched again while it
-/// stays on screen. Memory frees up as other cards go; a bad image stays bad, so
-/// those keep the placeholder until the card is next shown.
-inline bool card_thumbnail_retry_while_shown(ThumbnailDecodeFailure failure) {
-    return failure == ThumbnailDecodeFailure::OutOfMemory;
+/// A card thumbnail decode as it comes back to the panel.
+struct CardThumbnailResult {
+    bool decoded = false;
+    ThumbnailDecodeFailure failure = ThumbnailDecodeFailure::BadImage;
+    bool shown = true;    ///< its card is still on screen with its fetch marked
+    bool current = true;  ///< decoded into the pool and backdrop the panel uses now
+    bool retried = false; ///< it already ran out of memory once this showing
+};
+
+enum class CardThumbnailOutcome {
+    Keep,    ///< show it
+    Retry,   ///< fetch it again after the lane pause
+    Discard, ///< drop it; the card keeps its placeholder until next shown
+};
+
+/// What the panel does with a finished decode. Memory frees up as other cards
+/// go, so running out is retried, once per showing so a PSRAM that stays tight
+/// cannot refetch every card on screen over and over; a bad image stays bad.
+/// A result for a card that left, or made for a pool or backdrop since
+/// replaced, is neither kept nor retried.
+inline CardThumbnailOutcome card_thumbnail_outcome(const CardThumbnailResult& r) {
+    if (!r.shown || !r.current) {
+        return CardThumbnailOutcome::Discard;
+    }
+    if (r.decoded) {
+        return CardThumbnailOutcome::Keep;
+    }
+    return r.failure == ThumbnailDecodeFailure::OutOfMemory && !r.retried
+               ? CardThumbnailOutcome::Retry
+               : CardThumbnailOutcome::Discard;
 }
 
 } // namespace helix

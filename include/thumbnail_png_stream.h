@@ -107,8 +107,9 @@ inline bool thumbnail_decode_fits(size_t largest_free, size_t kept, size_t worki
     return largest_free >= floor && largest_free - floor >= kept + working;
 }
 
-/// Bytes card thumbnails may hold at once. Only cards on screen hold one, and
-/// this caps them even when the screen shows many.
+/// Bytes card thumbnails may hold at once, on screen and kept for scrolling
+/// back. Opaque thumbnails also hold one card-sized RGB565 backdrop (54KB on
+/// an 800x480 screen) outside this budget.
 inline constexpr size_t CARD_THUMBNAIL_BUDGET = 960 * 1024;
 
 /// True when one more card thumbnail of @p kept bytes fits the budget beside

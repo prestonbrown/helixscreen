@@ -178,13 +178,42 @@ TEST_CASE("a window past the list end is clamped", "[card_thumbnail_plan]") {
     CHECK(plan_card_thumbnails({}, 0, 10, 0, EST, 960 * KB).fetch.empty());
 }
 
-TEST_CASE("only a decode that ran out of memory is tried again while its card stays shown",
-          "[card_thumbnail_plan]") {
+TEST_CASE("a finished decode is kept, retried once, or discarded", "[card_thumbnail_plan]") {
+    using helix::CardThumbnailOutcome;
+    using helix::CardThumbnailResult;
     using helix::ThumbnailDecodeFailure;
-    CHECK(helix::card_thumbnail_retry_while_shown(ThumbnailDecodeFailure::OutOfMemory));
-    CHECK_FALSE(helix::card_thumbnail_retry_while_shown(ThumbnailDecodeFailure::BadImage));
-    CHECK_FALSE(helix::card_thumbnail_retry_while_shown(ThumbnailDecodeFailure::Unsupported));
-    CHECK_FALSE(helix::card_thumbnail_retry_while_shown(ThumbnailDecodeFailure::None));
+    const auto outcome = [](CardThumbnailResult r) { return helix::card_thumbnail_outcome(r); };
+
+    CardThumbnailResult ok;
+    ok.decoded = true;
+    ok.failure = ThumbnailDecodeFailure::None;
+    CHECK(outcome(ok) == CardThumbnailOutcome::Keep);
+
+    // Out of memory while shown: fetched once more, and only once per showing.
+    CardThumbnailResult oom;
+    oom.failure = ThumbnailDecodeFailure::OutOfMemory;
+    CHECK(outcome(oom) == CardThumbnailOutcome::Retry);
+    oom.retried = true;
+    CHECK(outcome(oom) == CardThumbnailOutcome::Discard);
+
+    // A bad image stays bad.
+    CardThumbnailResult bad;
+    bad.failure = ThumbnailDecodeFailure::BadImage;
+    CHECK(outcome(bad) == CardThumbnailOutcome::Discard);
+    bad.failure = ThumbnailDecodeFailure::Unsupported;
+    CHECK(outcome(bad) == CardThumbnailOutcome::Discard);
+
+    // Stale: the card left the screen, or the result belongs to a pool or
+    // backdrop that has since been replaced. Neither is kept nor retried.
+    for (CardThumbnailResult r :
+         {ok, CardThumbnailResult{false, ThumbnailDecodeFailure::OutOfMemory}}) {
+        CardThumbnailResult gone = r;
+        gone.shown = false;
+        CHECK(outcome(gone) == CardThumbnailOutcome::Discard);
+        CardThumbnailResult replaced = r;
+        replaced.current = false;
+        CHECK(outcome(replaced) == CardThumbnailOutcome::Discard);
+    }
 }
 
 TEST_CASE("with off-screen keeping off, only the window's thumbnails stay",

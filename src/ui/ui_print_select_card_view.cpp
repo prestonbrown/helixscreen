@@ -115,6 +115,7 @@ void PrintSelectCardView::clear_cached_state() {
     cached_gradient_h_ = 0;
 #if defined(HELIX_PLATFORM_ESP32)
     esp_backdrop_.reset();
+    esp_backdrop_none_ = false;
 #endif
 
     // Clear data structures
@@ -200,6 +201,7 @@ void PrintSelectCardView::ensure_gradient_cache(int32_t card_width, int32_t card
     cached_gradient_dark_ = dark;
 #if defined(HELIX_PLATFORM_ESP32)
     esp_backdrop_.reset(); // thumbnails baked onto the old gradient no longer match
+    esp_backdrop_none_ = false;
 #endif
 
     // Update ALL pool cards to reference the new buffer immediately
@@ -423,10 +425,15 @@ void PrintSelectCardView::release_esp_thumbnails() {
 
 std::shared_ptr<const std::vector<uint16_t>> PrintSelectCardView::esp_thumbnail_backdrop(int w,
                                                                                          int h) {
-    if (esp_backdrop_ && esp_backdrop_w_ == w && esp_backdrop_h_ == h) {
-        return esp_backdrop_;
+    if (esp_backdrop_w_ == w && esp_backdrop_h_ == h && (esp_backdrop_ || esp_backdrop_none_)) {
+        return esp_backdrop_; // nullptr for a box already found to have none
     }
     esp_backdrop_.reset();
+    // Remembered either way until the gradient or the box changes, so the
+    // scroll path does not lay a card out again on every sync.
+    esp_backdrop_w_ = w;
+    esp_backdrop_h_ = h;
+    esp_backdrop_none_ = true;
     if (!cached_gradient_ || cached_gradient_->header.cf != LV_COLOR_FORMAT_RGB565 ||
         card_pool_.empty() || w <= 0 || h <= 0) {
         return nullptr;
@@ -465,8 +472,7 @@ std::shared_ptr<const std::vector<uint16_t>> PrintSelectCardView::esp_thumbnail_
         px->insert(px->end(), src, src + w);
     }
     esp_backdrop_ = std::move(px);
-    esp_backdrop_w_ = w;
-    esp_backdrop_h_ = h;
+    esp_backdrop_none_ = false;
     return esp_backdrop_;
 }
 

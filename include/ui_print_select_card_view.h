@@ -359,6 +359,7 @@ class PrintSelectCardView : public ContainerDeleteNet {
     std::shared_ptr<const std::vector<uint16_t>> esp_backdrop_;
     int esp_backdrop_w_ = 0;
     int esp_backdrop_h_ = 0;
+    bool esp_backdrop_none_ = false; ///< the box esp_backdrop_w_/h_ has no backdrop
 #endif
 
     /**

@@ -97,6 +97,8 @@ struct PrintFileData {
     /// holding nothing, so a failed thumbnail is tried again only when the card
     /// is next shown.
     bool esp_thumbnail_tried = false;
+    /// Its decode ran out of memory and was fetched once more while shown.
+    bool esp_thumbnail_oom_retried = false;
     /// The print-select sync tick at which its card was last on screen.
     uint32_t esp_thumbnail_shown = 0;
 #endif
