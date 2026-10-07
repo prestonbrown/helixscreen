@@ -27,6 +27,8 @@
  */
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
+#include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "panel_widget_size.h"
@@ -74,6 +76,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "print_status card keeps row layout after at
         lv_obj_t* comp = make_print_status(test_screen());
         REQUIRE(comp != nullptr);
         widget.attach(comp, test_screen());
+        // The card layout exists only while a print holds the machine.
+        helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+        process_lvgl(10);
 
         // Wide band -> row layout. is_column_ starts false, so on_size_changed
         // early-returns; attach() must have already applied the row layout.
@@ -127,6 +132,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "print_status card layout survives instance 
         lv_obj_t* comp1 = make_print_status(test_screen());
         REQUIRE(comp1 != nullptr);
         widget.attach(comp1, test_screen());
+        // The card layout exists only while a print holds the machine; it stays
+        // active across the recycles below, so each fresh tree is built with it.
+        helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+        process_lvgl(10);
         widget.on_size_changed(3, 2, w_wide(), 400);
         process_lvgl(30);
         flow_first = card_flow(comp1);

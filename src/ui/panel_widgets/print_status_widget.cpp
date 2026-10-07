@@ -237,41 +237,13 @@ void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 
     // Cache widget references from XML
     print_card_thumb_ = lv_obj_find_by_name(widget_obj_, "print_card_thumb");
-    print_card_active_thumb_ = lv_obj_find_by_name(widget_obj_, "print_card_active_thumb");
-    print_card_layout_ = lv_obj_find_by_name(widget_obj_, "print_card_layout");
-    print_card_thumb_wrap_ = lv_obj_find_by_name(widget_obj_, "print_card_thumb_wrap");
-    print_card_info_ = lv_obj_find_by_name(widget_obj_, "print_card_info");
-    print_card_preparing_info_ = lv_obj_find_by_name(widget_obj_, "print_card_preparing_info");
 
     // Library idle state widgets
     print_card_thumb_compact_ = lv_obj_find_by_name(widget_obj_, "print_card_thumb_compact");
     library_row_last_ = lv_obj_find_by_name(widget_obj_, "library_row_last");
     compact_row_last_ = lv_obj_find_by_name(widget_obj_, "compact_row_last");
 
-    // Hand the detailed-layout arc widget to the formatter (may be nullptr if not in DOM yet)
-    lv_obj_t* detailed_arc = lv_obj_find_by_name(widget_obj_, "detailed_progress_arc");
-    if (s_formatter_ && detailed_arc) {
-        s_formatter_->attach_arc(detailed_arc);
-    }
-
-    // Scheduled-pause ticks on both progress surfaces of this card: the arc in
-    // the detailed active view and the linear bar in the library active view.
-    // The fill itself stays on the XML bind_value to print_progress_display.
-    helix::ui::attach_arc_pause_markers(detailed_arc, printer_state_);
-    helix::ui::attach_bar_pause_markers(lv_obj_find_by_name(widget_obj_, "print_progress_bar"),
-                                        printer_state_);
-
-    // Nozzle reads the tool-pin-aware proxy subjects rather than the raw
-    // active-extruder ones, so the icon tracks whichever tool the card is
-    // showing. Bed and chamber use the PrinterState defaults. The proxy
-    // subjects live on s_formatter_, which is only ever replaced from
-    // acquire_formatter() — i.e. while no widget is attached — so they genuinely
-    // outlive this binder.
-    nozzle_icon_binder_.bind_subjects(widget_obj_, "nozzle_icon_glyph",
-                                      lv_xml_get_subject(nullptr, "print_status_nozzle_current"),
-                                      lv_xml_get_subject(nullptr, "print_status_nozzle_target"));
-    bed_icon_binder_.bind(widget_obj_, printer_state_, helix::HeaterType::Bed);
-    chamber_icon_binder_.bind(widget_obj_, printer_state_, helix::HeaterType::Chamber);
+    bind_active_branch();
 
     // Set up observers (after widget references are cached and widget_obj_ is set)
     print_state_observer_ = observe_print_lifecycle<PrintStatusWidget>(
@@ -389,8 +361,9 @@ void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 
     spdlog::debug("[PrintStatusWidget] Subscribed to print state/progress/time/thumbnail/runout");
 
-    // Check initial print state
-    if (print_card_thumb_ && print_card_active_thumb_) {
+    // Check initial print state. The active widgets exist only while a print holds the
+    // machine, so the idle thumbnail is what proves the tree is this widget's.
+    if (print_card_thumb_) {
         const PrintState state = printer_state_.print_state().get_print_lifecycle();
         if (job_holds_machine(state)) {
             on_print_state_changed(state);
@@ -404,13 +377,25 @@ void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         }
         spdlog::debug("[PrintStatusWidget] Found print card widgets for dynamic updates");
     } else {
-        spdlog::warn("[PrintStatusWidget] Could not find all print card widgets "
-                     "(thumb={}, active_thumb={})",
-                     print_card_thumb_ != nullptr, print_card_active_thumb_ != nullptr);
+        spdlog::warn("[PrintStatusWidget] Could not find the print card thumbnail");
     }
 
     // Apply section visibility from config (drives all print_status_*_hidden subjects)
     apply_visibility_config();
+
+    // The view subject is shared: one card's change rebuilds every card's active views,
+    // so each card rebinds its own after any change, whoever made it.
+    view_observer_ = observe<int>(
+        &view_subject_, this,
+        [](PrintStatusWidget* self, int v) {
+            if (!self->widget_obj_)
+                return;
+            self->bind_active_branch();
+            self->apply_card_layout();
+            if (v >= 3)
+                self->defer_apply_active_thumbnail();
+        },
+        subject_never_freed());
 
     // Re-run visibility when the breakpoint changes so the 'Print Library' header
     // hides on shrink-to-micro and returns on grow-past-micro.
@@ -458,6 +443,7 @@ void PrintStatusWidget::detach() {
 
     // Release observers
     print_state_observer_.reset();
+    view_observer_.reset();
     print_thumbnail_path_observer_.reset();
 #if defined(HELIX_PLATFORM_ESP32)
     print_psram_thumb_observer_.reset();
@@ -639,7 +625,67 @@ void PrintStatusWidget::update_view_subject() {
     } else {
         v = use_detailed ? 2 : (is_compact_ ? 1 : 0);
     }
-    lv_subject_set_int(&view_subject_, v);
+    if (lv_subject_get_int(&view_subject_) == v) {
+        // The subject is shared: another instance's change rebuilds this tree's active
+        // branch too, so the bound branch is current only if it is still the one built.
+        if (widget_obj_ &&
+            print_card_layout_.get() == lv_obj_find_by_name(widget_obj_, "print_card_layout")) {
+            return;
+        }
+    } else {
+        // The XML rebuilds the active branch synchronously on every change of this
+        // subject, so its widgets are new once this returns.
+        lv_subject_set_int(&view_subject_, v);
+    }
+    bind_active_branch();
+    apply_card_layout();
+    if (v >= 3) {
+        defer_apply_active_thumbnail();
+    }
+}
+
+void PrintStatusWidget::bind_active_branch() {
+    print_card_active_thumb_ = nullptr;
+    print_card_layout_ = nullptr;
+    print_card_thumb_wrap_ = nullptr;
+    print_card_info_ = nullptr;
+    print_card_preparing_info_ = nullptr;
+    nozzle_icon_binder_.unbind();
+    bed_icon_binder_.unbind();
+    chamber_icon_binder_.unbind();
+    if (!widget_obj_) {
+        return;
+    }
+    // Present only while the active branch is built (print_status_view 3 or 4).
+    print_card_active_thumb_ = lv_obj_find_by_name(widget_obj_, "print_card_active_thumb");
+    print_card_layout_ = lv_obj_find_by_name(widget_obj_, "print_card_layout");
+    print_card_thumb_wrap_ = lv_obj_find_by_name(widget_obj_, "print_card_thumb_wrap");
+    print_card_info_ = lv_obj_find_by_name(widget_obj_, "print_card_info");
+    print_card_preparing_info_ = lv_obj_find_by_name(widget_obj_, "print_card_preparing_info");
+
+    lv_obj_t* detailed_arc = lv_obj_find_by_name(widget_obj_, "detailed_progress_arc");
+    if (s_formatter_) {
+        s_formatter_->attach_arc(detailed_arc);
+    }
+
+    // Scheduled-pause ticks on both progress surfaces of this card: the arc in
+    // the detailed active view and the linear bar in the library active view.
+    // The fill itself stays on the XML bind_value to print_progress_display.
+    helix::ui::attach_arc_pause_markers(detailed_arc, printer_state_);
+    helix::ui::attach_bar_pause_markers(lv_obj_find_by_name(widget_obj_, "print_progress_bar"),
+                                        printer_state_);
+
+    // Nozzle reads the tool-pin-aware proxy subjects rather than the raw
+    // active-extruder ones, so the icon tracks whichever tool the card is
+    // showing. Bed and chamber use the PrinterState defaults. The proxy
+    // subjects live on s_formatter_, which is only ever replaced from
+    // acquire_formatter() — i.e. while no widget is attached — so they genuinely
+    // outlive this binder.
+    nozzle_icon_binder_.bind_subjects(widget_obj_, "nozzle_icon_glyph",
+                                      lv_xml_get_subject(nullptr, "print_status_nozzle_current"),
+                                      lv_xml_get_subject(nullptr, "print_status_nozzle_target"));
+    bed_icon_binder_.bind(widget_obj_, printer_state_, helix::HeaterType::Bed);
+    chamber_icon_binder_.bind(widget_obj_, printer_state_, helix::HeaterType::Chamber);
 }
 
 // Kept as thin wrappers so existing call sites (on_size_changed,

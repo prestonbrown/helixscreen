@@ -20,6 +20,7 @@
 #include "translation_loader.h"
 
 #include <atomic>
+#include <chrono>
 #include <cstring>
 #include <string>
 #include <thread>
@@ -48,6 +49,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
         }
     });
 
+    // Overlap is only real once the reader is running; a loaded machine can
+    // otherwise finish the whole writer loop before the thread is scheduled.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (lookups.load() == 0 && std::chrono::steady_clock::now() < deadline)
+        std::this_thread::yield();
+    const bool reader_started = lookups.load() > 0;
+
     const char* langs[] = {"de", "fr", "en"};
     for (int i = 0; i < 3000; i++) {
         lv_translation_set_language(langs[i % 3]);
@@ -65,6 +73,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
     stop = true;
     reader.join();
 
+    REQUIRE(reader_started);
     CHECK(bad.load() == 0);
-    CHECK(lookups.load() > 0);
 }

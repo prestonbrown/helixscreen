@@ -11,7 +11,7 @@ what each script is for; the script's own header carries the reasoning behind it
 | `install-dev.sh` | Modular dev installer - uses `lib/installer/` modules. Edit this one |
 | `bundle-installer.sh` | Bundles `lib/installer/*` → `install.sh`, the single-file end-user installer (`curl\|sh`). Run through `make installer` → `build/installer/`; never committed |
 | `bundle-uninstaller.sh` | Bundles uninstall modules → `uninstall.sh` (`make installer` → `build/installer/`) |
-| `render-installer-logo.sh` | Regenerates `lib/installer/logo.sh` (the installer's braille banner) from `assets/images/helix-icon-256.png`. Needs `chafa` and python3 with Pillow; the output is committed, so only re-run it when the icon changes |
+| `render-installer-logo.sh` | Regenerates `lib/installer/logo.sh` (the installer's banner: half-block text art plus kitty, iTerm2 and sixel images) from `assets/images/helix-icon-256.png`, drawing each with `installer_logo_art.py`. Needs python3 with Pillow; the output is committed, so only re-run it when the icon changes |
 | `helix-launcher.sh` | Systemd-launched watchdog wrapper. Sources `helixscreen.env` for runtime config |
 | `check-deps.sh` | Validates build dependencies. `--minimal` for cross-compile environments |
 | `device-env-set.sh` | Idempotently set one `KEY=VALUE` in a deployed device's `helixscreen.env` over ssh. Deploys exclude that file, so this is the only thing that writes it; `sync-device-features` (`mk/cross.mk`) calls it per `bin/.build-features` |

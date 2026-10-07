@@ -61,9 +61,9 @@ struct TestInflate {
         }
         std::free(p);
     }
-    static inline size_t largest = SIZE_MAX / 2;
-    static size_t largest_free() {
-        return largest;
+    static inline size_t free_left = SIZE_MAX / 2;
+    static size_t free_bytes() {
+        return free_left;
     }
 };
 
@@ -305,17 +305,17 @@ TEST_CASE("a decode that would cut into the PSRAM floor is not started",
     const size_t need =
         helix::rgb565a8_size(dims) + helix::thumbnail_decode_working_bytes(300, dims);
 
-    TestInflate::largest = helix::THUMBNAIL_PSRAM_FLOOR + need - 1;
+    TestInflate::free_left = helix::THUMBNAIL_PSRAM_FLOOR + need - 1;
     const DecodedThumbnail refused = decode(png, 166, 166);
     CHECK(refused.pixels == nullptr);
     CHECK(refused.failure == ThumbnailDecodeFailure::OutOfMemory);
     CHECK(TestInflate::live == 0); // nothing was even allocated
 
-    TestInflate::largest = helix::THUMBNAIL_PSRAM_FLOOR + need;
+    TestInflate::free_left = helix::THUMBNAIL_PSRAM_FLOOR + need;
     const DecodedThumbnail ok = decode(png, 166, 166);
     CHECK(ok.failure == ThumbnailDecodeFailure::None);
     TestInflate::free(ok.pixels);
-    TestInflate::largest = SIZE_MAX / 2;
+    TestInflate::free_left = SIZE_MAX / 2;
 }
 
 TEST_CASE("the floor and the card budget are hard edges", "[thumbnail][budget]") {
@@ -347,12 +347,12 @@ TEST_CASE("decoding into a caller's buffer allocates only the working memory",
     CHECK(TestInflate::live == 0); // nothing of the decode's is left over
 
     // The floor counts only the working memory when the image has a home.
-    TestInflate::largest =
+    TestInflate::free_left =
         helix::THUMBNAIL_PSRAM_FLOOR + helix::thumbnail_decode_working_bytes(300, dims);
     CHECK(helix::decode_png_thumbnail<TestInflate>(png.data(), png.size(), 166, 166, slot.data(),
                                                    slot.size())
               .failure == ThumbnailDecodeFailure::None);
-    TestInflate::largest = SIZE_MAX / 2;
+    TestInflate::free_left = SIZE_MAX / 2;
 
     // A buffer smaller than the box's image is refused, not overrun.
     CHECK(helix::decode_png_thumbnail<TestInflate>(png.data(), png.size(), 166, 166, slot.data(),

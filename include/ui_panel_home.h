@@ -11,6 +11,7 @@
 #include "subject_managed_panel.h"
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -146,6 +147,11 @@ class HomePanel : public PanelBase {
         /// reload re-registers the same ids with factories bound to a new
         /// runtime, so an unchanged list alone must not skip the rebuild.
         uint64_t widget_gen = 0;
+        /// Each placed widget's config, by id, as the page was built: with visible_ids,
+        /// what a config change must match for reseat_widgets() to keep the tiles.
+        std::map<std::string, nlohmann::json> built_configs;
+        /// PanelWidgetManager::widget_config_saves() when built_configs was recorded.
+        uint64_t config_saves = 0;
     };
     /// One per config page, in page order.
     std::vector<CarouselPage> pages_;
@@ -203,6 +209,13 @@ class HomePanel : public PanelBase {
     void add_page_from_slot();
     void update_arrow_visibility(int page);
     void populate_page(int page_index, bool force);
+    /// Re-seats every page in place when the new config holds the same widgets with the
+    /// same config and only placement differs (a printer switch between printers whose
+    /// layouts differ in placement only). False, having changed nothing, when any page
+    /// differs in widgets or config; a page that cannot be re-seated is repopulated.
+    bool reseat_widgets();
+    std::map<std::string, nlohmann::json> configs_for(int page_index,
+                                                      const std::vector<std::string>& ids) const;
     /// Re-seat the edit session's page in place after a move or resize placed
     /// @p changed_ids (PanelWidgetManager::relayout_tiles), giving the tile
     /// named @p resized_id (empty for none) its new span. False when the page

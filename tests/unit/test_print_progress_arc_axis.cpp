@@ -55,26 +55,27 @@ TEST_CASE_METHOD(LVGLUITestFixture, "progress arc and bar agree while the displa
         widget.attach(comp, test_screen());
         process_lvgl(10);
 
+        // The arc and bar exist only while a print holds the machine.
+        push_status(state(), "printing", 0.47);
+        process_lvgl(10);
         lv_obj_t* arc = lv_obj_find_by_name(comp, "detailed_progress_arc");
         lv_obj_t* bar = lv_obj_find_by_name(comp, "print_progress_bar");
         REQUIRE(arc != nullptr);
         REQUIRE(bar != nullptr);
-
-        push_status(state(), "printing", 0.47);
-        process_lvgl(10);
         mid_arc = static_cast<int>(lv_arc_get_value(arc));
         mid_bar = static_cast<int>(lv_bar_get_value(bar));
 
-        // Completion freezes the display pair at 100, then Moonraker zeroes
-        // virtual_sdcard.progress in the same batch as STANDBY. The raw subject
-        // follows it down; neither widget may.
+        // Completion freezes the display value both bind at 100, then Moonraker
+        // zeroes virtual_sdcard.progress in the same batch as STANDBY. The raw
+        // subject follows it down; the display value may not. The card has left
+        // the active view by then, so the subject is what is checked.
         push_status(state(), "complete", 0.47);
         push_status(state(), "standby", 0.0);
         process_lvgl(10);
 
         REQUIRE(lv_subject_get_int(state().print_state().get_print_progress_subject()) == 0);
-        arc_pct = static_cast<int>(lv_arc_get_value(arc));
-        bar_pct = static_cast<int>(lv_bar_get_value(bar));
+        arc_pct = lv_subject_get_int(state().print_state().get_print_progress_display_subject());
+        bar_pct = arc_pct;
     }
     // Destroy the shared formatter while this fixture's subjects are still
     // alive (see test_print_status_widget_recycle.cpp), then assert — a

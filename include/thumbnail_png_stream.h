@@ -88,9 +88,9 @@ class PngRowDecoder {
     bool failed_ = false;
 };
 
-/// Least PSRAM a thumbnail decode leaves in the largest free block. The rest of
-/// the app allocates without a fallback, so decodes stop well before it can run
-/// out; a decode refused here keeps the placeholder and is tried again later.
+/// Least PSRAM a thumbnail decode leaves free. The rest of the app allocates
+/// without a fallback, so decodes stop well before it can run out; a decode
+/// refused here keeps the placeholder and is tried again later.
 inline constexpr size_t THUMBNAIL_PSRAM_FLOOR = 256 * 1024;
 
 /// Working memory a decode takes beside the image it keeps: the inflater state
@@ -101,10 +101,10 @@ inline size_t thumbnail_decode_working_bytes(int src_w, ThumbnailDims dst) {
 }
 
 /// True when a decode keeping @p kept bytes, and briefly using @p working more,
-/// still leaves @p floor in the largest free block.
-inline bool thumbnail_decode_fits(size_t largest_free, size_t kept, size_t working,
+/// still leaves @p floor of the @p free bytes.
+inline bool thumbnail_decode_fits(size_t free, size_t kept, size_t working,
                                   size_t floor = THUMBNAIL_PSRAM_FLOOR) {
-    return largest_free >= floor && largest_free - floor >= kept + working;
+    return free >= floor && free - floor >= kept + working;
 }
 
 /// Bytes card thumbnails may hold at once, on screen and kept for scrolling
@@ -146,8 +146,9 @@ struct DecodedThumbnail {
  *      uint8_t* window, uint8_t* next, size_t* out_size, bool more_input)`,
  *     returning tinfl's status: 0 done, 1 needs input, 2 more output, <0 failed;
  *   - `static void* alloc(size_t)` returning nullptr on failure, and `free(void*)`;
- *   - `static size_t largest_free()`, the largest block alloc() could return: a
- *     decode that would leave less than THUMBNAIL_PSRAM_FLOOR is not started.
+ *   - `static size_t free_bytes()`, what alloc() has free in total: a decode
+ *     that would leave less than THUMBNAIL_PSRAM_FLOOR is not started. It is
+ *     not the largest block, because finding that walks the whole heap.
  */
 template <class Inflate>
 DecodedThumbnail decode_png_thumbnail(const uint8_t* png, size_t size, int max_w, int max_h,
@@ -170,7 +171,7 @@ DecodedThumbnail decode_png_thumbnail(const uint8_t* png, size_t size, int max_w
         result.failure = ThumbnailDecodeFailure::Unsupported; // the slot is smaller than the box
         return result;
     }
-    if (!thumbnail_decode_fits(Inflate::largest_free(), into ? 0 : kept,
+    if (!thumbnail_decode_fits(Inflate::free_bytes(), into ? 0 : kept,
                                thumbnail_decode_working_bytes(header.width, fit))) {
         result.failure = ThumbnailDecodeFailure::OutOfMemory;
         return result;

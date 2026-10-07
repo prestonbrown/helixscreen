@@ -1540,6 +1540,23 @@ bool PanelWidgetManager::relayout_tiles(const std::string& panel_id, lv_obj_t* c
                                         int page_index, const std::vector<std::string>& changed_ids,
                                         const std::string& resized_id,
                                         std::vector<std::unique_ptr<PanelWidget>>& widgets) {
+    return relayout_tiles_impl(panel_id, container, page_index, changed_ids, resized_id, widgets,
+                               /*reseat_all=*/false);
+}
+
+bool PanelWidgetManager::reseat_tiles(const std::string& panel_id, lv_obj_t* container,
+                                      int page_index,
+                                      std::vector<std::unique_ptr<PanelWidget>>& widgets) {
+    return relayout_tiles_impl(panel_id, container, page_index, {}, "", widgets,
+                               /*reseat_all=*/true);
+}
+
+bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj_t* container,
+                                             int page_index,
+                                             const std::vector<std::string>& changed_ids,
+                                             const std::string& resized_id,
+                                             std::vector<std::unique_ptr<PanelWidget>>& widgets,
+                                             bool reseat_all) {
     if (!container || populating_) {
         return false;
     }
@@ -1568,6 +1585,7 @@ bool PanelWidgetManager::relayout_tiles(const std::string& panel_id, lv_obj_t* c
         lv_obj_t* tile;
         const PanelWidgetEntry* entry;
         TileCell cell;
+        bool span_changed;
     };
     std::vector<Seat> seats;
     std::vector<lv_obj_t*> cards;
@@ -1600,16 +1618,17 @@ bool PanelWidgetManager::relayout_tiles(const std::string& panel_id, lv_obj_t* c
         // grown for this grid) and does not always write that back, and moving
         // it to its entry here could land it on another tile.
         const TileCell cell = entry_cell(*entry);
-        const bool changed =
-            std::find(changed_ids.begin(), changed_ids.end(), entry->id) != changed_ids.end();
+        const bool changed = reseat_all || std::find(changed_ids.begin(), changed_ids.end(),
+                                                     entry->id) != changed_ids.end();
+        const bool span_changed =
+            lv_obj_get_style_grid_cell_column_span(child, LV_PART_MAIN) != cell.colspan ||
+            lv_obj_get_style_grid_cell_row_span(child, LV_PART_MAIN) != cell.rowspan;
         if (!changed &&
             (lv_obj_get_style_grid_cell_column_pos(child, LV_PART_MAIN) != cell.col ||
-             lv_obj_get_style_grid_cell_row_pos(child, LV_PART_MAIN) != cell.row ||
-             lv_obj_get_style_grid_cell_column_span(child, LV_PART_MAIN) != cell.colspan ||
-             lv_obj_get_style_grid_cell_row_span(child, LV_PART_MAIN) != cell.rowspan)) {
+             lv_obj_get_style_grid_cell_row_pos(child, LV_PART_MAIN) != cell.row || span_changed)) {
             return false;
         }
-        seats.push_back({child, &*entry, cell});
+        seats.push_back({child, &*entry, cell, span_changed});
     }
     for (const auto& seat : seats) {
         if (!resized_id.empty() && seat.entry->id == resized_id) {
@@ -1628,6 +1647,23 @@ bool PanelWidgetManager::relayout_tiles(const std::string& panel_id, lv_obj_t* c
                                                                  resized->cell.rowspan)))) {
         return false;
     }
+    // Re-seating everything, every tile whose span changes is a resize: each must fit.
+    auto instance_for = [&](const std::string& id) -> PanelWidget* {
+        auto it = std::find_if(widgets.begin(), widgets.end(),
+                               [&](const auto& w) { return w && w->id() == id; });
+        return it != widgets.end() ? it->get() : nullptr;
+    };
+    if (reseat_all) {
+        for (const auto& seat : seats) {
+            PanelWidget* w = seat.span_changed ? instance_for(seat.entry->id) : nullptr;
+            if (w && !w->fits_at(static_cast<int>(grid_track_extent(metrics.cell_w, metrics.gutter,
+                                                                    seat.cell.colspan)),
+                                 static_cast<int>(grid_track_extent(metrics.cell_h, metrics.gutter,
+                                                                    seat.cell.rowspan)))) {
+                return false;
+            }
+        }
+    }
 
     populating_ = true;
     for (const auto& seat : seats) {
@@ -1642,6 +1678,14 @@ bool PanelWidgetManager::relayout_tiles(const std::string& panel_id, lv_obj_t* c
         announce_tile_size(resized->tile, resized_id,
                            instance != widgets.end() ? instance->get() : nullptr, resized->cell,
                            metrics);
+    }
+    if (reseat_all) {
+        for (const auto& seat : seats) {
+            if (seat.span_changed) {
+                announce_tile_size(seat.tile, seat.entry->id, instance_for(seat.entry->id),
+                                   seat.cell, metrics);
+            }
+        }
     }
 
     // Cards: keep the ones the new arrangement still has, replace the rest.
@@ -2106,8 +2150,9 @@ void PanelWidget::save_widget_config(const nlohmann::json& config) {
         spdlog::warn("[PanelWidget] save_widget_config called with no panel_id set for '{}'", id());
         return;
     }
-    auto& wc = PanelWidgetManager::instance().get_widget_config(panel_id_);
-    wc.set_widget_config(id(), config);
+    auto& mgr = PanelWidgetManager::instance();
+    mgr.get_widget_config(panel_id_).set_widget_config(id(), config);
+    mgr.note_widget_config_saved();
 }
 
 } // namespace helix

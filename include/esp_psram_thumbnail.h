@@ -166,8 +166,11 @@ class EspPsramThumbnail {
         static void free(void* p) {
             heap_caps_free(p);
         }
-        static size_t largest_free() {
-            return heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
+        // Not heap_caps_get_largest_free_block(): it walks every PSRAM block
+        // with interrupts masked for 20-30ms, far longer than the panel's
+        // bounce-buffer refill can wait, so every call glitches the screen.
+        static size_t free_bytes() {
+            return heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
         }
     };
 

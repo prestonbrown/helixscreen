@@ -8,7 +8,7 @@ WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
 setup() {
     load helpers
-    unset HELIX_INSTALL_VERBOSE COLORTERM NO_COLOR
+    unset HELIX_INSTALL_VERBOSE COLORTERM NO_COLOR HELIX_INSTALL_LOGO LC_TERMINAL TERM_PROGRAM
     export HELIX_INSTALL_TTY=0
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"
 }
@@ -332,11 +332,11 @@ _set_e_script() {
     [ "$output" = "HelixScreen installer v1.1.0-beta.4 (beta)" ]
 }
 
-@test "banner: UTF-8 color terminal prints the braille logo" {
+@test "banner: UTF-8 color terminal prints the half-block logo" {
     . "$WORKTREE_ROOT/scripts/lib/installer/logo.sh"
     HELIX_INSTALL_TTY=1 LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 TERM=xterm-256color ui_detect
     run print_banner v1.1.0-beta.4 beta
-    printf '%s' "$output" | grep -qP '[\x{2800}-\x{28FF}]'
+    printf '%s' "$output" | grep -qP '[\x{2580}\x{2584}]'
     plain=$(printf '%s' "$output" | sed 's/\x1b\[[0-9;]*m//g')
     contains "HelixScreen" "$plain"
     [[ "$output" == *"v1.1.0-beta.4"* ]]
@@ -348,15 +348,97 @@ _set_e_script() {
     run print_banner v1.1.0-beta.4 beta
     plain=$(printf '%s' "$output" | sed 's/\x1b\[[0-9;]*m//g')
     contains "HelixScreen" "$plain"
-    ! printf '%s' "$output" | grep -qP '[\x{2800}-\x{28FF}]'
+    ! printf '%s' "$output" | grep -qP '[\x{2580}-\x{259F}]'
+}
+
+@test "logo pick: a kitty graphics OK picks kitty over sixel" {
+    . "$WORKTREE_ROOT/scripts/lib/installer/logo.sh"
+    _logo_pick "$(printf '\033_Gi=31;OK\033\\\033[?62;4;22c')"
+    [ "$_LOGO_MODE" = kitty ]
+}
+
+@test "logo pick: a kitty error is not kitty" {
+    . "$WORKTREE_ROOT/scripts/lib/installer/logo.sh"
+    _logo_pick "$(printf '\033_Gi=31;EINVAL:bad\033\\\033[?62;22c')"
+    [ "$_LOGO_MODE" = text ]
+}
+
+@test "logo pick: DA1 attribute 4 picks sixel, in any position" {
+    . "$WORKTREE_ROOT/scripts/lib/installer/logo.sh"
+    _logo_pick "$(printf '\033[?62;4;22c')"; [ "$_LOGO_MODE" = sixel ]
+    _logo_pick "$(printf '\033[?62;22;4c')"; [ "$_LOGO_MODE" = sixel ]
+    _logo_pick "$(printf '\033[?4;6c')"; [ "$_LOGO_MODE" = sixel ]
+}
+
+@test "logo pick: DA1 without attribute 4 is text, and 14 or 42 are not 4" {
+    . "$WORKTREE_ROOT/scripts/lib/installer/logo.sh"
+    _logo_pick "$(printf '\033[?64;1;2;6;22c')"; [ "$_LOGO_MODE" = text ]
+    _logo_pick "$(printf '\033[?62;14;42c')"; [ "$_LOGO_MODE" = text ]
+    _logo_pick ""; [ "$_LOGO_MODE" = text ]
+}
+
+@test "logo pick: iTerm2 is named by the environment" {
+    . "$WORKTREE_ROOT/scripts/lib/installer/logo.sh"
+    LC_TERMINAL=iTerm2 _logo_pick "$(printf '\033[?62;4c')"
+    [ "$_LOGO_MODE" = iterm ]
+    TERM_PROGRAM=iTerm.app _logo_pick ""
+    [ "$_LOGO_MODE" = iterm ]
+}
+
+@test "logo pick: the cell size comes from CSI 16 t, else 9x18" {
+    . "$WORKTREE_ROOT/scripts/lib/installer/logo.sh"
+    _logo_pick "$(printf '\033[6;20;10t\033[?62c')"
+    [ "$_LOGO_CW" = 10 ]
+    [ "$_LOGO_CH" = 20 ]
+    _logo_pick "$(printf '\033[6;x;10t\033[?62c')"
+    [ "$_LOGO_CW" = 9 ]
+    [ "$_LOGO_CH" = 18 ]
+    _logo_pick "$(printf '\033[6;0;0t')"
+    [ "$_LOGO_CW" = 9 ]
+    [ "$_LOGO_CH" = 18 ]
+}
+
+@test "logo pick: HELIX_INSTALL_LOGO overrides the reply" {
+    . "$WORKTREE_ROOT/scripts/lib/installer/logo.sh"
+    HELIX_INSTALL_LOGO=sixel _logo_pick "$(printf '\033_Gi=31;OK\033\\')"
+    [ "$_LOGO_MODE" = sixel ]
+}
+
+@test "banner: sixel draws the image and puts the logotype past it" {
+    . "$WORKTREE_ROOT/scripts/lib/installer/logo.sh"
+    HELIX_INSTALL_TTY=1 LC_ALL=en_US.UTF-8 TERM=xterm-256color ui_detect
+    HELIX_INSTALL_LOGO=sixel run print_banner v1.1.0-beta.4 beta
+    contains $'\033P0;1;0q' "$output"
+    # 193px at the 9px default cell is 22 columns, plus the indent and gap.
+    [[ "$output" == *$'\033[27C'*Helix* ]] || fail "logotype not at column 27"
+    contains "v1.1.0-beta.4" "$output"
+    img=${output#*$'\033P0;1;0q'}; img=${img%%$'\033\\'*}
+    [[ "$img" != *$'\n'* ]]
+}
+
+@test "banner: kitty sends one unbroken chunked PNG" {
+    . "$WORKTREE_ROOT/scripts/lib/installer/logo.sh"
+    HELIX_INSTALL_TTY=1 LC_ALL=en_US.UTF-8 TERM=xterm-256color ui_detect
+    HELIX_INSTALL_LOGO=kitty run print_banner v1 beta
+    contains $'\033_Ga=T,f=100,r=10,C=1,q=2,m=' "$output"
+    # The payload is wrapped in logo.sh; a newline inside it would move the cursor.
+    img=${output#*$'\033_Ga=T'}; img=${img%$'\033_Gm=0;'*}
+    [[ "$img" != *$'\n'* ]]
+}
+
+@test "banner: no color never draws an image" {
+    . "$WORKTREE_ROOT/scripts/lib/installer/logo.sh"
+    HELIX_INSTALL_TTY=1 NO_COLOR=1 LC_ALL=en_US.UTF-8 TERM=xterm-256color ui_detect
+    HELIX_INSTALL_LOGO=kitty run print_banner v1 beta
+    lacks $'\033_G' "$output"
+    contains "HelixScreen" "$output"
 }
 
 @test "logo.sh is exactly what render-installer-logo.sh generates" {
-    command -v chafa >/dev/null || skip "no chafa"
     python3 -c 'import PIL' 2>/dev/null || skip "no Pillow"
     local t="$BATS_TEST_TMPDIR/tree"
     mkdir -p "$t/scripts/lib/installer" "$t/assets/images"
-    cp "$WORKTREE_ROOT/scripts/render-installer-logo.sh" "$t/scripts/"
+    cp "$WORKTREE_ROOT/scripts/render-installer-logo.sh" "$WORKTREE_ROOT/scripts/installer_logo_art.py" "$t/scripts/"
     cp "$WORKTREE_ROOT/assets/images/helix-icon-256.png" "$t/assets/images/"
     bash "$t/scripts/render-installer-logo.sh" >/dev/null
     cmp "$t/scripts/lib/installer/logo.sh" "$WORKTREE_ROOT/scripts/lib/installer/logo.sh" \

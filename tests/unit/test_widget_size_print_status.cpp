@@ -84,6 +84,7 @@
 #include "../test_helpers/job_queue_state_test_access.h"
 #include "../test_helpers/job_queue_subjects_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_animations_enabled.h"
 #include "../test_helpers/update_queue_test_access.h"
@@ -316,6 +317,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "print_status column/row card layout follows
     heal_global_print_status_panel_subjects();
     {
         PanelWidgetHarness<PrintStatusWidget> h(test_screen());
+        // The card layout exists only while a print holds the machine.
+        helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+        process_lvgl(30);
 
         lv_obj_t* layout = h.child("print_card_layout");
         lv_obj_t* thumb_wrap = h.child("print_card_thumb_wrap");
@@ -380,14 +384,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         // doesn't mask a broken predicate later.
         UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
 
+        // The detailed active view exists only while a print holds the machine.
+        helix::test::set_wire_state(ps, PrintJobState::PRINTING);
+        process_lvgl(30);
         lv_obj_t* data_col = h.child("detailed_data_col");
         REQUIRE(data_col != nullptr);
         REQUIRE(lv_obj_get_child_count(data_col) == 3); // layer, time, filament
         lv_obj_t* filament_label = h.child("detailed_filament_text");
         REQUIRE(filament_label != nullptr);
-
-        h.widget().on_print_state_changed_for_test(PrintState::Printing);
-        process_lvgl(30);
         REQUIRE(lv_subject_get_int(PrintStatusWidget::view_subject_for_test()) ==
                 4); // active_detailed
 

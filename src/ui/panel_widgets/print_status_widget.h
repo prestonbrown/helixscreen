@@ -159,6 +159,11 @@ class PrintStatusWidget : public PanelWidget {
     static void destroy_formatter_for_test() {
         s_formatter_.reset();
         s_formatter_refcount_ = 0;
+        // The view subject is shared and outlives every instance; a case left
+        // printing would build the next case's tree in the active view.
+        if (detailed_subjects_initialized_) {
+            lv_subject_set_int(&view_subject_, 0);
+        }
     }
 
     // Test-only — instantiate the formatter without needing a real attach()
@@ -383,6 +388,7 @@ class PrintStatusWidget : public PanelWidget {
     ObserverGuard job_queue_count_observer_;
     ObserverGuard connection_observer_;
     ObserverGuard breakpoint_observer_;
+    ObserverGuard view_observer_; ///< Rebinds the active views after any card rebuilds them
 
     // Guards async thumbnail callbacks and history observer from use-after-free
     helix::AsyncLifetimeGuard lifetime_;
@@ -644,6 +650,9 @@ class PrintStatusWidget : public PanelWidget {
     // Recompute the view subject from (is_active_, layout_style_, is_compact_).
     // Drives bind_flag_if_not_eq on the five card-body siblings.
     void update_view_subject();
+    /// Finds and wires the widgets of the active branch (views 3 and 4), which the XML
+    /// builds only while a print holds the machine; clears them when it is not built.
+    void bind_active_branch();
 
     void show_nozzle_tool_picker(lv_obj_t* anchor);
 

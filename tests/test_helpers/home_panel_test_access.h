@@ -45,6 +45,11 @@ struct HomePanelTestAccess {
         panel.active_page_index_ = 0;
     }
 
+    /// Populate every page, as a config rebuild does.
+    static void populate(HomePanel& panel) {
+        panel.populate_widgets(/*force=*/true);
+    }
+
     static void clear_page_containers(HomePanel& panel) {
         panel.pages_.clear();
         panel.active_page_index_ = 0;

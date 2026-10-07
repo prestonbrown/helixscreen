@@ -38,6 +38,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <memory>
 #include <utility>
@@ -575,6 +576,9 @@ void HomePanel::populate_page(int page_index, bool force) {
                             w->on_activate();
                         }
                     }
+                    pages_[idx].built_configs = configs_for(page_index, snapshot_ids);
+                    pages_[idx].config_saves =
+                        helix::PanelWidgetManager::instance().widget_config_saves();
                     pages_[idx].visible_ids = std::move(snapshot_ids);
                     pages_[idx].widget_gen = gen;
                     populating_widgets_ = false;
@@ -640,10 +644,63 @@ void HomePanel::populate_page(int page_index, bool force) {
     // populate_page entry so the cache matches the gate values that drove
     // placement, not a fresh read that could include late-arriving capability flips.
     pages_[idx].widgets = std::move(widgets);
+    pages_[idx].built_configs = configs_for(page_index, snapshot_ids);
+    pages_[idx].config_saves = helix::PanelWidgetManager::instance().widget_config_saves();
     pages_[idx].visible_ids = std::move(snapshot_ids);
     pages_[idx].widget_gen = helix::runtime_widget_generation();
 
     populating_widgets_ = false;
+}
+
+std::map<std::string, nlohmann::json>
+HomePanel::configs_for(int page_index, const std::vector<std::string>& ids) const {
+    std::map<std::string, nlohmann::json> configs;
+    const auto& entries =
+        helix::PanelWidgetManager::instance().get_widget_config("home").page_entries(
+            static_cast<size_t>(page_index));
+    for (const auto& e : entries) {
+        if (e.enabled && std::find(ids.begin(), ids.end(), e.id) != ids.end()) {
+            // A default entry carries no config, a loaded one an empty object: the same.
+            configs[e.id] = e.config.is_null() ? nlohmann::json::object() : e.config;
+        }
+    }
+    return configs;
+}
+
+bool HomePanel::reseat_widgets() {
+    if (populating_widgets_) {
+        return false;
+    }
+    auto& mgr = helix::PanelWidgetManager::instance();
+    const size_t page_count = mgr.get_widget_config("home").page_count();
+    if (page_count == 0 || page_count != pages_.size()) {
+        return false;
+    }
+    const uint64_t gen = helix::runtime_widget_generation();
+    for (size_t i = 0; i < page_count; ++i) {
+        const int page = static_cast<int>(i);
+        const auto ids = mgr.compute_visible_widget_ids("home", page);
+        const CarouselPage& built = pages_[i];
+        if (!built.container || !built.visible_ids || *built.visible_ids != ids ||
+            built.widget_gen != gen || built.config_saves != mgr.widget_config_saves() ||
+            built.built_configs != configs_for(page, ids)) {
+            return false;
+        }
+    }
+    const auto t0 = std::chrono::steady_clock::now();
+    size_t reseated = 0;
+    for (size_t i = 0; i < page_count; ++i) {
+        if (mgr.reseat_tiles("home", pages_[i].container, static_cast<int>(i), pages_[i].widgets)) {
+            ++reseated;
+        } else {
+            populate_page(static_cast<int>(i), /*force=*/true);
+        }
+    }
+    spdlog::info(
+        "[{}] re-seated {} of {} page(s) in place in {} ms", get_name(), reseated, page_count,
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0)
+            .count());
+    return true;
 }
 
 bool HomePanel::relayout_edit_page(const std::vector<std::string>& changed_ids,
@@ -864,7 +921,9 @@ void HomePanel::register_config_rebuild_callback() {
             config_rebuild_deferred_ = true;
             return;
         }
-        populate_widgets();
+        if (!reseat_widgets()) {
+            populate_widgets();
+        }
     });
 }
 

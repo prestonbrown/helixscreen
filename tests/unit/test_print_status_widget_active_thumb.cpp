@@ -22,6 +22,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
@@ -66,6 +67,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "print_status active thumbnail write escapes
         lv_obj_t* comp = make_print_status(test_screen());
         REQUIRE(comp != nullptr);
         widget.attach(comp, test_screen());
+        // The active thumbnail exists only while a print holds the machine.
+        helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+        process_lvgl(10);
         process_lvgl(30);
 
         get_printer_state().print_state().set_print_thumbnail("a.gcode", kThumbA);
@@ -95,6 +99,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         lv_obj_t* comp = make_print_status(test_screen());
         REQUIRE(comp != nullptr);
         widget.attach(comp, test_screen());
+        // The active thumbnail exists only while a print holds the machine.
+        helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+        process_lvgl(10);
         process_lvgl(30);
 
         get_printer_state().print_state().set_print_thumbnail("a.gcode", kThumbA);
@@ -132,6 +139,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         lv_obj_t* comp = make_print_status(test_screen());
         REQUIRE(comp != nullptr);
         widget.attach(comp, test_screen());
+        // The active thumbnail exists only while a print holds the machine.
+        helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+        process_lvgl(10);
         process_lvgl(30);
 
         // Both publishes land before the tick: the apply queued for A must not

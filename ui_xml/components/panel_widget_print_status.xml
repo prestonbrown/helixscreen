@@ -124,99 +124,106 @@
     <print_status_detailed_idle name="print_card_idle_detailed">
       <bind_flag_if_not_eq subject="print_status_view" flag="hidden" ref_value="2"/>
     </print_status_detailed_idle>
-    <!-- ACTIVE STATE: Shared container for preparing + printing phases -->
-    <!-- Visibility bound to print_status_view (views 3/4 are the active views), -->
-    <!-- matching the source of truth used by the children it hosts -->
-    <!-- (print_card_layout / print_card_printing_detailed below) instead of the -->
-    <!-- separately-set print_active subject. print_active is set synchronously -->
-    <!-- while print_status_view is updated via a deferred observer, so binding -->
-    <!-- to print_active desynced this wrapper from its children by one tick at -->
-    <!-- print start/end, briefly showing two height="100%" siblings at once. -->
-    <lv_obj name="print_card_printing"
-            width="100%" height="100%" style_pad_left="#space_sm" style_pad_right="#space_sm" style_pad_top="#space_xxs"
-            style_pad_bottom="#space_sm" flex_flow="column" style_pad_gap="#space_xs" style_flex_cross_place="center"
-            scrollable="false" hidden="true" clickable="false" event_bubble="true">
+    <!-- ACTIVE STATE: shared container for the preparing and printing phases (views 3
+         and 4), built only while a print holds the machine: it is most of this widget's
+         build cost and idle Home never shows it. The slot keeps the space accounted for
+         and hidden in the idle views; the <if> is its only child because a rebuilt branch
+         is appended at the end of its parent. Any change of print_status_view rebuilds
+         the branch, and PrintStatusWidget::update_view_subject() rebinds its widgets.
+         Visibility follows print_status_view, the source of truth its children use,
+         not the separately set print_active subject. -->
+    <lv_obj name="print_card_printing_slot"
+            width="100%" height="100%" style_pad_all="0" scrollable="false" hidden="true" clickable="false"
+            event_bubble="true">
       <bind_flag_if cond="print_status_view lt 3" flag="hidden"/>
-      <!-- PAUSED BADGE: visible while print is paused. Sits at the top of the
+      <if cond="print_status_view ge 3">
+        <lv_obj name="print_card_printing"
+                width="100%" height="100%" style_pad_left="#space_sm" style_pad_right="#space_sm"
+                style_pad_top="#space_xxs" style_pad_bottom="#space_sm" flex_flow="column" style_pad_gap="#space_xs"
+                style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
+          <!-- PAUSED BADGE: visible while print is paused. Sits at the top of the
            active card wrapper so it shows for both library and detailed
            layouts. Scaled-down sibling of the paused_badge on print_status_panel. -->
-      <ui_button name="home_paused_badge"
-                 width="content" height="content" variant="primary" layout="row" style_min_height="0" clickable="false"
-                 focusable="false" style_radius="#space_md" style_pad_left="#space_sm" style_pad_right="#space_sm"
-                 style_pad_top="#space_xxs" style_pad_bottom="#space_xxs" style_pad_gap="#space_xs">
-        <bind_flag_if_not_eq subject="print_state_enum" flag="hidden" ref_value="2"/>
-        <lv_label text="#icon_pause" style_text_font="mdi_icons_16" event_bubble="true"/>
-        <text_small text="Paused" event_bubble="true"/>
-      </ui_button>
-      <!-- Library active body — visibility driven by print_status_view (3). -->
-      <lv_obj name="print_card_layout"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
-              style_pad_gap="#space_sm" scrollable="false" clickable="false" event_bubble="true">
-        <bind_flag_if_not_eq subject="print_status_view" flag="hidden" ref_value="3"/>
-        <lv_obj name="print_card_thumb_wrap"
-                width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0%" scrollable="false" clickable="false"
-                event_bubble="true">
-          <lv_image name="print_card_active_thumb"
-                    width="100%" height="100%" src="A:assets/images/benchy_thumbnail_white.png" inner_align="contain"
-                    clickable="false" event_bubble="true"/>
-        </lv_obj>
-        <!-- PREPARING info (visible when print_start_phase != 0) -->
-        <lv_obj name="print_card_preparing_info"
-                width="100%" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
-                style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false" hidden="true"
-                clickable="false" event_bubble="true">
-          <bind_flag_if_eq subject="print_start_phase" flag="hidden" ref_value="0"/>
-          <text_body text="Preparing Print" clickable="false" event_bubble="true"/>
-          <progress_bar name="print_start_bar"
-                        width="90%" bind_value="print_start_progress" clickable="false" event_bubble="true"/>
-          <text_small bind_text="print_start_message" clickable="false" event_bubble="true"/>
-          <text_small name="print_start_eta"
-                      bind_text="print_start_time_left" style_text_color="#text_muted" clickable="false"
-                      event_bubble="true"/>
-        </lv_obj>
-        <!-- PRINTING info (visible when print_show_progress != 0) -->
-        <lv_obj name="print_card_info"
-                width="100%" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
-                style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false" hidden="true"
-                clickable="false" event_bubble="true">
-          <bind_flag_if_eq subject="print_show_progress" flag="hidden" ref_value="0"/>
-          <text_small name="library_active_filename"
-                      width="100%" bind_text="print_display_filename" style_text_color="#text"
-                      long_mode="scroll_circular" style_text_align="center" clickable="false" event_bubble="true"/>
-          <progress_bar name="print_progress_bar"
-                        width="90%" bind_value="print_progress_display" clickable="false" event_bubble="true"/>
-          <text_small bind_text="print_progress_text" clickable="false" event_bubble="true"/>
-        </lv_obj>
-      </lv_obj>
-      <!-- DETAILED ACTIVE: arc + filename/layer/time/filament/temps -->
-      <!-- Starts hidden; C++ shows when active + layout_style=="detailed" -->
-      <!-- Detailed active body — visibility driven by print_status_view (4). -->
-      <print_status_detailed_active name="print_card_printing_detailed">
-        <bind_flag_if_not_eq subject="print_status_view" flag="hidden" ref_value="4"/>
-      </print_status_detailed_active>
-      <!-- Up next: the first queued job, while the machine runs this print.
+          <ui_button name="home_paused_badge"
+                     width="content" height="content" variant="primary" layout="row" style_min_height="0"
+                     clickable="false" focusable="false" style_radius="#space_md" style_pad_left="#space_sm"
+                     style_pad_right="#space_sm" style_pad_top="#space_xxs" style_pad_bottom="#space_xxs"
+                     style_pad_gap="#space_xs">
+            <bind_flag_if_not_eq subject="print_state_enum" flag="hidden" ref_value="2"/>
+            <lv_label text="#icon_pause" style_text_font="mdi_icons_16" event_bubble="true"/>
+            <text_small text="Paused" event_bubble="true"/>
+          </ui_button>
+          <!-- Library active body — visibility driven by print_status_view (3). -->
+          <lv_obj name="print_card_layout"
+                  width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
+                  style_pad_gap="#space_sm" scrollable="false" clickable="false" event_bubble="true">
+            <bind_flag_if_not_eq subject="print_status_view" flag="hidden" ref_value="3"/>
+            <lv_obj name="print_card_thumb_wrap"
+                    width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0%" scrollable="false" clickable="false"
+                    event_bubble="true">
+              <lv_image name="print_card_active_thumb"
+                        width="100%" height="100%" src="A:assets/images/benchy_thumbnail_white.png"
+                        inner_align="contain" clickable="false" event_bubble="true"/>
+            </lv_obj>
+            <!-- PREPARING info (visible when print_start_phase != 0) -->
+            <lv_obj name="print_card_preparing_info"
+                    width="100%" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+                    style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false" hidden="true"
+                    clickable="false" event_bubble="true">
+              <bind_flag_if_eq subject="print_start_phase" flag="hidden" ref_value="0"/>
+              <text_body text="Preparing Print" clickable="false" event_bubble="true"/>
+              <progress_bar name="print_start_bar"
+                            width="90%" bind_value="print_start_progress" clickable="false" event_bubble="true"/>
+              <text_small bind_text="print_start_message" clickable="false" event_bubble="true"/>
+              <text_small name="print_start_eta"
+                          bind_text="print_start_time_left" style_text_color="#text_muted" clickable="false"
+                          event_bubble="true"/>
+            </lv_obj>
+            <!-- PRINTING info (visible when print_show_progress != 0) -->
+            <lv_obj name="print_card_info"
+                    width="100%" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+                    style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false" hidden="true"
+                    clickable="false" event_bubble="true">
+              <bind_flag_if_eq subject="print_show_progress" flag="hidden" ref_value="0"/>
+              <text_small name="library_active_filename"
+                          width="100%" bind_text="print_display_filename" style_text_color="#text"
+                          long_mode="scroll_circular" style_text_align="center" clickable="false" event_bubble="true"/>
+              <progress_bar name="print_progress_bar"
+                            width="90%" bind_value="print_progress_display" clickable="false" event_bubble="true"/>
+              <text_small bind_text="print_progress_text" clickable="false" event_bubble="true"/>
+            </lv_obj>
+          </lv_obj>
+          <!-- DETAILED ACTIVE: arc + filename/layer/time/filament/temps -->
+          <!-- Starts hidden; C++ shows when active + layout_style=="detailed" -->
+          <!-- Detailed active body — visibility driven by print_status_view (4). -->
+          <print_status_detailed_active name="print_card_printing_detailed">
+            <bind_flag_if_not_eq subject="print_status_view" flag="hidden" ref_value="4"/>
+          </print_status_detailed_active>
+          <!-- Up next: the first queued job, while the machine runs this print.
            Tap opens the job queue (or starts the job once the printer is
            free); the tap is claimed here so it does not fall through to the
            card's status navigation. -->
-      <lv_obj name="up_next_row"
-              width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-              style_pad_gap="#space_xs" scrollable="false" clickable="true" style_radius="#border_radius">
-        <style name="styles.press_wash" selector="pressed"/>
-        <bind_flag_if_eq subject="job_queue_count" flag="hidden" ref_value="0"/>
-        <event_cb trigger="clicked" callback="on_up_next_tap"/>
-        <icon src="progress_clock" size="sm" variant="muted" clickable="false" event_bubble="true"/>
-        <text_small name="up_next_label"
-                    flex_grow="1" bind_text="job_queue_up_next_text" long_mode="dots" style_text_color="#text_muted"
-                    clickable="false" event_bubble="true"/>
-      </lv_obj>
-      <!-- Library active view only (print_status_view == 3); the detailed
+          <lv_obj name="up_next_row"
+                  width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+                  style_pad_gap="#space_xs" scrollable="false" clickable="true" style_radius="#border_radius">
+            <style name="styles.press_wash" selector="pressed"/>
+            <bind_flag_if_eq subject="job_queue_count" flag="hidden" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_up_next_tap"/>
+            <icon src="progress_clock" size="sm" variant="muted" clickable="false" event_bubble="true"/>
+            <text_small name="up_next_label"
+                        flex_grow="1" bind_text="job_queue_up_next_text" long_mode="dots" style_text_color="#text_muted"
+                        clickable="false" event_bubble="true"/>
+          </lv_obj>
+          <!-- Library active view only (print_status_view == 3); the detailed
            active view carries its own M117 row inside
            print_status_detailed_active. -->
-      <text_small name="display_message"
-                  width="100%" bind_text="display_message" style_text_align="center" long_mode="dots" hidden="true"
-                  clickable="false" event_bubble="true">
-        <bind_flag_if cond="print_status_view ne 3 or display_message_visible eq 0" flag="hidden"/>
-      </text_small>
+          <text_small name="display_message"
+                      width="100%" bind_text="display_message" style_text_align="center" long_mode="dots" hidden="true"
+                      clickable="false" event_bubble="true">
+            <bind_flag_if cond="print_status_view ne 3 or display_message_visible eq 0" flag="hidden"/>
+          </text_small>
+        </lv_obj>
+      </if>
     </lv_obj>
   </view>
 </component>

@@ -17,6 +17,7 @@
  */
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/print_status_widget_test_access.h"
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -54,6 +55,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         lv_obj_t* comp = make_print_status(page);
         REQUIRE(comp != nullptr);
         widget.attach(comp, test_screen());
+        // The active thumbnail exists only while a print holds the machine.
+        helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+        process_lvgl(10);
         process_lvgl(30);
 
         // Populated first, or the checks below pass for the wrong reason.
@@ -90,6 +94,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         lv_obj_t* comp = make_print_status(page);
         REQUIRE(comp != nullptr);
         widget.attach(comp, test_screen());
+        // The active thumbnail exists only while a print holds the machine.
+        helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+        process_lvgl(10);
         process_lvgl(30);
         REQUIRE(Access::active_thumb(widget) != nullptr);
 

@@ -231,6 +231,17 @@ TEST_CASE_METHOD(LVGLUITestFixture, "home print status widget shows the up next 
     ScopedJobQueueSubjects subject_guard;
     jqs.init_subjects();
 
+    // The up next line belongs to the active views, which the card builds only during a print.
+    lv_subject_t* view = lv_xml_get_subject(nullptr, "print_status_view");
+    static lv_subject_t local_view; // outlives its registration
+    if (!view) {
+        lv_subject_init_int(&local_view, 0);
+        lv_xml_register_subject(nullptr, "print_status_view", &local_view);
+        view = &local_view;
+    }
+    const int32_t saved_view = lv_subject_get_int(view);
+    lv_subject_set_int(view, 3);
+
     lv_obj_t* card =
         static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "panel_widget_print_status", nullptr));
     REQUIRE(card != nullptr);
@@ -248,6 +259,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "home print status widget shows the up next 
     CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
 
     lv_obj_delete(card);
+    lv_subject_set_int(view, saved_view);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "print status panel shows the up next line while queued",

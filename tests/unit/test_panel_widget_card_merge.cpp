@@ -446,3 +446,97 @@ TEST_CASE_METHOD(XMLTestFixture, "Card merge: an in-place relayout replaces only
     held.clear();
     lv_obj_delete(container);
 }
+
+namespace {
+
+/// StubWidget that records the spans it is told, to see a re-seat announce a resize.
+struct SizedStub : StubWidget {
+    explicit SizedStub(std::string id) : StubWidget(std::move(id)) {}
+    void on_size_changed(int colspan, int rowspan, int, int) override {
+        last_colspan = colspan;
+        last_rowspan = rowspan;
+        ++size_calls;
+    }
+    int last_colspan = -1;
+    int last_rowspan = -1;
+    int size_calls = 0;
+};
+
+} // namespace
+
+// A printer switch between layouts that hold the same widgets differently: every tile
+// moves at once, which an edit-mode relayout refuses and a re-seat does in place.
+TEST_CASE_METHOD(XMLTestFixture, "Card merge: re-seating every tile keeps their objects",
+                 "[manager][card_merge][reseat]") {
+    helix::init_widget_registrations();
+    lv_xml_register_component_from_data(
+        "test_card_merge_stub",
+        "<component><view extends=\"lv_obj\" width=\"100%\" height=\"100%\"/></component>");
+    REQUIRE(theme_manager_get_spacing("space_xs") > 0);
+
+    ScopedWidgetFactory a("shutdown", stub_factory());
+    ScopedWidgetFactory b("lock", [](const std::string& wid) {
+        return std::unique_ptr<PanelWidget>(new SizedStub(wid));
+    });
+
+    const std::string panel_id = "test_card_merge_reseat";
+    auto* cfg = Config::get_instance();
+    cfg->set<nlohmann::json>(
+        cfg->df() + "panel_widgets/" + panel_id,
+        nlohmann::json{{"main_page_index", 0},
+                       {"next_page_id", 2},
+                       {"pages",
+                        {{{"id", "main"}, {"widgets", nlohmann::json::array()}},
+                         {{"id", "spy"},
+                          {"widgets",
+                           {{{"id", "shutdown"},
+                             {"enabled", true},
+                             {"col", 0},
+                             {"row", 0},
+                             {"colspan", TPC},
+                             {"rowspan", TPC}},
+                            {{"id", "lock"},
+                             {"enabled", true},
+                             {"col", 2 * TPC},
+                             {"row", 0},
+                             {"colspan", TPC},
+                             {"rowspan", TPC}}}}}}}});
+    auto& mgr = PanelWidgetManager::instance();
+    mgr.get_widget_config(panel_id).mark_dirty();
+    mgr.clear_panel_config(panel_id);
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 800, 480);
+    lv_obj_update_layout(container);
+    auto held = mgr.populate_widgets(panel_id, container, /*page_index=*/1);
+    lv_obj_update_layout(container);
+    lv_obj_t* shutdown = lv_obj_find_by_name(container, "shutdown");
+    lv_obj_t* lock = lv_obj_find_by_name(container, "lock");
+    REQUIRE(shutdown != nullptr);
+    REQUIRE(lock != nullptr);
+    SizedStub* lock_widget = nullptr;
+    for (auto& w : held) {
+        if (w && std::string(w->id()) == "lock") {
+            lock_widget = static_cast<SizedStub*>(w.get());
+        }
+    }
+    REQUIRE(lock_widget != nullptr);
+    const int size_calls_before = lock_widget->size_calls;
+
+    // Both move, and lock grows to two cells wide.
+    auto& config = mgr.get_widget_config(panel_id);
+    REQUIRE(config.place_entry("shutdown", 1, 0, TPC, TPC, TPC) >= 0);
+    REQUIRE(config.place_entry("lock", 1, TPC, 0, 2 * TPC, TPC) >= 0);
+    CHECK_FALSE(mgr.relayout_tiles(panel_id, container, 1, {"lock"}, "", held));
+
+    REQUIRE(mgr.reseat_tiles(panel_id, container, 1, held));
+    lv_obj_update_layout(container);
+    CHECK(lv_obj_find_by_name(container, "shutdown") == shutdown);
+    CHECK(lv_obj_find_by_name(container, "lock") == lock);
+    CHECK(lv_obj_get_style_grid_cell_row_pos(shutdown, LV_PART_MAIN) == TPC);
+    CHECK(lv_obj_get_style_grid_cell_column_pos(lock, LV_PART_MAIN) == TPC);
+    CHECK(lv_obj_get_style_grid_cell_column_span(lock, LV_PART_MAIN) == 2 * TPC);
+    CHECK(lock_widget->size_calls > size_calls_before);
+    CHECK(lock_widget->last_colspan == 2 * TPC);
+
+    mgr.clear_panel_config(panel_id);
+}
