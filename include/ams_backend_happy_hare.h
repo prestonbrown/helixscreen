@@ -507,6 +507,12 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// FLOWGUARD_ENCODER_MAX_MOTION from 3.42 on.
     [[nodiscard]] static std::string param_name(const std::string& key,
                                                 const MachineLayout& layout);
+    /// The configfile value of tunable @p key from whichever section @p layout
+    /// keeps it in ([mmu] on v3; [mmu_parameters], the first unit's
+    /// [mmu_unit_parameters] or its [mmu_toolhead] on v4), or nullptr.
+    [[nodiscard]] static const nlohmann::json* find_config_param(const nlohmann::json& settings,
+                                                                 const MachineLayout& layout,
+                                                                 const std::string& key);
 
     /// MMU_TEST_CONFIG with the clog mode and, in manual mode, the length,
     /// named as the installed version takes them.

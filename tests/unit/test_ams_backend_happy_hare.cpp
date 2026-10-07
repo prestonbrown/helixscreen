@@ -7,11 +7,13 @@
 #include "ams_backend_happy_hare.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "config.h"
 #include "hh_defaults.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "test_helpers/config_test_access.h"
 #include "test_helpers/happy_hare_test_access.h"
 
 #include <algorithm>
@@ -282,6 +284,9 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
 
     auto& overrides_for_test() {
         return user_overrides_;
+    }
+    auto& config_defaults_for_test() {
+        return config_defaults_;
     }
 
     /// Answer the connect-time config-defaults query with @p settings and the
@@ -4121,9 +4126,10 @@ TEST_CASE("Happy Hare v4 resolves the filament heater from live status",
     nlohmann::json configfile_settings = {
         {"mmu_machine",
          {{"happy_hare_version", "4.0.0"}, {"units", nlohmann::json::array({"unit0"})}}},
-        {"mmu", {{"heater_max_temp", 65.0}}}};
+        {"mmu_unit_parameters unit0", {{"heater_max_temp", 65.0}}}};
 
     nlohmann::json live_mmu_machine = {
+        {"happy_hare_version", "4.0.0"},
         {"num_units", 1},
         {"unit_0", {{"name", "unit0"}, {"filament_heater", "heater_generic box1_heater"}}}};
 
@@ -4137,7 +4143,7 @@ TEST_CASE("Happy Hare v4 resolves the filament heater from live status",
     REQUIRE(info.units[0].environment.has_value());
     CHECK(info.units[0].environment->temperature_c == Catch::Approx(52.0f));
 
-    // heater_max_temp still comes from [mmu], which v4 did not move.
+    // v4 keeps heater_max_temp on the unit's own parameters section.
     CHECK(helper.get_dryer_info().max_temp_c == Catch::Approx(65.0f));
 }
 
@@ -4433,4 +4439,112 @@ TEST_CASE("Happy Hare v4 takes bypass support from the units, not printer.mmu",
         helper.test_parse_mmu_state({{"has_bypass", false}});
         CHECK_FALSE(helper.get_system_info().supports_bypass);
     }
+}
+
+TEST_CASE("Happy Hare v4 reads its tunables from the split config sections (#1479)",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.test_apply_config_defaults(kV4Settings, kV4MmuMachine);
+    helper.test_apply_heater_config(kV4Settings, kV4MmuMachine);
+    CHECK(helper.get_dryer_info().max_temp_c == Catch::Approx(65.0f));
+    const auto& d = helper.config_defaults_for_test();
+    CHECK(d.loaded);
+    CHECK(d.gear_from_spool_speed == Catch::Approx(80.0f));
+    CHECK(d.gear_from_buffer_speed == Catch::Approx(150.0f));
+    CHECK(d.gear_unload_speed == Catch::Approx(120.0f));
+    CHECK(d.extruder_load_speed == Catch::Approx(12.0f));
+    CHECK(d.toolhead_extruder_to_nozzle == Catch::Approx(87.0f));
+    CHECK(d.sync_to_extruder == 1);
+    CHECK(d.clog_detection == 2);
+}
+
+TEST_CASE("Happy Hare v3 config numbers load whether typed or strings",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.test_apply_config_defaults({{"mmu",
+                                        {{"happy_hare_version", 3.42},
+                                         {"gear_from_spool_speed", 75.0},
+                                         {"gear_unload_speed", "95"}}}});
+    const auto& d = helper.config_defaults_for_test();
+    CHECK(d.gear_from_spool_speed == Catch::Approx(75.0f));
+    CHECK(d.gear_unload_speed == Catch::Approx(95.0f));
+}
+
+namespace {
+
+/// Snapshots the Config singleton's data and save path for one test, and
+/// points saves at no file, so no write reaches disk and nothing a test sets
+/// outlives it, even when a REQUIRE throws.
+class ScopedConfig {
+  public:
+    ScopedConfig()
+        : config_(helix::Config::get_instance()), data_(helix::ConfigTestAccess::data(*config_)),
+          path_(helix::ConfigTestAccess::path(*config_)) {
+        helix::ConfigTestAccess::path(*config_).clear(); // save() skips an empty path
+    }
+    ~ScopedConfig() {
+        helix::ConfigTestAccess::data(*config_) = data_;
+        helix::ConfigTestAccess::path(*config_) = path_;
+    }
+    ScopedConfig(const ScopedConfig&) = delete;
+    ScopedConfig& operator=(const ScopedConfig&) = delete;
+    helix::Config* operator->() const {
+        return config_;
+    }
+
+  private:
+    helix::Config* config_;
+    nlohmann::json data_;
+    std::string path_;
+};
+
+} // namespace
+
+TEST_CASE("Happy Hare keeps an override saved against the built-in default",
+          "[ams][happy_hare][hh_v4]") {
+    ScopedConfig config;
+    // Saved while the printer's own default could not be read: the record names
+    // the built-in 60, the printer's real default is 80.
+    config->set<float>("/hh_overrides/gear_from_spool_speed/value", 95.0f);
+    config->set<float>("/hh_overrides/gear_from_spool_speed/config_default", 60.0f);
+    // Saved against a real default the printer has since changed: stale.
+    config->set<float>("/hh_overrides/gear_unload_speed/value", 99.0f);
+    config->set<float>("/hh_overrides/gear_unload_speed/config_default", 111.0f);
+
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.test_apply_config_defaults(kV4Settings, kV4MmuMachine);
+
+    const auto& o = helper.overrides_for_test();
+    REQUIRE(o.gear_from_spool_speed);
+    CHECK(*o.gear_from_spool_speed == Catch::Approx(95.0f));
+    CHECK(config->get<float>("/hh_overrides/gear_from_spool_speed/config_default", 0.0f) ==
+          Catch::Approx(80.0f));
+    CHECK_FALSE(o.gear_unload_speed);
+    CHECK(config->get_path().empty()); // the migration's save() wrote no file
+}
+
+TEST_CASE("Happy Hare selector speed override survives a restart under either key",
+          "[ams][happy_hare][hh_v4]") {
+    ScopedConfig config;
+    SECTION("saved by the slider") {
+        AmsBackendHappyHareTestHelper writer;
+        writer.initialize_test_gates(4);
+        writer.set_config_defaults_for_test();
+        REQUIRE(writer.execute_device_action("selector_speed", std::any(180.0)).success());
+        CHECK(config->exists("/hh_overrides/selector_move_speed/value"));
+    }
+    SECTION("an older record under the action id") {
+        config->set<float>("/hh_overrides/selector_speed/value", 180.0f);
+        config->set<float>("/hh_overrides/selector_speed/config_default", 200.0f);
+    }
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.test_apply_config_defaults(
+        {{"mmu", {{"happy_hare_version", 3.42}, {"selector_move_speed", 200.0}}}});
+    const auto& o = helper.overrides_for_test();
+    REQUIRE(o.selector_move_speed);
+    CHECK(*o.selector_move_speed == Catch::Approx(180.0f));
 }

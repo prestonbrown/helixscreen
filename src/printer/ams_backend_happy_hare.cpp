@@ -267,6 +267,37 @@ std::string AmsBackendHappyHare::param_name(const std::string& key, const Machin
     return layout.version_number >= 3.42 ? row->v342 : row->v3;
 }
 
+const nlohmann::json* AmsBackendHappyHare::find_config_param(const nlohmann::json& settings,
+                                                             const MachineLayout& layout,
+                                                             const std::string& key) {
+    const std::string name = param_name(key, layout);
+    if (name.empty()) {
+        return nullptr;
+    }
+    if (!layout.v4) {
+        const auto* mmu = find_member(settings, "mmu");
+        return mmu ? find_member(*mmu, name) : nullptr;
+    }
+    const ParamRow* row = find_param_row(key);
+    if (!row) {
+        return nullptr;
+    }
+    std::string section;
+    switch (row->scope) {
+    case ParamScope::Machine:
+        section = "mmu_parameters";
+        break;
+    case ParamScope::Unit:
+        section = layout.unit_params_section;
+        break;
+    case ParamScope::Toolhead:
+        section = layout.toolhead_section;
+        break;
+    }
+    const auto* params = find_member(settings, section);
+    return params ? find_member(*params, name) : nullptr;
+}
+
 void AmsBackendHappyHare::set_machine_layout_locked(const MachineLayout& layout) {
     const bool was_v4 = machine_layout_.v4;
     machine_layout_ = layout;
@@ -1680,17 +1711,20 @@ void AmsBackendHappyHare::query_tip_method_from_config() {
 
                     const auto& settings = response["result"]["status"]["configfile"]["settings"];
 
-                    if (!settings.contains("mmu") || !settings["mmu"].is_object()) {
+                    // configfile's own [mmu_machine] names a v4 install, so no
+                    // live object is needed to find v4's [mmu_parameters].
+                    const MachineLayout layout = read_machine_layout(settings, hh_empty_object());
+                    if (!layout.v4 && (!settings.contains("mmu") || !settings["mmu"].is_object())) {
                         spdlog::debug("[AMS HappyHare] No mmu section in configfile settings");
                         return;
                     }
 
-                    const auto& mmu_cfg = settings["mmu"];
                     TipMethod method = TipMethod::NONE;
+                    const nlohmann::json* macro_value =
+                        find_config_param(settings, layout, "form_tip_macro");
 
-                    if (mmu_cfg.contains("form_tip_macro") &&
-                        mmu_cfg["form_tip_macro"].is_string()) {
-                        std::string macro = mmu_cfg["form_tip_macro"].get<std::string>();
+                    if (macro_value && macro_value->is_string()) {
+                        std::string macro = macro_value->get<std::string>();
 
                         // Convert to lowercase for comparison (same as Happy Hare)
                         std::string lower_macro = macro;
@@ -2022,30 +2056,15 @@ void AmsBackendHappyHare::apply_heater_config(const nlohmann::json& settings,
         }
     }
 
-    // Parse [mmu] heater_max_temp — can be a number or a numeric string.
-    if (settings.contains("mmu") && settings["mmu"].is_object()) {
-        const auto& mmu = settings["mmu"];
-        if (mmu.contains("heater_max_temp")) {
-            float max_temp = 0.0f;
-            bool parsed = false;
-            if (mmu["heater_max_temp"].is_number()) {
-                max_temp = mmu["heater_max_temp"].get<float>();
-                parsed = true;
-            } else if (mmu["heater_max_temp"].is_string()) {
-                try {
-                    max_temp = std::stof(mmu["heater_max_temp"].get<std::string>());
-                    parsed = true;
-                } catch (...) {
-                    spdlog::warn("[AMS HappyHare] Could not parse heater_max_temp string");
-                }
-            }
-            if (parsed) {
-                std::lock_guard<std::mutex> lock(mutex_);
-                dryer_info_.max_temp_c = max_temp;
-                dryer_info_.supported = true;
-                spdlog::info("[AMS HappyHare] Heater max temp: {:.1f}°C", max_temp);
-            }
-        }
+    // heater_max_temp: [mmu] on v3, the unit's parameters on v4. A number or a
+    // numeric string.
+    const MachineLayout layout = read_machine_layout(settings, live_mmu_machine);
+    if (const auto max_temp =
+            read_config_number(find_config_param(settings, layout, "heater_max_temp"))) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        dryer_info_.max_temp_c = *max_temp;
+        dryer_info_.supported = true;
+        spdlog::info("[AMS HappyHare] Heater max temp: {:.1f}°C", *max_temp);
     }
 }
 
@@ -2167,32 +2186,21 @@ void AmsBackendHappyHare::apply_config_defaults(const nlohmann::json& settings,
     spdlog::info("[AMS HappyHare] Happy Hare {}",
                  layout.version.empty() ? "version unknown" : layout.version);
 
-    if (!settings.contains("mmu") || !settings["mmu"].is_object()) {
+    if (!layout.v4 && (!settings.contains("mmu") || !settings["mmu"].is_object())) {
         spdlog::debug("[AMS HappyHare] No mmu section in configfile for defaults");
         return;
     }
 
-    const auto& mmu = settings["mmu"];
-
-    // Helper to parse a float from config (values are strings in configfile)
+    // Klipper reports parsed settings as numbers; hand-written ones carry
+    // numeric strings. Either way the section is the layout's to name.
     auto parse_float = [&](const char* key, float& out) {
-        if (mmu.contains(key) && mmu[key].is_string()) {
-            try {
-                out = std::stof(mmu[key].get<std::string>());
-            } catch (...) {
-                // Keep default
-            }
+        if (const auto v = read_config_number(find_config_param(settings, layout, key))) {
+            out = *v;
         }
     };
-
-    // Helper to parse an int from config
     auto parse_int = [&](const char* key, int& out) {
-        if (mmu.contains(key) && mmu[key].is_string()) {
-            try {
-                out = std::stoi(mmu[key].get<std::string>());
-            } catch (...) {
-                // Keep default
-            }
+        if (const auto v = read_config_number(find_config_param(settings, layout, key))) {
+            out = static_cast<int>(*v);
         }
     };
 
@@ -2210,11 +2218,9 @@ void AmsBackendHappyHare::apply_config_defaults(const nlohmann::json& settings,
         parse_float("toolhead_entry_to_extruder", config_defaults_.toolhead_entry_to_extruder);
         parse_float("toolhead_ooze_reduction", config_defaults_.toolhead_ooze_reduction);
         parse_int("sync_to_extruder", config_defaults_.sync_to_extruder);
-        // Clog detection is named by version.
-        parse_int(param_name("clog_detection", layout).c_str(), config_defaults_.clog_detection);
-        const std::string length_key = param_name("detection_length", layout);
+        parse_int("clog_detection", config_defaults_.clog_detection);
         config_defaults_.detection_length =
-            read_config_number(mmu.contains(length_key) ? &mmu[length_key] : nullptr);
+            read_config_number(find_config_param(settings, layout, "detection_length"));
 
         config_defaults_.loaded = true;
 
@@ -2237,71 +2243,64 @@ void AmsBackendHappyHare::load_persisted_overrides() {
     auto* config = helix::Config::get_instance();
     if (!config)
         return;
+    // An override saved against the built-in default, not the printer's own,
+    // still applies: the built-ins stood in whenever the printer's config
+    // could not be read. Its record is re-pointed at the real default.
+    const ConfigDefaults builtin;
+    bool migrated = false;
 
-    // Helper: load a float override if config_default matches current default
-    auto load_float = [&](const std::string& key, std::optional<float>& field,
-                          float current_default) {
+    // Helper: load an override if its saved config_default still matches.
+    auto load = [&](const std::string& key, auto& field, auto current_default,
+                    auto builtin_default) {
+        using T = decltype(current_default);
         std::string base = "/hh_overrides/" + key;
+        // Records saved under the action id selector_speed load too.
+        if (!config->exists(base + "/value") && key == "selector_move_speed") {
+            base = "/hh_overrides/selector_speed";
+        }
         if (!config->exists(base + "/value"))
             return;
         try {
-            float saved_default = config->get<float>(base + "/config_default", -999.0f);
-            if (std::abs(saved_default - current_default) < 0.01f) {
-                field = config->get<float>(base + "/value");
-                spdlog::debug("[AMS HappyHare] Loaded override {}: {}", key, *field);
-            } else {
-                spdlog::info("[AMS HappyHare] Dropping stale override {} "
-                             "(config changed: {} -> {})",
+            const T saved_default = config->get<T>(base + "/config_default", T(-999));
+            auto same = [](T a, T b) { return std::abs(static_cast<float>(a - b)) < 0.01f; };
+            if (!same(saved_default, current_default)) {
+                if (!same(saved_default, builtin_default)) {
+                    spdlog::info("[AMS HappyHare] Dropping stale override {} "
+                                 "(config changed: {} -> {})",
+                                 key, saved_default, current_default);
+                    return;
+                }
+                spdlog::info("[AMS HappyHare] Keeping override {} saved against the built-in "
+                             "default {} (printer's default {})",
                              key, saved_default, current_default);
+                config->set<T>(base + "/config_default", current_default);
+                migrated = true;
             }
+            field = config->get<T>(base + "/value");
+            spdlog::debug("[AMS HappyHare] Loaded override {}: {}", key, *field);
         } catch (const std::exception& e) {
             spdlog::warn("[AMS HappyHare] Failed to load override {}: {}", key, e.what());
         }
     };
 
-    // Helper: load an int override
-    auto load_int = [&](const std::string& key, std::optional<int>& field, int current_default) {
-        std::string base = "/hh_overrides/" + key;
-        if (!config->exists(base + "/value"))
-            return;
-        try {
-            int saved_default = config->get<int>(base + "/config_default", -999);
-            if (saved_default == current_default) {
-                field = config->get<int>(base + "/value");
-                spdlog::debug("[AMS HappyHare] Loaded override {}: {}", key, *field);
-            } else {
-                spdlog::info("[AMS HappyHare] Dropping stale override {} "
-                             "(config changed: {} -> {})",
-                             key, saved_default, current_default);
-            }
-        } catch (const std::exception& e) {
-            spdlog::warn("[AMS HappyHare] Failed to load override {}: {}", key, e.what());
-        }
-    };
+    // clang-format off
+    load("gear_from_buffer_speed", user_overrides_.gear_from_buffer_speed, config_defaults_.gear_from_buffer_speed, builtin.gear_from_buffer_speed);
+    load("gear_from_spool_speed", user_overrides_.gear_from_spool_speed, config_defaults_.gear_from_spool_speed, builtin.gear_from_spool_speed);
+    load("gear_unload_speed", user_overrides_.gear_unload_speed, config_defaults_.gear_unload_speed, builtin.gear_unload_speed);
+    load("selector_move_speed", user_overrides_.selector_move_speed, config_defaults_.selector_move_speed, builtin.selector_move_speed);
+    load("extruder_load_speed", user_overrides_.extruder_load_speed, config_defaults_.extruder_load_speed, builtin.extruder_load_speed);
+    load("extruder_unload_speed", user_overrides_.extruder_unload_speed, config_defaults_.extruder_unload_speed, builtin.extruder_unload_speed);
+    load("toolhead_sensor_to_nozzle", user_overrides_.toolhead_sensor_to_nozzle, config_defaults_.toolhead_sensor_to_nozzle, builtin.toolhead_sensor_to_nozzle);
+    load("toolhead_extruder_to_nozzle", user_overrides_.toolhead_extruder_to_nozzle, config_defaults_.toolhead_extruder_to_nozzle, builtin.toolhead_extruder_to_nozzle);
+    load("toolhead_entry_to_extruder", user_overrides_.toolhead_entry_to_extruder, config_defaults_.toolhead_entry_to_extruder, builtin.toolhead_entry_to_extruder);
+    load("toolhead_ooze_reduction", user_overrides_.toolhead_ooze_reduction, config_defaults_.toolhead_ooze_reduction, builtin.toolhead_ooze_reduction);
+    load("sync_to_extruder", user_overrides_.sync_to_extruder, config_defaults_.sync_to_extruder, builtin.sync_to_extruder);
+    load("clog_detection", user_overrides_.clog_detection, config_defaults_.clog_detection, builtin.clog_detection);
+    // clang-format on
 
-    load_float("gear_from_buffer_speed", user_overrides_.gear_from_buffer_speed,
-               config_defaults_.gear_from_buffer_speed);
-    load_float("gear_from_spool_speed", user_overrides_.gear_from_spool_speed,
-               config_defaults_.gear_from_spool_speed);
-    load_float("gear_unload_speed", user_overrides_.gear_unload_speed,
-               config_defaults_.gear_unload_speed);
-    load_float("selector_move_speed", user_overrides_.selector_move_speed,
-               config_defaults_.selector_move_speed);
-    load_float("extruder_load_speed", user_overrides_.extruder_load_speed,
-               config_defaults_.extruder_load_speed);
-    load_float("extruder_unload_speed", user_overrides_.extruder_unload_speed,
-               config_defaults_.extruder_unload_speed);
-    load_float("toolhead_sensor_to_nozzle", user_overrides_.toolhead_sensor_to_nozzle,
-               config_defaults_.toolhead_sensor_to_nozzle);
-    load_float("toolhead_extruder_to_nozzle", user_overrides_.toolhead_extruder_to_nozzle,
-               config_defaults_.toolhead_extruder_to_nozzle);
-    load_float("toolhead_entry_to_extruder", user_overrides_.toolhead_entry_to_extruder,
-               config_defaults_.toolhead_entry_to_extruder);
-    load_float("toolhead_ooze_reduction", user_overrides_.toolhead_ooze_reduction,
-               config_defaults_.toolhead_ooze_reduction);
-    load_int("sync_to_extruder", user_overrides_.sync_to_extruder,
-             config_defaults_.sync_to_extruder);
-    load_int("clog_detection", user_overrides_.clog_detection, config_defaults_.clog_detection);
+    if (migrated) {
+        config->save();
+    }
 }
 
 /// Helper to get the config default float for a given action key
@@ -3678,7 +3677,7 @@ AmsError AmsBackendHappyHare::execute_device_action(const std::string& action_id
             speed = std::clamp(speed, static_cast<double>(lo), static_cast<double>(hi));
             auto result = test_config(key, fmt::format("{:.0f}", speed));
             if (result.success()) {
-                save_override(action_id, static_cast<float>(speed));
+                save_override(key, static_cast<float>(speed));
             }
             return result;
         }
