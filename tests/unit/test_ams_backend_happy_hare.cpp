@@ -3427,10 +3427,11 @@ TEST_CASE("reapply_overrides batches into single MMU_TEST_CONFIG command",
     // Reapply should batch all overrides
     helper.test_reapply_overrides();
 
-    // Should have exactly one G-code with both params
-    REQUIRE(helper.captured_gcodes.size() == 1);
-    REQUIRE(helper.has_gcode_containing("GEAR_FROM_BUFFER_SPEED=200"));
-    REQUIRE(helper.has_gcode_containing("EXTRUDER_LOAD_SPEED=50"));
+    // One command per parameter: v3 refuses a whole MMU_TEST_CONFIG over any
+    // one name it does not take.
+    REQUIRE(helper.captured_gcodes.size() == 2);
+    REQUIRE(helper.has_gcode("MMU_TEST_CONFIG GEAR_FROM_BUFFER_SPEED=200"));
+    REQUIRE(helper.has_gcode("MMU_TEST_CONFIG EXTRUDER_LOAD_SPEED=50"));
 }
 
 // ============================================================================
@@ -4390,9 +4391,9 @@ TEST_CASE("Happy Hare reapply leaves out a parameter the release has none for",
     o.clog_detection = 2;
     helper.captured_gcodes.clear();
     helper.test_reapply_overrides();
-    REQUIRE(helper.captured_gcodes.size() == 1);
-    CHECK(helper.captured_gcodes[0].find("GEAR_UNLOAD_SPEED") == std::string::npos);
-    CHECK(helper.captured_gcodes[0].find(" ENABLE_CLOG_DETECTION=2") != std::string::npos);
+    CHECK(helper.captured_gcodes ==
+          std::vector<std::string>{"MMU_TEST_CONFIG GEAR_FROM_SPOOL_SPEED=70",
+                                   "MMU_TEST_CONFIG ENABLE_CLOG_DETECTION=2"});
 }
 
 TEST_CASE("Happy Hare v4 reads clog detection mode from the encoder mode only",
@@ -4547,4 +4548,69 @@ TEST_CASE("Happy Hare selector speed override survives a restart under either ke
     const auto& o = helper.overrides_for_test();
     REQUIRE(o.selector_move_speed);
     CHECK(*o.selector_move_speed == Catch::Approx(180.0f));
+}
+
+namespace {
+bool action_enabled(const AmsBackendHappyHareTestHelper& helper, const std::string& id) {
+    for (const auto& a : helper.get_device_actions()) {
+        if (a.id == id) {
+            return a.enabled;
+        }
+    }
+    FAIL("no device action " << id);
+    return false;
+}
+} // namespace
+
+TEST_CASE("Happy Hare v4 leaves out what the unit's hardware cannot take",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    // The QIDI unit: hub, always gripped, no buffer, no encoder, no toolhead sensor.
+    helper.test_apply_config_defaults(kV4Settings, kV4MmuMachine);
+    helper.test_parse_mmu_state({{"sensors", {{"extruder", true}, {"toolhead", nullptr}}}});
+    helper.captured_gcodes.clear();
+
+    helper.execute_device_action("gear_from_spool_speed", std::any(70.0));
+    CHECK_FALSE(helper.execute_device_action("gear_from_buffer_speed", std::any(160.0)));
+    CHECK_FALSE(helper.execute_device_action("sync_to_extruder", std::any(true)));
+    CHECK_FALSE(helper.execute_device_action("toolhead_sensor_to_nozzle", std::any(30.0)));
+    helper.execute_device_action("toolhead_entry_to_extruder", std::any(6.0));
+    CHECK(helper.captured_gcodes ==
+          std::vector<std::string>{"MMU_TEST_CONFIG GEAR_LOAD_SPEED=70",
+                                   "MMU_TEST_CONFIG TOOLHEAD_ENTRY_TO_EXTRUDER=6.0"});
+
+    for (const char* id :
+         {"servo_up", "selector_speed", "calibrate_encoder", "calibrate_gates", "clog_detection",
+          "sync_to_extruder", "gear_from_buffer_speed", "toolhead_sensor_to_nozzle"}) {
+        INFO(id);
+        CHECK_FALSE(action_enabled(helper, id));
+    }
+    CHECK(action_enabled(helper, "toolhead_entry_to_extruder"));
+
+    auto& o = helper.overrides_for_test();
+    o = {};
+    o.gear_from_spool_speed = 75.0f;
+    o.sync_to_extruder = 0;
+    o.gear_from_buffer_speed = 160.0f;
+    o.clog_detection = 2;
+    helper.captured_gcodes.clear();
+    helper.test_reapply_overrides();
+    CHECK(helper.captured_gcodes == std::vector<std::string>{"MMU_TEST_CONFIG GEAR_LOAD_SPEED=75"});
+}
+
+TEST_CASE("Happy Hare v3 sends selector_move_speed only to a moving selector",
+          "[ams][happy_hare][hh_v4]") {
+    AmsBackendHappyHareTestHelper helper;
+    helper.initialize_test_gates(4);
+    helper.test_apply_config_defaults(v3_settings(3.42));
+    helper.set_selector_type("VirtualSelector");
+    auto& o = helper.overrides_for_test();
+    o = {};
+    o.selector_move_speed = 180.0f;
+    o.gear_unload_speed = 90.0f;
+    helper.captured_gcodes.clear();
+    helper.test_reapply_overrides();
+    CHECK(helper.captured_gcodes ==
+          std::vector<std::string>{"MMU_TEST_CONFIG GEAR_UNLOAD_SPEED=90"});
 }

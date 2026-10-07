@@ -219,12 +219,39 @@ AmsBackendHappyHare::read_machine_layout(const nlohmann::json& settings,
     }
     for (int u = 0;; ++u) {
         const auto* unit = find_member(live_mmu_machine, "unit_" + std::to_string(u));
-        if (!unit) {
+        if (!unit || !unit->is_object()) {
             break;
         }
         if (const auto* bypass = find_member(*unit, "has_bypass"); bypass && bypass->is_boolean()) {
             layout.has_bypass = layout.has_bypass.value_or(false) || bypass->get<bool>();
         }
+        MachineUnit mu;
+        mu.selector_type = read_string_member(*unit, "selector_type");
+        if (const auto* v = find_member(*unit, "first_gate"); v && v->is_number_integer()) {
+            mu.first_gate = v->get<int>();
+        }
+        if (const auto* v = find_member(*unit, "num_gates"); v && v->is_number_integer()) {
+            mu.num_gates = std::max(v->get<int>(), 0);
+        }
+        if (const auto* v = find_member(*unit, "filament_always_gripped"); v && v->is_boolean()) {
+            mu.filament_always_gripped = v->get<bool>();
+        }
+        if (const auto* v = find_member(*unit, "filament_buffer"); v && v->is_boolean()) {
+            mu.filament_buffer = v->get<bool>();
+        }
+        mu.has_heater = !read_string_member(*unit, "filament_heater").empty();
+        if (const auto* v = find_member(*unit, "filament_heaters"); v && v->is_array()) {
+            for (const auto& h : *v) {
+                mu.has_heater = mu.has_heater || (h.is_string() && !h.get<std::string>().empty());
+            }
+        }
+        // v4 names the unit's encoder on its own [mmu_unit <name>] section; Klipper
+        // lowercases section names and leaves an unset encoder out.
+        const std::string name = to_lower_ascii(read_string_member(*unit, "name"));
+        if (const auto* cfg = name.empty() ? nullptr : find_member(settings, "mmu_unit " + name)) {
+            mu.has_encoder = !read_string_member(*cfg, "encoder").empty();
+        }
+        layout.units.push_back(std::move(mu));
     }
 
     // Klipper lowercases section names in configfile.settings; unit and
@@ -296,6 +323,134 @@ const nlohmann::json* AmsBackendHappyHare::find_config_param(const nlohmann::jso
     }
     const auto* params = find_member(settings, section);
     return params ? find_member(*params, name) : nullptr;
+}
+
+bool AmsBackendHappyHare::unit_supports(const MachineUnit& unit, UnitFeature feature, bool v4) {
+    const std::string& sel = unit.selector_type;
+    const bool type_b = sel == "VirtualSelector";
+    // selector_move_speed is a parameter of the linear, rotary and indexed
+    // selectors, on v3.4 and v4 alike.
+    const bool moving_selector = sel.empty() || sel.rfind("Linear", 0) == 0 ||
+                                 sel == "RotarySelector" || sel == "IndexedSelector";
+    if (!v4) {
+        switch (feature) {
+        case UnitFeature::SelectorSpeed:
+            return moving_selector;
+        case UnitFeature::Servo:
+        case UnitFeature::Encoder:
+            return !type_b;
+        case UnitFeature::SyncToExtruder:
+        case UnitFeature::FilamentBuffer:
+            return true;
+        }
+        return true;
+    }
+    switch (feature) {
+    case UnitFeature::Servo:
+        // MMU_SERVO is registered by LinearServoSelector and its multi-gear subclass.
+        return sel.empty() || sel == "LinearServoSelector" || sel == "LinearMultiGearServoSelector";
+    case UnitFeature::SelectorSpeed:
+        return moving_selector;
+    case UnitFeature::Encoder:
+        return unit.has_encoder.value_or(!type_b);
+    case UnitFeature::SyncToExtruder:
+        return !unit.filament_always_gripped;
+    case UnitFeature::FilamentBuffer:
+        return unit.filament_buffer.value_or(true);
+    }
+    return true;
+}
+
+int AmsBackendHappyHare::active_unit_locked() const {
+    return active_unit_ >= 0 ? active_unit_ : 0;
+}
+
+bool AmsBackendHappyHare::unit_supports_locked(int unit, UnitFeature feature) const {
+    const auto& units = machine_layout_.units;
+    if (unit >= 0 && unit < static_cast<int>(units.size())) {
+        return unit_supports(units[unit], feature, machine_layout_.v4);
+    }
+    MachineUnit fallback;
+    fallback.selector_type = selector_type_;
+    return unit_supports(fallback, feature, machine_layout_.v4);
+}
+
+std::optional<int> AmsBackendHappyHare::unit_with_locked(UnitFeature feature) const {
+    const int active = active_unit_locked();
+    if (unit_supports_locked(active, feature)) {
+        return active;
+    }
+    for (int u = 0; u < static_cast<int>(machine_layout_.units.size()); ++u) {
+        if (unit_supports_locked(u, feature)) {
+            return u;
+        }
+    }
+    return std::nullopt;
+}
+
+namespace {
+/// The unit capability v4 checks before accepting MMU_TEST_CONFIG @p key.
+std::optional<AmsBackendHappyHare::UnitFeature> feature_for_param(const std::string& key) {
+    using F = AmsBackendHappyHare::UnitFeature;
+    if (key == "gear_from_buffer_speed")
+        return F::FilamentBuffer;
+    if (key == "selector_move_speed")
+        return F::SelectorSpeed;
+    if (key == "sync_to_extruder")
+        return F::SyncToExtruder;
+    if (key == "clog_detection" || key == "detection_length")
+        return F::Encoder;
+    return std::nullopt;
+}
+
+/// The unit capability a device action needs.
+std::optional<AmsBackendHappyHare::UnitFeature> feature_for_action(const std::string& id) {
+    using F = AmsBackendHappyHare::UnitFeature;
+    if (id == "servo_buzz" || id == "servo_up" || id == "servo_move" || id == "servo_down")
+        return F::Servo;
+    if (id == "selector_speed")
+        return F::SelectorSpeed;
+    if (id == "calibrate_encoder" || id == "calibrate_gates" || id == "clog_detection")
+        return F::Encoder;
+    if (id == "sync_to_extruder")
+        return F::SyncToExtruder;
+    if (id == "gear_from_buffer_speed")
+        return F::FilamentBuffer;
+    return std::nullopt;
+}
+} // namespace
+
+std::optional<int> AmsBackendHappyHare::test_config_unit_locked(const std::string& key) const {
+    const int active = active_unit_locked();
+    if (param_name(key, machine_layout_).empty()) {
+        return std::nullopt;
+    }
+    // v3 checks only that a parameter names one of its own attributes, which
+    // a selector without a moving carriage has no selector_move_speed for.
+    if (!machine_layout_.v4) {
+        return key == "selector_move_speed" ? unit_with_locked(UnitFeature::SelectorSpeed)
+                                            : std::optional<int>(active);
+    }
+    // v4 guards these on a fitted, enabled sensor, machine-wide.
+    if ((key == "toolhead_sensor_to_nozzle" && toolhead_sensor_fitted_ == false) ||
+        (key == "toolhead_entry_to_extruder" && extruder_sensor_fitted_ == false)) {
+        return std::nullopt;
+    }
+    if (const auto feature = feature_for_param(key)) {
+        return unit_with_locked(*feature);
+    }
+    return active;
+}
+
+std::optional<std::string>
+AmsBackendHappyHare::test_config_command_locked(const std::string& key,
+                                                const std::string& value) const {
+    const auto unit = test_config_unit_locked(key);
+    const std::string param = test_config_param_locked(key);
+    if (!unit || param.empty()) {
+        return std::nullopt;
+    }
+    return fmt::format("MMU_TEST_CONFIG {}={}", param, value);
 }
 
 void AmsBackendHappyHare::set_machine_layout_locked(const MachineLayout& layout) {
@@ -1258,6 +1413,14 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
         const auto& sensors = mmu_data["sensors"];
         const std::string prefix = "mmu_pre_gate_";
         bool any_sensor = false;
+        // v4 publishes a disabled sensor as null, and its parameter guards treat
+        // a disabled sensor as not fitted.
+        auto fitted = [&sensors](const char* key) {
+            const auto it = sensors.find(key);
+            return it != sensors.end() && !it->is_null();
+        };
+        toolhead_sensor_fitted_ = fitted("toolhead");
+        extruder_sensor_fitted_ = fitted("extruder");
 
         for (auto it = sensors.begin(); it != sensors.end(); ++it) {
             const std::string& key = it.key();
@@ -2393,54 +2556,54 @@ void AmsBackendHappyHare::save_override(const std::string& key, int value) {
 }
 
 void AmsBackendHappyHare::reapply_overrides() {
-    // Build a single MMU_TEST_CONFIG command with all active overrides
-    std::string cmd = "MMU_TEST_CONFIG";
-    bool has_params = false;
-
-    std::unique_lock<std::mutex> lock(mutex_);
-    // Helper to append a float parameter. A key the installed version has no
-    // parameter for is left out: one unknown name fails the whole command.
-    auto append_float = [&](const char* key, const std::optional<float>& val, bool integer_fmt) {
-        const std::string param = test_config_param_locked(key);
-        if (val.has_value() && !param.empty()) {
-            if (integer_fmt)
-                cmd += fmt::format(" {}={:.0f}", param, *val);
-            else
-                cmd += fmt::format(" {}={:.1f}", param, *val);
-            has_params = true;
+    // Every active override with its value as MMU_TEST_CONFIG spells it.
+    std::vector<std::pair<const char*, std::string>> values;
+    auto add_float = [&](const char* key, const std::optional<float>& val, bool integer_fmt) {
+        if (val) {
+            values.emplace_back(key, integer_fmt ? fmt::format("{:.0f}", *val)
+                                                 : fmt::format("{:.1f}", *val));
+        }
+    };
+    auto add_int = [&](const char* key, const std::optional<int>& val) {
+        if (val) {
+            values.emplace_back(key, std::to_string(*val));
         }
     };
 
-    // Helper to append an int parameter
-    auto append_int = [&](const char* key, const std::optional<int>& val) {
-        const std::string param = test_config_param_locked(key);
-        if (val.has_value() && !param.empty()) {
-            cmd += fmt::format(" {}={}", param, *val);
-            has_params = true;
+    std::vector<std::string> commands;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        // Speed sliders (integer format)
+        add_float("gear_from_buffer_speed", user_overrides_.gear_from_buffer_speed, true);
+        add_float("gear_from_spool_speed", user_overrides_.gear_from_spool_speed, true);
+        add_float("gear_unload_speed", user_overrides_.gear_unload_speed, true);
+        add_float("selector_move_speed", user_overrides_.selector_move_speed, true);
+        add_float("extruder_load_speed", user_overrides_.extruder_load_speed, true);
+        add_float("extruder_unload_speed", user_overrides_.extruder_unload_speed, true);
+        // Toolhead distances (one decimal)
+        add_float("toolhead_sensor_to_nozzle", user_overrides_.toolhead_sensor_to_nozzle, false);
+        add_float("toolhead_extruder_to_nozzle", user_overrides_.toolhead_extruder_to_nozzle,
+                  false);
+        add_float("toolhead_entry_to_extruder", user_overrides_.toolhead_entry_to_extruder, false);
+        add_float("toolhead_ooze_reduction", user_overrides_.toolhead_ooze_reduction, false);
+        // Int toggles
+        add_int("sync_to_extruder", user_overrides_.sync_to_extruder);
+        add_int("clog_detection", user_overrides_.clog_detection);
+
+        // Each override goes alone, to the unit that takes it: v3 refuses a
+        // whole MMU_TEST_CONFIG over one name it does not know, and v4 applies
+        // the rest but answers with an error. One no unit takes is left out.
+        for (const auto& [key, value] : values) {
+            if (auto cmd = test_config_command_locked(key, value)) {
+                commands.push_back(std::move(*cmd));
+            } else {
+                spdlog::info("[AMS HappyHare] Not re-applying {}: no unit takes it", key);
+            }
         }
-    };
+    }
 
-    // Speed sliders (integer format)
-    append_float("gear_from_buffer_speed", user_overrides_.gear_from_buffer_speed, true);
-    append_float("gear_from_spool_speed", user_overrides_.gear_from_spool_speed, true);
-    append_float("gear_unload_speed", user_overrides_.gear_unload_speed, true);
-    append_float("selector_move_speed", user_overrides_.selector_move_speed, true);
-    append_float("extruder_load_speed", user_overrides_.extruder_load_speed, true);
-    append_float("extruder_unload_speed", user_overrides_.extruder_unload_speed, true);
-
-    // Toolhead distances (one decimal)
-    append_float("toolhead_sensor_to_nozzle", user_overrides_.toolhead_sensor_to_nozzle, false);
-    append_float("toolhead_extruder_to_nozzle", user_overrides_.toolhead_extruder_to_nozzle, false);
-    append_float("toolhead_entry_to_extruder", user_overrides_.toolhead_entry_to_extruder, false);
-    append_float("toolhead_ooze_reduction", user_overrides_.toolhead_ooze_reduction, false);
-
-    // Int toggles
-    append_int("sync_to_extruder", user_overrides_.sync_to_extruder);
-    append_int("clog_detection", user_overrides_.clog_detection);
-    lock.unlock();
-
-    if (has_params) {
-        spdlog::info("[AMS HappyHare] Re-applying overrides: {}", cmd);
+    for (const auto& cmd : commands) {
+        spdlog::info("[AMS HappyHare] Re-applying override: {}", cmd);
         execute_gcode(cmd);
     }
 }
@@ -3533,20 +3696,31 @@ std::vector<helix::printer::DeviceAction> AmsBackendHappyHare::get_device_action
         }
     }
 
-    // --- Topology filtering (Type B = hub-based, no servo/selector/encoder) ---
-    if (is_type_b()) {
-        for (auto& a : actions) {
-            if (a.id == "calibrate_encoder" || a.id == "servo_buzz" || a.id == "servo_up" ||
-                a.id == "servo_move" || a.id == "servo_down") {
-                a.enabled = false;
-                a.disable_reason = "Not available on hub-based (Type B) systems";
-            } else if (a.id == "selector_speed") {
-                a.enabled = false;
-                a.disable_reason = "No selector on hub-based systems";
-            } else if (a.id == "clog_detection") {
-                a.enabled = false;
-                a.disable_reason = "Encoder-based clog detection not available on Type B";
+    // --- Hardware filtering: an action no unit's hardware takes is disabled ---
+    for (auto& a : actions) {
+        if (const auto feature = feature_for_action(a.id); feature && !unit_with_locked(*feature)) {
+            a.enabled = false;
+            switch (*feature) {
+            case UnitFeature::Servo:
+                a.disable_reason = "No unit has a servo";
+                break;
+            case UnitFeature::SelectorSpeed:
+                a.disable_reason = "No unit has a moving selector";
+                break;
+            case UnitFeature::Encoder:
+                a.disable_reason = "No unit has an encoder";
+                break;
+            case UnitFeature::SyncToExtruder:
+                a.disable_reason = "Every unit keeps its filament gripped";
+                break;
+            case UnitFeature::FilamentBuffer:
+                a.disable_reason = "No unit has a filament buffer";
+                break;
             }
+        } else if ((a.id == "toolhead_sensor_to_nozzle" || a.id == "toolhead_entry_to_extruder") &&
+                   !test_config_unit_locked(a.id)) {
+            a.enabled = false;
+            a.disable_reason = "No sensor fitted for this distance";
         }
     }
 
@@ -3646,15 +3820,15 @@ AmsError AmsBackendHappyHare::execute_device_action(const std::string& action_id
     // MMU_TEST_CONFIG <param>=<value>, the parameter named as this install
     // spells it.
     auto test_config = [this](const char* key, const std::string& value) {
-        std::string param;
+        std::optional<std::string> cmd;
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            param = test_config_param_locked(key);
+            cmd = test_config_command_locked(key, value);
         }
-        if (param.empty()) {
+        if (!cmd) {
             return AmsErrorHelper::not_supported(std::string("Happy Hare parameter ") + key);
         }
-        return execute_gcode(fmt::format("MMU_TEST_CONFIG {}={}", param, value));
+        return execute_gcode(*cmd);
     };
 
     // --- Speed sliders (integer formatting) ---

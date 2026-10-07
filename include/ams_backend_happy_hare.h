@@ -487,6 +487,24 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// the tunables across `[mmu_parameters]`, `[mmu_unit_parameters <unit>]`
     /// and `[mmu_toolhead <name>]`, and publishes `happy_hare_version` on
     /// `mmu_machine`.
+    /// One unit's fields from the live mmu_machine.unit_N (v4).
+    struct MachineUnit {
+        std::string selector_type;
+        int first_gate = -1;
+        int num_gates = 0;
+        bool filament_always_gripped = false;
+        std::optional<bool> filament_buffer;
+        /// From the unit's configfile [mmu_unit <name>] encoder
+        std::optional<bool> has_encoder;
+        bool has_heater = false; ///< filament_heater or any filament_heaters entry
+    };
+    /// A per-unit capability v4 checks before it accepts a command or a
+    /// MMU_TEST_CONFIG parameter.
+    enum class UnitFeature { Servo, SelectorSpeed, Encoder, SyncToExtruder, FilamentBuffer };
+    /// Whether @p unit has @p feature. v3 knows only Type A from Type B, and
+    /// checks only parameter names, so there only the selector features apply.
+    [[nodiscard]] static bool unit_supports(const MachineUnit& unit, UnitFeature feature, bool v4);
+
     struct MachineLayout {
         std::string version;             ///< happy_hare_version; empty when unknown
         double version_number = 0;       ///< 3.42, 4.0; 0 when unknown
@@ -495,6 +513,7 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         std::string unit_params_section; ///< "mmu_unit_parameters <unit 0>", v4 only
         std::string toolhead_section;    ///< "mmu_toolhead <name>", v4 only
         std::optional<bool> has_bypass;  ///< any unit's has_bypass, v4 only
+        std::vector<MachineUnit> units;  ///< every mmu_machine.unit_N, v4 only
     };
     /// @p settings configfile.settings, @p live_mmu_machine the live object
     /// (either may be empty).
@@ -528,6 +547,29 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// MMU_TEST_CONFIG's parameter for @p key, uppercased; empty when the
     /// installed version has none. Caller holds mutex_.
     [[nodiscard]] std::string test_config_param_locked(const std::string& key) const;
+    /// Unit @p unit has @p feature, from its mmu_machine fields, else the
+    /// machine-wide selector type. Caller holds mutex_.
+    [[nodiscard]] bool unit_supports_locked(int unit, UnitFeature feature) const;
+    /// The selected unit when it has @p feature, else the first that does.
+    /// Caller holds mutex_.
+    [[nodiscard]] std::optional<int> unit_with_locked(UnitFeature feature) const;
+    /// The unit an MMU_TEST_CONFIG of @p key targets: the selected unit when it
+    /// takes the parameter, else the first unit that does; nullopt when none
+    /// does or the installed version has no such parameter. v3 checks only
+    /// names, so there only selector_move_speed depends on the unit.
+    /// Caller holds mutex_.
+    [[nodiscard]] std::optional<int> test_config_unit_locked(const std::string& key) const;
+    /// `MMU_TEST_CONFIG <param>=<value>` for @p key, or nullopt when no unit
+    /// takes it. Caller holds mutex_.
+    [[nodiscard]] std::optional<std::string>
+    test_config_command_locked(const std::string& key, const std::string& value) const;
+    /// The selected unit (printer.mmu.unit). Caller holds mutex_.
+    [[nodiscard]] int active_unit_locked() const;
+    /// Toolhead / extruder-entry sensor fitted and enabled, from
+    /// printer.mmu.sensors; nullopt until a frame carries the dict. v4 refuses
+    /// the toolhead distance tuned against a sensor that is not.
+    std::optional<bool> toolhead_sensor_fitted_;
+    std::optional<bool> extruder_sensor_fitted_;
     /// Store @p layout and the version it names. Caller holds mutex_.
     void set_machine_layout_locked(const MachineLayout& layout);
 
