@@ -126,6 +126,19 @@ bool is_native_3mf_shadow(const std::string& name) {
     return name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
+std::string qidi_3mf_extract_name(const std::string& print_filename) {
+    std::string name = basename_of(print_filename);
+    if (is_3mf(name)) {
+        name.resize(name.size() - 4);
+    }
+    static const std::string gcode = ".gcode";
+    if (name.size() < gcode.size() ||
+        name.compare(name.size() - gcode.size(), gcode.size(), gcode) != 0) {
+        name += gcode;
+    }
+    return name;
+}
+
 bool ends_with_ci(const std::string& s, const std::string& suffix) {
     if (s.size() < suffix.size()) {
         return false;

@@ -124,6 +124,14 @@ bool thumbnail_source_describes(const std::string& raw, const std::string& sourc
 bool is_native_3mf_shadow(const std::string& name);
 
 /**
+ * @brief Name of the plate G-code QIDI's Moonraker extracts into `.temp` when a
+ *        `.3mf` print starts: the basename without `.3mf`, with `.gcode` added
+ *        when that leaves no `.gcode` suffix ("Benchy.gcode.3mf" and
+ *        "Benchy.3mf" both give "Benchy.gcode").
+ */
+std::string qidi_3mf_extract_name(const std::string& print_filename);
+
+/**
  * @brief Does @p s end with @p suffix, ignoring ASCII case?
  */
 bool ends_with_ci(const std::string& s, const std::string& suffix);

@@ -8,6 +8,7 @@
 #include "../catch_amalgamated.hpp"
 
 using helix::gcode::is_native_3mf_shadow;
+using helix::gcode::qidi_3mf_extract_name;
 using helix::gcode::resolve_gcode_filename;
 using helix::gcode::thumbnail_source_describes;
 
@@ -21,6 +22,13 @@ TEST_CASE("is_native_3mf_shadow() accepts valid shadow names", "[filename_utils]
     REQUIRE(is_native_3mf_shadow("shadow_native_plate_007.gcode"));
     // Plate id need not be numeric - any non-empty middle is accepted.
     REQUIRE(is_native_3mf_shadow("shadow_native_plate_A.gcode"));
+}
+
+TEST_CASE("qidi_3mf_extract_name() names the plate G-code QIDI extracts into .temp",
+          "[filename_utils][qidi]") {
+    CHECK(qidi_3mf_extract_name("Benchy.gcode.3mf") == "Benchy.gcode");
+    CHECK(qidi_3mf_extract_name("sub/dir/Benchy.gcode.3mf") == "Benchy.gcode");
+    CHECK(qidi_3mf_extract_name("Benchy.3mf") == "Benchy.gcode");
 }
 
 TEST_CASE("is_native_3mf_shadow() requires a non-empty plate id", "[filename_utils][qidi]") {

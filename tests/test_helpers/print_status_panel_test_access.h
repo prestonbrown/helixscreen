@@ -54,6 +54,15 @@ class PrintStatusPanelTestAccess {
         return panel.gcode_viewer_;
     }
 
+    /// Start the G-code preview load the deferred timer would start.
+    static void load_gcode_for_viewing(PrintStatusPanel& panel, const std::string& filename) {
+        panel.load_gcode_for_viewing(filename);
+    }
+
+    static IMoonrakerAPI* api(const PrintStatusPanel& panel) {
+        return panel.api_;
+    }
+
     static void recompute_aux_composites(PrintStatusPanel& panel, int density, bool aux_present) {
         panel.recompute_aux_composites_for_measurement(density, aux_present);
     }
