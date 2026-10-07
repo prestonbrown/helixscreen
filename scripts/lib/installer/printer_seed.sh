@@ -186,9 +186,12 @@ PY
 #     directory and the link survives. These writers run after
 #     setup_config_symlink, so the link is the usual case on a Pi.
 # Args: $1 = Python source defining transform(settings) -> settings. It runs with
-#       json, os and deep_merge in scope, and reads its inputs from the
-#       environment, which this function passes through.
+#       json, os and deep_merge in scope and reads its inputs from os.environ.
 #       $2 = the file to rewrite (default: the install's settings.json)
+#       $3... = NAME=value inputs for the transform's environment. A prefix
+#       assignment on the call (NAME=value _rewrite_settings_json) does not
+#       reach python3: some BusyBox ash builds (1.30 among them) keep it out of
+#       the function's children.
 # Returns 1 when python3 is missing, settings.json is unparseable, or the
 # transform or write failed.
 _rewrite_settings_json() {
@@ -206,8 +209,11 @@ _rewrite_settings_json() {
     local target_dir
     target_dir=$(dirname "$settings")
     local tmp_out="${target_dir}/.settings.json.seed.$$"
+    local transform="$1"
+    shift
+    if [ $# -gt 0 ]; then shift; fi
 
-    if ! SETTINGS_PATH="$settings" SETTINGS_TRANSFORM="$1" TMP_OUT="$tmp_out" python3 - <<'PY'
+    if ! env SETTINGS_PATH="$settings" SETTINGS_TRANSFORM="$transform" TMP_OUT="$tmp_out" "$@" python3 - <<'PY'
 import json, os, sys
 
 settings_path = os.environ["SETTINGS_PATH"]
@@ -280,10 +286,10 @@ PY
 # Args: $1 = JSON object text, $2 = another file to merge into instead
 # Returns 1 as _rewrite_settings_json does.
 merge_settings_defaults() {
-    FRAGMENT_JSON="$1" _rewrite_settings_json '
+    _rewrite_settings_json '
 def transform(settings):
     return deep_merge(settings, json.loads(os.environ["FRAGMENT_JSON"]), top_level=True)
-' "${2:-}"
+' "${2:-}" FRAGMENT_JSON="$1"
 }
 
 # Persist a channel match_channel_to_version derived from a prerelease version
@@ -366,7 +372,7 @@ seed_full_preset_for_printer() {
         return 0
     fi
     log_info "Seeding FULL preset for ${printer_id} (preset-mode)..."
-    if FRAGMENT_PATH="$fragment" PRESET_ID="$printer_id" _rewrite_settings_json '
+    if _rewrite_settings_json '
 def strip_us(o):
     """Recursively drop _-prefixed provenance keys."""
     if isinstance(o, dict):
@@ -409,7 +415,7 @@ def transform(base):
     pnode.setdefault("wizard_completed", False)
     base.setdefault("preset", preset.get("preset", preset_id))
     return base
-'; then
+' "" FRAGMENT_PATH="$fragment" PRESET_ID="$printer_id"; then
         log_success "Seeded FULL preset for ${printer_id}"
     else
         log_warn "Could not write full-preset settings.json for ${printer_id}; leaving it unchanged"
