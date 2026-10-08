@@ -762,10 +762,7 @@ int Application::run(int argc, char** argv) {
     // Set multi-printer subjects from config (needed for navbar badge binding)
     {
         auto printer_ids = m_config->get_printer_ids();
-        auto active_id = m_config->get_active_printer_id();
-        std::string printer_name =
-            m_config->get<std::string>(m_config->df() + "printer_name", active_id);
-        get_printer_state().set_active_printer_name(printer_name);
+        get_printer_state().set_active_printer_name(m_config->get_active_printer_name());
         get_printer_state().set_multi_printer_enabled(printer_ids.size() > 1);
     }
 
@@ -4726,8 +4723,7 @@ void Application::switch_printer(const std::string& printer_id) {
     NavigationManager::instance().set_active(PanelId::Home);
 
     // Show toast with the new printer name
-    std::string printer_name =
-        m_config->get<std::string>(m_config->df() + "printer_name", printer_id);
+    std::string printer_name = m_config->get_printer_display_name(printer_id, printer_id);
     std::string toast_msg = fmt::format(fmt::runtime(lv_tr("Connected to {}")), printer_name);
     ToastManager::instance().show(ToastSeverity::INFO, toast_msg.c_str());
 
@@ -5022,10 +5018,7 @@ void Application::init_printer_state() {
     // 2b. Set multi-printer subjects from config
     {
         auto printer_ids = m_config->get_printer_ids();
-        auto active_id = m_config->get_active_printer_id();
-        std::string printer_name =
-            m_config->get<std::string>(m_config->df() + "printer_name", active_id);
-        get_printer_state().set_active_printer_name(printer_name);
+        get_printer_state().set_active_printer_name(m_config->get_active_printer_name());
         get_printer_state().set_multi_printer_enabled(printer_ids.size() > 1);
     }
 

@@ -106,6 +106,8 @@ class PrinterManagerOverlay : public OverlayBase {
     void on_deactivate() override;
 
   private:
+    friend struct PrinterManagerOverlayTestAccess;
+
     //
     // === Internal Methods ===
     //

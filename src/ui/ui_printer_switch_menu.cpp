@@ -99,7 +99,7 @@ void PrinterSwitchMenu::populate_printer_list() {
 
     for (const auto& id : printer_ids) {
         bool is_active = (id == active_id);
-        std::string name = cfg->get<std::string>("/printers/" + id + "/printer_name", id);
+        std::string name = cfg->get_printer_display_name(id, id);
 
         // Row container
         lv_obj_t* row = lv_obj_create(printer_list);

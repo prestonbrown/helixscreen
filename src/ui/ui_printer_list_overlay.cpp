@@ -152,7 +152,7 @@ void PrinterListOverlay::populate_printer_list() {
 
     for (const auto& id : printer_ids) {
         bool is_active = (id == active_id);
-        std::string name = cfg->get<std::string>("/printers/" + id + "/printer_name", id);
+        std::string name = cfg->get_printer_display_name(id, id);
 
         // Create row from XML component
         auto* row = static_cast<lv_obj_t*>(lv_xml_create(container, "printer_list_item", nullptr));
@@ -217,8 +217,7 @@ void PrinterListOverlay::handle_delete_printer(const std::string& printer_id) {
         return;
     }
 
-    std::string name =
-        cfg->get<std::string>("/printers/" + printer_id + "/printer_name", printer_id);
+    std::string name = cfg->get_printer_display_name(printer_id, printer_id);
 
     std::string msg = "Remove " + name + "? All settings for this printer will be deleted.";
 

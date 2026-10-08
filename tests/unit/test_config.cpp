@@ -4358,3 +4358,26 @@ TEST_CASE("Config::save() persists a document holding invalid UTF-8",
     CHECK(name.find(" 2.4") != std::string::npos);
     CHECK(name.find('\xff') == std::string::npos);
 }
+
+// A printer added by address has no name or type until it connects and is identified.
+TEST_CASE_METHOD(ConfigTestFixture,
+                 "Config: a printer's display name is its name, then its type, then its host",
+                 "[core][config][multi-printer]") {
+    set_data_for_plural_test({{"active_printer_id", "voron"},
+                              {"printers",
+                               {{"voron", {{"printer_name", "Voron 2.4"}, {"type", "Voron"}}},
+                                {"printer-2", {{"moonraker_host", "10.0.0.2"}}},
+                                {"printer-3", {{"moonraker_host", "10.0.0.3"}, {"type", "AD5M"}}},
+                                {"printer-4", nlohmann::json::object()}}}});
+    CHECK(config.get_printer_display_name("voron", "-") == "Voron 2.4");
+    CHECK(config.get_printer_display_name("printer-3", "-") == "AD5M");
+    CHECK(config.get_printer_display_name("printer-2", "-") == "10.0.0.2");
+    CHECK(config.get_printer_display_name("printer-4", "-") == "-");
+
+    ConfigTestAccess::active_printer_id(config) = "voron";
+    CHECK(config.get_active_printer_name() == "Voron 2.4");
+    ConfigTestAccess::active_printer_id(config) = "printer-2";
+    CHECK(config.get_active_printer_name() == "10.0.0.2");
+    ConfigTestAccess::active_printer_id(config) = "printer-4";
+    CHECK(config.get_active_printer_name() == "printer-4");
+}

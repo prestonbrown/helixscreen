@@ -2,6 +2,8 @@
 // Copyright (C) 2025-2026 356C LLC
 
 #include "../test_fixtures.h"
+#include "../test_helpers/config_test_access.h"
+#include "config.h"
 #include "misc/lv_timer_private.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
@@ -104,4 +106,35 @@ TEST_CASE_METHOD(XMLTestFixture, "PrinterImageWidget defers image refresh out of
     }
 
     w.detach();
+}
+
+// A printer added by address has no name or type until it connects; Home names it by its host.
+TEST_CASE_METHOD(XMLTestFixture,
+                 "PrinterImageWidget labels a printer not yet identified by its host",
+                 "[panel_widget][printer_image][multi-printer]") {
+    helix::init_widget_registrations();
+    helix::PanelWidgetManager::instance().init_widget_subjects();
+    helix::Config* cfg = helix::Config::get_instance();
+    REQUIRE(cfg != nullptr);
+    const nlohmann::json saved = helix::ConfigTestAccess::data(*cfg);
+    const std::string saved_active = helix::ConfigTestAccess::active_printer_id(*cfg);
+    nlohmann::json data = saved;
+    data["printers"]["printer-2"] = {{"moonraker_host", "10.0.0.9"}};
+    helix::ConfigTestAccess::data(*cfg) = data;
+    helix::ConfigTestAccess::active_printer_id(*cfg) = "printer-2";
+
+    lv_obj_t* widget_obj = lv_obj_create(test_screen());
+    lv_obj_t* img = lv_image_create(widget_obj);
+    lv_obj_set_name(img, "printer_image");
+    helix::PrinterImageWidget w;
+    w.attach(widget_obj, test_screen());
+
+    lv_subject_t* label = lv_xml_get_subject(nullptr, "printer_type_text");
+    REQUIRE(label != nullptr);
+    CHECK(std::string(lv_subject_get_string(label)) == "10.0.0.9");
+
+    w.detach();
+    process_async_calls();
+    helix::ConfigTestAccess::data(*cfg) = saved;
+    helix::ConfigTestAccess::active_printer_id(*cfg) = saved_active;
 }

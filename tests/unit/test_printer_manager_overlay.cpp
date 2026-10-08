@@ -13,6 +13,9 @@
 #include "ui_printer_manager_overlay.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/config_test_access.h"
+#include "../test_helpers/printer_manager_overlay_test_access.h"
+#include "config.h"
 #include "subject_debug_registry.h"
 
 #include "../catch_amalgamated.hpp"
@@ -200,4 +203,46 @@ TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: root is null before cr
                  "[printer_manager]") {
     PrinterManagerOverlay overlay;
     REQUIRE(overlay.get_root() == nullptr);
+}
+
+// The edit box holds the printer's own name only: a host or type shown in its place is not
+// a name, and confirming it would save it as one and push it to Mainsail/Fluidd.
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "PrinterManagerOverlay: renaming starts from the saved name, never the fallback",
+                 "[printer_manager][multi-printer]") {
+    helix::Config* cfg = helix::Config::get_instance();
+    REQUIRE(cfg != nullptr);
+    const nlohmann::json saved = helix::ConfigTestAccess::data(*cfg);
+    const std::string saved_active = helix::ConfigTestAccess::active_printer_id(*cfg);
+    nlohmann::json data = saved;
+    data["printers"]["printer-2"] = {{"moonraker_host", "10.0.0.9"}};
+    helix::ConfigTestAccess::data(*cfg) = data;
+    helix::ConfigTestAccess::active_printer_id(*cfg) = "printer-2";
+    const std::string name_key = "/printers/printer-2/printer_name";
+    {
+        PrinterManagerOverlay overlay;
+        overlay.init_subjects();
+        lv_obj_t* input = lv_textarea_create(test_screen());
+        PrinterManagerOverlayTestAccess::set_name_input(overlay, input);
+        PrinterManagerOverlayTestAccess::refresh(overlay);
+
+        PrinterManagerOverlayTestAccess::start_name_edit(overlay);
+        CHECK(std::string(lv_textarea_get_text(input)).empty());
+
+        // Confirming an empty box writes nothing.
+        PrinterManagerOverlayTestAccess::finish_name_edit(overlay);
+        CHECK(cfg->get<std::string>(name_key, "") == "");
+
+        PrinterManagerOverlayTestAccess::start_name_edit(overlay);
+        lv_textarea_set_text(input, "Voron");
+        PrinterManagerOverlayTestAccess::finish_name_edit(overlay);
+        CHECK(cfg->get<std::string>(name_key, "") == "Voron");
+
+        PrinterManagerOverlayTestAccess::start_name_edit(overlay);
+        CHECK(std::string(lv_textarea_get_text(input)) == "Voron");
+        PrinterManagerOverlayTestAccess::finish_name_edit(overlay);
+        lv_obj_delete(input);
+    }
+    helix::ConfigTestAccess::data(*cfg) = saved;
+    helix::ConfigTestAccess::active_printer_id(*cfg) = saved_active;
 }

@@ -2129,6 +2129,22 @@ std::string Config::get_active_printer_id() const {
     return active_printer_id_;
 }
 
+std::string Config::get_printer_display_name(const std::string& printer_id,
+                                             const std::string& fallback) const {
+    const std::string base = "/printers/" + printer_id + "/";
+    for (const char* key : {"printer_name", "type", "moonraker_host"}) {
+        std::string value = get<std::string>(base + key, "");
+        if (!value.empty()) {
+            return value;
+        }
+    }
+    return fallback;
+}
+
+std::string Config::get_active_printer_name() const {
+    return get_printer_display_name(active_printer_id_, active_printer_id_);
+}
+
 bool Config::refresh_active_printer_id() {
     const std::string resolved = find_active_printer_key(data, active_printer_id_);
     active_printer_id_ = resolved;

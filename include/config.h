@@ -492,6 +492,14 @@ class Config {
      */
     std::string get_active_printer_id() const;
 
+    /// What to call printer @p printer_id: its name, else its detected type, else its host
+    /// (a printer added by address has neither until it connects), else @p fallback.
+    std::string get_printer_display_name(const std::string& printer_id,
+                                         const std::string& fallback) const;
+
+    /// The active printer's display name; its id only when it has none.
+    std::string get_active_printer_name() const;
+
     /**
      * @brief Switch to a different printer configuration
      *
