@@ -3,7 +3,9 @@
 
 #include "ui_spool_wizard.h" // For FilamentEntry struct
 
+#include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "json_utils.h"
+#include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_spoolman_api.h" // For spoolman_detail::parse_spool_info
@@ -1072,43 +1074,39 @@ TEST_CASE("parse_spool_info - null recommended temps do not throw (#1087)",
 }
 
 // ============================================================================
-// parse_spool_info — nozzle/bed temperature RANGES
+// parse_spool_info — nozzle/bed temperature
 //
-// apply_spool_to_slot() copies spool.nozzle_temp_min/max straight onto the
-// slot, so a parser that never reads settings_extruder_temp_min/max hands every
-// Spoolman-sourced slot a 0/0 nozzle range while the bed temperature is real.
-// parse_filament_info() already reads all four keys; the spool path must agree.
+// Spoolman's filament carries ONE integer per heater, settings_extruder_temp
+// and settings_bed_temp. apply_spool_to_slot() copies spool.nozzle_temp_min/max
+// onto the slot, so the single value has to fill both ends or every
+// Spoolman-sourced slot reads a 0/0 nozzle range.
 // ============================================================================
 
-TEST_CASE("parse_spool_info parses nozzle and bed temperature ranges",
+TEST_CASE("parse_spool_info reads Spoolman's single nozzle and bed temperature",
           "[filament][parsing][spoolman]") {
     using helix::spoolman_detail::parse_spool_info;
 
-    SECTION("min/max populate the range alongside the recommended value") {
+    SECTION("the one value is the recommended value and both ends of the range") {
         auto j = nlohmann::json::parse(R"({
             "id": 21,
             "filament": {
                 "id": 4,
                 "material": "PETG",
                 "settings_extruder_temp": 240,
-                "settings_extruder_temp_min": 230,
-                "settings_extruder_temp_max": 250,
-                "settings_bed_temp": 80,
-                "settings_bed_temp_min": 70,
-                "settings_bed_temp_max": 90
+                "settings_bed_temp": 80
             }
         })");
 
         auto info = parse_spool_info(j);
         CHECK(info.nozzle_temp_recommended == 240);
-        CHECK(info.nozzle_temp_min == 230);
-        CHECK(info.nozzle_temp_max == 250);
+        CHECK(info.nozzle_temp_min == 240);
+        CHECK(info.nozzle_temp_max == 240);
         CHECK(info.bed_temp_recommended == 80);
-        CHECK(info.bed_temp_min == 70);
-        CHECK(info.bed_temp_max == 90);
+        CHECK(info.bed_temp_min == 80);
+        CHECK(info.bed_temp_max == 80);
     }
 
-    SECTION("present-but-null min/max do not throw and read as 0") {
+    SECTION("present-but-null temperatures do not throw and read as 0") {
         // Spoolman serializes every optional numeric as null rather than
         // omitting it — a raw .value() on these throws type_error.302 and
         // aborts the whole spool-list parse (#1087).
@@ -1116,10 +1114,8 @@ TEST_CASE("parse_spool_info parses nozzle and bed temperature ranges",
             "id": 22,
             "filament": {
                 "material": "PLA",
-                "settings_extruder_temp_min": null,
-                "settings_extruder_temp_max": null,
-                "settings_bed_temp_min": null,
-                "settings_bed_temp_max": null
+                "settings_extruder_temp": null,
+                "settings_bed_temp": null
             }
         })");
 
@@ -1131,29 +1127,52 @@ TEST_CASE("parse_spool_info parses nozzle and bed temperature ranges",
         CHECK(info.bed_temp_max == 0);
     }
 
-    SECTION("the range reaches the slot through apply_spool_to_slot") {
-        // The consumer that made the omission user-visible: a slot linked to a
-        // Spoolman spool showed a real bed temperature next to a 0/0 nozzle
-        // range, because only the bed value was ever parsed.
+    SECTION("the temperature reaches the slot through apply_spool_to_slot") {
         auto j = nlohmann::json::parse(R"({
             "id": 23,
             "filament": {
                 "material": "PETG",
                 "settings_extruder_temp": 240,
-                "settings_extruder_temp_min": 230,
-                "settings_extruder_temp_max": 250,
-                "settings_bed_temp": 80,
-                "settings_bed_temp_min": 70,
-                "settings_bed_temp_max": 90
+                "settings_bed_temp": 80
             }
         })");
 
         SlotInfo slot;
         apply_spool_to_slot(slot, parse_spool_info(j));
-        CHECK(slot.nozzle_temp_min == 230);
-        CHECK(slot.nozzle_temp_max == 250);
+        CHECK(slot.nozzle_temp_min == 240);
+        CHECK(slot.nozzle_temp_max == 240);
         CHECK(slot.bed_temp == 80);
     }
+}
+
+TEST_CASE("get_spoolman_filaments reads Spoolman's single temperature onto the range",
+          "[filament][parsing][spoolman]") {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPI api(client, state);
+    // A filament as Spoolman serves it: one integer per heater.
+    helix::MoonrakerClientMockTestAccess::set_method_handler(
+        client, "server.spoolman.proxy",
+        [](MoonrakerClientMock*, const json&, std::function<void(const json&)> success_cb,
+           std::function<void(const MoonrakerError&)>) -> bool {
+            success_cb(json{{"result", json::array({json{{"id", 100},
+                                                         {"material", "PETG"},
+                                                         {"vendor_id", 1},
+                                                         {"settings_extruder_temp", 240},
+                                                         {"settings_bed_temp", 80}}})}});
+            return true;
+        });
+
+    std::vector<FilamentInfo> got;
+    api.spoolman().get_spoolman_filaments([&](const std::vector<FilamentInfo>& f) { got = f; },
+                                          [](const MoonrakerError&) {});
+    REQUIRE(got.size() == 1);
+    CHECK(got[0].id == 100);
+    CHECK(got[0].nozzle_temp_min == 240);
+    CHECK(got[0].nozzle_temp_max == 240);
+    CHECK(got[0].bed_temp_min == 80);
+    CHECK(got[0].bed_temp_max == 80);
+    client.disconnect();
 }
 
 // ============================================================================

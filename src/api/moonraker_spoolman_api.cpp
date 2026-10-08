@@ -57,20 +57,14 @@ SpoolInfo helix::spoolman_detail::parse_spool_info(const nlohmann::json& spool_j
         info.color_hex = safe_string(filament, "color_hex");
         info.multi_color_hexes = safe_string(filament, "multi_color_hexes");
 
-        // Temperature settings. Spoolman serializes these optional fields as
-        // present-but-null, so a raw .value() would throw type_error.302 on the
-        // whole list; safe_int null-guards each read.
+        // Spoolman stores one temperature per filament, not a range, and
+        // serializes it as present-but-null when unset; safe_int null-guards
+        // each read. The single value is both ends of the range
+        // apply_spool_to_slot() copies onto a slot's nozzle and bed.
         info.nozzle_temp_recommended = safe_int(filament, "settings_extruder_temp", 0);
         info.bed_temp_recommended = safe_int(filament, "settings_bed_temp", 0);
-
-        // The min/max pair is what apply_spool_to_slot() copies onto a slot's
-        // nozzle range; without it every Spoolman-linked slot reads 0/0 while
-        // the bed temperature is real. Same four keys parse_filament_info()
-        // reads off the filament endpoint.
-        info.nozzle_temp_min = safe_int(filament, "settings_extruder_temp_min", 0);
-        info.nozzle_temp_max = safe_int(filament, "settings_extruder_temp_max", 0);
-        info.bed_temp_min = safe_int(filament, "settings_bed_temp_min", 0);
-        info.bed_temp_max = safe_int(filament, "settings_bed_temp_max", 0);
+        info.nozzle_temp_min = info.nozzle_temp_max = info.nozzle_temp_recommended;
+        info.bed_temp_min = info.bed_temp_max = info.bed_temp_recommended;
 
         // Fallback: use filament definition weight when spool initial_weight is null/0.
         // Spoolman's initial_weight is optional; filament.weight is the canonical
@@ -112,10 +106,10 @@ static FilamentInfo parse_filament_info(const nlohmann::json& filament_json) {
     info.diameter = safe_float(filament_json, "diameter", 1.75f);
     info.weight = safe_float(filament_json, "weight", 0.0f);
     info.spool_weight = safe_float(filament_json, "spool_weight", 0.0f);
-    info.nozzle_temp_min = safe_int(filament_json, "settings_extruder_temp_min", 0);
-    info.nozzle_temp_max = safe_int(filament_json, "settings_extruder_temp_max", 0);
-    info.bed_temp_min = safe_int(filament_json, "settings_bed_temp_min", 0);
-    info.bed_temp_max = safe_int(filament_json, "settings_bed_temp_max", 0);
+    // One temperature per filament in Spoolman; it is both ends of the range.
+    info.nozzle_temp_min = info.nozzle_temp_max =
+        safe_int(filament_json, "settings_extruder_temp", 0);
+    info.bed_temp_min = info.bed_temp_max = safe_int(filament_json, "settings_bed_temp", 0);
 
     // Extract vendor_id from top-level field (always present in Spoolman response)
     info.vendor_id = safe_int(filament_json, "vendor_id", 0);

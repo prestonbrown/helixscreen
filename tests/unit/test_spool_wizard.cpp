@@ -767,3 +767,34 @@ TEST_CASE("on_create_requested fires completion when vendor+filament exist", "[s
     wizard.on_create_requested();
     CHECK_FALSE(completed);
 }
+
+// ============================================================================
+// Filament creation payload
+// ============================================================================
+
+TEST_CASE("filament_create_payload sends Spoolman one integer per temperature",
+          "[spool_wizard][spoolman]") {
+    // A catalog filament carries a nozzle range; Spoolman stores one integer
+    // and answers anything else with 422.
+    SpoolWizardOverlay::FilamentEntry f;
+    f.material = "PLA";
+    f.color_hex = "FF0000";
+    f.nozzle_temp_min = 190;
+    f.nozzle_temp_max = 220;
+    f.bed_temp_min = 60;
+    f.bed_temp_max = 60;
+
+    const nlohmann::json payload = SpoolWizardOverlay::filament_create_payload(f, 7);
+    CHECK(payload["settings_extruder_temp"] == 205);
+    CHECK(payload["settings_bed_temp"] == 60);
+}
+
+TEST_CASE("filament_create_payload omits unset temperatures", "[spool_wizard][spoolman]") {
+    SpoolWizardOverlay::FilamentEntry f;
+    f.material = "PLA";
+    f.nozzle_temp_max = 215;
+
+    const nlohmann::json payload = SpoolWizardOverlay::filament_create_payload(f, 7);
+    CHECK(payload["settings_extruder_temp"] == 215);
+    CHECK_FALSE(payload.contains("settings_bed_temp"));
+}

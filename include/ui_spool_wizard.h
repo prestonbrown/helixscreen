@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include "hv/json.hpp"
+
 // Forward declarations
 namespace helix::ui {
 class ColorPicker;
@@ -163,6 +165,9 @@ class SpoolWizardOverlay : public OverlayBase {
     static std::vector<FilamentEntry>
     merge_filaments(const std::vector<FilamentInfo>& server_filaments,
                     const std::vector<FilamentInfo>& external_filaments);
+
+    /// The POST /v1/filament body for @p f under @p vendor_id
+    static nlohmann::json filament_create_payload(const FilamentEntry& f, int vendor_id);
 
     /// Load filaments for the selected vendor from server + SpoolmanDB
     void load_filaments();

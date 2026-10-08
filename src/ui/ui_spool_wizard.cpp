@@ -51,14 +51,13 @@ std::string trim(const std::string& s) {
     return s.substr(start, end - start + 1);
 }
 
-/// Set a JSON temperature range object, only including fields with positive values
-void set_temp_range(nlohmann::json& data, const char* key, int min_val, int max_val) {
-    if (min_val > 0 || max_val > 0) {
-        data[key] = nlohmann::json::object();
-        if (min_val > 0)
-            data[key]["min"] = min_val;
-        if (max_val > 0)
-            data[key]["max"] = max_val;
+/// Spoolman stores one integer temperature per filament. A catalog range
+/// becomes its midpoint; a range with one end set becomes that end.
+void set_spoolman_temp(nlohmann::json& data, const char* key, int min_val, int max_val) {
+    if (min_val > 0 && max_val > 0) {
+        data[key] = (min_val + max_val) / 2;
+    } else if (min_val > 0 || max_val > 0) {
+        data[key] = std::max(min_val, max_val);
     }
 }
 
@@ -474,6 +473,28 @@ void SpoolWizardOverlay::create_vendor_then_filament_then_spool() {
         }));
 }
 
+nlohmann::json SpoolWizardOverlay::filament_create_payload(const FilamentEntry& f, int vendor_id) {
+    nlohmann::json data;
+    data["vendor_id"] = vendor_id;
+    data["name"] = f.name.empty() ? f.material + " " + f.color_name : f.name;
+    data["material"] = f.material;
+    if (!f.color_hex.empty()) {
+        data["color_hex"] = f.color_hex;
+    }
+    // density and diameter are REQUIRED by Spoolman (no defaults in their API)
+    data["density"] = f.density > 0 ? f.density : 1.24;
+    data["diameter"] = f.diameter > 0 ? f.diameter : 1.75;
+    if (f.weight > 0) {
+        data["weight"] = f.weight;
+    }
+    if (f.spool_weight > 0) {
+        data["spool_weight"] = f.spool_weight;
+    }
+    set_spoolman_temp(data, "settings_extruder_temp", f.nozzle_temp_min, f.nozzle_temp_max);
+    set_spoolman_temp(data, "settings_bed_temp", f.bed_temp_min, f.bed_temp_max);
+    return data;
+}
+
 void SpoolWizardOverlay::create_filament_then_spool(int vendor_id) {
     IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
@@ -481,28 +502,7 @@ void SpoolWizardOverlay::create_filament_then_spool(int vendor_id) {
         return;
     }
 
-    nlohmann::json data;
-    data["vendor_id"] = vendor_id;
-    data["name"] = selected_filament_.name.empty()
-                       ? selected_filament_.material + " " + selected_filament_.color_name
-                       : selected_filament_.name;
-    data["material"] = selected_filament_.material;
-    if (!selected_filament_.color_hex.empty()) {
-        data["color_hex"] = selected_filament_.color_hex;
-    }
-    // density and diameter are REQUIRED by Spoolman (no defaults in their API)
-    data["density"] = selected_filament_.density > 0 ? selected_filament_.density : 1.24;
-    data["diameter"] = selected_filament_.diameter > 0 ? selected_filament_.diameter : 1.75;
-    if (selected_filament_.weight > 0) {
-        data["weight"] = selected_filament_.weight;
-    }
-    if (selected_filament_.spool_weight > 0) {
-        data["spool_weight"] = selected_filament_.spool_weight;
-    }
-    set_temp_range(data, "settings_extruder_temp", selected_filament_.nozzle_temp_min,
-                   selected_filament_.nozzle_temp_max);
-    set_temp_range(data, "settings_bed_temp", selected_filament_.bed_temp_min,
-                   selected_filament_.bed_temp_max);
+    const nlohmann::json data = filament_create_payload(selected_filament_, vendor_id);
 
     api->spoolman().create_spoolman_filament(
         data,
