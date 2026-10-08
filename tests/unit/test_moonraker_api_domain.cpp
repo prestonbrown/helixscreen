@@ -306,3 +306,19 @@ TEST_CASE_METHOD(HelixTestFixture,
     mock.stop_temperature_simulation();
     mock.disconnect();
 }
+
+TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
+                 "bed-mesh presence reads Klipper's empty mesh as absent",
+                 "[bed_mesh][print_start]") {
+    std::vector<bool> verdicts;
+    api->set_bed_mesh_presence_observer([&verdicts](bool present) { verdicts.push_back(present); });
+
+    mock_client.dispatch_status_update(
+        {{"bed_mesh", {{"probed_matrix", {{0.1, 0.2}, {0.3, 0.4}}}}}});
+    // What Klipper and Kalico publish after BED_MESH_CLEAR.
+    mock_client.dispatch_status_update(
+        {{"bed_mesh", {{"probed_matrix", nlohmann::json::array({nlohmann::json::array()})}}}});
+
+    CHECK(verdicts == std::vector<bool>{true, false});
+    api->set_bed_mesh_presence_observer(nullptr);
+}
