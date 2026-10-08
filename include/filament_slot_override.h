@@ -88,6 +88,17 @@ struct FilamentSlotOverride {
     // defaults instead of carrying stale values forward. 0 = unset.
     int bed_temp = 0;
     int nozzle_temp = 0;
+    // The firmware spool id the user unlinked from this lane while firmware
+    // kept stating it (AFC lanes with remember_spool, #1717). A frame naming
+    // this id is the stale restatement and reads as no link; any other id, a
+    // link made here or (unless the lane remembers its spool) the lane
+    // emptying ends it. A re-link to the same id made outside HelixScreen
+    // stays hidden: it is indistinguishable from the restatement.
+    // Bookkeeping, not identity: a Clear Spool keeps it and an edit carries
+    // it forward unless it links.
+    // Persistence: `helix_unlinked_spool_id` in the lane_data record, omitted
+    // when 0, and `unlinked_spool_id` in the local cache.
+    int unlinked_spool_id = 0;
     // Conflict avoidance for third-party writers.
     // ISO-8601 UTC on the wire. Second precision only — sub-second fractions
     // are truncated on format/parse.
