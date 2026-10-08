@@ -1041,6 +1041,11 @@ class PrinterState {
         return print_domain_.get_print_exception_code();
     }
 
+    /// print_stats.exception code as a subject, -1 when none is latched.
+    lv_subject_t* get_print_exception_subject() {
+        return print_domain_.get_print_exception_subject();
+    }
+
     /// print_stats.exception message — pause reason text (empty when no exception).
     [[nodiscard]] const std::string& get_print_exception_message() const {
         return print_domain_.get_print_exception_message();

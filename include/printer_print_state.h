@@ -132,6 +132,12 @@ class PrinterPrintState {
         return &print_state_enum_;
     }
 
+    /// print_stats.exception code as a subject (-1 when none is latched), so a
+    /// consumer sees a code that arrives in a later frame than the pause.
+    lv_subject_t* get_print_exception_subject() {
+        return &print_exception_;
+    }
+
     /**
      * @brief Lifetime token for the "static" print subjects (e.g. print_state_enum).
      *
@@ -861,6 +867,7 @@ class PrinterPrintState {
     lv_subject_t print_filename_{};         // String buffer
     lv_subject_t print_state_{};            // String buffer (for UI display)
     lv_subject_t print_state_enum_{};       // Integer: PrintJobState enum
+    lv_subject_t print_exception_{};        // Integer: print_stats.exception code, -1 = none
     lv_subject_t print_active_{};           // Integer: 1 when PRINTING/PAUSED
     lv_subject_t print_outcome_{};          // Integer: PrintOutcome enum
     lv_subject_t print_show_progress_{};    // Integer: 1 when active AND not starting

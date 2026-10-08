@@ -45,13 +45,14 @@ class U1StockSource : public DetectionSource {
     void start();
 
   private:
-    void on_print_state(int state_enum);
+    void evaluate();
 
     helix::PrinterState* state_ = nullptr;
     Callback cb_;
     bool capable_ = false;
-    int last_state_ = -1;
+    bool fired_this_pause_ = false;
     ObserverGuard state_observer_;
+    ObserverGuard exception_observer_;
 };
 
 } // namespace helix::detection
