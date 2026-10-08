@@ -71,7 +71,7 @@ class ApplicationTestAccess {
     }
 
     static bool note_hardware_fingerprint(Application& app, size_t fingerprint) {
-        return app.m_session.note_hardware_fingerprint(fingerprint);
+        return app.m_session.m_hw_changes.note(fingerprint);
     }
 
     static void reset_discovery_session(Application& app) {

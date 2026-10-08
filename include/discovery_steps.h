@@ -22,10 +22,9 @@ class HardwareSetupPrompter;
  * @file discovery_steps.h
  * @brief What the app does each time Moonraker discovery completes, as ordered tables.
  *
- * The session keeps the parts that need its own state (the shutdown guard, the hardware
- * fingerprint, the splash exit) and then walks the steps on the main thread. The core
- * table (discovery_steps_core.cpp) is what every build runs, the ESP32 firmware included;
- * desktop runs the tail (discovery_steps.cpp) after it. No tail step has to precede a core
+ * wire_discovery() (session_wiring.h) walks the core table (discovery_steps_core.cpp) on
+ * the main thread on every build, the ESP32 firmware included; desktop runs the tail
+ * (discovery_steps.cpp) after it. No tail step has to precede a core
  * step. The order is the contract: later steps read what earlier ones stored, so the
  * tables are spelled out rather than self-registered.
  */
@@ -98,9 +97,6 @@ DiscoveryStepRange discovery_tail_steps();
 /// Run @p steps in order against @p ctx. A step marked only_when_hw_changed is skipped
 /// when ctx.hw_changed is false; its breadcrumb is recorded either way.
 void run_discovery_steps(DiscoveryStepRange steps, DiscoveryContext& ctx);
-
-/// The core steps, then the tail.
-void run_discovery_steps(DiscoveryContext& ctx);
 
 /// Whether a print is running during this discovery pass. The status that arrived with
 /// the discovery wins over the print_active subject, which still holds its pre-connect

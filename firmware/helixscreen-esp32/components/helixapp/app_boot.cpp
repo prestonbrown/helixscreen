@@ -73,14 +73,13 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "hardware_fingerprint.h"
 #include "helix_fs.h"
 #include "helix_sparkline.h"
-#include "http_request_epoch.h"
 #include "i_moonraker_client.h"
 #include "job_queue_state.h"
 #include "lap_log.h"
 #include "led/led_controller.h"
-#include "light_button_config.h"
 #include "moonraker_api.h" // complete MoonrakerAPI : IMoonrakerAPI for the init_panels upcast
 #include "moonraker_manager.h"
 #include "moonraker_types.h" // FileInfo/FileMetadata/ThumbnailInfo/resolve_thumbnail_path — HTTP HIL probe
@@ -88,7 +87,6 @@
 #include "panel_widget_manager.h"
 #include "pending_startup_warnings.h"
 #include "print_history_manager.h"
-#include "printer_discovery.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
@@ -96,6 +94,7 @@
 #include "safety_settings_manager.h"
 #include "scroll_blit.h"
 #include "sdkconfig.h"
+#include "session_wiring.h"
 #include "setting_group.h"
 #include "src/xml/lv_xml.h"
 #include "status_dispatch.h"
@@ -540,104 +539,36 @@ void run_http_hil_probe(MoonrakerManager* mgr) {
 }
 #endif // CONFIG_HELIX_HTTP_HIL
 
-// Mirror PrinterSession::setup_discovery_callbacks(), TRIMMED to the v1 Core+AMS
-// cut. The callback fires on the WebSocket task, so every subject write is
-// marshalled to the UI thread via ui_queue_update().
-//
-// Trimmed vs the desktop handler:
-//   * init_subsystems_from_hardware() runs in on_discovery_complete rather than
-//     on_hardware_discovered, so one epoch check covers it and it still precedes
-//     the initial-status dispatch.
-//   * on_discovery_complete runs only the core discovery steps
-//     (discovery_steps_core.cpp), not desktop's tail: no splash, update checker,
-//     timelapse, power/sensor subscribe, hardware validation, setup prompts,
-//     telemetry or Spoolman. There is no hardware fingerprint yet, so every pass
-//     counts as changed hardware.
+// The firmware's discovery callbacks: the shared wiring (session_wiring.h) plus what only
+// the device does after the core steps. No tail steps run here: no splash, update checker,
+// timelapse, power/sensor subscribe, hardware validation, setup prompts, telemetry or
+// Spoolman.
 void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
     helix::IMoonrakerClient* client = manager.client();
-    if (!client) {
-        spdlog::error("app_boot: no Moonraker client — discovery callbacks not registered");
+    IMoonrakerAPI* api = manager.api();
+    if (!client || !api) {
+        spdlog::error("app_boot: no Moonraker client or API — discovery callbacks not registered");
         return;
     }
 
-    // On a WLED-only printer discovery-complete finds nothing to light; WLED's
-    // answer is LED on at Start's next chance, and the latch keeps it to one.
-    helix::led::LedController::instance().set_on_wled_settled(helix::settle_light_buttons);
-
+    // Only the steps that are pure functions of the hardware shape are gated on it, so one
+    // record serves every printer the device switches between.
+    static helix::HardwareChangeTracker s_hw_changes;
     MoonrakerManager* mgr = &manager;
-    client->set_on_discovery_complete(
-        [mgr](const helix::PrinterDiscovery& hardware, const nlohmann::json& initial_status) {
-            spdlog::debug("[app_boot] on_discovery_complete BG entry (status keys: {})",
-                          initial_status.is_object() ? initial_status.size() : 0);
-            // Copy on the BG thread so the queued main-thread callback owns a stable,
-            // non-aliased snapshot (#761, #789).
-            auto snapshot = std::make_shared<helix::PrinterDiscovery>(hardware);
-            auto status_snapshot = std::make_shared<const nlohmann::json>(initial_status);
-            // Read on the WebSocket task. A switch stops the previous printer's task before
-            // connect() moves the epoch, so the previous printer's work carries the old value
-            // and is dropped when it reaches the UI thread.
-            const uint64_t epoch = helix::http_epoch::current();
-            helix::ui::queue_update("app_boot::on_discovery_complete", [mgr, snapshot,
-                                                                        status_snapshot, epoch]() {
-                if (epoch != helix::http_epoch::current()) {
-                    spdlog::info("[app_boot] dropping discovery queued for the previous printer");
-                    return;
-                }
-                IMoonrakerAPI* api = mgr->api();
-                helix::IMoonrakerClient* c = mgr->client();
-                if (!api || !c) {
-                    spdlog::error("[app_boot] discovery completed with no API or client");
-                    return;
-                }
-                helix::LapLog laps("app_boot discovery");
-
-                // Macros, the probe's bed centre and delta detection read the API's copy.
-                api->hardware() = *snapshot;
-                helix::wall_clock_esp::request_date(api->get_http_base_url());
-
-                // Filament backends, sensors, extruders, tools, standard macros and
-                // LEDs: the same set desktop initialises, and as there, before the
-                // core steps dispatch the initial status into their subjects.
-                helix::init_subsystems_from_hardware(api->hardware(), api, c);
-                laps.lap("subsystems");
-
-                helix::DiscoveryContext ctx{
-                    *api,
-                    *c,
-                    api->hardware(),
-                    *snapshot,
-                    *status_snapshot,
-                    /*prompter=*/nullptr,
-                    get_job_queue_state(),
-                    /*screen=*/nullptr,
-                    /*n=*/0,
-                    /*hw_changed=*/true,
-                    helix::discovery_print_active(
-                        lv_subject_get_int(
-                            get_printer_state().print_state().get_print_active_subject()) != 0,
-                        *status_snapshot)};
-                helix::run_discovery_steps(helix::discovery_core_steps(), ctx);
-                laps.lap("core steps");
-
-                if (g_switch_started_us != 0) {
-                    spdlog::info("[app_boot] printer switch connected in {} ms",
-                                 (esp_timer_get_time() - g_switch_started_us) / 1000);
-                    g_switch_started_us = 0;
-                }
-                spdlog::info("[app_boot] discovery applied: {} heaters, {} fans, {} sensors, "
-                             "{} initial-status keys",
-                             api->hardware().heaters().size(), api->hardware().fans().size(),
-                             api->hardware().sensors().size(),
-                             status_snapshot->is_object() ? status_snapshot->size() : 0);
-                if (auto* hm = get_print_history_manager()) {
-                    hm->on_discovery_complete();
-                }
-
+    helix::wire_discovery(
+        *api, *client, {s_hw_changes, nullptr, nullptr, [mgr](helix::DiscoveryContext& ctx) {
+                            helix::wall_clock_esp::request_date(ctx.api.get_http_base_url());
+                            if (g_switch_started_us != 0) {
+                                spdlog::info("[app_boot] printer switch connected in {} ms",
+                                             (esp_timer_get_time() - g_switch_started_us) / 1000);
+                                g_switch_started_us = 0;
+                            }
 #if CONFIG_HELIX_HTTP_HIL
-                run_http_hil_probe(mgr);
+                            run_http_hil_probe(mgr);
+#else
+                               (void)mgr;
 #endif
-            });
-        });
+                        }});
 
     spdlog::info("[app_boot] discovery callbacks registered (real connect path)");
 }

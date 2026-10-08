@@ -98,6 +98,7 @@ src/application/panel_factory.cpp
 src/application/printer_cache_registry.cpp
 src/application/printer_retarget.cpp
 src/application/printer_switch_flow.cpp
+src/application/session_wiring.cpp
 src/application/static_panel_registry.cpp
 src/application/static_subject_registry.cpp
 src/application/subject_initializer.cpp

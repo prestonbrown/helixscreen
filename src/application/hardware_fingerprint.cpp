@@ -98,4 +98,16 @@ size_t compute_hardware_fingerprint(const PrinterDiscovery& hw) {
     return h;
 }
 
+bool HardwareChangeTracker::note(size_t fingerprint) {
+    const bool changed = first_ || fingerprint != last_;
+    last_ = fingerprint;
+    first_ = false;
+    return changed;
+}
+
+void HardwareChangeTracker::reset() {
+    first_ = true;
+    last_ = 0;
+}
+
 } // namespace helix

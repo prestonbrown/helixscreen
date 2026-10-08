@@ -38,7 +38,6 @@
 #include "discovery_steps.h"
 #include "display_manager.h"
 #include "filament_consumption_tracker.h"
-#include "hardware_fingerprint.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_version.h"
 #include "job_queue_state.h"
@@ -65,6 +64,7 @@
 #include "printer_state.h"
 #include "safety_settings_manager.h"
 #include "sensor_state.h"
+#include "session_wiring.h"
 #include "settings_manager.h"
 #include "sound_manager.h"
 #include "spoolman_active_spool_sync.h"
@@ -110,16 +110,8 @@ PrinterSession::PrinterSession(Config*& config, AsyncLifetimeGuard& async, lv_ob
 
 PrinterSession::~PrinterSession() = default;
 
-bool PrinterSession::note_hardware_fingerprint(size_t fingerprint) {
-    const bool changed = m_first_discovery_complete || fingerprint != m_last_hardware_fingerprint;
-    m_last_hardware_fingerprint = fingerprint;
-    m_first_discovery_complete = false;
-    return changed;
-}
-
 void PrinterSession::reset_discovery_session() {
-    m_first_discovery_complete = true;
-    m_last_hardware_fingerprint = 0;
+    m_hw_changes.reset();
     m_prompter.reset_for_new_connection();
 }
 
@@ -521,10 +513,6 @@ void PrinterSession::setup_discovery_callbacks() {
 
     PrinterSession* app = this;
 
-    // On a WLED-only printer discovery-complete finds nothing to light; WLED's
-    // answer is LED on at Start's next chance, and the latch keeps it to one.
-    helix::led::LedController::instance().set_on_wled_settled(helix::settle_light_buttons);
-
 #if HELIX_HAS_PLUGINS
     // Moonraker pushes notify_filelist_changed for every file operation in
     // every root; only the plugin folder may cost a sync. The predicate is
@@ -550,116 +538,25 @@ void PrinterSession::setup_discovery_callbacks() {
     client->set_subscription_extras_provider(&helix::plugin::plugin_objects_union);
 #endif
 
-    client->set_on_hardware_discovered([api, client, app](const helix::PrinterDiscovery& hardware) {
-        // Copy hardware into a mutable snapshot on the BG thread so the
-        // queued main-thread callback owns a stable, non-aliased copy. Previous
-        // implementations used an aggregate ctx struct which triggered multiple
-        // PrinterDiscovery copies and a crash on main-thread copy-assign (#761).
-        // Use std::move on the main thread to avoid iterating hash table nodes
-        // during copy-assign, which is vulnerable to heap corruption (#789).
-        auto snapshot = std::make_shared<helix::PrinterDiscovery>(hardware);
-        helix::ui::queue_update(
-            "PrinterSession::setup_discovery_callbacks", [api, client, app, snapshot]() {
-                if (app->m_host.shutdown_complete)
-                    return;
-                // A new discovery cycle is starting — re-arm the once-per-connection
-                // targeted hardware-reconfig wizard guard so a reconnect can re-offer it.
-                app->m_prompter.begin_discovery_cycle();
-                api->hardware() = std::move(*snapshot);
-                helix::init_subsystems_from_hardware(api->hardware(), api, client);
-            });
-    });
-
-    client->set_on_discovery_complete([api, client, app](const helix::PrinterDiscovery& hardware,
-                                                         const nlohmann::json& initial_status) {
-        spdlog::debug("[Application] on_discovery_complete BG-thread entry (status keys: {})",
-                      initial_status.is_object() ? initial_status.size() : 0);
-        auto snapshot = std::make_shared<helix::PrinterDiscovery>(hardware);
-        auto status_snapshot = std::make_shared<const nlohmann::json>(initial_status);
-        helix::ui::queue_update("PrinterSession::on_discovery_complete", [api, client, app,
-                                                                          snapshot,
-                                                                          status_snapshot]() {
-            // Count invocations so crash bundles reveal whether we crashed on
-            // the first discovery or on a reconnect-triggered re-run.
-            static int s_discovery_complete_n = 0;
-            long n = static_cast<long>(++s_discovery_complete_n);
-            crash_handler::breadcrumb::note("disc", "cb_begin", n);
-
-            spdlog::debug("[Application] on_discovery_complete UI-thread entry (shutdown={})",
-                          app->m_host.shutdown_complete);
-            // Safety check: if the process is shutting down, skip all processing
-            // This prevents use-after-free if shutdown races with callback delivery
-            if (app->m_host.shutdown_complete) {
-                return;
-            }
-
+    helix::wire_discovery(*api, *client,
+                          {m_hw_changes, [app] { return !app->m_host.shutdown_complete; },
+                           // A new discovery cycle re-arms the once-per-connection targeted
+                           // hardware-reconfig wizard guard, so a reconnect can re-offer it.
+                           [app] { app->m_prompter.begin_discovery_cycle(); },
+                           [app](helix::DiscoveryContext& ctx) {
 #if HELIX_HAS_PLUGINS
-            // Every connect and reconnect re-syncs the plugin folder: it may
-            // have changed while the connection was down.
-            if (app->m_plugin_sync)
-                app->m_plugin_sync->sync_now();
+                               // Every connect and reconnect re-syncs the plugin folder: it may
+                               // have changed while the connection was down.
+                               if (app->m_plugin_sync)
+                                   app->m_plugin_sync->sync_now();
 #endif
-
-            // Copy snapshot into API's hardware data. Copy (not move) so we can
-            // move the snapshot into set_hardware below — the snapshot is the
-            // only reference we own and nobody else aliases it, so this copy is
-            // race-free (#789, #799).
-            crash_handler::breadcrumb::note("disc", "pre_api_hw",
-                                            static_cast<long>(snapshot->macros().size()));
-            api->hardware() = *snapshot;
-            crash_handler::breadcrumb::note("disc", "post_api_hw", n);
-
-            // Hardware-shape fingerprint: detect "reconnect with same hardware"
-            // so user-facing side-effects (LED chip population, hardware
-            // validation toasts, targeted reconfig wizard, telemetry snapshots)
-            // can skip. See compute_hardware_fingerprint() in
-            // hardware_fingerprint.h for rationale.
-            // Computed from api->hardware() (post-copy) — *snapshot is moved
-            // into set_hardware below and is empty after that point.
-            const size_t new_fingerprint = helix::compute_hardware_fingerprint(api->hardware());
-            const bool hw_changed = app->note_hardware_fingerprint(new_fingerprint);
-            crash_handler::breadcrumb::note("disc", "hw_changed", hw_changed ? 1L : 0L);
-            if (hw_changed) {
-                spdlog::info("[Application] on_discovery_complete #{} — hardware shape changed "
-                             "(fingerprint=0x{:x}), running full pipeline",
-                             n, new_fingerprint);
-            } else {
-                spdlog::info("[Application] on_discovery_complete #{} — hardware shape unchanged "
-                             "(fingerprint=0x{:x}), skipping user-facing side-effects",
-                             n, new_fingerprint);
-            }
-
-            // Mark discovery complete so splash can exit
-            app->m_host.discovery_complete();
-            spdlog::info("[Application] Moonraker discovery complete, splash can exit");
-
-            // Everything below reads the hardware from api->hardware(): the snapshot is
-            // moved into PrinterState by the set_hardware step and is empty afterwards.
-            // The print_active subject is not yet updated from this discovery's initial
-            // status (dispatch_status_update only queues it), so the status itself decides
-            // whether a print is running: a wizard or a gcode send must never land over a
-            // live print on a mid-print reconnect.
-            helix::DiscoveryContext ctx{
-                *api,
-                *client,
-                api->hardware(),
-                *snapshot,
-                *status_snapshot,
-                &app->m_prompter,
-                app->m_job_queue_state.get(),
-                app->m_screen,
-                n,
-                hw_changed,
-                helix::discovery_print_active(
-                    lv_subject_get_int(
-                        get_printer_state().print_state().get_print_active_subject()) != 0,
-                    *status_snapshot)};
-            helix::run_discovery_steps(ctx);
-            if (auto* hm = get_print_history_manager()) {
-                hm->on_discovery_complete();
-            }
-        });
-    });
+                               app->m_host.discovery_complete();
+                               spdlog::info(
+                                   "[Application] Moonraker discovery complete, splash can exit");
+                               ctx.prompter = &app->m_prompter;
+                               ctx.screen = app->m_screen;
+                               helix::run_discovery_steps(helix::discovery_tail_steps(), ctx);
+                           }});
 }
 
 bool PrinterSession::connect_moonraker() {

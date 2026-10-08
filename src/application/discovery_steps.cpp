@@ -173,9 +173,4 @@ DiscoveryStepRange discovery_tail_steps() {
     return {std::begin(kTailSteps), std::end(kTailSteps)};
 }
 
-void run_discovery_steps(DiscoveryContext& ctx) {
-    run_discovery_steps(discovery_core_steps(), ctx);
-    run_discovery_steps(discovery_tail_steps(), ctx);
-}
-
 } // namespace helix

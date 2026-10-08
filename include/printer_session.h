@@ -5,6 +5,7 @@
 
 #include "async_lifetime_guard.h"
 #include "gcode_response_routing.h"
+#include "hardware_fingerprint.h"
 #include "hardware_setup_prompter.h"
 #include "lvgl/lvgl.h"
 #include "printer_switch_flow.h"
@@ -131,13 +132,6 @@ class PrinterSession {
         return m_routing;
     }
 
-    /// Records a discovery's hardware fingerprint; true when the hardware shape differs from
-    /// the previous discovery of this printer session (always true for the first one). When
-    /// a reconnect's fingerprint matches, the expensive user-facing side effects (LED chip
-    /// population, hardware validation toasts, targeted reconfig wizard, telemetry
-    /// snapshots) are skipped and only the subject-restoring work runs.
-    bool note_hardware_fingerprint(size_t fingerprint);
-
     /// Re-arms the per-printer discovery state: the fingerprint comparison and the
     /// once-per-connection prompt guards. Runs when a printer scope is torn down, so the
     /// next printer's first discovery runs the full pipeline.
@@ -195,8 +189,10 @@ class PrinterSession {
     } m_overlay_panels;
 
     HardwareSetupPrompter m_prompter;
-    size_t m_last_hardware_fingerprint = 0;
-    bool m_first_discovery_complete = true;
+    /// This printer session's discoveries: a reconnect with the same hardware shape skips
+    /// the user-facing side effects (hardware validation toasts, targeted reconfig wizard,
+    /// telemetry snapshots).
+    helix::HardwareChangeTracker m_hw_changes;
 };
 
 } // namespace helix

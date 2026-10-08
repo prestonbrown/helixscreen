@@ -33,4 +33,18 @@ namespace helix {
 ///         shape is identical. Ordering is hash-orderable, not meaningful.
 size_t compute_hardware_fingerprint(const PrinterDiscovery& hw);
 
+/// One printer session's discoveries, by fingerprint: the first counts as a change, and
+/// after that only a different hardware shape does. reset() when the printer scope ends,
+/// so the next printer's first discovery runs the full pipeline whatever its shape.
+class HardwareChangeTracker {
+  public:
+    /// Records @p fingerprint; true when this discovery is a hardware change.
+    bool note(size_t fingerprint);
+    void reset();
+
+  private:
+    bool first_ = true;
+    size_t last_ = 0;
+};
+
 } // namespace helix
