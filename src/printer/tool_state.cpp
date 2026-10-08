@@ -14,6 +14,7 @@
 #include "ui_update_queue.h"
 
 #include "ams_state.h"
+#include "config.h"
 #include "data_root_resolver.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
@@ -89,6 +90,10 @@ void ToolState::init_subjects(bool register_xml) {
     // Self-register cleanup — ensures deinit runs before lv_deinit()
     StaticSubjectRegistry::instance().register_deinit(
         "ToolState", []() { ToolState::instance().deinit_subjects(); });
+    if (Config* config = Config::get_instance()) {
+        config->set_printer_removed_hook(
+            [](const std::string& id) { ToolState::instance().forget_printer_spools(id); });
+    }
 
     spdlog::trace("[ToolState] Subjects initialized successfully");
 }
@@ -117,6 +122,10 @@ void ToolState::deinit_subjects() {
     tools_.clear();
     active_tool_index_ = 0;
     spool_assignments_loaded_ = false;
+    spool_set_adopted_ = false;
+    // Unsaved changes belong to the printer being torn down; saved after a switch they
+    // would land under the next printer's key and in its DB.
+    spool_dirty_ = false;
 
     // Drop any AMS-backend override so the next init_subjects() / init_tools()
     // starts from a clean extruder-enumerated state. Without this, test fixtures
@@ -771,10 +780,80 @@ void ToolState::apply_spool_assignments(const nlohmann::json& data) {
     }
 }
 
+namespace {
+
+/// The spool file keeps one assignment set per printer under "printers"; a file without
+/// it is the single-printer layout, a bare set keyed by tool index.
+constexpr const char* SPOOL_JSON_PRINTERS = "printers";
+
+/// The printer whose set was adopted from a single-printer file and has not yet loaded
+/// from its own DB.
+constexpr const char* SPOOL_JSON_ADOPTED_BY = "adopted_by";
+
+/// The configured printer whose assignments are being read or written.
+std::string spool_printer_key() {
+    const Config* config = Config::get_instance();
+    std::string id = config ? config->get_active_printer_id() : std::string();
+    return id.empty() ? "default" : id;
+}
+
+bool is_per_printer_spool_file(const nlohmann::json& data) {
+    const auto it = data.find(SPOOL_JSON_PRINTERS);
+    return it != data.end() && it->is_object();
+}
+
+/// The spool file's contents: null when it does not exist, discarded when it exists but
+/// cannot be read or parsed.
+nlohmann::json read_spool_file(const std::filesystem::path& path) {
+    std::error_code ec;
+    if (!std::filesystem::exists(path, ec)) {
+        return nullptr;
+    }
+    std::ifstream ifs(path);
+    if (!ifs.is_open()) {
+        return nlohmann::json(nlohmann::json::value_t::discarded);
+    }
+    return nlohmann::json::parse(ifs, nullptr, false);
+}
+
+/// Atomic save: write to a temp file, then rename, so a crash or power loss never leaves
+/// a partial file.
+void write_spool_file(const std::filesystem::path& path, const nlohmann::json& data) {
+    auto tmp_path = path;
+    tmp_path += ".tmp";
+    {
+        std::ofstream ofs(tmp_path);
+        if (!ofs.is_open()) {
+            spdlog::error("[ToolState] Failed to open {} for writing: {}", tmp_path.string(),
+                          strerror(errno));
+            std::remove(tmp_path.c_str());
+            return;
+        }
+        ofs << helix::json_util::safe_dump(data, 2);
+        ofs.flush();
+        if (!ofs.good()) {
+            spdlog::error("[ToolState] Failed to write spool JSON to {}: {}", tmp_path.string(),
+                          strerror(errno));
+            std::remove(tmp_path.c_str());
+            return;
+        }
+    }
+
+    if (std::rename(tmp_path.c_str(), path.c_str()) != 0) {
+        spdlog::error("[ToolState] Failed to rename '{}' to '{}': {}", tmp_path.string(),
+                      path.string(), strerror(errno));
+        std::remove(tmp_path.c_str());
+        return;
+    }
+
+    spdlog::debug("[ToolState] Saved spool assignments to {}", path.string());
+}
+
+} // namespace
+
 void ToolState::save_spool_json() const {
     namespace fs = std::filesystem;
 
-    auto json_data = spool_assignments_to_json();
     auto path = fs::path(config_dir_) / SPOOL_JSON_FILENAME;
 
     try {
@@ -784,35 +863,24 @@ void ToolState::save_spool_json() const {
         // The installer links this file out to printer_data; rename onto the target.
         path = helix::paths::write_target(path.string());
 
-        // Atomic save: write to temp file, then rename to avoid partial writes on crash/power loss
-        auto tmp_path = path;
-        tmp_path += ".tmp";
-        {
-            std::ofstream ofs(tmp_path);
-            if (!ofs.is_open()) {
-                spdlog::error("[ToolState] Failed to open {} for writing: {}", tmp_path.string(),
-                              strerror(errno));
-                std::remove(tmp_path.c_str());
-                return;
-            }
-            ofs << helix::json_util::safe_dump(json_data, 2);
-            ofs.flush();
-            if (!ofs.good()) {
-                spdlog::error("[ToolState] Failed to write spool JSON to {}: {}", tmp_path.string(),
-                              strerror(errno));
-                std::remove(tmp_path.c_str());
-                return;
-            }
-        }
-
-        if (std::rename(tmp_path.c_str(), path.c_str()) != 0) {
-            spdlog::error("[ToolState] Failed to rename '{}' to '{}': {}", tmp_path.string(),
-                          path.string(), strerror(errno));
-            std::remove(tmp_path.c_str());
+        // The other printers' sets are kept. A single-printer file is replaced: it belongs
+        // to whichever printer loaded it first, and that printer's set is being written now.
+        auto file = read_spool_file(path);
+        if (file.is_discarded()) {
+            // Rewriting it would lose every other printer's set.
+            spdlog::warn("[ToolState] {} cannot be read; not overwriting it", path.string());
             return;
         }
-
-        spdlog::debug("[ToolState] Saved spool assignments to {}", path.string());
+        if (!is_per_printer_spool_file(file)) {
+            file = nlohmann::json{{SPOOL_JSON_PRINTERS, nlohmann::json::object()}};
+        }
+        file[SPOOL_JSON_PRINTERS][spool_printer_key()] = spool_assignments_to_json();
+        if (spool_set_adopted_) {
+            file[SPOOL_JSON_ADOPTED_BY] = spool_printer_key();
+        } else if (file.value(SPOOL_JSON_ADOPTED_BY, std::string()) == spool_printer_key()) {
+            file.erase(SPOOL_JSON_ADOPTED_BY);
+        }
+        write_spool_file(path, file);
     } catch (const std::exception& e) {
         spdlog::warn("[ToolState] Error saving spool JSON: {}", e.what());
     }
@@ -822,26 +890,57 @@ bool ToolState::load_spool_json() {
     namespace fs = std::filesystem;
 
     auto path = fs::path(config_dir_) / SPOOL_JSON_FILENAME;
-
-    if (!fs::exists(path)) {
+    const auto data = read_spool_file(path);
+    if (data.is_null()) {
         spdlog::debug("[ToolState] No spool JSON file at {}", path.string());
         return false;
     }
+    if (data.is_discarded()) {
+        spdlog::warn("[ToolState] Cannot read spool JSON at {}", path.string());
+        return false;
+    }
+
+    if (!is_per_printer_spool_file(data)) {
+        // A single-printer file goes to the first printer that loads it, and is rewritten
+        // under that printer at once so no other printer can load it.
+        apply_spool_assignments(data);
+        spool_set_adopted_ = true;
+        save_spool_json();
+        spdlog::info("[ToolState] Loaded single-printer spool assignments from {} for printer "
+                     "'{}'",
+                     path.string(), spool_printer_key());
+        return true;
+    }
+
+    const auto& printers = data[SPOOL_JSON_PRINTERS];
+    const auto mine = printers.find(spool_printer_key());
+    if (mine == printers.end()) {
+        spdlog::debug("[ToolState] No spool assignments for printer '{}' in {}",
+                      spool_printer_key(), path.string());
+        return false;
+    }
+    apply_spool_assignments(*mine);
+    spool_set_adopted_ = data.value(SPOOL_JSON_ADOPTED_BY, std::string()) == spool_printer_key();
+    spdlog::info("[ToolState] Loaded spool assignments for printer '{}' from {}",
+                 spool_printer_key(), path.string());
+    return true;
+}
+
+void ToolState::forget_printer_spools(const std::string& printer_id) const {
+    namespace fs = std::filesystem;
 
     try {
-        std::ifstream ifs(path);
-        if (!ifs.is_open()) {
-            spdlog::warn("[ToolState] Failed to open {}", path.string());
-            return false;
+        const auto path = fs::path(
+            helix::paths::write_target((fs::path(config_dir_) / SPOOL_JSON_FILENAME).string()));
+        auto data = read_spool_file(path);
+        if (!is_per_printer_spool_file(data) || data[SPOOL_JSON_PRINTERS].erase(printer_id) == 0) {
+            return;
         }
-
-        auto data = nlohmann::json::parse(ifs);
-        apply_spool_assignments(data);
-        spdlog::info("[ToolState] Loaded spool assignments from {}", path.string());
-        return true;
+        write_spool_file(path, data);
+        spdlog::info("[ToolState] Dropped removed printer '{}' from {}", printer_id, path.string());
     } catch (const std::exception& e) {
-        spdlog::warn("[ToolState] Error loading spool JSON: {}", e.what());
-        return false;
+        spdlog::warn("[ToolState] Error dropping printer '{}' from spool JSON: {}", printer_id,
+                     e.what());
     }
 }
 
@@ -893,6 +992,7 @@ void ToolState::load_spool_assignments(IMoonrakerAPI* api) {
         async_lifetime_.bg_cb("ToolState::load_spool_assignments",
                               [this](const nlohmann::json& data) {
                                   apply_spool_assignments(data);
+                                  spool_set_adopted_ = false;
                                   save_spool_json();
                                   spool_assignments_loaded_ = true;
                                   // Re-sync AmsState so slot UI subjects reflect loaded assignments
@@ -904,10 +1004,15 @@ void ToolState::load_spool_assignments(IMoonrakerAPI* api) {
             "ToolState::load_spool_assignments_error", [this, api](const MoonrakerError& err) {
                 spdlog::debug("[ToolState] Moonraker DB load failed ({}), trying local JSON",
                               err.user_message());
-                load_spool_json();
+                const bool had_local = load_spool_json();
                 spool_assignments_loaded_ = true;
-                // Seed Moonraker DB so subsequent connections don't hit 404
-                save_spool_assignments(api);
+                // Seed the DB only when it said the key is absent, or with a local set to
+                // restore: a timeout or a dropped connection says nothing about what the
+                // DB holds, and an empty seed would overwrite real assignments. An adopted
+                // set may be another printer's, so it never seeds.
+                if (!spool_set_adopted_ && (err.code == 404 || had_local)) {
+                    save_spool_assignments(api);
+                }
                 // Re-sync AmsState so slot UI subjects reflect loaded assignments
                 AmsState::instance().sync_from_backend();
             }));

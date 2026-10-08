@@ -2223,6 +2223,9 @@ void Config::remove_printer(const std::string& printer_id) {
 
     data["printers"].erase(printer_id);
     spdlog::info("[Config] Removed printer '{}'", printer_id);
+    if (printer_removed_hook_) {
+        printer_removed_hook_(printer_id);
+    }
 
     // If we just removed the active printer, switch to the first remaining one.
     // find_active_printer_key() skips the non-printer keys; taking
