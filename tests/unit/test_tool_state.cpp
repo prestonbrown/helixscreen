@@ -2261,3 +2261,36 @@ TEST_CASE_METHOD(TwoPrinterSpoolFixture, "ToolState: a removed printer's spools 
 
     CHECK_FALSE(spool_file_json()["printers"].contains("alpha"));
 }
+
+TEST_CASE_METHOD(TwoPrinterSpoolFixture,
+                 "ToolState: unsaved spool changes do not follow a switch to the next printer",
+                 "[tool][tool-state][spool][multi-printer]") {
+    ToolState::instance().assign_spool(0, 42, "Red PLA", 750.0f, 1000.0f);
+
+    helix::ConfigTestAccess::active_printer_id(*cfg) = "bravo";
+    REQUIRE(helix::PrinterCacheRegistry::instance().invalidate_one("ToolState"));
+    client.rpc_calls.clear();
+    ToolState::instance().save_spool_assignments_if_dirty(&api);
+
+    CHECK(db_writes().empty());
+    CHECK_FALSE(std::filesystem::exists(spool_file()));
+}
+
+TEST_CASE_METHOD(TwoPrinterSpoolFixture,
+                 "ToolState: a failed DB load with a local set restores it into the DB",
+                 "[tool][tool-state][spool][multi-printer]") {
+    ToolState::instance().assign_spool(1, 7, "Blue PETG", 200.0f, 500.0f);
+    ToolState::instance().save_spool_assignments(nullptr);
+    switch_to("alpha");
+
+    auto load = start_load();
+    MoonrakerError timeout;
+    timeout.type = MoonrakerErrorType::TIMEOUT;
+    client.rpc_calls.clear();
+    load.error_cb(timeout);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    CHECK(ToolState::instance().tools()[1].spoolman_id == 7);
+    REQUIRE(db_writes().size() == 1);
+    CHECK(db_writes()[0]["1"]["spoolman_id"] == 7);
+}

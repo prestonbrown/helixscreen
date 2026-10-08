@@ -124,6 +124,9 @@ void ToolState::init_subjects(bool register_xml) {
         }
         ts.async_lifetime_.invalidate();
         ts.spool_assignments_loaded_ = false;
+        // Unsaved changes were the previous printer's; saved now they would land under
+        // the next printer's key and in its DB.
+        ts.spool_dirty_ = false;
     });
     if (Config* config = Config::get_instance()) {
         config->set_printer_removed_hook(
