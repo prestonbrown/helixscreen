@@ -571,25 +571,31 @@ void kick_moonraker_connect_once() {
     if (!s_moonraker_connect_kicked.compare_exchange_strong(expected, true)) {
         return;
     }
-    // Task 12 R2: read the effective host from Config, not Kconfig directly —
-    // app_boot_ui()'s Phase 1 seed guarantees a value is present (either the
-    // user's saved Host or the first-boot Kconfig default) by the time this runs
-    // (app_net_start() is called last, after Phase 1).
-    helix::Config* config = helix::Config::get_instance();
-    std::string host = config->get<std::string>(config->df() + "moonraker_host", "");
-    // No host yet (empty Kconfig seed, nothing saved in Settings): connecting to
-    // "ws://:7125/websocket" would hand the websocket client an unresolvable URL
-    // and spin the auto-reconnect loop forever. Leave the not-ready UI up
-    // instead; ChangeHostModal connects directly once a host is entered, so no
-    // reboot is needed. Logged once — the one-shot latch above is already taken.
-    if (host.empty()) {
-        ESP_LOGI(TAG, "app_net: no Moonraker host configured — set it in Settings");
-        return;
-    }
-    // Async: connect() starts the WebSocket client task and returns. on_connected
-    // → MoonrakerManager::connect()'s discover_printer() → the callbacks
-    // registered in setup_discovery_callbacks_esp(), all on the WS task.
-    helix::connect_active_printer();
+    // This runs on the app_net thread or the WiFi observer. The connect creates the
+    // print-start collector, whose observers and API hooks belong to the UI thread, so the
+    // whole connect runs there; it only starts the WebSocket task, so the hop costs one
+    // UI tick.
+    helix::ui::queue_update("app_net::connect", [] {
+        // Task 12 R2: read the effective host from Config, not Kconfig directly —
+        // app_boot_ui()'s Phase 1 seed guarantees a value is present (either the
+        // user's saved Host or the first-boot Kconfig default) by the time this runs
+        // (app_net_start() is called last, after Phase 1).
+        helix::Config* config = helix::Config::get_instance();
+        std::string host = config->get<std::string>(config->df() + "moonraker_host", "");
+        // No host yet (empty Kconfig seed, nothing saved in Settings): connecting to
+        // "ws://:7125/websocket" would hand the websocket client an unresolvable URL
+        // and spin the auto-reconnect loop forever. Leave the not-ready UI up
+        // instead; ChangeHostModal connects directly once a host is entered, so no
+        // reboot is needed. Logged once — the one-shot latch above is already taken.
+        if (host.empty()) {
+            ESP_LOGI(TAG, "app_net: no Moonraker host configured — set it in Settings");
+            return;
+        }
+        // Async: connect() starts the WebSocket client task and returns. on_connected
+        // → MoonrakerManager::connect()'s discover_printer() → the callbacks
+        // registered in setup_discovery_callbacks_esp(), all on the WS task.
+        helix::connect_active_printer();
+    });
 }
 
 // R4: bounded wait for the FIRST post-boot association, replacing the old
