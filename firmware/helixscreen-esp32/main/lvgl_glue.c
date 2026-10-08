@@ -65,7 +65,7 @@ static void (*s_ui_tick)(void);
 // num_fbs stays 1 (double-FB + bounce desyncs scan-out — see board_display.c
 // DO-NOT-RETRY). Shadow is 768KB PSRAM, and s_shadow_lock gives it one owner at
 // a time: flush_cb holds it from the first chunk of a refresh cycle to the last,
-// the presenter from before its vsync wait to the end of its blit. Without it a
+// the presenter from its vsync to the end of its blit. Without it a
 // blit can copy a band that is half the previous cycle and half the next, which
 // shows as a torn widget on every animation and page change.
 #define FB_BPP ((size_t)sizeof(lv_color16_t))
@@ -404,10 +404,14 @@ static void present_blit(int32_t y1, int32_t y2) {
     }
 }
 
+// Frame tops a pending present may pass up because the UI holds the shadow.
+#define PRESENT_MAX_SKIPS 2
+
 // Presenter task: blits completed shadow frames to the FB, each aligned to a
 // fresh vsync so the copy starts at frame top and outruns the beam.
 static void present_task(void* arg) {
     (void)arg;
+    int skips = 0;
     while (true) {
         portENTER_CRITICAL(&s_present_mux);
         bool have = s_frame_pending;
@@ -420,16 +424,29 @@ static void present_task(void* arg) {
             continue;
         }
 
-        // Take the shadow before the vsync wait, so the blit still starts at
-        // frame top; this also holds off a half-staged next cycle.
-        bool locked = xSemaphoreTake(s_shadow_lock, pdMS_TO_TICKS(SHADOW_LOCK_WAIT_MS)) == pdTRUE;
-        if (!locked)
-            s_tears++;
-
         // Align the blit to a FRESH frame top: drop any stale token, then wait
         // the next vsync (bounded so a stalled panel can't wedge the presenter).
         xSemaphoreTake(s_vsync_sem, 0);
         xSemaphoreTake(s_vsync_sem, pdMS_TO_TICKS(100));
+
+        // The shadow is taken only at the frame top, so the UI can stage its
+        // next cycle through the wait. A UI mid-cycle here keeps it: that cycle
+        // merges into the union and a later vsync presents both. After
+        // PRESENT_MAX_SKIPS such vsyncs, wait the cycle out and align to the
+        // next frame top, so a UI that is always drawing cannot starve the panel.
+        bool locked = xSemaphoreTake(s_shadow_lock, 0) == pdTRUE;
+        if (!locked) {
+            if (skips < PRESENT_MAX_SKIPS) {
+                skips++;
+                continue;
+            }
+            locked = xSemaphoreTake(s_shadow_lock, pdMS_TO_TICKS(SHADOW_LOCK_WAIT_MS)) == pdTRUE;
+            if (!locked)
+                s_tears++;
+            xSemaphoreTake(s_vsync_sem, 0);
+            xSemaphoreTake(s_vsync_sem, pdMS_TO_TICKS(100));
+        }
+        skips = 0;
 
         // Consume the pending union (may have merged more since we peeked).
         int32_t y1, y2;
