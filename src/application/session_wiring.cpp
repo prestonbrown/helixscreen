@@ -2,19 +2,35 @@
 
 #include "session_wiring.h"
 
+#include "ui_emergency_stop.h"
+#include "ui_keyboard_manager.h"
+#include "ui_nav_manager.h"
+#include "ui_notification_manager.h"
+#include "ui_printer_status_icon.h"
+#include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
+#include "abort_manager.h"
 #include "app_globals.h"
+#include "data_root_resolver.h"
 #include "discovery_steps.h"
+#include "display_settings_manager.h"
+#include "filament_consumption_tracker.h"
 #include "http_request_epoch.h"
 #include "lap_log.h"
 #include "led/led_controller.h"
 #include "light_button_config.h"
+#include "panel_factory.h"
+#include "pending_startup_warnings.h"
+#include "post_op_cooldown_manager.h"
 #include "print_history_manager.h"
 #include "printer_discovery.h"
+#include "printer_image_manager.h"
 #include "printer_print_state.h"
 #include "printer_state.h"
+#include "safety_settings_manager.h"
 #include "system/crash_handler.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -135,6 +151,92 @@ void wire_discovery(IMoonrakerAPI& api, IMoonrakerClient& client, DiscoveryHooks
                          a->hardware().sensors().size(), status->is_object() ? status->size() : 0);
         });
     });
+}
+
+void init_session_services(IMoonrakerAPI* api, lv_obj_t* screen) {
+    // init() before create(): create() installs the print/klippy observers and returns early
+    // until the API and the subjects exist.
+    EmergencyStopOverlay::instance().init(get_printer_state(), api);
+    EmergencyStopOverlay::instance().create();
+    EmergencyStopOverlay::instance().set_require_confirmation(
+        SafetySettingsManager::instance().get_estop_require_confirmation());
+    AbortManager::instance().init(api, &get_printer_state());
+
+    KeyboardManager::instance().init(screen);
+
+    ui::notification_manager_init();
+    ToastManager::instance().init();
+    // Warnings the display and asset backends queued before there was a UI.
+    PendingStartupWarnings::instance().drain(
+        [](PendingStartupWarnings::Severity sev, const std::string& msg, uint32_t duration_ms) {
+            ToastSeverity toast_sev = ToastSeverity::INFO;
+            switch (sev) {
+            case PendingStartupWarnings::Severity::INFO:
+                toast_sev = ToastSeverity::INFO;
+                break;
+            case PendingStartupWarnings::Severity::SUCCESS:
+                toast_sev = ToastSeverity::SUCCESS;
+                break;
+            case PendingStartupWarnings::Severity::WARNING:
+                toast_sev = ToastSeverity::WARNING;
+                break;
+            case PendingStartupWarnings::Severity::ERROR:
+                toast_sev = ToastSeverity::ERROR;
+                break;
+            }
+            ToastManager::instance().show(toast_sev, msg.c_str(), duration_ms);
+        });
+
+    PrinterImageManager::instance().init(get_user_config_dir());
+    DisplaySettingsManager::instance().on_theme_changed();
+    PostOpCooldownManager::instance().init();
+    FilamentConsumptionTracker::instance().start();
+}
+
+lv_obj_t* create_app_layout(lv_obj_t* screen,
+                            std::function<void(const std::string&)> on_switch_printer,
+                            std::function<void()> on_add_printer) {
+    LapLog laps("app shell");
+    lv_obj_t* app_layout = static_cast<lv_obj_t*>(lv_xml_create(screen, "app_layout", nullptr));
+    if (!app_layout) {
+        spdlog::error("[AppShell] Failed to create app_layout from XML");
+        return nullptr;
+    }
+    laps.lap("app_layout");
+    lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_update_layout(screen);
+    NavigationManager::instance().set_app_layout(app_layout);
+
+    // Observes the connection and klippy state that the navbar's printer icon shows.
+    PrinterStatusIcon::instance().init();
+    NavigationManager::instance().init_overlay_backdrop(screen);
+
+    lv_obj_t* navbar = ui::find_required(app_layout, "navbar", "AppShell");
+    if (!navbar || !ui::find_required(app_layout, "content_area", "AppShell")) {
+        return nullptr;
+    }
+    NavigationManager::instance().wire_events(navbar);
+    NavigationManager::instance().set_printer_callbacks(std::move(on_switch_printer),
+                                                        std::move(on_add_printer));
+    return app_layout;
+}
+
+bool setup_app_panels(lv_obj_t* app_layout, lv_obj_t* screen, PanelFactory& panels) {
+    LapLog laps("app panels");
+    lv_obj_t* panel_container = ui::find_required(app_layout, "panel_container", "AppShell");
+    if (!panel_container || !panels.find_panels(panel_container)) {
+        return false;
+    }
+    panels.setup_panels(screen);
+    laps.lap("panels");
+    if (!panels.create_print_status_overlay(screen)) {
+        spdlog::error("[AppShell] Failed to create the print status overlay");
+        return false;
+    }
+    panels.init_keypad(screen);
+    laps.lap("print status overlay, keypad");
+    return true;
 }
 
 } // namespace helix

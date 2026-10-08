@@ -4,7 +4,6 @@
 #include "printer_session.h"
 
 #include "ui_ams_tool_text.h"
-#include "ui_emergency_stop.h"
 #include "ui_keyboard_manager.h"
 #include "ui_language_refresh.h"
 #include "ui_modal.h"
@@ -18,7 +17,6 @@
 #include "ui_panel_input_shaper.h"
 #include "ui_panel_memory_stats.h"
 #include "ui_panel_screws_tilt.h"
-#include "ui_printer_status_icon.h"
 #include "ui_probe_overlay.h"
 #include "ui_settings_about.h"
 #include "ui_spaghetti_detection_modal.h"
@@ -27,7 +25,6 @@
 #include "ui_utils.h"
 #include "ui_wizard.h"
 
-#include "abort_manager.h"
 #include "active_print_media_manager.h"
 #include "ams_state.h"
 #include "app_globals.h"
@@ -54,7 +51,6 @@
 #include "moonraker_performance_source.h"
 #include "page_scroll_auto_inject.h"
 #include "panel_factory.h"
-#include "pending_startup_warnings.h"
 #include "performance_state.h"
 #include "post_op_cooldown_manager.h"
 #include "power_device_state.h"
@@ -63,7 +59,6 @@
 #include "printer_discovery.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
-#include "safety_settings_manager.h"
 #include "sensor_state.h"
 #include "session_wiring.h"
 #include "settings_manager.h"
@@ -170,16 +165,9 @@ bool PrinterSession::init_panel_subjects() {
     // Phase 5-7: Observers and utility subjects
     m_subjects->init_post(*get_runtime_config());
 
-    // Initialize EmergencyStopOverlay (moved from MoonrakerManager)
-    // Must happen after both API and EmergencyStopOverlay::init_subjects()
-    EmergencyStopOverlay::instance().init(get_printer_state(), m_moonraker->api());
-    EmergencyStopOverlay::instance().create();
-    EmergencyStopOverlay::instance().set_require_confirmation(
-        SafetySettingsManager::instance().get_estop_require_confirmation());
-
-    // Initialize AbortManager for smart print cancellation
-    // Must happen after both API and AbortManager::init_subjects()
-    helix::AbortManager::instance().init(m_moonraker->api(), &get_printer_state());
+    // E-stop, abort, keyboard, notifications and toasts, and the trackers: after the panel
+    // subjects, before the shell.
+    helix::init_session_services(m_moonraker->api(), m_screen);
 
     // Spaghetti / failed-print detection
     // (see docs/devel/printers/SNAPMAKER_U1_SUPPORT.md, defect_detection)
@@ -237,35 +225,13 @@ bool PrinterSession::init_panel_subjects() {
 }
 
 bool PrinterSession::init_ui() {
-    // Create entire UI from XML. Timed because this builds all six panel
-    // subtrees in one call — the other half of what per-panel deferral would
-    // move off boot and onto the first navigation.
-    auto layout_t0 = std::chrono::steady_clock::now();
-    m_app_layout = static_cast<lv_obj_t*>(lv_xml_create(m_screen, "app_layout", nullptr));
-    spdlog::debug(
-        "[Application] app_layout XML create took {:.1f}ms",
-        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - layout_t0)
-            .count());
-    if (!m_app_layout) {
-        spdlog::error("[Application] Failed to create app_layout from XML");
+    m_app_layout = helix::create_app_layout(
+        m_screen, [this](const std::string& printer_id) { request_switch(printer_id); },
+        [this]() { add_printer_via_wizard(); });
+    m_panels = std::make_unique<PanelFactory>();
+    if (!m_app_layout || !helix::setup_app_panels(m_app_layout, m_screen, *m_panels)) {
         return false;
     }
-
-    // Disable scrollbars on screen
-    lv_obj_clear_flag(m_screen, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_scrollbar_mode(m_screen, LV_SCROLLBAR_MODE_OFF);
-
-    // Force layout calculation
-    lv_obj_update_layout(m_screen);
-
-    // Register app_layout with navigation
-    NavigationManager::instance().set_app_layout(m_app_layout);
-
-    // Initialize printer status icon (sets up observers on PrinterState)
-    PrinterStatusIcon::instance().init();
-
-    // Initialize notification system
-    helix::ui::notification_manager_init();
 
     // Seed test notifications in --test mode for debugging
     if (get_runtime_config()->is_test_mode()) {
@@ -273,76 +239,6 @@ bool PrinterSession::init_ui() {
         // Update notification badge to show unread count and severity color
         helix::ui::notification_refresh_from_history();
     }
-
-    // Initialize toast system
-    ToastManager::instance().init();
-
-    // Drain any warnings that backends enqueued during pre-UI initialization
-    // (e.g. "simpledrm detected", "requested resolution not available").
-    // See prestonbrown/helixscreen#766.
-    helix::PendingStartupWarnings::instance().drain([](helix::PendingStartupWarnings::Severity sev,
-                                                       const std::string& msg,
-                                                       uint32_t duration_ms) {
-        ToastSeverity toast_sev = ToastSeverity::INFO;
-        switch (sev) {
-        case helix::PendingStartupWarnings::Severity::INFO:
-            toast_sev = ToastSeverity::INFO;
-            break;
-        case helix::PendingStartupWarnings::Severity::SUCCESS:
-            toast_sev = ToastSeverity::SUCCESS;
-            break;
-        case helix::PendingStartupWarnings::Severity::WARNING:
-            toast_sev = ToastSeverity::WARNING;
-            break;
-        case helix::PendingStartupWarnings::Severity::ERROR:
-            toast_sev = ToastSeverity::ERROR;
-            break;
-        }
-        ToastManager::instance().show(toast_sev, msg.c_str(), duration_ms);
-    });
-
-    // Initialize overlay backdrop
-    NavigationManager::instance().init_overlay_backdrop(m_screen);
-
-    // Find navbar and content area
-    lv_obj_t* navbar = helix::ui::find_required(m_app_layout, "navbar", "Application");
-    lv_obj_t* content_area = helix::ui::find_required(m_app_layout, "content_area", "Application");
-
-    if (!navbar || !content_area) {
-        return false;
-    }
-
-    // Wire navigation
-    NavigationManager::instance().wire_events(navbar);
-
-    // Register printer switch/add callbacks so navbar badge menu can trigger actions
-    NavigationManager::instance().set_printer_callbacks(
-        [this](const std::string& printer_id) { request_switch(printer_id); },
-        [this]() { add_printer_via_wizard(); });
-
-    // Find panel container
-    lv_obj_t* panel_container =
-        helix::ui::find_required(content_area, "panel_container", "Application");
-    if (!panel_container) {
-        return false;
-    }
-
-    // Initialize panels
-    m_panels = std::make_unique<PanelFactory>();
-    if (!m_panels->find_panels(panel_container)) {
-        return false;
-    }
-    m_panels->setup_panels(m_screen);
-
-    // Create print status overlay
-    if (!m_panels->create_print_status_overlay(m_screen)) {
-        spdlog::error("[Application] Failed to create print status overlay");
-        return false;
-    }
-    // print_status is created lazily by PrintStatusPanel::push_overlay()
-
-    // Initialize keypad
-    m_panels->init_keypad(m_screen);
 
     spdlog::info("[Application] UI created successfully");
     helix::MemoryMonitor::log_now("after_ui_created");
@@ -391,9 +287,6 @@ bool PrinterSession::init_moonraker() {
         // Use the current active screen instead
         m_screen = active_screen;
     }
-
-    // Initialize global keyboard
-    KeyboardManager::instance().init(m_screen);
 
     // Initialize memory stats overlay
     MemoryStatsOverlay::instance().init(m_screen, m_host.args.show_memory);

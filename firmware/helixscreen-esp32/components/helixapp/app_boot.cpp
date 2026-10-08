@@ -38,11 +38,9 @@
 #include "ui_change_host_modal.h"
 #include "ui_component_header_bar.h"
 #include "ui_dialog.h"
-#include "ui_emergency_stop.h"
 #include "ui_gcode_viewer.h"
 #include "ui_gradient_canvas.h"
 #include "ui_icon.h"
-#include "ui_keyboard_manager.h"
 #include "ui_nav_manager.h"
 #include "ui_notification_history.h"
 #include "ui_notification_manager.h"
@@ -52,10 +50,8 @@
 #include "ui_switch.h"
 #include "ui_temp_display.h"
 #include "ui_tile_rung.h"
-#include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
-#include "abort_manager.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "asset_manager.h"
@@ -91,7 +87,6 @@
 #include "printer_state.h"
 #include "printer_switch_flow.h"
 #include "runtime_config.h"
-#include "safety_settings_manager.h"
 #include "scroll_blit.h"
 #include "sdkconfig.h"
 #include "session_wiring.h"
@@ -354,50 +349,24 @@ void wire_printer_callbacks() {
         helix::ui::queue_update("app_boot::transport_stall", [] { restart_into_active_printer(); });
     });
     switch_flow().set_connected_printer_id(helix::Config::get_instance()->get_active_printer_id());
-    NavigationManager::instance().set_printer_callbacks(
-        [](const std::string& printer_id) { switch_flow().request_switch(printer_id); },
+}
+
+// Build the app shell (the navbar and all six panels resident-and-hidden, the desktop memory
+// model) through the shared builder, with the navbar's printer menu driving this device's
+// switch flow. Returns false on any structural failure (logged).
+bool build_shell() {
+    wire_printer_callbacks();
+    lv_obj_t* screen = lv_screen_active();
+    lv_obj_t* app_layout = helix::create_app_layout(
+        screen, [](const std::string& printer_id) { switch_flow().request_switch(printer_id); },
         [] {
             helix::ui::show_add_printer_modal(
                 [](const std::string& host, int port) { switch_flow().add_printer(host, port); });
         });
-}
-
-// Build the app shell: app_layout.xml instantiates the navbar and all six
-// panels resident-and-hidden (the desktop memory model), then PanelFactory
-// finds + wires them. Mirrors Application::init_ui() (application.cpp:1721).
-// Returns false on any structural failure (logged).
-bool build_shell() {
-    lv_obj_t* screen = lv_screen_active();
-    lv_obj_t* app_layout = static_cast<lv_obj_t*>(lv_xml_create(screen, "app_layout", nullptr));
-    if (!app_layout) {
-        spdlog::error("app_boot: app_layout XML create FAILED");
-        return false;
-    }
-    lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_update_layout(screen);
-    NavigationManager::instance().set_app_layout(app_layout);
-
-    lv_obj_t* navbar = lv_obj_find_by_name(app_layout, "navbar");
-    lv_obj_t* content_area = lv_obj_find_by_name(app_layout, "content_area");
-    if (!navbar || !content_area) {
-        spdlog::error("app_boot: navbar/content_area not found in app_layout");
-        return false;
-    }
-    NavigationManager::instance().wire_events(navbar);
-    wire_printer_callbacks();
-
-    lv_obj_t* panel_container = lv_obj_find_by_name(content_area, "panel_container");
-    if (!panel_container) {
-        spdlog::error("app_boot: panel_container not found");
-        return false;
-    }
     static helix::PanelFactory panels;
-    if (!panels.find_panels(panel_container)) {
-        spdlog::error("app_boot: find_panels FAILED");
+    if (!app_layout || !helix::setup_app_panels(app_layout, screen, panels)) {
         return false;
     }
-    panels.setup_panels(screen);
     get_global_home_panel().finalize_setup();
     return true;
 }
@@ -902,23 +871,6 @@ extern "C" void app_boot_ui(void) {
     subjects.init_panels(manager.api(), rc);
     subjects.init_post(rc);
 
-    // E-STOP and smart print cancellation. Mirrors desktop's
-    // Application::init_panel_subjects() (application.cpp, same order). Both
-    // singletons had their subjects registered by init_panels() above but their
-    // API/PrinterState pointers left null, because the desktop-only
-    // application.cpp is the tree's sole init() call site — so every
-    // emergency_stop() bailed out at the `!api_` guard and the estop_visible
-    // subject, which nine XML files bind as a visibility flag, never left 0.
-    // create() installs observers on print/klippy state and early-returns unless
-    // init() has run and subjects exist, so this ordering is required, and all of
-    // it must precede build_shell() below.
-    EmergencyStopOverlay::instance().init(get_printer_state(), manager.api());
-    EmergencyStopOverlay::instance().create();
-    EmergencyStopOverlay::instance().set_require_confirmation(
-        helix::SafetySettingsManager::instance().get_estop_require_confirmation());
-
-    helix::AbortManager::instance().init(manager.api(), &get_printer_state());
-
     // Job queue state — owns `job_queue_count` (plus the two queue text
     // subjects). The home panel's queue widget, the print-status widget's queue
     // row, and the job-queue modal each look that subject up from C++ when they
@@ -939,58 +891,22 @@ extern "C" void app_boot_ui(void) {
     set_print_history_manager(&print_history);
     log_heap_milestone("subjects-up");
 
-    // Global software keyboard — one shared lv_keyboard, hidden until a
-    // registered textarea gains focus. Mirrors desktop's
-    // Application::init_moonraker() call (application.cpp:1875). Without this,
-    // KeyboardManager::register_textarea() is a silent no-op (keyboard_ ==
-    // nullptr guard) and no textarea on the device ever raises the keyboard —
-    // Change Printer Host, WiFi join password, and provisioning fallback all
-    // depend on it. show() move-foregrounds itself, so creating it before
-    // build_shell() below is z-order safe.
-    KeyboardManager::instance().init(lv_screen_active());
-
-    // Notification + toast systems. Mirrors desktop's Application::init_ui()
-    // (application.cpp: notification_manager_init(), ToastManager::init(), then
-    // the startup-warning drain). Neither needs a parent widget — the toast
-    // stack is created lazily on first show() — but both must run before any
-    // panel can raise a message, i.e. before build_shell() below. Without them
-    // every ToastManager::show() on the device is silently dropped, which is
-    // how error feedback (failed gcode, connection loss, E-STOP) went missing.
-    helix::ui::notification_manager_init();
-    ToastManager::instance().init();
-
     // A touch controller that failed to probe no longer aborts boot, so the
     // only thing telling the user why the panel is unresponsive is this
-    // warning. Enqueued immediately before the drain below so it goes out
-    // through the same toast path as the pre-UI backend warnings.
+    // warning. Enqueued before init_session_services() drains the queue, so it
+    // goes out through the same toast path as the pre-UI backend warnings.
     if (!s_touch_available) {
         helix::PendingStartupWarnings::instance().enqueue(
             helix::PendingStartupWarnings::Severity::ERROR,
             "Touchscreen not detected - display only");
     }
 
-    // init() does NOT drain the queue: warnings enqueued during pre-UI boot
-    // (display/asset backends) stay stranded unless drained explicitly.
-    helix::PendingStartupWarnings::instance().drain([](helix::PendingStartupWarnings::Severity sev,
-                                                       const std::string& msg,
-                                                       uint32_t duration_ms) {
-        ToastSeverity toast_sev = ToastSeverity::INFO;
-        switch (sev) {
-        case helix::PendingStartupWarnings::Severity::INFO:
-            toast_sev = ToastSeverity::INFO;
-            break;
-        case helix::PendingStartupWarnings::Severity::SUCCESS:
-            toast_sev = ToastSeverity::SUCCESS;
-            break;
-        case helix::PendingStartupWarnings::Severity::WARNING:
-            toast_sev = ToastSeverity::WARNING;
-            break;
-        case helix::PendingStartupWarnings::Severity::ERROR:
-            toast_sev = ToastSeverity::ERROR;
-            break;
-        }
-        ToastManager::instance().show(toast_sev, msg.c_str(), duration_ms);
-    });
+    // E-stop, abort, the keyboard, notifications and toasts (draining the warning above
+    // with the pre-UI backend ones), custom printer images, the theme's light/dark
+    // availability, post-op cooldown and filament-consumption tracking. Before
+    // build_shell(): panels raise toasts and bind the E-stop subjects while they build.
+    helix::init_session_services(manager.api(), lv_screen_active());
+    log_heap_milestone("services-up");
 
 #if CONFIG_HELIX_MOCK_PRINTER
     // Before the shell builds: seed READY/CONNECTED + the printer identity so the
