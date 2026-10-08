@@ -1222,6 +1222,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker row names a spool by its filament na
     clear.vendor = "Kingroon";
     clear.material = "PETG";
     clear.filament_name = "Kingroon Basic PETG Clear";
+    clear.remaining_weight_g = 750;
     SpoolInfo white = clear;
     white.id = 13;
     white.filament_name = "Kingroon Basic PETG White";
@@ -1295,6 +1296,20 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker row names a spool by its filament na
     };
     CHECK(occurrences(visible_text(row_for(12)), "Basic PETG Clear") == 1);
     CHECK(occurrences(visible_text(row_for(13)), "Basic PETG White") == 1);
+
+    // A label that holds the name but lays out zero-sized shows nothing.
+    lv_obj_update_layout(list);
+    lv_obj_t* label = lv_obj_find_by_name(row_for(12), "spool_name");
+    CHECK(lv_obj_get_height(label) > 0);
+    CHECK(lv_obj_get_width(label) > 0);
+    // The name leaves room for the weight beside or below it, inside the
+    // details box that holds them both.
+    lv_obj_t* weight = lv_obj_find_by_name(row_for(12), "spool_weight");
+    lv_area_t details_area;
+    lv_area_t weight_area;
+    lv_obj_get_coords(lv_obj_get_parent(lv_obj_get_parent(weight)), &details_area);
+    lv_obj_get_coords(weight, &weight_area);
+    CHECK(weight_area.x2 <= details_area.x2);
 
     close_editor_overlay();
 }

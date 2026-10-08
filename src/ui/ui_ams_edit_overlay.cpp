@@ -579,10 +579,11 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     lv_subject_t* bp_subj = theme_manager_get_breakpoint_subject();
     UiBreakpoint bp = bp_subj ? as_breakpoint(lv_subject_get_int(bp_subj)) : UiBreakpoint::Medium;
     const bool is_compact = bp <= UiBreakpoint::Medium;
-    const char* attrs_plain[] = {"detail_flow", is_compact ? "row" : "column", nullptr, nullptr};
-    const char* attrs_current[] = {
-        "detail_flow", is_compact ? "row" : "column", "hide_edit_pencil", "false", nullptr,
-        nullptr};
+    const char* flow = is_compact ? "row" : "column";
+    const char* name_grow = is_compact ? "1" : "0";
+    const char* attrs_plain[] = {"detail_flow", flow, "name_grow", name_grow, nullptr, nullptr};
+    const char* attrs_current[] = {"detail_flow",      flow,    "name_grow", name_grow,
+                                   "hide_edit_pencil", "false", nullptr,     nullptr};
 
     // Pre-selection (spec §3.2, resolution §2.5): the current spool if linked,
     // otherwise the FIRST selectable row — so a single-candidate list is one

@@ -5,8 +5,11 @@
 <component>
   <api>
     <prop name="spool_id" type="int" default="0"/>
-    <!-- detail_flow="row" collapses the row to a single line on small panels. -->
+    <!-- detail_flow="row" collapses the row to a single line on small panels;
+         pass name_grow="1" with it. In a column, flex_grow sizes the name's height,
+         and a content-height column has none to give, so the name lays out 0px tall. -->
     <prop name="detail_flow" type="string" default="column"/>
+    <prop name="name_grow" type="int" default="0"/>
     <!-- Opt-in identity-edit pencil (AMS editor's picker only; the AMS panel
          list keeps it hidden). Shown on the highlighted/current row. -->
     <prop name="hide_edit_pencil" type="boolean" default="true"/>
@@ -56,7 +59,8 @@
       <!-- Primary: the spool's name (e.g., "#12 Kingroon Basic PETG Clear"). Grows +
            ellipsizes when constrained (compact); full-width and un-truncated in rich mode. -->
       <text_body name="spool_name"
-                 text="Unknown Spool" translation_tag="Unknown Spool" flex_grow="1" long_mode="dots" clickable="false"/>
+                 width="100%" text="Unknown Spool" translation_tag="Unknown Spool" flex_grow="$name_grow"
+                 long_mode="dots" clickable="false"/>
       <!-- Secondary: Weight -->
       <lv_obj height="content"
               style_pad_all="0" flex_flow="row" style_flex_main_place="start" style_pad_gap="#space_xs"
