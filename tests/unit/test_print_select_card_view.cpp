@@ -437,7 +437,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
 TEST_CASE_METHOD(
     LVGLUITestFixture,
-    "CardView: a prebuild builds the first screen a card per tick, so the fill builds none",
+    "CardView: a prebuild builds the first screen on its ticks, so the fill builds none",
     "[ui][card_view][print_select]") {
     lv_obj_t* container = lv_obj_create(test_screen());
     lv_obj_set_size(container, 700, 400);
@@ -456,7 +456,7 @@ TEST_CASE_METHOD(
     CHECK(view.is_prebuilding());
     CHECK(view.pool_size() == 0); // nothing is built in the caller's frame
     process_lvgl(120);
-    CHECK(view.pool_size() == 1);
+    CHECK(view.pool_size() >= 1);
     for (int i = 0; i < 100 && view.is_prebuilding(); ++i) {
         process_lvgl(120);
     }
@@ -470,8 +470,25 @@ TEST_CASE_METHOD(
     lv_obj_delete(container);
 }
 
+namespace {
+
+/// File indexes of the shown cards, in on-screen order.
+std::vector<size_t> shown_files(lv_obj_t* container) {
+    std::vector<size_t> shown;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(container); ++i) {
+        lv_obj_t* card = lv_obj_get_child(container, static_cast<int32_t>(i));
+        if (lv_obj_find_by_name(card, "filename_label") &&
+            !lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN)) {
+            shown.push_back(reinterpret_cast<size_t>(lv_obj_get_user_data(card)));
+        }
+    }
+    return shown;
+}
+
+} // namespace
+
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "CardView: a listing that lands mid-prebuild fills the window and ends it",
+                 "CardView: a listing that lands mid-prebuild builds no card in its own frame",
                  "[ui][card_view][print_select]") {
     lv_obj_t* container = lv_obj_create(test_screen());
     lv_obj_set_size(container, 700, 400);
@@ -483,19 +500,26 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const auto files = make_files(20);
     lv_obj_update_layout(container);
     const size_t window = window_cards(container, dims, 20);
+    REQUIRE(window > 2);
 
+    // The listing lands before the first tick has built anything.
     view.prebuild(dims, files.size());
     lend_prebuild_ticks(view);
-    process_lvgl(120);
-    REQUIRE(view.pool_size() == 1);
-
     view.populate(files, dims);
-    CHECK(view.pool_size() == window);
-    for (int i = 0; i < 5; ++i) {
+    CHECK(view.pool_size() == 0);
+    CHECK(view.is_prebuilding());
+
+    // The ticks build the window and show each card as it lands, in order.
+    for (int i = 0; i < 100 && view.is_prebuilding(); ++i) {
         process_lvgl(120);
     }
     CHECK_FALSE(view.is_prebuilding());
     CHECK(view.pool_size() == window);
+    std::vector<size_t> expect(window);
+    for (size_t i = 0; i < window; ++i) {
+        expect[i] = i;
+    }
+    CHECK(shown_files(container) == expect);
 
     view.cleanup();
     lv_obj_delete(container);
@@ -512,15 +536,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "CardView: a stopped prebuild builds no more
     const CardDimensions dims{4, 2, 160, 200};
     view.prebuild(dims, 20);
     lend_prebuild_ticks(view);
-    process_lvgl(120);
-    REQUIRE(view.pool_size() == 1);
+    REQUIRE(view.pool_size() == 0);
 
     view.stop_prebuild();
     CHECK_FALSE(view.is_prebuilding());
     for (int i = 0; i < 10; ++i) {
         process_lvgl(120);
     }
-    CHECK(view.pool_size() == 1);
+    CHECK(view.pool_size() == 0);
 
     // Cleanup mid-prebuild leaves no tick behind to reach the freed pool.
     view.prebuild(dims, 20);

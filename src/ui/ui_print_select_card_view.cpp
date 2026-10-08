@@ -18,6 +18,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 
 using helix::gcode::strip_gcode_extension;
@@ -128,6 +129,7 @@ void PrintSelectCardView::clear_cached_state() {
     trailing_spacer_ = nullptr;
     visible_start_row_ = -1;
     visible_end_row_ = -1;
+    bound_files_ = nullptr;
     total_items_ = 0;
     last_leading_height_ = -1;
     last_trailing_height_ = -1;
@@ -407,9 +409,9 @@ void PrintSelectCardView::prebuild(const CardDimensions& dims, size_t expected_f
     }
     prebuild_dims_ = std::make_unique<CardDimensions>(dims);
 
-    // One card per tick. LVGL measures the period from the start of a tick and
-    // a card takes tens of ms to build, so the period has to be well past that
-    // for the display refresh and input to run between cards. The tick ends the
+    // LVGL measures the period from the start of a tick and a card takes tens
+    // of ms to build on slow hardware, so the period has to be well past that
+    // for the display refresh and input to run between ticks. The tick ends the
     // timer itself; it never runs out on its own.
     constexpr uint32_t PREBUILD_TICK_MS = 100;
     prebuild_timer_.reset(lv_timer_create(on_prebuild_tick, PREBUILD_TICK_MS, this));
@@ -424,8 +426,21 @@ void PrintSelectCardView::stop_prebuild() {
 void PrintSelectCardView::on_prebuild_tick(lv_timer_t* timer) {
     auto* self = static_cast<PrintSelectCardView*>(lv_timer_get_user_data(timer));
     const size_t before = self->card_pool_.size();
-    if (before < self->prebuild_target_) {
-        self->grow_pool(before + 1, *self->prebuild_dims_);
+    // At least one card per tick, and more while they are cheap: hardware that
+    // builds a card in well under a frame fills the window in one tick.
+    constexpr auto TICK_BUDGET = std::chrono::milliseconds(10);
+    const auto start = std::chrono::steady_clock::now();
+    while (self->card_pool_.size() < self->prebuild_target_) {
+        const size_t size = self->card_pool_.size();
+        self->grow_pool(size + 1, *self->prebuild_dims_);
+        if (self->card_pool_.size() == size ||
+            std::chrono::steady_clock::now() - start >= TICK_BUDGET) {
+            break;
+        }
+    }
+    // A listing already shown gets the new cards now, in window order.
+    if (self->card_pool_.size() != before && self->bound_files_ && self->visible_start_row_ >= 0) {
+        self->show_cards(*self->bound_files_, *self->prebuild_dims_);
     }
     if (self->card_pool_.size() >= self->prebuild_target_ || self->card_pool_.size() == before) {
         self->stop_prebuild();
@@ -734,11 +749,37 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
                       last_trailing_height_);
 
     // The pool covers the window and nothing more: building a card costs tens
-    // of ms on slow hardware, and a window reached by scrolling grows it.
-    grow_pool(static_cast<size_t>(std::max(0, last_visible_idx - first_visible_idx)), dims);
+    // of ms on slow hardware, and a window reached by scrolling grows it. While
+    // a prebuild runs, its ticks build the missing cards instead of this frame
+    // building them all at once, and show each as it lands.
+    const size_t window_cards =
+        static_cast<size_t>(std::max(0, last_visible_idx - first_visible_idx));
+    if (is_prebuilding()) {
+        prebuild_target_ = window_cards;
+        *prebuild_dims_ = dims;
+    } else {
+        grow_pool(window_cards, dims);
+    }
 
+    visible_start_row_ = first_visible_row;
+    visible_end_row_ = last_visible_row;
+    bound_files_ = &file_list;
+    show_cards(file_list, dims, data_changed);
+
+    // Trigger metadata fetch for newly visible range
+    if (on_metadata_fetch_) {
+        on_metadata_fetch_(static_cast<size_t>(first_visible_idx),
+                           static_cast<size_t>(last_visible_idx));
+    }
+}
+
+void PrintSelectCardView::show_cards(const std::vector<PrintFileData>& file_list,
+                                     const CardDimensions& dims, bool refill_all) {
+    const int first = visible_start_row_ * cards_per_row_;
+    const int last =
+        std::min(static_cast<int>(file_list.size()), visible_end_row_ * cards_per_row_);
     show_window(
-        container_, card_pool_indices_, first_visible_idx, last_visible_idx, data_changed,
+        container_, card_pool_indices_, first, last, refill_all,
         [this](size_t slot) { return card_pool_[slot]; },
         [&](size_t slot, ssize_t file_idx) {
             configure_card(card_pool_[slot], slot, static_cast<size_t>(file_idx),
@@ -750,15 +791,6 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
             release_esp_thumbnail(card_pool_[slot], *card_data_pool_[slot]);
 #endif
         });
-
-    visible_start_row_ = first_visible_row;
-    visible_end_row_ = last_visible_row;
-
-    // Trigger metadata fetch for newly visible range
-    if (on_metadata_fetch_) {
-        on_metadata_fetch_(static_cast<size_t>(first_visible_idx),
-                           static_cast<size_t>(last_visible_idx));
-    }
 }
 
 void PrintSelectCardView::refresh_content(const std::vector<PrintFileData>& file_list,

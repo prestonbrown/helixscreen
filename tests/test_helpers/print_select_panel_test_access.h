@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ui_panel_print_select.h"
+#include "ui_print_select_card_view.h"
 #include "ui_print_select_detail_view.h"
 
 #include "print_start_controller_test_access.h"
@@ -72,6 +73,17 @@ struct PrintSelectPanelTestAccess {
                 panel.process_metadata_result(i, filename, metadata);
                 return;
             }
+        }
+    }
+
+    /// Run the card prebuild to its end, as its periodic ticks would. The
+    /// harness runs no timer that repeats forever, so each tick is lent one.
+    static void finish_card_prebuild(PrintSelectPanel& panel) {
+        for (int i = 0; i < 100 && panel.card_view_ && panel.card_view_->is_prebuilding(); ++i) {
+            lv_timer_t* t = panel.card_view_->prebuild_timer_for_test();
+            lv_timer_set_repeat_count(t, 1000);
+            lv_timer_ready(t);
+            lv_timer_handler();
         }
     }
 

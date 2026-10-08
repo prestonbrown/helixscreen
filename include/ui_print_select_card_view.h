@@ -230,12 +230,13 @@ class PrintSelectCardView : public ContainerDeleteNet {
     void refresh_content(const std::vector<PrintFileData>& file_list, const CardDimensions& dims);
 
     /**
-     * @brief Build the cards the first screen needs, one per timer tick
+     * @brief Build the cards the first screen needs, a few ms of them per timer tick
      *
      * Building a card costs tens of ms on slow hardware, so building a whole
      * window inside the listing's fill blocks the UI for all of them at once.
      * Started while the listing is still on its way, the pool is ready when it
-     * lands; a populate() that comes first builds whatever is still missing.
+     * lands; a populate() that comes first shows the cards already built and
+     * the remaining ticks show the rest as they are built.
      *
      * @param expected_files File count the window is sized for
      */
@@ -361,6 +362,15 @@ class PrintSelectCardView : public ContainerDeleteNet {
     std::unique_ptr<CardDimensions> prebuild_dims_;
     size_t prebuild_target_ = 0;
     static void on_prebuild_tick(lv_timer_t* timer);
+
+    /// The list the window was last bound to: the panel's own, which outlives
+    /// this view. A prebuild tick binds the cards it builds to it.
+    const std::vector<PrintFileData>* bound_files_ = nullptr;
+
+    /// Binds the window [visible_start_row_, visible_end_row_) to the cards
+    /// built so far; @p refill_all reconfigures cards whose file is unchanged.
+    void show_cards(const std::vector<PrintFileData>& file_list, const CardDimensions& dims,
+                    bool refill_all = false);
 
     /**
      * @brief Configure a pool card to display a specific file

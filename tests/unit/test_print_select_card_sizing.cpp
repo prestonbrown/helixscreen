@@ -52,10 +52,12 @@ FirstScreen measure_first_screen(lv_obj_t* container) {
     return out;
 }
 
-/// Lay out (firing SIZE_CHANGED), then run the re-populate it defers.
-void settle() {
+/// Lay out (firing SIZE_CHANGED), run the re-populate it defers, then build
+/// the cards that re-populate left to the prebuild.
+void settle(PrintSelectPanel& panel) {
     lv_obj_update_layout(lv_screen_active());
     PrintSelectPanelFixture::drain();
+    PrintSelectPanelTestAccess::finish_card_prebuild(panel);
 }
 
 } // namespace
@@ -73,7 +75,7 @@ TEST_CASE_METHOD(PrintSelectPanelFixture,
     REQUIRE(banner != nullptr);
 
     panel_->set_sort_recent();
-    settle();
+    settle(*panel_);
 
     REQUIRE_FALSE(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
     REQUIRE(lv_obj_get_height(banner) > 0);
@@ -86,7 +88,7 @@ TEST_CASE_METHOD(PrintSelectPanelFixture,
 
     // Hiding the banner hands its height back; the grid regrows to fill it.
     lv_obj_add_flag(banner, LV_OBJ_FLAG_HIDDEN);
-    settle();
+    settle(*panel_);
     const int grown_h = lv_obj_get_content_height(container);
     const FirstScreen regrown = measure_first_screen(container);
     CHECK(regrown.overflow == 0);
