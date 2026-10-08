@@ -3359,8 +3359,10 @@ AmsError AmsState::commit_slot_edit(int slot_index, const SlotInfo& original,
                         lv_tr("Multi-Filament System not available"));
     }
 
-    // S1 — server-side active spool (fire-and-forget, warn on failure)
-    if (api_) {
+    // S1 — server-side active spool (fire-and-forget, warn on failure). The
+    // active spool is the one feeding the toolhead, so only an edit on the
+    // loaded lane sets or clears it.
+    if (api_ && backend->slot_is_actively_loaded(slot_index)) {
         if (info.spoolman_id > 0) {
             api_->spoolman().set_active_spool(
                 info.spoolman_id, []() {},
