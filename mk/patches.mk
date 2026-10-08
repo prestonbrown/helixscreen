@@ -570,6 +570,7 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_blur_null_guard.patch "LVGL blur goto_xy NULL guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_pos_null_guards.patch "LVGL obj_pos NULL guards patch (blur_walk_cb + layout_update_core)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_layout_dirty_refr_request_once.patch "LVGL layout-dirty refresh request once per layout pass"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_refr_skip_offclip_children.patch "LVGL refr skips a widget outside the clip area before its style lookups"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_grid_update_guard.patch "LVGL grid_update freed-container guard patch (#973)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_buf_oom_guard.patch "LVGL draw_buf OOM guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-evdev-protocol-a.patch "LVGL evdev Protocol-A touch release patch"
