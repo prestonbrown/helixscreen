@@ -61,6 +61,7 @@
 #include "print_history_manager.h"
 #include "printer_cache_registry.h"
 #include "printer_discovery.h"
+#include "printer_retarget.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"
 #include "sensor_state.h"
@@ -595,10 +596,8 @@ bool PrinterSession::connect_moonraker() {
         }
         http_base_url = "http://" + host_port;
     } else {
-        auto host = m_config->get<std::string>(m_config->df() + "moonraker_host", "localhost");
-        auto port = m_config->get<int>(m_config->df() + "moonraker_port", 7125);
-        moonraker_url = "ws://" + host + ":" + std::to_string(port) + "/websocket";
-        http_base_url = "http://" + host + ":" + std::to_string(port);
+        moonraker_url = helix::active_printer_ws_url();
+        http_base_url = helix::active_printer_http_url();
     }
 
     // Discovery callbacks are already registered (setup_discovery_callbacks in init_moonraker).
@@ -606,23 +605,11 @@ bool PrinterSession::connect_moonraker() {
     // connect_moonraker() re-runs on every printer switch and DisplayManager has no
     // unregister path.
 
-    // Set HTTP base URL for API
-    IMoonrakerAPI* api = m_moonraker->api();
-    api->set_http_base_url(http_base_url);
-
-    // Connect
-    spdlog::debug("[Application] Connecting to {}", moonraker_url);
-    int result = m_moonraker->connect(moonraker_url, http_base_url);
-
-    if (result != 0) {
-        spdlog::error("[Application] Failed to initiate connection (code {})", result);
+    // The manager's connect sets the API's HTTP base URL; discovery starts on its own once
+    // the socket is up.
+    if (!helix::connect_printer(*m_moonraker, moonraker_url, http_base_url)) {
         return false;
     }
-
-    // Start auto-discovery (client handles this internally after connect)
-
-    // Initialize print start collector (monitors PRINT_START macro progress)
-    m_moonraker->init_print_start_collector();
 
     // G-code response routing: action prompts, error and narration routers, layer tracking
     if (m_moonraker->client()) {

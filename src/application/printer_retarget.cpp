@@ -38,21 +38,11 @@ IMoonrakerClient* disconnect_for_retarget() {
     return client;
 }
 
-/// False when the transport could not start, e.g. no internal RAM for its task.
-bool connect_active_printer() {
+/// The active printer's Moonraker as "host:port".
+std::string active_printer_host_port() {
     Config* config = Config::get_instance();
-    const std::string host = config->get<std::string>(config->df() + "moonraker_host", "");
-    const int port = config->get<int>(config->df() + "moonraker_port", 7125);
-
-    const std::string ws_url = active_printer_ws_url();
-    const std::string http_url = "http://" + host + ":" + std::to_string(port);
-
-    spdlog::info("[PrinterRetarget] Connecting to {}:{}", host, port);
-    if (get_moonraker_manager()->connect(ws_url, http_url) != 0) {
-        spdlog::error("[PrinterRetarget] Connecting to {}:{} could not start", host, port);
-        return false;
-    }
-    return true;
+    return config->get<std::string>(config->df() + "moonraker_host", "") + ":" +
+           std::to_string(config->get<int>(config->df() + "moonraker_port", 7125));
 }
 
 /// The new printer's first status replaces the live values; an unreachable one never sends
@@ -77,9 +67,32 @@ void forget_previous_printer() {
 } // namespace
 
 std::string active_printer_ws_url() {
-    Config* config = Config::get_instance();
-    return "ws://" + config->get<std::string>(config->df() + "moonraker_host", "") + ":" +
-           std::to_string(config->get<int>(config->df() + "moonraker_port", 7125)) + "/websocket";
+    return "ws://" + active_printer_host_port() + "/websocket";
+}
+
+std::string active_printer_http_url() {
+    return "http://" + active_printer_host_port();
+}
+
+bool connect_printer(MoonrakerManager& manager, const std::string& ws_url,
+                     const std::string& http_url) {
+    spdlog::info("[PrinterRetarget] Connecting to {}", ws_url);
+    if (manager.connect(ws_url, http_url) != 0) {
+        spdlog::error("[PrinterRetarget] Connecting to {} could not start", ws_url);
+        return false;
+    }
+    // Tracks PRINT_START progress for this printer, with its own print-start profile.
+    manager.init_print_start_collector();
+    return true;
+}
+
+bool connect_active_printer() {
+    MoonrakerManager* manager = get_moonraker_manager();
+    if (!manager) {
+        spdlog::error("[PrinterRetarget] Cannot connect - no manager");
+        return false;
+    }
+    return connect_printer(*manager, active_printer_ws_url(), active_printer_http_url());
 }
 
 bool reconnect_active_printer() {

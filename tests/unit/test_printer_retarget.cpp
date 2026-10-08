@@ -80,9 +80,9 @@ class RetargetFixture : public LVGLTestFixture {
     }
 
     helix::test::FakeMoonrakerClient* client_ = nullptr;
+    MoonrakerManager manager_;
 
   private:
-    MoonrakerManager manager_;
     std::unique_ptr<ScopedMoonrakerClient> installed_;
     helix::Config* cfg_ = nullptr;
     nlohmann::json saved_data_;
@@ -122,6 +122,34 @@ TEST_CASE_METHOD(RetargetFixture, "Retarget: a transport that cannot start repor
 TEST_CASE_METHOD(RetargetFixture, "Retarget: the active printer's WebSocket URL",
                  "[multi-printer][retarget]") {
     CHECK(helix::active_printer_ws_url() == "ws://10.0.0.2:7126/websocket");
+}
+
+TEST_CASE_METHOD(RetargetFixture, "Retarget: the active printer's HTTP base URL",
+                 "[multi-printer][retarget]") {
+    CHECK(helix::active_printer_http_url() == "http://10.0.0.2:7126");
+}
+
+TEST_CASE_METHOD(RetargetFixture, "Connect: every connection gets a print-start collector",
+                 "[multi-printer][retarget]") {
+    REQUIRE(manager_.print_start_collector() == nullptr);
+
+    REQUIRE(helix::connect_active_printer());
+    const auto first = manager_.print_start_collector();
+    CHECK(first != nullptr);
+    CHECK(client_->get_last_url() == "ws://10.0.0.2:7126/websocket");
+
+    // A switch's connect replaces it: the collector reads the new printer's profile.
+    REQUIRE(helix::retarget_printer_connection());
+    CHECK(manager_.print_start_collector() != nullptr);
+    CHECK(manager_.print_start_collector() != first);
+}
+
+TEST_CASE_METHOD(RetargetFixture, "Connect: a transport that cannot start gets no collector",
+                 "[multi-printer][retarget]") {
+    client_->connect_result = -1;
+
+    CHECK_FALSE(helix::connect_active_printer());
+    CHECK(manager_.print_start_collector() == nullptr);
 }
 
 TEST_CASE_METHOD(RetargetFixture,

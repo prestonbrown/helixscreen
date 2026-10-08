@@ -179,8 +179,8 @@ void log_heap_milestone(const char* stage) {
 // and src/ui/ui_change_host_modal.cpp). CONFIG_HELIX_HIL_MOONRAKER_URL is only
 // the FIRST-BOOT seed for that schema: a full "ws://host:port/path" string
 // (Kconfig's format), parsed once when Config has no value yet. Split out as
-// its own struct/function (rather than reusing ws_to_http_base, which is
-// scheme+path only) because Config's two keys need host and port separated.
+// its own struct/function because Config's two keys need host and port
+// separated.
 struct HostPort {
     std::string host;
     int port;
@@ -581,26 +581,6 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
     spdlog::info("[app_boot] discovery callbacks registered (real connect path)");
 }
 
-// ws://host:port/path -> http://host:port  (best-effort HTTP base for the API;
-// Task 10's HTTP lane exercises this for print-select thumbnail/gcode-header
-// fetches via download_file_partial — jog and macros still round-trip over
-// the WebSocket JSON-RPC channel and never touch this base URL).
-std::string ws_to_http_base(const std::string& ws_url) {
-    std::string url = ws_url;
-    if (url.rfind("ws://", 0) == 0) {
-        url = "http://" + url.substr(5);
-    } else if (url.rfind("wss://", 0) == 0) {
-        url = "https://" + url.substr(6);
-    }
-    // Strip a trailing "/websocket" (or any path) — the HTTP base is scheme+host.
-    size_t scheme_end = url.find("://");
-    size_t path = url.find('/', scheme_end == std::string::npos ? 0 : scheme_end + 3);
-    if (path != std::string::npos) {
-        url = url.substr(0, path);
-    }
-    return url;
-}
-
 // Task 13: process-lifetime guard for the state-observer callback below.
 // app_net_start()'s pthread is the only thread that registers against it; the
 // observer itself fires from WiFiManager::notify_state_observers(), called
@@ -622,18 +602,12 @@ void kick_moonraker_connect_once() {
     if (!s_moonraker_connect_kicked.compare_exchange_strong(expected, true)) {
         return;
     }
-    MoonrakerManager* mgr = g_manager;
-    if (!mgr) {
-        ESP_LOGE(TAG, "app_net: no MoonrakerManager — cannot connect");
-        return;
-    }
-    // Task 12 R2: read the effective host/port from Config, not Kconfig
-    // directly — app_boot_ui()'s Phase 1 seed guarantees a value is present
-    // (either the user's saved Host or the first-boot Kconfig default) by the
-    // time this runs (app_net_start() is called last, after Phase 1).
+    // Task 12 R2: read the effective host from Config, not Kconfig directly —
+    // app_boot_ui()'s Phase 1 seed guarantees a value is present (either the
+    // user's saved Host or the first-boot Kconfig default) by the time this runs
+    // (app_net_start() is called last, after Phase 1).
     helix::Config* config = helix::Config::get_instance();
     std::string host = config->get<std::string>(config->df() + "moonraker_host", "");
-    int port = config->get<int>(config->df() + "moonraker_port", 7125);
     // No host yet (empty Kconfig seed, nothing saved in Settings): connecting to
     // "ws://:7125/websocket" would hand the websocket client an unresolvable URL
     // and spin the auto-reconnect loop forever. Leave the not-ready UI up
@@ -643,13 +617,10 @@ void kick_moonraker_connect_once() {
         ESP_LOGI(TAG, "app_net: no Moonraker host configured — set it in Settings");
         return;
     }
-    std::string ws_url = "ws://" + host + ":" + std::to_string(port) + "/websocket";
-    std::string http_base = ws_to_http_base(ws_url);
-    ESP_LOGI(TAG, "app: connecting Moonraker (%s)", ws_url.c_str());
     // Async: connect() starts the WebSocket client task and returns. on_connected
     // → MoonrakerManager::connect()'s discover_printer() → the callbacks
     // registered in setup_discovery_callbacks_esp(), all on the WS task.
-    mgr->connect(ws_url, http_base);
+    helix::connect_active_printer();
 }
 
 // R4: bounded wait for the FIRST post-boot association, replacing the old
