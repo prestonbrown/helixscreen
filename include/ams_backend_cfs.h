@@ -539,6 +539,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     friend class ::CfsTestAccess;
 
     std::string current_tnn_;
+
+    /// Every stock `box` frame since the last flat one, merged: what the stock
+    /// parse reads, since one frame carries only the units that changed.
+    /// handle_status runs on the main thread only.
+    nlohmann::json stock_box_state_ = nlohmann::json::object();
     bool motor_ready_ = true;
 
     // K1 vs K2 macro dialect, latched in ctor from PrinterDetector. Most
