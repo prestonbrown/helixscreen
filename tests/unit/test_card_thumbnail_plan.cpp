@@ -202,3 +202,53 @@ TEST_CASE("a fetch that failed is fetched again once while its card stays shown"
     CHECK_FALSE(card_thumbnail_refetch_after_error(/*shown=*/false, false, false));   // gone
     CHECK_FALSE(card_thumbnail_refetch_after_error(true, /*cancelled=*/true, false)); // dropped
 }
+
+TEST_CASE("cards wholly on screen are fetched before cards cut by an edge",
+          "[card_thumbnail_plan]") {
+    auto f = files(10);
+    for (size_t i = 3; i < 6; ++i) {
+        f[i].whole = true;
+    }
+    const CardThumbnailPlan plan = plan_card_thumbnails(f, 0, 10, 0, EST, 5 * EST);
+    CHECK(plan.fetch == Indices{3, 4, 5, 0, 1});
+}
+
+TEST_CASE("max_new caps the fetches planned in one pass", "[card_thumbnail_plan]") {
+    const auto f = files(10);
+    const CardThumbnailPlan capped =
+        plan_card_thumbnails(f, 0, 10, 0, EST, 12 * EST, false, true, /*max_new=*/3);
+    CHECK(capped.fetch == Indices{0, 1, 2});
+    CHECK(capped.capped);
+
+    const CardThumbnailPlan none = plan_card_thumbnails(f, 0, 10, 0, EST, 12 * EST, false, true, 0);
+    CHECK(none.fetch.empty());
+    CHECK(none.capped);
+
+    // The budget, not the cap, held the rest back: no retry is owed.
+    const CardThumbnailPlan budgeted =
+        plan_card_thumbnails(f, 0, 10, 0, EST, 2 * EST, false, true, 3);
+    CHECK(budgeted.fetch == Indices{0, 1});
+    CHECK_FALSE(budgeted.capped);
+
+    // Nothing left waiting once the cap is reached.
+    const CardThumbnailPlan exact = plan_card_thumbnails(f, 0, 3, 0, EST, 12 * EST, false, true, 3);
+    CHECK(exact.fetch == Indices{0, 1, 2});
+    CHECK_FALSE(exact.capped);
+}
+
+TEST_CASE("max_new takes whole cards first", "[card_thumbnail_plan]") {
+    auto f = files(10);
+    f[7].whole = f[8].whole = true;
+    const CardThumbnailPlan plan = plan_card_thumbnails(f, 0, 10, 0, EST, 12 * EST, false, true, 3);
+    CHECK(plan.fetch == Indices{7, 8, 0});
+    CHECK(plan.capped);
+}
+
+TEST_CASE("card fetches leave the reserve free", "[card_thumbnail_plan]") {
+    using helix::card_thumbnail_fetch_room;
+    CHECK(card_thumbnail_fetch_room(8, 2) == 6);
+    CHECK(card_thumbnail_fetch_room(3, 2) == 1);
+    CHECK(card_thumbnail_fetch_room(2, 2) == 0);
+    CHECK(card_thumbnail_fetch_room(0, 2) == 0);
+    CHECK(card_thumbnail_fetch_room(SIZE_MAX, 2) == SIZE_MAX - 2);
+}

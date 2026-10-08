@@ -288,6 +288,10 @@ class PrintSelectCardView : public ContainerDeleteNet {
         end_row = visible_end_row_;
     }
 
+    /// Files [first, end) whose card is wholly inside the viewport at the current
+    /// scroll position; empty before the first update_visible().
+    void get_whole_range(size_t& first, size_t& end) const;
+
     /**
      * @brief Get cards per row for current layout
      */
@@ -312,6 +316,8 @@ class PrintSelectCardView : public ContainerDeleteNet {
     int visible_start_row_ = -1;
     int visible_end_row_ = -1;
     int total_items_ = 0;
+    int row_stride_ = 0; ///< card height plus row gap, as of the last update_visible()
+    int row_gap_ = 0;
 
     // === Cached Spacer Heights (avoid redundant lv_obj_set_height → relayout) ===
     int last_leading_height_ = -1;

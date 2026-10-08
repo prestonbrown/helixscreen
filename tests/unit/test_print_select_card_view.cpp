@@ -156,6 +156,59 @@ TEST_CASE_METHOD(LVGLUITestFixture, "CardView: the pool holds the visible window
     lv_obj_delete(container);
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "CardView: the whole range is exactly the cards inside the viewport",
+                 "[ui][card_view][print_select]") {
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 700, 400);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_style_pad_row(container, 10, LV_PART_MAIN);
+    const int32_t pad_top = GENERATE(0, 12);
+    CAPTURE(pad_top);
+    lv_obj_set_style_pad_top(container, pad_top, LV_PART_MAIN);
+
+    PrintSelectCardView view;
+    REQUIRE(view.setup(container, [](size_t) {}, nullptr));
+    const CardDimensions dims{4, 2, 160, 200};
+    const auto files = make_files(60);
+    view.populate(files, dims);
+
+    for (int scroll : {0, 5, 15, 100, 205, 225, 430, 640, 1000}) {
+        lv_obj_scroll_to_y(container, scroll, LV_ANIM_OFF);
+        view.update_visible(files, dims);
+        lv_obj_update_layout(container);
+        size_t first = 0;
+        size_t end = 0;
+        view.get_whole_range(first, end);
+
+        lv_area_t viewport;
+        lv_obj_get_coords(container, &viewport);
+        std::set<size_t> whole;
+        for (uint32_t i = 0; i < lv_obj_get_child_count(container); ++i) {
+            lv_obj_t* card = lv_obj_get_child(container, static_cast<int32_t>(i));
+            if (lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN) || lv_obj_get_width(card) != 160) {
+                continue; // a pool card not shown, or a spacer
+            }
+            lv_area_t a;
+            lv_obj_get_coords(card, &a);
+            if (a.y1 >= viewport.y1 && a.y2 <= viewport.y2) {
+                whole.insert(reinterpret_cast<size_t>(lv_obj_get_user_data(card)));
+            }
+        }
+        INFO("scroll " << lv_obj_get_scroll_y(container));
+        if (whole.empty()) { // both rows in view cut by an edge
+            CHECK(first == end);
+            continue;
+        }
+        CHECK(first == *whole.begin());
+        CHECK(end == *whole.rbegin() + 1);
+        CHECK(end - first == whole.size());
+    }
+
+    view.cleanup();
+    lv_obj_delete(container);
+}
+
 TEST_CASE_METHOD(
     LVGLUITestFixture,
     "CardView: cards on a solid background draw an opaque gradient, otherwise a masked one",

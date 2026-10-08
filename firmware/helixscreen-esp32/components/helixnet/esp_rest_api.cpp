@@ -259,6 +259,10 @@ bool MoonrakerFileTransferAPI::supports_tail_reads() const {
     return false;
 }
 
+size_t MoonrakerFileTransferAPI::free_request_slots() const {
+    return helix::http::EspHttpLane::instance().free_slots();
+}
+
 void MoonrakerFileTransferAPI::download_file_to_path(const std::string&, const std::string&,
                                                      const std::string&, StringCallback,
                                                      ErrorCallback on_error, ProgressCallback) {

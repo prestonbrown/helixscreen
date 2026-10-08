@@ -3876,6 +3876,11 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end, bool keep_o
     esp_window_end_ = end;
     ++esp_show_tick_;
 
+    size_t whole_first = 0;
+    size_t whole_end = 0;
+    if (card_view_) {
+        card_view_->get_whole_range(whole_first, whole_end);
+    }
     std::vector<helix::CardThumbnailState> states(file_list_.size());
     for (size_t i = 0; i < file_list_.size(); ++i) {
         PrintFileData& f = file_list_[i];
@@ -3886,10 +3891,17 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end, bool keep_o
         states[i].tried = f.esp_thumbnail_tried;
         states[i].held = f.esp_thumbnail ? f.esp_thumbnail->bytes() : 0;
         states[i].last_shown = f.esp_thumbnail_shown;
+        states[i].whole = i >= whole_first && i < whole_end;
     }
+    // Card fetches leave the lane room for the detail view's and other reads.
+    const size_t room = helix::card_thumbnail_fetch_room(
+        api_ ? api_->transfers().free_request_slots() : 0, ESP_LANE_RESERVE);
     const helix::CardThumbnailPlan plan = helix::plan_card_thumbnails(
         states, first, end, static_cast<size_t>(std::max(esp_thumbnails_in_flight_, 0)), estimate,
-        helix::CARD_THUMBNAIL_BUDGET, esp_lane_refused_, keep_off_screen);
+        helix::CARD_THUMBNAIL_BUDGET, esp_lane_refused_, keep_off_screen, room);
+    if (plan.capped) {
+        arm_esp_lane_retry();
+    }
     if (!plan.fetch.empty() && !esp_slots_) {
         // One slot per card the budget allows.
         esp_slots_ = std::make_shared<helix::ThumbnailSlotPool>(
@@ -3917,19 +3929,25 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end, bool keep_o
             // after a pause when none is in flight to free a slot.
             f.esp_thumbnail_tried = false;
             esp_lane_refused_ = true;
-            if (esp_thumbnails_in_flight_ <= 0 && !esp_lane_retry_timer_) {
-                esp_lane_retry_timer_.reset(lv_timer_create(
-                    [](lv_timer_t* timer) {
-                        auto* self = static_cast<PrintSelectPanel*>(lv_timer_get_user_data(timer));
-                        self->esp_lane_retry_timer_.release(); // one-shot: LVGL deletes it
-                        self->esp_lane_refused_ = false;
-                        self->sync_esp_thumbnails(self->esp_window_first_, self->esp_window_end_);
-                    },
-                    ESP_LANE_RETRY_MS, this));
-                lv_timer_set_repeat_count(esp_lane_retry_timer_.get(), 1);
-            }
+            arm_esp_lane_retry();
             break;
         }
     }
+}
+
+void PrintSelectPanel::arm_esp_lane_retry() {
+    // A fetch of ours in flight re-syncs when it completes.
+    if (esp_thumbnails_in_flight_ > 0 || esp_lane_retry_timer_) {
+        return;
+    }
+    esp_lane_retry_timer_.reset(lv_timer_create(
+        [](lv_timer_t* timer) {
+            auto* self = static_cast<PrintSelectPanel*>(lv_timer_get_user_data(timer));
+            self->esp_lane_retry_timer_.release(); // one-shot: LVGL deletes it
+            self->esp_lane_refused_ = false;
+            self->sync_esp_thumbnails(self->esp_window_first_, self->esp_window_end_);
+        },
+        ESP_LANE_RETRY_MS, this));
+    lv_timer_set_repeat_count(esp_lane_retry_timer_.get(), 1);
 }
 #endif

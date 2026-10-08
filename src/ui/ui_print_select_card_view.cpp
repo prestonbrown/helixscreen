@@ -705,6 +705,8 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
     int32_t viewport_height = lv_obj_get_height(container_);
 
     cards_per_row_ = dims.num_columns;
+    row_gap_ = lv_obj_get_style_pad_row(container_, LV_PART_MAIN);
+    row_stride_ = dims.card_height + row_gap_;
 
     const VirtualWindow win = window_at(scroll_y, file_list.size(), dims);
     const int first_visible_row = win.first;
@@ -759,6 +761,20 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
         on_metadata_fetch_(static_cast<size_t>(first_visible_idx),
                            static_cast<size_t>(last_visible_idx));
     }
+}
+
+void PrintSelectCardView::get_whole_range(size_t& first, size_t& end) const {
+    first = end = 0;
+    if (!container_ || total_items_ <= 0 || row_stride_ <= 0 || cards_per_row_ <= 0) {
+        return;
+    }
+    const int rows = (total_items_ + cards_per_row_ - 1) / cards_per_row_;
+    // Cards scroll under the container's padding, so the viewport is its whole height.
+    const int32_t pad_top = lv_obj_get_style_pad_top(container_, LV_PART_MAIN);
+    const VirtualWindow w = whole_rows(lv_obj_get_scroll_y(container_) - pad_top,
+                                       lv_obj_get_height(container_), row_stride_, row_gap_, rows);
+    first = static_cast<size_t>(w.first * cards_per_row_);
+    end = std::min(static_cast<size_t>(total_items_), static_cast<size_t>(w.last * cards_per_row_));
 }
 
 void PrintSelectCardView::refresh_content(const std::vector<PrintFileData>& file_list,

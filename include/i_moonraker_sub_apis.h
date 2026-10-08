@@ -517,6 +517,12 @@ class ITransfersAPI {
         return true;
     }
 
+    /// How many more requests the transport takes before refusing one with
+    /// QUEUE_FULL. A transport that queues without bound answers SIZE_MAX.
+    virtual size_t free_request_slots() const {
+        return SIZE_MAX;
+    }
+
     virtual void download_thumbnail(const std::string& thumbnail_path,
                                     const std::string& cache_path, StringCallback on_success,
                                     ErrorCallback on_error) = 0;

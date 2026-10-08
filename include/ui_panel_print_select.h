@@ -878,9 +878,14 @@ class PrintSelectPanel : public PanelBase {
     bool esp_kept_for_detail_ = false;
     /// The HTTP lane refused a card fetch and none of ours has completed since.
     bool esp_lane_refused_ = false;
-    /// Clears a refusal when no fetch of ours is in flight to free a lane slot.
+    /// Re-syncs when the lane held fetches back and no fetch of ours is in flight.
     helix::ui::LvglTimerGuard esp_lane_retry_timer_;
     static constexpr uint32_t ESP_LANE_RETRY_MS = 500;
+    /// Lane request slots card fetches leave free for other reads.
+    static constexpr size_t ESP_LANE_RESERVE = 2;
+    /// Re-syncs after ESP_LANE_RETRY_MS when the lane held fetches back and
+    /// none of ours is in flight to re-sync on completion.
+    void arm_esp_lane_retry();
 
     /// The card window [first, end) the last sync saw.
     size_t esp_window_first_ = 0;

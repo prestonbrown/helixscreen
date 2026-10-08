@@ -9,7 +9,7 @@ namespace helix {
 
 CardThumbnailPlan plan_card_thumbnails(const std::vector<CardThumbnailState>& files, size_t first,
                                        size_t end, size_t in_flight, size_t estimate, size_t budget,
-                                       bool lane_refused, bool keep_off_screen) {
+                                       bool lane_refused, bool keep_off_screen, size_t max_new) {
     CardThumbnailPlan plan;
     end = std::min(end, files.size());
     first = std::min(first, end);
@@ -31,16 +31,24 @@ CardThumbnailPlan plan_card_thumbnails(const std::vector<CardThumbnailState>& fi
         }
     }
 
-    for (size_t i = first; i < end && !lane_refused; ++i) {
-        const CardThumbnailState& f = files[i];
-        if (!f.fetchable || f.tried || f.held) {
-            continue;
+    // Whole cards first: one cut by an edge is the likelier to scroll away
+    // before its fetch reaches the front of the lane.
+    for (const bool whole : {true, false}) {
+        for (size_t i = first; i < end && !lane_refused; ++i) {
+            const CardThumbnailState& f = files[i];
+            if (f.whole != whole || !f.fetchable || f.tried || f.held) {
+                continue;
+            }
+            if (committed > budget || budget - committed < estimate) {
+                break;
+            }
+            if (plan.fetch.size() >= max_new) {
+                plan.capped = true;
+                break;
+            }
+            committed += estimate;
+            plan.fetch.push_back(i);
         }
-        if (committed > budget || budget - committed < estimate) {
-            break;
-        }
-        committed += estimate;
-        plan.fetch.push_back(i);
     }
 
     // Cards on screen and fetches come first; the most recently shown cards

@@ -7,6 +7,7 @@
 
 using helix::ui::compute_window;
 using helix::ui::VirtualWindow;
+using helix::ui::whole_rows;
 
 namespace {
 struct Case {
@@ -142,5 +143,30 @@ TEST_CASE("assign_pool_slots keeps slots whose item stays in the window", "[virt
         const auto order = assign_pool_slots(items, 3, 6);
         CHECK(order == std::vector<size_t>{0, 2, 1});
         CHECK(items == std::vector<ssize_t>{3, 5, 4});
+    }
+}
+
+TEST_CASE("whole_rows table", "[virtual_list][window]") {
+    // Rows of stride 50 below a 10 px gap: row r's card spans [50r + 10, 50r + 50).
+    struct WholeCase {
+        const char* name;
+        int scroll_y, viewport_h, total, first, last;
+    };
+    const WholeCase cases[] = {
+        {"top: rows ending by the bottom edge", 0, 200, 100, 0, 4},
+        {"a row cut at the bottom is not whole", 0, 190, 100, 0, 3},
+        {"its gap scrolled off, the top row is whole", 10, 190, 100, 0, 4},
+        {"a pixel into the card, the top row is cut", 11, 190, 100, 1, 4},
+        {"bottom of the list", 4800, 200, 100, 96, 100},
+        {"viewport shorter than a card", 15, 30, 100, 1, 1},
+        {"overscroll above the top", -40, 200, 100, 0, 3},
+        {"empty list", 0, 200, 0, 0, 0},
+    };
+    for (const auto& c : cases) {
+        DYNAMIC_SECTION(c.name) {
+            const VirtualWindow w = whole_rows(c.scroll_y, c.viewport_h, 50, 10, c.total);
+            CHECK(w.first == c.first);
+            CHECK(w.last == c.last);
+        }
     }
 }

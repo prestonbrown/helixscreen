@@ -43,6 +43,21 @@ inline VirtualWindow compute_window(int scroll_y, int viewport_h, int row_stride
     return w;
 }
 
+/// Rows [first, last) wholly inside a `viewport_h` tall viewport scrolled to `scroll_y`, for
+/// fixed-stride rows that each sit below a `row_gap` gap: row r spans
+/// [r * row_stride + row_gap, (r + 1) * row_stride). `last == first` when none fits.
+inline VirtualWindow whole_rows(int scroll_y, int viewport_h, int row_stride, int row_gap,
+                                int total_rows) {
+    const int stride = std::max(1, row_stride);
+    const int top = scroll_y - row_gap;
+    const int bottom = scroll_y + std::max(0, viewport_h);
+    // Division truncates toward zero: for a negative top that is already the ceiling.
+    VirtualWindow w;
+    w.first = std::clamp(top > 0 ? (top + stride - 1) / stride : 0, 0, std::max(0, total_rows));
+    w.last = std::clamp(bottom > 0 ? bottom / stride : 0, w.first, std::max(w.first, total_rows));
+    return w;
+}
+
 /// compute_window for rows of differing heights. `row_tops` holds total_rows + 1 entries:
 /// row i spans [row_tops[i], row_tops[i + 1]) with its gap included, and row_tops.back() is
 /// the whole list's height. Same guarantees as the fixed-stride form.

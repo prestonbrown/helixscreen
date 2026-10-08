@@ -147,9 +147,11 @@ class MoonrakerFileTransferAPI : public ITransfersAPI {
                                ProgressCallback on_progress = nullptr) override;
 
     /// Defined per transport: the desktop HTTP client writes local copies and
-    /// reads suffix ranges; the ESP32 lane does neither.
+    /// reads suffix ranges; the ESP32 lane does neither. Only the ESP32 lane
+    /// has a bounded request queue.
     bool supports_local_copies() const override;
     bool supports_tail_reads() const override;
+    size_t free_request_slots() const override;
 
     /**
      * @brief Download a thumbnail image and cache it locally

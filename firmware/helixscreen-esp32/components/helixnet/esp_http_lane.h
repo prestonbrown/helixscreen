@@ -56,6 +56,11 @@ class EspHttpLane {
 
     static constexpr size_t QUEUE_DEPTH = 8;
 
+    // How many more submit_get() calls would be queued right now: QUEUE_DEPTH
+    // less the jobs queued or running, cancelled ones included until the
+    // worker reaches them.
+    size_t free_slots();
+
     // Called on the lane's worker thread with each response's Date header
     // value. One hook, set once at boot; nullptr clears it.
     using DateHeaderHook = void (*)(const char* value);

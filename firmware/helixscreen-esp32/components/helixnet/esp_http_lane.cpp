@@ -66,6 +66,11 @@ EspHttpLane& EspHttpLane::instance() {
     return lane;
 }
 
+size_t EspHttpLane::free_slots() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return slots_.max_depth() - slots_.in_flight();
+}
+
 bool EspHttpLane::submit_get(std::string url, size_t range_max_bytes, FetchSuccessCb on_success,
                              FetchErrorCb on_error, FetchCancelFlag cancelled) {
     const size_t cap = clamp_fetch_cap(range_max_bytes);
