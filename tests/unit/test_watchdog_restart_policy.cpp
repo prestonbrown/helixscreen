@@ -210,3 +210,30 @@ TEST_CASE("Only an update restart under a restarting service is handed off",
     CHECK_FALSE(hand_clean_exit_to_service_manager(false, "1"));
     CHECK_FALSE(hand_clean_exit_to_service_manager(false, nullptr));
 }
+
+TEST_CASE("An explicit -r holds for every launch without reading the saved rotation",
+          "[watchdog][rotation]") {
+    int reads = 0;
+    auto read_saved = [&reads] {
+        ++reads;
+        return 270;
+    };
+
+    CHECK(rotation_for_launch(90, read_saved) == 90);
+    CHECK(rotation_for_launch(90, read_saved) == 90);
+    CHECK(reads == 0);
+}
+
+TEST_CASE("Without -r each launch reads the rotation saved since the last one",
+          "[watchdog][rotation]") {
+    // Settings saves 270 while helix-screen runs at 90, then restarts it through
+    // the watchdog, which is still the same process.
+    int saved = 90;
+    auto read_saved = [&saved] { return saved; };
+
+    CHECK(rotation_for_launch(0, read_saved) == 90);
+    saved = 270;
+    CHECK(rotation_for_launch(0, read_saved) == 270);
+    saved = 0;
+    CHECK(rotation_for_launch(0, read_saved) == 0);
+}

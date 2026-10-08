@@ -245,7 +245,8 @@ static int read_config_brightness(int default_value = 100) {
 struct WatchdogArgs {
     int width = 0; // 0 = auto-detect from display hardware
     int height = 0;
-    int rotation = 0;          // Display rotation in degrees (0, 90, 180, 270)
+    int rotation = 0;          // Display rotation for the current launch (0, 90, 180, 270)
+    int cli_rotation = 0;      // -r value; 0 = read the saved setting before each launch
     std::string splash_binary; // Optional: --splash-bin=<path>
     pid_t splash_pid = 0;      // Optional: --splash-pid=N (externally started splash)
     std::string child_binary;
@@ -283,7 +284,7 @@ static bool parse_args(int argc, char** argv, WatchdogArgs& args) {
         } else if (strcmp(argv[i], "-h") == 0 && i + 1 < argc) {
             args.height = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-r") == 0 && i + 1 < argc) {
-            args.rotation = atoi(argv[++i]);
+            args.cli_rotation = atoi(argv[++i]);
         } else if (strncmp(argv[i], "--splash-bin=", 13) == 0) {
             args.splash_binary = argv[i] + 13;
         } else if (strncmp(argv[i], "--splash-pid=", 13) == 0) {
@@ -1096,7 +1097,7 @@ static void backoff_sleep(int seconds) {
     }
 }
 
-static int run_watchdog(const WatchdogArgs& args) {
+static int run_watchdog(WatchdogArgs args) {
     spdlog::info("[Watchdog] Starting watchdog supervisor");
     spdlog::info("[Watchdog] Child binary: {}", args.child_binary);
     if (!args.splash_binary.empty()) {
@@ -1132,6 +1133,14 @@ static int run_watchdog(const WatchdogArgs& args) {
     std::deque<CrashEvent> recent_crashes;
 
     while (!g_quit) {
+        const int launch_rotation = helix::watchdog::rotation_for_launch(
+            args.cli_rotation, [] { return read_config_rotation(0); });
+        if (launch_rotation != args.rotation) {
+            spdlog::info("[Watchdog] Display rotation: {}° (was {}°)", launch_rotation,
+                         args.rotation);
+            args.rotation = launch_rotation;
+        }
+
         // Start or adopt splash screen before launching helix-screen.
         // On first launch, prefer an externally-started splash (args.splash_pid)
         // over starting a new one. On restarts, always start fresh (the original
@@ -1443,10 +1452,8 @@ int main(int argc, char** argv) {
         }
     }
 
-    // Read display rotation from config if not set via CLI
-    if (args.rotation == 0) {
-        args.rotation = read_config_rotation(0);
-    }
+    args.rotation = helix::watchdog::rotation_for_launch(args.cli_rotation,
+                                                         [] { return read_config_rotation(0); });
     if (args.rotation != 0) {
         spdlog::info("[Watchdog] Display rotation: {}°", args.rotation);
     }

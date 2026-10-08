@@ -19,6 +19,8 @@
  *
  *  2. Given a classified failure and how many have piled up, should the
  *     supervisor retry soon, retry slowly, or surrender to the service manager?
+ *
+ *  3. Which display rotation does each launch of helix-screen get?
  */
 
 #ifndef HELIX_WATCHDOG_RESTART_POLICY_H
@@ -260,6 +262,26 @@ inline RestartDecision decide_restart_action(ExecFailureClass cls, int consecuti
 inline bool hand_clean_exit_to_service_manager(bool was_update_restart,
                                                const char* service_restarts) {
     return was_update_restart && service_restarts != nullptr && service_restarts[0] != '\0';
+}
+
+// =============================================================================
+// Rotation
+// =============================================================================
+
+/**
+ * @brief Rotation in degrees for one launch of helix-screen and its splash.
+ *
+ * An explicit `-r` holds for the watchdog's whole lifetime. Without one, the
+ * saved setting is read again for every launch: changing the rotation in
+ * Settings restarts helix-screen through this supervisor, not the supervisor
+ * itself, and helix-screen's `--rotate` outranks its own settings.json.
+ *
+ * @param cli_rotation  The watchdog's `-r` value, 0 when none was given.
+ * @param read_saved    Returns the saved /display/rotate (read_config_rotation()).
+ */
+template <typename ReadSaved>
+inline int rotation_for_launch(int cli_rotation, ReadSaved read_saved) {
+    return cli_rotation != 0 ? cli_rotation : read_saved();
 }
 
 } // namespace helix::watchdog
