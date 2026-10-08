@@ -5154,6 +5154,40 @@ TEST_CASE_METHOD(
 }
 
 TEST_CASE_METHOD(helix::VariantPresetFixture,
+                 "apply_preset_with_variants: stock Creator 5 fanM106 does not pick _zmod",
+                 "[printer_detector][variant]") {
+    // Stock Creator 5 firmware reports fan_generic fanM106 as its part fan
+    // (prestonbrown/helixscreen#1754); only the zmod object marks Z-Mod there.
+    SetUp();
+    write_seed_preset("creator5_pro", "fan_generic fanM106");
+    write_seed_preset("creator5_pro_zmod", "WRONG_SHOULD_NOT_BE_PICKED");
+
+    helix::PrinterDiscovery hw;
+    hw.set_printer_objects({"fan_generic fanM106", "heater_generic chamber_heater", "extruder"});
+
+    REQUIRE(PrinterDetector::apply_preset_with_variants(&config, "creator5_pro", hw) ==
+            "creator5_pro");
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(helix::VariantPresetFixture,
+                 "apply_preset_with_variants: Z-Mod Creator 5 picks _zmod via the zmod object",
+                 "[printer_detector][variant]") {
+    SetUp();
+    write_seed_preset("creator5_pro", "fan_generic fanM106");
+    write_seed_preset("creator5_pro_zmod", "fan_generic fanM106");
+
+    helix::PrinterDiscovery hw;
+    hw.set_printer_objects({"zmod", "zmod_color", "fan_generic fanM106", "extruder"});
+
+    REQUIRE(PrinterDetector::apply_preset_with_variants(&config, "creator5_pro", hw) ==
+            "creator5_pro_zmod");
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(helix::VariantPresetFixture,
                  "apply_preset_with_variants: ForgeX preset never tries _zmod variant",
                  "[printer_detector][variant][regression]") {
     // ForgeX and ZMOD are mutually-exclusive firmware mods that happen to

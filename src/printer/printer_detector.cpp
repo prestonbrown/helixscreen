@@ -1206,15 +1206,23 @@ std::string PrinterDetector::apply_preset_with_variants(helix::Config* config,
     bool preset_is_forgex =
         preset.size() >= FORGE_X_LEN &&
         preset.compare(preset.size() - FORGE_X_LEN, FORGE_X_LEN, FORGE_X_SUFFIX) == 0;
-    bool is_zmod = !preset_is_forgex && std::find(objects.begin(), objects.end(),
-                                                  "fan_generic fanM106") != objects.end();
+    auto has_object = [&objects](const char* name) {
+        return std::find(objects.begin(), objects.end(), name) != objects.end();
+    };
+    // Stock Creator 5 / 5 Pro firmware names its part fan fanM106 too, so on
+    // those presets only Z-Mod's own `zmod` object identifies it.
+    bool preset_is_creator5 = preset.rfind("creator5", 0) == 0;
+    const char* zmod_signal = has_object("zmod") ? "zmod"
+                              : (!preset_is_creator5 && has_object("fan_generic fanM106"))
+                                  ? "fan_generic fanM106"
+                                  : nullptr;
+    bool is_zmod = !preset_is_forgex && zmod_signal != nullptr;
 
     std::string applied = preset;
     if (is_zmod) {
         std::string zmod_preset = preset + "_zmod";
-        spdlog::info("[PrinterDetector] ZMOD firmware detected (fan_generic fanM106), "
-                     "trying preset '{}'",
-                     zmod_preset);
+        spdlog::info("[PrinterDetector] ZMOD firmware detected ({}), trying preset '{}'",
+                     zmod_signal, zmod_preset);
         if (config->apply_preset_file(zmod_preset)) {
             applied = zmod_preset;
         } else {
