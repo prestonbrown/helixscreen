@@ -240,6 +240,43 @@ ensure_wifi_associated() {
     return 0
 }
 
+# ── Root Access: keep SSH up the way the stock UI does ───────────────────────
+#
+# On stock firmware /etc/init.d/S50dropbear exits without starting dropbear on a
+# retail build (`custom_misc vertype` is not "dbg") unless it is invoked as
+# `start --force`. The stock UI is the only caller of --force: its Settings >
+# Maintenance > Root Access toggle stores "open_root": 1 under "system" in
+# gui_config.json, and at every startup it starts dropbear with --force when
+# that is set. HelixScreen disables /usr/bin/gui, so without this hook SSH
+# never comes back after a reboot.
+#
+# PAXX Extended Firmware comments that gate out of S50dropbear and decides SSH
+# from its own `ssh:` setting, so the hook acts only while the gate is live.
+HELIX_GUI_CONFIG="${HELIX_GUI_CONFIG:-/home/lava/printer_data/config/gui_config.json}"
+HELIX_DROPBEAR_INIT="${HELIX_DROPBEAR_INIT:-/etc/init.d/S50dropbear}"
+
+# True (0) when the stock UI's Root Access toggle is on. The stock UI writes a
+# number and treats any nonzero value as on; `true` is accepted as well.
+_root_access_enabled() {
+    [ -f "$HELIX_GUI_CONFIG" ] || return 1
+    tr -d ' \t\r\n' < "$HELIX_GUI_CONFIG" 2>/dev/null | \
+        grep -Eq '"open_root":(true|-?[0-9]*[1-9])'
+}
+
+# Start dropbear with --force when Root Access is on and it is not running.
+# Idempotent; never fails the caller.
+ensure_root_ssh() {
+    [ -f "$HELIX_DROPBEAR_INIT" ] || return 0
+    grep -q '^[^#]*custom_misc vertype' "$HELIX_DROPBEAR_INIT" 2>/dev/null || return 0
+    _root_access_enabled || return 0
+    if pidof dropbear >/dev/null 2>&1; then
+        return 0
+    fi
+    echo "Root Access is enabled: starting SSH (dropbear)"
+    "$HELIX_DROPBEAR_INIT" start --force || true
+    return 0
+}
+
 # ── Remote screen: serve the live UI to Mainsail/Fluidd ──────────────────────
 #
 # PAXX Extended Firmware ships a remote-screen tool, /usr/local/bin/fb-http.py,
@@ -370,6 +407,9 @@ platform_pre_start() {
     # Bring WiFi up independently of helix-screen's lifetime (detached worker).
     # Must NOT block boot or strand the device if helix later dies.
     ensure_wifi_associated
+
+    # Start SSH when the stock Root Access toggle is on (no-op otherwise).
+    ensure_root_ssh
 
     # Serve the live UI to Mainsail/Fluidd via the firmware's fb-http tool when
     # the PAXX `web remote_screen` toggle is on (no-op otherwise).

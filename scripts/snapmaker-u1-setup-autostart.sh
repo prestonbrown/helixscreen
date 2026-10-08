@@ -312,4 +312,12 @@ else
     echo "Stock UI binary not present ($GUI_BIN) — nothing to disable"
 fi
 
+# Stock firmware starts SSH only from the stock UI's Root Access setting. The
+# platform hook (ensure_root_ssh) takes over starting it, but the switch itself
+# lives in the disabled stock UI.
+if grep -q '^[^#]*custom_misc vertype' "${SYSROOT}/etc/init.d/S50dropbear" 2>/dev/null; then
+    echo "Note: SSH stays available while the stock Root Access setting is on; HelixScreen starts it at boot."
+    echo "      To change Root Access, uninstall HelixScreen, switch it in the stock UI, then reinstall."
+fi
+
 echo "To revert: run the HelixScreen uninstaller (restores /usr/bin/gui and S99screen)"

@@ -272,6 +272,30 @@ run_autostart() {
     ! grep -q HelixScreen "$MOCK_ROOT/etc/init.d/S99input-event-daemon.stock"
 }
 
+@test "autostart stock: notes that SSH follows the Root Access setting" {
+    cat > "$MOCK_ROOT/etc/init.d/S50dropbear" <<'EOF'
+#!/bin/sh
+if [ "$2" != "--force" ] ; then
+	[ x"$(custom_misc vertype 2>/dev/null)" = x"dbg" ] || exit 0
+fi
+EOF
+    run run_autostart
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q "Root Access"
+}
+
+@test "autostart PAXX: no Root Access note when S50dropbear has no --force gate" {
+    cat > "$MOCK_ROOT/etc/init.d/S50dropbear" <<'EOF'
+#!/bin/sh
+# if [ "$2" != "--force" ] ; then
+# 	[ x"$(custom_misc vertype 2>/dev/null)" = x"dbg" ] || exit 0
+# fi
+EOF
+    run run_autostart
+    [ "$status" -eq 0 ]
+    ! echo "$output" | grep -q "Root Access"
+}
+
 # --- Uninstall restore block -------------------------------------------------
 # Extract just the snapmaker-u1 branch from uninstall.sh and exercise it against
 # the mock rootfs, using the same path-rewriting trick as test_cc1_uninstall.
