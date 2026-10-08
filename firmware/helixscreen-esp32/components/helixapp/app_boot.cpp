@@ -159,16 +159,18 @@ int64_t g_switch_started_us = 0;
 // new id).
 helix::HardwareChangeTracker g_hw_changes;
 
-// One-shot boot heap milestone. heap_caps_get_largest_free_block() walks the
-// heap in a critical section, so this is called only at discrete boot
-// milestones — never from the steady-state render loop (see the audit's
-// log_heap vs log_heap_fast note).
+// One-shot heap milestone. heap_caps_get_largest_free_block() walks the heap
+// in a critical section, so this is called only at discrete milestones, never
+// from the steady-state render loop (see the audit's log_heap vs log_heap_fast
+// note). Every milestone runs after board_display_init() has started the RGB
+// scan-out, and a PSRAM walk there masks the frame buffer's reads for 21-33 ms,
+// a visible glitch; so PSRAM reports only its free total, which is a counter
+// read. The internal walk is short and stays.
 void log_heap_milestone(const char* stage) {
-    ESP_LOGI(TAG, "[heap:%s] internal free=%u largest=%u | psram free=%u largest=%u", stage,
+    ESP_LOGI(TAG, "[heap:%s] internal free=%u largest=%u | psram free=%u", stage,
              (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
-             (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
-             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 }
 
 // Task 12 R2: Config (settings.json, the `cfg` partition) is the source of
