@@ -41,6 +41,9 @@ struct SessionShellFixture : public LVGLUITestFixture {
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
         NavigationManager::instance().set_printer_callbacks(nullptr, nullptr);
         PrinterStatusIcon::instance().deinit_subjects();
+        // The navigation holds the layout, the navbar and the widgets wire_events() made;
+        // released here, before the shell they point into is deleted.
+        NavigationManager::instance().deinit_subjects();
         if (shell) {
             lv_obj_delete(shell);
         }
