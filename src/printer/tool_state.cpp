@@ -14,6 +14,7 @@
 #include "ui_update_queue.h"
 
 #include "ams_state.h"
+#include "config.h"
 #include "data_root_resolver.h"
 #include "display_numbering.h"
 #include "helix_fs.h"
@@ -843,6 +844,26 @@ static constexpr const char* SPOOL_JSON_FILENAME = "tool_spools.json";
 static constexpr const char* MOONRAKER_DB_NAMESPACE = "helix-screen";
 static constexpr const char* MOONRAKER_DB_KEY = "tool_spool_assignments";
 
+namespace {
+
+/// The spool file keeps one assignment set per printer under "printers"; a file without
+/// it is the single-printer layout, a bare set keyed by tool index.
+constexpr const char* SPOOL_JSON_PRINTERS = "printers";
+
+/// The configured printer whose assignments are being read or written.
+std::string spool_printer_key() {
+    const Config* config = Config::get_instance();
+    std::string id = config ? config->get_active_printer_id() : std::string();
+    return id.empty() ? "default" : id;
+}
+
+bool is_per_printer_spool_file(const nlohmann::json& data) {
+    const auto it = data.find(SPOOL_JSON_PRINTERS);
+    return it != data.end() && it->is_object();
+}
+
+} // namespace
+
 /**
  * @brief Whether two spool weights render identically.
  *
@@ -1002,7 +1023,6 @@ void ToolState::apply_spool_assignments(const nlohmann::json& data) {
 }
 
 void ToolState::save_spool_json() const {
-    auto json_data = spool_assignments_to_json();
     std::string path = hfs::join_path(config_dir_, SPOOL_JSON_FILENAME);
 
     // Ensure directory exists
@@ -1011,11 +1031,21 @@ void ToolState::save_spool_json() const {
     // The installer links this file out to printer_data; rename onto the target.
     path = helix::paths::write_target(path);
 
+    // The other printers' sets are kept. A single-printer file is replaced: it belongs to
+    // whichever printer loaded it first, and that printer's set is being written now.
+    const auto existing = helix::text_io::read_file(path);
+    nlohmann::json file =
+        existing ? nlohmann::json::parse(*existing, nullptr, false) : nlohmann::json();
+    if (!is_per_printer_spool_file(file)) {
+        file = nlohmann::json{{SPOOL_JSON_PRINTERS, nlohmann::json::object()}};
+    }
+    file[SPOOL_JSON_PRINTERS][spool_printer_key()] = spool_assignments_to_json();
+
     // Every connect reloads the assignments from Moonraker and saves them back,
     // almost always unchanged. Skip the write then: on the ESP32 a flash write
     // stalls the display's scan-out, and elsewhere it is SD-card wear for nothing.
-    const std::string text = helix::json_util::safe_dump(json_data, 2);
-    if (auto existing = helix::text_io::read_file(path); existing && *existing == text) {
+    const std::string text = helix::json_util::safe_dump(file, 2);
+    if (existing && *existing == text) {
         spdlog::trace("[ToolState] Spool assignments unchanged, not rewriting {}", path);
         return;
     }
@@ -1049,8 +1079,27 @@ bool ToolState::load_spool_json() {
         return false;
     }
 
-    apply_spool_assignments(data);
-    spdlog::info("[ToolState] Loaded spool assignments from {}", path);
+    if (!is_per_printer_spool_file(data)) {
+        // A single-printer file goes to the first printer that loads it, and is rewritten
+        // under that printer at once so no other printer can load it.
+        apply_spool_assignments(data);
+        save_spool_json();
+        spdlog::info("[ToolState] Loaded single-printer spool assignments from {} for printer "
+                     "'{}'",
+                     path, spool_printer_key());
+        return true;
+    }
+
+    const auto& printers = data[SPOOL_JSON_PRINTERS];
+    const auto mine = printers.find(spool_printer_key());
+    if (mine == printers.end()) {
+        spdlog::debug("[ToolState] No spool assignments for printer '{}' in {}",
+                      spool_printer_key(), path);
+        return false;
+    }
+    apply_spool_assignments(*mine);
+    spdlog::info("[ToolState] Loaded spool assignments for printer '{}' from {}",
+                 spool_printer_key(), path);
     return true;
 }
 
