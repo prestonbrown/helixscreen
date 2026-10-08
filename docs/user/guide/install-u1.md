@@ -72,6 +72,7 @@ killall gui 2>/dev/null; /userdata/helixscreen/bin/helix-launcher.sh &
 - Automatically detects the Snapmaker U1 and installs to `/userdata/helixscreen/`
 - Configures autostart so HelixScreen launches instead of the stock UI on boot
 - Disables the stock UI program (`/usr/bin/gui`) so HelixScreen owns the screen. The stock UI program lives in a read-only part of the firmware and is only disabled, never deleted; the uninstaller re-enables it
+- On stock firmware, keeps SSH working. The stock screen is what starts SSH at boot when **Root access** is on, so HelixScreen does that job instead each time it starts. The **Root access** switch itself is on the stock screen: to change it, uninstall HelixScreen, flip the switch, then reinstall
 
 ## Service Control and Logs
 
@@ -139,6 +140,13 @@ If something goes wrong and the printer comes up with a blank screen and is unre
 4. Once the stock screen is back and the printer is on WiFi again, you can reinstall HelixScreen.
 
 > If the uninstaller can't run, reset HelixScreen's persistence flag and files manually, then reboot: `rm -f /oem/.debug && rm -rf /oem/overlay/* && rm -rf /userdata/helixscreen && sync && reboot`. This returns the printer to a clean stock state.
+
+## SSH refused after installing on stock firmware
+
+On stock Snapmaker firmware, SSH only runs because the stock screen starts it at boot while **Root access** is on. Older HelixScreen versions disabled the stock screen without taking over that job, so after the next reboot `ssh` answers "Connection refused". Fluidd and Mainsail keep working, but they give you no shell.
+
+1. **Update HelixScreen from the printer's screen**: **Settings > About**, check for updates and install. The updated HelixScreen starts SSH whenever **Root access** was on; if `ssh` still refuses afterwards, reboot the printer once.
+2. **If you can't update from the screen**, reinstall the stock firmware the way Snapmaker's documentation describes. A firmware update clears HelixScreen's system changes, so the stock screen comes back. Then turn **Root access** back on in the stock screen (**Settings > Maintenance**) and reinstall HelixScreen.
 
 ## Quirks and Notes
 
