@@ -103,3 +103,46 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(*draws >= 1);
     lv_obj_delete(obj);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Refresh walk: a widget never rendered is marked rendered even outside the area",
+                 "[lvgl][refr]") {
+    lv_obj_t* screen = test_screen();
+    lv_refr_now(nullptr);
+
+    // Built with invalidation off, so the only area refreshed below misses it.
+    lv_display_t* disp = lv_display_get_default();
+    lv_display_enable_invalidation(disp, false);
+    lv_obj_t* obj = lv_obj_create(screen);
+    lv_obj_remove_style_all(obj);
+    lv_obj_set_pos(obj, 100, 100);
+    lv_obj_set_size(obj, 50, 50);
+    lv_obj_update_layout(screen);
+    lv_display_enable_invalidation(disp, true);
+    REQUIRE_FALSE(obj->rendered);
+
+    // The walk reaches it as a child of the screen; animations key off the flag.
+    refresh_rows(screen, 10, 20);
+    CHECK(obj->rendered);
+    lv_obj_delete(obj);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Refresh walk: an overflowing child outside its parent's area is drawn as before",
+                 "[lvgl][refr]") {
+    lv_obj_t* screen = test_screen();
+    lv_obj_t* parent = make_widget(screen);
+    lv_obj_add_flag(parent, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    lv_obj_t* child = lv_obj_create(parent);
+    lv_obj_remove_style_all(child);
+    lv_obj_set_pos(child, 0, 100); // rows 200-229, below the parent's 100-149
+    lv_obj_set_size(child, 30, 30);
+    lv_obj_set_style_bg_opa(child, LV_OPA_COVER, LV_PART_MAIN);
+    lv_refr_now(nullptr);
+    REQUIRE(child->rendered);
+    int* draws = count_draws(child);
+
+    refresh_rows(screen, 210, 220);
+    CHECK(*draws == 0);
+    lv_obj_delete(parent);
+}
