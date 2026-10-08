@@ -18,6 +18,13 @@ static volatile int16_t s_inject_x;
 static volatile int16_t s_inject_y;
 static volatile int s_inject_reads;
 
+static volatile int s_inject_hold; /* TEMP: held press driven from serial */
+void touch_input_inject_hold(int down, int x, int y) {
+    s_inject_x = (int16_t)x;
+    s_inject_y = (int16_t)y;
+    s_inject_hold = down;
+}
+
 void touch_input_inject_tap(int x, int y) {
     s_inject_x = (int16_t)x;
     s_inject_y = (int16_t)y;
@@ -26,6 +33,12 @@ void touch_input_inject_tap(int x, int y) {
 
 static void indev_read(lv_indev_t* indev, lv_indev_data_t* data) {
     (void)indev;
+    if (s_inject_hold) {
+        data->point.x = s_inject_x;
+        data->point.y = s_inject_y;
+        data->state = LV_INDEV_STATE_PRESSED;
+        return;
+    }
     if (s_inject_reads > 0) {
         --s_inject_reads;
         data->point.x = s_inject_x;
