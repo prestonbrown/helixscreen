@@ -18,6 +18,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -85,7 +86,9 @@ class Config {
   private:
     static Config* instance;
     std::string path;
-    std::string active_printer_id_;          ///< Currently active printer slug ID
+    std::string active_printer_id_; ///< Currently active printer slug ID
+    /// Told each printer remove_printer() takes out of the list; see set_printer_removed_hook().
+    std::function<void(const std::string&)> printer_removed_hook_;
     bool read_only_mode_ = false;            ///< Config directory is on a read-only filesystem
     std::unique_ptr<ConfigStorage> storage_; ///< Document-level persistence backend
     /// True when storage_ was auto-created from `path` rather than injected by
@@ -526,6 +529,14 @@ class Config {
      * @param printer_id Slug ID of the printer to remove
      */
     void remove_printer(const std::string& printer_id);
+
+    /// Called with the id of each printer remove_printer() (or archive_printer()) takes out
+    /// of the list, so state kept per printer outside settings.json goes with it: ids are
+    /// reused (a new printer takes the first free "printer-N"), and a new printer must not
+    /// inherit a removed one's.
+    void set_printer_removed_hook(std::function<void(const std::string&)> hook) {
+        printer_removed_hook_ = std::move(hook);
+    }
 
     /**
      * @brief Move a printer configuration out of the active list, preserving it
