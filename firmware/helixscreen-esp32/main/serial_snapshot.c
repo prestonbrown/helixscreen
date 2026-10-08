@@ -44,6 +44,15 @@ static void reader_task(void* arg) {
                 atomic_store(&s_notes_requested, true);
             } else if (sscanf(line, "snapline %d", &seq) == 1) {
                 atomic_store(&s_resend_line, seq);
+            } else if (sscanf(line, "tdown %d %d", &x, &y) == 2) {
+                extern void touch_input_inject_hold(int down, int x, int y);
+                touch_input_inject_hold(1, x, y);
+            } else if (sscanf(line, "tmove %d %d", &x, &y) == 2) {
+                extern void touch_input_inject_hold(int down, int x, int y);
+                touch_input_inject_hold(1, x, y);
+            } else if (sscanf(line, "tup %d %d", &x, &y) == 2) {
+                extern void touch_input_inject_hold(int down, int x, int y);
+                touch_input_inject_hold(0, x, y);
             } else if (sscanf(line, "tap %d %d", &x, &y) == 2) {
                 touch_input_inject_tap(x, y);
             }
