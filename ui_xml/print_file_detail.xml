@@ -384,9 +384,11 @@
           <!-- Button row -->
           <lv_obj name="button_row"
                   width="100%" height="content" style_pad_all="0" style_pad_gap="#button_padding" flex_flow="row">
-            <!-- Delete button (icon-only) -->
+            <!-- Delete button (icon-only). Hidden for a USB stick file: delete
+                 targets Moonraker's storage, and sticks are often mounted read-only. -->
             <ui_button name="delete_button"
                        width="#button_height_lg" height="#button_height_lg" variant="danger" icon="trash_can_outline">
+              <bind_flag_if_eq subject="print_source_is_usb" flag="hidden" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_print_select_delete_button"/>
             </ui_button>
             <!-- Print button - primary action styling (disabled when print in progress) -->

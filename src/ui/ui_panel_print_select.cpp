@@ -2105,6 +2105,11 @@ void PrintSelectPanel::show_delete_confirmation() {
                      get_name());
         return;
     }
+    // A USB file has no Moonraker path to delete.
+    if (usb_source_ && usb_source_->is_usb_active()) {
+        spdlog::debug("[{}] Delete refused for USB file {}", get_name(), selected_filename_buffer_);
+        return;
+    }
     std::string filename(selected_filename_buffer_);
     detail_view_->show_delete_confirmation(filename);
 }
@@ -2929,6 +2934,10 @@ void PrintSelectPanel::apply_remap(const std::vector<helix::ToolMapping>& update
 }
 
 void PrintSelectPanel::delete_file() {
+    if (usb_source_ && usb_source_->is_usb_active()) {
+        hide_delete_confirmation();
+        return;
+    }
     std::string filename_to_delete(selected_filename_buffer_);
     auto* self = this;
     auto token = lifetime_.token();
