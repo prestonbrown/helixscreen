@@ -1218,10 +1218,13 @@ jobs:
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         RETAIN_COUNT: 5
+        RELEASE_VERSION: ${{ steps.version.outputs.version }}
       run: |
         # Every channel shares this store, so retention alone lets a run of
         # prereleases outrank the stable release. r2-prune-plan.sh never deletes
         # a version a channel manifest names, and ranks the rest by semver.
+        # The version this run publishes is pinned as well: a manifest may not
+        # name it yet when this step runs.
 
         # Prune old releases from releases/ (shared artifact store)
         echo "=== Pruning old releases ==="
@@ -1237,7 +1240,7 @@ jobs:
           DELETE_VERSIONS=""
         else
           echo "Pinned by channel manifests: $(echo $PINNED)"
-          DELETE_VERSIONS=$(echo "$VERSIONS" | scripts/r2-prune-plan.sh plan "$RETAIN_COUNT" $PINNED)
+          DELETE_VERSIONS=$(echo "$VERSIONS" | scripts/r2-prune-plan.sh plan "$RETAIN_COUNT" $PINNED "$RELEASE_VERSION")
         fi
 
         if [ -n "$DELETE_VERSIONS" ]; then
@@ -1455,10 +1458,13 @@ jobs:
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         RETAIN_COUNT: 5
+        RELEASE_VERSION: ${{ steps.version.outputs.version }}
       run: |
         # Every channel shares this store, so retention alone lets a run of
         # prereleases outrank the stable release. r2-prune-plan.sh never deletes
         # a version a channel manifest names, and ranks the rest by semver.
+        # The version this run publishes is pinned as well: a manifest may not
+        # name it yet when this step runs.
 
         echo "=== Pruning old symbol maps ==="
         SYM_VERSIONS=$(aws s3 ls "s3://${R2_BUCKET}/symbols/" \
@@ -1472,7 +1478,7 @@ jobs:
           echo "::warning::Cannot read every channel manifest; skipping the symbol prune rather than risk deleting a served version's symbols"
           DELETE_SYM_VERSIONS=""
         else
-          DELETE_SYM_VERSIONS=$(echo "$SYM_VERSIONS" | scripts/r2-prune-plan.sh plan "$RETAIN_COUNT" $PINNED)
+          DELETE_SYM_VERSIONS=$(echo "$SYM_VERSIONS" | scripts/r2-prune-plan.sh plan "$RETAIN_COUNT" $PINNED "$RELEASE_VERSION")
         fi
 
         if [ -n "$DELETE_SYM_VERSIONS" ]; then
