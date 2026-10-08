@@ -821,6 +821,10 @@ int Application::run(int argc, char** argv) {
         return 1;
     }
 
+    // init_display() forces the backlight to 100% so the panel is visible before
+    // any setting is loaded; the saved brightness exists only from here on.
+    m_display->ensure_display_on();
+
     // Phase 9d: Start Moonraker connection early (during splash)
     // Discovery runs async — by the time UI is created and splash exits,
     // connection and discovery may already be complete, saving ~2s.

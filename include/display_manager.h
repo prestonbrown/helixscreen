@@ -323,10 +323,11 @@ class DisplayManager : public helix::ICalibrationSink {
     void wake_display();
 
     /**
-     * @brief Force display ON at startup
+     * @brief Force display ON at startup, at the saved brightness
      *
-     * Called early in app initialization to ensure display is visible regardless
-     * of previous app's sleep state.
+     * Clears any sleep or dim state a previous instance left behind and applies
+     * DisplaySettingsManager's brightness, so it must run after that manager's
+     * subjects exist (after Application::init_panel_subjects()).
      */
     void ensure_display_on();
 
