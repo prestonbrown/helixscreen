@@ -1512,9 +1512,9 @@ void EspMoonrakerClient::discovery_query_objects(DiscoveryDone done, DiscoveryFa
 
             parse_objects(resp["result"]["objects"]); // locks hardware_mutex_
 
-            // Snapshot for the early hardware-discovered callback (AMS/MMU backends
-            // init before the subscribe response arrives). Copy under lock (#562,
-            // #777) — the callback runs outside the lock.
+            // The app initialises from on_discovery_complete and registers no early
+            // hardware callback, so the hardware is copied only when one is set. The
+            // copy is taken under the lock (#562, #777) and the callback runs outside it.
             std::function<void(const helix::PrinterDiscovery&)> hw_cb;
             {
                 std::lock_guard<std::mutex> lock(callbacks_mutex_);
@@ -1523,13 +1523,15 @@ void EspMoonrakerClient::discovery_query_objects(DiscoveryDone done, DiscoveryFa
             PrinterDiscovery snapshot;
             {
                 std::lock_guard<std::mutex> lock(hardware_mutex_);
-                snapshot = hardware_;
+                spdlog::info("[helixnet] discovered {} heaters, {} sensors, {} fans, {} leds, "
+                             "{} filament sensors",
+                             hardware_.heaters().size(), hardware_.sensors().size(),
+                             hardware_.fans().size(), hardware_.leds().size(),
+                             hardware_.filament_sensor_names().size());
+                if (hw_cb) {
+                    snapshot = hardware_;
+                }
             }
-            spdlog::info("[helixnet] discovered {} heaters, {} sensors, {} fans, {} leds, {} "
-                         "filament sensors",
-                         snapshot.heaters().size(), snapshot.sensors().size(),
-                         snapshot.fans().size(), snapshot.leds().size(),
-                         snapshot.filament_sensor_names().size());
             if (hw_cb) {
                 hw_cb(snapshot);
             }
