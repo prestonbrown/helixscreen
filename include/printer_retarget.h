@@ -10,10 +10,11 @@ class MoonrakerManager; // NAMESPACE_OK: forward declaration of the global Moonr
 namespace helix {
 
 /// The WebSocket URL of the active printer's Moonraker, the one the reconnects below use.
-std::string active_printer_ws_url();
+/// @p default_host stands in when the printer has no saved host.
+std::string active_printer_ws_url(const std::string& default_host = "");
 
 /// The HTTP base URL of the active printer's Moonraker, for file transfers and REST.
-std::string active_printer_http_url();
+std::string active_printer_http_url(const std::string& default_host = "");
 
 /// Connects @p manager to a Moonraker with what every connection has: the print-start
 /// collector, created first. False when the transport could not start (e.g. no internal

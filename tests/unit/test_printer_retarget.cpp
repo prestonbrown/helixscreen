@@ -130,6 +130,15 @@ TEST_CASE_METHOD(RetargetFixture, "Retarget: the active printer's HTTP base URL"
     CHECK(helix::active_printer_http_url() == "http://10.0.0.2:7126");
 }
 
+TEST_CASE_METHOD(RetargetFixture, "Retarget: a printer with no saved host takes the default",
+                 "[multi-printer][retarget]") {
+    helix::ConfigTestAccess::data(*helix::Config::get_instance())["printers"]["beta"].erase(
+        "moonraker_host");
+    CHECK(helix::active_printer_ws_url() == "ws://:7126/websocket");
+    CHECK(helix::active_printer_ws_url("localhost") == "ws://localhost:7126/websocket");
+    CHECK(helix::active_printer_http_url("localhost") == "http://localhost:7126");
+}
+
 TEST_CASE_METHOD(RetargetFixture, "Connect: every connection gets a print-start collector",
                  "[multi-printer][retarget]") {
     REQUIRE(manager_.print_start_collector() == nullptr);

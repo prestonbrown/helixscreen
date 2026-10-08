@@ -489,8 +489,12 @@ bool PrinterSession::connect_moonraker() {
         }
         http_base_url = "http://" + host_port;
     } else {
-        moonraker_url = helix::active_printer_ws_url();
-        http_base_url = helix::active_printer_http_url();
+        // With no saved host only the mock ignores the address; a real client gets the
+        // local Moonraker.
+        const std::string default_host =
+            get_runtime_config()->should_mock_moonraker() ? "" : "localhost";
+        moonraker_url = helix::active_printer_ws_url(default_host);
+        http_base_url = helix::active_printer_http_url(default_host);
     }
 
     // Discovery callbacks are already registered (setup_discovery_callbacks in init_moonraker).

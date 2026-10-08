@@ -39,9 +39,9 @@ IMoonrakerClient* disconnect_for_retarget() {
 }
 
 /// The active printer's Moonraker as "host:port".
-std::string active_printer_host_port() {
+std::string active_printer_host_port(const std::string& default_host) {
     Config* config = Config::get_instance();
-    return config->get<std::string>(config->df() + "moonraker_host", "") + ":" +
+    return config->get<std::string>(config->df() + "moonraker_host", default_host) + ":" +
            std::to_string(config->get<int>(config->df() + "moonraker_port", 7125));
 }
 
@@ -66,12 +66,12 @@ void forget_previous_printer() {
 
 } // namespace
 
-std::string active_printer_ws_url() {
-    return "ws://" + active_printer_host_port() + "/websocket";
+std::string active_printer_ws_url(const std::string& default_host) {
+    return "ws://" + active_printer_host_port(default_host) + "/websocket";
 }
 
-std::string active_printer_http_url() {
-    return "http://" + active_printer_host_port();
+std::string active_printer_http_url(const std::string& default_host) {
+    return "http://" + active_printer_host_port(default_host);
 }
 
 bool connect_printer(MoonrakerManager& manager, const std::string& ws_url,
