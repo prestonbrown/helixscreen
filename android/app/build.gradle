@@ -25,13 +25,13 @@ def vCode = vCodeOut.toString().trim().toInteger()
 
 android {
     namespace "org.helixscreen.app"
-    compileSdkVersion 35
+    compileSdkVersion 36
     ndkVersion "29.0.14206865"
 
     defaultConfig {
         applicationId "org.helixscreen.app"
         minSdkVersion 28
-        targetSdkVersion 35
+        targetSdkVersion 36
         versionCode vCode  // 0.99.113 → 99113, 1.0.0 → 1000000
         versionName helix_version
 

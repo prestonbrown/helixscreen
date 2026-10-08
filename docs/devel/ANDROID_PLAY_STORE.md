@@ -2,17 +2,37 @@
 
 How the CI pipeline ships `helix-screen` to Google Play, and the one-time manual setup required before the automated upload can work.
 
-## Where to pick up — 2026-08-15
+## Where to pick up - 2026-10-08
+
+**Target API 36 is done on release/1.0 and main** (see "Target API level"). Play has required
+`targetSdkVersion 36` for new submissions and updates since 2026-08-31; `v1.0.0` through the
+last 1.0.x tag before this change ship 35, so their AABs would be rejected. The first upload
+can come from the next 1.0.x tag.
+
+Left before the first Play submission:
+
+- Check the app on a real tablet in portrait (API 36 lets sw >= 600dp screens rotate it).
+- Build the signed release APKs and AAB on API 36 and confirm they pass the pre-flight below.
+- Get a green CI run of `build-android` on the API 36 tree.
+
+**Also confirmed unset as of 2026-09-09:** `PLAY_SERVICE_ACCOUNT_JSON` is not in the repository
+secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
+`ANDROID_KEY_PASSWORD` are). So `publish-android` is still skipping cleanly on every tag, which
+is the intended behaviour and not a fault. Steps 1-6 below remain entirely undone.
+
+**Unaffected by any of this:** every tag still produces signed APKs and an AAB attached to the
+GitHub release. `v1.0.0` did. Sideloading is unchanged.
+
+### Status as of 2026-08-15, still accurate
 
 **Package-name registration cleared.** `org.helixscreen.app` is verified against the upload
 key's fingerprint `41:B4:26:42:44:FF:90:FA:11:BD:37:56:21:10:C2:E2:66:F4:AB:42:FB:49:87:62:75:49:BF:AF:DE:65:A8:AC`.
 The ownership-challenge stub at `~/.android-keystore/adi-registration/` has done its job and can
 be deleted once Play Console shows the package with `Keys: 1`.
 
-**Deadline that now governs the sequence: 2026-08-31.** New app submissions and app updates must
-target **API 36** (Android 16) from that date; extensions to 2026-11-01 can be requested. We are
-on `targetSdkVersion 35`, which is accepted only up to 2026-08-30. See "Target API level" below —
-it decides whether the first upload goes in as-is or waits for an SDK bump.
+**The 2026-08-31 API 36 deadline was the open question at the time and has since passed.** See
+the current status above; the "Target API level" section below still describes the requirement
+correctly.
 
 **Pre-flight on the artifact — done 2026-08-15, all green.** `helixscreen-android-v0.99.113.aab`
 is staged at `~/Downloads/` and was checked directly rather than assumed:
@@ -40,18 +60,21 @@ Steps 1-3 are unaffected by the target-API question and can be done now.
 
 ### Target API level
 
-`android/app/build.gradle` sets `compileSdkVersion 35` / `targetSdkVersion 35`. Google's annual
-requirement moves to **API 36 on 2026-08-31**, for new submissions *and* for updates to existing
-apps. Two consequences:
+`android/app/build.gradle` sets `compileSdkVersion 36` / `targetSdkVersion 36` (AGP 8.9.1,
+Gradle 8.11.1), which Play has required for new submissions and updates since 2026-08-31.
+`minSdkVersion` stays 28. API 36 behaviour changes that touch this app:
 
-- Uploading v0.99.113 on or before 2026-08-30 is accepted as-is. After that date the same file is rejected.
-- Either way, **every update published after 2026-08-31 needs API 36**, so the bump is required soon regardless of when the first upload happens.
+- **Predictive back.** Targeting 36 stops `KEYCODE_BACK` reaching SDL by default, so the
+  activity sets `android:enableOnBackInvokedCallback="false"` to keep the back key popping
+  the nav stack.
+- **Large screens (sw >= 600dp) ignore `screenOrientation`.** A tablet can run the app in
+  portrait despite `sensorLandscape`. That is accepted: portrait is allowed there, and the
+  temporary `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` opt-out is deliberately not used.
+- **Edge-to-edge** is already enforced from 35 and handled by `HelixActivity`'s inset listener.
 
-The lower-risk sequence is to get the first manual upload in on 35 — its only job is to enroll
-Play App Signing and unblock steps 5-7 — and treat the SDK bump as its own change, so a
-first-submission milestone is not coupled to an untested SDK jump. Android 16 enforces
-edge-to-edge display for apps targeting API 36, which a fullscreen SDL surface needs testing
-against on a real device before it ships.
+Native libraries must be 16 KB page aligned. Everything bundled is built from source with NDK
+r29, which links with 16 KB max-page-size by default; check a built APK with
+`zipalign -c -P 16 -v 4 <apk>` and `llvm-readelf -l <lib>.so` (every `LOAD` `Align` 0x4000).
 
 ### Review risk: the app needs hardware a reviewer does not have
 

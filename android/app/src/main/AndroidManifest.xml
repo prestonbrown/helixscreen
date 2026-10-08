@@ -32,7 +32,11 @@
             android:screenOrientation="sensorLandscape"
             android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
             android:preferMinimalPostProcessing="true"
+            android:enableOnBackInvokedCallback="false"
             android:exported="true">
+            <!-- At targetSdk 36 predictive back is on by default, which stops
+                 KEYCODE_BACK reaching SDL; the back key pops the nav stack. -->
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
