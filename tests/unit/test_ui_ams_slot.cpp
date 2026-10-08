@@ -919,3 +919,47 @@ TEST_CASE("SlotInfo::display_fill_level renders ghost lanes empty, present lanes
     REQUIRE(ucfill.has_value());
     CHECK(*ucfill == Catch::Approx(1.0f));
 }
+
+// An ams_slot bound to a secondary backend shows that backend's tool mapping in
+// its badge, not backend 0's or the currently active backend's.
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot shows its own tool badge",
+                 "[ui][ams_slot][multi_backend]") {
+    ui_ams_slot_register();
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+
+    auto primary = AmsBackend::create_mock(4);
+    auto secondary = AmsBackend::create_mock(4);
+    REQUIRE(secondary->set_tool_mapping(3, 0).success());
+
+    ams.set_backend(std::move(primary));
+    const int second = ams.add_backend(std::move(secondary));
+    REQUIRE(second == 1);
+    ams.sync_from_backend();
+    ams.sync_backend(second);
+
+    ams.set_active_backend(second);
+    process_lvgl(50);
+    lv_obj_t* slot = create_ams_slot(test_screen(), 0);
+    REQUIRE(slot != nullptr);
+    process_lvgl(50);
+
+    // The two backends really disagree on lane 0's tool.
+    REQUIRE(ams.get_backend(0)->get_slot_info(0).mapped_tool == 0);
+    REQUIRE(ams.get_backend(second)->get_slot_info(0).mapped_tool == 3);
+
+    lv_obj_t* badge_bg = UITest::find_by_name(slot, "tool_badge");
+    REQUIRE(badge_bg != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(badge_bg, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* badge_label = UITest::find_by_name(slot, "tool_badge_label");
+    REQUIRE(badge_label != nullptr);
+    CHECK(std::string(UITest::get_text(badge_label)) == "T3");
+
+    // A refresh after another backend becomes active keeps the slot's own.
+    ams.set_active_backend(0);
+    ui_ams_slot_refresh(slot);
+    CHECK(std::string(UITest::get_text(badge_label)) == "T3");
+
+    lv_obj_delete(slot);
+    ams.clear_backends();
+}

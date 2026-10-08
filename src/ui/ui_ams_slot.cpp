@@ -44,6 +44,7 @@ using namespace helix;
  */
 struct AmsSlotData {
     int slot_index = -1;
+    int backend_index = 0;    // Backend whose subjects this slot is bound to
     int total_count = 4;      // Total slots being displayed (for stagger calculation)
     bool use_3d_style = true; // Cached style setting
 
@@ -572,7 +573,9 @@ static void evaluate_pulse_state(AmsSlotData* data) {
  * @brief Update tool badge based on slot's mapped_tool value
  *
  * Shows "T0", "T1", etc. when a tool is mapped to this slot.
- * Hidden when mapped_tool == -1 (no tool assigned).
+ * Hidden when mapped_tool == -1 (no tool assigned). The hide policy is the
+ * slot's own backend's: a mixed rig can pair a tool changer with a lane-based
+ * system, and only the changer's slots get the redundant badge.
  */
 static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_override) {
     if (!data || !data->tool_badge_bg) {
@@ -580,7 +583,7 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
     }
 
     // Tool changers: badge is redundant with toolhead label below
-    auto* backend = AmsState::instance().get_backend(0);
+    auto* backend = AmsState::instance().get_backend(data->backend_index);
     if (backend && backend->should_hide_slot_tool_badge()) {
         lv_obj_add_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
         return;
@@ -727,6 +730,7 @@ static void setup_slot_observers(AmsSlotData* data) {
     // SubjectLifetime members keep the observers from firing on a freed subject.
     // Reset the lifetimes BEFORE rebinding (the accessor overwrites them).
     int backend_idx = state.active_backend_index();
+    data->backend_index = backend_idx;
     data->color_lifetime.reset();
     data->status_lifetime.reset();
     data->fill_lifetime.reset();
@@ -905,10 +909,10 @@ static void setup_slot_observers(AmsSlotData* data) {
         apply_slot_material(data, lv_subject_get_string(material_subject));
     }
 
-    // Update tool badge + error indicator from backend. Material is NOT read
-    // here — it flows from the per-slot material subject via the observer above,
-    // so it stays reactive on every consumer (#1065).
-    AmsBackend* backend = state.get_backend();
+    // Update tool badge + error indicator from the slot's own backend. Material
+    // is NOT read here — it flows from the per-slot material subject via the
+    // observer above, so it stays reactive on every consumer (#1065).
+    AmsBackend* backend = state.get_backend(backend_idx);
     if (backend) {
         SlotInfo slot = backend->get_slot_info(data->slot_index);
         // Update tool badge based on slot's mapped_tool
@@ -1118,7 +1122,7 @@ void ui_ams_slot_refresh(lv_obj_t* obj) {
     // Only update non-observer properties here.
     // Color, status, current-slot highlight, and material are driven by
     // observers (material via the per-slot material subject, #1065).
-    AmsBackend* backend = AmsState::instance().get_backend();
+    AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
     if (backend) {
         SlotInfo slot = backend->get_slot_info(data->slot_index);
         apply_tool_badge(data, slot.mapped_tool, slot.tool_mapping_override);
