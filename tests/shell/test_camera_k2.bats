@@ -1039,3 +1039,38 @@ EOF
 skip_if_no_python() {
     command -v python3 >/dev/null 2>&1 || skip "python3 not available"
 }
+
+# --- ustreamer launch wrapper ------------------------------------------------
+
+# Sources the init script with procd stubbed, captures the wrapper command, and
+# runs it with stub killall/ustreamer. Echoes the wrapper's exit status.
+_run_k2_wrapper() {
+    local ustreamer_secs="$1" ustreamer_rc="$2"
+    local d="$BATS_TEST_TMPDIR/wrap" ; mkdir -p "$d"
+    printf '#!/bin/sh\nsleep %s\nexit %s\n' "$ustreamer_secs" "$ustreamer_rc" > "$d/ustreamer"
+    printf '#!/bin/sh\necho kill >> "%s/killall.log"\nexit 1\n' "$d" > "$d/killall"
+    chmod +x "$d/ustreamer" "$d/killall"
+    sed -e "s|^USTREAMER_BIN=.*|USTREAMER_BIN=\"$d/ustreamer\"|" \
+        -e 's|^RECLAIM_INTERVAL=.*|RECLAIM_INTERVAL="1"|' \
+        "$WORKTREE_ROOT/config/helixscreen-ustreamer-k2.sh" > "$d/init.sh"
+    sh -c '
+        procd_open_instance() { :; }; procd_close_instance() { :; }
+        procd_set_param() { [ "$1" = command ] && { shift; printf "%s\0" "$@" > "$0.cmd"; }; }
+        . "$0"; start_service' "$d/init.sh"
+    # The wrapper is the last NUL-separated argument of: /bin/sh -c <script>
+    local script
+    script="$(tr '\0' '\n' < "$d/init.sh.cmd" | sed '1,2d')"
+    PATH="$d:$PATH" sh -c "$script"
+}
+
+@test "k2 ustreamer wrapper: keeps reclaiming the camera while ustreamer runs" {
+    run _run_k2_wrapper 3 0
+    [ "$status" -eq 0 ]
+    # One kill before launch plus at least two in-loop kills over 3s at 1s interval.
+    [ "$(wc -l < "$BATS_TEST_TMPDIR/wrap/killall.log")" -ge 3 ]
+}
+
+@test "k2 ustreamer wrapper: exits with ustreamer's status so procd respawns" {
+    run _run_k2_wrapper 1 7
+    [ "$status" -eq 7 ]
+}
