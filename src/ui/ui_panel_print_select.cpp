@@ -2128,6 +2128,20 @@ void PrintSelectPanel::show_detail_view() {
 #if defined(HELIX_PLATFORM_ESP32)
     // The detail view builds its buffers as it opens, from the PSRAM kept
     // off-screen card thumbnails hold; the window's stay for the way back.
+    {
+        int vs = -1, ve = -1;
+        size_t wf = 0, we = 0;
+        if (card_view_) {
+            card_view_->get_visible_range(vs, ve);
+            card_view_->get_whole_range(wf, we);
+        }
+        spdlog::info("[THUMBDIAG] detail open: esp_window [{},{}) view rows [{},{}) x{} whole "
+                     "[{},{}) scroll_y {} in_flight {} refused {}",
+                     esp_window_first_, esp_window_end_, vs, ve,
+                     card_view_ ? card_view_->get_cards_per_row() : 0, wf, we,
+                     card_view_container_ ? lv_obj_get_scroll_y(card_view_container_) : -1,
+                     esp_thumbnails_in_flight_, esp_lane_refused_);
+    }
     sync_esp_thumbnails(esp_window_first_, esp_window_end_, /*keep_off_screen=*/false);
 #endif
     create_detail_view();
@@ -3830,6 +3844,7 @@ PrintSelectPanel::fetch_esp_thumbnail(size_t index, const std::string& filename,
         cancelled);
     submitting->store(false);
     if (refused->load()) {
+        spdlog::info("[THUMBDIAG] fetch refused {} (queue full)", index);
         return EspThumbnailFetch::QueueFull;
     }
     if (rejected->load()) {
@@ -3837,6 +3852,8 @@ PrintSelectPanel::fetch_esp_thumbnail(size_t index, const std::string& filename,
     }
     file_list_[index].esp_fetch_cancel = std::move(cancelled);
     ++esp_thumbnails_in_flight_;
+    spdlog::info("[THUMBDIAG] fetch start {} {} (in_flight {})", index, filename,
+                 esp_thumbnails_in_flight_);
     return EspThumbnailFetch::Started;
 }
 
@@ -3901,6 +3918,20 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end, bool keep_o
         helix::CARD_THUMBNAIL_BUDGET, esp_lane_refused_, keep_off_screen, room);
     if (plan.capped) {
         arm_esp_lane_retry();
+    }
+    if (!plan.drop.empty() || !plan.fetch.empty() || plan.capped || !keep_off_screen) {
+        auto joined = [](const std::vector<size_t>& v) {
+            std::string out;
+            for (size_t i : v) {
+                out += (out.empty() ? "" : ",") + std::to_string(i);
+            }
+            return out;
+        };
+        spdlog::info("[THUMBDIAG] sync [{},{}) whole [{},{}) keep {} room {} in_flight {} "
+                     "refused {} capped {} drop [{}] fetch [{}]",
+                     first, end, whole_first, whole_end, keep_off_screen, room,
+                     esp_thumbnails_in_flight_, esp_lane_refused_, plan.capped, joined(plan.drop),
+                     joined(plan.fetch));
     }
     if (!plan.fetch.empty() && !esp_slots_) {
         // One slot per card the budget allows.
