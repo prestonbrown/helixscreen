@@ -72,6 +72,7 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     // RAW_PRINT_STATE_OK: declaring the wire subject itself.
     INIT_SUBJECT_INT(print_state_enum, static_cast<int>(PrintJobState::STANDBY), subjects_,
                      register_xml);
+    INIT_SUBJECT_INT(print_exception, -1, subjects_, register_xml);
     INIT_SUBJECT_INT(print_outcome, static_cast<int>(PrintOutcome::NONE), subjects_, register_xml);
     INIT_SUBJECT_INT(print_active, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(print_show_progress, 0, subjects_, register_xml);
@@ -583,6 +584,9 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
                 print_exception_message_.clear();
             }
             // null or non-object: leave members unchanged.
+            if (lv_subject_get_int(&print_exception_) != print_exception_code_) {
+                lv_subject_set_int(&print_exception_, print_exception_code_);
+            }
         }
 
         // Update layer info from print_stats.info (sent by Moonraker/mock client)

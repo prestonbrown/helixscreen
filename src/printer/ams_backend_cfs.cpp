@@ -1524,6 +1524,18 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
             }
         }
 
+        // Stock frames are deltas: a frame naming only T3 says nothing about T1
+        // and T2, so the parse reads the box as the merge of every frame since
+        // the last flat one.
+        if (is_flat) {
+            stock_box_state_ = nlohmann::json::object();
+        } else {
+            if (!stock_box_state_.is_object()) {
+                stock_box_state_ = nlohmann::json::object();
+            }
+            stock_box_state_.merge_patch(box);
+        }
+
         if (is_full_update) {
             // Snapshot under the lock: pushed_material_codes_ is written by
             // push_slot_identity_to_firmware on the UI thread, and the parse
@@ -1535,7 +1547,7 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
                 std::lock_guard<std::mutex> lock(mutex_);
                 own_labels = pushed_material_codes_;
             }
-            auto new_info = parse_box_status(box, &own_labels);
+            auto new_info = parse_box_status(is_flat ? box : stock_box_state_, &own_labels);
 
             // Payload reads happen before the lock; the values converge under
             // it with everything else below.

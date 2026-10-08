@@ -7,6 +7,7 @@
 // an existing on-disk config. A sandboxed HELIX_CONFIG_DIR keeps backup-restore
 // search paths inside the temp dir so nothing leaks from the host config.
 
+#include "app_constants.h"
 #include "config.h"
 
 #include <filesystem>
@@ -59,6 +60,12 @@ class MigrationV18Fixture {
         f << contents.dump(2);
         f.close();
         config.init(config_path);
+    }
+
+    // The installer's marker for a packaged config it kept: init() then never
+    // swaps a versionless document for a rolling backup another case wrote.
+    void mark_fresh_install() {
+        std::ofstream(fs::path(temp_dir) / AppConstants::Update::FRESH_INSTALL_MARKER);
     }
 
   public:
@@ -120,4 +127,38 @@ TEST_CASE_METHOD(MigrationV18Fixture,
 
     REQUIRE(config.get<int>("/config_version") == CURRENT_CONFIG_VERSION);
     REQUIRE(config.get<bool>("/input/calibration/recheck_pending", true) == false);
+}
+
+TEST_CASE_METHOD(MigrationV18Fixture,
+                 "Config migration v18: a seed with a printer node keeps its calibration",
+                 "[config][migration]") {
+    // seed_from_moonraker_detection's C path: a preset's input/display blocks
+    // plus a moonraker_host under printers/default, and no config_version.
+    json seed = {{"input", {{"calibration", {{"valid", true}, {"a", 1.66}, {"e", 1.76}}}}},
+                 {"display", {{"rotate", 180}}},
+                 {"active_printer_id", "default"},
+                 {"printers", {{"default", {{"moonraker_host", "127.0.0.1"}}}}}};
+    mark_fresh_install();
+    write_and_init(seed);
+
+    REQUIRE(config.get<int>("/config_version") == CURRENT_CONFIG_VERSION);
+    REQUIRE_FALSE(config.get<bool>("/input/calibration/recheck_pending", false));
+    REQUIRE(config.get<bool>("/input/calibration/valid", false));
+}
+
+TEST_CASE_METHOD(MigrationV18Fixture,
+                 "Config migration v18: a packaged preset keeps its calibration",
+                 "[config][migration]") {
+    // A preset shipped as the release tarball's settings.json, on a fresh
+    // install with no rolling backup to restore.
+    json preset = {{"preset", "artillery-m1-pro"},
+                   {"wizard_completed", false},
+                   {"input", {{"calibration", {{"valid", true}, {"a", 1.64}, {"e", 1.83}}}}},
+                   {"printer", {{"heaters", {{"bed", "heater_bed"}, {"hotend", "extruder"}}}}}};
+    mark_fresh_install();
+    write_and_init(preset);
+
+    REQUIRE(config.get<int>("/config_version") == CURRENT_CONFIG_VERSION);
+    REQUIRE_FALSE(config.get<bool>("/input/calibration/recheck_pending", false));
+    REQUIRE(config.get<bool>("/input/calibration/valid", false));
 }

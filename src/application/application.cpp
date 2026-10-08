@@ -1913,6 +1913,10 @@ bool Application::init_panel_subjects() {
             using helix::detection::DetectionPolicy;
             if (!SettingsManager::instance().get_detection_enabled())
                 return;
+            // A detection pause waits on the user; a sleeping screen would hide it.
+            if (auto* display = DisplayManager::instance()) {
+                display->wake_display();
+            }
             if (p == DetectionPolicy::NotifyOnly) {
                 ToastManager::instance().show(ToastSeverity::WARNING,
                                               lv_tr("Spaghetti detected — print paused"), 8000);

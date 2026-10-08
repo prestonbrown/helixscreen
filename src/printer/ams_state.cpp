@@ -912,20 +912,119 @@ void AmsState::clear_backends() {
     }
     secondary_slot_subjects_.clear();
 
-    // Reset backend selector subjects
-    // A stale 1 here keeps the filament controls hidden on whatever connects next.
-    if (lv_subject_get_int(&ams_is_tool_changer_) != 0) {
-        lv_subject_set_int(&ams_is_tool_changer_, 0);
+    reset_backend_subjects();
+}
+
+void AmsState::reset_backend_subjects() {
+    // Every subject a backend sync writes goes back to its init_subjects() value. A live
+    // printer switch keeps every panel, so one value left behind shows the departed
+    // printer's filament system on the next one.
+    lv_subject_set_int(&backend_count_, 0);
+    lv_subject_set_int(&active_backend_, 0);
+
+    lv_subject_set_int(&ams_type_, static_cast<int>(AmsType::NONE));
+    lv_subject_set_int(&ams_is_tool_changer_, 0);
+    lv_subject_set_int(&ams_is_filament_system_, 0);
+    lv_subject_set_int(&ams_action_, static_cast<int>(AmsAction::IDLE));
+    lv_subject_set_int(&ams_operation_phase_, -1);
+    lv_subject_set_int(&ams_operation_indeterminate_, 0);
+    lv_subject_set_int(&current_slot_, -1);
+    lv_subject_set_int(&pending_target_slot_, -1);
+    lv_subject_set_int(&ams_current_tool_, -1);
+    lv_subject_copy_string(&ams_system_name_, "");
+    system_logo_buf_[0] = '\0';
+    lv_subject_set_pointer(&ams_system_logo_, nullptr);
+    lv_subject_copy_string(&ams_action_detail_, "");
+    last_operation_detail_.clear();
+    lv_subject_set_int(&toolchange_step_, -1);
+    lv_subject_copy_string(&ams_current_tool_text_, "---");
+
+    lv_subject_set_int(&filament_loaded_, 0);
+    lv_subject_set_int(&filament_runout_, 0);
+    lv_subject_set_int(&bypass_active_, 0);
+    last_bypass_active_ = false;
+    lv_subject_set_int(&supports_bypass_, 0);
+    lv_subject_set_int(&ams_slot_count_, 0);
+    lv_subject_set_int(&active_tool_port_present_, 1);
+
+    lv_subject_set_int(&toolchange_visible_, 0);
+    lv_subject_set_int(&ams_current_toolchange_, -1);
+    lv_subject_set_int(&ams_number_of_toolchanges_, 0);
+    lv_subject_copy_string(&toolchange_text_, "");
+
+    lv_subject_set_int(&path_topology_, static_cast<int>(PathTopology::HUB));
+    lv_subject_set_int(&path_active_slot_, -1);
+    lv_subject_set_int(&path_filament_segment_, static_cast<int>(PathSegment::NONE));
+    lv_subject_set_int(&path_error_segment_, static_cast<int>(PathSegment::NONE));
+
+    // Per-unit environment and its indicator.
+    for (int i = 0; i < MAX_UNITS; ++i) {
+        lv_subject_set_int(&unit_temp_[i], 0);
+        lv_subject_set_int(&unit_humidity_[i], 0);
+        lv_subject_copy_string(&env_ind_temp_text_[i], "");
+        lv_subject_copy_string(&env_ind_humidity_text_[i], "");
+        lv_subject_set_int(&env_ind_humidity_status_[i], 0);
+        lv_subject_set_int(&env_ind_humidity_visible_[i], 0);
+        lv_subject_set_int(&env_ind_visible_[i], 0);
+        lv_subject_set_int(&env_ind_drying_active_[i], 0);
+        lv_subject_copy_string(&env_ind_drying_text_[i], "");
     }
-    if (lv_subject_get_int(&ams_is_filament_system_) != 0) {
-        lv_subject_set_int(&ams_is_filament_system_, 0);
+    mirror_detail_env_subjects();
+
+    // Lanes, the loaded card, dryer, clog meter and endless spool, through the same
+    // empty-state paths the sync uses.
+    clear_unused_slot_subjects(0);
+    bump_slots_version();
+    lv_subject_set_int(&tool_map_version_, lv_subject_get_int(&tool_map_version_) + 1);
+    set_current_loaded_defaults();
+    sync_dryer_from_backend();
+    sync_clog_meter_from_info(AmsSystemInfo{});
+    sync_endless_spool_from_backend(nullptr);
+}
+
+bool AmsState::clear_unused_slot_subjects(int first_unused) {
+    // Only fires a subject whose value actually changes.
+    bool changed = false;
+    for (int i = std::max(first_unused, 0); i < MAX_SLOTS; ++i) {
+        int default_color = static_cast<int>(AMS_DEFAULT_SLOT_COLOR);
+        if (lv_subject_get_int(&slot_colors_[i]) != default_color) {
+            lv_subject_set_int(&slot_colors_[i], default_color);
+            changed = true;
+        }
+        int default_status = static_cast<int>(SlotStatus::UNKNOWN);
+        if (lv_subject_get_int(&slot_statuses_[i]) != default_status) {
+            lv_subject_set_int(&slot_statuses_[i], default_status);
+            changed = true;
+        }
+        int default_lane_state = static_cast<int>(helix::ui::LaneState::Empty);
+        if (lv_subject_get_int(&slot_lane_states_[i]) != default_lane_state) {
+            lv_subject_set_int(&slot_lane_states_[i], default_lane_state);
+            changed = true;
+        }
+        // Clear remaining filament for unused slots
+        if (strcmp(lv_subject_get_string(&slot_remaining_[i]), "") != 0) {
+            lv_subject_copy_string(&slot_remaining_[i], "");
+        }
+        // Clear material for unused slots — bump so the label clears (#1065)
+        if (strcmp(lv_subject_get_string(&slot_materials_[i]), "") != 0) {
+            lv_subject_copy_string(&slot_materials_[i], "");
+            changed = true;
+        }
+        // Reset per-slot LIVE state subjects for unused slots
+        if (lv_subject_get_int(&slot_segments_[i]) != static_cast<int>(PathSegment::NONE)) {
+            lv_subject_set_int(&slot_segments_[i], static_cast<int>(PathSegment::NONE));
+            changed = true;
+        }
+        if (lv_subject_get_int(&slot_toolhead_present_[i]) != 0) {
+            lv_subject_set_int(&slot_toolhead_present_[i], 0);
+            changed = true;
+        }
+        if (lv_subject_get_int(&slot_active_loaded_[i]) != 0) {
+            lv_subject_set_int(&slot_active_loaded_[i], 0);
+            changed = true;
+        }
     }
-    if (lv_subject_get_int(&backend_count_) != 0) {
-        lv_subject_set_int(&backend_count_, 0);
-    }
-    if (lv_subject_get_int(&active_backend_) != 0) {
-        lv_subject_set_int(&active_backend_, 0);
-    }
+    return changed;
 }
 
 std::vector<uint32_t> AmsState::routed_tool_colors() const {
@@ -2094,45 +2193,8 @@ void AmsState::sync_from_backend() {
         }
     }
 
-    // Clear remaining slot subjects, only firing when values actually change
-    for (int i = info.total_slots; i < MAX_SLOTS; ++i) {
-        int default_color = static_cast<int>(AMS_DEFAULT_SLOT_COLOR);
-        if (lv_subject_get_int(&slot_colors_[i]) != default_color) {
-            lv_subject_set_int(&slot_colors_[i], default_color);
-            any_slot_changed = true;
-        }
-        int default_status = static_cast<int>(SlotStatus::UNKNOWN);
-        if (lv_subject_get_int(&slot_statuses_[i]) != default_status) {
-            lv_subject_set_int(&slot_statuses_[i], default_status);
-            any_slot_changed = true;
-        }
-        int default_lane_state = static_cast<int>(helix::ui::LaneState::Empty);
-        if (lv_subject_get_int(&slot_lane_states_[i]) != default_lane_state) {
-            lv_subject_set_int(&slot_lane_states_[i], default_lane_state);
-            any_slot_changed = true;
-        }
-        // Clear remaining filament for unused slots
-        if (strcmp(lv_subject_get_string(&slot_remaining_[i]), "") != 0) {
-            lv_subject_copy_string(&slot_remaining_[i], "");
-        }
-        // Clear material for unused slots — bump so the label clears (#1065)
-        if (strcmp(lv_subject_get_string(&slot_materials_[i]), "") != 0) {
-            lv_subject_copy_string(&slot_materials_[i], "");
-            any_slot_changed = true;
-        }
-        // Reset per-slot LIVE state subjects for unused slots
-        if (lv_subject_get_int(&slot_segments_[i]) != static_cast<int>(PathSegment::NONE)) {
-            lv_subject_set_int(&slot_segments_[i], static_cast<int>(PathSegment::NONE));
-            any_slot_changed = true;
-        }
-        if (lv_subject_get_int(&slot_toolhead_present_[i]) != 0) {
-            lv_subject_set_int(&slot_toolhead_present_[i], 0);
-            any_slot_changed = true;
-        }
-        if (lv_subject_get_int(&slot_active_loaded_[i]) != 0) {
-            lv_subject_set_int(&slot_active_loaded_[i], 0);
-            any_slot_changed = true;
-        }
+    if (clear_unused_slot_subjects(info.total_slots)) {
+        any_slot_changed = true;
     }
 
     if (any_slot_changed) {

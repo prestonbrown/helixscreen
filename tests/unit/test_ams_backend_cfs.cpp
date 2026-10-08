@@ -4699,3 +4699,46 @@ TEST_CASE("CFS: a failed payload still sends the envelope unwind", "[ams][cfs][h
     REQUIRE(api.contains("G28"));
     REQUIRE(api.contains("CR_BOX_LOAD"));
 }
+
+static json make_multi_unit_box(int unit_count) {
+    json box = json{{"state", "connect"}, {"filament", 0},       {"auto_refill", 1},
+                    {"enable", 1},        {"filament_useup", 1}, {"map", json::object()}};
+    for (int u = 1; u <= unit_count; ++u) {
+        box["T" + std::to_string(u)] =
+            json{{"state", "connect"},
+                 {"filament", "None"},
+                 {"temperature", "27"},
+                 {"dry_and_humidity", "48"},
+                 {"version", "1.1.3"},
+                 {"sn", "SERIAL"},
+                 {"vender", json::array({"none", "none", "none", "none"})},
+                 {"remain_len", json::array({"-1", "-1", "-1", "-1"})},
+                 {"color_value", json::array({"-1", "-1", "-1", "-1"})},
+                 {"material_type", json::array({"-1", "-1", "-1", "-1"})},
+                 {"change_color_num", json::array({"-1", "-1", "-1", "-1"})}};
+    }
+    return box;
+}
+
+// A stock box frame is a delta: the units it omits are unchanged, not gone
+// (prestonbrown/helixscreen#1464).
+TEST_CASE("CFS stock: a delta frame naming one unit leaves the others as they were",
+          "[ams][cfs][1464]") {
+    CfsRemapHelper backend;
+    backend.mark_running();
+    json full = make_multi_unit_box(3);
+    full["T1"]["vender"] = json::array({"Creality", "none", "none", "none"});
+    full["T1"]["remain_len"] = json::array({"300", "-1", "-1", "-1"});
+    full["T1"]["color_value"] = json::array({"0FF5500", "-1", "-1", "-1"});
+    CfsTestAccess::handle_status(backend, make_cfs_notification(full));
+    REQUIRE(backend.get_system_info().units.size() == 3);
+    REQUIRE(backend.get_slot_info(0).color_rgb == 0xFF5500u);
+
+    json delta = json::object();
+    delta["T3"] = full["T3"];
+    delta["T3"]["filament"] = "B";
+    CfsTestAccess::handle_status(backend, make_cfs_notification(delta));
+
+    CHECK(backend.get_system_info().units.size() == 3);
+    CHECK(backend.get_slot_info(0).color_rgb == 0xFF5500u);
+}

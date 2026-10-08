@@ -320,6 +320,20 @@ select_thumbnail(const std::vector<ThumbnailInfo>& thumbnails, int target_w, int
 }
 
 /**
+ * @brief Resolve a thumbnail relative_path against the gcode file it came from
+ *
+ * "sub/dir/Foo.gcode" with ".thumbs/Foo.png" resolves to "sub/dir/.thumbs/Foo.png";
+ * a root-level file's path is unchanged.
+ */
+[[nodiscard]] inline std::string
+resolve_gcode_thumbnail_path(const std::string& thumb_relative_path,
+                             const std::string& gcode_filename) {
+    const auto slash = gcode_filename.find_last_of('/');
+    return resolve_thumbnail_path(
+        thumb_relative_path, slash == std::string::npos ? "" : gcode_filename.substr(0, slash));
+}
+
+/**
  * @brief File metadata structure (detailed file info)
  */
 struct FileMetadata {

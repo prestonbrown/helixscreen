@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../fake_moonraker_client.h"
 #include "moonraker_error.h"
+#include "moonraker_spoolman_api.h"
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -184,5 +186,59 @@ TEST_CASE("MoonrakerError::connection_lost preserves the default message and all
         CHECK(err.type == MoonrakerErrorType::CONNECTION_LOST);
         CHECK(err.method == "get_power_devices");
         CHECK(err.message == "Not connected to Moonraker");
+    }
+}
+
+// moonraker/common.py JsonRPC.execute_method sends a ServerError with status
+// 404 as code -32601 and keeps its message; "Method not found" with the same
+// code is an unregistered method.
+TEST_CASE("MoonrakerError::is_not_found reads Moonraker's not-found shapes", "[moonraker][error]") {
+    auto rpc = [](int code, const char* message) {
+        return MoonrakerError::from_json_rpc({{"code", code}, {"message", message}}, "m");
+    };
+    CHECK(rpc(-32601, "Not Found").is_not_found());
+    CHECK(rpc(-32601, "Namespace lane_data not found").is_not_found());
+    CHECK(rpc(-32601, "Key 'x' in namespace 'y' not found").is_not_found());
+    CHECK_FALSE(rpc(-32601, "Method not found").is_not_found());
+    CHECK_FALSE(rpc(-32601, "Method not found for transport WEBSOCKET").is_not_found());
+    CHECK_FALSE(rpc(500, "Internal Server Error").is_not_found());
+    CHECK_FALSE(MoonrakerError::connection_lost("m").is_not_found());
+
+    MoonrakerError http;
+    http.code = 404;
+    CHECK(http.is_not_found());
+}
+
+// Spoolman's 404 for a deleted spool reaches the client as Moonraker's -32601
+// "Not Found": that is an answer, so the caller hears "no such spool", not a
+// transport failure.
+TEST_CASE("get_spoolman_spool answers a deleted spool as not found", "[moonraker][spoolman]") {
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerSpoolmanAPI api(client);
+    int found_none = 0;
+    int errors = 0;
+    api.get_spoolman_spool(
+        7,
+        [&](const std::optional<SpoolInfo>& spool) {
+            if (!spool) {
+                ++found_none;
+            }
+        },
+        [&](const MoonrakerError&) { ++errors; });
+    REQUIRE(client.rpc_calls.size() == 1);
+    auto& error_cb = client.rpc_calls.back().error_cb;
+    REQUIRE(error_cb);
+
+    SECTION("Not Found is the spool's absence") {
+        error_cb(MoonrakerError::from_json_rpc({{"code", -32601}, {"message", "Not Found"}},
+                                               "server.spoolman.proxy"));
+        CHECK(found_none == 1);
+        CHECK(errors == 0);
+    }
+    SECTION("an unregistered spoolman component stays an error") {
+        error_cb(MoonrakerError::from_json_rpc({{"code", -32601}, {"message", "Method not found"}},
+                                               "server.spoolman.proxy"));
+        CHECK(found_none == 0);
+        CHECK(errors == 1);
     }
 }

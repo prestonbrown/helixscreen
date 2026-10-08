@@ -6,6 +6,7 @@
 #include "ui_emergency_stop.h"
 #include "ui_update_queue.h"
 
+#include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
 #include "host_identity.h"
@@ -21,6 +22,35 @@
 #include <string>
 
 using namespace helix;
+
+namespace {
+
+/// Points the live client at the host and port the active printer's config names.
+void reconnect_to_configured_host() {
+    Config* config = Config::get_instance();
+    const std::string host = config->get<std::string>(config->df() + "moonraker_host", "");
+    const int port = config->get<int>(config->df() + "moonraker_port", 7125);
+
+    IMoonrakerClient* client = get_moonraker_client();
+    MoonrakerManager* manager = get_moonraker_manager();
+    if (!client || !manager) {
+        spdlog::error("[ChangeHostModal] Cannot reconnect - client or manager unavailable");
+        return;
+    }
+
+    // The teardown below looks exactly like an unexpected drop; suppress the
+    // recovery dialog so an intentional switch doesn't raise one.
+    EmergencyStopOverlay::instance().suppress_recovery_dialog(RecoverySuppression::SHORT);
+    client->disconnect();
+
+    const std::string ws_url = "ws://" + host + ":" + std::to_string(port) + "/websocket";
+    const std::string http_url = "http://" + host + ":" + std::to_string(port);
+
+    spdlog::info("[ChangeHostModal] Reconnecting to {}:{}", host, port);
+    manager->connect(ws_url, http_url);
+}
+
+} // namespace
 
 // Static member initialization
 bool ChangeHostModal::callbacks_registered_ = false;
@@ -64,6 +94,7 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent) {
     bool result = show(parent);
     if (result && dialog()) {
         // Reset state
+        client_borrowed_ = false;
         lv_subject_set_int(&testing_subject_, 0);
         lv_subject_set_int(&validated_subject_, 0);
 
@@ -103,6 +134,14 @@ void ChangeHostModal::on_hide() {
     // Base class already called lifetime_.invalidate()
 
     active_instance_ = nullptr;
+
+    // A test left the client on the typed host. Every way out but Save puts it back on the
+    // saved one; deferred past the exit animation like Save's reconnect.
+    if (client_borrowed_) {
+        client_borrowed_ = false;
+        helix::ui::queue_update("ChangeHostModal::restore_saved_host",
+                                [] { reconnect_to_configured_host(); });
+    }
 
     // Remove observers NOW rather than relying on auto-removal when dialog
     // widget is deleted after exit animation.
@@ -187,6 +226,7 @@ void ChangeHostModal::handle_test_connection() {
 
     EmergencyStopOverlay::instance().suppress_recovery_dialog(RecoverySuppression::NORMAL);
     client->disconnect();
+    client_borrowed_ = true;
 
     // Cancel any in-flight test callbacks, get fresh token
     lifetime_.invalidate();
@@ -274,7 +314,8 @@ void ChangeHostModal::handle_save() {
         return;
     }
 
-    // Save to config
+    // Save to config. The client reconnects to the new host, so there is nothing to restore.
+    client_borrowed_ = false;
     Config* config = Config::get_instance();
     if (config) {
         config->set(config->df() + "moonraker_host", std::string(ip));
@@ -405,31 +446,13 @@ void show_change_host_modal(std::function<void(bool changed)> extra_on_complete)
             return;
         }
 
-        Config* config = Config::get_instance();
-        const std::string host = config->get<std::string>(config->df() + "moonraker_host", "");
-        const int port = config->get<int>(config->df() + "moonraker_port", 7125);
-
         if (extra) {
             extra(true);
         }
-
-        IMoonrakerClient* client = get_moonraker_client();
-        MoonrakerManager* manager = get_moonraker_manager();
-        if (!client || !manager) {
-            spdlog::error("[ChangeHostModal] Cannot reconnect - client or manager unavailable");
-            return;
-        }
-
-        // The teardown below looks exactly like an unexpected drop; suppress the
-        // recovery dialog so an intentional switch doesn't raise one.
-        EmergencyStopOverlay::instance().suppress_recovery_dialog(RecoverySuppression::SHORT);
-        client->disconnect();
-
-        const std::string ws_url = "ws://" + host + ":" + std::to_string(port) + "/websocket";
-        const std::string http_url = "http://" + host + ":" + std::to_string(port);
-
-        spdlog::info("[ChangeHostModal] Reconnecting to {}:{}", host, port);
-        manager->connect(ws_url, http_url);
+        // A new host is a different printer, and its discovery builds AMS backends only
+        // when none exist.
+        AmsState::instance().clear_backends();
+        reconnect_to_configured_host();
     });
 
     modal->show_modal(lv_screen_active());

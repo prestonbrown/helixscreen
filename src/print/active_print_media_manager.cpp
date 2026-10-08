@@ -555,6 +555,8 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                 }
 
                 spdlog::debug("[ActivePrintMediaManager] Found thumbnail: {}", thumbnail_rel_path);
+                const std::string resolved_thumb_path =
+                    resolve_gcode_thumbnail_path(thumbnail_rel_path, metadata_filename);
 
 #if defined(HELIX_PLATFORM_ESP32)
                 // ESP32 (Task 11 R2): no disk thumbnail cache on this platform
@@ -566,17 +568,6 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                 // shared no_thumbnail_placeholder() (benchy) on this platform; the
                 // real image arrives via print_psram_thumb_gen, whose observer
                 // replaces the placeholder src with the PSRAM descriptor.
-                //
-                // Moonraker's thumbnail relative_path is relative to the gcode
-                // file's PARENT directory, so a print from a subdirectory needs
-                // that directory prepended before the path can be downloaded.
-                std::string gcode_dir;
-                const auto slash_pos = metadata_filename.find_last_of('/');
-                if (slash_pos != std::string::npos) {
-                    gcode_dir = metadata_filename.substr(0, slash_pos);
-                }
-                const std::string resolved_thumb_path =
-                    resolve_thumbnail_path(thumbnail_rel_path, gcode_dir);
                 constexpr size_t ESP32_THUMBNAIL_MAX_BYTES = 512 * 1024;
 
                 // MANDATORY threading: EspHttpLane invokes on_success/on_error
@@ -650,7 +641,7 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                 // cache boundary; our success callback re-checks it after marshalling
                 // because the cache's guard alone says nothing about `this`.
                 ThumbnailRequest req;
-                req.key = thumbnail_rel_path;
+                req.key = resolved_thumb_path;
                 req.target =
                     helix::ThumbnailProcessor::get_target_for_display(helix::ThumbnailSize::Detail);
                 req.api = api_;

@@ -1623,6 +1623,13 @@ class AmsState {
     /** @brief Set "Currently Loaded" subjects to default/empty state with guards */
     void set_current_loaded_defaults();
 
+    /// Every backend-derived subject back to its init_subjects() value.
+    void reset_backend_subjects();
+
+    /// Slot subjects from @p first_unused on back to their empty defaults.
+    /// @return true if any value a lane widget redraws from changed.
+    bool clear_unused_slot_subjects(int first_unused);
+
     /** @brief Sync clog detection meter subjects from system info */
     void sync_clog_meter_from_info(const AmsSystemInfo& info);
 

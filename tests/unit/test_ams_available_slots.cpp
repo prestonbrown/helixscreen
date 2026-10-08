@@ -111,3 +111,72 @@ TEST_CASE_METHOD(LVGLTestFixture, "an assigned but empty lane still flattens to 
     ams.clear_backends();
     ams.deinit_subjects();
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "clear_backends closes the home widget gates the departed backend opened",
+                 "[ams][ams_state][multi-printer]") {
+    // A live printer switch clears the backends and keeps the home grid; a slot count left
+    // behind keeps the Multi-Filament card on a printer that has no filament system.
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    ams.set_backend(std::make_unique<AmsBackendMock>(4));
+    ams.sync_from_backend();
+    REQUIRE(lv_subject_get_int(ams.get_slot_count_subject()) == 4);
+
+    ams.clear_backends();
+
+    CHECK(lv_subject_get_int(ams.get_slot_count_subject()) == 0);
+    ams.deinit_subjects();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "clear_backends returns every backend subject to its default",
+                 "[ams][ams_state][multi-printer]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    auto* mock_ptr = mock.get();
+    mock_ptr->set_operation_delay(0);
+    ams.set_backend(std::move(mock));
+    mock_ptr->start();
+    ams.sync_from_backend();
+    REQUIRE(lv_subject_get_int(ams.get_ams_type_subject()) != static_cast<int>(AmsType::NONE));
+    REQUIRE(lv_subject_get_int(ams.get_slot_count_subject()) == 4);
+    REQUIRE(lv_subject_get_int(ams.get_slot_color_subject(0)) !=
+            static_cast<int>(AMS_DEFAULT_SLOT_COLOR));
+    REQUIRE(std::string(lv_subject_get_string(ams.get_ams_system_name_subject())) != "");
+    const int slots_version = lv_subject_get_int(ams.get_slots_version_subject());
+
+    mock_ptr->stop();
+    ams.clear_backends();
+
+    CHECK(lv_subject_get_int(ams.get_ams_type_subject()) == static_cast<int>(AmsType::NONE));
+    CHECK(lv_subject_get_int(ams.get_is_filament_system_subject()) == 0);
+    CHECK(lv_subject_get_int(ams.get_is_tool_changer_subject()) == 0);
+    CHECK(lv_subject_get_int(ams.get_backend_count_subject()) == 0);
+    CHECK(lv_subject_get_int(ams.get_slot_count_subject()) == 0);
+    CHECK(lv_subject_get_int(ams.get_supports_bypass_subject()) == 0);
+    CHECK(lv_subject_get_int(ams.get_bypass_active_subject()) == 0);
+    CHECK(lv_subject_get_int(ams.get_current_slot_subject()) == -1);
+    CHECK(lv_subject_get_int(ams.get_pending_target_slot_subject()) == -1);
+    CHECK(lv_subject_get_int(ams.get_current_tool_subject()) == -1);
+    CHECK(lv_subject_get_int(ams.get_ams_action_subject()) == static_cast<int>(AmsAction::IDLE));
+    CHECK(lv_subject_get_int(ams.get_filament_loaded_subject()) == 0);
+    CHECK(lv_subject_get_int(ams.get_toolchange_visible_subject()) == 0);
+    CHECK(lv_subject_get_int(ams.get_dryer_supported_subject()) == 0);
+    CHECK(lv_subject_get_int(ams.get_path_filament_segment_subject()) ==
+          static_cast<int>(PathSegment::NONE));
+    CHECK(std::string(lv_subject_get_string(ams.get_ams_system_name_subject())).empty());
+    CHECK(lv_subject_get_pointer(ams.get_ams_system_logo_subject()) == nullptr);
+    CHECK(std::string(lv_subject_get_string(ams.get_current_material_text_subject())) == "---");
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        CHECK(lv_subject_get_int(ams.get_slot_color_subject(i)) ==
+              static_cast<int>(AMS_DEFAULT_SLOT_COLOR));
+        CHECK(lv_subject_get_int(ams.get_slot_status_subject(i)) ==
+              static_cast<int>(SlotStatus::UNKNOWN));
+        CHECK(std::string(lv_subject_get_string(ams.get_slot_material_subject(i))).empty());
+    }
+    // Lane widgets redraw from the version, so the clear must announce itself.
+    CHECK(lv_subject_get_int(ams.get_slots_version_subject()) != slots_version);
+    ams.deinit_subjects();
+}

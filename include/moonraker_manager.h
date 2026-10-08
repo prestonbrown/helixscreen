@@ -28,6 +28,9 @@ namespace helix {
 class PrinterState;
 }
 class PrintStartCollector;
+namespace helix {
+class MoonrakerManagerTestAccess;
+}
 
 // Need full enum definition for inline helper function
 #include "printer_state.h"
@@ -375,6 +378,8 @@ class MoonrakerManager {
     helix::MacroModificationManager* macro_analysis() const;
 
   private:
+    friend class helix::MoonrakerManagerTestAccess;
+
     // Initialization helpers
     void create_client(const RuntimeConfig& runtime_config);
     void configure_timeouts(helix::Config* config);

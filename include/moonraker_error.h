@@ -43,6 +43,22 @@ struct MoonrakerError {
     }
 
     /**
+     * @brief Did Moonraker answer that the thing asked for does not exist?
+     *
+     * Moonraker's JSON-RPC layer turns a ServerError with status 404 into code
+     * -32601 and keeps its message: a database key or namespace ("Namespace
+     * <ns> not found"), or Spoolman's own 404 through the proxy ("Not Found").
+     * The same code with "Method not found" means the method itself is not
+     * registered, which says nothing about the thing asked for.
+     */
+    bool is_not_found() const {
+        if (code == 404) {
+            return true;
+        }
+        return code == -32601 && message.rfind("Method not found", 0) != 0;
+    }
+
+    /**
      * @brief Get string representation of error type
      * @return Error type as string (e.g., "TIMEOUT", "CONNECTION_LOST")
      */
