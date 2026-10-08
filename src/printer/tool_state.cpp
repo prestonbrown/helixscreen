@@ -22,6 +22,7 @@
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "printer_cache_registry.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
 #include "static_subject_registry.h"
@@ -109,6 +110,11 @@ void ToolState::init_subjects(bool register_xml) {
     // Self-register cleanup — ensures deinit runs before lv_deinit()
     StaticSubjectRegistry::instance().register_deinit(
         "ToolState", []() { ToolState::instance().deinit_subjects(); });
+
+    // Spool assignments belong to the printer they were loaded from; the next one loads
+    // its own.
+    helix::PrinterCacheRegistry::instance().register_invalidator(
+        "ToolState", []() { ToolState::instance().spool_assignments_loaded_ = false; });
 
     spdlog::trace("[ToolState] Subjects initialized successfully");
 }

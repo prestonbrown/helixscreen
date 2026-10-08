@@ -13,6 +13,7 @@
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "printer_cache_registry.h"
 #include "printer_discovery.h"
 #include "tool_state.h"
 
@@ -1545,6 +1546,27 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: spool_assignments_loaded set afte
     ts.load_spool_assignments(nullptr);
 
     REQUIRE(ts.spool_assignments_loaded());
+
+    ts.deinit_subjects();
+}
+
+TEST_CASE_METHOD(ToolStateFixture,
+                 "ToolState: a printer switch lets the next printer load its own spools",
+                 "[tool][tool-state][spool][multi-printer]") {
+    lv_init_safe();
+    auto& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+
+    ts.load_spool_assignments(nullptr);
+    REQUIRE(ts.spool_assignments_loaded());
+
+    // printer_switch_flow fires every registered invalidator on a switch, on desktop and
+    // the firmware alike. Only ToolState's fires here: other tests leave entries that
+    // point at objects they have since destroyed.
+    REQUIRE(helix::PrinterCacheRegistry::instance().invalidate_one("ToolState"));
+
+    CHECK_FALSE(ts.spool_assignments_loaded());
 
     ts.deinit_subjects();
 }
