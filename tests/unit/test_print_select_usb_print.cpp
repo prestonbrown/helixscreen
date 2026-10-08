@@ -208,6 +208,28 @@ TEST_CASE_METHOD(UsbPrintFixture,
     CHECK(fs::exists(local_path()));
 }
 
+TEST_CASE_METHOD(UsbPrintFixture,
+                 "a USB file still open after its stick is pulled asks Moonraker to delete nothing",
+                 "[usb][print_select][usb_delete]") {
+    PlantedGcode printer_file(kName);
+    REQUIRE(printer_file.on_disk());
+
+    // Pulling the last stick puts the panel back on the Printer source while
+    // the USB file stays selected.
+    static_cast<UsbBackendMock*>(usb_.get_backend())->simulate_drive_remove(root_.string());
+    panel_->on_usb_drive_removed();
+    drain();
+    lv_subject_t* is_usb = lv_xml_get_subject(nullptr, "print_source_is_usb");
+    REQUIRE(is_usb != nullptr);
+    REQUIRE(lv_subject_get_int(is_usb) == 0);
+
+    panel_->show_delete_confirmation();
+    panel_->delete_file();
+    drain();
+
+    CHECK(printer_file.on_disk());
+}
+
 TEST_CASE_METHOD(UsbPrintFixture, "a USB file is copied to Moonraker before it prints",
                  "[usb][print_select][usb_print]") {
     panel_->start_print(/*force=*/true);
