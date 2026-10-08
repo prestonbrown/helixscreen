@@ -82,6 +82,10 @@ void set_overlay_width_unmanaged(lv_obj_t* overlay);
 /// Swap the base panel. See NavigationManager::set_active().
 void set_active(PanelId panel_id);
 
+/// Deactivate the current panel and overlay and clear the navigation registries. See
+/// NavigationManager::shutdown().
+void shutdown();
+
 /// True when @p panel is the topmost stack entry, so go_back() would pop it.
 bool is_on_top(lv_obj_t* panel);
 

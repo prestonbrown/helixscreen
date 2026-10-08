@@ -2073,6 +2073,10 @@ void set_active(PanelId panel_id) {
     NavigationManager::instance().set_active(panel_id);
 }
 
+void shutdown() {
+    NavigationManager::instance().shutdown();
+}
+
 bool is_on_top(lv_obj_t* panel) {
     return NavigationManager::instance().is_panel_on_top(panel);
 }

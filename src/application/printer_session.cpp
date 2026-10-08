@@ -7,7 +7,7 @@
 #include "ui_keyboard_manager.h"
 #include "ui_language_refresh.h"
 #include "ui_modal.h"
-#include "ui_nav_manager.h"
+#include "ui_nav.h"
 #include "ui_notification.h"
 #include "ui_notification_history.h"
 #include "ui_notification_manager.h"
@@ -667,7 +667,7 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
     set_temperature_history_manager(nullptr);
 
     // Deactivate overlays and clear navigation registries
-    NavigationManager::instance().shutdown();
+    helix::nav::shutdown();
 
     // Detach page-scroll-buttons controllers (gutters + observers) while panel widgets are
     // still alive, before m_panels.reset() / destroy_all() tear down the containers they
