@@ -184,7 +184,18 @@ inner() {
     [ "$status" -eq 0 ]
     [ "$(printf '%s\n' "${lines[@]:0:5}")" = "$(printf '%s\n' run -e JOBPOOL_SLOTS -e IDF_PY_BUILD_JOBS=5)" ]
     contains "ENV JOBPOOL_SLOTS=5" "$output"
-    grep -q '^hold -- ' "$FAKE_LOG"
+    # A third of the fake pool's target of 7: an ESP32 build on a busy pool
+    # waits for a floor instead of running on one slot.
+    grep -q '^hold --min 2 -- ' "$FAKE_LOG"
+}
+
+@test "hold defaults its floor to a third of the pool, capped by -n, unless --min is given" {
+    fake_pool
+    run "$CLAIM" hold -- true
+    [ "$status" -eq 0 ]
+    run "$CLAIM" hold -n 1 -- true
+    run "$CLAIM" hold --min 5 -- true
+    [ "$(cat "$FAKE_LOG" | grep '^hold')" = "$(printf '%s\n' 'hold --min 2 -- true' 'hold -n 1 --min 1 -- true' 'hold --min 5 -- true')" ]
 }
 
 @test "pool-docker: without jobpool, with JOBPOOL=0 or when the pool will not start, the command is untouched" {

@@ -8,6 +8,25 @@
     <color name="tray_border" value="#606060"/>
     <number name="tray_bg_opa" value="100"/>
     <px name="tray_default_height" value="30"/>
+    <!-- Dry-box unit faces and glass lid, read by ams_detail_update_tray() for the active theme -->
+    <color name="tray_front_dark" value="#323234"/>
+    <color name="tray_front_light" value="#BABABA"/>
+    <color name="tray_wall_dark" value="#3A3A3B"/>
+    <color name="tray_wall_light" value="#8D8D8D"/>
+    <color name="tray_floor_dark" value="#424243"/>
+    <color name="tray_floor_light" value="#A5A5A5"/>
+    <color name="tray_back_dark" value="#2A2A2D"/>
+    <color name="tray_back_light" value="#CDCDCF"/>
+    <color name="tray_side_dark" value="#2C2C2F"/>
+    <color name="tray_side_light" value="#A0A0A2"/>
+    <color name="tray_edge_dark" value="#787A80"/>
+    <color name="tray_edge_light" value="#78787C"/>
+    <color name="tray_shell_dark" value="#3A4250"/>
+    <color name="tray_shell_light" value="#E2E8F1"/>
+    <color name="tray_glass_dark" value="#C8E1FF"/>
+    <color name="tray_glass_light" value="#466996"/>
+    <color name="tray_glass_edge_dark" value="#EBF2FF"/>
+    <color name="tray_glass_edge_light" value="#3C5A82"/>
   </consts>
   <!--
     AMS Unit Detail - Shared spool grid + tray + labels layer structure.
@@ -42,11 +61,11 @@
       </lv_obj>
       <!-- Labels Layer - renders on top of overlapping slots for 5+ gates -->
       <lv_obj name="labels_layer" width="100%" height="80" style_pad_all="0" scrollable="false" clickable="false"/>
-      <!-- Tray - visual "holder" in front of spools, positioned at bottom.
-           Height set dynamically by ams_detail_update_tray() to 1/4 of slot height. -->
+      <!-- Tray - the box's front wall, right side and glass lid, drawn in front of the
+           spools. Covers the whole container; ams_detail_update_tray() places the faces. -->
       <lv_obj name="slot_tray"
-              width="100%" height="#tray_default_height" align="bottom_mid" style_bg_opa="0" style_border_width="0"
-              style_pad_all="0" scrollable="false" clickable="false"/>
+              width="100%" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
+              clickable="false"/>
       <!-- Badge Layer - slot number badges reparented here to render in front of tray -->
       <lv_obj name="badge_layer" width="100%" height="100%" style_pad_all="0" scrollable="false" clickable="false"/>
     </lv_obj>

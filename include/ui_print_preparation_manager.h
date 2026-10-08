@@ -323,6 +323,8 @@ class PrintPreparationManager {
      * what lands in print history, so finished jobs are filed under names like
      * modified_1730824_benchy.gcode. Size is not part of the question - the
      * rewrite streams a line at a time, so a 2GB file costs what a 2KB one does.
+     * It streams through a local copy, though, so a transport that cannot keep
+     * one (ITransfersAPI::supports_local_copies) declines too.
      */
     [[nodiscard]] bool can_modify_gcode() const;
 
@@ -455,11 +457,14 @@ class PrintPreparationManager {
     [[nodiscard]] std::string
     describe_dropped_modifications(const std::vector<gcode::OperationType>& ops_to_disable) const;
 
-    /// Log and toast that this print's modifications are being dropped because
-    /// the HelixPrint plugin is absent, naming the affected features. Every
-    /// start path that declines a modification reports it through here.
-    void
-    warn_modifications_need_plugin(const std::vector<gcode::OperationType>& ops_to_disable) const;
+    /// Log and toast that this print's modifications are being dropped, naming
+    /// the affected features and why: the HelixPrint plugin is absent, or the
+    /// transport keeps no local copy to rewrite. Every start path that declines
+    /// a modification reports it through here.
+    void warn_modifications_dropped(const std::vector<gcode::OperationType>& ops_to_disable) const;
+
+    /// Whether the transport can write the local copy a rewrite streams through.
+    [[nodiscard]] bool transport_keeps_local_copies() const;
 
     /**
      * @brief Get the pre-print time estimate subject (seconds)

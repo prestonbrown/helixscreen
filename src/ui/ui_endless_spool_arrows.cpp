@@ -52,6 +52,7 @@ struct EndlessSpoolArrowsData {
     int slot_count = DEFAULT_SLOT_COUNT;
     int32_t slot_width = DEFAULT_SLOT_WIDTH;
     int32_t slot_overlap = 0; // Overlap between slots in pixels (for 5+ slots)
+    int32_t slot_offset = 0;  // Left offset of the slot row, as the slot grid lays it out
 
     // Backup slot configuration: backup_slots[source] = target (-1 = no backup)
     int backup_slots[MAX_SLOTS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
@@ -244,7 +245,7 @@ static void endless_spool_arrows_draw_cb(lv_event_t* e) {
     lv_area_t obj_coords;
     lv_obj_get_coords(obj, &obj_coords);
     int32_t height = lv_area_get_height(&obj_coords);
-    int32_t x_off = obj_coords.x1;
+    int32_t x_off = obj_coords.x1 + data->slot_offset;
     int32_t y_off = obj_coords.y1;
 
     // Collect all connections
@@ -462,6 +463,15 @@ void ui_endless_spool_arrows_set_slot_overlap(lv_obj_t* obj, int32_t overlap) {
     if (data) {
         data->slot_overlap = LV_MAX(overlap, 0);
         spdlog::trace("[EndlessSpoolArrows] Slot overlap set to {}px", data->slot_overlap);
+        lv_obj_invalidate(obj);
+    }
+}
+
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_endless_spool_arrows_set_slot_offset(lv_obj_t* obj, int32_t offset) {
+    auto* data = get_data(obj);
+    if (data && data->slot_offset != offset) {
+        data->slot_offset = offset;
         lv_obj_invalidate(obj);
     }
 }

@@ -739,9 +739,16 @@ bool PrintPreparationManager::can_modify_gcode() const {
     // Pre-print modifications rewrite the job file, and the plugin is what puts
     // the original filename back in Moonraker's history afterwards. Without it
     // finished jobs are listed as ".helix_temp/modified_1766807545p_name.gcode",
-    // so we decline rather than clutter the history.
+    // so we decline rather than clutter the history. The rewrite also streams
+    // through a local copy, which some transports cannot keep.
     return printer_state_ != nullptr &&
-           printer_state_->plugin_status_state().service_has_helix_plugin();
+           printer_state_->plugin_status_state().service_has_helix_plugin() &&
+           transport_keeps_local_copies();
+}
+
+bool PrintPreparationManager::transport_keeps_local_copies() const {
+    // No API is refused where a download would start, not here.
+    return api_ == nullptr || api_->transfers().supports_local_copies();
 }
 
 // ============================================================================
@@ -949,7 +956,7 @@ void PrintPreparationManager::start_print(const std::string& filename,
     if (needs_file_modification || needs_macro_params) {
         helix::MemoryMonitor::log_now("print_modification_start", spdlog::level::debug);
         if (!can_modify_gcode()) {
-            warn_modifications_need_plugin(ops_to_disable);
+            warn_modifications_dropped(ops_to_disable);
             // Clear modifications so we fall through to normal print path
             ops_to_disable.clear();
             macro_skip_params.clear();
@@ -1080,13 +1087,26 @@ bool PrintPreparationManager::disabling_option_requires_plugin(const PrePrintOpt
     return true;
 }
 
-void PrintPreparationManager::warn_modifications_need_plugin(
+void PrintPreparationManager::warn_modifications_dropped(
     const std::vector<gcode::OperationType>& ops_to_disable) const {
-    spdlog::warn("[PrintPreparationManager] No HelixPrint plugin - skipping modification, "
-                 "printing original file");
     // Name the features being dropped: "Cannot modify G-code" alone leaves the
     // user guessing which of the print dialog's controls it refers to (#1269).
     const std::string dropped = describe_dropped_modifications(ops_to_disable);
+    if (!transport_keeps_local_copies()) {
+        // Installing the plugin would change nothing here, so it goes unnamed.
+        spdlog::warn("[PrintPreparationManager] Transport keeps no local copy - skipping "
+                     "modification, printing original file");
+        if (dropped.empty()) {
+            NOTIFY_WARNING(
+                lv_tr("Modifying G-code is not available on this device. Printing original file."));
+        } else {
+            NOTIFY_WARNING(lv_tr("{} is not available on this device. Printing original file."),
+                           dropped);
+        }
+        return;
+    }
+    spdlog::warn("[PrintPreparationManager] No HelixPrint plugin - skipping modification, "
+                 "printing original file");
     if (dropped.empty()) {
         // A fixed sentence rather than an interpolated reason, so no English
         // fragment shows up in other locales.
@@ -1447,7 +1467,7 @@ void PrintPreparationManager::continue_print_start(
     } else if (can_modify_gcode()) {
         modify_and_print(filename, ops_to_disable, {}, on_navigate_to_status);
     } else {
-        warn_modifications_need_plugin(ops_to_disable);
+        warn_modifications_dropped(ops_to_disable);
         start_print_directly(filename, on_navigate_to_status, on_completion);
     }
 }
@@ -1907,6 +1927,14 @@ void PrintPreparationManager::modify_and_print_with_remap(
         spdlog::error("[PrintPreparationManager] modify_and_print_with_remap: no API");
         NOTIFY_ERROR(lv_tr("Cannot remap: internal error"));
         abandon_start("remap_internal_error");
+        return;
+    }
+
+    // Printing the original instead would run the job on the tools the user just
+    // remapped away from, so this refuses rather than falls back.
+    if (!transport_keeps_local_copies()) {
+        NOTIFY_ERROR(lv_tr("Remapping G-code is not available on this device."));
+        abandon_start("remap_no_local_copies");
         return;
     }
 

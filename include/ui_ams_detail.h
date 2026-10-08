@@ -7,6 +7,7 @@
 #include "ui_ams_slot_layout.h"
 #include "ui_insert_notice.h"
 
+#include "ams_tray_projection.h"
 #include "ams_types.h"
 #include "lvgl/lvgl.h"
 
@@ -75,7 +76,8 @@ void ams_detail_destroy_slots(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int
  * @brief Size tray to 1/4 of slot grid height (minimum 20px) with 3D box effect
  * @param w Widget pointers — uses slot_grid height and positions slot_tray
  */
-void ams_detail_update_tray(AmsDetailWidgets& w);
+void ams_detail_update_tray(AmsDetailWidgets& w, lv_obj_t* const slot_widgets[] = nullptr,
+                            int slot_count = 0, int unit_index = -1);
 
 /**
  * @brief Move material labels to overlay layer for 5+ overlapping slots
@@ -130,6 +132,15 @@ void ams_detail_pre_show_env_indicator(AmsDetailWidgets& w, int unit_index);
 
 namespace helix {
 namespace ui {
+
+/// Slot sizing for the detail view: in a box, spools stand at the tray pitch
+/// (ams_tray_projection.h) instead of spreading across the width.
+AmsSlotLayout ams_detail_slot_layout(int32_t available_width, int slot_count);
+
+/// The box, lid and lane lids the last ams_detail_update_tray() laid out,
+/// relative to the slot_container. False when no box is drawn.
+bool ams_detail_tray_geometry(tray::TrayBox& box, tray::LidMode& lid, float& lid_height,
+                              float& lane_half_width);
 /// What the path canvas's buffer box draws for one view.
 struct BufferBoxState {
     bool present = false;

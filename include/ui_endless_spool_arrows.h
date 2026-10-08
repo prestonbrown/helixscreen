@@ -77,6 +77,15 @@ void ui_endless_spool_arrows_set_slot_width(lv_obj_t* obj, int32_t width);
 void ui_endless_spool_arrows_set_slot_overlap(lv_obj_t* obj, int32_t overlap);
 
 /**
+ * @brief Set the slot row's left offset (the slot grid's centering or lead-in)
+ *
+ * @param obj The endless_spool_arrows widget
+ * @param offset Pixels from the widget's left edge to the first slot's left edge
+ */
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_endless_spool_arrows_set_slot_offset(lv_obj_t* obj, int32_t offset);
+
+/**
  * @brief Set endless spool configuration
  *
  * Provides the backup slot mappings for visualization.

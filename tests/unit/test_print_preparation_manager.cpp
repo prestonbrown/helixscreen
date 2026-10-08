@@ -146,6 +146,20 @@ TEST_CASE_METHOD(HelixTestFixture, "PrintPreparationManager: can_modify_gcode",
         CHECK(manager.can_modify_gcode());
     }
 
+    SECTION("a transport that keeps no local copy declines even with the plugin") {
+        // The rewrite streams through a downloaded copy; asking for one on such a
+        // transport fails the start instead of printing the original.
+        MockPrinter mock_printer;
+        manager.set_dependencies(&mock_printer.api, &printer_state);
+        printer_state.set_helix_plugin_installed(true);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(manager.can_modify_gcode());
+
+        mock_printer.api.transfers_mock().mock_no_local_copies();
+        CHECK_FALSE(manager.can_modify_gcode());
+        manager.set_dependencies(nullptr, nullptr);
+    }
+
     SECTION("file size does not enter into it") {
         // The rewrite streams a line at a time, so the answer cannot depend on
         // how big the file is. A size rule here is what the retired
@@ -3579,6 +3593,31 @@ TEST_CASE_METHOD(HelixTestFixture,
     REQUIRE(downloads.size() == 1);
     CHECK_FALSE(std::filesystem::exists(downloads[0]));
     CHECK_FALSE(std::filesystem::exists(uploads[0].local_path));
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: a remap on a transport without local copies is refused",
+                 "[print_preparation][remap]") {
+    lv_init_safe();
+    MockPrinter mock_printer;
+    auto& state = mock_printer.state;
+    auto& api = mock_printer.api;
+    api.transfers_mock().mock_no_local_copies();
+
+    PrintPreparationManager manager;
+    manager.set_dependencies(&api, &state);
+    state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
+
+    manager.modify_and_print_with_remap(kRemapFixture, {{1, 2}}, nullptr);
+    drain_until_quiet();
+
+    // Printing the original would run the job on the tools the user remapped
+    // away from: nothing is downloaded and nothing starts.
+    CHECK(api.transfers_mock().download_destinations().empty());
+    CHECK(api.job_mock().started_prints().empty());
+    CHECK(api.job_mock().modified_prints().empty());
+    CHECK_FALSE(state.print_state().has_preparing_job());
+    CHECK(state.print_state().last_preparing_exit() == helix::PreparingExit::Failed);
 }
 
 TEST_CASE_METHOD(HelixTestFixture,

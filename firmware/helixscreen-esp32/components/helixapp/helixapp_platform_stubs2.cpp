@@ -15,6 +15,7 @@
 #include "ethernet_manager.h"
 #include "filament_display_name.h"
 #include "gcode_data_source.h"
+#include "helix_psram_attr.h"
 #include "host_identity.h"
 #include "hv/WebSocketClient.h"
 #include "ipp_printer.h"
@@ -489,9 +490,10 @@ void TelemetryManager::notify_setting_changed(const std::string&, const std::str
 
 // --- UpdateChecker (libhv HTTPS to GitHub/R2; worker thread) -----------------
 // Private ctor is header-inline (= default); only the declared dtor needs a
-// definition for the function-local static.
+// definition for the function-local static, which lives in PSRAM: ~3.4KB of
+// members no checker uses here.
 UpdateChecker& UpdateChecker::instance() {
-    static UpdateChecker checker;
+    static HELIX_PSRAM_BSS UpdateChecker checker;
     return checker;
 }
 UpdateChecker::~UpdateChecker() = default;

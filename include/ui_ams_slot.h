@@ -121,6 +121,18 @@ void ui_ams_slot_move_label_to_layer(lv_obj_t* obj, lv_obj_t* labels_layer, int3
  */
 void ui_ams_slot_detach_layers(lv_obj_t* obj);
 
+/**
+ * @brief Show the lane's own humidity (droplet + value) above its material label
+ *
+ * Used under a per-lane lid; the value follows ui_ams_slot_refresh().
+ */
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_set_lane_humidity_visible(lv_obj_t* obj, bool visible);
+
+/// The slot's lane-humidity row (droplet icon, then the value), or nullptr.
+// NAMESPACE_OK: the widget's C API, beside its siblings
+lv_obj_t* ui_ams_slot_get_lane_humidity(lv_obj_t* obj);
+
 void ui_ams_slot_move_badge_to_layer(lv_obj_t* obj, lv_obj_t* badge_layer, int32_t slot_center_x);
 
 /**

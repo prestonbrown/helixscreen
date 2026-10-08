@@ -28,11 +28,12 @@
   <view name="card_root"
         extends="ui_card" height="#card_height" style_flex_basis="#card_base_width" flex_grow="1"
         style_min_width="#card_min_width" style_max_width="#card_max_width" style_pad_all="0" style_border_width="0"
-        style_radius="#border_radius" clickable="true">
+        style_radius="#border_radius" style_bg_opa="0" clickable="true">
     <!-- Pre-rendered gradient background (LVGL native .bin for instant blitting)
          Source updated at runtime by C++ based on theme mode (dark/light) and card size.
          Rendered at the card's exact size, so it draws 1:1: a stretched image lays the
-         whole screen out on every source change, once per card as the pool is built. -->
+         whole screen out on every source change, once per card as the pool is built.
+         It covers the whole card, so card_root paints no fill of its own. -->
     <lv_image name="gradient_bg" width="100%" height="100%"/>
     <!-- Thumbnail image - pre-scaled to exact display size via ThumbnailProcessor.
          Widget dimensions set by C++ to match .bin target (e.g. 160x160 for 800px),
@@ -64,23 +65,16 @@
       <!-- Hidden for directories via folder_type_subject binding in C++ -->
       <lv_obj name="metadata_row"
               width="100%" height="content" style_pad_all="0" style_pad_top="#metadata_top_pad" flex_flow="row"
-              style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-        <!-- Print time (icon + text).
-             height="content", NOT a percentage: metadata_row is itself content-sized, so
-             height="100%" makes the two depend on each other and both collapse to zero. -->
-        <lv_obj height="content"
-                flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_gap="#icon_text_gap"
-                style_flex_cross_place="center" clickable="false" event_bubble="true">
-          <icon src="clock" size="xs" variant="primary"/>
-          <text_xs name="time_label" text="$print_time" flex_grow="1" style_translate_y="2"/>
-        </lv_obj>
-        <!-- Filament weight (icon + text) -->
-        <lv_obj height="content"
-                flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_gap="#icon_text_gap"
-                style_flex_cross_place="center" clickable="false" event_bubble="true">
-          <icon src="weight" size="xs" variant="primary"/>
-          <text_xs name="filament_label" text="$filament_weight" flex_grow="1" style_translate_y="2"/>
-        </lv_obj>
+              style_pad_gap="0" style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
+        <!-- Print time and filament weight, each an icon + text pair placed straight in
+             this row: every object here is walked once per render band, so the pairs
+             get no container of their own. The icons' margins give the two different
+             gaps (a grown item's margin is not taken out of the space it grows into),
+             and each label takes half the spare width. -->
+        <icon src="clock" size="xs" variant="primary" style_margin_right="#icon_text_gap"/>
+        <text_xs name="time_label" text="$print_time" flex_grow="1" style_translate_y="2"/>
+        <icon src="weight" size="xs" variant="primary" style_margin_left="#space_xs" style_margin_right="#icon_text_gap"/>
+        <text_xs name="filament_label" text="$filament_weight" flex_grow="1" style_translate_y="2"/>
       </lv_obj>
     </lv_obj>
   </view>

@@ -5,6 +5,7 @@
 // docs/devel/ESP32_NATIVE_AUDIT.md, with the reason it is legitimately
 // platform-bound (or a note that Phase 2 must port it for real).
 
+#include "helix_psram_attr.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "system/crash_handler.h"
@@ -16,8 +17,10 @@
 // The real src/app_globals.cpp is the Linux app-lifecycle hub (includes
 // <SDL.h>, MoonrakerAPI wiring, signal handling). The slice needs only the
 // PrinterState singleton accessor; definition copied from its pattern.
+// ~13KB: PSRAM keeps it out of internal DRAM. App state, constructed on first
+// call, never touched by DMA or an ISR.
 helix::PrinterState& get_printer_state() {
-    static helix::PrinterState instance;
+    static HELIX_PSRAM_BSS helix::PrinterState instance;
     return instance;
 }
 
@@ -52,8 +55,9 @@ void register_previous_tag_ring(volatile const char* const*, volatile const uint
 // --- telemetry seam (Task 2 bucket D: hv/requests.h) -----------------------
 // Telemetry posts over libhv HTTP; a port would use esp_http_client. The
 // subject pipeline calls notify_* hooks unconditionally — no-op them.
+// ~8.6KB of members this seam never uses: PSRAM, not internal DRAM.
 TelemetryManager& TelemetryManager::instance() {
-    static TelemetryManager t;
+    static HELIX_PSRAM_BSS TelemetryManager t;
     return t;
 }
 TelemetryManager::~TelemetryManager() = default;

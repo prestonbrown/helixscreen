@@ -1074,7 +1074,7 @@ void AmsOverviewPanel::create_detail_slots(const AmsUnit& unit) {
                              result.layout);
     ams_detail_update_badges(detail_widgets_, detail_slot_widgets_, result.slot_count,
                              result.layout);
-    ams_detail_update_tray(detail_widgets_);
+    ams_detail_update_tray(detail_widgets_, detail_slot_widgets_, result.slot_count, unit_index);
 
     spdlog::debug("[{}] Created {} detail slots via shared helpers", get_name(), result.slot_count);
 }

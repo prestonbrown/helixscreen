@@ -386,6 +386,15 @@ class MoonrakerFileTransferAPIMock : public MoonrakerFileTransferAPI {
         return download_destinations_;
     }
 
+    /// Answer supports_local_copies() as a transport with nowhere to keep a
+    /// downloaded file does.
+    void mock_no_local_copies(bool none = true) {
+        no_local_copies_ = none;
+    }
+    bool supports_local_copies() const override {
+        return !no_local_copies_;
+    }
+
     /// Make every later upload_file_from_path() call on_error instead of
     /// on_success. The call is still recorded, so a test can assert both that
     /// the upload was attempted and that its failure was handled.
@@ -450,6 +459,7 @@ class MoonrakerFileTransferAPIMock : public MoonrakerFileTransferAPI {
     /// When set, upload_file_from_path() reports failure instead of success
     bool fail_path_uploads_ = false;
     bool hold_path_uploads_ = false;
+    bool no_local_copies_ = false;
     std::vector<SuccessCallback> held_path_uploads_;
 };
 

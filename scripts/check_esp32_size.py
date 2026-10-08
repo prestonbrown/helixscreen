@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Fail if the ESP32 app image exceeds its budget, or if the link pulled in
-libstdc++'s std::locale machinery or any exception-handling support. Usage:
+"""Fail if the ESP32 app image exceeds its budget, if its internal-DRAM static
+data outgrows its ceiling, or if the link pulled in libstdc++'s std::locale
+machinery or any exception-handling support. Usage:
    check_esp32_size.py build/helixscreen_esp32.bin firmware/helixscreen-esp32/size_budget.json \\
        [build/helixscreen_esp32.map]"""
 import json
@@ -48,10 +49,62 @@ def inclusion_chain(map_text: str, member: str) -> list[str]:
     return chain
 
 
+# Internal-DRAM output sections. Static data placed here is taken from the
+# internal heap before any task runs, and the WiFi driver allocates its RX
+# buffers there at start-up: 14KB of statics is enough to leave it unable to
+# associate. A large static belongs in PSRAM (HELIX_PSRAM_BSS) or the heap.
+DRAM_SECTIONS = {".dram0.bss": "dram_bss_max_bytes", ".dram0.data": "dram_data_max_bytes"}
+LARGEST_SHOWN = 8
+
+
+def section_size(map_text: str, name: str):
+    m = re.search(rf"^{re.escape(name)}\s+0x[0-9a-f]+\s+0x([0-9a-f]+)", map_text, re.M)
+    return int(m.group(1), 16) if m else None
+
+
+def largest_inputs(map_text: str, name: str, count: int) -> list[tuple[int, str, str]]:
+    """The biggest input sections of an output section, as (size, section, object)."""
+    start = re.search(rf"^{re.escape(name)}\s", map_text, re.M)
+    if not start:
+        return []
+    end = re.compile(r"^\.\S", re.M).search(map_text, start.end())
+    body = map_text[start.end():end.start() if end else len(map_text)]
+    found = []
+    for m in re.finditer(r"^ (\S+)\s*\n?\s+0x[0-9a-f]+\s+0x([0-9a-f]+)\s+(\S+)", body, re.M):
+        size = int(m.group(2), 16)
+        if size:
+            obj = re.search(r"\(([^)]+)\)$", m.group(3))
+            found.append((size, m.group(1), obj.group(1) if obj else m.group(3).split("/")[-1]))
+    return sorted(found, reverse=True)[:count]
+
+
+def check_dram(map_text: str, budget: dict) -> bool:
+    ok = True
+    for name, key in DRAM_SECTIONS.items():
+        ceiling = budget.get(key)
+        size = section_size(map_text, name)
+        if ceiling is None or size is None:
+            continue
+        print(f"esp32 {name}: {size} bytes / ceiling {ceiling}")
+        if size <= ceiling:
+            continue
+        print(f"FAIL: {name} is {size} bytes, {size - ceiling} over its {ceiling}-byte ceiling. "
+              "Internal-DRAM statics shrink the heap the WiFi driver starts in. Largest:",
+              file=sys.stderr)
+        for isize, section, obj in largest_inputs(map_text, name, LARGEST_SHOWN):
+            print(f"        {isize:7d}  {section}  ({obj})", file=sys.stderr)
+        print("      Move a large static to PSRAM (HELIX_PSRAM_BSS, helix_psram_attr.h) or the "
+              "heap. Raise the ceiling in size_budget.json only after checking internal free at "
+              "boot.", file=sys.stderr)
+        ok = False
+    return ok
+
+
 def main() -> int:
     bin_path, budget_path = sys.argv[1], sys.argv[2]
     size = os.path.getsize(bin_path)
-    budget = json.load(open(budget_path))["app_max_bytes"]
+    budgets = json.load(open(budget_path))
+    budget = budgets["app_max_bytes"]
     pct = 100.0 * size / budget
     print(f"esp32 image: {size} bytes / budget {budget} ({pct:.1f}%)")
     failed = False
@@ -69,6 +122,8 @@ def main() -> int:
                   "chain with text_io.h, helix_regex.h or helix_fs.h.", file=sys.stderr)
             failed = True
         map_text = open(sys.argv[3], errors="replace").read()
+        if not check_dram(map_text, budgets):
+            failed = True
         eh_chain = inclusion_chain(map_text, EH_MEMBER)
         eh_frame = EH_FRAME_SECTION.search(map_text)
         if eh_chain or (eh_frame and int(eh_frame.group(1), 16) > 0):

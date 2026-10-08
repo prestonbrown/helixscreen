@@ -1,4 +1,7 @@
 {
   "app_max_bytes": 6610944,
-  "comment": "6.5MB OTA slot (0x680000, partitions.csv) minus 200KiB margin. Raise only with a spec change."
+  "comment": "6.5MB OTA slot (0x680000, partitions.csv) minus 200KiB margin. Raise only with a spec change.",
+  "dram_bss_max_bytes": 100208,
+  "dram_data_max_bytes": 22392,
+  "dram_comment": "Internal-DRAM static data (.dram0.bss/.data): the measured size plus 2KiB. Statics here come out of the internal heap the WiFi driver starts in; 14KB more is enough to leave it unable to associate. Raise only after checking internal free at boot."
 }

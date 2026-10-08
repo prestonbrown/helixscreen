@@ -448,6 +448,61 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_delete(container);
 }
 
+namespace {
+
+int count_objects(lv_obj_t* obj) {
+    int n = 1;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i) {
+        n += count_objects(lv_obj_get_child(obj, static_cast<int32_t>(i)));
+    }
+    return n;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(
+    LVGLUITestFixture,
+    "CardView: a card carries only the objects it draws, and no fill under its gradient",
+    "[ui][card_view][print_select]") {
+    // Rendering walks every child of a card once per display band, so each
+    // object a card carries is paid for many times over on a full repaint.
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 700, 400);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW_WRAP);
+
+    PrintSelectCardView view;
+    REQUIRE(view.setup(container, [](size_t) {}, nullptr));
+    const CardDimensions dims{4, 2, 160, 200};
+    const auto files = make_files(4);
+    view.populate(files, dims);
+    lv_obj_t* card = nullptr;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(container) && !card; ++i) {
+        lv_obj_t* child = lv_obj_get_child(container, static_cast<int32_t>(i));
+        if (lv_obj_find_by_name(child, "gradient_bg")) {
+            card = child;
+        }
+    }
+    REQUIRE(card != nullptr);
+
+    // Root, gradient, thumbnail, three state icons, overlay, filename, and the
+    // metadata row with its two icon + text pairs.
+    CHECK(count_objects(card) == 13);
+    lv_obj_t* time_label = lv_obj_find_by_name(card, "time_label");
+    REQUIRE(time_label != nullptr);
+    CHECK(lv_obj_get_parent(time_label) == lv_obj_find_by_name(card, "metadata_row"));
+
+    // The gradient covers the whole card, so a fill beneath it is never seen.
+    lv_obj_t* gradient = lv_obj_find_by_name(card, "gradient_bg");
+    REQUIRE(gradient != nullptr);
+    lv_obj_update_layout(container);
+    CHECK(lv_obj_get_width(gradient) == lv_obj_get_width(card));
+    CHECK(lv_obj_get_height(gradient) == lv_obj_get_height(card));
+    CHECK(lv_obj_get_style_bg_opa(card, LV_PART_MAIN) == LV_OPA_TRANSP);
+
+    view.cleanup();
+    lv_obj_delete(container);
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "CardView: building the pool does not lay out the grid once per card",
                  "[ui][card_view][print_select]") {

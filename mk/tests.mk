@@ -647,19 +647,16 @@ test-kiauh:
 
 # Run shell/bats tests for platform hooks and installer scripts. The parallel
 # run holds its -j as jobpool tokens (`helix-claim hold`), so it shares the
-# machine budget with compiles; without jobpool the -j is the cores. It waits
-# up to 60s for a third of the pool (`--min`): a third keeps the suite within
-# about 3x its full-pool time while leaving two thirds to compiles, and the
-# bounded wait turns a saturated pool into seconds of delay, never a serial
-# run. One slot runs serially: bats refuses --no-parallelize-within-files
-# below --jobs 2.
+# machine budget with compiles; without jobpool the -j is the cores. The hold
+# waits briefly for a third of the pool (helix-claim hold's default floor), so
+# a saturated pool delays the suite instead of running it serially. One slot
+# runs serially: bats refuses --no-parallelize-within-files below --jobs 2.
 test-shell:
 	$(ECHO) "$(CYAN)$(BOLD)Running shell tests (bats)...$(RESET)"
 	@if command -v bats >/dev/null 2>&1; then \
 		START_TIME=$$(date +%s); \
 		if command -v parallel >/dev/null 2>&1; then \
-			j=$$(scripts/helix-claim jobs 2>/dev/null || echo 3); \
-			scripts/helix-claim hold --min $$(( j / 3 > 0 ? j / 3 : 1 )) -- \
+			scripts/helix-claim hold -- \
 				sh -c '[ "$$JOBPOOL_SLOTS" -gt 1 ] || exec bats "$$@"; \
 				exec bats --jobs "$$JOBPOOL_SLOTS" --no-parallelize-within-files "$$@"' bats tests/shell/; \
 		else \

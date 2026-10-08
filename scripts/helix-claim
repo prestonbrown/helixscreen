@@ -308,12 +308,18 @@ hold)
     # starts the daemon and has its own unpooled fallback); without it
     # (CI, a Mac, a fresh clone) JOBPOOL_SLOTS is -n, or the cores.
     # --min/--min-wait pass through to jobpool; with no pool they mean nothing.
+    # With no --min, a hold waits (jobpool's bounded wait, 60s by default) for
+    # a third of the pool, capped by -n: a hold takes what is free when it
+    # starts and never grows, so on a busy pool a runner without a floor gets
+    # one slot for its whole life. A third keeps it within about 3x its
+    # full-pool time and leaves two thirds to compiles.
     usage="usage: helix-claim hold [-n N] [--min M] [--min-wait SECS] -- <cmd...>"
-    n="" pass=()
+    n="" min_given="" pass=()
     while :; do
         case ${1:-} in
             -n) [ $# -ge 2 ] || die "$usage"; n=$2; pass+=(-n "$2"); shift 2 ;;
-            --min|--min-wait) [ $# -ge 2 ] || die "$usage"; pass+=("$1" "$2"); shift 2 ;;
+            --min) [ $# -ge 2 ] || die "$usage"; min_given=1; pass+=("$1" "$2"); shift 2 ;;
+            --min-wait) [ $# -ge 2 ] || die "$usage"; pass+=("$1" "$2"); shift 2 ;;
             *) break ;;
         esac
     done
@@ -321,6 +327,11 @@ hold)
     [ $# -gt 0 ] || die "$usage"
     jp=${HELIX_JOBPOOL:-jobpool}
     if [ "${JOBPOOL:-}" != 0 ] && command -v "$jp" >/dev/null 2>&1; then
+        if [ -z "$min_given" ] && target=$(pool_target); then
+            floor=$(( target / 3 > 0 ? target / 3 : 1 ))
+            [ -n "$n" ] && [ "$floor" -gt "$n" ] && floor=$n
+            pass+=(--min "$floor")
+        fi
         exec "$jp" hold "${pass[@]}" -- "$@"
     fi
     JOBPOOL_SLOTS=${n:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}

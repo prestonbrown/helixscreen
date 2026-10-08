@@ -5,6 +5,7 @@
 
 #include "ui_utils.h"
 
+#include "ams_tray_projection.h"
 #include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
@@ -31,11 +32,9 @@
 // Geometry constants for Bambu-style 3D spool (SIDE VIEW)
 // Spool axis is HORIZONTAL - we view from an angle
 // Shows: back flange (left), filament cylinder (middle), front flange (right), hub hole (center)
-static constexpr float FLANGE_RADIUS = 0.42f; // Flange radius (vertical)
-static constexpr float ELLIPSE_RATIO =
-    0.45f;                                  // Horizontal compression (narrower = more angled view)
-static constexpr float HUB_RADIUS = 0.10f;  // Center hub hole radius
-static constexpr float SPOOL_DEPTH = 0.35f; // Depth/width of spool (distance between flanges)
+// Flange size, depth skew and flange spacing are the tray's camera
+// (ams_tray_projection.h), shared with the box and lid.
+static constexpr float HUB_RADIUS = 0.10f; // Center hub hole radius
 static constexpr int32_t DEFAULT_SIZE = 64;
 static constexpr uint32_t DEFAULT_COLOR = 0xE0E0E0; // Default white/light filament
 
@@ -440,11 +439,11 @@ static void render_spool_pixels(SpoolCanvasData* data) {
     int32_t cy = size / 2; // Vertical center
 
     // Calculate dimensions - vertical radius and horizontal (compressed) radius
-    int32_t flange_ry = (int32_t)(size * FLANGE_RADIUS);      // Vertical radius
-    int32_t flange_rx = (int32_t)(flange_ry * ELLIPSE_RATIO); // Horizontal (narrower)
+    int32_t flange_ry = (int32_t)(size * helix::ui::tray::SPOOL_FLANGE_RADIUS); // Vertical radius
+    int32_t flange_rx = (int32_t)(flange_ry * helix::ui::tray::DEPTH_SKEW); // Horizontal (narrower)
     int32_t hub_ry = (int32_t)(size * HUB_RADIUS);
-    int32_t hub_rx = (int32_t)(hub_ry * ELLIPSE_RATIO);
-    int32_t spool_width = (int32_t)(size * SPOOL_DEPTH);
+    int32_t hub_rx = (int32_t)(hub_ry * helix::ui::tray::DEPTH_SKEW);
+    int32_t spool_width = (int32_t)(size * helix::ui::tray::SPOOL_WIDTH);
 
     // X positions for left (back) and right (front) flanges
     int32_t center_x = size / 2;
@@ -456,7 +455,7 @@ static void render_spool_pixels(SpoolCanvasData* data) {
     float fill = LV_CLAMP(data->fill_level, 0.0f, 1.0f);
     int32_t max_filament_ry = (int32_t)(flange_ry * 0.85f); // Flanges 15% taller than full filament
     int32_t filament_ry = hub_ry + (int32_t)((max_filament_ry - hub_ry) * fill);
-    int32_t filament_rx = (int32_t)(filament_ry * ELLIPSE_RATIO);
+    int32_t filament_rx = (int32_t)(filament_ry * helix::ui::tray::DEPTH_SKEW);
 
     // Colors (from theme tokens)
     lv_color_t back_color = theme_manager_get_color("spool_body_shade");

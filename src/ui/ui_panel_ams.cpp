@@ -831,7 +831,7 @@ void AmsPanel::create_slots(int count) {
     setup_slot_path_observers(result.slot_count);
 
     // Update tray
-    ams_detail_update_tray(detail_widgets_);
+    ams_detail_update_tray(detail_widgets_, slot_widgets_, result.slot_count, ALL_UNITS);
 }
 
 void AmsPanel::setup_slot_path_observers(int slot_count) {
@@ -1063,14 +1063,16 @@ void AmsPanel::update_endless_arrows_from_backend() {
     // Get slot width and overlap from current layout
     int32_t slot_width = DEFAULT_SLOT_WIDTH;
     int32_t overlap = 0;
+    int32_t offset = 0;
     if (slot_grid_) {
         lv_obj_t* slot_area = lv_obj_get_parent(slot_grid_);
         if (slot_area) {
             lv_obj_update_layout(slot_area);
             int32_t available_width = lv_obj_get_content_width(slot_area);
-            auto layout = calculate_ams_slot_layout(available_width, slot_count);
+            auto layout = helix::ui::ams_detail_slot_layout(available_width, slot_count);
             slot_width = layout.slot_width > 0 ? layout.slot_width : DEFAULT_SLOT_WIDTH;
             overlap = layout.overlap;
+            offset = layout.centering_offset;
         }
     }
 
@@ -1078,6 +1080,7 @@ void AmsPanel::update_endless_arrows_from_backend() {
     ui_endless_spool_arrows_set_slot_count(endless_arrows_, slot_count);
     ui_endless_spool_arrows_set_slot_width(endless_arrows_, slot_width);
     ui_endless_spool_arrows_set_slot_overlap(endless_arrows_, overlap);
+    ui_endless_spool_arrows_set_slot_offset(endless_arrows_, offset);
     ui_endless_spool_arrows_set_config(endless_arrows_, backup_slots, slot_count);
 
     // Show the canvas

@@ -29,6 +29,8 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <unordered_map>
@@ -98,6 +100,9 @@ struct AmsSlotData {
     lv_obj_t* tool_badge_bg = nullptr;   // Tool badge background (top-left corner)
     lv_obj_t* tool_badge = nullptr;      // Tool badge label (T0, T1, etc.)
     lv_obj_t* container = nullptr;       // The ams_slot widget itself
+    lv_obj_t* lane_humidity = nullptr;   // Droplet + value row, under a per-lane lid
+    lv_obj_t* lane_humidity_text = nullptr; // The row's value
+    bool show_lane_humidity = false;
 
     // Pulsing state - when true, highlight updates are skipped to preserve animation
     bool is_pulsing = false;
@@ -219,6 +224,20 @@ static void apply_material_label(AmsSlotData* data, const char* material) {
         return;
     }
     lv_label_set_text(data->material_label, text);
+}
+
+/// The lane's own humidity reading, or "--" while its sensor has none. Read
+/// from the system info, which is where backends publish per-lane climate.
+static void apply_lane_humidity(AmsSlotData* data, AmsBackend* backend) {
+    if (!data->show_lane_humidity || !data->lane_humidity_text || !backend)
+        return;
+    char text[16] = "--";
+    const AmsSystemInfo info = backend->get_system_info();
+    const SlotInfo* slot = info.get_slot_global(data->slot_index);
+    if (slot && slot->environment && slot->environment->has_humidity)
+        snprintf(text, sizeof(text), "%d%%", (int)std::lround(slot->environment->humidity_pct));
+    // DECLARATIVE_OK: per-slot reading with no per-slot humidity subject
+    lv_label_set_text(data->lane_humidity_text, text);
 }
 
 /// Re-apply the material label from the live per-slot material subject.
@@ -697,6 +716,8 @@ static void* ams_slot_xml_create(lv_xml_parser_state_t* state, const char** attr
     data->slot_badge = helix::ui::find_required(obj, "slot_badge_label", "AmsSlot");
     data->tool_badge_bg = helix::ui::find_required(obj, "tool_badge", "AmsSlot");
     data->tool_badge = helix::ui::find_required(obj, "tool_badge_label", "AmsSlot");
+    data->lane_humidity = lv_obj_find_by_name(obj, "lane_humidity");
+    data->lane_humidity_text = lv_obj_find_by_name(obj, "lane_humidity_text");
 
     // Validate required children were found
     if (!data->spool_container || !data->lane_spool) {
@@ -880,9 +901,32 @@ void ui_ams_slot_refresh(lv_obj_t* obj) {
     if (backend) {
         SlotInfo slot = backend->get_slot_info(data->slot_index);
         apply_tool_badge(data, slot.mapped_tool, slot.tool_mapping_override);
+        apply_lane_humidity(data, backend);
     }
 
     spdlog::trace("[AmsSlot] Refreshed slot {}", data->slot_index);
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_set_lane_humidity_visible(lv_obj_t* obj, bool visible) {
+    auto* data = get_slot_data(obj);
+    if (!data || !data->lane_humidity)
+        return;
+    data->show_lane_humidity = visible;
+    // DECLARATIVE_OK: shown per slot by the detail view's lid mode, which no subject carries
+    if (visible)
+        lv_obj_remove_flag(data->lane_humidity, LV_OBJ_FLAG_HIDDEN);
+    else
+        lv_obj_add_flag(data->lane_humidity, LV_OBJ_FLAG_HIDDEN);
+    AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
+    if (visible && data->slot_index >= 0)
+        apply_lane_humidity(data, backend);
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+lv_obj_t* ui_ams_slot_get_lane_humidity(lv_obj_t* obj) {
+    auto* data = get_slot_data(obj);
+    return data ? data->lane_humidity : nullptr;
 }
 
 float ui_ams_slot_get_fill_level(lv_obj_t* obj) {

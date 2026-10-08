@@ -1113,6 +1113,39 @@ Key features:
 - Backend selector (shown when `backend_count > 1`)
 - Unit scoping: can display a subset of slots for a single unit within a multi-unit backend
 
+#### The dry-box unit (`ams_detail_update_tray`)
+
+A backend with a physical tray draws its slots as spools standing on the floor of a
+box, under a glass lid when it has any climate data. The pure math is
+`include/ams_tray_projection.h` (`helix::ui::tray`, tested by `[ams][tray]`); the
+drawing is `src/ui/ui_ams_detail.cpp`.
+
+- **One camera.** `proj(x, y, z) = (x + K*z, y - RISE*z/DZ)`: x along the row, y
+  screen-down at the front plane, z depth from the front wall (0) to the back wall (DZ).
+  `K = DEPTH_SKEW = 0.45` is also the spool flanges' ellipse ratio, so spools, box and
+  lid share one projection. `DZ = box_depth(spool)` is a spool diameter plus 10%,
+  `RISE = box_rise(DZ)` 9% of it; the back wall is `space_md` taller than the front.
+- **Box.** Behind the spools (`slot_grid` `DRAW_MAIN`): back wall, floor, left wall.
+  In front (`slot_tray` `DRAW_POST`): the translucent front wall, the right side face,
+  the edges. Its x extent comes from the slot row: the outer lane lids
+  (`lane_lid_half_width`) meet its corners. Spools stand on the floor, flange bottom
+  `SPOOL_FLOOR_GAP` above the floor's front edge, drawn at mid-depth; up to four slots
+  stand at `spool_pitch()` (72 px at 800x480) from the left, and the slot layout
+  (`ams_detail_slot_layout`) reserves the box's overhang and the readout gap.
+- **Lid.** `lid_mode()`: no physical tray, no lid; a unit reading or a supported dryer
+  gets one lid over the row; per-lane readings get one lid per lane, and each lane
+  shows its humidity behind a droplet above its material label instead of the unit
+  readout. The lid is a half ellipse on the chord from the front-wall top to the
+  back-wall top whose crest clears the spool tops by `LID_GAP`. Behind the spools a
+  tinted shell (the back wall repainted over it); in front clear glass, a denser right
+  cap, one diffuse sheen (`sheen_rows`: a blurred 7 px band at profile angle 112°,
+  fading in from the left cap and out before the right), the silhouette edge and the
+  cap rims. `reduced_effects()` keeps outlines only.
+- **Labels and readout.** Material labels sit `space_md` above `unit_top_y()` (the lid's
+  top) or, without a lid, above the back-wall top and the spool tops; the readout stands `space_md` right of the back-right
+  corner. Face and glass colors are `ams_unit_detail.xml` tokens (`tray_*_dark` and
+  `tray_*_light`).
+
 ### AMS Overview Panel (`ui_panel_ams_overview`)
 
 Grid of unit cards showing all units across the system. Each card is a miniature visualization of the unit's slots. Clicking a card transitions inline to a detail view of that unit's slots.
