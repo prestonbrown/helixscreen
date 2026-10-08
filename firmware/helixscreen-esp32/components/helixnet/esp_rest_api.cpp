@@ -364,8 +364,16 @@ void MoonrakerRestAPI::call_rest_post(const std::string&, const json&, RestCallb
     }
 }
 
-void MoonrakerRestAPI::wled_get_strips(RestCallback, ErrorCallback on_error) {
-    esp_rest_unimplemented_err("MoonrakerRestAPI::wled_get_strips", on_error);
+// No WLED on this platform: report an empty strip map, so LED discovery settles
+// without an error on every connect.
+void MoonrakerRestAPI::wled_get_strips(RestCallback on_success, ErrorCallback) {
+    if (on_success) {
+        RestResponse resp;
+        resp.success = true;
+        resp.status_code = 200;
+        resp.data = json{{"result", {{"strips", json::object()}}}};
+        on_success(resp);
+    }
 }
 
 void MoonrakerRestAPI::wled_set_strip(const std::string&, const std::string&, int, int,
