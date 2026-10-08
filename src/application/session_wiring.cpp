@@ -51,6 +51,8 @@ void wire_discovery(IMoonrakerAPI& api, IMoonrakerClient& client, DiscoveryHooks
         const uint64_t epoch = http_epoch::current();
         ui::queue_update("wire_discovery::hardware_discovered", [a, c, shared, snapshot, epoch]() {
             if (!still_current(*shared, epoch)) {
+                spdlog::debug("[Discovery] dropping hardware queued for a previous printer or a "
+                              "closed session");
                 return;
             }
             LapLog laps("hardware discovered");

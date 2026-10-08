@@ -153,6 +153,12 @@ MoonrakerManager* g_manager = nullptr;
 // When the current live switch started, for the tap-to-connected log; 0 when none is running.
 int64_t g_switch_started_us = 0;
 
+// The active printer's discoveries. auto-detect and the heater-role heal write the active
+// printer's config section, so a switch starts a new record even when the next printer has
+// the same hardware shape (two stock machines on one hostname, a printer re-added under a
+// new id).
+helix::HardwareChangeTracker g_hw_changes;
+
 // One-shot boot heap milestone. heap_caps_get_largest_free_block() walks the
 // heap in a critical section, so this is called only at discrete boot
 // milestones — never from the steady-state render loop (see the audit's
@@ -311,7 +317,10 @@ helix::PrinterSwitchFlow& switch_flow() {
     static helix::AsyncLifetimeGuard lifetime;
     static helix::PrinterSwitchFlow flow(
         config, lifetime,
-        {[] { g_switch_started_us = esp_timer_get_time(); },
+        {[] {
+             g_switch_started_us = esp_timer_get_time();
+             g_hw_changes.reset();
+         },
          [] {
              helix::LapLog laps("switch rebuild");
              if (!helix::retarget_printer_connection()) {
@@ -551,12 +560,9 @@ void setup_discovery_callbacks_esp(MoonrakerManager& manager) {
         return;
     }
 
-    // Only the steps that are pure functions of the hardware shape are gated on it, so one
-    // record serves every printer the device switches between.
-    static helix::HardwareChangeTracker s_hw_changes;
     MoonrakerManager* mgr = &manager;
     helix::wire_discovery(
-        *api, *client, {s_hw_changes, nullptr, nullptr, [mgr](helix::DiscoveryContext& ctx) {
+        *api, *client, {g_hw_changes, nullptr, nullptr, [mgr](helix::DiscoveryContext& ctx) {
                             helix::wall_clock_esp::request_date(ctx.api.get_http_base_url());
                             if (g_switch_started_us != 0) {
                                 spdlog::info("[app_boot] printer switch connected in {} ms",

@@ -19,6 +19,7 @@
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "moonraker_api.h"
+#include "print_history_manager.h"
 #include "printer_state.h"
 #include "session_wiring.h"
 #include "standard_macros.h"
@@ -51,6 +52,8 @@ struct SessionWiringFixture : public LVGLTestFixture {
     bool alive = true;
     int cycles = 0;
     std::vector<bool> passes; ///< hw_changed of each pass that reached after_core
+    int dispatches_at_after_core = -1;
+    int history_lists_at_after_core = -1;
 
     SessionWiringFixture() {
         auto& ts = helix::ToolState::instance();
@@ -58,10 +61,13 @@ struct SessionWiringFixture : public LVGLTestFixture {
         ts.init_subjects(false);
         helix::FilamentSensorManager::instance().init_subjects();
         helix::sensors::WidthSensorManager::instance().init_subjects();
-        helix::wire_discovery(
-            api, client,
-            {changes, [this] { return alive; }, [this] { ++cycles; },
-             [this](helix::DiscoveryContext& ctx) { passes.push_back(ctx.hw_changed); }});
+        helix::wire_discovery(api, client,
+                              {changes, [this] { return alive; }, [this] { ++cycles; },
+                               [this](helix::DiscoveryContext& ctx) {
+                                   passes.push_back(ctx.hw_changed);
+                                   dispatches_at_after_core = client.dispatches;
+                                   history_lists_at_after_core = history_lists();
+                               }});
     }
 
     ~SessionWiringFixture() override {
@@ -71,6 +77,14 @@ struct SessionWiringFixture : public LVGLTestFixture {
         helix::led::LedAutoState::instance().deinit();
         helix::led::LedController::instance().deinit();
         StandardMacros::instance().reset();
+    }
+
+    int history_lists() const {
+        int n = 0;
+        for (const auto& call : client.rpc_calls) {
+            n += call.method == "server.history.list" ? 1 : 0;
+        }
+        return n;
     }
 
     static void drain() {
@@ -100,6 +114,24 @@ TEST_CASE_METHOD(SessionWiringFixture,
     CHECK(client.dispatches == 1);
     CHECK(cycles == 1);
     CHECK(passes == std::vector<bool>{true});
+}
+
+TEST_CASE_METHOD(SessionWiringFixture,
+                 "after_core runs after the core steps and before the print history is released",
+                 "[session_wiring]") {
+    PrintHistoryManager history(&api, &client);
+    history.hold_until_discovery();
+    history.ensure_loaded(helix::HistoryScope::RECENT);
+    REQUIRE(history_lists() == 0);
+    set_print_history_manager(&history);
+
+    fire(discovery_of({"extruder", "heater_bed"}));
+    drain();
+    set_print_history_manager(nullptr);
+
+    CHECK(dispatches_at_after_core == 1);
+    CHECK(history_lists_at_after_core == 0);
+    CHECK(history_lists() >= 1);
 }
 
 TEST_CASE_METHOD(SessionWiringFixture, "a reconnect with the same hardware is not a change",

@@ -1512,9 +1512,10 @@ void EspMoonrakerClient::discovery_query_objects(DiscoveryDone done, DiscoveryFa
 
             parse_objects(resp["result"]["objects"]); // locks hardware_mutex_
 
-            // The app initialises from on_discovery_complete and registers no early
-            // hardware callback, so the hardware is copied only when one is set. The
-            // copy is taken under the lock (#562, #777) and the callback runs outside it.
+            // The early hardware callback gets a copy taken under the lock (#562, #777)
+            // and runs outside it; the app's callback copies it again for the UI thread,
+            // so a discovery holds two transient PSRAM copies here. Without a callback
+            // nothing is copied.
             std::function<void(const helix::PrinterDiscovery&)> hw_cb;
             {
                 std::lock_guard<std::mutex> lock(callbacks_mutex_);
