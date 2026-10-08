@@ -3772,8 +3772,10 @@ PrintSelectPanel::fetch_esp_thumbnail(size_t index, const std::string& filename,
             helix::ThumbnailDecodeFailure failure{};
             if (cancelled->load()) {
                 // Its card left the screen while this was downloading.
-                tok.defer("PrintSelectPanel::on_psram_thumbnail_cancelled", [this]() {
+                tok.defer("PrintSelectPanel::on_psram_thumbnail_cancelled", [this, index]() {
                     --esp_thumbnails_in_flight_;
+                    spdlog::info("[THUMBDIAG] fetched {} cancelled (in_flight {})", index,
+                                 esp_thumbnails_in_flight_);
                     esp_lane_refused_ = false;
                     sync_esp_thumbnails(esp_window_first_, esp_window_end_);
                 });
@@ -3797,6 +3799,9 @@ PrintSelectPanel::fetch_esp_thumbnail(size_t index, const std::string& filename,
                       [this, index, filename, cancelled, thumb = std::move(thumb)]() mutable {
                           --esp_thumbnails_in_flight_;
                           esp_lane_refused_ = false; // this fetch's lane slot is free
+                          spdlog::info("[THUMBDIAG] fetched {} {} cancelled {} (in_flight {})",
+                                       index, thumb ? "ok" : "fail", cancelled->load(),
+                                       esp_thumbnails_in_flight_);
                           // Kept only while its card is still on screen and this is
                           // still the fetch it wants.
                           if (thumb && !cancelled->load() && index < file_list_.size() &&

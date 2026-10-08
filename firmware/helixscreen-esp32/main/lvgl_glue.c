@@ -199,6 +199,13 @@ LV_ATTRIBUTE_MEM_ALIGN static uint8_t s_draw_buf1[UI_DRAW_BUF_BYTES];
 static uint32_t s_cyc_chunks;
 static uint64_t s_cyc_px;
 static int64_t s_cyc_t0_us;
+static int64_t tp_rend, tp_flush_end; /* RPROF temp */
+static uint32_t rp_n, rp_max_us;
+static uint64_t rp_sum_us;
+static void tp_ev(lv_event_t* e) {
+    (void)e;
+    tp_rend = esp_timer_get_time();
+}
 #define CYCLE_LOG_MS 100
 
 // Adds shadow rows [y1, y2] to the refresh cycle in progress, which is
@@ -256,6 +263,7 @@ static void flush_cb(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map)
     }
 
     if (lv_display_flush_is_last(disp)) {
+        tp_flush_end = esp_timer_get_time(); /* RPROF temp */
         // Publish the completed cycle to the presenter. If the presenter hasn't
         // consumed the previous publish yet, MERGE unions — both cycles' renders
         // are already in the shadow, so a merged blit presents both atomically
@@ -523,6 +531,7 @@ static void* ui_thread_main(void* arg) {
     lv_display_set_buffers(disp, s_draw_buf1, NULL, UI_DRAW_BUF_BYTES,
                            LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_flush_cb(disp, flush_cb);
+    lv_display_add_event_cb(disp, tp_ev, LV_EVENT_RENDER_START, NULL); /* RPROF temp */
 
     // Touch indev registration must run on the UI thread after lv_init. A
     // failed probe is non-fatal (no indev, display-only); report it to the app
@@ -555,15 +564,24 @@ static void* ui_thread_main(void* arg) {
         // and a contention burst is attributable to whatever the log shows in
         // the same window.
         int64_t now_us = esp_timer_get_time();
-        if (now_us - underrun_log_us >= 10 * 1000 * 1000) {
+        if (now_us - underrun_log_us >= 1000 * 1000) { /* GLITCH temp: 1s window */
             underrun_log_us = now_us;
+            if (rp_n) {
+                ESP_LOGW(TAG, "[RPROF] frames=%lu render_mean_us=%lu max_us=%lu psram_free=%u",
+                         (unsigned long)rp_n, (unsigned long)(rp_sum_us / rp_n),
+                         (unsigned long)rp_max_us,
+                         (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+                rp_n = 0;
+                rp_sum_us = 0;
+                rp_max_us = 0;
+            }
             uint32_t v = s_vsync_n;
             uint32_t f = s_frame_complete_n;
             // The wrap callback leads the vsync ISR within a frame, so drift can
             // transiently read -1; signed math keeps that from exploding.
             int32_t drift = (int32_t)(v - f);
             if (drift - underrun_prev_drift > 0) {
-                ESP_LOGW(TAG, "[scanout] vsync=%lu frame_complete=%lu underruns=%ld (%+ld/10s)",
+                ESP_LOGW(TAG, "[scanout] vsync=%lu frame_complete=%lu underruns=%ld (%+ld/1s)",
                          (unsigned long)v, (unsigned long)f, (long)drift,
                          (long)(drift - underrun_prev_drift));
             }
@@ -575,7 +593,7 @@ static void* ui_thread_main(void* arg) {
             uint32_t presents = s_presents;
             s_writer_waits = s_writer_wait_ms = s_tears = s_presents = 0;
             if (waits || tears) {
-                ESP_LOGI(TAG, "[present] %lu frames, ui waited %lux / %lums, tears=%lu (10s)",
+                ESP_LOGI(TAG, "[present] %lu frames, ui waited %lux / %lums, tears=%lu (1s)",
                          (unsigned long)presents, (unsigned long)waits, (unsigned long)wait_ms,
                          (unsigned long)tears);
             }
@@ -584,7 +602,15 @@ static void* ui_thread_main(void* arg) {
         // indev — taps during the window are silently dropped. Pairs with the
         // flush_cb slow-refresh log to split "render slow" from "handler slow".
         int64_t t0 = esp_timer_get_time();
+        tp_rend = tp_flush_end = 0;
         uint32_t delay = lv_timer_handler();
+        if (tp_rend && tp_flush_end > tp_rend) {
+            uint32_t r_us = (uint32_t)(tp_flush_end - tp_rend);
+            rp_n++;
+            rp_sum_us += r_us;
+            if (r_us > rp_max_us)
+                rp_max_us = r_us;
+        }
         int64_t handler_ms = (esp_timer_get_time() - t0) / 1000;
         if (handler_ms >= CYCLE_LOG_MS) {
             ESP_LOGW(TAG, "slow ui cycle: lv_timer_handler %ldms", (long)handler_ms);
