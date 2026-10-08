@@ -1995,6 +1995,14 @@ void PrintStatusPanel::handle_tune_button() {
     get_print_tune_overlay().show(parent_screen_, api_, printer_state_);
 }
 
+std::string PrintStatusPanel::reprint_filename() const {
+    // print_stats names the copy that ran, which for a print this app
+    // rewrote is a temp file deleted when the print ends. The effective
+    // identity is the original.
+    const std::string& original = printer_state_.get_effective_print_filename();
+    return original.empty() ? current_print_filename_ : original;
+}
+
 void PrintStatusPanel::handle_reprint_button() {
     // Startup grace period: reject phantom clicks during early boot
     auto elapsed = std::chrono::steady_clock::now() - AppConstants::Startup::PROCESS_START_TIME;
@@ -2005,10 +2013,10 @@ void PrintStatusPanel::handle_reprint_button() {
         return;
     }
 
-    spdlog::info("[{}] Reprint button clicked - reprinting: {}", get_name(),
-                 current_print_filename_);
+    const std::string filename = reprint_filename();
+    spdlog::info("[{}] Reprint button clicked - reprinting: {}", get_name(), filename);
 
-    if (current_print_filename_.empty()) {
+    if (filename.empty()) {
         spdlog::warn("[{}] No filename to reprint", get_name());
         NOTIFY_WARNING(lv_tr("No file to reprint"));
         return;
@@ -2022,8 +2030,6 @@ void PrintStatusPanel::handle_reprint_button() {
 
     // Disable button immediately to prevent double-press
     ui_set_button_enabled(btn_cancel_, false);
-
-    std::string filename = current_print_filename_;
 
     // Route through PrintStartController so reprint gets the Snapmaker U1 native
     // pre-print send (SET_PRINT_USED_EXTRUDERS ...) that suppresses a spurious

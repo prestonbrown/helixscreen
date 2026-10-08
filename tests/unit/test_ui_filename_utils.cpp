@@ -195,3 +195,16 @@ TEST_CASE("ends_with_ci() compares a suffix case-insensitively", "[filename_util
     CHECK_FALSE(ends_with_ci("Foo.gcod", ".gcode"));
     CHECK(ends_with_ci("anything", ""));
 }
+
+TEST_CASE("resolve_gcode_filename() unwraps a HelixPrint plugin symlink path",
+          "[filename_utils][identity][reprint]") {
+    CHECK(resolve_gcode_filename(".helix_print/parts/benchy.gcode") == "parts/benchy.gcode");
+    CHECK(resolve_gcode_filename(".helix_print/benchy.gcode") == "benchy.gcode");
+    CHECK(resolve_gcode_filename("gcodes/.helix_print/a/b.gcode") == "a/b.gcode");
+    // Only the plugin's own directory, as a whole segment.
+    CHECK(resolve_gcode_filename("my.helix_print/b.gcode") == "my.helix_print/b.gcode");
+    CHECK(resolve_gcode_filename(".helix_print/") == ".helix_print/");
+
+    CHECK(helix::gcode::is_rewritten_gcode_path(".helix_print/parts/benchy.gcode"));
+    CHECK_FALSE(helix::gcode::is_rewritten_gcode_path("my.helix_print/b.gcode"));
+}

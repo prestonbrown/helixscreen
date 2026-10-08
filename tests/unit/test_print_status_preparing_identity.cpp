@@ -172,3 +172,32 @@ TEST_CASE_METHOD(PreparingIdentityFixture, "Reprinting the same file keeps the p
 
     REQUIRE(Access::identity_override(panel()) == "repeat.gcode");
 }
+
+TEST_CASE_METHOD(PreparingIdentityFixture,
+                 "Reprint starts the original, not the rewritten temp copy",
+                 "[print_status][preparing_identity][reprint]") {
+    // print_stats names the rewrite, which is deleted when the print ends.
+    const std::string temp = ".helix_temp/modified_1766807545_benchy.gcode";
+
+    SECTION("a print this session prepared") {
+        state().begin_preparing(PrintJobRef{"parts/benchy.gcode", "", ""});
+        state().retire_preparing(PreparingExit::Confirmed);
+        drain();
+        report_filename(temp);
+
+        REQUIRE(Access::current_print_filename(panel()) == temp);
+        REQUIRE(Access::reprint_filename(panel()) == "parts/benchy.gcode");
+    }
+
+    SECTION("after a restart, with only the printer's report to go on") {
+        report_filename(temp);
+
+        REQUIRE(Access::reprint_filename(panel()) == "benchy.gcode");
+    }
+
+    SECTION("after a restart, printed through the HelixPrint plugin") {
+        report_filename(".helix_print/parts/benchy.gcode");
+
+        REQUIRE(Access::reprint_filename(panel()) == "parts/benchy.gcode");
+    }
+}
