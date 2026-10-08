@@ -172,6 +172,7 @@ src/system/brother_ql_printer.cpp  # not in the v1 Core+AMS cut
 src/system/brother_ql_protocol.cpp  # not in the v1 Core+AMS cut
 src/system/bt_discovery_run.cpp  # not in the v1 Core+AMS cut
 src/system/bt_print_utils.cpp  # not in the v1 Core+AMS cut
+src/system/camera_frame.cpp  # not in the v1 Core+AMS cut
 src/system/camera_stream.cpp  # not in the v1 Core+AMS cut
 src/system/cli_args.cpp  # not in the v1 Core+AMS cut
 src/system/crash_error_log_sink.cpp  # not in the v1 Core+AMS cut
@@ -296,6 +297,7 @@ src/ui/ui_wizard_input_shaper.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_wizard_language_chooser.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_wizard_led_select.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_wizard_printer_identify.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_wizard_preferences.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_wizard_summary.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_wizard_telemetry.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_wizard_touch_calibration.cpp  # not in the v1 Core+AMS cut
@@ -328,3 +330,4 @@ src/plugin/plugin_source.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_source_app.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_dir_watcher.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_canvas.cpp  # not in the v1 Core+AMS cut
+src/api/wifi_link_monitor.cpp  # only consumers are application.cpp and the debug bundle, both excluded

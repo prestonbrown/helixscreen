@@ -232,6 +232,12 @@ class WiFiManager {
      */
     bool supports_5ghz();
 
+    /// WifiBackend::reports_frequency().
+    bool reports_frequency();
+
+    /// Managed network interface name ("wlan0"), empty when the backend cannot say.
+    std::string netdev_name();
+
     /// Whether the backend can forget a saved network (WifiBackend::supports_forget()).
     bool supports_forget();
 

@@ -28,13 +28,11 @@ max-leaked-objects: 256
 lib/lvgl/src/layouts/grid/lv_grid.c::calc_rows
 lib/lvgl/src/misc/lv_ll.c::lv_ll_ins_tail
 src/printer/power_device_state.cpp::PowerDeviceState::set_devices
-src/ui/ui_button.cpp::ui_button_create
 src/ui/ui_icon_picker.cpp::populate_icon_grid
 src/ui/ui_split_button.cpp::ui_split_button_create
 tests/unit/test_observer_factory.cpp::CATCH2_INTERNAL_TEST::test
 tests/unit/test_observer_factory.cpp::CATCH2_INTERNAL_TEST::test()::lambda::operator()
 tests/unit/test_panel_widget_manager.cpp::CATCH2_INTERNAL_TEST::lambda::operator()
 tests/unit/test_panel_widget_manager.cpp::operator()
-tests/unit/test_scoped_subject_registry.cpp::test
 tests/unit/test_temp_graph_controller.cpp::CATCH2_INTERNAL_TEST::test
 tests/unit/test_temp_graph_controller.cpp::test

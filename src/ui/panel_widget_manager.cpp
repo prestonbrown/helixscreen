@@ -1858,7 +1858,7 @@ void PanelWidgetManager::setup_gate_observers(const std::string& panel_id,
             spdlog::trace("[PanelWidgetManager] Gate subject '{}' not registered yet", name);
             continue;
         }
-        // ponytail: a hand-maintained name->owner table, replace with a lifetime
+        // A hand-maintained name->owner table, replace with a lifetime
         // carried by the subject registry if gate names start churning
         SubjectLifetime gate_lifetime = gate_subject_lifetime(name);
         if (!gate_lifetime) {

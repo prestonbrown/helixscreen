@@ -614,7 +614,23 @@ bool AmsPanel::rebuild() {
     return true;
 }
 
+void AmsPanel::on_path_canvas_size_changed(lv_event_t* e) {
+    if (auto* self = static_cast<AmsPanel*>(lv_event_get_user_data(e)))
+        self->update_bypass_spool_position();
+}
+
+void AmsPanel::detach_path_canvas_hooks() {
+    // The canvas can outlive this panel; its callback must not.
+    if (path_canvas_ && lv_obj_is_valid(path_canvas_))
+        lv_obj_remove_event_cb_with_user_data(path_canvas_, on_path_canvas_size_changed, this);
+}
+
+AmsPanel::~AmsPanel() {
+    detach_path_canvas_hooks();
+}
+
 void AmsPanel::clear_panel_reference() {
+    detach_path_canvas_hooks();
     // Mark subjects uninitialized FIRST — observer callbacks check this and bail out
     subjects_initialized_ = false;
     open_ = false;
@@ -929,14 +945,7 @@ void AmsPanel::setup_bypass_spool() {
     // time setup_bypass_spool() runs is not its final size; the surrounding
     // flex layout adjusts it later (we observed 251→283px height growth, which
     // shifted the rendered tube ~13px and left the spool stranded above it).
-    lv_obj_add_event_cb(
-        path_canvas_,
-        [](lv_event_t* e) {
-            auto* self = static_cast<AmsPanel*>(lv_event_get_user_data(e));
-            if (self)
-                self->update_bypass_spool_position();
-        },
-        LV_EVENT_SIZE_CHANGED, this);
+    lv_obj_add_event_cb(path_canvas_, on_path_canvas_size_changed, LV_EVENT_SIZE_CHANGED, this);
 
     update_bypass_spool_position();
 }

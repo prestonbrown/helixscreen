@@ -273,6 +273,7 @@
   <translation tag="Automatic Heater Control Calibration" ru="Автоматическая калибровка нагревателя"/>
   <translation tag="Automatic LED Control" ru="Автоматическое управление LED"/>
   <translation tag="Automatic calibration" ru="Автоматическая калибровка"/>
+  <translation tag="Automatic slot swap on runout" ru="Автоматическая смена слота при окончании"/>
   <translation tag="Aux" ru="Доп"/>
   <translation tag="Available" ru="Доступен"/>
   <translation tag="Available Networks" ru="Доступные сети"/>
@@ -951,6 +952,7 @@
   <translation tag="Encoder" ru="Энкодер"/>
   <translation tag="Encoder Error" ru="Ошибка энкодера"/>
   <translation tag="Ended" ru="Завершено"/>
+  <translation tag="Endless Spool" ru="Бесконечная катушка"/>
   <translation tag="Endless spool failover cleared for every slot" ru="Резервные катушки очищены для всех слотов"/>
   <translation tag="Endless spool is turned off on this MMU" ru="Бесконечная катушка отключена на этом MMU"/>
   <translation tag="Ensure Happy Hare or AFC is installed and configured" ru="Убедитесь, что Happy Hare или AFC установлен и настроен"/>
@@ -1736,6 +1738,7 @@
   <translation tag="Marginal" ru="Допустимо"/>
   <translation tag="Mark a printer you enclosed yourself" ru="Отметить принтер, который вы закрыли сами"/>
   <translation tag="Master volume level" ru="Основной уровень громкости"/>
+  <translation tag="Match Mode" ru="Режим сопоставления"/>
   <translation tag="Match your typical print fan speed" ru="Настройте типичную скорость вентилятора печати"/>
   <translation tag="Matching printers" ru="Подходящие принтеры"/>
   <translation tag="Material" ru="Материал"/>
@@ -2116,6 +2119,7 @@
   <translation tag="Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there" ru="Телефон: 1 2 3 в верхнем ряду, калькулятор: 7 8 9"/>
   <translation tag="Pick" ru="Выбрать"/>
   <translation tag="Pick Color" ru="Выбрать цвет"/>
+  <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." ru="Выберите, как будет вести себя HelixScreen. Всё это можно изменить позже в Настройках."/>
   <translation tag="Pick up tool" ru="Забрать инструмент"/>
   <translation tag="Picking up tool" ru="Захват инструмента"/>
   <translation tag="Pill" ru="Овал"/>
@@ -2156,6 +2160,7 @@
   <translation tag="Pre-heat the extruder first" ru="Сначала прогрейте экструдер"/>
   <translation tag="Pre-print command failed: {}" ru="Ошибка команды перед печатью: {}"/>
   <translation tag="Pre-print homing..." ru="Парковка перед печатью..."/>
+  <translation tag="Preferences" ru="Предпочтения"/>
   <translation tag="Preheat" ru="Преднагрев"/>
   <translation tag="Preheat %s" ru="Преднагрев %s"/>
   <translation tag="Preheat %s (%d/%d)" ru="Преднагрев %s (%d/%d)"/>
@@ -2895,6 +2900,7 @@
   <translation tag="Suppress periodic temperature status lines" ru="Скрывать периодические строки статуса температуры"/>
   <translation tag="Suppress raw debug output from printer firmware modules" ru="Скрывать отладочный вывод модулей прошивки принтера"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." ru="Поверхности наследуют токены фона приложения для светлого и тёмного режимов."/>
+  <translation tag="Swap to another slot automatically when one runs out" ru="Автоматически переключаться на другой слот, когда в одном кончился пруток"/>
   <translation tag="Sweep" ru="Свип"/>
   <translation tag="Switch Printer" ru="Переключить принтер"/>
   <translation tag="Switch Sensors" ru="Датчики-переключатели"/>
@@ -3473,6 +3479,7 @@
   <translation tag="enable" ru="включить"/>
   <translation tag="enabled" ru="включено"/>
   <translation tag="error" ru="ошибка"/>
+  <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" ru="exact: тот же материал и цвет. material: тот же материал. next: любой готовый слот, даже с другим материалом"/>
   <translation tag="extruder" ru="экструдер"/>
   <translation tag="extruder(s)" ru="экструдер(ы)"/>
   <translation tag="extruders" ru="экструдеры"/>

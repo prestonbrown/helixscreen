@@ -58,19 +58,57 @@ void SpaghettiDetectionModal::on_show() {
     lv_subject_set_int(&tune_available_subject_, on_tune_ ? 1 : 0);
     lv_subject_copy_string(&message_subject_, message_.c_str());
 
-    // Optional camera frame preview. Hide the image entirely when no frame is
-    // available so it doesn't reserve empty space.
+    // Optional camera frame preview. Hidden entirely until a frame arrives so
+    // it doesn't reserve empty space.
     lv_obj_t* preview = find_widget("detection_preview");
     if (preview) {
-        if (frame_) {
-            lv_image_set_src(preview, frame_);
-            lv_obj_remove_flag(preview, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(preview, LV_OBJ_FLAG_HIDDEN);
-        }
+        lv_obj_add_flag(preview, LV_OBJ_FLAG_HIDDEN);
+        show_preview(preview);
     } else {
         spdlog::warn("[SpaghettiDetectionModal] detection_preview widget not found");
     }
+}
+
+namespace {
+void free_preview_buf(lv_event_t* e) {
+    lv_draw_buf_destroy(static_cast<lv_draw_buf_t*>(lv_event_get_user_data(e)));
+}
+} // namespace
+
+void SpaghettiDetectionModal::show_preview(lv_obj_t* preview) {
+    if (frame_.empty())
+        return;
+    lv_draw_buf_t* buf = helix::to_draw_buf(frame_);
+    frame_ = {};
+    if (!buf)
+        return;
+    // The widget owns the pixels: the buffer outlives every draw of the
+    // image and is freed with it.
+    lv_obj_add_event_cb(preview, free_preview_buf, LV_EVENT_DELETE, buf);
+    lv_image_set_src(preview, buf);
+    lv_obj_remove_flag(preview, LV_OBJ_FLAG_HIDDEN);
+}
+
+void SpaghettiDetectionModal::attach_frame(const helix::CameraFrame& frame) {
+    if (frame.empty())
+        return;
+    frame_ = frame;
+    if (dialog_) {
+        if (lv_obj_t* preview = find_widget("detection_preview")) {
+            show_preview(preview);
+        }
+    }
+}
+
+void SpaghettiDetectionModal::request_camera_frame(const helix::CameraFrameSources& sources) {
+    // The preview is a thumbnail: bounded by a fraction of the screen so a
+    // small board never holds a full-resolution frame.
+    lv_display_t* disp = lv_display_get_default();
+    const int max_w = lv_display_get_horizontal_resolution(disp) * 2 / 5;
+    const int max_h = lv_display_get_vertical_resolution(disp) * 3 / 10;
+    auto frame = helix::acquire_camera_frame(sources, max_w, max_h, lifetime_.token(),
+                                             [this](helix::CameraFrame f) { attach_frame(f); });
+    attach_frame(frame);
 }
 
 namespace helix::detection {
@@ -104,7 +142,6 @@ void present_detection(const DetectionEvent& e, DetectionPolicy p) {
     // Stack-owned via Modal::show_owned() (#1382): ModalStack frees the
     // instance when its entry goes, on every teardown path.
     auto modal = std::make_unique<SpaghettiDetectionModal>();
-    // TODO(#1506): no frame yet; the modal shows the detector's text only.
     // A confidence-bearing source (K2) gets the translated line; a source
     // whose message is the printer's own string (U1) shows that verbatim.
     char display[128];
@@ -114,7 +151,8 @@ void present_detection(const DetectionEvent& e, DetectionPolicy p) {
     } else {
         snprintf(display, sizeof(display), "%s", e.message.c_str());
     }
-    modal->set_detection(display, nullptr);
+    modal->set_detection(display);
+    modal->request_camera_frame(helix::live_camera_sources());
     modal->set_on_resume(
         [] { get_moonraker_api()->job().resume_print([] {}, [](const MoonrakerError&) {}); });
     modal->set_on_abort([] { helix::AbortManager::instance().start_abort(); });

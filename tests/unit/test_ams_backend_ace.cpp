@@ -2838,3 +2838,191 @@ TEST_CASE("ACE publishes a persisted edit to lane_data as the user's own",
     CHECK(stored["helix_locked_color"] == true);
     CHECK(stored["helix_locked_material"] == true);
 }
+
+// ============================================================================
+// Endless spool (prestonbrown/helixscreen#1679)
+// ============================================================================
+
+namespace {
+json kobra_manager_with_endless(bool on, const char* mode) {
+    json mgr = make_kobra_manager_object(-1);
+    mgr["endless_spool_enabled"] = on;
+    mgr["endless_spool_match_mode"] = mode;
+    return mgr;
+}
+
+// Slots: 0 green PLA, 1 white PETG, 2 red PETG, 3 white PLA, all ready.
+void seed_endless(AmsBackendAceTestHelper& helper, bool on, const char* mode) {
+    helper.set_running(true);
+    AceTestAccess::parse_ace(helper, make_kobra_instance_object());
+    AceTestAccess::parse_ace(helper, kobra_manager_with_endless(on, mode));
+}
+
+std::vector<std::vector<int>> endless_groups(const AmsBackendAceTestHelper& helper) {
+    std::vector<std::vector<int>> out;
+    for (const auto& g : helper.get_endless_spool_config().groups) {
+        out.push_back(g.members);
+    }
+    return out;
+}
+} // namespace
+
+TEST_CASE("ACE endless spool is unsupported until the driver publishes it",
+          "[ams][ace][endless][1679]") {
+    AmsBackendAceTestHelper helper;
+    helper.set_running(true);
+    AceTestAccess::parse_ace(helper, make_ace_slot_payload("ready", 0xFF5500, "PLA"));
+
+    CHECK_FALSE(helper.get_endless_spool_capabilities().available());
+    CHECK(helper.get_device_actions().size() == 3);
+}
+
+TEST_CASE("ACE endless spool capabilities follow the driver", "[ams][ace][endless][1679]") {
+    using helix::printer::EndlessSpoolEnabled;
+    AmsBackendAceTestHelper helper;
+
+    SECTION("off") {
+        seed_endless(helper, false, "exact");
+        auto caps = helper.get_endless_spool_capabilities();
+        CHECK(caps.available());
+        CHECK(caps.enabled == EndlessSpoolEnabled::Off);
+        CHECK_FALSE(caps.editable());
+        CHECK(helper.get_system_info().endless_spool_enabled == false);
+        CHECK(helper.get_endless_spool_config().empty());
+    }
+
+    SECTION("on with a match available") {
+        seed_endless(helper, true, "material");
+        CHECK(helper.get_endless_spool_capabilities().enabled == EndlessSpoolEnabled::On);
+        CHECK(helper.get_system_info().endless_spool_enabled);
+    }
+
+    SECTION("on, but exact matching finds nothing: on without backup") {
+        helper.set_running(true);
+        auto inst = make_kobra_instance_object();
+        inst["slots"][3]["color"] = json::array({1, 2, 3}); // white PLA -> unique PLA colour
+        AceTestAccess::parse_ace(helper, inst);
+        AceTestAccess::parse_ace(helper, kobra_manager_with_endless(true, "exact"));
+        CHECK(helper.get_endless_spool_capabilities().enabled ==
+              EndlessSpoolEnabled::OnWithoutBackup);
+    }
+}
+
+TEST_CASE("ACE endless spool groups follow the match mode", "[ams][ace][endless][1679]") {
+    AmsBackendAceTestHelper helper;
+
+    SECTION("exact: same material and colour") {
+        seed_endless(helper, true, "exact");
+        // No two fixture slots share material AND colour.
+        CHECK(endless_groups(helper).empty());
+    }
+
+    SECTION("material: same material") {
+        seed_endless(helper, true, "material");
+        auto groups = endless_groups(helper);
+        REQUIRE(groups.size() == 2);
+        CHECK(groups[0] == std::vector<int>{0, 3}); // PLA
+        CHECK(groups[1] == std::vector<int>{1, 2}); // PETG
+    }
+
+    SECTION("next: every ready slot in one group") {
+        seed_endless(helper, true, "next");
+        auto groups = endless_groups(helper);
+        REQUIRE(groups.size() == 1);
+        CHECK(groups[0] == std::vector<int>{0, 1, 2, 3});
+    }
+
+    SECTION("an empty slot takes no part") {
+        helper.set_running(true);
+        auto inst = make_kobra_instance_object();
+        inst["slots"][3]["status"] = "empty";
+        AceTestAccess::parse_ace(helper, inst);
+        AceTestAccess::parse_ace(helper, kobra_manager_with_endless(true, "next"));
+        auto groups = endless_groups(helper);
+        REQUIRE(groups.size() == 1);
+        CHECK(groups[0] == std::vector<int>{0, 1, 2});
+    }
+}
+
+TEST_CASE("ACE endless spool device actions send the driver commands",
+          "[ams][ace][endless][1679]") {
+    AmsBackendAceTestHelper helper;
+    seed_endless(helper, false, "exact");
+
+    auto find = [&](const std::string& id) {
+        for (auto& a : helper.get_device_actions()) {
+            if (a.id == id)
+                return a;
+        }
+        FAIL("action missing: " << id);
+        return helix::printer::DeviceAction{};
+    };
+
+    CHECK(std::any_cast<bool>(find("ace_endless_spool_toggle").current_value) == false);
+    CHECK(std::any_cast<std::string>(find("ace_endless_spool_mode").current_value) == "exact");
+
+    REQUIRE(helper.execute_device_action("ace_endless_spool_toggle", true).success());
+    REQUIRE(helper.execute_device_action("ace_endless_spool_toggle", false).success());
+    REQUIRE(
+        helper.execute_device_action("ace_endless_spool_mode", std::string("material")).success());
+    REQUIRE(helper.captured_gcodes.size() == 3);
+    CHECK(helper.captured_gcodes[0] == "ACE_ENABLE_ENDLESS_SPOOL");
+    CHECK(helper.captured_gcodes[1] == "ACE_DISABLE_ENDLESS_SPOOL");
+    CHECK(helper.captured_gcodes[2] == "ACE_SET_ENDLESS_SPOOL_MODE MODE=material");
+
+    CHECK_FALSE(
+        helper.execute_device_action("ace_endless_spool_mode", std::string("bogus")).success());
+    CHECK(helper.captured_gcodes.size() == 3);
+}
+
+TEST_CASE("ACE endless spool matches the driver's ready and material rules",
+          "[ams][ace][endless][1679]") {
+    AmsBackendAceTestHelper helper;
+    helper.set_running(true);
+
+    SECTION("a preload slot is not a swap target") {
+        auto inst = make_kobra_instance_object();
+        inst["slots"][3]["status"] = "preload";
+        AceTestAccess::parse_ace(helper, inst);
+        AceTestAccess::parse_ace(helper, kobra_manager_with_endless(true, "next"));
+        auto groups = endless_groups(helper);
+        REQUIRE(groups.size() == 1);
+        CHECK(groups[0] == std::vector<int>{0, 1, 2});
+    }
+
+    SECTION("material compares case- and edge-space-insensitively") {
+        auto inst = make_kobra_instance_object();
+        inst["slots"][3]["material"] = " pla ";
+        AceTestAccess::parse_ace(helper, inst);
+        AceTestAccess::parse_ace(helper, kobra_manager_with_endless(true, "material"));
+        auto groups = endless_groups(helper);
+        REQUIRE(groups.size() == 2);
+        CHECK(groups[0] == std::vector<int>{0, 3});
+    }
+
+    SECTION("unknown materials never group in material mode, but do in next") {
+        auto inst = make_kobra_instance_object();
+        inst["slots"][0]["material"] = "unknown";
+        inst["slots"][3]["material"] = "";
+        AceTestAccess::parse_ace(helper, inst);
+        AceTestAccess::parse_ace(helper, kobra_manager_with_endless(true, "material"));
+        auto groups = endless_groups(helper);
+        REQUIRE(groups.size() == 1);
+        CHECK(groups[0] == std::vector<int>{1, 2});
+
+        AceTestAccess::parse_ace(helper, kobra_manager_with_endless(true, "next"));
+        CHECK(endless_groups(helper)[0] == std::vector<int>{0, 1, 2, 3});
+    }
+
+    SECTION("a frame that omits the endless fields keeps the state") {
+        AceTestAccess::parse_ace(helper, make_kobra_instance_object());
+        AceTestAccess::parse_ace(helper, kobra_manager_with_endless(true, "material"));
+        AceTestAccess::parse_ace(helper, make_kobra_instance_object());
+        json delta = {{"current_index", -1}};
+        AceTestAccess::parse_ace(helper, delta);
+        CHECK(helper.get_endless_spool_capabilities().available());
+        CHECK(helper.get_endless_spool_capabilities().enabled ==
+              helix::printer::EndlessSpoolEnabled::On);
+        CHECK(endless_groups(helper).size() == 2);
+    }
+}

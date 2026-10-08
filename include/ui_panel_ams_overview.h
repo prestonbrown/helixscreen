@@ -60,7 +60,7 @@ class AmsOverviewPanel : public PanelBase {
 
   public:
     AmsOverviewPanel(helix::PrinterState& printer_state, IMoonrakerAPI* api);
-    ~AmsOverviewPanel() override = default;
+    ~AmsOverviewPanel() override;
 
     // === PanelBase Interface ===
     void init_subjects() override;
@@ -185,6 +185,8 @@ class AmsOverviewPanel : public PanelBase {
     ///                 LVGL's layout pass every scroll step.
     void push_unit_anchors(bool relayout);
     static void on_cards_row_scrolled(lv_event_t* e);
+    static void on_system_path_size_changed(lv_event_t* e);
+    void detach_widget_hooks();
     /// Publish ams_cards_compact from the measured narrowest card width.
     void publish_cards_compact(int32_t narrowest_card_w);
 

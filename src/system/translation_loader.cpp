@@ -64,7 +64,7 @@ bool is_pua(uint32_t cp) {
            (cp >= 0x100000 && cp <= 0x10FFFD);
 }
 
-// ponytail: approximates Python's str.isalpha()/isdigit() outside ASCII by
+// Approximates Python's str.isalpha()/isdigit() outside ASCII by
 // range (Latin letters, then everything from Greek up except punctuation,
 // symbol and PUA blocks). Exact Unicode categories would need a table; the
 // verdict only matters for strings of three code points or fewer.

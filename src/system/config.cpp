@@ -928,7 +928,7 @@ void Config::init(const std::string& config_path) {
             // A snapshot already at version_before is kept: the file on disk
             // may be a partly migrated document that still carries that
             // version, and the first copy is the original.
-            // ponytail: one generation only - the next migrating boot from a
+            // One generation only - the next migrating boot from a
             // different version overwrites it; keep a versioned name per
             // migration if older ones are wanted.
             //

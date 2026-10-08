@@ -4022,7 +4022,7 @@ AmsBackendAfc::parse_configfile_topology(const nlohmann::json& response) {
             const std::string v = helix::text_io::to_lower(pin->get<std::string>());
             return !v.empty() && v != "buffer" && v != "none" && v != "unknown";
         };
-        // ponytail: one flag ORed across every AFC_extruder section, so on a
+        // One flag ORed across every AFC_extruder section, so on a
         // multi-extruder setup one fitted sensor marks every unit. Per-unit needs
         // the extruder-to-unit mapping rebuild_unit_map_from_klipper() derives.
         topo.toolhead_sensor_fitted = topo.toolhead_sensor_fitted.value_or(false) ||

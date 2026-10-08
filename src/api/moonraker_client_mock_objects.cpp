@@ -560,7 +560,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             append_led_effect_status(status_obj, objects, self);
 
             // HELIX_MOCK_SKIP_WRAPPERS: the skip flags and leveling `applied`.
-            for (const auto& [name, status] : self->skip_wrapper_status().items()) {
+            const json wrapper_status = self->skip_wrapper_status();
+            for (const auto& [name, status] : wrapper_status.items()) {
                 if (objects.contains(name)) {
                     status_obj[name] = status;
                 }
@@ -904,7 +905,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             append_led_effect_status(status_obj, objects, self);
 
             // HELIX_MOCK_SKIP_WRAPPERS: the skip flags and leveling `applied`.
-            for (const auto& [name, status] : self->skip_wrapper_status().items()) {
+            const json wrapper_status = self->skip_wrapper_status();
+            for (const auto& [name, status] : wrapper_status.items()) {
                 if (objects.contains(name)) {
                     status_obj[name] = status;
                 }

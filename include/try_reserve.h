@@ -38,7 +38,7 @@ inline constexpr size_t reserve_allocation_bytes(size_t capacity, size_t bytes, 
 }
 
 namespace detail {
-// ponytail: another task can take the block between the probe's free and the
+// Another task can take the block between the probe's free and the
 // reserve; a nothrow allocator in the container type would close that window.
 inline bool probe_alloc(size_t bytes) {
     if (try_reserve_fails_for_test().load(std::memory_order_relaxed)) {

@@ -273,6 +273,7 @@
   <translation tag="Automatic Heater Control Calibration" de="Automatische Heizungsregelung Kalibrierung"/>
   <translation tag="Automatic LED Control" de="Automatische LED-Steuerung"/>
   <translation tag="Automatic calibration" de="Automatische Kalibrierung"/>
+  <translation tag="Automatic slot swap on runout" de="Automatischer Slot-Wechsel bei Filamentende"/>
   <translation tag="Aux" de="Aux"/>
   <translation tag="Available" de="Verfügbar"/>
   <translation tag="Available Networks" de="Verfügbare Netzwerke"/>
@@ -951,6 +952,7 @@
   <translation tag="Encoder" de="Encoder"/>
   <translation tag="Encoder Error" de="Encoder-Fehler"/>
   <translation tag="Ended" de="Beendet"/>
+  <translation tag="Endless Spool" de="Endlosspule"/>
   <translation tag="Endless spool failover cleared for every slot" de="Endlosspulen-Zuordnung für alle Slots gelöscht"/>
   <translation tag="Endless spool is turned off on this MMU" de="Die Endlosspule ist auf diesem MMU deaktiviert"/>
   <translation tag="Ensure Happy Hare or AFC is installed and configured" de="Stellen Sie sicher, dass Happy Hare oder AFC installiert und konfiguriert ist"/>
@@ -1736,6 +1738,7 @@
   <translation tag="Marginal" de="Grenzwertig"/>
   <translation tag="Mark a printer you enclosed yourself" de="Einen selbst eingehausten Drucker markieren"/>
   <translation tag="Master volume level" de="Hauptlautstärke"/>
+  <translation tag="Match Mode" de="Abgleichmodus"/>
   <translation tag="Match your typical print fan speed" de="Typische Drucklüftergeschwindigkeit einstellen"/>
   <translation tag="Matching printers" de="Passende Drucker"/>
   <translation tag="Material" de="Material"/>
@@ -2116,6 +2119,7 @@
   <translation tag="Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there" de="Telefon: 1 2 3 in der obersten Reihe, Taschenrechner: 7 8 9"/>
   <translation tag="Pick" de="Auswählen"/>
   <translation tag="Pick Color" de="Farbe wählen"/>
+  <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." de="Wähle, wie sich HelixScreen verhält. Du kannst alles später in den Einstellungen ändern."/>
   <translation tag="Pick up tool" de="Werkzeug aufnehmen"/>
   <translation tag="Picking up tool" de="Werkzeug aufnehmen"/>
   <translation tag="Pill" de="Pille"/>
@@ -2156,6 +2160,7 @@
   <translation tag="Pre-heat the extruder first" de="Zuerst den Extruder vorheizen"/>
   <translation tag="Pre-print command failed: {}" de="Vor-Druck-Befehl fehlgeschlagen: {}"/>
   <translation tag="Pre-print homing..." de="Referenzieren vor dem Druck..."/>
+  <translation tag="Preferences" de="Vorlieben"/>
   <translation tag="Preheat" de="Vorheizen"/>
   <translation tag="Preheat %s" de="Vorheizen %s"/>
   <translation tag="Preheat %s (%d/%d)" de="Vorheizen %s (%d/%d)"/>
@@ -2895,6 +2900,7 @@
   <translation tag="Suppress periodic temperature status lines" de="Periodische Temperatur-Statuszeilen unterdrücken"/>
   <translation tag="Suppress raw debug output from printer firmware modules" de="Rohe Debug-Ausgaben von Drucker-Firmware-Modulen unterdrücken"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." de="Oberflächen erben App-Hintergrund-Tokens für Hell- und Dunkelmodus."/>
+  <translation tag="Swap to another slot automatically when one runs out" de="Bei Filamentende automatisch zu einem anderen Slot wechseln"/>
   <translation tag="Sweep" de="Sweep"/>
   <translation tag="Switch Printer" de="Drucker wechseln"/>
   <translation tag="Switch Sensors" de="Schalter-Sensoren"/>
@@ -3473,6 +3479,7 @@
   <translation tag="enable" de="aktivieren"/>
   <translation tag="enabled" de="aktiviert"/>
   <translation tag="error" de="Fehler"/>
+  <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" de="exact: gleiches Material und gleiche Farbe. material: gleiches Material. next: beliebiger bereiter Slot, auch anderes Material"/>
   <translation tag="extruder" de="Extruder"/>
   <translation tag="extruder(s)" de="Extruder"/>
   <translation tag="extruders" de="Extruder"/>

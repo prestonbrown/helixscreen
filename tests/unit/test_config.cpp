@@ -3305,6 +3305,36 @@ TEST_CASE("Config::init() falls back to defaults when both config and backup are
     std::filesystem::remove_all(temp_dir);
 }
 
+TEST_CASE("Config::init() restores the backup over a zero-byte settings file",
+          "[core][config][corruption][integration][error_path]") {
+    // A power cut mid-write leaves a zero-byte file, which must not reach the
+    // app as a config.
+    std::string temp_dir = "/tmp/helix_test_shape_backup_" + std::to_string(getpid());
+    std::filesystem::remove_all(temp_dir);
+    std::filesystem::create_directories(temp_dir);
+    std::string temp_path = temp_dir + "/settings.json";
+    { std::ofstream o(temp_path); }
+
+    HomeGuard home_guard(temp_dir);
+    std::filesystem::create_directories(temp_dir + "/.helixscreen");
+    json backup_data = {{"config_version", CURRENT_CONFIG_VERSION},
+                        {"active_printer_id", "voron"},
+                        {"brightness", 61},
+                        {"printers", {{"voron", {{"moonraker_host", "10.0.0.7"}}}}}};
+    {
+        std::ofstream o(temp_dir + "/.helixscreen/settings.json.backup");
+        o << backup_data.dump(2);
+    }
+
+    Config test_config;
+    test_config.init(temp_path);
+
+    REQUIRE(test_config.get<std::string>("/printers/voron/moonraker_host") == "10.0.0.7");
+    REQUIRE(test_config.get<int>("/brightness") == 61);
+
+    std::filesystem::remove_all(temp_dir);
+}
+
 // ============================================================================
 // Tarball Default Detection Tests (Moonraker web update config clobber)
 //

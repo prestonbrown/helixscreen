@@ -68,7 +68,7 @@ class AmsPanel : public PanelBase {
      * @param api Pointer to IMoonrakerAPI (may be nullptr)
      */
     AmsPanel(helix::PrinterState& printer_state, IMoonrakerAPI* api);
-    ~AmsPanel() override = default;
+    ~AmsPanel() override;
 
     // === PanelBase Interface ===
 
@@ -226,6 +226,9 @@ class AmsPanel : public PanelBase {
     // box + "Bypass" + material labels. Geometry differs per canvas; we just
     // call set_position with the right (cx, cy).
     helix::ui::BypassSpoolWidgets bypass_widgets_{};
+
+    static void on_path_canvas_size_changed(lv_event_t* e);
+    void detach_path_canvas_hooks();
 
     // === Endless Spool Arrows Canvas ===
 

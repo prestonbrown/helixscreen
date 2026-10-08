@@ -34,7 +34,11 @@
 
 #include <spdlog/fmt/fmt.h>
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
+#include <map>
+#include <tuple>
 
 namespace helix {
 
@@ -1038,6 +1042,8 @@ void AmsBackendAce::parse_ace_object(const json& data) {
                         slot_status_from_string(slot_json["status"].get<std::string>());
                     observed_present = slot_status_reports_filament(status);
                     slot.status = status;
+                    note_driver_ready_locked(slot.global_index,
+                                             slot_json["status"].get<std::string>());
                 }
 
                 // Parse color: ValgACE returns [r, g, b] array
@@ -1253,6 +1259,15 @@ void AmsBackendAce::parse_ace_object(const json& data) {
         ace_pro_enabled_seen_ = true;
         ace_pro_enabled_ = data["ace_pro_enabled"].get<bool>();
         system_info_.supports_bypass = !bypass_on_macro_.empty() && !bypass_off_macro_.empty();
+    }
+
+    if (data.contains("endless_spool_enabled") && data["endless_spool_enabled"].is_boolean()) {
+        endless_spool_seen_ = true;
+        endless_spool_on_ = data["endless_spool_enabled"].get<bool>();
+        system_info_.endless_spool_enabled = endless_spool_on_;
+    }
+    if (data.contains("endless_spool_match_mode") && data["endless_spool_match_mode"].is_string()) {
+        endless_spool_mode_ = data["endless_spool_match_mode"].get<std::string>();
     }
 
     // All four seated signals (the ValgACE "loaded" scan, loaded_slot, native
@@ -1786,6 +1801,7 @@ bool AmsBackendAce::parse_slots_response(const json& data) {
             // empty/available/loaded-only mapping misclassified (#1069).
             SlotStatus status = slot_status_from_string(slot_json["status"].get<std::string>());
             observed_present = slot_status_reports_filament(status);
+            note_driver_ready_locked(slot.global_index, slot_json["status"].get<std::string>());
 
             if (status != slot.status) {
                 slot.status = status;
@@ -1849,15 +1865,21 @@ bool AmsBackendAce::parse_slots_response(const json& data) {
 
 std::vector<helix::printer::DeviceSection> AmsBackendAce::get_device_sections() const {
     using DS = helix::printer::DeviceSection;
-    return {
+    std::vector<DS> sections = {
         DS{"filament_control", "Filament Control", 0, "Manual feed and retract operations"},
         DS{"maintenance", "Maintenance", 1, "Feed assist and debug tools"},
     };
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (endless_spool_seen_) {
+        sections.push_back(
+            DS{"endless_spool", "Endless Spool", 2, "Automatic slot swap on runout"});
+    }
+    return sections;
 }
 
 std::vector<helix::printer::DeviceAction> AmsBackendAce::get_device_actions() const {
     using DA = helix::printer::DeviceAction;
-    return {
+    std::vector<DA> actions = {
         DA::button("ace_manual_feed", "Manual Feed", "filament_control", "",
                    "Feed filament from current slot"),
         DA::button("ace_manual_retract", "Manual Retract", "filament_control", "",
@@ -1865,6 +1887,17 @@ std::vector<helix::printer::DeviceAction> AmsBackendAce::get_device_actions() co
         DA::toggle("ace_feed_assist_toggle", "Feed Assist", "maintenance", {}, "",
                    "Enable feed assist for active slot during printing"),
     };
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (endless_spool_seen_) {
+        actions.push_back(DA::toggle("ace_endless_spool_toggle", "Endless Spool", "endless_spool",
+                                     endless_spool_on_, "",
+                                     "Swap to another slot automatically when one runs out"));
+        actions.push_back(DA::dropdown("ace_endless_spool_mode", "Match Mode", "endless_spool",
+                                       {"exact", "material", "next"}, endless_spool_mode_, "",
+                                       "exact: same material and color. material: same material. "
+                                       "next: any ready slot, even a different material"));
+    }
+    return actions;
 }
 
 AmsError AmsBackendAce::execute_device_action(const std::string& action_id, const std::any& value) {
@@ -1910,7 +1943,100 @@ AmsError AmsBackendAce::execute_device_action(const std::string& action_id, cons
         }
     }
 
+    if (action_id == "ace_endless_spool_toggle") {
+        const auto* v = std::any_cast<bool>(&value);
+        bool enable;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            enable = v ? *v : !endless_spool_on_;
+        }
+        return execute_gcode(enable ? "ACE_ENABLE_ENDLESS_SPOOL" : "ACE_DISABLE_ENDLESS_SPOOL");
+    }
+
+    if (action_id == "ace_endless_spool_mode") {
+        const auto* mode = std::any_cast<std::string>(&value);
+        if (!mode || (*mode != "exact" && *mode != "material" && *mode != "next")) {
+            return AmsErrorHelper::invalid_parameter("Unknown endless spool match mode");
+        }
+        return execute_gcode("ACE_SET_ENDLESS_SPOOL_MODE MODE=" + *mode);
+    }
+
     return AmsErrorHelper::not_supported("Unknown ACE action: " + action_id);
+}
+
+// ============================================================================
+// Endless Spool
+// ============================================================================
+
+helix::printer::EndlessSpoolCapabilities AmsBackendAce::get_endless_spool_capabilities() const {
+    using namespace helix::printer;
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!endless_spool_seen_) {
+        return {};
+    }
+    EndlessSpoolEnabled enabled = EndlessSpoolEnabled::Off;
+    if (endless_spool_on_) {
+        enabled = endless_spool_config_locked().empty() ? EndlessSpoolEnabled::OnWithoutBackup
+                                                        : EndlessSpoolEnabled::On;
+    }
+    return {.availability = EndlessSpoolAvailability::Available,
+            .enabled = enabled,
+            .editability = EndlessSpoolEditability::ReadOnly,
+            .restriction = EndlessSpoolRestriction::FirmwareManaged,
+            .provider = {}};
+}
+
+helix::printer::EndlessSpoolConfig AmsBackendAce::get_endless_spool_config() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return endless_spool_config_locked();
+}
+
+void AmsBackendAce::note_driver_ready_locked(int global_index, const std::string& driver_status) {
+    if (driver_status == "ready") {
+        driver_ready_slots_.insert(global_index);
+    } else {
+        driver_ready_slots_.erase(global_index);
+    }
+}
+
+helix::printer::EndlessSpoolConfig AmsBackendAce::endless_spool_config_locked() const {
+    // Mirrors the driver's find_exact_match: only slots the driver calls
+    // "ready" are swap targets, materials compare case- and edge-space-
+    // insensitively, and an unknown material never matches in exact or
+    // material mode. The backend parses one ACE instance (unit 0), so slots on
+    // further instances are not offered.
+    if (!endless_spool_seen_ || !endless_spool_on_ || system_info_.units.empty()) {
+        return {};
+    }
+    const bool by_material = endless_spool_mode_ == "material";
+    const bool by_next = endless_spool_mode_ == "next";
+    auto normalized = [](std::string m) {
+        auto not_space = [](unsigned char c) { return !std::isspace(c); };
+        m.erase(m.begin(), std::find_if(m.begin(), m.end(), not_space));
+        m.erase(std::find_if(m.rbegin(), m.rend(), not_space).base(), m.end());
+        std::transform(m.begin(), m.end(), m.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        return m;
+    };
+    std::map<std::tuple<std::string, uint32_t>, int> ids;
+    std::vector<int> group_ids;
+    for (const auto& slot : system_info_.units[0].slots) {
+        if (slot.global_index < 0 || !driver_ready_slots_.count(slot.global_index)) {
+            continue;
+        }
+        const std::string material = normalized(slot.material);
+        if (!by_next && (material.empty() || material == "unknown")) {
+            continue;
+        }
+        if (group_ids.size() <= static_cast<size_t>(slot.global_index)) {
+            group_ids.resize(static_cast<size_t>(slot.global_index) + 1, -1);
+        }
+        auto key = std::make_tuple(by_next ? std::string() : material,
+                                   (by_next || by_material) ? 0u : slot.color_rgb);
+        auto [it, inserted] = ids.try_emplace(key, static_cast<int>(ids.size()));
+        group_ids[static_cast<size_t>(slot.global_index)] = it->second;
+    }
+    return helix::printer::endless_spool_config_from_groups(group_ids);
 }
 
 // ============================================================================

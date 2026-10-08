@@ -33,6 +33,7 @@
 #include "system/update_checker.h"
 #include "text_io.h"
 #include "touch_calibration_wrapper.h"
+#include "wifi_link_monitor.h"
 
 #include <spdlog/spdlog.h>
 
@@ -137,6 +138,10 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     } catch (const std::exception& e) {
         spdlog::warn("[DebugBundle] Failed to collect log tail: {}", e.what());
     }
+
+    // Link telemetry only (frequency, RSSI, quality, retry counters): no SSID,
+    // BSSID or MAC may enter this section.
+    bundle["network"] = helix::WifiLinkMonitor::instance().to_json();
 
     // log_meta records the active sink target, the persistent level, and whether
     // the log_tail came from the live ring buffer or the on-disk cascade — so a

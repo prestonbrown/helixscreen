@@ -273,6 +273,7 @@
   <translation tag="Automatic Heater Control Calibration" ja="自動ヒーター制御キャリブレーション"/>
   <translation tag="Automatic LED Control" ja="自動LED制御"/>
   <translation tag="Automatic calibration" ja="自動キャリブレーション"/>
+  <translation tag="Automatic slot swap on runout" ja="フィラメント切れ時の自動スロット切り替え"/>
   <translation tag="Aux" ja="補助"/>
   <translation tag="Available" ja="利用可能"/>
   <translation tag="Available Networks" ja="利用可能なネットワーク"/>
@@ -951,6 +952,7 @@
   <translation tag="Encoder" ja="エンコーダー"/>
   <translation tag="Encoder Error" ja="エンコーダーエラー"/>
   <translation tag="Ended" ja="終了"/>
+  <translation tag="Endless Spool" ja="エンドレススプール"/>
   <translation tag="Endless spool failover cleared for every slot" ja="すべてのスロットのエンドレススプール設定を消去しました"/>
   <translation tag="Endless spool is turned off on this MMU" ja="この MMU ではエンドレススプールが無効です"/>
   <translation tag="Ensure Happy Hare or AFC is installed and configured" ja="Happy Hare または AFC がインストールされ、設定されていることを確認してください"/>
@@ -1736,6 +1738,7 @@
   <translation tag="Marginal" ja="やや不良"/>
   <translation tag="Mark a printer you enclosed yourself" ja="自分で筐体を付けたプリンターとして設定"/>
   <translation tag="Master volume level" ja="マスター音量"/>
+  <translation tag="Match Mode" ja="一致モード"/>
   <translation tag="Match your typical print fan speed" ja="通常の印刷ファン速度に合わせてください"/>
   <translation tag="Matching printers" ja="一致するプリンター"/>
   <translation tag="Material" ja="素材"/>
@@ -2116,6 +2119,7 @@
   <translation tag="Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there" ja="電話は上段が 1 2 3、計算機は上段が 7 8 9"/>
   <translation tag="Pick" ja="選択"/>
   <translation tag="Pick Color" ja="色を選択"/>
+  <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." ja="HelixScreen の動作を選択します。すべて後で「設定」から変更できます。"/>
   <translation tag="Pick up tool" ja="ツールを取得"/>
   <translation tag="Picking up tool" ja="ツールを取得中"/>
   <translation tag="Pill" ja="ピル"/>
@@ -2156,6 +2160,7 @@
   <translation tag="Pre-heat the extruder first" ja="先にエクストルーダーを予熱してください"/>
   <translation tag="Pre-print command failed: {}" ja="印刷前コマンドに失敗しました: {}"/>
   <translation tag="Pre-print homing..." ja="印刷前ホーミング中..."/>
+  <translation tag="Preferences" ja="好みの設定"/>
   <translation tag="Preheat" ja="予熱"/>
   <translation tag="Preheat %s" ja="予熱 %s"/>
   <translation tag="Preheat %s (%d/%d)" ja="予熱 %s (%d/%d)"/>
@@ -2895,6 +2900,7 @@
   <translation tag="Suppress periodic temperature status lines" ja="定期的な温度ステータス行を抑制"/>
   <translation tag="Suppress raw debug output from printer firmware modules" ja="プリンターファームウェアモジュールからの生のデバッグ出力を抑制"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." ja="サーフェスはライトモードとダークモードのアプリ背景トークンを継承します。"/>
+  <translation tag="Swap to another slot automatically when one runs out" ja="スロットのフィラメントが切れたら自動で別のスロットに切り替えます"/>
   <translation tag="Sweep" ja="スイープ"/>
   <translation tag="Switch Printer" ja="プリンターを切り替え"/>
   <translation tag="Switch Sensors" ja="スイッチセンサー"/>
@@ -3473,6 +3479,7 @@
   <translation tag="enable" ja="有効化"/>
   <translation tag="enabled" ja="有効"/>
   <translation tag="error" ja="エラー"/>
+  <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" ja="exact: 同じ素材と同じ色。material: 同じ素材。next: 準備済みの任意のスロット (別の素材でも可)"/>
   <translation tag="extruder" ja="エクストルーダー"/>
   <translation tag="extruder(s)" ja="エクストルーダー"/>
   <translation tag="extruders" ja="エクストルーダー"/>

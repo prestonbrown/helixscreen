@@ -95,7 +95,7 @@ def select_units(units, changed, read_source):
     units: {relpath: entry}; changed: relpaths; read_source(rel) -> text.
     A changed source is checked if the firmware compiles it. A changed header
     is checked through the units that include it directly.
-    ponytail: direct includers only; a transitive include graph when a break
+    Direct includers only; a transitive include graph when a break
     slips past through a header-of-a-header.
     """
     picked = {rel for rel in changed if rel in units}

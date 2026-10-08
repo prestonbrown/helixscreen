@@ -5,6 +5,7 @@
 
 #include "ui_modal.h"
 
+#include "camera_frame.h"
 #include "detection_manager.h"
 #include "subject_managed_panel.h"
 
@@ -69,12 +70,21 @@ class SpaghettiDetectionModal : public Modal {
     /**
      * @brief Configure the message and optional camera frame
      * @param message Detection message text
-     * @param frame   Decoded camera frame (may be nullptr to omit the preview)
+     * @param frame   Camera frame to preview (copied; nullptr or empty omits the preview)
      */
-    void set_detection(const std::string& message, lv_draw_buf_t* frame) {
+    void set_detection(const std::string& message, const helix::CameraFrame* frame = nullptr) {
         message_ = message;
-        frame_ = frame;
+        if (frame)
+            attach_frame(*frame);
     }
+
+    /// Show @p frame in the preview, now if the dialog is up, else when it is.
+    /// The modal keeps its own pixels; the preview's buffer is freed with the widget.
+    void attach_frame(const helix::CameraFrame& frame);
+
+    /// Ask the camera for a still: a running stream's latest frame at once, else
+    /// a snapshot that appears when it lands (dropped if the modal closed first).
+    void request_camera_frame(const helix::CameraFrameSources& sources);
 
     // Test hooks (bypass LVGL button events):
     void invoke_resume_for_test() {
@@ -130,6 +140,7 @@ class SpaghettiDetectionModal : public Modal {
     static bool subjects_initialized_;
 
     std::string message_;
-    lv_draw_buf_t* frame_ = nullptr;
+    helix::CameraFrame frame_; // held until on_show() builds the preview's buffer
+    void show_preview(lv_obj_t* preview);
     Action on_resume_, on_abort_, on_tune_, on_disable_;
 };

@@ -147,7 +147,7 @@ bool log_path_allowed(const std::string& path) {
             return false;
         }
     }
-    // ponytail: this lstat and the later open are separate steps, so a link
+    // This lstat and the later open are separate steps, so a link
     // planted in between still races the open; the launcher shares the same
     // window. Close it with O_NOFOLLOW|O_EXCL plus an fstat re-check in
     // init_logging if a writable-parent threat ever shows up.

@@ -277,6 +277,7 @@ translations:
   Automatic Heater Control Calibration: 自動ヒーター制御キャリブレーション
   Automatic LED Control: 自動LED制御
   Automatic calibration: '自動キャリブレーション'
+  Automatic slot swap on runout: 'フィラメント切れ時の自動スロット切り替え'
   Aux: 補助
   Available: 利用可能
   Available Networks: 利用可能なネットワーク
@@ -985,6 +986,7 @@ translations:
   Encoder: エンコーダー
   Encoder Error: 'エンコーダーエラー'
   Ended: 終了
+  Endless Spool: 'エンドレススプール'
   Endless spool failover cleared for every slot: 'すべてのスロットのエンドレススプール設定を消去しました'
   Endless spool is turned off on this MMU: 'この MMU ではエンドレススプールが無効です'
   Ensure Happy Hare or AFC is installed and configured: Happy Hare または AFC がインストールされ、設定されていることを確認してください
@@ -1804,6 +1806,7 @@ translations:
   Mark a printer you enclosed yourself: 自分で筐体を付けたプリンターとして設定
 
   Master volume level: マスター音量
+  Match Mode: '一致モード'
   Match your typical print fan speed: 通常の印刷ファン速度に合わせてください
   Matching printers: 一致するプリンター
   Material: 素材
@@ -2197,6 +2200,7 @@ translations:
   Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there: 電話は上段が 1 2 3、計算機は上段が 7 8 9
   Pick: 選択
   Pick Color: 色を選択
+  Pick how HelixScreen behaves. You can change any of these later in Settings.: 'HelixScreen の動作を選択します。すべて後で「設定」から変更できます。'
   Pick up tool: ツールを取得
   Picking up tool: ツールを取得中
   Pill: ピル
@@ -2242,6 +2246,7 @@ translations:
   Pre-heat the extruder first: 先にエクストルーダーを予熱してください
   'Pre-print command failed: {}': '印刷前コマンドに失敗しました: {}'
   Pre-print homing...: 印刷前ホーミング中...
+  Preferences: 好みの設定
   Preheat: '予熱'
   Preheat %s: '予熱 %s'
   Preheat %s (%d/%d): '予熱 %s (%d/%d)'
@@ -3014,6 +3019,7 @@ translations:
   Suppress periodic temperature status lines: 定期的な温度ステータス行を抑制
   Suppress raw debug output from printer firmware modules: プリンターファームウェアモジュールからの生のデバッグ出力を抑制
   Surfaces inherit app background tokens for light and dark modes.: サーフェスはライトモードとダークモードのアプリ背景トークンを継承します。
+  Swap to another slot automatically when one runs out: 'スロットのフィラメントが切れたら自動で別のスロットに切り替えます'
   Sweep: スイープ
   Switch Printer: プリンターを切り替え
   Switch a power device on or off: 電源デバイスのオン/オフ切り替え
@@ -3639,6 +3645,7 @@ translations:
   enable: 有効化
   enabled: 有効
   error: エラー
+  'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: 同じ素材と同じ色。material: 同じ素材。next: 準備済みの任意のスロット (別の素材でも可)'
   extruder: エクストルーダー
   extruder(s): エクストルーダー
   extruders: エクストルーダー

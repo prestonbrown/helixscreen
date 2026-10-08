@@ -195,6 +195,7 @@
 #include "theme_manager.h"
 #include "u1_stock_detection_source.h"
 #include "upgrade_banner.h"
+#include "wifi_link_monitor.h"
 #include "wifi_manager.h"
 
 // Backend headers
@@ -1968,6 +1969,9 @@ void Application::check_wifi_availability() {
     // a WiFi screen. Bringup is not a user-intent question.
     auto wifi = get_wifi_manager();
 
+    // Link telemetry runs from boot, not only while a WiFi screen is open.
+    helix::WifiLinkMonitor::instance().start();
+
     // wifi_expected keeps its original meaning: the user configured WiFi, so
     // tell them if the hardware has since disappeared.
     if (!m_config || !m_config->is_wifi_expected()) {
@@ -2451,6 +2455,7 @@ void Application::shutdown() {
     // Expire the callbacks this object deferred to the main thread before any of
     // the subsystems they touch are torn down below (#1165).
     m_async_lifetime.invalidate();
+    helix::WifiLinkMonitor::instance().stop();
 
     // Clean shutdown means no crash loop -- remove the marker file
     std::filesystem::remove(crash_marker_path());

@@ -621,6 +621,12 @@ class WifiBackend {
      */
     virtual bool supports_5ghz() const = 0;
 
+    /// True when get_status() fills ConnectionStatus::frequency_mhz while connected.
+    /// A backend that cannot says so, so a missing band is not read as "no band change".
+    virtual bool reports_frequency() const {
+        return false;
+    }
+
     // ========================================================================
     // Factory Methods
     // ========================================================================

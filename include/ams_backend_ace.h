@@ -209,6 +209,19 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     AmsError execute_device_action(const std::string& action_id,
                                    const std::any& value = {}) override;
 
+    // ========================================================================
+    // Endless Spool
+    // ========================================================================
+
+    /// Available only once the driver has published `endless_spool_enabled`.
+    /// Read-only: the driver derives its swap target from the match mode and
+    /// the inventory, so there is no per-slot backup to write.
+    [[nodiscard]] helix::printer::EndlessSpoolCapabilities
+    get_endless_spool_capabilities() const override;
+
+    /// The groups the current match mode induces over the ready slots.
+    [[nodiscard]] helix::printer::EndlessSpoolConfig get_endless_spool_config() const override;
+
   protected:
     // ========================================================================
     // AmsSubscriptionBackend hooks
@@ -568,6 +581,20 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     /// answer from "has one, currently on".
     bool ace_pro_enabled_seen_ = false;
     bool ace_pro_enabled_ = true;
+
+    [[nodiscard]] helix::printer::EndlessSpoolConfig endless_spool_config_locked() const;
+
+    /// Slots whose raw driver status is exactly "ready": the only swap targets
+    /// the driver's endless spool considers (our SlotStatus folds preload,
+    /// running, loaded and available into the same value).
+    std::set<int> driver_ready_slots_;
+    void note_driver_ready_locked(int global_index, const std::string& driver_status);
+
+    /// The driver's endless-spool switch and match mode ("exact" | "material" |
+    /// "next"), from the manager object. Unseen means the driver predates it.
+    bool endless_spool_seen_ = false;
+    bool endless_spool_on_ = false;
+    std::string endless_spool_mode_ = "exact";
 
     /// Macros that turn the ACE path off (engaging bypass) and back on.
     std::string bypass_on_macro_;

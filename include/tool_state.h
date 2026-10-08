@@ -386,6 +386,10 @@ class ToolState {
     bool spool_assignments_loaded_ = false; ///< True after load_spool_assignments() completes
     /// The printer a Moonraker spool load is in flight for; empty when none is.
     std::string spool_load_printer_;
+    /// The active printer's local set came from a single-printer file, which holds whichever
+    /// printer saved last, so it must not seed this printer's DB. Cleared by a successful DB
+    /// load.
+    bool spool_set_adopted_ = false;
 
     // AMS topology override (set by AMS backends that multiplex tools, e.g. AFC).
     // When ams_topology_active_ is true, tools_ is sourced from the backend's

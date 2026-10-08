@@ -276,6 +276,7 @@ translations:
   Automatic Heater Control Calibration: 自动加热控制校准
   Automatic LED Control: 自动 LED 控制
   Automatic calibration: '自动校准'
+  Automatic slot swap on runout: '耗尽时自动切换槽位'
   Aux: 辅助
   Available: 可用
   Available Networks: 可用网络
@@ -981,6 +982,7 @@ translations:
   Encoder: 编码器
   Encoder Error: '编码器错误'
   Ended: 已结束
+  Endless Spool: '无限料盘'
   Endless spool failover cleared for every slot: '已清除所有槽位的无限料盘设置'
   Endless spool is turned off on this MMU: '此 MMU 上的无限料盘已关闭'
   Ensure Happy Hare or AFC is installed and configured: 请确保已安装并配置 Happy Hare 或 AFC
@@ -1798,6 +1800,7 @@ translations:
   Mark a printer you enclosed yourself: 将自行加装机箱的打印机标记为封闭
 
   Master volume level: 主音量
+  Match Mode: '匹配模式'
   Match your typical print fan speed: 匹配您常用的打印风扇速度
   Matching printers: 匹配的打印机
   Material: 材料
@@ -2190,6 +2193,7 @@ translations:
   Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there: 电话布局第一行为 1 2 3，计算器布局第一行为 7 8 9
   Pick: 选取
   Pick Color: 选择颜色
+  Pick how HelixScreen behaves. You can change any of these later in Settings.: '选择 HelixScreen 的行为方式。以后可在“设置”中更改。'
   Pick up tool: 取出工具
   Picking up tool: 正在取用工具
   Pill: 胶囊
@@ -2234,6 +2238,7 @@ translations:
   Pre-heat the extruder first: 请先预热挤出机
   'Pre-print command failed: {}': '打印前命令失败: {}'
   Pre-print homing...: 打印前归位...
+  Preferences: 偏好
   Preheat: '预热'
   Preheat %s: '预热 %s'
   Preheat %s (%d/%d): '预热 %s (%d/%d)'
@@ -3005,6 +3010,7 @@ translations:
   Suppress periodic temperature status lines: 抑制周期性温度状态行
   Suppress raw debug output from printer firmware modules: 抑制打印机固件模块的原始调试输出
   Surfaces inherit app background tokens for light and dark modes.: 表面继承应用背景色用于浅色和深色模式。
+  Swap to another slot automatically when one runs out: '某个槽位耗尽时自动切换到另一个槽位'
   Sweep: 扫频
   Switch Printer: 切换打印机
   Switch a power device on or off: 开启或关闭电源设备
@@ -3629,6 +3635,7 @@ translations:
   enable: 启用
   enabled: 已启用
   error: 错误
+  'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact：材料和颜色相同。material：材料相同。next：任意就绪槽位，即使材料不同'
   extruder: 挤出机
   extruder(s): 挤出机
   extruders: 挤出机

@@ -15,7 +15,7 @@ using helix::wizard::StepId;
 
 // ----------------------------------------------------------------------------
 // Id-based skip-vector helpers. The wizard navigates a StepId registry; these
-// build the full 13-entry vector and flip named steps off.
+// build the full 14-entry vector and flip named steps off.
 // ----------------------------------------------------------------------------
 static std::vector<helix::StepSkip> full_vec() {
     std::vector<helix::StepSkip> v;
@@ -34,20 +34,20 @@ static void skip_step(std::vector<helix::StepSkip>& v, StepId s) {
 // Default vector (no skips) — baseline behavior
 // ============================================================================
 
-TEST_CASE("Default: all 13 steps shown", "[wizard][step_logic]") {
-    REQUIRE(helix::wizard_visible_count(full_vec()) == 13);
+TEST_CASE("Default: all 14 steps shown", "[wizard][step_logic]") {
+    REQUIRE(helix::wizard_visible_count(full_vec()) == helix::wizard::STEP_COUNT);
 }
 
 TEST_CASE("Default: display step numbering is 1-based sequential", "[wizard][step_logic]") {
     auto v = full_vec();
-    for (int i = 0; i < 13; ++i) {
+    for (int i = 0; i < helix::wizard::STEP_COUNT; ++i) {
         REQUIRE(helix::wizard_display_number(static_cast<StepId>(i), v) == i + 1);
     }
 }
 
 TEST_CASE("Default: next walks all steps", "[wizard][step_logic]") {
     auto v = full_vec();
-    for (int i = 0; i < 12; ++i) {
+    for (int i = 0; i < helix::wizard::STEP_COUNT - 1; ++i) {
         REQUIRE(helix::wizard_next(static_cast<StepId>(i), v) == static_cast<StepId>(i + 1));
     }
     REQUIRE(helix::wizard_is_last(StepId::Telemetry, v));
@@ -55,7 +55,7 @@ TEST_CASE("Default: next walks all steps", "[wizard][step_logic]") {
 
 TEST_CASE("Default: prev walks all steps backward", "[wizard][step_logic]") {
     auto v = full_vec();
-    for (int i = 12; i > 0; --i) {
+    for (int i = helix::wizard::STEP_COUNT - 1; i > 0; --i) {
         REQUIRE(helix::wizard_prev(static_cast<StepId>(i), v) == static_cast<StepId>(i - 1));
     }
     REQUIRE_FALSE(helix::wizard_prev(StepId::TouchCalibration, v).has_value());
@@ -78,12 +78,13 @@ TEST_CASE("Preset mode: skip hardware steps", "[wizard][step_logic][preset]") {
     skip_step(v, StepId::Summary);
     // telemetry NOT skipped (shown in preset mode)
 
-    // Steps shown: TouchCalibration, Language, Connection, Telemetry = 4
-    REQUIRE(helix::wizard_visible_count(v) == 4);
+    // Steps shown: TouchCalibration, Language, Connection, Preferences, Telemetry = 5
+    REQUIRE(helix::wizard_visible_count(v) == 5);
     REQUIRE(helix::wizard_display_number(StepId::TouchCalibration, v) == 1);
     REQUIRE(helix::wizard_display_number(StepId::Language, v) == 2);
     REQUIRE(helix::wizard_display_number(StepId::Connection, v) == 3);
-    REQUIRE(helix::wizard_display_number(StepId::Telemetry, v) == 4);
+    REQUIRE(helix::wizard_display_number(StepId::Preferences, v) == 4);
+    REQUIRE(helix::wizard_display_number(StepId::Telemetry, v) == 5);
 }
 
 TEST_CASE("Preset mode: next skips hardware", "[wizard][step_logic][preset]") {
@@ -100,7 +101,8 @@ TEST_CASE("Preset mode: next skips hardware", "[wizard][step_logic][preset]") {
 
     REQUIRE(helix::wizard_next(StepId::TouchCalibration, v) == StepId::Language);
     REQUIRE(helix::wizard_next(StepId::Language, v) == StepId::Connection);
-    REQUIRE(helix::wizard_next(StepId::Connection, v) == StepId::Telemetry);
+    REQUIRE(helix::wizard_next(StepId::Connection, v) == StepId::Preferences);
+    REQUIRE(helix::wizard_next(StepId::Preferences, v) == StepId::Telemetry);
     REQUIRE(helix::wizard_is_last(StepId::Telemetry, v));
 }
 
@@ -109,7 +111,7 @@ TEST_CASE("Normal mode: telemetry skipped by default", "[wizard][step_logic]") {
     skip_step(v, StepId::Telemetry);
 
     // 12 steps shown (telemetry skipped)
-    REQUIRE(helix::wizard_visible_count(v) == 12);
+    REQUIRE(helix::wizard_visible_count(v) == helix::wizard::STEP_COUNT - 1);
     REQUIRE(helix::wizard_is_last(StepId::Summary, v)); // Summary is last
 }
 
@@ -125,7 +127,8 @@ TEST_CASE("Preset mode: prev works", "[wizard][step_logic][preset]") {
     skip_step(v, StepId::InputShaper);
     skip_step(v, StepId::Summary);
 
-    REQUIRE(helix::wizard_prev(StepId::Telemetry, v) == StepId::Connection);
+    REQUIRE(helix::wizard_prev(StepId::Telemetry, v) == StepId::Preferences);
+    REQUIRE(helix::wizard_prev(StepId::Preferences, v) == StepId::Connection);
     REQUIRE(helix::wizard_prev(StepId::Connection, v) == StepId::Language);
     REQUIRE(helix::wizard_prev(StepId::Language, v) == StepId::TouchCalibration);
     REQUIRE_FALSE(helix::wizard_prev(StepId::TouchCalibration, v).has_value());
@@ -145,10 +148,10 @@ TEST_CASE("Preset mode: connection also skipped", "[wizard][step_logic][preset]"
     skip_step(v, StepId::Summary);
     // telemetry NOT skipped
 
-    // Steps: TouchCalibration, Language, Telemetry = 3
-    REQUIRE(helix::wizard_visible_count(v) == 3);
+    // Steps: TouchCalibration, Language, Preferences, Telemetry = 4
+    REQUIRE(helix::wizard_visible_count(v) == 4);
     // lang -> telemetry (skip conn + all hw)
-    REQUIRE(helix::wizard_next(StepId::Language, v) == StepId::Telemetry);
+    REQUIRE(helix::wizard_next(StepId::Language, v) == StepId::Preferences);
 }
 
 // ============================================================================
@@ -197,8 +200,9 @@ TEST_CASE("Preset plan: SECOND printer with preset skips hardware but NOT first-
     REQUIRE_FALSE(plan5.first_run);
 }
 
-TEST_CASE("Preset plan: secondary-printer flags navigate connection -> summary -> done",
-          "[wizard][step_logic][preset]") {
+TEST_CASE(
+    "Preset plan: secondary-printer flags navigate connection -> preferences -> summary -> done",
+    "[wizard][step_logic][preset]") {
     // Build the skip vector a secondary preset printer produces and confirm the
     // wizard walks straight to the summary, then finishes (no telemetry).
     auto plan = helix::wizard_preset_plan(true, 2);
@@ -226,9 +230,10 @@ TEST_CASE("Preset plan: secondary-printer flags navigate connection -> summary -
     else
         skip_step(v, StepId::Telemetry);
 
-    REQUIRE(helix::wizard_next(StepId::Connection, v) == StepId::Summary); // connection -> summary
+    REQUIRE(helix::wizard_next(StepId::Connection, v) == StepId::Preferences);
+    REQUIRE(helix::wizard_next(StepId::Preferences, v) == StepId::Summary);
     REQUIRE(helix::wizard_is_last(StepId::Summary, v)); // summary -> done (telemetry skipped)
-    REQUIRE(helix::wizard_visible_count(v) == 2);       // connection + summary
+    REQUIRE(helix::wizard_visible_count(v) == 3);       // connection + preferences + summary
 }
 
 // ============================================================================
@@ -245,7 +250,7 @@ static std::vector<helix::StepSkip> all_visible() {
 TEST_CASE("id-nav: next walks visible steps", "[wizard][step_logic][idnav]") {
     auto v = all_visible();
     REQUIRE(helix::wizard_next(StepId::Connection, v) == StepId::PrinterIdentify);
-    REQUIRE(helix::wizard_visible_count(v) == 13);
+    REQUIRE(helix::wizard_visible_count(v) == helix::wizard::STEP_COUNT);
 }
 
 TEST_CASE("id-nav: non-contiguous skips are honored", "[wizard][step_logic][idnav]") {
@@ -256,8 +261,8 @@ TEST_CASE("id-nav: non-contiguous skips are honored", "[wizard][step_logic][idna
             s.skipped = true;
     REQUIRE(helix::wizard_next(StepId::PrinterIdentify, v) == StepId::FanSelect);
     REQUIRE(helix::wizard_next(StepId::FanSelect, v) == StepId::LedSelect);
-    REQUIRE(helix::wizard_next(StepId::FilamentSensor, v) == StepId::Summary);
-    REQUIRE(helix::wizard_visible_count(v) == 10);
+    REQUIRE(helix::wizard_next(StepId::FilamentSensor, v) == StepId::Preferences);
+    REQUIRE(helix::wizard_visible_count(v) == helix::wizard::STEP_COUNT - 3);
 }
 
 TEST_CASE("id-nav: last visible step reports done", "[wizard][step_logic][idnav]") {

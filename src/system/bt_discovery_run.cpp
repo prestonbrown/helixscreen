@@ -14,7 +14,7 @@
 namespace helix::bluetooth {
 
 SharedContext::~SharedContext() {
-    // ponytail: a detached worker still inside a plugin call when the process exits is not
+    // A detached worker still inside a plugin call when the process exits is not
     // joined; exit tears it down mid-call. Joinable workers if teardown order ever matters.
     if (auto* ctx = ctx_.load(); ctx && deinit_)
         deinit_(ctx);

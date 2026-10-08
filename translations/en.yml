@@ -290,6 +290,7 @@ translations:
   Automatic Heater Control Calibration: Automatic Heater Control Calibration
   Automatic LED Control: Automatic LED Control
   Automatic calibration: Automatic calibration
+  Automatic slot swap on runout: Automatic slot swap on runout
   Aux: Aux
   Available: Available
   Available Networks: Available Networks
@@ -1016,6 +1017,7 @@ translations:
   Encoder: Encoder
   Encoder Error: Encoder Error
   Ended: Ended
+  Endless Spool: Endless Spool
   Endless spool failover cleared for every slot: Endless spool failover cleared for every slot
   Endless spool is turned off on this MMU: Endless spool is turned off on this MMU
   Ensure Happy Hare or AFC is installed and configured: Ensure Happy Hare or AFC is installed and configured
@@ -1867,6 +1869,7 @@ translations:
   Marginal: Marginal
   Mark a printer you enclosed yourself: Mark a printer you enclosed yourself
   Master volume level: Master volume level
+  Match Mode: Match Mode
   Match your typical print fan speed: Match your typical print fan speed
   Matching printers: Matching printers
   Material: Material
@@ -2269,6 +2272,7 @@ translations:
   Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there: Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there
   Pick: Pick
   Pick Color: Pick Color
+  Pick how HelixScreen behaves. You can change any of these later in Settings.: Pick how HelixScreen behaves. You can change any of these later in Settings.
   Pick up tool: Pick up tool
   Picking up tool: Picking up tool
   Pill: Pill
@@ -2316,6 +2320,7 @@ translations:
   Pre-heat the extruder first: Pre-heat the extruder first
   'Pre-print command failed: {}': 'Pre-print command failed: {}'
   'Pre-print homing...': 'Pre-print homing...'
+  Preferences: Preferences
   Preheat: Preheat
   Preheat %s: Preheat %s
   Preheat %s (%d/%d): Preheat %s (%d/%d)
@@ -3122,6 +3127,7 @@ translations:
     from printer firmware modules
   Surfaces inherit app background tokens for light and dark modes.: Surfaces inherit
     app background tokens for light and dark modes.
+  Swap to another slot automatically when one runs out: Swap to another slot automatically when one runs out
   Sweep: Sweep
   Switch Printer: Switch Printer
   Switch a power device on or off: Switch a power device on or off
@@ -3782,6 +3788,7 @@ translations:
   enable: enable
   enabled: enabled
   error: error
+  'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: same material and color. material: same material. next: any ready slot, even a different material'
   extruder: extruder
   extruder(s): extruder(s)
   extruders: extruders

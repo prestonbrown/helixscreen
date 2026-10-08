@@ -618,6 +618,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/wizard_input_shaper.xml",
     "ui_xml/wizard_language_chooser.xml",
     "ui_xml/wizard_led_select.xml",
+    "ui_xml/wizard_preferences.xml",
     "ui_xml/wizard_printer_identify.xml",
     "ui_xml/wizard_summary.xml",
     "ui_xml/wizard_telemetry.xml",

@@ -9,6 +9,7 @@
 #include "ui_wizard_input_shaper.h"
 #include "ui_wizard_language_chooser.h"
 #include "ui_wizard_led_select.h"
+#include "ui_wizard_preferences.h"
 #include "ui_wizard_printer_identify.h"
 #include "ui_wizard_summary.h"
 #include "ui_wizard_telemetry.h"
@@ -31,19 +32,20 @@ std::vector<Step*> steps() {
     // destroyed singleton on demand, so fetching fresh is always valid + cheap.
     std::vector<Step*> v;
     v.reserve(STEP_COUNT);
-    v.push_back(get_wizard_touch_calibration_step());      // TouchCalibration = 0
-    v.push_back(get_wizard_language_chooser_step());       // Language
-    v.push_back(get_wizard_wifi_step());                   // Wifi
-    v.push_back(get_wizard_connection_step());             // Connection
-    v.push_back(get_wizard_printer_identify_step());       // PrinterIdentify
-    v.push_back(get_wizard_heater_select_step());          // HeaterSelect
-    v.push_back(get_wizard_fan_select_step());             // FanSelect
-    v.push_back(get_wizard_ams_identify_step());           // AmsIdentify
-    v.push_back(get_wizard_led_select_step());             // LedSelect
-    v.push_back(get_wizard_filament_sensor_select_step()); // FilamentSensor
-    v.push_back(get_wizard_input_shaper_step());           // InputShaper
-    v.push_back(get_wizard_summary_step());                // Summary
-    v.push_back(get_wizard_telemetry_step());              // Telemetry
+    v.push_back(get_wizard_touch_calibration_step());          // TouchCalibration = 0
+    v.push_back(get_wizard_language_chooser_step());           // Language
+    v.push_back(get_wizard_wifi_step());                       // Wifi
+    v.push_back(get_wizard_connection_step());                 // Connection
+    v.push_back(get_wizard_printer_identify_step());           // PrinterIdentify
+    v.push_back(get_wizard_heater_select_step());              // HeaterSelect
+    v.push_back(get_wizard_fan_select_step());                 // FanSelect
+    v.push_back(get_wizard_ams_identify_step());               // AmsIdentify
+    v.push_back(get_wizard_led_select_step());                 // LedSelect
+    v.push_back(get_wizard_filament_sensor_select_step());     // FilamentSensor
+    v.push_back(get_wizard_input_shaper_step());               // InputShaper
+    v.push_back(helix::wizard::get_wizard_preferences_step()); // Preferences
+    v.push_back(get_wizard_summary_step());                    // Summary
+    v.push_back(get_wizard_telemetry_step());                  // Telemetry
     return v;
 }
 

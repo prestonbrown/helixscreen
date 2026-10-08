@@ -739,6 +739,15 @@ int WiFiManager::get_signal_strength() {
     return status.signal_strength;
 }
 
+bool WiFiManager::reports_frequency() {
+    return backend_ && backend_->reports_frequency();
+}
+
+std::string WiFiManager::netdev_name() {
+    const auto iface = backend_ ? backend_->resolved_interface() : std::nullopt;
+    return iface ? iface->netdev : std::string();
+}
+
 bool WiFiManager::supports_5ghz() {
     if (!backend_)
         return false;

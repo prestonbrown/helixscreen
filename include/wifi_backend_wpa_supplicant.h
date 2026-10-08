@@ -470,6 +470,10 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
     /// callers must fall back to legacy first-match behaviour.
     std::optional<helix::wifi::WifiInterface> resolved_interface() const override;
 
+    bool reports_frequency() const override {
+        return true;
+    }
+
   private:
     // Last state requested via set_radio_enabled(). Defaults to true (radio on).
     std::atomic<bool> radio_enabled_{true};

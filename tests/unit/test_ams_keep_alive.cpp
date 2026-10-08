@@ -17,6 +17,7 @@
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_update_queue.h"
+#include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ams_panel_test_access.h"
@@ -47,7 +48,7 @@ class AmsKeepAliveFixture : public LVGLUITestFixture {
     AmsKeepAliveFixture() {
         animations_were_enabled_ = DisplaySettingsManager::instance().get_animations_enabled();
         DisplaySettingsManager::instance().set_animations_enabled(false);
-        StaticPanelRegistry::instance().destroy_all();
+        helix::ui::destroy_static_panels();
 
         lv_obj_t* panels[UI_PANEL_COUNT] = {nullptr};
         panels[static_cast<int>(PanelId::Home)] = lv_obj_create(test_screen());
@@ -58,7 +59,7 @@ class AmsKeepAliveFixture : public LVGLUITestFixture {
     }
 
     ~AmsKeepAliveFixture() override {
-        StaticPanelRegistry::instance().destroy_all();
+        helix::ui::destroy_static_panels();
         drain();
         AmsState::instance().set_backend(nullptr);
         DisplaySettingsManager::instance().set_animations_enabled(animations_were_enabled_);
@@ -130,7 +131,10 @@ TEST_CASE_METHOD(AmsKeepAliveFixture, "AmsPanel: a second open reuses the built 
     REQUIRE(root != nullptr);
     lv_obj_t* slot = first_slot();
     REQUIRE(slot != nullptr);
-    bool slot_deleted = false;
+    // Static: the slot's delete hook can fire in the fixture teardown, after the test frame is
+    // gone.
+    static bool slot_deleted;
+    slot_deleted = false;
     flag_on_delete(slot, &slot_deleted);
 
     close();
@@ -191,7 +195,10 @@ TEST_CASE_METHOD(AmsKeepAliveFixture,
     open();
     lv_obj_t* slot = first_slot();
     REQUIRE(slot != nullptr);
-    bool slot_deleted = false;
+    // Static: the slot's delete hook can fire in the fixture teardown, after the test frame is
+    // gone.
+    static bool slot_deleted;
+    slot_deleted = false;
     flag_on_delete(slot, &slot_deleted);
     close();
 
@@ -215,7 +222,7 @@ TEST_CASE_METHOD(AmsKeepAliveFixture, "AmsPanel: a printer switch still drops th
 
     // The registry teardown is what a printer switch runs. It hands the widget
     // tree to its caller to free; what matters here is that the panel lets go.
-    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::destroy_static_panels();
     CHECK(get_existing_ams_panel() == nullptr);
     CHECK(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
 

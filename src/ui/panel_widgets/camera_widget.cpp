@@ -539,42 +539,12 @@ void CameraWidget::apply_transform() {
     if (!stream_)
         return;
 
-    int rotation = 0;
-    bool user_flip_h = false;
-    bool user_flip_v = false;
+    const auto t = CameraStream::transform_from_config(config_, current_feed_);
+    stream_->set_rotation(t.rotation);
+    stream_->set_flip(t.flip_h, t.flip_v);
 
-    if (config_.contains("rotation") && config_["rotation"].is_number_integer())
-        rotation = config_["rotation"].get<int>();
-    if (config_.contains("flip_h") && config_["flip_h"].is_boolean())
-        user_flip_h = config_["flip_h"].get<bool>();
-    if (config_.contains("flip_v") && config_["flip_v"].is_boolean())
-        user_flip_v = config_["flip_v"].get<bool>();
-
-    auto cam_rotation = CameraRotation::None;
-    switch (rotation) {
-    case 90:
-        cam_rotation = CameraRotation::Rotate90;
-        break;
-    case 180:
-        cam_rotation = CameraRotation::Rotate180;
-        break;
-    case 270:
-        cam_rotation = CameraRotation::Rotate270;
-        break;
-    default:
-        break;
-    }
-    stream_->set_rotation(cam_rotation);
-
-    // XOR user flip with Moonraker flip — toggling when Moonraker already flips = undo
-    bool moonraker_flip_h = current_feed_.flip_horizontal;
-    bool moonraker_flip_v = current_feed_.flip_vertical;
-    stream_->set_flip(moonraker_flip_h != user_flip_h, moonraker_flip_v != user_flip_v);
-
-    spdlog::debug("[CameraWidget] Transform: rotation={}, flip_h={} (moon={} ^ user={}), "
-                  "flip_v={} (moon={} ^ user={})",
-                  rotation, moonraker_flip_h != user_flip_h, moonraker_flip_h, user_flip_h,
-                  moonraker_flip_v != user_flip_v, moonraker_flip_v, user_flip_v);
+    spdlog::debug("[CameraWidget] Transform: rotation={}, flip_h={}, flip_v={}",
+                  static_cast<int>(t.rotation), t.flip_h, t.flip_v);
 }
 
 void CameraWidget::update_stream_fps() {

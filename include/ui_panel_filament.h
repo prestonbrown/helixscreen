@@ -241,6 +241,7 @@ class FilamentPanel : public PanelBase {
     /// LV_EVENT_LAYOUT_CHANGED; the remainder is measured without the graph,
     /// so re-styling the card cannot change the answer.
     void fit_portrait_graph(lv_obj_t* column);
+    static void on_portrait_column_layout(lv_event_t* e);
     void setup_portrait_graph_fit();
     /// Applies or lifts the spacer state: container hidden, card background
     /// and clickability removed, and the strip's graph button shown in the

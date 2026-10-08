@@ -273,6 +273,7 @@
   <translation tag="Automatic Heater Control Calibration" zh="自动加热控制校准"/>
   <translation tag="Automatic LED Control" zh="自动 LED 控制"/>
   <translation tag="Automatic calibration" zh="自动校准"/>
+  <translation tag="Automatic slot swap on runout" zh="耗尽时自动切换槽位"/>
   <translation tag="Aux" zh="辅助"/>
   <translation tag="Available" zh="可用"/>
   <translation tag="Available Networks" zh="可用网络"/>
@@ -951,6 +952,7 @@
   <translation tag="Encoder" zh="编码器"/>
   <translation tag="Encoder Error" zh="编码器错误"/>
   <translation tag="Ended" zh="已结束"/>
+  <translation tag="Endless Spool" zh="无限料盘"/>
   <translation tag="Endless spool failover cleared for every slot" zh="已清除所有槽位的无限料盘设置"/>
   <translation tag="Endless spool is turned off on this MMU" zh="此 MMU 上的无限料盘已关闭"/>
   <translation tag="Ensure Happy Hare or AFC is installed and configured" zh="请确保已安装并配置 Happy Hare 或 AFC"/>
@@ -1736,6 +1738,7 @@
   <translation tag="Marginal" zh="偏高"/>
   <translation tag="Mark a printer you enclosed yourself" zh="将自行加装机箱的打印机标记为封闭"/>
   <translation tag="Master volume level" zh="主音量"/>
+  <translation tag="Match Mode" zh="匹配模式"/>
   <translation tag="Match your typical print fan speed" zh="匹配您常用的打印风扇速度"/>
   <translation tag="Matching printers" zh="匹配的打印机"/>
   <translation tag="Material" zh="材料"/>
@@ -2116,6 +2119,7 @@
   <translation tag="Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there" zh="电话布局第一行为 1 2 3，计算器布局第一行为 7 8 9"/>
   <translation tag="Pick" zh="选取"/>
   <translation tag="Pick Color" zh="选择颜色"/>
+  <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." zh="选择 HelixScreen 的行为方式。以后可在“设置”中更改。"/>
   <translation tag="Pick up tool" zh="取出工具"/>
   <translation tag="Picking up tool" zh="正在取用工具"/>
   <translation tag="Pill" zh="胶囊"/>
@@ -2156,6 +2160,7 @@
   <translation tag="Pre-heat the extruder first" zh="请先预热挤出机"/>
   <translation tag="Pre-print command failed: {}" zh="打印前命令失败: {}"/>
   <translation tag="Pre-print homing..." zh="打印前归位..."/>
+  <translation tag="Preferences" zh="偏好"/>
   <translation tag="Preheat" zh="预热"/>
   <translation tag="Preheat %s" zh="预热 %s"/>
   <translation tag="Preheat %s (%d/%d)" zh="预热 %s (%d/%d)"/>
@@ -2895,6 +2900,7 @@
   <translation tag="Suppress periodic temperature status lines" zh="抑制周期性温度状态行"/>
   <translation tag="Suppress raw debug output from printer firmware modules" zh="抑制打印机固件模块的原始调试输出"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." zh="表面继承应用背景色用于浅色和深色模式。"/>
+  <translation tag="Swap to another slot automatically when one runs out" zh="某个槽位耗尽时自动切换到另一个槽位"/>
   <translation tag="Sweep" zh="扫频"/>
   <translation tag="Switch Printer" zh="切换打印机"/>
   <translation tag="Switch Sensors" zh="开关传感器"/>
@@ -3473,6 +3479,7 @@
   <translation tag="enable" zh="启用"/>
   <translation tag="enabled" zh="已启用"/>
   <translation tag="error" zh="错误"/>
+  <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" zh="exact：材料和颜色相同。material：材料相同。next：任意就绪槽位，即使材料不同"/>
   <translation tag="extruder" zh="挤出机"/>
   <translation tag="extruder(s)" zh="挤出机"/>
   <translation tag="extruders" zh="挤出机"/>

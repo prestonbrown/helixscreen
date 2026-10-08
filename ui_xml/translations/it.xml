@@ -273,6 +273,7 @@
   <translation tag="Automatic Heater Control Calibration" it="Calibrazione controllo automatico riscaldatore"/>
   <translation tag="Automatic LED Control" it="Controllo LED automatico"/>
   <translation tag="Automatic calibration" it="Calibrazione automatica"/>
+  <translation tag="Automatic slot swap on runout" it="Cambio automatico di slot a fine filamento"/>
   <translation tag="Aux" it="Aux"/>
   <translation tag="Available" it="Disponibile"/>
   <translation tag="Available Networks" it="Reti disponibili"/>
@@ -951,6 +952,7 @@
   <translation tag="Encoder" it="Encoder"/>
   <translation tag="Encoder Error" it="Errore dell&apos;encoder"/>
   <translation tag="Ended" it="Terminato"/>
+  <translation tag="Endless Spool" it="Bobina infinita"/>
   <translation tag="Endless spool failover cleared for every slot" it="Bobina di riserva cancellata per tutti gli slot"/>
   <translation tag="Endless spool is turned off on this MMU" it="La bobina infinita è disattivata su questo MMU"/>
   <translation tag="Ensure Happy Hare or AFC is installed and configured" it="Assicurati che Happy Hare o AFC sia installato e configurato"/>
@@ -1736,6 +1738,7 @@
   <translation tag="Marginal" it="Marginale"/>
   <translation tag="Mark a printer you enclosed yourself" it="Indica una stampante che hai chiuso tu"/>
   <translation tag="Master volume level" it="Livello volume principale"/>
+  <translation tag="Match Mode" it="Modalità di corrispondenza"/>
   <translation tag="Match your typical print fan speed" it="Imposta la velocità ventola di stampa tipica"/>
   <translation tag="Matching printers" it="Stampanti corrispondenti"/>
   <translation tag="Material" it="Materiale"/>
@@ -2116,6 +2119,7 @@
   <translation tag="Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there" it="Telefono mette 1 2 3 nella riga in alto, calcolatrice 7 8 9"/>
   <translation tag="Pick" it="Scegli"/>
   <translation tag="Pick Color" it="Scegli colore"/>
+  <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." it="Scegli come si comporta HelixScreen. Puoi cambiare tutto più tardi in Impostazioni."/>
   <translation tag="Pick up tool" it="Preleva utensile"/>
   <translation tag="Picking up tool" it="Prelievo utensile"/>
   <translation tag="Pill" it="Pillola"/>
@@ -2156,6 +2160,7 @@
   <translation tag="Pre-heat the extruder first" it="Preriscaldare prima l&apos;estrusore"/>
   <translation tag="Pre-print command failed: {}" it="Comando pre-stampa fallito: {}"/>
   <translation tag="Pre-print homing..." it="Homing pre-stampa..."/>
+  <translation tag="Preferences" it="Preferenze"/>
   <translation tag="Preheat" it="Preriscaldamento"/>
   <translation tag="Preheat %s" it="Preriscaldamento %s"/>
   <translation tag="Preheat %s (%d/%d)" it="Preriscaldamento %s (%d/%d)"/>
@@ -2895,6 +2900,7 @@
   <translation tag="Suppress periodic temperature status lines" it="Sopprime le righe di stato periodiche della temperatura"/>
   <translation tag="Suppress raw debug output from printer firmware modules" it="Sopprime l&apos;output di debug grezzo dai moduli firmware della stampante"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." it="Le superfici ereditano i token sfondo app per modalità chiara e scura."/>
+  <translation tag="Swap to another slot automatically when one runs out" it="Passa automaticamente a un altro slot quando uno finisce"/>
   <translation tag="Sweep" it="Scansione"/>
   <translation tag="Switch Printer" it="Cambia stampante"/>
   <translation tag="Switch Sensors" it="Sensori a interruttore"/>
@@ -3473,6 +3479,7 @@
   <translation tag="enable" it="abilita"/>
   <translation tag="enabled" it="abilitato"/>
   <translation tag="error" it="errore"/>
+  <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" it="exact: stesso materiale e stesso colore. material: stesso materiale. next: qualsiasi slot pronto, anche di altro materiale"/>
   <translation tag="extruder" it="estrusore"/>
   <translation tag="extruder(s)" it="estrusore/i"/>
   <translation tag="extruders" it="estrusori"/>

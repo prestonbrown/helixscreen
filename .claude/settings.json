@@ -105,8 +105,6 @@
       }
     ]
   },
-  "outputStyle": "~/.claude/output-styles/real.md",
-  "enabledPlugins": {
-    "ponytail@ponytail": true
-  }
+  "enabledPlugins": {},
+  "outputStyle": "~/.claude/output-styles/real.md"
 }

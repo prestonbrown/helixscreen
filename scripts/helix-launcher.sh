@@ -304,7 +304,7 @@ helix_env_value_refusal() {
 # a single-link regular file owned by root or this user. Platform hooks pick
 # their own firmware log directories after this file loads, so nothing else
 # is needed.
-# ponytail: a link planted in /tmp after this check still races the app's
+# A link planted in /tmp after this check still races the app's
 # open; fs.protected_symlinks closes that on the kernels we ship to.
 helix_env_log_file_ok() {
     case "$1" in
@@ -373,7 +373,7 @@ helix_env_is_name() {
 # Owner uid of REAL_DIR when it may hold the env file: REAL_DIR has no group
 # or world write bit, and LINK_DIR (where the symlink lives) is owned by root
 # or UID with none either. Prints 0 (root, trusted anyway) otherwise.
-# ponytail: judges the two directories only, not every ancestor; walk the
+# Judges the two directories only, not every ancestor; walk the
 # ancestors if the env file ever becomes code again.
 helix_env_dir_owner() {
     _hed_link=$(helix_env_stat "$2")

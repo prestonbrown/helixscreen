@@ -197,7 +197,7 @@ HttpTarget plan_http_target(const std::string& url, const std::vector<std::strin
     }
     t.ok = true;
     if (probe.IsHttps()) {
-        // ponytail: an https host is not pinned, so a DNS answer that changes between this
+        // An https host is not pinned, so a DNS answer that changes between this
         // check and the connect (rebinding) still reaches this machine; Moonraker speaks plain
         // HTTP and cannot complete a TLS handshake. Pin with SNI kept on the name if a local
         // TLS service ever needs protecting.

@@ -2294,3 +2294,49 @@ TEST_CASE_METHOD(TwoPrinterSpoolFixture,
     REQUIRE(db_writes().size() == 1);
     CHECK(db_writes()[0]["1"]["spoolman_id"] == 7);
 }
+
+TEST_CASE_METHOD(TwoPrinterSpoolFixture,
+                 "ToolState: spools adopted from a single-printer file never seed the DB",
+                 "[tool][tool-state][spool][multi-printer]") {
+    // The single-printer file holds whichever printer saved last, which need not be the
+    // printer that adopts it.
+    {
+        std::ofstream legacy(spool_file());
+        legacy << R"({"0": {"spoolman_id": 42, "spool_name": "Someone else's PLA"}})";
+    }
+    switch_to("bravo");
+
+    const auto fail_load = [this](const MoonrakerError& err) {
+        auto load = start_load();
+        client.rpc_calls.clear();
+        load.error_cb(err);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    };
+    MoonrakerError timeout;
+    timeout.type = MoonrakerErrorType::TIMEOUT;
+    fail_load(timeout);
+    CHECK(ToolState::instance().tools()[0].spoolman_id == 42);
+    CHECK(db_writes().empty());
+
+    // Still adopted once the in-memory state is gone: the next load reads the mark back.
+    switch_to("bravo");
+    fail_load(timeout);
+    CHECK(db_writes().empty());
+
+    MoonrakerError not_found;
+    not_found.code = 404;
+    switch_to("bravo");
+    fail_load(not_found);
+    CHECK(db_writes().empty());
+
+    // Once bravo has loaded from its own DB, its local set is its own.
+    switch_to("bravo");
+    auto load = start_load();
+    load.success_cb(nlohmann::json{
+        {"result", {{"value", {{"1", {{"spoolman_id", 7}, {"spool_name", "Bravo PETG"}}}}}}}});
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    switch_to("bravo");
+    fail_load(timeout);
+    REQUIRE(db_writes().size() == 1);
+    CHECK(db_writes()[0]["1"]["spoolman_id"] == 7);
+}

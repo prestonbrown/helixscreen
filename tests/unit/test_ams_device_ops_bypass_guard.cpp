@@ -25,6 +25,7 @@
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_nav_manager.h"
 #include "ui_update_queue.h"
+#include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/chaining_mock_backend.h"
@@ -131,7 +132,7 @@ class DeviceOpsBypassFixture : public LVGLUITestFixture {
     ObserverGuard action_recorder_;
 
     DeviceOpsBypassFixture() {
-        StaticPanelRegistry::instance().destroy_all();
+        helix::ui::destroy_static_panels();
         helix::ui::UpdateQueue::instance().drain();
 
         auto& ps = state();
@@ -179,7 +180,7 @@ class DeviceOpsBypassFixture : public LVGLUITestFixture {
             backend->wait_for_operation_thread();
         }
         settle();
-        StaticPanelRegistry::instance().destroy_all();
+        helix::ui::destroy_static_panels();
         settle();
         AmsState::instance().set_backend(nullptr);
     }

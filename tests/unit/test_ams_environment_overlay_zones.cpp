@@ -5,6 +5,7 @@
 #include "ui_ams_zone_overview_overlay.h"
 #include "ui_nav_manager.h"
 #include "ui_update_queue.h"
+#include "ui_utils.h"
 #include "ui_zone_presentation.h"
 
 #include "../test_fixtures.h"
@@ -51,7 +52,7 @@ std::vector<EnvironmentZone> capped_rig_zones() {
 /// Drop any instance an earlier case left behind so create() runs against this
 /// case's screen instead of one already torn down.
 void reset_overlay_singleton() {
-    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::destroy_static_panels();
     helix::ui::UpdateQueue::instance().drain();
 }
 

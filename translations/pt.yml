@@ -301,6 +301,7 @@ translations:
   Automatic Heater Control Calibration: Calibração Automática de Controle de Aquecedor
   Automatic LED Control: Controle Automático de LED
   Automatic calibration: 'Calibração automática'
+  Automatic slot swap on runout: 'Troca automática de slot no fim do filamento'
   Aux: Aux
   Available: Disponível
   Available Networks: Redes Disponíveis
@@ -1056,6 +1057,7 @@ translations:
   Encoder: Encoder
   Encoder Error: 'Erro do encoder'
   Ended: Finalizado
+  Endless Spool: 'Carretel infinito'
   Endless spool failover cleared for every slot: 'Carretel reserva limpo para todos os slots'
   Endless spool is turned off on this MMU: 'O carretel infinito está desativado neste MMU'
   Ensure Happy Hare or AFC is installed and configured: Certifique-se de que o Happy Hare ou o AFC esteja instalado e configurado
@@ -1932,6 +1934,7 @@ translations:
   Mark a printer you enclosed yourself: Marque uma impressora que você mesmo fechou
 
   Master volume level: Nível de volume principal
+  Match Mode: 'Modo de correspondência'
   Match your typical print fan speed: Ajuste a velocidade típica da ventoinha de impressão
   Matching printers: Impressoras correspondentes
   Material: Material
@@ -2338,6 +2341,7 @@ translations:
   Phone puts 1 2 3 on the top row, calculator puts 7 8 9 there: Telefone põe 1 2 3 na linha de cima, calculadora põe 7 8 9
   Pick: Escolher
   Pick Color: Escolher Cor
+  Pick how HelixScreen behaves. You can change any of these later in Settings.: 'Escolha como o HelixScreen se comporta. Você pode mudar tudo depois em Configurações.'
   Pick up tool: Pegar ferramenta
   Picking up tool: Pegando ferramenta
   Pill: Pílula
@@ -2386,6 +2390,7 @@ translations:
   Pre-heat the extruder first: Pré-aqueça o extrusor primeiro
   'Pre-print command failed: {}': 'Falha no comando pré-impressão: {}'
   Pre-print homing...: Posicionamento pré-impressão...
+  Preferences: Preferências
   Preheat: 'Pré-aquecer'
   Preheat %s: 'Pré-aquecer %s'
   Preheat %s (%d/%d): 'Pré-aquecer %s (%d/%d)'
@@ -3223,6 +3228,7 @@ translations:
     depuração dos módulos de firmware da impressora
   Surfaces inherit app background tokens for light and dark modes.: Superfícies herdam
     tokens de fundo do aplicativo para modos claro e escuro.
+  Swap to another slot automatically when one runs out: 'Trocar automaticamente para outro slot quando um acabar'
   Sweep: Varredura
   Switch Printer: Trocar Impressora
   Switch a power device on or off: Ligar ou desligar um dispositivo
@@ -3899,6 +3905,7 @@ translations:
   enable: habilitar
   enabled: habilitado
   error: erro
+  'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: mesmo material e mesma cor. material: mesmo material. next: qualquer slot pronto, mesmo de outro material'
   extruder: extrusor
   extruder(s): extrusor(es)
   extruders: extrusores

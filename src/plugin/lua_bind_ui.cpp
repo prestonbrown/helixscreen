@@ -406,7 +406,7 @@ bool dispatch_ui_handler(LuaRuntime& rt, const std::string& name,
     return true;
 }
 
-// ponytail: retired subjects are freed at the next plugin load or unload rather than the
+// Retired subjects are freed at the next plugin load or unload rather than the
 // moment their last observer goes; a sweep on a timer is the upgrade if a device ever shows
 // the list growing.
 void sweep_retired_subjects() {

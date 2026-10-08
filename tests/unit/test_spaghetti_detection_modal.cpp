@@ -7,14 +7,19 @@
 // helix::register_xml_components()), including spaghetti_detection_modal.xml,
 // so the modal can be created from XML inside the test.
 #include "ui_toast_manager.h"
+#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "camera_frame.h"
+#include "camera_stream.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "settings_manager.h"
 
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -129,6 +134,78 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal hides the Tune row 
         CHECK_FALSE(lv_obj_has_flag(div, LV_OBJ_FLAG_HIDDEN));
         modal->hide();
         process_lvgl(50);
+    }
+}
+
+// The preview rides the frame the modal was handed: hidden without one, shown
+// with one, and a frame arriving after the dialog is up is shown too.
+TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal preview follows the camera frame",
+                 "[detection][modal][1506]") {
+    helix::CameraFrame frame;
+    frame.w = 32;
+    frame.h = 18;
+    frame.bgr.assign(32u * 18u * 3u, 0x40);
+
+    SECTION("no frame: preview hidden") {
+        auto owned = std::make_unique<SpaghettiDetectionModal>();
+        auto* modal = owned.get();
+        modal->set_detection("detected noodle");
+        REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
+        lv_obj_t* preview = lv_obj_find_by_name(modal->dialog(), "detection_preview");
+        REQUIRE(preview != nullptr);
+        CHECK(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+        modal->hide();
+        process_lvgl(50);
+    }
+    SECTION("frame before show: preview shown") {
+        auto owned = std::make_unique<SpaghettiDetectionModal>();
+        auto* modal = owned.get();
+        modal->set_detection("detected noodle", &frame);
+        REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
+        lv_obj_t* preview = lv_obj_find_by_name(modal->dialog(), "detection_preview");
+        REQUIRE(preview != nullptr);
+        CHECK_FALSE(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_image_get_src(preview) != nullptr);
+        modal->hide();
+        process_lvgl(50);
+    }
+    SECTION("frame after show: preview appears") {
+        auto owned = std::make_unique<SpaghettiDetectionModal>();
+        auto* modal = owned.get();
+        modal->set_detection("detected noodle");
+        REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
+        modal->attach_frame(frame);
+        lv_obj_t* preview = lv_obj_find_by_name(modal->dialog(), "detection_preview");
+        REQUIRE(preview != nullptr);
+        CHECK_FALSE(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+        modal->hide();
+        process_lvgl(50);
+    }
+    SECTION("snapshot landing after close is dropped without touching the modal") {
+        std::function<void(std::string)> pending;
+        helix::CameraFrameSources src;
+        src.stream_frame = [](int, int) { return helix::CameraFrame{}; };
+        src.snapshot = [] {
+            return helix::SnapshotTarget{
+                "http://cam/snapshot", [](const std::string& j, int w, int h) {
+                    return helix::CameraStream::decode_snapshot(j, w, h, {});
+                }};
+        };
+        src.fetch = [&](const std::string&, std::function<void(std::string)> done) {
+            pending = std::move(done);
+        };
+        auto owned = std::make_unique<SpaghettiDetectionModal>();
+        auto* modal = owned.get();
+        modal->set_detection("detected noodle");
+        modal->request_camera_frame(src);
+        REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
+        REQUIRE(pending);
+        modal->hide();
+        process_lvgl(50); // the entry frees the modal
+        std::ifstream in("assets/test_timelapse/benchy_timelapse_20260310.thumb.jpg",
+                         std::ios::binary);
+        pending(std::string(std::istreambuf_iterator<char>(in), {}));
+        helix::ui::UpdateQueue::instance().drain();
     }
 }
 

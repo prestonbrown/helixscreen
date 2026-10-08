@@ -7,8 +7,8 @@
 <!-- via wire_ok_button / wire_cancel_button / wire_tertiary_button. -->
 <component>
   <view name="spaghetti_detection_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
+        extends="ui_dialog" width="70%" height="content" style_max_height="90%" align="center" flex_flow="column"
+        style_flex_main_place="start" style_pad_gap="0">
     <!-- Header row with warning icon + title -->
     <modal_header icon_src="alert" icon_variant="warning" title="Print issue detected"/>
 
@@ -18,7 +18,7 @@
             style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_md">
       <!-- Camera frame preview. Image source is fed from C++ on_show() when a
            frame is available; otherwise it stays empty. -->
-      <lv_image name="detection_preview" align="center"/>
+      <lv_image name="detection_preview" align="center" inner_align="contain" style_max_width="100%"/>
       <!-- Detection message text, published on spaghetti_message by on_show(). -->
       <text_body name="detection_text"
                  width="100%" long_mode="wrap" style_text_align="center" bind_text="spaghetti_message"/>

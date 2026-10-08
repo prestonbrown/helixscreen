@@ -19,7 +19,8 @@ namespace helix {
  * Must be called on the LVGL/UI thread. Parent is the active screen.
  *
  * @param name One of: preflight-check, runout-modal, lock-screen,
- *             print-status, print-tune, ams-error-toast.
+ *             print-status, print-tune, ams-error-toast,
+ *             spaghetti-detection.
  * @return true if the name was recognized and the overlay shown, false if unknown.
  */
 bool show_demo_overlay(const std::string& name);

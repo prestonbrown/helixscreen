@@ -20,11 +20,14 @@
 #include "ui_preflight_check_modal.h"
 #include "ui_print_tune_overlay.h"
 #include "ui_runout_guidance_modal.h"
+#include "ui_spaghetti_detection_modal.h"
 
 #include "action_prompt_modal.h"
 #include "ams_error.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "camera_frame.h"
+#include "camera_stream.h"
 #include "color_utils.h"
 #include "data_root_resolver.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -229,6 +232,26 @@ bool show_demo_overlay(const std::string& name) {
     if (name == "print-status") {
         PrintStatusPanel::push_overlay(screen);
         return true;
+    }
+
+    if (name == "spaghetti-detection") {
+        // The response modal with the camera still attached the way a real
+        // detection does. The mock publishes no reachable webcam, so
+        // HELIX_DEMO_SNAPSHOT_URL names a snapshot to fetch instead.
+        auto sources = helix::live_camera_sources();
+        if (const char* url = std::getenv("HELIX_DEMO_SNAPSHOT_URL"); url && *url) {
+            sources.stream_frame = nullptr;
+            sources.snapshot = [u = std::string(url)] {
+                return helix::SnapshotTarget{u, [](const std::string& j, int w, int h) {
+                                                 return helix::CameraStream::decode_snapshot(j, w,
+                                                                                             h, {});
+                                             }};
+            };
+        }
+        auto modal = std::make_unique<SpaghettiDetectionModal>();
+        modal->set_detection("Spaghetti detected (78%)");
+        modal->request_camera_frame(sources);
+        return Modal::show_owned(std::move(modal), screen);
     }
 
     if (name == "ams-error-toast") {

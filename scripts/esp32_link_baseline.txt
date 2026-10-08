@@ -41,6 +41,7 @@ src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_input_shaper.cpp
 src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_language_chooser.cpp
 src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_led_select.cpp
 src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_printer_identify.cpp
+src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_preferences.cpp
 src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_summary.cpp
 src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_telemetry.cpp
 src/ui/wizard_step_registry.cpp -> src/ui/ui_wizard_touch_calibration.cpp

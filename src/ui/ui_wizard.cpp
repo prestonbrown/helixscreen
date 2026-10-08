@@ -525,6 +525,7 @@ void ui_wizard_container_register_responsive_constants() {
         "wizard_filament_sensor_select",
         "wizard_input_shaper",
         "wizard_language_chooser",
+        "wizard_preferences",
         "wizard_summary",
         "wizard_telemetry",
         nullptr // Sentinel

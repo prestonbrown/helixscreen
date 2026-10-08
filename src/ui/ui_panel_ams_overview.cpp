@@ -229,15 +229,8 @@ void AmsOverviewPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                 system_path_area_, &AmsOverviewPanel::on_bypass_spool_clicked, this);
             // SIZE_CHANGED only — listening to DRAW events would invalidate
             // during render and trip lv_inv_area assertions in LVGL 9.
-            lv_obj_add_event_cb(
-                system_path_,
-                [](lv_event_t* e) {
-                    auto* self = static_cast<AmsOverviewPanel*>(lv_event_get_user_data(e));
-                    if (self) {
-                        self->update_bypass_widgets_position();
-                    }
-                },
-                LV_EVENT_SIZE_CHANGED, this);
+            lv_obj_add_event_cb(system_path_, &AmsOverviewPanel::on_system_path_size_changed,
+                                LV_EVENT_SIZE_CHANGED, this);
         }
     }
 
@@ -1141,6 +1134,7 @@ void AmsOverviewPanel::clear_panel_reference() {
     g_overview_panel_instance.store(nullptr);
 
     // Clear widget references
+    detach_widget_hooks();
     system_path_ = nullptr;
     system_path_area_ = nullptr;
     panel_ = nullptr;
@@ -1408,6 +1402,25 @@ void AmsOverviewPanel::refresh_bypass_display() {
     }
 
     ui_system_path_canvas_refresh(system_path_);
+}
+
+void AmsOverviewPanel::on_system_path_size_changed(lv_event_t* e) {
+    if (auto* self = static_cast<AmsOverviewPanel*>(lv_event_get_user_data(e)))
+        self->update_bypass_widgets_position();
+}
+
+void AmsOverviewPanel::detach_widget_hooks() {
+    // These widgets can outlive this panel; their callbacks must not.
+    if (cards_row_ && lv_obj_is_valid(cards_row_))
+        lv_obj_remove_event_cb_with_user_data(cards_row_, &AmsOverviewPanel::on_cards_row_scrolled,
+                                              this);
+    if (system_path_ && lv_obj_is_valid(system_path_))
+        lv_obj_remove_event_cb_with_user_data(system_path_,
+                                              &AmsOverviewPanel::on_system_path_size_changed, this);
+}
+
+AmsOverviewPanel::~AmsOverviewPanel() {
+    detach_widget_hooks();
 }
 
 void AmsOverviewPanel::update_bypass_widgets_position() {

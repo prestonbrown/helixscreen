@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- First-Run Wizard: taste-only preference toggles. Every row shares its subject and
+       callback with the settings overlay that owns the same setting. -->
+  <consts>
+    <str name="step_title" value="Preferences" value_tag="Preferences"/>
+    <str name="step_subtitle"
+         value="Pick how HelixScreen behaves. You can change any of these later in Settings."
+         value_tag="Pick how HelixScreen behaves. You can change any of these later in Settings."/>
+  </consts>
+  <view name="wizard_preferences_root"
+        extends="lv_obj" width="100%" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+        flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center">
+    <ui_card width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" scrollable="true">
+      <setting_toggle_row name="row_filament_auto_open_editor"
+                          label="Edit filament on insert" icon="filament"
+                          description="Open the slot editor when you load a new spool"
+                          subject="filament_auto_open_editor" callback="on_filament_auto_open_editor_changed"/>
+      <setting_toggle_row name="row_filament_auto_cooldown"
+                          label="Cool nozzle after filament ops" icon="cooldown"
+                          description="Turn the extruder heater off after a load or unload finishes"
+                          subject="filament_auto_cooldown" callback="on_filament_auto_cooldown_changed"/>
+      <setting_toggle_row name="row_ams_always_show_bypass_spool"
+                          label="Always Show Bypass Spool" icon="filament"
+                          description="Keep the bypass spool visible when bypass is off"
+                          subject="ams_always_show_bypass_spool" callback="on_ams_always_show_bypass_spool_toggled">
+        <bind_flag_if_eq subject="wizard_prefs_show_bypass_spool" flag="hidden" ref_value="0"/>
+      </setting_toggle_row>
+      <setting_toggle_row name="row_ams_keep_spool_info_on_eject"
+                          label="Keep Spool Info on Eject" icon="filament"
+                          description="Remember slot spool details across an eject"
+                          subject="ams_keep_spool_info_on_eject" callback="on_ams_keep_spool_info_toggled">
+        <bind_flag_if_eq subject="wizard_prefs_show_keep_spool_info" flag="hidden" ref_value="0"/>
+      </setting_toggle_row>
+      <setting_toggle_row name="row_widget_labels"
+                          label="Widget Labels" icon="view_grid"
+                          description="Show text labels on icon-only home screen widgets" subject="show_widget_labels"
+                          callback="on_widget_labels_changed">
+        <bind_flag_if_eq subject="wizard_prefs_show_global" flag="hidden" ref_value="0"/>
+      </setting_toggle_row>
+      <setting_toggle_row name="row_sleep_while_printing"
+                          label="Sleep While Printing" icon="sleep"
+                          description="Allow display to sleep during active prints"
+                          subject="settings_sleep_while_printing" callback="on_sleep_while_printing_changed">
+        <bind_flag_if_eq subject="wizard_prefs_show_global" flag="hidden" ref_value="0"/>
+      </setting_toggle_row>
+      <setting_toggle_row name="row_sounds"
+                          label="Sounds" icon="notifications" description="Enable audio feedback"
+                          subject="settings_sounds_enabled" callback="on_sounds_changed">
+        <bind_flag_if_eq subject="wizard_prefs_show_sounds" flag="hidden" ref_value="0"/>
+      </setting_toggle_row>
+    </ui_card>
+  </view>
+</component>

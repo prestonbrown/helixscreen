@@ -298,6 +298,10 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
 }
 
 FilamentPanel::~FilamentPanel() {
+    // The column can outlive this panel; its layout hook must not.
+    if (lv_obj_t* column = portrait_column_wired_.get()) {
+        lv_obj_remove_event_cb_with_user_data(column, on_portrait_column_layout, this);
+    }
     // Also cancels op_revert_timer_ — see deinit_subjects(), which does it first
     // so the timer can't write the subjects it targets after they are gone.
     deinit_subjects();
@@ -656,13 +660,12 @@ void FilamentPanel::setup_portrait_graph_fit() {
     if (!column || column == portrait_column_wired_)
         return;
     portrait_column_wired_ = column;
-    lv_obj_add_event_cb(
-        column,
-        [](lv_event_t* e) {
-            auto* self = static_cast<FilamentPanel*>(lv_event_get_user_data(e));
-            self->fit_portrait_graph(static_cast<lv_obj_t*>(lv_event_get_current_target(e)));
-        },
-        LV_EVENT_LAYOUT_CHANGED, this);
+    lv_obj_add_event_cb(column, on_portrait_column_layout, LV_EVENT_LAYOUT_CHANGED, this);
+}
+
+void FilamentPanel::on_portrait_column_layout(lv_event_t* e) {
+    auto* self = static_cast<FilamentPanel*>(lv_event_get_user_data(e));
+    self->fit_portrait_graph(static_cast<lv_obj_t*>(lv_event_get_current_target(e)));
 }
 
 void FilamentPanel::fit_portrait_graph(lv_obj_t* column) {
