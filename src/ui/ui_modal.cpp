@@ -185,13 +185,10 @@ void ModalStack::remove(lv_obj_t* backdrop, bool free_owned_now) {
             // (BufferStatusModal's meter walks LVGL's event list on its
             // objects), and hide() has already nulled the instance's own
             // pointers so ~Modal takes its trivial path and leaves the tree
-            // alone. exit_animation_done() passes free_owned_now=true: it runs
-            // in LVGL's timer context, outside any hide() frame, and freeing
-            // there - before the backdrop deletion it queues next - preserves
-            // the instance-then-tree order the self-delete idiom had. The
-            // animations-off path runs remove() inside Modal::hide()'s frame
-            // (via animate_exit), whose trailing statements must not run on
-            // freed memory, so there the free is deferred one tick instead.
+            // alone. finish_exit() passes free_owned_now=true: it runs outside
+            // any hide() frame, and frees here, before the backdrop deletion it
+            // queues next. A caller inside a hide() frame, whose trailing
+            // statements must not run on freed memory, defers the free a tick.
             Modal* doomed = owned.release();
             if (free_owned_now) {
                 free_owned_instance(doomed);
@@ -445,11 +442,13 @@ void ModalStack::animate_entrance(lv_obj_t* dialog) {
 }
 
 void ModalStack::exit_animation_done(lv_anim_t* anim) {
-    lv_obj_t* backdrop = static_cast<lv_obj_t*>(anim->var);
+    finish_exit(static_cast<lv_obj_t*>(anim->var));
+}
 
+void ModalStack::finish_exit(lv_obj_t* backdrop) {
     // Guard against freed backdrop - animation may fire after object deletion
     if (!backdrop || !lv_obj_is_valid(backdrop)) {
-        spdlog::debug("[ModalStack] Exit animation complete - backdrop already freed");
+        spdlog::debug("[ModalStack] Exit complete - backdrop already freed");
         return;
     }
 
@@ -457,7 +456,7 @@ void ModalStack::exit_animation_done(lv_anim_t* anim) {
     // Modal::~Modal or clear()), it's already been deleted — nothing to do.
     auto& stack = ModalStack::instance();
     if (!stack.backdrop_for_backdrop(backdrop)) {
-        spdlog::debug("[ModalStack] Exit animation complete - backdrop already removed from stack");
+        spdlog::debug("[ModalStack] Exit complete - backdrop already removed from stack");
         return;
     }
 
@@ -484,7 +483,7 @@ void ModalStack::exit_animation_done(lv_anim_t* anim) {
     // deletes the backdrop first (e.g., Modal::~Modal via safe_delete).
     // Custom lambdas aren't cancelled by LVGL's built-in cancellation logic
     // which only matches lv_obj_delete_async_cb — crash #399.
-    spdlog::debug("[ModalStack] Exit animation complete - deferring backdrop deletion");
+    spdlog::debug("[ModalStack] Exit complete - deferring backdrop deletion");
     helix::ui::safe_delete_deferred_raw(backdrop);
 }
 
@@ -517,15 +516,12 @@ void ModalStack::animate_exit(lv_obj_t* backdrop, lv_obj_t* dialog) {
     if (!DisplaySettingsManager::instance().get_animations_enabled()) {
         lv_obj_set_style_transform_scale(dialog, MODAL_SCALE_END, LV_PART_MAIN);
         lv_obj_set_style_opa(dialog, LV_OPA_COVER, LV_PART_MAIN);
-        spdlog::debug(
-            "[ModalStack] Animations disabled - removing from stack and deferring deletion");
-        // Remove from stack BEFORE async deletion — exit_animation_done() handles
-        // this for animated exits, but the no-animation path was missing it.
-        // Without removal, stale exiting entries accumulate and if LVGL reuses
-        // the address for a new backdrop, is_exiting() matches the stale entry,
-        // causing hide() to bail out and the modal to become stuck.
-        remove(backdrop);
-        helix::ui::safe_delete_deferred_raw(backdrop);
+        spdlog::debug("[ModalStack] Exit without animation - hiding, finishing next tick");
+        // finish_exit frees an owned instance before it queues the tree's delete;
+        // this runs inside hide()'s frame, so the whole sequence waits a tick.
+        lv_obj_add_flag(backdrop, LV_OBJ_FLAG_HIDDEN);
+        helix::ui::queue_update("ModalStack::finish_exit",
+                                [backdrop]() { ModalStack::finish_exit(backdrop); });
         return;
     }
 

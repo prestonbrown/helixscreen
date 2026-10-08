@@ -396,11 +396,10 @@ class ModalStack {
     void push(lv_obj_t* backdrop, lv_obj_t* dialog, const std::string& component_name,
               Modal* owner = nullptr);
 
-    // Untrack a modal (called by Modal::destroy, animate_exit's no-animation
-    // branch, and exit_animation_done). An entry that owns its instance frees
-    // it here: synchronously when free_owned_now (timer context, preserves
-    // instance-before-widget-tree order), else deferred one tick (hide()'s
-    // frame is still on the stack).
+    // Untrack a modal (called by Modal::destroy and finish_exit). An entry
+    // that owns its instance frees it here: synchronously when free_owned_now
+    // (outside any hide() frame, preserves instance-before-widget-tree order),
+    // else deferred one tick (hide()'s frame is still on the stack).
     void remove(lv_obj_t* backdrop, bool free_owned_now = false);
 
     /// Return the Modal instance that owns this dialog, or nullptr when the
@@ -478,6 +477,10 @@ class ModalStack {
     std::vector<ModalEntry> stack_;
 
     static void exit_animation_done(lv_anim_t* anim);
+
+    /// Frees an owned instance, then queues the backdrop's delete: the instance's
+    /// destructor may still touch its widgets. A no-op once the entry is gone.
+    static void finish_exit(lv_obj_t* backdrop);
 };
 
 // ============================================================================
