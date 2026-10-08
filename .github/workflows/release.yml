@@ -1219,32 +1219,29 @@ jobs:
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         RETAIN_COUNT: 5
       run: |
-        # Semver precedence, not a field sort: splitting on '.' reads the
-        # patch of 1.1.0-beta.1 as "0-beta", which -n truncates to 0, so a
-        # release and its own prereleases collide and the byte fallback ranks
-        # the release BELOW them. `sort -V` inverts the same pair. A version
-        # the comparator cannot rank aborts the step instead of being ordered
-        # by guess, because the caller prunes with `head -n -N`.
-        semver_sort() {
-          scripts/version-compare.sh --sort
-        }
+        # Every channel shares this store, so retention alone lets a run of
+        # prereleases outrank the stable release. r2-prune-plan.sh never deletes
+        # a version a channel manifest names, and ranks the rest by semver.
 
         # Prune old releases from releases/ (shared artifact store)
         echo "=== Pruning old releases ==="
         VERSIONS=$(aws s3 ls "s3://${R2_BUCKET}/releases/" \
           --endpoint-url "$R2_ENDPOINT" \
-          | grep -oP 'PRE v\K[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.]+)?' \
-          | sort -u \
-          | semver_sort)
+          | grep -oP 'PRE v\K[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.]+)?')
 
         VERSION_COUNT=$(echo "$VERSIONS" | grep -c . || true)
         echo "Found ${VERSION_COUNT} versions in releases/"
 
-        if [ "$VERSION_COUNT" -gt "$RETAIN_COUNT" ]; then
-          DELETE_VERSIONS=$(echo "$VERSIONS" | head -n -${RETAIN_COUNT})
-          DELETE_COUNT=$(echo "$DELETE_VERSIONS" | grep -c . || true)
-          echo "Pruning ${DELETE_COUNT} old versions: $(echo $DELETE_VERSIONS | tr '\n' ' ')"
+        if ! PINNED=$(scripts/r2-prune-plan.sh pinned); then
+          echo "::warning::Cannot read every channel manifest; skipping the release prune rather than risk deleting a served version"
+          DELETE_VERSIONS=""
+        else
+          echo "Pinned by channel manifests: $(echo $PINNED)"
+          DELETE_VERSIONS=$(echo "$VERSIONS" | scripts/r2-prune-plan.sh plan "$RETAIN_COUNT" $PINNED)
+        fi
 
+        if [ -n "$DELETE_VERSIONS" ]; then
+          echo "Pruning old versions: $(echo $DELETE_VERSIONS)"
           for VERSION in $DELETE_VERSIONS; do
             echo "  Deleting releases/v${VERSION}/"
             aws s3 rm "s3://${R2_BUCKET}/releases/v${VERSION}/" \
@@ -1252,7 +1249,7 @@ jobs:
               --recursive
           done
         else
-          echo "Within retention limit, nothing to prune"
+          echo "Nothing to prune"
         fi
 
         # Prune legacy per-channel tarballs (from before shared artifact store)
@@ -1459,30 +1456,27 @@ jobs:
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         RETAIN_COUNT: 5
       run: |
-        # Semver precedence, not a field sort: splitting on '.' reads the
-        # patch of 1.1.0-beta.1 as "0-beta", which -n truncates to 0, so a
-        # release and its own prereleases collide and the byte fallback ranks
-        # the release BELOW them. `sort -V` inverts the same pair. A version
-        # the comparator cannot rank aborts the step instead of being ordered
-        # by guess, because the caller prunes with `head -n -N`.
-        semver_sort() {
-          scripts/version-compare.sh --sort
-        }
+        # Every channel shares this store, so retention alone lets a run of
+        # prereleases outrank the stable release. r2-prune-plan.sh never deletes
+        # a version a channel manifest names, and ranks the rest by semver.
 
         echo "=== Pruning old symbol maps ==="
         SYM_VERSIONS=$(aws s3 ls "s3://${R2_BUCKET}/symbols/" \
           --endpoint-url "$R2_ENDPOINT" \
-          | grep -oP 'PRE v\K[0-9]+\.[0-9]+\.[0-9]+(?:[-.][a-zA-Z0-9.]+)?' \
-          | sort -u \
-          | semver_sort)
+          | grep -oP 'PRE v\K[0-9]+\.[0-9]+\.[0-9]+(?:[-.][a-zA-Z0-9.]+)?')
 
         SYM_COUNT=$(echo "$SYM_VERSIONS" | grep -c . || true)
         echo "Found ${SYM_COUNT} symbol versions"
 
-        if [ "$SYM_COUNT" -gt "$RETAIN_COUNT" ]; then
-          DELETE_SYM_VERSIONS=$(echo "$SYM_VERSIONS" | head -n -${RETAIN_COUNT})
-          DELETE_SYM_COUNT=$(echo "$DELETE_SYM_VERSIONS" | grep -c . || true)
-          echo "Pruning ${DELETE_SYM_COUNT} old symbol versions"
+        if ! PINNED=$(scripts/r2-prune-plan.sh pinned); then
+          echo "::warning::Cannot read every channel manifest; skipping the symbol prune rather than risk deleting a served version's symbols"
+          DELETE_SYM_VERSIONS=""
+        else
+          DELETE_SYM_VERSIONS=$(echo "$SYM_VERSIONS" | scripts/r2-prune-plan.sh plan "$RETAIN_COUNT" $PINNED)
+        fi
+
+        if [ -n "$DELETE_SYM_VERSIONS" ]; then
+          echo "Pruning old symbol versions: $(echo $DELETE_SYM_VERSIONS)"
 
           for VERSION in $DELETE_SYM_VERSIONS; do
             echo "  Deleting symbols/v${VERSION}/"
@@ -1491,7 +1485,7 @@ jobs:
               --recursive
           done
         else
-          echo "Within retention limit, nothing to prune"
+          echo "Nothing to prune"
         fi
         echo "=== Symbol pruning complete ==="
 
