@@ -616,12 +616,7 @@ void MacroEnhanceWizard::handle_approve() {
 
 void MacroEnhanceWizard::handle_cancel() {
     spdlog::info("[MacroEnhanceWizard] Wizard cancelled");
-
-    if (on_complete_) {
-        on_complete_(false, 0);
-    }
-
-    hide();
+    finish(false, 0);
 }
 
 void MacroEnhanceWizard::handle_apply() {
@@ -634,12 +629,17 @@ void MacroEnhanceWizard::handle_close() {
     size_t count = applied ? get_approved_count() : 0;
 
     spdlog::info("[MacroEnhanceWizard] Wizard closed (applied: {}, count: {})", applied, count);
+    finish(applied, count);
+}
 
-    if (on_complete_) {
-        on_complete_(applied, count);
-    }
-
+void MacroEnhanceWizard::finish(bool applied, size_t count) {
+    // The owner frees this wizard from inside the callback
+    // (prestonbrown/helixscreen#1762), so hide first and touch nothing after.
+    auto on_complete = std::move(on_complete_);
     hide();
+    if (on_complete) {
+        on_complete(applied, count);
+    }
 }
 
 // ============================================================================

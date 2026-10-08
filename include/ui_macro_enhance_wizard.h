@@ -227,6 +227,7 @@ class MacroEnhanceWizard : public Modal {
     void handle_cancel();
     void handle_apply();
     void handle_close();
+    void finish(bool applied, size_t count);
 
     // === Static Callback Registration ===
     static void register_callbacks();
