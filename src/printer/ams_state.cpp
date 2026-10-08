@@ -926,6 +926,14 @@ void AmsState::clear_backends() {
     if (lv_subject_get_int(&active_backend_) != 0) {
         lv_subject_set_int(&active_backend_, 0);
     }
+    // Home widget gates: left set, a live printer switch keeps the filament cards on a
+    // printer that has no filament system.
+    if (lv_subject_get_int(&ams_slot_count_) != 0) {
+        lv_subject_set_int(&ams_slot_count_, 0);
+    }
+    if (lv_subject_get_int(&supports_bypass_) != 0) {
+        lv_subject_set_int(&supports_bypass_, 0);
+    }
 }
 
 std::vector<uint32_t> AmsState::routed_tool_colors() const {
