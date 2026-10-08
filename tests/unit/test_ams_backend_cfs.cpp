@@ -4742,3 +4742,27 @@ TEST_CASE("CFS stock: a delta frame naming one unit leaves the others as they we
     CHECK(backend.get_system_info().units.size() == 3);
     CHECK(backend.get_slot_info(0).color_rgb == 0xFF5500u);
 }
+
+// The answer to an action's G-code arrives on the libhv response thread while
+// status frames that preceded it are still queued for main; completion has to
+// queue behind them (#1761).
+TEST_CASE("CFS action completion runs from the UpdateQueue, not the answering thread",
+          "[ams][cfs][1761]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+    AmsBackendCfs backend(&api, nullptr);
+
+    bool ran = false;
+    const char* ran_from = nullptr;
+    REQUIRE(CfsTestAccess::dispatch_with_completion(backend, "M117 test", [&ran, &ran_from]() {
+                ran = true;
+                ran_from = helix::ui::UpdateQueue::current_callback_tag();
+            }).success());
+    // The mock answered inside that call; completion waits for the queue.
+    CHECK_FALSE(ran);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(ran);
+    CHECK(ran_from != nullptr);
+}

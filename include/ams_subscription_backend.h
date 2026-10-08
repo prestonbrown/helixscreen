@@ -350,7 +350,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// combination needs a live @p api_: it talks to IMoonrakerAPI directly (the
     /// hardcoded virtuals can't carry a caller's own error/timeout/toast
     /// policy), the same way AmsBackendCfs::dispatch_action_script used to
-    /// before this method existed to replace it.
+    /// before this method existed to replace it. On that path @p on_complete
+    /// and @p on_error both run on the main thread, queued behind any status
+    /// frame that arrived before the answer.
     ///
     /// @param caller_surfaces_errors Whether @p on_error shows the user
     ///        something. Left unset it is derived from @p on_error being

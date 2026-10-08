@@ -550,11 +550,18 @@ AmsSubscriptionBackend::dispatch_payload(std::string gcode, std::function<void()
 
     api_->execute_gcode(
         gcode,
-        [tag, on_complete = std::move(on_complete)]() {
+        [tag, token, on_complete = std::move(on_complete)]() {
             spdlog::debug("{} G-code executed successfully", tag);
-            if (on_complete) {
-                on_complete();
+            if (!on_complete) {
+                return;
             }
+            // The answer lands on the libhv response thread, while the status
+            // frames that arrived before it are still queued for main. A
+            // completion that judges state (CFS reads the toolhead switch) must
+            // run behind them, on main, or it reads values those frames are
+            // about to replace.
+            token.defer("AmsSubscriptionBackend::dispatch_payload_complete",
+                        [on_complete]() { on_complete(); });
         },
         [this, token, on_error](const MoonrakerError& err) {
             // L081 Mechanism C: this lands on the libhv response thread and

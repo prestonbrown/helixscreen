@@ -8,6 +8,7 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -27,8 +28,7 @@ class CfsTestAccess {
     // dispatch_action_script is private; the homing/unwind cases drive it
     // directly because the branch under test is its failure disposition, not
     // the operation that chose the script.
-    static AmsError dispatch_action_script(helix::printer::AmsBackendCfs& b,
-                                           std::string gcode) {
+    static AmsError dispatch_action_script(helix::printer::AmsBackendCfs& b, std::string gcode) {
         return b.dispatch_action_script(std::move(gcode));
     }
 
@@ -134,6 +134,17 @@ class CfsTestAccess {
     static AmsError call_dispatch_action_script(helix::printer::AmsBackendCfs& b,
                                                 std::string gcode) {
         return b.dispatch_action_script(std::move(gcode));
+    }
+
+    /// Send @p gcode through the base dispatcher's caller-policy branch (the
+    /// one CFS takes: an on_error, silent=false) with a caller-chosen
+    /// on_complete, so a test can watch where and when completion runs.
+    static AmsError dispatch_with_completion(helix::printer::AmsBackendCfs& b, std::string gcode,
+                                             std::function<void()> on_complete) {
+        return b.ensure_homed_then(
+            std::move(gcode), std::move(on_complete), [](const MoonrakerError&) {},
+            IMoonrakerAPI::AMS_OPERATION_TIMEOUT_MS,
+            /*skip_homing=*/true, /*silent=*/false);
     }
 
     /// Put the backend in the state dispatch leaves it in: action set, phase
