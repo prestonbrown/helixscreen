@@ -541,6 +541,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     friend class AfcDelegatesHomingHelper;
     friend class AfcDispatchHelper;
     friend class AfcTestAccess;
+    friend class AfcUnlinkHelper;
 
     // --- AmsSubscriptionBackend hooks ---
     void on_started() override;
@@ -1272,6 +1273,18 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// map preserves "does AFC itself still hold a link?" for
     /// maybe_reassert_retained_spool_link() (#1289).
     std::unordered_map<std::string, int> lane_firmware_spool_id_;
+
+    /// True when @p firmware_id is the id the user unlinked from the lane whose
+    /// override key is @p override_key, which AFC keeps on a lane with
+    /// remember_spool and restates on every full status snapshot. The unlink
+    /// lives in the slot's persisted override
+    /// (FilamentSlotOverride::unlinked_spool_id) so it survives a reconnect and
+    /// a restart; any other id ends it. @pre mutex_ held.
+    bool restates_unlinked_spool(int override_key, int firmware_id);
+
+    /// Record (@p spool_id > 0) or end (0) the unlink on @p override_key and
+    /// persist it. @pre mutex_ held.
+    void set_unlinked_spool(int override_key, int spool_id);
 
     /// Lanes last seen on each buffer, keyed by buffer name. AFC's buffer status
     /// arrives as a Moonraker delta, so a frame that changes only `state` omits

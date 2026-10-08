@@ -2438,10 +2438,18 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // previously retained the old id and an ejected lane stayed "linked",
     // which is what later aimed an edit's Spoolman write at the wrong spool.
     // An ABSENT key still means "unchanged": these are deltas, not snapshots.
+    //
+    // A frame restating the id the user unlinked is stale for the lane and
+    // changes nothing (see restates_unlinked_spool).
+    const int override_key = slot.global_index >= 0 ? slot.global_index : slot.slot_index;
     if (data.contains("spool_id")) {
-        if (data["spool_id"].is_number_integer()) {
+        const bool is_id = data["spool_id"].is_number_integer();
+        const bool restated =
+            is_id && restates_unlinked_spool(override_key, data["spool_id"].get<int>());
+        if (is_id && !restated) {
             slot.spoolman_id = data["spool_id"].get<int>();
         } else if (data["spool_id"].is_null()) {
+            set_unlinked_spool(override_key, 0);
             slot.spoolman_id = 0;
         }
         // Remember firmware's own word separately from the merged slot: the
@@ -2449,7 +2457,9 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
         // slot.spoolman_id alone can no longer tell whether AFC itself still
         // holds a link. The spool-id re-assert (see
         // maybe_reassert_retained_spool_link) keys off this, not the merge.
-        lane_firmware_spool_id_[lane_name] = slot.spoolman_id;
+        if (!restated) {
+            lane_firmware_spool_id_[lane_name] = slot.spoolman_id;
+        }
     }
 
     // Parse weight.
@@ -2559,6 +2569,15 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
         slot.status == SlotStatus::LOADED || slot.status == SlotStatus::AVAILABLE;
     const bool filament_present_before = status_at_frame_start == SlotStatus::LOADED ||
                                          status_at_frame_start == SlotStatus::AVAILABLE;
+    // A remember_spool lane keeps its spool_id through an eject too, so the
+    // next spool inserted would inherit the unlinked id; only a lane AFC
+    // clears on eject ends the unlink here.
+    if (filament_present_before && !filament_present_now) {
+        const auto remembers = lane_remember_spool_.find(lane_name);
+        if (remembers == lane_remember_spool_.end() || !remembers->second) {
+            set_unlinked_spool(override_key, 0);
+        }
+    }
     if (filament_present_now && !filament_present_before) {
         maybe_reassert_retained_spool_link(slot_index, lane_name);
     }
@@ -4048,9 +4067,14 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
         // what aims a later edit's Spoolman write at the wrong spool. An ABSENT
         // key still means "unchanged"; these are deltas, not snapshots.
         if (lane.contains("spool_id")) {
+            const int override_key = slot.global_index >= 0 ? slot.global_index : slot.slot_index;
             if (lane["spool_id"].is_number_integer()) {
-                slot.spoolman_id = lane["spool_id"].get<int>();
+                const int firmware_id = lane["spool_id"].get<int>();
+                if (!restates_unlinked_spool(override_key, firmware_id)) {
+                    slot.spoolman_id = firmware_id;
+                }
             } else if (lane["spool_id"].is_null()) {
+                set_unlinked_spool(override_key, 0);
                 slot.spoolman_id = 0;
             }
         }
@@ -4728,6 +4752,34 @@ AmsError AmsBackendAfc::reset() {
                                 lv_tr("AFC reset failed"));
 }
 
+bool AmsBackendAfc::restates_unlinked_spool(int override_key, int firmware_id) {
+    const auto it = overrides_.find(override_key);
+    if (it == overrides_.end() || it->second.unlinked_spool_id <= 0) {
+        return false;
+    }
+    if (it->second.unlinked_spool_id == firmware_id) {
+        return true;
+    }
+    set_unlinked_spool(override_key, 0);
+    return false;
+}
+
+void AmsBackendAfc::set_unlinked_spool(int override_key, int spool_id) {
+    const auto it = overrides_.find(override_key);
+    if (spool_id <= 0 && (it == overrides_.end() || it->second.unlinked_spool_id <= 0)) {
+        return;
+    }
+    helix::ams::FilamentSlotOverride& record = overrides_[override_key];
+    record.unlinked_spool_id = spool_id;
+    if (override_store_) {
+        override_store_->save_async(override_key, record, [override_key](bool ok, std::string err) {
+            if (!ok) {
+                spdlog::warn("[AMS AFC] unlink persist failed for slot {}: {}", override_key, err);
+            }
+        });
+    }
+}
+
 void AmsBackendAfc::apply_overrides(SlotInfo& slot, int slot_index) {
     // Callers hold mutex_. The whole spec §5 policy + the re-bind/eject rules
     // live in helix::ams::merge_override — the single implementation every
@@ -4785,6 +4837,11 @@ void AmsBackendAfc::persist_override(int slot_index, const SlotInfo& info) {
     // is applied at emit time inside resolved_temps(). Centralized in
     // the helper so the AMS backends stay in sync.
     helix::ams::populate_temps_from_slot_info(o, info);
+    // A link made here ends the unlink; any other edit leaves it standing.
+    const auto prior = overrides_.find(slot_index);
+    if (prior != overrides_.end() && info.spoolman_id <= 0) {
+        o.unlinked_spool_id = prior->second.unlinked_spool_id;
+    }
     overrides_[slot_index] = o;
 
     if (override_store_) {
@@ -4797,9 +4854,19 @@ void AmsBackendAfc::persist_override(int slot_index, const SlotInfo& info) {
 }
 
 void AmsBackendAfc::clear_slot_override(int slot_index) {
+    // An unlink marker is not identity, so the clear keeps it on an otherwise
+    // empty record: dropping it would let firmware's stale id relink the lane.
+    helix::ams::FilamentSlotOverride marker;
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        const auto existing = overrides_.find(slot_index);
+        if (existing != overrides_.end()) {
+            marker.unlinked_spool_id = existing->second.unlinked_spool_id;
+        }
         overrides_.erase(slot_index);
+        if (marker.unlinked_spool_id > 0) {
+            overrides_[slot_index] = marker;
+        }
 
         // Also reset the override-exclusive fields on the live slot, so the
         // clear shows up in the very next get_slot_info(). AFC has no concept
@@ -4826,13 +4893,23 @@ void AmsBackendAfc::clear_slot_override(int slot_index) {
         }
     }
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));
-    if (override_store_) {
-        override_store_->clear_async(slot_index, [slot_index](bool ok, std::string err) {
+    if (!override_store_) {
+        return;
+    }
+    if (marker.unlinked_spool_id > 0) {
+        override_store_->save_async(slot_index, marker, [slot_index](bool ok, std::string err) {
             if (!ok) {
-                spdlog::warn("[AMS AFC] override clear failed for slot {}: {}", slot_index, err);
+                spdlog::warn("[AMS AFC] unlink marker save failed for slot {}: {}", slot_index,
+                             err);
             }
         });
+        return;
     }
+    override_store_->clear_async(slot_index, [slot_index](bool ok, std::string err) {
+        if (!ok) {
+            spdlog::warn("[AMS AFC] override clear failed for slot {}: {}", slot_index, err);
+        }
+    });
 }
 
 void AmsBackendAfc::publish_external_spool_lane(const SlotInfo* spool) {
@@ -5374,6 +5451,17 @@ AmsError AmsBackendAfc::set_slot_info(int slot_index, const SlotInfo& info, bool
                     execute_gcode(fmt::format("SET_SPOOL_ID LANE={} SPOOL_ID={}", lane_name,
                                               info.spoolman_id));
                 } else if (info.spoolman_id == 0 && old_spoolman_id > 0) {
+                    // AFC keeps the id on a lane with remember_spool and
+                    // restates it in every full snapshot; persist that id as
+                    // unlinked until the lane reports something else. Armed
+                    // only when the clear is sent. A link needs no call here:
+                    // persist_override above already dropped the unlink from
+                    // the record it staged.
+                    const auto fw = lane_firmware_spool_id_.find(lane_name);
+                    if (fw != lane_firmware_spool_id_.end() && fw->second > 0) {
+                        set_unlinked_spool(slot_index, fw->second);
+                        fw->second = 0;
+                    }
                     // Clear Spoolman link with empty string (not -1)
                     execute_gcode(fmt::format("SET_SPOOL_ID LANE={} SPOOL_ID=", lane_name));
                 }

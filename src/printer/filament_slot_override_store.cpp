@@ -154,6 +154,8 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
     }
     if (o.spoolman_id > 0)
         j["spool_id"] = o.spoolman_id;
+    if (o.unlinked_spool_id > 0)
+        j["helix_unlinked_spool_id"] = o.unlinked_spool_id;
     if (o.updated_at.time_since_epoch().count() > 0) {
         j["scan_time"] = format_iso8601(o.updated_at);
     }
@@ -489,6 +491,7 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
     // which .value() would throw type_error.302 on.
     o.catalog_id = helix::json_util::safe_string(j, "helix_catalog_id");
     o.product_name = helix::json_util::safe_string(j, "helix_product_name");
+    o.unlinked_spool_id = helix::json_util::safe_int(j, "helix_unlinked_spool_id", 0);
     return std::make_pair(slot_index, o);
 }
 
@@ -555,6 +558,7 @@ nlohmann::json to_json(const FilamentSlotOverride& o) {
         {"user_locked_material", o.user_locked_material},
         {"bed_temp", o.bed_temp},
         {"nozzle_temp", o.nozzle_temp},
+        {"unlinked_spool_id", o.unlinked_spool_id},
         {"updated_at", format_iso8601(o.updated_at)},
     };
 }
@@ -596,6 +600,7 @@ FilamentSlotOverride from_json(const nlohmann::json& j) {
         helix::json_util::safe_bool(j, "user_locked_material", !o.material.empty());
     o.bed_temp = helix::json_util::safe_int(j, "bed_temp", 0);
     o.nozzle_temp = helix::json_util::safe_int(j, "nozzle_temp", 0);
+    o.unlinked_spool_id = helix::json_util::safe_int(j, "unlinked_spool_id", 0);
     if (j.contains("updated_at") && j["updated_at"].is_string()) {
         o.updated_at = parse_iso8601(j["updated_at"].get<std::string>());
     }
