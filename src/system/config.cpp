@@ -825,7 +825,15 @@ static void migrate_v16_to_v17(json& config) {
 /// (large coefficients are valid for resistive panels), so set a one-shot
 /// recheck_pending flag here; the display backend decides at boot — when it knows the
 /// device's resistive/capacitive nature and live ABS range — whether to invalidate.
+///
+/// Only a versioned document can hold a calibration the app captured. A versionless
+/// one is a shipped preset or an installer seed, whose calibration is solved for
+/// the current scaling, so it is left unflagged. The runner stamps config_version
+/// after the whole chain, so here it still reads the document's original version.
 static void migrate_v17_to_v18(json& config) {
+    if (helix::json_util::safe_int(config, "config_version", 0) == 0) {
+        return;
+    }
     // Guard ([L087]): an absent/default-constructed json is null, and writing into a
     // null via operator[] would replace it — but reading .value()/iterating a null
     // throws. Create the input/calibration objects only when missing, never overwrite
