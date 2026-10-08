@@ -107,6 +107,9 @@ class ChangeHostModal : public Modal {
     char host_port_buf_[8] = {0};
     bool subjects_initialized_ = false;
 
+    /// Test Connection moved the live client to the typed host.
+    bool client_borrowed_ = false;
+
     // === Completion callback ===
     CompletionCallback completion_callback_;
 
