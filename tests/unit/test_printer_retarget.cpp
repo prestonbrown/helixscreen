@@ -24,6 +24,7 @@
 #include "m300_sound_backend.h"
 #include "moonraker_manager.h"
 #include "print_history_manager.h"
+#include "print_start_collector.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "sound_manager.h"
@@ -138,10 +139,18 @@ TEST_CASE_METHOD(RetargetFixture, "Connect: every connection gets a print-start 
     CHECK(first != nullptr);
     CHECK(client_->get_last_url() == "ws://10.0.0.2:7126/websocket");
 
-    // A switch's connect replaces it: the collector reads the new printer's profile.
+    // A switch's connect replaces it: the collector reads the new printer's profile. The
+    // old one is stopped and unhooked from the client, which a retarget keeps: left
+    // registered, a collector replaced mid-PRINT_START would keep collecting from the
+    // next printer's gcode.
+    first->start();
+    REQUIRE(first->is_active());
+    REQUIRE(client_->method_callbacks["notify_gcode_response"].size() == 1);
     REQUIRE(helix::retarget_printer_connection());
     CHECK(manager_.print_start_collector() != nullptr);
     CHECK(manager_.print_start_collector() != first);
+    CHECK_FALSE(first->is_active());
+    CHECK(client_->method_callbacks["notify_gcode_response"].empty());
 }
 
 TEST_CASE_METHOD(RetargetFixture, "Connect: a transport that cannot start gets no collector",

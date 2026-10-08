@@ -15,9 +15,9 @@ std::string active_printer_ws_url();
 /// The HTTP base URL of the active printer's Moonraker, for file transfers and REST.
 std::string active_printer_http_url();
 
-/// Connects @p manager to a Moonraker, then starts what every connection has: the
-/// print-start collector. False when the transport could not start (e.g. no internal RAM
-/// for its task); nothing is started then.
+/// Connects @p manager to a Moonraker with what every connection has: the print-start
+/// collector, created first. False when the transport could not start (e.g. no internal
+/// RAM for its task); there is no collector then.
 bool connect_printer(MoonrakerManager& manager, const std::string& ws_url,
                      const std::string& http_url);
 

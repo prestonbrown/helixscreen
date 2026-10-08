@@ -146,10 +146,7 @@ void MoonrakerManager::shutdown() {
     spdlog::debug("[MoonrakerManager] Shutting down...");
 
     // Stop print start collector first (before client is destroyed)
-    if (m_print_start_collector) {
-        m_print_start_collector->stop();
-        m_print_start_collector.reset();
-    }
+    release_print_start_collector();
 
     // Release observer guards without calling lv_observer_remove().
     // During shutdown, subjects may already be deinitialized (which frees observers).
@@ -693,13 +690,22 @@ void MoonrakerManager::create_api(const RuntimeConfig& runtime_config) {
     // after both MoonrakerManager and SubjectInitializer are ready
 }
 
+void MoonrakerManager::release_print_start_collector() {
+    if (m_print_start_collector) {
+        m_print_start_collector->detach();
+        m_print_start_collector.reset();
+    }
+}
+
 void MoonrakerManager::init_print_start_collector() {
     if (!m_client) {
         spdlog::warn("[MoonrakerManager] Cannot init print_start_collector - no client");
         return;
     }
 
-    // Create collector
+    // A retarget keeps the client: the previous printer's collector must not stay hooked
+    // to it.
+    release_print_start_collector();
     m_print_start_collector = std::make_shared<PrintStartCollector>(*m_client, get_printer_state());
 
     // Load print start profile based on detected printer type

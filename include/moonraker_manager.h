@@ -137,12 +137,16 @@ class MoonrakerManager {
     size_t pending_notification_count() const;
 
     /**
-     * @brief Initialize print start collector after connection
+     * @brief Create the print start collector for the printer about to connect
      *
-     * Sets up observers to monitor print startup phases.
-     * Call after successful connect().
+     * Sets up observers to monitor print startup phases. Call before connect(), so the
+     * observers it installs on the API are in place before the WebSocket task can call
+     * them. Replaces (detaches) any previous collector.
      */
     void init_print_start_collector();
+
+    /// Detach and drop the print start collector, if there is one.
+    void release_print_start_collector();
 
     /**
      * @brief The pre-print detection collector, if one exists yet

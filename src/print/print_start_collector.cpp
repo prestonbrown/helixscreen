@@ -341,6 +341,14 @@ void PrintStartCollector::stop() {
     }
 }
 
+void PrintStartCollector::detach() {
+    stop();
+    if (!handler_name_.empty()) {
+        client_.unregister_method_callback("notify_gcode_response", handler_name_);
+        handler_name_.clear();
+    }
+}
+
 void PrintStartCollector::note_host_side_pre_start(const std::string& dispatched_block) {
     {
         std::lock_guard<std::mutex> lock(state_mutex_);

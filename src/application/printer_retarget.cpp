@@ -76,13 +76,16 @@ std::string active_printer_http_url() {
 
 bool connect_printer(MoonrakerManager& manager, const std::string& ws_url,
                      const std::string& http_url) {
+    // Tracks PRINT_START progress for this printer, with its own print-start profile.
+    // Created before the connect: the observers it installs on the API are then in place
+    // before the WebSocket task can call them.
+    manager.init_print_start_collector();
     spdlog::info("[PrinterRetarget] Connecting to {}", ws_url);
     if (manager.connect(ws_url, http_url) != 0) {
         spdlog::error("[PrinterRetarget] Connecting to {} could not start", ws_url);
+        manager.release_print_start_collector();
         return false;
     }
-    // Tracks PRINT_START progress for this printer, with its own print-start profile.
-    manager.init_print_start_collector();
     return true;
 }
 

@@ -107,6 +107,10 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      */
     void stop();
 
+    /// stop(), and unregister the gcode-response handler stop() keeps: the collector is
+    /// being replaced, and a handler left on the client would keep it collecting.
+    void detach();
+
     /**
      * @brief Check if collector is currently active
      */
