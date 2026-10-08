@@ -12,6 +12,7 @@
 
 #include "ui_panel_print_select.h"
 
+#include "ui_busy_overlay.h"
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
@@ -2637,6 +2638,7 @@ void PrintSelectPanel::apply_file_selection(const PrintFileData& file) {
     selected_filament_colors_ = file.filament_colors;
     selected_filament_materials_ = file.filament_types;
     selected_file_size_bytes_ = file.file_size_bytes;
+    selected_local_path_ = file.local_path;
     selected_modified_timestamp_ = file.modified_timestamp;
     selected_gcode_end_byte_ = file.gcode_end_byte;
     selected_history_status_ = file.history_status;
@@ -2711,6 +2713,9 @@ void PrintSelectPanel::on_file_long_pressed(size_t file_index) {
 }
 
 void PrintSelectPanel::start_print(bool force) {
+    if (usb_copy_in_flight_) {
+        return;
+    }
     if (!print_controller_) {
         spdlog::error("[{}] Cannot start print - controller not initialized", get_name());
         NOTIFY_ERROR(lv_tr("Cannot start print: internal error"));
@@ -2749,13 +2754,168 @@ void PrintSelectPanel::start_print(bool force) {
         }
     }
 
-    // Set the file to print in the controller
+    // Everything about the tapped file is read now: a USB copy lands later,
+    // by when the user may have opened another file.
+    const std::string filename = selected_filename_buffer_;
+    std::vector<std::string> colors = selected_filament_colors_;
+    std::string thumbnail = selected_detail_thumbnail_buffer_;
+    if (!selected_local_path_.empty()) {
+        copy_usb_file_to_printer([this, colors = std::move(colors),
+                                  thumbnail = std::move(thumbnail)](const std::string& dest) {
+            const size_t slash = dest.rfind('/');
+            dispatch_print(dest.substr(slash + 1), dest.substr(0, slash), colors, thumbnail);
+        });
+        return;
+    }
+    dispatch_print(filename, current_path_, colors, thumbnail);
+}
+
+void PrintSelectPanel::dispatch_print(const std::string& filename, const std::string& dir,
+                                      const std::vector<std::string>& filament_colors,
+                                      const std::string& thumbnail) {
     // Pass extracted thumbnail path so USB/embedded thumbnails propagate to print status
-    print_controller_->set_file(selected_filename_buffer_, current_path_, selected_filament_colors_,
-                                selected_detail_thumbnail_buffer_);
+    print_controller_->set_file(filename, dir, filament_colors, thumbnail);
 
     // Delegate to the print start controller
     print_controller_->initiate();
+}
+
+void PrintSelectPanel::copy_usb_file_to_printer(std::function<void(const std::string& dest)> then) {
+    if (!api_) {
+        NOTIFY_ERROR(lv_tr("Cannot start print: internal error"));
+        return;
+    }
+
+    UsbCopyRequest req{selected_filename_buffer_, selected_local_path_, selected_file_size_bytes_,
+                       ++usb_copy_generation_, std::move(then)};
+    usb_copy_in_flight_ = true;
+    BusyOverlay::show(lv_tr("Copying from USB..."));
+
+    // BusyOverlay has no cancel and the transport's own timeout is an hour,
+    // so a copy that stops making progress is abandoned here instead. One
+    // shot, pushed back by every progress report.
+    lv_timer_t* watchdog = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* self = static_cast<PrintSelectPanel*>(lv_timer_get_user_data(t));
+            // LVGL deletes a finished one-shot itself.
+            self->usb_copy_watchdog_.release();
+            self->abandon_stalled_usb_copy();
+        },
+        kUsbCopyStallMs, this);
+    lv_timer_set_repeat_count(watchdog, 1);
+    usb_copy_watchdog_.reset(watchdog);
+
+    // What the copy folder already holds decides the name (choose_usb_copy_target).
+    // A listing, not a metadata lookup: one request answers every candidate
+    // name, and its sizes come from the filesystem rather than a metascan.
+    const std::string dir = kUsbCopyDir;
+    auto tok = lifetime_.token();
+    api_->files().list_files(
+        "gcodes", dir, false,
+        [this, tok, dir, req](const std::vector<FileInfo>& files) mutable {
+            // Some Moonraker versions answer a missing directory with the root
+            // listing, so only entries directly under dir count.
+            std::map<std::string, uint64_t> existing;
+            const std::string prefix = dir + "/";
+            for (const auto& f : files) {
+                if (!f.is_dir && f.path.rfind(prefix, 0) == 0 &&
+                    f.path.find('/', prefix.size()) == std::string::npos) {
+                    existing[f.path.substr(prefix.size())] = f.size;
+                }
+            }
+            tok.defer("PrintSelectPanel::usb_copy_listed",
+                      [this, req = std::move(req), existing = std::move(existing)]() mutable {
+                          if (usb_copy_current(req.generation)) {
+                              upload_usb_copy(std::move(req), existing);
+                          }
+                      });
+        },
+        [this, tok, req](const MoonrakerError& err) mutable {
+            tok.defer("PrintSelectPanel::usb_copy_list_failed",
+                      [this, req = std::move(req), err]() mutable {
+                          if (!usb_copy_current(req.generation)) {
+                              return;
+                          }
+                          // Moonraker reports a folder that does not exist yet as 404.
+                          if (err.code == 404) {
+                              upload_usb_copy(std::move(req), {});
+                              return;
+                          }
+                          end_usb_copy();
+                          NOTIFY_ERROR(lv_tr("Could not copy {} from USB: {}"), req.filename,
+                                       err.user_message());
+                      });
+        });
+}
+
+void PrintSelectPanel::upload_usb_copy(UsbCopyRequest req,
+                                       const std::map<std::string, uint64_t>& existing) {
+    const auto target = choose_usb_copy_target(req.filename, req.size, existing);
+    const std::string dest = std::string(kUsbCopyDir) + "/" + target.name;
+    if (target.reuse) {
+        spdlog::info("[{}] gcodes/{} already holds {} ({} bytes); not copying", get_name(), dest,
+                     req.local_path, req.size);
+        end_usb_copy();
+        req.then(dest);
+        return;
+    }
+
+    spdlog::info("[{}] Copying USB file {} to gcodes/{}", get_name(), req.local_path, dest);
+    const std::string filename = req.filename;
+    const uint64_t generation = req.generation;
+    auto tok = lifetime_.token();
+    api_->transfers().upload_file_from_path(
+        "gcodes", dest, req.local_path,
+        lifetime_.bg_cb("PrintSelectPanel::usb_copy_done",
+                        [this, dest, generation, then = std::move(req.then)]() {
+                            if (usb_copy_current(generation)) {
+                                end_usb_copy();
+                                then(dest);
+                            }
+                        }),
+        [this, tok, generation, filename](const MoonrakerError& err) {
+            tok.defer("PrintSelectPanel::usb_copy_failed", [this, generation, filename, err]() {
+                if (usb_copy_current(generation)) {
+                    end_usb_copy();
+                    NOTIFY_ERROR(lv_tr("Could not copy {} from USB: {}"), filename,
+                                 err.user_message());
+                }
+            });
+        },
+        // Runs per chunk on the transfer thread: only a whole-percent change
+        // is worth a trip through the UI queue.
+        [this, tok, label = std::string(lv_tr("Copying from USB")),
+         last_pct = -1](size_t done, size_t total) mutable {
+            const int pct = total > 0 ? static_cast<int>(done * 100 / total) : 0;
+            if (pct == last_pct) {
+                return;
+            }
+            last_pct = pct;
+            tok.defer("PrintSelectPanel::usb_copy_progress", [this, label, pct]() {
+                BusyOverlay::set_progress(label, static_cast<float>(pct));
+                if (lv_timer_t* watchdog = usb_copy_watchdog_.get()) {
+                    lv_timer_reset(watchdog);
+                }
+            });
+        });
+}
+
+bool PrintSelectPanel::usb_copy_current(uint64_t generation) const {
+    return usb_copy_in_flight_ && generation == usb_copy_generation_;
+}
+
+void PrintSelectPanel::end_usb_copy() {
+    usb_copy_in_flight_ = false;
+    usb_copy_watchdog_.reset();
+    BusyOverlay::hide();
+}
+
+void PrintSelectPanel::abandon_stalled_usb_copy() {
+    spdlog::warn("[{}] USB copy made no progress for {}s; abandoning it", get_name(),
+                 kUsbCopyStallMs / 1000);
+    ++usb_copy_generation_; // a late answer from the abandoned copy is ignored
+    end_usb_copy();
+    NOTIFY_ERROR(lv_tr("Copying from USB stopped responding"));
 }
 
 void PrintSelectPanel::show_preflight_modal(const helix::PreflightResult& pf) {

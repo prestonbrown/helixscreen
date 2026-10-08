@@ -580,11 +580,15 @@
   <translation tag="Copied to clipboard!" en="Copied to clipboard!"/>
   <translation tag="Copy Command" en="Copy Command"/>
   <translation tag="Copy failed - use SSH manually" en="Copy failed - use SSH manually"/>
+  <translation tag="Copying from USB" en="Copying from USB"/>
+  <translation tag="Copying from USB stopped responding" en="Copying from USB stopped responding"/>
+  <translation tag="Copying from USB..." en="Copying from USB..."/>
   <translation tag="Corner roundness" en="Corner roundness"/>
   <translation tag="Correction (Ki)" en="Correction (Ki)"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." en="Could not analyze PRINT_START macro. Some print options may be unavailable."/>
   <translation tag="Could not answer the connection request" en="Could not answer the connection request"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." en="Could not check webcam status.&#10;Check printer connection."/>
+  <translation tag="Could not copy {} from USB: {}" en="Could not copy {} from USB: {}"/>
   <translation tag="Could not forget device" en="Could not forget device"/>
   <translation tag="Could not load printer database" en="Could not load printer database"/>
   <translation tag="Could not parse tips database" en="Could not parse tips database"/>

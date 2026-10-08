@@ -14,6 +14,8 @@
 
 #include "ui_print_start_controller.h"
 
+#include <string>
+#include <utility>
 #include <vector>
 
 class PrintStartControllerTestAccess {
@@ -79,5 +81,16 @@ class PrintStartControllerTestAccess {
     /// job's terminal state.
     static void observe_for_restore(helix::ui::PrintStartController& c) {
         c.observe_lifecycle_for_restore();
+    }
+
+    /// The file set_file() last handed the controller: {filename, directory}.
+    static std::pair<std::string, std::string> file(const helix::ui::PrintStartController& c) {
+        return {c.filename_, c.path_};
+    }
+
+    /// The tool colors set_file() last handed the controller.
+    static const std::vector<std::string>&
+    filament_colors(const helix::ui::PrintStartController& c) {
+        return c.filament_colors_;
     }
 };

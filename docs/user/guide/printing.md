@@ -15,6 +15,8 @@ Everything about selecting, starting, monitoring, and tuning your prints.
 
 If your printer exposes a USB drive, the top-left of the panel shows **Printer** and **USB** tabs. Tap a tab to switch which storage the file browser lists — **Printer** shows files on the printer's storage (Moonraker's virtual SD card), **USB** shows files on the attached USB drive. The tabs only appear when more than one source is available.
 
+Printing a file from the **USB** tab first copies it to the printer's storage, into a folder named `usb_prints`, with a progress bar while it copies. The copy stays there afterwards, so the file is also listed under **Printer** and can be reprinted without the stick. If `usb_prints` already holds the same file, it is printed from there without copying again. If it holds a different file with the same name, nothing is overwritten: the new copy is saved as `name (2).gcode`, then `name (3).gcode`, and so on. HelixScreen never deletes these copies, so clear out `usb_prints` from the file list when it fills up. Files on the USB tab cannot be deleted from HelixScreen.
+
 **View options:**
 
 - **Card View** (default): Thumbnails with file info — estimated time, filament usage, slicer

@@ -649,6 +649,9 @@ translations:
   Copied to clipboard!: Скопировано в буфер обмена!
   Copy Command: Копировать команду
   Copy failed - use SSH manually: Ошибка копирования - используйте SSH вручную
+  Copying from USB: 'Копирование с USB'
+  Copying from USB stopped responding: 'Копирование с USB перестало отвечать'
+  Copying from USB...: 'Копирование с USB...'
   Corner roundness: Скругление углов
   Correction (Ki): Коррекция (Ki)
   Could not analyze PRINT_START macro. Some print options may be unavailable.: Не
@@ -657,6 +660,7 @@ translations:
   Could not answer the connection request: 'Не удалось ответить на запрос подключения'
   ? "Could not check webcam status.\nCheck printer connection."
   : "Не удалось проверить статус веб-камеры.\nПроверьте подключение принтера."
+  'Could not copy {} from USB: {}': 'Не удалось скопировать {} с USB: {}'
   Could not forget device: Не удалось забыть устройство
   Could not load printer database: Не удалось загрузить базу данных принтеров
   Could not parse tips database: Не удалось разобрать базу данных советов

@@ -580,11 +580,15 @@
   <translation tag="Copied to clipboard!" zh="已复制到剪贴板！"/>
   <translation tag="Copy Command" zh="复制命令"/>
   <translation tag="Copy failed - use SSH manually" zh="复制失败 - 请手动使用 SSH"/>
+  <translation tag="Copying from USB" zh="正在从 USB 复制"/>
+  <translation tag="Copying from USB stopped responding" zh="从 USB 复制已停止响应"/>
+  <translation tag="Copying from USB..." zh="正在从 USB 复制..."/>
   <translation tag="Corner roundness" zh="圆角程度"/>
   <translation tag="Correction (Ki)" zh="校正 (Ki)"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." zh="无法分析 PRINT_START 宏。部分打印选项可能不可用。"/>
   <translation tag="Could not answer the connection request" zh="无法响应连接请求"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." zh="无法检查摄像头状态。&#10;请检查打印机连接。"/>
+  <translation tag="Could not copy {} from USB: {}" zh="无法从 USB 复制 {}：{}"/>
   <translation tag="Could not forget device" zh="无法忘记设备"/>
   <translation tag="Could not load printer database" zh="无法加载打印机数据库"/>
   <translation tag="Could not parse tips database" zh="无法解析提示数据库"/>

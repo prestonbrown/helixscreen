@@ -47,6 +47,7 @@ PrintFileData PrintFileData::from_usb_file(const UsbGcodeFile& file,
                                            const std::string& default_thumbnail) {
     PrintFileData data;
     data.filename = file.filename;
+    data.local_path = file.path;
     data.is_dir = false;
     data.file_size_bytes = file.size_bytes;
     data.modified_timestamp = static_cast<time_t>(file.modified_time);
@@ -91,3 +92,28 @@ PrintFileData PrintFileData::make_directory(const std::string& name, const std::
 
     return data;
 }
+
+namespace helix {
+
+UsbCopyTarget choose_usb_copy_target(const std::string& filename, uint64_t size,
+                                     const std::map<std::string, uint64_t>& existing) {
+    const size_t dot = filename.rfind('.');
+    const std::string stem =
+        dot == std::string::npos || dot == 0 ? filename : filename.substr(0, dot);
+    const std::string ext = stem.size() == filename.size() ? "" : filename.substr(stem.size());
+
+    // Every taken name either matches or is skipped, so this ends by
+    // existing.size() + 1.
+    for (size_t n = 1;; ++n) {
+        std::string candidate = n == 1 ? filename : stem + " (" + std::to_string(n) + ")" + ext;
+        const auto it = existing.find(candidate);
+        if (it == existing.end()) {
+            return {std::move(candidate), false};
+        }
+        if (it->second == size) {
+            return {std::move(candidate), true};
+        }
+    }
+}
+
+} // namespace helix

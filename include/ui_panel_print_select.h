@@ -15,6 +15,7 @@
 #include "ui_print_select_path_navigator.h"
 #include "ui_print_select_usb_source.h"
 #include "ui_print_start_controller.h"
+#include "ui_timer_guard.h"
 
 #include "async_lifetime_guard.h"
 #include "helix_plugin_installer.h"
@@ -28,8 +29,11 @@
 #include <atomic>
 #include <cctype>
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <ctime>
+#include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -536,6 +540,14 @@ class PrintSelectPanel : public PanelBase {
      */
     void start_print(bool force = false);
 
+    /// Moonraker directory (under the gcodes root) that USB files are copied
+    /// into before they print. Not "usb": that name is the stick symlink some
+    /// images create, which check_moonraker_usb_symlink() looks for.
+    static constexpr const char* kUsbCopyDir = "usb_prints";
+
+    /// A USB copy whose transfer reports no progress for this long is abandoned.
+    static constexpr uint32_t kUsbCopyStallMs = 30000;
+
     /**
      * @brief Show the enriched pre-flight filament check modal.
      *
@@ -658,8 +670,9 @@ class PrintSelectPanel : public PanelBase {
     std::string selected_filament_type_; ///< Filament type of selected file (for dropdown default)
     std::vector<std::string> selected_filament_colors_; ///< Tool colors of selected file
     std::vector<std::string>
-        selected_filament_materials_;        ///< Per-tool material types of selected file
-    size_t selected_file_size_bytes_ = 0;    ///< File size of selected file (for safety checks)
+        selected_filament_materials_;     ///< Per-tool material types of selected file
+    size_t selected_file_size_bytes_ = 0; ///< File size of selected file (for safety checks)
+    std::string selected_local_path_; ///< USB file's path on this host; empty for Moonraker files
     time_t selected_modified_timestamp_ = 0; ///< mtime of selected file (tools-used cache key)
     uint64_t selected_gcode_end_byte_ = 0;   ///< G-code body end offset (sizes the footer read)
     FileHistoryStatus selected_history_status_ =
@@ -746,6 +759,52 @@ class PrintSelectPanel : public PanelBase {
 
     /// Guards async API callbacks from accessing a destroyed instance
     helix::AsyncLifetimeGuard lifetime_;
+
+    /// True while a USB file is being copied to Moonraker; Print taps are
+    /// ignored until the copy lands or fails.
+    bool usb_copy_in_flight_ = false;
+
+    /// A USB copy's inputs, read when Print was tapped.
+    struct UsbCopyRequest {
+        std::string filename;
+        std::string local_path;
+        uint64_t size = 0;
+        uint64_t generation = 0; ///< usb_copy_generation_ when the copy began
+        std::function<void(const std::string& dest)> then;
+    };
+
+    /// Bumped per copy and on abandon; an answer for another value is stale.
+    uint64_t usb_copy_generation_ = 0;
+    helix::ui::LvglTimerGuard usb_copy_watchdog_;
+
+    /// The copy started under @p generation is still the one in flight.
+    [[nodiscard]] bool usb_copy_current(uint64_t generation) const;
+
+    /// Release the in-flight guard, the watchdog and the overlay.
+    void end_usb_copy();
+
+    /// Watchdog expiry: drop the copy and say so.
+    void abandon_stalled_usb_copy();
+
+    /**
+     * @brief Get the selected USB file into Moonraker's gcodes root.
+     *
+     * Moonraker cannot read a stick HelixScreen mounted itself, so a USB file
+     * goes to kUsbCopyDir first, named by choose_usb_copy_target(): a
+     * same-size copy already there is reused, a different file of that name
+     * is never replaced. @p then runs on the main thread with the copy's
+     * Moonraker-relative path; a failure toasts and runs nothing.
+     */
+    void copy_usb_file_to_printer(std::function<void(const std::string& dest)> then);
+
+    /// Name the copy from what kUsbCopyDir holds, then upload or reuse.
+    void upload_usb_copy(UsbCopyRequest req, const std::map<std::string, uint64_t>& existing);
+
+    /// Hand the controller @p filename in Moonraker directory @p dir, with the
+    /// tool colors and thumbnail read when Print was tapped, and start.
+    void dispatch_print(const std::string& filename, const std::string& dir,
+                        const std::vector<std::string>& filament_colors,
+                        const std::string& thumbnail);
 
     /// Compatibility alive flag for ThumbnailLoadContext (which uses shared_ptr<atomic<bool>> API)
     std::shared_ptr<std::atomic<bool>> thumbnail_alive_ = std::make_shared<std::atomic<bool>>(true);

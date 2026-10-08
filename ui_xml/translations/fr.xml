@@ -580,11 +580,15 @@
   <translation tag="Copied to clipboard!" fr="Copié dans le presse-papiers !"/>
   <translation tag="Copy Command" fr="Copier la commande"/>
   <translation tag="Copy failed - use SSH manually" fr="Copie échouée - utilisez SSH manuellement"/>
+  <translation tag="Copying from USB" fr="Copie depuis l&apos;USB"/>
+  <translation tag="Copying from USB stopped responding" fr="La copie depuis l&apos;USB ne répond plus"/>
+  <translation tag="Copying from USB..." fr="Copie depuis l&apos;USB..."/>
   <translation tag="Corner roundness" fr="Arrondi des coins"/>
   <translation tag="Correction (Ki)" fr="Correction (Ki)"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." fr="Impossible d&apos;analyser la macro PRINT_START. Certaines options d&apos;impression peuvent être indisponibles."/>
   <translation tag="Could not answer the connection request" fr="Impossible de répondre à la demande de connexion"/>
   <translation tag="Could not check webcam status.&#10;Check printer connection." fr="Impossible de vérifier la webcam.&#10;Vérifiez la connexion."/>
+  <translation tag="Could not copy {} from USB: {}" fr="Impossible de copier {} depuis l&apos;USB : {}"/>
   <translation tag="Could not forget device" fr="Impossible d&apos;oublier l&apos;appareil"/>
   <translation tag="Could not load printer database" fr="Impossible de charger la base de données dimprimantes"/>
   <translation tag="Could not parse tips database" fr="Impossible danalyser la base de données de conseils"/>

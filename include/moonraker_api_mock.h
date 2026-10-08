@@ -540,8 +540,50 @@ class MoonrakerFileTransferAPIMock : public MoonrakerFileTransferAPI {
                                const std::string& filename, const std::string& content,
                                SuccessCallback on_success, ErrorCallback on_error) override;
 
+    void upload_file_from_path(const std::string& root, const std::string& dest_path,
+                               const std::string& local_path, SuccessCallback on_success,
+                               ErrorCallback on_error,
+                               ProgressCallback on_progress = nullptr) override;
+
     void download_thumbnail(const std::string& thumbnail_path, const std::string& cache_path,
                             StringCallback on_success, ErrorCallback on_error) override;
+
+    /// One recorded upload_file_from_path() call. @a content is what was on
+    /// disk at @a local_path when the call was made.
+    struct PathUploadRecord {
+        std::string root;
+        std::string dest_path;
+        std::string local_path;
+        std::string content;
+    };
+
+    /// Every upload_file_from_path() the mock has served, in call order.
+    [[nodiscard]] const std::vector<PathUploadRecord>& path_uploads() const {
+        return path_uploads_;
+    }
+
+    /// Make every later upload_file_from_path() call on_error instead of
+    /// on_success. The call is still recorded.
+    void mock_fail_path_uploads(bool fail = true) {
+        fail_path_uploads_ = fail;
+    }
+
+    /// Make later upload_file_from_path() calls record and then wait: neither
+    /// callback runs until release_held_path_uploads().
+    void mock_hold_path_uploads(bool hold = true) {
+        hold_path_uploads_ = hold;
+    }
+
+    /// Complete every held upload with success.
+    void release_held_path_uploads() {
+        auto held = std::move(held_path_uploads_);
+        held_path_uploads_.clear();
+        for (auto& cb : held) {
+            if (cb) {
+                cb();
+            }
+        }
+    }
 
   private:
     /**
@@ -560,6 +602,11 @@ class MoonrakerFileTransferAPIMock : public MoonrakerFileTransferAPI {
     /// Fallback path prefixes to search (from various CWDs)
     /// Note: Base directory is RuntimeConfig::TEST_GCODE_DIR (defined in runtime_config.h)
     static const std::vector<std::string> PATH_PREFIXES;
+
+    std::vector<PathUploadRecord> path_uploads_;
+    bool fail_path_uploads_ = false;
+    bool hold_path_uploads_ = false;
+    std::vector<SuccessCallback> held_path_uploads_;
 };
 
 /**

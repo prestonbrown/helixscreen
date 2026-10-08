@@ -25,6 +25,11 @@ class MockPrinterState;
 // Forward declaration for MoonrakerClientMock (needed for internal handler registry)
 class MoonrakerClientMock;
 
+// Forward declaration for the test-access friend (tests/test_helpers/)
+namespace helix {
+class MoonrakerClientMockTestAccess;
+} // namespace helix
+
 // Forward declaration for internal handler registry
 namespace mock_internal {
 using MethodHandler =
@@ -956,6 +961,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     nlohmann::json pin_watch_status_json() const;
 
   private:
+    friend class helix::MoonrakerClientMockTestAccess;
+
     /**
      * @brief Populate hardware lists based on configured printer type
      *

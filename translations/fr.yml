@@ -667,6 +667,9 @@ translations:
   Copied to clipboard!: Copié dans le presse-papiers !
   Copy Command: Copier la commande
   Copy failed - use SSH manually: Copie échouée - utilisez SSH manuellement
+  Copying from USB: 'Copie depuis l''USB'
+  Copying from USB stopped responding: 'La copie depuis l''USB ne répond plus'
+  Copying from USB...: 'Copie depuis l''USB...'
   Corner roundness: Arrondi des coins
   Correction (Ki): Correction (Ki)
   Could not analyze PRINT_START macro. Some print options may be unavailable.: Impossible
@@ -674,6 +677,7 @@ translations:
   Could not answer the connection request: 'Impossible de répondre à la demande de connexion'
   ? "Could not check webcam status.\nCheck printer connection."
   : "Impossible de vérifier la webcam.\nVérifiez la connexion."
+  'Could not copy {} from USB: {}': 'Impossible de copier {} depuis l''USB : {}'
   Could not forget device: Impossible d'oublier l'appareil
   Could not load printer database: Impossible de charger la base de données dimprimantes
   Could not parse tips database: Impossible danalyser la base de données de conseils

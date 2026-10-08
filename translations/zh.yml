@@ -584,6 +584,9 @@ translations:
   Copied to clipboard!: 已复制到剪贴板！
   Copy Command: 复制命令
   Copy failed - use SSH manually: 复制失败 - 请手动使用 SSH
+  Copying from USB: '正在从 USB 复制'
+  Copying from USB stopped responding: '从 USB 复制已停止响应'
+  Copying from USB...: '正在从 USB 复制...'
   Corner roundness: 圆角程度
   Correction (Ki): 校正 (Ki)
   Could not analyze PRINT_START macro. Some print options may be unavailable.: 无法分析
@@ -591,6 +594,7 @@ translations:
   Could not answer the connection request: '无法响应连接请求'
   ? "Could not check webcam status.\nCheck printer connection."
   : "无法检查摄像头状态。\n请检查打印机连接。"
+  'Could not copy {} from USB: {}': '无法从 USB 复制 {}：{}'
   Could not forget device: 无法忘记设备
   Could not load printer database: 无法加载打印机数据库
   Could not parse tips database: 无法解析提示数据库

@@ -635,6 +635,9 @@ translations:
   Copied to clipboard!: Copied to clipboard!
   Copy Command: Copy Command
   Copy failed - use SSH manually: Copy failed - use SSH manually
+  Copying from USB: Copying from USB
+  Copying from USB stopped responding: Copying from USB stopped responding
+  Copying from USB...: Copying from USB...
   Corner roundness: Corner roundness
   Correction (Ki): Correction (Ki)
   Could not analyze PRINT_START macro. Some print options may be unavailable.: Could
@@ -642,6 +645,7 @@ translations:
   Could not answer the connection request: Could not answer the connection request
   ? "Could not check webcam status.\nCheck printer connection."
   : "Could not check webcam status.\nCheck printer connection."
+  'Could not copy {} from USB: {}': 'Could not copy {} from USB: {}'
   Could not forget device: Could not forget device
   Could not load printer database: Could not load printer database
   Could not parse tips database: Could not parse tips database

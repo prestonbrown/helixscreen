@@ -588,6 +588,9 @@ translations:
   Copied to clipboard!: クリップボードにコピーしました！
   Copy Command: コマンドをコピー
   Copy failed - use SSH manually: コピー失敗 - SSHを手動で使用してください
+  Copying from USB: 'USB からコピー中'
+  Copying from USB stopped responding: 'USB からのコピーが応答しなくなりました'
+  Copying from USB...: 'USB からコピー中...'
   Corner roundness: 角の丸み
   Correction (Ki): 補正 (Ki)
   Could not analyze PRINT_START macro. Some print options may be unavailable.: PRINT_START
@@ -595,6 +598,7 @@ translations:
   Could not answer the connection request: '接続リクエストに応答できませんでした'
   ? "Could not check webcam status.\nCheck printer connection."
   : "ウェブカメラの状態を確認できませんでした。\nプリンター接続を確認してください。"
+  'Could not copy {} from USB: {}': '{} を USB からコピーできませんでした: {}'
   Could not forget device: デバイスの登録を解除できませんでした
   Could not load printer database: プリンターデータベースを読み込めませんでした
   Could not parse tips database: ヒントデータベースを解析できませんでした
