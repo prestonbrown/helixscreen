@@ -3913,11 +3913,10 @@ void PrintSelectPanel::sync_esp_thumbnails(size_t first, size_t end, bool keep_o
         states[i].tried = f.esp_thumbnail_tried;
         states[i].held = f.esp_thumbnail ? f.esp_thumbnail->bytes() : 0;
         states[i].last_shown = f.esp_thumbnail_shown;
-        states[i].whole = i >= whole_first && i < whole_end;
+        states[i].whole = false; // CONTROL arm: no whole-first
     }
     // Card fetches leave the lane room for the detail view's and other reads.
-    const size_t room = helix::card_thumbnail_fetch_room(
-        api_ ? api_->transfers().free_request_slots() : 0, ESP_LANE_RESERVE);
+    const size_t room = SIZE_MAX; // CONTROL arm: no lane cap
     const helix::CardThumbnailPlan plan = helix::plan_card_thumbnails(
         states, first, end, static_cast<size_t>(std::max(esp_thumbnails_in_flight_, 0)), estimate,
         helix::CARD_THUMBNAIL_BUDGET, esp_lane_refused_, keep_off_screen, room);
