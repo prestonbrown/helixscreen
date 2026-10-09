@@ -3105,6 +3105,12 @@ std::string AmsBackendCfs::unload_gcode(CfsMacroVariant variant) {
         return wrap_with_envelope_k1("BOX_CUT_MATERIAL\n"
                                      "BOX_RETRUDE_MATERIAL");
     }
+    // The cut is BOX_CUT_MATERIAL, the firmware's own positioned cut. CR_BOX_CUT
+    // is a bare cutter primitive that strikes from wherever the toolhead
+    // stands, and needs the caller to stand at [box] pre_cut_pos first; the
+    // envelope leaves the head at the purge chute, where that strike runs into
+    // the frame on a K2 Pro.
+    //
     // Unload ends with CR_BOX_RETRUDE — the nozzle is empty (cut + retracted),
     // so no wipe needed. Skipping the wipe also avoids the wipe macro pushing
     // anything back into the hotend during a "filament-out" state.
@@ -3112,7 +3118,7 @@ std::string AmsBackendCfs::unload_gcode(CfsMacroVariant variant) {
     // BOX_QUIT_MATERIAL_RETRUDE_MATERIAL sequence (state-machine settle
     // after the cut).
     return wrap_with_park(variant,
-                          "CR_BOX_PRE_OPT\nCR_BOX_CUT\nBOX_MODE_WAIT\n"
+                          "CR_BOX_PRE_OPT\nBOX_CUT_MATERIAL\nBOX_MODE_WAIT\n"
                           "CR_BOX_RETRUDE\nCR_BOX_END_OPT",
                           /*wipe_after=*/false);
 }
@@ -3204,20 +3210,21 @@ std::string AmsBackendCfs::bypass_unload_gcode(CfsMacroVariant variant, bool has
     // Fallback for a CFS printer that does not define QUIT_MATERIAL. Same shape
     // as the vendor macro, built only from primitives this dialect's own unload
     // already emits, so it introduces no new command-presence risk:
-    // BOX_GO_TO_EXTRUDE_POS and BOX_MOVE_TO_SAFE_POS on both, and the dialect's
-    // cut (BOX_CUT_MATERIAL on K1, CR_BOX_CUT on K2 — the latter observed
-    // working under bypass on a K2 Plus, since the cutter is toolhead-side and
-    // needs no bay).
+    // BOX_GO_TO_EXTRUDE_POS and BOX_MOVE_TO_SAFE_POS on both, and
+    // BOX_CUT_MATERIAL, the firmware's positioned cut, on both. The cutter is
+    // toolhead-side and needs no bay. Never the K2's bare CR_BOX_CUT: it
+    // strikes from wherever the toolhead stands, and here that is the purge
+    // chute, not [box] pre_cut_pos.
     //
     // Deliberately NOT wrap_with_park()/wrap_with_envelope_k1(): those envelopes
     // exist to hand the box a bay operation (BOX_MODE_WAIT, CR_BOX_PRE_OPT /
     // CR_BOX_END_OPT, BOX_CHECK_MATERIAL), and a stood-down box is exactly what
     // has no answer for any of them. The vendor macro skips them too.
     //
-    const char* cut = variant == CfsMacroVariant::K1 ? "BOX_CUT_MATERIAL" : "CR_BOX_CUT";
     return std::string("SAVE_GCODE_STATE NAME=helix_cfs_bypass\n"
-                       "BOX_GO_TO_EXTRUDE_POS\n") +
-           cut + "\nM400\n" + long_retract_gcode() +
+                       "BOX_GO_TO_EXTRUDE_POS\n"
+                       "BOX_CUT_MATERIAL\nM400\n") +
+           long_retract_gcode() +
            "\nBOX_MOVE_TO_SAFE_POS\n"
            "RESTORE_GCODE_STATE NAME=helix_cfs_bypass";
 }
@@ -3261,11 +3268,13 @@ std::string AmsBackendCfs::swap_gcode(int idx, CfsMacroVariant variant) {
                                      "\nBOX_MATERIAL_FLUSH");
     }
     // Full swap: unload current (cut+retract) then load new slot, all in one
-    // session. BOX_MODE_WAIT interposed after CR_BOX_CUT (let the cutter
-    // recover) and before CR_BOX_EXTRUDE (new slot's state-machine handoff).
+    // session. The cut is BOX_CUT_MATERIAL for the same reason as unload_gcode:
+    // CR_BOX_CUT strikes from wherever the toolhead stands. BOX_MODE_WAIT
+    // interposed after the cut (let the cutter recover) and before
+    // CR_BOX_EXTRUDE (new slot's state-machine handoff).
     // Ends with flush of the NEW filament so wipe is required, same as load.
     return wrap_with_park(variant,
-                          "CR_BOX_PRE_OPT\nCR_BOX_CUT\nBOX_MODE_WAIT\n"
+                          "CR_BOX_PRE_OPT\nBOX_CUT_MATERIAL\nBOX_MODE_WAIT\n"
                           "CR_BOX_RETRUDE\nBOX_MODE_WAIT\n"
                           "CR_BOX_EXTRUDE TNN=" +
                               tnn + "\nCR_BOX_WASTE\nCR_BOX_FLUSH TNN=" + tnn + "\nCR_BOX_END_OPT",

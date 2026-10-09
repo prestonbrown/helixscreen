@@ -24,6 +24,8 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <set>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <unistd.h>
@@ -1022,7 +1024,7 @@ TEST_CASE("CFS GCode helpers", "[ams][cfs]") {
         REQUIRE(g.find("BOX_SAVE_FAN") != std::string::npos);
         REQUIRE(g.find("BOX_GO_TO_EXTRUDE_POS") != std::string::npos);
         REQUIRE(g.find("BOX_SET_TEMP") == std::string::npos);
-        REQUIRE(g.find("CR_BOX_PRE_OPT\nCR_BOX_CUT\nBOX_MODE_WAIT\n"
+        REQUIRE(g.find("CR_BOX_PRE_OPT\nBOX_CUT_MATERIAL\nBOX_MODE_WAIT\n"
                        "CR_BOX_RETRUDE\nCR_BOX_END_OPT") != std::string::npos);
         REQUIRE(g.find("BOX_RESTORE_FAN") != std::string::npos);
         REQUIRE(g.find("BOX_MOVE_TO_SAFE_POS") != std::string::npos);
@@ -1036,7 +1038,7 @@ TEST_CASE("CFS GCode helpers", "[ams][cfs]") {
             const std::string g = AmsBackendCfs::swap_gcode(idx);
             REQUIRE(g.find("BOX_GO_TO_EXTRUDE_POS") != std::string::npos);
             REQUIRE(g.find("BOX_SET_TEMP") == std::string::npos);
-            REQUIRE(g.find("CR_BOX_CUT\nBOX_MODE_WAIT\nCR_BOX_RETRUDE\n"
+            REQUIRE(g.find("CR_BOX_PRE_OPT\nBOX_CUT_MATERIAL\nBOX_MODE_WAIT\nCR_BOX_RETRUDE\n"
                            "BOX_MODE_WAIT\nCR_BOX_EXTRUDE TNN=") != std::string::npos);
             REQUIRE(g.find("BOX_MOVE_TO_SAFE_POS") != std::string::npos);
             // Swap ends with flush of the new slot — wipe before parking.
@@ -1319,7 +1321,7 @@ TEST_CASE("CFS K1 macro variant (#968)", "[ams][cfs]") {
     SECTION("K2 default preserved when variant omitted") {
         // Existing call sites without variant arg must still emit K2 macros.
         REQUIRE(AmsBackendCfs::load_gcode(0).find("CR_BOX_EXTRUDE") != std::string::npos);
-        REQUIRE(AmsBackendCfs::unload_gcode().find("CR_BOX_CUT") != std::string::npos);
+        REQUIRE(AmsBackendCfs::unload_gcode().find("CR_BOX_RETRUDE") != std::string::npos);
         REQUIRE(AmsBackendCfs::swap_gcode(0).find("CR_BOX_EXTRUDE") != std::string::npos);
     }
 }
@@ -3826,10 +3828,45 @@ TEST_CASE("CFS bypass unload gcode: fallback cuts and retracts with the extruder
         REQUIRE(g.find("RESTORE_GCODE_STATE") != std::string::npos);
     }
 
-    // Each dialect cuts with the primitive its own unload already emits.
-    REQUIRE(k2.find("CR_BOX_CUT") != std::string::npos);
+    // Both dialects cut with the firmware's positioned cut, the one their own
+    // unload already emits.
+    REQUIRE(k2.find("BOX_CUT_MATERIAL") != std::string::npos);
     REQUIRE(k1.find("BOX_CUT_MATERIAL") != std::string::npos);
     REQUIRE(k1.find("CR_BOX_CUT") == std::string::npos);
+}
+
+namespace {
+// True when any line of the script starts with the command token `cmd`, so
+// "BOX_CUT_MATERIAL" never satisfies a search for a bare cutter command.
+bool script_has_command(const std::string& script, const std::string& cmd) {
+    std::istringstream lines(script);
+    for (std::string line; std::getline(lines, line);) {
+        const std::string token = line.substr(0, line.find_first_of(" \t"));
+        if (token == cmd) {
+            return true;
+        }
+    }
+    return false;
+}
+} // namespace
+
+TEST_CASE("CFS K2 scripts never strike with the bare cutter primitive", "[ams][cfs][bypass]") {
+    using V = helix::printer::CfsMacroVariant;
+
+    // CR_BOX_CUT (and M8200 C, its slicer-facing alias) rams the cutter from
+    // wherever the toolhead stands; BOX_GO_TO_EXTRUDE_POS leaves it at the purge
+    // chute, not at [box] pre_cut_pos. Every K2 cut goes through BOX_CUT_MATERIAL.
+    std::vector<std::string> scripts = {AmsBackendCfs::unload_gcode(V::K2),
+                                        AmsBackendCfs::bypass_unload_gcode(V::K2, false)};
+    for (int idx : {0, 1, 5, 15}) {
+        scripts.push_back(AmsBackendCfs::swap_gcode(idx, V::K2));
+    }
+    for (const std::string& g : scripts) {
+        INFO(g);
+        REQUIRE(script_has_command(g, "BOX_CUT_MATERIAL"));
+        REQUIRE_FALSE(script_has_command(g, "CR_BOX_CUT"));
+        REQUIRE(g.find("M8200 C") == std::string::npos);
+    }
 }
 
 TEST_CASE("CFS unload routes the bypass sentinel away from the bay script", "[ams][cfs][bypass]") {

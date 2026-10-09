@@ -599,6 +599,11 @@ These are the **stock K2** commands (`CfsMacroVariant::K2`). Two other dialects 
 **Load sequence:** `M8200 P` → `M8200 L I=2` → `M8200 F` → `M8200 O`
 **Unload sequence:** `M8200 P` → `M8200 C` → `M8200 R` → `M8200 O`
 
+**`M8200 C` does not position the toolhead.** `CR_BOX_CUT` strikes in X from wherever the head
+stands; Creality's tool change moves to `[box]` `pre_cut_pos` (`G0 X10 Y200` on a K2 Pro)
+before it. Sent from the purge chute it can drive the head into the frame. HelixScreen cuts
+with `BOX_CUT_MATERIAL`, which positions itself.
+
 **Prerequisites:** Printer must be homed (`G28`). CFS does not require nozzle heating for feed/retract — heating is only needed for purging at the nozzle.
 
 **Stock UI note:** Creality's display-server communicates with the CFS **directly over RS-485** (`/dev/ttyS5` at 230400 baud), bypassing Klipper entirely for load/unload. The GCode macros are primarily for automated print-time use.

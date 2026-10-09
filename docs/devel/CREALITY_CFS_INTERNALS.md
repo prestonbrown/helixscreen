@@ -9,8 +9,10 @@ This is the *firmware side*. For how HelixScreen talks to it, see
 platform, see [printers/CREALITY_K1_SUPPORT.md](printers/CREALITY_K1_SUPPORT.md).
 
 > **Scope: K1 family only.** The K2 series ships a *different generation* of the module
-> (`box_wrapper.cpython-39.so`, Python 3.9, ARM) exposing `CR_BOX_*` commands and **zero**
-> `BOX_*` mid-swap primitives. Nothing on this page may be assumed to hold for K2. That
+> (`box_wrapper.cpython-39.so`, Python 3.9, ARM) exposing `CR_BOX_*` commands. A name it
+> shares with K1, such as `BOX_CUT_MATERIAL` (which the K2's own `box.cfg` calls, and which
+> HelixScreen's K2 cut uses), is a separate implementation. Nothing on this page may be
+> assumed to hold for K2. That
 > cross-family inference is what produced #968 in the first place.
 
 ---

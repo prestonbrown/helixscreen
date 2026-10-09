@@ -76,11 +76,13 @@ class CfsErrorDecoder {
 /// Macro dialect emitted by the CFS backend.
 ///
 /// K2 stock firmware exposes the CR_BOX_* primitives (CR_BOX_PRE_OPT,
-/// CR_BOX_EXTRUDE, CR_BOX_WASTE, CR_BOX_FLUSH, CR_BOX_END_OPT, CR_BOX_CUT,
+/// CR_BOX_EXTRUDE, CR_BOX_WASTE, CR_BOX_FLUSH, CR_BOX_END_OPT,
 /// CR_BOX_RETRUDE) plus the BOX_* envelope (BOX_SAVE_FAN, BOX_MODE_WAIT,
 /// BOX_GO_TO_EXTRUDE_POS, BOX_NOZZLE_CLEAN, BOX_MOVE_TO_SAFE_POS,
-/// BOX_RESTORE_FAN). Selected when the printer is detected as a non-K1
-/// Creality with a `box` Klipper object.
+/// BOX_RESTORE_FAN). Its cut is BOX_CUT_MATERIAL, the firmware's positioned
+/// cut: the bare CR_BOX_CUT primitive strikes from wherever the toolhead
+/// stands and needs the caller at [box] pre_cut_pos first. Selected when the
+/// printer is detected as a non-K1 Creality with a `box` Klipper object.
 ///
 /// K1 official CFS upgrade firmware (≥ v2.3.5.33) exposes a different,
 /// non-prefixed set: BOX_EXTRUDE_MATERIAL, BOX_MATERIAL_FLUSH,
@@ -476,8 +478,8 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
 
     /// True: the CFS clears the toolhead without a lane. bypass_unload_gcode()
     /// is exactly that script - QUIT_MATERIAL (heat, cut, retract) plus the
-    /// retract Creality's macro leaves out, or a CR_BOX_CUT/BOX_CUT_MATERIAL
-    /// fallback - and it is built deliberately WITHOUT the bay envelopes,
+    /// retract Creality's macro leaves out, or a BOX_CUT_MATERIAL fallback -
+    /// and it is built deliberately WITHOUT the bay envelopes,
     /// because a stood-down box has no answer for a bay operation. An
     /// unaccounted toolhead is that same lane-free situation.
     [[nodiscard]] bool can_clear_unaccounted_toolhead() const override {

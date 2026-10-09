@@ -627,7 +627,7 @@ TEST_CASE("CFS Fork dialect: gcode builders", "[ams][cfs][flat][fork]") {
                 std::string::npos);
         REQUIRE(AmsBackendCfs::load_gcode(1, CfsMacroVariant::K1).find("BOX_EXTRUDE_MATERIAL") !=
                 std::string::npos);
-        REQUIRE(AmsBackendCfs::unload_gcode(CfsMacroVariant::K2).find("CR_BOX_CUT") !=
+        REQUIRE(AmsBackendCfs::unload_gcode(CfsMacroVariant::K2).find("CR_BOX_RETRUDE") !=
                 std::string::npos);
     }
 }
