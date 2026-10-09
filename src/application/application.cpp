@@ -779,7 +779,7 @@ int Application::run(int argc, char** argv) {
 
     // Initialize UpdateChecker before panel subjects (subjects must exist for XML binding)
     // On Android the checker still runs (so "Check for Updates" works), but
-    // "Install Update" redirects to the Play Store instead of self-updating.
+    // "Install Update" opens the store or release page the APK came from.
     UpdateChecker::instance().init();
 
     // Initialize UpgradeBanner — creates the persistent top-banner widget on

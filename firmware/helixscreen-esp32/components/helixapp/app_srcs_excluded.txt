@@ -140,6 +140,7 @@ src/sensors/color_sensor_manager.cpp  # dead on all platforms — audit 2026-08-
 src/sensors/sensor_registry.cpp  # not in the v1 Core+AMS cut
 src/spoolman/spoolman_slot_saver.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/system/alsa_sound_backend.cpp  # not in the v1 Core+AMS cut
+src/system/android_update_source.cpp  # Android only
 src/system/bluetooth_loader.cpp  # not in the v1 Core+AMS cut
 src/system/brother_pt_bt_printer.cpp  # not in the v1 Core+AMS cut
 src/system/brother_pt_protocol.cpp  # not in the v1 Core+AMS cut

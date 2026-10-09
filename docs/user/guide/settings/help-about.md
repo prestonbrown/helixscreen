@@ -71,7 +71,7 @@ Tap the **About** row at the bottom of the Settings panel to open the About over
 | **Printer Name** | The name of your connected printer (set during setup wizard) |
 | **Current Version** | Your installed HelixScreen version |
 | **Update Channel** | Stable or Beta; **Dev** is added when beta features are enabled |
-| **Check for Updates** | Check for and install new versions (on Android, the install step opens the Play Store) |
+| **Check for Updates** | Check for and install new versions (on Android, the install step opens the Play Store listing or the GitHub release page, depending on where the app came from) |
 | **Klipper** | Installed Klipper version (fetched from Moonraker) |
 | **Moonraker** | Installed Moonraker version |
 | **OS** | Operating system version |
@@ -95,7 +95,7 @@ If something goes wrong, an **Update Failed** screen appears with a **Retry** bu
 
 > **Caution:** Once installation begins, leave the printer powered on until HelixScreen restarts on its own. Interrupting an install can leave HelixScreen in an inconsistent state.
 
-On Android, the install step opens the Play Store.
+On Android, the install step opens the Play Store listing if you installed from Google Play. Otherwise it opens the GitHub release page, where you download the new APK and install it over the old one.
 
 ### Easter Eggs
 
