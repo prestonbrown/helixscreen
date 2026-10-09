@@ -36,19 +36,30 @@ bool is_tag_safe(const std::string& version) {
 
 } // namespace
 
-std::string update_url(const std::string& installer_package, const std::string& offered_version) {
+std::string update_url(const std::string& installer_package, const OfferedRelease& offered) {
     if (installer_package == kPlayStoreInstaller) {
         return kPlayStoreMarketUrl;
     }
 
-    std::string version = offered_version;
-    if (!version.empty() && (version[0] == 'v' || version[0] == 'V')) {
-        version.erase(0, 1);
+    const std::string latest = std::string(kReleasesUrl) + "/latest";
+    if (!offered.on_github) {
+        return latest;
     }
-    if (!is_tag_safe(version)) {
-        return std::string(kReleasesUrl) + "/latest";
+
+    std::string tag = offered.tag_name;
+    if (tag.empty()) {
+        std::string version = offered.version;
+        if (!version.empty() && (version[0] == 'v' || version[0] == 'V')) {
+            version.erase(0, 1);
+        }
+        if (!version.empty()) {
+            tag = "v" + version;
+        }
     }
-    return std::string(kReleasesUrl) + "/tag/v" + version;
+    if (!is_tag_safe(tag)) {
+        return latest;
+    }
+    return std::string(kReleasesUrl) + "/tag/" + tag;
 }
 
 #ifdef __ANDROID__

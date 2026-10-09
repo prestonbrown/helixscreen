@@ -360,8 +360,14 @@ void AboutSettingsOverlay::show_update_download_modal(bool start_immediately) {
     // for a sideload.
     if (helix::is_android_platform()) {
         const std::string installer = helix::android::installer_package();
-        auto info = UpdateChecker::instance().get_cached_update();
-        const std::string url = helix::android::update_url(installer, info ? info->version : "");
+        auto& checker = UpdateChecker::instance();
+        helix::android::OfferedRelease offered;
+        if (auto info = checker.get_cached_update()) {
+            offered.tag_name = info->tag_name;
+            offered.version = info->version;
+        }
+        offered.on_github = checker.get_channel() != UpdateChecker::UpdateChannel::Dev;
+        const std::string url = helix::android::update_url(installer, offered);
         spdlog::info("[AboutSettings] Installer '{}', opening {}", installer, url);
         if (SDL_OpenURL(url.c_str()) != 0) {
             spdlog::warn("[AboutSettings] Opening {} failed: {}", url, SDL_GetError());

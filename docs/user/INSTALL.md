@@ -463,7 +463,7 @@ Three ways to update, in order of preference: in the app itself, from the Mainsa
 
 The app can update itself: **Settings > Help & About > About > Check for Updates**. It shows the new version, downloads it with a progress bar, and installs it; a **Retry** button appears if the download fails. No SSH and no web browser needed. The **Update Channel** row beside it picks Stable or Beta.
 
-This option is hidden where something else manages updates for you, such as on the Snapmaker U1, whose firmware handles HelixScreen updates itself. On Android, the install step opens the Play Store instead of downloading in-app. See [Checking for Updates](guide/settings/help-about.md#checking-for-updates) for the full walkthrough.
+This option is hidden where something else manages updates for you, such as on the Snapmaker U1, whose firmware handles HelixScreen updates itself. On Android, the install step opens the Play Store listing if you installed from Google Play, and otherwise the GitHub release page, where you download the new APK. See [Checking for Updates](guide/settings/help-about.md#checking-for-updates) for the full walkthrough.
 
 ### Check Current Version
 
