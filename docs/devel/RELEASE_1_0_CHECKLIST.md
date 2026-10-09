@@ -107,8 +107,8 @@ live. See `ANDROID_PLAY_STORE.md`.
       block over 500 characters**, so an over-long block means the release ships
       with no Play changelog at all. Run the script and read its byte count.
       **412 bytes, under the limit**, at
-      `android/fastlane/metadata/android/en-US/changelogs/1000000.txt`
-      (versionCode 1000000 confirmed by `scripts/android-version-code.sh`).
+      `android/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`
+      (versionCode 1000000 for v1.0.0, confirmed by `scripts/android-version-code.sh`).
 - [x] Confirm the `ALLOW_CHANNEL_DOWNGRADE` repository variable is **unset**. It
       is the escape hatch for the downgrade guard and must be off by default.
       *Verified 2026-08-14 (`gh variable list`): not set.*
