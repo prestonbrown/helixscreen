@@ -78,11 +78,14 @@ utf16_len() {
 
 # Preferred source: an explicit `<!-- whatsnew ... -->` block in the section.
 # Taken verbatim, so what lands in the Play Store is exactly what was reviewed
-# in the release diff.
+# in the release diff. The reader drains its input instead of exiting at the
+# closing marker: under pipefail, an early exit while printf is still writing a
+# long section is a SIGPIPE that kills the script with no message.
 explicit="$(printf '%s\n' "$section" | awk '
+    done                       { next }
     /<!--[[:space:]]*whatsnew/ { inblock=1; next }
-    inblock && /-->/          { exit }
-    inblock                   { print }
+    inblock && /-->/           { done=1; next }
+    inblock                    { print }
 ')"
 # Trim leading/trailing blank lines. The `\n` matters: `tac` reverses whole
 # lines, and an unterminated final line gets folded into its neighbour, which
