@@ -1634,7 +1634,7 @@ TEST_CASE("get_platform_display_name returns correct strings for known platforms
     REQUIRE(UpdateChecker::get_platform_display_name("ad5m") == "FlashForge Adventurer 5M");
     REQUIRE(UpdateChecker::get_platform_display_name("ad5x") == "FlashForge Adventurer 5X");
     REQUIRE(UpdateChecker::get_platform_display_name("k1") == "Creality K1");
-    REQUIRE(UpdateChecker::get_platform_display_name("k2") == "Creality K2 Plus");
+    REQUIRE(UpdateChecker::get_platform_display_name("k2") == "Creality K2");
     REQUIRE(UpdateChecker::get_platform_display_name("cc1") == "Elegoo Centauri Carbon");
     REQUIRE(UpdateChecker::get_platform_display_name("snapmaker-u1") == "Snapmaker U1");
     REQUIRE(UpdateChecker::get_platform_display_name("esp32") == "BTT K-Touch");

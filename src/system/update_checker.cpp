@@ -2866,8 +2866,9 @@ std::string UpdateChecker::get_platform_display_name(const std::string& key) {
         return "FlashForge Adventurer 5X";
     if (key == "k1")
         return "Creality K1";
+    // One build serves the K2, K2 Pro and K2 Plus, so the name covers all three.
     if (key == "k2")
-        return "Creality K2 Plus";
+        return "Creality K2"; // i18n: do not translate
     if (key == "cc1")
         return "Elegoo Centauri Carbon";
     if (key == "snapmaker-u1")
