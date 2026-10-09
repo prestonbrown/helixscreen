@@ -184,17 +184,20 @@ UsbCopyTarget choose_usb_copy_target(const std::string& filename, uint64_t size,
  * - Only candidates are entries whose previous fetch claimed success
  *   (metadata_fetched == true). Everything else needs a fresh fetch anyway.
  * - Drop the cache if the file was re-sliced (size changed).
- * - Drop the cache on panel activation if the entry has no thumbnail_path. This
- *   self-heals files whose upload-time metadata extraction failed transiently in
- *   Moonraker (JSON-RPC -32601 "Metadata not available"): without this one-shot
- *   retry, metadata_fetched stays true forever and the card shows the placeholder
- *   permanently even after Moonraker recovers.
+ * - Drop the cache on panel activation if the metadata named no thumbnail at all:
+ *   neither a local thumbnail_path nor an original_thumbnail_url. This self-heals
+ *   files whose upload-time metadata extraction failed transiently in Moonraker
+ *   (JSON-RPC -32601 "Metadata not available"): without this one-shot retry,
+ *   metadata_fetched stays true forever and the card shows the placeholder
+ *   permanently even after Moonraker recovers. A URL with no local path is not a
+ *   failed extraction: a platform without a thumbnail disk cache never sets the
+ *   path, and dropping those entries throws away the thumbnails they hold.
  *
  * @param old_entry Cached entry from previous file_list_
  * @param new_file_size File size from the fresh Moonraker listing
  * @param retry_missing_thumbnails True on panel activation: drop cached entries
- *                                 whose thumbnail_path is empty so they get one
- *                                 retry this visit
+ *                                 whose metadata named no thumbnail so they get
+ *                                 one retry this visit
  * @return true to carry forward cached metadata, false to let it re-fetch fresh
  */
 inline bool should_carry_forward_print_file_metadata(const PrintFileData& old_entry,
@@ -206,7 +209,8 @@ inline bool should_carry_forward_print_file_metadata(const PrintFileData& old_en
     if (new_file_size != old_entry.file_size_bytes) {
         return false;
     }
-    if (retry_missing_thumbnails && old_entry.thumbnail_path.empty()) {
+    if (retry_missing_thumbnails && old_entry.thumbnail_path.empty() &&
+        old_entry.original_thumbnail_url.empty()) {
         return false;
     }
     return true;

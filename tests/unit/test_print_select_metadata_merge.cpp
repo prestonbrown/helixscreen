@@ -93,6 +93,37 @@ TEST_CASE("Empty thumbnail dropped on panel activation for one-shot retry",
     REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true) == false);
 }
 
+TEST_CASE("A thumbnail URL with no local path is not a failed extraction",
+          "[print_select][merge][retry]") {
+    // The ESP32 keeps no thumbnail disk cache: its entries carry only the URL,
+    // and the decoded image rides in the entry. Dropping them on activation
+    // throws that image away, and with no repopulate to refetch metadata every
+    // later poll drops them again.
+    auto old = make_cached_entry("print.gcode", 1024, /*thumbnail_path=*/"");
+    old.original_thumbnail_url = ".thumbs/print-300x300.png";
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true) == true);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, false) == true);
+    // A re-slice still drops it.
+    REQUIRE(should_carry_forward_print_file_metadata(old, 2048, true) == false);
+}
+
+TEST_CASE("Activation keeps a URL-only entry's state through the merge",
+          "[print_select][merge][retry]") {
+    std::vector<PrintFileData> previous(1);
+    previous[0] = make_cached_entry("print.gcode", 1024, "");
+    previous[0].original_thumbnail_url = ".thumbs/print-300x300.png";
+    previous[0].modified_timestamp = 77;
+
+    std::vector<PrintFileData> fresh(1);
+    fresh[0].filename = "print.gcode";
+    fresh[0].file_size_bytes = 1024;
+    fresh[0].modified_timestamp = 77;
+
+    helix::carry_forward_print_file_metadata(fresh, previous, /*retry=*/true);
+    CHECK(fresh[0].metadata_fetched);
+    CHECK(fresh[0].original_thumbnail_url == ".thumbs/print-300x300.png");
+}
+
 TEST_CASE("Size change wins over retry flag for empty-thumbnail entry",
           "[print_select][merge][retry]") {
     // Size changed AND empty thumbnail AND retry flag set — all three rules agree
