@@ -1,5 +1,7 @@
 package org.helixscreen.app;
 
+import android.content.Context;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Build;
@@ -542,6 +544,32 @@ public class HelixActivity extends SDLActivity {
                 }
             }
         });
+    }
+
+    /**
+     * Package name of whatever installed this app ("com.android.vending" for Play),
+     * or "" when Android reports none, which is normal for an APK sideloaded
+     * through adb or a file manager. Native code picks the update destination
+     * from this.
+     */
+    @SuppressWarnings("deprecation")
+    public static String getInstallerPackage() {
+        try {
+            Context ctx = SDLActivity.getContext();
+            if (ctx == null) return "";
+            PackageManager pm = ctx.getPackageManager();
+            String pkg = ctx.getPackageName();
+            String installer;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                installer = pm.getInstallSourceInfo(pkg).getInstallingPackageName();
+            } else {
+                installer = pm.getInstallerPackageName(pkg);
+            }
+            return installer != null ? installer : "";
+        } catch (Exception e) {
+            Log.w("HelixInstaller", "Installer lookup failed: " + errorText(e));
+            return "";
+        }
     }
 
     // =========================================================================

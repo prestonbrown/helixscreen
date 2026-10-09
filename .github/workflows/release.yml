@@ -462,8 +462,8 @@ jobs:
         # Play Store uploader (r0adkll) expects whatsnew-<locale> files in a flat dir.
         # Fastlane source of truth is android/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt
         # Same packing as the script that just wrote the file. Both sides call
-        # scripts/android-version-code.sh; when this step re-derived it locally
-        # the two drifted (10014 vs 99114) and the copy below silently missed.
+        # scripts/android-version-code.sh: a local copy of the arithmetic here
+        # would name a file that does not exist and the copy below would miss.
         VERSION_CODE=$(scripts/android-version-code.sh)
         SRC="android/fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
         if [ -f "$SRC" ]; then
@@ -507,9 +507,18 @@ jobs:
   # full build-platforms matrix) means Play only ever receives a version that users
   # can also download from GitHub. If a platform build fails, this job is skipped and
   # the version number stays free to re-cut.
+  #
+  # Stable releases only. A Play versionCode is a one-way ratchet per track, and
+  # the trunk's versions lead the stable line: a 1.1.0-beta.1 packs to 100100031
+  # while the 1.0.1 hotfix that may follow it packs to 100000199, so a beta
+  # reaching Play makes the next stable hotfix unpublishable. Android beta testers
+  # sideload the APK from the GitHub release instead. The condition reads the
+  # channel the branch declares rather than the tag string, for the same reason
+  # every other routing decision does.
   publish-android:
     name: Publish to Play Store (internal)
     needs: [build-android, release]
+    if: needs.release.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

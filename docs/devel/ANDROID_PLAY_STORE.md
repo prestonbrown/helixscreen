@@ -2,17 +2,37 @@
 
 How the CI pipeline ships `helix-screen` to Google Play, and the one-time manual setup required before the automated upload can work.
 
-## Where to pick up — 2026-08-15
+## Where to pick up - 2026-10-08
+
+**Target API 36 is done on release/1.0 and main** (see "Target API level"). Play has required
+`targetSdkVersion 36` for new submissions and updates since 2026-08-31; `v1.0.0` through the
+last 1.0.x tag before this change ship 35, so their AABs would be rejected. The first upload
+can come from the next 1.0.x tag.
+
+Left before the first Play submission:
+
+- Check the app on a real tablet in portrait (API 36 lets sw >= 600dp screens rotate it).
+- Build the signed release APKs and AAB on API 36 and confirm they pass the pre-flight below.
+- Get a green CI run of `build-android` on the API 36 tree.
+
+**Also confirmed unset as of 2026-09-09:** `PLAY_SERVICE_ACCOUNT_JSON` is not in the repository
+secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
+`ANDROID_KEY_PASSWORD` are). So `publish-android` is still skipping cleanly on every tag, which
+is the intended behaviour and not a fault. Steps 1-6 below remain entirely undone.
+
+**Unaffected by any of this:** every tag still produces signed APKs and an AAB attached to the
+GitHub release. `v1.0.0` did. Sideloading is unchanged.
+
+### Status as of 2026-08-15, still accurate
 
 **Package-name registration cleared.** `org.helixscreen.app` is verified against the upload
 key's fingerprint `41:B4:26:42:44:FF:90:FA:11:BD:37:56:21:10:C2:E2:66:F4:AB:42:FB:49:87:62:75:49:BF:AF:DE:65:A8:AC`.
 The ownership-challenge stub at `~/.android-keystore/adi-registration/` has done its job and can
 be deleted once Play Console shows the package with `Keys: 1`.
 
-**Deadline that now governs the sequence: 2026-08-31.** New app submissions and app updates must
-target **API 36** (Android 16) from that date; extensions to 2026-11-01 can be requested. We are
-on `targetSdkVersion 35`, which is accepted only up to 2026-08-30. See "Target API level" below —
-it decides whether the first upload goes in as-is or waits for an SDK bump.
+**The 2026-08-31 API 36 deadline was the open question at the time and has since passed.** See
+the current status above; the "Target API level" section below still describes the requirement
+correctly.
 
 **Pre-flight on the artifact — done 2026-08-15, all green.** `helixscreen-android-v0.99.113.aab`
 is staged at `~/Downloads/` and was checked directly rather than assumed:
@@ -40,18 +60,21 @@ Steps 1-3 are unaffected by the target-API question and can be done now.
 
 ### Target API level
 
-`android/app/build.gradle` sets `compileSdkVersion 35` / `targetSdkVersion 35`. Google's annual
-requirement moves to **API 36 on 2026-08-31**, for new submissions *and* for updates to existing
-apps. Two consequences:
+`android/app/build.gradle` sets `compileSdkVersion 36` / `targetSdkVersion 36` (AGP 8.9.1,
+Gradle 8.11.1), which Play has required for new submissions and updates since 2026-08-31.
+`minSdkVersion` stays 28. API 36 behaviour changes that touch this app:
 
-- Uploading v0.99.113 on or before 2026-08-30 is accepted as-is. After that date the same file is rejected.
-- Either way, **every update published after 2026-08-31 needs API 36**, so the bump is required soon regardless of when the first upload happens.
+- **Predictive back.** Targeting 36 stops `KEYCODE_BACK` reaching SDL by default, so the
+  activity sets `android:enableOnBackInvokedCallback="false"` to keep the back key popping
+  the nav stack.
+- **Large screens (sw >= 600dp) ignore `screenOrientation`.** A tablet can run the app in
+  portrait despite `sensorLandscape`. That is accepted: portrait is allowed there, and the
+  temporary `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` opt-out is deliberately not used.
+- **Edge-to-edge** is already enforced from 35 and handled by `HelixActivity`'s inset listener.
 
-The lower-risk sequence is to get the first manual upload in on 35 — its only job is to enroll
-Play App Signing and unblock steps 5-7 — and treat the SDK bump as its own change, so a
-first-submission milestone is not coupled to an untested SDK jump. Android 16 enforces
-edge-to-edge display for apps targeting API 36, which a fullscreen SDL surface needs testing
-against on a real device before it ships.
+Native libraries must be 16 KB page aligned. Everything bundled is built from source with NDK
+r29, which links with 16 KB max-page-size by default; check a built APK with
+`zipalign -c -P 16 -v 4 <apk>` and `llvm-readelf -l <lib>.so` (every `LOAD` `Align` 0x4000).
 
 ### Review risk: the app needs hardware a reviewer does not have
 
@@ -274,10 +297,12 @@ To test the full upload path without touching production, point the action at a 
 ## Gotchas
 
 - **First upload must be manual.** The Publishing API refuses the very first upload for any new app. This is a Google constraint, not a workflow limitation.
-- **versionCode must strictly increase**, and there is exactly one definition of it: **`scripts/android-version-code.sh`**. It packs `VERSION.txt` as `major*1000000 + minor*1000 + patch`, so `0.99.113` → `99113` and `1.0.0` → `1000000`. Re-releasing the same `VERSION.txt` to the Play Store will be rejected. The lanes are 1000 wide because the field below must never overflow into the one above: under the earlier `major*10000 + minor*100 + patch` packing, `0.99.113` produced `10013` and `1.0.0` produced `10000`, so 1.0 would have been rejected as a downgrade both by the Play Store and by every sideloaded install.
+- **versionCode must strictly increase**, and there is exactly one definition of it: **`scripts/android-version-code.sh`**. It packs `VERSION.txt` as `(major*1000000 + minor*1000 + patch)*100 + ordinal`, so `1.0.0` → `100000099` and `1.1.0-beta.1` → `100100031`. Re-releasing the same `VERSION.txt` to the Play Store will be rejected.
 
-  Three consumers call that script — `android/app/build.gradle` (the versionCode itself), `scripts/generate-whatsnew.sh` (names `changelogs/<code>.txt`), `.github/workflows/release.yml` (reads that same file back). They used to each write the arithmetic out, and they diverged the moment the lanes were widened: release.yml kept the old packing, so it looked for changelogs/10014.txt while the script had written changelogs/99114.txt. The `if [ -f "$SRC" ]` fell through to a `::warning::`, `if-no-files-found: ignore` skipped the upload, and the whatsnew artifact silently did not exist — invisible only because `publish-android` is inert without the service-account secret. `tests/shell/test_android_version_code.bats` gates against a second copy reappearing. Query the current value with `cd android && ./gradlew -q printVersionCode` or `scripts/android-version-code.sh`.
-- **Pre-release tags (`v1.0.0-beta`) still upload.** The `publish-android` job does not check for pre-release tags. If we later want to gate pre-releases out of the Play Store, add an `if: !contains(github.ref_name, '-')` at the job level.
+  Every field owns a lane wide enough that it can never carry into the one above: minor and patch each stay under 1000, major at or below 20 (Android's cap is 2100000000, and `20.999.999` already packs to `2099999999`). The low two digits are the prerelease ordinal: `-alpha.N` → `N`, `-beta.N` → `30+N`, `-rc.N` → `60+N` with N in 1..29, a bare `-alpha`/`-beta`/`-rc` → N=0, and no suffix → `99`. That ordering puts every prerelease of a version above the last one and below the release itself. A suffix outside that table is a hard error rather than a guessed ordinal, because two versions sharing a versionCode is an unpublishable build.
+
+  Three consumers call that script: `android/app/build.gradle` (the versionCode itself), `scripts/generate-whatsnew.sh` (names `changelogs/<code>.txt`), `.github/workflows/release.yml` (reads that same file back). A second copy of the arithmetic in any of them makes the changelog filename one side writes and the other reads back stop matching, while Gradle still stamps the right number on the APK. That fails the release: the whatsnew step in `build-android` exits 1 when `changelogs/<versionCode>.txt` is missing, and its artifact upload sets `if-no-files-found: error`, so `build-android` goes red and takes `release` and `publish-android` with it. A tag whose version has no `CHANGELOG.md` section fails the same way, because `generate-whatsnew.sh` refuses to write the file. `tests/shell/test_android_version_code.bats` gates against a second copy reappearing. Query the current value with `cd android && ./gradlew -q printVersionCode` or `scripts/android-version-code.sh`.
+- **Play receives stable releases only.** `publish-android` carries `if: needs.release.outputs.channel == 'stable'`, so a tag from a `beta` or `dev` branch builds and attaches its APK to the GitHub release but never reaches Play. The versionCode is a one-way ratchet per track and the trunk's versions lead the stable line: `1.1.0-beta.1` packs to `100100031` while a `1.0.1` hotfix that follows it packs to `100000199`, so one beta upload would make the next stable hotfix unpublishable. Android beta testers sideload the APK. The condition reads the channel the branch declares rather than the tag string, matching every other routing decision in the workflow, and `tests/shell/test_android_version_code.bats` asserts both halves of the wiring.
 - **Store icon vs launcher icon.** `android/app/src/main/res/mipmap-*/ic_launcher.png` (max 192×192) is what users see on their home screen. Play Console separately requires a **512×512** store icon for the listing, generated from `assets/images/helix-icon.png` onto the launcher's #2D2D2B background and committed at `docs/store/android/icon-512.png`. Upload it manually the first time; after that it persists on the listing until you change it.
 - **Screenshot dimensions.** Current screenshots in `docs/store/android/` are 960×540. Play Store accepts anything ≥320 on each side, so these pass — but re-shooting at 1920×1080 would look crisper on large-screen previews. Not blocking.
 - **Secret hygiene.** `PLAY_SERVICE_ACCOUNT_JSON` is the key to pushing arbitrary code to production. Rotate if exposed. The service account should hold only "Release manager" scoped to this app — not account-level admin.
