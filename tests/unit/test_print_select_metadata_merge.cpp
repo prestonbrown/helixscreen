@@ -47,16 +47,16 @@ PrintFileData make_cached_entry(const std::string& filename, size_t size,
 
 TEST_CASE("Unchanged file with thumbnail carries forward", "[print_select][merge]") {
     auto old = make_cached_entry("print.gcode", 1024, "A:helix_thumbs/abc.bin");
-    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, false) == true);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, false, true) == true);
     // Retry flag does not affect entries that already have a thumbnail — the
     // retry logic is specifically scoped to the empty-thumbnail recovery case.
-    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true) == true);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true, true) == true);
 }
 
 TEST_CASE("Size change (re-slice) drops cached metadata", "[print_select][merge]") {
     auto old = make_cached_entry("print.gcode", 1024, "A:helix_thumbs/abc.bin");
-    REQUIRE(should_carry_forward_print_file_metadata(old, 2048, false) == false);
-    REQUIRE(should_carry_forward_print_file_metadata(old, 2048, true) == false);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 2048, false, true) == false);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 2048, true, true) == false);
 }
 
 TEST_CASE("Entry without metadata_fetched is never carried forward", "[print_select][merge]") {
@@ -68,8 +68,8 @@ TEST_CASE("Entry without metadata_fetched is never carried forward", "[print_sel
     old.file_size_bytes = 1024;
     old.metadata_fetched = false;
     old.thumbnail_path = "A:helix_thumbs/abc.bin";
-    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, false) == false);
-    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true) == false);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, false, true) == false);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true, true) == false);
 }
 
 // ============================================================================
@@ -81,7 +81,7 @@ TEST_CASE("Empty thumbnail carries forward on polling refresh", "[print_select][
     // must carry forward so we don't spam metadata re-fetches every 5 seconds for
     // files that legitimately have no thumbnail.
     auto old = make_cached_entry("print.gcode", 1024, /*thumbnail_path=*/"");
-    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, false) == true);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, false, true) == true);
 }
 
 TEST_CASE("Empty thumbnail dropped on panel activation for one-shot retry",
@@ -90,10 +90,20 @@ TEST_CASE("Empty thumbnail dropped on panel activation for one-shot retry",
     // dropped so they re-fetch this visit. This is the self-heal path for files
     // whose upload-time metadata extraction failed transiently in Moonraker.
     auto old = make_cached_entry("print.gcode", 1024, /*thumbnail_path=*/"");
-    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true) == false);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true, true) == false);
 }
 
-TEST_CASE("A thumbnail URL with no local path is not a failed extraction",
+TEST_CASE("A URL with no local path is a failed card download where copies are kept",
+          "[print_select][merge][retry]") {
+    // The metadata named a thumbnail, so the URL is set, but the card download
+    // or prescale failed before thumbnail_path landed. Activation retries it.
+    auto old = make_cached_entry("print.gcode", 1024, /*thumbnail_path=*/"");
+    old.original_thumbnail_url = ".thumbs/print-300x300.png";
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true, true) == false);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, false, true) == true);
+}
+
+TEST_CASE("A URL is the thumbnail on a transport that keeps no local copies",
           "[print_select][merge][retry]") {
     // The ESP32 keeps no thumbnail disk cache: its entries carry only the URL,
     // and the decoded image rides in the entry. Dropping them on activation
@@ -101,13 +111,17 @@ TEST_CASE("A thumbnail URL with no local path is not a failed extraction",
     // later poll drops them again.
     auto old = make_cached_entry("print.gcode", 1024, /*thumbnail_path=*/"");
     old.original_thumbnail_url = ".thumbs/print-300x300.png";
-    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true) == true);
-    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, false) == true);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true, false) == true);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, false, false) == true);
+    // No URL is no thumbnail there too.
+    old.original_thumbnail_url.clear();
+    REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true, false) == false);
     // A re-slice still drops it.
-    REQUIRE(should_carry_forward_print_file_metadata(old, 2048, true) == false);
+    old.original_thumbnail_url = ".thumbs/print-300x300.png";
+    REQUIRE(should_carry_forward_print_file_metadata(old, 2048, true, false) == false);
 }
 
-TEST_CASE("Activation keeps a URL-only entry's state through the merge",
+TEST_CASE("Activation keeps a URL-only entry's state through the merge without local copies",
           "[print_select][merge][retry]") {
     std::vector<PrintFileData> previous(1);
     previous[0] = make_cached_entry("print.gcode", 1024, "");
@@ -119,7 +133,8 @@ TEST_CASE("Activation keeps a URL-only entry's state through the merge",
     fresh[0].file_size_bytes = 1024;
     fresh[0].modified_timestamp = 77;
 
-    helix::carry_forward_print_file_metadata(fresh, previous, /*retry=*/true);
+    helix::carry_forward_print_file_metadata(fresh, previous, /*retry=*/true,
+                                             /*keeps_local_copies=*/false);
     CHECK(fresh[0].metadata_fetched);
     CHECK(fresh[0].original_thumbnail_url == ".thumbs/print-300x300.png");
 }
@@ -130,7 +145,7 @@ TEST_CASE("Size change wins over retry flag for empty-thumbnail entry",
     // the entry should be dropped. This just checks the function doesn't short-
     // circuit in a way that hides the size-change case.
     auto old = make_cached_entry("print.gcode", 1024, /*thumbnail_path=*/"");
-    REQUIRE(should_carry_forward_print_file_metadata(old, 2048, true) == false);
+    REQUIRE(should_carry_forward_print_file_metadata(old, 2048, true, true) == false);
 }
 
 // ============================================================================
@@ -243,7 +258,7 @@ TEST_CASE("A name listed twice never yields a blank entry, poll after poll",
         CAPTURE(poll);
         const auto before = snapshot(current);
         std::vector<PrintFileData> fresh = listing(names);
-        helix::carry_forward_print_file_metadata(fresh, current, false);
+        helix::carry_forward_print_file_metadata(fresh, current, false, true);
         current = std::move(fresh);
 
         for (size_t i = 0; i < names.size(); i++) {

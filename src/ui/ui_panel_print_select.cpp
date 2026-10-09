@@ -527,7 +527,10 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
             const bool retry_missing = panel->retry_missing_thumbnails_on_refresh_;
             panel->retry_missing_thumbnails_on_refresh_ = false;
-            helix::carry_forward_print_file_metadata(panel->file_list_, previous, retry_missing);
+            const bool keeps_local_copies =
+                !panel->api_ || panel->api_->transfers().supports_local_copies();
+            helix::carry_forward_print_file_metadata(panel->file_list_, previous, retry_missing,
+                                                     keeps_local_copies);
 
             panel->apply_sort();
 
