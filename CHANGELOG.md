@@ -5,6 +5,122 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-10-08
+
+<!-- whatsnew
+- Happy Hare v4 support
+- K2 filament cuts no longer drive the toolhead into the frame
+- USB prints copy the file to the printer first
+- Spoolman temperature, spool weight and active-spool fixes
+- Fixes for crashes at boot with a labeled USB stick and when closing the macro wizard
+- Saved brightness and screen rotation apply at startup
+-->
+
+### Added
+
+- **Happy Hare v4 support** (#1479) - Happy Hare 4 rigs now work end to end. Bypass is shown
+  only when a unit really has one, per-gate entry sensors read correctly, multi-unit machines
+  get the commands they need (home, motors, servo, gate calibration, per-unit heaters), and
+  tunables are read from the new split config sections. Settings a unit's hardware cannot take
+  are skipped instead of erroring, and stale readings clear when a unit has no buffer or
+  encoder. The clog and gear settings now use the parameter names your Happy Hare release
+  expects, so the clog screen works on every version.
+
+### Changed
+
+- **Android builds target API 36**, as Google Play requires.
+
+### Fixed
+
+**Stability**
+
+- **K2 filament cuts no longer drive the toolhead into the frame** - unload, swap and the
+  bypass fallback sent a bare cutter command from the purge chute, which crashed a K2 Pro's
+  head into the frame, and the uncut filament was then pulled back. Every K2 cut now goes
+  through the box's own positioned cut, as Creality's tool change does.
+- **Crash at boot with a labeled USB stick on K1** (#1746) - the volume label was read after
+  its memory was freed, which crashed the app on every start and tripped the crash-loop guard.
+- **Crash closing the macro enhancement wizard** (#1762) - the close and cancel buttons used
+  the wizard after it had been freed.
+- **Crash when a dialog closed with animations off** - the dialog's contents could be freed in
+  the wrong order, which showed up as a restart on the buffer status screen.
+- **Memory read past the end in the G-code preview on Raspberry Pi 3B** - once the viewer grew
+  larger than its cached frame, drawing could read beyond the image.
+
+**Printing and files**
+
+- **Reprint starts the original file** - after a print that ran from a temporary rewritten copy,
+  Reprint failed with "Unable to open file".
+- **USB files are copied to the printer before printing** - the USB tab used to hand the printer
+  only the file name, so a print worked only if a same-named file already existed. Print now
+  uploads the file (reusing an identical copy) and prints that, with its colors and thumbnail.
+- **Delete is hidden for USB files** - it could remove a same-named file on the printer instead
+  of the one on the stick.
+- **Print thumbnail for prints in a subfolder** - the active-print thumbnail no longer fails
+  to load.
+- **QIDI .3mf prints keep their thumbnail** - a .3mf with no extracted G-code no longer
+  downloads the whole archive, and a late reply for a previous file leaves the current
+  preview alone.
+- **The excluded-objects list keeps its scroll position** - it no longer jumps back to the top
+  each time the printing object changes.
+- **Temperature graph after a Klipper restart** - the nozzle line no longer freezes flat.
+- **Pre-print status** - the empty bed mesh Klipper and Kalico report is read as "no mesh", so
+  the mesh step is detected correctly.
+- **Snapmaker U1 spaghetti warning appears when the code arrives after the pause** - the modal
+  no longer gets skipped, and a detection pause wakes a sleeping display.
+
+**Filament systems**
+
+- **Spoolman active spool (#1717)** - editing an idle lane no longer takes the active spool
+  away from the lane feeding the toolhead.
+- **AFC spool unlink survives reconnect and restart** (#1717) - an unlinked spool stays
+  unlinked.
+- **Spoolman temperatures and spool weight** - Spoolman's single temperature value is read
+  properly (ranges no longer show 0), the spool wizard sends data Spoolman accepts, and
+  editing a spool's weight changes the spool instead of its filament.
+- **A deleted Spoolman spool reads as no spool**, not as an unreachable server.
+- **Spool assignments are kept per printer** - switching printers no longer copies one
+  printer's spools into another's database.
+- **Spool picker shows spool names on large screens.**
+- **Tool badge on multi-system rigs** - a lane on a secondary filament system shows its own
+  tool number.
+- **Changing printers clears the old filament system** - the Multi-Filament card and lane
+  colors from the previous printer no longer linger.
+- **CFS** (#1464, #1761) - stock box updates that report only changed units no longer drop the
+  others, and action completion no longer races status updates. Chained CFS and QIDI Box
+  units draw one toolhead in the overview, and cards are ordered by address.
+
+**Printers and display**
+
+- **Snapmaker U1 SSH after reboot** - SSH starts again at boot when the stock Root Access
+  setting is on.
+- **Saved brightness applies at startup** instead of 100%.
+- **Screen rotation survives a restart from Settings** - the watchdog used to relaunch at the
+  old angle.
+- **Creator 5 no longer detected as Z-Mod** (#1754).
+- **K2 camera** (#1670) - the camera service keeps reclaiming the camera from a late-starting
+  stock camera app.
+- **Touch on DSI panels** - an honest transposed-looking touch range, such as Waveshare 2.8in
+  DSI, corrects itself, and a range solved unrotated stays live on a rotated display.
+- **Touch calibration on fresh installs** isn't flagged for recheck unnecessarily.
+- **Multi-printer names** - a printer not yet connected shows its host instead of printer-N,
+  and renaming starts from the saved name.
+- **Leaving Change Host after Test reconnects the saved printer.**
+
+**Installer and updates**
+
+- **Android Update button** - a sideloaded install opens the GitHub release page instead of a
+  Play Store listing that does not exist yet.
+- **Beta channel is applied reliably** - installing a prerelease now sets the in-app update
+  channel too, including on older BusyBox systems, and the choice survives settings backups.
+  `--version` finds its manifest in any channel, and installing a local archive never moves
+  the channel.
+- **settings.json is written safely** - atomic writes that keep its permissions and symlink,
+  and an unparseable file is left for the app to recover rather than replaced.
+- **Moonraker restarts when its update entry is rewritten**, so Mainsail shows the right feed.
+- **Update service skips cleanly** - benign skips no longer leave the unit marked failed, and
+  a fresh install's update watcher paths are filled in.
+
 ## [1.0.3] - 2026-10-04
 
 ### Changed
@@ -6780,6 +6896,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.0.4]: https://github.com/prestonbrown/helixscreen/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/prestonbrown/helixscreen/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/prestonbrown/helixscreen/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/prestonbrown/helixscreen/compare/v1.0.0...v1.0.1
