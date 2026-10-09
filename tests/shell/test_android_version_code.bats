@@ -392,7 +392,7 @@ is_unencodable() {
 # ---------------------------------------------------------------------------
 
 @test "a minor field of 1000 is rejected, not silently carried" {
-    # 0.1000.0 would pack its triple to 1000000 — indistinguishable from 1.0.0.
+    # 0.1000.0 would pack its triple to 1000000, indistinguishable from 1.0.0.
     run "$SCRIPT" 0.1000.0
     [ "$status" -ne 0 ]
     [[ "$output" == *"overflow"* ]]
@@ -629,11 +629,15 @@ PY
     # without the service-account secret.
     run publish_android_condition
     [ "$status" -eq 0 ]
-    case "$output" in
-        *"needs.release.outputs.channel"*stable*) ;;
-        "") echo "publish-android has no job-level if: condition" >&2; return 1 ;;
-        *)  echo "unexpected publish-android if: $output" >&2; return 1 ;;
-    esac
+    if [ -z "$output" ]; then
+        echo "publish-android has no job-level if: condition" >&2
+        return 1
+    fi
+    local want="needs\.release\.outputs\.channel[[:space:]]*==[[:space:]]*'stable'"
+    if ! [[ "$output" =~ $want ]]; then
+        echo "publish-android if: does not require channel == 'stable': $output" >&2
+        return 1
+    fi
 }
 
 @test "publish-android can see the channel it gates on" {
