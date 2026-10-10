@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<component>
+  <!-- Detail overlay. A reading surface, not a control surface: the source,
+       entities, pointers and poll interval are text and enum rows, so they
+       live in the generated settings screen where input can round-trip. The
+       access token is never shown here. -->
+  <view extends="overlay_panel" title="Room" bg_color="#card_bg">
+    <lv_obj name="ambient-tile__detail_content"
+            width="100%" flex_grow="1" style_pad_all="#space_md" style_pad_gap="#space_sm" flex_flow="column"
+            scrollable="true">
+      <ui_card name="ambient-tile__now_card"
+               width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"
+               style_flex_main_place="space_around" style_flex_cross_place="center">
+        <lv_obj name="ambient-tile__now_temp_col"
+                flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs" style_flex_cross_place="center"
+                style_bg_opa="0" style_border_width="0">
+          <icon name="ambient-tile__now_temp_glyph" src="thermometer" size="md" variant="secondary"/>
+          <lv_label name="ambient-tile__now_temp"
+                    bind_text="ambient-tile__temp_text" style_text_font="#font_xl" style_text_color="#text"/>
+          <text_small text="Temperature" translation_tag="Temperature" style_text_color="#text_muted"/>
+        </lv_obj>
+        <lv_obj name="ambient-tile__now_rh_col"
+                flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs" style_flex_cross_place="center"
+                style_bg_opa="0" style_border_width="0">
+          <icon name="ambient-tile__now_rh_glyph" src="water" size="md" variant="secondary"/>
+          <lv_label name="ambient-tile__now_rh"
+                    bind_text="ambient-tile__rh_text" style_text_font="#font_xl" style_text_color="#text"/>
+          <text_small text="Humidity" translation_tag="Humidity" style_text_color="#text_muted"/>
+        </lv_obj>
+      </ui_card>
+      <ui_card name="ambient-tile__history_card"
+               width="100%" height="content" flex_flow="column" style_pad_all="#space_sm" style_pad_gap="#space_xxs">
+        <lv_label text="Last hour" translation_tag="Last hour" style_text_font="#font_body" style_text_color="#text"/>
+        <plugin_canvas name="ambient-tile__plot" width="100%" height="120"/>
+      </ui_card>
+      <ui_card name="ambient-tile__source_card"
+               width="100%" height="content" flex_flow="column" style_pad_all="#space_sm" style_pad_gap="#space_xxs">
+        <text_small name="ambient-tile__source_line" bind_text="ambient-tile__source_line"/>
+        <text_xs name="ambient-tile__status_line" bind_text="ambient-tile__status_line" style_text_color="#warning"/>
+        <text_xs name="ambient-tile__detail_age" bind_text="ambient-tile__age_text" style_text_color="#text_muted"/>
+      </ui_card>
+    </lv_obj>
+  </view>
+</component>

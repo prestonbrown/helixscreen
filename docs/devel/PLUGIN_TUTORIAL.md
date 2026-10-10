@@ -563,6 +563,8 @@ Klipper subscriptions driving a toggle tile; the temperature sparkline
 in `examples/plugins/temp-spark` is the canvas deep-dive; and
 `examples/plugins/print-watcher` shows `helix.http` notifications, an
 overlay that controls its own settings through `helix.settings.set`, and a
-translation pack under `i18n/`. Beyond that:
+translation pack under `i18n/`. `examples/plugins/ambient-tile` shows the
+reading side of `http`: polling an endpoint, resolving values out of
+untrusted JSON, and drawing them as a canvas sparkline. Beyond that:
 `helix.moonraker.on_agent_event` is the channel to a companion process on
 the printer itself.
