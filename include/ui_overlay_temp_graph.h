@@ -198,6 +198,7 @@ class TempGraphOverlay : public OverlayBase {
     helix::ui::HeaterIconBinder nozzle_icon_binder_;
     helix::ui::HeaterIconBinder bed_icon_binder_;
     helix::ui::HeaterIconBinder chamber_icon_binder_;
+    helix::ui::HeaterIconBinder chamber_hero_icon_binder_;
 
     // Dependencies (resolved on open)
     helix::PrinterState* printer_state_ = nullptr;

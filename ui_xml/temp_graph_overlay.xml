@@ -523,9 +523,37 @@
                  added theme style, which a later bound style does outrank. -->
             <bind_style_if name="tg_chamber_fault_border"
                            cond="chamber_heater_fault or chamber_heater_inhibited or chamber_heater_offline"/>
-            <lv_obj width="100%"
-                    height="content" flex_flow="row" style_pad_all="0" style_flex_cross_place="center"
+            <!-- No diagnostics surface (the integrated K2-style chamber, a
+                 sensor-only chamber): nothing shares the card with the
+                 header, so it takes the bed card's centered xl layout. The
+                 glyph has its own name because the compact header below
+                 builds one too; each gets its own icon binder. -->
+            <lv_obj name="chamber_hero_header"
+                    width="100%" height="content" flex_flow="row" style_pad_all="0" scrollable="false">
+              <bind_flag_if_eq subject="printer_has_chamber_heater_diagnostics" flag="hidden" ref_value="1"/>
+              <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+              <lv_obj height="content"
+                      flex_flow="column" style_flex_cross_place="start" style_pad_all="0" style_pad_gap="#space_xs"
+                      scrollable="false">
+                <heater_icon src="fridge_industrial" glyph_name="chamber_hero_icon_glyph" size="xl"/>
+                <lv_obj style_pad_all="0"
+                        scrollable="false" flex_flow="column" style_flex_main_place="center"
+                        style_flex_cross_place="start" style_pad_gap="#space_xxs">
+                  <text_small text="Current / Target"/>
+                  <temp_display name="chamber_hero_temp_display"
+                                size="lg" show_target="true" bind_current="chamber_temp"
+                                bind_target="chamber_effective_target" bind_mode="chamber_mode"
+                                event_cb="on_temp_graph_custom_clicked"/>
+                </lv_obj>
+                <heater_status name="chamber_hero_status_msg"
+                               state_subject="chamber_status_state" duty_subject="chamber_status"/>
+              </lv_obj>
+              <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+            </lv_obj>
+            <lv_obj name="chamber_compact_header"
+                    width="100%" height="content" flex_flow="row" style_pad_all="0" style_flex_cross_place="center"
                     scrollable="false" style_pad_gap="#chamber_header_gap">
+              <bind_flag_if_eq subject="printer_has_chamber_heater_diagnostics" flag="hidden" ref_value="0"/>
               <!-- Row gap: the space_xs ladder with tiny demoted to xxs,
                    whose one-row header only fits the card at the tighter
                    gap. Inline so the token resolves at the CURRENT tier

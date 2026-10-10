@@ -55,9 +55,13 @@ class HeaterIconBinder {
      * number track one setpoint AND agree on Maintaining-mode semantics (see
      * classify_heat_state_with_mode()). Nozzle/bed have no mode concept.
      *
+     * @p icon_name overrides the conventional glyph name, for a layout that
+     * builds a second glyph for the same heater (one binder per glyph).
+     *
      * @return true if the icon was found and bound.
      */
-    bool bind(lv_obj_t* root, PrinterState& state, HeaterType heater);
+    bool bind(lv_obj_t* root, PrinterState& state, HeaterType heater,
+              const char* icon_name = nullptr);
 
     /**
      * @brief Bind an explicitly named icon to explicitly chosen subjects.

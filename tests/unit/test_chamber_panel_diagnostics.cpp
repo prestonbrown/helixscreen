@@ -452,7 +452,16 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
         CHECK(hidden(lv_obj_find_by_name(overlay_, "chamber_diagnostics_block")));
         CHECK(lv_obj_find_by_name(overlay_, "fault_banner") !=
               nullptr); // bind-hidden, not torn down
-        CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "chamber_temp_display")));
+        // The card has nothing to share its header with, so the compact
+        // one-row header gives way to the bed card's xl layout.
+        CHECK(hidden(lv_obj_find_by_name(overlay_, "chamber_compact_header")));
+        CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "chamber_hero_header")));
+        CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "chamber_hero_temp_display")));
+    }
+
+    SECTION("diagnostics keep the compact header") {
+        CHECK_FALSE(hidden(lv_obj_find_by_name(overlay_, "chamber_compact_header")));
+        CHECK(hidden(lv_obj_find_by_name(overlay_, "chamber_hero_header")));
     }
 
     SECTION("non-chamber modes hide the chamber strip (mode bind)") {
@@ -784,6 +793,51 @@ TEST_CASE_METHOD(ChamberOverlayFixture,
 
         const int32_t content_right = abs_x2(card) - lv_obj_get_style_pad_right(card, LV_PART_MAIN);
         CHECK(abs_x2(status) <= content_right);
+    }
+}
+
+TEST_CASE_METHOD(ChamberOverlayFixture,
+                 "chamber card without diagnostics draws the bed card's xl header and fits",
+                 "[chamber][panel][geometry]") {
+    const std::pair<int32_t, int32_t> sizes[] = {{480, 272}, {480, 320}, {800, 480}, {1024, 600}};
+    for (const auto& [w, h] : sizes) {
+        CAPTURE(w);
+        CAPTURE(h);
+        ScopedGeometry geo(w, h);
+        build_overlay();
+        set_worst_case_chamber_data();
+        set_xml_int("printer_has_chamber_heater_diagnostics", 0);
+        helix::ui::UpdateQueue::instance().drain();
+        lv_obj_update_layout(overlay_);
+
+        REQUIRE_FALSE(hidden(lv_obj_find_by_name(overlay_, "chamber_hero_header")));
+
+        // Same glyph face as the bed card's icon at this size.
+        lv_obj_t* hero_glyph = lv_obj_find_by_name(overlay_, "chamber_hero_icon_glyph");
+        lv_obj_t* bed_glyph = lv_obj_find_by_name(overlay_, "bed_icon_glyph");
+        lv_obj_t* compact_glyph = lv_obj_find_by_name(overlay_, "chamber_icon_glyph");
+        REQUIRE(hero_glyph != nullptr);
+        REQUIRE(bed_glyph != nullptr);
+        REQUIRE(compact_glyph != nullptr);
+        const lv_font_t* hero_font = lv_obj_get_style_text_font(hero_glyph, LV_PART_MAIN);
+        CHECK(hero_font == lv_obj_get_style_text_font(bed_glyph, LV_PART_MAIN));
+        CHECK(hero_font->line_height >
+              lv_obj_get_style_text_font(compact_glyph, LV_PART_MAIN)->line_height);
+
+        // The column still holds every control with zero scroll.
+        lv_obj_t* strip = lv_obj_find_by_name(overlay_, "chamber_control_strip");
+        lv_obj_t* custom = lv_obj_find_by_name(overlay_, "chamber_btn_custom");
+        REQUIRE(strip != nullptr);
+        REQUIRE(custom != nullptr);
+        CHECK(abs_y2(custom) <= abs_y2(strip));
+
+        lv_obj_t* card = lv_obj_find_by_name(overlay_, "chamber_display_card");
+        lv_obj_t* status = lv_obj_find_by_name(overlay_, "chamber_hero_status_msg");
+        REQUIRE(card != nullptr);
+        REQUIRE(status != nullptr);
+        CHECK(abs_x2(status) <= abs_x2(card));
+        CHECK(abs_y2(status) <= abs_y2(card));
+        check_no_label_truncated(strip);
     }
 }
 

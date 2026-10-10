@@ -200,6 +200,20 @@ TEST_CASE_METHOD(XMLTestFixture, "HeaterIconBinder: is_bound() toggles around a 
     REQUIRE_FALSE(binder.is_bound());
 }
 
+TEST_CASE_METHOD(XMLTestFixture, "HeaterIconBinder: an explicit icon name binds that glyph only",
+                 "[heater_binder]") {
+    // A root carrying only a second, differently named chamber glyph: the
+    // conventional name finds nothing there, the explicit one binds.
+    lv_obj_t* root = create_icon_root(test_screen(), "chamber_hero_icon_glyph");
+
+    HeaterIconBinder conventional;
+    REQUIRE_FALSE(conventional.bind(root, state(), HeaterType::Chamber));
+
+    HeaterIconBinder named;
+    REQUIRE(named.bind(root, state(), HeaterType::Chamber, "chamber_hero_icon_glyph"));
+    REQUIRE(named.is_bound());
+}
+
 TEST_CASE_METHOD(
     XMLTestFixture,
     "HeaterIconBinder: a subject change after bind() reaches the icon through refresh()",

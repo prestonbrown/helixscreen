@@ -26,16 +26,17 @@ const char* HeaterIconBinder::default_icon_name(HeaterType heater) {
     return "nozzle_icon_glyph";
 }
 
-bool HeaterIconBinder::bind(lv_obj_t* root, PrinterState& state, HeaterType heater) {
+bool HeaterIconBinder::bind(lv_obj_t* root, PrinterState& state, HeaterType heater,
+                            const char* icon_name) {
     unbind();
     if (!root) {
         return false;
     }
 
-    lv_obj_t* icon = lv_obj_find_by_name(root, default_icon_name(heater));
+    const char* name = icon_name ? icon_name : default_icon_name(heater);
+    lv_obj_t* icon = lv_obj_find_by_name(root, name);
     if (!icon) {
-        spdlog::debug("[HeaterIconBinder] Icon '{}' not found under root",
-                      default_icon_name(heater));
+        spdlog::debug("[HeaterIconBinder] Icon '{}' not found under root", name);
         return false;
     }
 

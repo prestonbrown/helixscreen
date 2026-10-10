@@ -193,12 +193,15 @@ void TempGraphOverlay::on_activate() {
     temp_control_panel_ =
         helix::PanelWidgetManager::instance().shared_resource<TemperatureService>();
 
-    // Thermal tint for the three size="xl" heater glyphs (one per control
-    // strip). Each binder owns its own observers, so this needs no hook into
-    // the graph/series machinery below.
+    // Thermal tint for the heater glyphs, one per control strip plus the
+    // chamber card's second header (compact beside diagnostics, xl without).
+    // Each binder owns its own observers, so this needs no hook into the
+    // graph/series machinery below.
     nozzle_icon_binder_.bind(overlay_root_, *printer_state_, helix::HeaterType::Nozzle);
     bed_icon_binder_.bind(overlay_root_, *printer_state_, helix::HeaterType::Bed);
     chamber_icon_binder_.bind(overlay_root_, *printer_state_, helix::HeaterType::Chamber);
+    chamber_hero_icon_binder_.bind(overlay_root_, *printer_state_, helix::HeaterType::Chamber,
+                                   "chamber_hero_icon_glyph");
 
     // Keep the digit's tool number aligned with the card while the overlay
     // is open: the pair of ToolState subjects fires on every toolchange and
@@ -308,6 +311,7 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
     nozzle_icon_binder_.unbind();
     bed_icon_binder_.unbind();
     chamber_icon_binder_.unbind();
+    chamber_hero_icon_binder_.unbind();
     nozzle_badge_tool_observer_.reset();
     nozzle_badge_version_observer_.reset();
     nozzle_card_temp_observer_.reset();
