@@ -24,7 +24,9 @@ using fpath::PathPlan;
 
 struct SystemPathData {
     int unit_count = 0;
-    static constexpr int MAX_UNITS = 8;
+    // Unit cards the overview can draw; a unit past this has no stem, no hub,
+    // and a hub group made only of such units is missing from the plan.
+    static constexpr int MAX_UNITS = 16;
     static constexpr int MAX_TOOLS = 16;
     // X centre of each unit's card, relative to this canvas's left edge. Pushed
     // by the panel and re-pushed whenever the card row scrolls, so a stem stays
