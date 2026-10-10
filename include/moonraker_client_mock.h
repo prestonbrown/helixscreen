@@ -1259,6 +1259,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     [[nodiscard]] nlohmann::json openams_status_json() const;
     /// HELIX_MOCK_OPENAMS_UNITS=shared: an AMS HT and an AMS 2 Pro on one lane.
     [[nodiscard]] static bool openams_shared_lane_units();
+    /// HELIX_MOCK_OPENAMS_UNITS=two_lanes: that pair on lane `fps`, two AMS 2 Pro on `fps2`.
+    [[nodiscard]] static bool openams_two_lane_units();
+    /// Either shape: the units the openams plugin describes, one filament group per slot.
+    [[nodiscard]] static bool openams_plugin_units();
+    /// Units the plugin shape publishes (0 when neither is selected).
+    [[nodiscard]] static int openams_unit_count();
+    /// Slots across those units.
+    [[nodiscard]] static int openams_slot_count();
 
     /**
      * @brief The `zmod_color` object as Z-Mod's firmware reports it.
@@ -2268,14 +2276,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// A unit fault latched on the AMS HT (HELIX_MOCK_OPENAMS_FAULT=<code>) until
     /// OAMS_CLEAR_FAULT OAMS=1.
     std::atomic<bool> openams_fault_active_{false};
-    /// The two shared-lane units' dryers (index 0 = ams_ht, 1 = ams2), driven by
+    /// The plugin shape's units' dryers (index 0 = ams_ht, 1 = ams2, ...), driven by
     /// OAMS_DRYER_START / OAMS_DRYER_STOP and counted down by the simulation tick.
     struct OpenAmsDryerSim {
         std::atomic<double> target_c{0.0};
         std::atomic<double> remaining_s{0.0};
         std::atomic<double> chamber_c{27.7};
     };
-    OpenAmsDryerSim openams_dryers_[2];
+    OpenAmsDryerSim openams_dryers_[4];
     void service_openams_dryers(double dt_s);
     [[nodiscard]] nlohmann::json openams_device_json(int unit) const;
 

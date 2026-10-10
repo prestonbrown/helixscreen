@@ -398,6 +398,18 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
         next_slot_lanes.insert(next_slot_lanes.end(), next.units[u].slots.size(), unit_lanes[u]);
     }
 
+    // The extruder a lane feeds, when the openams plugin publishes it. It names the
+    // toolhead of every slot on that lane.
+    if (const json* by_fps = object_member(snapshot_, "lanes_by_fps")) {
+        for (std::size_t u = 0; u < next.units.size(); ++u) {
+            const json* lane = object_member(*by_fps, unit_lanes[u].c_str());
+            const std::string extruder = lane ? string_member(*lane, "extruder") : std::string();
+            for (auto& slot : next.units[u].slots) {
+                slot.extruder_name = extruder;
+            }
+        }
+    }
+
     std::vector<std::string> next_slot_groups(next_remote_ids.size());
     std::vector<Group> next_groups;
     for (const auto& group_json : array_member(snapshot_, "groups")) {

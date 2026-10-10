@@ -166,7 +166,7 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_openams_line(const s
             return std::atof(gcode.c_str() + pos + std::strlen(key));
         };
         const auto idx = field("OAMS=");
-        if (!openams_shared_lane_units() || !idx || (*idx != 1 && *idx != 2)) {
+        if (!openams_plugin_units() || !idx || *idx < 1 || *idx > openams_unit_count()) {
             return std::nullopt;
         }
         OpenAmsDryerSim& sim = openams_dryers_[static_cast<int>(*idx) - 1];
@@ -176,7 +176,8 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_openams_line(const s
             return 0;
         }
         // Clamped to the unit's range and to 1 s .. 7 days, as the plugin does.
-        const double max_c = *idx == 1 ? 80.0 : 65.0;
+        const double max_c =
+            openams_device_json(static_cast<int>(*idx) - 1)["capabilities"]["dryer_target_max_c"];
         sim.target_c = std::clamp(field("TARGET=").value_or(45.0), 45.0, max_c);
         sim.remaining_s = std::clamp(field("DURATION=").value_or(3600.0), 1.0, 604800.0);
         return 0;
@@ -189,10 +190,13 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_openams_line(const s
         const size_t pos = gcode.find("GROUP=");
         const std::string group =
             pos == std::string::npos ? "" : gcode.substr(pos + 6, gcode.find(' ', pos) - pos - 6);
-        if (openams_shared_lane_units()) {
-            // Group Tn is slot n on the shared-lane shape.
-            if (group.size() == 2 && group[0] == 'T' && group[1] >= '0' && group[1] <= '4') {
-                openams_loaded_slot_ = group[1] - '0';
+        if (openams_plugin_units()) {
+            // Group Tn is slot n on the plugin shapes.
+            char* end = nullptr;
+            const long slot = group.size() > 1 ? std::strtol(group.c_str() + 1, &end, 10) : -1;
+            if (group[0] == 'T' && end && *end == '\0' && slot >= 0 &&
+                slot < openams_slot_count()) {
+                openams_loaded_slot_ = static_cast<int>(slot);
             }
         } else if (group == "T0") {
             openams_loaded_slot_ = 3;
