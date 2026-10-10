@@ -530,6 +530,84 @@ TEST_CASE("Overview plan: a hub's buffer box sits between the hub and its nozzle
     }
 }
 
+namespace {
+
+// @p count HUB units over two toolheads on a 400x400 frame: the first
+// @p first_group_size share a hub on toolhead 0 and the rest share one on
+// toolhead 1, each with a buffer. Every card center lies far beyond the canvas
+// width, as when the card row has scrolled them all out of view.
+std::unique_ptr<SystemPathData> scrolled_off_fleet(int count, int first_group_size) {
+    auto d = multi();
+    d->unit_count = count;
+    d->total_tools = 2;
+    d->active_unit = -1;
+    d->filament_loaded = false;
+    d->filament_segment = PathSegment::NONE;
+    for (int u = 0; u < count && u < SystemPathData::MAX_UNITS; u++) {
+        const bool first = u < first_group_size;
+        d->unit_x_positions[u] = 1000 + 150 * u;
+        d->unit_topology[u] = 1;
+        d->unit_tool_count[u] = 1;
+        d->unit_has_hub_sensor[u] = false;
+        d->unit_hub_triggered[u] = false;
+        d->unit_first_tool[u] = first ? 0 : 1;
+        d->unit_hub_group[u] = first ? 1 : 2;
+        d->unit_has_buffer[u] = true;
+    }
+    return d;
+}
+
+} // namespace
+
+TEST_CASE("Overview plan: a hub group with every card scrolled off still draws its hub and buffer",
+          "[system_path][filament_path][hub_groups]") {
+    // The second group's units are the last cards of the row: four units split
+    // 2 + 2, and twelve split 10 + 2.
+    const auto [count, split] = GENERATE(std::pair<int, int>{4, 2}, std::pair<int, int>{12, 10});
+    CAPTURE(count, split);
+    auto d = scrolled_off_fleet(count, split);
+    // Every unit has a slot in the canvas's per-unit arrays.
+    REQUIRE(count <= SystemPathData::MAX_UNITS);
+    const auto p = plan_boxes(*d);
+    REQUIRE(p->plan.dropped == 0);
+
+    for (int leader : {0, split}) {
+        CAPTURE(leader);
+        REQUIRE(p->boxes.hubs[leader].valid);
+        const HubInfo& hub = p->boxes.hubs[leader];
+        const int32_t nozzle_top = p->L.tools_y - small_tool_scale(*d) * 2;
+        const int32_t half_w = hub.mini_hub_w / 2;
+        CHECK(hub.hub_x - half_w >= p->L.x_off);
+        CHECK(hub.hub_x + half_w < p->L.x_off + p->L.width);
+        CHECK(hub.mini_hub_y + hub.mini_hub_h / 2 < nozzle_top);
+        REQUIRE(hub.buffer_h > 0);
+        CHECK(hub.buffer_y - hub.buffer_h / 2 > hub.mini_hub_y + hub.mini_hub_h / 2);
+        CHECK(hub.buffer_y + hub.buffer_h / 2 < nozzle_top);
+    }
+
+    // The second group's lanes enter from the canvas edge, join its hub's top,
+    // and one outlet reaches its nozzle.
+    const HubInfo& hub = p->boxes.hubs[split];
+    const float top = (float)(hub.mini_hub_y - hub.mini_hub_h / 2);
+    const float edge = (float)(p->L.x_off + p->L.width);
+    int joined = 0;
+    for (int i = 0; i < p->plan.route_count; i++) {
+        const Route& r = p->plan.routes[i];
+        const pg::PathPoint start = seg_start(r.path.segs[0]);
+        if (start.x < edge - 20.0f)
+            continue;
+        CHECK(contiguous(r.path));
+        for (int k = 0; k < r.path.count; k++) {
+            const pg::PathPoint e = seg_end(r.path.segs[k]);
+            if (std::fabs(e.y - top) < 0.5f && std::fabs(e.x - (float)hub.hub_x) <= hub.mini_hub_w)
+                joined++;
+        }
+    }
+    CHECK(joined >= 2);
+    CHECK(routes_ending_at(p->plan, (float)hub.tool_x,
+                           (float)(p->L.tools_y - small_tool_scale(*d) * 2)) >= 1);
+}
+
 TEST_CASE("Overview plan: a shared hub is tinted when a member carries filament to it",
           "[system_path][filament_path][hub_groups]") {
     auto d = two_toolheads(true);

@@ -38,6 +38,11 @@ namespace helix {
 /// Default color for slots without filament info (medium gray)
 constexpr uint32_t AMS_DEFAULT_SLOT_COLOR = 0x808080;
 
+/// Units the AMS UI addresses. The overview's path canvas draws this many and
+/// AmsState allocates this many sets of per-unit subjects, so a unit the path
+/// shows always has a badge to bind; both caps derive from this one constant.
+constexpr int AMS_MAX_UNITS = 16;
+
 /**
  * @brief Type of AMS system detected
  *

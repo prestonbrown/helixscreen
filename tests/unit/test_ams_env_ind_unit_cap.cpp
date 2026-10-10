@@ -26,6 +26,7 @@
 #include "../lvgl_test_fixture.h"
 #include "ams_state.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "src/ui/ui_system_path_plan.h"
 
 #include <lvgl/lvgl.h>
 
@@ -75,10 +76,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "Per-unit environment subjects exist for a fiv
     reinit_ams_subjects_for_xml();
 
     // Unit index 4 is the fifth unit of the AFC rig in bundle XGVDYEB5 — the one
-    // whose badge went dark. Index 7 is the eighth, the widest rig the AMS
-    // system-path canvas draws (ui_system_path_canvas.cpp MAX_UNITS = 8), so the
-    // two caps have to agree or the path renders a unit the badge cannot.
-    for (int unit : {0, 4, 7}) {
+    // whose badge went dark. Index 15 is the sixteenth, the widest rig the
+    // overview supports; the path canvas and the badge subjects share one cap
+    // or the path renders a unit the badge cannot.
+    static_assert(helix::ui::syspath::SystemPathData::MAX_UNITS == AmsState::MAX_UNITS);
+    for (int unit : {0, 4, 7, 15}) {
         for (const char* suffix : kEnvIndSuffixes) {
             const std::string name = env_ind_name(unit, suffix);
             INFO("subject " << name);
@@ -95,7 +97,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Per-unit environment subjects exist for a fiv
 
     // And the C++ accessors agree with what XML can resolve.
     auto& ams = AmsState::instance();
-    for (int unit : {0, 4, 7}) {
+    for (int unit : {0, 4, 7, 15}) {
         INFO("unit " << unit);
         CHECK(ams.get_env_ind_temp_text_subject(unit) != nullptr);
         CHECK(ams.get_env_ind_humidity_text_subject(unit) != nullptr);

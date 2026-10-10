@@ -1614,6 +1614,13 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS fleet mock publishes twelve units on
     }
     CHECK(hubs.size() == 2);
 
+    // Each hub's lane feeds its own extruder.
+    for (size_t u = 0; u < info.units.size(); ++u) {
+        for (const auto& slot : info.units[u].slots) {
+            CHECK(slot.extruder_name == (u < 10 ? "extruder" : "extruder1"));
+        }
+    }
+
     // Readings differ unit to unit, so a page showing the wrong unit is visible.
     CHECK(info.units[1].environment->humidity_pct != info.units[2].environment->humidity_pct);
 

@@ -1261,12 +1261,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     [[nodiscard]] static bool openams_shared_lane_units();
     /// HELIX_MOCK_OPENAMS_UNITS=two_lanes: that pair on lane `fps`, two AMS 2 Pro on `fps2`.
     [[nodiscard]] static bool openams_two_lane_units();
-    /// HELIX_MOCK_OPENAMS_UNITS=fleet: twelve units (an AMS HT, eleven AMS 2 Pro),
-    /// 45 bays, on two FPS lanes that both feed the one mock extruder.
+    /// HELIX_MOCK_OPENAMS_UNITS=fleet: twelve units (an AMS HT, eleven AMS 2 Pro), 45 bays,
+    /// on two FPS lanes.
     [[nodiscard]] static bool openams_fleet_lane_units();
-    /// Any of those shapes: the units the openams plugin describes, one filament group per slot.
+    /// Any of the three shapes: the units the openams plugin describes, one filament group per
+    /// slot.
     [[nodiscard]] static bool openams_plugin_units();
-    /// Units the plugin shape publishes (0 when none is selected).
+    /// Units the plugin shape publishes (0 when no shape is selected).
     [[nodiscard]] static int openams_unit_count();
     /// Slots across those units.
     [[nodiscard]] static int openams_slot_count();
@@ -2274,8 +2275,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // backend). Slot identity is seeded into the lane_data namespace.
     /// Slot loaded onto the FPS lane, -1 when unloaded.
     std::atomic<int> openams_loaded_slot_{3};
-    /// Units in the fleet shape, and the size of the dryer simulation table.
-    static constexpr int kOpenAmsFleetUnits = 12;
+    /// The most units any shape publishes (fleet), and the size of the dryer simulation table.
+    static constexpr int kOpenAmsMaxUnits = 12;
     [[nodiscard]] nlohmann::json openams_shared_status_json() const;
     /// What a unit's chamber cools to when its dryer is off.
     [[nodiscard]] static double openams_ambient_c(int unit);
@@ -2283,14 +2284,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// A unit fault latched on the AMS HT (HELIX_MOCK_OPENAMS_FAULT=<code>) until
     /// OAMS_CLEAR_FAULT OAMS=1.
     std::atomic<bool> openams_fault_active_{false};
-    /// The mock units' dryers (index = unit order; shared: 0 = ams_ht, 1 = ams2), driven by
+    /// The plugin shape's units' dryers (index 0 = ams_ht, 1 = ams2, ...), driven by
     /// OAMS_DRYER_START / OAMS_DRYER_STOP and counted down by the simulation tick.
     struct OpenAmsDryerSim {
         std::atomic<double> target_c{0.0};
         std::atomic<double> remaining_s{0.0};
         std::atomic<double> chamber_c{27.7};
     };
-    OpenAmsDryerSim openams_dryers_[kOpenAmsFleetUnits];
+    OpenAmsDryerSim openams_dryers_[kOpenAmsMaxUnits];
     void service_openams_dryers(double dt_s);
     [[nodiscard]] nlohmann::json openams_device_json(int unit) const;
 

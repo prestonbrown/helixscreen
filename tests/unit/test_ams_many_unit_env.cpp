@@ -29,7 +29,12 @@ using namespace helix;
 
 namespace {
 
-constexpr int kUnits = 12;
+// Enough units that the last two sit past the per-unit subjects.
+constexpr int kUnits = AmsState::MAX_UNITS + 4;
+constexpr int kLast = kUnits - 1;
+// A unit at the first index with no per-unit subjects, and its predecessor.
+constexpr int kPast = AmsState::MAX_UNITS + 2;
+constexpr int kBelow = AmsState::MAX_UNITS - 1;
 
 class FleetMock : public AmsBackendMock {
   public:
@@ -52,7 +57,7 @@ class FleetMock : public AmsBackendMock {
             EnvironmentData env;
             env.temperature_c = temp_of(u) + bump;
             env.humidity_pct = 30.0f + static_cast<float>(u);
-            env.has_humidity = (u != 11);
+            env.has_humidity = (u != kLast);
             unit.environment = env;
             for (int s = 0; s < 4; ++s) {
                 SlotInfo slot;
@@ -75,7 +80,7 @@ class FleetMock : public AmsBackendMock {
     }
 
     int disconnected_unit = -1;
-    int drying_unit = 10;
+    int drying_unit = kPast;
     float bump = 0.0f;
 };
 
@@ -111,37 +116,38 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The detail env chip shows a unit past the p
     FleetMock* mock = install();
     auto& ams = AmsState::instance();
 
-    ams.set_detail_env_unit(10);
+    ams.set_detail_env_unit(kPast);
     helix::ui::UpdateQueue::instance().drain();
 
-    CHECK(subject_str("ams_env_ind_detail_temp_text") == "30\xC2\xB0"
-                                                         "C");
-    CHECK(subject_str("ams_env_ind_detail_humidity_text") == "40%");
+    CHECK(subject_str("ams_env_ind_detail_temp_text") == std::to_string(20 + kPast) + "\xC2\xB0"
+                                                                                      "C");
+    CHECK(subject_str("ams_env_ind_detail_humidity_text") == std::to_string(30 + kPast) + "%");
     CHECK(subject_int("ams_env_ind_detail_visible") == 1);
     CHECK(subject_int("ams_env_ind_detail_humidity_visible") == 1);
     CHECK(subject_int("ams_env_ind_detail_drying_active") == 1);
     CHECK(subject_str("ams_env_ind_detail_drying_text") == "2:15");
 
     SECTION("the humidity row hides for a unit without a humidity reading") {
-        ams.set_detail_env_unit(11);
+        ams.set_detail_env_unit(kLast);
         CHECK(subject_int("ams_env_ind_detail_humidity_visible") == 0);
         CHECK(subject_int("ams_env_ind_detail_drying_active") == 0);
-        CHECK(subject_str("ams_env_ind_detail_temp_text") == "31\xC2\xB0"
-                                                             "C");
+        CHECK(subject_str("ams_env_ind_detail_temp_text") == std::to_string(20 + kLast) + "\xC2\xB0"
+                                                                                          "C");
     }
 
     SECTION("an update to the detail unit's data re-mirrors") {
         mock->bump = 5.0f;
         ams.sync_from_backend();
         helix::ui::UpdateQueue::instance().drain();
-        CHECK(subject_str("ams_env_ind_detail_temp_text") == "35\xC2\xB0"
-                                                             "C");
+        CHECK(subject_str("ams_env_ind_detail_temp_text") == std::to_string(25 + kPast) + "\xC2\xB0"
+                                                                                          "C");
     }
 
     SECTION("a unit below the cap still mirrors its own reading") {
-        ams.set_detail_env_unit(3);
-        CHECK(subject_str("ams_env_ind_detail_temp_text") == "23\xC2\xB0"
-                                                             "C");
+        ams.set_detail_env_unit(kBelow);
+        CHECK(subject_str("ams_env_ind_detail_temp_text") == std::to_string(20 + kBelow) +
+                                                                 "\xC2\xB0"
+                                                                 "C");
         CHECK(subject_int("ams_env_ind_detail_drying_active") == 0);
     }
 
@@ -151,15 +157,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The detail env chip shows a unit past the p
 TEST_CASE_METHOD(LVGLUITestFixture, "The viewed unit's disconnected flag covers any unit index",
                  "[ams][pages][env]") {
     FleetMock* mock = install();
-    mock->disconnected_unit = 10;
+    mock->disconnected_unit = kPast;
     AmsState::instance().sync_from_backend();
     helix::ui::UpdateQueue::instance().drain();
 
-    AmsState::instance().set_viewed_unit(10);
+    AmsState::instance().set_viewed_unit(kPast);
     CHECK(subject_int("ams_viewed_unit_disconnected") == 1);
-    AmsState::instance().set_viewed_unit(9);
+    AmsState::instance().set_viewed_unit(kPast - 1);
     CHECK(subject_int("ams_viewed_unit_disconnected") == 0);
-    AmsState::instance().set_viewed_unit(10);
+    AmsState::instance().set_viewed_unit(kPast);
     CHECK(subject_int("ams_viewed_unit_disconnected") == 1);
 
     SECTION("the flag follows the unit's connection as the backend reports it") {
@@ -179,22 +185,22 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     auto& ams = AmsState::instance();
     // The unit view points the env chip's mirror at the unit on screen, and its overlay
     // opens for that unit.
-    ams.set_detail_env_unit(10);
+    ams.set_detail_env_unit(kPast);
     helix::ui::UpdateQueue::instance().drain();
 
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();
     auto& overlay = helix::ui::get_ams_environment_overlay();
-    overlay.show_zone(test_screen(), mock->get_environment_zones(10), 0, false);
+    overlay.show_zone(test_screen(), mock->get_environment_zones(kPast), 0, false);
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(subject_str("ams_env_overlay_temp_text").rfind("30", 0) == 0);
+    REQUIRE(subject_str("ams_env_overlay_temp_text").rfind(std::to_string(20 + kPast), 0) == 0);
 
     mock->bump = 5.0f;
     ams.sync_from_backend();
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(10);
-    CHECK(subject_str("ams_env_overlay_temp_text").rfind("35", 0) == 0);
+    CHECK(subject_str("ams_env_overlay_temp_text").rfind(std::to_string(25 + kPast), 0) == 0);
 
     NavigationManager::instance().go_back();
     helix::ui::UpdateQueue::instance().drain();
