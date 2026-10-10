@@ -5,7 +5,7 @@ add home-panel tiles, overlays and settings without compiling anything: an autho
 text editor and the plugin folder, nothing else. This guide is the contract; every rule in
 it is enforced by code, cited so it can be verified against the source.
 
-Four complete plugins ship in the repository:
+Five complete plugins ship in the repository:
 
 - `examples/plugins/temp-spark` - a heater sparkline tile. No permissions.
 - `examples/plugins/led-effects` - an LED effect toggle. The `gcode` permission.
@@ -16,6 +16,10 @@ Four complete plugins ship in the repository:
   Discord, Telegram or a webhook. The `http` permission; the worked example
   for `helix.settings.set` as a control surface and for `i18n/` translation
   packs.
+- `examples/plugins/ambient-tile` - room temperature and humidity from Home
+  Assistant or any JSON endpoint. The `http` reading example: `http.get`
+  against untrusted JSON, pointer resolution, a poll cadence, and a canvas
+  sparkline from a plugin-side window.
 
 ## 1. What a plugin is
 
@@ -728,6 +732,7 @@ Where strings resolve:
   through `t()` at send time.
 
 `print-watcher` is the worked example: its `i18n/de.xml` carries only the
-strings the app catalog does not already say.
+strings the app catalog does not already say. `ambient-tile` ships one too,
+including a `%d` format specifier its German entry preserves in place.
 
 

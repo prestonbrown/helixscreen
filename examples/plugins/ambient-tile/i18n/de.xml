@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<translations languages="de">
+  <!-- Manifest fields -->
+  <translation tag="Ambient" de="Umgebung"/>
+  <translation tag="Room temperature and humidity from Home Assistant or any JSON endpoint, as an adaptive home tile with a recent-history overlay."
+               de="Raumtemperatur und Luftfeuchtigkeit von Home Assistant oder einem beliebigen JSON-Endpunkt, als anpassbare Startkachel mit Verlaufsansicht."/>
+  <translation tag="Room conditions; adds a history sparkline as the tile grows"
+               de="Raumklima; wächst die Kachel, erscheint eine Verlaufskurve"/>
+  <translation tag="Source" de="Quelle"/>
+  <translation tag="Home Assistant URL" de="Home-Assistant-URL"/>
+  <translation tag="Access token" de="Zugriffstoken"/>
+  <translation tag="Temperature entity" de="Temperatur-Entität"/>
+  <translation tag="Humidity entity" de="Feuchtigkeits-Entität"/>
+  <translation tag="Temperature JSON pointer" de="JSON-Pfad der Temperatur"/>
+  <translation tag="Humidity JSON pointer" de="JSON-Pfad der Luftfeuchtigkeit"/>
+  <translation tag="Poll interval (s)" de="Abfrageintervall (s)"/>
+  <!-- Tile and overlay -->
+  <translation tag="Room" de="Raum"/>
+  <translation tag="Temperature" de="Temperatur"/>
+  <translation tag="Humidity" de="Luftfeuchtigkeit"/>
+  <translation tag="Last hour" de="Letzte Stunde"/>
+  <!-- Age line -->
+  <translation tag="Never" de="Nie"/>
+  <translation tag="Updated just now" de="Soeben aktualisiert"/>
+  <translation tag="Updated 1m ago" de="Vor 1 Min. aktualisiert"/>
+  <translation tag="Updated %dm ago" de="Vor %d Min. aktualisiert"/>
+  <!-- Status and source line -->
+  <translation tag="not configured" de="nicht konfiguriert"/>
+  <translation tag="bad data" de="fehlerhafte Daten"/>
+  <translation tag="(not set)" de="(nicht gesetzt)"/>
+</translations>

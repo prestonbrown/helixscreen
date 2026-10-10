@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<component>
+  <!-- Home tile. Narrow tiles stack the two readings; wide ones put them side
+       by side. Two rows add the history sparkline and an updated-age line.
+       The header needs the height a one-row micro tier does not have. -->
+  <view extends="lv_obj"
+        width="100%" height="100%" clickable="true" style_pad_all="#space_sm" style_pad_gap="#space_xs"
+        flex_flow="column" scrollable="false">
+    <event_cb trigger="clicked" callback="plugin_event" user_data="ambient-tile__open"/>
+    <lv_obj name="ambient-tile__header"
+            width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xxs"
+            style_flex_cross_place="center" scrollable="false" style_bg_opa="0" style_border_width="0">
+      <bind_flag_if_eq subject="ambient-tile__header_on" flag="hidden" ref_value="0"/>
+      <icon name="ambient-tile__glyph" src="home_thermometer" size="sm" variant="secondary"/>
+      <text_small name="ambient-tile__title" text="Room" translation_tag="Room"/>
+    </lv_obj>
+    <lv_obj name="ambient-tile__readings_row"
+            width="100%" flex_grow="1" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
+            style_flex_main_place="space_around" style_flex_cross_place="center" style_flex_track_place="center"
+            scrollable="false" style_bg_opa="0" style_border_width="0">
+      <bind_flag_if_eq subject="ambient-tile__compact" flag="hidden" ref_value="1"/>
+      <lv_obj name="ambient-tile__temp_col"
+              flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
+              style_flex_cross_place="center" style_flex_track_place="center" scrollable="false" style_bg_opa="0"
+              style_border_width="0">
+        <icon name="ambient-tile__temp_glyph" src="thermometer" size="sm" variant="secondary"/>
+        <lv_label name="ambient-tile__temp_row"
+                  width="100%" style_text_align="center" bind_text="ambient-tile__temp_text"
+                  style_text_font="#font_body_bold" style_text_color="#text"/>
+      </lv_obj>
+      <lv_obj name="ambient-tile__rh_col"
+              flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
+              style_flex_cross_place="center" style_flex_track_place="center" scrollable="false" style_bg_opa="0"
+              style_border_width="0">
+        <icon name="ambient-tile__rh_glyph" src="water" size="sm" variant="secondary"/>
+        <lv_label name="ambient-tile__rh_row"
+                  width="100%" style_text_align="center" bind_text="ambient-tile__rh_text"
+                  style_text_font="#font_body_bold" style_text_color="#text"/>
+      </lv_obj>
+    </lv_obj>
+    <lv_obj name="ambient-tile__readings_col"
+            width="100%" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
+            style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
+            scrollable="false" style_bg_opa="0" style_border_width="0">
+      <bind_flag_if_eq subject="ambient-tile__compact" flag="hidden" ref_value="0"/>
+      <lv_label name="ambient-tile__temp"
+                width="100%" style_text_align="center" bind_text="ambient-tile__temp_text"
+                style_text_font="#font_body_bold" style_text_color="#text"/>
+      <lv_label name="ambient-tile__rh"
+                width="100%" style_text_align="center" bind_text="ambient-tile__rh_text" style_text_font="#font_body"
+                style_text_color="#text"/>
+    </lv_obj>
+    <lv_obj name="ambient-tile__spark_zone"
+            width="100%" flex_grow="1" scrollable="false" style_pad_all="0" style_bg_opa="0" style_border_width="0">
+      <bind_flag_if_eq subject="ambient-tile__spark_on" flag="hidden" ref_value="0"/>
+      <plugin_canvas name="ambient-tile__spark" width="100%" height="100%"/>
+    </lv_obj>
+    <text_xs name="ambient-tile__age" width="100%" bind_text="ambient-tile__age_text" style_text_color="#text_muted">
+      <bind_flag_if_eq subject="ambient-tile__age_on" flag="hidden" ref_value="0"/>
+    </text_xs>
+  </view>
+</component>

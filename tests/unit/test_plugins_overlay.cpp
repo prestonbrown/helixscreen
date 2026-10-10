@@ -116,7 +116,7 @@ TEST_CASE("one row per discovered plugin, status and reason in the description",
     fx.open();
     lv_obj_t* rows = lv_obj_find_by_name(fx.root, "plugins_rows");
     REQUIRE(rows != nullptr);
-    CHECK(lv_obj_get_child_count(rows) == 10); // require-test has no manifest
+    CHECK(lv_obj_get_child_count(rows) == 11); // require-test has no manifest
     CHECK(fx.row("require-test") == nullptr);
     CHECK(fx.label_text(fx.row("hello")) == "Hello");
     CHECK(fx.desc_text(fx.row("hello")).find("disabled") != std::string::npos);

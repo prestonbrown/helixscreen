@@ -1,0 +1,31 @@
+{
+  "id": "ambient-tile",
+  "name": "Ambient",
+  "version": "0.1.0",
+  "author": "HelixScreen",
+  "description": "Room temperature and humidity from Home Assistant or any JSON endpoint, as an adaptive home tile with a recent-history overlay.",
+  "permissions": ["http"],
+  "widgets": [
+    {
+      "id": "ambient-tile__tile",
+      "name": "Room",
+      "icon": "home_thermometer",
+      "description": "Room conditions; adds a history sparkline as the tile grows",
+      "component": "ambient-tile__tile",
+      "colspan": 1,
+      "rowspan": 1,
+      "max_colspan": 4,
+      "max_rowspan": 2
+    }
+  ],
+  "settings": [
+    { "key": "source", "type": "enum", "label": "Source", "options": ["Home Assistant", "JSON endpoint"], "default": "Home Assistant" },
+    { "key": "url", "type": "string", "label": "Home Assistant URL", "default": "" },
+    { "key": "token", "type": "string", "label": "Access token", "default": "" },
+    { "key": "temp_entity", "type": "string", "label": "Temperature entity", "default": "" },
+    { "key": "humidity_entity", "type": "string", "label": "Humidity entity", "default": "" },
+    { "key": "temp_pointer", "type": "string", "label": "Temperature JSON pointer", "default": "" },
+    { "key": "humidity_pointer", "type": "string", "label": "Humidity JSON pointer", "default": "" },
+    { "key": "poll_s", "type": "int", "label": "Poll interval (s)", "min": 10, "max": 600, "default": 60 }
+  ]
+}
