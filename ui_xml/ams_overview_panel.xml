@@ -109,7 +109,7 @@
                    scrollable="false">
             <lv_obj name="detail_slot_area" width="100%" height="content" style_pad_all="0" scrollable="false">
               <!-- Shared spool grid + tray + labels component -->
-              <ams_unit_detail name="detail_unit_detail"/>
+              <ams_unit_detail name="detail_unit_detail" env_chip_min_width="#ams_env_chip_min_w"/>
             </lv_obj>
           </ui_card>
           <!-- Path canvas: filament routing from the unit's slots through the hub to the nozzle.

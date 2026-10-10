@@ -948,13 +948,7 @@ void AmsOverviewPanel::sync_pages(bool reopen, int focus_unit) {
     for (const auto& p : pages)
         units.push_back(unit_key(info.units[p.unit_index]));
 
-    int target = -1;
-    if (focus_unit >= 0) {
-        for (size_t i = 0; i < pages.size(); ++i) {
-            if (pages[i].unit_index == focus_unit)
-                target = static_cast<int>(i);
-        }
-    }
+    int target = focus_unit >= 0 ? helix::ui::page_of_unit(pages, focus_unit) : -1;
     if (target < 0 && reopen) {
         target = helix::ui::initial_unit_page(pages, info);
     } else if (target < 0) {

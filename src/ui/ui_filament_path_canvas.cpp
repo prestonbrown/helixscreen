@@ -1012,6 +1012,7 @@ void ui_filament_path_canvas_set_bypass_has_spool(lv_obj_t* obj, bool has_spool)
     layered_mark_dirty(obj);
 }
 
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
 void ui_filament_path_canvas_set_offpage_units(lv_obj_t* obj, int before, bool before_drying,
                                                int after, bool after_drying) {
     auto* data = get_data(obj);
@@ -1032,6 +1033,7 @@ void ui_filament_path_canvas_set_offpage_units(lv_obj_t* obj, int before, bool b
     layered_mark_dirty(obj);
 }
 
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
 void ui_filament_path_canvas_set_fixed_hub(lv_obj_t* obj, int lanes, int32_t lane_pitch) {
     auto* data = get_data(obj);
     lanes = LV_CLAMP(lanes, 0, FilamentPathData::MAX_SLOTS);
@@ -1043,6 +1045,7 @@ void ui_filament_path_canvas_set_fixed_hub(lv_obj_t* obj, int lanes, int32_t lan
     layered_mark_dirty(obj);
 }
 
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
 void ui_filament_path_canvas_set_edge_reserve(lv_obj_t* obj, int32_t px, int32_t y_top,
                                               int32_t y_bottom) {
     auto* data = get_data(obj);
@@ -1056,6 +1059,7 @@ void ui_filament_path_canvas_set_edge_reserve(lv_obj_t* obj, int32_t px, int32_t
     layered_mark_dirty(obj);
 }
 
+// NAMESPACE_OK: the widget's C getter API, beside its siblings
 bool ui_filament_path_canvas_get_hub_box(lv_obj_t* obj, lv_area_t* area_out) {
     auto* data = get_data(obj);
     if (!data || !area_out)

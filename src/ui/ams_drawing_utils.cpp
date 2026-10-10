@@ -700,8 +700,8 @@ ToolBadgeLabels compute_tool_badge_labels(const SystemToolLayout& layout,
         }
     }
 
-    // With several toolheads, one fed by a named hub (OpenAMS lane) is badged by
-    // its position: the lane's filament groups are not toolheads.
+    // With several toolheads, a toolhead fed by a hub shared across units (identified
+    // by its hub id) is badged by its position: the hub's filament groups are not toolheads.
     if (layout.total_physical_tools > 1) {
         for (const auto& group : layout.hub_groups) {
             if (!group.hub_id.empty() && group.physical_tool >= 0 &&

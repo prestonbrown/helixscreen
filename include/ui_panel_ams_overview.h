@@ -232,11 +232,11 @@ class AmsOverviewPanel : public PanelBase {
     void on_state_changed(const char* tag);
 
     // === Unit view helpers ===
-    /// Rebuild the pages from the backend. @p reopen lays the screen out afresh;
-    /// @p focus_unit (a position in AmsSystemInfo::units) picks that unit's page, otherwise
-    /// the unit on screen stays on screen while it still has a page, and the page number is
-    /// clamped when it does not. Re-targets the screen only when the page set or the shown
-    /// page changed; every call refreshes what is drawn.
+    /// Rebuild the pages from the backend and show the chosen one. @p reopen lays the screen
+    /// out afresh; @p focus_unit (a position in AmsSystemInfo::units) picks that unit's page,
+    /// otherwise the unit on screen stays on screen while it still has a page, and the page
+    /// number is clamped when it does not. Every call repoints the screen at the chosen page
+    /// through show_current_page() and redraws it.
     void sync_pages(bool reopen, int focus_unit = -1);
     /// Point the screen at pages_[page_]: header, spool box, path canvas, viewed unit.
     /// @p relayout rebuilds the spool box even when the unit and its slot count are unchanged.
