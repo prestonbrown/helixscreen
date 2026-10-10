@@ -11,6 +11,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/buffer_infos.h"
+#include "../test_helpers/ui_buffer_slider_test_access.h"
 #include "ams_state.h"
 #include "buffer_reading.h"
 
@@ -21,6 +22,7 @@
 using namespace helix;
 using helix::ui::ClogMeterStatus;
 using helix::ui::UiBufferSlider;
+using helix::ui::UiBufferSliderTestAccess;
 
 namespace {
 lv_obj_t* box(lv_obj_t* parent, int w, int h) {
@@ -115,14 +117,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "UiBufferSlider paints a fill reading as the f
     CHECK(slider.value_pct() == 60);
     CHECK(slider.target_pct() == 50);
     paint(test_screen());
-    REQUIRE(slider.has_painted());
-    CHECK(slider.painted_gauge() == BufferGauge::Fill);
+    REQUIRE(UiBufferSliderTestAccess::has_painted(slider));
+    CHECK(UiBufferSliderTestAccess::painted_gauge(slider) == BufferGauge::Fill);
 
     SECTION("a bias reading paints the slider again") {
         slider.set_reading(bias(-0.4f, ClogMeterStatus::Warning));
         CHECK(slider.gauge() == BufferGauge::Bias);
         paint(test_screen());
-        CHECK(slider.painted_gauge() == BufferGauge::Bias);
+        CHECK(UiBufferSliderTestAccess::painted_gauge(slider) == BufferGauge::Bias);
         CHECK(slider.bias() == Catch::Approx(-0.4f));
     }
 }
@@ -135,8 +137,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(slider.gauge() == BufferGauge::Bias);
     CHECK(slider.bias() == Catch::Approx(-0.36f));
     paint(test_screen());
-    REQUIRE(slider.has_painted());
-    CHECK(slider.painted_gauge() == BufferGauge::Bias);
+    REQUIRE(UiBufferSliderTestAccess::has_painted(slider));
+    CHECK(UiBufferSliderTestAccess::painted_gauge(slider) == BufferGauge::Bias);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "UiBufferSlider follows a system-level fill reading",

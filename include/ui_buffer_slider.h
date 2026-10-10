@@ -54,14 +54,6 @@ class UiBufferSlider {
     [[nodiscard]] int target_pct() const {
         return target_pct_;
     }
-    /// Whether the slider object has been painted, and the gauge its last
-    /// paint drew.
-    [[nodiscard]] bool has_painted() const {
-        return painted_;
-    }
-    [[nodiscard]] BufferGauge painted_gauge() const {
-        return painted_gauge_;
-    }
     [[nodiscard]] float bias() const {
         return bias_;
     }
@@ -83,6 +75,8 @@ class UiBufferSlider {
     }
 
   private:
+    friend class UiBufferSliderTestAccess;
+
     static void on_draw(lv_event_t* e);
     static void on_deleted(lv_event_t* e);
     static void on_trace_timer(lv_timer_t* timer);
@@ -106,8 +100,9 @@ class UiBufferSlider {
     BufferGauge gauge_ = BufferGauge::Bias;
     int value_pct_ = 0;
     int target_pct_ = -1;
+    // Written by the painters, read only by UiBufferSliderTestAccess.
     mutable bool painted_ = false;
-    mutable BufferGauge painted_gauge_ = BufferGauge::Bias; ///< set by the painter that ran
+    mutable BufferGauge painted_gauge_ = BufferGauge::Bias;
     float bias_ = 0.0f;
     ClogMeterStatus status_ = ClogMeterStatus::Ok;
 };
