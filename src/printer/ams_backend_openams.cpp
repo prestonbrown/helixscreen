@@ -298,6 +298,9 @@ void AmsBackendOpenAms::present_nothing_locked() {
     system_info_.units.clear();
     system_info_.total_slots = 0;
     system_info_.tool_to_slot_map.clear();
+    system_info_.endless_spool_group_ids.clear();
+    system_info_.endless_spool_groups_reported = false;
+    system_info_.endless_spool_enabled = false;
     system_info_.current_slot = -1;
     system_info_.current_tool = -1;
     system_info_.filament_loaded = false;
@@ -433,7 +436,6 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
         if (group.name.empty()) {
             continue;
         }
-        const int tool = tool_from_group(group.name);
         for (const auto& member : array_member(group_json, "slots")) {
             if (!member.is_number_integer()) {
                 continue;
@@ -444,9 +446,6 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
             }
             group.slots.push_back(global->second);
             next_slot_groups[static_cast<std::size_t>(global->second)] = group.name;
-            if (SlotInfo* slot = next.get_slot_global(global->second)) {
-                slot->mapped_tool = tool;
-            }
         }
         next_groups.push_back(std::move(group));
     }
@@ -659,33 +658,48 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
                     ? PathTopology::MIXED
                     : (topologies.empty() ? PathTopology::HUB : *topologies.begin());
 
-    // A T<n> group names the slots that can serve tool n. The one the map
-    // shows is the slot that would serve it now.
+    // A T<n> group names the slots that can serve tool n. Exactly one of them
+    // serves it now and carries the tool. The others are its runout backups and
+    // carry none, so a Load on a backup dispatches that exact slot, not a tool
+    // change that would load the serving slot instead.
     for (const auto& group : groups_) {
         const int tool = tool_from_group(group.name);
         if (tool < 0 || group.slots.empty()) {
             continue;
         }
-        int chosen = group.slots.front();
-        for (int slot : group.slots) {
-            if (current_slots.count(slot) != 0) {
-                chosen = slot;
-                break;
-            }
-        }
-        if (current_slots.count(chosen) == 0) {
-            for (int slot : group.slots) {
-                const SlotInfo* info = next.get_slot_global(slot);
-                if (info && info->status == SlotStatus::AVAILABLE) {
-                    chosen = slot;
-                    break;
-                }
-            }
-        }
+        const int serving = serving_slot_locked(group, next);
         if (tool >= static_cast<int>(next.tool_to_slot_map.size())) {
             next.tool_to_slot_map.resize(static_cast<std::size_t>(tool) + 1, -1);
         }
-        next.tool_to_slot_map[static_cast<std::size_t>(tool)] = chosen;
+        next.tool_to_slot_map[static_cast<std::size_t>(tool)] = serving;
+        for (int member : group.slots) {
+            if (SlotInfo* slot = next.get_slot_global(member)) {
+                slot->mapped_tool = member == serving ? tool : -1;
+            }
+        }
+    }
+
+    // A group of two or more slots is OpenAMS's runout backup, which the app
+    // calls endless spool. The firmware config defines these groups, so they
+    // are reported read-only. Held back until the manager is ready, so until
+    // then the endless-spool defaults stand.
+    if (manager_ready_) {
+        std::vector<int> endless_ids(static_cast<std::size_t>(next.total_slots), -1);
+        int endless_ordinal = 0;
+        for (const auto& group : groups_) {
+            if (group.slots.size() < 2) {
+                continue;
+            }
+            for (int member : group.slots) {
+                if (member >= 0 && member < next.total_slots) {
+                    endless_ids[static_cast<std::size_t>(member)] = endless_ordinal;
+                }
+            }
+            ++endless_ordinal;
+        }
+        next.endless_spool_group_ids = std::move(endless_ids);
+        next.endless_spool_groups_reported = true;
+        next.endless_spool_enabled = endless_ordinal > 0;
     }
 
     // OpenAMS reads nothing off a spool, so every insert is one the hardware
@@ -853,6 +867,25 @@ std::string AmsBackendOpenAms::command_locked(const char* action) const {
 bool AmsBackendOpenAms::slot_loadable_locked(int slot_index) const {
     const SlotInfo* slot = system_info_.get_slot_global(slot_index);
     return slot && (slot->status == SlotStatus::AVAILABLE || slot->status == SlotStatus::LOADED);
+}
+
+int AmsBackendOpenAms::serving_slot_locked(const Group& group, const AmsSystemInfo& info) const {
+    // The loaded member first, so a tool change to the active tool stays on its
+    // spool; otherwise the first member with a spool ready to feed.
+    for (int member : group.slots) {
+        const SlotInfo* slot = info.get_slot_global(member);
+        if (slot && slot->status == SlotStatus::LOADED) {
+            return member;
+        }
+    }
+    for (int member : group.slots) {
+        const SlotInfo* slot = info.get_slot_global(member);
+        if (slot && slot->status == SlotStatus::AVAILABLE) {
+            return member;
+        }
+    }
+    // Nothing can feed: the first member names the slot a refusal reports.
+    return group.slots.empty() ? -1 : group.slots.front();
 }
 
 int AmsBackendOpenAms::loaded_lane_count_locked() const {
@@ -1092,24 +1125,8 @@ AmsError AmsBackendOpenAms::do_change_tool(int tool_number) {
         if (tool_number < 0 || group == groups_.end() || group->slots.empty()) {
             return AmsErrorHelper::tool_out_of_range(tool_number);
         }
-        // The loaded member first, so a tool change to the active tool stays
-        // on its spool; otherwise the first member with a spool ready to feed.
-        for (int member : group->slots) {
-            const SlotInfo* info = system_info_.get_slot_global(member);
-            if (info && info->status == SlotStatus::LOADED) {
-                slot = member;
-                break;
-            }
-        }
-        if (slot < 0) {
-            for (int member : group->slots) {
-                if (slot_loadable_locked(member)) {
-                    slot = member;
-                    break;
-                }
-            }
-        }
-        if (slot < 0) {
+        slot = serving_slot_locked(*group, system_info_);
+        if (!slot_loadable_locked(slot)) {
             return AmsErrorHelper::slot_not_available(lane_noun(), group->slots.front());
         }
         if (AmsError ready = load_gcode_locked(slot, gcode); !ready.success()) {
@@ -1397,6 +1414,26 @@ AmsError AmsBackendOpenAms::set_tool_mapping_impl(int tool_number, int slot_inde
 std::vector<int> AmsBackendOpenAms::get_tool_mapping() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return system_info_.tool_to_slot_map;
+}
+
+helix::printer::EndlessSpoolCapabilities AmsBackendOpenAms::get_endless_spool_capabilities() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    using namespace helix::printer;
+    // No groups reported yet (manager not ready, or API unsupported): the
+    // base defaults, Unsupported and nothing enabled.
+    if (!system_info_.endless_spool_groups_reported) {
+        return {};
+    }
+    return {.availability = EndlessSpoolAvailability::Available,
+            .enabled = system_info_.endless_spool_enabled ? EndlessSpoolEnabled::On
+                                                          : EndlessSpoolEnabled::Off,
+            .editability = EndlessSpoolEditability::ReadOnly,
+            .restriction = EndlessSpoolRestriction::FirmwareManaged};
+}
+
+helix::printer::EndlessSpoolConfig AmsBackendOpenAms::get_endless_spool_config() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return helix::printer::endless_spool_config_from_groups(system_info_.endless_spool_group_ids);
 }
 
 AmsError AmsBackendOpenAms::enable_bypass() {

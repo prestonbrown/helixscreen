@@ -107,6 +107,14 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
         return true;
     }
 
+    /// Every `groups[]` entry that lists two or more slots is an endless-spool
+    /// group: when the slot feeding it runs out, OpenAMS continues with another
+    /// member. The firmware config defines the groups, so the answer is
+    /// read-only.
+    [[nodiscard]] helix::printer::EndlessSpoolCapabilities
+    get_endless_spool_capabilities() const override;
+    [[nodiscard]] helix::printer::EndlessSpoolConfig get_endless_spool_config() const override;
+
     /// Each unit's own temperature and humidity ride AmsUnit::environment; the
     /// dryer is the unit's own heater (openams only: klipper_openams publishes no
     /// `devices`, so neither exists there). A unit offers it when it reports the
@@ -227,6 +235,10 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     /// sees one operation.
     [[nodiscard]] AmsError load_gcode_locked(int slot_index, std::string& gcode) const;
     [[nodiscard]] bool slot_loadable_locked(int slot_index) const;
+    /// The slot that serves @p group in @p info: its loaded member, else its
+    /// first member with a spool ready, else its first member. The tool map and
+    /// the tool change both read it, so they always name the same slot.
+    [[nodiscard]] int serving_slot_locked(const Group& group, const AmsSystemInfo& info) const;
     [[nodiscard]] int loaded_lane_count_locked() const;
     /// The lane id the unload command names for @p slot_index, or empty when
     /// that slot is not the one loaded on any lane.

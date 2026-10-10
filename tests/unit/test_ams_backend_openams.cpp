@@ -12,6 +12,8 @@
 #include "ams_error.h"
 #include "ams_types.h"
 #include "buffer_reading.h"
+#include "filament_op_dispatch.h"
+#include "filament_op_execute.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lvgl_ui_test_fixture.h"
@@ -1626,4 +1628,149 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS fleet mock publishes twelve units on
 
     // A group per bay: T0..T44.
     CHECK(backend.get_tool_mapping().size() == 45);
+}
+
+// ============================================================================
+// Tool serving slot, endless spool, and backup-slot dispatch
+// ============================================================================
+
+namespace {
+
+/// One `groups[]` entry on lane fps, with its member slots.
+json tool_group(const std::string& name, const json& slots) {
+    return json{{"name", name}, {"lane", "fps"}, {"slots", slots}};
+}
+
+/// manager() with slots 1 and 2 forming T0 (a runout backup pair), slot 3 as
+/// T1 and slot 0 as the single-slot T2. Slot 0 is empty, so slot 1 serves T0.
+json backup_pair_manager() {
+    json m = manager();
+    m["groups"] =
+        json::array({tool_group("T0", json::array({1, 2})), tool_group("T1", json::array({3})),
+                     tool_group("T2", json::array({0}))});
+    return m;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS maps a tool to the one slot serving it",
+                 "[ams][openams][mapping]") {
+    OpenAmsHarness backend;
+
+    SECTION("the first ready member serves; its backup carries no tool") {
+        backend.feed(backup_pair_manager());
+        const auto info = backend.get_system_info();
+        CHECK(info.units[0].slots[1].mapped_tool == 0);
+        CHECK(info.units[0].slots[2].mapped_tool == -1);
+        CHECK(backend.get_tool_mapping()[0] == 1);
+    }
+
+    SECTION("when the serving slot is empty, the backup takes the tool") {
+        json m = backup_pair_manager();
+        m["units"][0]["slots"][1]["ready"] = false;
+        backend.feed(m);
+        const auto info = backend.get_system_info();
+        CHECK(info.units[0].slots[1].mapped_tool == -1);
+        CHECK(info.units[0].slots[2].mapped_tool == 0);
+        CHECK(backend.get_tool_mapping()[0] == 2);
+    }
+
+    SECTION("a loaded backup serves the tool over a ready member") {
+        json m = backup_pair_manager();
+        m["lanes"] = json::array({lane("loaded", "T0", 2)});
+        m["units"][0]["slots"][2]["loaded"] = true;
+        backend.feed(m);
+        const auto info = backend.get_system_info();
+        CHECK(info.units[0].slots[2].mapped_tool == 0);
+        CHECK(info.units[0].slots[1].mapped_tool == -1);
+        CHECK(backend.get_tool_mapping()[0] == 2);
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS reports a runout-backup group as endless spool",
+                 "[ams][openams][endless]") {
+    OpenAmsHarness backend;
+
+    SECTION("nothing is reported before a ready manager") {
+        const auto caps = backend.get_endless_spool_capabilities();
+        CHECK_FALSE(caps.available());
+        CHECK(backend.get_endless_spool_config().empty());
+    }
+
+    SECTION("a two-slot group is one read-only, enabled group") {
+        backend.feed(backup_pair_manager());
+        const auto caps = backend.get_endless_spool_capabilities();
+        CHECK(caps.available());
+        CHECK_FALSE(caps.editable());
+        CHECK(caps.enabled == helix::printer::EndlessSpoolEnabled::On);
+        CHECK(caps.restriction == helix::printer::EndlessSpoolRestriction::FirmwareManaged);
+
+        const auto config = backend.get_endless_spool_config();
+        REQUIRE(config.groups.size() == 1);
+        CHECK(config.groups[0].members == std::vector<int>{1, 2});
+    }
+
+    SECTION("single-slot groups back nothing up, so the setting is off") {
+        json m = manager();
+        m["groups"] =
+            json::array({tool_group("T0", json::array({0})), tool_group("T1", json::array({2})),
+                         tool_group("T2", json::array({3}))});
+        backend.feed(m);
+        const auto caps = backend.get_endless_spool_capabilities();
+        CHECK(caps.available());
+        CHECK(caps.enabled == helix::printer::EndlessSpoolEnabled::Off);
+        CHECK(backend.get_endless_spool_config().empty());
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS dispatches a backup slot as its own load",
+                 "[ams][openams][dispatch]") {
+    // Slot 0 is loaded on lane fps and slot 2 is its runout backup in T0.
+    json m = backup_pair_manager();
+    m["lanes"] = json::array({lane("loaded", "T0", 0)});
+    m["units"][0]["slots"][0]["ready"] = true;
+    m["units"][0]["slots"][0]["loaded"] = true;
+    m["groups"] =
+        json::array({tool_group("T0", json::array({0, 1, 2})), tool_group("T1", json::array({3}))});
+    OpenAmsHarness backend;
+    backend.feed(m);
+
+    helix::AmsSystemInfo info;
+    const helix::ui::BackendCaps caps = helix::ui::read_backend_caps(&backend, info, 2);
+    REQUIRE(info.units[0].slots[2].mapped_tool == -1);
+
+    const helix::ui::FilamentOpPlan plan = helix::ui::plan_load(info, caps, 2, false, false);
+    CHECK(plan.tier == helix::ui::FilamentTier::AmsBackend);
+    CHECK(plan.ams_call == helix::ui::AmsCall::Load);
+    CHECK(plan.ams_arg == 2);
+    CHECK(backend.needs_unload_before_load(info, 2));
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS tool change loads the slot serving the tool",
+                 "[ams][openams][commands]") {
+    SECTION("the ready serving slot, not the backup behind it") {
+        OpenAmsHarness backend;
+        backend.feed(backup_pair_manager());
+        REQUIRE(backend.change_tool(0).success());
+        CHECK(backend.operations == std::vector<std::string>{"OPENAMS_LOAD GROUP=T0 SLOT=1"});
+    }
+
+    SECTION("the backup when the serving slot is empty") {
+        OpenAmsHarness backend;
+        json m = backup_pair_manager();
+        m["units"][0]["slots"][1]["ready"] = false;
+        backend.feed(m);
+        REQUIRE(backend.change_tool(0).success());
+        CHECK(backend.operations == std::vector<std::string>{"OPENAMS_LOAD GROUP=T0 SLOT=2"});
+    }
+
+    SECTION("a loaded backup keeps serving the tool") {
+        OpenAmsHarness backend;
+        json m = backup_pair_manager();
+        m["lanes"] = json::array({lane("loaded", "T0", 2)});
+        m["units"][0]["slots"][2]["loaded"] = true;
+        backend.feed(m);
+        REQUIRE(backend.change_tool(0).success());
+        CHECK(backend.operations == std::vector<std::string>{"OPENAMS_LOAD GROUP=T0 SLOT=2"});
+    }
 }
