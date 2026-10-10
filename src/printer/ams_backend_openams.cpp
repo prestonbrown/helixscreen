@@ -231,12 +231,22 @@ void AmsBackendOpenAms::refresh_lane_records() {
 void AmsBackendOpenAms::apply_lane_records(
     int backend_block, const std::unordered_map<int, helix::ams::LaneDataRecord>& records) {
     for (const auto& [slot_index, entry] : records) {
+        const helix::ams::LaneId lane = helix::ams::lane_id_for(backend_block, slot_index);
         helix::ams::LaneSources sources = helix::ams::sources_from_record(
             entry.record, entry.wire, helix::ams::LegacyLockKeys::LaneData);
-        // What a person set here stands: a re-read files what the namespace and
-        // the server say, never over an edit made in this app.
+        // A re-read never re-files a LocalUser statement out of our own record:
+        // that would forge an edit. A spool link openams_spoolman wrote after
+        // the last edit made here is the newer statement, and takes the user's
+        // rung over it.
         sources.local_user.reset();
-        helix::ams::file_lane_sources(helix::ams::lane_id_for(backend_block, slot_index), sources);
+        bool write_in_flight = false;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            write_in_flight = own_write_echoes_.standing(slot_index);
+        }
+        helix::ams::file_lane_sources(lane, sources);
+        helix::ams::file_outside_edit_if_newer(
+            lane, entry, helix::ams::declared_from_record(entry.record), write_in_flight);
     }
     int total = 0;
     {

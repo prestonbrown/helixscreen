@@ -4,6 +4,7 @@
 #include "ams_subscription_backend.h"
 
 #include "lane_echo.h"
+#include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "moonraker_error.h"
@@ -275,20 +276,7 @@ void AmsSubscriptionBackend::request_resync() {
                     // reading, not an edit, and keeps filing as
                     // remembered; anything else does too, below
                     // whatever a person said.
-                    if (!write_in_flight && !helix::ams::wire_authored_by_helix(entry.wire) &&
-                        !helix::ams::wire_authored_by_firmware(entry.wire) &&
-                        helix::ams::outside_edit_wins(entry.record,
-                                                      helix::ams::lane_sources(lane).local_user)) {
-                        obs.source = helix::ams::ObservationSource::LocalUser;
-                        // Weights are the meter's, and this rung
-                        // outranks it: a record filing as a
-                        // statement carries identity alone.
-                        obs.remaining_weight_g.reset();
-                        obs.total_weight_g.reset();
-                        if (entry.record.updated_at.time_since_epoch().count() > 0) {
-                            obs.edited_at = entry.record.updated_at;
-                        }
-                        helix::ams::commit_slot_edit(lane, obs);
+                    if (helix::ams::file_outside_edit_if_newer(lane, entry, obs, write_in_flight)) {
                         continue;
                     }
                     helix::ams::ingest(lane, obs);

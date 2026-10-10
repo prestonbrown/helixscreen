@@ -1167,6 +1167,45 @@ TEST_CASE_METHOD(LVGLUITestFixture, "OpenAMS shows a spool link written to lane_
     CHECK(info.material == "PETG");
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "OpenAMS lets a newer openams_spoolman link replace an older edit made here",
+                 "[ams][openams][filament_slot_override][late_links][1632]") {
+    TmpCacheDir tmp("late_links_outrank");
+    MockPrinter mock_printer;
+    auto& api = mock_printer.api;
+
+    helix::test::RegisteredBackend<OpenAmsHarness> backend_reg(&api, &mock_printer.client);
+    OpenAmsHarness& backend = *backend_reg;
+    backend.feed(shared_manager(0));
+    helix::OpenAmsTestAccess::start(backend);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Someone set slot 3 to red PLA on this screen in 2024.
+    const helix::ams::LaneId lane = helix::ams::lane_id_for(backend.backend_index(), 3);
+    helix::ams::Observation edit(helix::ams::ObservationSource::LocalUser);
+    edit.material = "PLA";
+    edit.color_rgb = 0xFF0000;
+    edit.edited_at = std::chrono::system_clock::time_point{} + std::chrono::hours(24 * 365 * 54);
+    helix::ams::commit_slot_edit(lane, edit);
+    REQUIRE(helix::ams::lane_sources(lane).local_user.has_value());
+
+    SECTION("an unstamped link written since wins") {
+        mock_printer.client.mock_db_set(
+            "lane_data", "lane4",
+            json{{"lane", "3"}, {"color", "#1F3A93"}, {"material", "PETG"}, {"spool_id", 41}});
+        mock_printer.client.dispatch_method_callback(
+            "notify_openams_spoolman_status",
+            json{{"method", "notify_openams_spoolman_status"}, {"params", json::array()}});
+        for (int i = 0; i < 4; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+        const auto info = backend.get_slot_info(3);
+        CHECK(info.spoolman_id == 41);
+        CHECK(info.material == "PETG");
+        CHECK(info.color_rgb == 0x1F3A93);
+    }
+}
+
 // ============================================================================
 // Unit faults
 // ============================================================================

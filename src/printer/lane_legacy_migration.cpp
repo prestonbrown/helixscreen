@@ -37,6 +37,23 @@ void file_kept_identity(LaneId lane, int slot_index, const FilamentSlotOverride&
     file_lane_sources(lane, reloads);
 }
 
+bool file_outside_edit_if_newer(LaneId lane, const LaneDataRecord& entry, Observation obs,
+                                bool write_in_flight) {
+    if (write_in_flight || wire_authored_by_helix(entry.wire) ||
+        wire_authored_by_firmware(entry.wire) ||
+        !outside_edit_wins(entry.record, lane_sources(lane).local_user)) {
+        return false;
+    }
+    obs.source = ObservationSource::LocalUser;
+    obs.remaining_weight_g.reset();
+    obs.total_weight_g.reset();
+    if (entry.record.updated_at.time_since_epoch().count() > 0) {
+        obs.edited_at = entry.record.updated_at;
+    }
+    commit_slot_edit(lane, obs);
+    return true;
+}
+
 int ingest_legacy_records(const FilamentSlotOverrideStore& store, LegacyLockKeys keys,
                           int backend_index) {
     int populated = 0;

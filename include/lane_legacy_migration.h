@@ -8,6 +8,7 @@
 namespace helix::ams {
 
 class FilamentSlotOverrideStore;
+struct LaneDataRecord;
 
 /// File every source @p sources holds onto @p lane, each through the funnel it
 /// is allowed to use: LocalUser through commit_slot_edit(), the rest through
@@ -28,6 +29,17 @@ bool file_lane_sources(LaneId lane, const LaneSources& sources);
 /// record right back up. Weights are measurements rather than identity, so the
 /// meter's own record is left standing.
 void file_kept_identity(LaneId lane, int slot_index, const FilamentSlotOverride& kept);
+
+/// File @p obs, read out of @p entry, on @p lane's user rung when @p entry is
+/// another tool's edit that is newer than the statement standing there
+/// (prestonbrown/helixscreen#1632). Returns true when it filed.
+///
+/// A record this application wrote, or one a firmware plugin wrote, is never
+/// an edit; and while @p write_in_flight our own unconfirmed write is newer
+/// than anything a stored record can say, so neither files here. Weights are
+/// the meter's and stay off this rung.
+bool file_outside_edit_if_newer(LaneId lane, const LaneDataRecord& entry, Observation obs,
+                                bool write_in_flight);
 
 /// Classify every lane_data record @p store's last load_blocking() parsed and
 /// file each onto its lane.
