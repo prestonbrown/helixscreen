@@ -387,8 +387,8 @@ Select the mock AMS topology/type.
 | `toolchanger` / `tc` | 1 | Tool Changer, PARALLEL topology. Alias: `tool_changer` |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
 | `multi` | 2 | Box Turtle (4 slots) + Night Owl (2 slots), single toolhead |
-| `torture` | **5** | **The only profile whose unit-card row overflows.** See below |
-| `stealth` | 5 | StealthChanger-style AFC toolchanger: ACE straight to T0-T3, three hub units on T4-T6 (two share T6), 7 toolheads close together. Exercises the overview's mini-hub row |
+| `torture` | **5** | **Its unit-card row overflows.** See below |
+| `stealth` | 5 | StealthChanger-style AFC toolchanger: ACE straight to T0-T3, four hub units on T4-T6 (two share T6), 7 toolheads close together. Exercises the overview's mini-hub row |
 | `vivid` | 3 | 2x Box Turtle + ViViD, 12 slots |
 | `ifs` | 1 | AD5X IFS, 4 slots, LINEAR. Aliases: `ad5x`, `ad5x_ifs` |
 | `htlf_toolchanger` | 2 | AFC HTLF + Toolchanger: 4 HTLF lanes (2 direct, 2 hub→shared extruder) + 3 standalone toolheads. Tests MIXED topology. Aliases: `htlf_tc`, `htlf` |
@@ -446,11 +446,11 @@ Klipper extruders:
 | Claymore HTLF_claymore_1 | lane11-14 | HUB | **e0** |
 
 Two pairs of HUB units share a nozzle, two lanes are unmapped, and the AFC tool
-aliases are neither dense nor unit-ordered (T0 and T10 are absent). Every other
-profile tops out at 3 units, and unit cards shrink to `#ams_card_min_width`, so
-in every other profile `unit_cards_row` measures `scroll.right == 0` even at
+aliases are neither dense nor unit-ordered (T0 and T10 are absent). Only
+`torture` and `stealth` have more than 3 units. In the profiles with 3 or fewer, unit cards
+shrink to `#ams_card_min_width`, so there `unit_cards_row` measures `scroll.right == 0` even at
 `-s tiny`. Anything that only misbehaves once that row can scroll is
-unreproducible without this profile.
+unreproducible without `torture`.
 
 ```bash
 HELIX_MOCK_AMS=torture ./build/bin/helix-screen --test -vv

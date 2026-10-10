@@ -3254,7 +3254,7 @@ constexpr AfcMockUnit kTortureUnits[] = {
 };
 
 // A StealthChanger-style AFC toolchanger: an ACE unit straight to T0-T3 and
-// three hub units on T4-T6, two of them sharing e6. The toolheads sit close
+// four hub units on T4-T6, two of them sharing e6. The toolheads sit close
 // together along the bottom row, so the hub boxes above them compete for width.
 constexpr AfcMockLane kStealthLanes[] = {
     {"lane1", "PLA", 0xE53935, "Red", SlotStatus::LOADED, 0, "extruder", 700.0f},

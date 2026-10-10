@@ -38,9 +38,6 @@ class UiBufferSlider {
     UiBufferSlider(const UiBufferSlider&) = delete;
     UiBufferSlider& operator=(const UiBufferSlider&) = delete;
 
-    /// Draw a Bias reading.
-    void set_reading(float bias, ClogMeterStatus status);
-
     /// Draw @p reading as its own gauge.
     void set_reading(const BufferReading& reading);
 

@@ -7,8 +7,8 @@
 # build's ./configure with WITH_OPENSSL on. Android has no OpenSSL headers, so
 # a main-target include path that reaches the source-tree copies compiles
 # libhv's OpenSSL backend and tls_trust.cpp's OpenSSL block and dies on
-# 'openssl/ssl.h'. The fix configures libhv from a staging directory under the
-# CMake binary dir; these checks pin that wiring.
+# 'openssl/ssl.h'. The Android build configures libhv from a staging directory
+# under the CMake binary dir; these checks pin that wiring.
 
 CMAKE="android/app/jni/CMakeLists.txt"
 

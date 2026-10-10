@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 project(HelixScreen)
 
 # Project root is three levels up from android/app/jni/

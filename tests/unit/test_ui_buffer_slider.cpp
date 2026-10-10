@@ -95,6 +95,16 @@ void paint(lv_obj_t* screen) {
 BufferReading pressure(float value, bool loaded = true) {
     return buffer_reading(test::fps_units({value}, 0.5f, -1, true, loaded), -1);
 }
+
+BufferReading bias(float value, ui::ClogMeterStatus status) {
+    BufferReading r;
+    r.source = BufferSource::Sync;
+    r.gauge = BufferGauge::Bias;
+    r.has_slider = true;
+    r.bias = value;
+    r.status = status;
+    return r;
+}
 } // namespace
 
 TEST_CASE_METHOD(LVGLTestFixture, "UiBufferSlider paints a fill reading as the fill gauge",
@@ -109,7 +119,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "UiBufferSlider paints a fill reading as the f
     CHECK(slider.painted_gauge() == BufferGauge::Fill);
 
     SECTION("a bias reading paints the slider again") {
-        slider.set_reading(-0.4f, ClogMeterStatus::Warning);
+        slider.set_reading(bias(-0.4f, ClogMeterStatus::Warning));
         CHECK(slider.gauge() == BufferGauge::Bias);
         paint(test_screen());
         CHECK(slider.painted_gauge() == BufferGauge::Bias);

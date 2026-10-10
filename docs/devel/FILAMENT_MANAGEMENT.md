@@ -1493,7 +1493,7 @@ with no history yet is a dotted baseline.
 
 | Surface | Content |
 |---|---|
-| **Filament Buffer** home widget (`filament_buffer`, `src/ui/panel_widgets/filament_buffer_widget.cpp`) | 1x1: the slider beside a big status-coloured number over its label. 2x1: the number with "target N%", the trace, then the label and the lean in words ("Running tight", "Running loose", "Balanced"). No set point: 1x1 keeps the number over the label, 2x1 says "Pressure: N%". Tap opens the modal. Padding is the `buffer_tile_pad` token, so the tile keeps its padding at 480x320 |
+| **Filament Buffer** home widget (`filament_buffer`, `src/ui/panel_widgets/filament_buffer_widget.cpp`) | 1x1: the slider beside a big status-coloured number over its label. 2x1: the number with "target N%", the trace, then the label and the lean in words ("Running tight", "Running loose", "Balanced"; a compression-only fill reads "At target", "Above target" or "Below target"). No set point: 1x1 keeps the number over the label, 2x1 says "Pressure: N%". Tap opens the modal. Padding is the `buffer_tile_pad` token, so the tile keeps its padding at 480x320 |
 | Loaded-spool card (`ams_loaded_card.xml`) | A small slider (`buffer_mini_h`, taller at larger breakpoints) with the short number; the FPS/Sync label hides below the medium breakpoint, as the clog arc's mode label does, so the material name keeps the width. The colour swatch narrows to `loaded_swatch_narrow_w` (14 px) below medium |
 | Path canvas buffer box (`ams_detail_buffer_box()`) | The existing labeled FPS/BUF box, tinted live by the color rule as the reading moves; a pressure with no set point is untinted. A fill reading passes no bias and tints only at a rail. Tap opens the modal on the buffer feeding the toolhead |
 | Buffer Status modal (`BufferStatusModal::show_for`, `buffer_status_modal.xml`) | The clog bar (hidden with no detector), then the tall slider with the reading, target and lean in words beside it, the trace and its caption ("last 60 s"), and the backend's own rows (Happy Hare spool motor, gear sync, flow; AFC state, distance to fault). Live while open; closes only with its X |
@@ -2629,7 +2629,7 @@ The seed dispatches `handle_status` from the main thread (inside an `UpdateQueue
 | Variable | Values | Default | Description |
 |----------|--------|---------|-------------|
 | `HELIX_AMS_GATES` | 1-16 | 4 | Number of simulated slots |
-| `HELIX_MOCK_AMS` | `afc`, `box_turtle`, `boxturtle`, `toolchanger`, `tool_changer`, `tc`, `mixed`, `multi`, `torture`, `vivid`, `ifs`, `ad5x`, `ad5x_ifs`, `htlf_toolchanger`, `htlf_tc`, `htlf`, `snapmaker`, `snapswap`, `u1` | Happy Hare | AMS type to simulate |
+| `HELIX_MOCK_AMS` | `afc`, `box_turtle`, `boxturtle`, `toolchanger`, `tool_changer`, `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `ad5x`, `ad5x_ifs`, `htlf_toolchanger`, `htlf_tc`, `htlf`, `snapmaker`, `snapswap`, `u1` | Happy Hare | AMS type to simulate |
 | `HELIX_MOCK_AMS_STATE` | `idle`, `loading`, `error`, `bypass`, `unaccounted`, `grade` | `idle` | Visual scenario to simulate |
 | `HELIX_MOCK_DRYER` | `1`, `true` | Disabled | Simulate integrated dryer |
 | `HELIX_MOCK_DRYER_SPEED` | Integer | 60 | Dryer speed multiplier (60 = 1 real sec = 1 sim min) |

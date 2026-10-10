@@ -107,15 +107,6 @@ UiBufferSlider::~UiBufferSlider() {
     }
 }
 
-void UiBufferSlider::set_reading(float bias, ClogMeterStatus status) {
-    gauge_ = BufferGauge::Bias;
-    bias_ = bias;
-    status_ = status;
-    value_pct_ = 0;
-    target_pct_ = -1;
-    invalidate();
-}
-
 void UiBufferSlider::set_reading(const BufferReading& reading) {
     gauge_ = reading.gauge;
     bias_ = reading.bias;
