@@ -3,6 +3,7 @@
 
 #include "ams_backend_mock.h"
 #include "ams_types.h"
+#include "display_numbering.h"
 #include "ui/ams_drawing_utils.h"
 
 #include "../catch_amalgamated.hpp"
@@ -1033,5 +1034,155 @@ TEST_CASE("SystemToolLayout: an absent unit feeds no nozzle and moves no other u
         INFO("unit " << g);
         CHECK(gap.units[g].first_physical_tool == plain.units[p].first_physical_tool);
         CHECK(gap.units[g].tool_count == plain.units[p].tool_count);
+    }
+}
+
+// ============================================================================
+// Hub groups: units whose lanes join one hub on the way to a toolhead
+// ============================================================================
+
+namespace {
+
+// A HUB unit of @p slots lanes on hub @p hub_id and extruder @p extruder, its lanes
+// carrying filament groups starting at @p first_group (groups are not toolheads).
+AmsUnit hub_unit(int index, int first_slot, int slots, const std::string& hub_id,
+                 const std::string& extruder, int first_group) {
+    AmsUnit unit;
+    unit.unit_index = index;
+    unit.slot_count = slots;
+    unit.first_slot_global_index = first_slot;
+    unit.topology = PathTopology::HUB;
+    unit.hub_id = hub_id;
+    for (int s = 0; s < slots; ++s) {
+        SlotInfo slot;
+        slot.slot_index = s;
+        slot.global_index = first_slot + s;
+        slot.mapped_tool = first_group + s;
+        slot.extruder_name = extruder;
+        unit.slots.push_back(slot);
+    }
+    return unit;
+}
+
+// Two lanes of two units each: fps (extruder) and fps2 (extruder1).
+AmsSystemInfo two_lane_system(const std::string& e0 = "extruder",
+                              const std::string& e1 = "extruder1") {
+    AmsSystemInfo info;
+    info.type = AmsType::OPENAMS;
+    info.units = {hub_unit(0, 0, 1, "fps", e0, 5), hub_unit(1, 1, 4, "fps", e0, 6),
+                  hub_unit(2, 5, 4, "fps2", e1, 41), hub_unit(3, 9, 4, "fps2", e1, 45)};
+    info.total_slots = 13;
+    return info;
+}
+
+} // namespace
+
+TEST_CASE("SystemToolLayout: units on one lane form one hub group, one per toolhead",
+          "[ams][tool_layout][hub_groups]") {
+    const auto layout = compute_system_tool_layout(two_lane_system(), nullptr);
+
+    CHECK(layout.total_physical_tools == 2);
+    REQUIRE(layout.hub_groups.size() == 2);
+    CHECK(layout.hub_groups[0].hub_id == "fps");
+    CHECK(layout.hub_groups[0].units == std::vector<int>{0, 1});
+    CHECK(layout.hub_groups[0].physical_tool == 0);
+    CHECK(layout.hub_groups[1].hub_id == "fps2");
+    CHECK(layout.hub_groups[1].units == std::vector<int>{2, 3});
+    CHECK(layout.hub_groups[1].physical_tool == 1);
+
+    CHECK(layout.units[0].hub_group == 0);
+    CHECK(layout.units[1].hub_group == 0);
+    CHECK(layout.units[2].hub_group == 1);
+    CHECK(layout.units[3].hub_group == 1);
+    CHECK(helix::ui::hub_groups_of_tool(layout, 0) == std::vector<int>{0});
+    CHECK(helix::ui::hub_groups_of_tool(layout, 1) == std::vector<int>{1});
+
+    // The canvas tag: 0 is a hub of one unit, a shared hub is its group + 1.
+    CHECK(helix::ui::overview_hub_group(layout, 0) == 1);
+    CHECK(helix::ui::overview_hub_group(layout, 3) == 2);
+    // Every unit of a hub reads the buffer of the hub's first unit.
+    CHECK(helix::ui::overview_buffer_unit(layout, 1) == 0);
+    CHECK(helix::ui::overview_buffer_unit(layout, 3) == 2);
+}
+
+TEST_CASE("SystemToolLayout: a unit with no hub_id is a hub of its own",
+          "[ams][tool_layout][hub_groups]") {
+    // Two units on one extruder and no hub_id: one toolhead, two hubs.
+    AmsSystemInfo info;
+    info.type = AmsType::AFC;
+    info.units = {hub_unit(0, 0, 4, "", "extruder", 0), hub_unit(1, 4, 4, "", "extruder", 4)};
+    info.total_slots = 8;
+    auto layout = compute_system_tool_layout(info, nullptr);
+
+    CHECK(layout.total_physical_tools == 1);
+    REQUIRE(layout.hub_groups.size() == 2);
+    CHECK(layout.hub_groups[0].units == std::vector<int>{0});
+    CHECK(layout.hub_groups[1].units == std::vector<int>{1});
+    CHECK(helix::ui::hub_groups_of_tool(layout, 0) == std::vector<int>{0, 1});
+    CHECK(helix::ui::overview_hub_group(layout, 0) == 0);
+    CHECK(helix::ui::overview_hub_group(layout, 1) == 0);
+    CHECK(helix::ui::overview_buffer_unit(layout, 1) == 1);
+
+    // A named hub on the same toolhead stays apart from them.
+    info.units.push_back(hub_unit(2, 8, 1, "fps", "extruder", 8));
+    info.total_slots = 9;
+    layout = compute_system_tool_layout(info, nullptr);
+    CHECK(layout.total_physical_tools == 1);
+    CHECK(layout.hub_groups.size() == 3);
+    CHECK(helix::ui::hub_groups_of_tool(layout, 0).size() == 3);
+}
+
+TEST_CASE("SystemToolLayout: absent and parallel units have no hub group",
+          "[ams][tool_layout][hub_groups]") {
+    AmsSystemInfo info = two_lane_system();
+    info.units[1].absent = true;
+    auto layout = compute_system_tool_layout(info, nullptr);
+    CHECK(layout.units[1].hub_group == -1);
+    CHECK(layout.hub_groups[0].units == std::vector<int>{0});
+    CHECK(helix::ui::overview_hub_group(layout, 1) == 0);
+    CHECK(helix::ui::overview_buffer_unit(layout, 1) == -1);
+
+    AmsSystemInfo parallel;
+    parallel.type = AmsType::TOOL_CHANGER;
+    AmsUnit unit = hub_unit(0, 0, 2, "", "", 0);
+    unit.topology = PathTopology::PARALLEL;
+    parallel.units = {unit};
+    parallel.total_slots = 2;
+    layout = compute_system_tool_layout(parallel, nullptr);
+    CHECK(layout.hub_groups.empty());
+    CHECK(layout.units[0].hub_group == -1);
+}
+
+TEST_CASE("Toolhead badges: several toolheads are named by extruder, never by a filament group",
+          "[ams][tool_layout][hub_groups]") {
+    SECTION("with the extruder identity each lane's toolhead is E<n>") {
+        const AmsSystemInfo info = two_lane_system();
+        const auto layout = compute_system_tool_layout(info, nullptr);
+        const auto badges = compute_tool_badge_labels(layout, info, -1, -1);
+        CHECK(badges.prefix == 'E');
+        CHECK(badges.numbers == std::vector<int>{helix::ui::lane_number(0), helix::ui::lane_number(1)});
+    }
+
+    SECTION("with none the toolhead is its position, not the lane's group") {
+        // The lanes carry filament groups 5 and 41, which are not toolheads.
+        const AmsSystemInfo info = two_lane_system("", "");
+        const auto layout = compute_system_tool_layout(info, nullptr);
+        REQUIRE(layout.total_physical_tools == 2);
+        const auto badges = compute_tool_badge_labels(layout, info, 5, 0);
+        CHECK(badges.prefix == 'T');
+        CHECK(badges.numbers ==
+              std::vector<int>{helix::ui::lane_number(0), helix::ui::lane_number(1)});
+    }
+
+    SECTION("one toolhead keeps the lane alias of the active slot") {
+        AmsSystemInfo info = two_lane_system("", "");
+        info.units.resize(2);
+        info.total_slots = 5;
+        const auto layout = compute_system_tool_layout(info, nullptr);
+        REQUIRE(layout.total_physical_tools == 1);
+        const auto badges = compute_tool_badge_labels(layout, info, 2, 0);
+        CHECK(badges.prefix == 'T');
+        REQUIRE(badges.numbers.size() == 1);
+        CHECK(badges.numbers[0] == info.get_slot_global(2)->mapped_tool);
     }
 }

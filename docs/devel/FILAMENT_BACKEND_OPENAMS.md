@@ -158,11 +158,13 @@ alone, as before.
 `units[].lane` is the unit's hub: units naming the same lane feed one hub, one FPS and one
 toolhead. The backend copies it to `AmsUnit::hub_id`, and `compute_system_tool_layout()`
 folds units with the same non-empty `hub_id` onto one nozzle, so the overview draws the
-single-toolhead layout: unit columns merging into one **Hub**, the lane's **FPS** box
-(`ui_system_path_canvas_set_fps()`) and one nozzle. Groups `T<n>` are filament groups and
-never toolheads. Units on different lanes keep separate toolheads. Only `units[].lane`,
-`groups[].lane` and `lanes[]` are read, so klipper_openams (which publishes nothing else)
-draws the same; the openams plugin's `lanes_by_fps`, `topology` and `devices` are not needed.
+overview model: unit columns merging into one **Hub**, the lane's **FPS** box
+(`ui_system_path_canvas_set_buffer()` / `set_unit_hub()`) and one toolhead per lane. Groups
+`T<n>` are filament groups and never toolheads. Units on different lanes are different hubs on
+different toolheads, so two lanes draw two chains. The openams plugin's `lanes_by_fps[<lane>].extruder`
+becomes each slot's `extruder_name`, so the toolhead is badged by its extruder; without it
+the badge is the toolhead's position. Only `units[].lane`, `groups[].lane` and `lanes[]` are
+needed for the drawing, so klipper_openams (which publishes nothing else) draws the same.
 
 The unit detail inside the overview is hub-only by design: it draws the slots down to the
 hub, and the trunk below (FPS, nozzle) is the overview's.
