@@ -140,15 +140,15 @@ class AmsState {
      *
      * Per-unit subjects (temperature, humidity, environment indicator) are
      * allocated statically, one set per unit, and registered under
-     * ams_unit_<i>_* / ams_env_ind_<i>_* names. Eight matches the widest rig the
-     * AMS system-path canvas draws, so every unit the path shows also has a
-     * badge to bind.
+     * ams_unit_<i>_* / ams_env_ind_<i>_* names. The cap is AMS_MAX_UNITS, the same
+     * constant that bounds the AMS system-path canvas, so every unit the path
+     * shows also has a badge to bind.
      *
      * A unit past the cap still gets a card; its environment indicator binds the
      * always-off placeholders below instead of names nothing registered — see
      * env_indicator_subject_names().
      */
-    static constexpr int MAX_UNITS = 8;
+    static constexpr int MAX_UNITS = AMS_MAX_UNITS;
 
     /// Always-0 int subject bound by unit cards past MAX_UNITS. Keeps the
     /// environment badge hidden rather than naming a subject that does not exist
